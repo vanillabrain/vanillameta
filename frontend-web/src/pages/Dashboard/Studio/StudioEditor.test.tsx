@@ -24,8 +24,14 @@ vi.mock('@mui/icons-material/AutoAwesomeOutlined', () => ({ default: () => <span
 vi.mock('@mui/icons-material/CloseOutlined', () => ({ default: () => <span /> }));
 vi.mock('@mui/icons-material/ArrowForwardOutlined', () => ({ default: () => <span /> }));
 vi.mock('@mui/material', async () => {
+  const { createRequire } = await import('node:module');
+  const { Checkbox, FormControlLabel, Radio, RadioGroup } = createRequire(import.meta.url)('@mui/material');
   const Container = ({ children }: any) => <div>{children}</div>;
   return {
+    Checkbox,
+    FormControlLabel,
+    Radio,
+    RadioGroup,
     Box: ({ children, className }: any) => <div className={className}>{children}</div>,
     Stack: Container,
     Drawer: Container,

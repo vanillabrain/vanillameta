@@ -157,7 +157,24 @@ export class StudioExecutionService implements OnModuleInit {
       /^save(?: draft)? and share (?:a |the )?link[.!]?$/i.test(prompt)
     )
       return { save: true, saveOnly: true, publish: true };
-    if (/게시|공유|퍼블리시|publish|share/i.test(prompt))
+    // Remove only explicitly prohibited publication clauses before unsupported-intent
+    // detection. This never authorizes publication: the exact consent gate stays above,
+    // and any remaining positive/ambiguous publication mention is still rejected.
+    const withoutNegativePublication = prompt
+      .replace(
+        /(?:게시|공유|퍼블리시)(?:\s*(?:하거나|나|또는|및|와|과)\s*(?:게시|공유|퍼블리시))*\s*(?:하지(?:는)?\s*(?:마(?:세요|라|줘)?|말(?:아(?:줘|주세요)?)?)|안\s*(?:해|하기)|금지)/gu,
+        '',
+      )
+      .replace(
+        /(?:do\s+not|don['’]?t|never)\s+(?:publish|share)(?:\s+(?:or|and)\s+(?:publish|share))?/gi,
+        '',
+      )
+      .replace(/without\s+(?:publishing|sharing)(?:\s+(?:or|and)\s+(?:publishing|sharing))?/gi, '');
+    if (
+      /게시|공유|퍼블리시|publish|share/i.test(prompt) &&
+      (/게시|공유|퍼블리시|publish|share/i.test(withoutNegativePublication) ||
+        !/바꾸|바꿔|변경|수정|rename|edit|change|update/i.test(withoutNegativePublication))
+    )
       return { save: false, saveOnly: false, unsupported: 'publish' };
     if (/복제|리믹스|remix|duplicate/i.test(prompt))
       return { save: false, saveOnly: false, unsupported: 'remix' };

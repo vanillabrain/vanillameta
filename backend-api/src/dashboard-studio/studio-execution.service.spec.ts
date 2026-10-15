@@ -179,6 +179,35 @@ describe('T7 durable executions', () => {
     await service.create({ ...body, requestId: 'negative', prompt: '제목 바꾸고 저장하지마' }, 7);
     expect(studio.save).not.toHaveBeenCalled();
   });
+  it.each([
+    '선택한 블록 제목만 바꾸고 저장하거나 게시하지 마.',
+    '선택한 블록 제목만 바꿔줘. 게시하지 마.',
+    '선택한 블록 제목만 바꾸고 공유하지 말아줘.',
+    'Rename the selected block; do not publish.',
+    "Rename the selected block; don't share.",
+    'Rename the selected block without publishing.',
+  ])('T10 applies edits with negative publication intent without saving: %s', async prompt => {
+    const result = await service.create({ ...body, prompt }, 7);
+    expect(result.status).toBe('succeeded');
+    expect(ai.callLlm).toHaveBeenCalledTimes(1);
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(result.steps.map(s => s.stepId)).toEqual([
+      'inspectSource',
+      'proposeSemantics',
+      'preview',
+      'applyDraft',
+    ]);
+  });
+  it.each([
+    '게시하지 마. 하지만 링크로 공유해줘',
+    '공유하지 말고 publish 해줘',
+    'Do not share but publish this dashboard',
+  ])('T10 never authorizes publication when a positive clause remains: %s', async prompt => {
+    const result = await service.create({ ...body, prompt }, 7);
+    expect(result.status).toBe('unsupported');
+    expect(ai.callLlm).not.toHaveBeenCalled();
+    expect(studio.save).not.toHaveBeenCalled();
+  });
   it('cancel before commit writes zero, cancel after commit reports completed', async () => {
     let release: any;
     const gate = new Promise(r => {

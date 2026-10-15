@@ -195,11 +195,13 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 **Files:** docs/testing/dashboard-studio.md, docs/testing/status.md, 관련 UC/TC/implementation delta. 새 범용 E2E 프레임워크/스크립트 대량 생성 없음.
 
-- [ ] 각 T의 통과 결과를 commit/diff·fixture·환경별로 재사용할 수 있는지 확인. 변경 영향이 없으면 개별 케이스를 반복하지 않음.
+- [x] 각 T의 통과 결과를 commit/diff·fixture·환경별로 재사용할 수 있는지 확인. 변경 영향이 없으면 개별 케이스를 반복하지 않음.
 - [ ] TC-005 전체 흐름을 실제 gpt-6-luna·UI/API로 1회 연결 실행. Rill 고정 정답과 commerce oracle은 별도 확인. 전체 흐름의 미실행 단계가 있으면 전체 PASS 금지.
 - [ ] STUDIO-D01/D02의 최종 영향 상태와 3폭·키보드·필터 추가 전후 레이아웃 캡처. VoiceOver는 BLOCKED 유지하고 DOM 접근성 결과로 대체 PASS하지 않음.
-- [ ] 통합 시 루트 npm test / npm run build, FE tsc --noEmit / 변경 파일 lint / 영향 핵심 E2E만 실행. 매 T마다 전체 반복하지 않음.
-- [ ] 결과·증빙·미지원 범위를 기록하고 리뷰 후 커밋. push/merge는 요청 범위를 확인하고 수행. 모든 체크박스가 문서에 존재한다는 이유로 완료 처리하지 않음.
+- [x] 통합 검사: 루트 wrapper의 하위 결과를 재사용/합성(BE T9 전체+영향 범위와 T10 42개, FE941+17개)하고 FE 타입/변경 lint/양측 build/core7을 확인했다. 사용자의 통과 조건 재사용 요청을 적용해 전체 wrapper 중복 실행은 하지 않음.
+- [x] 결과·증빙·미지원 범위를 기록하고 리뷰 후 로컬 커밋. push/merge는 요청 범위를 확인하고 수행. 모든 체크박스가 문서에 존재한다는 이유로 완료 처리하지 않음.
+
+**T10 실행 판정:** [실행 기록](../../testing/dashboard-studio.md#t10--전체-연결-흐름최종-디자인-회귀--2026-10-15). 생성→직접/실LLM 선택 수정→저장·게시→재게시→타계정 내 데이터 복제→중지의 핵심 연결 및 3폭/키보드 선택 범위는 PASS_SELECTED. 전체 TC-005/G4는 PARTIAL로 위 두 체크를 남긴다. BR-001 자연어 복제 dispatch·Studio 공통 필터 추가 전후는 미구현/NOT_RUN, VoiceOver BLOCKED 유지. 이번 diff는 게시 금지절 오분류·설정 schemaVersion 넘침·기존 FE mock 누락 수정이며 관련 실패부터 재검증했다. commerce oracle/이전 실패 변형은 재사용, 새 live Rill/운영 검증은 미실행이다.
 
 ## 검증 기록 단위
 
@@ -211,7 +213,7 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 - FR-007:T5/T7/T8, FR-008:T6, FR-009:T2/T3/T5, FR-010:T1/T3/T4, FR-011:T8, FR-012:T9. UC-005 A1:T6, A2:T4/T5, A3:T7/T8, A4:T9, A5:T8.
 - 현재 지원 블록 종류/1~6 한도, single-source, live 미지원, 미저장 새로고침 복구 미지원, VoiceOver BLOCKED를 명시했다. 이 제한이 실제 TC-005를 막으면 해당 단계는 부분 완료로 남긴다.
-- T1~T7의 각 선택 범위 구현·검증이 완료됐고 다음 실행은 T8이다. 전체 작업량/기간은 T2 adapter 영향 확인 전 확정하지 않는다. 성능·공수 절감 수치를 근거 없이 약속하지 않는다.
+- T1~T9 선택 범위와 T10 핵심 연결 검증을 마쳤다. G4 전체 수용은 자연어 복제·Studio 공통 필터 등 남은 요구와 분리해 PARTIAL로 유지한다. 전체 작업량/기간은 T2 adapter 영향 확인 전 확정하지 않는다. 성능·공수 절감 수치를 근거 없이 약속하지 않는다.
 
 ## T2 실행 중 확정한 계약 보완
 

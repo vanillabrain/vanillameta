@@ -90,7 +90,7 @@
 .studio-definition { display:flex; flex-direction:column; gap:8px; padding:14px; border:1px solid var(--studio-border); border-radius:7px; }
 .studio-definition b { font-size:12px; font-weight:550; }
 .studio-definition code { font-size:12px; overflow-wrap:anywhere; color:#274767; }
-.studio-definition span { font-size:11px; color:var(--studio-muted); }
+.studio-definition span { font-size:11px; color:var(--studio-muted); overflow-wrap:anywhere; }
 .studio-inspector-actions { display:flex; flex-wrap:wrap; gap:8px; }
 .studio-welcome { max-width:700px; margin:0 auto; padding:70px 32px; text-align:center; }
 .studio-welcome-icon { margin:0 auto 18px; display:grid; place-items:center; width:48px; height:48px; border:1px solid #dce8f6; border-radius:14px; background:white; color:var(--studio-accent); }

@@ -2,7 +2,7 @@
 
 ## 현재 범위와 실행 기준
 
-2026-10-15, 현재 T8까지의 선택 범위를 검증했다. 작업 브랜치 `codex/self-service-next-20261014`, 최신 기준은 `b943a10c` + T8 diff다. 단계별 조건·실행 환경·실데이터/주입 구분은 아래 각 T 기록이 기준이다. T9 복제와 전체 TC-005는 NOT_RUN, VoiceOver는 BLOCKED다.
+2026-10-15, T10 핵심 연결 흐름(생성→직접/AI 수정→저장·게시→재게시→다른 계정의 내 데이터 복제→원본 링크 중지)은 PASS_SELECTED다. 작업 브랜치 `codex/self-service-next-20261014`, 기준 `efe3fbb3` + T10 diff. 전체 TC-005/G4는 PARTIAL: 자연어 복제 dispatch와 Studio 공통 필터 추가 전후는 미구현·NOT_RUN이며, VoiceOver는 BLOCKED다. 아래 과거 T 기록은 당시 범위이며 현재 판정은 마지막 T10 기록이 기준이다.
 
 ### T1 최초 시안 실행 기록 (역사적 기준)
 
@@ -23,7 +23,8 @@
 | STUDIO-A02 | 파일/샘플 생성·canonical 지표·차원 | PASS_SELECTED: T6 기록 재사용 |
 | STUDIO-A03 | 단일 입력 실행·부분 실패·재시도 중복0 | PASS_SELECTED: T7 기록 재사용 |
 | STUDIO-P01/P02 | 게시 version/시점·권한·중지·실패 재시도 | PASS_SELECTED: T8 신규 조건, 아래 기록 |
-| STUDIO-R01/R02 | 새 소스 매핑·누락 열·원본 불변 | NOT_RUN: T9 |
+| STUDIO-R01/R02 | 새 소스 매핑·누락 열·원본 불변 | PASS_SELECTED: T9 오류 변형 재사용 + T10 실제 계정 간 연결 |
+| TC-005 / T10 | 실LLM 생성→편집→저장·게시→내 데이터 복제→중지 | 핵심 흐름 PASS_SELECTED, 전체 요구 PARTIAL: 아래 T10 제한 |
 
 ## 발견·수정과 검증 구분
 
@@ -404,3 +405,63 @@ Ruling: 공개 스냅샷에 계산 의미가 없는 이전 게시본은 소유�
 - 주요 캡처: `consent-publication-1440.jpg`, `remix-ready-{1440,768,390}.jpg`, `preview-exact-390.jpg`, `missing-column-390.jpg`, `exclusion-validated-390.jpg`, `type-mismatch-390.jpg`→`type-mismatch-fixed-390.jpg`, `long-column-390.jpg`, `revoked-remix-390.jpg`, `clone-final-{1440,390}.jpg`. 임시 검증 도구는 /private/tmp에만 뒀다.
 
 T9 선택 범위 완료. 다음은 **T10 전체 흐름 수용·마지막 디자인 회귀**이며 통과 결과 재사용과 미실행 경계 구분을 우선한다.
+
+
+## T10 — 전체 연결 흐름·최종 디자인 회귀 · 2026-10-15
+
+### 인수 조건과 판정
+
+기준 `efe3fbb337f8fa0685c3f6eec44c116d5a0115d7` + 이번 diff, Node24.21.0/npm, 격리 FE3229/API4329. `$vanillameta-verify`의 변경 범위 기준을 적용했다. 같은 조건의 기존 통과는 재사용하고 실제 연결 여정만 새 대시보드15/복제본16으로 실행했다. Aside CLI 업데이트가 `fetch failed`여서 허용된 Codex IAB 대안을 사용했다. 외부 운영 배포는 하지 않았다.
+
+**핵심 흐름 기능 PASS_SELECTED / 디자인 PASS_SELECTED. 전체 TC-005/G4는 PARTIAL.** 아래 표의 복제는 명시 UI이며 자연어 복제 성공을 뜻하지 않는다. Studio 공통 필터 조작은 아직 미지원이므로 필터 추가 전후 검증을 통과로 표시하지 않는다. VoiceOver BLOCKED 유지, 실제 발화·실기기·모든 키보드 경로·운영 부하는 NOT_RUN이다.
+
+| TC-005 단계 / 명세 | 실제 입력·기대 | 결과와 근거 |
+| --- | --- | --- |
+| 1–2 / STUDIO-A02 | 기존 지표를 선택하고 전체 기간·필터 없음, KPI2·OS·시간 차트 생성 | 실제 Codex `gpt-6-luna` 지정 호출. 원본 이름을 바꾼 source19의 canonical metric12/13 version1 재사용, 블록 참조12/13/12/12. POST proposals201/5264ms, 4블록 저장 후 dashboard15 재조회 |
+| 3 / E01·A01 | 이동·크기·복제·삭제·undo/redo 후 선택한 시간 차트 제목만 변경 | 실 gpt-6-luna 수정 완료. AI 직전/직후 문서를 비교해 해당 제목만 변경, 모든 breakpoint 배치·비대상 정의·블록ID 동일. 저장/게시 false |
+| 4 / D01·D02 | 1440/768/390에서 선택·이력 보존, 모바일 순서·패널 키보드 | 폭 전환 후 동일 선택·초안 확인. Enter 설정 열기, Tab 이동, Escape 후 설정 트리거 복귀. 긴 스키마 버전 넘침 수정 후 세 폭 재검증. 모바일 resize는 T3 근거를 재사용하며 이번 부모 높이 관찰로 새 PASS를 주장하지 않음 |
+| 5 / A03·P01 | `저장하고 링크로 공유해줘`, 새로고침 | 실제 inspectSource→saveDraft→publish 완료, v1 snapshot·집계 시점·링크와 실행 영수증 복원. 이 정확한 명령은 결정적 실행이며 추가 LLM 호출이 아님 |
+| 6–7 / P01·P02 | 초안 수정만 저장→기존 게시 불변→동일 링크 재게시→다른 계정 조회 | OS 제목을 수정한 초안은 v1에 영향0. 복제 허용에 명시 동의하고 v2 게시. 수신자4는 게시만 조회, 원본 dashboard15/source19는403 |
+| 8 / R01·R02 | 다른 계정 소유 source9로 필수 열 연결 후 비공개 저장·reload | 모바일 Enter로 매핑 확인/새 private dashboard16 생성. 새 block/metric ID, 세 폭 배치·표시 유지. 복제본 제목 수정 후 원본 초안/v2 불변, 원 작성자는 복제본 접근403 |
+| 9 / P02·UC-005 A5 | 방금 만든 테스트 게시본15의 v2 링크 중지·재접근 | 자동 승인 검토 보류 후 사용자가 해당 테스트 링크 중지를 명시 허용. 실제 중지2026-10-15T07:38:13.146Z. 익명/수신자410·no-store·집계 데이터0, UI 안내와 카드0. 원본 초안과 비공개 복제본16 유지 |
+
+### 데이터·모델·정확성
+
+- 공식 Rill auction **1,391,572행**의 같은 값. source19는 `request_count/floor_total/floor_count/device_label/event_time`으로 이름을 바꾼 파일이며, 수신자 source9는 원래 열 이름이다. 복제 매핑은 request_count→bid_request_cnt, floor_total→bid_floor, floor_count→has_bid_floor_cnt, event_time→__time, device_os→device_os다. 두 계정은 격리 테스트 계정이며 원래 사용자 DB/파일은 변경하지 않았다.
+- 요청 합계 **634,513,000**, 가중 평균 **5.571238676523254** (독립 정답5.571238676526892, 허용오차1e-9), OS **28그룹**의 모든 값과 합계가 독립 DuckDB 결과와 일치. 시간169점은 원본 UTC를 유지했다. 생성·게시·복제에서 같은 정답을 확인했다. UI 평균5.571239는 표시 반올림이다.
+- `AI_PROVIDER=codex`, `AI_CODEX_BASE_URL=http://127.0.0.1:10100/v1`, 기존 모델 카탈로그를 유지했다. 실제 Codex 호출에 gpt-6-luna를 명시했다. CLI 결과만으로 상위 라우터 내부 모델 정체까지 독립 입증하지는 않는다. 로컬 LLM/다른 모델로 대체하지 않았다.
+- 기존 Rill 화면/기간 이동 차이 기록과 T6의 별도 매출·환불 oracle(37주문, 매출20994.61/환불4457.60/순매출16537.01 USD)을 재사용했다. 이번은 새 Rill 앱 UX 비교나 commerce 재실행이 아니다.
+
+### 발견 오류·수정·재검증
+
+1. **기능 실패:** ‘제목만 바꿔줘 … 저장하거나 게시하지 마’가 게시 단어 포함만으로 unsupported 처리됐다. 명시적 게시 금지절을 미지원 의도 판별에서만 제외했다. 원문·저장 판정·정확한 게시 동의 명령은 유지하고, 남은 긍정/모호한 게시 의도는 여전히 차단한다. 한/영 부정 편집6개·긍정 잔여3개 회귀를 추가, 실패 후42개 관련 테스트 PASS. 같은 실제 gpt-6-luna 요청으로 제목 변경·배치 불변 재검증. 모든 언어 표현 지원을 주장하지 않는다.
+2. **디자인 실패:** 모바일 설정의 긴 schemaVersion이 345px 패널에서 scrollWidth454px로 넘쳤다. `.studio-definition span`에 국소 줄바꿈을 적용해 원문 전체를 유지했다. 수정 후390 패널345/345, 768 패널360/360, 1440 패널319/319이며 가로 넘침0. Tab 포커스·Escape 복귀도 다시 확인했다. 숫자/저장 의미는 바꾸지 않았다.
+3. **검사 환경 실패:** 전체 FE 검사 중 StudioEditor의 MUI mock에 게시 Dialog가 사용하는 RadioGroup/Radio/FormControlLabel/Checkbox가 빠져10개가 실패했다. 실제 컨트롤4개만 mock에 연결하고 기존 assertions/테스트 본문은 유지했다. 해당17개 재실행 PASS.
+
+### 재사용·최종 검사
+
+- T2~T5 문서/reducer/연산 계약, T6 파일/샘플·모호한 분모·실패 조건, T7 취소/restart/부분 복구, T8 만료/권한/게시 재시도, T9 누락열/타입/권한/멱등 변형을 관련 코드 diff 기준으로 재사용했다. 새 연결 여정이 기존 모든 실패 변형을 재실행했다는 뜻은 아니다.
+- BE 전체1608개(T9 수정 전) + 이후 영향 범위437개(T9 최종) 근거를 재사용하고 이번 실행 의도 변경의 **42개/2suite**를 새로 통과했다. 변경 BE lint·Nest build PASS.
+- FE 전체1회에서 다른68파일941개 PASS + mock 수정 후 해당1파일17개 PASS = **69파일958개를 합성 확인**했다. 최종 전체 suite를 다시 실행했다고 보고하지 않는다. FE 타입·변경 TSX lint·CSS 수정 후 production build PASS.
+- 영향받는 기존 core **7개 PASS**(CSV→집계/차트/저장, 인증, 위젯→대시보드→legacy 공유/임베드, smoke). 기존 Pivot 등 무관한 core는 재사용했다. 새 대량 UI 테스트 코드는 추가하지 않았다.
+- 루트 npm test/build는 하위 명령 wrapper다. 사용자의 통과 조건 재사용 요청에 따라 위 실행과 재사용 근거를 합성하고 wrapper로 전체를 중복 실행하지 않았다. 기존 ts-jest/TypeScript·Vite 경고는 로그에 남긴다.
+- 독립 리뷰는 게시 동의 경계와 새 의도 분류 diff에서 구체적 문제를 찾지 않았다. 증빙 리뷰에서 지적한 모바일 resize 근거 한계는 T3 재사용으로 명확히 기록했다. 최종 문서·diff 검토와 로컬 커밋까지만 진행하며 push/merge는 이번 범위 밖이다.
+
+### 증빙
+
+폴더: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t10-20261015`.
+
+- `request.json`, `generated-baseline.json`, `os-oracle.json`, `ai-edit-invariants.json`: 원문 요청·기준/정답·AI 전후 불변식.
+- `saved-and-published.json`, `draft-isolation.json`, `remix-results.json`, `revoke-results.json`: v1/초안 분리·v2 복제 독립성·중지 후 차단.
+- `generation-review-1440.jpg`, `negative-publication-intent-failure-1440.jpg`, `ai-edit-fixed-1440.jpg`: 생성/최초 실패/실제 AI 수정 후.
+- `recipient-published-1440.jpg`, `recipient-published-768.jpg`, `recipient-published-390.jpg`, `save-share-restored-390.jpg`, `republish-consent-390.jpg`, `remix-preview-390.jpg`: 게시·영수증·재게시·매핑.
+- `clone-keyboard-390.jpg`(넘침 실패), `clone-keyboard-fixed-390.jpg`, `clone-keyboard-fixed-768.jpg`, `clone-keyboard-fixed-1440.jpg`, `clone-final-1440.jpg`, `clone-final-390.jpg`, `revoked-link-390.jpg`: 수정·재검증·최종 복제본·중지 안내. 캡처를 직접 살펴보고 판정했다.
+- `intent-red.log`/`intent-green.log`, `frontend-all.log`, `t10-studio-editor-test.log`, 타입/lint/build/core 로그, `manifest.json`과 `reuse-audit.json`: 실행/재사용 경계. 별도 resize JSON은 부모 높이 관찰뿐이므로 블록 resize 증명으로 사용하지 않는다.
+
+### 남은 범위
+
+1. **UC-005 BR-001 자연어 복제 dispatch**: 현재 명시 ‘내 데이터로 복제’ UI만 지원한다. 생성도 `/studio/new` 진입을 사용한다. 한 대화의 모든 의도가 완료됐다는 전체 PASS는 보류한다.
+2. **Studio 공통 필터 편집/저장/게시/복제 전파와 필터 추가 전후 디자인**: 현재 ‘전체/없음’ 컨텍스트·태그만 있으며 기능 검증으로 세지 않는다.
+3. **VoiceOver BLOCKED**, 운영 부하/다중 서버·실기기·전체 키보드 순서는 NOT_RUN. 기존 제한을 해제하지 않았다.
+
+다음 우선순위는 새 기능을 반복 검증하는 대신 BR-001 복제 연결 또는 Studio 공통 필터 중 한 범위를 구현하고 해당 미완료 조건만 검증하는 것이다.
