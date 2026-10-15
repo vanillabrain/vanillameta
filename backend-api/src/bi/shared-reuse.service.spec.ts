@@ -348,6 +348,7 @@ describe('UC021 shared dashboard reuse SQLite graph', () => {
     expect(draft.originalId).toBe(shareUuid);
     expect(draft.originalId).not.toBe(String(originalId));
     expect(Object.keys(draft).sort()).toEqual([
+      'blocks',
       'columns',
       'expectedRevision',
       'originalId',
@@ -364,6 +365,44 @@ describe('UC021 shared dashboard reuse SQLite graph', () => {
     ]);
     expect(draft.sources).toEqual([{ id: targetId, name: '수신자 소스', engine: 'duckdb' }]);
     expect(JSON.stringify(draft)).not.toMatch(/SELECT|originalSourceId|databaseId|filter/i);
+  });
+
+  it('UC024 recipient selects one published block without acquiring source rights or changing the origin', async () => {
+    const ownerAnalysis = (await dashboards.analysis(originalId, OWNER, true)).data;
+    const recipe = buildReuseRecipe(ownerAnalysis, await profileOf(originalSourceId, OWNER));
+    await db
+      .getRepository(DashboardPublication)
+      .update({ dashboardId: originalId }, { active: true, reuseDefinition: recipe });
+    const original = await db.getRepository(Dashboard).findOneBy({ id: originalId });
+    const draft = await service.draft(publicationUuid, RECIPIENT, 'publication');
+    expect(draft.blocks).toEqual([
+      { id: 'orig-sales', title: '총 매출', columns: ['amount'] },
+      { id: 'orig-os', title: 'OS별 매출', columns: ['os', 'amount'] },
+    ]);
+    const preview = await service.preview(
+      publicationUuid,
+      {
+        expectedRevision: draft.expectedRevision,
+        sourceId: targetId,
+        sourceRevision: (await profileOf(targetId, RECIPIENT)).dataVersion,
+        title: COPY_TITLE,
+        columnMap: { amount: COLUMN_MAP.amount },
+        blockIds: ['orig-sales'],
+      },
+      RECIPIENT,
+      'publication',
+    );
+    expect(preview.snapshot.widgets).toHaveLength(1);
+    expect(JSON.stringify(preview.snapshot)).not.toMatch(/SELECT|databaseId|metricId/);
+    const saved = await service.save(
+      publicationUuid,
+      { ticket: preview.ticket, requestId: randomUUID() },
+      RECIPIENT,
+      'publication',
+    );
+    const copy = await db.getRepository(Dashboard).findOneBy({ id: saved.id });
+    expect(JSON.parse(copy.analysisDefinition).widgets).toHaveLength(1);
+    expect(await db.getRepository(Dashboard).findOneBy({ id: originalId })).toEqual(original);
   });
 
   it('previews the recipe on the recipient source only, masks SQL and keeps the original layouts', async () => {

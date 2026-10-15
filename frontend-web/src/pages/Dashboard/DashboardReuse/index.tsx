@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
 import { AnalysisUiProvider, analysisPanelClassName } from '@/components/analysis/AnalysisUi';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Notice } from '@/components/ui/notice';
 import { TextField } from '@/components/ui/text-field';
 import SnapshotView, { Snapshot } from '../../Publication/SnapshotView';
@@ -16,6 +17,7 @@ type Draft = {
   originalSourceId?: number;
   title: string;
   columns: Column[];
+  blocks?: Array<{ id: string; title: string; columns: string[] }>;
   sources: Array<{ id: number; name: string }>;
 };
 type Profile = { sourceId: number; dataVersion: string; supported: boolean; columns: Column[] };
@@ -40,6 +42,7 @@ function Content() {
   const [sourceId, setSourceId] = useState('');
   const [title, setTitle] = useState('');
   const [columnMap, setColumnMap] = useState<Record<string, string>>({});
+  const [blockIds, setBlockIds] = useState<string[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [attempt, setAttempt] = useState<{ ticket: string; requestId: string } | null>(null);
   const [unknown, setUnknown] = useState(false);
@@ -80,6 +83,7 @@ function Content() {
     setSourceId('');
     setTitle('');
     setColumnMap({});
+    setBlockIds([]);
     const token = sequence.current;
     const abort = new AbortController();
     request.current = abort;
@@ -97,6 +101,7 @@ function Content() {
           throw new Error('복제할 원본을 확인할 수 없습니다.');
         setDraft(value);
         setTitle(value.title);
+        setBlockIds(value.blocks?.map(block => block.id) ?? []);
         if (shared) return;
         setSourceId(String(value.originalSourceId));
         const source = responseData(
@@ -148,12 +153,23 @@ function Content() {
       }
     }
   };
+  const selectedBlocks = draft?.blocks?.filter(block => blockIds.includes(block.id)) ?? [];
+  const requiredColumns =
+    draft?.columns.filter(column => !draft.blocks || selectedBlocks.some(block => block.columns.includes(column.name))) ??
+    [];
+  const missingFor = (block: NonNullable<Draft['blocks']>[number]) =>
+    block.columns.filter(name => {
+      const from = draft.columns.find(column => column.name === name);
+      const target = profile?.columns.find(column => column.name === columnMap[name]);
+      return !from || !target || !compatible(from, target);
+    });
   const valid =
     draft &&
     profile &&
+    (!draft.blocks || selectedBlocks.length > 0) &&
     title.trim() &&
     title.length <= 300 &&
-    draft.columns.every(column => {
+    requiredColumns.every(column => {
       const target = profile.columns.find(value => value.name === columnMap[column.name]);
       return target && compatible(column, target);
     });
@@ -174,7 +190,8 @@ function Content() {
             sourceId: profile.sourceId,
             sourceRevision: profile.dataVersion,
             title,
-            columnMap,
+            columnMap: Object.fromEntries(requiredColumns.map(column => [column.name, columnMap[column.name]])),
+            ...(draft.blocks && selectedBlocks.length !== draft.blocks.length ? { blockIds } : {}),
           },
           { signal: abort.signal, timeout: 120000 },
         ),
@@ -291,16 +308,60 @@ function Content() {
                   ))}
                 </TextField>
               </div>
-              {profile && (
-                <details className="mt-4" open={draft.columns.some(column => !columnMap[column.name]) || undefined}>
+              {draft.blocks && (
+                <details
+                  className="mt-4"
+                  open={(!!profile && selectedBlocks.some(block => missingFor(block).length > 0)) || undefined}
+                >
                   <summary className="cursor-pointer text-sm font-medium">
-                    열 연결 확인 · {draft.columns.filter(column => columnMap[column.name]).length}/{draft.columns.length}
+                    복제할 블록 · {selectedBlocks.length}/{draft.blocks.length}
+                  </summary>
+                  <p className="my-2 text-xs text-muted-foreground">
+                    필요한 열이 없는 블록은 제외할 수 있습니다. 원본은 유지되며 선택한 블록만 복사본에 저장합니다.
+                  </p>
+                  <div className="grid min-w-0 gap-2 sm:grid-cols-2">
+                    {draft.blocks.map(block => (
+                      <label
+                        key={block.id}
+                        className="flex min-h-9 min-w-0 cursor-pointer items-start gap-3 rounded-md border border-border p-3"
+                      >
+                        <Checkbox
+                          aria-label={`${block.title} 포함`}
+                          className="mt-0.5 shrink-0"
+                          checked={blockIds.includes(block.id)}
+                          onCheckedChange={checked => {
+                            invalidate();
+                            setBlockIds(current =>
+                              checked === true ? [...current, block.id] : current.filter(id => id !== block.id),
+                            );
+                          }}
+                        />
+                        <span className="min-w-0 text-sm [overflow-wrap:anywhere]">
+                          {block.title}
+                          {profile && blockIds.includes(block.id) && missingFor(block).length > 0 && (
+                            <span className="mt-1 block text-xs text-destructive">
+                              연결 필요: {missingFor(block).join(', ')}
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {!selectedBlocks.length && (
+                    <p className="mt-2 text-sm text-destructive">복제할 블록을 하나 이상 선택해 주세요.</p>
+                  )}
+                </details>
+              )}
+              {profile && (
+                <details className="mt-4" open={requiredColumns.some(column => !columnMap[column.name]) || undefined}>
+                  <summary className="cursor-pointer text-sm font-medium">
+                    열 연결 확인 · {requiredColumns.filter(column => columnMap[column.name]).length}/{requiredColumns.length}
                   </summary>
                   <p className="my-2 text-xs text-muted-foreground">
                     같은 이름과 호환 타입만 자동 연결했습니다. 다른 이름은 사용할 열을 선택하세요.
                   </p>
                   <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {draft.columns.map(column => (
+                    {requiredColumns.map(column => (
                       <TextField
                         key={column.name}
                         label={`${column.name} 연결`}
@@ -343,7 +404,16 @@ function Content() {
               </Button>
             )}
           </div>
-          {preview && <SnapshotView snapshot={preview.snapshot} context="reuse" />}
+          {preview && (
+            <>
+              {draft.blocks && (
+                <p role="status" className="mb-3 text-sm text-muted-foreground">
+                  {selectedBlocks.length}개 블록 포함 · {draft.blocks.length - selectedBlocks.length}개 제외
+                </p>
+              )}
+              <SnapshotView snapshot={preview.snapshot} context="reuse" />
+            </>
+          )}
         </>
       )}
     </main>

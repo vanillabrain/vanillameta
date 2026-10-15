@@ -272,6 +272,129 @@ describe('UC020 dashboard reuse SQLite atomic save', () => {
     jest.restoreAllMocks();
   });
 
+  it('UC024 advertises per-block required columns without SQL', async () => {
+    const draft = await service.draft(originalId, ACTOR);
+    expect(draft).toHaveProperty('blocks', [
+      { id: 'orig-sales', title: '총 매출', columns: ['amount'] },
+      { id: 'orig-os', title: 'OS별 매출', columns: ['os', 'amount'] },
+    ]);
+  });
+
+  it('UC024 excludes the block needing a missing field, saves only selected geometry, and preserves the original', async () => {
+    const row = await db.getRepository(Dashboard).findOneBy({ id: originalId });
+    const input = JSON.parse(row.analysisDefinition);
+    input.layoutSizes = [
+      { width: 6, height: 3 },
+      { width: 12, height: 5 },
+    ];
+    await db
+      .getRepository(Dashboard)
+      .update(originalId, { analysisDefinition: JSON.stringify(input) });
+    const original = await rows(Dashboard);
+    bi.profile.mockImplementation(async (id, actor) => ({
+      ...(await profileOf(id, actor)),
+      columns: id === targetId ? COLUMNS.filter(c => c.name !== 'os') : COLUMNS,
+    }));
+    const draft = await service.draft(originalId, ACTOR);
+    const preview = await service.preview(
+      originalId,
+      {
+        expectedRevision: draft.expectedRevision,
+        sourceId: targetId,
+        sourceRevision: (await profileOf(targetId, ACTOR)).dataVersion,
+        title: '숫자만 복제',
+        columnMap: { amount: 'amount' },
+        blockIds: ['orig-sales'],
+      },
+      ACTOR,
+    );
+    expect(preview.snapshot.widgets).toHaveLength(1);
+    const key = preview.snapshot.widgets[0].blockId;
+    for (const mode of ['mobile', 'tablet', 'desktop'])
+      expect(preview.snapshot.responsiveLayouts[mode][key]).toEqual(RECTS[mode][0]);
+    const request = { ticket: preview.ticket, requestId: randomUUID() };
+    const saved = await service.save(originalId, request, ACTOR);
+    expect((await service.save(originalId, request, ACTOR)).id).toBe(saved.id);
+    const copy = await db.getRepository(Dashboard).findOneBy({ id: saved.id });
+    const definition = JSON.parse(copy.analysisDefinition);
+    expect(definition.widgets).toHaveLength(1);
+    expect(definition.widgets[0].title).toBe('총 매출');
+    expect(definition.widgets[0].blockId).not.toBe('orig-sales');
+    expect((await rows(Dashboard))[0]).toEqual(original[0]);
+  });
+
+  it('UC024 projects positional legacy sizes by selected original index', async () => {
+    const row = await db.getRepository(Dashboard).findOneBy({ id: originalId });
+    const input = JSON.parse(row.analysisDefinition);
+    input.layoutSizes = [
+      { width: 6, height: 3 },
+      { width: 12, height: 5 },
+    ];
+    await db
+      .getRepository(Dashboard)
+      .update(originalId, { analysisDefinition: JSON.stringify(input) });
+    const draft = await service.draft(originalId, ACTOR);
+    const preview = await service.preview(
+      originalId,
+      {
+        expectedRevision: draft.expectedRevision,
+        sourceId: targetId,
+        sourceRevision: (await profileOf(targetId, ACTOR)).dataVersion,
+        title: '두 번째만',
+        columnMap: COLUMN_MAP,
+        blockIds: ['orig-os'],
+      },
+      ACTOR,
+    );
+    const saved = await service.save(
+      originalId,
+      { ticket: preview.ticket, requestId: randomUUID() },
+      ACTOR,
+    );
+    const copy = await db.getRepository(Dashboard).findOneBy({ id: saved.id });
+    expect(JSON.parse(copy.analysisDefinition).layoutSizes).toEqual([{ width: 12, height: 5 }]);
+  });
+
+  it.each([[], ['orig-sales', 'orig-sales'], ['foreign'], 'orig-sales', null])(
+    'UC024 rejects invalid selections before issuing a ticket %p',
+    async blockIds => {
+      const draft = await service.draft(originalId, ACTOR);
+      const before = await counts();
+      await expect(
+        service.preview(
+          originalId,
+          {
+            expectedRevision: draft.expectedRevision,
+            sourceId: targetId,
+            sourceRevision: (await profileOf(targetId, ACTOR)).dataVersion,
+            title: '복사본',
+            columnMap: COLUMN_MAP,
+            blockIds,
+          },
+          ACTOR,
+        ),
+      ).rejects.toThrow();
+      expect(await counts()).toEqual(before);
+    },
+  );
+
+  it('UC024 keeps original order even when selected IDs are reversed and rejects unused mappings', async () => {
+    const draft = await service.draft(originalId, ACTOR);
+    const body = {
+      expectedRevision: draft.expectedRevision,
+      sourceId: targetId,
+      sourceRevision: (await profileOf(targetId, ACTOR)).dataVersion,
+      title: '순서 유지',
+      columnMap: COLUMN_MAP,
+      blockIds: ['orig-os', 'orig-sales'],
+    };
+    const preview = await service.preview(originalId, body, ACTOR);
+    expect(preview.snapshot.widgets.map(w => w.title)).toEqual(['총 매출', 'OS별 매출']);
+    await expect(
+      service.preview(originalId, { ...body, blockIds: ['orig-sales'] }, ACTOR),
+    ).rejects.toThrow('unsupported column mapping: os');
+  });
+
   it('binds the draft and preview to the current revisions without writing', async () => {
     const before = await counts();
     const { draft } = await flow();

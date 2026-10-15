@@ -44,4 +44,7 @@ usecase "UC-022 복사본 AI 편집·게시" as UC022
 operator --> UC022
 usecase "UC-023 생성 질문 저장·게시 준비" as UC023
 operator --> UC023
+usecase "UC-024 Reuse Selected Blocks" as UC024
+operator --> UC024
+recipient --> UC024
 @enduml

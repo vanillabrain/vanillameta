@@ -77,6 +77,13 @@ export class DashboardReuseService {
       ...(kind === 'owned' ? { originalSourceId: profile.sourceId } : {}),
       title: `${analysis.title.slice(0, 296)} 복사본`,
       columns,
+      blocks: analysis.widgets.map(widget => ({
+        id: widget.blockId,
+        title: widget.title,
+        columns: reuseColumns({ ...analysis, widgets: [widget] }, profile).map(
+          column => column.name,
+        ),
+      })),
       sources: (await this.bi.sources(actor)).filter(source => source.engine === 'duckdb'),
     };
   }
@@ -91,23 +98,52 @@ export class DashboardReuseService {
     return ticket;
   }
   async preview(id: unknown, body: any, actor: number, kind = 'owned') {
-    shape(body, ['expectedRevision', 'sourceId', 'sourceRevision', 'title', 'columnMap']);
+    const required = ['expectedRevision', 'sourceId', 'sourceRevision', 'title', 'columnMap'];
+    shape(body, [...required, 'blockIds'], required);
     const { originalId, analysis, profile, reference } = await this.original(id, actor, kind);
     if (body.expectedRevision !== analysis.revision) throw stale();
+    // UC024: explicit selection only; preserve original order regardless of request order.
+    if (Object.prototype.hasOwnProperty.call(body, 'blockIds')) {
+      const ids = body.blockIds;
+      if (
+        !Array.isArray(ids) ||
+        !ids.length ||
+        ids.length > analysis.widgets.length ||
+        new Set(ids).size !== ids.length ||
+        ids.some(
+          value => typeof value !== 'string' || !analysis.widgets.some(w => w.blockId === value),
+        )
+      )
+        throw new BadRequestException('복제할 블록을 하나 이상 선택해 주세요.');
+    }
+    const selected = {
+      ...analysis,
+      widgets: analysis.widgets.filter(
+        widget => !body.blockIds || body.blockIds.includes(widget.blockId),
+      ),
+      ...(analysis.layoutSizes
+        ? {
+            layoutSizes: analysis.layoutSizes.filter(
+              (_size, index) =>
+                !body.blockIds || body.blockIds.includes(analysis.widgets[index].blockId),
+            ),
+          }
+        : {}),
+    };
     const targetId = this.access.id(body.sourceId);
     await this.access.assert('database', targetId, actor);
     return this.connection.withDuckDBSnapshot(targetId, async () => {
       const target = await this.bi.profile(targetId, actor);
       if (!target.supported) throw new BadRequestException('서버 파일 소스를 선택해 주세요.');
       if (target.dataVersion !== body.sourceRevision) throw stale();
-      const remapped = remapDashboard(analysis, profile, target, body.columnMap);
+      const remapped = remapDashboard(selected, profile, target, body.columnMap);
       const draft = validateDraft({
         ...remapped,
         title: body.title,
         widgets: remapped.widgets.map(widget => ({ ...widget, blockId: `copy-${randomUUID()}` })),
       });
       // Candidate IDs are local to preview. Persistence assigns fresh IDs and reapplies geometry by order.
-      const layouts = analysis.widgets.map(widget =>
+      const layouts = selected.widgets.map(widget =>
         Object.fromEntries(
           ['mobile', 'tablet', 'desktop']
             .map(name => [name, analysis.responsiveLayouts?.[name]?.[widget.blockId]])

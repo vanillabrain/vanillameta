@@ -212,3 +212,34 @@ it('shared origin never selects or profiles the owner source and requires my sou
   fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
   await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/99'));
 });
+
+it('UC024 removes only explicitly excluded block requirements and invalidates preview on restore', async () => {
+  api.get.mockImplementation(async (url: string) =>
+    wrap(
+      url.endsWith('/reuse')
+        ? {
+            ...original(),
+            blocks: [
+              { id: 'sales', title: '총 매출', columns: ['amount'] },
+              { id: 'os', title: 'OS별 매출', columns: ['amount', 'os'] },
+            ],
+          }
+        : { ...profile(), columns: [columns[0]] },
+    ),
+  );
+  render(<DashboardReuse />);
+  await screen.findByLabelText('OS별 매출 포함');
+  expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText('연결 필요: os')).toBeTruthy();
+  fireEvent.click(screen.getByLabelText('OS별 매출 포함'));
+  api.post.mockResolvedValueOnce(wrap(preview()));
+  fireEvent.click(screen.getByRole('button', { name: '전체 미리보기' }));
+  await screen.findByText('미리보기: 원본 복사본 · reuse');
+  expect(api.post.mock.calls[0][1]).toMatchObject({ blockIds: ['sales'], columnMap: { amount: 'amount' } });
+  fireEvent.click(screen.getByLabelText('OS별 매출 포함'));
+  expect(screen.queryByText(/미리보기:/)).toBeNull();
+  expect((screen.getByRole('button', { name: '복사본 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByLabelText('총 매출 포함'));
+  fireEvent.click(screen.getByLabelText('OS별 매출 포함'));
+  expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+});
