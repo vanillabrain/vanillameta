@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import StudioConversationCreation from './StudioConversationCreation';
+import { StudioRemixFlow } from './StudioRemix';
+import type { RemixSaveInput } from './studioRemixApi';
 import { Alert, Button } from '@mui/material';
 import {
   StudioExecution,
@@ -7,7 +10,6 @@ import {
   executionSummary,
   retryStep,
   publishedDashboardPath,
-  publishedRemixPath,
   remixHandoff,
 } from './studioExecution';
 type Props = {
@@ -18,32 +20,68 @@ type Props = {
   onRetry: (run: StudioExecution) => void;
   onCancel: (run: StudioExecution) => void;
   canRetry: (run: StudioExecution) => boolean;
+  onCreation?: (run: StudioExecution) => Promise<void>;
+  onRemix?: (run: StudioExecution, request: RemixSaveInput, isCurrent: () => boolean) => Promise<void>;
 };
-/** Read-only handoff. The remix route rechecks access and consent, and saves nothing by itself. */
-function RemixHandoff({ run }: { run: StudioExecution }) {
+/** Mapping uses the same checked workflow as the published remix route. */
+function RemixHandoff({ run, onRemix }: Pick<Props, 'onRemix'> & { run: StudioExecution }) {
+  const [open, setOpen] = useState(false);
+  const receipt = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (open && run.remixSaveResult) receipt.current?.focus();
+  }, [open, run.remixSaveResult]);
   const remix = remixHandoff(run);
   if (!remix) return null;
+  if (run.remixSaveResult)
+    return (
+      <div className="studio-remix-receipt" role="status" tabIndex={-1} ref={receipt}>
+        <strong>비공개 복제 완료</strong>
+        <p>게시본 v{run.remixSaveResult.version} · 내 데이터에 연결한 새 대시보드입니다.</p>
+        <Button
+          component="a"
+          href={'/dashboard/' + run.remixSaveResult.dashboardId + '/studio'}
+          target="_blank"
+          rel="noopener noreferrer"
+          variant="outlined"
+        >
+          비공개 복제본 열기
+        </Button>
+        <p className="studio-execution-hint">이 탭의 편집은 유지됩니다. 복제본은 별도 탭에서 열립니다.</p>
+      </div>
+    );
   return (
-    <>
-      <p>복제 준비 v{remix.version} · 내 데이터와 열 매핑은 다음 화면에서 확인합니다.</p>
-      <Button
-        component="a"
-        href={publishedRemixPath(remix)}
-        className="studio-remix-continue"
-        target="_blank"
-        rel="noopener noreferrer"
-        variant="outlined"
-      >
-        내 데이터 연결하고 복제 계속
-      </Button>
+    <div className="studio-conversation-remix">
+      <p>복제 준비 v{remix.version} · 이 대화에서 내 데이터와 열 매핑을 확인합니다.</p>
+      {!open && (
+        <Button className="studio-remix-continue" variant="outlined" disabled={!onRemix} onClick={() => setOpen(true)}>
+          내 데이터 연결하고 복제 계속
+        </Button>
+      )}
       <p className="studio-execution-hint">
-        접근 권한·복제 허용·만료 상태는 복제 화면을 열 때 다시 확인합니다. 아직 복제본은 저장되지 않았으므로 이 탭의 초안은
-        그대로 유지됩니다.
+        계산 결과를 확인한 뒤 비공개 생성을 누르면 별도 복제본으로 저장됩니다. 현재 초안은 유지됩니다.
       </p>
-    </>
+      {open && onRemix && (
+        <StudioRemixFlow
+          token={remix.token}
+          expectedVersion={remix.version}
+          embedded
+          onSave={(request, isCurrent) => onRemix(run, request, isCurrent)}
+        />
+      )}
+    </div>
   );
 }
-export default function StudioExecutionActivity({ runs, busy, error, onRefresh, onRetry, onCancel, canRetry }: Props) {
+export default function StudioExecutionActivity({
+  runs,
+  busy,
+  error,
+  onRefresh,
+  onRetry,
+  onCancel,
+  canRetry,
+  onRemix,
+  onCreation,
+}: Props) {
   return (
     <section className="studio-execution" aria-labelledby="studio-execution-heading">
       <div className="studio-execution-heading">
@@ -117,7 +155,8 @@ export default function StudioExecutionActivity({ runs, busy, error, onRefresh, 
               )}
             </div>
           )}
-          <RemixHandoff run={run} />
+          <RemixHandoff run={run} onRemix={onRemix} />
+          {run.creationResult && <StudioConversationCreation run={run} onSave={onCreation} disabled={busy} />}
           <ol aria-label="실행 단계">
             {run.steps.map(step => (
               <li key={step.stepId}>

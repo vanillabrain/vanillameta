@@ -1,10 +1,11 @@
 import React from 'react';
-import { Alert, Button, Drawer, TextField, useMediaQuery } from '@mui/material';
+import { Alert, Button, TextField, useMediaQuery } from '@mui/material';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import TuneOutlined from '@mui/icons-material/TuneOutlined';
 import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined';
 import './studio.css';
+import StudioPanelSurface from './StudioPanelSurface';
 
 export type StudioDesignStage = 'start' | 'result' | 'settings' | 'publish';
 export type StudioDesignDocument = { title: string; source: string; period: string; blockTitle: string };
@@ -337,15 +338,11 @@ export default function StudioShell({
             </>
           )}
         </main>
-        {!start &&
-          panel &&
-          (compact ? (
-            <Drawer className="studio-panel-drawer" anchor="right" open onClose={() => onPanelChange(null)}>
-              <div className="vm-studio">{panelContent}</div>
-            </Drawer>
-          ) : (
-            panelContent
-          ))}
+        {!start && panel && (
+          <StudioPanelSurface compact={compact} onClose={() => onPanelChange(null)}>
+            {panelContent}
+          </StudioPanelSurface>
+        )}
       </div>
     </div>
   );

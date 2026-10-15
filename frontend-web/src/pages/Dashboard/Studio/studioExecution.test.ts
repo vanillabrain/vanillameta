@@ -231,7 +231,7 @@ describe('remix handoff receipts', () => {
     expect(value.remixResult).toEqual(remixResult());
     expect(publishedRemixPath(value.remixResult)).toBe('/published/' + 'a'.repeat(64) + '/remix');
     expect(executionSummary(value)).toBe(
-      '복제 준비 완료 · v3. 내 데이터와 열 매핑을 확인해 주세요. 아직 복제본은 저장되지 않았습니다.',
+      '복제 준비 완료 · v3. 내 데이터와 열 매핑을 확인하고 아래 연결 카드에서 저장 상태를 확인해 주세요.',
     );
     expect(executionSummary(value)).not.toContain('저장 완료');
     expect(executionSummary(value)).not.toContain('게시 완료');
@@ -288,4 +288,40 @@ describe('remix handoff receipts', () => {
     expect(validateExecution(remixFailure(), 8).remixResult).toBeUndefined();
     expect(() => validateExecution({ ...remixFailure(), remixResult: remixResult() }, 8)).toThrow();
   });
+});
+
+describe('T14 private remix receipt', () => {
+  const completed = () => ({
+    ...run(),
+    status: 'succeeded',
+    steps: [{ stepId: 'remix', status: 'succeeded', retryable: false }],
+    remixResult: { token: 'a'.repeat(64), version: 2 },
+    remixSaveResult: { dashboardId: 44, sourceId: 22, revision: 'b'.repeat(64), version: 2 },
+  });
+  it('retains a checked private clone receipt and reports completion', () => {
+    expect(executionSummary(validateExecution(completed(), 8))).toContain('비공개 복제 완료');
+  });
+  it.each([{ dashboardId: 8 }, { sourceId: 0 }, { revision: 'oops' }, { version: 3 }, { url: 'javascript:bad' }])(
+    'rejects forged clone metadata %j',
+    patch => {
+      const value = completed();
+      expect(() => validateExecution({ ...value, remixSaveResult: { ...value.remixSaveResult, ...patch } }, 8)).toThrow();
+    },
+  );
+});
+
+it('T15 validates new creation receipts without permitting current-document writes or forged targets', () => {
+  const value = {
+    ...run(),
+    status: 'succeeded',
+    steps: [{ stepId: 'createProposal', status: 'succeeded', retryable: false }],
+    creationResult: { proposalId: 'proposal-t15', sourceId: 9, sourceRevision: 'a'.repeat(64) },
+  };
+  expect(executionSummary(validateExecution(value, 8))).toContain('지표·차원');
+  const receipt = { dashboardId: 25, sourceId: 9, revision: 'b'.repeat(64) };
+  expect(executionSummary(validateExecution({ ...value, creationSaveResult: receipt }, 8))).toContain('비공개 생성 완료');
+  for (const patch of [{ dashboardId: 8 }, { sourceId: 10 }, { revision: 'bad' }])
+    expect(() => validateExecution({ ...value, creationSaveResult: { ...receipt, ...patch } }, 8)).toThrow();
+  expect(() => validateExecution({ ...value, status: 'failed' }, 8)).toThrow();
+  expect(() => validateExecution({ ...value, result: {} }, 8)).toThrow();
 });

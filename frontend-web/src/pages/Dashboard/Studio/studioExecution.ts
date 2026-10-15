@@ -1,3 +1,5 @@
+import { CreationProposal, validateCreationProposal } from './studioCreation';
+import type { RemixSaveInput } from './studioRemixApi';
 import { get, post } from '@/helpers/apiHelper';
 import { studioAssert, studioKeys, validateStudioDocument } from './studioDocument';
 import { toStudioApiError, StudioSaveResult } from './studioApi';
@@ -5,6 +7,7 @@ import type { StudioRunContext, StudioRunResult } from './studioRunTransport';
 import { Publication, validatePublication } from './studioPublication';
 export const STEP_LABELS = {
   inspectSource: '데이터 확인',
+  createProposal: '새 지표·차원과 계산 제안',
   proposeSemantics: 'AI 제안',
   preview: '계산 검증',
   applyDraft: '초안 준비',
@@ -97,6 +100,25 @@ export function validateRemixResult(input: unknown): StudioRemixResult {
   return { token: value.token, version: value.version };
 }
 export const publishedRemixPath = (remix: StudioRemixResult) => '/published/' + encodeURIComponent(remix.token) + '/remix';
+export type StudioRemixSaveResult = { dashboardId: number; sourceId: number; revision: string; version: number };
+export function validateRemixSaveResult(value: any): StudioRemixSaveResult {
+  studioAssert(
+    !!value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.keys(value).every(key => ['dashboardId', 'sourceId', 'revision', 'version'].includes(key)) &&
+      Number.isSafeInteger(value.dashboardId) &&
+      value.dashboardId > 0 &&
+      Number.isSafeInteger(value.sourceId) &&
+      value.sourceId > 0 &&
+      Number.isSafeInteger(value.version) &&
+      value.version > 0 &&
+      typeof value.revision === 'string' &&
+      /^[a-f0-9]{64}$/.test(value.revision),
+    '비공개 복제 완료 기록을 확인하지 못했습니다.',
+  );
+  return value;
+}
 export type StudioExecution = {
   runId: string;
   requestId: string;
@@ -108,6 +130,9 @@ export type StudioExecution = {
   saveResult?: StudioSaveResult;
   publicationResult?: StudioPublicationResult;
   remixResult?: StudioRemixResult;
+  remixSaveResult?: StudioRemixSaveResult;
+  creationResult?: { proposalId: string; sourceId: number; sourceRevision: string };
+  creationSaveResult?: { dashboardId: number; sourceId: number; revision: string };
   baseDocumentHash?: string;
   baseRevision?: string;
   sourceRevision?: string;
@@ -174,6 +199,46 @@ export function validateExecution(input: unknown, dashboardId: number): StudioEx
     );
     studioAssert(['succeeded', 'completed'].includes(value.status), '복제 준비가 끝난 실행에만 연결할 수 있습니다.');
   }
+  if (value.remixSaveResult !== undefined) {
+    value.remixSaveResult = validateRemixSaveResult(value.remixSaveResult);
+    studioAssert(
+      !!remixHandoff(value) &&
+        value.remixResult.version === value.remixSaveResult.version &&
+        value.remixSaveResult.dashboardId !== dashboardId,
+      '비공개 복제 완료 기록의 요청을 확인해 주세요.',
+    );
+  }
+  if (value.creationResult !== undefined) {
+    const p = value.creationResult;
+    studioKeys(p, ['proposalId', 'sourceId', 'sourceRevision']);
+    studioAssert(
+      typeof p.proposalId === 'string' &&
+        /^[-a-zA-Z0-9_]{1,128}$/.test(p.proposalId) &&
+        Number.isSafeInteger(p.sourceId) &&
+        p.sourceId > 0 &&
+        /^[a-f0-9]{64}$/.test(p.sourceRevision) &&
+        value.status === 'succeeded' &&
+        value.steps.some(s => s.stepId === 'createProposal' && s.status === 'succeeded'),
+      '신규 생성 제안의 실행 기준을 확인해 주세요.',
+    );
+    studioAssert(
+      !value.result && !value.saveResult && !value.publicationResult && !value.remixResult,
+      '신규 생성에 기존 대시보드 변경을 섞을 수 없습니다.',
+    );
+  }
+  if (value.creationSaveResult !== undefined) {
+    const r = value.creationSaveResult;
+    studioKeys(r, ['dashboardId', 'sourceId', 'revision']);
+    studioAssert(
+      !!value.creationResult &&
+        Number.isSafeInteger(r.dashboardId) &&
+        r.dashboardId > 0 &&
+        r.dashboardId !== dashboardId &&
+        r.sourceId === value.creationResult.sourceId &&
+        /^[a-f0-9]{64}$/.test(r.revision),
+      '신규 비공개 저장 기록을 확인해 주세요.',
+    );
+  }
   return value;
 }
 /** A handoff link is offered only for a finished remix step inside an overall succeeded run. */
@@ -186,6 +251,9 @@ export const remixHandoff = (run: StudioExecution) =>
 export const retryStep = (run: StudioExecution) =>
   run.steps.find(s => s.retryable && ['failed', 'interrupted', 'cancelled'].includes(s.status));
 export const executionSummary = (run: StudioExecution) => {
+  if (run.creationSaveResult) return '비공개 생성 완료 · 별도 대시보드로 저장했습니다. 현재 편집은 유지했습니다.';
+  if (run.creationResult) return '새 대시보드 제안 완료 · 지표·차원과 미리보기를 확인한 뒤 비공개로 저장하세요.';
+  if (run.remixSaveResult) return '비공개 복제 완료 · 새 대시보드로 저장했습니다. 현재 편집은 유지했습니다.';
   const saved = run.steps.some(s => s.stepId === 'saveDraft' && s.status === 'succeeded');
   const publish = run.steps.find(s => s.stepId === 'publish');
   if (run.publicationResult?.revokedAt)
@@ -200,7 +268,7 @@ export const executionSummary = (run: StudioExecution) => {
   if (remix?.status === 'failed' && remix.errorCode === 'REMIX_UNAVAILABLE')
     return '복제할 게시본이 없거나 접근·복제 허용·만료 상태를 확인하지 못했습니다. 게시 설정이나 링크를 확인해 주세요. 기존 초안은 유지했습니다.';
   if (run.remixResult)
-    return `복제 준비 완료 · v${run.remixResult.version}. 내 데이터와 열 매핑을 확인해 주세요. 아직 복제본은 저장되지 않았습니다.`;
+    return `복제 준비 완료 · v${run.remixResult.version}. 내 데이터와 열 매핑을 확인하고 아래 연결 카드에서 저장 상태를 확인해 주세요.`;
   if (saved && publish?.status === 'failed')
     return '저장 완료 · 게시 실패. 저장 결과는 유지되며 게시 링크는 갱신되지 않았습니다. 게시 단계만 다시 시도할 수 있습니다.';
   if (saved)
@@ -288,4 +356,52 @@ export async function canResumeExecution(
   )
     return false;
   return run.baseDocumentHash === (await documentFingerprint(context.document));
+}
+
+/** Explicit mapping confirmation; server binds publication, version and single clone to this run. */
+export async function saveExecutionRemix(run: StudioExecution, request: RemixSaveInput): Promise<StudioExecution> {
+  const { data } = await post('/studio/runs/' + encodeURIComponent(run.runId) + '/remix', request, { timeout: 180000 });
+  const result = validateExecution(data, run.dashboardId);
+  studioAssert(
+    result.runId === run.runId &&
+      !!result.remixSaveResult &&
+      result.remixSaveResult.sourceId === request.targetSourceId &&
+      result.remixSaveResult.version === request.expectedVersion,
+    '비공개 복제 저장 결과를 확인하지 못했습니다.',
+  );
+  return result;
+}
+
+/** Read-only cached proposal. No model call on refresh or reopening. */
+export async function getExecutionCreation(run: StudioExecution): Promise<CreationProposal> {
+  const binding = run.creationResult;
+  studioAssert(!!binding, '생성 실행을 확인해 주세요.');
+  const { data } = await get('/studio/runs/' + encodeURIComponent(run.runId) + '/creation');
+  const proposal = validateCreationProposal(data, binding.sourceId);
+  studioAssert(
+    proposal.proposalId === binding.proposalId && proposal.sourceRevision === binding.sourceRevision,
+    '실행과 생성안의 기준이 다릅니다.',
+  );
+  return proposal;
+}
+export async function saveExecutionCreation(run: StudioExecution): Promise<StudioExecution> {
+  const p = run.creationResult;
+  studioAssert(!!p, '생성 실행을 확인해 주세요.');
+  const { data } = await post(
+    '/studio/runs/' + encodeURIComponent(run.runId) + '/creation',
+    {
+      proposalId: p.proposalId,
+      expectedSourceRevision: p.sourceRevision,
+    },
+    { timeout: 180000 },
+  );
+  const completed = validateExecution(data, run.dashboardId);
+  studioAssert(
+    completed.runId === run.runId &&
+      !!completed.creationSaveResult &&
+      completed.creationResult?.proposalId === p.proposalId &&
+      completed.creationSaveResult.sourceId === p.sourceId,
+    '신규 비공개 저장 결과를 확인하지 못했습니다. 같은 요청으로 다시 확인해 주세요.',
+  );
+  return completed;
 }

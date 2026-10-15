@@ -29,6 +29,18 @@ export class StudioExecutionController {
   cancel(@Param('id') id: string, @Req() req) {
     return this.executions.cancel(id, req.user?.accessKeyData?.id);
   }
+  @Post('runs/:id/remix')
+  remix(@Param('id') id: string, @Body() body: any, @Req() req) {
+    return this.executions.remix(id, body, req.user?.accessKeyData?.id);
+  }
+  @Get('runs/:id/creation')
+  creationProposal(@Param('id') id: string, @Req() req) {
+    return this.executions.creationProposal(id, req.user?.accessKeyData?.id);
+  }
+  @Post('runs/:id/creation')
+  saveCreation(@Param('id') id: string, @Body() body: any, @Req() req) {
+    return this.executions.saveCreation(id, body, req.user?.accessKeyData?.id);
+  }
   private async withSignal(req, res, run: (signal: AbortSignal) => Promise<any>) {
     const controller = new AbortController();
     const abort = () => controller.abort();

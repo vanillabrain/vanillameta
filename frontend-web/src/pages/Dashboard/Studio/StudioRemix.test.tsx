@@ -1,7 +1,7 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import StudioRemix from './StudioRemix';
+import StudioRemix, { StudioRemixFlow } from './StudioRemix';
 import { fetchRemixRequirements, previewRemix, saveRemix } from './studioRemixApi';
 const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
 vi.mock('react-router-dom', () => ({ useParams: () => ({ token: 'a'.repeat(64) }), useNavigate: () => navigate }));
@@ -122,6 +122,8 @@ describe('remix save and actor boundaries', () => {
     await ready();
     fireEvent.click(screen.getByRole('button', { name: '새 비공개 대시보드 만들기' }));
     const retry = await screen.findByRole('button', { name: '같은 복제 저장 재시도' });
+    expect(await screen.findByText(/저장 완료 여부를 확인하지 못했습니다/)).toBeDefined();
+    expect(screen.queryByText('내 데이터의 계산 결과를 확인했습니다. 아직 저장되지 않았습니다.')).toBeNull();
     await waitFor(() => expect((retry as HTMLButtonElement).disabled).toBe(false));
     expect((screen.getByRole('button', { name: '내 파일 선택' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(retry);
@@ -159,5 +161,41 @@ describe('remix save and actor boundaries', () => {
     await act(async () => resolveSave({ dashboardId: 44, document: {} }));
     expect(navigate).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: '같은 복제 저장 재시도' })).toBeNull();
+  });
+});
+
+describe('T14 embedded mapping', () => {
+  it('confirms mapping and calls the conversation save handler without routing or direct remix writes', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<StudioRemixFlow token={requirements.token} expectedVersion={6} embedded onSave={onSave} />);
+    fireEvent.click(await screen.findByRole('button', { name: '내 파일 선택' }));
+    const create = await screen.findByRole('button', { name: '새 비공개 대시보드 만들기' });
+    await waitFor(() => expect((create as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.change(screen.getByRole('combobox', { name: '대상 열: amount' }), { target: { value: '' } });
+    expect((create as HTMLButtonElement).disabled).toBe(true);
+    expect(onSave).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('combobox', { name: '대상 열: amount' }), { target: { value: 'amount' } });
+    fireEvent.click(screen.getByRole('button', { name: '매핑 확인' }));
+    await waitFor(() => expect((create as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(create);
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+    expect(onSave.mock.calls[0][0]).toEqual({
+      requestId: 'remix-request',
+      targetSourceId: 22,
+      mapping: { amount: 'amount' },
+      excludedBlockIds: [],
+      expectedVersion: 6,
+      expectedSourceRevision: 'b'.repeat(64),
+    });
+    expect(saveRemix).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+  });
+  it('refuses a newer publication version instead of silently changing the conversation mapping basis', async () => {
+    const onSave = vi.fn();
+    render(<StudioRemixFlow token={requirements.token} expectedVersion={5} embedded onSave={onSave} />);
+    await screen.findByText(/게시 버전이나 대상 데이터가 변경되었습니다/);
+    expect(screen.queryByRole('button', { name: '내 파일 선택' })).toBeNull();
+    expect(onSave).not.toHaveBeenCalled();
   });
 });

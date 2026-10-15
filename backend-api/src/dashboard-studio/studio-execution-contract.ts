@@ -1,6 +1,7 @@
 import { PublicationMetadata } from './studio-publication-contract';
 import { StudioDocumentV1, StudioOperation } from './studio-contract';
 export type StudioStepId =
+  | 'createProposal'
   | 'inspectSource'
   | 'proposeSemantics'
   | 'preview'
@@ -43,6 +44,30 @@ export type StudioExecutionState = {
   remix?: boolean;
   remixToken?: string;
   remixResult?: { token: string; version: number };
+  /**
+   * Claim for the single private clone of this execution. It records the exact remix request
+   * identity and digest only: no mapping values, rows, credential or prompt history.
+   */
+  remixSave?: StudioRemixSaveClaim;
+  /** Durable receipt of the private clone for this execution. */
+  remixSaveResult?: StudioRemixSaveResult;
+  create?: boolean;
+  creationResult?: { proposalId: string; sourceId: number; sourceRevision: string };
+  creationSaveResult?: { dashboardId: number; sourceId: number; revision: string };
   unsupported?: StudioStepId;
   proposal?: { intent: string; operations: StudioOperation[]; document: StudioDocumentV1 };
+};
+export type StudioRemixSaveClaim = {
+  /** Deterministic remix request ID derived from the run ID, so a retry can never duplicate a clone. */
+  requestId: string;
+  payloadHash: string;
+  targetSourceId: number;
+  expectedSourceRevision: string;
+  expectedVersion: number;
+};
+export type StudioRemixSaveResult = {
+  dashboardId: number;
+  sourceId: number;
+  revision: string;
+  version: number;
 };

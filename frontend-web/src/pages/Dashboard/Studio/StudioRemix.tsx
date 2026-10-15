@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Alert, Button, Checkbox, FormControlLabel } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getToken, STORAGE_ACCESS_TOKEN } from '@/helpers/authHelper';
@@ -40,6 +40,30 @@ const statusLabel = { mapped: '연결됨', missing: '열 선택 필요', incompa
 export default function StudioRemix() {
   const { token = '' } = useParams();
   const navigate = useNavigate();
+  return (
+    <StudioRemixFlow
+      token={token}
+      onSave={async (request, isCurrent) => {
+        const result = await saveRemix(token, request);
+        if (isCurrent()) navigate('/dashboard/' + result.dashboardId + '/studio');
+      }}
+    />
+  );
+}
+
+export function StudioRemixFlow({
+  token,
+  embedded = false,
+  expectedVersion,
+  onSave,
+}: {
+  token: string;
+  embedded?: boolean;
+  expectedVersion?: number;
+  onSave: (request: RemixSaveInput, isCurrent: () => boolean) => Promise<void>;
+}) {
+  const identity = useId().replace(/:/g, '');
+  const elementId = (name: string) => identity + '-' + name;
   const [requirements, setRequirements] = useState<RemixRequirements | null>(null);
   const [sources, setSources] = useState<StudioSource[]>([]),
     [sourceId, setSourceId] = useState<number | null>(null);
@@ -82,6 +106,7 @@ export default function StudioRemix() {
     try {
       const [template, rows] = await Promise.all([fetchRemixRequirements(token), fetchStudioSources()]);
       if (!mounted.current || generation !== epoch.current) return;
+      if (expectedVersion !== undefined && template.version !== expectedVersion) throw { response: { status: 409 } };
       setRequirements(template);
       setSources(rows);
     } catch (cause: any) {
@@ -92,7 +117,7 @@ export default function StudioRemix() {
     } finally {
       if (mounted.current && generation === epoch.current) setBusy('');
     }
-  }, [token]);
+  }, [token, expectedVersion]);
   useEffect(() => {
     mounted.current = true;
     initialize();
@@ -196,16 +221,18 @@ export default function StudioRemix() {
     const isCurrent = () => mounted.current && generation === epoch.current && actor === actorKey();
     setBusy('새 비공개 대시보드로 저장하고 있습니다…');
     setError('');
+    setNotice('');
     try {
-      const result = await saveRemix(token, request);
+      await onSave(request, isCurrent);
       if (!isCurrent()) return;
       if (pendingSave.current === request) pendingSave.current = null;
-      navigate('/dashboard/' + result.dashboardId + '/studio');
     } catch (cause: any) {
       if (!isCurrent()) return;
       if (cause?.response?.status && cause.response.status < 500 && pendingSave.current === request)
         pendingSave.current = null;
       setError(remixError(cause));
+      if (pendingSave.current === request)
+        setNotice('저장 완료 여부를 확인하지 못했습니다. 같은 요청으로 재시도하면 기존 저장 결과를 확인합니다.');
     } finally {
       if (isCurrent()) setBusy('');
     }
@@ -213,23 +240,29 @@ export default function StudioRemix() {
   const locked = !!busy || !!pendingSave.current;
   const activeFields = requirements?.requiredFields.filter(field => field.blockIds.some(id => !excluded.includes(id))) ?? [];
   return (
-    <div className="vm-studio studio-remix">
-      <a className="studio-skip" href="#remix-main">
-        복제 설정으로 건너뛰기
-      </a>
-      <div className="studio-notice">
-        <span className="studio-dot" />새 비공개 대시보드 · 원본은 변경되지 않습니다
-      </div>
-      <header className="studio-remix-header">
-        <div>
-          <span className="studio-eyebrow">DASHBOARD STUDIO · REMIX</span>
-          <h1>내 데이터로 복제</h1>
-        </div>
-        <Button component="a" href={path} disabled={!!pendingSave.current}>
-          게시본으로 돌아가기
-        </Button>
-      </header>
-      <main id="remix-main" className="studio-remix-main">
+    <div className={'vm-studio studio-remix' + (embedded ? ' studio-remix-inline' : '')}>
+      {!embedded && (
+        <a className="studio-skip" href={'#' + elementId('main')}>
+          복제 설정으로 건너뛰기
+        </a>
+      )}
+      {!embedded && (
+        <>
+          <div className="studio-notice">
+            <span className="studio-dot" />새 비공개 대시보드 · 원본은 변경되지 않습니다
+          </div>
+          <header className="studio-remix-header">
+            <div>
+              <span className="studio-eyebrow">DASHBOARD STUDIO · REMIX</span>
+              <h1>내 데이터로 복제</h1>
+            </div>
+            <Button component="a" href={path} disabled={!!pendingSave.current}>
+              게시본으로 돌아가기
+            </Button>
+          </header>
+        </>
+      )}
+      <div id={elementId('main')} className="studio-remix-main">
         {busy && (
           <Alert severity="info" role="status">
             {busy}
@@ -288,6 +321,7 @@ export default function StudioRemix() {
                 </section>
                 <div className="studio-remix-columns">
                   <StudioSourcePicker
+                    idPrefix={identity}
                     sources={sources}
                     sourceId={sourceId}
                     profile={profile && Number.isFinite(Number(profile.rowCount)) ? profile : null}
@@ -311,9 +345,9 @@ export default function StudioRemix() {
                       })
                     }
                   />
-                  <section className="studio-remix-mapping" aria-labelledby="remix-mapping-heading">
+                  <section className="studio-remix-mapping" aria-labelledby={elementId('mapping-heading')}>
                     <span className="studio-eyebrow">02 · 열 연결</span>
-                    <h2 id="remix-mapping-heading">내 열에 지표를 연결하세요</h2>
+                    <h2 id={elementId('mapping-heading')}>내 열에 지표를 연결하세요</h2>
                     <p>
                       이름과 형식이 정확히 같으면 자동 연결합니다. 숫자·문자열 변환이나 불확실한 후보는 추측하지 않습니다.
                     </p>
@@ -328,13 +362,13 @@ export default function StudioRemix() {
                               <label className="studio-remix-field" key={field.name}>
                                 <span>
                                   <strong>{field.name}</strong>
-                                  <small id={'remix-status-' + encodeURIComponent(field.name)}>
+                                  <small id={elementId('status-' + encodeURIComponent(field.name))}>
                                     {field.type} · {status ? statusLabel[status.status] : '확인 필요'}
                                   </small>
                                 </span>
                                 <select
                                   aria-label={'대상 열: ' + field.name}
-                                  aria-describedby={'remix-status-' + encodeURIComponent(field.name)}
+                                  aria-describedby={elementId('status-' + encodeURIComponent(field.name))}
                                   aria-invalid={!!status && status.status !== 'mapped'}
                                   value={
                                     Object.prototype.hasOwnProperty.call(mapping, field.name) ? mapping[field.name] : ''
@@ -424,9 +458,9 @@ export default function StudioRemix() {
                   </Alert>
                 )}
                 {preview?.preview && (
-                  <section className="studio-remix-preview" aria-labelledby="remix-preview-heading">
+                  <section className="studio-remix-preview" aria-labelledby={elementId('preview-heading')}>
                     <span className="studio-eyebrow">03 · 내 데이터의 계산 결과</span>
-                    <h2 id="remix-preview-heading">저장 전 결과를 확인하세요</h2>
+                    <h2 id={elementId('preview-heading')}>저장 전 결과를 확인하세요</h2>
                     <p>원본 게시 숫자를 복사하지 않고 선택한 내 데이터에서 다시 집계했습니다.</p>
                     <p className="studio-remix-filter-scope">
                       {preview.mappedFilters?.length
@@ -470,7 +504,7 @@ export default function StudioRemix() {
             )}
           </>
         )}
-      </main>
+      </div>
     </div>
   );
 }

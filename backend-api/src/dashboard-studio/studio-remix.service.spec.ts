@@ -1174,4 +1174,19 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
     expect(await db.manager.count(Dashboard)).toBe(before.dashboards);
     expect(await db.manager.count(Metric)).toBe(before.metrics);
   });
+  it('T14 receipt reads an authorized committed private clone, bound to its actual target source', async () => {
+    const publication = await publish();
+    const checked = await preview(publication);
+    const created = await saveRemix(publication, checked, { requestId: 't14-receipt' });
+    const service = remixService();
+    expect(await service.receipt(8, 't14-receipt', 2)).toMatchObject({
+      dashboardId: created.dashboardId,
+      sourceId: 2,
+      revision: created.document.revision,
+    });
+    expect(await service.receipt(7, 't14-receipt', 2)).toBeUndefined();
+    await expect(service.receipt(8, 't14-receipt', 5)).rejects.toMatchObject({ status: 409 });
+    await db.manager.update(Database, 2, { ownerId: 7 });
+    await expect(service.receipt(8, 't14-receipt', 2)).rejects.toMatchObject({ status: 403 });
+  });
 });

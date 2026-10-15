@@ -2,7 +2,7 @@
 
 ## 현재 범위와 실행 기준
 
-2026-10-16, T10 핵심 연결·T11 복제 매핑 진입·T12 범주 필터 결과를 재사용하고, T13 날짜 범위 편집·저장·게시·복제 전파를 PASS_SELECTED로 확인했다. 작업 브랜치 `codex/self-service-next-20261014`, 기준 `4daec210` + T12/T13 미커밋 diff. 전체 TC-005/G4는 PARTIAL: 대화 안의 매핑·최종 복제 자동 실행은 미지원이고 VoiceOver는 BLOCKED다. 아래 과거 기록은 당시 범위이며 최신 판정은 마지막 T13 기록을 따른다.
+2026-10-16, T12·T13은 `58a1a39f`로 drumcap 커밋·push 완료. 현재 브랜치 `codex/self-service-next-20261014`에서 T14 대화 내 소스·열 매핑 확인→명시적 비공개 복제 완료·기록 재조회를 PASS_SELECTED로 확인했다. 기준은 58a1a39f + T14 미커밋 diff이며 아래 과거 기록은 당시 범위다. 최신 판정은 마지막 T14 기록을 따른다. 전체 TC-005/G4는 PARTIAL(일반 신규 생성 dispatch·확장 실패 주입·VoiceOver BLOCKED 등 별도 잔여 조건).
 
 ### T1 최초 시안 실행 기록 (역사적 기준)
 
@@ -578,3 +578,97 @@ T10~T12 관련 없는 PASS 조건은 재사용한다. 실기기·날짜 UI의 �
 - `ai-date-context-1440.jpg`, `ai-date-answer-1440.jpg`, `ai-date-answer.txt`, `after-ai.json`: 실제 모델과 저장 전 초안. 초기 `date-input-initial-1440.jpg`와 `baseline-768.jpg`는 개발 HMR 후 적용 전 상태라 날짜 적용/오류 판정 근거로 쓰지 않는다. 최종 이미지와 실제 수치 증빙을 우선한다.
 
 **NOT_RUN:** 새 Rill live UI와 같은 날짜의 직접 UX 대조(공식 샘플·기존 계산 의미와 독립 oracle만 대조), 새 계정/이름 변경139만행 소스의 브라우저 업로드(다른 이름 날짜 열은 실제 DuckDB 서비스 회귀), 날짜 선택 팝업 전체 키보드 경로·모든 언어·실기기·다른 시간대 UI·운영 동시 부하. 빈 날짜 결과의 null/[]는 하위 회귀이며 UI 전체 상태 통과로 확대하지 않는다. **VoiceOver BLOCKED** 유지. 전체 TC-005/G4는 **PARTIAL**, 다음 제품 단위는 대화 안에서 매핑 확인과 최종 비공개 복제까지 완료하는 흐름이다. 이번 변경은 현재 워크트리에 미커밋 상태로 남겼다.
+
+
+## T14 — 대화 안 열 매핑·비공개 복제 완료 · 2026-10-16
+
+T12·T13은 58a1a39f로 현재 브랜치에 drumcap push 완료. 기존 PASS_SELECTED 변형은 재사용한다.
+
+| ID | 새 조건 / 기대 결과 | 상태 |
+|---|---|---|
+| STUDIO-R07 | 대화의 복제 준비에서 내 소스 선택 → 열 매핑 확인 → 필터·기간 적용 미리보기 → 명시적 비공개 생성. 새 탭 이동 없이 완료 기록과 복제본 링크 표시. | PASS_SELECTED |
+| STUDIO-R08 | 누락/변경한 매핑은 저장 차단, 매핑 재확인 후 복구. 게시 버전·소스 변경/권한 거절 시 현재 초안 유지. 요청 재전송·응답 유실 후 중복 생성 방지, 새로고침 시 서버 완료 기록 복원. | PASS_SELECTED · 실제 API/UI + 하위 장애 주입 범위 |
+| STUDIO-D03 | 대화 복제 카드 1440/768/390px: 한 열 배치, 열 이름·숫자·오류 줄바꿈, 가로 overflow 없음, 입력·버튼 44px, 키보드 선택·확인·생성·완료 링크 접근. | PASS_SELECTED · 아래 키보드 제한 참조 |
+
+고정 정답: source9 공식 Rill 데이터, Mobile/Tablet + UTC 2023-09-10~11: 요청 90,789,400 / 평균 입찰 하한가 5.922632802560112. 원본 대시보드21의 저장 내용·게시 상태를 변경하지 않고 별도 비공개 복제본을 만든다. gpt-6-luna 설정 및 VoiceOver BLOCKED 유지. 실제 VoiceOver·실기기는 이번 범위에서 실행하지 않는다.
+
+### T14 실행 결과와 오류 수정
+
+- 기존 Remix 소스 선택·프로파일·열 매핑·범위 미리보기를 `StudioRemixFlow`로 재사용한다. 별도 SQL 생성기·워커·라이브러리를 추가하지 않았다. 명시적인 비공개 생성 전에는 저장하지 않으며, 생성 결과를 현재 캔버스에 적용하지 않는다.
+- 실제 actor4/dashboard21 대화에서 게시본20v1→owned source9 선택→날짜 열 매핑 해제/차단→복구→미리보기→모바일 Enter 생성으로 private22를 만들었다. 조건은 Mobile/Tablet AND UTC 2023-09-10~11. 최초 생성 POST 1회, 복제 대시보드 증가1, 영수증1, 복제본 게시0. GET 재조회 값은 요청 **90,789,400**, 평균 **5.922632802560037**로 독립 정답과 허용 오차 내 일치한다. 새로 열어 본 22도 필터·기간·4블록을 복원했다.
+- 원본21에는 임시 미저장 제목을 넣고 생성까지 보존됨을 확인했다. DB의 원본21·게시20·게시21 상태 SHA-256은 전후 일치. 증빙 후 본 검증의 임시 제목 변경 1회만 undo하고 새로고침했다. 대화 완료 링크 `/dashboard/22/studio`가 서버 이력에서 복원되며 추가 생성은 없다.
+- 새 endpoint `POST /studio/runs/:id/remix`는 소유 실행의 token/version에 바인딩한다. 클라이언트 requestId가 바뀌어도 실행별 고정 ID로 같은 복제본을 반환한다. 실제 동시 재전송2회는 모두22, 다른 매핑409, 타계정403. 서버 회귀는 최초 안전 거절 후 교정·응답 유실/재시작 영수증 복구·접근 회수·비동의 거절을 주입해 확인했다. 복제 완료 후 접근 재검증 실패는 성공 이력으로 반환하지 않는다.
+- **발견/수정:** 데스크톱 rail↔모바일 Drawer 전환에서 대화와 매핑이 unmount되어 초기화됐다. 고정 portal 대상에 같은 하위 트리를 유지하도록 수정하고, 단위 mount1회/상태 보존과 실제390→768→1440에서 선택·미리보기·현재 초안 유지로 재검증했다. 최초 관찰은 DOM 스냅샷이며 별도 실패 스크린샷은 확보하지 못했다.
+- **기능 PASS_SELECTED / 디자인 PASS_SELECTED:** 1440/768/390 캡처를 직접 확인했다. 폼·완료 카드 한 열, 전역 및 대상 가로 overflow0. 매핑 select 44px/14px, 생성 버튼·완료 링크44px, 포커스 외곽선2px. 키보드는 소스 메뉴 ArrowDown/Enter, 열→매핑 확인 Tab, 체크박스/데이터 표 순서 이동, 매핑 확인 Enter, 생성 Shift+Tab/Tab/Enter, 완료 카드 자동 포커스→링크 Tab, 모바일 Escape 닫기를 확인했다. native select의 Home/ArrowUp만으로 값 변경은 도구에서 반영되지 않아 해당 부분은 `selectOption`으로 수행했고 전체 OS 선택창 키보드 통과로 확대하지 않는다.
+- 브라우저는 기존 Codex IAB 탭/로그인/서버를 재사용했다. Aside CLI의 새 버전 안내·대화형 업데이트는 적용하지 않았다. 링크의 새 탭 열기 동작은 IAB 탭 목록에서 확인되지 않아, 관찰된 URL을 별도 임시 탭에 열어 저장 결과를 확인하고 임시 탭은 닫았다. 링크 키보드 포커스와 href/target은 확인했지만 호스트의 새 창 전달 전체는 NOT_RUN이다.
+
+### T14 검사·증빙·잔여 경계
+
+- BE 실행 서비스50 PASS + 실제 DuckDB 영수증1 PASS(나머지40 변형 skip). FE 선택 **109 PASS / 7파일**: Remix/실행 계약62, Activity8, Conversation6, 반응형 패널1, 생성·Editor32. 초기 Activity/Conversation 테스트 import 오류는 폼 경계를 mock해 수정하고 해당14개만 재실행했다. 추가된 Conversation 테스트의 context 픽스처 누락도 수정하고 해당6개를 재검증했다. 이미 통과한 다른 테스트는 반복하지 않았다. 타입·FE/BE 빌드·변경 파일 lint(오류/경고0)·diff check PASS.
+- 모델 호출·SQL/워커·T12/T13 범위 엔진은 변경하지 않았다. `gpt-6-luna` 고정 설정 및 T13 실제 AI 응답 근거를 재사용했고 이번 고정 복제 intent에는 추가 모델 호출0. VoiceOver **BLOCKED**, OS 설정 변경0. 독립 검토 에이전트는 provider400으로 완료하지 못해 검토 완료로 집계하지 않았다.
+- 새 live Rill UI 비교, 다른 계정의 renamed 소스를 이번 대화 카드에서 매핑, 실제 파일 업로드 재실행, 네트워크 차단/서버 kill을 동반한 브라우저 장애 주입, 전체 언어·최대 길이 이름·실기기·VoiceOver·운영 부하는 **NOT_RUN/BLOCKED**다. 기존 T9/T12/T13 하위 수치·매핑·권한 결과는 변경 없는 범위에서 재사용한다.
+- 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t14-20261016` — `confirmation-request.json`, `confirmation-response.json`, `api-verification.json`, `clone-reloaded.json`, `before.json`/`after.json`, `layout-checks.json`, `keyboard-path.json`, `verification-manifest.json`. 대표 캡처 `mapping-1440.jpg`, `missing-date-mapping-390.jpg`, `preview-768.jpg`, `preview-kpi-390.jpg`, `confirm-focus-390.jpg`, `completed-390.jpg`, `restored-receipt-{1440,768,390}.jpg`, `clone-reloaded-1440.jpg`.
+
+대화 안의 **확인 후 비공개 복제 완료**는 더 이상 미지원이 아니다. 신규 생성의 대화 dispatch·확장 장애 흐름과 VoiceOver 등 별도 조건은 그대로 남기므로 TC-005/G4 전체 완료로 보고하지 않는다. T14 변경은 검토 가능한 미커밋 상태다.
+
+
+## T14 후속 — 실제 응답 유실·서버 재시작 복구 · 2026-10-16
+
+P5/BR-006의 기존 미검증 경로만 추가한다. 기존 정상 생성·매핑·수치·3폭 테스트는 재사용하며 정상 단계의 재진입은 장애 주입의 전제 준비로만 사용한다. 저장 API 응답을 브라우저에 전달하지 않은 상태에서 서버 커밋을 확인하고, 동일 요청 재시도·실제 API 프로세스 재기동·완료 이력 복원을 확인한다. 원본·게시본은 유지하고 격리된 새 검증 복제본 하나만 만든다.
+
+| ID | 입력과 기대 결과 | 상태 |
+|---|---|---|
+| STUDIO-R09 | 서버 저장 성공 응답만 유실: UI가 성공을 단정하지 않고 매핑을 유지, 같은 요청 재시도로 단일 private ID 반환. 신규 대시보드/저장 영수증은 각각1개. | PASS_SELECTED · 실제 모바일 XHR 실패 주입 |
+| STUDIO-R10 | 실제 로컬 API 종료·동일 DB/업로드/AI 설정 재기동 후 브라우저 새로고침: 완료 이력·동일 private ID 복원, 모델/복제 POST 자동 실행0. | PASS_SELECTED · SIGTERM 후 실제 재기동 |
+
+정답은 T14와 동일한 source9/필터/날짜 범위다. 단위로 이미 확인한 커밋 직전 중단·권한/매핑 경계는 반복하지 않는다. VoiceOver BLOCKED·gpt-6-luna 유지. 네트워크 장애 주입은 종료 시 해제하며 서버는 기존 포트와 설정으로 복구한다.
+
+### 실제 실행·발견 오류·재검증
+
+- 최초 재현: 새 실행 `46767b3d-07db-40fc-a317-bcf0434fd42a`의 POST 201 응답을 브라우저에 전달하기 전에 실패시켰다. 서버에는 private23이 커밋됐으나 UI에 이전의 “아직 저장되지 않았습니다”가 남는 **결과 오안내**를 발견했다. 실패 화면 `lost-response-390.jpg`, 서버 기록 `committed-while-ui-uncertain.json`을 남겼다. 정상 저장 전체를 새 통과로 재집계하지 않는다.
+- 수정: 저장 요청 시작 시 이전 미리보기 안내를 지운다. 네트워크 오류/5xx처럼 결과가 불확실하면 “저장 완료 여부를 확인하지 못했습니다. 같은 요청으로 재시도…”로 표시하고 기존 요청·매핑을 유지한다. 복제 준비 요약에서도 저장되지 않았다고 단정하지 않는다. 실행 이력 재조회로 완료 영수증이 확인되면 대화 안내도 완료로 갱신한다. 하위 권한·멱등성·SQL/워커는 변경하지 않았다.
+- 재검증: 새 실행 `84307418-3689-485e-8123-84dac3611510`의 서버 201 응답만 XHR 단계에서 유실시켰다. 오류 상태에서 __time 등5개 선택 값은 유지·잠금, 재시도 버튼은44px/활성, 폼 가로 넘침0, 오래된 “아직 저장되지 않았습니다” 문구0을 확인했다. 모바일 키보드 Enter로 재시도한 두 POST 본문은 정확히 같고 결과는 private24 하나·영수증1개다. 최초 재현23과 수정 재검증24는 **서로 다른 검증 실행의 산출물**이며 동일 요청의 중복 생성이 아니다.
+- 실제 재시작: 현재 워크트리 API PID26702만 SIGTERM 종료 후 동일 Node24/DB/영속 업로드/4329/CORS/gpt-6-luna 연결 환경으로 PID47005를 기동했다. 브라우저 새로고침→AI 패널에서 기존 private24 완료 기록과 링크를 복원했다. 수집된 API는 dashboard21 GET·userinfo GET·runs GET 및 OPTIONS이고 POST0, DB 대시보드/영수증 추가0이다. 모듈 재로딩 초기 Network buffer 일부는 truncated라 과거 구간 전체로 확대하지 않으며, retained API 구간과 DB 개수·영수증의 전후 동일성을 함께 근거로 쓴다.
+- 복제본24 별도 재조회에서도 source9·공통 날짜 2023-09-10~11·Mobile/Tablet과 요청90,789,400/평균5.922633을 확인했다. T13 독립 oracle와 T14 범위 엔진 검증은 재사용했다. 원본21·게시20의 전후 SHA-256 일치, 복제23/24의 게시 수0이다.
+- 디자인/키보드 **PASS_SELECTED:** 이번 변경은390px의 긴 오류·불확실 안내·재시도·완료/복원 상태를 실제 캡처로 확인했다. 기능과 디자인 판정은 해당 상태에 한정한다. 데스크톱/768px 배치·다른 키보드 경로는 T14의 미변경 결과를 재사용했고 전체 VoiceOver·실기기를 새로 통과시켰다고 보고하지 않는다.
+
+### 검사·증빙·미실행 경계
+
+- 영향받은 FE4파일의 최종 선택 결과 **77 PASS**: 실행 계약/Activity63 PASS, Remix/Conversation14 PASS. 최초 수정 검사의 비동기 안내 대기 시점 실패는 `findByText`로 보완하고 해당2파일만 재검증했다. 타입·변경 파일 lint(오류/경고0)·FE build·diff check PASS. 서버 코드·저장 엔진은 이번 후속에서 변경하지 않아 T14 BE51 PASS를 재사용했고 전체 빌드/테스트/E2E는 반복하지 않았다.
+- 증빙 폴더: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t14-recovery-20261016`. `before.json`, `committed-while-ui-uncertain.json`, `before-restart.json`, `after-restart.json`, `retry-request-bodies.json`, `lost-response-fixed-state.json`, `restart-browser-requests.json`, `restart-all-api-requests.json`, `verification-manifest.json` 및 최초 오류/수정 후/재시도/실제 재시작 캡처를 따른다.
+- 장애 주입은 CORS 사전 응답을 정상 통과시키고 해당 실행의 POST XHR 응답에만 적용했다. 도구의 비지원 Fetch.disable 대신 명시 지원된 `Fetch.enable {patterns:[]}`로 모든 raw interception을 해제했고 이후 재시도·GET이 정상 응답한다. 임시 복제본 확인 탭과390px 화면 폭 override도 정리했다.
+- **NOT_RUN:** SIGKILL/호스트 재부팅, DB 커밋과 실행 영수증 사이의 실제 프로세스 중단, 장시간 전체 오프라인·운영 동시 부하·새 live Rill UI 대조·모든 OS 선택창 키보드. 커밋 간극 회복은 기존 T14 하위 주입 검증을 재사용한다. **VoiceOver BLOCKED**, **gpt-6-luna 유지/새 모델 호출0**. T14와 이번 안내 수정·기록은 현재 워크트리 미커밋이며 전체 TC-005/G4 PARTIAL은 유지한다.
+
+다음 제품 기능 우선순위는 **대화에서 새 대시보드 생성 요청→지표/차원 제안→미리보기·비공개 저장 연결**이다. 이번 후속에서 이를 구현했다고 보고하지 않는다.
+
+## T15 — 대화에서 신규 생성·검토·비공개 저장 · 2026-10-16
+
+현재 Studio에서 새 대시보드를 요청하면 현재 소스의 **전체 기간·필터 없음**을 기준으로 기존 생성 컴파일러가 지표·차원과 계산 결과를 제안한다. 현재 문서의 필터·배치를 자동 복사하지 않는다. 확인 버튼 전에는 대시보드/지표/게시본을 저장하지 않고, 확인 후 별도 비공개 대시보드로 저장한다. 요청 원문·원본 행·미리보기 SQL은 실행 이력에 추가 저장하지 않는다.
+
+| ID | 입력·기대 결과 | 상태 |
+|---|---|---|
+| STUDIO-N01 | source9 공식 Rill 1,391,572행에서 새 대시보드 요청 → gpt-6-luna 지표·차원 제안 → 실제 DuckDB 미리보기. 전체 요청 SUM(bid_request_cnt)=634,513,000; 디바이스별 합도 동일. 확인 전 dashboard/metric/publication 추가0, 현재21·게시20 불변. | PASS_SELECTED · 실제 AI/DuckDB/독립 Parquet |
+| STUDIO-N02 | 제안 확인 후 비공개 저장 → 신규 ID·동일 숫자 재조회. 같은 실행의 저장 재시도는 동일 ID/저장 영수증1개, 현재21 유지·게시0. 새로고침은 완료 영수증 복원, AI 자동 재호출0. | PASS_SELECTED · 모바일 저장·동일 ID·reload |
+| STUDIO-N03 | 다른 계정/다른 제안 바인딩·만료/소스 버전 변경은 거절. 생성/저장 실패 시 현재 초안 유지, 불확실 저장은 같은 요청으로 재확인. 캐시 만료·재시작 전 미저장 제안은 재생성 필요를 안내. | PASS_SELECTED · 실제 API 권한/바인딩 + 단위 만료·버전/응답 유실 |
+| STUDIO-N04 | 1440/768/390에서 생성 카드·긴 정의·수치·오류·완료 상태 넘침/겹침 없음. Tab/Shift+Tab/Enter로 요청→검토→저장, 완료 상태 포커스→새 대시보드 링크. 모바일 패널 전환에도 입력·미리보기 유지. | PASS_SELECTED · 3폭·선택 키보드·디자인 |
+
+기존 생성 컴파일러·SQL·소스 업로드·복제·게시 PASS는 관련 변경 없는 범위에서 재사용한다. VoiceOver BLOCKED 유지. 이번 기능은 기존 Studio의 소스로 시작하며, 빈 홈의 새 대화 진입 및 생성안의 대화식 재설계는 별도 범위다.
+
+
+### 실제 결과·수정·재검증
+
+- 실행 환경: 워크트리 `codex/self-service-next-20261014`, HEAD `58a1a39f81cc41cc06bbc1cb67d95f04fe8cc265` + 현재 T14/T15 미커밋 diff. Node24.21.0, FE3229/API4329, 기존 격리 DB/업로드와 Codex `gpt-6-luna` 연결을 유지했다. 새 의존성/모델 fallback/OS 설정 변경0.
+- 실행 `ad0f0e5b-6235-491f-a119-40e4fba056cf`: 현재 source9에서 “전체 기간 총 요청 수 SUM(bid_request_cnt) 숫자 + device_type별 막대 2개, 정확한 정수, 제목 전체 광고 요청 분석”을 같은 AI SDK 대화 입력으로 요청했다. 처음에는 편집의 물리 파일 버전과 생성의 메타데이터 포함 버전을 잘못 비교해409가 발생했다. 실패 화면을 남기고 `expectedFileRevision`을 별도로 확인하도록 수정했다. 버전 검사는 snapshot 안에서 실행하며 기존 생성 API의 `expectedSourceRevision` 의미는 유지한다. 두 번의 버전 차단은 모델 호출 전이고, 수정 뒤 같은 실행의 실패 단계만 재시도해 실제 gpt-6-luna 생성1회를 완료했다.
+- 제안 `1e8f9834-a0cc-4837-a618-32fe1948418c`: 새 SUM(bid_request_cnt) 정의와 device_type/VARCHAR 차원을 제안하고 실계산했다. 원본 Parquet을 별도 DuckDB 연결로 읽은 독립 oracle는 **1,391,572행·634,513,000·9개 차원**이다. 총계뿐 아니라 Mobile307,763,000/PC173,308,000 등 9개 값 전체가 일치했다. 저장 전 dashboard23/metric34/publication8/journal30의 개수는 모두 동일했다.
+- 모바일에서 Tab→확인 버튼(44px)→Enter로 **private25** 생성. 같은 실행의 확인을 API로2회 더 재호출해도25이며 journal1개, 게시0개다. 실제 저장 후 dashboard24/metric35/publication8/journal31: 새 지표는 두 블록에서 하나로 재사용한다. 별도 탭의 Studio25 및 API 재조회에서도 전체 기간/필터 없음·정수634,513,000을 확인했다. 기존21과 게시20의 전후 SHA-256은 동일하다.
+- 브라우저 reload→AI 패널에서25 완료 기록을 GET으로 복원했다. 수집 API 이벤트12개(요청/응답 합산)에서 POST0, DB 추가0. 신규 실행 기록에는 제안 참조와 완료 영수증만 추가하고, 요청 원문·미리보기 행/SQL·모델 답변은 추가 저장하지 않는다. 완료 기록 복원 시 과거 카드로 포커스를 강제로 옮기지 않도록 수정했고 실제 새 저장 완료 시에는 완료 상태→Tab→링크로 이동한다.
+- 실제 다른 계정 접근403·다른 생성안 확인409를 확인했다. 실제 DuckDB 단위 검사는 물리 버전 불일치의 모델 호출 전 차단, 메타 버전과의 구분, 실캐시 TTL 만료, 확인 질문의 저장 차단, 동일 저널 replay를 검증했다. 실행 단위는 저장 커밋 뒤 응답 유실/GET 복구를 검증했다. 생성 금지 요청은 실행하지 않고, “새 대시보드를 만들어줘, 저장하지 마”는 읽기 전용 제안으로 구분한다. 네트워크 오류 UI는 미저장으로 단정하지 않고 같은 요청 재확인을 안내한다.
+
+### 디자인·키보드와 검사
+
+- 최초 좁은 카드에서 정수634,513,000이36px/높이108px로 두 줄로 갈라지고, 차트 내부에 불필요한 스크롤이 겹쳤다. 대화에 한정해 중복 카드 padding/테두리를 줄이고 숫자28px/한 줄40px, 차트240px·내부 padding0으로 수정했다. 긴 정의는 줄바꿈하고 정확한 차원 값은 키보드 데이터 표에서 읽는다. 기존 생성 페이지와 다른 차트 스타일은 변경하지 않는다.
+- 기능/디자인 **PASS_SELECTED**: 1440×1000,768×1000,390×844의 미리보기·확인·완료/복원 상태를 실제 IAB로 검사·캡처했다. 문서 가로 넘침0, 확인/완료 링크44px, 링크 폰트12px/숫자28px, 포커스 및 고정 composer에 가리지 않음을 측정했다. 키보드는 요청 입력→Tab/Enter 전송, 실패 단계 Enter, 표 Enter 열기/닫기, Shift+Tab/Tab 확인 이동·Enter 저장, 완료 자동 포커스→Tab 링크, 모바일 Escape 닫기/AI Enter 재진입이다. 폭 전환은 같은 제안을 유지했고 닫았다 열기는 캐시 GET으로 복원하며 모델을 재호출하지 않았다.
+- 전역 DOM 검사에서 기존 라이브러리 포털 ID `__react-alert__`의 중복1종도 관측했다. 이번 생성 카드의 heading은 useId를 사용한다. 이 관측을 전체 페이지 ID/스크린리더 접근성 통과로 확대하지 않는다.
+- 선택 최종 고유 검사 **BE95/FE78 PASS**(분할 실행, 재실행 중복 합산 제외), FE 타입·변경 FE/BE lint(오류/경고0), FE/BE build·diff check PASS. 초기 기존 “생성 미지원” 기대값, 새 테스트의 공유 metric fixture 충돌, UI mock의 무거운 WidgetViewer import 오류는 수정 후 해당 파일을 재검증했다. Vitest/Vite·ts-jest의 기존 버전 경고는 빌드를 막지 않았다. 전체 core E2E·기존 완료 MD를 추가 반복하지 않았다.
+- **NOT_RUN/남은 범위:** 홈/빈 대화의 소스 선택부터 생성, 같은 생성안에 대화로 지표·차원을 재설계, 의미 선택 답변의 자동 이어받기(현재 기준을 포함한 새 요청으로 안내), 실제 브라우저의 새 생성 저장 응답 장애 주입·10분 실시간 대기/미저장 제안 서버 재시작·운영 부하·새 live Rill UX 비교·실기기. 이 중 버전/TTL/응답 유실 복구는 하위 선택 테스트의 근거와 구분한다. 다른 계정 차단은 API 검증이며 실제 브라우저 계정 전환으로 확대하지 않는다. 새 탭은 관찰된 href를 별도 임시 탭에서 재조회했고 닫았으며, 호스트 창 전달 전체는 NOT_RUN이다. **VoiceOver BLOCKED**, gpt-6-luna 유지. TC-005 전체/G4는 확장 조건이 남아 PARTIAL이다.
+- 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t15-20261016`의 `verification-manifest.json`, `proposal-verified.json`, `independent-parquet-oracle.json`, `saved-reloaded.json`, `boundaries.json`, `before*.json`/`after*.json`, `reload-api-requests.json`, `layout-keyboard.json`, 최종 검사 로그. 대표 캡처는 `preview-390.jpg`, `preview-768.jpg`, `save-focus-390.jpg`, `completed-390.jpg`, `new-private-{1440,390}.jpg`, `final-receipt-{1440,768,390}.jpg`다.

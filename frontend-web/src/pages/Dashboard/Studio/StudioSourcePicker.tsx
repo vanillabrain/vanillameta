@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Button, MenuItem, TextField } from '@mui/material';
 import { SourceProfile, StudioSource } from './studioCreation';
 type Props = {
+  idPrefix?: string;
   sources: StudioSource[];
   sourceId: number | null;
   profile: SourceProfile | null;
@@ -12,6 +13,7 @@ type Props = {
   onRefresh: () => void;
 };
 export default function StudioSourcePicker({
+  idPrefix = 'studio',
   sources,
   sourceId,
   profile,
@@ -23,9 +25,9 @@ export default function StudioSourcePicker({
 }: Props) {
   const input = useRef<HTMLInputElement>(null);
   return (
-    <section className="studio-create-source" aria-labelledby="studio-source-heading">
+    <section className="studio-create-source" aria-labelledby={idPrefix + '-source-heading'}>
       <span className="studio-eyebrow">01 · 데이터 준비</span>
-      <h2 id="studio-source-heading">어떤 데이터를 살펴볼까요?</h2>
+      <h2 id={idPrefix + '-source-heading'}>어떤 데이터를 살펴볼까요?</h2>
       <p>내 파일을 서버에 저장하거나, 기존 데이터와 검증된 샘플로 시작하세요.</p>
       <div className="studio-create-source-actions">
         <Button variant="outlined" disabled={busy} onClick={() => input.current?.click()}>

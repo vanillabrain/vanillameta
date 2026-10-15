@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useId } from 'react';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { formatMetric } from '@/utils/formatMetric';
 import { analysisOptions } from '../analysisOptions';
 import { CreationProposal } from './studioCreation';
 export default function StudioSemanticReview({ proposal }: { proposal: CreationProposal }) {
+  const headingId = useId();
   return (
-    <section className="studio-create-review" aria-labelledby="studio-semantic-heading">
+    <section className="studio-create-review" aria-labelledby={headingId}>
       <div className="studio-create-section-title">
         <div>
           <span className="studio-eyebrow">계산 미리보기</span>
-          <h2 id="studio-semantic-heading">{proposal.title}</h2>
+          <h2 id={headingId}>{proposal.title}</h2>
         </div>
         <span>저장 전 · {proposal.semanticProposal.length}개 블록</span>
       </div>

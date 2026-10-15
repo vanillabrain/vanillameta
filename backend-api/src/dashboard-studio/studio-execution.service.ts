@@ -1,3 +1,4 @@
+import { StudioCreationService } from './studio-creation.service';
 import { StudioPublicationService } from './studio-publication.service';
 import {
   BadRequestException,
@@ -6,6 +7,7 @@ import {
   Injectable,
   OnModuleInit,
   Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { DataSource, In } from 'typeorm';
@@ -13,25 +15,40 @@ import { StudioExecution } from './entities/studio-execution.entity';
 import { StudioRun } from './entities/studio-run.entity';
 import { StudioService } from './studio.service';
 import { StudioRunService } from './studio-run.service';
+import { StudioRemixService } from './studio-remix.service';
 import { studioDigest } from './studio-legacy';
 import { studioKeys, validateStudioDocument } from './studio-document';
+import { RemixRequest } from './studio-remix-contract';
 import {
   StudioExecutionRequest,
   StudioExecutionState,
+  StudioRemixSaveClaim,
+  StudioRemixSaveResult,
   StudioStepId,
   StudioStepStatus,
 } from './studio-execution-contract';
+
+/** A confirmed in-conversation mapping, bound to one owned remix execution. */
+type StudioRemixBinding = {
+  token: string;
+  request: RemixRequest;
+  payloadHash: string;
+  claim: StudioRemixSaveClaim;
+};
 
 @Injectable()
 export class StudioExecutionService implements OnModuleInit {
   private active = new Map<string, { controller: AbortController; promise: Promise<any> }>();
   private answers = new Map<string, { answer: string; expires: number }>();
   private contexts = new Map<string, { body: StudioExecutionRequest; expires: number }>();
+  private remixes = new Map<string, { payloadHash: string; promise: Promise<any> }>();
   constructor(
     private readonly db: DataSource,
     private readonly studio: StudioService,
     private readonly runs: StudioRunService,
     @Optional() private readonly publications?: StudioPublicationService,
+    @Optional() private readonly remixService?: StudioRemixService,
+    @Optional() private readonly creationService?: StudioCreationService,
   ) {}
 
   async onModuleInit() {
@@ -101,6 +118,11 @@ export class StudioExecutionService implements OnModuleInit {
       this.state(row).request.document.sourceId,
       actor,
     );
+    const receipt = this.state(row).remixSaveResult;
+    if (receipt) await this.assertClone(receipt, actor);
+    const created = this.state(row).creationSaveResult;
+    if (created)
+      await this.studio.assertExecutionAccess(created.dashboardId, created.sourceId, actor);
     return row;
   }
   private validate(body: any): asserts body is StudioExecutionRequest {
@@ -149,7 +171,7 @@ export class StudioExecutionService implements OnModuleInit {
     body: StudioExecutionRequest,
   ): Pick<
     StudioExecutionState,
-    'save' | 'saveOnly' | 'unsupported' | 'publish' | 'remix' | 'remixToken'
+    'save' | 'saveOnly' | 'unsupported' | 'publish' | 'remix' | 'remixToken' | 'create'
   > {
     const prompt = body.prompt.trim();
     // This intent prepares a read-only handoff. Mapping and creation still require
@@ -185,6 +207,22 @@ export class StudioExecutionService implements OnModuleInit {
         '',
       )
       .replace(/without\s+(?:publishing|sharing)(?:\s+(?:or|and)\s+(?:publishing|sharing))?/gi, '');
+    const newDashboard =
+      /^(?:만들어\s*줘|생성해\s*줘)[.!。]?$|(?:새|새로운)\s*대시보드|대시보드(?:를)?\s*(?:만들|생성)|create\s+(?:a\s+)?dashboard/i.test(
+        prompt,
+      );
+    const prohibitCreation =
+      /생성\s*(?:하지\s*마|금지)|만들(?:지\s*마|기\s*금지)|(?:do\s+not|don['’]?t|never)\s+create/i.test(
+        prompt,
+      );
+    if (
+      newDashboard &&
+      !prohibitCreation &&
+      !/게시|공유|퍼블리시|publish|share|복제|리믹스|remix|duplicate/i.test(
+        withoutNegativePublication,
+      )
+    )
+      return { save: false, saveOnly: false, create: true };
     if (
       /게시|공유|퍼블리시|publish|share/i.test(prompt) &&
       (/게시|공유|퍼블리시|publish|share/i.test(withoutNegativePublication) ||
@@ -193,12 +231,7 @@ export class StudioExecutionService implements OnModuleInit {
       return { save: false, saveOnly: false, unsupported: 'publish' };
     if (/복제|리믹스|remix|duplicate/i.test(prompt))
       return { save: false, saveOnly: false, unsupported: 'remix' };
-    if (
-      /^(?:만들어\s*줘|생성해\s*줘)[.!。]?$|(?:새|새로운)\s*대시보드|대시보드(?:를)?\s*(?:만들|생성)|create\s+(?:a\s+)?dashboard/i.test(
-        prompt,
-      )
-    )
-      return { save: false, saveOnly: false, unsupported: 'proposeSemantics' };
+    if (newDashboard) return { save: false, saveOnly: false, unsupported: 'proposeSemantics' };
     const saveOnly =
       /^(?:현재\s*)?(?:초안(?:을)?\s*)?저장\s*(?:해\s*줘|해\s*주세요|해주세요|해|하기)?[.!。]?$/u.test(
         prompt,
@@ -219,11 +252,12 @@ export class StudioExecutionService implements OnModuleInit {
   protected stepIds(
     plan: Pick<
       StudioExecutionState,
-      'save' | 'saveOnly' | 'unsupported' | 'publish' | 'remix' | 'remixToken'
+      'save' | 'saveOnly' | 'unsupported' | 'publish' | 'remix' | 'remixToken' | 'create'
     >,
   ): StudioStepId[] {
     const ids: StudioStepId[] = ['inspectSource'];
     if (plan.remix) return [...ids, 'remix'];
+    if (plan.create) return [...ids, 'createProposal'];
     if (plan.unsupported) ids.push(plan.unsupported);
     else if (!plan.saveOnly) ids.push('proposeSemantics', 'preview', 'applyDraft');
     if (plan.save) ids.push('saveDraft');
@@ -304,6 +338,9 @@ export class StudioExecutionService implements OnModuleInit {
       ...(row.status === 'succeeded' && state.remixResult
         ? { remixResult: state.remixResult }
         : {}),
+      ...(state.remixSaveResult ? { remixSaveResult: state.remixSaveResult } : {}),
+      ...(state.creationResult ? { creationResult: state.creationResult } : {}),
+      ...(state.creationSaveResult ? { creationSaveResult: state.creationSaveResult } : {}),
       baseRevision: b.expectedRevision,
       baseDocumentHash: studioDigest(baseDocument),
       sourceRevision: b.expectedSourceRevision,
@@ -318,7 +355,9 @@ export class StudioExecutionService implements OnModuleInit {
       answer:
         row.status === 'succeeded'
           ? state.remixResult
-            ? '복제 준비가 완료되었습니다. 내 데이터와 열 매핑을 확인해 주세요. 아직 복제본은 저장되지 않았습니다.'
+            ? state.remixSaveResult
+              ? '내 데이터로 비공개 복제본을 만들었습니다. 복제본 대시보드에서 확인해 주세요. 현재 편집은 유지했습니다.'
+              : '복제 준비가 완료되었습니다. 내 데이터와 열 매핑을 확인해 주세요. 아직 복제본은 저장되지 않았습니다.'
             : state.publish
             ? '초안을 저장하고 링크로 공유했습니다.'
             : state.save
@@ -342,12 +381,19 @@ export class StudioExecutionService implements OnModuleInit {
       const current = await this.studio.get(dashboardId, actor);
       await this.studio.assertExecutionAccess(dashboardId, current.document.sourceId, actor);
     }
-    for (const row of rows) await this.owned(row.runId, actor);
+    for (const row of rows) {
+      await this.owned(row.runId, actor);
+      // A committed clone is surfaced from its durable receipt even if the response was lost.
+      await this.recoverRemix(row, this.state(row), actor);
+      await this.recoverCreation(row, actor);
+    }
     return rows.map(row => this.summary(row));
   }
   async get(runId: string, actor: number): Promise<any> {
     const row = await this.owned(runId, actor),
       state = this.state(row);
+    await this.recoverRemix(row, state, actor);
+    await this.recoverCreation(row, actor);
     const response: any = this.summary(row);
     const saveResult = await this.committed(row);
     if (saveResult) response.saveResult = saveResult;
@@ -461,6 +507,295 @@ export class StudioExecutionService implements OnModuleInit {
     }
     return this.get(id, actor);
   }
+  /**
+   * T14: explicit column mapping confirmation in the conversation. The publication token and
+   * version stay bound to the owned remix run and one private clone is written per execution.
+   */
+  async remix(runId: string, body: any, actor: number): Promise<any> {
+    const row = await this.owned(runId, actor),
+      state = this.state(row),
+      binding = this.remixBinding(row, state, body);
+    if (!this.remixService)
+      throw new ServiceUnavailableException('복제 저장을 사용할 수 없습니다.');
+    if (state.remixSaveResult) {
+      if (state.remixSave?.payloadHash !== binding.payloadHash)
+        throw new ConflictException(
+          '이 실행에는 다른 복제 내용이 이미 저장되었습니다. 새 요청으로 실행해 주세요.',
+        );
+      // A stored receipt is only returned while the actor still owns the clone and its source.
+      await this.assertClone(state.remixSaveResult, actor);
+      return this.get(runId, actor);
+    }
+    const pending = this.remixes.get(runId);
+    if (pending) {
+      if (pending.payloadHash !== binding.payloadHash)
+        throw new ConflictException('복제 저장이 진행 중입니다. 같은 요청으로 다시 시도해 주세요.');
+      return pending.promise;
+    }
+    const promise = this.saveRemix(row, state, actor, binding).finally(() =>
+      this.remixes.delete(runId),
+    );
+    this.remixes.set(runId, { payloadHash: binding.payloadHash, promise });
+    return promise;
+  }
+  /** The remix identity is deterministic per run, so a repeated submit can never add a clone. */
+  private remixRequestId(row: StudioExecution) {
+    return 'execution-' + row.runId + '-remix';
+  }
+  /** Validates the confirmed mapping and binds the run's own publication token and version. */
+  private remixBinding(
+    row: StudioExecution,
+    state: StudioExecutionState,
+    body: any,
+  ): StudioRemixBinding {
+    try {
+      studioKeys(body, [
+        'requestId',
+        'targetSourceId',
+        'mapping',
+        'excludedBlockIds',
+        'expectedVersion',
+        'expectedSourceRevision',
+      ]);
+      if (
+        typeof body.requestId !== 'string' ||
+        !/^[-a-zA-Z0-9_]{1,128}$/.test(body.requestId) ||
+        !Number.isSafeInteger(body.targetSourceId) ||
+        Number(body.targetSourceId) <= 0 ||
+        !body.mapping ||
+        typeof body.mapping !== 'object' ||
+        Array.isArray(body.mapping) ||
+        Object.keys(body.mapping).length > 128 ||
+        Object.entries(body.mapping).some(
+          ([key, value]) =>
+            !key ||
+            key.length > 256 ||
+            ['__proto__', 'constructor', 'prototype'].includes(key) ||
+            typeof value !== 'string' ||
+            value.length > 256,
+        ) ||
+        (body.excludedBlockIds !== undefined &&
+          (!Array.isArray(body.excludedBlockIds) ||
+            body.excludedBlockIds.length > 6 ||
+            new Set(body.excludedBlockIds).size !== body.excludedBlockIds.length ||
+            body.excludedBlockIds.some(id => typeof id !== 'string'))) ||
+        !Number.isSafeInteger(body.expectedVersion) ||
+        Number(body.expectedVersion) < 1 ||
+        typeof body.expectedSourceRevision !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(body.expectedSourceRevision)
+      )
+        throw new Error();
+    } catch {
+      throw new BadRequestException('복제할 열 매핑과 대상 소스를 확인해 주세요.');
+    }
+    if (
+      !state.remix ||
+      !state.remixResult ||
+      row.status !== 'succeeded' ||
+      !state.steps.some(step => step.stepId === 'remix' && step.status === 'succeeded')
+    )
+      throw new ConflictException(
+        '복제 준비가 끝난 실행에서만 비공개 복제본을 저장할 수 있습니다.',
+      );
+    if (body.expectedVersion !== state.remixResult.version)
+      throw new ConflictException('게시 버전이 변경되었습니다. 실행 기록을 새로 확인해 주세요.');
+    const mapping = body.mapping as Record<string, string>;
+    // Never the body: the published token and version are the ones this run was prepared with.
+    const token = state.remixResult.token;
+    const request: RemixRequest = {
+      requestId: this.remixRequestId(row),
+      targetSourceId: Number(body.targetSourceId),
+      mapping: { ...mapping },
+      excludedBlockIds:
+        body.excludedBlockIds === undefined ? [] : [...(body.excludedBlockIds as string[])],
+      expectedVersion: state.remixResult.version,
+      expectedSourceRevision: body.expectedSourceRevision as string,
+    };
+    const payloadHash = studioDigest({ token, ...request });
+    return {
+      token,
+      request,
+      payloadHash,
+      claim: {
+        requestId: request.requestId,
+        payloadHash,
+        targetSourceId: request.targetSourceId,
+        expectedSourceRevision: request.expectedSourceRevision,
+        expectedVersion: request.expectedVersion,
+      },
+    };
+  }
+  /** One private clone per execution: the durable claim precedes the remix write. */
+  private async saveRemix(
+    row: StudioExecution,
+    state: StudioExecutionState,
+    actor: number,
+    binding: StudioRemixBinding,
+  ) {
+    const prior = state.remixSave;
+    if (prior && prior.payloadHash !== binding.payloadHash) {
+      // A committed clone can never be re-mapped; an uncommitted claim is replaced by the
+      // corrected confirmation instead of poisoning this execution.
+      const receipt = await this.remixService.receipt(actor, prior.requestId, prior.targetSourceId);
+      if (receipt)
+        throw new ConflictException(
+          '이 실행의 복제본이 이미 저장되었습니다. 새 요청으로 실행해 주세요.',
+        );
+      delete state.remixSave;
+    }
+    if (!state.remixSave) {
+      state.remixSave = binding.claim;
+      await this.persist(row, state);
+    }
+    // Recheck the original dashboard/source; the remix service rechecks the bound publication.
+    await this.studio.assertExecutionAccess(
+      row.dashboardId,
+      state.request.document.sourceId,
+      actor,
+    );
+    let result: any;
+    try {
+      result = await this.remixService.remix(binding.token, binding.request, actor);
+    } catch (error) {
+      await this.failedRemix(row, state, actor, binding, error);
+      throw error;
+    }
+    state.remixSaveResult = this.cloneResult(
+      row,
+      binding.request.targetSourceId,
+      binding.request.expectedVersion,
+      { dashboardId: result?.dashboardId, revision: result?.document?.revision },
+    );
+    await this.persist(row, state);
+    await this.assertClone(state.remixSaveResult, actor);
+    return this.get(row.runId, actor);
+  }
+  /** A proven safe refusal releases the claim; an uncertain outcome stays pinned for a retry. */
+  private async failedRemix(
+    row: StudioExecution,
+    state: StudioExecutionState,
+    actor: number,
+    binding: StudioRemixBinding,
+    error: any,
+  ) {
+    const status = error?.getStatus?.();
+    if (!status || status >= 500) return;
+    let receipt: Awaited<ReturnType<StudioRemixService['receipt']>>;
+    try {
+      receipt = await this.remixService.receipt(
+        actor,
+        binding.request.requestId,
+        binding.request.targetSourceId,
+      );
+    } catch {
+      return; // An inaccessible journal is not proof that no write committed.
+    }
+    if (receipt || state.remixSave?.payloadHash !== binding.payloadHash) return;
+    delete state.remixSave;
+    await this.persist(row, state);
+  }
+  private cloneResult(
+    row: StudioExecution,
+    sourceId: number,
+    version: number,
+    receipt: { dashboardId: number; revision: string },
+  ): StudioRemixSaveResult {
+    if (
+      !Number.isSafeInteger(receipt?.dashboardId) ||
+      receipt.dashboardId <= 0 ||
+      receipt.dashboardId === row.dashboardId ||
+      typeof receipt?.revision !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(receipt.revision)
+    )
+      throw new ConflictException('복제 완료 기록을 확인해 주세요.');
+    return { dashboardId: receipt.dashboardId, sourceId, revision: receipt.revision, version };
+  }
+  private assertClone(result: StudioRemixSaveResult, actor: number) {
+    return this.studio.assertExecutionAccess(result.dashboardId, result.sourceId, actor);
+  }
+  /** Read-path receipt recovery; it never fails a read and never returns an unverified receipt. */
+  private async recoverRemix(row: StudioExecution, state: StudioExecutionState, actor: number) {
+    try {
+      if (!state.remixSave || state.remixSaveResult || !state.remixResult || !this.remixService)
+        return;
+      const receipt = await this.remixService.receipt(
+        actor,
+        state.remixSave.requestId,
+        state.remixSave.targetSourceId,
+      );
+      if (!receipt || receipt.payloadHash !== state.remixSave.payloadHash) return;
+      const recovered = this.cloneResult(
+        row,
+        receipt.sourceId,
+        state.remixSave.expectedVersion,
+        receipt,
+      );
+      await this.assertClone(recovered, actor);
+      state.remixSaveResult = recovered;
+      await this.persist(row, state);
+    } catch {
+      // Best effort: a stale or unverifiable receipt is reported as absent, never as a failed read.
+    }
+  }
+  private creationBody(row: StudioExecution, state = this.state(row)) {
+    if (
+      row.status !== 'succeeded' ||
+      !state.create ||
+      !state.creationResult ||
+      !this.creationService
+    )
+      throw new ConflictException('신규 생성 제안이 완료된 실행을 확인해 주세요.');
+    return {
+      requestId: 'execution-' + row.runId + '-create',
+      proposalId: state.creationResult.proposalId,
+      expectedSourceRevision: state.creationResult.sourceRevision,
+    };
+  }
+  async creationProposal(id: string, actor: number) {
+    const row = await this.owned(id, actor),
+      state = this.state(row);
+    this.creationBody(row, state);
+    return this.creationService.proposal(
+      state.creationResult.proposalId,
+      state.creationResult.sourceId,
+      actor,
+    );
+  }
+  async saveCreation(id: string, body: any, actor: number) {
+    try {
+      studioKeys(body, ['proposalId', 'expectedSourceRevision']);
+    } catch {
+      throw new BadRequestException('생성 확인 요청을 확인해 주세요.');
+    }
+    const row = await this.owned(id, actor),
+      state = this.state(row);
+    const pinned = this.creationBody(row, state);
+    if (
+      body.proposalId !== pinned.proposalId ||
+      body.expectedSourceRevision !== pinned.expectedSourceRevision
+    )
+      throw new ConflictException('이 실행에서 확인한 생성안과 다릅니다.');
+    // Existing compiler owns transactions, source revalidation and idempotency. No current draft write.
+    await this.creationService.create(pinned, actor);
+    return this.get(id, actor);
+  }
+  private async recoverCreation(row: StudioExecution, actor: number) {
+    const state = this.state(row);
+    if (!state.creationResult || state.creationSaveResult || row.status !== 'succeeded') return;
+    const result = await this.creationService?.receipt(this.creationBody(row, state), actor);
+    if (!result) return;
+    if (
+      result.dashboardId === row.dashboardId ||
+      result.document.sourceId !== state.creationResult.sourceId
+    )
+      throw new ConflictException('신규 대시보드 저장 기록이 다릅니다.');
+    state.creationSaveResult = {
+      dashboardId: result.dashboardId,
+      sourceId: result.document.sourceId,
+      revision: result.document.revision,
+    };
+    await this.persist(row, state);
+  }
   private persist(row: StudioExecution, state: StudioExecutionState) {
     row.state = JSON.stringify(state);
     return this.studio.serializeWrite(() => this.db.manager.save(StudioExecution, row));
@@ -554,8 +889,24 @@ export class StudioExecutionService implements OnModuleInit {
         );
         if (step.stepId === 'inspectSource') {
           // A recipient handoff must not aggregate or expose the unrelated editing source.
-          if (!state.remix)
+          if (!state.remix && !state.create)
             prepared = await this.studio.prepare(row.dashboardId, request, row.actorId);
+        } else if (step.stepId === 'createProposal' && state.create) {
+          if (!body || !this.creationService) throw new Error('REQUEST_REQUIRED');
+          const proposal = await this.creationService.propose(
+            {
+              sourceId: request.document.sourceId,
+              prompt: body.prompt,
+              expectedFileRevision: request.expectedSourceRevision,
+            },
+            row.actorId,
+            signal,
+          );
+          state.creationResult = {
+            proposalId: proposal.proposalId,
+            sourceId: proposal.sourceId,
+            sourceRevision: proposal.sourceRevision,
+          };
         } else if (step.stepId === 'remix' && state.remix) {
           if (!this.publications) throw new Error('PUBLICATION_UNAVAILABLE');
           const token =
@@ -668,7 +1019,7 @@ export class StudioExecutionService implements OnModuleInit {
         step.retryable = !signal.aborted;
         step.errorCode = signal.aborted
           ? 'RUN_CANCELLED'
-          : step.stepId === 'proposeSemantics'
+          : step.stepId === 'proposeSemantics' || step.stepId === 'createProposal'
           ? 'MODEL_FAILED'
           : step.stepId === 'preview'
           ? 'PREVIEW_FAILED'

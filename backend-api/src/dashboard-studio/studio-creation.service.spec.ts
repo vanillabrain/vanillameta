@@ -141,6 +141,55 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       { proposalId: p.proposalId, expectedSourceRevision: p.sourceRevision, requestId },
       7,
     );
+  it('T15 reads only owned live proposals and restores the exact committed creation journal', async () => {
+    const unique = semantics();
+    unique.semanticProposal.forEach(b => {
+      b.metric.label = 'T15 receipt revenue';
+    });
+    llm.callLlm.mockResolvedValueOnce(JSON.stringify(unique));
+    const p = await propose();
+    expect((await service.proposal(p.proposalId, 1, 7)).proposalId).toBe(p.proposalId);
+    await expect(service.proposal(p.proposalId, 1, 8)).rejects.toThrow();
+    await expect(service.proposal('expired', 1, 7)).rejects.toThrow('만료');
+    const request = {
+      proposalId: p.proposalId,
+      expectedSourceRevision: p.sourceRevision,
+      requestId: 't15-receipt',
+    };
+    expect(await service.receipt(request, 7)).toBeUndefined();
+    const first = await service.create(request, 7);
+    expect((await service.create(request, 7)).dashboardId).toBe(first.dashboardId);
+    expect((await service.receipt(request, 7)).dashboardId).toBe(first.dashboardId);
+    await expect(service.receipt({ ...request, proposalId: 'other' }, 7)).rejects.toThrow();
+    expect(await service.receipt(request, 8)).toBeUndefined();
+    await expect(service.proposal(p.proposalId, 1, 7)).rejects.toThrow('만료');
+  });
+  it('T15 separates physical file revision from metadata profile revision and rejects stale files before the model', async () => {
+    await expect(propose({ expectedFileRevision: '0'.repeat(64) })).rejects.toThrow('원본 파일');
+    expect(llm.callLlm).not.toHaveBeenCalled();
+    const physical = await connection.duckDBVersion(1);
+    const p = await propose({ expectedFileRevision: physical });
+    expect(p.sourceRevision).not.toBe(physical);
+    expect(p.preview.widgets[0].datas).toEqual([{ value: 500 }]);
+  });
+  it('T15 expires a real cached proposal without implicitly calling the model again', async () => {
+    const p = await propose();
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 600001);
+    try {
+      await expect(service.proposal(p.proposalId, 1, 7)).rejects.toThrow('만료');
+    } finally {
+      clock.mockRestore();
+    }
+    expect(llm.callLlm).toHaveBeenCalledTimes(1);
+  });
+  it('T15 caches clarification as read-only and refuses saving it before resolving meaning', async () => {
+    const p = await propose({ prompt: '환불률 새 대시보드' });
+    expect((await service.proposal(p.proposalId, 1, 7)).clarifications[0].id).toBe(
+      'refundDenominator',
+    );
+    await expect(save(p)).rejects.toThrow('업무 의미');
+    expect(llm.callLlm).not.toHaveBeenCalled();
+  });
   it('returns validated semantics and calculated preview without writing anything', async () => {
     const before = await db.manager.count(Metric);
     const p = await propose();

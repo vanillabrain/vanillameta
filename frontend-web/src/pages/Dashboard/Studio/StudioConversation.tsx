@@ -5,6 +5,8 @@ import {
   ExecutionRequest,
   StudioExecution,
   executionAction,
+  saveExecutionRemix,
+  saveExecutionCreation,
   listExecutions,
   retryStep,
   executionSummary,
@@ -59,6 +61,7 @@ export default function StudioConversation({ context, selectedTitle, filterScope
       const rows = await listExecutions(dashboardId);
       if (generation !== refreshClock.current || dashboardId !== current.current.dashboardId) return;
       setRuns(rows);
+      if (rows[0]?.remixSaveResult || rows[0]?.creationSaveResult) setNotice(executionSummary(rows[0]));
       setActivityError('');
     } catch (cause) {
       if (generation === refreshClock.current)
@@ -250,10 +253,16 @@ export default function StudioConversation({ context, selectedTitle, filterScope
       <div className="studio-ai-content">
         <h2>대시보드를 함께 완성하기</h2>
         <p>
-          질문·블록 수정·저장과 게시를 요청하세요. “저장하고 링크로 공유해줘”라고 명시하면 저장 후 링크를 만듭니다. “내
-          데이터로 복제해줘”는 게시본을 확인하고 데이터 연결로 안내합니다. 다른 게시본은 요청 뒤에 링크를 붙여 주세요.
-          데이터와 열 매핑을 확인하기 전에는 복제본을 저장하지 않으며, 공유 범위가 불분명하면 자동 공개하지 않습니다.
+          “새 대시보드를 만들어 줘”로 지표·차원을 제안받고, 계산 미리보기 후 비공개로 저장하세요. 선택 블록 수정·저장·내
+          데이터 복제도 이 대화에서 이어갑니다.
         </p>
+        <details className="studio-execution-hint">
+          <summary>저장·공유 요청 안내</summary>
+          <p>
+            “저장하고 링크로 공유해줘”라고 명시하면 저장 후 링크를 만듭니다. “내 데이터로 복제해줘”는 게시본과 열 매핑을
+            확인합니다. 공유 범위가 불분명하면 공개하지 않습니다.
+          </p>
+        </details>
         <div className="studio-context-card">
           <span className="studio-eyebrow">현재 문맥</span>
           <strong>{selectedTitle || '선택한 블록 없음'}</strong>
@@ -278,6 +287,35 @@ export default function StudioConversation({ context, selectedTitle, filterScope
           onRefresh={refresh}
           onRetry={retry}
           onCancel={cancel}
+          onCreation={async run => {
+            const dashboardId = current.current.dashboardId;
+            setActing(true);
+            try {
+              const completed = await saveExecutionCreation(run);
+              if (dashboardId !== current.current.dashboardId) return;
+              updateRun(completed);
+              setNotice(executionSummary(completed));
+            } finally {
+              if (dashboardId === current.current.dashboardId) setActing(false);
+            }
+          }}
+          onRemix={async (run, request, isCurrent) => {
+            const dashboardId = current.current.dashboardId;
+            setActing(true);
+            setNotice('비공개 복제 저장의 완료 여부를 확인하고 있습니다.');
+            try {
+              const completed = await saveExecutionRemix(run, request);
+              if (dashboardId !== current.current.dashboardId || !isCurrent()) return;
+              updateRun(completed);
+              setNotice(executionSummary(completed));
+            } catch (cause) {
+              if (dashboardId === current.current.dashboardId && isCurrent())
+                setNotice('비공개 복제의 완료 여부를 확인하지 못했습니다. 아래 오류와 같은 요청 재시도로 확인해 주세요.');
+              throw cause;
+            } finally {
+              if (dashboardId === current.current.dashboardId) setActing(false);
+            }
+          }}
           canRetry={run =>
             !busy &&
             !locked &&

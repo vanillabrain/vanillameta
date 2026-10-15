@@ -416,4 +416,47 @@ export class StudioRemixService {
       });
     });
   }
+  /**
+   * Execution recovery reads after pending transactions, so an uncommitted journal cannot escape.
+   */
+  async receipt(actor: number, requestId: string, sourceId: number) {
+    this.access.actor(actor);
+    if (
+      typeof requestId !== 'string' ||
+      !/^[-a-zA-Z0-9_]{1,128}$/.test(requestId) ||
+      !Number.isSafeInteger(sourceId) ||
+      sourceId <= 0
+    )
+      throw new BadRequestException('복제 완료 기록을 확인해 주세요.');
+    return this.studio.serializeWrite(async () => {
+      const row = await this.db.manager.findOne(StudioRemixRequest, {
+        where: { actorId: actor, requestId },
+      });
+      if (!row) return undefined;
+      let result: any;
+      try {
+        result = JSON.parse(row.result);
+      } catch {
+        throw new ConflictException('복제 완료 기록을 확인해 주세요.');
+      }
+      if (
+        !Number.isSafeInteger(result?.dashboardId) ||
+        result.dashboardId <= 0 ||
+        result?.document?.dashboardId !== result.dashboardId ||
+        result?.document?.sourceId !== sourceId ||
+        typeof result?.document?.revision !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(result.document.revision)
+      )
+        throw new ConflictException('복제 완료 기록을 확인해 주세요.');
+      // A receipt never outlives current access to the private clone and the target source.
+      await this.access.dashboard(result.dashboardId, actor);
+      await this.access.assert('database', sourceId, actor);
+      return {
+        dashboardId: result.dashboardId,
+        sourceId,
+        revision: result.document.revision,
+        payloadHash: row.payloadHash,
+      };
+    });
+  }
 }

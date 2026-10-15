@@ -3,6 +3,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { afterEach, it, expect, vi } from 'vitest';
 import StudioExecutionActivity from './StudioExecutionActivity';
 import { StudioExecution } from './studioExecution';
+vi.mock('./StudioSemanticReview', () => ({ default: () => <div>Semantic preview</div> }));
 vi.mock('@mui/material', () => ({
   Alert: ({ children }: any) => <div role="alert">{children}</div>,
   Button: ({ children, disabled, onClick, component, href, target, rel }: any) =>
@@ -112,7 +113,7 @@ it('restores a link, version, scope and data time from recent activity after rem
   expect(screen.queryByRole('button', { name: '공유 다시 시도' })).toBeNull();
 });
 
-it('hands a completed remix off to the internal remix route without claiming a saved clone', () => {
+it('offers inline mapping without claiming a saved clone', () => {
   const value: StudioExecution = {
     ...run(),
     status: 'succeeded',
@@ -130,18 +131,17 @@ it('hands a completed remix off to the internal remix route without claiming a s
     onRetry: vi.fn(),
     onCancel: vi.fn(),
     canRetry: () => true,
+    onRemix: vi.fn().mockResolvedValue(undefined),
   };
   const first = render(<StudioExecutionActivity {...props} />);
   first.unmount();
   render(<StudioExecutionActivity {...props} />);
-  const link = screen.getByRole('link', { name: '내 데이터 연결하고 복제 계속' });
-  expect(link.getAttribute('href')).toBe('/published/' + 'a'.repeat(64) + '/remix');
-  expect(link.getAttribute('target')).toBe('_blank');
-  expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+  expect(screen.getByRole('button', { name: '내 데이터 연결하고 복제 계속' })).toBeDefined();
+  expect(screen.queryByRole('link', { name: '내 데이터 연결하고 복제 계속' })).toBeNull();
   expect(
-    screen.getByText('복제 준비 완료 · v3. 내 데이터와 열 매핑을 확인해 주세요. 아직 복제본은 저장되지 않았습니다.'),
+    screen.getByText('복제 준비 완료 · v3. 내 데이터와 열 매핑을 확인하고 아래 연결 카드에서 저장 상태를 확인해 주세요.'),
   ).toBeDefined();
-  expect(screen.getByText(/복제 화면을 열 때 다시 확인합니다/)).toBeDefined();
+  expect(screen.getByText(/현재 초안은 유지됩니다/)).toBeDefined();
   expect(screen.getByText('복제 준비')).toBeDefined();
   expect(screen.queryByText(/저장 완료|게시 완료/)).toBeNull();
   expect(screen.queryByRole('button', { name: '공유 다시 시도' })).toBeNull();
@@ -236,3 +236,52 @@ it('shows a revoked receipt as stopped and removes its success link while retain
   expect(screen.queryByText(/게시 완료/)).toBeNull();
   expect(screen.queryByRole('button', { name: '공유 다시 시도' })).toBeNull();
 });
+
+it('restores a private clone receipt without replaying creation and links separately from the current editor', () => {
+  const value: StudioExecution = {
+    ...run(),
+    status: 'succeeded',
+    steps: [{ stepId: 'remix', status: 'succeeded', retryable: false }],
+    remixResult: { token: 'a'.repeat(64), version: 3 },
+    remixSaveResult: { dashboardId: 44, sourceId: 22, revision: 'b'.repeat(64), version: 3 },
+  };
+  render(
+    <StudioExecutionActivity
+      runs={[value]}
+      busy={false}
+      error=""
+      onRefresh={vi.fn()}
+      onRetry={vi.fn()}
+      onCancel={vi.fn()}
+      canRetry={() => false}
+      onRemix={vi.fn()}
+    />,
+  );
+  const link = screen.getByRole('link', { name: '비공개 복제본 열기' });
+  expect(link.getAttribute('href')).toBe('/dashboard/44/studio');
+  expect(link.getAttribute('target')).toBe('_blank');
+  expect(screen.queryByRole('button', { name: '내 데이터 연결하고 복제 계속' })).toBeNull();
+  expect(screen.getByText(/현재 편집은 유지했습니다/)).toBeDefined();
+});
+
+vi.mock('./StudioRemix', () => ({
+  StudioRemixFlow: ({ onSave }: any) => (
+    <button
+      onClick={() =>
+        onSave(
+          {
+            requestId: 'confirmed-mapping',
+            targetSourceId: 22,
+            mapping: { amount: 'amount' },
+            excludedBlockIds: [],
+            expectedVersion: 3,
+            expectedSourceRevision: 'b'.repeat(64),
+          },
+          () => true,
+        )
+      }
+    >
+      매핑 확인 후 비공개 생성
+    </button>
+  ),
+}));

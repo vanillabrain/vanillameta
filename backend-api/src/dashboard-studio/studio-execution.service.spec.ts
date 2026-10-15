@@ -1,5 +1,5 @@
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -86,6 +86,146 @@ describe('T7 durable executions', () => {
     await db.destroy();
     if (provider === undefined) delete process.env.AI_PROVIDER;
     else process.env.AI_PROVIDER = provider;
+  });
+  it('T15 routes generation to the existing compiler, binds explicit save, and restores one receipt', async () => {
+    const proposal = {
+      proposalId: 'proposal-t15',
+      sourceId: body.document.sourceId,
+      sourceRevision: body.expectedSourceRevision,
+      preview: { secretRow: 'PREVIEW_SECRET' },
+    };
+    let receipt: any;
+    const creation = {
+      propose: jest.fn(async (request: any) => {
+        expect(request.sourceId).toBe(proposal.sourceId);
+        return proposal;
+      }),
+      proposal: jest.fn(async () => proposal),
+      create: jest.fn(async request => {
+        receipt ??= {
+          dashboardId: 25,
+          document: { sourceId: proposal.sourceId, revision: 'f'.repeat(64) },
+        };
+        expect(request.requestId).toMatch(/^execution-.*-create$/);
+        return receipt;
+      }),
+      receipt: jest.fn(async () => receipt),
+    };
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      undefined,
+      undefined,
+      creation as any,
+    );
+    const generated = await runner.create(
+      { ...body, prompt: '새 대시보드를 만들어줘 요청 수와 차원을 제안해줘' },
+      7,
+    );
+    expect(generated.status).toBe('succeeded');
+    expect(generated.steps.map(s => s.stepId)).toEqual(['inspectSource', 'createProposal']);
+    expect(generated.creationResult).toEqual({
+      proposalId: proposal.proposalId,
+      sourceId: proposal.sourceId,
+      sourceRevision: proposal.sourceRevision,
+    });
+    expect(generated.saveResult).toBeUndefined();
+    expect(creation.propose).toHaveBeenCalledTimes(1);
+    expect(creation.propose.mock.calls[0][0]).toMatchObject({
+      expectedFileRevision: body.expectedSourceRevision,
+    });
+    expect(creation.propose.mock.calls[0][0]).not.toHaveProperty('expectedSourceRevision');
+    expect(studio.prepare).not.toHaveBeenCalled();
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(ai.callLlm).not.toHaveBeenCalled();
+    expect(creation.create).not.toHaveBeenCalled();
+    expect(await runner.creationProposal(generated.runId, 7)).toEqual(proposal);
+    const raw = (await db.manager.findOneBy(StudioExecution, { runId: generated.runId })).state;
+    expect(raw).not.toContain('PREVIEW_SECRET');
+    expect(raw).not.toContain('차원을 제안');
+    await expect(runner.creationProposal(generated.runId, 8)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    await expect(
+      runner.saveCreation(
+        generated.runId,
+        { proposalId: 'other', expectedSourceRevision: proposal.sourceRevision },
+        7,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(creation.create).not.toHaveBeenCalled();
+    const confirmation = {
+      proposalId: proposal.proposalId,
+      expectedSourceRevision: proposal.sourceRevision,
+    };
+    const saved = await runner.saveCreation(generated.runId, confirmation, 7);
+    expect(saved.creationSaveResult.dashboardId).toBe(25);
+    await runner.saveCreation(generated.runId, confirmation, 7);
+    expect(creation.create.mock.calls[0][0]).toEqual(creation.create.mock.calls[1][0]);
+    const restarted = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      undefined,
+      undefined,
+      creation as any,
+    );
+    expect((await restarted.list(1, 7))[0].creationSaveResult.dashboardId).toBe(25);
+    expect(creation.propose).toHaveBeenCalledTimes(1);
+  });
+  it('T15 plans private creation with negative sharing, but never creates from prohibitions or positive public sharing', () => {
+    expect(
+      (service as any).plan({ ...body, prompt: '새 대시보드를 만들어줘. 공유하지 마' }),
+    ).toEqual({ save: false, saveOnly: false, create: true });
+    expect(
+      (service as any).plan({ ...body, prompt: '새 대시보드를 만들어줘, 저장하지 마' }),
+    ).toEqual({ save: false, saveOnly: false, create: true });
+    for (const prompt of [
+      '새 대시보드를 생성하지 마',
+      '새 대시보드 만들지 마',
+      '새 대시보드를 만들어서 공유해줘',
+      "Don't create a dashboard",
+    ])
+      expect((service as any).plan({ ...body, prompt }).create).not.toBe(true);
+  });
+  it('T15 recovers a committed creation after a lost response without repeating generation', async () => {
+    let committed = false;
+    const p = {
+      proposalId: 'p2',
+      sourceId: body.document.sourceId,
+      sourceRevision: body.expectedSourceRevision,
+    };
+    const creation = {
+      propose: jest.fn(async () => p),
+      create: jest.fn(async () => {
+        committed = true;
+        throw new Error('response lost');
+      }),
+      receipt: jest.fn(async () =>
+        committed
+          ? { dashboardId: 26, document: { sourceId: p.sourceId, revision: 'f'.repeat(64) } }
+          : undefined,
+      ),
+    };
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      undefined,
+      undefined,
+      creation as any,
+    );
+    const run = await runner.create({ ...body, prompt: '새 대시보드 생성' }, 7);
+    await expect(
+      runner.saveCreation(
+        run.runId,
+        { proposalId: p.proposalId, expectedSourceRevision: p.sourceRevision },
+        7,
+      ),
+    ).rejects.toThrow('response lost');
+    expect((await runner.get(run.runId, 7)).creationSaveResult.dashboardId).toBe(26);
+    expect(creation.propose).toHaveBeenCalledTimes(1);
   });
   const remixAdapter = () => ({
     ownerMetadata: jest.fn(async () => ({ token: 'e'.repeat(64) })),
@@ -323,11 +463,11 @@ describe('T7 durable executions', () => {
     expect((await restarted.create(body, 7)).status).toBe('succeeded');
     expect(await db.manager.count(StudioRun)).toBe(1);
   });
-  it('keeps stale 409 and does not save negative save or invoke model for publish/remix/create', async () => {
+  it('keeps stale 409 and does not save negative save or invoke edit model for unsupported publish/remix', async () => {
     studio.prepare.mockRejectedValueOnce(new ConflictException());
     await expect(service.create(body, 7)).rejects.toMatchObject({ status: 409 });
     let n = 0;
-    for (const prompt of ['게시해줘', '공유해줘', '복제해줘', '만들어줘']) {
+    for (const prompt of ['게시해줘', '공유해줘', '복제해줘']) {
       const r = await service.create({ ...body, requestId: 'unsupported' + n++, prompt }, 7);
       expect(r.steps.some(s => s.status === 'unsupported')).toBe(true);
     }
@@ -695,5 +835,131 @@ describe('T7 durable executions', () => {
       retryable: false,
     });
     expect(publications.publish).toHaveBeenCalledTimes(1);
+  });
+  describe('T14 confirmed in-conversation clone', () => {
+    const confirmation = () => ({
+      requestId: 'client-confirm',
+      targetSourceId: 22,
+      mapping: { amount: 'amount' },
+      excludedBlockIds: [],
+      expectedVersion: 2,
+      expectedSourceRevision: 'b'.repeat(64),
+    });
+    const harness = async () => {
+      const journals = new Map<string, any>();
+      const remixer = {
+        receipt: jest.fn(async (_actor: number, requestId: string) => journals.get(requestId)),
+        remix: jest.fn(async (token: string, request: any) => {
+          const id = request.requestId;
+          if (!journals.has(id))
+            journals.set(id, {
+              dashboardId: 44,
+              sourceId: 22,
+              revision: 'f'.repeat(64),
+              payloadHash: (await import('./studio-legacy')).studioDigest({ token, ...request }),
+            });
+          return { dashboardId: 44, document: { revision: 'f'.repeat(64) } };
+        }),
+      };
+      const runner = new StudioExecutionService(
+        db,
+        studio,
+        new StudioRunService(studio, ai),
+        remixAdapter() as any,
+        remixer as any,
+      );
+      const run = await runner.create({ ...body, prompt: '내 데이터로 복제해줘' }, 7);
+      return { runner, run, remixer, journals };
+    };
+    it('commits once for concurrent and refreshed-client confirmations, preserving original editor and model', async () => {
+      const { runner, run, remixer } = await harness();
+      const [first, second] = await Promise.all([
+        runner.remix(run.runId, confirmation(), 7),
+        runner.remix(run.runId, { ...confirmation(), requestId: 'new-client-id' }, 7),
+      ]);
+      expect(first.remixSaveResult).toEqual({
+        dashboardId: 44,
+        sourceId: 22,
+        revision: 'f'.repeat(64),
+        version: 2,
+      });
+      expect(second.remixSaveResult).toEqual(first.remixSaveResult);
+      expect((await runner.remix(run.runId, confirmation(), 7)).remixSaveResult).toEqual(
+        first.remixSaveResult,
+      );
+      expect((await runner.list(1, 7))[0].remixSaveResult).toEqual(first.remixSaveResult);
+      expect(remixer.remix).toHaveBeenCalledTimes(1);
+      expect(studio.save).not.toHaveBeenCalled();
+      expect(ai.callLlm).not.toHaveBeenCalled();
+    });
+    it('refuses foreign actors, forged tokens, stale versions and changed confirmation after commit', async () => {
+      const { runner, run, remixer } = await harness();
+      await expect(runner.remix(run.runId, confirmation(), 8)).rejects.toMatchObject({
+        status: 403,
+      });
+      await expect(
+        runner.remix(run.runId, { ...confirmation(), token: 'a'.repeat(64) }, 7),
+      ).rejects.toMatchObject({ status: 400 });
+      await expect(
+        runner.remix(run.runId, { ...confirmation(), expectedVersion: 3 }, 7),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(remixer.remix).not.toHaveBeenCalled();
+      await runner.remix(run.runId, confirmation(), 7);
+      await expect(
+        runner.remix(run.runId, { ...confirmation(), mapping: { amount: 'another' } }, 7),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(remixer.remix).toHaveBeenCalledTimes(1);
+    });
+    it('recovers a committed clone from its journal after response loss and service restart without another write', async () => {
+      const { runner, run, remixer } = await harness();
+      const real = remixer.remix.getMockImplementation();
+      remixer.remix.mockImplementationOnce(async (...args: any[]) => {
+        await (real as any)(...args);
+        throw new Error('response lost');
+      });
+      await expect(runner.remix(run.runId, confirmation(), 7)).rejects.toThrow('response lost');
+      const restarted = new StudioExecutionService(
+        db,
+        studio,
+        new StudioRunService(studio, ai),
+        remixAdapter() as any,
+        remixer as any,
+      );
+      expect((await restarted.get(run.runId, 7)).remixSaveResult.dashboardId).toBe(44);
+      expect((await restarted.list(1, 7))[0].remixSaveResult.dashboardId).toBe(44);
+      expect(
+        (await restarted.remix(run.runId, confirmation(), 7)).remixSaveResult.dashboardId,
+      ).toBe(44);
+      expect(remixer.remix).toHaveBeenCalledTimes(1);
+    });
+    it('permits corrected mapping after a proven refusal but never duplicates a committed clone', async () => {
+      const { runner, run, remixer } = await harness();
+      remixer.remix.mockRejectedValueOnce(new BadRequestException('missing column'));
+      await expect(runner.remix(run.runId, confirmation(), 7)).rejects.toMatchObject({
+        status: 400,
+      });
+      expect(
+        (await runner.remix(run.runId, { ...confirmation(), mapping: { amount: 'corrected' } }, 7))
+          .remixSaveResult.dashboardId,
+      ).toBe(44);
+      expect(remixer.remix).toHaveBeenCalledTimes(2);
+    });
+    it('rechecks access to the private clone on get/list and does not leak a stale receipt', async () => {
+      const { runner, run } = await harness();
+      await runner.remix(run.runId, confirmation(), 7);
+      studio.assertExecutionAccess.mockImplementation(async (id: number) => {
+        if (id === 44) throw new ForbiddenException();
+      });
+      await expect(runner.get(run.runId, 7)).rejects.toMatchObject({ status: 403 });
+      await expect(runner.list(1, 7)).rejects.toMatchObject({ status: 403 });
+    });
+    it('does not create a clone when publication access changed after preparing the conversation', async () => {
+      const { runner, run, remixer } = await harness();
+      remixer.remix.mockRejectedValueOnce(new ForbiddenException());
+      await expect(runner.remix(run.runId, confirmation(), 7)).rejects.toMatchObject({
+        status: 403,
+      });
+      expect((await runner.get(run.runId, 7)).remixSaveResult).toBeUndefined();
+    });
   });
 });

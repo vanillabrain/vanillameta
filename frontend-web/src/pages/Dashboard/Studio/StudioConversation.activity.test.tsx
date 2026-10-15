@@ -20,6 +20,7 @@ vi.mock('@ai-sdk/react', () => ({
     };
   },
 }));
+vi.mock('./StudioSemanticReview', () => ({ default: () => <div>Semantic preview</div> }));
 vi.mock('@mui/material', () => ({
   Alert: ({ children }: any) => <div role="alert">{children}</div>,
   Button: ({ children, disabled, onClick, type, component, href, target, rel }: any) =>
@@ -225,5 +226,117 @@ it('does not reactivate a revoked publication when publication-only retry return
   expect(screen.queryByText(/게시 완료/)).toBeNull();
   expect(api.post).toHaveBeenCalledWith('/studio/runs/run-publication/retry', { stepId: 'publish' }, { timeout: 180000 });
   expect(chat.sendMessage).not.toHaveBeenCalled();
+  expect(defaultProps.onApply).not.toHaveBeenCalled();
+});
+
+vi.mock('./StudioRemix', () => ({
+  StudioRemixFlow: ({ onSave }: any) => (
+    <button
+      onClick={() =>
+        onSave(
+          {
+            requestId: 'confirmed-mapping',
+            targetSourceId: 22,
+            mapping: { amount: 'amount' },
+            excludedBlockIds: [],
+            expectedVersion: 3,
+            expectedSourceRevision: 'b'.repeat(64),
+          },
+          () => true,
+        ).catch(() => undefined)
+      }
+    >
+      매핑 확인 후 비공개 생성
+    </button>
+  ),
+}));
+
+it('completes confirmed mapping inside the conversation without applying the clone to the current editor', async () => {
+  const run = {
+    ...partial(),
+    status: 'succeeded',
+    steps: [{ stepId: 'remix', status: 'succeeded', retryable: false }],
+    remixResult: { token: 'a'.repeat(64), version: 3 },
+    saveResult: undefined,
+  };
+  api.get.mockResolvedValue({ data: [run] });
+  api.post.mockResolvedValue({
+    data: { ...run, remixSaveResult: { dashboardId: 44, sourceId: 22, revision: 'c'.repeat(64), version: 3 } },
+  });
+  render(<StudioConversation {...defaultProps} context={context} />);
+  fireEvent.click(await screen.findByRole('button', { name: '내 데이터 연결하고 복제 계속' }));
+  fireEvent.click(screen.getByRole('button', { name: '매핑 확인 후 비공개 생성' }));
+  const link = await screen.findByRole('link', { name: '비공개 복제본 열기' });
+  expect(link.getAttribute('href')).toBe('/dashboard/44/studio');
+  expect(api.post.mock.calls[0][0]).toBe('/studio/runs/run-publication/remix');
+  expect(defaultProps.onApply).not.toHaveBeenCalled();
+  expect(defaultProps.onSaved).not.toHaveBeenCalled();
+  expect(chat.sendMessage).not.toHaveBeenCalled();
+});
+
+it('does not claim an absent clone when the confirmed save response is lost', async () => {
+  const run = {
+    ...partial(),
+    status: 'succeeded',
+    steps: [{ stepId: 'remix', status: 'succeeded', retryable: false }],
+    remixResult: { token: 'a'.repeat(64), version: 3 },
+    saveResult: undefined,
+  };
+  api.get.mockResolvedValue({ data: [run] });
+  api.post.mockRejectedValue(new Error('lost response'));
+  render(<StudioConversation {...defaultProps} context={context} />);
+  fireEvent.click(await screen.findByRole('button', { name: '내 데이터 연결하고 복제 계속' }));
+  fireEvent.click(screen.getByRole('button', { name: '매핑 확인 후 비공개 생성' }));
+  await screen.findByText(/비공개 복제의 완료 여부를 확인하지 못했습니다/);
+  expect(screen.queryByText(/아직 복제본은 저장되지 않았습니다/)).toBeNull();
+  expect(screen.queryByRole('link', { name: '비공개 복제본 열기' })).toBeNull();
+  expect(defaultProps.onApply).not.toHaveBeenCalled();
+  expect(defaultProps.onSaved).not.toHaveBeenCalled();
+  api.get.mockResolvedValue({
+    data: [{ ...run, remixSaveResult: { dashboardId: 44, sourceId: 22, revision: 'c'.repeat(64), version: 3 } }],
+  });
+  fireEvent.click(screen.getByRole('button', { name: '상태 새로고침' }));
+  await screen.findByRole('link', { name: '비공개 복제본 열기' });
+  expect(screen.queryByText(/비공개 복제의 완료 여부를 확인하지 못했습니다/)).toBeNull();
+  expect(api.post).toHaveBeenCalledTimes(1);
+});
+
+it('dispatches new creation without applying a new document to the current editor', async () => {
+  const run = {
+    ...partial(),
+    status: 'succeeded',
+    saveResult: undefined,
+    steps: [{ stepId: 'createProposal', status: 'succeeded', retryable: false }],
+    creationResult: { proposalId: 'new-proposal', sourceId: 4, sourceRevision: 'b'.repeat(64) },
+  };
+  api.post.mockImplementation(async (_url, body) => ({ data: { ...run, requestId: body.requestId } }));
+  render(<StudioConversation {...defaultProps} context={context} />);
+  const input = screen.getByRole('textbox', { name: 'AI에게 요청할 내용' });
+  fireEvent.change(input, { target: { value: '새 대시보드를 만들어줘' } });
+  fireEvent.submit(input.closest('form'));
+  await waitFor(() => expect(api.post).toHaveBeenCalled());
+  expect(api.post.mock.calls[0][0]).toBe('/studio/executions');
+  await screen.findAllByText(/새 대시보드 제안 완료/);
+  expect(defaultProps.onApply).not.toHaveBeenCalled();
+  expect(defaultProps.onSaved).not.toHaveBeenCalled();
+});
+
+it('rejects a new creation response for another source before exposing its proposal', async () => {
+  api.post.mockResolvedValue({
+    data: {
+      ...partial(),
+      status: 'succeeded',
+      saveResult: undefined,
+      steps: [{ stepId: 'createProposal', status: 'succeeded', retryable: false }],
+      creationResult: { proposalId: 'wrong-source', sourceId: 99, sourceRevision: 'b'.repeat(64) },
+    },
+  });
+  render(<StudioConversation {...defaultProps} context={context} />);
+  await expect(
+    chat.options.transport.sendMessages({
+      messages: [{ role: 'user', parts: [{ type: 'text', text: '새 대시보드 생성' }] }],
+    }),
+  ).rejects.toThrow('실행 결과를 검증하지 못');
+  expect(screen.queryByText(/새 대시보드 제안 완료/)).toBeNull();
   expect(defaultProps.onApply).not.toHaveBeenCalled();
 });

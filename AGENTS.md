@@ -4,7 +4,7 @@
 
 - **최상위 목표:** 프롬프트로 대시보드 생성·수정·저장·게시를 이어가고, 반응형 블록 편집과 복제·소스 교체·재사용까지 완성한다. [제품 목표](docs/strategy/prompt-to-dashboard.md)가 우선순위의 기준이며 [통합 설계](docs/architecture/prompt-to-dashboard.md), [UC-005/계획](docs/plans/UC-005.md)에 구현·검증 계약이 있다. UC-001~004와 Rill 작업은 이 전체 여정을 지원하는 기반이다.
 - **방향 유지:** 새 작업은 P1~P5/FR/수용 기준과 연결하고 관찰된 부족점·최소 변경 범위·검증·종료 조건을 기록한다. P1 첫 단위의 블록 ID·선택 AI 수정·배치 보존/표시는 [UC-006](docs/use_cases/UC-006-preserve-block-layout.md) 범위로 완료했다. 다음은 P1의 블록 작업 UI·undo와 breakpoint별 편집이며 P1 전체는 Open이다. 직접 기여 또는 해당 여정의 정확성·권한·UI 회귀 방지가 없는 확장은 보류한다. 요청 없이 단순 Rill 기능 고도화로 우선순위를 바꾸지 않는다.
-- **제품 계약:** 고객에게 모드/내부 구조 선택을 기본 선행 단계로 요구하지 않는다. AI와 직접 편집은 같은 블록 정의·배치를 수정하고, 기존 비대상 블록을 유지한다. Source·Measure·Dimension·Block·Dashboard·Publication 책임은 분리한다. 초안과 게시 버전, 원본과 복제본을 구분한다. 목표 전체 완료는 TC-005 실제 여정 통과이며 현재 T10 핵심 연결은 PASS_SELECTED, 전체 TC-005는 PARTIAL이다. 최신 판정은 docs/testing/dashboard-studio.md의 T10/T11/T12/T13 기록을 따른다.
+- **제품 계약:** 고객에게 모드/내부 구조 선택을 기본 선행 단계로 요구하지 않는다. AI와 직접 편집은 같은 블록 정의·배치를 수정하고, 기존 비대상 블록을 유지한다. Source·Measure·Dimension·Block·Dashboard·Publication 책임은 분리한다. 초안과 게시 버전, 원본과 복제본을 구분한다. 목표 전체 완료는 TC-005 실제 여정 통과이며 현재 T10 핵심 연결은 PASS_SELECTED, 전체 TC-005는 PARTIAL이다. 최신 판정은 docs/testing/dashboard-studio.md의 T10/T11/T12/T13/T14/T15 기록을 따른다.
 
 - 매 세션 시작·재개 시 이 요약과 현재 브랜치·변경 사항·선택 P 단계/UC/BR·작업에 필요한 파일만 먼저 확인한다. 전체 이력과 상세 설계 문서는 반복해서 읽지 않고 필요한 부분만 추가로 불러온다. 사용자의 최신 지시를 우선한다.
 - DuckDB Measure·Dimension·탐색·Pivot·보기 저장의 기존 상태는 [Rill 통합 계획](docs/strategy/2026-10-14-rill-feature-integration.md)을 참고한다. 이 문서의 과거 다음 작업보다 제품 목표의 P1~P5를 우선한다. 탐색 화면은 Rill과 비교하고 대화/블록/게시 경험까지 Rill 화면으로 제한하지 않는다.

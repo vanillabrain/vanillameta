@@ -148,6 +148,19 @@ export class StudioCreationService {
     };
   }
   async propose(body: any, actor: number, signal?: AbortSignal): Promise<any> {
+    const value = await this.proposeOnce(body, actor, signal);
+    if (signal?.aborted) throw new BadRequestException('AI 요청을 취소했습니다.');
+    this.prune();
+    if (!this.proposals.has(value.proposalId) && this.proposals.size >= 64)
+      throw new ServiceUnavailableException('생성 요청이 많습니다. 잠시 후 다시 시도해 주세요.');
+    this.proposals.set(value.proposalId, {
+      actor,
+      expires: Date.now() + 600000,
+      value: copy(value),
+    });
+    return value;
+  }
+  private async proposeOnce(body: any, actor: number, signal?: AbortSignal): Promise<any> {
     const active = () => {
       if (signal?.aborted) throw new BadRequestException('AI 요청을 취소했습니다.');
     };
@@ -157,6 +170,7 @@ export class StudioCreationService {
       'prompt',
       'clarificationAnswers',
       'expectedSourceRevision',
+      'expectedFileRevision',
       'selectedMetricIds',
     ]);
     this.access.actor(actor);
@@ -167,6 +181,11 @@ export class StudioCreationService {
       !/^[a-f0-9]{64}$/.test(body.expectedSourceRevision)
     )
       throw new BadRequestException('소스 버전을 확인해 주세요.');
+    if (
+      body.expectedFileRevision !== undefined &&
+      !/^[a-f0-9]{64}$/.test(body.expectedFileRevision)
+    )
+      throw new BadRequestException('원본 파일 버전을 확인해 주세요.');
     if (body.clarificationAnswers !== undefined) {
       this.keys(body.clarificationAnswers, ['refundDenominator']);
       if (!['orders', 'amount'].includes(body.clarificationAnswers.refundDenominator))
@@ -180,9 +199,14 @@ export class StudioCreationService {
       selected.some(id => !Number.isSafeInteger(id) || id <= 0)
     )
       throw new BadRequestException('저장 지표는 최대 6개까지 선택해 주세요.');
-    const profile = await this.connection.withDuckDBSnapshot(sourceId, () =>
-      this.profile(sourceId, actor),
-    );
+    const profile = await this.connection.withDuckDBSnapshot(sourceId, async () => {
+      if (
+        body.expectedFileRevision &&
+        body.expectedFileRevision !== (await this.connection.duckDBVersion(sourceId))
+      )
+        throw new ConflictException('원본 파일이 변경되었습니다. 다시 확인해 주세요.');
+      return this.profile(sourceId, actor);
+    });
     if (body.expectedSourceRevision && body.expectedSourceRevision !== profile.dataVersion)
       throw new ConflictException('데이터 소스가 변경되었습니다. 다시 확인해 주세요.');
     const base = {
@@ -660,6 +684,35 @@ export class StudioCreationService {
     await this.ensureCurrentSource(sourceId, actor, manager);
     return { dashboardId: saved.id, document };
   }
+  /** Ephemeral preview only. Read never invokes a model or recreates an expired proposal. */
+  async proposal(proposalId: string, sourceId: number, actor: number) {
+    await this.access.assert('database', sourceId, actor);
+    this.prune();
+    const stored = this.proposals.get(proposalId);
+    if (!stored || stored.actor !== actor || stored.value.sourceId !== sourceId)
+      throw new BadRequestException(
+        '생성안이 만료되었습니다. 새 대시보드 생성 요청을 다시 보내 주세요.',
+      );
+    return copy(stored.value);
+  }
+  /** Commit journal recovery, serialized behind the creation transaction. */
+  async receipt(
+    body: { requestId: string; proposalId: string; expectedSourceRevision: string },
+    actor: number,
+  ) {
+    return this.studio.serializeWrite(async () => {
+      const row = await this.db.manager.findOne(StudioRun, {
+        where: { actorId: actor, requestId: body.requestId },
+      });
+      if (!row) return undefined;
+      if (row.payloadHash !== studioDigest({ kind: 'studio-create', ...body }))
+        throw new ConflictException('생성 저장 기록의 요청이 다릅니다.');
+      const result = JSON.parse(row.result);
+      await this.access.dashboard(result.dashboardId, actor);
+      await this.access.assert('database', result.document.sourceId, actor);
+      return result;
+    });
+  }
   async create(body: any, actor: number) {
     this.keys(body, ['requestId', 'proposalId', 'expectedSourceRevision']);
     this.access.actor(actor);
@@ -697,6 +750,8 @@ export class StudioCreationService {
         '생성안이 만료되었거나 접근할 수 없습니다. 다시 생성해 주세요.',
       );
     const p = stored.value;
+    if (!p.preview || p.clarifications?.length)
+      throw new BadRequestException('업무 의미와 필수 열을 확인한 뒤 다시 제안해 주세요.');
     if (p.sourceRevision !== body.expectedSourceRevision)
       throw new ConflictException('소스 버전이 생성안과 다릅니다.');
     try {

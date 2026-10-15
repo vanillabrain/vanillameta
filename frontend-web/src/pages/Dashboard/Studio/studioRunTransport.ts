@@ -105,6 +105,10 @@ export function studioAssistantTransport(
             !run.saveResult || run.saveResult.document.sourceId === current.document.sourceId,
             '저장 결과의 데이터 소스가 요청과 다릅니다.',
           );
+          studioAssert(
+            !run.creationResult || run.creationResult.sourceId === current.document.sourceId,
+            '신규 생성 결과의 소스가 요청과 다릅니다.',
+          );
           const result =
             run.result && !run.saveResult && !run.publicationResult ? validateStudioRun(run.result, current) : undefined;
           activity.onExecution(run);
