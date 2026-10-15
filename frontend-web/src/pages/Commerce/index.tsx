@@ -1,3 +1,4 @@
+import { chartColors, chartTheme } from '@/components/charts/chartTheme';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Loader2, Sparkles, Upload } from 'lucide-react';
@@ -7,7 +8,7 @@ import Seo from '@/seo/Seo';
 import { AnalysisUiProvider, analysisFieldClassName } from '@/components/analysis/AnalysisUi';
 import AiDashboardPanel from '@/pages/Dashboard/Components/AiDashboardPanel';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Notice } from '@/components/ui/notice';
 import { Separator } from '@/components/ui/separator';
@@ -18,10 +19,9 @@ import { cn } from '@/lib/utils';
 import type { CommercePresentation, CommerceProject, CommerceReport } from './types';
 import ImportHelp, { parseImportDiagnostic } from './ImportHelp';
 
-/** Compact control geometry shared by the commerce header, scope and dialog actions. */
-const CONTROL_CLASS = 'h-8 whitespace-nowrap';
-const CARD_CLASS = 'min-w-0 rounded-xl border border-[#dce5ee] ring-0';
-const BLUE = '#0f5ab2';
+/** Keep scope action labels on one line; default buttons align with the 36px inputs. */
+const CONTROL_CLASS = 'whitespace-nowrap';
+const CARD_CLASS = 'min-w-0 border border-border ring-0';
 const CURRENCY = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 const AXIS_CURRENCY = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -442,10 +442,10 @@ function Commerce() {
   }, [importOpen, reselectTick]);
   const dailyOption = useMemo(
     () => ({
-      color: [BLUE, '#e06a63', '#43a482'],
+      color: [chartColors.primary, chartColors.refund, chartColors.comparison],
       tooltip: { trigger: 'axis', valueFormatter: value => CURRENCY.format(Number(value)) },
       legend: { data: ['결제액', '환불액', '차감 수취액'], bottom: 0 },
-      grid: { left: 55, right: 20, top: 24, bottom: 64 },
+      grid: { left: 12, right: 16, top: 24, bottom: 48, containLabel: true },
       xAxis: {
         type: 'category',
         data: report?.daily.map(item => item.date) ?? [],
@@ -460,14 +460,20 @@ function Commerce() {
         {
           name: '결제액',
           type: 'line',
-          smooth: true,
+          smooth: false,
           data: report?.daily.map(item => numberValue(item.paymentTotal)) ?? [],
         },
-        { name: '환불액', type: 'line', smooth: true, data: report?.daily.map(item => numberValue(item.refundTotal)) ?? [] },
+        {
+          name: '환불액',
+          type: 'line',
+          smooth: false,
+          lineStyle: { type: 'dashed' },
+          data: report?.daily.map(item => numberValue(item.refundTotal)) ?? [],
+        },
         {
           name: '차감 수취액',
           type: 'line',
-          smooth: true,
+          smooth: false,
           data: report?.daily.map(item => numberValue(item.netCollected)) ?? [],
         },
       ],
@@ -479,9 +485,9 @@ function Commerce() {
       (a, b) => (numberValue(a.netCollected) ?? 0) - (numberValue(b.netCollected) ?? 0),
     );
     return {
-      color: [BLUE],
+      color: [chartColors.primary],
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, valueFormatter: value => CURRENCY.format(Number(value)) },
-      grid: { left: 92, right: 20, top: 16, bottom: 28 },
+      grid: { left: 12, right: 20, top: 16, bottom: 12, containLabel: true },
       xAxis: {
         type: 'value',
         splitNumber: 3,
@@ -573,13 +579,13 @@ function Commerce() {
   return (
     <PageTitleBox title="매출·환불" upperTitle="데이터" upperTitleLink="/data" className="w-full box-border px-4 sm:px-6">
       <Seo title="매출·환불 MVP" />
-      <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-[18px] py-4">
-        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+      <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-5 py-4 pb-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold wrap-anywhere text-[#17324d]">{presentationTitle}</h1>
+            <h1 className="text-2xl font-bold wrap-anywhere text-foreground">{presentationTitle}</h1>
             <p className="text-sm text-muted-foreground">결제 이벤트 기준 매출 · 환불 이벤트 기준 환불</p>
           </div>
-          <div className="flex w-full flex-col items-start gap-2 sm:flex-row md:w-auto">
+          <div className="flex w-full flex-col items-start gap-2 sm:flex-row sm:items-end md:w-auto">
             <TextField
               select
               label="프로젝트"
@@ -761,12 +767,12 @@ function Commerce() {
                                 헤더 {preview.headers.length}개 · 미리보기 {preview.samples.length}행
                                 {' · 전체 행 수는 서버 검증 후 표시'}
                               </p>
-                              <p className="text-xs wrap-anywhere text-[#34516c]">
+                              <p className="text-xs wrap-anywhere text-muted-foreground">
                                 열: {preview.headers.join(' · ') || '헤더 없음'}
                               </p>
                               <details className="mt-1">
-                                <summary className="cursor-pointer text-xs text-[#0f5ab2]">표본 행 내용 보기</summary>
-                                <pre className="mt-1 mb-0 max-h-[120px] overflow-auto rounded-lg bg-[#f5f8fb] p-1.5 text-xs wrap-anywhere whitespace-pre-wrap">
+                                <summary className="cursor-pointer text-xs text-primary">표본 행 내용 보기</summary>
+                                <pre className="mt-1 mb-0 max-h-[120px] overflow-auto rounded-lg bg-muted p-1.5 text-xs wrap-anywhere whitespace-pre-wrap">
                                   {preview.samples
                                     .map(sample => sample.map(value => value.slice(0, 80)).join(' | '))
                                     .join('\n') || '헤더 외 표본 행 없음'}
@@ -815,10 +821,10 @@ function Commerce() {
 
         {report && (
           <>
-            <Card className={cn(CARD_CLASS, 'border-[#d9e6f4] bg-[#f8fbff]')}>
+            <Card className={cn(CARD_CLASS, 'bg-muted/50')}>
               <CardContent className="flex flex-col gap-3">
                 <p className="text-sm font-bold">조회 범위</p>
-                <div className="flex flex-wrap items-start gap-2">
+                <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
                   <TextField
                     id="commerce-start-date"
                     type="date"
@@ -830,7 +836,7 @@ function Commerce() {
                     }}
                     error={Boolean(dateErrors.start)}
                     helperText={dateErrors.start || undefined}
-                    className={cn(analysisFieldClassName, 'w-full sm:w-[154px]')}
+                    className={cn(analysisFieldClassName, 'w-full')}
                     inputProps={{ 'aria-label': '시작일 UTC' }}
                   />
                   <TextField
@@ -844,7 +850,7 @@ function Commerce() {
                     }}
                     error={Boolean(dateErrors.end)}
                     helperText={dateErrors.end || undefined}
-                    className={cn(analysisFieldClassName, 'w-full sm:w-[154px]')}
+                    className={cn(analysisFieldClassName, 'w-full')}
                     inputProps={{ 'aria-label': '종료일 UTC' }}
                   />
                   <TextField
@@ -852,7 +858,7 @@ function Commerce() {
                     label="채널"
                     value={channel}
                     onChange={event => setChannel(event.target.value)}
-                    className={cn(analysisFieldClassName, 'w-full sm:w-[190px]')}
+                    className={cn(analysisFieldClassName, 'w-full')}
                   >
                     <option value="">전체 채널</option>
                     {report.availableChannels.map(item => (
@@ -861,7 +867,7 @@ function Commerce() {
                       </option>
                     ))}
                   </TextField>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 sm:justify-end">
                     <Button
                       onClick={applyFilters}
                       aria-disabled={reportBusy}
@@ -904,7 +910,7 @@ function Commerce() {
                 <p>리포트를 불러오는 중…</p>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-[10px] sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {[
                 ['결제 성공액', formatMoney(report.summary.paymentTotal), '결제 이벤트 기준 · USD'],
                 ['환불액', formatMoney(report.summary.refundTotal), '환불 이벤트 기준 · USD'],
@@ -929,23 +935,32 @@ function Commerce() {
                   '주문일 코호트 기준 · 소수점 둘째 자리',
                 ],
               ].map(([label, value, detail]) => (
-                <Card key={label} className={CARD_CLASS}>
-                  <CardContent className="flex flex-col gap-1 p-3 sm:p-4">
-                    <p className="text-sm text-muted-foreground">{label}</p>
-                    <p className="text-base font-bold wrap-anywhere text-[#0f5ab2] sm:text-xl">{value}</p>
-                    <p className="text-xs text-muted-foreground">{detail}</p>
+                <Card key={label} className={cn(CARD_CLASS, 'py-0')}>
+                  <CardContent className="flex flex-col gap-1 p-4">
+                    <p className="text-sm leading-snug text-muted-foreground">{label}</p>
+                    <p
+                      title={String(value)}
+                      tabIndex={0}
+                      className="max-w-full overflow-x-auto text-lg font-bold tracking-tight whitespace-nowrap tabular-nums text-primary sm:text-2xl"
+                    >
+                      {value}
+                    </p>
+                    <p className="text-xs leading-snug text-muted-foreground">{detail}</p>
                   </CardContent>
                 </Card>
               ))}
             </div>
 
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,1fr)]">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,1fr)]">
               <Card className={CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>{presentation.chartTitle || '매출·환불 추이'}</CardTitle>
+                  <CardDescription>결제 및 환불 이벤트 날짜별 금액 · USD</CardDescription>
+                </CardHeader>
                 <CardContent className="min-w-0">
-                  <h2 className="text-lg font-bold">{presentation.chartTitle || '매출·환불 추이'}</h2>
-                  <p className="text-xs text-muted-foreground">결제 및 환불 이벤트 날짜별 금액 · USD</p>
                   {report.daily.length ? (
                     <ReactECharts
+                      theme={chartTheme}
                       option={dailyOption}
                       notMerge
                       style={{ width: '100%', height: 310, maxWidth: '100%' }}
@@ -956,7 +971,7 @@ function Commerce() {
                   )}
                   {report.daily.length > 0 && (
                     <details className="mt-2">
-                      <summary className="cursor-pointer text-sm text-[#0f5ab2]">일별 정확한 수치 표 보기</summary>
+                      <summary className="cursor-pointer text-sm text-primary">일별 정확한 수치 표 보기</summary>
                       <div
                         role="region"
                         aria-label="일별 매출·환불 수치 표 스크롤"
@@ -966,8 +981,15 @@ function Commerce() {
                         <Table aria-label="일별 매출·환불 수치 (USD)" className="min-w-[500px]">
                           <TableHeader>
                             <TableRow>
-                              {['날짜 (UTC)', '결제액', '환불액', '차감 수취액'].map(label => (
-                                <TableHead key={label} scope="col" className="sticky top-0 bg-[#f5f8fb] p-1.5 text-left">
+                              {['날짜 (UTC)', '결제액', '환불액', '차감 수취액'].map((label, index) => (
+                                <TableHead
+                                  key={label}
+                                  scope="col"
+                                  className={cn(
+                                    'sticky top-0 bg-muted px-2 py-1.5 whitespace-nowrap',
+                                    index ? 'text-right' : 'text-left',
+                                  )}
+                                >
                                   {label}
                                 </TableHead>
                               ))}
@@ -982,7 +1004,13 @@ function Commerce() {
                                   formatMoney(item.refundTotal),
                                   formatMoney(item.netCollected),
                                 ].map((value, index) => (
-                                  <TableCell key={index} className="border-t border-[#edf0f4] p-1.5 whitespace-nowrap">
+                                  <TableCell
+                                    key={index}
+                                    className={cn(
+                                      'border-t border-border px-2 py-1.5 whitespace-nowrap',
+                                      index ? 'text-right tabular-nums' : 'text-left',
+                                    )}
+                                  >
                                     {value}
                                   </TableCell>
                                 ))}
@@ -996,11 +1024,14 @@ function Commerce() {
                 </CardContent>
               </Card>
               <Card className={CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>채널별 차감 수취액</CardTitle>
+                  <CardDescription>내림차순 · USD</CardDescription>
+                </CardHeader>
                 <CardContent className="min-w-0">
-                  <h2 className="text-lg font-bold">채널별 차감 수취액</h2>
-                  <p className="text-xs text-muted-foreground">내림차순 · USD</p>
                   {report.channels.length ? (
                     <ReactECharts
+                      theme={chartTheme}
                       option={channelsOption}
                       notMerge
                       style={{
@@ -1014,13 +1045,17 @@ function Commerce() {
                     <p className="py-12 text-center text-muted-foreground">표시할 채널 데이터가 없습니다.</p>
                   )}
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-sm text-[#0f5ab2]">채널별 정확한 수치 표 보기</summary>
+                    <summary className="cursor-pointer text-sm text-primary">채널별 정확한 수치 표 보기</summary>
                     <div role="region" aria-label="채널별 수치 표 스크롤" tabIndex={0} className="mt-2 overflow-x-auto">
                       <Table aria-label="채널별 매출·환불 수치 (USD)">
                         <TableHeader>
                           <TableRow>
-                            {['채널', '결제액', '환불액', '차감 수취액'].map(label => (
-                              <TableHead key={label} scope="col" className="p-1.5 text-right">
+                            {['채널', '결제액', '환불액', '차감 수취액'].map((label, index) => (
+                              <TableHead
+                                key={label}
+                                scope="col"
+                                className={cn('px-2 py-1.5 whitespace-nowrap', index ? 'text-right' : 'text-left')}
+                              >
                                 {label}
                               </TableHead>
                             ))}
@@ -1040,8 +1075,8 @@ function Commerce() {
                                   <TableCell
                                     key={i}
                                     className={cn(
-                                      'border-t border-[#edf0f4] p-1.5 wrap-anywhere',
-                                      i ? 'text-right' : 'text-left',
+                                      'border-t border-border px-2 py-1.5 wrap-anywhere',
+                                      i ? 'text-right tabular-nums' : 'text-left',
                                     )}
                                   >
                                     {value}
@@ -1057,15 +1092,15 @@ function Commerce() {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(240px,.7fr)_minmax(0,1.3fr)]">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(240px,.7fr)_minmax(0,1.3fr)]">
               <Card className={CARD_CLASS}>
                 <CardContent>
                   <h2 className="mb-2 text-lg font-bold">환불 사유</h2>
                   {report.reasons.length ? (
                     report.reasons.map(item => (
-                      <div key={item.reason} className="flex justify-between gap-2 border-b border-[#edf0f4] py-2">
+                      <div key={item.reason} className="flex justify-between gap-2 border-b border-border py-2">
                         <p className="wrap-anywhere">{item.reason}</p>
-                        <p className="text-right font-semibold">
+                        <p className="text-right font-semibold tabular-nums">
                           {formatMoney(item.refundTotal)}{' '}
                           <span className="text-xs text-muted-foreground">({Number(item.refunds).toLocaleString()}건)</span>
                         </p>
@@ -1100,8 +1135,15 @@ function Commerce() {
                       <Table id="commerce-orders-table" aria-label="최근 주문 (금액 USD)" className="min-w-[680px]">
                         <TableHeader>
                           <TableRow>
-                            {['주문 ID', '주문일', '채널', '상태', '결제액', '환불액', '차감 수취액'].map(label => (
-                              <TableHead key={label} scope="col" className="bg-[#f5f8fb] p-2 text-left whitespace-nowrap">
+                            {['주문 ID', '주문일', '채널', '상태', '결제액', '환불액', '차감 수취액'].map((label, index) => (
+                              <TableHead
+                                key={label}
+                                scope="col"
+                                className={cn(
+                                  'bg-muted px-2 py-2 whitespace-nowrap',
+                                  index < 4 ? 'text-left' : 'text-right',
+                                )}
+                              >
                                 {label}
                               </TableHead>
                             ))}
@@ -1122,8 +1164,8 @@ function Commerce() {
                                 <TableCell
                                   key={i}
                                   className={cn(
-                                    'border-t border-[#edf0f4] p-2',
-                                    i < 4 ? 'wrap-anywhere whitespace-normal' : 'whitespace-nowrap',
+                                    'border-t border-border px-2 py-2',
+                                    i < 4 ? 'wrap-anywhere whitespace-normal' : 'text-right tabular-nums whitespace-nowrap',
                                   )}
                                 >
                                   {value}

@@ -150,7 +150,7 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
 
   return (
     <section aria-label="파일 교체 및 버전 관리" className="mt-6 min-w-0">
-      <h3 className="mb-2 text-xl font-medium">파일 교체 및 버전</h3>
+      <h3 className="mb-2 text-lg font-semibold">파일 교체 및 버전</h3>
       <p className="mb-4 text-sm">
         기존 열 이름과 타입이 모두 같은 파일만 교체할 수 있습니다. 열을 자동으로 연결하거나 변환하지 않습니다. 데이터
         소스·지표·차트는 유지되며, 현재 데이터가 바뀌면 연결된 대시보드에도 반영됩니다. 현재 버전을 포함해 최대 5개 버전을
@@ -213,7 +213,7 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
                   <TableHead scope="col" className="h-auto border-b px-2 py-1 text-left align-top whitespace-nowrap">
                     파일
                   </TableHead>
-                  <TableHead scope="col" className="h-auto border-b px-2 py-1 text-left align-top whitespace-nowrap">
+                  <TableHead scope="col" className="h-auto border-b px-2 py-1 text-right align-top whitespace-nowrap">
                     행 수
                   </TableHead>
                   <TableHead scope="col" className="h-auto border-b px-2 py-1 text-left align-top whitespace-nowrap">
@@ -237,7 +237,7 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
                         {version.originalname}
                         {version.current && <span className="block whitespace-nowrap">현재 버전</span>}
                       </TableHead>
-                      <TableCell className="border-b px-2 py-1 align-top whitespace-normal">
+                      <TableCell className="border-b px-2 py-1 text-right align-top tabular-nums whitespace-normal">
                         {version.rows.toLocaleString('ko-KR')}
                       </TableCell>
                       <TableCell className="border-b px-2 py-1 align-top">

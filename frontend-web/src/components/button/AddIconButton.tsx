@@ -9,9 +9,9 @@ import IconPlus from '@/assets/images/icon/btn-plus.svg';
 
 const AddIconButton = ({ link = '', className = '', ...props }) => {
   return (
-    <Button asChild className={cn('min-w-0 px-2', className)} {...props}>
+    <Button asChild size="icon" className={cn('shrink-0', className)} {...props}>
       <RouterLink to={link}>
-        <Plus className="size-7" aria-hidden="true" />
+        <Plus aria-hidden="true" />
       </RouterLink>
     </Button>
   );
@@ -147,7 +147,7 @@ export const MenuButton = ({ menuList = [], handleSelect = null, icon, title, cl
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" className={cn('h-8 flex-row items-center justify-center gap-2 rounded-lg px-3.5', className)}>
+        <Button type="button" className={cn('flex-row items-center justify-center gap-2 rounded-lg px-4', className)}>
           {icon}
           {title}
         </Button>

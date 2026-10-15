@@ -1,3 +1,4 @@
+import { chartColors, chartTheme } from '@/components/charts/chartTheme';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,10 +13,6 @@ import { analysisOptions } from '@/pages/Dashboard/analysisOptions';
 import FileVersions from './FileVersions';
 
 const ChartPreview = React.lazy(() => import('echarts-for-react'));
-
-/** ECharts needs concrete colours; keep them aligned with the Tailwind theme tokens. */
-const CHART_ACCENT = '#0b5cab';
-const CHART_MUTED = '#64748b';
 
 type Source = { id: number; name: string; engine: string };
 type Column = {
@@ -276,8 +273,8 @@ export default function Explore() {
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-[1200px] px-4 pt-4 pb-10 md:px-8 md:pt-4 md:pb-4">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-normal">SQL 없이 차트 만들기</h1>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">SQL 없이 차트 만들기</h1>
         <Button
           variant="ghost"
           onClick={() => navigate(`/explore/source${sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''}`)}
@@ -313,7 +310,7 @@ export default function Explore() {
       )}
       <div className="flex flex-col gap-6">
         <Card className="min-w-0 p-4 md:p-6">
-          <h2 className="mb-4 text-xl font-medium">1. 데이터 확인</h2>
+          <h2 className="mb-4 text-lg font-semibold">1. 데이터 확인</h2>
           <Select
             label="데이터 소스"
             value={sourceId}
@@ -436,7 +433,7 @@ export default function Explore() {
         {ready && (
           <>
             <Card className="min-w-0 p-4 md:p-6">
-              <h2 className="mb-4 text-xl font-medium">2. 지표 저장 또는 재사용</h2>
+              <h2 className="mb-4 text-lg font-semibold">2. 지표 저장 또는 재사용</h2>
               <div className="flex flex-col gap-4">
                 <Select
                   label="저장된 지표"
@@ -585,7 +582,7 @@ export default function Explore() {
               </div>
             </Card>
             <Card className="min-w-0 p-4 md:p-6">
-              <h2 className="mb-4 text-xl font-medium">3. 차트 결과 확인</h2>
+              <h2 className="mb-4 text-lg font-semibold">3. 차트 결과 확인</h2>
               <div className="flex flex-col gap-4">
                 <TextField
                   label="차트 제목"
@@ -642,7 +639,7 @@ export default function Explore() {
                 </Button>
                 {preview && (
                   <div tabIndex={0} role="region" aria-label="집계 결과 표" className="min-w-0 max-w-full overflow-x-auto">
-                    <h3 className="text-xl font-medium">{title}</h3>
+                    <h3 className="text-lg font-semibold">{title}</h3>
                     {chart === 'number' ? (
                       <div className="h-[155px]">
                         <NumericBoard
@@ -659,18 +656,19 @@ export default function Explore() {
                     ) : (
                       <React.Suspense fallback={<p>차트 불러오는 중…</p>}>
                         <ChartPreview
+                          theme={chartTheme}
                           style={{ height: 280, width: '100%' }}
                           option={{
-                            color: [CHART_ACCENT],
+                            color: [chartColors.primary],
                             animation: false,
                             grid: { left: 16, right: 16, bottom: 48, top: 24, containLabel: true },
                             tooltip: { trigger: 'axis' },
                             xAxis: {
                               type: 'category',
                               data: preview.rows.map(row => text(row.dimension)),
-                              axisLabel: { color: CHART_MUTED, hideOverlap: true },
+                              axisLabel: { color: chartColors.muted, hideOverlap: true },
                             },
-                            yAxis: { type: 'value', axisLabel: { color: CHART_MUTED } },
+                            yAxis: { type: 'value', axisLabel: { color: chartColors.muted } },
                             series: [
                               {
                                 type: chart,
@@ -697,7 +695,7 @@ export default function Explore() {
                               {dimension}
                             </TableHead>
                           )}
-                          <TableHead scope="col" className="h-auto border-b p-2 text-left wrap-anywhere">
+                          <TableHead scope="col" className="h-auto border-b p-2 text-right tabular-nums wrap-anywhere">
                             {preview.metric.label}
                           </TableHead>
                         </TableRow>
@@ -708,7 +706,7 @@ export default function Explore() {
                             {chart !== 'number' && (
                               <TableCell className="border-b p-2 text-left wrap-anywhere">{text(row.dimension)}</TableCell>
                             )}
-                            <TableCell className="border-b p-2 text-left wrap-anywhere">
+                            <TableCell className="border-b p-2 text-right tabular-nums wrap-anywhere">
                               {text(row.value)}
                               {preview.metric.unit ? ` ${preview.metric.unit}` : ''}
                             </TableCell>

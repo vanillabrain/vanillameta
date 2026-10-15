@@ -35,9 +35,9 @@ function Header() {
   const language = i18n.language?.startsWith('en') ? 'en' : 'ko';
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 h-14 bg-background sm:h-[65px]">
-      <nav className="flex h-full items-center justify-between gap-x-5 px-4 sm:gap-x-8">
-        <Logo />
+    <header className="fixed inset-x-0 top-0 z-40 h-16 bg-background max-sm:h-[108px]">
+      <nav className="flex h-full items-center justify-between relative flex-wrap gap-x-4 px-4 max-sm:pb-12 sm:flex-nowrap sm:gap-x-8 sm:px-6">
+        <Logo className="shrink-0" />
         <div className="hidden sm:contents">
           <NavBar navItems={navItems} />
           <div className="flex items-center gap-4">
@@ -45,7 +45,7 @@ function Header() {
               <SelectTrigger
                 size="sm"
                 aria-label={t('common.language')}
-                className="h-auto w-fit border-0 bg-transparent px-1 text-xs text-muted-foreground shadow-none focus-visible:ring-0"
+                className="w-fit border-0 bg-transparent px-2 text-sm text-muted-foreground shadow-none focus-visible:ring-0"
               >
                 <SelectValue />
               </SelectTrigger>
@@ -59,8 +59,8 @@ function Header() {
           </div>
         </div>
         <div className="contents sm:hidden">
-          <NavBar navItems={navItems.slice(0, 2)} />
-          <Logout className="text-xs text-muted-foreground" />
+          <NavBar navItems={navItems} />
+          <Logout className="ml-auto text-xs text-muted-foreground" />
         </div>
       </nav>
       <Separator className="absolute inset-x-0 bottom-0" />

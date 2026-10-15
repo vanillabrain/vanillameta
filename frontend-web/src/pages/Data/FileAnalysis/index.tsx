@@ -290,9 +290,22 @@ const FileAnalysis = () => {
       className="h-full w-full p-0"
     >
       <Seo title={t('common.fileAnalysis')} />
-      <div className="flex min-w-0 flex-col gap-5 py-6 px-4 sm:px-6.25 sm:pt-7.5 sm:pb-10">
-        <div className="flex flex-row flex-wrap items-center gap-4 rounded-lg border border-dashed border-border bg-muted py-4 px-5">
-          <span className="text-sm text-[#555]">{t('fileAnalysis.description')}</span>
+      <div className="flex min-w-0 flex-col gap-6 px-4 py-6 sm:px-6">
+        <div className="flex flex-col gap-4 rounded-xl border border-dashed border-border bg-muted p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span className="text-sm text-muted-foreground">{t('fileAnalysis.description')}</span>
+            {fileName && (
+              <span className="min-w-0 text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                {fileName}
+                {analyzed && (
+                  <>
+                    {' '}
+                    → <b>{TABLE_NAME}</b> {t('fileAnalysis.tableLabel')}
+                  </>
+                )}
+              </span>
+            )}
+          </div>
           <input
             ref={fileInputRef}
             type="file"
@@ -300,24 +313,17 @@ const FileAnalysis = () => {
             className="hidden"
             onChange={handleFileChange}
           />
-          <Button disabled={loading || saving} onClick={() => fileInputRef.current?.click()} className="shrink-0">
+          <Button
+            disabled={loading || saving}
+            onClick={() => fileInputRef.current?.click()}
+            className="shrink-0 self-start sm:self-auto"
+          >
             {t('fileAnalysis.selectFile')}
           </Button>
-          {fileName && (
-            <span className="min-w-0 text-[13px] text-muted-foreground [overflow-wrap:anywhere]">
-              {fileName}
-              {analyzed && (
-                <>
-                  {' '}
-                  → <b>{TABLE_NAME}</b> {t('fileAnalysis.tableLabel')}
-                </>
-              )}
-            </span>
-          )}
         </div>
 
         {selectedFile && (
-          <div className="flex flex-row flex-wrap gap-4">
+          <div className="flex flex-row flex-wrap gap-3">
             <Button onClick={() => saveAsDataset()} disabled={saving || loading}>
               {saving ? t('fileAnalysis.saving') : t('fileAnalysis.saveDataset')}
             </Button>
@@ -336,7 +342,7 @@ const FileAnalysis = () => {
         {analyzed && (
           <>
             <TextField
-              className="min-w-0"
+              className="min-w-0 max-w-2xl"
               placeholder={t('fileAnalysis.queryPlaceholder', { table: TABLE_NAME })}
               value={query}
               onChange={event => setQuery(event.target.value)}
@@ -348,8 +354,7 @@ const FileAnalysis = () => {
             <SubmitButton
               label={t('fileAnalysis.run')}
               type="button"
-              size="large"
-              className="w-full max-w-[374px] text-[13px]"
+              className="w-full sm:w-40"
               onClick={runQuery}
               disabled={loading || saving}
             />
@@ -357,13 +362,13 @@ const FileAnalysis = () => {
         )}
 
         {data.length > 0 && (
-          <div className="flex flex-row flex-wrap items-center gap-4">
+          <div className="flex flex-row flex-wrap items-center gap-3">
             <TextField
               select
               label={t('fileAnalysis.chart')}
               value={chartType}
               onChange={event => setChartType(event.target.value)}
-              className="w-[110px] shrink-0"
+              className="w-28 shrink-0"
             >
               {CHART_TYPES.map(type => (
                 <option key={type} value={type}>
@@ -376,7 +381,7 @@ const FileAnalysis = () => {
               label={t('fileAnalysis.xAxis')}
               value={xField}
               onChange={event => setXField(event.target.value)}
-              className="w-[160px] shrink-0"
+              className="w-40 shrink-0"
             >
               {fieldNames.map(f => (
                 <option key={f} value={f}>
@@ -389,7 +394,7 @@ const FileAnalysis = () => {
               label={t('fileAnalysis.value')}
               value={yField}
               onChange={event => setYField(event.target.value)}
-              className="w-[160px] shrink-0"
+              className="w-40 shrink-0"
             >
               {numericFields.map(f => (
                 <option key={f} value={f}>
@@ -404,14 +409,14 @@ const FileAnalysis = () => {
         )}
 
         {chartOption && (
-          <Suspense fallback={<span className="text-[13px] text-[#767676]">{t('fileAnalysis.chartLoading')}</span>}>
+          <Suspense fallback={<span className="text-sm text-muted-foreground">{t('fileAnalysis.chartLoading')}</span>}>
             {/* echarts-for-react는 컨테이너 높이를 inline style로 강제하므로 차트 크기는 style API를 유지한다. */}
             <ReactECharts option={chartOption} style={{ height: 360, width: '100%' }} />
           </Suspense>
         )}
 
         {data.length > 0 && (
-          <div className="bg-[#f5f6f8] py-5 px-0">
+          <div className="rounded-lg bg-muted p-4 sm:p-6">
             <DataGrid
               minBodyHeight={300}
               bodyHeight={500}

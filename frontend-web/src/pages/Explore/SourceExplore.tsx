@@ -6,7 +6,7 @@ import PersonalSavedViews from '@/pages/Dashboard/Components/PersonalSavedViews'
 import ExploreSavedViews, { ExploreViewState as VersionedExploreViewState } from './ExploreSavedViews';
 import ExplorePivot, { DEFAULT_PIVOT_SORT, normalizePivotSort, PivotAxes as AdvancedPivotAxes } from './ExplorePivot';
 import ExploreExport from './ExploreExport';
-import { AnalysisChoice, AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
+import { AnalysisChoice, AnalysisUiProvider, analysisPanelClassName } from '@/components/analysis/AnalysisUi';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -260,8 +260,8 @@ function LeaderboardCard({
   const rows = board.rows ?? [];
   const max = rows.reduce((best, row) => Math.max(best, toNumber(row.value) ?? 0), 0);
   return (
-    <Card className="min-w-0 gap-2 rounded-[10px] border border-[#e0e6ee] bg-card p-4 ring-0">
-      <h3 className="text-[13px] font-bold wrap-anywhere">{board.column}</h3>
+    <Card className="min-w-0 gap-2 rounded-[10px] border border-[#e0e6ee] bg-card p-4 ring-0 sm:p-5">
+      <h3 className="text-sm font-bold wrap-anywhere">{board.column}</h3>
       {rows.length === 0 ? (
         <p className="text-[13px] text-muted-foreground">표시할 값이 없습니다.</p>
       ) : (
@@ -885,8 +885,8 @@ function SourceExploreContent() {
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-[1400px] bg-[#f6f8fb] p-4 text-[13px] md:p-6">
-      <div className="relative mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-3">
+      <div className="mb-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-end gap-x-4 gap-y-3">
           <h1 className="text-2xl leading-tight font-bold">지표 탐색</h1>
           <TextField
             select
@@ -904,12 +904,12 @@ function SourceExploreContent() {
             ))}
           </TextField>
           {catalog && (
-            <p className="wrap-anywhere text-muted-foreground">{formatMetric(catalog.rowCount).text}행 · 연결됨</p>
+            <p className="wrap-anywhere text-xs text-muted-foreground">{formatMetric(catalog.rowCount).text}행 · 연결됨</p>
           )}
         </div>
         <Button
           variant="outline"
-          className="shrink-0 self-end sm:self-center"
+          className="shrink-0 self-end"
           onClick={() => navigate(`/explore${sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''}`)}
         >
           지표 빌더
@@ -917,7 +917,7 @@ function SourceExploreContent() {
       </div>
       <Separator />
       {catalog && (
-        <div className="mt-2 flex min-w-0 flex-wrap items-start gap-3">
+        <div className="mt-3 flex min-w-0 flex-wrap items-start gap-2">
           {/* Our restful V1 state cannot carry the advanced Pivot, so classic save/load hides there. */}
           {mode !== 'advanced' && (
             <div className="min-w-0">
@@ -1002,8 +1002,8 @@ function SourceExploreContent() {
         </div>
       )}
 
-      <div className="mt-3 rounded-[10px] border border-[#e0e6ee] bg-card p-3 sm:p-4">
-        <div role="group" aria-label="탐색 방식" className="mb-3 flex flex-wrap gap-2">
+      <div className={cn('mt-4', analysisPanelClassName)}>
+        <div role="group" aria-label="탐색 방식" className="mb-4 flex flex-wrap gap-2">
           <AnalysisChoice label="Explore" selected={mode === 'explore'} onClick={() => setMode('explore')} />
           <AnalysisChoice
             label="Pivot"
@@ -1107,7 +1107,7 @@ function SourceExploreContent() {
           )}
         </div>
 
-        <div className="mt-3 min-w-0">
+        <div className="mt-4 min-w-0">
           <div className="flex min-w-0 items-center justify-between gap-2">
             <p className="text-xs font-medium text-muted-foreground">
               {filters.length ? `적용된 필터 ${filters.length}개` : '필터 없음'}
@@ -1163,7 +1163,7 @@ function SourceExploreContent() {
             id="explore-filter-panel"
             role="group"
             aria-label="필터 설정"
-            className="mt-2 min-w-0 rounded-lg border border-[#dce6f2] bg-[#f8fafd] p-4"
+            className="mt-3 min-w-0 rounded-xl border border-[#dce6f2] bg-[#f8fafd] p-4 sm:p-5"
           >
             <div className="mb-3 flex min-w-0 flex-wrap gap-3">
               <TextField
@@ -1324,7 +1324,7 @@ function SourceExploreContent() {
             </p>
           </div>
         )}
-        <Separator className="my-3" />
+        <Separator className="my-4" />
 
         {catalog && (
           <div className="flex min-w-0 flex-col gap-2">
@@ -1367,7 +1367,7 @@ function SourceExploreContent() {
                 id="display-settings"
                 role="group"
                 aria-label="표시 설정"
-                className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-3"
+                className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4"
               >
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <p className="text-[13px] font-bold">지표 (최대 {MAX_MEASURES})</p>
@@ -1554,8 +1554,8 @@ function SourceExploreContent() {
             {result.applied?.comparePrevious ? '이전 기간 비교' : '비교 없음'} · 필터 {result.applied?.filters?.length ?? 0}
             개 · 기준 {measureLabel(rankingMeasureId)}
           </p>
-          <div className="mt-3 flex flex-col items-start gap-4 md:flex-row">
-            <div className="w-full min-w-0 md:basis-[44%] md:flex-none">
+          <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-start">
+            <div className="flex w-full min-w-0 flex-col gap-4 md:basis-[44%] md:flex-none">
               {(result.kpis ?? []).map(kpi => {
                 const trend = trendFor(kpi);
                 const units = unitParts(kpi);
@@ -1568,7 +1568,7 @@ function SourceExploreContent() {
                   numberNotation,
                 });
                 return (
-                  <div key={String(kpi.id)} className="mb-4 min-w-0 rounded-[10px] border border-[#e0e6ee] bg-card p-4">
+                  <div key={String(kpi.id)} className="min-w-0 rounded-[10px] border border-[#e0e6ee] bg-card p-4 sm:p-5">
                     <p className="text-[13px] text-muted-foreground">{kpi.title}</p>
                     <p
                       title={value.exactText}
@@ -1593,7 +1593,7 @@ function SourceExploreContent() {
               })}
             </div>
             <div className="w-full min-w-0 md:flex-1">
-              <p className="mb-2 text-[13px] font-bold">
+              <p className="mb-3 text-sm font-bold">
                 {dimensions.length} / {catalog.dimensions.length} 차원 · {measureLabel(rankingMeasureId)} 기준
               </p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-[repeat(2,minmax(0,1fr))]">

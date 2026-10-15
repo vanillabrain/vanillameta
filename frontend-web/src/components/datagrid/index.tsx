@@ -336,7 +336,12 @@ const DataGrid = forwardRef<DataGridHandle, DataGridProps>((props, ref) => {
                       disabled={!sortable}
                       onClick={sortable ? () => toggleSort(column.name) : undefined}
                       className={cn(
-                        'h-auto w-full justify-start gap-1 rounded-md px-1 py-1 text-left font-medium',
+                        'h-8 w-full gap-1 rounded-md px-1 py-0 font-medium',
+                        column.align === 'right'
+                          ? 'justify-end text-right'
+                          : column.align === 'center'
+                          ? 'justify-center text-center'
+                          : 'justify-start text-left',
                         sortable ? 'cursor-pointer' : 'cursor-default',
                       )}
                       style={{ textAlign: column.align }}

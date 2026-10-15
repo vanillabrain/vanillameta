@@ -484,7 +484,7 @@ export default function ExplorePivot({
   );
   const headerClass = cn(cellClass, 'bg-[#f8fafc] font-semibold');
   const headerButtonClass =
-    'h-auto w-full justify-start border-0 bg-transparent p-0 text-left leading-[1.4] whitespace-normal';
+    'h-auto w-full justify-end border-0 bg-transparent p-0 text-right leading-[1.4] whitespace-normal';
   /** One flat record takes its measures from its single column group, with the row total as a fallback. */
   const flatMeasures = (row: { total: PivotValue[]; columns: Map<number, PivotValue[]> }) => {
     const group = row.columns.get(0);
@@ -506,15 +506,15 @@ export default function ExplorePivot({
   const flatLabelClass = cn(cellClass, 'min-w-[110px] max-w-[240px] bg-white text-left wrap-anywhere');
   const timeAxisInvalid = !!timeAxis && !temporalAxisColumns.includes(timeAxis.column);
   return (
-    <div className="mt-4 flex min-w-0 flex-col gap-4 md:flex-row">
-      <div className="max-h-[320px] min-w-0 overflow-y-auto rounded-[4px] border border-[#e2e8f0] p-3 md:max-h-[700px] md:basis-[210px] md:flex-none">
+    <div className="mt-5 flex min-w-0 flex-col gap-4 md:flex-row">
+      <div className="max-h-[320px] min-w-0 overflow-y-auto rounded-xl border border-[#e2e8f0] p-4 md:max-h-[700px] md:basis-[210px] md:flex-none">
         <TextField
           label="Pivot 필드 검색"
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="mb-2 w-full"
         />
-        <p className="mt-2 text-xs font-bold">지표 · 열에 표시</p>
+        <p className="mt-3 text-xs font-semibold text-muted-foreground">지표 · 열에 표시</p>
         {measures
           .filter(m => m.label.toLowerCase().includes(search.toLowerCase()))
           .map(m => (
@@ -531,7 +531,7 @@ export default function ExplorePivot({
               className="flex h-auto w-full justify-start px-2 py-1 text-left whitespace-normal"
             />
           ))}
-        <p className="mt-4 text-xs font-bold">차원</p>
+        <p className="mt-4 text-xs font-semibold text-muted-foreground">차원</p>
         {dimensions
           .filter(d => d.column.toLowerCase().includes(search.toLowerCase()))
           .map(d => (
@@ -815,7 +815,7 @@ export default function ExplorePivot({
             role="region"
             aria-label="Pivot 결과"
             tabIndex={0}
-            className="mt-3 max-h-[620px] overflow-auto rounded-lg border border-[#e2e8f0]"
+            className="mt-3 max-h-[620px] overflow-auto rounded-xl border border-[#e2e8f0]"
           >
             <Table className="w-full border-separate border-spacing-0 text-xs">
               <TableCaption className="mt-0 p-3 text-left text-xs text-inherit">
@@ -880,7 +880,7 @@ export default function ExplorePivot({
                             variant="ghost"
                             title={`${column} 필터 적용`}
                             onClick={() => onFilter(column, [row.values[i] as string | number | boolean | null])}
-                            className="h-auto min-h-0 justify-start border-0 bg-transparent p-0.5 text-[#334155]"
+                            className="min-h-8 justify-start border-0 bg-transparent px-1 text-[#334155]"
                           >
                             {category(row.values[i])}
                           </Button>
@@ -904,7 +904,7 @@ export default function ExplorePivot({
             role="region"
             aria-label="Pivot 결과"
             tabIndex={0}
-            className="mt-3 max-h-[620px] overflow-auto rounded-lg border border-[#e2e8f0]"
+            className="mt-3 max-h-[620px] overflow-auto rounded-xl border border-[#e2e8f0]"
           >
             <Table className="w-full border-separate border-spacing-0 text-xs">
               <TableCaption className="mt-0 p-3 text-left text-xs text-inherit">
@@ -984,7 +984,7 @@ export default function ExplorePivot({
                             }`}
                             aria-expanded={expanded.has(JSON.stringify(row.values))}
                             onClick={() => toggleParent(row.values)}
-                            className="mr-1.5 h-auto min-h-0 border-0 bg-transparent p-0"
+                            className="mr-1.5 size-8 border-0 bg-transparent p-0"
                           >
                             {expanded.has(JSON.stringify(row.values)) ? '▾' : '▸'}
                           </Button>
@@ -999,7 +999,7 @@ export default function ExplorePivot({
                                     variant="ghost"
                                     title={`${axes.rowColumns[i]} 필터 적용`}
                                     onClick={() => onFilter(axes.rowColumns[i], [value as string | number | boolean | null])}
-                                    className="h-auto min-h-0 justify-start border-0 bg-transparent p-0.5 text-[#334155]"
+                                    className="min-h-8 justify-start border-0 bg-transparent px-1 text-[#334155]"
                                   >
                                     {category(value)}
                                   </Button>

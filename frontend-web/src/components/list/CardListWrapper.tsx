@@ -20,10 +20,8 @@ export const CardListWrapper = (props: CardListWrapperProps) => {
   return (
     <ul
       className={cn(
-        'list-none gap-2 p-0',
-        layout === 'stack'
-          ? 'flex flex-col md:grid md:grid-cols-1'
-          : 'flex md:grid md:[grid-template-columns:repeat(auto-fit,minmax(0,228px))]',
+        'm-0 min-w-0 list-none gap-3 p-0',
+        layout === 'stack' ? 'flex flex-col' : 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3',
         'min-h-5',
         className,
       )}
@@ -39,12 +37,12 @@ export const CardWrapper = (props: CardWrapperProps) => {
   const { children, className = '', handleClick } = props;
 
   return (
-    <li className="flex-1 list-none">
+    <li className="min-w-0 list-none">
       <Card
         onClick={handleClick}
         className={cn(
           'flex flex-col gap-0 rounded-lg border border-border bg-card p-5 shadow-none ring-0',
-          handleClick && 'cursor-pointer hover:bg-[#ebfbff]',
+          handleClick && 'cursor-pointer transition-colors hover:border-primary/30 hover:bg-accent/40',
           className,
         )}
       >

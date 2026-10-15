@@ -9,7 +9,7 @@ interface LogoProps {
 
 export const LandingLogo = ({ className, ...rest }: LogoProps & React.HTMLAttributes<HTMLDivElement>) => {
   return (
-    <div className={cn('h-[50px] w-[105px]', className)} {...rest}>
+    <div className={cn('h-12 w-28', className)} {...rest}>
       <a href="https://vanillameta.net" target="_blank" rel="noreferrer">
         <IconLogo className="h-full w-full" />
       </a>
@@ -19,7 +19,7 @@ export const LandingLogo = ({ className, ...rest }: LogoProps & React.HTMLAttrib
 
 const Logo = ({ className, ...rest }: LogoProps & React.HTMLAttributes<HTMLDivElement>) => {
   return (
-    <div className={cn('h-[50px] w-[105px]', className)} {...rest}>
+    <div className={cn('h-12 w-28', className)} {...rest}>
       <RouterLink to="/" aria-label="VanillaMeta">
         <IconLogo className="h-full w-full" />
       </RouterLink>

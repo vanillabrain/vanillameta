@@ -7,12 +7,14 @@ const state = vi.hoisted(() => ({
   observe: vi.fn(),
   callback: null as (() => void) | null,
   option: null as any,
+  theme: null as any,
 }));
 vi.mock('echarts-for-react', async () => {
   const React = await import('react');
   return {
     default: React.forwardRef((props: any, ref) => {
       state.option = props.option;
+      state.theme = props.theme;
       const element = React.useRef<HTMLDivElement>(null);
       React.useImperativeHandle(ref, () => ({
         getEchartsInstance: () => ({ getDom: () => element.current, resize: state.resize, isDisposed: () => false }),
@@ -107,4 +109,19 @@ it('shows short UTC bucket dates on the axis while retaining exact category valu
   expect(state.option.xAxis.data).toEqual(['2026-01-05T00:00:00Z']);
   fireEvent.click(view.getByRole('button', { name: 'chart.showDataTable' }));
   expect(view.getByRole('table').textContent).toContain('2026-01-05T00:00:00Z30');
+});
+
+it('uses shared presentation defaults without overriding saved colors or data', () => {
+  const dataSet = [
+    { category: 'A', amount: 1234.567 },
+    { category: 'B', amount: 0 },
+  ];
+  const option = { xField: 'category', series: [{ field: 'amount', aggregation: 'sum', color: '#123456' }] };
+  const before = JSON.stringify({ option, dataSet });
+  render(<LineChart option={option} dataSet={dataSet} />);
+  expect(state.theme.tooltip.confine).toBe(true);
+  expect(state.theme.valueAxis.splitLine.lineStyle.type).toBe('dashed');
+  expect(state.option.series[0].color).toBe('#123456');
+  expect(state.option.series[0].data).toEqual([1234.567, 0]);
+  expect(JSON.stringify({ option, dataSet })).toBe(before);
 });

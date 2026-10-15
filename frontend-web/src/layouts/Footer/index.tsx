@@ -26,7 +26,7 @@ const Footer = () => {
 
   return (
     <footer
-      className="flex h-[50px] flex-col items-center justify-center"
+      className="flex h-[50px] shrink-0 flex-col items-center justify-center"
       style={{ backgroundColor: footerBg ? footerBg : '#fff' }}
     >
       <Copyright />

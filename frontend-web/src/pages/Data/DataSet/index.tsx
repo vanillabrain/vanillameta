@@ -304,13 +304,13 @@ const DataSet = () => {
         </div>
       }
     >
-      <form id="datasetForm" className="flex flex-col gap-5 px-6.25 pt-7.5 pb-10" onSubmit={saveDataset}>
+      <form id="datasetForm" className="flex flex-col gap-6 px-4 py-6 sm:px-6" onSubmit={saveDataset}>
         <Select
           value={selectedSourceValue}
           onValueChange={handleSourceValueChange}
           disabled={isModifyMode || !databaseList.length}
         >
-          <SelectTrigger id="databaseId" aria-label={t('data.source')} className="w-full max-w-[500px] bg-background">
+          <SelectTrigger id="databaseId" aria-label={t('data.source')} className="w-full max-w-lg bg-background">
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper">
@@ -324,13 +324,14 @@ const DataSet = () => {
 
         <TextField
           id="userSetName"
+          className="max-w-lg"
           label={t('dataset.name')}
           placeholder={t('dataset.namePlaceholder')}
           value={datasetInfo?.title}
           onChange={onChangeTitle}
           required
         />
-        <div className="flex min-w-0 flex-col items-stretch gap-3 rounded-lg border border-border bg-muted p-3 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-col items-stretch gap-3 rounded-lg border border-border bg-muted p-4 sm:flex-row sm:items-center">
           <span className="shrink-0 text-sm font-semibold whitespace-nowrap">{t('dataset.aiGen')}</span>
           <TextField
             inputProps={{ 'aria-label': t('dataset.aiGen'), className: 'bg-white' }}
@@ -348,7 +349,7 @@ const DataSet = () => {
           <SubmitButton
             label={aiLoading ? t('dataset.aiBtnLoading') : t('dataset.aiBtn')}
             type="button"
-            className="h-10 w-[120px] shrink-0 text-[13px]"
+            className="w-full shrink-0 sm:w-32"
             onClick={generateSqlWithAi}
             disabled={aiLoading}
           />
@@ -362,7 +363,7 @@ const DataSet = () => {
             }
           }}
         >
-          <div className="overflow-hidden rounded-lg border border-[#dddddd]">
+          <div className="overflow-hidden rounded-lg border border-border">
             <AceEditor
               placeholder="Please enter a query."
               width="100%"
@@ -395,12 +396,12 @@ const DataSet = () => {
             {t('dataset.sqlKeyboardHelp')}
           </span>
         </div>
-        <Button ref={runButton} type="button" className="w-full max-w-[374px] text-[13px]" onClick={excuteQuery}>
+        <Button ref={runButton} type="button" className="w-full sm:w-40" onClick={excuteQuery}>
           Run
         </Button>
       </form>
       {data.length ? (
-        <div className="bg-[#f5f6f8] px-6.25 pt-7.5 pb-10">
+        <div className="border-t border-border bg-muted px-4 py-6 sm:px-6">
           <DataGrid
             minBodyHeight={300}
             bodyHeight={500}

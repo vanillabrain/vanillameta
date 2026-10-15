@@ -1,3 +1,4 @@
+import { chartTheme } from '@/components/charts/chartTheme';
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
@@ -73,6 +74,7 @@ function ScatterChart(props) {
 
   return (
     <ReactECharts
+      theme={chartTheme}
       option={componentOption}
       style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}
       lazyUpdate={true}

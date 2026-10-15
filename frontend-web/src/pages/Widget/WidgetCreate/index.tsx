@@ -154,13 +154,13 @@ const WidgetCreate = () => {
         </div>
       }
     >
-      <div className="z-30 mt-24 w-full shrink-0 border-b border-border bg-background sm:mt-14 md:fixed">
-        <ol className="mx-auto flex min-h-[72px] w-full min-w-0 max-w-[564px] items-center px-3 py-3 sm:py-0 md:w-1/2 md:min-w-[450px] md:px-0">
+      <div className="w-full shrink-0 border-b border-border bg-background">
+        <ol className="mx-auto flex min-h-16 w-full min-w-0 max-w-[564px] items-center px-4 py-3 md:w-1/2 md:min-w-[450px] md:px-0">
           {steps.map((label, index) => (
-            <li key={label} className="flex min-w-0 flex-1 flex-col items-center md:flex-row md:gap-2">
+            <li key={label} className="flex min-w-0 flex-1 flex-col items-center md:flex-row md:gap-2.5">
               <span
                 className={cn(
-                  'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                  'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
                   index <= activeStep ? 'bg-primary text-white' : 'bg-border text-muted-foreground',
                 )}
               >
@@ -168,7 +168,7 @@ const WidgetCreate = () => {
               </span>
               <span
                 className={cn(
-                  'min-w-0 text-center text-sm break-words',
+                  'min-w-0 text-center text-sm leading-5 break-words',
                   index <= activeStep ? 'font-semibold text-foreground' : 'text-muted-foreground',
                   'md:pr-2 md:text-left',
                 )}
@@ -179,8 +179,8 @@ const WidgetCreate = () => {
           ))}
         </ol>
       </div>
-      <div className="flex min-w-0 flex-auto md:mt-[129px]">
-        <div className={cn('flex-auto', activeStep === 0 ? 'flex' : 'hidden')}>
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <div className={cn('min-h-0 min-w-0 flex-1', activeStep === 0 ? 'flex' : 'hidden')}>
           <WidgetDataSelect setDataSet={handleDatasetChange} />
         </div>
         {activeStep === 1 ? (

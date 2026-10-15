@@ -367,10 +367,10 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
   return (
     <section
       aria-label={subject === 'explore' ? '탐색 저장 보기' : '개인 저장 보기'}
-      className="mb-4 min-w-0 rounded-lg border border-border p-3 [&_button]:min-h-11 sm:p-4"
+      className="mb-4 min-w-0 rounded-xl border border-border p-4 sm:p-5"
     >
-      <h2 className="text-xl">{subject === 'explore' ? '탐색 저장 보기' : '개인 저장 보기'}</h2>
-      <p className="mb-2 text-sm">
+      <h2 className="text-lg">{subject === 'explore' ? '탐색 저장 보기' : '개인 저장 보기'}</h2>
+      <p className="mt-2 mb-3 text-sm">
         {subject === 'explore'
           ? '탐색 방식·Pivot 행과 열·선택한 지표·차원·적용한 필터·기간·집계·비교·정렬을 개인별로 저장합니다. 열 때 최신 정상 데이터로 조회합니다. 소스별 최대 20개입니다.'
           : '현재 적용한 필터·기간·숫자 표시·집계 단위·이전 기간 비교를 개인별로 저장합니다. 대시보드 정의는 바뀌지 않습니다. 최대 20개입니다.'}

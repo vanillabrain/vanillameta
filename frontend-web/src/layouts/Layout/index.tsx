@@ -11,13 +11,11 @@ const Layout = props => {
 
   return (
     <div
-      className={cn('h-full w-full flex-1', fixed ? 'overflow-hidden' : 'overflow-visible')}
+      className={cn('flex min-h-dvh w-full flex-col', fixed ? 'h-dvh overflow-hidden' : 'overflow-visible')}
       style={{ backgroundColor: footerBg ? footerBg : '#fff' }}
     >
       <Header />
-      <div className="flex w-full flex-1 flex-col pt-14 sm:pt-[65px]" style={{ minHeight: 'calc(100% - 50px)' }}>
-        {children || <Outlet />}
-      </div>
+      <div className="flex min-h-0 w-full flex-1 flex-col pt-[108px] sm:pt-16">{children || <Outlet />}</div>
       <Footer />
     </div>
   );

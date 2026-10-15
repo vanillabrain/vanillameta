@@ -18,24 +18,20 @@ function PageTitleBox(props: PageTitleBoxProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="flex h-full w-full flex-1 flex-col">
-      <div className="flex w-full">
+    <div className="flex min-h-0 w-full flex-1 flex-col">
+      <div className={cn('flex w-full shrink-0', fixed && 'sticky top-[108px] z-30 sm:top-16')}>
         <div
           className={cn(
-            'flex w-full flex-wrap items-center justify-between gap-y-2 border-b border-border bg-muted px-6 py-2 sm:h-14 sm:min-h-14 sm:flex-nowrap sm:py-0',
-            fixed && 'fixed z-30',
+            'flex w-full flex-wrap items-center justify-between gap-4 border-b border-border bg-background px-4 py-5 sm:px-6 sm:py-6',
           )}
         >
-          <div className="flex flex-row items-center gap-1.5 sm:gap-2.5">
+          <div className="flex min-w-0 flex-row flex-wrap items-center gap-1.5 sm:gap-2.5">
             {upperTitle && (
               <>
-                <RouterLink
-                  to={upperTitleLink}
-                  className="h-[19px] shrink-0 text-sm font-medium text-muted-foreground no-underline sm:text-base"
-                >
+                <RouterLink to={upperTitleLink} className="shrink-0 text-sm font-medium text-muted-foreground no-underline">
                   {upperTitle}
                 </RouterLink>
-                <span className="h-[19px] shrink-0 text-sm font-medium text-muted-foreground sm:text-base">/</span>
+                <span className="shrink-0 text-sm text-muted-foreground">/</span>
               </>
             )}
             <Button
@@ -45,16 +41,16 @@ function PageTitleBox(props: PageTitleBoxProps) {
                 event.preventDefault();
                 navigate(0);
               }}
-              className="h-[19px] shrink-0 justify-start rounded-none px-0 text-left text-sm font-semibold text-foreground hover:bg-transparent sm:text-base"
+              className="h-auto min-w-0 justify-start rounded-none p-0 text-left text-xl leading-8 font-semibold tracking-tight whitespace-normal text-foreground hover:bg-transparent sm:text-2xl"
             >
               {title}
             </Button>
           </div>
-          <div className="flex max-w-full flex-wrap gap-2 sm:contents">{button}</div>
+          <div className="flex max-w-full flex-wrap items-center gap-2">{button}</div>
         </div>
       </div>
-      <div className="flex h-[calc(100%-56px)] w-full flex-1 flex-col justify-start">
-        <div className={cn('h-full w-full flex-1 px-[25px]', className)}>{children}</div>
+      <div className="flex min-h-0 w-full flex-1 flex-col justify-start">
+        <div className={cn('flex min-h-0 w-full min-w-0 flex-1 flex-col px-4 py-6 sm:px-6', className)}>{children}</div>
       </div>
     </div>
   );

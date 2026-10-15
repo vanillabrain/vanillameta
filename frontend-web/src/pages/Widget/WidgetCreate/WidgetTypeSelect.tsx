@@ -53,8 +53,8 @@ function WidgetTypeSelect(props) {
   };
 
   return (
-    <div className="h-full flex-auto bg-muted px-6 pt-[22px] pb-[50px]">
-      <div className="mb-3 flex flex-row justify-end">
+    <div className="h-full flex-auto bg-muted px-4 py-6 sm:px-6">
+      <div className="mb-4 flex flex-row justify-end">
         <Button
           variant="outline"
           size="sm"

@@ -16,9 +16,7 @@ const PAGE_SIZE = 10;
 const WINDOW = 5;
 
 const GTSpan = ({ children, className = '' }) => (
-  <span className={cn('text-[10px] leading-tight font-medium text-muted-foreground sm:text-[13px]', className)}>
-    {children}
-  </span>
+  <span className={cn('text-xs leading-5 font-medium text-muted-foreground', className)}>{children}</span>
 );
 
 function BoardList(props) {
@@ -47,11 +45,11 @@ function BoardList(props) {
 
   return (
     <div className={cn('mx-auto w-full', className)} style={{ maxWidth: MAX_WIDTH }}>
-      <div className="mb-[11px] mt-5 flex w-full flex-row justify-between pr-[60px] sm:mt-9 sm:pr-[216px]">
+      <div className="mb-3 mt-6 flex w-full flex-row justify-between px-4 sm:px-5 sm:pr-44">
         <GTSpan>{t('settings.name')}</GTSpan>
         <GTSpan>{t('common.modified')}</GTSpan>
       </div>
-      <ul className="w-full rounded-lg border border-[#DADDDD] bg-card p-0">
+      <ul className="w-full rounded-lg border border-border bg-card p-0">
         {postList.map((item, index) => {
           const currentPageStart = (page - 1) * PAGE_SIZE;
           if (index < currentPageStart || index >= currentPageStart + PAGE_SIZE) {
@@ -60,7 +58,7 @@ function BoardList(props) {
           return <BoardItem data={item} key={item.id} handleDeleteSelect={handleDeleteSelect} />;
         })}
       </ul>
-      <div className="mt-[47px] flex justify-center">
+      <div className="mt-6 flex justify-center">
         <Pagination>
           <PaginationContent>
             <PaginationItem>

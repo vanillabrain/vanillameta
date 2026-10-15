@@ -131,7 +131,7 @@ const WidgetView = () => {
       upperTitle={t('widget.title')}
       upperTitleLink="/widget"
       title={t('widget.view')}
-      className="w-full flex-auto p-0 sm:mt-[22px]"
+      className="w-full flex-auto p-0"
     >
       <Seo title={widgetOption.title} />
       <PageViewBox
@@ -167,7 +167,7 @@ const WidgetView = () => {
           </div>
         }
       >
-        <Card className="mx-auto my-5 h-[50vw] max-h-[700px] min-h-[300px] w-[calc(100%-40px)] overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:my-[54px] sm:w-3/5">
+        <Card className="mx-auto my-6 h-[50vw] max-h-[700px] min-h-[300px] w-full max-w-4xl overflow-hidden rounded-lg border border-border bg-background shadow-none ring-0 sm:my-8">
           {loadError ? (
             <p role="alert" className="p-6 text-center">
               {t('share.widgetFetchFailed')}

@@ -8,7 +8,7 @@ import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import WidgetService from '@/api/widgetService';
 import { LoadingContext } from '@/contexts/LoadingContext';
-import { STATUS } from '@/constant';
+import { MAX_WIDTH, STATUS } from '@/constant';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { Button } from '@/components/ui/button';
@@ -83,22 +83,18 @@ const Widget = () => {
   // 목록이 없을때 보여줄 화면
   const getEmptyView = () => {
     return (
-      <>
-        <div className="mt-9 mb-[11px] flex flex-row justify-between pr-5 pl-5 sm:pr-[217px]">
-          <span className="text-left text-[10px] leading-[1.23] font-medium text-muted-foreground sm:text-[13px]">
-            {t('list.name')}
-          </span>
-          <span className="text-left text-[10px] leading-[1.23] font-medium text-muted-foreground sm:text-[13px]">
-            {t('list.modifiedAt')}
-          </span>
+      <div className="mx-auto w-full" style={{ maxWidth: MAX_WIDTH }}>
+        <div className="mb-3 mt-6 flex w-full flex-row justify-between px-4 pr-4 sm:px-5 sm:pr-44">
+          <span className="text-xs leading-5 font-medium text-muted-foreground">{t('list.name')}</span>
+          <span className="text-xs leading-5 font-medium text-muted-foreground">{t('list.modifiedAt')}</span>
         </div>
-        <div className="flex grow-0 items-center justify-center rounded-md border border-border bg-background py-[18px]">
-          <span className="text-center text-sm leading-[1.43] font-semibold text-foreground sm:text-base">
+        <div className="flex w-full items-center justify-center rounded-lg border border-border bg-card px-4 py-10">
+          <span className="text-center text-sm font-medium text-muted-foreground">
             {t('list.noWidget')}
             <br className="sm:hidden" /> {t('list.createWidgetHint')}
           </span>
         </div>
-      </>
+      </div>
     );
   };
 
@@ -110,7 +106,7 @@ const Widget = () => {
         <PageTitleBox
           title={title}
           button={
-            <Button asChild className="h-8 bg-primary">
+            <Button asChild>
               <RouterLink to="create">
                 <Plus className="size-4" />
                 {t('widget.create')}

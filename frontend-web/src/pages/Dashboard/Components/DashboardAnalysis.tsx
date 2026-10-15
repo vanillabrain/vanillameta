@@ -67,11 +67,11 @@ const selectableTime = (selection: TimeSelection | undefined, length: number, da
   selection.ranges.length === length &&
   selection.ranges.some(range => validTimeRange(range) && range.column === selection.column);
 
-/* Compact analysis control surface: 13px controls, 36/40px touch heights. */
-const analysisButtonClassName = 'min-h-10 rounded-lg px-1.5 text-[13px] font-medium sm:min-h-9';
-const analysisOutlineButtonClassName = cn(analysisButtonClassName, 'border-border bg-background');
+/* Dense analysis control surface: 32px controls and 14px labels from the shared button scale. */
+const analysisButtonClassName = 'shrink-0 font-medium';
+const analysisOutlineButtonClassName = cn(analysisButtonClassName, 'bg-background');
 const filterChipClassName =
-  'min-h-8 max-w-full rounded-md border border-[#d8e5f6] bg-[#edf3fb] text-left text-xs text-[#214c80] [overflow-wrap:anywhere] hover:bg-[#e2ebf9]';
+  'min-h-8 max-w-full rounded-md border-primary/20 bg-primary/5 text-left text-xs text-primary [overflow-wrap:anywhere] hover:bg-primary/10';
 
 function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantOpenChange, children }: any) {
   const { t } = useTranslation();
@@ -730,9 +730,9 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
     return { minHeight, gridColumn: widget.type === 'BOARD_NUMERIC' ? 'auto' : '1 / -1' };
   };
   return (
-    <div className="min-w-0 p-3 sm:p-4">
-      <div className="mb-3 flex flex-row flex-wrap items-center gap-2">
-        <p className="min-w-0 flex-[1_1_100%] text-[13px] text-muted-foreground [overflow-wrap:anywhere]">
+    <div className="min-w-0 p-4 sm:p-6">
+      <div className="mb-4 flex flex-row flex-wrap items-center gap-2">
+        <p className="min-w-0 flex-[1_1_100%] text-sm text-muted-foreground [overflow-wrap:anywhere]">
           {period} ·{' '}
           {active.length
             ? active.map(([column, values]) => `${column}: ${values.map(String).join(', ')}`).join(' · ')
@@ -740,7 +740,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
         </p>
         <Button
           ref={periodRecovery}
-          variant="ghost"
+          variant="outline"
           size="sm"
           className={analysisButtonClassName}
           aria-disabled={periodRecoveryDisabled || !periodHistory.length}
@@ -749,7 +749,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           선택한 기간 되돌리기
         </Button>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           className={analysisButtonClassName}
           onClick={reset}
@@ -836,8 +836,8 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
         {categoryNotice}
         {categoryNotice && (busy ? ' · 조회 중' : error ? ' · 조건 적용 실패' : ' · 조회 완료')}
       </p>
-      <details className="mb-4 rounded-[10px] border border-[#e0e6ee] bg-background [&[open]>summary]:border-b [&[open]>summary]:border-[#e8edf3]">
-        <summary className="box-border flex min-h-11 cursor-pointer flex-wrap items-center gap-1 px-4 py-3 text-[13px] text-foreground [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+      <details className="mb-4 rounded-xl border border-border bg-background [&[open]>summary]:border-b [&[open]>summary]:border-border">
+        <summary className="box-border flex min-h-9 cursor-pointer flex-wrap items-center gap-1 px-4 py-3 text-sm text-foreground [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           <span className="font-semibold">기간·필터 설정</span>
           <span className="ml-1 text-muted-foreground">
             {dateRange?.timeZone ?? 'UTC'} ·{' '}
@@ -846,7 +846,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
             {unappliedDates ? ' · 날짜 입력 미적용' : ''}
           </span>
         </summary>
-        <div className="p-3 sm:p-4">
+        <div className="p-4 sm:p-6">
           <div className="mb-6 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-[repeat(3,minmax(0,1fr))]">
             <div className="flex min-w-0 flex-col gap-1.5">
               <Label htmlFor="business-time-zone">업무 시간대</Label>
@@ -1015,7 +1015,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
               </>
             )}
           </div>
-          <div className="mb-2 flex flex-col gap-2 border-t border-[#e8edf3] pt-4 sm:flex-row sm:items-center">
+          <div className="mb-2 flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center">
             <div className="flex min-w-0 max-w-full flex-col gap-1.5">
               <Label htmlFor="trend-grain">시계열 집계 단위</Label>
               <Select
@@ -1046,7 +1046,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
             </div>
           </div>
           <details className="text-xs text-muted-foreground">
-            <summary className="min-h-7 cursor-pointer text-xs">집계·기간 비교 안내</summary>
+            <summary className="min-h-9 cursor-pointer text-xs">집계·기간 비교 안내</summary>
             <p className="mt-2 text-sm">
               {dateRange?.timeZone && dateRange.timeZone !== 'UTC'
                 ? '업무 시간대는 KPI·원본 행·기간 비교에 적용됩니다. KPI 추이는 지역 달력의 일·주·월로 집계합니다. 주 시작은 월요일입니다. KPI 추이 시점을 선택해 기간을 좁히거나 해당 집계의 원본 행을 확인할 수 있습니다. 일반 라인 차트 재집계는 아직 지원하지 않습니다. 날짜 비교는 같은 달력 날짜 수를 사용합니다.'
@@ -1076,7 +1076,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
       {error && (
         <Notice severity="error" className="mb-4">
           {error}
-          <p className="text-[13px]">아래는 이전 조회 결과입니다. 현재 선택 조건은 적용되지 않았습니다.</p>
+          <p className="text-sm">아래는 이전 조회 결과입니다. 현재 선택 조건은 적용되지 않았습니다.</p>
           {canonicalRefreshDone.current !== analysisRefresh ? (
             <Button
               variant="ghost"
@@ -1097,7 +1097,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
         </Notice>
       )}
       <details className="mb-4">
-        <summary className="min-h-8 cursor-pointer">개인 저장 보기</summary>
+        <summary className="min-h-9 cursor-pointer text-sm">개인 저장 보기</summary>
         <div className="mt-2">
           <PersonalSavedViews
             key={`personal-views-${dashboardId}`}
@@ -1132,7 +1132,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
             <Card
               key={draft?.widgets?.[i]?.blockId || i}
               data-block-id={draft?.widgets?.[i]?.blockId}
-              className={cn('h-auto gap-0 border border-border pb-0 shadow-sm', widgetBlockClassName(i))}
+              className={cn('h-auto gap-0 border border-border py-0 shadow-sm', widgetBlockClassName(i))}
               style={widgetBlockStyle(i, widget)}
             >
               <div
@@ -1251,7 +1251,9 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
               )}
               {widget.type === 'BOARD_NUMERIC' && (widget.previousTrend || widget.previousTrendUnavailable) && (
                 <details className="min-w-0 p-4">
-                  <summary className="flex min-h-11 cursor-pointer items-center">{widget.title} 이전 기간 시계열</summary>
+                  <summary className="flex min-h-9 cursor-pointer items-center text-sm">
+                    {widget.title} 이전 기간 시계열
+                  </summary>
                   {preview.comparison?.previous && (
                     <p className="text-sm [overflow-wrap:anywhere]">
                       이전 기간:{' '}

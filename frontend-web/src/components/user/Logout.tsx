@@ -55,10 +55,7 @@ const Logout = props => {
       type="button"
       variant="ghost"
       onClick={handleLogout}
-      className={cn(
-        'h-auto min-h-0 p-0 font-normal text-inherit whitespace-nowrap hover:bg-transparent hover:text-inherit',
-        className,
-      )}
+      className={cn('px-2 font-normal text-inherit whitespace-nowrap hover:bg-transparent hover:text-inherit', className)}
       {...rest}
     >
       {t('user.logout')}

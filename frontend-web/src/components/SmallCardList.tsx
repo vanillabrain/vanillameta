@@ -11,7 +11,7 @@ function SmallCardList(props) {
   };
 
   return (
-    <ul className={cn('m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-3 md:grid-cols-6', className)}>
+    <ul className={cn('m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3 md:grid-cols-6', className)}>
       {data.map(item => (
         <li key={item.id} className="list-none">
           <Button
@@ -21,7 +21,7 @@ function SmallCardList(props) {
             onClick={handleClick}
             aria-pressed={selectedValue === item.id}
             className={cn(
-              'relative h-auto min-h-[60px] w-full justify-start px-4 py-2 font-normal',
+              'relative h-auto min-h-[60px] w-full justify-start px-4 py-3 font-normal',
               selectedValue === item.id && 'border-primary ring-2 ring-primary',
             )}
           >

@@ -29,7 +29,7 @@ const panelClassName = 'mt-[3px] max-h-[calc(100dvh-96px)] gap-0 overflow-y-auto
 const ShareToggle = ({ checked, label, description, onToggle }) => (
   <div className="flex flex-row items-center justify-between">
     <span className="mr-3 text-sm text-foreground">{description}</span>
-    <Switch checked={checked} onCheckedChange={() => onToggle?.()} aria-label={label} className="h-6 w-11" />
+    <Switch checked={checked} onCheckedChange={() => onToggle?.()} aria-label={label} />
   </div>
 );
 
@@ -189,7 +189,7 @@ function ShareButton(props: ShareButtonProps) {
         aria-modal="true"
         aria-label={t('share.pageShare')}
         align="end"
-        className={cn(panelClassName, matches ? 'w-[410px] max-w-[calc(100vw-32px)]' : 'w-[243px]')}
+        className={cn(panelClassName, matches ? 'w-[410px] max-w-[calc(100vw-32px)]' : 'w-[calc(100vw-32px)]')}
       >
         {isShareOn ? (
           <ShareOnPopup

@@ -1,3 +1,4 @@
+import { chartTheme } from '@/components/charts/chartTheme';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -256,6 +257,7 @@ const LineChart = (
   return (
     <div className="flex h-full min-w-0 flex-col">
       <ReactECharts
+        theme={chartTheme}
         ref={chartRef}
         option={componentOption}
         style={{ flex: '1 1 auto', minHeight: showTable ? 80 : 160, height: showTable ? 'auto' : '100%', width: '100%' }}

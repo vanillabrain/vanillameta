@@ -31,12 +31,11 @@ export const DatabaseCardList = (props: DatabaseCardListProps) => {
             <CardWrapper
               key={item.id}
               handleClick={() => handleDataClick(item)}
-              className={cn(
-                'h-[62px] min-h-[62px] flex-row items-center gap-2 py-0',
-                selected && 'border-[#0f5ab2] bg-[#edf8ff]',
-              )}
+              className={cn('min-h-16 flex-row items-center gap-3 px-4 py-3', selected && 'border-primary/50 bg-accent/60')}
             >
-              <span className={cn('mr-2 flex items-center text-[#767676]', selected && 'text-[#0f5ab2]')}>{icon}</span>
+              <span className={cn('flex size-5 shrink-0 items-center text-muted-foreground', selected && 'text-primary')}>
+                {icon}
+              </span>
               <Button
                 type="button"
                 variant="ghost"
@@ -47,15 +46,15 @@ export const DatabaseCardList = (props: DatabaseCardListProps) => {
                   handleDataClick?.(item);
                 }}
                 className={cn(
-                  'h-auto min-w-0 flex-1 justify-start truncate px-0 text-left font-medium text-[#333] hover:bg-transparent',
-                  selected && 'font-bold text-[#0f5ab2]',
+                  'h-auto min-w-0 flex-1 justify-start truncate p-0 text-left font-medium text-foreground hover:bg-transparent',
+                  selected && 'font-bold text-primary',
                 )}
               >
                 {item.name}
               </Button>
 
               {!isViewMode && (
-                <div className="flex shrink-0 flex-row items-center justify-end gap-[18px]">
+                <div className="flex shrink-0 flex-row items-center justify-end gap-1">
                   <Button asChild variant="ghost" size="icon-sm" className="p-0">
                     <RouterLink
                       to={'/data/source/modify/' + item.id}

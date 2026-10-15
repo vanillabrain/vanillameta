@@ -55,11 +55,11 @@ const isCancelledRequest = error =>
   error?.name === 'AbortError' ||
   error?.name === 'CanceledError';
 
-const sectionTitleClassName = 'text-base font-bold text-[#141414]';
+const sectionTitleClassName = 'text-base font-semibold text-foreground';
 
 /** 카드 목록 헤더의 등록 이동 버튼(기존 AddButton과 같은 아이콘 버튼 규격). */
 const AddLinkButton = ({ to, label, className }: { to: string; label: string; className?: string }) => (
-  <Button asChild size="icon-xs" aria-label={label} className={cn('ml-3.5 min-w-0 rounded-[4px] p-0', className)}>
+  <Button asChild size="icon-xs" aria-label={label} className={cn('min-w-0', className)}>
     <RouterLink to={to}>
       <IconAdd />
     </RouterLink>
@@ -268,17 +268,17 @@ const DataLayout = props => {
   };
 
   return (
-    <div className="flex w-full flex-auto flex-col sm:flex-row">
-      <div className="flex h-full w-full flex-col px-6 pt-7.5 md:w-[404px] md:flex-none">
-        <div className="flex flex-row items-center">
+    <div className="flex min-h-0 w-full flex-1 flex-col sm:flex-row">
+      <div className="flex w-full flex-col px-4 py-6 sm:w-[404px] sm:flex-none sm:border-r sm:border-border sm:px-6">
+        <div className="mb-4 flex flex-row flex-wrap items-center gap-3">
           <span className={sectionTitleClassName}>{t('data.source')}</span>
           {isViewMode ? null : (
             <>
               <AddLinkButton to="source/create" label={t('data.addSource')} />
-              <Button asChild size="sm" className="ml-2 h-auto min-w-0 py-0.5 px-2 text-[11px] leading-5">
+              <Button asChild size="sm" variant="outline" className="min-w-0">
                 <RouterLink to="file">{t('data.fileAnalysis')}</RouterLink>
               </Button>
-              <Button asChild size="sm" className="ml-2 h-auto min-w-0 py-0.5 px-2 text-[11px] leading-5">
+              <Button asChild size="sm" variant="outline" className="min-w-0">
                 <RouterLink to="metric">{t('data.metric')}</RouterLink>
               </Button>
             </>
@@ -293,9 +293,9 @@ const DataLayout = props => {
         />
       </div>
 
-      <div className="flex w-full flex-auto flex-col bg-[#f5f6f8] md:w-[calc(100%-404px)]">
-        <div className="flex w-full flex-col px-6 pt-7.5">
-          <div className="flex flex-row items-center">
+      <div className="flex min-h-0 w-full flex-1 flex-col bg-muted sm:w-[calc(100%-404px)]">
+        <div className="flex w-full flex-col px-4 pt-6 pb-2 sm:px-6">
+          <div className="mb-4 flex flex-row flex-wrap items-center gap-3">
             <span className={sectionTitleClassName}>{t('data.dataset')}</span>
             {isViewMode ? null : <AddLinkButton to={`set/create/${selectedDatabase.id}`} label={t('data.addDataset')} />}
           </div>
@@ -308,8 +308,8 @@ const DataLayout = props => {
             handleModifyClick={handleModifyClick}
           />
         </div>
-        <div className="flex min-h-[50%] w-full flex-auto flex-col px-6 pt-7.5">
-          <div className="flex flex-row items-center">
+        <div className="flex min-h-0 w-full flex-1 flex-col px-4 pt-4 pb-6 sm:px-6">
+          <div className="mb-4 flex flex-row flex-wrap items-center gap-3">
             <span className={sectionTitleClassName}>{t('data.tableList')}</span>
           </div>
           <DatasetCardList

@@ -482,14 +482,19 @@ const WidgetViewer = props => {
 
   return (
     <div className="relative flex h-full w-full flex-col">
-      <div className="flex h-[50px] w-full flex-row items-center justify-between pr-5 pt-[18px] pb-3 pl-5">
-        <span className="w-[calc(100%-40px)] overflow-hidden text-left text-base leading-[1.25] font-semibold tracking-[-0.16px] text-ellipsis whitespace-nowrap text-foreground">
+      <div className="flex min-h-12 w-full shrink-0 flex-row items-center px-4 pt-4 pb-2 sm:px-5">
+        <span
+          title={typeof title === 'string' ? title : undefined}
+          className="line-clamp-2 min-w-0 w-full text-left text-base leading-6 font-semibold text-foreground [overflow-wrap:anywhere]"
+        >
           {renderTitle()}
         </span>
       </div>
 
-      {description && <p className="px-5 text-xs text-muted-foreground [overflow-wrap:anywhere]">{description}</p>}
-      <div className="h-[calc(100%-48px)] w-full min-h-0 flex-auto overflow-y-auto px-3 pt-2.5 pb-3 sm:px-5 sm:pb-5">
+      {description && (
+        <p className="px-4 text-xs leading-5 text-muted-foreground sm:px-5 [overflow-wrap:anywhere]">{description}</p>
+      )}
+      <div className="w-full min-h-0 flex-1 overflow-y-auto px-3 pt-2.5 pb-3 sm:px-5 sm:pb-5">
         <div className="relative isolate h-full w-full min-w-0">
           {isInvalidData ? <WidgetEmpty /> : <Suspense fallback={null}>{module}</Suspense>}
           {/*<ReactECharts*/}

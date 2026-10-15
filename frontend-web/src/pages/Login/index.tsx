@@ -101,17 +101,21 @@ const Login = () => {
 
   if (!token) {
     return (
-      <main className="relative z-0 h-full w-full min-w-full bg-muted">
+      <main className="relative isolate min-h-full w-full overflow-hidden bg-muted px-4 pb-8">
         <Seo title={t('login.title')} />
-        <div className="flex flex-col items-center pt-[90px]">
+        <div className="relative z-10 mx-auto flex max-w-md flex-col items-center pt-12 sm:pt-16">
           <RouterLink to="/">
             <Logo width="223px" height="43px" aria-label="VanillaMeta" />
           </RouterLink>
-          <p className="mt-[17px] text-center text-base text-primary">
+          <p className="mt-4 max-w-sm text-center text-sm leading-6 text-muted-foreground">
             {t('login.taglineA')}
-            <span className="text-base font-bold">{t('login.taglineB')}</span>
+            <span className="text-sm font-semibold">{t('login.taglineB')}</span>
           </p>
-          <form onSubmit={handleLogin} noValidate className="mt-14 flex w-[calc(100%-40px)] flex-col gap-5 sm:w-[360px]">
+          <form
+            onSubmit={handleLogin}
+            noValidate
+            className="mt-8 flex w-full flex-col gap-5 rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8"
+          >
             <TextField
               autoFocus={true}
               label="User ID"
@@ -128,12 +132,12 @@ const Login = () => {
               type="password"
               required={true}
             />
-            <Button type="submit" size="lg" className="mt-5 mb-4 w-full">
+            <Button type="submit" size="lg" className="mt-2 w-full">
               Login
             </Button>
           </form>
           {APP_MODE != 'prod' && (
-            <div className="mt-10 flex flex-row items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+            <div className="mt-6 flex flex-row items-center justify-center gap-3 text-center text-sm text-muted-foreground">
               <RouterLink to="/signup" className="text-sm text-inherit underline hover:underline">
                 {t('login.signup')}
               </RouterLink>
@@ -142,11 +146,11 @@ const Login = () => {
             </div>
           )}
         </div>
-        <Copyright className="mt-[50px] mb-4" />
+        <Copyright className="relative z-10 mt-8" />
         <img
           src={backgroundImage}
           alt=""
-          className="pointer-events-none fixed bottom-0 left-1/2 -z-10 h-[508px] w-[1024px] -translate-x-1/2"
+          className="pointer-events-none absolute bottom-0 left-1/2 -z-10 h-auto w-[1024px] max-w-none -translate-x-1/2 opacity-30"
         />
       </main>
     );

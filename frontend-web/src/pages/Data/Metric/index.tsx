@@ -124,42 +124,46 @@ const Metric = () => {
       className="h-full w-full p-0"
     >
       <Seo title={t('metric.title')} />
-      <div className="flex flex-col gap-4 px-6.25 pt-7.5 pb-10">
-        <span className="text-[13px] text-[#767676]">{t('metric.description')}</span>
+      <div className="flex flex-col gap-6 px-4 py-6 sm:px-6">
+        <span className="text-sm text-muted-foreground">{t('metric.description')}</span>
 
-        {metrics.length === 0 && <span className="text-sm text-[#555]">{t('metric.empty')}</span>}
+        {metrics.length === 0 && <span className="text-sm text-muted-foreground">{t('metric.empty')}</span>}
 
-        {metrics.map((m: any) => (
-          <Card key={m.id} className="rounded-lg border border-[#e2e2e2] py-4 px-5 shadow-none ring-0">
-            <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
-              <div className="min-w-0 flex-1">
-                <p className="text-[15px] font-semibold [overflow-wrap:anywhere]">{m.name}</p>
-                <p className="mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                  {m.aggregation}({m.expression}) FROM {m.tableName}
-                  {m.groupBy ? ` GROUP BY ${m.groupBy}` : ''}
-                  {m.description ? ` — ${m.description}` : ''}
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-row items-center gap-2">
-                <Button
-                  aria-label={t('metric.evaluateNamed', { name: m.name })}
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleEvaluate(m)}
-                >
-                  {t('metric.evaluate')}
-                </Button>
-                <DeleteButton
-                  aria-label={t('data.deleteItem', { name: m.name })}
-                  size="small"
-                  width="20"
-                  height="20"
-                  onClick={() => deleteMutation.mutate(m.id)}
-                />
-              </div>
-            </div>
-          </Card>
-        ))}
+        <ul className="grid list-none grid-cols-1 gap-3 p-0 xl:grid-cols-2">
+          {metrics.map((m: any) => (
+            <li key={m.id} className="min-w-0 list-none">
+              <Card className="h-full gap-3 rounded-lg border border-border p-4 ring-0 sm:p-5">
+                <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold [overflow-wrap:anywhere]">{m.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                      {m.aggregation}({m.expression}) FROM {m.tableName}
+                      {m.groupBy ? ` GROUP BY ${m.groupBy}` : ''}
+                      {m.description ? ` — ${m.description}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-row items-center gap-2">
+                    <Button
+                      aria-label={t('metric.evaluateNamed', { name: m.name })}
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEvaluate(m)}
+                    >
+                      {t('metric.evaluate')}
+                    </Button>
+                    <DeleteButton
+                      aria-label={t('data.deleteItem', { name: m.name })}
+                      size="small"
+                      width="20"
+                      height="20"
+                      onClick={() => deleteMutation.mutate(m.id)}
+                    />
+                  </div>
+                </div>
+              </Card>
+            </li>
+          ))}
+        </ul>
 
         {evalResult && (
           <div role="region" aria-label={t('metric.evalResult', { name: evalResult.name })} tabIndex={0}>
@@ -175,7 +179,7 @@ const Metric = () => {
                 columnOptions={{ resizable: true }}
               />
             ) : (
-              <span className="text-[13px] text-[#767676]">{t('metric.noResult')}</span>
+              <span className="text-sm text-muted-foreground">{t('metric.noResult')}</span>
             )}
           </div>
         )}
@@ -189,7 +193,7 @@ const Metric = () => {
       >
         <DialogContent showCloseButton={false} className="sm:max-w-[600px]">
           <DialogTitle>{t('metric.add')}</DialogTitle>
-          <div className="mt-2 flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
             <TextField autoFocus label={t('metric.form.name')} value={form.name} onChange={set('name')} required />
             <TextField label={t('metric.form.description')} value={form.description} onChange={set('description')} />
             <Field className="min-w-0">

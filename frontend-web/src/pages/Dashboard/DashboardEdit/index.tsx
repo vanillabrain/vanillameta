@@ -617,7 +617,7 @@ function DashboardEditContent() {
             />
           </div>
           <section aria-label="AI 블록 편집" className="my-4 min-w-0">
-            <p className="mb-1 text-[13px] [overflow-wrap:anywhere]">
+            <p className="mb-1 text-sm [overflow-wrap:anywhere]">
               {items.find(item => item.key === selectedKey)?.title
                 ? `선택 블록: ${items.find(item => item.key === selectedKey)?.title}`
                 : '블록의 AI로 수정 버튼을 눌러 대상을 선택하세요.'}
@@ -681,18 +681,18 @@ function DashboardEditContent() {
                 const label = `${index + 1}번 차트`;
                 const choices = dimensions(item.chart);
                 return (
-                  <Card key={item.key} className="min-w-0 gap-4 p-4 md:p-6">
+                  <Card key={item.key} className="min-w-0 p-4 md:p-6">
                     <h2
                       tabIndex={-1}
                       ref={(element: HTMLHeadingElement | null) => {
                         headings.current[item.key] = element;
                       }}
-                      className="mb-4 text-xl"
+                      className="text-lg [overflow-wrap:anywhere]"
                     >
                       {label} · {item.title || '제목 없음'}
                     </h2>
-                    <details className="mb-4">
-                      <summary className="cursor-pointer text-[13px]"> {label} 설정 </summary>
+                    <details>
+                      <summary className="cursor-pointer text-sm"> {label} 설정 </summary>
                       <div className="mt-4 flex flex-col gap-4">
                         {item.kind === 'existing' && (
                           <Notice severity="info">
@@ -929,8 +929,8 @@ function DashboardEditContent() {
                   </Card>
                 );
               })}
-              <Card className="min-w-0 gap-4 p-4">
-                <h2 className="mb-4 text-xl">차트 추가 · {items.length}/6개</h2>
+              <Card className="min-w-0 p-4 md:p-6">
+                <h2 className="text-lg">차트 추가 · {items.length}/6개</h2>
                 <div className="flex flex-col gap-4">
                   <MetricSelect
                     disabled={!!busy}
@@ -982,7 +982,7 @@ function DashboardEditContent() {
               >
                 {displayPreview.widgets.map((widget, index) => (
                   <Card key={items[index].key} className="min-w-0 gap-4 p-4">
-                    <h3 className="text-xl [overflow-wrap:anywhere]">{widget.title}</h3>
+                    <h3 className="text-lg [overflow-wrap:anywhere]">{widget.title}</h3>
                     <div
                       className={cn('min-w-0', widget.type === 'BOARD_NUMERIC' && 'h-16')}
                       style={widget.type === 'BOARD_NUMERIC' ? undefined : { height: items[index].height * 60 }}

@@ -33,7 +33,10 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
             <CardWrapper
               key={item.id}
               handleClick={() => handleDataClick(item)}
-              className={cn('max-h-[90px]', isViewMode && selected && 'border-[#0f5ab2] bg-[#edf8ff]')}
+              className={cn(
+                'min-h-16 flex-row items-center gap-3 px-4 py-3',
+                isViewMode && selected && 'border-primary/50 bg-accent/60',
+              )}
             >
               <Button
                 type="button"
@@ -44,13 +47,13 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
                   event.stopPropagation();
                   handleDataClick?.(item);
                 }}
-                className="h-auto w-full min-w-0 justify-start truncate px-0 text-left font-medium text-[#333] hover:bg-transparent"
+                className="h-auto min-w-0 flex-1 justify-start truncate p-0 text-left font-medium text-foreground hover:bg-transparent"
               >
                 {name}
               </Button>
 
               {!isViewMode && (
-                <div className="mt-[11px] flex w-full flex-row items-center justify-end gap-2">
+                <div className="flex shrink-0 flex-row items-center justify-end gap-1">
                   <ModifyButton
                     aria-label={t('data.editItem', { name })}
                     width="20"

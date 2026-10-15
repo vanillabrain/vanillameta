@@ -19,7 +19,7 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import SnowflakeDatabaseForm from '@/pages/Data/DataSource/form/SnowflakeDatabaseForm';
 import OracleDatabaseForm from '@/pages/Data/DataSource/form/OracleDatabaseForm';
 
-const stepTitleClassName = 'mb-3.5 block text-lg font-bold text-[#141414]';
+const stepTitleClassName = 'mb-4 block text-base font-semibold text-foreground sm:text-lg';
 
 const buildFormData = databaseInfo => {
   const temp: any = {
@@ -259,9 +259,9 @@ function DataSource() {
   };
 
   const fileSourceGuide = () => (
-    <Notice severity="info" className="flex flex-wrap items-center gap-2">
+    <Notice severity="info" className="flex flex-wrap items-center gap-3">
       <span className="break-words">{t('dataSource.managedFile')}</span>
-      <Button variant="ghost" onClick={() => navigate('/data/file')}>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/data/file')}>
         {t('dataSource.uploadFile')}
       </Button>
     </Notice>
@@ -278,7 +278,11 @@ function DataSource() {
       case 'snowflake':
         return <SnowflakeDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
       case undefined:
-        return <span className="mx-auto my-40 block w-fit">{t('dataSource.selectType')}</span>;
+        return (
+          <p className="flex min-h-40 items-center justify-center rounded-lg border border-dashed border-border bg-background px-4 text-sm text-muted-foreground">
+            {t('dataSource.selectType')}
+          </p>
+        );
       default:
         return <DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
     }
@@ -298,17 +302,17 @@ function DataSource() {
       className="p-0"
     >
       {isModifyMode && sourceError ? (
-        <Notice severity="error" className="m-3 flex flex-wrap items-center gap-2">
+        <Notice severity="error" className="m-4 flex flex-wrap items-center gap-3">
           <span className="break-words">{t('dataSource.accessUnavailable')}</span>
-          <Button variant="ghost" onClick={() => navigate('/data')}>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/data')}>
             {t('data.cancel')}
           </Button>
         </Notice>
       ) : savedDatabase && ['duckdb', 'sqlite3'].includes(savedDatabase.engine) ? (
-        <div className="p-3">{fileSourceGuide()}</div>
+        <div className="p-4 sm:p-6">{fileSourceGuide()}</div>
       ) : (
         <div className="w-full">
-          <div className="px-6.25 pt-7.5 pb-12.5">
+          <div className="px-4 py-6 sm:px-6">
             <span className={stepTitleClassName}>{t('dataSource.step1')}</span>
             <ImgCardList
               data={typeList}
@@ -317,7 +321,7 @@ function DataSource() {
               handleTypeClick={handleTypeClick}
             />
           </div>
-          <div className="bg-[#f5f6f8] px-6.25 pt-7.5 pb-12.5">
+          <div className="border-t border-border bg-muted px-4 py-6 sm:px-6">
             <span className={stepTitleClassName}>{t('dataSource.step2')}</span>
             {dbType()}
           </div>

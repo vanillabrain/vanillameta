@@ -16,8 +16,8 @@ const detailImageClassName = 'w-full lg:w-[514px] lg:shrink-0 xl:w-[700px]';
 export default function App() {
   return (
     <div id="wrap" className="min-w-[320px] bg-background">
-      <header id="headBox" className="sticky top-0 z-50 h-[50px] w-full border-b border-[#ececec] bg-white md:h-[55px]">
-        <nav className="flex h-full w-full items-center justify-between px-4 md:px-6">
+      <header id="headBox" className="sticky top-0 z-50 h-16 w-full border-b border-border bg-background">
+        <nav className="mx-auto flex h-full w-full max-w-[1440px] items-center justify-between px-4 md:px-6">
           <a href="./" className="flex h-full items-center">
             <h1 className="sr-only">VanillaMeta</h1>
             <img className="h-5 w-[105px]" src={images.logo} alt="VanillaMeta Logo" />
@@ -32,8 +32,8 @@ export default function App() {
 
       <main>
         <section id="viewBox" className="w-full">
-          <div className="flex flex-col items-center bg-[#eceef3] bg-[linear-gradient(to_bottom,#264e9c_0%,#b3d5f3_54%,rgba(255,255,255,0)_100%)] px-[23px] pt-10 pb-11 md:pt-14 md:pb-[59px]">
-            <h2 className={`${heroTypoClassName} text-[34px] md:text-[48px]`}>
+          <div className="flex flex-col items-center bg-[#eceef3] bg-[linear-gradient(to_bottom,#264e9c_0%,#b3d5f3_54%,rgba(255,255,255,0)_100%)] px-4 pt-12 pb-12 md:px-6 md:pt-16 md:pb-16">
+            <h2 className={`${heroTypoClassName} text-[32px] md:text-5xl`}>
               누구나 쉽게 사용하는
               <br />
               통합 데이터 분석
@@ -75,20 +75,20 @@ export default function App() {
             </p>
           </div>
           <div className="px-5 md:px-6">
-            <ul className="mx-auto grid w-full grid-cols-2 gap-x-5 gap-y-5 md:max-w-[1220px] md:gap-x-8 md:gap-y-10 lg:grid-cols-3">
+            <ul className="mx-auto grid w-full grid-cols-1 gap-5 sm:grid-cols-2 md:max-w-[1220px] md:gap-6 lg:grid-cols-3">
               {featureCards.map(card => (
                 <li key={card.alt} className="flex">
-                  <Card className="w-full [--card-spacing:20px] md:min-h-[292px] md:[--card-spacing:33px]">
-                    <div className="flex flex-1 flex-col items-center px-0 text-center md:px-10">
+                  <Card className="w-full [--card-spacing:24px] md:min-h-[292px]">
+                    <div className="flex flex-1 flex-col items-center px-6 text-center">
                       <h3 className="mb-[14px] text-[15px] font-bold leading-[1.33] tracking-[-0.18px] text-primary md:text-lg">
                         {card.title[0]} <br className="md:hidden" />
                         {card.title[1]}
                       </h3>
-                      <p className="mb-[30px] hidden text-sm leading-[1.43] text-muted-foreground md:block">
+                      <p className="mb-6 text-sm leading-6 text-muted-foreground">
                         {card.description[0]} <br />
                         {card.description[1]}
                       </p>
-                      <img className="mt-auto w-[118px] md:w-[214px]" src={card.image} alt={card.alt} />
+                      <img className="mt-auto h-auto w-full max-w-[214px] object-contain" src={card.image} alt={card.alt} />
                     </div>
                   </Card>
                 </li>
@@ -102,7 +102,7 @@ export default function App() {
           className="px-5 pt-[60px] pb-[62px] text-center md:px-6 md:pt-[72px] md:pb-[70px] lg:text-left"
         >
           <h2 className="sr-only">VanillaMeta feature detail</h2>
-          <ul className="mx-auto flex max-w-[1050px] flex-col items-center gap-y-[60px] md:gap-y-[70px]">
+          <ul className="mx-auto flex max-w-[1050px] flex-col items-center gap-y-12 md:gap-y-16">
             <li className="flex w-full flex-col items-center lg:flex-row lg:items-start lg:justify-between">
               <div className="lg:flex-1">
                 <h3 className={detailTitleClassName}>대시보드 분석 시각화</h3>
@@ -157,7 +157,7 @@ export default function App() {
         </section>
       </main>
 
-      <footer id="footBox" className="h-[117px]">
+      <footer id="footBox" className="min-h-24">
         <div className="flex h-full items-center justify-center pt-[30px] pr-[23px] pb-[50px] pl-[50px] md:px-0 md:pt-[44px] md:pb-[47px]">
           <h2 className="sr-only">VanillaMeta information</h2>
           <div className="mr-[46px]">

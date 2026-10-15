@@ -28,8 +28,11 @@ const DatabaseForm = props => {
   };
 
   return (
-    <form className="mx-auto mt-3 w-full max-w-[800px]" onSubmit={handleSubmit}>
-      <div className="flex flex-col justify-between gap-5">
+    <form
+      className="mx-auto w-full max-w-[560px] rounded-lg border border-border bg-background p-5 sm:p-6"
+      onSubmit={handleSubmit}
+    >
+      <div className="flex flex-col gap-4">
         <TextField
           label={t('settings.name')}
           name="name"
@@ -62,7 +65,7 @@ const DatabaseForm = props => {
           required
           onChange={handleChange}
         />
-        <SubmitButton label="TEST CONNECT" type="submit" className="h-[50px] text-[13px]" />
+        <SubmitButton label="TEST CONNECT" type="submit" />
       </div>
     </form>
   );

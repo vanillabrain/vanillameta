@@ -1,13 +1,16 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
 import { cn } from '@/lib/utils';
 
-/** Shared analysis/chart geometry. UI presentation uses Tailwind semantic tokens. */
+/**
+ * Shared analysis/chart geometry. Chart rendering and the placement canvas may consume these raw
+ * values; static UI presentation uses Tailwind semantic tokens instead.
+ */
 export const ANALYSIS_UI = {
-  controlHeight: 28,
-  inputHeight: 32,
-  fontSize: 12,
-  bodySize: 13,
+  controlHeight: 32,
+  inputHeight: 36,
+  fontSize: 14,
+  bodySize: 14,
   radius: 4,
   gap: 8,
   accent: '#4f46e5',
@@ -17,17 +20,20 @@ export const ANALYSIS_UI = {
   surface: '#f8fafc',
 } as const;
 
+/**
+ * Selected state of AnalysisChoice, keyed off the native toggle state with semantic tokens only.
+ * rounded-md/px-3 keep the 32px analysis control metrics this control had as a Button sm.
+ */
 export const analysisToggleClassName =
-  'aria-pressed:bg-accent aria-pressed:text-accent-foreground aria-pressed:border-primary';
-export const analysisFieldClassName = 'min-w-0 text-xs';
-export const analysisPanelClassName = 'min-w-0 rounded-md border bg-muted/40 p-3';
-export const analysisModeGroupClassName =
-  'inline-flex self-start items-center gap-0.5 rounded-md border bg-background p-0.5';
-export const analysisTableCellClassName = 'border-b border-r px-2 py-1.5 text-xs leading-normal tabular-nums';
+  'rounded-md px-3 aria-pressed:border-primary aria-pressed:bg-accent aria-pressed:text-accent-foreground data-[state=on]:border-primary data-[state=on]:bg-accent data-[state=on]:text-accent-foreground';
+export const analysisFieldClassName = 'min-w-0 text-sm';
+export const analysisPanelClassName = 'min-w-0 rounded-xl border bg-card p-4 sm:p-5';
+export const analysisModeGroupClassName = 'inline-flex self-start items-center gap-1 rounded-lg border bg-muted/50 p-1';
+export const analysisTableCellClassName = 'border-b border-r px-3 py-2.5 text-sm leading-normal tabular-nums';
 
 export function AnalysisUiProvider({ children }: React.PropsWithChildren) {
   return (
-    <div data-analysis-ui className="flex min-w-0 flex-col gap-3 text-[13px]">
+    <div data-analysis-ui className="flex min-w-0 flex-col gap-5 text-sm">
       {children}
     </div>
   );
@@ -39,22 +45,21 @@ export function AnalysisChoice({
   ariaLabel,
   className,
   ...props
-}: Omit<React.ComponentProps<typeof Button>, 'children'> & {
+}: Omit<React.ComponentProps<typeof Toggle>, 'children' | 'pressed' | 'defaultPressed'> & {
   label: React.ReactNode;
   selected?: boolean;
   ariaLabel?: string;
 }) {
   return (
-    <Button
-      type="button"
+    <Toggle
       variant="outline"
-      size="sm"
-      aria-pressed={selected}
+      size="default"
+      pressed={selected ?? false}
       aria-label={ariaLabel}
       className={cn(analysisToggleClassName, className)}
       {...props}
     >
       {label}
-    </Button>
+    </Toggle>
   );
 }

@@ -241,14 +241,12 @@ const DashboardView = () => {
     }
   };
 
-  const actionButtonClassName = 'min-h-10 shrink-0 sm:min-h-9';
-
   return (
     <PageTitleBox
       upperTitle={t('dashboard.view')}
       upperTitleLink="/dashboard"
       title={t('dashboard.view')}
-      className="mt-0 w-full flex-auto p-0 sm:mt-[22px]"
+      className="w-full min-w-0 flex-auto p-0 py-6"
     >
       <>
         <Seo title={dashboardInfo.title} />
@@ -264,7 +262,7 @@ const DashboardView = () => {
                     <SelectTrigger
                       size="sm"
                       aria-label={t('dashboard.autoRefresh')}
-                      className="mr-2 h-9 w-auto bg-background text-xs"
+                      className="w-auto shrink-0 bg-background"
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -278,19 +276,13 @@ const DashboardView = () => {
                   </Select>
                   <ReloadButton
                     aria-label={t('dashboard.refresh')}
-                    className="mr-2 rounded-lg p-2"
                     onClick={event => {
                       event.preventDefault();
                       event.stopPropagation();
                       handleRefreshClick();
                     }}
                   />
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="icon-sm"
-                    className="mr-2 rounded-lg text-muted-foreground hover:text-foreground"
-                  >
+                  <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground">
                     <RouterLink
                       aria-label={t('dashboardModify.edit')}
                       to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
@@ -300,7 +292,6 @@ const DashboardView = () => {
                   </Button>
                   <DeleteButton
                     aria-label={t('dashboard.delete')}
-                    className="mr-2 rounded-lg p-2"
                     onClick={event => {
                       event.preventDefault();
                       event.stopPropagation();
@@ -308,7 +299,7 @@ const DashboardView = () => {
                     }}
                   />
                 </div>
-                <Button asChild variant="outline" size="sm" className={cn('mr-2', actionButtonClassName)}>
+                <Button asChild variant="outline" size="sm" className="shrink-0">
                   <RouterLink to={`/dashboard/${dashboardId}/edit-charts`}>차트·배치 편집</RouterLink>
                 </Button>
                 <Button
@@ -316,7 +307,7 @@ const DashboardView = () => {
                   size="sm"
                   onClick={handleInsightClick}
                   disabled={insightLoading}
-                  className={cn('mr-2 bg-background whitespace-nowrap', actionButtonClassName)}
+                  className="shrink-0 bg-background whitespace-nowrap"
                 >
                   {insightLoading ? t('dashboard.insightLoading') : t('dashboard.insight')}
                 </Button>
@@ -326,14 +317,15 @@ const DashboardView = () => {
                   shareId={dashboardInfo.uuid}
                   shareLimitDate={shareLimitDate}
                   setShareLimitDate={setShareLimitDate}
+                  className="h-8"
                 />
               </div>
             }
           >
             {insight && (
-              <div className="mx-5 mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4 px-5 sm:mx-6">
-                <p className="mb-1.5 text-[13px] font-bold text-primary">{t('dashboard.aiInsight')}</p>
-                <p className="text-[13px] leading-[1.7] whitespace-pre-wrap text-foreground">{insight}</p>
+              <div className="mx-4 mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:mx-6 sm:p-5">
+                <p className="mb-1.5 text-sm font-semibold text-primary">{t('dashboard.aiInsight')}</p>
+                <p className="text-sm leading-6 whitespace-pre-wrap text-foreground">{insight}</p>
               </div>
             )}
             <div className="min-w-0 flex-auto rounded-b-md bg-muted/30">

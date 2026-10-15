@@ -113,15 +113,15 @@ const SignUp = () => {
 
   if (!token) {
     return (
-      <main className="relative z-0 h-full w-full min-w-full bg-muted">
+      <main className="relative min-h-full w-full bg-muted px-4 pb-8">
         <Seo title={t('signup.title')} />
-        <div className="flex flex-col items-center pt-10 sm:pt-[90px]">
+        <div className="mx-auto flex max-w-md flex-col items-center pt-10 sm:pt-14">
           <RouterLink to="/">
             <Logo width="223px" height="43px" aria-label="VanillaMeta" />
           </RouterLink>
-          <Card className="mt-8 w-[560px] max-w-[calc(100vw-40px)] gap-0 rounded-none border border-border px-6 pt-8 pb-10 shadow-none ring-0 sm:px-[100px] sm:pt-[60px] sm:pb-[80px]">
+          <Card className="mt-8 w-full gap-0 rounded-xl border border-border p-6 shadow-sm ring-0 sm:p-8">
             <form onSubmit={handleSignup} noValidate className="flex w-full flex-col gap-5">
-              <p className="mb-9 text-2xl leading-[1.33] font-semibold text-foreground">
+              <p className="mb-2 text-xl leading-8 sm:text-2xl font-semibold text-foreground">
                 <span className="text-primary">{t('signup.taglineA')}</span>
                 {t('signup.taglineB')}
               </p>
@@ -157,11 +157,11 @@ const SignUp = () => {
                 label="E-mail"
                 type="email"
               />
-              <Button type="submit" size="lg" className="mt-5 mb-4 w-full">
+              <Button type="submit" size="lg" className="mt-2 w-full">
                 {t('signup.submit')}
               </Button>
             </form>
-            <div className="mt-[50px] flex items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+            <div className="mt-6 flex items-center justify-center gap-3 text-center text-sm text-muted-foreground">
               <RouterLink to="/login" className="text-sm text-inherit hover:underline">
                 {t('login.title')}
               </RouterLink>
@@ -170,7 +170,7 @@ const SignUp = () => {
             </div>
           </Card>
         </div>
-        <Copyright className="mt-10" />
+        <Copyright className="mt-8" />
       </main>
     );
   }

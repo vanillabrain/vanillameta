@@ -221,14 +221,14 @@ export default function PivotTable(props: Props) {
   };
   return (
     <section aria-label="Pivot 탐색" className="mt-4 min-w-0">
-      {!props.embedded && <h2 className="text-xl font-medium">Pivot</h2>}
-      <p className="mb-2 text-sm text-muted-foreground">행·열 차원별 교차 분석 · 현재 기간과 공통 필터 적용</p>
+      {!props.embedded && <h2 className="text-lg font-semibold">Pivot</h2>}
+      <p className="mt-1 mb-3 text-sm text-muted-foreground">행·열 차원별 교차 분석 · 현재 기간과 공통 필터 적용</p>
       {props.embedded ? (
         <p className="mb-2 text-sm">
           행 {rowDimensions.join(' / ')} {column ? `× 열 ${column}` : '· 지표만 표시'}
         </p>
       ) : (
-        <div className="mb-2 flex flex-col gap-2 md:flex-row md:items-center">
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end">
           <TextField
             select
             disabled={props.fixedAxes}
@@ -272,20 +272,22 @@ export default function PivotTable(props: Props) {
           </Button>
         </div>
       )}
-      <Button variant="outline" disabled={!current} onClick={downloadCsv}>
-        Pivot CSV 내보내기
-      </Button>
-      <p className="mt-0.5 text-xs">
-        표시된 그룹과 전체 합계를 정확한 숫자로 내보냅니다. 제한된 그룹은 CSV의 export_scope에 명시합니다.
-      </p>
+      <div className="mt-3 flex min-w-0 flex-wrap items-center gap-3">
+        <Button variant="outline" disabled={!current} onClick={downloadCsv}>
+          Pivot CSV 내보내기
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          표시된 그룹과 전체 합계를 정확한 숫자로 내보냅니다. 제한된 그룹은 CSV의 export_scope에 명시합니다.
+        </p>
+      </div>
       <p role="status" aria-live="polite">
         {exportNotice}
       </p>
-      <details className="mb-0.5 text-xs text-muted-foreground">
+      <details className="mt-3 text-xs text-muted-foreground">
         <summary>정렬·합계·표시 범위 안내</summary>첫 지표의 전체 값 내림차순 · 최대 50행 × 12열 그룹. 전체 합계는 원본에서
         다시 계산합니다. 행·열 이름으로 해당 값을 필터링할 수 있습니다. 비교 기간·시간 집계 축은 아직 지원하지 않습니다.
       </details>
-      <p role="status" aria-live="polite" className="mt-2 min-h-8 md:min-h-6">
+      <p role="status" aria-live="polite" className="my-2 min-h-8 md:min-h-6">
         {busy
           ? 'Pivot 집계 중…'
           : paused
@@ -315,7 +317,7 @@ export default function PivotTable(props: Props) {
             role="region"
             aria-label="Pivot 표 가로 스크롤"
             tabIndex={0}
-            className="mt-2 max-h-[600px] max-w-full overflow-auto rounded-lg border text-[13px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4f46e5]"
+            className="mt-1 max-h-[600px] max-w-full overflow-auto rounded-xl border text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4f46e5]"
           >
             <Table className="min-w-full border-separate border-spacing-0 text-[13px]">
               <TableCaption className="mt-0 p-2 text-left text-xs text-inherit">
@@ -342,7 +344,7 @@ export default function PivotTable(props: Props) {
                         <Button
                           variant="ghost"
                           aria-label={`Pivot 열 필터 ${col.values.map(category).join(' / ')}`}
-                          className="h-8 min-w-0 px-1 text-[13px] whitespace-nowrap min-[900px]:h-6"
+                          className="min-h-8 min-w-0 justify-start px-1.5 text-sm whitespace-nowrap"
                           onClick={() => applyAxis([column], col.values)}
                         >
                           {col.values.map(category).join(' / ')}
@@ -356,7 +358,7 @@ export default function PivotTable(props: Props) {
                     <TableHead
                       scope="colgroup"
                       colSpan={result.metrics.length}
-                      className="h-auto border-b bg-[#f8fafc] px-2 py-1 font-semibold whitespace-normal md:py-0.5"
+                      className="h-auto border-b bg-[#f8fafc] px-2 py-1.5 text-right font-semibold whitespace-normal"
                     >
                       행 전체 합계
                     </TableHead>
@@ -368,7 +370,7 @@ export default function PivotTable(props: Props) {
                       <TableHead
                         key={`${col.key}-${metric.id}`}
                         scope="col"
-                        className="h-auto border-b bg-[#f8fafc] px-2 py-1 font-semibold whitespace-nowrap md:py-0.5"
+                        className="h-auto border-b bg-[#f8fafc] px-2 py-1.5 text-right font-semibold whitespace-nowrap"
                       >
                         {metric.label}
                       </TableHead>
@@ -402,7 +404,7 @@ export default function PivotTable(props: Props) {
                       <Button
                         variant="ghost"
                         aria-label={`Pivot 행 필터 ${row.values.map(category).join(' / ')}`}
-                        className="h-8 min-w-0 px-1 text-[13px] whitespace-nowrap min-[900px]:h-6"
+                        className="min-h-8 min-w-0 justify-start px-1.5 text-sm whitespace-nowrap"
                         onClick={() => applyAxis(rowDimensions, row.values)}
                       >
                         {row.values.map(category).join(' / ')}

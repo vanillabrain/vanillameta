@@ -91,10 +91,10 @@ const MobileViewBox = props => {
 
   return (
     <div data-slot="page-view-mobile" className={cn('flex w-full flex-1 flex-col items-center', className)}>
-      <div className="flex min-h-[66px] w-full flex-wrap items-center justify-between gap-2 bg-card px-5 pb-3">
+      <div className="flex min-h-[66px] w-full flex-wrap items-center justify-between gap-2 bg-card px-4 py-5">
         <div className="flex w-full min-w-0 flex-row items-center">
           {iconName && <IconAvatar iconName={iconName} title={title} className="mr-3" />}
-          <div className="mt-[18px] mb-2.5 flex flex-col gap-1">
+          <div className="flex min-w-0 flex-col gap-2">
             {titleElement ? (
               titleElement
             ) : (
@@ -102,7 +102,7 @@ const MobileViewBox = props => {
                 {title}
               </span>
             )}
-            {date && <span className="text-[10px] leading-[1.6] font-medium text-[#333]">수정일: {date}</span>}
+            {date && <span className="text-xs leading-5 font-medium text-[#333]">수정일: {date}</span>}
           </div>
         </div>
         {button}
@@ -121,7 +121,7 @@ const DesktopViewBox = props => {
   return (
     <div
       data-slot="page-view-desktop"
-      className={cn('flex w-full flex-col items-center', responsive ? 'px-0 sm:px-5' : 'px-5', className)}
+      className={cn('flex w-full min-w-0 flex-col items-center', responsive ? 'px-0 sm:px-6' : 'px-4 sm:px-6', className)}
     >
       <div
         className={cn(
@@ -129,50 +129,20 @@ const DesktopViewBox = props => {
           responsive ? 'rounded-none sm:rounded-md sm:border sm:border-border' : 'rounded-md border border-border',
         )}
       >
-        <div
-          className={cn(
-            'flex w-full items-center justify-between rounded-t-md bg-card px-5',
-            responsive
-              ? 'h-auto flex-wrap gap-1 py-1.5 lg:h-[57px] lg:flex-nowrap lg:gap-0 lg:py-0'
-              : 'h-[57px] flex-nowrap',
-          )}
-        >
-          <div
-            className={cn(
-              'flex w-full min-w-0 flex-row items-center',
-              responsive ? 'max-w-full lg:max-w-[calc(100%-100px)]' : 'max-w-[calc(100%-100px)]',
-            )}
-          >
+        <div className="flex w-full flex-wrap items-center justify-between gap-4 rounded-t-md bg-card px-4 py-5 sm:px-6">
+          <div className="flex min-w-0 flex-1 basis-56 flex-row items-center">
             {iconName && <IconAvatar iconName={iconName} title={title} className="mr-[18px]" />}
             {titleElement ? (
               titleElement
             ) : (
-              <span className="block w-full max-w-[1392px] truncate text-base leading-none font-medium tracking-tight text-foreground sm:text-lg">
+              <span className="block w-full max-w-[1392px] truncate text-lg leading-7 font-semibold tracking-tight text-foreground">
                 {title}
               </span>
             )}
           </div>
-          <div
-            className={cn(
-              'flex shrink-0 justify-end',
-              responsive
-                ? 'w-full flex-col items-start gap-1 lg:w-auto lg:flex-row lg:items-center lg:gap-0'
-                : 'w-auto flex-row items-center',
-            )}
-          >
-            <span
-              className={cn(
-                'h-4 text-sm leading-tight font-medium text-foreground',
-                button && 'text-right sm:mr-[26px] md:mr-[36px]',
-              )}
-            >
-              {date}
-            </span>
-            <div
-              className={cn('flex flex-row flex-wrap items-center justify-end', responsive ? 'w-full lg:w-auto' : 'w-auto')}
-            >
-              {button}
-            </div>
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-3">
+            <span className="text-xs leading-5 whitespace-nowrap text-muted-foreground">{date}</span>
+            <div className="flex min-w-0 flex-row flex-wrap items-center justify-end gap-2">{button}</div>
           </div>
         </div>
         <Separator className="h-px w-full" />

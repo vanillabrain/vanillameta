@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { useNavigate } from 'react-router-dom';
 import { post } from '@/helpers/apiHelper';
@@ -156,69 +156,75 @@ export default function GettingStarted({ returning = false }: { returning?: bool
       <h2 id="getting-started-title" className="mb-2 text-2xl font-bold">
         {returning ? '새로운 분석을 시작해 볼까요?' : '어떤 데이터를 분석해 볼까요?'}
       </h2>
-      <p className="mb-4 text-muted-foreground">
+      <p className="mb-4 text-sm text-muted-foreground">
         샘플로 살펴보거나 내 데이터를 연결해 보세요. AI 설정 없이도 시작할 수 있습니다.
       </p>
       <div className="flex flex-col gap-4 md:flex-row">
         <Card className="min-w-0 flex-1">
-          <h3 className="text-xl">매출·환불 샘플</h3>
-          <p>37개 주문의 결제·환불 추이와 채널별 성과를 둘러보세요.</p>
-          <p className="text-sm text-muted-foreground">
-            Analytics Engineering 합성 데이터 일부 · CC BY 4.0 · USD/UTC. 실제 고객 매출이 아닙니다.
-          </p>
-          <Button className="min-h-11" onClick={openSample} aria-disabled={busy}>
-            {busy ? '샘플 준비 중…' : '샘플 대시보드 보기'}
-          </Button>
-          <p role="status" aria-live="polite" className="text-sm">
-            {busy ? '데이터를 확인하고 저장하고 있습니다. 잠시 기다려 주세요.' : '다시 열면 저장된 샘플을 사용합니다.'}
-          </p>
+          <CardHeader className="gap-2">
+            <h3 className="text-base leading-snug font-semibold">매출·환불 샘플</h3>
+            <p className="text-sm text-muted-foreground">37개 주문의 결제·환불 추이와 채널별 성과를 둘러보세요.</p>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-xs text-muted-foreground">
+              Analytics Engineering 합성 데이터 일부 · CC BY 4.0 · USD/UTC. 실제 고객 매출이 아닙니다.
+            </p>
+            <Button className="self-start" onClick={openSample} aria-disabled={busy}>
+              {busy ? '샘플 준비 중…' : '샘플 대시보드 보기'}
+            </Button>
+            <p role="status" aria-live="polite" className="text-xs text-muted-foreground">
+              {busy ? '데이터를 확인하고 저장하고 있습니다. 잠시 기다려 주세요.' : '다시 열면 저장된 샘플을 사용합니다.'}
+            </p>
+          </CardContent>
         </Card>
         <Card className="min-w-0 flex-1">
-          <h3 className="text-xl">내 파일로 시작</h3>
-          <p>매출·환불은 주문·결제·환불 CSV를 준비하세요. 고객 CSV는 선택입니다.</p>
-          <div className="flex flex-col items-start gap-2">
-            <Button className="min-h-11" onClick={() => navigate('/explore')}>
-              SQL 없이 차트 만들기
-            </Button>
-            <Button variant="outline" className="min-h-11" onClick={() => navigate('/commerce?import=1')}>
+          <CardHeader className="gap-2">
+            <h3 className="text-base leading-snug font-semibold">내 파일로 시작</h3>
+            <p className="text-sm text-muted-foreground">
+              매출·환불은 주문·결제·환불 CSV를 준비하세요. 고객 CSV는 선택입니다.
+            </p>
+          </CardHeader>
+          <CardContent className="flex flex-col items-start gap-2">
+            <Button onClick={() => navigate('/explore')}>SQL 없이 차트 만들기</Button>
+            <Button variant="outline" onClick={() => navigate('/commerce?import=1')}>
               매출·환불 파일 연결
             </Button>
-            <Button variant="ghost" className="min-h-11" onClick={() => navigate('/data/file')}>
+            <Button variant="ghost" onClick={() => navigate('/data/file')}>
               일반 CSV·JSON·Parquet 분석
             </Button>
-          </div>
+          </CardContent>
         </Card>
         <Card className="min-w-0 flex-1">
-          <h3 className="text-xl">데이터베이스 연결</h3>
-          <p>기존 연결 설정과 연결 테스트를 이용합니다. 종류별로 서버·드라이버 설정이 필요합니다.</p>
-          <Button variant="outline" className="min-h-11" onClick={() => navigate('/data')}>
-            데이터 연결 관리
-          </Button>
+          <CardHeader className="gap-2">
+            <h3 className="text-base leading-snug font-semibold">데이터베이스 연결</h3>
+            <p className="text-sm text-muted-foreground">
+              기존 연결 설정과 연결 테스트를 이용합니다. 종류별로 서버·드라이버 설정이 필요합니다.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" onClick={() => navigate('/data')}>
+              데이터 연결 관리
+            </Button>
+          </CardContent>
         </Card>
       </div>
       {error && (
         <Notice severity="error" className="mt-4 [overflow-wrap:anywhere]">
           {error}
           <div className="mt-2 flex flex-row flex-wrap gap-2">
-            <Button variant="ghost" className="min-h-11" onClick={openSample} aria-disabled={busy}>
+            <Button variant="ghost" onClick={openSample} aria-disabled={busy}>
               샘플 다시 시도
             </Button>
-            <Button variant="ghost" className="min-h-11" onClick={() => navigate('/commerce?import=1')}>
+            <Button variant="ghost" onClick={() => navigate('/commerce?import=1')}>
               내 파일 연결로 이동
             </Button>
             {diagnostic && (
-              <Button
-                ref={explainButton}
-                variant="ghost"
-                className="min-h-11"
-                onClick={explainError}
-                aria-disabled={helpBusy}
-              >
+              <Button ref={explainButton} variant="ghost" onClick={explainError} aria-disabled={helpBusy}>
                 {helpBusy ? '오류 설명 준비 중…' : 'AI로 오류 설명 보기'}
               </Button>
             )}
             {helpBusy && (
-              <Button variant="ghost" className="min-h-11" onClick={cancelHelp}>
+              <Button variant="ghost" onClick={cancelHelp}>
                 오류 설명 취소
               </Button>
             )}
@@ -234,12 +240,12 @@ export default function GettingStarted({ returning = false }: { returning?: bool
               <p role="status" aria-live="polite" className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
                 {help.explanation}
               </p>
-              <p className="text-sm text-muted-foreground">복구 상태: 확인되지 않음 (unverified)</p>
+              <p className="text-xs text-muted-foreground">복구 상태: 확인되지 않음 (unverified)</p>
             </div>
           )}
         </Notice>
       )}
-      <p className="mt-4 text-sm text-muted-foreground">데이터 연결 → 데이터 확인 → 지표·차트 → 대시보드 저장</p>
+      <p className="mt-4 text-xs text-muted-foreground">데이터 연결 → 데이터 확인 → 지표·차트 → 대시보드 저장</p>
     </section>
   );
 }

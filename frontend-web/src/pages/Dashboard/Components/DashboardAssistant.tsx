@@ -235,7 +235,7 @@ function DashboardAssistantContent({
   };
   const panel = (Title: React.ElementType, Description: React.ElementType) => (
     <>
-      <div className="flex flex-row items-center justify-between border-b border-border px-4 py-3">
+      <div className="flex flex-row items-center justify-between gap-3 border-b border-border px-5 py-4">
         <div>
           <Title className="font-bold">Assistant</Title>
           <Description className="text-xs text-muted-foreground">현재 대시보드와 함께 분석하기</Description>
@@ -244,8 +244,8 @@ function DashboardAssistantContent({
           닫기
         </Button>
       </div>
-      <div className="border-b border-border p-4">
-        <p className="text-[13px] [overflow-wrap:anywhere]">{draft.title}</p>
+      <div className="border-b border-border p-5">
+        <p className="text-sm [overflow-wrap:anywhere]">{draft.title}</p>
         <p className="mt-0.5 text-xs text-muted-foreground [overflow-wrap:anywhere]">
           {dateRange
             ? dateRange.precision === 'timestamp'
@@ -306,7 +306,7 @@ function DashboardAssistantContent({
           </>
         )}
       </div>
-      <div ref={scroll} className="min-h-0 flex-1 overflow-y-auto p-4 [overflow-wrap:anywhere]">
+      <div ref={scroll} className="min-h-0 flex-1 overflow-y-auto p-5 [overflow-wrap:anywhere]">
         {!messages.length && (
           <div className="flex flex-col gap-2">
             <p className="text-sm">데이터에 대해 질문하거나 대시보드를 수정해 보세요.</p>
@@ -318,7 +318,7 @@ function DashboardAssistantContent({
                 key={text}
                 data-wrap-label
                 variant="outline"
-                className="h-auto min-h-9 justify-start py-2 text-left whitespace-normal [overflow-wrap:anywhere]"
+                className="h-auto justify-start py-2 text-left whitespace-normal [overflow-wrap:anywhere]"
                 onClick={() => {
                   setMode('ask');
                   setInput(text);
@@ -331,13 +331,13 @@ function DashboardAssistantContent({
         )}
         <div role="log" aria-label="Assistant 대화" aria-live="polite" aria-relevant="additions text">
           {messages.map(m => (
-            <div key={m.id} className={cn('mb-4 rounded-lg p-2', m.role === 'user' ? 'bg-primary/10' : 'bg-muted')}>
+            <div key={m.id} className={cn('mb-4 rounded-lg p-3', m.role === 'user' ? 'bg-primary/10' : 'bg-muted')}>
               <p className="mb-0.5 text-xs font-bold">{m.role === 'user' ? '나' : 'Assistant'}</p>
               <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{messageText(m)}</p>
               {m.metadata?.result?.context && (
                 <details className="mt-2">
                   <summary className="cursor-pointer text-xs">근거 · SQL · 데이터 범위</summary>
-                  <pre className="text-[11px] whitespace-pre-wrap [overflow-wrap:anywhere]">
+                  <pre className="text-xs whitespace-pre-wrap [overflow-wrap:anywhere]">
                     {JSON.stringify(m.metadata.result.context, null, 2)}
                   </pre>
                 </details>
@@ -348,7 +348,7 @@ function DashboardAssistantContent({
         {busy && (
           <div role="status">
             <Skeleton className="h-1 w-full" />
-            <p className="mt-2 text-[13px]">현재 데이터로 답변을 준비하고 있습니다…</p>
+            <p className="mt-2 text-sm">현재 데이터로 답변을 준비하고 있습니다…</p>
           </div>
         )}
         {notice && (
@@ -357,7 +357,7 @@ function DashboardAssistantContent({
           </Notice>
         )}
         {proposal && (
-          <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+          <div className="flex flex-col gap-2 rounded-xl border border-border p-4">
             <p className="font-bold">변경 미리보기</p>
             <p className="text-xs">
               아직 저장되지 않았습니다. 변경 적용을 누르면 현재 대시보드에 저장합니다. 기간·필터는 조회에만 적용하며 저장
@@ -400,7 +400,7 @@ function DashboardAssistantContent({
             <details>
               <summary className="cursor-pointer text-xs">변경 SQL · 계산식</summary>
               {proposal.preview.widgets.map((w, i) => (
-                <pre key={i} className="text-[11px] whitespace-pre-wrap [overflow-wrap:anywhere]">
+                <pre key={i} className="text-xs whitespace-pre-wrap [overflow-wrap:anywhere]">
                   {w.title}
                   {'\n'}
                   {w.sql}
@@ -433,7 +433,7 @@ function DashboardAssistantContent({
           e.preventDefault();
           void send();
         }}
-        className="border-t border-border p-4"
+        className="border-t border-border p-5"
       >
         {(error || saveError) && (
           <Notice severity="error" className="mb-2 [overflow-wrap:anywhere]">
@@ -450,7 +450,7 @@ function DashboardAssistantContent({
             화면 조회를 완료한 뒤 질문할 수 있습니다.
           </Notice>
         )}
-        <div className="mb-2 flex flex-row gap-2">
+        <div className="mb-3 flex flex-row gap-2">
           <Button
             aria-pressed={mode === 'ask'}
             variant={mode === 'ask' ? 'default' : 'outline'}
@@ -474,14 +474,14 @@ function DashboardAssistantContent({
           className="w-full"
           label={mode === 'ask' ? '데이터에 질문하기' : '대시보드 수정 요청'}
           multiline
-          rows={2}
+          rows={3}
           value={input}
           disabled={busy || saving}
           inputProps={{ maxLength: 2000 }}
           onChange={e => setInput(e.target.value)}
         />
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] text-muted-foreground">대화는 현재 화면에서만 유지됩니다.</p>
+          <p className="text-xs text-muted-foreground">대화는 현재 화면에서만 유지됩니다.</p>
           {busy ? (
             <Button variant="ghost" onClick={() => stop()}>
               응답 중단
@@ -518,7 +518,7 @@ function DashboardAssistantContent({
       aria-label="LLM Assistant"
       hidden={!open}
       className={cn(
-        'fixed top-0 right-0 z-40 h-[100dvh] w-full min-w-0 flex-col border-l border-border bg-background shadow-none lg:top-[120px] lg:h-[calc(100dvh-120px)] lg:w-[400px] [&[hidden]]:hidden',
+        'fixed top-0 right-0 z-40 h-[100dvh] w-full min-w-0 flex-col border-l border-border bg-background shadow-none lg:top-16 lg:h-[calc(100dvh-4rem)] lg:w-[400px] [&[hidden]]:hidden',
         open ? 'flex' : 'hidden',
       )}
     >

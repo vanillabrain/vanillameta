@@ -9,7 +9,6 @@ import { LayoutContext } from '@/contexts/LayoutContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import grid from '@/assets/images/grid.svg';
 import { SnackbarContext } from '@/contexts/AlertContext';
-import { cn } from '@/lib/utils';
 
 interface WidgetAttributeSelectProps {
   widgetOption: any;
@@ -134,12 +133,7 @@ const WidgetAttributeSelect = (props: WidgetAttributeSelectProps) => {
     <form
       id="widgetAttribute"
       onSubmit={handleSubmit}
-      className={cn(
-        'flex w-full min-w-0 flex-col justify-between overflow-x-hidden bg-muted md:flex-row md:overflow-y-hidden',
-        isModifyMode
-          ? 'h-[calc(100dvh-170px)] md:h-[calc(100vh-170px)]'
-          : 'h-[calc(100dvh-310px)] sm:h-[calc(100dvh-245px)] md:h-[calc(100vh-245px)]',
-      )}
+      className="flex min-h-0 w-full min-w-0 flex-1 flex-col justify-between overflow-x-hidden overflow-y-auto bg-muted md:flex-row md:overflow-y-hidden"
       style={{ backgroundImage: `url(${grid})`, backgroundRepeat: 'repeat' }}
     >
       {!option ? (
@@ -148,7 +142,7 @@ const WidgetAttributeSelect = (props: WidgetAttributeSelectProps) => {
         </p>
       ) : (
         <>
-          <div className="mx-auto my-4 h-[300px] max-h-none min-h-[300px] w-[calc(100%-32px)] shrink-0 overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:h-[50vw] md:my-[54px] md:h-full md:max-h-full md:w-3/5 md:shrink">
+          <div className="mx-auto my-4 h-[300px] max-h-none min-h-[300px] w-[calc(100%-32px)] shrink-0 overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:h-[50vw] md:my-6 md:h-[calc(100%-var(--spacing)*12)] md:min-h-0 md:w-3/5 md:shrink">
             <WidgetViewer title={title} widgetType={widgetOption.componentType} widgetOption={option} dataSet={data} />
           </div>
           <WidgetSetting
