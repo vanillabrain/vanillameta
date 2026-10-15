@@ -673,15 +673,6 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
       sx={{
         p: { xs: 1.5, sm: 2.5 },
         minWidth: 0,
-        '& .MuiButton-root': {
-          textTransform: 'none',
-          fontWeight: 500,
-          fontSize: 13,
-          minHeight: { xs: 40, sm: 36 },
-          borderRadius: '8px',
-          px: 1.5,
-          boxShadow: 'none',
-        },
         '& .MuiButton-outlined': {
           borderColor: '#d8e0eb',
           color: 'text.primary',
@@ -691,12 +682,8 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
         '& .MuiButton-root[aria-disabled="true"]': { color: 'text.disabled', borderColor: 'divider', cursor: 'default' },
         '& .MuiOutlinedInput-root': {
           bgcolor: 'background.paper',
-          borderRadius: '8px',
-          fontSize: 13,
-          minHeight: 40,
           '& fieldset': { borderColor: '#d8e0eb' },
         },
-        '& .MuiInputLabel-root': { fontSize: 13 },
         '& .MuiButton-root:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
       }}
     >

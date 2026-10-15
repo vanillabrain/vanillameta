@@ -1,6 +1,6 @@
 # P2 — 질문에서 지표·차원·분석을 함께 만드는 설계
 
-상태: Draft / A/B API·로컬 SQLite 검증 완료, C UI 연결 구현/실제 화면 검증 BLOCKED. UC-012·FR-007/008·NFR-004. 제안·미리보기·원자 저장 API와 영수증 migration을 구현했으며 고객 UI 연결은 구현했으며 실제 화면·운영 DB 검증은 미완료다. [실행 증빙](../testing/semantic-proposal.md)을 확인한다. 현재 동작과 예정 계약을 혼동하지 않는다.
+상태: Draft / A/B API·로컬 SQLite 검증 완료, C UI 연결·대표 실제 화면 검증 완료. UC-012·FR-007/008·NFR-004. 제안·미리보기·원자 저장 API와 영수증 migration을 구현했으며 고객 UI 연결·Ego 대표 화면 검증을 마쳤으며 운영 DB 검증은 미완료다. [실행 증빙](../testing/semantic-proposal.md)을 확인한다. 현재 동작과 예정 계약을 혼동하지 않는다.
 
 ## 고객 흐름과 첫 범위
 
@@ -127,4 +127,4 @@ P2 저장은 신규 `AnalysisCreationReceipt`의 **actorId+requestId DB unique �
 
 ## C 구현 경계 — 2026-10-15
 
-기존 AiDashboardPanel 신규 생성에 A/B API를 연결하고 수정 경로는 유지했다. 서버 canonical preview와 proposal/digest를 결합하고 화면에서 동일 저장을 재시도할 때 requestId를 유지한다. 질문/소스/계획 충돌은 새 preview가 필요하다. 기본은 결과/저장이며 계산 기준은 접는다. [C 실행 기록](../testing/semantic-creation-ui.md)의60개 컴포넌트 테스트와 실LLM/API 재조회는 PASS다. 새로고침·실제 크기/정렬·Rill 화면 비교는 auto-review 거절로 BLOCKED이며 전체 출하/수용 증거로 대체하지 않는다.
+기존 AiDashboardPanel 신규 생성에 A/B API를 연결하고 수정 경로는 유지했다. 서버 canonical preview와 proposal/digest를 결합하고 화면에서 동일 저장을 재시도할 때 requestId를 유지한다. 질문/소스/계획 충돌은 새 preview가 필요하다. 기본은 결과/저장이며 계산 기준은 접는다. [C 실행 기록](../testing/semantic-creation-ui.md)의60개 컴포넌트 테스트와 실LLM/API 재조회는 PASS다. 과거 auto-review 차단 후 사용자 명시 승인·Ego 지정으로 분석22의 실제 저장·새로고침/XHR·390/768/1440 크기/정렬·Rill 화면 비교를 확인했다. 전체 출하/수용 증거로 대체하지 않는다.
