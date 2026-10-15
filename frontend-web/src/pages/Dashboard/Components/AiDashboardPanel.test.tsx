@@ -142,7 +142,7 @@ it('preselects the uploaded source and requires explicit generation', async () =
   // Radix Select는 value 대신 선택된 항목 텍스트를 표시한다.
   await waitFor(() => expect(sourceTrigger().textContent).toBe('Sales'));
   expect(api.post).not.toHaveBeenCalled();
-  expect((screen.getByText('Generate preview') as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: /Generate preview|질문 실행/ }) as HTMLButtonElement).disabled).toBe(true);
 });
 it('does not select a URL source absent from the authorized list', async () => {
   await mount({ initialDatabaseId: 999 });
@@ -278,7 +278,7 @@ it('UC012 invalidates save on 409 and issues a new request ID only after a fresh
   expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(true);
   const prior = api.post.mock.calls[2][1].requestId;
   api.post.mockResolvedValueOnce(success(semantic())).mockResolvedValueOnce(success(semantic()));
-  fireEvent.click(screen.getByText('Generate preview'));
+  fireEvent.click(screen.getByRole('button', { name: /Generate preview|질문 실행/ }));
   await waitFor(() => expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(false));
   api.post.mockResolvedValueOnce(success({ id: 22 }));
   fireEvent.click(screen.getByText('Save'));
@@ -291,7 +291,7 @@ it('UC012 preserves the last preview and new question when a new proposal fails'
   fireEvent.change(screen.getByLabelText('What would you like to see?'), { target: { value: 'Another question' } });
   expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(true);
   api.post.mockRejectedValueOnce(new Error('Provider failed'));
-  fireEvent.click(screen.getByText('Generate preview'));
+  fireEvent.click(screen.getByRole('button', { name: /Generate preview|질문 실행/ }));
   await screen.findByText('Provider failed');
   expect(screen.getByTestId('preview')).toBeTruthy();
   expect((screen.getByLabelText('What would you like to see?') as HTMLTextAreaElement).value).toBe('Another question');
@@ -337,7 +337,7 @@ it('UC012 preserves the last valid preview when generation is stopped during pre
         finish = resolve;
       }),
   );
-  fireEvent.click(screen.getByText('Generate preview'));
+  fireEvent.click(screen.getByRole('button', { name: /Generate preview|질문 실행/ }));
   await waitFor(() => expect(api.post).toHaveBeenCalledTimes(4));
   fireEvent.click(screen.getByText('생성 중지'));
   await act(async () => finish(success(semantic())));
@@ -358,8 +358,86 @@ it('UC012 invalidates the preview on source changes and rejects a proposal for a
   await selectRadixOption(sourceTrigger(), 'Other');
   expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(true);
   api.post.mockResolvedValueOnce(success(semantic()));
-  fireEvent.click(screen.getByText('Generate preview'));
+  fireEvent.click(screen.getByRole('button', { name: /Generate preview|질문 실행/ }));
   await screen.findByText('The generated dashboard is incomplete. Please try again.');
   expect(api.post).toHaveBeenCalledTimes(3);
   expect(screen.getByTestId('preview')).toBeTruthy();
+});
+
+it('UC023 saves the frozen creation preview on a follow-up question and hands off its confirmed revision', async () => {
+  const view = await creation();
+  await createPreview();
+  fireEvent.change(screen.getByLabelText('What would you like to see?'), {
+    target: { value: '현재 초안을 저장하고 게시 준비해 줘' },
+  });
+  api.post
+    .mockResolvedValueOnce(success({ ...semantic(), saveRequested: true, publicationRequested: true }))
+    .mockResolvedValueOnce(success(semantic()))
+    .mockResolvedValueOnce(success({ id: 23, revision: 'c'.repeat(64), replayed: false }));
+  fireEvent.click(screen.getByRole('button', { name: /Generate preview|질문 실행/ }));
+  await waitFor(() => expect(view.onSaved).toHaveBeenCalledWith(23, { publication: true, revision: 'c'.repeat(64) }));
+  expect(api.post.mock.calls[2][0]).toBe('/bi/analysis-proposals/question');
+  expect(api.post.mock.calls[2][1]).toEqual({
+    proposal: semantic().proposal,
+    previewDigest: semantic().previewDigest,
+    prompt: '현재 초안을 저장하고 게시 준비해 줘',
+  });
+  expect(api.post.mock.calls[4][1].requestId).toBe('00000000-0000-4000-8000-000000000001');
+  expect(api.post.mock.calls[4][1].proposal).toEqual(semantic().proposal);
+});
+
+it('UC023 also connects explicit initial creation intent, but a replay never invents a historical revision', async () => {
+  const view = await creation();
+  api.post
+    .mockResolvedValueOnce(success({ ...semantic(), saveRequested: true, publicationRequested: true }))
+    .mockResolvedValueOnce(success(semantic()))
+    .mockRejectedValueOnce(new Error('Save response lost'));
+  await start();
+  await screen.findByText('Save response lost');
+  const frozen = api.post.mock.calls[2][1];
+  api.post.mockResolvedValueOnce(success({ id: 23, replayed: true }));
+  fireEvent.click(screen.getByText('Save'));
+  await waitFor(() => expect(view.onSaved).toHaveBeenCalledWith(23, { publication: true }));
+  expect(api.post.mock.calls[3][1]).toEqual(frozen);
+});
+
+it.each([{ publicationRequested: true }, { saveRequested: false }, { saveRequested: true, publicationRequested: 'true' }])(
+  'UC023 rejects malformed intent before preview or save %#',
+  async flags => {
+    const view = await creation();
+    api.post.mockResolvedValueOnce(success({ ...semantic(), ...flags }));
+    await start();
+    await screen.findByText('The generated dashboard is incomplete. Please try again.');
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(view.onSaved).not.toHaveBeenCalled();
+  },
+);
+
+it('UC023 preserves the preview and question while asking for missing semantics without saving', async () => {
+  const view = await creation();
+  await createPreview();
+  fireEvent.change(screen.getByLabelText('What would you like to see?'), { target: { value: '전환율을 보여줘' } });
+  api.post.mockResolvedValueOnce(success({ clarification: '분자와 분모는 어떤 열인가요?' }));
+  fireEvent.click(screen.getByRole('button', { name: /Generate preview|질문 실행/ }));
+  await screen.findByText('분자와 분모는 어떤 열인가요?');
+  expect(screen.getByTestId('preview')).toBeTruthy();
+  expect((screen.getByLabelText('What would you like to see?') as HTMLTextAreaElement).value).toBe('전환율을 보여줘');
+  expect(api.post).toHaveBeenCalledTimes(3);
+  expect(view.onSaved).not.toHaveBeenCalled();
+});
+
+it('UC023 cancellation ignores a late save intent before any save request', async () => {
+  const view = await creation();
+  let finish: any;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      }),
+  );
+  await start();
+  fireEvent.click(screen.getByText('생성 중지'));
+  await act(async () => finish(success({ ...semantic(), saveRequested: true, publicationRequested: true })));
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(view.onSaved).not.toHaveBeenCalled();
 });

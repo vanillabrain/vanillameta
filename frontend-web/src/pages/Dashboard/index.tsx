@@ -48,8 +48,12 @@ function Dashboard() {
   const noData = loadedDashboardData.length === 0;
 
   useEffect(() => {
-    if (isFetching) showLoading();
-    else hideLoading();
+    if (isFetching) {
+      showLoading();
+      // A save can navigate away while list invalidation is still fetching.
+      return hideLoading;
+    }
+    hideLoading();
   }, [isFetching]);
 
   useEffect(() => {
@@ -119,10 +123,14 @@ function Dashboard() {
             setSearchParams(next, { replace: true });
           }
         }}
-        onSaved={id => {
+        onSaved={(id, intent) => {
           setAiOpen(false);
           queryClient.invalidateQueries({ queryKey: ['dashboards'] });
-          navigate(`/dashboard/${id}`);
+          navigate(
+            intent?.publication
+              ? `/dashboard/${id}/publication${intent.revision ? `?savedRevision=${intent.revision}` : ''}`
+              : `/dashboard/${id}`,
+          );
         }}
       />
 

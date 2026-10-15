@@ -20,7 +20,7 @@ type Props = {
   dashboardId?: number;
   currentDraft?: any;
   initialDatabaseId?: number;
-  onSaved: (id: number) => void;
+  onSaved: (id: number, intent?: { publication: true; revision?: string }) => void;
 };
 import { validDraft, validPreview, responseData, errorMessage } from '../dashboardPreview';
 
@@ -29,6 +29,8 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
   const structuredCreation = dashboardId === undefined && !currentDraft;
   const [semanticPlan, setSemanticPlan] = useState<any>(null);
   const creationRequest = useRef<any>(null);
+  const confirmedCreation = useRef<any>(null);
+  const creationPublication = useRef(false);
   const generationAbort = useRef<AbortController | null>(null);
   const [sources, setSources] = useState<any[]>([]);
   const [sourceLoading, setSourceLoading] = useState(false);
@@ -47,6 +49,8 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
   useEffect(() => {
     generationAbort.current?.abort();
     creationRequest.current = null;
+    confirmedCreation.current = null;
+    creationPublication.current = false;
     setSemanticPlan(null);
     session.current += 1;
     const token = session.current;
@@ -92,6 +96,8 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
     if (busy === 'save') return;
     generationAbort.current?.abort();
     creationRequest.current = null;
+    confirmedCreation.current = null;
+    creationPublication.current = false;
     setSemanticPlan(null);
     session.current += 1;
     activeRequest.current = false;
@@ -111,14 +117,18 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
     setBusy(null);
     setCanSave(false);
     creationRequest.current = null;
+    confirmedCreation.current = null;
+    creationPublication.current = false;
   };
 
   const generate = async () => {
     if (activeRequest.current || !databaseId || !prompt.trim()) return;
     activeRequest.current = true;
     const token = session.current;
+    const previous = confirmedCreation.current?.proposal.sourceId === databaseId ? confirmedCreation.current : null;
     setBusy('generate');
     creationRequest.current = null;
+    creationPublication.current = false;
     setCanSave(false);
     setError('');
     try {
@@ -127,24 +137,47 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
         generationAbort.current = controller;
         const options = { timeout: 180000, signal: controller.signal };
         const candidate = responseData(
-          await post('/bi/analysis-proposals', { sourceId: databaseId, prompt: prompt.trim() }, options),
+          await post(
+            previous ? '/bi/analysis-proposals/question' : '/bi/analysis-proposals',
+            previous
+              ? { proposal: previous.proposal, previewDigest: previous.previewDigest, prompt: prompt.trim() }
+              : { sourceId: databaseId, prompt: prompt.trim() },
+            options,
+          ),
         );
         if (token !== session.current) return;
+        if (
+          typeof candidate?.clarification === 'string' &&
+          candidate.clarification.trim() &&
+          candidate.clarification.length <= 240 &&
+          Object.keys(candidate).length === 1
+        ) {
+          setError(candidate.clarification);
+          return;
+        }
         if (!validSemanticCandidate(candidate, databaseId))
           throw new Error('The generated dashboard is incomplete. Please try again.');
         const result = responseData(await post('/bi/analysis-proposals/preview', { proposal: candidate.proposal }, options));
         if (token !== session.current) return;
         if (!validSemanticPreview(result, databaseId))
           throw new Error('The dashboard preview is incomplete. Please try again.');
+        if (previous && candidate.saveRequested === true && result.previewDigest !== previous.previewDigest)
+          throw new Error('미리보기의 계산 기준이 변경됐습니다. 다시 미리보고 저장해 주세요.');
         creationRequest.current = {
           proposal: result.proposal,
           previewDigest: result.previewDigest,
-          requestId: crypto.randomUUID(),
+          requestId: previous && candidate.saveRequested === true ? previous.requestId : crypto.randomUUID(),
         };
+        confirmedCreation.current = creationRequest.current;
+        creationPublication.current = candidate.publicationRequested === true;
         setDraft(result.preview.draft);
         setPreview(result.preview);
         setSemanticPlan(result.plan);
         setCanSave(true);
+        if (candidate.saveRequested === true) {
+          setBusy('save');
+          await persist(token, creationRequest.current, creationPublication.current);
+        }
         return;
       }
       const candidate = responseData(
@@ -174,7 +207,52 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
       setPrompt('');
       setCanSave(true);
     } catch (err) {
-      if (token === session.current) setError(errorMessage(err));
+      if (token === session.current) {
+        setError(errorMessage(err));
+        if ((err as any)?.response?.status === 409) confirmedCreation.current = null;
+      }
+    } finally {
+      if (token === session.current) {
+        activeRequest.current = false;
+        setBusy(null);
+      }
+    }
+  };
+
+  const persist = async (token: number, request: any, publication = false) => {
+    try {
+      const saved = responseData(
+        structuredCreation
+          ? await post('/bi/analysis-proposals/save', request, { timeout: 180000 })
+          : await post('/ai/dashboard-save', { draft: preview.draft, dashboardId }, { timeout: 180000 }),
+      );
+      if (token !== session.current) return;
+      if (!Number.isSafeInteger(saved?.id) || saved.id <= 0) throw new Error('The dashboard could not be saved.');
+      if (publication && saved.replayed !== true && !/^[a-f0-9]{64}$/.test(saved.revision ?? ''))
+        throw new Error('저장 결과를 확인하지 못했습니다. 같은 저장 요청으로 다시 확인해 주세요.');
+      setCanSave(false);
+      session.current += 1;
+      setDraft(null);
+      setPreview(null);
+      setBusy(null);
+      activeRequest.current = false;
+      onClose();
+      if (publication) {
+        // A replay proves identity, not the historical revision. It requires a new manual publication preview.
+        onSaved(saved.id, { publication: true, ...(saved.replayed !== true ? { revision: saved.revision } : {}) });
+      } else onSaved(saved.id);
+    } catch (err) {
+      if (token === session.current) {
+        setError(errorMessage(err));
+        const status = (err as any)?.response?.status;
+        const retryable = structuredCreation && (!status || status >= 500 || status === 408 || status === 429);
+        setCanSave(!!retryable);
+        if (!retryable) {
+          creationRequest.current = null;
+          confirmedCreation.current = null;
+          creationPublication.current = false;
+        }
+      }
     } finally {
       if (token === session.current) {
         activeRequest.current = false;
@@ -189,36 +267,7 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
     const token = session.current;
     setBusy('save');
     setError('');
-    try {
-      const saved = responseData(
-        structuredCreation
-          ? await post('/bi/analysis-proposals/save', creationRequest.current, { timeout: 180000 })
-          : await post('/ai/dashboard-save', { draft: preview.draft, dashboardId }, { timeout: 180000 }),
-      );
-      if (token !== session.current) return;
-      if (!Number.isInteger(saved?.id) || saved.id <= 0) throw new Error('The dashboard could not be saved.');
-      setCanSave(false);
-      session.current += 1;
-      setDraft(null);
-      setPreview(null);
-      setBusy(null);
-      activeRequest.current = false;
-      onClose();
-      onSaved(saved.id);
-    } catch (err) {
-      if (token === session.current) {
-        setError(errorMessage(err));
-        const status = (err as any)?.response?.status;
-        const retryable = structuredCreation && (!status || status >= 500 || status === 408 || status === 429);
-        setCanSave(!!retryable);
-        if (!retryable) creationRequest.current = null;
-      }
-    } finally {
-      if (token === session.current) {
-        activeRequest.current = false;
-        setBusy(null);
-      }
-    }
+    await persist(token, creationRequest.current, creationPublication.current);
   };
 
   return (
@@ -263,6 +312,8 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
                 onValueChange={value => {
                   setDatabaseId(Number(value));
                   creationRequest.current = null;
+                  confirmedCreation.current = null;
+                  creationPublication.current = false;
                   setCanSave(false);
                 }}
               >
@@ -301,6 +352,12 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
                 defaultValue: 'Show total requests, average bid floor, and requests by device.',
               })}
             />
+            {structuredCreation && (
+              <p className="text-xs text-muted-foreground">
+                미리보기 뒤 ‘현재 초안을 저장하고 게시 준비해 줘’라고 이어서 질문할 수 있습니다. 링크 공개는 게시 화면에서
+                확인 후 실행합니다.
+              </p>
+            )}
             <Button
               onClick={generate}
               disabled={!!busy || !databaseId || !prompt.trim() || sourceLoading}
@@ -308,6 +365,8 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
             >
               {busy === 'generate'
                 ? t('ai.generating', { defaultValue: 'Generating preview…' })
+                : structuredCreation && confirmedCreation.current
+                ? t('ai.executeRequest', { defaultValue: '질문 실행' })
                 : t(!structuredCreation && draft ? 'ai.revisePreview' : 'ai.generatePreview', {
                     defaultValue: !structuredCreation && draft ? 'Revise preview' : 'Generate preview',
                   })}
