@@ -74,7 +74,7 @@ describe('semantic proposal service read boundaries', () => {
     });
     expect(JSON.stringify(context)).not.toMatch(/RAW|private/);
     expect(bi.profile).toHaveBeenCalledTimes(2);
-    expect(result.plan.measures[0].action).toBe('create');
+    expect(result).toHaveProperty('plan.measures.0.action', 'create');
   });
   it('authorizes before provider calls', async () => {
     bi.profile.mockRejectedValue(new ForbiddenException());

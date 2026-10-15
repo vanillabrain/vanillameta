@@ -112,3 +112,7 @@ Measure/Dimension은 소스와 정의 버전에 연결한다. 이미 선택한 �
 ### BR-006: Verifiable completion
 
 expectedRevision·요청 ID로 충돌 및 중복을 제어한다. 저장과 게시의 부분 실패를 구분한다. 전체 목표 완료는 TC-005의 실LLM·실제 화면/API 및 반응형 검증으로 판단한다.
+
+## Execution Evidence
+
+2026-10-16 [TC005 통합 기록](../testing/dashboard-lifecycle.md)에서 주 여정9단계와 선택 오류를 실행했다. 생성 후속 저장/게시 준비는 UC023을 따른다. 운영/실기기·모든 자연어/경합·타 계정 변경 POST 실제 실행·사람 제품 수용은 별도이며 기존 Reviewed 상태를 제품 승인으로 올리지 않는다.

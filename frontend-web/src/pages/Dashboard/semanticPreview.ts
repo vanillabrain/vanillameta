@@ -3,6 +3,9 @@ import { validDraft, validPreview } from './dashboardPreview';
 
 /** Pair the server's canonical proposal and digest with exactly the preview being saved. */
 export const validSemanticCandidate = (value: any, sourceId: number) =>
+  (!Object.prototype.hasOwnProperty.call(value ?? {}, 'saveRequested') || value.saveRequested === true) &&
+  (!Object.prototype.hasOwnProperty.call(value ?? {}, 'publicationRequested') ||
+    (value.publicationRequested === true && value.saveRequested === true)) &&
   value?.proposal?.schemaVersion === 1 &&
   value.proposal.sourceId === sourceId &&
   typeof value.proposal.sourceRevision === 'string' &&

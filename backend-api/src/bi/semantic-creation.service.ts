@@ -227,7 +227,8 @@ export class SemanticCreationService {
                 { id: receipt.id },
                 { dashboardId: saved.id },
               );
-              return { id: saved.id, replayed: false };
+              // A replay intentionally has no historical revision: the receipt records identity only.
+              return { id: saved.id, replayed: false, revision: saved.revision };
             });
           });
         } catch (error) {
