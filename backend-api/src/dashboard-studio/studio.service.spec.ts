@@ -246,6 +246,17 @@ describe('Studio real DuckDB and transactional metadata', () => {
       { id: metric.id },
       { definition: JSON.stringify({ ...definition, definitionVersion: 2 }) },
     );
+    await expect(
+      studio.prepare(
+        id,
+        {
+          document: latest,
+          expectedRevision: latest.revision,
+          expectedSourceRevision: await connection.duckDBVersion(1),
+        },
+        7,
+      ),
+    ).rejects.toThrow('지표 정의');
     await expect(save({ ...latest, title: 'Stale metric' }, 'metric-stale')).rejects.toThrow(
       '지표 정의',
     );
@@ -272,6 +283,18 @@ describe('Studio real DuckDB and transactional metadata', () => {
     try {
       await expect(
         save({ ...latest, title: 'Schema changed' }, 'schema-drift-' + id),
+      ).rejects.toThrow('소스 열');
+      const latestSource = await connection.duckDBVersion(1);
+      await expect(
+        studio.prepare(
+          id,
+          {
+            document: latest,
+            expectedRevision: latest.revision,
+            expectedSourceRevision: latestSource,
+          },
+          7,
+        ),
       ).rejects.toThrow('소스 열');
       expect(await db.manager.count(Widget)).toBe(count);
     } finally {
@@ -371,5 +394,68 @@ describe('Studio real DuckDB and transactional metadata', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+  it('previews and persists a selected weekly chart without SQL, other blocks or layout changes', async () => {
+    await db.manager.save(Component, {
+      type: 'CHART_LINE',
+      title: 'Line',
+      option: '{}',
+      useYn: 'Y',
+    });
+    const original = draft();
+    original.widgets[1] = {
+      ...original.widgets[1],
+      type: 'CHART_LINE',
+      categoryField: 'dimension',
+      sql: "SELECT date_trunc('day', event_time) AS dimension, sum(amount) AS value FROM source GROUP BY dimension ORDER BY dimension",
+    };
+    const lineId = (await ai.save({ draft: original }, 7)).data.id;
+    const loaded = await studio.get(lineId, 7);
+    const next = applyStudioOperation(loaded.document, {
+      type: 'updateBlock',
+      blockId: loaded.document.blocks[1].id,
+      patch: { display: { timeGrain: 'week' } },
+    });
+    const body = {
+      expectedRevision: loaded.document.revision,
+      expectedSourceRevision: loaded.sourceRevision,
+      document: next,
+    };
+    const checked = await studio.prepare(lineId, body, 7);
+    expect(checked.preview.widgets[1].datas).toHaveLength(1);
+    expect(checked.preview.widgets[1].datas[0].value).toBe(500);
+    expect(checked.preview.widgets[0].datas).toEqual(loaded.preview.widgets[0].datas);
+    expect(checked.document.layouts).toEqual(loaded.document.layouts);
+    expect((await studio.get(lineId, 7)).document).toEqual(loaded.document);
+    const saved = await studio.save(lineId, { ...body, requestId: 'weekly' }, 7);
+    const after = await studio.get(lineId, 7);
+    expect(after.document.blocks[1].display.timeGrain).toBe('week');
+    expect(after.document.layouts).toEqual(saved.document.layouts);
+    expect(after.preview.widgets[1].datas[0].value).toBe(500);
+    const mapped = await db.manager.find(DashboardWidget, {
+      where: { dashboardId: lineId },
+      order: { id: 'ASC' },
+    });
+    const savedWidget = await db.manager.findOneBy(Widget, { id: mapped[1].widgetId });
+    const dataset = await db.manager.findOneBy(Dataset, { id: savedWidget.datasetId });
+    const detailRows = await connection.queryDuckDB(1, dataset.query);
+    expect(detailRows.datas).toHaveLength(1);
+    expect(detailRows.datas[0].value).toBe(500);
+    expect((await ai.analysis(lineId, 7, true)).data.widgets[1].sql).toBe(original.widgets[1].sql);
+    const daily = applyStudioOperation(after.document, {
+      type: 'updateBlock',
+      blockId: after.document.blocks[1].id,
+      patch: { display: { timeGrain: 'day' } },
+    });
+    const undo = await studio.prepare(
+      lineId,
+      {
+        expectedRevision: after.document.revision,
+        expectedSourceRevision: after.sourceRevision,
+        document: daily,
+      },
+      7,
+    );
+    expect(undo.preview.widgets[1].datas).toHaveLength(2);
   });
 });

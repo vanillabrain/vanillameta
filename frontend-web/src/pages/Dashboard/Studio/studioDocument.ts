@@ -69,8 +69,13 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
       studioAssert(r.sourceId === d.sourceId && !dims.has(r.key), '차원의 소스가 다르거나 참조가 중복됩니다.');
       dims.add(r.key);
     });
-    studioKeys(b.display, ['decimalPlaces', 'numberNotation', 'prefix', 'suffix']);
+    studioKeys(b.display, ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain']);
     const p = b.display;
+    if (p.timeGrain !== undefined)
+      studioAssert(
+        b.kind === 'CHART_LINE' && ['auto', 'day', 'week', 'month'].includes(p.timeGrain),
+        '시간 집계를 확인해 주세요.',
+      );
     if (p.decimalPlaces !== undefined)
       studioAssert(
         Number.isInteger(p.decimalPlaces) && p.decimalPlaces >= 0 && p.decimalPlaces <= 6,

@@ -58,7 +58,7 @@ export function applyStudioOperation(document: StudioDocumentV1, operation: Stud
     } else if (operation.type === 'updateBlock') {
       studioKeys(operation.patch, ['title', 'description', 'definitionKey', 'measureRefs', 'dimensionRefs', 'display']);
       if (Object.prototype.hasOwnProperty.call(operation.patch, 'display'))
-        studioKeys(operation.patch.display, ['decimalPlaces', 'numberNotation', 'prefix', 'suffix']);
+        studioKeys(operation.patch.display, ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain']);
       const patch = studioClone(operation.patch);
       next.blocks[index] = { ...next.blocks[index], ...patch, display: { ...next.blocks[index].display, ...patch.display } };
     } else {

@@ -19,6 +19,7 @@ export interface DashboardDraft {
     prefix?: string;
     suffix?: string;
     numberNotation?: 'full' | 'compact';
+    timeGrain?: 'auto' | 'day' | 'week' | 'month';
   }>;
 }
 export function positiveId(value: unknown): number {
@@ -148,7 +149,13 @@ export function validateDraft(input: any): DashboardDraft {
         throw new BadRequestException('invalid decimalPlaces');
       if (w.numberNotation !== undefined && !['full', 'compact'].includes(w.numberNotation))
         throw new BadRequestException('invalid numberNotation');
+      if (
+        w.timeGrain !== undefined &&
+        (w.type !== 'CHART_LINE' || !['auto', 'day', 'week', 'month'].includes(w.timeGrain))
+      )
+        throw new BadRequestException('invalid timeGrain');
       return {
+        ...(w.timeGrain !== undefined ? { timeGrain: w.timeGrain } : {}),
         ...(w.blockId !== undefined ? { blockId: w.blockId } : {}),
         title: text(w.title, 300),
         description: text(w.description, 1000, true),

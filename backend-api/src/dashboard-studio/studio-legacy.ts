@@ -56,7 +56,7 @@ export function importStudio(
       measureRefs,
       dimensionRefs,
       display: Object.fromEntries(
-        ['decimalPlaces', 'numberNotation', 'prefix', 'suffix']
+        ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain']
           .filter(k => w[k] !== undefined)
           .map(k => [k, w[k]]),
       ),

@@ -316,3 +316,64 @@ describe('three-way reapply', () => {
     expect(result.document.blocks.map(item => item.id)).toEqual(['b1', TEMP]);
   });
 });
+
+describe('Studio AI SDK selected block integration', () => {
+  const runReply = (body: any) => ({
+    data: {
+      runId: 'run-test',
+      baseRevision: body.expectedRevision,
+      sourceRevision: body.expectedSourceRevision,
+      clientEditVersion: body.clientEditVersion,
+      selectedBlockId: body.selectedBlockId,
+      intent: 'edit',
+      answer: '선택 제목을 바꿨습니다.',
+      proposedOperations: [{ type: 'updateBlock', blockId: 'b1', patch: { title: 'AI 총매출' } }],
+      steps: [{ name: '검증', status: 'succeeded' }],
+      preview: envelope().data.preview,
+    },
+  });
+  const open = async () => {
+    api.get.mockResolvedValue(envelope());
+    render(<StudioEditor />);
+    await screen.findByText('500');
+    fireEvent.focus(screen.getByRole('button', { name: '총매출 이동 핸들' }));
+    fireEvent.click(screen.getByRole('button', { name: 'AI 열기' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }), {
+      target: { value: '선택 제목을 AI 총매출로 바꿔' },
+    });
+    const form = screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }).closest('form');
+    if (!form) throw new Error('AI form missing');
+    fireEvent.submit(form);
+  };
+  it('applies through real useChat and undo without persisting', async () => {
+    api.post.mockImplementation(async (_url, body) => runReply(body));
+    await open();
+    await screen.findByText(/선택 블록에 적용했습니다/);
+    expect(screen.getByRole('heading', { name: 'AI 총매출' })).toBeTruthy();
+    expect(api.post.mock.calls.map(call => call[0])).toEqual(['/studio/runs']);
+    expect(saveButton().disabled).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+    expect(screen.getByRole('heading', { name: '총매출' })).toBeTruthy();
+  });
+  it('rejects a response after a manual move and undo returned to identical content', async () => {
+    let finish: (value: any) => void = () => {
+      throw new Error('Pending response missing');
+    };
+    let submitted: any;
+    api.post.mockImplementation((_url, body) => {
+      submitted = body;
+      return new Promise(resolve => {
+        finish = resolve;
+      });
+    });
+    await open();
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    const handle = screen.getByRole('button', { name: '총매출 이동 핸들' });
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+    finish(runReply(submitted));
+    await screen.findByText(/응답을 기다리는 동안 편집/);
+    expect(screen.queryByRole('heading', { name: 'AI 총매출' })).toBeNull();
+    expect(screen.getByRole('heading', { name: '총매출' })).toBeTruthy();
+  });
+});

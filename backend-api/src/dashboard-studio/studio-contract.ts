@@ -6,6 +6,7 @@ export type StudioBlockKind = 'BOARD_NUMERIC' | 'CHART_COLUMN' | 'CHART_BAR' | '
 export type StudioMeasureRef = { id: number; definitionVersion: string };
 export type StudioDimensionRef = { key: string; sourceId: number; schemaVersion: string };
 export type StudioDisplay = {
+  timeGrain?: 'auto' | 'day' | 'week' | 'month';
   decimalPlaces?: number;
   numberNotation?: 'full' | 'compact';
   prefix?: string;

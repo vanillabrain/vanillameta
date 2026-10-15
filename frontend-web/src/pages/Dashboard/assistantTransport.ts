@@ -58,16 +58,7 @@ export function assistantTransport(context: () => any): ChatTransport<AssistantM
           if (typeof result.answer !== 'string' || !result.answer.trim()) throw new Error('AI 답변이 비어 있습니다.');
         }
         if (abortSignal?.aborted) throw new Error('요청이 중단되었습니다.');
-        return new ReadableStream<UIMessageChunk>({
-          start(controller) {
-            controller.enqueue({ type: 'start', messageId: crypto.randomUUID(), messageMetadata: { result } });
-            controller.enqueue({ type: 'text-start', id: 'answer' });
-            controller.enqueue({ type: 'text-delta', id: 'answer', delta: result.answer });
-            controller.enqueue({ type: 'text-end', id: 'answer' });
-            controller.enqueue({ type: 'finish', finishReason: 'stop' });
-            controller.close();
-          },
-        });
+        return assistantResultStream(result);
       } catch (error) {
         throw new Error(errorMessage(error));
       }
@@ -76,4 +67,18 @@ export function assistantTransport(context: () => any): ChatTransport<AssistantM
       return null;
     },
   };
+}
+
+/** Shared complete-response adapter; never simulates progressive model tokens. */
+export function assistantResultStream(result: any): ReadableStream<UIMessageChunk> {
+  return new ReadableStream<UIMessageChunk>({
+    start(controller) {
+      controller.enqueue({ type: 'start', messageId: crypto.randomUUID(), messageMetadata: { result } });
+      controller.enqueue({ type: 'text-start', id: 'answer' });
+      controller.enqueue({ type: 'text-delta', id: 'answer', delta: result.answer });
+      controller.enqueue({ type: 'text-end', id: 'answer' });
+      controller.enqueue({ type: 'finish', finishReason: 'stop' });
+      controller.close();
+    },
+  });
 }

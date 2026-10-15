@@ -150,3 +150,50 @@
 - 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t4-20261015/`: `http-results.json`, `browser-before-network-fix.log`/`network-before.png`, `saved-reloaded-1440.png`/`conflict-1440.png`, `browser-retry-results.json`, `visual-results.json`, `dialog-final-results.json`, `empty-results.json`, `final-studio-{1440,768,390}.png`, `final-conflict-390.png`, `empty-{disabled,recovered}-390.png`, `legacy-after-header-option.png`, 테스트/타입/린트/빌드 로그와 `review-notes.md`. 임시 브라우저 스크립트는 /private/tmp에만 둔다.
 
 실LLM 편집·한 프롬프트 생성·게시/재사용·전체 TC-005는 **NOT_RUN**, 다음 T5 이후다. Rill 동등성·실시간 파일 교체 경쟁·MySQL 운영 부하·재시작 후 미저장 브라우저 초안 복구는 이번 통과 범위가 아니다. gpt-6-luna 설정 유지, VoiceOver **BLOCKED** 유지.
+
+
+## T5 선택 블록 AI 수정 — 2026-10-15
+
+기준 `7c5aea91` + T5 diff. **STUDIO-A01 기능 PASS_SELECTED_VARIANTS / 디자인 PASS_SELECTED_VARIANTS.** 기존 T1~T4의 무관한 통과 조건은 재실행하지 않았다. gpt-6-luna 유지, VoiceOver BLOCKED 유지.
+
+### 명세·범위
+
+- Given 소유자 Studio 문서와 선택 블록, 현재 서버 revision·파일 sourceRevision·로컬 edit generation. When 하나의 입력으로 질문하거나 수정 요청. Then Codex gpt-6-luna 요청으로 ask/edit/clarify/unsupported를 분류하며 모드 선택 UI 없이 처리한다.
+- 수정은 선택 블록 `updateBlock` 한 개의 title/description/display만 허용한다. SQL·정의 key·지표/차원 참조·블록 ID/종류·다른 블록·배치는 바꿀 수 없다. 신규 생성/게시/공유/삭제 의도는 이번 단계의 미지원이며 성공으로 취급하지 않는다.
+- 시간 차트의 표시 `timeGrain:auto|day|week|month`는 서버 기존 안전 집계로 실행한다. 지원되지 않는 SQL 형태는 거부하며 SQL 계산 정의를 추측해 수정하지 않는다. 원래 SQL은 analysisDefinition/catalog에 유지하고 일반 보기의 Dataset에는 검증한 실제 집계 쿼리를 저장한다.
+- 실행 API `POST /v1/studio/runs`: `{requestId,dashboardId,expectedRevision,expectedSourceRevision,document,clientEditVersion,selectedBlockId?,prompt}` → `{runId,baseRevision,sourceRevision,clientEditVersion,selectedBlockId,intent,answer,proposedOperations,preview,steps}`. dashboard/source/문서가 필수인 기존 편집 범위다. `conversationId`, 새 문서 생성, clarification의 parentRunId/answers는 후속 T6/T7 계약으로 남긴다.
+- 기존 AI SDK useChat와 완성 응답 transport helper를 재사용한다. Codex CLI의 complete-response를 가짜 토큰으로 지연 스트리밍하지 않는다. 대기 중 UI 상태·중지와 완료 후 검증 단계 결과를 제공한다. 단계별 서버 이벤트 스트리밍/실행 기록 영속화는 아직 없다.
+- AI 전후에 소유권·대시보드/파일 revision·활성 지표 버전·차원 schema를 확인한다. 응답 중 manual move→undo로 내용이 같아져도 generation이 다르면 적용 금지. 선택 변경/저장 기준 변경도 금지. 명확한 유효 수정은 로컬 초안에만 applyBatch 1회, undo 제공. 명시적 저장 전 서버 쓰기0.
+- 같은 actor/requestId/body는 프로세스 내10분·최대64개 임시 replay. 다른 body409. 실패/취소는 결과를 저장하지 않으며 영속적인 AI journal/restart replay를 보장하지 않는다. 기존 T4의 저장 journal과 구분한다. Codex 미설정이면 다른 제공자로 대체하지 않고 연결 오류를 반환한다.
+- 현재 Studio의 실행 문맥은 전체 기간·필터 없음이다. 임의 사용자 기간/필터 UI 연동·과거 대화 의미를 이어받는 multi-turn 저장은 이번 범위가 아니다.
+
+### 실행 환경·정답
+
+격리 API `127.0.0.1:4325`, FE `127.0.0.1:3225`, DB/uploads `/private/tmp/vm-studio-t5-20261015/`. 기존 개발 DB/환경 파일을 변경하지 않고 검증 DB 복사본에 새 QA 계정·소스7/대시보드6을 만들었다. 인증정보는 증빙에 넣지 않는다.
+
+CSV5행: 2026-01-01 Site300,01-02 Mobile200,01-08 Site400,01-09 Mobile100,01-15 Site500. 정답 총매출1500, 일간300/200/400/100/500, UTC 주 시작12-29/01-05/01-12 각각500, 채널 Site1200/Mobile300. Rill139만행의 동등성·성능을 대신하는 자료가 아니다.
+
+### 기능 결과
+
+1. 실제 Chromium에서 숫자 블록을 키보드로 직접 이동한 뒤 시간 차트를 선택하여 실제 Codex **gpt-6-luna 지정 요청**. ‘선택한 일별 매출 차트만 주간 집계로…제목·계산·다른 블록·배치 유지’ → 검증된 timeGrain week 한 연산, 약6.5초/HTTP201. 주간500×3·총1500, 기존 배치와 비대상 유지, 저장 전 POST save0. CLI 출력만으로 실제 사용 모델 자체를 별도 증명하는 것은 아니다.
+2. undo에서 일간5값(400 포함), redo에서 주간500×3을 실제 데이터 표로 확인. 같은 입력으로 실제 ‘총매출 질문’은 정확히1500·ask/operation0, ‘공개 배포·공유 링크’는 unsupported/operation0. 실제 모델 호출은 이3개이며 장애 주입을 실제 모델 검증으로 계산하지 않는다.
+3. 명시적 저장→reload의 주간3개 값 복원. 일반 보기의 실제 시간 차트 데이터 표도500×3. 최초 일반 보기 검증 스크립트가 두 번째 ‘데이터 표’(채널)를 선택해 실패했으며, 실제 시간 차트의 첫 버튼으로 해당 조건만 재확인했다.
+4. 지연 응답을 주입하고 도착 전 manual move 후 선택 복귀 → 적용 차단, 로컬 편집 보존. 실제 useChat 회귀는 move→undo로 같은 내용으로 돌아온 조건도 차단했다. 390px 대기 취소/409/잘못된 removeBlock 응답을 주입해 변경 없음·각 안내 확인. 서버 timeout/취소는 mock LLM 단위로 검증했으며 이번에 실제 CLI 프로세스 중단을 새로 실행하지 않았다.
+5. 새 API 실제 HTTP 미로그인401, 타인403, 오래된 sourceRevision409,2001자 prompt400. 모델 호출 이전 거부. 서버 단위에서 허용 외 operation·다른 블록·계산·배치 변경, 전후409·취소·timeout·동일 요청 replay/다른 payload409·Codex 외 제공자 대체 금지를 확인했다.
+
+### 오류 수정·디자인
+
+- 독립 backend 리뷰 P1: 기존 보기 Dataset이 원래 일간 SQL을 실행하는 문제 → 실제 preview의 검증 쿼리로 저장하되 analysisDefinition의 원 SQL 보존. P2: AI 준비가 오래된 지표/차원 참조를 허용하는 문제 → 저장과 같은 최신 참조 검사를 전후 준비에서 재사용. 실제 DuckDB/metadata 회귀에서 재현 후 통과.
+- 검증 실패를 연결 실패로 표시하지 않도록 transport의 응답 validation과 HTTP 오류 분류를 분리했다. 잘못된 operation은 검증 오류로 안내하고 문서 불변.
+- 모바일 입력 라벨을 항상 축소 위치로 두어 내용과 분리했다. 현재 선택 블록·전체 기간/필터·주간/UTC·요청 모델 문맥을 표시한다. 같은 MUI 토큰/배치를 재사용하고 신규 의존성 없음.
+- 1440/768/390px 페이지 overflow0, 전송 버튼36/44/44px, 라벨 하단과 입력 상단이 분리됨(각 약4.6px). 좁은 Drawer의 Tab8회 내부 유지·Escape 닫기, 포커스 표시 확인. 최종 PNG를 직접 시각 검토했다.
+- 초기 실제 AI 적용 캡처의 이전 점은 ECharts 전환 중이었고, 안정화 캡처는500×3만 표시했다. 최종 수치 시각 증빙은 `final-weekly-1440.png`이며 중간 애니메이션 화면을 디자인 통과 근거로 사용하지 않는다. 포커스 ripple의 정상 무한 애니메이션은 전환 대기 검사에서 제외했다. 실제 기기/모든 언어/모든 길이는 NOT_RUN.
+
+### 검사·증빙
+
+- BE 관련 Studio/기존 AI 저장·시간 차트·이전 기간 원본 회귀 **252개 PASS**. 마지막 제공자 가드 추가 후 변경된 run service **12개 PASS**, BE lint/build PASS.
+- FE Studio·기존 assistant transport/useChat **97개 PASS**, 타입/변경 lint/build PASS. 전체 제품 E2E·무관한 기존 MD는 반복하지 않았다.
+- 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t5-20261015/`의 `real-ai-result.json`, `browser-partial.json`(실제 AI3개·undo/저장·폭별 조건, 끝의 잘못된 표 선택 실패 명시), `remaining-partial.json`(정정한 기존 보기·stale guard 통과 뒤 무한 ripple 대기 실패), `remaining-results.json`(최종3폭·중지/409/invalid), `http-results.json`, `final-weekly-1440.png`, `legacy-weekly-1440.png`, `stale-guard-1440.png`, `final-panel-{1440,768,390}.png`, `cancel-390.png`, `conflict-ai-390.png`, `invalid-operation-390.png`, 단위 red/green·리뷰·타입/lint/build 로그. 브라우저 스크립트는 /private/tmp에만 두고 신규 상시 E2E는 추가하지 않았다.
+- Aside 데몬이 실행되지 않아 기존 승인된 headed Chromium을 사용했고 Codex IAB에도 같은 실제 Studio/선택 AI 패널을 남겼다. VoiceOver BLOCKED 유지.
+
+다음 **T6 내 파일/샘플→같은 Studio 생성**. 한 프롬프트 신규 생성·게시/재사용·작업 복구·전체 TC-005와 Rill 수치/UX 비교는 해당 단계까지 NOT_RUN이다.

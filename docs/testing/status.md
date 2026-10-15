@@ -1,3 +1,5 @@
+2026-10-15 Studio T5: [dashboard-studio.md](dashboard-studio.md). 선택 블록 AI 단일 입력·Codex gpt-6-luna 지정 실제3요청(주간 수정/질문/미지원)·로컬 apply/undo/redo·명시 저장/reload·기존 보기 주간500×3 PASS_SELECTED_VARIANTS. 지표/차원 최신 참조·기존 보기 실행 쿼리 불일치 수정. 1440/768/390px·키보드/라벨·오래된 응답/취소/오류 주입 확인. BE252 후 변경 run12·FE97·타입/lint/build PASS. 격리5행 표본이며 Rill139만행/새 생성/게시/전체 TC-005 NOT_RUN, VoiceOver BLOCKED 유지. 기존 집계 소급 변경 없음.
+
 2026-10-15 Studio T4: [dashboard-studio.md](dashboard-studio.md). 실제 DuckDB 저장·reload/ID remap·legacy 보기 숫자, 두 탭409/3방향 재적용, commit 후 응답 유실 동일 요청 재시도·이후 편집 보존,768/390px 저장 복원 PASS. 숫자 가림·차트 축 잘림·status0 오류 문구·빈 캔버스 복구 수정. 보호 API401/403·파일 버전 pin·atomic rollback 확인. 선택 디자인 PASS, 실LLM/게시 NOT_RUN·VoiceOver BLOCKED 유지. 기존 집계 소급 변경 없음.
 
 2026-10-15 Studio T3: [dashboard-studio.md](dashboard-studio.md). 합성 문서의 실제 블록 추가·복제·삭제·drag/resize·undo/redo, 폭별 배치 보존·모바일 키보드 편집 STUDIO-E01 PASS. 1440/768/390px overflow/겹침0, 긴 제목·전체 숫자 디자인 확인. Studio33·타입/lint/build PASS. 서버 저장·AI·게시 NOT_RUN, VoiceOver BLOCKED 유지. 기존 집계 소급 변경 없음.

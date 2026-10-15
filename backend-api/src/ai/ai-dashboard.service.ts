@@ -870,6 +870,7 @@ export class AiDashboardService {
     dateColumn: string | undefined,
     columns: string[],
   ) {
+    trendGrain = definition.timeGrain ?? trendGrain;
     const regroup =
       trendGrain !== 'auto' && definition.type === 'CHART_LINE'
         ? dateColumn &&
@@ -1368,7 +1369,9 @@ export class AiDashboardService {
       : temporal[0]?.column_name;
     const widgets = [];
     const queries = [];
+    const defaultGrain = trendGrain;
     for (const definition of draft.widgets) {
+      const trendGrain = definition.timeGrain ?? defaultGrain;
       const { regroup, sql: widgetSql } = this.effectiveWidgetQuery(
         definition,
         trendGrain,
@@ -1703,7 +1706,7 @@ export class AiDashboardService {
       temporalColumns,
       trendGrain,
       ...(previous ? { comparison: { current: body.dateRange, previous } } : {}),
-      ...(body?.includeTrends === true ? { queries } : {}),
+      ...(body?.includeTrends === true || body?.includeQueries === true ? { queries } : {}),
     });
   }
   async save(
@@ -1735,9 +1738,15 @@ export class AiDashboardService {
       existing && !existing.analysisDefinition
         ? (await this.analysis(body.dashboardId, userId)).data
         : undefined;
-    const {
-      data: { draft },
-    } = await this.preview({ draft: body?.draft }, userId);
+    const { data: prepared } = await this.preview(
+      { draft: body?.draft, includeQueries: true },
+      userId,
+    );
+    const { draft } = prepared;
+    prepared.widgets.forEach(widget => {
+      if (widget.timeGrain && widget.timeGrain !== 'auto' && widget.grainUnavailable)
+        throw new BadRequestException('요청한 시간 집계를 안전하게 저장할 수 없습니다.');
+    });
     const persist = async (manager: EntityManager) => {
       let dashboard =
         body.dashboardId !== undefined
@@ -1782,7 +1791,7 @@ export class AiDashboardService {
         geometry = blockGeometry(baseline, draft, JSON.parse(previous.layout), mappings);
       }
       const widgets: Widget[] = [];
-      for (const definition of draft.widgets) {
+      for (const [widgetIndex, definition] of draft.widgets.entries()) {
         const component = await manager.findOne(Component, {
           where: { type: definition.type, useYn: YesNo.YES },
         });
@@ -1790,7 +1799,12 @@ export class AiDashboardService {
         const dataset = await manager.save(Dataset, {
           title: definition.title,
           databaseId: draft.databaseId,
-          query: sourceQuery(definition.sql, []).sql,
+          query:
+            definition.timeGrain && definition.timeGrain !== 'auto'
+              ? prepared.queries.find(
+                  query => query.kind === 'widget' && query.widgetIndex === widgetIndex,
+                ).sql
+              : sourceQuery(definition.sql, []).sql,
         });
         widgets.push(
           await manager.save(Widget, {

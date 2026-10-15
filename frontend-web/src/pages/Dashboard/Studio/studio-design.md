@@ -42,3 +42,8 @@ StudioDesignPreview는 가상 데이터·상태를 소유하고 StudioShell은 p
 인증된 `/dashboard/:dashboardId/studio`와 기존 보기 진입을 추가했다. Studio 문서/history에는 SQL/rows를 넣지 않고 owner-only catalog/preview로 실제 기존 renderer를 사용한다. legacy h2 숫자는 compact exact formatter, Studio 차트에는 WidgetViewer.hideHeader를 명시해 빈 제목 공간과 축 잘림을 없앤다. 이 옵션 기본값false로 기존 화면은 유지한다.
 
 저장은 클릭 시에만 실행하고 같은 요청 재시도·명시적인 3방향 충돌 재적용을 제공한다. 모바일 conflict action44px/줄바꿈을 국소 적용했다. 새 블록은 기존 정의 복제만 가능하며 전체 삭제 후에도 baseline 정의로 다시 추가할 수 있다. 생성/AI/게시를 동작하는 것처럼 표시하지 않는다. 실제 검증과 제한은 T4 MD 기록을 참조한다.
+
+
+## T5 실제 선택 AI 패널
+
+단일 입력·선택 문맥(블록/전체 기간/필터 없음/집계/UTC/요청 모델), 실제 대기·중지, 초안 적용/보호/오류 안내를 기존 Studio 보조 패널에 연결했다. AI SDK useChat와 기존 완성 응답 transport를 재사용하며 가짜 토큰 스트리밍·자동 저장/게시 없음. MUI 유지, 새 의존성 없음. 모바일 outlined 입력 라벨은 shrink로 내용과 분리하고 전송/중지44px, 데스크톱36px. 최종1440/768/390px·키보드·포커스·overflow0/라벨 수치를 MD T5에 기록. 차트 애니메이션 중간 캡처는 최종 수치 디자인 판정에서 제외. 실제 모델은 gpt-6-luna 지정 요청3개이며 Rill139만행 동등성·실기기·VoiceOver 완료를 의미하지 않는다.

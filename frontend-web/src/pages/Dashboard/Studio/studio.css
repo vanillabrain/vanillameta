@@ -169,3 +169,17 @@
 /* Width changes must update position and size together, without transient card overlap. */
 .studio-edit-grid .react-grid-item { transition:none; }
 .studio-edit-grid .react-grid-item.react-draggable-dragging { z-index:4; }
+
+/* Live assistant stays within the same panel rhythm and mobile touch targets. */
+.studio-live-ai { min-height:0; }
+.studio-live-ai .studio-ai-content { padding:20px; min-width:0; }
+.studio-ai-messages { display:flex; flex-direction:column; gap:12px; margin:20px 0; min-width:0; }
+.studio-ai-message { padding:12px; border:1px solid var(--studio-border); border-radius:10px; background:#f8fafc; overflow-wrap:anywhere; }
+.studio-ai-message > span { font-size:11px; font-weight:650; color:var(--studio-muted); }
+.studio-ai-message p { margin:6px 0 0; white-space:pre-wrap; }
+.studio-ai-user { background:#edf4fc; }
+.studio-live-ai .MuiAlert-root { margin-top:12px; font-size:12px; overflow-wrap:anywhere; }
+.studio-live-ai .studio-ai-composer { background:#fff; position:sticky; bottom:0; }
+.studio-live-ai .studio-ai-composer > div:last-child { gap:12px; flex-wrap:wrap; }
+.studio-live-ai .MuiButton-root { min-height:36px; }
+@media(max-width:899px) { .studio-live-ai .MuiButton-root { min-height:44px; } }

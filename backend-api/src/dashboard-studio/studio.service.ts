@@ -123,6 +123,111 @@ export class StudioService {
       ...(previewError ? { previewError } : {}),
     };
   }
+  private async validateCurrentReferences(
+    block: StudioDocumentV1['blocks'][number],
+    sourceId: number,
+    schemaVersion: string,
+    schema: any[],
+    manager = this.db.manager,
+  ) {
+    for (const ref of block.measureRefs) {
+      const metric = await manager.findOne(Metric, {
+        where: { id: ref.id, databaseId: sourceId, useYn: 'Y' },
+      });
+      let definition: any;
+      try {
+        definition = metric && JSON.parse(metric.definition);
+      } catch {}
+      if (
+        !definition ||
+        definition.schemaVersion !== 1 ||
+        definition.sourceId !== sourceId ||
+        String(definition.definitionVersion) !== ref.definitionVersion
+      )
+        throw new ConflictException('지표 정의가 변경되었습니다. 최신 지표를 다시 확인해 주세요.');
+    }
+    for (const ref of block.dimensionRefs)
+      if (ref.schemaVersion !== schemaVersion || !schema.some(c => c.column_name === ref.key))
+        throw new ConflictException('소스 열 구성이 변경되었습니다. 다시 불러와 주세요.');
+  }
+  /** Owner-only unsaved document preview. SQL and references are resolved from the current server catalog. */
+  async prepare(id: number, body: any, actor: number) {
+    await this.access.dashboard(id, actor);
+    const analysis = (await this.ai.analysis(id, actor, true)).data;
+    return this.connection.withDuckDBSnapshot(analysis.databaseId, async () => {
+      const current = await this.load(id, actor);
+      if (
+        current.document.revision !== body.expectedRevision ||
+        current.sourceRevision !== body.expectedSourceRevision
+      )
+        throw new ConflictException(
+          '기준 데이터가 변경되었습니다. 내 편집을 보존한 채 최신 내용을 확인해 주세요.',
+        );
+      let document: StudioDocumentV1;
+      try {
+        document = validateStudioDocument(body.document);
+      } catch {
+        throw new BadRequestException('AI에 전달할 문서를 확인해 주세요.');
+      }
+      if (
+        document.dashboardId !== id ||
+        document.sourceId !== current.document.sourceId ||
+        !document.blocks.length ||
+        (document.revision && document.revision !== body.expectedRevision)
+      )
+        throw new BadRequestException('AI 요청의 대시보드와 소스를 확인해 주세요.');
+      const widgets = await Promise.all(
+        document.blocks.map(async block => {
+          const original =
+            current.document.blocks.find(b => b.id === block.id) ??
+            (isTemporaryStudioId(block.id)
+              ? current.document.blocks.find(b => b.definitionKey === block.definitionKey)
+              : undefined);
+          if (
+            !original ||
+            original.kind !== block.kind ||
+            original.definitionKey !== block.definitionKey ||
+            studioDigest(original.measureRefs) !== studioDigest(block.measureRefs) ||
+            studioDigest(original.dimensionRefs) !== studioDigest(block.dimensionRefs)
+          )
+            throw new BadRequestException('기존 계산과 지표 연결을 유지해 주세요.');
+          await this.validateCurrentReferences(
+            block,
+            document.sourceId,
+            current.schemaVersion,
+            current.schema,
+          );
+          const template = current.definitions.entries[block.definitionKey].widget;
+          return {
+            ...template,
+            ...block.display,
+            blockId: isTemporaryStudioId(block.id) ? undefined : block.id,
+            title: block.title,
+            description: block.description,
+          };
+        }),
+      );
+      const draft = {
+        databaseId: document.sourceId,
+        title: document.title,
+        explanation: current.analysis.explanation,
+        widgets,
+      };
+      const preview = (await this.ai.preview({ draft, includeTrends: true }, actor)).data;
+      // A requested temporal transformation must be supported, not a silent fallback.
+      preview.widgets.forEach((widget, i) => {
+        if (
+          document.blocks[i].display.timeGrain &&
+          document.blocks[i].display.timeGrain !== 'auto' &&
+          widget.grainUnavailable
+        )
+          throw new BadRequestException(
+            '이 차트는 요청한 시간 단위로 안전하게 집계할 수 없습니다. 기존 내용을 유지했습니다.',
+          );
+      });
+      return { document, preview };
+    });
+  }
   async save(id: number, body: any, actor: number) {
     // Serialize Studio transactions for the single SQLite connection; DB CAS/unique keys remain authoritative.
     if (this.queued >= 32)
@@ -225,30 +330,13 @@ export class StudioService {
               throw new BadRequestException(
                 '기존 블록의 계산 정의와 참조를 유지해 주세요. 새 지표 생성은 아직 지원하지 않습니다.',
               );
-            for (const ref of block.measureRefs) {
-              const metric = await manager.findOne(Metric, {
-                where: { id: ref.id, databaseId: document.sourceId, useYn: 'Y' },
-              });
-              let definition: any;
-              try {
-                definition = metric && JSON.parse(metric.definition);
-              } catch {}
-              if (
-                !definition ||
-                definition.schemaVersion !== 1 ||
-                definition.sourceId !== document.sourceId ||
-                String(definition.definitionVersion) !== ref.definitionVersion
-              )
-                throw new ConflictException(
-                  '지표 정의가 변경되었습니다. 최신 지표를 다시 확인해 주세요.',
-                );
-            }
-            for (const ref of block.dimensionRefs)
-              if (
-                ref.schemaVersion !== current.schemaVersion ||
-                !current.schema.some(c => c.column_name === ref.key)
-              )
-                throw new ConflictException('소스 열 구성이 변경되었습니다. 다시 불러와 주세요.');
+            await this.validateCurrentReferences(
+              block,
+              document.sourceId,
+              current.schemaVersion,
+              current.schema,
+              manager,
+            );
             const template = current.analysis.widgets[index];
             widgets.push({
               ...template,

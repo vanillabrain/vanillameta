@@ -126,8 +126,13 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
       );
       dimensionKeys.add(dimension.key);
     }
-    studioKeys(block.display, ['decimalPlaces', 'numberNotation', 'prefix', 'suffix']);
+    studioKeys(block.display, ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain']);
     const display = block.display;
+    if (display.timeGrain !== undefined)
+      studioAssert(
+        block.kind === 'CHART_LINE' && ['auto', 'day', 'week', 'month'].includes(display.timeGrain),
+        'Invalid Studio time grain.',
+      );
     if (display.decimalPlaces !== undefined) {
       studioAssert(
         Number.isSafeInteger(display.decimalPlaces) &&

@@ -36,6 +36,7 @@ type Props = {
   editToolbar: React.ReactNode;
   history: { canUndo: boolean; canRedo: boolean; count: number; onUndo: () => void; onRedo: () => void };
   product?: StudioProductContext;
+  conversation?: React.ReactNode;
 };
 export default function StudioShell({
   document: doc,
@@ -50,6 +51,7 @@ export default function StudioShell({
   status,
   onStatusChange,
   product,
+  conversation,
 }: Props) {
   const start = !product && stage === 'start';
   const compact = useMediaQuery('(max-width:899px)');
@@ -66,57 +68,57 @@ export default function StudioShell({
           <CloseOutlined fontSize="small" />
         </Button>
       </div>
-      {panel === 'ai' ? (
-        <div className="studio-ai">
-          <div className="studio-ai-content">
-            <span className="studio-ai-avatar">
-              <AutoAwesomeOutlined fontSize="small" />
-            </span>
-            <h2>함께 다듬어 보세요</h2>
-            <p>
-              데이터와 현재 대시보드를 바탕으로
-              <br />
-              원하는 변경을 요청할 수 있습니다.
-            </p>
-            <div className="studio-context-card">
-              <span className="studio-eyebrow">현재 문맥</span>
-              <strong>{product ? product.source : doc.source}</strong>
-              <span>{product ? product.aiBlockSummary : '총매출 · 환불액 · 순매출'}</span>
-              <span>{product ? product.period : doc.period + ' · 모든 채널'}</span>
-            </div>
-            <div className="studio-suggestion">“환불액이 큰 채널을 보여 줘”</div>
-            <div className="studio-suggestion">“이 차트를 주간으로 바꿔 줘”</div>
-            <p className="studio-panel-note">
-              {product ? (
-                product.aiNote
-              ) : (
-                <>
-                  AI 연결 전의 배치 시안입니다.
+      {panel === 'ai'
+        ? conversation ?? (
+            <div className="studio-ai">
+              <div className="studio-ai-content">
+                <span className="studio-ai-avatar">
+                  <AutoAwesomeOutlined fontSize="small" />
+                </span>
+                <h2>함께 다듬어 보세요</h2>
+                <p>
+                  데이터와 현재 대시보드를 바탕으로
                   <br />
-                  실제 요청은 전송되지 않습니다.
-                </>
-              )}
-            </p>
-          </div>
-          <div className="studio-ai-composer">
-            <TextField
-              fullWidth
-              multiline
-              minRows={3}
-              label="AI에게 요청할 내용"
-              placeholder="변경하고 싶은 내용을 입력하세요"
-            />
-            <div>
-              <span>{product ? 'AI 수정은 다음 단계에서 연결됩니다' : '시안 · 전송 불가'}</span>
-              <Button disabled variant="contained">
-                전송
-              </Button>
+                  원하는 변경을 요청할 수 있습니다.
+                </p>
+                <div className="studio-context-card">
+                  <span className="studio-eyebrow">현재 문맥</span>
+                  <strong>{product ? product.source : doc.source}</strong>
+                  <span>{product ? product.aiBlockSummary : '총매출 · 환불액 · 순매출'}</span>
+                  <span>{product ? product.period : doc.period + ' · 모든 채널'}</span>
+                </div>
+                <div className="studio-suggestion">“환불액이 큰 채널을 보여 줘”</div>
+                <div className="studio-suggestion">“이 차트를 주간으로 바꿔 줘”</div>
+                <p className="studio-panel-note">
+                  {product ? (
+                    product.aiNote
+                  ) : (
+                    <>
+                      AI 연결 전의 배치 시안입니다.
+                      <br />
+                      실제 요청은 전송되지 않습니다.
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className="studio-ai-composer">
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={3}
+                  label="AI에게 요청할 내용"
+                  placeholder="변경하고 싶은 내용을 입력하세요"
+                />
+                <div>
+                  <span>{product ? 'AI 수정은 다음 단계에서 연결됩니다' : '시안 · 전송 불가'}</span>
+                  <Button disabled variant="contained">
+                    전송
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      ) : (
-        inspector
-      )}
+          )
+        : inspector}
     </aside>
   );
   return (

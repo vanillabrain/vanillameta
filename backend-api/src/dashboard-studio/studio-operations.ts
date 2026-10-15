@@ -106,7 +106,13 @@ export function applyStudioOperation(
       studioKeys(op.patch, CONTENT_FIELDS);
       const display = block.display;
       if (Object.prototype.hasOwnProperty.call(op.patch, 'display')) {
-        studioKeys(op.patch.display, ['decimalPlaces', 'numberNotation', 'prefix', 'suffix']);
+        studioKeys(op.patch.display, [
+          'decimalPlaces',
+          'numberNotation',
+          'prefix',
+          'suffix',
+          'timeGrain',
+        ]);
       }
       Object.assign(block, op.patch);
       block.display = { ...display, ...op.patch.display };

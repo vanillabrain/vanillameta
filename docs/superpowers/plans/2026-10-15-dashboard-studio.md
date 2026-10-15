@@ -30,7 +30,7 @@
 
 ## 범위·진행 원칙
 
-T1은 합성 fixture의 선택 디자인/상호작용 범위로 구현·검증했다. [실행 기록](../../testing/dashboard-studio.md)을 참조한다. T2는 순수 계약/변경 이력·adapter 범위로 구현·검증했다. T3는 합성 문서의 실제 로컬 편집·반응형 범위로 구현·검증했다. T4는 실제 DuckDB 저장·복원/충돌·선택 UI 범위로 구현·검증했다. T5~T10은 PLANNED / NOT_RUN이다. 화면 배치·API는 구현 전에 관련 코드와 좁은 계약 검사를 확인한다. 다수 기능을 한 번에 작성하고 마지막에 검증하지 않는다. 아래 T 하나가 구현·검증·변경 기록·리뷰·커밋의 단위다. 선행 조건이 통과하면 다음 작업으로 진행하며 형식적인 승인 질문을 반복하지 않는다. 사용자 취소/실제 권한·파괴적 경계가 있으면 해당 조건을 따른다.
+T1은 합성 fixture의 선택 디자인/상호작용 범위로 구현·검증했다. [실행 기록](../../testing/dashboard-studio.md)을 참조한다. T2는 순수 계약/변경 이력·adapter 범위로 구현·검증했다. T3는 합성 문서의 실제 로컬 편집·반응형 범위로 구현·검증했다. T4는 실제 DuckDB 저장·복원/충돌·선택 UI 범위로 구현·검증했다. T5는 선택 블록 AI 수정·실제 지정 LLM/3폭·저장 연동 범위로 구현·검증했다. T6~T10은 PLANNED / NOT_RUN이다. 화면 배치·API는 구현 전에 관련 코드와 좁은 계약 검사를 확인한다. 다수 기능을 한 번에 작성하고 마지막에 검증하지 않는다. 아래 T 하나가 구현·검증·변경 기록·리뷰·커밋의 단위다. 선행 조건이 통과하면 다음 작업으로 진행하며 형식적인 승인 질문을 반복하지 않는다. 사용자 취소/실제 권한·파괴적 경계가 있으면 해당 조건을 따른다.
 
 기존 numeric/chart와 단일 소스 분석을 첫 구현에 사용한다. 기존 생성기의 1~6 위젯 한도는 첫 시연에 적용하며 UI에 숨기지 않는다. 모든 블록 종류·다중 소스·대규모 보드 지원을 첫 시연 완료로 주장하지 않는다. 이 한도가 실제 수용 흐름을 막을 때 해당 compiler 계약과 함께 확장한다. 임의 코드 실행·새 chart engine·실시간 공동 편집·커넥터 확대는 제외한다. 텍스트/표/필터 블록은 T6에서 기존 렌더러 지원 범위를 확인하고 미지원 종류는 별도 승인된 구현 단위로 남긴다.
 
@@ -127,13 +127,15 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 **Files:** StudioConversation.tsx/studioApi.ts, 신규 studio-run.service.ts, 기존 assistantTransport.ts와 ai-dashboard.service.ts의 명시 adapter; 대응 tests.
 
-**Interfaces:** `POST /studio/runs {requestId,conversationId?,dashboardId?,expectedRevision?,prompt,selectedBlockId?,sourceId?,clientEditVersion?,parentRunId?,clarificationAnswers?}` → `{runId,steps[],proposedOperations,baseRevision,clarifications?}`. 단계 상태 queued/running/succeeded/failed/cancelled. clarification 응답은 새 requestId와 parentRunId로 제출하고 원 요청의 payload를 바꾸지 않는다. 기존 AI SDK transport를 재사용하고 문서/연산 실행과 스트림 UI를 구분.
+**Interfaces (원안, 아래 T5 실행 계약으로 구체화):** `POST /studio/runs {requestId,conversationId?,dashboardId?,expectedRevision?,prompt,selectedBlockId?,sourceId?,clientEditVersion?,parentRunId?,clarificationAnswers?}` → `{runId,steps[],proposedOperations,baseRevision,clarifications?}`. 단계 상태 queued/running/succeeded/failed/cancelled. clarification 응답은 새 requestId와 parentRunId로 제출하고 원 요청의 payload를 바꾸지 않는다. 기존 AI SDK transport를 재사용하고 문서/연산 실행과 스트림 UI를 구분.
 
-- [ ] 단일 입력에서 질문/수정 의도를 내부로 분류. UI의 ask/edit 모드 선행 선택 제거. 선택 블록 ID·현재 필터/기간·source revision 전달. 현재 지원되지 않는 생성/게시 의도는 미지원으로 표시하고 실행 성공으로 답하지 않음.
-- [ ] LLM은 임의 React 코드를 쓰는 대신 검증할 operations를 제안. 수동편집중 응답의 baseRevision/local edit generation이 달라지면 적용 금지. 다른 블록 ID/계산/layout을 서버에서 대조.
-- [ ] 취소·timeout·잘못된 operation·409·응답도착전 manual move tests. 관련 assistant/identity 검사만 선택 실행.
-- [ ] STUDIO-A01: 직접 이동 후 실 gpt-6-luna로 ‘선택 차트만 주간으로’, 비대상/배치 유지·undo 확인. 실제 LLM 불가 시 BLOCKED, stub을 실제 성공으로 대체하지 않음.
-- [ ] 커밋. 명확한 수정 요청은 검증 후 로컬 초안에 적용하고 undo 제공. 저장/게시를 요청하지 않았으면 서버 persisted 결과를 자동 변경하지 않음.
+- [x] 단일 입력에서 질문/수정 의도를 내부로 분류. UI의 ask/edit 모드 선행 선택 제거. 선택 블록 ID·현재 필터/기간·source revision 전달. 현재 지원되지 않는 생성/게시 의도는 미지원으로 표시하고 실행 성공으로 답하지 않음.
+- [x] LLM은 임의 React 코드를 쓰는 대신 검증할 operations를 제안. 수동편집중 응답의 baseRevision/local edit generation이 달라지면 적용 금지. 다른 블록 ID/계산/layout을 서버에서 대조.
+- [x] 취소·timeout·잘못된 operation·409·응답도착전 manual move tests. 관련 assistant/identity 검사만 선택 실행.
+- [x] STUDIO-A01: 직접 이동 후 실 gpt-6-luna로 ‘선택 차트만 주간으로’, 비대상/배치 유지·undo 확인. 실제 LLM 불가 시 BLOCKED, stub을 실제 성공으로 대체하지 않음.
+- [x] 커밋. 명확한 수정 요청은 검증 후 로컬 초안에 적용하고 undo 제공. 저장/게시를 요청하지 않았으면 서버 persisted 결과를 자동 변경하지 않음.
+
+**T5 실행 계약/판정:** 기존 대시보드 편집의 document·dashboardId·expectedRevision·expectedSourceRevision·clientEditVersion은 필수로 구체화했다. 생성/대화 영속/clarification parent 연결은 T6/T7에서 구현한다. 단계 상태의 이벤트 스트리밍은 후속이며 현재는 실제 대기·취소 UI와 완료 검증 결과를 반환한다. 선택 연산은 updateBlock 제목/설명/표시만 허용하고 CHART_LINE timeGrain은 기존 서버 안전 집계를 사용한다. Studio의 현재 기간/필터는 전체/없음으로 명시했다. STUDIO-A01 실제3요청·표본5행, 보호/장애/수동 경쟁·3폭/키보드 및 한계는 docs/testing/dashboard-studio.md의 T5 기록 참조. 과거 전체 케이스 통과를 소급하지 않는다. 다음 실행 T6.
 
 ### T6: 내 데이터·샘플에서 같은 Studio 생성 (P2 / FR-008)
 
@@ -203,7 +205,7 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 - FR-007:T5/T7/T8, FR-008:T6, FR-009:T2/T3/T5, FR-010:T1/T3/T4, FR-011:T8, FR-012:T9. UC-005 A1:T6, A2:T4/T5, A3:T7/T8, A4:T9, A5:T8.
 - 현재 지원 블록 종류/1~6 한도, single-source, live 미지원, 미저장 새로고침 복구 미지원, VoiceOver BLOCKED를 명시했다. 이 제한이 실제 TC-005를 막으면 해당 단계는 부분 완료로 남긴다.
-- T1의 선택 시안·세 폭과 T2 순수 계약 검증이 완료됐고 다음 실행은 T3다. 전체 작업량/기간은 T2 adapter 영향 확인 전 확정하지 않는다. 성능·공수 절감 수치를 근거 없이 약속하지 않는다.
+- T1~T5의 각 선택 범위 구현·검증이 완료됐고 다음 실행은 T6다. 전체 작업량/기간은 T2 adapter 영향 확인 전 확정하지 않는다. 성능·공수 절감 수치를 근거 없이 약속하지 않는다.
 
 ## T2 실행 중 확정한 계약 보완
 

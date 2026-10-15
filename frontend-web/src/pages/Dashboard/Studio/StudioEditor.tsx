@@ -17,6 +17,8 @@ import { analysisOptions } from '../analysisOptions';
 import { formatMetric } from '@/utils/formatMetric';
 import MetricTrend from '../Components/MetricTrend';
 import StudioCanvas, { studioItemHeight } from './StudioCanvas';
+import StudioConversation from './StudioConversation';
+import { StudioRunContext, StudioRunResult } from './studioRunTransport';
 import StudioInspector from './StudioInspector';
 import StudioShell, { StudioDesignDocument, StudioProductContext } from './StudioShell';
 import { applyStudioOperation, createStudioState, studioReducer } from './studioReducer';
@@ -48,7 +50,7 @@ import './studio.css';
 
 const MAX_STUDIO_BLOCKS = 6;
 const TREND_MIN_HEIGHT = 260;
-const DISPLAY_FIELDS = ['decimalPlaces', 'numberNotation', 'prefix', 'suffix'] as const;
+const DISPLAY_FIELDS = ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain'] as const;
 const breakpointLabel = (breakpoint: StudioBreakpoint) =>
   breakpoint === 'xs' ? '모바일' : breakpoint === 'md' ? '태블릿' : '데스크톱';
 
@@ -332,6 +334,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   const pendingRequest = useRef<StudioSaveRequest | null>(null);
   const [sourceRevision, setSourceRevision] = useState(initial.sourceRevision);
 
+  const [aiRows, setAiRows] = useState<Record<string, StudioPreviewRow>>({});
+  const editClock = useRef({ document: state.present, generation: 0 });
+  if (editClock.current.document !== state.present) {
+    editClock.current = { document: state.present, generation: editClock.current.generation + 1 };
+  }
+
   // Breakpoints follow the window, not the canvas: an open panel must not silently change the batch.
   const desktop = useMediaQuery('(min-width:1200px)');
   const tablet = useMediaQuery('(min-width:600px)');
@@ -382,6 +390,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
       setPreview(next.preview);
       setPreviewError(next.previewError);
       setSourceRevision(next.sourceRevision);
+      setAiRows({});
     } catch (error) {
       setPreviewError(error instanceof Error ? error.message : '저장은 완료됐지만 미리보기를 새로 불러오지 못했습니다.');
     }
@@ -517,7 +526,8 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   };
 
   const renderBlock = (block: StudioBlock) => {
-    const row = resolveBlockPreview({ block, definitions, preview });
+    const row =
+      aiRows[block.id + '|' + (block.display.timeGrain ?? 'auto')] ?? resolveBlockPreview({ block, definitions, preview });
     if (!row)
       return (
         <div role="status" style={{ padding: '12px 2px', fontSize: 13, color: '#586579' }}>
@@ -655,9 +665,32 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     },
     banner,
     aiBlockSummary: state.present.blocks.map(block => block.title).join(' · ') || '아직 블록이 없습니다',
-    aiNote: 'AI 블록 수정은 다음 단계에서 연결됩니다. 지금은 전송할 수 없습니다.',
+    aiNote: '선택 블록의 변경은 검증 후 초안에만 적용됩니다.',
   };
 
+  const runContext: StudioRunContext = {
+    dashboardId,
+    document: state.present,
+    expectedRevision: state.serverRevision ?? '',
+    expectedSourceRevision: sourceRevision,
+    clientEditVersion: editClock.current.generation,
+    ...(state.selectedBlockId ? { selectedBlockId: state.selectedBlockId } : {}),
+  };
+  const applyAi = (result: StudioRunResult) => {
+    if (!applyOperations(result.proposedOperations)) return false;
+    const next = result.proposedOperations.reduce(applyStudioOperation, state.present);
+    setAiRows(previous => ({
+      ...previous,
+      ...Object.fromEntries(
+        next.blocks.map((block, index) => [
+          block.id + '|' + (block.display.timeGrain ?? 'auto'),
+          result.preview.widgets[index],
+        ]),
+      ),
+    }));
+    setMessage('AI가 선택 블록을 수정했습니다. 저장 전 초안입니다. 되돌리기로 취소할 수 있습니다.');
+    return true;
+  };
   const templates = [
     ...state.present.blocks,
     ...state.savedBaseline.blocks.filter(block => !state.present.blocks.some(current => current.id === block.id)),
@@ -754,6 +787,14 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
           onRedo: () => dispatch({ type: 'redo' }),
         }}
         product={product}
+        conversation={
+          <StudioConversation
+            context={runContext}
+            selectedTitle={selected?.title}
+            onApply={applyAi}
+            locked={saving || !!state.pendingSave || !!conflict}
+          />
+        }
         canvas={
           <StudioCanvas
             document={state.present}
