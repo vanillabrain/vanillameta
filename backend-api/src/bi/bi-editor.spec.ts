@@ -142,7 +142,9 @@ describe('BiService dashboard editor boundaries', () => {
     jest.spyOn(service, 'metrics').mockImplementation(async () => availableMetrics);
   });
 
-  it('loads the owned, revisioned baseline and exposes presentation without raw SQL', async () => {
+  // UC-017 supersedes the earlier "no raw SQL" reading: the owner-only editor GET carries the
+  // read-only saved widget snapshot, while the save body still never trusts it.
+  it('loads the owned, revisioned baseline with presentation and the read-only saved snapshot', async () => {
     const result = await service.editor(String(dashboardId), actor);
     expect(access.assert).toHaveBeenCalledWith('dashboard', String(dashboardId), actor);
     expect(dashboards.analysis).toHaveBeenCalledWith(dashboardId, actor, true);
@@ -171,6 +173,36 @@ describe('BiService dashboard editor boundaries', () => {
     });
     expect(result).not.toHaveProperty('analysis');
     expect(result.items[0]).not.toHaveProperty('sql');
+    expect(result.items[0].savedDefinition).toEqual(analysis.widgets[0]);
+    expect(result.items[0].savedDefinition.sql).toBe(originalSql);
+  });
+
+  it('returns the raw saved definition exactly and ignores a forged one on save', async () => {
+    const editor = await service.editor(String(dashboardId), actor);
+    expect(editor.items[0].savedDefinition).toEqual({
+      title: 'Original filtered total',
+      description: 'Original description',
+      type: 'BOARD_NUMERIC',
+      sql: originalSql,
+      valueField: 'value',
+      suffix: ' kg',
+      decimalPlaces: 1,
+      numberNotation: 'compact',
+    });
+
+    await service.saveEditor(
+      dashboardId,
+      body({
+        items: [
+          {
+            ...editor.items[0],
+            savedDefinition: { ...analysis.widgets[0], sql: 'SELECT 1 AS value FROM forged' },
+          },
+        ],
+      }),
+      actor,
+    );
+    expect(dashboards.save.mock.calls[0][0].draft.widgets[0].sql).toBe(originalSql);
   });
 
   it('compiles SUM/bar and COUNT/line plus a number with per-widget formats and atomic v2 snapshot', async () => {

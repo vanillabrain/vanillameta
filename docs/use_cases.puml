@@ -2,6 +2,7 @@
 left to right direction
 actor "운영 담당자" as operator
 rectangle "VanillaMeta" {
+ usecase "UC-017\nEditor Request Recovery" as UC017
  usecase "UC-016\nBatch Block Edit" as UC016
  usecase "UC-015\nPrompt Block Target" as UC015
  usecase "UC-014\nExplicit Prompt Save" as UC014
@@ -29,4 +30,5 @@ operator --> UC003
 operator --> UC002
 operator --> UC001
 operator --> UC016
+operator --> UC017
 @enduml

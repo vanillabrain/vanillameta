@@ -28,6 +28,7 @@ import { analysisOptions } from '../analysisOptions';
 import { AnalysisUiProvider, analysisToggleSx } from '@/components/analysis/AnalysisUi';
 import { validDraft, errorMessage } from '../dashboardPreview';
 import BlockLayoutCanvas, { validLayout } from './BlockLayoutCanvas';
+import { recoveryPlan, RECOVERY_DASHBOARD_TITLE_KEY } from './editorRecovery';
 import MetricTrend, { FormattedMetricTrendData } from '../Components/MetricTrend';
 
 type Column = { name: string; type: string; numeric: boolean; temporal: boolean };
@@ -44,6 +45,7 @@ type Item = {
   copyOf?: string;
   layouts?: Partial<Record<LayoutMode, Rect>>;
   kind: 'metric' | 'existing' | 'draft';
+  savedDefinition?: Item['definition'];
   definition?: {
     title: string;
     description: string;
@@ -90,10 +92,18 @@ type PreviewWidget = {
   numberNotation: string;
   datas: Record<string, unknown>[];
 };
-type Preview = { widgets: PreviewWidget[]; responsiveLayouts?: Record<LayoutMode, Record<string, Rect>> };
+type Preview = {
+  widgets: PreviewWidget[];
+  draft?: { widgets: Item['definition'][] };
+  responsiveLayouts?: Record<LayoutMode, Record<string, Rect>>;
+};
 const unwrap = <T,>(response: { data: { status: string; data: T } }): T => {
   if (response.data.status !== 'SUCCESS' || !response.data.data) throw new Error('Invalid response');
   return response.data.data;
+};
+const uncertainSave = (failure: unknown) => {
+  const status = (failure as { response?: { status?: number } })?.response?.status;
+  return !status || status >= 500;
 };
 const cellText = (value: unknown) =>
   value == null ? '—' : typeof value === 'object' ? JSON.stringify(value) : String(value);
@@ -182,6 +192,17 @@ function DashboardEditContent() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [conflict, setConflict] = useState(false);
+  const [unknownSave, setUnknownSave] = useState(false);
+  const [latest, setLatest] = useState<Editor | null>(null);
+  const [saveAttempt, setSaveAttempt] = useState<{ title: string; items: Item[] } | null>(null);
+  const recoveryRequired = conflict || unknownSave;
+  const recovery =
+    editor && latest
+      ? recoveryPlan({ title: editor.title, items: editor.items }, saveAttempt ?? { title: title.trim(), items }, {
+          title: latest.title,
+          items: latest.items,
+        })
+      : null;
   const [reloadDialog, setReloadDialog] = useState(false);
   const [reload, setReload] = useState(0);
   const [announcement, setAnnouncement] = useState('');
@@ -200,8 +221,10 @@ function DashboardEditContent() {
     request.current?.abort();
     setPreview(null);
     setBatchSummary([]);
+    setLatest(null);
+    setSaveAttempt(null);
     if (!layoutOnly) setLayoutPreview(null);
-    if (!conflict) setError('');
+    if (!recoveryRequired) setError('');
   };
   useEffect(() => {
     sequence.current += 1;
@@ -215,6 +238,9 @@ function DashboardEditContent() {
     setLayoutPreview(null);
     setError('');
     setConflict(false);
+    setUnknownSave(false);
+    setLatest(null);
+    setSaveAttempt(null);
     setNewMetricId('');
     setSelectedKey('');
     setTargetCandidates([]);
@@ -252,9 +278,9 @@ function DashboardEditContent() {
     (editor?.profile.columns ?? []).filter(
       column => chart !== 'line' || (column.temporal && /^(DATE|TIMESTAMP)/i.test(column.type)),
     );
-  const validItems = (values: Item[]) =>
-    !!title.trim() &&
-    title.trim().length <= 300 &&
+  const validItems = (values: Item[], nextTitle = title) =>
+    !!nextTitle.trim() &&
+    nextTitle.trim().length <= 300 &&
     values.length >= 1 &&
     values.length <= 6 &&
     values.every(
@@ -432,12 +458,95 @@ function DashboardEditContent() {
       height: item.height,
     })),
   });
+  // UC-017: preserve canonical SQL when editor materialization changes kind after save.
+  const freezeAttempt = (values: Item[], result: Preview | null) => ({
+    title: title.trim(),
+    items: values.map((item, index) => ({
+      ...item,
+      ...(result?.draft?.widgets?.[index] ? { savedDefinition: result.draft.widgets[index] } : {}),
+    })),
+  });
+  const checkSavedState = async () => {
+    if (pending.current || !editor || !recoveryRequired) return;
+    pending.current = true;
+    const token = sequence.current;
+    const abort = new AbortController();
+    request.current = abort;
+    setBusy('저장 상태 확인 중…');
+    setAnnouncement('');
+    setLatest(null);
+    try {
+      const result = unwrap<Editor>(
+        await get(`/bi/dashboards/${encodeURIComponent(dashboardId ?? '')}/editor`, undefined, { signal: abort.signal }),
+      );
+      if (token !== sequence.current) return;
+      if (
+        result.dashboardId !== editor.dashboardId ||
+        result.sourceId !== editor.sourceId ||
+        typeof result.revision !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(result.revision) ||
+        !Array.isArray(result.items) ||
+        !result.items.length ||
+        result.items.some(item => !item?.key) ||
+        new Set(result.items.map(item => item.key)).size !== result.items.length
+      )
+        throw new Error('Invalid recovery state');
+      setLatest(result);
+      setError('');
+      setAnnouncement('최신 저장 상태를 확인했습니다. 현재 초안은 유지됩니다.');
+    } catch {
+      if (token === sequence.current)
+        setError('저장 상태를 확인하지 못했습니다. 초안과 질문은 유지됩니다. 상태 확인을 다시 시도해 주세요.');
+    } finally {
+      if (token === sequence.current) {
+        pending.current = false;
+        setBusy('');
+      }
+    }
+  };
+  const applyRecovery = () => {
+    if (pending.current || !latest || !recovery || recovery.structural || recovery.same) return;
+    sequence.current += 1;
+    request.current?.abort();
+    const confirmed = recoveryPlan(
+      { title: editor.title, items: editor.items },
+      saveAttempt ?? { title: title.trim(), items },
+      { title: latest.title, items: latest.items },
+      recovery.conflicts.map(value => value.key ?? RECOVERY_DASHBOARD_TITLE_KEY),
+    );
+    if (
+      !validItems(confirmed.merged.items, confirmed.merged.title) ||
+      Object.keys(columns).some(mode => {
+        const rects = confirmed.merged.items.map(item => item.layouts?.[mode]);
+        return rects.every(Boolean) && !validLayout(rects, columns[mode]);
+      })
+    ) {
+      setError('합친 초안의 표시나 배치를 확인해 주세요. 현재 초안은 유지됩니다.');
+      return;
+    }
+    setEditor(latest);
+    setTitle(confirmed.merged.title);
+    setItems(confirmed.merged.items);
+    setPast([]);
+    setFuture([]);
+    setPreview(null);
+    setLayoutPreview(null);
+    setBatchSummary([]);
+    clearTarget();
+    setSelectedKey('');
+    setLatest(null);
+    setSaveAttempt(null);
+    setConflict(false);
+    setUnknownSave(false);
+    setError('');
+    setAnnouncement('최신 저장본에 내 변경을 합쳤습니다. 전체 미리보기를 다시 확인한 뒤 저장해 주세요.');
+  };
   const askAi = async () => {
     if (
       pending.current ||
       !editor ||
       !valid ||
-      conflict ||
+      recoveryRequired ||
       !aiPrompt.trim() ||
       (aiEditMode !== 'auto' && !items.some(item => item.key === selectedKey))
     )
@@ -620,6 +729,8 @@ function DashboardEditContent() {
         abort = new AbortController();
         request.current = abort;
         saving = true;
+        setSaveAttempt(freezeAttempt(nextItems, result.preview));
+        setLatest(null);
         setBusy('질문한 변경 결과 저장 중…');
         setAnnouncement('서버 미리보기를 확인했습니다. 명시한 저장 요청을 실행합니다.');
         const saved = unwrap<{ id: number; revision: string }>(
@@ -644,10 +755,12 @@ function DashboardEditContent() {
     } catch (failure) {
       if (token !== sequence.current) return;
       setAnnouncement('');
+      if (saving) setLatest(null);
       if ((failure as { response?: { status?: number } })?.response?.status === 409) {
         setConflict(true);
         setError('다른 변경이 저장되었습니다. 현재 초안은 유지됩니다. 최신 내용을 다시 불러와 주세요.');
       } else {
+        if (saving && uncertainSave(failure)) setUnknownSave(true);
         const payload = (
           failure as {
             response?: {
@@ -673,6 +786,8 @@ function DashboardEditContent() {
                   ? '전체 미리보기에 실패했습니다'
                   : '변경에 실패했습니다'
               }. 모든 변경을 적용하지 않았습니다. 질문을 수정한 뒤 다시 실행해 주세요.`
+            : saving && !uncertainSave(failure)
+            ? '저장 요청이 거절되었습니다. 초안은 유지됩니다. 입력과 미리보기를 확인해 주세요.'
             : saving
             ? '변경 결과는 미리보기했지만 저장 결과를 확인하지 못했습니다. 현재 초안은 유지됩니다. 최신 저장 상태를 확인한 뒤 다시 시도해 주세요.'
             : 'AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.',
@@ -691,16 +806,22 @@ function DashboardEditContent() {
     pending.current = false;
     setBusy('');
     clearTarget();
+    setError('');
     setAnnouncement('AI 요청을 취소했습니다. 현재 편집 내용은 유지됩니다.');
   };
   const run = async (save: boolean) => {
-    if (pending.current || !editor || !valid || conflict || (save && !preview)) return;
+    if (pending.current || !editor || !valid || recoveryRequired || (save && !preview)) return;
     pending.current = true;
     const token = sequence.current;
     const abort = new AbortController();
     request.current = abort;
     setBusy(save ? '대시보드 저장 중…' : '차트 결과 확인 중…');
+    setAnnouncement('');
     setError('');
+    if (save) {
+      setSaveAttempt(freezeAttempt(items, preview));
+      setLatest(null);
+    }
     if (!save) setPreview(null);
     const body = editorBody();
     try {
@@ -712,7 +833,7 @@ function DashboardEditContent() {
       if (token !== sequence.current) return;
       if (save) {
         const result = unwrap<{ id: number; revision: string }>(response);
-        if (!Number.isInteger(result.id) || result.id <= 0) throw new Error('Invalid response');
+        if (!Number.isInteger(result.id) || result.id !== editor.dashboardId) throw new Error('Invalid response');
         navigate(`/dashboard/${result.id}`);
       } else {
         const result = unwrap<Preview>(response);
@@ -734,12 +855,16 @@ function DashboardEditContent() {
             ' 현재 편집 내용은 유지됩니다. 최신 내용을 다시 불러온 뒤 편집해 주세요.',
         );
       } else if (errorMessage(failure).startsWith('블록 배치')) setError(errorMessage(failure));
-      else
+      else {
+        if (save && uncertainSave(failure)) setUnknownSave(true);
         setError(
-          save
-            ? '저장하지 못했습니다. 편집 내용은 유지됩니다. 연결 상태를 확인하고 저장을 다시 시도해 주세요.'
+          save && !uncertainSave(failure)
+            ? '저장 요청이 거절되었습니다. 초안은 유지됩니다. 입력과 미리보기를 확인해 주세요.'
+            : save
+            ? '저장 결과를 확인하지 못했습니다. 현재 초안은 유지됩니다. 저장 상태를 확인한 뒤 다시 시도해 주세요.'
             : '미리보기를 불러오지 못했습니다. 편집 내용은 유지됩니다. 미리보기를 다시 시도해 주세요.',
         );
+      }
     } finally {
       if (token === sequence.current) {
         pending.current = false;
@@ -771,6 +896,52 @@ function DashboardEditContent() {
         <Alert severity="error" sx={{ my: 2 }}>
           {error}
         </Alert>
+      )}
+      {recoveryRequired && editor && (
+        <Box
+          component="section"
+          aria-label="저장 복구"
+          sx={{ my: 2, p: 1.5, border: '1px solid #e2e8f0', borderRadius: '4px', minWidth: 0 }}
+        >
+          <Typography sx={{ fontSize: 12, mb: 1, overflowWrap: 'anywhere' }}>
+            {conflict
+              ? '최신 저장본과 충돌했습니다. 내 초안과 질문을 보존했습니다.'
+              : '저장 여부가 아직 확실하지 않습니다. 같은 요청을 바로 다시 저장하지 않습니다.'}
+          </Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Button variant="outlined" disabled={!!busy} onClick={() => void checkSavedState()}>
+              저장 상태 확인
+            </Button>
+            {recovery?.same && (
+              <Button disabled={!!busy} onClick={() => navigate(`/dashboard/${editor.dashboardId}`)}>
+                저장된 화면 보기
+              </Button>
+            )}
+            {recovery && !recovery.same && !recovery.structural && (
+              <Button variant="outlined" disabled={!!busy} onClick={applyRecovery}>
+                {recovery.conflicts.length ? '충돌 항목에 내 변경 사용' : '내 변경과 최신본 합치기'}
+              </Button>
+            )}
+          </Stack>
+          {recovery && (
+            <Typography sx={{ mt: 1, fontSize: 12, overflowWrap: 'anywhere' }}>
+              {recovery.same
+                ? '현재 초안과 같은 내용이 이미 저장되어 있습니다. 다시 저장할 필요가 없습니다.'
+                : recovery.structural
+                ? '블록 구성이나 순서가 달라 자동으로 합칠 수 없습니다. 초안은 유지됩니다. 최신본을 확인한 뒤 다시 편집해 주세요.'
+                : recovery.conflicts.length
+                ? '아래 항목은 양쪽에서 다르게 수정했습니다. 내 변경을 사용하면 해당 항목의 최신 변경을 대체합니다. 나머지 최신 변경은 유지합니다.'
+                : '서로 다른 항목의 변경을 합칠 수 있습니다. 합친 뒤 전체 미리보기를 다시 확인하세요.'}
+            </Typography>
+          )}
+          {recovery &&
+            !recovery.structural &&
+            recovery.conflicts.map((value, index) => (
+              <Typography key={index} sx={{ mt: 0.5, fontSize: 12, overflowWrap: 'anywhere' }}>
+                {value.label}
+              </Typography>
+            ))}
+        </Box>
       )}
       <Button disabled={!!busy} onClick={() => (editor ? setReloadDialog(true) : setReload(value => value + 1))}>
         최신 내용 다시 불러오기
@@ -854,7 +1025,7 @@ function DashboardEditContent() {
                 disabled={
                   !!busy ||
                   !valid ||
-                  conflict ||
+                  recoveryRequired ||
                   !aiPrompt.trim() ||
                   (aiEditMode !== 'auto' && !items.some(item => item.key === selectedKey))
                 }
@@ -1180,10 +1351,14 @@ function DashboardEditContent() {
             </Stack>
           </Box>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ my: 3 }}>
-            <Button variant="outlined" disabled={!!busy || !valid || conflict} onClick={() => void run(false)}>
+            <Button variant="outlined" disabled={!!busy || !valid || recoveryRequired} onClick={() => void run(false)}>
               변경 결과 미리보기
             </Button>
-            <Button variant="contained" disabled={!!busy || !preview || !valid || conflict} onClick={() => void run(true)}>
+            <Button
+              variant="contained"
+              disabled={!!busy || !preview || !valid || recoveryRequired}
+              onClick={() => void run(true)}
+            >
               변경 내용 저장
             </Button>
           </Stack>
@@ -1204,7 +1379,7 @@ function DashboardEditContent() {
                 items={items}
                 mode={layoutMode}
                 saved={displayPreview.responsiveLayouts}
-                disabled={!!busy || conflict}
+                disabled={!!busy || recoveryRequired}
                 onCommit={rects =>
                   change(
                     title,

@@ -96,6 +96,13 @@ vi.mock('@mui/material', async () => {
 const success = (data: unknown) => ({ data: { status: 'SUCCESS', data } });
 const item = {
   key: 'old',
+  savedDefinition: {
+    title: '기존 계산',
+    description: '',
+    type: 'BOARD_NUMERIC',
+    sql: 'SELECT SUM(amount) AS value FROM source',
+    valueField: 'value',
+  },
   kind: 'existing',
   title: '기존 계산',
   chart: 'number',
@@ -392,6 +399,7 @@ it('prevents duplicate requests, drops old replies on route change and navigates
   fireEvent.click(screen.getByRole('button', { name: '변경 결과 미리보기' }));
   expect(api.post).toHaveBeenCalledTimes(1);
   api.id = '9';
+  api.get.mockResolvedValueOnce(success({ ...editor, dashboardId: 9 }));
   view.rerender(<DashboardEdit />);
   await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
   await act(async () => resolvePreview(success(preview())));
@@ -422,16 +430,16 @@ it('drops obsolete save responses after navigation and prevents double save requ
   expect(api.navigate).not.toHaveBeenCalled();
 });
 
-it('keeps existing dimensions and draft on ordinary save failure, then allows a deliberate retry', async () => {
+it('UC-017 keeps existing dimensions and locks retry until an uncertain save is checked', async () => {
   api.get.mockResolvedValueOnce(success({ ...editor, items: [{ ...item, chart: 'bar', dimension: 'category' }] }));
   await mount();
   await requestPreview();
   expect(api.post.mock.calls[0][1].items[0]).toMatchObject({ kind: 'existing', chart: 'bar', dimension: 'category' });
   api.post.mockRejectedValueOnce({ response: { status: 500 } });
   fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
-  await screen.findByText(/저장하지 못했습니다/);
+  await screen.findByText(/저장 결과를 확인하지 못했습니다/);
   expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe('기존 계산');
-  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
 });
 
 it.each([
@@ -660,7 +668,7 @@ it('UC-014 saves the current draft after a save-only preview without selecting a
   expect(api.post.mock.calls[1][1]).toMatchObject({ title: '직접 수정한 초안', expectedRevision: editor.revision });
 });
 
-it('UC-014 freezes the AI result for saving and preserves it with preview after save failure', async () => {
+it('UC-017 freezes AI result then checks latest state before save retry', async () => {
   await mount();
   fireEvent.click(screen.getByRole('button', { name: '1번 차트 AI로 수정' }));
   fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '평균으로 바꾸고 저장해 줘' } });
@@ -677,12 +685,16 @@ it('UC-014 freezes the AI result for saving and preserves it with preview after 
   });
   expect(api.navigate).not.toHaveBeenCalled();
   expect(screen.getByRole('heading', { name: '1번 차트 · AI 평균' })).not.toBeNull();
-  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
   expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(false);
+  api.get.mockResolvedValueOnce(success(editor));
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  fireEvent.click(await screen.findByRole('button', { name: '내 변경과 최신본 합치기' }));
+  await requestPreview();
   api.post.mockResolvedValueOnce(success({ id: 8, revision: 'next' }));
   fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
   await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
-  expect(api.post.mock.calls[2][1].items[0]).toMatchObject({ title: 'AI 평균', definition: aiResult().item.definition });
+  expect(api.post.mock.calls[3][1].items[0]).toMatchObject({ title: 'AI 평균', definition: aiResult().item.definition });
 });
 
 it('UC-014 cancellation before preview response prevents the requested follow-up save', async () => {
@@ -1079,7 +1091,7 @@ it('UC-016 layout results cannot overwrite other-width layouts, content or an un
   });
 });
 
-it('UC-016 retains the entire validated batch after a save error, then permits manual retry', async () => {
+it('UC-017 retains the batch after uncertain save and requires state check before retry', async () => {
   const { result } = batchFixture();
   await mount();
   api.post.mockResolvedValueOnce(success({ ...result, saveRequested: true }));
@@ -1091,10 +1103,21 @@ it('UC-016 retains the entire validated batch after a save error, then permits m
   expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe('일괄 1');
   expect((screen.getByLabelText('2번 차트 제목') as HTMLInputElement).value).toBe('일괄 2');
   expect(api.navigate).not.toHaveBeenCalled();
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  api.get.mockResolvedValueOnce(
+    success({
+      ...editor,
+      items: [item, { ...item, key: 'second', title: '두 번째' }, { ...item, key: 'third', title: '유지' }],
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  await screen.findByRole('button', { name: '내 변경과 최신본 합치기' });
+  fireEvent.click(screen.getByRole('button', { name: '내 변경과 최신본 합치기' }));
+  await requestPreview(3);
   api.post.mockResolvedValueOnce(success({ id: 8 }));
   fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
   await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
-  expect(api.post.mock.calls[2][1]).toEqual(api.post.mock.calls[1][1]);
+  expect(api.post.mock.calls[3][1].items.map(value => value.title)).toEqual(['일괄 1', '일괄 2', '유지']);
 });
 it('UC-016 discards all late batch results after cancellation without history or save', async () => {
   const { originals, result } = batchFixture();
@@ -1154,4 +1177,131 @@ it('UC-016 an identical batch does not claim changes or add an undo entry', asyn
   await screen.findByText('요청 결과가 현재 초안과 같습니다. 변경 없이 전체 미리보기했습니다.');
   expect(screen.queryByText('전체 변경 2개 · 함께 저장할 수 있습니다')).toBeNull();
   expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('UC-017 merges local title with remote non-target change after a real-shaped 409 without clearing the question', async () => {
+  const second = { ...item, key: 'second', title: '두 번째' };
+  api.get.mockResolvedValueOnce(success({ ...editor, items: [item, second] }));
+  await mount();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '초안 질문 유지' } });
+  fireEvent.change(screen.getByLabelText('1번 차트 제목'), { target: { value: '내 제목' } });
+  await requestPreview(2);
+  api.post.mockRejectedValueOnce({ response: { status: 409 } });
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await screen.findByRole('button', { name: '저장 상태 확인' });
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe('내 제목');
+  api.get.mockResolvedValueOnce(
+    success({ ...editor, revision: 'b'.repeat(64), items: [item, { ...second, unit: '달러' }] }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  fireEvent.click(await screen.findByRole('button', { name: '내 변경과 최신본 합치기' }));
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe('내 제목');
+  expect((screen.getByLabelText('2번 차트 단위') as HTMLInputElement).value).toBe('달러');
+  expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toBe('초안 질문 유지');
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(true);
+  await requestPreview(2);
+  expect(api.post.mock.calls[2][1].expectedRevision).toBe('b'.repeat(64));
+});
+it('UC-017 same-field conflict requires explicit local choice and retains other server fields', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('1번 차트 제목'), { target: { value: '내 제목' } });
+  await requestPreview();
+  api.post.mockRejectedValueOnce({ response: { status: 409 } });
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await screen.findByRole('button', { name: '저장 상태 확인' });
+  api.get.mockResolvedValueOnce(
+    success({ ...editor, revision: 'b'.repeat(64), items: [{ ...item, title: '최신 제목', unit: 'USD' }] }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  await screen.findByRole('button', { name: '충돌 항목에 내 변경 사용' });
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe('내 제목');
+  expect(screen.queryByRole('button', { name: '내 변경과 최신본 합치기' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '충돌 항목에 내 변경 사용' }));
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe('내 제목');
+  expect((screen.getByLabelText('1번 차트 단위') as HTMLInputElement).value).toBe('USD');
+});
+it('UC-017 lost committed response is resolved by GET and never repeats a write', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '저장된 제목' } });
+  await requestPreview();
+  api.post.mockRejectedValueOnce({ code: 'ECONNABORTED' });
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await screen.findByRole('button', { name: '저장 상태 확인' });
+  expect((screen.getByRole('button', { name: 'AI 요청 실행' }) as HTMLButtonElement).disabled).toBe(true);
+  api.get.mockResolvedValueOnce(success({ ...editor, title: '저장된 제목', revision: 'b'.repeat(64) }));
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  fireEvent.click(await screen.findByRole('button', { name: '저장된 화면 보기' }));
+  expect(api.post).toHaveBeenCalledTimes(2);
+  expect(api.navigate).toHaveBeenCalledWith('/dashboard/8');
+});
+it('UC-017 failed check preserves draft and lock; a subsequent edit invalidates its comparison', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '보존할 제목' } });
+  await requestPreview();
+  api.post.mockRejectedValueOnce(new Error('lost'));
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await screen.findByRole('button', { name: '저장 상태 확인' });
+  api.get.mockRejectedValueOnce(new Error('offline'));
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  await screen.findByText('저장 상태를 확인하지 못했습니다. 초안과 질문은 유지됩니다. 상태 확인을 다시 시도해 주세요.');
+  expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('보존할 제목');
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  api.get.mockResolvedValueOnce(success({ ...editor, title: '보존할 제목', revision: 'b'.repeat(64) }));
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  await screen.findByRole('button', { name: '저장된 화면 보기' });
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '다시 편집' } });
+  expect(screen.queryByRole('button', { name: '저장된 화면 보기' })).toBeNull();
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+});
+it('UC-017 structural conflict never offers automatic merge and keeps local blocks', async () => {
+  await mount();
+  await requestPreview();
+  api.post.mockRejectedValueOnce({ response: { status: 409 } });
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await screen.findByRole('button', { name: '저장 상태 확인' });
+  api.get.mockResolvedValueOnce(
+    success({ ...editor, revision: 'b'.repeat(64), items: [item, { ...item, key: 'new', title: '새 블록' }] }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  await screen.findByText(
+    '블록 구성이나 순서가 달라 자동으로 합칠 수 없습니다. 초안은 유지됩니다. 최신본을 확인한 뒤 다시 편집해 주세요.',
+  );
+  expect(screen.queryByRole('button', { name: '내 변경과 최신본 합치기' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: /^2번 차트/ })).toBeNull();
+});
+it('UC-017 definite validation rejection is distinct from unknown save and keeps draft editable', async () => {
+  await mount();
+  await requestPreview();
+  api.post.mockRejectedValueOnce({
+    response: { status: 400, data: { success: false, code: 400, data: 'valueField must be numeric' } },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await screen.findByText('저장 요청이 거절되었습니다. 초안은 유지됩니다. 입력과 미리보기를 확인해 주세요.');
+  expect(screen.queryByRole('button', { name: '저장 상태 확인' })).toBeNull();
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(false);
+});
+it('UC-017 ignores a state-check response from the previous dashboard route', async () => {
+  const view = await mount();
+  await requestPreview();
+  api.post.mockRejectedValueOnce(new Error('lost'));
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await screen.findByRole('button', { name: '저장 상태 확인' });
+  let complete: (value: unknown) => void;
+  api.get.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        complete = resolve;
+      }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  api.id = '9';
+  api.get.mockResolvedValueOnce(success({ ...editor, dashboardId: 9, title: '새 화면' }));
+  view.rerender(<DashboardEdit />);
+  await waitFor(() => expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('새 화면'));
+  await act(async () => {
+    complete(success({ ...editor, title: '묵은 응답' }));
+  });
+  expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('새 화면');
+  expect(screen.queryByRole('button', { name: '저장된 화면 보기' })).toBeNull();
 });

@@ -299,6 +299,7 @@ export class BiService {
         decimalPlaces: widget.decimalPlaces ?? 0,
         numberNotation: widget.numberNotation === 'compact' ? 'compact' : 'plain',
         width: sizes?.width ?? (layout[index]?.w === 6 ? 6 : 12),
+        savedDefinition: widget,
         height:
           sizes?.height ??
           ([3, 5, 7].includes(layout[index]?.h) ? layout[index].h : chart === 'number' ? 3 : 5),
