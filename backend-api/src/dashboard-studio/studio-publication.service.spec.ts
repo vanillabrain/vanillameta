@@ -16,6 +16,7 @@ import { StudioPublication, StudioPublicationRequest } from './entities/studio-p
 import { StudioPublicationService } from './studio-publication.service';
 import { StudioRun } from './entities/studio-run.entity';
 import { studioDigest } from './studio-legacy';
+import { applyStudioOperation } from './studio-operations';
 import { StudioService } from './studio.service';
 import { SourceAccessService } from '../ownership/source-access.service';
 import * as fs from 'fs';
@@ -425,5 +426,66 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
         7,
       ),
     ).rejects.toMatchObject({ status: 400 });
+  });
+  it('publishes the typed categorical scope with its filtered rows and keeps no-filter snapshots compatible', async () => {
+    const legacy = await publish('legacy-scope-' + id);
+    const unscoped = (await publications.read(legacy.token)).snapshot;
+    expect(unscoped.filters).toEqual([]);
+    expect(unscoped.blocks[0].datas).toEqual([{ value: 500 }]);
+
+    const document = applyStudioOperation((await studio.get(id, 7)).document, {
+      type: 'setFilters',
+      filters: [{ column: 'category', values: ['Site'] }],
+    });
+    await save(document, 'scope-save-' + id);
+    const scoped = await publish('scope-publish-' + id);
+    const snapshot = (await publications.read(scoped.token)).snapshot;
+    // Displayed scope metadata is the exact validated primitive filter list.
+    expect(snapshot.filters).toEqual([{ column: 'category', values: ['Site'] }]);
+    expect(snapshot.blocks[0].datas).toEqual([{ value: 300 }]);
+    expect(snapshot.blocks[1].datas).toEqual([{ category: 'Site', value: 300 }]);
+    for (const key of ['sql', 'sourceId', 'databaseId', 'dashboardId', 'connectionConfig'])
+      expect(JSON.stringify(snapshot)).not.toContain('"' + key + '"');
+  });
+
+  it('publishes the exact date scope and keeps an absent scope all-time', async () => {
+    const state = await studio.get(id, 7);
+    const document = {
+      ...state.document,
+      dateRange: {
+        column: 'event_time',
+        start: '2026-01-01',
+        end: '2026-01-01',
+        timeZone: 'Asia/Seoul',
+      },
+    };
+    const sanitize = (value: any) => (publications as any).sanitize(value, state.preview);
+    const scoped = sanitize(document);
+    expect(scoped.dateRange).toEqual(document.dateRange);
+    expect(scoped.periodLabel).toBe('2026-01-01 ~ 2026-01-01 (Asia/Seoul)');
+    const stamped = sanitize({
+      ...document,
+      dateRange: {
+        column: 'event_time',
+        start: '2026-01-01T00:00:00Z',
+        end: '2026-01-02T00:00:00Z',
+        precision: 'timestamp',
+      },
+    });
+    expect(stamped.dateRange).toEqual({
+      column: 'event_time',
+      start: '2026-01-01T00:00:00Z',
+      end: '2026-01-02T00:00:00Z',
+      precision: 'timestamp',
+    });
+    expect(stamped.periodLabel).toBe(
+      '2026-01-01T00:00:00Z ~ 2026-01-02T00:00:00Z (UTC, 종료 미포함)',
+    );
+    expect(() =>
+      sanitize({ ...document, dateRange: { ...document.dateRange, start: '2026-01-02' } }),
+    ).toThrow();
+    const plain = sanitize(state.document);
+    expect(plain.periodLabel).toBe('전체 기간');
+    expect(Object.prototype.hasOwnProperty.call(plain, 'dateRange')).toBe(false);
   });
 });

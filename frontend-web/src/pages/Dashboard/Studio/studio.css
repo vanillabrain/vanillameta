@@ -391,3 +391,80 @@
 @media(max-width:599px) { .studio-published-actions { margin-left: 0; width: 100%; } }
 
 .vm-studio .studio-remix-continue.MuiButton-root { min-height:44px; white-space:normal; }
+
+/* T12: one compact panel scopes every block; the confirmed scope is always labelled next to it. */
+.studio-filter-panel { border:1px solid var(--studio-border); border-radius:10px; background:white; padding:10px 14px; margin-bottom:16px; }
+.studio-filter-panel-header { display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0; }
+.studio-filter-panel-header .studio-filter-toggle.MuiButton-root { border:1px solid #d6dee8; color:#34445a; }
+.studio-filter-scope { font-size:11px; color:var(--studio-muted); overflow-wrap:anywhere; min-width:0; }
+.studio-filter-pending { font-size:11px; color:#8a5a00; background:#fff6e5; border:1px solid #f0dcb0; border-radius:5px; padding:3px 8px; overflow-wrap:anywhere; }
+.studio-filter-panel-body { display:grid; gap:12px; margin-top:12px; padding-top:12px; border-top:1px solid var(--studio-border); }
+.studio-filter-help { font-size:11px; color:var(--studio-muted); line-height:1.7; }
+.studio-filter-alert { font-size:12px; align-items:center; }
+.studio-filter-message { font-size:11px; color:var(--studio-muted); }
+.studio-filter-add { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.studio-filter-add .MuiTextField-root { min-width:180px; }
+.studio-filter-count { font-size:11px; color:var(--studio-muted); }
+.studio-filter-group { border:1px solid var(--studio-border); border-radius:8px; padding:10px 12px; min-width:0; }
+.studio-filter-group-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.studio-filter-group-head strong { font-size:12px; overflow-wrap:anywhere; }
+.studio-filter-group-head > span { font-size:11px; color:var(--studio-muted); }
+.studio-filter-group-head > .MuiButton-root { margin-left:auto; }
+.studio-filter-values { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:0 12px; max-height:200px; overflow:auto; margin-top:6px; }
+.studio-filter-value.MuiFormControlLabel-root { margin:0; min-height:36px; }
+.studio-filter-value .MuiFormControlLabel-label { font-size:12px; overflow-wrap:anywhere; }
+.studio-filter-empty, .studio-filter-incomplete { font-size:11px; color:#8a5a00; margin-top:6px; }
+.studio-filter-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.studio-filter-actions .MuiButton-root:last-child { margin-left:auto; }
+.studio-filter-dirty { font-size:11px; color:var(--studio-muted); }
+@media(max-width:899px) { .studio-filter-panel .MuiButton-root { min-height:36px; } }
+@media(max-width:599px) {
+ .studio-filter-panel { padding:10px 12px; }
+ .studio-filter-panel .MuiButton-root { min-height:44px; }
+ /* A long choice list scrolls inside the group so the panel stays compact and the canvas stays visible. */
+ .studio-filter-values { grid-template-columns:minmax(0,1fr); max-height:260px; overflow:auto; }
+ .studio-filter-value.MuiFormControlLabel-root { min-height:44px; }
+ .studio-filter-add, .studio-filter-actions { align-items:stretch; flex-direction:column; gap:8px; }
+ .studio-filter-add .MuiTextField-root, .studio-filter-add select { width:100%; min-width:0; min-height:44px; }
+ .studio-filter-actions .MuiButton-root { width:100%; margin-left:0; }
+ .studio-filter-value .MuiFormControlLabel-label { overflow-wrap:anywhere; }
+}
+/* Published snapshot scope chips reuse the same readonly filter type as the editable document. */
+.studio-published-filters { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:12px 0 4px; }
+.studio-published-filters > .studio-eyebrow { margin-right:2px; }
+.studio-published-filter { border:1px solid #dfe6ef; border-radius:999px; background:white; padding:4px 12px; font-size:12px; overflow-wrap:anywhere; }
+@media(max-width:599px) { .studio-published-filters { align-items:flex-start; } .studio-published-filter { width:100%; border-radius:10px; } }
+
+/* Period controls share the compact Studio surface; narrow layouts keep full hit targets. */
+.studio-date-range { border:1px solid var(--studio-border); border-radius:10px; background:white; padding:12px 14px; margin-bottom:12px; min-width:0; }
+.studio-date-range h3 { font-size:12px; font-weight:650; }
+.studio-date-range p, .studio-date-range small { font-size:12px; color:var(--studio-muted); overflow-wrap:anywhere; }
+.studio-date-range label { display:flex; flex-direction:column; gap:5px; min-width:0; color:#526176; font-size:11px; }
+.studio-date-range input, .studio-date-range select { width:100%; min-width:0; min-height:36px; border:0; border-radius:0; padding:6px 10px; background:transparent; color:#24364b; font-size:inherit; }
+.studio-date-range input:focus-visible, .studio-date-range select:focus-visible { outline:2px solid var(--studio-accent); outline-offset:2px; }
+.studio-date-range .MuiButton-root { min-height:36px; }
+@media(max-width:599px) {
+ .studio-date-range { padding:12px; }
+ .studio-date-range input, .studio-date-range select, .studio-date-range .MuiButton-root { min-height:44px; }
+ .studio-date-range input[type=date] { appearance:none; max-width:100%; }
+}
+.studio-date-range-header { display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0; }
+.studio-date-range-header .studio-date-range-toggle.MuiButton-root { border:1px solid #d6dee8; color:#34445a; }
+.studio-date-range-scope { font-size:11px; color:var(--studio-muted); overflow-wrap:anywhere; min-width:0; }
+.studio-date-range-body { display:grid; gap:12px; margin-top:12px; padding-top:12px; border-top:1px solid var(--studio-border); }
+.studio-date-range-fields { display:grid; grid-template-columns:minmax(180px,1.3fr) repeat(2,minmax(150px,1fr)); gap:12px; align-items:center; min-width:0; }
+.studio-date-range-fields .MuiTextField-root { min-width:0; width:100%; }
+.studio-date-range-fields .MuiInputBase-root { min-height:36px; font-size:13px; }
+.studio-date-range-fields .MuiSelect-select { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.studio-date-range-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.studio-date-range-actions .studio-date-range-apply { margin-left:auto; }
+.studio-date-range-dirty, .studio-date-range-hint { font-size:11px; color:var(--studio-muted); overflow-wrap:anywhere; }
+.studio-date-range-pending { font-size:11px; color:#8a5a00; overflow-wrap:anywhere; }
+@media(max-width:899px) { .studio-date-range-fields { grid-template-columns:repeat(2,minmax(0,1fr)); } .studio-date-range-column { grid-column:1/-1; } }
+@media(max-width:599px) {
+ .studio-date-range-fields { grid-template-columns:minmax(0,1fr); }
+ .studio-date-range-fields .MuiInputBase-root { min-height:44px; font-size:14px; }
+ .studio-date-range-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+ .studio-date-range-actions .studio-date-range-dirty { grid-column:1/-1; }
+ .studio-date-range-actions .studio-date-range-apply { grid-column:1/-1; width:100%; margin-left:0; }
+}

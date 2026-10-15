@@ -1,4 +1,10 @@
-import { StudioBlockKind, StudioDisplay, StudioDocumentV1 } from './studio-contract';
+import {
+  StudioBlockKind,
+  StudioDateRange,
+  StudioDisplay,
+  StudioDocumentV1,
+  StudioFilter,
+} from './studio-contract';
 export type RemixRequiredField = { name: string; type: string; blockIds: string[] };
 export type RemixBlock = {
   id: string;
@@ -10,6 +16,8 @@ export type RemixBlock = {
 export type RemixTemplate = {
   schemaVersion: 1;
   title: string;
+  filters?: StudioFilter[];
+  dateRange?: StudioDateRange;
   requiredFields: RemixRequiredField[];
   blocks: Array<
     RemixBlock & {
@@ -46,6 +54,8 @@ export type RemixRequirements = {
   token: string;
   version: number;
   title: string;
+  filters: StudioFilter[];
+  dateRange?: StudioDateRange;
   requiredFields: RemixRequiredField[];
   blocks: RemixBlock[];
 };
@@ -68,6 +78,10 @@ export type RemixPreview = RemixRequirements & {
   };
   mapping: Record<string, string>;
   fields: RemixField[];
+  mappedFilters: StudioFilter[];
+  unmappedFilters: string[];
+  mappedDateRange?: StudioDateRange;
+  unmappedDateRange?: string;
   unmappedBlocks: Array<{
     blockId: string;
     title: string;

@@ -40,8 +40,37 @@ import SourceDetails, {
   sameContributionDateRange,
 } from './SourceDetails';
 import { TimeSelection, timeRangeLabel, validTimeRange } from './timeSelection';
+import { validateStudioFilters, validateStudioDateRange } from '../Studio/studioDocument';
 
 const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
+export type DefaultFilterParse =
+  | { kind: 'none' }
+  | { kind: 'filters'; filters: { column: string; values: FilterValue[] }[] }
+  | { kind: 'invalid' };
+/**
+ * Server-owned default scope from the structured definition. Only an absent or empty list means
+ * "no filters": a malformed list is authoritative and fails closed, so the screen never shows a
+ * whole or partially filtered dataset while the saved scope is unknown.
+ */
+export const parseDefaultFilters = (input: unknown): DefaultFilterParse => {
+  if (input === undefined) return { kind: 'none' };
+  if (Array.isArray(input) && input.length === 0) return { kind: 'none' };
+  try {
+    return { kind: 'filters', filters: validateStudioFilters(input) as { column: string; values: FilterValue[] }[] };
+  } catch {
+    return { kind: 'invalid' };
+  }
+};
+export const parseDefaultDateRange = (
+  input: unknown,
+): { kind: 'none' } | { kind: 'range'; dateRange: DateRange } | { kind: 'invalid' } => {
+  if (input === undefined) return { kind: 'none' };
+  try {
+    return { kind: 'range', dateRange: validateStudioDateRange(input) };
+  } catch {
+    return { kind: 'invalid' };
+  }
+};
 const displayedDates = (range: DateRange | null): DateRange =>
   range?.precision === 'timestamp'
     ? {
@@ -101,6 +130,9 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
   const [analysisRefresh, setAnalysisRefresh] = useState(0);
   const canonicalRefreshDone = useRef(0);
   const [categoryNotice, setCategoryNotice] = useState('');
+  /** The saved common scope exists but cannot be read: the screen fails closed until it is resolved. */
+  const [definitionError, setDefinitionError] = useState('');
+  const [definitionRetry, setDefinitionRetry] = useState(0);
   const detailsButton = useRef<HTMLButtonElement>(null);
   const assistantButton = useRef<HTMLButtonElement>(null);
   const serial = useRef(0);
@@ -131,6 +163,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
       setPeriodHistory([]);
       setRecentDays(7);
       setDateError('');
+      setDefinitionError('');
       setBusy(false);
       setError('');
       setEditing(false);
@@ -145,15 +178,51 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
         if (response.data.status === 'SUCCESS') {
           if (analysisRefresh && (typeof response.data.data?.revision !== 'string' || !response.data.data.revision.trim()))
             throw new Error('저장된 대시보드 정의의 버전을 확인할 수 없습니다. 다시 조회해 주세요.');
+          const firstLoad = loadedDashboard.current !== dashboardId;
+          const defaults = parseDefaultFilters(response.data.data?.defaultFilters);
+          const defaultDateRange = parseDefaultDateRange(response.data.data?.defaultDateRange);
+          if (defaults.kind === 'invalid' || defaultDateRange.kind === 'invalid') {
+            // Never query an unverified scope: this screen keeps the saved definition authoritative
+            // and offers a retry instead of rendering a whole or partially filtered dataset.
+            canonicalRefreshDone.current = analysisRefresh;
+            setDefinitionError(
+              '저장된 날짜 범위·공통 필터 조건을 확인할 수 없습니다. 조건을 확인할 때까지 데이터를 조회하지 않습니다. 대시보드 정의를 다시 조회해 주세요.',
+            );
+            return;
+          }
           canonicalRefreshDone.current = analysisRefresh;
           loadedDashboard.current = dashboardId;
           setDraft(response.data.data);
+          setDefinitionError('');
+          // The server-owned default scope applies on the first load of this dashboard only, and it
+          // never overwrites a filter the user already chose (including one applied during the fetch).
+          if (firstLoad && defaultDateRange.kind === 'range') {
+            setDateRange(current => current ?? defaultDateRange.dateRange);
+            setDateDraft(current => (current.start || current.end ? current : displayedDates(defaultDateRange.dateRange)));
+          }
+          if (firstLoad && defaults.kind === 'filters')
+            setFilters(current =>
+              Object.keys(current).length
+                ? current
+                : Object.fromEntries(defaults.filters.map(filter => [filter.column, filter.values])),
+            );
         } else if (analysisRefresh) {
           throw new Error('저장된 대시보드 정의를 다시 읽지 못했습니다. 전체 데이터로 복구하거나 화면을 다시 열어 주세요.');
         }
         // Ordinary dashboards remain usable if their sources cannot support common filters.
       })
-      .catch(() => {
+      .catch(cause => {
+        if (
+          request === loadSerial.current &&
+          (cause?.response?.data?.code === 'INVALID_STUDIO_SCOPE' ||
+            cause?.response?.data?.data?.code === 'INVALID_STUDIO_SCOPE')
+        ) {
+          canonicalRefreshDone.current = analysisRefresh;
+          setDefinitionError(
+            '저장된 날짜 범위·공통 필터 조건을 확인할 수 없습니다. 조건을 확인할 때까지 데이터를 조회하지 않습니다. 대시보드 정의를 다시 조회해 주세요.',
+          );
+          return;
+        }
         if (request === loadSerial.current && analysisRefresh) {
           setError('저장된 대시보드 정의를 다시 읽지 못했습니다. 화면을 다시 열어 주세요.');
           setBusy(false);
@@ -166,7 +235,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
     return () => {
       loadSerial.current += 1;
     };
-  }, [dashboardId, revision, analysisRefresh]);
+  }, [dashboardId, revision, analysisRefresh, definitionRetry]);
   useEffect(() => {
     onAssistantOpenChange?.(editing);
   }, [editing, onAssistantOpenChange]);
@@ -179,6 +248,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
   useEffect(() => {
     if (
       !draft ||
+      definitionError ||
       loadedDashboard.current !== dashboardId ||
       analysisLoading ||
       canonicalRefreshDone.current !== analysisRefresh
@@ -246,6 +316,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
     previewRefresh,
     analysisLoading,
     analysisRefresh,
+    definitionError,
   ]);
 
   useEffect(() => () => pendingFocusIntent.current?.cancel(), []);
@@ -303,6 +374,15 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
   }, [busy, analysisLoading, error, preview, filters, dashboardId, detailsOpen, editing]);
   if (!draft) {
     contributionInteraction.current = { disabled: true, preview: null, periodKey: '' };
+    // A malformed saved scope must not fall through to the ordinary viewer: that would show the
+    // whole dataset under a dashboard whose common filters are unknown.
+    if (definitionError)
+      return (
+        <Alert severity="warning" role="alert">
+          {definitionError}
+          <Button onClick={() => setDefinitionRetry(value => value + 1)}>대시보드 정의 다시 조회</Button>
+        </Alert>
+      );
     return <>{children}</>;
   }
   const dimensions = preview?.dimensions || [];

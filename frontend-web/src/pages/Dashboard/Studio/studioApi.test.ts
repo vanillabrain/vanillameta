@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchStudioDashboard,
   isStudioApiError,
+  prepareStudioDashboard,
   saveStudioDashboard,
   studioSaveBody,
   StudioSaveRequest,
   toStudioApiError,
+  validateStudioPreview,
 } from './studioApi';
 import { StudioDefinitions } from './studioAdapter';
 import { StudioBlock, StudioDocumentV1 } from './studioTypes';
@@ -156,5 +158,90 @@ describe('studio save boundary', () => {
     await expect(saveStudioDashboard(3, { ...request, expectedRevision: undefined })).rejects.toSatisfy(
       (error: unknown) => isStudioApiError(error) && error.kind === 'invalid',
     );
+  });
+});
+
+describe('studio common filter preview', () => {
+  const scope = [{ column: 'device_type', values: ['Mobile/Tablet', 1, true, null] }];
+  const previewPayload = (over: Record<string, unknown> = {}) => ({
+    draft: { databaseId: 4, title: '매출', explanation: '', widgets: [{ ...widgetRow, blockId: undefined }] },
+    widgets: [widgetRow],
+    ...over,
+  });
+  it('posts the exact preview body and returns the validated document with the preview', async () => {
+    api.post.mockResolvedValue({ data: { document: { ...document, filters: scope }, preview: previewPayload() } });
+    const prepared = await prepareStudioDashboard(3, {
+      expectedRevision: DOC_REVISION,
+      expectedSourceRevision: SOURCE_REVISION,
+      document: { ...document, filters: scope },
+    });
+    expect(api.post.mock.calls[0][0]).toBe('/studio/dashboards/3/preview');
+    expect(api.post.mock.calls[0][1]).toEqual({
+      expectedRevision: DOC_REVISION,
+      expectedSourceRevision: SOURCE_REVISION,
+      document: { ...document, filters: scope },
+    });
+    expect(prepared.document.filters).toEqual(scope);
+    expect(prepared.preview.widgets[0].datas).toEqual([{ total: 500 }]);
+  });
+  it('refuses to label rows from another scope as the requested one', async () => {
+    api.post.mockResolvedValue({ data: { document, preview: previewPayload() } });
+    await expect(
+      prepareStudioDashboard(3, { expectedSourceRevision: SOURCE_REVISION, document: { ...document, filters: scope } }),
+    ).rejects.toThrow(/다른 미리보기/);
+  });
+  it('keeps existing categorical choices usable and ignores only unusable option values', () => {
+    const preview = validateStudioPreview(
+      previewPayload({
+        dimensions: [
+          { column: 'device_type', values: ['Mobile/Tablet', 1, '1', true, null, { nested: 1 }] },
+          { column: 'empty_ok', values: [{ nested: 1 }] },
+        ],
+      }),
+    );
+    expect(preview.dimensions).toEqual([
+      { column: 'device_type', values: ['Mobile/Tablet', 1, '1', true, null] },
+      { column: 'empty_ok', values: [] },
+    ]);
+    expect(() =>
+      validateStudioPreview(
+        previewPayload({
+          dimensions: [
+            { column: 'a', values: [1] },
+            { column: 'a', values: [2] },
+          ],
+        }),
+      ),
+    ).toThrow(/중복/);
+  });
+  it('rejects a filter list the server would refuse before any request is sent', async () => {
+    await expect(
+      prepareStudioDashboard(3, {
+        expectedSourceRevision: SOURCE_REVISION,
+        document: { ...document, filters: [{ column: 'device_type', values: [] }] },
+      }),
+    ).rejects.toThrow();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+});
+
+describe('Studio date scope response boundary', () => {
+  const range = { column: '__time', start: '2023-09-10', end: '2023-09-11' };
+  const preview = { draft: { databaseId: 4, title: '매출', explanation: '', widgets: [widgetRow] }, widgets: [widgetRow] };
+  it('rejects an all-time reply to a dated preview request', async () => {
+    api.post.mockResolvedValue({ data: { document, preview } });
+    await expect(
+      prepareStudioDashboard(3, { expectedSourceRevision: SOURCE_REVISION, document: { ...document, dateRange: range } }),
+    ).rejects.toThrow(/날짜 범위/);
+  });
+  it('retains the exact date range and rejects duplicated temporal choices', async () => {
+    const dated = { ...document, dateRange: range };
+    api.post.mockResolvedValue({ data: { document: dated, preview } });
+    expect(
+      (await prepareStudioDashboard(3, { expectedSourceRevision: SOURCE_REVISION, document: dated })).document.dateRange,
+    ).toEqual(range);
+    expect(() =>
+      validateStudioPreview({ ...preview, temporalColumns: [{ column: '__time' }, { column: '__time' }] }),
+    ).toThrow(/날짜 열/);
   });
 });

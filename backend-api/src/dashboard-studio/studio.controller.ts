@@ -8,6 +8,13 @@ export class StudioController {
   @Get(':id') get(@Param('id', ParseIntPipe) id: number, @Req() req) {
     return this.studio.get(id, req.user?.accessKeyData?.id);
   }
+  @Post(':id/preview') preview(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+    @Req() req,
+  ) {
+    return this.studio.prepare(id, body, req.user?.accessKeyData?.id);
+  }
   @Post(':id/save') save(@Param('id', ParseIntPipe) id: number, @Body() body: any, @Req() req) {
     return this.studio.save(id, body, req.user?.accessKeyData?.id);
   }

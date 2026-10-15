@@ -10,6 +10,7 @@ import { StudioCreationService } from './studio-creation.service';
 import { StudioPublicationService } from './studio-publication.service';
 import { studioDigest } from './studio-legacy';
 import { studioKeys } from './studio-document';
+import { StudioDateRange, StudioFilter } from './studio-contract';
 import {
   RemixField,
   RemixPreview,
@@ -34,6 +35,8 @@ export class StudioRemixService {
       token,
       version,
       title: t.title,
+      filters: t.filters ?? [],
+      ...(t.dateRange ? { dateRange: { ...t.dateRange } } : {}),
       requiredFields: t.requiredFields,
       blocks: t.blocks.map(({ id, title, kind, supported, reason }) => ({
         id,
@@ -134,6 +137,24 @@ export class StudioRemixService {
         .map(f => [f.sourceColumn, f.targetColumn ?? '']),
     );
     const kept = t.blocks.filter(b => !body.excludedBlockIds.includes(b.id));
+    // Scope columns move to the target names the mapping already authorized; an unmapped
+    // scope column is reported instead of being applied partially.
+    const filters: StudioFilter[] = [];
+    const unmappedFilters: string[] = [];
+    const scopeTargets = new Map<string, string>();
+    for (const filter of t.filters ?? []) {
+      const targetColumn = mapping[filter.column];
+      if (targetColumn) {
+        if (scopeTargets.has(targetColumn))
+          throw new BadRequestException(
+            `공통 필터 ${scopeTargets.get(targetColumn)}와 ${
+              filter.column
+            }을 같은 대상 열에 연결할 수 없습니다. 각 필터에 서로 다른 열을 선택해 주세요.`,
+          );
+        scopeTargets.set(targetColumn, filter.column);
+        filters.push({ column: targetColumn, values: [...filter.values] });
+      } else unmappedFilters.push(filter.column);
+    }
     const unmappedBlocks = kept.flatMap(block => {
       const missingFields = fields
         .filter(
@@ -184,7 +205,27 @@ export class StudioRemixService {
             : {}),
         };
       });
-    return { fields, mapping, unmappedBlocks, blocks, kept };
+    // The published date scope only moves to a temporal target column the mapping authorized.
+    const dateField = t.dateRange
+      ? fields.find(f => f.sourceColumn === t.dateRange.column)
+      : undefined;
+    const dateTarget = dateField?.targetColumn
+      ? profile.columns.find(c => c.name === dateField.targetColumn)
+      : undefined;
+    const mappedDateRange: StudioDateRange | undefined =
+      t.dateRange && dateTarget?.temporal ? { ...t.dateRange, column: dateTarget.name } : undefined;
+    const unmappedDateRange = t.dateRange && !mappedDateRange ? t.dateRange.column : undefined;
+    return {
+      fields,
+      mapping,
+      unmappedBlocks,
+      blocks,
+      kept,
+      filters,
+      unmappedFilters,
+      mappedDateRange,
+      unmappedDateRange,
+    };
   }
   private safePreview(preview: any) {
     return {
@@ -231,24 +272,29 @@ export class StudioRemixService {
         await this.creation.ensureCurrentSource(body.targetSourceId, actor, this.db.manager);
         const t: RemixTemplate = JSON.parse(row.remixTemplate),
           mapped = this.map(t, body, profile);
-        const preview = mapped.blocks.length
-          ? this.safePreview(
-              (
-                await this.dashboards.preview(
-                  {
-                    draft: this.creation.compile(
-                      body.targetSourceId,
-                      t.title,
-                      mapped.blocks,
-                      profile,
-                    ),
-                    includeTrends: true,
-                  },
-                  actor,
-                )
-              ).data,
-            )
-          : undefined;
+        // Unmapped scope must never produce aggregates that look like the published scope applied.
+        // A scope the target cannot apply must never produce aggregates that look scoped.
+        const preview =
+          mapped.blocks.length && !mapped.unmappedFilters.length && !mapped.unmappedDateRange
+            ? this.safePreview(
+                (
+                  await this.dashboards.preview(
+                    {
+                      draft: this.creation.compile(
+                        body.targetSourceId,
+                        t.title,
+                        mapped.blocks,
+                        profile,
+                      ),
+                      filters: mapped.filters,
+                      ...(mapped.mappedDateRange ? { dateRange: mapped.mappedDateRange } : {}),
+                      includeTrends: true,
+                    },
+                    actor,
+                  )
+                ).data,
+              )
+            : undefined;
         await this.creation.ensureCurrentSource(body.targetSourceId, actor, this.db.manager);
         const latest = await this.creation.profile(body.targetSourceId, actor);
         if (
@@ -275,6 +321,10 @@ export class StudioRemixService {
           },
           mapping: mapped.mapping,
           fields: mapped.fields,
+          mappedFilters: mapped.filters,
+          unmappedFilters: mapped.unmappedFilters,
+          ...(mapped.mappedDateRange ? { mappedDateRange: mapped.mappedDateRange } : {}),
+          ...(mapped.unmappedDateRange ? { unmappedDateRange: mapped.unmappedDateRange } : {}),
           unmappedBlocks: mapped.unmappedBlocks,
           ...(preview ? { preview } : {}),
         };
@@ -326,6 +376,12 @@ export class StudioRemixService {
             throw new ConflictException('대상 소스가 변경되었습니다.');
           const t: RemixTemplate = JSON.parse(row.remixTemplate),
             mapped = this.map(t, body, profile);
+          if (mapped.unmappedFilters.length)
+            throw new BadRequestException('게시 범위 필터 열을 대상 소스 열로 매핑해 주세요.');
+          if (mapped.unmappedDateRange)
+            throw new BadRequestException(
+              '게시 기간의 날짜 열을 대상 소스의 같은 형식 날짜 열로 매핑해 주세요.',
+            );
           if (!mapped.kept.length || mapped.unmappedBlocks.length)
             throw new BadRequestException(
               '남길 블록의 모든 필수 열을 매핑하거나 해당 블록을 명시적으로 제외해 주세요.',
@@ -337,6 +393,8 @@ export class StudioRemixService {
             profile,
             actor,
             manager,
+            mapped.filters,
+            mapped.mappedDateRange,
           );
           // Recheck after save/aggregate awaits, including legacy metadata writes outside Studio's queue.
           await this.publications.requireRemix(token, actor, body.expectedVersion, manager);

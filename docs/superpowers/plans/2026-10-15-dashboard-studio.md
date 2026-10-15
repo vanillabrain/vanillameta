@@ -222,3 +222,27 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 - Ruling: 신뢰 가능한 서버 `assertStudioReferences` context는 sourceId/sourceSchemaVersion, definitionKeys, measureVersions, dimensionKeys다. 구조 검증과 소유권 확인을 동일시하지 않는다.
 - Ruling: 같은 프로토콜을 FE/BE에 독립 구현하고 고정 JSON 예제로 대조했다. 프로젝트 간 runtime import로 backend build root나 번들 경계를 바꾸지 않았다.
 - Ruling: 저장 응답은 제출 snapshot에만 대응한다. save-start/requestId를 이력과 별도로 기록하고 그 이후 편집은 dirty로 유지한다. T4는 이 계약을 실제 요청 수명주기에 연결한다.
+
+
+### T12: 범주 공통 필터의 초안·게시·복제 전파 (BR-002 / FR-007, 선택 범위 완료)
+
+관찰: Studio에는 필터 없음 라벨만 있어 사용자가 같은 조건으로 블록을 집계할 수 없었다. 기존 sourceQuery/분석 preview·worker를 재사용한다. 별도 SQL 생성기·의존성·날짜 범위 프로토콜은 추가하지 않는다.
+
+- [x] `StudioDocumentV1.filters?` / `setFilters`를 FE·BE에 독립 검증. 열5/값50, 명시 typed values, 저장 시 canonical SQL·참조·배치 유지.
+- [x] owner preview 경계와 source revision 확인·전체 블록 집계, 저장·GET·기존 보기 기본 범위, AI 실제 범위 전달.
+- [x] UI 명시 적용·undo/redo·늦은 응답 폐기·모바일/키보드·Rill 라벨 상태 확인. 최대 길이 값·전체 키보드는 미검증.
+- [x] 게시 필터 metadata·집계 숫자와 복제 필수 열 매핑·원본 불변 실제 연결. 대상 이름 변경은 실제 DuckDB 단위 검증.
+- [x] STUDIO-F01~04 / D01~02 선택 범위 결과·증빙 기록과 최종 검토. 날짜 범위는 다음 독립 단위, VoiceOver BLOCKED 유지.
+
+종료 조건: 공통 범주 필터를 실제 Rill fixture에서 적용→AI 질문·선택 수정→저장→게시→내 데이터 복제로 연결하고, 독립 집계 정답·새 소스 범위·3폭·키보드를 검증한다. 기존 T10/T11 변형은 관련 변경이 없으면 재사용한다. 전체 TC-005/G4는 날짜 범위·대화 안 매핑 자동 완료 등 미지원과 구분한다.
+
+
+### T13: 날짜 범위의 편집·저장·게시·복제 전파
+
+기존 날짜 집계 엔진과 T12 공통 범위 요청 수명주기를 재사용한다. UI는 UTC 달력 날짜의 시작/종료(종료일 포함)를 명시 적용한다. 기존 timestamp/timeZone 문서 계약은 엄격 검증하고 표시하되 이번 신규 UI는 UTC 날짜 선택만 제공한다. 라이브러리·SQL 생성기·전체 E2E를 추가하지 않는다.
+
+- [x] dateRange optional 문서/연산·strict 경계, 필터와 원본 행에 함께 적용.
+- [x] 명시 적용·해제·undo/redo·늦은 응답 격리, AI 문맥과 실제 미리보기 범위 일치.
+- [x] 저장/GET/기존 보기, 게시 snapshot, 내 데이터 복제에서 날짜 열 필수 매핑.
+- [x] 공식 Rill 샘플 독립 정답·실제 연결, 1440/768/390px·키보드·오류 증빙.
+- [x] 변경 회귀·type/lint/build, MD 결과 및 제한 기록. gpt-6-luna/VoiceOver BLOCKED 유지.

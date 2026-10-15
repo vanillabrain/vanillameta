@@ -1,4 +1,12 @@
-import { studioAssert, studioClone, studioKeys, studioText, validateStudioDocument } from './studioDocument';
+import {
+  studioAssert,
+  studioClone,
+  studioKeys,
+  studioText,
+  validateStudioDateRange,
+  validateStudioDocument,
+  validateStudioFilters,
+} from './studioDocument';
 import {
   isStudioId,
   isTemporaryStudioId,
@@ -22,11 +30,22 @@ export function applyStudioOperation(document: StudioDocumentV1, operation: Stud
     moveBlock: ['type', 'blockId', 'breakpoint', 'x', 'y'],
     resizeBlock: ['type', 'blockId', 'breakpoint', 'w', 'h'],
     renameDashboard: ['type', 'title'],
+    setFilters: ['type', 'filters'],
+    setDateRange: ['type', 'dateRange'],
   };
   studioAssert(Object.prototype.hasOwnProperty.call(fields, operation.type), '지원하지 않는 변경 작업입니다.');
   studioKeys(operation, fields[operation.type]);
   if (operation.type === 'renameDashboard') next.title = operation.title;
-  else if (operation.type === 'addBlock' || operation.type === 'duplicateBlock') {
+  else if (operation.type === 'setFilters') {
+    // Mirrors the server: an empty list removes the optional property instead of storing [].
+    const filters = validateStudioFilters(operation.filters);
+    if (filters.length) next.filters = filters;
+    else delete next.filters;
+  } else if (operation.type === 'setDateRange') {
+    // A null range clears the common period; anything else is validated before it enters history.
+    if (operation.dateRange === null) delete next.dateRange;
+    else next.dateRange = validateStudioDateRange(operation.dateRange);
+  } else if (operation.type === 'addBlock' || operation.type === 'duplicateBlock') {
     const original = operation.type === 'duplicateBlock' ? next.blocks.find(b => b.id === operation.blockId) : undefined;
     if (operation.type === 'duplicateBlock') studioAssert(original, '변경할 블록이 없습니다.');
     const template = operation.type === 'addBlock' ? operation.block : original;

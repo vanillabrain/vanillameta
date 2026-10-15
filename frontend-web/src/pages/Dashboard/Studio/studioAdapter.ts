@@ -1,5 +1,14 @@
 import { validDraft } from '../dashboardPreview';
-import { studioAssert, studioClone, studioKeys, studioPositive, studioText, validateStudioDocument } from './studioDocument';
+import {
+  studioAssert,
+  studioClone,
+  studioKeys,
+  studioPositive,
+  studioText,
+  validateStudioDocument,
+  validateStudioFilters,
+  validateStudioDateRange,
+} from './studioDocument';
 import {
   isTemporaryStudioId,
   StudioBlockKind,
@@ -60,6 +69,8 @@ export function fromLegacyAnalysis(input: {
     );
   const entries: StudioDefinitions['entries'] = {};
   const unresolvedReferences: string[] = [];
+  // Server-owned structured definition scope arrives as an optional default, never as a user edit.
+  const defaultFilters = a.defaultFilters === undefined ? undefined : validateStudioFilters(a.defaultFilters);
   const blocks = a.widgets.map((w: any, index: number) => {
     const id = w.blockId ?? `legacy-${input.dashboardId}-${index}`;
     studioAssert(!isTemporaryStudioId(id), '저장된 블록 ID를 확인해 주세요.');
@@ -122,6 +133,8 @@ export function fromLegacyAnalysis(input: {
     revision: a.revision,
     title: a.title,
     sourceId: a.databaseId,
+    ...(defaultFilters?.length ? { filters: defaultFilters } : {}),
+    ...(a.defaultDateRange !== undefined ? { dateRange: validateStudioDateRange(a.defaultDateRange) } : {}),
     blocks,
     layouts: { lg, md, xs },
   });

@@ -2,7 +2,7 @@
 
 ## 현재 범위와 실행 기준
 
-2026-10-15, T10 핵심 연결 흐름(생성→직접/AI 수정→저장·게시→재게시→다른 계정의 내 데이터 복제→원본 링크 중지)은 PASS_SELECTED다. 작업 브랜치 `codex/self-service-next-20261014`, 기준 `efe3fbb3` + T10 diff. 전체 TC-005/G4는 PARTIAL: T11에서 자연어→복제 매핑 화면 연결을 추가했으나 대화 안의 매핑·최종 복제 저장 자동 실행과 Studio 공통 필터 추가 전후는 미지원이며, VoiceOver는 BLOCKED다. 아래 과거 T 기록은 당시 범위이며 현재 판정은 마지막 T10 기록이 기준이다.
+2026-10-16, T10 핵심 연결·T11 복제 매핑 진입·T12 범주 필터 결과를 재사용하고, T13 날짜 범위 편집·저장·게시·복제 전파를 PASS_SELECTED로 확인했다. 작업 브랜치 `codex/self-service-next-20261014`, 기준 `4daec210` + T12/T13 미커밋 diff. 전체 TC-005/G4는 PARTIAL: 대화 안의 매핑·최종 복제 자동 실행은 미지원이고 VoiceOver는 BLOCKED다. 아래 과거 기록은 당시 범위이며 최신 판정은 마지막 T13 기록을 따른다.
 
 ### T1 최초 시안 실행 기록 (역사적 기준)
 
@@ -499,3 +499,82 @@ T9 선택 범위 완료. 다음은 **T10 전체 흐름 수용·마지막 디자�
 - 증빙 폴더 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t11-20261015`. `before-remix.json`/`connected-results.json`은 쓰기·독립성, `backend-red.log`→`backend-green.log`/`backend-cancel-final.log`/`backend-retry-final.log`·`backend-affected.log`, FE focused/Studio/type/lint/build 로그는 검사 근거다. `handoff-final-1440.jpg`, `handoff-fixed-768.jpg`, `handoff-fixed-390.jpg`, `revoked-handoff-fixed-390.jpg`, `linked-mapping-preview.jpg`, `linked-clone-saved.jpg`, `*-layout.json`을 사용한다. `recovered-keyboard-390.jpg`, `missing-publication-390.jpg`, `revoked-handoff-390.jpg`, `handoff-390.jpg`, `handoff-keyboard-768.jpg`는 초기 캡처 설정 오류가 있어 최종 디자인 판정에서 제외한다.
 
 **기능·디자인 PASS_SELECTED.** 남은 큰 항목은 **Studio 공통 필터의 편집·저장·게시·복제 전파**다. 이번은 자연어→기존 매핑 화면의 연결 완료이며, 한 대화 안에서 후보 매핑을 추론해 복제 저장까지 끝내는 자동 실행은 미지원이다. TC-005/G4 전체 PARTIAL을 유지한다. 별도 운영부하·다른 언어·실기기·VoiceOver는 실행하지 않았다.
+
+
+## T12 — Studio 범주 공통 필터 · 2026-10-15
+
+범위: UC-005 BR-002/FR-007의 범주 다중 선택. 날짜 범위는 이번 단위에 포함하지 않는다. 전체 기간 안에서 같은 필터를 모든 블록의 원본 행에 적용한 뒤 집계한다. 기존 SQL·저장 지표 계산·배치는 유지한다. 수동 적용으로 요청 수를 제한한다.
+
+| ID | 입력 / 기대 | 상태 |
+| --- | --- | --- |
+| STUDIO-F01 | 공식 Rill source9/1,391,572행, device_type=Mobile/Tablet → 독립 SUM 및 가중 평균과 모든 블록 일치. 두 값 선택·해제 및 빈 결과는 이전 값과 혼동하지 않음 | PASS_SELECTED: 단일/다중·해제 실제 UI/API, 빈 결과 null/[]는 실제 DuckDB 단위. 빈 결과 UI는 NOT_RUN |
+| STUDIO-F02 | 필터 변경 undo/redo·응답 경합·저장·새로고침·기존 보기 기본 조건, SQL·배치 불변 | PASS_SELECTED: 실제 저장19·복제20·기존 보기, 키보드 undo/redo. 지연 응답·오류는 결정적 FE 회귀 |
+| STUDIO-F03 | 필터 저장 후 게시 snapshot에 동일 범위·수치. 새 소스의 이름 변경 열에 필터 매핑 보존·누락 필수 열 차단, 원본 불변 | PASS_SELECTED: 게시19/v1→소스9→비공개20 실제 UI, 누락 device_type 차단·복구. 다른 이름 소스 매핑은 실제 DuckDB 하위 검사 |
+| STUDIO-F04 | 실제 gpt-6-luna 질문/선택 제목 수정에 현재 필터·검증 숫자를 전달. 비대상·배치·조건 보존, 저장·게시 자동 실행 없음 | PASS_SELECTED: 실제 모델2회(최초 정상 + 부정문 수정 재검증), 필터·정답 응답·선택 제목만 변경·쓰기0 |
+| STUDIO-D01/D02 T12 | 1440/768/390px 필터 추가 전후·긴 라벨·오류, 키보드 선택/적용/Escape·초점, 가로 넘침0 | PASS_SELECTED: Rill 라벨·누락 매핑 안내·선택/해제·Space/Enter/Escape. 최대 길이 값·모든 키보드 경로·실기기는 NOT_RUN |
+
+UI/기능/디자인 판정은 최종 실행 결과로 갱신한다. 기존 T10/T11 통과 조건은 재사용하며 VoiceOver BLOCKED, 날짜 범위·실기기·운영 부하는 NOT_RUN이다. 새로운 라이브러리·로컬 LLM·대체 모델을 추가하지 않는다.
+
+
+### T12 실제 결과·수정·제한
+
+- 같은 격리 FE3229/API4329, Node24.21.0/npm, 기존 메타데이터 DB와 DuckDB worker를 재사용했다. 신규 의존성·상시 E2E 코드를 추가하지 않았다. Aside 업데이트 `fetch failed`로 허용된 Codex IAB를 사용했다. gpt-6-luna 연결·카탈로그와 VoiceOver BLOCKED를 유지했다.
+- `StudioDocumentV1.filters?` / `setFilters`: 범주 다중 선택, 최대5개 고유 열/각50개 primitive 값. 키 입력/체크마다 조회하지 않고 적용을 누를 때만 전 블록을 서버에서 다시 집계한다. SQL과 계산 참조·각 breakpoint 배치는 유지한다. 소스 전체의 낮은 cardinality 범주 후보를 기존 preview에서 재사용하며 저장된 선택값은 후보에서 사라져도 숨기지 않는다. 날짜 범위/숫자 범위 UI는 이번 단위에 포함하지 않았다.
+- **단일 조건:** `device_type=Mobile/Tablet`, 요청307763000, 평균5.655265295536226(독립 Parquet 정답). 화면307,763,000.00/5.655265, 게시 snapshot 평균5.655265295536216. **두 값:** Mobile/Tablet+Personal Computer → 요청481071000, 평균4.368461296206581(독립 정답), 실제 API4.368461296204326. 차원307763000+173308000 및 시간169행 합481071000. 오차1e-9 이내. 전체 해제634513000→undo307763000을 확인했다.
+- dashboard19에 조건을 저장하고 새로고침해 복원했다. 원본 canonical SQL과 배치는 그대로다. 실제 Codex gpt-6-luna 응답은 Mobile/Tablet와307763000을 설명하고 선택 제목만 `모바일 요청 합계`로 변경했다. 실행 단계에는 save/publish가 없고 DB 문서 대조로 비대상·필터·배치 불변을 확인했다. 이후 저장 버튼은 명시적으로 눌렀다.
+- 저장19를 필터 포함 v1로 게시했다. 읽기 전용 조건 칩·KPI·차원·시간 집계가 같은 범위다. 모바일에서 복제로 진입해 source9를 선택하고 device_type 매핑을 비웠을 때 집계 미리보기0/만들기 disabled/빠진 필터 안내를 확인했다. 복원 후 Enter로 새 비공개20을 만들었다. 동일 소스의 실제 연결 흐름이며, 다른 이름 열(`channel→segment`)은 실제 DuckDB 서비스 회귀로 검증했다. 139만행 새 이름 파일의 브라우저 업로드·타계정 흐름은 이번에 반복하지 않았다.
+- 복제20은 새 block/metric ID, 같은 조건·배치·집계, 게시0이다. 기존 보기20에서도 저장 기본 필터 칩과307763000/5.655265가 복원됐다. 필터 전체 해제와 undo는 키보드로 실행하고 저장 상태를 복구했다. 원본19 persisted hash는 복제 및 검증 전후 동일하다.
+- **발견·수정:** 미완성 빈 값 필터를 엄격 문서 key로 비교해 예외 → UI draft key 분리. 후보50개 때문에 저장된 선택값이 숨겨짐 → 선택값 우선. 적용 함수 import 누락·진행 중 명시 적용의 자기 취소 → import/intent 구분. undo 시 오래된 effect가 새 조회를 취소 → 조회 effect는 문서 필터 key 변화만 추적, 현재 문서/확정 범위 참조·세대·AbortController로 응답을 격리. 같은 실패3조건 재검증 PASS. AI가 저장·게시 금지문 `저장과 게시는 하지 마`를 미지원으로 분류 → 조사 처리 수정 후 **원래 문장 그대로** 실제 모델 재검증 완료, 쓰기0.
+- **리뷰 수정:** 두 필터를 같은 대상 열로 매핑하면400과 양쪽 열 이름을 안내하고 쓰기0. UC-003/004 지표 snapshot 재작성의 fallback에서도 동일 소스의 studioFilters를 유지하며 다른 소스 범위는 옮기지 않는다. 잘못된 저장 기본 필터는 전체 데이터로 대체하지 않고 오류·재조회 버튼을 표시한다. 구조화 metadata는 한 번만 읽는다.
+- **디자인 PASS_SELECTED:** 1440/768/390 실제 PNG를 직접 확인했다. 문서 scrollWidth1425/753/375로 가로 넘침0. 모바일 필터 토글·선택 라벨44px, 값 목록260px 안에서 스크롤, 버튼/입력·수치·카드의 겹침 없음. Space 선택/Enter 적용·전체 해제/Enter 복제/Tab 이동·Escape 후 토글 초점 복귀. 기존 md 배치는 그대로 유지했으며 임의로 카드를 늘려 재배치하지 않았다. 모든 상태·최대128/2000자·전체 키보드·스크린리더 완료는 아니다.
+- **검사:** BE 기본 변경135개, 기존 AI/실행96개, 게시/복제/생성83개, 리뷰/부정문 최종83개를 범위별 실행했다(중복 포함, 단순 합산하지 않음). FE focused84개와 Editor/adapter/대화/복제 영향38개 PASS(로그 파일 수4), 대화 실행 기록·transport 추가13개 PASS. 타입·변경 FE/BE lint(오류·경고0)·양측 production build PASS. 기존 T10/T11 핵심 E2E·공유 만료/권한 변형 등 변경 없는 결과는 재사용했고 전체 wrapper/전체 E2E를 반복하지 않았다. ts-jest TypeScript 범위 및 Vite configLoader의 기존 도구 경고는 남으며 제품 검사 실패가 아니다.
+
+### T12 증빙과 남은 작업
+
+저장소 밖 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t12-20261015/`:
+
+- `rill-oracle.json`, `rill-dual-oracle.json`, `actual-dual-preview.json`, `publication-scope.json`, `flow-invariants.json`: 정확한 집계·필터·독립 복제·비대상 불변.
+- `saved-filter-1440.jpg`, `dual-filter-1440.jpg`, `filter-768.jpg`, `mobile-filter-open-390.jpg`, `clone-final-390.jpg`, `final-filter-{1440,390}.jpg`, `published-final-390.jpg`, `remix-scope-390.jpg`, `legacy-default-filter-390.jpg`, `ai-filtered-edit-1440.jpg`, `ai-negative-fixed-1440.jpg`: 실제 화면·키보드·모델 결과. `final-*-layout.json`은 실제 폭/크기다.
+- `first-filter-1440.jpg`는 HMR remount로 초기화된 상태, `filter-1440.jpg`는 적용 실패 당시 상태, `published-filter-390.jpg`는 비활성 탭의 뷰포트 캡처 오류로 최종 디자인 판정에서 제외한다. 원본은 실패/제외 근거로 남긴다.
+- unit/type/lint/build 최종 로그와 초기 실패→재검사 로그를 보존했다. 임시 프로브·전역 AbortController patch·무관한 명령 출력 파일은 제품/테스트에 남기지 않았다. 서버 원시 로그는 인증정보 가능성이 있어 증빙에 복사하지 않고 필요한 상태/수치만 추렸다.
+
+**남음:** Studio 날짜 범위의 편집·저장·게시·복제 전파, 한 대화 안에서 매핑과 최종 복제까지 실행하기, 미검증 전체 키보드/VoiceOver·실기기·운영 조건. 전체 TC-005/G4는 **PARTIAL**이다. 새 Rill live UI/시간 이동 비교는 NOT_RUN이며 기존 공식 샘플·기존 계산 기준 재사용과 이번 독립 숫자 대조를 구분한다.
+
+
+## T13 — Studio 날짜 범위 · 2026-10-16
+
+Given 공식 Rill source9의1,391,572행과 T12 Mobile/Tablet 범주 조건,
+When __time의 UTC 2023-09-10~2023-09-11을 적용하면,
+Then 종료일을 포함한 원본 범위 [09-10 00:00,09-12 00:00)에서 모든 블록을 집계한다. SQL·배치·범주 조건을 보존한다. 날짜 입력만으로 조회하지 않고 명시 적용한다.
+
+| ID | 기대 결과 | 상태 |
+| --- | --- | --- |
+| STUDIO-F05 | 날짜+범주 AND 집계, 단일 날짜·잘못된 범위·해제, undo/redo·경합에서 확인된 범위만 숫자에 표시 | PASS_SELECTED |
+| STUDIO-F06 | 저장→새로고침→기존 보기→게시 snapshot→내 데이터 복제에 동일 날짜·범주·정답. 날짜 매핑 누락·비시간 열 거부 및 원본 불변 | PASS_SELECTED |
+| STUDIO-A01 T13 | 날짜 조건이 AI 문맥과 서버 미리보기에 전달되며 선택 수정은 범위를 보존. 설정 gpt-6-luna 유지 | PASS_SELECTED |
+| STUDIO-D01/D02 T13 | 1440/768/390px 날짜/필터 패널·긴 기간 라벨, 키보드 입력·적용·해제·undo, 가로 넘침/겹침 없음 | PASS_SELECTED |
+
+T10~T12 관련 없는 PASS 조건은 재사용한다. 실기기·날짜 UI의 다른 시간대·VoiceOver(BLOCKED)·새 Rill live UI 대조는 이번 통과로 확대하지 않는다. 증빙 폴더 `phase2-fix-evidence/studio-t13-20261016`.
+
+
+### T13 실행 결과
+
+- Node24.21.0/npm, 같은 격리 FE3229/API4329·T9 메타데이터 DB·기존 DuckDB worker를 재사용했다. Aside 업데이트 실패의 기존 근거와 승인된 Codex IAB 대체 경로를 재사용했다. 신규 의존성·상시 E2E 코드·로컬 LLM·모델 대체는 없다.
+- 문서 `dateRange?`와 `setDateRange(range|null)`을 추가했다. 기존 `validateDateRange`/`dateRangeBounds`를 재사용하며 UTC 달력 날짜는 종료일 포함, timestamp는 종료 미포함이다. sourceQuery에서 범주 필터와 AND한 뒤 모든 블록을 집계한다. UI는 UTC 날짜 입력/명시 적용/기간 해제만 제공한다. 다른 시간대·초 단위 저장 범위는 표시/엄격 검증하고, UI 적용 시 UTC 날짜로 대체됨을 안내한다.
+- **독립 Parquet 정답:** Mobile/Tablet + UTC 2023-09-10~11은 실제 원본209504행, 요청90789400, 가중 평균5.922632802560112. 실제 API 요청90789400/평균5.922632802560037(절대오차7.46e-14), 차원 합과 시간48행 합90789400, 마지막2023-09-11 23:00으로 종료일 포함을 확인했다. 단일09-10은 요청43982000/평균6.062710176083509(정답6.062710176083323), 시간24행이다.
+- 실제 UI에서 입력 중 preview 요청0·역전 기간 적용 disabled를 확인했다. 날짜만 해제하면 범주 조건은 남고307763000으로 돌아간다. 키보드 undo로 이틀 범위90789400을 복원했다. 지연 응답이 undo 결과를 덮어쓰지 않음과 redo/해제·혼합 scope는 FE 회귀로 확인했다. 기존 범주 단독 변형 전체를 반복하지 않았다.
+- dashboard20에 저장→reload→기존 보기에서 날짜·필터·정답을 확인했다. `structuredDefinition.studioDateRange`와 Studio 문서가 일치하고 canonical SQL/3개 breakpoint 배치는 그대로다. 실제 Codex **gpt-6-luna 1회**는 적용 날짜·Mobile/Tablet·90789400을 설명하고 선택 제목만 `이틀간 모바일 요청`으로 변경했다. 자동 저장/게시0을 DB 대조로 확인한 뒤 저장 버튼을 명시 실행했다.
+- dashboard20/v1을 기존 로컬 공식 샘플 링크로 게시했다. snapshot의 읽기 전용 날짜·필터와 집계가 일치한다. 복제 template은 `__time`을 네 지원 블록 모두의 필수 열로 지정한다. 모바일에서 날짜 매핑을 비우면 결과 영역0·생성 disabled·날짜 열 안내가 나타나며 네 블록 모두 차단된다. 복구 후 Enter로 새 **비공개21** 생성. 같은 날짜/필터·배치, 새 block/metric ID, publication0을 확인했다. 이전 원본19 hash는 전체 실행 전후 동일하다.
+- **오류 수정:** 기간이 다른 미리보기 응답을 client에서 거부한다. 잘못된 저장 날짜/필터는 `INVALID_STUDIO_SCOPE`로 구분하고 기존 보기에서도 전체 데이터로 우회하지 않는다. 동시 범위 변경·undo는 날짜+범주의 단일 key와 요청 세대/abort로 격리한다. 캘린더 rollover/0000년/9999년 경계·지원하지 않는 정밀도·timezone을 검증한다. 테스트 및 빌드에서 발견한 메서드 위치/타입 union 세미콜론/기간 문자열 문법 오류를 수정하고 빌드를 재검증했다. lint의 포맷·미사용 type import·테스트 non-null 경고도 수정했다.
+- **디자인 PASS_SELECTED:** 1440/768/390px 최종 이미지를 직접 확인했다. 날짜 열+시작/종료는 3열→날짜2열→1열로 정렬한다. document scrollWidth가 각각1440/768/390으로 가로 넘침0. 데스크톱/태블릿 입력36px, 모바일44px, 모바일 날짜 글꼴14px·도움말12px, 버튼44px이다. 모바일 긴 날짜/필터·매핑 오류/읽기 전용 게시 범위가 잘리지 않는다. 연·월·일 방향키/숫자 입력, Enter 적용/해제/undo/복제, Space 복제 허용, Escape 후 기간 토글 초점 복귀를 확인했다. native date의 `fill()` 도구 입력은 값이 반영되지 않아 실제 키보드 입력을 사용했으며 제품 성공으로 오인하지 않았다.
+- **검사:** BE core5suite151 PASS, publication12 PASS, remix `-t scope`10 PASS/30 skipped(새 날짜4개 포함). FE19files241 PASS(메인 통합86/Editor26 등을 포함한 최종 선택 실행, 합산하지 않음), FE 타입 PASS, 양측 build PASS, 변경 FE/BE lint 최종 오류·경고0. 기존 T10/T11 및 미변경 T12 권한/만료/중지/core E2E 결과는 재사용했다. 전체 wrapper/전체 E2E/운영 부하는 반복하지 않았다. BE 단위 실행 결과는 agent가 캡처한 결과를 `backend-agent-verification.md`에 기록했고, 원시 로그 파일로 오인하지 않는다.
+
+### T13 증빙·제한·다음 작업
+
+저장소 밖 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t13-20261016/`:
+
+- `oracle.json`, `actual-dated-preview.json`, `single-date-preview.json`, `cleared-date-preview.json`, `date-input-proof.json`, `publication-date-scope.json`, `flow-invariants.json`: 원본 집계·적용/해제·scope 전파·ID 독립성·원본 불변.
+- `reversed-date-1440.jpg`, `final-period-{1440,768,390}.jpg`, `final-layout-*.json`: 오류·최종 입력 크기/배치. `published-date-{1440,390}.jpg`, `remix-missing-date-390.jpg`, `cloned-date-390.jpg`, `legacy-dated-default-1440.jpg`: 저장·게시·복제·기존 보기.
+- `ai-date-context-1440.jpg`, `ai-date-answer-1440.jpg`, `ai-date-answer.txt`, `after-ai.json`: 실제 모델과 저장 전 초안. 초기 `date-input-initial-1440.jpg`와 `baseline-768.jpg`는 개발 HMR 후 적용 전 상태라 날짜 적용/오류 판정 근거로 쓰지 않는다. 최종 이미지와 실제 수치 증빙을 우선한다.
+
+**NOT_RUN:** 새 Rill live UI와 같은 날짜의 직접 UX 대조(공식 샘플·기존 계산 의미와 독립 oracle만 대조), 새 계정/이름 변경139만행 소스의 브라우저 업로드(다른 이름 날짜 열은 실제 DuckDB 서비스 회귀), 날짜 선택 팝업 전체 키보드 경로·모든 언어·실기기·다른 시간대 UI·운영 동시 부하. 빈 날짜 결과의 null/[]는 하위 회귀이며 UI 전체 상태 통과로 확대하지 않는다. **VoiceOver BLOCKED** 유지. 전체 TC-005/G4는 **PARTIAL**, 다음 제품 단위는 대화 안에서 매핑 확인과 최종 비공개 복제까지 완료하는 흐름이다. 이번 변경은 현재 워크트리에 미커밋 상태로 남겼다.

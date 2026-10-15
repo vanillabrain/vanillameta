@@ -8,6 +8,7 @@ import StudioSourcePicker from './StudioSourcePicker';
 import { creationData, fetchStudioSources, SourceProfile, StudioSource } from './studioCreation';
 import { studioRequestId } from './studioApi';
 import { PublishedBlockView } from './PublishedDashboard';
+import { studioDateRangeSummary, studioFilterChipText, studioFilterSummary } from './studioDocument';
 import {
   canCreateRemix,
   fetchRemixRequirements,
@@ -265,6 +266,22 @@ export default function StudioRemix() {
                   <span className="studio-eyebrow">원본 게시본 · V{requirements.version}</span>
                   <h2>{requirements.title}</h2>
                   <p>구조화된 지표와 배치를 가져옵니다. 원본 파일·연결 정보·공유 링크·실행 이력은 복사하지 않습니다.</p>
+                  {!!requirements.filters?.length && (
+                    <div className="studio-published-filters" role="note" aria-label="원본 게시본 공통 필터">
+                      <span className="studio-eyebrow">원본 공통 필터 · 읽기 전용</span>
+                      {requirements.filters.map(filter => (
+                        <span className="studio-published-filter" key={filter.column}>
+                          {studioFilterChipText(filter)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {requirements.dateRange && (
+                    <div className="studio-published-filters" role="note" aria-label="원본 게시본 공통 기간">
+                      <span className="studio-eyebrow">원본 공통 기간 · 읽기 전용</span>
+                      <span className="studio-published-filter">{studioDateRangeSummary(requirements.dateRange)}</span>
+                    </div>
+                  )}
                   <Button onClick={initialize} disabled={locked}>
                     게시 정의 새로 확인 (매핑 초기화)
                   </Button>
@@ -392,11 +409,39 @@ export default function StudioRemix() {
                     </div>
                   </section>
                 </div>
+                {!!preview?.unmappedFilters?.length && (
+                  <Alert severity="warning" role="alert">
+                    원본 게시본의 공통 필터 {preview.unmappedFilters.length}개 열을 대상 데이터에 적용할 수 없습니다:{' '}
+                    {preview.unmappedFilters.join(', ')}. 이 미리보기는 필터가 전혀 없는 전체 범위 결과가 아닙니다. 각 필터에
+                    형식이 맞는 대상 열을 선택한 뒤 매핑 확인을 눌러 주세요.
+                  </Alert>
+                )}
+                {preview?.unmappedDateRange && (
+                  <Alert severity="warning" role="alert">
+                    저장된 기간 열 '{preview.unmappedDateRange}'을(를) 대상 데이터에서 확인할 수 없습니다. 기간이 빠진 결과로
+                    복제하지 않도록 저장은 서버에서 차단됩니다. 대상 소스에서 형식이 맞는 날짜 열을 확인한 뒤 매핑 확인을
+                    눌러 주세요.
+                  </Alert>
+                )}
                 {preview?.preview && (
                   <section className="studio-remix-preview" aria-labelledby="remix-preview-heading">
                     <span className="studio-eyebrow">03 · 내 데이터의 계산 결과</span>
                     <h2 id="remix-preview-heading">저장 전 결과를 확인하세요</h2>
                     <p>원본 게시 숫자를 복사하지 않고 선택한 내 데이터에서 다시 집계했습니다.</p>
+                    <p className="studio-remix-filter-scope">
+                      {preview.mappedFilters?.length
+                        ? '적용 조건 · ' + studioFilterSummary(preview.mappedFilters)
+                        : requirements.filters?.length
+                        ? '적용된 공통 필터를 확인하지 못했습니다. 전체 범위 결과로 단정하지 마세요.'
+                        : '공통 필터 없음 · 전체 범위'}
+                    </p>
+                    <p className="studio-remix-filter-scope">
+                      {preview.mappedDateRange
+                        ? '적용 기간 · ' + studioDateRangeSummary(preview.mappedDateRange)
+                        : requirements.dateRange
+                        ? '저장된 기간을 이 미리보기에 적용하지 못했습니다. 전체 기간 결과로 단정하지 마세요.'
+                        : '기간 전체'}
+                    </p>
                     <div className="studio-remix-preview-grid">
                       {remixPreviewBlocks(preview).map(block => (
                         <article

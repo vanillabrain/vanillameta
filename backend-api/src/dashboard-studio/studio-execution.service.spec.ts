@@ -337,6 +337,7 @@ describe('T7 durable executions', () => {
   });
   it.each([
     '선택한 블록 제목만 바꾸고 저장하거나 게시하지 마.',
+    '현재 조건을 설명하고 선택한 제목만 바꿔줘. 저장과 게시는 하지 마.',
     '선택한 블록 제목만 바꿔줘. 게시하지 마.',
     '선택한 블록 제목만 바꾸고 공유하지 말아줘.',
     'Rename the selected block; do not publish.',

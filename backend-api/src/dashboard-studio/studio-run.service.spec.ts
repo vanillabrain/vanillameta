@@ -50,6 +50,34 @@ describe('Studio AI scoped runs', () => {
       prompt: '선택 제목을 New title로 바꿔',
     };
   });
+  it('supplies actual categorical scope to AI and preserves it in selected edits', async () => {
+    document.filters = [{ column: 'category', values: ['Site'] }];
+    const result = await service.run(body, 7);
+    const context = JSON.parse(ai.callLlm.mock.calls[0][1]);
+    expect(context.filters).toEqual(document.filters);
+    expect(result.proposedOperations).toHaveLength(1);
+    expect(studio.prepare.mock.calls[1][1].document.filters).toEqual(document.filters);
+  });
+  it('supplies the actual period and date range to AI and preserves it in selected edits', async () => {
+    document.dateRange = { column: 'event_time', start: '2026-01-01', end: '2026-01-01' };
+    const result = await service.run(body, 7);
+    const context = JSON.parse(ai.callLlm.mock.calls[0][1]);
+    expect(context.period).toBe('selected UTC dates (inclusive)');
+    expect(context.dateRange).toEqual(document.dateRange);
+    expect(result.proposedOperations).toHaveLength(1);
+    expect(studio.prepare.mock.calls[1][1].document.dateRange).toEqual(document.dateRange);
+    document.dateRange = {
+      column: 'event_time',
+      start: '2026-01-01T00:00:00Z',
+      end: '2026-01-02T00:00:00Z',
+      precision: 'timestamp',
+      timeZone: 'Asia/Seoul',
+    };
+    await service.run({ ...body, requestId: 'req2' }, 7);
+    const scoped = JSON.parse(ai.callLlm.mock.calls[1][1]);
+    expect(scoped.period).toBe('selected UTC timestamps [start, end)');
+    expect(scoped.dateRange).toEqual(document.dateRange);
+  });
   it('returns validated selected operations without persisting and replays one request', async () => {
     const first = await service.run(body, 7);
     expect(first.proposedOperations).toHaveLength(1);

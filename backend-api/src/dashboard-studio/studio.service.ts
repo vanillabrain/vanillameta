@@ -112,7 +112,17 @@ export class StudioService {
     let preview = null,
       previewError: string | undefined;
     try {
-      preview = (await this.ai.preview({ draft: state.analysis, includeTrends: true }, actor)).data;
+      preview = (
+        await this.ai.preview(
+          {
+            draft: state.analysis,
+            filters: state.document.filters ?? [],
+            ...(state.document.dateRange ? { dateRange: state.document.dateRange } : {}),
+            includeTrends: true,
+          },
+          actor,
+        )
+      ).data;
     } catch {
       previewError =
         '데이터를 불러오지 못했습니다. 편집 내용은 유지됩니다. 잠시 후 다시 조회해 주세요.';
@@ -169,7 +179,7 @@ export class StudioService {
       try {
         document = validateStudioDocument(body.document);
       } catch {
-        throw new BadRequestException('AI에 전달할 문서를 확인해 주세요.');
+        throw new BadRequestException('블록과 공통 필터를 확인해 주세요.');
       }
       if (
         document.dashboardId !== id ||
@@ -177,7 +187,7 @@ export class StudioService {
         !document.blocks.length ||
         (document.revision && document.revision !== body.expectedRevision)
       )
-        throw new BadRequestException('AI 요청의 대시보드와 소스를 확인해 주세요.');
+        throw new BadRequestException('요청의 대시보드와 소스를 확인해 주세요.');
       const widgets = await Promise.all(
         document.blocks.map(async block => {
           const original =
@@ -215,7 +225,17 @@ export class StudioService {
         explanation: current.analysis.explanation,
         widgets,
       };
-      const preview = (await this.ai.preview({ draft, includeTrends: true }, actor)).data;
+      const preview = (
+        await this.ai.preview(
+          {
+            draft,
+            filters: document.filters ?? [],
+            ...(document.dateRange ? { dateRange: document.dateRange } : {}),
+            includeTrends: true,
+          },
+          actor,
+        )
+      ).data;
       // A requested temporal transformation must be supported, not a silent fallback.
       preview.widgets.forEach((widget, i) => {
         if (
@@ -302,7 +322,15 @@ export class StudioService {
           throw new BadRequestException('안전한 집계로 확인된 차트만 게시할 수 있습니다.');
       }
       const preview = (
-        await this.ai.preview({ draft: current.analysis, includeTrends: true }, actor)
+        await this.ai.preview(
+          {
+            draft: current.analysis,
+            filters: current.document.filters ?? [],
+            ...(current.document.dateRange ? { dateRange: current.document.dateRange } : {}),
+            includeTrends: true,
+          },
+          actor,
+        )
       ).data;
       // Publication and save share the metadata queue; recheck against legacy writes during aggregation too.
       return this.db.transaction(async manager => {
@@ -474,16 +502,32 @@ export class StudioService {
             explanation: current.analysis.explanation,
             widgets,
           };
-          const snapshot = current.snapshot
-            ? {
-                ...current.snapshot,
-                schemaVersion: 2,
-                kind: 'structured-bi-dashboard',
-                sourceId: document.sourceId,
-                dataVersion: current.dataVersion,
-                items: snapshots,
-              }
-            : undefined;
+          // Validate source columns/types and the scoped query before committing any writes.
+          if (document.filters?.length || document.dateRange)
+            await this.ai.preview(
+              {
+                draft,
+                filters: document.filters ?? [],
+                ...(document.dateRange ? { dateRange: document.dateRange } : {}),
+              },
+              actor,
+            );
+          const previousSnapshot = { ...current.snapshot };
+          delete previousSnapshot.studioFilters;
+          delete previousSnapshot.studioDateRange;
+          const snapshot =
+            current.snapshot || document.filters?.length || document.dateRange
+              ? {
+                  ...previousSnapshot,
+                  ...(document.filters?.length ? { studioFilters: document.filters } : {}),
+                  ...(document.dateRange ? { studioDateRange: document.dateRange } : {}),
+                  schemaVersion: 2,
+                  kind: 'structured-bi-dashboard',
+                  sourceId: document.sourceId,
+                  dataVersion: current.dataVersion,
+                  items: snapshots,
+                }
+              : undefined;
           const saved = (
             await this.ai.save(
               { dashboardId: id, expectedRevision: body.expectedRevision, draft },

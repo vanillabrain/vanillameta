@@ -23,12 +23,32 @@ export type StudioBlock = {
   display: StudioDisplay;
 };
 export type StudioLayoutItem = { id: string; x: number; y: number; w: number; h: number };
+/** One categorical scope column. Values keep their JSON type, so 1, "1", true and null stay distinct. */
+export type StudioFilterValue = string | number | boolean | null;
+export type StudioFilter = { column: string; values: StudioFilterValue[] };
+export const STUDIO_FILTER_LIMITS = { columns: 5, values: 50, columnLength: 128, textLength: 2000 } as const;
+export const STUDIO_DATE_LIMITS = { columnLength: 128 } as const;
+/**
+ * Common dashboard period. Without a precision the bounds are UTC calendar days (YYYY-MM-DD); with
+ * precision 'timestamp' they are server-proven UTC instants and the end is exclusive.
+ */
+export type StudioDateRange = {
+  column: string;
+  start: string;
+  end: string;
+  precision?: 'timestamp';
+  timeZone?: string;
+};
 export type StudioDocumentV1 = {
   schemaVersion: 1;
   dashboardId?: number;
   revision?: string;
   title: string;
   sourceId: number;
+  /** Common dashboard scope. Absent means no filters; an empty array removes the optional property. */
+  filters?: StudioFilter[];
+  /** Common period. Absent means no period scope; a null operation removes the optional property. */
+  dateRange?: StudioDateRange;
   blocks: StudioBlock[];
   layouts: Record<StudioBreakpoint, StudioLayoutItem[]>;
 };
@@ -45,7 +65,9 @@ export type StudioOperation =
     }
   | { type: 'moveBlock'; blockId: string; breakpoint: StudioBreakpoint; x: number; y: number }
   | { type: 'resizeBlock'; blockId: string; breakpoint: StudioBreakpoint; w: number; h: number }
-  | { type: 'renameDashboard'; title: string };
+  | { type: 'renameDashboard'; title: string }
+  | { type: 'setFilters'; filters: StudioFilter[] }
+  | { type: 'setDateRange'; dateRange: StudioDateRange | null };
 export type StudioState = {
   present: StudioDocumentV1;
   past: StudioDocumentV1[];

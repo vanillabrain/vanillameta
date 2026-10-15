@@ -177,7 +177,7 @@ export class StudioExecutionService implements OnModuleInit {
     // and any remaining positive/ambiguous publication mention is still rejected.
     const withoutNegativePublication = prompt
       .replace(
-        /(?:게시|공유|퍼블리시)(?:\s*(?:하거나|나|또는|및|와|과)\s*(?:게시|공유|퍼블리시))*\s*(?:하지(?:는)?\s*(?:마(?:세요|라|줘)?|말(?:아(?:줘|주세요)?)?)|안\s*(?:해|하기)|금지)/gu,
+        /(?:게시|공유|퍼블리시)(?:\s*(?:하거나|나|또는|및|와|과)\s*(?:게시|공유|퍼블리시))*(?:은|는|을|를)?\s*(?:하지(?:는)?\s*(?:마(?:세요|라|줘)?|말(?:아(?:줘|주세요)?)?)|안\s*(?:해|하기)|금지)/gu,
         '',
       )
       .replace(

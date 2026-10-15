@@ -4,7 +4,10 @@ import {
   STUDIO_COLUMNS,
   StudioDocumentV1,
   StudioLayoutItem,
+  StudioFilter,
+  StudioDateRange,
 } from './studio-contract';
+import { dateRangeBounds, validateDateRange } from '../ai/dashboard-date-range';
 
 export type StudioReferenceContext = {
   sourceId: number;
@@ -48,6 +51,46 @@ function overlap(a: StudioLayoutItem, b: StudioLayoutItem): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
+/** Categorical scope only; schema authorization is performed by the query boundary. */
+export function validateStudioFilters(input: unknown): StudioFilter[] {
+  studioAssert(Array.isArray(input) && input.length <= 5, 'Studio supports at most five filters.');
+  const seen = new Set<string>();
+  for (const filter of Array.from(input)) {
+    studioKeys(filter, ['column', 'values']);
+    text(filter.column, 128);
+    studioAssert(!seen.has(filter.column as string), 'Duplicate Studio filter column.');
+    seen.add(filter.column as string);
+    studioAssert(
+      Array.isArray(filter.values) && filter.values.length > 0 && filter.values.length <= 50,
+      'Studio supports one to fifty values per filter.',
+    );
+    const keys = new Set<string>();
+    for (const value of Array.from(filter.values)) {
+      studioAssert(
+        value === null ||
+          typeof value === 'boolean' ||
+          (typeof value === 'string' && value.length <= 2000) ||
+          (typeof value === 'number' && Number.isFinite(value)),
+        'Invalid Studio filter value.',
+      );
+      const key = JSON.stringify([typeof value, value]);
+      studioAssert(!keys.has(key), 'Duplicate Studio filter value.');
+      keys.add(key);
+    }
+  }
+  return JSON.parse(JSON.stringify(input));
+}
+
+/**
+ * Shared date-range contract plus its half-open bounds, so a stored range with an unresolvable
+ * business calendar or overflow fails closed instead of silently querying an unintended period.
+ */
+export function validateStudioDateRange(input: unknown): StudioDateRange {
+  const range = validateDateRange(input);
+  dateRangeBounds(range);
+  return range;
+}
+
 /** Structural protocol validation only; does not assert authorization or live availability. */
 export function validateStudioDocument(input: unknown): StudioDocumentV1 {
   studioKeys(input, [
@@ -58,10 +101,14 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
     'sourceId',
     'blocks',
     'layouts',
+    'filters',
+    'dateRange',
   ]);
   const doc = input as unknown as StudioDocumentV1;
   studioAssert(doc.schemaVersion === 1, 'Unsupported Studio schema version.');
   positiveId(doc.sourceId);
+  if (doc.filters !== undefined) validateStudioFilters(doc.filters);
+  if (doc.dateRange !== undefined) validateStudioDateRange(doc.dateRange);
   text(doc.title, 300);
   if (doc.dashboardId !== undefined) positiveId(doc.dashboardId);
   if (doc.revision !== undefined) {

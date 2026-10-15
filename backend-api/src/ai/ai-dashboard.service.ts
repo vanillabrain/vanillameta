@@ -43,7 +43,14 @@ import {
   resolveTimeChartBucket,
 } from './dashboard-trend';
 import { buildTimeSelection } from './dashboard-time-selection';
-import { businessDate, dateRangeBounds, isoSecond, utcInstant } from './dashboard-date-range';
+import {
+  businessDate,
+  dateRangeBounds,
+  isoSecond,
+  utcInstant,
+  validateDateRange,
+  type DashboardDateRange,
+} from './dashboard-date-range';
 import {
   compileContribution,
   CONTRIBUTION_GROUP_LIMIT,
@@ -1947,6 +1954,44 @@ export class AiDashboardService {
       : await this.dashboards.manager.transaction(persist);
     return this.success(saved);
   }
+  /**
+   * Saved Studio scope is server-owned metadata. A malformed stored value must stay distinguishable
+   * from \"no scope\" so the caller can fail closed instead of silently showing unscoped data.
+   */
+  private studioSavedScope(structured: any): {
+    filters?: ReturnType<typeof normalizeSourceFilters>;
+    dateRange?: DashboardDateRange;
+  } {
+    const scope: {
+      filters?: ReturnType<typeof normalizeSourceFilters>;
+      dateRange?: DashboardDateRange;
+    } = {};
+    if (structured?.studioFilters !== undefined) {
+      try {
+        if (!Array.isArray(structured.studioFilters)) throw new Error('Invalid saved filters');
+        const filters = normalizeSourceFilters(structured.studioFilters, false);
+        if (filters.length) scope.filters = filters;
+      } catch {
+        throw new BadRequestException({
+          code: 'INVALID_STUDIO_SCOPE',
+          message: '저장된 공통 필터를 확인할 수 없습니다. 스튜디오에서 필터를 다시 저장해 주세요.',
+        });
+      }
+    }
+    if (structured?.studioDateRange !== undefined) {
+      try {
+        const dateRange = validateDateRange(structured.studioDateRange);
+        dateRangeBounds(dateRange);
+        scope.dateRange = dateRange;
+      } catch {
+        throw new BadRequestException({
+          code: 'INVALID_STUDIO_SCOPE',
+          message: '저장된 날짜 범위를 확인할 수 없습니다. 스튜디오에서 기간을 다시 저장해 주세요.',
+        });
+      }
+    }
+    return scope;
+  }
   async analysis(id: number, userId: number, includeRevision = false) {
     const dashboard = await this.owner(id, userId);
     if (dashboard.analysisDefinition) {
@@ -1958,8 +2003,14 @@ export class AiDashboardService {
         where: { dashboardId: id },
         order: { id: 'ASC' },
       });
+      const structured = dashboard.structuredDefinition
+        ? JSON.parse(dashboard.structuredDefinition)
+        : null;
+      const scope = this.studioSavedScope(structured);
       return this.success({
         ...draft,
+        ...(scope.filters ? { defaultFilters: scope.filters } : {}),
+        ...(scope.dateRange ? { defaultDateRange: scope.dateRange } : {}),
         blockLayouts: readBlockLayouts(draft, JSON.parse(dashboard.layout || 'null'), mappings),
         ...(includeRevision ? { revision: this.revision(dashboard) } : {}),
       });

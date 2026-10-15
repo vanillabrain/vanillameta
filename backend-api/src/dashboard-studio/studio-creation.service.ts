@@ -17,7 +17,7 @@ import { SourceAccessService } from '../ownership/source-access.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
-import { STUDIO_BREAKPOINTS } from './studio-contract';
+import { STUDIO_BREAKPOINTS, StudioDateRange, StudioFilter } from './studio-contract';
 import { RemixTemplate } from './studio-remix-contract';
 import { Database } from '../database/entities/database.entity';
 import { decryptConnectionConfig } from '../utils/crypto.util';
@@ -25,7 +25,7 @@ import { Metric } from '../metric/entities/metric.entity';
 import { StudioService } from './studio.service';
 import { StudioState } from './entities/studio-state.entity';
 import { StudioRun } from './entities/studio-run.entity';
-import { studioKeys } from './studio-document';
+import { studioKeys, validateStudioDateRange, validateStudioFilters } from './studio-document';
 import { importStudio, studioDigest } from './studio-legacy';
 
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -523,6 +523,20 @@ export class StudioCreationService {
       }
     }
   }
+  /** The remix date scope must stay applicable on the target source before any write. */
+  private validateRemixDateRange(input: unknown, profile: any): StudioDateRange {
+    let range: StudioDateRange;
+    try {
+      range = validateStudioDateRange(input);
+    } catch {
+      throw new BadRequestException('복제할 게시 기간을 확인해 주세요.');
+    }
+    const column = profile.columns.find(column => column.name === range.column);
+    if (!column || !column.temporal)
+      throw new BadRequestException('복제할 게시 기간 열을 대상 소스의 날짜 열에서 확인해 주세요.');
+    return range;
+  }
+
   /** Internal server-only remix persistence. Caller owns snapshot, queue and transaction. */
   async persistRemix(
     sourceId: number,
@@ -531,8 +545,28 @@ export class StudioCreationService {
     profile: any,
     actor: number,
     manager: EntityManager,
+    filters: StudioFilter[] = [],
+    dateRange?: StudioDateRange,
   ) {
     await this.ensureCurrentSource(sourceId, actor, manager);
+    let scope: StudioFilter[];
+    try {
+      scope = validateStudioFilters(filters);
+    } catch {
+      throw new BadRequestException('복제할 공통 필터의 열과 값을 확인해 주세요.');
+    }
+    if (scope.some(filter => !profile.columns.some(column => column.name === filter.column)))
+      throw new BadRequestException('복제할 게시 범위 열을 대상 소스에서 확인해 주세요.');
+    const range =
+      dateRange === undefined ? undefined : this.validateRemixDateRange(dateRange, profile);
+    const draft = this.compile(sourceId, template.title, blocks, profile);
+    // Prove the published scope, including value/type compatibility, before any metric or dashboard
+    // write. A direct remix call cannot persist scope that the query boundary cannot apply.
+    if (scope.length || range)
+      await this.dashboards.preview(
+        { draft, filters: scope, ...(range ? { dateRange: range } : {}) },
+        actor,
+      );
     const metrics = new Map<string, any>();
     for (const block of blocks) {
       metricFields(block.metric, profile);
@@ -559,6 +593,8 @@ export class StudioCreationService {
       kind: 'structured-bi-dashboard',
       sourceId,
       dataVersion: profile.dataVersion,
+      ...(scope.length ? { studioFilters: scope } : {}),
+      ...(range ? { studioDateRange: range } : {}),
       items: blocks.map(block => {
         const { id: metricId, ...definition } = block.metric;
         return {
@@ -577,21 +613,21 @@ export class StudioCreationService {
         };
       }),
     };
-    const saved = (
-      await this.dashboards.save(
-        { draft: this.compile(sourceId, template.title, blocks, profile) },
-        actor,
-        snapshot,
-        undefined,
-        manager,
-      )
-    ).data;
+    const saved = (await this.dashboards.save({ draft }, actor, snapshot, undefined, manager)).data;
     const document = importStudio(
       saved.id,
       { ...saved.draft, revision: saved.revision },
       snapshot,
       profile.schemaVersion,
     );
+    // The remixed draft inherits the published scope under the target column names.
+    if (scope.length)
+      document.filters = scope.map(filter => ({
+        column: filter.column,
+        values: [...filter.values],
+      }));
+    // The remixed draft inherits the published date scope on the mapped target column.
+    if (range) document.dateRange = { ...range };
     const idMap = new Map(blocks.map((b, i) => [b.blockId, document.blocks[i].id]));
     document.layouts = Object.fromEntries(
       STUDIO_BREAKPOINTS.map(bp => [

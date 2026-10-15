@@ -2,7 +2,7 @@ vi.mock('./DashboardPivots', () => ({ default: () => null }));
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import DashboardAnalysis from './DashboardAnalysis';
+import DashboardAnalysis, { parseDefaultDateRange } from './DashboardAnalysis';
 import userEvent from '@testing-library/user-event';
 import type { DateRange } from './PersonalSavedViews';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), timeProps: vi.fn() }));
@@ -752,4 +752,135 @@ it.each(['success', 'error'])('keeps the latest filter result after an uncancell
   expect(screen.queryByText('999')).toBeNull();
   expect(screen.queryByRole('alert')).toBeNull();
   expect(api.post.mock.calls.at(-1)[1].filters).toEqual([{ column: 'device_type', values: ['Mobile/Tablet', true] }]);
+});
+
+const scopedPreview = (requests: number) => ({
+  widgets: [{ type: 'BOARD_NUMERIC', title: 'Requests', valueField: 'requests', datas: [{ requests }] }],
+  dimensions: [{ column: 'device_type', values: ['Mobile/Tablet', 'Desktop'] }],
+  temporalColumns: [{ column: 'created_at', min: null, max: null }],
+});
+const scopedAnalysis = (defaultFilters?: unknown, revision = 'r'.repeat(64)) =>
+  response({ databaseId: 3, widgets: [], revision, ...(defaultFilters === undefined ? {} : { defaultFilters }) });
+const mountScoped = async (analysis: any, data = scopedPreview(10), revision = 'v1') => {
+  api.get.mockResolvedValue(analysis);
+  api.post.mockResolvedValue(response(data));
+  const view = render(
+    <DashboardAnalysis dashboardId={3} revision={revision} onSaved={vi.fn()}>
+      Fallback
+    </DashboardAnalysis>,
+  );
+  await screen.findByText(String(data.widgets[0].datas[0].requests));
+  const settings = screen.queryByText('기간·필터 설정');
+  if (settings) fireEvent.click(settings);
+  return view;
+};
+it('applies the saved default scope on the first load and keeps the user filter across a definition refresh', async () => {
+  const scope = [{ column: 'device_type', values: ['Mobile/Tablet'] }];
+  const view = await mountScoped(scopedAnalysis(scope));
+  expect(api.post.mock.lastCall?.[1].filters).toEqual(scope);
+  await choose('device_type', 'Desktop');
+  expect(api.post.mock.lastCall?.[1].filters).toEqual([{ column: 'device_type', values: ['Mobile/Tablet', 'Desktop'] }]);
+  api.get.mockResolvedValue(scopedAnalysis(scope, 's'.repeat(64)));
+  view.rerender(
+    <DashboardAnalysis dashboardId={3} revision="v2" onSaved={vi.fn()}>
+      Fallback
+    </DashboardAnalysis>,
+  );
+  await idle();
+  // A refresh never restores the server default over the user's own narrowing.
+  expect(api.post.mock.lastCall?.[1].filters).toEqual([{ column: 'device_type', values: ['Mobile/Tablet', 'Desktop'] }]);
+  expect(screen.queryByText(/저장된 공통 필터 조건/)).toBeNull();
+});
+it('treats an absent or empty saved scope as no filters and still queries normally', async () => {
+  for (const defaultFilters of [undefined, []]) {
+    cleanup();
+    api.get.mockReset();
+    api.post.mockReset();
+    await mountScoped(scopedAnalysis(defaultFilters));
+    expect(api.post.mock.lastCall?.[1].filters).toEqual([]);
+    expect(screen.queryByText(/저장된 공통 필터 조건/)).toBeNull();
+  }
+});
+it('fails closed on a malformed saved scope: error, retry, and no preview query at all', async () => {
+  for (const defaultFilters of [
+    [{ column: 'device_type', values: [] }],
+    [{ column: 'device_type', values: [{ nested: true }] }],
+    [{ column: 'device_type', values: ['Mobile/Tablet', 'Mobile/Tablet'] }],
+    [
+      { column: 'a', values: [1] },
+      { column: 'a', values: [2] },
+    ],
+    Array.from({ length: 6 }, (_, index) => ({ column: 'c' + index, values: [index] })),
+    { column: 'device_type', values: ['Mobile/Tablet'] },
+    // Only an absent key or an empty list means "no filters"; an explicit null is not a valid scope.
+    null,
+  ]) {
+    cleanup();
+    api.get.mockReset();
+    api.post.mockReset();
+    api.get.mockResolvedValue(scopedAnalysis(defaultFilters));
+    api.post.mockResolvedValue(response(scopedPreview(10)));
+    render(
+      <DashboardAnalysis dashboardId={3} onSaved={vi.fn()}>
+        Fallback
+      </DashboardAnalysis>,
+    );
+    expect(await screen.findByText(/저장된 날짜 범위·공통 필터 조건을 확인할 수 없습니다/)).toBeTruthy();
+    await idle();
+    // The ordinary viewer must not take over: it would show the whole dataset under an unknown scope.
+    expect(screen.queryByText('Fallback')).toBeNull();
+    expect(api.post).not.toHaveBeenCalled();
+    const calls = api.get.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: '대시보드 정의 다시 조회' }));
+    await waitFor(() => expect(api.get.mock.calls.length).toBeGreaterThan(calls));
+    expect(await screen.findByText(/저장된 날짜 범위·공통 필터 조건을 확인할 수 없습니다/)).toBeTruthy();
+    expect(api.post).not.toHaveBeenCalled();
+  }
+});
+
+it('validates persisted default dates without falling back to an all-time scope', () => {
+  expect(parseDefaultDateRange(undefined)).toEqual({ kind: 'none' });
+  for (const invalid of [
+    null,
+    {},
+    { column: '__time', start: '2023-02-29', end: '2023-03-01' },
+    { column: '__time', start: '2023-09-12', end: '2023-09-10' },
+  ])
+    expect(parseDefaultDateRange(invalid)).toEqual({ kind: 'invalid' });
+  const dateRange = { column: '__time', start: '2023-09-10', end: '2023-09-11' };
+  expect(parseDefaultDateRange(dateRange)).toEqual({ kind: 'range', dateRange });
+});
+
+it('fails closed when the API rejects an invalid persisted Studio scope', async () => {
+  api.get.mockRejectedValue({ response: { status: 400, data: { code: 'INVALID_STUDIO_SCOPE' } } });
+  api.post.mockResolvedValue(response(scopedPreview(10)));
+  render(
+    <DashboardAnalysis dashboardId={3} onSaved={vi.fn()}>
+      Fallback
+    </DashboardAnalysis>,
+  );
+  expect(await screen.findByText(/저장된 날짜 범위·공통 필터 조건을 확인할 수 없습니다/)).toBeTruthy();
+  await idle();
+  expect(screen.queryByText('Fallback')).toBeNull();
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+it('initializes the dated saved scope together with category filters and preserves it across revision refresh', async () => {
+  const dateRange = { column: '__time', start: '2023-09-10', end: '2023-09-11' };
+  const scope = [{ column: 'device_type', values: ['Mobile/Tablet'] }];
+  const analysis = scopedAnalysis(scope);
+  analysis.data.data.defaultDateRange = dateRange;
+  const view = await mountScoped(analysis);
+  expect(api.post.mock.lastCall?.[1].dateRange).toEqual(dateRange);
+  expect(api.post.mock.lastCall?.[1].filters).toEqual(scope);
+  const latest = scopedAnalysis(scope, 's'.repeat(64));
+  latest.data.data.defaultDateRange = { ...dateRange, start: '2023-09-11' };
+  api.get.mockResolvedValue(latest);
+  view.rerender(
+    <DashboardAnalysis dashboardId={3} revision="v2" onSaved={vi.fn()}>
+      Fallback
+    </DashboardAnalysis>,
+  );
+  await idle();
+  expect(api.post.mock.lastCall?.[1].dateRange).toEqual(dateRange);
 });

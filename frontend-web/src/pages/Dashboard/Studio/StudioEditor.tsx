@@ -18,6 +18,8 @@ import { formatMetric } from '@/utils/formatMetric';
 import MetricTrend from '../Components/MetricTrend';
 import StudioCanvas, { studioItemHeight } from './StudioCanvas';
 import StudioConversation from './StudioConversation';
+import StudioFilterPanel from './StudioFilterPanel';
+import StudioDateRangePanel from './StudioDateRangePanel';
 import StudioPublish from './StudioPublish';
 import { StudioRunContext, StudioRunResult } from './studioRunTransport';
 import StudioInspector from './StudioInspector';
@@ -25,15 +27,27 @@ import StudioShell, { StudioDesignDocument, StudioProductContext } from './Studi
 import { applyStudioOperation, createStudioState, studioReducer } from './studioReducer';
 import { studioOrderOperations } from './studioEditing';
 import { StudioDefinitions } from './studioAdapter';
-import { studioAssert, studioClone, validateStudioDocument } from './studioDocument';
+import {
+  studioAssert,
+  studioClone,
+  studioFilterDraftKey,
+  studioFilterKey,
+  studioFilterSummary,
+  studioDateRangeKey,
+  studioDateRangeSummary,
+  validateStudioDocument,
+} from './studioDocument';
 import {
   fetchStudioDashboard,
   isStudioApiError,
+  prepareStudioDashboard,
   saveStudioDashboard,
   studioRequestId,
+  StudioFilterChoice,
   StudioLoadResult,
   StudioPreview,
   StudioPreviewRow,
+  StudioPrepareResult,
   StudioSaveRequest,
 } from './studioApi';
 import {
@@ -44,12 +58,16 @@ import {
   StudioBreakpoint,
   StudioDisplay,
   StudioDocumentV1,
+  StudioDateRange,
+  StudioFilter,
   StudioOperation,
   StudioState,
 } from './studioTypes';
 import './studio.css';
 
 const MAX_STUDIO_BLOCKS = 6;
+const scopeKey = (document: Pick<StudioDocumentV1, 'filters' | 'dateRange'>) =>
+  JSON.stringify([studioFilterDraftKey(document.filters), studioDateRangeKey(document.dateRange)]);
 const TREND_MIN_HEIGHT = 260;
 const DISPLAY_FIELDS = ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain'] as const;
 const breakpointLabel = (breakpoint: StudioBreakpoint) =>
@@ -143,6 +161,16 @@ export function reapplyStudioChanges(
       base.blocks.some(candidate => candidate.id === block.id)
     )
       operations.push({ type: 'removeBlock', blockId: block.id });
+  const originFilterKey = studioFilterKey(origin.filters);
+  const localFilterKey = studioFilterKey(mine.filters);
+  // A filter edit is a document change like any other: it is re-applied only when this editor made it.
+  if (localFilterKey !== originFilterKey && localFilterKey !== studioFilterKey(base.filters))
+    operations.push({ type: 'setFilters', filters: studioClone(mine.filters ?? []) });
+  if (
+    studioDateRangeKey(mine.dateRange) !== studioDateRangeKey(origin.dateRange) &&
+    studioDateRangeKey(mine.dateRange) !== studioDateRangeKey(base.dateRange)
+  )
+    operations.push({ type: 'setDateRange', dateRange: mine.dateRange ?? null });
   let addedBlocks = 0;
   for (const block of mine.blocks) {
     const originBlock = origin.blocks.find(candidate => candidate.id === block.id);
@@ -336,7 +364,40 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   const pendingRequest = useRef<StudioSaveRequest | null>(null);
   const [sourceRevision, setSourceRevision] = useState(initial.sourceRevision);
 
-  const [aiRows, setAiRows] = useState<Record<string, StudioPreviewRow>>({});
+  /** AI rows keep the confirmed scope they belong to: a later filter change can never reuse them. */
+  const [aiRows, setAiRows] = useState<{ scope: string; rows: Record<string, StudioPreviewRow> }>({
+    scope: '',
+    rows: {},
+  });
+  const [filterBusy, setFilterBusy] = useState(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
+  const [filterMessage, setFilterMessage] = useState<string | null>(null);
+  /** Scope the server confirmed for the rows on screen. Null means no confirmed query at all. */
+  const [previewScope, setPreviewScope] = useState<{
+    key: string;
+    filters: StudioFilter[];
+    dateRange?: StudioDateRange;
+  } | null>(
+    initial.preview
+      ? { key: scopeKey(initial.document), filters: initial.document.filters ?? [], dateRange: initial.document.dateRange }
+      : null,
+  );
+  const confirmedScope = useRef(previewScope);
+  confirmedScope.current = previewScope;
+  /** Keeps async callbacks on the latest document without re-creating them on every edit. */
+  const live = useRef({ document: state.present, revision: state.serverRevision, source: sourceRevision });
+  live.current = { document: state.present, revision: state.serverRevision, source: sourceRevision };
+  const prepare = useRef<{
+    generation: number;
+    controller: AbortController | null;
+    attempted: string;
+    intent: 'history' | 'apply';
+  }>({
+    generation: 0,
+    controller: null,
+    attempted: scopeKey(initial.document),
+    intent: 'history',
+  });
   const editClock = useRef({ document: state.present, generation: 0 });
   if (editClock.current.document !== state.present) {
     editClock.current = { document: state.present, generation: editClock.current.generation + 1 };
@@ -392,7 +453,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
       setPreview(next.preview);
       setPreviewError(next.previewError);
       setSourceRevision(next.sourceRevision);
-      setAiRows({});
+      setAiRows({ scope: '', rows: {} });
+      setPreviewScope(
+        next.preview
+          ? { key: scopeKey(next.document), filters: next.document.filters ?? [], dateRange: next.document.dateRange }
+          : null,
+      );
     } catch (error) {
       setPreviewError(error instanceof Error ? error.message : '저장은 완료됐지만 미리보기를 새로 불러오지 못했습니다.');
     }
@@ -417,6 +483,129 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
       setSaveError(cause instanceof Error ? cause.message : '최신 내용을 불러오지 못했습니다.');
     }
   };
+
+  /**
+   * One preview request per confirmed scope. A superseded request is aborted, its answer is dropped,
+   * and the previous preview keeps its own scope label instead of borrowing the new filters.
+   */
+  const prepareScope = useCallback(
+    async (
+      filters: StudioFilter[],
+      intent: 'history' | 'apply',
+      dateRange: StudioDateRange | null | undefined = live.current.document.dateRange,
+    ): Promise<StudioPrepareResult | null> => {
+      const requested = scopeKey({ filters, dateRange: dateRange ?? undefined });
+      prepare.current.attempted = requested;
+      prepare.current.intent = intent;
+      const generation = prepare.current.generation + 1;
+      prepare.current.generation = generation;
+      prepare.current.controller?.abort();
+      const controller = new AbortController();
+      prepare.current.controller = controller;
+      setFilterBusy(true);
+      setFilterError(null);
+      let prepared: StudioPrepareResult;
+      try {
+        prepared = await prepareStudioDashboard(
+          dashboardId,
+          {
+            expectedRevision: live.current.revision,
+            expectedSourceRevision: live.current.source,
+            document: applyStudioOperation(applyStudioOperation(live.current.document, { type: 'setFilters', filters }), {
+              type: 'setDateRange',
+              dateRange: dateRange ?? null,
+            }),
+          },
+          { signal: controller.signal },
+        );
+      } catch (cause) {
+        if (prepare.current.generation !== generation || controller.signal.aborted) return null;
+        if (isStudioApiError(cause) && cause.kind === 'conflict') {
+          await loadLatest(cause.message);
+          return null;
+        }
+        setFilterError(cause instanceof Error ? cause.message : '필터 조건으로 다시 조회하지 못했습니다.');
+        setFilterMessage(null);
+        return null;
+      } finally {
+        if (prepare.current.generation === generation) setFilterBusy(false);
+      }
+      if (prepare.current.generation !== generation) return null;
+      // A history-driven query is accepted only while the document still asks for that scope, so a
+      // late answer for a superseded undo/redo step can never relabel the rows on screen.
+      if (intent === 'history' && scopeKey(live.current.document) !== requested) return null;
+      setPreview(prepared.preview);
+      setPreviewError(null);
+      // Rows rendered from an AI draft belong to the previous scope and must not survive a filter change.
+      setAiRows({ scope: '', rows: {} });
+      setPreviewScope({
+        key: scopeKey(prepared.document),
+        dateRange: prepared.document.dateRange,
+        filters: studioClone(prepared.document.filters ?? []),
+      });
+      setFilterMessage(
+        prepared.document.dateRange
+          ? '날짜 범위와 공통 필터를 모든 블록에 적용했습니다. 저장하면 이 조건이 함께 저장됩니다.'
+          : (prepared.document.filters ?? []).length
+          ? '공통 필터를 모든 블록에 적용했습니다. 저장하면 이 조건이 함께 저장됩니다.'
+          : '공통 필터를 해제하고 전체 범위를 다시 조회했습니다.',
+      );
+      return prepared;
+    },
+    [dashboardId],
+  );
+
+  /** Explicit apply: the document and its history follow the server-confirmed scope, never ahead of it. */
+  const applyFilters = async (filters: StudioFilter[]) => {
+    setFilterMessage(null);
+    const prepared = await prepareScope(filters, 'apply');
+    if (!prepared) return;
+    try {
+      dispatch({ type: 'apply', operation: { type: 'setFilters', filters: prepared.document.filters ?? [] } });
+    } catch (error) {
+      setFilterError(error instanceof Error ? error.message : '필터 변경을 문서에 반영하지 못했습니다.');
+    }
+  };
+
+  const applyDateRange = async (dateRange: StudioDateRange | null) => {
+    setFilterMessage(null);
+    const prepared = await prepareScope(live.current.document.filters ?? [], 'apply', dateRange);
+    if (!prepared) return;
+    dispatch({ type: 'apply', operation: { type: 'setDateRange', dateRange: prepared.document.dateRange ?? null } });
+  };
+
+  const documentFilters = state.present.filters ?? [];
+  const documentFilterKey = scopeKey(state.present);
+  /** Drops a superseded request so its answer is neither applied nor able to reorder the panel. */
+  const cancelPrepare = useCallback(() => {
+    prepare.current.generation += 1;
+    prepare.current.controller?.abort();
+    prepare.current.controller = null;
+    setFilterBusy(false);
+  }, []);
+  // Only a document scope change schedules history work. Busy/preview renders must not cancel it.
+  useEffect(() => {
+    const filters = live.current.document.filters ?? [];
+    if (scopeKey(live.current.document) !== documentFilterKey) return;
+    if (confirmedScope.current?.key === documentFilterKey) {
+      if (
+        prepare.current.controller &&
+        prepare.current.intent === 'history' &&
+        prepare.current.attempted !== documentFilterKey
+      )
+        cancelPrepare();
+      return;
+    }
+    if (prepare.current.attempted === documentFilterKey) return;
+    void prepareScope(filters, 'history', live.current.document.dateRange);
+  }, [documentFilterKey, prepareScope, cancelPrepare]);
+  useEffect(
+    () => () => {
+      prepare.current.generation += 1;
+      prepare.current.controller?.abort();
+    },
+    [],
+  );
 
   const save = async () => {
     if (saving) return;
@@ -528,8 +717,9 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   };
 
   const renderBlock = (block: StudioBlock) => {
-    const row =
-      aiRows[block.id + '|' + (block.display.timeGrain ?? 'auto')] ?? resolveBlockPreview({ block, definitions, preview });
+    const confirmed = previewScope?.key ?? '';
+    const aiRow = aiRows.scope === confirmed ? aiRows.rows[block.id + '|' + (block.display.timeGrain ?? 'auto')] : undefined;
+    const row = aiRow ?? resolveBlockPreview({ block, definitions, preview });
     if (!row)
       return (
         <div role="status" style={{ padding: '12px 2px', fontSize: 13, color: '#586579' }}>
@@ -612,7 +802,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   const documentForShell: StudioDesignDocument = {
     title: state.present.title,
     source: '데이터 소스 #' + state.present.sourceId,
-    period: '기본 조회 기간',
+    period: studioDateRangeSummary(state.present.dateRange),
     blockTitle: selected ? selected.title : '블록을 선택하세요',
   };
 
@@ -650,7 +840,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   const product: StudioProductContext = {
     source: '데이터 소스 #' + state.present.sourceId,
     sourceMeta: '정의 ' + Object.keys(definitions.entries).length + '개 · Studio 문서',
-    period: '기본 조회 기간',
+    period: studioDateRangeSummary(state.present.dateRange),
     blockCount: state.present.blocks.length,
     canvasTitle: state.present.title,
     canvasDescription: '블록을 옮기고 수치를 확인한 뒤 저장하세요. 저장 전에는 서버에 반영되지 않습니다.',
@@ -679,18 +869,29 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     clientEditVersion: editClock.current.generation,
     ...(state.selectedBlockId ? { selectedBlockId: state.selectedBlockId } : {}),
   };
+  const scopeLabel = previewScope
+    ? '화면 반영 · ' +
+      (previewScope.dateRange ? studioDateRangeSummary(previewScope.dateRange) + ' · ' : '') +
+      (previewScope.filters.length ? studioFilterSummary(previewScope.filters) : '공통 필터 없음')
+    : '공통 필터 결과 미확인';
+  const scopePending = (previewScope?.key ?? null) !== documentFilterKey;
+  const pendingLabel = !scopePending
+    ? null
+    : filterBusy
+    ? '새 조건을 조회하는 중입니다. 지금 보이는 값은 이전 조건의 결과입니다.'
+    : '문서의 조건이 화면 결과에 반영되지 않았습니다. 지금 보이는 값은 이전 조건의 결과입니다.';
   const applyAi = (result: StudioRunResult) => {
     if (!applyOperations(result.proposedOperations)) return false;
     const next = result.proposedOperations.reduce(applyStudioOperation, state.present);
-    setAiRows(previous => ({
-      ...previous,
-      ...Object.fromEntries(
+    setAiRows({
+      scope: previewScope?.key ?? '',
+      rows: Object.fromEntries(
         next.blocks.map((block, index) => [
           block.id + '|' + (block.display.timeGrain ?? 'auto'),
           result.preview.widgets[index],
         ]),
       ),
-    }));
+    });
     setMessage('AI가 선택 블록을 수정했습니다. 저장 전 초안입니다. 되돌리기로 취소할 수 있습니다.');
     return true;
   };
@@ -794,6 +995,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
           <StudioConversation
             context={runContext}
             selectedTitle={selected?.title}
+            filterScope={{ applied: previewScope?.filters ?? [], pending: scopePending, dateRange: previewScope?.dateRange }}
             onApply={applyAi}
             onSaved={async (saved, submitted) => {
               if (editClock.current.generation !== submitted.clientEditVersion) return false;
@@ -817,15 +1019,37 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
           />
         }
         canvas={
-          <StudioCanvas
-            document={state.present}
-            breakpoint={breakpoint}
-            selectedBlockId={state.selectedBlockId}
-            onOperation={operation}
-            onSelect={blockId => dispatch({ type: 'select', blockId })}
-            onSettings={() => dispatch({ type: 'panel', panel: 'settings' })}
-            renderBlock={renderBlock}
-          />
+          <>
+            <StudioDateRangePanel
+              dateRange={state.present.dateRange}
+              columns={preview?.temporalColumns ?? []}
+              busy={filterBusy}
+              disabled={saving || !!state.pendingSave || !!conflict || state.present.blocks.length === 0}
+              error={null}
+              onApply={applyDateRange}
+            />
+            <StudioFilterPanel
+              filters={documentFilters}
+              choices={(preview?.dimensions as StudioFilterChoice[] | undefined) ?? []}
+              scopeLabel={scopeLabel}
+              pendingLabel={pendingLabel}
+              busy={filterBusy}
+              disabled={saving || !!state.pendingSave || !!conflict || state.present.blocks.length === 0}
+              error={filterError}
+              message={filterMessage}
+              onApply={applyFilters}
+              onRetry={() => void prepareScope(documentFilters, 'history')}
+            />
+            <StudioCanvas
+              document={state.present}
+              breakpoint={breakpoint}
+              selectedBlockId={state.selectedBlockId}
+              onOperation={operation}
+              onSelect={blockId => dispatch({ type: 'select', blockId })}
+              onSettings={() => dispatch({ type: 'panel', panel: 'settings' })}
+              renderBlock={renderBlock}
+            />
+          </>
         }
         inspector={
           <StudioInspector

@@ -19,6 +19,37 @@ const preview = () => ({
   unmappedBlocks: [],
   preview: { widgets: [{ type: 'BOARD_NUMERIC', valueField: 'value', fields: [], datas: [{ value: 500 }] }] },
 });
+describe('remix common period boundary', () => {
+  const dateRange = { column: 'created_at', start: '2024-01-01', end: '2024-01-31' };
+  it('keeps the publisher period read-only and refuses a malformed one', () => {
+    expect(validateRemixRequirements({ ...requirements(), dateRange }, token).dateRange).toEqual(dateRange);
+    for (const malformed of [
+      { column: 'created_at', start: '2024-01-01', end: '9999-12-31' },
+      { column: 'created_at', start: '0000-01-01', end: '2024-01-01' },
+      { column: '', start: '2024-01-01', end: '2024-01-31' },
+    ])
+      expect(() => validateRemixRequirements({ ...requirements(), dateRange: malformed }, token)).toThrow();
+  });
+  it('reports the applied period and blocks creation when the saved date column cannot be mapped', () => {
+    const mapped = validateRemixPreview({ ...preview(), mappedDateRange: dateRange }, token, request());
+    expect(mapped.mappedDateRange).toEqual(dateRange);
+    expect(canCreateRemix(mapped, [])).toBe(true);
+    const blocked = validateRemixPreview({ ...preview(), unmappedDateRange: 'created_at' }, token, request());
+    expect(blocked.unmappedDateRange).toBe('created_at');
+    // The server refuses this creation; the screen must not offer it either.
+    expect(canCreateRemix(blocked, [])).toBe(false);
+    expect(() => validateRemixPreview({ ...preview(), unmappedDateRange: ' ' }, token, request())).toThrow();
+    expect(() => validateRemixPreview({ ...preview(), unmappedDateRange: 'c'.repeat(129) }, token, request())).toThrow();
+    expect(() =>
+      validateRemixPreview(
+        { ...preview(), mappedDateRange: { column: 'created_at', start: '2024-02-31', end: '2024-03-05' } },
+        token,
+        request(),
+      ),
+    ).toThrow();
+  });
+});
+
 describe('remix pinned boundary', () => {
   it('rejects a template for another token or unknown field/block links', () => {
     expect(() => validateRemixRequirements({ ...requirements(), token: 'c'.repeat(64) }, token)).toThrow();

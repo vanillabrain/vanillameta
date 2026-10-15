@@ -1,5 +1,6 @@
 import { get, post } from '@/helpers/apiHelper';
-import { StudioDisplay, StudioDocumentV1 } from './studioTypes';
+import { validateStudioDateRange, validateStudioFilters } from './studioDocument';
+import { StudioDateRange, StudioDisplay, StudioDocumentV1, StudioFilter } from './studioTypes';
 export type Publication = {
   token: string;
   version: number;
@@ -33,7 +34,10 @@ export type PublishedSnapshot = Publication & {
   snapshot: {
     title: string;
     periodLabel: string;
-    filters: unknown[];
+    /** Same protocol type as the editable document: the scope the snapshot was aggregated with. */
+    filters?: StudioFilter[];
+    /** Published period, read-only on this screen. Absent means the whole period was in scope. */
+    dateRange?: StudioDateRange;
     blocks: PublishedBlock[];
     layouts: StudioDocumentV1['layouts'];
   };
@@ -100,7 +104,16 @@ export async function fetchPublished(token: string): Promise<PublishedSnapshot> 
     )
   )
     throw new Error('게시된 데이터 형식을 확인하지 못했습니다.');
-  return data;
+  let filters: StudioFilter[] = [];
+  let dateRange: StudioDateRange | undefined;
+  try {
+    // Absent means the publisher had no common scope; a malformed list is never silently ignored.
+    filters = snapshot.filters === undefined ? [] : validateStudioFilters(snapshot.filters);
+    dateRange = snapshot.dateRange === undefined ? undefined : validateStudioDateRange(snapshot.dateRange);
+  } catch {
+    throw new Error('게시된 공통 범위(필터·기간) 형식을 확인하지 못했습니다.');
+  }
+  return { ...data, snapshot: { ...snapshot, filters, ...(dateRange ? { dateRange } : {}) } };
 }
 export const publicationUrl = (token: string) => window.location.origin + '/published/' + encodeURIComponent(token);
 export const publicationTime = (value: string) => new Date(value).toLocaleString('ko-KR', { timeZoneName: 'short' });

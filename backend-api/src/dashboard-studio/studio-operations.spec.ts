@@ -12,6 +12,43 @@ const newBlock = (kind: StudioBlock['kind'] = 'BOARD_NUMERIC'): StudioBlock => (
 });
 
 describe('Studio pure operations', () => {
+  const range = { column: 'event_time', start: '2026-01-01', end: '2026-01-02' };
+  it('applies, replaces and removes the optional common date range', () => {
+    const input = fixture();
+    const applied = applyStudioOperation(input, { type: 'setDateRange', dateRange: range });
+    expect(applied.dateRange).toEqual(range);
+    expect(input.dateRange).toBeUndefined();
+    const replaced = applyStudioOperation(applied, {
+      type: 'setDateRange',
+      dateRange: { ...range, start: '2025-12-31' },
+    });
+    expect(replaced.dateRange).toEqual({ ...range, start: '2025-12-31' });
+    const cleared = applyStudioOperation(replaced, { type: 'setDateRange', dateRange: null });
+    expect('dateRange' in cleared).toBe(false);
+  });
+  it.each([
+    [{ column: 'event_time', start: '2026-01-02', end: '2026-01-01' }],
+    [{ column: 'event_time', start: '2026-01-01' }],
+    [{ column: 'event_time', start: '2026-01-01', end: '2026-01-01', precision: 'day' }],
+    [{ column: 'event_time', start: '2026-01-01', end: '9999-12-31' }],
+    ['2026-01-01'],
+  ])('rejects a malformed range without mutating the document %#', dateRange => {
+    const input = fixture();
+    const before = fixture();
+    expect(() => applyStudioOperation(input, { type: 'setDateRange', dateRange } as any)).toThrow();
+    expect(input).toEqual(before);
+  });
+  it('rejects unknown or missing fields on a date range operation', () => {
+    const input = fixture();
+    expect(() =>
+      applyStudioOperation(input, {
+        type: 'setDateRange',
+        dateRange: range,
+        sql: 'SELECT 1',
+      } as any),
+    ).toThrow();
+    expect(() => applyStudioOperation(input, { type: 'setDateRange' } as any)).toThrow();
+  });
   it.each([
     ['BOARD_NUMERIC', [6, 4, 1], 3],
     ['CHART_COLUMN', [12, 8, 1], 5],

@@ -121,6 +121,184 @@ describe('Studio real DuckDB and transactional metadata', () => {
       },
       7,
     );
+  it('filters every block before aggregation, persists scope without changing canonical SQL, clears scope', async () => {
+    const initial = await studio.get(id, 7);
+    const document = applyStudioOperation(initial.document, {
+      type: 'setFilters',
+      filters: [{ column: 'category', values: ['Site'] }],
+    });
+    const body = {
+      document,
+      expectedRevision: document.revision,
+      expectedSourceRevision: initial.sourceRevision,
+    };
+    const filtered = await studio.prepare(id, body, 7);
+    expect(filtered.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+    expect(filtered.preview.widgets[1].datas).toEqual([{ category: 'Site', value: 300 }]);
+    expect((await studio.get(id, 7)).document.filters).toBeUndefined();
+    const saved = await save(document);
+    const loaded = await studio.get(id, 7);
+    expect(loaded.document.filters).toEqual(document.filters);
+    expect(loaded.preview.widgets.map(w => w.datas)).toEqual(
+      filtered.preview.widgets.map(w => w.datas),
+    );
+    expect((await ai.analysis(id, 7)).data.defaultFilters).toEqual(document.filters);
+    expect((await ai.analysis(id, 7)).data.widgets.map(w => w.sql)).toEqual(
+      draft().widgets.map(w => w.sql),
+    );
+    const published = await studio.publicationSnapshot(
+      id,
+      saved.document.revision,
+      7,
+      async v => v,
+    );
+    expect(published.document.filters).toEqual(document.filters);
+    expect(published.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+    // Legacy writes invalidate StudioState; server-owned scope is still reconstructed correctly.
+    const row = await db.manager.findOneBy(Dashboard, { id });
+    await db.manager.update(Dashboard, { id }, { title: row.title + ' legacy' });
+    const imported = await studio.get(id, 7);
+    expect(imported.document.filters).toEqual(document.filters);
+    const cleared = applyStudioOperation(imported.document, { type: 'setFilters', filters: [] });
+    await save(cleared, 'clear-filter-' + id);
+    expect((await studio.get(id, 7)).preview.widgets[0].datas).toEqual([{ value: 500 }]);
+    expect((await ai.analysis(id, 7)).data.defaultFilters).toBeUndefined();
+  });
+  it('unknown filter columns fail closed before save or preview and empty results do not use stale totals', async () => {
+    const initial = await studio.get(id, 7);
+    const invalid = {
+      ...initial.document,
+      filters: [{ column: 'not_a_column', values: ['Site'] }],
+    };
+    const count = await db.manager.count(Widget);
+    await expect(
+      studio.prepare(
+        id,
+        {
+          document: invalid,
+          expectedRevision: invalid.revision,
+          expectedSourceRevision: initial.sourceRevision,
+        },
+        7,
+      ),
+    ).rejects.toThrow();
+    await expect(save(invalid)).rejects.toThrow();
+    expect(await db.manager.count(Widget)).toBe(count);
+    expect((await studio.get(id, 7)).document).toEqual(initial.document);
+    const empty = { ...initial.document, filters: [{ column: 'category', values: ['Absent'] }] };
+    const result = await studio.prepare(
+      id,
+      {
+        document: empty,
+        expectedRevision: empty.revision,
+        expectedSourceRevision: initial.sourceRevision,
+      },
+      7,
+    );
+    expect(result.preview.widgets[0].datas).toEqual([{ value: null }]);
+    expect(result.preview.widgets[1].datas).toEqual([]);
+  });
+  it('applies a saved date range before aggregation, imports it, and clears the stored range', async () => {
+    const range = { column: 'event_time', start: '2026-01-01', end: '2026-01-01' };
+    const initial = await studio.get(id, 7);
+    const scoped = applyStudioOperation(initial.document, {
+      type: 'setDateRange',
+      dateRange: range,
+    });
+    const prepared = await studio.prepare(
+      id,
+      {
+        document: scoped,
+        expectedRevision: scoped.revision,
+        expectedSourceRevision: initial.sourceRevision,
+      },
+      7,
+    );
+    expect(prepared.document.dateRange).toEqual(range);
+    expect(prepared.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+    expect(prepared.preview.widgets[1].datas).toEqual([{ category: 'Site', value: 300 }]);
+    // An unsaved range never becomes part of the server document.
+    expect((await studio.get(id, 7)).document.dateRange).toBeUndefined();
+
+    await save(scoped, 'range-save-' + id);
+    const loaded = await studio.get(id, 7);
+    expect(loaded.document.dateRange).toEqual(range);
+    expect(loaded.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+    const stored = JSON.parse(
+      String((await db.manager.findOneBy(Dashboard, { id }))?.structuredDefinition),
+    );
+    expect(stored.studioDateRange).toEqual(range);
+    expect(stored.studioFilters).toBeUndefined();
+    expect((await ai.analysis(id, 7)).data.defaultDateRange).toEqual(range);
+    // The stored range and filters compose in one scoped query: Mobile exists only outside it.
+    const combined = applyStudioOperation(loaded.document, {
+      type: 'setFilters',
+      filters: [{ column: 'category', values: ['Mobile'] }],
+    });
+    const composed = await studio.prepare(
+      id,
+      {
+        document: combined,
+        expectedRevision: combined.revision,
+        expectedSourceRevision: initial.sourceRevision,
+      },
+      7,
+    );
+    expect(composed.preview.widgets[0].datas).toEqual([{ value: null }]);
+    expect(composed.preview.widgets[1].datas).toEqual([]);
+
+    // A legacy write invalidates StudioState; the server-owned range is still reconstructed.
+    await db.manager.update(Dashboard, { id }, { title: 'range legacy' });
+    const imported = await studio.get(id, 7);
+    expect(imported.document.dateRange).toEqual(range);
+    expect(imported.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+
+    const cleared = applyStudioOperation(imported.document, {
+      type: 'setDateRange',
+      dateRange: null,
+    });
+    await save(cleared, 'range-clear-' + id);
+    const afterClear = await studio.get(id, 7);
+    expect(afterClear.document.dateRange).toBeUndefined();
+    expect(afterClear.preview.widgets[0].datas).toEqual([{ value: 500 }]);
+    const clearedSnapshot = JSON.parse(
+      String((await db.manager.findOneBy(Dashboard, { id }))?.structuredDefinition),
+    );
+    expect(clearedSnapshot.studioDateRange).toBeUndefined();
+    expect((await ai.analysis(id, 7)).data.defaultDateRange).toBeUndefined();
+  });
+  it('fails closed on a malformed saved scope with a distinguishable code', async () => {
+    const range = { column: 'event_time', start: '2026-01-01', end: '2026-01-01' };
+    const initial = await studio.get(id, 7);
+    await save(
+      applyStudioOperation(initial.document, { type: 'setDateRange', dateRange: range }),
+      'range-invalid-' + id,
+    );
+    const row = await db.manager.findOneBy(Dashboard, { id });
+    if (!row) throw new Error('Expected saved dashboard');
+    const stored = JSON.parse(String(row.structuredDefinition));
+    stored.studioDateRange = { column: 'event_time', start: '2026-01-01', end: 'not-a-date' };
+    await db.manager.update(
+      Dashboard,
+      { id },
+      { structuredDefinition: JSON.stringify(stored), title: 'malformed range' },
+    );
+    const failure = async (run: () => Promise<unknown>) => {
+      try {
+        await run();
+      } catch (error) {
+        return (error as any).getResponse?.();
+      }
+      return null;
+    };
+    expect(await failure(() => ai.analysis(id, 7))).toMatchObject({ code: 'INVALID_STUDIO_SCOPE' });
+    expect(await failure(() => studio.get(id, 7))).toMatchObject({ code: 'INVALID_STUDIO_SCOPE' });
+    // Malformed stored filters use the same distinguishable code.
+    stored.studioDateRange = range;
+    stored.studioFilters = [{ column: 'category' }];
+    await db.manager.update(Dashboard, { id }, { structuredDefinition: JSON.stringify(stored) });
+    expect(await failure(() => ai.analysis(id, 7))).toMatchObject({ code: 'INVALID_STUDIO_SCOPE' });
+  });
   it('persists exact viewport geometry/title, keeps existing viewer numbers and canonical references', async () => {
     const state = await studio.get(id, 7);
     expect(state.preview.widgets[0].datas).toEqual([{ value: 500 }]);

@@ -78,6 +78,8 @@ export function importStudio(
     revision: analysis.revision,
     title: analysis.title,
     sourceId: analysis.databaseId,
+    ...(snapshot?.studioFilters?.length ? { filters: snapshot.studioFilters } : {}),
+    ...(snapshot?.studioDateRange ? { dateRange: snapshot.studioDateRange } : {}),
     blocks,
     layouts: { lg, md: derive(8), xs: derive(1) },
   });

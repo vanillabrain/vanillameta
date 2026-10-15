@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fixture from '../../../../../fixtures/studio/document-v1.json';
 import { applyStudioOperation, createStudioState, remapStudioIds, studioReducer } from './studioReducer';
-import { validateStudioDocument } from './studioDocument';
+import { studioDateRangeKey, studioDateRangeSummary, studioScopeKey, validateStudioDocument } from './studioDocument';
 import { StudioDocumentV1 } from './studioTypes';
 const fresh = () => structuredClone(fixture) as StudioDocumentV1;
 const newId = 'new:11111111-1111-4111-8111-111111111111';
@@ -181,5 +181,111 @@ describe('Studio document boundary', () => {
       mutate(d);
       expect(() => validateStudioDocument(d)).toThrow();
     }
+  });
+});
+
+describe('Studio common filter scope', () => {
+  const scope = [{ column: 'device_type', values: ['Mobile/Tablet', 1, true, null] }];
+  it('applies one scope as a single history entry, clears the optional property, and undoes exactly', () => {
+    let s = createStudioState(fresh());
+    s = studioReducer(s, { type: 'apply', operation: { type: 'setFilters', filters: scope } });
+    expect(s.present.filters).toEqual(scope);
+    expect(s.past).toHaveLength(1);
+    expect(s.saveState).toBe('dirty');
+    expect(studioReducer(s, { type: 'apply', operation: { type: 'setFilters', filters: structuredClone(scope) } })).toEqual(
+      s,
+    );
+    const cleared = studioReducer(s, { type: 'apply', operation: { type: 'setFilters', filters: [] } });
+    expect('filters' in cleared.present).toBe(false);
+    const undone = studioReducer(cleared, { type: 'undo' });
+    expect(undone.present.filters).toEqual(scope);
+    expect(studioReducer(undone, { type: 'redo' }).present.filters).toBeUndefined();
+  });
+  it('keeps the filter list in the saved baseline so only a real change stays dirty', () => {
+    let s = createStudioState(fresh());
+    s = studioReducer(s, { type: 'apply', operation: { type: 'setFilters', filters: scope } });
+    s = studioReducer(s, { type: 'saveStarted', requestId: 'save-1' });
+    const saved = studioReducer(s, { type: 'saved', requestId: 'save-1', revision: 'b'.repeat(64), idMap: {} });
+    expect(saved.saveState).toBe('clean');
+    expect(saved.savedBaseline.filters).toEqual(scope);
+    expect(saved.present.filters).toEqual(scope);
+  });
+  it('rejects a scope the server would refuse without mutating the document', () => {
+    const d = fresh();
+    for (const filters of [
+      [{ column: 'device_type', values: [] }],
+      [{ column: 'device_type', values: ['a', 'a'] }],
+      [{ column: 'device_type', values: [1, '1', true, null, 1] }],
+      [{ column: 'device_type', values: [{ nested: 1 }] }],
+      [
+        { column: 'a', values: [1] },
+        { column: 'a', values: [2] },
+      ],
+      Array.from({ length: 6 }, (_, index) => ({ column: 'c' + index, values: [index] })),
+      [{ column: 'device_type', values: ['x'.repeat(2001)] }],
+      [{ column: 'device_type', values: [1], extra: 'secret' }],
+    ])
+      expect(() => applyStudioOperation(d, { type: 'setFilters', filters } as any)).toThrow();
+    expect(d).toEqual(fixture);
+    expect(validateStudioDocument({ ...fresh(), filters: [{ column: 'device_type', values: [null] }] }).filters).toEqual([
+      { column: 'device_type', values: [null] },
+    ]);
+    expect(() => validateStudioDocument({ ...fresh(), filters: [{ column: 'device_type', values: [] }] })).toThrow();
+  });
+});
+
+describe('Studio common date range', () => {
+  const range = { column: 'created_at', start: '2024-01-01', end: '2024-01-31' };
+  it('applies one period as a single history entry and removes the property when cleared', () => {
+    let s = createStudioState(fresh());
+    s = studioReducer(s, { type: 'apply', operation: { type: 'setDateRange', dateRange: range } });
+    expect(s.present.dateRange).toEqual(range);
+    expect(s.past).toHaveLength(1);
+    expect(s.saveState).toBe('dirty');
+    expect(studioReducer(s, { type: 'apply', operation: { type: 'setDateRange', dateRange: { ...range } } })).toEqual(s);
+    const cleared = studioReducer(s, { type: 'apply', operation: { type: 'setDateRange', dateRange: null } });
+    expect('dateRange' in cleared.present).toBe(false);
+    const undone = studioReducer(cleared, { type: 'undo' });
+    expect(undone.present.dateRange).toEqual(range);
+    expect(studioReducer(undone, { type: 'redo' }).present.dateRange).toBeUndefined();
+  });
+  it('rejects a period the server would refuse without mutating the document', () => {
+    const d = fresh();
+    const refused = [
+      { column: 'created_at', start: '2024-02-31', end: '2024-03-05' },
+      { column: 'created_at', start: '0000-01-01', end: '2024-01-01' },
+      { column: 'created_at', start: '2024-01-01', end: '9999-12-31' },
+      { column: 'created_at', start: '2024-03-05', end: '2024-01-01' },
+      { column: 'created_at', start: '2024-01-01', end: '2024-01-31', precision: 'date' },
+      { column: 'created_at', start: '2024-01-01', end: '2024-01-31', timeZone: undefined },
+      { column: '', start: '2024-01-01', end: '2024-01-31' },
+      { column: 'c'.repeat(129), start: '2024-01-01', end: '2024-01-31' },
+      { column: 'created_at', start: '2024-01-01', end: '2024-01-31', extra: 'secret' },
+    ] as any[];
+    for (const dateRange of refused)
+      expect(() => applyStudioOperation(d, { type: 'setDateRange', dateRange } as any)).toThrow();
+    expect(d).toEqual(fixture);
+    // The instant shape round-trips with its business timezone and exclusive end.
+    const instant = {
+      column: 'created_at',
+      start: '2024-01-01T00:00:00Z',
+      end: '2024-02-01T00:00:00Z',
+      precision: 'timestamp' as const,
+      timeZone: 'Asia/Seoul',
+    };
+    expect(validateStudioDocument({ ...fresh(), dateRange: instant }).dateRange).toEqual(instant);
+  });
+  it('keeps a stable scope key and a readable summary that never overstates the range', () => {
+    expect(studioDateRangeSummary(null)).toBe('전체 기간');
+    expect(studioDateRangeKey(null)).toBe('');
+    expect(studioDateRangeKey(range)).toBe(studioDateRangeKey({ ...range }));
+    expect(studioDateRangeSummary(range)).toContain('created_at');
+    expect(studioDateRangeSummary({ ...range, timeZone: 'Asia/Seoul' })).toContain('Asia/Seoul');
+    expect(studioDateRangeSummary({ column: 'created_at', start: '2024-01-01', end: '2024-01-01' })).toContain('2024-01-01');
+    expect(studioScopeKey(undefined, null)).toBe(studioScopeKey([], null));
+    expect(studioScopeKey(undefined, range)).not.toBe(studioScopeKey(undefined, null));
+    expect(studioScopeKey([{ column: 'device_type', values: [1] }], range)).not.toBe(studioScopeKey(undefined, range));
+    expect(() => studioScopeKey(undefined, { ...range, end: '9999-12-31' })).toThrow();
+    expect(() => studioScopeKey([{ column: 'a', values: [] }], null)).toThrow();
   });
 });

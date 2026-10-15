@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import StudioEditor, { mergeStudioDisplay, reapplyStudioChanges, resolveBlockPreview } from './StudioEditor';
 import { StudioDefinitions } from './studioAdapter';
@@ -454,5 +454,262 @@ describe('Studio AI SDK selected block integration', () => {
     await screen.findByText(/같은 블록과 원래 초안에서 재시도/);
     expect(api.post).not.toHaveBeenCalled();
     expect(saveButton().disabled).toBe(false);
+  });
+});
+
+describe('studio editor scoped preview queue', () => {
+  const filtersOf = (body: any) => (body?.document?.filters ?? []) as { column: string; values: any[] }[];
+  const scopedRow = (value: number) => ({ ...row, datas: [{ total: value }] });
+  const scopedPreview = (value: number) => ({
+    draft: { databaseId: 4, title: '매출 대시보드', explanation: '요약', widgets: [scopedRow(value)] },
+    widgets: [scopedRow(value)],
+    dimensions: [{ column: 'category', values: ['Site', 'Mobile'] }],
+  });
+  const loaded = (value: number) => envelope({ preview: scopedPreview(value) });
+  const preparedReply = (filters: any[], value: number) => ({
+    data: { document: doc({ ...(filters.length ? { filters } : {}) }), preview: scopedPreview(value) },
+  });
+  const scopeLabel = () => screen.getByText(/^화면 반영 ·/).textContent;
+  const openPanel = () => fireEvent.click(screen.getByRole('button', { name: /공통 필터/ }));
+  const addFilterValue = (column: string, value: string) => {
+    fireEvent.change(screen.getByLabelText('필터 열 추가'), { target: { value: column } });
+    fireEvent.click(screen.getByLabelText(value));
+  };
+  const applyScope = () => fireEvent.click(screen.getByRole('button', { name: '적용' }));
+
+  it('applies the first scope and renders only the server-confirmed rows', async () => {
+    api.get.mockResolvedValue(loaded(500));
+    api.post.mockImplementation(async (_url, body) => preparedReply(filtersOf(body), 300));
+    render(<StudioEditor />);
+    await screen.findByText('500');
+    expect(scopeLabel()).toBe('화면 반영 · 공통 필터 없음');
+    openPanel();
+    addFilterValue('category', 'Site');
+    applyScope();
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(api.post.mock.calls[0][0]).toBe('/studio/dashboards/3/preview');
+    expect(filtersOf(api.post.mock.calls[0][1])).toEqual([{ column: 'category', values: ['Site'] }]);
+    expect(await screen.findByText('300')).toBeTruthy();
+    expect(screen.queryByText('500')).toBeNull();
+    expect(scopeLabel()).toBe('화면 반영 · category 1개 값');
+    expect(await screen.findByText(/공통 필터를 모든 블록에 적용했습니다/)).toBeTruthy();
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  it('re-queries the confirmed scope for undo and redo of the applied filter', async () => {
+    api.get.mockResolvedValue(loaded(500));
+    api.post.mockImplementation(async (_url, body) => {
+      const filters = filtersOf(body);
+      return preparedReply(filters, filters.length ? 300 : 500);
+    });
+    render(<StudioEditor />);
+    await screen.findByText('500');
+    openPanel();
+    addFilterValue('category', 'Site');
+    applyScope();
+    expect(await screen.findByText('300')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    expect(filtersOf(api.post.mock.calls[1][1])).toEqual([]);
+    expect(await screen.findByText('500')).toBeTruthy();
+    expect(scopeLabel()).toBe('화면 반영 · 공통 필터 없음');
+    fireEvent.click(screen.getByRole('button', { name: '다시 실행' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(3));
+    expect(filtersOf(api.post.mock.calls[2][1])).toEqual([{ column: 'category', values: ['Site'] }]);
+    expect(await screen.findByText('300')).toBeTruthy();
+    expect(scopeLabel()).toBe('화면 반영 · category 1개 값');
+  });
+
+  it('ignores a superseded scope answer and keeps the confirmed label and rows', async () => {
+    const deferred: Array<{ filters: any[]; resolve: (value: any) => void }> = [];
+    api.get.mockResolvedValue(loaded(500));
+    api.post.mockImplementation(
+      (_url, body) => new Promise(resolve => deferred.push({ filters: filtersOf(body), resolve })),
+    );
+    render(<StudioEditor />);
+    await screen.findByText('500');
+    openPanel();
+    addFilterValue('category', 'Site');
+    applyScope();
+    await waitFor(() => expect(deferred).toHaveLength(1));
+    await act(async () => deferred[0].resolve(preparedReply(deferred[0].filters, 300)));
+    expect(screen.getByText('300')).toBeTruthy();
+    // A second scope is requested, then undone before its answer arrives.
+    fireEvent.click(screen.getByLabelText('Mobile'));
+    applyScope();
+    await waitFor(() => expect(deferred).toHaveLength(2));
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+    await waitFor(() => expect(deferred).toHaveLength(3));
+    await act(async () => deferred[2].resolve(preparedReply(deferred[2].filters, 500)));
+    expect(await screen.findByText('500')).toBeTruthy();
+    expect(scopeLabel()).toBe('화면 반영 · 공통 필터 없음');
+    // The abandoned [Site, Mobile] answer must not repaint the canvas or borrow the new label.
+    await act(async () => deferred[1].resolve(preparedReply(deferred[1].filters, 250)));
+    expect(screen.queryByText('250')).toBeNull();
+    expect(screen.getByText('500')).toBeTruthy();
+    expect(scopeLabel()).toBe('화면 반영 · 공통 필터 없음');
+  });
+
+  it('keeps the last confirmed scope label and rows when a scoped query fails', async () => {
+    api.get.mockResolvedValue(loaded(500));
+    api.post.mockImplementation(async (_url, body) => {
+      const filters = filtersOf(body);
+      if (!filters.length) throw { response: { status: 400 } };
+      return preparedReply(filters, 300);
+    });
+    render(<StudioEditor />);
+    await screen.findByText('500');
+    openPanel();
+    addFilterValue('category', 'Site');
+    applyScope();
+    expect(await screen.findByText('300')).toBeTruthy();
+    expect(scopeLabel()).toBe('화면 반영 · category 1개 값');
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+    expect(await screen.findByText(/서버가 처리하지 못했습니다/)).toBeTruthy();
+    // The cleared scope never confirmed, so the screen keeps the old rows and says they are stale.
+    expect(screen.getByText('300')).toBeTruthy();
+    expect(screen.queryByText('500')).toBeNull();
+    expect(scopeLabel()).toBe('화면 반영 · category 1개 값');
+    expect(screen.getByText(/문서의 조건이 화면 결과에 반영되지 않았습니다/)).toBeTruthy();
+  });
+
+  it('drops AI rows once the confirmed scope changes', async () => {
+    const executionReply = (body: any) => ({
+      data: {
+        runId: 'run-test',
+        requestId: body.requestId,
+        dashboardId: 3,
+        status: 'succeeded',
+        steps: [
+          { stepId: 'inspectSource', status: 'succeeded', retryable: false },
+          { stepId: 'proposeSemantics', status: 'succeeded', retryable: false },
+          { stepId: 'preview', status: 'succeeded', retryable: false },
+          { stepId: 'applyDraft', status: 'succeeded', retryable: false },
+        ],
+        result: {
+          runId: 'run-test',
+          baseRevision: body.expectedRevision,
+          sourceRevision: body.expectedSourceRevision,
+          clientEditVersion: body.clientEditVersion,
+          selectedBlockId: body.selectedBlockId,
+          intent: 'edit',
+          answer: '선택 제목을 바꿨습니다.',
+          proposedOperations: [{ type: 'updateBlock', blockId: 'b1', patch: { title: 'AI 총매출' } }],
+          steps: [{ name: '검증', status: 'succeeded' }],
+          preview: scopedPreview(500),
+        },
+      },
+    });
+    api.get.mockImplementation(async url => (url === '/studio/runs' ? { data: [] } : loaded(500)));
+    api.post.mockImplementation(async (url, body) =>
+      url === '/studio/executions' ? executionReply(body) : preparedReply(filtersOf(body), 300),
+    );
+    render(<StudioEditor />);
+    await screen.findByText('500');
+    fireEvent.focus(screen.getByRole('button', { name: '총매출 이동 핸들' }));
+    fireEvent.click(screen.getByRole('button', { name: 'AI 열기' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }), {
+      target: { value: '선택 제목을 AI 총매출로 바꿔' },
+    });
+    const aiForm = screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }).closest('form');
+    if (!aiForm) throw new Error('AI form missing');
+    fireEvent.submit(aiForm);
+    expect(await screen.findByRole('heading', { name: 'AI 총매출' })).toBeTruthy();
+    expect(screen.getByText('500')).toBeTruthy();
+    openPanel();
+    addFilterValue('category', 'Site');
+    applyScope();
+    expect(await screen.findByText('300')).toBeTruthy();
+    // The AI row belonged to the previous scope: it must not survive the new confirmed query.
+    expect(screen.queryByText('500')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'AI 총매출' })).toBeTruthy();
+  });
+});
+
+describe('Studio date scope conflict reapply', () => {
+  const dateRange = { column: '__time', start: '2023-09-10', end: '2023-09-11' };
+  it('reapplies my date change without overwriting the latest categorical scope or layouts', () => {
+    const baseline = doc();
+    const filters = [{ column: 'category', values: ['Site'] }];
+    const latest = doc({ filters, title: '다른 곳의 제목' });
+    const local = doc({ dateRange });
+    const result = reapplyStudioChanges(latest, local, baseline).document;
+    expect(result.dateRange).toEqual(dateRange);
+    expect(result.filters).toEqual(filters);
+    expect(result.title).toBe(latest.title);
+    expect(result.layouts).toEqual(latest.layouts);
+  });
+  it('preserves an untouched remote date and explicitly clears a date removed locally', () => {
+    const latest = doc({ dateRange });
+    expect(reapplyStudioChanges(latest, doc({ title: '내 제목' }), doc()).document.dateRange).toEqual(dateRange);
+    expect(reapplyStudioChanges(latest, doc(), doc({ dateRange })).document.dateRange).toBeUndefined();
+  });
+});
+
+describe('Studio combined date scope preview', () => {
+  const filters = [{ column: 'category', values: ['Site'] }];
+  const dateRange = { column: '__time', start: '2023-09-10', end: '2023-09-11' };
+  const data = (value: number) => ({
+    draft: { databaseId: 4, title: '매출', explanation: '', widgets: [{ ...row, datas: [{ total: value }] }] },
+    widgets: [{ ...row, datas: [{ total: value }] }],
+    temporalColumns: [{ column: '__time', min: '2023-09-09', max: '2023-09-16' }],
+  });
+  const initial = () => envelope({ document: doc({ filters }), preview: data(300) });
+  const reply = (body: any, value: number) => ({ data: { document: body.document, preview: data(value) } });
+  const setDates = () => {
+    fireEvent.click(screen.getByRole('button', { name: '공통 기간', exact: true }));
+    fireEvent.change(screen.getByLabelText('기간 열'), { target: { value: '__time' } });
+    fireEvent.change(screen.getByLabelText('시작일 (UTC)'), { target: { value: dateRange.start } });
+    fireEvent.change(screen.getByLabelText('종료일 (UTC)'), { target: { value: dateRange.end } });
+  };
+  const dateApply = () =>
+    fireEvent.click(
+      within(screen.getByRole('region', { name: '공통 기간' })).getByRole('button', { name: '적용', exact: true }),
+    );
+  it('queries only on date apply, retains categorical scope, and re-queries date undo/redo and clear', async () => {
+    api.get.mockResolvedValue(initial());
+    api.post.mockImplementation(async (_url, body) => reply(body, body.document.dateRange ? 90 : 300));
+    render(<StudioEditor />);
+    await screen.findByText('300');
+    setDates();
+    expect(api.post).not.toHaveBeenCalled();
+    dateApply();
+    expect(await screen.findByText('90')).toBeTruthy();
+    expect(api.post.mock.calls[0][1].document).toMatchObject({ dateRange, filters });
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기', exact: true }));
+    expect(await screen.findByText('300')).toBeTruthy();
+    expect(api.post.mock.lastCall?.[1].document.dateRange).toBeUndefined();
+    expect(api.post.mock.lastCall?.[1].document.filters).toEqual(filters);
+    fireEvent.click(screen.getByRole('button', { name: '다시 실행', exact: true }));
+    expect(await screen.findByText('90')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '기간 전체 해제', exact: true }));
+    expect(await screen.findByText('300')).toBeTruthy();
+    expect(api.post.mock.lastCall?.[1].document.filters).toEqual(filters);
+  });
+  it('drops a late dated answer after undo requested a different scope', async () => {
+    api.get.mockResolvedValue(initial());
+    let late: (() => void) | undefined;
+    api.post.mockImplementation((_url, body) =>
+      body.document.dateRange?.end === '2023-09-12'
+        ? new Promise(resolve => {
+            late = () => resolve(reply(body, 999));
+          })
+        : Promise.resolve(reply(body, body.document.dateRange ? 90 : 300)),
+    );
+    render(<StudioEditor />);
+    await screen.findByText('300');
+    setDates();
+    dateApply();
+    await screen.findByText('90');
+    fireEvent.change(screen.getByLabelText('종료일 (UTC)'), { target: { value: '2023-09-12' } });
+    dateApply();
+    await waitFor(() => expect(late).toBeTypeOf('function'));
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기', exact: true }));
+    await screen.findByText('300');
+    await act(async () => {
+      late?.();
+    });
+    expect(screen.queryByText('999')).toBeNull();
+    expect(screen.getByText(/^화면 반영 ·/).textContent).toBe('화면 반영 · category 1개 값');
   });
 });

@@ -7,6 +7,7 @@ import LineChart from '@/widget/modules/linechart/LineChart';
 import { analysisOptions } from '../analysisOptions';
 import MetricTrend from '../Components/MetricTrend';
 import { fetchPublished, PublishedBlock, PublishedSnapshot, publicationError, publicationTime } from './studioPublication';
+import { studioDateRangeSummary, studioFilterChipText } from './studioDocument';
 import { STUDIO_COLUMNS } from './studioTypes';
 import './studio.css';
 
@@ -213,6 +214,22 @@ export default function PublishedDashboard() {
               <span>집계 시각 {publicationTime(data.asOf)}</span>
               {data.expiresAt && <span>만료 {publicationTime(data.expiresAt)}</span>}
             </div>
+            {!!(snapshot.filters ?? []).length && (
+              <div className="studio-published-filters" role="note" aria-label="게시 시점 공통 필터">
+                <span className="studio-eyebrow">게시 시점 공통 필터 · 읽기 전용</span>
+                {(snapshot.filters ?? []).map(filter => (
+                  <span className="studio-published-filter" key={filter.column}>
+                    {studioFilterChipText(filter)}
+                  </span>
+                ))}
+              </div>
+            )}
+            {snapshot.dateRange && (
+              <div className="studio-published-filters" role="note" aria-label="게시 시점 공통 기간">
+                <span className="studio-eyebrow">게시 시점 공통 기간 · 읽기 전용</span>
+                <span className="studio-published-filter">{studioDateRangeSummary(snapshot.dateRange)}</span>
+              </div>
+            )}
             <p className="studio-published-note">
               실시간 데이터가 아닙니다. 원본이 바뀌어도 소유자가 재게시하기 전까지 이 결과를 유지합니다.
             </p>

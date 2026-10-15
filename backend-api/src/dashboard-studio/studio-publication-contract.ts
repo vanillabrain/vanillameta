@@ -1,4 +1,10 @@
-import { StudioBlockKind, StudioDisplay, StudioDocumentV1 } from './studio-contract';
+import {
+  StudioBlockKind,
+  StudioDateRange,
+  StudioDisplay,
+  StudioDocumentV1,
+  StudioFilter,
+} from './studio-contract';
 export type PublicationMetadata = {
   token: string;
   version: number;
@@ -13,7 +19,8 @@ export type PublicationMetadata = {
 export type PublicationSnapshot = {
   title: string;
   periodLabel: string;
-  filters: [];
+  filters: StudioFilter[];
+  dateRange?: StudioDateRange;
   blocks: Array<{
     id: string;
     title: string;

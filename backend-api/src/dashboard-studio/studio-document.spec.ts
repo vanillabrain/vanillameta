@@ -13,6 +13,51 @@ const context = () => ({
 });
 
 describe('Studio document server contract', () => {
+  const dayRange = { column: 'event_time', start: '2026-01-01', end: '2026-01-01' };
+  it.each([
+    [dayRange],
+    [{ ...dayRange, end: '2026-01-02', timeZone: 'Asia/Seoul' }],
+    [
+      {
+        column: 'event_time',
+        start: '2026-01-01T00:00:00Z',
+        end: '2026-01-02T00:00:00Z',
+        precision: 'timestamp',
+      },
+    ],
+  ])('accepts the shared date range contract %#', dateRange => {
+    const input = fixture();
+    input.dateRange = dateRange;
+    expect(validateStudioDocument(input).dateRange).toEqual(dateRange);
+  });
+  it.each([
+    [{ column: 'event_time', start: '2026-01-01' }],
+    [{ column: '', start: '2026-01-01', end: '2026-01-02' }],
+    [{ column: 'event_time', start: '2026-01-02', end: '2026-01-01' }],
+    [{ column: 'event_time', start: '2026-01-01T00:00:00Z', end: '2026-01-02T00:00:00Z' }],
+    [
+      {
+        column: 'event_time',
+        start: '2026-01-01T00:00:00Z',
+        end: '2026-01-01T00:00:00Z',
+        precision: 'timestamp',
+      },
+    ],
+    [{ column: 'event_time', start: '2026-01-01', end: '2026-01-01', precision: 'day' }],
+    [{ column: 'event_time', start: '2026-01-01', end: '2026-01-01', timeZone: 'Mars/Olympus' }],
+    [{ column: 'event_time', start: '2026-01-01', end: '9999-12-31' }],
+    [{ column: 'event_time', start: '2026-01-01', end: '2026-01-01', sql: 'SELECT 1' }],
+    ['2026-01-01'],
+    [null],
+  ])('rejects a malformed or unresolvable date range %#', dateRange => {
+    const input = fixture();
+    input.dateRange = dateRange as any;
+    expect(() => validateStudioDocument(input)).toThrow();
+  });
+  it('rejects a stored null range; clearing deletes the property instead', () => {
+    const input = fixture();
+    expect(() => validateStudioDocument({ ...input, dateRange: null })).toThrow();
+  });
   it('accepts the shared fixture and returns a detached document', () => {
     const input = fixture();
     const result = validateStudioDocument(input);

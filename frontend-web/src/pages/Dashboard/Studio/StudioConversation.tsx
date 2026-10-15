@@ -11,6 +11,8 @@ import {
   canResumeExecution,
 } from './studioExecution';
 import { StudioSaveResult } from './studioApi';
+import { studioFilterSummary, studioDateRangeSummary } from './studioDocument';
+import { StudioFilter, StudioDateRange } from './studioTypes';
 import StudioExecutionActivity from './StudioExecutionActivity';
 import { AssistantMessage, messageText } from '../assistantTransport';
 import {
@@ -23,11 +25,13 @@ import {
 type Props = {
   context: StudioRunContext;
   selectedTitle?: string;
+  /** Scope confirmed for the rows on screen. The card never claims a filter that is not displayed yet. */
+  filterScope?: { applied: StudioFilter[]; pending: boolean; dateRange?: StudioDateRange };
   onApply: (result: StudioRunResult) => boolean;
   locked: boolean;
   onSaved?: (saved: StudioSaveResult, submitted: StudioRunContext) => Promise<boolean>;
 };
-export default function StudioConversation({ context, selectedTitle, onApply, locked, onSaved }: Props) {
+export default function StudioConversation({ context, selectedTitle, filterScope, onApply, locked, onSaved }: Props) {
   const current = useRef(context);
   current.current = context;
   const apply = useRef(onApply);
@@ -253,7 +257,15 @@ export default function StudioConversation({ context, selectedTitle, onApply, lo
         <div className="studio-context-card">
           <span className="studio-eyebrow">현재 문맥</span>
           <strong>{selectedTitle || '선택한 블록 없음'}</strong>
-          <span>전체 기간 · 필터 없음</span>
+          <span>
+            {studioDateRangeSummary(filterScope?.dateRange)} ·{' '}
+            {filterScope?.applied.length ? '공통 필터 ' + studioFilterSummary(filterScope.applied) : '필터 없음'}
+          </span>
+          {filterScope?.pending && (
+            <span>
+              문서의 날짜 범위·공통 필터는 아직 조회 결과에 반영되지 않았습니다. AI 요청은 저장된 문서 조건으로 처리됩니다.
+            </span>
+          )}
           {grain && grain !== 'auto' && (
             <span>{({ day: '일간', week: '주간', month: '월간' } as const)[grain]} 집계 · UTC</span>
           )}

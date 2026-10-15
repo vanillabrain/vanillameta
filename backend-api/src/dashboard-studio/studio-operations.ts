@@ -7,7 +7,12 @@ import {
   StudioDocumentV1,
   StudioOperation,
 } from './studio-contract';
-import { studioAssert, studioKeys, validateStudioDocument } from './studio-document';
+import {
+  studioAssert,
+  studioKeys,
+  validateStudioDateRange,
+  validateStudioDocument,
+} from './studio-document';
 
 const CONTENT_FIELDS = [
   'title',
@@ -36,6 +41,8 @@ export function applyStudioOperation(
     'w',
     'h',
     'title',
+    'filters',
+    'dateRange',
   ]);
   const op = operation as unknown as StudioOperation;
 
@@ -138,6 +145,17 @@ export function applyStudioOperation(
       }
       break;
     }
+    case 'setFilters':
+      studioKeys(op, ['type', 'filters']);
+      if (Array.isArray(op.filters) && op.filters.length === 0) delete next.filters;
+      else next.filters = op.filters;
+      break;
+    case 'setDateRange':
+      studioKeys(op, ['type', 'dateRange']);
+      // null clears the optional property; a range is validated before it reaches the document.
+      if (op.dateRange === null) delete next.dateRange;
+      else next.dateRange = validateStudioDateRange(op.dateRange);
+      break;
     case 'renameDashboard':
       studioKeys(op, ['type', 'title']);
       next.title = op.title;

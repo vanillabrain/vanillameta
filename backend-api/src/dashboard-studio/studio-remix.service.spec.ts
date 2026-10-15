@@ -18,6 +18,8 @@ import { StudioRemixRequest } from './entities/studio-remix.entity';
 import { StudioRun } from './entities/studio-run.entity';
 import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
 import { StudioRemixService } from './studio-remix.service';
+import { captureRemixTemplate } from './studio-remix-template';
+import { metricLinkItems } from '../ai/metric-analysis-links';
 import { StudioService } from './studio.service';
 import { StudioPublicationService } from './studio-publication.service';
 import { StudioCreationService } from './studio-creation.service';
@@ -845,5 +847,331 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       where: { id: saved.document.blocks[0].measureRefs[0].id },
     });
     expect(JSON.parse(cloneMetric.definition).column).toBe('total');
+  });
+  const withScope = async (filters: any[]) => {
+    const state = await studio.get(id, 7);
+    await studio.save(
+      id,
+      {
+        requestId: 'scope-' + id + '-' + filters.map(f => f.column + f.values.join('')).join('_'),
+        expectedRevision: state.document.revision,
+        expectedSourceRevision: state.sourceRevision,
+        document: { ...state.document, filters },
+      },
+      7,
+    );
+  };
+  it('maps the published categorical scope onto renamed target columns before aggregation', async () => {
+    await withScope([{ column: 'channel', values: ['Site'] }]);
+    const p = await publish({ requestId: 'scope-' + id });
+    const row: any = await db.manager.findOne(StudioPublication, { where: { token: p.token } });
+    const template = JSON.parse(row.remixTemplate);
+    expect(template.filters).toEqual([{ column: 'channel', values: ['Site'] }]);
+    // The scope column is required for every retained supported block, not only its own measure/dimension.
+    expect(template.requiredFields).toEqual(
+      expect.arrayContaining([
+        { name: 'channel', type: 'VARCHAR', blockIds: ['block-1', 'block-2', 'block-3'] },
+      ]),
+    );
+    const v = await preview(p);
+    expect(v.mappedFilters).toEqual([{ column: 'segment', values: ['Site'] }]);
+    expect(v.unmappedFilters).toEqual([]);
+    expect(v.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+    expect(v.preview.widgets[1].datas).toEqual([{ dimension: 'Site', value: 300 }]);
+    const saved = await saveRemix(p, v);
+    const clone = await studio.get(saved.dashboardId, 8);
+    expect(clone.document.filters).toEqual([{ column: 'segment', values: ['Site'] }]);
+    expect(clone.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+    const cloneRow = await db.manager.findOne(Dashboard, { where: { id: saved.dashboardId } });
+    const stored = JSON.parse(cloneRow?.structuredDefinition ?? '{}');
+    expect(stored.studioFilters).toEqual([{ column: 'segment', values: ['Site'] }]);
+    const analysis = (await dashboards.analysis(saved.dashboardId, 8)).data;
+    expect(analysis.defaultFilters).toEqual([{ column: 'segment', values: ['Site'] }]);
+    for (const widget of analysis.widgets) expect(widget.sql).not.toContain('WHERE');
+  });
+  it('fails closed when the published scope column cannot be mapped to the target', async () => {
+    await withScope([{ column: 'weight', values: [2] }]);
+    const p = await publish({ requestId: 'scope-missing-' + id });
+    const row: any = await db.manager.findOne(StudioPublication, { where: { token: p.token } });
+    expect(JSON.parse(row.remixTemplate).requiredFields).toEqual(
+      expect.arrayContaining([
+        { name: 'weight', type: 'BIGINT', blockIds: ['block-1', 'block-2', 'block-3'] },
+      ]),
+    );
+    const target = {
+      targetSourceId: 6,
+      mapping: { amount: 'total', channel: 'segment', event_time: 'occurred_at' },
+    };
+    const v = await preview(p, target);
+    expect(v.unmappedFilters).toEqual(['weight']);
+    expect(v.unmappedBlocks.map(b => b.blockId)).toEqual(['block-1', 'block-2', 'block-3']);
+    expect(v.preview).toBeUndefined();
+    const before = {
+      dashboards: await db.manager.count(Dashboard),
+      metrics: await db.manager.count(Metric),
+    };
+    await expect(saveRemix(p, v, target)).rejects.toMatchObject({ status: 400 });
+    expect(await db.manager.count(Dashboard)).toBe(before.dashboards);
+    expect(await db.manager.count(Metric)).toBe(before.metrics);
+  });
+  it('never returns aggregates for an unmappable scope even when the template omits its column', async () => {
+    const p = await publish({ requestId: 'scope-orphan-' + id });
+    const row: any = await db.manager.findOne(StudioPublication, { where: { token: p.token } });
+    const template = JSON.parse(row.remixTemplate);
+    template.filters = [{ column: 'weight', values: [2] }];
+    await db.manager.update(StudioPublication, p.token, {
+      remixTemplate: JSON.stringify(template),
+    });
+    const v = await preview(p);
+    expect(v.unmappedFilters).toEqual(['weight']);
+    expect(v.unmappedBlocks).toEqual([]);
+    expect(v.mappedFilters).toEqual([]);
+    expect(v.preview).toBeUndefined();
+    const before = await db.manager.count(Dashboard);
+    await expect(saveRemix(p, v)).rejects.toMatchObject({ status: 400 });
+    expect(await db.manager.count(Dashboard)).toBe(before);
+  });
+  it('rejects a direct remix whose scope values cannot be applied without writing artifacts', async () => {
+    const p = await publish({ requestId: 'scope-invalid-' + id });
+    const row: any = await db.manager.findOne(StudioPublication, { where: { token: p.token } });
+    const template = JSON.parse(row.remixTemplate);
+    template.filters = [{ column: 'amount', values: ['not-a-number'] }];
+    await db.manager.update(StudioPublication, p.token, {
+      remixTemplate: JSON.stringify(template),
+    });
+    const before = {
+      dashboards: await db.manager.count(Dashboard),
+      metrics: await db.manager.count(Metric),
+      requests: await db.manager.count(StudioRemixRequest),
+    };
+    await expect(
+      saveRemix(p, { sourceRevision: (await creation.profile(2, 8)).dataVersion }),
+    ).rejects.toBeDefined();
+    expect(await db.manager.count(Dashboard)).toBe(before.dashboards);
+    expect(await db.manager.count(Metric)).toBe(before.metrics);
+    expect(await db.manager.count(StudioRemixRequest)).toBe(before.requests);
+  });
+  it('rejects a duplicated scope target on the direct remix commit without artifacts', async () => {
+    await withScope([
+      { column: 'amount', values: [300] },
+      { column: 'weight', values: [2] },
+    ]);
+    const p = await publish({ requestId: 'scope-duplicate-' + id });
+    const duplicate = {
+      targetSourceId: 6,
+      mapping: {
+        amount: 'total',
+        weight: 'total',
+        channel: 'segment',
+        event_time: 'occurred_at',
+      },
+    };
+    const previewError: any = await preview(p, duplicate).catch(error => error);
+    expect(previewError.status).toBe(400);
+    expect(previewError.message).toContain('amount');
+    expect(previewError.message).toContain('weight');
+    const before = {
+      dashboards: await db.manager.count(Dashboard),
+      metrics: await db.manager.count(Metric),
+      requests: await db.manager.count(StudioRemixRequest),
+    };
+    const commitError: any = await saveRemix(
+      p,
+      { sourceRevision: (await creation.profile(6, 8)).dataVersion },
+      duplicate,
+    ).catch(error => error);
+    expect(commitError.status).toBe(400);
+    expect(commitError.message).toContain('amount');
+    expect(commitError.message).toContain('weight');
+    expect(await db.manager.count(Dashboard)).toBe(before.dashboards);
+    expect(await db.manager.count(Metric)).toBe(before.metrics);
+    expect(await db.manager.count(StudioRemixRequest)).toBe(before.requests);
+  });
+  it('rejects duplicated scope passed straight to the persist boundary without artifacts', async () => {
+    const profile = await creation.profile(6, 8);
+    const before = {
+      dashboards: await db.manager.count(Dashboard),
+      metrics: await db.manager.count(Metric),
+    };
+    await expect(
+      db.transaction(manager =>
+        creation.persistRemix(
+          6,
+          {
+            schemaVersion: 1,
+            title: 'duplicate scope',
+            requiredFields: [],
+            blocks: [],
+            layouts: { lg: [], md: [], xs: [] },
+          } as any,
+          [],
+          profile,
+          8,
+          manager,
+          [
+            { column: 'total', values: [300] },
+            { column: 'total', values: [200] },
+          ],
+        ),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(await db.manager.count(Dashboard)).toBe(before.dashboards);
+    expect(await db.manager.count(Metric)).toBe(before.metrics);
+  });
+
+  const scopedTemplate = async (requestId: string, dateRange: any, stripDateField = false) => {
+    const p = await publish({ requestId });
+    const state = await studio.get(id, 7);
+    const row: any = await db.manager.findOne(Dashboard, { where: { id } });
+    const template = captureRemixTemplate(
+      { ...state.document, dateRange },
+      metricLinkItems(row.structuredDefinition ? JSON.parse(row.structuredDefinition) : null, {
+        databaseId: state.document.sourceId,
+      } as any),
+      (await connection.queryDuckDB(state.document.sourceId, 'DESCRIBE uploaded_data')).datas,
+      JSON.parse(row.analysisDefinition).widgets,
+    );
+    if (stripDateField)
+      template.requiredFields = template.requiredFields.filter(
+        (field: any) => field.name !== dateRange.column,
+      );
+    await db.manager.update(StudioPublication, p.token, {
+      remixTemplate: JSON.stringify(template),
+    });
+    return { p, template };
+  };
+  it('maps the published date scope onto the target temporal column and aggregates only that period', async () => {
+    const { p, template } = await scopedTemplate('date-scope-' + id, {
+      column: 'event_time',
+      start: '2026-01-01',
+      end: '2026-01-01',
+    });
+    expect(template.dateRange).toEqual({
+      column: 'event_time',
+      start: '2026-01-01',
+      end: '2026-01-01',
+    });
+    // The published date column is required for every retained supported block.
+    expect(template.requiredFields).toEqual(
+      expect.arrayContaining([
+        {
+          name: 'event_time',
+          type: expect.stringMatching(/^TIMESTAMP/),
+          blockIds: ['block-1', 'block-2', 'block-3'],
+        },
+      ]),
+    );
+    const v = await preview(p);
+    expect(v.mappedDateRange).toEqual({
+      column: 'occurred_at',
+      start: '2026-01-01',
+      end: '2026-01-01',
+    });
+    expect(v.unmappedDateRange).toBeUndefined();
+    expect(v.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+    const saved = await saveRemix(p, v);
+    const stored = await db.manager.findOne(StudioState, {
+      where: { dashboardId: saved.dashboardId },
+    });
+    if (!stored) throw new Error('Expected clone Studio state');
+    expect(JSON.parse(stored.document).document.dateRange).toEqual({
+      column: 'occurred_at',
+      start: '2026-01-01',
+      end: '2026-01-01',
+    });
+    const cloneRow: any = await db.manager.findOne(Dashboard, { where: { id: saved.dashboardId } });
+    expect(JSON.parse(cloneRow.structuredDefinition).studioDateRange).toEqual({
+      column: 'occurred_at',
+      start: '2026-01-01',
+      end: '2026-01-01',
+    });
+    for (const widget of (await dashboards.analysis(saved.dashboardId, 8)).data.widgets)
+      expect(widget.sql).not.toContain('WHERE');
+  });
+  it('fails closed when the date scope column cannot be mapped on the target', async () => {
+    const { p } = await scopedTemplate('date-scope-wrong-' + id, {
+      column: 'event_time',
+      start: '2026-01-01',
+      end: '2026-01-01',
+    });
+    const wrongType = await preview(p, {
+      mapping: { amount: 'total', channel: 'segment', event_time: 'segment' },
+    });
+    expect(wrongType.mappedDateRange).toBeUndefined();
+    expect(wrongType.unmappedDateRange).toBe('event_time');
+    expect(wrongType.unmappedFilters).toEqual([]);
+    expect(wrongType.preview).toBeUndefined();
+    const before = {
+      dashboards: await db.manager.count(Dashboard),
+      metrics: await db.manager.count(Metric),
+      requests: await db.manager.count(StudioRemixRequest),
+    };
+    const error: any = await saveRemix(p, wrongType, {
+      mapping: { amount: 'total', channel: 'segment', event_time: 'segment' },
+    }).catch(caught => caught);
+    expect(error.status).toBe(400);
+    expect(await db.manager.count(Dashboard)).toBe(before.dashboards);
+    expect(await db.manager.count(Metric)).toBe(before.metrics);
+    expect(await db.manager.count(StudioRemixRequest)).toBe(before.requests);
+    // A template that omits the scope column entirely still must not drop the date scope.
+    const { p: orphan } = await scopedTemplate(
+      'date-scope-orphan-' + id,
+      { column: 'event_time', start: '2026-01-01', end: '2026-01-01' },
+      true,
+    );
+    const orphanView = await preview(orphan, {
+      mapping: { amount: 'total', channel: 'segment' },
+      excludedBlockIds: ['block-3'],
+    });
+    expect(orphanView.mappedDateRange).toBeUndefined();
+    expect(orphanView.unmappedDateRange).toBe('event_time');
+    expect(orphanView.unmappedFilters).toEqual([]);
+    expect(orphanView.preview).toBeUndefined();
+    const orphanError: any = await saveRemix(orphan, orphanView, {
+      mapping: { amount: 'total', channel: 'segment' },
+      excludedBlockIds: ['block-3'],
+    }).catch(caught => caught);
+    expect(orphanError.status).toBe(400);
+    expect(await db.manager.count(Dashboard)).toBe(before.dashboards);
+    expect(await db.manager.count(Metric)).toBe(before.metrics);
+  });
+  it('keeps an all-time publication without a date scope unchanged', async () => {
+    const p = await publish({ requestId: 'date-scope-none-' + id });
+    const row: any = await db.manager.findOne(StudioPublication, { where: { token: p.token } });
+    expect(JSON.parse(row.remixTemplate).dateRange).toBeUndefined();
+    const v = await preview(p);
+    expect(v.mappedDateRange).toBeUndefined();
+    expect(v.unmappedDateRange).toBeUndefined();
+    expect(v.preview.widgets[0].datas).toEqual([{ value: 500 }]);
+    expect((await remixService().template(p.token, 8)).dateRange).toBeUndefined();
+  });
+  it('rejects a date scope the target source cannot apply without artifacts', async () => {
+    const profile = await creation.profile(2, 8);
+    const before = {
+      dashboards: await db.manager.count(Dashboard),
+      metrics: await db.manager.count(Metric),
+    };
+    await expect(
+      db.transaction(manager =>
+        creation.persistRemix(
+          2,
+          {
+            schemaVersion: 1,
+            title: 'date scope',
+            requiredFields: [],
+            blocks: [],
+            layouts: { lg: [], md: [], xs: [] },
+          } as any,
+          [],
+          profile,
+          8,
+          manager,
+          [],
+          { column: 'segment', start: '2026-01-01', end: '2026-01-01' },
+        ),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(await db.manager.count(Dashboard)).toBe(before.dashboards);
+    expect(await db.manager.count(Metric)).toBe(before.metrics);
   });
 });

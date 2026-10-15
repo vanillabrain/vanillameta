@@ -1,3 +1,5 @@
+import type { DashboardDateRange } from '../ai/dashboard-date-range';
+
 /** Owner-only Studio protocol. Raw SQL, rows and credentials live outside this history document. */
 export const STUDIO_COLUMNS = { lg: 12, md: 8, xs: 1 } as const;
 export const STUDIO_BREAKPOINTS = ['lg', 'md', 'xs'] as const;
@@ -23,7 +25,12 @@ export type StudioBlock = {
   display: StudioDisplay;
 };
 export type StudioLayoutItem = { id: string; x: number; y: number; w: number; h: number };
+export type StudioFilter = { column: string; values: Array<string | number | boolean | null> };
+/** Saved common date range reuses the shared validated contract; the alias keeps Studio vocabulary local. */
+export type StudioDateRange = DashboardDateRange;
 export type StudioDocumentV1 = {
+  filters?: StudioFilter[];
+  dateRange?: StudioDateRange;
   schemaVersion: 1;
   dashboardId?: number;
   revision?: string;
@@ -48,7 +55,9 @@ export type StudioOperation =
     }
   | { type: 'moveBlock'; blockId: string; breakpoint: StudioBreakpoint; x: number; y: number }
   | { type: 'resizeBlock'; blockId: string; breakpoint: StudioBreakpoint; w: number; h: number }
-  | { type: 'renameDashboard'; title: string };
+  | { type: 'renameDashboard'; title: string }
+  | { type: 'setFilters'; filters: StudioFilter[] }
+  | { type: 'setDateRange'; dateRange: StudioDateRange | null };
 export const isTemporaryStudioId = (id: unknown): id is string =>
   typeof id === 'string' &&
   /^new:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);

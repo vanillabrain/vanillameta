@@ -1,8 +1,31 @@
 import { get, post } from '@/helpers/apiHelper';
-import { studioAssert, validateStudioDocument } from './studioDocument';
+import { studioAssert, validateStudioDateRange, validateStudioDocument, validateStudioFilters } from './studioDocument';
 import { SourceProfile } from './studioCreation';
 import { PublishedBlock } from './studioPublication';
-import { StudioDocumentV1 } from './studioTypes';
+import { STUDIO_DATE_LIMITS, STUDIO_FILTER_LIMITS, StudioDateRange, StudioDocumentV1, StudioFilter } from './studioTypes';
+/** A single date column name reported by the remix contract. */
+const remixDateColumn = (input: unknown, message: string): string => {
+  studioAssert(typeof input === 'string' && !!input.trim() && input.length <= STUDIO_DATE_LIMITS.columnLength, message);
+  return input;
+};
+/** Remix scope uses the same strict filter protocol as Studio: a value list is never relaxed. */
+const remixFilters = (input: unknown, message: string): StudioFilter[] => {
+  studioAssert(Array.isArray(input) && input.length <= STUDIO_FILTER_LIMITS.columns, message);
+  return validateStudioFilters(input);
+};
+/** Columns the target source cannot apply. Reported as names; the saved column is never dropped. */
+const remixColumns = (input: unknown, message: string): string[] => {
+  studioAssert(Array.isArray(input) && input.length <= STUDIO_FILTER_LIMITS.columns, message);
+  const columns = Array.from(input as unknown[]).map(column => {
+    studioAssert(
+      typeof column === 'string' && !!column.trim() && column.length <= STUDIO_FILTER_LIMITS.columnLength,
+      message,
+    );
+    return column as string;
+  });
+  studioAssert(new Set(columns).size === columns.length, message);
+  return columns;
+};
 export type RemixBlock = { id: string; title: string; kind: string; supported: boolean; reason?: string };
 export type RemixRequirements = {
   token: string;
@@ -10,6 +33,10 @@ export type RemixRequirements = {
   title: string;
   requiredFields: { name: string; type: string; blockIds: string[] }[];
   blocks: RemixBlock[];
+  /** Publisher's saved common scope, shown read-only before the mapping step. */
+  filters?: StudioFilter[];
+  /** Publisher's saved period, read-only before the mapping step. */
+  dateRange?: StudioDateRange;
 };
 export type RemixField = {
   sourceColumn: string;
@@ -32,6 +59,12 @@ export type RemixPreview = RemixRequirements & {
   mapping: Record<string, string>;
   fields: RemixField[];
   unmappedBlocks: { blockId: string; title: string; reason: string; missingFields: string[] }[];
+  /** Scope actually applied to this preview, and the saved columns the target source cannot apply. */
+  mappedFilters?: StudioFilter[];
+  unmappedFilters?: string[];
+  /** Period applied to this preview, and the saved period column the target cannot apply. */
+  mappedDateRange?: StudioDateRange;
+  unmappedDateRange?: string;
   preview?: { widgets: any[] };
 };
 const config = { timeout: 180000, headers: { 'Cache-Control': 'no-cache' } };
@@ -74,6 +107,8 @@ export function validateRemixRequirements(input: any, token: string): RemixRequi
       ),
     '필수 열 정의를 확인해 주세요.',
   );
+  if (input.filters !== undefined) input.filters = remixFilters(input.filters, '게시본의 공통 필터를 확인하지 못했습니다.');
+  if (input.dateRange !== undefined) input.dateRange = validateStudioDateRange(input.dateRange);
   return input;
 }
 export function validateRemixPreview(input: any, token: string, request: RemixInput): RemixPreview {
@@ -115,6 +150,13 @@ export function validateRemixPreview(input: any, token: string, request: RemixIn
     ),
     '미연결 블록 상태를 확인해 주세요.',
   );
+  if (input.mappedFilters !== undefined)
+    input.mappedFilters = remixFilters(input.mappedFilters, '적용된 공통 필터를 확인하지 못했습니다.');
+  if (input.unmappedFilters !== undefined)
+    input.unmappedFilters = remixColumns(input.unmappedFilters, '적용하지 못한 공통 필터를 확인하지 못했습니다.');
+  if (input.mappedDateRange !== undefined) input.mappedDateRange = validateStudioDateRange(input.mappedDateRange);
+  if (input.unmappedDateRange !== undefined)
+    input.unmappedDateRange = remixDateColumn(input.unmappedDateRange, '적용하지 못한 기간 열을 확인하지 못했습니다.');
   if (input.preview)
     studioAssert(
       Array.isArray(input.preview.widgets) &&
@@ -130,7 +172,12 @@ export function validateRemixPreview(input: any, token: string, request: RemixIn
   return input;
 }
 export const canCreateRemix = (p: RemixPreview | null, excluded: string[]) =>
-  !!p && p.unmappedBlocks.length === 0 && p.blocks.some(b => !excluded.includes(b.id)) && !!p.preview?.widgets.length;
+  !!p &&
+  p.unmappedBlocks.length === 0 &&
+  // A saved period the target source cannot apply is refused here as well; the server blocks it too.
+  !p.unmappedDateRange &&
+  p.blocks.some(b => !excluded.includes(b.id)) &&
+  !!p.preview?.widgets.length;
 export function remixPreviewBlocks(p: RemixPreview): PublishedBlock[] {
   const retained = p.blocks;
   return (p.preview?.widgets ?? []).map((w: any, index: number) => ({

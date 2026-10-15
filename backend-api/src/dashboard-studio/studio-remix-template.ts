@@ -1,6 +1,6 @@
 import { quoteColumn } from '../ai/dashboard-draft';
 import { metricExpression, metricFields } from '../bi/metric-expression';
-import { StudioDocumentV1, STUDIO_BREAKPOINTS } from './studio-contract';
+import { StudioDocumentV1, STUDIO_BREAKPOINTS, StudioFilter } from './studio-contract';
 import { RemixTemplate } from './studio-remix-contract';
 
 export function canonicalMetricSql(
@@ -130,9 +130,44 @@ export function captureRemixTemplate(
       };
     }
   });
+  // Published categorical scope must stay mappable: every retained supported block is required
+  // to map these columns, so a remix can never apply the new dashboard without the published scope.
+  const supportedIds = blocks.filter(block => block.supported).map(block => block.id);
+  const filters: StudioFilter[] = (document.filters ?? []).map(filter => {
+    const column = columns.find(c => c.name === filter.column);
+    const field = required.get(filter.column) ?? {
+      name: filter.column,
+      // An unresolvable column keeps a non-matching type so remix fails closed instead of dropping scope.
+      type: column?.type ?? 'UNRESOLVED',
+      blockIds: [] as string[],
+    };
+    // Scope applies to the whole dashboard, so every retained supported block must map it,
+    // in document block order.
+    const union = new Set([...field.blockIds, ...supportedIds]);
+    field.blockIds = supportedIds.filter(id => union.has(id));
+    required.set(filter.column, field);
+    return { column: filter.column, values: [...filter.values] };
+  });
+  // The published date scope must stay applicable: its column is required for every retained
+  // supported block, and an unresolvable or non-temporal column fails closed.
+  const dateRange = document.dateRange;
+  if (dateRange) {
+    const column = columns.find(c => c.name === dateRange.column);
+    const field = required.get(dateRange.column) ?? {
+      name: dateRange.column,
+      type: 'UNRESOLVED',
+      blockIds: [] as string[],
+    };
+    field.type = column && column.temporal ? column.type : 'UNRESOLVED';
+    const union = new Set([...field.blockIds, ...supportedIds]);
+    field.blockIds = supportedIds.filter(id => union.has(id));
+    required.set(dateRange.column, field);
+  }
   return {
     schemaVersion: 1,
     title: document.title,
+    ...(filters.length ? { filters } : {}),
+    ...(dateRange ? { dateRange: { ...dateRange } } : {}),
     requiredFields: [...required.values()],
     blocks,
     layouts: Object.fromEntries(

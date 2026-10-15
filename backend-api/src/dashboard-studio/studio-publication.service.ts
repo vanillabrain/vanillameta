@@ -16,9 +16,21 @@ import { captureRemixTemplate } from './studio-remix-template';
 import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
 import { StudioService } from './studio.service';
 import { studioDigest } from './studio-legacy';
-import { studioKeys } from './studio-document';
+import { studioKeys, validateStudioDateRange, validateStudioFilters } from './studio-document';
 import { PublicationMetadata, PublicationSnapshot } from './studio-publication-contract';
-import { STUDIO_BREAKPOINTS, StudioDocumentV1 } from './studio-contract';
+import { STUDIO_BREAKPOINTS, StudioDateRange, StudioDocumentV1 } from './studio-contract';
+
+/** Calendar ranges are inclusive days in their IANA zone; timestamp ranges are half-open UTC instants. */
+const dateRangePeriodLabel = (range: StudioDateRange) =>
+  range.precision === 'timestamp'
+    ? `${range.start} ~ ${range.end} (UTC, 종료 미포함)`
+    : `${range.start} ~ ${range.end} (${range.timeZone ?? 'UTC'})`;
+
+/** Revalidates the stored date scope with the shared Studio contract validator. */
+const documentDateRange = (document: StudioDocumentV1): StudioDateRange | undefined => {
+  const stored = document.dateRange;
+  return stored ? validateStudioDateRange(stored) : undefined;
+};
 
 @Injectable()
 export class StudioPublicationService {
@@ -332,10 +344,14 @@ export class StudioPublicationService {
           : {}),
       };
     });
+    // The date scope is revalidated here: a stored draft can never publish a partial range.
+    const dateRange = documentDateRange(document);
     return {
       title: document.title,
-      periodLabel: '전체 기간',
-      filters: [],
+      periodLabel: dateRange ? dateRangePeriodLabel(dateRange) : '전체 기간',
+      // Published scope is the exact validated categorical filter list; raw rows and SQL stay out.
+      filters: document.filters?.length ? validateStudioFilters(document.filters) : [],
+      ...(dateRange ? { dateRange } : {}),
       blocks,
       layouts: Object.fromEntries(
         STUDIO_BREAKPOINTS.map(bp => [

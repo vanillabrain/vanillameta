@@ -2,8 +2,16 @@
 import { get, post } from '@/helpers/apiHelper';
 import { errorMessage, validDraft } from '../dashboardPreview';
 import { StudioDefinitions } from './studioAdapter';
-import { studioAssert, studioPositive, studioText, validateStudioDocument } from './studioDocument';
-import { isStudioId, StudioDocumentV1 } from './studioTypes';
+import {
+  studioAssert,
+  studioFilterKey,
+  studioDateRangeKey,
+  studioFilterValueKey,
+  studioPositive,
+  studioText,
+  validateStudioDocument,
+} from './studioDocument';
+import { isStudioId, STUDIO_FILTER_LIMITS, StudioDocumentV1, StudioFilter, StudioFilterValue } from './studioTypes';
 
 /** One aggregated preview row. Rows arrive under `datas`; a row without `datas` is never rendered. */
 export type StudioPreviewRow = {
@@ -25,7 +33,15 @@ export type StudioPreviewRow = {
   previousTrend?: Record<string, any>;
   [key: string]: unknown;
 };
-export type StudioPreview = { draft: Record<string, any>; widgets: StudioPreviewRow[]; [key: string]: unknown };
+/** Existing source-wide categorical choices. Unfiltered by design, so a saved scope stays visible. */
+export type StudioFilterChoice = { column: string; values: StudioFilterValue[] };
+export type StudioPreview = {
+  draft: Record<string, any>;
+  widgets: StudioPreviewRow[];
+  dimensions?: StudioFilterChoice[];
+  temporalColumns?: { column: string; min?: string | null; max?: string | null }[];
+  [key: string]: unknown;
+};
 /** Load result for one dashboard: the editable document plus its definition catalog and preview. */
 export type StudioLoadResult = {
   dashboardId: number;
@@ -38,6 +54,13 @@ export type StudioLoadResult = {
   previewError: string | null;
 };
 export type StudioSaveResult = { document: StudioDocumentV1; idMap: Record<string, string> };
+/** Owner-only unsaved preview: the same body shape as save, answered with {document, preview}. */
+export type StudioPrepareRequest = {
+  expectedRevision?: string;
+  expectedSourceRevision: string;
+  document: StudioDocumentV1;
+};
+export type StudioPrepareResult = { document: StudioDocumentV1; preview: StudioPreview };
 export type StudioSaveRequest = {
   requestId: string;
   expectedRevision?: string;
@@ -124,6 +147,28 @@ const previewRow = (row: unknown): StudioPreviewRow => {
   return widget;
 };
 
+const filterValue = (value: unknown): value is StudioFilterValue =>
+  value === null ||
+  typeof value === 'boolean' ||
+  (typeof value === 'string' && value.length <= STUDIO_FILTER_LIMITS.textLength) ||
+  (typeof value === 'number' && Number.isFinite(value));
+/** The choice list is advisory: an unusable option is dropped, never a reason to lose the preview. */
+const previewChoice = (input: unknown): StudioFilterChoice => {
+  studioAssert(!!input && typeof input === 'object' && !Array.isArray(input), '필터 선택지를 확인해 주세요.');
+  const choice = input as StudioFilterChoice;
+  studioText(choice.column, STUDIO_FILTER_LIMITS.columnLength);
+  studioAssert(Array.isArray(choice.values), '필터 선택지를 확인해 주세요.');
+  const seen = new Set<string>();
+  const values: StudioFilterValue[] = [];
+  for (const value of Array.from(choice.values)) {
+    if (!filterValue(value) || values.length >= STUDIO_FILTER_LIMITS.values) continue;
+    const key = studioFilterValueKey(value);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    values.push(value);
+  }
+  return { column: choice.column, values };
+};
 export const validateStudioPreview = (input: unknown): StudioPreview => {
   studioAssert(!!input && typeof input === 'object' && !Array.isArray(input), '미리보기 응답을 확인해 주세요.');
   const preview = input as StudioPreview;
@@ -133,6 +178,38 @@ export const validateStudioPreview = (input: unknown): StudioPreview => {
     '미리보기 위젯 수가 정의와 다릅니다.',
   );
   preview.widgets = preview.widgets.map(previewRow);
+  // Dimensions are optional: an older or unsupported source simply offers no categorical choices.
+  if (preview.dimensions !== undefined) {
+    studioAssert(
+      Array.isArray(preview.dimensions) && preview.dimensions.length <= STUDIO_FILTER_LIMITS.columns,
+      '필터 선택지를 확인해 주세요.',
+    );
+    const columns = new Set<string>();
+    preview.dimensions = preview.dimensions.map(choice => {
+      const parsed = previewChoice(choice);
+      studioAssert(!columns.has(parsed.column), '필터 선택지 열이 중복됩니다.');
+      columns.add(parsed.column);
+      return parsed;
+    });
+  }
+  if (preview.temporalColumns !== undefined) {
+    studioAssert(
+      Array.isArray(preview.temporalColumns) && preview.temporalColumns.length <= 5,
+      '날짜 열 선택지를 확인해 주세요.',
+    );
+    const names = new Set<string>();
+    for (const column of preview.temporalColumns) {
+      studioAssert(
+        !!column &&
+          typeof column.column === 'string' &&
+          !!column.column.trim() &&
+          column.column.length <= 128 &&
+          !names.has(column.column),
+        '날짜 열 선택지를 확인해 주세요.',
+      );
+      names.add(column.column);
+    }
+  }
   return preview;
 };
 
@@ -164,6 +241,56 @@ export const validateStudioDefinitions = (input: unknown): StudioDefinitions => 
   }
   return definitions;
 };
+
+/** The exact preview body. It mirrors the save body so the server resolves the same scope. */
+export const studioPrepareBody = (request: StudioPrepareRequest) => ({
+  ...(request.expectedRevision ? { expectedRevision: request.expectedRevision } : {}),
+  expectedSourceRevision: request.expectedSourceRevision,
+  document: validateStudioDocument(request.document),
+});
+
+/**
+ * POST /studio/dashboards/:id/preview -> {document, preview}. The caller aborts a superseded request,
+ * and an answer is accepted only for the request's own filter scope.
+ */
+export async function prepareStudioDashboard(
+  dashboardId: number,
+  request: StudioPrepareRequest,
+  config: Record<string, unknown> = {},
+): Promise<StudioPrepareResult> {
+  studioPositive(dashboardId);
+  if (request.expectedRevision !== undefined)
+    studioAssert(/^[a-f0-9]{64}$/.test(request.expectedRevision), '미리보기 기준 revision을 확인해 주세요.');
+  studioAssert(
+    typeof request.expectedSourceRevision === 'string' && /^[a-f0-9]{64}$/.test(request.expectedSourceRevision),
+    '데이터 소스 버전을 확인해 주세요.',
+  );
+  const requested: StudioFilter[] = request.document.filters ?? [];
+  const body = studioPrepareBody(request);
+  let payload: any;
+  try {
+    const response = await post('/studio/dashboards/' + dashboardId + '/preview', body, {
+      timeout: 180000,
+      ...config,
+    });
+    payload = unwrap(response?.data);
+  } catch (error) {
+    throw toStudioApiError(error);
+  }
+  try {
+    studioAssert(!!payload && typeof payload === 'object' && !Array.isArray(payload), '미리보기 응답을 확인해 주세요.');
+    const document = validateStudioDocument(payload.document);
+    studioAssert(
+      document.dashboardId === dashboardId &&
+        studioFilterKey(document.filters) === studioFilterKey(requested) &&
+        studioDateRangeKey(document.dateRange) === studioDateRangeKey(request.document.dateRange),
+      '요청한 날짜 범위·공통 필터와 다른 미리보기 결과입니다.',
+    );
+    return { document, preview: validateStudioPreview(payload.preview) };
+  } catch (error) {
+    throw invalid(error, '미리보기 응답을 확인하지 못했습니다.');
+  }
+}
 
 /** GET /studio/dashboards/:id -> {document, definitions, preview, previewError}: the raw payload. */
 export async function fetchStudioDashboard(
