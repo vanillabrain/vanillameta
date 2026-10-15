@@ -2,49 +2,12 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import MetricCalculationEditor from './MetricCalculationEditor';
+import { installRadixBrowserAPIs, selectRadixOption } from './dashboardTestUtils';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
-vi.mock('@mui/material/styles', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material/styles');
-});
-vi.mock('@mui/material', () => {
-  const Container = ({ children }: any) => <div>{children}</div>;
-  return {
-    Checkbox: ({ checked, disabled, onChange }: any) => (
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={e => onChange(e, e.target.checked)} />
-    ),
-    FormControlLabel: ({ control, label }: any) => (
-      <label>
-        {control}
-        {label}
-      </label>
-    ),
-    Box: Container,
-    Stack: Container,
-    Typography: Container,
-    DialogContent: Container,
-    DialogActions: Container,
-    DialogTitle: Container,
-    Dialog: ({ open, children }: any) => (open ? <section role="dialog">{children}</section> : null),
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    Button: ({ children, disabled, onClick }: any) => (
-      <button disabled={disabled} onClick={onClick}>
-        {children}
-      </button>
-    ),
-    TextField: ({ label, value, onChange, disabled, children }: any) => (
-      <select aria-label={label} value={value} onChange={onChange} disabled={disabled}>
-        {children}
-      </select>
-    ),
-    MenuItem: ({ value, children }: any) => <option value={value}>{children}</option>,
-    useMediaQuery: () => false,
-    useTheme: () => ({ breakpoints: { down: () => 'sm' } }),
-  };
-});
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({ default: ({ dataSet }: any) => <div>{JSON.stringify(dataSet)}</div> }));
 vi.mock('./MetricTrend', () => ({ default: ({ trend }: any) => <div>Trend {JSON.stringify(trend)}</div> }));
+installRadixBrowserAPIs();
 const success = (data: any) => ({ data: { status: 'SUCCESS', data } });
 const widget = {
   title: 'Revenue',
@@ -112,7 +75,8 @@ it('invalidates a preview after a calculation change', async () => {
   api.post.mockResolvedValue(success(preview));
   mount();
   await showPreview();
-  fireEvent.change(screen.getByRole('combobox', { name: '집계 방식' }), { target: { value: 'AVG' } });
+  // 실제 Radix Select는 네이티브 change 이벤트가 아니라 트리거를 열고 옵션을 골라야 값이 바뀐다.
+  await selectRadixOption(screen.getByRole('combobox', { name: '집계 방식' }), '평균');
   expect(screen.getByRole('button', { name: '지표·분석 저장' }).hasAttribute('disabled')).toBe(true);
   expect(screen.getByText(/조건이 바뀌었습니다/)).toBeTruthy();
 });

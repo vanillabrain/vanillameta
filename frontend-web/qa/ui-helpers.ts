@@ -2,14 +2,49 @@ import { expect, Locator, Page, request, Response, TestInfo, test as baseTest } 
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
 import { API, Actor, BASE, GOLD, RECORDS, body, call, ok, paced, unique } from './helpers';
+import {
+  accountMenu,
+  alertDialog,
+  card,
+  confirmDialog,
+  datagridColumn,
+  datagridRows,
+  datagridTable,
+  dismissDialog,
+  errorSurface,
+  expectSelected,
+  fieldCombobox,
+  gridCell,
+  menuItem,
+  nextPage,
+  pagination,
+  popupSurface,
+  selectControl,
+  successNotice,
+  widgetTile,
+} from '../e2e/ui-locators';
+
+export {
+  datagridColumn,
+  datagridRows,
+  datagridTable,
+  expectSelected,
+  gridCell,
+  popupSurface,
+  successNotice,
+  widgetTile,
+} from '../e2e/ui-locators';
 
 export const test = baseTest.extend<{ browserHealth: void }>({
-  browserHealth: [async ({ page }, use) => {
-    const errors: string[] = [];
-    page.on('pageerror', error => errors.push(error.message.replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[redacted]')));
-    await use();
-    expect(errors, 'uncaught browser exceptions').toEqual([]);
-  }, { auto: true }],
+  browserHealth: [
+    async ({ page }, use) => {
+      const errors: string[] = [];
+      page.on('pageerror', error => errors.push(error.message.replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[redacted]')));
+      await use();
+      expect(errors, 'uncaught browser exceptions').toEqual([]);
+    },
+    { auto: true },
+  ],
 });
 
 export async function uiActor(): Promise<Actor> {
@@ -36,47 +71,34 @@ export async function language(page: Page) {
 }
 
 export const saveButton = (page: Page) => page.getByRole('button', { name: 'Save', exact: true }).last();
-export const dialog = (page: Page) => page.locator('[role="dialog"][aria-describedby="alert-dialog-slide-description"]');
-export const errorSurface = (page: Page) => page.locator('.MuiAlert-standardError, #alert-dialog-slide-description');
+export const dialog = (page: Page) => alertDialog(page);
+export { errorSurface };
 
 export async function feedback(page: Page, text: string | RegExp) {
   await expect(errorSurface(page).filter({ hasText: text }).last()).toBeVisible();
 }
 
 export async function confirm(page: Page, accept = true) {
-  const box = dialog(page);
-  await expect(box).toBeVisible();
-  const buttons = box.locator('.MuiDialogActions-root button');
-  await (accept ? buttons.first() : buttons.last()).click();
-  await expect(box).toHaveCount(0);
+  await confirmDialog(page, accept);
 }
 
 export async function closeError(page: Page) {
-  await dialog(page).locator('.MuiDialogActions-root button').last().click();
-  await expect(dialog(page)).toHaveCount(0);
+  await dismissDialog(page);
 }
 
 export function visualCombobox(page: Page, label: string, scope: Page | Locator = page) {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const visualLabel = page.locator('.MuiInputLabel-root').filter({ hasText: new RegExp(`^${escaped}(?:\\s*\\*)?\\s*$`) });
-  return scope.locator('.MuiFormControl-root:visible').filter({ has: visualLabel }).getByRole('combobox');
+  return fieldCombobox(page, label, scope);
 }
 
 export async function select(page: Page, target: Locator, value: string) {
-  await expect(target).toHaveCount(1);
-  await expect(target).toBeVisible();
-  await target.click();
-  await page.getByRole('option', { name: value, exact: true }).click();
-  await expect(target).toContainText(value);
+  await selectControl(page, target, value);
 }
 
 export async function selectSqliteType(page: Page) {
-  const typeList = page.getByText('step.01 Type', { exact: true }).locator('xpath=..').locator(':scope > ul');
-  await expect(typeList).toHaveCount(1);
-  const title = typeList.locator(':scope > li > .MuiCard-root > .MuiCardContent-root').getByText('SQLite', { exact: true });
-  await expect(title).toHaveCount(1);
-  await expect(title).toBeVisible();
-  await title.click();
+  const sqlite = page.getByRole('button').filter({ hasText: /^SQLite/ });
+  await expect(sqlite, 'step 1 must offer the SQLite database type').toHaveCount(1);
+  await expect(sqlite).toBeVisible();
+  await sqlite.click();
 }
 
 export async function ace(page: Page, sql: string) {
@@ -106,17 +128,15 @@ export async function runDataset(page: Page, sql = GOLD.aggregateSql) {
   return result;
 }
 
-export async function gridCell(page: Page, column: string, value: string, row = 0) {
-  await expect(page.locator(`.tui-grid-body-area [data-row-key="${row}"][data-column-name="${column}"] .tui-grid-cell-content`).first()).toHaveText(value);
-}
-
 export async function oracleGrid(page: Page) {
-  await expect(page.locator('.tui-grid-container')).toBeVisible();
+  await expect(datagridTable(page)).toBeVisible();
   for (const [index, row] of RECORDS.entries()) {
     for (const [column, value] of Object.entries(row)) await gridCell(page, column, String(value), index);
   }
-  await expect(page.locator('.tui-grid-body-area [data-column-name="id"][data-row-key]')).toHaveCount(GOLD.rowCount);
-  for (const column of Object.keys(RECORDS[0])) await expect(page.locator(`.tui-grid-header-area [data-column-name="${column}"]`).first()).toBeVisible();
+  await expect(datagridRows(page)).toHaveCount(GOLD.rowCount);
+  for (const column of Object.keys(RECORDS[0])) {
+    await expect(datagridColumn(page, column)).toBeVisible();
+  }
 }
 
 export async function filePage(page: Page) {
@@ -132,9 +152,9 @@ export async function browserFile(page: Page, name = `${unique()}.csv`, buffer =
 }
 
 export async function fileQuery(page: Page, sql: string) {
-  await page.locator('input[placeholder^="Enter SQL"]').fill(sql);
+  await page.getByPlaceholder(/^Enter SQL/).fill(sql);
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  const chooseFile = page.locator('button').filter({ hasText: /^Choose file$/ });
+  const chooseFile = page.getByRole('button', { name: 'Choose file', exact: true });
   await expect(chooseFile).toHaveCount(1);
   await expect(chooseFile).toBeEnabled();
 }
@@ -151,19 +171,32 @@ export async function downloadCsv(page: Page) {
 
 export function parseCsv(input: string) {
   const rows: string[][] = [];
-  let row: string[] = [], field = '', quoted = false;
+  let row: string[] = [],
+    field = '',
+    quoted = false;
   const text = input.replace(/^\uFEFF/, '');
   for (let i = 0; i < text.length; i++) {
     const character = text[i];
     if (character === '"') {
-      if (quoted && text[i + 1] === '"') { field += '"'; i++; }
-      else quoted = !quoted;
-    } else if (character === ',' && !quoted) { row.push(field); field = ''; }
-    else if (character === '\n' && !quoted) { row.push(field.replace(/\r$/, '')); rows.push(row); row = []; field = ''; }
-    else field += character;
+      if (quoted && text[i + 1] === '"') {
+        field += '"';
+        i += 1;
+      } else quoted = !quoted;
+    } else if (character === ',' && !quoted) {
+      row.push(field);
+      field = '';
+    } else if (character === '\n' && !quoted) {
+      row.push(field.replace(/\r$/, ''));
+      rows.push(row);
+      row = [];
+      field = '';
+    } else field += character;
   }
   expect(quoted, 'CSV quotes must be balanced').toBe(false);
-  if (field || row.length) { row.push(field); rows.push(row); }
+  if (field || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
   return rows;
 }
 
@@ -188,49 +221,59 @@ export async function savedResponse(response: Response) {
 
 export async function numericView(page: Page, title: string) {
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
-  await expect(page.locator('.MuiCard-root').getByText(String(GOLD.sumAmount), { exact: true }).first()).toBeVisible();
-  await expect(page.locator('body')).not.toContainText(/Failed to load the widget|componentNotSelected|failedWidget|컴포넌트를 선택/);
+  await expect(widgetTile(page, title).getByText(String(GOLD.sumAmount), { exact: true }).first()).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(
+    /Failed to load the widget|componentNotSelected|failedWidget|컴포넌트를 선택/,
+  );
 }
 
 export async function addWidget(page: Page, title: string) {
-  await page.getByRole('button', { name: 'Add widget', exact: true }).first().click();
-  const popup = page.locator('[role="dialog"]').filter({ has: page.locator('.MuiListItemButton-root') });
-  await popup.locator('.MuiListItemButton-root').filter({ hasText: title }).click();
-  await popup.locator('.MuiDialogActions-root button').last().click();
+  await page
+    .getByRole('button', { name: /^(위젯 추가|Add widgets?)$/i })
+    .first()
+    .click();
+  const popup = page.getByRole('dialog');
+  await popup.getByRole('button', { name: title, exact: true }).click();
+  await popup.getByRole('button', { name: /^(위젯 추가|Add widgets?)$/i }).click();
   await expect(popup).toHaveCount(0);
   await numericView(page, title);
 }
 
 export async function boardItem(page: Page, resource: 'widget' | 'dashboard', id: number) {
-  const item = page.locator(`a.MuiListItem-root[href="/${resource}/${id}"]`);
-  await expect(page.locator('.MuiPagination-root')).toBeVisible();
+  const item = page.locator(`a[href="/${resource}/${id}"]`);
+  const pager = pagination(page);
+  await expect(pager).toBeVisible();
   const visited = new Set<string>();
   while (!(await item.isVisible())) {
-    const selected = await page.locator('.MuiPaginationItem-root.Mui-selected').innerText();
+    const selected = (await pager.locator('[aria-current="page"]').innerText()).trim();
     expect(visited.has(selected), 'listing pagination cannot loop').toBe(false);
     visited.add(selected);
-    const next = page.getByRole('button', { name: 'Go to next page' });
+    const next = nextPage(page);
     await expect(next, 'owned item must exist on an actual list page').toBeEnabled();
     await next.click();
-    await expect(page.locator('.MuiPaginationItem-root.Mui-selected')).not.toHaveText(selected);
+    await expect(pager.locator('[aria-current="page"]')).not.toHaveText(selected);
   }
   return item;
 }
 
 export async function evidence(page: Page, info: TestInfo, name: string, data?: unknown) {
   await info.attach(name, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
-  if (data !== undefined) await info.attach(`${name}-data`, { body: JSON.stringify(data, null, 2), contentType: 'application/json' });
+  if (data !== undefined)
+    await info.attach(`${name}-data`, { body: JSON.stringify(data, null, 2), contentType: 'application/json' });
 }
 
+export const profileDialog = (page: Page) =>
+  page.getByRole('dialog').filter({ has: page.locator('input[name="userOldPwd"]') });
+
 export async function openProfile(page: Page) {
-  await page.locator('#styled-menu.MuiButton-text').last().click();
-  await page.locator('#transition-popper').getByRole('button', { name: 'Edit account', exact: true }).click();
-  await expect(page.locator('#modifyProfile')).toBeVisible();
+  await accountMenu(page).click();
+  await menuItem(page, 'Edit account').click();
+  await expect(profileDialog(page)).toBeVisible();
 }
 
 export async function healthyPage(page: Page) {
   await expect(page.locator('#root')).not.toBeEmpty();
-  await expect(page.locator('.MuiBackdrop-root:visible .MuiCircularProgress-root')).toHaveCount(0);
+  await expect(page.locator('[data-slot="spinner"]:visible')).toHaveCount(0);
 }
 
 export const origin = new URL(BASE).origin;

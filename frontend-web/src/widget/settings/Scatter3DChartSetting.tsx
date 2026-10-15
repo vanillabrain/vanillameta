@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
@@ -24,15 +24,11 @@ const Scatter3DChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.series')} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <AddButton
           onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
+          className="absolute right-0 top-[30px]"
         />
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
@@ -92,7 +88,7 @@ const Scatter3DChartSetting = props => {
                 )
               }
             />
-            <Divider />
+            <Separator />
           </React.Fragment>
         ))}
         <SelectForm
@@ -102,9 +98,9 @@ const Scatter3DChartSetting = props => {
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText>{t('settings.legend')}</ListItemText>
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
@@ -113,7 +109,7 @@ const Scatter3DChartSetting = props => {
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

@@ -1,43 +1,34 @@
 # 분석 화면 UI Kit
 
-Explore/Pivot의 조밀한 컨트롤과 상태를 Rill 기준으로 통일한다. 구현 원본은 `frontend-web/src/components/analysis/AnalysisUi.tsx`다. 화면에서 직접 버튼 크기를 덮어쓰거나 부모 descendant selector로 최소 높이를 강제하지 않는다.
+UI-001 전환 기준: 모든 공통 제어 UI는 공식 shadcn Radix 컴포넌트와 Tailwind를 사용한다. 원본은 `frontend-web/src/components/analysis/AnalysisUi.tsx`, `frontend-web/src/components/ui/`, 공유 토큰은 `frontend-web/src/styles/tokens.css`이며 `src/index.css`에서 가져온다. 이전 MUI UI Kit는 e8f657fd 이전 이력에 있으며, 당시 화면 PASS를 새 구현의 검증 결과로 재사용하지 않는다.
 
-## 기준과 적용
+## 공통 기준
 
-| 요소                | 기준                                            | 적용                                          |
-| ------------------- | ----------------------------------------------- | --------------------------------------------- |
-| 일반 액션·선택 버튼 | 높이/최소 높이28px,12px,좌우8px,반경4px         | AnalysisUiProvider 아래 MUI Button            |
-| 선택 상태           | 옅은 indigo 배경·텍스트·테두리, aria-pressed    | AnalysisChoice / analysisToggleSx             |
-| 보기 전환           | 한 테두리 안의 버튼,내부2px 여백                | analysisModeGroupSx, group와 접근 가능한 이름 |
-| 입력·선택           | 32px,12px,반경4px                               | scoped theme / analysisFieldSx                |
-| 필터·선택 칩        | 높이24px,12px,삭제 아이콘16px                   | scoped MUI Chip                               |
-| 패널                | 여백12px,반경4px,옅은 배경·1px 테두리           | analysisPanelSx                               |
-| 툴바 간격           | 기본8px,그룹 간12px                             | wrap 행은 gap 사용, sibling margin 중첩 금지  |
-| 표                  | 12px,line-height1.5,셀6px/8px,숫자 tabular-nums | analysisTableCellStyle                        |
-| 제목·보조           | 페이지 제목20px,본문13px,보조12px               | scoped typography / 의미에 따른 명시적 스타일 |
+| 요소      | 구현                                                          | 기준                                               |
+| --------- | ------------------------------------------------------------- | -------------------------------------------------- |
+| 일반 액션 | shadcn Button                                                 | default32px/lg36px, sm28px 분석 밀도; variant 사용 |
+| 분석 선택 | AnalysisChoice → Button outline/sm                            | aria-pressed와 의미 토큰의 선택 상태               |
+| 입력      | TextField → Field/FieldLabel/Input 또는 Textarea/NativeSelect | 32px 입력, 고유 id/label 및 aria-describedby       |
+| 공지/오류 | Notice → Alert/AlertDescription                               | 오류 destructive, role=alert, 본문 유지            |
+| 보기 그룹 | analysisModeGroupClassName                                    | 테두리, 내부 여백, gap와 그룹 이름                 |
+| 패널      | analysisPanelClassName                                        | border/bg-muted 의미 토큰,12px 여백                |
+| 표        | shadcn Table 및 analysisTableCellClassName                    | 숫자 tabular-nums, 12px/6px・8px 셀 밀도           |
+| 모달      | Dialog/AlertDialog                                            | Title/Description, 실제 portal와 focus 관리        |
 
-일반 버튼과 데이터 행은 역할이 다르다. 순위의 범주/수치 버튼은 내용 높이를 사용하며 비교값이 있으면 더 높게 표시한다. 시간·숫자 정밀도·통화·필터·저장/내보내기 계약을 디자인 때문에 바꾸지 않는다. 긴 축 이름은 좁은 화면에서 전체 행을 사용하고, 표는 결과 영역 내부에서 가로 스크롤한다.
+AnalysisUiProvider는 `data-analysis-ui`가 있는 Tailwind 컨테이너다. 부모 descendant selector로 자식 버튼의 높이를 강제하지 않는다. 일반 버튼/필드의 variant/size를 선택하며 화면마다 색/폰트 예외를 쌓지 않는다. Portal도 전역 CSS 변수 토큰을 사용한다. 앱 분기는 sm600/md900/lg1200을 유지하고 JavaScript matchMedia도 같은 값을 사용한다. 랜딩은 마케팅 레이아웃의 md768/lg1024를 별도로 유지한다. 일반 버튼과 데이터 행의 높이를 일괄 강제하지 않는다.
 
-AnalysisUiProvider는 기존 테마를 상속하는 국소 테마다. SourceExplore의 최상위 경계에 한 번 적용하며 하위 Explore/Pivot/저장 보기/내보내기 및 React portal에서 사용하는 MUI 요소에 적용한다. 다른 페이지의 전역 테마를 수정하지 않는다. 새로운 분석 화면도 같은 경계를 재사용하고 추가 예외는 역할·이유를 기록한다. 별도의 의존성을 추가하지 않았다.
+## 보존할 동작
 
-## 상태
+기간/타임존/필터/숫자 정밀도/단위, CSV와 저장 보기, 선택 분석/지표 snapshot의 원자 저장, 기존 블록 ID/폭별 좌표/복제/undo-redo는 디자인 변경과 분리한다. 긴 축/이름의 wrap, 표 내부 가로 스크롤, 오류/빈 결과/로딩 문구와 키보드 포커스를 유지한다. 실제 계산 geometry나 chart 수치/사용자 색은 동적 style을 사용할 수 있으며 정적 UI 디자인은 Tailwind를 사용한다.
 
-- 기본: 중립 텍스트·경계, 액션은 text 버튼을 사용할 수 있다.
-- 선택: aria-pressed와 시각적 선택을 함께 표시한다. hover도 옅은 선택 배경을 유지한다.
-- 비활성: 옅은 텍스트·투명 배경으로 표시하고 MUI disabled 계약을 유지한다. 선택 스타일보다 비활성 표시가 우선한다.
-- 포커스: 키보드 focus-visible 테두리2px/offset2px를 유지한다. 전역 접근성 CSS가 색을 지정할 수 있다.
-- 로딩·오류·빈 결과: 기존 status/Alert와 도움 흐름을 유지한다. 성공 화면 대신 숨기거나 데이터를 임의로 채우지 않는다.
+## Rill 비교와 검증
 
-## Rill 대조와 실행 증거 — 2026-10-14
+Rill은 Explore/Pivot의 밀도와 탐색 UX 기준이다. 로컬 Rill의 h-7/text-xs 밀도에 맞추어 분석 버튼은 shadcn sm28px를 사용한다. 대화/블록/게시 화면은 제품 여정에 맞추며 Rill로 제한하지 않는다.
 
-로컬 Rill의 `web-common/src/components/button/Button.svelte`는 h-7/min-height28px·text-xs 기본값이다. 실제1440×900 Pivot Flat 선택 버튼은22px/12px/좌우8px로 측정됐다. VM의 일반 버튼28px는 기본 버튼 밀도를 따르며 모든 Rill 컨트롤을 같은 높이로 복제했다고 주장하지 않는다. Rill의 Pivot/Flat 선택,축 칩,12px 표,옅은 비활성 상태 및 Explore 툴바를 실제 화면과 비교했다. VM은 기존 select 기반 축 배치와 별도 계층/시간 행을 유지한다. Rill의2px 반경·별도 변화 열·더 조밀한 전체 배치와는 차이가 남는다.
+새 구현의 실제 기능/디자인 PASS는 UI-001 검증 증빙에서 판정한다. 기존 MUI 시점의 1440/390 화면, 숫자/API와 이전 테스트 결과를 새 화면 PASS로 주장하지 않는다. 동일 데이터/기간/필터의 수치와 렌더링을 분리하고 390/768/1440 대표 폭, 긴 이름/빈 결과/오류/포커스 상태를 Ego 실제 화면으로 확인한다.
 
-- **PASS — 실제 디자인**: Aside1440×900 Explore/Pivot,필터 패널·칩 및 Codex 브라우저390×844 Explore/Flat을 캡처했다. 버튼28px/12px/좌우8px,축 입력32px/12px,필터 칩24px/12px를 측정했다. 좁은 화면의 줄바꿈·선택·비활성·키보드 포커스를 확인했고 document scrollWidth375px/innerWidth390px로 페이지 가로 넘침이 없다. 임시 viewport를 복구했다.
-- **PASS — 기능**: 전체 기간634,513,000/$5.57 유지,Connected Device 필터17,000/$9.51과 칩 삭제를 확인했다. SourceExplore/ExploreExport 단위68개,FE 타입·변경 파일 린트·빌드·공백 검사. 단위의 MUI mock은 테마 API를 명시적으로 분리하며 디자인 판정은 실제 브라우저로 수행한다.
-- **NOT_RUN**: 전체 E2E·BE 재검사·운영,모든 뷰포트/hover 변형/접근성,portal 전체 화면,신규 XHR 수집. 기존 수치·저장/CSV 검증은 로직 변경이 없어 재사용한다. Rill이 이동한 시점과 VM 원본 시점의 기간 버킷 수치 동등성 및 픽셀 단위 UI 동등성은 주장하지 않는다.
+- 실행 계획: [UI-001](../plans/UI-001-shadcn-tailwind.md)
+- 공통 검증 기준: [workflow](../testing/workflow.md)
+- 이전 적용 여부 감사: [baseline audit](shadcn-tailwind-audit.md)
 
-증빙은 저장소 밖 `/tmp/vm-analysis-ui-kit/`에 보존한다. 변경 전 기준은 직전 커밋bb0e9975의 `/tmp/vm-pivot-design/compact-1440.png`이며 Rill reference/Explore/Pivot/filter/390px 캡처와 테스트·빌드 로그를 함께 기록한다.
-
-## AI 분석 적용 후속
-
-생성/수정 미리보기·저장 조회에 국소 AnalysisUiProvider를 적용하고 숫자+MetricTrend 표시를 통일했다. Assistant 부모 버튼 크기 덮어쓰기는 제거했다. 기간·필터 설정·집계·기간 비교 안내·개인 저장 보기·집계 원본 확인은 native details로 접되 유지하고 숫자 표시는 도구 모음에 둔다. 모바일 빈 질문 라벨은 shrink를 사용한다. [AIWF 설계/검증](../testing/simple-analysis-parity.md) 참조.
+DialogContent의 desktop 최대 폭은 `sm:max-w-*`로 명시해 공식 기본값과 같은 breakpoint에서 덮어쓴다. 긴 미리보기는 header/body/footer를 나누고 가운데 body만 `min-h-0`과 스크롤을 갖게 한다. 직접 트리거가 없는 모달은 닫힘 시 원래 실행 버튼으로 포커스를 복구한다.

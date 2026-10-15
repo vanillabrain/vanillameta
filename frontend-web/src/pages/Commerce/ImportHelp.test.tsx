@@ -5,11 +5,6 @@ import ImportHelp, { parseImportDiagnostic } from './ImportHelp';
 
 const mocks = vi.hoisted(() => ({ post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ post: mocks.post }));
-vi.mock('@mui/material', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material');
-});
-
 const REQUEST_ID = '3f1a2b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
 const diagnostic = { requestId: REQUEST_ID, errorCode: 'IMPORT_INVALID_DATE' as const };
 const envelopeDiagnostic = {

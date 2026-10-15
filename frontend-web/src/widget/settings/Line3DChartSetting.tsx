@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
@@ -21,8 +21,8 @@ const Line3DChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           required={true}
           id="xField"
@@ -34,16 +34,12 @@ const Line3DChartSetting = props => {
           value={option.xField}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.series')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <AddButton
           onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
+          className="absolute right-0 top-[30px]"
         />
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
@@ -86,12 +82,12 @@ const Line3DChartSetting = props => {
                 disabledDefaultValue={seriesItem.disabledDefaultValue}
               />
             )}
-            <Divider />
+            <Separator />
           </React.Fragment>
         ))}
-      </ListItem>
-      <ListItem>
-        <ListItemText>{t('settings.legend')}</ListItemText>
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
@@ -108,7 +104,7 @@ const Line3DChartSetting = props => {
           value={option.legendAggregation}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

@@ -1,6 +1,8 @@
 import React, { useId } from 'react';
-import { Alert, Box, Button, Typography } from '@mui/material';
 import { bignumber } from 'mathjs';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatMetric, metricNumericText, NumberNotation } from '@/utils/formatMetric';
 
 export type MetricComparisonData = {
@@ -40,41 +42,29 @@ export default function PeriodComparison({
   const previous = format(comparison.previousValue);
   const delta = format(comparison.delta, true);
   return (
-    <Box component="section" aria-label={`${title} 이전 기간 비교`} sx={{ mb: 1.5, minWidth: 0 }}>
-      <Typography component="h3" sx={{ fontSize: 13, fontWeight: 600 }}>
-        이전 기간 비교
-      </Typography>
-      {comparison.unavailable && <Alert severity="warning">{comparison.unavailable}</Alert>}
-      <Box
-        component="dl"
-        sx={{
-          m: 0,
-          display: 'grid',
-          gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(3, minmax(0, 1fr))' },
-          gap: 1,
-          '& dt': { fontSize: 12, color: 'text.secondary' },
-          '& dd': { m: 0, fontSize: 14, overflowWrap: 'anywhere' },
-        }}
-      >
+    <section aria-label={`${title} 이전 기간 비교`} className="mb-1.5 min-w-0">
+      <h3 className="text-[13px] font-semibold">이전 기간 비교</h3>
+      {comparison.unavailable && <Notice severity="warning">{comparison.unavailable}</Notice>}
+      <dl className="m-0 grid grid-cols-[minmax(0,1fr)] gap-1 sm:grid-cols-[repeat(3,minmax(0,1fr))]">
         <div>
-          <dt>이전 기간 값</dt>
-          <dd title={previous.exactText} aria-label={previous.exactText}>
+          <dt className="text-xs text-muted-foreground">이전 기간 값</dt>
+          <dd className="m-0 text-sm [overflow-wrap:anywhere]" title={previous.exactText} aria-label={previous.exactText}>
             {previous.text}
           </dd>
         </div>
         <div>
-          <dt>증감</dt>
-          <dd title={delta.exactText} aria-label={delta.exactText}>
+          <dt className="text-xs text-muted-foreground">증감</dt>
+          <dd className="m-0 text-sm [overflow-wrap:anywhere]" title={delta.exactText} aria-label={delta.exactText}>
             {delta.text}
           </dd>
         </div>
         <div>
-          <dt>증감률</dt>
-          <dd>{percent}</dd>
+          <dt className="text-xs text-muted-foreground">증감률</dt>
+          <dd className="m-0 text-sm [overflow-wrap:anywhere]">{percent}</dd>
         </div>
-      </Box>
-      {zeroBaseline && <Typography variant="caption">이전 기간 값이 0이므로 증감률은 계산할 수 없습니다.</Typography>}
-    </Box>
+      </dl>
+      {zeroBaseline && <p className="text-xs text-muted-foreground">이전 기간 값이 0이므로 증감률은 계산할 수 없습니다.</p>}
+    </section>
   );
 }
 
@@ -118,82 +108,78 @@ export function PreviousPeriodData({
         })`;
   const text = (value: unknown) =>
     value === null || value === undefined ? '값 없음' : typeof value === 'object' ? JSON.stringify(value) : String(value);
+  const cellClassName = 'border-b border-border p-1 text-left font-normal whitespace-normal [overflow-wrap:anywhere]';
   return (
-    <Box sx={{ p: 2, minWidth: 0 }}>
+    <div className="min-w-0 p-4">
       {unavailable ? (
-        <Alert severity="warning">이전 기간 결과를 표시할 수 없습니다. {unavailable}</Alert>
+        <Notice severity="warning">이전 기간 결과를 표시할 수 없습니다. {unavailable}</Notice>
       ) : (
-        <Box
-          component="details"
-          sx={{
-            fontSize: 13,
-            '& summary': { cursor: 'pointer', minHeight: 44, display: 'list-item', alignContent: 'center' },
-          }}
-        >
-          <summary aria-label={`${title} 이전 기간 데이터 표`}>이전 기간 데이터 표</summary>
-          <Typography variant="caption">
+        <details className="text-[13px]">
+          <summary
+            className="flex min-h-11 cursor-pointer list-item items-center"
+            aria-label={`${title} 이전 기간 데이터 표`}
+          >
+            이전 기간 데이터 표
+          </summary>
+          <p className="text-xs text-muted-foreground">
             원래 집계식과 동일한 필터로 조회한 결과입니다. 없는 날짜를 0으로 채우지 않습니다.
-          </Typography>
+          </p>
           {onContributionSelect && contributionDisabled && contributionDisabledReason && (
-            <Typography id={`${id}-contribution-reason`} sx={{ fontSize: 12, overflowWrap: 'anywhere' }}>
+            <p id={`${id}-contribution-reason`} className="text-xs [overflow-wrap:anywhere]">
               {contributionDisabledReason}
-            </Typography>
+            </p>
           )}
-          <Box
+          <div
             role="region"
             aria-label={`${title} 이전 기간 값`}
             tabIndex={0}
-            sx={{
-              mt: 1,
-              maxHeight: 180,
-              overflow: 'auto',
-              maxWidth: '100%',
-              '& table': { width: '100%', borderCollapse: 'collapse' },
-              '& th, & td': { textAlign: 'left', p: 0.5, overflowWrap: 'anywhere', borderBottom: 1, borderColor: 'divider' },
-            }}
+            className="mt-1 max-h-[180px] max-w-full overflow-auto"
           >
-            <table>
-              <caption>
+            <Table className="w-full border-collapse">
+              <TableCaption className="caption-top text-left">
                 {title} · 이전 기간{period ? ` · ${period}` : ''} · UTC
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">{categoryField}</th>
-                  <th scope="col">{valueField}</th>
-                  {onContributionSelect && <th scope="col">집계 원본 행</th>}
-                </tr>
-              </thead>
-              <tbody>
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col" className={cellClassName}>
+                    {categoryField}
+                  </TableHead>
+                  <TableHead scope="col" className={cellClassName}>
+                    {valueField}
+                  </TableHead>
+                  {onContributionSelect && (
+                    <TableHead scope="col" className={cellClassName}>
+                      집계 원본 행
+                    </TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {(data ?? []).map((row, index) => (
-                  <tr
+                  <TableRow
                     key={
                       onContributionSelect && canContribute(row)
                         ? JSON.stringify([typeof row[categoryField], row[categoryField], index])
                         : index
                     }
                   >
-                    <th scope="row">{text(row[categoryField])}</th>
-                    <td>{text(row[valueField])}</td>
+                    <TableHead scope="row" className={cellClassName}>
+                      {text(row[categoryField])}
+                    </TableHead>
+                    <TableCell className={cellClassName}>{text(row[valueField])}</TableCell>
                     {onContributionSelect && (
-                      <td>
+                      <TableCell className={cellClassName}>
                         {canContribute(row) && (
                           <Button
                             type="button"
-                            size="small"
+                            variant="ghost"
+                            size="sm"
+                            className="min-h-11 min-w-11 whitespace-normal text-left [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]"
                             aria-label={`이전 기간 시점 원본 행 보기: ${title} · ${categoryLabel(row[categoryField])}`}
                             aria-disabled={contributionDisabled || undefined}
                             aria-describedby={
                               contributionDisabled && contributionDisabledReason ? `${id}-contribution-reason` : undefined
                             }
-                            sx={{
-                              minWidth: 44,
-                              minHeight: 44,
-                              textTransform: 'none',
-                              whiteSpace: 'normal',
-                              overflowWrap: 'anywhere',
-                              textAlign: 'left',
-                              '&:focus-visible': { outline: '2px solid #1d4ed8', outlineOffset: 2 },
-                            }}
                             onClick={() => {
                               if (!contributionDisabled && canContribute(row)) onContributionSelect(row[categoryField]);
                             }}
@@ -201,16 +187,16 @@ export function PreviousPeriodData({
                             이전 기간 시점 원본 행 보기
                           </Button>
                         )}
-                      </td>
+                      </TableCell>
                     )}
-                  </tr>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </Box>
-          {!data?.length && <Typography variant="body2">이전 기간 데이터가 없습니다.</Typography>}
-        </Box>
+              </TableBody>
+            </Table>
+          </div>
+          {!data?.length && <p className="text-sm">이전 기간 데이터가 없습니다.</p>}
+        </details>
       )}
-    </Box>
+    </div>
   );
 }

@@ -2,14 +2,11 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import DashboardAssistant from './DashboardAssistant';
+import { installRadixBrowserAPIs, selectRadixOption } from './dashboardTestUtils';
 
 // Keep the real useChat/transport pipeline; replace only network and visual surfaces.
 const api = vi.hoisted(() => ({ post: vi.fn(), get: vi.fn(), mobile: false }));
 vi.mock('@/helpers/apiHelper', () => ({ post: api.post, get: api.get }));
-vi.mock('@mui/material/styles', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material/styles');
-});
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({
   default: ({ title, dataSet }: any) => (
     <div data-testid="preview-widget">
@@ -17,55 +14,7 @@ vi.mock('@/widget/wrapper/WidgetViewer', () => ({
     </div>
   ),
 }));
-vi.mock('@mui/material', () => {
-  const Container = React.forwardRef<HTMLElement, any>(
-    ({ children, component: Tag = 'div', role, onSubmit, ...props }, ref) => (
-      <Tag ref={ref} role={role} onSubmit={onSubmit} aria-label={props['aria-label']}>
-        {children}
-      </Tag>
-    ),
-  );
-  return {
-    Dialog: ({ open, children }: any) => (open ? <section role="dialog">{children}</section> : null),
-    DialogTitle: Container,
-    DialogContent: Container,
-    DialogActions: Container,
-    Box: Container,
-    Stack: Container,
-    Typography: Container,
-    Drawer: ({ open, children, onClose, PaperProps, variant }: any) =>
-      open ? (
-        <div key={variant} aria-label={PaperProps['aria-label']}>
-          <button onClick={onClose}>Drawer close</button>
-          {children}
-        </div>
-      ) : null,
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    LinearProgress: () => <progress />,
-    Button: ({ children, disabled, onClick, type = 'button', ...props }: any) => (
-      <button
-        type={type}
-        disabled={disabled}
-        onClick={onClick}
-        aria-label={props['aria-label']}
-        aria-pressed={props['aria-pressed']}
-      >
-        {children}
-      </button>
-    ),
-    MenuItem: ({ value, children }: any) => <option value={value}>{children}</option>,
-    TextField: ({ select, label, value, onChange, disabled, children, inputRef }: any) =>
-      select ? (
-        <select aria-label={label} value={value} onChange={onChange} disabled={disabled}>
-          {children}
-        </select>
-      ) : (
-        <textarea ref={inputRef} aria-label={label} value={value} onChange={onChange} disabled={disabled} />
-      ),
-    useTheme: () => ({ breakpoints: { down: () => 'md' } }),
-    useMediaQuery: () => api.mobile,
-  };
-});
+installRadixBrowserAPIs();
 
 const widget = {
   title: 'Total',
@@ -109,6 +58,9 @@ const requestEdit = () => {
 const ready = async () => {
   await waitFor(() => expect(screen.getByRole('button', { name: '변경 적용' }).hasAttribute('disabled')).toBe(false));
 };
+// 실제 차트·저장 지표 선택은 Radix Select이므로 트리거를 열고 옵션을 고른다.
+const chartTrigger = () => screen.getByRole('combobox', { name: '분석할 차트' }) as HTMLButtonElement;
+const metricTrigger = () => screen.getByRole('combobox', { name: '재사용할 저장 지표' }) as HTMLButtonElement;
 const queuePreview = () => api.post.mockResolvedValueOnce(success(revised)).mockResolvedValueOnce(success(preview));
 
 it('renders a real SDK answer and its evidence without saving anything', async () => {
@@ -178,7 +130,7 @@ it('blocks a proposal when the selected chart changes', async () => {
   mount();
   requestEdit();
   await ready();
-  fireEvent.change(screen.getByLabelText('분석할 차트'), { target: { value: '0' } });
+  await selectRadixOption(chartTrigger(), 'Total');
   expect(screen.getByRole('button', { name: '변경 적용' }).hasAttribute('disabled')).toBe(true);
   expect(api.post).toHaveBeenCalledTimes(2);
 });
@@ -248,7 +200,7 @@ it('submits one save while applying, and retains undo after a failed revert', as
   const apply = screen.getByRole('button', { name: '변경 적용' });
   fireEvent.click(apply);
   fireEvent.click(apply);
-  fireEvent.click(screen.getByRole('button', { name: 'Drawer close' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Assistant 닫기' }));
   expect(api.post).toHaveBeenCalledTimes(3);
   expect(view.onClose).not.toHaveBeenCalled();
   expect(view.onApplied).not.toHaveBeenCalled();
@@ -442,22 +394,22 @@ it('binds a selected saved metric, shows verified reuse and invalidates preview 
     .mockResolvedValueOnce(success(preview));
   mount();
   fireEvent.click(screen.getByRole('button', { name: '대시보드 수정', exact: true }));
-  fireEvent.change(screen.getByLabelText('분석할 차트'), { target: { value: '0' } });
-  await screen.findByRole('option', { name: 'Saved total' });
-  fireEvent.change(screen.getByLabelText('재사용할 저장 지표'), { target: { value: '3' } });
+  await selectRadixOption(chartTrigger(), 'Total');
+  await waitFor(() => expect(metricTrigger().disabled).toBe(false));
+  await selectRadixOption(metricTrigger(), 'Saved total');
   fireEvent.change(screen.getByLabelText('대시보드 수정 요청'), { target: { value: 'Change this chart' } });
   fireEvent.click(screen.getByRole('button', { name: '미리보기 요청' }));
   await ready();
   expect(api.post.mock.calls[0][1].selectedMetricId).toBe(3);
   expect(screen.getByText('저장 지표 재사용: Saved total · 저장 시 계산식 유지')).toBeTruthy();
-  fireEvent.change(screen.getByLabelText('재사용할 저장 지표'), { target: { value: '' } });
+  await selectRadixOption(metricTrigger(), '자동 · 새 계산식 허용');
   expect(screen.getByRole('button', { name: '변경 적용' }).hasAttribute('disabled')).toBe(true);
 });
 it('reports catalog failure while leaving natural language editing available', async () => {
   api.get.mockRejectedValue(new Error('offline'));
   mount();
   fireEvent.click(screen.getByRole('button', { name: '대시보드 수정', exact: true }));
-  fireEvent.change(screen.getByLabelText('분석할 차트'), { target: { value: '0' } });
+  await selectRadixOption(chartTrigger(), 'Total');
   await screen.findByText(/저장 지표를 불러오지 못しました|저장 지표를 불러오지 못했습니다/);
   expect(screen.getByLabelText('대시보드 수정 요청').hasAttribute('disabled')).toBe(false);
 });
@@ -480,16 +432,16 @@ it('UC-003 keeps calculation edits and preview across Drawer responsive transiti
   );
   const view = mount();
   fireEvent.click(screen.getByRole('button', { name: '대시보드 수정', exact: true }));
-  fireEvent.change(screen.getByLabelText('분석할 차트'), { target: { value: '0' } });
-  await screen.findByRole('option', { name: 'Saved total' });
-  fireEvent.change(screen.getByLabelText('재사용할 저장 지표'), { target: { value: '3' } });
+  await selectRadixOption(chartTrigger(), 'Total');
+  await waitFor(() => expect(metricTrigger().disabled).toBe(false));
+  await selectRadixOption(metricTrigger(), 'Saved total');
   fireEvent.click(screen.getByRole('button', { name: '계산식 변경', exact: true }));
-  fireEvent.change(screen.getByLabelText('집계 방식'), { target: { value: 'AVG' } });
+  await selectRadixOption(screen.getByRole('combobox', { name: '집계 방식' }), '평균');
   await waitFor(() => expect(screen.getByRole('button', { name: '계산식 미리보기' }).hasAttribute('disabled')).toBe(false));
   fireEvent.click(screen.getByRole('button', { name: '계산식 미리보기' }));
   await screen.findByText('v1 → v2');
   api.mobile = true;
   view.rerender(<DashboardAssistant {...base} onApplied={view.onApplied} onClose={view.onClose} />);
-  expect((screen.getByLabelText('집계 방식') as HTMLSelectElement).value).toBe('AVG');
+  expect(screen.getByRole('combobox', { name: '집계 방식' }).textContent).toBe('평균');
   expect(screen.getByText('v1 → v2')).toBeTruthy();
 });

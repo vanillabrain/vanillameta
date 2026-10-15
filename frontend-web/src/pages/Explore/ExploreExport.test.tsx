@@ -5,21 +5,6 @@ import ExploreExport from './ExploreExport';
 
 const api = vi.hoisted(() => ({ post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ get: vi.fn(), post: api.post }));
-vi.mock('@mui/material', () => {
-  const Container = ({ children }: any) => <div>{children}</div>;
-  return {
-    Box: Container,
-    Stack: Container,
-    Typography: ({ children, role }: any) => <p role={role}>{children}</p>,
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    Button: ({ children, disabled, onClick, 'aria-expanded': expanded }: any) => (
-      <button aria-expanded={expanded} disabled={disabled} onClick={onClick}>
-        {children}
-      </button>
-    ),
-  };
-});
-
 const CSV = 'metric,device_type,value\n1,app,10\n2,web,20\n';
 /** Blob sizing is byte based, so a UTF-8 export must not be compared against string length. */
 const bytes = (text: string) => new TextEncoder().encode(text).length;

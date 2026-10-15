@@ -2,6 +2,7 @@ import { expect, test, Page } from '@playwright/test';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { API, authHeaders, confirmAction, createdId, createResponse, login, removeOwned } from './core-helpers';
+import { datagridTable, expectSelected, fieldCombobox, selectControl } from './ui-locators';
 
 async function openSalesFile(page: Page) {
   await login(page);
@@ -10,7 +11,12 @@ async function openSalesFile(page: Page) {
   await page.locator('input[type="file"]').setInputFiles(path.join(__dirname, 'fixtures/generated/sales.csv'));
   await page.getByRole('button', { name: /^(브라우저에서 분석|Analyze in browser)$/ }).click();
   await expect(page.getByText(/sales\.csv → uploaded_data/)).toBeVisible();
-  await expect(page.locator('.tui-grid-container')).toBeVisible({ timeout: 30000 });
+  await expect(datagridTable(page)).toBeVisible({ timeout: 30000 });
+}
+
+async function queryFile(page: Page, sql: string) {
+  await page.getByPlaceholder(/^Enter SQL/).fill(sql);
+  await page.getByRole('button', { name: /^(실행|Run)$/ }).click();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -21,32 +27,20 @@ test.describe('CSV 핵심 플로우', () => {
   test('CSV → 정확한 카테고리 SUM → 차트', async ({ page }) => {
     test.setTimeout(90000);
     await openSalesFile(page);
-    await page
-      .getByRole('textbox')
-      .fill("SELECT category, SUM(amount) AS total FROM uploaded_data WHERE category = '도서' GROUP BY category");
-    await page.getByRole('button', { name: /^(실행|Run)$/ }).click();
-    const result = page.locator('.tui-grid-rside-area .tui-grid-body-area');
+    await queryFile(
+      page,
+      "SELECT category, SUM(amount) AS total FROM uploaded_data WHERE category = '도서' GROUP BY category",
+    );
+    const result = datagridTable(page);
     // Wait for the SQL result to replace the uploaded preview before checking values.
     await expect(result.getByText('도서', { exact: true })).toHaveCount(1);
     await expect(result.getByText('도서', { exact: true })).toBeVisible();
     await expect(result.getByText('60550', { exact: true })).toBeVisible();
-    const value = page
-      .locator('.MuiFormControl-root')
-      .filter({
-        has: page.locator('.MuiInputLabel-root', { hasText: /^(값|Value)$/ }),
-      })
-      .getByRole('combobox');
-    await value.click();
-    await page.getByRole('option', { name: 'total', exact: true }).click();
-    const chart = page
-      .locator('.MuiFormControl-root')
-      .filter({
-        has: page.locator('.MuiInputLabel-root', { hasText: /^(차트|Chart)$/ }),
-      })
-      .getByRole('combobox');
-    await chart.click();
-    await page.getByRole('option', { name: /^(막대|Bar)$/ }).click();
-    await expect(value).toHaveText('total');
+    const value = fieldCombobox(page, /^(값|Value)$/);
+    await selectControl(page, value, 'total');
+    const chart = fieldCombobox(page, /^(차트|Chart)$/);
+    await selectControl(page, chart, /^(막대|Bar)$/);
+    await expectSelected(value, 'total');
     await expect(page.locator('.echarts-for-react canvas')).toBeVisible();
   });
 
@@ -64,7 +58,7 @@ test.describe('CSV 핵심 플로우', () => {
       databaseId = await createdId(response);
       expect((await response.json()).data).toMatchObject({ name: 'sales', tableName: 'uploaded_data', rows: 500 });
       await expect(page).toHaveURL(new RegExp(`/data/set/create/${databaseId}$`));
-      await expect(page.locator('#databaseId')).toHaveText('sales');
+      await expectSelected(page.locator('#databaseId'), 'sales');
       await page.locator('#userSetName').fill(title);
       await expect(page.locator('#codeInput')).toContainText('SELECT * FROM uploaded_data');
       const executed = createResponse(page, 'database/execute');

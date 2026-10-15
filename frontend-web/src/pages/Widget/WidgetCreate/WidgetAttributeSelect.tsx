@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Stack, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import WidgetSetting from '@/widget/wrapper/WidgetSetting';
@@ -10,6 +9,7 @@ import { LayoutContext } from '@/contexts/LayoutContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import grid from '@/assets/images/grid.svg';
 import { SnackbarContext } from '@/contexts/AlertContext';
+import { cn } from '@/lib/utils';
 
 interface WidgetAttributeSelectProps {
   widgetOption: any;
@@ -131,51 +131,26 @@ const WidgetAttributeSelect = (props: WidgetAttributeSelectProps) => {
   };
 
   return (
-    <Stack
-      direction={{ xs: 'column', md: 'row' }}
-      justifyContent="space-between"
-      sx={{
-        width: '100%',
-        minWidth: 0,
-        height: {
-          xs: isModifyMode ? 'calc(100dvh - 170px)' : 'calc(100dvh - 310px)',
-          sm: isModifyMode ? 'calc(100dvh - 170px)' : 'calc(100dvh - 245px)',
-          md: isModifyMode ? 'calc(100vh - 170px)' : 'calc(100vh - 245px)',
-        },
-        overflowX: 'hidden',
-        overflowY: { xs: 'auto', md: 'hidden' },
-        backgroundColor: '#f5f6f8',
-        backgroundImage: `url(${grid})`,
-        backgroundRepeat: 'repeat',
-      }}
-      onSubmit={handleSubmit}
+    <form
       id="widgetAttribute"
-      component="form"
+      onSubmit={handleSubmit}
+      className={cn(
+        'flex w-full min-w-0 flex-col justify-between overflow-x-hidden bg-muted md:flex-row md:overflow-y-hidden',
+        isModifyMode
+          ? 'h-[calc(100dvh-170px)] md:h-[calc(100vh-170px)]'
+          : 'h-[calc(100dvh-310px)] sm:h-[calc(100dvh-245px)] md:h-[calc(100vh-245px)]',
+      )}
+      style={{ backgroundImage: `url(${grid})`, backgroundRepeat: 'repeat' }}
     >
       {!option ? (
-        <Typography sx={{ m: '54px auto' }}>
+        <p className="mx-auto my-[54px]">
           {isModifyMode && widgetOption?.id ? t('share.widgetFetchFailed') : t('share.loading')}
-        </Typography>
+        </p>
       ) : (
         <>
-          <Box
-            sx={{
-              width: { xs: 'calc(100% - 32px)', md: '60%' },
-              minWidth: 0,
-              flexShrink: { xs: 0, md: 1 },
-              height: { xs: '300px', sm: '50vw' },
-              minHeight: '300px',
-              maxHeight: { xs: 'none', md: '100%' },
-              margin: { xs: '16px auto', md: '54px auto' },
-              border: '1px solid #e2e2e2',
-              borderRadius: '8px',
-              boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
-              backgroundColor: '#fff',
-              overflow: 'hidden',
-            }}
-          >
+          <div className="mx-auto my-4 h-[300px] max-h-none min-h-[300px] w-[calc(100%-32px)] shrink-0 overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:h-[50vw] md:my-[54px] md:h-full md:max-h-full md:w-3/5 md:shrink">
             <WidgetViewer title={title} widgetType={widgetOption.componentType} widgetOption={option} dataSet={data} />
-          </Box>
+          </div>
           <WidgetSetting
             widgetTypeName={widgetTypeName}
             widgetTypeDescription={widgetTypeDescription}
@@ -189,7 +164,7 @@ const WidgetAttributeSelect = (props: WidgetAttributeSelectProps) => {
           />
         </>
       )}
-    </Stack>
+    </form>
   );
 };
 

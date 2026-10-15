@@ -1,12 +1,19 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import Button from '@mui/material/Button';
-import { Alert, Divider, Portal, Snackbar } from '@mui/material';
+import { X } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
+import { Separator } from '@/components/ui/separator';
 
 interface IProps {
   message: string | JSX.Element;
@@ -18,101 +25,89 @@ interface IProps {
       onClick: any;
     }[];
     closeCopy?: string;
+    type?: 'error' | 'warning' | 'success' | 'info';
   };
 }
 
+const TOAST_DURATION = 6000;
+
 export const SnackbarTemplate = props => {
   const { close, message, options } = props;
-  // console.log(props);
+  const severity = options?.type ?? 'info';
+
+  useEffect(() => {
+    const timer = setTimeout(() => close(), TOAST_DURATION);
+    return () => clearTimeout(timer);
+  }, [close]);
+
   return (
-    <Portal>
-      <Snackbar open autoHideDuration={6000} onClose={close} sx={{ zIndex: 9999 }}>
-        <Alert onClose={close} severity={options.type} sx={{ width: '100%' }}>
-          {message}
-        </Alert>
-      </Snackbar>
-    </Portal>
+    <div className="pointer-events-none fixed bottom-6 left-1/2 z-60 flex w-full max-w-[460px] -translate-x-1/2 items-start gap-1 px-4">
+      <Notice severity={severity} className="pointer-events-auto flex-1 shadow-md">
+        {message}
+      </Notice>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Close"
+        className="pointer-events-auto shrink-0"
+        onClick={() => close()}
+      >
+        <X />
+      </Button>
+    </div>
   );
 };
 
-const buttonStyle = { minWidth: 80, height: 36, padding: '0 10px', fontSize: '13px', fontWeight: 'bold' };
+const buttonClassName = 'h-9 min-w-20 px-2.5 text-[13px] font-bold';
 
 const AlertTemplate = ({ close, message, options }: IProps) => {
   const { t } = useTranslation();
-  const hasTitle = options.title && options.title.toString().trim() !== '';
+  const hasTitle = options?.title && options.title.toString().trim() !== '';
   const id = useId();
-  const returnFocus = useRef(typeof document === 'undefined' ? null : document.activeElement);
-  useEffect(
-    () => () => {
-      const trigger = returnFocus.current;
-      queueMicrotask(() => {
-        if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus();
-      });
-    },
-    [],
-  );
-  return (
-    <Dialog
-      open={true}
-      onClose={close}
-      keepMounted
-      aria-labelledby={`${id}-title`}
-      aria-describedby={`${id}-description`}
-      PaperProps={{
-        sx: {
-          borderRadius: '4px',
-          minWidth: { xs: 'calc(100vw - 32px)', sm: 0 },
-        },
-      }}
-      BackdropProps={{ style: { background: 'rgba(31, 33, 35, 0.85)' } }}
-    >
-      <DialogTitle
-        id={`${id}-title`}
-        sx={{ padding: '16px 20px', fontSize: '14px', fontWeight: 'bold', lineHeight: 'normal' }}
-      >
-        {hasTitle ? options.title : t('common.confirm')}
-      </DialogTitle>
-      {hasTitle ? <Divider sx={{ backgroundColor: '#1f2123', opacity: 0.1 }} /> : null}
+  const actions = options?.actions ?? [];
 
-      <DialogContent>
-        <DialogContentText
-          id={`${id}-description`}
-          sx={{
-            fontSize: '14px',
-            color: 'black',
-            paddingTop: hasTitle ? 0 : '20px',
-            width: '100%',
-            minWidth: { xs: 0, sm: 300 },
-            maxWidth: 500,
-            whiteSpace: 'pre-wrap',
-            textAlign: 'center',
-            lineHeight: '24px',
-          }}
+  return (
+    <AlertDialog
+      open
+      onOpenChange={next => {
+        if (!next) close();
+      }}
+    >
+      <AlertDialogContent
+        aria-labelledby={id + '-title'}
+        aria-describedby={id + '-description'}
+        onEscapeKeyDown={() => close()}
+        className="max-w-[calc(100vw-32px)] gap-0 rounded-[4px] p-0 sm:max-w-[500px]"
+      >
+        <AlertDialogHeader className="place-items-start gap-0 p-5 pb-4 text-left">
+          <AlertDialogTitle id={id + '-title'} className="text-sm leading-normal font-bold">
+            {hasTitle ? options.title : t('common.confirm')}
+          </AlertDialogTitle>
+        </AlertDialogHeader>
+        {hasTitle ? <Separator className="bg-foreground/10" /> : null}
+        <AlertDialogDescription
+          id={id + '-description'}
+          className="max-w-[500px] px-5 pt-5 text-center text-sm leading-6 whitespace-pre-wrap text-foreground"
         >
           {message}
-        </DialogContentText>
-      </DialogContent>
-      <DialogActions sx={{ margin: '24px', padding: 0, justifyContent: 'center' }}>
-        {options.actions &&
-          options.actions.map((action, index) => (
-            <Button
+        </AlertDialogDescription>
+        <AlertDialogFooter className="mx-6 my-6 flex-row justify-center gap-2 rounded-none border-0 bg-transparent p-0 sm:justify-center">
+          {actions.map((action, index) => (
+            <AlertDialogAction
+              key={index}
+              className={buttonClassName}
               onClick={() => {
                 action.onClick();
-                close();
               }}
-              variant="contained"
-              color="primary"
-              sx={buttonStyle}
-              key={index}
             >
               {action.copy}
-            </Button>
+            </AlertDialogAction>
           ))}
-        <Button variant="contained" color="primary" sx={buttonStyle} onClick={close} autoFocus={true}>
-          {options.closeCopy || t('common.confirm')}
-        </Button>
-      </DialogActions>
-    </Dialog>
+          <AlertDialogCancel className={buttonClassName}>{options?.closeCopy || t('common.confirm')}</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };
 

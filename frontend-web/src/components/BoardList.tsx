@@ -1,80 +1,101 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, List, Pagination, Stack, useMediaQuery, useTheme } from '@mui/material';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import { cn } from '@/lib/utils';
 import BoardItem from './BoardItem';
-import { styled } from '@mui/system';
 import { MAX_WIDTH } from '@/constant';
 
-interface GTSpanProps {
-  children: React.ReactNode;
-  matches?: boolean;
-  isWidget?: boolean;
-}
+const PAGE_SIZE = 10;
+const WINDOW = 5;
 
-// TODO: 오류 수정
-const GTSpan = styled('span')<GTSpanProps>(props => ({
-  marginLeft: props.matches && props.isWidget && '50px',
-  fontSize: props.matches ? '13px' : '10px',
-  fontWeight: '500',
-  lineHeight: '1.23',
-  color: '#767676',
-}));
-
-const tableBorder = '1px solid #DADDDD';
+const GTSpan = ({ children, className = '' }) => (
+  <span className={cn('text-[10px] leading-tight font-medium text-muted-foreground sm:text-[13px]', className)}>
+    {children}
+  </span>
+);
 
 function BoardList(props) {
   const { t } = useTranslation();
-  const { postList, handleDeleteSelect } = props;
+  const { postList, handleDeleteSelect, className } = props;
   const [totalCount, setTotalCount] = useState(1);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    setTotalCount(Math.ceil(postList.length / 10));
+    setTotalCount(Math.ceil(postList.length / PAGE_SIZE));
   }, [postList]);
 
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
-
-  const handlePageChange = (e, p) => {
-    setPage(p);
+  const handlePageChange = (event, targetPage) => {
+    event.preventDefault();
+    if (targetPage < 1 || (totalCount > 0 && targetPage > totalCount)) {
+      return;
+    }
+    setPage(targetPage);
   };
 
-  const generateBoardItem = () => {
-    return postList.map((item, index) => {
-      const currPage = (page - 1) * 10;
-      if (index >= currPage && index < currPage + 10) {
-        return <BoardItem data={item} key={item.id} handleDeleteSelect={handleDeleteSelect} />;
-      } else {
-        return null;
-      }
-    });
-  };
+  const firstPage = Math.max(1, Math.min(page - Math.floor(WINDOW / 2), Math.max(1, totalCount - WINDOW + 1)));
+  const pages = Array.from(
+    { length: Math.max(0, Math.min(WINDOW, totalCount - firstPage + 1)) },
+    (_, index) => firstPage + index,
+  );
 
   return (
-    <Box sx={{ maxWidth: MAX_WIDTH, width: '100%', mx: 'auto' }}>
-      <Stack
-        flexDirection="row"
-        justifyContent="space-between"
-        sx={{
-          width: '100%',
-          paddingLeft: '20px',
-          paddingRight: { xs: '60px', sm: '216px' },
-          marginBottom: '11px',
-          marginTop: { xs: '21px', sm: '36px' },
-        }}
-      >
-        <GTSpan isWidget={Boolean(postList?.[0]?.componentType)} matches={matches}>
-          {t('settings.name')}
-        </GTSpan>
-        <GTSpan matches={matches}>{t('common.modified')}</GTSpan>
-      </Stack>
-      <List sx={{ width: '100%', m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
-        {generateBoardItem()}
-      </List>
-      <Stack alignItems="center" sx={{ marginTop: '47px' }}>
-        <Pagination count={totalCount} page={page} shape="rounded" onChange={handlePageChange} />
-      </Stack>
-    </Box>
+    <div className={cn('mx-auto w-full', className)} style={{ maxWidth: MAX_WIDTH }}>
+      <div className="mb-[11px] mt-5 flex w-full flex-row justify-between pr-[60px] sm:mt-9 sm:pr-[216px]">
+        <GTSpan>{t('settings.name')}</GTSpan>
+        <GTSpan>{t('common.modified')}</GTSpan>
+      </div>
+      <ul className="w-full rounded-lg border border-[#DADDDD] bg-card p-0">
+        {postList.map((item, index) => {
+          const currentPageStart = (page - 1) * PAGE_SIZE;
+          if (index < currentPageStart || index >= currentPageStart + PAGE_SIZE) {
+            return null;
+          }
+          return <BoardItem data={item} key={item.id} handleDeleteSelect={handleDeleteSelect} />;
+        })}
+      </ul>
+      <div className="mt-[47px] flex justify-center">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                href="#"
+                text=""
+                aria-disabled={page <= 1}
+                className={cn(page <= 1 && 'pointer-events-none opacity-50')}
+                onClick={event => handlePageChange(event, page - 1)}
+              />
+            </PaginationItem>
+            {pages.map(targetPage => (
+              <PaginationItem key={targetPage}>
+                <PaginationLink
+                  href="#"
+                  isActive={targetPage === page}
+                  onClick={event => handlePageChange(event, targetPage)}
+                >
+                  {targetPage}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+            <PaginationItem>
+              <PaginationNext
+                href="#"
+                text=""
+                aria-disabled={page >= totalCount}
+                className={cn(page >= totalCount && 'pointer-events-none opacity-50')}
+                onClick={event => handlePageChange(event, page + 1)}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
+    </div>
   );
 }
 

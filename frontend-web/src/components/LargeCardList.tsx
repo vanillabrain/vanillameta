@@ -1,53 +1,38 @@
 import React from 'react';
-import { Box, ButtonBase, Card, CardContent, Typography } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-const CardWrapper = ({ children, selected, onClick, sx = null }) => {
+const CardWrapper = ({ children, selected, onClick, className = '' }) => {
   return (
-    <Card
-      component={ButtonBase}
+    <Button
+      type="button"
+      variant="outline"
       aria-pressed={Boolean(selected)}
-      sx={{
-        padding: '20px 8px 20px 21px',
-        borderRadius: '8px',
-        boxShadow: '2px 2px 6px 0 rgba(0, 42, 105, 0.1)',
-        border: selected ? 'solid 1px #4481c9' : 'solid 1px #ddd',
-        backgroundColor: selected ? '#edf8ff' : '#fff',
-        cursor: 'pointer',
-        position: 'relative',
-        alignItems: 'center',
-        '&:hover': {
-          backgroundColor: '#ebfbff',
-        },
-        ...sx,
-      }}
       onClick={onClick}
+      className={cn(
+        'relative flex h-auto flex-col items-center rounded-lg border bg-card p-5 text-left font-normal normal-case whitespace-normal hover:bg-[#ebfbff]',
+        selected ? 'border-[#4481c9] bg-[#edf8ff]' : 'border-border',
+        className,
+      )}
     >
       {children}
-    </Card>
+    </Button>
   );
 };
 
 function LargeImgCardList(props) {
-  const { data, selectedType, setSelectedType } = props;
-  const srcUrl = '/static/images/';
+  const { data, selectedType, setSelectedType, className } = props;
 
   const handleClick = item => {
-    console.log('database : ', item);
     setSelectedType(item);
   };
 
   return (
-    <Box
-      component="ul"
-      sx={{
-        display: 'grid',
-        listStyle: 'none',
-        pl: 0,
-        gridTemplateColumns: 'repeat(auto-fit, minmax(0, 169px))',
-        justifyContent: 'center',
-        gap: '20px',
-        m: '0',
-      }}
+    <ul
+      className={cn(
+        'm-0 grid list-none justify-center gap-5 p-0 [grid-template-columns:repeat(auto-fit,minmax(0,169px))]',
+        className,
+      )}
     >
       {data
         .filter(item => item.seq !== null)
@@ -55,48 +40,22 @@ function LargeImgCardList(props) {
         .map(item => {
           const selected = selectedType && selectedType.id === item.id;
           return (
-            <Box component="li" key={item.id}>
-              <CardWrapper sx={{ width: 169, p: 0 }} selected={selected} onClick={() => handleClick(item)}>
-                <CardContent
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    width: 169,
-                    height: 166,
-                    pt: '24px',
-                    px: '15px',
-                  }}
-                >
-                  <Box
-                    component="img"
-                    alt=""
-                    src={srcUrl + item.icon}
-                    sx={{ width: 48, height: 48, objectFit: 'contain', mb: '12px', border: 0 }}
-                  />
-                  <Typography
-                    variant="subtitle2"
-                    component="span"
-                    sx={{ textAlign: 'center', lineHeight: '1.3', fontWeight: 'bold' }}
-                  >
-                    {item.title}
-                  </Typography>
+            <li key={item.id} className="list-none">
+              <CardWrapper selected={selected} onClick={() => handleClick(item)} className="w-[169px] p-0">
+                <div className="flex h-[166px] w-[169px] flex-col items-center px-[15px] pt-6">
+                  <img alt="" src={'/static/images/' + item.icon} className="mb-3 h-12 w-12 border-0 object-contain" />
+                  <span className="text-center text-sm leading-[1.3] font-bold">{item.title}</span>
                   {item.description ? (
-                    <Typography
-                      variant="caption"
-                      sx={{ mt: '4px', textAlign: 'center', lineHeight: '1.3', color: theme => theme.palette.grey.A700 }}
-                    >
-                      {item.description}
-                    </Typography>
+                    <span className="mt-1 text-center text-xs leading-[1.3] text-muted-foreground">{item.description}</span>
                   ) : (
                     ' '
                   )}
-                </CardContent>
+                </div>
               </CardWrapper>
-            </Box>
+            </li>
           );
         })}
-    </Box>
+    </ul>
   );
 }
 

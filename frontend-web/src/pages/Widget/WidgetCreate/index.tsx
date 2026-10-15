@@ -1,17 +1,18 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Button, Stack, Step, StepLabel, Stepper, SvgIcon } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useAlert } from 'react-alert';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
 import componentService from '@/api/componentService';
 import widgetService from '@/api/widgetService';
-import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import LeftArrow from '@/assets/images/icon/angle-left.svg?react';
-import { useAlert } from 'react-alert';
 import { STATUS } from '@/constant';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const WidgetCreate = () => {
   const { t } = useTranslation();
@@ -134,113 +135,54 @@ const WidgetCreate = () => {
       title={t('widget.createTitle')}
       upperTitle={t('widget.title')}
       upperTitleLink="/widget"
-      sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
+      className="h-full w-full p-0"
       button={
-        <Stack direction="row" gap="10px">
-          <Button
-            variant="outlined"
-            onClick={handleBack}
-            disabled={activeStep === 0}
-            startIcon={
-              <SvgIcon
-                component={LeftArrow}
-                sx={{
-                  width: '14px',
-                  height: '14px',
-                  padding: '1px',
-                }}
-                inheritViewBox
-              />
-            }
-            sx={{
-              color: '#043f84',
-              '&.Mui-disabled &.MuiButton-startIcon': {
-                color: '#fff',
-              },
-            }}
-          >
+        <div className="flex flex-row gap-2.5">
+          <Button variant="outline" onClick={handleBack} disabled={activeStep === 0} className="gap-1.5 text-primary">
+            <LeftArrow aria-hidden="true" className="size-3.5 p-px" />
             {t('widget.prev')}
           </Button>
 
           {activeStep !== 2 ? (
-            <Button
-              variant="contained"
-              type="button"
-              onClick={handleNext}
-              disabled={isNextButtonDisabled}
-              endIcon={
-                <SvgIcon
-                  component={LeftArrow}
-                  sx={{ width: '14px', height: '14px', transform: 'rotate(180deg)', padding: '1px' }}
-                  inheritViewBox
-                />
-              }
-              sx={{ backgroundColor: '#043f84' }}
-            >
+            <Button type="button" onClick={handleNext} disabled={isNextButtonDisabled} className="gap-1.5 bg-primary">
               {t('widget.next')}
+              <LeftArrow aria-hidden="true" className="size-3.5 rotate-180 p-px" />
             </Button>
           ) : (
             ' '
           )}
-        </Stack>
+        </div>
       }
     >
-      <Box
-        sx={{
-          position: { xs: 'static', md: 'fixed' },
-          zIndex: 1000,
-          width: '100%',
-          mt: { xs: '96px', sm: '56px' },
-          flexShrink: 0,
-          borderBottom: '1px solid #e3e7ea',
-          backgroundColor: '#fff',
-        }}
-      >
-        <Stepper
-          activeStep={activeStep}
-          sx={{
-            width: { xs: '100%', md: '50%' },
-            minWidth: { xs: 0, md: '450px' },
-            maxWidth: '564px',
-            height: { xs: 'auto', sm: '72px' },
-            minHeight: '72px',
-            px: { xs: '12px', md: 0 },
-            py: { xs: '12px', sm: 0 },
-            m: 'auto',
-            '& .MuiStep-root': { minWidth: { xs: 0, md: 'auto' } },
-            '& .MuiStepLabel-root': { flexDirection: { xs: 'column', md: 'row' } },
-            '& .MuiStepLabel-iconContainer': { pr: { xs: 0, md: '8px' } },
-            '& .MuiStepLabel-labelContainer': {
-              minWidth: 0,
-              textAlign: { xs: 'center', md: 'left' },
-              overflowWrap: 'anywhere',
-            },
-          }}
-        >
-          {steps.map(label => {
-            const stepProps: { completed?: boolean } = {};
-            const labelProps: {
-              optional?: React.ReactNode;
-            } = {};
-            return (
-              <Step key={label} {...stepProps}>
-                <StepLabel {...labelProps}>{label}</StepLabel>
-              </Step>
-            );
-          })}
-        </Stepper>
-      </Box>
-      <Box
-        sx={{
-          display: 'flex',
-          flex: '1 1 auto',
-          mt: { xs: 0, md: '129px' },
-          minWidth: 0,
-        }}
-      >
-        <Box sx={{ display: activeStep === 0 ? 'flex' : 'none', flex: '1 1 auto' }}>
+      <div className="z-30 mt-24 w-full shrink-0 border-b border-border bg-background sm:mt-14 md:fixed">
+        <ol className="mx-auto flex min-h-[72px] w-full min-w-0 max-w-[564px] items-center px-3 py-3 sm:py-0 md:w-1/2 md:min-w-[450px] md:px-0">
+          {steps.map((label, index) => (
+            <li key={label} className="flex min-w-0 flex-1 flex-col items-center md:flex-row md:gap-2">
+              <span
+                className={cn(
+                  'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                  index <= activeStep ? 'bg-primary text-white' : 'bg-border text-muted-foreground',
+                )}
+              >
+                {index + 1}
+              </span>
+              <span
+                className={cn(
+                  'min-w-0 text-center text-sm break-words',
+                  index <= activeStep ? 'font-semibold text-foreground' : 'text-muted-foreground',
+                  'md:pr-2 md:text-left',
+                )}
+              >
+                {label}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="flex min-w-0 flex-auto md:mt-[129px]">
+        <div className={cn('flex-auto', activeStep === 0 ? 'flex' : 'hidden')}>
           <WidgetDataSelect setDataSet={handleDatasetChange} />
-        </Box>
+        </div>
         {activeStep === 1 ? (
           <WidgetTypeSelect
             widgetType={widgetOption}
@@ -259,7 +201,7 @@ const WidgetCreate = () => {
             widgetTypeDescription={widgetOption.description}
           />
         ) : null}
-      </Box>
+      </div>
     </PageTitleBox>
   );
 };

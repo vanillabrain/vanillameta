@@ -16,13 +16,6 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => api.navigate,
   useSearchParams: () => [new URLSearchParams(api.search)],
 }));
-// The analysis UI shell (AnalysisUiProvider) reads the theme through this subpath; the tests only
-// need it to render children, so the real theme is stubbed the same way the controls are.
-vi.mock('@mui/material/styles', () => ({
-  useTheme: () => ({}),
-  createTheme: () => ({}),
-  ThemeProvider: ({ children }: React.PropsWithChildren) => <>{children}</>,
-}));
 vi.mock('@/pages/Dashboard/Components/PersonalSavedViews', () => ({
   default: (props: any) => {
     api.viewProps = props;
@@ -51,96 +44,6 @@ vi.mock('@/pages/Dashboard/Components/MetricTrend', () => ({
     </div>
   ),
 }));
-vi.mock('@mui/material', () => {
-  const Container = ({ children }: any) => <div>{children}</div>;
-  return {
-    Box: ({ component: Tag = 'div', children, ...props }: any) => (
-      <Tag role={props.role} aria-label={props['aria-label']} title={props.title} id={props.id}>
-        {children}
-      </Tag>
-    ),
-    Stack: Container,
-    Card: Container,
-    Divider: () => <hr />,
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    Typography: ({ component: Tag = 'p', children, role, title, 'aria-label': label }: any) => (
-      <Tag role={role} title={title} aria-label={label}>
-        {children}
-      </Tag>
-    ),
-    Button: ({
-      children,
-      disabled,
-      onClick,
-      'aria-label': ariaLabel,
-      'aria-pressed': pressed,
-      'aria-expanded': expanded,
-      'aria-describedby': describedBy,
-    }: any) => (
-      <button
-        aria-label={ariaLabel}
-        aria-pressed={pressed}
-        aria-expanded={expanded}
-        aria-describedby={describedBy}
-        disabled={disabled}
-        onClick={onClick}
-      >
-        {children}
-      </button>
-    ),
-    Chip: ({ label, onDelete }: any) => (
-      <span>
-        {label}
-        {onDelete && (
-          <button aria-label={`삭제 ${label}`} onClick={onDelete}>
-            삭제
-          </button>
-        )}
-      </span>
-    ),
-    Checkbox: ({ checked, onChange, inputProps }: any) => (
-      <input type="checkbox" aria-label={inputProps?.['aria-label']} checked={checked} onChange={onChange} />
-    ),
-    FormControlLabel: ({ control, label }: any) => (
-      <label>
-        {control}
-        {label}
-      </label>
-    ),
-    // Emulate MUI: a select only becomes a native <select> when the caller asks for it.
-    // Raw <option> children inside a non-native MUI Select are inert, so any test that
-    // drives the control by change fails unless the component passes native: true.
-    TextField: ({ label, select, type, value, onChange, disabled, children, placeholder, slotProps }: any) => {
-      const native = slotProps?.select?.native === true;
-      return (
-        <label>
-          {label}
-          {select ? (
-            native ? (
-              <select aria-label={label} data-native="true" value={value} onChange={onChange} disabled={disabled}>
-                {children}
-              </select>
-            ) : (
-              <span role="combobox" aria-label={label} data-native="false">
-                {children}
-              </span>
-            )
-          ) : (
-            <input
-              aria-label={label}
-              type={type || 'text'}
-              placeholder={placeholder}
-              value={value}
-              onChange={onChange}
-              disabled={disabled}
-            />
-          )}
-        </label>
-      );
-    },
-  };
-});
-
 const success = (data: unknown) => ({ data: { status: 'SUCCESS', data } });
 const conflict = () => Object.assign(new Error('source revision mismatch'), { response: { status: 409 } });
 
@@ -279,13 +182,11 @@ it('renders the source and filter-column selects as native selects so option cho
   await mount();
   const source = screen.getByLabelText('데이터 소스') as HTMLSelectElement;
   expect(source.tagName).toBe('SELECT');
-  expect(source.getAttribute('data-native')).toBe('true');
   fireEvent.change(source, { target: { value: '4' } });
   await waitFor(() => expect(lastQuery().sourceId).toBe(4));
   fireEvent.click(screen.getByRole('button', { name: '필터 추가' }));
   const column = screen.getByLabelText('필터 열') as HTMLSelectElement;
   expect(column.tagName).toBe('SELECT');
-  expect(column.getAttribute('data-native')).toBe('true');
   fireEvent.change(column, { target: { value: 'device_os' } });
   await waitFor(() =>
     expect(api.post.mock.calls.some(([url, body]) => url === '/bi/explore/values' && body.column === 'device_os')).toBe(

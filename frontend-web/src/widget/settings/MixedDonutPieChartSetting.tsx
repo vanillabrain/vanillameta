@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Divider, InputAdornment, ListItem, ListItemText } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, PIE_LABEL_LIST } from '@/constant';
@@ -75,8 +75,8 @@ const MixedDonutPieChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.donutSeries')} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.donutSeries')}</span>
         <SelectForm
           required={true}
           id="name"
@@ -96,7 +96,7 @@ const MixedDonutPieChartSetting = props => {
           onChange={event => handleSeriesChange(event, setOption, 'series', 'label')}
           // onChange={handleSeriesChange}
         />
-        <Divider />
+        <Separator />
         <SelectForm
           required={true}
           id="field"
@@ -117,9 +117,9 @@ const MixedDonutPieChartSetting = props => {
           onChange={event => handleSeriesChange(event, setOption, 'series', 'aggregation')}
           disabledDefaultValue
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.pieSeries')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.pieSeries')}</span>
         <SelectForm
           required={true}
           id="name"
@@ -139,7 +139,7 @@ const MixedDonutPieChartSetting = props => {
           onChange={event => handleSeriesChange(event, setOption, 'pie', 'label')}
           // onChange={handleSeriesChange}
         />
-        <Divider />
+        <Separator />
         <SelectForm
           required={true}
           id="field"
@@ -160,10 +160,10 @@ const MixedDonutPieChartSetting = props => {
           onChange={event => handleSeriesChange(event, setOption, 'pie', 'aggregation')}
           disabledDefaultValue
         />
-      </ListItem>
+      </li>
 
-      <ListItem divider>
-        <ListItemText primary={t('settings.donutShape')} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.donutShape')}</span>
         <TextFieldForm
           id="radius1"
           name="radius1"
@@ -171,7 +171,7 @@ const MixedDonutPieChartSetting = props => {
           type="number"
           value={option.series.radius[0].slice(0, -1)}
           onChange={event => handleRadiusChange(event, 'series')}
-          endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          endAdornment={<span className="text-sm text-muted-foreground">%</span>}
         />
         <TextFieldForm
           id="radius2"
@@ -180,11 +180,11 @@ const MixedDonutPieChartSetting = props => {
           type="number"
           value={option.series.radius[1].slice(0, -1)}
           onChange={event => handleRadiusChange(event, 'series')}
-          endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          endAdornment={<span className="text-sm text-muted-foreground">%</span>}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.pieShape')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.pieShape')}</span>
         <TextFieldForm
           id="radius"
           name="radius"
@@ -192,12 +192,12 @@ const MixedDonutPieChartSetting = props => {
           type="number"
           value={option.pie.radius.slice(0, -1)}
           onChange={event => handleRadiusChange(event, 'pie')}
-          endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          endAdornment={<span className="text-sm text-muted-foreground">%</span>}
         />
-      </ListItem>
+      </li>
 
-      <ListItem divider>
-        <ListItemText>{t('settings.legend')}</ListItemText>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
@@ -206,18 +206,11 @@ const MixedDonutPieChartSetting = props => {
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
 
-      <ListItem>
-        <ListItemText primary={t('settings.colorSetting')} />
-        <AddButton
-          onClick={handleAddColorClick}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
-        />
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.colorSetting')}</span>
+        <AddButton onClick={handleAddColorClick} className="absolute right-0 top-[30px]" />
         {option.series.field &&
           option.pie.field &&
           option.color
@@ -231,7 +224,7 @@ const MixedDonutPieChartSetting = props => {
                 setOption={setOption}
               />
             ))}
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

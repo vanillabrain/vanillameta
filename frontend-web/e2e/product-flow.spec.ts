@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { API, USER, authHeaders, confirmAction, createdId, createResponse, login, removeOwned } from './core-helpers';
+import { accountMenu, menuItem, navLink } from './ui-locators';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('i18nextLng', 'en'));
@@ -17,12 +18,9 @@ test.describe('제품 핵심 플로우', () => {
     await page.getByLabel(/^Password\s*\*?$/).fill(USER.password);
     await page.getByRole('button', { name: 'Login', exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.locator('nav.MuiAppBar-root')).toBeVisible();
-    await page.locator('#styled-menu.MuiButton-text').last().click();
-    await page
-      .locator('#transition-popper')
-      .getByRole('button', { name: /로그아웃|Sign out|Logout/ })
-      .click();
+    await expect(navLink(page, 'Dashboard')).toBeVisible();
+    await accountMenu(page).click();
+    await menuItem(page, /로그아웃|Sign out|Logout/).click();
     await confirmAction(page);
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByLabel('User ID')).toBeVisible();
@@ -112,7 +110,7 @@ test.describe('제품 핵심 플로우', () => {
           await expect(publicPage.getByText(dashboardTitle, { exact: true })).toBeVisible({ timeout: 15000 });
           await expect(publicPage.getByText(widgetTitle, { exact: true })).toBeVisible();
           await expect(publicPage.getByText(/^298,?250$/)).toBeVisible({ timeout: 15000 });
-          if (route === 'embed') await expect(publicPage.locator('nav')).toHaveCount(0);
+          if (route === 'embed') await expect(navLink(publicPage, 'Dashboard')).toHaveCount(0);
         }
       } finally {
         await publicContext.close();

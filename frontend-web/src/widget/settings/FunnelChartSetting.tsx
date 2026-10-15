@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { IconButton, ListItem, ListItemText, SvgIcon } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, PIE_LABEL_LIST } from '@/constant';
 import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
 import { AddButton } from '@/components/button/AddIconButton';
+import { Button } from '@/components/ui/button';
 import SingleColorIcon from '@/assets/images/icon/ic-color.svg?react';
 import GradientColorIcon from '@/assets/images/icon/ic-gradient.svg?react';
 
@@ -70,8 +70,8 @@ const FunnelChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           required={true}
           id="name"
@@ -90,9 +90,9 @@ const FunnelChartSetting = props => {
           value={option.series.label}
           onChange={handleSeriesChange}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.series')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <SelectForm
           required={true}
           id="field"
@@ -113,10 +113,10 @@ const FunnelChartSetting = props => {
           onChange={handleSeriesChange}
           disabledDefaultValue
         />
-      </ListItem>
+      </li>
 
-      <ListItem divider>
-        <ListItemText>{t('settings.legend')}</ListItemText>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
@@ -125,34 +125,23 @@ const FunnelChartSetting = props => {
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText primary={t('settings.colorSetting')} />
-        <AddButton
-          onClick={handleAddColorClick}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
-        />
-        <IconButton
-          size="small"
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 34,
-            width: 28,
-            height: 28,
-          }}
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.colorSetting')}</span>
+        <AddButton onClick={handleAddColorClick} className="absolute right-0 top-[30px]" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="absolute top-[30px] right-[34px]"
           onClick={handleColorChangeClick}
         >
-          <SvgIcon
-            component={option.singleColor ? SingleColorIcon : GradientColorIcon}
-            inheritViewBox
-            sx={{ width: 16, height: 16 }}
-          />
-        </IconButton>
+          {option.singleColor ? (
+            <SingleColorIcon aria-hidden="true" className="size-4" />
+          ) : (
+            <GradientColorIcon aria-hidden="true" className="size-4" />
+          )}
+        </Button>
         {option.series.field &&
           option.series.color
             .filter((item, index) => index < colorNum)
@@ -168,7 +157,7 @@ const FunnelChartSetting = props => {
                 />
               </React.Fragment>
             ))}
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

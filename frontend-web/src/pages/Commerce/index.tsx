@@ -1,43 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
-import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
-import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
+import { Loader2, Sparkles, Upload } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 import PageTitleBox from '@/components/PageTitleBox';
 import Seo from '@/seo/Seo';
-import { AnalysisUiProvider, ANALYSIS_UI, analysisFieldSx } from '@/components/analysis/AnalysisUi';
+import { AnalysisUiProvider, analysisFieldClassName } from '@/components/analysis/AnalysisUi';
 import AiDashboardPanel from '@/pages/Dashboard/Components/AiDashboardPanel';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Notice } from '@/components/ui/notice';
+import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TextField } from '@/components/ui/text-field';
 import { get, post, postForm, put } from '@/helpers/apiHelper';
+import { cn } from '@/lib/utils';
 import type { CommercePresentation, CommerceProject, CommerceReport } from './types';
 import ImportHelp, { parseImportDiagnostic } from './ImportHelp';
 
-const commerceControlSx = {
-  height: ANALYSIS_UI.inputHeight,
-  minHeight: ANALYSIS_UI.inputHeight,
-  fontSize: ANALYSIS_UI.fontSize,
-  '& .MuiButton-startIcon > *': { fontSize: 16 },
-};
-
+/** Compact control geometry shared by the commerce header, scope and dialog actions. */
+const CONTROL_CLASS = 'h-8 whitespace-nowrap';
+const CARD_CLASS = 'min-w-0 rounded-xl border border-[#dce5ee] ring-0';
 const BLUE = '#0f5ab2';
 const CURRENCY = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 const AXIS_CURRENCY = new Intl.NumberFormat('en-US', {
@@ -158,7 +141,6 @@ const previewCsv = async (file: File) => {
     truncated: file.size > 64 * 1024,
   };
 };
-
 function Commerce() {
   const { projectId: routeProjectId } = useParams();
   const navigate = useNavigate();
@@ -190,8 +172,8 @@ function Commerce() {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [dateErrors, setDateErrors] = useState({ start: '', end: '' });
-  const startInput = useRef<HTMLInputElement>(null);
-  const endInput = useRef<HTMLInputElement>(null);
+  /** Native date inputs are read through their DOM id: the date fields carry the id themselves. */
+  const dateInput = (id: string) => document.getElementById(id) as HTMLInputElement | null;
   const [channel, setChannel] = useState('');
   const [appliedScope, setAppliedScope] = useState('');
   const [aiOpen, setAiOpen] = useState(false);
@@ -316,7 +298,6 @@ function Commerce() {
       setPageError(`${file.name} 미리보기를 읽지 못했습니다.`);
     }
   };
-
   const upload = async () => {
     if (!files.orders || !files.payments || !files.refunds || (!importTargetId && !projectName.trim())) {
       setPageError('새 프로젝트 이름과 주문·결제·환불 CSV를 입력·선택해 주세요.');
@@ -395,18 +376,20 @@ function Commerce() {
 
   const applyFilters = () => {
     if (reportBusy) return;
-    const incompleteStart = Boolean(startInput.current?.validity.badInput);
-    const incompleteEnd = Boolean(endInput.current?.validity.badInput);
+    const startInput = dateInput('commerce-start-date');
+    const endInput = dateInput('commerce-end-date');
+    const incompleteStart = Boolean(startInput?.validity.badInput);
+    const incompleteEnd = Boolean(endInput?.validity.badInput);
     if (incompleteStart || incompleteEnd) {
       const message = '연·월·일을 모두 입력하거나 날짜를 완전히 지워 주세요.';
       setDateErrors({ start: incompleteStart ? message : '', end: incompleteEnd ? message : '' });
-      (incompleteStart ? startInput : endInput).current?.focus();
+      (incompleteStart ? startInput : endInput)?.focus();
       return;
     }
     if (Boolean(start) !== Boolean(end)) {
       const message = '시작일과 종료일을 모두 입력하거나 모두 비워 주세요.';
       setDateErrors({ start: start ? '' : message, end: end ? '' : message });
-      (start ? endInput : startInput).current?.focus();
+      (start ? endInput : startInput)?.focus();
       return;
     }
     if (
@@ -416,7 +399,7 @@ function Commerce() {
     ) {
       const message = '올바른 UTC 날짜 범위를 입력해 주세요.';
       setDateErrors({ start: message, end: message });
-      startInput.current?.focus();
+      startInput?.focus();
       return;
     }
     setDateErrors({ start: '', end: '' });
@@ -425,8 +408,10 @@ function Commerce() {
   const resetFilters = () => {
     if (reportBusy) return;
     // Native date inputs can retain incomplete segments while their value is already ''.
-    if (startInput.current) startInput.current.value = '';
-    if (endInput.current) endInput.current.value = '';
+    const startInput = dateInput('commerce-start-date');
+    const endInput = dateInput('commerce-end-date');
+    if (startInput) startInput.value = '';
+    if (endInput) endInput.value = '';
     setDateErrors({ start: '', end: '' });
     setStart('');
     setEnd('');
@@ -455,7 +440,6 @@ function Commerce() {
     pendingReselect.current = false;
     fileInputRefs.current.orders?.click();
   }, [importOpen, reselectTick]);
-
   const dailyOption = useMemo(
     () => ({
       color: [BLUE, '#e06a63', '#43a482'],
@@ -587,103 +571,85 @@ function Commerce() {
   const importDiagnostic = importFailure && importFailure.message === pageError ? importFailure.diagnostic : null;
 
   return (
-    <PageTitleBox
-      title="매출·환불"
-      upperTitle="데이터"
-      upperTitleLink="/data"
-      sx={{ px: { xs: 1.5, sm: 3 }, width: '100%', boxSizing: 'border-box' }}
-    >
+    <PageTitleBox title="매출·환불" upperTitle="데이터" upperTitleLink="/data" className="w-full box-border px-4 sm:px-6">
       <Seo title="매출·환불 MVP" />
-      <Stack spacing={2.25} sx={{ width: '100%', maxWidth: 1440, mx: 'auto', py: 2, minWidth: 0 }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          alignItems={{ md: 'center' }}
-          justifyContent="space-between"
-        >
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="h5" fontWeight={700} sx={{ color: '#17324d', overflowWrap: 'anywhere' }}>
-              {presentationTitle}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              결제 이벤트 기준 매출 · 환불 이벤트 기준 환불
-            </Typography>
-          </Box>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            alignItems="flex-start"
-            sx={{ width: { xs: '100%', md: 'auto' } }}
-          >
-            <FormControl size="small" sx={{ ...analysisFieldSx, width: { xs: '100%', sm: 240 } }}>
-              <InputLabel id="commerce-project-label">프로젝트</InputLabel>
-              <Select
-                labelId="commerce-project-label"
-                label="프로젝트"
-                value={selectedId}
-                onChange={event => chooseProject(event.target.value)}
-              >
-                <MenuItem value="">프로젝트 선택</MenuItem>
-                {projects.map(project => (
-                  <MenuItem
-                    key={project.id}
-                    value={String(project.id)}
-                    sx={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}
-                  >
-                    {project.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+      <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-[18px] py-4">
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold wrap-anywhere text-[#17324d]">{presentationTitle}</h1>
+            <p className="text-sm text-muted-foreground">결제 이벤트 기준 매출 · 환불 이벤트 기준 환불</p>
+          </div>
+          <div className="flex w-full flex-col items-start gap-2 sm:flex-row md:w-auto">
+            <TextField
+              select
+              label="프로젝트"
+              value={selectedId}
+              onChange={event => chooseProject(event.target.value)}
+              className={cn(analysisFieldClassName, 'w-full sm:w-[240px]')}
+            >
+              <option value="">프로젝트 선택</option>
+              {projects.map(project => (
+                <option key={project.id} value={String(project.id)}>
+                  {project.name}
+                </option>
+              ))}
+            </TextField>
+            <div className="flex flex-wrap gap-2">
               {report && (
-                <Button
-                  variant="outlined"
-                  startIcon={<AutoAwesomeOutlinedIcon />}
-                  onClick={openAi}
-                  sx={{ ...commerceControlSx, whiteSpace: 'nowrap' }}
-                >
+                <Button variant="outline" onClick={openAi} className="whitespace-nowrap">
+                  <Sparkles aria-hidden="true" className="size-4" />
                   AI로 설명·제목 편집
                 </Button>
               )}
-              <Button
-                variant="contained"
-                startIcon={<AutoAwesomeOutlinedIcon />}
-                onClick={() => setAnalysisAiOpen(true)}
-                sx={{ ...commerceControlSx, whiteSpace: 'nowrap' }}
-              >
+              <Button onClick={() => setAnalysisAiOpen(true)} className="whitespace-nowrap">
+                <Sparkles aria-hidden="true" className="size-4" />
                 AI 분석 만들기
               </Button>
-            </Stack>
-          </Stack>
-        </Stack>
-        <Typography variant="caption" color="text.secondary">
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
           이 보고서는 설명·제목을 편집합니다. AI 분석 만들기에서는 파일 분석 소스를 선택하고 질문으로 지표·차트를 구성합니다.
-        </Typography>
+        </p>
 
         {searchParams.get('sample') === '1' && (
-          <Alert severity="info">
-            Analytics Engineering의 공개 합성 데이터 일부입니다(CC BY 4.0). 실제 고객 매출이 아닙니다. USD·UTC 기준,
-            세금·배송을 포함한 결제액에서 환불액을 뺀 차감수취액이며 상품 순매출·이익이 아닙니다.
-            <Button href="https://www.analyticsengineering.com/datasets/ecommerce-sales" target="_blank" rel="noreferrer">
-              데이터 출처
-            </Button>
-            <Button onClick={() => navigate('/commerce?import=1')}>내 매출·환불 파일 연결</Button>
-          </Alert>
+          <Notice severity="info">
+            <p className="text-sm">
+              Analytics Engineering의 공개 합성 데이터 일부입니다(CC BY 4.0). 실제 고객 매출이 아닙니다. USD·UTC 기준,
+              세금·배송을 포함한 결제액에서 환불액을 뺀 차감수취액이며 상품 순매출·이익이 아닙니다.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button asChild variant="link">
+                <a href="https://www.analyticsengineering.com/datasets/ecommerce-sales" target="_blank" rel="noreferrer">
+                  데이터 출처
+                </a>
+              </Button>
+              <Button variant="ghost" onClick={() => navigate('/commerce?import=1')}>
+                내 매출·환불 파일 연결
+              </Button>
+            </div>
+          </Notice>
         )}
         {pageError && (
-          <Alert severity="error" onClose={() => setPageError('')} sx={{ overflowWrap: 'anywhere' }}>
-            {pageError}
-            <Typography variant="body2">
+          <Notice severity="error" className="wrap-anywhere">
+            <span className="break-words">{pageError}</span>
+            <p className="mt-1 text-sm">
               프로젝트 접근 권한, 필수 CSV와 날짜·금액 형식을 확인해 주세요. 실패한 가져오기는 마지막 정상 보고서를 교체하지
               않습니다.
-            </Typography>
-            <Button onClick={loadProjects}>프로젝트 목록 다시 불러오기</Button>
-            {importFailure && !importDiagnostic && (
-              <Button onClick={reselectImportFiles} sx={{ minHeight: 44 }}>
-                파일 다시 선택
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Button variant="ghost" onClick={loadProjects}>
+                프로젝트 목록 다시 불러오기
               </Button>
-            )}
+              <Button variant="ghost" onClick={() => setPageError('')}>
+                닫기
+              </Button>
+              {importFailure && !importDiagnostic && (
+                <Button variant="ghost" onClick={reselectImportFiles}>
+                  파일 다시 선택
+                </Button>
+              )}
+            </div>
             {importDiagnostic && (
               <ImportHelp
                 key={importDiagnostic.requestId}
@@ -691,218 +657,172 @@ function Commerce() {
                 onReselectFiles={reselectImportFiles}
               />
             )}
-          </Alert>
+          </Notice>
         )}
         {importFeedback && (
-          <Alert severity="success" onClose={() => setImportFeedback('')} sx={{ overflowWrap: 'anywhere' }}>
-            {importFeedback}
-          </Alert>
+          <Notice severity="success" className="wrap-anywhere">
+            <span className="break-words">{importFeedback}</span>
+            <Button variant="ghost" onClick={() => setImportFeedback('')}>
+              닫기
+            </Button>
+          </Notice>
         )}
         {projectsBusy && (
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <CircularProgress size={18} />
-            <Typography>프로젝트를 불러오는 중…</Typography>
-          </Stack>
+          <div className="flex items-center gap-2">
+            <Loader2 aria-hidden="true" className="size-[18px] animate-spin" />
+            <p>프로젝트를 불러오는 중…</p>
+          </div>
         )}
 
         {report && (
           <Button
-            variant="outlined"
+            variant="outline"
             onClick={() => setImportOpen(value => !value)}
             aria-expanded={importOpen}
-            sx={{ alignSelf: 'flex-start', minHeight: 40 }}
+            className="self-start"
           >
             {importOpen ? '데이터 가져오기 닫기' : '데이터 가져오기 / 교체'}
           </Button>
         )}
 
         {importOpen && (
-          <Card variant="outlined" sx={{ borderColor: '#dce5ee', borderRadius: 2 }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={700} mb={0.5}>
-                주문·결제·환불 데이터 가져오기
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mb={2}>
+          <Card className={CARD_CLASS}>
+            <CardContent className="flex flex-col gap-3">
+              <h2 className="text-lg font-bold">주문·결제·환불 데이터 가져오기</h2>
+              <p className="text-sm text-muted-foreground">
                 CSV 파일을 서버 DuckDB 워커로 가져옵니다. 실패하면 기존 프로젝트 리포트는 유지됩니다. 각 파일에는 카드에
                 표시된 필수 헤더가 필요합니다. 날짜 열(ordered_at·paid_at·refunded_at)은 UTC 타임스탬프 형식을 권장하며, 권장
                 예시는 {DATE_COLUMN_EXAMPLE}입니다.
-              </Typography>
-              <Stack spacing={1.5}>
-                <FormControl size="small" fullWidth>
-                  <InputLabel id="commerce-import-target-label">가져올 대상</InputLabel>
-                  <Select
-                    labelId="commerce-import-target-label"
-                    label="가져올 대상"
-                    value={importTargetId}
-                    onChange={event => {
-                      setImportTargetId(event.target.value);
-                      setImportFailure(null);
-                      abandonUpload();
-                    }}
-                  >
-                    <MenuItem value="">새 프로젝트</MenuItem>
-                    {projects.map(project => (
-                      <MenuItem
-                        key={project.id}
-                        value={String(project.id)}
-                        sx={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}
-                      >
-                        {project.name}에 교체 가져오기
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+              </p>
+              <div className="flex flex-col gap-3">
+                <TextField
+                  select
+                  label="가져올 대상"
+                  value={importTargetId}
+                  onChange={event => {
+                    setImportTargetId(event.target.value);
+                    setImportFailure(null);
+                    abandonUpload();
+                  }}
+                  className="w-full"
+                >
+                  <option value="">새 프로젝트</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={String(project.id)}>
+                      {project.name}에 교체 가져오기
+                    </option>
+                  ))}
+                </TextField>
                 <TextField
                   label="프로젝트 이름"
                   value={projectName}
                   onChange={event => setProjectName(event.target.value)}
-                  fullWidth
+                  className="w-full"
                   inputProps={{ 'aria-label': '프로젝트 이름' }}
                   helperText={
                     importTargetId ? '비워 두면 선택한 프로젝트 이름을 사용합니다.' : '새 프로젝트에 표시할 이름입니다.'
                   }
                 />
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(2,minmax(0,1fr))]">
                   {Object.entries(fileLabel).map(([key, label]) => {
                     const preview = previews[key];
                     return (
-                      <Card key={key} variant="outlined" sx={{ minWidth: 0, borderRadius: 1.5 }}>
-                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                          <Stack spacing={1}>
-                            <Typography fontWeight={600}>
-                              {label}
-                              {key !== 'customers' && (
-                                <Box component="span" color="error.main">
-                                  {' '}
-                                  *
-                                </Box>
-                              )}
-                            </Typography>
-                            <input
-                              ref={element => {
-                                fileInputRefs.current[key] = element;
-                              }}
-                              hidden
-                              type="file"
-                              accept=".csv,text/csv"
-                              aria-label={`${label} 파일 선택`}
-                              onChange={event => onPickFile(key, event.target.files?.[0])}
-                            />
-                            <Button
-                              variant="outlined"
-                              fullWidth
-                              startIcon={<UploadFileOutlinedIcon />}
-                              onClick={() => fileInputRefs.current[key]?.click()}
-                              aria-label={`${label} 선택`}
-                              sx={{ minHeight: 44, whiteSpace: 'normal', overflowWrap: 'anywhere' }}
-                            >
-                              {files[key]?.name || `${label} 선택`}
-                            </Button>
-                            <Typography
-                              variant="caption"
-                              component="div"
-                              color="text.secondary"
-                              sx={{ overflowWrap: 'anywhere' }}
-                            >
-                              필수 헤더: {requiredFileHeaders[key].join(' · ')}
-                            </Typography>
-                            {preview && (
-                              <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="caption" color="text.secondary" display="block">
-                                  헤더 {preview.headers.length}개 · 미리보기 {preview.samples.length}행
-                                  {' · 전체 행 수는 서버 검증 후 표시'}
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  component="div"
-                                  sx={{ overflowWrap: 'anywhere', color: '#34516c' }}
-                                >
-                                  열: {preview.headers.join(' · ') || '헤더 없음'}
-                                </Typography>
-                                <Box component="details" sx={{ mt: 0.5 }}>
-                                  <Box component="summary" sx={{ cursor: 'pointer', color: BLUE, fontSize: 12 }}>
-                                    표본 행 내용 보기
-                                  </Box>
-                                  <Typography
-                                    component="pre"
-                                    variant="caption"
-                                    sx={{
-                                      mt: 0.5,
-                                      mb: 0,
-                                      whiteSpace: 'pre-wrap',
-                                      overflowWrap: 'anywhere',
-                                      maxHeight: 120,
-                                      overflow: 'auto',
-                                      bgcolor: '#f5f8fb',
-                                      p: 0.75,
-                                      borderRadius: 1,
-                                    }}
-                                  >
-                                    {preview.samples
-                                      .map(sample => sample.map(value => value.slice(0, 80)).join(' | '))
-                                      .join('\n') || '헤더 외 표본 행 없음'}
-                                  </Typography>
-                                </Box>
-                              </Box>
-                            )}
-                          </Stack>
+                      <Card key={key} className={cn(CARD_CLASS, 'rounded-lg')}>
+                        <CardContent className="flex flex-col gap-2">
+                          <p className="font-semibold">
+                            {label}
+                            {key !== 'customers' && <span className="text-destructive"> *</span>}
+                          </p>
+                          <input
+                            ref={element => {
+                              fileInputRefs.current[key] = element;
+                            }}
+                            hidden
+                            type="file"
+                            accept=".csv,text/csv"
+                            aria-label={`${label} 파일 선택`}
+                            onChange={event => onPickFile(key, event.target.files?.[0])}
+                          />
+                          <Button
+                            variant="outline"
+                            onClick={() => fileInputRefs.current[key]?.click()}
+                            aria-label={`${label} 선택`}
+                            className="w-full justify-start text-left wrap-anywhere whitespace-normal"
+                          >
+                            <Upload aria-hidden="true" className="size-4 shrink-0" />
+                            {files[key]?.name || `${label} 선택`}
+                          </Button>
+                          <p className="text-xs wrap-anywhere text-muted-foreground">
+                            필수 헤더: {requiredFileHeaders[key].join(' · ')}
+                          </p>
+                          {preview && (
+                            <div className="min-w-0">
+                              <p className="text-xs text-muted-foreground">
+                                헤더 {preview.headers.length}개 · 미리보기 {preview.samples.length}행
+                                {' · 전체 행 수는 서버 검증 후 표시'}
+                              </p>
+                              <p className="text-xs wrap-anywhere text-[#34516c]">
+                                열: {preview.headers.join(' · ') || '헤더 없음'}
+                              </p>
+                              <details className="mt-1">
+                                <summary className="cursor-pointer text-xs text-[#0f5ab2]">표본 행 내용 보기</summary>
+                                <pre className="mt-1 mb-0 max-h-[120px] overflow-auto rounded-lg bg-[#f5f8fb] p-1.5 text-xs wrap-anywhere whitespace-pre-wrap">
+                                  {preview.samples
+                                    .map(sample => sample.map(value => value.slice(0, 80)).join(' | '))
+                                    .join('\n') || '헤더 외 표본 행 없음'}
+                                </pre>
+                              </details>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     );
                   })}
-                </Box>
-                <Button
-                  variant="contained"
-                  onClick={upload}
-                  disabled={uploadBusy}
-                  startIcon={uploadBusy ? <CircularProgress size={16} color="inherit" /> : <UploadFileOutlinedIcon />}
-                  sx={{ minHeight: 42, alignSelf: { sm: 'flex-start' } }}
-                >
-                  {uploadBusy ? '가져오는 중…' : 'CSV 가져오기'}
+                </div>
+                <Button onClick={upload} disabled={uploadBusy} className="self-start">
+                  {uploadBusy ? (
+                    <>
+                      <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                      가져오는 중…
+                    </>
+                  ) : (
+                    <>
+                      <Upload aria-hidden="true" className="size-4" />
+                      CSV 가져오기
+                    </>
+                  )}
                 </Button>
-              </Stack>
+              </div>
             </CardContent>
           </Card>
         )}
 
         {projects.length > 0 && !routeProjectId && !report && (
-          <Stack spacing={1}>
-            <Typography variant="subtitle1" fontWeight={700}>
-              내 프로젝트
-            </Typography>
+          <div className="flex flex-col gap-2">
+            <p className="text-base font-bold">내 프로젝트</p>
             {projects.map(project => (
               <Button
                 key={project.id}
-                variant="text"
+                variant="ghost"
                 onClick={() => chooseProject(project.id)}
-                sx={{ justifyContent: 'flex-start', textTransform: 'none', minHeight: 42, overflowWrap: 'anywhere' }}
+                className="h-auto w-full justify-start text-left wrap-anywhere whitespace-normal"
               >
                 {project.name}
               </Button>
             ))}
-          </Stack>
+          </div>
         )}
 
         {report && (
           <>
-            <Card variant="outlined" sx={{ bgcolor: '#f8fbff', borderColor: '#d9e6f4', borderRadius: 2 }}>
-              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                <Typography variant="subtitle2" fontWeight={700} mb={1}>
-                  조회 범위
-                </Typography>
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={1}
-                  alignItems="flex-start"
-                  useFlexGap
-                  sx={{ flexWrap: 'wrap' }}
-                >
+            <Card className={cn(CARD_CLASS, 'border-[#d9e6f4] bg-[#f8fbff]')}>
+              <CardContent className="flex flex-col gap-3">
+                <p className="text-sm font-bold">조회 범위</p>
+                <div className="flex flex-wrap items-start gap-2">
                   <TextField
                     id="commerce-start-date"
-                    inputRef={startInput}
                     type="date"
                     label="시작일 (UTC)"
-                    size="small"
                     value={start}
                     onChange={event => {
                       setStart(event.target.value);
@@ -910,16 +830,13 @@ function Commerce() {
                     }}
                     error={Boolean(dateErrors.start)}
                     helperText={dateErrors.start || undefined}
-                    sx={{ ...analysisFieldSx, width: { xs: '100%', sm: 154 } }}
-                    InputLabelProps={{ shrink: true }}
+                    className={cn(analysisFieldClassName, 'w-full sm:w-[154px]')}
                     inputProps={{ 'aria-label': '시작일 UTC' }}
                   />
                   <TextField
                     id="commerce-end-date"
-                    inputRef={endInput}
                     type="date"
                     label="종료일 (UTC)"
-                    size="small"
                     value={end}
                     onChange={event => {
                       setEnd(event.target.value);
@@ -927,85 +844,67 @@ function Commerce() {
                     }}
                     error={Boolean(dateErrors.end)}
                     helperText={dateErrors.end || undefined}
-                    sx={{ ...analysisFieldSx, width: { xs: '100%', sm: 154 } }}
-                    InputLabelProps={{ shrink: true }}
+                    className={cn(analysisFieldClassName, 'w-full sm:w-[154px]')}
                     inputProps={{ 'aria-label': '종료일 UTC' }}
                   />
-                  <FormControl size="small" sx={{ ...analysisFieldSx, width: { xs: '100%', sm: 190 } }}>
-                    <InputLabel id="commerce-channel-label">채널</InputLabel>
-                    <Select
-                      labelId="commerce-channel-label"
-                      label="채널"
-                      value={channel}
-                      onChange={event => setChannel(event.target.value)}
-                    >
-                      <MenuItem value="">전체 채널</MenuItem>
-                      {report.availableChannels.map(item => (
-                        <MenuItem key={item} value={item} sx={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
-                          {item}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <Stack direction="row" spacing={1}>
+                  <TextField
+                    select
+                    label="채널"
+                    value={channel}
+                    onChange={event => setChannel(event.target.value)}
+                    className={cn(analysisFieldClassName, 'w-full sm:w-[190px]')}
+                  >
+                    <option value="">전체 채널</option>
+                    {report.availableChannels.map(item => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </TextField>
+                  <div className="flex gap-2">
                     <Button
-                      variant="contained"
                       onClick={applyFilters}
                       aria-disabled={reportBusy}
-                      sx={{ ...commerceControlSx, opacity: reportBusy ? 0.5 : 1 }}
+                      className={cn(CONTROL_CLASS, reportBusy && 'opacity-50')}
                     >
                       적용
                     </Button>
                     <Button
-                      variant="outlined"
+                      variant="outline"
                       onClick={resetFilters}
                       aria-disabled={reportBusy}
-                      sx={{ ...commerceControlSx, opacity: reportBusy ? 0.5 : 1 }}
+                      className={cn(CONTROL_CLASS, reportBusy && 'opacity-50')}
                     >
                       초기화
                     </Button>
-                  </Stack>
-                </Stack>
-                <Typography role="status" aria-atomic="true" variant="caption" display="block" mt={1} color="text.secondary">
+                  </div>
+                </div>
+                <p role="status" aria-atomic="true" className="text-xs text-muted-foreground">
                   표시 결과 범위: {reportScope || '불러오는 중'}
                   {reportBusy ? ' · 새 범위를 조회 중…' : ''}
-                </Typography>
+                </p>
               </CardContent>
             </Card>
 
-            <Alert severity="info" icon={false} sx={{ '& .MuiAlert-message': { width: '100%' } }}>
-              <Typography variant="body2">
+            <Notice severity="info">
+              <p className="text-sm">
                 <b>매출 정의:</b> 결제 성공 이벤트 금액 · <b>환불:</b> 환불 이벤트가 처리된 날의 금액 · <b>차감 수취액:</b>{' '}
                 결제액 − 환불액(USD, 세금·배송 포함)입니다.
-              </Typography>
-              <Typography variant="body2" mt={0.5}>
+              </p>
+              <p className="mt-1 text-sm">
                 주문 수·환불 주문 비율은 주문일 기준 코호트의 확보한 데이터 전체 기간 내 환불 이력이며, 환불액의 추이와 날짜
                 기준이 다릅니다. 차감 수취액은 상품 순매출이 아닙니다.
-              </Typography>
-            </Alert>
-            {presentation.explanation && (
-              <Alert severity="info" icon={false}>
-                {presentation.explanation}
-              </Alert>
-            )}
+              </p>
+            </Notice>
+            {presentation.explanation && <Notice severity="info">{presentation.explanation}</Notice>}
 
             {reportBusy && (
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <CircularProgress size={18} />
-                <Typography>리포트를 불러오는 중…</Typography>
-              </Stack>
+              <div className="flex items-center gap-2">
+                <Loader2 aria-hidden="true" className="size-[18px] animate-spin" />
+                <p>리포트를 불러오는 중…</p>
+              </div>
             )}
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: {
-                  xs: 'repeat(2, minmax(0, 1fr))',
-                  sm: 'repeat(3, minmax(0, 1fr))',
-                  lg: 'repeat(6, minmax(0, 1fr))',
-                },
-                gap: 1.25,
-              }}
-            >
+            <div className="grid grid-cols-2 gap-[10px] sm:grid-cols-3 lg:grid-cols-6">
               {[
                 ['결제 성공액', formatMoney(report.summary.paymentTotal), '결제 이벤트 기준 · USD'],
                 ['환불액', formatMoney(report.summary.refundTotal), '환불 이벤트 기준 · USD'],
@@ -1030,41 +929,21 @@ function Commerce() {
                   '주문일 코호트 기준 · 소수점 둘째 자리',
                 ],
               ].map(([label, value, detail]) => (
-                <Card key={label} variant="outlined" sx={{ borderColor: '#dce5ee', borderRadius: 2, minWidth: 0 }}>
-                  <CardContent sx={{ p: { xs: 1.25, sm: 2 }, '&:last-child': { pb: { xs: 1.25, sm: 2 } } }}>
-                    <Typography variant="body2" color="text.secondary">
-                      {label}
-                    </Typography>
-                    <Typography
-                      variant="h6"
-                      fontWeight={700}
-                      sx={{ color: BLUE, overflowWrap: 'anywhere', fontSize: { xs: '1rem', sm: '1.25rem', lg: '1.1rem' } }}
-                    >
-                      {value}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {detail}
-                    </Typography>
+                <Card key={label} className={CARD_CLASS}>
+                  <CardContent className="flex flex-col gap-1 p-3 sm:p-4">
+                    <p className="text-sm text-muted-foreground">{label}</p>
+                    <p className="text-base font-bold wrap-anywhere text-[#0f5ab2] sm:text-xl">{value}</p>
+                    <p className="text-xs text-muted-foreground">{detail}</p>
                   </CardContent>
                 </Card>
               ))}
-            </Box>
+            </div>
 
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.55fr) minmax(300px, 1fr)' },
-                gap: 1.5,
-              }}
-            >
-              <Card variant="outlined" sx={{ minWidth: 0, borderColor: '#dce5ee', borderRadius: 2 }}>
-                <CardContent sx={{ minWidth: 0 }}>
-                  <Typography variant="h6" fontWeight={700}>
-                    {presentation.chartTitle || '매출·환불 추이'}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    결제 및 환불 이벤트 날짜별 금액 · USD
-                  </Typography>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,1fr)]">
+              <Card className={CARD_CLASS}>
+                <CardContent className="min-w-0">
+                  <h2 className="text-lg font-bold">{presentation.chartTitle || '매출·환불 추이'}</h2>
+                  <p className="text-xs text-muted-foreground">결제 및 환불 이벤트 날짜별 금액 · USD</p>
                   {report.daily.length ? (
                     <ReactECharts
                       option={dailyOption}
@@ -1073,77 +952,53 @@ function Commerce() {
                       aria-label="일별 결제액, 환불액, 차감 수취액 추이"
                     />
                   ) : (
-                    <Typography py={6} textAlign="center" color="text.secondary">
-                      표시할 일별 데이터가 없습니다.
-                    </Typography>
+                    <p className="py-12 text-center text-muted-foreground">표시할 일별 데이터가 없습니다.</p>
                   )}
                   {report.daily.length > 0 && (
-                    <Box component="details" sx={{ mt: 1 }}>
-                      <Box component="summary" sx={{ cursor: 'pointer', color: BLUE, fontSize: 14 }}>
-                        일별 정확한 수치 표 보기
-                      </Box>
-                      <Box
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-sm text-[#0f5ab2]">일별 정확한 수치 표 보기</summary>
+                      <div
                         role="region"
                         aria-label="일별 매출·환불 수치 표 스크롤"
                         tabIndex={0}
-                        sx={{ overflow: 'auto', maxHeight: 320, mt: 1 }}
+                        className="mt-2 max-h-[320px] overflow-auto"
                       >
-                        <table
-                          aria-label="일별 매출·환불 수치 (USD)"
-                          style={{ width: '100%', minWidth: 500, borderCollapse: 'collapse' }}
-                        >
-                          <thead>
-                            <tr>
+                        <Table aria-label="일별 매출·환불 수치 (USD)" className="min-w-[500px]">
+                          <TableHeader>
+                            <TableRow>
                               {['날짜 (UTC)', '결제액', '환불액', '차감 수취액'].map(label => (
-                                <th
-                                  key={label}
-                                  scope="col"
-                                  style={{
-                                    textAlign: 'left',
-                                    padding: 6,
-                                    position: 'sticky',
-                                    top: 0,
-                                    background: '#f5f8fb',
-                                  }}
-                                >
+                                <TableHead key={label} scope="col" className="sticky top-0 bg-[#f5f8fb] p-1.5 text-left">
                                   {label}
-                                </th>
+                                </TableHead>
                               ))}
-                            </tr>
-                          </thead>
-                          <tbody>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
                             {report.daily.map(item => (
-                              <tr key={item.date}>
+                              <TableRow key={item.date}>
                                 {[
                                   item.date,
                                   formatMoney(item.paymentTotal),
                                   formatMoney(item.refundTotal),
                                   formatMoney(item.netCollected),
                                 ].map((value, index) => (
-                                  <td
-                                    key={index}
-                                    style={{ padding: 6, borderTop: '1px solid #edf0f4', whiteSpace: 'nowrap' }}
-                                  >
+                                  <TableCell key={index} className="border-t border-[#edf0f4] p-1.5 whitespace-nowrap">
                                     {value}
-                                  </td>
+                                  </TableCell>
                                 ))}
-                              </tr>
+                              </TableRow>
                             ))}
-                          </tbody>
-                        </table>
-                      </Box>
-                    </Box>
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </details>
                   )}
                 </CardContent>
               </Card>
-              <Card variant="outlined" sx={{ minWidth: 0, borderColor: '#dce5ee', borderRadius: 2 }}>
-                <CardContent sx={{ minWidth: 0 }}>
-                  <Typography variant="h6" fontWeight={700}>
-                    채널별 차감 수취액
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    내림차순 · USD
-                  </Typography>
+              <Card className={CARD_CLASS}>
+                <CardContent className="min-w-0">
+                  <h2 className="text-lg font-bold">채널별 차감 수취액</h2>
+                  <p className="text-xs text-muted-foreground">내림차순 · USD</p>
                   {report.channels.length ? (
                     <ReactECharts
                       option={channelsOption}
@@ -1156,143 +1011,105 @@ function Commerce() {
                       aria-label="차감 수취액 기준 채널별 가로 막대 차트"
                     />
                   ) : (
-                    <Typography py={6} textAlign="center" color="text.secondary">
-                      표시할 채널 데이터가 없습니다.
-                    </Typography>
+                    <p className="py-12 text-center text-muted-foreground">표시할 채널 데이터가 없습니다.</p>
                   )}
-                  <Box component="details" sx={{ mt: 1 }}>
-                    <Box component="summary" sx={{ cursor: 'pointer', color: BLUE, fontSize: 14 }}>
-                      채널별 정확한 수치 표 보기
-                    </Box>
-                    <Box role="region" aria-label="채널별 수치 표 스크롤" tabIndex={0} sx={{ overflowX: 'auto', mt: 1 }}>
-                      <table aria-label="채널별 매출·환불 수치 (USD)" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr>
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-sm text-[#0f5ab2]">채널별 정확한 수치 표 보기</summary>
+                    <div role="region" aria-label="채널별 수치 표 스크롤" tabIndex={0} className="mt-2 overflow-x-auto">
+                      <Table aria-label="채널별 매출·환불 수치 (USD)">
+                        <TableHeader>
+                          <TableRow>
                             {['채널', '결제액', '환불액', '차감 수취액'].map(label => (
-                              <th key={label} scope="col" style={{ textAlign: 'right', padding: 6 }}>
+                              <TableHead key={label} scope="col" className="p-1.5 text-right">
                                 {label}
-                              </th>
+                              </TableHead>
                             ))}
-                          </tr>
-                        </thead>
-                        <tbody>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {[...report.channels]
                             .sort((a, b) => (numberValue(b.netCollected) ?? 0) - (numberValue(a.netCollected) ?? 0))
                             .map(item => (
-                              <tr key={item.channel}>
+                              <TableRow key={item.channel}>
                                 {[
                                   item.channel,
                                   formatMoney(item.paymentTotal),
                                   formatMoney(item.refundTotal),
                                   formatMoney(item.netCollected),
                                 ].map((value, i) => (
-                                  <td
+                                  <TableCell
                                     key={i}
-                                    style={{
-                                      textAlign: i ? 'right' : 'left',
-                                      padding: 6,
-                                      borderTop: '1px solid #edf0f4',
-                                      overflowWrap: 'anywhere',
-                                    }}
+                                    className={cn(
+                                      'border-t border-[#edf0f4] p-1.5 wrap-anywhere',
+                                      i ? 'text-right' : 'text-left',
+                                    )}
                                   >
                                     {value}
-                                  </td>
+                                  </TableCell>
                                 ))}
-                              </tr>
+                              </TableRow>
                             ))}
-                        </tbody>
-                      </table>
-                    </Box>
-                  </Box>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </details>
                 </CardContent>
               </Card>
-            </Box>
+            </div>
 
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: 'minmax(240px, .7fr) minmax(0, 1.3fr)' },
-                gap: 1.5,
-              }}
-            >
-              <Card variant="outlined" sx={{ borderColor: '#dce5ee', borderRadius: 2, minWidth: 0 }}>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(240px,.7fr)_minmax(0,1.3fr)]">
+              <Card className={CARD_CLASS}>
                 <CardContent>
-                  <Typography variant="h6" fontWeight={700} mb={1}>
-                    환불 사유
-                  </Typography>
+                  <h2 className="mb-2 text-lg font-bold">환불 사유</h2>
                   {report.reasons.length ? (
                     report.reasons.map(item => (
-                      <Stack
-                        key={item.reason}
-                        direction="row"
-                        justifyContent="space-between"
-                        spacing={1}
-                        sx={{ py: 0.8, borderBottom: '1px solid #edf0f4' }}
-                      >
-                        <Typography sx={{ overflowWrap: 'anywhere' }}>{item.reason}</Typography>
-                        <Typography fontWeight={600} textAlign="right">
+                      <div key={item.reason} className="flex justify-between gap-2 border-b border-[#edf0f4] py-2">
+                        <p className="wrap-anywhere">{item.reason}</p>
+                        <p className="text-right font-semibold">
                           {formatMoney(item.refundTotal)}{' '}
-                          <Typography component="span" variant="caption" color="text.secondary">
-                            ({Number(item.refunds).toLocaleString()}건)
-                          </Typography>
-                        </Typography>
-                      </Stack>
+                          <span className="text-xs text-muted-foreground">({Number(item.refunds).toLocaleString()}건)</span>
+                        </p>
+                      </div>
                     ))
                   ) : (
-                    <Typography color="text.secondary">환불 내역이 없습니다.</Typography>
+                    <p className="text-muted-foreground">환불 내역이 없습니다.</p>
                   )}
                 </CardContent>
               </Card>
-              <Card variant="outlined" sx={{ borderColor: '#dce5ee', borderRadius: 2, minWidth: 0 }}>
-                <CardContent sx={{ minWidth: 0 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} mb={1}>
-                    <Box>
-                      <Typography variant="h6" fontWeight={700}>
-                        최근 주문
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        최신 100건까지 제공
-                      </Typography>
-                    </Box>
+              <Card className={CARD_CLASS}>
+                <CardContent className="min-w-0">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                      <h2 className="text-lg font-bold">최근 주문</h2>
+                      <p className="text-xs text-muted-foreground">최신 100건까지 제공</p>
+                    </div>
                     {report.orders.length > 12 && (
                       <Button
+                        variant="ghost"
                         onClick={() => setShowAllOrders(value => !value)}
                         aria-expanded={showAllOrders}
                         aria-controls="commerce-orders-table"
-                        sx={{ flexShrink: 0 }}
+                        className="shrink-0"
                       >
                         {showAllOrders ? '접기' : `전체 ${report.orders.length}건`}
                       </Button>
                     )}
-                  </Stack>
+                  </div>
                   {report.orders.length ? (
-                    <Box
-                      role="region"
-                      aria-label="최근 주문 표 스크롤"
-                      tabIndex={0}
-                      sx={{ overflowX: 'auto', maxWidth: '100%' }}
-                    >
-                      <table
-                        id="commerce-orders-table"
-                        aria-label="최근 주문 (금액 USD)"
-                        style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse' }}
-                      >
-                        <thead>
-                          <tr>
+                    <div role="region" aria-label="최근 주문 표 스크롤" tabIndex={0} className="max-w-full overflow-x-auto">
+                      <Table id="commerce-orders-table" aria-label="최근 주문 (금액 USD)" className="min-w-[680px]">
+                        <TableHeader>
+                          <TableRow>
                             {['주문 ID', '주문일', '채널', '상태', '결제액', '환불액', '차감 수취액'].map(label => (
-                              <th
-                                key={label}
-                                scope="col"
-                                style={{ textAlign: 'left', padding: 8, background: '#f5f8fb', whiteSpace: 'nowrap' }}
-                              >
+                              <TableHead key={label} scope="col" className="bg-[#f5f8fb] p-2 text-left whitespace-nowrap">
                                 {label}
-                              </th>
+                              </TableHead>
                             ))}
-                          </tr>
-                        </thead>
-                        <tbody>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {latestOrders.map((item, index) => (
-                            <tr key={`${item.orderId}-${index}`}>
+                            <TableRow key={`${item.orderId}-${index}`}>
                               {[
                                 item.orderId,
                                 item.orderedAt,
@@ -1302,114 +1119,101 @@ function Commerce() {
                                 formatMoney(item.refundAmount),
                                 formatMoney(item.netCollected),
                               ].map((value, i) => (
-                                <td
+                                <TableCell
                                   key={i}
-                                  style={{
-                                    padding: 8,
-                                    borderTop: '1px solid #edf0f4',
-                                    whiteSpace: i < 4 ? 'normal' : 'nowrap',
-                                    overflowWrap: i < 4 ? 'anywhere' : undefined,
-                                  }}
+                                  className={cn(
+                                    'border-t border-[#edf0f4] p-2',
+                                    i < 4 ? 'wrap-anywhere whitespace-normal' : 'whitespace-nowrap',
+                                  )}
                                 >
                                   {value}
-                                </td>
+                                </TableCell>
                               ))}
-                            </tr>
+                            </TableRow>
                           ))}
-                        </tbody>
-                      </table>
-                    </Box>
+                        </TableBody>
+                      </Table>
+                    </div>
                   ) : (
-                    <Typography color="text.secondary">표시할 주문이 없습니다.</Typography>
+                    <p className="text-muted-foreground">표시할 주문이 없습니다.</p>
                   )}
                 </CardContent>
               </Card>
-            </Box>
-            <Divider />
+            </div>
+            <Separator />
             {report.project && (
-              <Typography variant="caption" color="text.secondary">
+              <p className="text-xs text-muted-foreground">
                 프로젝트: {report.project.name} · 리포트 데이터는 서버에서 계산했습니다. 검증 샘플 출처:{' '}
                 <a href="https://www.analyticsengineering.com/datasets/ecommerce-sales" target="_blank" rel="noreferrer">
                   Analytics Engineering Ecommerce Sales &amp; Returns
                 </a>{' '}
                 (합성 데이터, CC BY 4.0). 업로드 데이터의 출처는 별도로 확인해 주세요.
-              </Typography>
+              </p>
             )}
           </>
         )}
-      </Stack>
+      </div>
 
       <Dialog
         open={aiOpen}
-        onClose={() => {
-          if (!aiBusy) {
+        onOpenChange={next => {
+          if (!next && !aiBusy) {
             setAiOpen(false);
             setDraft(null);
           }
         }}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="commerce-ai-title"
       >
-        <DialogTitle id="commerce-ai-title">AI로 설명·제목 편집</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" mb={1.5}>
-            현재 리포트 표현의 제목·설명만 제안합니다. 매출·환불 계산 기준은 변경하지 않습니다.
-          </Typography>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>AI로 설명·제목 편집</DialogTitle>
+            <DialogDescription>
+              현재 리포트 표현의 제목·설명만 제안합니다. 매출·환불 계산 기준은 변경하지 않습니다.
+            </DialogDescription>
+          </DialogHeader>
           <TextField
             autoFocus
             label="편집 요청"
             value={aiPrompt}
             onChange={event => setAiPrompt(event.target.value)}
-            fullWidth
             multiline
             minRows={3}
             disabled={aiBusy}
             inputProps={{ 'aria-label': 'AI 편집 요청' }}
+            className="w-full"
           />
           {aiError && (
-            <Alert severity="error" sx={{ mt: 1.5 }}>
+            <Notice severity="error" className="mt-2">
               {aiError}
-            </Alert>
+            </Notice>
           )}
           {draft && (
-            <Stack spacing={1.5} mt={2}>
-              <Alert severity="info">초안 미리보기입니다. 저장하기 전에는 적용되지 않습니다.</Alert>
-              {aiModel && (
-                <Typography variant="caption" color="text.secondary">
-                  요청 모델: {aiModel}
-                </Typography>
-              )}
-              <TextField label="제목" value={draft.title} InputProps={{ readOnly: true }} fullWidth />
-              <TextField
-                label="설명"
-                value={draft.explanation}
-                InputProps={{ readOnly: true }}
-                fullWidth
-                multiline
-                minRows={3}
-              />
-              <TextField label="차트 제목" value={draft.chartTitle} InputProps={{ readOnly: true }} fullWidth />
-            </Stack>
+            <div className="mt-2 flex flex-col gap-3">
+              <Notice severity="info">초안 미리보기입니다. 저장하기 전에는 적용되지 않습니다.</Notice>
+              {aiModel && <p className="text-xs text-muted-foreground">요청 모델: {aiModel}</p>}
+              <TextField label="제목" value={draft.title} readOnly className="w-full" />
+              <TextField label="설명" value={draft.explanation} readOnly multiline minRows={3} className="w-full" />
+              <TextField label="차트 제목" value={draft.chartTitle} readOnly className="w-full" />
+            </div>
           )}
+          <DialogFooter className="flex-wrap gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setAiOpen(false);
+                setDraft(null);
+              }}
+              disabled={aiBusy}
+            >
+              취소
+            </Button>
+            <Button variant="outline" onClick={requestAi} disabled={aiBusy || !aiPrompt.trim()}>
+              {aiBusy && !draft ? '초안 생성 중…' : '초안 생성'}
+            </Button>
+            <Button onClick={saveDraft} disabled={aiBusy || !draft}>
+              저장
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ flexWrap: 'wrap', px: 3, pb: 2 }}>
-          <Button
-            onClick={() => {
-              setAiOpen(false);
-              setDraft(null);
-            }}
-            disabled={aiBusy}
-          >
-            취소
-          </Button>
-          <Button onClick={requestAi} disabled={aiBusy || !aiPrompt.trim()} variant="outlined">
-            {aiBusy && !draft ? '초안 생성 중…' : '초안 생성'}
-          </Button>
-          <Button onClick={saveDraft} disabled={aiBusy || !draft} variant="contained">
-            저장
-          </Button>
-        </DialogActions>
       </Dialog>
       <AiDashboardPanel
         open={analysisAiOpen}

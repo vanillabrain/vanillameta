@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
@@ -26,8 +26,8 @@ const MixedLineStackedBarChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           required={true}
           id={axis + 'Field'}
@@ -39,16 +39,12 @@ const MixedLineStackedBarChartSetting = props => {
           value={option[`${axis}Field`]}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.series')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <AddButton
           onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
+          className="absolute right-0 top-[30px]"
         />
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
@@ -98,7 +94,7 @@ const MixedLineStackedBarChartSetting = props => {
               onChange={event => handleSeriesChange(event, setOption)}
               disabledDefaultValue
             />
-            <Divider />
+            <Separator />
           </React.Fragment>
         ))}
         <SelectForm
@@ -115,9 +111,9 @@ const MixedLineStackedBarChartSetting = props => {
           value={option.mark}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText>{t('settings.legend')}</ListItemText>
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
@@ -134,7 +130,7 @@ const MixedLineStackedBarChartSetting = props => {
           value={option.legendAggregation}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

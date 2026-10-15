@@ -101,14 +101,13 @@ const WidgetModify = () => {
       upperTitle={t('widget.title')}
       upperTitleLink="/widget"
       title={t('widget.editTitle')}
-      sx={{ padding: 0 }}
+      className="p-0"
       button={
         <ConfirmButton
           confirmLabel={t('widget.save')}
           confirmProps={{
             form: 'widgetAttribute',
             type: 'submit',
-            variant: 'contained',
           }}
         />
       }

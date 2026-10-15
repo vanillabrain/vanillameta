@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -12,6 +11,8 @@ import { checkId, checkPwd } from '@/utils/util';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { getToken, setToken } from '@/helpers/authHelper';
+import { Button } from '@/components/ui/button';
+import { TextField } from '@/components/ui/text-field';
 
 const Login = () => {
   const { t } = useTranslation();
@@ -100,56 +101,24 @@ const Login = () => {
 
   if (!token) {
     return (
-      <Box
-        component="main"
-        sx={{
-          position: 'relative',
-          zIndex: 0,
-          width: '100%',
-          height: '100%',
-          minWidth: '100vw',
-          backgroundColor: '#f5f6f8',
-        }}
-      >
+      <main className="relative z-0 h-full w-full min-w-full bg-muted">
         <Seo title={t('login.title')} />
-        <Box
-          sx={{
-            pt: '90px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
+        <div className="flex flex-col items-center pt-[90px]">
           <RouterLink to="/">
-            <Logo width="223px" height="43px" />
+            <Logo width="223px" height="43px" aria-label="VanillaMeta" />
           </RouterLink>
-          <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84', textAlign: 'center' }}>
+          <p className="mt-[17px] text-center text-base text-primary">
             {t('login.taglineA')}
-            <Typography component="span" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
-              {t('login.taglineB')}
-            </Typography>
-          </Typography>
-          <Stack
-            component="form"
-            onSubmit={handleLogin}
-            noValidate
-            sx={{ width: { xs: 'calc(100% - 40px)', sm: '360px' }, mt: '56px' }}
-            spacing="20px"
-          >
+            <span className="text-base font-bold">{t('login.taglineB')}</span>
+          </p>
+          <form onSubmit={handleLogin} noValidate className="mt-14 flex w-[calc(100%-40px)] flex-col gap-5 sm:w-[360px]">
             <TextField
               autoFocus={true}
               label="User ID"
               name="userId"
               value={userInfo.userId}
               onChange={handleChange}
-              margin="normal"
               required={true}
-              fullWidth
-              sx={{ height: { xs: '44px', sm: '36px' } }}
-              InputLabelProps={{ sx: { pt: { xs: '6px', sm: 0 } } }}
-              InputProps={{
-                sx: { height: { xs: '44px', sm: '36px' }, input: { padding: '12px 14px' } },
-              }}
             />
             <TextField
               label="Password"
@@ -157,113 +126,29 @@ const Login = () => {
               value={userInfo.userPwd}
               onChange={handleChange}
               type="password"
-              margin="normal"
               required={true}
-              fullWidth
-              sx={{ height: { xs: '44px', sm: '36px' } }}
-              InputLabelProps={{ sx: { pt: { xs: '6px', sm: 0 } } }}
-              InputProps={{
-                sx: { height: { xs: '44px', sm: '36px' }, input: { padding: '12px 14px' } },
-              }}
             />
-            <Button
-              type="submit"
-              size="large"
-              fullWidth
-              variant="contained"
-              sx={{ height: { xs: '50px', sm: '44px' }, mt: 3, mb: 2 }}
-            >
+            <Button type="submit" size="lg" className="mt-5 mb-4 w-full">
               Login
             </Button>
-          </Stack>
+          </form>
           {APP_MODE != 'prod' && (
-            <Stack
-              sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '12px',
-                mt: '40px',
-                fontSize: '14px',
-                textAlign: 'center',
-                color: '#4a4a4a',
-              }}
-            >
-              <Button
-                component={RouterLink}
-                to="/signup"
-                disableRipple
-                disableFocusRipple
-                disableTouchRipple
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  minWidth: 0,
-                  minHeight: 0,
-                  m: 0,
-                  p: 0,
-                  gap: '12px',
-                  fontSize: 'inherit',
-                  fontWeight: 'inherit',
-                  textDecoration: 'underline',
-                  color: 'inherit',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                    backgroundColor: 'inherit',
-                  },
-
-                  '&:after': {
-                    content: `""`,
-                    width: '1px',
-                    height: '10px',
-                    backgroundColor: '#cccfd8',
-                  },
-                }}
-              >
+            <div className="mt-10 flex flex-row items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+              <RouterLink to="/signup" className="text-sm text-inherit underline hover:underline">
                 {t('login.signup')}
-              </Button>
-              <Button
-                disableRipple
-                disableFocusRipple
-                disableTouchRipple
-                sx={{
-                  minWidth: 0,
-                  minHeight: 0,
-                  m: 0,
-                  p: 0,
-                  fontSize: 'inherit',
-                  fontWeight: 'inherit',
-                  // textDecoration: 'underline',
-                  color: 'inherit',
-                  '&:hover': {
-                    // textDecoration: 'underline',
-                    backgroundColor: 'inherit',
-                  },
-                }}
-              >
-                {t('login.findAccount')}
-              </Button>
-            </Stack>
+              </RouterLink>
+              <span aria-hidden="true" className="h-2.5 w-px bg-border" />
+              <span>{t('login.findAccount')}</span>
+            </div>
           )}
-        </Box>
-        <Copyright sx={{ mt: '50px', mb: 4 }} />
-        <Box
-          component="img"
+        </div>
+        <Copyright className="mt-[50px] mb-4" />
+        <img
           src={backgroundImage}
-          sx={{
-            position: 'fixed',
-            zIndex: -1,
-            bottom: 0,
-            left: '50%',
-            margin: 'auto',
-            width: '1024px',
-            height: '508px',
-            transform: 'translateX(-50%)',
-          }}
+          alt=""
+          className="pointer-events-none fixed bottom-0 left-1/2 -z-10 h-[508px] w-[1024px] -translate-x-1/2"
         />
-      </Box>
+      </main>
     );
   }
 };

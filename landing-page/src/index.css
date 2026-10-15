@@ -1,0 +1,40 @@
+/*
+ * 랜딩 페이지 전역 스타일.
+ * 디자인 토큰(@theme inline / :root / .dark)은 frontend-web이 소유한
+ * src/styles/tokens.css를 단일 소스로 가져온다. 랜딩에서 중복 정의하지 않는다.
+ * 폰트: 공유 토큰의 --font-sans가 Pretendard이고, 랜딩은 기존 Pretendard @font-face 자산을 유지한다.
+ */
+@import 'tailwindcss' source(none);
+@import 'shadcn/tailwind.css';
+@import 'tw-animate-css';
+@import '../../frontend-web/src/styles/tokens.css';
+@import '../fonts/pretendard.css';
+
+/* Tailwind 소스 범위를 명시한다. 랜딩 자체와 공유 shadcn 프리미티브만 스캔한다. */
+@source '../';
+@source '../../frontend-web/src/components/ui';
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    @apply m-0 w-full min-w-80 font-sans;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+}
+
+/* Marketing breakpoints preserve the original landing layout; app block breakpoints are 600/900. */
+@theme {
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+}

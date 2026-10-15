@@ -1,150 +1,62 @@
 import React from 'react';
-import { Box, Stack, SxProps, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface PageTitleBoxProps {
   title: string;
   upperTitle?: string;
   upperTitleLink?: string;
-  sx?: SxProps;
+  className?: string;
   button?: React.ReactNode;
   fixed?: boolean;
   children: React.ReactNode;
 }
 
 function PageTitleBox(props: PageTitleBoxProps) {
-  const { title, upperTitle, upperTitleLink, button, sx, fixed, children } = props;
+  const { title, upperTitle, upperTitleLink, button, className, fixed, children } = props;
   const navigate = useNavigate();
 
-  const defaultBoxSx = {
-    flex: '1 1 auto',
-    paddingLeft: '25px',
-    paddingRight: '25px',
-    width: '100vw',
-    height: '100%',
-  };
-
-  const fixedSx = fixed && { position: 'fixed', zIndex: 1000 };
-
-  Object.assign(defaultBoxSx, sx);
-
   return (
-    <Stack direction="column" sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
-      <Stack
-        sx={{
-          width: '100%',
-        }}
-      >
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{
-            width: '100%',
-            height: { xs: 'auto', sm: 56 },
-            minHeight: { xs: 40, sm: 56 },
-            flexWrap: { xs: 'wrap', sm: 'nowrap' },
-            rowGap: '8px',
-            py: { xs: button ? '8px' : 0, sm: 0 },
-            paddingLeft: '24px',
-            paddingRight: '24px',
-            borderBottom: '1px solid #e3e7ea',
-            backgroundColor: '#f5f6f8',
-            ...fixedSx,
-          }}
+    <div className="flex h-full w-full flex-1 flex-col">
+      <div className="flex w-full">
+        <div
+          className={cn(
+            'flex w-full flex-wrap items-center justify-between gap-y-2 border-b border-border bg-muted px-6 py-2 sm:h-14 sm:min-h-14 sm:flex-nowrap sm:py-0',
+            fixed && 'fixed z-30',
+          )}
         >
-          <Stack direction="row" gap={{ xs: '6px', sm: '10px' }} alignItems="center">
+          <div className="flex flex-row items-center gap-1.5 sm:gap-2.5">
             {upperTitle && (
               <>
-                <Typography
-                  component={RouterLink}
+                <RouterLink
                   to={upperTitleLink}
-                  sx={{
-                    height: '19px',
-                    flexGrow: 0,
-                    fontFamily: 'Pretendard',
-                    fontSize: { xs: '14px', sm: '16px' },
-                    fontWeight: '500',
-                    fontStretch: 'normal',
-                    fontStyle: 'normal',
-                    lineHeight: 'normal',
-                    letterSpacing: 'normal',
-                    textAlign: 'left',
-                    textDecoration: 'none',
-                    color: '#4a4a4a',
-                  }}
+                  className="h-[19px] shrink-0 text-sm font-medium text-muted-foreground no-underline sm:text-base"
                 >
                   {upperTitle}
-                </Typography>
-                <span
-                  style={{
-                    height: '19px',
-                    flexGrow: 0,
-                    fontFamily: 'Pretendard',
-                    fontSize: 'inherit',
-                    fontWeight: '500',
-                    fontStretch: 'normal',
-                    fontStyle: 'normal',
-                    lineHeight: 'normal',
-                    letterSpacing: 'normal',
-                    textAlign: 'left',
-                    color: '#656565',
-                  }}
-                >
-                  /
-                </span>
+                </RouterLink>
+                <span className="h-[19px] shrink-0 text-sm font-medium text-muted-foreground sm:text-base">/</span>
               </>
             )}
-            <Typography
-              component="button"
+            <Button
+              type="button"
+              variant="ghost"
               onClick={event => {
                 event.preventDefault();
                 navigate(0);
               }}
-              sx={{
-                height: '19px',
-                flexGrow: 0,
-                border: 0,
-                padding: 0,
-                cursor: 'pointer',
-                fontFamily: 'Pretendard',
-                fontSize: { xs: '14px', sm: '16px' },
-                fontWeight: '600',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: 'normal',
-                letterSpacing: 'normal',
-                textAlign: 'left',
-                textDecoration: 'none',
-                color: '#141414',
-                backgroundColor: 'transparent',
-              }}
+              className="h-[19px] shrink-0 justify-start rounded-none px-0 text-left text-sm font-semibold text-foreground hover:bg-transparent sm:text-base"
             >
               {title}
-            </Typography>
-          </Stack>
-          <Box
-            sx={{
-              display: { xs: 'flex', sm: 'contents' },
-              flexWrap: 'wrap',
-              gap: '8px',
-              maxWidth: '100%',
-              '& > .MuiStack-root': { flexWrap: 'wrap', rowGap: '8px' },
-            }}
-          >
-            {button}
-          </Box>
-        </Stack>
-      </Stack>
-      <Stack
-        direction="column"
-        sx={{ justifyContent: 'flex-start', flex: '1 1 auto', width: '100%', height: 'calc(100% - 56px)' }}
-      >
-        <Stack direction="column" sx={defaultBoxSx}>
-          {children}
-        </Stack>
-      </Stack>
-    </Stack>
+            </Button>
+          </div>
+          <div className="flex max-w-full flex-wrap gap-2 sm:contents">{button}</div>
+        </div>
+      </div>
+      <div className="flex h-[calc(100%-56px)] w-full flex-1 flex-col justify-start">
+        <div className={cn('h-full w-full flex-1 px-[25px]', className)}>{children}</div>
+      </div>
+    </div>
   );
 }
 

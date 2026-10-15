@@ -2,17 +2,16 @@ import React, { useContext, useEffect } from 'react';
 import { Link as RouterLink, Outlet, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus } from 'lucide-react';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import WidgetService from '@/api/widgetService';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LoadingContext } from '@/contexts/LoadingContext';
-import AddIcon from '@mui/icons-material/Add';
-import { Box, Button, Stack, useMediaQuery, useTheme } from '@mui/material';
-import { styled } from '@mui/system';
 import { STATUS } from '@/constant';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
+import { Button } from '@/components/ui/button';
 
 const Widget = () => {
   const { t } = useTranslation();
@@ -61,28 +60,13 @@ const Widget = () => {
     },
   });
 
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
-
-  const GTSpan = styled('span')({
-    fontFamily: 'Pretendard',
-    fontSize: matches ? '13px' : '10px',
-    fontWeight: '500',
-    fontStretch: 'normal',
-    fontStyle: 'normal',
-    lineHeight: '1.23',
-    letterSpacing: 'normal',
-    textAlign: 'left',
-    color: '#767676',
-  });
-
   const removeWidget = (id, title) => {
     alert.success(
-      <Box sx={{ span: { fontWeight: 600 } }}>
-        <span>{title}</span>
+      <>
+        <span className="font-semibold">{title}</span>
         <br />
         {t('widget.deleteConfirm')}
-      </Box>,
+      </>,
       {
         title: t('widget.deleteTitle'),
         closeCopy: t('data.cancel'),
@@ -100,66 +84,37 @@ const Widget = () => {
   const getEmptyView = () => {
     return (
       <>
-        <Stack
-          flexDirection="row"
-          justifyContent="space-between"
-          sx={{ paddingLeft: '20px', paddingRight: { xs: '20px', sm: '217px' }, marginBottom: '11px', marginTop: '36px' }}
-        >
-          <GTSpan>{t('list.name')}</GTSpan>
-          <GTSpan>{t('list.modifiedAt')}</GTSpan>
-        </Stack>
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flexGrow: '0',
-            py: '18px',
-            margin: '0 0 0 0',
-            borderRadius: '6px',
-            border: 'solid 1px #ddd',
-            backgroundColor: '#fff',
-          }}
-        >
-          <span
-            style={{
-              flexGrow: 0,
-              fontFamily: 'Pretendard',
-              fontSize: matches ? '16px' : '14px',
-              fontWeight: 600,
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 1.43,
-              letterSpacing: 'normal',
-              textAlign: 'center',
-              color: '#333333',
-            }}
-          >
-            {t('list.noWidget')}
-            {matches ? ' ' : <br />}
-            {t('list.createWidgetHint')}
+        <div className="mt-9 mb-[11px] flex flex-row justify-between pr-5 pl-5 sm:pr-[217px]">
+          <span className="text-left text-[10px] leading-[1.23] font-medium text-muted-foreground sm:text-[13px]">
+            {t('list.name')}
           </span>
-        </Box>
+          <span className="text-left text-[10px] leading-[1.23] font-medium text-muted-foreground sm:text-[13px]">
+            {t('list.modifiedAt')}
+          </span>
+        </div>
+        <div className="flex grow-0 items-center justify-center rounded-md border border-border bg-background py-[18px]">
+          <span className="text-center text-sm leading-[1.43] font-semibold text-foreground sm:text-base">
+            {t('list.noWidget')}
+            <br className="sm:hidden" /> {t('list.createWidgetHint')}
+          </span>
+        </div>
       </>
     );
   };
 
   return (
-    <Stack sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
+    <div className="flex h-full w-full flex-auto flex-col">
       <Seo title={title} />
 
       {!widgetId ? (
         <PageTitleBox
           title={title}
           button={
-            <Button
-              variant="contained"
-              component={RouterLink}
-              to="create"
-              sx={{ height: '32px', backgroundColor: '#043f84' }}
-              startIcon={<AddIcon />}
-            >
-              {t('widget.create')}
+            <Button asChild className="h-8 bg-primary">
+              <RouterLink to="create">
+                <Plus className="size-4" />
+                {t('widget.create')}
+              </RouterLink>
             </Button>
           }
         >
@@ -174,7 +129,7 @@ const Widget = () => {
       ) : (
         <Outlet />
       )}
-    </Stack>
+    </div>
   );
 };
 

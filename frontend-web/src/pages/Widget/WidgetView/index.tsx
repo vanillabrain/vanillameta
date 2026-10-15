@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Card, Typography } from '@mui/material';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useAlert } from 'react-alert';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetService from '@/api/widgetService';
 import { WidgetInfo } from '@/api/type';
@@ -10,12 +10,12 @@ import ReloadButton from '@/components/button/ReloadButton';
 import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import PageViewBox from '@/components/PageViewBox';
-import { useAlert } from 'react-alert';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
 import { STATUS } from '@/constant';
+import { Card } from '@/components/ui/card';
 
 const WidgetView = () => {
   const { t } = useTranslation();
@@ -91,11 +91,11 @@ const WidgetView = () => {
 
   const removeWidget = () => {
     alert.success(
-      <Box sx={{ span: { fontWeight: 600 } }}>
-        <span>{widgetOption.title}</span>
+      <>
+        <span className="font-semibold">{widgetOption.title}</span>
         <br />
         {t('widget.deleteConfirm')}
-      </Box>,
+      </>,
       {
         title: t('widget.deleteTitle'),
         closeCopy: t('data.cancel'),
@@ -131,7 +131,7 @@ const WidgetView = () => {
       upperTitle={t('widget.title')}
       upperTitleLink="/widget"
       title={t('widget.view')}
-      sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
+      className="w-full flex-auto p-0 sm:mt-[22px]"
     >
       <Seo title={widgetOption.title} />
       <PageViewBox
@@ -139,10 +139,9 @@ const WidgetView = () => {
         title={widgetOption.componentTitle}
         date={dateData(widgetOption.updatedAt)}
         button={
-          <Box sx={{ display: { xs: 'none', sm: 'contents' } }}>
+          <div className="hidden sm:contents">
             <ReloadButton
-              size="medium"
-              sx={{ marginRight: '36px', padding: 0 }}
+              className="mr-9 p-0"
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -150,8 +149,7 @@ const WidgetView = () => {
               }}
             />
             <ModifyButton
-              size="medium"
-              sx={{ marginRight: '36px', padding: 0 }}
+              className="mr-9 p-0"
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -159,34 +157,21 @@ const WidgetView = () => {
               }}
             />
             <DeleteButton
-              size="medium"
-              sx={{ padding: 0 }}
+              className="p-0"
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
                 removeWidget();
               }}
             />
-          </Box>
+          </div>
         }
       >
-        <Card
-          sx={{
-            width: { xs: 'calc(100% - 40px)', sm: '60%' },
-            height: '50vw',
-            minHeight: '300px',
-            maxHeight: '700px',
-            margin: { xs: '20px auto', sm: '54px auto' },
-            borderRadius: '8px',
-            boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
-            border: 'solid 1px #e2e2e2',
-            backgroundColor: '#fff',
-          }}
-        >
+        <Card className="mx-auto my-5 h-[50vw] max-h-[700px] min-h-[300px] w-[calc(100%-40px)] overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:my-[54px] sm:w-3/5">
           {loadError ? (
-            <Typography role="alert" sx={{ p: '24px', textAlign: 'center' }}>
+            <p role="alert" className="p-6 text-center">
               {t('share.widgetFetchFailed')}
-            </Typography>
+            </p>
           ) : widgetOption.id ? (
             <WidgetWrapper widgetOption={widgetOption} dataSetId={widgetOption.datasetId} />
           ) : null}

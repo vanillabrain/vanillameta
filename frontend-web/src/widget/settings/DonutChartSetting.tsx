@@ -2,7 +2,6 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
 import TextFieldForm from '@/components/form/TextFieldForm';
-import { InputAdornment } from '@mui/material';
 
 function DonutChartSetting(props) {
   const { t } = useTranslation();
@@ -39,7 +38,7 @@ function DonutChartSetting(props) {
               type="number"
               value={innerRadius.slice(0, -1)}
               onChange={handleChange}
-              endAdornment={<InputAdornment position="end">%</InputAdornment>}
+              endAdornment={<span className="text-sm text-muted-foreground">%</span>}
             />
             <TextFieldForm
               id="radius2"
@@ -48,7 +47,7 @@ function DonutChartSetting(props) {
               type="number"
               value={outerRadius.slice(0, -1)}
               onChange={handleChange}
-              endAdornment={<InputAdornment position="end">%</InputAdornment>}
+              endAdornment={<span className="text-sm text-muted-foreground">%</span>}
             />
           </React.Fragment>
         ),

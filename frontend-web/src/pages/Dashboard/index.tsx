@@ -3,8 +3,7 @@ import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import { Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { MenuButton } from '@/components/button/AddIconButton';
-import AddIcon from '@mui/icons-material/Add';
-import { Box, Stack } from '@mui/material';
+import { Plus } from 'lucide-react';
 import DashboardService from '@/api/dashboardService';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { STATUS } from '@/constant';
@@ -76,11 +75,11 @@ function Dashboard() {
 
   const handleDeleteSelect = (id, title) => {
     alert.success(
-      <Box sx={{ span: { fontWeight: 600 } }}>
+      <div className="[&_span]:font-semibold">
         <span>{title}</span>
         <br />
         {t('dashboard.deleteConfirm')}
-      </Box>,
+      </div>,
       {
         closeCopy: t('data.cancel'),
         actions: [
@@ -107,7 +106,7 @@ function Dashboard() {
   };
 
   return (
-    <Stack sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
+    <div className="flex h-full w-full flex-auto flex-col">
       <Seo title={title} />
       <AiDashboardPanel
         open={aiOpen}
@@ -135,9 +134,9 @@ function Dashboard() {
               <MenuButton
                 menuList={menuList}
                 handleSelect={handleMenuSelect}
-                icon={<AddIcon />}
+                icon={<Plus />}
                 title={t('list.addDashboard')}
-                sizeOption={{ width: 108, height: 32 }}
+                className="h-8 w-[108px]"
               />
             }
           >
@@ -152,7 +151,7 @@ function Dashboard() {
       ) : (
         <Outlet />
       )}
-    </Stack>
+    </div>
   );
 }
 

@@ -1,27 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Checkbox,
-  FormControlLabel,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Notice } from '@/components/ui/notice';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { get, post } from '@/helpers/apiHelper';
 import { errorMessage, responseData, validPreview } from '../dashboardPreview';
-import { analysisFieldSx } from '@/components/analysis/AnalysisUi';
+import { analysisFieldClassName } from '@/components/analysis/AnalysisUi';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
 import MetricTrend from './MetricTrend';
+import { cn } from '@/lib/utils';
 
 const aggregations = {
   SUM: '합계',
@@ -33,6 +23,43 @@ const aggregations = {
   RATIO_SUM: '합계 비율',
   WEIGHTED_AVG: '가중 평균',
 };
+
+function AnalysisSelect({
+  id,
+  label,
+  value,
+  onChange,
+  disabled,
+  options,
+  className,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  options: { value: string; label: string }[];
+  className?: string;
+}) {
+  return (
+    <div className={cn('flex min-w-0 flex-col gap-1.5', analysisFieldClassName, className)}>
+      <Label htmlFor={id}>{label}</Label>
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger id={id} size="sm" className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map(option => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 export default function MetricCalculationEditor({
   open,
   onClose,
@@ -46,7 +73,6 @@ export default function MetricCalculationEditor({
   comparePrevious,
   onApplied,
 }: any) {
-  const mobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [calculation, setCalculation] = useState<any>({});
   const [columns, setColumns] = useState<any[]>([]);
   const [preview, setPreview] = useState<any>(null);
@@ -181,61 +207,45 @@ export default function MetricCalculationEditor({
     }
   };
   const field = (key: string, label: string, options: any[]) => (
-    <TextField
+    <AnalysisSelect
       key={key}
-      select
-      fullWidth
-      size="small"
+      id={`metric-calculation-${key}`}
       label={label}
       value={calculation[key] ?? ''}
       disabled={busy}
-      sx={analysisFieldSx}
-      onChange={e => setCalculation(c => ({ ...c, [key]: e.target.value }))}
-    >
-      {options.map(c => (
-        <MenuItem key={c.name} value={c.name}>
-          {c.name}
-        </MenuItem>
-      ))}
-    </TextField>
+      options={options.map(c => ({ value: c.name, label: c.name }))}
+      onChange={value => setCalculation(c => ({ ...c, [key]: value }))}
+    />
   );
   const target = preview?.widgets[selectedWidget];
   return (
     <Dialog
       open={open}
-      onClose={() => {
-        if (!busy) onClose();
+      onOpenChange={next => {
+        if (!next && !busy) onClose();
       }}
-      fullScreen={mobile}
-      fullWidth
-      maxWidth="sm"
-      aria-labelledby="metric-change-title"
     >
-      <DialogTitle id="metric-change-title">저장 지표 계산식 변경</DialogTitle>
-      <DialogContent>
-        <Stack spacing={1.5} sx={{ pt: 1 }}>
-          <Typography fontSize={13}>
+      <DialogContent
+        showCloseButton={false}
+        aria-labelledby="metric-change-title"
+        className="h-full max-h-full w-full max-w-full overflow-y-auto rounded-none sm:h-auto sm:max-h-[85vh] sm:max-w-lg sm:rounded-xl"
+      >
+        <DialogTitle id="metric-change-title">저장 지표 계산식 변경</DialogTitle>
+        <div className="flex flex-col gap-3 pt-2">
+          <p className="text-[13px]">
             {metric?.label} · {draft.widgets[selectedWidget]?.title}
-          </Typography>
-          <Typography fontSize={12} color="text.secondary">
+          </p>
+          <p className="text-xs text-muted-foreground">
             저장하면 지표와 선택한 분석의 계산식이 함께 변경됩니다. 연결된 다른 분석을 확인해 함께 반영할 수 있습니다.
-          </Typography>
-          <TextField
-            select
-            fullWidth
-            size="small"
+          </p>
+          <AnalysisSelect
+            id="metric-calculation-aggregation"
             label="집계 방식"
             value={calculation.aggregation ?? ''}
             disabled={busy}
-            sx={analysisFieldSx}
-            onChange={e => setCalculation(c => ({ ...c, aggregation: e.target.value }))}
-          >
-            {Object.entries(aggregations).map(([key, label]) => (
-              <MenuItem key={key} value={key}>
-                {label}
-              </MenuItem>
-            ))}
-          </TextField>
+            options={Object.entries(aggregations).map(([key, label]) => ({ value: key, label: label as string }))}
+            onChange={value => setCalculation(c => ({ ...c, aggregation: value }))}
+          />
           {calculation.aggregation !== 'COUNT' &&
             field(
               'column',
@@ -249,18 +259,17 @@ export default function MetricCalculationEditor({
                 '분모 컬럼',
                 columns.filter(c => c.numeric),
               )}
-              <TextField
-                select
-                size="small"
+              <AnalysisSelect
+                id="metric-calculation-scale"
                 label="비율 표시"
-                value={calculation.scale}
+                value={String(calculation.scale ?? '')}
                 disabled={busy}
-                sx={analysisFieldSx}
-                onChange={e => setCalculation(c => ({ ...c, scale: Number(e.target.value) }))}
-              >
-                <MenuItem value={1}>비율</MenuItem>
-                <MenuItem value={100}>백분율</MenuItem>
-              </TextField>
+                options={[
+                  { value: '1', label: '비율' },
+                  { value: '100', label: '백분율' },
+                ]}
+                onChange={value => setCalculation(c => ({ ...c, scale: Number(value) }))}
+              />
             </>
           )}
           {calculation.aggregation === 'WEIGHTED_AVG' &&
@@ -269,76 +278,73 @@ export default function MetricCalculationEditor({
               '가중치 컬럼',
               columns.filter(c => c.numeric),
             )}
-          <Button disabled={busy} onClick={loadImpact} sx={{ alignSelf: 'flex-start' }}>
+          <Button variant="ghost" disabled={busy} onClick={loadImpact} className="self-start">
             같은 지표를 쓰는 분석 확인
           </Button>
           {impact && (
-            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
-              <Typography fontSize={13} fontWeight={700}>
-                영향받는 분석 · {impact.analyses.length}개
-              </Typography>
-              <Typography fontSize={12} color="text.secondary">
+            <div className="rounded border border-border p-2">
+              <p className="text-[13px] font-bold">영향받는 분석 · {impact.analyses.length}개</p>
+              <p className="text-xs text-muted-foreground">
                 현재 분석을 포함해 최대10개 선택합니다. 연결 정보가 없는 이전 분석은 자동 포함하지 않습니다.
-              </Typography>
+              </p>
               {impact.analyses.map(a => (
-                <Box key={a.dashboardId}>
-                  <FormControlLabel
-                    sx={{ m: 0, width: '100%', alignItems: 'flex-start' }}
-                    control={
-                      <Checkbox
-                        size="small"
-                        checked={selectedAnalyses.includes(a.dashboardId)}
-                        disabled={
-                          busy ||
-                          a.dashboardId === dashboardId ||
-                          (!selectedAnalyses.includes(a.dashboardId) && selectedAnalyses.length >= 10)
-                        }
-                        onChange={(_, checked) =>
-                          setSelectedAnalyses(ids =>
-                            checked ? [...ids, a.dashboardId] : ids.filter(id => id !== a.dashboardId),
-                          )
-                        }
-                      />
-                    }
-                    label={
-                      <Typography fontSize={12} sx={{ py: 1, overflowWrap: 'anywhere' }}>
-                        {a.title} · {a.widgetIndices.length}개 차트
-                        {a.definitionVersions?.length ? ` · 저장 v${a.definitionVersions.join('/v')}` : ' · 연결 지정'}
-                        {a.dashboardId === dashboardId ? ' · 현재 분석' : ''}
-                      </Typography>
-                    }
-                  />
-                </Box>
+                <div key={a.dashboardId}>
+                  <label className="m-0 flex w-full items-start gap-2">
+                    <Checkbox
+                      className="mt-1"
+                      checked={selectedAnalyses.includes(a.dashboardId)}
+                      disabled={
+                        busy ||
+                        a.dashboardId === dashboardId ||
+                        (!selectedAnalyses.includes(a.dashboardId) && selectedAnalyses.length >= 10)
+                      }
+                      onCheckedChange={checked =>
+                        setSelectedAnalyses(ids =>
+                          checked ? [...ids, a.dashboardId] : ids.filter(id => id !== a.dashboardId),
+                        )
+                      }
+                    />
+                    <span className="py-1 text-xs [overflow-wrap:anywhere]">
+                      {a.title} · {a.widgetIndices.length}개 차트
+                      {a.definitionVersions?.length ? ` · 저장 v${a.definitionVersions.join('/v')}` : ' · 연결 지정'}
+                      {a.dashboardId === dashboardId ? ' · 현재 분석' : ''}
+                    </span>
+                  </label>
+                </div>
               ))}
-              <Typography fontSize={12} color="text.secondary">
+              <p className="text-xs text-muted-foreground">
                 선택 {selectedAnalyses.length}개 · 미연결 분석 {impact.unlinked}개 제외
-              </Typography>
-            </Box>
+              </p>
+            </div>
           )}
           {error && (
-            <Alert severity="error">
+            <Notice severity="error">
               {error}
-              {conflict && <Button onClick={() => window.location.reload()}>최신 화면 불러오기</Button>}
-            </Alert>
+              {conflict && (
+                <Button variant="ghost" size="sm" className="ml-2" onClick={() => window.location.reload()}>
+                  최신 화면 불러오기
+                </Button>
+              )}
+            </Notice>
           )}
-          {stale && <Alert severity="warning">조건이 바뀌었습니다. 다시 미리보기해 주세요.</Alert>}
+          {stale && <Notice severity="warning">조건이 바뀌었습니다. 다시 미리보기해 주세요.</Notice>}
           {preview && (
             <>
-              <Typography fontSize={12}>
+              <p className="text-xs">
                 v{preview.metric.definitionVersion} → v{preview.metric.nextVersion}
-              </Typography>
-              <Box component="pre" sx={{ fontSize: 12, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', m: 0 }}>
+              </p>
+              <pre className="m-0 text-xs whitespace-pre-wrap [overflow-wrap:anywhere]">
                 기존: {preview.metric.previousExpression}
                 {'\n'}변경: {preview.metric.expression}
-              </Box>
-              <Box sx={{ height: target.type === 'BOARD_NUMERIC' ? 150 : 280 }}>
+              </pre>
+              <div className={target.type === 'BOARD_NUMERIC' ? 'h-[150px]' : 'h-[280px]'}>
                 <WidgetViewer
                   title={target.title}
                   widgetType={target.type}
                   widgetOption={analysisOptions(target, target.numberNotation || 'compact')}
                   dataSet={target.datas}
                 />
-              </Box>
+              </div>
               {target.type === 'BOARD_NUMERIC' && (
                 <MetricTrend
                   trend={target.trend}
@@ -355,25 +361,22 @@ export default function MetricCalculationEditor({
               {preview.analyses?.map(a => {
                 const indices = a.widgetIndices.filter(i => a.dashboardId !== dashboardId || i !== selectedWidget);
                 return indices.length ? (
-                  <Box component="details" key={a.dashboardId}>
-                    <Typography component="summary" fontSize={13} sx={{ cursor: 'pointer' }}>
+                  <details key={a.dashboardId}>
+                    <summary className="cursor-pointer text-[13px]">
                       분석 미리보기: {a.title} · {indices.length}개 차트
-                    </Typography>
+                    </summary>
                     {indices.map(i => {
                       const w = a.preview.widgets[i];
                       return (
-                        <Box
-                          key={i}
-                          sx={{ minWidth: 0, border: '1px solid', borderColor: 'divider', borderRadius: 1, mt: 1 }}
-                        >
-                          <Box sx={{ height: w.type === 'BOARD_NUMERIC' ? 150 : 280 }}>
+                        <div key={i} className="mt-2 min-w-0 rounded border border-border">
+                          <div className={w.type === 'BOARD_NUMERIC' ? 'h-[150px]' : 'h-[280px]'}>
                             <WidgetViewer
                               title={w.title}
                               widgetType={w.type}
                               widgetOption={analysisOptions(w, w.numberNotation || 'compact')}
                               dataSet={w.datas}
                             />
-                          </Box>
+                          </div>
                           {w.type === 'BOARD_NUMERIC' && (
                             <MetricTrend
                               trend={w.trend}
@@ -387,27 +390,27 @@ export default function MetricCalculationEditor({
                               periods={a.preview.comparison}
                             />
                           )}
-                        </Box>
+                        </div>
                       );
                     })}
-                  </Box>
+                  </details>
                 ) : null;
               })}
             </>
           )}
-        </Stack>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button variant="ghost" disabled={busy} onClick={onClose}>
+            취소
+          </Button>
+          <Button variant="ghost" disabled={busy || !columns.length} onClick={() => run()}>
+            계산식 미리보기
+          </Button>
+          <Button disabled={busy || !preview || stale} onClick={() => run(true)}>
+            {busy ? '처리 중…' : impact ? '지표·분석 일괄 저장' : '지표·분석 저장'}
+          </Button>
+        </div>
       </DialogContent>
-      <DialogActions sx={{ flexWrap: 'wrap' }}>
-        <Button disabled={busy} onClick={onClose}>
-          취소
-        </Button>
-        <Button disabled={busy || !columns.length} onClick={() => run()}>
-          계산식 미리보기
-        </Button>
-        <Button variant="contained" disabled={busy || !preview || stale} onClick={() => run(true)}>
-          {busy ? '처리 중…' : impact ? '지표·분석 일괄 저장' : '지표·분석 저장'}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }

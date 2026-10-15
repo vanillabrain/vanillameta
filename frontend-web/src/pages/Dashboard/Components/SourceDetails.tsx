@@ -1,18 +1,11 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  LinearProgress,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Notice } from '@/components/ui/notice';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { post } from '@/helpers/apiHelper';
 import type { DateRange, FilterValue, TrendGrain } from './PersonalSavedViews';
 import { validDay, validTimeZone } from './PersonalSavedViews';
@@ -226,6 +219,9 @@ function errorText(error: unknown, contribution = false) {
 const cellText = (value: unknown) =>
   value === null || value === undefined ? '값 없음' : typeof value === 'object' ? JSON.stringify(value) : String(value);
 
+const cellClassName =
+  'h-auto max-w-[240px] min-w-[100px] border-b border-border p-2 text-left font-normal whitespace-normal [overflow-wrap:anywhere]';
+
 export default function SourceDetails({
   open,
   dashboardId,
@@ -245,6 +241,16 @@ export default function SourceDetails({
   const titleId = useId();
   const descriptionId = useId();
   const closeButton = useRef<HTMLButtonElement>(null);
+  // 닫힘 순서 계약: Radix의 onCloseAutoFocus는 unmount 후 setTimeout(0)으로 지연 실행되고
+  // (@radix-ui/react-focus-scope/dist/index.mjs:107-118), Radix Dialog는 그 안에서
+  // preventDefault 후 DialogTrigger에만 포커스를 준다(@radix-ui/react-dialog/dist/index.mjs:174-176).
+  // 트리거가 없는 이 다이얼로그는 그 경로에서 포커스가 body로 떨어지므로, 실제 launcher 복원은
+  // open→false 커밋에서 동기적으로 onExited(=DashboardAnalysis 복원 훅)에 위임한다.
+  const wasOpen = useRef(open);
+  useEffect(() => {
+    if (wasOpen.current && !open) onExited?.();
+    wasOpen.current = open;
+  }, [open]);
   const contextKey = JSON.stringify({
     dashboardId,
     draft,
@@ -365,211 +371,189 @@ export default function SourceDetails({
   return (
     <Dialog
       open={open}
-      onClose={onClose}
-      fullWidth
-      maxWidth="lg"
-      aria-labelledby={titleId}
-      aria-describedby={descriptionId}
-      TransitionProps={{ onExited }}
-      PaperProps={{ sx: { m: 2, width: 'calc(100% - 32px)', maxHeight: 'calc(100dvh - 32px)', minWidth: 0 } }}
+      onOpenChange={next => {
+        if (!next) onClose();
+      }}
     >
-      <DialogTitle id={titleId}>{contribution ? '집계에 사용된 원본 행' : '현재 공통 필터의 원본 행'}</DialogTitle>
-      <DialogContent sx={{ minWidth: 0 }}>
-        <Typography id={descriptionId} variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
-          {contribution
-            ? `${
-                contribution.period === 'previous' ? '이전 기간' : '현재 적용 기간'
-              }과 공통 필터, 해당 차트의 추가 조건을 적용한 집계 입력 행입니다.`
-            : '현재 공통 필터와 적용 기간에 해당하는 원본 데이터입니다. 개별 차트에 설정한 추가 조건은 포함하지 않습니다.'}
-        </Typography>
-        {contribution && (
-          <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
-            차트: {widgetTitle || data?.contribution?.title || '선택한 집계'} ·{' '}
-            {contribution.trendPoint && validTrendPointContribution(contribution.trendPoint)
-              ? trendPointCaption(contribution.trendPoint)
-              : ownsCategory(contribution)
-              ? `그룹: ${categoryText(contribution.category)}`
-              : '위젯 전체'}
-          </Typography>
-        )}
-        {contribution?.period === 'previous' && validContributionDateRange(previousDateRange) && (
-          <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
-            이전 기간: {periodCaption(previousDateRange)}
-          </Typography>
-        )}
-        <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
-          {contribution?.period === 'previous' ? '현재 비교 기준: ' : ''}
-          {dateRange
-            ? `${dateRange.column}: ${
-                dateRange.precision === 'timestamp'
-                  ? timeRangeLabel(dateRange)
-                  : `${dateRange.start} ~ ${dateRange.end} (${dateRange.timeZone ?? 'UTC'})`
-              }`
-            : '전체 기간'}{' '}
-          ·{' '}
-          {filters.length
-            ? filters.map(filter => `${filter.column}: ${filter.values.map(cellText).join(', ')}`).join(' · ')
-            : '필터 없음'}
-        </Typography>
-        {sourceRevision && <Typography variant="caption">데이터 버전: {sourceRevision.slice(0, 12)}</Typography>}
-        {blocked && <Alert severity="info">{blocked} 이전 원본 행은 표시하지 않습니다.</Alert>}
-        <Typography role="status" aria-live="polite" aria-atomic="true" sx={{ my: 1 }}>
-          {busy
-            ? `원본 행 조회 중 · ${page + 1}페이지 · 페이지당 ${pageSize}행`
-            : data
-            ? `총 ${data.totalRows}행 · ${page + 1}페이지 · 현재 ${data.datas.length}행`
-            : ''}
-        </Typography>
-        {busy && <LinearProgress aria-label="원본 행 조회 중" sx={{ my: 1 }} />}
-        {error && (
-          <Alert severity="error">
-            {error.message}
-            <Button
-              onClick={
-                error.stale
-                  ? onRefresh
-                  : event => {
-                      // Keep keyboard focus inside the paper before the retry button is removed.
-                      if (document.activeElement === event.currentTarget) closeButton.current?.focus();
-                      setReload(value => value + 1);
-                    }
-              }
-            >
-              {error.stale ? '대시보드 데이터 새로 조회' : '원본 행 다시 조회'}
-            </Button>
-          </Alert>
-        )}
-        {data && (
-          <>
-            {data.contribution && (
-              <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
-                {data.contribution.semantics}
-              </Typography>
-            )}
-            {data.columnCount !== undefined && data.columnCount > 50 && (
-              <Alert severity="info">원본 {data.columnCount}개 컬럼 중 처음 50개 컬럼만 표시합니다.</Alert>
-            )}
-            {page >= 10000 && BigInt(page + 1) * BigInt(pageSize) < BigInt(data.totalRows) && (
-              <Alert severity="info">조회 한도에 도달했습니다. 필터로 범위를 좁혀 주세요.</Alert>
-            )}
-            <Box
-              role="region"
-              aria-label={contribution ? '집계에 사용된 원본 행 표' : '현재 공통 필터의 원본 행 표'}
-              tabIndex={0}
-              sx={{
-                maxHeight: '50dvh',
-                maxWidth: '100%',
-                overflow: 'auto',
-                border: 1,
-                borderColor: 'divider',
-                '& table': { borderCollapse: 'collapse', minWidth: '100%' },
-                '& th, & td': {
-                  textAlign: 'left',
-                  p: 1,
-                  minWidth: 100,
-                  maxWidth: 240,
-                  overflowWrap: 'anywhere',
-                  borderBottom: 1,
-                  borderColor: 'divider',
-                },
-                '& thead th': { position: 'sticky', top: 0, backgroundColor: 'background.paper' },
-              }}
-            >
-              <table>
-                <caption>
-                  {contribution ? '집계에 사용된 원본 데이터' : '현재 공통 필터의 원본 데이터'} · {page + 1}페이지
-                </caption>
-                <thead>
-                  <tr>
-                    {contribution && (
-                      <th scope="col" style={{ minWidth: 128 }}>
-                        집계 구성요소
-                      </th>
-                    )}
-                    {data.fields.map(field => (
-                      <th scope="col" key={field.columnName}>
-                        {field.columnName}
-                        <Typography component="div" variant="caption">
-                          {field.columnType}
-                        </Typography>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.datas.map((row, index) => (
-                    <tr key={index}>
+      <DialogContent
+        showCloseButton={false}
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        // Radix의 지연된 트리거 전용 복원(triggerRef.focus → null)과 FocusScope의 기본 복원
+        // (previouslyFocusedElement ?? body)을 모두 막아, 위에서 동기 복원한 launcher 포커스를
+        // 닫힘 순서 뒤에 덮어쓰지 않도록 한다.
+        onCloseAutoFocus={event => {
+          event.preventDefault();
+        }}
+        className="m-0 max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] max-w-[1200px] min-w-0 overflow-y-auto sm:max-w-[1200px]"
+      >
+        <DialogTitle id={titleId}>{contribution ? '집계에 사용된 원본 행' : '현재 공통 필터의 원본 행'}</DialogTitle>
+        <div className="min-w-0">
+          <DialogDescription id={descriptionId} className="mb-2 [overflow-wrap:anywhere]">
+            {contribution
+              ? `${
+                  contribution.period === 'previous' ? '이전 기간' : '현재 적용 기간'
+                }과 공통 필터, 해당 차트의 추가 조건을 적용한 집계 입력 행입니다.`
+              : '현재 공통 필터와 적용 기간에 해당하는 원본 데이터입니다. 개별 차트에 설정한 추가 조건은 포함하지 않습니다.'}
+          </DialogDescription>
+          {contribution && (
+            <p className="mb-2 text-sm [overflow-wrap:anywhere]">
+              차트: {widgetTitle || data?.contribution?.title || '선택한 집계'} ·{' '}
+              {contribution.trendPoint && validTrendPointContribution(contribution.trendPoint)
+                ? trendPointCaption(contribution.trendPoint)
+                : ownsCategory(contribution)
+                ? `그룹: ${categoryText(contribution.category)}`
+                : '위젯 전체'}
+            </p>
+          )}
+          {contribution?.period === 'previous' && validContributionDateRange(previousDateRange) && (
+            <p className="mb-2 text-sm [overflow-wrap:anywhere]">이전 기간: {periodCaption(previousDateRange)}</p>
+          )}
+          <p className="mb-2 text-sm [overflow-wrap:anywhere]">
+            {contribution?.period === 'previous' ? '현재 비교 기준: ' : ''}
+            {dateRange
+              ? `${dateRange.column}: ${
+                  dateRange.precision === 'timestamp'
+                    ? timeRangeLabel(dateRange)
+                    : `${dateRange.start} ~ ${dateRange.end} (${dateRange.timeZone ?? 'UTC'})`
+                }`
+              : '전체 기간'}{' '}
+            ·{' '}
+            {filters.length
+              ? filters.map(filter => `${filter.column}: ${filter.values.map(cellText).join(', ')}`).join(' · ')
+              : '필터 없음'}
+          </p>
+          {sourceRevision && <p className="text-xs">데이터 버전: {sourceRevision.slice(0, 12)}</p>}
+          {blocked && <Notice severity="info">{blocked} 이전 원본 행은 표시하지 않습니다.</Notice>}
+          <p role="status" aria-live="polite" aria-atomic="true" className="my-2">
+            {busy
+              ? `원본 행 조회 중 · ${page + 1}페이지 · 페이지당 ${pageSize}행`
+              : data
+              ? `총 ${data.totalRows}행 · ${page + 1}페이지 · 현재 ${data.datas.length}행`
+              : ''}
+          </p>
+          {busy && <Skeleton role="progressbar" aria-label="원본 행 조회 중" aria-busy="true" className="my-2 h-1 w-full" />}
+          {error && (
+            <Notice severity="error">
+              {error.message}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-2"
+                onClick={
+                  error.stale
+                    ? onRefresh
+                    : event => {
+                        // Keep keyboard focus inside the dialog before the retry button is removed.
+                        if (document.activeElement === event.currentTarget) closeButton.current?.focus();
+                        setReload(value => value + 1);
+                      }
+                }
+              >
+                {error.stale ? '대시보드 데이터 새로 조회' : '원본 행 다시 조회'}
+              </Button>
+            </Notice>
+          )}
+          {data && (
+            <>
+              {data.contribution && <p className="mb-2 text-sm [overflow-wrap:anywhere]">{data.contribution.semantics}</p>}
+              {data.columnCount !== undefined && data.columnCount > 50 && (
+                <Notice severity="info">원본 {data.columnCount}개 컬럼 중 처음 50개 컬럼만 표시합니다.</Notice>
+              )}
+              {page >= 10000 && BigInt(page + 1) * BigInt(pageSize) < BigInt(data.totalRows) && (
+                <Notice severity="info">조회 한도에 도달했습니다. 필터로 범위를 좁혀 주세요.</Notice>
+              )}
+              <div
+                role="region"
+                aria-label={contribution ? '집계에 사용된 원본 행 표' : '현재 공통 필터의 원본 행 표'}
+                tabIndex={0}
+                className="max-h-[50dvh] max-w-full overflow-auto rounded border border-border"
+              >
+                <Table className="min-w-full border-collapse">
+                  <TableCaption className="caption-top text-left">
+                    {contribution ? '집계에 사용된 원본 데이터' : '현재 공통 필터의 원본 데이터'} · {page + 1}페이지
+                  </TableCaption>
+                  <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:bg-background">
+                    <TableRow>
                       {contribution && (
-                        <td style={{ minWidth: 128 }}>
-                          {data.contributionComponents[index].map(label => (
-                            <Box
-                              component="span"
-                              key={label}
-                              sx={{
-                                display: 'inline-block',
-                                boxSizing: 'border-box',
-                                maxWidth: '100%',
-                                mr: 0.5,
-                                mb: 0.5,
-                                px: 0.75,
-                                py: 0.25,
-                                border: 1,
-                                borderColor: 'divider',
-                                borderRadius: 1,
-                                fontSize: 12,
-                                whiteSpace: 'normal',
-                                overflowWrap: 'anywhere',
-                              }}
-                            >
-                              {label}
-                            </Box>
-                          ))}
-                        </td>
+                        <TableHead scope="col" className={`${cellClassName} min-w-[128px]`}>
+                          집계 구성요소
+                        </TableHead>
                       )}
                       {data.fields.map(field => (
-                        <td key={field.columnName}>
-                          {cellText(
-                            Object.prototype.hasOwnProperty.call(row, field.columnName) ? row[field.columnName] : undefined,
-                          )}
-                        </td>
+                        <TableHead scope="col" key={field.columnName} className={cellClassName}>
+                          {field.columnName}
+                          <span className="block text-xs">{field.columnType}</span>
+                        </TableHead>
                       ))}
-                    </tr>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.datas.map((row, index) => (
+                      <TableRow key={index}>
+                        {contribution && (
+                          <TableCell className={`${cellClassName} min-w-[128px]`}>
+                            {data.contributionComponents[index].map(label => (
+                              <span
+                                key={label}
+                                className="mr-1 mb-1 box-border inline-block max-w-full rounded border border-border px-1.5 py-0.5 text-xs whitespace-normal [overflow-wrap:anywhere]"
+                              >
+                                {label}
+                              </span>
+                            ))}
+                          </TableCell>
+                        )}
+                        {data.fields.map(field => (
+                          <TableCell key={field.columnName} className={cellClassName}>
+                            {cellText(
+                              Object.prototype.hasOwnProperty.call(row, field.columnName)
+                                ? row[field.columnName]
+                                : undefined,
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {!data.datas.length && <p className="mt-2">현재 조건에 해당하는 원본 행이 없습니다.</p>}
+            </>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="flex max-w-full shrink-0 flex-col gap-1.5">
+              <Label htmlFor="source-details-page-size">페이지당 행 수</Label>
+              <Select
+                value={String(pageSize)}
+                disabled={busy || !!blocked || !!error}
+                onValueChange={value => setPagination({ contextKey, page: 0, pageSize: Number(value) })}
+              >
+                <SelectTrigger id="source-details-page-size" size="sm" className="w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[25, 50, 100].map(size => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}행
+                    </SelectItem>
                   ))}
-                </tbody>
-              </table>
-            </Box>
-            {!data.datas.length && <Typography sx={{ mt: 1 }}>현재 조건에 해당하는 원본 행이 없습니다.</Typography>}
-          </>
-        )}
-        <Stack direction="row" sx={{ mt: 2, gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-          <TextField
-            select
-            label="페이지당 행 수"
-            sx={{ minWidth: 150, maxWidth: '100%', flexShrink: 0 }}
-            size="small"
-            value={pageSize}
-            disabled={busy || !!blocked || !!error}
-            onChange={event => setPagination({ contextKey, page: 0, pageSize: Number(event.target.value) })}
-          >
-            {[25, 50, 100].map(size => (
-              <MenuItem key={size} value={size}>
-                {size}행
-              </MenuItem>
-            ))}
-          </TextField>
-          <Button disabled={busy || !data || page === 0} onClick={() => changePage(page - 1)}>
-            이전 페이지
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="ghost" disabled={busy || !data || page === 0} onClick={() => changePage(page - 1)}>
+              이전 페이지
+            </Button>
+            <Button variant="ghost" disabled={busy || !canNext} onClick={() => changePage(page + 1)}>
+              다음 페이지
+            </Button>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button ref={closeButton} variant="ghost" className="min-h-11" onClick={onClose}>
+            원본 상세 닫기
           </Button>
-          <Button disabled={busy || !canNext} onClick={() => changePage(page + 1)}>
-            다음 페이지
-          </Button>
-        </Stack>
+        </div>
       </DialogContent>
-      <DialogActions>
-        <Button ref={closeButton} onClick={onClose} sx={{ minHeight: 44 }}>
-          원본 상세 닫기
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }

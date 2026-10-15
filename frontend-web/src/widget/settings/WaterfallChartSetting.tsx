@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, LEGEND_LIST } from '@/constant';
@@ -12,8 +12,8 @@ const WaterfallChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           required={true}
           id={axis + 'Field'}
@@ -25,9 +25,9 @@ const WaterfallChartSetting = props => {
           value={option[`${axis}Field`]}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.series')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <SelectForm
           required={true}
           id="field"
@@ -48,7 +48,7 @@ const WaterfallChartSetting = props => {
           onChange={event => handleSeriesChange(event, setOption)}
           disabledDefaultValue
         />
-        <Divider />
+        <Separator />
         <SelectForm
           name="mark"
           label={t('settings.markPoint')}
@@ -56,9 +56,9 @@ const WaterfallChartSetting = props => {
           value={option.mark}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.colorSetting')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.colorSetting')}</span>
         {option.color.map((item, index) => (
           <React.Fragment key={index}>
             <ColorFieldForm
@@ -71,9 +71,9 @@ const WaterfallChartSetting = props => {
             />
           </React.Fragment>
         ))}
-      </ListItem>
-      <ListItem>
-        <ListItemText>{t('settings.legend')}</ListItemText>
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
@@ -82,7 +82,7 @@ const WaterfallChartSetting = props => {
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

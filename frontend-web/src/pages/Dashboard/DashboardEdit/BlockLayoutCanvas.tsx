@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ANALYSIS_UI } from '@/components/analysis/AnalysisUi';
+import { Button } from '@/components/ui/button';
 import GridLayout, { WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -68,10 +68,8 @@ export default function BlockLayoutCanvas({
   };
   return (
     <>
-      <p style={{ fontSize: ANALYSIS_UI.fontSize }}>
-        손잡이로 이동 · 모서리로 크기 조절 · 방향키 이동 / Shift+방향키 크기 조절
-      </p>
-      <p aria-live="polite" style={{ fontSize: ANALYSIS_UI.fontSize }}>
+      <p className="text-xs">손잡이로 이동 · 모서리로 크기 조절 · 방향키 이동 / Shift+방향키 크기 조절</p>
+      <p aria-live="polite" className="text-xs">
         {error}
       </p>
       <Grid
@@ -90,29 +88,14 @@ export default function BlockLayoutCanvas({
         onResizeStop={commit}
       >
         {items.map((item, index) => (
-          <div
-            key={item.key}
-            style={{ overflow: 'hidden', border: `1px solid ${ANALYSIS_UI.border}`, borderRadius: ANALYSIS_UI.radius }}
-          >
-            <button
+          <div key={item.key} className="overflow-hidden rounded border border-border">
+            <Button
               type="button"
-              className="block-drag-handle"
+              variant="ghost"
+              size="sm"
+              className="block-drag-handle h-7 w-full cursor-grab touch-none justify-start overflow-hidden rounded-none bg-muted/40 px-2 text-left text-xs disabled:cursor-default"
               disabled={disabled}
               aria-label={`${item.title} 배치 이동`}
-              style={{
-                cursor: disabled ? 'default' : 'grab',
-                touchAction: 'none',
-                height: ANALYSIS_UI.controlHeight,
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
-                width: '100%',
-                fontSize: ANALYSIS_UI.fontSize,
-                background: ANALYSIS_UI.surface,
-                border: 0,
-                textAlign: 'left',
-                padding: '4px 8px',
-              }}
               onKeyDown={event => {
                 const offset = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
                 if (!offset || disabled) return;
@@ -129,8 +112,8 @@ export default function BlockLayoutCanvas({
               }}
             >
               ⠿ {item.title} · 이동
-            </button>
-            <div style={{ height: `calc(100% - ${ANALYSIS_UI.controlHeight}px)`, overflow: 'auto' }}>{children[index]}</div>
+            </Button>
+            <div className="h-[calc(100%-1.75rem)] overflow-auto">{children[index]}</div>
           </div>
         ))}
       </Grid>

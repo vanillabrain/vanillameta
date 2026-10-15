@@ -4,12 +4,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import PersonalSavedViews, { DateRange, resolveRelativePeriod, SavedViewState, validTimeZone } from './PersonalSavedViews';
 import DashboardAnalysis from './DashboardAnalysis';
+import { installRadixBrowserAPIs, selectRadixOption } from './dashboardTestUtils';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), del: vi.fn(), apply: vi.fn() }));
-vi.mock('@mui/material/styles', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material/styles');
-});
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post, del: api.del }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('./DashboardAssistant', () => ({
@@ -35,98 +32,7 @@ vi.mock('@/widget/wrapper/WidgetViewer', () => ({
     </div>
   ),
 }));
-// The existing Vitest environment cannot import Emotion's MUI styled engine.
-// Keep native semantic controls and the Select primitive/array event contract.
-vi.mock('@mui/material', () => {
-  const Container = React.forwardRef<HTMLElement, any>(
-    ({ children, component: Tag = 'div', role, id, onSubmit, 'aria-label': label, 'aria-live': live }, ref) => (
-      <Tag ref={ref} role={role} id={id} onSubmit={onSubmit} aria-label={label} aria-live={live}>
-        {children}
-      </Tag>
-    ),
-  );
-  return {
-    Box: Container,
-    Stack: Container,
-    Card: ({ children, sx }: any) => (
-      <div data-testid="analysis-card" data-height={sx?.height}>
-        {children}
-      </div>
-    ),
-    Typography: Container,
-    FormControl: Container,
-    InputLabel: Container,
-    DialogContent: Container,
-    DialogActions: Container,
-    DialogTitle: ({ children, id }: any) => <h2 id={id}>{children}</h2>,
-    Dialog: ({ open, children, onClose, TransitionProps, ...props }: any) => {
-      const wasOpen = React.useRef(false);
-      React.useEffect(() => {
-        if (wasOpen.current && !open) TransitionProps?.onExited();
-        wasOpen.current = open;
-      }, [open]);
-      return open ? (
-        <div
-          role="dialog"
-          aria-labelledby={props['aria-labelledby']}
-          aria-describedby={props['aria-describedby']}
-          onKeyDown={event => {
-            if (event.key === 'Escape') onClose();
-          }}
-        >
-          {children}
-        </div>
-      ) : null;
-    },
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    LinearProgress: () => <div role="progressbar" />,
-    Checkbox: ({ checked }: any) => <input type="checkbox" checked={checked} readOnly />,
-    Button: React.forwardRef<HTMLButtonElement, any>(
-      ({ children, disabled, onClick, autoFocus, type = 'button', ...props }, ref) => (
-        <button
-          ref={ref}
-          type={type}
-          disabled={disabled}
-          onClick={onClick}
-          autoFocus={autoFocus}
-          aria-label={props['aria-label']}
-        >
-          {children}
-        </button>
-      ),
-    ),
-    TextField: ({ label, value, onChange, disabled, type, select, children, inputProps }: any) => (
-      <label>
-        {label}
-        {select ? (
-          <select value={value} onChange={onChange} disabled={disabled}>
-            {children}
-          </select>
-        ) : (
-          <input type={type} value={value} onChange={onChange} disabled={disabled} maxLength={inputProps?.maxLength} />
-        )}
-      </label>
-    ),
-    MenuItem: ({ value, children }: any) => <option value={value}>{children}</option>,
-    Select: ({ label, multiple, value, onChange, children, disabled }: any) => (
-      <select
-        aria-label={label}
-        multiple={multiple}
-        value={value}
-        disabled={disabled}
-        onChange={event =>
-          onChange({
-            target: {
-              value: multiple ? Array.from(event.target.selectedOptions).map(option => option.value) : event.target.value,
-            },
-          })
-        }
-      >
-        {children}
-      </select>
-    ),
-  };
-});
+installRadixBrowserAPIs();
 
 const revision = 'opaque-dashboard-revision';
 const success = (data?: unknown) => ({ data: { status: 'SUCCESS', data } });
@@ -339,22 +245,25 @@ it('requires the delete dialog, restores trigger focus on Escape, and uses a fal
   expect(api.del).not.toHaveBeenCalled();
   fireEvent.keyDown(dialog, { key: 'Escape' });
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(document.activeElement).toBe(remove);
+  // Radix FocusScope는 닫힘 뒤 다음 tick에 런처로 포커스를 되돌린다.
+  await waitFor(() => expect(document.activeElement).toBe(remove));
   fireEvent.click(remove);
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '삭제 확인' }));
   await screen.findByText('개인 저장 보기를 삭제했습니다.');
   expect(api.del).toHaveBeenCalledWith('/dashboard/3/views/1', { signal: expect.any(AbortSignal) });
   expect(screen.queryByRole('button', { name: '보기 1 보기 불러오기' })).toBeNull();
-  expect(document.activeElement).toBe(button('저장 보기 목록 다시 불러오기'));
+  await waitFor(() => expect(document.activeElement).toBe(button('저장 보기 목록 다시 불러오기')));
 });
 
 it('keeps a failed delete dialog for retry without removing the view', async () => {
   await mount();
-  fireEvent.click(button('보기 1 보기 삭제'));
+  // 모달이 열린 동안에는 배경이 aria-hidden이므로 런처는 미리 참조해 둔다.
+  const remove = button('보기 1 보기 삭제');
+  fireEvent.click(remove);
   api.del.mockRejectedValueOnce({ response: { data: { message: '삭제 실패' } } });
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '삭제 확인' }));
   await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe('삭제 실패'));
-  expect(disabled('보기 1 보기 삭제')).toBe(false);
+  expect((remove as HTMLButtonElement).disabled).toBe(false);
   expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name: '삭제 확인' }));
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '삭제 확인' }));
   await screen.findByText('개인 저장 보기를 삭제했습니다.');
@@ -386,6 +295,12 @@ const preview = {
 };
 const previewCalls = () => api.post.mock.calls.filter(([url]) => url === '/ai/dashboard-preview');
 const choose = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+// 실제 구현의 집계 단위·최근 기간 컨트롤은 Radix Select이므로 트리거를 열고 옵션을 골라야 한다.
+const grainLabels = { auto: '자동', day: '일별', week: '주별', month: '월별' } as const;
+const chooseGrain = (grain: keyof typeof grainLabels) =>
+  selectRadixOption(screen.getByRole('combobox', { name: '시계열 집계 단위' }), grainLabels[grain]);
+const chooseRecentDays = (days: number) =>
+  selectRadixOption(screen.getByRole('combobox', { name: /^최근 기간/ }), `최근 ${days}일`);
 async function analysis() {
   api.get.mockImplementation(async (url: string) =>
     url.startsWith('/ai/dashboard-analysis') ? success(draft) : url.endsWith('/views') ? success([row()]) : success(row()),
@@ -410,7 +325,7 @@ it.each([7, 30, 90] as const)(
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2024-03-01T00:30:00Z'));
     await analysis();
-    choose('최근 기간 (UTC)', String(days));
+    await chooseRecentDays(days);
     fireEvent.click(button('최근 기간 적용'));
     await idle();
     const range = resolveRelativePeriod({ column: 'created_at', days });
@@ -564,7 +479,7 @@ it.each(['day', 'week', 'month'] as const)(
     expect(previewCalls().at(-1)[1]).toMatchObject({ trendGrain: 'auto', comparePrevious: false });
     expect(comparisonToggle().disabled).toBe(true);
     await applyComparisonDates();
-    choose('시계열 집계 단위', grain);
+    await chooseGrain(grain);
     await idle();
     fireEvent.click(comparisonToggle());
     await idle();
@@ -583,7 +498,7 @@ it.each(['day', 'week', 'month'] as const)(
 it.each(['clear', 'reset'] as const)('period comparison %s disables comparison and resets grain to auto', async action => {
   await analysis();
   await applyComparisonDates();
-  choose('시계열 집계 단위', 'week');
+  await chooseGrain('week');
   await idle();
   fireEvent.click(comparisonToggle());
   await idle();
@@ -599,7 +514,7 @@ it.each(['clear', 'reset'] as const)('period comparison %s disables comparison a
   const body = previewCalls().at(-1)[1];
   expect(body).toMatchObject({ trendGrain: 'auto', comparePrevious: false });
   expect(body).not.toHaveProperty('dateRange');
-  expect(comparisonToggle().checked).toBe(false);
+  expect(comparisonToggle().getAttribute('aria-checked')).toBe('false');
   expect(comparisonToggle().disabled).toBe(true);
 });
 
@@ -623,7 +538,7 @@ it.each([
 ])('period comparison atomically loads %s view settings and server resolved dates', async (_name, extra) => {
   await analysis();
   await applyComparisonDates();
-  choose('시계열 집계 단위', 'month');
+  await chooseGrain('month');
   await idle();
   fireEvent.click(comparisonToggle());
   await idle();
@@ -647,8 +562,10 @@ it.each([
     comparePrevious: extra.comparePrevious ?? false,
   });
   expect(localStorage.getItem('dashboard-number-notation:3')).toBe('compact');
-  expect((screen.getByLabelText('시계열 집계 단위') as HTMLSelectElement).value).toBe(extra.trendGrain ?? 'auto');
-  expect(comparisonToggle().checked).toBe(extra.comparePrevious ?? false);
+  expect(screen.getByRole('combobox', { name: '시계열 집계 단위' }).textContent).toBe(
+    grainLabels[(extra.trendGrain ?? 'auto') as keyof typeof grainLabels],
+  );
+  expect(comparisonToggle().getAttribute('aria-checked')).toBe(String(extra.comparePrevious ?? false));
 });
 
 it.each([{ trendGrain: 'year' }, { comparePrevious: 'true' }, { comparePrevious: true }])(
@@ -688,7 +605,11 @@ it('period comparison renders authoritative dates, KPI comparison and actual pre
   await idle();
   expect(screen.getByText('이전 기간: created_at · 2026-01-09 ~ 2026-01-10 (UTC)')).toBeTruthy();
   expect(screen.getByTestId('metric-comparison').textContent).toBe(JSON.stringify(comparison));
-  expect(screen.getAllByTestId('analysis-card').every(card => card.dataset.height === 'auto')).toBe(true);
+  const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="card"]'));
+  expect(cards).toHaveLength(2);
+  // 기간 비교로 늘어난 내용이 잘리지 않도록 카드는 고정 height 없이 minHeight만 사용한다.
+  expect(cards.every(card => card.style.height === '')).toBe(true);
+  expect(cards.every(card => card.style.minHeight !== '')).toBe(true);
   expect(screen.getByText(/적용된 집계 단위: 주별/)).toBeTruthy();
   const table = screen.getByRole('table', { hidden: true });
   expect(within(table).getAllByRole('row', { hidden: true })).toHaveLength(2);
@@ -714,7 +635,7 @@ it('period comparison shows unsupported grain and previous limit messages while 
       ],
     }),
   );
-  choose('시계열 집계 단위', 'week');
+  await chooseGrain('week');
   await idle();
   expect(screen.getByText(/선택한 집계 단위를 적용하지 못했습니다/).textContent).toContain('지원하지 않는 SQL입니다.');
   expect(screen.getByText(/이전 기간 결과를 표시할 수 없습니다/).textContent).toContain('이전 기간 행 수 제한입니다.');
@@ -734,16 +655,17 @@ it.each(['grain', 'comparison'] as const)(
       | HTMLSelectElement
       | HTMLInputElement;
     control.focus();
-    if (kind === 'grain') choose('시계열 집계 단위', 'day');
+    if (kind === 'grain') await chooseGrain('day');
     else fireEvent.click(control);
     await screen.findByRole('progressbar');
     expect(control.disabled).toBe(false);
-    expect(document.activeElement).toBe(control);
+    // Radix Select는 닫힘 뒤 트리거로 포커스를 되돌리며 그 시점은 다음 tick이다.
+    await waitFor(() => expect(document.activeElement).toBe(control));
     expect(disabled('현재 보기 저장')).toBe(true);
-    if (kind === 'grain') choose('시계열 집계 단위', 'week');
+    if (kind === 'grain') await chooseGrain('week');
     else fireEvent.click(control);
     expect(control.disabled).toBe(false);
-    expect(document.activeElement).toBe(control);
+    await waitFor(() => expect(document.activeElement).toBe(control));
     expect(previewCalls().at(-1)[1]).toMatchObject({
       dateRange: appliedRange,
       trendGrain: kind === 'grain' ? 'week' : 'auto',

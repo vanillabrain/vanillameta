@@ -13,7 +13,7 @@ const Data = () => {
   const { t } = useTranslation();
   const title = t('common.data');
   return (
-    <PageTitleBox title={title} sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}>
+    <PageTitleBox title={title} className="h-full w-full p-0">
       <Seo title={title} />
       <DataLayout />
     </PageTitleBox>

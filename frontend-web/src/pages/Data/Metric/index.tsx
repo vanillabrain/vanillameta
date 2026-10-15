@@ -1,34 +1,35 @@
 import React, { useId, useState } from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import DeleteIcon from '@mui/icons-material/Delete';
+
 import PageTitleBox from '@/components/PageTitleBox';
 import DataGrid from '@/components/datagrid';
 import Seo from '@/seo/Seo';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@/components/ui/dialog';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TextField } from '@/components/ui/text-field';
+import DeleteButton from '@/components/button/DeleteButton';
 import MetricService, { MetricDefinition } from '@/api/metricService';
 import DatabaseService from '@/api/databaseService';
 import { createColumns } from '@/utils/util';
 import { SnackbarContext } from '@/contexts/AlertContext';
 
-const AGGREGATIONS = ['SUM', 'AVG', 'COUNT', 'MIN', 'MAX', 'COUNT_DISTINCT'];
+type Aggregation = MetricDefinition['aggregation'];
+
+/** 지표 폼에서 문자열로만 입력되는 필드. */
+type TextFieldKey = 'name' | 'description' | 'tableName' | 'expression' | 'groupBy';
+
+const AGGREGATIONS: Aggregation[] = ['SUM', 'AVG', 'COUNT', 'MIN', 'MAX', 'COUNT_DISTINCT'];
+
+/** Radix select는 문자열을 돌려주므로 알려진 집계 함수만 통과시켜 유니온을 좁힌다. */
+const isAggregation = (value: string): value is Aggregation => (AGGREGATIONS as readonly string[]).includes(value);
+
+/** Radix select items only carry string values; keep the unset choice addressable. */
+const SELECT_UNSET = '__none__';
 
 const EMPTY_FORM: MetricDefinition = {
   name: '',
@@ -111,68 +112,60 @@ const Metric = () => {
     }
   };
 
-  const set = (key: keyof MetricDefinition) => (e: any) => setForm(prev => ({ ...prev, [key]: e.target.value }));
+  const set = (key: TextFieldKey) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setForm(prev => ({ ...prev, [key]: e.target.value }));
 
   return (
     <PageTitleBox
       upperTitle={t('nav.data')}
       upperTitleLink="/data"
       title={t('metric.title')}
-      button={
-        <Button variant="contained" onClick={() => setDialogOpen(true)}>
-          {t('metric.add')}
-        </Button>
-      }
-      sx={{ p: 0, width: '100%', height: '100%' }}
+      button={<Button onClick={() => setDialogOpen(true)}>{t('metric.add')}</Button>}
+      className="h-full w-full p-0"
     >
       <Seo title={t('metric.title')} />
-      <Stack spacing="16px" sx={{ p: '30px 25px 40px 25px' }}>
-        <Typography sx={{ fontSize: '13px', color: '#767676' }}>{t('metric.description')}</Typography>
+      <div className="flex flex-col gap-4 px-6.25 pt-7.5 pb-10">
+        <span className="text-[13px] text-[#767676]">{t('metric.description')}</span>
 
-        {metrics.length === 0 && <Typography sx={{ fontSize: '14px', color: '#555' }}>{t('metric.empty')}</Typography>}
+        {metrics.length === 0 && <span className="text-sm text-[#555]">{t('metric.empty')}</span>}
 
         {metrics.map((m: any) => (
-          <Card key={m.id} sx={{ p: '16px 20px', border: 'solid 1px #e2e2e2', boxShadow: 'none', borderRadius: '8px' }}>
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={2}
-              justifyContent="space-between"
-              alignItems={{ xs: 'stretch', sm: 'center' }}
-            >
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ fontSize: '15px', fontWeight: 600, overflowWrap: 'anywhere' }}>{m.name}</Typography>
-                <Typography sx={{ fontSize: '12px', color: 'text.secondary', mt: '4px', overflowWrap: 'anywhere' }}>
+          <Card key={m.id} className="rounded-lg border border-[#e2e2e2] py-4 px-5 shadow-none ring-0">
+            <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-semibold [overflow-wrap:anywhere]">{m.name}</p>
+                <p className="mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]">
                   {m.aggregation}({m.expression}) FROM {m.tableName}
                   {m.groupBy ? ` GROUP BY ${m.groupBy}` : ''}
                   {m.description ? ` — ${m.description}` : ''}
-                </Typography>
-              </Box>
-              <Stack direction="row" spacing="8px" alignItems="center" sx={{ flexShrink: 0 }}>
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-row items-center gap-2">
                 <Button
                   aria-label={t('metric.evaluateNamed', { name: m.name })}
-                  size="small"
-                  variant="outlined"
+                  size="sm"
+                  variant="outline"
                   onClick={() => handleEvaluate(m)}
                 >
                   {t('metric.evaluate')}
                 </Button>
-                <IconButton
+                <DeleteButton
                   aria-label={t('data.deleteItem', { name: m.name })}
                   size="small"
+                  width="20"
+                  height="20"
                   onClick={() => deleteMutation.mutate(m.id)}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Stack>
-            </Stack>
+                />
+              </div>
+            </div>
           </Card>
         ))}
 
         {evalResult && (
-          <Box role="region" aria-label={t('metric.evalResult', { name: evalResult.name })} tabIndex={0}>
-            <Typography role="status" sx={{ fontSize: '14px', fontWeight: 600, mb: '8px' }}>
+          <div role="region" aria-label={t('metric.evalResult', { name: evalResult.name })} tabIndex={0}>
+            <p role="status" className="mb-2 text-sm font-semibold">
               {t('metric.evalResult', { name: evalResult.name })}
-            </Typography>
+            </p>
             {evalResult.rows.length > 0 ? (
               <DataGrid
                 minBodyHeight={150}
@@ -182,86 +175,89 @@ const Metric = () => {
                 columnOptions={{ resizable: true }}
               />
             ) : (
-              <Typography sx={{ fontSize: '13px', color: '#767676' }}>{t('metric.noResult')}</Typography>
+              <span className="text-[13px] text-[#767676]">{t('metric.noResult')}</span>
             )}
-          </Box>
+          </div>
         )}
-      </Stack>
+      </div>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('metric.add')}</DialogTitle>
-        <DialogContent>
-          <Stack spacing="16px" sx={{ mt: '8px' }}>
-            <TextField
-              autoFocus
-              size="small"
-              label={t('metric.form.name')}
-              value={form.name}
-              onChange={set('name')}
-              required
-            />
-            <TextField
-              size="small"
-              label={t('metric.form.description')}
-              value={form.description}
-              onChange={set('description')}
-            />
-            <FormControl size="small" required>
-              <InputLabel id={databaseLabelId}>{t('metric.form.database')}</InputLabel>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={next => {
+          if (!next) setDialogOpen(false);
+        }}
+      >
+        <DialogContent showCloseButton={false} className="sm:max-w-[600px]">
+          <DialogTitle>{t('metric.add')}</DialogTitle>
+          <div className="mt-2 flex flex-col gap-4">
+            <TextField autoFocus label={t('metric.form.name')} value={form.name} onChange={set('name')} required />
+            <TextField label={t('metric.form.description')} value={form.description} onChange={set('description')} />
+            <Field className="min-w-0">
+              <FieldLabel id={databaseLabelId}>
+                {t('metric.form.database')}
+                <span aria-hidden="true"> *</span>
+              </FieldLabel>
               <Select
-                labelId={databaseLabelId}
-                value={form.databaseId || ''}
-                label={t('metric.form.database')}
-                onChange={e => setForm(prev => ({ ...prev, databaseId: Number(e.target.value) }))}
+                value={form.databaseId ? String(form.databaseId) : SELECT_UNSET}
+                onValueChange={next => setForm(prev => ({ ...prev, databaseId: Number(next) }))}
               >
-                {databases.map((db: any) => (
-                  <MenuItem key={db.id} value={db.id}>
-                    {db.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField
-              size="small"
-              label={t('metric.form.table')}
-              value={form.tableName}
-              onChange={set('tableName')}
-              required
-            />
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing="16px">
-              <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 180 } }} required>
-                <InputLabel id={aggregationLabelId}>{t('metric.form.aggregation')}</InputLabel>
-                <Select
-                  labelId={aggregationLabelId}
-                  value={form.aggregation}
-                  label={t('metric.form.aggregation')}
-                  onChange={set('aggregation')}
-                >
-                  {AGGREGATIONS.map(a => (
-                    <MenuItem key={a} value={a}>
-                      {a}
-                    </MenuItem>
+                <SelectTrigger aria-labelledby={databaseLabelId} className="w-full bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  {databases.map((db: any) => (
+                    <SelectItem key={String(db.id)} value={String(db.id)}>
+                      {db.name}
+                    </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <TextField label={t('metric.form.table')} value={form.tableName} onChange={set('tableName')} required />
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <Field className="min-w-0 sm:w-[180px] sm:flex-none">
+                <FieldLabel id={aggregationLabelId}>
+                  {t('metric.form.aggregation')}
+                  <span aria-hidden="true"> *</span>
+                </FieldLabel>
+                <Select
+                  value={form.aggregation}
+                  onValueChange={next => {
+                    if (!isAggregation(next)) return;
+                    setForm(prev => ({ ...prev, aggregation: next }));
+                  }}
+                >
+                  <SelectTrigger aria-labelledby={aggregationLabelId} className="w-full bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    {AGGREGATIONS.map(a => (
+                      <SelectItem key={a} value={a}>
+                        {a}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
-              </FormControl>
+              </Field>
               <TextField
-                size="small"
+                className="min-w-0 flex-1"
                 label={t('metric.form.expression')}
                 value={form.expression}
                 onChange={set('expression')}
                 required
-                sx={{ flex: 1 }}
               />
-            </Stack>
-            <TextField size="small" label={t('metric.form.groupBy')} value={form.groupBy} onChange={set('groupBy')} />
-          </Stack>
+            </div>
+            <TextField label={t('metric.form.groupBy')} value={form.groupBy} onChange={set('groupBy')} />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setDialogOpen(false)}>
+              {t('metric.form.cancel')}
+            </Button>
+            <Button onClick={handleCreate} disabled={createMutation.isPending}>
+              {t('metric.form.create')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>{t('metric.form.cancel')}</Button>
-          <Button variant="contained" onClick={handleCreate} disabled={createMutation.isPending}>
-            {t('metric.form.create')}
-          </Button>
-        </DialogActions>
       </Dialog>
     </PageTitleBox>
   );

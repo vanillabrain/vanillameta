@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
@@ -252,7 +254,7 @@ const LineChart = (
   );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
+    <div className="flex h-full min-w-0 flex-col">
       <ReactECharts
         ref={chartRef}
         option={componentOption}
@@ -262,37 +264,36 @@ const LineChart = (
         onEvents={onCategorySelect || onTimeSelect ? chartEvents : undefined}
       />
       {onTimeSelect && (
-        <Box sx={{ px: 1, fontSize: 12, color: 'text.secondary' }}>
-          시점을 눌러 기간 필터링 · 키보드는 데이터 표에서 선택
-        </Box>
+        <div className="px-2 text-xs text-muted-foreground">시점을 눌러 기간 필터링 · 키보드는 데이터 표에서 선택</div>
       )}
       <Button
-        size="small"
+        size="sm"
+        variant="ghost"
         onClick={() => setShowTable(value => !value)}
         aria-expanded={showTable}
-        sx={{ alignSelf: 'flex-end', flexShrink: 0, fontSize: 12 }}
+        className="shrink-0 self-end text-xs"
       >
         {showTable ? t('chart.hideDataTable') : t('chart.showDataTable')}
       </Button>
       {showTable && (
-        <Box
+        <div
           role="region"
           aria-label={t('chart.showDataTable')}
           tabIndex={0}
-          sx={{ overflow: 'auto', maxHeight: 'min(180px, 40%)', flexShrink: 0 }}
+          className="max-h-[min(180px,40%)] shrink-0 overflow-auto"
         >
-          <Table size="small" aria-label={t('chart.showDataTable')}>
-            <TableHead>
+          <Table aria-label={t('chart.showDataTable')}>
+            <TableHeader>
               <TableRow>
-                <TableCell>{option[axis + 'Field']}</TableCell>
+                <TableHead>{option[axis + 'Field']}</TableHead>
                 {componentOption.series?.map((series, index) => (
-                  <TableCell key={index} align="right">
+                  <TableHead key={index} className="text-right">
                     {series.name}
-                  </TableCell>
+                  </TableHead>
                 ))}
-                {onContributionSelect && <TableCell>집계 원본 행</TableCell>}
+                {onContributionSelect && <TableHead>집계 원본 행</TableHead>}
               </TableRow>
-            </TableHead>
+            </TableHeader>
             <TableBody>
               {componentOption[axis + 'Axis']?.data?.map((name, index) => (
                 <TableRow
@@ -300,25 +301,19 @@ const LineChart = (
                     onCategorySelect || onTimeSelect || onContributionSelect ? JSON.stringify([typeof name, name]) : index
                   }
                 >
-                  <TableCell component="th" scope="row">
+                  <TableHead scope="row" className="font-normal">
                     {onTimeSelect ? (
                       (() => {
                         const range = categoryTimeRange(dataSet, option[axis + 'Field'], name, timeSelection);
                         return range ? (
                           <Button
                             type="button"
-                            size="small"
+                            size="sm"
+                            variant="ghost"
                             aria-label={`기간 선택: ${timeRangeLabel(range)}`}
                             aria-pressed={sameTimeRange(selectedTimeRange, range)}
                             aria-disabled={timeSelectionDisabled || undefined}
-                            sx={{
-                              minWidth: 44,
-                              minHeight: 44,
-                              textTransform: 'none',
-                              textAlign: 'left',
-                              whiteSpace: 'normal',
-                              overflowWrap: 'anywhere',
-                            }}
+                            className="h-auto min-h-11 min-w-11 justify-start text-left whitespace-normal [overflow-wrap:anywhere]"
                             onClick={() => {
                               if (!timeSelectionDisabled) onTimeSelect(range);
                             }}
@@ -332,8 +327,8 @@ const LineChart = (
                     ) : onCategorySelect ? (
                       <Button
                         type="button"
-                        size="small"
-                        variant="text"
+                        size="sm"
+                        variant="ghost"
                         aria-label={`필터: ${name === null ? '값 없음 (NULL)' : String(name)}`}
                         aria-pressed={selectedCategoryValues.some(value => value === name)}
                         aria-disabled={categorySelectionDisabled || undefined}
@@ -341,16 +336,10 @@ const LineChart = (
                         title={
                           typeof name === 'string' && name.length > 2000 ? '필터 값은 2,000자 이하만 지원합니다.' : undefined
                         }
-                        sx={{
-                          textTransform: 'none',
-                          minWidth: 0,
-                          maxWidth: { xs: 180, sm: 260 },
-                          whiteSpace: 'normal',
-                          overflowWrap: 'anywhere',
-                          textAlign: 'left',
-                          justifyContent: 'flex-start',
-                          bgcolor: selectedCategoryValues.some(value => value === name) ? 'action.selected' : undefined,
-                        }}
+                        className={cn(
+                          'h-auto max-w-[180px] min-w-0 justify-start text-left whitespace-normal [overflow-wrap:anywhere] sm:max-w-[260px]',
+                          selectedCategoryValues.some(value => value === name) && 'bg-muted text-foreground',
+                        )}
                         onClick={() => {
                           if (!categorySelectionDisabled && isCategoryValue(name)) onCategorySelect(name);
                         }}
@@ -360,9 +349,9 @@ const LineChart = (
                     ) : (
                       String(name)
                     )}
-                  </TableCell>
+                  </TableHead>
                   {componentOption.series.map((series, seriesIndex) => (
-                    <TableCell key={seriesIndex} align="right">
+                    <TableCell key={seriesIndex} className="text-right">
                       {typeof series.data[index] === 'number'
                         ? series.data[index].toLocaleString('en-US', { maximumFractionDigits: 6 })
                         : String(series.data[index] ?? '—')}
@@ -373,10 +362,11 @@ const LineChart = (
                       {canContribute(name) && (
                         <Button
                           type="button"
-                          size="small"
+                          size="sm"
+                          variant="ghost"
                           aria-label={`이 항목의 집계 원본 행 보기: ${contributionLabel(name)}`}
                           aria-disabled={contributionDisabled || undefined}
-                          sx={{ minWidth: 44, minHeight: 44, whiteSpace: 'normal', textTransform: 'none' }}
+                          className="h-auto min-h-11 min-w-11 whitespace-normal"
                           onClick={() => {
                             if (!contributionDisabled && canContribute(name)) onContributionSelect(name);
                           }}
@@ -390,9 +380,9 @@ const LineChart = (
               ))}
             </TableBody>
           </Table>
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 };
 

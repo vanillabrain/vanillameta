@@ -1,7 +1,10 @@
 import React, { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Button, ButtonBase, FormControl, IconButton, Popover, Stack, Typography } from '@mui/material';
-import { SketchPicker } from 'react-color';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Notice } from '@/components/ui/notice';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import PaintButton from '@/components/button/PaintButton';
 
 const PRESET_COLORS = [
@@ -22,128 +25,190 @@ const PRESET_COLORS = [
   '#FFFFFF',
 ];
 
+export const stripColorHash = value => String(value ?? '').replace(/^#/, '');
+const isValidHexText = value => /^#?(?:[a-f\d]{3}|[a-f\d]{6})$/i.test(String(value ?? ''));
+const toHexColor = value => '#' + stripColorHash(value);
+
+/** Native color inputs only accept 6-digit values, so three digit colors expand first. */
+const toNativeColorValue = value => {
+  const raw = stripColorHash(value).toLowerCase();
+  if (/^[a-f\d]{3}$/.test(raw)) {
+    return (
+      '#' +
+      raw
+        .split('')
+        .map(character => character + character)
+        .join('')
+    );
+  }
+  if (/^[a-f\d]{6}$/.test(raw)) {
+    return '#' + raw;
+  }
+  return '#000000';
+};
+
+const CHANNEL_KEYS = ['r', 'g', 'b'] as const;
+
+const channelsOf = value => {
+  const hex = toNativeColorValue(value);
+  return {
+    r: String(parseInt(hex.slice(1, 3), 16)),
+    g: String(parseInt(hex.slice(3, 5), 16)),
+    b: String(parseInt(hex.slice(5, 7), 16)),
+  };
+};
+
+const isValidChannel = value => /^\d{1,3}$/.test(String(value)) && Number(value) <= 255;
+
+const channelsToHex = channels =>
+  '#' + CHANNEL_KEYS.map(channel => Number(channels[channel]).toString(16).padStart(2, '0')).join('');
+
 const ColorPickerForm = props => {
   const { t } = useTranslation();
-  const { name, color, onChange, label = t('common.colorPicker') } = props;
+  const { name, color, onChange, label = t('common.colorPicker'), className } = props;
   const popoverId = useId();
 
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [open, setOpen] = useState(false);
   const [draftColor, setDraftColor] = useState(color);
-  const [validInput, setValidInput] = useState(true);
-  const [pickerRevision, setPickerRevision] = useState(0);
+  const [hexText, setHexText] = useState(stripColorHash(color));
+  const [channels, setChannels] = useState(() => channelsOf(color));
+  const [hexValid, setHexValid] = useState(true);
+  const [channelsValid, setChannelsValid] = useState(true);
+  const validInput = hexValid && channelsValid;
 
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setDraftColor(color);
-    setValidInput(true);
-    setAnchorEl(event.currentTarget);
+  const syncColor = next => {
+    setDraftColor(next);
+    setHexText(stripColorHash(next));
+    setChannels(channelsOf(next));
+    setHexValid(true);
+    setChannelsValid(true);
   };
 
-  const handleClose = () => {
-    setAnchorEl(null);
+  const handleOpenChange = next => {
+    if (next) {
+      syncColor(color);
+    }
+    setOpen(next);
+  };
+
+  const handleHexChange = event => {
+    const raw = event.target.value;
+    setHexText(raw);
+    const valid = isValidHexText(raw);
+    setHexValid(valid);
+    if (valid) {
+      const next = toHexColor(raw);
+      setDraftColor(next);
+      setChannels(channelsOf(next));
+    }
+  };
+
+  const handleChannelChange = (channel, event) => {
+    const raw = event.target.value;
+    const next = { ...channels, [channel]: raw };
+    setChannels(next);
+    const valid = CHANNEL_KEYS.every(key => isValidChannel(next[key]));
+    setChannelsValid(valid);
+    if (valid) {
+      const nextHex = channelsToHex(next);
+      setDraftColor(nextHex);
+      setHexText(stripColorHash(nextHex));
+    }
   };
 
   const handleApply = () => {
-    if (!validInput) return;
-    setAnchorEl(null);
-    const event = { target: { name: name, value: draftColor } };
-    onChange(event);
+    if (!validInput) {
+      return;
+    }
+    setOpen(false);
+    onChange({ target: { name: name, value: draftColor } });
   };
 
-  const open = Boolean(anchorEl);
-
   return (
-    <FormControl sx={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-      <IconButton
-        aria-label={label}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls={open ? popoverId : undefined}
-        onClick={handleClick}
-      >
-        <PaintButton color={color} />
-      </IconButton>
-      <Popover
-        id={popoverId}
-        open={open}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        PaperProps={{
-          role: 'dialog',
-          'aria-label': t('common.colorPicker'),
-          'aria-modal': true,
-          'aria-describedby': `${popoverId}-help`,
-        }}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-      >
-        <Box sx={{ p: 1.5, width: 248, maxWidth: 'calc(100vw - 32px)', boxSizing: 'border-box' }}>
-          <Typography id={`${popoverId}-help`} variant="caption" display="block" mb={1}>
+    <div className={cn('flex flex-col items-end justify-center', className)}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            aria-label={label}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-controls={open ? popoverId : undefined}
+            className="h-auto w-auto p-1"
+          >
+            <PaintButton color={color} />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          id={popoverId}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('common.colorPicker')}
+          aria-describedby={popoverId + '-help'}
+          className="w-[248px] max-w-[calc(100vw-32px)] gap-2 p-3"
+        >
+          <p id={popoverId + '-help'} className="text-xs text-muted-foreground">
             {t('common.colorPickerHelp')}
-          </Typography>
-          <Box
-            onChangeCapture={event => {
-              // react-color retains raw text while reporting only valid color changes.
-              const inputs = event.currentTarget.querySelectorAll('input');
-              setValidInput(
-                Array.from(inputs).every(input =>
-                  input.labels?.[0]?.textContent?.toLowerCase() === 'hex'
-                    ? /^#?(?:[a-f\d]{3}|[a-f\d]{6})$/i.test(input.value)
-                    : /^\d{1,3}$/.test(input.value) && Number(input.value) <= 255,
-                ),
-              );
-            }}
-          >
-            <SketchPicker
-              key={pickerRevision}
-              color={draftColor}
-              onChange={selection => setDraftColor(selection.hex)}
-              disableAlpha
-              presetColors={[]}
-              width="100%"
-              styles={{ default: { picker: { boxShadow: 'none', padding: 0 } } }}
+          </p>
+          <div className="flex items-center gap-2">
+            <Input
+              type="color"
+              aria-label={t('common.colorPicker')}
+              value={toNativeColorValue(draftColor)}
+              onChange={event => syncColor(event.target.value)}
+              className="h-8 w-10 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-0.5"
             />
-          </Box>
-          <Box
-            role="group"
-            aria-label={t('common.presetColors')}
-            sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0.75, mt: 1 }}
-          >
-            {PRESET_COLORS.map(preset => (
-              <ButtonBase
-                key={preset}
-                aria-label={preset}
-                aria-pressed={String(draftColor).toLowerCase() === preset.toLowerCase()}
-                onClick={() => {
-                  setDraftColor(preset);
-                  setValidInput(true);
-                  setPickerRevision(value => value + 1);
-                }}
-                sx={{
-                  height: 32,
-                  borderRadius: 1,
-                  bgcolor: preset,
-                  border: '1px solid #858585',
-                  boxShadow: String(draftColor).toLowerCase() === preset.toLowerCase() ? '0 0 0 2px #17324d' : 'none',
-                }}
+            <Input
+              aria-label="hex"
+              aria-invalid={!hexValid || undefined}
+              value={hexText}
+              onChange={handleHexChange}
+              className="h-8 min-w-0 flex-1 font-mono text-xs"
+            />
+          </div>
+          <div role="group" aria-label={t('common.colorValue')} className="flex items-center gap-2">
+            {CHANNEL_KEYS.map(channel => (
+              <Input
+                key={channel}
+                aria-label={channel}
+                aria-invalid={isValidChannel(channels[channel]) ? undefined : true}
+                value={channels[channel]}
+                onChange={event => handleChannelChange(channel, event)}
+                inputMode="numeric"
+                className="h-8 min-w-0 flex-1 px-2 font-mono text-xs"
               />
             ))}
-          </Box>
-          {!validInput && (
-            <Typography role="alert" variant="caption" color="error.dark">
-              {t('common.invalidColor')}
-            </Typography>
-          )}
-          <Stack direction="row" spacing={1} justifyContent="flex-end" mt={1.5}>
-            <Button onClick={handleClose}>{t('common.cancel')}</Button>
-            <Button variant="contained" onClick={handleApply} disabled={!validInput}>
+          </div>
+          <div role="group" aria-label={t('common.presetColors')} className="grid grid-cols-5 gap-1.5">
+            {PRESET_COLORS.map(preset => {
+              const selectedPreset = String(draftColor).toLowerCase() === preset.toLowerCase();
+              return (
+                <Button
+                  key={preset}
+                  type="button"
+                  variant="outline"
+                  aria-label={preset}
+                  aria-pressed={selectedPreset}
+                  onClick={() => syncColor(preset)}
+                  className={cn('h-8 w-full rounded-md border border-[#858585] p-0', selectedPreset && 'ring-2 ring-ring')}
+                  style={{ backgroundColor: preset }}
+                />
+              );
+            })}
+          </div>
+          {!validInput && <Notice severity="error">{t('common.invalidColor')}</Notice>}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="button" onClick={handleApply} disabled={!validInput}>
               {t('common.apply')}
             </Button>
-          </Stack>
-        </Box>
+          </div>
+        </PopoverContent>
       </Popover>
-    </FormControl>
+    </div>
   );
 };
 

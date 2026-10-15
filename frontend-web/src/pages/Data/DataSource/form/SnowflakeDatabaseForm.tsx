@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Stack, TextField } from '@mui/material';
+import { TextField } from '@/components/ui/text-field';
 import SubmitButton from '@/components/button/SubmitButton';
 
 const SnowflakeDatabaseForm = props => {
@@ -33,14 +33,13 @@ const SnowflakeDatabaseForm = props => {
   };
 
   return (
-    <Stack component="form" sx={{ maxWidth: '800px', width: '100%', mx: 'auto', mt: 3 }} onSubmit={handleSubmit}>
-      <Stack sx={{ display: 'flex', justifyContent: 'space-between' }} spacing="20px">
+    <form className="mx-auto mt-3 w-full max-w-[800px]" onSubmit={handleSubmit}>
+      <div className="flex flex-col justify-between gap-5">
         <TextField
           label={t('settings.name')}
           name="name"
           value={formData?.name || ''}
           required
-          fullWidth
           onChange={handleNameChange}
         />
         <TextField
@@ -48,7 +47,6 @@ const SnowflakeDatabaseForm = props => {
           name="account"
           value={formData?.snowflake?.account || ''}
           required
-          fullWidth
           onChange={handleChange}
         />
         <TextField
@@ -56,7 +54,6 @@ const SnowflakeDatabaseForm = props => {
           name="username"
           value={formData?.snowflake?.username || ''}
           required
-          fullWidth
           onChange={handleChange}
         />
         <TextField
@@ -65,7 +62,6 @@ const SnowflakeDatabaseForm = props => {
           type="password"
           value={formData?.snowflake?.password || ''}
           required
-          fullWidth
           onChange={handleChange}
         />
         <TextField
@@ -73,7 +69,6 @@ const SnowflakeDatabaseForm = props => {
           name="database"
           value={formData?.snowflake?.database || ''}
           required
-          fullWidth
           onChange={handleChange}
         />{' '}
         <TextField
@@ -81,28 +76,19 @@ const SnowflakeDatabaseForm = props => {
           name="application"
           value={formData?.snowflake?.application || ''}
           required
-          fullWidth
           onChange={handleChange}
         />
-        <TextField
-          label="Schema"
-          name="schema"
-          value={formData?.snowflake?.schema || ''}
-          required
-          fullWidth
-          onChange={handleChange}
-        />
+        <TextField label="Schema" name="schema" value={formData?.snowflake?.schema || ''} required onChange={handleChange} />
         <TextField
           label="Warehouse"
           name="warehouse"
           value={formData?.snowflake?.warehouse || ''}
           required
-          fullWidth
           onChange={handleChange}
         />
-        <SubmitButton label="TEST CONNECT" type="submit" sx={{ height: '50px', fontSize: '13px' }} />
-      </Stack>
-    </Stack>
+        <SubmitButton label="TEST CONNECT" type="submit" className="h-[50px] text-[13px]" />
+      </div>
+    </form>
   );
 };
 

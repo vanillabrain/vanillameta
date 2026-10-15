@@ -1,6 +1,5 @@
 import React, { Suspense, lazy, useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Stack, Typography } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChart from '@/widget/modules/linechart/LineChart';
 import PieChart from '@/widget/modules/piechart/PieChart';
@@ -29,28 +28,11 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 export const WidgetEmpty = () => {
   const { t } = useTranslation();
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        height: '100%',
-        width: '100%',
-        borderRadius: '6px',
-      }}
-    >
-      <Typography
-        sx={{
-          margin: '200px auto',
-          fontSize: '14px',
-          fontWeight: 600,
-          textAlign: 'center',
-          lineHeight: '1.6',
-          color: '#333',
-        }}
-      >
+    <div className="flex h-full w-full items-center rounded-md">
+      <p className="mx-auto my-[200px] text-center text-sm leading-[1.6] font-semibold text-foreground">
         {t('share.widgetFetchFailed')} <br />
-      </Typography>
-    </Box>
+      </p>
+    </div>
   );
 };
 
@@ -433,18 +415,7 @@ const WidgetViewer = props => {
           <React.Fragment>
             <NumericBoard
               {...chartProps}
-              sx={{
-                position: 'absolute',
-                zIndex: 1000,
-                top: '50%',
-                left: 0,
-                right: 0,
-                maxWidth: 'fit-content',
-                height: '100%',
-                margin: 'auto',
-                transform: 'translateY(-50%)',
-                pointerEvents: 'none',
-              }}
+              className="pointer-events-none absolute inset-x-0 top-1/2 z-10 m-auto h-full max-w-fit -translate-y-1/2"
             />
             <DonutChart {...chartProps} />
           </React.Fragment>
@@ -455,18 +426,7 @@ const WidgetViewer = props => {
           <React.Fragment>
             <NumericBoard
               {...chartProps}
-              sx={{
-                position: 'absolute',
-                zIndex: 1000,
-                top: '50%',
-                left: 0,
-                right: 0,
-                maxWidth: 'fit-content',
-                height: '100%',
-                margin: 'auto',
-                transform: 'translateY(-50%)',
-                pointerEvents: 'none',
-              }}
+              className="pointer-events-none absolute inset-x-0 top-1/2 z-10 m-auto h-full max-w-fit -translate-y-1/2"
             />
             <DonutChart
               {...chartProps}
@@ -521,72 +481,16 @@ const WidgetViewer = props => {
   // }, [widgetOption, dataSet]);
 
   return (
-    <Stack
-      sx={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-      }}
-    >
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{
-          width: '100%',
-          height: '50px',
-          paddingLeft: '20px',
-          paddingTop: '18px',
-          paddingBottom: '12px',
-        }}
-      >
-        <Typography
-          variant="subtitle1"
-          component="span"
-          sx={{
-            overflow: 'hidden',
-            width: 'calc(100% - 40px)',
-            fontSize: '16px',
-            fontWeight: '600',
-            fontStretch: 'normal',
-            fontStyle: 'normal',
-            lineHeight: '1.25',
-            letterSpacing: '-0.16px',
-            textAlign: 'left',
-            color: '#333',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
-          }}
-        >
+    <div className="relative flex h-full w-full flex-col">
+      <div className="flex h-[50px] w-full flex-row items-center justify-between pr-5 pt-[18px] pb-3 pl-5">
+        <span className="w-[calc(100%-40px)] overflow-hidden text-left text-base leading-[1.25] font-semibold tracking-[-0.16px] text-ellipsis whitespace-nowrap text-foreground">
           {renderTitle()}
-        </Typography>
-      </Stack>
+        </span>
+      </div>
 
-      {description && (
-        <Typography sx={{ px: '20px', fontSize: 12, color: 'text.secondary', overflowWrap: 'anywhere' }}>
-          {description}
-        </Typography>
-      )}
-      <Stack
-        sx={{
-          width: '100%',
-          minHeight: 0,
-          flex: '1 1 auto',
-          height: 'calc(100% - 48px)',
-          pt: '10px',
-          pb: { xs: '12px', sm: '20px' },
-          px: { xs: '12px', sm: '20px' },
-          overflowY: 'auto',
-        }}
-      >
-        <Stack
-          sx={{
-            position: 'relative',
-            width: '100%',
-            minWidth: 0,
-            height: '100%',
-          }}
-        >
+      {description && <p className="px-5 text-xs text-muted-foreground [overflow-wrap:anywhere]">{description}</p>}
+      <div className="h-[calc(100%-48px)] w-full min-h-0 flex-auto overflow-y-auto px-3 pt-2.5 pb-3 sm:px-5 sm:pb-5">
+        <div className="relative isolate h-full w-full min-w-0">
           {isInvalidData ? <WidgetEmpty /> : <Suspense fallback={null}>{module}</Suspense>}
           {/*<ReactECharts*/}
           {/*  option={componentOption}*/}
@@ -594,9 +498,9 @@ const WidgetViewer = props => {
           {/*  lazyUpdate={true}*/}
           {/*  notMerge={true}*/}
           {/*/>*/}
-        </Stack>
-      </Stack>
-    </Stack>
+        </div>
+      </div>
+    </div>
   );
 };
 

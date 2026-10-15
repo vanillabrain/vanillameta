@@ -1,21 +1,23 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { Button, Stack, Typography } from '@mui/material';
-import DatabaseService from '@/api/databaseService';
-import { STATUS } from '@/constant';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAlert } from 'react-alert';
+import { isCancelledError, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import DatabaseService from '@/api/databaseService';
+import DatasetService from '@/api/datasetService';
+import { STATUS } from '@/constant';
 import { DatabaseCardList } from '@/components/list/DatabaseCardList';
 import { DatasetCardList } from '@/components/list/DatasetCardList';
-import DatasetService from '@/api/datasetService';
-import AddButton from '@/components/button/AddButton';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { Loading } from '@/components/loading';
-import { isCancelledError, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ModalPopup from '@/components/ModalPopup';
 import { createColumns } from '@/utils/util';
 import DataGrid, { DataGridWrapper } from '@/components/datagrid';
+import { cn } from '@/lib/utils';
+import IconAdd from '@/assets/images/icon/ic-add.svg?react';
 
 // import { cancelAllRequests } from '@/helpers/apiHelper';
 
@@ -52,6 +54,17 @@ const isCancelledRequest = error =>
   error?.code === 'ERR_CANCELED' ||
   error?.name === 'AbortError' ||
   error?.name === 'CanceledError';
+
+const sectionTitleClassName = 'text-base font-bold text-[#141414]';
+
+/** 카드 목록 헤더의 등록 이동 버튼(기존 AddButton과 같은 아이콘 버튼 규격). */
+const AddLinkButton = ({ to, label, className }: { to: string; label: string; className?: string }) => (
+  <Button asChild size="icon-xs" aria-label={label} className={cn('ml-3.5 min-w-0 rounded-[4px] p-0', className)}>
+    <RouterLink to={to}>
+      <IconAdd />
+    </RouterLink>
+  </Button>
+);
 
 const DataLayout = props => {
   const { t } = useTranslation();
@@ -255,40 +268,22 @@ const DataLayout = props => {
   };
 
   return (
-    <Stack direction={{ xs: 'column', sm: 'row' }} flex="1 1 auto" sx={{ width: '100%' }}>
-      <Stack
-        direction="column"
-        flex="1 1 auto"
-        sx={{ width: { xs: '100%', md: '404px' }, height: '100%', px: '24px', pt: '30px' }}
-      >
-        <Stack direction="row">
-          <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
-            {t('data.source')}
-          </Typography>
-          {isViewMode ? (
-            <></>
-          ) : (
+    <div className="flex w-full flex-auto flex-col sm:flex-row">
+      <div className="flex h-full w-full flex-col px-6 pt-7.5 md:w-[404px] md:flex-none">
+        <div className="flex flex-row items-center">
+          <span className={sectionTitleClassName}>{t('data.source')}</span>
+          {isViewMode ? null : (
             <>
-              <AddButton aria-label={t('data.addSource')} component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />
-              <Button
-                component={RouterLink}
-                to={`file`}
-                size="small"
-                sx={{ ml: '8px', fontSize: '11px', minWidth: 0, p: '2px 8px', lineHeight: '20px' }}
-              >
-                {t('data.fileAnalysis')}
+              <AddLinkButton to="source/create" label={t('data.addSource')} />
+              <Button asChild size="sm" className="ml-2 h-auto min-w-0 py-0.5 px-2 text-[11px] leading-5">
+                <RouterLink to="file">{t('data.fileAnalysis')}</RouterLink>
               </Button>
-              <Button
-                component={RouterLink}
-                to={`metric`}
-                size="small"
-                sx={{ ml: '8px', fontSize: '11px', minWidth: 0, p: '2px 8px', lineHeight: '20px' }}
-              >
-                {t('data.metric')}
+              <Button asChild size="sm" className="ml-2 h-auto min-w-0 py-0.5 px-2 text-[11px] leading-5">
+                <RouterLink to="metric">{t('data.metric')}</RouterLink>
               </Button>
             </>
           )}
-        </Stack>
+        </div>
         <DatabaseCardList
           data={databaseList}
           selectedData={selectedDatabase}
@@ -296,28 +291,14 @@ const DataLayout = props => {
           handleDataClick={handleDatabaseClick}
           handleDataRemove={handleDatabaseRemove}
         />
-      </Stack>
+      </div>
 
-      <Stack
-        direction="column"
-        sx={{ flex: '1 1 auto', width: { xs: '100%', md: 'calc(100% - 404px)' }, backgroundColor: '#f5f6f8' }}
-      >
-        <Stack direction="column" sx={{ width: '100%', px: '24px', pt: '30px' }}>
-          <Stack direction="row">
-            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
-              {t('data.dataset')}
-            </Typography>
-            {isViewMode ? (
-              <></>
-            ) : (
-              <AddButton
-                aria-label={t('data.addDataset')}
-                component={RouterLink}
-                to={`set/create/${selectedDatabase.id}`}
-                sx={{ ml: '14px' }}
-              />
-            )}
-          </Stack>
+      <div className="flex w-full flex-auto flex-col bg-[#f5f6f8] md:w-[calc(100%-404px)]">
+        <div className="flex w-full flex-col px-6 pt-7.5">
+          <div className="flex flex-row items-center">
+            <span className={sectionTitleClassName}>{t('data.dataset')}</span>
+            {isViewMode ? null : <AddLinkButton to={`set/create/${selectedDatabase.id}`} label={t('data.addDataset')} />}
+          </div>
           <DatasetCardList
             isViewMode={isViewMode}
             data={datasetList}
@@ -326,13 +307,11 @@ const DataLayout = props => {
             handleDataRemove={handleDataSetRemove}
             handleModifyClick={handleModifyClick}
           />
-        </Stack>
-        <Stack direction="column" sx={{ flex: '1 1 auto', width: '100%', minHeight: '50%', px: '24px', pt: '30px' }}>
-          <Stack direction="row">
-            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
-              {t('data.tableList')}
-            </Typography>
-          </Stack>
+        </div>
+        <div className="flex min-h-[50%] w-full flex-auto flex-col px-6 pt-7.5">
+          <div className="flex flex-row items-center">
+            <span className={sectionTitleClassName}>{t('data.tableList')}</span>
+          </div>
           <DatasetCardList
             isTableView
             isViewMode={isViewMode}
@@ -348,7 +327,7 @@ const DataLayout = props => {
             title={selectedDataset && (selectedDataset?.['tableName'] || selectedDataset?.['title'])}
           >
             {loading ? (
-              <Loading in={loading} style={{ position: 'static', backgroundColor: 'transparent' }} />
+              <Loading in={loading} className="static bg-transparent" />
             ) : (
               <DataGridWrapper>
                 <DataGrid
@@ -363,9 +342,9 @@ const DataLayout = props => {
               </DataGridWrapper>
             )}
           </ModalPopup>
-        </Stack>
-      </Stack>
-    </Stack>
+        </div>
+      </div>
+    </div>
   );
 };
 

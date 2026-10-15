@@ -1,13 +1,15 @@
 import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Box, Button, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
+
 import PageTitleBox from '@/components/PageTitleBox';
-import DatabaseService from '@/api/databaseService';
-import { useNavigate } from 'react-router-dom';
 import SubmitButton from '@/components/button/SubmitButton';
 import DataGrid from '@/components/datagrid';
 import Seo from '@/seo/Seo';
+import { Button } from '@/components/ui/button';
+import { TextField } from '@/components/ui/text-field';
+import DatabaseService from '@/api/databaseService';
 import { createColumns } from '@/utils/util';
 import { initializeDuckDbWorker } from '@/utils/util.duckdb-init';
 import { SnackbarContext } from '@/contexts/AlertContext';
@@ -42,7 +44,7 @@ const ReactECharts = lazy(() => import('echarts-for-react'));
 const TABLE_NAME = 'uploaded_data';
 const CHART_TYPES = ['bar', 'line', 'pie'];
 
-// DuckDB는 BIGINT/DECIMAL 등을 BigInt로 반환 — toast-ui grid와 차트가 Number만 처리하므로 정규화
+// DuckDB는 BIGINT/DECIMAL 등을 BigInt로 반환 — 차트와 grid가 Number만 처리하므로 정규화
 const ARROW_TYPE = { Int: 2, Float: 3, Decimal: 7 };
 type ResultField = { name: string; type: { typeId: number; scale?: number } };
 type QueryResult = {
@@ -251,7 +253,7 @@ const FileAnalysis = () => {
       return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const csv = [names.map(escape).join(','), ...data.map(r => names.map(n => escape(r[n])).join(','))].join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -285,41 +287,24 @@ const FileAnalysis = () => {
       upperTitle={t('common.data')}
       upperTitleLink="/data"
       title={t('common.fileAnalysis')}
-      sx={{ p: 0, width: '100%', height: '100%' }}
+      className="h-full w-full p-0"
     >
       <Seo title={t('common.fileAnalysis')} />
-      <Stack spacing="20px" sx={{ p: { xs: '24px 16px', sm: '30px 25px 40px 25px' }, minWidth: 0 }}>
-        <Stack
-          direction="row"
-          alignItems="center"
-          sx={{
-            flexWrap: 'wrap',
-            gap: 2,
-            p: '16px 20px',
-            border: '1px dashed',
-            borderColor: 'divider',
-            borderRadius: '8px',
-            bgcolor: 'background.default',
-          }}
-        >
-          <Typography sx={{ fontSize: '14px', color: '#555' }}>{t('fileAnalysis.description')}</Typography>
+      <div className="flex min-w-0 flex-col gap-5 py-6 px-4 sm:px-6.25 sm:pt-7.5 sm:pb-10">
+        <div className="flex flex-row flex-wrap items-center gap-4 rounded-lg border border-dashed border-border bg-muted py-4 px-5">
+          <span className="text-sm text-[#555]">{t('fileAnalysis.description')}</span>
           <input
             ref={fileInputRef}
             type="file"
             accept=".csv,.parquet,.json"
-            style={{ display: 'none' }}
+            className="hidden"
             onChange={handleFileChange}
           />
-          <Button
-            variant="contained"
-            disabled={loading || saving}
-            onClick={() => fileInputRef.current?.click()}
-            sx={{ flexShrink: 0 }}
-          >
+          <Button disabled={loading || saving} onClick={() => fileInputRef.current?.click()} className="shrink-0">
             {t('fileAnalysis.selectFile')}
           </Button>
           {fileName && (
-            <Typography sx={{ fontSize: '13px', color: 'text.secondary', overflowWrap: 'anywhere', minWidth: 0 }}>
+            <span className="min-w-0 text-[13px] text-muted-foreground [overflow-wrap:anywhere]">
               {fileName}
               {analyzed && (
                 <>
@@ -327,45 +312,44 @@ const FileAnalysis = () => {
                   → <b>{TABLE_NAME}</b> {t('fileAnalysis.tableLabel')}
                 </>
               )}
-            </Typography>
+            </span>
           )}
-        </Stack>
+        </div>
 
         {selectedFile && (
-          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 2 }}>
-            <Button variant="contained" onClick={() => saveAsDataset()} disabled={saving || loading}>
+          <div className="flex flex-row flex-wrap gap-4">
+            <Button onClick={() => saveAsDataset()} disabled={saving || loading}>
               {saving ? t('fileAnalysis.saving') : t('fileAnalysis.saveDataset')}
             </Button>
-            <Button variant="outlined" onClick={() => saveAsDataset('builder')} disabled={saving || loading}>
+            <Button variant="outline" onClick={() => saveAsDataset('builder')} disabled={saving || loading}>
               {t('fileAnalysis.buildChart')}
             </Button>
-            <Button variant="outlined" onClick={() => saveAsDataset('ai')} disabled={saving || loading}>
+            <Button variant="outline" onClick={() => saveAsDataset('ai')} disabled={saving || loading}>
               {t('fileAnalysis.buildWithAi')}
             </Button>
-            <Button variant="outlined" onClick={analyzeFile} disabled={loading || saving}>
+            <Button variant="outline" onClick={analyzeFile} disabled={loading || saving}>
               {loading ? t('fileAnalysis.processing') : t('fileAnalysis.analyzeBrowser')}
             </Button>
-          </Stack>
+          </div>
         )}
 
         {analyzed && (
           <>
             <TextField
-              size="small"
-              fullWidth
+              className="min-w-0"
               placeholder={t('fileAnalysis.queryPlaceholder', { table: TABLE_NAME })}
               value={query}
               onChange={event => setQuery(event.target.value)}
               onKeyDown={event => {
                 if (event.key === 'Enter') runQuery();
               }}
-              sx={{ backgroundColor: '#fff' }}
+              inputProps={{ 'aria-label': t('dataset.sqlQuery'), className: 'bg-white' }}
             />
             <SubmitButton
               label={t('fileAnalysis.run')}
               type="button"
               size="large"
-              sx={{ width: '100%', maxWidth: '374px', fontSize: '13px' }}
+              className="w-full max-w-[374px] text-[13px]"
               onClick={runQuery}
               disabled={loading || saving}
             />
@@ -373,53 +357,61 @@ const FileAnalysis = () => {
         )}
 
         {data.length > 0 && (
-          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 2 }} alignItems="center">
-            <FormControl size="small" sx={{ minWidth: 110 }}>
-              <InputLabel>{t('fileAnalysis.chart')}</InputLabel>
-              <Select value={chartType} label={t('fileAnalysis.chart')} onChange={e => setChartType(e.target.value)}>
-                {CHART_TYPES.map(type => (
-                  <MenuItem key={type} value={type}>
-                    {t(`fileAnalysis.chartType.${type}`)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>{t('fileAnalysis.xAxis')}</InputLabel>
-              <Select value={xField} label={t('fileAnalysis.xAxis')} onChange={e => setXField(e.target.value)}>
-                {fieldNames.map(f => (
-                  <MenuItem key={f} value={f}>
-                    {f}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>{t('fileAnalysis.value')}</InputLabel>
-              <Select value={yField} label={t('fileAnalysis.value')} onChange={e => setYField(e.target.value)}>
-                {numericFields.map(f => (
-                  <MenuItem key={f} value={f}>
-                    {f}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Button size="small" variant="outlined" onClick={exportCsv} sx={{ flexShrink: 0 }}>
+          <div className="flex flex-row flex-wrap items-center gap-4">
+            <TextField
+              select
+              label={t('fileAnalysis.chart')}
+              value={chartType}
+              onChange={event => setChartType(event.target.value)}
+              className="w-[110px] shrink-0"
+            >
+              {CHART_TYPES.map(type => (
+                <option key={type} value={type}>
+                  {t(`fileAnalysis.chartType.${type}`)}
+                </option>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label={t('fileAnalysis.xAxis')}
+              value={xField}
+              onChange={event => setXField(event.target.value)}
+              className="w-[160px] shrink-0"
+            >
+              {fieldNames.map(f => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label={t('fileAnalysis.value')}
+              value={yField}
+              onChange={event => setYField(event.target.value)}
+              className="w-[160px] shrink-0"
+            >
+              {numericFields.map(f => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </TextField>
+            <Button size="sm" variant="outline" onClick={exportCsv} className="shrink-0">
               {t('fileAnalysis.exportCsv')}
             </Button>
-          </Stack>
+          </div>
         )}
 
         {chartOption && (
-          <Suspense
-            fallback={<Typography sx={{ fontSize: '13px', color: '#767676' }}>{t('fileAnalysis.chartLoading')}</Typography>}
-          >
+          <Suspense fallback={<span className="text-[13px] text-[#767676]">{t('fileAnalysis.chartLoading')}</span>}>
+            {/* echarts-for-react는 컨테이너 높이를 inline style로 강제하므로 차트 크기는 style API를 유지한다. */}
             <ReactECharts option={chartOption} style={{ height: 360, width: '100%' }} />
           </Suspense>
         )}
 
         {data.length > 0 && (
-          <Box sx={{ backgroundColor: '#f5f6f8', p: '20px 0' }}>
+          <div className="bg-[#f5f6f8] py-5 px-0">
             <DataGrid
               minBodyHeight={300}
               bodyHeight={500}
@@ -427,9 +419,9 @@ const FileAnalysis = () => {
               columns={columns}
               columnOptions={{ resizable: true }}
             />
-          </Box>
+          </div>
         )}
-      </Stack>
+      </div>
     </PageTitleBox>
   );
 };
