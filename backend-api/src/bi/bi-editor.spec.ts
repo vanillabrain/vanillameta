@@ -1589,4 +1589,231 @@ describe('BiService dashboard editor boundaries', () => {
     expect(dashboards.preview).not.toHaveBeenCalled();
     expect(dashboards.save).not.toHaveBeenCalled();
   });
+
+  // UC-019: the flag travels only with the classified question. Every other path keeps the
+  // legacy response shape, so no older client starts a publication by accident.
+  it('UC-019 carries the flag through a save-only publication plan without writing', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    const request = body({
+      items: [existing],
+      selectedKey: '',
+      prompt: '저장하고 게시 미리보기로 이어 줘',
+      editMode: 'auto',
+      layoutMode: 'desktop',
+    });
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'save',
+      saveRequested: true,
+      editPrompt: null,
+      publicationRequested: true,
+    });
+    await expect(service.editorAi(dashboardId, request, actor)).resolves.toEqual({
+      editMode: 'save',
+      saveRequested: true,
+      publicationRequested: true,
+      preview: {
+        widgets: [{ rows: [{ value: 150 }] }],
+        responsiveLayouts: expect.any(Object),
+      },
+    });
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-019 carries the flag through a single content change and strips the publish wording', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'content',
+      saveRequested: true,
+      editPrompt: '제목을 바꿔 줘',
+      publicationRequested: true,
+    });
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: { ...analysis, widgets: [{ ...analysis.widgets[0], title: '바뀐 제목' }] },
+    });
+    const result = await service.editorAi(
+      dashboardId,
+      body({
+        items: [existing],
+        selectedKey: existing.key,
+        prompt: '제목을 바꾸고 저장한 뒤 게시 미리보기로 이어 줘',
+        editMode: 'auto',
+        layoutMode: 'desktop',
+      }),
+      actor,
+    );
+    expect(result.editMode).toBe('content');
+    expect(result.saveRequested).toBe(true);
+    expect(result.publicationRequested).toBe(true);
+    expect(dashboards.generate).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: '제목을 바꿔 줘' }),
+      actor,
+      undefined,
+    );
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-019 carries the flag through a single layout change without saving', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    const request = body({
+      items: [existing],
+      selectedKey: existing.key,
+      prompt: '오른쪽 한 칸 옮기고 저장한 뒤 게시 미리보기로 이어 줘',
+      editMode: 'auto',
+      layoutMode: 'desktop',
+    });
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'layout',
+      saveRequested: true,
+      editPrompt: '오른쪽 한 칸',
+      publicationRequested: true,
+    });
+    dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 1, y: 0, w: 6, h: 3 });
+    const result = await service.editorAi(dashboardId, request, actor);
+    expect(result.editMode).toBe('layout');
+    expect(result.saveRequested).toBe(true);
+    expect(result.publicationRequested).toBe(true);
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-019 carries the flag once through a batch publication plan', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      ...batchPlan(batchActions(), true),
+      publicationRequested: true,
+    });
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: {
+        ...analysis,
+        widgets: [
+          analysis.widgets[0],
+          { ...analysis.widgets[1], title: 'AI 비용' },
+          analysis.widgets[2],
+        ],
+      },
+    });
+    dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 0, y: 6, w: 6, h: 3 });
+    const result = await service.editorAi(dashboardId, batchBody(items), actor);
+    expect(result.editMode).toBe('batch');
+    expect(result.saveRequested).toBe(true);
+    expect(result.publicationRequested).toBe(true);
+    expect(result).not.toHaveProperty('item');
+    expect(dashboards.preview).toHaveBeenCalledTimes(1);
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-019 never invents the flag for manual modes, clarifications or legacy plans', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: { ...analysis, widgets: [{ ...analysis.widgets[0], title: '수동 제목' }] },
+    });
+    // Manual mode never classifies, so it can never receive a publication request.
+    const manual = await service.editorAi(
+      dashboardId,
+      body({
+        items: [existing],
+        selectedKey: existing.key,
+        prompt: '제목을 바꿔 줘',
+        editMode: 'content',
+        layoutMode: 'desktop',
+      }),
+      actor,
+    );
+    expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
+    expect(manual).not.toHaveProperty('publicationRequested');
+
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'content',
+      saveRequested: false,
+      editPrompt: '제목을 바꿔 줘',
+    });
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: { ...analysis, widgets: [{ ...analysis.widgets[0], title: '바뀐 제목' }] },
+    });
+    const legacy = await service.editorAi(
+      dashboardId,
+      body({
+        items: [existing],
+        selectedKey: existing.key,
+        prompt: '제목을 바꿔 줘',
+        editMode: 'auto',
+        layoutMode: 'desktop',
+      }),
+      actor,
+    );
+    expect(legacy.publicationRequested).toBeUndefined();
+    expect(legacy).not.toHaveProperty('publicationRequested');
+
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'clarify',
+      saveRequested: false,
+      editPrompt: null,
+    });
+    const previewsBeforeClarify = dashboards.preview.mock.calls.length;
+    await expect(
+      service.editorAi(
+        dashboardId,
+        body({
+          items: [existing],
+          selectedKey: '',
+          prompt: '게시할까요?',
+          editMode: 'auto',
+          layoutMode: 'desktop',
+        }),
+        actor,
+      ),
+    ).resolves.toEqual({ editMode: 'clarify', saveRequested: false });
+    expect(dashboards.preview.mock.calls.length).toBe(previewsBeforeClarify);
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-019 returns no flag when the request is cancelled before or after generation', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    const request = body({
+      items: [existing],
+      selectedKey: existing.key,
+      prompt: '제목을 바꾸고 저장한 뒤 게시 미리보기로 이어 줘',
+      editMode: 'auto',
+      layoutMode: 'desktop',
+    });
+    const during = new AbortController();
+    dashboards.classifyBlockIntent.mockImplementationOnce(async () => {
+      during.abort();
+      return {
+        intent: 'content',
+        saveRequested: true,
+        editPrompt: '제목을 바꿔 줘',
+        publicationRequested: true,
+      };
+    });
+    await expect(service.editorAi(dashboardId, request, actor, during.signal)).rejects.toThrow(
+      'LLM_REQUEST_ABORTED',
+    );
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+
+    const after = new AbortController();
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'content',
+      saveRequested: true,
+      editPrompt: '제목을 바꿔 줘',
+      publicationRequested: true,
+    });
+    dashboards.generate.mockImplementationOnce(async () => {
+      after.abort();
+      return {
+        status: 'SUCCESS',
+        data: { ...analysis, widgets: [{ ...analysis.widgets[0], title: '바뀐 제목' }] },
+      };
+    });
+    await expect(service.editorAi(dashboardId, request, actor, after.signal)).rejects.toThrow(
+      'LLM_REQUEST_ABORTED',
+    );
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
 });

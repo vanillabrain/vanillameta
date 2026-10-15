@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { get, post } from '@/helpers/apiHelper';
 import { AnalysisUiProvider, analysisFieldSx, analysisPanelSx } from '@/components/analysis/AnalysisUi';
@@ -30,8 +30,29 @@ const validState = (value: State, id: string) =>
   Number.isSafeInteger(value.version) &&
   value.version >= 0;
 
+async function publicationPreview(base: string, value: State, signal: AbortSignal): Promise<Preview> {
+  const result = responseData(
+    await post(`${base}/preview`, { expectedRevision: value.revision }, { signal, timeout: 120000 }),
+  );
+  if (
+    result?.dashboardId !== value.dashboardId ||
+    result.revision !== value.revision ||
+    !result.ticket ||
+    !Array.isArray(result.snapshot?.widgets)
+  )
+    throw new Error('게시 미리보기를 확인할 수 없습니다.');
+  return result;
+}
+const revisionMismatch =
+  '질문에서 저장한 버전과 현재 저장본이 다릅니다. 저장 화면에서 내용을 확인하고 게시를 다시 요청해 주세요.';
 function PublicationContent() {
   const { dashboardId = '' } = useParams();
+  const { search } = useLocation();
+  const query = new URLSearchParams(search);
+  const hasHandoff = query.has('savedRevision');
+  const savedRevision = query.get('savedRevision');
+  const validHandoff =
+    !hasHandoff || (query.getAll('savedRevision').length === 1 && /^[a-f0-9]{64}$/.test(savedRevision ?? ''));
   const base = `/bi/dashboards/${encodeURIComponent(dashboardId)}/publication`;
   const [state, setState] = useState<State | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -44,6 +65,7 @@ function PublicationContent() {
   const sequence = useRef(0);
   const pending = useRef(false);
   const request = useRef<AbortController | null>(null);
+  const handoffBlocked = hasHandoff && (!validHandoff || !state || state.revision !== savedRevision);
 
   useEffect(() => {
     sequence.current += 1;
@@ -59,14 +81,31 @@ function PublicationContent() {
     setRetry(null);
     setUncertain(false);
     get(base, undefined, { signal: abort.signal })
-      .then(response => {
+      .then(async response => {
         if (token !== sequence.current) return;
         const value = responseData(response);
         if (!validState(value, dashboardId)) throw new Error('게시 상태를 확인할 수 없습니다.');
         setState(value);
+        if (hasHandoff) {
+          if (!validHandoff || value.revision !== savedRevision) {
+            setError(revisionMismatch);
+            return;
+          }
+          setNotice('저장 완료 · 링크 공개·갱신은 게시 버튼에서 실행됩니다. 아래 범위와 미리보기를 확인해 주세요.');
+          setBusy('저장한 버전의 게시 결과 확인 중…');
+          const result = await publicationPreview(base, value, abort.signal);
+          if (token === sequence.current) setPreview(result);
+        }
       })
       .catch(failure => {
-        if (token === sequence.current) setError(errorMessage(failure));
+        if (token === sequence.current)
+          setError(
+            hasHandoff
+              ? `저장한 분석은 유지됩니다. 게시 준비에 실패했습니다. 상태 확인 또는 미리보기를 다시 시도해 주세요. ${errorMessage(
+                  failure,
+                )}`
+              : errorMessage(failure),
+          );
       })
       .finally(() => {
         if (token === sequence.current) {
@@ -80,10 +119,11 @@ function PublicationContent() {
       request.current?.abort();
       pending.current = false;
     };
-  }, [base, dashboardId]);
+  }, [base, dashboardId, hasHandoff, savedRevision, validHandoff]);
 
   const perform = async (kind: 'check' | 'preview' | 'publish' | 'retry' | 'revoke') => {
     if (pending.current || (kind !== 'check' && !state)) return;
+    if (handoffBlocked && ['preview', 'publish', 'retry'].includes(kind)) return;
     if (kind === 'publish' && (!preview || !expiryInstant(expiry) || uncertain)) return;
     pending.current = true;
     const token = sequence.current;
@@ -110,21 +150,18 @@ function PublicationContent() {
         setState(value);
         setPreview(null);
         setUncertain(false);
-        setNotice('게시 상태를 확인했습니다. 새 게시에는 미리보기가 필요합니다.');
+        if (hasHandoff && (!validHandoff || value.revision !== savedRevision)) setError(revisionMismatch);
+        else
+          setNotice(
+            hasHandoff
+              ? '저장 완료 · 게시 미리보기를 다시 확인해 주세요. 링크 공개·갱신은 게시 버튼에서 실행됩니다.'
+              : '게시 상태를 확인했습니다. 새 게시에는 미리보기가 필요합니다.',
+          );
       } else if (kind === 'preview') {
         setPreview(null);
         setRetry(null);
-        const value = responseData(
-          await post(`${base}/preview`, { expectedRevision: state.revision }, { signal: abort.signal, timeout: 120000 }),
-        );
+        const value = await publicationPreview(base, state, abort.signal);
         if (token !== sequence.current) return;
-        if (
-          value?.dashboardId !== state.dashboardId ||
-          value.revision !== state.revision ||
-          !value.ticket ||
-          !Array.isArray(value.snapshot?.widgets)
-        )
-          throw new Error('게시 미리보기를 확인할 수 없습니다.');
         setPreview(value);
         setNotice('전체 기간의 고정 집계 결과입니다. 아래 결과와 공개 범위를 확인한 뒤 게시하세요.');
       } else {
@@ -219,7 +256,7 @@ function PublicationContent() {
               } · 버전 ${published.version} · 게시 ${published.publishedAt} · 만료 ${published.expiresAt}`
             : '아직 게시한 버전이 없습니다.'}
         </Typography>
-        {published && state.revision !== published.dashboardRevision && (
+        {activeLink && state.revision !== published.dashboardRevision && (
           <Alert severity="info" sx={{ my: 1 }}>
             저장 분석이 게시본과 다릅니다. 재게시 전까지 기존 게시 결과가 유지됩니다.
           </Alert>
@@ -238,15 +275,19 @@ function PublicationContent() {
             slotProps={{ inputLabel: { shrink: true } }}
             sx={{ ...analysisFieldSx, width: 168 }}
           />
-          <Button variant="outlined" disabled={!!busy || !state || uncertain} onClick={() => void perform('preview')}>
+          <Button
+            variant="outlined"
+            disabled={!!busy || !state || uncertain || handoffBlocked}
+            onClick={() => void perform('preview')}
+          >
             게시 결과 미리보기
           </Button>
           <Button
             variant="contained"
-            disabled={!!busy || !preview || !expiryInstant(expiry) || uncertain}
+            disabled={!!busy || !preview || !expiryInstant(expiry) || uncertain || handoffBlocked}
             onClick={() => void perform('publish')}
           >
-            {published ? '이 결과로 재게시' : '링크 게시'}
+            {activeLink ? '이 결과로 재게시' : '링크 게시'}
           </Button>
           {published?.active && (
             <Button variant="outlined" disabled={!!busy || uncertain} onClick={() => void perform('revoke')}>

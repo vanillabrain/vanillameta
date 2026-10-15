@@ -36,6 +36,8 @@ import {
 export type EditorAiResponse = {
   editMode: 'clarify' | 'save' | 'content' | 'layout' | 'batch';
   saveRequested: boolean;
+  /** UC-019: true only when the classified question also explicitly asked for publication. */
+  publicationRequested?: true;
   item?: any;
   targetKey?: any;
   targetCandidates?: any;
@@ -541,6 +543,7 @@ export class BiService {
     let editMode: 'content' | 'layout' = requestedMode === 'auto' ? 'content' : requestedMode;
     let prompt: string = body.prompt;
     let saveRequested = false;
+    let publicationRequested = false;
     let targetKey: string | null = hasSelection ? (selection as string) : null;
     if (requestedMode === 'auto') {
       if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
@@ -558,6 +561,7 @@ export class BiService {
           editMode: 'save' as const,
           saveRequested: true,
           preview: { ...preview, responsiveLayouts: compiled.layouts },
+          ...(plan.publicationRequested === true ? { publicationRequested: true as const } : {}),
         };
       }
       // UC-016: a bounded batch resolves every target before one sequential staged generation.
@@ -580,6 +584,7 @@ export class BiService {
       editMode = plan.intent;
       prompt = plan.editPrompt;
       saveRequested = plan.saveRequested;
+      publicationRequested = plan.publicationRequested === true;
     }
     if (!targetKey || index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
     if (editMode === 'layout') {
@@ -619,6 +624,7 @@ export class BiService {
         saveRequested,
         targetKey,
         preview: { ...preview, responsiveLayouts: next.layouts },
+        ...(publicationRequested ? { publicationRequested: true as const } : {}),
       };
     }
     const result = await this.dashboards.generate(
@@ -671,6 +677,7 @@ export class BiService {
       saveRequested,
       targetKey,
       preview: { ...preview, responsiveLayouts: next.layouts },
+      ...(publicationRequested ? { publicationRequested: true as const } : {}),
     };
   }
   async saveEditor(id: unknown, body: any, actor: number) {
@@ -846,6 +853,7 @@ export class BiService {
       saveRequested: plan.saveRequested,
       changes,
       preview: { ...preview, responsiveLayouts: current.layouts },
+      ...(plan.publicationRequested === true ? { publicationRequested: true as const } : {}),
     };
   }
 }

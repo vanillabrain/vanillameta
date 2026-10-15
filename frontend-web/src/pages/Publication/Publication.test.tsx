@@ -3,9 +3,10 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import Publication, { expiryInstant } from './index';
 import Published from './Published';
-const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), id: '12', uuid: 'public-fixture' }));
+const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), id: '12', uuid: 'public-fixture', search: '' }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 vi.mock('react-router-dom', () => ({
+  useLocation: () => ({ search: api.search }),
   useParams: () => ({ dashboardId: api.id, publicationUuid: api.uuid }),
   Link: ({ children, to }: any) => <a href={to}>{children}</a>,
 }));
@@ -53,6 +54,7 @@ const published = () => ({
   },
 });
 beforeEach(() => {
+  api.search = '';
   api.id = '12';
   api.uuid = 'public-fixture';
   api.get.mockReset().mockResolvedValue(wrap(initial()));
@@ -73,6 +75,98 @@ const makePreview = async () => {
   fireEvent.click(screen.getByRole('button', { name: '게시 결과 미리보기' }));
   await screen.findByText('결과: 요청 수');
 };
+it('UC-019 prepares the saved revision, including reload, without an automatic public write', async () => {
+  api.search = `?savedRevision=${initial().revision}`;
+  api.post.mockResolvedValueOnce(wrap(preview()));
+  const view = render(<Publication />);
+  await screen.findByText('결과: 요청 수');
+  expect(screen.getByText(/저장 완료 · 링크 공개·갱신은 게시 버튼/)).not.toBeNull();
+  expect(api.post.mock.calls[0][1]).toEqual({ expectedRevision: initial().revision });
+  view.unmount();
+  api.post.mockResolvedValueOnce(wrap(preview()));
+  render(<Publication />);
+  await screen.findByText('결과: 요청 수');
+  expect(api.post).toHaveBeenCalledTimes(2);
+  expect(api.post.mock.calls.every(call => call[0] === '/bi/dashboards/12/publication/preview')).toBe(true);
+  api.post.mockResolvedValueOnce(wrap(published()));
+  fireEvent.click(screen.getByRole('button', { name: '링크 게시' }));
+  await screen.findByText('게시 버전 1을 저장했습니다.');
+  expect(api.post.mock.calls[2][0]).toBe('/bi/dashboards/12/publication');
+});
+it.each([
+  `?savedRevision=${'b'.repeat(64)}`,
+  '?savedRevision=invalid',
+  `?savedRevision=${'a'.repeat(64)}&savedRevision=${'a'.repeat(64)}`,
+])('UC-019 blocks malformed or mismatched saved revision %s', async search => {
+  api.search = search;
+  render(<Publication />);
+  await screen.findByText(/질문에서 저장한 버전과 현재 저장본이 다릅니다/);
+  expect((screen.getByRole('button', { name: '게시 결과 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '링크 게시' }) as HTMLButtonElement).disabled).toBe(true);
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '게시 상태 확인' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '게시 상태 확인' }));
+  await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+  await screen.findByText(/질문에서 저장한 버전과 현재 저장본이 다릅니다/);
+  expect(api.post).not.toHaveBeenCalled();
+});
+it('UC-019 failed automatic preview preserves save and permits read-only retry', async () => {
+  api.search = `?savedRevision=${initial().revision}`;
+  api.post.mockRejectedValueOnce({ response: { status: 503 } });
+  render(<Publication />);
+  await screen.findByText(/저장한 분석은 유지됩니다. 게시 준비에 실패/);
+  api.post.mockResolvedValueOnce(wrap(preview()));
+  fireEvent.click(screen.getByRole('button', { name: '게시 결과 미리보기' }));
+  await screen.findByText('결과: 요청 수');
+  expect(api.post.mock.calls.every(call => call[0].endsWith('/publication/preview'))).toBe(true);
+});
+it('UC-019 distinguishes an active publication from a stopped previous publication on handoff', async () => {
+  api.search = `?savedRevision=${initial().revision}`;
+  api.get.mockResolvedValueOnce(wrap(published()));
+  api.post.mockResolvedValueOnce(wrap(preview()));
+  const view = render(<Publication />);
+  await screen.findByText('결과: 요청 수');
+  expect(screen.queryByText(/저장 완료 · 게시 전/)).toBeNull();
+  expect(screen.getByRole('button', { name: '이 결과로 재게시' })).not.toBeNull();
+  view.unmount();
+  api.get.mockResolvedValueOnce(wrap({ ...published(), publication: { ...published().publication, active: false } }));
+  api.post.mockResolvedValueOnce(wrap(preview()));
+  render(<Publication />);
+  await screen.findByText('결과: 요청 수');
+  expect(screen.getByRole('button', { name: '링크 게시' })).not.toBeNull();
+  expect(screen.queryByText(/재게시 전까지 기존 게시 결과가 유지/)).toBeNull();
+});
+it('UC-019 ignores a late preview from a previous handoff route', async () => {
+  api.search = `?savedRevision=${initial().revision}`;
+  let resolve: any;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise(done => {
+        resolve = done;
+      }),
+  );
+  const view = render(<Publication />);
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+  api.id = '13';
+  api.search = '';
+  api.get.mockResolvedValueOnce(wrap(initial()));
+  view.rerender(<Publication />);
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '게시 결과 미리보기' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  await act(async () => resolve(wrap({ ...preview(), dashboardId: 12 })));
+  expect(screen.queryByText('결과: 요청 수')).toBeNull();
+  expect((screen.getByRole('button', { name: '링크 게시' }) as HTMLButtonElement).disabled).toBe(true);
+});
+it('UC-019 rejects a preview for another saved revision', async () => {
+  api.search = `?savedRevision=${initial().revision}`;
+  api.post.mockResolvedValueOnce(wrap({ ...preview(), revision: 'b'.repeat(64) }));
+  render(<Publication />);
+  await screen.findByText(/게시 준비에 실패/);
+  expect(screen.queryByText('결과: 요청 수')).toBeNull();
+  expect((screen.getByRole('button', { name: '링크 게시' }) as HTMLButtonElement).disabled).toBe(true);
+});
 it('requires preview then explicitly publishes only server ticket/scope, not snapshot values', async () => {
   await open();
   expect((screen.getByRole('button', { name: '링크 게시' }) as HTMLButtonElement).disabled).toBe(true);

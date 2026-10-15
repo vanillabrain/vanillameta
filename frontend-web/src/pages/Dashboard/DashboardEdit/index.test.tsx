@@ -655,6 +655,81 @@ it('UC-013 defaults to auto, asks to clarify without changing the draft, and app
   expect(screen.getByRole('heading', { name: '1번 차트 · 기존 계산' })).not.toBeNull();
 });
 
+it('UC-019 saves the frozen draft then hands off its confirmed revision', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '게시할 초안' } });
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '현재 초안을 저장하고 게시 준비해 줘' } });
+  api.post.mockResolvedValueOnce(
+    success({ editMode: 'save', saveRequested: true, publicationRequested: true, preview: preview() }),
+  );
+  api.post.mockResolvedValueOnce(success({ id: 8, revision: 'b'.repeat(64) }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith(`/dashboard/8/publication?savedRevision=${'b'.repeat(64)}`));
+  expect(api.post).toHaveBeenCalledTimes(2);
+  expect(api.post.mock.calls[1][0]).toBe('/bi/dashboards/8/editor');
+  expect(api.post.mock.calls[1][1]).toMatchObject({ title: '게시할 초안', expectedRevision: editor.revision });
+});
+it.each([
+  { editMode: 'save', saveRequested: true, publicationRequested: false },
+  { editMode: 'save', saveRequested: true, publicationRequested: 'true' },
+  { editMode: 'clarify', saveRequested: true, publicationRequested: true },
+  { editMode: 'save', saveRequested: false, publicationRequested: true },
+])('UC-019 rejects invalid publication intent before saving %#', async result => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '저장 후 게시' } });
+  api.post.mockResolvedValueOnce(success({ ...result, preview: preview() }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await screen.findByText('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.');
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(api.navigate).not.toHaveBeenCalled();
+});
+it.each([{ id: 9, revision: 'b'.repeat(64) }, { id: 8 }, { id: 8, revision: 'bad' }])(
+  'UC-019 rejects an unconfirmed saved revision %#',
+  async saved => {
+    await mount();
+    fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '저장 후 게시' } });
+    api.post.mockResolvedValueOnce(
+      success({ editMode: 'save', saveRequested: true, publicationRequested: true, preview: preview() }),
+    );
+    api.post.mockResolvedValueOnce(success(saved));
+    fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+    await screen.findByText(/저장 결과를 확인하지 못했습니다/);
+    expect(api.navigate).not.toHaveBeenCalled();
+    expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toBe('저장 후 게시');
+  },
+);
+it.each([409, 503])('UC-019 preserves draft and blocks handoff after save failure %s', async status => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '보존할 초안' } });
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '저장 후 게시' } });
+  api.post.mockResolvedValueOnce(
+    success({ editMode: 'save', saveRequested: true, publicationRequested: true, preview: preview() }),
+  );
+  api.post.mockRejectedValueOnce({ response: { status } });
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await screen.findByText(status === 409 ? /다른 변경이 저장되었습니다/ : /저장 결과를 확인하지 못했습니다/);
+  expect(api.navigate).not.toHaveBeenCalled();
+  expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('보존할 초안');
+  expect(api.post).toHaveBeenCalledTimes(2);
+});
+it('UC-019 ignores publication intent after cancellation', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '저장 후 게시' } });
+  let resolve: any;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise(done => {
+        resolve = done;
+      }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'AI 요청 취소' }));
+  await act(async () =>
+    resolve(success({ editMode: 'save', saveRequested: true, publicationRequested: true, preview: preview() })),
+  );
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(api.navigate).not.toHaveBeenCalled();
+});
 it('UC-014 saves the current draft after a save-only preview without selecting a block', async () => {
   await mount();
   fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '직접 수정한 초안' } });

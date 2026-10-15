@@ -23,6 +23,11 @@ export type BatchEditPlan = {
   intent: 'batch';
   saveRequested: boolean;
   actions: BatchBlockAction[];
+  /**
+   * UC-019: set to `true` only when the same question also explicitly asked for
+   * publication. The key is omitted otherwise and is never `false`.
+   */
+  publicationRequested?: true;
 };
 export type BatchFailureStage = 'target' | 'change' | 'preview';
 

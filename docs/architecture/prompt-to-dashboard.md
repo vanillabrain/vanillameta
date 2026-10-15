@@ -117,3 +117,7 @@ blockId를 기존 JSON에 추가하고 레거시 조회는 결정적 ID를 반�
 ### UC-015 질문 대상 식별 후속
 
 [대상 설계](prompt-target.md)와 [검증](../testing/prompt-target.md): 검증된 현재 items의 순서/정확 제목을 pure resolver로 stable key에 연결한다. 모호 후보는 생성/저장 전에 반환하고 질문 범위 확인만 허용한다. 대상은 LLM이 key를 생성하지 않는다. 기존 컴파일·선택 폭 geometry·frozen result 저장/버전 경계는 유지한다. 다중블록·게시/소스/지표 모델은 변경하지 않는다.
+
+## P3/P4 질문 연결 — UC-019
+
+[질문 저장→게시 준비 설계](../architecture/prompt-publication.md)와 [실행 증거](../testing/prompt-publication.md)에 따라 명시 저장+게시 질문을 같은 저장 revision의 게시 미리보기로 연결한다. 링크 공개는 별도 버튼으로 실행한다. 실제 Ego 질문·저장·미리보기·링크 게시·새로고침, 게시 부정 질문의 저장만 실행, 버전 불일치 차단과 폭별 UI를 확인했다. 임시 분석 12는 원복하고 게시를 중지했다. 계정 수신자·생성 화면 질문·전체 P3/P4/TC005 수용은 Open이다. 다음 범위는 P4/P5 복제·소스 교체·재사용의 부족점 확인이다.

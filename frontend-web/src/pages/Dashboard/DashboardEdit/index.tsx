@@ -582,9 +582,18 @@ function DashboardEditContent() {
         preview?: Preview;
         editMode?: string;
         saveRequested?: boolean;
+        publicationRequested?: true;
         targetKey?: string;
         targetCandidates?: Array<{ key: string; title: string; position: number }>;
       }>(response);
+      if (
+        result.publicationRequested !== undefined &&
+        (result.publicationRequested !== true ||
+          aiEditMode !== 'auto' ||
+          result.saveRequested !== true ||
+          result.editMode === 'clarify')
+      )
+        throw new Error('Invalid publication intent');
       if (aiEditMode === 'auto' && result.editMode === 'clarify' && result.saveRequested !== true) {
         if (result.targetCandidates !== undefined) {
           const candidates = result.targetCandidates;
@@ -740,7 +749,11 @@ function DashboardEditContent() {
         );
         if (token !== sequence.current) return;
         if (!Number.isInteger(saved.id) || saved.id !== editor.dashboardId) throw new Error('Invalid save response');
-        navigate(`/dashboard/${saved.id}`);
+        if (result.publicationRequested === true) {
+          if (typeof saved.revision !== 'string' || !/^[a-f0-9]{64}$/.test(saved.revision))
+            throw new Error('Invalid saved revision');
+          navigate(`/dashboard/${saved.id}/publication?savedRevision=${saved.revision}`);
+        } else navigate(`/dashboard/${saved.id}`);
       } else {
         setAnnouncement(
           appliedMode === 'batch'
@@ -1079,8 +1092,9 @@ function DashboardEditContent() {
               </Box>
             )}
             <Typography color="text.secondary" sx={{ mt: 1, fontSize: 12 }}>
-              자동 모드에서 저장을 명시하면 미리보기 후 현재 분석에 저장합니다. 변경만 요청하면 미리보기로 끝납니다. 저장
-              지표의 계산식은 바뀌지 않습니다.
+              자동 모드에서 저장을 명시하면 미리보기 후 현재 분석에 저장합니다. 저장과 게시를 함께 요청하면 게시 미리보기로
+              이어집니다. 링크 공개는 게시 화면에서 실행합니다. 변경만 요청하면 미리보기로 끝납니다. 저장 지표의 계산식은
+              바뀌지 않습니다.
             </Typography>
           </Box>
           <Box component="fieldset" disabled={!!busy} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
