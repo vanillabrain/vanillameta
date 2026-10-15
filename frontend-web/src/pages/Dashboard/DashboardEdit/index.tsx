@@ -433,6 +433,7 @@ function DashboardEditContent() {
     const abort = new AbortController();
     request.current = abort;
     setBusy('AI로 선택 블록 수정 중…');
+    setAnnouncement('');
     setError('');
     setPreview(null);
     try {

@@ -67,3 +67,7 @@ UC-007의 블록 복제는 P5의 전체 분석 복제·소스 매핑과 구별�
 ## P2 설계 착수 — UC-012 (2026-10-15)
 
 [설계](../architecture/semantic-creation.md)·[UC](../use_cases/UC-012-semantic-creation.md)·[TC](../test_cases/TC-012-semantic-creation.md)·[구현 계획](../plans/UC-012.md)으로 한 질문의 지표/원본 열 차원/분석 제안과 저장을 구체화했다. 기존 compiler·지표 연결·sharedManager를 재사용하며 새 정의와 분석은 생성 영수증의 unique key와 함께 원자 저장할 계획이다. 이번에는 운영 코드/DB를 변경하지 않았고 P2는 Open, TC-012는 NOT_RUN이다. 다음은 A의 쓰기 없는 제안/컴파일 구현이다. P1 모바일·포인터/터치 미완료는 별도로 남긴다.
+
+## Ego 대표 편집·제작 검증 후속 — 2026-10-15
+
+UC010의 마우스/터치 에뮬레이션·겹침/경계/undo/save/reload와 UC012 C의 질문→지표/차원 제안→미리보기→저장/reload를 실제 Ego에서 확인했다. [모바일 연속 편집](../testing/block-editor-continuity.md#ego-모바일-후속--2026-10-15)의 TC01107 대표 조건도 통과했다. 과거 포인터/모바일 BLOCKED는 이 실행 조건에 한해 갱신하며 실제 휴대폰/운영 DB/전체 수용은 별도다. 다음 구현 우선순위는 **P3 단일 질문의 내용/배치 의도와 저장 실행 연결**이다. 수동 목적 선택을 기본 선행 단계로 요구하는 현재 차이를 AIWF의 좁은 다음 UC로 먼저 설계한다. 임의 배치 문장에 모델 unsupported가 반환된 제한도 의도 불명확/재질문 설계에 반영한다.

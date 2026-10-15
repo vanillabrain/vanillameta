@@ -594,3 +594,21 @@ it('TC-011-07 preserves duplicate identity across direct/content/layout edits an
   fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
   await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
 });
+
+it('does not repeat an earlier AI success announcement after the next request fails', async () => {
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '1번 차트 AI로 수정' }));
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '평균으로 변경' } });
+  api.post.mockResolvedValueOnce(success(aiResult()));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  await screen.findByRole('heading', { name: '1번 차트 · AI 평균' });
+  expect(screen.getByRole('status').textContent).toContain('AI 변경을 미리보기했습니다');
+  api.post.mockRejectedValueOnce({ response: { status: 400 } });
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '다시 변경' } });
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  await screen.findByText('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.');
+  expect(screen.getByRole('status').textContent).not.toContain('AI 변경을 미리보기했습니다');
+  expect(screen.getByRole('heading', { name: '1번 차트 · AI 평균' })).not.toBeNull();
+  expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toBe('다시 변경');
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+});

@@ -23,3 +23,5 @@ Draft
 ## Execution
 
 실행 결과와 미확인은 docs/testing/ai-block-layout.md에 기록한다. 단위/실LLM/API/UI의 범위를 구분한다.
+
+2026-10-15 Ego 후속: TC-011-07의390px 복제→직접 제목→내용 AI→한 칸 배치 AI→4단계undo/redo→저장/reload와 원래3블록 정의·세 폭 배치 불변 PASS. TC02의 unsupported400은 초안 보존을 확인했으며 임의 배치 문장 지원은 미완료다. 실패 후 이전 성공 안내가 남는 오류를 수정하고24개 회귀·실제 페이지 한정 통신 실패로 확인했다. [모바일 증빙](../testing/block-editor-continuity.md#ego-모바일-후속--2026-10-15).
