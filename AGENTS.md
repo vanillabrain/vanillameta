@@ -13,6 +13,8 @@
 - **누락 소스 후속:** [UC024 증빙](docs/testing/reuse-block-selection.md)은 TC005 A4의 영향 블록별 필드 표시·명시 제외→남은 미리보기→비공개 복사본33/source30 저장/reload를 추가했다. 원본 순서·모든 폭 좌표·새ID·원본27 불변, 선택 복원 시 ticket 무효화, 임시 링크 중지/복사본 독립성을 Ego55에서 확인했다. BE43/FE33·전체BE1691/FE1019·root build/type/lint PASS. 레거시 layoutSizes도 선택 인덱스로 줄인다. 기본 전체 포함/자동 제외 없음·기존 opt-in/권한/버전 경계를 유지한다. 운영/실기기·제품 수용은 별도다.
 - **제품 계약:** 고객에게 모드/내부 구조 선택을 기본 선행 단계로 요구하지 않는다. AI와 직접 편집은 같은 블록 정의·배치를 수정하고, 기존 비대상 블록을 유지한다. Source·Measure·Dimension·Block·Dashboard·Publication 책임은 분리한다. 초안과 게시 버전, 원본과 복제본을 구분한다. 목표 전체 완료의 기준은 TC-005 실제 여정이며 주 여정 실행과 전체 수용·운영 gate는 최신 통합 증빙에서 구분한다.
 
+- **Studio 병행 흐름:** T10~T15의 대화·원자 저장·게시·내 데이터 복제 증빙은 docs/testing/dashboard-studio.md를 따른다. 기존 분석 편집 흐름 UC012~022의 증빙과 구분하며, Studio 흐름 자체의 잔여 조건은 PARTIAL이며, 분석 흐름의 UC023 전체 여정 증빙과 혼동하지 않는다. gpt-6-luna 및 VoiceOver BLOCKED를 유지한다.
+
 - 매 세션 시작·재개 시 이 요약과 현재 브랜치·변경 사항·선택 P 단계/UC/BR·작업에 필요한 파일만 먼저 확인한다. 전체 이력과 상세 설계 문서는 반복해서 읽지 않고 필요한 부분만 추가로 불러온다. 사용자의 최신 지시를 우선한다.
 - DuckDB Measure·Dimension·탐색·Pivot·보기 저장의 기존 상태는 [Rill 통합 계획](docs/strategy/2026-10-14-rill-feature-integration.md)을 참고한다. 이 문서의 과거 다음 작업보다 제품 목표의 P1~P5를 우선한다. 탐색 화면은 Rill과 비교하고 대화/블록/게시 경험까지 Rill 화면으로 제한하지 않는다.
 - Rill 공식 데모 데이터를 기준으로 기능과 UI를 항상 비교한다. 유사한 탐색 UI를 구현하고, 같은 조건의 수치·API/XHR·실제 화면으로 검증하며 미확인은 명시한다.

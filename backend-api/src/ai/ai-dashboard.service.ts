@@ -59,7 +59,14 @@ import {
   resolveTimeChartBucket,
 } from './dashboard-trend';
 import { buildTimeSelection } from './dashboard-time-selection';
-import { businessDate, dateRangeBounds, isoSecond, utcInstant } from './dashboard-date-range';
+import {
+  businessDate,
+  dateRangeBounds,
+  isoSecond,
+  utcInstant,
+  validateDateRange,
+  type DashboardDateRange,
+} from './dashboard-date-range';
 import {
   compileContribution,
   CONTRIBUTION_GROUP_LIMIT,
@@ -1087,7 +1094,24 @@ export class AiDashboardService {
     trendGrain: ReturnType<typeof validatePeriodOptions>['trendGrain'],
     dateColumn: string | undefined,
     columns: string[],
+    temporalColumns: string[],
   ) {
+    trendGrain = definition.timeGrain ?? trendGrain;
+    // Explicit per-chart grain follows its proven raw temporal category, independently
+    // of the common-filter date column or source column order. Keep legacy defaults.
+    if (
+      definition.type === 'CHART_LINE' &&
+      definition.timeGrain &&
+      definition.timeGrain !== 'auto'
+    ) {
+      const dimension = resolveDimensionColumn(
+        definition.sql,
+        definition.categoryField,
+        columns,
+        [],
+      );
+      if (dimension && temporalColumns.includes(dimension)) dateColumn = dimension;
+    }
     const regroup =
       trendGrain !== 'auto' && definition.type === 'CHART_LINE'
         ? dateColumn &&
@@ -1100,7 +1124,7 @@ export class AiDashboardService {
             columns,
           )
         : undefined;
-    return { sql: regroup ? regroup.sql : definition.sql, regroup };
+    return { sql: regroup ? regroup.sql : definition.sql, regroup, dateColumn };
   }
 
   /** Raw common-filter rows by default; opt-in contribution requests use the saved definition. */
@@ -1367,7 +1391,7 @@ export class AiDashboardService {
       throw new ConflictException('추이 집계가 변경되었습니다. 새로고침한 뒤 다시 선택해 주세요.');
     const effective = trend
       ? { sql: trend.sql, regroup: trend }
-      : this.effectiveWidgetQuery(definition, trendGrain, dateColumn, columns);
+      : this.effectiveWidgetQuery(definition, trendGrain, dateColumn, columns, temporal);
     const groupedDefinition = trend
       ? {
           ...definition,
@@ -1586,12 +1610,19 @@ export class AiDashboardService {
       : temporal[0]?.column_name;
     const widgets = [];
     const queries = [];
+    const defaultGrain = trendGrain;
     for (const definition of draft.widgets) {
-      const { regroup, sql: widgetSql } = this.effectiveWidgetQuery(
+      const trendGrain = definition.timeGrain ?? defaultGrain;
+      const {
+        regroup,
+        sql: widgetSql,
+        dateColumn: widgetDateColumn,
+      } = this.effectiveWidgetQuery(
         definition,
         trendGrain,
         dateColumn,
         columns,
+        temporal.map(c => c.column_name),
       );
       const query = sourceQuery(
         widgetSql,
@@ -1643,7 +1674,7 @@ export class AiDashboardService {
       if (definition.type === 'CHART_LINE' && widget.datas.length && !widget.grainUnavailable) {
         const bucket = regroup
           ? {
-              column: dateColumn,
+              column: widgetDateColumn,
               grain: trendGrain as 'day' | 'week' | 'month',
               format: 'timestamp' as const,
             }
@@ -1921,7 +1952,7 @@ export class AiDashboardService {
       temporalColumns,
       trendGrain,
       ...(previous ? { comparison: { current: body.dateRange, previous } } : {}),
-      ...(body?.includeTrends === true ? { queries } : {}),
+      ...(body?.includeTrends === true || body?.includeQueries === true ? { queries } : {}),
     });
   }
   async save(
@@ -1955,9 +1986,15 @@ export class AiDashboardService {
       existing && !existing.analysisDefinition
         ? (await this.analysis(body.dashboardId, userId)).data
         : undefined;
-    const {
-      data: { draft },
-    } = await this.preview({ draft: body?.draft }, userId);
+    const { data: prepared } = await this.preview(
+      { draft: body?.draft, includeQueries: true },
+      userId,
+    );
+    const { draft } = prepared;
+    prepared.widgets.forEach(widget => {
+      if (widget.timeGrain && widget.timeGrain !== 'auto' && widget.grainUnavailable)
+        throw new BadRequestException('요청한 시간 집계를 안전하게 저장할 수 없습니다.');
+    });
     const persist = async (manager: EntityManager) => {
       let dashboard =
         body.dashboardId !== undefined
@@ -2008,7 +2045,7 @@ export class AiDashboardService {
         );
       }
       const widgets: Widget[] = [];
-      for (const definition of draft.widgets) {
+      for (const [widgetIndex, definition] of draft.widgets.entries()) {
         const component = await manager.findOne(Component, {
           where: { type: definition.type, useYn: YesNo.YES },
         });
@@ -2016,7 +2053,12 @@ export class AiDashboardService {
         const dataset = await manager.save(Dataset, {
           title: definition.title,
           databaseId: draft.databaseId,
-          query: sourceQuery(definition.sql, []).sql,
+          query:
+            definition.timeGrain && definition.timeGrain !== 'auto'
+              ? prepared.queries.find(
+                  query => query.kind === 'widget' && query.widgetIndex === widgetIndex,
+                ).sql
+              : sourceQuery(definition.sql, []).sql,
         });
         widgets.push(
           await manager.save(Widget, {
@@ -2166,6 +2208,44 @@ export class AiDashboardService {
       : await this.dashboards.manager.transaction(persist);
     return this.success(saved);
   }
+  /**
+   * Saved Studio scope is server-owned metadata. A malformed stored value must stay distinguishable
+   * from \"no scope\" so the caller can fail closed instead of silently showing unscoped data.
+   */
+  private studioSavedScope(structured: any): {
+    filters?: ReturnType<typeof normalizeSourceFilters>;
+    dateRange?: DashboardDateRange;
+  } {
+    const scope: {
+      filters?: ReturnType<typeof normalizeSourceFilters>;
+      dateRange?: DashboardDateRange;
+    } = {};
+    if (structured?.studioFilters !== undefined) {
+      try {
+        if (!Array.isArray(structured.studioFilters)) throw new Error('Invalid saved filters');
+        const filters = normalizeSourceFilters(structured.studioFilters, false);
+        if (filters.length) scope.filters = filters;
+      } catch {
+        throw new BadRequestException({
+          code: 'INVALID_STUDIO_SCOPE',
+          message: '저장된 공통 필터를 확인할 수 없습니다. 스튜디오에서 필터를 다시 저장해 주세요.',
+        });
+      }
+    }
+    if (structured?.studioDateRange !== undefined) {
+      try {
+        const dateRange = validateDateRange(structured.studioDateRange);
+        dateRangeBounds(dateRange);
+        scope.dateRange = dateRange;
+      } catch {
+        throw new BadRequestException({
+          code: 'INVALID_STUDIO_SCOPE',
+          message: '저장된 날짜 범위를 확인할 수 없습니다. 스튜디오에서 기간을 다시 저장해 주세요.',
+        });
+      }
+    }
+    return scope;
+  }
   async analysis(id: number, userId: number, includeRevision = false) {
     const dashboard = await this.owner(id, userId);
     if (dashboard.analysisDefinition) {
@@ -2177,8 +2257,22 @@ export class AiDashboardService {
         where: { dashboardId: id },
         order: { id: 'ASC' },
       });
+      let structured = null;
+      try {
+        structured = dashboard.structuredDefinition
+          ? JSON.parse(dashboard.structuredDefinition)
+          : null;
+      } catch {
+        // Legacy link metadata may be repaired by an ordinary save. Never silently drop
+        // an indicated Studio scope, which could broaden the displayed rows.
+        if (/"studio(?:Filters|DateRange)"\s*:/.test(dashboard.structuredDefinition ?? ''))
+          throw new BadRequestException('저장된 기간·필터 정보를 확인하지 못했습니다.');
+      }
+      const scope = this.studioSavedScope(structured);
       return this.success({
         ...draft,
+        ...(scope.filters ? { defaultFilters: scope.filters } : {}),
+        ...(scope.dateRange ? { defaultDateRange: scope.dateRange } : {}),
         blockLayouts: readBlockLayouts(draft, JSON.parse(dashboard.layout || 'null'), mappings),
         responsiveLayouts: responsiveLayouts(
           draft.widgets.map(w => w.blockId),

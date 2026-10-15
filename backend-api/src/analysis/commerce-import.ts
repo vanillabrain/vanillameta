@@ -12,6 +12,8 @@ export type CommerceImportInput = {
     customers?: string;
   };
   sampleType?: 'normal' | 'error';
+  /** Internal Studio sample projection, never model-provided SQL. */
+  analytical?: boolean;
 };
 
 export type CommerceImportResult = {

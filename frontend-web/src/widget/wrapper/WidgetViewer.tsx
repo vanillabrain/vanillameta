@@ -40,6 +40,7 @@ const WidgetViewer = props => {
   const { t } = useTranslation();
   const {
     title,
+    hideHeader = false,
     widgetType,
     widgetOption,
     dataSet,
@@ -482,19 +483,21 @@ const WidgetViewer = props => {
 
   return (
     <div className="relative flex h-full w-full flex-col">
-      <div className="flex min-h-12 w-full shrink-0 flex-row items-center px-4 pt-4 pb-2 sm:px-5">
-        <span
-          title={typeof title === 'string' ? title : undefined}
-          className="line-clamp-2 min-w-0 w-full text-left text-base leading-6 font-semibold text-foreground [overflow-wrap:anywhere]"
-        >
-          {renderTitle()}
-        </span>
-      </div>
+      {!hideHeader && (
+        <div className="flex min-h-12 w-full shrink-0 flex-row items-center px-4 pt-4 pb-2 sm:px-5">
+          <span
+            title={typeof title === 'string' ? title : undefined}
+            className="line-clamp-2 min-w-0 w-full text-left text-base leading-6 font-semibold text-foreground [overflow-wrap:anywhere]"
+          >
+            {renderTitle()}
+          </span>
+        </div>
+      )}
 
       {description && (
         <p className="px-4 text-xs leading-5 text-muted-foreground sm:px-5 [overflow-wrap:anywhere]">{description}</p>
       )}
-      <div className="w-full min-h-0 flex-1 overflow-y-auto px-3 pt-2.5 pb-3 sm:px-5 sm:pb-5">
+      <div data-widget-body className="w-full min-h-0 flex-1 overflow-y-auto px-3 pt-2.5 pb-3 sm:px-5 sm:pb-5">
         <div className="relative isolate h-full w-full min-w-0">
           {isInvalidData ? <WidgetEmpty /> : <Suspense fallback={null}>{module}</Suspense>}
           {/*<ReactECharts*/}

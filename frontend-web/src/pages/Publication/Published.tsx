@@ -14,7 +14,8 @@ type Result = {
   snapshot: Snapshot;
 };
 export default function Published() {
-  const { publicationUuid = '' } = useParams();
+  const { publicationUuid: legacyUuid, token } = useParams();
+  const publicationUuid = legacyUuid ?? token ?? '';
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState('');
   const sequence = useRef(0);

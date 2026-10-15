@@ -159,6 +159,9 @@ export default function GettingStarted({ returning = false }: { returning?: bool
       <p className="mb-4 text-sm text-muted-foreground">
         샘플로 살펴보거나 내 데이터를 연결해 보세요. AI 설정 없이도 시작할 수 있습니다.
       </p>
+      <Button className="mb-4 self-start" onClick={() => navigate('/studio/new')}>
+        Studio에서 내 데이터로 시작
+      </Button>
       <div className="flex flex-col gap-4 md:flex-row">
         <Card className="min-w-0 flex-1">
           <CardHeader className="gap-2">

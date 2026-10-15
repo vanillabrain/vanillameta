@@ -1,3 +1,5 @@
+import { StudioModule } from './dashboard-studio/studio.module';
+import { AddDashboardStudio1792030000000 } from './migrations/1792030000000-add-dashboard-studio';
 import { AddAnalysisCreationReceipts1792030000000 } from './migrations/1792030000000-add-analysis-creation-receipts';
 import { AddDashboardReusePermissions1792120000000 } from './migrations/1792120000000-add-dashboard-reuse-permissions';
 import { AddDashboardPublications1792040000000 } from './migrations/1792040000000-add-dashboard-publications';
@@ -37,6 +39,7 @@ import { apiEnvFiles } from './config-env';
 
 @Module({
   imports: [
+    StudioModule,
     AnalysisModule,
     BiModule,
     SourceOwnershipModule,
@@ -62,6 +65,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddDashboardStudio1792030000000,
         AddDashboardReusePermissions1792120000000,
         AddDashboardPublications1792040000000,
         AddAnalysisCreationReceipts1792030000000,

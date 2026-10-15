@@ -134,6 +134,19 @@ it('shows short UTC bucket dates on the axis while retaining exact category valu
   expect(view.getByRole('table').textContent).toContain('2026-01-05T00:00:00Z30');
 });
 
+it('keeps raw timestamp ticks inside the chart without changing their underlying categories', () => {
+  render(
+    <LineChart
+      option={{ xField: 'time', categoryDateFormat: 'datetime', series: [{ field: 'value', aggregation: 'sum' }] }}
+      dataSet={[{ time: '2023-09-09 00:00:00', value: 1 }]}
+    />,
+  );
+  expect(state.option.xAxis.axisLabel.formatter('2023-09-09 00:00:00')).toBe('09-09 00:00');
+  expect(state.option.xAxis.axisLabel.alignMinLabel).toBe('left');
+  expect(state.option.xAxis.axisLabel.alignMaxLabel).toBe('right');
+  expect(state.option.xAxis.data).toEqual(['2023-09-09 00:00:00']);
+});
+
 it('uses shared presentation defaults without overriding saved colors or data', () => {
   const dataSet = [
     { category: 'A', amount: 1234.567 },

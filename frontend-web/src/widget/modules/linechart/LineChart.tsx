@@ -199,6 +199,16 @@ const LineChart = (
             interval: axis === 'y' ? 0 : 'auto',
             fontSize: 12,
             hideOverlap: true,
+            ...(option.categoryDateFormat === 'datetime'
+              ? {
+                  alignMinLabel: 'left',
+                  alignMaxLabel: 'right',
+                  formatter: (value: string) =>
+                    /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(String(value))
+                      ? String(value).slice(5, 16).replace('T', ' ')
+                      : String(value),
+                }
+              : {}),
             ...(option.categoryDateFormat === 'day'
               ? {
                   formatter: (value: string) =>

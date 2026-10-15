@@ -12,6 +12,10 @@
     "@ai-sdk/react": "^4.0.140",
     "@babel/core": "^7.18.9",
     "@duckdb/duckdb-wasm": "^1.33.1-dev57.0",
+    "@emotion/react": "^11.9.3",
+    "@emotion/styled": "^11.9.3",
+    "@mui/icons-material": "^7.3.11",
+    "@mui/material": "^7.3.11",
     "@sentry/react": "^11.0.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.104.0",
@@ -71,8 +75,16 @@
     "test:qa": "node e2e/qa-runtime.mjs --extended"
   },
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
-    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.18.9",

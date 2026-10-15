@@ -305,6 +305,9 @@ const DashboardView = () => {
                 <Button asChild variant="outline" size="sm" className="shrink-0">
                   <RouterLink to={`/dashboard/${dashboardId}/reuse`}>복제해서 재사용</RouterLink>
                 </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <RouterLink to={`/dashboard/${dashboardId}/studio`}>Studio 편집</RouterLink>
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

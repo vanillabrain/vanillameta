@@ -10,9 +10,13 @@ const Dashboard = React.lazy(() => import('@/pages/Dashboard'));
 const DashboardView = React.lazy(() => import('@/pages/Dashboard/DashboardView'));
 const DashboardCreate = React.lazy(() => import('@/pages/Dashboard/DashboardCreate'));
 const Publication = React.lazy(() => import('@/pages/Publication'));
-const Published = React.lazy(() => import('@/pages/Publication/Published'));
+const PublishedRoute = React.lazy(() => import('./PublishedRoute'));
+const StudioThemeBoundary = React.lazy(() => import('@/pages/Dashboard/Studio/StudioThemeBoundary'));
 const DashboardReuse = React.lazy(() => import('@/pages/Dashboard/DashboardReuse'));
 const DashboardEdit = React.lazy(() => import('@/pages/Dashboard/DashboardEdit'));
+const StudioCreate = React.lazy(() => import('@/pages/Dashboard/Studio/StudioCreate'));
+const StudioEditor = React.lazy(() => import('@/pages/Dashboard/Studio/StudioEditor'));
+const StudioRemix = React.lazy(() => import('@/pages/Dashboard/Studio/StudioRemix'));
 const DashboardModify = React.lazy(() => import('@/pages/Dashboard/DashboardModify'));
 const Widget = React.lazy(() => import('@/pages/Widget'));
 const WidgetView = React.lazy(() => import('@/pages/Widget/WidgetView'));
@@ -32,10 +36,24 @@ const Explore = React.lazy(() => import('@/pages/Explore'));
 const SourceExplore = React.lazy(() => import('@/pages/Explore/SourceExplore'));
 const Commerce = React.lazy(() => import('@/pages/Commerce'));
 
+const StudioDesignPreview = import.meta.env.DEV
+  ? React.lazy(() => import('@/pages/Dashboard/Studio/StudioDesignPreview'))
+  : null;
+
 function Router() {
   return (
     <Suspense fallback={null}>
       <Routes>
+        {import.meta.env.DEV && (
+          <Route
+            path="/_design/studio"
+            element={
+              <StudioThemeBoundary>
+                <StudioDesignPreview />
+              </StudioThemeBoundary>
+            }
+          />
+        )}
         <Route
           path="/"
           element={
@@ -84,11 +102,39 @@ function Router() {
           </Route>
           <Route path="/*" element={<Status404 />} />
         </Route>
+        <Route
+          path="/studio/new"
+          element={
+            <ProtectedRoute>
+              <StudioThemeBoundary>
+                <StudioCreate />
+              </StudioThemeBoundary>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/:dashboardId/studio"
+          element={
+            <ProtectedRoute>
+              <StudioThemeBoundary>
+                <StudioEditor />
+              </StudioThemeBoundary>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/published/:token/remix"
+          element={
+            <StudioThemeBoundary>
+              <StudioRemix />
+            </StudioThemeBoundary>
+          }
+        />
+        <Route path="/published/:token" element={<PublishedRoute />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/embed/:dashboardUuid" element={<Embed />} />
         <Route path="/" element={<PublicLayout />}>
-          <Route path="/published/:publicationUuid" element={<Published />} />
           <Route path="/share/:dashboardUuid" element={<Share />} />
           <Route path="*" element={<Status404 />} />
         </Route>

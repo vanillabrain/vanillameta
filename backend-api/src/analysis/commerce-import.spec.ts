@@ -339,4 +339,36 @@ describe('DuckDB commerce bundle import', () => {
       ).rejects.toThrow();
     },
   );
+  it('exports the established bundled commerce sample as one analytical order cohort without fanout', async () => {
+    const files = Object.fromEntries(
+      ['orders', 'payments', 'refunds', 'customers'].map(key => [
+        key,
+        csv(
+          'studio-' + key + '.csv',
+          fs.readFileSync(path.join(__dirname, '../commerce/samples', key + '.csv'), 'utf8'),
+        ),
+      ]),
+    );
+    const imported = await worker.importCommerce({ files: files as any, analytical: true } as any);
+    expect(imported.rows).toEqual({ orders: 37, payments: 40, refunds: 8 });
+    const rows = (
+      await worker.query(
+        imported.filename,
+        'SELECT COUNT(*) AS n, SUM(revenue) AS sales, SUM(refund_amount) AS refund, SUM(net_amount) AS net, SUM(paid_orders) AS paid, SUM(refunded_orders) AS refunded FROM uploaded_data',
+      )
+    ).datas;
+    expect(rows[0]).toMatchObject({
+      n: 37,
+      sales: '20994.61',
+      refund: '4457.60',
+      net: '16537.01',
+      refunded: 8,
+    });
+    expect(rows[0].paid).toBeGreaterThanOrEqual(8);
+    expect(
+      (await worker.query(imported.filename, 'DESCRIBE uploaded_data')).datas.map(
+        c => c.column_name,
+      ),
+    ).not.toContain('customer_id');
+  });
 });

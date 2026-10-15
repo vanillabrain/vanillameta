@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "dashboardId": 23,
+  "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "title": "Auction device analysis",
+  "sourceId": 7,
+  "blocks": [
+    {"id":"b1","kind":"BOARD_NUMERIC","definitionKey":"definition:b1","title":"Total requests","description":"Requests","measureRefs":[{"id":10,"definitionVersion":"metric-v1"}],"dimensionRefs":[],"display":{"numberNotation":"compact","decimalPlaces":0}},
+    {"id":"b2","kind":"CHART_BAR","definitionKey":"definition:b2","title":"Requests by device","description":"Devices","measureRefs":[],"dimensionRefs":[{"key":"device_type","sourceId":7,"schemaVersion":"source-v1"}],"display":{"numberNotation":"full"}}
+  ],
+  "layouts": {
+    "lg":[{"id":"b1","x":0,"y":0,"w":6,"h":3},{"id":"b2","x":6,"y":0,"w":6,"h":5}],
+    "md":[{"id":"b1","x":0,"y":0,"w":4,"h":3},{"id":"b2","x":4,"y":0,"w":4,"h":5}],
+    "xs":[{"id":"b1","x":0,"y":0,"w":1,"h":3},{"id":"b2","x":0,"y":3,"w":1,"h":5}]
+  }
+}

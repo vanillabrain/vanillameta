@@ -111,6 +111,12 @@ export function refreshMetricLinks(
   return {
     schemaVersion: 1,
     kind: 'metric-linked-analysis',
+    ...(snapshot?.sourceId === draft.databaseId && snapshot?.studioFilters
+      ? { studioFilters: snapshot.studioFilters }
+      : {}),
+    ...(snapshot?.sourceId === draft.databaseId && snapshot?.studioDateRange
+      ? { studioDateRange: snapshot.studioDateRange }
+      : {}),
     sourceId: draft.databaseId,
     items: next,
   };

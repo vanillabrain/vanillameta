@@ -1,0 +1,34 @@
+import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { StudioSampleService } from './studio-sample.service';
+import { StudioCreationService } from './studio-creation.service';
+@UseGuards(JwtAuthGuard)
+@Controller('studio')
+export class StudioCreationController {
+  constructor(
+    private readonly creation: StudioCreationService,
+    private readonly samples: StudioSampleService,
+  ) {}
+  @Post('samples') sample(@Body() body: any, @Req() req) {
+    return this.samples.sample(body, req.user?.accessKeyData?.id);
+  }
+  @Post('proposals') async propose(@Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    const close = () => {
+      if (!res.writableFinished) abort();
+    };
+    req.once('aborted', abort);
+    res.once('close', close);
+    if (req.aborted) abort();
+    try {
+      return await this.creation.propose(body, req.user?.accessKeyData?.id, controller.signal);
+    } finally {
+      req.off('aborted', abort);
+      res.off('close', close);
+    }
+  }
+  @Post('dashboards') create(@Body() body: any, @Req() req) {
+    return this.creation.create(body, req.user?.accessKeyData?.id);
+  }
+}

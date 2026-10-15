@@ -68,11 +68,13 @@ describe('UC012 B SQLite atomic creation', () => {
   ];
   const make = (source: DataSource) => {
     const ai = new AiDashboardService({} as any, {} as any, source.getRepository(Dashboard));
-    jest
-      .spyOn(ai, 'preview')
-      .mockImplementation(
-        async (b: any) => ({ status: 'SUCCESS', data: { draft: b.draft } } as any),
-      );
+    jest.spyOn(ai, 'preview').mockImplementation(
+      async (b: any) =>
+        ({
+          status: 'SUCCESS',
+          data: { draft: b.draft, widgets: b.draft.widgets.map(w => ({ ...w, datas: [] })) },
+        } as any),
+    );
     const connection = { withDuckDBSnapshot: (_id, fn) => fn() };
     const bi = { profile: jest.fn().mockImplementation(async () => profile) };
     return {
@@ -200,7 +202,10 @@ describe('UC012 B SQLite atomic creation', () => {
       await expect(
         second.query("UPDATE database SET connectionConfig = '{}' WHERE id = 1"),
       ).rejects.toThrow('SQLITE_BUSY');
-      return { status: 'SUCCESS', data: { draft: b.draft } } as any;
+      return {
+        status: 'SUCCESS',
+        data: { draft: b.draft, widgets: b.draft.widgets.map(w => ({ ...w, datas: [] })) },
+      } as any;
     });
     const saved = await service.save(body, 10);
     await second.query("UPDATE database SET connectionConfig = '{}' WHERE id = 1");

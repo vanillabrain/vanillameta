@@ -1128,6 +1128,13 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       ).kind,
     ).toBe('metric-linked-analysis');
   });
+  it('never drops an indicated Studio scope when persisted JSON is corrupt', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    await db.manager.update(Dashboard, { id }, { structuredDefinition: '{"studioFilters":[' });
+    await expect(service.analysis(id, 7, true)).rejects.toThrow('기간·필터');
+    await db.manager.update(Dashboard, { id }, { structuredDefinition: '{"studioDateRange":' });
+    await expect(service.analysis(id, 7, true)).rejects.toThrow('기간·필터');
+  });
   it('recovers an ordinary save with malformed prior structured metadata without inventing links', async () => {
     const id = (await service.save({ draft: draft() }, 7)).data.id;
     await db.manager.update(Dashboard, { id }, { structuredDefinition: '{broken' });

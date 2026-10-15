@@ -1,3 +1,29 @@
+2026-10-16 Studio T15: [대화 신규 생성·미리보기·비공개 저장](dashboard-studio.md#t15--대화에서-신규-생성검토비공개-저장--2026-10-16). STUDIO-N01~04 PASS_SELECTED. 기존 AI SDK 대화→실제 gpt-6-luna1회→지표·차원/실계산→모바일 확인→private25·재조회·동일 요청 replay25/journal1/publication0·reload POST0. 공식 Rill1391572행/총634513000·9차원 전체를 독립 Parquet 집계와 대조. 버전 의미 혼동409·좁은 카드 숫자 줄바꿈/중첩 스크롤·과거 영수증 포커스 수정,3폭/키보드 캡처. BE95/FE78·타입/lint/FE·BE build PASS. 기존21/게시20 불변. VoiceOver BLOCKED·gpt-6-luna 유지, 전체TC-005/G4 PARTIAL. 대화 신규 생성 dispatch는 더 이상 미지원이 아니다. 남은 범위는 홈/빈 대화 소스 선택·동일 제안의 대화식 재설계·확장 장애/실기기이며 아래 기록은 역사적 결과다. T14/T15는 현재 워크트리 미커밋.
+
+2026-10-16 Studio T14 후속: [실제 응답 유실·서버 재시작 복구](dashboard-studio.md#t14-후속--실제-응답-유실서버-재시작-복구--2026-10-16). STUDIO-R09/R10 PASS_SELECTED. 커밋된 저장 응답 유실 시 미저장으로 단정하던 안내 수정. 모바일 실제 XHR 실패→동일 본문 재시도2POST/private24·영수증1→실제 API 재기동→완료 이력·같은 ID 복원/관측 API POST0/DB 추가0. 원본·게시 불변, 최초재현23/수정검증24는 별도 실행. FE77 선택·타입/lint/build PASS, BE51 재사용. VoiceOver BLOCKED·gpt-6-luna 유지/모델0. 이번 수정·T14 미커밋. 전체TC-005/G4 PARTIAL, 다음은 대화 신규 생성 연결.
+
+2026-10-16 Studio T14: [대화 내 매핑·비공개 복제 완료](dashboard-studio.md#t14--대화-안-열-매핑비공개-복제-완료--2026-10-16). T12/T13은 drumcap으로 58a1a39f 커밋·push 완료. R07/R08/D03 PASS_SELECTED: source9 날짜+Mobile 범위90,789,400/5.922632802560037→대화 내 명시 생성 private22→이력·복제본 재조회. 최초POST1/대시보드+1/영수증1/공개0, 동시 replay동일22·다른매핑409·타계정403·원본/게시 불변. 반응형 전환 매핑 초기화 수정, 3폭/키보드/overflow0/44px 캡처. BE51/FE109 선택·타입/lint/build PASS. gpt-6-luna 유지/신규모델0, VoiceOver BLOCKED. T14 미커밋. TC-005/G4 전체는 일반 신규생성 dispatch·확장 장애·보조 접근 잔여 때문에 PARTIAL. 아래는 역사적 실행 기록이다.
+
+2026-10-16 Studio T13: [날짜 범위 검증](dashboard-studio.md#t13--studio-날짜-범위--2026-10-16). STUDIO-F05/F06/A01/D01/D02 PASS_SELECTED: 날짜+범주 AND·명시 적용·입력 요청0·역전 차단·단일 날짜·해제/undo·저장20/기존보기·게시20v1·필수 날짜 매핑 누락 차단→private21 복원. 공식 Rill1391572행: 이틀90789400/5.922632802560037·시간48합일치, 단일43982000. 실제 gpt-6-luna1회 범위 설명/선택 제목 수정, 자동저장·게시0. 3폭 overflow0·모바일44px/입력14px/키보드 캡처, 관련 BE/FE·타입/lint/build PASS. 전체TC-005/G4 PARTIAL: 대화 내 매핑/최종복제·VoiceOver BLOCKED 등 미완료. 미변경 PASS 재사용, 새 live Rill/운영 부하 NOT_RUN. T12/T13 diff는 현재 워크트리에 미커밋 상태. 아래는 역사적 실행 기록이다.
+
+2026-10-15 Studio T11: [대화 복제 연결](dashboard-studio.md#t11--대화에서-복제-준비매핑-연결--2026-10-15). STUDIO-R03~05/D01~02 PASS_SELECTED. 기존 AI SDK 대화→권한/허용/만료 확인→새 탭 매핑→source9/Rill1391572행→private19, 미저장16 보존. 준비 단계 모델/저장/게시0·복제1/공개0, 없음/중지 안내·복원·부정/혼합/403/404/410/cancel 회귀. BE83합성/FE157·타입/lint/build·3폭44px/overflow0·키보드 캡처. gpt-6-luna 유지/신규모델0·VoiceOver BLOCKED. 전체TC-005 PARTIAL: 공통필터·대화내 매핑/자동저장 미지원. 기존 통과 재사용.
+
+2026-10-15 Studio T10: [연결 검증](dashboard-studio.md#t10--전체-연결-흐름최종-디자인-회귀--2026-10-15). 실 Codex gpt-6-luna 지정 생성→직접/선택 AI 수정→저장·게시→v2 재게시→다른 계정 source9 매핑/private 복제16→원본15 링크 중지 PASS_SELECTED. 공식 Rill1391572행634513000/평균5.571238676523254/OS28 정답·ID/배치·원본 불변,410/no-store/데이터0·복제본 유지. 게시 부정문 오분류·긴 schemaVersion 모바일 넘침·FE mock 수정 후 재검증. BE42/FE958 합성(941재사용+17재실행)·type/lint/build·core7 PASS,1440/768/390·키보드 캡처. 전체TC-005/G4 PARTIAL: 자연어 복제와 Studio 공통 필터 미구현, VoiceOver BLOCKED. 기존 통과/commerce oracle 재사용·새 live Rill/운영 부하 NOT_RUN. 아래는 각 단계 당시 기록이며 기존 전체 카탈로그 집계 소급 변경 없음.
+
+2026-10-15 Studio T9: [dashboard-studio.md](dashboard-studio.md). 동의한 게시 의미 정의→수신자 파일/소스 열 매핑→새 private 대시보드 STUDIO-R01/02/03 PASS_SELECTED. Rill1391572행 total634513000/평균5.571238676523254, 변경열5개 UI연결·모바일Enter저장·reload·새ID/metric/layout/display·원본 불변 확인. 필수열/타입 차단·명시 제외·타인 소스/미허용/private/만료/중지·멱등성 검증. 토큰 갱신/계정응답·오류 선택값 소실·다중 시간열 집계·literal star 매핑 수정. 최종 BE437/FE14·type/lint/build PASS, 3폭44px/overflow0·캡처. gpt-6-luna 유지(새모델0), VoiceOver BLOCKED. 자연어 remix·실제 파일교체/운영경쟁·전체TC-005/T10 NOT_RUN. 기존 집계 소급 변경 없음.
+
+2026-10-15 Studio T8: [dashboard-studio.md](dashboard-studio.md). 게시 snapshot·링크·재게시·중지·G3 PASS_SELECTED_VARIANTS. Rill1391572행634513000/평균5.571238676523271, private 소유자/익명·타계정 차단·link 타계정 허용, 초안 분리·같은링크 version증가·replay·410/no-store/data0, 실제 SDK 저장+공유·reload0POST 확인. 최초 빈 응답·시간 집계 허용·시계 오차 반복·revoked 영수증·저장 후 게시 취소·재시도 최신 공개범위·모바일 브랜드/축 잘림 수정. 1440/768/390px·키보드·실제 자동 만료, BE49/FE54·type/lint/build PASS. VoiceOver BLOCKED·gpt-6-luna 유지(신규 모델 호출0), T9/전체TC-005/운영부하 NOT_RUN. 다음T9. 기존 전체 카탈로그 집계 소급 변경 없음.
+
+2026-10-15 Studio T7: [dashboard-studio.md](dashboard-studio.md). 단계별 실행/실패 단계 재시도·지속 기록 PASS_SELECTED_VARIANTS. 실제 gpt-6-luna 수정/질문·명시 저장·수정+저장 한 요청, reload 기록 복원·추가POST0, 실제 중지commit0·서버 재시작interrupted/자동실행0·동일요청journal1/다른본문409 확인. 부분 저장 후속 실패/재시도는 단위adapter·주입 UI로 구분. 원문/행/SQL/인증/답변 본문 durable비보관. revision 없는 초안·과거 재시도 수동 편집 보호·모바일44px·패널 입력창 겹침 수정. BE194/FE30·type/lint/build PASS. VoiceOver BLOCKED, 실제 게시/복제/전체TC-005 NOT_RUN. 다음T8. 기존 집계 소급 변경 없음.
+
+2026-10-15 Studio T6: [dashboard-studio.md](dashboard-studio.md). 내 파일/샘플→지표 검토→preview→동일 Studio 생성·저장/reload PASS_SELECTED_VARIANTS. 공식 Rill1391572행634513000/평균5.571238676523254, commerce37주문20994.61/4457.60/16537.01·금액환불률21.232116%, CSV2행500/JSON2행700 실제 gpt-6-luna 지정 생성 확인. 생성 후 이동·선택 AI수정·저장 및 기존 지표 ID/version 재사용 통과. 분모·필수열·파일400·제안 슬롯 수정. 1440/768/390px·키보드/오류 캡처, BE51 후 변경creation38/FE17+진입1·type/lint/build PASS. live Rill UX/공개 게시/전체 TC-005 NOT_RUN, VoiceOver BLOCKED 유지. 다음T7. 기존 집계 소급 변경 없음.
+
+2026-10-15 Studio T5: [dashboard-studio.md](dashboard-studio.md). 선택 블록 AI 단일 입력·Codex gpt-6-luna 지정 실제3요청(주간 수정/질문/미지원)·로컬 apply/undo/redo·명시 저장/reload·기존 보기 주간500×3 PASS_SELECTED_VARIANTS. 지표/차원 최신 참조·기존 보기 실행 쿼리 불일치 수정. 1440/768/390px·키보드/라벨·오래된 응답/취소/오류 주입 확인. BE252 후 변경 run12·FE97·타입/lint/build PASS. 격리5행 표본이며 Rill139만행/새 생성/게시/전체 TC-005 NOT_RUN, VoiceOver BLOCKED 유지. 기존 집계 소급 변경 없음.
+
+2026-10-15 Studio T4: [dashboard-studio.md](dashboard-studio.md). 실제 DuckDB 저장·reload/ID remap·legacy 보기 숫자, 두 탭409/3방향 재적용, commit 후 응답 유실 동일 요청 재시도·이후 편집 보존,768/390px 저장 복원 PASS. 숫자 가림·차트 축 잘림·status0 오류 문구·빈 캔버스 복구 수정. 보호 API401/403·파일 버전 pin·atomic rollback 확인. 선택 디자인 PASS, 실LLM/게시 NOT_RUN·VoiceOver BLOCKED 유지. 기존 집계 소급 변경 없음.
+
+2026-10-15 Studio T3: [dashboard-studio.md](dashboard-studio.md). 합성 문서의 실제 블록 추가·복제·삭제·drag/resize·undo/redo, 폭별 배치 보존·모바일 키보드 편집 STUDIO-E01 PASS. 1440/768/390px overflow/겹침0, 긴 제목·전체 숫자 디자인 확인. Studio33·타입/lint/build PASS. 서버 저장·AI·게시 NOT_RUN, VoiceOver BLOCKED 유지. 기존 집계 소급 변경 없음.
+
 2026-10-14 Pivot 탐색: [explore-pivot.md](explore-pivot.md) PIVOT-01~05 PASS_SELECTED_VARIANTS. 같은Rill원본1391572행/9×2/17실제조합·모든합계독립SQL 일치(56663800/3.07170877372671), Rill표시값·UX실화면비교. BE13/PivotFE6·전환1·타입/lint/build,1440/390·Tab/Enter·OSnative방향키·표스크롤·503복구·50행제한선택조건PASS. 실제깨진타소유자500→권한확인먼저수정→403재검증. 전체카탈로그130불변/VoiceOverBLOCKED/AI gpt-6-luna유지호출0. Pivot시간축·계층·이전기간·정렬편집·저장/공유/Export·운영부하는후속. 미커밋워크트리작업. 아래과거Pivot미구현기록은이번첫범위로보강됐다.
 
 2026-10-14 탐색 개인 저장 보기: [explore-saved-views.md](explore-saved-views.md). source/user별 지표·차원·범위·기간·비교·집계·정렬·원본 펼침을 저장하고 최신 정상 데이터로 복원한다. BE55/FE28·타입/lint/build, Aside 저장/reload와 실제1440/390·키보드·새 세션·503 복구·실제 정의409/복구 PASS_SELECTED_VARIANTS. Rill URL reload와 비교했고 원본 요청56663800/이전29059200/126090행이 일치한다. 기존130개 집계 불변. Pivot·팀/URL 공유·실제 파일 게시 복원·MySQL 통합/VoiceOver BLOCKED는 후속, AI호출0/gpt-6-luna 유지. 미커밋 워크트리 작업이다. 아래 이전 기록의 탐색보기 저장 잔여는 이 선택 범위에서 보강됐다.
@@ -630,3 +656,11 @@ MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드
 ## 2026-10-14 develop-v2 통합 검증
 
 `90dbfd71`과 `7bc1220d`를 통합하고 전체 단위 검사(backend 1,361 / frontend 822), 서버·웹 빌드, FE 타입 검사, 영향 범위 headed 탐색·Pivot E2E 1개를 통과했다. 상세 결정과 제한은 [통합 기록](develop-v2-integration-20261014.md)을 참조한다. gpt-6-luna와 VoiceOver BLOCKED는 유지한다.
+
+## 2026-10-15 Studio T1 디자인 시안
+
+개발 전용 합성 데이터 시안의 시작·결과·블록 설정·공유 미리보기를 1440/768/390px로 확인했다. 모바일 상태 버튼 간격·패널 기본 열림을 수정하고 키보드 복귀를 검증했다. 기능은 시안 전환/로컬 입력만 PASS_SELECTED이며 실제 AI/저장/게시/복제는 NOT_RUN이다. 상세·캡처·제한: [Studio MD](dashboard-studio.md). gpt-6-luna/VoiceOver BLOCKED 유지.
+
+## 2026-10-15 Studio T2 문서·변경 이력
+
+Studio 순수 문서/연산·history·legacy projection의 FE30/BE99 검사와 FE 타입·변경 린트·BE 빌드를 통과했다. 저장 응답 경합·revision·ID map 검토3건을 수정했다. UI 연결/실제 저장/LLM은 미실행이며 T1 캡처는 관련 코드 변경이 없어 재사용한다. [T2 범위와 제한](dashboard-studio.md#t2-문서변경-이력-기반--2026-10-15).
