@@ -14,7 +14,7 @@
 
 - 로그인한 담당자가 소유한 ready DuckDB 파일 소스가 있다.
 - 지정 LLM과 기존 SQL/compiler·미리보기 경계가 준비되어 있다.
-- A/B 제안·미리보기·원자 저장·재조회 API는 로컬 SQLite에서 검증했다. C 고객 UI와 운영 DB 검증은 미완료이며 UC 전체는 Draft다. [A 실행 증빙](../testing/semantic-proposal.md)을 확인한다.
+- A/B 제안·미리보기·원자 저장·재조회 API는 로컬 SQLite에서 검증했다. C 고객 UI 연결·컴포넌트 검증은 구현했으며 실제 화면·운영 DB 검증은 미완료이고 UC 전체는 Draft다. [A 실행 증빙](../testing/semantic-proposal.md)을 확인한다.
 
 ## Main Success Scenario
 

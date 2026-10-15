@@ -21,6 +21,7 @@ import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import MetricTrend from './MetricTrend';
 import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
 import { analysisOptions } from '../analysisOptions';
+import { validSemanticCandidate, validSemanticPreview } from '../semanticPreview';
 
 type Props = {
   open: boolean;
@@ -36,6 +37,10 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
   const { t } = useTranslation();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  const structuredCreation = dashboardId === undefined && !currentDraft;
+  const [semanticPlan, setSemanticPlan] = useState<any>(null);
+  const creationRequest = useRef<any>(null);
+  const generationAbort = useRef<AbortController | null>(null);
   const [sources, setSources] = useState<any[]>([]);
   const [sourceLoading, setSourceLoading] = useState(false);
   const [databaseId, setDatabaseId] = useState<number | ''>('');
@@ -51,6 +56,9 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
   const activeRequest = useRef(false);
 
   useEffect(() => {
+    generationAbort.current?.abort();
+    creationRequest.current = null;
+    setSemanticPlan(null);
     session.current += 1;
     const token = session.current;
     activeRequest.current = false;
@@ -86,12 +94,16 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
         if (token === session.current) setSourceLoading(false);
       });
     return () => {
+      generationAbort.current?.abort();
       session.current += 1;
     };
   }, [open, dashboardId, initialDatabaseId]);
 
   const close = () => {
     if (busy === 'save') return;
+    generationAbort.current?.abort();
+    creationRequest.current = null;
+    setSemanticPlan(null);
     session.current += 1;
     activeRequest.current = false;
     setDraft(null);
@@ -103,14 +115,49 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
     onClose();
   };
 
+  const stopGeneration = () => {
+    session.current += 1;
+    generationAbort.current?.abort();
+    activeRequest.current = false;
+    setBusy(null);
+    setCanSave(false);
+    creationRequest.current = null;
+  };
+
   const generate = async () => {
     if (activeRequest.current || !databaseId || !prompt.trim()) return;
     activeRequest.current = true;
     const token = session.current;
     setBusy('generate');
+    creationRequest.current = null;
     setCanSave(false);
     setError('');
     try {
+      if (structuredCreation) {
+        const controller = new AbortController();
+        generationAbort.current = controller;
+        const options = { timeout: 180000, signal: controller.signal };
+        const candidate = responseData(
+          await post('/bi/analysis-proposals', { sourceId: databaseId, prompt: prompt.trim() }, options),
+        );
+        if (token !== session.current) return;
+        if (!validSemanticCandidate(candidate, databaseId))
+          throw new Error('The generated dashboard is incomplete. Please try again.');
+        const result = responseData(await post('/bi/analysis-proposals/preview', { proposal: candidate.proposal }, options));
+        if (token !== session.current) return;
+        if (!validSemanticPreview(result, databaseId))
+          throw new Error('The dashboard preview is incomplete. Please try again.');
+        creationRequest.current = {
+          proposal: result.proposal,
+          previewDigest: result.previewDigest,
+          requestId: crypto.randomUUID(),
+        };
+        setDraft(result.preview.draft);
+        setPreview(result.preview);
+        setSemanticPlan(result.plan);
+        setCanSave(true);
+        return;
+      }
       const candidate = responseData(
         await post(
           '/ai/dashboard-draft',
@@ -148,14 +195,16 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
   };
 
   const save = async () => {
-    if (activeRequest.current || !canSave || !preview) return;
+    if (activeRequest.current || !canSave || !preview || (structuredCreation && !creationRequest.current)) return;
     activeRequest.current = true;
     const token = session.current;
     setBusy('save');
     setError('');
     try {
       const saved = responseData(
-        await post('/ai/dashboard-save', { draft: preview.draft, dashboardId }, { timeout: 180000 }),
+        structuredCreation
+          ? await post('/bi/analysis-proposals/save', creationRequest.current, { timeout: 180000 })
+          : await post('/ai/dashboard-save', { draft: preview.draft, dashboardId }, { timeout: 180000 }),
       );
       if (token !== session.current) return;
       if (!Number.isInteger(saved?.id) || saved.id <= 0) throw new Error('The dashboard could not be saved.');
@@ -170,7 +219,10 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
     } catch (err) {
       if (token === session.current) {
         setError(errorMessage(err));
-        setCanSave(false);
+        const status = (err as any)?.response?.status;
+        const retryable = structuredCreation && (!status || status >= 500 || status === 408 || status === 429);
+        setCanSave(!!retryable);
+        if (!retryable) creationRequest.current = null;
       }
     } finally {
       if (token === session.current) {
@@ -210,6 +262,7 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
             disabled={!!busy || sourceLoading}
             onChange={event => {
               setDatabaseId(Number(event.target.value));
+              creationRequest.current = null;
               setCanSave(false);
             }}
           >
@@ -229,12 +282,14 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
             multiline
             InputLabelProps={{ shrink: true }}
             minRows={3}
+            inputProps={{ maxLength: 2000 }}
             fullWidth
             label={t('ai.dashboardPrompt', { defaultValue: 'What would you like to see?' })}
             value={prompt}
             disabled={!!busy}
             onChange={event => {
               setPrompt(event.target.value);
+              creationRequest.current = null;
               setCanSave(false);
             }}
             placeholder={t('ai.dashboardPromptExample', {
@@ -249,8 +304,8 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
           >
             {busy === 'generate'
               ? t('ai.generating', { defaultValue: 'Generating preview…' })
-              : t(draft ? 'ai.revisePreview' : 'ai.generatePreview', {
-                  defaultValue: draft ? 'Revise preview' : 'Generate preview',
+              : t(!structuredCreation && draft ? 'ai.revisePreview' : 'ai.generatePreview', {
+                  defaultValue: !structuredCreation && draft ? 'Revise preview' : 'Generate preview',
                 })}
           </Button>
           {preview && (
@@ -266,10 +321,36 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
                 {preview.draft.title}
               </Typography>
               <Typography sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{preview.draft.explanation}</Typography>
+              {semanticPlan && (
+                <Typography role="status" sx={{ fontSize: 12, color: 'text.secondary', overflowWrap: 'anywhere' }}>
+                  {`지표 ${new Set(semanticPlan.measures.map(m => m.identity)).size}개 · 분류 ${
+                    semanticPlan.dimensions.length
+                  }개 · 기존 지표 ${
+                    new Set(semanticPlan.measures.filter(m => m.action === 'reuse').map(m => m.metricId)).size
+                  }개 재사용`}
+                </Typography>
+              )}
               <Box component="details" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
                 <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 13 }}>
-                  SQL · 계산식 확인
+                  계산 기준
                 </Typography>
+                {semanticPlan && (
+                  <Stack spacing={1} sx={{ mt: 1, minWidth: 0 }}>
+                    {semanticPlan.measures.map(m => (
+                      <Typography key={m.key} sx={{ fontSize: 12, overflowWrap: 'anywhere' }}>
+                        {`${m.definition.label} · ${m.action === 'reuse' ? '기존 지표 재사용' : '저장 시 새 지표 생성'} · ${
+                          m.definition.aggregation
+                        }(${m.definition.column})`}
+                      </Typography>
+                    ))}
+                    {semanticPlan.dimensions.map(d => (
+                      <Typography
+                        key={d.key}
+                        sx={{ fontSize: 12, overflowWrap: 'anywhere' }}
+                      >{`분류: ${d.label} · ${d.type}`}</Typography>
+                    ))}
+                  </Stack>
+                )}
                 {preview.widgets.map((widget, index) => (
                   <Box key={index} sx={{ mt: 1.5 }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{widget.title}</Typography>
@@ -336,9 +417,11 @@ function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, ini
           )}
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ p: 2, flexWrap: 'wrap', gap: 1 }}>
-        <Button onClick={close} disabled={busy === 'save'}>
-          {t('common.cancel', { defaultValue: 'Cancel' })}
+      <DialogActions sx={{ p: 1.5, flexWrap: 'wrap', gap: 1, '& > :not(:first-of-type)': { ml: 0 } }}>
+        <Button onClick={structuredCreation && busy === 'generate' ? stopGeneration : close} disabled={busy === 'save'}>
+          {structuredCreation && busy === 'generate'
+            ? t('ai.stopGeneration', { defaultValue: '생성 중지' })
+            : t('common.cancel', { defaultValue: 'Cancel' })}
         </Button>
         <Button variant="contained" onClick={save} disabled={!!busy || !canSave || !preview}>
           {busy === 'save' ? t('ai.saving', { defaultValue: 'Saving…' }) : t('common.save', { defaultValue: 'Save' })}

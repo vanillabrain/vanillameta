@@ -13,7 +13,7 @@
 
 ## Preconditions
 
-- [UC-012](../use_cases/UC-012-semantic-creation.md)의 A/B API·로컬 SQLite를 부분 실행했다. [A 증빙](../testing/semantic-proposal.md)에 단위·실LLM/API·독립 계산 결과를 기록한다. C UI 및 운영 DB는 NOT_RUN이다. [B 증빙](../testing/semantic-creation-save.md)을 확인한다.
+- [UC-012](../use_cases/UC-012-semantic-creation.md)의 A/B API·로컬 SQLite를 부분 실행했다. [A 증빙](../testing/semantic-proposal.md)에 단위·실LLM/API·독립 계산 결과를 기록한다. C UI 연결/컴포넌트/API는 부분 실행했으며 실제 화면은 BLOCKED, 운영 DB는 NOT_RUN이다. [B 증빙](../testing/semantic-creation-save.md)을 확인한다.
 - 공식 Rill source7 fixture를 비공개 테스트 분석에 사용한다. 사용자 원본을 변경하지 않는다.
 
 ## Flow
@@ -65,3 +65,9 @@
 - TC09: 실제 분석20의 KPI/OS/복제 차트가 같은 지표18을 참조하고 UC004 영향 API가 인덱스0/2/3을 탐지. 직접 수정/복제/재조회 후 안정 차원 ID 보존. 공통 지표 갱신 helper의 dimensionDefinition 보존은 단위 PASS. 분석20의 실제 내용 AI/배치 AI/undo UI 연속은 NOT_RUN.
 - TC12: SQLite migration 멱등/기존 행 보존/unique/빈 테이블 downgrade PASS. 영수증 존재 시 downgrade 거절 PASS. 운영 MySQL은 NOT_RUN.
 - 전체 시나리오 표는 여전히 고객 UI·운영 경계까지 포함하므로 전체 PASS로 승격하지 않는다.
+
+## C 부분 실행 — 2026-10-15
+
+- TC01/03/06/08/11: 생성/미리보기/저장 API 연결, 동일 key 재시도,409/질문/소스 변경 시 무효화, 응답 불일치 거절, 생성 중지와 늦은 응답, 실패 시 이전 질문·미리보기 보존을 FE 컴포넌트에서 PASS. 기존 분석 수정 경로도 회귀했다.
+- 실제 지정 LLM/API의 분석21 저장·같은 key 재시도·독립 GET 재조회, 요청634513000/평균 상대 오차1e-9 이내/OS28개·합계/각169개 추세 PASS. API 재조회는 실제 브라우저 새로고침 PASS가 아니다.
+- TC10: source에서 기존 국소 UI Kit/접힌 계산/반응형 결과 grid 적용을 대조했으나 실제390/768/1440px 화면·컨트롤 실측·Rill UI 비교는 auto-review 재거절로 BLOCKED. 전체 시나리오 PASS로 승격하지 않는다. [실행 기록](../testing/semantic-creation-ui.md).

@@ -1,6 +1,6 @@
 # P2 — 질문에서 지표·차원·분석을 함께 만드는 설계
 
-상태: Draft / A/B API·로컬 SQLite 검증 완료, C UI 미구현. UC-012·FR-007/008·NFR-004. 제안·미리보기·원자 저장 API와 영수증 migration을 구현했으며 고객 UI 연결·운영 DB 검증은 미완료다. [실행 증빙](../testing/semantic-proposal.md)을 확인한다. 현재 동작과 예정 계약을 혼동하지 않는다.
+상태: Draft / A/B API·로컬 SQLite 검증 완료, C UI 연결 구현/실제 화면 검증 BLOCKED. UC-012·FR-007/008·NFR-004. 제안·미리보기·원자 저장 API와 영수증 migration을 구현했으며 고객 UI 연결은 구현했으며 실제 화면·운영 DB 검증은 미완료다. [실행 증빙](../testing/semantic-proposal.md)을 확인한다. 현재 동작과 예정 계약을 혼동하지 않는다.
 
 ## 고객 흐름과 첫 범위
 
@@ -124,3 +124,7 @@ P2 저장은 신규 `AnalysisCreationReceipt`의 **actorId+requestId DB unique �
 신규 지표는 identity별 한 번만 만들고 활성 legacy 정의는 기존 ID를 유지한다. 다른 요청이 먼저 저장해 create→reuse 계획이 달라지면 PLAN_CHANGED409다. 비활성/손상 deterministic 내부 이름 충돌도409이며 재활성화하지 않는다. `AiDashboardService.save(sharedManager)`의 실제 최종 UUID를 같은 transaction에서 snapshot key로 연결한다. 차원의 임시 proposal key는 dimensionDefinition에 저장하지 않는다. 기존 제작기도 같은 안정 차원 정의를 사용해 직접 수정/복제 시 ID·열·타입·버전을 유지한다.
 
 [검증 기록](../testing/semantic-creation-save.md)은 실제 SQLite 다중 연결·단계별 실패 주입과 API 검증을 구분한다. 복제/직접 편집/지표 영향 확인을 실행했으며 신규 분석에서 내용·배치 AI 전체 연속 UI는 다시 실행하지 않았다.
+
+## C 구현 경계 — 2026-10-15
+
+기존 AiDashboardPanel 신규 생성에 A/B API를 연결하고 수정 경로는 유지했다. 서버 canonical preview와 proposal/digest를 결합하고 화면에서 동일 저장을 재시도할 때 requestId를 유지한다. 질문/소스/계획 충돌은 새 preview가 필요하다. 기본은 결과/저장이며 계산 기준은 접는다. [C 실행 기록](../testing/semantic-creation-ui.md)의60개 컴포넌트 테스트와 실LLM/API 재조회는 PASS다. 새로고침·실제 크기/정렬·Rill 화면 비교는 auto-review 거절로 BLOCKED이며 전체 출하/수용 증거로 대체하지 않는다.
