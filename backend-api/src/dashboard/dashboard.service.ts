@@ -180,7 +180,30 @@ export class DashboardService {
   }
 
   async findShared(id: number) {
-    return this.assembleDashboard(id);
+    const result = await this.assembleDashboard(id);
+    if (result.status !== ResponseStatus.SUCCESS) return result;
+    // The existing live renderer needs only its narrowly scoped share token, never saved SQL/metric links.
+    const data = result.data;
+    return {
+      status: result.status,
+      data: Object.fromEntries(
+        [
+          'id',
+          'uuid',
+          'title',
+          'layout',
+          'widgets',
+          'updatedAt',
+          'createdAt',
+          'shareYn',
+          'endDate',
+          'shareToken',
+          'allowReuse',
+        ]
+          .filter(key => data[key] !== undefined)
+          .map(key => [key, data[key]]),
+      ),
+    };
   }
 
   private async assembleDashboard(id: number) {

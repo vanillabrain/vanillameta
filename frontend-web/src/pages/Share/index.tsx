@@ -1,3 +1,4 @@
+import ReuseLink from '../Dashboard/DashboardReuse/ReuseLink';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -57,6 +58,7 @@ const Share = () => {
       className="border-t border-border"
     >
       <Seo title={dashboardInfo.title} />
+      <ReuseLink kind="share" uuid={dashboardUuid} />
       <div className="flex-auto rounded-b-[6px] bg-muted sm:min-h-[1080px]">
         <ResponsiveGridLayout
           rowHeight={88}

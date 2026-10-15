@@ -54,7 +54,16 @@ const addAuthToHeaders = config => {
   const token = getToken();
   const shareToken = getShareToken();
 
-  if (token) {
+  const sharedWidgetRead =
+    shareToken &&
+    /^(?:\/share\/|\/embed\/)/.test(window.location.pathname) &&
+    config.method === 'get' &&
+    config.url.split('?')[0] === '/database/data';
+  if (sharedWidgetRead) {
+    isLoginUser = false;
+    config.headers['Authorization-url'] = `Bearer ${shareToken}`;
+    delete config.headers.Authorization;
+  } else if (token) {
     isLoginUser = true;
     config.headers.Authorization = `Bearer ${token}`;
     delete config.headers['Authorization-url'];

@@ -64,7 +64,7 @@ it('UC-019 prepares the saved revision, including reload, without an automatic p
   const view = render(<Publication />);
   await screen.findByText('결과: 요청 수');
   expect(screen.getByText(/저장 완료 · 링크 공개·갱신은 게시 버튼/)).not.toBeNull();
-  expect(api.post.mock.calls[0][1]).toEqual({ expectedRevision: initial().revision });
+  expect(api.post.mock.calls[0][1]).toEqual({ expectedRevision: initial().revision, allowReuse: false });
   view.unmount();
   api.post.mockResolvedValueOnce(wrap(preview()));
   render(<Publication />);
@@ -244,9 +244,14 @@ it('public page fetches no auth and never calls owner or source endpoints', asyn
   vi.stubGlobal('fetch', fetcher);
   render(<Published />);
   await screen.findByText('결과: 요청 수');
-  expect(fetcher).toHaveBeenCalledTimes(1);
-  expect(fetcher.mock.calls[0][0]).toContain('/publications/public-fixture');
-  expect(fetcher.mock.calls[0][1]).toMatchObject({ credentials: 'omit' });
+  // The published result and the anonymous reuse availability are both unauthenticated reads.
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+  const urls = fetcher.mock.calls.map(call => String(call[0]));
+  expect(urls.some(url => url.includes('/publications/public-fixture'))).toBe(true);
+  expect(urls.some(url => url.includes('/reuse-links/publication/public-fixture'))).toBe(true);
+  expect(fetcher.mock.calls.every(call => call[1]?.credentials === 'omit')).toBe(true);
+  // No owner, recipe, source or BI endpoint is ever requested from the public page.
+  expect(urls.some(url => url.includes('/bi/'))).toBe(false);
   expect(api.get).not.toHaveBeenCalled();
   expect(api.post).not.toHaveBeenCalled();
 });
@@ -285,4 +290,59 @@ it('request id failure before dispatch is not reported as an uncertain write', a
   expect(api.post).toHaveBeenCalledTimes(1);
   expect(screen.queryByText(/게시 결과가 확실하지/)).toBeNull();
   spy.mockRestore();
+});
+
+const reuseToggle = () => screen.getByRole('checkbox', { name: '내 소스로 재사용 허용' });
+it('UC-021 defaults reuse off, clears the old preview on opt-in and publishes only the new preview', async () => {
+  await open();
+  expect(reuseToggle().getAttribute('aria-checked')).toBe('false');
+  await makePreview();
+  expect(api.post.mock.calls[0][1]).toEqual({ expectedRevision: 'a'.repeat(64), allowReuse: false });
+  fireEvent.click(reuseToggle());
+  expect(reuseToggle().getAttribute('aria-checked')).toBe('true');
+  // The previous ticket/preview no longer matches the new scope and cannot be published.
+  expect(screen.queryByText('결과: 요청 수')).toBeNull();
+  expect((screen.getByRole('button', { name: '링크 게시' }) as HTMLButtonElement).disabled).toBe(true);
+  api.post.mockResolvedValueOnce(wrap(preview()));
+  fireEvent.click(screen.getByRole('button', { name: '게시 결과 미리보기' }));
+  await screen.findByText('결과: 요청 수');
+  expect(api.post.mock.calls[1][1]).toEqual({ expectedRevision: 'a'.repeat(64), allowReuse: true });
+  api.post.mockResolvedValueOnce(wrap(published()));
+  fireEvent.click(screen.getByRole('button', { name: '링크 게시' }));
+  await screen.findByText('게시 버전 1을 저장했습니다.');
+  expect(api.post.mock.calls[2][1]).toMatchObject({ ticket: 'ticket-one', expectedRevision: 'a'.repeat(64) });
+  expect(api.post.mock.calls[2][1]).not.toHaveProperty('allowReuse');
+});
+it('UC-021 handoff auto preview never grants reuse even for a reusable publication', async () => {
+  api.search = `?savedRevision=${initial().revision}`;
+  api.get.mockResolvedValueOnce(wrap({ ...published(), publication: { ...published().publication, reusable: true } }));
+  api.post.mockResolvedValueOnce(wrap(preview()));
+  render(<Publication />);
+  await screen.findByText('결과: 요청 수');
+  expect(api.post.mock.calls[0][1]).toEqual({ expectedRevision: initial().revision, allowReuse: false });
+  expect(reuseToggle().getAttribute('aria-checked')).toBe('false');
+});
+it('UC-021 reflects an existing reusable publication when there is no handoff', async () => {
+  api.get.mockResolvedValueOnce(wrap({ ...published(), publication: { ...published().publication, reusable: true } }));
+  await open();
+  expect(reuseToggle().getAttribute('aria-checked')).toBe('true');
+  api.get.mockResolvedValueOnce(wrap(initial()));
+  fireEvent.click(screen.getByRole('button', { name: '게시 상태 확인' }));
+  await screen.findByText(/게시 상태를 확인했습니다/);
+  expect(reuseToggle().getAttribute('aria-checked')).toBe('false');
+});
+it('UC-021 disables the reuse toggle while a preview is in flight', async () => {
+  await open();
+  let resolve: any;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise(done => {
+        resolve = done;
+      }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '게시 결과 미리보기' }));
+  await waitFor(() => expect(reuseToggle().hasAttribute('disabled')).toBe(true));
+  await act(async () => resolve(wrap(preview())));
+  await screen.findByText('결과: 요청 수');
+  expect(reuseToggle().hasAttribute('disabled')).toBe(false);
 });

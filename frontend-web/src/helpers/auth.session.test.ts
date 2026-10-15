@@ -144,3 +144,26 @@ describe('axios refresh response forwarding and shared inflight recovery', () =>
     expect(seam.refresh).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('logged-in shared widget boundary', () => {
+  afterEach(() => window.history.replaceState({}, '', '/'));
+  it('uses only the scoped share token for widget reads on a share page, but user auth for reuse', async () => {
+    window.history.replaceState({}, '', '/share/unit-link');
+    setToken('unit-owner-session');
+    seam.share.mockReturnValue('unit-scoped-share');
+    const api = await load();
+    api.defaults.adapter = async config => {
+      if (config.url === '/database/data') {
+        expect(config.headers.Authorization).toBeUndefined();
+        expect(config.headers['Authorization-url']).toBe('Bearer unit-scoped-share');
+      } else {
+        expect(config.headers.Authorization).toBe('Bearer unit-owner-session');
+        expect(config.headers['Authorization-url']).toBeUndefined();
+      }
+      return ok(config, 'allowed');
+    };
+    await api.get('/database/data');
+    await api.get('/bi/reuse/share/unit-link');
+    await api.get('/database/info/23');
+  });
+});

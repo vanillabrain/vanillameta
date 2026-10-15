@@ -1,4 +1,5 @@
 import { AddAnalysisCreationReceipts1792030000000 } from './migrations/1792030000000-add-analysis-creation-receipts';
+import { AddDashboardReusePermissions1792120000000 } from './migrations/1792120000000-add-dashboard-reuse-permissions';
 import { AddDashboardPublications1792040000000 } from './migrations/1792040000000-add-dashboard-publications';
 import { AddDashboardPivots1791951000000 } from './migrations/1791951000000-add-dashboard-pivots';
 import { BiModule } from './bi/bi.module';
@@ -61,6 +62,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddDashboardReusePermissions1792120000000,
         AddDashboardPublications1792040000000,
         AddAnalysisCreationReceipts1792030000000,
         AddDashboardPivots1791951000000,

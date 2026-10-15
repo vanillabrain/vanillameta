@@ -249,6 +249,10 @@ export default {
     expired: '대시보드의 공유 기간이 만료되었습니다.\n대시보드의 공유 상태를 다시 확인해 주세요.',
     notFound: '대시보드가 존재하지 않습니다.\n대시보드의 URL을 다시 확인해 주세요.',
     loading: '데이터를 불러오고 있습니다.',
+    allowReuse: '내 소스로 재사용 허용',
+    allowReuseHint: '받는 사람이 자신의 데이터로 재사용합니다. 계산식·필터 조건·배치가 복사본에 포함됩니다.',
+    allowReuseLoading: '재사용 설정을 불러오는 중…',
+    allowReuseSaving: '재사용 설정을 저장하는 중…',
   },
   widgetCreate: {
     aiRecommended: 'AI 추천: {{title}}{{reason}}',

@@ -28,6 +28,23 @@ describe('share ownership, calendar expiry and legacy token rotation regressions
     users = { findOne: jest.fn().mockResolvedValue({ id: 7, userId: 'unitactor' }) };
     dashboards = { findOne: jest.fn().mockResolvedValue({ id: 17, shareId: 9, delYn: 'N' }) };
     shares = {
+      manager: { connection: { options: { type: 'mysql' } } },
+      createQueryBuilder: jest.fn().mockImplementation(() => {
+        let fields: any;
+        const builder = {
+          update: jest.fn(() => builder),
+          set: jest.fn(value => {
+            fields = value;
+            return builder;
+          }),
+          where: jest.fn(() => builder),
+          execute: jest.fn(async () => {
+            active = { ...active, ...fields, reuseVersion: (active.reuseVersion || 0) + 1 };
+            return { affected: 1 };
+          }),
+        };
+        return builder;
+      }),
       findOne: jest.fn().mockImplementation(async () => ({ ...active })),
       save: jest.fn().mockImplementation(async value => {
         active = { ...value };

@@ -82,7 +82,7 @@ function tokenize(sql: string): Token[] {
 
 /** Profile columns by lower-case name; the same name twice cannot be resolved. */
 function collectColumns(profile: ReuseSourceProfile): Map<string, ReuseColumn> {
-  if (!profile || !Array.isArray(profile.columns) || !profile.columns.length)
+  if (!profile || !Array.isArray(profile.columns))
     throw new BadRequestException('invalid source profile');
   const columns = new Map<string, ReuseColumn>();
   for (const column of profile.columns) {

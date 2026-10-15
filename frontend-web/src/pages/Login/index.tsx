@@ -1,5 +1,6 @@
+import { reuseReturn } from '@/helpers/reuseReturn';
 import React, { useContext, useEffect, useState } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -18,6 +19,7 @@ const Login = () => {
   const { t } = useTranslation();
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
+  const { search } = useLocation();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const [userInfo, setUserInfo] = useState({
@@ -32,7 +34,7 @@ const Login = () => {
     console.log('APP_MODE', APP_MODE);
     if (token) {
       // token이 있으면 대시보드로 보내기
-      navigate('/dashboard');
+      navigate(reuseReturn(search));
     }
   }, [token]);
 
@@ -58,7 +60,7 @@ const Login = () => {
         .then(response => {
           if (response.status === 201) {
             setToken(response.data.accessToken);
-            navigate('/dashboard');
+            navigate(reuseReturn(search));
           }
         })
         .catch(error => {

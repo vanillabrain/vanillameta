@@ -1,3 +1,4 @@
+import { SharedReuseOriginService, ReuseReference } from './shared-reuse-origin.service';
 import {
   BadRequestException,
   ConflictException,
@@ -28,6 +29,7 @@ const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-
 const TTL = 5 * 60 * 1000;
 type Plan = {
   actor: number;
+  reference?: ReuseReference;
   originalId: number;
   originalRevision: string;
   originalSourceId: number;
@@ -52,24 +54,27 @@ export class DashboardReuseService {
     private readonly dashboards: AiDashboardService,
     private readonly connection: ConnectionService,
     private readonly access: SourceAccessService,
+    private readonly origins?: SharedReuseOriginService,
   ) {}
-  private async original(id: unknown, actor: number) {
+  private async original(id: unknown, actor: number, kind = 'owned') {
+    this.access.actor(actor);
+    if (kind !== 'owned') return this.origins.resolve(kind, String(id));
     await this.access.assert('dashboard', id, actor);
     const originalId = this.access.id(id);
     const analysis = (await this.dashboards.analysis(originalId, actor, true)).data;
     const profile = await this.bi.profile(analysis.databaseId, actor);
     if (!profile.supported)
       throw new BadRequestException('서버에 저장한 파일 분석만 복제할 수 있습니다.');
-    return { originalId, analysis, profile };
+    return { originalId, analysis, profile, reference: undefined as ReuseReference | undefined };
   }
-  async draft(id: unknown, actor: number) {
-    const { originalId, analysis, profile } = await this.original(id, actor);
+  async draft(id: unknown, actor: number, kind = 'owned') {
+    const { originalId, analysis, profile } = await this.original(id, actor, kind);
     const columns = reuseColumns(analysis, profile);
     return {
-      originalId,
+      originalId: kind === 'owned' ? originalId : String(id),
       originalTitle: analysis.title,
       expectedRevision: analysis.revision,
-      originalSourceId: profile.sourceId,
+      ...(kind === 'owned' ? { originalSourceId: profile.sourceId } : {}),
       title: `${analysis.title.slice(0, 296)} 복사본`,
       columns,
       sources: (await this.bi.sources(actor)).filter(source => source.engine === 'duckdb'),
@@ -85,9 +90,9 @@ export class DashboardReuseService {
     this.tickets.set(ticket, { ...plan, expiresAt: now + TTL });
     return ticket;
   }
-  async preview(id: unknown, body: any, actor: number) {
+  async preview(id: unknown, body: any, actor: number, kind = 'owned') {
     shape(body, ['expectedRevision', 'sourceId', 'sourceRevision', 'title', 'columnMap']);
-    const { originalId, analysis, profile } = await this.original(id, actor);
+    const { originalId, analysis, profile, reference } = await this.original(id, actor, kind);
     if (body.expectedRevision !== analysis.revision) throw stale();
     const targetId = this.access.id(body.sourceId);
     await this.access.assert('database', targetId, actor);
@@ -123,9 +128,11 @@ export class DashboardReuseService {
       // A profile snapshot is not proof the persisted source pointer stayed unchanged.
       await this.currentSource(this.db.manager, targetId, actor, target.dataVersion);
       const current = await this.db.manager.findOne(Dashboard, { where: { id: originalId } });
-      if (!current || dashboardRevision(current) !== analysis.revision) throw stale();
+      if (reference) await this.origins.current(reference, this.db.manager);
+      else if (!current || dashboardRevision(current) !== analysis.revision) throw stale();
       const ticket = this.put({
         actor,
+        reference,
         originalId,
         originalRevision: analysis.revision,
         originalSourceId: profile.sourceId,
@@ -138,17 +145,41 @@ export class DashboardReuseService {
       return {
         ticket,
         expiresAt: new Date(Date.now() + TTL).toISOString(),
-        originalId,
+        originalId: reference ? String(id) : originalId,
         sourceId: targetId,
         snapshot: {
           schemaVersion: 1,
           title: draft.title,
           capturedAt: new Date().toISOString(),
           scope: `새 소스: ${target.name} · 전체 기간 · 필터 없음 · UTC`,
-          widgets: result.widgets.map((widget, index) => ({
-            ...widget,
-            blockId: draft.widgets[index].blockId,
-          })),
+          widgets: result.widgets.map((widget, index) => {
+            const visible = reference
+              ? Object.fromEntries(
+                  [
+                    'title',
+                    'description',
+                    'type',
+                    'valueField',
+                    'categoryField',
+                    'decimalPlaces',
+                    'numberNotation',
+                    'prefix',
+                    'suffix',
+                    'fields',
+                    'datas',
+                  ]
+                    .filter(key => widget[key] !== undefined)
+                    .map(key => [key, widget[key]]),
+                )
+              : widget;
+            if (reference && widget.trend)
+              visible.trend = {
+                column: widget.trend.column,
+                grain: widget.trend.grain,
+                points: widget.trend.points,
+              };
+            return { ...visible, blockId: draft.widgets[index].blockId };
+          }),
           responsiveLayouts: responsive,
         },
       };
@@ -169,6 +200,11 @@ export class DashboardReuseService {
     if (sourceRevision(source, version) !== revision) throw stale();
   }
   private async currentOriginal(manager: EntityManager, plan: Plan) {
+    if (plan.reference) {
+      await this.origins.current(plan.reference, manager);
+      await this.currentSource(manager, plan.targetId, plan.actor, plan.targetRevision);
+      return;
+    }
     const row = await manager.findOne(Dashboard, {
       where: { id: plan.originalId },
       ...(manager.queryRunner?.isTransactionActive && this.db.options.type !== 'sqlite'
@@ -188,10 +224,12 @@ export class DashboardReuseService {
     );
     await this.currentSource(manager, plan.targetId, plan.actor, plan.targetRevision);
   }
-  async save(id: unknown, body: any, actor: number) {
+  async save(id: unknown, body: any, actor: number, kind = 'owned') {
     shape(body, ['ticket', 'requestId']);
     this.access.actor(actor);
-    const originalId = this.access.id(id);
+    const originalId = kind === 'owned' ? this.access.id(id) : String(id);
+    if (kind !== 'owned' && kind !== 'share' && kind !== 'publication')
+      throw new BadRequestException('invalid reuse origin');
     if (
       typeof body.ticket !== 'string' ||
       !UUID.test(body.ticket) ||
@@ -201,7 +239,14 @@ export class DashboardReuseService {
       throw new BadRequestException('복사본 저장 요청을 확인해 주세요.');
     const requestId = body.requestId.toLowerCase();
     const digest = createHash('sha256')
-      .update(JSON.stringify(['dashboard-reuse', originalId, body.ticket]))
+      .update(
+        JSON.stringify([
+          'dashboard-reuse',
+          ...(kind === 'owned' ? [] : [kind]),
+          originalId,
+          body.ticket,
+        ]),
+      )
       .digest('hex');
     const run = () =>
       this.db.transaction(async manager => {
@@ -228,7 +273,9 @@ export class DashboardReuseService {
           !plan ||
           plan.expiresAt <= Date.now() ||
           plan.actor !== actor ||
-          plan.originalId !== originalId
+          (plan.reference
+            ? plan.reference.key !== originalId || plan.reference.kind !== kind
+            : kind !== 'owned' || plan.originalId !== originalId)
         )
           throw new BadRequestException(
             '미리보기가 만료되었습니다. 현재 입력으로 다시 미리보기해 주세요.',

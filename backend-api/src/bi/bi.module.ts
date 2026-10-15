@@ -1,3 +1,9 @@
+import { SharedReuseOriginService } from './shared-reuse-origin.service';
+import {
+  SharedReuseController,
+  ReuseLinkController,
+  ReuseAccessController,
+} from './shared-reuse.controller';
 import { DashboardReuseService } from './dashboard-reuse.service';
 import { DashboardReuseController } from './dashboard-reuse.controller';
 import { SemanticCreationService } from './semantic-creation.service';
@@ -32,6 +38,9 @@ import { BiService } from './bi.service';
   controllers: [
     BiController,
     DashboardReuseController,
+    SharedReuseController,
+    ReuseLinkController,
+    ReuseAccessController,
     SemanticProposalController,
     BiExploreController,
     ExploreViewController,
@@ -43,6 +52,7 @@ import { BiService } from './bi.service';
   providers: [
     BiService,
     DashboardReuseService,
+    SharedReuseOriginService,
     SemanticProposalService,
     SemanticCreationService,
     BiExploreService,

@@ -16,7 +16,9 @@ import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { BiService } from './bi.service';
 import { buildPublicationSnapshot } from './publication-snapshot';
+import { buildReuseRecipe } from './reuse-recipe';
 
 export const PUBLICATION_TICKET_TTL_MS = 5 * 60 * 1000;
 export const PUBLICATION_TICKET_LIMIT = 100;
@@ -39,6 +41,7 @@ type PublicationTicket = {
   dashboardId: number;
   revision: string;
   snapshot: string;
+  reuseDefinition?: string | null;
   bytes: number;
   expiresAt: number;
 };
@@ -102,6 +105,7 @@ export class PublicationService {
     @InjectRepository(Dashboard) private readonly dashboards: Repository<Dashboard>,
     private readonly access: SourceAccessService,
     private readonly ai: AiDashboardService,
+    private readonly bi: BiService,
   ) {}
 
   private expiry(value: unknown): string {
@@ -126,6 +130,11 @@ export class PublicationService {
       throw new BadRequestException(SHAPE_MESSAGE);
   }
 
+  /** A stored recipe marks the link reusable; the recipe itself is never returned here. */
+  private reusable(row: DashboardPublication | null | undefined) {
+    return typeof row?.reuseDefinition === 'string' && row.reuseDefinition.length > 0;
+  }
+
   private publication(row: DashboardPublication | null) {
     return row
       ? {
@@ -135,6 +144,7 @@ export class PublicationService {
           expiresAt: row.expiresAt,
           dashboardRevision: row.dashboardRevision,
           active: row.active === true,
+          reusable: this.reusable(row),
         }
       : null;
   }
@@ -169,7 +179,10 @@ export class PublicationService {
 
   /** Owner preview: read-only capture of the saved analysis, its revision and its block layout. */
   async preview(id: unknown, actor: number, body: any) {
-    this.shape(body, ['expectedRevision']);
+    this.shape(body, ['expectedRevision', 'allowReuse']);
+    if (body.allowReuse !== undefined && typeof body.allowReuse !== 'boolean')
+      throw new BadRequestException(SHAPE_MESSAGE);
+    const allowReuse = body.allowReuse === true;
     const dashboardId = this.access.id(id);
     await this.access.dashboard(dashboardId, actor);
     if (typeof body.expectedRevision !== 'string' || !REVISION.test(body.expectedRevision))
@@ -191,22 +204,32 @@ export class PublicationService {
     const after = await this.dashboardRow(dashboardId);
     if (dashboardRevision(after) !== body.expectedRevision)
       throw new ConflictException(STALE_SAVE_MESSAGE);
+    const layouts = await this.blockLayouts(dashboardId, analysis, after);
     const { snapshot, bytes } = buildPublicationSnapshot({
       title: analysis?.title ?? after.title,
       widgets: captured?.widgets,
-      responsiveLayouts: await this.blockLayouts(dashboardId, analysis, after),
+      responsiveLayouts: layouts,
       capturedAt: new Date(),
     });
     if (this.publications.manager.connection.options.type === 'mysql' && bytes > 60 * 1024)
       throw new BadRequestException('이 서버의 게시 결과 한도는 60KiB입니다. 블록을 줄여 주세요.');
+    // Only an explicit owner opt-in captures the private recipe; it is frozen with this publish.
+    let reuseDefinition: string | null = null;
+    if (allowReuse) {
+      const profile = await this.bi.profile(analysis?.databaseId, actor);
+      if (profile?.supported !== true)
+        throw new BadRequestException('서버에 저장한 파일 분석만 재사용을 허용할 수 있습니다.');
+      reuseDefinition = buildReuseRecipe({ ...analysis, responsiveLayouts: layouts }, profile);
+    }
     const ticket = this.tickets.put({
       actorId: actor,
       dashboardId,
       revision: body.expectedRevision,
       snapshot: JSON.stringify(snapshot),
-      bytes,
+      reuseDefinition,
+      bytes: bytes + Buffer.byteLength(reuseDefinition ?? ''),
     });
-    return { dashboardId, revision: body.expectedRevision, ticket, snapshot };
+    return { dashboardId, revision: body.expectedRevision, ticket, snapshot, reusable: allowReuse };
   }
 
   /** Stored responsive layouts win; legacy dashboards are rebuilt from the persisted grid. */
@@ -373,6 +396,9 @@ export class PublicationService {
           version,
           dashboardRevision: revision,
           snapshot: ticket.snapshot,
+          // The recipe travels with the ticket, never with the request body; a publish that
+          // did not opt in clears any older recipe in the same transaction.
+          reuseDefinition: ticket.reuseDefinition ?? null,
           publishedAt,
           expiresAt,
           active: true,
@@ -467,6 +493,7 @@ export class PublicationService {
       expiresAt: row.expiresAt,
       visibility: 'link',
       dataMode: 'snapshot',
+      reusable: this.reusable(row),
       snapshot,
     };
   }

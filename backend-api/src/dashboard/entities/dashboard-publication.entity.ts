@@ -20,6 +20,9 @@ export class DashboardPublication extends BaseEntity {
   @Column({ type: 'text', comment: '서버 생성 공개 snapshot' })
   snapshot: string;
 
+  @Column({ type: 'text', nullable: true, comment: '재사용 내부 정의(소유자 캡처, UC-021)' })
+  reuseDefinition: string | null;
+
   @Column({ length: 40, comment: '게시 시각(ISO)' })
   publishedAt: string;
 

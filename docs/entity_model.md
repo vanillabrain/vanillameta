@@ -165,3 +165,7 @@ Dimension은 첫 범위에서 source+원본 column 기반 안정적 논리 ID·�
 ## UC-020 reuse receipt
 
 대시보드 복제는 기존 `analysis_creation_receipt`의 actor/requestId unique 제약과 같은 transaction 저장을 재사용한다. digest에 `dashboard-reuse` namespace와 원본 ID·ticket을 포함해 UC012 생성 요청과 구분한다. 성공 재시도는 기존 dashboardId만 반환한다. 새 영구 블록 ID/모든 폭 배치·비공개 공유를 기록하며 지표 링크/게시본은 복사하지 않는다. 스키마 변경은 없다. [설계](architecture/dashboard-reuse.md)·[검증](testing/dashboard-reuse.md).
+
+## UC-021 shared/publication reuse
+
+`dashboard_share.allowReuse` boolean default false, `reuseVersion` integer default0을 추가한다. 소유자 허용 및 공유 on/off마다 버전을 증가시켜 ABA를 막는다. `dashboard_publication.reuseDefinition` nullable text는 게시 ticket에서 캡처한 private 계산/배치/필요 열 타입을 저장한다(최대60KiB). 익명 응답은 정의를 반환하지 않는다. [migration/설계](architecture/shared-dashboard-reuse.md)·[검증](testing/shared-dashboard-reuse.md).

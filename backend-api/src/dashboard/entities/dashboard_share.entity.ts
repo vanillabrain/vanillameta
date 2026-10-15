@@ -21,4 +21,14 @@ export class DashboardShare extends BaseEntity {
   @Optional()
   @Column({ nullable: true, comment: '유효기한 날짜' })
   endDate: Date;
+
+  /** UC-021: recipients may reuse the saved definition only after the owner opts in. */
+  @Optional()
+  @Column({ type: 'boolean', default: false, nullable: false, comment: '재사용 허용 여부' })
+  allowReuse: boolean;
+
+  /** ABA guard: every grant or share on/off change bumps this opaque version. */
+  @Optional()
+  @Column({ type: 'integer', default: 0, nullable: false, comment: '재사용 설정 버전' })
+  reuseVersion: number;
 }

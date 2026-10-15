@@ -49,6 +49,7 @@ function Router() {
           <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
           <Route path="/dashboard/:dashboardId/publication" element={<Publication />} />
           <Route path="/dashboard/:dashboardId/reuse" element={<DashboardReuse />} />
+          <Route path="/reuse/:kind/:uuid" element={<DashboardReuse />} />
           <Route path="/dashboard/:dashboardId/edit-charts" element={<DashboardEdit />} />
           <Route path="/dashboard/create" element={<DashboardCreate />}>
             <Route path=":createType" element={<DashboardCreate />} />

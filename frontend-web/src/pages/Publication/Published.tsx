@@ -1,3 +1,4 @@
+import ReuseLink from '../Dashboard/DashboardReuse/ReuseLink';
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
@@ -59,6 +60,7 @@ export default function Published() {
             <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
               링크 공유 · 게시 버전 {result.version} · 게시 {result.publishedAt} · 만료 {result.expiresAt}
             </p>
+            <ReuseLink kind="publication" uuid={publicationUuid} />
             <SnapshotView snapshot={result.snapshot} />
           </>
         )}

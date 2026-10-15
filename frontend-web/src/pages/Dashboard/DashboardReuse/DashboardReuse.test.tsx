@@ -2,10 +2,17 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import DashboardReuse from './index';
-const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), navigate: vi.fn(), id: '12' }));
+const api = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  navigate: vi.fn(),
+  id: '12',
+  kind: undefined as string | undefined,
+  uuid: undefined as string | undefined,
+}));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 vi.mock('react-router-dom', () => ({
-  useParams: () => ({ dashboardId: api.id }),
+  useParams: () => ({ dashboardId: api.id, kind: api.kind, uuid: api.uuid }),
   useNavigate: () => api.navigate,
   Link: ({ to, children }: any) => <a href={to}>{children}</a>,
 }));
@@ -48,6 +55,8 @@ const preview = (title = '원본 복사본', sourceId = 1) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   api.id = '12';
+  api.kind = undefined;
+  api.uuid = undefined;
   api.get.mockImplementation(async (url: string) =>
     wrap(url.endsWith('/reuse') ? original() : profile(url.includes('/2/') ? 2 : 1)),
   );
@@ -175,4 +184,31 @@ it('malformed save response never navigates over the original', async () => {
   fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
   await screen.findByText(/저장 결과를 확인하지 못했습니다/);
   expect(api.navigate).not.toHaveBeenCalled();
+});
+
+it('shared origin never selects or profiles the owner source and requires my source', async () => {
+  api.kind = 'publication';
+  api.uuid = '11111111-1111-4111-8111-111111111111';
+  api.get.mockImplementation(async (url: string) =>
+    wrap(
+      url.includes('/bi/reuse/')
+        ? { ...original(), originalId: api.uuid, originalSourceId: undefined, sources: [{ id: 2, name: '내 소스' }] }
+        : profile(2),
+    ),
+  );
+  render(<DashboardReuse />);
+  await screen.findByText('원본: 원본 · 내 소스를 선택해 주세요');
+  expect(api.get).toHaveBeenCalledTimes(1);
+  expect((screen.getByLabelText('데이터 소스') as HTMLSelectElement).value).toBe('');
+  expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(screen.getByLabelText('데이터 소스'), { target: { value: '2' } });
+  await screen.findByLabelText('amount 연결');
+  fireEvent.change(screen.getByLabelText('amount 연결'), { target: { value: 'amount_new' } });
+  fireEvent.change(screen.getByLabelText('os 연결'), { target: { value: 'os_new' } });
+  api.post.mockResolvedValueOnce(wrap({ ...preview('원본 복사본', 2), originalId: api.uuid }));
+  fireEvent.click(screen.getByRole('button', { name: '전체 미리보기' }));
+  await screen.findByText('미리보기: 원본 복사본 · reuse');
+  api.post.mockResolvedValueOnce(wrap({ id: 99 }));
+  fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/99'));
 });

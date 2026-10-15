@@ -24,6 +24,7 @@ import {
   PublicationTicketStore,
 } from './publication.service';
 import { PublicationController, PublishedPublicationController } from './publication.controller';
+import { readReuseRecipe } from './reuse-recipe';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACTOR = 2;
@@ -91,6 +92,7 @@ describe('UC-018 publication backend', () => {
   let db: DataSource;
   let service: PublicationService;
   let ai: { analysis: jest.Mock; preview: jest.Mock };
+  let bi: { profile: jest.Mock };
   let revision: string;
   const publications = () => db.getRepository(DashboardPublication);
   const dashboard = () => db.getRepository(Dashboard).findOneOrFail({ where: { id: DASHBOARD } });
@@ -151,11 +153,30 @@ describe('UC-018 publication backend', () => {
         },
       })),
     };
+    // The recipe capture reads the owner's source profile; nothing else here may call it.
+    bi = {
+      profile: jest.fn(async () => ({
+        sourceId: 7,
+        supported: true,
+        name: 'Fixture source',
+        dataVersion: 'v1',
+        connectionConfig: '{"password":"secret"}',
+        preview: [{ amount: 1, channel: 'A' }],
+        columns: [
+          { name: 'amount', type: 'DOUBLE', numeric: true, temporal: false, nullCount: '0' },
+          { name: 'channel', type: 'VARCHAR', numeric: false, temporal: false, nullCount: '0' },
+          // Not read by the SQL, so it must not travel with the recipe.
+          { name: 'day', type: 'DATE', numeric: false, temporal: true, nullCount: '0' },
+          { name: 'note', type: 'VARCHAR', numeric: false, temporal: false, nullCount: '0' },
+        ],
+      })),
+    };
     service = new PublicationService(
       publications(),
       db.getRepository(Dashboard),
       new SourceAccessService(db),
       ai as any,
+      bi as any,
     );
   });
   afterEach(async () => {
@@ -235,6 +256,7 @@ describe('UC-018 publication backend', () => {
       expiresAt: published.publication.expiresAt,
       dashboardRevision: revision,
       active: true,
+      reusable: false,
     });
     expect(published.publication.uuid).toMatch(UUID);
     expect((await dashboard()).updatedAt.toISOString()).toBe('2020-01-01T00:00:00.000Z');
@@ -386,9 +408,100 @@ describe('UC-018 publication backend', () => {
       expiresAt: published.publication.expiresAt,
       visibility: 'link',
       dataMode: 'snapshot',
+      reusable: false,
       snapshot: preview.snapshot,
     });
     expect([ai.analysis.mock.calls.length, ai.preview.mock.calls.length]).toEqual(calls);
+  });
+
+  it('defaults to no reuse and never captures a recipe', async () => {
+    const preview = await ownerPreview();
+    expect(preview.reusable).toBe(false);
+    expect(bi.profile).not.toHaveBeenCalled();
+    const published = await service.publish(DASHBOARD, ACTOR, await publishBody(preview, 0));
+    expect(published.publication.reusable).toBe(false);
+    const row = await publications().findOneOrFail({ where: { dashboardId: DASHBOARD } });
+    expect(row.reuseDefinition).toBeNull();
+    const served = await service.publicResult(published.publication.uuid);
+    expect(served.reusable).toBe(false);
+    expect(bi.profile).not.toHaveBeenCalled();
+  });
+
+  it('captures a redacted recipe only for an explicit owner opt-in', async () => {
+    const preview = await service.preview(DASHBOARD, ACTOR, {
+      expectedRevision: revision,
+      allowReuse: true,
+    });
+    expect(preview.reusable).toBe(true);
+    expect(bi.profile).toHaveBeenCalledWith(7, ACTOR);
+    const published = await service.publish(DASHBOARD, ACTOR, await publishBody(preview, 0));
+    expect(published.publication.reusable).toBe(true);
+    const stored = (await publications().findOneOrFail({ where: { dashboardId: DASHBOARD } }))
+      .reuseDefinition as string;
+    const recipe = JSON.parse(stored);
+    expect(Object.keys(recipe).sort()).toEqual(['analysis', 'profile', 'schemaVersion']);
+    expect(recipe.schemaVersion).toBe(1);
+    // The owner's live source identity is replaced by the redacted placeholder.
+    expect(recipe.analysis.databaseId).toBe(1);
+    expect(recipe.profile.sourceId).toBe(1);
+    expect(recipe.profile.columns).toEqual([
+      { name: 'amount', type: 'DOUBLE', numeric: true, temporal: false },
+      { name: 'channel', type: 'VARCHAR', numeric: false, temporal: false },
+    ]);
+    expect(recipe.analysis.widgets.map((widget: any) => widget.blockId)).toEqual(blocks);
+    expect(recipe.analysis.responsiveLayouts.desktop['block-1']).toEqual({
+      x: 0,
+      y: 0,
+      w: 12,
+      h: 2,
+    });
+    for (const leak of ['Fixture source', 'password', 'nullCount', 'preview', 'datas'])
+      expect(stored).not.toContain(leak);
+    // The same bytes round-trip through the reader the reuse API uses.
+    const read = readReuseRecipe(stored);
+    expect(read.profile.columns.map(column => column.name)).toEqual(['amount', 'channel']);
+    expect(read.analysis.widgets).toHaveLength(2);
+    const state = await service.state(DASHBOARD, ACTOR);
+    expect(state.publication).toMatchObject({ active: true, reusable: true });
+  });
+
+  it('rejects an opt-in that cannot be captured or a malformed flag', async () => {
+    bi.profile.mockResolvedValueOnce({ sourceId: 7, supported: false, columns: [] });
+    await expect(
+      service.preview(DASHBOARD, ACTOR, { expectedRevision: revision, allowReuse: true }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(await publications().count()).toBe(0);
+    await expect(
+      service.preview(DASHBOARD, ACTOR, { expectedRevision: revision, allowReuse: 'yes' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.preview(DASHBOARD, ACTOR, { expectedRevision: revision, reuseDefinition: 'x' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(bi.profile).toHaveBeenCalledTimes(1);
+  });
+
+  it('freezes the recipe with the published version and clears it on a later opt-out', async () => {
+    const preview = await service.preview(DASHBOARD, ACTOR, {
+      expectedRevision: revision,
+      allowReuse: true,
+    });
+    const published = await service.publish(DASHBOARD, ACTOR, await publishBody(preview, 0));
+    const frozen = (await publications().findOneOrFail({ where: { dashboardId: DASHBOARD } }))
+      .reuseDefinition;
+    // A later save must not rewrite the published recipe: the public read is served from the row.
+    await db.getRepository(Dashboard).update({ id: DASHBOARD }, { title: 'Fixture v2' });
+    const served = await service.publicResult(published.publication.uuid);
+    expect(served.reusable).toBe(true);
+    expect(served.snapshot).toEqual(preview.snapshot);
+    expect(
+      (await publications().findOneOrFail({ where: { dashboardId: DASHBOARD } })).reuseDefinition,
+    ).toBe(frozen);
+    const next = await ownerPreview(await currentRevision());
+    const again = await service.publish(DASHBOARD, ACTOR, await publishBody(next, 1));
+    expect(again.publication.reusable).toBe(false);
+    expect(
+      (await publications().findOneOrFail({ where: { dashboardId: DASHBOARD } })).reuseDefinition,
+    ).toBeNull();
   });
 
   it('hides unknown, revoked, expired and deleted publications behind 404', async () => {

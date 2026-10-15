@@ -278,6 +278,14 @@ describe('UC-020 dashboard column remap', () => {
   it('treats a draft that reads no column as an empty mapping', () => {
     const countDraft = draft([widget({ sql: 'SELECT COUNT(*) AS value FROM source' })]);
     expect(reuseColumns(countDraft, source)).toEqual([]);
+    const empty = { sourceId: 1, columns: [] };
+    expect(reuseColumns(countDraft, empty)).toEqual([]);
+    expect(remapDashboard(countDraft, empty, target, {}).widgets[0].sql).toBe(
+      'SELECT COUNT(*) AS value FROM source',
+    );
+    expect(() =>
+      reuseColumns(draft([widget({ sql: 'SELECT SUM(missing) AS value FROM source' })]), empty),
+    ).toThrow();
     const result = remapDashboard(countDraft, source, target, {});
     expect(result.widgets[0].sql).toBe('SELECT COUNT(*) AS value FROM source');
     expect(result.databaseId).toBe(9);

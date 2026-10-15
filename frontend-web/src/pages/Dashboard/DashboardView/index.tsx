@@ -321,6 +321,7 @@ const DashboardView = () => {
                   handleShareToggle={handleShareToggle}
                   isShareOn={isShareOn}
                   shareId={dashboardInfo.uuid}
+                  dashboardId={dashboardId}
                   shareLimitDate={shareLimitDate}
                   setShareLimitDate={setShareLimitDate}
                   className="h-8"

@@ -10,16 +10,16 @@ import { errorMessage, responseData } from '../dashboardPreview';
 
 type Column = { name: string; type: string; numeric: boolean; temporal: boolean };
 type Draft = {
-  originalId: number;
+  originalId: number | string;
   originalTitle: string;
   expectedRevision: string;
-  originalSourceId: number;
+  originalSourceId?: number;
   title: string;
   columns: Column[];
   sources: Array<{ id: number; name: string }>;
 };
 type Profile = { sourceId: number; dataVersion: string; supported: boolean; columns: Column[] };
-type Preview = { ticket: string; originalId: number; sourceId: number; snapshot: Snapshot };
+type Preview = { ticket: string; originalId: number | string; sourceId: number; snapshot: Snapshot };
 function compatible(from: Column, to: Column) {
   if (from.numeric || to.numeric) return !!from.numeric && !!to.numeric;
   if (from.temporal || to.temporal)
@@ -28,9 +28,13 @@ function compatible(from: Column, to: Column) {
   return (text.test(from.type) && text.test(to.type)) || from.type.toUpperCase() === to.type.toUpperCase();
 }
 function Content() {
-  const { dashboardId } = useParams();
+  const { dashboardId, kind, uuid } = useParams();
+  const shared = !!kind;
+  const originPath = shared ? `/${kind === 'publication' ? 'published' : 'share'}/${uuid}` : `/dashboard/${dashboardId}`;
   const navigate = useNavigate();
-  const base = `/bi/dashboards/${encodeURIComponent(dashboardId ?? '')}/reuse`;
+  const base = shared
+    ? `/bi/reuse/${encodeURIComponent(kind)}/${encodeURIComponent(uuid ?? '')}`
+    : `/bi/dashboards/${encodeURIComponent(dashboardId ?? '')}/reuse`;
   const [draft, setDraft] = useState<Draft | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sourceId, setSourceId] = useState('');
@@ -85,10 +89,15 @@ function Content() {
       .then(async response => {
         if (token !== sequence.current) return;
         const value = responseData(response) as Draft;
-        if (value.originalId !== Number(dashboardId) || !Array.isArray(value.columns) || !Array.isArray(value.sources))
+        if (
+          value.originalId !== (shared ? uuid : Number(dashboardId)) ||
+          !Array.isArray(value.columns) ||
+          !Array.isArray(value.sources)
+        )
           throw new Error('복제할 원본을 확인할 수 없습니다.');
         setDraft(value);
         setTitle(value.title);
+        if (shared) return;
         setSourceId(String(value.originalSourceId));
         const source = responseData(
           await get(`/bi/sources/${value.originalSourceId}/profile`, undefined, { signal: abort.signal }),
@@ -112,7 +121,7 @@ function Content() {
       request.current?.abort();
       pending.current = false;
     };
-  }, [base, dashboardId]);
+  }, [base, dashboardId, shared, uuid]);
   const selectSource = async (value: string) => {
     if (lock) return;
     invalidate();
@@ -231,7 +240,7 @@ function Content() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-xl font-semibold">복제해서 재사용</h1>
         <Button asChild variant="ghost">
-          <Link to={`/dashboard/${dashboardId}`}>원본 보기</Link>
+          <Link to={originPath}>원본 보기</Link>
         </Button>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
@@ -254,7 +263,10 @@ function Content() {
             className="m-0 min-w-0 border-0 p-0"
           >
             <div className={analysisPanelClassName}>
-              <p className="mb-4 text-sm text-muted-foreground break-words">원본: {draft.originalTitle}</p>
+              <p className="mb-4 text-sm text-muted-foreground break-words">
+                원본: {draft.originalTitle}
+                {shared && ' · 내 소스를 선택해 주세요'}
+              </p>
               <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                 <TextField
                   label="복사본 제목"

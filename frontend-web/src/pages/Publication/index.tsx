@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
 import { AnalysisUiProvider, analysisFieldClassName, analysisPanelClassName } from '@/components/analysis/AnalysisUi';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Notice } from '@/components/ui/notice';
 import { TextField } from '@/components/ui/text-field';
 import { cn } from '@/lib/utils';
@@ -16,6 +17,7 @@ type Published = {
   publishedAt: string;
   expiresAt: string;
   dashboardRevision: string;
+  reusable?: boolean;
 };
 type State = { dashboardId: number; revision: string; version: number; publication: Published | null };
 type Preview = { dashboardId: number; revision: string; ticket: string; snapshot: Snapshot };
@@ -33,9 +35,9 @@ const validState = (value: State, id: string) =>
   Number.isSafeInteger(value.version) &&
   value.version >= 0;
 
-async function publicationPreview(base: string, value: State, signal: AbortSignal): Promise<Preview> {
+async function publicationPreview(base: string, value: State, signal: AbortSignal, allowReuse: boolean): Promise<Preview> {
   const result = responseData(
-    await post(`${base}/preview`, { expectedRevision: value.revision }, { signal, timeout: 120000 }),
+    await post(`${base}/preview`, { expectedRevision: value.revision, allowReuse }, { signal, timeout: 120000 }),
   );
   if (
     result?.dashboardId !== value.dashboardId ||
@@ -60,6 +62,7 @@ function PublicationContent() {
   const [state, setState] = useState<State | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [expiry, setExpiry] = useState(defaultExpiry);
+  const [allowReuse, setAllowReuse] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -89,6 +92,8 @@ function PublicationContent() {
         const value = responseData(response);
         if (!validState(value, dashboardId)) throw new Error('게시 상태를 확인할 수 없습니다.');
         setState(value);
+        // Existing publication may advertise reuse; a handoff auto preview never grants it silently.
+        setAllowReuse(!hasHandoff && value.publication?.reusable === true);
         if (hasHandoff) {
           if (!validHandoff || value.revision !== savedRevision) {
             setError(revisionMismatch);
@@ -96,7 +101,7 @@ function PublicationContent() {
           }
           setNotice('저장 완료 · 링크 공개·갱신은 게시 버튼에서 실행됩니다. 아래 범위와 미리보기를 확인해 주세요.');
           setBusy('저장한 버전의 게시 결과 확인 중…');
-          const result = await publicationPreview(base, value, abort.signal);
+          const result = await publicationPreview(base, value, abort.signal, false);
           if (token === sequence.current) setPreview(result);
         }
       })
@@ -151,6 +156,7 @@ function PublicationContent() {
         if (token !== sequence.current) return;
         if (!validState(value, dashboardId)) throw new Error('게시 상태를 확인할 수 없습니다.');
         setState(value);
+        setAllowReuse(value.publication?.reusable === true);
         setPreview(null);
         setUncertain(false);
         if (hasHandoff && (!validHandoff || value.revision !== savedRevision)) setError(revisionMismatch);
@@ -163,7 +169,7 @@ function PublicationContent() {
       } else if (kind === 'preview') {
         setPreview(null);
         setRetry(null);
-        const value = await publicationPreview(base, state, abort.signal);
+        const value = await publicationPreview(base, state, abort.signal, allowReuse);
         if (token !== sequence.current) return;
         setPreview(value);
         setNotice('전체 기간의 고정 집계 결과입니다. 아래 결과와 공개 범위를 확인한 뒤 게시하세요.');
@@ -261,6 +267,27 @@ function PublicationContent() {
             저장 분석이 게시본과 다릅니다. 재게시 전까지 기존 게시 결과가 유지됩니다.
           </Notice>
         )}
+        <label className="mt-4 flex w-full items-start gap-2 text-sm">
+          <Checkbox
+            className="mt-1"
+            checked={allowReuse}
+            disabled={!!busy || uncertain}
+            onCheckedChange={checked => {
+              setAllowReuse(checked === true);
+              setPreview(null);
+              setRetry(null);
+              setNotice('');
+            }}
+            aria-label="내 소스로 재사용 허용"
+          />
+          <span className="min-w-0">
+            내 소스로 재사용 허용
+            <span className="mt-1 block text-xs text-muted-foreground">
+              받는 사람이 자신의 데이터로 재사용합니다. 계산식·필터 조건·배치가 복사본에 포함됩니다. 켜면 아래
+              미리보기·게시를 다시 실행해야 합니다.
+            </span>
+          </span>
+        </label>
         <div className="mt-4 flex flex-row flex-wrap items-end gap-2">
           <TextField
             label="만료일 (UTC)"

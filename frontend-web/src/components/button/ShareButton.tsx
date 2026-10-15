@@ -1,11 +1,15 @@
 import React from 'react';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
+import { get, post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Notice } from '@/components/ui/notice';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { TextField } from '@/components/ui/text-field';
 import { cn } from '@/lib/utils';
+import { errorMessage, responseData } from '@/pages/Dashboard/dashboardPreview';
 import IconShare from '@/assets/images/icon/ic-share.svg?react';
 import IconLink from '@/assets/images/icon/ic-link.svg?react';
 import DatePicker from '@/components/form/DatePicker';
@@ -17,11 +21,20 @@ interface ShareButtonProps {
   shareId?: string;
   shareLimitDate?: string;
   setShareLimitDate?: React.Dispatch<React.SetStateAction<string>>;
+  dashboardId?: string;
   className?: string;
 }
 
-interface SharePopupProps extends ShareButtonProps {
+interface ReuseAccessProps {
+  allowReuse: boolean;
+  reuseState: 'loading' | 'ready' | 'saving' | 'error';
+  reuseError: string;
+  onReuseToggle: (next: boolean) => void;
+}
+
+interface SharePopupProps extends ShareButtonProps, ReuseAccessProps {
   matches: boolean;
+  showReuseSetting: boolean;
 }
 
 const panelClassName = 'mt-[3px] max-h-[calc(100dvh-96px)] gap-0 overflow-y-auto rounded-md p-0';
@@ -33,9 +46,48 @@ const ShareToggle = ({ checked, label, description, onToggle }) => (
   </div>
 );
 
+const ReuseAccessSetting = ({ allowReuse, reuseState, reuseError, onReuseToggle }: ReuseAccessProps) => {
+  const { t } = useTranslation();
+  const busy = reuseState === 'loading' || reuseState === 'saving';
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <label className="flex w-full items-start gap-2">
+        <Checkbox
+          className="mt-1"
+          checked={allowReuse}
+          disabled={busy}
+          onCheckedChange={checked => onReuseToggle(checked === true)}
+          aria-label={t('share.allowReuse')}
+        />
+        <span className="min-w-0 text-sm text-foreground">
+          {t('share.allowReuse')}
+          <span className="mt-1 block text-xs text-muted-foreground">{t('share.allowReuseHint')}</span>
+        </span>
+      </label>
+      {reuseState === 'loading' && <p className="mt-1 text-xs text-muted-foreground">{t('share.allowReuseLoading')}</p>}
+      {reuseState === 'saving' && <p className="mt-1 text-xs text-muted-foreground">{t('share.allowReuseSaving')}</p>}
+      {reuseState === 'error' && reuseError && (
+        <Notice severity="error" className="mt-2">
+          {reuseError}
+        </Notice>
+      )}
+    </div>
+  );
+};
+
 const ShareOnPopup = (props: SharePopupProps) => {
   const { t } = useTranslation();
-  const { matches, handleShareToggle, shareLimitDate, shareId } = props;
+  const {
+    matches,
+    handleShareToggle,
+    shareLimitDate,
+    shareId,
+    showReuseSetting,
+    allowReuse,
+    reuseState,
+    reuseError,
+    onReuseToggle,
+  } = props;
   const alert = useAlert();
   const shareLink = window.location.origin + '/share/' + (shareId ? shareId : '');
   const embedCode =
@@ -104,6 +156,14 @@ const ShareOnPopup = (props: SharePopupProps) => {
           {t('share.copy')}
         </Button>
       </div>
+      {showReuseSetting && (
+        <ReuseAccessSetting
+          allowReuse={allowReuse}
+          reuseState={reuseState}
+          reuseError={reuseError}
+          onReuseToggle={onReuseToggle}
+        />
+      )}
     </div>
   ) : (
     <div className="w-full px-6 pt-[22px] pb-5">
@@ -125,13 +185,31 @@ const ShareOnPopup = (props: SharePopupProps) => {
           <IconLink />
         </Button>
       </div>
+      {showReuseSetting && (
+        <ReuseAccessSetting
+          allowReuse={allowReuse}
+          reuseState={reuseState}
+          reuseError={reuseError}
+          onReuseToggle={onReuseToggle}
+        />
+      )}
     </div>
   );
 };
 
 const ShareOffPopup = (props: SharePopupProps) => {
   const { t } = useTranslation();
-  const { matches, handleShareToggle, shareLimitDate, setShareLimitDate } = props;
+  const {
+    matches,
+    handleShareToggle,
+    shareLimitDate,
+    setShareLimitDate,
+    showReuseSetting,
+    allowReuse,
+    reuseState,
+    reuseError,
+    onReuseToggle,
+  } = props;
 
   return matches ? (
     <div className="w-full p-6">
@@ -148,6 +226,14 @@ const ShareOffPopup = (props: SharePopupProps) => {
         <span className="mr-2 text-foreground">{t('share.expiry')}</span>
         <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
       </div>
+      {showReuseSetting && (
+        <ReuseAccessSetting
+          allowReuse={allowReuse}
+          reuseState={reuseState}
+          reuseError={reuseError}
+          onReuseToggle={onReuseToggle}
+        />
+      )}
     </div>
   ) : (
     <div className="w-full px-6 pt-[22px] pb-5">
@@ -159,18 +245,84 @@ const ShareOffPopup = (props: SharePopupProps) => {
         <p className="text-sm text-foreground">{t('share.expiry')}</p>
         <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
       </div>
+      {showReuseSetting && (
+        <ReuseAccessSetting
+          allowReuse={allowReuse}
+          reuseState={reuseState}
+          reuseError={reuseError}
+          onReuseToggle={onReuseToggle}
+        />
+      )}
     </div>
   );
 };
 
 function ShareButton(props: ShareButtonProps) {
-  const { handleShareToggle, isShareOn, shareId, shareLimitDate, setShareLimitDate, className } = props;
+  const { handleShareToggle, isShareOn, shareId, shareLimitDate, setShareLimitDate, dashboardId, className } = props;
   const { t } = useTranslation();
   const matches = useMinWidth(600);
   const popoverId = React.useId();
+  const [allowReuse, setAllowReuse] = React.useState(false);
+  const [reuseState, setReuseState] = React.useState<ReuseAccessProps['reuseState']>('loading');
+  const [reuseError, setReuseError] = React.useState('');
+  const reuseSequence = React.useRef(0);
+  const reuseUrl = dashboardId ? `/bi/dashboards/${encodeURIComponent(dashboardId)}/reuse-access` : '';
+
+  const loadReuseAccess = React.useCallback(() => {
+    if (!reuseUrl) return;
+    reuseSequence.current += 1;
+    const token = reuseSequence.current;
+    setReuseState('loading');
+    setReuseError('');
+    get(reuseUrl)
+      .then(response => {
+        if (token !== reuseSequence.current) return;
+        setAllowReuse(responseData(response)?.allowReuse === true);
+        setReuseState('ready');
+      })
+      .catch(failure => {
+        if (token !== reuseSequence.current) return;
+        setReuseError(errorMessage(failure));
+        setReuseState('error');
+      });
+  }, [reuseUrl]);
+
+  const onReuseToggle = (next: boolean) => {
+    if (!reuseUrl || reuseState === 'loading' || reuseState === 'saving') return;
+    reuseSequence.current += 1;
+    const token = reuseSequence.current;
+    setReuseState('saving');
+    setReuseError('');
+    post(reuseUrl, { allowReuse: next })
+      .then(response => {
+        if (token !== reuseSequence.current) return;
+        setAllowReuse(responseData(response)?.allowReuse === true);
+        setReuseState('ready');
+      })
+      .catch(failure => {
+        if (token !== reuseSequence.current) return;
+        setReuseError(errorMessage(failure));
+        setReuseState('error');
+      });
+  };
+
+  React.useEffect(
+    () => () => {
+      reuseSequence.current += 1;
+    },
+    [],
+  );
+
+  const reuseProps = {
+    allowReuse,
+    reuseState,
+    reuseError,
+    onReuseToggle,
+    showReuseSetting: !!reuseUrl,
+  };
 
   return (
-    <Popover>
+    <Popover onOpenChange={open => open && loadReuseAccess()}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -197,6 +349,7 @@ function ShareButton(props: ShareButtonProps) {
             handleShareToggle={handleShareToggle}
             shareLimitDate={shareLimitDate}
             shareId={shareId}
+            {...reuseProps}
           />
         ) : (
           <ShareOffPopup
@@ -204,6 +357,7 @@ function ShareButton(props: ShareButtonProps) {
             handleShareToggle={handleShareToggle}
             shareLimitDate={shareLimitDate}
             setShareLimitDate={setShareLimitDate}
+            {...reuseProps}
           />
         )}
       </PopoverContent>
