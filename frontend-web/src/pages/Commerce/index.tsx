@@ -158,6 +158,7 @@ function Commerce() {
   const [report, setReport] = useState<CommerceReport | null>(null);
   const [reportScope, setReportScope] = useState('');
   const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState('');
   const [projectsBusy, setProjectsBusy] = useState(true);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [importFeedback, setImportFeedback] = useState('');
@@ -221,6 +222,9 @@ function Commerce() {
     loadProjects();
   }, [loadProjects]);
   useEffect(() => {
+    reportRequest.current += 1;
+    setReportBusy(false);
+    setReportError('');
     setSelectedId(routeProjectId ?? '');
     setImportTargetId(routeProjectId ?? '');
     setImportOpen(!routeProjectId);
@@ -238,6 +242,7 @@ function Commerce() {
       reportRequest.current += 1;
       const requestId = reportRequest.current;
       setReportBusy(true);
+      setReportError('');
       setPageError('');
       try {
         const params: Record<string, string> = {};
@@ -261,7 +266,7 @@ function Commerce() {
         setPresentation((value.project as any)?.presentation ?? {});
       } catch (error) {
         if (requestId === reportRequest.current) {
-          setPageError(
+          setReportError(
             `${String(errorText(error))}${
               report
                 ? ` 이전 결과(${reportScope || '이전 조회 범위'})는 그대로 표시 중이며 현재 필터는 적용되지 않았습니다.`
@@ -636,6 +641,16 @@ function Commerce() {
             </div>
           </Notice>
         )}
+        {reportError && selectedId && (
+          <Notice severity="error" className="wrap-anywhere">
+            <p>{reportError}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button variant="outline" onClick={applyFilters} disabled={reportBusy}>
+                리포트 다시 불러오기
+              </Button>
+            </div>
+          </Notice>
+        )}
         {pageError && (
           <Notice severity="error" className="wrap-anywhere">
             <span className="break-words">{pageError}</span>
@@ -819,6 +834,13 @@ function Commerce() {
           </div>
         )}
 
+        {reportBusy && (
+          <div role="status" aria-live="polite" className="flex items-center gap-2">
+            <Loader2 aria-hidden="true" className="size-[18px] shrink-0 animate-spin" />
+            <p>리포트를 불러오는 중…</p>
+          </div>
+        )}
+
         {report && (
           <>
             <Card className={cn(CARD_CLASS, 'bg-muted/50')}>
@@ -904,12 +926,6 @@ function Commerce() {
             </Notice>
             {presentation.explanation && <Notice severity="info">{presentation.explanation}</Notice>}
 
-            {reportBusy && (
-              <div className="flex items-center gap-2">
-                <Loader2 aria-hidden="true" className="size-[18px] animate-spin" />
-                <p>리포트를 불러오는 중…</p>
-              </div>
-            )}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {[
                 ['결제 성공액', formatMoney(report.summary.paymentTotal), '결제 이벤트 기준 · USD'],
