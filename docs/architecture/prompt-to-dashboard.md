@@ -98,10 +98,22 @@ blockId를 기존 JSON에 추가하고 레거시 조회는 결정적 ID를 반�
 
 ## P1 AI 배치 요청 — UC-011
 
-`editor/ai`의 `editMode=layout`은 선택 화면 폭의 선택 블록만 대상으로 한다. 서버가 compile한 좌표와 제목만 기존 LLM 제공자에 전달하고 x/y/w/h 외 필드는 거절한다. 내용 AI 수정은 기존 경로를 유지한다. 자동 의도 분류는 하지 않는다.
+`editor/ai`의 `editMode=layout`은 선택 화면 폭의 선택 블록만 대상으로 한다. 서버가 compile한 좌표를 기존 LLM 제공자에 전달하고 x/y/w/h 외 필드는 거절한다. 내용 AI 수정은 기존 경로를 유지한다. 기존 명시 모드 계약이며, UC-013 후속에서 기본auto 분류가 추가됐다.
 
 제안 후 소유권·버전과 전체 배치를 다시 compile하여 겹침을 거절한다. 선택 item의 layouts만 반환·합치므로 SQL·차트 종류·비대상·다른 폭은 유지된다. 성공 미리보기는 기존 초안 이력과 저장 경로를 사용하며 자동 저장하지 않는다. 신규 엔티티·DB 컬럼·외부 엔진 계약은 없다. 자연어 다중 블록 재배치는 별도 후속이다.
 
 ## P2 상세 설계 — UC-012 (Draft)
 
 [지표·차원 생성/재사용 설계](semantic-creation.md)는 질문에서 구조화 제안을 만들고 기존 compiler·preview·shared EntityManager 저장 경계를 재사용한다. 원본 열 차원은 안정적 논리 ID snapshot으로 시작하고, 새 지표·분석의 저장 원자성과 actor/requestId 재시도 키는 생성 영수증의 DB unique 제약으로 보장할 계획이다. 현재 구현/API/DB 변경은 아니며 P1 잔여 gate와 P2 Open을 유지한다.
+
+### UC-013 자동 질문 판별 후속
+
+[자동 목적 설계](auto-block-intent.md)와 [실행 증거](../testing/auto-block-intent.md)에 따라 기본auto content/layout/clarify를 추가했다. 기존 compileEditor가 권한·revision·대상을 먼저 검증한다. 분류는 질문만, 배치 생성은 selectedRect/occupiedRects만 사용한다. 저장 모델·엔티티·게시 책임은 불변이다. 자동 저장과 다중블록은 남아 있다.
+
+### UC-014 명시 저장 실행 후속
+
+[저장 질문 설계](prompt-save.md)와 [검증](../testing/prompt-save.md): editor/ai는 엄격 계획과 쓰기 없는 미리보기를 반환한다. FE는 명시된 저장만 검증한 새 items로 기존 저장 API에 연결한다. 저장만 요청할 때 선택은 필요 없고 수정은 기존 선택 블록으로 한정한다. 원자 저장·revision 책임, 게시/소스/지표 모델은 불변이다. 자연어 대상 식별·다중블록·게시 실행은 남는다.
+
+### UC-015 질문 대상 식별 후속
+
+[대상 설계](prompt-target.md)와 [검증](../testing/prompt-target.md): 검증된 현재 items의 순서/정확 제목을 pure resolver로 stable key에 연결한다. 모호 후보는 생성/저장 전에 반환하고 질문 범위 확인만 허용한다. 대상은 LLM이 key를 생성하지 않는다. 기존 컴파일·선택 폭 geometry·frozen result 저장/버전 경계는 유지한다. 다중블록·게시/소스/지표 모델은 변경하지 않는다.

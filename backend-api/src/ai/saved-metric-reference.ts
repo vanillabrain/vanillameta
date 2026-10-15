@@ -55,21 +55,33 @@ export function applyMetricReferences(
   return validateDraft({ ...draft, widgets });
 }
 
+/** BR-016-02: only title wording in the question makes a rename explicit; shared with batch edit. */
+export function explicitRenameRequested(prompt: unknown) {
+  return typeof prompt === 'string' && /제목|이름|\btitle\b|\brename\b/i.test(prompt);
+}
+
 /** Explicit UI selection targets exactly one chart; unrelated widgets remain immutable. */
 export function explicitMetricTarget(
   input: any,
   current: any,
   selectedWidget: any,
   selectedMetricId: any,
+  renameRequested = false,
 ) {
   if (selectedMetricId === undefined) return input;
   if (!current || !Number.isInteger(selectedWidget) || !current.widgets[selectedWidget])
     throw new BadRequestException('selected metric requires a target widget');
-  if (
-    !Array.isArray(input?.widgets) ||
-    input.widgets.length !== 1 ||
-    input.widgets[0]?.title !== current.widgets[selectedWidget].title
-  )
+  if (!Array.isArray(input?.widgets) || input.widgets.length !== 1)
+    throw new BadRequestException('return exactly one selected widget with its original title');
+  const returnedTitle = input.widgets[0]?.title;
+  // BR-002/003 default: the AI may not retitle the target on its own. An explicit rename request
+  // keeps the single-widget contract and still needs one non-empty title; validateDraft bounds it.
+  if (renameRequested) {
+    if (typeof returnedTitle !== 'string' || !returnedTitle.trim())
+      throw new BadRequestException(
+        'explicit rename needs one selected widget with a non-empty title',
+      );
+  } else if (returnedTitle !== current.widgets[selectedWidget].title)
     throw new BadRequestException('return exactly one selected widget with its original title');
   const base = validateDraft(current);
   const widgets = base.widgets.map((w, i) =>

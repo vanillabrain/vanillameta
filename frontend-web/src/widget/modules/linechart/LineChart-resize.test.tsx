@@ -28,7 +28,7 @@ it('avoids crowded value labels without dropping devices or rounding their exact
     { device: 'Mobile/Tablet', value: 307763000 },
     { device: 'Connected Device', value: 17000 },
   ];
-  render(
+  const view = render(
     <LineChart
       axis="y"
       seriesOp={{ type: 'bar' }}
@@ -38,14 +38,37 @@ it('avoids crowded value labels without dropping devices or rounding their exact
   );
   expect(state.option.xAxis.axisLabel.hideOverlap).toBe(true);
   expect(state.option.media).toEqual([
-    { query: { maxWidth: 480 }, option: { xAxis: { splitNumber: 2 }, grid: { right: 28 } } },
-    { option: { xAxis: { splitNumber: 5 }, grid: { right: '3%' } } },
+    {
+      query: { maxWidth: 260 },
+      option: {
+        xAxis: { splitNumber: 2 },
+        yAxis: { axisLabel: { width: 48, overflow: 'truncate' } },
+        grid: { right: 12 },
+      },
+    },
+    {
+      query: { minWidth: 261, maxWidth: 480 },
+      option: {
+        xAxis: { splitNumber: 2 },
+        yAxis: { axisLabel: { width: null, overflow: 'none' } },
+        grid: { right: 28 },
+      },
+    },
+    {
+      option: {
+        xAxis: { splitNumber: 5 },
+        yAxis: { axisLabel: { width: null, overflow: 'none' } },
+        grid: { right: '3%' },
+      },
+    },
   ]);
   expect(state.option.xAxis.axisLabel.formatter(307763000)).toBe('307.8M');
   expect(state.option.yAxis.data).toEqual(devices.map(device => device.device));
   expect(state.option.yAxis.axisLabel.interval).toBe(0);
   expect(state.option.series[0].data).toEqual([307763000, 17000]);
   expect(state.option.tooltip.valueFormatter(307763000)).toBe('307,763,000');
+  fireEvent.click(view.getByRole('button', { name: 'chart.showDataTable' }));
+  expect(view.getByRole('table').textContent).toContain('Connected Device');
 });
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 afterEach(() => {

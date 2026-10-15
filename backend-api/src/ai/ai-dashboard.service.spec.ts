@@ -576,6 +576,32 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     expect(await Promise.all(entities.map(e => db.manager.count(e)))).toEqual(counts);
     expect((await service.analysis(id, 7, true)).data).toEqual(data);
   });
+  it('rolls back a real mid-transaction DashboardWidget failure and keeps the revision', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    const before = (await service.analysis(id, 7, true)).data;
+    const entities = [Dataset, Widget, Dashboard, DashboardShare, DashboardWidget, UserMapping];
+    const counts = await Promise.all(entities.map(e => db.manager.count(e)));
+    const [link] = await db.query(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND replace(lower(name), '_', '') = 'dashboardwidget'",
+    );
+    // A real SQLite trigger fails the second link insert, in the middle of the
+    // transaction, after the dataset and widget rows were already written.
+    const trigger = [
+      'CREATE TRIGGER uc016_midwrite BEFORE INSERT ON "' + link.name + '"',
+      'WHEN (SELECT COUNT(*) FROM "' + link.name + '" WHERE dashboardId = NEW."dashboardId") >= 1',
+      "BEGIN SELECT RAISE(ABORT, 'uc016-midwrite'); END",
+    ].join(' ');
+    await db.query(trigger);
+    try {
+      await expect(
+        service.save({ dashboardId: id, draft: draft(), expectedRevision: before.revision }, 7),
+      ).rejects.toThrow(/uc016-midwrite/);
+    } finally {
+      await db.query('DROP TRIGGER uc016_midwrite');
+    }
+    expect(await Promise.all(entities.map(e => db.manager.count(e)))).toEqual(counts);
+    expect((await service.analysis(id, 7, true)).data).toEqual(before);
+  });
   it('checks owner before generation, load, preview and save', async () => {
     ai.callLlm.mockClear();
     connection.queryDuckDB.mockClear();

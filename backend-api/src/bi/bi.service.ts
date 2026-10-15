@@ -12,12 +12,37 @@ import { sourceRevision } from './source-revision';
 import { compileMetricWidget } from './structured-widget';
 import { metricFields } from './metric-expression';
 import { quoteColumn, sourceQuery, validateDraft } from '../ai/dashboard-draft';
+import { resolveBlockTarget } from './block-target';
+import { explicitRenameRequested } from '../ai/saved-metric-reference';
+import {
+  BATCH_FAILURE_MESSAGES,
+  BatchBlockAction,
+  BatchEditPlan,
+  BatchFailureStage,
+  MAX_BATCH_ACTIONS,
+  MIN_BATCH_ACTIONS,
+  isBatchControlError,
+} from '../ai/batch-block-edit';
 import {
   validateBlockLayouts,
   responsiveLayouts,
   layoutColumns,
   LayoutSize,
 } from '../ai/responsive-layout';
+
+/**
+ * UC-013~UC-016 AI editor response. `editMode` discriminates: a batch carries the
+ * validated whole preview plus per-target changes, the single modes carry one item.
+ */
+export type EditorAiResponse = {
+  editMode: 'clarify' | 'save' | 'content' | 'layout' | 'batch';
+  saveRequested: boolean;
+  item?: any;
+  targetKey?: any;
+  targetCandidates?: any;
+  changes?: any;
+  preview?: any;
+};
 
 @Injectable()
 export class BiService {
@@ -275,6 +300,7 @@ export class BiService {
         decimalPlaces: widget.decimalPlaces ?? 0,
         numberNotation: widget.numberNotation === 'compact' ? 'compact' : 'plain',
         width: sizes?.width ?? (layout[index]?.w === 6 ? 6 : 12),
+        savedDefinition: widget,
         height:
           sizes?.height ??
           ([3, 5, 7].includes(layout[index]?.h) ? layout[index].h : chart === 'number' ? 3 : 5),
@@ -483,35 +509,101 @@ export class BiService {
       responsiveLayouts: layouts,
     };
   }
-  async editorAi(id: unknown, body: any, actor: number, signal?: AbortSignal) {
+  async editorAi(
+    id: unknown,
+    body: any,
+    actor: number,
+    signal?: AbortSignal,
+  ): Promise<EditorAiResponse> {
+    // UC-014: ownership, revision and the whole-draft compile always run before any provider call.
     const compiled = await this.compileEditor(id, body, actor);
-    const index = body.items.findIndex(item => item.key === body.selectedKey);
-    if (index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
     if (typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 2000)
       throw new BadRequestException('변경 요청을 확인해 주세요.');
-    if (body.editMode !== undefined && !['content', 'layout'].includes(body.editMode))
+    if (body.editMode !== undefined && !['auto', 'content', 'layout'].includes(body.editMode))
       throw new BadRequestException('AI 변경 목적을 확인해 주세요.');
-    if (body.editMode === 'layout') {
+    const selection = body.selectedKey;
+    // An empty selection means "no target"; any other defined value must be a known block key.
+    if (selection !== undefined && selection !== null && typeof selection !== 'string')
+      throw new BadRequestException('수정할 블록을 선택해 주세요.');
+    const hasSelection = typeof selection === 'string' && selection.length > 0;
+    let index = hasSelection ? body.items.findIndex(item => item.key === selection) : -1;
+    if (hasSelection && index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
+    // UC-015: a confirmation key is a hint only; an unknown or mistyped key never reaches a provider.
+    const choice = body.targetChoiceKey;
+    if (choice !== undefined && choice !== null && typeof choice !== 'string')
+      throw new BadRequestException('선택할 블록 후보를 확인해 주세요.');
+    const hasChoice = typeof choice === 'string' && choice.length > 0;
+    if (hasChoice && !body.items.some(item => item.key === choice))
+      throw new BadRequestException('선택할 블록 후보를 확인해 주세요.');
+    const requestedMode: 'auto' | 'content' | 'layout' = body.editMode ?? 'content';
+    // A question without a target can only become an explicit save or a clarification.
+    if (!hasSelection && requestedMode !== 'auto')
+      throw new BadRequestException('수정할 블록을 선택해 주세요.');
+    let editMode: 'content' | 'layout' = requestedMode === 'auto' ? 'content' : requestedMode;
+    let prompt: string = body.prompt;
+    let saveRequested = false;
+    let targetKey: string | null = hasSelection ? (selection as string) : null;
+    if (requestedMode === 'auto') {
       if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
         throw new BadRequestException('편집할 화면 폭을 확인해 주세요.');
-      const mode = body.layoutMode as LayoutSize;
+      const plan = await this.dashboards.classifyBlockIntent(body.prompt, signal);
+      if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+      if (plan.intent === 'clarify') return { editMode: 'clarify' as const, saveRequested: false };
+      if (plan.intent === 'save') {
+        // Explicit save: preview the current draft only. Persisting stays with the existing save API.
+        const preview = (
+          await this.dashboards.preview({ draft: compiled.draft, includeTrends: true }, actor)
+        ).data;
+        if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+        return {
+          editMode: 'save' as const,
+          saveRequested: true,
+          preview: { ...preview, responsiveLayouts: compiled.layouts },
+        };
+      }
+      // UC-016: a bounded batch resolves every target before one sequential staged generation.
+      if (plan.intent === 'batch') return this.batchBlocks(id, body, actor, signal, compiled, plan);
+      // UC-015: the original question selects the target; the previous selection is context only.
+      const resolution = resolveBlockTarget({
+        prompt: body.prompt,
+        items: body.items.map(item => ({ key: item.key, title: item.title })),
+        selectedKey: hasSelection ? selection : null,
+        targetChoiceKey: hasChoice ? choice : null,
+      });
+      if (resolution.kind === 'ambiguous')
+        return {
+          editMode: 'clarify' as const,
+          saveRequested: false,
+          targetCandidates: resolution.candidates,
+        };
+      targetKey = resolution.key;
+      index = body.items.findIndex(item => item.key === resolution.key);
+      editMode = plan.intent;
+      prompt = plan.editPrompt;
+      saveRequested = plan.saveRequested;
+    }
+    if (!targetKey || index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
+    if (editMode === 'layout') {
+      if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
+        throw new BadRequestException('편집할 화면 폭을 확인해 주세요.');
+      const layoutMode = body.layoutMode as LayoutSize;
       const rect = await this.dashboards.proposeBlockLayout(
         {
-          selectedKey: body.selectedKey,
-          mode,
+          selectedKey: targetKey,
+          mode: layoutMode,
           blocks: body.items.map(item => ({
             key: item.key,
             title: item.title,
-            rect: compiled.layouts[mode][item.key],
+            rect: compiled.layouts[layoutMode][item.key],
           })),
-          prompt: body.prompt,
+          prompt,
         },
         signal,
       );
       if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       const item = {
         ...body.items[index],
-        layouts: { ...body.items[index].layouts, [mode]: rect },
+        layouts: { ...body.items[index].layouts, [layoutMode]: rect },
       };
       const next = await this.compileEditor(
         id,
@@ -522,7 +614,13 @@ export class BiService {
         await this.dashboards.preview({ draft: next.draft, includeTrends: true }, actor)
       ).data;
       if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
-      return { item, editMode: 'layout', preview: { ...preview, responsiveLayouts: next.layouts } };
+      return {
+        item,
+        editMode: 'layout' as const,
+        saveRequested,
+        targetKey,
+        preview: { ...preview, responsiveLayouts: next.layouts },
+      };
     }
     const result = await this.dashboards.generate(
       {
@@ -530,7 +628,7 @@ export class BiService {
         databaseId: compiled.draft.databaseId,
         currentDraft: compiled.draft,
         selectedWidget: index,
-        prompt: body.prompt,
+        prompt,
       },
       actor,
       signal,
@@ -567,7 +665,14 @@ export class BiService {
     const preview = (
       await this.dashboards.preview({ draft: next.draft, includeTrends: true }, actor)
     ).data;
-    return { item, preview: { ...preview, responsiveLayouts: next.layouts } };
+    if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+    return {
+      item,
+      editMode: 'content' as const,
+      saveRequested,
+      targetKey,
+      preview: { ...preview, responsiveLayouts: next.layouts },
+    };
   }
   async saveEditor(id: unknown, body: any, actor: number) {
     const { draft, snapshot, dashboardId, expectedRevision, preserveSizeIds, layoutEdits } =
@@ -584,5 +689,164 @@ export class BiService {
         layoutEdits,
       )
     ).data;
+  }
+
+  /**
+   * A structured failure the screen can act on: stage, plus the 1-based position
+   * of the block in the current items when the target is known. `message` is
+   * sanitized: provider and SQL errors never leave the server (BR-016-04).
+   */
+  private batchFailure(stage: BatchFailureStage, position?: number) {
+    return new BadRequestException({
+      batchFailure: { stage, ...(position === undefined ? {} : { position }) },
+      message: BATCH_FAILURE_MESSAGES[stage],
+    });
+  }
+
+  /**
+   * UC-016 bounded batch. Every target is resolved deterministically against the
+   * question before any provider call, each change is generated, compiled and
+   * merged into a request-local staged item list, and one whole preview is
+   * returned. Nothing is written; saving stays with the existing save API.
+   */
+  private async batchBlocks(
+    id: unknown,
+    body: any,
+    actor: number,
+    signal: AbortSignal | undefined,
+    compiled: { dashboardId: number; draft: any; layouts: any },
+    plan: BatchEditPlan,
+  ) {
+    const layoutMode = body.layoutMode as LayoutSize;
+    const actions: BatchBlockAction[] = plan.actions;
+    const items: any[] = body.items.map((item: any) => ({ ...item }));
+    const targets: {
+      key: string;
+      index: number;
+      position: number;
+      editMode: 'content' | 'layout';
+      prompt: string;
+    }[] = [];
+    const seen = new Set<string>();
+    if (actions.length < MIN_BATCH_ACTIONS || actions.length > MAX_BATCH_ACTIONS)
+      throw this.batchFailure('target');
+    for (const action of actions) {
+      // BR-016-01: the reference must be a literal span of the original question.
+      if (!body.prompt.includes(action.targetPrompt)) throw this.batchFailure('target');
+      const resolution = resolveBlockTarget({
+        prompt: action.targetPrompt,
+        items: items.map(item => ({ key: item.key, title: item.title })),
+        selectedKey: null,
+        targetChoiceKey: null,
+      });
+      if (resolution.kind !== 'resolved') throw this.batchFailure('target');
+      const index = items.findIndex(item => item.key === resolution.key);
+      if (index < 0) throw this.batchFailure('target');
+      // A duplicate block is a known block: report its 1-based current position.
+      if (seen.has(resolution.key)) throw this.batchFailure('target', index + 1);
+      seen.add(resolution.key);
+      targets.push({
+        key: resolution.key,
+        index,
+        position: index + 1,
+        editMode: action.editMode,
+        prompt: action.editPrompt,
+      });
+    }
+    let current = compiled;
+    const changes: { targetKey: string; editMode: 'content' | 'layout'; item: any }[] = [];
+    for (const target of targets) {
+      try {
+        if (target.editMode === 'layout') {
+          const rect = await this.dashboards.proposeBlockLayout(
+            {
+              selectedKey: target.key,
+              mode: layoutMode,
+              blocks: items.map(item => ({
+                key: item.key,
+                title: item.title,
+                rect: current.layouts[layoutMode][item.key],
+              })),
+              prompt: target.prompt,
+            },
+            signal,
+          );
+          if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+          items[target.index] = {
+            ...items[target.index],
+            layouts: { ...items[target.index].layouts, [layoutMode]: rect },
+          };
+        } else {
+          const result = await this.dashboards.generate(
+            {
+              dashboardId: current.dashboardId,
+              databaseId: current.draft.databaseId,
+              currentDraft: current.draft,
+              selectedWidget: target.index,
+              prompt: target.prompt,
+            },
+            actor,
+            signal,
+          );
+          if (result.status !== 'SUCCESS' || !('data' in result))
+            throw new Error('BATCH_GENERATION_UNAVAILABLE');
+          const generated = validateDraft(result.data);
+          const generatedWidget = generated.widgets[target.index];
+          if (!generatedWidget) throw new Error('BATCH_GENERATION_UNAVAILABLE');
+          // BR-016-02: formatting-only requests must not silently rename copied KPIs.
+          // The action prompt excludes the target reference; names in a title are data.
+          const rename = explicitRenameRequested(target.prompt);
+          const widget = {
+            ...generatedWidget,
+            title: rename ? generatedWidget.title : items[target.index].title,
+          };
+          items[target.index] = {
+            ...items[target.index],
+            kind: 'draft',
+            copyOf: undefined,
+            title: widget.title,
+            chart:
+              widget.type === 'BOARD_NUMERIC'
+                ? 'number'
+                : widget.type === 'CHART_LINE'
+                ? 'line'
+                : 'bar',
+            unit: (widget.suffix || '').trim(),
+            decimalPlaces: widget.decimalPlaces ?? 0,
+            numberNotation: widget.numberNotation === 'compact' ? 'compact' : 'plain',
+            definition: widget,
+          };
+        }
+        if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+        // Recheck ownership, revision, definitions and layout bounds on the staged draft.
+        current = await this.compileEditor(id, { ...body, items }, actor);
+        changes.push({
+          targetKey: target.key,
+          editMode: target.editMode,
+          item: items[target.index],
+        });
+      } catch (error) {
+        if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+        if (isBatchControlError(error)) throw error;
+        throw this.batchFailure('change', target.position);
+      }
+    }
+    let preview;
+    try {
+      preview = (
+        await this.dashboards.preview({ draft: current.draft, includeTrends: true }, actor)
+      ).data;
+      if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+    } catch (error) {
+      if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+      if (isBatchControlError(error)) throw error;
+      throw this.batchFailure('preview');
+    }
+    return {
+      editMode: 'batch' as const,
+      saveRequested: plan.saveRequested,
+      changes,
+      preview: { ...preview, responsiveLayouts: current.layouts },
+    };
   }
 }

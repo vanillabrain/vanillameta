@@ -13,9 +13,10 @@ import { get, post } from '@/helpers/apiHelper';
 import NumericBoard from '@/widget/modules/board/NumericBoard';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
-import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
-import { validDraft } from '../dashboardPreview';
+import { AnalysisUiProvider, analysisToggleClassName } from '@/components/analysis/AnalysisUi';
+import { validDraft, errorMessage } from '../dashboardPreview';
 import BlockLayoutCanvas, { validLayout } from './BlockLayoutCanvas';
+import { recoveryPlan, RECOVERY_DASHBOARD_TITLE_KEY } from './editorRecovery';
 import MetricTrend, { FormattedMetricTrendData } from '../Components/MetricTrend';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +34,7 @@ type Item = {
   copyOf?: string;
   layouts?: Partial<Record<LayoutMode, Rect>>;
   kind: 'metric' | 'existing' | 'draft';
+  savedDefinition?: Item['definition'];
   definition?: {
     title: string;
     description: string;
@@ -79,10 +81,18 @@ type PreviewWidget = {
   numberNotation: string;
   datas: Record<string, unknown>[];
 };
-type Preview = { widgets: PreviewWidget[]; responsiveLayouts?: Record<LayoutMode, Record<string, Rect>> };
+type Preview = {
+  widgets: PreviewWidget[];
+  draft?: { widgets: Item['definition'][] };
+  responsiveLayouts?: Record<LayoutMode, Record<string, Rect>>;
+};
 const unwrap = <T,>(response: { data: { status: string; data: T } }): T => {
   if (response.data.status !== 'SUCCESS' || !response.data.data) throw new Error('Invalid response');
   return response.data.data;
+};
+const uncertainSave = (failure: unknown) => {
+  const status = (failure as { response?: { status?: number } })?.response?.status;
+  return !status || status >= 500;
 };
 const cellText = (value: unknown) =>
   value == null ? '—' : typeof value === 'object' ? JSON.stringify(value) : String(value);
@@ -181,7 +191,10 @@ function DashboardEditContent() {
   const [newMetricId, setNewMetricId] = useState('');
   const [selectedKey, setSelectedKey] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
-  const [aiEditMode, setAiEditMode] = useState<'content' | 'layout'>('content');
+  const [targetCandidates, setTargetCandidates] = useState<string[]>([]);
+  const [targetChoiceKey, setTargetChoiceKey] = useState('');
+  const [batchSummary, setBatchSummary] = useState<Array<{ key: string; label: string }>>([]);
+  const [aiEditMode, setAiEditMode] = useState<'auto' | 'content' | 'layout'>('auto');
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() =>
     window.matchMedia?.('(max-width: 599px)').matches ? 'mobile' : 'desktop',
   );
@@ -191,6 +204,17 @@ function DashboardEditContent() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [conflict, setConflict] = useState(false);
+  const [unknownSave, setUnknownSave] = useState(false);
+  const [latest, setLatest] = useState<Editor | null>(null);
+  const [saveAttempt, setSaveAttempt] = useState<{ title: string; items: Item[] } | null>(null);
+  const recoveryRequired = conflict || unknownSave;
+  const recovery =
+    editor && latest
+      ? recoveryPlan({ title: editor.title, items: editor.items }, saveAttempt ?? { title: title.trim(), items }, {
+          title: latest.title,
+          items: latest.items,
+        })
+      : null;
   const [reloadDialog, setReloadDialog] = useState(false);
   const [reload, setReload] = useState(0);
   const [announcement, setAnnouncement] = useState('');
@@ -198,12 +222,21 @@ function DashboardEditContent() {
   const pending = useRef(false);
   const request = useRef<AbortController | null>(null);
   const headings = useRef<Record<string, HTMLHeadingElement | null>>({});
+  const clearTarget = () => {
+    if (targetChoiceKey && selectedKey === targetChoiceKey) setSelectedKey('');
+    setTargetCandidates([]);
+    setTargetChoiceKey('');
+  };
   const invalidate = (layoutOnly = false) => {
+    clearTarget();
     sequence.current += 1;
     request.current?.abort();
     setPreview(null);
+    setBatchSummary([]);
+    setLatest(null);
+    setSaveAttempt(null);
     if (!layoutOnly) setLayoutPreview(null);
-    if (!conflict) setError('');
+    if (!recoveryRequired) setError('');
   };
   useEffect(() => {
     sequence.current += 1;
@@ -217,10 +250,16 @@ function DashboardEditContent() {
     setLayoutPreview(null);
     setError('');
     setConflict(false);
+    setUnknownSave(false);
+    setLatest(null);
+    setSaveAttempt(null);
     setNewMetricId('');
     setSelectedKey('');
+    setTargetCandidates([]);
+    setTargetChoiceKey('');
     setAiPrompt('');
-    setAiEditMode('content');
+    setBatchSummary([]);
+    setAiEditMode('auto');
     setAnnouncement('');
     setPast([]);
     setFuture([]);
@@ -251,12 +290,12 @@ function DashboardEditContent() {
     (editor?.profile.columns ?? []).filter(
       column => chart !== 'line' || (column.temporal && /^(DATE|TIMESTAMP)/i.test(column.type)),
     );
-  const valid =
-    !!title.trim() &&
-    title.trim().length <= 300 &&
-    items.length >= 1 &&
-    items.length <= 6 &&
-    items.every(
+  const validItems = (values: Item[], nextTitle = title) =>
+    !!nextTitle.trim() &&
+    nextTitle.trim().length <= 300 &&
+    values.length >= 1 &&
+    values.length <= 6 &&
+    values.every(
       item =>
         item.title.trim() &&
         item.title.trim().length <= 300 &&
@@ -270,6 +309,7 @@ function DashboardEditContent() {
             editor?.metrics.some(metric => metric.id === item.metricId) &&
             (item.chart === 'number' || dimensions(item.chart).some(column => column.name === item.dimension)))),
     );
+  const valid = validItems(items);
   const change = (nextTitle: string, nextItems: Item[], layoutOnly = false) => {
     if (pending.current || (nextTitle === title && JSON.stringify(nextItems) === JSON.stringify(items))) return;
     invalidate(layoutOnly);
@@ -406,10 +446,10 @@ function DashboardEditContent() {
       if (token === sequence.current) headings.current[focusTarget.key]?.focus();
     });
   };
-  const editorBody = () => ({
+  const editorBody = (values = items) => ({
     title: title.trim(),
     expectedRevision: editor.revision,
-    items: items.map(item => ({
+    items: values.map(item => ({
       key: item.key,
       kind: item.kind,
       ...(item.layouts ? { layouts: item.layouts } : {}),
@@ -430,70 +470,341 @@ function DashboardEditContent() {
       height: item.height,
     })),
   });
+  // UC-017: preserve canonical SQL when editor materialization changes kind after save.
+  const freezeAttempt = (values: Item[], result: Preview | null) => ({
+    title: title.trim(),
+    items: values.map((item, index) => ({
+      ...item,
+      ...(result?.draft?.widgets?.[index] ? { savedDefinition: result.draft.widgets[index] } : {}),
+    })),
+  });
+  const checkSavedState = async () => {
+    if (pending.current || !editor || !recoveryRequired) return;
+    pending.current = true;
+    const token = sequence.current;
+    const abort = new AbortController();
+    request.current = abort;
+    setBusy('저장 상태 확인 중…');
+    setAnnouncement('');
+    setLatest(null);
+    try {
+      const result = unwrap<Editor>(
+        await get(`/bi/dashboards/${encodeURIComponent(dashboardId ?? '')}/editor`, undefined, { signal: abort.signal }),
+      );
+      if (token !== sequence.current) return;
+      if (
+        result.dashboardId !== editor.dashboardId ||
+        result.sourceId !== editor.sourceId ||
+        typeof result.revision !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(result.revision) ||
+        !Array.isArray(result.items) ||
+        !result.items.length ||
+        result.items.some(item => !item?.key) ||
+        new Set(result.items.map(item => item.key)).size !== result.items.length
+      )
+        throw new Error('Invalid recovery state');
+      setLatest(result);
+      setError('');
+      setAnnouncement('최신 저장 상태를 확인했습니다. 현재 초안은 유지됩니다.');
+    } catch {
+      if (token === sequence.current)
+        setError('저장 상태를 확인하지 못했습니다. 초안과 질문은 유지됩니다. 상태 확인을 다시 시도해 주세요.');
+    } finally {
+      if (token === sequence.current) {
+        pending.current = false;
+        setBusy('');
+      }
+    }
+  };
+  const applyRecovery = () => {
+    if (pending.current || !latest || !recovery || recovery.structural || recovery.same) return;
+    sequence.current += 1;
+    request.current?.abort();
+    const confirmed = recoveryPlan(
+      { title: editor.title, items: editor.items },
+      saveAttempt ?? { title: title.trim(), items },
+      { title: latest.title, items: latest.items },
+      recovery.conflicts.map(value => value.key ?? RECOVERY_DASHBOARD_TITLE_KEY),
+    );
+    if (
+      !validItems(confirmed.merged.items, confirmed.merged.title) ||
+      Object.keys(columns).some(mode => {
+        const rects = confirmed.merged.items.map(item => item.layouts?.[mode]);
+        return rects.every(Boolean) && !validLayout(rects, columns[mode]);
+      })
+    ) {
+      setError('합친 초안의 표시나 배치를 확인해 주세요. 현재 초안은 유지됩니다.');
+      return;
+    }
+    setEditor(latest);
+    setTitle(confirmed.merged.title);
+    setItems(confirmed.merged.items);
+    setPast([]);
+    setFuture([]);
+    setPreview(null);
+    setLayoutPreview(null);
+    setBatchSummary([]);
+    clearTarget();
+    setSelectedKey('');
+    setLatest(null);
+    setSaveAttempt(null);
+    setConflict(false);
+    setUnknownSave(false);
+    setError('');
+    setAnnouncement('최신 저장본에 내 변경을 합쳤습니다. 전체 미리보기를 다시 확인한 뒤 저장해 주세요.');
+  };
   const askAi = async () => {
     if (
       pending.current ||
       !editor ||
       !valid ||
-      conflict ||
+      recoveryRequired ||
       !aiPrompt.trim() ||
-      !items.some(item => item.key === selectedKey)
+      (aiEditMode !== 'auto' && !items.some(item => item.key === selectedKey))
     )
       return;
     pending.current = true;
-    const token = sequence.current;
-    const abort = new AbortController();
+    let token = sequence.current;
+    let abort = new AbortController();
     request.current = abort;
-    setBusy('AI로 선택 블록 수정 중…');
+    setBusy('AI로 요청 확인 중…');
+    setBatchSummary([]);
+    setTargetCandidates([]);
+    setAnnouncement('');
     setError('');
     setPreview(null);
+    let saving = false;
     try {
       const response = await post(
         `/bi/dashboards/${encodeURIComponent(dashboardId ?? '')}/editor/ai`,
         {
           ...editorBody(),
           selectedKey,
+          ...(targetChoiceKey ? { targetChoiceKey } : {}),
           prompt: aiPrompt.trim(),
-          ...(aiEditMode === 'layout' ? { editMode: 'layout', layoutMode } : {}),
+          editMode: aiEditMode,
+          layoutMode,
         },
-        { signal: abort.signal },
+        { timeout: 180000, signal: abort.signal },
       );
       if (token !== sequence.current) return;
-      const result = unwrap<{ item: Item; preview: Preview; editMode?: string }>(response);
+      const result = unwrap<{
+        item?: Item;
+        changes?: Array<{ targetKey: string; editMode: 'content' | 'layout'; item: Item }>;
+        preview?: Preview;
+        editMode?: string;
+        saveRequested?: boolean;
+        targetKey?: string;
+        targetCandidates?: Array<{ key: string; title: string; position: number }>;
+      }>(response);
+      if (aiEditMode === 'auto' && result.editMode === 'clarify' && result.saveRequested !== true) {
+        if (result.targetCandidates !== undefined) {
+          const candidates = result.targetCandidates;
+          if (
+            result.saveRequested !== false ||
+            !Array.isArray(candidates) ||
+            !candidates.length ||
+            candidates.length > 6 ||
+            candidates.length > items.length ||
+            candidates.some(value => !value || typeof value !== 'object' || typeof value.key !== 'string') ||
+            new Set(candidates.map(value => value.key)).size !== candidates.length ||
+            candidates.some(value => !items.some(item => item.key === value.key))
+          )
+            throw new Error('Invalid target candidates');
+          clearTarget();
+          setTargetCandidates(candidates.map(value => value.key));
+          setAnnouncement(
+            targetChoiceKey
+              ? '선택한 대상을 확인하지 못했습니다. 후보를 다시 선택하거나 질문에 번호·제목을 명시해 주세요. 아직 변경하거나 저장하지 않았습니다.'
+              : '수정할 블록을 선택한 뒤 같은 질문을 다시 실행해 주세요. 아직 변경하거나 저장하지 않았습니다.',
+          );
+          return;
+        }
+        clearTarget();
+        setAnnouncement(
+          '차트 내용이나 배치 중 한 가지 변경을 구체적으로 질문해 주세요. 저장하려면 현재 초안 저장을 명시해 주세요.',
+        );
+        return;
+      }
+      const appliedMode = result.editMode ?? (aiEditMode === 'auto' ? undefined : aiEditMode);
+      const shouldSave = aiEditMode === 'auto' && result.saveRequested === true;
       if (
-        result.item.key !== selectedKey ||
-        (aiEditMode === 'layout'
-          ? result.editMode !== 'layout' ||
-            !result.item.layouts?.[layoutMode] ||
-            !validLayout([result.item.layouts[layoutMode]], columns[layoutMode])
-          : result.item.kind !== 'draft' ||
-            !validDraft({ databaseId: editor.sourceId, title, explanation: '', widgets: [result.item.definition] })) ||
-        result.preview.widgets?.length !== items.length ||
+        !['content', 'layout', 'save', 'batch'].includes(appliedMode) ||
+        (aiEditMode !== 'auto' && appliedMode !== aiEditMode) ||
+        (appliedMode === 'save' && !shouldSave)
+      )
+        throw new Error('Invalid AI intent');
+      if (
+        !Array.isArray(result.preview?.widgets) ||
+        result.preview.widgets.length !== items.length ||
         result.preview.widgets.some(widget => !Array.isArray(widget.datas))
       )
-        throw new Error('Invalid AI result');
-      // Apply AI through the same history path as a direct edit.
-      pending.current = false;
-      change(
-        title,
-        items.map(item =>
-          item.key !== selectedKey
+        throw new Error('Invalid AI preview');
+      let nextItems = items;
+      let batchChanged = true;
+      if (appliedMode === 'batch') {
+        // UC-016: validate every result before applying a single history entry.
+        const changes = result.changes;
+        if (
+          aiEditMode !== 'auto' ||
+          typeof result.saveRequested !== 'boolean' ||
+          !Array.isArray(changes) ||
+          changes.length < 2 ||
+          changes.length > 6 ||
+          changes.length > items.length ||
+          changes.some(value => !value || typeof value.targetKey !== 'string') ||
+          new Set(changes.map(value => value.targetKey)).size !== changes.length
+        )
+          throw new Error('Invalid batch changes');
+        for (const value of changes) {
+          if (
+            !items.some(item => item.key === value.targetKey) ||
+            !value.item ||
+            value.item.key !== value.targetKey ||
+            !['content', 'layout'].includes(value.editMode) ||
+            (value.editMode === 'layout'
+              ? !value.item.layouts?.[layoutMode] || !validLayout([value.item.layouts[layoutMode]], columns[layoutMode])
+              : value.item.kind !== 'draft' ||
+                !validDraft({ databaseId: editor.sourceId, title, explanation: '', widgets: [value.item.definition] }))
+          )
+            throw new Error('Invalid batch result');
+        }
+        nextItems = items.map(original => {
+          const value = changes.find(change => change.targetKey === original.key);
+          if (!value) return original;
+          if (value.editMode === 'layout')
+            return { ...original, layouts: { ...original.layouts, [layoutMode]: value.item.layouts[layoutMode] } };
+          const changed = value.item;
+          return {
+            ...original,
+            kind: 'draft',
+            copyOf: undefined,
+            title: changed.title,
+            chart: changed.chart,
+            unit: changed.unit,
+            decimalPlaces: changed.decimalPlaces,
+            numberNotation: changed.numberNotation,
+            definition: changed.definition,
+          };
+        });
+        if (!validItems(nextItems)) throw new Error('Invalid batch presentation');
+        batchChanged = JSON.stringify(nextItems) !== JSON.stringify(items);
+        pending.current = false;
+        change(
+          title,
+          nextItems,
+          changes.every(value => value.editMode === 'layout'),
+        );
+        setSelectedKey('');
+        setBatchSummary(
+          batchChanged
+            ? changes.map(value => ({
+                key: value.targetKey,
+                label: `${items.findIndex(item => item.key === value.targetKey) + 1}번 · ${
+                  nextItems.find(item => item.key === value.targetKey).title
+                } · ${value.editMode === 'layout' ? '배치' : '내용'}`,
+              }))
+            : [],
+        );
+      } else if (appliedMode !== 'save') {
+        const targetKey = aiEditMode === 'auto' ? result.targetKey ?? selectedKey : selectedKey;
+        if (!items.some(item => item.key === targetKey)) throw new Error('Invalid target');
+        if (
+          !result.item ||
+          result.item.key !== targetKey ||
+          (appliedMode === 'layout'
+            ? result.editMode !== 'layout' ||
+              !result.item.layouts?.[layoutMode] ||
+              !validLayout([result.item.layouts[layoutMode]], columns[layoutMode])
+            : result.item.kind !== 'draft' ||
+              !validDraft({ databaseId: editor.sourceId, title, explanation: '', widgets: [result.item.definition] }))
+        )
+          throw new Error('Invalid AI result');
+        nextItems = items.map(item =>
+          item.key !== targetKey
             ? item
-            : aiEditMode === 'layout'
+            : appliedMode === 'layout'
             ? { ...item, layouts: { ...item.layouts, [layoutMode]: result.item.layouts[layoutMode] } }
             : result.item,
-        ),
-        aiEditMode === 'layout',
-      );
+        );
+        if (!validItems(nextItems)) throw new Error('Invalid AI presentation');
+        // UC-014: history updates state asynchronously; persist the validated result, never stale state.
+        pending.current = false;
+        change(title, nextItems, appliedMode === 'layout');
+        setSelectedKey(targetKey);
+      }
       setPreview(result.preview);
       setLayoutPreview(result.preview);
-      setAnnouncement('선택 블록의 AI 변경을 미리보기했습니다. 되돌리거나 저장할 수 있습니다.');
+      if (shouldSave) {
+        pending.current = true;
+        token = sequence.current;
+        abort = new AbortController();
+        request.current = abort;
+        saving = true;
+        setSaveAttempt(freezeAttempt(nextItems, result.preview));
+        setLatest(null);
+        setBusy('질문한 변경 결과 저장 중…');
+        setAnnouncement('서버 미리보기를 확인했습니다. 명시한 저장 요청을 실행합니다.');
+        const saved = unwrap<{ id: number; revision: string }>(
+          await post(`/bi/dashboards/${encodeURIComponent(dashboardId ?? '')}/editor`, editorBody(nextItems), {
+            signal: abort.signal,
+          }),
+        );
+        if (token !== sequence.current) return;
+        if (!Number.isInteger(saved.id) || saved.id !== editor.dashboardId) throw new Error('Invalid save response');
+        navigate(`/dashboard/${saved.id}`);
+      } else {
+        setAnnouncement(
+          appliedMode === 'batch'
+            ? batchChanged
+              ? `${result.changes.length}개 블록의 변경을 전체 미리보기했습니다. 한 번에 되돌리거나 저장할 수 있습니다.`
+              : '요청 결과가 현재 초안과 같습니다. 변경 없이 전체 미리보기했습니다.'
+            : `선택 블록의 ${
+                appliedMode === 'layout' ? '배치' : '내용'
+              } AI 변경을 미리보기했습니다. 되돌리거나 저장할 수 있습니다.`,
+        );
+      }
     } catch (failure) {
       if (token !== sequence.current) return;
+      setAnnouncement('');
+      if (saving) setLatest(null);
       if ((failure as { response?: { status?: number } })?.response?.status === 409) {
         setConflict(true);
         setError('다른 변경이 저장되었습니다. 현재 초안은 유지됩니다. 최신 내용을 다시 불러와 주세요.');
-      } else setError('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.');
+      } else {
+        if (saving && uncertainSave(failure)) setUnknownSave(true);
+        const payload = (
+          failure as {
+            response?: {
+              data?: {
+                batchFailure?: { stage?: string; position?: number };
+                data?: { batchFailure?: { stage?: string; position?: number } };
+              };
+            };
+          }
+        )?.response?.data;
+        const detail = payload?.data?.batchFailure ?? payload?.batchFailure;
+        const batchFailure = detail && ['target', 'change', 'preview'].includes(detail.stage);
+        setError(
+          !saving && batchFailure
+            ? `${
+                Number.isInteger(detail.position) && detail.position >= 1 && detail.position <= items.length
+                  ? `${detail.position}번 블록의 `
+                  : ''
+              }${
+                detail.stage === 'target'
+                  ? '수정 대상을 확인하지 못했습니다'
+                  : detail.stage === 'preview'
+                  ? '전체 미리보기에 실패했습니다'
+                  : '변경에 실패했습니다'
+              }. 모든 변경을 적용하지 않았습니다. 질문을 수정한 뒤 다시 실행해 주세요.`
+            : saving && !uncertainSave(failure)
+            ? '저장 요청이 거절되었습니다. 초안은 유지됩니다. 입력과 미리보기를 확인해 주세요.'
+            : saving
+            ? '변경 결과는 미리보기했지만 저장 결과를 확인하지 못했습니다. 현재 초안은 유지됩니다. 최신 저장 상태를 확인한 뒤 다시 시도해 주세요.'
+            : 'AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.',
+        );
+      }
     } finally {
       if (token === sequence.current || request.current === abort) {
         pending.current = false;
@@ -506,16 +817,23 @@ function DashboardEditContent() {
     request.current?.abort();
     pending.current = false;
     setBusy('');
+    clearTarget();
+    setError('');
     setAnnouncement('AI 요청을 취소했습니다. 현재 편집 내용은 유지됩니다.');
   };
   const run = async (save: boolean) => {
-    if (pending.current || !editor || !valid || conflict || (save && !preview)) return;
+    if (pending.current || !editor || !valid || recoveryRequired || (save && !preview)) return;
     pending.current = true;
     const token = sequence.current;
     const abort = new AbortController();
     request.current = abort;
     setBusy(save ? '대시보드 저장 중…' : '차트 결과 확인 중…');
+    setAnnouncement('');
     setError('');
+    if (save) {
+      setSaveAttempt(freezeAttempt(items, preview));
+      setLatest(null);
+    }
     if (!save) setPreview(null);
     const body = editorBody();
     try {
@@ -527,7 +845,7 @@ function DashboardEditContent() {
       if (token !== sequence.current) return;
       if (save) {
         const result = unwrap<{ id: number; revision: string }>(response);
-        if (!Number.isInteger(result.id) || result.id <= 0) throw new Error('Invalid response');
+        if (!Number.isInteger(result.id) || result.id !== editor.dashboardId) throw new Error('Invalid response');
         navigate(`/dashboard/${result.id}`);
       } else {
         const result = unwrap<Preview>(response);
@@ -548,17 +866,17 @@ function DashboardEditContent() {
           '다른 변경이 저장되어 최신 상태와 충돌했습니다.' +
             ' 현재 편집 내용은 유지됩니다. 최신 내용을 다시 불러온 뒤 편집해 주세요.',
         );
-      } else if (
-        typeof (failure as any)?.response?.data?.message === 'string' &&
-        (failure as any).response.data.message.startsWith('블록 배치')
-      )
-        setError((failure as any).response.data.message);
-      else
+      } else if (errorMessage(failure).startsWith('블록 배치')) setError(errorMessage(failure));
+      else {
+        if (save && uncertainSave(failure)) setUnknownSave(true);
         setError(
-          save
-            ? '저장하지 못했습니다. 편집 내용은 유지됩니다. 연결 상태를 확인하고 저장을 다시 시도해 주세요.'
+          save && !uncertainSave(failure)
+            ? '저장 요청이 거절되었습니다. 초안은 유지됩니다. 입력과 미리보기를 확인해 주세요.'
+            : save
+            ? '저장 결과를 확인하지 못했습니다. 현재 초안은 유지됩니다. 저장 상태를 확인한 뒤 다시 시도해 주세요.'
             : '미리보기를 불러오지 못했습니다. 편집 내용은 유지됩니다. 미리보기를 다시 시도해 주세요.',
         );
+      }
     } finally {
       if (token === sequence.current) {
         pending.current = false;
@@ -582,11 +900,49 @@ function DashboardEditContent() {
           {error}
         </Notice>
       )}
-      <Button
-        variant="ghost"
-        disabled={!!busy}
-        onClick={() => (editor ? setReloadDialog(true) : setReload(value => value + 1))}
-      >
+      {recoveryRequired && editor && (
+        <section aria-label="저장 복구" className="my-4 min-w-0 rounded-lg border border-border p-4">
+          <p className="mb-2 text-sm wrap-anywhere">
+            {conflict
+              ? '최신 저장본과 충돌했습니다. 내 초안과 질문을 보존했습니다.'
+              : '저장 여부가 아직 확실하지 않습니다. 같은 요청을 바로 다시 저장하지 않습니다.'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" disabled={!!busy} onClick={() => void checkSavedState()}>
+              저장 상태 확인
+            </Button>
+            {recovery?.same && (
+              <Button disabled={!!busy} onClick={() => navigate(`/dashboard/${editor.dashboardId}`)}>
+                저장된 화면 보기
+              </Button>
+            )}
+            {recovery && !recovery.same && !recovery.structural && (
+              <Button variant="outline" disabled={!!busy} onClick={applyRecovery}>
+                {recovery.conflicts.length ? '충돌 항목에 내 변경 사용' : '내 변경과 최신본 합치기'}
+              </Button>
+            )}
+          </div>
+          {recovery && (
+            <p className="mt-2 text-sm wrap-anywhere">
+              {recovery.same
+                ? '현재 초안과 같은 내용이 이미 저장되어 있습니다. 다시 저장할 필요가 없습니다.'
+                : recovery.structural
+                ? '블록 구성이나 순서가 달라 자동으로 합칠 수 없습니다. 초안은 유지됩니다. 최신본을 확인한 뒤 다시 편집해 주세요.'
+                : recovery.conflicts.length
+                ? '아래 항목은 양쪽에서 다르게 수정했습니다. 내 변경을 사용하면 해당 항목의 최신 변경을 대체합니다. 나머지 최신 변경은 유지합니다.'
+                : '서로 다른 항목의 변경을 합칠 수 있습니다. 합친 뒤 전체 미리보기를 다시 확인하세요.'}
+            </p>
+          )}
+          {recovery &&
+            !recovery.structural &&
+            recovery.conflicts.map((value, index) => (
+              <p key={index} className="mt-1 text-sm wrap-anywhere">
+                {value.label}
+              </p>
+            ))}
+        </section>
+      )}
+      <Button disabled={!!busy} onClick={() => (editor ? setReloadDialog(true) : setReload(value => value + 1))}>
         최신 내용 다시 불러오기
       </Button>
       {editor && (
@@ -613,26 +969,36 @@ function DashboardEditContent() {
                 ['tablet', '태블릿'],
                 ['desktop', '데스크톱'],
               ]}
-              onChange={value => setLayoutMode(value as LayoutMode)}
+              onChange={value => {
+                clearTarget();
+                setLayoutMode(value as LayoutMode);
+              }}
             />
           </div>
           <section aria-label="AI 블록 편집" className="my-4 min-w-0">
             <p className="mb-1 text-sm [overflow-wrap:anywhere]">
               {items.find(item => item.key === selectedKey)?.title
                 ? `선택 블록: ${items.find(item => item.key === selectedKey)?.title}`
-                : '블록의 AI로 수정 버튼을 눌러 대상을 선택하세요.'}
+                : '번호나 정확한 제목으로 질문하세요. 여러 블록은 각각의 대상과 변경을 적어 주세요.'}
             </p>
-            <Choice
-              id="ai-edit-mode"
-              label="AI 변경 목적"
-              value={aiEditMode}
-              disabled={!!busy}
-              options={[
-                ['content', '차트 내용'],
-                ['layout', '배치'],
-              ]}
-              onChange={value => setAiEditMode(value as 'content' | 'layout')}
-            />
+            <details className="mb-2">
+              <summary className="cursor-pointer text-sm">변경 목적 직접 지정</summary>
+              <Choice
+                id="ai-edit-mode"
+                label="AI 변경 목적"
+                value={aiEditMode}
+                disabled={!!busy}
+                options={[
+                  ['auto', '자동'],
+                  ['content', '차트 내용'],
+                  ['layout', '배치'],
+                ]}
+                onChange={value => {
+                  clearTarget();
+                  setAiEditMode(value as 'auto' | 'content' | 'layout');
+                }}
+              />
+            </details>
             {aiEditMode === 'layout' && (
               <p className="my-2 text-xs text-muted-foreground">
                 선택한 화면 폭에서 이 블록의 위치·크기만 변경합니다. 예: 오른쪽으로 한 칸 옮겨 줘.
@@ -645,24 +1011,68 @@ function DashboardEditContent() {
                 value={aiPrompt}
                 disabled={!!busy}
                 slotProps={{ htmlInput: { maxLength: 2000 } }}
-                onChange={event => setAiPrompt(event.target.value)}
+                onChange={event => {
+                  clearTarget();
+                  setAiPrompt(event.target.value);
+                }}
               />
               <Button
                 variant="outline"
                 className="shrink-0 whitespace-nowrap"
-                disabled={!!busy || !valid || conflict || !aiPrompt.trim() || !items.some(item => item.key === selectedKey)}
+                disabled={
+                  !!busy ||
+                  !valid ||
+                  recoveryRequired ||
+                  !aiPrompt.trim() ||
+                  (aiEditMode !== 'auto' && !items.some(item => item.key === selectedKey))
+                }
                 onClick={() => void askAi()}
               >
-                AI 변경 미리보기
+                AI 요청 실행
               </Button>
-              {busy === 'AI로 선택 블록 수정 중…' && (
-                <Button variant="ghost" onClick={cancelAi}>
-                  AI 요청 취소
-                </Button>
-              )}
+              {busy === 'AI로 요청 확인 중…' && <Button onClick={cancelAi}>AI 요청 취소</Button>}
             </div>
+            {targetCandidates.length > 0 && (
+              <section aria-label="수정 대상 후보" className="mt-2 min-w-0">
+                <p className="mb-2 text-sm">대상을 선택한 뒤 요청을 다시 실행하세요.</p>
+                <div className="flex flex-wrap gap-2">
+                  {items.map(
+                    (item, index) =>
+                      targetCandidates.includes(item.key) && (
+                        <Button
+                          key={item.key}
+                          disabled={!!busy}
+                          variant="outline"
+                          aria-pressed={targetChoiceKey === item.key}
+                          title={`${index + 1}번 · ${item.title}`}
+                          className={cn(analysisToggleClassName, 'min-w-0 max-w-full')}
+                          onClick={() => {
+                            setTargetChoiceKey(item.key);
+                            setSelectedKey(item.key);
+                          }}
+                        >
+                          <span className="min-w-0 truncate">
+                            {index + 1}번 · {item.title}
+                          </span>
+                        </Button>
+                      ),
+                  )}
+                </div>
+              </section>
+            )}
+            {batchSummary.length > 0 && (
+              <section aria-label="전체 변경 요약" className="mt-2 min-w-0">
+                <p className="mb-1 text-sm">전체 변경 {batchSummary.length}개 · 함께 저장할 수 있습니다</p>
+                {batchSummary.map(value => (
+                  <p key={value.key} title={value.label} className="text-sm wrap-anywhere">
+                    {value.label}
+                  </p>
+                ))}
+              </section>
+            )}
             <p className="mt-2 text-xs text-muted-foreground">
-              AI 변경은 현재 분석에만 적용됩니다. 저장 지표의 계산식은 바뀌지 않습니다.
+              자동 모드에서 저장을 명시하면 미리보기 후 현재 분석에 저장합니다. 변경만 요청하면 미리보기로 끝납니다. 저장
+              지표의 계산식은 바뀌지 않습니다.
             </p>
           </section>
           <fieldset disabled={!!busy} className="m-0 min-w-0 border-0 p-0">
@@ -905,7 +1315,10 @@ function DashboardEditContent() {
                         disabled={!!busy}
                         aria-pressed={selectedKey === item.key}
                         aria-label={`${label} AI로 수정`}
-                        onClick={() => setSelectedKey(item.key)}
+                        onClick={() => {
+                          clearTarget();
+                          setSelectedKey(item.key);
+                        }}
                       >
                         AI로 수정
                       </Button>
@@ -951,10 +1364,10 @@ function DashboardEditContent() {
             </div>
           </fieldset>
           <div className="my-6 flex flex-col gap-4 sm:flex-row">
-            <Button variant="outline" disabled={!!busy || !valid || conflict} onClick={() => void run(false)}>
+            <Button variant="outline" disabled={!!busy || !valid || recoveryRequired} onClick={() => void run(false)}>
               변경 결과 미리보기
             </Button>
-            <Button disabled={!!busy || !preview || !valid || conflict} onClick={() => void run(true)}>
+            <Button disabled={!!busy || !preview || !valid || recoveryRequired} onClick={() => void run(true)}>
               변경 내용 저장
             </Button>
           </div>
@@ -971,7 +1384,7 @@ function DashboardEditContent() {
                 items={items}
                 mode={layoutMode}
                 saved={displayPreview.responsiveLayouts}
-                disabled={!!busy || conflict}
+                disabled={!!busy || recoveryRequired}
                 onCommit={rects =>
                   change(
                     title,
