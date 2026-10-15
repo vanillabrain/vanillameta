@@ -42,6 +42,44 @@ export function linkedMetricIndices(snapshot: any, draft: DashboardDraft, metric
       : [],
   );
 }
+/** Carry only trusted persisted links whose block identity and calculation still match. */
+export function preserveMetricLinks(snapshot: any, previous: DashboardDraft, next: DashboardDraft) {
+  if (!previous || previous.databaseId !== next.databaseId) return null;
+  const items = metricLinkItems(snapshot, previous);
+  if (!items.length || items.length !== previous.widgets.length) return null;
+  const blocks = new Map(
+    previous.widgets.map((widget, index) => [widget.blockId, { widget, index }]),
+  );
+  const preserved = next.widgets.map(widget => {
+    const original = blocks.get(widget.blockId);
+    if (!original || !widget.blockId) return {};
+    const item = items[original.index];
+    if (
+      !item ||
+      (items.length > 1 && !item.key) ||
+      (item.key && item.key !== original.widget.blockId) ||
+      (item.metricId !== undefined &&
+        !linkedMetricIndices(snapshot, previous, item.metricId).includes(original.index)) ||
+      ['sql', 'valueField', 'categoryField', 'type'].some(
+        field => widget[field] !== original.widget[field],
+      )
+    )
+      return {};
+    return { ...item };
+  });
+  if (!preserved.some(item => Object.keys(item).length)) return null;
+  if (snapshot.kind === 'structured-bi' && preserved.length === 1) return { ...snapshot };
+  if (snapshot.kind === 'structured-bi' || snapshot.kind === 'metric-linked-analysis')
+    return {
+      schemaVersion: 2,
+      kind: 'structured-bi-dashboard',
+      sourceId: next.databaseId,
+      dataVersion: snapshot.dataVersion,
+      items: preserved,
+    };
+  return { ...snapshot, items: preserved };
+}
+
 export function refreshMetricLinks(
   snapshot: any,
   draft: DashboardDraft,

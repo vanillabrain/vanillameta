@@ -1,5 +1,10 @@
+import { chartColors, chartTheme } from '@/components/charts/chartTheme';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Box, Button, Card, Stack, TextField, Typography, useTheme } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Notice } from '@/components/ui/notice';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TextField } from '@/components/ui/text-field';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { get, post } from '@/helpers/apiHelper';
@@ -87,12 +92,11 @@ function Select({
   return (
     <TextField
       select
-      fullWidth
       label={label}
       value={value}
       disabled={disabled}
       onChange={event => onChange(event.target.value)}
-      slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+      className="min-w-0"
     >
       {children}
     </TextField>
@@ -103,7 +107,6 @@ export default function Explore() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const useAiLabel = t('fileAnalysis.buildWithAi');
-  const theme = useTheme();
   const [searchParams] = useSearchParams();
   const [sources, setSources] = useState<Source[]>([]);
   const [sourceId, setSourceId] = useState(() =>
@@ -269,41 +272,31 @@ export default function Explore() {
   };
 
   return (
-    <Box
-      sx={{
-        p: { xs: 2, md: 4 },
-        pb: { xs: 10, md: 4 },
-        maxWidth: 1200,
-        width: '100%',
-        mx: 'auto',
-        minWidth: 0,
-        '& .MuiButton-root': { minHeight: 44 },
-        '& .MuiInputBase-root': { minHeight: 44 },
-      }}
-    >
-      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ flexWrap: 'wrap', mb: 1 }}>
-        <Typography component="h1" variant="h4">
-          SQL 없이 차트 만들기
-        </Typography>
-        <Button onClick={() => navigate(`/explore/source${sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''}`)}>
+    <div className="mx-auto w-full min-w-0 max-w-[1200px] px-4 pt-4 pb-10 md:px-8 md:pt-4 md:pb-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">SQL 없이 차트 만들기</h1>
+        <Button
+          variant="ghost"
+          onClick={() => navigate(`/explore/source${sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''}`)}
+        >
           지표 탐색
         </Button>
-      </Stack>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        저장된 파일의 열을 선택해 지표와 차트를 만들고 대시보드에 저장하세요.
-      </Typography>
+      </div>
+      <p className="mb-6 text-muted-foreground">저장된 파일의 열을 선택해 지표와 차트를 만들고 대시보드에 저장하세요.</p>
       {ready && profile.engine === 'duckdb' && !busy && (
-        <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(`/dashboard?aiSourceId=${profile.sourceId}`)}>
+        <Button variant="outline" className="mb-4" onClick={() => navigate(`/dashboard?aiSourceId=${profile.sourceId}`)}>
           {useAiLabel}
         </Button>
       )}
-      <Typography role="status" aria-live="polite" sx={{ mb: 1 }}>
+      <p role="status" aria-live="polite" className="mb-2">
         {busy}
-      </Typography>
+      </p>
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-          {error}
+        <Notice severity="error" className="mb-4">
+          <span className="break-words">{error}</span>
           <Button
+            variant="ghost"
+            className="ml-2"
             disabled={!!busy}
             onClick={() => {
               invalidate();
@@ -313,13 +306,11 @@ export default function Explore() {
           >
             데이터 다시 불러오기
           </Button>
-        </Alert>
+        </Notice>
       )}
-      <Stack spacing={3}>
-        <Card variant="outlined" sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
-          <Typography component="h2" variant="h6" sx={{ mb: 2 }}>
-            1. 데이터 확인
-          </Typography>
+      <div className="flex flex-col gap-6">
+        <Card className="min-w-0 p-4 md:p-6">
+          <h2 className="mb-4 text-lg font-semibold">1. 데이터 확인</h2>
           <Select
             label="데이터 소스"
             value={sourceId}
@@ -340,84 +331,92 @@ export default function Explore() {
             ))}
           </Select>
           {!sourceId && !busy && !error && sources.length === 0 && (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              저장된 데이터가 없습니다. <Button onClick={() => navigate('/data/file')}>파일 저장하러 가기</Button>
-            </Alert>
+            <Notice severity="info" className="mt-4">
+              저장된 데이터가 없습니다.{' '}
+              <Button variant="ghost" onClick={() => navigate('/data/file')}>
+                파일 저장하러 가기
+              </Button>
+            </Notice>
           )}
           {profile && !ready && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
+            <Notice severity="warning" className="mt-4">
               아직 분석할 수 없는 데이터입니다. 현재는 서버에 저장된 DuckDB 파일 데이터만 지원합니다.
-            </Alert>
+            </Notice>
           )}
           {ready && (
             <>
-              <Typography sx={{ my: 2 }}>
+              <p className="my-4">
                 저장된 전체 행 수: {profile.rowCount} · 데이터 버전: {profile.dataVersion.slice(0, 12)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              </p>
+              <p className="mb-4 text-sm text-muted-foreground">
                 {profile.storedAt ? `서버 저장 시각: ${new Date(profile.storedAt).toLocaleString('ko-KR')}. ` : ''}
                 날짜 범위는 데이터 기준입니다. 빈 값은 0이 아니며, 합계·평균 등은 빈 값을 제외하고 행 수는 전체 행을 셉니다.
-              </Typography>
-              <Box
+              </p>
+              <div
                 tabIndex={0}
                 role="region"
                 aria-label="데이터 프로필과 원본 샘플 표"
-                sx={{
-                  overflowX: 'auto',
-                  minWidth: 0,
-                  maxWidth: '100%',
-                  '& th, & td': {
-                    p: 1,
-                    textAlign: 'left',
-                    borderBottom: 1,
-                    borderColor: 'divider',
-                    overflowWrap: 'anywhere',
-                  },
-                }}
+                className="min-w-0 max-w-full overflow-x-auto"
               >
-                <table style={{ width: '100%', minWidth: 480 }}>
-                  <caption>저장된 데이터 프로필</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">열</th>
-                      <th scope="col">타입</th>
-                      <th scope="col">빈 값 수</th>
-                      <th scope="col">날짜 범위</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table style={{ width: '100%', minWidth: 480 }}>
+                  <TableCaption className="mt-0 mb-1 text-left text-inherit">저장된 데이터 프로필</TableCaption>
+                  <TableHeader className="[&_tr]:border-0">
+                    <TableRow className="border-0 hover:bg-transparent">
+                      <TableHead scope="col" className="h-auto border-b p-2 text-left wrap-anywhere">
+                        열
+                      </TableHead>
+                      <TableHead scope="col" className="h-auto border-b p-2 text-left wrap-anywhere">
+                        타입
+                      </TableHead>
+                      <TableHead scope="col" className="h-auto border-b p-2 text-left wrap-anywhere">
+                        빈 값 수
+                      </TableHead>
+                      <TableHead scope="col" className="h-auto border-b p-2 text-left wrap-anywhere">
+                        날짜 범위
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {columns.map(column => (
-                      <tr key={column.name}>
-                        <th scope="row">{column.name}</th>
-                        <td>{column.type}</td>
-                        <td>{column.nullCount}</td>
-                        <td>{column.temporal ? `${column.min ?? '—'} ~ ${column.max ?? '—'}` : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <table style={{ width: '100%', minWidth: 480, marginTop: 16 }}>
-                  <caption>원본 샘플 · 처음 최대 5행 (전체 집계 결과가 아닙니다)</caption>
-                  <thead>
-                    <tr>
-                      {columns.map(column => (
-                        <th scope="col" key={column.name}>
+                      <TableRow key={column.name} className="border-0 hover:bg-transparent">
+                        <TableHead scope="row" className="h-auto border-b p-2 text-left align-top font-normal wrap-anywhere">
                           {column.name}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(profile.preview ?? []).slice(0, 5).map((row, index) => (
-                      <tr key={index}>
-                        {columns.map(column => (
-                          <td key={column.name}>{text(row[column.name])}</td>
-                        ))}
-                      </tr>
+                        </TableHead>
+                        <TableCell className="border-b p-2 text-left wrap-anywhere">{column.type}</TableCell>
+                        <TableCell className="border-b p-2 text-left wrap-anywhere">{column.nullCount}</TableCell>
+                        <TableCell className="border-b p-2 text-left wrap-anywhere">
+                          {column.temporal ? `${column.min ?? '—'} ~ ${column.max ?? '—'}` : '—'}
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
-              </Box>
+                  </TableBody>
+                </Table>
+                <Table style={{ width: '100%', minWidth: 480, marginTop: 16 }}>
+                  <TableCaption className="mt-4 mb-1 text-left text-inherit">
+                    원본 샘플 · 처음 최대 5행 (전체 집계 결과가 아닙니다)
+                  </TableCaption>
+                  <TableHeader className="[&_tr]:border-0">
+                    <TableRow className="border-0 hover:bg-transparent">
+                      {columns.map(column => (
+                        <TableHead scope="col" key={column.name} className="h-auto border-b p-2 text-left wrap-anywhere">
+                          {column.name}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(profile.preview ?? []).slice(0, 5).map((row, index) => (
+                      <TableRow key={index} className="border-0 hover:bg-transparent">
+                        {columns.map(column => (
+                          <TableCell key={column.name} className="border-b p-2 text-left wrap-anywhere">
+                            {text(row[column.name])}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
               {profile.engine?.toLowerCase() === 'duckdb' && (
                 <FileVersions
                   sourceId={profile.sourceId}
@@ -433,11 +432,9 @@ export default function Explore() {
         </Card>
         {ready && (
           <>
-            <Card variant="outlined" sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
-              <Typography component="h2" variant="h6" sx={{ mb: 2 }}>
-                2. 지표 저장 또는 재사용
-              </Typography>
-              <Stack spacing={2}>
+            <Card className="min-w-0 p-4 md:p-6">
+              <h2 className="mb-4 text-lg font-semibold">2. 지표 저장 또는 재사용</h2>
+              <div className="flex flex-col gap-4">
                 <Select
                   label="저장된 지표"
                   value={metricId}
@@ -461,9 +458,8 @@ export default function Explore() {
                   value={definition.label}
                   disabled={!!busy}
                   onChange={event => changeDefinition({ label: event.target.value })}
-                  fullWidth
                 />
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <div className="flex flex-col gap-4 sm:flex-row">
                   <Select
                     label="집계 방법"
                     value={definition.aggregation}
@@ -521,7 +517,7 @@ export default function Explore() {
                       ))}
                     </Select>
                   )}
-                </Stack>
+                </div>
                 {ratio && (
                   <Select
                     label="결과 배율"
@@ -534,21 +530,20 @@ export default function Explore() {
                   </Select>
                 )}
                 {weighted && (
-                  <Typography variant="body2" color="text.secondary">
+                  <p className="text-sm text-muted-foreground">
                     계산식: SUM(값 × 가중치) / SUM(가중치). 값과 가중치가 모두 있는 행만 포함하며, 둘 중 하나라도 빈
                     값(NULL)이면 해당 행을 제외합니다. 가중치 합계가 0이거나 음수 가중치가 있으면 해당 그룹의 결과는 값
                     없음(NULL, —)입니다.
-                  </Typography>
+                  </p>
                 )}
                 {ratio && (
-                  <Typography variant="body2" color="text.secondary">
+                  <p className="text-sm text-muted-foreground">
                     계산식: SUM(분자) / SUM(분모) × {definition.scale ?? 1}. 분자와 분모는 각각 자신의 빈 값(NULL)을 제외하고
                     합산합니다. 분모 합계가 0이거나 어느 한쪽에 값이 없으면 결과는 값 없음(NULL, —)입니다.
-                  </Typography>
+                  </p>
                 )}
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <div className="flex flex-col gap-4 sm:flex-row">
                   <TextField
-                    fullWidth
                     label="단위 (선택)"
                     value={definition.unit}
                     disabled={!!busy}
@@ -575,28 +570,21 @@ export default function Explore() {
                     <option value="plain">일반 숫자</option>
                     <option value="compact">축약 숫자</option>
                   </Select>
-                </Stack>
-                <Button
-                  variant="contained"
-                  disabled={!!busy || !validMetric || !!metricId}
-                  onClick={() => void run('metric')}
-                >
+                </div>
+                <Button disabled={!!busy || !validMetric || !!metricId} onClick={() => void run('metric')}>
                   지표 저장
                 </Button>
-                <Typography variant="body2" color="text.secondary">
+                <p className="text-sm text-muted-foreground">
                   {metricId
                     ? '저장된 지표를 사용합니다. 내용을 변경하면 새 지표로 저장할 수 있습니다.'
                     : '먼저 지표를 저장한 뒤 결과를 확인하세요. 합계·평균·최솟값·최댓값·가중 평균·합계 비율은 숫자 열만 선택할 수 있습니다.'}
-                </Typography>
-              </Stack>
+                </p>
+              </div>
             </Card>
-            <Card variant="outlined" sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
-              <Typography component="h2" variant="h6" sx={{ mb: 2 }}>
-                3. 차트 결과 확인
-              </Typography>
-              <Stack spacing={2}>
+            <Card className="min-w-0 p-4 md:p-6">
+              <h2 className="mb-4 text-lg font-semibold">3. 차트 결과 확인</h2>
+              <div className="flex flex-col gap-4">
                 <TextField
-                  fullWidth
                   label="차트 제목"
                   value={title}
                   disabled={!!busy}
@@ -638,40 +626,22 @@ export default function Explore() {
                   </Select>
                 )}
                 {chart !== 'number' && dimensions.length === 0 && (
-                  <Alert severity="info">
+                  <Notice severity="info">
                     이 차트에 사용할 {chart === 'line' ? '날짜' : '범주'} 열이 없습니다. 다른 차트 종류를 선택하세요.
-                  </Alert>
+                  </Notice>
                 )}
                 <Button
-                  variant="outlined"
+                  variant="outline"
                   disabled={!!busy || !metricId || !validMetric || !validChart}
                   onClick={() => void run('preview')}
                 >
                   결과 미리보기
                 </Button>
                 {preview && (
-                  <Box
-                    tabIndex={0}
-                    role="region"
-                    aria-label="집계 결과 표"
-                    sx={{
-                      overflowX: 'auto',
-                      minWidth: 0,
-                      maxWidth: '100%',
-                      '& th, & td': {
-                        p: 1,
-                        textAlign: 'left',
-                        borderBottom: 1,
-                        borderColor: 'divider',
-                        overflowWrap: 'anywhere',
-                      },
-                    }}
-                  >
-                    <Typography component="h3" variant="h6">
-                      {title}
-                    </Typography>
+                  <div tabIndex={0} role="region" aria-label="집계 결과 표" className="min-w-0 max-w-full overflow-x-auto">
+                    <h3 className="text-lg font-semibold">{title}</h3>
                     {chart === 'number' ? (
-                      <Box sx={{ height: 155 }}>
+                      <div className="h-[155px]">
                         <NumericBoard
                           dataSet={preview.rows}
                           option={analysisOptions({
@@ -682,22 +652,23 @@ export default function Explore() {
                             suffix: preview.metric.unit ? ` ${preview.metric.unit}` : '',
                           })}
                         />
-                      </Box>
+                      </div>
                     ) : (
-                      <React.Suspense fallback={<Typography>차트 불러오는 중…</Typography>}>
+                      <React.Suspense fallback={<p>차트 불러오는 중…</p>}>
                         <ChartPreview
+                          theme={chartTheme}
                           style={{ height: 280, width: '100%' }}
                           option={{
-                            color: [theme.palette.primary.main],
+                            color: [chartColors.primary],
                             animation: false,
                             grid: { left: 16, right: 16, bottom: 48, top: 24, containLabel: true },
                             tooltip: { trigger: 'axis' },
                             xAxis: {
                               type: 'category',
                               data: preview.rows.map(row => text(row.dimension)),
-                              axisLabel: { color: theme.palette.text.secondary, hideOverlap: true },
+                              axisLabel: { color: chartColors.muted, hideOverlap: true },
                             },
-                            yAxis: { type: 'value', axisLabel: { color: theme.palette.text.secondary } },
+                            yAxis: { type: 'value', axisLabel: { color: chartColors.muted } },
                             series: [
                               {
                                 type: chart,
@@ -710,49 +681,56 @@ export default function Explore() {
                         />
                       </React.Suspense>
                     )}
-                    <table style={{ width: '100%' }}>
-                      <caption>
+                    <Table style={{ width: '100%' }}>
+                      <TableCaption className="mt-0 mb-1 text-left text-inherit">
                         {chart === 'number' ? '실제 집계 결과' : `최대 ${preview.limit ?? 500}개 그룹`}
                         {` · ${preview.rows.length}개 결과 · ${
                           preview.complete ? '전체 결과' : '일부 결과 (전체가 아닐 수 있습니다)'
                         }`}
-                      </caption>
-                      <thead>
-                        <tr>
-                          {chart !== 'number' && <th scope="col">{dimension}</th>}
-                          <th scope="col">{preview.metric.label}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                      </TableCaption>
+                      <TableHeader className="[&_tr]:border-0">
+                        <TableRow className="border-0 hover:bg-transparent">
+                          {chart !== 'number' && (
+                            <TableHead scope="col" className="h-auto border-b p-2 text-left wrap-anywhere">
+                              {dimension}
+                            </TableHead>
+                          )}
+                          <TableHead scope="col" className="h-auto border-b p-2 text-right tabular-nums wrap-anywhere">
+                            {preview.metric.label}
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {preview.rows.map((row, index) => (
-                          <tr key={index}>
-                            {chart !== 'number' && <td>{text(row.dimension)}</td>}
-                            <td>
+                          <TableRow key={index} className="border-0 hover:bg-transparent">
+                            {chart !== 'number' && (
+                              <TableCell className="border-b p-2 text-left wrap-anywhere">{text(row.dimension)}</TableCell>
+                            )}
+                            <TableCell className="border-b p-2 text-right tabular-nums wrap-anywhere">
                               {text(row.value)}
                               {preview.metric.unit ? ` ${preview.metric.unit}` : ''}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
-                    {preview.rows.length === 0 && <Typography>집계 결과가 없습니다.</Typography>}
-                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      </TableBody>
+                    </Table>
+                    {preview.rows.length === 0 && <p>집계 결과가 없습니다.</p>}
+                    <p className="mt-2 text-sm">
                       데이터 버전: {preview.sourceRevision.slice(0, 12)} · 지표 버전: {preview.definitionVersion}
-                    </Typography>
-                  </Box>
+                    </p>
+                  </div>
                 )}
                 <Button
-                  variant="contained"
                   disabled={!!busy || !preview || !metricId || !validMetric || !validChart}
                   onClick={() => void run('dashboard')}
                 >
                   대시보드 저장
                 </Button>
-              </Stack>
+              </div>
             </Card>
           </>
         )}
-      </Stack>
-    </Box>
+      </div>
+    </div>
   );
 }

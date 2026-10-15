@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
@@ -22,8 +22,8 @@ const TreemapChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           required={true}
           id="name"
@@ -42,9 +42,9 @@ const TreemapChartSetting = props => {
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.series')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <SelectForm
           required={true}
           id="field"
@@ -65,10 +65,10 @@ const TreemapChartSetting = props => {
           onChange={handleSeriesChange}
           disabledDefaultValue
         />
-        <Divider />
-      </ListItem>
-      <ListItem>
-        <ListItemText primary={t('settings.colorRange')} />
+        <Separator />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.colorRange')}</span>
         {option.series.color.map((item, index) => (
           <React.Fragment key={index}>
             <ColorFieldForm
@@ -81,7 +81,7 @@ const TreemapChartSetting = props => {
             />
           </React.Fragment>
         ))}
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

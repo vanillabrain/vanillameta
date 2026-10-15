@@ -32,39 +32,6 @@ vi.mock('./FileVersions', async () => {
   };
 });
 vi.mock('@/widget/modules/board/NumericBoard', () => ({ default: () => <div>숫자 미리보기</div> }));
-vi.mock('@mui/material', () => {
-  const Container = ({ children }: any) => <div>{children}</div>;
-  return {
-    Box: ({ component: Tag = 'div', children, ...props }: any) => (
-      <Tag role={props.role} aria-label={props['aria-label']}>
-        {children}
-      </Tag>
-    ),
-    Stack: Container,
-    Card: Container,
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    Typography: ({ component: Tag = 'p', children, role }: any) => <Tag role={role}>{children}</Tag>,
-    Button: ({ children, disabled, onClick }: any) => (
-      <button disabled={disabled} onClick={onClick}>
-        {children}
-      </button>
-    ),
-    TextField: ({ label, select, value, onChange, disabled, children }: any) => (
-      <label>
-        {label}
-        {select ? (
-          <select value={value} onChange={onChange} disabled={disabled}>
-            {children}
-          </select>
-        ) : (
-          <input value={value} onChange={onChange} disabled={disabled} />
-        )}
-      </label>
-    ),
-    useTheme: () => ({ palette: { primary: { main: '#000' }, text: { secondary: '#333' } } }),
-  };
-});
-
 const success = (data: unknown) => ({ data: { status: 'SUCCESS', data } });
 const base = {
   schemaVersion: 1,

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Box, Button, Stack, Typography } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { get, post, postForm } from '@/helpers/apiHelper';
 
 type Version = { id: string; originalname: string; rows: number; uploadedAt: string; current: boolean };
@@ -147,23 +149,21 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
   };
 
   return (
-    <Box component="section" aria-label="파일 교체 및 버전 관리" sx={{ mt: 3, minWidth: 0 }}>
-      <Typography component="h3" variant="h6" sx={{ mb: 1 }}>
-        파일 교체 및 버전
-      </Typography>
-      <Typography variant="body2" sx={{ mb: 2 }}>
+    <section aria-label="파일 교체 및 버전 관리" className="mt-6 min-w-0">
+      <h3 className="mb-2 text-lg font-semibold">파일 교체 및 버전</h3>
+      <p className="mb-4 text-sm">
         기존 열 이름과 타입이 모두 같은 파일만 교체할 수 있습니다. 열을 자동으로 연결하거나 변환하지 않습니다. 데이터
         소스·지표·차트는 유지되며, 현재 데이터가 바뀌면 연결된 대시보드에도 반영됩니다. 현재 버전을 포함해 최대 5개 버전을
         보관합니다.
-      </Typography>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+      </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <input
           ref={input}
           type="file"
           accept=".csv,.json,.parquet"
           aria-label="교체할 파일"
           disabled={locked || !current}
-          style={{ display: 'none' }}
+          className="hidden"
           onChange={event => {
             setFile(event.target.files?.[0] ?? null);
             setConfirmId(null);
@@ -171,141 +171,126 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
             setNotice('');
           }}
         />
-        <Button variant="outlined" disabled={locked || !current} onClick={() => input.current?.click()}>
+        <Button variant="outline" disabled={locked || !current} onClick={() => input.current?.click()}>
           파일 선택
         </Button>
-        <Typography variant="body2" sx={{ overflowWrap: 'anywhere', flex: 1 }} aria-live="polite">
+        <p className="min-w-0 flex-1 break-words text-sm" aria-live="polite">
           {file ? `선택한 파일: ${file.name}` : '선택한 파일 없음'}
-        </Typography>
-        <Button variant="contained" disabled={locked || !current || !file} onClick={() => void change()}>
+        </p>
+        <Button disabled={locked || !current || !file} onClick={() => void change()}>
           검증 후 파일 교체
         </Button>
-      </Stack>
-      <Typography role="status" aria-live="polite" sx={{ my: 1 }}>
+      </div>
+      <p role="status" aria-live="polite" className="my-2">
         {busy || notice}
-      </Typography>
+      </p>
       {error && (
-        <Alert severity="error" sx={{ mb: 1 }}>
+        <Notice severity="error" className="mb-2">
           {error}
-        </Alert>
+        </Notice>
       )}
-      <Button disabled={locked} onClick={() => setReload(value => value + 1)}>
+      <Button variant="ghost" disabled={locked} onClick={() => setReload(value => value + 1)}>
         버전 목록 새로고침
       </Button>
       {current && (
         <>
-          <Box
+          <div
             role="region"
             aria-label="파일 버전 목록"
             tabIndex={0}
-            sx={{
-              overflowX: 'auto',
-              maxWidth: '100%',
-              fontSize: { xs: 12, sm: 14 },
-              '& th, & td': {
-                p: { xs: 0.5, sm: 1 },
-                textAlign: 'left',
-                verticalAlign: 'top',
-                borderBottom: 1,
-                borderColor: 'divider',
-              },
-              '& thead th': { whiteSpace: 'nowrap' },
-              '& .MuiButton-root': { minHeight: 44, minWidth: 0, px: 0.5, fontSize: 'inherit' },
-            }}
+            className="max-w-full overflow-x-auto text-xs sm:text-sm"
           >
-            <table style={{ width: '100%', tableLayout: 'fixed' }}>
-              <caption>보관된 파일 버전 · 최대 5개</caption>
+            <Table style={{ width: '100%', tableLayout: 'fixed' }}>
+              <TableCaption className="mt-0 mb-2 text-left text-inherit">보관된 파일 버전 · 최대 5개</TableCaption>
               <colgroup>
                 <col style={{ width: '28%' }} />
                 <col style={{ width: '14%' }} />
                 <col style={{ width: '30%' }} />
                 <col style={{ width: '28%' }} />
               </colgroup>
-              <thead>
-                <tr>
-                  <th scope="col">파일</th>
-                  <th scope="col">행 수</th>
-                  <th scope="col">업로드 시각</th>
-                  <th scope="col">복원</th>
-                </tr>
-              </thead>
-              <tbody>
+              <TableHeader className="[&_tr]:border-0">
+                <TableRow className="border-0 hover:bg-transparent">
+                  <TableHead scope="col" className="h-auto border-b px-2 py-1 text-left align-top whitespace-nowrap">
+                    파일
+                  </TableHead>
+                  <TableHead scope="col" className="h-auto border-b px-2 py-1 text-right align-top whitespace-nowrap">
+                    행 수
+                  </TableHead>
+                  <TableHead scope="col" className="h-auto border-b px-2 py-1 text-left align-top whitespace-nowrap">
+                    업로드 시각
+                  </TableHead>
+                  <TableHead scope="col" className="h-auto border-b px-2 py-1 text-left align-top whitespace-nowrap">
+                    복원
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {current.versions.map(version => {
                   const uploaded = timestamp(version.uploadedAt);
                   return (
-                    <tr key={version.id}>
-                      <th scope="row" style={{ overflowWrap: 'break-word', wordBreak: 'normal' }}>
+                    <TableRow key={version.id} className="border-0 hover:bg-transparent">
+                      <TableHead
+                        scope="row"
+                        className="h-auto border-b px-2 py-1 text-left align-top font-normal whitespace-normal"
+                        style={{ overflowWrap: 'break-word', wordBreak: 'normal' }}
+                      >
                         {version.originalname}
-                        {version.current && (
-                          <Typography variant="body2" sx={{ fontSize: 'inherit', whiteSpace: 'nowrap' }}>
-                            현재 버전
-                          </Typography>
-                        )}
-                      </th>
-                      <td>{version.rows.toLocaleString('ko-KR')}</td>
-                      <td>
+                        {version.current && <span className="block whitespace-nowrap">현재 버전</span>}
+                      </TableHead>
+                      <TableCell className="border-b px-2 py-1 text-right align-top tabular-nums whitespace-normal">
+                        {version.rows.toLocaleString('ko-KR')}
+                      </TableCell>
+                      <TableCell className="border-b px-2 py-1 align-top">
                         <time dateTime={version.uploadedAt}>
-                          <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{uploaded.day}</span>
-                          <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{uploaded.time}</span>
+                          <span className="block whitespace-nowrap">{uploaded.day}</span>
+                          <span className="block whitespace-nowrap">{uploaded.time}</span>
                         </time>
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell className="border-b px-2 py-1 align-top">
                         {!version.current && (
                           <Button
+                            variant="ghost"
                             disabled={locked}
                             aria-label="이 버전으로 복원"
-                            sx={{ whiteSpace: 'nowrap' }}
+                            className="h-11 whitespace-nowrap px-1 text-inherit"
                             onClick={() => {
                               setConfirmId(version.id);
                               setError('');
                             }}
                           >
-                            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
-                              이 버전으로 복원
-                            </Box>
-                            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
-                              복원
-                            </Box>
+                            <span className="hidden sm:inline">이 버전으로 복원</span>
+                            <span className="inline sm:hidden">복원</span>
                           </Button>
                         )}
                         {version.current && '사용 중'}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
-          </Box>
+              </TableBody>
+            </Table>
+          </div>
           {confirmVersion && (
-            <Box
-              component="section"
+            <section
               role="region"
               aria-label="파일 버전 복원 확인"
               aria-live="polite"
-              sx={{
-                mt: 2,
-                p: 2,
-                width: '100%',
-                boxSizing: 'border-box',
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
+              className="mt-4 box-border w-full rounded-lg border p-4"
             >
-              <Typography sx={{ overflowWrap: 'break-word', mb: 1 }}>복원할 파일: {confirmVersion.originalname}</Typography>
-              <Typography sx={{ mb: 2 }}>이 파일로 현재 데이터를 복원할까요? 연결된 대시보드 데이터도 바뀝니다.</Typography>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <Button disabled={locked} variant="contained" onClick={() => void change(confirmVersion.id)}>
+              <p className="mb-2 break-words">복원할 파일: {confirmVersion.originalname}</p>
+              <p className="mb-4">이 파일로 현재 데이터를 복원할까요? 연결된 대시보드 데이터도 바뀝니다.</p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button disabled={locked} onClick={() => void change(confirmVersion.id)}>
                   복원 확인
                 </Button>
-                <Button disabled={locked} onClick={() => setConfirmId(null)}>
+                <Button variant="ghost" disabled={locked} onClick={() => setConfirmId(null)}>
                   취소
                 </Button>
-              </Stack>
-            </Box>
+              </div>
+            </section>
           )}
         </>
       )}
-    </Box>
+    </section>
   );
 }

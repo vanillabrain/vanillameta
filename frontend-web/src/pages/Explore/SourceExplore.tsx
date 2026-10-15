@@ -1,17 +1,4 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  Checkbox,
-  Chip,
-  Divider,
-  FormControlLabel,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { get, post } from '@/helpers/apiHelper';
@@ -19,7 +6,16 @@ import PersonalSavedViews from '@/pages/Dashboard/Components/PersonalSavedViews'
 import ExploreSavedViews, { ExploreViewState as VersionedExploreViewState } from './ExploreSavedViews';
 import ExplorePivot, { DEFAULT_PIVOT_SORT, normalizePivotSort, PivotAxes as AdvancedPivotAxes } from './ExplorePivot';
 import ExploreExport from './ExploreExport';
-import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
+import { AnalysisChoice, AnalysisUiProvider, analysisPanelClassName } from '@/components/analysis/AnalysisUi';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Notice } from '@/components/ui/notice';
+import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TextField } from '@/components/ui/text-field';
+import { cn } from '@/lib/utils';
 import {
   parseExploreViewState,
   ExploreViewState,
@@ -34,7 +30,6 @@ import MetricTrend, { FormattedMetricTrendData } from '@/pages/Dashboard/Compone
 import { formatMetric, metricNumericText, NumberNotation } from '@/utils/formatMetric';
 import type { MetricComparisonData } from '@/pages/Dashboard/Components/PeriodComparison';
 
-const ACCENT = '#0b5cab';
 const PAGE_SIZE = 20;
 const MAX_MEASURES = 6;
 const MAX_DIMENSIONS = 4;
@@ -145,49 +140,6 @@ const isAborted = (error: unknown) => {
 
 const isRevisionConflict = (error: unknown) => (error as { response?: { status?: number } })?.response?.status === 409;
 
-function Pill({
-  label,
-  selected,
-  onClick,
-  disabled,
-  ariaLabel,
-}: {
-  label: React.ReactNode;
-  selected?: boolean;
-  onClick?: () => void;
-  disabled?: boolean;
-  ariaLabel?: string;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="outlined"
-      size="small"
-      aria-pressed={selected}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={onClick}
-      sx={{
-        minHeight: { xs: 40, sm: 36 },
-        px: 1.5,
-        borderRadius: '7px',
-        boxShadow: 'none',
-        textTransform: 'none',
-        fontWeight: 600,
-        fontSize: 13,
-        color: selected ? ACCENT : '#475569',
-        backgroundColor: selected ? '#eaf2fc' : '#ffffff',
-        border: '1px solid',
-        borderColor: selected ? '#adc8eb' : '#d8e0eb',
-        '&:hover': { backgroundColor: '#f0f5fc', borderColor: ACCENT },
-        '&.Mui-disabled': { bgcolor: '#f5f7fa', borderColor: '#e5eaf0', color: '#8993a2' },
-      }}
-    >
-      {label}
-    </Button>
-  );
-}
-
 function FilterValueSelect({
   sourceId,
   sourceRevision,
@@ -248,69 +200,44 @@ function FilterValueSelect({
     };
   }, [sourceId, sourceRevision, column, search, filters, dateRange, onConflict]);
   return (
-    <Box
+    <div
       role="group"
       aria-label="값 선택"
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' },
-        gap: 0.5,
-        maxHeight: 220,
-        overflow: 'auto',
-        p: 0.5,
-        '& > .MuiTypography-root': { gridColumn: '1 / -1' },
-      }}
+      className="grid max-h-[220px] grid-cols-1 gap-0.5 overflow-auto rounded-md p-0.5 sm:grid-cols-2"
     >
-      {busy && <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>값을 불러오는 중…</Typography>}
+      {busy && <p className="col-span-full text-[13px] text-muted-foreground">값을 불러오는 중…</p>}
       {error && (
-        <Typography role="alert" sx={{ fontSize: 13, color: 'error.main' }}>
+        <p role="alert" className="col-span-full text-[13px] text-destructive">
           {error}
-        </Typography>
+        </p>
       )}
       {!busy && !error && values.length === 0 && (
-        <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>조건에 맞는 값이 없습니다.</Typography>
+        <p className="col-span-full text-[13px] text-muted-foreground">조건에 맞는 값이 없습니다.</p>
       )}
-      {values.map((value, index) => (
-        <FormControlLabel
-          key={`${column}-${index}`}
-          control={
+      {values.map((value, index) => {
+        const checked = selected.some(current => Object.is(current, value));
+        return (
+          <label
+            key={`${column}-${index}`}
+            className={cn(
+              'flex min-h-10 min-w-0 cursor-pointer items-start gap-2 rounded-md pr-2 hover:bg-[#edf3fa]',
+              checked && 'bg-[#eaf2fc]',
+            )}
+          >
             <Checkbox
-              size="small"
-              disableRipple
-              checked={selected.some(current => Object.is(current, value))}
-              onChange={() => onToggle(value)}
-              inputProps={{ 'aria-label': categoryText(value) }}
+              className="mt-2 shrink-0"
+              checked={checked}
+              onCheckedChange={() => onToggle(value)}
+              aria-label={categoryText(value)}
             />
-          }
-          label={categoryText(value)}
-          sx={{
-            m: 0,
-            minWidth: 0,
-            minHeight: 40,
-            pr: 1,
-            alignItems: 'flex-start',
-            borderRadius: '6px',
-            backgroundColor: selected.some(current => Object.is(current, value)) ? '#eaf2fc' : 'transparent',
-            '&:hover': { backgroundColor: '#edf3fa' },
-            '&:focus-within': { outline: '2px solid #0b5cab', outlineOffset: '-2px' },
-            '& .MuiCheckbox-root': { p: 1, flexShrink: 0, color: '#64748b' },
-            '& .MuiCheckbox-root.Mui-checked': { color: ACCENT },
-            '& .MuiCheckbox-root.Mui-focusVisible, & input:focus-visible': { outline: 'none !important' },
-            '& .MuiFormControlLabel-label': {
-              minWidth: 0,
-              py: 1,
-              fontSize: 13,
-              lineHeight: '24px',
-              overflowWrap: 'anywhere',
-              color: '#334155',
-            },
-          }}
-        />
-      ))}
+            <span className="min-w-0 py-2 text-[13px] leading-6 break-words text-[#334155]">{categoryText(value)}</span>
+          </label>
+        );
+      })}
       {truncated && (
-        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>일부 값만 표시됩니다. 검색으로 좁혀 보세요.</Typography>
+        <p className="col-span-full text-xs text-muted-foreground">일부 값만 표시됩니다. 검색으로 좁혀 보세요.</p>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -333,107 +260,61 @@ function LeaderboardCard({
   const rows = board.rows ?? [];
   const max = rows.reduce((best, row) => Math.max(best, toNumber(row.value) ?? 0), 0);
   return (
-    <Card variant="outlined" sx={{ p: 2, minWidth: 0, borderColor: '#e0e6ee', borderRadius: '10px', boxShadow: 'none' }}>
-      <Typography component="h3" variant="subtitle2" sx={{ fontWeight: 700, mb: 1, overflowWrap: 'anywhere' }}>
-        {board.column}
-      </Typography>
+    <Card className="min-w-0 gap-2 rounded-[10px] border border-[#e0e6ee] bg-card p-4 ring-0 sm:p-5">
+      <h3 className="text-sm font-bold wrap-anywhere">{board.column}</h3>
       {rows.length === 0 ? (
-        <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>표시할 값이 없습니다.</Typography>
+        <p className="text-[13px] text-muted-foreground">표시할 값이 없습니다.</p>
       ) : (
-        <Stack component="ul" spacing={0.25} sx={{ listStyle: 'none', m: 0, p: 0 }}>
+        <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
           {rows.map((row, index) => {
             const value = formatMetric(row.value, { decimalPlaces, prefix: unitPrefix, suffix: unitSuffix, numberNotation });
             const numeric = toNumber(row.value) ?? 0;
             const width = max > 0 ? Math.max(2, Math.round((numeric / max) * 100)) : 0;
             return (
-              <Box component="li" key={`${board.column}-${index}`}>
+              <li key={`${board.column}-${index}`}>
                 <Button
                   type="button"
+                  variant="ghost"
                   aria-label={`필터 적용: ${board.column} = ${categoryText(row.category)}`}
                   aria-describedby={`${id}-${index}-value${'previousValue' in row ? ` ${id}-${index}-comparison` : ''}`}
                   onClick={() => onSelect(board.column, [row.category as FilterValue])}
-                  sx={{
-                    position: 'relative',
-                    width: '100%',
-                    height: 'auto',
-                    minHeight: 40,
-                    px: 0.75,
-                    py: 0.75,
-                    lineHeight: '20px',
-                    justifyContent: 'space-between',
-                    gap: 1,
-                    overflow: 'hidden',
-                    borderRadius: 1,
-                    textTransform: 'none',
-                    color: '#1e293b',
-                    textAlign: 'left',
-                    '&:hover': { backgroundColor: '#f8fafc' },
-                  }}
+                  className="relative h-auto min-h-10 w-full items-stretch justify-start gap-1 overflow-hidden rounded px-1.5 py-1.5 text-left text-[13px] leading-5 font-normal whitespace-normal text-[#1e293b] hover:bg-[#f8fafc]"
                 >
-                  <Box
-                    component="span"
+                  <span
                     aria-hidden={true}
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      bottom: 0,
-                      left: 0,
-                      width: `${width}%`,
-                      backgroundColor: '#e2edfc',
-                      pointerEvents: 'none',
-                    }}
+                    style={{ width: `${width}%` }}
+                    className="pointer-events-none absolute inset-y-0 left-0 bg-[#e2edfc]"
                   />
-                  <Box
-                    component="span"
-                    sx={{
-                      position: 'relative',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 0.25,
-                      width: '100%',
-                      minWidth: 0,
-                    }}
-                  >
-                    <Box component="span" sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, minWidth: 0 }}>
-                      <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {categoryText(row.category)}
-                      </Box>
-                      <Box
-                        component="span"
+                  <span className="relative flex w-full min-w-0 flex-col gap-0.5">
+                    <span className="flex min-w-0 justify-between gap-2">
+                      <span className="overflow-hidden text-ellipsis whitespace-nowrap">{categoryText(row.category)}</span>
+                      <span
                         title={value.exactText}
                         id={`${id}-${index}-value`}
                         aria-label={value.exactText}
-                        sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
+                        className="tabular-nums whitespace-nowrap"
                       >
                         {value.text}
-                      </Box>
-                    </Box>
+                      </span>
+                    </span>
                     {'previousValue' in row && (
-                      <Box
-                        component="span"
+                      <span
                         id={`${id}-${index}-comparison`}
                         title={compareText(row, decimalPlaces, unitPrefix, unitSuffix, numberNotation, true)}
                         aria-label={compareText(row, decimalPlaces, unitPrefix, unitSuffix, numberNotation, true)}
-                        sx={{
-                          fontSize: 11,
-                          lineHeight: 1.5,
-                          color: 'text.secondary',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
+                        className="overflow-hidden text-[11px] leading-normal text-ellipsis whitespace-nowrap text-muted-foreground"
                       >
                         {compareText(row, decimalPlaces, unitPrefix, unitSuffix, numberNotation)}
-                      </Box>
+                      </span>
                     )}
-                  </Box>
+                  </span>
                 </Button>
-              </Box>
+              </li>
             );
           })}
-        </Stack>
+        </ul>
       )}
-      {board.truncated && <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 0.5 }}>상위 20개만 표시</Typography>}
+      {board.truncated && <p className="mt-1 text-xs text-muted-foreground">상위 20개만 표시</p>}
     </Card>
   );
 }
@@ -459,7 +340,6 @@ function SourceExploreContent() {
   const [rangeMin, setRangeMin] = useState('');
   const [rangeMax, setRangeMax] = useState('');
   const [filterError, setFilterError] = useState('');
-  const filterLauncher = useRef<HTMLButtonElement>(null);
   const [grain, setGrain] = useState<TrendGrain>('day');
   const [comparePrevious, setComparePrevious] = useState(false);
   const [dateMode, setDateMode] = useState<'all' | 'custom'>('all');
@@ -715,7 +595,8 @@ function SourceExploreContent() {
   const numericFilter = catalog?.dimensions.find(dimension => dimension.column === filterColumn)?.numeric === true;
   const closeFilters = () => {
     setFilterPanelOpen(false);
-    filterLauncher.current?.focus();
+    const launcher = document.getElementById('explore-filter-launcher');
+    launcher?.focus();
   };
   const applyFilterSelection = () => {
     if (filters.length >= 5 && !filters.some(item => item.column === filterColumn)) {
@@ -1003,63 +884,17 @@ function SourceExploreContent() {
   };
 
   return (
-    <Box
-      sx={{
-        p: { xs: 2, md: 3 },
-        maxWidth: 1400,
-        width: '100%',
-        mx: 'auto',
-        minWidth: 0,
-        backgroundColor: '#f6f8fb',
-        '& .MuiButton-root': {
-          minHeight: { xs: 40, sm: 36 },
-          textTransform: 'none',
-          fontSize: 13,
-          fontWeight: 500,
-          borderRadius: '7px',
-          boxShadow: 'none',
-        },
-        '& .MuiButton-root:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
-        '& .MuiInputBase-root': { minHeight: 40, fontSize: 13, borderRadius: '7px', bgcolor: 'background.paper' },
-        '& .MuiInputLabel-root': { fontSize: 13 },
-        '& .MuiOutlinedInput-notchedOutline': { borderColor: '#d8e0eb' },
-        '& .MuiChip-root': {
-          borderRadius: '6px',
-          fontSize: 12,
-          bgcolor: '#edf3fb',
-          color: '#214c80',
-          maxWidth: '100%',
-          height: 'auto',
-          minHeight: 28,
-        },
-        '& .MuiChip-label': { whiteSpace: 'normal', overflowWrap: 'anywhere', py: 0.5 },
-      }}
-    >
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1.5}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-        justifyContent="space-between"
-        sx={{ flexWrap: 'wrap', mb: 1.5, minWidth: 0, position: 'relative' }}
-      >
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1.5}
-          alignItems={{ xs: 'stretch', sm: 'center' }}
-          sx={{ flexWrap: 'wrap', minWidth: 0 }}
-        >
-          <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
-            지표 탐색
-          </Typography>
+    <div className="mx-auto w-full min-w-0 max-w-[1400px] bg-[#f6f8fb] p-4 text-[13px] md:p-6">
+      <div className="mb-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-end gap-x-4 gap-y-3">
+          <h1 className="text-2xl leading-tight font-bold">지표 탐색</h1>
           <TextField
             select
-            size="small"
             label="데이터 소스"
             value={sourceId}
             disabled={sources.length === 0}
             onChange={event => setSourceId(event.target.value)}
-            sx={{ minWidth: 0, width: { xs: '100%', sm: 220 } }}
-            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+            className="w-full min-w-0 sm:w-[220px]"
           >
             <option value="">데이터를 선택하세요</option>
             {sources.map(source => (
@@ -1069,37 +904,24 @@ function SourceExploreContent() {
             ))}
           </TextField>
           {catalog && (
-            <Typography color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-              {formatMetric(catalog.rowCount).text}행 · 연결됨
-            </Typography>
+            <p className="wrap-anywhere text-xs text-muted-foreground">{formatMetric(catalog.rowCount).text}행 · 연결됨</p>
           )}
-        </Stack>
+        </div>
         <Button
-          variant="outlined"
+          variant="outline"
+          className="shrink-0 self-end"
           onClick={() => navigate(`/explore${sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''}`)}
-          sx={{
-            textTransform: 'none',
-            alignSelf: { xs: 'flex-end', sm: 'center' },
-            position: { xs: 'absolute', sm: 'static' },
-            margin: { xs: '0 !important', sm: 0 },
-            top: 0,
-            right: 0,
-            borderColor: '#d8e0eb',
-            bgcolor: 'background.paper',
-            color: 'text.primary',
-          }}
         >
           지표 빌더
         </Button>
-      </Stack>
-
-      <Divider />
+      </div>
+      <Separator />
       {catalog && (
-        <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mt: 1, flexWrap: 'wrap', minWidth: 0 }}>
+        <div className="mt-3 flex min-w-0 flex-wrap items-start gap-2">
           {/* Our restful V1 state cannot carry the advanced Pivot, so classic save/load hides there. */}
           {mode !== 'advanced' && (
-            <Box sx={{ minWidth: 0 }}>
-              <Button aria-expanded={savedViewsOpen} onClick={() => setSavedViewsOpen(open => !open)}>
+            <div className="min-w-0">
+              <Button variant="ghost" aria-expanded={savedViewsOpen} onClick={() => setSavedViewsOpen(open => !open)}>
                 {savedViewsOpen ? '저장 보기 닫기' : '저장 보기'}
               </Button>
               {savedViewsOpen && (
@@ -1140,7 +962,7 @@ function SourceExploreContent() {
                   }
                 />
               )}
-            </Box>
+            </div>
           )}
           {/* Classic Pivot keeps its own PivotTable save/CSV, so the versioned controls stay hidden there. */}
           {mode !== 'pivot' && (
@@ -1177,21 +999,13 @@ function SourceExploreContent() {
               />
             </>
           )}
-        </Stack>
+        </div>
       )}
 
-      <Box
-        sx={{
-          mt: 1.5,
-          p: { xs: 1.5, sm: 2 },
-          bgcolor: 'background.paper',
-          border: '1px solid #e0e6ee',
-          borderRadius: '10px',
-        }}
-      >
-        <Stack direction="row" spacing={1} role="group" aria-label="탐색 방식" sx={{ mb: 1.5 }}>
-          <Pill label="Explore" selected={mode === 'explore'} onClick={() => setMode('explore')} />
-          <Pill
+      <div className={cn('mt-4', analysisPanelClassName)}>
+        <div role="group" aria-label="탐색 방식" className="mb-4 flex flex-wrap gap-2">
+          <AnalysisChoice label="Explore" selected={mode === 'explore'} onClick={() => setMode('explore')} />
+          <AnalysisChoice
             label="Pivot"
             selected={mode === 'pivot'}
             onClick={() => {
@@ -1199,7 +1013,7 @@ function SourceExploreContent() {
               setSavedViewsOpen(false);
             }}
           />
-          <Pill
+          <AnalysisChoice
             label="고급 Pivot"
             selected={mode === 'advanced'}
             onClick={() => {
@@ -1210,19 +1024,10 @@ function SourceExploreContent() {
               setSavedViewsOpen(false);
             }}
           />
-        </Stack>
+        </div>
 
-        <Stack
-          direction="row"
-          spacing={0}
-          alignItems="center"
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, max-content)' },
-            gap: 1,
-          }}
-        >
-          <Pill
+        <div className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[repeat(4,max-content)]">
+          <AnalysisChoice
             label="전체 기간"
             selected={dateMode === 'all'}
             onClick={() => {
@@ -1232,16 +1037,10 @@ function SourceExploreContent() {
               setPage(0);
             }}
           />
-          <Pill label="사용자 지정" selected={dateMode === 'custom'} onClick={() => setDateMode('custom')} />
+          <AnalysisChoice label="사용자 지정" selected={dateMode === 'custom'} onClick={() => setDateMode('custom')} />
           {dateMode === 'custom' && (
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              sx={{ flexWrap: 'wrap', gridColumn: '1 / -1', rowGap: 1 }}
-            >
+            <div className="col-span-full flex flex-wrap items-center gap-2">
               <TextField
-                size="small"
                 type="date"
                 label="시작일"
                 value={startDate}
@@ -1249,10 +1048,9 @@ function SourceExploreContent() {
                   setStartDate(event.target.value);
                   setPage(0);
                 }}
-                sx={{ width: 160 }}
+                className="w-40"
               />
               <TextField
-                size="small"
                 type="date"
                 label="종료일"
                 value={endDate}
@@ -1260,11 +1058,11 @@ function SourceExploreContent() {
                   setEndDate(event.target.value);
                   setPage(0);
                 }}
-                sx={{ width: 160 }}
+                className="w-40"
               />
-              <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="표시 시간대">
+              <div role="group" aria-label="표시 시간대" className="flex items-center gap-0.5">
                 {TIME_ZONES.map(zone => (
-                  <Pill
+                  <AnalysisChoice
                     key={zone}
                     label={zone}
                     ariaLabel={`표시 시간대 ${zone}`}
@@ -1275,25 +1073,14 @@ function SourceExploreContent() {
                     }}
                   />
                 ))}
-              </Stack>
-            </Stack>
+              </div>
+            </div>
           )}
           {mode !== 'pivot' && (
             <>
-              <Stack
-                direction="row"
-                spacing={0.5}
-                alignItems="center"
-                role="group"
-                aria-label="집계 단위"
-                sx={{
-                  gridColumn: { xs: '1', sm: 'auto' },
-                  minWidth: 0,
-                  '& .MuiButton-root': { flex: 1, minWidth: { xs: 0, sm: 52 } },
-                }}
-              >
+              <div role="group" aria-label="집계 단위" className="col-span-1 flex min-w-0 items-center gap-0.5 sm:col-auto">
                 {GRAINS.map(item => (
-                  <Pill
+                  <AnalysisChoice
                     key={item.value}
                     label={item.label}
                     ariaLabel={`집계 단위 ${item.label}`}
@@ -1302,10 +1089,11 @@ function SourceExploreContent() {
                       setGrain(item.value);
                       setPage(0);
                     }}
+                    className="min-w-0 flex-1 sm:min-w-[52px]"
                   />
                 ))}
-              </Stack>
-              <Pill
+              </div>
+              <AnalysisChoice
                 label="이전 기간 비교"
                 selected={comparePrevious}
                 disabled={!dateRange || rangePaused}
@@ -1317,89 +1105,69 @@ function SourceExploreContent() {
               />
             </>
           )}
-        </Stack>
+        </div>
 
-        <Box sx={{ mt: 1.5, minWidth: 0 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ gap: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 500 }}>
+        <div className="mt-4 min-w-0">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <p className="text-xs font-medium text-muted-foreground">
               {filters.length ? `적용된 필터 ${filters.length}개` : '필터 없음'}
-            </Typography>
+            </p>
             <Button
-              ref={filterLauncher}
-              disableRipple
+              id="explore-filter-launcher"
+              variant="outline"
               aria-label="필터 추가"
               aria-expanded={filterPanelOpen}
               aria-controls="explore-filter-panel"
+              className="shrink-0 rounded-[7px]"
               onClick={() => {
                 setFilterError('');
                 setFilterPanelOpen(value => !value);
               }}
-              variant="outlined"
-              sx={{ flexShrink: 0, borderRadius: '7px', textTransform: 'none' }}
             >
               필터 추가
             </Button>
-          </Stack>
+          </div>
           {filters.length > 0 && (
-            <Stack
-              direction="row"
-              useFlexGap
-              spacing={0.75}
-              role="group"
-              aria-label="적용된 필터"
-              sx={{ flexWrap: 'wrap', mt: 1, minWidth: 0 }}
-            >
-              {filters.map(filter => (
-                <Chip
-                  key={filter.column}
-                  label={`${filter.column}: ${
-                    'range' in filter
-                      ? `${filter.range.min ?? '제한 없음'} ~ ${filter.range.max ?? '제한 없음'} (양 끝 포함)`
-                      : filter.values.map(categoryText).join(', ')
-                  }`}
-                  sx={{
-                    backgroundColor: '#f1f6fc',
-                    border: '1px solid #d8e5f4',
-                    borderRadius: '6px',
-                    minHeight: 32,
-                    fontSize: 12,
-                    lineHeight: 1.5,
-                    color: '#214c80',
-                    maxWidth: '100%',
-                    height: 'auto',
-                    '& .MuiChip-label': { whiteSpace: 'normal', overflowWrap: 'anywhere', px: 1, py: 0.5 },
-                    '& .MuiChip-deleteIcon': { flexShrink: 0, fontSize: 18, color: '#6c83a1' },
-                  }}
-                  onDelete={() => applyFilter(filter.column, [])}
-                />
-              ))}
-            </Stack>
+            <div role="group" aria-label="적용된 필터" className="mt-2 flex min-w-0 flex-wrap gap-1.5">
+              {filters.map(filter => {
+                const label = `${filter.column}: ${
+                  'range' in filter
+                    ? `${filter.range.min ?? '제한 없음'} ~ ${filter.range.max ?? '제한 없음'} (양 끝 포함)`
+                    : filter.values.map(categoryText).join(', ')
+                }`;
+                return (
+                  <Badge
+                    key={filter.column}
+                    variant="secondary"
+                    className="h-auto min-h-8 max-w-full rounded-md border border-[#d8e5f4] bg-[#f1f6fc] px-2 py-0.5 text-xs leading-normal text-[#214c80]"
+                  >
+                    <span className="min-w-0 wrap-anywhere">{label}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      aria-label={`삭제 ${label}`}
+                      className="h-6 shrink-0 px-1 text-xs text-[#6c83a1]"
+                      onClick={() => applyFilter(filter.column, [])}
+                    >
+                      삭제
+                    </Button>
+                  </Badge>
+                );
+              })}
+            </div>
           )}
-        </Box>
+        </div>
 
         {filterPanelOpen && catalog && (
-          <Box
+          <div
             id="explore-filter-panel"
             role="group"
             aria-label="필터 설정"
-            sx={{
-              mt: 1.25,
-              p: { xs: 1.5, sm: 2 },
-              minWidth: 0,
-              border: '1px solid #dce6f2',
-              borderRadius: '8px',
-              backgroundColor: '#f8fafd',
-            }}
+            className="mt-3 min-w-0 rounded-xl border border-[#dce6f2] bg-[#f8fafd] p-4 sm:p-5"
           >
-            <Stack
-              direction="row"
-              useFlexGap
-              spacing={1.5}
-              sx={{ mb: 1.5, flexWrap: 'wrap', minWidth: 0, '& .MuiFormControl-root': { minWidth: 0 } }}
-            >
+            <div className="mb-3 flex min-w-0 flex-wrap gap-3">
               <TextField
                 select
-                size="small"
                 label="필터 열"
                 value={filterColumn}
                 onChange={event => {
@@ -1410,8 +1178,7 @@ function SourceExploreContent() {
                   setRangeMax('');
                   setFilterError('');
                 }}
-                sx={{ minWidth: 0, width: { xs: '100%', sm: 220 } }}
-                slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+                className="w-full min-w-0 sm:w-[220px]"
               >
                 <option value="">열을 선택하세요</option>
                 {catalog.dimensions.map(dimension => (
@@ -1422,18 +1189,17 @@ function SourceExploreContent() {
               </TextField>
               {filterMode === 'values' && (
                 <TextField
-                  size="small"
                   label="값 검색"
                   value={filterSearch}
                   disabled={!filterColumn}
                   onChange={event => setFilterSearch(event.target.value)}
-                  sx={{ minWidth: 0, width: { xs: '100%', sm: 220 } }}
+                  className="w-full min-w-0 sm:w-[220px]"
                 />
               )}
-            </Stack>
+            </div>
             {numericFilter && (
-              <Stack direction="row" spacing={1} role="group" aria-label="숫자 필터 방식" sx={{ mb: 1 }}>
-                <Pill
+              <div role="group" aria-label="숫자 필터 방식" className="mb-2 flex flex-wrap gap-2">
+                <AnalysisChoice
                   label="값 선택"
                   selected={filterMode === 'values'}
                   onClick={() => {
@@ -1441,7 +1207,7 @@ function SourceExploreContent() {
                     setFilterError('');
                   }}
                 />
-                <Pill
+                <AnalysisChoice
                   label="숫자 범위"
                   selected={filterMode === 'range'}
                   onClick={() => {
@@ -1449,16 +1215,11 @@ function SourceExploreContent() {
                     setFilterError('');
                   }}
                 />
-              </Stack>
+              </div>
             )}
             {filterMode === 'range' && numericFilter ? (
               <>
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  useFlexGap
-                  spacing={1.5}
-                  sx={{ '& .MuiFormControl-root': { flex: 1, minWidth: 0, width: '100%' } }}
-                >
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <TextField
                     label="최솟값 (포함)"
                     value={rangeMin}
@@ -1466,12 +1227,10 @@ function SourceExploreContent() {
                       setRangeMin(event.target.value);
                       setFilterError('');
                     }}
-                    size="small"
-                    slotProps={{
-                      htmlInput: {
-                        inputMode: 'decimal',
-                        'aria-describedby': filterError ? 'range-filter-error' : 'range-filter-help',
-                      },
+                    className="w-full min-w-0 flex-1"
+                    inputProps={{
+                      inputMode: 'decimal',
+                      'aria-describedby': filterError ? 'range-filter-error' : 'range-filter-help',
                     }}
                   />
                   <TextField
@@ -1481,22 +1240,16 @@ function SourceExploreContent() {
                       setRangeMax(event.target.value);
                       setFilterError('');
                     }}
-                    size="small"
-                    slotProps={{
-                      htmlInput: {
-                        inputMode: 'decimal',
-                        'aria-describedby': filterError ? 'range-filter-error' : 'range-filter-help',
-                      },
+                    className="w-full min-w-0 flex-1"
+                    inputProps={{
+                      inputMode: 'decimal',
+                      'aria-describedby': filterError ? 'range-filter-error' : 'range-filter-help',
                     }}
                   />
-                </Stack>
-                <Typography
-                  id="range-filter-help"
-                  variant="caption"
-                  sx={{ display: 'block', mt: 1, mb: 1, lineHeight: 1.6, color: 'text.secondary' }}
-                >
+                </div>
+                <p id="range-filter-help" className="mt-2 mb-2 block text-xs leading-relaxed text-muted-foreground">
                   원본 행의 숫자를 필터링합니다. 한쪽을 비우면 제한하지 않습니다. 양 끝값은 포함하고 NULL은 제외합니다.
-                </Typography>
+                </p>
               </>
             ) : filterColumn ? (
               <FilterValueSelect
@@ -1511,68 +1264,39 @@ function SourceExploreContent() {
                 onConflict={handleRevisionConflict}
               />
             ) : (
-              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>필터할 열을 선택하세요.</Typography>
+              <p className="text-[13px] text-muted-foreground">필터할 열을 선택하세요.</p>
             )}
             {filterError && (
-              <Alert
-                severity="error"
-                id="range-filter-error"
-                sx={{
-                  mt: 1,
-                  '& .MuiAlert-message': { minWidth: 0, overflowWrap: 'anywhere', fontSize: 12, lineHeight: 1.6 },
-                }}
-              >
+              <Notice severity="error" id="range-filter-error" className="mt-2 text-xs leading-relaxed">
                 {filterError}
-              </Alert>
+              </Notice>
             )}
-            <Stack
-              direction="row"
-              useFlexGap
-              spacing={1}
-              sx={{
-                mt: 1.5,
-                pt: 1.5,
-                borderTop: '1px solid #e2e8f0',
-                '& .MuiButton-root': { flex: { xs: 1, sm: '0 0 auto' } },
-              }}
-            >
+            <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
               <Button
-                variant="contained"
-                disableRipple
                 disabled={!filterColumn || (filterMode === 'values' && filterSelection.length === 0)}
+                className="flex-1 sm:flex-none"
                 onClick={applyFilterSelection}
               >
                 필터 적용
               </Button>
-              <Button variant="outlined" disableRipple onClick={closeFilters}>
+              <Button variant="outline" className="flex-1 sm:flex-none" onClick={closeFilters}>
                 닫기
               </Button>
-            </Stack>
-          </Box>
+            </div>
+          </div>
         )}
 
         {catalog && mode === 'explore' && (
-          <Stack
-            direction="row"
-            spacing={0}
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(2, minmax(0, 220px))' },
-              gap: 1.5,
-              mt: 2,
-            }}
-          >
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(2,minmax(0,220px))]">
             <TextField
               select
-              size="small"
               label="차원 순위 기준"
               value={leaderboardSort.by}
               onChange={event => {
                 setLeaderboardSort(value => ({ ...value, by: event.target.value as LeaderboardSort['by'] }));
                 setPage(0);
               }}
-              slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
-              sx={{ minWidth: 0 }}
+              className="min-w-0"
             >
               <option value="value">현재 값</option>
               <option value="delta" disabled={!comparePrevious || !dateRange || rangePaused}>
@@ -1584,38 +1308,33 @@ function SourceExploreContent() {
             </TextField>
             <TextField
               select
-              size="small"
               label="차원 순위 방향"
               value={leaderboardSort.direction}
               onChange={event => {
                 setLeaderboardSort(value => ({ ...value, direction: event.target.value as LeaderboardSort['direction'] }));
                 setPage(0);
               }}
-              slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
-              sx={{ minWidth: 0 }}
+              className="min-w-0"
             >
               <option value="desc">내림차순</option>
               <option value="asc">오름차순</option>
             </TextField>
-            <Typography
-              variant="caption"
-              sx={{ gridColumn: '1 / -1', color: 'text.secondary', lineHeight: 1.5, display: { xs: 'none', sm: 'block' } }}
-            >
+            <p className="col-span-full hidden text-xs leading-normal text-muted-foreground sm:block">
               선택한 지표 기준으로 정렬합니다.
-            </Typography>
-          </Stack>
+            </p>
+          </div>
         )}
-        <Divider sx={{ my: 1.5 }} />
+        <Separator className="my-4" />
 
         {catalog && (
-          <Stack spacing={1} sx={{ minWidth: 0 }}>
-            <Stack direction="row" spacing={0} alignItems="center" sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <Button
                 type="button"
+                variant="ghost"
                 aria-expanded={settingsOpen}
                 aria-controls="display-settings"
                 onClick={() => setSettingsOpen(value => !value)}
-                sx={{ textTransform: 'none' }}
               >
                 표시 설정 · 지표 {measureIds.length} / {catalog.measures.length} · 차원 {dimensions.length} /{' '}
                 {catalog.dimensions.length}
@@ -1624,24 +1343,36 @@ function SourceExploreContent() {
                 catalog.measures
                   .filter(measure => measureIds.includes(measure.id))
                   .map(measure => (
-                    <Chip key={measure.id} label={measure.label} sx={{ backgroundColor: '#edf3fb', color: '#214c80' }} />
+                    <Badge
+                      key={measure.id}
+                      variant="secondary"
+                      className="h-auto min-h-7 max-w-full rounded-md bg-[#edf3fb] px-2 py-0.5 text-xs wrap-anywhere text-[#214c80]"
+                    >
+                      {measure.label}
+                    </Badge>
                   ))}
               {settingsOpen &&
                 dimensions.map(column => (
-                  <Chip key={column} label={column} sx={{ backgroundColor: '#f1f5f9', color: '#334155' }} />
+                  <Badge
+                    key={column}
+                    variant="secondary"
+                    className="h-auto min-h-7 max-w-full rounded-md bg-[#f1f5f9] px-2 py-0.5 text-xs wrap-anywhere text-[#334155]"
+                  >
+                    {column}
+                  </Badge>
                 ))}
-            </Stack>
+            </div>
             {settingsOpen && (
-              <Box
+              <div
                 id="display-settings"
                 role="group"
                 aria-label="표시 설정"
-                sx={{ p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#f8fafc' }}
+                className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4"
               >
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 1 }}>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700 }}>지표 (최대 {MAX_MEASURES})</Typography>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <p className="text-[13px] font-bold">지표 (최대 {MAX_MEASURES})</p>
                   {catalog.measures.map(measure => (
-                    <Pill
+                    <AnalysisChoice
                       key={measure.id}
                       label={measure.label}
                       ariaLabel={`지표 ${measure.label}`}
@@ -1649,11 +1380,11 @@ function SourceExploreContent() {
                       onClick={() => toggleMeasure(measure.id)}
                     />
                   ))}
-                </Stack>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 1 }}>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700 }}>차원 (최대 {MAX_DIMENSIONS})</Typography>
+                </div>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <p className="text-[13px] font-bold">차원 (최대 {MAX_DIMENSIONS})</p>
                   {catalog.dimensions.map(dimension => (
-                    <Pill
+                    <AnalysisChoice
                       key={dimension.column}
                       label={dimension.column}
                       ariaLabel={`차원 ${dimension.column}`}
@@ -1661,13 +1392,13 @@ function SourceExploreContent() {
                       onClick={() => toggleDimension(dimension.column)}
                     />
                   ))}
-                </Stack>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700 }}>기준 지표</Typography>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[13px] font-bold">기준 지표</p>
                   {catalog.measures
                     .filter(measure => measureIds.includes(measure.id))
                     .map(measure => (
-                      <Pill
+                      <AnalysisChoice
                         key={measure.id}
                         label={measure.label}
                         ariaLabel={`기준 지표 ${measure.label}`}
@@ -1678,60 +1409,71 @@ function SourceExploreContent() {
                         }}
                       />
                     ))}
-                </Stack>
-              </Box>
+                </div>
+              </div>
             )}
-          </Stack>
+          </div>
         )}
-      </Box>
-      <Typography
+      </div>
+      <p
         role="status"
         aria-live="polite"
-        sx={{ mt: statusMessage ? 1 : 0, minHeight: statusMessage ? 20 : 0, fontSize: 12, color: 'text.secondary' }}
+        className={cn('text-xs text-muted-foreground', statusMessage ? 'mt-2 min-h-5' : 'm-0 min-h-0')}
       >
         {statusMessage}
-      </Typography>
+      </p>
 
       {catalogError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {catalogError}
+        <Notice severity="error" className="mb-4">
+          <span className="break-words">{catalogError}</span>
           {catalogForbidden ? (
-            <Button onClick={() => setSourceId('')}>다른 데이터 소스 선택</Button>
+            <Button variant="ghost" onClick={() => setSourceId('')}>
+              다른 데이터 소스 선택
+            </Button>
           ) : (
-            <Button onClick={reloadCatalog}>카탈로그 다시 불러오기</Button>
+            <Button variant="ghost" onClick={reloadCatalog}>
+              카탈로그 다시 불러오기
+            </Button>
           )}
-        </Alert>
+        </Notice>
       )}
       {revisionError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {revisionError}
-          <Button onClick={reloadCatalog}>카탈로그 다시 불러오기</Button>
-        </Alert>
+        <Notice severity="error" className="mb-4">
+          <span className="break-words">{revisionError}</span>
+          <Button variant="ghost" onClick={reloadCatalog}>
+            카탈로그 다시 불러오기
+          </Button>
+        </Notice>
       )}
       {queryError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {queryError}
-          <Button onClick={() => setQueryReload(value => value + 1)}>다시 시도</Button>
-        </Alert>
+        <Notice severity="error" className="mb-4">
+          <span className="break-words">{queryError}</span>
+          <Button variant="ghost" onClick={() => setQueryReload(value => value + 1)}>
+            다시 시도
+          </Button>
+        </Notice>
       )}
       {rangeBackwards && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
+        <Notice severity="warning" className="mb-4">
           시작일이 종료일보다 늦습니다. 기간을 다시 지정하면 결과가 표시됩니다.
-        </Alert>
+        </Notice>
       )}
       {rangeIncomplete && (
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Notice severity="info" className="mb-4">
           사용자 지정 기간의 시작일과 종료일을 모두 입력하면 결과가 표시됩니다.
-        </Alert>
+        </Notice>
       )}
       {!sourceId && !catalogBusy && !catalogError && sources.length === 0 && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          저장된 데이터가 없습니다. <Button onClick={() => navigate('/data/file')}>파일 저장하러 가기</Button>
-        </Alert>
+        <Notice severity="info" className="mb-4">
+          저장된 데이터가 없습니다.{' '}
+          <Button variant="ghost" onClick={() => navigate('/data/file')}>
+            파일 저장하러 가기
+          </Button>
+        </Notice>
       )}
 
       {catalog && measureIds.length === 0 && (
-        <Alert severity="info">지표를 하나 이상 선택하세요. 위의 지표 목록에서 선택하면 결과가 표시됩니다.</Alert>
+        <Notice severity="info">지표를 하나 이상 선택하세요. 위의 지표 목록에서 선택하면 결과가 표시됩니다.</Notice>
       )}
 
       {catalog && mode === 'pivot' && (
@@ -1807,15 +1549,13 @@ function SourceExploreContent() {
 
       {result && mode === 'explore' && measureIds.length > 0 && (
         <>
-          <Typography sx={{ mt: 1, fontSize: 12, color: 'text.secondary' }}>
+          <p className="mt-2 text-xs text-muted-foreground">
             적용됨 · {result.applied?.trendGrain ?? grain} ·{' '}
             {result.applied?.comparePrevious ? '이전 기간 비교' : '비교 없음'} · 필터 {result.applied?.filters?.length ?? 0}
             개 · 기준 {measureLabel(rankingMeasureId)}
-          </Typography>
-          <Box
-            sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'flex-start', mt: 1.5 }}
-          >
-            <Box sx={{ flex: { md: '0 0 44%' }, width: { xs: '100%' }, minWidth: 0 }}>
+          </p>
+          <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-start">
+            <div className="flex w-full min-w-0 flex-col gap-4 md:basis-[44%] md:flex-none">
               {(result.kpis ?? []).map(kpi => {
                 const trend = trendFor(kpi);
                 const units = unitParts(kpi);
@@ -1828,34 +1568,15 @@ function SourceExploreContent() {
                   numberNotation,
                 });
                 return (
-                  <Box
-                    key={String(kpi.id)}
-                    sx={{
-                      mb: 2,
-                      p: 2,
-                      minWidth: 0,
-                      bgcolor: 'background.paper',
-                      border: '1px solid #e0e6ee',
-                      borderRadius: '10px',
-                    }}
-                  >
-                    <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{kpi.title}</Typography>
-                    <Typography
-                      component="p"
+                  <div key={String(kpi.id)} className="min-w-0 rounded-[10px] border border-[#e0e6ee] bg-card p-4 sm:p-5">
+                    <p className="text-[13px] text-muted-foreground">{kpi.title}</p>
+                    <p
                       title={value.exactText}
                       aria-label={value.exactText}
-                      sx={{
-                        fontSize: 34,
-                        fontWeight: 700,
-                        lineHeight: 1.2,
-                        mt: 0.75,
-                        mb: 1,
-                        color: '#172b46',
-                        fontVariantNumeric: 'tabular-nums',
-                      }}
+                      className="mt-1.5 mb-2 text-[34px] leading-tight font-bold tabular-nums text-[#172b46]"
                     >
                       {value.text}
-                    </Typography>
+                    </p>
                     {(trend || kpi.comparison) && (
                       <MetricTrend
                         trend={trend}
@@ -1867,15 +1588,15 @@ function SourceExploreContent() {
                         comparison={comparisonFor(kpi)}
                       />
                     )}
-                  </Box>
+                  </div>
                 );
               })}
-            </Box>
-            <Box sx={{ flex: { md: '1 1 0' }, width: { xs: '100%' }, minWidth: 0 }}>
-              <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 1 }}>
+            </div>
+            <div className="w-full min-w-0 md:flex-1">
+              <p className="mb-3 text-sm font-bold">
                 {dimensions.length} / {catalog.dimensions.length} 차원 · {measureLabel(rankingMeasureId)} 기준
-              </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[repeat(2,minmax(0,1fr))]">
                 {(result.leaderboards ?? []).map(board => (
                   <LeaderboardCard
                     key={board.column}
@@ -1887,86 +1608,88 @@ function SourceExploreContent() {
                     unitSuffix={rankingUnits.suffix}
                   />
                 ))}
-              </Box>
-            </Box>
-          </Box>
+              </div>
+            </div>
+          </div>
         </>
       )}
 
       {mode === 'explore' && (
-        <Box sx={{ mt: 3 }}>
+        <div className="mt-6">
           <Button
             type="button"
+            variant="ghost"
             aria-expanded={includeRows}
             aria-controls="model-data"
             onClick={() => {
               setIncludeRows(value => !value);
               setPage(0);
             }}
-            sx={{ textTransform: 'none' }}
           >
             Model Data {includeRows ? '접기' : '펼치기'}
           </Button>
           {includeRows && (
-            <Box id="model-data" role="region" aria-label="Model Data" sx={{ mt: 1, overflowX: 'auto' }}>
-              <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 1 }}>
-                집계 결과 행입니다. 실제 물리 요청 수와 다를 수 있습니다.
-              </Typography>
+            <div id="model-data" role="region" aria-label="Model Data" className="mt-2 overflow-x-auto">
+              <p className="mb-2 text-xs text-muted-foreground">집계 결과 행입니다. 실제 물리 요청 수와 다를 수 있습니다.</p>
               {detailRows.length > 0 && (
                 <>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <caption style={{ textAlign: 'left', paddingBottom: 4, color: '#475569' }}>
+                  <Table className="w-full text-[13px]">
+                    <TableCaption className="mt-0 pb-1 text-left text-[13px] text-[#475569]">
                       총 {formatMetric(details?.totalRows).text}행 중 {page * detailsSize + 1}–
                       {Math.min((page + 1) * detailsSize, totalRows)}행
-                    </caption>
-                    <thead>
-                      <tr>
+                    </TableCaption>
+                    <TableHeader className="[&_tr]:border-0">
+                      <TableRow className="border-0 hover:bg-transparent">
                         {detailColumns.map(column => (
-                          <th
-                            key={column}
-                            scope="col"
-                            style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: '4px 8px' }}
-                          >
+                          <TableHead key={column} scope="col" className="h-auto border-b p-1 text-left">
                             {column}
-                          </th>
+                          </TableHead>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {detailRows.map((row, rowIndex) => (
-                        <tr key={rowIndex}>
+                        <TableRow key={rowIndex} className="border-0 hover:bg-transparent">
                           {detailColumns.map(column => (
-                            <td key={column} style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 8px' }}>
+                            <TableCell key={column} className="border-b border-[#f1f5f9] p-1 whitespace-normal align-top">
                               {categoryText(row[column])}
-                            </td>
+                            </TableCell>
                           ))}
-                        </tr>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-                    <Button disabled={page <= 0} onClick={() => setPage(current => Math.max(0, current - 1))}>
+                    </TableBody>
+                  </Table>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      disabled={page <= 0}
+                      onClick={() => setPage(current => Math.max(0, current - 1))}
+                    >
                       이전
                     </Button>
-                    <Typography sx={{ fontSize: 13 }}>
+                    <p className="text-[13px]">
                       {page + 1} / {totalPages} 페이지
-                    </Typography>
-                    <Button disabled={page + 1 >= totalPages} onClick={() => setPage(current => current + 1)}>
+                    </p>
+                    <Button
+                      variant="ghost"
+                      disabled={page + 1 >= totalPages}
+                      onClick={() => setPage(current => current + 1)}
+                    >
                       다음
                     </Button>
-                  </Stack>
+                  </div>
                 </>
               )}
               {detailRows.length === 0 && (
-                <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+                <p className="text-[13px] text-muted-foreground">
                   {queryBusy ? '결과를 불러오는 중…' : '표시할 행이 없습니다.'}
-                </Typography>
+                </p>
               )}
-            </Box>
+            </div>
           )}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 

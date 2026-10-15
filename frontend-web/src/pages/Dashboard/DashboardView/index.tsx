@@ -1,5 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { Box, Button, Card, MenuItem, Select, Typography } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { SquarePen } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
@@ -12,7 +14,6 @@ import DashboardService from '@/api/dashboardService';
 import AiService from '@/api/aiService';
 import { STATUS } from '@/constant';
 import PageViewBox from '../../../components/PageViewBox';
-import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import ReloadButton from '@/components/button/ReloadButton';
 import ShareButton from '@/components/button/ShareButton';
@@ -22,9 +23,9 @@ import shareService from '@/api/shareService';
 import { AuthContext } from '@/contexts/AuthContext';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
+import { cn } from '@/lib/utils';
 import { readLayouts } from '../readLayouts';
 import DashboardAnalysis from '../Components/DashboardAnalysis';
-import { ANALYSIS_UI, AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 const defaultDashboardInfo = {
@@ -155,31 +156,20 @@ const DashboardView = () => {
     return dashboardInfo.widgets.map((item, index) => {
       if (!item || !item.id) return null;
       return (
-        <Card
-          key={item.id}
-          sx={{
-            width: '100%',
-            height: '100%',
-            borderRadius: '8px',
-            boxShadow: '0 2px 6px rgba(42, 50, 62, 0.06)',
-            border: '1px solid',
-            borderColor: 'divider',
-            backgroundColor: '#fff',
-          }}
-        >
+        <div key={item.id} className="h-full w-full overflow-hidden rounded-lg border border-border bg-background shadow-sm">
           <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} size={dashboardInfo.layout[index]?.w} />
-        </Card>
+        </div>
       );
     });
   };
 
   const handleDeleteSelect = () => {
     alert.success(
-      <Box sx={{ span: { fontWeight: 600 } }}>
+      <div className="[&_span]:font-semibold">
         <span>{dashboardInfo.title}</span>
         <br />
         {t('dashboard.deleteConfirm')}
-      </Box>,
+      </div>,
       {
         closeCopy: t('data.cancel'),
         actions: [
@@ -256,132 +246,92 @@ const DashboardView = () => {
       upperTitle={t('dashboard.view')}
       upperTitleLink="/dashboard"
       title={t('dashboard.view')}
-      sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
+      className="w-full min-w-0 flex-auto p-0 py-6"
     >
       <>
         <Seo title={dashboardInfo.title} />
-        <Box sx={{ width: { xs: '100%', lg: assistantOpen ? 'calc(100% - 400px)' : '100%' }, minWidth: 0 }}>
+        <div className={cn('min-w-0', assistantOpen ? 'w-full lg:w-[calc(100%-400px)]' : 'w-full')}>
           <PageViewBox
             preserveChildren
             title={dashboardInfo.title}
             date={dateData(dashboardInfo.updatedAt)}
             button={
-              <AnalysisUiProvider>
-                <Box sx={{ display: 'contents' }}>
-                  <Box sx={{ display: { xs: 'none', sm: 'contents' } }}>
-                    <Select
-                      size="small"
-                      displayEmpty
-                      inputProps={{ 'aria-label': t('dashboard.autoRefresh') }}
-                      value={refreshIntervalSec}
-                      onChange={event => setRefreshIntervalSec(Number(event.target.value))}
-                      sx={{
-                        height: ANALYSIS_UI.inputHeight,
-                        mr: '8px',
-                        fontSize: '12px',
-                        backgroundColor: '#fff',
-                        borderRadius: `${ANALYSIS_UI.radius}px`,
-                        '& fieldset': { borderColor: '#d8e0eb' },
-                      }}
+              <div className="contents">
+                <div className="hidden sm:contents">
+                  <Select value={String(refreshIntervalSec)} onValueChange={value => setRefreshIntervalSec(Number(value))}>
+                    <SelectTrigger
+                      size="sm"
+                      aria-label={t('dashboard.autoRefresh')}
+                      className="w-auto shrink-0 bg-background"
                     >
-                      <MenuItem value={0}>{t('dashboard.autoRefreshOff')}</MenuItem>
-                      <MenuItem value={15}>{t('dashboard.sec15')}</MenuItem>
-                      <MenuItem value={30}>{t('dashboard.sec30')}</MenuItem>
-                      <MenuItem value={60}>{t('dashboard.min1')}</MenuItem>
-                      <MenuItem value={300}>{t('dashboard.min5')}</MenuItem>
-                    </Select>
-                    <ReloadButton
-                      aria-label={t('dashboard.refresh')}
-                      size="medium"
-                      sx={{ mr: 0.5, p: 0.5, width: ANALYSIS_UI.controlHeight, height: ANALYSIS_UI.controlHeight }}
-                      onClick={event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        handleRefreshClick();
-                      }}
-                    />
-                    <ModifyButton
-                      aria-label={t('dashboardModify.edit')}
-                      size="medium"
-                      sx={{ mr: 0.5, p: 0.5, width: ANALYSIS_UI.controlHeight, height: ANALYSIS_UI.controlHeight }}
-                      component={RouterLink}
-                      to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
-                    />
-                    <DeleteButton
-                      aria-label={t('dashboard.delete')}
-                      size="medium"
-                      sx={{ mr: 0.5, p: 0.5, width: ANALYSIS_UI.controlHeight, height: ANALYSIS_UI.controlHeight }}
-                      onClick={event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        handleDeleteSelect();
-                      }}
-                    />
-                  </Box>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    component={RouterLink}
-                    to={`/dashboard/${dashboardId}/edit-charts`}
-                    sx={{ mr: 1, flexShrink: 0 }}
-                  >
-                    차트·배치 편집
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={handleInsightClick}
-                    disabled={insightLoading}
-                    sx={{ mr: '8px', backgroundColor: '#fff', whiteSpace: 'nowrap', flexShrink: 0 }}
-                  >
-                    {insightLoading ? t('dashboard.insightLoading') : t('dashboard.insight')}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    component={RouterLink}
-                    to={`/dashboard/${dashboardId}/publication`}
-                    sx={{ mr: 1, flexShrink: 0 }}
-                  >
-                    게시 버전
-                  </Button>
-                  <ShareButton
-                    handleShareToggle={handleShareToggle}
-                    isShareOn={isShareOn}
-                    shareId={dashboardInfo.uuid}
-                    shareLimitDate={shareLimitDate}
-                    setShareLimitDate={setShareLimitDate}
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">{t('dashboard.autoRefreshOff')}</SelectItem>
+                      <SelectItem value="15">{t('dashboard.sec15')}</SelectItem>
+                      <SelectItem value="30">{t('dashboard.sec30')}</SelectItem>
+                      <SelectItem value="60">{t('dashboard.min1')}</SelectItem>
+                      <SelectItem value="300">{t('dashboard.min5')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <ReloadButton
+                    aria-label={t('dashboard.refresh')}
+                    onClick={event => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleRefreshClick();
+                    }}
                   />
-                </Box>
-              </AnalysisUiProvider>
+                  <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground">
+                    <RouterLink
+                      aria-label={t('dashboardModify.edit')}
+                      to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
+                    >
+                      <SquarePen />
+                    </RouterLink>
+                  </Button>
+                  <DeleteButton
+                    aria-label={t('dashboard.delete')}
+                    onClick={event => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleDeleteSelect();
+                    }}
+                  />
+                </div>
+                <Button asChild variant="outline" size="sm" className="shrink-0">
+                  <RouterLink to={`/dashboard/${dashboardId}/edit-charts`}>차트·배치 편집</RouterLink>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleInsightClick}
+                  disabled={insightLoading}
+                  className="shrink-0 bg-background whitespace-nowrap"
+                >
+                  {insightLoading ? t('dashboard.insightLoading') : t('dashboard.insight')}
+                </Button>
+                <Button asChild variant="outline" size="sm" className="shrink-0">
+                  <RouterLink to={`/dashboard/${dashboardId}/publication`}>게시 버전</RouterLink>
+                </Button>
+                <ShareButton
+                  handleShareToggle={handleShareToggle}
+                  isShareOn={isShareOn}
+                  shareId={dashboardInfo.uuid}
+                  shareLimitDate={shareLimitDate}
+                  setShareLimitDate={setShareLimitDate}
+                  className="h-8"
+                />
+              </div>
             }
           >
             {insight && (
-              <Box
-                sx={{
-                  mx: { xs: '20px', sm: '24px' },
-                  mt: '16px',
-                  p: '16px 20px',
-                  border: '1px solid #d6e3f5',
-                  borderRadius: '8px',
-                  backgroundColor: '#f4f8ff',
-                }}
-              >
-                <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#043f84', mb: '6px' }}>
-                  {t('dashboard.aiInsight')}
-                </Typography>
-                <Typography sx={{ fontSize: '13px', color: '#333', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-                  {insight}
-                </Typography>
-              </Box>
+              <div className="mx-4 mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:mx-6 sm:p-5">
+                <p className="mb-1.5 text-sm font-semibold text-primary">{t('dashboard.aiInsight')}</p>
+                <p className="text-sm leading-6 whitespace-pre-wrap text-foreground">{insight}</p>
+              </div>
             )}
-            <Box
-              sx={{
-                flex: '1 1 auto',
-                minWidth: 0,
-                backgroundColor: '#f9f9fa',
-                borderRadius: '0px 0px 6px 6px',
-              }}
-            >
+            <div className="min-w-0 flex-auto rounded-b-md bg-muted/30">
               <DashboardAnalysis
                 key={dashboardId}
                 dashboardId={dashboardId}
@@ -402,9 +352,9 @@ const DashboardView = () => {
                   {generateWidget()}
                 </ResponsiveGridLayout>
               </DashboardAnalysis>
-            </Box>
+            </div>
           </PageViewBox>
-        </Box>
+        </div>
       </>
     </PageTitleBox>
   );

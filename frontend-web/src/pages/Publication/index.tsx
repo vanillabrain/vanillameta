@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { get, post } from '@/helpers/apiHelper';
-import { AnalysisUiProvider, analysisFieldSx, analysisPanelSx } from '@/components/analysis/AnalysisUi';
+import { AnalysisUiProvider, analysisFieldClassName, analysisPanelClassName } from '@/components/analysis/AnalysisUi';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
+import { TextField } from '@/components/ui/text-field';
+import { cn } from '@/lib/utils';
 import { errorMessage, responseData } from '../Dashboard/dashboardPreview';
 import SnapshotView, { Snapshot } from './SnapshotView';
 
@@ -191,113 +194,101 @@ function PublicationContent() {
   const published = state?.publication;
   const activeLink = published?.active && Date.parse(published.expiresAt) > Date.now();
   return (
-    <Box
-      component="main"
-      sx={{ p: { xs: 2, sm: 3 }, minWidth: 0, maxWidth: 1600, width: '100%', boxSizing: 'border-box', mx: 'auto' }}
-    >
-      <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} alignItems="center" sx={{ mb: 2 }}>
-        <Typography component="h1" sx={{ fontSize: 20, fontWeight: 600, mr: 'auto' }}>
-          게시 버전
-        </Typography>
-        <Button component={Link} to={`/dashboard/${dashboardId}`} disabled={!!busy}>
-          저장 화면으로
+    <main className="mx-auto box-border w-full min-w-0 max-w-[1600px] p-4 sm:p-6">
+      <div className="mb-4 flex flex-row flex-wrap items-center gap-2">
+        <h1 className="mr-auto text-xl font-semibold">게시 버전</h1>
+        <Button asChild variant="ghost" className={busy ? 'pointer-events-none opacity-50' : undefined}>
+          <Link to={`/dashboard/${dashboardId}`} aria-disabled={!!busy || undefined}>
+            저장 화면으로
+          </Link>
         </Button>
-        <Button variant="outlined" disabled={!!busy} onClick={() => void perform('check')}>
+        <Button variant="outline" disabled={!!busy} onClick={() => void perform('check')}>
           게시 상태 확인
         </Button>
-      </Stack>
-      <Box sx={analysisPanelSx}>
-        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>링크를 가진 사람이 보는 고정된 집계 결과</Typography>
-        <Typography sx={{ my: 1, fontSize: 12 }}>
+      </div>
+      <div className={analysisPanelClassName}>
+        <p className="text-sm font-semibold">링크를 가진 사람이 보는 고정된 집계 결과</p>
+        <p className="my-2 text-xs">
           전체 기간 · 필터 없음 · UTC. 현재 화면에서 선택한 기간·필터는 포함하지 않습니다. 원본 행은 제공하지 않습니다.
           중지·만료 후 다시 게시하면 새 링크가 발급됩니다.
-        </Typography>
-        <Typography sx={{ fontSize: 12 }}>
+        </p>
+        <p className="text-xs">
           {published
             ? `${
                 published.active && Date.parse(published.expiresAt) > Date.now() ? '게시 중' : '게시 중지 또는 만료'
               } · 버전 ${published.version} · 게시 ${published.publishedAt} · 만료 ${published.expiresAt}`
             : '아직 게시한 버전이 없습니다.'}
-        </Typography>
+        </p>
         {published && state.revision !== published.dashboardRevision && (
-          <Alert severity="info" sx={{ my: 1 }}>
+          <Notice severity="info" className="my-2">
             저장 분석이 게시본과 다릅니다. 재게시 전까지 기존 게시 결과가 유지됩니다.
-          </Alert>
+          </Notice>
         )}
-        <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} alignItems="center" sx={{ mt: 2 }}>
+        <div className="mt-4 flex flex-row flex-wrap items-center gap-2">
           <TextField
             label="만료일 (UTC)"
             type="date"
-            size="small"
             value={expiry}
             onChange={event => {
               setExpiry(event.target.value);
               setRetry(null);
             }}
             disabled={!!busy || uncertain}
-            slotProps={{ inputLabel: { shrink: true } }}
-            sx={{ ...analysisFieldSx, width: 168 }}
+            className={cn(analysisFieldClassName, 'w-[168px]')}
           />
-          <Button variant="outlined" disabled={!!busy || !state || uncertain} onClick={() => void perform('preview')}>
+          <Button variant="outline" disabled={!!busy || !state || uncertain} onClick={() => void perform('preview')}>
             게시 결과 미리보기
           </Button>
           <Button
-            variant="contained"
             disabled={!!busy || !preview || !expiryInstant(expiry) || uncertain}
             onClick={() => void perform('publish')}
           >
             {published ? '이 결과로 재게시' : '링크 게시'}
           </Button>
           {published?.active && (
-            <Button variant="outlined" disabled={!!busy || uncertain} onClick={() => void perform('revoke')}>
+            <Button variant="outline" disabled={!!busy || uncertain} onClick={() => void perform('revoke')}>
               게시 중지
             </Button>
           )}
           {uncertain && retry && (
-            <Button variant="outlined" disabled={!!busy} onClick={() => void perform('retry')}>
+            <Button variant="outline" disabled={!!busy} onClick={() => void perform('retry')}>
               같은 게시 요청 다시 확인
             </Button>
           )}
-        </Stack>
+        </div>
         {activeLink && (
           <TextField
             label="게시 링크"
             value={`${window.location.origin}/published/${published.uuid}`}
-            fullWidth
-            size="small"
-            slotProps={{ input: { readOnly: true } }}
-            sx={{ ...analysisFieldSx, mt: 2 }}
+            readOnly
+            className={cn(analysisFieldClassName, 'mt-4')}
           />
         )}
         {activeLink && (
-          <Button
-            component="a"
-            href={`/published/${published.uuid}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            sx={{ mt: 1 }}
-          >
-            게시된 결과 열기
+          <Button asChild variant="ghost" className="mt-2 self-start">
+            <a href={`/published/${published.uuid}`} target="_blank" rel="noopener noreferrer">
+              게시된 결과 열기
+            </a>
           </Button>
         )}
-      </Box>
+      </div>
       {busy && (
-        <Typography role="status" sx={{ my: 1, fontSize: 12 }}>
+        <p role="status" className="my-2 text-xs">
           {busy}
-        </Typography>
+        </p>
       )}
       {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
+        <Notice severity="error" className="mt-4">
           {error}
-        </Alert>
+        </Notice>
       )}
       {notice && (
-        <Typography role="status" sx={{ my: 2, fontSize: 12 }}>
+        <p role="status" className="my-4 text-xs">
           {notice}
-        </Typography>
+        </p>
       )}
       {preview && <SnapshotView snapshot={preview.snapshot} />}
-    </Box>
+    </main>
   );
 }
 export default function Publication() {

@@ -1,8 +1,7 @@
-import { Box, IconButton, Modal, Paper, Stack, Typography } from '@mui/material';
-import CloseIcon from '@/assets/images/icon/ic-xmark.svg?react';
 import React from 'react';
-import { MAX_WIDTH } from '@/constant';
 import { useTranslation } from 'react-i18next';
+import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import CloseButton from '@/components/button/CloseButton';
 
 interface ModalPopupProps {
   open: boolean;
@@ -15,63 +14,30 @@ const ModalPopup = (props: ModalPopupProps) => {
   const { t } = useTranslation();
   const titleId = React.useId();
   const { open, handleClose, title, children } = props;
+
   return (
-    <Modal
+    <Dialog
       open={open}
-      onClose={handleClose}
-      sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-      BackdropProps={{
-        sx: {
-          boxShadow: '0 4px 4px 0 rgba(0, 0, 0, 0.25)',
-          backgroundColor: 'rgba(122, 130, 144, 0.45)',
-        },
+      onOpenChange={next => {
+        if (!next) handleClose();
       }}
     >
-      <Paper
-        role="dialog"
-        aria-modal="true"
+      <DialogContent
+        showCloseButton={false}
         aria-labelledby={titleId}
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          width: { xs: '90%', sm: '80%' },
-          maxWidth: MAX_WIDTH,
-          height: '70%',
-          maxHeight: '754px',
-          borderRadius: '8px',
-          boxShadow: '5px 5px 8px 0 rgba(0, 28, 71, 0.15)',
-          border: 'solid 1px #ddd',
-          p: '10px',
-          pt: 0,
-          backgroundColor: '#fff',
-        }}
+        className="flex h-[70%] max-h-[754px] w-[90%] max-w-[1392px] flex-col gap-0 p-2.5 pt-0 sm:w-[80%] sm:max-w-[1392px]"
       >
-        <Stack direction="row" justifyContent="space-between" alignItems="center" m="20px" mr="10px">
-          <Typography id={titleId} sx={{ fontSize: '20px', fontWeight: 600, color: '#141414' }}>
+        <div className="mx-[10px] my-5 flex flex-row items-center justify-between">
+          <DialogTitle id={titleId} className="text-xl font-semibold">
             {title}
-          </Typography>
-          <IconButton aria-label={t('data.closePreview')} onClick={handleClose} sx={{ p: '10px' }}>
-            <CloseIcon width="16" height="16" />
-          </IconButton>
-        </Stack>
-        <Box
-          sx={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flex: 1,
-          }}
-        >
-          {children}
-        </Box>
-      </Paper>
-    </Modal>
+          </DialogTitle>
+          <DialogClose asChild>
+            <CloseButton aria-label={t('data.closePreview')} onClick={handleClose} className="p-2.5" />
+          </DialogClose>
+        </div>
+        <div className="flex h-full w-full flex-1 items-center justify-center overflow-auto">{children}</div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

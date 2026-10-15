@@ -1,6 +1,7 @@
-import { ButtonBase, Stack, SxProps, Typography } from '@mui/material';
-import { useTranslation } from 'react-i18next';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import CardListWrapper, { CardWrapper } from '@/components/list/CardListWrapper';
 import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
@@ -12,89 +13,80 @@ interface DatasetCardListProps {
   handleDataClick?: (item) => void;
   handleDataRemove?: (item) => void;
   handleModifyClick?: (item) => void;
-  sx?: SxProps;
+  className?: string;
   isViewMode?: boolean;
   isTableView?: boolean;
 }
 
-const selectedSx = { border: 'solid 1px #0f5ab2', backgroundColor: '#edf8ff' };
-
 export const DatasetCardList = (props: DatasetCardListProps) => {
   const { t } = useTranslation();
-  const { data, selectedData, handleDataClick, handleDataRemove, handleModifyClick, isViewMode, isTableView } = props;
+  const { data, selectedData, handleDataClick, handleDataRemove, handleModifyClick, isViewMode, isTableView, className } =
+    props;
 
   return (
-    <CardListWrapper>
+    <CardListWrapper className={className}>
       {data.length > 0 &&
-        data.map(item => (
-          <CardWrapper
-            key={item.id}
-            sx={{
-              maxHeight: '90px',
-              ...(isViewMode && selectedData?.id == item.id && selectedSx),
-            }}
-            handleClick={() => handleDataClick(item)}
-          >
-            <Typography
-              component={ButtonBase}
-              aria-label={t(isViewMode ? 'data.selectItem' : 'data.previewItem', {
-                name: item.title || item.tableName,
-              })}
-              aria-pressed={isViewMode ? selectedData?.id === item.id : undefined}
-              onClick={event => {
-                event.stopPropagation();
-                handleDataClick?.(item);
-              }}
-              variant="subtitle2"
-              sx={{
-                width: '100%',
-                textAlign: 'left',
-                textOverflow: 'ellipsis',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                color: '#333',
-              }}
+        data.map(item => {
+          const selected = selectedData?.id == item.id;
+          const name = item.title || item.tableName;
+          return (
+            <CardWrapper
+              key={item.id}
+              handleClick={() => handleDataClick(item)}
+              className={cn(
+                'min-h-16 flex-row items-center gap-3 px-4 py-3',
+                isViewMode && selected && 'border-primary/50 bg-accent/60',
+              )}
             >
-              {item.title || item.tableName}
-            </Typography>
+              <Button
+                type="button"
+                variant="ghost"
+                aria-label={t(isViewMode ? 'data.selectItem' : 'data.previewItem', { name })}
+                aria-pressed={isViewMode ? selectedData?.id === item.id : undefined}
+                onClick={event => {
+                  event.stopPropagation();
+                  handleDataClick?.(item);
+                }}
+                className="h-auto min-w-0 flex-1 justify-start truncate p-0 text-left font-medium text-foreground hover:bg-transparent"
+              >
+                {name}
+              </Button>
 
-            {/* 아이콘 */}
-            {!isViewMode && (
-              <Stack direction="row" justifyContent="flex-end" width="100%" mt="11px" gap={1}>
-                <ModifyButton
-                  aria-label={t('data.editItem', { name: item.title || item.tableName })}
-                  size="medium"
-                  onClick={event => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    handleModifyClick(item);
-                  }}
-                  width="20"
-                  height="20"
-                  padding="0"
-                  fill="#767676"
-                  sx={{ p: 0 }}
-                />
-                {!isTableView && (
-                  <DeleteButton
-                    aria-label={t('data.deleteItem', { name: item.title || item.tableName })}
-                    component="span"
-                    size="medium"
-                    onClick={event => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      handleDataRemove(item);
-                    }}
+              {!isViewMode && (
+                <div className="flex shrink-0 flex-row items-center justify-end gap-1">
+                  <ModifyButton
+                    aria-label={t('data.editItem', { name })}
                     width="20"
                     height="20"
                     fill="#767676"
-                    sx={{ p: 0 }}
+                    className="p-0"
+                    onClick={event => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleModifyClick(item);
+                    }}
                   />
-                )}
-              </Stack>
-            )}
-          </CardWrapper>
-        ))}
+                  {!isTableView && (
+                    <DeleteButton
+                      aria-label={t('data.deleteItem', { name })}
+                      width="20"
+                      height="20"
+                      fill="#767676"
+                      className="p-0"
+                      onClick={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleDataRemove(item);
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+            </CardWrapper>
+          );
+        })}
     </CardListWrapper>
   );
 };
+
+export default DatasetCardList;

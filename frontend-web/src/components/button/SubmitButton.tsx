@@ -1,21 +1,23 @@
 import React from 'react';
-import { Button } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-const SubmitButton = props => {
-  const { onClick, sx = null, disabled = false } = props;
+const SubmitButton = React.forwardRef<HTMLButtonElement, any>(function SubmitButton(props, ref) {
+  const { onClick, className, disabled = false, type = 'button', size = 'default', label, ...rest } = props;
   return (
     <Button
-      type={props.type || 'button'}
-      variant="contained"
-      size="large"
-      fullWidth
+      ref={ref}
+      type={type}
+      variant="default"
+      size={size === 'large' ? 'lg' : size}
+      className={cn('h-9 w-full', className)}
       onClick={onClick}
       disabled={disabled}
-      sx={sx}
+      {...rest}
     >
-      {props.label}
+      {label}
     </Button>
   );
-};
+});
 
 export default SubmitButton;

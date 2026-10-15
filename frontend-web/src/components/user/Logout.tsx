@@ -1,14 +1,15 @@
 import React, { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@mui/material';
-import authService from '@/api/authService';
-import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import authService from '@/api/authService';
+import { LoadingContext } from '@/contexts/LoadingContext';
 import { removeToken } from '@/helpers/authHelper';
+import { cn } from '@/lib/utils';
 
 const Logout = props => {
-  const { sx } = props;
+  const { className, ...rest } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
@@ -51,24 +52,11 @@ const Logout = props => {
 
   return (
     <Button
+      type="button"
+      variant="ghost"
       onClick={handleLogout}
-      disableRipple
-      disableFocusRipple
-      disableTouchRipple
-      sx={{
-        minWidth: 0,
-        minHeight: 0,
-        m: 0,
-        p: 0,
-        fontSize: 'inherit',
-        fontWeight: 'inherit',
-        color: 'inherit',
-        whiteSpace: 'nowrap',
-        '&:hover': {
-          backgroundColor: 'inherit',
-        },
-        ...sx,
-      }}
+      className={cn('px-2 font-normal text-inherit whitespace-nowrap hover:bg-transparent hover:text-inherit', className)}
+      {...rest}
     >
       {t('user.logout')}
     </Button>

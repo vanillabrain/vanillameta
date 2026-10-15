@@ -2,6 +2,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import DashboardEdit from './index';
+import { installRadixBrowserAPIs, selectRadixOption } from '../Components/dashboardTestUtils';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), navigate: vi.fn(), id: '8' }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 vi.mock('react-router-dom', () => ({ useParams: () => ({ dashboardId: api.id }), useNavigate: () => api.navigate }));
@@ -9,7 +10,7 @@ vi.mock('@/widget/modules/board/NumericBoard', () => ({ default: () => <div>숫�
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({ default: () => <div>차트 미리보기</div> }));
 vi.mock('@/components/analysis/AnalysisUi', () => ({
   AnalysisUiProvider: ({ children }: any) => <>{children}</>,
-  analysisToggleSx: {},
+  analysisToggleClassName: '',
   ANALYSIS_UI: { fontSize: 12, controlHeight: 28, radius: 4, border: '#e2e8f0', surface: '#f8fafc' },
 }));
 vi.mock('react-grid-layout', () => ({
@@ -18,80 +19,7 @@ vi.mock('react-grid-layout', () => ({
 }));
 vi.mock('../Components/MetricTrend', () => ({ default: () => <div>시계열 미리보기</div> }));
 
-vi.mock('@mui/material', async () => {
-  const ReactUI = await import('react');
-  const Disabled = ReactUI.createContext(false);
-  const Group = ReactUI.createContext<any>(null);
-  const Container = ({ children }: any) => <div>{children}</div>;
-  return {
-    Box: ({ component: Tag = 'div', children, disabled, ...props }: any) => (
-      <Tag disabled={disabled} role={props.role} tabIndex={props.tabIndex} aria-label={props['aria-label']}>
-        {children}
-      </Tag>
-    ),
-    Stack: Container,
-    Card: Container,
-    Alert: Container,
-    Typography: ReactUI.forwardRef(({ component: Tag = 'p', children, role, tabIndex, ...props }: any, ref: any) => (
-      <Tag ref={ref} tabIndex={tabIndex} role={role} aria-live={props['aria-live']}>
-        {children}
-      </Tag>
-    )),
-    Button: ({ children, disabled, onClick, ...props }: any) => (
-      <button disabled={disabled} onClick={onClick} aria-label={props['aria-label']}>
-        {children}
-      </button>
-    ),
-    TextField: ({ label, value, onChange, disabled }: any) => (
-      <label>
-        {label}
-        <input value={value} onChange={onChange} disabled={disabled} />
-      </label>
-    ),
-    FormControl: ({ children, disabled }: any) => (
-      <Disabled.Provider value={!!disabled}>
-        <fieldset disabled={disabled}>{children}</fieldset>
-      </Disabled.Provider>
-    ),
-    FormLabel: ({ id, children }: any) => <span id={id}>{children}</span>,
-    InputLabel: ({ id, children }: any) => <span id={id}>{children}</span>,
-    Select: ({ children, labelId, value, onChange }: any) => {
-      const disabled = ReactUI.useContext(Disabled);
-      return (
-        <select aria-labelledby={labelId} aria-disabled={disabled} disabled={disabled} value={value} onChange={onChange}>
-          {children}
-        </select>
-      );
-    },
-    MenuItem: ({ children, value, disabled }: any) => (
-      <option value={value} disabled={disabled}>
-        {children}
-      </option>
-    ),
-    Radio: () => null,
-    RadioGroup: ({ children, value, onChange, ...props }: any) => (
-      <Group.Provider value={{ value, onChange }}>
-        <div role="radiogroup" aria-labelledby={props['aria-labelledby']}>
-          {children}
-        </div>
-      </Group.Provider>
-    ),
-    FormControlLabel: ({ value, label }: any) => {
-      const disabled = ReactUI.useContext(Disabled);
-      const group = ReactUI.useContext(Group);
-      return (
-        <label>
-          <input type="radio" value={value} checked={group.value === value} disabled={disabled} onChange={group.onChange} />
-          {label}
-        </label>
-      );
-    },
-    Dialog: ({ open, children }: any) => (open ? <div role="dialog">{children}</div> : null),
-    DialogTitle: Container,
-    DialogContent: Container,
-    DialogActions: Container,
-  };
-});
+installRadixBrowserAPIs();
 
 const success = (data: unknown) => ({ data: { status: 'SUCCESS', data } });
 const item = {
@@ -157,11 +85,8 @@ const mount = async () => {
   });
   return view;
 };
-const choose = (label: string, option: string) => {
-  const element = screen.getByRole('combobox', { name: label });
-  const target = within(element).getByRole('option', { name: option }) as HTMLOptionElement;
-  fireEvent.change(element, { target: { value: target.value } });
-};
+// 실제 Radix Select는 네이티브 option이 없으므로 트리거를 열고 리스트박스에서 골라야 한다.
+const choose = (label: string, option: string) => selectRadixOption(screen.getByRole('combobox', { name: label }), option);
 const requestPreview = async (count = 1) => {
   api.post.mockResolvedValueOnce(success(preview(count)));
   fireEvent.click(screen.getByRole('button', { name: '변경 결과 미리보기' }));
@@ -211,8 +136,10 @@ it('undos title and size, clears redo on new edits and resets history after expl
   fireEvent.click(within(screen.getByRole('radiogroup', { name: '1번 차트 너비' })).getByLabelText('전체'));
   fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
   expect(
-    (within(screen.getByRole('radiogroup', { name: '1번 차트 너비' })).getByLabelText('절반') as HTMLInputElement).checked,
-  ).toBe(true);
+    within(screen.getByRole('radiogroup', { name: '1번 차트 너비' }))
+      .getByLabelText('절반')
+      .getAttribute('aria-checked'),
+  ).toBe('true');
   fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
   expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe(editor.title);
   fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '다른 변경' } });
@@ -339,10 +266,10 @@ it('drops obsolete AI replies on route change and prevents duplicate requests', 
 });
 it('converts through saved metric and restricts line dimensions to native date columns', async () => {
   await mount();
-  choose('1번 차트 저장된 지표로 전환', '매출');
+  await choose('1번 차트 저장된 지표로 전환', '매출');
   fireEvent.click(within(screen.getByRole('radiogroup', { name: '1번 차트 종류' })).getByLabelText('선'));
   expect((screen.getByRole('button', { name: '변경 결과 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
-  choose('1번 차트 날짜 열', 'date');
+  await choose('1번 차트 날짜 열', 'date');
   await requestPreview();
   expect(api.post.mock.calls[0][1].items[0]).toMatchObject({
     kind: 'metric',
@@ -375,7 +302,7 @@ it('retains draft on conflict and reloads only after explicit discard confirmati
 it('moves stable keys, retains keyboard context, announces order and enforces 1–6 chart bounds', async () => {
   await mount();
   expect((screen.getByRole('button', { name: '1번 차트 삭제' }) as HTMLButtonElement).disabled).toBe(true);
-  choose('추가할 저장된 지표', '매출');
+  await choose('추가할 저장된 지표', '매출');
   fireEvent.click(screen.getByRole('button', { name: '지표 차트 추가' }));
   fireEvent.click(screen.getByRole('button', { name: '2번 차트 위로 이동' }));
   await waitFor(() => expect(document.activeElement?.textContent).toBe('1번 차트 · 매출'));
@@ -395,7 +322,7 @@ it('prevents duplicate requests, drops old replies on route change and navigates
       }),
   );
   fireEvent.click(screen.getByRole('button', { name: '변경 결과 미리보기' }));
-  expect(screen.getByRole('combobox', { name: '1번 차트 저장된 지표로 전환' }).getAttribute('aria-disabled')).toBe('true');
+  expect((screen.getByRole('combobox', { name: '1번 차트 저장된 지표로 전환' }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: '변경 결과 미리보기' }));
   expect(api.post).toHaveBeenCalledTimes(1);
   api.id = '9';

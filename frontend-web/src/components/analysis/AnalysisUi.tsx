@@ -1,13 +1,16 @@
-import React, { useMemo } from 'react';
-import { Button, ButtonProps } from '@mui/material';
-import { createTheme, ThemeProvider, useTheme } from '@mui/material/styles';
+import React from 'react';
+import { Toggle } from '@/components/ui/toggle';
+import { cn } from '@/lib/utils';
 
-/** Compact analysis controls, based on Rill's 28px / text-xs baseline. */
+/**
+ * Shared analysis/chart geometry. Chart rendering and the placement canvas may consume these raw
+ * values; static UI presentation uses Tailwind semantic tokens instead.
+ */
 export const ANALYSIS_UI = {
-  controlHeight: 28,
-  inputHeight: 32,
-  fontSize: 12,
-  bodySize: 13,
+  controlHeight: 32,
+  inputHeight: 36,
+  fontSize: 14,
+  bodySize: 14,
   radius: 4,
   gap: 8,
   accent: '#4f46e5',
@@ -17,136 +20,46 @@ export const ANALYSIS_UI = {
   surface: '#f8fafc',
 } as const;
 
-export const analysisToggleSx = {
-  textTransform: 'none',
-  whiteSpace: 'nowrap',
-  color: '#334155',
-  border: '1px solid',
-  borderColor: ANALYSIS_UI.border,
-  '&:hover': { backgroundColor: ANALYSIS_UI.surface },
-  '&[aria-pressed="true"]': {
-    color: ANALYSIS_UI.accent,
-    borderColor: ANALYSIS_UI.accent,
-    backgroundColor: ANALYSIS_UI.selected,
-    '&:hover': { backgroundColor: '#e0e7ff' },
-  },
-  '&.Mui-disabled': { color: '#94a3b8', backgroundColor: 'transparent', borderColor: 'transparent' },
-} as const;
+/**
+ * Selected state of AnalysisChoice, keyed off the native toggle state with semantic tokens only.
+ * rounded-md/px-3 keep the 32px analysis control metrics this control had as a Button sm.
+ */
+export const analysisToggleClassName =
+  'rounded-md px-3 aria-pressed:border-primary aria-pressed:bg-accent aria-pressed:text-accent-foreground data-[state=on]:border-primary data-[state=on]:bg-accent data-[state=on]:text-accent-foreground';
+export const analysisFieldClassName = 'min-w-0 text-sm';
+export const analysisPanelClassName = 'min-w-0 rounded-xl border bg-card p-4 sm:p-5';
+export const analysisModeGroupClassName = 'inline-flex self-start items-center gap-1 rounded-lg border bg-muted/50 p-1';
+export const analysisTableCellClassName = 'border-b border-r px-3 py-2.5 text-sm leading-normal tabular-nums';
 
-export const analysisFieldSx = {
-  minWidth: 0,
-  '& .MuiInputBase-root': { height: ANALYSIS_UI.inputHeight, fontSize: ANALYSIS_UI.fontSize },
-  '& .MuiInputBase-input': {
-    height: ANALYSIS_UI.inputHeight,
-    boxSizing: 'border-box',
-    paddingTop: 0,
-    paddingBottom: 0,
-    fontSize: ANALYSIS_UI.fontSize,
-  },
-  '& .MuiSelect-select, & .MuiInputLabel-root': { fontSize: ANALYSIS_UI.fontSize },
-} as const;
-
-export const analysisPanelSx = {
-  p: 1.5,
-  minWidth: 0,
-  border: `1px solid ${ANALYSIS_UI.border}`,
-  borderRadius: '4px',
-  bgcolor: ANALYSIS_UI.surface,
-} as const;
-
-export const analysisModeGroupSx = {
-  display: 'inline-flex',
-  alignSelf: 'flex-start',
-  p: '2px',
-  gap: '2px',
-  border: `1px solid ${ANALYSIS_UI.border}`,
-  borderRadius: '4px',
-  bgcolor: '#fff',
-  '& .MuiButton-root': { borderColor: 'transparent' },
-} as const;
-
-export const analysisTableCellStyle: React.CSSProperties = {
-  padding: '6px 8px',
-  borderBottom: `1px solid ${ANALYSIS_UI.border}`,
-  borderRight: '1px solid #f1f5f9',
-  fontSize: ANALYSIS_UI.fontSize,
-  lineHeight: 1.5,
-  fontVariantNumeric: 'tabular-nums',
-};
-
-/** Scoped theme also reaches analysis dialogs/menus through React portals. */
 export function AnalysisUiProvider({ children }: React.PropsWithChildren) {
-  const parent = useTheme();
-  const theme = useMemo(
-    () =>
-      createTheme(parent, {
-        typography: {
-          body1: { fontSize: ANALYSIS_UI.bodySize },
-          body2: { fontSize: ANALYSIS_UI.fontSize },
-          subtitle2: { fontSize: ANALYSIS_UI.fontSize },
-          h5: { fontSize: 20 },
-        },
-        components: {
-          MuiButton: {
-            styleOverrides: {
-              root: {
-                height: ANALYSIS_UI.controlHeight,
-                minHeight: ANALYSIS_UI.controlHeight,
-                minWidth: 0,
-                padding: '4px 8px',
-                fontSize: ANALYSIS_UI.fontSize,
-                lineHeight: 1.4,
-                borderRadius: `${ANALYSIS_UI.radius}px`,
-                textTransform: 'none',
-                '&.Mui-disabled': {
-                  color: '#94a3b8',
-                  backgroundColor: 'transparent',
-                  border: '1px solid transparent',
-                },
-                '&:focus-visible': { outline: `2px solid ${ANALYSIS_UI.accent}`, outlineOffset: 2 },
-              },
-            },
-          },
-          MuiOutlinedInput: {
-            styleOverrides: {
-              root: {
-                minHeight: ANALYSIS_UI.inputHeight,
-                borderRadius: `${ANALYSIS_UI.radius}px`,
-                fontSize: ANALYSIS_UI.fontSize,
-              },
-              input: { padding: '6px 10px' },
-              inputSizeSmall: { padding: '6px 10px' },
-            },
-          },
-          MuiInputLabel: { styleOverrides: { root: { fontSize: ANALYSIS_UI.fontSize } } },
-          MuiChip: {
-            styleOverrides: {
-              root: { height: 24, borderRadius: `${ANALYSIS_UI.radius}px`, fontSize: ANALYSIS_UI.fontSize },
-              label: { paddingLeft: 8, paddingRight: 8 },
-              deleteIcon: { fontSize: 16 },
-            },
-          },
-          MuiCard: { styleOverrides: { root: { borderRadius: `${ANALYSIS_UI.radius}px`, boxShadow: 'none' } } },
-        },
-      }),
-    [parent],
+  return (
+    <div data-analysis-ui className="flex min-w-0 flex-col gap-5 text-sm">
+      {children}
+    </div>
   );
-  return <ThemeProvider theme={theme}>{children}</ThemeProvider>;
 }
 
 export function AnalysisChoice({
   label,
   selected,
   ariaLabel,
+  className,
   ...props
-}: Omit<ButtonProps, 'children'> & {
+}: Omit<React.ComponentProps<typeof Toggle>, 'children' | 'pressed' | 'defaultPressed'> & {
   label: React.ReactNode;
   selected?: boolean;
   ariaLabel?: string;
 }) {
   return (
-    <Button type="button" aria-pressed={selected} aria-label={ariaLabel} sx={analysisToggleSx} {...props}>
+    <Toggle
+      variant="outline"
+      size="default"
+      pressed={selected ?? false}
+      aria-label={ariaLabel}
+      className={cn(analysisToggleClassName, className)}
+      {...props}
+    >
       {label}
-    </Button>
+    </Toggle>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Divider, InputAdornment, ListItem, ListItemText } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
@@ -81,15 +81,11 @@ const MixedLinePieChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.lineSeries')} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.lineSeries')}</span>
         <AddButton
           onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
+          className="absolute right-0 top-[30px]"
         />
         <SelectForm
           required={true}
@@ -102,7 +98,7 @@ const MixedLinePieChartSetting = props => {
           value={option[`${axis}Field`]}
           onChange={event => handleChange(event, setOption)}
         />
-        <Divider />
+        <Separator />
 
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
@@ -153,7 +149,7 @@ const MixedLinePieChartSetting = props => {
                 disabledDefaultValue={seriesItem.disabledDefaultValue}
               />
             )}
-            <Divider />
+            <Separator />
           </React.Fragment>
         ))}
         <SelectForm
@@ -170,9 +166,9 @@ const MixedLinePieChartSetting = props => {
           value={option.mark}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.pieSeries')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.pieSeries')}</span>
         <SelectForm
           required={true}
           id="name"
@@ -191,7 +187,7 @@ const MixedLinePieChartSetting = props => {
           value={option.pie.label}
           onChange={handlePieChange}
         />
-        <Divider />
+        <Separator />
         <SelectForm
           required={true}
           id="field"
@@ -212,9 +208,9 @@ const MixedLinePieChartSetting = props => {
           onChange={handlePieChange}
           disabledDefaultValue
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.piePosition')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.piePosition')}</span>
         <TextFieldForm
           id="radius"
           name="radius"
@@ -222,7 +218,7 @@ const MixedLinePieChartSetting = props => {
           type="number"
           value={option.pie.radius.slice(0, -1)}
           onChange={handleRadiusChange}
-          endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          endAdornment={<span className="text-sm text-muted-foreground">%</span>}
         />
         <TextFieldForm
           id="center1"
@@ -231,7 +227,7 @@ const MixedLinePieChartSetting = props => {
           type="number"
           value={option.pie.center[0].slice(0, -1)}
           onChange={handleCenterChange}
-          endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          endAdornment={<span className="text-sm text-muted-foreground">%</span>}
         />
         <TextFieldForm
           id="center2"
@@ -240,12 +236,12 @@ const MixedLinePieChartSetting = props => {
           type="number"
           value={option.pie.center[1].slice(0, -1)}
           onChange={handleCenterChange}
-          endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          endAdornment={<span className="text-sm text-muted-foreground">%</span>}
         />
-      </ListItem>
+      </li>
 
-      <ListItem divider>
-        <ListItemText>{t('settings.legend')}</ListItemText>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
@@ -262,18 +258,11 @@ const MixedLinePieChartSetting = props => {
           value={option.legendAggregation}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
 
-      <ListItem>
-        <ListItemText primary={t('settings.pieColor')} />
-        <AddButton
-          onClick={handleAddColorClick}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
-        />
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.pieColor')}</span>
+        <AddButton onClick={handleAddColorClick} className="absolute right-0 top-[30px]" />
         {option.pie.field &&
           option.pie.color
             .filter((item, index) => index < colorNum)
@@ -287,7 +276,7 @@ const MixedLinePieChartSetting = props => {
                 />
               </React.Fragment>
             ))}
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

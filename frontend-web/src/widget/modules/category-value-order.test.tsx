@@ -11,21 +11,6 @@ vi.mock('echarts-for-react', () => ({
     return null;
   },
 }));
-vi.mock('@mui/material', () => {
-  const element =
-    (tag: string) =>
-    ({ children, sx, size, align, component, ...props }: any) =>
-      React.createElement(component || tag, props, children);
-  return {
-    Box: element('div'),
-    Button: element('button'),
-    Table: element('table'),
-    TableHead: element('thead'),
-    TableBody: element('tbody'),
-    TableCell: element('td'),
-    TableRow: element('tr'),
-  };
-});
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 afterEach(() => {

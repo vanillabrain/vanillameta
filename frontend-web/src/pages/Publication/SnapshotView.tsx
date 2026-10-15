@@ -1,5 +1,7 @@
 import React from 'react';
-import { Alert, Box, Card, Typography } from '@mui/material';
+import { Card } from '@/components/ui/card';
+import { Notice } from '@/components/ui/notice';
+import { cn } from '@/lib/utils';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import MetricTrend from '../Dashboard/Components/MetricTrend';
 import { analysisOptions } from '../Dashboard/analysisOptions';
@@ -14,41 +16,51 @@ export type Snapshot = {
   responsiveLayouts: any;
 };
 
+/** Saved per-width rects (600/900 px contract) drive CSS custom properties, not a style-object cast. */
+type StyleWithVars = React.CSSProperties & Record<`--${string}`, string>;
+const responsiveBlockClassName =
+  '[grid-row:var(--block-row-xs)] [grid-column:var(--block-col-xs)]' +
+  ' [@media(min-width:600px)_and_(max-width:899.98px)]:[grid-row:var(--block-row-sm)]' +
+  ' [@media(min-width:600px)_and_(max-width:899.98px)]:[grid-column:var(--block-col-sm)]' +
+  ' [@media(min-width:900px)]:[grid-row:var(--block-row-md)]' +
+  ' [@media(min-width:900px)]:[grid-column:var(--block-col-md)]';
+
 /** Public rendering consumes only captured data; it never queries a source or grants source access. */
 export default function SnapshotView({ snapshot }: { snapshot: Snapshot }) {
+  const blockClassName = (blockId: string) => {
+    const rects = responsiveBlockStyle(snapshot.responsiveLayouts, blockId);
+    return rects.gridRow && rects.gridColumn ? responsiveBlockClassName : undefined;
+  };
+  const blockStyle = (blockId: string): StyleWithVars => {
+    const rects = responsiveBlockStyle(snapshot.responsiveLayouts, blockId);
+    if (!rects.gridRow || !rects.gridColumn) return {};
+    return {
+      '--block-row-xs': rects.gridRow.xs,
+      '--block-row-sm': rects.gridRow.sm,
+      '--block-row-md': rects.gridRow.md,
+      '--block-col-xs': rects.gridColumn.xs,
+      '--block-col-sm': rects.gridColumn.sm,
+      '--block-col-md': rects.gridColumn.md,
+    };
+  };
   return (
-    <Box component="section" aria-label="게시 결과" sx={{ minWidth: 0 }}>
-      <Typography component="h2" sx={{ fontSize: 18, fontWeight: 600, overflowWrap: 'anywhere', my: 1.5 }}>
-        {snapshot.title}
-      </Typography>
-      <Typography sx={{ fontSize: 12, color: '#64748b', mb: 2 }}>
+    <section aria-label="게시 결과" className="min-w-0">
+      <h2 className="my-3 text-lg leading-snug font-semibold [overflow-wrap:anywhere]">{snapshot.title}</h2>
+      <p className="mb-4 text-xs text-muted-foreground">
         {snapshot.scope} · 집계 시점 {snapshot.capturedAt} · 고정된 결과
-      </Typography>
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: 'repeat(4, minmax(0, 1fr))',
-            sm: 'repeat(8, minmax(0, 1fr))',
-            md: 'repeat(12, minmax(0, 1fr))',
-          },
-          gridAutoRows: 'minmax(80px, auto)',
-          gap: 1.5,
-          minWidth: 0,
-        }}
-      >
+      </p>
+      <div className="grid min-w-0 auto-rows-[minmax(80px,auto)] grid-cols-[repeat(4,minmax(0,1fr))] gap-3 sm:grid-cols-[repeat(8,minmax(0,1fr))] md:grid-cols-[repeat(12,minmax(0,1fr))]">
         {snapshot.widgets.map(widget => (
           <Card
             key={widget.blockId}
-            sx={{
-              ...responsiveBlockStyle(snapshot.responsiveLayouts, widget.blockId),
-              border: '1px solid #e2e8f0',
-              minWidth: 0,
-              overflow: 'hidden',
-              minHeight: widget.type === 'BOARD_NUMERIC' ? 300 : 320,
-            }}
+            className={cn(
+              'h-auto gap-0 overflow-hidden border border-border py-0 shadow-sm',
+              widget.type === 'BOARD_NUMERIC' ? 'min-h-[300px]' : 'min-h-[320px]',
+              blockClassName(widget.blockId),
+            )}
+            style={blockStyle(widget.blockId)}
           >
-            <Box sx={{ minWidth: 0, height: widget.type === 'BOARD_NUMERIC' ? 155 : 300 }}>
+            <div className={cn('min-w-0', widget.type === 'BOARD_NUMERIC' ? 'h-[155px]' : 'h-[300px]')}>
               <WidgetViewer
                 title={widget.title}
                 description={widget.description}
@@ -56,7 +68,7 @@ export default function SnapshotView({ snapshot }: { snapshot: Snapshot }) {
                 widgetOption={analysisOptions(widget)}
                 dataSet={widget.datas}
               />
-            </Box>
+            </div>
             {widget.type === 'BOARD_NUMERIC' && (
               <MetricTrend
                 title={widget.title}
@@ -70,10 +82,10 @@ export default function SnapshotView({ snapshot }: { snapshot: Snapshot }) {
             )}
           </Card>
         ))}
-      </Box>
-      <Alert severity="info" sx={{ mt: 2 }}>
+      </div>
+      <Notice severity="info" className="mt-4">
         게시 시점의 집계 결과입니다. 원본 데이터 갱신과 편집 내용은 재게시 후 반영됩니다.
-      </Alert>
-    </Box>
+      </Notice>
+    </section>
   );
 }

@@ -1,35 +1,34 @@
 import React, { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FormControl, OutlinedInput, Stack } from '@mui/material';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import ColorPickerForm from './ColorPickerForm';
 
 const ColorFieldReForm = props => {
-  const { name, color, onChange, index = 0 } = props;
+  const { name, color, onChange, index = 0, className } = props;
   const { t } = useTranslation();
   const controlId = useId();
   const [inputColor, setInputColor] = useState(color);
   useEffect(() => setInputColor(color), [color]);
-  const label = `${t('common.colorValue')} ${index + 1}`;
+  const label = t('common.colorValue') + ' ' + (index + 1);
   return (
-    <FormControl fullWidth>
-      <Stack direction="row" spacing={1} sx={{ width: '100%', minWidth: 0 }} alignItems="center">
-        <ColorPickerForm label={`${label} ${t('common.colorPicker')}`} name={name} color={inputColor} onChange={onChange} />
-        <OutlinedInput
+    <div className={cn('flex w-full flex-col', className)}>
+      <div className="flex w-full min-w-0 flex-row items-center gap-2">
+        <ColorPickerForm label={label + ' ' + t('common.colorPicker')} name={name} color={inputColor} onChange={onChange} />
+        <Input
           id={controlId}
           name={name}
           value={inputColor}
           type="text"
-          margin="dense"
-          fullWidth
+          aria-label={label}
+          className="h-8 min-w-0 bg-background"
           onChange={event => setInputColor(event.target.value)}
           onBlur={event => {
             if (event.target.value !== color) onChange(event);
           }}
-          inputProps={{ 'aria-label': label }}
-          sx={{ minWidth: 0 }}
         />
-      </Stack>
-    </FormControl>
+      </div>
+    </div>
   );
 };
 export default ColorFieldReForm;

@@ -1,15 +1,14 @@
 import React from 'react';
-import { Box, Paper } from '@mui/material';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 const WidgetBox = props => {
-  const { children, sx } = props;
+  const { children, className, style } = props;
 
   return (
-    <Box sx={{ width: '100%', height: '50vw', borderRadius: 1, ...sx }}>
-      <Paper elevation={0} sx={{ height: '100%', px: 3, py: 5 }}>
-        {children}
-      </Paper>
-    </Box>
+    <div className={cn('h-[50vw] w-full rounded-lg', className)} style={style}>
+      <Card className="h-full gap-0 rounded-lg px-6 py-10 shadow-none ring-0">{children}</Card>
+    </div>
   );
 };
 

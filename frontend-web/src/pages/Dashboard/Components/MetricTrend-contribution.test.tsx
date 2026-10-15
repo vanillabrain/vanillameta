@@ -6,23 +6,6 @@ import MetricTrend from './MetricTrend';
 import type { MetricTrendData } from './trendGeometry';
 import { timeRangeLabel } from './timeSelection';
 
-vi.mock('@mui/material', () => {
-  const Container = ({ component: Tag = 'div', children, ...props }: any) => {
-    delete props.sx;
-    return <Tag {...props}>{children}</Tag>;
-  };
-  return {
-    Box: Container,
-    Typography: Container,
-    Alert: Container,
-    Button: ({ children, ...props }: any) => {
-      delete props.sx;
-      delete props.size;
-      return <button {...props}>{children}</button>;
-    },
-  };
-});
-
 const times = ['2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z', '2026-01-03T00:00:00Z'];
 const ranges = times.map((start, index) => ({
   column: 'event_time',

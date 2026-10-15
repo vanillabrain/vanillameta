@@ -4,17 +4,6 @@ import { render, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import DashboardPivots, { mergePivotFilters } from './DashboardPivots';
 const api = vi.hoisted(() => ({ get: vi.fn(), del: vi.fn(), pivot: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
-vi.mock('@mui/material', () => {
-  const Box = ({ children }: any) => <div>{children}</div>;
-  return {
-    Alert: Box,
-    Box,
-    Card: Box,
-    Stack: Box,
-    Typography: Box,
-    Button: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
-  };
-});
 vi.mock('@/pages/Explore/PivotTable', () => ({
   default: (props: any) => {
     api.pivot(props);
@@ -90,9 +79,12 @@ it('keeps stale Pivot removable while valid sibling stays visible', async () => 
   api.get.mockResolvedValue({ data: { status: 'SUCCESS', data: [valid] } });
   api.del.mockResolvedValue({ data: { status: 'SUCCESS' } });
   const ui = render(<DashboardPivots dashboardId={2} filters={[]} paused={false} onFilter={vi.fn()} />);
-  await waitFor(() => expect(ui.getByText('Pivot 정의가 변경되었습니다.')).toBeTruthy());
+  await waitFor(() => expect(ui.getByRole('alert').textContent).toContain('Pivot 정의가 변경되었습니다.'));
   expect(api.pivot.mock.lastCall[0].sourceRevision).toBe('rev');
-  fireEvent.click(ui.getAllByText('제거')[0]);
+  // Real shadcn Button: the accessible name is the production aria-label, so the stale card is addressed exactly.
+  const removeStale = ui.getByRole('button', { name: 'Stale 대시보드에서 제거' });
+  expect(ui.getByRole('button', { name: 'Valid 대시보드에서 제거' })).toBeTruthy();
+  fireEvent.click(removeStale);
   await waitFor(() => expect(api.del).toHaveBeenCalledWith('/bi/dashboard/2/pivots/stale'));
   await waitFor(() => expect(ui.queryByText('Stale')).toBeNull());
   expect(ui.getByText('Valid')).toBeTruthy();

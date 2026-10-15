@@ -1,60 +1,53 @@
-import { Stack, SxProps } from '@mui/material';
 import React from 'react';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface CardListWrapperProps {
   children: React.ReactNode;
-  sx?: SxProps;
+  className?: string;
+  /** Stacked lists keep a single vertical column; grid keeps the responsive card grid. */
+  layout?: 'grid' | 'stack';
 }
 
 interface CardWrapperProps {
   children: React.ReactNode;
-  sx?: SxProps;
+  className?: string;
   handleClick?: (item) => void;
 }
 
 export const CardListWrapper = (props: CardListWrapperProps) => {
-  const { children, sx } = props;
+  const { children, className = '', layout = 'grid' } = props;
   return (
-    <Stack
-      component="ul"
-      sx={{
-        display: { xs: 'flex', md: 'grid' },
-        gridTemplateColumns: { xs: 'repeat(100%)', sm: 'repeat(auto-fit, minmax(0, 228px))' },
-        gap: '8px',
-        minHeight: '20px',
-        listStyle: 'none',
-        pl: 0,
-        ...sx,
-      }}
+    <ul
+      className={cn(
+        'm-0 min-w-0 list-none gap-3 p-0',
+        layout === 'stack' ? 'flex flex-col' : 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3',
+        'min-h-5',
+        className,
+      )}
     >
       {children}
-    </Stack>
+    </ul>
   );
 };
 
 export default CardListWrapper;
 
 export const CardWrapper = (props: CardWrapperProps) => {
-  const { children, sx, handleClick } = props;
+  const { children, className = '', handleClick } = props;
 
   return (
-    <Stack component="li" sx={{ flex: '1 1 auto' }}>
-      <Stack
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '20px',
-          borderRadius: '8px',
-          boxShadow: '2px 2px 6px 0 rgba(0, 42, 105, 0.1)',
-          border: 'solid 1px #ddd',
-          backgroundColor: '#fff',
-          ...(handleClick ? { '&:hover': { backgroundColor: '#ebfbff' } } : {}),
-          ...sx,
-        }}
+    <li className="min-w-0 list-none">
+      <Card
         onClick={handleClick}
+        className={cn(
+          'flex flex-col gap-0 rounded-lg border border-border bg-card p-5 shadow-none ring-0',
+          handleClick && 'cursor-pointer transition-colors hover:border-primary/30 hover:bg-accent/40',
+          className,
+        )}
       >
         {children}
-      </Stack>
-    </Stack>
+      </Card>
+    </li>
   );
 };

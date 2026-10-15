@@ -1,35 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  InputLabel,
-  MenuItem,
-  Radio,
-  RadioGroup,
-  Select,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Notice } from '@/components/ui/notice';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TextField } from '@/components/ui/text-field';
 import { useNavigate, useParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
 import NumericBoard from '@/widget/modules/board/NumericBoard';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
-import { AnalysisUiProvider, analysisToggleSx } from '@/components/analysis/AnalysisUi';
+import { AnalysisUiProvider, analysisToggleClassName } from '@/components/analysis/AnalysisUi';
 import { validDraft, errorMessage } from '../dashboardPreview';
 import BlockLayoutCanvas, { validLayout } from './BlockLayoutCanvas';
 import { recoveryPlan, RECOVERY_DASHBOARD_TITLE_KEY } from './editorRecovery';
 import MetricTrend, { FormattedMetricTrendData } from '../Components/MetricTrend';
+import { cn } from '@/lib/utils';
 
 type Column = { name: string; type: string; numeric: boolean; temporal: boolean };
 type Metric = {
@@ -107,6 +96,10 @@ const uncertainSave = (failure: unknown) => {
 };
 const cellText = (value: unknown) =>
   value == null ? '—' : typeof value === 'object' ? JSON.stringify(value) : String(value);
+
+/** Radix select items cannot carry an empty value; the sentinel keeps the empty choice. */
+const EMPTY_CHOICE = '__empty__';
+
 function Choice({
   id,
   label,
@@ -123,14 +116,25 @@ function Choice({
   disabled?: boolean;
 }) {
   return (
-    <FormControl disabled={disabled}>
-      <FormLabel id={id}>{label}</FormLabel>
-      <RadioGroup aria-labelledby={id} value={value} onChange={event => onChange(event.target.value)} row>
+    <div role="group" aria-labelledby={id} className="min-w-0">
+      <p id={id} className="mb-1.5 text-sm font-medium">
+        {label}
+      </p>
+      <RadioGroup
+        aria-labelledby={id}
+        value={value}
+        disabled={disabled}
+        onValueChange={onChange}
+        className="flex flex-row flex-wrap gap-4"
+      >
         {options.map(([option, name]) => (
-          <FormControlLabel key={option} value={option} control={<Radio />} label={name} />
+          <div key={option} className="flex items-center gap-2">
+            <RadioGroupItem value={option} id={`${id}-${option}`} />
+            <Label htmlFor={`${id}-${option}`}>{name}</Label>
+          </div>
         ))}
       </RadioGroup>
-    </FormControl>
+    </div>
   );
 }
 function MetricSelect({
@@ -148,23 +152,31 @@ function MetricSelect({
   onChange: (value: string) => void;
   disabled?: boolean;
 }) {
+  const unavailable = !!value && !metrics.some(metric => String(metric.id) === value);
   return (
-    <FormControl fullWidth disabled={disabled}>
-      <InputLabel id={`${id}-label`}>{label}</InputLabel>
-      <Select labelId={`${id}-label`} id={id} label={label} value={value} onChange={event => onChange(event.target.value)}>
-        <MenuItem value="">지표를 선택하세요</MenuItem>
-        {value && !metrics.some(metric => String(metric.id) === value) && (
-          <MenuItem value={value} disabled>
-            사용할 수 없는 지표
-          </MenuItem>
-        )}
-        {metrics.map(metric => (
-          <MenuItem key={metric.id} value={String(metric.id)}>
-            {metric.label}
-          </MenuItem>
-        ))}
+    <div className="flex w-full min-w-0 flex-col gap-1.5">
+      <Label htmlFor={id} id={`${id}-label`}>
+        {label}
+      </Label>
+      <Select value={value === '' ? EMPTY_CHOICE : value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger id={id} aria-labelledby={`${id}-label`} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={EMPTY_CHOICE}>지표를 선택하세요</SelectItem>
+          {unavailable && (
+            <SelectItem value={value} disabled>
+              사용할 수 없는 지표
+            </SelectItem>
+          )}
+          {metrics.map(metric => (
+            <SelectItem key={metric.id} value={String(metric.id)}>
+              {metric.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
       </Select>
-    </FormControl>
+    </div>
   );
 }
 
@@ -872,44 +884,31 @@ function DashboardEditContent() {
       }
     }
   };
+  const previewCellClassName =
+    'h-auto border-b border-border p-2 text-left font-normal whitespace-normal [overflow-wrap:anywhere]';
   return (
-    <Box
-      sx={{
-        width: '100%',
-        maxWidth: 1200,
-        mx: 'auto',
-        p: { xs: 2, md: 4 },
-        pb: 10,
-        minWidth: 0,
-      }}
-    >
-      <Typography component="h1" variant="h5" sx={{ mb: 1 }}>
-        차트·배치 편집
-      </Typography>
-      <Typography sx={{ mb: 2 }} color="text.secondary">
+    <div className="mx-auto w-full max-w-[1200px] min-w-0 p-4 pb-10 md:p-6">
+      <h1 className="mb-1 text-2xl">차트·배치 편집</h1>
+      <p className="mb-4 text-muted-foreground">
         지표와 차트의 표시·순서·크기를 조정하세요. 결과를 미리 확인한 뒤 저장합니다.
-      </Typography>
-      <Typography role="status" aria-live="polite">
+      </p>
+      <p role="status" aria-live="polite">
         {busy || announcement}
-      </Typography>
+      </p>
       {error && (
-        <Alert severity="error" sx={{ my: 2 }}>
+        <Notice severity="error" className="my-4">
           {error}
-        </Alert>
+        </Notice>
       )}
       {recoveryRequired && editor && (
-        <Box
-          component="section"
-          aria-label="저장 복구"
-          sx={{ my: 2, p: 1.5, border: '1px solid #e2e8f0', borderRadius: '4px', minWidth: 0 }}
-        >
-          <Typography sx={{ fontSize: 12, mb: 1, overflowWrap: 'anywhere' }}>
+        <section aria-label="저장 복구" className="my-4 min-w-0 rounded-lg border border-border p-4">
+          <p className="mb-2 text-sm wrap-anywhere">
             {conflict
               ? '최신 저장본과 충돌했습니다. 내 초안과 질문을 보존했습니다.'
               : '저장 여부가 아직 확실하지 않습니다. 같은 요청을 바로 다시 저장하지 않습니다.'}
-          </Typography>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            <Button variant="outlined" disabled={!!busy} onClick={() => void checkSavedState()}>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" disabled={!!busy} onClick={() => void checkSavedState()}>
               저장 상태 확인
             </Button>
             {recovery?.same && (
@@ -918,13 +917,13 @@ function DashboardEditContent() {
               </Button>
             )}
             {recovery && !recovery.same && !recovery.structural && (
-              <Button variant="outlined" disabled={!!busy} onClick={applyRecovery}>
+              <Button variant="outline" disabled={!!busy} onClick={applyRecovery}>
                 {recovery.conflicts.length ? '충돌 항목에 내 변경 사용' : '내 변경과 최신본 합치기'}
               </Button>
             )}
-          </Stack>
+          </div>
           {recovery && (
-            <Typography sx={{ mt: 1, fontSize: 12, overflowWrap: 'anywhere' }}>
+            <p className="mt-2 text-sm wrap-anywhere">
               {recovery.same
                 ? '현재 초안과 같은 내용이 이미 저장되어 있습니다. 다시 저장할 필요가 없습니다.'
                 : recovery.structural
@@ -932,34 +931,34 @@ function DashboardEditContent() {
                 : recovery.conflicts.length
                 ? '아래 항목은 양쪽에서 다르게 수정했습니다. 내 변경을 사용하면 해당 항목의 최신 변경을 대체합니다. 나머지 최신 변경은 유지합니다.'
                 : '서로 다른 항목의 변경을 합칠 수 있습니다. 합친 뒤 전체 미리보기를 다시 확인하세요.'}
-            </Typography>
+            </p>
           )}
           {recovery &&
             !recovery.structural &&
             recovery.conflicts.map((value, index) => (
-              <Typography key={index} sx={{ mt: 0.5, fontSize: 12, overflowWrap: 'anywhere' }}>
+              <p key={index} className="mt-1 text-sm wrap-anywhere">
                 {value.label}
-              </Typography>
+              </p>
             ))}
-        </Box>
+        </section>
       )}
       <Button disabled={!!busy} onClick={() => (editor ? setReloadDialog(true) : setReload(value => value + 1))}>
         최신 내용 다시 불러오기
       </Button>
       {editor && (
         <>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ my: 2 }}>
-            <Button disabled={!!busy || past.length === 0} onClick={() => restore(false)}>
+          <div className="my-4 flex flex-row flex-wrap gap-2">
+            <Button variant="ghost" disabled={!!busy || past.length === 0} onClick={() => restore(false)}>
               되돌리기
             </Button>
-            <Button disabled={!!busy || future.length === 0} onClick={() => restore(true)}>
+            <Button variant="ghost" disabled={!!busy || future.length === 0} onClick={() => restore(true)}>
               다시 실행
             </Button>
-          </Stack>
-          <Alert severity="info" sx={{ my: 2 }}>
+          </div>
+          <Notice severity="info" className="my-4">
             데이터 소스: {editor.profile.name} · 이 대시보드의 데이터 소스는 변경할 수 없습니다.
-          </Alert>
-          <Box sx={{ my: 2 }}>
+          </Notice>
+          <div className="my-4">
             <Choice
               id="layout-mode"
               disabled={!!busy}
@@ -975,17 +974,15 @@ function DashboardEditContent() {
                 setLayoutMode(value as LayoutMode);
               }}
             />
-          </Box>
-          <Box component="section" aria-label="AI 블록 편집" sx={{ my: 2, minWidth: 0 }}>
-            <Typography sx={{ mb: 1, fontSize: 13, overflowWrap: 'anywhere' }}>
+          </div>
+          <section aria-label="AI 블록 편집" className="my-4 min-w-0">
+            <p className="mb-1 text-sm [overflow-wrap:anywhere]">
               {items.find(item => item.key === selectedKey)?.title
                 ? `선택 블록: ${items.find(item => item.key === selectedKey)?.title}`
                 : '번호나 정확한 제목으로 질문하세요. 여러 블록은 각각의 대상과 변경을 적어 주세요.'}
-            </Typography>
-            <Box component="details" sx={{ mb: 1 }}>
-              <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 12 }}>
-                변경 목적 직접 지정
-              </Typography>
+            </p>
+            <details className="mb-2">
+              <summary className="cursor-pointer text-sm">변경 목적 직접 지정</summary>
               <Choice
                 id="ai-edit-mode"
                 label="AI 변경 목적"
@@ -1001,15 +998,15 @@ function DashboardEditContent() {
                   setAiEditMode(value as 'auto' | 'content' | 'layout');
                 }}
               />
-            </Box>
+            </details>
             {aiEditMode === 'layout' && (
-              <Typography color="text.secondary" sx={{ my: 1, fontSize: 12 }}>
+              <p className="my-2 text-xs text-muted-foreground">
                 선택한 화면 폭에서 이 블록의 위치·크기만 변경합니다. 예: 오른쪽으로 한 칸 옮겨 줘.
-              </Typography>
+              </p>
             )}
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <TextField
-                fullWidth
+                className="w-full"
                 label="AI 변경 요청"
                 value={aiPrompt}
                 disabled={!!busy}
@@ -1020,8 +1017,8 @@ function DashboardEditContent() {
                 }}
               />
               <Button
-                variant="outlined"
-                sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+                variant="outline"
+                className="shrink-0 whitespace-nowrap"
                 disabled={
                   !!busy ||
                   !valid ||
@@ -1034,98 +1031,89 @@ function DashboardEditContent() {
                 AI 요청 실행
               </Button>
               {busy === 'AI로 요청 확인 중…' && <Button onClick={cancelAi}>AI 요청 취소</Button>}
-            </Stack>
+            </div>
             {targetCandidates.length > 0 && (
-              <Box component="section" aria-label="수정 대상 후보" sx={{ mt: 1, minWidth: 0 }}>
-                <Typography sx={{ mb: 1, fontSize: 12 }}>대상을 선택한 뒤 요청을 다시 실행하세요.</Typography>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <section aria-label="수정 대상 후보" className="mt-2 min-w-0">
+                <p className="mb-2 text-sm">대상을 선택한 뒤 요청을 다시 실행하세요.</p>
+                <div className="flex flex-wrap gap-2">
                   {items.map(
                     (item, index) =>
                       targetCandidates.includes(item.key) && (
                         <Button
                           key={item.key}
                           disabled={!!busy}
-                          variant="outlined"
+                          variant="outline"
                           aria-pressed={targetChoiceKey === item.key}
                           title={`${index + 1}번 · ${item.title}`}
-                          sx={{ ...analysisToggleSx, minWidth: 0, maxWidth: '100%' }}
+                          className={cn(analysisToggleClassName, 'min-w-0 max-w-full')}
                           onClick={() => {
                             setTargetChoiceKey(item.key);
                             setSelectedKey(item.key);
                           }}
                         >
-                          <Box
-                            component="span"
-                            sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          >
+                          <span className="min-w-0 truncate">
                             {index + 1}번 · {item.title}
-                          </Box>
+                          </span>
                         </Button>
                       ),
                   )}
-                </Stack>
-              </Box>
+                </div>
+              </section>
             )}
             {batchSummary.length > 0 && (
-              <Box component="section" aria-label="전체 변경 요약" sx={{ mt: 1, minWidth: 0 }}>
-                <Typography sx={{ fontSize: 12, mb: 0.5 }}>
-                  전체 변경 {batchSummary.length}개 · 함께 저장할 수 있습니다
-                </Typography>
+              <section aria-label="전체 변경 요약" className="mt-2 min-w-0">
+                <p className="mb-1 text-sm">전체 변경 {batchSummary.length}개 · 함께 저장할 수 있습니다</p>
                 {batchSummary.map(value => (
-                  <Typography key={value.key} title={value.label} sx={{ fontSize: 12, overflowWrap: 'anywhere' }}>
+                  <p key={value.key} title={value.label} className="text-sm wrap-anywhere">
                     {value.label}
-                  </Typography>
+                  </p>
                 ))}
-              </Box>
+              </section>
             )}
-            <Typography color="text.secondary" sx={{ mt: 1, fontSize: 12 }}>
+            <p className="mt-2 text-xs text-muted-foreground">
               자동 모드에서 저장을 명시하면 미리보기 후 현재 분석에 저장합니다. 변경만 요청하면 미리보기로 끝납니다. 저장
               지표의 계산식은 바뀌지 않습니다.
-            </Typography>
-          </Box>
-          <Box component="fieldset" disabled={!!busy} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+            </p>
+          </section>
+          <fieldset disabled={!!busy} className="m-0 min-w-0 border-0 p-0">
             <TextField
               disabled={!!busy}
               slotProps={{ htmlInput: { maxLength: 300 } }}
               label="대시보드 제목"
-              fullWidth
+              className="mb-6 w-full"
               value={title}
               onChange={event => {
                 change(event.target.value, items);
               }}
-              sx={{ mb: 3 }}
             />
-            <Stack spacing={3}>
+            <div className="flex flex-col gap-6">
               {items.map((item, index) => {
                 const label = `${index + 1}번 차트`;
                 const choices = dimensions(item.chart);
                 return (
-                  <Card key={item.key} variant="outlined" sx={{ p: { xs: 2, md: 3 }, minWidth: 0 }}>
-                    <Typography
-                      component="h2"
-                      variant="h6"
+                  <Card key={item.key} className="min-w-0 p-4 md:p-6">
+                    <h2
                       tabIndex={-1}
                       ref={(element: HTMLHeadingElement | null) => {
                         headings.current[item.key] = element;
                       }}
-                      sx={{ mb: 2 }}
+                      className="text-lg [overflow-wrap:anywhere]"
                     >
                       {label} · {item.title || '제목 없음'}
-                    </Typography>
-                    <Box component="details" sx={{ mb: 2 }}>
-                      <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 13 }}>
-                        {' '}
-                        {label} 설정{' '}
-                      </Typography>
-                      <Stack spacing={2} sx={{ mt: 2 }}>
+                    </h2>
+                    <details>
+                      <summary className="cursor-pointer text-sm"> {label} 설정 </summary>
+                      <div className="mt-4 flex flex-col gap-4">
                         {item.kind === 'existing' && (
-                          <Alert severity="info">
+                          <Notice severity="info">
                             기존 차트의 계산과 SQL은 서버에서 그대로 보존합니다. 제목·숫자 표시·크기·순서는 바꿀 수 있습니다.
                             저장된 지표를 선택하면 지표 차트로 전환하여 차트 종류도 바꿀 수 있습니다.
-                          </Alert>
+                          </Notice>
                         )}
                         {item.kind === 'metric' && item.metricAvailable === false && (
-                          <Alert severity="warning">기존 지표를 사용할 수 없습니다. 다른 저장된 지표를 선택해 주세요.</Alert>
+                          <Notice severity="warning">
+                            기존 지표를 사용할 수 없습니다. 다른 저장된 지표를 선택해 주세요.
+                          </Notice>
                         )}
                         <MetricSelect
                           disabled={!!busy}
@@ -1137,7 +1125,7 @@ function DashboardEditContent() {
                         />
                         <TextField
                           disabled={!!busy}
-                          fullWidth
+                          className="w-full"
                           slotProps={{ htmlInput: { maxLength: 300 } }}
                           label={`${label} 제목`}
                           value={item.title}
@@ -1156,58 +1144,74 @@ function DashboardEditContent() {
                           onChange={value => patch(item.key, { chart: value as Item['chart'], dimension: undefined })}
                         />
                         {item.kind === 'metric' && item.chart !== 'number' && (
-                          <FormControl fullWidth disabled={!!busy}>
-                            <InputLabel id={`dimension-${item.key}-label`}>
+                          <div className="flex w-full min-w-0 flex-col gap-1.5">
+                            <Label htmlFor={`dimension-${item.key}`} id={`dimension-${item.key}-label`}>
                               {label} {item.chart === 'line' ? '날짜 열' : '범주 열'}
-                            </InputLabel>
+                            </Label>
                             <Select
-                              labelId={`dimension-${item.key}-label`}
-                              label={`${label} ${item.chart === 'line' ? '날짜 열' : '범주 열'}`}
-                              value={item.dimension ?? ''}
-                              onChange={event => patch(item.key, { dimension: event.target.value })}
+                              value={item.dimension ?? EMPTY_CHOICE}
+                              onValueChange={value => patch(item.key, { dimension: value === EMPTY_CHOICE ? '' : value })}
                             >
-                              <MenuItem value="">열을 선택하세요</MenuItem>
-                              {choices.map(column => (
-                                <MenuItem key={column.name} value={column.name}>
-                                  {column.name}
-                                </MenuItem>
-                              ))}
+                              <SelectTrigger
+                                id={`dimension-${item.key}`}
+                                aria-labelledby={`dimension-${item.key}-label`}
+                                className="w-full"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={EMPTY_CHOICE}>열을 선택하세요</SelectItem>
+                                {choices.map(column => (
+                                  <SelectItem key={column.name} value={column.name}>
+                                    {column.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
                             </Select>
-                          </FormControl>
+                          </div>
                         )}
                         {item.kind === 'metric' && item.chart !== 'number' && choices.length === 0 && (
-                          <Alert severity="warning">
+                          <Notice severity="warning">
                             이 종류에 사용할 열이 없습니다.{' '}
                             {item.chart === 'line' ? 'DATE/TIMESTAMP 날짜 열이 필요합니다.' : '범주 열이 필요합니다.'} 다른
                             차트 종류를 선택하세요.
-                          </Alert>
+                          </Notice>
                         )}
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                        <div className="flex flex-col gap-4 sm:flex-row">
                           <TextField
                             disabled={!!busy}
-                            fullWidth
+                            className="w-full"
                             slotProps={{ htmlInput: { maxLength: 12 } }}
                             helperText="최대 12자"
                             label={`${label} 단위`}
                             value={item.unit}
                             onChange={event => patch(item.key, { unit: event.target.value })}
                           />
-                          <FormControl fullWidth disabled={!!busy}>
-                            <InputLabel id={`decimals-${item.key}-label`}>{label} 소수 자릿수</InputLabel>
+                          <div className="flex w-full min-w-0 flex-col gap-1.5">
+                            <Label htmlFor={`decimals-${item.key}`} id={`decimals-${item.key}-label`}>
+                              {label} 소수 자릿수
+                            </Label>
                             <Select
-                              labelId={`decimals-${item.key}-label`}
-                              label={`${label} 소수 자릿수`}
-                              value={item.decimalPlaces}
-                              onChange={event => patch(item.key, { decimalPlaces: Number(event.target.value) })}
+                              value={String(item.decimalPlaces)}
+                              onValueChange={value => patch(item.key, { decimalPlaces: Number(value) })}
                             >
-                              {Array.from({ length: 7 }, (_, number) => (
-                                <MenuItem key={number} value={number}>
-                                  {number}자리
-                                </MenuItem>
-                              ))}
+                              <SelectTrigger
+                                id={`decimals-${item.key}`}
+                                aria-labelledby={`decimals-${item.key}-label`}
+                                className="w-full"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: 7 }, (_, number) => (
+                                  <SelectItem key={number} value={String(number)}>
+                                    {number}자리
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
                             </Select>
-                          </FormControl>
-                        </Stack>
+                          </div>
+                        </div>
                         <Choice
                           disabled={!!busy}
                           id={`notation-${item.key}`}
@@ -1219,11 +1223,12 @@ function DashboardEditContent() {
                           ]}
                           onChange={value => patch(item.key, { numberNotation: value as Item['numberNotation'] })}
                         />
-                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                        <div className="flex flex-row flex-wrap gap-2">
                           {(['x', 'y', 'w', 'h'] as const).map(field => (
                             <TextField
                               key={field}
                               type="number"
+                              className="w-[100px]"
                               label={`${label} ${{ mobile: '모바일', tablet: '태블릿', desktop: '데스크톱' }[layoutMode]} ${
                                 { x: '가로 위치', y: '세로 위치', w: '너비', h: '높이' }[field]
                               }`}
@@ -1233,7 +1238,6 @@ function DashboardEditContent() {
                                   : item.layouts?.[layoutMode]?.[field] ?? ''
                               }
                               disabled={!!busy}
-                              sx={{ width: 100 }}
                               slotProps={{
                                 htmlInput: {
                                   min: field === 'w' || field === 'h' ? 1 : 0,
@@ -1259,7 +1263,7 @@ function DashboardEditContent() {
                               }}
                             />
                           ))}
-                        </Stack>
+                        </div>
                         {!item.layouts && (
                           <>
                             <Choice
@@ -1287,13 +1291,19 @@ function DashboardEditContent() {
                             />
                           </>
                         )}
-                      </Stack>
-                    </Box>
-                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                      <Button disabled={index === 0} aria-label={`${label} 위로 이동`} onClick={() => move(index, -1)}>
+                      </div>
+                    </details>
+                    <div className="flex flex-row flex-wrap gap-2">
+                      <Button
+                        variant="ghost"
+                        disabled={index === 0}
+                        aria-label={`${label} 위로 이동`}
+                        onClick={() => move(index, -1)}
+                      >
                         위로 이동
                       </Button>
                       <Button
+                        variant="ghost"
                         disabled={index === items.length - 1}
                         aria-label={`${label} 아래로 이동`}
                         onClick={() => move(index, 1)}
@@ -1301,6 +1311,7 @@ function DashboardEditContent() {
                         아래로 이동
                       </Button>
                       <Button
+                        variant="ghost"
                         disabled={!!busy}
                         aria-pressed={selectedKey === item.key}
                         aria-label={`${label} AI로 수정`}
@@ -1312,24 +1323,28 @@ function DashboardEditContent() {
                         AI로 수정
                       </Button>
                       <Button
+                        variant="ghost"
                         disabled={!!busy || items.length >= 6}
                         aria-label={`${label} 복제`}
                         onClick={() => duplicate(index)}
                       >
                         복제
                       </Button>
-                      <Button disabled={items.length <= 1} aria-label={`${label} 삭제`} onClick={() => remove(index)}>
+                      <Button
+                        variant="ghost"
+                        disabled={items.length <= 1}
+                        aria-label={`${label} 삭제`}
+                        onClick={() => remove(index)}
+                      >
                         삭제
                       </Button>
-                    </Stack>
+                    </div>
                   </Card>
                 );
               })}
-              <Card variant="outlined" sx={{ p: 2, minWidth: 0 }}>
-                <Typography component="h2" variant="h6" sx={{ mb: 2 }}>
-                  차트 추가 · {items.length}/6개
-                </Typography>
-                <Stack spacing={2}>
+              <Card className="min-w-0 p-4 md:p-6">
+                <h2 className="text-lg">차트 추가 · {items.length}/6개</h2>
+                <div className="flex flex-col gap-4">
                   <MetricSelect
                     disabled={!!busy}
                     id="new-metric"
@@ -1338,42 +1353,32 @@ function DashboardEditContent() {
                     metrics={editor.metrics}
                     onChange={setNewMetricId}
                   />
-                  <Button variant="outlined" disabled={!newMetricId || items.length >= 6} onClick={add}>
+                  <Button variant="outline" disabled={!newMetricId || items.length >= 6} onClick={add}>
                     지표 차트 추가
                   </Button>
                   {editor.metrics.length === 0 && (
-                    <Typography>
-                      이 데이터 소스에 저장된 지표가 없습니다. 기존 차트의 표시와 배치는 편집할 수 있습니다.
-                    </Typography>
+                    <p>이 데이터 소스에 저장된 지표가 없습니다. 기존 차트의 표시와 배치는 편집할 수 있습니다.</p>
                   )}
-                </Stack>
+                </div>
               </Card>
-            </Stack>
-          </Box>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ my: 3 }}>
-            <Button variant="outlined" disabled={!!busy || !valid || recoveryRequired} onClick={() => void run(false)}>
+            </div>
+          </fieldset>
+          <div className="my-6 flex flex-col gap-4 sm:flex-row">
+            <Button variant="outline" disabled={!!busy || !valid || recoveryRequired} onClick={() => void run(false)}>
               변경 결과 미리보기
             </Button>
-            <Button
-              variant="contained"
-              disabled={!!busy || !preview || !valid || recoveryRequired}
-              onClick={() => void run(true)}
-            >
+            <Button disabled={!!busy || !preview || !valid || recoveryRequired} onClick={() => void run(true)}>
               변경 내용 저장
             </Button>
-          </Stack>
-          {!preview && (
-            <Typography color="text.secondary">변경 후 미리보기를 성공적으로 확인해야 저장할 수 있습니다.</Typography>
-          )}
+          </div>
+          {!preview && <p className="text-muted-foreground">변경 후 미리보기를 성공적으로 확인해야 저장할 수 있습니다.</p>}
           {displayPreview && (
-            <Box component="section" aria-label="변경 결과 미리보기">
-              <Typography component="h2" variant="h5" sx={{ mb: 2 }}>
-                미리보기 · {title}
-              </Typography>
+            <section aria-label="변경 결과 미리보기">
+              <h2 className="mb-4 text-2xl">미리보기 · {title}</h2>
               {!preview && (
-                <Typography color="text.secondary">
+                <p className="text-muted-foreground">
                   배치 변경 후 미리보기를 다시 확인해 주세요. 표시 값은 직전 서버 결과입니다.
-                </Typography>
+                </p>
               )}
               <BlockLayoutCanvas
                 items={items}
@@ -1389,18 +1394,12 @@ function DashboardEditContent() {
                 }
               >
                 {displayPreview.widgets.map((widget, index) => (
-                  <Card
-                    key={items[index].key}
-                    variant="outlined"
-                    sx={{
-                      p: 2,
-                      minWidth: 0,
-                    }}
-                  >
-                    <Typography component="h3" variant="h6" sx={{ overflowWrap: 'anywhere' }}>
-                      {widget.title}
-                    </Typography>
-                    <Box sx={{ height: widget.type === 'BOARD_NUMERIC' ? 64 : items[index].height * 60, minWidth: 0 }}>
+                  <Card key={items[index].key} className="min-w-0 gap-4 p-4">
+                    <h3 className="text-lg [overflow-wrap:anywhere]">{widget.title}</h3>
+                    <div
+                      className={cn('min-w-0', widget.type === 'BOARD_NUMERIC' && 'h-16')}
+                      style={widget.type === 'BOARD_NUMERIC' ? undefined : { height: items[index].height * 60 }}
+                    >
                       {widget.type === 'BOARD_NUMERIC' ? (
                         <NumericBoard option={analysisOptions(widget)} dataSet={widget.datas} />
                       ) : (
@@ -1412,7 +1411,7 @@ function DashboardEditContent() {
                           isInvalidData={false}
                         />
                       )}
-                    </Box>
+                    </div>
                     {widget.type === 'BOARD_NUMERIC' && (
                       <MetricTrend
                         trend={widget.trend}
@@ -1423,66 +1422,76 @@ function DashboardEditContent() {
                         decimalPlaces={widget.decimalPlaces ?? 0}
                       />
                     )}
-                    <Box
+                    <div
                       tabIndex={0}
                       role="region"
                       aria-label={`${index + 1}번 차트 정확한 결과 표`}
-                      sx={{
-                        overflowX: 'auto',
-                        '& th, & td': {
-                          p: 1,
-                          textAlign: 'left',
-                          borderBottom: 1,
-                          borderColor: 'divider',
-                          overflowWrap: 'anywhere',
-                        },
-                      }}
+                      className="overflow-x-auto"
                     >
-                      <table style={{ width: '100%' }}>
-                        <caption>서버 계산 결과 · 원래 값 {widget.datas.length}행</caption>
-                        <thead>
-                          <tr>
-                            {widget.categoryField && <th scope="col">{widget.categoryField}</th>}
-                            <th scope="col">{widget.valueField}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
+                      <Table className="w-full">
+                        <TableCaption className="caption-top text-left">
+                          서버 계산 결과 · 원래 값 {widget.datas.length}행
+                        </TableCaption>
+                        <TableHeader>
+                          <TableRow>
+                            {widget.categoryField && (
+                              <TableHead scope="col" className={previewCellClassName}>
+                                {widget.categoryField}
+                              </TableHead>
+                            )}
+                            <TableHead scope="col" className={previewCellClassName}>
+                              {widget.valueField}
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {widget.datas.map((row, rowIndex) => (
-                            <tr key={rowIndex}>
-                              {widget.categoryField && <td>{cellText(row[widget.categoryField])}</td>}
-                              <td>{cellText(row[widget.valueField])}</td>
-                            </tr>
+                            <TableRow key={rowIndex}>
+                              {widget.categoryField && (
+                                <TableCell className={previewCellClassName}>{cellText(row[widget.categoryField])}</TableCell>
+                              )}
+                              <TableCell className={previewCellClassName}>{cellText(row[widget.valueField])}</TableCell>
+                            </TableRow>
                           ))}
-                        </tbody>
-                      </table>
-                      {widget.datas.length === 0 && <Typography>결과가 없습니다.</Typography>}
-                    </Box>
+                        </TableBody>
+                      </Table>
+                      {widget.datas.length === 0 && <p>결과가 없습니다.</p>}
+                    </div>
                   </Card>
                 ))}
               </BlockLayoutCanvas>
-            </Box>
+            </section>
           )}
         </>
       )}
-      <Dialog open={reloadDialog} onClose={() => setReloadDialog(false)} aria-labelledby="reload-title">
-        <DialogTitle id="reload-title">최신 내용을 다시 불러올까요?</DialogTitle>
-        <DialogContent>
-          저장하지 않은 현재 편집 내용과 미리보기를 버리고 최신 저장 내용을 불러옵니다. 이 작업은 현재 초안을 되돌릴 수
-          없습니다.
+      <Dialog
+        open={reloadDialog}
+        onOpenChange={next => {
+          if (!next) setReloadDialog(false);
+        }}
+      >
+        <DialogContent aria-labelledby="reload-title" className="sm:max-w-lg">
+          <DialogTitle id="reload-title">최신 내용을 다시 불러올까요?</DialogTitle>
+          <DialogDescription>
+            저장하지 않은 현재 편집 내용과 미리보기를 버리고 최신 저장 내용을 불러옵니다. 이 작업은 현재 초안을 되돌릴 수
+            없습니다.
+          </DialogDescription>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button variant="ghost" onClick={() => setReloadDialog(false)}>
+              편집 계속하기
+            </Button>
+            <Button
+              onClick={() => {
+                setReloadDialog(false);
+                setReload(value => value + 1);
+              }}
+            >
+              편집 내용 버리고 다시 불러오기
+            </Button>
+          </div>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReloadDialog(false)}>편집 계속하기</Button>
-          <Button
-            onClick={() => {
-              setReloadDialog(false);
-              setReload(value => value + 1);
-            }}
-          >
-            편집 내용 버리고 다시 불러오기
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Box>
+    </div>
   );
 }
 

@@ -3,12 +3,6 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import SnapshotView from './SnapshotView';
 const calls = vi.hoisted(() => ({ widget: vi.fn(), trend: vi.fn() }));
-vi.mock('@mui/material', () => ({
-  Box: ({ children }: any) => <div>{children}</div>,
-  Card: ({ children }: any) => <div>{children}</div>,
-  Typography: ({ children }: any) => <p>{children}</p>,
-  Alert: ({ children }: any) => <p>{children}</p>,
-}));
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({
   default: (props: any) => {
     calls.widget(props);

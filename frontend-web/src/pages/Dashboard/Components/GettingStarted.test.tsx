@@ -5,10 +5,6 @@ import GettingStarted from './GettingStarted';
 const mocks = vi.hoisted(() => ({ navigate: vi.fn(), post: vi.fn() }));
 vi.mock('react-router-dom', () => ({ useNavigate: () => mocks.navigate }));
 vi.mock('@/helpers/apiHelper', () => ({ post: mocks.post }));
-vi.mock('@mui/material', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material');
-});
 afterEach(cleanup);
 beforeEach(() => {
   mocks.navigate.mockReset();
@@ -57,7 +53,7 @@ it('keeps an actionable error and retries the exact sample operation', async () 
   await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/commerce/9?sample=1'));
 });
 it('blocks repeated activation while pending and rejects an invalid success payload', async () => {
-  let resolve: (value: any) => void;
+  let resolve: (value: any) => void = () => undefined;
   mocks.post.mockImplementation(
     () =>
       new Promise(r => {
@@ -69,7 +65,7 @@ it('blocks repeated activation while pending and rejects an invalid success payl
   fireEvent.click(button);
   fireEvent.click(button);
   expect(mocks.post).toHaveBeenCalledTimes(1);
-  resolve!({ data: { status: 'SUCCESS', data: { projectId: -1 } } });
+  resolve({ data: { status: 'SUCCESS', data: { projectId: -1 } } });
   await screen.findByRole('alert');
   expect(mocks.navigate).not.toHaveBeenCalled();
 });

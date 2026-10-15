@@ -4,24 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { analysisOptions } from '@/pages/Dashboard/analysisOptions';
 import NumericBoard from './NumericBoard';
 import NumericBoardSetting from '@/widget/settings/NumericBoardSetting';
-const styles = vi.hoisted(() => ({ value: null as any }));
-vi.mock('@mui/material', () => {
-  const Container = ({ children }: any) => <div>{children}</div>;
-  return {
-    Stack: Container,
-    ListItem: Container,
-    ListItemText: () => null,
-    Divider: () => null,
-    Typography: ({ children, sx, title, 'aria-label': ariaLabel }: any) => {
-      if (title !== undefined) styles.value = sx;
-      return (
-        <span title={title} aria-label={ariaLabel}>
-          {children}
-        </span>
-      );
-    },
-  };
-});
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue || key }),
 }));
@@ -97,13 +79,12 @@ describe('NumericBoard precision and readable values', () => {
   });
   it('formats 634513000 with commas and keeps its exact raw title without ellipsis', () => {
     board([{ amount: 634513000 }], { numForm: true });
-    const value = screen.getByText('634,513,000');
+    const value = screen.getByText('634,513,000') as HTMLElement;
     expect(value.title).toBe('634513000');
-    const style = styles.value;
-    expect(style.whiteSpace).toBe('normal');
-    expect(style.overflowWrap).toBe('anywhere');
-    expect(style.textOverflow).not.toBe('ellipsis');
-    expect(style.fontSize).toMatch(/^clamp\(10px, .*cqw, 80px\)$/);
+    expect(value.className).toContain('whitespace-normal');
+    expect(value.className).toContain('[overflow-wrap:anywhere]');
+    expect(value.className).not.toContain('ellipsis');
+    expect(value.style.fontSize).toMatch(/^clamp\(10px, .*cqw, 80px\)$/);
   });
   it.each([0, 1, 2, 3, 4, 5, 6])('supports %i decimal places with affixes', decimalPlaces => {
     board([{ amount: 12.3456789 }], { decimalPlaces, prefix: '$', suffix: ' USD' });

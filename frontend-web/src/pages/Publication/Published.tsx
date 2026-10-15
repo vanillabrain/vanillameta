@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Alert, Box, Typography } from '@mui/material';
 import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
+import { Notice } from '@/components/ui/notice';
 import SnapshotView, { Snapshot } from './SnapshotView';
 
 type Result = {
@@ -49,23 +49,20 @@ export default function Published() {
   }, [publicationUuid]);
   return (
     <AnalysisUiProvider>
-      <Box
-        component="main"
-        sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1600, width: '100%', boxSizing: 'border-box', mx: 'auto', minWidth: 0 }}
-      >
+      <main className="mx-auto box-border w-full min-w-0 max-w-[1600px] p-4 sm:p-6">
         {error ? (
-          <Alert severity="error">{error}</Alert>
+          <Notice severity="error">{error}</Notice>
         ) : !result ? (
-          <Typography role="status">게시 결과를 불러오는 중…</Typography>
+          <p role="status">게시 결과를 불러오는 중…</p>
         ) : (
           <>
-            <Typography sx={{ fontSize: 12, color: '#64748b', overflowWrap: 'anywhere' }}>
+            <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
               링크 공유 · 게시 버전 {result.version} · 게시 {result.publishedAt} · 만료 {result.expiresAt}
-            </Typography>
+            </p>
             <SnapshotView snapshot={result.snapshot} />
           </>
         )}
-      </Box>
+      </main>
     </AnalysisUiProvider>
   );
 }

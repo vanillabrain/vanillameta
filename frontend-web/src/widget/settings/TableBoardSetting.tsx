@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import { ALIGN_LIST, TABLE_ALIGN } from '@/constant';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
@@ -21,15 +21,11 @@ const TableBoardSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem>
-        <ListItemText primary={t('settings.tableColumn')} />
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.tableColumn')}</span>
         <AddButton
           onClick={event => handleAddClick(event, option, setOption, defaultSeries, 'columns')}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
+          className="absolute right-0 top-[30px]"
         />
         {option.columns.map((item, index) => (
           <React.Fragment key={index}>
@@ -79,10 +75,10 @@ const TableBoardSetting = props => {
                 )
               }
             />
-            <Divider />
+            <Separator />
           </React.Fragment>
         ))}
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

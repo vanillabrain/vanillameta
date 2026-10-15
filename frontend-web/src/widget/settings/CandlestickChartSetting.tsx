@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST } from '@/constant';
@@ -13,8 +13,8 @@ const CandlestickChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           required={true}
           id="xField"
@@ -26,9 +26,9 @@ const CandlestickChartSetting = props => {
           value={option.xField}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText primary={t('settings.series')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
             <SelectForm
@@ -61,7 +61,7 @@ const CandlestickChartSetting = props => {
               onChange={event => handleSeriesChange(event, setOption)}
               disabledDefaultValue
             />
-            <Divider />
+            <Separator />
           </React.Fragment>
         ))}
         <SelectForm
@@ -71,7 +71,7 @@ const CandlestickChartSetting = props => {
           value={option.mark}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

@@ -1,15 +1,17 @@
 import React, { useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Box, Card, Typography } from '@mui/material';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import { Card } from '@/components/ui/card';
 import { useShareDashboard } from './useShareDashboard';
 import Seo from '@/seo/Seo';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const widgetCardClassName = 'h-full w-full overflow-hidden rounded-lg border border-border bg-background shadow-sm';
 
 /**
  * iframe 임베딩 전용 대시보드 — 헤더/푸터 없이 대시보드만 렌더링
@@ -55,8 +57,8 @@ const Embed = () => {
 
   if (!isShareOn || !isAllowedEmbed) {
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <Typography sx={{ fontSize: '15px', fontWeight: 600, color: '#333', whiteSpace: 'pre-wrap', textAlign: 'center' }}>
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-center text-[15px] font-semibold whitespace-pre-wrap text-foreground">
           {!isAllowedEmbed
             ? t('embed.notAllowed')
             : loading
@@ -64,27 +66,15 @@ const Embed = () => {
             : isInvalidData === 401
             ? t('embed.expired')
             : t('embed.unavailable')}
-        </Typography>
-      </Box>
+        </p>
+      </div>
     );
   }
 
   return (
-    <Box ref={rootRef} sx={{ width: '100%', minHeight: '100vh', backgroundColor: '#f9f9fa' }}>
+    <div ref={rootRef} className="w-full min-h-screen bg-muted">
       <Seo title={dashboardInfo.title} />
-      {showTitle && (
-        <Typography
-          sx={{
-            px: '20px',
-            pt: '16px',
-            fontSize: '18px',
-            fontWeight: 600,
-            color: '#141414',
-          }}
-        >
-          {dashboardInfo.title}
-        </Typography>
-      )}
+      {showTitle && <p className="px-5 pt-4 text-lg font-semibold text-foreground">{dashboardInfo.title}</p>}
       <ResponsiveGridLayout
         rowHeight={88}
         compactType={null}
@@ -95,22 +85,12 @@ const Embed = () => {
         margin={{ xs: [12, 12], md: [16, 16], lg: [20, 20] }}
       >
         {dashboardInfo.widgets.map(item => (
-          <Card
-            key={item.id}
-            sx={{
-              width: '100%',
-              height: '100%',
-              borderRadius: '8px',
-              boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
-              border: 'solid 1px #e2e2e2',
-              backgroundColor: '#fff',
-            }}
-          >
+          <Card key={item.id} className={widgetCardClassName}>
             <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} />
           </Card>
         ))}
       </ResponsiveGridLayout>
-    </Box>
+    </div>
   );
 };
 

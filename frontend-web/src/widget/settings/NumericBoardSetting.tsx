@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ListItem, ListItemText, Divider } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
 import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, HIDDEN_LIST } from '@/constant';
@@ -35,8 +35,8 @@ const NumericBoardSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.messageSetting')} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.messageSetting')}</span>
         <TextFieldForm
           label={t('settings.messageInput')}
           name="title"
@@ -59,9 +59,9 @@ const NumericBoardSetting = props => {
           value={option.header.titleHidden}
           onChange={handleHeaderChange}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText primary={t('settings.numberValue')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.numberValue')}</span>
         <SelectForm
           required={true}
           id="field"
@@ -82,7 +82,7 @@ const NumericBoardSetting = props => {
           onChange={handleContentChange}
           disabledDefaultValue
         />
-        <Divider />
+        <Separator />
         <SelectForm
           name="fontSize"
           label={t('settings.sizeColor')}
@@ -119,7 +119,7 @@ const NumericBoardSetting = props => {
         />
         <TextFieldForm label="Prefix" name="prefix" value={option.content.prefix} onChange={handleContentChange} />
         <TextFieldForm label="Suffix" name="suffix" value={option.content.suffix} onChange={handleContentChange} />
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

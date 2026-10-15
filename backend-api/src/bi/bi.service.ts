@@ -13,6 +13,7 @@ import { compileMetricWidget } from './structured-widget';
 import { metricFields } from './metric-expression';
 import { quoteColumn, sourceQuery, validateDraft } from '../ai/dashboard-draft';
 import { resolveBlockTarget } from './block-target';
+import { explicitRenameRequested } from '../ai/saved-metric-reference';
 import {
   BATCH_FAILURE_MESSAGES,
   BatchBlockAction,
@@ -794,7 +795,7 @@ export class BiService {
           if (!generatedWidget) throw new Error('BATCH_GENERATION_UNAVAILABLE');
           // BR-016-02: formatting-only requests must not silently rename copied KPIs.
           // The action prompt excludes the target reference; names in a title are data.
-          const rename = /제목|이름|\btitle\b|\brename\b/i.test(target.prompt);
+          const rename = explicitRenameRequested(target.prompt);
           const widget = {
             ...generatedWidget,
             title: rename ? generatedWidget.title : items[target.index].title,
