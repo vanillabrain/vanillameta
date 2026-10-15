@@ -1,5 +1,8 @@
 import { SemanticCreationService } from './semantic-creation.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { DashboardPublication } from '../dashboard/entities/dashboard-publication.entity';
+import { PublicationService } from './publication.service';
+import { PublicationController, PublishedPublicationController } from './publication.controller';
 import { DashboardPivotService } from './dashboard-pivot.service';
 import { DashboardPivotController } from './dashboard-pivot.controller';
 import { JwtService } from '@nestjs/jwt';
@@ -19,7 +22,11 @@ import { BiExploreViewsController } from './bi-explore-views.controller';
 import { BiExploreService } from './bi-explore.service';
 import { BiService } from './bi.service';
 @Module({
-  imports: [AiModule, ConnectionModule, TypeOrmModule.forFeature([PersonalView, Dashboard])],
+  imports: [
+    AiModule,
+    ConnectionModule,
+    TypeOrmModule.forFeature([PersonalView, Dashboard, DashboardPublication]),
+  ],
   controllers: [
     BiController,
     SemanticProposalController,
@@ -27,6 +34,8 @@ import { BiService } from './bi.service';
     ExploreViewController,
     DashboardPivotController,
     BiExploreViewsController,
+    PublicationController,
+    PublishedPublicationController,
   ],
   providers: [
     BiService,
@@ -36,6 +45,7 @@ import { BiService } from './bi.service';
     ExploreViewService,
     DashboardPivotService,
     VersionedExploreViewService,
+    PublicationService,
     JwtService,
   ],
 })

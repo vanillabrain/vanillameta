@@ -336,6 +336,14 @@ const DashboardView = () => {
                   >
                     {insightLoading ? t('dashboard.insightLoading') : t('dashboard.insight')}
                   </Button>
+                  <Button
+                    variant="outlined"
+                    component={RouterLink}
+                    to={`/dashboard/${dashboardId}/publication`}
+                    sx={{ mr: 1, flexShrink: 0 }}
+                  >
+                    게시 버전
+                  </Button>
                   <ShareButton
                     handleShareToggle={handleShareToggle}
                     isShareOn={isShareOn}

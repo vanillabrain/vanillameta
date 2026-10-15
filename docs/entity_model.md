@@ -144,3 +144,20 @@ UC-006 현재 구현: analysisDefinition.widgets.blockId는 안정적 String 식
 영수증·지표·분석은 같은 metadata transaction에 기록한다. 실패는 영수증도 rollback하며 중간 running 행을 commit하지 않는다. 영수증을 조회만으로 생성하지 않는다. 분석 삭제 때 영수증을 cascade 삭제하여 같은 requestId가 분석을 재생성하게 하지 않는다. 이미 삭제된 결과는 unavailable을 반환한다.
 
 Dimension은 첫 범위에서 source+원본 column 기반 안정적 논리 ID·정의 snapshot이다. 기존 structured-bi-dashboard.items의 dimensionDefinition으로 기록하며 독립 차원 카탈로그 테이블이 이미 생긴 것으로 간주하지 않는다. 확장된 snapshot의 UC003/004 지표 영향 연결·직접 수정/복제 보존을 TC-012-09의 API/SQLite 범위로 확인했다. 전체 내용/배치 AI·실제 UI 연속 검증은 남았다.
+
+## UC-018 concrete publication
+
+위 PUBLICATION 목표의 첫 DB 구현은 `dashboard_publication`이다. 목표전체가아닌고정집계링크범위이며기존 DashboardShare와별개다.
+
+| Field                     | Type                  | Constraint                                                |
+| ------------------------- | --------------------- | --------------------------------------------------------- |
+| dashboardId               | integer               | PK, Dashboard.id, dashboard당최신1행                      |
+| uuid                      | varchar36             | Unique, 활성재게시유지·중지/만료후교체                    |
+| version                   | integer               | 양수, CAS                                                 |
+| dashboardRevision         | varchar64             | 저장정의SHA256                                            |
+| snapshot                  | text                  | whitelist집계JSONSQLite최대1MiB/MySQL60KiB,SQL/원본행없음 |
+| publishedAt / expiresAt   | varchar24             | ISO UTC,최대30일                                          |
+| active                    | boolean               | 중지시false                                               |
+| requestId / payloadDigest | varchar36 / varchar64 | 마지막성공재시도동일성                                    |
+
+소유권은원본 Dashboard/UserMapping/Source, 삭제는Dashboard.delYn으로검사한다. 가시성link·dataMode snapshot만지원한다. 개념모델의여러visibility·live·이력저장전체완료는아니다.

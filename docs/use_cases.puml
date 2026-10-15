@@ -31,4 +31,7 @@ operator --> UC002
 operator --> UC001
 operator --> UC016
 operator --> UC017
+usecase "UC-018 게시 snapshot" as UC018
+operator --> UC018
+recipient --> UC018
 @enduml
