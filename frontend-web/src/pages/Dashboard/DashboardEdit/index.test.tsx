@@ -223,6 +223,7 @@ it('starts with optional settings collapsed and keeps block actions visible', as
 });
 
 const aiResult = () => ({
+  editMode: 'content',
   item: {
     ...item,
     kind: 'draft',
@@ -489,6 +490,7 @@ it('UC-011 sends layout intent and applies geometry only through common undo his
   api.get.mockResolvedValueOnce(success({ ...editor, items: [{ ...item, layouts }] }));
   await mount();
   fireEvent.click(screen.getByRole('button', { name: '1번 차트 AI로 수정' }));
+  fireEvent.click(screen.getByText('변경 목적 직접 지정'));
   fireEvent.click(within(screen.getByRole('radiogroup', { name: 'AI 변경 목적' })).getByLabelText('배치'));
   fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '오른쪽 한 칸 옮겨 줘' } });
   api.post.mockResolvedValueOnce(
@@ -515,6 +517,7 @@ it('UC-011 sends layout intent and applies geometry only through common undo his
 it('UC-011 keeps the current draft after a rejected layout proposal and leaves save disabled', async () => {
   await mount();
   fireEvent.click(screen.getByRole('button', { name: '1번 차트 AI로 수정' }));
+  fireEvent.click(screen.getByText('변경 목적 직접 지정'));
   fireEvent.click(within(screen.getByRole('radiogroup', { name: 'AI 변경 목적' })).getByLabelText('배치'));
   fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '겹치는 위치로 이동' } });
   api.post.mockRejectedValueOnce({ response: { status: 400 } });
@@ -553,12 +556,13 @@ it('TC-011-07 preserves duplicate identity across direct/content/layout edits an
         decimalPlaces: 1,
       },
     };
-    return success({ item: generated, preview: preview(2) });
+    return success({ item: generated, editMode: 'content', preview: preview(2) });
   });
   fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
   await waitFor(() =>
     expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(false),
   );
+  fireEvent.click(screen.getByText('변경 목적 직접 지정'));
   fireEvent.click(within(screen.getByRole('radiogroup', { name: 'AI 변경 목적' })).getByLabelText('배치'));
   fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '세로 위치 30' } });
   api.post.mockImplementationOnce(async (_url, body) => {
@@ -602,13 +606,42 @@ it('does not repeat an earlier AI success announcement after the next request fa
   api.post.mockResolvedValueOnce(success(aiResult()));
   fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
   await screen.findByRole('heading', { name: '1번 차트 · AI 평균' });
-  expect(screen.getByRole('status').textContent).toContain('AI 변경을 미리보기했습니다');
+  expect(screen.getByRole('status').textContent).toContain('내용 AI 변경을 미리보기했습니다');
   api.post.mockRejectedValueOnce({ response: { status: 400 } });
   fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '다시 변경' } });
   fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
   await screen.findByText('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.');
-  expect(screen.getByRole('status').textContent).not.toContain('AI 변경을 미리보기했습니다');
+  expect(screen.getByRole('status').textContent).not.toContain('내용 AI 변경을 미리보기했습니다');
   expect(screen.getByRole('heading', { name: '1번 차트 · AI 평균' })).not.toBeNull();
   expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toBe('다시 변경');
   expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('UC-013 defaults to auto, asks to clarify without changing the draft, and applies returned layout without mode selection', async () => {
+  const layouts = { desktop: { x: 0, y: 0, w: 6, h: 3 } };
+  api.get.mockResolvedValueOnce(success({ ...editor, items: [{ ...item, layouts }] }));
+  render(<DashboardEdit />);
+  await screen.findByLabelText('대시보드 제목');
+  expect(document.querySelector('details')?.open).toBe(false);
+  document.querySelectorAll('details').forEach(element => {
+    if (!element.querySelector('summary')?.textContent?.includes('직접 지정')) element.open = true;
+  });
+  fireEvent.click(screen.getByRole('button', { name: '1번 차트 AI로 수정' }));
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '내용과 위치를 함께 바꿔 줘' } });
+  api.post.mockResolvedValueOnce(success({ editMode: 'clarify' }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('한 가지 변경'));
+  expect(api.post.mock.calls[0][1]).toMatchObject({ editMode: 'auto', layoutMode: 'desktop' });
+  expect(api.post.mock.calls[0][2]).toMatchObject({ timeout: 180000, signal: expect.any(AbortSignal) });
+  expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toBe('내용과 위치를 함께 바꿔 줘');
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '오른쪽 한 칸' } });
+  api.post.mockResolvedValueOnce(
+    success({ item: { ...item, layouts: { desktop: { x: 1, y: 0, w: 6, h: 3 } } }, editMode: 'layout', preview: preview() }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('배치'));
+  expect((screen.getByLabelText('1번 차트 데스크톱 가로 위치') as HTMLInputElement).value).toBe('1');
+  expect(screen.getByRole('heading', { name: '1번 차트 · 기존 계산' })).not.toBeNull();
 });

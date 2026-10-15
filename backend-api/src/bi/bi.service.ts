@@ -489,9 +489,17 @@ export class BiService {
     if (index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
     if (typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 2000)
       throw new BadRequestException('변경 요청을 확인해 주세요.');
-    if (body.editMode !== undefined && !['content', 'layout'].includes(body.editMode))
+    if (body.editMode !== undefined && !['auto', 'content', 'layout'].includes(body.editMode))
       throw new BadRequestException('AI 변경 목적을 확인해 주세요.');
-    if (body.editMode === 'layout') {
+    let editMode = body.editMode ?? 'content';
+    if (editMode === 'auto') {
+      if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
+        throw new BadRequestException('편집할 화면 폭을 확인해 주세요.');
+      editMode = await this.dashboards.classifyBlockIntent(body.prompt, signal);
+      if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+      if (editMode === 'clarify') return { editMode: 'clarify' as const };
+    }
+    if (editMode === 'layout') {
       if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
         throw new BadRequestException('편집할 화면 폭을 확인해 주세요.');
       const mode = body.layoutMode as LayoutSize;
@@ -567,7 +575,11 @@ export class BiService {
     const preview = (
       await this.dashboards.preview({ draft: next.draft, includeTrends: true }, actor)
     ).data;
-    return { item, preview: { ...preview, responsiveLayouts: next.layouts } };
+    return {
+      item,
+      editMode: 'content' as const,
+      preview: { ...preview, responsiveLayouts: next.layouts },
+    };
   }
   async saveEditor(id: unknown, body: any, actor: number) {
     const { draft, snapshot, dashboardId, expectedRevision, preserveSizeIds, layoutEdits } =

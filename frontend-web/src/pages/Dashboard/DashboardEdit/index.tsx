@@ -169,7 +169,7 @@ function DashboardEditContent() {
   const [newMetricId, setNewMetricId] = useState('');
   const [selectedKey, setSelectedKey] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
-  const [aiEditMode, setAiEditMode] = useState<'content' | 'layout'>('content');
+  const [aiEditMode, setAiEditMode] = useState<'auto' | 'content' | 'layout'>('auto');
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() =>
     window.matchMedia?.('(max-width: 599px)').matches ? 'mobile' : 'desktop',
   );
@@ -208,7 +208,7 @@ function DashboardEditContent() {
     setNewMetricId('');
     setSelectedKey('');
     setAiPrompt('');
-    setAiEditMode('content');
+    setAiEditMode('auto');
     setAnnouncement('');
     setPast([]);
     setFuture([]);
@@ -443,15 +443,25 @@ function DashboardEditContent() {
           ...editorBody(),
           selectedKey,
           prompt: aiPrompt.trim(),
-          ...(aiEditMode === 'layout' ? { editMode: 'layout', layoutMode } : {}),
+          editMode: aiEditMode,
+          layoutMode,
         },
-        { signal: abort.signal },
+        { timeout: 180000, signal: abort.signal },
       );
       if (token !== sequence.current) return;
       const result = unwrap<{ item: Item; preview: Preview; editMode?: string }>(response);
+      if (aiEditMode === 'auto' && result.editMode === 'clarify') {
+        setAnnouncement(
+          '차트 내용이나 선택한 화면 폭의 배치 중 한 가지 변경을 구체적으로 질문해 주세요. 저장은 미리보기 확인 후 진행합니다.',
+        );
+        return;
+      }
+      const appliedMode = result.editMode ?? (aiEditMode === 'auto' ? undefined : aiEditMode);
+      if (!['content', 'layout'].includes(appliedMode) || (aiEditMode !== 'auto' && appliedMode !== aiEditMode))
+        throw new Error('Invalid AI intent');
       if (
         result.item.key !== selectedKey ||
-        (aiEditMode === 'layout'
+        (appliedMode === 'layout'
           ? result.editMode !== 'layout' ||
             !result.item.layouts?.[layoutMode] ||
             !validLayout([result.item.layouts[layoutMode]], columns[layoutMode])
@@ -468,15 +478,19 @@ function DashboardEditContent() {
         items.map(item =>
           item.key !== selectedKey
             ? item
-            : aiEditMode === 'layout'
+            : appliedMode === 'layout'
             ? { ...item, layouts: { ...item.layouts, [layoutMode]: result.item.layouts[layoutMode] } }
             : result.item,
         ),
-        aiEditMode === 'layout',
+        appliedMode === 'layout',
       );
       setPreview(result.preview);
       setLayoutPreview(result.preview);
-      setAnnouncement('선택 블록의 AI 변경을 미리보기했습니다. 되돌리거나 저장할 수 있습니다.');
+      setAnnouncement(
+        `선택 블록의 ${
+          appliedMode === 'layout' ? '배치' : '내용'
+        } AI 변경을 미리보기했습니다. 되돌리거나 저장할 수 있습니다.`,
+      );
     } catch (failure) {
       if (token !== sequence.current) return;
       if ((failure as { response?: { status?: number } })?.response?.status === 409) {
@@ -616,17 +630,23 @@ function DashboardEditContent() {
                 ? `선택 블록: ${items.find(item => item.key === selectedKey)?.title}`
                 : '블록의 AI로 수정 버튼을 눌러 대상을 선택하세요.'}
             </Typography>
-            <Choice
-              id="ai-edit-mode"
-              label="AI 변경 목적"
-              value={aiEditMode}
-              disabled={!!busy}
-              options={[
-                ['content', '차트 내용'],
-                ['layout', '배치'],
-              ]}
-              onChange={value => setAiEditMode(value as 'content' | 'layout')}
-            />
+            <Box component="details" sx={{ mb: 1 }}>
+              <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 12 }}>
+                변경 목적 직접 지정
+              </Typography>
+              <Choice
+                id="ai-edit-mode"
+                label="AI 변경 목적"
+                value={aiEditMode}
+                disabled={!!busy}
+                options={[
+                  ['auto', '자동'],
+                  ['content', '차트 내용'],
+                  ['layout', '배치'],
+                ]}
+                onChange={value => setAiEditMode(value as 'auto' | 'content' | 'layout')}
+              />
+            </Box>
             {aiEditMode === 'layout' && (
               <Typography color="text.secondary" sx={{ my: 1, fontSize: 12 }}>
                 선택한 화면 폭에서 이 블록의 위치·크기만 변경합니다. 예: 오른쪽으로 한 칸 옮겨 줘.

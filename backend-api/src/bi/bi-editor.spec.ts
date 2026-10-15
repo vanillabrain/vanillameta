@@ -114,6 +114,7 @@ describe('BiService dashboard editor boundaries', () => {
     dashboards = {
       generate: jest.fn(),
       proposeBlockLayout: jest.fn(),
+      classifyBlockIntent: jest.fn(),
       analysis: jest.fn(async () => ({ data: analysis })),
       preview: jest.fn().mockResolvedValue({ data: { widgets: [{ rows: [{ value: 150 }] }] } }),
       save: jest.fn().mockResolvedValue({ data: { id: dashboardId, revision: 'b'.repeat(64) } }),
@@ -604,4 +605,59 @@ describe('BiService dashboard editor boundaries', () => {
       expect(dashboards.save).not.toHaveBeenCalled();
     },
   );
+  it('UC-013 routes auto layout and clarifies without generation or persistence', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    const request = body({
+      items: [existing],
+      selectedKey: existing.key,
+      prompt: '오른쪽 한 칸',
+      editMode: 'auto',
+      layoutMode: 'desktop',
+    });
+    dashboards.classifyBlockIntent.mockResolvedValueOnce('clarify');
+    await expect(service.editorAi(dashboardId, request, actor)).resolves.toEqual({
+      editMode: 'clarify',
+    });
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    dashboards.classifyBlockIntent.mockResolvedValueOnce('layout');
+    dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 1, y: 0, w: 6, h: 3 });
+    const result = await service.editorAi(dashboardId, request, actor);
+    expect(result.editMode).toBe('layout');
+    expect(result.item.layouts.desktop).toEqual({ x: 1, y: 0, w: 6, h: 3 });
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+    await expect(
+      service.editorAi(dashboardId, { ...request, expectedRevision: 'b'.repeat(64) }, actor),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(dashboards.classifyBlockIntent).toHaveBeenCalledTimes(2);
+  });
+
+  it('UC-013 rejects access before classification and does not execute after cancellation during classification', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    const request = body({
+      items: [existing],
+      selectedKey: existing.key,
+      prompt: '오른쪽 한 칸',
+      editMode: 'auto',
+      layoutMode: 'desktop',
+    });
+    access.assert.mockRejectedValueOnce(new ForbiddenException());
+    await expect(service.editorAi(dashboardId, request, 20)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
+    const abort = new AbortController();
+    dashboards.classifyBlockIntent.mockImplementationOnce(async () => {
+      abort.abort();
+      return 'layout';
+    });
+    await expect(service.editorAi(dashboardId, request, actor, abort.signal)).rejects.toThrow(
+      'LLM_REQUEST_ABORTED',
+    );
+    expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
 });
