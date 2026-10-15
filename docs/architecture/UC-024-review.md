@@ -9,3 +9,5 @@
 - 실제400 layoutSizes 오류와 보완 후201, 수신자 source30의33 저장/reload·원본 동일·최종 링크404를 대조했다. 계산/지표/소스 권한을 추정해 복구하지 않는다.
 
 신규 영속 엔티티가 없어 entity_model/glossary 변경은 없다. 운영DB·물리기기·모든 경합은 검증하지 않았다. strict lint 기존12오류를 숨기거나 UC를 Approved로 승격하지 않는다. [실행 범위](../testing/reuse-block-selection.md)를 승인/운영 배포와 구분한다.
+
+원격 Studio 통합 후에도 UC024 서비스/화면 파일은 동일하다. 분석 PublishedRoute의 UUID 분기·Studio 테마 국소 경계·통합 단위/복사DB API를 추가로 읽고 확인했다. 전체 명령의 환경 실패/개별 재실행과 통합 전 Ego 증빙의 기준은 실행 문서에서 구분한다.
