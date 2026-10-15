@@ -58,6 +58,7 @@ const WidgetViewer = props => {
   const { t } = useTranslation();
   const {
     title,
+    hideHeader = false,
     widgetType,
     widgetOption,
     dataSet,
@@ -528,39 +529,41 @@ const WidgetViewer = props => {
         height: '100%',
       }}
     >
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{
-          width: '100%',
-          height: '50px',
-          paddingLeft: '20px',
-          paddingTop: '18px',
-          paddingBottom: '12px',
-        }}
-      >
-        <Typography
-          variant="subtitle1"
-          component="span"
+      {!hideHeader && (
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
           sx={{
-            overflow: 'hidden',
-            width: 'calc(100% - 40px)',
-            fontSize: '16px',
-            fontWeight: '600',
-            fontStretch: 'normal',
-            fontStyle: 'normal',
-            lineHeight: '1.25',
-            letterSpacing: '-0.16px',
-            textAlign: 'left',
-            color: '#333',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
+            width: '100%',
+            height: '50px',
+            paddingLeft: '20px',
+            paddingTop: '18px',
+            paddingBottom: '12px',
           }}
         >
-          {renderTitle()}
-        </Typography>
-      </Stack>
+          <Typography
+            variant="subtitle1"
+            component="span"
+            sx={{
+              overflow: 'hidden',
+              width: 'calc(100% - 40px)',
+              fontSize: '16px',
+              fontWeight: '600',
+              fontStretch: 'normal',
+              fontStyle: 'normal',
+              lineHeight: '1.25',
+              letterSpacing: '-0.16px',
+              textAlign: 'left',
+              color: '#333',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {renderTitle()}
+          </Typography>
+        </Stack>
+      )}
 
       {description && (
         <Typography sx={{ px: '20px', fontSize: 12, color: 'text.secondary', overflowWrap: 'anywhere' }}>
@@ -572,7 +575,7 @@ const WidgetViewer = props => {
           width: '100%',
           minHeight: 0,
           flex: '1 1 auto',
-          height: 'calc(100% - 48px)',
+          height: hideHeader ? '100%' : 'calc(100% - 48px)',
           pt: '10px',
           pb: { xs: '12px', sm: '20px' },
           px: { xs: '12px', sm: '20px' },

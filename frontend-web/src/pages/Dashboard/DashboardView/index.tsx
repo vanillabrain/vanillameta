@@ -342,6 +342,15 @@ const DashboardView = () => {
                 <Button
                   variant="outlined"
                   size="small"
+                  component={RouterLink}
+                  to={`/dashboard/${dashboardId}/studio`}
+                  sx={{ mr: 1, flexShrink: 0 }}
+                >
+                  Studio 편집
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
                   onClick={handleInsightClick}
                   disabled={insightLoading}
                   sx={{ mr: '8px', backgroundColor: '#fff', whiteSpace: 'nowrap', flexShrink: 0 }}

@@ -5,10 +5,16 @@ import DragIndicator from '@mui/icons-material/DragIndicator';
 import TuneOutlined from '@mui/icons-material/TuneOutlined';
 import { formatMetric } from '@/utils/formatMetric';
 import MetricTrend from '../Components/MetricTrend';
-import { STUDIO_COLUMNS, StudioBreakpoint, StudioDocumentV1, StudioOperation } from './studioTypes';
+import { STUDIO_COLUMNS, StudioBlock, StudioBreakpoint, StudioDocumentV1, StudioOperation } from './studioTypes';
 import { studioSampleTrend } from './studioSample';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+export const STUDIO_ROW_HEIGHT = 48;
+export const STUDIO_ROW_MARGIN = 14;
+/** Pixel height of one grid item. The live renderer fits this box instead of assuming a default size. */
+export const studioItemHeight = (h: number) => STUDIO_ROW_HEIGHT * h + STUDIO_ROW_MARGIN * Math.max(0, h - 1);
+/** A saved short row keeps its height: this only lowers the resize floor, it never grows the row. */
+export const studioMinimumHeight = (kind: StudioBlock['kind'], h: number) => Math.min(h, kind === 'BOARD_NUMERIC' ? 5 : 6);
 type Props = {
   document: StudioDocumentV1;
   breakpoint: StudioBreakpoint;
@@ -16,8 +22,18 @@ type Props = {
   onOperation: (operation: StudioOperation) => void;
   onSelect: (id: string | null) => void;
   onSettings: (id: string) => void;
+  /** Actual aggregated renderer for the product route. The design preview leaves it undefined. */
+  renderBlock?: (block: StudioBlock) => React.ReactNode;
 };
-export default function StudioCanvas({ document, breakpoint, selectedBlockId, onOperation, onSelect, onSettings }: Props) {
+export default function StudioCanvas({
+  document,
+  breakpoint,
+  selectedBlockId,
+  onOperation,
+  onSelect,
+  onSettings,
+  renderBlock,
+}: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
@@ -49,8 +65,8 @@ export default function StudioCanvas({ document, breakpoint, selectedBlockId, on
             key={breakpoint}
             width={width}
             cols={STUDIO_COLUMNS[breakpoint]}
-            rowHeight={48}
-            margin={[14, 14]}
+            rowHeight={STUDIO_ROW_HEIGHT}
+            margin={[STUDIO_ROW_MARGIN, STUDIO_ROW_MARGIN]}
             containerPadding={[0, 0]}
             compactType={null}
             preventCollision
@@ -63,7 +79,7 @@ export default function StudioCanvas({ document, breakpoint, selectedBlockId, on
               w: g.w,
               h: g.h,
               minW: breakpoint === 'xs' ? 1 : Math.min(3, g.w),
-              minH: document.blocks.find(b => b.id === g.id)?.kind === 'BOARD_NUMERIC' ? 5 : 6,
+              minH: studioMinimumHeight(document.blocks.find(b => b.id === g.id)?.kind ?? 'CHART_LINE', g.h),
             }))}
             onDragStop={(_, old, item) => {
               onSelect(item.i);
@@ -122,7 +138,9 @@ export default function StudioCanvas({ document, breakpoint, selectedBlockId, on
                       <TuneOutlined fontSize="small" />
                     </Button>
                   </div>
-                  {block.kind === 'BOARD_NUMERIC' ? (
+                  {renderBlock ? (
+                    <div className="studio-live-block">{renderBlock(block)}</div>
+                  ) : block.kind === 'BOARD_NUMERIC' ? (
                     <>
                       <div className="studio-metric-value" title={formatted.fullText}>
                         {formatted.text}

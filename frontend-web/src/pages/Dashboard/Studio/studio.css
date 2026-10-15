@@ -139,6 +139,7 @@
 .studio-placement {display:flex;flex-wrap:wrap;gap:4px;}
 .studio-edit-grid {min-width:0;}
 .studio-edit-card {display:flex;flex-direction:column;overflow:auto;}
+.studio-live-block {display:flex;flex-direction:column;flex:1 1 auto;min-width:0;min-height:0;overflow:hidden;}
 .studio-edit-card .studio-card-label {align-items:center;flex-shrink:0;}
 .studio-edit-card h3 {flex:1;min-width:0;}
 .vm-studio .studio-drag-handle {display:flex;align-items:center;justify-content:center;width:28px;height:32px;border:0;background:transparent;color:#6c788a;border-radius:4px;cursor:grab;flex-shrink:0;}
@@ -162,6 +163,8 @@
  .studio-edit-card .studio-card-label {gap:4px;}
  .studio-placement {width:100%;}
  .studio-history-count {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+ .studio-conflict-dialog .MuiButton-root {min-height:44px;white-space:normal;}
+ .studio-conflict-dialog .MuiDialogActions-root {flex-wrap:wrap;justify-content:flex-start;gap:8px;}
 }
 /* Width changes must update position and size together, without transient card overlap. */
 .studio-edit-grid .react-grid-item { transition:none; }

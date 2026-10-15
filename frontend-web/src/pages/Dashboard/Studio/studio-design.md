@@ -36,3 +36,9 @@ StudioDesignPreview는 가상 데이터·상태를 소유하고 StudioShell은 p
 12/8/1열 배치는 창 폭별로 별도 보존한다. 패널 폭은 ResizeObserver로 측정하되 breakpoint는 창 폭1440/768/390 기준으로 선택해 패널 토글이 배치를 바꾸지 않게 했다. 순서 버튼은 명시적으로 현재 폭의 블록들을 세로 정렬하고 한 번에 undo한다. 기본 numeric5행(296px), chart6행(358px)로 하단 데이터 표 접근을 유지한다. 카드 resize는 충돌을 허용하지 않는다. 애니메이션으로 카드가 순간 겹치지 않게 grid 위치 전환만 제거했다. 다른 제품 화면은 변경하지 않았다.
 
 실제 화면·키보드·디자인 검증과 제한: [T3 기록](../../../../../docs/testing/dashboard-studio.md).
+
+## T4 제품 저장 연결
+
+인증된 `/dashboard/:dashboardId/studio`와 기존 보기 진입을 추가했다. Studio 문서/history에는 SQL/rows를 넣지 않고 owner-only catalog/preview로 실제 기존 renderer를 사용한다. legacy h2 숫자는 compact exact formatter, Studio 차트에는 WidgetViewer.hideHeader를 명시해 빈 제목 공간과 축 잘림을 없앤다. 이 옵션 기본값false로 기존 화면은 유지한다.
+
+저장은 클릭 시에만 실행하고 같은 요청 재시도·명시적인 3방향 충돌 재적용을 제공한다. 모바일 conflict action44px/줄바꿈을 국소 적용했다. 새 블록은 기존 정의 복제만 가능하며 전체 삭제 후에도 baseline 정의로 다시 추가할 수 있다. 생성/AI/게시를 동작하는 것처럼 표시하지 않는다. 실제 검증과 제한은 T4 MD 기록을 참조한다.

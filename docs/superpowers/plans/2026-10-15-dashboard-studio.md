@@ -30,7 +30,7 @@
 
 ## 범위·진행 원칙
 
-T1은 합성 fixture의 선택 디자인/상호작용 범위로 구현·검증했다. [실행 기록](../../testing/dashboard-studio.md)을 참조한다. T2는 순수 계약/변경 이력·adapter 범위로 구현·검증했다. T3는 합성 문서의 실제 로컬 편집·반응형 범위로 구현·검증했다. T4~T10은 PLANNED / NOT_RUN이다. 화면 배치·API는 구현 전에 관련 코드와 좁은 계약 검사를 확인한다. 다수 기능을 한 번에 작성하고 마지막에 검증하지 않는다. 아래 T 하나가 구현·검증·변경 기록·리뷰·커밋의 단위다. 선행 조건이 통과하면 다음 작업으로 진행하며 형식적인 승인 질문을 반복하지 않는다. 사용자 취소/실제 권한·파괴적 경계가 있으면 해당 조건을 따른다.
+T1은 합성 fixture의 선택 디자인/상호작용 범위로 구현·검증했다. [실행 기록](../../testing/dashboard-studio.md)을 참조한다. T2는 순수 계약/변경 이력·adapter 범위로 구현·검증했다. T3는 합성 문서의 실제 로컬 편집·반응형 범위로 구현·검증했다. T4는 실제 DuckDB 저장·복원/충돌·선택 UI 범위로 구현·검증했다. T5~T10은 PLANNED / NOT_RUN이다. 화면 배치·API는 구현 전에 관련 코드와 좁은 계약 검사를 확인한다. 다수 기능을 한 번에 작성하고 마지막에 검증하지 않는다. 아래 T 하나가 구현·검증·변경 기록·리뷰·커밋의 단위다. 선행 조건이 통과하면 다음 작업으로 진행하며 형식적인 승인 질문을 반복하지 않는다. 사용자 취소/실제 권한·파괴적 경계가 있으면 해당 조건을 따른다.
 
 기존 numeric/chart와 단일 소스 분석을 첫 구현에 사용한다. 기존 생성기의 1~6 위젯 한도는 첫 시연에 적용하며 UI에 숨기지 않는다. 모든 블록 종류·다중 소스·대규모 보드 지원을 첫 시연 완료로 주장하지 않는다. 이 한도가 실제 수용 흐름을 막을 때 해당 compiler 계약과 함께 확장한다. 임의 코드 실행·새 chart engine·실시간 공동 편집·커넥터 확대는 제외한다. 텍스트/표/필터 블록은 T6에서 기존 렌더러 지원 범위를 확인하고 미지원 종류는 별도 승인된 구현 단위로 남긴다.
 
@@ -117,11 +117,11 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 **Interfaces:** `GET /studio/dashboards/:id -> StudioDocumentV1`; `POST /studio/dashboards/:id/save {requestId,expectedRevision,document} -> {document,idMap}`. 생성은 T6의 `POST /studio/dashboards`에서 같은 save helper 사용.
 
-- [ ] 소유권은 문서·source·metric 모두 서버 확인. 오래된 revision은409/쓰기0, 데이터 검증 실패는 rollback. requestId 같은 body는 같은 결과, 다른 body는409. run record는(actor,requestId) unique와 payload hash로 저장.
-- [ ] legacy 분석/Widget/layout과 StudioState JSON을 같은 transaction으로 저장. 기존 필터·저장 지표 링크/definitionVersion·blockId 유지. legacy 경로에서 문서 변경이 발생하면 digest/revision 검증으로 오래된 Studio 문서를409 처리하고 재조회 adapter로 복원.
-- [ ] BE 관련 spec 후 build, FE 저장/409/error 재시도 test. migration up/down은 임시 DB에서 기존 행 불변 확인. StudioRun은 T4에서 저장 idempotency journal로 먼저 만들고 T7에서 단계 실행에 확장한다. run record의 장기 정리는 후속 운영 작업이며 MVP에서 시간 만료를 중복 실행 근거로 쓰지 않음.
-- [ ] STUDIO-E02: 저장→reload→기존 보기 대조, 요청 replay의 중복0·2탭 충돌 확인. 충돌은 미저장 로컬 변경을 보존하고 최신 상태 비교/재적용 경로 제공, 자동 last-write-wins 금지.
-- [ ] 커밋. **G1:** 숫자·배치·ID 저장 복원이 통과. 이때 첫 실제 제품 데모가 가능해야 함.
+- [x] 소유권은 문서·source·metric 모두 서버 확인. 오래된 revision은409/쓰기0, 데이터 검증 실패는 rollback. requestId 같은 body는 같은 결과, 다른 body는409. run record는(actor,requestId) unique와 payload hash로 저장.
+- [x] legacy 분석/Widget/layout과 StudioState JSON을 같은 transaction으로 저장. 기존 필터·저장 지표 링크/definitionVersion·blockId 유지. legacy 경로에서 문서 변경이 발생하면 digest/revision 검증으로 오래된 Studio 문서를409 처리하고 재조회 adapter로 복원.
+- [x] BE 관련 spec 후 build, FE 저장/409/error 재시도 test. migration up/down은 임시 DB에서 기존 행 불변 확인. StudioRun은 T4에서 저장 idempotency journal로 먼저 만들고 T7에서 단계 실행에 확장한다. run record의 장기 정리는 후속 운영 작업이며 MVP에서 시간 만료를 중복 실행 근거로 쓰지 않음.
+- [x] STUDIO-E02: 저장→reload→기존 보기 대조, 요청 replay의 중복0·2탭 충돌 확인. 충돌은 미저장 로컬 변경을 보존하고 최신 상태 비교/재적용 경로 제공, 자동 last-write-wins 금지.
+- [x] 커밋. **G1:** 숫자·배치·ID 저장 복원이 통과. 이때 첫 실제 제품 데모가 가능해야 함.
 
 ### T5: 선택 블록 AI 수정 연결 (P2/P3 / BR-001·003)
 

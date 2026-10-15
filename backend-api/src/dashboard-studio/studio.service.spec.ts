@@ -1,0 +1,375 @@
+jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
+import { DataSource } from 'typeorm';
+import { AiDashboardService } from '../ai/ai-dashboard.service';
+import { DuckDBService } from '../analysis/duckdb.service';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
+import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
+import { UserMapping } from '../user/entities/user-mapping.entity';
+import { Database } from '../database/entities/database.entity';
+import { Dataset } from '../dataset/entities/dataset.entity';
+import { Widget } from '../widget/entities/widget.entity';
+import { Component } from '../component/entities/component.entity';
+import { Metric } from '../metric/entities/metric.entity';
+import { StudioState } from './entities/studio-state.entity';
+import { StudioRun } from './entities/studio-run.entity';
+import { studioDigest } from './studio-legacy';
+import { StudioService } from './studio.service';
+import { SourceAccessService } from '../ownership/source-access.service';
+import { applyStudioOperation } from './studio-operations';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+const draft = () => ({
+  databaseId: 1,
+  title: 'Studio actual',
+  explanation: 'All time',
+  widgets: [
+    {
+      title: 'Revenue',
+      description: '',
+      type: 'BOARD_NUMERIC',
+      sql: 'SELECT sum(amount) AS value FROM source',
+      valueField: 'value',
+      decimalPlaces: 0,
+    },
+    {
+      title: 'Channels',
+      description: '',
+      type: 'CHART_COLUMN',
+      sql: 'SELECT category,sum(amount) AS value FROM source GROUP BY category',
+      categoryField: 'category',
+      valueField: 'value',
+      decimalPlaces: 0,
+    },
+  ],
+});
+describe('Studio real DuckDB and transactional metadata', () => {
+  let db: DataSource,
+    worker: DuckDBService,
+    ai: AiDashboardService,
+    studio: StudioService,
+    root: string,
+    id: number,
+    connection: any;
+  const previous = process.env.FILE_UPLOAD_DIR;
+  beforeAll(async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-t4-'));
+    process.env.FILE_UPLOAD_DIR = root;
+    worker = new DuckDBService();
+    const file = await worker.importFile({
+      originalname: 'studio.csv',
+      buffer: Buffer.from(
+        'category,amount,event_time\nSite,300,2026-01-01T00:00:00Z\nMobile,200,2026-01-02T00:00:00Z\n',
+      ),
+    });
+    db = await new DataSource({
+      type: 'sqlite',
+      database: ':memory:',
+      synchronize: true,
+      entities: [
+        Dashboard,
+        DashboardShare,
+        DashboardWidget,
+        UserMapping,
+        Database,
+        Dataset,
+        Widget,
+        Component,
+        Metric,
+        StudioState,
+        StudioRun,
+      ],
+    }).initialize();
+    await db.manager.save(Database, {
+      id: 1,
+      ownerId: 7,
+      name: 'Source',
+      connectionConfig: '{}',
+      engine: 'duckdb',
+      type: 'FILE',
+    });
+    for (const type of ['BOARD_NUMERIC', 'CHART_COLUMN'])
+      await db.manager.save(Component, { type, title: type, option: '{}', useYn: 'Y' });
+    connection = {
+      withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
+      duckDBVersion: jest.fn().mockResolvedValue(studioDigest('test-source')),
+      isDuckDB: jest.fn().mockResolvedValue(true),
+      queryDuckDB: jest.fn((_id, sql, bindings) => worker.query(file.filename, sql, bindings)),
+    };
+    ai = new AiDashboardService({} as any, connection, db.getRepository(Dashboard));
+    studio = new StudioService(db, ai, connection, new SourceAccessService(db));
+  });
+  beforeEach(async () => {
+    id = (await ai.save({ draft: draft() }, 7)).data.id;
+  });
+  afterAll(async () => {
+    await worker?.onModuleDestroy();
+    await db?.destroy();
+    fs.rmSync(root, { recursive: true, force: true });
+    if (previous === undefined) delete process.env.FILE_UPLOAD_DIR;
+    else process.env.FILE_UPLOAD_DIR = previous;
+  });
+  const save = async (doc: any, requestId = 'request1-' + id, expectedRevision = doc.revision) =>
+    studio.save(
+      id,
+      {
+        requestId,
+        expectedRevision,
+        expectedSourceRevision: studioDigest('test-source'),
+        document: doc,
+      },
+      7,
+    );
+  it('persists exact viewport geometry/title, keeps existing viewer numbers and canonical references', async () => {
+    const state = await studio.get(id, 7);
+    expect(state.preview.widgets[0].datas).toEqual([{ value: 500 }]);
+    const doc = state.document;
+    doc.title = 'Edited';
+    doc.blocks[0].title = 'Total sales';
+    doc.layouts.lg[0].y = 10;
+    doc.layouts.md[0].y = 20;
+    doc.layouts.xs[0].y = 30;
+    const result = await save(doc);
+    const loaded = await studio.get(id, 7);
+    expect(loaded.document).toEqual(result.document);
+    expect(loaded.document.layouts).toEqual(doc.layouts);
+    expect(loaded.preview.widgets[0].datas).toEqual([{ value: 500 }]);
+    const analysis = (await ai.analysis(id, 7, true)).data;
+    expect(analysis.blockLayouts[doc.blocks[0].id].y).toBe(10);
+    expect(analysis.widgets[0].sql).toBe(draft().widgets[0].sql);
+  });
+  it('remaps duplicates only, replays exactly once, rejects changed payload and stale saves without writes', async () => {
+    const original = (await studio.get(id, 7)).document;
+    const doc = applyStudioOperation(original, {
+      type: 'duplicateBlock',
+      blockId: original.blocks[0].id,
+      newId: 'new:11111111-1111-4111-8111-111111111111',
+    });
+    const first = await save(doc);
+    const count = await db.manager.count(Widget);
+    expect(await save(doc)).toEqual(first);
+    expect(await db.manager.count(Widget)).toBe(count);
+    expect(Object.keys(first.idMap)).toHaveLength(1);
+    await expect(save({ ...doc, title: 'Different' })).rejects.toThrow('같은 저장 요청');
+    await expect(save(original, 'stale')).rejects.toThrow('다른 화면');
+    expect(await db.manager.count(Widget)).toBe(count);
+    const loaded = (await studio.get(id, 7)).document;
+    expect(loaded.blocks[0].id).toBe(original.blocks[0].id);
+    expect(loaded.blocks[2].id).toBe(first.idMap[doc.blocks[2].id]);
+  });
+  it('checks dashboard/source ownership and rejects unknown persisted IDs/definition tampering', async () => {
+    await expect(studio.get(id, 8)).rejects.toThrow();
+    const doc = (await studio.get(id, 7)).document;
+    const invalid = JSON.parse(JSON.stringify(doc));
+    invalid.blocks[0].definitionKey = 'other';
+    await expect(save(invalid)).rejects.toThrow('계산 정의');
+    const changed = JSON.parse(JSON.stringify(doc));
+    changed.blocks[0].id = 'unknown';
+    for (const bp of ['lg', 'md', 'xs']) changed.layouts[bp][0].id = 'unknown';
+    await expect(save(changed)).rejects.toThrow('계산 정의');
+    await db.manager.update(Database, { id: 1 }, { ownerId: 8 });
+    try {
+      await expect(save(doc)).rejects.toThrow();
+    } finally {
+      await db.manager.update(Database, { id: 1 }, { ownerId: 7 });
+    }
+  });
+  it('rolls all writes back if the journal fails after widget creation', async () => {
+    const doc = (await studio.get(id, 7)).document;
+    const count = await db.manager.count(Widget);
+    const original = await db.manager.findOneBy(Dashboard, { id });
+    await db.query(
+      "CREATE TRIGGER studio_fail BEFORE INSERT ON studio_run BEGIN SELECT RAISE(FAIL, 'journal failure'); END",
+    );
+    try {
+      await expect(save({ ...doc, title: 'Failure' })).rejects.toThrow('journal failure');
+      expect(await db.manager.count(Widget)).toBe(count);
+      expect(await db.manager.findOneBy(Dashboard, { id })).toEqual(original);
+      expect(await db.manager.countBy(StudioState, { dashboardId: id })).toBe(0);
+    } finally {
+      await db.query('DROP TRIGGER studio_fail');
+    }
+  });
+  it('preserves structured metric snapshots through duplicate/delete and blocks stale metric versions', async () => {
+    const definition = {
+      schemaVersion: 1,
+      sourceId: 1,
+      definitionVersion: 1,
+      label: 'Sales',
+      aggregation: 'sum',
+      column: 'amount',
+    };
+    const metric = await db.manager.save(Metric, {
+      name: 'studio_sales_' + id,
+      databaseId: 1,
+      tableName: 'uploaded_data',
+      aggregation: 'SUM' as any,
+      expression: 'amount',
+      definition: JSON.stringify(definition),
+      useYn: 'Y',
+    });
+    const snapshot = {
+      schemaVersion: 2,
+      kind: 'structured-bi-dashboard',
+      sourceId: 1,
+      dataVersion: 'fixture',
+      items: [
+        { sourceId: 1, metricId: metric.id, definitionVersion: 1, definition },
+        {
+          sourceId: 1,
+          metricId: metric.id,
+          definitionVersion: 1,
+          definition,
+          dimension: 'category',
+          chart: 'bar',
+        },
+      ],
+    };
+    await db.manager.update(Dashboard, { id }, { structuredDefinition: JSON.stringify(snapshot) });
+    const doc = (await studio.get(id, 7)).document;
+    expect(doc.blocks[0].measureRefs).toEqual([{ id: metric.id, definitionVersion: '1' }]);
+    const next = applyStudioOperation(doc, {
+      type: 'duplicateBlock',
+      blockId: doc.blocks[1].id,
+      newId: 'new:22222222-2222-4222-8222-222222222222',
+    });
+    const tampered = JSON.parse(JSON.stringify(next));
+    tampered.blocks[0].measureRefs = [];
+    await expect(save(tampered, 'drop-ref-' + id)).rejects.toThrow('계산 정의');
+    await save(next);
+    const stored = JSON.parse((await db.manager.findOneBy(Dashboard, { id })).structuredDefinition);
+    expect(stored.items).toEqual([snapshot.items[0], snapshot.items[1], snapshot.items[1]]);
+    const latest = (await studio.get(id, 7)).document;
+    await db.manager.update(
+      Metric,
+      { id: metric.id },
+      { definition: JSON.stringify({ ...definition, definitionVersion: 2 }) },
+    );
+    await expect(save({ ...latest, title: 'Stale metric' }, 'metric-stale')).rejects.toThrow(
+      '지표 정의',
+    );
+  });
+  it('rejects schema drift in stored dimension references without any writes', async () => {
+    const snapshot = {
+      schemaVersion: 2,
+      kind: 'structured-bi-dashboard',
+      sourceId: 1,
+      items: [{}, { sourceId: 1, dimension: 'category', chart: 'bar' }],
+    };
+    await db.manager.update(Dashboard, { id }, { structuredDefinition: JSON.stringify(snapshot) });
+    const doc = (await studio.get(id, 7)).document;
+    await save(doc);
+    const latest = (await studio.get(id, 7)).document;
+    const count = await db.manager.count(Widget);
+    const query = connection.queryDuckDB.getMockImplementation();
+    connection.queryDuckDB.mockImplementation(async (source, sql, bindings) => {
+      const result = await query(source, sql, bindings);
+      return sql === 'DESCRIBE uploaded_data'
+        ? { ...result, datas: [...result.datas, { column_name: 'extra', column_type: 'VARCHAR' }] }
+        : result;
+    });
+    try {
+      await expect(
+        save({ ...latest, title: 'Schema changed' }, 'schema-drift-' + id),
+      ).rejects.toThrow('소스 열');
+      expect(await db.manager.count(Widget)).toBe(count);
+    } finally {
+      connection.queryDuckDB.mockImplementation(query);
+    }
+  });
+  it('rejects a replaced source file even when only numeric measures are edited', async () => {
+    const doc = (await studio.get(id, 7)).document;
+    const before = await db.manager.count(Widget);
+    connection.duckDBVersion.mockResolvedValue(studioDigest('new-source'));
+    try {
+      await expect(save({ ...doc, title: 'Changed source' }, 'file-stale-' + id)).rejects.toThrow(
+        '데이터 파일',
+      );
+      expect(await db.manager.count(Widget)).toBe(before);
+      expect((await studio.get(id, 7)).sourceRevision).toBe(studioDigest('new-source'));
+    } finally {
+      connection.duckDBVersion.mockResolvedValue(studioDigest('test-source'));
+    }
+  });
+  it('imports legacy single-block metric links with explicitly unlinked attached widgets', async () => {
+    const definition = {
+      schemaVersion: 1,
+      sourceId: 1,
+      definitionVersion: 1,
+      label: 'Sales',
+      aggregation: 'sum',
+      column: 'amount',
+    };
+    const metric = await db.manager.save(Metric, {
+      name: 'single_sales_' + id,
+      databaseId: 1,
+      tableName: 'uploaded_data',
+      aggregation: 'SUM' as any,
+      expression: 'amount',
+      definition: JSON.stringify(definition),
+      useYn: 'Y',
+    });
+    const snapshot = {
+      schemaVersion: 1,
+      kind: 'structured-bi',
+      sourceId: 1,
+      metricId: metric.id,
+      definitionVersion: 1,
+      definition,
+    };
+    await db.manager.update(Dashboard, { id }, { structuredDefinition: JSON.stringify(snapshot) });
+    const doc = (await studio.get(id, 7)).document;
+    expect(doc.blocks[0].measureRefs).toEqual([{ id: metric.id, definitionVersion: '1' }]);
+    expect(doc.blocks[1].measureRefs).toEqual([]);
+    await save({ ...doc, title: 'Legacy linked' });
+    const stored = JSON.parse((await db.manager.findOneBy(Dashboard, { id })).structuredDefinition);
+    expect(stored.items[0]).toEqual(snapshot);
+    expect(stored.items[1]).toEqual({ kind: 'studio-unlinked-legacy', sourceId: 1 });
+  });
+  it('rejects malformed structured snapshot alignment rather than inventing unlinked blocks', async () => {
+    await db.manager.update(
+      Dashboard,
+      { id },
+      {
+        structuredDefinition: JSON.stringify({
+          schemaVersion: 1,
+          kind: 'structured-bi',
+          sourceId: 1,
+          metricId: 1,
+        }),
+      },
+    );
+    await expect(studio.get(id, 7)).rejects.toThrow('지표 연결');
+  });
+  it('serializes competing Studio saves and only commits one revision', async () => {
+    const doc = (await studio.get(id, 7)).document;
+    const before = await db.manager.count(StudioRun);
+    const results = await Promise.allSettled([
+      save({ ...doc, title: 'First' }, 'race-first-' + id),
+      save({ ...doc, title: 'Second' }, 'race-second-' + id),
+    ]);
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter(r => r.status === 'rejected')).toHaveLength(1);
+    expect(await db.manager.count(StudioRun)).toBe(before + 1);
+  });
+  it('detects legacy edits, reimports current definitions, and retains failed preview metadata', async () => {
+    const doc = (await studio.get(id, 7)).document;
+    await save({ ...doc, title: 'Studio saved' });
+    const edited = await db.manager.findOneBy(Dashboard, { id });
+    edited.title = 'Legacy edit';
+    await db.manager.save(Dashboard, edited);
+    await expect(save({ ...doc, title: 'Overwrite' }, 'legacy-stale')).rejects.toThrow('다른 화면');
+    const loaded = await studio.get(id, 7);
+    expect(loaded.document.title).toBe('Legacy edit');
+    const spy = jest.spyOn(ai, 'preview').mockRejectedValueOnce(new Error('offline'));
+    try {
+      const failed = await studio.get(id, 7);
+      expect(failed.preview).toBeNull();
+      expect(failed.document.title).toBe('Legacy edit');
+      expect(failed.previewError).toBeDefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});

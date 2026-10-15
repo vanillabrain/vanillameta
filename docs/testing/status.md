@@ -1,3 +1,5 @@
+2026-10-15 Studio T4: [dashboard-studio.md](dashboard-studio.md). 실제 DuckDB 저장·reload/ID remap·legacy 보기 숫자, 두 탭409/3방향 재적용, commit 후 응답 유실 동일 요청 재시도·이후 편집 보존,768/390px 저장 복원 PASS. 숫자 가림·차트 축 잘림·status0 오류 문구·빈 캔버스 복구 수정. 보호 API401/403·파일 버전 pin·atomic rollback 확인. 선택 디자인 PASS, 실LLM/게시 NOT_RUN·VoiceOver BLOCKED 유지. 기존 집계 소급 변경 없음.
+
 2026-10-15 Studio T3: [dashboard-studio.md](dashboard-studio.md). 합성 문서의 실제 블록 추가·복제·삭제·drag/resize·undo/redo, 폭별 배치 보존·모바일 키보드 편집 STUDIO-E01 PASS. 1440/768/390px overflow/겹침0, 긴 제목·전체 숫자 디자인 확인. Studio33·타입/lint/build PASS. 서버 저장·AI·게시 NOT_RUN, VoiceOver BLOCKED 유지. 기존 집계 소급 변경 없음.
 
 2026-10-14 Pivot 탐색: [explore-pivot.md](explore-pivot.md) PIVOT-01~05 PASS_SELECTED_VARIANTS. 같은Rill원본1391572행/9×2/17실제조합·모든합계독립SQL 일치(56663800/3.07170877372671), Rill표시값·UX실화면비교. BE13/PivotFE6·전환1·타입/lint/build,1440/390·Tab/Enter·OSnative방향키·표스크롤·503복구·50행제한선택조건PASS. 실제깨진타소유자500→권한확인먼저수정→403재검증. 전체카탈로그130불변/VoiceOverBLOCKED/AI gpt-6-luna유지호출0. Pivot시간축·계층·이전기간·정렬편집·저장/공유/Export·운영부하는후속. 미커밋워크트리작업. 아래과거Pivot미구현기록은이번첫범위로보강됐다.

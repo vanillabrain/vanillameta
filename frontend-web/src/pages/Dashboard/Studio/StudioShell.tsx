@@ -8,6 +8,21 @@ import './studio.css';
 
 export type StudioDesignStage = 'start' | 'result' | 'settings' | 'publish';
 export type StudioDesignDocument = { title: string; source: string; period: string; blockTitle: string };
+/** Product route context: real save state and real source labels. The design preview leaves it undefined. */
+export type StudioProductContext = {
+  source: string;
+  sourceMeta: string;
+  period: string;
+  blockCount: number;
+  canvasTitle: string;
+  canvasDescription: string;
+  dataLabel: string;
+  notice: string;
+  save: { label: string; disabled: boolean; pending: boolean; status: string; onSave: () => void };
+  banner?: React.ReactNode;
+  aiBlockSummary: string;
+  aiNote: string;
+};
 type Props = {
   document: StudioDesignDocument;
   stage: StudioDesignStage;
@@ -20,6 +35,7 @@ type Props = {
   inspector: React.ReactNode;
   editToolbar: React.ReactNode;
   history: { canUndo: boolean; canRedo: boolean; count: number; onUndo: () => void; onRedo: () => void };
+  product?: StudioProductContext;
 };
 export default function StudioShell({
   document: doc,
@@ -33,8 +49,9 @@ export default function StudioShell({
   history,
   status,
   onStatusChange,
+  product,
 }: Props) {
-  const start = stage === 'start';
+  const start = !product && stage === 'start';
   const compact = useMediaQuery('(max-width:899px)');
   const panelContent = (
     <aside className="studio-panel" aria-label="Studio 보조 패널">
@@ -63,16 +80,22 @@ export default function StudioShell({
             </p>
             <div className="studio-context-card">
               <span className="studio-eyebrow">현재 문맥</span>
-              <strong>{doc.source}</strong>
-              <span>총매출 · 환불액 · 순매출</span>
-              <span>{doc.period} · 모든 채널</span>
+              <strong>{product ? product.source : doc.source}</strong>
+              <span>{product ? product.aiBlockSummary : '총매출 · 환불액 · 순매출'}</span>
+              <span>{product ? product.period : doc.period + ' · 모든 채널'}</span>
             </div>
             <div className="studio-suggestion">“환불액이 큰 채널을 보여 줘”</div>
             <div className="studio-suggestion">“이 차트를 주간으로 바꿔 줘”</div>
             <p className="studio-panel-note">
-              AI 연결 전의 배치 시안입니다.
-              <br />
-              실제 요청은 전송되지 않습니다.
+              {product ? (
+                product.aiNote
+              ) : (
+                <>
+                  AI 연결 전의 배치 시안입니다.
+                  <br />
+                  실제 요청은 전송되지 않습니다.
+                </>
+              )}
             </p>
           </div>
           <div className="studio-ai-composer">
@@ -84,7 +107,7 @@ export default function StudioShell({
               placeholder="변경하고 싶은 내용을 입력하세요"
             />
             <div>
-              <span>시안 · 전송 불가</span>
+              <span>{product ? 'AI 수정은 다음 단계에서 연결됩니다' : '시안 · 전송 불가'}</span>
               <Button disabled variant="contained">
                 전송
               </Button>
@@ -108,7 +131,13 @@ export default function StudioShell({
       </a>
       <div className="studio-notice">
         <span className="studio-dot" />
-        로컬 편집 미리보기 <span>가상 데이터 · AI·저장·게시 연결 전</span>
+        {product ? (
+          product.notice
+        ) : (
+          <>
+            로컬 편집 미리보기 <span>가상 데이터 · AI·저장·게시 연결 전</span>
+          </>
+        )}
       </div>
       <header className="studio-header">
         <div className="studio-heading">
@@ -122,7 +151,7 @@ export default function StudioShell({
           </div>
         </div>
         <div className="studio-header-actions">
-          <span className="studio-draft">시안 · 저장되지 않음</span>
+          <span className="studio-draft">{product ? product.save.status : '시안 · 저장되지 않음'}</span>
           <Button disabled={!history.canUndo} onClick={history.onUndo}>
             되돌리기
           </Button>
@@ -137,37 +166,52 @@ export default function StudioShell({
           >
             {history.count}회 변경
           </span>
-          <Button variant="outlined" disabled>
-            저장
-          </Button>
-          <Button variant="contained" disableElevation onClick={() => onStageChange('publish')}>
-            공유 미리보기
-          </Button>
+          {product ? (
+            <Button
+              variant="contained"
+              disableElevation
+              onClick={product.save.onSave}
+              disabled={product.save.disabled || product.save.pending}
+            >
+              {product.save.label}
+            </Button>
+          ) : (
+            <>
+              <Button variant="outlined" disabled>
+                저장
+              </Button>
+              <Button variant="contained" disableElevation onClick={() => onStageChange('publish')}>
+                공유 미리보기
+              </Button>
+            </>
+          )}
         </div>
       </header>
-      <nav className="studio-scenarios" aria-label="디자인 상태">
-        <span>시안 보기</span>
-        {(
-          [
-            { id: 'start', label: '01 시작' },
-            { id: 'result', label: '02 생성 결과' },
-            { id: 'settings', label: '03 블록 설정' },
-            { id: 'publish', label: '04 공유' },
-          ] as const
-        ).map(item => (
-          <Button key={item.id} aria-pressed={stage === item.id} onClick={() => onStageChange(item.id)}>
-            {item.label}
-          </Button>
-        ))}
-        <label className="studio-status-select">
-          상태 시안{' '}
-          <select value={status} onChange={e => onStatusChange(e.target.value as 'ready' | 'loading' | 'error')}>
-            <option value="ready">정상</option>
-            <option value="loading">로딩</option>
-            <option value="error">오류</option>
-          </select>
-        </label>
-      </nav>
+      {!product && (
+        <nav className="studio-scenarios" aria-label="디자인 상태">
+          <span>시안 보기</span>
+          {(
+            [
+              { id: 'start', label: '01 시작' },
+              { id: 'result', label: '02 생성 결과' },
+              { id: 'settings', label: '03 블록 설정' },
+              { id: 'publish', label: '04 공유' },
+            ] as const
+          ).map(item => (
+            <Button key={item.id} aria-pressed={stage === item.id} onClick={() => onStageChange(item.id)}>
+              {item.label}
+            </Button>
+          ))}
+          <label className="studio-status-select">
+            상태 시안{' '}
+            <select value={status} onChange={e => onStatusChange(e.target.value as 'ready' | 'loading' | 'error')}>
+              <option value="ready">정상</option>
+              <option value="loading">로딩</option>
+              <option value="error">오류</option>
+            </select>
+          </label>
+        </nav>
+      )}
       <div className={`studio-workspace ${panel && !start ? 'studio-has-panel' : ''}`}>
         <main id="studio-main" tabIndex={-1}>
           {start ? (
@@ -229,39 +273,53 @@ export default function StudioShell({
               <div className="studio-context">
                 <div>
                   <span className="studio-source-label">데이터</span>
-                  <strong>{doc.source}</strong>
-                  <span className="studio-source-meta">주문·환불 · 디자인용 샘플</span>
+                  <strong>{product ? product.source : doc.source}</strong>
+                  <span className="studio-source-meta">{product ? product.sourceMeta : '주문·환불 · 디자인용 샘플'}</span>
                 </div>
                 <Button variant="outlined" onClick={() => onPanelChange('ai')} startIcon={<AutoAwesomeOutlined />}>
                   AI 열기
                 </Button>
               </div>
-              {status === 'error' && (
+              {product?.banner}
+              {!product && status === 'error' && (
                 <Alert severity="error" className="studio-status-banner">
                   데이터 갱신 오류 안내 시안입니다. 기존 결과와 편집 내용은 보존하고 실패한 단계만 다시 시도합니다. 실제
                   장애가 아닙니다.
                 </Alert>
               )}
-              {status === 'loading' && (
+              {!product && status === 'loading' && (
                 <div role="status" className="studio-status-banner studio-loading">
                   로딩 상태 시안 · 새 결과를 준비하는 동안 이전 내용을 유지합니다. 실제 요청은 실행하지 않습니다.
                 </div>
               )}
               <div className="studio-canvas-toolbar">
                 <div className="studio-filters">
-                  <span className="studio-filter-tag">{doc.period}</span>
-                  <span className="studio-filter-tag">모든 채널</span>
-                  <span className="studio-filter-tag">KRW</span>
+                  {product ? (
+                    <>
+                      <span className="studio-filter-tag">{product.period}</span>
+                      <span className="studio-filter-tag">블록 {product.blockCount}개</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="studio-filter-tag">{doc.period}</span>
+                      <span className="studio-filter-tag">모든 채널</span>
+                      <span className="studio-filter-tag">KRW</span>
+                    </>
+                  )}
                 </div>
-                <span>브라우저 안에서 편집 · 새로고침 시 초기화</span>
+                <span>
+                  {product
+                    ? '저장하면 기존 대시보드 보기와 같은 데이터를 사용합니다'
+                    : '브라우저 안에서 편집 · 새로고침 시 초기화'}
+                </span>
               </div>
               <div className="studio-canvas">
                 <div className="studio-canvas-title">
                   <div>
-                    <h2>매출·환불 한눈에 보기</h2>
-                    <p>성과를 확인하고, 변화가 생긴 채널을 살펴보세요.</p>
+                    <h2>{product ? product.canvasTitle : '매출·환불 한눈에 보기'}</h2>
+                    <p>{product ? product.canvasDescription : '성과를 확인하고, 변화가 생긴 채널을 살펴보세요.'}</p>
                   </div>
-                  <span className="studio-live-label">가상 데이터</span>
+                  <span className="studio-live-label">{product ? product.dataLabel : '가상 데이터'}</span>
                 </div>
                 {editToolbar}
                 {canvas}
