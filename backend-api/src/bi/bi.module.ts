@@ -1,3 +1,5 @@
+import { DashboardReuseService } from './dashboard-reuse.service';
+import { DashboardReuseController } from './dashboard-reuse.controller';
 import { SemanticCreationService } from './semantic-creation.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardPublication } from '../dashboard/entities/dashboard-publication.entity';
@@ -29,6 +31,7 @@ import { BiService } from './bi.service';
   ],
   controllers: [
     BiController,
+    DashboardReuseController,
     SemanticProposalController,
     BiExploreController,
     ExploreViewController,
@@ -39,6 +42,7 @@ import { BiService } from './bi.service';
   ],
   providers: [
     BiService,
+    DashboardReuseService,
     SemanticProposalService,
     SemanticCreationService,
     BiExploreService,

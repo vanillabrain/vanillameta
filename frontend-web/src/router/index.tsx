@@ -11,6 +11,7 @@ const DashboardView = React.lazy(() => import('@/pages/Dashboard/DashboardView')
 const DashboardCreate = React.lazy(() => import('@/pages/Dashboard/DashboardCreate'));
 const Publication = React.lazy(() => import('@/pages/Publication'));
 const Published = React.lazy(() => import('@/pages/Publication/Published'));
+const DashboardReuse = React.lazy(() => import('@/pages/Dashboard/DashboardReuse'));
 const DashboardEdit = React.lazy(() => import('@/pages/Dashboard/DashboardEdit'));
 const DashboardModify = React.lazy(() => import('@/pages/Dashboard/DashboardModify'));
 const Widget = React.lazy(() => import('@/pages/Widget'));
@@ -47,6 +48,7 @@ function Router() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
           <Route path="/dashboard/:dashboardId/publication" element={<Publication />} />
+          <Route path="/dashboard/:dashboardId/reuse" element={<DashboardReuse />} />
           <Route path="/dashboard/:dashboardId/edit-charts" element={<DashboardEdit />} />
           <Route path="/dashboard/create" element={<DashboardCreate />}>
             <Route path=":createType" element={<DashboardCreate />} />

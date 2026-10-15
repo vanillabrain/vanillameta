@@ -57,3 +57,22 @@ it('renders captured numeric plus trend and category chart with no source identi
   expect(calls.widget.mock.calls[0][0]).not.toHaveProperty('dataSetId');
   expect(calls.trend.mock.calls[0][0].onTimeSelect).toBeUndefined();
 });
+
+it('labels a reuse preview as unsaved without publication instructions', () => {
+  render(
+    <SnapshotView
+      context="reuse"
+      snapshot={{
+        schemaVersion: 1,
+        title: '복사본',
+        capturedAt: '2026-10-15T00:00:00Z',
+        scope: '새 소스',
+        widgets: [],
+        responsiveLayouts: {},
+      }}
+    />,
+  );
+  expect(screen.getByRole('region', { name: '복사본 미리보기' })).toBeTruthy();
+  expect(screen.getByText(/저장 전 미리보기/)).toBeTruthy();
+  expect(screen.queryByText(/재게시 후 반영/)).toBeNull();
+});

@@ -1,0 +1,178 @@
+import React from 'react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import DashboardReuse from './index';
+const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), navigate: vi.fn(), id: '12' }));
+vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
+vi.mock('react-router-dom', () => ({
+  useParams: () => ({ dashboardId: api.id }),
+  useNavigate: () => api.navigate,
+  Link: ({ to, children }: any) => <a href={to}>{children}</a>,
+}));
+vi.mock('../../Publication/SnapshotView', () => ({
+  default: ({ snapshot, context }: any) => (
+    <div>
+      미리보기: {snapshot.title} · {context}
+    </div>
+  ),
+}));
+const columns = [
+  { name: 'amount', numeric: true, temporal: false, type: 'DOUBLE' },
+  { name: 'os', numeric: false, temporal: false, type: 'VARCHAR' },
+];
+const original = () => ({
+  originalId: Number(api.id),
+  originalTitle: '원본',
+  expectedRevision: 'a'.repeat(64),
+  originalSourceId: 1,
+  title: '원본 복사본',
+  columns,
+  sources: [
+    { id: 1, name: '원본 소스' },
+    { id: 2, name: '새 소스' },
+  ],
+});
+const profile = (id = 1) => ({
+  sourceId: id,
+  supported: true,
+  dataVersion: 'b'.repeat(64),
+  columns: id === 1 ? columns : columns.map(column => ({ ...column, name: column.name + '_new' })),
+});
+const wrap = (data: unknown) => ({ data: { status: 'SUCCESS', data } });
+const preview = (title = '원본 복사본', sourceId = 1) => ({
+  originalId: Number(api.id),
+  sourceId,
+  ticket: 'one-preview',
+  snapshot: { title, widgets: [{ type: 'BOARD_NUMERIC', datas: [{ value: 42 }] }] },
+});
+beforeEach(() => {
+  vi.clearAllMocks();
+  api.id = '12';
+  api.get.mockImplementation(async (url: string) =>
+    wrap(url.endsWith('/reuse') ? original() : profile(url.includes('/2/') ? 2 : 1)),
+  );
+});
+afterEach(cleanup);
+async function open() {
+  const view = render(<DashboardReuse />);
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  return view;
+}
+async function makePreview() {
+  api.post.mockResolvedValueOnce(wrap(preview()));
+  fireEvent.click(screen.getByRole('button', { name: '전체 미리보기' }));
+  await screen.findByText('미리보기: 원본 복사본 · reuse');
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '복사본 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+}
+it('opens an unwritten copy, maps renamed columns explicitly and saves only a ticket', async () => {
+  await open();
+  expect(api.post).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('데이터 소스'), { target: { value: '2' } });
+  await screen.findByLabelText('amount 연결');
+  await waitFor(() => expect((screen.getByLabelText('amount 연결') as HTMLSelectElement).disabled).toBe(false));
+  expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(screen.getByLabelText('amount 연결'), { target: { value: 'amount_new' } });
+  fireEvent.change(screen.getByLabelText('os 연결'), { target: { value: 'os_new' } });
+  api.post.mockResolvedValueOnce(wrap(preview('원본 복사본', 2)));
+  fireEvent.click(screen.getByRole('button', { name: '전체 미리보기' }));
+  await screen.findByText('미리보기: 원본 복사본 · reuse');
+  expect(api.post.mock.calls[0][1]).toEqual({
+    expectedRevision: 'a'.repeat(64),
+    sourceId: 2,
+    sourceRevision: 'b'.repeat(64),
+    title: '원본 복사본',
+    columnMap: { amount: 'amount_new', os: 'os_new' },
+  });
+  api.post.mockResolvedValueOnce(wrap({ id: 90 }));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '복사본 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/90'));
+  expect(api.post.mock.calls[1][1]).toEqual({ ticket: 'one-preview', requestId: expect.any(String) });
+  expect(api.post.mock.calls.every(call => !call[1].draft && !call[1].sql && !call[1].dashboardId)).toBe(true);
+});
+it('invalidates preview after title change and refuses the old save', async () => {
+  await open();
+  await makePreview();
+  fireEvent.change(screen.getByLabelText('복사본 제목'), { target: { value: '새 제목' } });
+  expect(screen.queryByText(/미리보기:/)).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
+  expect(api.post).toHaveBeenCalledTimes(1);
+});
+it('ignores a preview arriving after the input changed', async () => {
+  await open();
+  let resolve: any;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise(done => {
+        resolve = done;
+      }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '전체 미리보기' }));
+  fireEvent.change(screen.getByLabelText('복사본 제목'), { target: { value: '다음 초안' } });
+  await act(async () => resolve(wrap(preview())));
+  expect(screen.queryByText(/미리보기:/)).toBeNull();
+  expect((screen.getByLabelText('복사본 제목') as HTMLInputElement).value).toBe('다음 초안');
+});
+it('keeps failed preview inputs editable without enabling save', async () => {
+  await open();
+  api.post.mockRejectedValueOnce({ response: { status: 400, data: { message: '연결할 숫자 열이 없습니다.' } } });
+  fireEvent.click(screen.getByRole('button', { name: '전체 미리보기' }));
+  await screen.findByText('연결할 숫자 열이 없습니다.');
+  expect((screen.getByLabelText('복사본 제목') as HTMLInputElement).value).toBe('원본 복사본');
+  expect((screen.getByRole('button', { name: '복사본 저장' }) as HTMLButtonElement).disabled).toBe(true);
+});
+it('recovers an uncertain save with the same request id and locks edits', async () => {
+  await open();
+  await makePreview();
+  api.post.mockRejectedValueOnce({ response: { status: 503 } });
+  fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
+  await screen.findByText(/저장 결과를 확인하지 못했습니다/);
+  const body = api.post.mock.calls[1][1];
+  expect(screen.getByLabelText('복사본 제목').matches(':disabled')).toBe(true);
+  api.post.mockResolvedValueOnce(wrap({ id: 90, replayed: true }));
+  fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 다시 확인' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/90'));
+  expect(api.post.mock.calls[2][1]).toEqual(body);
+});
+it('409 preserves inputs and requires another preview', async () => {
+  await open();
+  await makePreview();
+  api.post.mockRejectedValueOnce({ response: { status: 409, data: { message: '원본이 변경되었습니다.' } } });
+  fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
+  await screen.findByText('원본이 변경되었습니다.');
+  expect(screen.queryByText(/미리보기:/)).toBeNull();
+  expect((screen.getByLabelText('복사본 제목') as HTMLInputElement).value).toBe('원본 복사본');
+  expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(false);
+});
+it('ignores a source profile from the previous route', async () => {
+  const view = await open();
+  let resolve: any;
+  api.get.mockImplementationOnce(
+    () =>
+      new Promise(done => {
+        resolve = done;
+      }),
+  );
+  fireEvent.change(screen.getByLabelText('데이터 소스'), { target: { value: '2' } });
+  api.id = '13';
+  view.rerender(<DashboardReuse />);
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  await act(async () => resolve(wrap(profile(2))));
+  expect((screen.getByLabelText('데이터 소스') as HTMLSelectElement).value).toBe('1');
+});
+it('malformed save response never navigates over the original', async () => {
+  await open();
+  await makePreview();
+  api.post.mockResolvedValueOnce(wrap({ id: 12 }));
+  fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
+  await screen.findByText(/저장 결과를 확인하지 못했습니다/);
+  expect(api.navigate).not.toHaveBeenCalled();
+});

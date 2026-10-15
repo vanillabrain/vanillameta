@@ -26,7 +26,13 @@ const responsiveBlockClassName =
   ' [@media(min-width:900px)]:[grid-column:var(--block-col-md)]';
 
 /** Public rendering consumes only captured data; it never queries a source or grants source access. */
-export default function SnapshotView({ snapshot }: { snapshot: Snapshot }) {
+export default function SnapshotView({
+  snapshot,
+  context = 'publication',
+}: {
+  snapshot: Snapshot;
+  context?: 'publication' | 'reuse';
+}) {
   const blockClassName = (blockId: string) => {
     const rects = responsiveBlockStyle(snapshot.responsiveLayouts, blockId);
     return rects.gridRow && rects.gridColumn ? responsiveBlockClassName : undefined;
@@ -44,10 +50,10 @@ export default function SnapshotView({ snapshot }: { snapshot: Snapshot }) {
     };
   };
   return (
-    <section aria-label="게시 결과" className="min-w-0">
+    <section aria-label={context === 'reuse' ? '복사본 미리보기' : '게시 결과'} className="min-w-0">
       <h2 className="my-3 text-lg leading-snug font-semibold [overflow-wrap:anywhere]">{snapshot.title}</h2>
       <p className="mb-4 text-xs text-muted-foreground">
-        {snapshot.scope} · 집계 시점 {snapshot.capturedAt} · 고정된 결과
+        {snapshot.scope} · 집계 시점 {snapshot.capturedAt} · {context === 'reuse' ? '저장 전 미리보기' : '고정된 결과'}
       </p>
       <div className="grid min-w-0 auto-rows-[minmax(80px,auto)] grid-cols-[repeat(4,minmax(0,1fr))] gap-3 sm:grid-cols-[repeat(8,minmax(0,1fr))] md:grid-cols-[repeat(12,minmax(0,1fr))]">
         {snapshot.widgets.map(widget => (
@@ -84,7 +90,9 @@ export default function SnapshotView({ snapshot }: { snapshot: Snapshot }) {
         ))}
       </div>
       <Notice severity="info" className="mt-4">
-        게시 시점의 집계 결과입니다. 원본 데이터 갱신과 편집 내용은 재게시 후 반영됩니다.
+        {context === 'reuse'
+          ? '새 데이터 소스의 미리보기입니다. 확인 후 복사본으로 저장하세요. 원본과 게시본은 바뀌지 않습니다.'
+          : '게시 시점의 집계 결과입니다. 원본 데이터 갱신과 편집 내용은 재게시 후 반영됩니다.'}
       </Notice>
     </section>
   );
