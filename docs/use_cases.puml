@@ -2,6 +2,7 @@
 left to right direction
 actor "운영 담당자" as operator
 rectangle "VanillaMeta" {
+ usecase "UC-015\nPrompt Block Target" as UC015
  usecase "UC-014\nExplicit Prompt Save" as UC014
  usecase "UC-013\nAuto Block Intent" as UC013
  usecase "UC-012\nSemantic Creation" as UC012
@@ -13,6 +14,7 @@ rectangle "VanillaMeta" {
  usecase "UC-003\nUpdate Metric Calculation" as UC003
  usecase "UC-002\nReuse Saved Metric" as UC002
 }
+operator --> UC015
 operator --> UC014
 operator --> UC013
 operator --> UC012

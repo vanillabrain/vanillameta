@@ -9,6 +9,7 @@ vi.mock('@/widget/modules/board/NumericBoard', () => ({ default: () => <div>숫�
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({ default: () => <div>차트 미리보기</div> }));
 vi.mock('@/components/analysis/AnalysisUi', () => ({
   AnalysisUiProvider: ({ children }: any) => <>{children}</>,
+  analysisToggleSx: {},
   ANALYSIS_UI: { fontSize: 12, controlHeight: 28, radius: 4, border: '#e2e8f0', surface: '#f8fafc' },
 }));
 vi.mock('react-grid-layout', () => ({
@@ -770,4 +771,167 @@ it('UC-014 refuses an AI item that fails the manual presentation validation befo
   await screen.findByText('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.');
   expect(api.post).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('heading', { name: '1번 차트 · 기존 계산' })).not.toBeNull();
+});
+
+it('UC-015 applies and saves a server-resolved target without a prior block selection', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '1번 차트를 평균으로 바꾸고 저장해 줘' } });
+  api.post.mockResolvedValueOnce(success({ ...aiResult(), targetKey: item.key, saveRequested: true }));
+  api.post.mockResolvedValueOnce(success({ id: 8, revision: 'next' }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
+  expect(api.post.mock.calls[0][1].selectedKey).toBe('');
+  expect(api.post.mock.calls[1][1].items[0]).toMatchObject({ key: item.key, title: 'AI 평균' });
+});
+
+it('UC-015 keeps an ambiguous question intact and confirms only after a candidate click and resubmit', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '소수 3자리로 바꾸고 저장해 줘' } });
+  api.post.mockResolvedValueOnce(
+    success({
+      editMode: 'clarify',
+      saveRequested: false,
+      targetCandidates: [{ key: item.key, title: item.title, position: 1 }],
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  const candidate = await screen.findByRole('button', { name: '1번 · 기존 계산' });
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(candidate);
+  expect(api.post).toHaveBeenCalledTimes(1);
+  api.post.mockResolvedValueOnce(success({ ...aiResult(), targetKey: item.key, saveRequested: false }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await screen.findByRole('heading', { name: '1번 차트 · AI 평균' });
+  expect(api.post.mock.calls[1][1]).toMatchObject({ prompt: '소수 3자리로 바꾸고 저장해 줘', targetChoiceKey: item.key });
+  expect(api.navigate).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: '1번 · 기존 계산' })).toBeNull();
+  expect(screen.getByText('선택 블록: AI 평균')).not.toBeNull();
+  api.post.mockResolvedValueOnce(success({ editMode: 'clarify', saveRequested: false }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(3));
+  expect(api.post.mock.calls[2][1]).not.toHaveProperty('targetChoiceKey');
+});
+
+it('UC-015 invalidates a confirmed candidate when the question is edited', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '소수 3자리' } });
+  api.post.mockResolvedValueOnce(
+    success({
+      editMode: 'clarify',
+      saveRequested: false,
+      targetCandidates: [{ key: item.key, title: item.title, position: 1 }],
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  fireEvent.click(await screen.findByRole('button', { name: '1번 · 기존 계산' }));
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '현재 초안 저장' } });
+  expect(screen.queryByRole('button', { name: '1번 · 기존 계산' })).toBeNull();
+  api.post.mockResolvedValueOnce(success({ editMode: 'clarify', saveRequested: false }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+  expect(api.post.mock.calls[1][1]).not.toHaveProperty('targetChoiceKey');
+});
+
+it('UC-015 refuses a foreign server target before applying or saving', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '1번 수정 후 저장' } });
+  api.post.mockResolvedValueOnce(
+    success({ ...aiResult(), targetKey: 'foreign', item: { ...aiResult().item, key: 'foreign' }, saveRequested: true }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await screen.findByText('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.');
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('heading', { name: '1번 차트 · 기존 계산' })).not.toBeNull();
+});
+
+it('UC-015 clears a confirmed candidate after a direct draft edit instead of using it as stale selection', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '소수 3자리' } });
+  api.post.mockResolvedValueOnce(
+    success({
+      editMode: 'clarify',
+      saveRequested: false,
+      targetCandidates: [{ key: item.key, title: item.title, position: 1 }],
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  fireEvent.click(await screen.findByRole('button', { name: '1번 · 기존 계산' }));
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '직접 편집' } });
+  api.post.mockResolvedValueOnce(success({ editMode: 'clarify', saveRequested: false }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+  expect(api.post.mock.calls[1][1]).not.toHaveProperty('targetChoiceKey');
+  expect(api.post.mock.calls[1][1].selectedKey).toBe('');
+});
+
+it.each([
+  { targetCandidates: [{ key: 'foreign', title: '외부', position: 1 }] },
+  {
+    targetCandidates: [
+      { key: item.key, title: item.title, position: 1 },
+      { key: item.key, title: item.title, position: 1 },
+    ],
+  },
+  { targetCandidates: [] },
+  { targetCandidates: [null] },
+])('UC-015 rejects malformed candidates %# without presenting an unsafe choice', async ({ targetCandidates }) => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '소수 변경' } });
+  api.post.mockResolvedValueOnce(success({ editMode: 'clarify', saveRequested: false, targetCandidates }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await screen.findByText('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.');
+  expect(screen.queryByRole('region', { name: '수정 대상 후보' })).toBeNull();
+  expect(api.post).toHaveBeenCalledTimes(1);
+});
+
+it('UC-015 uses a different resolved block instead of the old selected context and preserves the old item', async () => {
+  const other = { ...item, key: 'other', title: '다른 블록' };
+  api.get.mockResolvedValueOnce(success({ ...editor, items: [item, other] }));
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '1번 차트 AI로 수정' }));
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '2번 차트 수정 후 저장' } });
+  const changed = { ...aiResult().item, key: 'other', definition: { ...aiResult().item.definition, blockId: 'other' } };
+  api.post.mockResolvedValueOnce(
+    success({ item: changed, targetKey: 'other', editMode: 'content', saveRequested: true, preview: preview(2) }),
+  );
+  api.post.mockResolvedValueOnce(success({ id: 8, revision: 'next' }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
+  expect(api.post.mock.calls[1][1].items[0]).toMatchObject({ key: item.key, title: item.title, kind: 'existing' });
+  expect(api.post.mock.calls[1][1].items[1]).toMatchObject({ key: 'other', title: 'AI 평균', kind: 'draft' });
+});
+
+it('UC-015 distinguishes a rejected confirmation from the initial target question', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '소수 변경' } });
+  const clarify = success({
+    editMode: 'clarify',
+    saveRequested: false,
+    targetCandidates: [{ key: item.key, title: item.title, position: 1 }],
+  });
+  api.post.mockResolvedValueOnce(clarify);
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  fireEvent.click(await screen.findByRole('button', { name: '1번 · 기존 계산' }));
+  api.post.mockResolvedValueOnce(clarify);
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('선택한 대상을 확인하지 못했습니다'));
+  expect(api.post).toHaveBeenCalledTimes(2);
+  expect(api.navigate).not.toHaveBeenCalled();
+});
+
+it('UC-015 rejects a clarify plan that claims to save despite offering candidates', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '소수 변경 후 저장' } });
+  api.post.mockResolvedValueOnce(
+    success({
+      editMode: 'clarify',
+      saveRequested: true,
+      targetCandidates: [{ key: item.key, title: item.title, position: 1 }],
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await screen.findByText('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.');
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(api.navigate).not.toHaveBeenCalled();
 });

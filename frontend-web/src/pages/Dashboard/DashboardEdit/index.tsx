@@ -25,7 +25,7 @@ import { get, post } from '@/helpers/apiHelper';
 import NumericBoard from '@/widget/modules/board/NumericBoard';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
-import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
+import { AnalysisUiProvider, analysisToggleSx } from '@/components/analysis/AnalysisUi';
 import { validDraft } from '../dashboardPreview';
 import BlockLayoutCanvas, { validLayout } from './BlockLayoutCanvas';
 import MetricTrend, { FormattedMetricTrendData } from '../Components/MetricTrend';
@@ -169,6 +169,8 @@ function DashboardEditContent() {
   const [newMetricId, setNewMetricId] = useState('');
   const [selectedKey, setSelectedKey] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
+  const [targetCandidates, setTargetCandidates] = useState<string[]>([]);
+  const [targetChoiceKey, setTargetChoiceKey] = useState('');
   const [aiEditMode, setAiEditMode] = useState<'auto' | 'content' | 'layout'>('auto');
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() =>
     window.matchMedia?.('(max-width: 599px)').matches ? 'mobile' : 'desktop',
@@ -186,7 +188,13 @@ function DashboardEditContent() {
   const pending = useRef(false);
   const request = useRef<AbortController | null>(null);
   const headings = useRef<Record<string, HTMLHeadingElement | null>>({});
+  const clearTarget = () => {
+    if (targetChoiceKey && selectedKey === targetChoiceKey) setSelectedKey('');
+    setTargetCandidates([]);
+    setTargetChoiceKey('');
+  };
   const invalidate = (layoutOnly = false) => {
+    clearTarget();
     sequence.current += 1;
     request.current?.abort();
     setPreview(null);
@@ -207,6 +215,8 @@ function DashboardEditContent() {
     setConflict(false);
     setNewMetricId('');
     setSelectedKey('');
+    setTargetCandidates([]);
+    setTargetChoiceKey('');
     setAiPrompt('');
     setAiEditMode('auto');
     setAnnouncement('');
@@ -434,6 +444,7 @@ function DashboardEditContent() {
     let abort = new AbortController();
     request.current = abort;
     setBusy('AI로 요청 확인 중…');
+    setTargetCandidates([]);
     setAnnouncement('');
     setError('');
     setPreview(null);
@@ -444,6 +455,7 @@ function DashboardEditContent() {
         {
           ...editorBody(),
           selectedKey,
+          ...(targetChoiceKey ? { targetChoiceKey } : {}),
           prompt: aiPrompt.trim(),
           editMode: aiEditMode,
           layoutMode,
@@ -451,8 +463,38 @@ function DashboardEditContent() {
         { timeout: 180000, signal: abort.signal },
       );
       if (token !== sequence.current) return;
-      const result = unwrap<{ item?: Item; preview?: Preview; editMode?: string; saveRequested?: boolean }>(response);
+      const result = unwrap<{
+        item?: Item;
+        preview?: Preview;
+        editMode?: string;
+        saveRequested?: boolean;
+        targetKey?: string;
+        targetCandidates?: Array<{ key: string; title: string; position: number }>;
+      }>(response);
       if (aiEditMode === 'auto' && result.editMode === 'clarify' && result.saveRequested !== true) {
+        if (result.targetCandidates !== undefined) {
+          const candidates = result.targetCandidates;
+          if (
+            result.saveRequested !== false ||
+            !Array.isArray(candidates) ||
+            !candidates.length ||
+            candidates.length > 6 ||
+            candidates.length > items.length ||
+            candidates.some(value => !value || typeof value !== 'object' || typeof value.key !== 'string') ||
+            new Set(candidates.map(value => value.key)).size !== candidates.length ||
+            candidates.some(value => !items.some(item => item.key === value.key))
+          )
+            throw new Error('Invalid target candidates');
+          clearTarget();
+          setTargetCandidates(candidates.map(value => value.key));
+          setAnnouncement(
+            targetChoiceKey
+              ? '선택한 대상을 확인하지 못했습니다. 후보를 다시 선택하거나 질문에 번호·제목을 명시해 주세요. 아직 변경하거나 저장하지 않았습니다.'
+              : '수정할 블록을 선택한 뒤 같은 질문을 다시 실행해 주세요. 아직 변경하거나 저장하지 않았습니다.',
+          );
+          return;
+        }
+        clearTarget();
         setAnnouncement(
           '차트 내용이나 배치 중 한 가지 변경을 구체적으로 질문해 주세요. 저장하려면 현재 초안 저장을 명시해 주세요.',
         );
@@ -474,9 +516,11 @@ function DashboardEditContent() {
         throw new Error('Invalid AI preview');
       let nextItems = items;
       if (appliedMode !== 'save') {
+        const targetKey = aiEditMode === 'auto' ? result.targetKey ?? selectedKey : selectedKey;
+        if (!items.some(item => item.key === targetKey)) throw new Error('Invalid target');
         if (
           !result.item ||
-          result.item.key !== selectedKey ||
+          result.item.key !== targetKey ||
           (appliedMode === 'layout'
             ? result.editMode !== 'layout' ||
               !result.item.layouts?.[layoutMode] ||
@@ -486,7 +530,7 @@ function DashboardEditContent() {
         )
           throw new Error('Invalid AI result');
         nextItems = items.map(item =>
-          item.key !== selectedKey
+          item.key !== targetKey
             ? item
             : appliedMode === 'layout'
             ? { ...item, layouts: { ...item.layouts, [layoutMode]: result.item.layouts[layoutMode] } }
@@ -496,6 +540,7 @@ function DashboardEditContent() {
         // UC-014: history updates state asynchronously; persist the validated result, never stale state.
         pending.current = false;
         change(title, nextItems, appliedMode === 'layout');
+        setSelectedKey(targetKey);
       }
       setPreview(result.preview);
       setLayoutPreview(result.preview);
@@ -546,6 +591,7 @@ function DashboardEditContent() {
     request.current?.abort();
     pending.current = false;
     setBusy('');
+    clearTarget();
     setAnnouncement('AI 요청을 취소했습니다. 현재 편집 내용은 유지됩니다.');
   };
   const run = async (save: boolean) => {
@@ -658,14 +704,17 @@ function DashboardEditContent() {
                 ['tablet', '태블릿'],
                 ['desktop', '데스크톱'],
               ]}
-              onChange={value => setLayoutMode(value as LayoutMode)}
+              onChange={value => {
+                clearTarget();
+                setLayoutMode(value as LayoutMode);
+              }}
             />
           </Box>
           <Box component="section" aria-label="AI 블록 편집" sx={{ my: 2, minWidth: 0 }}>
             <Typography sx={{ mb: 1, fontSize: 13, overflowWrap: 'anywhere' }}>
               {items.find(item => item.key === selectedKey)?.title
                 ? `선택 블록: ${items.find(item => item.key === selectedKey)?.title}`
-                : '수정할 블록을 선택하세요. 현재 초안 저장은 선택 없이 요청할 수 있습니다.'}
+                : '번호나 정확한 제목으로 질문하거나 블록을 선택하세요. 예: 2번 차트의 소수 3자리로 바꿔 줘.'}
             </Typography>
             <Box component="details" sx={{ mb: 1 }}>
               <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 12 }}>
@@ -681,7 +730,10 @@ function DashboardEditContent() {
                   ['content', '차트 내용'],
                   ['layout', '배치'],
                 ]}
-                onChange={value => setAiEditMode(value as 'auto' | 'content' | 'layout')}
+                onChange={value => {
+                  clearTarget();
+                  setAiEditMode(value as 'auto' | 'content' | 'layout');
+                }}
               />
             </Box>
             {aiEditMode === 'layout' && (
@@ -696,7 +748,10 @@ function DashboardEditContent() {
                 value={aiPrompt}
                 disabled={!!busy}
                 slotProps={{ htmlInput: { maxLength: 2000 } }}
-                onChange={event => setAiPrompt(event.target.value)}
+                onChange={event => {
+                  clearTarget();
+                  setAiPrompt(event.target.value);
+                }}
               />
               <Button
                 variant="outlined"
@@ -714,6 +769,37 @@ function DashboardEditContent() {
               </Button>
               {busy === 'AI로 요청 확인 중…' && <Button onClick={cancelAi}>AI 요청 취소</Button>}
             </Stack>
+            {targetCandidates.length > 0 && (
+              <Box component="section" aria-label="수정 대상 후보" sx={{ mt: 1, minWidth: 0 }}>
+                <Typography sx={{ mb: 1, fontSize: 12 }}>대상을 선택한 뒤 요청을 다시 실행하세요.</Typography>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  {items.map(
+                    (item, index) =>
+                      targetCandidates.includes(item.key) && (
+                        <Button
+                          key={item.key}
+                          disabled={!!busy}
+                          variant="outlined"
+                          aria-pressed={targetChoiceKey === item.key}
+                          title={`${index + 1}번 · ${item.title}`}
+                          sx={{ ...analysisToggleSx, minWidth: 0, maxWidth: '100%' }}
+                          onClick={() => {
+                            setTargetChoiceKey(item.key);
+                            setSelectedKey(item.key);
+                          }}
+                        >
+                          <Box
+                            component="span"
+                            sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          >
+                            {index + 1}번 · {item.title}
+                          </Box>
+                        </Button>
+                      ),
+                  )}
+                </Stack>
+              </Box>
+            )}
             <Typography color="text.secondary" sx={{ mt: 1, fontSize: 12 }}>
               자동 모드에서 저장을 명시하면 미리보기 후 현재 분석에 저장합니다. 변경만 요청하면 미리보기로 끝납니다. 저장
               지표의 계산식은 바뀌지 않습니다.
@@ -940,7 +1026,10 @@ function DashboardEditContent() {
                         disabled={!!busy}
                         aria-pressed={selectedKey === item.key}
                         aria-label={`${label} AI로 수정`}
-                        onClick={() => setSelectedKey(item.key)}
+                        onClick={() => {
+                          clearTarget();
+                          setSelectedKey(item.key);
+                        }}
                       >
                         AI로 수정
                       </Button>

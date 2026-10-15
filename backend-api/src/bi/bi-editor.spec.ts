@@ -42,6 +42,24 @@ describe('BiService dashboard editor boundaries', () => {
     ...overrides,
   });
 
+  const threeBlocks = () => {
+    analysis.widgets = [
+      { ...analysis.widgets[0], blockId: 'block-1', title: '월별 매출' },
+      { ...analysis.widgets[0], blockId: 'block-2', title: '월별 비용' },
+      { ...analysis.widgets[0], blockId: 'block-3', title: '건수' },
+    ];
+    analysis.layoutSizes = [
+      { width: 6, height: 3 },
+      { width: 6, height: 3 },
+      { width: 6, height: 3 },
+    ];
+  };
+  const blockCandidates = [
+    { key: 'block-1', title: '월별 매출', position: 1 },
+    { key: 'block-2', title: '월별 비용', position: 2 },
+    { key: 'block-3', title: '건수', position: 3 },
+  ];
+
   beforeEach(() => {
     profile = {
       sourceId: 1,
@@ -775,30 +793,36 @@ describe('BiService dashboard editor boundaries', () => {
     expect(dashboards.save).not.toHaveBeenCalled();
   });
 
-  it('UC-014 needs a selection once the plan is a content or layout change', async () => {
+  it('UC-015 offers every current block when the plan needs a target the question never names', async () => {
     const existing = (await service.editor(dashboardId, actor)).items[0];
     const request = body({
       items: [existing],
+      selectedKey: '',
       prompt: '제목 바꿔 줘',
       editMode: 'auto',
       layoutMode: 'desktop',
     });
+    const candidates = [{ key: existing.key, title: existing.title, position: 1 }];
     dashboards.classifyBlockIntent.mockResolvedValueOnce({
       intent: 'content',
       saveRequested: false,
       editPrompt: '제목 바꿔 줘',
     });
-    await expect(service.editorAi(dashboardId, request, actor)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(service.editorAi(dashboardId, request, actor)).resolves.toEqual({
+      editMode: 'clarify',
+      saveRequested: false,
+      targetCandidates: candidates,
+    });
     dashboards.classifyBlockIntent.mockResolvedValueOnce({
       intent: 'layout',
-      saveRequested: false,
+      saveRequested: true,
       editPrompt: '아래로 한 칸',
     });
-    await expect(service.editorAi(dashboardId, request, actor)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(service.editorAi(dashboardId, request, actor)).resolves.toEqual({
+      editMode: 'clarify',
+      saveRequested: false,
+      targetCandidates: candidates,
+    });
     expect(dashboards.classifyBlockIntent).toHaveBeenCalledTimes(2);
     expect(dashboards.generate).not.toHaveBeenCalled();
     expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
@@ -942,6 +966,242 @@ describe('BiService dashboard editor boundaries', () => {
       actor,
       undefined,
     );
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-015 resolves a numbered target from the question and returns it as targetKey', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    expect(items.map(entry => entry.key)).toEqual(['block-1', 'block-2', 'block-3']);
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'content',
+      saveRequested: true,
+      editPrompt: '소수 자릿수를 1자리로 바꿔 줘',
+    });
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: {
+        ...analysis,
+        widgets: [
+          analysis.widgets[0],
+          { ...analysis.widgets[1], title: 'AI 비용' },
+          analysis.widgets[2],
+        ],
+      },
+    });
+    const result = await service.editorAi(
+      dashboardId,
+      body({
+        items,
+        selectedKey: items[0].key,
+        prompt: '2번 차트의 소수 자릿수를 1자리로 바꾸고 저장해 줘',
+        editMode: 'auto',
+        layoutMode: 'desktop',
+      }),
+      actor,
+    );
+    expect(dashboards.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedWidget: 1,
+        prompt: '소수 자릿수를 1자리로 바꿔 줘',
+        databaseId: 1,
+      }),
+      actor,
+      undefined,
+    );
+    expect(result.targetKey).toBe('block-2');
+    expect(result.item).toMatchObject({ key: 'block-2', kind: 'draft', title: 'AI 비용' });
+    expect(result.editMode).toBe('content');
+    expect(result.saveRequested).toBe(true);
+    expect(dashboards.preview).toHaveBeenCalledTimes(1);
+    expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-015 clarifies with the current blocks for an unknown number and writes nothing', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'content',
+      saveRequested: true,
+      editPrompt: '소수 자릿수를 1자리로 바꿔 줘',
+    });
+    const result = await service.editorAi(
+      dashboardId,
+      body({
+        items,
+        selectedKey: items[0].key,
+        prompt: '9번 차트의 소수 자릿수를 1자리로 바꾸고 저장해 줘',
+        editMode: 'auto',
+        layoutMode: 'desktop',
+      }),
+      actor,
+    );
+    expect(result).toEqual({
+      editMode: 'clarify',
+      saveRequested: false,
+      targetCandidates: blockCandidates,
+    });
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-015 confirms a recomputed candidate before the layout provider call', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'layout',
+      saveRequested: false,
+      editPrompt: '오른쪽 한 칸',
+    });
+    dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 1, y: 9, w: 6, h: 3 });
+    const result = await service.editorAi(
+      dashboardId,
+      body({
+        items,
+        selectedKey: '',
+        targetChoiceKey: 'block-2',
+        prompt: '선택한 차트를 오른쪽으로 한 칸 옮겨 줘',
+        editMode: 'auto',
+        layoutMode: 'desktop',
+      }),
+      actor,
+    );
+    expect(dashboards.proposeBlockLayout).toHaveBeenCalledWith(
+      expect.objectContaining({ selectedKey: 'block-2', prompt: '오른쪽 한 칸', mode: 'desktop' }),
+      undefined,
+    );
+    expect(result.targetKey).toBe('block-2');
+    expect(result.item).toMatchObject({
+      key: 'block-2',
+      layouts: { desktop: { x: 1, y: 9, w: 6, h: 3 } },
+    });
+    expect(result.editMode).toBe('layout');
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-015 keeps clarifying when a confirmation is outside the recomputed candidates', async () => {
+    threeBlocks();
+    analysis.widgets[1] = { ...analysis.widgets[1], title: '월별 매출' };
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'content',
+      saveRequested: false,
+      editPrompt: '소수 자릿수를 바꿔 줘',
+    });
+    const result = await service.editorAi(
+      dashboardId,
+      body({
+        items,
+        selectedKey: items[2].key,
+        targetChoiceKey: 'block-3',
+        prompt: '월별 매출 차트의 소수 자릿수를 1자리로 바꿔 줘',
+        editMode: 'auto',
+        layoutMode: 'desktop',
+      }),
+      actor,
+    );
+    expect(result).toEqual({
+      editMode: 'clarify',
+      saveRequested: false,
+      targetCandidates: [
+        { key: 'block-1', title: '월별 매출', position: 1 },
+        { key: 'block-2', title: '월별 매출', position: 2 },
+      ],
+    });
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-015 never lets the confirmation override a unique explicit target', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'content',
+      saveRequested: false,
+      editPrompt: '소수 자릿수를 바꿔 줘',
+    });
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: { ...analysis, widgets: analysis.widgets.map(widget => ({ ...widget })) },
+    });
+    const result = await service.editorAi(
+      dashboardId,
+      body({
+        items,
+        selectedKey: 'block-1',
+        targetChoiceKey: 'block-3',
+        prompt: '2번 차트의 소수 자릿수를 1자리로 바꿔 줘',
+        editMode: 'auto',
+        layoutMode: 'desktop',
+      }),
+      actor,
+    );
+    expect(dashboards.generate).toHaveBeenCalledWith(
+      expect.objectContaining({ selectedWidget: 1 }),
+      actor,
+      undefined,
+    );
+    expect(result.targetKey).toBe('block-2');
+    expect(result.item).toMatchObject({ key: 'block-2', kind: 'draft' });
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it.each(['foreign', 42, {}, ['block-1'], false])(
+    'UC-015 rejects an invalid confirmation key (%p) before classification',
+    async targetChoiceKey => {
+      threeBlocks();
+      const items = (await service.editor(dashboardId, actor)).items;
+      await expect(
+        service.editorAi(
+          dashboardId,
+          body({
+            items,
+            targetChoiceKey,
+            prompt: '제목을 바꿔 줘',
+            editMode: 'auto',
+            layoutMode: 'desktop',
+          }),
+          actor,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
+      expect(dashboards.generate).not.toHaveBeenCalled();
+      expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+      expect(dashboards.preview).not.toHaveBeenCalled();
+      expect(dashboards.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it('UC-015 keeps the legacy explicit selection when a confirmation key is present', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: { ...analysis, widgets: analysis.widgets.map(widget => ({ ...widget })) },
+    });
+    const result = await service.editorAi(
+      dashboardId,
+      body({
+        items,
+        selectedKey: items[0].key,
+        targetChoiceKey: items[1].key,
+        prompt: '제목을 바꿔 줘',
+      }),
+      actor,
+    );
+    expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
+    expect(dashboards.generate).toHaveBeenCalledWith(
+      expect.objectContaining({ selectedWidget: 0 }),
+      actor,
+      undefined,
+    );
+    expect(result.targetKey).toBe('block-1');
+    expect(result.item).toMatchObject({ key: 'block-1' });
     expect(dashboards.save).not.toHaveBeenCalled();
   });
 });

@@ -113,3 +113,7 @@ blockId를 기존 JSON에 추가하고 레거시 조회는 결정적 ID를 반�
 ### UC-014 명시 저장 실행 후속
 
 [저장 질문 설계](prompt-save.md)와 [검증](../testing/prompt-save.md): editor/ai는 엄격 계획과 쓰기 없는 미리보기를 반환한다. FE는 명시된 저장만 검증한 새 items로 기존 저장 API에 연결한다. 저장만 요청할 때 선택은 필요 없고 수정은 기존 선택 블록으로 한정한다. 원자 저장·revision 책임, 게시/소스/지표 모델은 불변이다. 자연어 대상 식별·다중블록·게시 실행은 남는다.
+
+### UC-015 질문 대상 식별 후속
+
+[대상 설계](prompt-target.md)와 [검증](../testing/prompt-target.md): 검증된 현재 items의 순서/정확 제목을 pure resolver로 stable key에 연결한다. 모호 후보는 생성/저장 전에 반환하고 질문 범위 확인만 허용한다. 대상은 LLM이 key를 생성하지 않는다. 기존 컴파일·선택 폭 geometry·frozen result 저장/버전 경계는 유지한다. 다중블록·게시/소스/지표 모델은 변경하지 않는다.

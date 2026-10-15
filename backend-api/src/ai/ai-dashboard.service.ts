@@ -713,6 +713,8 @@ export class AiDashboardService {
       [
         'Classify ONE question about an existing dashboard draft. Return ONLY JSON {"intent":"content|layout|save|clarify","saveRequested":true|false,"editPrompt":string|null} with exactly those 3 keys.',
         'content = change the title, chart type, measure, unit, decimals or number display of ONE block. Example: 소수 1자리로 바꿔 줘.',
+        'A block number or title is ONLY a target reference. The server resolves its existence and ambiguity separately; do not return clarify merely because you cannot identify that number/title. A reference to 2번 차트 means block number 2, NOT two blocks.',
+        'Example: 2번 차트의 소수 자릿수를 2자리로 바꾸고 현재 분석에 저장해 줘 => {"intent":"content","saveRequested":true,"editPrompt":"2번 차트의 소수 자릿수를 2자리로 바꿔 줘"}.',
         'layout = move or resize ONE block. Example: 아래로 한 칸 옮겨 줘.',
         'save = save the current draft exactly as it is, without changing any block. Example: 현재 편집 내용을 저장해 줘.',
         'clarify = mixed content AND layout, several blocks, an ambiguous question, publish/share/copy/delete, or any other unsupported or unclear action.',

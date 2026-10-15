@@ -12,6 +12,7 @@ import { sourceRevision } from './source-revision';
 import { compileMetricWidget } from './structured-widget';
 import { metricFields } from './metric-expression';
 import { quoteColumn, sourceQuery, validateDraft } from '../ai/dashboard-draft';
+import { resolveBlockTarget } from './block-target';
 import {
   validateBlockLayouts,
   responsiveLayouts,
@@ -495,8 +496,15 @@ export class BiService {
     if (selection !== undefined && selection !== null && typeof selection !== 'string')
       throw new BadRequestException('수정할 블록을 선택해 주세요.');
     const hasSelection = typeof selection === 'string' && selection.length > 0;
-    const index = hasSelection ? body.items.findIndex(item => item.key === selection) : -1;
+    let index = hasSelection ? body.items.findIndex(item => item.key === selection) : -1;
     if (hasSelection && index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
+    // UC-015: a confirmation key is a hint only; an unknown or mistyped key never reaches a provider.
+    const choice = body.targetChoiceKey;
+    if (choice !== undefined && choice !== null && typeof choice !== 'string')
+      throw new BadRequestException('선택할 블록 후보를 확인해 주세요.');
+    const hasChoice = typeof choice === 'string' && choice.length > 0;
+    if (hasChoice && !body.items.some(item => item.key === choice))
+      throw new BadRequestException('선택할 블록 후보를 확인해 주세요.');
     const requestedMode: 'auto' | 'content' | 'layout' = body.editMode ?? 'content';
     // A question without a target can only become an explicit save or a clarification.
     if (!hasSelection && requestedMode !== 'auto')
@@ -504,6 +512,7 @@ export class BiService {
     let editMode: 'content' | 'layout' = requestedMode === 'auto' ? 'content' : requestedMode;
     let prompt: string = body.prompt;
     let saveRequested = false;
+    let targetKey: string | null = hasSelection ? (selection as string) : null;
     if (requestedMode === 'auto') {
       if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
         throw new BadRequestException('편집할 화면 폭을 확인해 주세요.');
@@ -522,18 +531,33 @@ export class BiService {
           preview: { ...preview, responsiveLayouts: compiled.layouts },
         };
       }
-      if (index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
+      // UC-015: the original question selects the target; the previous selection is context only.
+      const resolution = resolveBlockTarget({
+        prompt: body.prompt,
+        items: body.items.map(item => ({ key: item.key, title: item.title })),
+        selectedKey: hasSelection ? selection : null,
+        targetChoiceKey: hasChoice ? choice : null,
+      });
+      if (resolution.kind === 'ambiguous')
+        return {
+          editMode: 'clarify' as const,
+          saveRequested: false,
+          targetCandidates: resolution.candidates,
+        };
+      targetKey = resolution.key;
+      index = body.items.findIndex(item => item.key === resolution.key);
       editMode = plan.intent;
       prompt = plan.editPrompt;
       saveRequested = plan.saveRequested;
     }
+    if (!targetKey || index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
     if (editMode === 'layout') {
       if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
         throw new BadRequestException('편집할 화면 폭을 확인해 주세요.');
       const layoutMode = body.layoutMode as LayoutSize;
       const rect = await this.dashboards.proposeBlockLayout(
         {
-          selectedKey: body.selectedKey,
+          selectedKey: targetKey,
           mode: layoutMode,
           blocks: body.items.map(item => ({
             key: item.key,
@@ -562,6 +586,7 @@ export class BiService {
         item,
         editMode: 'layout' as const,
         saveRequested,
+        targetKey,
         preview: { ...preview, responsiveLayouts: next.layouts },
       };
     }
@@ -613,6 +638,7 @@ export class BiService {
       item,
       editMode: 'content' as const,
       saveRequested,
+      targetKey,
       preview: { ...preview, responsiveLayouts: next.layouts },
     };
   }
