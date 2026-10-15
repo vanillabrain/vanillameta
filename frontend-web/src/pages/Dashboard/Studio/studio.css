@@ -269,3 +269,71 @@
 .studio-live-ai .studio-ai-content { overflow-y:auto; flex:1; min-height:0; }
 .studio-live-ai .studio-ai-composer { position:static; flex-shrink:0; }
 @media(max-width:899px) { .studio-panel-drawer .studio-panel:has(.studio-live-ai) { height:100dvh; min-height:0; position:static; } }
+
+/* T8: publishing uses the existing Studio scale, with mobile-sized keyboard targets. */
+.studio-publication-dialog .MuiDialog-paper { border-radius: 16px; }
+.studio-publication-dialog .MuiDialogTitle-root { font-size: 22px; font-weight: 700; padding: 24px 24px 12px; }
+.studio-publication-dialog .MuiDialogContent-root { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.studio-publication-dialog .MuiDialogActions-root { padding: 16px 24px 24px; gap: 8px; flex-wrap: wrap; }
+.studio-publication-dialog .MuiButton-root { min-height: 44px; text-transform: none; white-space: nowrap; }
+.studio-publish-intro { margin: 0; color: #59677c; font-size: 14px; line-height: 1.7; }
+.studio-publish-current { background: #f5f8ff; border: 1px solid #dce5f5; border-radius: 12px; padding: 16px; min-width: 0; }
+.studio-publish-meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 14px; }
+.studio-publish-current p { color: #59677c; font-size: 13px; margin: 8px 0; }
+.studio-publish-link { display: flex; gap: 8px; margin-top: 20px; align-items: center; min-width: 0; }
+.studio-publish-link .MuiTextField-root { min-width: 0; }
+.studio-publish-settings { padding: 12px 0 0; margin: 0; min-width: 0; border: 0; }
+.studio-publish-settings legend { padding: 0; font-size: 14px; font-weight: 700; }
+.studio-publish-settings .MuiFormControlLabel-root { margin: 0; min-height: 44px; }
+.studio-publish-settings .MuiFormControlLabel-label { font-size: 14px; line-height: 1.5; }
+.studio-publish-settings .MuiTextField-root { margin-top: 18px; }
+.studio-publish-note { font-size: 12px; color: #59677c; line-height: 1.7; margin: 0; }
+.studio-published { min-height: 100dvh; background: #f7f9fc; color: #18253b; }
+.studio-published-header { display: flex; align-items: center; gap: 24px; padding: 12px 32px; border-bottom: 1px solid #e1e7ef; background: white; }
+.studio-published-header > span { font-size: 13px; color: #59677c; }
+.studio-published-header .MuiButton-root { margin-left: auto; min-height: 44px; white-space: nowrap; }
+.studio-published-header a { text-decoration: none; color: inherit; }
+.studio-published main { max-width: 1440px; margin: auto; padding: 32px; }
+.studio-published-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.studio-published h1 { font-size: 28px; line-height: 1.35; margin: 8px 0 16px; overflow-wrap: anywhere; }
+.studio-published-badge { background: #eaf2ff; border-radius: 24px; padding: 6px 12px; font-size: 12px; color: #1d4ed8; white-space: nowrap; }
+.studio-published-asof { display: flex; gap: 8px 24px; flex-wrap: wrap; color: #59677c; font-size: 13px; }
+.studio-published-note { color: #59677c; font-size: 13px; line-height: 1.6; margin: 12px 0 24px; }
+.studio-published-grid { display: grid; grid-auto-rows: minmax(48px, auto); gap: 14px; }
+.studio-published-card { background: white; padding: 20px; border: 1px solid #dfe6ef; border-radius: 12px; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.studio-published-card h2 { font-size: 16px; line-height: 1.5; margin: 0 0 8px; overflow-wrap: anywhere; }
+.studio-published-description { color: #59677c; font-size: 12px; line-height: 1.6; margin: 0 0 12px; overflow-wrap: anywhere; }
+.studio-published-value { font-size: clamp(32px, 4vw, 44px); line-height: 1.3; font-weight: 700; margin: auto 0; padding: 16px 0; overflow-wrap: anywhere; }
+.studio-published-chart { flex: 1; min-height: 240px; }
+.studio-published-data-toggle.MuiButton-root { align-self: flex-start; font-size: 12px; min-height: 44px; margin-top: 8px; }
+.studio-published-table { max-height: 280px; overflow: auto; flex-shrink: 0; border: 1px solid #dfe6ef; border-radius: 8px; }
+.studio-published-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.studio-published-table th, .studio-published-table td { padding: 10px 12px; border-bottom: 1px solid #e4e9f1; white-space: nowrap; text-align: right; }
+.studio-published-table th:first-child, .studio-published-table td:first-child { text-align: left; }
+.studio-published-table caption { padding: 10px; text-align: left; color: #59677c; }
+.studio-published footer { padding: 24px; text-align: center; font-size: 12px; color: #59677c; }
+.studio-published :focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+@media (max-width: 599px) {
+  .studio-publication-dialog .MuiDialog-paper { margin: 12px; width: calc(100% - 24px); max-height: calc(100dvh - 24px); }
+  .studio-publication-dialog .MuiDialogContent-root { padding: 8px 20px; }
+  .studio-publication-dialog .MuiDialogTitle-root { padding: 20px 20px 12px; }
+  .studio-publication-dialog .MuiDialogActions-root { padding: 12px 20px 20px; }
+  .studio-publish-link { flex-wrap: wrap; }
+  .studio-publish-link .MuiTextField-root { flex-basis: 100%; }
+  .studio-published-header { padding: 8px 16px; gap: 12px; flex-wrap: wrap; }
+  .studio-published-header > span { order: 3; flex-basis: 100%; font-size: 12px; }
+  .studio-published main { padding: 24px 16px; }
+  .studio-published h1 { font-size: 23px; }
+  .studio-published-card { padding: 18px; }
+  .studio-published-heading { align-items: flex-start; }
+}
+
+.studio-published .studio-published-note { margin: 12px 0 24px; }
+.studio-published .studio-published-description { margin: 0 0 12px; }
+.studio-published-value { margin: 12px 0 16px; padding: 0; }
+.studio-publication-receipt { border: 1px solid #dce5f5; background: #f5f8ff; border-radius: 8px; padding: 12px; margin: 10px 0; display: grid; gap: 8px; min-width: 0; }
+.studio-publication-receipt p { overflow-wrap: anywhere; }
+
+@media (max-width: 599px) { .studio-published summary { min-height: 44px; display: flex; align-items: center; } }
+
+.studio-published .studio-brand { display: inline-flex; }

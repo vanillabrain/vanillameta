@@ -2,7 +2,9 @@
 
 ## 현재 범위와 실행 기준
 
-2026-10-15, 기준 `5ef232dc` + T1 미커밋 diff. 작업 브랜치 `codex/self-service-next-20261014`. 현재 T1 시안만 구현했다. 본 기록의 PASS는 합성 fixture의 선택된 디자인/상호작용에 한정하며 P1~P5·TC-005 전체 완료가 아니다.
+2026-10-15, 현재 T8까지의 선택 범위를 검증했다. 작업 브랜치 `codex/self-service-next-20261014`, 최신 기준은 `b943a10c` + T8 diff다. 단계별 조건·실행 환경·실데이터/주입 구분은 아래 각 T 기록이 기준이다. T9 복제와 전체 TC-005는 NOT_RUN, VoiceOver는 BLOCKED다.
+
+### T1 최초 시안 실행 기록 (역사적 기준)
 
 - URL: `http://127.0.0.1:3215/_design/studio` (작업 브랜치 Vite 전용).
 - 브라우저: Aside daemon 연결 실패. 허용된 대안인 Codex IAB에서 구조/콘솔을 확인하고 headed Chromium에서 실제 화면·정확한 viewport 캡처를 진행했다. IAB의 기존 확대율로 viewport가 다르게 측정돼 정해진 폭 판정에는 headed Chromium 결과를 사용했다.
@@ -15,12 +17,12 @@
 | --- | --- | --- |
 | STUDIO-D01 | 1440/768px에서 시작·결과·설정·공유 상태, 라벨·간격·숫자 가독성·가로 넘침0 | PASS_SELECTED: 실제 캡처 직접 검토, 두 폭 각각 네 상태 overflow0. 버튼32px/12px Studio 예외 기록 |
 | STUDIO-D02 | 390px 네 상태, 긴 블록 제목·오류/로딩, 모바일 패널 키보드/Escape 복귀 | PASS_SELECTED: 네 상태 overflow0. 상태 버튼 간격 수정 후390px 재확인. 768/390 패널 내 Tab 이동·Escape 후 트리거 복귀. 모바일 상태 버튼88.5×44px |
-| STUDIO-E01 | 블록 추가·복제·삭제·이동·resize·undo/redo·폭 변경 보존 | NOT_RUN: T2/T3 |
-| STUDIO-E02 | 저장·재조회·서버 revision 경합 | NOT_RUN: T4 |
-| STUDIO-A01 | 직접 이동 이후 실LLM 선택 수정/배치 보존 | NOT_RUN: T5 |
-| STUDIO-A02 | 파일/샘플 생성·canonical 지표·차원 | NOT_RUN: T6 |
-| STUDIO-A03 | 단일 입력 실행·부분 실패·재시도 중복0 | NOT_RUN: T7 |
-| STUDIO-P01/P02 | 게시 version/시점·권한·중지·실패 재시도 | NOT_RUN: T8 |
+| STUDIO-E01 | 블록 추가·복제·삭제·이동·resize·undo/redo·폭 변경 보존 | PASS_SELECTED: T3 기록 재사용 |
+| STUDIO-E02 | 저장·재조회·서버 revision 경합 | PASS_SELECTED: T4 기록 재사용 |
+| STUDIO-A01 | 직접 이동 이후 실LLM 선택 수정/배치 보존 | PASS_SELECTED: T5 기록 재사용 |
+| STUDIO-A02 | 파일/샘플 생성·canonical 지표·차원 | PASS_SELECTED: T6 기록 재사용 |
+| STUDIO-A03 | 단일 입력 실행·부분 실패·재시도 중복0 | PASS_SELECTED: T7 기록 재사용 |
+| STUDIO-P01/P02 | 게시 version/시점·권한·중지·실패 재시도 | PASS_SELECTED: T8 신규 조건, 아래 기록 |
 | STUDIO-R01/R02 | 새 소스 매핑·누락 열·원본 불변 | NOT_RUN: T9 |
 
 ## 발견·수정과 검증 구분
@@ -292,3 +294,59 @@ CSV5행: 2026-01-01 Site300,01-02 Mobile200,01-08 Site400,01-09 Mobile100,01-15 
 - 최종 화면: `final-saved-1440.png`, `final-saved-390.png`, `activity-768.png`, `cancel-390.png`, `restart-interrupted-390.png`, `ui-injected-save-retry-1440.png`, `ui-injected-stale-retry-1440.png`, `ui-injected-partial-390.png`. 임시 Playwright 검증 코드는 /private/tmp에만 두고 상시 UI suite를 늘리지 않았다. 기존 승인된 headed Chromium fallback을 사용했고 Codex IAB에도 같은 실제 저장 결과와 실행 패널을 남겼다.
 
 T7 선택 범위·G2 완료. 다음 **T8 게시 snapshot·링크·재게시·중지**. 실제 공개 게시/복제와 전체 TC-005는 해당 단계까지 미검증 상태로 유지한다.
+
+
+## T8 — 게시 snapshot·링크·재게시·중지 (2026-10-15)
+
+기준: b943a10c 이후 T8 diff, Node24/npm·격리 메타데이터. 기존 통과 조건은 재실행하지 않는다.
+
+| ID | 신규 조건 | 상태 |
+| --- | --- | --- |
+| STUDIO-P01 | private 소유자/익명/타 계정, link 익명·타 계정, 저장 revision 재집계, 안전한 payload·2MiB 한도 | PASS_SELECTED: 실제 API/UI, 크기 한도는 결과 주입·실제 DB 단위 |
+| STUDIO-P02 | 초안 변경과 게시 분리, 같은 링크 재게시·버전 증가, 응답 유실 재시도, 중지·만료410·데이터 없음 | PASS_SELECTED: 실제 저장·재게시·중지·서버 만료, replay는 API/단위 |
+| STUDIO-P03 | 게시·재게시·복사·중지 UI, 1440/768/390px·키보드·포커스·줄바꿈 | PASS_SELECTED: 실제 Chromium 캡처·직접 시각 검토 |
+| STUDIO-P04 | 명시한 저장+링크 공유 실행, 실패 단계 재시도·중복 저장 없음, asOf 표시 | PASS_SELECTED: 실제 SDK 실행·reload, 부분 실패/중지는 단위·React 통합 |
+| DESIGN-04/VoiceOver | 기존 OS 권한 차단 | BLOCKED 유지 |
+
+링크는 실시간 원본 조회가 아닌 게시 시점의 집계 snapshot이다. 이미 본 화면·다운로드는 회수할 수 없다. T9 복제·운영 외부 배포는 이번 범위가 아니다.
+
+
+### 구현과 게시 계약
+
+- 소유자 Studio의 **게시·공유** → 공개 범위(초기 비공개)·내 시간대 만료 시각 → 명시 게시. 미저장 초안은 게시 버튼을 차단하고 기존 게시본 관리는 유지한다. 링크 복사/게시본 열기/확인 후 중지를 제공한다.
+- `POST/GET /studio/dashboards/:id/publications`, `GET /studio/publications/:token`, `POST /studio/publications/:token/revoke`. 읽기 화면은 `/published/:token`이다. 기존 legacy share-url과 별도이며 토큰·설정을 자동 이동하지 않는다.
+- 게시 시 소유권·소스·지표/차원·revision을 재검증하고 DuckDB snapshot 안에서 집계한다. 초안 저장과 별도 transaction으로 active snapshot+버전+journal을 원자적으로 저장한다. 이전 preview 값이나 클라이언트 집계는 신뢰하지 않는다. 허용된 집계 구문만 통과시키며 원본 행 projection은 거절한다.
+- 공개 데이터는 제목·블록 표현·배치·집계 값·안전한 추이·전체 기간/필터 없음·asOf/dataVersion만 담는다. 공개용 블록 ID를 새로 부여한다. SQL/소스 설정·ID/인증정보/원본 상세/지표 참조/상세 탐색 토큰을 내보내지 않는다. 읽기 화면은 검증한 데이터와 기존 차트/추이 renderer만 사용한다. 임의 HTML·JS/연결 조회를 실행하지 않는다.
+- 명시 재게시는 동일 토큰의 버전을 증가시킨다. 중지한 토큰은 영구 차단하고 새 게시에서 새 토큰을 만든다. 만료됐지만 중지하지 않은 토큰은 소유자의 새 명시 요청으로만 재게시할 수 있다. 공개된 과거 버전 조회 API는 제공하지 않는다.
+- owner/requestId+본문 해시 journal로 응답 유실 재시도·서버 재시작에서도 중복 버전 증가를 막는다. 다른 본문 재사용은409. snapshot JSON UTF-8 상한2MiB 초과는413·rollback이며 이전 게시를 유지한다. 초과분을 잘라 성공으로 보고하지 않는다. 한도 검사는 실제 DuckDB preview 뒤 oversized 집계 결과를 주입해 rollback을 확인한 단위 조건이며 실제 대용량 원본 수집 성능 시험은 아니다.
+- 게시 응답은 오류·인증·전역 guard 실패까지 `Cache-Control: no-store, private`를 적용한다. 브라우저도 캐시 재사용 없이 조회하고 새 권한 조회 시작/실패 시 이전 데이터를 지운다. 포커스 복귀·bfcache 복귀·다시 확인에서 서버 상태를 조회한다. 열린 화면은 만료 시각에 재조회해410이면 데이터를 지운다. 기기 시계가 앞선 경우 서버의 유효 응답을 유지하고 최대30초 간격으로 재확인해 즉시 반복 조회를 막는다. 다른 탭에서 중지했다고 이미 본 화면/캡처를 즉시 회수하는 기능은 아니다.
+
+### 실제 검증과 숫자
+
+- Node24/npm, FE3228/API4328, `/private/tmp/vm-studio-t8-20261015/metadata.db`는 T7 DB의 일관된 격리 backup. 원본 파일은 기존 T6 uploads를 읽기 전용으로 재사용했다. 사용자 메타데이터/원본 파일·전역 AI/OS 설정을 변경하지 않았다.
+- 기존 검증된 공식 Rill **1,391,572행**을 게시했다. 총 요청 수 **634513000**, 평균 입찰 하한가 **5.571238676523271**, 독립 oracle5.571238676526892와 오차<1e-9. 이번 범위는 게시 집계와 화면이며 이미 통과한 수집·생성·Rill 앱 자체 검증을 반복하지 않았다. 공개 JSON29319bytes, 금지 키가 없는지 API로 대조했다.
+- 비공개는 소유자만200, 익명·다른 계정403. 다른 계정의 owner metadata/게시/중지는403, 익명 owner metadata401. 링크 공개는 익명·다른 로그인 계정200. 권한/만료/중지 오류 응답에서 집계 데이터가 없고 no-store인 것을 확인했다.
+- 저장된 초안 제목을 바꿔도 기존 게시 snapshot은 deep equal. 오래된 revision의 게시409. 재게시 후 같은 링크의 새 제목/버전·집계가 보인다. 실제 동일 requestId/body 반복은 같은 버전, 다른 본문409다.
+- 실제 1.2초 서버 만료 fixture의410과 데이터 제거 확인. 별도 JSON700 fixture는 화면을 연 채 6초 만료를 넘겨 자동 재조회→안내·카드0을 확인했다. 실제 게시 중지 Enter→확인 Enter→이전 링크410, 다시 게시한 새 토큰은 이전 것과 다르고 버전1이다. 재차 중지도 멱등이다.
+- **G3:** 실제 AI SDK 입력 `저장하고 링크로 공유해줘` 한 요청으로 inspectSource/saveDraft/publish 완료. 저장 결과와 게시 v2·링크·집계 시각을 함께 표시하고 reload 뒤 기록을 복원했으며 추가POST0. 이 명령은 공개 범위가 명확한 제한 명령으로 모델 추론 없이 실행하므로 이번 모델 호출0이다. `AI_PROVIDER=codex`, gpt-6-luna 및 기존10100 연결/카탈로그 설정은 유지했다. T5~T7의 실모델 결과는 재사용하며 새 모델 검증으로 세지 않는다.
+- 저장 성공 뒤 게시 실패/재시작/응답 유실/취소 경계는 서버 단위·React 통합에서 확인했다. 게시만 재시도하며 저장/LLM을 반복하지 않는다. 취소는 저장 journal을 보존하면서 미완료 게시를 취소하고 재시도를 차단한다. 이미 게시 commit이 끝났다면 성공 결과를 유지한다. 이 장애 조건들을 모두 live 브라우저에서 재현했다고 확대하지 않는다.
+
+### 오류 수정·재검증과 디자인
+
+1. 최초 owner metadata의 `null`이 Nest에서 빈200 응답이 되어 UI가 실패로 인식했다. 해당 명시 응답을 ‘게시본 없음’으로 처리하고 실제 최초 비공개 게시 및 회귀 테스트 통과.
+2. 일반 상세 기여 compiler가 시간 bucket을 추론하지 못하는 정상 timestamp GROUP BY를 게시에서도 거절했다. 게시 안전성 판정에서만 timestamp를 scalar 범주로 엄격 재검사한다. 원본 projection은 계속 거절하며 기존 상세 탐색 compiler는 완화하지 않았다. 같은 Rill 게시400→성공 재검증.
+3. 독립 리뷰의 기기 시간 오차 반복 조회, 중지된 journal 응답의 거짓 게시 성공 안내, 저장 완료 뒤 미완료 게시 취소 누락을 수정했다. 브라우저 Date.now +2시간에도1.2초 동안 조회2회로 제한·유효 화면 유지. revoked receipt는 성공/링크를 숨기고 새 명시 게시를 안내. 관련 취소/응답 유실 회귀 통과, 후속 읽기 리뷰에서 세 건 해소 확인. 추가로 응답 유실 이후 다른 탭이 재게시한 경우 과거 영수증을 현재 공개 범위로 오인하지 않도록 게시 후 owner metadata를 새로 확인한다. 실제 commit v3 뒤 응답503만 주입→다른 요청에서 private v4→원래 요청 replay v3에서도 UI는 최신 private v4 표시→명시 link 재게시 v5까지 확인했다. 이503은 실제 장애가 아닌 전송 계층 주입이고 두 게시 commit은 실제 API다.
+4. 실제 캡처의 숫자 수직 정렬·중복 데이터 버튼·모바일 브랜드 숨김·시간축 끝 잘림을 게시 화면에 한정해 정리했다. 마지막1440/768/390px PNG를 직접 검토했다. 390px는 단일 열, 큰 수치/카드/입력/현재 링크가 페이지를 넘치지 않는다. 표만 내부 스크롤하며 모바일 버튼·summary는44px 이상이다. 최소 내용 높이를 확보하는 읽기 화면이며 편집 캔버스의 drag/resize는 제공하지 않는다.
+5. 라디오 방향키, Dialog Tab25회 내부 유지, 날짜 입력 방향키, Enter 게시·재게시·중지 확인, Escape 후 트리거 복귀, 집계 데이터 Enter 열기/닫기와 focus 유지, 추이 표 Enter를 실제 검증했다. 테스트 스크립트의 일반 문자열 응답 JSON 파싱·토글 후 달라진 버튼 이름·브랜드 접근성 이름 선택 오류는 제품 오류와 구분해 수정했다.
+
+**기능 PASS_SELECTED / 디자인 PASS_SELECTED**. 실기기·실제 VoiceOver는 실행하지 않았고 VoiceOver BLOCKED를 유지한다. 라이브 Rill과 공유 UX 재비교·모든 언어/장문/고부하·운영 외부 배포·T9 remix·전체 TC-005는 NOT_RUN이다. 단일 서버 Studio queue는 게시 집계 동안도 점유하므로 운영 다중 인스턴스/공유 쓰기·고동시성 성능 보장은 이번 결과에 포함하지 않는다.
+
+### 검사·증빙
+
+- BE **49개/5suite PASS**: 게시 서비스(실제 DuckDB/SQLite), 권한·캐시 controller, migration up/down, 실행·저장 영향. Nest build·변경 lint PASS.
+- FE **54개/6file PASS**: 실행4file46 + 게시 controls5 + 게시 boundary3. 공유 node_modules의 MUI 테스트 import 오류는 기존 MUI stub 방식으로 격리했다. 실제 MUI 디자인은 브라우저에서 검증했다. FE 타입·변경 lint·production build PASS. 전체 제품 suite·무관 MD는 재실행하지 않았다.
+- 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t8-20261015/`. `browser-results.json`, `http-results.json`, `public-layout-results.json`, `remaining-results.json`, `final-design-results.json`, `live-expiry-results.json`, `receipt-concurrency-results.json`, `save-share-execution.json`, `public-snapshot.json`, 서버·FE 단위/타입/린트/빌드 로그. 인증정보·비밀번호·원본 행·요청 원문을 증빙에 저장하지 않았다. 공개 샘플 집계와 로컬 링크는 포함한다.
+- PNG: `publish-private-{1440,768,390}.png`, `private-denied-390.png`, `republish-expiry-390.png`, `revoke-owner-390.png`, `revoked-390.png`, `expired-390.png`, `live-expiry-cleared-390.png`, `save-share-execution-{1440,390}.png`, `response-loss-concurrent-scope-390.png`, 최종 `final-published-{1440,768,390}.png`. 실패 JSON/PNG도 보존했다.
+- 브라우저는 이전 승인된 headed Chromium fallback을 재사용했고 마지막 게시본을 Codex IAB에서 확인해 탭에 남겼다. 임시 UI 검증 코드는 /private/tmp에만 두고 상시 Playwright suite를 추가하지 않았다.
+
+T8 선택 범위·G3 완료. 다음 T9 **내 데이터로 복제·열 매핑·필수열 누락 안내**.

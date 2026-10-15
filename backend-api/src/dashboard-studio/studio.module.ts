@@ -1,8 +1,15 @@
+import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
+import { StudioPublicationService } from './studio-publication.service';
+import {
+  StudioPublicationController,
+  StudioPublicationGuard,
+  studioPublicationNoStore,
+} from './studio-publication.controller';
 import { StudioExecution } from './entities/studio-execution.entity';
 import { StudioExecutionService } from './studio-execution.service';
 import { StudioExecutionController } from './studio-execution.controller';
 import { JwtService } from '@nestjs/jwt';
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiModule } from '../ai/ai.module';
 import { ConnectionModule } from '../connection/connection.module';
@@ -20,15 +27,24 @@ import { StudioRun } from './entities/studio-run.entity';
   imports: [
     AiModule,
     ConnectionModule,
-    TypeOrmModule.forFeature([StudioState, StudioRun, StudioExecution]),
+    TypeOrmModule.forFeature([
+      StudioState,
+      StudioRun,
+      StudioExecution,
+      StudioPublication,
+      StudioPublicationRequest,
+    ]),
   ],
   controllers: [
+    StudioPublicationController,
     StudioExecutionController,
     StudioController,
     StudioRunController,
     StudioCreationController,
   ],
   providers: [
+    StudioPublicationService,
+    StudioPublicationGuard,
     StudioService,
     StudioExecutionService,
     StudioRunService,
@@ -38,4 +54,9 @@ import { StudioRun } from './entities/studio-run.entity';
     JwtService,
   ],
 })
-export class StudioModule {}
+export class StudioModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Middleware precedes the application's global throttler as well as route guards.
+    consumer.apply(studioPublicationNoStore).forRoutes(StudioPublicationController);
+  }
+}

@@ -19,6 +19,7 @@ export type StudioProductContext = {
   dataLabel: string;
   notice: string;
   save: { label: string; disabled: boolean; pending: boolean; status: string; onSave: () => void };
+  publish?: { onOpen: () => void; disabled: boolean };
   banner?: React.ReactNode;
   aiBlockSummary: string;
   aiNote: string;
@@ -169,14 +170,21 @@ export default function StudioShell({
             {history.count}회 변경
           </span>
           {product ? (
-            <Button
-              variant="contained"
-              disableElevation
-              onClick={product.save.onSave}
-              disabled={product.save.disabled || product.save.pending}
-            >
-              {product.save.label}
-            </Button>
+            <>
+              {product.publish && (
+                <Button variant="outlined" onClick={product.publish.onOpen} disabled={product.publish.disabled}>
+                  게시·공유
+                </Button>
+              )}
+              <Button
+                variant="contained"
+                disableElevation
+                onClick={product.save.onSave}
+                disabled={product.save.disabled || product.save.pending}
+              >
+                {product.save.label}
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="outlined" disabled>

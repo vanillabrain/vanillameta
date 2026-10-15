@@ -171,11 +171,11 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 **Interfaces:** `POST /studio/dashboards/:id/publications {requestId,expectedRevision,visibility:'private'|'link',allowRemix:boolean,expiresAt?:string}`; `GET /studio/publications/:token`; `POST /studio/publications/:token/revoke`. 재게시도 첫 경로로 새 버전을 생성하고 stable token의 activeVersion을 atomic 갱신. 공개 응답은 sanitize된 definition·집계 결과·기간/필터·dataVersion/기준시점만 반환.
 
-- [ ] 첫 공개 데이터 모드는 snapshot만. 초안 저장과 별도 transaction으로 생성, preview 수치가 아니라 publish 시 재검증한 같은 revision의 집계를 저장. 원본 상세/소스config/SQL·인증정보는 공개 payload에서 제외. private 결과는 owner 인증 조회만 허용하며 token 존재만으로 익명 접근을 허용하지 않음. 만료/중지 링크는410과 데이터 없는 안내를 반환.
-- [ ] 같은 token은 명시 재게시 후 최신 version 표시. 이전 version 공개조회 endpoint는 MVP에 제공하지 않음. revoke는 token 전체 차단. 한 번 공개된 캡처·다운로드까지 회수했다고 주장하지 않음.
-- [ ] 서버·프런트 캐시는 no-store를 기본으로 하고 만료/중지는 서버 우선. snapshot JSON 기본 상한2MiB(제안한 MVP 설정), 초과는 실패·이전 게시 유지, 조용히 truncate 금지. renderer는 데이터만 처리하고 임의 HTML/JS 실행 없음.
-- [ ] STUDIO-P01/P02: 다른 계정 조회, 초안 수정 후 기존 게시 불변, 재게시 version 증가, 실패 retry 중복0, revoke/expiry 응답에 데이터0, payload에 원본 비밀0. 관련 BE 권한/snapshot spec과 실제 UI·캡처.
-- [ ] 커밋. **G3:** ‘저장하고 링크로 공유’ 요청의 단계 결과·데이터 시점이 정확히 표시. live/운영배포 완료는 주장하지 않음.
+- [x] 첫 공개 데이터 모드는 snapshot만. 초안 저장과 별도 transaction으로 생성, preview 수치가 아니라 publish 시 재검증한 같은 revision의 집계를 저장. 원본 상세/소스config/SQL·인증정보는 공개 payload에서 제외. private 결과는 owner 인증 조회만 허용하며 token 존재만으로 익명 접근을 허용하지 않음. 만료/중지 링크는410과 데이터 없는 안내를 반환.
+- [x] 같은 token은 명시 재게시 후 최신 version 표시. 이전 version 공개조회 endpoint는 MVP에 제공하지 않음. revoke는 token 전체 차단. 한 번 공개된 캡처·다운로드까지 회수했다고 주장하지 않음.
+- [x] 서버·프런트 캐시는 no-store를 기본으로 하고 만료/중지는 서버 우선. snapshot JSON 기본 상한2MiB(제안한 MVP 설정), 초과는 실패·이전 게시 유지, 조용히 truncate 금지. renderer는 데이터만 처리하고 임의 HTML/JS 실행 없음.
+- [x] STUDIO-P01/P02: 다른 계정 조회, 초안 수정 후 기존 게시 불변, 재게시 version 증가, 실패 retry 중복0, revoke/expiry 응답에 데이터0, payload에 원본 비밀0. 관련 BE 권한/snapshot spec과 실제 UI·캡처.
+- [x] 커밋. **G3:** ‘저장하고 링크로 공유’ 요청의 단계 결과·데이터 시점이 정확히 표시. live/운영배포 완료는 주장하지 않음.
 
 ### T9: 내 데이터로 복제·매핑 (P5 / FR-012)
 

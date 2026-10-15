@@ -1,9 +1,11 @@
+import { StudioPublicationService } from './studio-publication.service';
 import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { DataSource, In } from 'typeorm';
@@ -29,6 +31,7 @@ export class StudioExecutionService implements OnModuleInit {
     private readonly db: DataSource,
     private readonly studio: StudioService,
     private readonly runs: StudioRunService,
+    @Optional() private readonly publications?: StudioPublicationService,
   ) {}
 
   async onModuleInit() {
@@ -39,8 +42,17 @@ export class StudioExecutionService implements OnModuleInit {
       for (const row of rows) {
         const state = this.state(row);
         const committed = await this.committed(row, false);
+        const published = state.publish
+          ? await this.publications?.committed(this.publicationId(row), row.actorId, false)
+          : undefined;
+        if (published) state.publicationResult = published;
         for (const step of state.steps) {
-          if (step.stepId === 'saveDraft' && committed) {
+          if (step.stepId === 'publish' && published) {
+            step.status = 'succeeded';
+            step.retryable = false;
+            delete step.errorCode;
+            step.resultRef = this.publicationId(row);
+          } else if (step.stepId === 'saveDraft' && committed) {
             step.status = 'succeeded';
             step.retryable = false;
             delete step.errorCode;
@@ -51,7 +63,11 @@ export class StudioExecutionService implements OnModuleInit {
             step.retryable = true;
           }
         }
-        row.status = state.steps.every(s => s.status === 'succeeded') ? 'succeeded' : 'interrupted';
+        row.status = state.steps.every(s => s.status === 'succeeded')
+          ? 'succeeded'
+          : committed && state.publish
+          ? 'partial'
+          : 'interrupted';
         row.state = JSON.stringify(state);
         await this.db.manager.save(StudioExecution, row);
       }
@@ -62,6 +78,9 @@ export class StudioExecutionService implements OnModuleInit {
   }
   private saveId(row: StudioExecution) {
     return 'execution-' + row.runId;
+  }
+  private publicationId(row: StudioExecution) {
+    return 'publication-execution-' + row.runId;
   }
   private async committed(row: StudioExecution, serialize = true) {
     const read = async () => {
@@ -125,11 +144,19 @@ export class StudioExecutionService implements OnModuleInit {
       throw new BadRequestException('실행 요청과 선택 블록을 확인해 주세요.');
     }
   }
-  /** Pure planning boundary, overridable by a unit-only adapter; external actions remain unsupported. */
+  /** Only explicit, bounded commands authorize persistence or publication. */
   protected plan(
     body: StudioExecutionRequest,
-  ): Pick<StudioExecutionState, 'save' | 'saveOnly' | 'unsupported'> {
+  ): Pick<StudioExecutionState, 'save' | 'saveOnly' | 'unsupported' | 'publish'> {
     const prompt = body.prompt.trim();
+    // Exact, explicit link consent only. Ambiguous/negative sharing never becomes a public write.
+    if (
+      /^(?:현재\s*)?(?:초안(?:을)?\s*)?저장하고\s*링크로\s*공유\s*(?:해\s*줘|해\s*주세요|해주세요)[.!。]?$/u.test(
+        prompt,
+      ) ||
+      /^save(?: draft)? and share (?:a |the )?link[.!]?$/i.test(prompt)
+    )
+      return { save: true, saveOnly: true, publish: true };
     if (/게시|공유|퍼블리시|publish|share/i.test(prompt))
       return { save: false, saveOnly: false, unsupported: 'publish' };
     if (/복제|리믹스|remix|duplicate/i.test(prompt))
@@ -158,12 +185,13 @@ export class StudioExecutionService implements OnModuleInit {
     return { save, saveOnly };
   }
   protected stepIds(
-    plan: Pick<StudioExecutionState, 'save' | 'saveOnly' | 'unsupported'>,
+    plan: Pick<StudioExecutionState, 'save' | 'saveOnly' | 'unsupported' | 'publish'>,
   ): StudioStepId[] {
     const ids: StudioStepId[] = ['inspectSource'];
     if (plan.unsupported) ids.push(plan.unsupported);
     else if (!plan.saveOnly) ids.push('proposeSemantics', 'preview', 'applyDraft');
     if (plan.save) ids.push('saveDraft');
+    if (plan.publish) ids.push('publish');
     return ids;
   }
   async create(body: any, actor: number, signal?: AbortSignal) {
@@ -236,6 +264,7 @@ export class StudioExecutionService implements OnModuleInit {
       dashboardId: row.dashboardId,
       status: row.status,
       steps: state.steps,
+      ...(state.publicationResult ? { publicationResult: state.publicationResult } : {}),
       baseRevision: b.expectedRevision,
       baseDocumentHash: studioDigest(baseDocument),
       sourceRevision: b.expectedSourceRevision,
@@ -249,7 +278,9 @@ export class StudioExecutionService implements OnModuleInit {
         !this.context(row.runId),
       answer:
         row.status === 'succeeded'
-          ? state.save
+          ? state.publish
+            ? '초안을 저장하고 링크로 공유했습니다.'
+            : state.save
             ? '초안을 저장했습니다.'
             : '검증한 결과를 확인해 주세요.'
           : row.status === 'unsupported'
@@ -279,6 +310,10 @@ export class StudioExecutionService implements OnModuleInit {
     const response: any = this.summary(row);
     const saveResult = await this.committed(row);
     if (saveResult) response.saveResult = saveResult;
+    if (state.publish) {
+      const publication = await this.publications?.committed(this.publicationId(row), actor);
+      if (publication) response.publicationResult = publication;
+    }
     if (state.proposal && state.steps.find(s => s.stepId === 'preview')?.status === 'succeeded') {
       try {
         const document = saveResult?.document ?? state.proposal.document;
@@ -358,17 +393,30 @@ export class StudioExecutionService implements OnModuleInit {
         /* get returns the durable outcome */
       }
     } else if (!['succeeded', 'unsupported', 'cancelled'].includes(row.status)) {
-      if (!(await this.committed(row))) {
-        const state = this.state(row);
-        state.steps.forEach(s => {
-          if (s.status !== 'succeeded') {
-            s.status = 'cancelled';
-            s.retryable = false;
-          }
-        });
-        row.status = 'cancelled';
-        await this.persist(row, state);
+      const state = this.state(row);
+      const saved = await this.committed(row);
+      const published = state.publish
+        ? await this.publications?.committed(this.publicationId(row), actor)
+        : undefined;
+      if (published) state.publicationResult = published;
+      for (const step of state.steps) {
+        if ((step.stepId === 'saveDraft' && saved) || (step.stepId === 'publish' && published)) {
+          step.status = 'succeeded';
+          step.retryable = false;
+          delete step.errorCode;
+          step.resultRef = step.stepId === 'saveDraft' ? this.saveId(row) : this.publicationId(row);
+        } else if (step.status !== 'succeeded') {
+          step.status = 'cancelled';
+          step.retryable = false;
+          step.errorCode = 'RUN_CANCELLED';
+        }
       }
+      row.status = state.steps.every(s => s.status === 'succeeded')
+        ? 'succeeded'
+        : saved
+        ? 'partial'
+        : 'cancelled';
+      await this.persist(row, state);
     }
     return this.get(id, actor);
   }
@@ -408,8 +456,29 @@ export class StudioExecutionService implements OnModuleInit {
     this.active.set(row.runId, { controller, promise });
     return promise;
   }
-  /** Future external adapters must be explicit. The default never claims publication or remix success. */
-  protected async externalStep(stepId: StudioStepId): Promise<StudioStepStatus> {
+  /** Publication delegates to its durable journal; remix remains unsupported. */
+  protected async externalStep(
+    stepId: StudioStepId,
+    row?: StudioExecution,
+    signal?: AbortSignal,
+  ): Promise<StudioStepStatus> {
+    if (stepId === 'publish' && row && this.state(row).publish) {
+      if (!this.publications) throw new Error('PUBLICATION_UNAVAILABLE');
+      const saved = await this.committed(row);
+      if (!saved?.document?.revision) throw new Error('SAVED_REVISION_REQUIRED');
+      await this.publications.publish(
+        row.dashboardId,
+        {
+          requestId: this.publicationId(row),
+          expectedRevision: saved.document.revision,
+          visibility: 'link',
+          allowRemix: false,
+        },
+        row.actorId,
+        signal,
+      );
+      return 'succeeded';
+    }
     switch (stepId) {
       default:
         return 'unsupported';
@@ -445,7 +514,7 @@ export class StudioExecutionService implements OnModuleInit {
         if (step.stepId === 'inspectSource')
           prepared = await this.studio.prepare(row.dashboardId, request, row.actorId);
         else if (state.unsupported === step.stepId)
-          step.status = await this.externalStep(step.stepId);
+          step.status = await this.externalStep(step.stepId, row, signal);
         else if (step.stepId === 'proposeSemantics') {
           if (!body) throw new Error('REQUEST_REQUIRED');
           prepared ??= await this.studio.prepare(row.dashboardId, request, row.actorId);
@@ -496,7 +565,14 @@ export class StudioExecutionService implements OnModuleInit {
               signal,
             );
         } else if (step.stepId === 'publish' || step.stepId === 'remix')
-          step.status = await this.externalStep(step.stepId);
+          step.status = await this.externalStep(step.stepId, row, signal);
+        if (step.stepId === 'publish' && state.publish) {
+          const published = await this.publications?.committed(
+            this.publicationId(row),
+            row.actorId,
+          );
+          if (published) state.publicationResult = published;
+        }
         if (signal.aborted && !(await this.committed(row))) {
           step.status = 'cancelled';
           row.status = 'cancelled';
@@ -505,7 +581,11 @@ export class StudioExecutionService implements OnModuleInit {
         if (step.status === 'running') step.status = 'succeeded';
         if (step.status === 'succeeded')
           step.resultRef =
-            step.stepId === 'saveDraft' ? this.saveId(row) : row.runId + ':' + step.stepId;
+            step.stepId === 'saveDraft'
+              ? this.saveId(row)
+              : step.stepId === 'publish' && state.publish
+              ? this.publicationId(row)
+              : row.runId + ':' + step.stepId;
         if (step.status === 'unsupported') {
           step.errorCode = 'STEP_UNSUPPORTED';
           row.status = 'unsupported';
@@ -513,6 +593,17 @@ export class StudioExecutionService implements OnModuleInit {
         }
         await this.persist(row, state);
       } catch (error) {
+        const published =
+          step.stepId === 'publish' && state.publish
+            ? await this.publications?.committed(this.publicationId(row), row.actorId)
+            : undefined;
+        if (published) {
+          state.publicationResult = published;
+          step.status = 'succeeded';
+          step.retryable = false;
+          step.resultRef = this.publicationId(row);
+          continue;
+        }
         const committed = await this.committed(row);
         if (step.stepId === 'saveDraft' && committed) {
           step.status = 'succeeded';
@@ -529,8 +620,10 @@ export class StudioExecutionService implements OnModuleInit {
           ? 'PREVIEW_FAILED'
           : step.stepId === 'saveDraft'
           ? 'SAVE_FAILED'
+          : step.stepId === 'publish'
+          ? 'PUBLISH_FAILED'
           : 'STEP_FAILED';
-        row.status = step.status;
+        row.status = committed && step.stepId === 'publish' ? 'partial' : step.status;
         await this.persist(row, state);
         if (
           [401, 403, 409].includes(error?.getStatus?.()) ||
@@ -541,7 +634,9 @@ export class StudioExecutionService implements OnModuleInit {
       }
     }
     if (state.steps.every(s => s.status === 'succeeded')) row.status = 'succeeded';
-    if (row.status === 'cancelled')
+    if (row.status === 'cancelled' && state.publish && (await this.committed(row)))
+      row.status = 'partial';
+    if (row.status === 'cancelled' || (row.status === 'partial' && signal.aborted))
       state.steps.forEach(s => {
         if (s.status === 'pending' || s.status === 'interrupted') {
           s.status = 'cancelled';

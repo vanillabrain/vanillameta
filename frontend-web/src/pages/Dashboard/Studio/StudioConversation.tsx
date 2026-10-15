@@ -74,13 +74,14 @@ export default function StudioConversation({ context, selectedTitle, onApply, lo
         submitted.expectedSourceRevision !== current.current.expectedSourceRevision ||
         submitted.selectedBlockId !== current.current.selectedBlockId
       ) {
-        setNotice(
-          '서버 저장은 완료됐습니다. 요청 이후의 편집은 유지했습니다. 최신 저장 내용과 비교한 뒤 이어서 편집하세요.',
-        );
+        setNotice(executionSummary(run) + ' 요청 이후의 편집은 유지했습니다. 최신 저장 내용과 비교한 뒤 이어서 편집하세요.');
         return;
       }
+      // Set the complete outcome before onSaved can replace this workspace. The durable
+      // activity receipt is also restored by listExecutions after that remount.
+      setNotice(executionSummary(run));
       const applied = await saved.current?.(run.saveResult, submitted);
-      setNotice(applied ? '요청한 내용을 서버에 저장했습니다.' : '서버 저장은 완료됐습니다. 현재 편집은 유지했습니다.');
+      if (!applied) setNotice(executionSummary(run) + ' 현재 편집은 유지했습니다.');
       return;
     }
     if (run.steps.some(step => step.stepId === 'saveDraft' && step.status !== 'succeeded')) {
@@ -148,7 +149,10 @@ export default function StudioConversation({ context, selectedTitle, onApply, lo
     let original = requests.current.get(run.requestId);
     const previousPresentation = presentationContexts.current.get(run.requestId);
     const retryContext = current.current;
+    const publishOnly =
+      step.stepId === 'publish' && run.steps.some(s => s.stepId === 'saveDraft' && s.status === 'succeeded');
     if (
+      !publishOnly &&
       previousPresentation &&
       (previousPresentation.clientEditVersion !== retryContext.clientEditVersion ||
         previousPresentation.expectedRevision !== retryContext.expectedRevision ||
@@ -159,7 +163,10 @@ export default function StudioConversation({ context, selectedTitle, onApply, lo
       return;
     }
     try {
-      if (!(await canResumeExecution(run, retryContext, !original))) {
+      // Recent history deliberately omits the saved document. Read the owner-scoped
+      // durable result before comparing a committed revision after an editor remount.
+      const resumable = publishOnly && !run.saveResult ? await executionAction(run, 'get') : run;
+      if (!(await canResumeExecution(resumable, retryContext, !original))) {
         setActivityError(
           '편집 기준이 바뀌었습니다. 같은 블록과 원래 초안에서 재시도하거나 현재 내용으로 새 요청을 보내 주세요.',
         );
@@ -174,13 +181,14 @@ export default function StudioConversation({ context, selectedTitle, onApply, lo
     if (
       retryContext.clientEditVersion !== current.current.clientEditVersion ||
       retryContext.expectedRevision !== current.current.expectedRevision ||
+      retryContext.expectedSourceRevision !== current.current.expectedSourceRevision ||
       retryContext.selectedBlockId !== current.current.selectedBlockId
     ) {
       setActivityError('확인 중 편집 기준이 바뀌었습니다. 현재 내용으로 새 요청을 보내 주세요.');
       return;
     }
     presentationContexts.current.set(run.requestId, retryContext);
-    if (run.requiresRequest && !original) {
+    if (!publishOnly && run.requiresRequest && !original) {
       if (!input.trim()) {
         setActivityError('아래 입력란에 원래 요청을 다시 적어 주세요.');
         return;
@@ -196,12 +204,16 @@ export default function StudioConversation({ context, selectedTitle, onApply, lo
     setActing(true);
     setActivityError('');
     try {
-      const next = await executionAction(run, 'retry', { stepId: step.stepId, ...(original ? { request: original } : {}) });
+      const next = await executionAction(run, 'retry', {
+        stepId: step.stepId,
+        ...(!publishOnly && original ? { request: original } : {}),
+      });
       const base = original ?? {
         ...retryContext,
         clientEditVersion: run.clientEditVersion ?? retryContext.clientEditVersion,
       };
-      const result = next.result && !next.saveResult ? validateStudioRun(next.result, base) : undefined;
+      const result =
+        next.result && !next.saveResult && !next.publicationResult ? validateStudioRun(next.result, base) : undefined;
       receive.current(next, result);
     } catch (cause) {
       setActivityError(cause instanceof Error ? cause.message : '실패 단계 재시도 결과를 확인하지 못했습니다.');
@@ -233,7 +245,10 @@ export default function StudioConversation({ context, selectedTitle, onApply, lo
     <div className="studio-ai studio-live-ai">
       <div className="studio-ai-content">
         <h2>대시보드를 함께 완성하기</h2>
-        <p>질문·블록 수정·저장을 요청하세요. 요청한 단계만 실행하며 공유·복제는 아직 지원하지 않습니다.</p>
+        <p>
+          질문·블록 수정·저장과 게시를 요청하세요. “저장하고 링크로 공유해줘”라고 명시하면 저장 후 링크를 만듭니다. 공유
+          범위가 불분명하면 자동 공개하지 않습니다. 내 데이터로 복제는 아직 지원하지 않습니다.
+        </p>
         <div className="studio-context-card">
           <span className="studio-eyebrow">현재 문맥</span>
           <strong>{selectedTitle || '선택한 블록 없음'}</strong>
@@ -251,7 +266,13 @@ export default function StudioConversation({ context, selectedTitle, onApply, lo
           onRetry={retry}
           onCancel={cancel}
           canRetry={run =>
-            !busy && !locked && (!run.requiresRequest || requests.current.has(run.requestId) || !!input.trim())
+            !busy &&
+            !locked &&
+            ((retryStep(run)?.stepId === 'publish' &&
+              run.steps.some(s => s.stepId === 'saveDraft' && s.status === 'succeeded')) ||
+              !run.requiresRequest ||
+              requests.current.has(run.requestId) ||
+              !!input.trim())
           }
         />
         {!selectedTitle && <p>캔버스에서 블록을 먼저 선택하면 해당 블록만 수정할 수 있습니다.</p>}
@@ -292,7 +313,7 @@ export default function StudioConversation({ context, selectedTitle, onApply, lo
           disabled={busy || acting || locked}
         />
         <div>
-          <span>수정은 초안 · 저장은 명시 요청 시</span>
+          <span>수정은 초안 · 저장·링크 공유는 명시 요청 시</span>
           {busy ? (
             <Button
               onClick={() => {

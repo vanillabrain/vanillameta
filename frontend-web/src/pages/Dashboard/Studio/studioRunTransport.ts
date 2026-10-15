@@ -105,7 +105,8 @@ export function studioAssistantTransport(
             !run.saveResult || run.saveResult.document.sourceId === current.document.sourceId,
             '저장 결과의 데이터 소스가 요청과 다릅니다.',
           );
-          const result = run.result && !run.saveResult ? validateStudioRun(run.result, current) : undefined;
+          const result =
+            run.result && !run.saveResult && !run.publicationResult ? validateStudioRun(run.result, current) : undefined;
           activity.onExecution(run);
           return assistantResultStream({
             mode: 'studioExecution',

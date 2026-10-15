@@ -1,3 +1,4 @@
+import { PublicationMetadata } from './studio-publication-contract';
 import { StudioDocumentV1, StudioOperation } from './studio-contract';
 export type StudioStepId =
   | 'inspectSource'
@@ -37,6 +38,8 @@ export type StudioExecutionState = {
   steps: StudioExecutionStep[];
   save: boolean;
   saveOnly: boolean;
+  publish?: boolean;
+  publicationResult?: PublicationMetadata;
   unsupported?: StudioStepId;
   proposal?: { intent: string; operations: StudioOperation[]; document: StudioDocumentV1 };
 };

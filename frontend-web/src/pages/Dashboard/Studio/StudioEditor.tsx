@@ -18,6 +18,7 @@ import { formatMetric } from '@/utils/formatMetric';
 import MetricTrend from '../Components/MetricTrend';
 import StudioCanvas, { studioItemHeight } from './StudioCanvas';
 import StudioConversation from './StudioConversation';
+import StudioPublish from './StudioPublish';
 import { StudioRunContext, StudioRunResult } from './studioRunTransport';
 import StudioInspector from './StudioInspector';
 import StudioShell, { StudioDesignDocument, StudioProductContext } from './StudioShell';
@@ -329,6 +330,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<StudioLoadResult | null>(null);
   const [conflictOpen, setConflictOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
   const [conflictError, setConflictError] = useState('');
   /** Exact body of the in-flight save: a retry resends it verbatim, including its pinned source version. */
   const pendingRequest = useRef<StudioSaveRequest | null>(null);
@@ -663,6 +665,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
       status: state.saveState === 'clean' ? '저장됨' : '저장되지 않음',
       onSave: save,
     },
+    publish: { onOpen: () => setPublishOpen(true), disabled: saving || !!state.pendingSave || !!conflict },
     banner,
     aiBlockSummary: state.present.blocks.map(block => block.title).join(' · ') || '아직 블록이 없습니다',
     aiNote: '선택 블록의 변경은 검증 후 초안에만 적용됩니다.',
@@ -840,6 +843,13 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
           />
         }
         editToolbar={editToolbar}
+      />
+      <StudioPublish
+        open={publishOpen}
+        onClose={() => setPublishOpen(false)}
+        dashboardId={dashboardId}
+        revision={state.serverRevision ?? ''}
+        dirty={state.saveState !== 'clean'}
       />
       <Dialog
         open={conflictOpen}

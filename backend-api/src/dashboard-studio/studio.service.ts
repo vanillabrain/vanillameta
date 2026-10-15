@@ -1,3 +1,4 @@
+import { compileContribution } from '../ai/dashboard-contribution';
 import { createHash } from 'crypto';
 import {
   BadRequestException,
@@ -6,7 +7,7 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { ConnectionService } from '../connection/connection.service';
 import { SourceAccessService } from '../ownership/source-access.service';
@@ -235,6 +236,92 @@ export class StudioService {
     await this.source(originalSourceId, actor);
     const analysis = (await this.ai.analysis(id, actor, true)).data;
     await this.source(analysis.databaseId, actor);
+  }
+  /** Publication uses persisted definitions only and computes fresh aggregates under one pinned source. */
+  async assertPublicationOwner(id: number, actor: number) {
+    await this.access.dashboard(id, actor);
+    await this.owner(id, actor);
+    const analysis = (await this.ai.analysis(id, actor, true)).data;
+    await this.source(analysis.databaseId, actor);
+  }
+  async publicationSnapshot<T>(
+    id: number,
+    expectedRevision: string,
+    actor: number,
+    commit: (
+      value: { document: StudioDocumentV1; preview: any; dataVersion: string },
+      manager: EntityManager,
+    ) => Promise<T>,
+  ): Promise<T> {
+    await this.assertPublicationOwner(id, actor);
+    const analysis = (await this.ai.analysis(id, actor, true)).data;
+    const initialSource = await this.db.manager.findOne(Database, {
+      where: { id: analysis.databaseId },
+    });
+    return this.connection.withDuckDBSnapshot(analysis.databaseId, async () => {
+      const current = await this.load(id, actor);
+      if (
+        current.document.revision !== expectedRevision ||
+        current.document.sourceId !== analysis.databaseId
+      )
+        throw new ConflictException('저장한 최신 초안을 확인한 뒤 게시해 주세요.');
+      for (const [index, block] of current.document.blocks.entries()) {
+        await this.validateCurrentReferences(
+          block,
+          current.document.sourceId,
+          current.schemaVersion,
+          current.schema,
+        );
+        const widget = current.analysis.widgets[index];
+        const proven = compileContribution(widget, current.schema).supported;
+        // Snapshot charts may group by an exact timestamp without inferring a time bucket.
+        // Reuse the same strict aggregate/group parser, treating time as a scalar category only
+        // for this publication check. This is not evidence for time-point source-row drilldown.
+        const exactTimeAggregate =
+          widget.type === 'CHART_LINE' &&
+          compileContribution(
+            widget,
+            current.schema.map(column =>
+              /^(DATE|TIMESTAMP)/i.test(column.column_type)
+                ? { ...column, column_type: 'VARCHAR' }
+                : column,
+            ),
+          ).supported;
+        if (!proven && !exactTimeAggregate)
+          throw new BadRequestException('안전한 집계로 확인된 차트만 게시할 수 있습니다.');
+      }
+      const preview = (
+        await this.ai.preview({ draft: current.analysis, includeTrends: true }, actor)
+      ).data;
+      // Publication and save share the metadata queue; recheck against legacy writes during aggregation too.
+      return this.db.transaction(async manager => {
+        const latest = await this.load(id, actor, manager);
+        const source = await manager.findOne(Database, { where: { id: analysis.databaseId } });
+        if (
+          latest.document.revision !== expectedRevision ||
+          latest.dataVersion !== current.dataVersion ||
+          latest.document.sourceId !== current.document.sourceId ||
+          !initialSource ||
+          source.connectionConfig !== initialSource.connectionConfig ||
+          String(source.updatedAt) !== String(initialSource.updatedAt)
+        )
+          throw new ConflictException(
+            '집계 중 초안이나 데이터가 변경되었습니다. 다시 게시해 주세요.',
+          );
+        for (const block of latest.document.blocks)
+          await this.validateCurrentReferences(
+            block,
+            latest.document.sourceId,
+            latest.schemaVersion,
+            latest.schema,
+            manager,
+          );
+        return commit(
+          { document: current.document, preview, dataVersion: current.dataVersion },
+          manager,
+        );
+      });
+    });
   }
   async save(id: number, body: any, actor: number, signal?: AbortSignal) {
     return this.serializeWrite(() => this.saveOnce(id, body, actor, signal));

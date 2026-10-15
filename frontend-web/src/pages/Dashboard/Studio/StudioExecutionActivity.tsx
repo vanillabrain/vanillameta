@@ -1,6 +1,13 @@
 import React from 'react';
 import { Alert, Button } from '@mui/material';
-import { StudioExecution, STEP_LABELS, STATUS_LABELS, executionSummary, retryStep } from './studioExecution';
+import {
+  StudioExecution,
+  STEP_LABELS,
+  STATUS_LABELS,
+  executionSummary,
+  retryStep,
+  publishedDashboardPath,
+} from './studioExecution';
 type Props = {
   runs: StudioExecution[];
   busy: boolean;
@@ -23,16 +30,67 @@ export default function StudioExecutionActivity({ runs, busy, error, onRefresh, 
         완료 단계는 반복하지 않습니다. 원본 행과 요청 원문은 실행 기록에 저장하지 않습니다.
       </p>
       {error && <Alert severity="error">{error}</Alert>}
-      {!runs.length && !error && <p>요청을 보내면 데이터 확인부터 저장까지 진행 상태를 볼 수 있습니다.</p>}
+      {!runs.length && !error && <p>요청을 보내면 데이터 확인부터 저장·게시까지 진행 상태를 볼 수 있습니다.</p>}
       {runs.slice(0, 5).map((run, index) => (
         <details className="studio-execution-card" key={run.runId} open={index === 0}>
           <summary>
             <span>요청 {runs.length - index}</span>
-            <span className={'studio-execution-badge studio-execution-' + run.status}>{STATUS_LABELS[run.status]}</span>
+            <span
+              className={
+                'studio-execution-badge studio-execution-' + (run.publicationResult?.revokedAt ? 'cancelled' : run.status)
+              }
+            >
+              {run.publicationResult?.revokedAt ? '게시 중지됨' : STATUS_LABELS[run.status]}
+            </span>
           </summary>
           <p role={['failed', 'partial', 'interrupted'].includes(run.status) ? 'status' : undefined}>
             {executionSummary(run)}
           </p>
+          {run.publicationResult && (
+            <div className="studio-publication-receipt">
+              <p>
+                게시본 v{run.publicationResult.version} ·{' '}
+                {run.publicationResult.visibility === 'link' ? '링크가 있는 사용자' : '비공개 · 소유자만'}
+              </p>
+              <p>
+                데이터 기준 시각 ·{' '}
+                <time dateTime={run.publicationResult.asOf}>
+                  {new Date(run.publicationResult.asOf).toISOString().replace('T', ' ').replace('Z', ' UTC')}
+                </time>
+              </p>
+              {run.publicationResult.expiresAt && (
+                <p>
+                  링크 만료 ·{' '}
+                  <time dateTime={run.publicationResult.expiresAt}>
+                    {new Date(run.publicationResult.expiresAt).toISOString().replace('T', ' ').replace('Z', ' UTC')}
+                  </time>
+                </p>
+              )}
+              {run.publicationResult.revokedAt ? (
+                <p className="studio-execution-hint">
+                  게시 중지 시각 ·{' '}
+                  <time dateTime={run.publicationResult.revokedAt}>
+                    {new Date(run.publicationResult.revokedAt).toISOString().replace('T', ' ').replace('Z', ' UTC')}
+                  </time>
+                  . 중지된 링크는 다시 활성화되지 않습니다. 공유하려면 새로 게시해 주세요.
+                </p>
+              ) : (
+                <>
+                  <Button
+                    component="a"
+                    href={publishedDashboardPath(run.publicationResult)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="outlined"
+                    sx={{ minHeight: 44 }}
+                  >
+                    게시본 v{run.publicationResult.version} 열기
+                  </Button>
+                  <p className="studio-execution-hint">현재 만료·중지·접근 권한은 게시본을 열 때 다시 확인합니다.</p>
+                </>
+              )}
+            </div>
+          )}
           <ol aria-label="실행 단계">
             {run.steps.map(step => (
               <li key={step.stepId}>

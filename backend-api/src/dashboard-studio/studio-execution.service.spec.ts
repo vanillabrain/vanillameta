@@ -230,7 +230,7 @@ describe('T7 durable executions', () => {
     }
     const runner = new PartialRunner(db, studio, new StudioRunService(studio, ai));
     const first = await runner.create({ ...body, prompt: '저장해줘' }, 7);
-    expect(first.status).toBe('failed');
+    expect(first.status).toBe('partial');
     expect(first.saveResult).toBeDefined();
     const next = await runner.retry(first.runId, { stepId: 'publish' }, 7);
     expect(next.status).toBe('unsupported');
@@ -323,5 +323,191 @@ describe('T7 durable executions', () => {
       expect(summary).not.toHaveProperty('document');
       expect(summary).not.toHaveProperty('prompt');
     }
+  });
+  const publicationAdapter = () => {
+    const journal = new Map<string, any>();
+    const published = {
+      token: 'e'.repeat(64),
+      version: 1,
+      visibility: 'link',
+      allowRemix: false,
+      expiresAt: null,
+      revokedAt: null,
+      asOf: '2026-10-15T00:00:00.000Z',
+      dataVersion: 'f'.repeat(64),
+      dashboardId: 1,
+    };
+    return {
+      journal,
+      committed: jest.fn(async id => journal.get(id)),
+      publish: jest.fn(async (_dashboardId, b) => {
+        journal.set(b.requestId, published);
+        return published;
+      }),
+    };
+  };
+  it('T8 explicitly saves then publishes the committed revision without model; replay writes nothing', async () => {
+    const publications = publicationAdapter();
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    const request = { ...body, prompt: '저장하고 링크로 공유해줘' };
+    const result = await runner.create(request, 7);
+    expect(result.status).toBe('succeeded');
+    expect(result.steps.map(s => [s.stepId, s.status])).toEqual([
+      ['inspectSource', 'succeeded'],
+      ['saveDraft', 'succeeded'],
+      ['publish', 'succeeded'],
+    ]);
+    expect(publications.publish).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        expectedRevision: 'c'.repeat(64),
+        visibility: 'link',
+        allowRemix: false,
+      }),
+      7,
+      expect.any(AbortSignal),
+    );
+    expect(result.publicationResult.token).toBe('e'.repeat(64));
+    expect((await runner.list(1, 7))[0].publicationResult).toEqual(result.publicationResult);
+    expect(ai.callLlm).not.toHaveBeenCalled();
+    expect((await runner.create(request, 7)).publicationResult).toEqual(result.publicationResult);
+    expect(publications.publish).toHaveBeenCalledTimes(1);
+    expect(studio.save).toHaveBeenCalledTimes(1);
+  });
+  it('T8 publish failure is partial, retains committed save and retries only publication across restart', async () => {
+    const publications = publicationAdapter();
+    publications.publish.mockRejectedValueOnce(new Error('provider SQL SECRET'));
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    const first = await runner.create({ ...body, prompt: '저장하고 링크로 공유해줘' }, 7);
+    expect(first.status).toBe('partial');
+    expect(first.saveResult).toBeDefined();
+    expect(first.publicationResult).toBeUndefined();
+    expect(first.steps.find(s => s.stepId === 'publish')).toMatchObject({
+      status: 'failed',
+      errorCode: 'PUBLISH_FAILED',
+      retryable: true,
+    });
+    const restarted = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    const next = await restarted.retry(first.runId, { stepId: 'publish' }, 7);
+    expect(next.status).toBe('succeeded');
+    expect(next.publicationResult).toBeDefined();
+    expect(studio.save).toHaveBeenCalledTimes(1);
+    expect(ai.callLlm).not.toHaveBeenCalled();
+    expect(await db.manager.count(StudioRun)).toBe(1);
+    expect(JSON.stringify(await db.manager.find(StudioExecution))).not.toContain(
+      'provider SQL SECRET',
+    );
+  });
+  it('T8 recovers committed publication after response loss/restart and blocks ambiguous or negative consent', async () => {
+    const publications = publicationAdapter();
+    const real = publications.publish.getMockImplementation();
+    publications.publish.mockImplementationOnce(async (...args) => {
+      await (real as any)(...args);
+      throw new Error('lost response');
+    });
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    const first = await runner.create({ ...body, prompt: '저장하고 링크로 공유해줘' }, 7);
+    expect(first.status).toBe('succeeded');
+    expect(first.publicationResult).toBeDefined();
+    await db.manager.update(StudioExecution, { runId: first.runId }, { status: 'running' });
+    const restarted = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    await restarted.onModuleInit();
+    expect((await restarted.get(first.runId, 7)).status).toBe('succeeded');
+    for (const [i, prompt] of [
+      '공유해줘',
+      '저장하고 공유해줘',
+      '저장하고 링크로 공유하지마',
+      'do not save and share link',
+    ].entries()) {
+      const result = await restarted.create({ ...body, requestId: 'ambiguous' + i, prompt }, 7);
+      expect(result.status).toBe('unsupported');
+    }
+    expect(publications.publish).toHaveBeenCalledTimes(1);
+    expect(studio.save).toHaveBeenCalledTimes(1);
+  });
+  it.each(['failed', 'interrupted'])(
+    'T8 cancels unfinished %s publication while retaining committed save; retry rejects',
+    async status => {
+      const publications = publicationAdapter();
+      publications.publish.mockRejectedValueOnce(new Error('publish failed'));
+      const runner = new StudioExecutionService(
+        db,
+        studio,
+        new StudioRunService(studio, ai),
+        publications as any,
+      );
+      const first = await runner.create({ ...body, prompt: '저장하고 링크로 공유해줘' }, 7);
+      if (status === 'interrupted') {
+        const row = await db.manager.findOne(StudioExecution, { where: { runId: first.runId } });
+        const state = JSON.parse(row.state);
+        state.steps.find(s => s.stepId === 'publish').status = 'running';
+        row.state = JSON.stringify(state);
+        row.status = 'running';
+        await db.manager.save(StudioExecution, row);
+        await runner.onModuleInit();
+      }
+      const cancelled = await runner.cancel(first.runId, 7);
+      expect(cancelled.status).toBe('partial');
+      expect(cancelled.saveResult).toBeDefined();
+      expect(cancelled.steps.find(s => s.stepId === 'saveDraft').status).toBe('succeeded');
+      expect(cancelled.steps.find(s => s.stepId === 'publish')).toMatchObject({
+        status: 'cancelled',
+        retryable: false,
+      });
+      await expect(runner.retry(first.runId, { stepId: 'publish' }, 7)).rejects.toMatchObject({
+        status: 409,
+      });
+      expect(publications.publish).toHaveBeenCalledTimes(1);
+      expect(studio.save).toHaveBeenCalledTimes(1);
+    },
+  );
+  it('T8 cancel after publication commit reports succeeded even if the execution receipt was interrupted', async () => {
+    const publications = publicationAdapter();
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    const first = await runner.create({ ...body, prompt: '저장하고 링크로 공유해줘' }, 7);
+    const row = await db.manager.findOne(StudioExecution, { where: { runId: first.runId } });
+    const state = JSON.parse(row.state);
+    state.steps.find(s => s.stepId === 'publish').status = 'running';
+    row.status = 'running';
+    row.state = JSON.stringify(state);
+    await db.manager.save(StudioExecution, row);
+    const cancelled = await runner.cancel(first.runId, 7);
+    expect(cancelled.status).toBe('succeeded');
+    expect(cancelled.publicationResult).toBeDefined();
+    expect(cancelled.steps.find(s => s.stepId === 'publish')).toMatchObject({
+      status: 'succeeded',
+      retryable: false,
+    });
+    expect(publications.publish).toHaveBeenCalledTimes(1);
   });
 });

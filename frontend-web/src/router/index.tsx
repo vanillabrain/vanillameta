@@ -12,6 +12,7 @@ const DashboardCreate = React.lazy(() => import('@/pages/Dashboard/DashboardCrea
 const DashboardEdit = React.lazy(() => import('@/pages/Dashboard/DashboardEdit'));
 const StudioCreate = React.lazy(() => import('@/pages/Dashboard/Studio/StudioCreate'));
 const StudioEditor = React.lazy(() => import('@/pages/Dashboard/Studio/StudioEditor'));
+const PublishedDashboard = React.lazy(() => import('@/pages/Dashboard/Studio/PublishedDashboard'));
 const DashboardModify = React.lazy(() => import('@/pages/Dashboard/DashboardModify'));
 const Widget = React.lazy(() => import('@/pages/Widget'));
 const WidgetView = React.lazy(() => import('@/pages/Widget/WidgetView'));
@@ -101,6 +102,7 @@ function Router() {
             </ProtectedRoute>
           }
         />
+        <Route path="/published/:token" element={<PublishedDashboard />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/embed/:dashboardUuid" element={<Embed />} />

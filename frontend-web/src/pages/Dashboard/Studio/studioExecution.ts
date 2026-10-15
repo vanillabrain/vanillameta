@@ -1,7 +1,8 @@
 import { get, post } from '@/helpers/apiHelper';
-import { studioAssert, validateStudioDocument } from './studioDocument';
+import { studioAssert, studioKeys, validateStudioDocument } from './studioDocument';
 import { toStudioApiError, StudioSaveResult } from './studioApi';
 import type { StudioRunContext, StudioRunResult } from './studioRunTransport';
+import { Publication, validatePublication } from './studioPublication';
 export const STEP_LABELS = {
   inspectSource: '데이터 확인',
   proposeSemantics: 'AI 제안',
@@ -32,6 +33,59 @@ export type ExecutionStep = {
   resultRef?: string;
 };
 export type ExecutionRequest = StudioRunContext & { requestId: string; prompt: string };
+/** Historical publication receipt. Access is checked again by the published viewer. */
+export type StudioPublicationResult = Publication;
+export function validatePublicationResult(input: unknown): StudioPublicationResult {
+  studioKeys(input, [
+    'token',
+    'version',
+    'visibility',
+    'allowRemix',
+    'expiresAt',
+    'asOf',
+    'dataVersion',
+    'dashboardId',
+    'revokedAt',
+  ]);
+  const value = validatePublication(input);
+  const timestamp = (date: unknown): date is string =>
+    typeof date === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(date) &&
+    Number.isFinite(Date.parse(date)) &&
+    new Date(date).toISOString().slice(0, 19) === date.slice(0, 19);
+  studioAssert(
+    typeof value.token === 'string' && /^[A-Za-z0-9_-]{16,128}$/.test(value.token),
+    '게시 링크를 확인하지 못했습니다.',
+  );
+  studioAssert(Number.isSafeInteger(value.version) && value.version > 0, '게시 버전을 확인하지 못했습니다.');
+  studioAssert(['private', 'link'].includes(value.visibility), '게시 접근 범위를 확인하지 못했습니다.');
+  studioAssert(typeof value.allowRemix === 'boolean', '게시 복제 설정을 확인하지 못했습니다.');
+  studioAssert(timestamp(value.asOf), '게시 기준 시각을 확인하지 못했습니다.');
+  studioAssert(value.expiresAt === null || timestamp(value.expiresAt), '게시 만료 시각을 확인하지 못했습니다.');
+  studioAssert(
+    value.revokedAt === undefined || value.revokedAt === null || timestamp(value.revokedAt),
+    '게시 중지 시각을 확인하지 못했습니다.',
+  );
+  if (value.dataVersion !== undefined)
+    studioAssert(
+      typeof value.dataVersion === 'string' && /^[a-f0-9]{64}$/.test(value.dataVersion),
+      '게시 데이터 버전을 확인하지 못했습니다.',
+    );
+  // Owner-only metadata is accepted at the API boundary, but the activity keeps only
+  // the explicit receipt fields. No server-provided URL/HTML is rendered.
+  return {
+    token: value.token,
+    version: value.version,
+    visibility: value.visibility,
+    allowRemix: value.allowRemix,
+    expiresAt: value.expiresAt,
+    asOf: value.asOf,
+    ...(value.dataVersion !== undefined ? { dataVersion: value.dataVersion } : {}),
+    ...(value.revokedAt !== undefined ? { revokedAt: value.revokedAt } : {}),
+  };
+}
+export const publishedDashboardPath = (publication: StudioPublicationResult) =>
+  '/published/' + encodeURIComponent(publication.token);
 export type StudioExecution = {
   runId: string;
   requestId: string;
@@ -41,6 +95,7 @@ export type StudioExecution = {
   requiresRequest?: boolean;
   result?: StudioRunResult;
   saveResult?: StudioSaveResult;
+  publicationResult?: StudioPublicationResult;
   baseDocumentHash?: string;
   baseRevision?: string;
   sourceRevision?: string;
@@ -92,12 +147,30 @@ export function validateExecution(input: unknown, dashboardId: number): StudioEx
         '저장 ID 변환을 확인해 주세요.',
       );
   }
+  if (value.publicationResult !== undefined) {
+    value.publicationResult = validatePublicationResult(value.publicationResult);
+    studioAssert(
+      value.steps.some(step => step.stepId === 'publish' && step.status === 'succeeded'),
+      '게시 완료 단계와 결과가 일치하지 않습니다.',
+    );
+  }
   return value;
 }
 export const retryStep = (run: StudioExecution) =>
   run.steps.find(s => s.retryable && ['failed', 'interrupted', 'cancelled'].includes(s.status));
 export const executionSummary = (run: StudioExecution) => {
   const saved = run.steps.some(s => s.stepId === 'saveDraft' && s.status === 'succeeded');
+  const publish = run.steps.find(s => s.stepId === 'publish');
+  if (run.publicationResult?.revokedAt)
+    return `${saved ? '저장 완료 · ' : ''}게시 중지됨 · v${run.publicationResult.version}. 중지된 링크는 열 수 없습니다.`;
+  if (run.publicationResult) {
+    const scope = run.publicationResult.visibility === 'link' ? '링크 공유' : '비공개';
+    return `${saved ? '저장 완료 · ' : ''}게시 완료 · v${
+      run.publicationResult.version
+    } · ${scope}. 게시 기록의 링크에서 접근 상태를 확인하세요.`;
+  }
+  if (saved && publish?.status === 'failed')
+    return '저장 완료 · 게시 실패. 저장 결과는 유지되며 게시 링크는 갱신되지 않았습니다. 게시 단계만 다시 시도할 수 있습니다.';
   if (saved)
     return ['succeeded', 'completed'].includes(run.status)
       ? '저장 완료 · 서버에 반영됐습니다.'
@@ -158,6 +231,21 @@ export async function canResumeExecution(
   context: StudioRunContext,
   recovered: boolean,
 ): Promise<boolean> {
+  if (
+    run.dashboardId !== context.dashboardId ||
+    run.sourceRevision !== context.expectedSourceRevision ||
+    (recovered && context.clientEditVersion !== 0)
+  )
+    return false;
+  // A save can remount the editor before publication fails. Resume only publication from
+  // the exact committed document; never re-send the old prompt or repeat the save.
+  if (
+    retryStep(run)?.stepId === 'publish' &&
+    run.steps.some(step => step.stepId === 'saveDraft' && step.status === 'succeeded') &&
+    run.saveResult?.document.revision === context.expectedRevision &&
+    run.saveResult.document.sourceId === context.document.sourceId
+  )
+    return (await documentFingerprint(run.saveResult.document)) === (await documentFingerprint(context.document));
   if (
     run.dashboardId !== context.dashboardId ||
     run.baseRevision !== context.expectedRevision ||

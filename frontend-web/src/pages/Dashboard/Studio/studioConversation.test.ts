@@ -140,3 +140,67 @@ it('surfaces a durable preview failure as activity without applying or rerunning
     spy.mockRestore();
   }
 });
+
+const publication = {
+  token: 'publication_token_12345678',
+  version: 2,
+  visibility: 'link',
+  allowRemix: false,
+  expiresAt: null,
+  asOf: '2026-10-15T10:30:00.000Z',
+};
+const savedExecution = () => ({
+  runId: 'run-published',
+  requestId: 'q1',
+  dashboardId: 3,
+  status: 'succeeded',
+  saveResult: { document: { ...document, revision: 'c'.repeat(64) }, idMap: {} },
+  publicationResult: publication,
+  // A save/publish receipt is independent of the old preview/result context.
+  result: { answer: '<script>never apply</script>' },
+  steps: [
+    { stepId: 'saveDraft', status: 'succeeded', retryable: false },
+    { stepId: 'publish', status: 'succeeded', retryable: false },
+  ],
+});
+it('streams the durable saved-and-published receipt instead of hiding publication behind an old model result', async () => {
+  const api = await import('@/helpers/apiHelper');
+  const execution = savedExecution();
+  const onExecution = vi.fn();
+  const spy = vi.spyOn(api, 'post').mockResolvedValue({ data: execution } as any);
+  try {
+    const stream = await studioAssistantTransport(() => context, { onRequest: vi.fn(), onExecution }).sendMessages({
+      messages: [{ role: 'user', parts: [{ type: 'text', text: '저장하고 링크로 공유해줘' }] }],
+    } as any);
+    const start: any = (await stream.getReader().read()).value;
+    const payload = start.messageMetadata.result;
+    expect(payload.execution.publicationResult).toEqual(publication);
+    expect(payload.result).toBeUndefined();
+    expect(payload.answer).toContain('저장 완료 · 게시 완료 · v2 · 링크 공유');
+    expect(payload.answer).not.toContain('<script>');
+    expect(onExecution).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledOnce();
+  } finally {
+    spy.mockRestore();
+  }
+});
+it('does not present malformed publication metadata as a successful shared link', async () => {
+  const api = await import('@/helpers/apiHelper');
+  const onExecution = vi.fn();
+  const spy = vi.spyOn(api, 'post').mockResolvedValue({
+    data: {
+      ...savedExecution(),
+      publicationResult: { ...publication, token: 'javascript:alert(1)' },
+    },
+  } as any);
+  try {
+    await expect(
+      studioAssistantTransport(() => context, { onRequest: vi.fn(), onExecution }).sendMessages({
+        messages: [{ role: 'user', parts: [{ type: 'text', text: '저장하고 링크로 공유해줘' }] }],
+      } as any),
+    ).rejects.toMatchObject({ kind: 'invalid' });
+    expect(onExecution).not.toHaveBeenCalled();
+  } finally {
+    spy.mockRestore();
+  }
+});
