@@ -1,26 +1,32 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { Button, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
-import PageTitleBox from '@/components/PageTitleBox';
-import SubmitButton from '@/components/button/SubmitButton';
-import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 import AceEditor from 'react-ace';
 import 'ace-builds/src-noconflict/mode-mysql';
 import 'ace-builds/src-noconflict/theme-tomorrow';
 import 'ace-builds/src-noconflict/snippets/mysql';
 import LangTools from 'ace-builds/src-min-noconflict/ext-language_tools';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+
+import PageTitleBox from '@/components/PageTitleBox';
+import SubmitButton from '@/components/button/SubmitButton';
+import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 import DataGrid from '@/components/datagrid';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TextField } from '@/components/ui/text-field';
 import DatabaseService from '@/api/databaseService';
 import DatasetService from '@/api/datasetService';
 import AiService from '@/api/aiService';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { createColumns } from '@/utils/util';
+
+/** Radix select items only carry string values; keep the empty choice addressable. */
+const NO_SOURCE_VALUE = '__none__';
 
 const DataSet = () => {
   const { t } = useTranslation();
@@ -261,14 +267,27 @@ const DataSet = () => {
     navigate('/data');
   };
 
+  // Radix Select는 문자열 값만 다루므로 선택된 옵션의 원래 값(id)을 되돌려 숫자 계약을 유지한다.
+  const databaseOptions = databaseList.length
+    ? databaseList.map(item => ({ value: item.id, label: item.name }))
+    : [{ value: '', label: t('dataset.noSource') }];
+  const optionValue = option =>
+    option.value === '' || option.value === undefined || option.value === null ? NO_SOURCE_VALUE : String(option.value);
+  const selectedSourceValue =
+    databaseId === '' || databaseId === undefined || databaseId === null ? NO_SOURCE_VALUE : String(databaseId);
+  const handleSourceValueChange = next => {
+    const matched = databaseOptions.find(option => optionValue(option) === next);
+    onChangeDatabaseId({ target: { value: next === NO_SOURCE_VALUE ? '' : matched ? matched.value : '' } });
+  };
+
   return (
     <PageTitleBox
       upperTitle={t('nav.data')}
       upperTitleLink="/data"
       title={isModifyMode ? t('dataset.titleModify') : t('dataset.titleCreate')}
-      sx={{ p: 0 }}
+      className="p-0"
       button={
-        <Stack>
+        <div className="flex flex-col">
           <ConfirmCancelButton
             cancelLabel={t('dataSource.prev')}
             cancelProps={{
@@ -279,77 +298,43 @@ const DataSet = () => {
               disabled: !testCompleted,
               form: 'datasetForm',
               type: 'submit',
-              variant: 'contained',
+              variant: 'default',
             }}
           />
-        </Stack>
+        </div>
       }
     >
-      <Stack
-        id="datasetForm"
-        component="form"
-        flexDirection="column"
-        spacing="20px"
-        sx={{ p: '30px 25px 40px 25px' }}
-        onSubmit={saveDataset}
-      >
+      <form id="datasetForm" className="flex flex-col gap-6 px-4 py-6 sm:px-6" onSubmit={saveDataset}>
         <Select
-          id="databaseId"
-          inputProps={{ 'aria-label': t('data.source') }}
-          sx={{ maxWidth: '500px' }}
-          displayEmpty
+          value={selectedSourceValue}
+          onValueChange={handleSourceValueChange}
           disabled={isModifyMode || !databaseList.length}
-          size="small"
-          value={databaseId ?? ''}
-          // renderValue={selected => {
-          //   if (selected.length === 0) {
-          //     return <Typography sx={{ color: '#929292', fontStyle: 'italic' }}>데이터베이스를 선택해 주세요.</Typography>;
-          //   } else {
-          //     const item = databaseList?.find(({ id: value }) => value === selected);
-          //     return item?.name;
-          //   }
-          // }}
-          onChange={onChangeDatabaseId}
         >
-          {databaseList.length ? (
-            databaseList.map(item => (
-              <MenuItem key={item.id} value={item.id ?? ''}>
-                {item.name}
-              </MenuItem>
-            ))
-          ) : (
-            <MenuItem value="">{t('dataset.noSource')}</MenuItem>
-          )}
+          <SelectTrigger id="databaseId" aria-label={t('data.source')} className="w-full max-w-lg bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            {databaseOptions.map(option => (
+              <SelectItem key={optionValue(option)} value={optionValue(option)}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
 
         <TextField
           id="userSetName"
+          className="max-w-lg"
           label={t('dataset.name')}
           placeholder={t('dataset.namePlaceholder')}
           value={datasetInfo?.title}
           onChange={onChangeTitle}
           required
         />
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing="12px"
-          alignItems={{ xs: 'stretch', sm: 'center' }}
-          sx={{
-            p: '12px 16px',
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: '8px',
-            bgcolor: 'background.default',
-            minWidth: 0,
-          }}
-        >
-          <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap', fontWeight: 600 }}>
-            {t('dataset.aiGen')}
-          </Typography>
+        <div className="flex min-w-0 flex-col items-stretch gap-3 rounded-lg border border-border bg-muted p-4 sm:flex-row sm:items-center">
+          <span className="shrink-0 text-sm font-semibold whitespace-nowrap">{t('dataset.aiGen')}</span>
           <TextField
-            size="small"
-            inputProps={{ 'aria-label': t('dataset.aiGen') }}
-            fullWidth
+            inputProps={{ 'aria-label': t('dataset.aiGen'), className: 'bg-white' }}
             placeholder={t('dataset.aiPlaceholder')}
             value={aiPrompt}
             onChange={event => setAiPrompt(event.target.value)}
@@ -360,17 +345,16 @@ const DataSet = () => {
               }
             }}
             disabled={aiLoading}
-            sx={{ backgroundColor: '#fff' }}
           />
           <SubmitButton
             label={aiLoading ? t('dataset.aiBtnLoading') : t('dataset.aiBtn')}
             type="button"
-            sx={{ width: '120px', height: '40px', fontSize: '13px', flexShrink: 0 }}
+            className="w-full shrink-0 sm:w-32"
             onClick={generateSqlWithAi}
             disabled={aiLoading}
           />
-        </Stack>
-        <Stack
+        </div>
+        <div
           onKeyDownCapture={event => {
             if (event.key === 'Escape' && (event.target as HTMLElement).classList.contains('ace_text-input')) {
               event.preventDefault();
@@ -379,50 +363,45 @@ const DataSet = () => {
             }
           }}
         >
-          <AceEditor
-            placeholder="Please enter a query."
-            style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}
-            mode="mysql"
-            theme="tomorrow"
-            name="codeInput"
-            onLoad={editor => {
-              const input = editor.container.querySelector<HTMLTextAreaElement>('.ace_text-input');
-              queryInput.current = input;
-              input?.setAttribute('aria-label', t('dataset.sqlQuery'));
-              input?.setAttribute('aria-describedby', 'sql-keyboard-help');
-            }}
-            onChange={onChange}
-            fontSize={14}
-            showPrintMargin={true}
-            showGutter={true}
-            highlightActiveLine={true}
-            value={datasetInfo.query}
-            setOptions={{
-              enableBasicAutocompletion: true,
-              enableLiveAutocompletion: true,
-              enableSnippets: true,
-              showLineNumbers: true,
-              tabSize: 2,
-            }}
-          />
-          <Typography id="sql-keyboard-help" variant="caption" sx={{ mt: 1 }}>
+          <div className="overflow-hidden rounded-lg border border-border">
+            <AceEditor
+              placeholder="Please enter a query."
+              width="100%"
+              height="200px"
+              mode="mysql"
+              theme="tomorrow"
+              name="codeInput"
+              onLoad={editor => {
+                const input = editor.container.querySelector<HTMLTextAreaElement>('.ace_text-input');
+                queryInput.current = input;
+                input?.setAttribute('aria-label', t('dataset.sqlQuery'));
+                input?.setAttribute('aria-describedby', 'sql-keyboard-help');
+              }}
+              onChange={onChange}
+              fontSize={14}
+              showPrintMargin={true}
+              showGutter={true}
+              highlightActiveLine={true}
+              value={datasetInfo.query}
+              setOptions={{
+                enableBasicAutocompletion: true,
+                enableLiveAutocompletion: true,
+                enableSnippets: true,
+                showLineNumbers: true,
+                tabSize: 2,
+              }}
+            />
+          </div>
+          <span id="sql-keyboard-help" className="mt-1 block text-xs text-muted-foreground">
             {t('dataset.sqlKeyboardHelp')}
-          </Typography>
-        </Stack>
-        <Button
-          ref={runButton}
-          variant="contained"
-          fullWidth
-          type="button"
-          size="large"
-          sx={{ width: '100%', maxWidth: '374px', fontSize: '13px' }}
-          onClick={excuteQuery}
-        >
+          </span>
+        </div>
+        <Button ref={runButton} type="button" className="w-full sm:w-40" onClick={excuteQuery}>
           Run
         </Button>
-      </Stack>
+      </form>
       {data.length ? (
-        <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
+        <div className="border-t border-border bg-muted px-4 py-6 sm:px-6">
           <DataGrid
             minBodyHeight={300}
             bodyHeight={500}
@@ -432,7 +411,7 @@ const DataSet = () => {
               resizable: true,
             }}
           />
-        </Stack>
+        </div>
       ) : (
         ''
       )}

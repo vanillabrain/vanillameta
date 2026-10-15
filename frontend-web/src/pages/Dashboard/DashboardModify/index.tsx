@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Button, Card, Stack, TextField } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
+import { TextField } from '@/components/ui/text-field';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';
@@ -12,7 +14,6 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
-import AddIcon from '@mui/icons-material/Add';
 import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashboardPopup';
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
@@ -217,24 +218,12 @@ function DashboardModify() {
     return widgets.map(item => {
       useWidgetIds.push(item.id); // 현재 widget id 를 담는다.
       return (
-        <Card
+        <div
           key={item.id}
-          sx={{
-            width: '100%',
-            height: '100%',
-            borderRadius: '8px',
-            boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
-            border: 'solid 1px #e2e2e2',
-            backgroundColor: '#fff',
-          }}
+          className="relative isolate h-full w-full overflow-hidden rounded-lg border border-border bg-background shadow-md"
         >
           <ReloadButton
-            sx={{
-              position: 'absolute',
-              right: '76px',
-              top: '6px',
-              zIndex: 2000,
-            }}
+            className="absolute top-1.5 right-[76px] z-10"
             onClick={event => {
               console.log(item);
               event.preventDefault();
@@ -243,12 +232,7 @@ function DashboardModify() {
             }}
           />
           <ModifyButton
-            sx={{
-              position: 'absolute',
-              right: '40px',
-              top: '6px',
-              zIndex: 2000,
-            }}
+            className="absolute top-1.5 right-10 z-10"
             onClick={event => {
               console.log(item);
               event.preventDefault();
@@ -257,18 +241,7 @@ function DashboardModify() {
             }}
           />
           <CloseButton
-            sx={{
-              position: 'absolute',
-              right: '0px',
-              top: '0px',
-              marginRight: '9px',
-              marginTop: '9px',
-              paddingRight: '8px',
-              paddingTop: '8px',
-              cursor: 'pointer',
-              zIndex: 2000,
-            }}
-            size="medium"
+            className="absolute top-[9px] right-0 z-20 mr-[9px] cursor-pointer p-2"
             onClick={event => {
               event.preventDefault();
               event.stopPropagation();
@@ -285,7 +258,7 @@ function DashboardModify() {
             }}
           />
           <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} />
-        </Card>
+        </div>
       );
     });
   };
@@ -394,14 +367,14 @@ function DashboardModify() {
       upperTitle={t('nav.dashboard')}
       upperTitleLink="/dashboard"
       title={topTitle}
-      sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
+      className="mt-0 w-full flex-auto p-0 sm:mt-[22px]"
       button={
-        <Stack direction="row" spacing={3} sx={{ marginRight: '20px' }}>
+        <div className="mr-5 flex flex-row gap-6">
           <ConfirmCancelButton
             confirmProps={{ disabled: false, onClick: handleSaveDialogSelect }}
             cancelProps={{ onClick: handleCancelDialogSelect }}
           />
-        </Stack>
+        </div>
       }
     >
       <PageViewBox
@@ -410,41 +383,7 @@ function DashboardModify() {
             id="userDashboardName"
             label={t('dashboardModify.nameLabel')}
             required
-            sx={{
-              width: { xs: '100%', sm: '960px' },
-              height: '32px',
-              marginLeft: { sm: '16px' },
-              marginTop: 0,
-              borderRadius: '4px',
-              backgroundColor: '#fff',
-              input: {
-                fontWeight: 500,
-                paddingLeft: '18px',
-                height: '16px',
-                fontFamily: 'Pretendard',
-                fontSize: '14px',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: 0.89,
-                letterSpacing: '-0.18px',
-                textAlign: 'left',
-                color: '#141414',
-                '&::placeholder': {
-                  height: '16px',
-                  flexGrow: 0,
-                  fontFamily: 'Pretendard',
-                  fontSize: '14px',
-                  fontWeight: 'normal',
-                  fontStretch: 'normal',
-                  fontStyle: 'normal',
-                  lineHeight: '1.14',
-                  letterSpacing: 'normal',
-                  textAlign: 'left',
-                  color: '#929292',
-                  opacity: 1,
-                },
-              },
-            }}
+            className="h-8 w-full rounded bg-background sm:ml-4 sm:w-[960px]"
             placeholder={t('dashboardModify.namePlaceholder')}
             value={dashboardTitle}
             onChange={event => {
@@ -454,23 +393,8 @@ function DashboardModify() {
         }
         button={
           <>
-            <Button
-              onClick={handleWidgetOpen}
-              variant="contained"
-              startIcon={<AddIcon />}
-              color="primary"
-              sx={{
-                borderRadius: '8px',
-                width: '97px',
-                height: '32px',
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                padding: '7px 0',
-                objectFit: 'contain',
-              }}
-            >
+            <Button onClick={handleWidgetOpen} className="flex h-8 w-[97px] flex-row items-center justify-center gap-1 px-0">
+              <Plus className="size-4" aria-hidden="true" />
               {t('dashboardModify.addWidget')}
             </Button>
             <AddWidgetPopup
@@ -482,16 +406,10 @@ function DashboardModify() {
           </>
         }
       >
-        <Box sx={{ width: '100%', minWidth: 0, overflowX: 'auto' }}>
-          <Box
-            sx={{
-              width: '1390px',
-              minWidth: '1390px',
-              minHeight: '1080px',
-              backgroundImage: `url(${bg})`,
-              backgroundRepeat: 'repeat',
-              borderRadius: '0px 0px 6px 6px',
-            }}
+        <div className="w-full min-w-0 overflow-x-auto">
+          <div
+            className="min-h-[1080px] w-[1390px] min-w-[1390px] rounded-b-md bg-repeat"
+            style={{ backgroundImage: `url(${bg})` }}
           >
             <ResponsiveGridLayout
               rowHeight={88}
@@ -506,8 +424,8 @@ function DashboardModify() {
               {generateWidget()}
             </ResponsiveGridLayout>
             <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
-          </Box>
-        </Box>
+          </div>
+        </div>
       </PageViewBox>
     </PageTitleBox>
   );

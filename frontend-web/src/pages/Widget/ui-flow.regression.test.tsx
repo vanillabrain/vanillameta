@@ -34,43 +34,6 @@ const mocks = vi.hoisted(() => ({
   grid: null as any,
 }));
 
-vi.mock('@mui/material/styles', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material/styles');
-});
-vi.mock('@mui/material', () => {
-  const Container = ({ children, sx, component, onSubmit, id }: any) => {
-    const Tag = (typeof component === 'string' ? component : 'div') as React.ElementType;
-    return (
-      <Tag data-sx={JSON.stringify(sx)} onSubmit={onSubmit} id={id}>
-        {children}
-      </Tag>
-    );
-  };
-  return {
-    Box: Container,
-    Stack: Container,
-    Step: Container,
-    StepLabel: Container,
-    Stepper: Container,
-    Card: Container,
-    Typography: Container,
-    SvgIcon: () => null,
-    Button: ({ children, disabled, onClick, type }: any) => (
-      <button type={type} disabled={disabled} onClick={onClick}>
-        {children}
-      </button>
-    ),
-    Select: ({ children, value, onChange }: any) => (
-      <select value={value} onChange={onChange}>
-        {children}
-      </select>
-    ),
-    MenuItem: ({ children, value }: any) => <option value={value}>{children}</option>,
-    useTheme: () => ({ breakpoints: { up: () => '(min-width:600px)' } }),
-    useMediaQuery: () => false,
-  };
-});
 vi.mock('@/components/button/ConfirmCancelButton', () => ({
   ConfirmButton: () => (
     <button form="widgetAttribute" type="submit">
@@ -574,8 +537,14 @@ it('keeps a single clickable page action in the mobile header without xs display
   );
   const button = screen.getByRole('button', { name: 'Add metric' });
   expect(screen.getAllByRole('button', { name: 'Add metric' }).length).toBe(1);
-  const actionStyles = JSON.parse(button.parentElement.getAttribute('data-sx'));
-  expect(actionStyles.display.xs).not.toBe('none');
+  // The action stays reachable at narrow widths: no ancestor may be hidden at the smallest breakpoint.
+  const hidesAtSmallWidth = /(?:^|\s)(?:hidden|max-(?:xs|sm|md|lg|xl):hidden)(?:\s|$)/;
+  const hiddenAncestors: string[] = [];
+  for (let node: HTMLElement | null = button; node && node !== document.body; node = node.parentElement) {
+    const className = node.getAttribute('class') ?? '';
+    if (hidesAtSmallWidth.test(className)) hiddenAncestors.push(className);
+  }
+  expect(hiddenAncestors).toEqual([]);
   fireEvent.click(button);
   expect(onClick).toHaveBeenCalledTimes(1);
 });

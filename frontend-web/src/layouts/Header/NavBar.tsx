@@ -1,7 +1,7 @@
 import React from 'react';
-import { Button, Stack, ListItem } from '@mui/material';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { cn } from '@/lib/utils';
 
 function NavBar(props) {
   const { i18n } = useTranslation();
@@ -10,52 +10,25 @@ function NavBar(props) {
     { id: 'commerce', name: i18n.language?.startsWith('en') ? 'COMMERCE' : '매출·환불', link: '/commerce' },
   ];
   return (
-    <Stack component="ul" direction="row" sx={{ display: 'flex', flexGrow: 1, paddingLeft: 0, m: 0 }}>
+    <ul className="m-0 flex grow list-none flex-row items-center gap-1 p-0 max-sm:absolute max-sm:inset-x-4 max-sm:bottom-0 max-sm:h-12 max-sm:overflow-x-auto">
       {navItems.map(item => (
-        <ListItem
-          key={item.id}
-          sx={{
-            width: 'auto',
-            justifyContent: 'center',
-            padding: 0,
-            fontSize: 15,
-            fontFamily: 'Pretendard',
-            fontWeight: 500,
-            fontStretch: 'normal',
-            fontStyle: 'normal',
-            lineHeight: 'normal',
-            letterSpacing: 'normal',
-            color: '#4a4a4a',
-            '& .active': {
-              color: '#0f5ab2',
-              fontWeight: 'bold',
-            },
-          }}
-        >
-          <Button
-            component={NavLink}
+        <li key={item.id} className="w-auto">
+          <NavLink
             to={item.link}
-            sx={{
-              minWidth: 0,
-              color: 'inherit',
-              padding: 0,
-              fontSize: { xs: 13, sm: 15 },
-              height: 50,
-              px: { xs: '14px', sm: '18px' },
-              fontFamily: 'Pretendard',
-              fontWeight: 500,
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 'normal',
-              letterSpacing: 'normal',
-              whiteSpace: 'nowrap',
-            }}
+            className={({ isActive }) =>
+              cn(
+                'flex h-10 items-center justify-center rounded-md px-3 text-sm leading-5 font-medium whitespace-nowrap sm:px-4',
+                isActive
+                  ? 'bg-accent font-semibold text-primary'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              )
+            }
           >
             {item.name}
-          </Button>
-        </ListItem>
+          </NavLink>
+        </li>
       ))}
-    </Stack>
+    </ul>
   );
 }
 

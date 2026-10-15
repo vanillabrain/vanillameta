@@ -1,54 +1,34 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Button,
-  ButtonBase,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  IconButton,
-} from '@mui/material';
-import { Close } from '@mui/icons-material';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export const DialogAlertIconButton = props => {
-  const { t } = useTranslation();
-  const { icon, size, children, handleDialogSelect } = props;
+  const { icon, size = 'medium', children = '', handleDialogSelect } = props;
   const iconButton = (
-    <IconButton component="div" size={size}>
+    <Button
+      type="button"
+      variant="ghost"
+      size={size === 'small' ? 'icon-xs' : 'icon-sm'}
+      className="text-muted-foreground hover:text-foreground"
+    >
       {icon}
-    </IconButton>
+    </Button>
   );
 
   return <DialogAlertButton button={iconButton} children={children} handleDialogSelect={handleDialogSelect} />;
-};
-
-DialogAlertIconButton.defaultProps = {
-  icon: undefined,
-  size: 'medium',
-  children: '',
 };
 
 const DialogAlertButton = props => {
   const { t } = useTranslation();
   const {
     button,
-    children,
+    children = '',
     confirmLabel = t('common.delete'),
     cancelLabel = t('common.cancel'),
     handleDialogSelect,
-    ref,
   } = props;
   const [open, setOpen] = useState(false);
-
-  const handleOpenClick = () => {
-    setOpen(true);
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-  };
 
   const handleConfirmCancelClick = detail => {
     setOpen(false);
@@ -58,48 +38,33 @@ const DialogAlertButton = props => {
   };
 
   return (
-    <React.Fragment>
-      <ButtonBase onClick={handleOpenClick}>{button}</ButtonBase>
-
-      <Dialog
-        open={open}
-        onClose={handleClose}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{button}</DialogTrigger>
+      <DialogContent
         aria-labelledby={t('common.warning')}
         aria-describedby={t('common.warningText')}
+        className="max-w-[calc(100%-2rem)] sm:max-w-[420px]"
       >
-        <DialogTitle id={t('common.warning')} sx={{ mb: 2 }}>
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: theme => theme.palette.grey[500],
-            }}
-          >
-            <Close />
-          </IconButton>
+        <DialogTitle id={t('common.warning')} className="sr-only">
+          {t('common.warning')}
         </DialogTitle>
-        <DialogContent>
-          <DialogContentText id={t('common.warningText')}>{children}</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => handleConfirmCancelClick(1)} color="inherit">
+        <DialogDescription
+          id={t('common.warningText')}
+          className="whitespace-pre-wrap pt-2 text-center text-sm text-foreground"
+        >
+          {children}
+        </DialogDescription>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => handleConfirmCancelClick(1)}>
             {confirmLabel}
           </Button>
-          <Button onClick={() => handleConfirmCancelClick(0)} color="error">
+          <Button type="button" variant="destructive" onClick={() => handleConfirmCancelClick(0)}>
             {cancelLabel}
           </Button>
-        </DialogActions>
-      </Dialog>
-    </React.Fragment>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
-};
-
-DialogAlertButton.defaultProps = {
-  button: undefined,
-  children: '',
 };
 
 export default DialogAlertButton;

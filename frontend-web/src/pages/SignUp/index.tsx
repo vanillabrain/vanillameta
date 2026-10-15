@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import Logo from '@/assets/images/logo.svg?react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -11,6 +10,9 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import { checkEmail, checkId, checkPwd } from '@/utils/util';
 import Seo from '@/seo/Seo';
 import { getToken } from '@/helpers/authHelper';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { TextField } from '@/components/ui/text-field';
 
 const SignUp = () => {
   const { t } = useTranslation();
@@ -111,44 +113,20 @@ const SignUp = () => {
 
   if (!token) {
     return (
-      <Box
-        component="main"
-        sx={{
-          position: 'relative',
-          zIndex: 0,
-          width: '100%',
-          height: '100%',
-          minWidth: '100vw',
-          backgroundColor: '#f5f6f8',
-        }}
-      >
+      <main className="relative min-h-full w-full bg-muted px-4 pb-8">
         <Seo title={t('signup.title')} />
-        <Box
-          sx={{
-            pt: '90px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
+        <div className="mx-auto flex max-w-md flex-col items-center pt-10 sm:pt-14">
           <RouterLink to="/">
-            <Logo width="223px" height="43px" />
+            <Logo width="223px" height="43px" aria-label="VanillaMeta" />
           </RouterLink>
-          <Paper
-            elevation={0}
-            sx={{ width: '560px', mt: '32px', px: '100px', pt: '60px', pb: '80px', border: 'solid 1px #e2e2e2' }}
-          >
-            <Stack component="form" onSubmit={handleSignup} noValidate sx={{ width: '360px' }} spacing="20px">
-              <Typography sx={{ mb: '36px', fontSize: '24px', fontWeight: 600, lineHeight: 1.33, color: '#141414' }}>
-                <Box component="span" sx={{ color: '#0f5ab2' }}>
-                  {t('signup.taglineA')}
-                </Box>
+          <Card className="mt-8 w-full gap-0 rounded-xl border border-border p-6 shadow-sm ring-0 sm:p-8">
+            <form onSubmit={handleSignup} noValidate className="flex w-full flex-col gap-5">
+              <p className="mb-2 text-xl leading-8 sm:text-2xl font-semibold text-foreground">
+                <span className="text-primary">{t('signup.taglineA')}</span>
                 {t('signup.taglineB')}
-              </Typography>
+              </p>
               <TextField
-                margin="normal"
                 required
-                fullWidth
                 label="User ID"
                 name="userId"
                 type="text"
@@ -156,81 +134,44 @@ const SignUp = () => {
                 onChange={handleChange}
               />
               <TextField
-                margin="normal"
                 required
-                fullWidth
                 name="userPwd"
                 value={userInfo.userPwd}
                 onChange={handleChange}
                 label="Password"
                 type="password"
-                sx={{ height: '36px' }}
               />
               <TextField
-                margin="normal"
                 required
-                fullWidth
                 name="userConfirmPwd"
                 value={userInfo.userConfirmPwd}
                 onChange={handleChange}
                 label="Confirm Password"
                 type="password"
-                sx={{ height: '36px' }}
               />
               <TextField
-                margin="normal"
                 required
-                fullWidth
                 name="userEmail"
                 value={userInfo.userEmail}
                 onChange={handleChange}
                 label="E-mail"
                 type="email"
-                sx={{ height: '36px' }}
               />
-              <Button type="submit" size="large" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
+              <Button type="submit" size="lg" className="mt-2 w-full">
                 {t('signup.submit')}
               </Button>
-            </Stack>
-            <Typography
-              component="div"
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '12px',
-                mt: '50px',
-                fontSize: '14px',
-                textAlign: 'center',
-                color: '#4a4a4a',
-              }}
-            >
-              <Box
-                component={RouterLink}
-                to="/login"
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: '12px',
-                  color: 'inherit',
-
-                  '&:after': {
-                    content: `""`,
-                    width: '1px',
-                    height: '10px',
-                    backgroundColor: '#cccfd8',
-                  },
-                }}
-              >
+            </form>
+            <div className="mt-6 flex items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+              <RouterLink to="/login" className="text-sm text-inherit hover:underline">
                 {t('login.title')}
-              </Box>
-              <Box>{t('login.findAccount')}</Box>
-            </Typography>
-          </Paper>
-        </Box>
-        <Copyright sx={{ mt: '40px' }} />
-      </Box>
+              </RouterLink>
+              <span aria-hidden="true" className="h-2.5 w-px bg-border" />
+              <span>{t('login.findAccount')}</span>
+            </div>
+          </Card>
+        </div>
+        <Copyright className="mt-8" />
+      </main>
     );
   }
 };

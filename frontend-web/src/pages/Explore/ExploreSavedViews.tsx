@@ -1,6 +1,9 @@
-import { analysisPanelSx } from '@/components/analysis/AnalysisUi';
+import { analysisPanelClassName } from '@/components/analysis/AnalysisUi';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Stack, TextField, Typography } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
+import { TextField } from '@/components/ui/text-field';
+import { cn } from '@/lib/utils';
 import { post } from '@/helpers/apiHelper';
 import type { PivotRowSort, PivotTableMode, PivotTimeAxis } from './ExplorePivot';
 
@@ -64,6 +67,7 @@ const message = (error: unknown) => {
     } 카탈로그를 다시 불러오고 조건을 확인해 새 보기로 저장해 주세요.`;
   return reason ?? failure?.message ?? '저장 보기를 처리하지 못했습니다. 다시 시도해 주세요.';
 };
+
 /** One expanded row key or time-axis member: a bounded scalar, never a nested value. */
 const member = (item: unknown): boolean =>
   item === null ||
@@ -307,26 +311,20 @@ export default function ExploreSavedViews({
   };
 
   return (
-    <Stack spacing={1} sx={{ mt: 1.5, mb: 1.5 }}>
-      <Button
-        aria-expanded={open}
-        onClick={() => setOpen(value => !value)}
-        sx={{ alignSelf: 'flex-start', borderRadius: '4px', border: '1px solid #e2e8f0', color: '#334155' }}
-      >
+    <div className="my-1.5 flex flex-col gap-2">
+      <Button variant="outline" aria-expanded={open} className="self-start" onClick={() => setOpen(value => !value)}>
         탐색 보기
       </Button>
       {open && (
-        <Stack spacing={1} sx={analysisPanelSx}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+        <div className={cn('flex flex-col gap-2', analysisPanelClassName)}>
+          <div className="flex flex-wrap items-center gap-2">
             <TextField
               select
-              size="small"
               label="저장한 탐색 보기"
               value={selected}
               disabled={busy}
               onChange={event => setSelected(event.target.value)}
-              sx={{ minWidth: 200 }}
-              slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+              className="min-w-[200px]"
             >
               <option value="">보기를 선택하세요</option>
               {views.map(view => (
@@ -336,34 +334,34 @@ export default function ExploreSavedViews({
                 </option>
               ))}
             </TextField>
-            <Button disabled={busy || !selected} onClick={() => void run('load')}>
+            <Button variant="ghost" disabled={busy || !selected} onClick={() => void run('load')}>
               보기 열기
             </Button>
-            <Button disabled={busy || !selected} onClick={() => void run('remove')}>
+            <Button variant="ghost" disabled={busy || !selected} onClick={() => void run('remove')}>
               보기 삭제
             </Button>
             <TextField
-              size="small"
               label="새 보기 이름"
               value={name}
               disabled={busy}
               onChange={event => setName(event.target.value)}
-              sx={{ width: 200 }}
+              className="w-[200px]"
             />
             <Button
+              variant="ghost"
               disabled={busy || !canSave || !name.trim() || name.trim().length > 80 || views.length >= 20}
               onClick={() => void run('create')}
             >
               현재 조건 저장
             </Button>
-          </Stack>
-          <Typography color="text.secondary" sx={{ fontSize: 12, overflowWrap: 'anywhere' }}>
+          </div>
+          <p className="text-xs wrap-anywhere text-muted-foreground">
             개인 보기 {views.length}/20 · 소스 버전 {sourceRevision.slice(0, 12)} · 원본 페이지는 첫 페이지로 복원
-          </Typography>
-        </Stack>
+          </p>
+        </div>
       )}
       {open && (
-        <Typography sx={{ fontSize: 12, color: 'text.secondary' }} role="status">
+        <p role="status" className="text-xs text-muted-foreground">
           {busy
             ? '저장 보기를 처리하는 중…'
             : views.length >= 20
@@ -376,25 +374,21 @@ export default function ExploreSavedViews({
                 : !name.trim()
                 ? '현재 조건을 저장하려면 보기 이름을 입력하세요.'
                 : '')}
-        </Typography>
+        </p>
       )}
       {notice && (
-        <Typography role="status" sx={{ fontSize: 13 }}>
+        <p role="status" className="text-[13px]">
           {notice}
-        </Typography>
+        </p>
       )}
       {error && (
-        <Alert
-          severity="error"
-          action={
-            <Button disabled={busy} onClick={() => setReload(value => value + 1)}>
-              보기 목록 다시 불러오기
-            </Button>
-          }
-        >
-          {error}
-        </Alert>
+        <Notice severity="error" className="flex flex-wrap items-center gap-2">
+          <span className="break-words">{error}</span>
+          <Button variant="ghost" disabled={busy} onClick={() => setReload(value => value + 1)}>
+            보기 목록 다시 불러오기
+          </Button>
+        </Notice>
       )}
-    </Stack>
+    </div>
   );
 }

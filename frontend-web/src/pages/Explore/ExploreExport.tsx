@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
 
 type Props = { payload: { mode: 'explore' | 'pivot'; query: Record<string, unknown> }; disabled: boolean };
 
@@ -82,28 +83,28 @@ export default function ExploreExport({ payload, disabled }: Props) {
   };
 
   return (
-    <Box>
-      <Button aria-expanded={open} onClick={() => setOpen(value => !value)} sx={{ textTransform: 'none' }}>
+    <div className="min-w-0">
+      <Button variant="ghost" aria-expanded={open} onClick={() => setOpen(value => !value)}>
         내보내기 ▾
       </Button>
       {open && (
-        <Stack spacing={1} sx={{ mt: 1, p: 1.5, border: '1px solid #e2e8f0', borderRadius: 1 }}>
-          <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+        <div className="mt-2 flex flex-col gap-2 rounded-lg border border-border p-3">
+          <p className="text-xs text-muted-foreground">
             현재 지표·축·필터·기간·비교의 집계 결과를 CSV로 저장합니다. 지표별 행 형식이며 원본 전체 행은 포함하지 않습니다.
             탐색 차원 순위는 화면과 같은 상위 20개입니다. 최대 10,000행 / 2MB.
-          </Typography>
-          <Button disabled={disabled || busy} onClick={download}>
+          </p>
+          <Button variant="outline" disabled={disabled || busy} onClick={download}>
             {busy ? 'CSV 준비 중…' : 'CSV 다운로드'}
           </Button>
-          {disabled && <Typography sx={{ fontSize: 12 }}>유효한 결과를 불러온 뒤 내보내세요.</Typography>}
-        </Stack>
+          {disabled && <p className="text-xs">유효한 결과를 불러온 뒤 내보내세요.</p>}
+        </div>
       )}
       {notice && (
-        <Typography role="status" sx={{ fontSize: 12 }}>
+        <p role="status" className="text-xs">
           {notice}
-        </Typography>
+        </p>
       )}
-      {error && <Alert severity="error">{error}</Alert>}
-    </Box>
+      {error && <Notice severity="error">{error}</Notice>}
+    </div>
   );
 }

@@ -1,6 +1,5 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST } from '@/constant';
@@ -14,8 +13,8 @@ const HeatmapChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           id="xField"
           name="xField"
@@ -36,9 +35,9 @@ const HeatmapChartSetting = props => {
           value={option.yField}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.series')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <SelectForm
           required={true}
           id="series"
@@ -66,9 +65,9 @@ const HeatmapChartSetting = props => {
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText primary={t('settings.colorRange')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.colorRange')}</span>
         {option.color.map((item, index) => (
           <React.Fragment key={index}>
             <ColorFieldForm
@@ -81,7 +80,7 @@ const HeatmapChartSetting = props => {
             />
           </React.Fragment>
         ))}
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

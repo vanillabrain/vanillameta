@@ -22,10 +22,6 @@ vi.mock('@/helpers/apiHelper', () => ({
   postForm: mocks.postForm,
   put: mocks.put,
 }));
-vi.mock('@mui/material/styles', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material/styles');
-});
 vi.mock('@/pages/Dashboard/Components/AiDashboardPanel', () => ({
   default: ({ open, onClose }: any) =>
     open ? (
@@ -35,15 +31,8 @@ vi.mock('@/pages/Dashboard/Components/AiDashboardPanel', () => ({
     ) : null,
 }));
 vi.mock('echarts-for-react', () => ({ default: () => null }));
-vi.mock('@mui/icons-material/UploadFileOutlined', () => ({ default: () => null }));
-vi.mock('@mui/icons-material/AutoAwesomeOutlined', () => ({ default: () => null }));
 vi.mock('@/components/PageTitleBox', () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock('@/seo/Seo', () => ({ default: () => null }));
-vi.mock('@mui/material', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material');
-});
-
 const REQUEST_ID = '3f1a2b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
 const diagnostic = {
   requestId: REQUEST_ID,

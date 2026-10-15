@@ -1,15 +1,31 @@
 pipeline {
     agent any
+    // Node.js 24.x 전제 조건: frontend-web/package.json engines(">=24.11.0 <25")를 만족하는
+    // Node 24가 에이전트 PATH에 있어야 한다. Jenkins node tool 이름은 에이전트마다 다르므로
+    // tools 블록에 추정해 넣지 않고 빌드 단계에서 버전을 검증해 실패시킨다.
     tools {
         git "git"
     }
     stages {
+        stage('build') {
+            steps {
+                sh '''
+                    node -v
+                    node -e 'if (Number(process.versions.node.split(".")[0]) !== 24) { console.error("Node 24 is required, found " + process.version); process.exit(1); }'
+                '''
+                // frontend-web이 shadcn/React/Tailwind 의존성과 lockfile을 소유한다.
+                sh "npm --prefix frontend-web ci --legacy-peer-deps"
+                // 랜딩은 프리미티브/토큰 소스를 공유하고 선언한 의존성을 lockfile로 설치한다.
+                sh "npm --prefix landing-page ci --legacy-peer-deps"
+                sh "npm --prefix landing-page run build"
+            }
+        }
         stage('deploy') {
             steps {
                  sh "aws configure set region $AWS_DEFAULT_REGION"
                  sh "aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID"
                  sh "aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY"
-                 sh "aws s3 cp landing-page s3://vanillameta.net --recursive --acl public-read"
+                 sh "aws s3 cp landing-page/dist s3://vanillameta.net --recursive --acl public-read"
             }
         }
     }

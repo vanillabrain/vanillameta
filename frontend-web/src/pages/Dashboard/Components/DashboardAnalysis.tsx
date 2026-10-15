@@ -2,21 +2,20 @@ import { responsiveBlockStyle } from '../responsiveBlockStyle';
 import DashboardPivots from './DashboardPivots';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Notice } from '@/components/ui/notice';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { TextField } from '@/components/ui/text-field';
 import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  Checkbox,
-  FormControl,
-  InputLabel,
-  LinearProgress,
-  MenuItem,
-  Select,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { get, post } from '@/helpers/apiHelper';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import DashboardAssistant from './DashboardAssistant';
@@ -41,6 +40,7 @@ import SourceDetails, {
   sameContributionDateRange,
 } from './SourceDetails';
 import { TimeSelection, timeRangeLabel, validTimeRange } from './timeSelection';
+import { cn } from '@/lib/utils';
 
 const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
 const displayedDates = (range: DateRange | null): DateRange =>
@@ -52,12 +52,26 @@ const displayedDates = (range: DateRange | null): DateRange =>
       }
     : range ?? { column: '', start: '', end: '' };
 type PeriodBackup = { dateRange: DateRange | null; relativePeriod: RelativePeriod | null; dateDraft: DateRange };
+/** Saved per-width rects drive CSS custom properties, not a style-object cast. */
+type StyleWithVars = React.CSSProperties & Record<`--${string}`, string>;
+const responsiveBlockClassName =
+  '[grid-row:var(--block-row-xs)] [grid-column:var(--block-col-xs)]' +
+  ' [@media(min-width:600px)_and_(max-width:899.98px)]:[grid-row:var(--block-row-sm)]' +
+  ' [@media(min-width:600px)_and_(max-width:899.98px)]:[grid-column:var(--block-col-sm)]' +
+  ' [@media(min-width:900px)]:[grid-row:var(--block-row-md)]' +
+  ' [@media(min-width:900px)]:[grid-column:var(--block-col-md)]';
 const selectableTime = (selection: TimeSelection | undefined, length: number, dateRange: DateRange | null) =>
   selection &&
   (!dateRange || selection.column === dateRange.column) &&
   Array.isArray(selection.ranges) &&
   selection.ranges.length === length &&
   selection.ranges.some(range => validTimeRange(range) && range.column === selection.column);
+
+/* Dense analysis control surface: 32px controls and 14px labels from the shared button scale. */
+const analysisButtonClassName = 'shrink-0 font-medium';
+const analysisOutlineButtonClassName = cn(analysisButtonClassName, 'bg-background');
+const filterChipClassName =
+  'min-h-8 max-w-full rounded-md border-primary/20 bg-primary/5 text-left text-xs text-primary [overflow-wrap:anywhere] hover:bg-primary/10';
 
 function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantOpenChange, children }: any) {
   const { t } = useTranslation();
@@ -668,43 +682,76 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           : `${dateRange.start} ~ ${dateRange.end} (${dateRange.timeZone ?? 'UTC'})`
       }`
     : '전체 기간';
+  const widgetGridClassName = cn(
+    'grid gap-4',
+    draft?.responsiveLayouts
+      ? 'auto-rows-[minmax(80px,auto)] grid-cols-[repeat(4,minmax(0,1fr))] sm:grid-cols-[repeat(8,minmax(0,1fr))] md:grid-cols-[repeat(12,minmax(0,1fr))]'
+      : draft?.blockLayouts
+      ? 'md:auto-rows-[minmax(80px,auto)] md:grid-cols-[repeat(12,minmax(0,1fr))]'
+      : 'md:grid-cols-[repeat(2,minmax(0,1fr))]',
+    busy || error ? 'pointer-events-none opacity-40' : 'opacity-100',
+  );
+  /* Saved per-width rects (600/900 px contract) become CSS custom properties per block. */
+  const widgetBlockRects = (index: number) =>
+    responsiveBlockStyle(draft?.responsiveLayouts, draft?.widgets?.[index]?.blockId);
+  const widgetBlockClassName = (index: number) => {
+    const rects = widgetBlockRects(index);
+    return rects.gridRow && rects.gridColumn ? responsiveBlockClassName : undefined;
+  };
+  const widgetBlockStyle = (index: number, widget: any): StyleWithVars => {
+    const rects = widgetBlockRects(index);
+    const minHeight = preview.draft?.layoutSizes?.[index]
+      ? preview.draft.layoutSizes[index].height * 80 + 60
+      : widget.type === 'BOARD_NUMERIC'
+      ? 250
+      : 460;
+    if (rects.gridRow && rects.gridColumn) {
+      return {
+        minHeight,
+        '--block-row-xs': rects.gridRow.xs,
+        '--block-row-sm': rects.gridRow.sm,
+        '--block-row-md': rects.gridRow.md,
+        '--block-col-xs': rects.gridColumn.xs,
+        '--block-col-sm': rects.gridColumn.sm,
+        '--block-col-md': rects.gridColumn.md,
+      };
+    }
+    const placed = draft?.blockLayouts?.[draft?.widgets?.[index]?.blockId];
+    if (placed) {
+      return {
+        minHeight,
+        gridRow: `${placed.y + 1} / span ${placed.h}`,
+        gridColumn: `${placed.x + 1} / span ${placed.w}`,
+      };
+    }
+    if (preview.draft?.layoutSizes?.[index]) {
+      return { minHeight, gridColumn: preview.draft.layoutSizes[index].width === 12 ? '1 / -1' : 'auto' };
+    }
+    return { minHeight, gridColumn: widget.type === 'BOARD_NUMERIC' ? 'auto' : '1 / -1' };
+  };
   return (
-    <Box
-      sx={{
-        p: { xs: 1.5, sm: 2.5 },
-        minWidth: 0,
-        '& .MuiButton-outlined': {
-          borderColor: '#d8e0eb',
-          color: 'text.primary',
-          bgcolor: 'background.paper',
-          '&:hover': { borderColor: 'primary.main', bgcolor: '#f3f7fc' },
-        },
-        '& .MuiButton-root[aria-disabled="true"]': { color: 'text.disabled', borderColor: 'divider', cursor: 'default' },
-        '& .MuiOutlinedInput-root': {
-          bgcolor: 'background.paper',
-          '& fieldset': { borderColor: '#d8e0eb' },
-        },
-        '& .MuiButton-root:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
-      }}
-    >
-      <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1, mb: 1.5, alignItems: 'center' }}>
-        <Typography sx={{ fontSize: 13, color: 'text.secondary', flex: '1 1 100%', minWidth: 0, overflowWrap: 'anywhere' }}>
+    <div className="min-w-0 p-4 sm:p-6">
+      <div className="mb-4 flex flex-row flex-wrap items-center gap-2">
+        <p className="min-w-0 flex-[1_1_100%] text-sm text-muted-foreground [overflow-wrap:anywhere]">
           {period} ·{' '}
           {active.length
             ? active.map(([column, values]) => `${column}: ${values.map(String).join(', ')}`).join(' · ')
             : '필터 없음'}
-        </Typography>
+        </p>
         <Button
           ref={periodRecovery}
-          size="small"
-          variant="text"
+          variant="outline"
+          size="sm"
+          className={analysisButtonClassName}
           aria-disabled={periodRecoveryDisabled || !periodHistory.length}
           onClick={restorePeriod}
         >
           선택한 기간 되돌리기
         </Button>
         <Button
-          size="small"
+          variant="outline"
+          size="sm"
+          className={analysisButtonClassName}
           onClick={reset}
           disabled={
             !active.length &&
@@ -720,8 +767,9 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
         </Button>
         <Button
           ref={detailsButton}
-          size="small"
-          variant="outlined"
+          variant="outline"
+          size="sm"
+          className={analysisOutlineButtonClassName}
           disabled={typeof preview?.sourceRevision !== 'string' || !preview.sourceRevision}
           aria-disabled={!!viewDisabledReason}
           onClick={() => {
@@ -735,117 +783,77 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
         </Button>
         <Button
           ref={assistantButton}
-          size="small"
-          variant="contained"
+          size="sm"
+          className={analysisButtonClassName}
           aria-expanded={editing}
           onClick={() => setEditing(value => !value)}
         >
           Assistant
         </Button>
-        <FormControl size="small" sx={{ minWidth: 150, ml: { sm: 'auto' } }}>
-          <InputLabel id="number-notation">{t('settings.numberNotation')}</InputLabel>
-          <Select
-            labelId="number-notation"
-            label={t('settings.numberNotation')}
-            value={numberNotation}
-            onChange={event => {
-              setNotation(event.target.value as SavedViewState['numberNotation']);
-            }}
-          >
-            <MenuItem value="auto">위젯 설정</MenuItem>
-            <MenuItem value="compact">{t('settings.numberCompact')}</MenuItem>
-            <MenuItem value="full">{t('settings.numberFull')}</MenuItem>
+        <div className="flex min-w-0 flex-col gap-1.5 sm:ml-auto">
+          <Label htmlFor="number-notation" className="sr-only">
+            {t('settings.numberNotation')}
+          </Label>
+          <Select value={numberNotation} onValueChange={value => setNotation(value as SavedViewState['numberNotation'])}>
+            <SelectTrigger
+              id="number-notation"
+              size="sm"
+              aria-label={t('settings.numberNotation')}
+              className="w-[150px] max-w-full"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">위젯 설정</SelectItem>
+              <SelectItem value="compact">{t('settings.numberCompact')}</SelectItem>
+              <SelectItem value="full">{t('settings.numberFull')}</SelectItem>
+            </SelectContent>
           </Select>
-        </FormControl>
-      </Stack>
-      <Stack direction="row" aria-label="적용된 공통 필터" sx={{ flexWrap: 'wrap', gap: 1, mb: 1 }}>
+        </div>
+      </div>
+      <div aria-label="적용된 공통 필터" role="group" className="mb-2 flex flex-row flex-wrap gap-2">
         {active.flatMap(([column, values]) =>
           values.map(value => (
             <Button
               key={`${column}:${valueKey(value)}`}
-              size="small"
-              variant="outlined"
+              variant="outline"
+              size="sm"
+              className={filterChipClassName}
               aria-disabled={selectionDisabled}
               aria-label={`${column}: ${categoryLabel(value)} 공통 필터 해제`}
-              sx={{
-                maxWidth: '100%',
-                textAlign: 'left',
-                overflowWrap: 'anywhere',
-                borderRadius: '6px !important',
-                bgcolor: '#edf3fb !important',
-                borderColor: '#d8e5f6 !important',
-                color: '#214c80 !important',
-                minHeight: '32px !important',
-                fontSize: '12px !important',
-              }}
               onClick={event => clearCategoryChip(event.currentTarget, column, value)}
             >
               {column}: {value === null ? '값 없음' : String(value)} ×
             </Button>
           )),
         )}
-      </Stack>
-      <Typography
+      </div>
+      <p
         role="status"
         aria-live="polite"
-        sx={{ fontSize: 12, color: 'text.secondary', mb: categoryNotice ? 1.5 : 0, overflowWrap: 'anywhere' }}
+        className={cn('text-xs text-muted-foreground [overflow-wrap:anywhere]', categoryNotice ? 'mb-3' : 'mb-0')}
       >
         {categoryNotice}
         {categoryNotice && (busy ? ' · 조회 중' : error ? ' · 조건 적용 실패' : ' · 조회 완료')}
-      </Typography>
-      <Box
-        component="details"
-        sx={{
-          mb: 2,
-          border: '1px solid #e0e6ee',
-          bgcolor: 'background.paper',
-          borderRadius: '10px',
-          '&[open] > summary': { borderBottom: '1px solid #e8edf3' },
-        }}
-      >
-        <Box
-          component="summary"
-          sx={{
-            cursor: 'pointer',
-            minHeight: 44,
-            boxSizing: 'border-box',
-            px: 2,
-            py: 1.5,
-            fontSize: 13,
-            color: 'text.primary',
-            overflowWrap: 'anywhere',
-            '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
-          }}
-        >
-          <Box component="span" sx={{ fontWeight: 600 }}>
-            기간·필터 설정
-          </Box>
-          <Box component="span" sx={{ ml: 1, color: 'text.secondary' }}>
+      </p>
+      <details className="mb-4 rounded-xl border border-border bg-background [&[open]>summary]:border-b [&[open]>summary]:border-border">
+        <summary className="box-border flex min-h-9 cursor-pointer flex-wrap items-center gap-1 px-4 py-3 text-sm text-foreground [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          <span className="font-semibold">기간·필터 설정</span>
+          <span className="ml-1 text-muted-foreground">
             {dateRange?.timeZone ?? 'UTC'} ·{' '}
             {({ auto: '자동 집계', day: '일별', week: '주별', month: '월별' } as Record<string, string>)[trendGrain]}
             {comparePrevious && dateRange ? ' · 이전 기간 비교' : ''}
             {unappliedDates ? ' · 날짜 입력 미적용' : ''}
-          </Box>
-        </Box>
-        <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
-          <Stack
-            direction="row"
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(3, minmax(0, 1fr))' },
-              gap: 2,
-              mb: 2.5,
-            }}
-          >
-            <FormControl size="small" sx={{ minWidth: 0 }}>
-              <InputLabel id="business-time-zone">업무 시간대</InputLabel>
+          </span>
+        </summary>
+        <div className="p-4 sm:p-6">
+          <div className="mb-6 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-[repeat(3,minmax(0,1fr))]">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="business-time-zone">업무 시간대</Label>
               <Select
-                labelId="business-time-zone"
-                label="업무 시간대"
                 value={dateDraft.timeZone ?? dateRange?.timeZone ?? 'UTC'}
                 disabled={busy || analysisLoading || editing || detailsOpen}
-                onChange={event => {
-                  const timeZone = String(event.target.value);
+                onValueChange={timeZone => {
                   setPeriodHistory([]);
                   setDateError('');
                   setDateDraft(value => ({ ...value, timeZone }));
@@ -858,13 +866,18 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
                   } else if (dateRange) setDateRange({ ...dateRange, timeZone });
                 }}
               >
-                <MenuItem value="UTC">UTC</MenuItem>
-                <MenuItem value="Asia/Seoul">한국 (Asia/Seoul)</MenuItem>
-                {dateDraft.timeZone && !['UTC', 'Asia/Seoul'].includes(dateDraft.timeZone) && (
-                  <MenuItem value={dateDraft.timeZone}>{dateDraft.timeZone}</MenuItem>
-                )}
+                <SelectTrigger id="business-time-zone" size="sm" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="UTC">UTC</SelectItem>
+                  <SelectItem value="Asia/Seoul">한국 (Asia/Seoul)</SelectItem>
+                  {dateDraft.timeZone && !['UTC', 'Asia/Seoul'].includes(dateDraft.timeZone) && (
+                    <SelectItem value={dateDraft.timeZone}>{dateDraft.timeZone}</SelectItem>
+                  )}
+                </SelectContent>
               </Select>
-            </FormControl>
+            </div>
             {dimensions.slice(0, 5).map((dimension: any) => {
               const selected = selectedValues(dimension.column);
               const options: FilterValue[] = Array.from(
@@ -873,211 +886,201 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
                 ).values(),
               ).slice(0, 50);
               return (
-                <FormControl key={dimension.column} size="small" sx={{ minWidth: 0, width: '100%' }}>
-                  <InputLabel shrink id={`filter-${dimension.column}`}>
+                <div key={dimension.column} className="flex w-full min-w-0 flex-col gap-1.5">
+                  <span id={`filter-${dimension.column}`} className="text-sm font-medium">
                     {dimension.column}
-                  </InputLabel>
-                  <Select
-                    multiple
-                    labelId={`filter-${dimension.column}`}
-                    label={dimension.column}
-                    notched
-                    value={selected.map(valueKey)}
-                    disabled={analysisLoading || !!error || !!dateError}
-                    displayEmpty
-                    renderValue={() => (
-                      <Box
-                        component="span"
-                        sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        id={`filter-${dimension.column}-trigger`}
+                        aria-labelledby={`filter-${dimension.column}`}
+                        disabled={analysisLoading || !!error || !!dateError}
+                        className="w-full min-w-0 justify-between font-normal"
                       >
-                        {selected.length ? selected.map(String).join(', ') : '전체'}
-                      </Box>
-                    )}
-                    onChange={e => {
-                      const keys = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
-                      if (keys.length > 50) return;
-                      applyColumnValues(
-                        dimension.column,
-                        keys.map(key => JSON.parse(decodeURIComponent(key)) as FilterValue),
-                        `공통 필터 변경: ${dimension.column}`,
-                        true,
-                      );
-                    }}
-                  >
-                    {options.map(value => (
-                      <MenuItem
-                        key={valueKey(value)}
-                        value={valueKey(value)}
-                        disabled={selected.length >= 50 && !selected.includes(value)}
-                        onKeyUp={event => {
-                          // MUI Select suppresses Space activation on its option elements.
-                          if (event.key === ' ' && event.target === event.currentTarget) event.currentTarget.click();
-                        }}
-                      >
-                        <Checkbox checked={selected.includes(value)} />
-                        {String(value)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                        <span className="block truncate text-left">
+                          {selected.length ? selected.map(String).join(', ') : '전체'}
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="max-h-[320px] w-[240px] overflow-y-auto">
+                      {options.map(value => {
+                        const checked = selected.some(item => valueKey(item) === valueKey(value));
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={valueKey(value)}
+                            checked={checked}
+                            disabled={selected.length >= 50 && !checked}
+                            onSelect={event => {
+                              event.preventDefault();
+                              applyColumnValues(
+                                dimension.column,
+                                checked ? selected.filter(item => valueKey(item) !== valueKey(value)) : [...selected, value],
+                                `공통 필터 변경: ${dimension.column}`,
+                                true,
+                              );
+                            }}
+                          >
+                            {String(value)}
+                          </DropdownMenuCheckboxItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               );
             })}
-          </Stack>
-          <Stack
-            direction="row"
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: 'minmax(0, 1fr)',
-                sm: 'repeat(2, minmax(0, 1fr))',
-                lg: '1.2fr 1.2fr auto 1fr auto',
-              },
-              gap: 1.5,
-              alignItems: 'center',
-              mb: 2.5,
-            }}
-          >
+          </div>
+          <div className="mb-6 grid grid-cols-[minmax(0,1fr)] items-center gap-1.5 sm:grid-cols-[repeat(2,minmax(0,1fr))] lg:grid-cols-[1.2fr_1.2fr_auto_1fr_auto]">
             {temporalColumns.length > 0 && (
               <>
                 {temporalColumns.length > 1 ? (
-                  <FormControl size="small" sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}>
-                    <InputLabel id="date-column">날짜 컬럼 (UTC)</InputLabel>
+                  <div className="flex min-w-0 max-w-full flex-[1_1_150px] flex-col gap-1.5">
+                    <Label htmlFor="date-column">날짜 컬럼 (UTC)</Label>
                     <Select
-                      labelId="date-column"
-                      label="날짜 컬럼 (UTC)"
                       value={temporalColumn}
                       disabled={busy}
-                      onChange={e => {
+                      onValueChange={value => {
                         setRelativePeriod(null);
-                        setDateDraft(value => ({ ...value, column: e.target.value }));
+                        setDateDraft(current => ({ ...current, column: value }));
                       }}
                     >
-                      {temporalColumns.map((column: any) => (
-                        <MenuItem key={column.column} value={column.column}>
-                          {column.column}
-                        </MenuItem>
-                      ))}
+                      <SelectTrigger id="date-column" size="sm" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {temporalColumns.map((column: any) => (
+                          <SelectItem key={column.column} value={column.column}>
+                            {column.column}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
-                  </FormControl>
+                  </div>
                 ) : (
-                  <Typography sx={{ gridColumn: '1 / -1', fontSize: 12, color: 'text.secondary' }}>
-                    날짜 기준 · {temporalColumn}
-                  </Typography>
+                  <p className="col-span-full text-xs text-muted-foreground">날짜 기준 · {temporalColumn}</p>
                 )}
                 <TextField
+                  className="min-w-0 max-w-full flex-[1_1_150px]"
                   label={`시작일 (${dateDraft.timeZone ?? 'UTC'})`}
                   type="date"
-                  size="small"
                   value={dateDraft.start}
                   disabled={busy}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}
                   onChange={e => {
                     setRelativePeriod(null);
                     setDateDraft(value => ({ ...value, start: e.target.value }));
                   }}
                 />
                 <TextField
+                  className="min-w-0 max-w-full flex-[1_1_150px]"
                   label={`종료일 (${dateDraft.timeZone ?? 'UTC'})`}
                   type="date"
-                  size="small"
                   value={dateDraft.end}
                   disabled={busy}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}
                   onChange={e => {
                     setRelativePeriod(null);
                     setDateDraft(value => ({ ...value, end: e.target.value }));
                   }}
                 />
-                <Button variant="outlined" onClick={applyDates} disabled={busy}>
+                <Button variant="outline" className={analysisOutlineButtonClassName} onClick={applyDates} disabled={busy}>
                   적용
                 </Button>
-                <TextField
-                  select
-                  label={`최근 기간 (${dateDraft.timeZone ?? 'UTC'})`}
-                  value={recentDays}
-                  disabled={busy}
-                  size="small"
-                  sx={{ minWidth: 0, flex: '1 1 150px' }}
-                  onChange={event => setRecentDays(Number(event.target.value) as 7 | 30 | 90)}
+                <div className="flex min-w-0 max-w-full flex-[1_1_150px] flex-col gap-1.5">
+                  <Label htmlFor="recent-days">최근 기간 ({dateDraft.timeZone ?? 'UTC'})</Label>
+                  <Select
+                    value={String(recentDays)}
+                    disabled={busy}
+                    onValueChange={value => setRecentDays(Number(value) as 7 | 30 | 90)}
+                  >
+                    <SelectTrigger id="recent-days" size="sm" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">최근 7일</SelectItem>
+                      <SelectItem value="30">최근 30일</SelectItem>
+                      <SelectItem value="90">최근 90일</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="outline"
+                  className={analysisOutlineButtonClassName}
+                  disabled={busy || analysisLoading || !!error}
+                  onClick={applyRecent}
                 >
-                  <MenuItem value={7}>최근 7일</MenuItem>
-                  <MenuItem value={30}>최근 30일</MenuItem>
-                  <MenuItem value={90}>최근 90일</MenuItem>
-                </TextField>
-                <Button variant="outlined" disabled={busy || analysisLoading || !!error} onClick={applyRecent}>
                   최근 기간 적용
                 </Button>
               </>
             )}
-          </Stack>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            sx={{ mb: 1, pt: 2, borderTop: '1px solid #e8edf3', alignItems: { sm: 'center' } }}
-          >
-            <TextField
-              select
-              label="시계열 집계 단위"
-              value={trendGrain}
-              disabled={analysisLoading}
-              size="small"
-              sx={{ minWidth: 160, maxWidth: '100%' }}
-              onChange={event => setTrendGrain(event.target.value as TrendGrain)}
-            >
-              <MenuItem value="auto">자동</MenuItem>
-              <MenuItem value="day">일별</MenuItem>
-              <MenuItem value="week">주별</MenuItem>
-              <MenuItem value="month">월별</MenuItem>
-            </TextField>
-            <Box component="label" sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 44 }}>
-              <input
-                type="checkbox"
+          </div>
+          <div className="mb-2 flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 max-w-full flex-col gap-1.5">
+              <Label htmlFor="trend-grain">시계열 집계 단위</Label>
+              <Select
+                value={trendGrain}
+                disabled={analysisLoading}
+                onValueChange={value => setTrendGrain(value as TrendGrain)}
+              >
+                <SelectTrigger id="trend-grain" size="sm" className="w-[160px] max-w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">자동</SelectItem>
+                  <SelectItem value="day">일별</SelectItem>
+                  <SelectItem value="week">주별</SelectItem>
+                  <SelectItem value="month">월별</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex min-h-11 items-center gap-2">
+              <Checkbox
+                id="compare-previous"
+                className="size-5"
                 checked={comparePrevious}
                 disabled={analysisLoading || !dateRange || unappliedDates || !!dateError}
-                onChange={event => setComparePrevious(event.target.checked)}
-                style={{ width: 20, height: 20 }}
+                onCheckedChange={checked => setComparePrevious(checked === true)}
               />
-              이전 기간 비교
-            </Box>
-          </Stack>
-          <Box component="details" sx={{ color: 'text.secondary', fontSize: 12 }}>
-            <Typography component="summary" sx={{ cursor: 'pointer', minHeight: 28, fontSize: 12 }}>
-              집계·기간 비교 안내
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 1 }}>
+              <Label htmlFor="compare-previous">이전 기간 비교</Label>
+            </div>
+          </div>
+          <details className="text-xs text-muted-foreground">
+            <summary className="min-h-9 cursor-pointer text-xs">집계·기간 비교 안내</summary>
+            <p className="mt-2 text-sm">
               {dateRange?.timeZone && dateRange.timeZone !== 'UTC'
                 ? '업무 시간대는 KPI·원본 행·기간 비교에 적용됩니다. KPI 추이는 지역 달력의 일·주·월로 집계합니다. 주 시작은 월요일입니다. KPI 추이 시점을 선택해 기간을 좁히거나 해당 집계의 원본 행을 확인할 수 있습니다. 일반 라인 차트 재집계는 아직 지원하지 않습니다. 날짜 비교는 같은 달력 날짜 수를 사용합니다.'
                 : '주별은 UTC 월요일 시작, 월별은 UTC 달력의 월 기준입니다. 선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다.'}{' '}
               이전 기간은 적용된 기간 바로 앞의 같은 길이이며 동일한 필터로 조회합니다.
               {!dateRange && ' 이전 기간 비교는 날짜를 적용한 뒤 사용할 수 있습니다.'}
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
+            </p>
+          </details>
+        </div>
+      </details>
       {preview?.comparison && (
-        <Typography role="status" sx={{ mb: 2, overflowWrap: 'anywhere' }}>
+        <p role="status" className="mb-4 [overflow-wrap:anywhere]">
           {busy || error ? '이전 조회 결과의 비교 기간' : '이전 기간'}: {preview.comparison.previous.column} ·{' '}
           {preview.comparison.previous.precision === 'timestamp'
             ? timeRangeLabel(preview.comparison.previous)
             : `${preview.comparison.previous.start} ~ ${preview.comparison.previous.end} (${
                 preview.comparison.previous.timeZone ?? 'UTC'
               })`}
-        </Typography>
+        </p>
       )}
       {dateError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Notice severity="error" className="mb-4">
           {dateError}
-        </Alert>
+        </Notice>
       )}
-      {busy && <LinearProgress aria-label="공통 필터 집계 중" sx={{ mb: 2 }} />}
+      {busy && <Skeleton role="progressbar" aria-label="공통 필터 집계 중" aria-busy="true" className="mb-4 h-1 w-full" />}
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Notice severity="error" className="mb-4">
           {error}
-          <Typography sx={{ fontSize: 13 }}>아래는 이전 조회 결과입니다. 현재 선택 조건은 적용되지 않았습니다.</Typography>
+          <p className="text-sm">아래는 이전 조회 결과입니다. 현재 선택 조건은 적용되지 않았습니다.</p>
           {canonicalRefreshDone.current !== analysisRefresh ? (
             <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setBusy(true);
                 setError('');
@@ -1087,15 +1090,15 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
               대시보드 정의 다시 조회
             </Button>
           ) : (
-            <Button onClick={reset}>전체 데이터로 복구</Button>
+            <Button variant="ghost" size="sm" onClick={reset}>
+              전체 데이터로 복구
+            </Button>
           )}
-        </Alert>
+        </Notice>
       )}
-      <Box component="details" sx={{ mb: 2 }}>
-        <Typography component="summary" sx={{ cursor: 'pointer', minHeight: 32 }}>
-          개인 저장 보기
-        </Typography>
-        <Box sx={{ mt: 1 }}>
+      <details className="mb-4">
+        <summary className="min-h-9 cursor-pointer text-sm">개인 저장 보기</summary>
+        <div className="mt-2">
           <PersonalSavedViews
             key={`personal-views-${dashboardId}`}
             dashboardId={Number(dashboardId)}
@@ -1121,79 +1124,26 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
               setNotation(state.numberNotation);
             }}
           />
-        </Box>
-      </Box>
+        </div>
+      </details>
       {preview ? (
-        <Box
-          aria-busy={busy}
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: draft?.responsiveLayouts ? 'repeat(4, minmax(0, 1fr))' : 'minmax(0, 1fr)',
-              sm: draft?.responsiveLayouts ? 'repeat(8, minmax(0, 1fr))' : undefined,
-              md:
-                draft?.responsiveLayouts || draft?.blockLayouts ? 'repeat(12, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
-            },
-            gridAutoRows: draft?.responsiveLayouts
-              ? 'minmax(80px, auto)'
-              : draft?.blockLayouts
-              ? { md: 'minmax(80px, auto)' }
-              : undefined,
-            gap: 2,
-            opacity: busy || error ? 0.4 : 1,
-            pointerEvents: busy || error ? 'none' : 'auto',
-          }}
-        >
+        <div aria-busy={busy} className={widgetGridClassName}>
           {preview.widgets.map((widget: any, i: number) => (
             <Card
               key={draft?.widgets?.[i]?.blockId || i}
               data-block-id={draft?.widgets?.[i]?.blockId}
-              sx={{
-                minHeight: preview.draft?.layoutSizes?.[i]
-                  ? preview.draft.layoutSizes[i].height * 80 + 60
-                  : widget.type === 'BOARD_NUMERIC'
-                  ? 250
-                  : 460,
-                height: 'auto',
-                gridRow: draft?.blockLayouts?.[draft?.widgets?.[i]?.blockId]
-                  ? {
-                      xs: 'auto',
-                      md: `${draft.blockLayouts[draft?.widgets?.[i]?.blockId].y + 1} / span ${
-                        draft.blockLayouts[draft?.widgets?.[i]?.blockId].h
-                      }`,
-                    }
-                  : undefined,
-                gridColumn: draft?.blockLayouts?.[draft?.widgets?.[i]?.blockId]
-                  ? {
-                      xs: 'auto',
-                      md: `${draft.blockLayouts[draft?.widgets?.[i]?.blockId].x + 1} / span ${
-                        draft.blockLayouts[draft?.widgets?.[i]?.blockId].w
-                      }`,
-                    }
-                  : preview.draft?.layoutSizes?.[i]
-                  ? preview.draft.layoutSizes[i].width === 12
-                    ? '1 / -1'
-                    : 'auto'
-                  : widget.type === 'BOARD_NUMERIC'
-                  ? 'auto'
-                  : '1 / -1',
-                ...responsiveBlockStyle(draft?.responsiveLayouts, draft?.widgets?.[i]?.blockId),
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2,
-                boxShadow: '0 2px 6px rgba(42,50,62,.06)',
-              }}
+              className={cn('h-auto gap-0 border border-border py-0 shadow-sm', widgetBlockClassName(i))}
+              style={widgetBlockStyle(i, widget)}
             >
-              <Box
-                sx={{
-                  height:
-                    widget.type === 'BOARD_NUMERIC'
-                      ? 155
-                      : preview.draft?.layoutSizes?.[i]
-                      ? preview.draft.layoutSizes[i].height * 80 + 60
-                      : 460,
-                  minWidth: 0,
-                }}
+              <div
+                className={cn('min-w-0 px-4', widget.type === 'BOARD_NUMERIC' ? 'h-[155px]' : undefined)}
+                style={
+                  widget.type === 'BOARD_NUMERIC'
+                    ? undefined
+                    : {
+                        height: preview.draft?.layoutSizes?.[i] ? preview.draft.layoutSizes[i].height * 80 + 60 : 460,
+                      }
+                }
               >
                 <WidgetViewer
                   title={widget.title}
@@ -1235,51 +1185,41 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
                   }
                   contributionDisabled={!!contributionDisabled || !!contributionReason(widget)}
                 />
-              </Box>
+              </div>
               {widget.contribution && (
-                <Box component="details" sx={{ px: 2.5, py: 1, minWidth: 0 }}>
-                  <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 12 }}>
-                    집계 원본 확인
-                  </Typography>
+                <details className="min-w-0 px-5 py-1">
+                  <summary className="cursor-pointer text-xs">집계 원본 확인</summary>
                   <Button
                     ref={button => {
                       if (button) contributionButtons.current.set(i, button);
                       else contributionButtons.current.delete(i);
                     }}
-                    variant="text"
+                    variant="ghost"
+                    className="max-w-full px-0 text-muted-foreground whitespace-normal [overflow-wrap:anywhere]"
                     aria-label={`${widget.title} 집계 원본 행 보기`}
                     aria-disabled={!!contributionDisabled || !!contributionReason(widget)}
                     disabled={!!contributionReason(widget) || !draft.revision || !preview.sourceRevision}
-                    sx={{
-                      maxWidth: '100%',
-                      whiteSpace: 'normal',
-                      overflowWrap: 'anywhere',
-                      px: '0 !important',
-                      color: 'text.secondary',
-                    }}
                     onClick={event => openContribution(i, undefined, event.currentTarget)}
                   >
                     집계 원본 행 보기
                   </Button>
                   {!!contributionReason(widget) && (
-                    <Typography variant="body2" sx={{ mt: 1, overflowWrap: 'anywhere' }}>
-                      {contributionReason(widget)}
-                    </Typography>
+                    <p className="mt-2 text-sm [overflow-wrap:anywhere]">{contributionReason(widget)}</p>
                   )}
-                </Box>
+                </details>
               )}
               {widget.trendGrain && (
-                <Typography variant="caption" sx={{ px: 2.5 }}>
+                <p className="px-5 text-xs">
                   적용된 집계 단위:{' '}
                   {({ day: '일별', week: '주별', month: '월별' } as Record<string, string>)[widget.trendGrain] ??
                     widget.trendGrain}{' '}
                   · UTC
-                </Typography>
+                </p>
               )}
               {widget.grainUnavailable && (
-                <Alert severity="warning" sx={{ m: 2 }}>
+                <Notice severity="warning" className="m-4">
                   선택한 집계 단위를 적용하지 못했습니다. {widget.grainUnavailable}
-                </Alert>
+                </Notice>
               )}
               {widget.type === 'BOARD_NUMERIC' && (
                 <MetricTrend
@@ -1310,20 +1250,19 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
                 />
               )}
               {widget.type === 'BOARD_NUMERIC' && (widget.previousTrend || widget.previousTrendUnavailable) && (
-                <Box
-                  component="details"
-                  sx={{ p: 2, minWidth: 0, '& summary': { minHeight: 44, cursor: 'pointer', alignContent: 'center' } }}
-                >
-                  <summary>{widget.title} 이전 기간 시계열</summary>
+                <details className="min-w-0 p-4">
+                  <summary className="flex min-h-9 cursor-pointer items-center text-sm">
+                    {widget.title} 이전 기간 시계열
+                  </summary>
                   {preview.comparison?.previous && (
-                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                    <p className="text-sm [overflow-wrap:anywhere]">
                       이전 기간:{' '}
                       {preview.comparison.previous.precision === 'timestamp'
                         ? timeRangeLabel(preview.comparison.previous)
                         : `${preview.comparison.previous.start} ~ ${preview.comparison.previous.end} (${
                             preview.comparison.previous.timeZone ?? 'UTC'
                           })`}
-                    </Typography>
+                    </p>
                   )}
                   <MetricTrend
                     trend={widget.previousTrend}
@@ -1343,7 +1282,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
                       (editing ? '편집을 마친 뒤 조회해 주세요.' : '')
                     }
                   />
-                </Box>
+                </details>
               )}
               {widget.type !== 'BOARD_NUMERIC' && (Array.isArray(widget.previousDatas) || widget.previousUnavailable) && (
                 <PreviousPeriodData
@@ -1374,7 +1313,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
               )}
             </Card>
           ))}
-        </Box>
+        </div>
       ) : (
         children
       )}
@@ -1403,7 +1342,6 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           widgetTitle={contribution?.title}
           onClose={() => setDetailsOpen(false)}
           onExited={() => {
-            if (document.activeElement !== document.body) return;
             const launcher = detailsLauncher.current as HTMLElement | null;
             if (launcher?.isConnected && typeof launcher.focus === 'function' && !(launcher as HTMLButtonElement).disabled)
               launcher.focus();
@@ -1446,7 +1384,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           onSaved(Number(dashboardId));
         }}
       />
-    </Box>
+    </div>
   );
 }
 

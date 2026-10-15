@@ -1,4 +1,3 @@
-import React from 'react';
 import { act, cleanup, fireEvent, render, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import LineChart from './LineChart';
@@ -16,31 +15,6 @@ vi.mock('echarts-for-react', async () => {
       React.useImperativeHandle(ref, () => ({ getEchartsInstance: () => undefined }));
       return <div data-testid="chart" />;
     }),
-  };
-});
-vi.mock('@mui/material', () => {
-  const element =
-    (tag: string) =>
-    ({ children, component, ...props }: any) =>
-      React.createElement(
-        component || tag,
-        Object.fromEntries(
-          Object.entries(props).filter(
-            ([key]) => !['sx', 'size', 'align', 'direction', 'justifyContent', 'alignItems', 'variant'].includes(key),
-          ),
-        ),
-        children,
-      );
-  return {
-    Box: element('div'),
-    Stack: element('div'),
-    Typography: element('span'),
-    Button: element('button'),
-    Table: element('table'),
-    TableHead: element('thead'),
-    TableBody: element('tbody'),
-    TableCell: element('td'),
-    TableRow: element('tr'),
   };
 });
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));

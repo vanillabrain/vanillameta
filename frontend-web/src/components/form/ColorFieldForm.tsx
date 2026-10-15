@@ -1,17 +1,19 @@
 import React, { useId, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FormControl, FormLabel, OutlinedInput, Stack } from '@mui/material';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import ColorPickerForm from './ColorPickerForm';
 
 const ColorFieldForm = props => {
   const { t } = useTranslation();
-  const { id, label, value = '#eee', colorList, setOption, index = 0, endButton, ...rest } = props;
+  const { id, label, value = '#eee', colorList, setOption, index = 0, endButton, inputProps, className, ...rest } = props;
   const generatedId = useId();
   const [inputColor, setInputColor] = useState(value);
   useEffect(() => setInputColor(value), [value]);
   const controlId = id || generatedId;
   const labelItem = Array.isArray(label) ? label[index] : label;
-  const accessibleName = labelItem || `${t('common.colorValue')} ${index + 1}`;
+  const accessibleName = labelItem || t('common.colorValue') + ' ' + (index + 1);
   const handleChange = event => {
     const color = event.target.value;
     setOption(previous =>
@@ -30,34 +32,30 @@ const ColorFieldForm = props => {
     );
   };
   return (
-    <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className={cn('flex w-full flex-row items-center justify-between gap-2', className)}>
       {labelItem && (
-        <FormLabel
-          htmlFor={controlId}
-          sx={{ width: '35%', pr: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-        >
+        <Label htmlFor={controlId} className="w-[35%] truncate pr-2">
           {labelItem}
-        </FormLabel>
+        </Label>
       )}
-      <Stack direction="row" sx={{ width: labelItem ? '65%' : '100%', minWidth: 0 }} alignItems="center" spacing={1}>
-        <ColorPickerForm label={`${accessibleName} ${t('common.colorPicker')}`} color={inputColor} onChange={handleChange} />
-        <OutlinedInput
+      <div className={cn('flex min-w-0 flex-row items-center gap-2', labelItem ? 'w-[65%]' : 'w-full')}>
+        <ColorPickerForm label={accessibleName + ' ' + t('common.colorPicker')} color={inputColor} onChange={handleChange} />
+        <Input
           {...rest}
+          {...inputProps}
           id={controlId}
           value={inputColor}
           type="text"
-          margin="dense"
-          fullWidth
-          sx={{ minWidth: 0 }}
+          aria-label={accessibleName}
+          className="h-8 min-w-0 bg-background"
           onChange={event => setInputColor(event.target.value)}
           onBlur={event => {
             if (event.target.value !== value) handleChange(event);
           }}
-          inputProps={{ 'aria-label': accessibleName, ...rest.inputProps }}
         />
         {endButton}
-      </Stack>
-    </FormControl>
+      </div>
+    </div>
   );
 };
 export default ColorFieldForm;

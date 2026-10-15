@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import { post } from '@/helpers/apiHelper';
 
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -7,6 +7,7 @@ const IMPORT_ERROR_CODES = ['IMPORT_INVALID_DATE', 'IMPORT_MISSING_COLUMNS'] as 
 const RESELECT_FILES = 'reselect-files';
 const EXPLANATION_MAX = 1000;
 const HELP_ERROR = 'AI 오류 설명을 가져오지 못했습니다. 아래 파일 선택으로 CSV를 다시 고른 뒤 가져오기를 시도해 주세요.';
+const EXPLAIN_BUTTON_ID = 'commerce-import-explain';
 
 export type ImportErrorCode = (typeof IMPORT_ERROR_CODES)[number];
 export type ImportDiagnostic = { requestId: string; errorCode: ImportErrorCode };
@@ -64,7 +65,6 @@ export default function ImportHelp({
   const controller = useRef<AbortController | null>(null);
   const pending = useRef(false);
   const activeId = useRef<string | null>(null);
-  const explainButton = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -84,7 +84,7 @@ export default function ImportHelp({
     pending.current = false;
     setHelpBusy(false);
     setHelpError('AI 오류 설명 요청을 취소했습니다. 다시 요청하거나 파일을 다시 선택할 수 있습니다.');
-    explainButton.current?.focus();
+    document.getElementById(EXPLAIN_BUTTON_ID)?.focus();
   };
 
   const explain = async () => {
@@ -116,45 +116,36 @@ export default function ImportHelp({
 
   const shown = help?.requestId === diagnostic.requestId ? help : null;
   return (
-    <Box sx={{ mt: 1 }}>
-      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-        <Button ref={explainButton} onClick={explain} aria-disabled={helpBusy} sx={{ minHeight: 44 }}>
+    <div className="mt-2 min-w-0">
+      <div className="flex flex-wrap gap-2">
+        <Button id={EXPLAIN_BUTTON_ID} onClick={explain} aria-disabled={helpBusy}>
           {helpBusy ? '오류 설명 준비 중…' : 'AI로 오류 설명 보기'}
         </Button>
         {helpBusy && (
-          <Button onClick={cancelHelp} sx={{ minHeight: 44 }}>
+          <Button variant="outline" onClick={cancelHelp}>
             오류 설명 취소
           </Button>
         )}
         {onReselectFiles && (
-          <Button onClick={onReselectFiles} sx={{ minHeight: 44 }}>
+          <Button variant="outline" onClick={onReselectFiles}>
             파일 다시 선택
           </Button>
         )}
-      </Stack>
+      </div>
       {helpError && (
-        <Typography role="status" variant="body2" sx={{ mt: 1 }}>
+        <p role="status" className="mt-2 text-sm">
           {helpError}
-        </Typography>
+        </p>
       )}
       {shown && (
-        <Box sx={{ mt: 1 }}>
-          <Typography variant="subtitle2" component="p">
-            가능한 원인
-          </Typography>
-          <Typography
-            variant="body2"
-            role="status"
-            aria-live="polite"
-            sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
-          >
+        <div className="mt-2 min-w-0">
+          <p className="text-sm font-medium">가능한 원인</p>
+          <p role="status" aria-live="polite" className="text-sm wrap-anywhere whitespace-pre-wrap">
             {shown.explanation}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            복구 상태: 확인되지 않음 (unverified)
-          </Typography>
-        </Box>
+          </p>
+          <p className="text-sm text-muted-foreground">복구 상태: 확인되지 않음 (unverified)</p>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }

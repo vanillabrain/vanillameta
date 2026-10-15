@@ -1,13 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Stack, Typography } from '@mui/material';
 import { WIDGET_AGGREGATION } from '@/constant';
 import * as math from 'mathjs';
 import { getAggregationData } from '@/widget/modules/utils/chartUtil';
+import { cn } from '@/lib/utils';
 
 const NumericBoard = props => {
   const { t } = useTranslation();
-  const { option, dataSet, sx } = props;
+  const { option, dataSet, className } = props;
 
   const defaultComponentOption = {
     header: { title: t('common.defaultTitle'), fontSize: 16, color: '#cccccc' },
@@ -86,55 +86,26 @@ const NumericBoard = props => {
   const rawValue = raw === null ? t('common.noData', { defaultValue: 'No data' }) : raw.toFixed();
 
   return (
-    <Stack
-      sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        width: '100%',
-        height: '100%',
-        minWidth: 0,
-        containerType: 'inline-size',
-        ...sx,
-      }}
-    >
-      <Typography
-        component="span"
-        sx={{
-          display: 'block',
-          maxWidth: '700px', // 글자 최대너비 제한
-          width: '100%',
-          mx: 'auto',
-          fontSize: componentOption.header.fontSize,
-          color: componentOption.header.color,
-          textAlign: 'center',
-          overflow: 'hidden',
-          whiteSpace: 'nowrap',
-          textOverflow: 'ellipsis',
-        }}
+    <div className={cn('@container flex h-full w-full min-w-0 flex-col justify-center', className)}>
+      <span
+        className="mx-auto block w-full max-w-[700px] overflow-hidden text-center text-ellipsis whitespace-nowrap"
+        style={{ fontSize: componentOption.header.fontSize, color: componentOption.header.color }}
       >
         {componentOption.header.title}
-      </Typography>
-      <Typography
-        component="span"
+      </span>
+      <span
         title={rawValue}
         aria-label={rawValue}
-        sx={{
-          display: 'block',
-          maxWidth: '700px', // 글자 최대너비 제한
-          width: '100%',
-          mx: 'auto',
+        className="mx-auto block w-full max-w-[700px] text-center font-bold whitespace-normal [overflow-wrap:anywhere]"
+        style={{
           fontSize: `clamp(10px, ${100 / Math.max(score.length * 0.65, 1)}cqw, ${componentOption.content.fontSize}px)`,
           lineHeight: 1.2,
           color: componentOption.content.color,
-          fontWeight: 'bold',
-          textAlign: 'center',
-          whiteSpace: 'normal',
-          overflowWrap: 'anywhere',
         }}
       >
         {score}
-      </Typography>
-    </Stack>
+      </span>
+    </div>
   );
 };
 

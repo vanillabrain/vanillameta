@@ -18,14 +18,12 @@ describe('dashboard Pivot snapshots', () => {
       entities: [Dashboard],
       synchronize: true,
     }).initialize();
-    await db
-      .getRepository(Dashboard)
-      .save({
-        id: 1,
-        title: 'Board',
-        analysisDefinition: JSON.stringify({ databaseId: 3 }),
-        layout: '[]',
-      });
+    await db.getRepository(Dashboard).save({
+      id: 1,
+      title: 'Board',
+      analysisDefinition: JSON.stringify({ databaseId: 3 }),
+      layout: '[]',
+    });
     const catalog: any = {
       sourceId: 3,
       sourceRevision: 'rev',

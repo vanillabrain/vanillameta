@@ -6,14 +6,7 @@ import ColorFieldForm from './ColorFieldForm';
 import ColorFieldReForm from './ColorFieldReForm';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('@mui/material', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material');
-});
-// Test the adapter boundary; the real shared picker has its own four regression tests.
-vi.mock('react-color', () => ({
-  SketchPicker: props => <button onClick={() => props.onChangeComplete({ hex: '#123456' })}>choose-color</button>,
-}));
+// Test the adapter boundary; the real shared picker has its own regression tests.
 vi.mock('./ColorPickerForm', () => ({
   default: props => (
     <button onClick={() => props.onChange({ target: { name: props.name, value: '#123456' } })}>choose-color</button>

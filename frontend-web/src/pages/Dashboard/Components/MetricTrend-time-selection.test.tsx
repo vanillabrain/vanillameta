@@ -6,37 +6,6 @@ import MetricTrend from './MetricTrend';
 import type { MetricTrendData } from './trendGeometry';
 import { timeRangeLabel } from './timeSelection';
 
-vi.mock('@mui/material', () => {
-  const Container = ({ component: Tag = 'div', children, ...props }: any) => (
-    <Tag
-      id={props.id}
-      role={props.role}
-      tabIndex={props.tabIndex}
-      aria-label={props['aria-label']}
-      aria-live={props['aria-live']}
-    >
-      {children}
-    </Tag>
-  );
-  return {
-    Box: Container,
-    Typography: Container,
-    Alert: Container,
-    Button: ({ children, onClick, disabled, type = 'button', ...props }: any) => (
-      <button
-        type={type}
-        disabled={disabled}
-        onClick={onClick}
-        aria-label={props['aria-label']}
-        aria-pressed={props['aria-pressed']}
-        aria-disabled={props['aria-disabled']}
-      >
-        {children}
-      </button>
-    ),
-  };
-});
-
 const range = (day: number) => ({
   column: 'event_time',
   start: `2026-01-${String(day).padStart(2, '0')}T00:00:00Z`,

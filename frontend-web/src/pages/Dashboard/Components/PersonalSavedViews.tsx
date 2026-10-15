@@ -1,16 +1,8 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Notice } from '@/components/ui/notice';
+import { TextField } from '@/components/ui/text-field';
 import { del, get, post } from '@/helpers/apiHelper';
 import { validTimeRange, validTimeZone } from './timeSelection';
 
@@ -237,6 +229,7 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
   const trigger = useRef<HTMLElement | null>(null);
   const fallbackFocus = useRef<HTMLButtonElement>(null);
   const deleteConfirm = useRef<HTMLButtonElement>(null);
+  const cancelDelete = useRef<HTMLButtonElement>(null);
   const generation = useRef(0);
   const pending = useRef(false);
   const controller = useRef<AbortController | null>(null);
@@ -372,33 +365,18 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
   };
 
   return (
-    <Box
-      component="section"
+    <section
       aria-label={subject === 'explore' ? '탐색 저장 보기' : '개인 저장 보기'}
-      sx={{
-        mb: 2,
-        p: { xs: 1.5, sm: 2 },
-        border: 1,
-        borderColor: 'divider',
-        borderRadius: 2,
-        minWidth: 0,
-        '& .MuiButton-root': { minHeight: 44 },
-      }}
+      className="mb-4 min-w-0 rounded-xl border border-border p-4 sm:p-5"
     >
-      <Typography component="h2" variant="h6">
-        {subject === 'explore' ? '탐색 저장 보기' : '개인 저장 보기'}
-      </Typography>
-      <Typography variant="body2" sx={{ mb: 1 }}>
+      <h2 className="text-lg">{subject === 'explore' ? '탐색 저장 보기' : '개인 저장 보기'}</h2>
+      <p className="mt-2 mb-3 text-sm">
         {subject === 'explore'
           ? '탐색 방식·Pivot 행과 열·선택한 지표·차원·적용한 필터·기간·집계·비교·정렬을 개인별로 저장합니다. 열 때 최신 정상 데이터로 조회합니다. 소스별 최대 20개입니다.'
           : '현재 적용한 필터·기간·숫자 표시·집계 단위·이전 기간 비교를 개인별로 저장합니다. 대시보드 정의는 바뀌지 않습니다. 최대 20개입니다.'}
-      </Typography>
-      {sourceRevision && (
-        <Typography variant="caption" sx={{ overflowWrap: 'anywhere' }}>
-          데이터 버전: {sourceRevision.slice(0, 12)}
-        </Typography>
-      )}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 1 }}>
+      </p>
+      {sourceRevision && <p className="text-xs [overflow-wrap:anywhere]">데이터 버전: {sourceRevision.slice(0, 12)}</p>}
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <TextField
           label="저장 보기 이름"
           value={name}
@@ -406,44 +384,40 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
           disabled={!!busy}
           inputProps={{ maxLength: 80 }}
           helperText="공백 제외 1~80자"
-          size="small"
-          fullWidth
+          className="w-full"
         />
         <Button
-          variant="outlined"
-          sx={{ flexShrink: 0, whiteSpace: 'nowrap', minWidth: { sm: 132 } }}
+          variant="outline"
+          className="shrink-0 whitespace-nowrap sm:min-w-[132px]"
           disabled={actionLocked || !nameValid || views.length >= 20}
           onClick={() => void run('save')}
         >
           현재 보기 저장
         </Button>
-      </Stack>
-      {blocked && (
-        <Typography variant="body2" sx={{ mt: 1 }}>
-          {blocked}
-        </Typography>
-      )}
+      </div>
+      {blocked && <p className="mt-2 text-sm">{blocked}</p>}
       {views.length >= 20 && (
-        <Typography variant="body2">저장 보기가 20개입니다. 새 보기를 저장하려면 기존 보기를 삭제해 주세요.</Typography>
+        <p className="text-sm">저장 보기가 20개입니다. 새 보기를 저장하려면 기존 보기를 삭제해 주세요.</p>
       )}
-      <Typography role="status" aria-live="polite" sx={{ mt: 1 }}>
+      <p role="status" aria-live="polite" className="mt-2">
         {busy || notice}
-      </Typography>
+      </p>
       {error && (
-        <Alert severity="error" sx={{ my: 1, overflowWrap: 'anywhere' }}>
+        <Notice severity="error" className="my-2 [overflow-wrap:anywhere]">
           {error}
-        </Alert>
+        </Notice>
       )}
-      <Button ref={fallbackFocus} disabled={!!busy} onClick={() => setReload(value => value + 1)}>
+      <Button ref={fallbackFocus} variant="ghost" disabled={!!busy} onClick={() => setReload(value => value + 1)}>
         저장 보기 목록 다시 불러오기
       </Button>
-      {loaded && !views.length && <Typography variant="body2">저장된 개인 보기가 없습니다.</Typography>}
-      <Box component="ul" aria-label="저장된 개인 보기 목록" sx={{ p: 0, m: 0, listStyle: 'none' }}>
+      {loaded && !views.length && <p className="text-sm">저장된 개인 보기가 없습니다.</p>}
+      <ul aria-label="저장된 개인 보기 목록" className="m-0 list-none p-0">
         {views.map(view => (
-          <Box component="li" key={view.id} sx={{ py: 1, borderBottom: 1, borderColor: 'divider' }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-              <Typography sx={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{view.name}</Typography>
+          <li key={view.id} className="border-b border-border py-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <p className="min-w-0 flex-1 [overflow-wrap:anywhere]">{view.name}</p>
               <Button
+                variant="ghost"
                 disabled={actionLocked}
                 aria-label={`${view.name} 보기 불러오기`}
                 onClick={() => void run('load', view)}
@@ -452,6 +426,7 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
               </Button>
               {renderViewAction?.(view)}
               <Button
+                variant="ghost"
                 disabled={!!busy}
                 aria-label={`${view.name} 보기 삭제`}
                 onClick={event => {
@@ -462,39 +437,46 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
               >
                 삭제
               </Button>
-            </Stack>
-          </Box>
+            </div>
+          </li>
         ))}
-      </Box>
+      </ul>
       <Dialog
         open={!!deleting}
-        onClose={() => {
-          if (!busy) setDeleting(null);
+        onOpenChange={next => {
+          if (!next && !busy) setDeleting(null);
         }}
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        fullWidth
-        maxWidth="xs"
-        disableRestoreFocus
-        TransitionProps={{ onExited: restoreFocus }}
       >
-        <DialogTitle id={titleId}>개인 저장 보기 삭제</DialogTitle>
-        <DialogContent>
-          <Typography id={descriptionId} sx={{ overflowWrap: 'anywhere' }}>
+        <DialogContent
+          showCloseButton={false}
+          aria-labelledby={titleId}
+          aria-describedby={descriptionId}
+          className="max-w-xs sm:max-w-xs"
+          onOpenAutoFocus={event => {
+            event.preventDefault();
+            cancelDelete.current?.focus();
+          }}
+          onCloseAutoFocus={event => {
+            event.preventDefault();
+            restoreFocus();
+          }}
+        >
+          <DialogTitle id={titleId}>개인 저장 보기 삭제</DialogTitle>
+          <DialogDescription id={descriptionId} className="[overflow-wrap:anywhere]">
             {deleting?.name} 보기를 삭제할까요?{' '}
             {subject === 'explore' ? '지표와 데이터는 유지됩니다.' : '대시보드와 데이터는 유지됩니다.'}
-          </Typography>
-          {error && <Alert severity="error">{error}</Alert>}
+          </DialogDescription>
+          {error && <Notice severity="error">{error}</Notice>}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button ref={deleteConfirm} variant="ghost" disabled={!!busy} onClick={() => void run('delete', deleting)}>
+              삭제 확인
+            </Button>
+            <Button ref={cancelDelete} variant="ghost" disabled={!!busy} onClick={() => setDeleting(null)}>
+              취소
+            </Button>
+          </div>
         </DialogContent>
-        <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
-          <Button ref={deleteConfirm} disabled={!!busy} onClick={() => void run('delete', deleting)}>
-            삭제 확인
-          </Button>
-          <Button autoFocus disabled={!!busy} onClick={() => setDeleting(null)}>
-            취소
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Box>
+    </section>
   );
 }

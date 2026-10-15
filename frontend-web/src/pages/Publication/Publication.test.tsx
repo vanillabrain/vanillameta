@@ -12,25 +12,8 @@ vi.mock('react-router-dom', () => ({
 }));
 vi.mock('@/components/analysis/AnalysisUi', () => ({
   AnalysisUiProvider: ({ children }: any) => <>{children}</>,
-  analysisFieldSx: {},
-  analysisPanelSx: {},
-}));
-vi.mock('@mui/material', () => ({
-  Box: ({ children }: any) => <div>{children}</div>,
-  Stack: ({ children }: any) => <div>{children}</div>,
-  Typography: ({ children, role }: any) => <p role={role}>{children}</p>,
-  Alert: ({ children }: any) => <div role="alert">{children}</div>,
-  Button: ({ children, disabled, onClick }: any) => (
-    <button disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  ),
-  TextField: ({ label, value, onChange, disabled }: any) => (
-    <label>
-      {label}
-      <input value={value} onChange={onChange} disabled={disabled} />
-    </label>
-  ),
+  analysisFieldClassName: 'min-w-0 text-sm',
+  analysisPanelClassName: 'min-w-0 rounded-xl border bg-card p-4 sm:p-5',
 }));
 vi.mock('./SnapshotView', () => ({ default: ({ snapshot }: any) => <div>결과: {snapshot.title}</div> }));
 const initial = () => ({ dashboardId: Number(api.id), revision: 'a'.repeat(64), version: 0, publication: null });

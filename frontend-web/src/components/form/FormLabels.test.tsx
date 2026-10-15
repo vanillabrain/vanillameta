@@ -6,12 +6,6 @@ import TextFieldForm from './TextFieldForm';
 import RadioForm from './RadioForm';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-// Load real MUI through its supported CJS entry to avoid this Vitest runtime's
-// Emotion ESM interop error. No controls or their accessibility behavior are stubbed.
-vi.mock('@mui/material', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material');
-});
 afterEach(cleanup);
 
 it('names repeated select controls with distinct label associations', () => {
@@ -81,8 +75,27 @@ it('names repeated radio groups without duplicate ids and keeps boolean choices'
   );
   const groups = ['First merge', 'Second merge'].map(name => screen.getByRole('radiogroup', { name }));
   expect(groups[0].getAttribute('aria-labelledby')).not.toBe(groups[1].getAttribute('aria-labelledby'));
-  expect((within(groups[0]).getByRole('radio', { name: 'Merge' }) as HTMLInputElement).checked).toBe(true);
-  expect((within(groups[1]).getByRole('radio', { name: 'Split' }) as HTMLInputElement).checked).toBe(true);
+  expect(within(groups[0]).getByRole('radio', { name: 'Merge' }).getAttribute('aria-checked')).toBe('true');
+  expect(within(groups[1]).getByRole('radio', { name: 'Split' }).getAttribute('aria-checked')).toBe('true');
   const ids = Array.from(document.querySelectorAll('[id]')).map(element => element.id);
   expect(new Set(ids).size).toBe(ids.length);
+});
+
+it('hands the original option value back when a radio choice changes', () => {
+  const onChange = vi.fn();
+  render(
+    <RadioForm
+      label="Merge"
+      option={[
+        { label: 'Merge', value: true },
+        { label: 'Split', value: false },
+      ]}
+      value={true}
+      name="rowSpan1"
+      onChange={onChange}
+    />,
+  );
+  const { getByRole } = within(screen.getByRole('radiogroup', { name: 'Merge' }));
+  getByRole('radio', { name: 'Split' }).click();
+  expect(onChange.mock.calls[0][0].target).toMatchObject({ name: 'rowSpan1', value: false });
 });

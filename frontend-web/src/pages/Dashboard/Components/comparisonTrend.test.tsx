@@ -1,17 +1,9 @@
 import React from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, it } from 'vitest';
 import { comparisonTrend } from './comparisonTrend';
 import MetricTrend from './MetricTrend';
 import type { MetricTrendData } from './trendGeometry';
-
-vi.mock('@mui/material', () => {
-  const Container = ({ component: Tag = 'div', children, ...props }: any) => {
-    delete props.sx;
-    return <Tag {...props}>{children}</Tag>;
-  };
-  return { Box: Container, Typography: Container, Button: Container };
-});
 
 const periods = {
   current: { column: 'date', start: '2026-01-04', end: '2026-01-06' },

@@ -42,11 +42,13 @@ import {
   refreshMetricLinks,
   metricLinkItems,
   bindMetricBlockKeys,
+  preserveMetricLinks,
 } from './metric-analysis-links';
 import { metricExpression, metricFields } from '../bi/metric-expression';
 import {
   applyMetricReferences,
   explicitMetricTarget,
+  explicitRenameRequested,
   applyCanonicalCalculation,
 } from './saved-metric-reference';
 import { DatasetType } from '../common/enum/dataset-type.enum';
@@ -196,6 +198,10 @@ export class AiDashboardService {
         sql: widget.sql,
         valueField: widget.valueField,
         categoryField: widget.categoryField,
+        prefix: widget.prefix,
+        suffix: widget.suffix,
+        decimalPlaces: widget.decimalPlaces,
+        numberNotation: widget.numberNotation,
         datas: rows,
         ...(widget.comparison ? { comparison: widget.comparison } : {}),
         ...(widget.previousDatas
@@ -341,7 +347,7 @@ export class AiDashboardService {
           'For category sums and differences use the server arithmetic fields exactly. Do not recompute them mentally; null means no verified exact integer sum. Comparisons cover matching aggregate expressions and included rows only.',
           'Disclose missing/null data, query limits, label/row/trend truncation and unavailable trends.',
           'Do not infer causes or complete totals from limited category/trend data. Never invent data.',
-          'Formatting changes use numberNotation full/compact, decimalPlaces and prefix; never scale SQL for display.',
+          'Use each widget prefix and suffix as the configured display unit; preserve the exact underlying value. Formatting changes use numberNotation full/compact and decimalPlaces; never scale SQL for display.',
           'You cannot execute SQL, change widgets or save anything. Give advice only.',
           'Use concise plain text and simple bullets, without Markdown emphasis or backticks. Avoid internal option names unless the user asks for configuration. Explain coverage limits briefly in user language.',
         ].join('\n'),
@@ -962,7 +968,7 @@ export class AiDashboardService {
       history,
     )}\nExplicit saved metric: ${JSON.stringify(
       body.selectedMetricId ?? null,
-    )}. If a selected widget is specified, return ONLY one widget with the exact original title of the selected widget, an explicit AS value alias and the requested source category. Keep its display options unless asked to change them. The server preserves all other widgets and the dashboard title.\nSelected widget: ${JSON.stringify(
+    )}. If a selected widget is specified, return ONLY one widget. Preserve the selected widget title unless the question explicitly asks to rename it (제목/이름/title); then use the requested title. Use an explicit AS value alias and the requested source category. Keep its display options unless asked to change them. The server preserves all other widgets and the dashboard title.\nSelected widget: ${JSON.stringify(
       body.selectedWidget ?? null,
     )}\nRequest: ${body.prompt}`;
     let correction = '';
@@ -999,7 +1005,13 @@ export class AiDashboardService {
             widgets: current.widgets.map((w, i) => (i === index ? updated : w)),
           };
         }
-        parsed = explicitMetricTarget(parsed, current, body.selectedWidget, body.selectedMetricId);
+        parsed = explicitMetricTarget(
+          parsed,
+          current,
+          body.selectedWidget,
+          body.selectedMetricId,
+          explicitRenameRequested(body.prompt),
+        );
         if (current && body.selectedMetricId !== undefined)
           parsed.widgets[body.selectedWidget].blockId =
             current.widgets[body.selectedWidget].blockId;
@@ -2022,8 +2034,18 @@ export class AiDashboardService {
         const share = await manager.save(DashboardShare, { uuid: randomUUID(), shareYn: YesNo.NO });
         dashboard = manager.create(Dashboard, { shareId: share.id, delYn: YesNo.NO });
       }
-      dashboard.structuredDefinition = structuredSnapshot
-        ? JSON.stringify(bindMetricBlockKeys(structuredSnapshot, draft))
+      let snapshot = structuredSnapshot;
+      if (snapshot === undefined && previous?.structuredDefinition && oldDraft) {
+        let priorSnapshot;
+        try {
+          priorSnapshot = JSON.parse(previous.structuredDefinition);
+        } catch {
+          priorSnapshot = null;
+        }
+        snapshot = preserveMetricLinks(priorSnapshot, oldDraft, draft);
+      }
+      dashboard.structuredDefinition = snapshot
+        ? JSON.stringify(bindMetricBlockKeys(snapshot, draft))
         : null;
       dashboard.title = draft.title;
       dashboard.analysisDefinition = JSON.stringify(draft);

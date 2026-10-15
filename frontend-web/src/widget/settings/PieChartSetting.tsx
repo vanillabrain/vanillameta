@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
@@ -45,8 +44,8 @@ const PieChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           required={true}
           id="name"
@@ -65,9 +64,9 @@ const PieChartSetting = props => {
           value={option.series.label}
           onChange={handleSeriesChange}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary={t('settings.series')} />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <SelectForm
           required={true}
           id="field"
@@ -88,18 +87,18 @@ const PieChartSetting = props => {
           onChange={handleSeriesChange}
           disabledDefaultValue
         />
-      </ListItem>
+      </li>
 
       {/* 추가되는 아이템 */}
       {!!listItem && (
-        <ListItem divider>
-          <ListItemText primary={listItem.title} />
+        <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+          <span className="w-full text-left text-sm font-bold">{listItem.title}</span>
           {listItem.children}
-        </ListItem>
+        </li>
       )}
 
-      <ListItem divider>
-        <ListItemText>{t('settings.legend')}</ListItemText>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
@@ -108,17 +107,10 @@ const PieChartSetting = props => {
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText primary={t('settings.colorSetting')} />
-        <AddButton
-          onClick={handleAddColorClick}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
-        />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.colorSetting')}</span>
+        <AddButton onClick={handleAddColorClick} className="absolute right-0 top-[30px]" />
         {option.series.field &&
           option.series.color
             .filter((item, index) => index < colorNum)
@@ -134,7 +126,7 @@ const PieChartSetting = props => {
                 />
               </React.Fragment>
             ))}
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

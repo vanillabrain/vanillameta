@@ -5,14 +5,6 @@ import { AddButton, RemoveButton } from './AddIconButton';
 import { handleRemoveClick } from '@/widget/utils/handler';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('@mui/material', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material');
-});
-vi.mock('@mui/icons-material/Add', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/icons-material/Add');
-});
 afterEach(cleanup);
 
 it('names icon actions and preserves caller-specific names', () => {
