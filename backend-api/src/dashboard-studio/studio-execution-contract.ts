@@ -40,6 +40,9 @@ export type StudioExecutionState = {
   saveOnly: boolean;
   publish?: boolean;
   publicationResult?: PublicationMetadata;
+  remix?: boolean;
+  remixToken?: string;
+  remixResult?: { token: string; version: number };
   unsupported?: StudioStepId;
   proposal?: { intent: string; operations: StudioOperation[]; document: StudioDocumentV1 };
 };

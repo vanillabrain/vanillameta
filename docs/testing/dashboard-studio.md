@@ -2,7 +2,7 @@
 
 ## 현재 범위와 실행 기준
 
-2026-10-15, T10 핵심 연결 흐름(생성→직접/AI 수정→저장·게시→재게시→다른 계정의 내 데이터 복제→원본 링크 중지)은 PASS_SELECTED다. 작업 브랜치 `codex/self-service-next-20261014`, 기준 `efe3fbb3` + T10 diff. 전체 TC-005/G4는 PARTIAL: 자연어 복제 dispatch와 Studio 공통 필터 추가 전후는 미구현·NOT_RUN이며, VoiceOver는 BLOCKED다. 아래 과거 T 기록은 당시 범위이며 현재 판정은 마지막 T10 기록이 기준이다.
+2026-10-15, T10 핵심 연결 흐름(생성→직접/AI 수정→저장·게시→재게시→다른 계정의 내 데이터 복제→원본 링크 중지)은 PASS_SELECTED다. 작업 브랜치 `codex/self-service-next-20261014`, 기준 `efe3fbb3` + T10 diff. 전체 TC-005/G4는 PARTIAL: T11에서 자연어→복제 매핑 화면 연결을 추가했으나 대화 안의 매핑·최종 복제 저장 자동 실행과 Studio 공통 필터 추가 전후는 미지원이며, VoiceOver는 BLOCKED다. 아래 과거 T 기록은 당시 범위이며 현재 판정은 마지막 T10 기록이 기준이다.
 
 ### T1 최초 시안 실행 기록 (역사적 기준)
 
@@ -465,3 +465,37 @@ T9 선택 범위 완료. 다음은 **T10 전체 흐름 수용·마지막 디자�
 3. **VoiceOver BLOCKED**, 운영 부하/다중 서버·실기기·전체 키보드 순서는 NOT_RUN. 기존 제한을 해제하지 않았다.
 
 다음 우선순위는 새 기능을 반복 검증하는 대신 BR-001 복제 연결 또는 Studio 공통 필터 중 한 범위를 구현하고 해당 미완료 조건만 검증하는 것이다.
+
+
+## T11 — 대화에서 복제 준비·매핑 연결 · 2026-10-15
+
+범위: UC-005 BR-001/005의 자연어 복제 진입. `내 데이터로 복제해줘`는 현재 소유 게시본, 같은 명령에 `/published/{token}` 또는 HTTP(S) 게시 링크를 붙이면 그 게시본을 현재 앱에서 검증한다. 링크 호스트로 네트워크 요청하지 않고 token만 현재 앱의 권한 경계에 전달한다. 복제 가능한 게시본이 없거나 허용/권한/만료 조건이 실패하면 링크를 만들지 않는다. 혼합 저장·게시/부정문·잘못된 링크는 미지원이며 추측하지 않는다.
+
+| ID | 기대 | 상태 |
+| --- | --- | --- |
+| STUDIO-R03 | 자연어 요청→서버 게시 권한·복제 허용 확인→typed handoff, 모델/저장/게시0 | PASS_SELECTED: 한/영 bounded 명령 단위·실제 한글 대화 |
+| STUDIO-R04 | 대화의 내부 매핑 링크→내 소스 선택·명시 확인→비공개 복제, 기존 초안 유지 | PASS_SELECTED: 편집16→게시8/v6→source9→새 private19 |
+| STUDIO-R05 | 없음/거절/만료·중지/부정문/혼합 명령, 실행 기록 reload/replay | PASS_SELECTED: 없음/중지 실제UI·기록 복원, 403/404/410·부정/혼합/replay/cancel 단위 |
+| STUDIO-D01/D02 T11 | 1440/768/390px 영수증·긴 링크, Tab/Enter·새 탭·기존 초안 유지 | PASS_SELECTED: 세 폭 overflow0·44px 링크·Enter새탭·Escape복귀 |
+
+복제 준비 완료와 복제본 저장 완료를 구분한다. 단일 대화 안의 매핑·저장까지 구현됐다고 확대하지 않는다. 기존 T10/숫자/매핑 변형은 변경 영향이 없으면 재사용한다. gpt-6-luna 설정과 VoiceOver BLOCKED 유지.
+
+
+### 구현·실제 결과
+
+- 기준 `cd3fb390` + T11 diff, 같은 FE3229/API4329·격리 T9 DB, Node24.21.0. 기존 AI SDK `useChat`/transport/실행 기록을 재사용했다. 모델/API 의존성을 추가하지 않았다. gpt-6-luna Codex 연결 설정을 유지하며 이 결정적 복제 준비 명령의 **새 모델 호출은0**이다. T10 실제 생성·수정 검증은 재사용한다.
+- 원래 편집 dashboard16에서 시간 차트 제목을 `T11 미저장 초안 유지`로 바꾸고 저장하지 않은 상태로 `내 데이터로 복제해줘 /published/{기존 활성 테스트 token}`을 전송했다. 서버는 inspectSource→remix 두 단계만 실행하고 게시본8/v6의 권한·복제 허용·만료·원 소유자의 현재 접근권을 기존 `requireRemix`로 확인했다. 편집 소스의 집계·새 지표·대시보드·게시 쓰기는 없다. 실행 기록 자체는 기존 정책대로 저장한다.
+- 응답은 `{token,version}`만 포함한다. 내부 URL은 브라우저에서 생성하고 외부 href/HTML/정의/연결정보를 받지 않는다. 링크는 `target=_blank`, `noopener noreferrer`이며 새 탭에서 기존 수신자 매핑 화면을 연다. 준비 완료 문구는 ‘아직 복제본은 저장되지 않음’을 명시한다.
+- Enter로 실제 새 탭을 열어 source9(공식 Rill1,391,572행)를 선택하고 기존 이름·타입 자동 매핑을 확인했다. 요청634513000/평균5.571238676523196(독립 정답5.571238676526892와 오차1e-9 이내). 마지막 만들기 버튼을 Enter로 명시 실행한 뒤 **새 비공개 dashboard19**가 생성됐다. 공개 게시0·새 block ID, 원본16 persisted hash 동일, 원래 탭의 미저장 제목·이력1·dirty 상태 유지. 새 흐름 저장은1개, 기존 studio_run/게시 수는 불변이다. 이번 source는 device_type 차원이며 T10 OS28 대조와 혼동하지 않는다.
+- 링크 없는 현재16은 게시본이 없어 준비 실패·링크0. T10에서 중지한15의 링크도 복제 준비 실패·데이터 연결 링크0. 새 정상 요청 후 준비 링크로 복구했다. 오류 안내는 권한·미허용·만료·없음을 추측해 단정하지 않는다. 성공/실패 각각 실행 기록 새로고침·폭 전환 remount로 복원했다. 마지막에는 검증용 미저장 제목을 undo하고 API 재기동/페이지 reload 후 같은 영수증이 재실행 없이 복원됨을 확인했다.
+- 부정문·저장/게시 혼합·잘못된 token/두 링크는 unsupported, 현재/명시 게시본의403/404/410은 failed·REMIX_UNAVAILABLE, 취소 중 확인이 끝나도 링크 미반환. 단위 테스트로 검증했다. 모든 자연어를 모델이 해석하는 기능은 아니며 문서화한 정확한 명령만 라우팅한다. 원본 게시 상태가 나중에 달라지면 기존 영수증은 역사 기록이며 매핑 화면이 다시 검증한다.
+
+### 검증·디자인·증빙
+
+- BE 영향81개/3suite PASS 후 취소 경합·실패 재시도 보완이 들어간 execution43개 PASS. 다른 두 suite40개는 코드 변경 없음으로 재사용해 **83개 합성**이다. BE lint·Nest build PASS.
+- FE focused56개, Studio 전체157개/16파일 PASS. 타입·변경5파일 lint·production build PASS. 기존 core7/매핑 오류/소유권·필수열/전체 T10 흐름은 변경 영향 없는 결과를 재사용했다. 전체 테스트·전체 E2E를 중복 실행하지 않았다.
+- 1440/768/390px 실제 화면을 직접 검토했다. 복제 연결 링크 높이44px, 패널 clientWidth/scrollWidth는 desktop319/319, tablet360/360, mobile360/360, 문서 가로 넘침0. 긴 token은 버튼에 노출하지 않고 대화 원문은 기존 줄바꿈으로 수용한다. 문구 위계·간격·이웃 단계/입력창 겹침을 확인했다. 모델 로딩 UX 전체를 새로 검증하지 않는다.
+- Enter 링크 새 탭/명시 만들기·Tab 이동·Escape 후 AI 열기 트리거 복귀를 확인했다. 최초 데스크톱 버튼은 공통 CSS에 의해36px로 줄어들어 해당 연결 버튼에만44px를 적용한 뒤 desktop/mobile 재검증했다. 새 탭이 활성화된 동안 viewport 설정이 그 탭에 적용돼 초기 일부 이미지가 축소 저장됐다. 그 캡처는 최종 디자인 증빙에서 제외하고 임시 override를 모두 해제한 뒤 원래 탭에서 재촬영했다. OS/권한/VoiceOver 설정 변경 없음, VoiceOver BLOCKED 유지.
+- 증빙 폴더 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t11-20261015`. `before-remix.json`/`connected-results.json`은 쓰기·독립성, `backend-red.log`→`backend-green.log`/`backend-cancel-final.log`/`backend-retry-final.log`·`backend-affected.log`, FE focused/Studio/type/lint/build 로그는 검사 근거다. `handoff-final-1440.jpg`, `handoff-fixed-768.jpg`, `handoff-fixed-390.jpg`, `revoked-handoff-fixed-390.jpg`, `linked-mapping-preview.jpg`, `linked-clone-saved.jpg`, `*-layout.json`을 사용한다. `recovered-keyboard-390.jpg`, `missing-publication-390.jpg`, `revoked-handoff-390.jpg`, `handoff-390.jpg`, `handoff-keyboard-768.jpg`는 초기 캡처 설정 오류가 있어 최종 디자인 판정에서 제외한다.
+
+**기능·디자인 PASS_SELECTED.** 남은 큰 항목은 **Studio 공통 필터의 편집·저장·게시·복제 전파**다. 이번은 자연어→기존 매핑 화면의 연결 완료이며, 한 대화 안에서 후보 매핑을 추론해 복제 저장까지 끝내는 자동 실행은 미지원이다. TC-005/G4 전체 PARTIAL을 유지한다. 별도 운영부하·다른 언어·실기기·VoiceOver는 실행하지 않았다.

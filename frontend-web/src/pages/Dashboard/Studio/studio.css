@@ -389,3 +389,5 @@
 .studio-published-actions { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .studio-published-actions .MuiButton-root { margin-left: 0; }
 @media(max-width:599px) { .studio-published-actions { margin-left: 0; width: 100%; } }
+
+.vm-studio .studio-remix-continue.MuiButton-root { min-height:44px; white-space:normal; }

@@ -87,6 +87,162 @@ describe('T7 durable executions', () => {
     if (provider === undefined) delete process.env.AI_PROVIDER;
     else process.env.AI_PROVIDER = provider;
   });
+  const remixAdapter = () => ({
+    ownerMetadata: jest.fn(async () => ({ token: 'e'.repeat(64) })),
+    requireRemix: jest.fn(async () => ({
+      token: 'e'.repeat(64),
+      version: 2,
+      remixTemplate: 'PRIVATE_DEFINITION',
+    })),
+    publish: jest.fn(),
+    committed: jest.fn(async () => undefined),
+  });
+  it.each([
+    '이 대시보드를 내 데이터로 복제해줘',
+    '현재 게시본을 내 데이터로 복제해 주세요.',
+    'Remix this dashboard with my data',
+  ])('T11 prepares current publication mapping without AI or writes: %s', async prompt => {
+    const publications = remixAdapter();
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    const result = await runner.create({ ...body, prompt }, 7);
+    expect(result.status).toBe('succeeded');
+    expect(result.remixResult).toEqual({ token: 'e'.repeat(64), version: 2 });
+    expect(result.steps.map(s => s.stepId)).toEqual(['inspectSource', 'remix']);
+    expect(publications.requireRemix).toHaveBeenCalledWith('e'.repeat(64), 7);
+    expect(studio.prepare).not.toHaveBeenCalled();
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(publications.publish).not.toHaveBeenCalled();
+    expect(ai.callLlm).not.toHaveBeenCalled();
+    expect(JSON.stringify(result)).not.toContain('PRIVATE_DEFINITION');
+    const restarted = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    expect((await restarted.get(result.runId, 7)).remixResult).toEqual(result.remixResult);
+    expect((await restarted.list(1, 7))[0].remixResult).toEqual(result.remixResult);
+    expect((await restarted.create({ ...body, prompt }, 7)).runId).toBe(result.runId);
+    expect(publications.requireRemix).toHaveBeenCalledTimes(1);
+  });
+  it.each(['/published/', 'http://127.0.0.1:3229/published/'])(
+    'T11 checks an explicitly referenced publication locally: %s',
+    async prefix => {
+      const publications = remixAdapter();
+      const runner = new StudioExecutionService(
+        db,
+        studio,
+        new StudioRunService(studio, ai),
+        publications as any,
+      );
+      const result = await runner.create(
+        { ...body, prompt: '내 데이터로 복제해줘 ' + prefix + 'e'.repeat(64) },
+        7,
+      );
+      expect(result.status).toBe('succeeded');
+      expect(result.remixResult?.version).toBe(2);
+      expect(publications.ownerMetadata).not.toHaveBeenCalled();
+      expect(publications.requireRemix).toHaveBeenCalledWith('e'.repeat(64), 7);
+    },
+  );
+  it.each([
+    '내 데이터로 복제하지 마',
+    '내 데이터로 복제해줘 그리고 게시해줘',
+    '내 데이터로 복제해줘 /published/invalid',
+    '내 데이터로 복제해줘 /published/' + 'e'.repeat(64) + ' /published/' + 'f'.repeat(64),
+  ])('T11 does not route ambiguous, negative or malformed remix commands: %s', async prompt => {
+    const publications = remixAdapter();
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    const result = await runner.create({ ...body, prompt }, 7);
+    expect(result.status).toBe('unsupported');
+    expect(result.remixResult).toBeUndefined();
+    expect(publications.requireRemix).not.toHaveBeenCalled();
+    expect(ai.callLlm).not.toHaveBeenCalled();
+    expect(studio.save).not.toHaveBeenCalled();
+  });
+  it('T11 retries only the failed permission check and creates no duplicate or write', async () => {
+    const publications = remixAdapter();
+    publications.requireRemix
+      .mockRejectedValueOnce({ getStatus: () => 410 })
+      .mockRejectedValueOnce({ getStatus: () => 403 });
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    const first = await runner.create({ ...body, prompt: '내 데이터로 복제해줘' }, 7);
+    expect(first.status).toBe('failed');
+    const restarted = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    const denied = await restarted.retry(first.runId, { stepId: 'remix' }, 7);
+    expect(denied.status).toBe('failed');
+    expect(denied.remixResult).toBeUndefined();
+    const recovered = await restarted.retry(first.runId, { stepId: 'remix' }, 7);
+    expect(recovered.status).toBe('succeeded');
+    expect(recovered.runId).toBe(first.runId);
+    expect(recovered.remixResult).toEqual({ token: 'e'.repeat(64), version: 2 });
+    expect(await db.manager.count(StudioExecution)).toBe(1);
+    expect(publications.requireRemix).toHaveBeenCalledTimes(3);
+    expect(publications.publish).not.toHaveBeenCalled();
+    expect(studio.prepare).not.toHaveBeenCalled();
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(ai.callLlm).not.toHaveBeenCalled();
+  });
+  it('T11 exposes no handoff when cancelled during publication check', async () => {
+    const controller = new AbortController();
+    const publications = remixAdapter();
+    publications.requireRemix.mockImplementationOnce(async () => {
+      controller.abort();
+      return { token: 'e'.repeat(64), version: 2, remixTemplate: '' };
+    });
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    const result = await runner.create(
+      { ...body, prompt: '내 데이터로 복제해줘' },
+      7,
+      controller.signal,
+    );
+    expect(result.status).toBe('cancelled');
+    expect(result.remixResult).toBeUndefined();
+    expect((await runner.get(result.runId, 7)).remixResult).toBeUndefined();
+  });
+  it.each([403, 404, 410])(
+    'T11 rejects unavailable publication with no handoff: %i',
+    async status => {
+      const publications = remixAdapter();
+      publications.requireRemix.mockRejectedValueOnce({ getStatus: () => status });
+      const runner = new StudioExecutionService(
+        db,
+        studio,
+        new StudioRunService(studio, ai),
+        publications as any,
+      );
+      const result = await runner.create({ ...body, prompt: '내 데이터로 복제해줘' }, 7);
+      expect(result.status).toBe('failed');
+      expect(result.remixResult).toBeUndefined();
+      expect(result.steps.find(s => s.stepId === 'remix').errorCode).toBe('REMIX_UNAVAILABLE');
+      expect(studio.save).not.toHaveBeenCalled();
+    },
+  );
   it('retries only preview across process without storing prompt, rows, SQL or model answer', async () => {
     studio.prepare
       .mockImplementationOnce(async (_id, b) => ({

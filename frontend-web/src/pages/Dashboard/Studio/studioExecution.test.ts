@@ -7,6 +7,9 @@ import {
   canResumeExecution,
   validatePublicationResult,
   publishedDashboardPath,
+  validateRemixResult,
+  publishedRemixPath,
+  remixHandoff,
 } from './studioExecution';
 const run = () => ({
   runId: 'run-1',
@@ -205,4 +208,84 @@ it('allows only the exact committed snapshot to resume publication after the sav
   } finally {
     vi.unstubAllGlobals();
   }
+});
+
+const remixResult = () => ({ token: 'a'.repeat(64), version: 3 });
+const remixed = () => ({
+  ...run(),
+  status: 'succeeded',
+  steps: [
+    { stepId: 'inspectSource', status: 'succeeded', retryable: false },
+    { stepId: 'remix', status: 'succeeded', retryable: false },
+  ],
+  remixResult: remixResult(),
+});
+const remixFailure = () => ({
+  ...run(),
+  status: 'failed',
+  steps: [{ stepId: 'remix', status: 'failed', retryable: true, errorCode: 'REMIX_UNAVAILABLE' }],
+});
+describe('remix handoff receipts', () => {
+  it('validates the handoff metadata and builds only a local remix route', () => {
+    const value = validateExecution(remixed(), 8);
+    expect(value.remixResult).toEqual(remixResult());
+    expect(publishedRemixPath(value.remixResult)).toBe('/published/' + 'a'.repeat(64) + '/remix');
+    expect(executionSummary(value)).toBe(
+      '복제 준비 완료 · v3. 내 데이터와 열 매핑을 확인해 주세요. 아직 복제본은 저장되지 않았습니다.',
+    );
+    expect(executionSummary(value)).not.toContain('저장 완료');
+    expect(executionSummary(value)).not.toContain('게시 완료');
+    expect(remixHandoff(value)).toEqual(remixResult());
+    expect(remixHandoff(validateExecution({ ...remixed(), status: 'completed' }, 8))).toEqual(remixResult());
+  });
+  it.each([
+    { token: 'a'.repeat(63) },
+    { token: 'a'.repeat(65) },
+    { token: 'A'.repeat(64) },
+    { token: 'z'.repeat(64) },
+    { token: '../evil' },
+    { token: 'javascript:alert(1)' },
+    { token: 'https://example.com/published/' + 'a'.repeat(64) },
+    { token: undefined },
+    { token: 42 },
+    { version: 0 },
+    { version: -1 },
+    { version: 1.5 },
+    { version: '3' },
+    { version: undefined },
+    { version: true },
+    { href: '/published/' + 'a'.repeat(64) + '/remix' },
+    { url: '/published/' + 'a'.repeat(64) + '/remix' },
+    { html: '<a href="/published/x/remix">복제</a>' },
+  ])('rejects malformed or extra handoff metadata: %j', extra => {
+    expect(() => validateRemixResult({ ...remixResult(), ...extra })).toThrow();
+    expect(() => validateExecution({ ...remixed(), remixResult: { ...remixResult(), ...extra } }, 8)).toThrow();
+  });
+  it('refuses a handoff unless the remix step and the overall run completed', () => {
+    for (const patch of [
+      { status: 'failed' },
+      { status: 'partial' },
+      { status: 'running' },
+      { status: 'interrupted' },
+      { status: 'cancelled' },
+      { steps: [{ stepId: 'remix', status: 'failed', retryable: true }] },
+      { steps: [{ stepId: 'remix', status: 'pending', retryable: false }] },
+      { steps: [{ stepId: 'inspectSource', status: 'succeeded', retryable: false }] },
+    ])
+      expect(() => validateExecution({ ...remixed(), ...patch }, 8)).toThrow();
+    expect(() => validateExecution({ ...remixed(), remixResult: null }, 8)).toThrow();
+    expect(remixHandoff({ ...remixed(), status: 'running' } as any)).toBeUndefined();
+    expect(remixHandoff({ ...remixed(), status: 'partial' } as any)).toBeUndefined();
+  });
+  it('reports an unavailable remix target explicitly without a handoff or a saved clone', () => {
+    const value = validateExecution(remixFailure(), 8);
+    expect(executionSummary(value)).toBe(
+      '복제할 게시본이 없거나 접근·복제 허용·만료 상태를 확인하지 못했습니다. 게시 설정이나 링크를 확인해 주세요. 기존 초안은 유지했습니다.',
+    );
+    expect(executionSummary(value)).not.toContain('저장 완료');
+    expect(remixHandoff(value)).toBeUndefined();
+    expect(retryStep(value)?.stepId).toBe('remix');
+    expect(validateExecution(remixFailure(), 8).remixResult).toBeUndefined();
+    expect(() => validateExecution({ ...remixFailure(), remixResult: remixResult() }, 8)).toThrow();
+  });
 });

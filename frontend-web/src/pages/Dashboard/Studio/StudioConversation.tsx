@@ -246,8 +246,9 @@ export default function StudioConversation({ context, selectedTitle, onApply, lo
       <div className="studio-ai-content">
         <h2>대시보드를 함께 완성하기</h2>
         <p>
-          질문·블록 수정·저장과 게시를 요청하세요. “저장하고 링크로 공유해줘”라고 명시하면 저장 후 링크를 만듭니다. 공유
-          범위가 불분명하면 자동 공개하지 않습니다. 내 데이터로 복제는 아직 지원하지 않습니다.
+          질문·블록 수정·저장과 게시를 요청하세요. “저장하고 링크로 공유해줘”라고 명시하면 저장 후 링크를 만듭니다. “내
+          데이터로 복제해줘”는 게시본을 확인하고 데이터 연결로 안내합니다. 다른 게시본은 요청 뒤에 링크를 붙여 주세요.
+          데이터와 열 매핑을 확인하기 전에는 복제본을 저장하지 않으며, 공유 범위가 불분명하면 자동 공개하지 않습니다.
         </p>
         <div className="studio-context-card">
           <span className="studio-eyebrow">현재 문맥</span>

@@ -111,6 +111,67 @@ it('restores a link, version, scope and data time from recent activity after rem
   expect(screen.getByText('2026-10-16 10:30:00.000 UTC')).toBeDefined();
   expect(screen.queryByRole('button', { name: '공유 다시 시도' })).toBeNull();
 });
+
+it('hands a completed remix off to the internal remix route without claiming a saved clone', () => {
+  const value: StudioExecution = {
+    ...run(),
+    status: 'succeeded',
+    steps: [
+      { stepId: 'inspectSource', status: 'succeeded', retryable: false },
+      { stepId: 'remix', status: 'succeeded', retryable: false },
+    ],
+    remixResult: { token: 'a'.repeat(64), version: 3 },
+  };
+  const props = {
+    runs: [value],
+    busy: false,
+    error: '',
+    onRefresh: vi.fn(),
+    onRetry: vi.fn(),
+    onCancel: vi.fn(),
+    canRetry: () => true,
+  };
+  const first = render(<StudioExecutionActivity {...props} />);
+  first.unmount();
+  render(<StudioExecutionActivity {...props} />);
+  const link = screen.getByRole('link', { name: '내 데이터 연결하고 복제 계속' });
+  expect(link.getAttribute('href')).toBe('/published/' + 'a'.repeat(64) + '/remix');
+  expect(link.getAttribute('target')).toBe('_blank');
+  expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+  expect(
+    screen.getByText('복제 준비 완료 · v3. 내 데이터와 열 매핑을 확인해 주세요. 아직 복제본은 저장되지 않았습니다.'),
+  ).toBeDefined();
+  expect(screen.getByText(/복제 화면을 열 때 다시 확인합니다/)).toBeDefined();
+  expect(screen.getByText('복제 준비')).toBeDefined();
+  expect(screen.queryByText(/저장 완료|게시 완료/)).toBeNull();
+  expect(screen.queryByRole('button', { name: '공유 다시 시도' })).toBeNull();
+});
+
+it('shows an unavailable remix failure with no handoff link and an explicit retry', () => {
+  const retry = vi.fn();
+  const value: StudioExecution = {
+    ...run(),
+    status: 'failed',
+    steps: [{ stepId: 'remix', status: 'failed', retryable: true, errorCode: 'REMIX_UNAVAILABLE' }],
+  };
+  render(
+    <StudioExecutionActivity
+      runs={[value]}
+      busy={false}
+      error=""
+      onRefresh={vi.fn()}
+      onRetry={retry}
+      onCancel={vi.fn()}
+      canRetry={() => true}
+    />,
+  );
+  expect(screen.getByRole('status').textContent).toBe(
+    '복제할 게시본이 없거나 접근·복제 허용·만료 상태를 확인하지 못했습니다. 게시 설정이나 링크를 확인해 주세요. 기존 초안은 유지했습니다.',
+  );
+  expect(screen.queryByRole('link')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '복제 준비 다시 시도' }));
+  expect(retry).toHaveBeenCalledWith(value);
+});
 it('does not offer a stale or fabricated link when publication failed after saving', () => {
   const retry = vi.fn();
   const value: StudioExecution = {

@@ -10,7 +10,7 @@ export const STEP_LABELS = {
   applyDraft: '초안 준비',
   saveDraft: '대시보드 저장',
   publish: '공유',
-  remix: '내 데이터로 복제',
+  remix: '복제 준비',
 } as const;
 export const STATUS_LABELS = {
   pending: '대기',
@@ -86,6 +86,17 @@ export function validatePublicationResult(input: unknown): StudioPublicationResu
 }
 export const publishedDashboardPath = (publication: StudioPublicationResult) =>
   '/published/' + encodeURIComponent(publication.token);
+/** Read-only remix handoff. Access, remix consent and expiry are rechecked by the remix route itself. */
+export type StudioRemixResult = { token: string; version: number };
+export function validateRemixResult(input: unknown): StudioRemixResult {
+  studioKeys(input, ['token', 'version']);
+  const value = input as StudioRemixResult;
+  studioAssert(typeof value.token === 'string' && /^[a-f0-9]{64}$/.test(value.token), '복제 링크를 확인하지 못했습니다.');
+  studioAssert(Number.isSafeInteger(value.version) && value.version > 0, '복제 버전을 확인하지 못했습니다.');
+  // Only the explicit receipt fields are kept. No server-provided URL or HTML is rendered.
+  return { token: value.token, version: value.version };
+}
+export const publishedRemixPath = (remix: StudioRemixResult) => '/published/' + encodeURIComponent(remix.token) + '/remix';
 export type StudioExecution = {
   runId: string;
   requestId: string;
@@ -96,6 +107,7 @@ export type StudioExecution = {
   result?: StudioRunResult;
   saveResult?: StudioSaveResult;
   publicationResult?: StudioPublicationResult;
+  remixResult?: StudioRemixResult;
   baseDocumentHash?: string;
   baseRevision?: string;
   sourceRevision?: string;
@@ -154,8 +166,23 @@ export function validateExecution(input: unknown, dashboardId: number): StudioEx
       '게시 완료 단계와 결과가 일치하지 않습니다.',
     );
   }
+  if (value.remixResult !== undefined) {
+    value.remixResult = validateRemixResult(value.remixResult);
+    studioAssert(
+      value.steps.some(step => step.stepId === 'remix' && step.status === 'succeeded'),
+      '복제 준비 완료 단계와 결과가 일치하지 않습니다.',
+    );
+    studioAssert(['succeeded', 'completed'].includes(value.status), '복제 준비가 끝난 실행에만 연결할 수 있습니다.');
+  }
   return value;
 }
+/** A handoff link is offered only for a finished remix step inside an overall succeeded run. */
+export const remixHandoff = (run: StudioExecution) =>
+  run.remixResult &&
+  ['succeeded', 'completed'].includes(run.status) &&
+  run.steps.some(step => step.stepId === 'remix' && step.status === 'succeeded')
+    ? run.remixResult
+    : undefined;
 export const retryStep = (run: StudioExecution) =>
   run.steps.find(s => s.retryable && ['failed', 'interrupted', 'cancelled'].includes(s.status));
 export const executionSummary = (run: StudioExecution) => {
@@ -169,6 +196,11 @@ export const executionSummary = (run: StudioExecution) => {
       run.publicationResult.version
     } · ${scope}. 게시 기록의 링크에서 접근 상태를 확인하세요.`;
   }
+  const remix = run.steps.find(step => step.stepId === 'remix');
+  if (remix?.status === 'failed' && remix.errorCode === 'REMIX_UNAVAILABLE')
+    return '복제할 게시본이 없거나 접근·복제 허용·만료 상태를 확인하지 못했습니다. 게시 설정이나 링크를 확인해 주세요. 기존 초안은 유지했습니다.';
+  if (run.remixResult)
+    return `복제 준비 완료 · v${run.remixResult.version}. 내 데이터와 열 매핑을 확인해 주세요. 아직 복제본은 저장되지 않았습니다.`;
   if (saved && publish?.status === 'failed')
     return '저장 완료 · 게시 실패. 저장 결과는 유지되며 게시 링크는 갱신되지 않았습니다. 게시 단계만 다시 시도할 수 있습니다.';
   if (saved)

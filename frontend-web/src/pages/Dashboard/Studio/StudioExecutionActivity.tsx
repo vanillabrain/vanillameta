@@ -7,6 +7,8 @@ import {
   executionSummary,
   retryStep,
   publishedDashboardPath,
+  publishedRemixPath,
+  remixHandoff,
 } from './studioExecution';
 type Props = {
   runs: StudioExecution[];
@@ -17,6 +19,30 @@ type Props = {
   onCancel: (run: StudioExecution) => void;
   canRetry: (run: StudioExecution) => boolean;
 };
+/** Read-only handoff. The remix route rechecks access and consent, and saves nothing by itself. */
+function RemixHandoff({ run }: { run: StudioExecution }) {
+  const remix = remixHandoff(run);
+  if (!remix) return null;
+  return (
+    <>
+      <p>복제 준비 v{remix.version} · 내 데이터와 열 매핑은 다음 화면에서 확인합니다.</p>
+      <Button
+        component="a"
+        href={publishedRemixPath(remix)}
+        className="studio-remix-continue"
+        target="_blank"
+        rel="noopener noreferrer"
+        variant="outlined"
+      >
+        내 데이터 연결하고 복제 계속
+      </Button>
+      <p className="studio-execution-hint">
+        접근 권한·복제 허용·만료 상태는 복제 화면을 열 때 다시 확인합니다. 아직 복제본은 저장되지 않았으므로 이 탭의 초안은
+        그대로 유지됩니다.
+      </p>
+    </>
+  );
+}
 export default function StudioExecutionActivity({ runs, busy, error, onRefresh, onRetry, onCancel, canRetry }: Props) {
   return (
     <section className="studio-execution" aria-labelledby="studio-execution-heading">
@@ -91,6 +117,7 @@ export default function StudioExecutionActivity({ runs, busy, error, onRefresh, 
               )}
             </div>
           )}
+          <RemixHandoff run={run} />
           <ol aria-label="실행 단계">
             {run.steps.map(step => (
               <li key={step.stepId}>

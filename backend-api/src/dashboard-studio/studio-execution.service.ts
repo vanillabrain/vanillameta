@@ -147,8 +147,23 @@ export class StudioExecutionService implements OnModuleInit {
   /** Only explicit, bounded commands authorize persistence or publication. */
   protected plan(
     body: StudioExecutionRequest,
-  ): Pick<StudioExecutionState, 'save' | 'saveOnly' | 'unsupported' | 'publish'> {
+  ): Pick<
+    StudioExecutionState,
+    'save' | 'saveOnly' | 'unsupported' | 'publish' | 'remix' | 'remixToken'
+  > {
     const prompt = body.prompt.trim();
+    // This intent prepares a read-only handoff. Mapping and creation still require
+    // explicit confirmation in the existing recipient-owned remix screen.
+    const remixCommand = prompt.match(
+      /^(?:(?:(?:이|현재)\s*(?:대시보드|게시본)(?:을|를)?\s*)?내\s*데이터로\s*복제\s*(?:해\s*줘|해\s*주세요|해주세요)|remix\s+(?:this\s+dashboard\s+)?with\s+my\s+data)[.!。]?(?:\s+((?:https?:\/\/[^\s/?#]+)?\/published\/([a-f0-9]{64})))?$/iu,
+    );
+    if (remixCommand)
+      return {
+        save: false,
+        saveOnly: true,
+        remix: true,
+        ...(remixCommand[2] ? { remixToken: remixCommand[2] } : {}),
+      };
     // Exact, explicit link consent only. Ambiguous/negative sharing never becomes a public write.
     if (
       /^(?:현재\s*)?(?:초안(?:을)?\s*)?저장하고\s*링크로\s*공유\s*(?:해\s*줘|해\s*주세요|해주세요)[.!。]?$/u.test(
@@ -202,9 +217,13 @@ export class StudioExecutionService implements OnModuleInit {
     return { save, saveOnly };
   }
   protected stepIds(
-    plan: Pick<StudioExecutionState, 'save' | 'saveOnly' | 'unsupported' | 'publish'>,
+    plan: Pick<
+      StudioExecutionState,
+      'save' | 'saveOnly' | 'unsupported' | 'publish' | 'remix' | 'remixToken'
+    >,
   ): StudioStepId[] {
     const ids: StudioStepId[] = ['inspectSource'];
+    if (plan.remix) return [...ids, 'remix'];
     if (plan.unsupported) ids.push(plan.unsupported);
     else if (!plan.saveOnly) ids.push('proposeSemantics', 'preview', 'applyDraft');
     if (plan.save) ids.push('saveDraft');
@@ -282,6 +301,9 @@ export class StudioExecutionService implements OnModuleInit {
       status: row.status,
       steps: state.steps,
       ...(state.publicationResult ? { publicationResult: state.publicationResult } : {}),
+      ...(row.status === 'succeeded' && state.remixResult
+        ? { remixResult: state.remixResult }
+        : {}),
       baseRevision: b.expectedRevision,
       baseDocumentHash: studioDigest(baseDocument),
       sourceRevision: b.expectedSourceRevision,
@@ -295,7 +317,9 @@ export class StudioExecutionService implements OnModuleInit {
         !this.context(row.runId),
       answer:
         row.status === 'succeeded'
-          ? state.publish
+          ? state.remixResult
+            ? '복제 준비가 완료되었습니다. 내 데이터와 열 매핑을 확인해 주세요. 아직 복제본은 저장되지 않았습니다.'
+            : state.publish
             ? '초안을 저장하고 링크로 공유했습니다.'
             : state.save
             ? '초안을 저장했습니다.'
@@ -473,7 +497,7 @@ export class StudioExecutionService implements OnModuleInit {
     this.active.set(row.runId, { controller, promise });
     return promise;
   }
-  /** Publication delegates to its durable journal; remix remains unsupported. */
+  /** Publication writes use a journal; remix only prepares an authorized handoff. */
   protected async externalStep(
     stepId: StudioStepId,
     row?: StudioExecution,
@@ -528,9 +552,22 @@ export class StudioExecutionService implements OnModuleInit {
           request.document.sourceId,
           row.actorId,
         );
-        if (step.stepId === 'inspectSource')
-          prepared = await this.studio.prepare(row.dashboardId, request, row.actorId);
-        else if (state.unsupported === step.stepId)
+        if (step.stepId === 'inspectSource') {
+          // A recipient handoff must not aggregate or expose the unrelated editing source.
+          if (!state.remix)
+            prepared = await this.studio.prepare(row.dashboardId, request, row.actorId);
+        } else if (step.stepId === 'remix' && state.remix) {
+          if (!this.publications) throw new Error('PUBLICATION_UNAVAILABLE');
+          const token =
+            state.remixToken ??
+            (await this.publications.ownerMetadata(row.dashboardId, row.actorId))?.token;
+          if (!token) throw new Error('PUBLICATION_REQUIRED');
+          const publication = await this.studio.serializeWrite(() =>
+            this.publications.requireRemix(token, row.actorId),
+          );
+          // No source configuration, template, server URL or new dashboard is returned.
+          state.remixResult = { token: publication.token, version: publication.version };
+        } else if (state.unsupported === step.stepId)
           step.status = await this.externalStep(step.stepId, row, signal);
         else if (step.stepId === 'proposeSemantics') {
           if (!body) throw new Error('REQUEST_REQUIRED');
@@ -639,11 +676,13 @@ export class StudioExecutionService implements OnModuleInit {
           ? 'SAVE_FAILED'
           : step.stepId === 'publish'
           ? 'PUBLISH_FAILED'
+          : step.stepId === 'remix'
+          ? 'REMIX_UNAVAILABLE'
           : 'STEP_FAILED';
         row.status = committed && step.stepId === 'publish' ? 'partial' : step.status;
         await this.persist(row, state);
         if (
-          [401, 403, 409].includes(error?.getStatus?.()) ||
+          (step.stepId !== 'remix' && [401, 403, 409].includes(error?.getStatus?.())) ||
           (error?.getStatus?.() === 400 && step.stepId === 'inspectSource')
         )
           throw error;
