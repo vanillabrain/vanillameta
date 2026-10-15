@@ -275,3 +275,10 @@ it('cancels help, returns focus and keeps an immediate retry pending when the ol
   await screen.findByText('새 설명');
   expect(screen.queryByRole('button', { name: '오류 설명 취소' })).toBeNull();
 });
+
+it('opens the Studio creation entry without installing a sample or invoking AI', () => {
+  render(<GettingStarted />);
+  fireEvent.click(screen.getByRole('button', { name: 'Studio에서 내 데이터로 시작' }));
+  expect(mocks.navigate).toHaveBeenCalledWith('/studio/new');
+  expect(mocks.post).not.toHaveBeenCalled();
+});

@@ -214,7 +214,7 @@ const FileAnalysis = () => {
     }
   };
 
-  const saveAsDataset = (destination?: 'builder' | 'ai') => {
+  const saveAsDataset = (destination?: 'builder' | 'ai' | 'studio') => {
     if (!selectedFile || loading || saving) return;
     setSaving(true);
     DatabaseService.uploadFile(selectedFile)
@@ -222,7 +222,9 @@ const FileAnalysis = () => {
         if (response.data.status === 'SUCCESS') {
           snackbar.success(t('fileAnalysis.saved', { rows: response.data.data.rows }));
           navigate(
-            destination === 'ai'
+            destination === 'studio'
+              ? `/studio/new?sourceId=${response.data.data.id}`
+              : destination === 'ai'
               ? `/dashboard?aiSourceId=${response.data.data.id}`
               : destination === 'builder'
               ? `/explore?sourceId=${response.data.data.id}`
@@ -338,6 +340,9 @@ const FileAnalysis = () => {
             </Button>
             <Button variant="outlined" onClick={() => saveAsDataset('builder')} disabled={saving || loading}>
               {t('fileAnalysis.buildChart')}
+            </Button>
+            <Button variant="outlined" onClick={() => saveAsDataset('studio')} disabled={saving || loading}>
+              Studio에서 만들기
             </Button>
             <Button variant="outlined" onClick={() => saveAsDataset('ai')} disabled={saving || loading}>
               {t('fileAnalysis.buildWithAi')}

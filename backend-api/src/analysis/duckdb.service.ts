@@ -193,6 +193,7 @@ export class DuckDBService implements OnModuleDestroy {
       const filename = path.join(directory, 'data.duckdb');
       const task = {
         kind: 'commerce-import',
+        analytical: input.analytical === true,
         filename,
         sourcePaths: [
           sources[0].path,

@@ -143,11 +143,13 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 **Interfaces:** run의 `clarifications`는 `{id,question,choices?,affectedBlockIds}`. `semanticProposal`은 existing metric ref 또는 new definition, dimension column/type/version. `POST /studio/dashboards`는 requestId/document로 생성하고 새 dashboardId/revision/idMap 반환.
 
-- [ ] `/studio/new`에서 기존 데이터·파일·매출환불 샘플을 선택하고 프롬프트 한 번으로 source profile→semantic proposal→계산 preview→canvas로 연결. 파일 저장은 기존 DuckDB worker를 재사용.
-- [ ] 기존 지표 선택은 canonical ID/version 유지. 신규 지표·dimension 정의와 dashboard 저장은 동일 transaction. dimension은 첫 단계 원본열+타입+버전 참조이며 불필요한 전역 catalog를 만들지 않음.
-- [ ] 환불률 분모 모호함은 질의/저장/게시 전 clarification, 업로드 실패·필수열 없음·중복 지표·source revision 변경·동시 저장을 spec으로 고정. 샘플 수치 기대값은 기존 commerce MD oracle을 연결하고 임의 신규 값을 만들지 않음.
-- [ ] STUDIO-A02: Rill 공식 sample 생성(634513000 / 5.571238676526892), 별도 commerce fixture의 매출·환불 생성. 두 fixture의 수치·업무 의미를 혼동하지 않음. 신규 블록 종류는 지원 검증된 renderer만 제안.
-- [ ] 커밋. **G2 일부:** 생성→직접 이동→선택 수정→저장/reload가 같은 화면에서 실LLM으로 완료.
+- [x] `/studio/new`에서 기존 데이터·파일·매출환불 샘플을 선택하고 프롬프트 한 번으로 source profile→semantic proposal→계산 preview→canvas로 연결. 파일 저장은 기존 DuckDB worker를 재사용.
+- [x] 기존 지표 선택은 canonical ID/version 유지. 신규 지표·dimension 정의와 dashboard 저장은 동일 transaction. dimension은 첫 단계 원본열+타입+버전 참조이며 불필요한 전역 catalog를 만들지 않음.
+- [x] 환불률 분모 모호함은 질의/저장/게시 전 clarification, 업로드 실패·필수열 없음·중복 지표·source revision 변경·동시 저장을 spec으로 고정. 샘플 수치 기대값은 기존 commerce MD oracle을 연결하고 임의 신규 값을 만들지 않음.
+- [x] STUDIO-A02: Rill 공식 sample 생성(634513000 / 5.571238676526892), 별도 commerce fixture의 매출·환불 생성. 두 fixture의 수치·업무 의미를 혼동하지 않음. 신규 블록 종류는 지원 검증된 renderer만 제안.
+- [x] 커밋. **G2 일부:** 생성→직접 이동→선택 수정→저장/reload가 같은 화면에서 실LLM으로 완료.
+
+**T6 실행 계약/판정:** `/studio/proposals`는 불변 제안/원본 버전/semanticProposal/clarifications/실제 preview를 반환하고, 생성은 `{requestId,proposalId,expectedSourceRevision}`로 검증된 제안을 원자 저장한다. 브라우저3폭·키보드·실 gpt-6-luna의 공식Rill/별도commerce/CSV 진입·canonical 재사용·G2 일부 완료. 상세 오류/주입 구분/단위 범위/JSON·liveRillUX 미실행·VoiceOver BLOCKED는 docs/testing/dashboard-studio.md T6 기록 참조. 다음 T7이며 게시/복제 완료는 주장하지 않는다.
 
 ### T7: 한 요청 실행·부분 실패 복구 (P3 / NFR-004)
 
@@ -205,7 +207,7 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 - FR-007:T5/T7/T8, FR-008:T6, FR-009:T2/T3/T5, FR-010:T1/T3/T4, FR-011:T8, FR-012:T9. UC-005 A1:T6, A2:T4/T5, A3:T7/T8, A4:T9, A5:T8.
 - 현재 지원 블록 종류/1~6 한도, single-source, live 미지원, 미저장 새로고침 복구 미지원, VoiceOver BLOCKED를 명시했다. 이 제한이 실제 TC-005를 막으면 해당 단계는 부분 완료로 남긴다.
-- T1~T5의 각 선택 범위 구현·검증이 완료됐고 다음 실행은 T6다. 전체 작업량/기간은 T2 adapter 영향 확인 전 확정하지 않는다. 성능·공수 절감 수치를 근거 없이 약속하지 않는다.
+- T1~T6의 각 선택 범위 구현·검증이 완료됐고 다음 실행은 T7이다. 전체 작업량/기간은 T2 adapter 영향 확인 전 확정하지 않는다. 성능·공수 절감 수치를 근거 없이 약속하지 않는다.
 
 ## T2 실행 중 확정한 계약 보완
 

@@ -10,6 +10,7 @@ const Dashboard = React.lazy(() => import('@/pages/Dashboard'));
 const DashboardView = React.lazy(() => import('@/pages/Dashboard/DashboardView'));
 const DashboardCreate = React.lazy(() => import('@/pages/Dashboard/DashboardCreate'));
 const DashboardEdit = React.lazy(() => import('@/pages/Dashboard/DashboardEdit'));
+const StudioCreate = React.lazy(() => import('@/pages/Dashboard/Studio/StudioCreate'));
 const StudioEditor = React.lazy(() => import('@/pages/Dashboard/Studio/StudioEditor'));
 const DashboardModify = React.lazy(() => import('@/pages/Dashboard/DashboardModify'));
 const Widget = React.lazy(() => import('@/pages/Widget'));
@@ -84,6 +85,14 @@ function Router() {
           </Route>
           <Route path="/*" element={<Status404 />} />
         </Route>
+        <Route
+          path="/studio/new"
+          element={
+            <ProtectedRoute>
+              <StudioCreate />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard/:dashboardId/studio"
           element={

@@ -157,6 +157,9 @@ export default function GettingStarted({ returning = false }: { returning?: bool
       <Typography color="text.secondary" sx={{ mb: 2 }}>
         샘플로 살펴보거나 내 데이터를 연결해 보세요. AI 설정 없이도 시작할 수 있습니다.
       </Typography>
+      <Button variant="contained" onClick={() => navigate('/studio/new')} sx={{ mb: 2, minHeight: 44 }}>
+        Studio에서 내 데이터로 시작
+      </Button>
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
         <Card variant="outlined" sx={{ p: 2.5, flex: 1, minWidth: 0 }}>
           <Typography component="h3" variant="h6">

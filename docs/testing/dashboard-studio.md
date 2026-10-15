@@ -197,3 +197,48 @@ CSV5행: 2026-01-01 Site300,01-02 Mobile200,01-08 Site400,01-09 Mobile100,01-15 
 - Aside 데몬이 실행되지 않아 기존 승인된 headed Chromium을 사용했고 Codex IAB에도 같은 실제 Studio/선택 AI 패널을 남겼다. VoiceOver BLOCKED 유지.
 
 다음 **T6 내 파일/샘플→같은 Studio 생성**. 한 프롬프트 신규 생성·게시/재사용·작업 복구·전체 TC-005와 Rill 수치/UX 비교는 해당 단계까지 NOT_RUN이다.
+
+## T6 내 파일·샘플 → Studio — 2026-10-15 (선택 조건 완료)
+
+기준 `7b0fe5fb` + T6 diff. 기존 T1~T5의 무관한 MD 조건은 재실행하지 않는다. AI Codex/gpt-6-luna 지정 유지, VoiceOver BLOCKED 유지.
+
+### STUDIO-A02 인수 조건
+
+| 조건 | 입력/기대 | 현재 상태 |
+| --- | --- | --- |
+| A02-RILL | 공식 auction1391572행, 요청634513000·평균5.571238676526892±1e-9, 기기별·시간 차트. 실제 생성→Studio→이동→선택AI수정→저장/reload | PASS_SELECTED_VARIANTS |
+| A02-COMMERCE | bundled AE37주문/40결제/8환불. 매출20994.61/환불4457.60/순매출16537.01 USD, 금액환불률21.232116243169088%. 주문일 코호트 | PASS_SELECTED_VARIANTS |
+| A02-FILE | Studio의 실제 Parquet 선택 및 기존 `/data/file`의 CSV→새 Studio 진입. 기존 서버 DuckDB worker, CSV2행/합계500·JSON2행/합계700 생성·저장/reload. preview metadata 쓰기0는 서버 단위 | PASS_SELECTED_VARIANTS |
+| A02-SEMANTIC | 저장 지표 선택의 실제 모델 ID/version/634513000 보존. 원자 저장·중복 정의·차원 schema는 서버 단위. 환불 분모 질문 전에 preview/save 없음 | PASS_SELECTED_VARIANTS |
+| A02-GUARD | 실제 손상 Parquet/명시한 없는 열 차단. 취소·503는 브라우저 응답 주입. stale·권한·동시 저장·rollback/replay·취소 전후는 서버 단위/FE 경합 테스트 | PASS_SELECTED_VARIANTS |
+| A02-DESIGN | 생성 review1440/768/390px, 모바일44px 버튼, 페이지 가로 넘침 없음. Enter/Space 파일 선택·샘플·지표·분모·생성/저장, 표 End, Studio 핸들 방향키. 최종 PNG 직접 확인 | PASS_SELECTED_VARIANTS |
+
+### 구현·실행 근거
+
+- `/studio/new`에서 소유 DuckDB 소스·내 CSV/JSON/Parquet·Rill/commerce 샘플→profile→지표 정의 검토→계산 preview→명시 저장→동일 Studio. 기존 GettingStarted/파일 화면에 진입 버튼을 추가했다. 한 소스·1~6개 기존 검증 renderer, MUI 유지·신규 의존성 없음.
+- `POST /studio/proposals`는 불변 actor-bound 제안(10분, 미소비 최대64개)을 만들고 지표/dashboard를 쓰지 않는다. `sourceRevision`은 profile.dataVersion의 불투명 복합 해시다. `POST /studio/dashboards`는 `{requestId,proposalId,expectedSourceRevision}`로 생성하며, source/metric/schema 재검증 후 지표·dashboard·StudioState·지속 replay journal을 같은 transaction/공유 SQLite 쓰기 큐에서 저장한다. 소비한 제안은 commit 후 해제하며 replay는 journal에서 복원한다. dimension은 원본 열/type/schema 참조, 별도 전역 catalog 없음.
+- 런타임은 이 워크트리 Node24/npm, 격리 SQLite·uploads, API4326/FE3226. AI_PROVIDER=codex, gpt-6-luna 지정 및 기존10100 연결/카탈로그 유지. CLI 출력만으로 실제 사용 모델을 별도 증명하지는 않는다. 인증정보는 증빙에 저장하지 않았다.
+- **Rill 실모델**: Parquet1391572행에서 KPI634513000, 평균5.571238676523254(고정 정답 오차<1e-9), 기기별9그룹·시간 추이. 시간 차트는 원본 시간별 집계이며 일간 집계로 보고하지 않는다. 원본 SHA/정답은 `samples/rill/manifest.json` 기준. review→생성→reload, 마지막 차트 lg y7→8 방향키 이동 후 제목만 실모델로 수정→명시 저장/reload. 숫자/다른 블록/배치 보존. 기존 지표 선택의 별도 실모델 제안은 canonical ID/version1/634513000 보존.
+- **Commerce 실모델**: 기존37주문 bundled fixture를 재사용(99827행 전체 fixture/Rill과 구분). 환불률 모호함→분모 선택 전 preview/save 없음→성공 결제액 선택→4 KPI 원본값20994.61/4457.6/16537.01/21.232116243169088→저장/reload. 모바일 표시20,994.61 USD/4,457.60 USD/16,537.01 USD/21.23%. 공개 합성 데이터 출처·CC BY4.0 표시.
+- **CSV 진입 실모델**: `/data/file`에서 네이티브 파일 선택 Enter→Studio에서 만들기→2행 프로파일→amount 합계500 제안→명시 저장/reload500. 브라우저 WASM 분석은 실행하지 않았다. Studio 자체의 Parquet 파일 선택도 네이티브 Enter로 실제 원본을 업로드했다. 최종 응답 경계 변경 후 아직 미검증이던 JSON2행도 같은 Studio 파일 선택→실제 gpt-6-luna 지정 생성→명시 저장/reload700을 통과했다. CSV/JSON/Parquet 모두 기존 서버 업로드를 재사용한다.
+
+### 발견 오류·재검증
+
+1. 독립 FE 리뷰: 늦은 초기 소스 목록이 최신 선택/생성을 무효화하는 경합, clarification 재시도 실패/중지에서 질문과 답이 숨겨지는 문제, label 파일 버튼의 네이티브 키보드 활성화 누락을 수정. 신규 경합·복구 회귀를 red→green 확인했다.
+2. 실제 commerce에서 환불률 scale1 응답을 거절하던400: 확인한 분모와 유효한 비율 계산은 유지하면서 %표시에 맞게100배로 정규화. AVG/SUM을 환불률로 제안하는 우회는 거절하고 정상 환불액 SUM은 허용. 실제 같은 조건 재실행→정답·저장/reload 통과.
+3. 실제 없는 revenue 요청을 Rill 기본 지표로 대체한 문제: 명시 원본 열의 부재는 모델 전에 질문으로 전환, 모델의 requiredFields 선언을 원본과 대조, missingColumns 이외 모델 질문 ID 거절. 기본 샘플 지표로 대체하지 않도록 프롬프트 보완. 성공 의미 응답에 requiredFields 선언이 없거나 null이면 거절하도록 마지막 리뷰 경계도 고정했다. 같은 실패 요청 재검증은 모델 호출 전 missingColumns/preview 없음/저장 없음. 모든 자연어 업무 의미를 결정적으로 이해한다고 주장하지 않으며 정의 검토 단계를 유지한다.
+4. 독립 BE 리뷰: 저장 완료 제안이 슬롯을 계속 차지하던 문제를 commit 후 해제로 수정, durable replay 유지 회귀 통과.
+5. 실제 손상 Parquet400에 지표 정의 안내가 나오던 문제를 파일 형식·손상 확인/재선택 안내로 수정→실제 재검증 통과. 관대한 CSV 파서가 문자열로 읽는 표본은 실패 증빙으로 계산하지 않았다.
+6. 원본 시간 문자열 눈금 잘림을 짧은 월일/시분·양끝 정렬로 수정; 실제 category 값/데이터 표는 변경하지 않음. 모바일 프로파일의 빈 값 헤더/원본 열 이름 줄바꿈을 정리하고 표 내부 가로 스크롤을 제공했다. 저장 지표 선택 행도 최소44px로 맞췄다. 긴 표는 키보드 포커스/End로 탐색.
+
+### 디자인·검사·증빙
+
+- 생성 1440/768px 카드·390px 단일 열의 패딩·정렬·입력 라벨·44px 모바일 버튼 확인. 페이지 scrollWidth≤innerWidth(스크롤바로 -15px인 경우를 실패로 잘못 판정한 검증 스크립트를 정정). 데이터 표 내부 스크롤은 의도한 동작이다. End 직후 동기 판정 실패는 스크롤 완료 대기 후 같은 조건만 재확인했다.
+- 첫 Rill sample 프로파일 검증 스크립트의 18열 기대는 실제21열로 정정했다. 통과한 모델 호출은 반복하지 않고 받은 실제 제안을 화면 응답으로 재사용하여 미실행 review/저장 조건만 이어 실행했다. 실제 서버 제안을 저장한 것이며 주입을 새 실모델 호출로 계산하지 않는다.
+- 큰 차트의 초기 paint/전환 PNG는 최종 근거에서 제외. 안정된 grid 이미지 비교 후 `final-stable-1440.png`에서 실제 chart/canvas 너비1299px·전체 데이터가 그려진 상태를 확인했다. 390px 최종 차트·commerce 숫자·오류/clarification PNG도 직접 확인했다. 실기기/모든 번역/모든 데이터 길이는 NOT_RUN.
+- BE 최초 관련51개 PASS 후 변경 creation service38개 재실행 PASS, lint/Nest build PASS. FE 생성·시간축17개 및 신규 진입1개 PASS, 타입/변경 lint/build PASS. 전체 제품 테스트/무관 MD는 반복하지 않았다.
+- 증빙 폴더 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t6-20261015/`: `rill-real-ai.json`, `commerce-real-ai.json`, `g2-real-ai.json`, `g2-saved.json`, `reuse-real-ai.json`, `csv-entry-real-ai.json`, `json-entry-real-ai.json`, `missing-columns-real-ai.json`(수정 전 잘못된 대체), `missing-columns-fixed.json`(수정 후 모델 전 차단), `browser-results.json`, `commerce-results.json`, `csv-entry-results.json`, `json-entry-results.json`, `guard-results.json`(필수열 PASS 후 스크롤 대기 판정 실패 포함), `file-keyboard-results.json`, `profile-keyboard-result.log`, `g2-result.log`, 단위 red/green·type/lint/build 로그. 초기 취소/503 주입 PASS는 `guard-initial-results.json`에 별도 보존했다.
+- 화면: `rill-review-{1440,768,390}.png`, `final-stable-1440.png`, `final-studio-390.png`, `commerce-clarification-390.png`, `commerce-studio-390.png`, `reuse-768.png`, `csv-entry-studio-390.png`, `json-entry-studio-390.png`, `file-error-390.png`, `missing-columns-390.png`, `profile-keyboard-390.png`, `cancel-390.png`, `provider-error-390.png`. 임시 브라우저 스크립트는 /private/tmp에만 저장.
+- Aside가 준비되지 않아 이전 승인된 headed Chromium fallback 및 실제 Codex IAB 결과 확인을 사용했다. 별도 Rill 앱의 최신 live UX 재실행은 NOT_RUN, 이번 수치 대조는 같은 공식 데이터·기존 고정 정답 기준. **VoiceOver BLOCKED 유지.** 공개 게시/재사용/단계 복구와 전체 TC-005는 T7~T10이며 완료로 소급하지 않는다.
+
+다음 **T7 한 요청 실행·부분 실패 복구**. T6는 새 생성의 선택 범위와 G2 일부까지 완료했다.

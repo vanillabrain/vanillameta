@@ -61,6 +61,26 @@ parentPort.on('message', async task => {
         },
         sampleType: task.sampleType,
       });
+      if (task.analytical && result.valid) {
+        // One row per order: independently aggregate events before joining, avoiding payment/refund fanout.
+        // Time grouping is explicitly an order-date cohort, not payment/refund cash-flow event time.
+        await connection.run(`CREATE TABLE uploaded_data AS
+          WITH payments AS (
+            SELECT order_id, SUM(amount) AS revenue FROM commerce_payments
+            WHERE payment_status='succeeded' GROUP BY order_id
+          ), refunds AS (
+            SELECT order_id, SUM(amount) AS refund_amount, COUNT(*) AS refund_count
+            FROM commerce_refunds GROUP BY order_id
+          )
+          SELECT o.ordered_at, o.channel, o.currency,
+            CAST(COALESCE(p.revenue,0) AS DECIMAL(18,2)) AS revenue,
+            CAST(COALESCE(r.refund_amount,0) AS DECIMAL(18,2)) AS refund_amount,
+            CAST(COALESCE(p.revenue,0)-COALESCE(r.refund_amount,0) AS DECIMAL(18,2)) AS net_amount,
+            CASE WHEN p.order_id IS NOT NULL THEN 1 ELSE 0 END AS paid_orders,
+            CASE WHEN r.order_id IS NOT NULL THEN 1 ELSE 0 END AS refunded_orders
+          FROM commerce_orders o LEFT JOIN payments p USING(order_id)
+          LEFT JOIN refunds r USING(order_id)`);
+      }
       await connection.run('CHECKPOINT');
     } else if (task.kind === 'import') {
       const source = literal(task.sourcePath);

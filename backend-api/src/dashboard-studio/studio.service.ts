@@ -229,13 +229,16 @@ export class StudioService {
     });
   }
   async save(id: number, body: any, actor: number) {
+    return this.serializeWrite(() => this.saveOnce(id, body, actor));
+  }
+  /** All Studio metadata transactions share the single SQLite connection's queue. */
+  async serializeWrite<T>(run: () => Promise<T>): Promise<T> {
     // Serialize Studio transactions for the single SQLite connection; DB CAS/unique keys remain authoritative.
     if (this.queued >= 32)
       throw new ServiceUnavailableException(
         '저장 요청이 많습니다. 잠시 후 같은 요청으로 다시 시도해 주세요.',
       );
     this.queued += 1;
-    const run = () => this.saveOnce(id, body, actor);
     const result = this.tail.then(run, run).finally(() => {
       this.queued -= 1;
     });
