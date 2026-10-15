@@ -14,11 +14,34 @@ import { metricFields } from './metric-expression';
 import { quoteColumn, sourceQuery, validateDraft } from '../ai/dashboard-draft';
 import { resolveBlockTarget } from './block-target';
 import {
+  BATCH_FAILURE_MESSAGES,
+  BatchBlockAction,
+  BatchEditPlan,
+  BatchFailureStage,
+  MAX_BATCH_ACTIONS,
+  MIN_BATCH_ACTIONS,
+  isBatchControlError,
+} from '../ai/batch-block-edit';
+import {
   validateBlockLayouts,
   responsiveLayouts,
   layoutColumns,
   LayoutSize,
 } from '../ai/responsive-layout';
+
+/**
+ * UC-013~UC-016 AI editor response. `editMode` discriminates: a batch carries the
+ * validated whole preview plus per-target changes, the single modes carry one item.
+ */
+export type EditorAiResponse = {
+  editMode: 'clarify' | 'save' | 'content' | 'layout' | 'batch';
+  saveRequested: boolean;
+  item?: any;
+  targetKey?: any;
+  targetCandidates?: any;
+  changes?: any;
+  preview?: any;
+};
 
 @Injectable()
 export class BiService {
@@ -484,7 +507,12 @@ export class BiService {
       responsiveLayouts: layouts,
     };
   }
-  async editorAi(id: unknown, body: any, actor: number, signal?: AbortSignal) {
+  async editorAi(
+    id: unknown,
+    body: any,
+    actor: number,
+    signal?: AbortSignal,
+  ): Promise<EditorAiResponse> {
     // UC-014: ownership, revision and the whole-draft compile always run before any provider call.
     const compiled = await this.compileEditor(id, body, actor);
     if (typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 2000)
@@ -531,6 +559,8 @@ export class BiService {
           preview: { ...preview, responsiveLayouts: compiled.layouts },
         };
       }
+      // UC-016: a bounded batch resolves every target before one sequential staged generation.
+      if (plan.intent === 'batch') return this.batchBlocks(id, body, actor, signal, compiled, plan);
       // UC-015: the original question selects the target; the previous selection is context only.
       const resolution = resolveBlockTarget({
         prompt: body.prompt,
@@ -657,5 +687,164 @@ export class BiService {
         layoutEdits,
       )
     ).data;
+  }
+
+  /**
+   * A structured failure the screen can act on: stage, plus the 1-based position
+   * of the block in the current items when the target is known. `message` is
+   * sanitized: provider and SQL errors never leave the server (BR-016-04).
+   */
+  private batchFailure(stage: BatchFailureStage, position?: number) {
+    return new BadRequestException({
+      batchFailure: { stage, ...(position === undefined ? {} : { position }) },
+      message: BATCH_FAILURE_MESSAGES[stage],
+    });
+  }
+
+  /**
+   * UC-016 bounded batch. Every target is resolved deterministically against the
+   * question before any provider call, each change is generated, compiled and
+   * merged into a request-local staged item list, and one whole preview is
+   * returned. Nothing is written; saving stays with the existing save API.
+   */
+  private async batchBlocks(
+    id: unknown,
+    body: any,
+    actor: number,
+    signal: AbortSignal | undefined,
+    compiled: { dashboardId: number; draft: any; layouts: any },
+    plan: BatchEditPlan,
+  ) {
+    const layoutMode = body.layoutMode as LayoutSize;
+    const actions: BatchBlockAction[] = plan.actions;
+    const items: any[] = body.items.map((item: any) => ({ ...item }));
+    const targets: {
+      key: string;
+      index: number;
+      position: number;
+      editMode: 'content' | 'layout';
+      prompt: string;
+    }[] = [];
+    const seen = new Set<string>();
+    if (actions.length < MIN_BATCH_ACTIONS || actions.length > MAX_BATCH_ACTIONS)
+      throw this.batchFailure('target');
+    for (const action of actions) {
+      // BR-016-01: the reference must be a literal span of the original question.
+      if (!body.prompt.includes(action.targetPrompt)) throw this.batchFailure('target');
+      const resolution = resolveBlockTarget({
+        prompt: action.targetPrompt,
+        items: items.map(item => ({ key: item.key, title: item.title })),
+        selectedKey: null,
+        targetChoiceKey: null,
+      });
+      if (resolution.kind !== 'resolved') throw this.batchFailure('target');
+      const index = items.findIndex(item => item.key === resolution.key);
+      if (index < 0) throw this.batchFailure('target');
+      // A duplicate block is a known block: report its 1-based current position.
+      if (seen.has(resolution.key)) throw this.batchFailure('target', index + 1);
+      seen.add(resolution.key);
+      targets.push({
+        key: resolution.key,
+        index,
+        position: index + 1,
+        editMode: action.editMode,
+        prompt: action.editPrompt,
+      });
+    }
+    let current = compiled;
+    const changes: { targetKey: string; editMode: 'content' | 'layout'; item: any }[] = [];
+    for (const target of targets) {
+      try {
+        if (target.editMode === 'layout') {
+          const rect = await this.dashboards.proposeBlockLayout(
+            {
+              selectedKey: target.key,
+              mode: layoutMode,
+              blocks: items.map(item => ({
+                key: item.key,
+                title: item.title,
+                rect: current.layouts[layoutMode][item.key],
+              })),
+              prompt: target.prompt,
+            },
+            signal,
+          );
+          if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+          items[target.index] = {
+            ...items[target.index],
+            layouts: { ...items[target.index].layouts, [layoutMode]: rect },
+          };
+        } else {
+          const result = await this.dashboards.generate(
+            {
+              dashboardId: current.dashboardId,
+              databaseId: current.draft.databaseId,
+              currentDraft: current.draft,
+              selectedWidget: target.index,
+              prompt: target.prompt,
+            },
+            actor,
+            signal,
+          );
+          if (result.status !== 'SUCCESS' || !('data' in result))
+            throw new Error('BATCH_GENERATION_UNAVAILABLE');
+          const generated = validateDraft(result.data);
+          const generatedWidget = generated.widgets[target.index];
+          if (!generatedWidget) throw new Error('BATCH_GENERATION_UNAVAILABLE');
+          // BR-016-02: formatting-only requests must not silently rename copied KPIs.
+          // The action prompt excludes the target reference; names in a title are data.
+          const rename = /제목|이름|\btitle\b|\brename\b/i.test(target.prompt);
+          const widget = {
+            ...generatedWidget,
+            title: rename ? generatedWidget.title : items[target.index].title,
+          };
+          items[target.index] = {
+            ...items[target.index],
+            kind: 'draft',
+            copyOf: undefined,
+            title: widget.title,
+            chart:
+              widget.type === 'BOARD_NUMERIC'
+                ? 'number'
+                : widget.type === 'CHART_LINE'
+                ? 'line'
+                : 'bar',
+            unit: (widget.suffix || '').trim(),
+            decimalPlaces: widget.decimalPlaces ?? 0,
+            numberNotation: widget.numberNotation === 'compact' ? 'compact' : 'plain',
+            definition: widget,
+          };
+        }
+        if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+        // Recheck ownership, revision, definitions and layout bounds on the staged draft.
+        current = await this.compileEditor(id, { ...body, items }, actor);
+        changes.push({
+          targetKey: target.key,
+          editMode: target.editMode,
+          item: items[target.index],
+        });
+      } catch (error) {
+        if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+        if (isBatchControlError(error)) throw error;
+        throw this.batchFailure('change', target.position);
+      }
+    }
+    let preview;
+    try {
+      preview = (
+        await this.dashboards.preview({ draft: current.draft, includeTrends: true }, actor)
+      ).data;
+      if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+    } catch (error) {
+      if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+      if (isBatchControlError(error)) throw error;
+      throw this.batchFailure('preview');
+    }
+    return {
+      editMode: 'batch' as const,
+      saveRequested: plan.saveRequested,
+      changes,
+      preview: { ...preview, responsiveLayouts: current.layouts },
+    };
   }
 }

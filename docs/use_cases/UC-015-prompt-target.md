@@ -73,3 +73,5 @@
 ### BR-015-04: Existing execution boundary
 
 compileEditor·분류·대상 확인→기존 생성/preview→선택적 저장 순서를 따른다. 모호 대상은 saveRequested=false와 후보만 반환한다. save-only/수동content/layout은UC014대로 유지한다. 실제 반환 targetKey를 FE가 현재items에 대조하고 해당 key에만 결과를 병합한다.
+
+UC-016 확장: 서로 다른2~6개 블록을 명시한 내용/배치 작업은 [다중 블록 계약](../use_cases/UC-016-batch-block-edit.md)으로 처리한다. 기존 단일 의도 strict3키/save/clarify·후보 확인은 유지하고 batch만 별도strict actions 스키마를 사용한다. 다중 블록을 clarify로 제한한 위 설명은 UC016 이전 범위이며, 같은 블록의 내용+배치 혼합·모호한 요청은 여전히clarify다.

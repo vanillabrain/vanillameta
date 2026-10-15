@@ -26,7 +26,7 @@ import NumericBoard from '@/widget/modules/board/NumericBoard';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
 import { AnalysisUiProvider, analysisToggleSx } from '@/components/analysis/AnalysisUi';
-import { validDraft } from '../dashboardPreview';
+import { validDraft, errorMessage } from '../dashboardPreview';
 import BlockLayoutCanvas, { validLayout } from './BlockLayoutCanvas';
 import MetricTrend, { FormattedMetricTrendData } from '../Components/MetricTrend';
 
@@ -171,6 +171,7 @@ function DashboardEditContent() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [targetCandidates, setTargetCandidates] = useState<string[]>([]);
   const [targetChoiceKey, setTargetChoiceKey] = useState('');
+  const [batchSummary, setBatchSummary] = useState<Array<{ key: string; label: string }>>([]);
   const [aiEditMode, setAiEditMode] = useState<'auto' | 'content' | 'layout'>('auto');
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() =>
     window.matchMedia?.('(max-width: 599px)').matches ? 'mobile' : 'desktop',
@@ -198,6 +199,7 @@ function DashboardEditContent() {
     sequence.current += 1;
     request.current?.abort();
     setPreview(null);
+    setBatchSummary([]);
     if (!layoutOnly) setLayoutPreview(null);
     if (!conflict) setError('');
   };
@@ -218,6 +220,7 @@ function DashboardEditContent() {
     setTargetCandidates([]);
     setTargetChoiceKey('');
     setAiPrompt('');
+    setBatchSummary([]);
     setAiEditMode('auto');
     setAnnouncement('');
     setPast([]);
@@ -444,6 +447,7 @@ function DashboardEditContent() {
     let abort = new AbortController();
     request.current = abort;
     setBusy('AI로 요청 확인 중…');
+    setBatchSummary([]);
     setTargetCandidates([]);
     setAnnouncement('');
     setError('');
@@ -465,6 +469,7 @@ function DashboardEditContent() {
       if (token !== sequence.current) return;
       const result = unwrap<{
         item?: Item;
+        changes?: Array<{ targetKey: string; editMode: 'content' | 'layout'; item: Item }>;
         preview?: Preview;
         editMode?: string;
         saveRequested?: boolean;
@@ -503,7 +508,7 @@ function DashboardEditContent() {
       const appliedMode = result.editMode ?? (aiEditMode === 'auto' ? undefined : aiEditMode);
       const shouldSave = aiEditMode === 'auto' && result.saveRequested === true;
       if (
-        !['content', 'layout', 'save'].includes(appliedMode) ||
+        !['content', 'layout', 'save', 'batch'].includes(appliedMode) ||
         (aiEditMode !== 'auto' && appliedMode !== aiEditMode) ||
         (appliedMode === 'save' && !shouldSave)
       )
@@ -515,7 +520,72 @@ function DashboardEditContent() {
       )
         throw new Error('Invalid AI preview');
       let nextItems = items;
-      if (appliedMode !== 'save') {
+      let batchChanged = true;
+      if (appliedMode === 'batch') {
+        // UC-016: validate every result before applying a single history entry.
+        const changes = result.changes;
+        if (
+          aiEditMode !== 'auto' ||
+          typeof result.saveRequested !== 'boolean' ||
+          !Array.isArray(changes) ||
+          changes.length < 2 ||
+          changes.length > 6 ||
+          changes.length > items.length ||
+          changes.some(value => !value || typeof value.targetKey !== 'string') ||
+          new Set(changes.map(value => value.targetKey)).size !== changes.length
+        )
+          throw new Error('Invalid batch changes');
+        for (const value of changes) {
+          if (
+            !items.some(item => item.key === value.targetKey) ||
+            !value.item ||
+            value.item.key !== value.targetKey ||
+            !['content', 'layout'].includes(value.editMode) ||
+            (value.editMode === 'layout'
+              ? !value.item.layouts?.[layoutMode] || !validLayout([value.item.layouts[layoutMode]], columns[layoutMode])
+              : value.item.kind !== 'draft' ||
+                !validDraft({ databaseId: editor.sourceId, title, explanation: '', widgets: [value.item.definition] }))
+          )
+            throw new Error('Invalid batch result');
+        }
+        nextItems = items.map(original => {
+          const value = changes.find(change => change.targetKey === original.key);
+          if (!value) return original;
+          if (value.editMode === 'layout')
+            return { ...original, layouts: { ...original.layouts, [layoutMode]: value.item.layouts[layoutMode] } };
+          const changed = value.item;
+          return {
+            ...original,
+            kind: 'draft',
+            copyOf: undefined,
+            title: changed.title,
+            chart: changed.chart,
+            unit: changed.unit,
+            decimalPlaces: changed.decimalPlaces,
+            numberNotation: changed.numberNotation,
+            definition: changed.definition,
+          };
+        });
+        if (!validItems(nextItems)) throw new Error('Invalid batch presentation');
+        batchChanged = JSON.stringify(nextItems) !== JSON.stringify(items);
+        pending.current = false;
+        change(
+          title,
+          nextItems,
+          changes.every(value => value.editMode === 'layout'),
+        );
+        setSelectedKey('');
+        setBatchSummary(
+          batchChanged
+            ? changes.map(value => ({
+                key: value.targetKey,
+                label: `${items.findIndex(item => item.key === value.targetKey) + 1}번 · ${
+                  nextItems.find(item => item.key === value.targetKey).title
+                } · ${value.editMode === 'layout' ? '배치' : '내용'}`,
+              }))
+            : [],
+        );
+      } else if (appliedMode !== 'save') {
         const targetKey = aiEditMode === 'auto' ? result.targetKey ?? selectedKey : selectedKey;
         if (!items.some(item => item.key === targetKey)) throw new Error('Invalid target');
         if (
@@ -562,9 +632,13 @@ function DashboardEditContent() {
         navigate(`/dashboard/${saved.id}`);
       } else {
         setAnnouncement(
-          `선택 블록의 ${
-            appliedMode === 'layout' ? '배치' : '내용'
-          } AI 변경을 미리보기했습니다. 되돌리거나 저장할 수 있습니다.`,
+          appliedMode === 'batch'
+            ? batchChanged
+              ? `${result.changes.length}개 블록의 변경을 전체 미리보기했습니다. 한 번에 되돌리거나 저장할 수 있습니다.`
+              : '요청 결과가 현재 초안과 같습니다. 변경 없이 전체 미리보기했습니다.'
+            : `선택 블록의 ${
+                appliedMode === 'layout' ? '배치' : '내용'
+              } AI 변경을 미리보기했습니다. 되돌리거나 저장할 수 있습니다.`,
         );
       }
     } catch (failure) {
@@ -573,12 +647,37 @@ function DashboardEditContent() {
       if ((failure as { response?: { status?: number } })?.response?.status === 409) {
         setConflict(true);
         setError('다른 변경이 저장되었습니다. 현재 초안은 유지됩니다. 최신 내용을 다시 불러와 주세요.');
-      } else
+      } else {
+        const payload = (
+          failure as {
+            response?: {
+              data?: {
+                batchFailure?: { stage?: string; position?: number };
+                data?: { batchFailure?: { stage?: string; position?: number } };
+              };
+            };
+          }
+        )?.response?.data;
+        const detail = payload?.data?.batchFailure ?? payload?.batchFailure;
+        const batchFailure = detail && ['target', 'change', 'preview'].includes(detail.stage);
         setError(
-          saving
+          !saving && batchFailure
+            ? `${
+                Number.isInteger(detail.position) && detail.position >= 1 && detail.position <= items.length
+                  ? `${detail.position}번 블록의 `
+                  : ''
+              }${
+                detail.stage === 'target'
+                  ? '수정 대상을 확인하지 못했습니다'
+                  : detail.stage === 'preview'
+                  ? '전체 미리보기에 실패했습니다'
+                  : '변경에 실패했습니다'
+              }. 모든 변경을 적용하지 않았습니다. 질문을 수정한 뒤 다시 실행해 주세요.`
+            : saving
             ? '변경 결과는 미리보기했지만 저장 결과를 확인하지 못했습니다. 현재 초안은 유지됩니다. 최신 저장 상태를 확인한 뒤 다시 시도해 주세요.'
             : 'AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.',
         );
+      }
     } finally {
       if (token === sequence.current || request.current === abort) {
         pending.current = false;
@@ -634,11 +733,7 @@ function DashboardEditContent() {
           '다른 변경이 저장되어 최신 상태와 충돌했습니다.' +
             ' 현재 편집 내용은 유지됩니다. 최신 내용을 다시 불러온 뒤 편집해 주세요.',
         );
-      } else if (
-        typeof (failure as any)?.response?.data?.message === 'string' &&
-        (failure as any).response.data.message.startsWith('블록 배치')
-      )
-        setError((failure as any).response.data.message);
+      } else if (errorMessage(failure).startsWith('블록 배치')) setError(errorMessage(failure));
       else
         setError(
           save
@@ -714,7 +809,7 @@ function DashboardEditContent() {
             <Typography sx={{ mb: 1, fontSize: 13, overflowWrap: 'anywhere' }}>
               {items.find(item => item.key === selectedKey)?.title
                 ? `선택 블록: ${items.find(item => item.key === selectedKey)?.title}`
-                : '번호나 정확한 제목으로 질문하거나 블록을 선택하세요. 예: 2번 차트의 소수 3자리로 바꿔 줘.'}
+                : '번호나 정확한 제목으로 질문하세요. 여러 블록은 각각의 대상과 변경을 적어 주세요.'}
             </Typography>
             <Box component="details" sx={{ mb: 1 }}>
               <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 12 }}>
@@ -798,6 +893,18 @@ function DashboardEditContent() {
                       ),
                   )}
                 </Stack>
+              </Box>
+            )}
+            {batchSummary.length > 0 && (
+              <Box component="section" aria-label="전체 변경 요약" sx={{ mt: 1, minWidth: 0 }}>
+                <Typography sx={{ fontSize: 12, mb: 0.5 }}>
+                  전체 변경 {batchSummary.length}개 · 함께 저장할 수 있습니다
+                </Typography>
+                {batchSummary.map(value => (
+                  <Typography key={value.key} title={value.label} sx={{ fontSize: 12, overflowWrap: 'anywhere' }}>
+                    {value.label}
+                  </Typography>
+                ))}
               </Box>
             )}
             <Typography color="text.secondary" sx={{ mt: 1, fontSize: 12 }}>

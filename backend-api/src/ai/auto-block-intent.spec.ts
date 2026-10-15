@@ -110,4 +110,158 @@ describe('UC-014 strict intent and save boundary', () => {
       'LLM_REQUEST_ABORTED',
     );
   });
+
+  const batch = (saveRequested: unknown, actions: unknown) =>
+    JSON.stringify({ intent: 'batch', saveRequested, actions });
+  const action = (editMode: string, targetPrompt: unknown, editPrompt: unknown) => ({
+    editMode,
+    targetPrompt,
+    editPrompt,
+  });
+  const mixedQuestion = '2번 차트 제목을 매출로 바꾸고 3번 차트를 아래로 한 칸 옮긴 뒤 저장해 줘';
+
+  it('accepts a strict 2 to 6 action batch with literal target spans and a save flag', async () => {
+    const raw = batch(true, [
+      action('content', '2번 차트', '제목을 매출로 바꿔 줘'),
+      action('layout', '3번 차트', '아래로 한 칸 옮겨 줘'),
+    ]);
+    const { service, callLlm } = setup(raw);
+    await expect(service.classifyBlockIntent(mixedQuestion)).resolves.toEqual({
+      intent: 'batch',
+      saveRequested: true,
+      actions: [
+        { editMode: 'content', targetPrompt: '2번 차트', editPrompt: '제목을 매출로 바꿔 줘' },
+        { editMode: 'layout', targetPrompt: '3번 차트', editPrompt: '아래로 한 칸 옮겨 줘' },
+      ],
+    });
+    expect(JSON.parse(callLlm.mock.calls[0][1])).toEqual({ prompt: mixedQuestion });
+    expect(callLlm).toHaveBeenCalledTimes(1);
+    expect(callLlm.mock.calls[0][2]).toBe(true);
+    const system = callLlm.mock.calls[0][0] as string;
+    expect(system).toContain('actions');
+    expect(system).toContain('targetPrompt');
+    expect(system).toContain('screen width');
+    expect(system).toContain('batch');
+  });
+
+  it.each([
+    [
+      'the minimum of two actions',
+      batch(false, [
+        action('content', '1번 차트', '제목을 바꿔 줘'),
+        action('content', '2번 차트', '소수 2자리로 바꿔 줘'),
+      ]),
+      '1번 차트 제목을 바꾸고 2번 차트를 소수 2자리로 바꿔 줘',
+      2,
+    ],
+    [
+      'the maximum of six actions',
+      batch(
+        false,
+        [1, 2, 3, 4, 5, 6].map(n => action('layout', `${n}번 차트`, `${n}칸 옮겨 줘`)),
+      ),
+      '1번 차트를 1칸 옮기고 2번 차트를 2칸 옮기고 3번 차트를 3칸 옮기고 4번 차트를 4칸 옮기고 5번 차트를 5칸 옮기고 6번 차트를 6칸 옮겨 줘',
+      6,
+    ],
+  ])('accepts %s and keeps the original language', async (_name, raw, question, length) => {
+    const { service } = setup(raw);
+    const plan = await service.classifyBlockIntent(question);
+    expect(plan).toMatchObject({ intent: 'batch', saveRequested: false });
+    expect((plan as { actions: unknown[] }).actions).toHaveLength(length);
+  });
+
+  it.each([
+    ['a single action', mixedQuestion, batch(false, [action('content', '2번 차트', '제목 변경')])],
+    [
+      'seven actions',
+      mixedQuestion,
+      batch(
+        false,
+        [1, 2, 3, 4, 5, 6, 7].map(n => action('content', `${n}번 차트`, '제목 변경')),
+      ),
+    ],
+    ['an empty action list', mixedQuestion, batch(false, [])],
+    ['a non-array actions value', mixedQuestion, batch(false, {})],
+    [
+      'a non-boolean saveRequested',
+      mixedQuestion,
+      batch('true', [
+        action('content', '2번 차트', '제목 변경'),
+        action('layout', '3번 차트', '한 칸 옮겨 줘'),
+      ]),
+    ],
+    [
+      'an action with a spoofed extra key',
+      mixedQuestion,
+      batch(false, [
+        { ...action('content', '2번 차트', '제목 변경'), sql: 'SELECT 1' },
+        action('layout', '3번 차트', '한 칸 옮겨 줘'),
+      ]),
+    ],
+    [
+      'an action missing editPrompt',
+      mixedQuestion,
+      batch(false, [
+        { editMode: 'content', targetPrompt: '2번 차트' },
+        action('layout', '3번 차트', '한 칸 옮겨 줘'),
+      ]),
+    ],
+    [
+      'an unsupported editMode',
+      mixedQuestion,
+      batch(false, [
+        action('publish', '2번 차트', '제목 변경'),
+        action('layout', '3번 차트', '한 칸 옮겨 줘'),
+      ]),
+    ],
+    [
+      'a blank editPrompt',
+      mixedQuestion,
+      batch(false, [
+        action('content', '2번 차트', '   '),
+        action('layout', '3번 차트', '한 칸 옮겨 줘'),
+      ]),
+    ],
+    [
+      'an oversized editPrompt',
+      mixedQuestion,
+      batch(false, [
+        action('content', '2번 차트', 'a'.repeat(2001)),
+        action('layout', '3번 차트', '한 칸 옮겨 줘'),
+      ]),
+    ],
+    [
+      'a non-string targetPrompt',
+      mixedQuestion,
+      batch(false, [
+        action('content', 2, '제목 변경'),
+        action('layout', '3번 차트', '한 칸 옮겨 줘'),
+      ]),
+    ],
+    [
+      'a target span the question never contains',
+      mixedQuestion,
+      batch(false, [
+        action('content', '2번 차트', '제목 변경'),
+        action('layout', '9번 차트', '한 칸 옮겨 줘'),
+      ]),
+    ],
+    [
+      'a top-level key spoofed onto the batch shape',
+      mixedQuestion,
+      JSON.stringify({
+        intent: 'batch',
+        saveRequested: false,
+        actions: [
+          action('content', '2번 차트', '제목 변경'),
+          action('layout', '3번 차트', '한 칸 옮겨 줘'),
+        ],
+        editPrompt: '제목 변경',
+      }),
+    ],
+  ])('rejects %s without falling back to another model', async (_name, question, raw) => {
+    const { service, callLlm } = setup(raw);
+    await expect(service.classifyBlockIntent(question)).rejects.toBeInstanceOf(BadRequestException);
+    expect(callLlm).toHaveBeenCalledTimes(1);
+  });
 });

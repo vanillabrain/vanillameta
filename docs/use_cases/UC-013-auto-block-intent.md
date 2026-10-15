@@ -83,3 +83,5 @@ layout은 선택 폭 geometry만, content는 기존 내용 AI 경계를 따른�
 ## Related Use Cases
 
 [UC-014](UC-014-prompt-save.md)는 명시 저장 질문을 연결하는 후속이다. BR01301의 초기 단일 intent 분류와 BR01304의 저장 제외 범위는 UC014 실행 시 해당 엄격3키 분류/저장 규칙으로 확장된다. 기존 변경만 요청의 무저장·모호 요청 보존은 유지한다.
+
+UC-016 확장: 서로 다른2~6개 블록을 명시한 내용/배치 작업은 [다중 블록 계약](../use_cases/UC-016-batch-block-edit.md)으로 처리한다. 기존 단일 의도 strict3키/save/clarify·후보 확인은 유지하고 batch만 별도strict actions 스키마를 사용한다. 다중 블록을 clarify로 제한한 위 설명은 UC016 이전 범위이며, 같은 블록의 내용+배치 혼합·모호한 요청은 여전히clarify다.

@@ -1204,4 +1204,357 @@ describe('BiService dashboard editor boundaries', () => {
     expect(result.item).toMatchObject({ key: 'block-1' });
     expect(dashboards.save).not.toHaveBeenCalled();
   });
+
+  const batchActions = (overrides: any[] = []) =>
+    overrides.length
+      ? overrides
+      : [
+          {
+            editMode: 'content',
+            targetPrompt: '2번 차트',
+            editPrompt: '소수 자릿수를 1자리로 바꿔 줘',
+          },
+          { editMode: 'layout', targetPrompt: '3번 차트', editPrompt: '아래로 한 칸 옮겨 줘' },
+        ];
+  const batchPlan = (actions: any[] = batchActions(), saveRequested = false) => ({
+    intent: 'batch' as const,
+    saveRequested,
+    actions,
+  });
+  const batchBody = (items: any[], overrides = {}) =>
+    body({
+      items,
+      selectedKey: '',
+      prompt: '2번 차트의 소수 자릿수를 1자리로 바꾸고 3번 차트를 아래로 한 칸 옮겨 줘',
+      editMode: 'auto',
+      layoutMode: 'desktop',
+      ...overrides,
+    });
+  const failed = async (run: Promise<unknown>) => {
+    try {
+      await run;
+    } catch (error) {
+      return error as BadRequestException;
+    }
+    throw new Error('expected the call to reject');
+  };
+
+  it('UC-016 stages two block changes, previews the whole draft once and never writes', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce(batchPlan(batchActions(), true));
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: {
+        ...analysis,
+        widgets: [
+          analysis.widgets[0],
+          { ...analysis.widgets[1], title: 'AI 비용' },
+          analysis.widgets[2],
+        ],
+      },
+    });
+    dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 0, y: 6, w: 6, h: 3 });
+    const result = await service.editorAi(dashboardId, batchBody(items), actor);
+    expect(result.editMode).toBe('batch');
+    expect(result.saveRequested).toBe(true);
+    expect(result).not.toHaveProperty('item');
+    expect(result.changes.map((change: any) => [change.targetKey, change.editMode])).toEqual([
+      ['block-2', 'content'],
+      ['block-3', 'layout'],
+    ]);
+    expect(result.changes[0].item).toMatchObject({
+      key: 'block-2',
+      kind: 'draft',
+      title: '월별 비용',
+    });
+    expect(result.changes[1].item).toMatchObject({
+      key: 'block-3',
+      layouts: { desktop: { x: 0, y: 6, w: 6, h: 3 } },
+    });
+    expect(dashboards.generate).toHaveBeenCalledWith(
+      expect.objectContaining({ selectedWidget: 1, prompt: '소수 자릿수를 1자리로 바꿔 줘' }),
+      actor,
+      undefined,
+    );
+    expect(dashboards.proposeBlockLayout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedKey: 'block-3',
+        mode: 'desktop',
+        prompt: '아래로 한 칸 옮겨 줘',
+      }),
+      undefined,
+    );
+    expect(dashboards.generate).toHaveBeenCalledTimes(1);
+    expect(dashboards.preview).toHaveBeenCalledTimes(1);
+    expect(result.preview).toMatchObject({ responsiveLayouts: expect.any(Object) });
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-016 allows an explicitly requested title change while preserving the other target', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce(
+      batchPlan(
+        batchActions([
+          {
+            editMode: 'content',
+            targetPrompt: '2번 차트',
+            editPrompt: '제목을 AI 비용으로 바꿔 줘',
+          },
+          { editMode: 'layout', targetPrompt: '3번 차트', editPrompt: '아래로 한 칸 옮겨 줘' },
+        ]),
+      ),
+    );
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: {
+        ...analysis,
+        widgets: analysis.widgets.map((widget, i) =>
+          i === 1 ? { ...widget, title: 'AI 비용' } : widget,
+        ),
+      },
+    });
+    dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 0, y: 6, w: 6, h: 3 });
+    const result = await service.editorAi(dashboardId, batchBody(items), actor);
+    expect(result.changes[0].item.title).toBe('AI 비용');
+    expect(result.changes[0].item.definition.title).toBe('AI 비용');
+    expect(result.changes[1].item.title).toBe(items[2].title);
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'an unknown block number',
+      '2번 차트의 소수 자릿수를 바꾸고 9번 차트를 아래로 한 칸 옮겨 줘',
+      batchActions([
+        { editMode: 'content', targetPrompt: '2번 차트', editPrompt: '소수 자릿수를 바꿔 줘' },
+        { editMode: 'layout', targetPrompt: '9번 차트', editPrompt: '아래로 한 칸 옮겨 줘' },
+      ]),
+      'target',
+      undefined,
+    ],
+    [
+      'a reference the question never contains',
+      '2번 차트의 소수 자릿수를 바꾸고 3번 차트를 아래로 한 칸 옮겨 줘',
+      batchActions([
+        { editMode: 'content', targetPrompt: '2번 차트', editPrompt: '소수 자릿수를 바꿔 줘' },
+        { editMode: 'layout', targetPrompt: '7번 차트', editPrompt: '아래로 한 칸 옮겨 줘' },
+      ]),
+      'target',
+      undefined,
+    ],
+    [
+      'the same block twice',
+      '2번 차트의 소수 자릿수를 바꾸고 2번 차트를 아래로 한 칸 옮겨 줘',
+      batchActions([
+        { editMode: 'content', targetPrompt: '2번 차트', editPrompt: '소수 자릿수를 바꿔 줘' },
+        { editMode: 'layout', targetPrompt: '2번 차트', editPrompt: '아래로 한 칸 옮겨 줘' },
+      ]),
+      'target',
+      2,
+    ],
+  ])(
+    'UC-016 rejects %s before any provider call',
+    async (_name, prompt, actions, stage, position) => {
+      threeBlocks();
+      const items = (await service.editor(dashboardId, actor)).items;
+      dashboards.classifyBlockIntent.mockResolvedValueOnce(batchPlan(actions));
+      const error = await failed(
+        service.editorAi(dashboardId, batchBody(items, { prompt }), actor),
+      );
+      expect(error.getResponse()).toMatchObject({
+        batchFailure: { stage, ...(position === undefined ? {} : { position }) },
+      });
+      expect(dashboards.generate).not.toHaveBeenCalled();
+      expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+      expect(dashboards.preview).not.toHaveBeenCalled();
+      expect(dashboards.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it('UC-016 keeps the target title unless that action asks for a title change', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce(
+      batchPlan(
+        batchActions([
+          {
+            editMode: 'content',
+            targetPrompt: '2번 차트',
+            editPrompt: '소수 자릿수를 3자리로 바꿔 줘',
+          },
+          {
+            editMode: 'content',
+            targetPrompt: '3번 차트',
+            editPrompt: '제목을 요청 건수로 바꿔 줘',
+          },
+        ]),
+      ),
+    );
+    dashboards.generate
+      .mockResolvedValueOnce({
+        status: 'SUCCESS',
+        data: {
+          ...analysis,
+          widgets: [
+            analysis.widgets[0],
+            { ...analysis.widgets[1], title: '전체 요청 수', decimalPlaces: 3 },
+            analysis.widgets[2],
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        status: 'SUCCESS',
+        data: {
+          ...analysis,
+          widgets: [
+            analysis.widgets[0],
+            analysis.widgets[1],
+            { ...analysis.widgets[2], title: '요청 건수' },
+          ],
+        },
+      });
+    const result = await service.editorAi(dashboardId, batchBody(items), actor);
+    expect(result.changes.map((change: any) => change.targetKey)).toEqual(['block-2', 'block-3']);
+    expect(result.changes[0].item).toMatchObject({
+      key: 'block-2',
+      title: '월별 비용',
+      decimalPlaces: 3,
+    });
+    expect(result.changes[0].item.definition.title).toBe('월별 비용');
+    expect(JSON.stringify(result.changes[0].item)).not.toContain('전체 요청 수');
+    expect(result.changes[1].item).toMatchObject({ key: 'block-3', title: '요청 건수' });
+    expect(dashboards.preview).toHaveBeenCalledTimes(1);
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-016 discards the first staged change when the second change fails', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce(batchPlan());
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: {
+        ...analysis,
+        widgets: [
+          analysis.widgets[0],
+          { ...analysis.widgets[1], title: 'AI 비용' },
+          analysis.widgets[2],
+        ],
+      },
+    });
+    dashboards.proposeBlockLayout.mockRejectedValueOnce(
+      new BadRequestException('배치 변경을 해석하지 못했습니다.'),
+    );
+    const error = await failed(service.editorAi(dashboardId, batchBody(items), actor));
+    expect(error.getResponse()).toMatchObject({
+      batchFailure: { stage: 'change', position: 3 },
+      message: expect.stringContaining('변경을 적용하지 못했습니다'),
+    });
+    expect(JSON.stringify(error.getResponse())).not.toContain('배치 변경을 해석하지 못했습니다');
+    expect(dashboards.generate).toHaveBeenCalledTimes(1);
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-016 reports a whole-preview failure as the sanitized preview stage', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce(
+      batchPlan(
+        batchActions([
+          { editMode: 'content', targetPrompt: '2번 차트', editPrompt: '제목을 매출로 바꿔 줘' },
+          { editMode: 'content', targetPrompt: '3번 차트', editPrompt: '제목을 비용으로 바꿔 줘' },
+        ]),
+      ),
+    );
+    dashboards.generate
+      .mockResolvedValueOnce({
+        status: 'SUCCESS',
+        data: {
+          ...analysis,
+          widgets: [
+            analysis.widgets[0],
+            { ...analysis.widgets[1], title: 'AI 비용' },
+            analysis.widgets[2],
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        status: 'SUCCESS',
+        data: {
+          ...analysis,
+          widgets: [
+            analysis.widgets[0],
+            analysis.widgets[1],
+            { ...analysis.widgets[2], title: 'AI 건수' },
+          ],
+        },
+      });
+    dashboards.preview.mockRejectedValueOnce(new Error('duckdb failure: SELECT * FROM source'));
+    const error = await failed(service.editorAi(dashboardId, batchBody(items), actor));
+    expect(error.getResponse()).toMatchObject({
+      batchFailure: { stage: 'preview' },
+      message: expect.stringContaining('전체 미리보기에 실패했습니다'),
+    });
+    expect(JSON.stringify(error.getResponse())).not.toContain('duckdb');
+    expect(error.getResponse()).not.toMatchObject({
+      batchFailure: { position: expect.anything() },
+    });
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-016 propagates a revision conflict raised by the staged compile', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.analysis
+      .mockResolvedValueOnce({ data: analysis })
+      .mockResolvedValueOnce({ data: { ...analysis, revision: 'c'.repeat(64) } });
+    dashboards.classifyBlockIntent.mockResolvedValueOnce(batchPlan());
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: {
+        ...analysis,
+        widgets: [
+          analysis.widgets[0],
+          { ...analysis.widgets[1], title: 'AI 비용' },
+          analysis.widgets[2],
+        ],
+      },
+    });
+    await expect(service.editorAi(dashboardId, batchBody(items), actor)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-016 stops without a batch failure when the request is cancelled during a change', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    const abort = new AbortController();
+    dashboards.classifyBlockIntent.mockResolvedValueOnce(batchPlan());
+    dashboards.generate.mockImplementationOnce(async () => {
+      abort.abort();
+      return {
+        status: 'SUCCESS',
+        data: {
+          ...analysis,
+          widgets: [
+            analysis.widgets[0],
+            { ...analysis.widgets[1], title: 'AI 비용' },
+            analysis.widgets[2],
+          ],
+        },
+      };
+    });
+    await expect(
+      service.editorAi(dashboardId, batchBody(items), actor, abort.signal),
+    ).rejects.toThrow('LLM_REQUEST_ABORTED');
+    expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
 });

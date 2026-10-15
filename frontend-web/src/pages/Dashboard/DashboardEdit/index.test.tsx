@@ -935,3 +935,223 @@ it('UC-015 rejects a clarify plan that claims to save despite offering candidate
   expect(api.post).toHaveBeenCalledTimes(1);
   expect(api.navigate).not.toHaveBeenCalled();
 });
+
+const batchFixture = () => {
+  const originals = [item, { ...item, key: 'second', title: '두 번째' }, { ...item, key: 'third', title: '유지' }];
+  const changes = originals.slice(0, 2).map((original, index) => ({
+    targetKey: original.key,
+    editMode: 'content' as const,
+    item: {
+      ...original,
+      kind: 'draft' as const,
+      title: `일괄 ${index + 1}`,
+      decimalPlaces: index + 3,
+      definition: {
+        title: `일괄 ${index + 1}`,
+        description: '',
+        type: 'BOARD_NUMERIC',
+        sql: 'SELECT SUM(amount) AS value FROM source',
+        valueField: 'value',
+        decimalPlaces: index + 3,
+      },
+    },
+  }));
+  api.get.mockResolvedValueOnce(success({ ...editor, items: originals }));
+  return { originals, result: { editMode: 'batch', saveRequested: false, changes, preview: preview(3) } };
+};
+const askBatch = () => {
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '1번 차트와 2번 차트를 변경해 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+};
+it('UC-016 applies all changes as one undo/redo entry, preserves the third block, and saves all frozen items', async () => {
+  const { originals, result } = batchFixture();
+  await mount();
+  api.post.mockResolvedValueOnce(success(result));
+  askBatch();
+  await screen.findByRole('heading', { name: '2번 차트 · 일괄 2' });
+  expect(screen.getByText('전체 변경 2개 · 함께 저장할 수 있습니다')).not.toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe(originals[0].title);
+  expect((screen.getByLabelText('2번 차트 제목') as HTMLInputElement).value).toBe(originals[1].title);
+  expect(screen.queryByText('전체 변경 2개 · 함께 저장할 수 있습니다')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '다시 실행' }));
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe('일괄 1');
+  expect((screen.getByLabelText('2번 차트 제목') as HTMLInputElement).value).toBe('일괄 2');
+  await requestPreview(3);
+  api.post.mockResolvedValueOnce(success({ id: 8 }));
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
+  expect(api.post.mock.calls[2][1].items[2]).toMatchObject({
+    key: originals[2].key,
+    kind: originals[2].kind,
+    title: originals[2].title,
+    decimalPlaces: originals[2].decimalPlaces,
+    unit: originals[2].unit,
+    width: originals[2].width,
+    height: originals[2].height,
+  });
+  expect(api.post.mock.calls[2][1].items.slice(0, 2).map(value => value.decimalPlaces)).toEqual([3, 4]);
+});
+it('UC-016 explicit save posts the newly validated batch once, never stale state', async () => {
+  const { result } = batchFixture();
+  await mount();
+  api.post.mockResolvedValueOnce(success({ ...result, saveRequested: true }));
+  api.post.mockResolvedValueOnce(success({ id: 8 }));
+  askBatch();
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
+  expect(api.post).toHaveBeenCalledTimes(2);
+  expect(api.post.mock.calls[1][1].items.map(value => value.title)).toEqual(['일괄 1', '일괄 2', '유지']);
+});
+it.each(['duplicate', 'unknown', 'invalid-definition', 'invalid-preview', 'invalid-layout', 'null-change'])(
+  'UC-016 rejects an entire malformed batch (%s) with no history or save',
+  async variant => {
+    const { originals, result } = batchFixture();
+    if (variant === 'duplicate') result.changes[1] = result.changes[0];
+    if (variant === 'unknown') result.changes[1].targetKey = 'unknown';
+    if (variant === 'invalid-definition') result.changes[1].item.definition.sql = '';
+    if (variant === 'invalid-preview') result.preview.widgets = [];
+    if (variant === 'invalid-layout')
+      Object.assign(result.changes[1], {
+        editMode: 'layout',
+        item: { ...result.changes[1].item, layouts: { desktop: { x: -1, y: 0, w: 6, h: 3 } } },
+      });
+    if (variant === 'null-change') result.changes[1] = null;
+    await mount();
+    api.post.mockResolvedValueOnce(success({ ...result, saveRequested: true }));
+    askBatch();
+    await screen.findByText('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.');
+    expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe(originals[0].title);
+    expect((screen.getByLabelText('2번 차트 제목') as HTMLInputElement).value).toBe(originals[1].title);
+    expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.navigate).not.toHaveBeenCalled();
+  },
+);
+it('UC-016 reports second-block failure, preserves draft and question, then retries the entire request', async () => {
+  const { originals, result } = batchFixture();
+  await mount();
+  api.post.mockRejectedValueOnce({
+    response: { status: 400, data: { success: false, code: 400, data: { batchFailure: { stage: 'change', position: 2 } } } },
+  });
+  askBatch();
+  await screen.findByText(
+    '2번 블록의 변경에 실패했습니다. 모든 변경을 적용하지 않았습니다. 질문을 수정한 뒤 다시 실행해 주세요.',
+  );
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe(originals[0].title);
+  expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toContain('1번 차트');
+  api.post.mockResolvedValueOnce(success(result));
+  askBatch();
+  await screen.findByRole('heading', { name: '2번 차트 · 일괄 2' });
+  expect(screen.queryByText(/모든 변경을 적용하지 않았습니다/)).toBeNull();
+});
+it('UC-016 layout results cannot overwrite other-width layouts, content or an untargeted block', async () => {
+  const { result } = batchFixture();
+  const mobile = { x: 0, y: 0, w: 4, h: 3 };
+  const desktop = { x: 0, y: 5, w: 6, h: 3 };
+  const originals = [
+    item,
+    { ...item, key: 'second', title: '두 번째', layouts: { mobile, desktop } },
+    { ...item, key: 'third', title: '유지' },
+  ];
+  api.get.mockReset().mockResolvedValueOnce(success({ ...editor, items: originals }));
+  Object.assign(result.changes[1], {
+    editMode: 'layout',
+    item: { ...originals[1], title: 'untrusted', layouts: { mobile: { ...mobile, y: 99 }, desktop: { ...desktop, y: 6 } } },
+  });
+  await mount();
+  api.post.mockResolvedValueOnce(success(result));
+  askBatch();
+  await screen.findByRole('heading', { name: '1번 차트 · 일괄 1' });
+  await requestPreview(3);
+  expect(api.post.mock.calls[1][1].items[1]).toMatchObject({
+    title: '두 번째',
+    layouts: { mobile, desktop: { ...desktop, y: 6 } },
+  });
+  expect(api.post.mock.calls[1][1].items[2]).toMatchObject({
+    key: originals[2].key,
+    kind: originals[2].kind,
+    title: originals[2].title,
+    decimalPlaces: originals[2].decimalPlaces,
+    unit: originals[2].unit,
+    width: originals[2].width,
+    height: originals[2].height,
+  });
+});
+
+it('UC-016 retains the entire validated batch after a save error, then permits manual retry', async () => {
+  const { result } = batchFixture();
+  await mount();
+  api.post.mockResolvedValueOnce(success({ ...result, saveRequested: true }));
+  api.post.mockRejectedValueOnce({ response: { status: 500 } });
+  askBatch();
+  await screen.findByText(
+    '변경 결과는 미리보기했지만 저장 결과를 확인하지 못했습니다. 현재 초안은 유지됩니다. 최신 저장 상태를 확인한 뒤 다시 시도해 주세요.',
+  );
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe('일괄 1');
+  expect((screen.getByLabelText('2번 차트 제목') as HTMLInputElement).value).toBe('일괄 2');
+  expect(api.navigate).not.toHaveBeenCalled();
+  api.post.mockResolvedValueOnce(success({ id: 8 }));
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
+  expect(api.post.mock.calls[2][1]).toEqual(api.post.mock.calls[1][1]);
+});
+it('UC-016 discards all late batch results after cancellation without history or save', async () => {
+  const { originals, result } = batchFixture();
+  await mount();
+  let complete: (value: unknown) => void;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        complete = resolve;
+      }),
+  );
+  askBatch();
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 취소' }));
+  await act(async () => {
+    complete(success({ ...result, saveRequested: true }));
+  });
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe(originals[0].title);
+  expect((screen.getByLabelText('2번 차트 제목') as HTMLInputElement).value).toBe(originals[1].title);
+  expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(api.navigate).not.toHaveBeenCalled();
+});
+it('UC-016 batch save conflict retains both edits and requires latest-state recovery', async () => {
+  const { result } = batchFixture();
+  await mount();
+  api.post.mockResolvedValueOnce(success({ ...result, saveRequested: true }));
+  api.post.mockRejectedValueOnce({ response: { status: 409 } });
+  askBatch();
+  await screen.findByText('다른 변경이 저장되었습니다. 현재 초안은 유지됩니다. 최신 내용을 다시 불러와 주세요.');
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe('일괄 1');
+  expect((screen.getByLabelText('2번 차트 제목') as HTMLInputElement).value).toBe('일괄 2');
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(api.navigate).not.toHaveBeenCalled();
+});
+it('UC-016 manual save reads layout guidance through the real HTTP error envelope and preserves all changes', async () => {
+  const { result } = batchFixture();
+  await mount();
+  api.post.mockResolvedValueOnce(success(result));
+  askBatch();
+  await screen.findByRole('heading', { name: '2번 차트 · 일괄 2' });
+  api.post.mockRejectedValueOnce({
+    response: { status: 400, data: { success: false, code: 400, data: '블록 배치가 겹칩니다.' } },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await screen.findByText('블록 배치가 겹칩니다.');
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe('일괄 1');
+  expect((screen.getByLabelText('2번 차트 제목') as HTMLInputElement).value).toBe('일괄 2');
+  expect(api.navigate).not.toHaveBeenCalled();
+});
+it('UC-016 an identical batch does not claim changes or add an undo entry', async () => {
+  const { originals, result } = batchFixture();
+  const current = [...result.changes.map(value => value.item), originals[2]];
+  api.get.mockReset().mockResolvedValueOnce(success({ ...editor, items: current }));
+  await mount();
+  api.post.mockResolvedValueOnce(success(result));
+  askBatch();
+  await screen.findByText('요청 결과가 현재 초안과 같습니다. 변경 없이 전체 미리보기했습니다.');
+  expect(screen.queryByText('전체 변경 2개 · 함께 저장할 수 있습니다')).toBeNull();
+  expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(true);
+});

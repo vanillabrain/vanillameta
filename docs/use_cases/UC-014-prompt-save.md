@@ -78,3 +78,5 @@
 ## Related Use Cases
 
 [UC-015](UC-015-prompt-target.md)는 자동 내용/배치의 대상을 번호·정확 제목 또는 후보 확인으로 정한다. UC014의 명시 저장·미리보기·복구 계약은 유지하며 사전 선택만 필수로 요구하지 않는다.
+
+UC-016 확장: 서로 다른2~6개 블록을 명시한 내용/배치 작업은 [다중 블록 계약](../use_cases/UC-016-batch-block-edit.md)으로 처리한다. 기존 단일 의도 strict3키/save/clarify·후보 확인은 유지하고 batch만 별도strict actions 스키마를 사용한다. 다중 블록을 clarify로 제한한 위 설명은 UC016 이전 범위이며, 같은 블록의 내용+배치 혼합·모호한 요청은 여전히clarify다.
