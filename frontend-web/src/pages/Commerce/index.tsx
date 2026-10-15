@@ -1164,8 +1164,8 @@ function Commerce() {
                                 <TableCell
                                   key={i}
                                   className={cn(
-                                    'border-t border-border px-2 py-2',
-                                    i < 4 ? 'wrap-anywhere whitespace-normal' : 'text-right tabular-nums whitespace-nowrap',
+                                    'border-t border-border px-2 py-2 whitespace-nowrap',
+                                    i < 4 ? 'text-left' : 'text-right tabular-nums',
                                   )}
                                 >
                                   {value}
