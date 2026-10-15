@@ -657,6 +657,93 @@ it('UC-019 ignores publication intent after cancellation', async () => {
   expect(api.post).toHaveBeenCalledTimes(1);
   expect(api.navigate).not.toHaveBeenCalled();
 });
+it('UC-022 previews an AI content change on the owned copied dashboard then saves and hands off publication only on the explicit question', async () => {
+  const sqlBlock = (key: string, title: string, sql: string) => ({
+    key,
+    savedDefinition: { title, description: '', type: 'BOARD_NUMERIC', sql, valueField: 'value' },
+    kind: 'existing' as const,
+    title,
+    chart: 'number' as const,
+    unit: '건',
+    decimalPlaces: 0,
+    numberNotation: 'plain' as const,
+    width: 6 as const,
+    height: 3 as const,
+    layouts: {
+      mobile: { x: 0, y: 0, w: 4, h: 3 },
+      tablet: { x: 0, y: 0, w: 8, h: 3 },
+      desktop: { x: 0, y: 0, w: 6, h: 3 },
+    },
+  });
+  const blocks = [
+    sqlBlock('copy-a', '내 요청', 'SELECT SUM(my_requests) AS value FROM events'),
+    sqlBlock('copy-b', '세션 수', 'SELECT SUM(sessions) AS value FROM events'),
+    sqlBlock('copy-c', '가입 수', 'SELECT SUM(signups) AS value FROM events'),
+  ];
+  const copiedEditor = {
+    dashboardId: 26,
+    title: '복사본 26',
+    sourceId: 27,
+    revision: 'c'.repeat(64),
+    profile: {
+      name: '파일',
+      supported: true,
+      status: 'ready',
+      columns: [{ name: 'my_requests', type: 'DOUBLE', numeric: true, temporal: false }],
+    },
+    metrics: [],
+    items: blocks,
+  };
+  api.id = '26';
+  api.get.mockResolvedValueOnce(success(copiedEditor));
+  await mount();
+  // 첫 질문은 내용 변경만 요청하므로 전체 미리보기 후에도 저장하지 않는다.
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '1번 차트를 두 배로 바꿔 줘' } });
+  const revised = {
+    ...blocks[0],
+    kind: 'draft' as const,
+    title: '내 요청 두 배',
+    definition: {
+      title: '내 요청 두 배',
+      description: '',
+      type: 'BOARD_NUMERIC',
+      sql: 'SELECT SUM(my_requests) * 2 AS value FROM events',
+      valueField: 'value',
+    },
+  };
+  api.post.mockResolvedValueOnce(success({ editMode: 'content', targetKey: 'copy-a', item: revised, preview: preview(3) }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await screen.findByRole('heading', { name: '1번 차트 · 내 요청 두 배' });
+  expect(screen.getByRole('region', { name: '변경 결과 미리보기' })).not.toBeNull();
+  expect(screen.getAllByRole('cell', { name: '12345678901234567890.12' })).toHaveLength(3);
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(api.post.mock.calls[0][0]).toBe('/bi/dashboards/26/editor/ai');
+  expect(api.post.mock.calls.some(call => call[0] === '/bi/dashboards/26/editor')).toBe(false);
+  expect(api.navigate).not.toHaveBeenCalled();
+  // 두 번째 명시 저장+게시 질문에서만 복사본26에 저장하고 같은 revision으로 게시로 넘긴다.
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '현재 초안을 저장하고 게시해 줘' } });
+  api.post.mockResolvedValueOnce(
+    success({ editMode: 'save', saveRequested: true, publicationRequested: true, preview: preview(3) }),
+  );
+  api.post.mockResolvedValueOnce(success({ id: 26, revision: 'd'.repeat(64) }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await waitFor(() =>
+    expect(api.navigate).toHaveBeenCalledWith(`/dashboard/26/publication?savedRevision=${'d'.repeat(64)}`),
+  );
+  expect(api.post.mock.calls[1][0]).toBe('/bi/dashboards/26/editor/ai');
+  expect(api.post.mock.calls.filter(call => call[0] === '/bi/dashboards/26/editor')).toHaveLength(1);
+  const saveBody = api.post.mock.calls[2][1];
+  expect(saveBody).toMatchObject({ title: '복사본 26', expectedRevision: copiedEditor.revision });
+  expect(saveBody.items[0]).toMatchObject({
+    key: 'copy-a',
+    kind: 'draft',
+    title: '내 요청 두 배',
+    definition: revised.definition,
+    layouts: blocks[0].layouts,
+  });
+  expect(saveBody.items[1]).toMatchObject({ key: 'copy-b', kind: 'existing', title: '세션 수', layouts: blocks[1].layouts });
+  expect(saveBody.items[2]).toMatchObject({ key: 'copy-c', kind: 'existing', title: '가입 수', layouts: blocks[2].layouts });
+});
 it('UC-014 saves the current draft after a save-only preview without selecting a block', async () => {
   await mount();
   fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '직접 수정한 초안' } });

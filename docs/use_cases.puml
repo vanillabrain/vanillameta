@@ -40,4 +40,6 @@ usecase "UC-020 Duplicate dashboard with source mapping" as UC020
 operator --> UC020
 usecase "UC-021 공유·게시본 재사용" as UC021
 operator --> UC021
+usecase "UC-022 복사본 AI 편집·게시" as UC022
+operator --> UC022
 @enduml
