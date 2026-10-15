@@ -107,12 +107,25 @@ const LineChart = (
       axis === 'y'
         ? [
             {
-              query: { maxWidth: 480 },
-              option: { xAxis: { splitNumber: 2 }, grid: { right: option?.legendPosition === 'right' ? 120 : 28 } },
+              query: { maxWidth: 260 },
+              option: {
+                xAxis: { splitNumber: 2 },
+                yAxis: { axisLabel: { width: 48, overflow: 'truncate' } },
+                grid: { right: option?.legendPosition === 'right' ? 120 : 12 },
+              },
+            },
+            {
+              query: { minWidth: 261, maxWidth: 480 },
+              option: {
+                xAxis: { splitNumber: 2 },
+                yAxis: { axisLabel: { width: null, overflow: 'none' } },
+                grid: { right: option?.legendPosition === 'right' ? 120 : 28 },
+              },
             },
             {
               option: {
                 xAxis: { splitNumber: defaultOp?.xAxis?.splitNumber ?? 5 },
+                yAxis: { axisLabel: { width: null, overflow: 'none' } },
                 grid: { right: getGridSize(option?.legendPosition).right },
               },
             },

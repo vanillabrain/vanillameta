@@ -52,3 +52,34 @@ FE 관련6파일52 tests, 타입·변경 lint·build PASS. 증빙 `/tmp/vm-point
 재진입 시 접힌 설정의 number input을 visible selector로 기다린1회는 timeout이었다. DOM에 입력은 존재했고 이후 접힌 입력값을 읽어 저장 결과를 확인했다. 제품 로딩 실패로 분류하지 않는다. 뷰포트/초기 배치 전환 직후 캡처는 animation 중 겹침/임시 가로 넘침이 포함되어 최종 증빙에서 제외했다. 그리드 폭과 변환 좌표 안정화 후의 캡처/측정을 사용했다.
 
 증빙: `/tmp/vm-ego-pointer/{desktop-before.json,mobile-edited.json,reloaded-layouts.json,final-view-layouts.json,saved-screens.json}`, `desktop-dragged.png`, `editor-mobile-top.png`, `editor-mobile-reloaded.png`, `saved-{390,768,1440}.png`, `saved-layout-{390,768,1440}.png`, `/tmp/vm-ego-pointer-tests.log`. 최종 이미지들을 직접 열어 확인했다. 재조회 XHR은 분석GET200/미리보기201이며 status0 취소 리소스1건은 성공으로 세지 않는다. 이번 저장 POST의 HTTP 상태 코드는 별도 보관하지 않았고 실제 이동/reload/편집기 재조회로 영속성을 검증했다. 임시 증빙 영구 보관은 보장하지 않는다.
+
+## Ego 모바일 터치·겹침·경계 후속 — 2026-10-15
+
+기준 develop-v2 / `6cb2f477` 위 차트 표시 수정. 사용자 요청에 따라 TaskSpace7 / 분석22 / 공개 Rill source7에서390×900 viewport, mobile=true, maxTouchPoints=1로 검증했다. Ego의 공개 CDP 경로 `Emulation.setTouchEmulationEnabled`와 `Input.dispatchTouchEvent`를 사용했다. DOM에서 touch 이벤트를 합성하거나 React 내부 state를 변경하지 않았다. **Chromium 터치 에뮬레이션 PASS이며 실제 휴대폰/손가락 검증은 NOT_RUN이다.**
+
+### 기능
+
+| 선택 변형                   | 결과 | 확인                                                                                         |
+| --------------------------- | ---- | -------------------------------------------------------------------------------------------- |
+| TC-010-01 터치 이동         | PASS | OS 블록 mobile `{1,5,3,4}`→`{0,6,3,4}`. trusted touchstart/move/end와 pointerType=touch 확인 |
+| TC-010-01 터치 크기 조절    | PASS | 우하단 handle에서 `{0,6,3,4}`→`{0,6,2,3}`. 실제 입력값 확인                                  |
+| TC-010-03 두 단계 undo/redo | PASS | resize 전→drag 전→drag 후→resize 후 순서의 값 정확히 복원                                    |
+| TC-010-02 드래그 겹침       | PASS | 첫 KPI를 둘째 KPI 위치로 끌어도 두 블록 좌표 유지                                            |
+| TC-010-02 리사이즈 겹침     | PASS | 첫 KPI 높이를 아래 블록까지 늘리려 해도 높이2 유지                                           |
+| TC-010-02 좌·상·우 경계     | PASS | full-width 첫 KPI의 음수 x/y 및 오른쪽 이동 시도 후 `{0,0,4,2}` 유지                         |
+| TC-010-02 크기 제한         | PASS | OS 너비는4칸 상한, 너비/높이 축소는1×1 하한. 각각 undo로2×3 복원                             |
+| TC-010-04 저장·reload       | PASS | 변경 직후 저장 차단→서버 미리보기→저장→실제 reload→편집기 좌표 확인. preview/save201·GET200  |
+
+첫 경계 일괄 실행은 전환 중 인접 블록에 접촉한1회가 있어 해당 로그를 PASS 근거에서 제외했다. 변경을 undo하고 그리드 애니메이션 완료를 기다린 뒤 elementFromPoint와 touchstart target label이 대상 블록과 일치하는지 확인해 재검증했다. 경계 조작 직후 일시적4px overflow도 종료/전환 완료 후0이었으며 영속 overflow로 분류하지 않는다.
+
+수정 후 동일 Ego 공간에서 추가 터치 이동→undo/redo→preview→save→reload를 실행했다. 최종 OS mobile은 `{x:1,y:6,w:2,h:3}`, 저장 화면 CSS grid는 `2 / span 2`, `7 / span 3`이다. desktop `{1,3,11,2}`·tablet `{0,2,8,5}`와 두 KPI 배치는 수정 전 저장 후 재진입에서 유지됨을 확인했다. 수정은 차트 축 표시만이며 배치 transport/계산/저장 계약은 바꾸지 않았다. 요청635M·평균5.57 $도 유지했다.
+
+### 발견·수정한 표시 문제
+
+2칸 모바일 카드(약175px)에서는 긴 OS 이름과 containLabel이 canvas 약150px 대부분을 차지해 막대 plot이 거의0이었다. 기존 `LineChart`의 responsive media 규칙을 확장해 **차트 폭260px 이하**에서 category label을48px 말줄임하고 우측 여백을12px로 줄였다.261~480px와 넓은 기본 규칙은 라벨 너비 제한을 명시적으로 해제하여 폭 복원 시 축약이 고착되지 않게 했다. 전체 category 값/계산/순서는 유지하며 데이터 표에 전체 이름과 정확값을 제공한다. 우측 legend의 기존 공간 정책은 유지한다.
+
+실제 좁은 카드에서 막대가 읽히는 수정 전후 캡처와768px로 넓혔을 때의 복원 화면을 직접 확인했다. 데이터 표의 `Samsung proprietary` 전체 이름도 DOM에서 확인했다. 모바일 저장/편집 상단 버튼28px·12px 및 컨트롤 줄바꿈을 확인했고 document 가로 넘침0이었다.1칸 최소 상태의 차트 가독성이나 모든 legend/긴 문자열 조합까지 PASS로 확대하지 않는다.
+
+기존 resize 회귀 기대를 먼저 수정해1실패/3통과를 확인한 후 구현했다. 관련 LineChart resize/selection·BlockLayoutCanvas·DashboardEdit **4파일50 tests PASS**, 최종 테스트 문법 정리 후 resize4 tests 재확인, 타입·변경 lint(최종 경고0)·FE build PASS. BE/API 계약은 불변이다. Rill 비교 수치는 이전 동일 공개 fixture 증거를 재사용했으며 이번에는 Rill을 다시 조작하지 않았다.
+
+증빙 `/tmp/vm-ego-touch/{baseline,drag,resize,history,collision-resize-confirmed,boundaries-confirmed,resize-limits,touch-events,save-xhr,reloaded,final-fixed-flow,data-table}.json`; `mobile-{saved-controls,saved-block,editor-controls,chart-fixed,final}.png`, `tablet-chart-restored.png`, `/tmp/vm-ego-touch-{red,tests,final-test,build}.log`. `baseline.json` 초기 rect와 최초 `collision-boundary.json`은 전환 중 진단 기록이므로 최종 정렬/겹침 PASS 근거가 아니다. status0 취소 XHR은 성공으로 세지 않는다. Ego TaskSpace는 종료했다. 실제 기기·멀티터치·모든 경계/브라우저·공유 게시본·전체 고객 수용은 미검증이다.
