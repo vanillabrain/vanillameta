@@ -37,3 +37,18 @@ AI 자연어 배치 이동을 같은 편집 초안에 연결한다. 실제 화�
 - **BLOCKED 포인터:** DOM 전용 브라우저 제어에 pointer drag API가 없고 네이티브 Codex 앱 제어는 도구의 안전 제한으로 거절됐다. 대체 저수준 이벤트로 우회하지 않았다. 실제 마우스 이동·리사이즈는 여전히 미검증이다. 키보드 성공을 포인터 성공으로 확대하지 않는다. 터치 실기기 NOT_RUN.
 
 FE 관련6파일52 tests, 타입·변경 lint·build PASS. 증빙 `/tmp/vm-pointer-live/result.json`, `/tmp/vm-pointer-live-tests.log`, `/tmp/vm-pointer-live-build.log`. 실제 캡처는 대화에 출력했으며 이미지 파일로 별도 저장하지 않았다. 익명 게시/공유는 실행하지 않았다. 다음은 자연어 배치 요청과 남은 실제 포인터·터치 검증이다.
+
+## Ego 실제 포인터 후속 — 2026-10-15
+
+기준 develop-v2 / `7a4682c2`, 코드 diff 없음. 사용자가 Ego에서 블록 드래그·크기 조절→저장→새로고침과 모바일 배치/컨트롤 확인을 요청했다. ego-browser TaskSpace6에서 공개 Rill source7의 검증 분석22만 편집했다. 사용자 원본 분석과 공유 설정은 수정하지 않았다.
+
+- **PASS 실제 마우스 / TC-010-05 선택 변형:** 서버 미리보기 후 OS 블록 우하단 모서리를 Ego `mouse.move/down/up`으로 끌어 크기를 변경하고 전용 손잡이로 이동했다. React 이벤트나 내부 state를 주입하지 않았다. 데스크톱은 `{x:0,y:2,w:12,h:5}`→`{x:1,y:3,w:11,h:2}`,390px 모바일 전용 배치는 `{x:0,y:4,w:4,h:5}`→`{x:1,y:5,w:3,h:4}`로 변경했다. 데스크톱 크기 조절에서는 페이지 스크롤도 변해 높이가2칸으로 확정됐으며, 의도한 픽셀 이동량으로4칸이 됐다고 주장하지 않는다. 최종 값은 실제 입력/저장 조회를 기준으로 확인했다.
+- **PASS 저장 gate / TC-010-03·04:** 각 배치 변경 직후 결과 캐시는 유지됐고 저장은 비활성화됐다. 변경 결과 미리보기 성공 후 저장→분석22 조회 이동→브라우저 reload를 수행했다. 다시 편집기를 열어 위 데스크톱/모바일 좌표를 확인했다. 태블릿은 `{0,0,4,2}`, `{4,0,4,2}`, `{0,2,8,5}`를 유지했고 두 KPI의 좌표도 유지됐다. 요청635M·평균5.57 $와 추세 표시도 유지됐다.
+- **PASS 저장 화면 좌표 적용:**390px OS 카드 CSS grid `column:2 / span 3`, `row:6 / span 4`;768px `1 / span 8`, `3 / span 5`;1440px `2 / span 11`, `4 / span 2`를 확인했다. 편집기0기반 좌표와 저장 화면1기반 grid line을 구분한다. 저장 화면은 내용 가독성을 위해 auto row/min-height를 사용하므로 편집기의80px 행 높이와 실제 카드 픽셀 높이가 같다는 뜻은 아니다.
+- **PASS 디자인 관찰 범위:**390/768/1440 저장 화면과390px 편집기 상단·블록 배치를 캡처로 확인했다. 주요 분석 버튼28px/12px, 편집 손잡이28px/12px, 입력 외곽32px 기준을 유지했다. document 가로 넘침은 세 폭 모두0이다. 모바일 컨트롤은 줄바꿈되고 선택한 오른쪽 들여쓰기/빈 행은 저장 배치대로 표시됐다. 작은 블록은 내부 스크롤로 내용에 접근한다. 기능/정렬 회귀가 확인되지 않아 제품 코드를 변경하지 않았다.
+- **PASS 회귀:** `BlockLayoutCanvas.test.tsx`, `DashboardEdit/index.test.tsx`의23 tests를 새로 실행했다. 그리드 모킹 테스트와 위 실제 마우스 증거를 구분한다. 코드 변경이 없어 직전 타입/린트/빌드 결과를 재사용했다. 이번에는 LLM·Rill Explore를 반복 실행하지 않았으며 이전 동일 fixture 수치 대조를 재사용한다. Rill Explore를 자유 배치 편집 동등 기능으로 간주하지 않는다.
+- **NOT_RUN:** 실제 휴대폰/터치, 터치 emulation, 모든 충돌/경계·브라우저 조합, 공유 게시본 배치와 고객 전체 여정. 과거 포인터 BLOCKED는 당시 기록이며 이번 Ego 마우스 선택 변형의 PASS로 갱신한다. 터치 전체 완료로 확대하지 않는다.
+
+재진입 시 접힌 설정의 number input을 visible selector로 기다린1회는 timeout이었다. DOM에 입력은 존재했고 이후 접힌 입력값을 읽어 저장 결과를 확인했다. 제품 로딩 실패로 분류하지 않는다. 뷰포트/초기 배치 전환 직후 캡처는 animation 중 겹침/임시 가로 넘침이 포함되어 최종 증빙에서 제외했다. 그리드 폭과 변환 좌표 안정화 후의 캡처/측정을 사용했다.
+
+증빙: `/tmp/vm-ego-pointer/{desktop-before.json,mobile-edited.json,reloaded-layouts.json,final-view-layouts.json,saved-screens.json}`, `desktop-dragged.png`, `editor-mobile-top.png`, `editor-mobile-reloaded.png`, `saved-{390,768,1440}.png`, `saved-layout-{390,768,1440}.png`, `/tmp/vm-ego-pointer-tests.log`. 최종 이미지들을 직접 열어 확인했다. 재조회 XHR은 분석GET200/미리보기201이며 status0 취소 리소스1건은 성공으로 세지 않는다. 이번 저장 POST의 HTTP 상태 코드는 별도 보관하지 않았고 실제 이동/reload/편집기 재조회로 영속성을 검증했다. 임시 증빙 영구 보관은 보장하지 않는다.
