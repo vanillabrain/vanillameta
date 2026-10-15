@@ -1,6 +1,5 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
@@ -13,8 +12,8 @@ const GaugeChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem>
-        <ListItemText primary={t('settings.series')} />
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <SelectForm
           required={true}
           id="field"
@@ -58,7 +57,7 @@ const GaugeChartSetting = props => {
           value={option.suffix}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

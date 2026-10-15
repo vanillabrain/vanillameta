@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
 import {
-  ANALYSIS_UI,
-  analysisFieldSx,
-  analysisToggleSx,
-  analysisModeGroupSx,
-  analysisPanelSx,
-  analysisTableCellStyle,
+  AnalysisChoice,
+  analysisFieldClassName,
+  analysisModeGroupClassName,
+  analysisPanelClassName,
+  analysisTableCellClassName,
 } from '@/components/analysis/AnalysisUi';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TextField } from '@/components/ui/text-field';
+import { cn } from '@/lib/utils';
 import type { ExploreViewState } from './ExploreSavedViews';
 
 export type PivotValue = {
@@ -61,15 +64,10 @@ export const PIVOT_GRAINS: Array<{ value: PivotGrain; label: string }> = [
   { value: 'month', label: '월' },
 ];
 
-const FIELD_SX = analysisFieldSx;
 /** Selects that show a column or measure name take a full row on mobile so the name is not clipped. */
-const NAME_FIELD_SX = {
-  ...FIELD_SX,
-  flex: { xs: '1 1 100%', sm: '1 1 140px' },
-  maxWidth: { xs: '100%', sm: 220 },
-} as const;
-const TOGGLE_BUTTON_SX = analysisToggleSx;
-const PLAIN_BUTTON_SX = { textTransform: 'none', whiteSpace: 'nowrap' } as const;
+const NAME_FIELD_CLASS = cn(analysisFieldClassName, 'w-full sm:max-w-[220px] sm:flex-[1_1_140px]');
+const SMALL_FIELD_CLASS = cn(analysisFieldClassName, 'flex-[0_1_96px] max-w-[140px]');
+const PLAIN_BUTTON_CLASS = 'whitespace-nowrap';
 
 /**
  * Drop any part of a requested row sort the current axes, measures or comparison can no longer
@@ -373,18 +371,9 @@ export default function ExplorePivot({
     const value = values?.find(item => item.measureId === measureId) ?? { measureId, value: null };
     return (
       <>
-        <div style={{ whiteSpace: 'nowrap' }}>{formatValue(value)}</div>
+        <div className="whitespace-nowrap">{formatValue(value)}</div>
         {state.comparePrevious && (
-          <div
-            style={{
-              fontSize: 11,
-              lineHeight: 1.35,
-              color: '#64748b',
-              marginTop: 2,
-              whiteSpace: 'normal',
-              overflowWrap: 'anywhere',
-            }}
-          >
+          <div className="mt-0.5 text-[11px] leading-[1.35] text-[#64748b] wrap-anywhere whitespace-normal">
             {formatComparison(value)}
           </div>
         )}
@@ -488,29 +477,15 @@ export default function ExplorePivot({
     });
   };
   // Bounded columns keep the comparison summary readable instead of letting nowrap cells expand.
-  const cellStyle: React.CSSProperties = {
-    ...analysisTableCellStyle,
-    textAlign: 'right',
-    minWidth: state.comparePrevious ? 180 : 145,
-    maxWidth: 220,
-    verticalAlign: 'top',
-    whiteSpace: 'normal',
-    fontVariantNumeric: 'tabular-nums',
-  };
-  const headerStyle: React.CSSProperties = { ...cellStyle, background: '#f8fafc', fontWeight: 600 };
-  const headerButtonStyle: React.CSSProperties = {
-    border: 0,
-    background: 'none',
-    color: 'inherit',
-    font: 'inherit',
-    padding: 0,
-    cursor: 'pointer',
-    width: '100%',
-    minHeight: 24,
-    textAlign: 'inherit',
-    lineHeight: 1.4,
-  };
-  /** One flat record's measures sit on its single column group, with the row total as a fallback. */
+  const cellClass = cn(
+    analysisTableCellClassName,
+    'max-w-[220px] text-right align-top whitespace-normal tabular-nums',
+    state.comparePrevious ? 'min-w-[180px]' : 'min-w-[145px]',
+  );
+  const headerClass = cn(cellClass, 'bg-[#f8fafc] font-semibold');
+  const headerButtonClass =
+    'h-auto w-full justify-end border-0 bg-transparent p-0 text-right leading-[1.4] whitespace-normal';
+  /** One flat record takes its measures from its single column group, with the row total as a fallback. */
   const flatMeasures = (row: { total: PivotValue[]; columns: Map<number, PivotValue[]> }) => {
     const group = row.columns.get(0);
     return group && group.length ? group : row.total;
@@ -528,74 +503,46 @@ export default function ExplorePivot({
    * The labels scroll with their measures instead of sticking: a frozen first dimension would cover
    * the measure cells it should sit beside once the record axis is wider than the region.
    */
-  const flatLabelStyle: React.CSSProperties = {
-    ...cellStyle,
-    textAlign: 'left',
-    minWidth: 110,
-    maxWidth: 240,
-    background: '#fff',
-    overflowWrap: 'anywhere',
-  };
+  const flatLabelClass = cn(cellClass, 'min-w-[110px] max-w-[240px] bg-white text-left wrap-anywhere');
   const timeAxisInvalid = !!timeAxis && !temporalAxisColumns.includes(timeAxis.column);
   return (
-    <Box
-      sx={{
-        mt: 2,
-        minWidth: 0,
-        display: 'flex',
-        flexDirection: { xs: 'column', md: 'row' },
-        gap: 2,
-      }}
-    >
-      <Box
-        sx={{
-          flex: { md: '0 0 210px' },
-          minWidth: 0,
-          border: '1px solid #e2e8f0',
-          borderRadius: `${ANALYSIS_UI.radius}px`,
-          p: 1.5,
-          maxHeight: { xs: 320, md: 700 },
-          overflowY: 'auto',
-        }}
-      >
+    <div className="mt-5 flex min-w-0 flex-col gap-4 md:flex-row">
+      <div className="max-h-[320px] min-w-0 overflow-y-auto rounded-xl border border-[#e2e8f0] p-4 md:max-h-[700px] md:basis-[210px] md:flex-none">
         <TextField
           label="Pivot 필드 검색"
-          size="small"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          sx={{ ...FIELD_SX, width: '100%', mb: 1 }}
+          className="mb-2 w-full"
         />
-        <Typography sx={{ fontSize: 12, fontWeight: 700, mt: 1 }}>지표 · 열에 표시</Typography>
+        <p className="mt-3 text-xs font-semibold text-muted-foreground">지표 · 열에 표시</p>
         {measures
           .filter(m => m.label.toLowerCase().includes(search.toLowerCase()))
           .map(m => (
-            <Button
+            <AnalysisChoice
               key={m.id}
-              aria-pressed={state.measureIds.includes(m.id)}
+              label={
+                <>
+                  {state.measureIds.includes(m.id) ? '✓ ' : '+ '}
+                  {m.label}
+                </>
+              }
+              selected={state.measureIds.includes(m.id)}
               onClick={() => onMeasureToggle(m.id)}
-              sx={{
-                display: 'block',
-                textAlign: 'left',
-                textTransform: 'none',
-                color: state.measureIds.includes(m.id) ? '#4f46e5' : '#64748b',
-                '&[aria-pressed="true"]': { backgroundColor: 'action.selected' },
-              }}
-            >
-              {state.measureIds.includes(m.id) ? '✓ ' : '+ '}
-              {m.label}
-            </Button>
+              className="flex h-auto w-full justify-start px-2 py-1 text-left whitespace-normal"
+            />
           ))}
-        <Typography sx={{ fontSize: 12, fontWeight: 700, mt: 2 }}>차원</Typography>
+        <p className="mt-4 text-xs font-semibold text-muted-foreground">차원</p>
         {dimensions
           .filter(d => d.column.toLowerCase().includes(search.toLowerCase()))
           .map(d => (
-            <Box key={d.column} sx={{ py: 0.5, borderBottom: '1px solid #f1f5f9' }}>
-              <Typography sx={{ fontSize: 12, overflowWrap: 'anywhere' }}>
+            <div key={d.column} className="border-b border-[#f1f5f9] py-1">
+              <p className="text-xs wrap-anywhere">
                 {d.column}
                 {temporalSet.has(d.column) ? ' · 날짜' : ''}
-              </Typography>
+              </p>
               <Button
-                size="small"
+                variant="ghost"
+                size="sm"
                 aria-label={`${d.column} 행에 추가`}
                 disabled={axes.rowColumns.length >= 2 || [...axes.rowColumns, ...axes.columnColumns].includes(d.column)}
                 onClick={() => addColumn('rowColumns', d.column)}
@@ -603,50 +550,31 @@ export default function ExplorePivot({
                 + 행
               </Button>
               <Button
-                size="small"
+                variant="ghost"
+                size="sm"
                 aria-label={`${d.column} 열에 추가`}
                 disabled={axes.columnColumns.length >= 2 || [...axes.rowColumns, ...axes.columnColumns].includes(d.column)}
                 onClick={() => addColumn('columnColumns', d.column)}
               >
                 + 열
               </Button>
-            </Box>
+            </div>
           ))}
-      </Box>
-      <Box
-        sx={{
-          flex: 1,
-          minWidth: 0,
-          '& table button:focus-visible': {
-            outline: '2px solid',
-            outlineColor: 'primary.main',
-            outlineOffset: 2,
-            borderRadius: '2px',
-          },
-        }}
-      >
-        <Stack
-          direction="row"
-          sx={{
-            flexWrap: 'wrap',
-            gap: 1.5,
-            ...analysisPanelSx,
-          }}
-        >
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className={cn('flex flex-wrap gap-3', analysisPanelClassName)}>
           {(['rowColumns', 'columnColumns'] as const).map(axis => (
-            <Stack key={axis} direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
-              <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{axis === 'rowColumns' ? '행' : '열'}</Typography>
+            <div key={axis} className="flex flex-wrap items-center gap-2">
+              <p className="text-[13px] font-bold">{axis === 'rowColumns' ? '행' : '열'}</p>
               {[0, 1].map(index => (
                 <TextField
                   key={index}
                   select
-                  size="small"
                   label={`${axis === 'rowColumns' ? '행' : '열'} 차원 ${index + 1}`}
                   value={axes[axis][index] ?? ''}
                   disabled={index > axes[axis].length}
                   onChange={event => changeAxis(axis, index, event.target.value)}
-                  sx={NAME_FIELD_SX}
-                  slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+                  className={NAME_FIELD_CLASS}
                 >
                   <option value="">{index ? '추가하지 않음' : '전체'}</option>
                   {dimensions
@@ -660,57 +588,49 @@ export default function ExplorePivot({
                     ))}
                 </TextField>
               ))}
-            </Stack>
+            </div>
           ))}
-          <Button onClick={swapAxes} sx={PLAIN_BUTTON_SX}>
+          <Button variant="ghost" className={PLAIN_BUTTON_CLASS} onClick={swapAxes}>
             행·열 바꾸기
           </Button>
-          <Button onClick={resetAxes} sx={PLAIN_BUTTON_SX}>
+          <Button variant="ghost" className={PLAIN_BUTTON_CLASS} onClick={resetAxes}>
             구성 초기화
           </Button>
-        </Stack>
-        <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1.5, mt: 1.5 }}>
-          <Stack direction="row" alignItems="center" sx={{ gap: 1 }}>
-            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>표시 방식</Typography>
-            <Stack role="group" aria-label="Pivot 표시 방식" direction="row" sx={analysisModeGroupSx}>
-              <Button aria-pressed={!flat} onClick={() => toggleTableMode('nest')} sx={{ ...TOGGLE_BUTTON_SX, border: 0 }}>
-                Pivot 테이블
-              </Button>
-              <Button aria-pressed={flat} onClick={() => toggleTableMode('flat')} sx={{ ...TOGGLE_BUTTON_SX, border: 0 }}>
-                Flat
-              </Button>
-            </Stack>
-          </Stack>
-          <Typography role="status" sx={{ fontSize: 12, color: 'text.secondary' }}>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">표시 방식</p>
+            <div role="group" aria-label="Pivot 표시 방식" className={analysisModeGroupClassName}>
+              <AnalysisChoice
+                label="Pivot 테이블"
+                selected={!flat}
+                onClick={() => toggleTableMode('nest')}
+                className="border-0"
+              />
+              <AnalysisChoice label="Flat" selected={flat} onClick={() => toggleTableMode('flat')} className="border-0" />
+            </div>
+          </div>
+          <p role="status" className="text-xs text-muted-foreground">
             {flat ? '차원별 레코드' : '행·열 교차 집계'}
-          </Typography>
-        </Stack>
-        <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1, mt: 1 }}>
-          <Button
-            aria-pressed={!!axes.rowHierarchy}
+          </p>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <AnalysisChoice
+            label={`행 계층 ${axes.rowHierarchy ? '켜짐' : '꺼짐'}`}
+            selected={!!axes.rowHierarchy}
             disabled={flat}
             onClick={() => onAxes({ rowHierarchy: !axes.rowHierarchy, expandedRows: [] })}
-            sx={TOGGLE_BUTTON_SX}
-          >
-            행 계층 {axes.rowHierarchy ? '켜짐' : '꺼짐'}
-          </Button>
-          <Button
-            aria-pressed={!!timeAxis}
+          />
+          <AnalysisChoice
+            label={`시간 축 ${timeAxis ? '켜짐' : '꺼짐'}`}
+            selected={!!timeAxis}
             disabled={!timeAxis && temporalAxisColumns.length === 0}
             onClick={toggleTimeAxis}
-            sx={TOGGLE_BUTTON_SX}
-          >
-            시간 축 {timeAxis ? '켜짐' : '꺼짐'}
-          </Button>
+          />
           {timeAxis && (
-            <Stack
-              direction="row"
-              alignItems="center"
-              sx={{ flexWrap: 'wrap', gap: 1, minWidth: 0, flex: { xs: '1 1 100%', sm: '0 1 430px' } }}
-            >
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <TextField
                 select
-                size="small"
                 label="시간 축 열"
                 value={temporalAxisColumns.includes(timeAxis.column) ? timeAxis.column : ''}
                 onChange={event => {
@@ -718,8 +638,7 @@ export default function ExplorePivot({
                   if (!column) return;
                   applyTimeAxis({ column, grain: timeAxis.grain, timeZone: state.timeZone }, true);
                 }}
-                sx={NAME_FIELD_SX}
-                slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+                className={NAME_FIELD_CLASS}
               >
                 {temporalAxisColumns.length === 0 && <option value="">날짜 축 열 없음</option>}
                 {temporalAxisColumns.map(column => (
@@ -730,7 +649,6 @@ export default function ExplorePivot({
               </TextField>
               <TextField
                 select
-                size="small"
                 label="시간 집계"
                 value={timeAxis.grain}
                 onChange={event =>
@@ -739,8 +657,7 @@ export default function ExplorePivot({
                     true,
                   )
                 }
-                sx={{ ...FIELD_SX, flex: '0 1 96px', maxWidth: 140 }}
-                slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+                className={SMALL_FIELD_CLASS}
               >
                 {PIVOT_GRAINS.map(grain => (
                   <option key={grain.value} value={grain.value}>
@@ -748,16 +665,15 @@ export default function ExplorePivot({
                   </option>
                 ))}
               </TextField>
-              <Typography sx={{ fontSize: 12, color: 'text.secondary' }} role="status">
+              <p role="status" className="text-xs text-muted-foreground">
                 시간대 {state.timeZone}
-              </Typography>
-            </Stack>
+              </p>
+            </div>
           )}
-        </Stack>
-        <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1, mt: 1 }}>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <TextField
             select
-            size="small"
             label="행 정렬 기준"
             value={sort.by === 'label' ? 'label' : String(sort.measureId)}
             onChange={event => {
@@ -772,8 +688,7 @@ export default function ExplorePivot({
                 },
               });
             }}
-            sx={NAME_FIELD_SX}
-            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+            className={NAME_FIELD_CLASS}
           >
             <option value="label">차원 이름</option>
             {selectedMeasures.map(m => (
@@ -786,7 +701,6 @@ export default function ExplorePivot({
           {!flat && (
             <TextField
               select
-              size="small"
               label="정렬 범위"
               value={scopeValue}
               disabled={sort.by === 'label'}
@@ -804,8 +718,7 @@ export default function ExplorePivot({
                   },
                 });
               }}
-              sx={NAME_FIELD_SX}
-              slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+              className={NAME_FIELD_CLASS}
             >
               <option value="total">행 합계</option>
               {columnScopeOptions.map(group => (
@@ -816,12 +729,12 @@ export default function ExplorePivot({
             </TextField>
           )}
           {(['value', 'delta', 'percentChange'] as const).map(by => (
-            <Button
+            <AnalysisChoice
               key={by}
-              aria-label={`정렬 계산 ${by === 'value' ? '현재값' : by === 'delta' ? '변화량' : '변화율'}`}
-              aria-pressed={sort.by === by}
+              label={by === 'value' ? '현재값' : by === 'delta' ? '변화량' : '변화율'}
+              ariaLabel={`정렬 계산 ${by === 'value' ? '현재값' : by === 'delta' ? '변화량' : '변화율'}`}
+              selected={sort.by === by}
               disabled={by !== 'value' && !state.comparePrevious}
-              sx={TOGGLE_BUTTON_SX}
               onClick={() => {
                 const measureId = sort.measureId ?? selectedMeasures[0]?.id;
                 if (!measureId) return;
@@ -834,284 +747,286 @@ export default function ExplorePivot({
                   },
                 });
               }}
-            >
-              {by === 'value' ? '현재값' : by === 'delta' ? '변화량' : '변화율'}
-            </Button>
+            />
           ))}
           <Button
+            variant="ghost"
+            className={PLAIN_BUTTON_CLASS}
             aria-label="행 정렬 방향"
             onClick={() => onAxes({ rowSort: { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' } })}
-            sx={PLAIN_BUTTON_SX}
           >
             {sort.direction === 'asc' ? '오름차순 ↑' : '내림차순 ↓'}
           </Button>
           {hierarchical && (
             <>
               <Button
+                variant="ghost"
+                className={PLAIN_BUTTON_CLASS}
                 disabled={!result}
-                sx={PLAIN_BUTTON_SX}
                 onClick={() =>
                   onAxes({ expandedRows: (result?.rowSubtotals ?? []).map(parent => parent.tuple as PivotTuple) })
                 }
               >
                 모두 펼치기
               </Button>
-              <Button disabled={!expanded.size} sx={PLAIN_BUTTON_SX} onClick={() => onAxes({ expandedRows: [] })}>
+              <Button
+                variant="ghost"
+                className={PLAIN_BUTTON_CLASS}
+                disabled={!expanded.size}
+                onClick={() => onAxes({ expandedRows: [] })}
+              >
                 모두 접기
               </Button>
             </>
           )}
-        </Stack>
-        <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
           지표 {selectedMeasures.map(m => m.label).join(' · ')} · 최대 50행 / 20열 그룹 / 6,000개 값 · 합계는 원본에서 다시
           집계 ·{' '}
           {flat
             ? 'Flat은 행·열 차원을 하나의 레코드 축으로 합쳐 각 차원을 한 열씩 나열하고, 지표 헤더를 누르면 전체 레코드를 그 지표로 정렬합니다. 계층과 열 셀 정렬은 사용하지 않습니다.'
             : '계층은 행 차원 2개에서 상위 그룹 부분합을 표시합니다. 정렬은 같은 계층 안에서 적용하고, 셀 헤더를 누르면 그 열의 지표 셀로 정렬합니다.'}
           {timeAxis ? ` · 시간 축 ${timeAxis.column}(${timeAxis.grain}, ${timeAxis.timeZone})` : ''}
-        </Typography>
+        </p>
         {timeAxisInvalid && (
-          <Alert severity="warning" sx={{ mt: 1 }}>
+          <Notice severity="warning" className="mt-2">
             시간 축 열이 행·열 축에서 제외되었습니다. 날짜 열을 다시 배치하세요.
-          </Alert>
+          </Notice>
         )}
-        {blocked && <Alert severity="info">유효한 기간과 지표를 선택하세요.</Alert>}
+        {blocked && <Notice severity="info">유효한 기간과 지표를 선택하세요.</Notice>}
         {busy && (
-          <Typography role="status" sx={{ mt: 2 }}>
+          <p role="status" className="mt-4">
             Pivot을 불러오는 중…
-          </Typography>
+          </p>
         )}
         {error && (
-          <Alert severity="error" sx={{ mt: 1 }}>
-            {error}
-            <Button onClick={() => setReload(v => v + 1)}>다시 시도</Button>
-            <Button onClick={onReloadCatalog}>카탈로그 다시 불러오기</Button>
-          </Alert>
+          <Notice severity="error" className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="break-words">{error}</span>
+            <Button variant="ghost" onClick={() => setReload(v => v + 1)}>
+              다시 시도
+            </Button>
+            <Button variant="ghost" onClick={onReloadCatalog}>
+              카탈로그 다시 불러오기
+            </Button>
+          </Notice>
         )}
         {result && flat && (
-          <Box
+          <div
             role="region"
             aria-label="Pivot 결과"
             tabIndex={0}
-            sx={{ mt: 1.5, overflow: 'auto', maxHeight: 620, border: '1px solid #e2e8f0', borderRadius: 2 }}
+            className="mt-3 max-h-[620px] overflow-auto rounded-xl border border-[#e2e8f0]"
           >
-            <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%', fontSize: ANALYSIS_UI.fontSize }}>
-              <caption style={{ textAlign: 'left', padding: 12 }}>
+            <Table className="w-full border-separate border-spacing-0 text-xs">
+              <TableCaption className="mt-0 p-3 text-left text-xs text-inherit">
                 Pivot · Flat · {result.rows.length}개 레코드 · 필터 {state.filters.length}개
                 {state.comparePrevious ? ' · 이전 기간 비교' : ''}
                 {timeAxis ? ` · 시간 축 ${timeAxis.column}(${timeAxis.grain})` : ''}
-              </caption>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
-                <tr>
+              </TableCaption>
+              <TableHeader className="sticky top-0 z-[2] [&_tr]:border-0">
+                <TableRow className="border-0 hover:bg-transparent">
                   {flatDimensions.map(column => (
-                    <th key={column} style={{ ...headerStyle, textAlign: 'left' }}>
+                    <TableHead key={column} className={cn('h-auto', headerClass, 'text-left')}>
                       {column}
-                    </th>
+                    </TableHead>
                   ))}
                   {selectedMeasures.map(m => {
                     const active = isActiveFlatSort(m.id);
                     return (
-                      <th key={m.id} style={headerStyle}>
-                        <button
+                      <TableHead key={m.id} className={cn('h-auto', headerClass)}>
+                        <Button
                           type="button"
+                          variant="ghost"
                           aria-label={`Flat 정렬 ${m.label}`}
                           aria-pressed={active}
                           onClick={() => toggleFlatSort(m.id)}
-                          style={headerButtonStyle}
+                          className={headerButtonClass}
                         >
                           {m.label}
                           {active ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}
-                        </button>
-                      </th>
+                        </Button>
+                      </TableHead>
                     );
                   })}
-                </tr>
-              </thead>
-              <tbody>
-                <tr aria-label="총합">
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow aria-label="총합" className="border-0 hover:bg-transparent">
                   {/* A record axis with no dimension keeps only the measure cells, so totals stay aligned. */}
                   {flatDimensions.length > 0 && (
-                    <th scope="row" style={{ ...cellStyle, textAlign: 'left', background: '#eef2ff' }}>
+                    <TableHead scope="row" className={cn('h-auto', cellClass, 'bg-[#eef2ff] text-left')}>
                       총합
-                    </th>
+                    </TableHead>
                   )}
                   {flatDimensions.slice(1).map(column => (
-                    <td key={column} style={{ ...cellStyle, background: '#eef2ff' }} />
+                    <TableCell key={column} className={cn(cellClass, 'bg-[#eef2ff]')} />
                   ))}
                   {selectedMeasures.map(m => (
-                    <td key={m.id} style={{ ...cellStyle, fontWeight: 700, background: '#eef2ff' }}>
+                    <TableCell key={m.id} className={cn(cellClass, 'bg-[#eef2ff] font-bold')}>
                       {renderValue(result.grandTotal, m.id)}
-                    </td>
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
                 {flatRows.map(row => (
-                  <tr key={row.key}>
+                  <TableRow key={row.key} className="border-0 hover:bg-transparent">
                     {flatDimensions.map((column, i) => (
-                      <th key={column} scope="row" style={flatLabelStyle}>
+                      <TableHead key={column} scope="row" className={cn('h-auto', flatLabelClass)}>
                         {/* A bucket label is not a raw column member, so only raw members filter. */}
                         {column === timeAxis?.column ? (
                           category(row.values[i])
                         ) : (
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
                             title={`${column} 필터 적용`}
                             onClick={() => onFilter(column, [row.values[i] as string | number | boolean | null])}
-                            style={{ border: 0, background: 'none', color: '#334155', padding: 2, cursor: 'pointer' }}
+                            className="min-h-8 justify-start border-0 bg-transparent px-1 text-[#334155]"
                           >
                             {category(row.values[i])}
-                          </button>
+                          </Button>
                         )}
-                      </th>
+                      </TableHead>
                     ))}
                     {selectedMeasures.map(m => (
-                      <td key={m.id} style={cellStyle}>
+                      <TableCell key={m.id} className={cellClass}>
                         {renderValue(flatMeasures(row), m.id)}
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-            {!result.rows.length && <Typography sx={{ p: 2 }}>조건에 맞는 데이터가 없습니다.</Typography>}
-          </Box>
+              </TableBody>
+            </Table>
+            {!result.rows.length && <p className="p-4">조건에 맞는 데이터가 없습니다.</p>}
+          </div>
         )}
         {result && !flat && (
-          <Box
+          <div
             role="region"
             aria-label="Pivot 결과"
             tabIndex={0}
-            sx={{ mt: 1.5, overflow: 'auto', maxHeight: 620, border: '1px solid #e2e8f0', borderRadius: 2 }}
+            className="mt-3 max-h-[620px] overflow-auto rounded-xl border border-[#e2e8f0]"
           >
-            <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%', fontSize: ANALYSIS_UI.fontSize }}>
-              <caption style={{ textAlign: 'left', padding: 12 }}>
+            <Table className="w-full border-separate border-spacing-0 text-xs">
+              <TableCaption className="mt-0 p-3 text-left text-xs text-inherit">
                 Pivot · {result.rows.length}행 × {result.columns.length}열 그룹 · 필터 {state.filters.length}개
                 {state.comparePrevious ? ' · 이전 기간 비교' : ''}
                 {timeAxis ? ` · 시간 축 ${timeAxis.column}(${timeAxis.grain})` : ''}
-              </caption>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
-                <tr>
-                  <th rowSpan={2} style={{ ...headerStyle, textAlign: 'left' }}>
+              </TableCaption>
+              <TableHeader className="sticky top-0 z-[2] [&_tr]:border-0">
+                <TableRow className="border-0 hover:bg-transparent">
+                  <TableHead rowSpan={2} className={cn('h-auto', headerClass, 'text-left')}>
                     {axes.rowColumns.join(' / ') || '전체'}
-                  </th>
+                  </TableHead>
                   {columnGroups.map(group => (
-                    <th key={group.key} colSpan={selectedMeasures.length} style={headerStyle}>
+                    <TableHead key={group.key} colSpan={selectedMeasures.length} className={cn('h-auto', headerClass)}>
                       {group.label}
-                    </th>
+                    </TableHead>
                   ))}
-                </tr>
-                <tr>
+                </TableRow>
+                <TableRow className="border-0 hover:bg-transparent">
                   {columnGroups.map(group =>
                     selectedMeasures.map(m => {
                       const active = isActiveCell(group, m.id);
                       return (
-                        <th key={`${group.key}:${m.id}`} style={headerStyle}>
-                          <button
+                        <TableHead key={`${group.key}:${m.id}`} className={cn('h-auto', headerClass)}>
+                          <Button
                             type="button"
+                            variant="ghost"
                             aria-label={`정렬 ${group.label} ${m.label}`}
                             aria-pressed={active}
                             onClick={() => toggleCellSort(group, m.id)}
-                            style={headerButtonStyle}
+                            className={headerButtonClass}
                           >
                             {m.label}
                             {active ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}
-                          </button>
-                        </th>
+                          </Button>
+                        </TableHead>
                       );
                     }),
                   )}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th scope="row" style={{ ...cellStyle, textAlign: 'left', background: '#eef2ff' }}>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow className="border-0 hover:bg-transparent">
+                  <TableHead scope="row" className={cn('h-auto', cellClass, 'bg-[#eef2ff] text-left')}>
                     총합
-                  </th>
+                  </TableHead>
                   {columnGroups.map(group =>
                     selectedMeasures.map(m => (
-                      <td
+                      <TableCell
                         key={`${group.key}:${m.id}`}
-                        style={{
-                          ...cellStyle,
-                          fontWeight: group.index < 0 ? 700 : 400,
-                          background: group.index < 0 ? '#eef2ff' : undefined,
-                        }}
+                        className={cn(cellClass, group.index < 0 && 'bg-[#eef2ff] font-bold')}
                       >
                         {renderValue(group.index < 0 ? result.grandTotal : result.columnTotals[group.index], m.id)}
-                      </td>
+                      </TableCell>
                     )),
                   )}
-                </tr>
+                </TableRow>
                 {axes.rowColumns.length > 0 &&
                   displayRows.map(row => (
-                    <tr key={row.key}>
-                      <th
+                    <TableRow key={row.key} className="border-0 hover:bg-transparent">
+                      <TableHead
                         scope="row"
-                        style={{
-                          ...cellStyle,
-                          textAlign: 'left',
-                          position: 'sticky',
-                          left: 0,
-                          background: row.parent ? '#f8fafc' : '#fff',
-                          paddingLeft: row.child ? 40 : 12,
-                          zIndex: 1,
-                        }}
+                        className={cn(
+                          'h-auto',
+                          cellClass,
+                          'sticky left-0 z-[1] text-left',
+                          row.child ? 'pl-10' : 'pl-3',
+                          row.parent ? 'bg-[#f8fafc]' : 'bg-white',
+                        )}
                       >
                         {row.parent && (
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
                             aria-label={`${tuple(row.values)} ${
                               expanded.has(JSON.stringify(row.values)) ? '접기' : '펼치기'
                             }`}
                             aria-expanded={expanded.has(JSON.stringify(row.values))}
                             onClick={() => toggleParent(row.values)}
-                            style={{ border: 0, background: 'none', cursor: 'pointer', marginRight: 6 }}
+                            className="mr-1.5 size-8 border-0 bg-transparent p-0"
                           >
                             {expanded.has(JSON.stringify(row.values)) ? '▾' : '▸'}
-                          </button>
+                          </Button>
                         )}
                         {row.values.length
                           ? row.values.map((value, i) =>
                               row.child && i === 0 ? null : (
                                 <React.Fragment key={i}>
                                   {i > 0 && !row.child && ' / '}
-                                  <button
+                                  <Button
                                     type="button"
+                                    variant="ghost"
                                     title={`${axes.rowColumns[i]} 필터 적용`}
                                     onClick={() => onFilter(axes.rowColumns[i], [value as string | number | boolean | null])}
-                                    style={{
-                                      border: 0,
-                                      background: 'none',
-                                      color: '#334155',
-                                      padding: 2,
-                                      cursor: 'pointer',
-                                    }}
+                                    className="min-h-8 justify-start border-0 bg-transparent px-1 text-[#334155]"
                                   >
                                     {category(value)}
-                                  </button>
+                                  </Button>
                                 </React.Fragment>
                               ),
                             )
                           : '전체'}
-                        {row.parent && <span style={{ marginLeft: 8, color: '#64748b', fontSize: 11 }}>부분합</span>}
-                      </th>
+                        {row.parent && <span className="ml-2 text-[11px] text-[#64748b]">부분합</span>}
+                      </TableHead>
                       {columnGroups.map(group =>
                         selectedMeasures.map(m => (
-                          <td
+                          <TableCell
                             key={`${group.key}:${m.id}`}
-                            style={group.index < 0 ? { ...cellStyle, fontWeight: 600 } : cellStyle}
+                            className={cn(cellClass, group.index < 0 && 'font-semibold')}
                           >
                             {renderValue(group.index < 0 ? row.total : row.columns.get(group.index), m.id)}
-                          </td>
+                          </TableCell>
                         )),
                       )}
-                    </tr>
+                    </TableRow>
                   ))}
-              </tbody>
-            </table>
-            {!result.rows.length && <Typography sx={{ p: 2 }}>조건에 맞는 데이터가 없습니다.</Typography>}
-          </Box>
+              </TableBody>
+            </Table>
+            {!result.rows.length && <p className="p-4">조건에 맞는 데이터가 없습니다.</p>}
+          </div>
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

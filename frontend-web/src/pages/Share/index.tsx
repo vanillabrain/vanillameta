@@ -1,7 +1,7 @@
+import ReuseLink from '../Dashboard/DashboardReuse/ReuseLink';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { Box, Card, Typography } from '@mui/material';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -9,9 +9,12 @@ import 'react-resizable/css/styles.css';
 import PageViewBox from '../../components/PageViewBox';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
+import { Card } from '@/components/ui/card';
 import { useShareDashboard } from './useShareDashboard';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const widgetCardClassName = 'h-full w-full overflow-hidden rounded-lg border border-border bg-background shadow-sm';
 
 const Share = () => {
   const { t } = useTranslation();
@@ -22,17 +25,7 @@ const Share = () => {
   const generateWidget = () => {
     return dashboardInfo.widgets.map(item => {
       return (
-        <Card
-          key={item.id}
-          sx={{
-            width: '100%',
-            height: '100%',
-            borderRadius: '8px',
-            boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
-            border: 'solid 1px #e2e2e2',
-            backgroundColor: '#fff',
-          }}
-        >
+        <Card key={item.id} className={widgetCardClassName}>
           <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} />
         </Card>
       );
@@ -51,44 +44,22 @@ const Share = () => {
   };
 
   return !isShareOn ? (
-    <PageViewBox sx={{ borderTop: '1px solid #ddd' }}>
-      <Box
-        sx={{
-          flex: '1 1 auto',
-          backgroundColor: '#f9f9fa',
-          borderRadius: '0px 0px 6px 6px',
-        }}
-      >
-        <Typography
-          sx={{
-            margin: '200px auto',
-            fontSize: '16px',
-            fontWeight: 600,
-            textAlign: 'center',
-            lineHeight: '1.6',
-            whiteSpace: 'pre-wrap',
-            color: '#333',
-          }}
-        >
+    <PageViewBox className="border-t border-border">
+      <div className="flex-auto rounded-b-[6px] bg-muted">
+        <p className="mx-auto my-[200px] text-center text-base leading-[1.6] font-semibold whitespace-pre-wrap text-foreground">
           {generateInvalidText()}
-        </Typography>
-      </Box>
+        </p>
+      </div>
     </PageViewBox>
   ) : (
     <PageViewBox
       title={dashboardInfo.title}
       date={`${dateData(dashboardInfo.updatedAt)}`}
-      sx={{ borderTop: '1px solid #ddd' }}
+      className="border-t border-border"
     >
       <Seo title={dashboardInfo.title} />
-      <Box
-        sx={{
-          flex: '1 1 auto',
-          minHeight: { sm: '1080px' },
-          backgroundColor: '#f9f9fa',
-          borderRadius: '0px 0px 6px 6px',
-        }}
-      >
+      <ReuseLink kind="share" uuid={dashboardUuid} />
+      <div className="flex-auto rounded-b-[6px] bg-muted sm:min-h-[1080px]">
         <ResponsiveGridLayout
           rowHeight={88}
           compactType={null}
@@ -100,7 +71,7 @@ const Share = () => {
         >
           {generateWidget()}
         </ResponsiveGridLayout>
-      </Box>
+      </div>
     </PageViewBox>
   );
 };

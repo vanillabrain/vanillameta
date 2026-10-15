@@ -1,3 +1,4 @@
+import { serializedViewWrite } from '../dashboard/view-write-queue';
 import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from '../auth/auth.service.js';
@@ -43,6 +44,11 @@ export class ShareUrlService {
   }
 
   async checkShareUrlOn(userId: string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto) {
+    return serializedViewWrite(this.dashboardShareRepository, () =>
+      this.shareOn(userId, dashboardId, shareUrlOnDto),
+    );
+  }
+  private async shareOn(userId: string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto) {
     const findUser = await this.userRepository.findOne({ where: { userId: userId } });
     if (!findUser) {
       return 'not exist user';
@@ -63,13 +69,28 @@ export class ShareUrlService {
       findDashboardShare.shareToken = newToken;
       findDashboardShare.shareYn = YesNo.YES;
       findDashboardShare.endDate = endDate;
-      await this.dashboardShareRepository.save(findDashboardShare);
+      await this.dashboardShareRepository
+        .createQueryBuilder()
+        .update(DashboardShare)
+        .set({
+          shareToken: findDashboardShare.shareToken,
+          shareYn: findDashboardShare.shareYn,
+          endDate: findDashboardShare.endDate,
+          reuseVersion: () => 'reuseVersion + 1',
+        })
+        .where('id = :id', { id: findDashboardShare.id })
+        .execute();
       return { uuid: findDashboardShare.uuid, message: 'success' };
     }
   }
   // 공유기능 on시 공유토큰과 endDate를 저장
 
   async checkShareUrlOff(userId: string, dashboardId: number) {
+    return serializedViewWrite(this.dashboardShareRepository, () =>
+      this.shareOff(userId, dashboardId),
+    );
+  }
+  private async shareOff(userId: string, dashboardId: number) {
     const findUser = await this.userRepository.findOne({ where: { userId: userId } });
     if (!findUser) {
       return 'not exist user';
@@ -85,7 +106,17 @@ export class ShareUrlService {
       findDashboardShare.shareToken = '';
       findDashboardShare.shareYn = YesNo.NO;
       findDashboardShare.endDate = null;
-      await this.dashboardShareRepository.save(findDashboardShare);
+      await this.dashboardShareRepository
+        .createQueryBuilder()
+        .update(DashboardShare)
+        .set({
+          shareToken: findDashboardShare.shareToken,
+          shareYn: findDashboardShare.shareYn,
+          endDate: findDashboardShare.endDate,
+          reuseVersion: () => 'reuseVersion + 1',
+        })
+        .where('id = :id', { id: findDashboardShare.id })
+        .execute();
       return { message: 'success' };
     }
   }

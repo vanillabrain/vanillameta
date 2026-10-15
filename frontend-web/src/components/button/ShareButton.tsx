@@ -1,24 +1,19 @@
-import React, { forwardRef, Ref } from 'react';
-import {
-  Box,
-  Button,
-  IconButton,
-  Paper,
-  Popover,
-  Stack,
-  SxProps,
-  TextField,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from '@mui/material';
-import IconShare from '@/assets/images/icon/ic-share.svg?react';
-import IconToggleOn from '@/assets/images/icon/toggle-on.svg?react';
-import IconToggleOff from '@/assets/images/icon/toggle-off.svg?react';
-import IconLink from '@/assets/images/icon/ic-link.svg?react';
+import React from 'react';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
+import { get, post } from '@/helpers/apiHelper';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Notice } from '@/components/ui/notice';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
+import { TextField } from '@/components/ui/text-field';
+import { cn } from '@/lib/utils';
+import { errorMessage, responseData } from '@/pages/Dashboard/dashboardPreview';
+import IconShare from '@/assets/images/icon/ic-share.svg?react';
+import IconLink from '@/assets/images/icon/ic-link.svg?react';
 import DatePicker from '@/components/form/DatePicker';
+import { useMinWidth } from '@/components/PageViewBox';
 
 interface ShareButtonProps {
   handleShareToggle?: () => void;
@@ -26,33 +21,81 @@ interface ShareButtonProps {
   shareId?: string;
   shareLimitDate?: string;
   setShareLimitDate?: React.Dispatch<React.SetStateAction<string>>;
+  dashboardId?: string;
+  className?: string;
 }
 
-interface SharePopupProps extends ShareButtonProps {
+interface ReuseAccessProps {
+  allowReuse: boolean;
+  reuseState: 'loading' | 'ready' | 'saving' | 'error';
+  reuseError: string;
+  onReuseToggle: (next: boolean) => void;
+}
+
+interface SharePopupProps extends ShareButtonProps, ReuseAccessProps {
   matches: boolean;
+  showReuseSetting: boolean;
 }
 
-const paperSx: SxProps = {
-  marginTop: '3px',
-  border: '1px solid',
-  borderColor: 'divider',
-  bgcolor: 'background.paper',
-  color: 'text.primary',
-  maxWidth: 'calc(100vw - 32px)',
-  maxHeight: 'calc(100dvh - 96px)',
-  overflowY: 'auto',
-  borderRadius: '6px',
-  boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
+const panelClassName = 'mt-[3px] max-h-[calc(100dvh-96px)] gap-0 overflow-y-auto rounded-md p-0';
+
+const ShareToggle = ({ checked, label, description, onToggle }) => (
+  <div className="flex flex-row items-center justify-between">
+    <span className="mr-3 text-sm text-foreground">{description}</span>
+    <Switch checked={checked} onCheckedChange={() => onToggle?.()} aria-label={label} />
+  </div>
+);
+
+const ReuseAccessSetting = ({ allowReuse, reuseState, reuseError, onReuseToggle }: ReuseAccessProps) => {
+  const { t } = useTranslation();
+  const busy = reuseState === 'loading' || reuseState === 'saving';
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <label className="flex w-full items-start gap-2">
+        <Checkbox
+          className="mt-1"
+          checked={allowReuse}
+          disabled={busy}
+          onCheckedChange={checked => onReuseToggle(checked === true)}
+          aria-label={t('share.allowReuse')}
+        />
+        <span className="min-w-0 text-sm text-foreground">
+          {t('share.allowReuse')}
+          <span className="mt-1 block text-xs text-muted-foreground">{t('share.allowReuseHint')}</span>
+        </span>
+      </label>
+      {reuseState === 'loading' && <p className="mt-1 text-xs text-muted-foreground">{t('share.allowReuseLoading')}</p>}
+      {reuseState === 'saving' && <p className="mt-1 text-xs text-muted-foreground">{t('share.allowReuseSaving')}</p>}
+      {reuseState === 'error' && reuseError && (
+        <Notice severity="error" className="mt-2">
+          {reuseError}
+        </Notice>
+      )}
+    </div>
+  );
 };
 
-const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement>) => {
+const ShareOnPopup = (props: SharePopupProps) => {
   const { t } = useTranslation();
-  const { matches, handleShareToggle, shareLimitDate, shareId } = props;
+  const {
+    matches,
+    handleShareToggle,
+    shareLimitDate,
+    shareId,
+    showReuseSetting,
+    allowReuse,
+    reuseState,
+    reuseError,
+    onReuseToggle,
+  } = props;
   const alert = useAlert();
-  const shareLink = `${window.location.origin}/share/${shareId ? shareId : ''}`;
-  const embedCode = `<iframe src="${window.location.origin}/embed/${
-    shareId ? shareId : ''
-  }" width="100%" height="600" frameborder="0"></iframe>`;
+  const shareLink = window.location.origin + '/share/' + (shareId ? shareId : '');
+  const embedCode =
+    '<iframe src="' +
+    window.location.origin +
+    '/embed/' +
+    (shareId ? shareId : '') +
+    '" width="100%" height="600" frameborder="0"></iframe>';
 
   const handleCopyClick = async () => {
     await navigator.clipboard
@@ -79,275 +122,226 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
   };
 
   return matches ? (
-    <Paper sx={{ ...paperSx, minWidth: '410px' }} ref={ref}>
-      <Stack sx={{ width: '100%', padding: '24px' }}>
-        <Typography sx={{ mb: '6px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>
-          {t('share.pageShare')}
-        </Typography>
-        <Stack
-          component="form"
-          onSubmit={event => {
-            event.preventDefault();
-            handleShareToggle();
-          }}
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          mb="3px"
-        >
-          <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>{t('share.allowRead')}</Typography>
-          <IconButton
-            type="submit"
-            role="switch"
-            aria-checked={true}
-            aria-label={t('share.allowRead')}
-            sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}
-          >
-            <IconToggleOn />
-          </IconButton>
-        </Stack>
-        <Typography>
-          {t('share.untilPrefix')}
-          <Box component="span" sx={{ color: '#0f5ab2' }}>
-            {shareLimitDate}
-          </Box>
-          {t('share.untilMiddle')}
-          <Box component="span" sx={{ fontWeight: 600, color: '#0f5ab2' }}>
-            {t('share.sharingTag')}
-          </Box>
-          {t('share.untilSuffix')}
-        </Typography>
-        <Stack direction="row" spacing={1} mt="18px">
-          <TextField
-            sx={{ flex: 1, minWidth: 0 }}
-            slotProps={{ input: { readOnly: true }, htmlInput: { 'aria-label': t('share.pageShare') } }}
-            value={shareLink}
-          />
-          <Button variant="contained" sx={{ minWidth: '55px', flexShrink: 0 }} onClick={handleCopyClick}>
-            {t('share.copy')}
-          </Button>
-        </Stack>
-        <Typography sx={{ mt: '16px', mb: '6px', fontSize: '13px', fontWeight: 600, color: '#141414' }}>
-          {t('share.embedCode')}
-        </Typography>
-        <Stack direction="row" spacing={1} alignItems="flex-start">
-          <TextField
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              height: 'auto',
-              '& .MuiInputBase-root': { height: 'auto', bgcolor: 'background.default' },
-              '& textarea': { overflowWrap: 'anywhere' },
-            }}
-            size="small"
-            multiline
-            minRows={3}
-            maxRows={6}
-            slotProps={{ input: { readOnly: true }, htmlInput: { 'aria-label': t('share.embedCode') } }}
-            value={embedCode}
-          />
-          <Button variant="contained" sx={{ minWidth: '55px', flexShrink: 0 }} onClick={handleEmbedCopyClick}>
-            {t('share.copy')}
-          </Button>
-        </Stack>
-      </Stack>
-    </Paper>
+    <div className="w-full p-6">
+      <p className="mb-1.5 text-base font-semibold text-foreground">{t('share.pageShare')}</p>
+      <ShareToggle checked label={t('share.allowRead')} description={t('share.allowRead')} onToggle={handleShareToggle} />
+      <p className="mb-[3px] text-sm text-foreground">
+        {t('share.untilPrefix')}
+        <span className="text-[#0f5ab2]">{shareLimitDate}</span>
+        {t('share.untilMiddle')}
+        <span className="font-semibold text-[#0f5ab2]">{t('share.sharingTag')}</span>
+        {t('share.untilSuffix')}
+      </p>
+      <div className="mt-[18px] flex flex-row items-center gap-2">
+        <TextField
+          className="flex-1"
+          inputProps={{ readOnly: true, 'aria-label': t('share.pageShare') }}
+          value={shareLink}
+        />
+        <Button type="button" onClick={handleCopyClick} className="min-w-[55px] shrink-0">
+          {t('share.copy')}
+        </Button>
+      </div>
+      <p className="mt-4 mb-1.5 text-[13px] font-semibold text-foreground">{t('share.embedCode')}</p>
+      <div className="flex flex-row items-start gap-2">
+        <TextField
+          className="flex-1"
+          multiline
+          minRows={3}
+          rows={3}
+          inputProps={{ readOnly: true, 'aria-label': t('share.embedCode'), className: 'break-words h-auto py-2' }}
+          value={embedCode}
+        />
+        <Button type="button" onClick={handleEmbedCopyClick} className="min-w-[55px] shrink-0">
+          {t('share.copy')}
+        </Button>
+      </div>
+      {showReuseSetting && (
+        <ReuseAccessSetting
+          allowReuse={allowReuse}
+          reuseState={reuseState}
+          reuseError={reuseError}
+          onReuseToggle={onReuseToggle}
+        />
+      )}
+    </div>
   ) : (
-    <Paper sx={{ ...paperSx, width: '243px' }} ref={ref}>
-      <Stack sx={{ width: '100%', p: '22px 24px 20px' }}>
-        <Stack
-          component="form"
-          onSubmit={event => {
-            event.preventDefault();
-            handleShareToggle();
-          }}
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ mb: '22px' }}
+    <div className="w-full px-6 pt-[22px] pb-5">
+      <div className="mb-[22px] flex flex-row items-center justify-between">
+        <p className="text-base font-semibold text-foreground">{t('share.sharing')}</p>
+        <ShareToggle checked label={t('share.allowRead')} description="" onToggle={handleShareToggle} />
+      </div>
+      <div className="flex flex-row items-center justify-between">
+        <p className="text-sm text-foreground">
+          {t('share.expiry')}
+          <span className="ml-1 font-bold text-[#333]">{shareLimitDate}</span>
+        </p>
+        <Button
+          type="button"
+          onClick={handleCopyClick}
+          aria-label={t('share.pageShare') + ' ' + t('share.copy')}
+          className="h-8 w-8 min-w-8 p-0"
         >
-          <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#141414' }}>{t('share.sharing')}</Typography>
-          <IconButton
-            type="submit"
-            role="switch"
-            aria-checked={true}
-            aria-label={t('share.allowRead')}
-            sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}
-          >
-            <IconToggleOn />
-          </IconButton>
-        </Stack>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography sx={{ fontSize: '14px', color: '#141414' }}>
-            {t('share.expiry')}
-            <Box component="span" sx={{ ml: '4px', fontWeight: 'bold', color: '#333' }}>
-              {shareLimitDate}
-            </Box>
-          </Typography>
-          <Button
-            variant="contained"
-            sx={{ width: '32px', minWidth: '32px', height: '32px', p: 0 }}
-            onClick={handleCopyClick}
-            aria-label={`${t('share.pageShare')} ${t('share.copy')}`}
-          >
-            <IconLink />
-          </Button>
-        </Stack>
-      </Stack>
-    </Paper>
+          <IconLink />
+        </Button>
+      </div>
+      {showReuseSetting && (
+        <ReuseAccessSetting
+          allowReuse={allowReuse}
+          reuseState={reuseState}
+          reuseError={reuseError}
+          onReuseToggle={onReuseToggle}
+        />
+      )}
+    </div>
   );
-});
-
-const ShareOffPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement>) => {
-  const { t } = useTranslation();
-  const { matches, handleShareToggle, shareLimitDate, setShareLimitDate } = props;
-
-  return matches ? (
-    <Paper sx={{ ...paperSx, minWidth: '410px' }} ref={ref}>
-      <Stack sx={{ width: '100%', padding: '24px' }}>
-        <Typography sx={{ mb: '6px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>
-          {t('share.pageShare')}
-        </Typography>
-        <Stack
-          component="form"
-          onSubmit={event => {
-            event.preventDefault();
-            handleShareToggle();
-          }}
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          mb="16px"
-        >
-          <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>{t('share.disallowRead')}</Typography>
-          <IconButton
-            type="submit"
-            role="switch"
-            aria-checked={false}
-            aria-label={t('share.allowRead')}
-            sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}
-          >
-            <IconToggleOff />
-          </IconButton>
-        </Stack>
-        <Stack sx={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Typography component="span" mr="8px">
-            {t('share.expiry')}
-          </Typography>
-          <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
-        </Stack>
-      </Stack>
-    </Paper>
-  ) : (
-    <Paper sx={{ ...paperSx, width: '243px' }} ref={ref}>
-      <Stack sx={{ width: '100%', p: '22px 24px 20px' }}>
-        <Stack
-          component="form"
-          onSubmit={event => {
-            event.preventDefault();
-            handleShareToggle();
-          }}
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ mb: '22px' }}
-        >
-          <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#141414' }}>{t('share.notSharing')}</Typography>
-          <IconButton
-            type="submit"
-            role="switch"
-            aria-checked={false}
-            aria-label={t('share.allowRead')}
-            sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}
-          >
-            <IconToggleOff />
-          </IconButton>
-        </Stack>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography sx={{ fontSize: '14px', color: '#141414' }}>{t('share.expiry')}</Typography>
-          <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
-        </Stack>
-      </Stack>
-    </Paper>
-  );
-});
-
-const shareOnButtonSx: SxProps = {
-  flexShrink: 0,
-  borderColor: 'primary.main',
-  bgcolor: 'background.paper',
-  color: 'primary.main',
-  '& svg': { fill: 'currentColor' },
-  '& span': { mr: '6px' },
-  '&:hover': { bgcolor: 'primary.main', color: 'primary.contrastText', borderColor: 'primary.main' },
 };
 
-const shareOffButtonSx: SxProps = {
-  flexShrink: 0,
-  '& svg': { fill: 'currentColor' },
-  '& span': { mr: '6px' },
-  '&:hover': { bgcolor: 'primary.dark', color: 'primary.contrastText' },
+const ShareOffPopup = (props: SharePopupProps) => {
+  const { t } = useTranslation();
+  const {
+    matches,
+    handleShareToggle,
+    shareLimitDate,
+    setShareLimitDate,
+    showReuseSetting,
+    allowReuse,
+    reuseState,
+    reuseError,
+    onReuseToggle,
+  } = props;
+
+  return matches ? (
+    <div className="w-full p-6">
+      <p className="mb-1.5 text-base font-semibold text-foreground">{t('share.pageShare')}</p>
+      <div className="mb-4">
+        <ShareToggle
+          checked={false}
+          label={t('share.allowRead')}
+          description={t('share.disallowRead')}
+          onToggle={handleShareToggle}
+        />
+      </div>
+      <div className="flex flex-row items-center">
+        <span className="mr-2 text-foreground">{t('share.expiry')}</span>
+        <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
+      </div>
+      {showReuseSetting && (
+        <ReuseAccessSetting
+          allowReuse={allowReuse}
+          reuseState={reuseState}
+          reuseError={reuseError}
+          onReuseToggle={onReuseToggle}
+        />
+      )}
+    </div>
+  ) : (
+    <div className="w-full px-6 pt-[22px] pb-5">
+      <div className="mb-[22px] flex flex-row items-center justify-between">
+        <p className="text-base font-semibold text-foreground">{t('share.notSharing')}</p>
+        <ShareToggle checked={false} label={t('share.allowRead')} description="" onToggle={handleShareToggle} />
+      </div>
+      <div className="flex flex-row items-center justify-between">
+        <p className="text-sm text-foreground">{t('share.expiry')}</p>
+        <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
+      </div>
+      {showReuseSetting && (
+        <ReuseAccessSetting
+          allowReuse={allowReuse}
+          reuseState={reuseState}
+          reuseError={reuseError}
+          onReuseToggle={onReuseToggle}
+        />
+      )}
+    </div>
+  );
 };
 
 function ShareButton(props: ShareButtonProps) {
-  const { handleShareToggle, isShareOn, shareId, shareLimitDate, setShareLimitDate } = props;
-  const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(null);
-  const open = Boolean(anchorEl);
-  const id = open ? 'simple-popover' : undefined;
-  const theme = useTheme();
+  const { handleShareToggle, isShareOn, shareId, shareLimitDate, setShareLimitDate, dashboardId, className } = props;
   const { t } = useTranslation();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
+  const matches = useMinWidth(600);
+  const popoverId = React.useId();
+  const [allowReuse, setAllowReuse] = React.useState(false);
+  const [reuseState, setReuseState] = React.useState<ReuseAccessProps['reuseState']>('loading');
+  const [reuseError, setReuseError] = React.useState('');
+  const reuseSequence = React.useRef(0);
+  const reuseUrl = dashboardId ? `/bi/dashboards/${encodeURIComponent(dashboardId)}/reuse-access` : '';
 
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
+  const loadReuseAccess = React.useCallback(() => {
+    if (!reuseUrl) return;
+    reuseSequence.current += 1;
+    const token = reuseSequence.current;
+    setReuseState('loading');
+    setReuseError('');
+    get(reuseUrl)
+      .then(response => {
+        if (token !== reuseSequence.current) return;
+        setAllowReuse(responseData(response)?.allowReuse === true);
+        setReuseState('ready');
+      })
+      .catch(failure => {
+        if (token !== reuseSequence.current) return;
+        setReuseError(errorMessage(failure));
+        setReuseState('error');
+      });
+  }, [reuseUrl]);
+
+  const onReuseToggle = (next: boolean) => {
+    if (!reuseUrl || reuseState === 'loading' || reuseState === 'saving') return;
+    reuseSequence.current += 1;
+    const token = reuseSequence.current;
+    setReuseState('saving');
+    setReuseError('');
+    post(reuseUrl, { allowReuse: next })
+      .then(response => {
+        if (token !== reuseSequence.current) return;
+        setAllowReuse(responseData(response)?.allowReuse === true);
+        setReuseState('ready');
+      })
+      .catch(failure => {
+        if (token !== reuseSequence.current) return;
+        setReuseError(errorMessage(failure));
+        setReuseState('error');
+      });
   };
 
-  const handleClose = () => {
-    setAnchorEl(null);
+  React.useEffect(
+    () => () => {
+      reuseSequence.current += 1;
+    },
+    [],
+  );
+
+  const reuseProps = {
+    allowReuse,
+    reuseState,
+    reuseError,
+    onReuseToggle,
+    showReuseSetting: !!reuseUrl,
   };
 
   return (
-    <React.Fragment>
-      {isShareOn ? (
+    <Popover onOpenChange={open => open && loadReuseAccess()}>
+      <PopoverTrigger asChild>
         <Button
-          startIcon={<IconShare fill="inherit" />}
-          variant="outlined"
+          type="button"
+          variant={isShareOn ? 'outline' : 'default'}
           aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-controls={id}
-          onClick={handleClick}
-          sx={{
-            ...shareOnButtonSx,
-            px: { xs: '8px', sm: '12px' },
-          }}
+          aria-controls={popoverId}
+          className={cn('shrink-0 gap-1.5 px-2 sm:px-3', className)}
         >
-          {t('share.buttonActive')}
+          <IconShare fill="currentColor" />
+          {isShareOn ? t('share.buttonActive') : t('share.button')}
         </Button>
-      ) : (
-        <Button
-          startIcon={<IconShare fill="inherit" />}
-          variant="contained"
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-controls={id}
-          onClick={handleClick}
-          sx={{
-            ...shareOffButtonSx,
-            px: { xs: '8px', sm: '12px' },
-          }}
-        >
-          {t('share.button')}
-        </Button>
-      )}
-      <Popover
-        id={id}
-        open={open}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { role: 'dialog', 'aria-modal': true, 'aria-label': t('share.pageShare') } }}
-        sx={{ zIndex: theme.zIndex.modal }}
+      </PopoverTrigger>
+      <PopoverContent
+        id={popoverId}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('share.pageShare')}
+        align="end"
+        className={cn(panelClassName, matches ? 'w-[410px] max-w-[calc(100vw-32px)]' : 'w-[calc(100vw-32px)]')}
       >
         {isShareOn ? (
           <ShareOnPopup
@@ -355,6 +349,7 @@ function ShareButton(props: ShareButtonProps) {
             handleShareToggle={handleShareToggle}
             shareLimitDate={shareLimitDate}
             shareId={shareId}
+            {...reuseProps}
           />
         ) : (
           <ShareOffPopup
@@ -362,10 +357,11 @@ function ShareButton(props: ShareButtonProps) {
             handleShareToggle={handleShareToggle}
             shareLimitDate={shareLimitDate}
             setShareLimitDate={setShareLimitDate}
+            {...reuseProps}
           />
         )}
-      </Popover>
-    </React.Fragment>
+      </PopoverContent>
+    </Popover>
   );
 }
 

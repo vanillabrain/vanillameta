@@ -2,6 +2,13 @@
 left to right direction
 actor "운영 담당자" as operator
 rectangle "VanillaMeta" {
+ usecase "UC-017\nEditor Request Recovery" as UC017
+ usecase "UC-016\nBatch Block Edit" as UC016
+ usecase "UC-015\nPrompt Block Target" as UC015
+ usecase "UC-014\nExplicit Prompt Save" as UC014
+ usecase "UC-013\nAuto Block Intent" as UC013
+ usecase "UC-012\nSemantic Creation" as UC012
+ usecase "UC-011\nAI Block Layout" as UC011
  usecase "UC-006\nPreserve Block Layout" as UC006
  usecase "UC-005\nPrompt To Dashboard" as UC005
  usecase "UC-004\nBatch Metric Update" as UC004
@@ -9,6 +16,11 @@ rectangle "VanillaMeta" {
  usecase "UC-003\nUpdate Metric Calculation" as UC003
  usecase "UC-002\nReuse Saved Metric" as UC002
 }
+operator --> UC015
+operator --> UC014
+operator --> UC013
+operator --> UC012
+operator --> UC011
 operator --> UC006
 operator --> UC005
 actor "공유 수신자" as recipient
@@ -17,4 +29,17 @@ operator --> UC004
 operator --> UC003
 operator --> UC002
 operator --> UC001
+operator --> UC016
+operator --> UC017
+usecase "UC-018 게시 snapshot" as UC018
+operator --> UC018
+recipient --> UC018
+usecase "UC-019 질문 저장 게시" as UC019
+operator --> UC019
+usecase "UC-020 Duplicate dashboard with source mapping" as UC020
+operator --> UC020
+usecase "UC-021 공유·게시본 재사용" as UC021
+operator --> UC021
+usecase "UC-022 복사본 AI 편집·게시" as UC022
+operator --> UC022
 @enduml

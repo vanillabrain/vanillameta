@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BiService } from './bi.service';
 @UseGuards(JwtAuthGuard)
@@ -38,6 +38,27 @@ export class BiController {
     @Req() req,
   ) {
     return this.success(await this.bi.editorPreview(id, body, this.actor(req)));
+  }
+  @Post('dashboards/:id/editor/ai') async editorAi(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req,
+    @Res({ passthrough: true }) res,
+  ) {
+    const controller = new AbortController();
+    const aborted = () => controller.abort();
+    const closed = () => {
+      if (!res.writableFinished) controller.abort();
+    };
+    req.once('aborted', aborted);
+    res.once('close', closed);
+    if (req.aborted) controller.abort();
+    try {
+      return this.success(await this.bi.editorAi(id, body, this.actor(req), controller.signal));
+    } finally {
+      req.off('aborted', aborted);
+      res.off('close', closed);
+    }
   }
   @Post('dashboards/:id/editor') async saveEditor(
     @Param('id') id: string,

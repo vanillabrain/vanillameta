@@ -9,10 +9,13 @@ import PublicLayout from '@/layouts/PublicLayout';
 const Dashboard = React.lazy(() => import('@/pages/Dashboard'));
 const DashboardView = React.lazy(() => import('@/pages/Dashboard/DashboardView'));
 const DashboardCreate = React.lazy(() => import('@/pages/Dashboard/DashboardCreate'));
+const Publication = React.lazy(() => import('@/pages/Publication'));
+const PublishedRoute = React.lazy(() => import('./PublishedRoute'));
+const StudioThemeBoundary = React.lazy(() => import('@/pages/Dashboard/Studio/StudioThemeBoundary'));
+const DashboardReuse = React.lazy(() => import('@/pages/Dashboard/DashboardReuse'));
 const DashboardEdit = React.lazy(() => import('@/pages/Dashboard/DashboardEdit'));
 const StudioCreate = React.lazy(() => import('@/pages/Dashboard/Studio/StudioCreate'));
 const StudioEditor = React.lazy(() => import('@/pages/Dashboard/Studio/StudioEditor'));
-const PublishedDashboard = React.lazy(() => import('@/pages/Dashboard/Studio/PublishedDashboard'));
 const StudioRemix = React.lazy(() => import('@/pages/Dashboard/Studio/StudioRemix'));
 const DashboardModify = React.lazy(() => import('@/pages/Dashboard/DashboardModify'));
 const Widget = React.lazy(() => import('@/pages/Widget'));
@@ -41,7 +44,16 @@ function Router() {
   return (
     <Suspense fallback={null}>
       <Routes>
-        {import.meta.env.DEV && <Route path="/_design/studio" element={<StudioDesignPreview />} />}
+        {import.meta.env.DEV && (
+          <Route
+            path="/_design/studio"
+            element={
+              <StudioThemeBoundary>
+                <StudioDesignPreview />
+              </StudioThemeBoundary>
+            }
+          />
+        )}
         <Route
           path="/"
           element={
@@ -53,6 +65,9 @@ function Router() {
           <Route index element={<Navigate to="/dashboard" replace={true} />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
+          <Route path="/dashboard/:dashboardId/publication" element={<Publication />} />
+          <Route path="/dashboard/:dashboardId/reuse" element={<DashboardReuse />} />
+          <Route path="/reuse/:kind/:uuid" element={<DashboardReuse />} />
           <Route path="/dashboard/:dashboardId/edit-charts" element={<DashboardEdit />} />
           <Route path="/dashboard/create" element={<DashboardCreate />}>
             <Route path=":createType" element={<DashboardCreate />} />
@@ -91,7 +106,9 @@ function Router() {
           path="/studio/new"
           element={
             <ProtectedRoute>
-              <StudioCreate />
+              <StudioThemeBoundary>
+                <StudioCreate />
+              </StudioThemeBoundary>
             </ProtectedRoute>
           }
         />
@@ -99,12 +116,21 @@ function Router() {
           path="/dashboard/:dashboardId/studio"
           element={
             <ProtectedRoute>
-              <StudioEditor />
+              <StudioThemeBoundary>
+                <StudioEditor />
+              </StudioThemeBoundary>
             </ProtectedRoute>
           }
         />
-        <Route path="/published/:token/remix" element={<StudioRemix />} />
-        <Route path="/published/:token" element={<PublishedDashboard />} />
+        <Route
+          path="/published/:token/remix"
+          element={
+            <StudioThemeBoundary>
+              <StudioRemix />
+            </StudioThemeBoundary>
+          }
+        />
+        <Route path="/published/:token" element={<PublishedRoute />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/embed/:dashboardUuid" element={<Embed />} />

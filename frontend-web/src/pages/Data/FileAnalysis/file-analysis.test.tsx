@@ -16,8 +16,6 @@ const state = vi.hoisted(() => ({
   upload: vi.fn(),
   navigate: vi.fn(),
   option: null as any,
-  gridData: null as any,
-  gridColumns: null as any,
 }));
 
 vi.mock('@duckdb/duckdb-wasm', () => ({
@@ -41,50 +39,6 @@ vi.mock('echarts-for-react', () => ({
     return <div data-testid="chart" />;
   },
 }));
-vi.mock('@toast-ui/react-grid', async () => {
-  const React = await import('react');
-  return {
-    default: React.forwardRef((props: any, ref) => {
-      React.useImperativeHandle(ref, () => ({ getInstance: () => ({ refreshLayout: vi.fn() }) }));
-      state.gridData = props.data;
-      state.gridColumns = props.columns;
-      props.data.forEach((row: any, index: number) => {
-        if (!Object.prototype.hasOwnProperty.call(row, 'rowKey')) row.rowKey = index;
-        row.sortKey = index;
-        row.uniqueKey = 'grid';
-        row._attributes = {};
-        row._disabledPriority = {};
-        row.rowSpanMap = {};
-        row._relationListItemMap = {};
-      });
-      return <div data-testid="grid" />;
-    }),
-  };
-});
-vi.mock('@mui/material', () => {
-  const Container = ({ children }: any) => <div>{children}</div>;
-  return {
-    Box: Container,
-    Stack: Container,
-    Typography: Container,
-    FormControl: Container,
-    InputLabel: Container,
-    Button: ({ children, disabled, onClick }: any) => (
-      <button disabled={disabled} onClick={onClick}>
-        {children}
-      </button>
-    ),
-    TextField: ({ value, onChange, onKeyDown }: any) => (
-      <input aria-label="query" value={value} onChange={onChange} onKeyDown={onKeyDown} />
-    ),
-    Select: ({ label, value, onChange, children }: any) => (
-      <select aria-label={label} value={value} onChange={onChange}>
-        {children}
-      </select>
-    ),
-    MenuItem: ({ value, children }: any) => <option value={value}>{children}</option>,
-  };
-});
 vi.mock('@/components/PageTitleBox', () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock('@/components/button/SubmitButton', () => ({
   default: ({ label, onClick, disabled }: any) => (
@@ -120,8 +74,6 @@ const uploadResult = () =>
 beforeEach(() => {
   vi.clearAllMocks();
   state.option = null;
-  state.gridData = null;
-  state.gridColumns = null;
   state.instantiate.mockResolvedValue(undefined);
   state.close.mockResolvedValue(undefined);
   state.connect.mockResolvedValue({ query: state.query, close: state.close });
@@ -167,7 +119,7 @@ const upload = async (view: ReturnType<typeof render>, name = 'sales.csv') => {
 };
 const query = async (sql: string, output: ReturnType<typeof result>) => {
   state.query.mockResolvedValueOnce(output);
-  fireEvent.change(screen.getByLabelText('query'), { target: { value: sql } });
+  fireEvent.change(screen.getByLabelText('dataset.sqlQuery'), { target: { value: sql } });
   fireEvent.click(screen.getByText('fileAnalysis.run'));
   await waitFor(() => expect(state.query).toHaveBeenCalledWith(sql));
   await waitFor(() => expect((screen.getByText('fileAnalysis.run') as HTMLButtonElement).disabled).toBe(false));
@@ -410,7 +362,7 @@ describe('FileAnalysis settled data and lifecycle regressions', () => {
     expect(state.close).toHaveBeenCalledTimes(1);
     expect(view.container.textContent).toContain('broken.csv');
     expect(screen.queryByTestId('grid')).toBeNull();
-    expect(screen.queryByLabelText('query')).toBeNull();
+    expect(screen.queryByLabelText('dataset.sqlQuery')).toBeNull();
     fireEvent.click(screen.getByText('fileAnalysis.saveDataset'));
     await waitFor(() => expect(state.upload).toHaveBeenCalledWith(brokenFile));
     await waitFor(() => expect((screen.getByText('fileAnalysis.saveDataset') as HTMLButtonElement).disabled).toBe(false));
@@ -446,7 +398,7 @@ describe('FileAnalysis settled data and lifecycle regressions', () => {
     await waitFor(() => expect(state.error).toHaveBeenCalled());
     expect(state.close).toHaveBeenCalledTimes(1);
     expect(state.success).not.toHaveBeenCalled();
-    if (operation === 'file') expect(screen.queryByLabelText('query')).toBeNull();
+    if (operation === 'file') expect(screen.queryByLabelText('dataset.sqlQuery')).toBeNull();
   });
 
   it('isolates a late previous engine from a newly mounted engine and terminates each once', async () => {

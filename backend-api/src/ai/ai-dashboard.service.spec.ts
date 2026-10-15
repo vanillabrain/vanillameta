@@ -431,18 +431,35 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
   it('persists a structured snapshot atomically and clears it when raw SQL replaces the definition', async () => {
     const snapshot = {
       schemaVersion: 1,
+      kind: 'structured-bi',
+      sourceId: 1,
       metricId: 17,
       definitionVersion: 1,
       dataVersion: 'upload-revision',
-      definition: { aggregation: 'SUM', column: 'amount' },
+      definition: {
+        schemaVersion: 1,
+        sourceId: 1,
+        definitionVersion: 1,
+        aggregation: 'SUM',
+        column: 'amount',
+      },
     };
-    const id = (await service.save({ draft: draft() }, 7, snapshot)).data.id;
+    const initial = { ...draft(), widgets: [draft().widgets[0]] };
+    const id = (await service.save({ draft: initial }, 7, snapshot)).data.id;
     expect(
       JSON.parse((await db.manager.findOneBy(Dashboard, { id })).structuredDefinition),
     ).toEqual(snapshot);
-    const revision = (await service.analysis(id, 7, true)).data.revision;
+    const current = (await service.analysis(id, 7, true)).data;
     await service.save(
-      { dashboardId: id, draft: { ...draft(), title: 'Manual SQL' }, expectedRevision: revision },
+      {
+        dashboardId: id,
+        draft: {
+          ...current,
+          title: 'Manual SQL',
+          widgets: [{ ...current.widgets[0], sql: 'SELECT avg(amount) AS value FROM source' }],
+        },
+        expectedRevision: current.revision,
+      },
       7,
     );
     expect((await db.manager.findOneBy(Dashboard, { id })).structuredDefinition).toBeNull();
@@ -559,6 +576,32 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     expect(await Promise.all(entities.map(e => db.manager.count(e)))).toEqual(counts);
     expect((await service.analysis(id, 7, true)).data).toEqual(data);
   });
+  it('rolls back a real mid-transaction DashboardWidget failure and keeps the revision', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    const before = (await service.analysis(id, 7, true)).data;
+    const entities = [Dataset, Widget, Dashboard, DashboardShare, DashboardWidget, UserMapping];
+    const counts = await Promise.all(entities.map(e => db.manager.count(e)));
+    const [link] = await db.query(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND replace(lower(name), '_', '') = 'dashboardwidget'",
+    );
+    // A real SQLite trigger fails the second link insert, in the middle of the
+    // transaction, after the dataset and widget rows were already written.
+    const trigger = [
+      'CREATE TRIGGER uc016_midwrite BEFORE INSERT ON "' + link.name + '"',
+      'WHEN (SELECT COUNT(*) FROM "' + link.name + '" WHERE dashboardId = NEW."dashboardId") >= 1',
+      "BEGIN SELECT RAISE(ABORT, 'uc016-midwrite'); END",
+    ].join(' ');
+    await db.query(trigger);
+    try {
+      await expect(
+        service.save({ dashboardId: id, draft: draft(), expectedRevision: before.revision }, 7),
+      ).rejects.toThrow(/uc016-midwrite/);
+    } finally {
+      await db.query('DROP TRIGGER uc016_midwrite');
+    }
+    expect(await Promise.all(entities.map(e => db.manager.count(e)))).toEqual(counts);
+    expect((await service.analysis(id, 7, true)).data).toEqual(before);
+  });
   it('checks owner before generation, load, preview and save', async () => {
     ai.callLlm.mockClear();
     connection.queryDuckDB.mockClear();
@@ -605,7 +648,13 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     ).toEqual([{ value: 15 }]);
   });
   it('assistant sends re-queried exact filtered KPI/category/trend values to LLM without writes', async () => {
-    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    const current = {
+      ...draft(),
+      widgets: draft().widgets.map((widget, index) =>
+        index === 0 ? { ...widget, prefix: '', suffix: ' USD', numberNotation: 'full' } : widget,
+      ),
+    };
+    const id = (await service.save({ draft: current }, 7)).data.id;
     const entities = [Dataset, Widget, Dashboard, DashboardShare, DashboardWidget, UserMapping];
     const before = await Promise.all(entities.map(entity => db.manager.count(entity)));
     const provider = process.env.AI_PROVIDER;
@@ -616,7 +665,7 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       const response = await service.assistant(
         {
           dashboardId: id,
-          currentDraft: draft(),
+          currentDraft: current,
           prompt: '매출 설명',
           filters: [{ column: 'device_type', values: ['phone'] }],
           dateRange: { column: 'event_time', start: '2026-01-01', end: '2026-01-03' },
@@ -625,7 +674,13 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       );
       expect(response.status).toBe('SUCCESS');
       const sent = JSON.parse(ai.callLlm.mock.calls[0][1]);
-      expect(sent.context.widgets[0].datas).toEqual([{ value: 30 }]);
+      expect(sent.context.widgets[0]).toMatchObject({
+        datas: [{ value: 30 }],
+        prefix: '',
+        suffix: ' USD',
+        decimalPlaces: 2,
+        numberNotation: 'full',
+      });
       expect(sent.context.widgets[1].datas).toEqual([{ device_type: 'phone', value: 30 }]);
       expect(sent.context.widgets[0].trend.points).toEqual([
         { time: '2026-01-01T00:00:00Z', value: 10 },
@@ -637,6 +692,57 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       else process.env.AI_PROVIDER = provider;
     }
   });
+  it.each([
+    ['제목 유지', 'Revenue'],
+    ['제목을 Renamed revenue로 변경', 'Renamed revenue'],
+  ])(
+    'omits repeated UI bucket ranges while preserving scoped title intent: %s',
+    async (prompt, title) => {
+      const id = (await service.save({ draft: draft() }, 7)).data.id;
+      const current = (await service.analysis(id, 7)).data;
+      const context = jest.spyOn(service as any, 'previewContext').mockResolvedValueOnce({
+        widgets: [
+          {
+            index: 0,
+            datas: [{ value: 30 }],
+            trend: {
+              column: 'event_time',
+              grain: 'hour',
+              points: [{ time: '2026-01-01T00:00:00Z', value: 30 }],
+              timeSelection: {
+                ranges: Array.from({ length: 120 }, () => ({ marker: 'UI_RANGE'.repeat(200) })),
+              },
+            },
+          },
+        ],
+      });
+      ai.callLlm.mockClear();
+      ai.callLlm.mockResolvedValueOnce(
+        JSON.stringify({ ...draft(), widgets: [{ ...draft().widgets[0], title }] }),
+      );
+      const result = await service.generate(
+        {
+          dashboardId: id,
+          databaseId: 1,
+          currentDraft: current,
+          selectedWidget: 0,
+          prompt,
+        },
+        7,
+      );
+      expect(result.status).toBe('SUCCESS');
+      if (!('data' in result)) throw new Error('Expected generated draft');
+      expect(result.data.widgets[0].title).toBe(title);
+      expect(result.data.widgets[0].sql).toBe(current.widgets[0].sql);
+      expect(result.data.widgets[1]).toEqual(current.widgets[1]);
+      expect((await service.analysis(id, 7)).data).toEqual(current);
+      const sent = ai.callLlm.mock.calls[0][1];
+      expect(Buffer.byteLength(sent)).toBeLessThan(64 * 1024);
+      expect(sent).not.toContain('UI_RANGE');
+      expect(sent).toContain('2026-01-01T00:00:00Z');
+      context.mockRestore();
+    },
+  );
   it('persists numberNotation in saved definitions and ordinary widget options', async () => {
     const input = draft();
     input.widgets.forEach(widget => Object.assign(widget, { numberNotation: 'compact' }));
@@ -786,44 +892,33 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
   });
   it('UC-003 refreshes only the selected item of a structured dashboard snapshot', async () => {
     const { metric, body } = await metricChangeFixture();
-    const keep = {
-      key: 'second',
-      metricId: metric.id,
-      definitionVersion: 1,
-      definition: JSON.parse(metric.definition),
-      chart: 'bar',
-      dimension: 'device_type',
-    };
-    await db.manager.update(
-      Dashboard,
-      { id: body.dashboardId },
-      {
-        structuredDefinition: JSON.stringify({
-          schemaVersion: 2,
-          kind: 'structured-bi-dashboard',
-          sourceId: 1,
-          items: [
-            {
-              key: 'first',
-              metricId: metric.id,
-              definitionVersion: 1,
-              definition: JSON.parse(metric.definition),
-              chart: 'number',
-            },
-            keep,
-          ],
-        }),
-      },
-    );
-    body.expectedRevision = (await service.analysis(body.dashboardId, 7, true)).data.revision;
+    const definition = JSON.parse(metric.definition);
+    const item = { sourceId: 1, metricId: metric.id, definitionVersion: 1, definition };
+    const saved = await service.save({ draft: draft() }, 7, {
+      schemaVersion: 2,
+      kind: 'structured-bi-dashboard',
+      sourceId: 1,
+      items: [
+        { ...item, chart: 'number' },
+        { ...item, chart: 'bar', dimension: 'device_type' },
+      ],
+    });
+    body.dashboardId = saved.data.id;
+    body.expectedRevision = saved.data.revision;
+    const before = (await service.analysis(body.dashboardId, 7, true)).data;
+    const keep = JSON.parse(
+      (await db.manager.findOneBy(Dashboard, { id: body.dashboardId })).structuredDefinition,
+    ).items[1];
     await service.metricChangeSave(body, 7);
     const snapshot = JSON.parse(
-      (await db.manager.findOne(Dashboard, { where: { id: body.dashboardId } }))
-        .structuredDefinition,
+      (await db.manager.findOneBy(Dashboard, { id: body.dashboardId })).structuredDefinition,
     );
     expect(snapshot.items[0].definitionVersion).toBe(2);
-    expect(snapshot.items[0].key).toBe('first');
+    expect(snapshot.items[0].key).toBe(before.widgets[0].blockId);
     expect(snapshot.items[1]).toEqual(keep);
+    const after = (await service.analysis(body.dashboardId, 7, true)).data;
+    expect(after.widgets[0].sql).toContain('AVG("amount")');
+    expect(after.widgets[1]).toEqual(before.widgets[1]);
   });
   async function batchFixture() {
     const definition = {
@@ -1032,6 +1127,89 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
         (await db.manager.findOne(Dashboard, { where: { id: raw.data.id } })).structuredDefinition,
       ).kind,
     ).toBe('metric-linked-analysis');
+  });
+  it('never drops an indicated Studio scope when persisted JSON is corrupt', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    await db.manager.update(Dashboard, { id }, { structuredDefinition: '{"studioFilters":[' });
+    await expect(service.analysis(id, 7, true)).rejects.toThrow('기간·필터');
+    await db.manager.update(Dashboard, { id }, { structuredDefinition: '{"studioDateRange":' });
+    await expect(service.analysis(id, 7, true)).rejects.toThrow('기간·필터');
+  });
+  it('recovers an ordinary save with malformed prior structured metadata without inventing links', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    await db.manager.update(Dashboard, { id }, { structuredDefinition: '{broken' });
+    const current = (await service.analysis(id, 7, true)).data;
+    await service.save(
+      {
+        dashboardId: id,
+        expectedRevision: current.revision,
+        draft: { ...current, title: 'Recovered' },
+      },
+      7,
+    );
+    const row = await db.manager.findOneBy(Dashboard, { id });
+    expect(row.structuredDefinition).toBeNull();
+    expect(row.title).toBe('Recovered');
+  });
+  it('preserves explicit metric links through title-only saves and block reorder, but detaches changed calculations', async () => {
+    const { metric } = await batchFixture();
+    const definition = JSON.parse(metric.definition);
+    const item = { sourceId: 1, metricId: metric.id, definitionVersion: 1, definition };
+    const created = await service.save({ draft: draft() }, 7, {
+      schemaVersion: 2,
+      kind: 'structured-bi-dashboard',
+      sourceId: 1,
+      items: [
+        { ...item, chart: 'number' },
+        { ...item, chart: 'bar', dimension: 'device_type' },
+      ],
+    });
+    const id = created.data.id;
+    const snapshot = async () =>
+      JSON.parse((await db.manager.findOneBy(Dashboard, { id })).structuredDefinition);
+    const before = (await service.analysis(id, 7, true)).data;
+    const originalLinks = await snapshot();
+    await service.save(
+      {
+        dashboardId: id,
+        expectedRevision: before.revision,
+        draft: {
+          ...before,
+          widgets: before.widgets.map((w, i) => (i === 0 ? { ...w, title: 'Title only' } : w)),
+        },
+      },
+      7,
+    );
+    expect(await snapshot()).toEqual(originalLinks);
+    const renamed = (await service.analysis(id, 7, true)).data;
+    expect(renamed.widgets.map(w => w.blockId)).toEqual(before.widgets.map(w => w.blockId));
+    await service.save(
+      {
+        dashboardId: id,
+        expectedRevision: renamed.revision,
+        draft: { ...renamed, widgets: [...renamed.widgets].reverse() },
+      },
+      7,
+    );
+    expect((await snapshot()).items).toEqual([...originalLinks.items].reverse());
+    const reordered = (await service.analysis(id, 7, true)).data;
+    await service.save(
+      {
+        dashboardId: id,
+        expectedRevision: reordered.revision,
+        draft: {
+          ...reordered,
+          widgets: reordered.widgets.map((w, i) =>
+            i === 0 ? { ...w, sql: w.sql.replace('sum(amount)', 'avg(amount)') } : w,
+          ),
+        },
+      },
+      7,
+    );
+    const detached = await snapshot();
+    expect(detached.items[0].metricId).toBeUndefined();
+    expect(detached.items[1]).toEqual(originalLinks.items[0]);
+    expect((await service.analysis(id, 7, true)).data.widgets[0].sql).toContain('avg(amount)');
   });
   it('UC-006 preserves stable IDs and custom geometry across reorder, SQL edit and DB widget replacement', async () => {
     const id = (await service.save({ draft: draft() }, 7)).data.id;

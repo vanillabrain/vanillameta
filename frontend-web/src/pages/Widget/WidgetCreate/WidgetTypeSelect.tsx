@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Button, Stack } from '@mui/material';
 import { useAlert } from 'react-alert';
 import LargeImgCardList from '@/components/LargeCardList';
 import AiService from '@/api/aiService';
 import { STATUS } from '@/constant';
 import { SnackbarContext } from '@/contexts/AlertContext';
+import { Button } from '@/components/ui/button';
 
 function WidgetTypeSelect(props) {
   const { t } = useTranslation();
@@ -53,29 +53,20 @@ function WidgetTypeSelect(props) {
   };
 
   return (
-    <Box
-      sx={{
-        flex: '1 1 auto',
-        height: '100%',
-        px: '25px',
-        pt: '22px',
-        pb: '50px',
-        backgroundColor: '#f5f6f8',
-      }}
-    >
-      <Stack direction="row" justifyContent="flex-end" sx={{ mb: '12px' }}>
+    <div className="h-full flex-auto bg-muted px-4 py-6 sm:px-6">
+      <div className="mb-4 flex flex-row justify-end">
         <Button
-          variant="outlined"
-          size="small"
+          variant="outline"
+          size="sm"
           onClick={handleRecommendClick}
           disabled={recommending || !componentList.length}
-          sx={{ backgroundColor: '#fff' }}
+          className="bg-background"
         >
           {recommending ? t('widgetCreate.aiRecommending') : t('widgetCreate.aiRecommend')}
         </Button>
-      </Stack>
+      </div>
       <LargeImgCardList data={componentList} selectedType={widgetType} setSelectedType={setWidgetType} />
-    </Box>
+    </div>
   );
 }
 

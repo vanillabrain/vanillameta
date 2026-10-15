@@ -23,6 +23,10 @@ jobs:
       # 네이티브 모듈(odbc, oracledb 등) 빌드를 건너뛰고 설치
       - run: npm ci --legacy-peer-deps --ignore-scripts
 
+      # SQLite 기반 단위 테스트에 필요한 네이티브 바인딩만 설치
+      - name: Prepare SQLite test driver
+        run: npm rebuild sqlite3
+
       - name: Lint
         run: npx eslint src --ext .ts
 

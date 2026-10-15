@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Button, Card, Stack, Typography } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Notice } from '@/components/ui/notice';
 import { get, del } from '@/helpers/apiHelper';
 import PivotTable from '@/pages/Explore/PivotTable';
 import type { PivotRequestPool } from '@/pages/Explore/pivotRequests';
@@ -63,18 +65,16 @@ export default function DashboardPivots({
   if (loading) return null;
   if (error)
     return (
-      <Alert severity="error" sx={{ m: 2 }}>
+      <Notice severity="error" className="m-4">
         {error}
-        <Button onClick={() => setReload(v => v + 1)}>Pivot 다시 불러오기</Button>
-      </Alert>
+        <Button variant="ghost" size="sm" className="ml-2" onClick={() => setReload(v => v + 1)}>
+          Pivot 다시 불러오기
+        </Button>
+      </Notice>
     );
   if (!items.length) return null;
   return (
-    <Box
-      component="section"
-      aria-label="대시보드 Pivot"
-      sx={{ p: { xs: 1.5, md: 2 }, display: 'grid', gap: 2, minWidth: 0 }}
-    >
+    <section aria-label="대시보드 Pivot" className="grid min-w-0 gap-4 p-3 md:p-4">
       {items.map(item => (
         <DashboardPivot
           key={item.id}
@@ -98,34 +98,36 @@ export default function DashboardPivots({
           }}
         />
       ))}
-    </Box>
+    </section>
+  );
+}
+function pivotCardHeader(item: any, removing: boolean, onRemove: () => void) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <h2 className="min-w-0 text-lg font-semibold [overflow-wrap:anywhere]">{item.name}</h2>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="min-h-9 shrink-0"
+        disabled={removing}
+        onClick={onRemove}
+        aria-label={`${item.name} 대시보드에서 제거`}
+      >
+        제거
+      </Button>
+    </div>
   );
 }
 function DashboardPivot(props: any) {
   const { item, onRemove, removing } = props;
   if (!item.error) return <ValidDashboardPivot {...props} />;
   return (
-    <Card variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, minWidth: 0, borderRadius: 2, boxShadow: 'none' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-        <Typography component="h2" sx={{ fontSize: 18, fontWeight: 600, overflowWrap: 'anywhere', minWidth: 0 }}>
-          {item.name}
-        </Typography>
-        <Button
-          size="small"
-          disabled={removing}
-          onClick={onRemove}
-          aria-label={`${item.name} 대시보드에서 제거`}
-          sx={{ flexShrink: 0, minHeight: 36 }}
-        >
-          제거
-        </Button>
-      </Stack>
-      <Alert severity="warning" sx={{ mt: 1 }}>
-        {item.error}
-      </Alert>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+    <Card className="min-w-0">
+      {pivotCardHeader(item, removing, onRemove)}
+      <Notice severity="warning">{item.error}</Notice>
+      <p className="text-sm text-muted-foreground">
         다른 차트와 원본 저장 보기는 유지됩니다. 이 Pivot을 제거하고 탐색 화면에서 갱신한 저장 보기를 다시 추가해 주세요.
-      </Typography>
+      </p>
     </Card>
   );
 }
@@ -134,32 +136,17 @@ function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemo
   const range: ExploreDateRange | undefined = dateRange ?? item.state.dateRange ?? undefined;
   const timeUnsupported = !!range && (!/^\d{4}-\d{2}-\d{2}$/.test(range.start) || !/^\d{4}-\d{2}-\d{2}$/.test(range.end));
   return (
-    <Card variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, minWidth: 0, borderRadius: 2, boxShadow: 'none' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-        <Typography component="h2" sx={{ fontSize: 18, fontWeight: 600, overflowWrap: 'anywhere', minWidth: 0 }}>
-          {item.name}
-        </Typography>
-        <Button
-          size="small"
-          disabled={removing}
-          onClick={onRemove}
-          aria-label={`${item.name} 대시보드에서 제거`}
-          sx={{ flexShrink: 0, minHeight: 36 }}
-        >
-          제거
-        </Button>
-      </Stack>
-      <Typography variant="body2" color="text.secondary">
-        공통 필터·기간 우선 적용 · 없는 조건은 저장한 보기의 기본값 사용
-      </Typography>
-      {filters.length > 5 && <Alert severity="warning">기본·공통 필터가 5개를 초과했습니다. 필터를 줄여 주세요.</Alert>}
+    <Card className="min-w-0">
+      {pivotCardHeader(item, removing, onRemove)}
+      <p className="text-sm text-muted-foreground">공통 필터·기간 우선 적용 · 없는 조건은 저장한 보기의 기본값 사용</p>
+      {filters.length > 5 && <Notice severity="warning">기본·공통 필터가 5개를 초과했습니다. 필터를 줄여 주세요.</Notice>}
       {timeUnsupported && (
-        <Alert severity="warning">Pivot은 날짜 범위를 지원합니다. 공통 기간을 날짜 단위로 선택해 주세요.</Alert>
+        <Notice severity="warning">Pivot은 날짜 범위를 지원합니다. 공통 기간을 날짜 단위로 선택해 주세요.</Notice>
       )}
-      <Typography variant="caption" component="p" sx={{ mt: 0.5, overflowWrap: 'anywhere' }}>
+      <p className="text-xs [overflow-wrap:anywhere]">
         기간 {range ? `${range.start} ~ ${range.end} · ${range.timeZone ?? 'UTC'}` : '전체'} · 필터{' '}
         {filters.map(f => f.column).join(', ') || '없음'}
-      </Typography>
+      </p>
       <PivotTable
         embedded
         requestPool={requestPool}

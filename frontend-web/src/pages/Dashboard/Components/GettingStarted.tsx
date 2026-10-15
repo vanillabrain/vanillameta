@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Box, Button, Card, Stack, Typography } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Notice } from '@/components/ui/notice';
 import { useNavigate } from 'react-router-dom';
 import { post } from '@/helpers/apiHelper';
 
@@ -150,110 +152,103 @@ export default function GettingStarted({ returning = false }: { returning?: bool
     }
   };
   return (
-    <Box component="section" aria-labelledby="getting-started-title" sx={{ mb: 3 }}>
-      <Typography id="getting-started-title" component="h2" variant="h5" fontWeight={700} sx={{ mb: 1 }}>
+    <section aria-labelledby="getting-started-title" className="mb-6">
+      <h2 id="getting-started-title" className="mb-2 text-2xl font-bold">
         {returning ? '새로운 분석을 시작해 볼까요?' : '어떤 데이터를 분석해 볼까요?'}
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 2 }}>
+      </h2>
+      <p className="mb-4 text-sm text-muted-foreground">
         샘플로 살펴보거나 내 데이터를 연결해 보세요. AI 설정 없이도 시작할 수 있습니다.
-      </Typography>
-      <Button variant="contained" onClick={() => navigate('/studio/new')} sx={{ mb: 2, minHeight: 44 }}>
+      </p>
+      <Button className="mb-4 self-start" onClick={() => navigate('/studio/new')}>
         Studio에서 내 데이터로 시작
       </Button>
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-        <Card variant="outlined" sx={{ p: 2.5, flex: 1, minWidth: 0 }}>
-          <Typography component="h3" variant="h6">
-            매출·환불 샘플
-          </Typography>
-          <Typography sx={{ my: 1.5 }}>37개 주문의 결제·환불 추이와 채널별 성과를 둘러보세요.</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Analytics Engineering 합성 데이터 일부 · CC BY 4.0 · USD/UTC. 실제 고객 매출이 아닙니다.
-          </Typography>
-          <Button variant="contained" onClick={openSample} aria-disabled={busy} sx={{ minHeight: 44 }}>
-            {busy ? '샘플 준비 중…' : '샘플 대시보드 보기'}
-          </Button>
-          <Typography role="status" aria-live="polite" variant="body2" sx={{ mt: 1 }}>
-            {busy ? '데이터를 확인하고 저장하고 있습니다. 잠시 기다려 주세요.' : '다시 열면 저장된 샘플을 사용합니다.'}
-          </Typography>
-        </Card>
-        <Card variant="outlined" sx={{ p: 2.5, flex: 1, minWidth: 0 }}>
-          <Typography component="h3" variant="h6">
-            내 파일로 시작
-          </Typography>
-          <Typography sx={{ my: 1.5 }}>매출·환불은 주문·결제·환불 CSV를 준비하세요. 고객 CSV는 선택입니다.</Typography>
-          <Stack spacing={1} alignItems="flex-start">
-            <Button variant="contained" onClick={() => navigate('/explore')} sx={{ minHeight: 44 }}>
-              SQL 없이 차트 만들기
+      <div className="flex flex-col gap-4 md:flex-row">
+        <Card className="min-w-0 flex-1">
+          <CardHeader className="gap-2">
+            <h3 className="text-base leading-snug font-semibold">매출·환불 샘플</h3>
+            <p className="text-sm text-muted-foreground">37개 주문의 결제·환불 추이와 채널별 성과를 둘러보세요.</p>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-xs text-muted-foreground">
+              Analytics Engineering 합성 데이터 일부 · CC BY 4.0 · USD/UTC. 실제 고객 매출이 아닙니다.
+            </p>
+            <Button className="self-start" onClick={openSample} aria-disabled={busy}>
+              {busy ? '샘플 준비 중…' : '샘플 대시보드 보기'}
             </Button>
-            <Button variant="outlined" onClick={() => navigate('/commerce?import=1')} sx={{ minHeight: 44 }}>
+            <p role="status" aria-live="polite" className="text-xs text-muted-foreground">
+              {busy ? '데이터를 확인하고 저장하고 있습니다. 잠시 기다려 주세요.' : '다시 열면 저장된 샘플을 사용합니다.'}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="min-w-0 flex-1">
+          <CardHeader className="gap-2">
+            <h3 className="text-base leading-snug font-semibold">내 파일로 시작</h3>
+            <p className="text-sm text-muted-foreground">
+              매출·환불은 주문·결제·환불 CSV를 준비하세요. 고객 CSV는 선택입니다.
+            </p>
+          </CardHeader>
+          <CardContent className="flex flex-col items-start gap-2">
+            <Button onClick={() => navigate('/explore')}>SQL 없이 차트 만들기</Button>
+            <Button variant="outline" onClick={() => navigate('/commerce?import=1')}>
               매출·환불 파일 연결
             </Button>
-            <Button onClick={() => navigate('/data/file')} sx={{ minHeight: 44 }}>
+            <Button variant="ghost" onClick={() => navigate('/data/file')}>
               일반 CSV·JSON·Parquet 분석
             </Button>
-          </Stack>
+          </CardContent>
         </Card>
-        <Card variant="outlined" sx={{ p: 2.5, flex: 1, minWidth: 0 }}>
-          <Typography component="h3" variant="h6">
-            데이터베이스 연결
-          </Typography>
-          <Typography sx={{ my: 1.5 }}>
-            기존 연결 설정과 연결 테스트를 이용합니다. 종류별로 서버·드라이버 설정이 필요합니다.
-          </Typography>
-          <Button variant="outlined" onClick={() => navigate('/data')} sx={{ minHeight: 44 }}>
-            데이터 연결 관리
-          </Button>
+        <Card className="min-w-0 flex-1">
+          <CardHeader className="gap-2">
+            <h3 className="text-base leading-snug font-semibold">데이터베이스 연결</h3>
+            <p className="text-sm text-muted-foreground">
+              기존 연결 설정과 연결 테스트를 이용합니다. 종류별로 서버·드라이버 설정이 필요합니다.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" onClick={() => navigate('/data')}>
+              데이터 연결 관리
+            </Button>
+          </CardContent>
         </Card>
-      </Stack>
+      </div>
       {error && (
-        <Alert severity="error" sx={{ mt: 2, overflowWrap: 'anywhere' }}>
+        <Notice severity="error" className="mt-4 [overflow-wrap:anywhere]">
           {error}
-          <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
-            <Button onClick={openSample} aria-disabled={busy} sx={{ minHeight: 44 }}>
+          <div className="mt-2 flex flex-row flex-wrap gap-2">
+            <Button variant="ghost" onClick={openSample} aria-disabled={busy}>
               샘플 다시 시도
             </Button>
-            <Button onClick={() => navigate('/commerce?import=1')} sx={{ minHeight: 44 }}>
+            <Button variant="ghost" onClick={() => navigate('/commerce?import=1')}>
               내 파일 연결로 이동
             </Button>
             {diagnostic && (
-              <Button ref={explainButton} onClick={explainError} aria-disabled={helpBusy} sx={{ minHeight: 44 }}>
+              <Button ref={explainButton} variant="ghost" onClick={explainError} aria-disabled={helpBusy}>
                 {helpBusy ? '오류 설명 준비 중…' : 'AI로 오류 설명 보기'}
               </Button>
             )}
             {helpBusy && (
-              <Button onClick={cancelHelp} sx={{ minHeight: 44 }}>
+              <Button variant="ghost" onClick={cancelHelp}>
                 오류 설명 취소
               </Button>
             )}
-          </Stack>
+          </div>
           {helpError && (
-            <Typography role="status" variant="body2" sx={{ mt: 1 }}>
+            <p role="status" className="mt-2 text-sm">
               {helpError}
-            </Typography>
+            </p>
           )}
           {diagnostic && help?.requestId === diagnostic.requestId && (
-            <Box sx={{ mt: 1 }}>
-              <Typography variant="subtitle2" component="p">
-                가능한 원인
-              </Typography>
-              <Typography
-                variant="body2"
-                role="status"
-                aria-live="polite"
-                sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
-              >
+            <div className="mt-2">
+              <p className="text-sm font-medium">가능한 원인</p>
+              <p role="status" aria-live="polite" className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
                 {help.explanation}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                복구 상태: 확인되지 않음 (unverified)
-              </Typography>
-            </Box>
+              </p>
+              <p className="text-xs text-muted-foreground">복구 상태: 확인되지 않음 (unverified)</p>
+            </div>
           )}
-        </Alert>
+        </Notice>
       )}
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-        데이터 연결 → 데이터 확인 → 지표·차트 → 대시보드 저장
-      </Typography>
-    </Box>
+      <p className="mt-4 text-xs text-muted-foreground">데이터 연결 → 데이터 확인 → 지표·차트 → 대시보드 저장</p>
+    </section>
   );
 }

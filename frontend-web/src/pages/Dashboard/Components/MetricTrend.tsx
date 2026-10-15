@@ -1,5 +1,6 @@
 import React, { useId, useState } from 'react';
-import { Box, Button, Typography } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatMetric, metricNumericText, NumberNotation } from '@/utils/formatMetric';
 
 import { MetricTrendData, trendBucketLabel, trendGeometry, trendTimeZone } from './trendGeometry';
@@ -19,6 +20,9 @@ const geometryData = (trend: FormattedMetricTrendData): MetricTrendData => ({
     value: metricNumericText(point.value) !== null && Number.isFinite(Number(point.value)) ? Number(point.value) : null,
   })),
 });
+
+const contributionButtonClassName =
+  'min-h-11 min-w-11 whitespace-normal text-left [overflow-wrap:anywhere] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]';
 
 export default function MetricTrend({
   trend,
@@ -94,19 +98,12 @@ export default function MetricTrend({
   const contributionButton = (time: string) => (
     <Button
       type="button"
-      size="small"
+      variant="ghost"
+      size="sm"
+      className={contributionButtonClassName}
       aria-label={`이 시점의 집계 원본 행 보기: ${title} · ${pointLabel(time)}`}
       aria-disabled={contributionDisabled || undefined}
       aria-describedby={contributionDisabled && contributionReason ? `${id}-contribution-reason` : undefined}
-      sx={{
-        minWidth: 44,
-        minHeight: 44,
-        textTransform: 'none',
-        whiteSpace: 'normal',
-        overflowWrap: 'anywhere',
-        textAlign: 'left',
-        '&:focus-visible': { outline: '2px solid #1d4ed8', outlineOffset: 2 },
-      }}
       onFocus={() => setActiveTime(time)}
       onClick={() => contribute(time)}
     >
@@ -157,8 +154,9 @@ export default function MetricTrend({
     }, undefined);
     return nearest?.time;
   };
+  const mutedNoteClassName = 'text-xs text-[#475569]';
   return (
-    <Box sx={{ px: 2.5, pb: 1, minWidth: 0, '& svg:focus-visible': { outline: '2px solid #1d4ed8', outlineOffset: 2 } }}>
+    <div className="min-w-0 px-2.5 pb-1 [container-type:inline-size]">
       {comparison && (
         <PeriodComparison
           comparison={comparison}
@@ -169,18 +167,17 @@ export default function MetricTrend({
           numberNotation={numberNotation}
         />
       )}
-      {unavailable && (
-        <Typography sx={{ fontSize: 12, color: '#475569' }}>이 지표의 시계열을 표시할 수 없습니다. {unavailable}</Typography>
-      )}
+      {unavailable && <p className={mutedNoteClassName}>이 지표의 시계열을 표시할 수 없습니다. {unavailable}</p>}
       {!numeric.length && !overlay?.previous.dots.length && !contributionInteractive ? (
-        !unavailable && <Typography sx={{ fontSize: 12, color: '#475569' }}>표시할 시계열 데이터가 없습니다.</Typography>
+        !unavailable && <p className={mutedNoteClassName}>표시할 시계열 데이터가 없습니다.</p>
       ) : (
         <>
-          <Box component="figure" sx={{ m: 0 }}>
+          <figure className="m-0">
             <svg
               viewBox="0 0 600 60"
               width="100%"
               height="60"
+              className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]"
               role={navigable ? 'group' : 'img'}
               tabIndex={navigable ? 0 : undefined}
               aria-disabled={
@@ -266,109 +263,98 @@ export default function MetricTrend({
               {(overlay || numeric.length === 1) &&
                 dots.map((dot, index) => <circle key={index} cx={dot.x} cy={dot.y} r="3" fill="#1d4ed8" />)}
             </svg>
-            <Box
-              component="figcaption"
-              sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#475569' }}
-            >
-              <span>{overlay ? day(periods.current.start) : label(points[0].time)}</span>
-              <span>
+            <figcaption className="flex justify-between gap-1 text-[11px] text-[#475569] @max-[360px]:grid @max-[360px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] @max-[360px]:gap-x-1 @max-[360px]:gap-y-px">
+              <span className="whitespace-nowrap @max-[360px]:whitespace-normal @max-[360px]:[overflow-wrap:anywhere]">
+                {overlay ? day(periods.current.start) : label(points[0].time)}
+              </span>
+              <span className="whitespace-nowrap @max-[360px]:col-span-full @max-[360px]:row-start-2 @max-[360px]:text-center @max-[360px]:whitespace-normal @max-[360px]:[overflow-wrap:anywhere]">
                 {grain} · {overlay ? 'UTC' : zone}
               </span>
-              <span>{overlay ? day(periods.current.end) : label(points[points.length - 1].time)}</span>
-            </Box>
-          </Box>
+              <span className="whitespace-nowrap @max-[360px]:text-right @max-[360px]:whitespace-normal @max-[360px]:[overflow-wrap:anywhere]">
+                {overlay ? day(periods.current.end) : label(points[points.length - 1].time)}
+              </span>
+            </figcaption>
+          </figure>
         </>
       )}
       {overlay && (
-        <Typography sx={{ fontSize: 12, color: '#475569', overflowWrap: 'anywhere' }}>
+        <p className="text-xs text-[#475569] [overflow-wrap:anywhere]">
           실선: 현재 기간 · 점선: 이전 기간 ({periods.previous.start} ~ {periods.previous.end}, UTC). 각 기간 시작일부터 같은
           일차를 비교합니다. 정확한 날짜·값과 이전 원본 조회는 아래 개별 표에서 확인하세요.
-        </Typography>
+        </p>
       )}
       {previousTrend && periods && !overlay && (
-        <Typography sx={{ fontSize: 12, color: '#475569' }}>
+        <p className={mutedNoteClassName}>
           겹쳐 보기는 같은 길이의 UTC 일별 기간에서 지원합니다. 이전 기간은 개별 추세와 표에서 확인하세요.
-        </Typography>
+        </p>
       )}
-      {trend?.timeSelectionUnavailable && (
-        <Typography sx={{ fontSize: 12, color: '#475569' }}>{trend.timeSelectionUnavailable}</Typography>
-      )}
+      {trend?.timeSelectionUnavailable && <p className={mutedNoteClassName}>{trend.timeSelectionUnavailable}</p>}
       {interactive && (
-        <Typography
-          id={`${id}-selection`}
-          aria-live="polite"
-          sx={{ fontSize: 12, color: 'text.secondary', overflowWrap: 'anywhere' }}
-        >
+        <p id={`${id}-selection`} aria-live="polite" className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
           시점을 눌러 기간 필터링 · ← → 이동, Enter/Space 선택. {activeRange && timeRangeLabel(activeRange)}
-        </Typography>
+        </p>
       )}
       {contributionInteractive && active && (
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, minWidth: 0 }}>
-          <Typography
-            id={`${id}-contribution`}
-            aria-live="polite"
-            sx={{ fontSize: 12, overflowWrap: 'anywhere', minWidth: 0 }}
-          >
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          <p id={`${id}-contribution`} aria-live="polite" className="min-w-0 text-xs [overflow-wrap:anywhere]">
             집계 원본 시점: {pointLabel(active.time)} ·{' '}
             <span title={format(active.value).exactText} aria-label={format(active.value).exactText}>
               {format(active.value).text}
             </span>
             . ← → / Home / End 이동
-          </Typography>
+          </p>
           {contributionButton(active.time)}
-        </Box>
+        </div>
       )}
       {onContributionSelect && contributionReason && (!contributionInteractive || contributionDisabled) && (
-        <Typography
-          id={`${id}-contribution-reason`}
-          sx={{ fontSize: 12, color: 'text.secondary', overflowWrap: 'anywhere' }}
-        >
+        <p id={`${id}-contribution-reason`} className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
           {contributionReason}
-        </Typography>
+        </p>
       )}
-      <Box
-        component="details"
-        sx={{ mt: 0.5, fontSize: 12, color: '#1d4ed8', '& summary': { cursor: 'pointer', width: 'fit-content' } }}
-      >
-        <summary aria-label={`${title} 시계열 데이터 표`}>시계열 데이터 표</summary>
-        <Box
+      <details className="mt-0.5 text-xs text-[#1d4ed8]">
+        <summary className="w-fit cursor-pointer" aria-label={`${title} 시계열 데이터 표`}>
+          시계열 데이터 표
+        </summary>
+        <div
           role="region"
           aria-label={`${title} 날짜별 값`}
           tabIndex={0}
-          sx={{
-            maxHeight: 160,
-            overflow: 'auto',
-            mt: 1,
-            color: '#14243c',
-            '& table': { width: '100%', borderCollapse: 'collapse' },
-            '& th, & td': { textAlign: 'left', py: 0.5 },
-          }}
+          className="mt-1 max-h-[160px] overflow-auto text-[#14243c]"
         >
-          <table>
-            <caption>
+          <Table className="w-full border-collapse">
+            <TableCaption className="caption-top text-left">
               {title} · {grain} · {zone}
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">날짜</th>
-                <th scope="col">값</th>
-                {contributionInteractive && <th scope="col">집계 원본 행</th>}
-              </tr>
-            </thead>
-            <tbody>
+            </TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col" className="h-auto py-0.5 text-left">
+                  날짜
+                </TableHead>
+                <TableHead scope="col" className="h-auto py-0.5 text-left">
+                  값
+                </TableHead>
+                {contributionInteractive && (
+                  <TableHead scope="col" className="h-auto py-0.5 text-left">
+                    집계 원본 행
+                  </TableHead>
+                )}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {points.map(point => {
                 const range = rangeFor(point.time);
                 return (
-                  <tr key={point.time}>
-                    <th scope="row">
+                  <TableRow key={point.time}>
+                    <TableHead scope="row" className="h-auto py-0.5 text-left">
                       {onTimeSelect && range ? (
                         <Button
                           type="button"
-                          size="small"
+                          variant="ghost"
+                          size="sm"
+                          className="min-h-11 min-w-11 text-left whitespace-normal"
                           aria-label={`기간 선택: ${timeRangeLabel(range)}`}
                           aria-pressed={sameTimeRange(selectedTimeRange, range)}
                           aria-disabled={timeSelectionDisabled || undefined}
-                          sx={{ minWidth: 44, minHeight: 44, textTransform: 'none', textAlign: 'left' }}
                           onClick={() => select(point.time)}
                         >
                           {label(point.time)}
@@ -376,18 +362,24 @@ export default function MetricTrend({
                       ) : (
                         label(point.time)
                       )}
-                    </th>
-                    <td title={format(point.value).exactText} aria-label={format(point.value).exactText}>
+                    </TableHead>
+                    <TableCell
+                      className="py-0.5 text-left"
+                      title={format(point.value).exactText}
+                      aria-label={format(point.value).exactText}
+                    >
                       {format(point.value).fullText}
-                    </td>
-                    {contributionInteractive && <td>{contributionButton(point.time)}</td>}
-                  </tr>
+                    </TableCell>
+                    {contributionInteractive && (
+                      <TableCell className="py-0.5 text-left">{contributionButton(point.time)}</TableCell>
+                    )}
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </Box>
-      </Box>
-    </Box>
+            </TableBody>
+          </Table>
+        </div>
+      </details>
+    </div>
   );
 }

@@ -1,33 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Box,
-  Chip,
-  FormControl,
-  FormLabel,
-  IconButton,
-  MenuItem,
-  Select,
-  SelectChangeEvent,
-  Stack,
-  Theme,
-  useTheme,
-  Popover,
-} from '@mui/material';
-import { SketchPicker, SwatchesPicker } from 'react-color';
-import PaletteIcon from '@mui/icons-material/Palette';
-
-interface SelectChipForm {
-  label: string;
-  color: string;
-  props: object;
-}
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import ColorPickerForm from './ColorPickerForm';
 
 function SelectChipForm(props) {
   const { t } = useTranslation();
-  const { label, color, option, ...rest } = props;
-  const [chipColor, setChipColor] = useState('');
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const { label, color, option = [], value, onChange, name, disabled, className } = props;
+  const [chipColor, setChipColor] = useState('#eee');
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (color) {
@@ -35,76 +20,71 @@ function SelectChipForm(props) {
     }
   }, [color]);
 
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
+  const selected = Array.isArray(value) ? value : [];
 
-  const handleClose = () => {
-    setAnchorEl(null);
+  const handleToggle = itemValue => {
+    const next = selected.includes(itemValue) ? selected.filter(entry => entry !== itemValue) : selected.concat([itemValue]);
+    if (onChange) {
+      onChange({ target: { name, value: next } });
+    }
   };
-
-  const handleCompleteChange = color => {
-    setChipColor(color.hex);
-    setAnchorEl(null);
-  };
-
-  const open = Boolean(anchorEl);
-  const popoverId = open ? t('common.colorPickerPopup') : undefined;
 
   return (
-    <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      {label && (
-        <FormLabel htmlFor="userInputSelect" sx={{ width: '40%' }}>
-          {label}
-        </FormLabel>
-      )}
-      <Stack flexDirection="row" justifyContent="space-between" sx={{ width: '60%' }}>
-        <Select
-          multiple
-          size="small"
-          // sx={{ width: '60%', }}
-          sx={{ height: 'auto', width: color ? 'calc(100% - 38px)' : '100%' }}
-          renderValue={(selected: any) => (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-              {selected.map(item => (
-                <Chip key={item} label={item} size="small" sx={{ px: 0.5, bgcolor: chipColor ? chipColor : '#eee' }} />
-              ))}
-            </Box>
-            // <Chip
-            //   label={option.map(item => item.value === selected && item.label)}
-            //   size="small"
-            //   sx={{ px: 0.5, bgcolor: chipColor ? chipColor : '#eee' }}
-            // />
-          )}
-          {...rest}
-        >
-          {option.map(item => (
-            <MenuItem key={item.value} value={item.value}>
-              {item.label}
-            </MenuItem>
-          ))}
-        </Select>
-        {color && (
-          <React.Fragment>
-            <IconButton aria-label={t('common.colorPicker')} onClick={handleClick}>
-              <PaletteIcon />
-            </IconButton>
-            <Popover
-              id={popoverId}
-              open={open}
-              anchorEl={anchorEl}
-              onClose={handleClose}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'left',
-              }}
+    <div className={cn('flex w-full flex-row items-center justify-between gap-2', className)}>
+      {label && <span className="w-[40%] truncate text-sm font-medium">{label}</span>}
+      <div className={cn('flex min-w-0 items-center gap-2', label ? 'w-[60%]' : 'w-full')}>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              aria-label={label}
+              aria-haspopup="listbox"
+              disabled={disabled}
+              className="h-8 min-w-0 flex-1 justify-start overflow-hidden bg-background px-2 font-normal"
             >
-              <SketchPicker color={chipColor} onChangeComplete={handleCompleteChange} />
-            </Popover>
-          </React.Fragment>
+              <span className="flex min-w-0 flex-1 flex-wrap gap-1">
+                {selected.map(entry => (
+                  <Badge
+                    key={String(entry)}
+                    variant="secondary"
+                    className="max-w-full truncate"
+                    style={{ backgroundColor: chipColor }}
+                  >
+                    {entry}
+                  </Badge>
+                ))}
+              </span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[240px] gap-1 p-2">
+            {option.map(item => {
+              const itemId = (name ? name : 'select-chip') + '-' + String(item.value);
+              return (
+                <div key={String(item.value)} className="flex items-center gap-2 py-1">
+                  <Checkbox
+                    id={itemId}
+                    checked={selected.includes(item.value)}
+                    onCheckedChange={() => handleToggle(item.value)}
+                    disabled={disabled}
+                  />
+                  <Label htmlFor={itemId} className="cursor-pointer font-normal">
+                    {item.label}
+                  </Label>
+                </div>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
+        {color && (
+          <ColorPickerForm
+            label={t('common.colorPicker')}
+            color={chipColor}
+            onChange={event => setChipColor(event.target.value)}
+          />
         )}
-      </Stack>
-    </FormControl>
+      </div>
+    </div>
   );
 }
 

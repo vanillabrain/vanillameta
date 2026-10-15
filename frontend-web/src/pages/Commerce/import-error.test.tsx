@@ -22,10 +22,6 @@ vi.mock('@/helpers/apiHelper', () => ({
   postForm: mocks.postForm,
   put: mocks.put,
 }));
-vi.mock('@mui/material/styles', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material/styles');
-});
 vi.mock('@/pages/Dashboard/Components/AiDashboardPanel', () => ({
   default: ({ open, onClose }: any) =>
     open ? (
@@ -35,15 +31,8 @@ vi.mock('@/pages/Dashboard/Components/AiDashboardPanel', () => ({
     ) : null,
 }));
 vi.mock('echarts-for-react', () => ({ default: () => null }));
-vi.mock('@mui/icons-material/UploadFileOutlined', () => ({ default: () => null }));
-vi.mock('@mui/icons-material/AutoAwesomeOutlined', () => ({ default: () => null }));
 vi.mock('@/components/PageTitleBox', () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock('@/seo/Seo', () => ({ default: () => null }));
-vi.mock('@mui/material', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material');
-});
-
 const REQUEST_ID = '3f1a2b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
 const diagnostic = {
   requestId: REQUEST_ID,
@@ -263,4 +252,87 @@ it('offers analysis creation separately from commerce presentation editing', asy
   expect(mocks.post).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: '분석 닫기' }));
   expect(screen.queryByRole('dialog', { name: 'AI 분석 만들기' })).toBeNull();
+});
+
+it('shows initial report loading and retries a failed first query without requiring existing results', async () => {
+  mocks.params = { projectId: '7' };
+  let rejectFirst: (error: unknown) => void = () => undefined;
+  let resolveRetry: (value: unknown) => void = () => undefined;
+  let reportRequests = 0;
+  mocks.get.mockImplementation((url: string) => {
+    if (url !== '/commerce/7/report') return projectAndReport(url);
+    reportRequests += 1;
+    return new Promise((resolve, reject) => {
+      if (reportRequests === 1) rejectFirst = reject;
+      else resolveRetry = resolve;
+    });
+  });
+  render(<Commerce />);
+  expect(await screen.findByText('리포트를 불러오는 중…')).toBeTruthy();
+  expect(screen.queryByText('결제 성공액')).toBeNull();
+  await act(async () => rejectFirst({ response: { status: 503, data: { message: '조회 서버 오류' } } }));
+  expect(await screen.findByText('조회 서버 오류')).toBeTruthy();
+  expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '리포트 다시 불러오기' }));
+  expect(reportRequests).toBe(2);
+  expect(screen.getByText('리포트를 불러오는 중…')).toBeTruthy();
+  expect(screen.queryByText('조회 서버 오류')).toBeNull();
+  await act(async () => resolveRetry({ data: { status: 'SUCCESS', data: reportPayload } }));
+  expect(await screen.findByText('결제 성공액')).toBeTruthy();
+  expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
+  expect(screen.queryByRole('button', { name: '리포트 다시 불러오기' })).toBeNull();
+});
+
+it('keeps existing results after a report failure and retries the selected channel', async () => {
+  mocks.params = { projectId: '7' };
+  let reportRequests = 0;
+  mocks.get.mockImplementation((url: string) => {
+    if (url === '/commerce/7/report') reportRequests += 1;
+    if (url === '/commerce/7/report' && reportRequests === 2) {
+      return Promise.reject({ response: { status: 503, data: { message: '재조회 서버 오류' } } });
+    }
+    return projectAndReport(url);
+  });
+  render(<Commerce />);
+  await screen.findByText('결제 성공액');
+  fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'direct' } });
+  fireEvent.click(screen.getByRole('button', { name: '적용' }));
+  await screen.findByText(/재조회 서버 오류.*이전 결과/);
+  expect(screen.getByText('o1')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: '리포트 다시 불러오기' }));
+  await waitFor(() => expect(screen.queryByText(/재조회 서버 오류/)).toBeNull());
+  expect(mocks.get).toHaveBeenLastCalledWith('/commerce/7/report', { channel: 'direct' });
+  expect(screen.getByText('o1')).toBeTruthy();
+});
+
+it('clears report errors and ignores late report failures when leaving the project route', async () => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation(url =>
+    url === '/commerce/7/report'
+      ? Promise.reject({ response: { status: 503, data: { message: '지난 프로젝트 오류' } } })
+      : projectAndReport(url),
+  );
+  const view = render(<Commerce />);
+  await screen.findByText('지난 프로젝트 오류');
+  mocks.params = {};
+  view.rerender(<Commerce />);
+  await waitFor(() => expect(screen.queryByText('지난 프로젝트 오류')).toBeNull());
+  expect(screen.queryByRole('button', { name: '리포트 다시 불러오기' })).toBeNull();
+
+  let rejectLate: (error: unknown) => void = () => undefined;
+  mocks.get.mockImplementation(url =>
+    url === '/commerce/7/report'
+      ? new Promise((_resolve, reject) => {
+          rejectLate = reject;
+        })
+      : projectAndReport(url),
+  );
+  mocks.params = { projectId: '7' };
+  view.rerender(<Commerce />);
+  await screen.findByText('리포트를 불러오는 중…');
+  mocks.params = {};
+  view.rerender(<Commerce />);
+  await act(async () => rejectLate({ response: { status: 503, data: { message: '늦은 프로젝트 오류' } } }));
+  expect(screen.queryByText('늦은 프로젝트 오류')).toBeNull();
+  expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
 });

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useContext, useEffect } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getToken, removeToken } from '@/helpers/authHelper';
 import { useAlert } from 'react-alert';
 
@@ -11,6 +11,10 @@ export const ProtectedRoute = ({ children }) => {
   const { getUserState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  const loginPath = location.pathname.startsWith('/reuse/')
+    ? `/login?returnTo=${encodeURIComponent(location.pathname)}`
+    : '/login';
   const alert = useAlert();
   const token = getToken();
 
@@ -25,7 +29,7 @@ export const ProtectedRoute = ({ children }) => {
             alert.error(t('profile.expired'), {
               onClose: () => {
                 removeToken();
-                navigate('/login', { replace: true });
+                navigate(loginPath, { replace: true });
               },
             });
           } else {
@@ -36,7 +40,7 @@ export const ProtectedRoute = ({ children }) => {
           hideLoading();
         });
     } else {
-      navigate('/login', { replace: true });
+      navigate(loginPath, { replace: true });
     }
   }, [token]);
 

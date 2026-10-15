@@ -16,17 +16,17 @@
 
 | FR-007 | Prompt lifecycle | As a 운영 담당자, I want 한 대화에서 대시보드 생성·수정·저장·게시하기 so that 제작 업무를 하나의 흐름으로 끝낸다. | High | Open |
 | FR-008 | Semantic creation | As a 운영 담당자, I want 소스에서 지표·차원을 제안받아 만들고 재사용하기 so that SQL 없이 계산 기준을 유지한다. | High | Open |
-| FR-009 | Block editing | As a 운영 담당자, I want 블록 추가·삭제·복제·이동·크기 조절과 AI 수정을 함께 사용하기 so that 원하는 구성을 직접 만든다. | High | In Progress |
+| FR-009 | Block editing | As a 운영 담당자, I want 블록 추가·삭제·복제·이동·크기 조절과 AI 수정을 함께 사용하기 so that 원하는 구성을 직접 만든다. UC-016은 명시한 여러 블록을 전체 미리보기 후 원자 저장하고 부분 실패 때 전체 무변경으로 복구한다. UC-017은 저장 충돌·결과 불명확·AI 취소 후 초안을 보존하고 상태 확인 후 재시도한다. | High | In Progress |
 | FR-010 | Responsive editing | As a 운영 담당자, I want 모바일과 데스크톱에서 같은 결과물을 편집하기 so that 기기 전환 후 작업을 이어간다. | High | Open |
-| FR-011 | Publish versions | As a 운영 담당자, I want 저장과 게시를 구별하고 링크 공유·재게시·공유 중지를 실행하기 so that 의도한 버전과 범위만 전달한다. | High | Open |
+| FR-011 | Publish versions | As a 운영 담당자, I want 저장과 게시를 구별하고 링크 공유·재게시·공유 중지를 실행하기 so that 의도한 버전과 범위만 전달한다. UC-018은 전체 기간 고정 집계의 명시 링크 게시·재게시·중지와 저장 분리를 다룬다. | High | In Progress |
 | FR-012 | Remix with source mapping | As a 공유 수신자, I want 허용된 대시보드를 복제하고 내 데이터로 재사용하기 so that 원본을 바꾸지 않고 새 분석을 만든다. | High | Open |
 
 ## Non-Functional Requirements
 
-| ID      | Title               | Requirement                                                                                                                                               | Category    | Priority | Status   |
-| ------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------- | -------- |
-| NFR-001 | Layout              | 390px·1440px 폭에서 변경 패널 가로 넘침 0px, 일반 버튼28px·선택 입력32px·글꼴12px를 공통 UI Kit로 적용한다. 긴 문구·여러 줄 입력은 높이가 늘어날 수 있다. | Usability   | High     | Verified |
-| NFR-002 | Numeric consistency | 동일 조건의 KPI 값과 시계열 버킷은 서버 결과를 사용하며 표시 정밀도를 유지하고 부동소수점 집계의 상대 허용 오차1e-9 안에서 일치한다.                      | Reliability | High     | Verified |
+| ID      | Title               | Requirement                                                                                                                                                                                                                                                                                                                           | Category    | Priority | Status      |
+| ------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------- | ----------- |
+| NFR-001 | Layout              | 390px·1440px 폭에서 변경 패널 가로 넘침 0px. UI-001 전환 후 [공통 UI Kit](design/analysis-ui-kit.md)의 일반 버튼36px·도구줄 sm32px·입력36px·본문14px를 기준으로 역할별 variant/size를 적용한다. 긴 문구·여러 줄 입력은 높이가 늘어날 수 있다. 실제 검증 화면·상태만 증빙하며 이전 MUI 치수의 Verified를 새 UI 전체에 승계하지 않는다. | Usability   | High     | In Progress |
+| NFR-002 | Numeric consistency | 동일 조건의 KPI 값과 시계열 버킷은 서버 결과를 사용하며 표시 정밀도를 유지하고 부동소수점 집계의 상대 허용 오차1e-9 안에서 일치한다.                                                                                                                                                                                                  | Reliability | High     | Verified    |
 
 | NFR-003 | Cross viewport state |390/768/1440px 편집·조회에서 가로 넘침0px, 선택·미저장 정의·undo 상태 보존, 비대상 블록 ID/배치 동일을 TC-005로 확인한다. | Usability | High | Open |
 | NFR-004 | Operation integrity | 재시도 시 중복 저장·게시·복제0개, revision 충돌 시 비의도 변경0개, 게시 실패 시 성공한 초안 저장 보존을 TC-005로 확인한다. | Reliability | High | In Progress |

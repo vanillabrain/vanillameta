@@ -11,44 +11,6 @@ vi.mock('react-router-dom', () => ({
   useSearchParams: () => [new URLSearchParams('sourceId=1')],
 }));
 vi.mock('@/widget/modules/board/NumericBoard', () => ({ default: () => <div>숫자 미리보기</div> }));
-// Match Explore's existing tests: keep native controls while avoiding Emotion's Vitest interop error.
-vi.mock('@mui/material', () => {
-  const Container = ({ children }: any) => <div>{children}</div>;
-  return {
-    Box: ({ component: Tag = 'div', children, role, tabIndex, 'aria-label': label }: any) => (
-      <Tag role={role} tabIndex={tabIndex} aria-label={label}>
-        {children}
-      </Tag>
-    ),
-    Stack: Container,
-    Card: Container,
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    Typography: ({ component: Tag = 'p', children, role, 'aria-live': live }: any) => (
-      <Tag role={role} aria-live={live}>
-        {children}
-      </Tag>
-    ),
-    Button: ({ children, disabled, onClick, 'aria-label': label }: any) => (
-      <button disabled={disabled} onClick={onClick} aria-label={label}>
-        {children}
-      </button>
-    ),
-    TextField: ({ label, select, value, onChange, disabled, children }: any) => (
-      <label>
-        {label}
-        {select ? (
-          <select value={value} onChange={onChange} disabled={disabled}>
-            {children}
-          </select>
-        ) : (
-          <input value={value} onChange={onChange} disabled={disabled} />
-        )}
-      </label>
-    ),
-    useTheme: () => ({ palette: { primary: { main: '#000' }, text: { secondary: '#333' } } }),
-  };
-});
-
 const revision = 'opaque/revision:+==';
 const version = (id: string, current = false) => ({
   id,

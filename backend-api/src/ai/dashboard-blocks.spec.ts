@@ -47,3 +47,27 @@ it('UC-006 reorders by identity, preserves geometry and appends a new block belo
   expect(geometry[0]).toEqual({ i: '21', x: 0, y: 4, w: 6, h: 2 });
   expect(geometry[1]).toEqual({ x: 0, y: 12, w: 6, h: 2 });
 });
+
+it('UC-007 retains unchanged legacy sizes while applying an explicit resize only to its target', () => {
+  const old = legacyBlockIds(raw(), 8);
+  const next = {
+    ...old,
+    layoutSizes: [
+      { width: 6 as const, height: 3 as const },
+      { width: 12 as const, height: 5 as const },
+    ],
+  };
+  const saved = [
+    { i: '20', x: 4, y: 9, w: 4, h: 2 },
+    { i: '21', x: 0, y: 4, w: 6, h: 2 },
+  ];
+  const geometry = blockGeometry(
+    old,
+    next,
+    saved,
+    [{ widgetId: 20 }, { widgetId: 21 }],
+    [old.widgets[0].blockId],
+  );
+  expect(geometry[0]).toEqual(saved[0]);
+  expect(geometry[1]).toMatchObject({ w: 12, h: 5 });
+});

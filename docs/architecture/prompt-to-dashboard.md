@@ -85,3 +85,51 @@ snapshot 기본 게시와 모바일 이동 버튼은 이 문서의 구현 제안
 blockId를 기존 JSON에 추가하고 레거시 조회는 결정적 ID를 반환한다. 다음 명시 저장에서 기록하며 DB 위젯을 다시 만들어도 ID를 유지한다. 서버는 저장 layout/mapping을 blockId에 연결해 읽기 전용 blockLayouts를 반환하고 조회 Card는 이 geometry를 표시한다. 직접 grid 저장은 분석 위젯 순서를 유지한다. 선택 AI 수정은 대상 하나만 서버에서 합치며 비대상 widgets/제목과 geometry를 보존한다. 기존 SQL compiler/필터 API는 유지한다.
 
 구현 상세와 증빙은 [UC-006](../use_cases/UC-006-preserve-block-layout.md) 및 [검증 기록](../testing/block-layout-continuity.md). 기존1~6차트/숫자·차트 유형 한도는 유지하며 모든 Block kind/통합 undo/mobile editor 완료는 아니다. 일반 AI 저장의 structured metric snapshot 정리는 기존 경로가 유지되며 모든 지표 링크 보존/신규 정의 기록은 P2의 별도 구현 계약이 남았다.
+
+## P1 공통 초안 반영 — UC-007/008
+
+차트·배치 편집기의 복제·로컬 undo/redo에 이어 선택 AI 수정도 같은 items/제목/revision/이력에 적용한다. 미저장 추가/복제·순서·크기를 compiler로 검증해 AI currentDraft로 전달하고 선택 key의 결과만 다시 compiler/preview로 반영한다. 저장은 명시 동작이다. AI 변경은 분석 snapshot이며 중앙 지표 수정/일괄 반영을 대신하지 않는다. 기존 source SQL guard와 소유권·identity·버전 경계를 유지한다.
+
+[UC-008 실행](../testing/working-draft-ai.md)은 단위/실LLM/API PASS이며 실제 UI BLOCKED다. 공통 편집 초안에 연결했으나 자유 드래그·breakpoint 배치·프롬프트 이동과 전체 작업 실행기의 계약까지 완성한 것은 아니다.
+
+## P1 화면 폭별 좌표 — UC-009
+
+기존 분석 JSON에 responsiveLayouts를 blockId별로 추가한다. 모바일4/태블릿8/데스크톱12열 좌표를 editor compiler의 명시 배치 입력에서 검증하고 저장 transaction에서 새 서버 ID에 연결한다. desktop은 canonical dashboard.layout과 일치하며 모바일/태블릿은 별도 보관한다. 기존 분석 조회는 읽기 배치를 도출하고 명시 저장에서만 기록한다. 일반 AI 내용 수정은 이전 배치를 유지한다. 소유 분석의 읽기 CSS grid와 편집기 좌표/undo에 연결했으나 pointer drag/자연어 위치 변경·공유 수신 화면까지 완료한 것은 아니다. [실행 기록](../testing/responsive-block-layout.md).
+
+## P1 AI 배치 요청 — UC-011
+
+`editor/ai`의 `editMode=layout`은 선택 화면 폭의 선택 블록만 대상으로 한다. 서버가 compile한 좌표를 기존 LLM 제공자에 전달하고 x/y/w/h 외 필드는 거절한다. 내용 AI 수정은 기존 경로를 유지한다. 기존 명시 모드 계약이며, UC-013 후속에서 기본auto 분류가 추가됐다.
+
+제안 후 소유권·버전과 전체 배치를 다시 compile하여 겹침을 거절한다. 선택 item의 layouts만 반환·합치므로 SQL·차트 종류·비대상·다른 폭은 유지된다. 성공 미리보기는 기존 초안 이력과 저장 경로를 사용하며 자동 저장하지 않는다. 신규 엔티티·DB 컬럼·외부 엔진 계약은 없다. 자연어 다중 블록 재배치는 별도 후속이다.
+
+## P2 상세 설계 — UC-012 (Draft)
+
+[지표·차원 생성/재사용 설계](semantic-creation.md)는 질문에서 구조화 제안을 만들고 기존 compiler·preview·shared EntityManager 저장 경계를 재사용한다. 원본 열 차원은 안정적 논리 ID snapshot으로 시작하고, 새 지표·분석의 저장 원자성과 actor/requestId 재시도 키는 생성 영수증의 DB unique 제약으로 보장할 계획이다. 현재 구현/API/DB 변경은 아니며 P1 잔여 gate와 P2 Open을 유지한다.
+
+### UC-013 자동 질문 판별 후속
+
+[자동 목적 설계](auto-block-intent.md)와 [실행 증거](../testing/auto-block-intent.md)에 따라 기본auto content/layout/clarify를 추가했다. 기존 compileEditor가 권한·revision·대상을 먼저 검증한다. 분류는 질문만, 배치 생성은 selectedRect/occupiedRects만 사용한다. 저장 모델·엔티티·게시 책임은 불변이다. 자동 저장과 다중블록은 남아 있다.
+
+### UC-014 명시 저장 실행 후속
+
+[저장 질문 설계](prompt-save.md)와 [검증](../testing/prompt-save.md): editor/ai는 엄격 계획과 쓰기 없는 미리보기를 반환한다. FE는 명시된 저장만 검증한 새 items로 기존 저장 API에 연결한다. 저장만 요청할 때 선택은 필요 없고 수정은 기존 선택 블록으로 한정한다. 원자 저장·revision 책임, 게시/소스/지표 모델은 불변이다. 자연어 대상 식별·다중블록·게시 실행은 남는다.
+
+### UC-015 질문 대상 식별 후속
+
+[대상 설계](prompt-target.md)와 [검증](../testing/prompt-target.md): 검증된 현재 items의 순서/정확 제목을 pure resolver로 stable key에 연결한다. 모호 후보는 생성/저장 전에 반환하고 질문 범위 확인만 허용한다. 대상은 LLM이 key를 생성하지 않는다. 기존 컴파일·선택 폭 geometry·frozen result 저장/버전 경계는 유지한다. 다중블록·게시/소스/지표 모델은 변경하지 않는다.
+
+## P3/P4 질문 연결 — UC-019
+
+[질문 저장→게시 준비 설계](../architecture/prompt-publication.md)와 [실행 증거](../testing/prompt-publication.md)에 따라 명시 저장+게시 질문을 같은 저장 revision의 게시 미리보기로 연결한다. 링크 공개는 별도 버튼으로 실행한다. 실제 Ego 질문·저장·미리보기·링크 게시·새로고침, 게시 부정 질문의 저장만 실행, 버전 불일치 차단과 폭별 UI를 확인했다. 임시 분석 12는 원복하고 게시를 중지했다. 계정 수신자·생성 화면 질문·전체 P3/P4/TC005 수용은 Open이다. 다음 범위는 P4/P5 복제·소스 교체·재사용의 부족점 확인이다.
+
+## P5 소유 대시보드 재사용 — UC-020
+
+[설계](../architecture/dashboard-reuse.md)·[실행 증거](../testing/dashboard-reuse.md): 소유 저장본의 복제→다른 DuckDB 파일 소스/열 연결→전체 미리보기→원자 저장→새로고침을 구현했다. 원본·지표·게시 상태를 유지하고 새 대시보드/블록 ID·비공개 복사본을 생성한다. Ego 분석12→23, 새 소스 oracle·동일 요청 재확인·390/768/1440 크기/정렬을 검증했다. 공유 수신자 remix·질문 복제·운영 DB·실휴대폰·전체 P5/TC005는 Open이다. 다음은 공유/게시본을 통한 재사용 범위와 권한 경계를 좁게 설계하는 작업이다.
+
+## P5 공유·게시 재사용 — UC-021
+
+[설계](../architecture/shared-dashboard-reuse.md)·[검증](../testing/shared-dashboard-reuse.md): 소유자 opt-in과 로그인 수신자의 내 소스 연결/전체 미리보기/원자 저장을 추가했다. 공유 현재본·게시 고정본, 원본 권한 비복사·링크 중지/버전 guard·동일 요청 영수증을 확인했다. Ego 두 계정 복사본25/26→reload와390/768/1440을 검증하고 임시 링크를 중지했다. 운영/실기기·질문 remix·전체P5/TC005는 Open이다. 다음은 복사본 AI 편집→게시를 포함한 전체 제품 여정의 부족점을 점검한다.
+
+## P3/P4/P5 복사본 AI 편집·재게시 — UC-022
+
+[설계](copy-ai-publication.md)·[검증](../testing/copy-ai-publication.md): 수신자 복사본26/source27의 저장 지표 링크 없는 계산을 실제 AI 질문으로2배 수정하고 전체 미리보기→명시 저장/게시 준비→버전1→제목 AI 변경/저장→같은 링크 버전2 재게시→소유/익명 새로고침을 확인했다. 원본23·다른 복사본25·비대상/ID/폭별 배치는 유지됐고 임시 링크는 중지했다. 신규 제품 코드 없이 통합 회귀를 추가했다. 실제 타 계정 GET403/익명401·서버 변경 거절 회귀와 UI 대표 폭을 확인했으며, 타 계정 변경 POST 실제 실행은 자동 승인 검토 거절로 NOT_RUN이다. 운영/실기기·모든 AI식 게시 복구·전체TC005는 Open이다. 다음은 최신 UI에서 TC005 전체 여정과 남은 복구/권한 gate를 묶는 검증이다.

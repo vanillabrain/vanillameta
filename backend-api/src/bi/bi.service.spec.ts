@@ -269,6 +269,12 @@ describe('BiService structured file analysis', () => {
         definitionVersion: 1,
         definition: metric.definition,
         dimension: 'category',
+        dimensionDefinition: expect.objectContaining({
+          column: 'category',
+          type: 'VARCHAR',
+          definitionVersion: 1,
+          id: expect.stringMatching(/^dim_/),
+        }),
         chart: 'bar',
       },
     );

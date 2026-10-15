@@ -249,6 +249,11 @@ export default {
     expired: 'The share period for this dashboard has expired.\nPlease check the share status again.',
     notFound: 'Dashboard not found.\nPlease check the URL.',
     loading: 'Loading data...',
+    allowReuse: 'Allow reuse with my own source',
+    allowReuseHint:
+      'People with the link can reuse the calculation and chart layout with their own data. The original data is never shared.',
+    allowReuseLoading: 'Loading reuse setting…',
+    allowReuseSaving: 'Saving reuse setting…',
   },
   widgetCreate: {
     aiRecommended: 'AI recommendation: {{title}}{{reason}}',

@@ -1,21 +1,25 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Alert, Button, Stack, Typography } from '@mui/material';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { useAlert } from 'react-alert';
+import { useTranslation } from 'react-i18next';
+
 import PageTitleBox from '@/components/PageTitleBox';
 import ImgCardList from '@/components/ImgCardList';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
 import DatabaseService from '@/api/databaseService';
-import { useQuery } from '@tanstack/react-query';
 import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useAlert } from 'react-alert';
-import { useTranslation } from 'react-i18next';
 import DatabaseForm from '@/pages/Data/DataSource/form/DatabaseForm';
 import BigQueryDatabaseForm from '@/pages/Data/DataSource/form/BigQueryDatabaseForm';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import SnowflakeDatabaseForm from '@/pages/Data/DataSource/form/SnowflakeDatabaseForm';
 import OracleDatabaseForm from '@/pages/Data/DataSource/form/OracleDatabaseForm';
+
+const stepTitleClassName = 'mb-4 block text-base font-semibold text-foreground sm:text-lg';
 
 const buildFormData = databaseInfo => {
   const temp: any = {
@@ -255,9 +259,12 @@ function DataSource() {
   };
 
   const fileSourceGuide = () => (
-    <Alert severity="info" action={<Button onClick={() => navigate('/data/file')}>{t('dataSource.uploadFile')}</Button>}>
-      {t('dataSource.managedFile')}
-    </Alert>
+    <Notice severity="info" className="flex flex-wrap items-center gap-3">
+      <span className="break-words">{t('dataSource.managedFile')}</span>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/data/file')}>
+        {t('dataSource.uploadFile')}
+      </Button>
+    </Notice>
   );
 
   const dbType = () => {
@@ -271,7 +278,11 @@ function DataSource() {
       case 'snowflake':
         return <SnowflakeDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
       case undefined:
-        return <Typography sx={{ my: '160px', mx: 'auto' }}>{t('dataSource.selectType')}</Typography>;
+        return (
+          <p className="flex min-h-40 items-center justify-center rounded-lg border border-dashed border-border bg-background px-4 text-sm text-muted-foreground">
+            {t('dataSource.selectType')}
+          </p>
+        );
       default:
         return <DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
     }
@@ -288,42 +299,33 @@ function DataSource() {
           cancelProps={{ onClick: handleCancelClick }}
         />
       }
-      sx={{ p: 0 }}
+      className="p-0"
     >
       {isModifyMode && sourceError ? (
-        <Alert severity="error" sx={{ m: 3 }} action={<Button onClick={() => navigate('/data')}>{t('data.cancel')}</Button>}>
-          {t('dataSource.accessUnavailable')}
-        </Alert>
+        <Notice severity="error" className="m-4 flex flex-wrap items-center gap-3">
+          <span className="break-words">{t('dataSource.accessUnavailable')}</span>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/data')}>
+            {t('data.cancel')}
+          </Button>
+        </Notice>
       ) : savedDatabase && ['duckdb', 'sqlite3'].includes(savedDatabase.engine) ? (
-        <Stack sx={{ p: 3 }}>{fileSourceGuide()}</Stack>
+        <div className="p-4 sm:p-6">{fileSourceGuide()}</div>
       ) : (
-        <Stack sx={{ width: '100%' }}>
-          <Stack sx={{ p: '30px 25px 50px 25px' }}>
-            <Typography
-              variant="subtitle1"
-              component="span"
-              sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
-            >
-              {t('dataSource.step1')}
-            </Typography>
+        <div className="w-full">
+          <div className="px-4 py-6 sm:px-6">
+            <span className={stepTitleClassName}>{t('dataSource.step1')}</span>
             <ImgCardList
               data={typeList}
               selectedType={dataType}
               setSelectedType={setDataType}
               handleTypeClick={handleTypeClick}
             />
-          </Stack>
-          <Stack sx={{ p: '30px 25px 50px 25px', bgcolor: '#f5f6f8' }}>
-            <Typography
-              variant="subtitle1"
-              component="span"
-              sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
-            >
-              {t('dataSource.step2')}
-            </Typography>
+          </div>
+          <div className="border-t border-border bg-muted px-4 py-6 sm:px-6">
+            <span className={stepTitleClassName}>{t('dataSource.step2')}</span>
             {dbType()}
-          </Stack>
-        </Stack>
+          </div>
+        </div>
       )}
     </PageTitleBox>
   );

@@ -415,9 +415,14 @@ describe('Studio real DuckDB and transactional metadata', () => {
     const tampered = JSON.parse(JSON.stringify(next));
     tampered.blocks[0].measureRefs = [];
     await expect(save(tampered, 'drop-ref-' + id)).rejects.toThrow('계산 정의');
-    await save(next);
+    const saved = await save(next);
     const stored = JSON.parse((await db.manager.findOneBy(Dashboard, { id })).structuredDefinition);
-    expect(stored.items).toEqual([snapshot.items[0], snapshot.items[1], snapshot.items[1]]);
+    expect(stored.items).toEqual(
+      [snapshot.items[0], snapshot.items[1], snapshot.items[1]].map((item, i) => ({
+        ...item,
+        key: saved.document.blocks[i].id,
+      })),
+    );
     const latest = (await studio.get(id, 7)).document;
     await db.manager.update(
       Metric,
@@ -523,10 +528,14 @@ describe('Studio real DuckDB and transactional metadata', () => {
     const doc = (await studio.get(id, 7)).document;
     expect(doc.blocks[0].measureRefs).toEqual([{ id: metric.id, definitionVersion: '1' }]);
     expect(doc.blocks[1].measureRefs).toEqual([]);
-    await save({ ...doc, title: 'Legacy linked' });
+    const saved = await save({ ...doc, title: 'Legacy linked' });
     const stored = JSON.parse((await db.manager.findOneBy(Dashboard, { id })).structuredDefinition);
-    expect(stored.items[0]).toEqual(snapshot);
-    expect(stored.items[1]).toEqual({ kind: 'studio-unlinked-legacy', sourceId: 1 });
+    expect(stored.items[0]).toEqual({ ...snapshot, key: saved.document.blocks[0].id });
+    expect(stored.items[1]).toEqual({
+      kind: 'studio-unlinked-legacy',
+      sourceId: 1,
+      key: saved.document.blocks[1].id,
+    });
   });
   it('rejects malformed structured snapshot alignment rather than inventing unlinked blocks', async () => {
     await db.manager.update(

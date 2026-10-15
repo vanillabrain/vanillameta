@@ -1,8 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import theme from './theme/theme';
-import { ThemeProvider } from '@mui/material/styles';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { BrowserRouter } from 'react-router-dom';
 import { LayoutProvider } from '@/contexts/LayoutContext';
 import { LoadingProvider } from '@/contexts/LoadingContext';
@@ -33,11 +32,11 @@ const app = (
         <LoadingProvider>
           <BrowserRouter>
             <AuthProvider>
-              <ThemeProvider theme={theme}>
+              <TooltipProvider>
                 <AlertProvider>
                   <App />
                 </AlertProvider>
-              </ThemeProvider>
+              </TooltipProvider>
             </AuthProvider>
           </BrowserRouter>
         </LoadingProvider>

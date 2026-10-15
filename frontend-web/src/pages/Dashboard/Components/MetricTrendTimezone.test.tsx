@@ -1,18 +1,10 @@
 import React from 'react';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, it } from 'vitest';
 import MetricTrend from './MetricTrend';
 import { comparisonTrend } from './comparisonTrend';
 import { MetricTrendData, trendBucketLabel, trendTimeZone } from './trendGeometry';
-
-vi.mock('@mui/material', () => {
-  const Container = ({ component: Tag = 'div', children, ...props }: any) => {
-    delete props.sx;
-    return <Tag {...props}>{children}</Tag>;
-  };
-  return { Box: Container, Typography: Container, Button: Container };
-});
 
 // points.time is the actual UTC instant at the local bucket start (KST midnight = 15:00Z the day before).
 const seoul: MetricTrendData = {

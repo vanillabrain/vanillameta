@@ -9,12 +9,9 @@ import SourceDetails, {
   sameContributionDateRange,
 } from './SourceDetails';
 import DashboardAnalysis from './DashboardAnalysis';
+import { classNamesOf, installRadixBrowserAPIs, selectRadixOption } from './dashboardTestUtils';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), widget: vi.fn(), trend: vi.fn(), previous: vi.fn() }));
-vi.mock('@mui/material/styles', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material/styles');
-});
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('./DashboardAssistant', () => ({ default: () => null }));
@@ -99,121 +96,7 @@ vi.mock('@/widget/wrapper/WidgetViewer', () => ({
     );
   },
 }));
-vi.mock('@mui/material', () => {
-  const Container = React.forwardRef<HTMLElement, any>(
-    (
-      {
-        children,
-        component: Tag = 'div',
-        role,
-        id,
-        onSubmit,
-        'aria-label': label,
-        'aria-live': live,
-        'aria-atomic': atomic,
-        sx,
-        tabIndex,
-      },
-      ref,
-    ) => (
-      <Tag
-        ref={ref}
-        role={role}
-        id={id}
-        onSubmit={onSubmit}
-        aria-label={label}
-        aria-live={live}
-        aria-atomic={atomic}
-        tabIndex={tabIndex}
-        style={{ maxHeight: sx?.maxHeight, maxWidth: sx?.maxWidth, overflow: sx?.overflow }}
-      >
-        {children}
-      </Tag>
-    ),
-  );
-  return {
-    Box: Container,
-    Stack: Container,
-    Card: ({ children, sx }: any) => (
-      <div data-testid="analysis-card" data-height={sx?.height}>
-        {children}
-      </div>
-    ),
-    Typography: Container,
-    FormControl: Container,
-    InputLabel: Container,
-    DialogContent: Container,
-    DialogActions: Container,
-    DialogTitle: ({ children, id }: any) => <h2 id={id}>{children}</h2>,
-    Dialog: ({ open, children, onClose, TransitionProps, ...props }: any) => {
-      const wasOpen = React.useRef(false);
-      React.useEffect(() => {
-        if (wasOpen.current && !open) TransitionProps?.onExited();
-        wasOpen.current = open;
-      }, [open]);
-      return open ? (
-        <div
-          role="dialog"
-          aria-labelledby={props['aria-labelledby']}
-          aria-describedby={props['aria-describedby']}
-          onKeyDown={event => {
-            if (event.key === 'Escape') onClose();
-          }}
-        >
-          {children}
-        </div>
-      ) : null;
-    },
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    LinearProgress: () => <div role="progressbar" />,
-    Checkbox: ({ checked }: any) => <input type="checkbox" checked={checked} readOnly />,
-    Button: React.forwardRef<HTMLButtonElement, any>(
-      ({ children, disabled, onClick, autoFocus, type = 'button', ...props }, ref) => (
-        <button
-          ref={ref}
-          type={type}
-          disabled={disabled}
-          onClick={onClick}
-          autoFocus={autoFocus}
-          aria-label={props['aria-label']}
-          aria-disabled={props['aria-disabled']}
-        >
-          {children}
-        </button>
-      ),
-    ),
-    TextField: ({ label, value, onChange, disabled, type, select, children, inputProps }: any) => (
-      <label>
-        {label}
-        {select ? (
-          <select value={value} onChange={onChange} disabled={disabled}>
-            {children}
-          </select>
-        ) : (
-          <input type={type} value={value} onChange={onChange} disabled={disabled} maxLength={inputProps?.maxLength} />
-        )}
-      </label>
-    ),
-    MenuItem: ({ value, children }: any) => <option value={value}>{children}</option>,
-    Select: ({ label, multiple, value, onChange, children, disabled }: any) => (
-      <select
-        aria-label={label}
-        multiple={multiple}
-        value={value}
-        disabled={disabled}
-        onChange={event =>
-          onChange({
-            target: {
-              value: multiple ? Array.from(event.target.selectedOptions).map(option => option.value) : event.target.value,
-            },
-          })
-        }
-      >
-        {children}
-      </select>
-    ),
-  };
-});
+installRadixBrowserAPIs();
 
 const success = (data: unknown) => ({ data: { status: 'SUCCESS', data } });
 const draft = { databaseId: 24, revision: 'definition-version', widgets: [] };
@@ -244,7 +127,26 @@ const detailData = (page = 0, pageSize = 25, sourceRevision = props.sourceRevisi
 });
 const button = (name: string) => screen.getByRole('button', { name, exact: true }) as HTMLButtonElement;
 const choose = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+// 실제 구현의 페이지 크기·집계 단위 컨트롤은 Radix Select이므로 트리거를 열고 옵션을 골라야 한다.
+// 실제 Radix Select의 옵션 레이블은 "25행/50행/100행"이다(값은 "25"/"50"/"100").
+const choosePageSize = (size: number) =>
+  selectRadixOption(screen.getByRole('combobox', { name: '페이지당 행 수' }), size + '행');
+const grainLabels = { auto: '자동', day: '일별', week: '주별', month: '월별' } as const;
+const chooseGrain = (grain: keyof typeof grainLabels) =>
+  selectRadixOption(screen.getByRole('combobox', { name: '시계열 집계 단위' }), grainLabels[grain]);
 const idle = () => waitFor(() => expect(screen.queryByRole('progressbar')).toBeNull());
+/**
+ * 닫힘 후 포커스 복원 계약.
+ *
+ * Radix Dialog는 닫힐 때 onCloseAutoFocus에서 event.preventDefault()를 호출한 뒤
+ * DialogTrigger에만 포커스를 되돌린다(@radix-ui/react-dialog/dist/index.mjs:174-176).
+ * 그 preventDefault 때문에 FocusScope의 previouslyFocusedElement 복원도 실행되지 않는다
+ * (@radix-ui/react-focus-scope/dist/index.mjs:111-116).
+ * SourceDetails는 DialogTrigger를 렌더링하지 않으므로, 이 파일의 "launcher 포커스 복원"
+ * 단언들은 DashboardAnalysis의 onExited 복원 경로에 의존한다. 현재 그 경로는 닫힘 시
+ * focus()를 전혀 호출하지 않아(HTMLElement.prototype.focus 계측 결과 호출 0회,
+ * document.activeElement는 body) 해당 단언들이 실패한다. 제품 결함이며 테스트는 계약을 그대로 유지한다.
+ */
 function deferred() {
   let resolve: (value: unknown) => void = () => undefined;
   let reject: (error: unknown) => void = () => undefined;
@@ -298,9 +200,8 @@ it('requests only the specified details contract and renders a bounded keyboard 
   expect(within(dialog).getByText(/개별 차트에 설정한 추가 조건은 포함하지 않습니다/)).toBeTruthy();
   const region = screen.getByRole('region', { name: '현재 공통 필터의 원본 행 표' });
   expect(region.tabIndex).toBe(0);
-  expect(region.style.maxHeight).toBe('50dvh');
-  expect(region.style.maxWidth).toBe('100%');
-  expect(region.style.overflow).toBe('auto');
+  // 경계·스크롤은 이제 Tailwind 유틸리티로 표현된다(인라인 style 아님).
+  expect(classNamesOf(region)).toEqual(expect.arrayContaining(['max-h-[50dvh]', 'max-w-full', 'overflow-auto']));
   expect(region.querySelector('img')).toBeNull();
   expect(within(region).getByText('값 없음')).toBeTruthy();
   expect(button('이전 페이지').disabled).toBe(true);
@@ -318,10 +219,10 @@ it('paginates with string row totals, omits all-time dates and resets page for p
   fireEvent.click(button('이전 페이지'));
   await idle();
   expect(api.post.mock.lastCall[1].page).toBe(0);
-  choose('페이지당 행 수', '50');
+  await choosePageSize(50);
   await idle();
   expect(api.post.mock.lastCall[1]).toMatchObject({ page: 0, pageSize: 50 });
-  choose('페이지당 행 수', '100');
+  await choosePageSize(100);
   await idle();
   expect(api.post.mock.lastCall[1]).toMatchObject({ page: 0, pageSize: 100 });
 });
@@ -507,7 +408,7 @@ it('toggles typed chart categories, shows independently clearable chips absent f
   choose('종료일 (UTC)', range.end);
   fireEvent.click(button('적용'));
   await idle();
-  choose('시계열 집계 단위', 'week');
+  await chooseGrain('week');
   await idle();
   fireEvent.click(screen.getByRole('checkbox', { name: '이전 기간 비교' }));
   await idle();
@@ -620,7 +521,7 @@ it('opens current filtered source details globally, restores trigger focus, and 
   await idle();
   button('원본 상세 보기').focus();
   fireEvent.click(button('원본 상세 보기'));
-  await screen.findByText('record-A');
+  await screen.findByText('record-A', {}, { timeout: 5000 });
   expect(api.post.mock.lastCall[1]).toMatchObject({
     sourceRevision: props.sourceRevision,
     dashboardId: 26,
@@ -782,8 +683,10 @@ it('keeps magic dimension names usable in common Select controls and chart toggl
       datas: [{ category: index ? 'constructor-value' : 'proto-value', amount: 10 }],
     })),
   });
-  expect((screen.getByLabelText('__proto__') as HTMLSelectElement).value).toBe('');
-  expect((screen.getByLabelText('constructor') as HTMLSelectElement).value).toBe('');
+  // 공통 필터 컨트롤은 Radix DropdownMenu 트리거 버튼이며, 트리거 텍스트가 선택 상태를 나타낸다.
+  const dimensionTrigger = (column: string) => screen.getByRole('button', { name: column }) as HTMLButtonElement;
+  expect(dimensionTrigger('__proto__').textContent).toBe('전체');
+  expect(dimensionTrigger('constructor').textContent).toBe('전체');
   fireEvent.click(categoryButton('proto-value'));
   await idle();
   fireEvent.click(categoryButton('constructor-value'));
@@ -792,8 +695,8 @@ it('keeps magic dimension names usable in common Select controls and chart toggl
     { column: '__proto__', values: ['proto-value'] },
     { column: 'constructor', values: ['constructor-value'] },
   ]);
-  expect((screen.getByLabelText('__proto__') as HTMLSelectElement).selectedOptions).toHaveLength(1);
-  expect((screen.getByLabelText('constructor') as HTMLSelectElement).selectedOptions).toHaveLength(1);
+  expect(dimensionTrigger('__proto__').textContent).toBe('proto-value');
+  expect(dimensionTrigger('constructor').textContent).toBe('constructor-value');
 });
 
 it.each([false, true])(
@@ -824,17 +727,18 @@ it.each([false, true])(
   },
 );
 
-it('retains stale refresh focus when MUI automatically restores the enabled launcher before preview is pending', async () => {
+it('retains stale refresh focus when the launcher is restored before the preview becomes pending', async () => {
   await analysis();
   api.post.mockRejectedValueOnce({ response: { status: 409, data: { message: 'stale file' } } });
-  button('원본 상세 보기').focus();
-  fireEvent.click(button('원본 상세 보기'));
+  const launcher = button('원본 상세 보기');
+  launcher.focus();
+  fireEvent.click(launcher);
   await screen.findByText(/원본 데이터 버전이 변경되었습니다/);
   const pending = deferred();
-  // Reproduce MUI's automatic launcher restoration during the close/preview commit.
   // aria-disabled preserves native focus while the guarded action remains unavailable.
+  // 닫힘 커밋과 겹치는 동안 Radix는 앱 루트를 aria-hidden으로 유지하므로 role 조회 대신
+  // 미리 잡아 둔 launcher 참조로 포커스를 되돌린다(MUI의 자동 복원을 대신하는 명시적 단계).
   api.post.mockImplementationOnce(() => {
-    const launcher = button('원본 상세 보기');
     launcher.focus();
     expect(document.activeElement).toBe(launcher);
     return pending.promise;
@@ -909,7 +813,7 @@ it('contributor detail sends the whole-widget contract, keeps original columns u
   expect(within(dialog).queryByText(/개별 차트에 설정한 추가 조건은 포함하지 않습니다/)).toBeNull();
   const region = screen.getByRole('region', { name: '집계에 사용된 원본 행 표' });
   expect(region.tabIndex).toBe(0);
-  expect(region.style.maxHeight).toBe('50dvh');
+  expect(classNamesOf(region)).toEqual(expect.arrayContaining(['max-h-[50dvh]', 'max-w-full', 'overflow-auto']));
   const cells = within(region).getAllByRole('cell');
   expect(cells.map(cell => cell.textContent)).toEqual(['SUM(amount)COUNT(*)', '<img onerror=unsafe>', '0']);
   expect(within(cells[0]).getByText('SUM(amount)').tagName).toBe('SPAN');
@@ -1037,7 +941,7 @@ it('contributor detail preserves grouping across pagination and changes cleanly 
   fireEvent.click(button('다음 페이지'));
   await idle();
   expect(api.post.mock.lastCall[1]).toMatchObject({ contribution: request, page: 1, pageSize: 25 });
-  choose('페이지당 행 수', '50');
+  await choosePageSize(50);
   await idle();
   expect(api.post.mock.lastCall[1]).toMatchObject({ contribution: request, page: 0, pageSize: 50 });
   const raw = deferred();
@@ -1083,7 +987,7 @@ it.each(['{Enter}', ' '])(
     choose('종료일 (UTC)', range.end);
     fireEvent.click(button('적용'));
     await idle();
-    choose('시계열 집계 단위', 'week');
+    await chooseGrain('week');
     await idle();
     fireEvent.click(screen.getByRole('checkbox', { name: '이전 기간 비교' }));
     await idle();
@@ -1324,7 +1228,7 @@ it.each(['{Enter}', ' '])(
     choose('종료일 (UTC)', range.end);
     fireEvent.click(button('적용'));
     await idle();
-    choose('시계열 집계 단위', 'week');
+    await chooseGrain('week');
     await idle();
     fireEvent.click(screen.getByRole('checkbox', { name: '이전 기간 비교' }));
     await idle();

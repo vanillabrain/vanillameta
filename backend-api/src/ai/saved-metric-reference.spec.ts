@@ -2,6 +2,7 @@ jest.mock('./ai.service', () => ({ AiService: class {} }));
 import {
   applyMetricReferences,
   explicitMetricTarget,
+  explicitRenameRequested,
   applyCanonicalCalculation,
 } from './saved-metric-reference';
 import { metricExpression } from '../bi/metric-expression';
@@ -227,7 +228,7 @@ it.each([99, '3', null])(
 );
 it('enforces an explicit selection in generation and reports the correct widget index', async () => {
   const { service, ai } = setup();
-  jest.spyOn(service as any, 'previewContext').mockResolvedValue({});
+  jest.spyOn(service as any, 'previewContext').mockResolvedValue({ widgets: [] });
   const current = draft();
   delete current.widgets[0].metricId;
   current.widgets.unshift({ ...current.widgets[0], title: 'Keep this KPI' });
@@ -250,6 +251,76 @@ it('enforces an explicit selection in generation and reports the correct widget 
   expect(result.data.metricReferences).toEqual([
     { widgetIndex: 1, metricId: 3, label: 'Stored Requests' },
   ]);
+});
+
+it.each([
+  ['2번 차트 제목을 매출로 바꿔 줘', true],
+  ['차트 이름을 변경해 줘', true],
+  ['rename the chart', true],
+  ['set the title to Revenue', true],
+  ['매출로 바꿔 줘', false],
+  ['값을 갱신해 줘', false],
+])('BR-016-02 gates an explicit rename on title wording: %s => %s', (prompt, expected) => {
+  expect(explicitRenameRequested(prompt)).toBe(expected);
+});
+
+it('BR-016-02 honors an explicit rename on the saved-metric path without touching other widgets', async () => {
+  const { service, ai } = setup();
+  jest.spyOn(service as any, 'previewContext').mockResolvedValue({ widgets: [] });
+  const current: any = draft();
+  delete current.widgets[0].metricId;
+  current.widgets.unshift({ ...current.widgets[0], title: 'Keep this KPI' });
+  const candidate: any = draft();
+  delete candidate.widgets[0].metricId;
+  candidate.widgets[0].title = 'Renamed revenue';
+  ai.callLlm.mockResolvedValue(JSON.stringify(candidate));
+  const result = await service.generate(
+    {
+      databaseId: 7,
+      prompt: '1번 차트 제목을 Renamed revenue로 바꿔 줘',
+      currentDraft: current,
+      selectedWidget: 1,
+      selectedMetricId: 3,
+    },
+    9,
+  );
+  if (!('data' in result)) throw new Error(result.message);
+  expect(result.data.widgets[0]).toEqual(current.widgets[0]);
+  expect(result.data.widgets[1].title).toBe('Renamed revenue');
+  expect(result.data.widgets[1].sql).toContain('SUM("amount")');
+  expect(ai.callLlm).toHaveBeenCalledTimes(1);
+});
+
+it('BR-002 still rejects an implicit retitle on the saved-metric path', async () => {
+  const { service, ai } = setup();
+  jest.spyOn(service as any, 'previewContext').mockResolvedValue({ widgets: [] });
+  const current: any = draft();
+  delete current.widgets[0].metricId;
+  current.widgets.unshift({ ...current.widgets[0], title: 'Keep this KPI' });
+  const candidate: any = draft();
+  delete candidate.widgets[0].metricId;
+  candidate.widgets[0].title = 'Renamed revenue';
+  ai.callLlm.mockResolvedValue(JSON.stringify(candidate));
+  const result = await service.generate(
+    {
+      databaseId: 7,
+      prompt: '값을 갱신해 줘',
+      currentDraft: current,
+      selectedWidget: 1,
+      selectedMetricId: 3,
+    },
+    9,
+  );
+  expect(result.status).toBe('ERROR');
+  expect(ai.callLlm).toHaveBeenCalledTimes(2);
+});
+
+it('rejects an explicit rename that returns no usable title', () => {
+  const candidate: any = draft();
+  candidate.widgets[0].title = '  ';
+  expect(() => explicitMetricTarget(candidate, draft(), 0, 3, true)).toThrow('non-empty');
+  candidate.widgets[0].title = 'Renamed';
+  expect(explicitMetricTarget(candidate, draft(), 0, 3, true).widgets[0].title).toBe('Renamed');
 });
 
 it('UC-003 retains trusted category aliases, filters and sorting while replacing the calculation', () => {
@@ -286,7 +357,7 @@ it('UC-003 reuses an updated AVG requests definition without forcing it back to 
 
 it('UC-006 isolates an ordinary selected AI edit without a saved metric and preserves block identity', async () => {
   const { service, ai } = setup();
-  jest.spyOn(service as any, 'previewContext').mockResolvedValue({});
+  jest.spyOn(service as any, 'previewContext').mockResolvedValue({ widgets: [] });
   const current: any = draft();
   delete current.widgets[0].metricId;
   current.widgets[0].blockId = 'block-original';

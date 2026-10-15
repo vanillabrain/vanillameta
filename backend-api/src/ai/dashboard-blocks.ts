@@ -44,6 +44,7 @@ export function blockGeometry(
   draft: DashboardDraft,
   layout: any[],
   mappings: any[],
+  preserveSizeIds: readonly string[] = [],
 ) {
   if (!Array.isArray(layout) || mappings.length !== previous.widgets.length)
     throw new BadRequestException('차트 배치를 다시 불러와 주세요.');
@@ -58,7 +59,11 @@ export function blockGeometry(
     if (index >= 0) {
       const size = draft.layoutSizes?.[i];
       const oldSize = previous.layoutSizes?.[index];
-      if (size && JSON.stringify(size) !== JSON.stringify(oldSize))
+      if (
+        size &&
+        !preserveSizeIds.includes(w.blockId) &&
+        JSON.stringify(size) !== JSON.stringify(oldSize)
+      )
         return {
           ...geometry[index],
           x: Math.min(geometry[index].x, 12 - size.width),

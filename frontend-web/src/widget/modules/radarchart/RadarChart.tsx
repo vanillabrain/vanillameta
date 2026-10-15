@@ -1,3 +1,4 @@
+import { chartTheme } from '@/components/charts/chartTheme';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
@@ -88,6 +89,7 @@ const RadarChart = props => {
 
   return (
     <ReactECharts
+      theme={chartTheme}
       option={componentOption}
       style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}
       lazyUpdate={true}

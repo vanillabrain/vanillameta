@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { TextField } from '@mui/material';
+import { TextField } from '@/components/ui/text-field';
+import { cn } from '@/lib/utils';
 
 function WidgetTitleForm(props) {
   const { t } = useTranslation();
-  const { value, onChange, ...rest } = props;
+  const { value, onChange, className, ...rest } = props;
 
   const validateTitle = title => {
     if (title === undefined) {
@@ -20,10 +21,9 @@ function WidgetTitleForm(props) {
       label={t('common.widgetName')}
       placeholder={t('common.widgetNameGuide')}
       required={validateTitle(value)}
-      fullWidth
       value={value}
       onChange={onChange}
-      sx={{ mt: { xs: 5, md: 0 } }}
+      className={cn('mt-10 md:mt-0', className)}
       {...rest}
     />
   );

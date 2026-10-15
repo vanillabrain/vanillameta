@@ -1,9 +1,9 @@
 import React from 'react';
-import { Box, Stack } from '@mui/material';
+import { cn } from '@/lib/utils';
 
-const PaintButton = ({ color }) => {
+const PaintButton = ({ color, className = '' }) => {
   return (
-    <Stack justifyContent="center" alignItems="center" gap="4px">
+    <span className={cn('flex flex-col items-center justify-center gap-1', className)}>
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
         <g clipPath="url(#zp0ysd0z5a)">
           <path
@@ -35,8 +35,8 @@ const PaintButton = ({ color }) => {
           </clipPath>
         </defs>
       </svg>
-      <Box sx={{ width: '28px', height: '6px', border: '1px solid #bdc2d0', backgroundColor: color }} />
-    </Stack>
+      <span className="h-1.5 w-7 border border-[#bdc2d0]" style={{ backgroundColor: color }} />
+    </span>
   );
 };
 

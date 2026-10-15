@@ -1,34 +1,20 @@
 import React from 'react';
-import { Divider, Box, Stack, Typography } from '@mui/material';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 function TitleBox(props) {
-  const { title, width, button } = props;
+  const { title = '', width = '100%', button, children, className } = props;
 
   return (
-    <Box
-      sx={{
-        width: width,
-        height: '100%',
-      }}
-    >
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: '100%', py: 1 }}>
-        <Typography variant="subtitle1" component="span" sx={{ fontWeight: 500 }}>
-          {title}
-        </Typography>
+    <div className={cn('h-full', className)} style={{ width }}>
+      <div className="flex w-full flex-row items-center justify-between py-2">
+        <span className="text-base font-medium">{title}</span>
         {button}
-      </Stack>
-      <Divider sx={{ marginBottom: 4 }} />
-      {props.children}
-    </Box>
+      </div>
+      <Separator className="mb-8" />
+      {children}
+    </div>
   );
 }
-
-TitleBox.defaultProps = {
-  title: '',
-  width: '100%',
-  menuList: false,
-  naviUrl: false,
-  button: false,
-};
 
 export default TitleBox;

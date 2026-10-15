@@ -1,6 +1,6 @@
+import { reuseReturn } from '@/helpers/reuseReturn';
 import React, { useContext, useEffect, useState } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { Box, Button, Stack, TextField, Typography } from '@mui/material';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -12,11 +12,14 @@ import { checkId, checkPwd } from '@/utils/util';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { getToken, setToken } from '@/helpers/authHelper';
+import { Button } from '@/components/ui/button';
+import { TextField } from '@/components/ui/text-field';
 
 const Login = () => {
   const { t } = useTranslation();
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
+  const { search } = useLocation();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const [userInfo, setUserInfo] = useState({
@@ -31,7 +34,7 @@ const Login = () => {
     console.log('APP_MODE', APP_MODE);
     if (token) {
       // token이 있으면 대시보드로 보내기
-      navigate('/dashboard');
+      navigate(reuseReturn(search));
     }
   }, [token]);
 
@@ -57,7 +60,7 @@ const Login = () => {
         .then(response => {
           if (response.status === 201) {
             setToken(response.data.accessToken);
-            navigate('/dashboard');
+            navigate(reuseReturn(search));
           }
         })
         .catch(error => {
@@ -100,41 +103,20 @@ const Login = () => {
 
   if (!token) {
     return (
-      <Box
-        component="main"
-        sx={{
-          position: 'relative',
-          zIndex: 0,
-          width: '100%',
-          height: '100%',
-          minWidth: '100vw',
-          backgroundColor: '#f5f6f8',
-        }}
-      >
+      <main className="relative isolate min-h-full w-full overflow-hidden bg-muted px-4 pb-8">
         <Seo title={t('login.title')} />
-        <Box
-          sx={{
-            pt: '90px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
+        <div className="relative z-10 mx-auto flex max-w-md flex-col items-center pt-12 sm:pt-16">
           <RouterLink to="/">
-            <Logo width="223px" height="43px" />
+            <Logo width="223px" height="43px" aria-label="VanillaMeta" />
           </RouterLink>
-          <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84', textAlign: 'center' }}>
+          <p className="mt-4 max-w-sm text-center text-sm leading-6 text-muted-foreground">
             {t('login.taglineA')}
-            <Typography component="span" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
-              {t('login.taglineB')}
-            </Typography>
-          </Typography>
-          <Stack
-            component="form"
+            <span className="text-sm font-semibold">{t('login.taglineB')}</span>
+          </p>
+          <form
             onSubmit={handleLogin}
             noValidate
-            sx={{ width: { xs: 'calc(100% - 40px)', sm: '360px' }, mt: '56px' }}
-            spacing="20px"
+            className="mt-8 flex w-full flex-col gap-5 rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8"
           >
             <TextField
               autoFocus={true}
@@ -142,14 +124,7 @@ const Login = () => {
               name="userId"
               value={userInfo.userId}
               onChange={handleChange}
-              margin="normal"
               required={true}
-              fullWidth
-              sx={{ height: { xs: '44px', sm: '36px' } }}
-              InputLabelProps={{ sx: { pt: { xs: '6px', sm: 0 } } }}
-              InputProps={{
-                sx: { height: { xs: '44px', sm: '36px' }, input: { padding: '12px 14px' } },
-              }}
             />
             <TextField
               label="Password"
@@ -157,113 +132,29 @@ const Login = () => {
               value={userInfo.userPwd}
               onChange={handleChange}
               type="password"
-              margin="normal"
               required={true}
-              fullWidth
-              sx={{ height: { xs: '44px', sm: '36px' } }}
-              InputLabelProps={{ sx: { pt: { xs: '6px', sm: 0 } } }}
-              InputProps={{
-                sx: { height: { xs: '44px', sm: '36px' }, input: { padding: '12px 14px' } },
-              }}
             />
-            <Button
-              type="submit"
-              size="large"
-              fullWidth
-              variant="contained"
-              sx={{ height: { xs: '50px', sm: '44px' }, mt: 3, mb: 2 }}
-            >
+            <Button type="submit" size="lg" className="mt-2 w-full">
               Login
             </Button>
-          </Stack>
+          </form>
           {APP_MODE != 'prod' && (
-            <Stack
-              sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '12px',
-                mt: '40px',
-                fontSize: '14px',
-                textAlign: 'center',
-                color: '#4a4a4a',
-              }}
-            >
-              <Button
-                component={RouterLink}
-                to="/signup"
-                disableRipple
-                disableFocusRipple
-                disableTouchRipple
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  minWidth: 0,
-                  minHeight: 0,
-                  m: 0,
-                  p: 0,
-                  gap: '12px',
-                  fontSize: 'inherit',
-                  fontWeight: 'inherit',
-                  textDecoration: 'underline',
-                  color: 'inherit',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                    backgroundColor: 'inherit',
-                  },
-
-                  '&:after': {
-                    content: `""`,
-                    width: '1px',
-                    height: '10px',
-                    backgroundColor: '#cccfd8',
-                  },
-                }}
-              >
+            <div className="mt-6 flex flex-row items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+              <RouterLink to="/signup" className="text-sm text-inherit underline hover:underline">
                 {t('login.signup')}
-              </Button>
-              <Button
-                disableRipple
-                disableFocusRipple
-                disableTouchRipple
-                sx={{
-                  minWidth: 0,
-                  minHeight: 0,
-                  m: 0,
-                  p: 0,
-                  fontSize: 'inherit',
-                  fontWeight: 'inherit',
-                  // textDecoration: 'underline',
-                  color: 'inherit',
-                  '&:hover': {
-                    // textDecoration: 'underline',
-                    backgroundColor: 'inherit',
-                  },
-                }}
-              >
-                {t('login.findAccount')}
-              </Button>
-            </Stack>
+              </RouterLink>
+              <span aria-hidden="true" className="h-2.5 w-px bg-border" />
+              <span>{t('login.findAccount')}</span>
+            </div>
           )}
-        </Box>
-        <Copyright sx={{ mt: '50px', mb: 4 }} />
-        <Box
-          component="img"
+        </div>
+        <Copyright className="relative z-10 mt-8" />
+        <img
           src={backgroundImage}
-          sx={{
-            position: 'fixed',
-            zIndex: -1,
-            bottom: 0,
-            left: '50%',
-            margin: 'auto',
-            width: '1024px',
-            height: '508px',
-            transform: 'translateX(-50%)',
-          }}
+          alt=""
+          className="pointer-events-none absolute bottom-0 left-1/2 -z-10 h-auto w-[1024px] max-w-none -translate-x-1/2 opacity-30"
         />
-      </Box>
+      </main>
     );
   }
 };

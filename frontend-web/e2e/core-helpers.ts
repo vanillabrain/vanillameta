@@ -1,4 +1,5 @@
 import { expect, Page, Response } from '@playwright/test';
+import { confirmDialog } from './ui-locators';
 
 export const USER = {
   userId: process.env.E2E_USER_ID ?? 'e2etester',
@@ -21,8 +22,8 @@ export async function authHeaders(page: Page) {
 }
 
 export async function confirmAction(page: Page) {
-  // react-alert: action first, Cancel last (not the AddWidgetPopup ordering).
-  await page.getByRole('dialog').locator('.MuiDialogActions-root button').first().click();
+  // Shared alert dialog: accept through the named action, never through button order.
+  await confirmDialog(page, true);
 }
 
 export function createResponse(page: Page, resource: string) {

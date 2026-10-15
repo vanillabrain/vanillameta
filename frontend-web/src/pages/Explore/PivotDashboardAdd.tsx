@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Typography } from '@mui/material';
 import { get, post } from '@/helpers/apiHelper';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
+import { TextField } from '@/components/ui/text-field';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 export default function PivotDashboardAdd({
   sourceId,
   viewId,
@@ -66,34 +70,31 @@ export default function PivotDashboardAdd({
       <Button aria-label={`${name} 대시보드에 추가`} onClick={() => setOpen(true)}>
         대시보드에 추가
       </Button>
-      <Typography role="status" variant="caption">
+      <p role="status" className="text-xs">
         {notice}
-      </Typography>
+      </p>
       <Dialog
         open={open}
-        onClose={() => {
-          if (!busy) setOpen(false);
+        onOpenChange={next => {
+          if (!busy) setOpen(next);
         }}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="pivot-add-title"
       >
-        <DialogTitle id="pivot-add-title">저장한 Pivot을 대시보드에 추가</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            같은 데이터 소스의 분석 대시보드를 선택하세요. 행·열·지표와 기본 필터를 복사하고 대시보드 공통 필터·기간을
-            연결합니다.
-          </Typography>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>저장한 Pivot을 대시보드에 추가</DialogTitle>
+            <DialogDescription>
+              같은 데이터 소스의 분석 대시보드를 선택하세요. 행·열·지표와 기본 필터를 복사하고 대시보드 공통 필터·기간을
+              연결합니다.
+            </DialogDescription>
+          </DialogHeader>
           <TextField
             autoFocus
             select
-            fullWidth
-            size="small"
             label="추가할 대시보드"
             value={id}
             disabled={busy}
             onChange={e => setId(e.target.value)}
-            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+            className="min-w-0"
           >
             <option value="">대시보드를 선택하세요</option>
             {dashboards.map(d => (
@@ -102,21 +103,21 @@ export default function PivotDashboardAdd({
               </option>
             ))}
           </TextField>
-          {!busy && !dashboards.length && <Typography sx={{ mt: 1 }}>추가할 대시보드가 없습니다.</Typography>}
+          {!busy && !dashboards.length && <p className="mt-2">추가할 대시보드가 없습니다.</p>}
           {error && (
-            <Alert severity="error" sx={{ mt: 2 }}>
+            <Notice severity="error" className="mt-2">
               {error}
-            </Alert>
+            </Notice>
           )}
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" disabled={busy} onClick={() => setOpen(false)}>
+              취소
+            </Button>
+            <Button disabled={busy || !id} onClick={() => void add()}>
+              {busy ? '추가 중…' : 'Pivot 추가'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1, '& button': { minHeight: 40 } }}>
-          <Button disabled={busy} onClick={() => setOpen(false)}>
-            취소
-          </Button>
-          <Button variant="contained" disabled={busy || !id} onClick={() => void add()}>
-            {busy ? '추가 중…' : 'Pivot 추가'}
-          </Button>
-        </DialogActions>
       </Dialog>
     </>
   );

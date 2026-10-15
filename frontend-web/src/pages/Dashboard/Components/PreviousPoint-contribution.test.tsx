@@ -6,38 +6,12 @@ import MetricTrend from './MetricTrend';
 import { PreviousPeriodData } from './PeriodComparison';
 import type { MetricTrendData } from './trendGeometry';
 
-vi.mock('@mui/material', () => {
-  const Container = ({ component: Tag = 'div', children, ...props }: any) => {
-    const sx = props.sx;
-    delete props.sx;
-    delete props.variant;
-    return (
-      <Tag {...props} style={{ maxHeight: sx?.maxHeight, maxWidth: sx?.maxWidth, overflow: sx?.overflow }}>
-        {children}
-      </Tag>
-    );
-  };
-  return {
-    Box: Container,
-    Typography: Container,
-    Alert: Container,
-    Button: ({ children, ...props }: any) => {
-      const sx = props.sx;
-      delete props.sx;
-      delete props.size;
-      return (
-        <button {...props} style={{ minWidth: sx?.minWidth, minHeight: sx?.minHeight, whiteSpace: sx?.whiteSpace }}>
-          {children}
-        </button>
-      );
-    },
-  };
-});
-
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
+// 실제 설치는 인라인 style 대신 Tailwind 클래스로 44px 최소 터치 영역과 줄바꿈을 표현한다.
+const classesOf = (element: Element) => element.className.split(' ');
 const title = '매출 · 이전 기간';
 const times = ['2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z', '2026-01-11T00:00:00Z'];
 const trend = (): MetricTrendData => ({
@@ -179,14 +153,13 @@ it('adds a separate native third-column action per raw typed previous group with
   categories.forEach(category => {
     const button = within(table).getByRole('button', { name: previousLabel(category) });
     expect(button.tagName).toBe('BUTTON');
-    expect(button.style.minHeight).toBe('44px');
-    expect(button.style.minWidth).toBe('44px');
-    expect(button.style.whiteSpace).toBe('normal');
+    // min-h-11 / min-w-11 = Tailwind 2.75rem = 44px 최소 터치 영역
+    expect(classesOf(button)).toEqual(expect.arrayContaining(['min-h-11', 'min-w-11', 'whitespace-normal']));
     userEvent.click(button);
   });
   expect(contribute.mock.calls).toEqual(categories.map(category => [category]));
   expect(table.querySelector('img')).toBeNull();
-  expect(screen.getByRole('region', { name: '추세 이전 기간 값' }).style.overflow).toBe('auto');
+  expect(classesOf(screen.getByRole('region', { name: '추세 이전 기간 값' }))).toContain('overflow-auto');
 });
 
 it('keeps native previous-table Enter/Space actions guarded and focusable during pending with a linked reason', async () => {

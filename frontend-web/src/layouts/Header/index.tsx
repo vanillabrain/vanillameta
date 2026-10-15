@@ -1,12 +1,13 @@
 import React from 'react';
-import { AppBar, Box, Divider, MenuItem, Select, Toolbar } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AddMenuIconButton } from '@/components/button/AddIconButton';
-import Logo from './Logo';
-import NavBar from './NavBar';
-import { useNavigate } from 'react-router-dom';
 import ProfileViewButton from '@/components/user/ProfileViewButton';
 import Logout from '@/components/user/Logout';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import Logo from './Logo';
+import NavBar from './NavBar';
 
 function Header() {
   const navigate = useNavigate();
@@ -31,36 +32,39 @@ function Header() {
     }
   };
 
+  const language = i18n.language?.startsWith('en') ? 'en' : 'ko';
+
   return (
-    <AppBar elevation={0} component="nav" sx={{ left: 0, height: { xs: '56px', sm: '65px' } }}>
-      <Toolbar variant="dense" sx={{ height: 65, justifyContent: 'space-between', columnGap: { xs: '20px', sm: '32px' } }}>
-        <Logo />
-        <Box sx={{ display: { xs: 'none', sm: 'contents' } }}>
+    <header className="fixed inset-x-0 top-0 z-40 h-16 bg-background max-sm:h-[108px]">
+      <nav className="flex h-full items-center justify-between relative flex-wrap gap-x-4 px-4 max-sm:pb-12 sm:flex-nowrap sm:gap-x-8 sm:px-6">
+        <Logo className="shrink-0" />
+        <div className="hidden sm:contents">
           <NavBar navItems={navItems} />
-          <Box sx={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <Select
-              size="small"
-              variant="standard"
-              disableUnderline
-              inputProps={{ 'aria-label': t('common.language') }}
-              value={i18n.language?.startsWith('en') ? 'en' : 'ko'}
-              onChange={e => i18n.changeLanguage(e.target.value)}
-              sx={{ fontSize: '12px', color: '#767676' }}
-            >
-              <MenuItem value="ko">한국어</MenuItem>
-              <MenuItem value="en">English</MenuItem>
+          <div className="flex items-center gap-4">
+            <Select value={language} onValueChange={value => i18n.changeLanguage(value)}>
+              <SelectTrigger
+                size="sm"
+                aria-label={t('common.language')}
+                className="w-fit border-0 bg-transparent px-2 text-sm text-muted-foreground shadow-none focus-visible:ring-0"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ko">한국어</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
             </Select>
-            <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
+            <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} className="shrink-0" />
             <ProfileViewButton />
-          </Box>
-        </Box>
-        <Box sx={{ display: { xs: 'contents', sm: 'none' } }}>
-          <NavBar navItems={navItems.slice(0, 2)} />
-          <Logout sx={{ fontSize: '12px', color: '#767676' }} />
-        </Box>
-      </Toolbar>
-      <Divider />
-    </AppBar>
+          </div>
+        </div>
+        <div className="contents sm:hidden">
+          <NavBar navItems={navItems} />
+          <Logout className="ml-auto text-xs text-muted-foreground" />
+        </div>
+      </nav>
+      <Separator className="absolute inset-x-0 bottom-0" />
+    </header>
   );
 }
 

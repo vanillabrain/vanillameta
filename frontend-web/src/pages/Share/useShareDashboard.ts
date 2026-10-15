@@ -47,6 +47,7 @@ export const useShareDashboard = (dashboardUuid: string): ShareDashboardState =>
       .selectDashboard(dashboardUuid)
       .then(response => {
         if (response.status == 200) {
+          if (response.data.data.shareToken) setShareToken(response.data.data.shareToken);
           setDashboardInfo(response.data.data);
         }
       })

@@ -5,11 +5,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 import DashboardAnalysis, { parseDefaultDateRange } from './DashboardAnalysis';
 import userEvent from '@testing-library/user-event';
 import type { DateRange } from './PersonalSavedViews';
+import { installRadixBrowserAPIs, selectRadixOption } from './dashboardTestUtils';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), timeProps: vi.fn() }));
-vi.mock('@mui/material/styles', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material/styles');
-});
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('./DashboardAssistant', () => ({ default: () => null }));
 // Saved-view API/UI behavior is exercised by PersonalSavedViews.test.tsx.
@@ -68,73 +65,7 @@ vi.mock('@/widget/wrapper/WidgetViewer', () => ({
     );
   },
 }));
-// The repository's Vitest runtime cannot import the Emotion/MUI styled engine.
-// Model the Select array event contract while keeping primitive menu values intact.
-vi.mock('@mui/material', () => {
-  const container = ({ children, component: Tag = 'div' }: any) => <Tag>{children}</Tag>;
-  return {
-    Box: container,
-    Card: container,
-    Stack: container,
-    Typography: container,
-    FormControl: container,
-    InputLabel: container,
-    Checkbox: ({ checked }: any) => <input type="checkbox" checked={checked} readOnly />,
-    Button: React.forwardRef<HTMLButtonElement, any>(({ children, onClick, disabled, ...props }, ref) => (
-      <button ref={ref} onClick={onClick} disabled={disabled} aria-disabled={props['aria-disabled']}>
-        {children}
-      </button>
-    )),
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    LinearProgress: () => <div role="progressbar" />,
-    TextField: ({ label, value, onChange, type }: any) => (
-      <label>
-        {label}
-        <input type={type} value={value} onChange={onChange} />
-      </label>
-    ),
-    Select: ({ label, children, value, onChange, multiple, disabled, renderValue }: any) => {
-      const [open, setOpen] = React.useState(false);
-      return (
-        <>
-          <button role="combobox" aria-label={label} disabled={disabled} onMouseDown={() => setOpen(true)}>
-            {renderValue ? renderValue(value) : value}
-          </button>
-          {open && (
-            <div
-              role="listbox"
-              onKeyDown={e => {
-                if (e.key === 'Escape') setOpen(false);
-              }}
-            >
-              {React.Children.map(React.Children.toArray(children), (child: any) => (
-                <div
-                  role="option"
-                  aria-selected={multiple ? value.includes(child.props.value) : value === child.props.value}
-                  onClick={() => {
-                    if (!child.props.disabled)
-                      onChange({
-                        target: {
-                          value: multiple
-                            ? value.includes(child.props.value)
-                              ? value.filter((key: string) => key !== child.props.value)
-                              : [...value, child.props.value]
-                            : child.props.value,
-                        },
-                      });
-                  }}
-                >
-                  {child.props.children}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      );
-    },
-    MenuItem: container,
-  };
-});
+installRadixBrowserAPIs();
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
@@ -159,11 +90,19 @@ const mount = async (data: any = preview(10)) => {
   return view;
 };
 const idle = () => waitFor(() => expect(screen.queryByRole('progressbar')).toBeNull());
-const choose = async (label: string, option: string, index = 0) => {
-  fireEvent.mouseDown(screen.getByRole('combobox', { name: label }));
-  fireEvent.click(within(screen.getByRole('listbox')).getAllByRole('option', { name: option })[index]);
-  fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
-  await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+const filterTrigger = (column: string) => screen.getByRole('button', { name: column });
+// 실제 공통 필터는 Radix DropdownMenu 다중 선택이므로 메뉴를 열고 체크박스 항목을 고른다.
+const chooseFilter = async (column: string, option: string, index = 0) => {
+  await userEvent.click(filterTrigger(column));
+  const menu = await screen.findByRole('menu');
+  await userEvent.click(within(menu).getAllByRole('menuitemcheckbox', { name: option })[index]);
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+  await idle();
+};
+// 단일 선택 컨트롤(날짜 컬럼·업무 시간대 등)은 실제 Radix Select를 조작한다.
+const choose = async (label: string, option: string) => {
+  await selectRadixOption(screen.getByRole('combobox', { name: label }), option);
   await idle();
 };
 const dates = (start: string, end: string) => {
@@ -172,17 +111,17 @@ const dates = (start: string, end: string) => {
 };
 it('preserves all primitive types, deselects values, and restores after a failed query', async () => {
   await mount();
-  await choose('device_type', 'Mobile/Tablet');
-  await choose('device_type', 'true');
-  await choose('device_type', 'null');
-  await choose('device_type', 'a,b');
-  await choose('device_type', '1');
-  await choose('device_type', '1', 1);
+  await chooseFilter('device_type', 'Mobile/Tablet');
+  await chooseFilter('device_type', 'true');
+  await chooseFilter('device_type', 'null');
+  await chooseFilter('device_type', 'a,b');
+  await chooseFilter('device_type', '1');
+  await chooseFilter('device_type', '1', 1);
   expect(api.post.mock.lastCall?.[1].filters).toEqual([
     { column: 'device_type', values: ['Mobile/Tablet', true, null, 'a,b', 1, '1'] },
   ]);
   api.post.mockRejectedValueOnce(new Error('worker unavailable'));
-  await choose('device_type', 'Mobile/Tablet');
+  await chooseFilter('device_type', 'Mobile/Tablet');
   expect(api.post.mock.lastCall?.[1].filters[0].values).toEqual([true, null, 'a,b', 1, '1']);
   expect((await screen.findByRole('alert')).textContent).toContain('worker unavailable');
   expect(screen.getByText(/이전 조회 결과 · 현재 선택 조건 미적용/)).toBeTruthy();
@@ -229,7 +168,7 @@ it('stages multiple temporal columns and resets all applied and edited filters',
   fireEvent.click(screen.getByText('적용'));
   await waitFor(() => expect(api.post.mock.lastCall?.[1].dateRange?.column).toBe('updated_at'));
   await idle();
-  await choose('device_type', 'true');
+  await chooseFilter('device_type', 'true');
   expect(api.post.mock.lastCall?.[1].dateRange.column).toBe('updated_at');
   dates('2024-02-01', '');
   fireEvent.click(screen.getByText('적용'));
@@ -248,9 +187,9 @@ it('limits dimensions and offered values to five and fifty', async () => {
       values: Array.from({ length: 51 }, (_, j) => j),
     })),
   });
-  expect(screen.getAllByRole('combobox', { name: /^column/ })).toHaveLength(5);
-  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'column0' }));
-  expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(50);
+  expect(screen.getAllByRole('button', { name: /^column/ })).toHaveLength(5);
+  await userEvent.click(screen.getByRole('button', { name: 'column0' }));
+  expect(within(await screen.findByRole('menu')).getAllByRole('menuitemcheckbox')).toHaveLength(50);
 });
 it.each(['error', 'success'])('ignores stale %s after switching dashboards', async outcome => {
   const view = await mount();
@@ -263,9 +202,9 @@ it.each(['error', 'success'])('ignores stale %s after switching dashboards', asy
         rejectOld = reject;
       }),
   );
-  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'device_type' }));
-  fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: 'true' }));
-  fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+  await userEvent.click(filterTrigger('device_type'));
+  await userEvent.click(within(await screen.findByRole('menu')).getByRole('menuitemcheckbox', { name: 'true' }));
+  await userEvent.keyboard('{Escape}');
   await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
   api.post.mockResolvedValue(response(preview(42)));
   view.rerender(
@@ -287,7 +226,7 @@ it('keeps ordinary previews without temporal metadata usable', async () => {
   await mount({ ...preview(10), temporalColumns: [] });
   expect(screen.queryByLabelText('시작일 (UTC)')).toBeNull();
   expect(screen.queryByText('적용')).toBeNull();
-  await choose('device_type', 'true');
+  await chooseFilter('device_type', 'true');
   expect(api.post.mock.lastCall?.[1].filters).toEqual([{ column: 'device_type', values: [true] }]);
   expect(api.post.mock.lastCall?.[1]).not.toHaveProperty('dateRange');
 });
@@ -404,13 +343,12 @@ it.each(['차트', 'KPI'])(
   'time bucket %s applies exact UTC hour and retains categories, grain and comparison',
   async label => {
     await mount(timePreview());
-    await choose('device_type', 'true');
+    await chooseFilter('device_type', 'true');
     await stageAndApply('2026-01-01', '2026-01-31');
     fireEvent.click(screen.getByRole('checkbox', { name: '이전 기간 비교' }));
     await idle();
-    // The mocked grain TextField is a native input; production uses a select.
-    fireEvent.change(screen.getByLabelText('시계열 집계 단위'), { target: { value: 'week' } });
-    await idle();
+    // 실제 집계 단위는 Radix Select이므로 트리거를 열고 옵션을 골라야 한다.
+    await choose('시계열 집계 단위', '주별');
     fireEvent.click(screen.getByRole('button', { name: `${label} 기간 0` }));
     await idle();
     expect(api.post.mock.lastCall[1]).toMatchObject({
@@ -477,7 +415,7 @@ it('time bucket restores the relative expression and original day inputs while p
   fireEvent.click(screen.getByRole('button', { name: '차트 기간 0' }));
   await idle();
   expect(savedState().relativePeriod).toBeNull();
-  await choose('device_type', 'true');
+  await chooseFilter('device_type', 'true');
   recovery().focus();
   const pending = pendingPreview();
   fireEvent.click(recovery());
@@ -600,7 +538,7 @@ it('time bucket failed preview keeps undo accessible and recovers the exact prio
   fireEvent.click(screen.getByRole('button', { name: '차트 기간 0' }));
   await idle();
   api.post.mockResolvedValueOnce(response(timePreview()));
-  await choose('device_type', 'true');
+  await chooseFilter('device_type', 'true');
   api.post.mockRejectedValueOnce(new Error('선택 기간 조회 실패'));
   fireEvent.click(screen.getByRole('button', { name: 'KPI 기간 0' }));
   await screen.findByText('선택 기간 조회 실패');
@@ -641,8 +579,7 @@ it('time bucket different active date column stays plain and rejects callbacks u
     ],
   };
   api.post.mockResolvedValue(response(otherPreview));
-  fireEvent.change(screen.getByLabelText('시계열 집계 단위'), { target: { value: 'day' } });
-  await idle();
+  await choose('시계열 집계 단위', '일별');
   expect(screen.queryByRole('button', { name: '차트 기간 0' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'KPI 기간 0' })).toBeNull();
   expect(savedState().dateRange).toEqual(selected.dateRange);
@@ -683,7 +620,7 @@ it('keeps business timezone when selecting a KPI bucket', async () => {
 
 it('keeps settings collapsed by default and preserves conditions on disclosure toggle', async () => {
   await mount();
-  await choose('device_type', 'Mobile/Tablet');
+  await chooseFilter('device_type', 'Mobile/Tablet');
   const summary = screen.getByText('기간·필터 설정');
   const disclosure = summary.closest('details');
   expect(disclosure?.open).toBe(true);
@@ -709,17 +646,18 @@ it('starts with only the applied summary visible without changing the query', as
 it('coalesces rapid filter edits and cancels scheduled previews on unmount', async () => {
   const mounted = await mount();
   const initial = api.post.mock.calls.length;
-  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'device_type' }));
-  const menu = screen.getByRole('listbox');
-  fireEvent.click(within(menu).getByRole('option', { name: 'Mobile/Tablet' }));
-  expect((screen.getByRole('combobox', { name: 'device_type' }) as HTMLButtonElement).disabled).toBe(false);
-  fireEvent.click(within(menu).getByRole('option', { name: 'true' }));
+  // Radix 드롭다운은 modal이므로 열린 동안 트리거는 aria-hidden 된다. 열기 전 참조를 보관한다.
+  const trigger = filterTrigger('device_type');
+  await userEvent.click(trigger);
+  await userEvent.click(within(await screen.findByRole('menu')).getByRole('menuitemcheckbox', { name: 'Mobile/Tablet' }));
+  expect((trigger as HTMLButtonElement).disabled).toBe(false);
+  await userEvent.click(within(screen.getByRole('menu')).getByRole('menuitemcheckbox', { name: 'true' }));
   expect(api.post.mock.calls.length).toBe(initial);
   await idle();
   expect(api.post.mock.calls.length).toBe(initial + 1);
   expect(api.post.mock.calls.at(-1)?.[1].filters).toEqual([{ column: 'device_type', values: ['Mobile/Tablet', true] }]);
   expect(api.post.mock.calls[0][2].signal.aborted).toBe(true);
-  fireEvent.click(within(menu).getByRole('option', { name: 'true' }));
+  await userEvent.click(within(screen.getByRole('menu')).getByRole('menuitemcheckbox', { name: 'true' }));
   mounted.unmount();
   await new Promise(resolve => setTimeout(resolve, 300));
   expect(api.post.mock.calls.length).toBe(initial + 1);
@@ -736,12 +674,12 @@ it.each(['success', 'error'])('keeps the latest filter result after an uncancell
         fail = reject;
       }),
   );
-  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'device_type' }));
-  fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: 'Mobile/Tablet' }));
+  await userEvent.click(filterTrigger('device_type'));
+  await userEvent.click(within(await screen.findByRole('menu')).getByRole('menuitemcheckbox', { name: 'Mobile/Tablet' }));
   await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
   const oldSignal = api.post.mock.calls[1][2].signal;
   api.post.mockResolvedValue(response(preview(42)));
-  fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: 'true' }));
+  await userEvent.click(within(screen.getByRole('menu')).getByRole('menuitemcheckbox', { name: 'true' }));
   await screen.findByText('42');
   expect(oldSignal.aborted).toBe(true);
   await act(async () => {
@@ -778,7 +716,7 @@ it('applies the saved default scope on the first load and keeps the user filter 
   const scope = [{ column: 'device_type', values: ['Mobile/Tablet'] }];
   const view = await mountScoped(scopedAnalysis(scope));
   expect(api.post.mock.lastCall?.[1].filters).toEqual(scope);
-  await choose('device_type', 'Desktop');
+  await chooseFilter('device_type', 'Desktop');
   expect(api.post.mock.lastCall?.[1].filters).toEqual([{ column: 'device_type', values: ['Mobile/Tablet', 'Desktop'] }]);
   api.get.mockResolvedValue(scopedAnalysis(scope, 's'.repeat(64)));
   view.rerender(
