@@ -15,14 +15,15 @@ vi.mock('@mui/material', () => ({
     </button>
   ),
   Radio: () => null,
+  Checkbox: ({ checked, onChange }: any) => <input type="checkbox" checked={checked} onChange={onChange} />,
   RadioGroup: ({ children, value, onChange }: any) => (
     <div onChange={onChange} data-value={value}>
       {children}
     </div>
   ),
-  FormControlLabel: ({ value, label }: any) => (
+  FormControlLabel: ({ value, label, control }: any) => (
     <label>
-      <input type="radio" name="scope" value={value} />
+      {control?.props?.onChange ? control : <input type="radio" name="scope" value={value} />}
       {label}
     </label>
   ),
@@ -70,6 +71,19 @@ describe('snapshot publication controls', () => {
       visibility: 'private',
       allowRemix: false,
     });
+  });
+  it('shares reusable column/metric definitions only after explicit remix consent', async () => {
+    render(<StudioPublish {...props} />);
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    const permission = screen.getByRole('checkbox', { name: '내 데이터로 복제 허용' }) as HTMLInputElement;
+    expect(permission.checked).toBe(false);
+    expect(screen.getByText(/원본 열 이름과 지표 정의/)).toBeTruthy();
+    fireEvent.click(permission);
+    fireEvent.click(screen.getByRole('button', { name: '게시하기' }));
+    await screen.findByText(/버전 1 게시 완료/);
+    expect(vi.mocked(publishDashboard).mock.calls[0][1].allowRemix).toBe(true);
   });
   it('retries the exact same body after a lost response', async () => {
     vi.mocked(publishDashboard).mockRejectedValueOnce(new Error('lost response'));

@@ -350,3 +350,57 @@ T7 선택 범위·G2 완료. 다음 **T8 게시 snapshot·링크·재게시·중
 - 브라우저는 이전 승인된 headed Chromium fallback을 재사용했고 마지막 게시본을 Codex IAB에서 확인해 탭에 남겼다. 임시 UI 검증 코드는 /private/tmp에만 두고 상시 Playwright suite를 추가하지 않았다.
 
 T8 선택 범위·G3 완료. 다음 T9 **내 데이터로 복제·열 매핑·필수열 누락 안내**.
+
+
+## T9 — 내 데이터로 복제·열 매핑 · 2026-10-15
+
+기준38406c17 + T9 diff. 기존 통과 케이스는 재사용하며 아래 신규 조건만 실행한다. 원본의 게시 시점 의미 정의를 이용하고 최신 초안·원본 연결·SQL을 수신자에게 복사하지 않는다.
+
+| ID | 조건 | 상태 |
+| --- | --- | --- |
+| STUDIO-R01 | 복제 명시 허용·소유 데이터 선택·정확 이름/타입 자동 매핑·변경 열 확인·원본 정답·새 ID/참조·private 저장/reload | PASS_SELECTED |
+| STUDIO-R02 | 미허용/타인 소스/만료·중지 거절, 필수열/타입 충돌 차단·명시 제외/배치 정리, 버전 경합·멱등성·원본 불변 | PASS_SELECTED · 경합은 하위 검사 |
+| STUDIO-R03 | 1440/768/390px·긴 열 이름·빈/오류 안내·키보드·포커스·44px·가로 넘침 | PASS_SELECTED |
+| DESIGN-04/VoiceOver | 이전 OS 권한 차단 | BLOCKED 유지 |
+
+Ruling: 공개 스냅샷에 계산 의미가 없는 이전 게시본은 소유자가 복제 허용을 선택해 재게시해야 한다. 최신 초안을 몰래 이용하지 않는다. 자연어 복제/모호한 자동 매핑은 하지 않고 검토 화면에서 대상·매핑을 확정한다. gpt-6-luna 설정 유지, 확정된 의미를 옮기는 과정은 모델 호출 없이 서버 compiler를 재사용한다.
+
+
+### 구현 계약
+
+- 게시 설정의 **내 데이터로 복제 허용**은 기본 꺼짐이며 명시 재게시할 때만 의미 정의를 캡처한다. `GET /studio/publications/:token/remix-template`, `POST .../remix-preview`, `POST .../remix`는 모두 인증·게시 정책·수신자 소스 소유권을 검사한다. 캐시는 no-store다.
+- 공개 시점의 구조화된 지표·분류·표현·3폭 배치만 서버에 저장한다. 실제 실행 SQL과 canonical 의미가 일치하지 않으면 해당 블록을 미지원으로 표시한다. SQL을 역추측하거나 최신 초안으로 대체하지 않는다. 원본 연결/파일/SQL·인증·원본 행·실행 이력은 수신자 응답이나 새 대시보드에 복사하지 않는다.
+- 대상 데이터는 기존 Studio 파일·샘플·소스 선택기를 재사용한다. 정확한 이름과 DuckDB 타입만 자동 연결하며 후보·형 변환을 추측하지 않는다. 변경/빈 매핑은 저장 전에 명시 재검증한다. 필수 열이 없으면 저장 차단, 블록 제외는 사용자가 선택하며 모든 breakpoint 배치 참조도 제거한다. 모두 제외한 저장은 금지한다.
+- 저장은 대상 dataVersion·게시 version을 pin하고 queue/snapshot/transaction 안에서 권한·상태를 재확인한다. 새 dashboard/block/metric ID를 부여하고 source·dimension 참조는 수신자 데이터로 연결한다. 같은 원본 소스에 복제해도 metric은 독립적으로 생성한다. 원본 게시 링크·공개 범위·만료·history를 상속하지 않고 새 게시본은 없는 private 대시보드로 만든다.
+- actor/requestId journal과 본문 해시로 응답 유실 재시도 중복을 막는다. 재시도 동안 입력을 잠그고 같은 요청을 재전송한다. 다른 계정의 늦은 저장 응답은 화면 이동/상태 갱신에 쓰지 않으며, 같은 계정의 토큰 갱신은 매핑·진행 중 요청을 유지한다. JWT identity 해석은 UI 응답 소유자 구분용이며 서버 인가를 대체하지 않는다.
+
+### 실행·정답·독립성
+
+- Node24/npm, FE3229/API4329, T8 DB의 일관된 격리 복제 `/private/tmp/vm-studio-t9-20261015/metadata.db`. 기존 공개 샘플 파일은 읽기 재사용하고 새 업로드는 별도 파일로 만들었다. 원본 사용자 DB/파일·전역 AI/OS 설정은 바꾸지 않았다.
+- 소유자 계정의 source10/dashboard8을 명시 동의로 v6 재게시했다. 다른 수신자 계정은 원본 소스에 접근할 수 없지만 게시 의미 정의를 조회하고 자신의 source18(정확 이름)/source19(열 이름 변경)에 연결했다. 실제 UI 파일 선택으로 Parquet를 올리고 `bid_request_cnt→request_count`, `bid_floor→floor_total`, `has_bid_floor_cnt→floor_count`, `device_type→device_label`, `__time→event_time`을 명시 확인했다.
+- 동일 공식 Rill **1,391,572행**, 총 요청 수 **634513000**, 평균 입찰 하한가 **5.571238676523254**. 독립 oracle5.571238676526892와 오차<1e-9다. 미리보기와 새 private dashboard14 저장·reload에서 숫자·새 참조·전 breakpoint geometry·표현 보존을 확인했다. 원본의 수치를 복사한 것이 아니라 대상 파일을 DuckDB에서 다시 집계했다.
+- 모바일 Enter 저장 후 Studio로 이동했다. 복제본 제목을 별도 API save로 바꾸고 실제 UI reload에서 `내 데이터로 복제 · Rill 광고 분석`을 확인했다. 원본 문서(ID/metric/revision 포함)와 v6 전체 게시 snapshot은 deep equal로 불변. 새 복제본 게시 metadata 없음, 원본 소유자는 새 복제본403·익명401이다. 제목 독립 편집은 API+화면 재조회 범위이며 AI 편집을 새로 실행했다고 세지 않는다.
+- source16은 전체 행에서 `bid_floor`만 뺀 오류 표본이다. 평균 블록만 미연결, 저장400. UI Space로 해당 블록 제외 후 매핑 Enter 확인→3개 미리보기·해당 필수열 제거·저장 가능 상태를 확인했다. API 저장 dashboard13의 모든 배치도3개이며 같은 requestId replay는 같은 ID, 다른 본문409다.
+- source17은 `bid_request_cnt`를 VARCHAR로 바꾼 **5행 형식 오류 전용** 표본이다. 동일 139만 행 정답 표본으로 취급하지 않는다. 명시 연결은 incompatible·저장 차단, 잘못 고른 열은 입력창에 유지되고 aria-invalid/설명 연결을 제공한다.
+- 실제 API의 미허용403·private 수신자403·타인 targetSource403·익명401·오래된 version409·실제 만료/중지410과 no-store/data0을 확인했다. 중지 링크는 실제 모바일 화면에서 안내와 미리보기0을 확인했다. revoke-vs-commit·도중 소스 교체·transaction rollback·실행 SQL 변조·같은 source의 독립 metric은 하위 서비스 검사이며 실제 파일 교체/다중 프로세스 운영 경쟁 시험은 아니다.
+
+### 발견 오류·재검증
+
+1. 계정 전환 중 늦은 저장 응답을 사용하지 않도록 generation과 actor identity를 확인했다. 독립 리뷰에서 지적한 같은 계정 토큰 자동 갱신 시 busy가 풀리지 않는 문제를 수정하고, 다른 탭 refresh 이벤트도 입력을 초기화하지 않도록 했다. 응답 유실 동일 요청 재시도·로그아웃 늦은 응답·refresh 성공 React 회귀 통과.
+2. 형식 불일치 응답에서 유효하지 않은 선택을 normalization이 버려 UI가 빈 열로 보였다. 사용자 선택을 유지하고 타입 안내/aria-invalid를 연결했다. 실제390px 재검증에서 VARCHAR 선택 유지·오류 설명·저장 차단 확인. 최초/수정 후 캡처를 분리했다.
+3. 독립 backend 리뷰의 두 재현: 대상의 첫 시간 열과 매핑한 시간 열이 다를 때 명시 월 집계가 실패하는 문제, 비COUNT의 실제 `*` 열 매핑을 wildcard로 취급하는 문제를 수정했다. chart의 검증된 시간 차원을 사용하고 COUNT sentinel만 예외로 둔다. 각각 preview/save/reload 회귀 통과 및 리뷰 재확인. 이 특수 두 표본의 쿼리 값은 mock 기반 하위 검사이고 real Rill 재집계는 별도 확인했다.
+
+### 디자인·키보드·제한
+
+- 실제 **1440/768/390px**, document scrollWidth 각각1425/753/375로 페이지 가로 넘침0. 변경 버튼·native select 최소44px, 열 label14px, 두 열→한 열 재배치·수치/추이/표·긴 `video_max_duration_bucket` 선택값을 확인했다. 긴 표만 내부 스크롤한다. 저장 전 검토와 명시 제외를 별도 영역으로 표시했다. PNG 대신 실제 도구의 JPEG 캡처를 저장하고 직접 살폈다.
+- 수신자 로그인 후 다른 탭 storage 이벤트로 정의/소스 갱신, 소스 메뉴 Enter 선택·native select 방향키/Enter 변경·Tab 이동·Space 제외·Enter 확인/저장·정확한 데이터 표 열기를 확인했다. IAB의 로그인 target-blank 자동 탭 열기는 확인하지 못해 같은 브라우저의 별도 로그인 탭을 명시 생성했고, 로그인 복귀 이벤트를 검증했다.
+- **기능 PASS_SELECTED / 디자인 PASS_SELECTED**. 실기기·모든 언어·전체 키보드 순서/스크린리더·운영 동시 부하·실제 source 파일 교체 경쟁·live Rill의 remix UX 재비교는 NOT_RUN. 실제 VoiceOver는 BLOCKED 유지한다. 자연어 remix dispatch는 미구현이며 현재 명시 복제 화면으로만 수행한다. 전체 TC-005/T10·실제 외부 배포가 완료됐다고 주장하지 않는다.
+- AI_PROVIDER=codex 및 gpt-6-luna·10100 연결/카탈로그 설정 유지. 이 단계는 결정된 구조화 의미의 재사용이므로 새 모델 호출0이다. 기존 AI 검증을 반복하거나 새 LLM 성공으로 세지 않았다. MUI/기존 renderer·worker 재사용, 신규 의존성·상시 E2E 코드 없음.
+
+### 검사·증빙
+
+- 최종 BE **437 tests/22suite PASS**, 변경 lint·Nest build PASS. T9 전체 backend 검사1608개는 리뷰 수정 전1회 통과했고 이후 변경 영향 Studio/시간/기여/추이 범위만437개 재검증했다. 최종 FE **14 tests/3file PASS**, 타입·변경 lint·production build PASS. 버전 경고(ts-jest/TypeScript, Vite configLoader)는 기존 경고로 유지한다.
+- `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t9-20261015/`: `http-results.json`, `permission-results.json`, `clone-results.json`, `final-preview-results.json`, `layout-results.json`, `browser-results.json`, `long-column-results.json`, 원본 문서/게시 snapshot 비교 기준·fixture ID와 검사 로그. 인증값·비밀번호·원본 행·환경 secret은 증빙에 저장하지 않았다.
+- 주요 캡처: `consent-publication-1440.jpg`, `remix-ready-{1440,768,390}.jpg`, `preview-exact-390.jpg`, `missing-column-390.jpg`, `exclusion-validated-390.jpg`, `type-mismatch-390.jpg`→`type-mismatch-fixed-390.jpg`, `long-column-390.jpg`, `revoked-remix-390.jpg`, `clone-final-{1440,390}.jpg`. 임시 검증 도구는 /private/tmp에만 뒀다.
+
+T9 선택 범위 완료. 다음은 **T10 전체 흐름 수용·마지막 디자인 회귀**이며 통과 결과 재사용과 미실행 경계 구분을 우선한다.

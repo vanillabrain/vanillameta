@@ -183,11 +183,13 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 **Interfaces:** `POST /studio/publications/:token/remix-preview {targetSourceId,mapping}` → 검증 preview/unmappedBlocks; `POST /studio/publications/:token/remix {requestId,targetSourceId,mapping}` → 새 private dashboard/document. authenticated owner/source 검증과 allowRemix 정책 필수.
 
-- [ ] 공개 가능한 의미 정의만 복사. 새 dashboard/block IDs, 독립 source·metric/dimension 참조. 원본 share token·publication 설정·인증·실행 이력은 복사하지 않음.
-- [ ] 정확한 이름/타입은 자동 매핑하고 후보가 여러 개면 확인. 문자열/숫자 변환 추측 금지. 필수열 누락은 해당 블록 표시·저장/게시 차단. 제외를 명시하면 블록과 그 layout 참조를 함께 제거.
-- [ ] 타인 targetSource 거절·remix 금지·revoke와 commit경합·동일 requestId 재시도 tests. 원본 source 비공개여도 공개 템플릿+수신자 소유 source만으로 재사용 가능해야 함.
-- [ ] STUDIO-R01/R02: 열 이름만 바꾼 동일 값 source에서 원본 정답 일치, 필수열 누락 차단, 원본/복제본 수정 독립성·기존 원본 ID/revision/version 불변 확인·캡처.
-- [ ] 커밋. 새 복제본은 기본 private. 원본이 공개였다는 이유로 공개하지 않음.
+- [x] 공개 가능한 의미 정의만 복사. 새 dashboard/block IDs, 독립 source·metric/dimension 참조. 원본 share token·publication 설정·인증·실행 이력은 복사하지 않음.
+- [x] 정확한 이름/타입은 자동 매핑하고 후보가 여러 개면 확인. 문자열/숫자 변환 추측 금지. 필수열 누락은 해당 블록 표시·저장/게시 차단. 제외를 명시하면 블록과 그 layout 참조를 함께 제거.
+- [x] 타인 targetSource 거절·remix 금지·revoke와 commit경합·동일 requestId 재시도 tests. 원본 source 비공개여도 공개 템플릿+수신자 소유 source만으로 재사용 가능해야 함.
+- [x] STUDIO-R01/R02: 열 이름만 바꾼 동일 값 source에서 원본 정답 일치, 필수열 누락 차단, 원본/복제본 수정 독립성·기존 원본 ID/revision/version 불변 확인·캡처.
+- [x] 커밋. 새 복제본은 기본 private. 원본이 공개였다는 이유로 공개하지 않음.
+
+검증: [T9 MD](../../testing/dashboard-studio.md#t9--내-데이터로-복제열-매핑--2026-10-15). 명시 복제 UI 범위 완료; 자연어 remix dispatch·전체TC-005는 T10의 미실행 경계로 남긴다.
 
 ### T10: 전체 흐름과 디자인 회귀 수용 (G4 / TC-005)
 

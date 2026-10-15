@@ -15,6 +15,7 @@ export class StudioPublication extends BaseEntity {
   @Column({ type: 'varchar' }) asOf: string;
   @Column({ length: 64 }) dataVersion: string;
   @Column({ type: 'text' }) snapshot: string;
+  @Column({ type: 'text', nullable: true }) remixTemplate: string | null;
 }
 /** Separate journal: a replay must never reactivate a revoked token or create another version. */
 @Entity('studio_publication_request')

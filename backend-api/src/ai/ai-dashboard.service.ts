@@ -869,8 +869,24 @@ export class AiDashboardService {
     trendGrain: ReturnType<typeof validatePeriodOptions>['trendGrain'],
     dateColumn: string | undefined,
     columns: string[],
+    temporalColumns: string[],
   ) {
     trendGrain = definition.timeGrain ?? trendGrain;
+    // Explicit per-chart grain follows its proven raw temporal category, independently
+    // of the common-filter date column or source column order. Keep legacy defaults.
+    if (
+      definition.type === 'CHART_LINE' &&
+      definition.timeGrain &&
+      definition.timeGrain !== 'auto'
+    ) {
+      const dimension = resolveDimensionColumn(
+        definition.sql,
+        definition.categoryField,
+        columns,
+        [],
+      );
+      if (dimension && temporalColumns.includes(dimension)) dateColumn = dimension;
+    }
     const regroup =
       trendGrain !== 'auto' && definition.type === 'CHART_LINE'
         ? dateColumn &&
@@ -883,7 +899,7 @@ export class AiDashboardService {
             columns,
           )
         : undefined;
-    return { sql: regroup ? regroup.sql : definition.sql, regroup };
+    return { sql: regroup ? regroup.sql : definition.sql, regroup, dateColumn };
   }
 
   /** Raw common-filter rows by default; opt-in contribution requests use the saved definition. */
@@ -1150,7 +1166,7 @@ export class AiDashboardService {
       throw new ConflictException('추이 집계가 변경되었습니다. 새로고침한 뒤 다시 선택해 주세요.');
     const effective = trend
       ? { sql: trend.sql, regroup: trend }
-      : this.effectiveWidgetQuery(definition, trendGrain, dateColumn, columns);
+      : this.effectiveWidgetQuery(definition, trendGrain, dateColumn, columns, temporal);
     const groupedDefinition = trend
       ? {
           ...definition,
@@ -1372,11 +1388,16 @@ export class AiDashboardService {
     const defaultGrain = trendGrain;
     for (const definition of draft.widgets) {
       const trendGrain = definition.timeGrain ?? defaultGrain;
-      const { regroup, sql: widgetSql } = this.effectiveWidgetQuery(
+      const {
+        regroup,
+        sql: widgetSql,
+        dateColumn: widgetDateColumn,
+      } = this.effectiveWidgetQuery(
         definition,
         trendGrain,
         dateColumn,
         columns,
+        temporal.map(c => c.column_name),
       );
       const query = sourceQuery(
         widgetSql,
@@ -1428,7 +1449,7 @@ export class AiDashboardService {
       if (definition.type === 'CHART_LINE' && widget.datas.length && !widget.grainUnavailable) {
         const bucket = regroup
           ? {
-              column: dateColumn,
+              column: widgetDateColumn,
               grain: trendGrain as 'day' | 'week' | 'month',
               format: 'timestamp' as const,
             }

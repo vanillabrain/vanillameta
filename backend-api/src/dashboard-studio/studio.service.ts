@@ -1,3 +1,4 @@
+import { captureRemixTemplate } from './studio-remix-template';
 import { compileContribution } from '../ai/dashboard-contribution';
 import { createHash } from 'crypto';
 import {
@@ -287,7 +288,17 @@ export class StudioService {
                 : column,
             ),
           ).supported;
-        if (!proven && !exactTimeAggregate)
+        // DISTINCT is safe for publication when the exact server canonical compiler proves it;
+        // contribution drilldown intentionally declines DISTINCT and keeps its narrower contract.
+        const canonicalDistinct =
+          current.items[index]?.definition?.aggregation === 'COUNT_DISTINCT' &&
+          captureRemixTemplate(
+            current.document,
+            current.items,
+            current.schema,
+            current.analysis.widgets,
+          ).blocks[index].supported;
+        if (!proven && !exactTimeAggregate && !canonicalDistinct)
           throw new BadRequestException('안전한 집계로 확인된 차트만 게시할 수 있습니다.');
       }
       const preview = (

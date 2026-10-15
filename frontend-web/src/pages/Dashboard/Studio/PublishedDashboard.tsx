@@ -181,9 +181,16 @@ export default function PublishedDashboard() {
           vanilla<span>Meta</span>
         </a>
         <span>게시된 대시보드 · 읽기 전용</span>
-        <Button onClick={load} disabled={loading}>
-          다시 확인
-        </Button>
+        <div className="studio-published-actions">
+          {data?.allowRemix && (
+            <Button component="a" href={'/published/' + encodeURIComponent(token) + '/remix'} variant="outlined">
+              내 데이터로 복제
+            </Button>
+          )}
+          <Button onClick={load} disabled={loading}>
+            다시 확인
+          </Button>
+        </div>
       </header>
       <main id="published-main">
         {loading && <p role="status">게시 권한과 데이터를 확인하고 있습니다…</p>}

@@ -337,3 +337,55 @@
 @media (max-width: 599px) { .studio-published summary { min-height: 44px; display: flex; align-items: center; } }
 
 .studio-published .studio-brand { display: inline-flex; }
+
+/* T9: semantic remix keeps source, mapping and validation visibly separate. */
+.studio-remix-header { padding: 24px 32px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--studio-border); background: #fff; }
+.studio-remix-header h1 { font-size: 26px; line-height: 1.4; margin-top: 4px; }
+.studio-remix-main { max-width: 1440px; margin: auto; padding: 24px 32px 48px; display: grid; gap: 20px; }
+.studio-remix .MuiButton-root { min-height: 44px; text-transform: none; }
+.studio-remix-origin, .studio-remix-login { border: 1px solid var(--studio-border); border-radius: 12px; background: #fff; padding: 24px; min-width: 0; }
+.studio-remix h2 { font-size: 20px; line-height: 1.5; overflow-wrap: anywhere; }
+.studio-remix h3 { font-size: 15px; line-height: 1.5; }
+.studio-remix p { color: #59677c; font-size: 13px; line-height: 1.7; }
+.studio-remix-origin p, .studio-remix-login p { margin: 8px 0 12px; }
+.studio-remix-columns { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 20px; align-items: start; }
+.studio-remix .studio-create-source, .studio-remix-mapping { padding: 24px; border: 1px solid var(--studio-border); border-radius: 12px; background: white; min-width: 0; }
+.studio-remix-mapping > p { margin: 8px 0 20px; }
+.studio-remix-empty { border: 1px dashed #d0daea; padding: 24px; text-align: center; margin: 20px 0; border-radius: 8px; color: #59677c; }
+.studio-remix-field-list { display: grid; gap: 16px; margin-bottom: 20px; }
+.studio-remix-field { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 16px; align-items: center; }
+.studio-remix-field strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.studio-remix-field small { display: block; font-size: 12px; color: #59677c; margin-top: 4px; }
+.studio-remix-field select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 32px 8px 12px; border: 1px solid #b8c4d6; border-radius: 8px; font: inherit; font-size: 14px; color: #18253b; background: white; text-overflow: ellipsis; }
+.studio-remix-field select:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.studio-remix-blocks { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--studio-border); display: grid; gap: 12px; }
+.studio-remix-block { border: 1px solid var(--studio-border); border-radius: 8px; padding: 12px 16px; display: grid; gap: 4px; min-width: 0; }
+.studio-remix-block > strong { overflow-wrap: anywhere; }
+.studio-remix-block > span { color: #59677c; font-size: 12px; }
+.studio-remix-block-warning { background: #fffaf0; border-color: #e8cf9a; }
+.studio-remix-block .MuiFormControlLabel-label { font-size: 13px; overflow-wrap: anywhere; }
+.studio-remix-block .MuiFormControlLabel-root { min-height: 44px; }
+.studio-remix-preview > p { margin: 8px 0 20px; }
+.studio-remix-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.studio-remix-preview .studio-published-card { min-height: 320px; }
+.studio-remix-preview .studio-published-description { margin-bottom: 12px; }
+.studio-remix-save { padding: 20px 24px; border: 1px solid #cbdaf0; border-radius: 12px; background: #f0f5ff; display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.studio-remix-save .MuiButton-root { flex-shrink: 0; }
+.studio-remix-login .MuiButton-root { margin-right: 12px; }
+@media(max-width:899px) { .studio-remix-columns { grid-template-columns: minmax(0, 1fr); } }
+@media(max-width:599px) {
+  .studio-remix-header { padding: 20px 16px; align-items: start; flex-direction: column; gap: 12px; }
+  .studio-remix-header h1 { font-size: 23px; }
+  .studio-remix-main { padding: 20px 16px 32px; gap: 16px; }
+  .studio-remix-origin, .studio-remix-login, .studio-remix .studio-create-source, .studio-remix-mapping { padding: 20px 16px; }
+  .studio-remix-field { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .studio-remix-preview-grid { grid-template-columns: minmax(0, 1fr); }
+  .studio-remix-save { padding: 20px 16px; align-items: stretch; flex-direction: column; gap: 16px; }
+  .studio-remix .MuiFormControlLabel-root { margin-right: 0; }
+  .studio-remix summary { min-height: 44px; display: flex; align-items: center; }
+  .studio-published-header .MuiButton-root { margin-left: 0; }
+}
+
+.studio-published-actions { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.studio-published-actions .MuiButton-root { margin-left: 0; }
+@media(max-width:599px) { .studio-published-actions { margin-left: 0; width: 100%; } }

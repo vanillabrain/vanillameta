@@ -1,3 +1,4 @@
+import { AddStudioRemix1792060000000 } from '../migrations/1792060000000-add-studio-remix';
 import { DataSource } from 'typeorm';
 import { AddStudioPublication1792050000000 } from '../migrations/1792050000000-add-studio-publication';
 import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
@@ -13,6 +14,7 @@ describe('T8 publication migration', () => {
       const migration = new AddStudioPublication1792050000000();
       await migration.up(runner);
       await migration.up(runner);
+      await new AddStudioRemix1792060000000().up(runner);
       await db.manager.insert(StudioPublication, {
         token: 'f'.repeat(64),
         actorId: 7,
@@ -45,6 +47,7 @@ describe('T8 publication migration', () => {
           result: '{}',
         }),
       ).rejects.toThrow();
+      await new AddStudioRemix1792060000000().down(runner);
       await migration.down(runner);
       await migration.down(runner);
       expect(await runner.hasTable('studio_publication')).toBe(false);

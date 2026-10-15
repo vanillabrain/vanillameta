@@ -1,3 +1,6 @@
+import { StudioRemixRequest } from './entities/studio-remix.entity';
+import { StudioRemixService } from './studio-remix.service';
+import { StudioRemixController } from './studio-remix.controller';
 import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
 import { StudioPublicationService } from './studio-publication.service';
 import {
@@ -33,10 +36,12 @@ import { StudioRun } from './entities/studio-run.entity';
       StudioExecution,
       StudioPublication,
       StudioPublicationRequest,
+      StudioRemixRequest,
     ]),
   ],
   controllers: [
     StudioPublicationController,
+    StudioRemixController,
     StudioExecutionController,
     StudioController,
     StudioRunController,
@@ -44,6 +49,7 @@ import { StudioRun } from './entities/studio-run.entity';
   ],
   providers: [
     StudioPublicationService,
+    StudioRemixService,
     StudioPublicationGuard,
     StudioService,
     StudioExecutionService,
@@ -57,6 +63,8 @@ import { StudioRun } from './entities/studio-run.entity';
 export class StudioModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Middleware precedes the application's global throttler as well as route guards.
-    consumer.apply(studioPublicationNoStore).forRoutes(StudioPublicationController);
+    consumer
+      .apply(studioPublicationNoStore)
+      .forRoutes(StudioPublicationController, StudioRemixController);
   }
 }

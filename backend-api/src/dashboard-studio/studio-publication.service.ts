@@ -8,7 +8,11 @@ import {
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { DataSource, IsNull } from 'typeorm';
+import { DataSource, EntityManager, IsNull } from 'typeorm';
+import { ConnectionService } from '../connection/connection.service';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { metricLinkItems } from '../ai/metric-analysis-links';
+import { captureRemixTemplate } from './studio-remix-template';
 import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
 import { StudioService } from './studio.service';
 import { studioDigest } from './studio-legacy';
@@ -18,7 +22,11 @@ import { STUDIO_BREAKPOINTS, StudioDocumentV1 } from './studio-contract';
 
 @Injectable()
 export class StudioPublicationService {
-  constructor(private readonly db: DataSource, private readonly studio: StudioService) {}
+  constructor(
+    private readonly db: DataSource,
+    private readonly studio: StudioService,
+    private readonly connection?: ConnectionService,
+  ) {}
   private metadata(row: StudioPublication): PublicationMetadata {
     return {
       token: row.token,
@@ -116,8 +124,32 @@ export class StudioPublicationService {
         actor,
         async ({ document, preview, dataVersion }, manager) => {
           const snapshot = this.sanitize(document, preview);
+          let remixTemplate: string | null = null;
+          if (body.allowRemix) {
+            const dashboard = await manager.findOne(Dashboard, { where: { id } });
+            const items = metricLinkItems(
+              dashboard.structuredDefinition ? JSON.parse(dashboard.structuredDefinition) : null,
+              { databaseId: document.sourceId } as any,
+            );
+            const schema =
+              items.some(item => item?.definition) && this.connection
+                ? (await this.connection.queryDuckDB(document.sourceId, 'DESCRIBE uploaded_data'))
+                    .datas
+                : [];
+            remixTemplate = JSON.stringify(
+              captureRemixTemplate(
+                document,
+                items,
+                schema,
+                JSON.parse(dashboard.analysisDefinition).widgets,
+              ),
+            );
+          }
           const encoded = JSON.stringify(snapshot);
-          if (Buffer.byteLength(encoded, 'utf8') > 2 * 1024 * 1024)
+          if (
+            Buffer.byteLength(encoded, 'utf8') + Buffer.byteLength(remixTemplate ?? '', 'utf8') >
+            2 * 1024 * 1024
+          )
             throw new PayloadTooLargeException(
               '게시 데이터가 2MiB를 초과합니다. 차트나 표시 그룹을 줄여 주세요. 이전 게시 내용은 유지됩니다.',
             );
@@ -141,6 +173,7 @@ export class StudioPublicationService {
             asOf: new Date().toISOString(),
             dataVersion,
             snapshot: encoded,
+            remixTemplate,
           });
           const result = this.metadata(row);
           await manager.insert(StudioPublicationRequest, {
@@ -159,6 +192,30 @@ export class StudioPublicationService {
     if (!/^[a-f0-9]{64}$/.test(token)) throw new NotFoundException('공유 링크를 찾을 수 없습니다.');
     const row = await this.db.manager.findOne(StudioPublication, { where: { token } });
     if (!row) throw new NotFoundException('공유 링크를 찾을 수 없습니다.');
+    return row;
+  }
+  /** Caller holds the shared write queue; never enqueue recursively. */
+  async requireRemix(
+    token: string,
+    actor: number,
+    expectedVersion?: number,
+    manager: EntityManager = this.db.manager,
+  ) {
+    if (!Number.isSafeInteger(actor) || actor <= 0)
+      throw new ForbiddenException('로그인이 필요합니다.');
+    if (!/^[a-f0-9]{64}$/.test(token)) throw new NotFoundException('공유 링크를 찾을 수 없습니다.');
+    const row = await manager.findOne(StudioPublication, { where: { token } });
+    if (!row) throw new NotFoundException('공유 링크를 찾을 수 없습니다.');
+    if (row.revokedAt || (row.expiresAt && Date.parse(row.expiresAt) <= Date.now()))
+      throw new GoneException('공유가 중지되었거나 만료되었습니다.');
+    if (row.visibility === 'private' && row.actorId !== actor)
+      throw new ForbiddenException('소유자만 볼 수 있는 비공개 게시입니다.');
+    if (!row.allowRemix) throw new ForbiddenException('내 데이터로 복제가 허용되지 않았습니다.');
+    if (expectedVersion !== undefined && row.version !== expectedVersion)
+      throw new ConflictException('게시 버전이 변경되었습니다. 다시 확인해 주세요.');
+    if (!row.remixTemplate)
+      throw new ConflictException('소유자가 복제 허용을 선택하여 다시 게시해야 합니다.');
+    await this.studio.assertExecutionAccess(row.dashboardId, row.sourceId, row.actorId);
     return row;
   }
   async read(token: string, actor?: number) {

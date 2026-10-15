@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Checkbox,
   Button,
   Dialog,
   DialogActions,
@@ -28,6 +29,7 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
   const [current, setCurrent] = useState<Publication | null>(null);
   const [visibility, setVisibility] = useState<'private' | 'link'>('private');
   const [expiry, setExpiry] = useState('');
+  const [allowRemix, setAllowRemix] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
   const [reload, setReload] = useState(0);
@@ -52,6 +54,7 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
         setReady(true);
         if (!pending.current) {
           setVisibility(value?.visibility ?? 'private');
+          setAllowRemix(value?.allowRemix ?? false);
           const date = value?.expiresAt ? new Date(value.expiresAt) : null;
           setExpiry(date ? new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
         }
@@ -77,7 +80,7 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
         requestId: studioRequestId(),
         expectedRevision: revision,
         visibility,
-        allowRemix: false,
+        allowRemix,
         ...(expiry ? { expiresAt: new Date(expiry).toISOString() } : {}),
       };
     }
@@ -109,6 +112,7 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
       }
       setCurrent(latest);
       setVisibility(latest.visibility);
+      setAllowRemix(latest.allowRemix);
       setNotice(
         latest.token === value.token && latest.version === value.version
           ? '버전 ' + latest.version + ' 게시 완료. 이 시점의 집계 결과를 링크에서 볼 수 있습니다.'
@@ -209,6 +213,14 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
             <FormControlLabel value="private" control={<Radio />} label="비공개 · 로그인한 소유자만 조회" />
             <FormControlLabel value="link" control={<Radio />} label="링크 공개 · 링크가 있는 모든 사람이 조회" />
           </RadioGroup>
+          <FormControlLabel
+            control={<Checkbox checked={allowRemix} onChange={event => setAllowRemix(event.target.checked)} />}
+            label="내 데이터로 복제 허용"
+          />
+          <p className="studio-publish-note">
+            허용하면 원본 열 이름과 지표 정의를 재사용할 수 있습니다. 원본 행·연결 정보·SQL은 공유하지 않습니다. 새 복제본은
+            비공개로 생성됩니다.
+          </p>
           <TextField
             type="datetime-local"
             label="링크 만료 시각 (내 시간대)"
