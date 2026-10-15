@@ -1,3 +1,6 @@
+import { StudioExecution } from './entities/studio-execution.entity';
+import { StudioExecutionService } from './studio-execution.service';
+import { StudioExecutionController } from './studio-execution.controller';
 import { JwtService } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -14,10 +17,20 @@ import { StudioService } from './studio.service';
 import { StudioState } from './entities/studio-state.entity';
 import { StudioRun } from './entities/studio-run.entity';
 @Module({
-  imports: [AiModule, ConnectionModule, TypeOrmModule.forFeature([StudioState, StudioRun])],
-  controllers: [StudioController, StudioRunController, StudioCreationController],
+  imports: [
+    AiModule,
+    ConnectionModule,
+    TypeOrmModule.forFeature([StudioState, StudioRun, StudioExecution]),
+  ],
+  controllers: [
+    StudioExecutionController,
+    StudioController,
+    StudioRunController,
+    StudioCreationController,
+  ],
   providers: [
     StudioService,
+    StudioExecutionService,
     StudioRunService,
     StudioCreationService,
     StudioSampleService,

@@ -792,6 +792,24 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
             context={runContext}
             selectedTitle={selected?.title}
             onApply={applyAi}
+            onSaved={async (saved, submitted) => {
+              if (editClock.current.generation !== submitted.clientEditVersion) return false;
+              try {
+                const latest = await fetchStudioDashboard(dashboardId);
+                if (
+                  editClock.current.generation !== submitted.clientEditVersion ||
+                  latest.document.revision !== saved.document.revision
+                ) {
+                  setMessage('서버 저장은 완료됐습니다. 이후 편집은 유지했습니다. 최신 저장 내용과 비교해 주세요.');
+                  return false;
+                }
+                onReplace(latest);
+                return true;
+              } catch {
+                setMessage('서버 저장은 완료됐지만 최신 화면을 불러오지 못했습니다. 현재 편집은 유지했습니다.');
+                return false;
+              }
+            }}
             locked={saving || !!state.pendingSave || !!conflict}
           />
         }

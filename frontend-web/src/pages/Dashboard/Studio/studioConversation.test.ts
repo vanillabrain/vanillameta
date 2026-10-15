@@ -103,3 +103,40 @@ it('reports an invalid model operation as validation failure rather than connect
     vi.unstubAllGlobals();
   }
 });
+
+it('surfaces a durable preview failure as activity without applying or rerunning the completed model step', async () => {
+  const api = await import('@/helpers/apiHelper');
+  const onRequest = vi.fn(),
+    onExecution = vi.fn();
+  const execution = {
+    runId: 'run-preview-failed',
+    requestId: 'q1',
+    dashboardId: 3,
+    status: 'failed',
+    steps: [
+      { stepId: 'proposeSemantics', status: 'succeeded', retryable: false },
+      { stepId: 'preview', status: 'failed', retryable: true },
+    ],
+  };
+  const spy = vi.spyOn(api, 'post').mockResolvedValue({ data: execution } as any);
+  try {
+    const stream = await studioAssistantTransport(() => context, { onRequest, onExecution }).sendMessages({
+      messages: [{ role: 'user', parts: [{ type: 'text', text: 'Edit' }] }],
+    } as any);
+    const reader = stream.getReader();
+    const chunks: any[] = [];
+    for (;;) {
+      const part = await reader.read();
+      if (part.done) break;
+      chunks.push(part.value);
+    }
+    expect(chunks[0].messageMetadata.result.execution.status).toBe('failed');
+    expect(chunks[0].messageMetadata.result.result).toBeUndefined();
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0][0]).toBe('/studio/executions');
+    expect(onExecution).toHaveBeenCalledWith(execution);
+    expect(onRequest.mock.calls[0][0].prompt).toBe('Edit');
+  } finally {
+    spy.mockRestore();
+  }
+});

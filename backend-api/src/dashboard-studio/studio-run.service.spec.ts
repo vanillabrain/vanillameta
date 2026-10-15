@@ -143,4 +143,10 @@ describe('Studio AI scoped runs', () => {
     await expect(service.run(body, 7)).rejects.toThrow('gpt-6-luna');
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
+  it('preserves the T5 safe 503 contract if post-model preview fails', async () => {
+    studio.prepare
+      .mockImplementationOnce(async () => ({ document, preview: { widgets: [] } }))
+      .mockRejectedValueOnce(new Error('private SQL backend detail'));
+    await expect(service.run(body, 7)).rejects.toMatchObject({ status: 503 });
+  });
 });

@@ -157,11 +157,13 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 **Interfaces:** run step은 `inspectSource|proposeSemantics|preview|applyDraft|saveDraft|publish|remix`. `{stepId,status,resultRef?,errorCode?,retryable}` 저장. `POST /studio/runs/:id/retry {stepId}`는 실패한 단계와 의존하는 미실행 단계만 재개. `GET /studio/runs/:id`로 refresh 후 상태 조회.
 
-- [ ] 요청한 의도만 단계 실행. ‘만들어 줘’는 preview/local draft, ‘저장해 줘’는 save, 공유 범위 불명확은 private 상태로 clarification. T8/T9 전에는 publish/remix를 성공으로 응답하지 않음.
-- [ ] 동일 request replay·저장 response loss·취소와 commit 경합 tests. commit 전 cancel이면 쓰기0, commit 후 cancel이면 저장 완료를 표시하고 되돌리기 필요성을 명확히 함. 대화 기록은 원본 행/인증 비밀을 저장하지 않음.
-- [ ] reload 후 completed step 재실행0·진행 상태 복원, 최근 수동 변경 보존 테스트. 첫 단계는 기존 단일 Node 프로세스에서 실행하고 재시작 시 미완료 run은 interrupted 오류로 표기한다. 이미 commit한 단계는 DB 결과로 복구하고 사용자 재시도 전 자동 외부 작업은 하지 않는다. in-memory queue만으로 정확히 한 번 실행을 주장하지 않음. DB 기록/unique·transaction을 근거로 제한.
-- [ ] STUDIO-A03: 저장 성공·다음 단계 실패의 부분 완료 표시와 retry. stage3 이전에는 의도적으로 주입한 실행 adapter로 복구를 검증하고 실제 게시 PASS는 T8까지 NOT_RUN.
-- [ ] 커밋. **G2:** 단일 입력의 의도 실행·취소·충돌·중복 제어까지 통과.
+- [x] 요청한 의도만 단계 실행. ‘만들어 줘’는 preview/local draft, ‘저장해 줘’는 save, 공유 범위 불명확은 private 상태로 clarification. T8/T9 전에는 publish/remix를 성공으로 응답하지 않음.
+- [x] 동일 request replay·저장 response loss·취소와 commit 경합 tests. commit 전 cancel이면 쓰기0, commit 후 cancel이면 저장 완료를 표시하고 되돌리기 필요성을 명확히 함. 대화 기록은 원본 행/인증 비밀을 저장하지 않음.
+- [x] reload 후 completed step 재실행0·진행 상태 복원, 최근 수동 변경 보존 테스트. 첫 단계는 기존 단일 Node 프로세스에서 실행하고 재시작 시 미완료 run은 interrupted 오류로 표기한다. 이미 commit한 단계는 DB 결과로 복구하고 사용자 재시도 전 자동 외부 작업은 하지 않는다. in-memory queue만으로 정확히 한 번 실행을 주장하지 않음. DB 기록/unique·transaction을 근거로 제한.
+- [x] STUDIO-A03: 저장 성공·다음 단계 실패의 부분 완료 표시와 retry. stage3 이전에는 의도적으로 주입한 실행 adapter로 복구를 검증하고 실제 게시 PASS는 T8까지 NOT_RUN.
+- [x] 커밋. **G2:** 단일 입력의 의도 실행·취소·충돌·중복 제어까지 통과.
+
+**T7 실행 계약/판정:** 기존 T5 POST 호환을 유지하고 durable 시작은 POST /studio/executions로 분리했다. 단계 상태/GET/retry/cancel·save journal·단일 Node restart interrupted를 구현했다. 원문은 보관하지 않아 모델 단계 재시작에는 {stepId,request?}의 원래 본문/해시 확인이 필요하며, 완료 모델 결과의 preview/save는 원문 없이 재개한다. baseDocumentHash와 현재 편집 세대를 대조한다. 생성은 T6 /studio/new를 유지하고 기존 Studio의 신규 생성/게시/복제는 미지원으로 명시한다. 실제 edit/ask/save/edit+save·취소·restart·3폭/키보드, 부분 실패 adapter/주입 UI 구분과 한계는 docs/testing/dashboard-studio.md T7 참조. G2 선택 범위 완료, 다음T8.
 
 ### T8: 게시 snapshot·링크·재게시·중지 (P4 / FR-011)
 
@@ -207,7 +209,7 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 - FR-007:T5/T7/T8, FR-008:T6, FR-009:T2/T3/T5, FR-010:T1/T3/T4, FR-011:T8, FR-012:T9. UC-005 A1:T6, A2:T4/T5, A3:T7/T8, A4:T9, A5:T8.
 - 현재 지원 블록 종류/1~6 한도, single-source, live 미지원, 미저장 새로고침 복구 미지원, VoiceOver BLOCKED를 명시했다. 이 제한이 실제 TC-005를 막으면 해당 단계는 부분 완료로 남긴다.
-- T1~T6의 각 선택 범위 구현·검증이 완료됐고 다음 실행은 T7이다. 전체 작업량/기간은 T2 adapter 영향 확인 전 확정하지 않는다. 성능·공수 절감 수치를 근거 없이 약속하지 않는다.
+- T1~T7의 각 선택 범위 구현·검증이 완료됐고 다음 실행은 T8이다. 전체 작업량/기간은 T2 adapter 영향 확인 전 확정하지 않는다. 성능·공수 절감 수치를 근거 없이 약속하지 않는다.
 
 ## T2 실행 중 확정한 계약 보완
 

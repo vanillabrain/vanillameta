@@ -228,8 +228,16 @@ export class StudioService {
       return { document, preview };
     });
   }
-  async save(id: number, body: any, actor: number) {
-    return this.serializeWrite(() => this.saveOnce(id, body, actor));
+  /** Recheck both the original source and the current dashboard source on every execution read/replay. */
+  async assertExecutionAccess(id: number, originalSourceId: number, actor: number) {
+    await this.access.dashboard(id, actor);
+    await this.owner(id, actor);
+    await this.source(originalSourceId, actor);
+    const analysis = (await this.ai.analysis(id, actor, true)).data;
+    await this.source(analysis.databaseId, actor);
+  }
+  async save(id: number, body: any, actor: number, signal?: AbortSignal) {
+    return this.serializeWrite(() => this.saveOnce(id, body, actor, signal));
   }
   /** All Studio metadata transactions share the single SQLite connection's queue. */
   async serializeWrite<T>(run: () => Promise<T>): Promise<T> {
@@ -245,7 +253,7 @@ export class StudioService {
     this.tail = result.catch(() => undefined);
     return result;
   }
-  private async saveOnce(id: number, body: any, actor: number) {
+  private async saveOnce(id: number, body: any, actor: number, signal?: AbortSignal) {
     await this.access.dashboard(id, actor);
     if (
       !body ||
@@ -298,9 +306,14 @@ export class StudioService {
     };
     const previous = await replay();
     if (previous) return previous;
+    const checkCancelled = () => {
+      if (signal?.aborted) throw new BadRequestException('저장 요청을 취소했습니다.');
+    };
+    checkCancelled();
     try {
       return await this.connection.withDuckDBSnapshot(document.sourceId, () =>
         this.db.transaction(async manager => {
+          checkCancelled();
           const current = await this.load(id, actor, manager);
           if (current.sourceRevision !== body.expectedSourceRevision)
             throw new ConflictException(
@@ -426,6 +439,7 @@ export class StudioService {
             payloadHash,
             result: JSON.stringify(result),
           });
+          checkCancelled();
           return result;
         }),
       );

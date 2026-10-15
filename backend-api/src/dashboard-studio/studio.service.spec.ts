@@ -458,4 +458,88 @@ describe('Studio real DuckDB and transactional metadata', () => {
     );
     expect(undo.preview.widgets[1].datas).toHaveLength(2);
   });
+  it('T7 rolls back all metadata and save journal when cancellation arrives before commit', async () => {
+    const document = (await studio.get(id, 7)).document;
+    const before = await db.manager.findOneBy(Dashboard, { id });
+    const count = await db.manager.count(Widget);
+    const controller = new AbortController();
+    const originalSave = ai.save.bind(ai);
+    const hook = jest.spyOn(ai, 'save').mockImplementation(async (...args) => {
+      const result = await originalSave(...args);
+      controller.abort();
+      return result;
+    });
+    try {
+      await expect(
+        studio.save(
+          id,
+          {
+            requestId: 'cancel-' + id,
+            expectedRevision: document.revision,
+            expectedSourceRevision: studioDigest('test-source'),
+            document: { ...document, title: 'Cancelled' },
+          },
+          7,
+          controller.signal,
+        ),
+      ).rejects.toThrow('취소');
+      expect(await db.manager.findOneBy(Dashboard, { id })).toEqual(before);
+      expect(await db.manager.count(Widget)).toBe(count);
+      expect(await db.manager.countBy(StudioRun, { requestId: 'cancel-' + id })).toBe(0);
+      expect(await db.manager.countBy(StudioState, { dashboardId: id })).toBe(0);
+    } finally {
+      hook.mockRestore();
+    }
+  });
+  it('T7 queued cancellation writes zero and aborted replay after commit returns the existing result', async () => {
+    const document = (await studio.get(id, 7)).document;
+    const request = {
+      requestId: 'cancel-queued-' + id,
+      expectedRevision: document.revision,
+      expectedSourceRevision: studioDigest('test-source'),
+      document,
+    };
+    let release: () => void;
+    const blocked = studio.serializeWrite(
+      () =>
+        new Promise<void>(resolve => {
+          release = resolve;
+        }),
+    );
+    await new Promise(resolve => setImmediate(resolve));
+    const controller = new AbortController();
+    const pending = studio.save(id, request, 7, controller.signal);
+    const check = expect(pending).rejects.toThrow('취소');
+    controller.abort();
+    release();
+    await blocked;
+    await check;
+    expect(await db.manager.countBy(StudioRun, { requestId: request.requestId })).toBe(0);
+    const saved = await studio.save(id, request, 7);
+    expect(await studio.save(id, request, 7, controller.signal)).toEqual(saved);
+    expect(await db.manager.countBy(StudioRun, { requestId: request.requestId })).toBe(1);
+  });
+  it('T7 checks original and current source ownership independently on read/replay', async () => {
+    await db.manager.save(Database, {
+      id: 2,
+      ownerId: 8,
+      name: 'Other',
+      engine: 'duckdb',
+      type: 'FILE',
+      connectionConfig: '{}',
+    });
+    const read = jest.spyOn(ai, 'analysis').mockResolvedValue({ data: { databaseId: 2 } } as any);
+    try {
+      await expect(studio.assertExecutionAccess(id, 1, 7)).rejects.toMatchObject({ status: 403 });
+    } finally {
+      read.mockRestore();
+    }
+    await db.manager.update(Database, { id: 2 }, { ownerId: 7 });
+    await db.manager.update(Database, { id: 1 }, { ownerId: 8 });
+    try {
+      await expect(studio.assertExecutionAccess(id, 1, 7)).rejects.toMatchObject({ status: 403 });
+    } finally {
+      await db.manager.update(Database, { id: 1 }, { ownerId: 7 });
+    }
+  });
 });

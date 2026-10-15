@@ -318,7 +318,7 @@ describe('three-way reapply', () => {
 });
 
 describe('Studio AI SDK selected block integration', () => {
-  const runReply = (body: any) => ({
+  const legacyReply = (body: any) => ({
     data: {
       runId: 'run-test',
       baseRevision: body.expectedRevision,
@@ -332,14 +332,29 @@ describe('Studio AI SDK selected block integration', () => {
       preview: envelope().data.preview,
     },
   });
-  const open = async () => {
-    api.get.mockResolvedValue(envelope());
+  const runReply = (body: any) => ({
+    data: {
+      runId: 'run-test',
+      requestId: body.requestId,
+      dashboardId: 3,
+      status: 'succeeded',
+      steps: [
+        { stepId: 'inspectSource', status: 'succeeded', retryable: false },
+        { stepId: 'proposeSemantics', status: 'succeeded', retryable: false },
+        { stepId: 'preview', status: 'succeeded', retryable: false },
+        { stepId: 'applyDraft', status: 'succeeded', retryable: false },
+      ],
+      result: legacyReply(body).data,
+    },
+  });
+  const open = async (prompt = '선택 제목을 AI 총매출로 바꿔') => {
+    api.get.mockImplementation(async url => (url === '/studio/runs' ? { data: [] } : envelope()));
     render(<StudioEditor />);
     await screen.findByText('500');
     fireEvent.focus(screen.getByRole('button', { name: '총매출 이동 핸들' }));
     fireEvent.click(screen.getByRole('button', { name: 'AI 열기' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }), {
-      target: { value: '선택 제목을 AI 총매출로 바꿔' },
+      target: { value: prompt },
     });
     const form = screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }).closest('form');
     if (!form) throw new Error('AI form missing');
@@ -350,7 +365,7 @@ describe('Studio AI SDK selected block integration', () => {
     await open();
     await screen.findByText(/선택 블록에 적용했습니다/);
     expect(screen.getByRole('heading', { name: 'AI 총매출' })).toBeTruthy();
-    expect(api.post.mock.calls.map(call => call[0])).toEqual(['/studio/runs']);
+    expect(api.post.mock.calls.map(call => call[0])).toEqual(['/studio/executions']);
     expect(saveButton().disabled).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
     expect(screen.getByRole('heading', { name: '총매출' })).toBeTruthy();
@@ -375,5 +390,63 @@ describe('Studio AI SDK selected block integration', () => {
     await screen.findByText(/응답을 기다리는 동안 편집/);
     expect(screen.queryByRole('heading', { name: 'AI 총매출' })).toBeNull();
     expect(screen.getByRole('heading', { name: '총매출' })).toBeTruthy();
+  });
+  it('retains the pre-request draft when save fails and allows retrying only the failed save', async () => {
+    const { webcrypto } = await import('node:crypto');
+    const { documentFingerprint } = await import('./studioExecution');
+    vi.stubGlobal('crypto', { randomUUID: () => '11111111-1111-4111-8111-111111111111', subtle: webcrypto.subtle });
+    let failure: any;
+    api.post.mockImplementation(async (url, body) => {
+      if (url === '/studio/executions') {
+        failure = runReply(body);
+        Object.assign(failure.data, {
+          status: 'failed',
+          baseRevision: body.expectedRevision,
+          sourceRevision: body.expectedSourceRevision,
+          selectedBlockId: body.selectedBlockId,
+          clientEditVersion: body.clientEditVersion,
+          baseDocumentHash: await documentFingerprint(body.document),
+        });
+        failure.data.steps.push({ stepId: 'saveDraft', status: 'failed', retryable: true });
+      }
+      return failure;
+    });
+    await open('제목만 바꾸고 저장해줘');
+    await screen.findByText(/초안에 자동 적용하지 않았습니다/);
+    expect(screen.getByRole('heading', { name: '총매출' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'AI 총매출' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '대시보드 저장 다시 시도' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    expect(api.post.mock.calls[1][0]).toBe('/studio/runs/run-test/retry');
+    expect((api.post.mock.calls[1][1] as any).stepId).toBe('saveDraft');
+  });
+  it('blocks a recovered historical save before POST when a newer manual edit exists', async () => {
+    const historical = {
+      runId: 'historic',
+      requestId: 'q-old',
+      dashboardId: 3,
+      status: 'failed',
+      requiresRequest: false,
+      baseRevision: DOC_REVISION,
+      sourceRevision: SOURCE_REVISION,
+      clientEditVersion: 0,
+      selectedBlockId: 'b1',
+      baseDocumentHash: 'd'.repeat(64),
+      steps: [
+        { stepId: 'inspectSource', status: 'succeeded', retryable: false },
+        { stepId: 'saveDraft', status: 'failed', retryable: true },
+      ],
+    };
+    api.get.mockImplementation(async url => (url === '/studio/runs' ? { data: [historical] } : envelope()));
+    render(<StudioEditor />);
+    await screen.findByText('500');
+    const handle = screen.getByRole('button', { name: '총매출 이동 핸들' });
+    fireEvent.focus(handle);
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    fireEvent.click(screen.getByRole('button', { name: 'AI 열기' }));
+    fireEvent.click(await screen.findByRole('button', { name: '대시보드 저장 다시 시도' }));
+    await screen.findByText(/같은 블록과 원래 초안에서 재시도/);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(saveButton().disabled).toBe(false);
   });
 });

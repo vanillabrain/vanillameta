@@ -5,6 +5,7 @@ import { validateStudioPreview, StudioPreview, StudioApiError, toStudioApiError,
 import { studioAssert, studioKeys } from './studioDocument';
 import { applyStudioOperation } from './studioReducer';
 import { StudioDocumentV1, StudioOperation } from './studioTypes';
+import { validateExecution, executionSummary, StudioExecution, ExecutionRequest } from './studioExecution';
 export type StudioRunContext = {
   dashboardId: number;
   document: StudioDocumentV1;
@@ -74,7 +75,13 @@ export function validateStudioRun(input: unknown, context: StudioRunContext): St
   );
   return result;
 }
-export function studioAssistantTransport(context: () => StudioRunContext): ChatTransport<AssistantMessage> {
+export function studioAssistantTransport(
+  context: () => StudioRunContext,
+  activity?: {
+    onRequest: (request: ExecutionRequest) => void;
+    onExecution: (run: StudioExecution) => void;
+  },
+): ChatTransport<AssistantMessage> {
   return {
     async sendMessages({ messages, abortSignal }) {
       const current = context();
@@ -82,11 +89,34 @@ export function studioAssistantTransport(context: () => StudioRunContext): ChatT
       const body = { ...current, requestId: studioRequestId(), prompt };
       let response: any;
       try {
-        response = await post('/studio/runs', body, { timeout: 180000, signal: abortSignal });
+        activity?.onRequest(body);
+        response = await post(activity ? '/studio/executions' : '/studio/runs', body, {
+          timeout: 180000,
+          signal: abortSignal,
+        });
       } catch (error) {
         throw toStudioApiError(error);
       }
       if (abortSignal?.aborted) throw new Error('AI 요청을 취소했습니다.');
+      if (activity) {
+        try {
+          const run = validateExecution(response.data, current.dashboardId);
+          studioAssert(
+            !run.saveResult || run.saveResult.document.sourceId === current.document.sourceId,
+            '저장 결과의 데이터 소스가 요청과 다릅니다.',
+          );
+          const result = run.result && !run.saveResult ? validateStudioRun(run.result, current) : undefined;
+          activity.onExecution(run);
+          return assistantResultStream({
+            mode: 'studioExecution',
+            execution: run,
+            result,
+            answer: result?.answer || executionSummary(run),
+          });
+        } catch {
+          throw new StudioApiError('실행 결과를 검증하지 못했습니다. 실행 상태를 새로 확인해 주세요.', 'invalid');
+        }
+      }
       let result: StudioRunResult;
       try {
         result = validateStudioRun(response.data, current);

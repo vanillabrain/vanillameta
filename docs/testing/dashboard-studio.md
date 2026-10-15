@@ -242,3 +242,53 @@ CSV5행: 2026-01-01 Site300,01-02 Mobile200,01-08 Site400,01-09 Mobile100,01-15 
 - Aside가 준비되지 않아 이전 승인된 headed Chromium fallback 및 실제 Codex IAB 결과 확인을 사용했다. 별도 Rill 앱의 최신 live UX 재실행은 NOT_RUN, 이번 수치 대조는 같은 공식 데이터·기존 고정 정답 기준. **VoiceOver BLOCKED 유지.** 공개 게시/재사용/단계 복구와 전체 TC-005는 T7~T10이며 완료로 소급하지 않는다.
 
 다음 **T7 한 요청 실행·부분 실패 복구**. T6는 새 생성의 선택 범위와 G2 일부까지 완료했다.
+
+## T7 실행 단계·부분 실패 복구 — 2026-10-15 (선택 조건 완료)
+
+기준 `19af6b3a` + T7 diff. T6의 파일/샘플 생성·무관한 수치 케이스는 재실행하지 않았다. Codex/gpt-6-luna 지정과 VoiceOver BLOCKED 유지.
+
+| STUDIO-A03 조건 | 기대/실행 근거 | 상태 |
+| --- | --- | --- |
+| A03-INTENT | 실제 단일 입력의 질문·선택 수정·명시 저장 및 수정+저장. edit-only 저장0, 공개/복제는 미지원/설정 쓰기0 | PASS_SELECTED_VARIANTS |
+| A03-RETRY | preview 실패 뒤 모델 재호출0, commit한 저장 뒤 후속 adapter 실패의 저장 재실행0는 BE. 실제 동일 request 재생 journal1·다른 본문409. 실패 저장 재시도 UI·수동 변경 차단은 응답 주입 | PASS_SELECTED_VARIANTS |
+| A03-RECOVER | 실제 reload 후 기록 복원/추가 POST0, 실제 Node 재시작 중단 기록·저장0·자동 실행0. commit journal 복구는 BE | PASS_SELECTED_VARIANTS |
+| A03-CANCEL | 실제 AI 수정+저장 대기 중 중지→journal0/기존 제목 보존. 실제 저장 완료 후 cancel→완료·저장 결과 유지. disconnect/commit 경합·revoked ownership/stale는 BE | PASS_SELECTED_VARIANTS |
+| A03-PRIVACY | 실제 고유 원문 marker를 보낸 수정+저장 뒤 DB state에 marker/prompt/datas/sql/authorization 없음. 답변 본문은 bounded process memory만 사용 | PASS_SELECTED_VARIANTS |
+| A03-DESIGN | 실제 활동1440/768/390px·요약 Enter·Drawer Escape/복귀, 모바일 버튼 모두44px. 부분 완료/재시도는 주입 UI, 중지/중단/저장은 실제 상태 | PASS_SELECTED_VARIANTS |
+
+### 구현 계약·운영 범위
+
+- T5 `POST /studio/runs`는 호환 유지. Studio AI SDK transport는 새 `POST /studio/executions`를 사용하며, `GET /studio/runs?dashboardId=…`, `GET /studio/runs/:id`, `POST /studio/runs/:id/retry {stepId,request?}`, `POST /studio/runs/:id/cancel`을 제공한다. 시작 응답은 실제 완료/실패까지 기다리고 대기 중에는 가벼운 목록 조회를 2초 간격으로 수행한다. 모델 토큰 스트리밍으로 위장하지 않는다.
+- `studio_execution`에 actor/request unique·payload hash·단계/상태·원본 문서의 지표/레이아웃 메타데이터·검증된 제안을 저장한다. prompt·원본 데이터 행·SQL·인증정보·provider 오류·모델 자유 답변은 저장하지 않는다. 원본 요청/답변은 서버 프로세스에서 최대64개/10분, 프런트 원래 본문은 컴포넌트 메모리에만 유지한다. 채팅 영속 저장/세션 스토리지에 원문을 쓰지 않는다.
+- source inspect→model proposal→preview→draft ready→명시 save의 완료 checkpoint를 재사용한다. completed step은 retry에서 실행하지 않고, 저장은 기존 StudioRun의 같은 request journal과 동일 transaction/쓰기 큐를 이용한다. 이 구조를 분산 환경의 정확히 한 번 실행 보장으로 확대하지 않는다. 단일 상시 Node·SQLite 메타데이터 전제 유지.
+- 시작 시 pending/running은 interrupted로 복원한다. 이미 commit한 save는 journal로 완료 복원하며 자동 LLM/외부 작업을 하지 않는다. 재시작/TTL 뒤 모델 단계 재시도에는 원래 요청 재입력이 필요하고, 전체 요청 해시가 달라지면409. 완료한 모델의 연산이 보관된 preview/save 재시도에는 원문이 필요 없다. 이전 모델 답변 본문은 재시작 뒤 복원하지 않고 재질문을 안내한다.
+- GET/list는 revision을 제외한 원래 문서 SHA256 `baseDocumentHash`만 추가 반환한다. 클라이언트가 현재 문서·source/revision·선택을 대조하고 최근 수동 변경/undo 세대가 다르면 POST 전 재시도를 차단한다. 복원 요청의 원래 서버 세대와 현재 화면 세대는 분리해, 정상 재시도 결과를 적용하면서 그 이후 수동 편집은 보존한다.
+- ‘현재 초안을 저장해 줘’, `save`/`save draft` 및 명시적 한국어 후행 ‘…하고 저장해 줘’가 저장 의도다. 저장 부정문은 쓰지 않고, 불명확/미지원 제안은 저장하지 않는다. 모든 언어·모든 자연어 표현을 지원한다고 주장하지 않는다. T6 새 생성은 `/studio/new`의 정의 검토/preview/명시 저장 흐름을 유지한다. 기존 Studio에서 새 대시보드 생성·게시·복제는 미지원으로 표시하고 실제 공유/게시 설정을 변경하지 않는다. 해당 후속 기능은 T8/T9이다.
+
+### 실제 실행
+
+- Node24/npm, FE3227/API4327, `/private/tmp/vm-studio-t7-20261015/metadata.db` 격리 메타데이터. Rill 파일은 기존 T6 업로드 경로를 SELECT 전용으로 재사용하며 이번에 수집·원본 파일 쓰기를 하지 않았다. 복사된 소스의 관리 경로가 원래 절대 경로를 보존해 최초 잘못 지정한 T7 uploads가400이었고 파일 루트만 정정했다. 사용자 데이터/기존 메타데이터는 변경하지 않았다.
+- 실제 gpt-6-luna 지정 요청: Rill dashboard8의 선택 숫자 제목만 변경→데이터/AI/검증/초안4단계 완료·save 단계 없음. 별도 ‘현재 초안을 저장해 줘’는 모델 없이 save 완료→reload에서 제목/저장 기록 복원·추가 POST 없음. 질문은 실제634513000 답변·operation0. 공개 링크 요청은 unsupported·실제 publish 성공0.
+- 추가 신규 조합: ‘선택한 숫자 블록 제목만 T7 통합 요청 합계로 바꾸고 저장해 줘’ 한 요청으로 inspect/propose/preview/apply/save5단계 완료, 저장 revision/화면 일치. 634513000·평균5.571239 표시/나머지 차트는 유지했다. CLI 출력만으로 실제 사용 모델 자체를 별도 증명하지는 않는다.
+- 실제 수정+저장 요청이 model 단계 실행 중일 때 중지→기존 제목 보존, 해당 save journal0. commit된 API 요청을 동일 본문으로 재생→동일run/journal1, 다른 본문409·익명GET401·commit후cancel은succeeded/saveResult 유지. HTTP 테스트의 fetch.ok 속성을 함수로 쓴 스크립트 오류 후 이미 commit한 요청을 원래 메타데이터+알고 있는 고정 문장으로 복원해 재생했으며 새 실행으로 대체하지 않았다.
+- 실제 Node 프로세스를 model 단계 중 종료·같은 DB로 재시작→interrupted/추가 POST0/save journal0. 원문 재입력 안내 확인. 단위에는 server restart 후 model 완료/preview 실패 복구, journal commit 뒤 상태 응답 유실 복구, 취소와 commit의 앞뒤 경계, 현재/원래 source 소유권 회수도 포함했다.
+- STUDIO-A03의 ‘저장 완료 후 후속 실패/재시도’는 계획대로 backend 주입 adapter에서 save 중복0·미지원 publish 성공0을 확인했다. 브라우저의 실패 save·재시도/partial 표시는 명시한 응답 주입이며 live publish 성공으로 계산하지 않는다. 실제 게시/복제·전체 TC-005는 NOT_RUN이다.
+
+### 오류 수정·리뷰
+
+1. 실제 UI의 revision 없는 초안을 새 API가400으로 거절: optional 문서 revision과 필수 expectedRevision을 분리, supplied revision만 일치 검사. 서버의 실제 최신 revision 대조는 유지. 회귀 red→green 및 실제 요청 성공.
+2. 독립 리뷰 P2 두 건: 실패한 save의 AI 변경을 로컬에 먼저 적용해 재시도를 막던 문제, reload 후 기억된 요청 없이 과거 save를 재개하며 현재 편집과 대조하지 않던 문제. save 미완료 시 제안 적용을 보류하고 canonical 해시·revision/source·선택·편집 세대 대조를 추가했다. hash 회귀 red→green, 실제 useChat/Editor 통합 회귀와 주입 브라우저에서 실패 단계 save POST만1회·수동 변경 뒤 두 번째 POST0 확인.
+3. HTTP disconnect가 run ID를 받기 전에 발생해도 실행 AbortSignal로 전달하고 commit 전 쓰기0, commit 뒤 완료 상태를 유지하도록 경계를 연결했다. 직접 T5 경로의 동작/답변도 유지했다.
+4. 질문의 실제 수치 답변이 일반 완료 문구로 사라지지 않도록 live 답변을 bounded memory에 보존하면서 durable history에서는 제외했다. 실제 수치 답변과 단위 모두 확인했다.
+5. 늦은 목록 응답이 최신 완료 상태를 덮지 않도록 조회 세대를 구분했다. 저장 응답의 dashboard/source/revision 형식, 재시도 결과의 원래 문맥/현재 표시 문맥을 각각 검증한다.
+
+### 디자인·검사·증빙
+
+- MUI/기존 Studio 색·폰트·간격을 재사용하고 신규 의존성 없음. 실행 상태를 색과 텍스트로 함께 표시, 실패 단계만 재시도 제공. 정상/실패/부분 완료/중지/서버 중단의 핵심 PNG를 실제 검토했다.
+- 실제 모바일 검사에서 상단 탭/닫기 버튼이 작은 점을44px로 수정했다. 마지막 시각 검토에서 sticky 입력창이 긴 실행 기록을 덮던 문제를 패널 본문 내부 스크롤+별도 입력 영역으로 수정했다. desktop shell108px와 아래16px 여백을 기준으로 AI 패널 높이를 제한하고 Drawer는100dvh를 사용한다. settings 패널이나 전역 UI는 변경하지 않았다.
+- 최종1440/768/390px 페이지 가로 넘침 없음, 모바일 visible 버튼44px 이상. 요약 Enter 열기/닫기·Escape 후 AI 열기 버튼 복귀. 폭 변경 때 Drawer DOM이 교체되는 검증 스크립트의 detached 판정은 전환 대기로 정정하고 해당768/390 조건만 재확인했다. 실기기·VoiceOver·모든 번역·장문 전체 조합은 NOT_RUN/BLOCKED이며 DOM 결과로 VoiceOver를 통과시키지 않았다.
+- BE 변경된 Studio 경계 **194개/12suite PASS**, migration up/down·legacy/direct T5/save 취소 영향 포함, lint/Nest build PASS. FE 실행·기존 SDK/Editor 영향 **30개/4file PASS**, 타입·변경 lint·build PASS. 전체 제품 E2E·무관 MD·기존 Rill 앱 live UX 재실행은 하지 않았다.
+- 증빙 폴더 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-t7-20261015/`: `edit-real-ai.json`, `save-execution.json`, `ask-real-ai.json`, `combined-real-ai.json`, `combined-result.json`, `browser-results.json`(실제 4개 흐름·1440 PASS 후 옛 모바일 터치 크기 실패 포함), `remaining-results.json`(최종768/390/키보드), `http-results.json`, `cancel-result.json`, `restart-result.json`, `retry-ui-results.json`(주입 명시), 단위 red/green·review·type/lint/build 로그. 인증정보/원문 데이터는 증빙에서 제외했다.
+- 최종 화면: `final-saved-1440.png`, `final-saved-390.png`, `activity-768.png`, `cancel-390.png`, `restart-interrupted-390.png`, `ui-injected-save-retry-1440.png`, `ui-injected-stale-retry-1440.png`, `ui-injected-partial-390.png`. 임시 Playwright 검증 코드는 /private/tmp에만 두고 상시 UI suite를 늘리지 않았다. 기존 승인된 headed Chromium fallback을 사용했고 Codex IAB에도 같은 실제 저장 결과와 실행 패널을 남겼다.
+
+T7 선택 범위·G2 완료. 다음 **T8 게시 snapshot·링크·재게시·중지**. 실제 공개 게시/복제와 전체 TC-005는 해당 단계까지 미검증 상태로 유지한다.

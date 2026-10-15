@@ -70,6 +70,53 @@ export class StudioRunService {
     return promise;
   }
   private async execute(body: any, actor: number, prepared: any, signal?: AbortSignal) {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) abort();
+    const timer = setTimeout(abort, 175000);
+    try {
+      const proposal = await this.propose(body, prepared, controller.signal);
+      const checked = await this.studio.prepare(
+        body.dashboardId,
+        { ...body, document: proposal.document },
+        actor,
+      );
+      if (controller.signal.aborted) throw new Error('AI_ABORTED');
+      return {
+        runId: randomUUID(),
+        baseRevision: body.expectedRevision,
+        sourceRevision: body.expectedSourceRevision,
+        clientEditVersion: body.clientEditVersion,
+        selectedBlockId: body.selectedBlockId ?? null,
+        intent: proposal.intent,
+        answer: proposal.answer,
+        proposedOperations: proposal.operations,
+        preview: checked.preview,
+        steps: [
+          { name: '문맥 확인', status: 'succeeded' },
+          { name: 'AI 응답', status: 'succeeded' },
+          { name: '변경 검증', status: 'succeeded' },
+        ],
+      };
+    } catch (error) {
+      if (controller.signal.aborted)
+        throw new ServiceUnavailableException(
+          signal?.aborted
+            ? 'AI 요청을 취소했습니다.'
+            : 'AI 응답 시간이 초과되었습니다. 기존 내용을 유지했습니다.',
+        );
+      if (error?.getStatus) throw error;
+      throw new ServiceUnavailableException(
+        'AI 연결 또는 응답을 확인하지 못했습니다. 기존 내용을 유지했습니다. 잠시 후 다시 시도해 주세요.',
+      );
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+    }
+  }
+
+  async propose(body: any, prepared: any, signal?: AbortSignal) {
     if (process.env.AI_PROVIDER !== 'codex')
       throw new ServiceUnavailableException(
         'Studio AI는 Codex gpt-6-luna 연결이 필요합니다. 다른 모델로 대체하지 않습니다.',
@@ -79,7 +126,6 @@ export class StudioRunService {
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) abort();
     const timer = setTimeout(abort, 175000);
-    const runId = randomUUID();
     try {
       const selected = prepared.document.blocks.find(b => b.id === body.selectedBlockId);
       const raw = await this.ai.callLlm(
@@ -143,29 +189,7 @@ export class StudioRunService {
           'AI 변경안을 검증하지 못했습니다. 기존 블록과 배치를 유지했습니다. 요청을 구체적으로 작성해 주세요.',
         );
       }
-      // Revalidate ownership, both revisions, temporal support and numerical results after the awaited model call.
-      const checked = await this.studio.prepare(
-        body.dashboardId,
-        { ...body, document: next },
-        actor,
-      );
-      if (controller.signal.aborted) throw new Error('AI_ABORTED');
-      return {
-        runId,
-        baseRevision: body.expectedRevision,
-        sourceRevision: body.expectedSourceRevision,
-        clientEditVersion: body.clientEditVersion,
-        selectedBlockId: body.selectedBlockId ?? null,
-        intent: response.intent,
-        answer: response.answer,
-        proposedOperations: operations,
-        preview: checked.preview,
-        steps: [
-          { name: '문맥 확인', status: 'succeeded' },
-          { name: 'AI 응답', status: 'succeeded' },
-          { name: '변경 검증', status: 'succeeded' },
-        ],
-      };
+      return { intent: response.intent, operations, document: next, answer: response.answer };
     } catch (error) {
       if (controller.signal.aborted)
         throw new ServiceUnavailableException(

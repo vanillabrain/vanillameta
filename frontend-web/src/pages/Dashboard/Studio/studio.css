@@ -242,3 +242,30 @@
 .studio-create-columns td:first-child { white-space:nowrap; max-width:none; }
 
 .studio-create-metrics .MuiFormControlLabel-root { min-height:44px; margin:0; gap:8px; }
+
+/* Durable execution activity shares the assistant's surfaces and focus rhythm. */
+.studio-execution { margin:20px 0; min-width:0; }
+.studio-execution-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.studio-execution-heading h3 { margin:0; font-size:14px; }
+.studio-execution-caption { font-size:11px!important; }
+.studio-execution-card { padding:12px; border:1px solid var(--studio-border); border-radius:8px; margin-top:10px; background:#fff; min-width:0; }
+.studio-execution-card summary { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; font-size:12px; font-weight:600; min-height:32px; }
+.studio-execution-card summary:focus-visible { outline:2px solid var(--studio-accent); outline-offset:3px; }
+.studio-execution-card ol { padding:0; margin:14px 0; list-style:none; }
+.studio-execution-card li { display:flex; justify-content:space-between; gap:12px; padding:8px 0; font-size:12px; border-top:1px solid #edf1f6; }
+.studio-execution-badge,.studio-step-status { font-size:11px; white-space:nowrap; color:#526276; }
+.studio-execution-badge { padding:4px 8px; border-radius:5px; background:#f1f5f9; }
+.studio-execution-failed,.studio-execution-interrupted { color:#a33325; }
+.studio-execution-succeeded,.studio-execution-completed { color:#17634f; }
+.studio-execution-running { color:var(--studio-accent); }
+.studio-execution-hint { padding:10px; background:#f5f7fb; border-radius:6px; }
+@media(max-width:899px) { .studio-execution-card summary { min-height:44px; } }
+@media(max-width:899px) { .studio-panel-drawer .studio-panel-tabs .MuiButton-root { min-height:44px; min-width:44px; } }
+/* The desktop shell above the panel is 108px; reserve a 16px lower inset.
+   Only the assistant scrolls inside this rail, so the composer never covers execution cards. */
+.studio-panel:has(.studio-live-ai) { height:calc(100dvh - 124px); min-height:0; position:sticky; top:16px; align-self:start; }
+.studio-panel:has(.studio-live-ai) .studio-panel-tabs { flex-shrink:0; }
+.studio-live-ai { flex:1; min-height:0; overflow:hidden; }
+.studio-live-ai .studio-ai-content { overflow-y:auto; flex:1; min-height:0; }
+.studio-live-ai .studio-ai-composer { position:static; flex-shrink:0; }
+@media(max-width:899px) { .studio-panel-drawer .studio-panel:has(.studio-live-ai) { height:100dvh; min-height:0; position:static; } }
