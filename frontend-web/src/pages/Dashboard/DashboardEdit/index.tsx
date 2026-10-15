@@ -239,12 +239,12 @@ function DashboardEditContent() {
     (editor?.profile.columns ?? []).filter(
       column => chart !== 'line' || (column.temporal && /^(DATE|TIMESTAMP)/i.test(column.type)),
     );
-  const valid =
+  const validItems = (values: Item[]) =>
     !!title.trim() &&
     title.trim().length <= 300 &&
-    items.length >= 1 &&
-    items.length <= 6 &&
-    items.every(
+    values.length >= 1 &&
+    values.length <= 6 &&
+    values.every(
       item =>
         item.title.trim() &&
         item.title.trim().length <= 300 &&
@@ -258,6 +258,7 @@ function DashboardEditContent() {
             editor?.metrics.some(metric => metric.id === item.metricId) &&
             (item.chart === 'number' || dimensions(item.chart).some(column => column.name === item.dimension)))),
     );
+  const valid = validItems(items);
   const change = (nextTitle: string, nextItems: Item[], layoutOnly = false) => {
     if (pending.current || (nextTitle === title && JSON.stringify(nextItems) === JSON.stringify(items))) return;
     invalidate(layoutOnly);
@@ -394,10 +395,10 @@ function DashboardEditContent() {
       if (token === sequence.current) headings.current[focusTarget.key]?.focus();
     });
   };
-  const editorBody = () => ({
+  const editorBody = (values = items) => ({
     title: title.trim(),
     expectedRevision: editor.revision,
-    items: items.map(item => ({
+    items: values.map(item => ({
       key: item.key,
       kind: item.kind,
       ...(item.layouts ? { layouts: item.layouts } : {}),
@@ -425,17 +426,18 @@ function DashboardEditContent() {
       !valid ||
       conflict ||
       !aiPrompt.trim() ||
-      !items.some(item => item.key === selectedKey)
+      (aiEditMode !== 'auto' && !items.some(item => item.key === selectedKey))
     )
       return;
     pending.current = true;
-    const token = sequence.current;
-    const abort = new AbortController();
+    let token = sequence.current;
+    let abort = new AbortController();
     request.current = abort;
-    setBusy('AI로 선택 블록 수정 중…');
+    setBusy('AI로 요청 확인 중…');
     setAnnouncement('');
     setError('');
     setPreview(null);
+    let saving = false;
     try {
       const response = await post(
         `/bi/dashboards/${encodeURIComponent(dashboardId ?? '')}/editor/ai`,
@@ -449,54 +451,89 @@ function DashboardEditContent() {
         { timeout: 180000, signal: abort.signal },
       );
       if (token !== sequence.current) return;
-      const result = unwrap<{ item: Item; preview: Preview; editMode?: string }>(response);
-      if (aiEditMode === 'auto' && result.editMode === 'clarify') {
+      const result = unwrap<{ item?: Item; preview?: Preview; editMode?: string; saveRequested?: boolean }>(response);
+      if (aiEditMode === 'auto' && result.editMode === 'clarify' && result.saveRequested !== true) {
         setAnnouncement(
-          '차트 내용이나 선택한 화면 폭의 배치 중 한 가지 변경을 구체적으로 질문해 주세요. 저장은 미리보기 확인 후 진행합니다.',
+          '차트 내용이나 배치 중 한 가지 변경을 구체적으로 질문해 주세요. 저장하려면 현재 초안 저장을 명시해 주세요.',
         );
         return;
       }
       const appliedMode = result.editMode ?? (aiEditMode === 'auto' ? undefined : aiEditMode);
-      if (!['content', 'layout'].includes(appliedMode) || (aiEditMode !== 'auto' && appliedMode !== aiEditMode))
+      const shouldSave = aiEditMode === 'auto' && result.saveRequested === true;
+      if (
+        !['content', 'layout', 'save'].includes(appliedMode) ||
+        (aiEditMode !== 'auto' && appliedMode !== aiEditMode) ||
+        (appliedMode === 'save' && !shouldSave)
+      )
         throw new Error('Invalid AI intent');
       if (
-        result.item.key !== selectedKey ||
-        (appliedMode === 'layout'
-          ? result.editMode !== 'layout' ||
-            !result.item.layouts?.[layoutMode] ||
-            !validLayout([result.item.layouts[layoutMode]], columns[layoutMode])
-          : result.item.kind !== 'draft' ||
-            !validDraft({ databaseId: editor.sourceId, title, explanation: '', widgets: [result.item.definition] })) ||
-        result.preview.widgets?.length !== items.length ||
+        !Array.isArray(result.preview?.widgets) ||
+        result.preview.widgets.length !== items.length ||
         result.preview.widgets.some(widget => !Array.isArray(widget.datas))
       )
-        throw new Error('Invalid AI result');
-      // Apply AI through the same history path as a direct edit.
-      pending.current = false;
-      change(
-        title,
-        items.map(item =>
+        throw new Error('Invalid AI preview');
+      let nextItems = items;
+      if (appliedMode !== 'save') {
+        if (
+          !result.item ||
+          result.item.key !== selectedKey ||
+          (appliedMode === 'layout'
+            ? result.editMode !== 'layout' ||
+              !result.item.layouts?.[layoutMode] ||
+              !validLayout([result.item.layouts[layoutMode]], columns[layoutMode])
+            : result.item.kind !== 'draft' ||
+              !validDraft({ databaseId: editor.sourceId, title, explanation: '', widgets: [result.item.definition] }))
+        )
+          throw new Error('Invalid AI result');
+        nextItems = items.map(item =>
           item.key !== selectedKey
             ? item
             : appliedMode === 'layout'
             ? { ...item, layouts: { ...item.layouts, [layoutMode]: result.item.layouts[layoutMode] } }
             : result.item,
-        ),
-        appliedMode === 'layout',
-      );
+        );
+        if (!validItems(nextItems)) throw new Error('Invalid AI presentation');
+        // UC-014: history updates state asynchronously; persist the validated result, never stale state.
+        pending.current = false;
+        change(title, nextItems, appliedMode === 'layout');
+      }
       setPreview(result.preview);
       setLayoutPreview(result.preview);
-      setAnnouncement(
-        `선택 블록의 ${
-          appliedMode === 'layout' ? '배치' : '내용'
-        } AI 변경을 미리보기했습니다. 되돌리거나 저장할 수 있습니다.`,
-      );
+      if (shouldSave) {
+        pending.current = true;
+        token = sequence.current;
+        abort = new AbortController();
+        request.current = abort;
+        saving = true;
+        setBusy('질문한 변경 결과 저장 중…');
+        setAnnouncement('서버 미리보기를 확인했습니다. 명시한 저장 요청을 실행합니다.');
+        const saved = unwrap<{ id: number; revision: string }>(
+          await post(`/bi/dashboards/${encodeURIComponent(dashboardId ?? '')}/editor`, editorBody(nextItems), {
+            signal: abort.signal,
+          }),
+        );
+        if (token !== sequence.current) return;
+        if (!Number.isInteger(saved.id) || saved.id !== editor.dashboardId) throw new Error('Invalid save response');
+        navigate(`/dashboard/${saved.id}`);
+      } else {
+        setAnnouncement(
+          `선택 블록의 ${
+            appliedMode === 'layout' ? '배치' : '내용'
+          } AI 변경을 미리보기했습니다. 되돌리거나 저장할 수 있습니다.`,
+        );
+      }
     } catch (failure) {
       if (token !== sequence.current) return;
+      setAnnouncement('');
       if ((failure as { response?: { status?: number } })?.response?.status === 409) {
         setConflict(true);
         setError('다른 변경이 저장되었습니다. 현재 초안은 유지됩니다. 최신 내용을 다시 불러와 주세요.');
-      } else setError('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.');
+      } else
+        setError(
+          saving
+            ? '변경 결과는 미리보기했지만 저장 결과를 확인하지 못했습니다. 현재 초안은 유지됩니다. 최신 저장 상태를 확인한 뒤 다시 시도해 주세요.'
+            : 'AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.',
+        );
     } finally {
       if (token === sequence.current || request.current === abort) {
         pending.current = false;
@@ -628,7 +665,7 @@ function DashboardEditContent() {
             <Typography sx={{ mb: 1, fontSize: 13, overflowWrap: 'anywhere' }}>
               {items.find(item => item.key === selectedKey)?.title
                 ? `선택 블록: ${items.find(item => item.key === selectedKey)?.title}`
-                : '블록의 AI로 수정 버튼을 눌러 대상을 선택하세요.'}
+                : '수정할 블록을 선택하세요. 현재 초안 저장은 선택 없이 요청할 수 있습니다.'}
             </Typography>
             <Box component="details" sx={{ mb: 1 }}>
               <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 12 }}>
@@ -664,15 +701,22 @@ function DashboardEditContent() {
               <Button
                 variant="outlined"
                 sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-                disabled={!!busy || !valid || conflict || !aiPrompt.trim() || !items.some(item => item.key === selectedKey)}
+                disabled={
+                  !!busy ||
+                  !valid ||
+                  conflict ||
+                  !aiPrompt.trim() ||
+                  (aiEditMode !== 'auto' && !items.some(item => item.key === selectedKey))
+                }
                 onClick={() => void askAi()}
               >
-                AI 변경 미리보기
+                AI 요청 실행
               </Button>
-              {busy === 'AI로 선택 블록 수정 중…' && <Button onClick={cancelAi}>AI 요청 취소</Button>}
+              {busy === 'AI로 요청 확인 중…' && <Button onClick={cancelAi}>AI 요청 취소</Button>}
             </Stack>
             <Typography color="text.secondary" sx={{ mt: 1, fontSize: 12 }}>
-              AI 변경은 현재 분석에만 적용됩니다. 저장 지표의 계산식은 바뀌지 않습니다.
+              자동 모드에서 저장을 명시하면 미리보기 후 현재 분석에 저장합니다. 변경만 요청하면 미리보기로 끝납니다. 저장
+              지표의 계산식은 바뀌지 않습니다.
             </Typography>
           </Box>
           <Box component="fieldset" disabled={!!busy} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>

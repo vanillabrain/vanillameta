@@ -79,3 +79,7 @@ layout은 선택 폭 geometry만, content는 기존 내용 AI 경계를 따른�
 ### BR-013-05: Rule 5
 
 분류와 후속 생성은 같은 AbortSignal/FE session token을 사용한다. 기존 명시 content/layout API는 호환한다.
+
+## Related Use Cases
+
+[UC-014](UC-014-prompt-save.md)는 명시 저장 질문을 연결하는 후속이다. BR01301의 초기 단일 intent 분류와 BR01304의 저장 제외 범위는 UC014 실행 시 해당 엄격3키 분류/저장 규칙으로 확장된다. 기존 변경만 요청의 무저장·모호 요청 보존은 유지한다.

@@ -109,3 +109,7 @@ blockId를 기존 JSON에 추가하고 레거시 조회는 결정적 ID를 반�
 ### UC-013 자동 질문 판별 후속
 
 [자동 목적 설계](auto-block-intent.md)와 [실행 증거](../testing/auto-block-intent.md)에 따라 기본auto content/layout/clarify를 추가했다. 기존 compileEditor가 권한·revision·대상을 먼저 검증한다. 분류는 질문만, 배치 생성은 selectedRect/occupiedRects만 사용한다. 저장 모델·엔티티·게시 책임은 불변이다. 자동 저장과 다중블록은 남아 있다.
+
+### UC-014 명시 저장 실행 후속
+
+[저장 질문 설계](prompt-save.md)와 [검증](../testing/prompt-save.md): editor/ai는 엄격 계획과 쓰기 없는 미리보기를 반환한다. FE는 명시된 저장만 검증한 새 items로 기존 저장 API에 연결한다. 저장만 요청할 때 선택은 필요 없고 수정은 기존 선택 블록으로 한정한다. 원자 저장·revision 책임, 게시/소스/지표 모델은 불변이다. 자연어 대상 식별·다중블록·게시 실행은 남는다.

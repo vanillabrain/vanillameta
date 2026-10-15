@@ -459,6 +459,9 @@ describe('BiService dashboard editor boundaries', () => {
       undefined,
     );
     expect(result.item).toMatchObject({ key: existing.key, kind: 'draft', definition, height: 7 });
+    expect(result.editMode).toBe('content');
+    expect(result.saveRequested).toBe(false);
+    expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
     expect(dashboards.save).not.toHaveBeenCalled();
     await service.saveEditor(dashboardId, body({ items: [result.item] }), actor);
     expect(dashboards.save.mock.calls[0][0].draft.widgets[0].sql).toBe(definition.sql);
@@ -610,22 +613,36 @@ describe('BiService dashboard editor boundaries', () => {
     const request = body({
       items: [existing],
       selectedKey: existing.key,
-      prompt: '오른쪽 한 칸',
+      prompt: '오른쪽 한 칸 옮기고 저장해 줘',
       editMode: 'auto',
       layoutMode: 'desktop',
     });
-    dashboards.classifyBlockIntent.mockResolvedValueOnce('clarify');
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'clarify',
+      saveRequested: false,
+      editPrompt: null,
+    });
     await expect(service.editorAi(dashboardId, request, actor)).resolves.toEqual({
       editMode: 'clarify',
+      saveRequested: false,
     });
     expect(dashboards.generate).not.toHaveBeenCalled();
     expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
     expect(dashboards.preview).not.toHaveBeenCalled();
-    dashboards.classifyBlockIntent.mockResolvedValueOnce('layout');
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'layout',
+      saveRequested: true,
+      editPrompt: '오른쪽 한 칸',
+    });
     dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 1, y: 0, w: 6, h: 3 });
     const result = await service.editorAi(dashboardId, request, actor);
     expect(result.editMode).toBe('layout');
+    expect(result.saveRequested).toBe(true);
     expect(result.item.layouts.desktop).toEqual({ x: 1, y: 0, w: 6, h: 3 });
+    expect(dashboards.proposeBlockLayout).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: '오른쪽 한 칸' }),
+      undefined,
+    );
     expect(dashboards.generate).not.toHaveBeenCalled();
     expect(dashboards.save).not.toHaveBeenCalled();
     await expect(
@@ -634,7 +651,7 @@ describe('BiService dashboard editor boundaries', () => {
     expect(dashboards.classifyBlockIntent).toHaveBeenCalledTimes(2);
   });
 
-  it('UC-013 rejects access before classification and does not execute after cancellation during classification', async () => {
+  it('UC-014 rejects access before classification and does not execute after cancellation during classification', async () => {
     const existing = (await service.editor(dashboardId, actor)).items[0];
     const request = body({
       items: [existing],
@@ -651,13 +668,280 @@ describe('BiService dashboard editor boundaries', () => {
     const abort = new AbortController();
     dashboards.classifyBlockIntent.mockImplementationOnce(async () => {
       abort.abort();
-      return 'layout';
+      return { intent: 'layout', saveRequested: false, editPrompt: '오른쪽 한 칸' };
     });
     await expect(service.editorAi(dashboardId, request, actor, abort.signal)).rejects.toThrow(
       'LLM_REQUEST_ABORTED',
     );
     expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
     expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-014 previews the whole draft for a save-only plan without a selection or a write', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    const request = body({
+      items: [{ ...existing, title: 'Direct edit' }],
+      selectedKey: '',
+      prompt: '현재 편집 내용을 저장해 줘',
+      editMode: 'auto',
+      layoutMode: 'desktop',
+    });
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'save',
+      saveRequested: true,
+      editPrompt: null,
+    });
+    const result = await service.editorAi(dashboardId, request, actor);
+    expect(result).toEqual({
+      editMode: 'save',
+      saveRequested: true,
+      preview: {
+        widgets: [{ rows: [{ value: 150 }] }],
+        responsiveLayouts: expect.any(Object),
+      },
+    });
+    expect(result).not.toHaveProperty('item');
+    expect(dashboards.preview.mock.calls[0][0]).toMatchObject({
+      includeTrends: true,
+      draft: {
+        databaseId: 1,
+        title: 'Edited dashboard',
+        widgets: [expect.objectContaining({ sql: originalSql, title: 'Direct edit' })],
+      },
+    });
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-014 strips save wording before generation and returns the save flag without writing', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'content',
+      saveRequested: true,
+      editPrompt: '제목을 바꿔 줘',
+    });
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: { ...analysis, widgets: [{ ...analysis.widgets[0], title: '바뀐 제목' }] },
+    });
+    const result = await service.editorAi(
+      dashboardId,
+      body({
+        items: [existing],
+        selectedKey: existing.key,
+        prompt: '제목을 바꾸고 저장해 줘',
+        editMode: 'auto',
+        layoutMode: 'desktop',
+      }),
+      actor,
+    );
+    expect(dashboards.generate).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: '제목을 바꿔 줘', selectedWidget: 0, databaseId: 1 }),
+      actor,
+      undefined,
+    );
+    expect(result.editMode).toBe('content');
+    expect(result.saveRequested).toBe(true);
+    expect(result.item).toMatchObject({ key: existing.key, title: '바뀐 제목' });
+    expect(result.preview).toMatchObject({ responsiveLayouts: expect.any(Object) });
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-014 clarifies a question without a selection and never previews or writes', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'clarify',
+      saveRequested: false,
+      editPrompt: null,
+    });
+    await expect(
+      service.editorAi(
+        dashboardId,
+        body({
+          items: [existing],
+          selectedKey: '',
+          prompt: '저장할까요?',
+          editMode: 'auto',
+          layoutMode: 'desktop',
+        }),
+        actor,
+      ),
+    ).resolves.toEqual({ editMode: 'clarify', saveRequested: false });
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-014 needs a selection once the plan is a content or layout change', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    const request = body({
+      items: [existing],
+      prompt: '제목 바꿔 줘',
+      editMode: 'auto',
+      layoutMode: 'desktop',
+    });
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'content',
+      saveRequested: false,
+      editPrompt: '제목 바꿔 줘',
+    });
+    await expect(service.editorAi(dashboardId, request, actor)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'layout',
+      saveRequested: false,
+      editPrompt: '아래로 한 칸',
+    });
+    await expect(service.editorAi(dashboardId, request, actor)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(dashboards.classifyBlockIntent).toHaveBeenCalledTimes(2);
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it.each(['foreign', 42, {}, ['a'], false])(
+    'UC-014 rejects a defined selection without a matching key (%p) before classification',
+    async selectedKey => {
+      const existing = (await service.editor(dashboardId, actor)).items[0];
+      await expect(
+        service.editorAi(
+          dashboardId,
+          body({
+            items: [existing],
+            selectedKey,
+            prompt: '저장해 줘',
+            editMode: 'auto',
+            layoutMode: 'desktop',
+          }),
+          actor,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
+      expect(dashboards.preview).not.toHaveBeenCalled();
+      expect(dashboards.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it('UC-014 checks the owned revision before classifying an explicit save', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    await expect(
+      service.editorAi(
+        dashboardId,
+        body({
+          items: [existing],
+          prompt: '저장해 줘',
+          editMode: 'auto',
+          expectedRevision: 'b'.repeat(64),
+        }),
+        actor,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-014 keeps the draft and saves nothing when the save-plan preview fails', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    dashboards.classifyBlockIntent.mockResolvedValueOnce({
+      intent: 'save',
+      saveRequested: true,
+      editPrompt: null,
+    });
+    dashboards.preview.mockRejectedValueOnce(new BadRequestException('미리보기 실패'));
+    await expect(
+      service.editorAi(
+        dashboardId,
+        body({ items: [existing], prompt: '저장해 줘', editMode: 'auto', layoutMode: 'desktop' }),
+        actor,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('UC-014 still needs a selected block for the legacy explicit modes', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    await expect(
+      service.editorAi(
+        dashboardId,
+        body({
+          items: [existing],
+          prompt: '제목 저장해 줘',
+          editMode: 'layout',
+          layoutMode: 'desktop',
+        }),
+        actor,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
+    expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it.each(['auto', 'content'] as const)(
+    'UC-014 blocks the %s response when the request is cancelled during preview',
+    async editMode => {
+      const existing = (await service.editor(dashboardId, actor)).items[0];
+      dashboards.generate.mockResolvedValueOnce({
+        status: 'SUCCESS',
+        data: { ...analysis, widgets: [{ ...analysis.widgets[0], title: 'AI 제목' }] },
+      });
+      if (editMode === 'auto')
+        dashboards.classifyBlockIntent.mockResolvedValueOnce({
+          intent: 'content',
+          saveRequested: true,
+          editPrompt: '제목 변경',
+        });
+      const abort = new AbortController();
+      dashboards.preview.mockImplementationOnce(async () => {
+        abort.abort();
+        return { data: { widgets: [{ rows: [] }] } };
+      });
+      await expect(
+        service.editorAi(
+          dashboardId,
+          body({
+            items: [existing],
+            selectedKey: existing.key,
+            prompt: '제목 변경하고 저장해 줘',
+            editMode,
+            layoutMode: 'desktop',
+          }),
+          actor,
+          abort.signal,
+        ),
+      ).rejects.toThrow('LLM_REQUEST_ABORTED');
+      expect(dashboards.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it('UC-014 keeps explicit content mode preview-only even when the question mentions a save', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: { ...analysis, widgets: [{ ...analysis.widgets[0], title: 'AI 제목' }] },
+    });
+    const result = await service.editorAi(
+      dashboardId,
+      body({ items: [existing], selectedKey: existing.key, prompt: '제목 바꾸고 저장해 줘' }),
+      actor,
+    );
+    expect(result.editMode).toBe('content');
+    expect(result.saveRequested).toBe(false);
+    expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
+    expect(dashboards.generate).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: '제목 바꾸고 저장해 줘' }),
+      actor,
+      undefined,
+    );
     expect(dashboards.save).not.toHaveBeenCalled();
   });
 });

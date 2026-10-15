@@ -484,42 +484,70 @@ export class BiService {
     };
   }
   async editorAi(id: unknown, body: any, actor: number, signal?: AbortSignal) {
+    // UC-014: ownership, revision and the whole-draft compile always run before any provider call.
     const compiled = await this.compileEditor(id, body, actor);
-    const index = body.items.findIndex(item => item.key === body.selectedKey);
-    if (index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
     if (typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 2000)
       throw new BadRequestException('변경 요청을 확인해 주세요.');
     if (body.editMode !== undefined && !['auto', 'content', 'layout'].includes(body.editMode))
       throw new BadRequestException('AI 변경 목적을 확인해 주세요.');
-    let editMode = body.editMode ?? 'content';
-    if (editMode === 'auto') {
+    const selection = body.selectedKey;
+    // An empty selection means "no target"; any other defined value must be a known block key.
+    if (selection !== undefined && selection !== null && typeof selection !== 'string')
+      throw new BadRequestException('수정할 블록을 선택해 주세요.');
+    const hasSelection = typeof selection === 'string' && selection.length > 0;
+    const index = hasSelection ? body.items.findIndex(item => item.key === selection) : -1;
+    if (hasSelection && index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
+    const requestedMode: 'auto' | 'content' | 'layout' = body.editMode ?? 'content';
+    // A question without a target can only become an explicit save or a clarification.
+    if (!hasSelection && requestedMode !== 'auto')
+      throw new BadRequestException('수정할 블록을 선택해 주세요.');
+    let editMode: 'content' | 'layout' = requestedMode === 'auto' ? 'content' : requestedMode;
+    let prompt: string = body.prompt;
+    let saveRequested = false;
+    if (requestedMode === 'auto') {
       if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
         throw new BadRequestException('편집할 화면 폭을 확인해 주세요.');
-      editMode = await this.dashboards.classifyBlockIntent(body.prompt, signal);
+      const plan = await this.dashboards.classifyBlockIntent(body.prompt, signal);
       if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
-      if (editMode === 'clarify') return { editMode: 'clarify' as const };
+      if (plan.intent === 'clarify') return { editMode: 'clarify' as const, saveRequested: false };
+      if (plan.intent === 'save') {
+        // Explicit save: preview the current draft only. Persisting stays with the existing save API.
+        const preview = (
+          await this.dashboards.preview({ draft: compiled.draft, includeTrends: true }, actor)
+        ).data;
+        if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+        return {
+          editMode: 'save' as const,
+          saveRequested: true,
+          preview: { ...preview, responsiveLayouts: compiled.layouts },
+        };
+      }
+      if (index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
+      editMode = plan.intent;
+      prompt = plan.editPrompt;
+      saveRequested = plan.saveRequested;
     }
     if (editMode === 'layout') {
       if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
         throw new BadRequestException('편집할 화면 폭을 확인해 주세요.');
-      const mode = body.layoutMode as LayoutSize;
+      const layoutMode = body.layoutMode as LayoutSize;
       const rect = await this.dashboards.proposeBlockLayout(
         {
           selectedKey: body.selectedKey,
-          mode,
+          mode: layoutMode,
           blocks: body.items.map(item => ({
             key: item.key,
             title: item.title,
-            rect: compiled.layouts[mode][item.key],
+            rect: compiled.layouts[layoutMode][item.key],
           })),
-          prompt: body.prompt,
+          prompt,
         },
         signal,
       );
       if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       const item = {
         ...body.items[index],
-        layouts: { ...body.items[index].layouts, [mode]: rect },
+        layouts: { ...body.items[index].layouts, [layoutMode]: rect },
       };
       const next = await this.compileEditor(
         id,
@@ -530,7 +558,12 @@ export class BiService {
         await this.dashboards.preview({ draft: next.draft, includeTrends: true }, actor)
       ).data;
       if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
-      return { item, editMode: 'layout', preview: { ...preview, responsiveLayouts: next.layouts } };
+      return {
+        item,
+        editMode: 'layout' as const,
+        saveRequested,
+        preview: { ...preview, responsiveLayouts: next.layouts },
+      };
     }
     const result = await this.dashboards.generate(
       {
@@ -538,7 +571,7 @@ export class BiService {
         databaseId: compiled.draft.databaseId,
         currentDraft: compiled.draft,
         selectedWidget: index,
-        prompt: body.prompt,
+        prompt,
       },
       actor,
       signal,
@@ -575,9 +608,11 @@ export class BiService {
     const preview = (
       await this.dashboards.preview({ draft: next.draft, includeTrends: true }, actor)
     ).data;
+    if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     return {
       item,
       editMode: 'content' as const,
+      saveRequested,
       preview: { ...preview, responsiveLayouts: next.layouts },
     };
   }
