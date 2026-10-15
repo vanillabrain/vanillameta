@@ -1,6 +1,6 @@
 # UC-012 A — 쓰기 없는 구조화 제안·미리보기
 
-2026-10-15, develop-v2 / 6fd86708 이후 이번 A 변경. [계획](../plans/UC-012.md)·[TC](../test_cases/TC-012-semantic-creation.md). A API 체크포인트이며 전체 고객 기능 완료가 아니다.
+2026-10-15, develop-v2 / 6fd86708 이후 A 변경의 당시 기록. 후속 [B 저장 구현](semantic-creation-save.md)이 추가됐다. [계획](../plans/UC-012.md)·[TC](../test_cases/TC-012-semantic-creation.md). A API 체크포인트이며 전체 고객 기능 완료가 아니다.
 
 ## 구현과 검사
 

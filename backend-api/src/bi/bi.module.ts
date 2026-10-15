@@ -1,3 +1,4 @@
+import { SemanticCreationService } from './semantic-creation.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardPivotService } from './dashboard-pivot.service';
 import { DashboardPivotController } from './dashboard-pivot.controller';
@@ -30,6 +31,7 @@ import { BiService } from './bi.service';
   providers: [
     BiService,
     SemanticProposalService,
+    SemanticCreationService,
     BiExploreService,
     ExploreViewService,
     DashboardPivotService,

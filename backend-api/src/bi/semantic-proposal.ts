@@ -77,6 +77,15 @@ export function metricIdentity(definition: any, sourceId: number) {
   delete calculation.numberNotation;
   return semanticDigest({ sourceId, tableName: 'uploaded_data', ...calculation });
 }
+export function dimensionDefinition(profile: any, column: any) {
+  return {
+    id: 'dim_' + semanticDigest({ sourceId: profile.sourceId, column: column.name }),
+    definitionVersion: 1,
+    column: column.name,
+    type: column.type,
+    label: column.name,
+  };
+}
 /** Invalid/inactive/foreign definitions are never candidates; no read repairs persisted rows. */
 export function semanticCatalog(rows: any[], profile: any) {
   return rows
@@ -187,10 +196,10 @@ export function compileSemanticProposal(
   });
   const dimensionPlan = dimensions.map(d => ({
     ...d,
-    id: 'dim_' + semanticDigest({ sourceId: profile.sourceId, column: d.column }),
-    definitionVersion: 1,
-    type: profile.columns.find(c => c.name === d.column).type,
-    label: d.column,
+    ...dimensionDefinition(
+      profile,
+      profile.columns.find(c => c.name === d.column),
+    ),
   }));
   const usedMeasures = new Set<string>(),
     usedDimensions = new Set<string>();

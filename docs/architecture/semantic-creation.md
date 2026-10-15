@@ -1,6 +1,6 @@
 # P2 — 질문에서 지표·차원·분석을 함께 만드는 설계
 
-상태: Draft / A API 구현·검증 완료, B/C 설계 상태. UC-012·FR-007/008·NFR-004. 쓰기 없는 제안·미리보기 API만 구현했으며 원자 저장·DB migration·고객 UI 연결은 미구현이다. [실행 증빙](../testing/semantic-proposal.md)을 확인한다. 현재 동작과 예정 계약을 혼동하지 않는다.
+상태: Draft / A/B API·로컬 SQLite 검증 완료, C UI 미구현. UC-012·FR-007/008·NFR-004. 제안·미리보기·원자 저장 API와 영수증 migration을 구현했으며 고객 UI 연결·운영 DB 검증은 미완료다. [실행 증빙](../testing/semantic-proposal.md)을 확인한다. 현재 동작과 예정 계약을 혼동하지 않는다.
 
 ## 고객 흐름과 첫 범위
 
@@ -73,7 +73,7 @@ AI에는 소유 소스의 이름/열 이름·타입과 검증된 활성 지표 �
 
 ## 제안·미리보기·저장 API 계획
 
-아래 경로는 예정이며 아직 등록되지 않았다.
+아래 경로는 A/B에서 등록했다. 고객 UI 연결은 C 범위다.
 
 1. `POST /bi/analysis-proposals` — sourceId/prompt. 소유권·프로필·카탈로그 검증 후 기존 지정 LLM으로 구조화 제안을 얻고 서버 정규화 결과를 반환한다. DB 쓰기0.
 2. `POST /bi/analysis-proposals/preview` — proposal. 소스 revision·열·지표 version을 확인하고 canonical SQL을 생성한다. 기존 dashboard preview의 KPI+추세/정확한 값·원본 정밀도를 사용한다. 저장될 정의의 digest와 지표 생성/재사용 계획을 함께 반환한다. DB 쓰기0.
@@ -83,7 +83,7 @@ AI에는 소유 소스의 이름/열 이름·타입과 검증된 활성 지표 �
 
 ## 원자 저장과 재시도
 
-P2 저장은 신규 `AnalysisCreationReceipt`의 **actorId+requestId DB unique 제약**을 사용한다. 영수증을 분석 JSON에서 검색하거나 메모리 mutex만 사용해 동시 요청의 중복 방지를 보장한다고 주장하지 않는다. 이 테이블과 migration은 저장 단계 구현 시 추가하며 이번 설계 작업에서는 DB를 변경하지 않는다.
+P2 저장은 신규 `AnalysisCreationReceipt`의 **actorId+requestId DB unique 제약**을 사용한다. 영수증을 분석 JSON에서 검색하거나 메모리 mutex만 사용해 동시 요청의 중복 방지를 보장한다고 주장하지 않는다. 이 테이블과 migration은 B에서 추가했다. 로컬 SQLite migration/unique/rollback을 검증했으며 운영 MySQL 적용은 미실행이다.
 
 한 metadata transaction 안에서 영수증 key를 확보하고, 활성 지표를 다시 검사/생성하고, 분석 snapshot에 실제 metricId/definitionVersion과 dimension 정의를 연결한 뒤 `AiDashboardService.save(..., sharedManager)`와 영수증의 dashboardId/응답 식별자를 저장한다. 중간 실패는 지표·Dataset·Widget·Dashboard·영수증 전체 rollback이다. LLM 호출은 이 transaction 밖에서 수행한다.
 
@@ -111,6 +111,16 @@ P2 저장은 신규 `AnalysisCreationReceipt`의 **actorId+requestId DB unique �
 
 ## A 구현 경계 — 2026-10-15
 
-`POST /bi/analysis-proposals`는 `{sourceId,prompt}`를 받아 proposal·생성/재사용 plan·서버 draft·previewDigest·categoryLimit을 반환한다. `POST /bi/analysis-proposals/preview`는 `{proposal}`만 받아 다시 검증·컴파일하고 기존 숫자+추세 미리보기를 반환한다. 두 경로는 JWT 사용자 소스 소유권을 검사하며 저장 경로를 제공하지 않는다. LLM이 요청과 다른 소스나 revision을 반환하면 거절한다.
+`POST /bi/analysis-proposals`는 `{sourceId,prompt}`를 받아 proposal·생성/재사용 plan·서버 draft·previewDigest·categoryLimit을 반환한다. `POST /bi/analysis-proposals/preview`는 `{proposal}`만 받아 다시 검증·컴파일하고 기존 숫자+추세 미리보기를 반환한다. A의 두 경로는 JWT 사용자 소스 소유권을 검사하며 DB에 쓰지 않는다. 별도 저장 경로는 B에서 추가했다. LLM이 요청과 다른 소스나 revision을 반환하면 거절한다.
 
 `semantic-proposal.ts`가 strict validator/identity/catalog를 담당하고 `structured-widget.ts`가 기존 BiService.prepare와 SQL 제작기를 공유한다. AI에는 열 이름·타입/숫자·시간 여부와 유효 카탈로그 최대30개만 제공하며 동등 비교는 전체 유효 카탈로그를 검색한다. 정확히 같은 계산·표시 정의의 임시 key는 합치되 표시 정밀도 등이 다르면 별도 블록 정의를 유지한다. 같은 identity의 여러 create plan 항목은 B 저장 시 하나의 지표 ID로 묶어야 하며 A의 plan 항목 수는 신규 DB row 수가 아니다.
+
+## B 구현 경계 — 2026-10-15
+
+`SemanticCreationService.save`는 actor/requestId unique 영수증을 먼저 삽입한 SERIALIZABLE metadata transaction에서 소유 원본 포인터·카탈로그·previewDigest를 재검증하고 지표·분석·영수증을 저장한다. 같은 DataSource의 SQLite transaction 대기는 이 API의 겹침만 피한다. 다른 연결의 unique/경합 retry가 별도 중복 방지 경계이며 최대3회 이후503/같은 requestId 재시도를 요구한다. SQL 드라이버 오류만 bounded retry하며 LLM은 호출하지 않는다.
+
+영수증 payloadDigest는 제출된 proposal/previewDigest의 키 순서 정규 JSON을 해시한다. 문자열 값·배열 순서는 요청 내용이며 바꾸면 같은 요청으로 간주하지 않는다. 이미 성공한 동일 digest는 현재 소스/지표를 다시 해석하지 않고 소유 영수증의 분석 ID만 반환한다. 삭제된 분석은404다. 영수증은 성공 응답의 전체 draft를 보관하지 않는다.
+
+신규 지표는 identity별 한 번만 만들고 활성 legacy 정의는 기존 ID를 유지한다. 다른 요청이 먼저 저장해 create→reuse 계획이 달라지면 PLAN_CHANGED409다. 비활성/손상 deterministic 내부 이름 충돌도409이며 재활성화하지 않는다. `AiDashboardService.save(sharedManager)`의 실제 최종 UUID를 같은 transaction에서 snapshot key로 연결한다. 차원의 임시 proposal key는 dimensionDefinition에 저장하지 않는다. 기존 제작기도 같은 안정 차원 정의를 사용해 직접 수정/복제 시 ID·열·타입·버전을 유지한다.
+
+[검증 기록](../testing/semantic-creation-save.md)은 실제 SQLite 다중 연결·단계별 실패 주입과 API 검증을 구분한다. 복제/직접 편집/지표 영향 확인을 실행했으며 신규 분석에서 내용·배치 AI 전체 연속 UI는 다시 실행하지 않았다.

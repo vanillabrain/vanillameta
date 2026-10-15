@@ -1,5 +1,22 @@
 import { DashboardDraft } from './dashboard-draft';
 
+/** Persist keys only after save has assigned final block UUIDs, including copied blocks. */
+export function bindMetricBlockKeys(snapshot: any, draft: DashboardDraft) {
+  if (
+    snapshot?.schemaVersion !== 2 ||
+    snapshot.kind !== 'structured-bi-dashboard' ||
+    !Array.isArray(snapshot.items)
+  )
+    return snapshot;
+  return {
+    ...snapshot,
+    items: snapshot.items.map((item, i) => ({
+      ...item,
+      key: draft.widgets[i]?.blockId ?? item.key,
+    })),
+  };
+}
+
 export function metricLinkItems(snapshot: any, draft: DashboardDraft): any[] {
   if (!snapshot || snapshot.sourceId !== draft.databaseId) return [];
   if (snapshot.schemaVersion === 1 && snapshot.kind === 'structured-bi') return [snapshot];

@@ -13,7 +13,7 @@
 
 ## Preconditions
 
-- [UC-012](../use_cases/UC-012-semantic-creation.md)의 A API만 부분 실행했다. [A 증빙](../testing/semantic-proposal.md)에 단위·실LLM/API·독립 계산 결과를 기록한다. B 저장/C UI 및 운영 DB는 NOT_RUN이다.
+- [UC-012](../use_cases/UC-012-semantic-creation.md)의 A/B API·로컬 SQLite를 부분 실행했다. [A 증빙](../testing/semantic-proposal.md)에 단위·실LLM/API·독립 계산 결과를 기록한다. C UI 및 운영 DB는 NOT_RUN이다. [B 증빙](../testing/semantic-creation-save.md)을 확인한다.
 - 공식 Rill source7 fixture를 비공개 테스트 분석에 사용한다. 사용자 원본을 변경하지 않는다.
 
 ## Flow
@@ -56,3 +56,12 @@
 - TC04/05/11: 비활성·다른 소스·손상 정의·단위/계산 identity·안정 차원 ID·원시 SQL/미지 필드/참조/타입 거절·취소 전후 검사는 단위 PASS. 실제 API의 미지 SQL400/stale source409 PASS. 실제 provider 장애·늦은 응답·UI 마지막 결과 유지는 NOT_RUN.
 - TC03: 계획의 동등 재사용·표시 변형·30개 초과 후보 검사는 단위 PASS. 실제 저장 중복·같은 지표 ID는 B NOT_RUN.
 - 표의 전체 시나리오 상태는 A/B/C 전체 수용 기준으로 유지한다. 부분 PASS를 전체 TC PASS로 승격하지 않는다. TC06~10/12는 NOT_RUN이며 UI gate는 기존 auto-review 거절로 BLOCKED다.
+
+## B 부분 실행 — 2026-10-15
+
+- TC03/06: 실제 SQLite 두 연결의 동일 key 동시 저장은 분석/지표/영수증 각1개. 서로 다른 key의 동시 create는 한 요청만 저장되고 다른 요청은 PLAN_CHANGED409. 새 미리보기 후 같은 계산은 지표1개 유지. 표시 정밀도가 다른 블록도 계산 identity별1개. 성공 응답 유실을 가정한 재요청과 이후 source/metric 변경은 기존 ID 반환. 다른 payload409, 삭제된 결과404.
+- TC07: 실제 저장 테이블의 trigger로 metric/dataset/widget/dashboard/receipt 단계 실패를 주입했고 전체 row 수 불변과 같은 key 재시도 성공을 확인했다.
+- TC08: 고정된 profile을 유지해도 transaction의 현재 원본 포인터 변경은409/rollback. 별도 SQLite 연결의 원본 쓰기는 생성 transaction 중 SQLITE_BUSY, commit 후 성공으로 순서화 확인. 실제 DuckDB 파일 교체 E2E/운영 DB interleaving 전체 검증은 NOT_RUN.
+- TC09: 실제 분석20의 KPI/OS/복제 차트가 같은 지표18을 참조하고 UC004 영향 API가 인덱스0/2/3을 탐지. 직접 수정/복제/재조회 후 안정 차원 ID 보존. 공통 지표 갱신 helper의 dimensionDefinition 보존은 단위 PASS. 분석20의 실제 내용 AI/배치 AI/undo UI 연속은 NOT_RUN.
+- TC12: SQLite migration 멱등/기존 행 보존/unique/빈 테이블 downgrade PASS. 영수증 존재 시 downgrade 거절 PASS. 운영 MySQL은 NOT_RUN.
+- 전체 시나리오 표는 여전히 고객 UI·운영 경계까지 포함하므로 전체 PASS로 승격하지 않는다.

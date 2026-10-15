@@ -239,6 +239,15 @@ describe('BiService dashboard editor boundaries', () => {
         }),
       ),
     );
+    expect(snapshot.items[0].dimensionDefinition).toMatchObject({
+      column: 'category',
+      definitionVersion: 1,
+      id: expect.stringMatching(/^dim_/),
+    });
+    expect(snapshot.items[1].dimensionDefinition).toMatchObject({
+      column: 'day',
+      definitionVersion: 1,
+    });
     expect(JSON.parse(metricRows[0].definition)).toMatchObject({
       unit: 'original',
       decimalPlaces: 0,

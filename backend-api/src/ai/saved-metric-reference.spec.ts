@@ -227,7 +227,7 @@ it.each([99, '3', null])(
 );
 it('enforces an explicit selection in generation and reports the correct widget index', async () => {
   const { service, ai } = setup();
-  jest.spyOn(service as any, 'previewContext').mockResolvedValue({});
+  jest.spyOn(service as any, 'previewContext').mockResolvedValue({ widgets: [] });
   const current = draft();
   delete current.widgets[0].metricId;
   current.widgets.unshift({ ...current.widgets[0], title: 'Keep this KPI' });
@@ -286,7 +286,7 @@ it('UC-003 reuses an updated AVG requests definition without forcing it back to 
 
 it('UC-006 isolates an ordinary selected AI edit without a saved metric and preserves block identity', async () => {
   const { service, ai } = setup();
-  jest.spyOn(service as any, 'previewContext').mockResolvedValue({});
+  jest.spyOn(service as any, 'previewContext').mockResolvedValue({ widgets: [] });
   const current: any = draft();
   delete current.widgets[0].metricId;
   current.widgets[0].blockId = 'block-original';

@@ -36,7 +36,12 @@ import { Widget } from '../widget/entities/widget.entity';
 import { Component } from '../component/entities/component.entity';
 import { Database } from '../database/entities/database.entity';
 import { Metric } from '../metric/entities/metric.entity';
-import { linkedMetricIndices, refreshMetricLinks, metricLinkItems } from './metric-analysis-links';
+import {
+  linkedMetricIndices,
+  refreshMetricLinks,
+  metricLinkItems,
+  bindMetricBlockKeys,
+} from './metric-analysis-links';
 import { metricExpression, metricFields } from '../bi/metric-expression';
 import {
   applyMetricReferences,
@@ -1882,7 +1887,7 @@ export class AiDashboardService {
         dashboard = manager.create(Dashboard, { shareId: share.id, delYn: YesNo.NO });
       }
       dashboard.structuredDefinition = structuredSnapshot
-        ? JSON.stringify(structuredSnapshot)
+        ? JSON.stringify(bindMetricBlockKeys(structuredSnapshot, draft))
         : null;
       dashboard.title = draft.title;
       dashboard.analysisDefinition = JSON.stringify(draft);

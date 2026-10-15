@@ -1,12 +1,14 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { createHash, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
+import { dimensionDefinition } from './semantic-proposal';
 import { Database } from '../database/entities/database.entity';
 import { Metric } from '../metric/entities/metric.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { ConnectionService } from '../connection/connection.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
+import { sourceRevision } from './source-revision';
 import { compileMetricWidget } from './structured-widget';
 import { metricFields } from './metric-expression';
 import { quoteColumn, sourceQuery, validateDraft } from '../ai/dashboard-draft';
@@ -44,18 +46,12 @@ export class BiService {
     const source = await this.db
       .getRepository(Database)
       .findOne({ where: { id: this.access.id(id) } });
-    const version = createHash('sha256')
-      .update(
-        JSON.stringify([
-          source.id,
-          source.createdAt,
-          source.updatedAt,
-          source.engine === 'duckdb'
-            ? await this.connection.duckDBVersion(source.id)
-            : source.connectionConfig,
-        ]),
-      )
-      .digest('hex');
+    const version = sourceRevision(
+      source,
+      source.engine === 'duckdb'
+        ? await this.connection.duckDBVersion(source.id)
+        : source.connectionConfig,
+    );
     const base = {
       sourceId: source.id,
       name: source.name,
@@ -215,6 +211,7 @@ export class BiService {
       definitionVersion: definition.definitionVersion,
       definition,
       dimension: dimension?.name,
+      ...(dimension ? { dimensionDefinition: dimensionDefinition(profile, dimension) } : {}),
       chart: body.chart,
     };
     return { draft, snapshot, profile, definition };
