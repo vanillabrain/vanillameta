@@ -115,6 +115,25 @@ afterEach(() => {
 });
 
 describe('studio editor rendering', () => {
+  it('keeps a separate list tab available without discarding the editable draft', async () => {
+    api.get.mockResolvedValue(envelope());
+    render(<StudioEditor />);
+    const link = await screen.findByRole('link', { name: '대시보드 목록 새 탭에서 열기' });
+    expect(link.getAttribute('href')).toBe('/dashboard');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    duplicateBlock();
+    expect(screen.getAllByText('복사본 · 총매출').length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('편집 이력 1회 변경')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'AI 열기' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }), { target: { value: '전송 전 질문' } });
+    fireEvent.click(screen.getByRole('button', { name: '보조 패널 닫기' }));
+    fireEvent.click(screen.getByRole('button', { name: 'AI 열기' }));
+    expect((screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }) as HTMLTextAreaElement).value).toBe('전송 전 질문');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('renders the aggregated server value at a saved h2 height without sample data', async () => {
     api.get.mockResolvedValue(envelope());
     render(<StudioEditor />);

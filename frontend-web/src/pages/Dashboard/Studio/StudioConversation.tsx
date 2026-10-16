@@ -30,6 +30,7 @@ import {
   validateStudioRun,
 } from './studioRunTransport';
 type Props = {
+  draft?: { text: string; onChange: (text: string) => void };
   context: StudioRunContext;
   selectedTitle?: string;
   /** Scope confirmed for the rows on screen. The card never claims a filter that is not displayed yet. */
@@ -40,6 +41,7 @@ type Props = {
   onSaved?: (saved: StudioSaveResult, submitted: StudioRunContext) => Promise<boolean>;
 };
 export default function StudioConversation({
+  draft,
   context,
   selectedTitle,
   filterScope,
@@ -54,7 +56,9 @@ export default function StudioConversation({
   apply.current = onApply;
   const lockedRef = useRef(locked);
   lockedRef.current = locked;
-  const [input, setInput] = useState('');
+  const [localInput, setLocalInput] = useState('');
+  const input = draft?.text ?? localInput;
+  const setInput = draft?.onChange ?? setLocalInput;
   const [notice, setNotice] = useState('');
   const [runs, setRuns] = useState<StudioExecution[]>([]);
   const [activityError, setActivityError] = useState('');

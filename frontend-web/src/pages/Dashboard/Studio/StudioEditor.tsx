@@ -336,6 +336,7 @@ type WorkspaceProps = {
 };
 
 function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
+  const [conversationInput, setConversationInput] = useState('');
   const [state, dispatch] = useReducer(studioReducer, initial, studioWorkspaceSeed);
   const [definitions, setDefinitions] = useState<StudioDefinitions>(initial.definitions);
   const [preview, setPreview] = useState<StudioPreview | null>(initial.preview);
@@ -898,6 +899,11 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   const editToolbar = (
     <>
       <div className="studio-edit-toolbar">
+        <Button variant="outline" size="sm" asChild>
+          <a href="/dashboard" target="_blank" rel="noopener noreferrer" aria-label="대시보드 목록 새 탭에서 열기">
+            목록 ↗
+          </a>
+        </Button>
         <Button variant="ghost" size="sm" asChild>
           <RouterLink to={'/dashboard/' + dashboardId}>기존 보기</RouterLink>
         </Button>
@@ -991,6 +997,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
         product={product}
         conversation={
           <StudioConversation
+            draft={{ text: conversationInput, onChange: setConversationInput }}
             onPrepareCreationPublication={target => {
               setCreationPublication({ dashboardId: target.dashboardId, revision: target.revision });
               dispatch({ type: 'panel', panel: null });
