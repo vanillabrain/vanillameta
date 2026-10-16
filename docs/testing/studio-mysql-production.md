@@ -55,3 +55,7 @@ MySQL DDL은 implicit commit이므로 전체19개가 하나의 rollback 가능�
 - `private-version3-1440.png`, `restarted-result-390.png`, `ui-layout.json`, `cleanup.json`
 
 최초 실패의 비공개 게시본2개와 마지막 비공개 게시본은 이번 테스트 ID만 중지했다. 마지막 중지201·익명410, 새 공개 링크0. 임시 Ego 탭/viewport·이번 API4532/4533/FE3432/실패한 준비 프로세스는 종료했고 이번 임시 access token 파일은 삭제했다. 전용 Colima/MySQL·검증 스키마와 기존 MYSQL01 앱/서버는 보존했다. 기존 SQLite·DuckDB 원본 파일·전역 Docker context·samba는 변경하지 않았다. **gpt-6-luna 설정/VoiceOver BLOCKED 유지.**
+
+### 원격 병행 변경 최종 통합
+
+후속 MySQL 수정/검증은 `54d50a0d`로 커밋했다. push 직전 원격 `a1de51f3`의 UC035가 추가돼 강제 push하지 않고 `d3d88f8b`로 보존 병합했다. 저장/게시/마이그레이션 수정 파일 충돌0, 최종 BE build·FE type PASS 및 추가된 UC035 실행기 조건만2 PASS/65 SKIP다. 게시/저장 구현에 추가 변경이 없어 위 실제 두 서버·UI 결과는 재사용했다. 기존 통과 전체는 반복하지 않았다.
