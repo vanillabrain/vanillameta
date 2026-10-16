@@ -21,7 +21,7 @@ const GTSpan = ({ children, className = '' }) => (
 
 function BoardList(props) {
   const { t } = useTranslation();
-  const { postList, handleDeleteSelect, className } = props;
+  const { postList, handleDeleteSelect, className, studioHrefForItem } = props;
   const [totalCount, setTotalCount] = useState(1);
   const [page, setPage] = useState(1);
 
@@ -45,9 +45,11 @@ function BoardList(props) {
 
   return (
     <div className={cn('mx-auto w-full', className)} style={{ maxWidth: MAX_WIDTH }}>
-      <div className="mb-3 mt-6 flex w-full flex-row justify-between px-4 sm:px-5 sm:pr-44">
-        <GTSpan>{t('settings.name')}</GTSpan>
+      <div className="mb-3 mt-6 flex w-full flex-row items-center gap-3 px-4 sm:px-5">
+        <GTSpan className="min-w-0 flex-1">{t('settings.name')}</GTSpan>
         <GTSpan>{t('common.modified')}</GTSpan>
+        {studioHrefForItem && <span className="w-24 shrink-0" aria-hidden="true" />}
+        <span className="hidden w-18 shrink-0 sm:ml-5 sm:block" aria-hidden="true" />
       </div>
       <ul className="w-full rounded-lg border border-border bg-card p-0">
         {postList.map((item, index) => {
@@ -55,7 +57,15 @@ function BoardList(props) {
           if (index < currentPageStart || index >= currentPageStart + PAGE_SIZE) {
             return null;
           }
-          return <BoardItem data={item} key={item.id} handleDeleteSelect={handleDeleteSelect} />;
+          return (
+            <BoardItem
+              data={item}
+              key={item.id}
+              handleDeleteSelect={handleDeleteSelect}
+              studioHref={studioHrefForItem?.(item)}
+              showStudioColumn={!!studioHrefForItem}
+            />
+          );
         })}
       </ul>
       <div className="mt-6 flex justify-center">

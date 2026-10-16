@@ -72,7 +72,7 @@ function Dashboard() {
     },
   });
   const menuList = [
-    { name: 'AI 대시보드 만들기', link: '', id: 'ai' },
+    { name: 'AI 대시보드 만들기', link: '/studio/new', id: 'ai' },
     { name: t('nav.dashboard'), link: '/dashboard/create', id: 'dashboard' },
     { name: t('list.recommend'), link: '', id: 'recommend' },
   ];
@@ -97,10 +97,9 @@ function Dashboard() {
   };
 
   const handleMenuSelect = item => {
-    console.log(item);
     if (item.id !== undefined) {
       if (item.id === 'ai') {
-        setAiOpen(true);
+        navigate('/studio/new');
       } else if (item.id == 'dashboard') {
         navigate('/dashboard/create?createType=dashboard');
       } else {
@@ -151,7 +150,11 @@ function Dashboard() {
             <GettingStarted returning={!noData} />
             {!noData && (
               <>
-                <BoardList postList={loadedDashboardData} handleDeleteSelect={handleDeleteSelect} />
+                <BoardList
+                  postList={loadedDashboardData}
+                  handleDeleteSelect={handleDeleteSelect}
+                  studioHrefForItem={item => (item.analysisDefinition ? `/dashboard/${item.id}/studio` : undefined)}
+                />
               </>
             )}
           </PageTitleBox>
