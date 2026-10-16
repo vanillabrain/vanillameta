@@ -30,7 +30,7 @@ creation/clarify의 수정 입력은 질문+대상이며 분모/소스 답변과
 - 최종 FE 관련4파일86 PASS, type·변경 lint·BE/FE build PASS. 불명확 결과의 질문/대상 잠금·저장 금지·동일 본문 재시도와 기본 접힘을 컴포넌트에서 확인했다. 브라우저 응답 유실·취소 주입은 이번에 실행하지 않았다.
 - 격리 core8 PASS는 최종 화살표 표현 변경 전 결과다. 표현 변경 후 관련86/type/lint/build와 실제 모바일 Enter/폼을 확인했다. 전체 BE/FE·운영 수용을 주장하지 않는다.
 - 수정 폼/전체 미리보기/저장 화면390/768/1440 CSS px 넘침0. 선택36px/16px 글꼴·주요 버튼36px/14px·기존 도구32px, 라벨/질문/버튼 간격·포커스·고정 하단 대화와의 정렬을 실측·실제 캡처로 확인했다. 긴 질문과 저장 대시보드 제목의 줄바꿈도 확인했다. 실제 휴대폰·음성 접근성·모든 로딩 상태는 미실행이다.
-- 자동 대조33개 PASS: 실패 보존·제목만 수정·비대상/추가 ID·oracle·메타데이터 수·원본/새로고침·동일 요청/409·폭별 overflow/비공개를 검사했다. 증빙은 저장소 밖 `/tmp/vm-uc035/`, 로컬 AIWF packet/evidence는 `.aiwf/evidence/UC-035/`와 `.aiwf/review-packet-UC-035.json`이다.
+- 자동 대조41개 PASS: 실패 보존·제목만 수정·비대상/추가 ID·oracle·메타데이터 수·원본/새로고침·동일 요청/409·폭별 overflow/비공개를 검사했다. 증빙은 저장소 밖 `/tmp/vm-uc035/`, 로컬 AIWF packet/evidence는 `.aiwf/evidence/UC-035/`와 `.aiwf/review-packet-UC-035.json`이다.
 
 초기 테스트의 fixture 타입·append 리터럴 타입 오류를 수정한 뒤118/86/type/build를 재실행했다. viewport 전환 직후 Ego의 dialog intercept로 추가 클릭이 한 번 중단됐으며, 상태를 다시 관찰하고 안정된 패널에서 실제 질문/201·3개 결과를 확인했다. 추가 전의 두 블록 응답은 추가 성공으로 계산하지 않았다. 과거 실행의 만료 GET400은 새 실행의 실패와 구분했다.
 
@@ -39,3 +39,7 @@ creation/clarify의 수정 입력은 질문+대상이며 분모/소스 답변과
 UC/설계/TC는 코드 전에 작성했다. 이후 Main 별도 대조로 BR03501~03과 회귀/실제 결과를 연결했다. 독립 리뷰·사람 승인·전체 제품 수용이 아니며 Draft/awaiting_review·acceptance not_recorded다. 요구사항/엔티티/용어집은 기존 개념을 그대로 사용해 변경하지 않았다. strict12오류33경고4정보는 기존 문서 이슈이며 baseline을 새로 승인하지 않았다. pin/check는 내용 일치 증빙이다.
 
 캐시10분/단일 서버 진행 Map·미완료 제안의 재시작 복구·모든 자연어/수정 기준 변형·실휴대폰/운영/제품 수용은 남아 있다. MySQL은 사용자 지시대로 이후 로컬 Docker 단계다.
+
+## 원격 통합 후
+
+원격73636cbf까지의 사용자 날짜/refresh token 타입 수정을 보존해 병합했다. 실행·생성·두 entity의 BE4파일120개와 BE build PASS다. 통합 빌드로 같은 격리 서버를 재시작한 후 Ego77에서 저장44를 reload해21.23%·세 블록의 정의/배치/revision을 확인하고 원본39도 불변임을 재조회했다. 해당 reload는 GET만 발생했다. FE 변경이 없어 최종86/type/lint/build 증빙을 재사용했다. 이 SQLite 화면 검증은 MySQL 실행 증빙이 아니다. 추가 미저장 제안은 재시작 캐시 복원 대상으로 주장하지 않는다.
