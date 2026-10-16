@@ -1602,3 +1602,47 @@ it.each([false, true])(
     expect(sessionStorage.getItem(key)).not.toBeNull();
   },
 );
+
+it('UC027 retries a failed latest read and a second save conflict without losing the draft or question', async () => {
+  enableBrowserDraft();
+  await mount();
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '내 반복 복구 초안' } });
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '재시도해도 보존할 질문' } });
+  await requestPreview();
+  api.post.mockRejectedValueOnce({ response: { status: 409 } });
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await screen.findByRole('button', { name: '저장 상태 확인' });
+  api.get.mockRejectedValueOnce({ response: { status: 503 } });
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  await screen.findByText('저장 상태를 확인하지 못했습니다. 초안과 질문은 유지됩니다. 상태 확인을 다시 시도해 주세요.');
+  expect((screen.getByRole('button', { name: 'AI 요청 실행' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toBe('재시도해도 보존할 질문');
+  const latest = { ...editor, revision: 'b'.repeat(64), items: [{ ...item, unit: 'USD' }] };
+  api.get.mockResolvedValueOnce(success(latest));
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  fireEvent.click(await screen.findByRole('button', { name: '내 변경과 최신본 합치기' }));
+  await requestPreview();
+  expect(api.post.mock.calls[2][1].expectedRevision).toBe(latest.revision);
+  api.post.mockRejectedValueOnce({ response: { status: 409 } });
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await screen.findByText(
+    '다른 변경이 저장되어 최신 상태와 충돌했습니다. 초안과 질문은 유지됩니다. 저장 상태 확인으로 최신 변경을 비교한 뒤 다시 미리보기해 주세요.',
+  );
+  const newest = { ...latest, revision: 'c'.repeat(64), items: [{ ...latest.items[0], title: '다른 탭 최신 차트' }] };
+  api.get.mockResolvedValueOnce(success(newest));
+  fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+  fireEvent.click(await screen.findByRole('button', { name: '내 변경과 최신본 합치기' }));
+  expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('내 반복 복구 초안');
+  expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toBe('재시도해도 보존할 질문');
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe('다른 탭 최신 차트');
+  expect((screen.getByLabelText('1번 차트 단위') as HTMLInputElement).value).toBe('USD');
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  await requestPreview();
+  expect(api.post.mock.calls[4][1].expectedRevision).toBe(newest.revision);
+  api.post.mockResolvedValueOnce(success({ id: 8, revision: 'd'.repeat(64) }));
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
+  const key = await editorDraftKey('draft-unit-session', 8);
+  expect(sessionStorage.getItem(key)).toBeNull();
+  expect(api.post).toHaveBeenCalledTimes(6);
+});

@@ -52,7 +52,8 @@
 **Flow:**
 
 1. 서버는 최신 revision 불일치로 저장을 거절하고 현재 초안을 유지한다.
-2. Use case continues at step 5.
+2. 조회 실패와 재충돌의 반복 복구는 [UC-027](UC-027-retry-editor-recovery.md)을 따른다.
+3. Use case continues at step 5.
 
 ## Postconditions
 

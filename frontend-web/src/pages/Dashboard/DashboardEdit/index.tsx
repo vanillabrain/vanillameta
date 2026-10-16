@@ -1002,7 +1002,7 @@ function DashboardEditContent() {
         setConflict(true);
         setError(
           '다른 변경이 저장되어 최신 상태와 충돌했습니다.' +
-            ' 현재 편집 내용은 유지됩니다. 최신 내용을 다시 불러온 뒤 편집해 주세요.',
+            ' 초안과 질문은 유지됩니다. 저장 상태 확인으로 최신 변경을 비교한 뒤 다시 미리보기해 주세요.',
         );
       } else if (errorMessage(failure).startsWith('블록 배치')) setError(errorMessage(failure));
       else {
