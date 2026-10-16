@@ -42,6 +42,20 @@ class BackupValidationTest(unittest.TestCase):
     def test_valid_set(self):
         self.assertEqual(MODULE.verify(self.root, self.path)["files"], 2)
 
+    def test_valid_empty_uploads(self):
+        self.data.unlink()
+        self.manifest["files"] = {}
+        self.write_manifest()
+        self.assertEqual(MODULE.verify(self.root, self.path)["files"], 1)
+
+    def test_manifest_size_boundary(self):
+        content = self.path.read_text()
+        self.path.write_text(content + " " * (1024 * 1024 - len(content)))
+        self.assertEqual(MODULE.verify(self.root, self.path)["files"], 2)
+        with self.path.open("a") as stream:
+            stream.write(" ")
+        self.reject()
+
     def test_truncated_dump(self):
         self.sql.write_bytes(self.sql.read_bytes()[:-1])
         self.reject()

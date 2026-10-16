@@ -725,3 +725,5 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 - 2026-10-16: [STUDIO-MYSQL06 백업 보존/키 복구](studio-backup-key-recovery.md) A~D PASS_SELECTED/E NOT_RUN. 보존·hold·별도 보관·keyRef·복구 운영안 문서화(자동 스케줄/삭제/외부 반출0). 실제 암호문을 키 누락/오류로 복호화 거절·워커0→원래 QA키 재제공·READ_ONLY 워커1/1,391,572행·634,513,000 복구,30테이블/3파일 불변. 신규 회귀2 PASS/기존4 재사용·실행코드변경0·새캡처NOT_RUN. 독립 비밀 저장소/실제 오프사이트·RPO/RTO는 미검증, gpt-6-luna/VoiceOver BLOCKED 유지·모델0·미커밋.
 
 - 2026-10-17: MYSQL03~06 증빙·백업 검사 명령/회귀·보존/키 복구 운영안을 누적 커밋 범위에 포함했다. 각 문서의 2026-10-16 미커밋 표기는 당시 상태이며, 이후 통합/원격 반영 결과는 아래 최신 기록과 Git 이력을 따른다. 실제 DB/UI 장애 검증은 재실행하지 않고 기존 증빙을 재사용한다.
+
+- 2026-10-17: 누적 MYSQL03~06 `8bca915d` + 원격 후속7개 `38732c4a` 보존 병합. 검토에서 빈 업로드 백업 거절을 수정하고 manifest1MiB 한도를 명시, Python11 PASS. BE2094+HTTP권한 재검사6 PASS, FE1360+timeout 단독 재검사1 PASS(최초 전체명령 실패는 로그 보존), 루트build/FEtype PASS. 상세 [MYSQL05 통합 기록](studio-mysql-backup-validation.md#커밋-전-검토원격-통합--2026-10-17). 실제 화면/DB 장애 통과 조건 재사용·새캡처0·gpt-6-luna/VoiceOver BLOCKED 유지. 본 보완과 기록은 develop-v2 커밋·push 범위다.

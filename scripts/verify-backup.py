@@ -35,8 +35,8 @@ def verify(root, manifest_path):
     if not isinstance(manifest, dict):
         raise ValueError("manifest must be an object")
     files = manifest.get("files")
-    if not isinstance(files, dict) or not files:
-        raise ValueError("manifest files must be a nonempty object")
+    if not isinstance(files, dict):
+        raise ValueError("manifest files must be an object")
     expected = {"metadata.sql": manifest.get("dump")}
     for name, entry in files.items():
         path = PurePosixPath(name)

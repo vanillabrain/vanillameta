@@ -36,3 +36,15 @@ MYSQL03의 임시 restore.py는 dump를 곧바로 mysql stdin에 전달했다. �
 `result.json`, `target-before.json`, `target-after.json`, 선택 테스트 로그, 원본 파일 해시 확인 결과, 재현 runner/fingerprint helper를 보관한다. dump/config/암호화 키/비밀번호는 포함하지 않는다. 임시 세트는0700 디렉터리, 덤프/manifest는0600이다. 별도 앱/브라우저/컨테이너는 시작하지 않았다. 기존3359 running·이전3360 stopped 상태를 유지했다.
 
 검사 명령/검증 기록은 미커밋이다. gpt-6-luna 설정·VoiceOver BLOCKED 유지, 모델 호출0. 키 유실/오프사이트 백업·보존 정책·RPO/RTO·실제 운영 규모, DDL 실행 중 crash·호스트 전원 장애/PITR·제품 전체 수용은 별도 gate다.
+
+## 커밋 전 검토·원격 통합 — 2026-10-17
+
+누적 MYSQL03~06은 `8bca915d`, 원격 Studio UC036~039 후속7개는 `38732c4a`로 충돌 없이 보존 병합했다. 범위를 한정한 별도 읽기 검토에서 빈 업로드(`files: {}`)도 거절하는 가용성 오류를 찾았다. 신규 회귀로 최초 실패를 확인한 뒤 빈 목록만 허용하도록 최소 수정했다. 비어 있는 SQL dump/누락 파일·해시·경로 검사는 유지한다. 숨겨져 있던 manifest1MiB 한도는 운영 문서에 명시하고 정확한 한도/한도+1byte 회귀를 추가했다. 수정 후 선택 Python 회귀 **11 PASS**다.
+
+최종 통합 검사:
+
+- BE 전체2100개 중2094 PASS, Supertest 포트 조회 null로 HTTP6개 실패 → 해당 두 스펙만 로컬 포트 사용 권한으로 재실행 **6 PASS**. 최초 루트 명령 자체는 exit1이며 전체2100개를 한 번에 성공했다고 보고하지 않는다.
+- FE 전체1361개 중1360 PASS, SourceDetails 선택 상한 회귀1개가5초 timeout → 동일 조건 단독 재실행 **1 PASS/173 SKIP**, 코드/timeout 값 변경 없음.
+- 루트 BE/FE build·FE type PASS. 변경 crypto 회귀 lint/문서 링크·diff check PASS. 앱 소스에 로컬 제품 변경은 없고, UI/DB 장애 시나리오는 기존 결과를 재사용한다.
+
+로그: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/backup-integration-20261017`의 root-tests.log/http-retry.log/frontend-tests.log/frontend-retry.log/root-build.log/frontend-type.log/backup-tests.log. 환경 제약과 전체 병렬 실행 중 timeout을 제품 오류로 수정하지 않았다. 외부 오프사이트/독립 키 복구·운영/실기기·VoiceOver 조건은 종전 상태를 유지한다.
