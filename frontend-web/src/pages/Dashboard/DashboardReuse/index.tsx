@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
 import { AnalysisUiProvider, analysisPanelClassName } from '@/components/analysis/AnalysisUi';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,11 @@ function compatible(from: Column, to: Column) {
 function Content() {
   const { dashboardId, kind, uuid } = useParams();
   const shared = !!kind;
-  const originPath = shared ? `/${kind === 'publication' ? 'published' : 'share'}/${uuid}` : `/dashboard/${dashboardId}`;
+  const [params] = useSearchParams();
+  const studioReturn = !shared && params.get('editor') === 'studio';
+  const originPath = shared
+    ? `/${kind === 'publication' ? 'published' : 'share'}/${uuid}`
+    : `/dashboard/${dashboardId}${studioReturn ? '/studio' : ''}`;
   const navigate = useNavigate();
   const base = shared
     ? `/bi/reuse/${encodeURIComponent(kind)}/${encodeURIComponent(uuid ?? '')}`
@@ -232,7 +236,7 @@ function Content() {
       if (token !== sequence.current) return;
       if (!Number.isSafeInteger(result?.id) || result.id <= 0 || result.id === draft.originalId)
         throw new Error('저장 응답을 확인할 수 없습니다.');
-      navigate(`/dashboard/${result.id}`);
+      navigate(`/dashboard/${result.id}${studioReturn ? '/studio' : ''}`);
     } catch (failure) {
       if (token !== sequence.current) return;
       const status = (failure as any)?.response?.status;
@@ -262,6 +266,7 @@ function Content() {
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
         원본은 유지하고 새 데이터로 복사본을 만듭니다. 결과를 확인한 뒤 저장하세요. 복사본은 비공개로 시작합니다.
+        {studioReturn && ' 마지막 저장본을 복제합니다. 원본 Studio의 미저장 변경은 포함하지 않습니다.'}
       </p>
       {busy && (
         <p role="status" className="mb-3 text-sm">
