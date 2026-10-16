@@ -167,6 +167,77 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
     },
   );
 
+  it('checks publication basis again inside the snapshot transaction', async () => {
+    const first = await publish('before-snapshot-' + id);
+    const document = (await studio.get(id, 7)).document;
+    const snapshot = studio.publicationSnapshot.bind(studio);
+    const spy = jest
+      .spyOn(studio, 'publicationSnapshot')
+      .mockImplementationOnce(async (...args) => {
+        await db.manager.update(
+          StudioPublication,
+          { token: first.token },
+          {
+            version: first.version + 1,
+            visibility: 'private',
+          },
+        );
+        return snapshot(...args);
+      });
+    try {
+      await expect(
+        publications.publish(
+          id,
+          {
+            requestId: 'during-snapshot-' + id,
+            expectedRevision: document.revision,
+            visibility: 'link',
+            allowRemix: false,
+          },
+          7,
+          undefined,
+          { token: first.token, version: first.version },
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(await publications.ownerMetadata(id, 7)).toMatchObject({
+        version: first.version + 1,
+        visibility: 'private',
+      });
+      expect(await publications.committed('during-snapshot-' + id, 7)).toBeUndefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('rechecks a receipt committed while the snapshot was being prepared', async () => {
+    const first = await publish('before-receipt-' + id);
+    const document = (await studio.get(id, 7)).document;
+    const body = {
+      requestId: 'during-receipt-' + id,
+      expectedRevision: document.revision,
+      visibility: 'link',
+      allowRemix: false,
+    };
+    const snapshot = studio.publicationSnapshot.bind(studio);
+    const spy = jest
+      .spyOn(studio, 'publicationSnapshot')
+      .mockImplementationOnce(async (...args) => {
+        await db.manager.insert(StudioPublicationRequest, {
+          actorId: 7,
+          requestId: body.requestId,
+          payloadHash: studioDigest({ dashboardId: id, ...body }),
+          result: JSON.stringify(first),
+        });
+        return snapshot(...args);
+      });
+    try {
+      expect(await publications.publish(id, body, 7)).toEqual(first);
+      expect(await publications.ownerMetadata(id, 7)).toEqual(first);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('replays a guarded committed receipt without overwriting a later private publication', async () => {
     const doc = (await studio.get(id, 7)).document;
     const request = {

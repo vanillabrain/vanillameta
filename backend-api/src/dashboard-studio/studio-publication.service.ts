@@ -125,24 +125,6 @@ export class StudioPublicationService {
           throw new ConflictException('같은 게시 요청 ID에 다른 내용을 보낼 수 없습니다.');
         return this.committed(body.requestId, actor, false);
       }
-      // Coordinator-only CAS, inside the same serialized write as the snapshot.
-      // A committed request above remains a read-only receipt even after later republish.
-      if (expectedPublication !== undefined) {
-        const current = await this.db.manager.findOne(StudioPublication, {
-          where: { dashboardId: id, actorId: actor, revokedAt: IsNull() },
-          order: { createdAt: 'DESC', token: 'DESC' },
-        });
-        if (
-          current
-            ? !expectedPublication ||
-              current.token !== expectedPublication.token ||
-              current.version !== expectedPublication.version
-            : expectedPublication !== null
-        )
-          throw new ConflictException(
-            '게시 상태가 다른 곳에서 변경되었습니다. 최신 공개 범위를 확인하고 새 요청으로 게시해 주세요.',
-          );
-      }
       if (body.expiresAt !== undefined && Date.parse(body.expiresAt) <= Date.now())
         throw new BadRequestException('만료 시간은 현재보다 뒤로 지정해 주세요.');
       const check = () => {
@@ -154,6 +136,37 @@ export class StudioPublicationService {
         body.expectedRevision,
         actor,
         async ({ document, preview, dataVersion }, manager) => {
+          // Another process may have committed this request while aggregation was running.
+          const receipt = await manager.findOne(StudioPublicationRequest, {
+            where: { actorId: actor, requestId: body.requestId },
+          });
+          if (receipt) {
+            if (receipt.payloadHash !== payloadHash)
+              throw new ConflictException('같은 게시 요청 ID에 다른 내용을 보낼 수 없습니다.');
+            const result = JSON.parse(receipt.result);
+            const current = await manager.findOne(StudioPublication, {
+              where: { token: result.token },
+            });
+            return { ...result, revokedAt: current?.revokedAt ?? result.revokedAt };
+          }
+          // Coordinator-only CAS, inside the same database lock as the snapshot.
+          // A committed request above remains a read-only receipt even after later republish.
+          if (expectedPublication !== undefined) {
+            const current = await manager.findOne(StudioPublication, {
+              where: { dashboardId: id, actorId: actor, revokedAt: IsNull() },
+              order: { createdAt: 'DESC', token: 'DESC' },
+            });
+            if (
+              current
+                ? !expectedPublication ||
+                  current.token !== expectedPublication.token ||
+                  current.version !== expectedPublication.version
+                : expectedPublication !== null
+            )
+              throw new ConflictException(
+                '게시 상태가 다른 곳에서 변경되었습니다. 최신 공개 범위를 확인하고 새 요청으로 게시해 주세요.',
+              );
+          }
           const snapshot = this.sanitize(document, preview);
           let remixTemplate: string | null = null;
           if (body.allowRemix) {

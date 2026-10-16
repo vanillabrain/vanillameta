@@ -19,7 +19,8 @@ const dataSourceOptions = {
       : configService.get<string>('DB_NAME'),
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
-  synchronize: configNodeenv != 'prod',
+  // CLI migrations must be the only schema writer, including when NODE_ENV is omitted.
+  synchronize: false,
   logging: configNodeenv != 'prod',
 } as DataSourceOptions;
 

@@ -334,6 +334,7 @@ export class StudioService {
       ).data;
       // Publication and save share the metadata queue; recheck against legacy writes during aggregation too.
       return this.db.transaction(async manager => {
+        await this.lockDashboard(manager, id);
         const latest = await this.load(id, actor, manager);
         const source = await manager.findOne(Database, { where: { id: analysis.databaseId } });
         if (
@@ -364,6 +365,14 @@ export class StudioService {
   }
   async save(id: number, body: any, actor: number, signal?: AbortSignal) {
     return this.serializeWrite(() => this.saveOnce(id, body, actor, signal));
+  }
+  /** Cross-process Studio writes lock an existing row, including the first publication. */
+  private async lockDashboard(manager: EntityManager, id: number) {
+    if (['mysql', 'mariadb'].includes(this.db.options.type))
+      await manager.findOne(Dashboard, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
   }
   /** All Studio metadata transactions share the single SQLite connection's queue. */
   async serializeWrite<T>(run: () => Promise<T>): Promise<T> {
@@ -439,6 +448,7 @@ export class StudioService {
     try {
       return await this.connection.withDuckDBSnapshot(document.sourceId, () =>
         this.db.transaction(async manager => {
+          await this.lockDashboard(manager, id);
           checkCancelled();
           const current = await this.load(id, actor, manager);
           if (current.sourceRevision !== body.expectedSourceRevision)
