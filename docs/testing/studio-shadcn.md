@@ -267,3 +267,32 @@ Ego TaskSpace1/FE3231/API4331의 dashboard32/source9를 재사용했다. 게시 
 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-publication-recovery-20261016`의 `before.json`, `failed.json`, `owner-read-failed.json`, `recovered.json`, `verification.json`, `01-mobile-page.png`, `02-owner-read-failed-mobile.png`, `03-recovered-mobile.png`.
 
 남은 우선 조건은 **대화 실행기의 저장 성공→게시 단계 실패 시 저장 보존/명시 재시도·취소·서버 재시작 복구의 실제 브라우저 연결**이다. 수동 게시 대화상자의 이번 결과를 해당 실행기 전체 PASS로 계산하지 않는다. 운영 MySQL·실기기·전체 제품 수용 및 VoiceOver BLOCKED도 유지한다.
+
+## STUDIO-UI17 대화 실행기의 게시 장애·중지·재시작 — 2026-10-16
+
+STUDIO-A03/P02의 실행기 경계만 선택한다. UI16 수동 게시 대화상자 결과는 재사용한다. 기존 로컬 dashboard32/source9의 공개 Rill 집계를 사용하며 새 원본 수집·AI 생성·정상 공유 전체는 반복하지 않는다.
+
+| 조건 | 기대 결과 | 상태 |
+|---|---|---|
+| UI17-A | 실제 저장 완료 후 실행기 게시 단계1회 실패→부분 완료·저장 보존→명시 게시 단계만 재시도·추가 save/model0 | PASS_SELECTED |
+| UI17-B | 실제 저장 완료 후 게시 commit 전 대기→명시 실행 중지→저장 완료/공유 중지됨·기존 게시본 불변·자동 재개0 | PASS_SELECTED |
+| UI17-C | 실제 저장 완료 후 게시 commit 전 대기→정확한 검증 Node 종료·같은 DB 재시작→부분 완료/게시 interrupted→명시 게시만 재시도·중복 save0 | PASS_SELECTED |
+| UI17-D | 390px 오류/중지/복구 안내·키보드 Enter·정렬/넘침·영속 수치/정의 확인 | PASS_SELECTED |
+
+
+### 실제 결과
+
+기준 develop-v2 `e2e5b715`, FE3231/API4331, 기존 dashboard32/source9·Rill 집계634,513,000. 사용자 요청의 실행기 세 경계만 검증했다. 최초 한 실행은 실제 저장 후 게시 서비스 진입에서1회 예외를 발생시켰고, 별도 두 실행은 같은 경계에서 대기시켰다. **저장·실행 journal·재시도·취소·재시작 복원은 실제 서버/DB**, 장애/대기는 저장소 밖 Node preload의 StudioPublicationService.publish wrapper다. dashboard32 및 publication-execution requestId에만 적용했으며 제품 파일/DB 상태를 직접 조작하지 않았다. 실제 외부 네트워크 장애·DuckDB 손상으로 확대하지 않는다.
+
+- **UI17-A:** run `15758a30-6e0d-42c5-85ba-de5813b72957`은 inspect/saveDraft succeeded·publish failed/PUBLISH_FAILED·전체 partial을 반환했다. 대화에 ‘저장 완료 · 게시 실패. 저장 결과는 유지되며 게시 링크는 갱신되지 않았습니다. 게시 단계만 다시 시도할 수 있습니다.’와 ‘공유 다시 시도’를 확인했다. Enter 재시도는 `POST /studio/runs/:id/retry {stepId:"publish"}`만 실행해 같은 run succeeded/게시v2를 만들었다. 추가 모델·저장 실행0, 해당 save journal1/게시 journal1이다. 편집기 저장 결과 적용으로 패널이 재마운트/닫힌 뒤 AI 열기로 영속 기록을 재조회했다. 닫힌 패널에서 링크 대기한 도구 timeout은 게시 실패로 계산하지 않는다.
+- **UI17-B:** run `df11b8e8-45bc-4e75-a1b0-7f535cfc5472`의 실제 저장 완료·게시 대기 상태에서 ‘실행 중지’ focus→Enter를 수행했다. signal abort가 wrapper 대기를 해제하고 publish cancelled/RUN_CANCELLED·retryablefalse·전체 partial, saveDraft succeeded를 유지했다. UI는 저장 보존/공유 중지됨을 표시하며 게시 재시도 버튼이 없다. 해당 save journal1/게시 journal0·기존 게시v2 불변. 이후 서버 재시작·reload 뒤에도 같은 중지 기록을 확인했다.
+- **UI17-C:** run `ecbbb539-dcae-4973-bb8d-768d7e794ea0`의 saveDraft succeeded/publish running을 읽기 전용 DB로 확인한 뒤 이번 검증이 시작한 정확한 Node PID63734를 TERM 종료했다. 같은 DB/설정의 **주입기 없는 정상 서버**로 재기동했다. 시작 복원은 전체 partial·publish interrupted/RUN_INTERRUPTED/retryabletrue·saveDraft succeeded였고 게시 journal0·기존v2를 유지했다. 브라우저 reload→AI 열기에서 같은 중단 기록·공유 다시 시도를 확인했다. 새 요청/원문 재입력 없이 Enter→GET 원래 run→POST retry의 body는 `{stepId:"publish"}`뿐이었다. 같은 run succeeded·게시v3, save journal1/게시 journal1이며 완료 save/model 재실행0·자동 게시 재개0이다.
+- **UI17-D:** 390×844에서 실패 안내·중지 영속 기록·복구 완료 단계와 composer를 실제 캡처/검토했다. 카드 폭/여백·상태색/행 정렬·주요 버튼36px·가로 넘침0, Enter 전송/재시도/중지를 확인했다. 1440×1000의 저장본/실행 기록도 캡처했다. 기능/선택 디자인 PASS_SELECTED. 전체 키보드 순서·실휴대폰·스크린리더 발화는 미검증이다. 최초 중지/재시작 PNG 두 장은 재마운트·초점 스크롤로 대상 상태가 담기지 않아 시각 증빙에서 제외했다. **중단 직후 상태는 DOM+DB JSON**, 최종 중지/복구는 교체 PNG로 증명하며 중단 화면 자체 PNG가 있다고 보고하지 않는다.
+
+세 실행의 save journal은 각각 정확1개이고 저장 문서는 revision 제외 deep equal이다. 게시 snapshot634,513,000·dashboard31/metric38을 유지했다. 모델 단계 없는 명시 저장/공유 경로이므로 제품 LLM 호출0이며 gpt-6-luna 설정을 변경하지 않았다. 새로운 제품 오류/제품 코드 변경0·기존 관련 회귀/타입/빌드 결과 재사용·문서 diff check PASS. 정상 게시·만료·권한 전체 조건은 반복하지 않았다.
+
+검증 뒤 같은 로컬 게시본을 **비공개 v4/복제 비허용**으로 복구했다(정리용 재게시이며 신규 PASS 수로 합산하지 않는다). 임시 hook 서버를 정상 서버로 교체·관측 interceptor/viewport 정리·Ego TaskSpace2 종료를 확인했다. VoiceOver BLOCKED 유지. 서버는 정상 API4331/FE3231로 남겼다.
+
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-execution-publication-recovery-20261016`의 `adapter-events.jsonl`, `01-failed.json`, `02-retry.json`, `03-cancel.json`, `04-before-restart.json`, `05-restarted.json`, `05-restarted-db.json`, `06-restart-retry.json`, `verification-db.json`, `layout.json`, `cleanup.json`. 대표 화면은 `01-failed-390.png`, `03-cancel-persisted-390.png`, `06-recovered-detail-390.png`, `07-records-1440.png`다. 영속 기록 숫자는 DB·실제 요청과 대조했다.
+
+이번 변경은 검증 문서만이며 미커밋이다. 남은 별도 gate는 게시 commit 직후 서버 종료/응답 유실의 실행기 연결, 다른 탭이 revision/게시 범위를 바꾸는 재시도 경쟁, 운영 MySQL·실휴대폰·VoiceOver 및 전체 제품 수용이다. 기존 하위/수동 게시 통과 결과를 이 전체 조합 PASS로 확대하지 않는다.
