@@ -32,3 +32,8 @@ it('does not infer an ambiguous title but allows an implicit single block', () =
   ).toThrow();
   expect(creationMessageAction('제목을 바꿔 줘', [blocks[0]])).toBe(0);
 });
+
+it.each(['0번 블록 변경', '11번 블록 변경', '-1번 블록 변경', '1.5번 블록 변경'])(
+  'does not fall back to the only block for an invalid explicit target %s',
+  prompt => expect(() => creationMessageAction(prompt, [blocks[0]])).toThrow(),
+);

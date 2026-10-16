@@ -32,6 +32,16 @@ export function creationMessageAction(
     );
   if (!blocks?.length)
     throw new BadRequestException('카드에서 소스와 계산 기준을 먼저 확인해 주세요.');
+  const numericTargets = [...prompt.matchAll(/(-?\d+(?:\.\d+)?)\s*(?:번(?:째)?|번째)/g)];
+  if (
+    numericTargets.some(
+      match =>
+        !Number.isInteger(Number(match[1])) ||
+        Number(match[1]) < 1 ||
+        Number(match[1]) > blocks.length,
+    )
+  )
+    throw new BadRequestException('생성안에 있는 블록 번호를 지정해 주세요.');
   const ordinals = [
     /(?:첫\s*번째|첫째|(?<!\d)1\s*(?:번(?:째)?|번째))\s*(?:블록|차트)?/,
     /(?:두\s*번째|둘째|(?<!\d)2\s*(?:번(?:째)?|번째))\s*(?:블록|차트)?/,
