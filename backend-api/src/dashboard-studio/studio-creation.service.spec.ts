@@ -795,6 +795,30 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     expect((await studio.get(saved.dashboardId, 7)).document.blocks).toHaveLength(2);
     expect(state.dashboardId).toBe(saved.dashboardId);
   });
+  it('REFINE title-only follow-up preserves the entire target definition except its title', async () => {
+    const parent = await propose();
+    const block = semantics().semanticProposal[1];
+    block.title = 'Renamed block';
+    block.metric.label = 'Unrequested metric rename';
+    block.metric.aggregation = 'AVG';
+    block.metric.decimalPlaces = 0;
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        requiredFields: ['amount', 'channel'],
+        title: 'ignored',
+        semanticProposal: [block],
+      }),
+    );
+    const next = await refine(parent, 1, {
+      prompt: '선택한 블록 제목만 Renamed block으로 변경해 줘.',
+    });
+    expect(next.semanticProposal[1]).toEqual({
+      ...parent.semanticProposal[1],
+      title: 'Renamed block',
+    });
+    expect(next.semanticProposal[0]).toEqual(parent.semanticProposal[0]);
+    expect(next.title).toBe(parent.title);
+  });
   it('REFINE-02 appends one block and rejects a seventh before calling AI', async () => {
     let p = await propose();
     for (let i = 0; i < 4; i++) {

@@ -680,3 +680,23 @@ UI12 후속은 미저장 제안 후 실제API4331 SIGTERM/동일설정 재기동
 ## Studio 후속 질문·첫 화면 연결 — 2026-10-16
 
 최신 [명세/증빙](studio-proposal-refinement.md)을 따른다. REFINE-01~05/START-01 선택 조건 PASS: 실제 gpt-6-luna 차원 변경·KPI 추가, Rill40그룹/총634,513,000, 비공개28 저장/reload/동일 요청 복구,799.57초 실제 TTL400. REFINE-06 디자인390/768/1440 넘침0·선택 Tab/Enter PASS; 네이티브 선택창 방향키 PARTIAL. VoiceOver BLOCKED 유지. 파일/샘플 재수집·운영/실휴대폰·편집기 run 링크 전체 추가 여정은 남아 있다. 기존 TC005/G4 전체 수용을 완료로 바꾸지 않는다.
+
+
+후속 CONV-REFINE-01~04는 실제 편집기 생성→새 탭 이어받기→제목만 수정→비공개29 저장/reload·원본25 미저장 변경 보존/되돌리기를 확인했다. CREATE-RECOVERY-01~03은 `/studio/new` 신규 저장31 commit 뒤 응답 유실 주입→변경 차단→키보드 Enter로 같은 요청 확인→31/31 동일 문서·중복 생성0·reload634,513,000을 확인했다. 첫 주입 연결 실패의 정상 준비30은 장애 PASS에서 제외했다.390px 안내/컨트롤/결과 캡처·넘침0. 제품 코드 변경 없이 기존 통과 검사를 재사용했다. [실행 방식·잔여 범위](studio-proposal-refinement.md#신규-생성-저장-응답-유실-후속--2026-10-16). gpt-6-luna·VoiceOver BLOCKED 유지, 실휴대폰/운영/전체 키보드 수용은 남는다.
+
+
+REFINE-CANCEL-01~03은 실제 gpt-6-luna 수정 POST→중지→미리보기/질문 보존→Enter 재요청을 확인했다. 제목만 요청에서 지표38 참조를 잃는 오류를 발견해 서버가 제목 외 전체 정의를 보존하도록 수정했다. 신규 실패 회귀→관련5 PASS·BE build/lint·실제 같은 질문 재검증/390px 캡처·634,513,000/지표38 완전 보존·저장/게시0. [수정·미확인 범위](studio-proposal-refinement.md#발견-오류-수정재검증). 변경·기록은 미커밋이다.
+
+
+REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→Enter 비공개32 저장→reload를 확인했다. 제목·저장 지표38/v1·634,513,000 유지, 지표/게시 증가0·기존 지표38/원래25 해시 불변.1440/390px 캡처·넘침0이며 기존 성공 케이스는 재사용했다. [영속 검증 증빙](studio-proposal-refinement.md#제목만-수정-후-저장-지표-연결-유지--2026-10-16). gpt-6-luna·VoiceOver BLOCKED 유지.
+
+- 2026-10-16: [수정 대상 선택창 키보드 후속](studio-proposal-refinement.md#수정-대상-네이티브-선택창-키보드-후속--2026-10-16) REFINE-KEY-01·02 PASS_SELECTED. native 방향키/Enter/Escape·페이지 Tab 및390px 포커스/넘침0 확인. 전체 접근성·VoiceOver BLOCKED는 별도이며 미커밋.
+
+- 2026-10-16: [UI13 날짜 키보드 후속](studio-shadcn.md#studio-ui13-날짜-네이티브-키보드-후속--2026-10-16) 실제 세그먼트 입력·Tab/Space popup·방향키/Enter·Escape·390px 포커스/넘침0 PASS_SELECTED. 저장/게시/AI0, 제품 변경0. 모바일 popup 전체 시각·실기기·VoiceOver/운영은 별도이며 미커밋.
+
+- 2026-10-16: [UI14 파일 선택 취소 후속](studio-shadcn.md#studio-ui14-파일-선택-취소-키보드-후속--2026-10-16): 실제 OS Escape 취소·버튼 초점/질문/소스 보존·페이지 Tab·390px 넘침0 PASS_SELECTED. Enter chooser event는 확인했으나 도구 자동 취소로 OS 표시 PARTIAL. 업로드/AI/저장0·제품 변경0·미커밋, VoiceOver BLOCKED 유지.
+
+- 2026-10-16: [UI15 분모 확인 재시도](studio-shadcn.md#studio-ui15-분모-확인-실패재시도-후속--2026-10-16) 전송 전503 주입→질문/amount/소스 revision 보존→동일 body Enter→실제 gpt-6-luna 제안/21.23% 복구 PASS_SELECTED. 원본 CSV Decimal 일치·390px 넘침0·저장/게시0. 제품 변경0·기록 미커밋, VoiceOver BLOCKED 유지.
+
+
+- 2026-10-16: [UI16 게시 실패·상태 조회 복구](studio-shadcn.md#studio-ui16-게시-실패상태-조회-복구--2026-10-16) PASS_SELECTED. 비공개32의 전송 전503→동일 requestId/body Enter 재시도→실제 v1 생성→owner GET 전송 전503→Enter GET만 복구. 실제 게시1회/복구 추가POST0·저장본 해시/634,513,000 보존·390px 넘침0/버튼36px 캡처. 제품 변경0·AI 호출0/gpt-6-luna·VoiceOver BLOCKED 유지. 이전 미커밋 수정/기록은 `2fb2edb4`로 develop-v2/drumcap push 완료. 실행기 저장 후 게시 실패·취소/재시작·운영/실기기는 별도 미완료.

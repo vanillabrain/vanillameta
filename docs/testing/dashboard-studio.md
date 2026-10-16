@@ -676,3 +676,17 @@ P5/BR-006의 기존 미검증 경로만 추가한다. 기존 정상 생성·매�
 ## T16 — 생성안 후속 질문·첫 화면 연결 · 2026-10-16
 
 [명세/실행 증빙](studio-proposal-refinement.md): `/studio/new`에서 서버 부모 제안을 기준으로 선택 블록 수정/1개 추가→전체 미리보기→명시 비공개28 저장을 구현·실제 gpt-6-luna로 확인했다. 편집기 대화 생성안은 같은 제안을 이어받는 새 탭 링크로 연결한다. 부모/비대상 정의·ID·제목 유지, 첫 화면 Enter 진입 POST0, 최신 제안 저장/reload/동일 requestId 재확인·실시간10분 초과 TTL400을 확인했다. 네이티브 선택창·전체 run 링크 실제 여정·운영/실기기·VoiceOver 경계는 위 문서대로 남긴다. T15의 이전 NOT_RUN은 역사적 상태이며 이번 선택 검증 범위를 전체 제품 수용으로 확대하지 않는다.
+
+
+T16 후속 실제 run 링크 여정은 [CONV-REFINE-01~04](studio-proposal-refinement.md#편집기-대화-이어받기-후속--2026-10-16)에서 완료했다. T15의 새 생성 저장 장애 중 `/studio/new`의 실제 commit 후 응답 숨김·같은 요청 확인은 [CREATE-RECOVERY-01~03](studio-proposal-refinement.md#신규-생성-저장-응답-유실-후속--2026-10-16)에서 선택 검증했다. 역사적 NOT_RUN을 전체 수용 PASS로 소급하지 않는다.
+
+- 2026-10-16: [수정 대상 선택창 키보드 후속](studio-proposal-refinement.md#수정-대상-네이티브-선택창-키보드-후속--2026-10-16) REFINE-KEY-01·02 PASS_SELECTED. native 방향키/Enter/Escape·페이지 Tab 및390px 포커스/넘침0 확인. 전체 접근성·VoiceOver BLOCKED는 별도이며 미커밋.
+
+- 2026-10-16: [UI13 날짜 키보드 후속](studio-shadcn.md#studio-ui13-날짜-네이티브-키보드-후속--2026-10-16) 실제 세그먼트 입력·Tab/Space popup·방향키/Enter·Escape·390px 포커스/넘침0 PASS_SELECTED. 저장/게시/AI0, 제품 변경0. 모바일 popup 전체 시각·실기기·VoiceOver/운영은 별도이며 미커밋.
+
+- 2026-10-16: [UI14 파일 선택 취소 후속](studio-shadcn.md#studio-ui14-파일-선택-취소-키보드-후속--2026-10-16): 실제 OS Escape 취소·버튼 초점/질문/소스 보존·페이지 Tab·390px 넘침0 PASS_SELECTED. Enter chooser event는 확인했으나 도구 자동 취소로 OS 표시 PARTIAL. 업로드/AI/저장0·제품 변경0·미커밋, VoiceOver BLOCKED 유지.
+
+- 2026-10-16: [UI15 분모 확인 재시도](studio-shadcn.md#studio-ui15-분모-확인-실패재시도-후속--2026-10-16) 전송 전503 주입→질문/amount/소스 revision 보존→동일 body Enter→실제 gpt-6-luna 제안/21.23% 복구 PASS_SELECTED. 원본 CSV Decimal 일치·390px 넘침0·저장/게시0. 제품 변경0·기록 미커밋, VoiceOver BLOCKED 유지.
+
+
+- 2026-10-16: [UI16 게시 실패·상태 조회 복구](studio-shadcn.md#studio-ui16-게시-실패상태-조회-복구--2026-10-16) PASS_SELECTED. 비공개32의 전송 전503→동일 requestId/body Enter 재시도→실제 v1 생성→owner GET 전송 전503→Enter GET만 복구. 실제 게시1회/복구 추가POST0·저장본 해시/634,513,000 보존·390px 넘침0/버튼36px 캡처. 제품 변경0·AI 호출0/gpt-6-luna·VoiceOver BLOCKED 유지. 이전 미커밋 수정/기록은 `2fb2edb4`로 develop-v2/drumcap push 완료. 실행기 저장 후 게시 실패·취소/재시작·운영/실기기는 별도 미완료.
