@@ -175,3 +175,52 @@ describe('logged-in shared widget boundary', () => {
     await api.get('/database/info/23');
   });
 });
+
+describe('UC028 refresh completion after another tab changes authentication', () => {
+  it.each(['success', 'failure'])('preserves a newer login on a late refresh %s', async outcome => {
+    vi.stubGlobal('crypto', webcrypto);
+    setToken('unit-previous-login');
+    let resolve: (value: any) => void, reject: (error: Error) => void;
+    seam.refresh.mockImplementation(
+      () =>
+        new Promise((yes, no) => {
+          resolve = yes;
+          reject = no;
+        }),
+    );
+    const api = await load();
+    const assign = vi.fn();
+    vi.stubGlobal('window', { location: { assign }, localStorage });
+    api.defaults.adapter = async config => {
+      throw expired(config);
+    };
+    const settled = Promise.allSettled([api.get('/unit-private')]);
+    await vi.waitFor(() => expect(seam.refresh).toHaveBeenCalledTimes(1));
+    setToken('unit-new-login');
+    const namespace = localStorage.getItem('vm:editor-draft-auth:v1');
+    if (outcome === 'success') resolve({ data: { accessToken: 'unit-stale-refresh' } });
+    else reject(new Error('late refresh denied'));
+    expect((await settled)[0].status).toBe('rejected');
+    expect(getToken()).toBe('unit-new-login');
+    expect(localStorage.getItem('vm:editor-draft-auth:v1')).toBe(namespace);
+    expect(assign).not.toHaveBeenCalled();
+  });
+});
+
+it('UC028 keeps a successful token renewal usable when only shared draft metadata writes fail', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  setToken('unit-old');
+  const original = Storage.prototype.setItem;
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+    if (this === localStorage && key === 'vm:editor-draft-auth:v1') throw new Error('metadata quota');
+    return original.call(this, key, value);
+  });
+  seam.refresh.mockResolvedValue({ data: { accessToken: 'unit-new' } });
+  const api = await load();
+  api.defaults.adapter = async config => {
+    if ((config.headers as any).Authorization === 'Bearer unit-new') return ok(config, 'retried');
+    throw expired(config);
+  };
+  expect((await api.get('/unit-private')).data).toEqual({ value: 'retried' });
+  expect(getToken()).toBe('unit-new');
+});

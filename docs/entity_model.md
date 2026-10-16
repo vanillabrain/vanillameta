@@ -173,3 +173,7 @@ Dimension은 첫 범위에서 source+원본 column 기반 안정적 논리 ID·�
 ## UC025 브라우저 보관 초안
 
 서버 엔티티/DB 변경은 없다. [설계](architecture/browser-draft-recovery.md)의 버전1 envelope는 sessionStorage에 기준 revision·기준 정의·미저장 정의/질문·복구 상태만 보관한다. 행 데이터/미리보기·인증 토큰·게시 실행 영수증은 보관하지 않는다. 기존 ANALYSIS/블록·Publication 책임과 Source/Measure/Dimension 모델은 유지한다.
+
+## UC028 브라우저 로그인 세대
+
+서버 엔티티/DB는 그대로다. [설계](architecture/cross-tab-token-draft.md)의 기능 전용 localStorage 메타데이터는 로그인 세대(epoch)·현재 tokenHash·초안 scope만 보관한다. 본문은 UC025 sessionStorage에 유지한다. 정상 refresh는 scope를 승계하고 새 로그인/로그아웃은 세대를 교체한다. 토큰 원문/SQL/질문/행/preview는 이 공유 메타데이터에 포함하지 않는다. 다른 탭 보관 본문은 직접 지우지 않고 다른 로그인 세대로 연결하지 않는다.

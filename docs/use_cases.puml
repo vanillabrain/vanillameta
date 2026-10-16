@@ -53,4 +53,6 @@ usecase "UC-026 다른 탭 변경 후 초안 복구" as UC026
 operator --> UC026
 usecase "UC-027 조회 실패·재충돌 복구" as UC027
 operator --> UC027
+usecase "UC-028 다른 탭 토큰 갱신 후 초안 복구" as UC028
+operator --> UC028
 @enduml

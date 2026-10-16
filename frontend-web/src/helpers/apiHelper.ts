@@ -1,4 +1,4 @@
-import { retainEditorDraftSession } from '@/helpers/editorDraftStorage';
+import { editorDraftSessionEpoch, retainEditorDraftSession } from '@/helpers/editorDraftStorage';
 import axios from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
@@ -140,23 +140,30 @@ async function resetTokenAndReattemptRequest(errorResponse) {
   // 결과값을 처음 요청했던 promise의 resolve로 settle시킨다.
   // refresh token을 이용해서 access token 요청
   if (!refreshPromise) {
+    const previousToken = getToken();
+    const previousEpoch = editorDraftSessionEpoch();
+    const unchanged = () => getToken() === previousToken && editorDraftSessionEpoch() === previousEpoch;
     refreshPromise = (async () => {
       // 문닫기 (한 번만 요청)
-      const previousToken = getToken();
       const { data } = await authService.refreshAccessToken();
       // 새로운 토큰 저장
       const newAccessToken = data?.accessToken;
       if (typeof newAccessToken !== 'string' || !newAccessToken.trim()) {
         throw new Error('invalid refresh response');
       }
-      await retainEditorDraftSession(previousToken, newAccessToken);
+      if (!unchanged()) throw new Error('Authentication changed while refreshing. Retry the request.');
+      await retainEditorDraftSession(previousToken, newAccessToken, previousEpoch);
+      if (!unchanged()) throw new Error('Authentication changed while refreshing. Retry the request.');
       setToken(newAccessToken, true);
       return newAccessToken;
     })()
       .catch(error => {
         // refresh token 만료
-        removeToken();
-        window.location.assign('/login');
+        // UC-028: a late failure must not sign out a newer login/renewal in another tab.
+        if (unchanged()) {
+          removeToken();
+          window.location.assign('/login');
+        }
         throw error;
       })
       .finally(() => {

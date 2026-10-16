@@ -90,35 +90,89 @@ function valid(v: unknown, id: number, now: number) {
   );
 }
 const SESSION_SCOPE = 'vm:editor-draft-session:v1';
+const SHARED_SCOPE = 'vm:editor-draft-auth:v1';
+type SharedSession = { epoch: string; tokenHash?: string; scope?: string; legacy?: boolean };
+const hashString = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v);
 async function tokenHash(token: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
   return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
 }
-function sessionScope(hash: string) {
-  const raw = sessionStorage.getItem(SESSION_SCOPE);
-  try {
-    const value = JSON.parse(raw ?? 'null');
-    if (value?.tokenHash === hash && /^[a-f0-9]{64}$/.test(value.scope)) return value.scope as string;
-  } catch {
-    /* discard malformed namespace metadata */
+function sharedSession(): SharedSession {
+  const raw = localStorage.getItem(SHARED_SCOPE);
+  if (raw === null) {
+    const fresh = { epoch: crypto.randomUUID(), legacy: true };
+    localStorage.setItem(SHARED_SCOPE, JSON.stringify(fresh));
+    return fresh;
   }
-  return hash;
+  const value = JSON.parse(raw);
+  if (
+    !object(value) ||
+    typeof value.epoch !== 'string' ||
+    !/^[a-f0-9-]{36}$/.test(value.epoch) ||
+    (value.tokenHash !== undefined && (!hashString(value.tokenHash) || !hashString(value.scope)))
+  )
+    throw new Error('Invalid draft session metadata');
+  return value as SharedSession;
+}
+/** An auth-generation fence, not proof of server authorization. Storage failure is non-fatal to auth. */
+export function editorDraftSessionEpoch(): string | null {
+  try {
+    return sharedSession().epoch;
+  } catch {
+    return null;
+  }
+}
+function legacyScope(hash: string, session: SharedSession): string | undefined {
+  if (!session.legacy) return;
+  try {
+    const value = JSON.parse(sessionStorage.getItem(SESSION_SCOPE) ?? 'null');
+    if (value?.tokenHash === hash && hashString(value.scope) && !value.epoch) return value.scope;
+  } catch {
+    /* malformed tab aliases are never used */
+  }
 }
 export async function editorDraftKey(token: string | null, id: number): Promise<string | null> {
   if (!token || !Number.isSafeInteger(id) || id < 1) return null;
+  const auth = localStorage.getItem('accessToken');
+  const initial = sharedSession();
   const hash = await tokenHash(token);
-  const scope = sessionScope(hash);
-  sessionStorage.setItem(SESSION_SCOPE, JSON.stringify({ tokenHash: hash, scope }));
+  if (sharedSession().epoch !== initial.epoch) throw new Error('Draft session changed');
+  const current = sharedSession();
+  // A renewal can publish its alias just before committing the new access token in another tab.
+  // Never let a stale key calculation replace that authenticated alias.
+  if (current.tokenHash && current.tokenHash !== hash) throw new Error('Draft session token changed');
+  const scope =
+    current.tokenHash === hash
+      ? current.scope
+      : legacyScope(hash, current) ?? (await tokenHash(`${current.epoch}:${token}`));
+  const latest = sharedSession();
+  if (
+    latest.epoch !== initial.epoch ||
+    (latest.tokenHash && latest.tokenHash !== hash) ||
+    localStorage.getItem('accessToken') !== auth
+  )
+    throw new Error('Draft session changed');
+  localStorage.setItem(SHARED_SCOPE, JSON.stringify({ epoch: current.epoch, tokenHash: hash, scope }));
+  sessionStorage.setItem(SESSION_SCOPE, JSON.stringify({ epoch: current.epoch, tokenHash: hash, scope }));
   return `${EDITOR_DRAFT_PREFIX}${scope}:${id}`;
 }
-/** Only the successful authenticated refresh path may carry the existing scope forward. */
-export async function retainEditorDraftSession(oldToken: string | null, newToken: string) {
+/** UC-028: only the successful authenticated refresh path may publish token continuity across tabs. */
+export async function retainEditorDraftSession(oldToken: string | null, newToken: string, expectedEpoch?: string | null) {
   if (!oldToken) return;
   try {
-    const oldHash = await tokenHash(oldToken);
-    const scope = sessionScope(oldHash);
-    const nextHash = await tokenHash(newToken);
-    sessionStorage.setItem(SESSION_SCOPE, JSON.stringify({ tokenHash: nextHash, scope }));
+    const initial = sharedSession();
+    if (expectedEpoch !== undefined && initial.epoch !== expectedEpoch) return;
+    const [oldHash, nextHash] = await Promise.all([tokenHash(oldToken), tokenHash(newToken)]);
+    const current = sharedSession();
+    if (current.epoch !== initial.epoch || (current.tokenHash && current.tokenHash !== oldHash)) return;
+    const scope =
+      current.tokenHash === oldHash
+        ? current.scope
+        : legacyScope(oldHash, current) ?? (await tokenHash(`${current.epoch}:${oldToken}`));
+    const latest = sharedSession();
+    if (latest.epoch !== initial.epoch || latest.tokenHash !== current.tokenHash) return;
+    localStorage.setItem(SHARED_SCOPE, JSON.stringify({ epoch: current.epoch, tokenHash: nextHash, scope }));
+    sessionStorage.setItem(SESSION_SCOPE, JSON.stringify({ epoch: current.epoch, tokenHash: nextHash, scope }));
   } catch {
     /* storage failures must not prevent token renewal */
   }
@@ -163,6 +217,13 @@ export function removeEditorDraft(key: string | null): boolean {
   }
 }
 export function clearEditorDrafts() {
+  // Rotate even for identical token strings on a new login; other tabs retain only inaccessible old content.
+  try {
+    localStorage.removeItem(SHARED_SCOPE);
+    localStorage.setItem(SHARED_SCOPE, JSON.stringify({ epoch: crypto.randomUUID() }));
+  } catch {
+    /* authentication must remain usable without draft metadata */
+  }
   try {
     sessionStorage.removeItem(SESSION_SCOPE);
     Object.keys(sessionStorage)
