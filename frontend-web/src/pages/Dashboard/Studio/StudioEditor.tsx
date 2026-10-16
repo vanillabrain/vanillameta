@@ -279,16 +279,21 @@ export default function StudioEditor() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
   const [result, setResult] = useState<StudioReplacePayload | null>(null);
+  const loadGeneration = useRef(0);
 
   const load = useCallback(async () => {
     if (!validId) return;
+    loadGeneration.current += 1;
+    const generation = loadGeneration.current;
     setStatus('loading');
     setError('');
     try {
       const next = await fetchStudioDashboard(id);
+      if (generation !== loadGeneration.current) return;
       setResult(next);
       setStatus('ready');
     } catch (cause) {
+      if (generation !== loadGeneration.current) return;
       setResult(null);
       setStatus('error');
       setError(cause instanceof Error ? cause.message : 'Studio 문서를 불러오지 못했습니다.');
@@ -297,6 +302,10 @@ export default function StudioEditor() {
 
   useEffect(() => {
     load();
+    return () => {
+      // UC039: older routes/retries cannot replace the current saved-document view.
+      loadGeneration.current += 1;
+    };
   }, [load]);
 
   const replace = useCallback((next: StudioReplacePayload) => {
@@ -307,7 +316,7 @@ export default function StudioEditor() {
 
   if (!validId)
     return <StudioStateScreen title="대시보드를 확인할 수 없습니다" description="주소의 대시보드 번호를 확인해 주세요." />;
-  if (status === 'loading')
+  if (status === 'loading' || (result && result.document.dashboardId !== id))
     return (
       <StudioStateScreen
         title="Studio를 준비하는 중입니다"
@@ -338,6 +347,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   const [conflictOpen, setConflictOpen] = useState(false);
   const conflictReturnFocus = useRef<HTMLElement | null>(null);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [creationPublication, setCreationPublication] = useState<{ dashboardId: number; revision: string } | null>(null);
   const [conflictError, setConflictError] = useState('');
   /** Exact body of the in-flight save: a retry resends it verbatim, including its pinned source version. */
   const pendingRequest = useRef<StudioSaveRequest | null>(null);
@@ -835,7 +845,13 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
       status: state.saveState === 'clean' ? '저장됨' : '저장되지 않음',
       onSave: save,
     },
-    publish: { onOpen: () => setPublishOpen(true), disabled: saving || !!state.pendingSave || !!conflict },
+    publish: {
+      onOpen: () => {
+        setCreationPublication(null);
+        setPublishOpen(true);
+      },
+      disabled: saving || !!state.pendingSave || !!conflict,
+    },
     banner,
     aiBlockSummary: state.present.blocks.map(block => block.title).join(' · ') || '아직 블록이 없습니다',
     aiNote: '선택 블록의 변경은 검증 후 초안에만 적용됩니다.',
@@ -975,6 +991,11 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
         product={product}
         conversation={
           <StudioConversation
+            onPrepareCreationPublication={target => {
+              setCreationPublication({ dashboardId: target.dashboardId, revision: target.revision });
+              dispatch({ type: 'panel', panel: null });
+              setPublishOpen(true);
+            }}
             context={runContext}
             selectedTitle={selected?.title}
             filterScope={{ applied: previewScope?.filters ?? [], pending: scopePending, dateRange: previewScope?.dateRange }}
@@ -1051,11 +1072,15 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
         editToolbar={editToolbar}
       />
       <StudioPublish
+        key={creationPublication ? creationPublication.dashboardId + ':' + creationPublication.revision : 'editor'}
+        targetLabel={
+          creationPublication ? '새 대시보드 #' + creationPublication.dashboardId + ' · 생성안 저장 버전 기준' : undefined
+        }
         open={publishOpen}
         onClose={() => setPublishOpen(false)}
-        dashboardId={dashboardId}
-        revision={state.serverRevision ?? ''}
-        dirty={state.saveState !== 'clean'}
+        dashboardId={creationPublication?.dashboardId ?? dashboardId}
+        revision={creationPublication?.revision ?? state.serverRevision ?? ''}
+        dirty={!creationPublication && state.saveState !== 'clean'}
       />
       <Dialog open={conflictOpen} onOpenChange={setConflictOpen}>
         <DialogContent

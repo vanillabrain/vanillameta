@@ -5,13 +5,20 @@ import StudioConversation from './StudioConversation';
 import type { StudioRunContext } from './studioRunTransport';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
-const chat = vi.hoisted(() => ({ options: null as any, sendMessage: vi.fn(), stop: vi.fn(), clearError: vi.fn() }));
+const chat = vi.hoisted(() => ({
+  options: null as any,
+  sendMessage: vi.fn(),
+  stop: vi.fn(),
+  clearError: vi.fn(),
+  setMessages: vi.fn(),
+}));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 vi.mock('@ai-sdk/react', () => ({
   useChat: (options: any) => {
     chat.options = options;
     return {
       messages: [],
+      setMessages: chat.setMessages,
       sendMessage: chat.sendMessage,
       status: 'ready',
       error: null,
@@ -321,3 +328,101 @@ it('rejects a new creation response for another source before exposing its propo
   expect(screen.queryByText(/새 대시보드 제안 완료/)).toBeNull();
   expect(defaultProps.onApply).not.toHaveBeenCalled();
 });
+
+const creationRun = () => ({
+  runId: 'composer-create',
+  requestId: 'q-create',
+  dashboardId: 3,
+  status: 'succeeded',
+  steps: [{ stepId: 'createProposal', status: 'succeeded', retryable: false }],
+  creationResult: { proposalId: 'parent', sourceId: 4, sourceRevision: 'b'.repeat(64) },
+});
+it('UC036 sends the main composer to the latest creation, preserves uncertain input, and retries the same envelope without applying the original', async () => {
+  const run = creationRun();
+  api.get.mockImplementation(async (url: string) => ({ data: url === '/studio/runs' ? [run] : {} }));
+  api.post
+    .mockRejectedValueOnce(new Error('lost'))
+    .mockResolvedValueOnce({ data: { ...run, creationResult: { ...run.creationResult, proposalId: 'edited' } } });
+  render(<StudioConversation {...defaultProps} context={context} />);
+  await screen.findByText(/대상: 저장 전 생성안/);
+  fireEvent.change(screen.getByLabelText('AI에게 요청할 내용'), { target: { value: '첫 번째 블록 제목 변경' } });
+  fireEvent.click(screen.getByRole('button', { name: '전송' }));
+  await screen.findByRole('button', { name: '같은 생성안 요청 다시 확인' });
+  expect((screen.getByLabelText('AI에게 요청할 내용') as HTMLTextAreaElement).value).toBe('첫 번째 블록 제목 변경');
+  expect((screen.getByLabelText('AI에게 요청할 내용') as HTMLTextAreaElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '원본 편집으로 돌아가기' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '같은 생성안 요청 다시 확인' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+  expect(api.post.mock.calls[0][0]).toBe('/studio/runs/composer-create/creation/message');
+  expect(api.post.mock.calls[0][1]).toEqual(api.post.mock.calls[1][1]);
+  expect(chat.sendMessage).not.toHaveBeenCalled();
+  expect(defaultProps.onApply).not.toHaveBeenCalled();
+  expect(defaultProps.onSaved).not.toHaveBeenCalled();
+});
+it('UC036 exits creation context explicitly without sending a request or losing typed input', async () => {
+  const run = creationRun();
+  api.get.mockImplementation(async (url: string) => ({ data: url === '/studio/runs' ? [run] : {} }));
+  render(<StudioConversation {...defaultProps} context={context} />);
+  await screen.findByText(/대상: 저장 전 생성안/);
+  fireEvent.change(screen.getByLabelText('AI에게 요청할 내용'), { target: { value: '질문 보존' } });
+  fireEvent.click(screen.getByRole('button', { name: '원본 편집으로 돌아가기' }));
+  await screen.findByText('대상: 현재 원본 편집');
+  expect((screen.getByLabelText('AI에게 요청할 내용') as HTMLTextAreaElement).value).toBe('질문 보존');
+  expect(api.post).not.toHaveBeenCalled();
+  expect(chat.sendMessage).not.toHaveBeenCalled();
+});
+it('UC036 saves the creation through the main composer without replacing the original editor and keeps the saved creation context', async () => {
+  const run = creationRun();
+  api.get.mockImplementation(async (url: string) => ({ data: url === '/studio/runs' ? [run] : {} }));
+  api.post.mockResolvedValue({
+    data: { ...run, creationSaveResult: { dashboardId: 99, sourceId: 4, revision: 'c'.repeat(64) } },
+  });
+  render(<StudioConversation {...defaultProps} context={context} />);
+  await screen.findByText(/대상: 저장 전 생성안/);
+  fireEvent.change(screen.getByLabelText('AI에게 요청할 내용'), { target: { value: '이 생성안을 저장해 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: '전송' }));
+  await screen.findByText('대상: 저장한 새 대시보드 #99');
+  expect(api.post.mock.calls[0][0]).toBe('/studio/runs/composer-create/creation/message');
+  expect(screen.getByRole('link', { name: '새 비공개 대시보드 열기' }).getAttribute('href')).toBe('/dashboard/99/studio');
+  expect(chat.sendMessage).not.toHaveBeenCalled();
+  expect(defaultProps.onSaved).not.toHaveBeenCalled();
+  expect(defaultProps.onApply).not.toHaveBeenCalled();
+});
+
+const savedCreationRun = () => ({
+  ...creationRun(),
+  creationSaveResult: { dashboardId: 99, sourceId: 4, revision: 'c'.repeat(64) },
+});
+it('UC037 restores the saved target without opening or publishing and hands off only that copy with its saved revision', async () => {
+  api.get.mockResolvedValue({ data: [savedCreationRun()] });
+  const onPrepareCreationPublication = vi.fn();
+  render(
+    <StudioConversation {...defaultProps} context={context} onPrepareCreationPublication={onPrepareCreationPublication} />,
+  );
+  await screen.findByText('대상: 저장한 새 대시보드 #99');
+  expect(onPrepareCreationPublication).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('AI에게 요청할 내용'), { target: { value: '게시 준비해 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: '전송' }));
+  expect(onPrepareCreationPublication).toHaveBeenCalledWith(savedCreationRun().creationSaveResult);
+  expect(api.post).not.toHaveBeenCalled();
+  expect(chat.sendMessage).not.toHaveBeenCalled();
+  expect(defaultProps.onApply).not.toHaveBeenCalled();
+  expect(defaultProps.onSaved).not.toHaveBeenCalled();
+});
+it.each(['게시하지 말아 줘', '게시 준비해 줘 그리고 제목 바꿔 줘', '원본을 게시 준비해 줘', '첫 블록 수정해 줘'])(
+  'UC037 preserves unsupported question and never falls back to original: %s',
+  async question => {
+    api.get.mockResolvedValue({ data: [savedCreationRun()] });
+    render(<StudioConversation {...defaultProps} context={context} />);
+    await screen.findByText('대상: 저장한 새 대시보드 #99');
+    fireEvent.change(screen.getByLabelText('AI에게 요청할 내용'), { target: { value: question } });
+    fireEvent.click(screen.getByRole('button', { name: '전송' }));
+    expect((screen.getByLabelText('AI에게 요청할 내용') as HTMLTextAreaElement).value).toBe(question);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(chat.sendMessage).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '원본 편집으로 돌아가기' }));
+    expect(screen.getByText('대상: 현재 원본 편집')).toBeDefined();
+    expect((screen.getByLabelText('AI에게 요청할 내용') as HTMLTextAreaElement).value).toBe(question);
+  },
+);

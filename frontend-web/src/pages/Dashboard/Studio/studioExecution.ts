@@ -436,3 +436,30 @@ export async function clarifyExecutionCreation(
   );
   return completed;
 }
+
+export type CreationMessageRequest = {
+  requestId: string;
+  proposalId: string;
+  expectedSourceRevision: string;
+  prompt: string;
+};
+export async function messageExecutionCreation(
+  run: StudioExecution,
+  request: CreationMessageRequest,
+  signal?: AbortSignal,
+): Promise<StudioExecution> {
+  const { data } = await post('/studio/runs/' + encodeURIComponent(run.runId) + '/creation/message', request, {
+    timeout: 180000,
+    signal,
+  });
+  const result = validateExecution(data, run.dashboardId);
+  studioAssert(
+    result.runId === run.runId &&
+      !!result.creationResult &&
+      result.creationResult.sourceId === run.creationResult?.sourceId &&
+      result.creationResult.sourceRevision === request.expectedSourceRevision &&
+      (!!result.creationSaveResult || result.creationResult.proposalId !== request.proposalId),
+    '생성안 후속 질문 결과를 확인하지 못했습니다. 같은 요청으로 다시 확인해 주세요.',
+  );
+  return result;
+}

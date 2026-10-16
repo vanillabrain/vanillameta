@@ -18,8 +18,15 @@ import {
   revokePublication,
 } from './studioPublication';
 
-type Props = { open: boolean; onClose: () => void; dashboardId: number; revision: string; dirty: boolean };
-export default function StudioPublish({ open, onClose, dashboardId, revision, dirty }: Props) {
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  dashboardId: number;
+  revision: string;
+  dirty: boolean;
+  targetLabel?: string;
+};
+export default function StudioPublish({ open, onClose, dashboardId, revision, dirty, targetLabel }: Props) {
   const controlId = useId();
   const returnFocus = useRef<HTMLElement | null>(null);
   const [current, setCurrent] = useState<Publication | null>(null);
@@ -31,6 +38,11 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
   const [reload, setReload] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [conflicted, setConflicted] = useState(false);
+  useEffect(() => {
+    setConflicted(false);
+    setError('');
+  }, [dashboardId, revision]);
   const [notice, setNotice] = useState('');
   const [revokeConfirm, setRevokeConfirm] = useState(false);
   const pending = useRef<PublicationRequest | null>(null);
@@ -66,7 +78,7 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
     };
   }, [open, dashboardId, reload]);
   const publish = async () => {
-    if (busy || dirty) return;
+    if (busy || dirty || conflicted || loading || !ready) return;
     if (!pending.current) {
       if (expiry && (!Number.isFinite(Date.parse(expiry)) || Date.parse(expiry) <= Date.now())) {
         setError('만료 시각은 현재보다 이후로 선택해 주세요.');
@@ -115,6 +127,8 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
           : '게시 요청은 처리되었습니다. 이후 변경된 최신 게시본(버전 ' + latest.version + ')의 공개 범위를 표시합니다.',
       );
     } catch (cause: any) {
+      // UC038: a publication status read cannot approve a newer saved document.
+      if (cause?.response?.status === 409) setConflicted(true);
       if (cause?.response?.status && cause.response.status < 500) pending.current = null;
       setError(publicationError(cause));
     } finally {
@@ -178,6 +192,11 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
           </DialogDescription>
         </DialogHeader>
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+          {targetLabel && (
+            <p className="text-sm font-medium" role="status">
+              {targetLabel}
+            </p>
+          )}
           {dirty && (
             <Notice severity="warning">
               저장되지 않은 변경이 있습니다. 닫고 먼저 저장한 뒤 게시해 주세요. 기존 게시본은 유지됩니다.
@@ -189,7 +208,25 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
               게시 상태 다시 확인
             </Button>
           )}
-          {error && <Notice severity="error">{error}</Notice>}
+          {(error || conflicted) && (
+            <Notice severity={conflicted ? 'warning' : 'error'}>
+              {conflicted
+                ? '저장본이 변경되어 이 버전의 게시를 멈췄습니다. 최신 화면에서 제목·수치·차트를 확인한 뒤 다시 게시하세요.'
+                : error}
+              {conflicted && (
+                <>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button asChild variant="outline">
+                      <a href={'/dashboard/' + dashboardId + '/studio'} target="_blank" rel="noopener noreferrer">
+                        최신 저장본 확인
+                      </a>
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-xs">새 탭에서 열립니다. 현재 편집과 기존 게시본은 유지됩니다.</p>
+                </>
+              )}
+            </Notice>
+          )}
           {notice && (
             <Notice severity="success" role="status">
               {notice}
@@ -293,7 +330,7 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             닫기
           </Button>
-          <Button onClick={publish} disabled={busy || loading || !ready || dirty || !revision}>
+          <Button onClick={publish} disabled={busy || loading || !ready || dirty || conflicted || !revision}>
             {busy ? '처리 중…' : pending.current ? '같은 요청 재시도' : current ? '재게시' : '게시하기'}
           </Button>
         </DialogFooter>

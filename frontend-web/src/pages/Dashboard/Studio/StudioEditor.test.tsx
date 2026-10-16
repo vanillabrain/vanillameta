@@ -5,10 +5,11 @@ import StudioEditor, { mergeStudioDisplay, reapplyStudioChanges, resolveBlockPre
 import { StudioDefinitions } from './studioAdapter';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
+const route = vi.hoisted(() => ({ dashboardId: '3' }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 vi.mock('react-router-dom', async () => {
   return {
-    useParams: () => ({ dashboardId: '3' }),
+    useParams: () => route,
     Link: ({ children }: any) => <a>{children}</a>,
   };
 });
@@ -89,6 +90,7 @@ const saveButton = () => screen.getByRole('button', { name: '저장' }) as HTMLB
 const duplicateBlock = () => fireEvent.change(addSelect(), { target: { value: 'b1' } });
 
 beforeEach(() => {
+  route.dashboardId = '3';
   vi.clearAllMocks();
   (globalThis as any).ResizeObserver = class {
     callback: any;
@@ -697,4 +699,107 @@ describe('Studio combined date scope preview', () => {
     expect(screen.queryByText('999')).toBeNull();
     expect(screen.getByText(/^화면 반영 ·/).textContent).toBe('화면 반영 · category 1개 값');
   });
+});
+
+it('UC037 hands a saved creation to the top-level publisher, preserving dirty original and pinning the copy revision', async () => {
+  const run = {
+    runId: 'saved-create',
+    requestId: 'saved-create-request',
+    dashboardId: 3,
+    status: 'succeeded',
+    steps: [{ stepId: 'createProposal', status: 'succeeded', retryable: false }],
+    creationResult: { proposalId: 'parent', sourceId: 4, sourceRevision: SOURCE_REVISION },
+    creationSaveResult: { dashboardId: 99, sourceId: 4, revision: NEXT_REVISION },
+  };
+  api.get.mockImplementation(async (url: string) =>
+    url === '/studio/runs' ? { data: [run] } : url.endsWith('/publications') ? { data: null } : envelope(),
+  );
+  render(<StudioEditor />);
+  await screen.findByText('500');
+  duplicateBlock();
+  await waitFor(() => expect(saveButton().disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 열기' }));
+  await screen.findByText('대상: 저장한 새 대시보드 #99');
+  fireEvent.change(screen.getByLabelText('AI에게 요청할 내용'), { target: { value: '게시 준비해 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: '전송' }));
+  await screen.findByRole('dialog', { name: '게시·공유' });
+  expect(screen.queryByRole('complementary', { name: 'Studio 보조 패널' })).toBeNull();
+  expect(screen.getByText('새 대시보드 #99 · 생성안 저장 버전 기준')).toBeDefined();
+  expect(api.post).not.toHaveBeenCalled();
+  const publish = screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement;
+  await waitFor(() => expect(publish.disabled).toBe(false));
+  api.post.mockRejectedValue({ response: { status: 409 } });
+  fireEvent.click(publish);
+  await screen.findByText(/저장본이 변경되어 이 버전의 게시를 멈췄습니다/);
+  expect(screen.getByRole('link', { name: '최신 저장본 확인' }).getAttribute('href')).toBe('/dashboard/99/studio');
+  expect(api.post.mock.calls[0][0]).toBe('/studio/dashboards/99/publications');
+  expect(api.post.mock.calls[0][1]).toMatchObject({
+    expectedRevision: NEXT_REVISION,
+    visibility: 'private',
+    allowRemix: false,
+  });
+  fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(saveButton().disabled).toBe(false);
+  expect(screen.getAllByText('복사본 · 총매출').length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByRole('button', { name: '게시·공유' }));
+  await within(screen.getByRole('dialog', { name: '게시·공유' })).findByText(/저장되지 않은 변경이 있습니다/);
+  expect(screen.queryByText('새 대시보드 #99 · 생성안 저장 버전 기준')).toBeNull();
+  await waitFor(() =>
+    expect(api.get).toHaveBeenCalledWith('/studio/dashboards/3/publications', undefined, expect.anything()),
+  );
+  expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('UC039 retries a failed latest read explicitly and never saves or publishes while loading', async () => {
+  api.get.mockRejectedValueOnce({ response: { status: 503 } }).mockResolvedValue(envelope());
+  render(<StudioEditor />);
+  await screen.findByText('Studio를 열지 못했습니다');
+  expect(screen.queryByRole('button', { name: '저장' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '게시·공유' })).toBeNull();
+  expect(api.get).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+  await screen.findByText('500');
+  expect(api.get).toHaveBeenCalledTimes(2);
+  expect(api.post).not.toHaveBeenCalled();
+});
+it('UC039 denies data, editing and publication when latest read is forbidden', async () => {
+  api.get.mockRejectedValue({ response: { status: 403 } });
+  render(<StudioEditor />);
+  await screen.findByText('이 대시보드를 편집할 권한이 없습니다.');
+  expect(screen.queryByText('500')).toBeNull();
+  expect(screen.queryByRole('button', { name: '게시·공유' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '저장' })).toBeNull();
+  expect(api.post).not.toHaveBeenCalled();
+});
+it.each(['success', 'failure'])('UC039 ignores an earlier target read %s after the current target loads', async outcome => {
+  let resolveOld: (value: any) => void, rejectOld: (cause: any) => void;
+  const old = new Promise((resolve, reject) => {
+    resolveOld = resolve;
+    rejectOld = reject;
+  });
+  api.get.mockImplementation((url: string) =>
+    url === '/studio/dashboards/3'
+      ? old
+      : Promise.resolve(
+          envelope({
+            document: doc({ dashboardId: 4, title: 'Current target 4' }),
+            definitions: { ...definitions, dashboardId: 4 },
+          }),
+        ),
+  );
+  const view = render(<StudioEditor />);
+  await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+  route.dashboardId = '4';
+  view.rerender(<StudioEditor />);
+  await screen.findAllByText('Current target 4');
+  await act(async () => {
+    if (outcome === 'success') resolveOld(envelope());
+    else rejectOld({ response: { status: 403 } });
+    await old.catch(() => undefined);
+  });
+  expect(screen.getAllByText('Current target 4').length).toBeGreaterThan(0);
+  expect(screen.queryByText('Studio를 열지 못했습니다')).toBeNull();
+  expect(screen.queryAllByText('매출 대시보드')).toHaveLength(0);
+  expect(api.post).not.toHaveBeenCalled();
 });

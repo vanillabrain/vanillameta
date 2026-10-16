@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { clarifyExecutionCreation } from './studioExecution';
+import { clarifyExecutionCreation, messageExecutionCreation } from './studioExecution';
 const api = vi.hoisted(() => ({ post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ get: vi.fn(), post: api.post }));
 const binding = { proposalId: 'parent', sourceId: 32, sourceRevision: 'a'.repeat(64) };
@@ -65,4 +65,18 @@ it('UC035 sends a bound refinement with an abort signal and rejects a stale pare
   expect(api.post.mock.calls[0][2].signal).toBe(controller.signal);
   api.post.mockResolvedValue({ data: run });
   await expect(clarifyExecutionCreation(run, edit)).rejects.toThrow();
+});
+
+it('UC036 validates a bound composer response and rejects another source', async () => {
+  const request = {
+    requestId: 'message-1',
+    proposalId: 'parent',
+    expectedSourceRevision: binding.sourceRevision,
+    prompt: '첫 번째 블록 변경',
+  };
+  api.post.mockResolvedValue({ data: { ...run, creationResult: { ...binding, proposalId: 'child' } } });
+  expect((await messageExecutionCreation(run, request)).creationResult?.proposalId).toBe('child');
+  expect(api.post.mock.calls[0][1]).toEqual(request);
+  api.post.mockResolvedValue({ data: { ...run, creationResult: { ...binding, proposalId: 'child', sourceId: 99 } } });
+  await expect(messageExecutionCreation(run, request)).rejects.toThrow();
 });

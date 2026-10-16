@@ -36,6 +36,8 @@ type StudioRemixBinding = {
   claim: StudioRemixSaveClaim;
 };
 
+import { creationMessageAction } from './studio-creation-message';
+
 @Injectable()
 export class StudioExecutionService implements OnModuleInit {
   private active = new Map<string, { controller: AbortController; promise: Promise<any> }>();
@@ -777,8 +779,71 @@ export class StudioExecutionService implements OnModuleInit {
       actor,
     );
   }
+  /** UC036: the existing composer continues a server-bound preview, never the original editor. */
+  async creationMessage(id: string, body: any, actor: number, signal?: AbortSignal) {
+    try {
+      studioKeys(body, ['requestId', 'proposalId', 'expectedSourceRevision', 'prompt']);
+    } catch {
+      throw new BadRequestException('생성안 질문을 확인해 주세요.');
+    }
+    if (
+      typeof body.requestId !== 'string' ||
+      !/^[-a-zA-Z0-9_]{1,128}$/.test(body.requestId) ||
+      typeof body.proposalId !== 'string' ||
+      !body.proposalId ||
+      body.proposalId.length > 128 ||
+      typeof body.expectedSourceRevision !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(body.expectedSourceRevision) ||
+      typeof body.prompt !== 'string' ||
+      !body.prompt.trim() ||
+      body.prompt.length > 2000
+    )
+      throw new BadRequestException('생성안 질문을 확인해 주세요.');
+    const row = await this.owned(id, actor),
+      state = this.state(row),
+      hash = studioDigest(body);
+    this.creationBody(row, state);
+    if (
+      state.creationClarification?.requestId === body.requestId &&
+      state.creationClarification.messageHash
+    ) {
+      if (state.creationClarification.messageHash !== hash)
+        throw new ConflictException('같은 생성안 질문의 내용이 다릅니다.');
+      return this.get(id, actor);
+    }
+    // Save phrases are deliberately independent of model inference and proposal-cache availability.
+    this.checkDisconnected(signal);
+    let action: ReturnType<typeof creationMessageAction> | undefined;
+    try {
+      action = creationMessageAction(body.prompt);
+    } catch {
+      /* Resolve an edit only after loading its owner-scoped parent. */
+    }
+    if (action === 'save')
+      return this.saveCreation(
+        id,
+        { proposalId: body.proposalId, expectedSourceRevision: body.expectedSourceRevision },
+        actor,
+      );
+    this.checkDisconnected(signal);
+    const parent = await this.creationService.proposal(
+      body.proposalId,
+      state.creationResult.sourceId,
+      actor,
+    );
+    if (!parent.preview || parent.clarifications?.length)
+      throw new BadRequestException('카드에서 소스와 계산 기준을 먼저 확인해 주세요.');
+    action = creationMessageAction(body.prompt, parent.semanticProposal);
+    return this.clarifyCreation(id, { ...body, targetBlockIndex: action }, actor, signal, hash);
+  }
   /** UC-033/034: answer a server-owned question without modifying the initiating editor. */
-  async clarifyCreation(id: string, body: any, actor: number, signal?: AbortSignal) {
+  async clarifyCreation(
+    id: string,
+    body: any,
+    actor: number,
+    signal?: AbortSignal,
+    messageHash?: string,
+  ) {
     try {
       studioKeys(body, [
         'requestId',
@@ -852,6 +917,7 @@ export class StudioExecutionService implements OnModuleInit {
       state.creationResult.sourceId,
       hash,
       signal,
+      messageHash,
     );
     this.clarifications.set(id, { payloadHash: hash, promise });
     try {
@@ -867,6 +933,7 @@ export class StudioExecutionService implements OnModuleInit {
     sourceId: number,
     hash: string,
     signal?: AbortSignal,
+    messageHash?: string,
   ) {
     this.checkDisconnected(signal);
     const parent = await this.creationService.proposal(body.proposalId, sourceId, actor);
@@ -934,13 +1001,26 @@ export class StudioExecutionService implements OnModuleInit {
         current.creationResult.sourceRevision !== body.expectedSourceRevision
       )
         throw new ConflictException('답변 중 최신 생성안이 변경되었습니다.');
+      // A creation can commit before GET has copied its receipt onto this execution.
+      // Check its journal under the same queue so a late edit cannot orphan that save.
+      const committed = await this.db.manager.findOne(StudioRun, {
+        where: { actorId: actor, requestId: this.creationBody(fresh, current).requestId },
+      });
+      if (committed)
+        throw new ConflictException(
+          '이 생성안은 이미 저장되었습니다. 완료 상태를 다시 확인해 주세요.',
+        );
       this.checkDisconnected(signal);
       current.creationResult = {
         proposalId: next.proposalId,
         sourceId: targetSourceId,
         sourceRevision: next.sourceRevision,
       };
-      current.creationClarification = { requestId: body.requestId, payloadHash: hash };
+      current.creationClarification = {
+        requestId: body.requestId,
+        payloadHash: hash,
+        ...(messageHash ? { messageHash } : {}),
+      };
       fresh.state = JSON.stringify(current);
       await this.db.manager.save(StudioExecution, fresh);
     });
