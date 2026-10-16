@@ -1,13 +1,18 @@
 import React from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import BoardItem from './BoardItem';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 afterEach(cleanup);
 
-const renderItem = (id: string | number) =>
+function Destination() {
+  const location = useLocation();
+  return <div data-testid="destination">{location.pathname + location.search}</div>;
+}
+const remove = vi.fn();
+const renderItem = (id: string | number, studioHref?: string) =>
   render(
     <MemoryRouter initialEntries={['/dashboard']}>
       <Routes>
@@ -17,11 +22,13 @@ const renderItem = (id: string | number) =>
             <ul>
               <BoardItem
                 data={{ id, title: 'Sample dashboard', updatedAt: '2026-10-15T00:00:00.000Z' }}
-                handleDeleteSelect={vi.fn()}
+                handleDeleteSelect={remove}
+                studioHref={studioHref}
               />
             </ul>
           }
         />
+        <Route path="*" element={<Destination />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -34,4 +41,25 @@ it('keeps the numeric dashboard id inside the row link path', () => {
 it('keeps string ids unchanged', () => {
   renderItem('widget-42');
   expect(screen.getByRole('link').getAttribute('href')).toBe('/dashboard/widget-42');
+});
+
+it('opens Studio through a separate named link while preserving the title view', async () => {
+  renderItem(45, '/dashboard/45/studio');
+  expect(screen.getByText('Sample dashboard').closest('a')?.getAttribute('href')).toBe('/dashboard/45');
+  const studio = screen.getByRole('link', { name: 'Sample dashboard · Studio 열기' });
+  expect(studio.closest('a')?.parentElement?.closest('a')).toBeNull();
+  expect(document.querySelector('a button, a a')).toBeNull();
+  fireEvent.click(studio);
+  expect((await screen.findByTestId('destination')).textContent).toBe('/dashboard/45/studio');
+});
+it('keeps ordinary rows free of Studio links and preserves independent rename and delete actions', async () => {
+  renderItem('widget-42');
+  expect(screen.queryByRole('link', { name: /Studio 열기/ })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Sample dashboard · 삭제' }));
+  expect(remove).toHaveBeenCalledWith('widget-42', 'Sample dashboard');
+  expect(screen.queryByTestId('destination')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Sample dashboard · 수정' }));
+  expect((await screen.findByTestId('destination')).textContent).toContain(
+    '/dashboard/modify?id=widget-42&title=Sample dashboard',
+  );
 });

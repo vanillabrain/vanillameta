@@ -150,7 +150,11 @@ function Dashboard() {
             <GettingStarted returning={!noData} />
             {!noData && (
               <>
-                <BoardList postList={loadedDashboardData} handleDeleteSelect={handleDeleteSelect} />
+                <BoardList
+                  postList={loadedDashboardData}
+                  handleDeleteSelect={handleDeleteSelect}
+                  studioHrefForItem={item => (item.analysisDefinition ? `/dashboard/${item.id}/studio` : undefined)}
+                />
               </>
             )}
           </PageTitleBox>

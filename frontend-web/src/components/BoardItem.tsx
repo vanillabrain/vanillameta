@@ -4,6 +4,7 @@ import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
 import { dateData } from '@/utils/util';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface BoardItemDataProps {
   id: string | number;
@@ -16,6 +17,8 @@ interface BoardItemDataProps {
 interface BoardItemProps {
   data: BoardItemDataProps;
   handleDeleteSelect: (id, title) => void;
+  studioHref?: string;
+  showStudioColumn?: boolean;
 }
 
 const TitleSpan = ({ children, className = '' }) => (
@@ -35,39 +38,53 @@ const IconRowHeader = ({ icon }) => (
 );
 
 function BoardItem(props: BoardItemProps) {
-  const { data, handleDeleteSelect } = props;
+  const { data, handleDeleteSelect, studioHref, showStudioColumn } = props;
   const { id, title, componentType, icon, updatedAt } = data;
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
 
   return (
-    <li className="border-b border-border px-4 py-4 last:border-b-0 sm:px-5">
-      <RouterLink className="flex w-full flex-row items-center justify-between" to={String(id)} state={{ from: pathname }}>
-        <span className="flex w-full min-w-0 max-w-[calc(100%-100px)] flex-row items-center sm:max-w-[calc(100%-240px)]">
+    <li className="flex items-center gap-3 border-b border-border px-4 py-4 last:border-b-0 sm:px-5">
+      <RouterLink
+        className="flex min-h-8 min-w-0 flex-1 flex-row items-center justify-between gap-3"
+        to={String(id)}
+        state={{ from: pathname }}
+      >
+        <span className="flex min-w-0 flex-1 flex-row items-center">
           {componentType && <IconRowHeader icon={icon} />}
           <TitleSpan className="sm:truncate">{title}</TitleSpan>
         </span>
-        <span className="flex flex-row items-center">
+        <span className="flex shrink-0 flex-row items-center">
           <SubTitleSpan className="text-muted-foreground">{dateData(updatedAt)}</SubTitleSpan>
-          <span className="hidden items-center gap-2 sm:ml-8 sm:flex">
-            <ModifyButton
-              onClick={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                navigate('modify?id=' + id + '&title=' + title, { state: { from: pathname } });
-              }}
-            />
-            <DeleteButton
-              onClick={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                handleDeleteSelect(id, title);
-              }}
-            />
-          </span>
         </span>
       </RouterLink>
+      {studioHref && (
+        <Button asChild variant="outline" size="sm" className="w-24 shrink-0">
+          <RouterLink to={studioHref} aria-label={title + ' · Studio 열기'}>
+            Studio 열기
+          </RouterLink>
+        </Button>
+      )}
+      {!studioHref && showStudioColumn && <span className="w-24 shrink-0" aria-hidden="true" />}
+      <span className="hidden shrink-0 items-center gap-2 sm:ml-5 sm:flex">
+        <ModifyButton
+          aria-label={title + ' · 수정'}
+          onClick={event => {
+            event.preventDefault();
+            event.stopPropagation();
+            navigate('modify?id=' + id + '&title=' + title, { state: { from: pathname } });
+          }}
+        />
+        <DeleteButton
+          aria-label={title + ' · 삭제'}
+          onClick={event => {
+            event.preventDefault();
+            event.stopPropagation();
+            handleDeleteSelect(id, title);
+          }}
+        />
+      </span>
     </li>
   );
 }

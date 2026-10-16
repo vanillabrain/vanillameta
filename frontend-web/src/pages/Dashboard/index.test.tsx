@@ -6,7 +6,7 @@ import { LoadingProvider } from '@/contexts/LoadingContext';
 import Dashboard from './index';
 
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: [], isFetching: true, isError: false }),
+  useQuery: () => ({ data: [{ id: 45, analysisDefinition: '{}' }, { id: 28 }], isFetching: true, isError: false }),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
   useMutation: () => ({ mutate: vi.fn() }),
 }));
@@ -18,7 +18,14 @@ vi.mock('react-alert', () => ({ useAlert: () => ({ error: vi.fn(), success: vi.f
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/api/dashboardService', () => ({ default: {} }));
 afterEach(cleanup);
-vi.mock('@/components/PageTitleBox', () => ({ default: ({ button }: any) => button }));
+vi.mock('@/components/PageTitleBox', () => ({
+  default: ({ button, children }: any) => (
+    <>
+      {button}
+      {children}
+    </>
+  ),
+}));
 vi.mock('@/components/button/AddIconButton', () => ({
   MenuButton: ({ menuList, handleSelect }: any) =>
     menuList.map((item: any) => (
@@ -27,7 +34,17 @@ vi.mock('@/components/button/AddIconButton', () => ({
       </button>
     )),
 }));
-vi.mock('@/components/BoardList', () => ({ default: () => null }));
+vi.mock('@/components/BoardList', () => ({
+  default: ({ postList, studioHrefForItem }: any) => (
+    <div>
+      {postList.map(item => (
+        <span key={item.id} data-testid={'studio-path-' + item.id}>
+          {studioHrefForItem?.(item) ?? '조회만'}
+        </span>
+      ))}
+    </div>
+  ),
+}));
 vi.mock('@/seo/Seo', () => ({ default: () => null }));
 vi.mock('./Components/GettingStarted', () => ({ default: () => null }));
 vi.mock('./Components/AiDashboardPanel', () => ({
@@ -90,4 +107,16 @@ it('releases the list loading overlay when a save handoff leaves a pending list 
   fireEvent.click(screen.getByText('저장 후 게시 준비'));
   expect(await screen.findByText('게시 결과 미리보기')).toBeTruthy();
   expect(screen.queryByRole('progressbar')).toBeNull();
+});
+
+it('offers direct Studio reentry for analysis rows only', () => {
+  render(
+    <LoadingProvider>
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Dashboard />
+      </MemoryRouter>
+    </LoadingProvider>,
+  );
+  expect(screen.getByTestId('studio-path-45').textContent).toBe('/dashboard/45/studio');
+  expect(screen.getByTestId('studio-path-28').textContent).toBe('조회만');
 });
