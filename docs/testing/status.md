@@ -664,3 +664,7 @@ MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드
 ## 2026-10-15 Studio T2 문서·변경 이력
 
 Studio 순수 문서/연산·history·legacy projection의 FE30/BE99 검사와 FE 타입·변경 린트·BE 빌드를 통과했다. 저장 응답 경합·revision·ID map 검토3건을 수정했다. UI 연결/실제 저장/LLM은 미실행이며 T1 캡처는 관련 코드 변경이 없어 재사용한다. [T2 범위와 제한](dashboard-studio.md#t2-문서변경-이력-기반--2026-10-15).
+
+## 2026-10-16 Studio shadcn 통일
+
+생성·편집·대화·설정·게시·복제를 공통 shadcn/Radix와 토큰으로 통일하고 MUI/Emotion 및 국소 테마를 제거했다. 관련 UI93개는 초기 선택 실행과 수정 항목 재검증을 통해 통과했다. clean npm ci·FE 타입/린트/빌드 PASS. 실제 Ego에서1440/768/390px, 입력 유지·Tab/Escape·제목 Enter/undo·교체 trigger 복귀, Rill634513000과 게시/복제 미리보기90789400/5.922633을 확인했다. 전체 TC005·기존 통과 수명주기는 반복하지 않았다. gpt-6-luna 유지, VoiceOver BLOCKED. [조건별 결과·캡처·미실행 범위](studio-shadcn.md).

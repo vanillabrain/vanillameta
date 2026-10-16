@@ -1,5 +1,8 @@
+import { NativeSelect } from '@/components/ui/native-select';
 import React, { useEffect, useReducer, useRef, useState } from 'react';
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, useMediaQuery } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { useMinWidth } from '@/components/PageViewBox';
 import StudioCanvas from './StudioCanvas';
 import StudioInspector from './StudioInspector';
 import { createStudioState, studioReducer, applyStudioOperation } from './studioReducer';
@@ -12,8 +15,8 @@ import StudioShell, { StudioDesignDocument, StudioDesignStage } from './StudioSh
 export default function StudioDesignPreview() {
   const [state, dispatch] = useReducer(studioReducer, studioSample, createStudioState);
   const [message, setMessage] = useState('');
-  const tablet = useMediaQuery('(max-width:1199px)', { noSsr: true });
-  const mobile = useMediaQuery('(max-width:599px)', { noSsr: true });
+  const tablet = !useMinWidth(1200);
+  const mobile = !useMinWidth(600);
   const breakpoint = mobile ? 'xs' : tablet ? 'md' : 'lg';
   useEffect(() => dispatch({ type: 'breakpoint', breakpoint }), [breakpoint]);
   const document: StudioDesignDocument = {
@@ -52,7 +55,7 @@ export default function StudioDesignPreview() {
     if (!operations.length) return;
     if (applyOperations(operations)) setMessage('현재 화면 크기의 블록 순서를 변경했습니다.');
   };
-  const compact = useMediaQuery('(max-width:899px)', { noSsr: true });
+  const compact = !useMinWidth(900);
   const [status, setStatus] = useState<'ready' | 'loading' | 'error'>('ready');
   const [stage, setStage] = useState<StudioDesignStage>('result');
   const [panel, setPanel] = useState<'ai' | 'settings' | null>(compact ? null : 'ai');
@@ -119,7 +122,7 @@ export default function StudioDesignPreview() {
             <div className="studio-edit-toolbar">
               <label>
                 블록 추가
-                <select
+                <NativeSelect
                   aria-label="추가할 블록"
                   disabled={state.present.blocks.length >= 6}
                   value=""
@@ -143,7 +146,7 @@ export default function StudioDesignPreview() {
                   <option value="">유형 선택</option>
                   <option value="BOARD_NUMERIC">숫자 지표</option>
                   <option value="CHART_LINE">시계열 차트</option>
-                </select>
+                </NativeSelect>
               </label>
               <span>
                 {state.present.blocks.length}/6 블록 ·{' '}
@@ -151,13 +154,14 @@ export default function StudioDesignPreview() {
               </span>
               {selected && geometry && (
                 <div className="studio-placement" role="group" aria-label="선택 블록 배치">
-                  <Button disabled={selectedOrder <= 0} onClick={() => reorder(-1)}>
+                  <Button variant="ghost" disabled={selectedOrder <= 0} onClick={() => reorder(-1)}>
                     앞으로
                   </Button>
-                  <Button disabled={selectedOrder >= ordered.length - 1} onClick={() => reorder(1)}>
+                  <Button variant="ghost" disabled={selectedOrder >= ordered.length - 1} onClick={() => reorder(1)}>
                     뒤로
                   </Button>
                   <Button
+                    variant="ghost"
                     onClick={() =>
                       operation({
                         type: 'resizeBlock',
@@ -174,6 +178,7 @@ export default function StudioDesignPreview() {
                     기본 크기
                   </Button>
                   <Button
+                    variant="ghost"
                     onClick={() =>
                       operation({
                         type: 'resizeBlock',
@@ -197,13 +202,16 @@ export default function StudioDesignPreview() {
       />
       <Dialog
         open={stage === 'publish'}
-        onClose={() => setStage(previousStage.current)}
-        fullWidth
-        maxWidth="xs"
+        onOpenChange={open => {
+          if (!open) setStage(previousStage.current);
+        }}
         aria-labelledby="studio-publish-heading"
       >
-        <DialogTitle id="studio-publish-heading">공유할 내용 확인</DialogTitle>
-        <DialogContent className="studio-publish-content">
+        <DialogContent className="studio-publish-content sm:max-w-lg max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle id="studio-publish-heading">공유할 내용 확인</DialogTitle>
+            <DialogDescription>공유 화면의 디자인 시안입니다. 실제 게시나 링크 생성은 실행하지 않습니다.</DialogDescription>
+          </DialogHeader>
           <p className="studio-publish-notice">공유 화면의 디자인 시안입니다. 링크는 생성되지 않습니다.</p>
           <h3>{document.title}</h3>
           <dl>
@@ -229,13 +237,15 @@ export default function StudioDesignPreview() {
             <br />
             공유할 때의 데이터 시점과 범위를 표시합니다.
           </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setStage(previousStage.current)}>
+              편집 시안으로 돌아가기
+            </Button>
+            <Button disabled variant="default">
+              게시하고 링크 복사
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setStage(previousStage.current)}>편집 시안으로 돌아가기</Button>
-          <Button disabled variant="contained">
-            게시하고 링크 복사
-          </Button>
-        </DialogActions>
       </Dialog>
     </>
   );

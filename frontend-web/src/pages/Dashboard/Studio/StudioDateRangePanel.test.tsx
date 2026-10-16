@@ -9,32 +9,6 @@ import StudioDateRangePanel, {
 } from './StudioDateRangePanel';
 import { validateStudioDateRange } from './studioDocument';
 
-// The repository's Vitest runtime cannot import the Emotion/MUI styled engine.
-vi.mock('@mui/material', () => {
-  const container = ({ children, component: Tag = 'div' }: any) => <Tag>{children}</Tag>;
-  return {
-    Typography: container,
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    MenuItem: ({ value, children }: any) => <option value={value}>{children}</option>,
-    Button: React.forwardRef<HTMLButtonElement, any>(({ children, onClick, disabled, ...props }, ref) => (
-      <button ref={ref} onClick={onClick} disabled={disabled} aria-expanded={props['aria-expanded']}>
-        {children}
-      </button>
-    )),
-    TextField: ({ label, value, onChange, type = 'text', select, children, disabled }: any) =>
-      select ? (
-        <select aria-label={label} value={value} onChange={onChange} disabled={disabled}>
-          {children}
-        </select>
-      ) : (
-        <label>
-          {label}
-          <input type={type} value={value} onChange={onChange} disabled={disabled} />
-        </label>
-      ),
-  };
-});
-
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();

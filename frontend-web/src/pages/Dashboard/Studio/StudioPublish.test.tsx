@@ -1,39 +1,9 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import StudioPublish from './StudioPublish';
-import { fetchOwnerPublication, publishDashboard } from './studioPublication';
-vi.mock('@mui/material', () => ({
-  Dialog: ({ open, children }: any) => (open ? <div role="dialog">{children}</div> : null),
-  DialogTitle: ({ children }: any) => <h2>{children}</h2>,
-  DialogContent: ({ children }: any) => <div>{children}</div>,
-  DialogActions: ({ children }: any) => <div>{children}</div>,
-  Alert: ({ children }: any) => <div role="alert">{children}</div>,
-  Button: ({ children, disabled, onClick }: any) => (
-    <button disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  ),
-  Radio: () => null,
-  Checkbox: ({ checked, onChange }: any) => <input type="checkbox" checked={checked} onChange={onChange} />,
-  RadioGroup: ({ children, value, onChange }: any) => (
-    <div onChange={onChange} data-value={value}>
-      {children}
-    </div>
-  ),
-  FormControlLabel: ({ value, label, control }: any) => (
-    <label>
-      {control?.props?.onChange ? control : <input type="radio" name="scope" value={value} />}
-      {label}
-    </label>
-  ),
-  TextField: ({ label, value, onChange, type, inputRef }: any) => (
-    <label>
-      {label}
-      <input ref={inputRef} aria-label={label} type={type} value={value} onChange={onChange} readOnly={!onChange} />
-    </label>
-  ),
-}));
+import { fetchOwnerPublication, publishDashboard, revokePublication } from './studioPublication';
 vi.mock('./studioApi', () => ({ studioRequestId: () => 'stable-request-id' }));
 vi.mock('./studioPublication', async () => ({
   ...(await vi.importActual<any>('./studioPublication')),
@@ -57,6 +27,101 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('snapshot publication controls', () => {
+  it('uses a named, described portal and restores keyboard focus to the opener after Escape', async () => {
+    function Host() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>게시 설정 열기</button>
+          <StudioPublish {...props} open={open} onClose={() => setOpen(false)} />
+        </>
+      );
+    }
+    const view = render(<Host />);
+    const opener = screen.getByRole('button', { name: '게시 설정 열기' });
+    opener.focus();
+    userEvent.keyboard('{Enter}');
+    const dialog = await screen.findByRole('dialog', { name: '게시·공유' });
+    expect(view.container.contains(dialog)).toBe(false);
+    const description = document.getElementById(dialog.getAttribute('aria-describedby') ?? '');
+    expect(description?.textContent).toContain('저장한 대시보드를 읽기 전용으로 게시');
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    userEvent.tab({ shift: true });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    userEvent.tab();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+    expect(publishDashboard).not.toHaveBeenCalled();
+    expect(revokePublication).not.toHaveBeenCalled();
+  });
+  it('keeps the dialog open and locks settings during publication, then permits Escape after failure', async () => {
+    let rejectPublish: (cause: Error) => void = () => {
+      throw new Error('request not started');
+    };
+    vi.mocked(publishDashboard).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectPublish = reject;
+        }),
+    );
+    render(<StudioPublish {...props} />);
+    const publish = await screen.findByRole('button', { name: '게시하기' });
+    await waitFor(() => expect((publish as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(publish);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' });
+    expect(props.onClose).not.toHaveBeenCalled();
+    expect((screen.getByRole('button', { name: '닫기' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('radio', { name: /링크 공개/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('checkbox') as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => rejectPublish(new Error('lost response')));
+    await screen.findByRole('button', { name: '같은 요청 재시도' });
+    expect((screen.getByRole('radio', { name: /링크 공개/ }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' });
+    expect(props.onClose).toHaveBeenCalledOnce();
+    expect(publishDashboard).toHaveBeenCalledOnce();
+  });
+  it('keeps the link read-only and selects it when clipboard access fails', async () => {
+    vi.mocked(fetchOwnerPublication).mockReset().mockResolvedValue(metadata);
+    render(<StudioPublish {...props} />);
+    const link = (await screen.findByRole('textbox', { name: '게시 링크' })) as HTMLInputElement;
+    expect(link.readOnly).toBe(true);
+    expect(screen.getByRole('link', { name: '게시본 열기' }).getAttribute('href')).toBe(link.value);
+    fireEvent.click(screen.getByRole('button', { name: '링크 복사' }));
+    await screen.findByText(/선택된 링크를 직접 복사/);
+    expect(document.activeElement).toBe(link);
+    expect(link.selectionStart).toBe(0);
+    expect(link.selectionEnd).toBe(link.value.length);
+    expect(publishDashboard).not.toHaveBeenCalled();
+  });
+  it('requires revoke confirmation and blocks Escape while revoking', async () => {
+    vi.mocked(fetchOwnerPublication).mockReset().mockResolvedValue(metadata);
+    let finishRevoke: () => void = () => {
+      throw new Error('request not started');
+    };
+    vi.mocked(revokePublication).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finishRevoke = () => resolve(undefined);
+        }),
+    );
+    render(<StudioPublish {...props} />);
+    const revoke = await screen.findByRole('button', { name: '게시 중지' });
+    await waitFor(() => expect((revoke as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(revoke);
+    expect(revokePublication).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '유지' }));
+    expect(screen.queryByRole('button', { name: '중지 확인' })).toBeNull();
+    fireEvent.click(revoke);
+    fireEvent.click(screen.getByRole('button', { name: '중지 확인' }));
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' });
+    expect(props.onClose).not.toHaveBeenCalled();
+    await act(async () => finishRevoke());
+    await screen.findByText(/게시를 중지했습니다/);
+    expect(revokePublication).toHaveBeenCalledWith(metadata.token);
+    expect(screen.queryByRole('textbox', { name: '게시 링크' })).toBeNull();
+  });
   it('starts private and publishes only after explicit confirmation', async () => {
     render(<StudioPublish {...props} />);
     await waitFor(() =>
@@ -77,8 +142,8 @@ describe('snapshot publication controls', () => {
     await waitFor(() =>
       expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(false),
     );
-    const permission = screen.getByRole('checkbox', { name: '내 데이터로 복제 허용' }) as HTMLInputElement;
-    expect(permission.checked).toBe(false);
+    const permission = screen.getByRole('checkbox', { name: '내 데이터로 복제 허용' });
+    expect(permission.getAttribute('aria-checked')).toBe('false');
     expect(screen.getByText(/원본 열 이름과 지표 정의/)).toBeTruthy();
     fireEvent.click(permission);
     fireEvent.click(screen.getByRole('button', { name: '게시하기' }));

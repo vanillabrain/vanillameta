@@ -5,23 +5,6 @@ import StudioRemix, { StudioRemixFlow } from './StudioRemix';
 import { fetchRemixRequirements, previewRemix, saveRemix } from './studioRemixApi';
 const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
 vi.mock('react-router-dom', () => ({ useParams: () => ({ token: 'a'.repeat(64) }), useNavigate: () => navigate }));
-vi.mock('@mui/material', () => ({
-  Alert: ({ children, role }: any) => <div role={role ?? 'alert'}>{children}</div>,
-  Button: ({ children, onClick, disabled }: any) => (
-    <button disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  ),
-  Checkbox: ({ checked, onChange, disabled }: any) => (
-    <input type="checkbox" checked={checked} onChange={onChange} disabled={disabled} />
-  ),
-  FormControlLabel: ({ label, control }: any) => (
-    <label>
-      {control}
-      {label}
-    </label>
-  ),
-}));
 vi.mock('./StudioSourcePicker', () => ({
   default: ({ onSource, busy }: any) => (
     <button disabled={busy} onClick={() => onSource(22)}>
@@ -92,6 +75,29 @@ const ready = async () => {
   );
 };
 describe('remix save and actor boundaries', () => {
+  it('uses a labelled real checkbox to exclude a block and revalidates before creating', async () => {
+    await ready();
+    const exclude = screen.getByRole('checkbox', { name: 'Total 제외' });
+    expect(exclude.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(screen.getByText('Total 제외'));
+    expect(exclude.getAttribute('aria-checked')).toBe('true');
+    expect((screen.getByRole('button', { name: '새 비공개 대시보드 만들기' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('combobox', { name: '대상 열: amount' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '매핑 확인' }));
+    await waitFor(() => expect(previewRemix).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(previewRemix).mock.calls[1][1].excludedBlockIds).toEqual(['block-1']);
+    expect(saveRemix).not.toHaveBeenCalled();
+  });
+  it('keeps native option values and associates mapping status with its select', async () => {
+    await ready();
+    const select = screen.getByRole('combobox', { name: '대상 열: amount' }) as HTMLSelectElement;
+    expect(select.tagName).toBe('SELECT');
+    expect([...select.options].map(option => option.value)).toEqual(['', 'amount', 'text_amount']);
+    expect(document.getElementById(select.getAttribute('aria-describedby') ?? '')?.textContent).toBe('BIGINT · 연결됨');
+    expect(screen.getByRole('link', { name: '게시본으로 돌아가기' }).getAttribute('href')).toBe(
+      '/published/' + requirements.token,
+    );
+  });
   it('invalidates preview when a mapping is cleared and sends the explicit empty choice for revalidation', async () => {
     await ready();
     fireEvent.change(screen.getByRole('combobox', { name: '대상 열: amount' }), { target: { value: '' } });

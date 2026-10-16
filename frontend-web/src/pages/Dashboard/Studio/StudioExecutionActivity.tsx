@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import StudioConversationCreation from './StudioConversationCreation';
 import { StudioRemixFlow } from './StudioRemix';
 import type { RemixSaveInput } from './studioRemixApi';
-import { Alert, Button } from '@mui/material';
+import { Notice as Alert } from '@/components/ui/notice';
+import { Button } from '@/components/ui/button';
 import {
   StudioExecution,
   STEP_LABELS,
@@ -37,14 +38,10 @@ function RemixHandoff({ run, onRemix }: Pick<Props, 'onRemix'> & { run: StudioEx
       <div className="studio-remix-receipt" role="status" tabIndex={-1} ref={receipt}>
         <strong>비공개 복제 완료</strong>
         <p>게시본 v{run.remixSaveResult.version} · 내 데이터에 연결한 새 대시보드입니다.</p>
-        <Button
-          component="a"
-          href={'/dashboard/' + run.remixSaveResult.dashboardId + '/studio'}
-          target="_blank"
-          rel="noopener noreferrer"
-          variant="outlined"
-        >
-          비공개 복제본 열기
+        <Button variant="outline" asChild>
+          <a href={'/dashboard/' + run.remixSaveResult.dashboardId + '/studio'} target="_blank" rel="noopener noreferrer">
+            비공개 복제본 열기
+          </a>
         </Button>
         <p className="studio-execution-hint">이 탭의 편집은 유지됩니다. 복제본은 별도 탭에서 열립니다.</p>
       </div>
@@ -53,7 +50,7 @@ function RemixHandoff({ run, onRemix }: Pick<Props, 'onRemix'> & { run: StudioEx
     <div className="studio-conversation-remix">
       <p>복제 준비 v{remix.version} · 이 대화에서 내 데이터와 열 매핑을 확인합니다.</p>
       {!open && (
-        <Button className="studio-remix-continue" variant="outlined" disabled={!onRemix} onClick={() => setOpen(true)}>
+        <Button className="studio-remix-continue" variant="outline" disabled={!onRemix} onClick={() => setOpen(true)}>
           내 데이터 연결하고 복제 계속
         </Button>
       )}
@@ -86,7 +83,7 @@ export default function StudioExecutionActivity({
     <section className="studio-execution" aria-labelledby="studio-execution-heading">
       <div className="studio-execution-heading">
         <h3 id="studio-execution-heading">실행 기록</h3>
-        <Button onClick={onRefresh} disabled={busy}>
+        <Button variant="ghost" onClick={onRefresh} disabled={busy}>
           상태 새로고침
         </Button>
       </div>
@@ -140,15 +137,10 @@ export default function StudioExecutionActivity({
                 </p>
               ) : (
                 <>
-                  <Button
-                    component="a"
-                    href={publishedDashboardPath(run.publicationResult)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="outlined"
-                    sx={{ minHeight: 44 }}
-                  >
-                    게시본 v{run.publicationResult.version} 열기
+                  <Button variant="outline" asChild>
+                    <a href={publishedDashboardPath(run.publicationResult)} target="_blank" rel="noopener noreferrer">
+                      게시본 v{run.publicationResult.version} 열기
+                    </a>
                   </Button>
                   <p className="studio-execution-hint">현재 만료·중지·접근 권한은 게시본을 열 때 다시 확인합니다.</p>
                 </>
@@ -172,12 +164,12 @@ export default function StudioExecutionActivity({
             </p>
           )}
           {retryStep(run) && (
-            <Button variant="outlined" disabled={busy || !canRetry(run)} onClick={() => onRetry(run)}>
+            <Button variant="outline" disabled={busy || !canRetry(run)} onClick={() => onRetry(run)}>
               {STEP_LABELS[retryStep(run).stepId]} 다시 시도
             </Button>
           )}
           {['pending', 'running'].includes(run.status) && (
-            <Button disabled={busy} onClick={() => onCancel(run)}>
+            <Button variant="ghost" disabled={busy} onClick={() => onCancel(run)}>
               실행 중지
             </Button>
           )}

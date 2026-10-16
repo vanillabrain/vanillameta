@@ -11,10 +11,6 @@ vi.mock('react-router-dom', () => ({
   Link: ({ children, ...props }: any) => <a href={props.to}>{children}</a>,
 }));
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({ default: () => <div>Chart</div> }));
-vi.mock('@mui/material', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material');
-});
 const profile = (id = 4) => ({
   sourceId: id,
   name: 'Orders ' + id,
@@ -218,13 +214,11 @@ describe('Studio create workflow', () => {
     await ready();
     fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
     await screen.findByText('계산 전에 확인해 주세요');
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: '환불률 분모' }));
-    fireEvent.click(await screen.findByRole('option', { name: '주문 건수' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '환불률 분모' }), { target: { value: 'orders' } });
     fireEvent.click(screen.getByRole('button', { name: '의미 확인 후 다시 제안' }));
     await screen.findByText(/AI 연결 또는 처리 상태/);
     expect(screen.getByRole('combobox', { name: '환불률 분모' })).toBeTruthy();
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: '환불률 분모' }));
-    fireEvent.click(await screen.findByRole('option', { name: '매출 금액' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '환불률 분모' }), { target: { value: 'amount' } });
     fireEvent.click(screen.getByRole('button', { name: '의미 확인 후 다시 제안' }));
     await waitFor(() => expect(mocks.post.mock.calls.filter(call => call[0] === '/studio/proposals')).toHaveLength(3));
     expect(mocks.post.mock.calls.filter(call => call[0] === '/studio/proposals')[2][1]).toMatchObject({

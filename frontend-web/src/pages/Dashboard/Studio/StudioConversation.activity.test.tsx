@@ -21,25 +21,6 @@ vi.mock('@ai-sdk/react', () => ({
   },
 }));
 vi.mock('./StudioSemanticReview', () => ({ default: () => <div>Semantic preview</div> }));
-vi.mock('@mui/material', () => ({
-  Alert: ({ children }: any) => <div role="alert">{children}</div>,
-  Button: ({ children, disabled, onClick, type, component, href, target, rel }: any) =>
-    component === 'a' ? (
-      <a href={href} target={target} rel={rel}>
-        {children}
-      </a>
-    ) : (
-      <button type={type} disabled={disabled} onClick={onClick}>
-        {children}
-      </button>
-    ),
-  TextField: ({ label, value, onChange, disabled }: any) => (
-    <label>
-      {label}
-      <textarea aria-label={label} value={value} onChange={onChange} disabled={disabled} />
-    </label>
-  ),
-}));
 const document = {
   schemaVersion: 1 as const,
   dashboardId: 3,

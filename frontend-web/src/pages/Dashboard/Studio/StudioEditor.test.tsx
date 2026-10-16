@@ -14,54 +14,6 @@ vi.mock('react-router-dom', async () => {
 });
 vi.mock('react-grid-layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({ default: () => <div data-testid="widget-viewer" /> }));
-vi.mock('@mui/material/styles', async () => {
-  const { createRequire } = await import('node:module');
-  return createRequire(import.meta.url)('@mui/material/styles');
-});
-vi.mock('@mui/icons-material/DragIndicator', () => ({ default: () => <span /> }));
-vi.mock('@mui/icons-material/TuneOutlined', () => ({ default: () => <span /> }));
-vi.mock('@mui/icons-material/AutoAwesomeOutlined', () => ({ default: () => <span /> }));
-vi.mock('@mui/icons-material/CloseOutlined', () => ({ default: () => <span /> }));
-vi.mock('@mui/icons-material/ArrowForwardOutlined', () => ({ default: () => <span /> }));
-vi.mock('@mui/material', async () => {
-  const { createRequire } = await import('node:module');
-  const { Checkbox, FormControlLabel, Radio, RadioGroup } = createRequire(import.meta.url)('@mui/material');
-  const Container = ({ children }: any) => <div>{children}</div>;
-  return {
-    Checkbox,
-    FormControlLabel,
-    Radio,
-    RadioGroup,
-    Box: ({ children, className }: any) => <div className={className}>{children}</div>,
-    Stack: Container,
-    Drawer: Container,
-    DialogTitle: Container,
-    DialogContent: Container,
-    DialogActions: Container,
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    Typography: ({ children, component: Tag = 'p' }: any) => <Tag>{children}</Tag>,
-    MenuItem: ({ value, children }: any) => <option value={value}>{children}</option>,
-    CircularProgress: () => <div>loading</div>,
-    Dialog: ({ open, children }: any) => (open ? <div role="dialog">{children}</div> : null),
-    Button: ({ children, disabled, onClick, ...props }: any) => (
-      <button disabled={disabled} onClick={onClick} aria-label={props['aria-label']}>
-        {children}
-      </button>
-    ),
-    TextField: ({ label, value, onChange, select, children }: any) =>
-      select ? (
-        <select aria-label={label} value={value} onChange={onChange}>
-          {children}
-        </select>
-      ) : (
-        <label>
-          {label}
-          <input aria-label={label} value={value} onChange={onChange} />
-        </label>
-      ),
-    useMediaQuery: (query: string) => !query.includes('max-width'),
-  };
-});
 
 const TEMP = 'new:11111111-1111-4111-8111-111111111111';
 const DOC_REVISION = 'a'.repeat(64);
@@ -259,15 +211,19 @@ describe('studio editor save and conflict flow', () => {
     render(<StudioEditor />);
     await screen.findByText('500');
     duplicateBlock();
-    fireEvent.click(saveButton());
+    const submit = saveButton();
+    submit.focus();
+    fireEvent.click(submit);
     expect(await screen.findByText('다른 곳에서 먼저 저장되었습니다')).toBeTruthy();
     expect(screen.getByText('내 화면에만 있는 블록')).toBeTruthy();
     expect(screen.getAllByText('복사본 · 총매출').length).toBeGreaterThan(1);
     expect(screen.queryByText('원격에서 바뀐 제목')).toBeNull();
     expect(screen.getByText(/최신 revision cccccccc/)).toBeTruthy();
     expect(screen.getByRole('button', { name: '최신 기준으로 내 변경 재적용' })).toBeTruthy();
-    expect(saveButton().disabled).toBe(false);
+    expect(submit.disabled).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: '계속 편집' }));
+    await waitFor(() => expect(document.activeElement).toBe(submit));
+    expect(saveButton().disabled).toBe(false);
     expect(screen.getAllByText('복사본 · 총매출').length).toBeGreaterThan(0);
   });
 });

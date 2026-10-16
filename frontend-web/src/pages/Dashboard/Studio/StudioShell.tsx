@@ -1,11 +1,14 @@
+import { NativeSelect } from '@/components/ui/native-select';
 import React from 'react';
-import { Alert, Button, TextField, useMediaQuery } from '@mui/material';
-import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
-import TuneOutlined from '@mui/icons-material/TuneOutlined';
-import CloseOutlined from '@mui/icons-material/CloseOutlined';
-import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined';
+import { Notice as Alert } from '@/components/ui/notice';
+import { Button } from '@/components/ui/button';
+import { TextField } from '@/components/ui/text-field';
+import { useMinWidth } from '@/components/PageViewBox';
+import { Sparkles, SlidersHorizontal, X, ArrowRight } from 'lucide-react';
 import './studio.css';
 import StudioPanelSurface from './StudioPanelSurface';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import IconLogo from '@/assets/images/logo.svg?react';
 
 export type StudioDesignStage = 'start' | 'result' | 'settings' | 'publish';
 export type StudioDesignDocument = { title: string; source: string; period: string; blockTitle: string };
@@ -56,18 +59,36 @@ export default function StudioShell({
   conversation,
 }: Props) {
   const start = !product && stage === 'start';
-  const compact = useMediaQuery('(max-width:899px)');
+  const compact = !useMinWidth(900);
   const panelContent = (
     <aside className="studio-panel" aria-label="Studio 보조 패널">
       <div className="studio-panel-tabs" role="group" aria-label="패널 선택">
-        <Button aria-pressed={panel === 'ai'} onClick={() => onPanelChange('ai')} startIcon={<AutoAwesomeOutlined />}>
-          AI
-        </Button>
-        <Button aria-pressed={panel === 'settings'} onClick={() => onPanelChange('settings')} startIcon={<TuneOutlined />}>
-          블록 설정
-        </Button>
-        <Button className="studio-panel-close" aria-label="보조 패널 닫기" onClick={() => onPanelChange(null)}>
-          <CloseOutlined fontSize="small" />
+        <ToggleGroup
+          type="single"
+          value={panel ?? ''}
+          onValueChange={value => {
+            if (value) onPanelChange(value as 'ai' | 'settings');
+          }}
+          aria-label="패널 선택"
+          variant="outline"
+        >
+          <ToggleGroupItem value="ai" aria-label="AI">
+            <Sparkles data-icon="inline-start" />
+            AI
+          </ToggleGroupItem>
+          <ToggleGroupItem value="settings" aria-label="블록 설정">
+            <SlidersHorizontal data-icon="inline-start" />
+            블록 설정
+          </ToggleGroupItem>
+        </ToggleGroup>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="studio-panel-close"
+          aria-label="보조 패널 닫기"
+          onClick={() => onPanelChange(null)}
+        >
+          <X />
         </Button>
       </div>
       {panel === 'ai'
@@ -75,7 +96,7 @@ export default function StudioShell({
             <div className="studio-ai">
               <div className="studio-ai-content">
                 <span className="studio-ai-avatar">
-                  <AutoAwesomeOutlined fontSize="small" />
+                  <Sparkles />
                 </span>
                 <h2>함께 다듬어 보세요</h2>
                 <p>
@@ -104,16 +125,10 @@ export default function StudioShell({
                 </p>
               </div>
               <div className="studio-ai-composer">
-                <TextField
-                  fullWidth
-                  multiline
-                  minRows={3}
-                  label="AI에게 요청할 내용"
-                  placeholder="변경하고 싶은 내용을 입력하세요"
-                />
+                <TextField multiline minRows={3} label="AI에게 요청할 내용" placeholder="변경하고 싶은 내용을 입력하세요" />
                 <div>
                   <span>{product ? 'AI 수정은 다음 단계에서 연결됩니다' : '시안 · 전송 불가'}</span>
-                  <Button disabled variant="contained">
+                  <Button disabled variant="default">
                     전송
                   </Button>
                 </div>
@@ -146,7 +161,7 @@ export default function StudioShell({
       <header className="studio-header">
         <div className="studio-heading">
           <span className="studio-brand">
-            vanilla<span>Meta</span>
+            <IconLogo role="img" aria-label="VanillaMeta" />
           </span>
           <span className="studio-header-divider" />
           <div>
@@ -156,10 +171,10 @@ export default function StudioShell({
         </div>
         <div className="studio-header-actions">
           <span className="studio-draft">{product ? product.save.status : '시안 · 저장되지 않음'}</span>
-          <Button disabled={!history.canUndo} onClick={history.onUndo}>
+          <Button variant="outline" size="sm" disabled={!history.canUndo} onClick={history.onUndo}>
             되돌리기
           </Button>
-          <Button disabled={!history.canRedo} onClick={history.onRedo}>
+          <Button variant="outline" size="sm" disabled={!history.canRedo} onClick={history.onRedo}>
             다시 실행
           </Button>
           <span
@@ -173,13 +188,12 @@ export default function StudioShell({
           {product ? (
             <>
               {product.publish && (
-                <Button variant="outlined" onClick={product.publish.onOpen} disabled={product.publish.disabled}>
+                <Button variant="outline" onClick={product.publish.onOpen} disabled={product.publish.disabled}>
                   게시·공유
                 </Button>
               )}
               <Button
-                variant="contained"
-                disableElevation
+                variant="default"
                 onClick={product.save.onSave}
                 disabled={product.save.disabled || product.save.pending}
               >
@@ -188,10 +202,10 @@ export default function StudioShell({
             </>
           ) : (
             <>
-              <Button variant="outlined" disabled>
+              <Button variant="outline" disabled>
                 저장
               </Button>
-              <Button variant="contained" disableElevation onClick={() => onStageChange('publish')}>
+              <Button variant="default" onClick={() => onStageChange('publish')}>
                 공유 미리보기
               </Button>
             </>
@@ -209,17 +223,17 @@ export default function StudioShell({
               { id: 'publish', label: '04 공유' },
             ] as const
           ).map(item => (
-            <Button key={item.id} aria-pressed={stage === item.id} onClick={() => onStageChange(item.id)}>
+            <Button variant="ghost" key={item.id} aria-pressed={stage === item.id} onClick={() => onStageChange(item.id)}>
               {item.label}
             </Button>
           ))}
           <label className="studio-status-select">
             상태 시안{' '}
-            <select value={status} onChange={e => onStatusChange(e.target.value as 'ready' | 'loading' | 'error')}>
+            <NativeSelect value={status} onChange={e => onStatusChange(e.target.value as 'ready' | 'loading' | 'error')}>
               <option value="ready">정상</option>
               <option value="loading">로딩</option>
               <option value="error">오류</option>
-            </select>
+            </NativeSelect>
           </label>
         </nav>
       )}
@@ -228,7 +242,7 @@ export default function StudioShell({
           {start ? (
             <section className="studio-welcome" aria-label="새 대시보드 시작">
               <span className="studio-welcome-icon">
-                <AutoAwesomeOutlined />
+                <Sparkles />
               </span>
               <div className="studio-eyebrow">데이터에서 첫 인사이트까지</div>
               <h2>
@@ -243,7 +257,6 @@ export default function StudioShell({
               </p>
               <div className="studio-prompt">
                 <TextField
-                  fullWidth
                   multiline
                   minRows={3}
                   label="만들고 싶은 대시보드"
@@ -251,20 +264,21 @@ export default function StudioShell({
                 />
                 <div className="studio-prompt-footer">
                   <span>데이터 연결은 다음 단계에서 지원합니다</span>
-                  <Button disabled variant="contained">
+                  <Button disabled variant="default">
                     생성
                   </Button>
                 </div>
               </div>
               <div className="studio-source-choices">
-                <Button disabled variant="outlined">
+                <Button disabled variant="outline">
                   파일 연결
                 </Button>
-                <Button disabled variant="outlined">
+                <Button disabled variant="outline">
                   기존 데이터 선택
                 </Button>
-                <Button variant="outlined" endIcon={<ArrowForwardOutlined />} onClick={() => onStageChange('result')}>
+                <Button variant="outline" onClick={() => onStageChange('result')}>
                   매출·환불 샘플 시안
+                  <ArrowRight data-icon="inline-start" />
                 </Button>
               </div>
               <div className="studio-start-steps">
@@ -287,7 +301,8 @@ export default function StudioShell({
                   <strong>{product ? product.source : doc.source}</strong>
                   <span className="studio-source-meta">{product ? product.sourceMeta : '주문·환불 · 디자인용 샘플'}</span>
                 </div>
-                <Button variant="outlined" onClick={() => onPanelChange('ai')} startIcon={<AutoAwesomeOutlined />}>
+                <Button variant="outline" onClick={() => onPanelChange('ai')}>
+                  <Sparkles data-icon="inline-start" />
                   AI 열기
                 </Button>
               </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, MenuItem, TextField } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { TextField } from '@/components/ui/text-field';
 import { StudioBlock, StudioBlockKind, StudioOperation } from './studioTypes';
 
 /** Existing product labels for the block kinds the Studio document supports. */
@@ -130,10 +131,12 @@ export default function StudioInspector({ block, onOperation, onDuplicate, onRem
           <span>블록 복제 · 삭제</span>
         </div>
         <div className="studio-inspector-actions">
-          <Button variant="outlined" disabled>
+          <Button variant="outline" disabled>
             블록 복제
           </Button>
-          <Button disabled>블록 삭제</Button>
+          <Button variant="ghost" disabled>
+            블록 삭제
+          </Button>
         </div>
         <p className="studio-panel-note">블록을 선택하기 전에는 설정을 바꿀 수 없습니다.</p>
       </div>
@@ -151,8 +154,6 @@ export default function StudioInspector({ block, onOperation, onDuplicate, onRem
       <p>제목과 설명, 숫자 표시를 조정합니다. 종류와 계산 정의는 읽기 전용입니다.</p>
       <TextField
         inputRef={titleInput}
-        fullWidth
-        size="small"
         label="블록 제목"
         value={titleDraft}
         error={Boolean(titleError)}
@@ -160,54 +161,42 @@ export default function StudioInspector({ block, onOperation, onDuplicate, onRem
         onChange={event => setTitleDraft(event.target.value)}
         onBlur={commitTitle}
         onKeyDown={commitTitleOnEnter}
-        slotProps={{ htmlInput: { maxLength: TITLE_MAX } }}
+        maxLength={TITLE_MAX}
       />
       <TextField
         inputRef={descriptionInput}
-        fullWidth
-        size="small"
         label="설명"
         value={descriptionDraft}
         onChange={event => setDescriptionDraft(event.target.value)}
         onBlur={commitDescription}
         onKeyDown={commitDescriptionOnEnter}
-        slotProps={{ htmlInput: { maxLength: DESCRIPTION_MAX } }}
+        maxLength={DESCRIPTION_MAX}
       />
       <TextField
-        fullWidth
         select
-        size="small"
         label="숫자 표시"
         value={notationOf(block)}
         helperText="축약은 1,200,000을 1.2M처럼 줄여 표시합니다."
         onChange={event => changeNotation(event.target.value)}
         onKeyDown={keepArrowsInField}
       >
-        <MenuItem value="full">{NOTATION_LABELS.full}</MenuItem>
-        <MenuItem value="compact">{NOTATION_LABELS.compact}</MenuItem>
+        <option value="full">{NOTATION_LABELS.full}</option>
+        <option value="compact">{NOTATION_LABELS.compact}</option>
       </TextField>
       <TextField
-        fullWidth
         select
-        size="small"
         label="소수 자릿수"
         value={decimals}
         onChange={event => changeDecimals(Number(event.target.value))}
         onKeyDown={keepArrowsInField}
       >
         {decimalOptions.map(value => (
-          <MenuItem key={value} value={value}>
+          <option key={value} value={value}>
             {value}자리
-          </MenuItem>
+          </option>
         ))}
       </TextField>
-      <TextField
-        fullWidth
-        size="small"
-        label="블록 종류"
-        value={KIND_LABELS[block.kind]}
-        slotProps={{ input: { readOnly: true } }}
-      />
+      <TextField label="블록 종류" value={KIND_LABELS[block.kind]} readOnly />
       <div className="studio-definition">
         <b>계산 정의 · 읽기 전용</b>
         <code>{block.definitionKey}</code>
@@ -216,14 +205,16 @@ export default function StudioInspector({ block, onOperation, onDuplicate, onRem
       </div>
       <div className="studio-inspector-actions">
         <Button
-          variant="outlined"
+          variant="outline"
           onClick={onDuplicate}
           disabled={!canDuplicate}
           aria-describedby={canDuplicate ? undefined : 'studio-block-limit'}
         >
           블록 복제
         </Button>
-        <Button onClick={onRemove}>블록 삭제</Button>
+        <Button variant="ghost" onClick={onRemove}>
+          블록 삭제
+        </Button>
       </div>
       {!canDuplicate && (
         <p className="studio-panel-note" id="studio-block-limit">

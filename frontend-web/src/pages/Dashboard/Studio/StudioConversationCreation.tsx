@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Button } from '@mui/material';
+import { Notice as Alert } from '@/components/ui/notice';
+import { Button } from '@/components/ui/button';
 import { CreationProposal } from './studioCreation';
 import { StudioExecution, getExecutionCreation } from './studioExecution';
 import StudioSemanticReview from './StudioSemanticReview';
@@ -86,14 +87,10 @@ export default function StudioConversationCreation({
       <div className="studio-remix-receipt" role="status" tabIndex={-1} ref={receipt}>
         <strong>비공개 생성 완료</strong>
         <p>새 대시보드로 저장했습니다. 현재 편집은 유지됩니다.</p>
-        <Button
-          component="a"
-          variant="outlined"
-          href={'/dashboard/' + run.creationSaveResult.dashboardId + '/studio'}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          새 비공개 대시보드 열기
+        <Button variant="outline" asChild>
+          <a href={'/dashboard/' + run.creationSaveResult.dashboardId + '/studio'} target="_blank" rel="noopener noreferrer">
+            새 비공개 대시보드 열기
+          </a>
         </Button>
       </div>
     );
@@ -113,7 +110,7 @@ export default function StudioConversationCreation({
         <>
           <p className="studio-execution-hint">{proposal.profile.rowCount}행 · 제안은 10분간 유지됩니다.</p>
           <StudioSemanticReview proposal={proposal} />
-          <Button variant="contained" disabled={disabled || saving || !onSave} onClick={save}>
+          <Button variant="default" disabled={disabled || saving || !onSave} onClick={save}>
             {saving ? '비공개 저장 확인 중…' : uncertain ? '같은 생성 요청으로 저장 확인' : '제안 확인 후 비공개 저장'}
           </Button>
         </>

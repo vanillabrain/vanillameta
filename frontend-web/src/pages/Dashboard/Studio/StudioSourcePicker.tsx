@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
-import { Button, MenuItem, TextField } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { TextField } from '@/components/ui/text-field';
 import { SourceProfile, StudioSource } from './studioCreation';
 type Props = {
   idPrefix?: string;
@@ -30,7 +31,7 @@ export default function StudioSourcePicker({
       <h2 id={idPrefix + '-source-heading'}>어떤 데이터를 살펴볼까요?</h2>
       <p>내 파일을 서버에 저장하거나, 기존 데이터와 검증된 샘플로 시작하세요.</p>
       <div className="studio-create-source-actions">
-        <Button variant="outlined" disabled={busy} onClick={() => input.current?.click()}>
+        <Button variant="outline" disabled={busy} onClick={() => input.current?.click()}>
           파일 선택
         </Button>
         <input
@@ -45,10 +46,10 @@ export default function StudioSourcePicker({
             event.target.value = '';
           }}
         />
-        <Button variant="outlined" disabled={busy} onClick={() => onSample('commerce')}>
+        <Button variant="outline" disabled={busy} onClick={() => onSample('commerce')}>
           매출·환불 샘플
         </Button>
-        <Button variant="outlined" disabled={busy} onClick={() => onSample('rill')}>
+        <Button variant="outline" disabled={busy} onClick={() => onSample('rill')}>
           Rill 광고 샘플
         </Button>
       </div>
@@ -60,25 +61,23 @@ export default function StudioSourcePicker({
       </p>
       <TextField
         select
-        fullWidth
         label="저장된 데이터"
         value={sourceId ?? ''}
         onChange={event => onSource(Number(event.target.value))}
         disabled={busy}
-        InputLabelProps={{ shrink: true }}
       >
-        <MenuItem value="" disabled>
+        <option value="" disabled>
           데이터를 선택하세요
-        </MenuItem>
+        </option>
         {sources.map(source => (
-          <MenuItem key={source.id} value={source.id} disabled={source.engine !== 'duckdb'}>
+          <option key={source.id} value={source.id} disabled={source.engine !== 'duckdb'}>
             {source.name}
             {source.engine !== 'duckdb' ? ' · Studio 미지원' : ''}
-          </MenuItem>
+          </option>
         ))}
       </TextField>
       {sourceId && (
-        <Button size="small" disabled={busy} onClick={onRefresh}>
+        <Button variant="ghost" size="sm" disabled={busy} onClick={onRefresh}>
           소스 새로 확인
         </Button>
       )}

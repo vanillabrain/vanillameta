@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Alert, Button, Checkbox, FormControlLabel } from '@mui/material';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Notice } from '@/components/ui/notice';
+import { TextField } from '@/components/ui/text-field';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getToken, STORAGE_ACCESS_TOKEN } from '@/helpers/authHelper';
 import DatabaseService from '@/api/databaseService';
@@ -256,23 +260,32 @@ export function StudioRemixFlow({
               <span className="studio-eyebrow">DASHBOARD STUDIO · REMIX</span>
               <h1>내 데이터로 복제</h1>
             </div>
-            <Button component="a" href={path} disabled={!!pendingSave.current}>
-              게시본으로 돌아가기
+            <Button asChild variant="ghost" className={pendingSave.current ? 'pointer-events-none opacity-50' : undefined}>
+              <a
+                href={path}
+                aria-disabled={!!pendingSave.current || undefined}
+                tabIndex={pendingSave.current ? -1 : undefined}
+                onClick={event => {
+                  if (pendingSave.current) event.preventDefault();
+                }}
+              >
+                게시본으로 돌아가기
+              </a>
             </Button>
           </header>
         </>
       )}
       <div id={elementId('main')} className="studio-remix-main">
         {busy && (
-          <Alert severity="info" role="status">
+          <Notice severity="info" role="status">
             {busy}
-          </Alert>
+          </Notice>
         )}
-        {error && <Alert severity="error">{error}</Alert>}
+        {error && <Notice severity="error">{error}</Notice>}
         {notice && (
-          <Alert severity={preview?.unmappedBlocks.length ? 'warning' : 'info'} role="status">
+          <Notice severity={preview?.unmappedBlocks.length ? 'warning' : 'info'} role="status">
             {notice}
-          </Alert>
+          </Notice>
         )}
         {login ? (
           <section className="studio-remix-login">
@@ -281,15 +294,19 @@ export function StudioRemixFlow({
               별도 창에서 로그인한 뒤 이 화면으로 돌아오세요. 공개 원본의 데이터를 가져오지 않고 내 소유 데이터에 지표를
               연결합니다.
             </p>
-            <Button component="a" href="/login" target="_blank" rel="noopener noreferrer" variant="contained">
-              별도 창에서 로그인
+            <Button asChild>
+              <a href="/login" target="_blank" rel="noopener noreferrer">
+                별도 창에서 로그인
+              </a>
             </Button>
-            <Button onClick={initialize}>로그인 후 다시 확인</Button>
+            <Button variant="outline" onClick={initialize}>
+              로그인 후 다시 확인
+            </Button>
           </section>
         ) : (
           <>
             {!requirements && !busy && (
-              <Button variant="outlined" onClick={initialize}>
+              <Button variant="outline" onClick={initialize}>
                 복제 정의 다시 확인
               </Button>
             )}
@@ -315,7 +332,7 @@ export function StudioRemixFlow({
                       <span className="studio-published-filter">{studioDateRangeSummary(requirements.dateRange)}</span>
                     </div>
                   )}
-                  <Button onClick={initialize} disabled={locked}>
+                  <Button variant="outline" onClick={initialize} disabled={locked}>
                     게시 정의 새로 확인 (매핑 초기화)
                   </Button>
                 </section>
@@ -359,14 +376,19 @@ export function StudioRemixFlow({
                           {activeFields.map(field => {
                             const status = preview?.fields.find(item => item.sourceColumn === field.name);
                             return (
-                              <label className="studio-remix-field" key={field.name}>
-                                <span>
+                              <div className="studio-remix-field" key={field.name}>
+                                <Label
+                                  htmlFor={elementId('field-' + encodeURIComponent(field.name))}
+                                  className="block min-w-0"
+                                >
                                   <strong>{field.name}</strong>
                                   <small id={elementId('status-' + encodeURIComponent(field.name))}>
                                     {field.type} · {status ? statusLabel[status.status] : '확인 필요'}
                                   </small>
-                                </span>
-                                <select
+                                </Label>
+                                <TextField
+                                  select
+                                  id={elementId('field-' + encodeURIComponent(field.name))}
                                   aria-label={'대상 열: ' + field.name}
                                   aria-describedby={elementId('status-' + encodeURIComponent(field.name))}
                                   aria-invalid={!!status && status.status !== 'mapped'}
@@ -385,13 +407,13 @@ export function StudioRemixFlow({
                                       {column.name} · {column.type}
                                     </option>
                                   ))}
-                                </select>
-                              </label>
+                                </TextField>
+                              </div>
                             );
                           })}
                         </div>
                         {!activeFields.length && <p>남은 블록에는 연결할 원본 열이 없습니다.</p>}
-                        <Button variant="outlined" onClick={() => check(sourceId, mapping, excluded)} disabled={locked}>
+                        <Button variant="outline" onClick={() => check(sourceId, mapping, excluded)} disabled={locked}>
                           매핑 확인
                         </Button>
                       </>
@@ -422,21 +444,23 @@ export function StudioRemixFlow({
                                 {issue?.missingFields.length ? ' · ' + issue.missingFields.join(', ') : ''}
                               </p>
                             )}
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={excluded.includes(block.id)}
-                                  disabled={locked}
-                                  onChange={event => {
-                                    invalidate();
-                                    setExcluded(value =>
-                                      event.target.checked ? [...value, block.id] : value.filter(id => id !== block.id),
-                                    );
-                                  }}
-                                />
-                              }
-                              label={block.title + ' 제외'}
-                            />
+                            <div className="flex min-w-0 items-start gap-2">
+                              <Checkbox
+                                id={elementId('exclude-' + block.id)}
+                                className="mt-0.5"
+                                checked={excluded.includes(block.id)}
+                                disabled={locked}
+                                onCheckedChange={checked => {
+                                  invalidate();
+                                  setExcluded(value =>
+                                    checked === true ? [...value, block.id] : value.filter(id => id !== block.id),
+                                  );
+                                }}
+                              />
+                              <Label htmlFor={elementId('exclude-' + block.id)} className="min-w-0 leading-5 break-words">
+                                {block.title + ' 제외'}
+                              </Label>
+                            </div>
                           </div>
                         );
                       })}
@@ -444,18 +468,18 @@ export function StudioRemixFlow({
                   </section>
                 </div>
                 {!!preview?.unmappedFilters?.length && (
-                  <Alert severity="warning" role="alert">
+                  <Notice severity="warning" role="alert">
                     원본 게시본의 공통 필터 {preview.unmappedFilters.length}개 열을 대상 데이터에 적용할 수 없습니다:{' '}
                     {preview.unmappedFilters.join(', ')}. 이 미리보기는 필터가 전혀 없는 전체 범위 결과가 아닙니다. 각 필터에
                     형식이 맞는 대상 열을 선택한 뒤 매핑 확인을 눌러 주세요.
-                  </Alert>
+                  </Notice>
                 )}
                 {preview?.unmappedDateRange && (
-                  <Alert severity="warning" role="alert">
+                  <Notice severity="warning" role="alert">
                     저장된 기간 열 '{preview.unmappedDateRange}'을(를) 대상 데이터에서 확인할 수 없습니다. 기간이 빠진 결과로
                     복제하지 않도록 저장은 서버에서 차단됩니다. 대상 소스에서 형식이 맞는 날짜 열을 확인한 뒤 매핑 확인을
                     눌러 주세요.
-                  </Alert>
+                  </Notice>
                 )}
                 {preview?.preview && (
                   <section className="studio-remix-preview" aria-labelledby={elementId('preview-heading')}>
@@ -491,12 +515,7 @@ export function StudioRemixFlow({
                 )}
                 <div className="studio-remix-save">
                   <p>새 지표·차트와 대시보드는 비공개로 생성됩니다. 저장 후 Studio에서 제목·표현·배치를 편집하세요.</p>
-                  <Button
-                    variant="contained"
-                    disableElevation
-                    disabled={!!busy || !canCreateRemix(preview, excluded)}
-                    onClick={create}
-                  >
+                  <Button disabled={!!busy || !canCreateRemix(preview, excluded)} onClick={create}>
                     {pendingSave.current ? '같은 복제 저장 재시도' : '새 비공개 대시보드 만들기'}
                   </Button>
                 </div>

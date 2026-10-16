@@ -6,9 +6,6 @@ import PublishedRoute, { publicationKind } from './PublishedRoute';
 vi.mock('@/layouts/PublicLayout', () => ({
   default: ({ children }: React.PropsWithChildren) => <div data-testid="public-layout">{children}</div>,
 }));
-vi.mock('@/pages/Dashboard/Studio/StudioThemeBoundary', () => ({
-  default: ({ children }: React.PropsWithChildren) => <>{children}</>,
-}));
 vi.mock('@/pages/Dashboard/Studio/PublishedDashboard', () => ({ default: () => <p>Studio {useParams().token}</p> }));
 vi.mock('@/pages/Publication/Published', () => ({ default: () => <p>Analysis {useParams().token}</p> }));
 afterEach(cleanup);
