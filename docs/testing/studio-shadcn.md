@@ -240,3 +240,30 @@ UI06/T6의 정상 업로드는 재사용하고 source9를 고른 `/studio/new`�
 390×844 오류 뒤 선택/질문 보존 화면과 복구 숫자 카드의 라벨·단위·줄바꿈·버튼 정렬을 실제 캡처로 확인했다. 가로 넘침0, 명시 Enter 재요청, 선택창36px를 확인했다. 물리 Space 전환이 viewport를 초기화한 중간 desktop 캡처는390px 최종 캡처로 교체했다. 기능·선택 모바일 디자인 PASS_SELECTED. 오류 안내 본문은 DOM/JSON으로 기록했고, 실패 PNG는 유지된 선택 부분을 보여준다. 화면 전체 키보드 순서·모바일 팝업·실휴대폰·운영은 별도다.
 
 제품 오류/제품 코드 변경0. 기존 동일 UI 관련 회귀/type/lint/build를 재사용하고 문서 diff check PASS. 저장/게시0·DB dashboard31/metric38/studio_publication8 유지. 임시 interceptor를 eject하고 TaskSpace20만 종료했다. gpt-6-luna 및 VoiceOver BLOCKED 유지. 증빙은 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-clarification-retry-20261016`의 `failed.json`, `recovered.json`, `verification.json`, `failed-selection-390.png`, `recovered-390.png`. 변경과 검증 기록은 미커밋이다.
+
+## STUDIO-UI16 게시 실패·상태 조회 복구 — 2026-10-16
+
+STUDIO-P02/P03 중 실제 브라우저 미검증 경계만 선택한다. 기존 비공개32/source9/Rill 저장본을 사용하고 신규 공개 링크·원본 저장·모델 호출은 하지 않는다. 정상 게시/중지/만료 전체는 재실행하지 않는다.
+
+| 조건 | 기대 결과 | 상태 |
+|---|---|---|
+| UI16-A | 게시 POST 전송 전1회503→실패 안내·설정 잠금·같은 요청 재시도→동일 requestId/body | PASS_SELECTED |
+| UI16-B | 재시도 실제 게시 commit 뒤 owner GET1회503→완료 범위 오인 차단→상태 다시 확인 GET만→같은 v1 복원·추가 게시0 | PASS_SELECTED |
+| UI16-C | 390px 오류/복구·키보드 Enter·컨트롤/레이아웃·저장본 불변·비공개 유지 | PASS_SELECTED |
+
+
+### 실제 결과
+
+기준 develop-v2 `2fb2edb4`(원격 `5679f5f0` 통합). 기존 미커밋 제목 전용 수정과 UI12~15 검증 기록을 drumcap으로 커밋·push했다. 통합 후 BE REFINE 관련5개·FE StudioCreate/auth.session/studioCreationRecovery53개·FE 타입/빌드·BE 빌드 PASS. 기존 통과 MD 조건은 반복하지 않았다.
+
+Ego TaskSpace1/FE3231/API4331의 dashboard32/source9를 재사용했다. 게시 UI의 비공개 기본값·복제 비허용 상태에서 Enter로 게시할 때 **해당 탭 Axios request interceptor의 전송 전503 형태 거절1회**를 주입했다. 실제 서버503나 프로세스 장애와 구분한다. 오류 안내·공개 범위/만료 설정 잠금·같은 요청 재시도 버튼을 확인했다. Enter 재시도 body/requestId/expectedRevision은 최초 시도와 완전히 같았다.
+
+재시도 POST는 실제 서버에서 비공개 v1을 만들었다. 응답을 정상 전달한 직후 자동 owner GET만 같은 방식으로1회 거절했다. UI는 ‘게시 요청은 완료됐습니다. 최신 공개 범위를 확인하지 못했으니 게시 상태를 다시 확인해 주세요.’를 표시하며 현재 링크/버전 표시를 숨기고 게시 버튼을 비활성화했다. ‘게시 상태 다시 확인’에 focus→Enter 후 정상 GET으로 같은 비공개 v1/복제 비허용 상태가 복원됐다. 관측 순서는 POST(전송 전 거절), POST(실제 성공), GET(전송 전 거절), GET(실제 성공)이다. **실제 게시 성공1회, 복구 추가 POST0**이며 서버 응답 유실·동시 재게시 전체 조합으로 확대하지 않는다.
+
+390×844에서 오류·복구 화면 캡처와 Enter 조작을 확인했다. dialog x16/너비358px, 문서/다이얼로그 가로 넘침0, 주요 버튼36px·카드/본문 줄바꿈/세로 footer 정렬을 확인했다. 복구 후 본문은 내부 스크롤이며 하단 재게시/닫기/중지 버튼이 유지된다. 기능·선택 모바일 디자인 PASS_SELECTED, 전체 Tab 순서·실휴대폰·VoiceOver는 별도다. OS 창 캡처는 물리 공간 전환 후 폭이 초기화된 데스크톱 화면이므로 모바일 증빙에서 제외하고, 동일 CDP 연결에서 폭390 실측 후 Page screenshot을 저장했다.
+
+읽기 전용 DB 검사: dashboard31/metric38 유지, studio_publication8→9(32의 비공개 v1 정확1개), Studio32 저장 행 SHA256 `c0b80cbda8a806905ca79c91d08215d04f2d101cd973715dbf842bc0e4976cbc` 전후 동일. 게시 snapshot에 기존 기대값634,513,000을 확인했다. 새 공개 링크·원본/지표 저장·AI 호출0. 비공개 검증 게시본은 보존했으며 자동 중지하지 않았다. 제품 오류/제품 코드 변경0, 기존 관련 검사 재사용·문서 diff check PASS. 임시 interceptor/viewport를 복구하고 TaskSpace1만 종료했다. gpt-6-luna 설정·VoiceOver BLOCKED 유지.
+
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-publication-recovery-20261016`의 `before.json`, `failed.json`, `owner-read-failed.json`, `recovered.json`, `verification.json`, `01-mobile-page.png`, `02-owner-read-failed-mobile.png`, `03-recovered-mobile.png`.
+
+남은 우선 조건은 **대화 실행기의 저장 성공→게시 단계 실패 시 저장 보존/명시 재시도·취소·서버 재시작 복구의 실제 브라우저 연결**이다. 수동 게시 대화상자의 이번 결과를 해당 실행기 전체 PASS로 계산하지 않는다. 운영 MySQL·실기기·전체 제품 수용 및 VoiceOver BLOCKED도 유지한다.

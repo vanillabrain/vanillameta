@@ -687,3 +687,6 @@ T16 후속 실제 run 링크 여정은 [CONV-REFINE-01~04](studio-proposal-refin
 - 2026-10-16: [UI14 파일 선택 취소 후속](studio-shadcn.md#studio-ui14-파일-선택-취소-키보드-후속--2026-10-16): 실제 OS Escape 취소·버튼 초점/질문/소스 보존·페이지 Tab·390px 넘침0 PASS_SELECTED. Enter chooser event는 확인했으나 도구 자동 취소로 OS 표시 PARTIAL. 업로드/AI/저장0·제품 변경0·미커밋, VoiceOver BLOCKED 유지.
 
 - 2026-10-16: [UI15 분모 확인 재시도](studio-shadcn.md#studio-ui15-분모-확인-실패재시도-후속--2026-10-16) 전송 전503 주입→질문/amount/소스 revision 보존→동일 body Enter→실제 gpt-6-luna 제안/21.23% 복구 PASS_SELECTED. 원본 CSV Decimal 일치·390px 넘침0·저장/게시0. 제품 변경0·기록 미커밋, VoiceOver BLOCKED 유지.
+
+
+- 2026-10-16: [UI16 게시 실패·상태 조회 복구](studio-shadcn.md#studio-ui16-게시-실패상태-조회-복구--2026-10-16) PASS_SELECTED. 비공개32의 전송 전503→동일 requestId/body Enter 재시도→실제 v1 생성→owner GET 전송 전503→Enter GET만 복구. 실제 게시1회/복구 추가POST0·저장본 해시/634,513,000 보존·390px 넘침0/버튼36px 캡처. 제품 변경0·AI 호출0/gpt-6-luna·VoiceOver BLOCKED 유지. 이전 미커밋 수정/기록은 `2fb2edb4`로 develop-v2/drumcap push 완료. 실행기 저장 후 게시 실패·취소/재시작·운영/실기기는 별도 미완료.
