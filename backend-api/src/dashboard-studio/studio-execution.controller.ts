@@ -37,6 +37,17 @@ export class StudioExecutionController {
   creationProposal(@Param('id') id: string, @Req() req) {
     return this.executions.creationProposal(id, req.user?.accessKeyData?.id);
   }
+  @Post('runs/:id/creation/message')
+  creationMessage(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req,
+    @Res({ passthrough: true }) res,
+  ) {
+    return this.withSignal(req, res, signal =>
+      this.executions.creationMessage(id, body, req.user?.accessKeyData?.id, signal),
+    );
+  }
   @Post('runs/:id/creation/clarify')
   clarifyCreation(
     @Param('id') id: string,

@@ -66,7 +66,9 @@ operator --> UC032
 usecase "UC-033 대화 안 계산 기준 확인" as UC033
   usecase "UC-034\nRecover Missing Fields in Conversation" as UC034
 usecase "UC-035 대화 안 생성안 수정" as UC035
+usecase "UC-036 생성안 대화 입력 연결" as UC036
 operator --> UC033
 operator --> UC034
 operator --> UC035
+operator --> UC036
 @enduml

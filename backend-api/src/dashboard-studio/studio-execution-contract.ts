@@ -56,7 +56,7 @@ export type StudioExecutionState = {
   create?: boolean;
   creationResult?: { proposalId: string; sourceId: number; sourceRevision: string };
   /** Last completed answer receipt; no prompt, SQL or preview payload. */
-  creationClarification?: { requestId: string; payloadHash: string };
+  creationClarification?: { requestId: string; payloadHash: string; messageHash?: string };
   creationSaveResult?: { dashboardId: number; sourceId: number; revision: string };
   unsupported?: StudioStepId;
   proposal?: { intent: string; operations: StudioOperation[]; document: StudioDocumentV1 };

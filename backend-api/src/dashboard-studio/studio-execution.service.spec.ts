@@ -138,6 +138,103 @@ describe('T7 durable executions', () => {
     };
     return { runner, creation, run, answer, parent, next };
   };
+  it('UC036 routes a composer message to its creation preview and replays after losing the proposal cache', async () => {
+    const { runner, creation, run, parent, next } = await inlineCase();
+    Object.assign(parent, {
+      preview: { widgets: [] },
+      clarifications: [],
+      semanticProposal: [{ title: 'Revenue' }, { title: 'Refunds' }],
+    });
+    const message = {
+      requestId: 'message-1',
+      proposalId: parent.proposalId,
+      expectedSourceRevision: parent.sourceRevision,
+      prompt: '첫 번째 블록의 제목만 Revenue total로 바꿔 줘',
+    };
+    creation.propose.mockResolvedValueOnce({ ...next, parentProposalId: parent.proposalId });
+    const result = await runner.creationMessage(run.runId, message, 7);
+    expect(result.creationResult.proposalId).toBe(next.proposalId);
+    expect(creation.propose.mock.calls[1][0]).toMatchObject({
+      parentProposalId: parent.proposalId,
+      targetBlockIndex: 0,
+      prompt: message.prompt,
+    });
+    creation.proposal.mockRejectedValue(new BadRequestException('cache lost'));
+    expect((await runner.creationMessage(run.runId, message, 7)).creationResult).toEqual(
+      result.creationResult,
+    );
+    await expect(
+      runner.creationMessage(run.runId, { ...message, prompt: '2번 블록 변경' }, 7),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(creation.propose).toHaveBeenCalledTimes(2);
+    expect(creation.create).not.toHaveBeenCalled();
+    expect(studio.save).not.toHaveBeenCalled();
+  });
+  it('UC036 refuses a late refinement if its save committed before execution receipt recovery', async () => {
+    const { runner, creation, run, parent, next } = await inlineCase();
+    Object.assign(parent, {
+      preview: { widgets: [] },
+      clarifications: [],
+      semanticProposal: [{ title: 'A' }],
+    });
+    let finish: (value: any) => void;
+    creation.propose.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        }),
+    );
+    const message = {
+      requestId: 'message-late',
+      proposalId: parent.proposalId,
+      expectedSourceRevision: parent.sourceRevision,
+      prompt: '첫 번째 블록 제목 변경',
+    };
+    const pending = runner.creationMessage(run.runId, message, 7);
+    while (creation.propose.mock.calls.length < 2)
+      await new Promise(resolve => setImmediate(resolve));
+    await db.manager.save(StudioRun, {
+      actorId: 7,
+      requestId: 'execution-' + run.runId + '-create',
+      payloadHash: 'c'.repeat(64),
+      result: '{}',
+    });
+    finish({ ...next, parentProposalId: parent.proposalId });
+    await expect(pending).rejects.toBeInstanceOf(ConflictException);
+    const row = await db.manager.findOneBy(StudioExecution, { runId: run.runId });
+    expect(JSON.parse(row.state).creationResult.proposalId).toBe(parent.proposalId);
+  });
+  it('UC036 saves only a standalone positive message and never forwards failures to the original editor', async () => {
+    const { runner, creation, run, parent } = await inlineCase();
+    Object.assign(parent, {
+      preview: { widgets: [] },
+      clarifications: [],
+      semanticProposal: [{ title: 'A' }, { title: 'B' }],
+    });
+    const message = {
+      requestId: 'message-1',
+      proposalId: parent.proposalId,
+      expectedSourceRevision: parent.sourceRevision,
+      prompt: '저장하지마',
+    };
+    await expect(runner.creationMessage(run.runId, message, 7)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    await expect(
+      runner.creationMessage(run.runId, { ...message, prompt: '블록 수정' }, 7),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      runner.creationMessage(run.runId, { ...message, prompt: '이 생성안을 저장해 줘' }, 8),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    const saved = await runner.creationMessage(
+      run.runId,
+      { ...message, prompt: '이 생성안을 저장해 줘' },
+      7,
+    );
+    expect(saved.creationSaveResult.dashboardId).toBe(25);
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(creation.propose).toHaveBeenCalledTimes(1);
+  });
   it('UC035 refines a completed parent with its bound source and replays the latest result without saving', async () => {
     const { runner, creation, run, parent, next } = await inlineCase();
     Object.assign(parent, { preview: { widgets: [] }, clarifications: [] });
