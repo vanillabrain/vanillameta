@@ -336,3 +336,70 @@ it('clears report errors and ignores late report failures when leaving the proje
   expect(screen.queryByText('늦은 프로젝트 오류')).toBeNull();
   expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
 });
+
+it.each(['success', 'error'] as const)(
+  'keeps the newest filter result when an older request finishes with %s',
+  async outcome => {
+    mocks.params = { projectId: '7' };
+    mocks.get.mockImplementation(projectAndReport);
+    render(<Commerce />);
+    await screen.findByText('결제 성공액');
+    const pending: { resolve: (value: unknown) => void; reject: (error: unknown) => void }[] = [];
+    mocks.get.mockImplementation(() => new Promise((resolve, reject) => pending.push({ resolve, reject })));
+    fireEvent.change(screen.getByLabelText('시작일 UTC'), { target: { value: '2025-01-01' } });
+    fireEvent.change(screen.getByLabelText('종료일 UTC'), { target: { value: '2025-12-31' } });
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'direct' } });
+    fireEvent.click(screen.getByRole('button', { name: '적용' }));
+    fireEvent.change(screen.getByLabelText('시작일 UTC'), { target: { value: '2024-01-01' } });
+    fireEvent.change(screen.getByLabelText('종료일 UTC'), { target: { value: '2024-12-31' } });
+    fireEvent.click(screen.getByRole('button', { name: '적용' }));
+    expect(pending).toHaveLength(2);
+    expect(mocks.get).toHaveBeenLastCalledWith('/commerce/7/report', {
+      start: '2024-01-01',
+      end: '2024-12-31',
+      channel: 'direct',
+    });
+    await act(async () =>
+      pending[1].resolve({
+        data: {
+          data: {
+            ...reportPayload,
+            orders: [{ ...reportPayload.orders[0], orderId: 'LATEST-ORDER' }],
+            scope: { start: '2024-01-01', end: '2024-12-31', channel: 'direct', timezone: 'UTC' },
+          },
+        },
+      }),
+    );
+    await screen.findByText('LATEST-ORDER');
+    await act(async () => {
+      if (outcome === 'error') pending[0].reject({ response: { status: 503, data: { message: 'STALE-ERROR' } } });
+      else
+        pending[0].resolve({
+          data: { data: { ...reportPayload, orders: [{ ...reportPayload.orders[0], orderId: 'STALE-ORDER' }] } },
+        });
+    });
+    expect(screen.getByText('LATEST-ORDER')).toBeTruthy();
+    expect(screen.queryByText(/STALE-/)).toBeNull();
+    expect(screen.getByText(/표시 결과 범위: 2024-01-01 ~ 2024-12-31/)).toBeTruthy();
+    expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
+  },
+);
+
+it('keeps loading for the newest request when an older response arrives first', async () => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation(projectAndReport);
+  render(<Commerce />);
+  await screen.findByText('결제 성공액');
+  const pending: { resolve: (value: unknown) => void; reject: (error: unknown) => void }[] = [];
+  mocks.get.mockImplementation(() => new Promise((resolve, reject) => pending.push({ resolve, reject })));
+  fireEvent.click(screen.getByRole('button', { name: '적용' }));
+  fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'direct' } });
+  fireEvent.click(screen.getByRole('button', { name: '적용' }));
+  expect(pending).toHaveLength(2);
+  await act(async () => pending[0].resolve({ data: { data: reportPayload } }));
+  expect(screen.getByText('리포트를 불러오는 중…')).toBeTruthy();
+  await act(async () => pending[1].reject({ response: { status: 503, data: { message: 'LATEST-ERROR' } } }));
+  expect(await screen.findByText(/LATEST-ERROR/)).toBeTruthy();
+  expect(screen.getByText('o1')).toBeTruthy();
+  expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
+});

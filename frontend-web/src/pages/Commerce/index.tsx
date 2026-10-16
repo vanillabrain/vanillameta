@@ -380,7 +380,6 @@ function Commerce() {
   };
 
   const applyFilters = () => {
-    if (reportBusy) return;
     const startInput = dateInput('commerce-start-date');
     const endInput = dateInput('commerce-end-date');
     const incompleteStart = Boolean(startInput?.validity.badInput);
@@ -890,11 +889,7 @@ function Commerce() {
                     ))}
                   </TextField>
                   <div className="flex gap-2 sm:justify-end">
-                    <Button
-                      onClick={applyFilters}
-                      aria-disabled={reportBusy}
-                      className={cn(CONTROL_CLASS, reportBusy && 'opacity-50')}
-                    >
+                    <Button onClick={applyFilters} className={CONTROL_CLASS}>
                       적용
                     </Button>
                     <Button
