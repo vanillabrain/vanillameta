@@ -693,3 +693,6 @@ T16 후속 실제 run 링크 여정은 [CONV-REFINE-01~04](studio-proposal-refin
 
 
 - 2026-10-16: [UI17 대화 실행기 게시 장애·중지·재시작](studio-shadcn.md#studio-ui17-대화-실행기의-게시-장애중지재시작--2026-10-16) PASS_SELECTED. 실제 저장 뒤 게시 단계 예외→같은 run 게시만 재시도, 게시 대기 중 Enter 중지→저장 보존/공유 cancelled, 실제 Node TERM/같은 DB 재기동→publish interrupted→명시 게시만 재시도 완료. 세 run 각각 save journal1, 게시 journal1/0/1·정의 불변·634,513,000 유지.390px/1440px 캡처·넘침0, 제품 변경0·모델 호출0/gpt-6-luna·VoiceOver BLOCKED 유지. 로컬 게시본 비공개v4/정상 서버 복구. 기록 미커밋; commit 직후 장애·다중 탭 경쟁·운영/실기기는 별도 gate.
+
+
+- 2026-10-16: [UI18 실행기 게시 commit 이후 장애·응답 유실](studio-shadcn.md#studio-ui18-게시-commit-직후-장애응답-유실--2026-10-16) PASS_SELECTED. 실제 게시v5/journal commit 후 실행기 완료 전 Node TERM→정상 재시작→동일 run/버전 복원, 별도 실제 완료v6 응답1회 숨김→Enter GET만 복구. 두 run 각각 save/publication journal1·복구 추가POST0·정의/634,513,000 유지·390px 오류/복구 캡처/넘침0. 정상 서버·비공개v7 정리, 제품 수정/AI호출0·gpt-6-luna/VoiceOver BLOCKED 유지. UI17 기록은 `722b6fbc`로 develop-v2/drumcap push 완료; UI18 기록 미커밋. 다른 탭 경합·운영/실기기는 별도 gate.

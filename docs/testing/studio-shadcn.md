@@ -296,3 +296,34 @@ STUDIO-A03/P02의 실행기 경계만 선택한다. UI16 수동 게시 대화상
 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-execution-publication-recovery-20261016`의 `adapter-events.jsonl`, `01-failed.json`, `02-retry.json`, `03-cancel.json`, `04-before-restart.json`, `05-restarted.json`, `05-restarted-db.json`, `06-restart-retry.json`, `verification-db.json`, `layout.json`, `cleanup.json`. 대표 화면은 `01-failed-390.png`, `03-cancel-persisted-390.png`, `06-recovered-detail-390.png`, `07-records-1440.png`다. 영속 기록 숫자는 DB·실제 요청과 대조했다.
 
 이번 변경은 검증 문서만이며 미커밋이다. 남은 별도 gate는 게시 commit 직후 서버 종료/응답 유실의 실행기 연결, 다른 탭이 revision/게시 범위를 바꾸는 재시도 경쟁, 운영 MySQL·실휴대폰·VoiceOver 및 전체 제품 수용이다. 기존 하위/수동 게시 통과 결과를 이 전체 조합 PASS로 확대하지 않는다.
+
+## STUDIO-UI18 게시 commit 직후 장애·응답 유실 — 2026-10-16
+
+STUDIO-A03/P02의 commit 이후 실행기 경계만 선택한다. UI16/17의 commit 전 실패·취소·수동 게시 조건은 반복하지 않는다.
+
+| 조건 | 기대 결과 | 상태 |
+|---|---|---|
+| UI18-A | 게시 실제 commit/journal 생성 직후 실행기 완료 기록 전 Node 종료→같은 DB 정상 재시작→같은 run/게시 영수증 완료 복원·자동 추가 POST/버전 증가0 | PASS_SELECTED |
+| UI18-B | 별도 실행의 실제 저장·게시 완료 응답을 탭에서1회 유실→불명확 안내·읽기 상태 확인→동일 run/버전 복원·저장/게시 추가 POST0 | PASS_SELECTED |
+| UI18-C | 390px 장애/복구·Enter·정렬/넘침·수치/정의·journal 정확1개 검증 | PASS_SELECTED |
+
+
+### 실제 결과
+
+기준 develop-v2 `722b6fbc`. UI17 기록을 drumcap으로 커밋·push했다. push 직전 원격 `50df3af3`의 Studio 생성 복구/명시 저장 연속성 변경을 충돌 없이 rebase 통합했다. 최신 BE Nest build PASS. 제품 변경 없는 이번 검증에는 기존 관련 단위·FE 타입/빌드 근거를 재사용하고 통과 MD 전체를 반복하지 않았다.
+
+**UI18-A — 실제 commit 이후 서버 종료.** 기존 로컬 dashboard32/source9에서 Enter로 ‘저장하고 링크로 공유해줘’를 요청했다. 저장소 밖 Node preload가 해당 dashboard 및 publication-execution requestId에 한해 실제 StudioPublicationService.publish 반환 직후 대기했다. run `35c62159-f7fc-4eb7-8776-6ba55ec857df`의 save journal1·게시 journal1·게시v5/link를 읽기 전용 DB로 확인했고 실행기 상태는 running/publish running이었다. 이는 commit 전 UI17 대기와 다르다. 정확한 검증 PID40801을 TERM 종료해 실제 응답 연결을 끊었으며 브라우저는 연결 오류/저장 보존 안내를 표시했다.
+
+같은 DB/설정의 **주입기 없는 정상 서버**로 재시작했다. 시작 복원은 같은 run의 모든 단계 succeeded·동일 게시v5 영수증을 복원했다. 사용자의 상태 새로고침 Enter 및 기존 상태 조회는 GET /studio/runs뿐이었고 추가 POST0·게시 버전 증가0이었다. save/publication journal 각각1을 다시 대조했다. DB transaction 중 전원 손실·디스크 손상이나 프로세스 SIGKILL 전체 변형을 검증한 것은 아니다.
+
+**UI18-B — 완료 응답만 탭에서 유실.** 재시작 전 편집 기준으로 별도 실행을 준비한 첫 시도는 정상409로 차단됐다. 해당 이전 실패 기록을 새 완료 실행의 상태로 혼동하지 않았고 `preparation-stale-guard.json`에 남겼다. 최신 저장본 reload 후 별도 run `154ce6a6-49c8-44b8-b93a-3ccc718161bb`을 실행했다. 서버는 실제 저장·게시v6·전체 succeeded를 완료했고, 해당 탭 Axios response interceptor가 이 실행의 완료 응답만1회503 형태로 거절했다. 실제 서버503·HTTP 패킷 유실로 확대하지 않는다. 오류 본문 `verification completed response hidden`은 주입한 테스트 메시지이며 제품의 최종 안내 문구 품질을 증명하지 않는다.
+
+응답 유실 직후에는 이전 요청5의 실패 기록과 오류가 남았고 새 실행6의 완료가 자동 적용됐다고 보고하지 않았다. ‘상태 새로고침’ focus→Enter로 GET1회 후 실제 새 run/게시v6/모든 완료 단계가 표시됐다. 관측 요청은 최초 POST /studio/executions1회 + 복구 GET /studio/runs1회뿐이다. 추가 전송/저장/게시 POST0·같은 run의 save/publication journal 각각1·v6 불변을 확인했다. 알려진 완료 상태를 다시 쓰는 재시도를 실행하지 않았다.
+
+**UI18-C — 화면·지속 상태.** 실제390×844의 서버 종료 오류·v5 복원·완료 응답 유실 오류·v6 복원 화면을 캡처/직접 확인했다. 상태/단계 행 정렬·카드/본문 줄바꿈·링크 버튼·composer 하단 유지·가로 넘침0을 확인했다. 상태 새로고침/게시 링크 높이36px·composer x1/너비389/y641/높이203이다. 내부 스크롤의 카드 상단 일부가 viewport 밖인 화면은 스크롤 상태이며 문서 전체 캡처로 오인하지 않는다. 기능 및 선택 모바일 디자인 PASS_SELECTED, 전체 Tab·실기기·스크린리더·모든 네트워크 오류 문구는 별도다.
+
+두 성공 실행의 저장 문서는 revision 제외 deep equal이고 snapshot634,513,000·dashboard31/metric38을 유지했다. 코드 오류를 확정하지 않아 제품 수정0·모델 호출0이며 gpt-6-luna 설정/VoiceOver BLOCKED 유지. 검증 뒤 같은 로컬 게시본은 비공개v7/복제 비허용으로 복구했다(정리용 재게시). 정상 서버/DB 유지·탭 reload로 interceptor 제거·viewport 해제·Ego TaskSpace3 종료 확인. 문서 diff check PASS.
+
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-postcommit-recovery-20261016`의 `before.json`, `postcommit-events.jsonl`, `01-committed-before-stop.json`, `02-stopped-ui.json`, `03-restarted.json`/`03-restarted-db.json`, `preparation-stale-guard.json`, `04-response-lost.json`, `05-response-recovered.json`, `verification-db.json`, `layout.json`, `cleanup.json`. 대표 캡처 `02-stopped-390.png`, `03-restarted-390.png`, `04-response-lost-390.png`, `05-response-recovered-390.png`.
+
+후속 우선 gate는 다른 탭의 revision/게시 범위 변경과 재시도 경합이다. 운영 MySQL·다중 서버/디스크 장애·실휴대폰·VoiceOver·전체 제품 수용은 여전히 미완료다. 이번 기록은 미커밋이며 앞선 UI17까지의 push와 구분한다.
