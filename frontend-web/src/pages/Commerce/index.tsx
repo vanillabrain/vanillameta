@@ -22,13 +22,9 @@ import ImportHelp, { parseImportDiagnostic } from './ImportHelp';
 /** Keep scope action labels on one line; default buttons align with the 36px inputs. */
 const CONTROL_CLASS = 'whitespace-nowrap';
 const CARD_CLASS = 'min-w-0 border border-border ring-0';
-const CURRENCY = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
-const AXIS_CURRENCY = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  notation: 'compact',
-  maximumFractionDigits: 1,
-});
+// The named keyboard region owns scrolling, rather than the Table's nested wrapper.
+const TABLE_SCROLL_CLASS =
+  'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&>[data-slot=table-container]]:overflow-visible';
 // Fixed, non-customer guidance. Required header names mirror the server bundle contract in
 // backend-api/src/analysis/commerce-import.ts; the date columns accept ISO 8601 UTC values.
 const requiredFileHeaders: Record<string, string[]> = {
@@ -52,10 +48,6 @@ const numberValue = (value: unknown) => {
   if (value === null || value === undefined || value === '') return null;
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : null;
-};
-const formatMoney = (value: unknown) => {
-  const parsed = numberValue(value);
-  return parsed === null ? '—' : CURRENCY.format(parsed);
 };
 const unwrap = response => response?.data?.data ?? response?.data;
 const errorText = error => {
@@ -105,6 +97,18 @@ const validReport = (value: any): value is CommerceReport => {
       Array.isArray(value.availableChannels) &&
       value.availableChannels.every(item => typeof item === 'string'),
   );
+};
+
+const STUDIO_ERROR_MESSAGE = 'Studio 소스를 만들지 못했습니다. 이 보고서를 그대로 두었으니 잠시 후 다시 시도해 주세요.';
+
+// The bridge may hand back the raw body or the unwrapped payload; accept a positive integer sourceId from either.
+const studioSourceId = (value: unknown) => {
+  const unwrapped = unwrap(value);
+  const candidate = unwrapped && typeof unwrapped === 'object' ? unwrapped : (value as object | null);
+  const raw = (candidate as { sourceId?: unknown } | null)?.sourceId;
+  const id = typeof raw === 'number' ? raw : NaN;
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
+  return id;
 };
 
 // Preview only the first few CSV records for user feedback; the browser never parses or aggregates the dataset.
@@ -184,10 +188,14 @@ function Commerce() {
   const [aiModel, setAiModel] = useState('');
   const [draft, setDraft] = useState<CommercePresentation | null>(null);
   const [presentation, setPresentation] = useState<CommercePresentation>({});
+  const [studioBusy, setStudioBusy] = useState(false);
+  const [studioError, setStudioError] = useState('');
   const [showAllOrders, setShowAllOrders] = useState(false);
   const reportRequest = useRef(0);
   const projectRequest = useRef(0);
   const uploadRequest = useRef(0);
+  const studioRequest = useRef(0);
+  const studioProject = useRef(routeProjectId ?? '');
   const pendingReselect = useRef(false);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -195,6 +203,11 @@ function Commerce() {
   const abandonUpload = useCallback(() => {
     uploadRequest.current += 1;
     setUploadBusy(false);
+  }, []);
+  // Abandon an in-flight Studio bridge request so a late response cannot navigate for a stale report.
+  const abandonStudioRequest = useCallback(() => {
+    studioRequest.current += 1;
+    setStudioBusy(false);
   }, []);
 
   const loadProjects = useCallback(async () => {
@@ -230,9 +243,18 @@ function Commerce() {
     setImportOpen(!routeProjectId);
     abandonUpload();
   }, [routeProjectId, abandonUpload]);
+  // Drop a pending Studio bridge request when the project changes: the response belonged to the old report.
+  useEffect(() => {
+    const nextProject = routeProjectId ?? '';
+    if (studioProject.current === nextProject) return;
+    studioProject.current = nextProject;
+    setStudioError('');
+    abandonStudioRequest();
+  }, [routeProjectId, abandonStudioRequest]);
   useEffect(
     () => () => {
       uploadRequest.current += 1;
+      studioRequest.current += 1;
     },
     [],
   );
@@ -363,12 +385,18 @@ function Commerce() {
     } catch (error) {
       if (requestId !== uploadRequest.current) return;
       const diagnostic = parseImportDiagnostic(error);
-      const detail =
-        diagnostic?.errorCode === 'IMPORT_INVALID_DATE'
-          ? `날짜 값 형식을 확인해 주세요. 권장 예시: ${DATE_COLUMN_EXAMPLE} (UTC).`
-          : diagnostic?.errorCode === 'IMPORT_MISSING_COLUMNS'
-          ? '주문·결제·환불 파일에 필수 열이 있는지 확인해 주세요.'
-          : '파일 형식과 필수 열·날짜 값을 확인해 주세요.';
+      // Recognize only fixed server codes; never display raw row values or internal error details.
+      const validation = error?.response?.data?.data?.validation ?? error?.response?.data?.validation;
+      const codes = Array.isArray(validation?.errors) ? validation.errors.map(item => item?.code) : [];
+      const detail = codes.includes('mixed_currency')
+        ? '한 파일 묶음에는 USD 또는 KRW 한 통화만 사용할 수 있습니다. 통화별로 파일을 나눠 주세요.'
+        : codes.includes('fractional_krw')
+        ? 'KRW 금액은 소수 없이 원 단위여야 합니다. 주문·결제·환불 금액을 확인해 주세요.'
+        : diagnostic?.errorCode === 'IMPORT_INVALID_DATE'
+        ? `날짜 값 형식을 확인해 주세요. 권장 예시: ${DATE_COLUMN_EXAMPLE} (UTC).`
+        : diagnostic?.errorCode === 'IMPORT_MISSING_COLUMNS'
+        ? '주문·결제·환불 파일에 필수 열이 있는지 확인해 주세요.'
+        : '파일 형식과 필수 열·날짜 값을 확인해 주세요.';
       const message = `CSV 가져오기에 실패했습니다. ${detail}${
         report ? ` 이전 리포트(${reportScope})는 유지했습니다.` : ''
       }`;
@@ -444,10 +472,23 @@ function Commerce() {
     pendingReselect.current = false;
     fileInputRefs.current.orders?.click();
   }, [importOpen, reselectTick]);
+  const currency = report?.scope?.currency === 'KRW' ? 'KRW' : 'USD';
+  const currencyFormatter = useMemo(
+    () => new Intl.NumberFormat('ko-KR', { style: 'currency', currency, maximumFractionDigits: currency === 'KRW' ? 0 : 2 }),
+    [currency],
+  );
+  const axisCurrencyFormatter = useMemo(
+    () => new Intl.NumberFormat('en-US', { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }),
+    [currency],
+  );
+  const formatMoney = (value: unknown) => {
+    const parsed = numberValue(value);
+    return parsed === null ? '—' : currencyFormatter.format(parsed);
+  };
   const dailyOption = useMemo(
     () => ({
       color: [chartColors.primary, chartColors.refund, chartColors.comparison],
-      tooltip: { trigger: 'axis', valueFormatter: value => CURRENCY.format(Number(value)) },
+      tooltip: { trigger: 'axis', valueFormatter: value => currencyFormatter.format(Number(value)) },
       legend: { data: ['결제액', '환불액', '차감 수취액'], bottom: 0 },
       grid: { left: 12, right: 16, top: 24, bottom: 48, containLabel: true },
       xAxis: {
@@ -459,7 +500,7 @@ function Commerce() {
           formatter: value => (report?.daily.length > 90 ? value.slice(0, 7) : value.slice(5)),
         },
       },
-      yAxis: { type: 'value', axisLabel: { formatter: value => AXIS_CURRENCY.format(Number(value)) } },
+      yAxis: { type: 'value', axisLabel: { formatter: value => axisCurrencyFormatter.format(Number(value)) } },
       series: [
         {
           name: '결제액',
@@ -482,7 +523,7 @@ function Commerce() {
         },
       ],
     }),
-    [report],
+    [report, currencyFormatter, axisCurrencyFormatter],
   );
   const channelsOption = useMemo(() => {
     const rows = [...(report?.channels ?? [])].sort(
@@ -490,12 +531,16 @@ function Commerce() {
     );
     return {
       color: [chartColors.primary],
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, valueFormatter: value => CURRENCY.format(Number(value)) },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        valueFormatter: value => currencyFormatter.format(Number(value)),
+      },
       grid: { left: 12, right: 20, top: 16, bottom: 12, containLabel: true },
       xAxis: {
         type: 'value',
         splitNumber: 3,
-        axisLabel: { hideOverlap: true, formatter: value => AXIS_CURRENCY.format(Number(value)) },
+        axisLabel: { hideOverlap: true, formatter: value => axisCurrencyFormatter.format(Number(value)) },
       },
       yAxis: { type: 'category', data: rows.map(row => row.channel), axisLabel: { width: 84, overflow: 'break' } },
       series: [
@@ -508,7 +553,7 @@ function Commerce() {
         },
       ],
     };
-  }, [report]);
+  }, [report, currencyFormatter, axisCurrencyFormatter]);
 
   const openAi = () => {
     setAiError('');
@@ -569,6 +614,33 @@ function Commerce() {
   };
 
   const heading = report?.project?.name || selectedProject?.name || '매출·환불 분석';
+  const createStudioSource = async () => {
+    if (!selectedId || !report || studioBusy) return;
+    studioRequest.current += 1;
+    const requestId = studioRequest.current;
+    const projectId = selectedId;
+    setStudioBusy(true);
+    setStudioError('');
+    try {
+      const response = await post(`/commerce/${encodeURIComponent(projectId)}/studio-source`, undefined, {
+        timeout: 120000,
+      });
+      if (requestId !== studioRequest.current) return;
+      const status = Number(response?.status ?? 0);
+      // A 2xx Nest response can still be a fixed app error; only a positive sourceId opens Studio.
+      const sourceId = studioSourceId(response);
+      if (status < 200 || status >= 300 || response?.data?.status !== 'SUCCESS' || sourceId === null) {
+        setStudioError(STUDIO_ERROR_MESSAGE);
+        return;
+      }
+      navigate(`/studio/new?sourceId=${sourceId}`);
+    } catch {
+      if (requestId !== studioRequest.current) return;
+      setStudioError(STUDIO_ERROR_MESSAGE);
+    } finally {
+      if (requestId === studioRequest.current) setStudioBusy(false);
+    }
+  };
   const latestOrders = showAllOrders ? report?.orders ?? [] : (report?.orders ?? []).slice(0, 12);
   const fileLabel: Record<string, string> = {
     orders: '주문 CSV',
@@ -606,12 +678,27 @@ function Commerce() {
             </TextField>
             <div className="flex flex-wrap gap-2">
               {report && (
-                <Button variant="outline" onClick={openAi} className="whitespace-nowrap">
+                <Button variant="outline" onClick={openAi} className="whitespace-nowrap" aria-label="AI로 설명·제목 편집">
                   <Sparkles aria-hidden="true" className="size-4" />
                   AI로 설명·제목 편집
                 </Button>
               )}
-              <Button onClick={() => setAnalysisAiOpen(true)} className="whitespace-nowrap">
+              {report && (
+                <Button
+                  onClick={createStudioSource}
+                  disabled={studioBusy}
+                  className="whitespace-nowrap"
+                  aria-busy={studioBusy}
+                >
+                  {studioBusy ? (
+                    <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles aria-hidden="true" className="size-4" />
+                  )}
+                  {studioBusy ? 'Studio 소스 만드는 중…' : '이 데이터로 Studio 만들기'}
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setAnalysisAiOpen(true)} className="whitespace-nowrap">
                 <Sparkles aria-hidden="true" className="size-4" />
                 AI 분석 만들기
               </Button>
@@ -621,6 +708,18 @@ function Commerce() {
         <p className="text-xs text-muted-foreground">
           이 보고서는 설명·제목을 편집합니다. AI 분석 만들기에서는 파일 분석 소스를 선택하고 질문으로 지표·차트를 구성합니다.
         </p>
+        {report && (
+          <p className="text-xs text-muted-foreground">
+            이 데이터로 Studio 만들기: 현재 버전의 전체 주문·주문일 기준 코호트(UTC)만 비공개 소스로 옮깁니다. 리포트의
+            날짜·채널 필터는 전달되지 않으며, AI 요청과 저장은 Studio에서 직접 해야 합니다.
+          </p>
+        )}
+        {studioError && (
+          <Notice severity="error" className="wrap-anywhere">
+            <span className="break-words">{studioError}</span>
+            <p className="mt-1 text-sm">같은 버튼을 다시 눌러 같은 보고서로 재시도할 수 있습니다.</p>
+          </Notice>
+        )}
 
         {searchParams.get('sample') === '1' && (
           <Notice severity="info">
@@ -654,6 +753,7 @@ function Commerce() {
           <Notice severity="error" className="wrap-anywhere">
             <span className="break-words">{pageError}</span>
             <p className="mt-1 text-sm">
+              통화는 파일 묶음마다 USD 또는 KRW 하나만 지원하며 KRW는 원 단위 정수입니다. 환율 변환은 제공하지 않습니다.
               프로젝트 접근 권한, 필수 CSV와 날짜·금액 형식을 확인해 주세요. 실패한 가져오기는 마지막 정상 보고서를 교체하지
               않습니다.
             </p>
@@ -799,6 +899,9 @@ function Commerce() {
                     );
                   })}
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  파일 묶음마다 USD 또는 KRW 한 통화를 사용해 주세요. KRW는 원 단위 정수이며 환율 변환은 제공하지 않습니다.
+                </p>
                 <Button onClick={upload} disabled={uploadBusy} className="self-start">
                   {uploadBusy ? (
                     <>
@@ -912,7 +1015,7 @@ function Commerce() {
             <Notice severity="info">
               <p className="text-sm">
                 <b>매출 정의:</b> 결제 성공 이벤트 금액 · <b>환불:</b> 환불 이벤트가 처리된 날의 금액 · <b>차감 수취액:</b>{' '}
-                결제액 − 환불액(USD, 세금·배송 포함)입니다.
+                결제액 − 환불액({currency}, 세금·배송 포함)입니다.
               </p>
               <p className="mt-1 text-sm">
                 주문 수·환불 주문 비율은 주문일 기준 코호트의 확보한 데이터 전체 기간 내 환불 이력이며, 환불액의 추이와 날짜
@@ -923,9 +1026,9 @@ function Commerce() {
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {[
-                ['결제 성공액', formatMoney(report.summary.paymentTotal), '결제 이벤트 기준 · USD'],
-                ['환불액', formatMoney(report.summary.refundTotal), '환불 이벤트 기준 · USD'],
-                ['차감 수취액', formatMoney(report.summary.netCollected), '상품 순매출 아님 · USD'],
+                ['결제 성공액', formatMoney(report.summary.paymentTotal), `결제 이벤트 기준 · ${currency}`],
+                ['환불액', formatMoney(report.summary.refundTotal), `환불 이벤트 기준 · ${currency}`],
+                ['차감 수취액', formatMoney(report.summary.netCollected), `상품 순매출 아님 · ${currency}`],
                 [
                   '결제 주문',
                   numberValue(report.summary.paidOrders) === null ? '—' : Number(report.summary.paidOrders).toLocaleString(),
@@ -966,7 +1069,7 @@ function Commerce() {
               <Card className={CARD_CLASS}>
                 <CardHeader>
                   <CardTitle>{presentation.chartTitle || '매출·환불 추이'}</CardTitle>
-                  <CardDescription>결제 및 환불 이벤트 날짜별 금액 · USD</CardDescription>
+                  <CardDescription>결제 및 환불 이벤트 날짜별 금액 · {currency}</CardDescription>
                 </CardHeader>
                 <CardContent className="min-w-0">
                   {report.daily.length ? (
@@ -987,9 +1090,9 @@ function Commerce() {
                         role="region"
                         aria-label="일별 매출·환불 수치 표 스크롤"
                         tabIndex={0}
-                        className="mt-2 max-h-[320px] overflow-auto"
+                        className={cn('mt-2 max-h-[320px] overflow-auto', TABLE_SCROLL_CLASS)}
                       >
-                        <Table aria-label="일별 매출·환불 수치 (USD)" className="min-w-[500px]">
+                        <Table aria-label={`일별 매출·환불 수치 (${currency})`} className="min-w-[500px]">
                           <TableHeader>
                             <TableRow>
                               {['날짜 (UTC)', '결제액', '환불액', '차감 수취액'].map((label, index) => (
@@ -1037,7 +1140,7 @@ function Commerce() {
               <Card className={CARD_CLASS}>
                 <CardHeader>
                   <CardTitle>채널별 차감 수취액</CardTitle>
-                  <CardDescription>내림차순 · USD</CardDescription>
+                  <CardDescription>내림차순 · {currency}</CardDescription>
                 </CardHeader>
                 <CardContent className="min-w-0">
                   {report.channels.length ? (
@@ -1057,8 +1160,13 @@ function Commerce() {
                   )}
                   <details className="mt-2">
                     <summary className="cursor-pointer text-sm text-primary">채널별 정확한 수치 표 보기</summary>
-                    <div role="region" aria-label="채널별 수치 표 스크롤" tabIndex={0} className="mt-2 overflow-x-auto">
-                      <Table aria-label="채널별 매출·환불 수치 (USD)">
+                    <div
+                      role="region"
+                      aria-label="채널별 수치 표 스크롤"
+                      tabIndex={0}
+                      className={cn('mt-2 overflow-x-auto', TABLE_SCROLL_CLASS)}
+                    >
+                      <Table aria-label={`채널별 매출·환불 수치 (${currency})`}>
                         <TableHeader>
                           <TableRow>
                             {['채널', '결제액', '환불액', '차감 수취액'].map((label, index) => (
@@ -1142,8 +1250,17 @@ function Commerce() {
                     )}
                   </div>
                   {report.orders.length ? (
-                    <div role="region" aria-label="최근 주문 표 스크롤" tabIndex={0} className="max-w-full overflow-x-auto">
-                      <Table id="commerce-orders-table" aria-label="최근 주문 (금액 USD)" className="min-w-[680px]">
+                    <div
+                      role="region"
+                      aria-label="최근 주문 표 스크롤"
+                      tabIndex={0}
+                      className={cn('max-w-full overflow-x-auto', TABLE_SCROLL_CLASS)}
+                    >
+                      <Table
+                        id="commerce-orders-table"
+                        aria-label={`최근 주문 (금액 ${currency})`}
+                        className="min-w-[680px]"
+                      >
                         <TableHeader>
                           <TableRow>
                             {['주문 ID', '주문일', '채널', '상태', '결제액', '환불액', '차감 수취액'].map((label, index) => (

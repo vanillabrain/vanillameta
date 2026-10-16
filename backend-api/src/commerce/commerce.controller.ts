@@ -20,12 +20,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CommerceStudioService } from './commerce-studio.service';
 import { CommerceService } from './commerce.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('commerce')
 export class CommerceController {
-  constructor(private readonly commerce: CommerceService) {}
+  constructor(
+    private readonly commerce: CommerceService,
+    private readonly studio: CommerceStudioService,
+  ) {}
 
   private actor(req: any): number {
     const id = Number(req?.user?.accessKeyData?.id);
@@ -77,6 +81,11 @@ export class CommerceController {
   @Post('sources')
   createSource(@Body() body: { name: string }, @Req() req: any) {
     return this.commerce.createSource(this.actor(req), body?.name);
+  }
+
+  @Post(':id/studio-source')
+  studioSource(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.studio.connect(this.actor(req), id);
   }
 
   @Get('sources')

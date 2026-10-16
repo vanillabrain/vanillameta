@@ -403,3 +403,186 @@ it('keeps loading for the newest request when an older response arrives first', 
   expect(screen.getByText('o1')).toBeTruthy();
   expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
 });
+
+it('uses KRW for KPI, table names and unit descriptions without dollar labels', async () => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation((url: string) =>
+    url === '/commerce/7/report'
+      ? Promise.resolve({
+          data: {
+            data: {
+              ...reportPayload,
+              scope: { currency: 'KRW' },
+              summary: {
+                ...reportPayload.summary,
+                paymentTotal: '12000.00',
+                refundTotal: '2000.00',
+                netCollected: '10000.00',
+              },
+            },
+          },
+        })
+      : projectAndReport(url),
+  );
+  render(<Commerce />);
+  await screen.findByText('₩12,000');
+  expect(screen.getByText('₩2,000')).toBeTruthy();
+  expect(screen.getByText('₩10,000')).toBeTruthy();
+  expect(screen.getByText('결제 이벤트 기준 · KRW')).toBeTruthy();
+  expect(screen.queryByText('결제 이벤트 기준 · USD')).toBeNull();
+});
+
+it.each([
+  ['mixed_currency', '통화별로 파일을 나눠 주세요.'],
+  ['fractional_krw', 'KRW 금액은 소수 없이 원 단위여야 합니다.'],
+])('shows safe currency guidance for %s without exposing row details', async (code, message) => {
+  mocks.postForm.mockRejectedValueOnce({
+    response: { data: { data: { validation: { errors: [{ code, rowId: 'private-row', detail: 'private-detail' }] } } } },
+  });
+  render(<Commerce />);
+  await importBundle();
+  expect(screen.getByText(new RegExp(message))).toBeTruthy();
+  expect(screen.queryByText(/private-row|private-detail/)).toBeNull();
+});
+
+const studioButton = () => screen.findByRole('button', { name: /이 데이터로 Studio 만들기/ });
+// Mirrors the real axios shape for POST /commerce/:id/studio-source: a Nest envelope inside the response body.
+const studioSourceOk = (sourceId: number, status = 200) => ({
+  status,
+  data: {
+    status: 'SUCCESS',
+    data: { sourceId, commerceProjectId: 7, version: 3, currency: 'KRW', timeBasis: 'order-cohort' },
+  },
+});
+
+it('creates a private Studio source from the ready report and navigates with the returned sourceId', async () => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation(projectAndReport);
+  mocks.post.mockResolvedValueOnce(studioSourceOk(42));
+  render(<Commerce />);
+  await studioButton();
+  expect(screen.getByText(/전체 주문·주문일 기준 코호트\(UTC\)만 비공개 소스로 옮깁니다/)).toBeTruthy();
+  expect(screen.getByText(/날짜·채널 필터는 전달되지 않으며, AI 요청과 저장은 Studio에서 직접 해야 합니다/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /이 데이터로 Studio 만들기/ }));
+  await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/studio/new?sourceId=42'));
+  expect(mocks.post).toHaveBeenCalledTimes(1);
+  expect(mocks.post).toHaveBeenCalledWith('/commerce/7/studio-source', undefined, { timeout: 120000 });
+  expect(screen.queryByText(/Studio 소스를 만들지 못했습니다/)).toBeNull();
+});
+
+it('sends a single Studio source request when the action is clicked again while busy', async () => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation(projectAndReport);
+  let resolveSource: (value: unknown) => void = () => undefined;
+  mocks.post.mockImplementationOnce(() => new Promise(resolve => (resolveSource = resolve)));
+  render(<Commerce />);
+  await studioButton();
+  const button = screen.getByRole('button', { name: /이 데이터로 Studio 만들기/ });
+  fireEvent.click(button);
+  fireEvent.click(button);
+  expect(await screen.findByText('Studio 소스 만드는 중…')).toBeTruthy();
+  expect(mocks.post).toHaveBeenCalledTimes(1);
+  await act(async () => resolveSource(studioSourceOk(42)));
+  await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/studio/new?sourceId=42'));
+  expect(mocks.post).toHaveBeenCalledTimes(1);
+});
+
+it('shows a fixed retry error and never navigates on a failed Studio source request', async () => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation(projectAndReport);
+  mocks.post.mockRejectedValueOnce({
+    response: { status: 500, data: { message: 'internal detail 42', data: { diagnostics: 'private-detail' } } },
+  });
+  render(<Commerce />);
+  await studioButton();
+  fireEvent.click(screen.getByRole('button', { name: /이 데이터로 Studio 만들기/ }));
+  expect(await screen.findByText(/Studio 소스를 만들지 못했습니다/)).toBeTruthy();
+  expect(screen.getByText(/같은 버튼을 다시 눌러 같은 보고서로 재시도할 수 있습니다/)).toBeTruthy();
+  expect(screen.queryByText(/internal detail|private-detail/)).toBeNull();
+  expect(mocks.navigate).not.toHaveBeenCalled();
+  expect(mocks.post).toHaveBeenCalledTimes(1);
+  const button = await studioButton();
+  expect(button.hasAttribute('disabled')).toBe(false);
+  mocks.post.mockResolvedValueOnce(studioSourceOk(43, 201));
+  fireEvent.click(button);
+  await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/studio/new?sourceId=43'));
+  expect(mocks.post).toHaveBeenCalledTimes(2);
+});
+
+it('ignores a late Studio source response and never navigates for a nonpositive sourceId', async () => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation(projectAndReport);
+  let resolveSource: (value: unknown) => void = () => undefined;
+  mocks.post.mockImplementationOnce(() => new Promise(resolve => (resolveSource = resolve)));
+  const view = render(<Commerce />);
+  await studioButton();
+  fireEvent.click(screen.getByRole('button', { name: /이 데이터로 Studio 만들기/ }));
+  mocks.params = { projectId: '8' };
+  mocks.get.mockImplementation(url =>
+    url === '/commerce/8/report'
+      ? Promise.resolve({ data: { status: 'SUCCESS', data: reportPayload } })
+      : Promise.resolve({ data: { status: 'SUCCESS', data: [] } }),
+  );
+  view.rerender(<Commerce />);
+  await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('/commerce/8/report', {}));
+  const lateNavigateCount = mocks.navigate.mock.calls.length;
+  await act(async () => resolveSource(studioSourceOk(44)));
+  await waitFor(() => expect(screen.queryByText('Studio 소스 만드는 중…')).toBeNull());
+  expect(mocks.navigate.mock.calls.length).toBe(lateNavigateCount);
+  expect(mocks.navigate).not.toHaveBeenCalledWith('/studio/new?sourceId=44');
+
+  mocks.post.mockResolvedValueOnce(studioSourceOk(0));
+  fireEvent.click(await studioButton());
+  expect(await screen.findByText(/Studio 소스를 만들지 못했습니다/)).toBeTruthy();
+  expect(mocks.navigate).not.toHaveBeenCalledWith(expect.stringContaining('sourceId=0'));
+});
+
+it('drops a pending Studio source request when the view unmounts', async () => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation(projectAndReport);
+  let resolveSource: (value: unknown) => void = () => undefined;
+  mocks.post.mockImplementationOnce(() => new Promise(resolve => (resolveSource = resolve)));
+  const view = render(<Commerce />);
+  await studioButton();
+  fireEvent.click(screen.getByRole('button', { name: /이 데이터로 Studio 만들기/ }));
+  view.unmount();
+  await act(async () => resolveSource(studioSourceOk(45)));
+  expect(mocks.navigate).not.toHaveBeenCalled();
+});
+
+it('navigates for the real raw response body and shows a fixed error for a mismatched status', async () => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation(projectAndReport);
+  // Exact backend body plus HTTP status, matching the live POST /commerce/:id/studio-source response.
+  mocks.post.mockResolvedValueOnce({
+    status: 201,
+    data: {
+      status: 'SUCCESS',
+      data: { sourceId: 4, commerceProjectId: 1, version: 1, currency: 'KRW', timeBasis: 'order-cohort' },
+    },
+  });
+  render(<Commerce />);
+  await studioButton();
+  fireEvent.click(screen.getByRole('button', { name: /이 데이터로 Studio 만들기/ }));
+  await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/studio/new?sourceId=4'));
+
+  // A 2xx response that carries no usable sourceId must not navigate.
+  mocks.get.mockImplementation(projectAndReport);
+  mocks.post.mockResolvedValueOnce({ status: 200, data: { status: 'SUCCESS', data: { sourceId: 0 } } });
+  fireEvent.click(await studioButton());
+  expect(await screen.findByText(/Studio 소스를 만들지 못했습니다/)).toBeTruthy();
+  expect(mocks.navigate).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  { status: 201, data: { status: 'ERROR', data: { sourceId: 42 } } },
+  { status: 201, data: { status: 'SUCCESS', data: { sourceId: true } } },
+])('never opens Studio for an app error or a nonnumeric source ID %#', async response => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation(projectAndReport);
+  mocks.post.mockResolvedValueOnce(response);
+  render(<Commerce />);
+  fireEvent.click(await studioButton());
+  await screen.findByText(/Studio 소스를 만들지 못했습니다/);
+  expect(mocks.navigate).not.toHaveBeenCalled();
+});

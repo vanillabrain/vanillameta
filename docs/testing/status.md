@@ -9,6 +9,9 @@
 | Studio 진입·목록에서 다시 열기 | PASS_SELECTED | [UC040](studio-entry.md), [UC041](studio-list-reentry.md): 원격 후속 구현/실제 화면 증빙 보존 병합 |
 | 늦은200/503 응답·화면 이탈/다른 정상 ID 전환 | PASS_SELECTED | [Ego9/10](studio-late-read.md): 문서·숫자 보존/배치 완료390·1440 넘침0. 초안·인증·취소 복합 경합은 미검증 |
 | 로컬 MySQL 마이그레이션·동시 저장/게시·백업/복구 | PASS_SELECTED | [MYSQL02](studio-mysql-production.md)~[MYSQL06](studio-backup-key-recovery.md). 과거 MySQL 런타임 BLOCKED 해소, 실제 운영 전체 검증으로 확대하지 않음 |
+| Commerce 단일 KRW 수집·보고서 | PASS_SELECTED | [KRW-01~04](commerce-krw.md): 합성 원화 수치·실제 오류/보존·3폭/선택 키보드 확인. 고객/Studio 전체 통화 지원과 구분 |
+| Studio 명시 원화 생성·수정·저장 | PASS_SELECTED | [KRW-05~09](studio-krw.md): 실제 gpt-6-luna/원화 정답·저장/reload, 새 태블릿 기본 배치 공백 수정. 자동 통화 추론·고객 수용은 별도 |
+| Commerce→Studio 자동 비공개 소스 연결 | PASS_SELECTED | [BRIDGE-01~06](commerce-studio-bridge.md): 실제 gpt-6-luna 생성/저장·3폭/선택 키보드, 재시작 후 source 재사용. 운영 경합/대용량 저장 비용은 별도 |
 | 실제 고객 매출·환불/담당자 수용 | NOT_RUN | [첫 파일럿 입력·인수 조건](customer-pilot.md). 비식별 파일/독립 정답/담당자 입력 필요 |
 | 실휴대폰·전체 키보드/스크린리더 | PARTIAL / VoiceOver BLOCKED | 에뮬레이션·선택 키보드 결과 재사용, 실제 기기/전체 접근성 미검증 |
 | 운영 장시간 부하·오프사이트/독립 키 복구·RPO/RTO | NOT_RUN | [운영 절차](../strategy/backup-retention-recovery.md)는 도입안. 외부 보관/자동화 미설정 |

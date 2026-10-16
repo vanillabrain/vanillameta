@@ -93,6 +93,57 @@ describe('CommerceService report contract', () => {
     expect(dayTwo.reasons).toEqual([{ reason: 'damaged', refundTotal: '25.10', refunds: 1 }]);
   });
 
+  it('derives KRW from the published bundle for report and AI aggregate units', async () => {
+    const files = {
+      orders: path.join(root, 'krw-orders.csv'),
+      payments: path.join(root, 'krw-payments.csv'),
+      refunds: path.join(root, 'krw-refunds.csv'),
+    };
+    fs.writeFileSync(
+      files.orders,
+      'order_id,customer_id,ordered_at,order_status,currency,subtotal,tax_amount,shipping_amount,order_total\nK1,C1,2025-01-01T00:00:00Z,completed,KRW,10000,1000,1000,12000\n',
+    );
+    fs.writeFileSync(
+      files.payments,
+      'payment_id,order_id,paid_at,payment_status,amount\nP1,K1,2025-01-01T01:00:00Z,succeeded,12000\n',
+    );
+    fs.writeFileSync(
+      files.refunds,
+      'refund_id,payment_id,order_id,refunded_at,refund_reason,amount\nR1,P1,K1,2025-01-02T00:00:00Z,return,2000\n',
+    );
+    const imported = await worker.importCommerce({ files });
+    expect(imported.validation.valid).toBe(true);
+    const previous = source.publishedFilename;
+    const provider = process.env.AI_PROVIDER;
+    try {
+      source.publishedFilename = imported.filename;
+      process.env.AI_PROVIDER = 'codex';
+      const report = (await service.report(7, 1, '2025-01-01', '2025-01-02')).data;
+      expect(report.scope.currency).toBe('KRW');
+      expect(report.summary).toMatchObject({
+        paymentTotal: '12000.00',
+        refundTotal: '2000.00',
+        netCollected: '10000.00',
+        refundOrderRate: 1,
+      });
+      await service.aiDraft(7, 1, {
+        prompt: '현금 흐름 설명',
+        start: '2025-01-01',
+        end: '2025-01-02',
+      });
+      const call = ai.callLlm.mock.calls[ai.callLlm.mock.calls.length - 1];
+      const payload = JSON.parse(call[1]);
+      expect(payload.report.chart.unit).toBe('KRW');
+      expect(payload.report.definitions.currency).toBe('KRW');
+      expect(call[0]).not.toContain('in USD');
+    } finally {
+      source.publishedFilename = previous;
+      ai.callLlm.mockClear();
+      if (provider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = provider;
+    }
+  });
+
   it('denies another user before opening the source', async () => {
     await expect(service.report(8, 1, '2025-01-01', '2025-01-01')).rejects.toBeInstanceOf(
       ForbiddenException,

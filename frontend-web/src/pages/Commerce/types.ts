@@ -26,7 +26,7 @@ export type CommerceReport = {
   }>;
   availableChannels: string[];
   range?: unknown;
-  scope?: unknown;
+  scope?: { currency?: 'USD' | 'KRW'; [key: string]: unknown };
 };
 
 export type CommercePresentation = { title?: string; explanation?: string; chartTitle?: string; [key: string]: unknown };

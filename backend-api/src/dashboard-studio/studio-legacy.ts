@@ -67,7 +67,9 @@ export function importStudio(
   const derive = (cols: number) => {
     let y = 0;
     return sorted.map(g => {
-      const n = { ...g, x: 0, y, w: Math.min(cols, Math.max(1, Math.ceil((g.w * cols) / 12))) };
+      // Derived layouts already stack every block; fill that row instead of leaving half blank.
+      // Persisted width-specific layouts are read directly by StudioService and stay untouched.
+      const n = { ...g, x: 0, y, w: cols };
       y += g.h;
       return n;
     });

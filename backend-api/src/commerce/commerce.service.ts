@@ -38,6 +38,7 @@ const validDate = (value: string) => {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 };
 const minorUnits = (value: unknown): bigint => BigInt(String(value ?? 0));
+// Fixed storage scale 100 for both USD and KRW; KRW inputs must be whole won.
 const money = (minor: bigint): string => {
   const negative = minor < BigInt(0);
   const absolute = negative ? -minor : minor;
@@ -606,6 +607,12 @@ export class CommerceService {
     );
     if (channel && !availableChannels.some((item: any) => item.channel === channel))
       throw new BadRequestException('channel is not available for this source');
+    // Read the published data, not optional metadata: old USD bundles need no migration.
+    // Never infer the currency from a filtered subset or silently relabel mixed data.
+    const currencyRows = await query('SELECT DISTINCT currency FROM commerce_orders', []);
+    if (currencyRows.length !== 1 || !['USD', 'KRW'].includes(String(currencyRows[0].currency)))
+      throw new BadRequestException('보고서는 USD 또는 KRW 단일 통화만 지원합니다.');
+    const currency = String(currencyRows[0].currency);
     const start = `${from} 00:00:00+00`;
     const endExclusive = `${new Date(Date.parse(`${to}T00:00:00Z`) + 86400000)
       .toISOString()
@@ -707,7 +714,7 @@ export class CommerceService {
         scope: {
           refundData: true,
           sampleType: items.sampleType || 'normal',
-          currency: 'USD',
+          currency,
           paymentAndRefundTotalsByEventDate: true,
           refundOrderRateByOrderDateCohort: true,
           start: actualFrom,
@@ -774,11 +781,11 @@ export class CommerceService {
     }
     const report = await this.frontendReport(ownerId, sourceId, body.start, body.end, body.channel);
     const system =
-      'Return only JSON with exactly title, explanation, chartTitle string properties. Write concise Korean labels. Use only supplied aggregate values and definitions; do not infer trends from omitted daily data, or claim profit, causes, or results not present in the data. Refund history is limited to the uploaded dataset: explicitly say 확보한 데이터 범위 내 환불 이력, never 평생 or complete lifetime history. chartTitle describes only the daily cash chart: paymentTotal, refundTotal, netCollected in USD. Refund rate and order counts are separate KPI cards and are not plotted on that chart; never include them in chartTitle.';
+      'Return only JSON with exactly title, explanation, chartTitle string properties. Write concise Korean labels. Use only supplied aggregate values and definitions; do not infer trends from omitted daily data, or claim profit, causes, or results not present in the data. Refund history is limited to the uploaded dataset: explicitly say 확보한 데이터 범위 내 환불 이력, never 평생 or complete lifetime history. chartTitle describes only the daily cash chart: paymentTotal, refundTotal, netCollected in the supplied report currency; never convert currencies. Refund rate and order counts are separate KPI cards and are not plotted on that chart; never include them in chartTitle.';
     const aiReport = {
       chart: {
         series: ['paymentTotal', 'refundTotal', 'netCollected'],
-        unit: 'USD',
+        unit: report.data.scope.currency,
         timeBasis: 'UTC event date',
       },
       project: report.data.project,
@@ -788,12 +795,15 @@ export class CommerceService {
       range: report.data.range,
       scope: report.data.scope,
       definitions: {
-        currency: 'USD',
+        currency: report.data.scope.currency,
         paymentTotal:
           'Successful payment amounts summed by paid_at within the selected UTC date range.',
         refundTotal:
           'Recorded refund amounts summed by refunded_at within the selected UTC date range; separate tax and shipping refund allocations are unavailable.',
-        netCollected: 'paymentTotal minus refundTotal, calculated in integer cents.',
+        netCollected:
+          report.data.scope.currency === 'KRW'
+            ? 'paymentTotal minus refundTotal in whole Korean won; internal storage scale 100, no currency conversion.'
+            : 'paymentTotal minus refundTotal, calculated in integer cents.',
         refundOrderRate:
           'Distinct refunded orders divided by successful-payment orders in the ordered_at cohort; refund membership is lifetime within the published bundle.',
       },

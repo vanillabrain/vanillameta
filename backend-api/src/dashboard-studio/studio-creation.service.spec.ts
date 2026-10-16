@@ -868,6 +868,43 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     expect(next.semanticProposal[0]).toEqual(parent.semanticProposal[0]);
     expect(next.title).toBe(parent.title);
   });
+  it('KRW title-only refinement preserves won precision through private save and reload', async () => {
+    const won = semantics();
+    won.semanticProposal.forEach(block => {
+      block.metric.unit = 'KRW';
+      block.metric.decimalPlaces = 0;
+    });
+    llm.callLlm.mockResolvedValueOnce(JSON.stringify(won));
+    const parent = await propose({ prompt: 'KRW 원화 금액 소수0자리로 만들어 줘' });
+    const attemptedChange = semantics().semanticProposal[0];
+    attemptedChange.title = '원화 결제 성공액';
+    attemptedChange.metric.aggregation = 'AVG';
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        requiredFields: ['amount'],
+        title: 'ignored',
+        semanticProposal: [attemptedChange],
+      }),
+    );
+    const next = await refine(parent, 0, {
+      prompt: '선택한 블록 제목만 원화 결제 성공액으로 변경해 줘',
+    });
+    expect(next.semanticProposal[0]).toEqual({
+      ...parent.semanticProposal[0],
+      title: '원화 결제 성공액',
+    });
+    expect(next.semanticProposal[1]).toEqual(parent.semanticProposal[1]);
+    const saved = await save(next);
+    const firstRead = await studio.get(saved.dashboardId, 7);
+    const reloaded = await studio.get(saved.dashboardId, 7);
+    expect(reloaded.document).toEqual(firstRead.document);
+    expect(reloaded.document.blocks[0]).toMatchObject({
+      title: '원화 결제 성공액',
+      display: { suffix: ' KRW', decimalPlaces: 0 },
+    });
+    expect(reloaded.document.blocks[1].display).toMatchObject({ suffix: ' KRW', decimalPlaces: 0 });
+  });
+
   it('REFINE-02 appends one block and rejects a seventh before calling AI', async () => {
     let p = await propose();
     for (let i = 0; i < 4; i++) {

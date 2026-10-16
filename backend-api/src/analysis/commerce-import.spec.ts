@@ -41,6 +41,51 @@ describe('DuckDB commerce bundle import', () => {
     }
   });
 
+  it.each([
+    ['whole KRW', 'KRW', '12000.00', '2000', true, ''],
+    ['fractional order', 'KRW', '12000.01', '2000', false, 'fractional_krw'],
+    ['fractional refund', 'KRW', '12000', '2000.01', false, 'fractional_krw'],
+    ['mixed currency', 'USD', '12000', '2000', false, 'mixed_currency'],
+    ['unsupported currency', 'EUR', '12000', '2000', false, 'invalid_order'],
+    ['missing currency', '', '12000', '2000', false, 'invalid_order'],
+    ['fractional payment', 'KRW', '12000', '2000', false, 'fractional_krw'],
+  ])(
+    'validates %s before publishing normalized tables',
+    async (label, currency, amount, refund, valid, code) => {
+      const files = {
+        orders: csv(
+          'krw-orders.csv',
+          `order_id,customer_id,ordered_at,order_status,currency,subtotal,tax_amount,shipping_amount,order_total\nK1,C1,2025-01-01T00:00:00Z,completed,KRW,${amount},0,0,${amount}\nK2,C2,2025-01-01T00:00:00Z,completed,${currency},1000,0,0,1000\n`,
+        ),
+        payments: csv(
+          'krw-payments.csv',
+          `payment_id,order_id,paid_at,payment_status,amount\nP1,K1,2025-01-01T01:00:00Z,succeeded,${
+            label === 'fractional payment' ? '12000.01' : amount
+          }\nP2,K2,2025-01-01T01:00:00Z,succeeded,1000\n`,
+        ),
+        refunds: csv(
+          'krw-refunds.csv',
+          `refund_id,payment_id,order_id,refunded_at,refund_reason,amount\nR1,P1,K1,2025-01-02T00:00:00Z,return,${refund}\n`,
+        ),
+      };
+      const result = await worker.importCommerce({ files });
+      expect(result.validation.valid).toBe(valid);
+      if (!valid) {
+        expect(result.validation.errors.map(e => e.code)).toContain(code);
+        if (code === 'invalid_order')
+          expect(result.validation.errors.map(e => e.code)).not.toContain('mixed_currency');
+      } else {
+        const rows = (
+          await worker.query(
+            result.filename,
+            'SELECT SUM(amount_minor) AS total FROM commerce_payments',
+          )
+        ).datas;
+        expect(String(rows[0].total)).toBe('1300000');
+      }
+    },
+  );
+
   it('normalizes a valid bundle to exact minor units and keeps source dates in UTC', async () => {
     const ordersPath = csv(
       'orders.csv',

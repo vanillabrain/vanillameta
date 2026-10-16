@@ -140,12 +140,28 @@ export async function importCommerce(
           : ''
       }
       UNION ALL
-      SELECT 'invalid_order', coalesce(order_id, ''), 'required order values are invalid'
+      SELECT 'invalid_order', coalesce(order_id, ''), '주문 필수 값·날짜·상태를 확인해 주세요. 통화는 USD 또는 KRW만 지원합니다.'
         FROM _commerce_orders WHERE nullif(order_id, '') IS NULL
           OR nullif(customer_id, '') IS NULL OR ordered_at IS NULL
-          OR nullif(currency, '') IS NULL OR currency <> 'USD'
+          OR nullif(currency, '') IS NULL OR currency NOT IN ('USD', 'KRW')
           OR nullif(order_status, '') IS NULL
           OR order_status NOT IN ('completed', 'partially_refunded', 'refunded', 'cancelled')
+      UNION ALL
+      SELECT 'mixed_currency', '', '한 파일 묶음에는 USD 또는 KRW 한 통화만 사용할 수 있습니다. 통화별로 파일을 나눠 주세요.'
+        WHERE (SELECT count(DISTINCT currency) FROM _commerce_orders WHERE currency IN ('USD', 'KRW')) > 1
+      UNION ALL
+      SELECT 'fractional_krw', order_id, 'KRW 금액은 소수 없이 원 단위여야 합니다. 주문·결제·환불 금액을 확인해 주세요.'
+        FROM _commerce_orders WHERE currency = 'KRW'
+          AND (subtotal <> trunc(subtotal) OR tax_amount <> trunc(tax_amount)
+            OR shipping_amount <> trunc(shipping_amount) OR order_total <> trunc(order_total))
+      UNION ALL
+      SELECT 'fractional_krw', p.payment_id, 'KRW 결제 금액은 소수 없이 원 단위여야 합니다.'
+        FROM _commerce_payments p JOIN _commerce_orders o USING(order_id)
+        WHERE o.currency = 'KRW' AND p.amount <> trunc(p.amount)
+      UNION ALL
+      SELECT 'fractional_krw', r.refund_id, 'KRW 환불 금액은 소수 없이 원 단위여야 합니다.'
+        FROM _commerce_refunds r JOIN _commerce_orders o USING(order_id)
+        WHERE o.currency = 'KRW' AND r.amount <> trunc(r.amount)
       UNION ALL
       SELECT 'invalid_order_amount', order_id, 'order amounts must be nonnegative values with at most two decimals'
         FROM _commerce_orders WHERE subtotal IS NULL OR tax_amount IS NULL OR shipping_amount IS NULL
