@@ -40,3 +40,7 @@
 - `assertions.py/json`, `commerce-oracle`, 폭별JSON/PNG, failed/restart/reproposal/meaning/combined 요청, saved/reloaded/원본 스냅샷, anonymous 경계, DB 스냅샷이 근거다. AIWF sync-docs로 UC032/TC032/설계/계획·AGENTS의 최신 Studio 현황을 대조했다. 기존 대용량 이력 문서는 불필요한 전체 포맷 변경 없이 유지하고 최신 결과는 이 증빙과 AGENTS를 따른다. 새 엔티티·actor가 없어 entity_model/glossary/diagram의 모델 변경은 없다. 문서 Draft·packet awaiting_review/acceptance not_recorded를 유지한다. 독립 점검은 provider400으로 실행되지 않아 Main 대조만 수행했다.
 
 **미완료:** 고객사 비식별 데이터와 실제 업무 담당자 수용, 실휴대폰/VoiceOver·전체 키보드/언어, 운영 MySQL(사용자 지정: 나중에 로컬 Docker), 운영 다중 인스턴스/장시간 부하·장애, 모든 자연어/인증 경합은 남는다. 기존 AIWF strict12오류도 별도이며 자동 기준선 수용하지 않는다. 전체 TC005/G4·출시 승인·외부 배포 완료로 승격하지 않는다. 새 live Rill 화면 비교는 이번에 반복하지 않았고 이전 Rill 계산 증빙과 이번 커머스 독립 정답을 구분한다.
+
+## 원격 통합 후 최종 확인
+
+원격 `2fb2edb4`(생성안 제목 전용 수정의 지표 정의 보존)·`e2e5b715`(게시 복구 증빙)를 발견해 로컬 구현47c4806d 뒤 통합했다. 해당 변경을 덮어쓰지 않았고 통합7b75687a에서 creation49+execution57=106개·BE build/lint를 재검증했다. 실제 Ego74의 통합 서버 저장41 reload는 같은 제목/ID/정의/배치/10%와 GET만 확인했다. FE/CSS 변경이 없는 대표 폭 결과는 재사용했으며 전체 모델 생성/전체 테스트를 다시 실행했다고 집계하지 않는다. 상세 이력 문서의 원격 추가 내용도 보존한다.
