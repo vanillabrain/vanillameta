@@ -744,6 +744,52 @@ it('UC-022 previews an AI content change on the owned copied dashboard then save
   expect(saveBody.items[1]).toMatchObject({ key: 'copy-b', kind: 'existing', title: '세션 수', layouts: blocks[1].layouts });
   expect(saveBody.items[2]).toMatchObject({ key: 'copy-c', kind: 'existing', title: '가입 수', layouts: blocks[2].layouts });
 });
+it('UC-022 preserves the unsaved draft on exhausted AI edits and recovers through a new question', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '미저장 복구 초안' } });
+  const failedQuestion = '1번 차트를 바꾸고 저장한 뒤 게시해 줘';
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: failedQuestion } });
+  api.post.mockRejectedValueOnce({
+    response: {
+      status: 400,
+      data: { success: false, code: 400, data: 'AI 변경을 적용하지 못했습니다. 초안은 유지됩니다. 다시 요청해 주세요.' },
+    },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await screen.findByText('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.');
+  expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('미저장 복구 초안');
+  expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toBe(failedQuestion);
+  expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(api.navigate).not.toHaveBeenCalled();
+
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '1번 차트를 평균으로 바꿔 줘' } });
+  api.post.mockResolvedValueOnce(success({ ...aiResult(), targetKey: item.key, saveRequested: false }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await screen.findByRole('heading', { name: '1번 차트 · AI 평균' });
+  expect(screen.queryByText('AI 변경을 적용하지 못했습니다. 현재 편집 내용은 유지됩니다. 다시 요청해 주세요.')).toBeNull();
+  expect(api.post).toHaveBeenCalledTimes(2);
+  expect(api.post.mock.calls[1][1]).toMatchObject({ title: '미저장 복구 초안', expectedRevision: editor.revision });
+  expect(api.navigate).not.toHaveBeenCalled();
+
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), {
+    target: { value: '현재 초안을 저장하고 게시 미리보기로 이어 줘' },
+  });
+  api.post.mockResolvedValueOnce(
+    success({ editMode: 'save', saveRequested: true, publicationRequested: true, preview: preview() }),
+  );
+  api.post.mockResolvedValueOnce(success({ id: 8, revision: 'b'.repeat(64) }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith(`/dashboard/8/publication?savedRevision=${'b'.repeat(64)}`));
+  const saves = api.post.mock.calls.filter(call => call[0] === '/bi/dashboards/8/editor');
+  expect(saves).toHaveLength(1);
+  expect(saves[0][1]).toMatchObject({
+    title: '미저장 복구 초안',
+    expectedRevision: editor.revision,
+    items: [expect.objectContaining({ key: item.key, title: 'AI 평균', definition: aiResult().item.definition })],
+  });
+});
 it('UC-014 saves the current draft after a save-only preview without selecting a block', async () => {
   await mount();
   fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '직접 수정한 초안' } });
