@@ -6,7 +6,12 @@ import { StudioDefinitions } from './studioAdapter';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 const route = vi.hoisted(() => ({ dashboardId: '3' }));
+const questions = vi.hoisted(() => ({ key: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
+vi.mock('./studioQuestionDraft', async importOriginal => ({
+  ...(await importOriginal<typeof import('./studioQuestionDraft')>()),
+  studioQuestionKey: questions.key,
+}));
 vi.mock('react-router-dom', async () => {
   return {
     useParams: () => route,
@@ -90,6 +95,8 @@ const saveButton = () => screen.getByRole('button', { name: '저장' }) as HTMLB
 const duplicateBlock = () => fireEvent.change(addSelect(), { target: { value: 'b1' } });
 
 beforeEach(() => {
+  sessionStorage.clear();
+  questions.key.mockImplementation(async (id: number) => 'question-test-' + id);
   route.dashboardId = '3';
   vi.clearAllMocks();
   (globalThis as any).ResizeObserver = class {
@@ -115,6 +122,53 @@ afterEach(() => {
 });
 
 describe('studio editor rendering', () => {
+  it('never replaces new typing with a delayed storage lookup', async () => {
+    let resolveKey: (key: string) => void = () => undefined;
+    questions.key.mockImplementationOnce(
+      () =>
+        new Promise<string>(resolve => {
+          resolveKey = resolve;
+        }),
+    );
+    sessionStorage.setItem(
+      'question-test-3',
+      JSON.stringify({ version: 1, updatedAt: Date.now(), text: '늦게 조회된 질문' }),
+    );
+    api.get.mockResolvedValue(envelope());
+    render(<StudioEditor />);
+    fireEvent.click(await screen.findByRole('button', { name: 'AI 열기' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }), { target: { value: '현재 작성중' } });
+    await act(async () => resolveKey('question-test-3'));
+    expect((screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }) as HTMLTextAreaElement).value).toBe('현재 작성중');
+    expect((screen.getByRole('button', { name: '질문 복구' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('requires explicit restoration of a stored question and never submits it automatically', async () => {
+    sessionStorage.setItem('question-test-3', JSON.stringify({ version: 1, updatedAt: Date.now(), text: '보관 질문' }));
+    api.get.mockResolvedValue(envelope());
+    render(<StudioEditor />);
+    const restore = await screen.findByRole('button', { name: '질문 복구' });
+    expect(screen.queryByRole('textbox', { name: 'AI에게 요청할 내용' })).toBeNull();
+    fireEvent.click(restore);
+    expect((screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }) as HTMLTextAreaElement).value).toBe('보관 질문');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+  it('keeps new input when discarding a different stored question', async () => {
+    sessionStorage.setItem('question-test-3', JSON.stringify({ version: 1, updatedAt: Date.now(), text: '이전 질문' }));
+    api.get.mockResolvedValue(envelope());
+    render(<StudioEditor />);
+    await screen.findByRole('button', { name: '질문 복구' });
+    fireEvent.click(screen.getByRole('button', { name: 'AI 열기' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }), { target: { value: '새 질문' } });
+    expect((screen.getByRole('button', { name: '질문 복구' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(JSON.parse(sessionStorage.getItem('question-test-3') ?? 'null').text).toBe('이전 질문');
+    fireEvent.click(screen.getByRole('button', { name: '보관 질문 폐기' }));
+    expect((screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }) as HTMLTextAreaElement).value).toBe('새 질문');
+    await waitFor(() => expect(JSON.parse(sessionStorage.getItem('question-test-3') ?? 'null').text).toBe('새 질문'));
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('keeps a separate list tab available without discarding the editable draft', async () => {
     api.get.mockResolvedValue(envelope());
     render(<StudioEditor />);

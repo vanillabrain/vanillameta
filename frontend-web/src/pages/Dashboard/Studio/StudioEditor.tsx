@@ -58,6 +58,7 @@ import {
   StudioState,
 } from './studioTypes';
 import './studio.css';
+import { studioQuestionKey, readStudioQuestion, writeStudioQuestion, removeStudioQuestion } from './studioQuestionDraft';
 
 const MAX_STUDIO_BLOCKS = 6;
 const scopeKey = (document: Pick<StudioDocumentV1, 'filters' | 'dateRange'>) =>
@@ -337,6 +338,31 @@ type WorkspaceProps = {
 
 function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   const [conversationInput, setConversationInput] = useState('');
+  const questionKey = useRef<string | null>(null);
+  const [questionReady, setQuestionReady] = useState(false);
+  const [questionRecovery, setQuestionRecovery] = useState<string | null>(null);
+  const [questionStorageError, setQuestionStorageError] = useState(false);
+  useEffect(() => {
+    let current = true;
+    studioQuestionKey(dashboardId)
+      .then(key => {
+        if (!current) return;
+        questionKey.current = key;
+        setQuestionRecovery(readStudioQuestion(key));
+        setQuestionReady(true);
+      })
+      .catch(() => {
+        if (current) setQuestionReady(true);
+      });
+    return () => {
+      current = false;
+    };
+  }, [dashboardId]);
+  useEffect(() => {
+    if (!questionReady || questionRecovery !== null) return;
+    const saved = writeStudioQuestion(questionKey.current, conversationInput);
+    setQuestionStorageError(!!conversationInput.trim() && !saved);
+  }, [conversationInput, questionReady, questionRecovery]);
   const [state, dispatch] = useReducer(studioReducer, initial, studioWorkspaceSeed);
   const [definitions, setDefinitions] = useState<StudioDefinitions>(initial.definitions);
   const [preview, setPreview] = useState<StudioPreview | null>(initial.preview);
@@ -799,6 +825,45 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
 
   const banner = (
     <>
+      {questionRecovery !== null && (
+        <Alert severity="info" className="studio-status-banner">
+          <p>이 탭에 보관한 미전송 질문이 있습니다. 질문만 최대 24시간 보관하며 블록 초안은 복구하지 않습니다.</p>
+          {conversationInput.trim() && <span>현재 입력을 비우면 보관 질문을 복구할 수 있습니다.</span>}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!!conversationInput.trim()}
+              onClick={() => {
+                setConversationInput(questionRecovery);
+                setQuestionRecovery(null);
+                dispatch({ type: 'panel', panel: 'ai' });
+              }}
+            >
+              질문 복구
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (!removeStudioQuestion(questionKey.current)) {
+                  setQuestionStorageError(true);
+                  return;
+                }
+                setQuestionStorageError(false);
+                setQuestionRecovery(null);
+              }}
+            >
+              보관 질문 폐기
+            </Button>
+          </div>
+        </Alert>
+      )}
+      {questionStorageError && (
+        <Alert severity="warning" className="studio-status-banner">
+          질문 보관 상태를 갱신하지 못했습니다. 현재 입력은 유지되지만 새로고침하면 사라질 수 있습니다.
+        </Alert>
+      )}
       {previewError && (
         <Alert severity="warning" className="studio-status-banner">
           {previewError}
