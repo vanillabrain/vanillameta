@@ -67,6 +67,7 @@ const addAuthToHeaders = config => {
   } else if (token) {
     isLoginUser = true;
     config.headers.Authorization = `Bearer ${token}`;
+    config._authEpoch = editorDraftSessionEpoch();
     delete config.headers['Authorization-url'];
   } else if (shareToken && config.url.includes('/database')) {
     // token 없는 외부 사용자가 share url에 필요한 db api 호출을 할 때만 auth로 shareToken 보내기
@@ -139,38 +140,63 @@ async function resetTokenAndReattemptRequest(errorResponse) {
   // access token을 넘겨 다시 axios로 요청하고
   // 결과값을 처음 요청했던 promise의 resolve로 settle시킨다.
   // refresh token을 이용해서 access token 요청
+  const requestEpoch = errorResponse.config._authEpoch;
+  if (editorDraftSessionEpoch() !== requestEpoch) throw new Error('Authentication changed. Retry the request.');
   if (!refreshPromise) {
-    const previousToken = getToken();
-    const previousEpoch = editorDraftSessionEpoch();
+    const previousToken = String(errorResponse.config.headers?.Authorization ?? '').replace(/^Bearer /, '');
+    const previousEpoch = requestEpoch;
     const unchanged = () => getToken() === previousToken && editorDraftSessionEpoch() === previousEpoch;
-    refreshPromise = (async () => {
-      // 문닫기 (한 번만 요청)
+    const winner = () => {
+      const current = getToken();
+      return previousEpoch !== null && editorDraftSessionEpoch() === previousEpoch && current && current !== previousToken
+        ? current
+        : null;
+    };
+    let refreshStarted = false;
+    const renew = async () => {
+      const current = winner();
+      if (current) return current;
+      if (!unchanged()) throw new Error('Authentication changed while refreshing. Retry the request.');
+      refreshStarted = true;
       const { data } = await authService.refreshAccessToken();
-      // 새로운 토큰 저장
       const newAccessToken = data?.accessToken;
-      if (typeof newAccessToken !== 'string' || !newAccessToken.trim()) {
-        throw new Error('invalid refresh response');
-      }
+      if (typeof newAccessToken !== 'string' || !newAccessToken.trim()) throw new Error('invalid refresh response');
       if (!unchanged()) throw new Error('Authentication changed while refreshing. Retry the request.');
       await retainEditorDraftSession(previousToken, newAccessToken, previousEpoch);
       if (!unchanged()) throw new Error('Authentication changed while refreshing. Retry the request.');
       setToken(newAccessToken, true);
       return newAccessToken;
+    };
+    refreshPromise = (async () => {
+      if (typeof navigator === 'undefined' || !navigator.locks?.request) return renew();
+      // UC-029: coordinate only the auth renewal, never dashboard writes, across same-origin tabs.
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), 10000);
+      try {
+        return await navigator.locks.request('vm:auth-refresh:v1', { signal: abort.signal }, () => {
+          clearTimeout(timer);
+          return renew();
+        });
+      } finally {
+        clearTimeout(timer);
+      }
     })()
       .catch(error => {
-        // refresh token 만료
-        // UC-028: a late failure must not sign out a newer login/renewal in another tab.
-        if (unchanged()) {
+        const current = winner();
+        if (current) return current;
+        // Lock acquisition failure must not destroy a valid session or its unsaved drafts.
+        if (refreshStarted && unchanged()) {
           removeToken();
           window.location.assign('/login');
         }
         throw error;
       })
       .finally(() => {
-        refreshPromise = null; // 문열기 (초기화)
+        refreshPromise = null;
       });
   }
   const accessToken = await refreshPromise;
+  if (editorDraftSessionEpoch() !== requestEpoch) throw new Error('Authentication changed. Retry the request.');
   errorResponse.config.headers = errorResponse.config.headers || {};
   errorResponse.config.headers.Authorization = `Bearer ${accessToken}`;
   return instance(errorResponse.config); // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve

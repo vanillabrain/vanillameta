@@ -224,3 +224,155 @@ it('UC028 keeps a successful token renewal usable when only shared draft metadat
   expect((await api.get('/unit-private')).data).toEqual({ value: 'retried' });
   expect(getToken()).toBe('unit-new');
 });
+
+describe('UC029 cross-tab renewal coordination', () => {
+  it('uses one refresh for two independent axios modules waiting on the same browser lock', async () => {
+    vi.stubGlobal('crypto', webcrypto);
+    setToken('unit-old');
+    let tail = Promise.resolve();
+    const lock = vi.fn((_name, _options, run) => {
+      const next = tail.then(run);
+      tail = next.catch(() => undefined);
+      return next;
+    });
+    vi.stubGlobal('navigator', { locks: { request: lock } });
+    const first = await load();
+    vi.resetModules();
+    const second = await load();
+    let release: (value: any) => void;
+    seam.refresh.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          release = resolve;
+        }),
+    );
+    const adapter = async config => {
+      if (config.headers.Authorization === 'Bearer unit-new') return ok(config, 'retried');
+      throw expired(config);
+    };
+    first.defaults.adapter = adapter;
+    second.defaults.adapter = adapter;
+    const results = Promise.all([first.get('/unit-first'), second.get('/unit-second')]);
+    await vi.waitFor(() => expect(lock).toHaveBeenCalledTimes(2));
+    expect(seam.refresh).toHaveBeenCalledTimes(1);
+    release({ data: { accessToken: 'unit-new' } });
+    expect((await results).map(r => r.data.value)).toEqual(['retried', 'retried']);
+    expect(seam.refresh).toHaveBeenCalledTimes(1);
+  });
+  it('reuses a winning token when an old 401 arrives after another tab already renewed', async () => {
+    vi.stubGlobal('crypto', webcrypto);
+    setToken('unit-old');
+    let reject: (error: unknown) => void, original: any;
+    const api = await load();
+    api.defaults.adapter = async config => {
+      if (config.headers.Authorization === 'Bearer unit-new') return ok(config, 'retried');
+      original = config;
+      return new Promise((_yes, no) => {
+        reject = no;
+      });
+    };
+    const pending = api.get('/unit-late');
+    await vi.waitFor(() => expect(original).toBeDefined());
+    const { retainEditorDraftSession } = await import('./editorDraftStorage');
+    await retainEditorDraftSession('unit-old', 'unit-new');
+    setToken('unit-new', true);
+    reject(expired(original));
+    expect((await pending).data.value).toBe('retried');
+    expect(seam.refresh).not.toHaveBeenCalled();
+  });
+  it('rejects a queued old request on same-token new login without refreshing or deleting the new auth', async () => {
+    vi.stubGlobal('crypto', webcrypto);
+    setToken('unit-old');
+    let release: () => void;
+    const lock = vi.fn(
+      (_name, _options, run) =>
+        new Promise((resolve, reject) => {
+          release = () => Promise.resolve().then(run).then(resolve, reject);
+        }),
+    );
+    vi.stubGlobal('navigator', { locks: { request: lock } });
+    const api = await load();
+    api.defaults.adapter = async config => {
+      throw expired(config);
+    };
+    const settled = Promise.allSettled([api.get('/unit-queued')]);
+    await vi.waitFor(() => expect(lock).toHaveBeenCalledTimes(1));
+    setToken('unit-old');
+    const generation = localStorage.getItem('vm:editor-draft-auth:v1');
+    release();
+    expect((await settled)[0].status).toBe('rejected');
+    expect(getToken()).toBe('unit-old');
+    expect(localStorage.getItem('vm:editor-draft-auth:v1')).toBe(generation);
+    expect(seam.refresh).not.toHaveBeenCalled();
+  });
+  it('preserves the auth and draft on lock failure without trying an unlocked refresh', async () => {
+    vi.stubGlobal('crypto', webcrypto);
+    setToken('unit-old');
+    const key = await editorDraftKey('unit-old', 8);
+    sessionStorage.setItem(key, 'preserved');
+    vi.stubGlobal('navigator', { locks: { request: vi.fn().mockRejectedValue(new Error('lock denied')) } });
+    const api = await load();
+    api.defaults.adapter = async config => {
+      throw expired(config);
+    };
+    await expect(api.get('/unit-lock-failure')).rejects.toThrow('lock denied');
+    expect(getToken()).toBe('unit-old');
+    expect(sessionStorage.getItem(key)).toBe('preserved');
+    expect(seam.refresh).not.toHaveBeenCalled();
+  });
+  it('bounds lock waiting to ten seconds and leaves the next explicit request retryable', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('crypto', webcrypto);
+      setToken('unit-old');
+      const lock = vi
+        .fn()
+        .mockImplementationOnce(
+          (_name, options) =>
+            new Promise((_yes, no) => {
+              options.signal.addEventListener('abort', () => no(new DOMException('lock wait expired', 'AbortError')));
+            }),
+        )
+        .mockImplementation((_name, _options, run) => run());
+      vi.stubGlobal('navigator', { locks: { request: lock } });
+      const api = await load();
+      api.defaults.adapter = async config => {
+        if (config.headers.Authorization === 'Bearer unit-new') return ok(config, 'retried');
+        throw expired(config);
+      };
+      const settled = Promise.allSettled([api.get('/unit-timeout')]);
+      await vi.waitFor(() => expect(lock).toHaveBeenCalledTimes(1));
+      await vi.advanceTimersByTimeAsync(10000);
+      expect((await settled)[0].status).toBe('rejected');
+      expect(getToken()).toBe('unit-old');
+      expect(seam.refresh).not.toHaveBeenCalled();
+      seam.refresh.mockResolvedValue({ data: { accessToken: 'unit-new' } });
+      expect((await api.get('/unit-retry')).data.value).toBe('retried');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+it('UC029 does not replay a late old 401 under a newer login generation', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  setToken('unit-old');
+  const lock = vi.fn((_name, _options, run) => run());
+  vi.stubGlobal('navigator', { locks: { request: lock } });
+  let reject: (error: unknown) => void, original: any;
+  const api = await load();
+  api.defaults.adapter = async config => {
+    original = config;
+    return new Promise((_yes, no) => {
+      reject = no;
+    });
+  };
+  const settled = Promise.allSettled([api.get('/unit-delayed-old')]);
+  await vi.waitFor(() => expect(original).toBeDefined());
+  setToken('unit-new-login');
+  reject(expired(original));
+  expect((await settled)[0].status).toBe('rejected');
+  expect(getToken()).toBe('unit-new-login');
+  expect(lock).not.toHaveBeenCalled();
+  expect(seam.refresh).not.toHaveBeenCalled();
+});
