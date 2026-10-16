@@ -499,6 +499,7 @@ describe('BiService dashboard editor boundaries', () => {
       expect.objectContaining({
         databaseId: 1,
         selectedWidget: 0,
+        requireSelectedChange: true,
         currentDraft: expect.objectContaining({
           title: 'Unsaved title',
           layoutSizes: [{ width: 6, height: 7 }],

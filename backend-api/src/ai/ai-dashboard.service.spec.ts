@@ -692,6 +692,40 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       else process.env.AI_PROVIDER = provider;
     }
   });
+  it.each([false, true])(
+    'UC022 retries an unchanged selected block, exhausted=%s',
+    async exhausted => {
+      const id = (await service.save({ draft: draft() }, 7)).data.id;
+      const current = (await service.analysis(id, 7)).data;
+      const unchanged = { ...draft(), widgets: [current.widgets[0]] };
+      const changed = {
+        ...unchanged,
+        widgets: [{ ...current.widgets[0], sql: 'SELECT sum(amount) * 2 AS value FROM source' }],
+      };
+      ai.callLlm.mockClear();
+      ai.callLlm.mockResolvedValueOnce(JSON.stringify(unchanged));
+      ai.callLlm.mockResolvedValueOnce(JSON.stringify(exhausted ? unchanged : changed));
+      const result = await service.generate(
+        {
+          dashboardId: id,
+          databaseId: 1,
+          currentDraft: current,
+          selectedWidget: 0,
+          requireSelectedChange: true,
+          prompt: '1번 지표를 두 배로 변경',
+        },
+        7,
+      );
+      expect(ai.callLlm).toHaveBeenCalledTimes(2);
+      expect(ai.callLlm.mock.calls[1][1]).toContain('selected block is unchanged');
+      expect(result.status).toBe(exhausted ? 'ERROR' : 'SUCCESS');
+      if ('data' in result) {
+        expect(result.data.widgets[0].sql).toBe(changed.widgets[0].sql);
+        expect(result.data.widgets[1]).toEqual(current.widgets[1]);
+      }
+      expect((await service.analysis(id, 7)).data).toEqual(current);
+    },
+  );
   it.each([
     ['제목 유지', 'Revenue'],
     ['제목을 Renamed revenue로 변경', 'Renamed revenue'],

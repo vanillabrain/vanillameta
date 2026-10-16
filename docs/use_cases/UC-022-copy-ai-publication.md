@@ -41,7 +41,8 @@
 **Flow:**
 
 1. 기존 초안을 보존하고 재시도/기존 복구 흐름을 제공한다. 실패한 결과를 게시하지 않는다.
-2. Use case continues at step 2.
+2. 내용 변경의 선택 정의가 기존과 같으면 생성 교정을 최대2회 시도한다. 모두 같으면 성공 미리보기·자동저장·게시 준비로 진행하지 않는다.
+3. Use case continues at step 2.
 
 ## Postconditions
 

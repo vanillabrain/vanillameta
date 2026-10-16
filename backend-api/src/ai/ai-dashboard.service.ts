@@ -1043,6 +1043,16 @@ export class AiDashboardService {
           sourceSchema.map(c => c.column_name),
         );
         parsed.widgets = referenced.widgets;
+        if (
+          body.requireSelectedChange === true &&
+          current &&
+          Number.isInteger(body.selectedWidget) &&
+          JSON.stringify(validateDraft(parsed).widgets[body.selectedWidget]) ===
+            JSON.stringify(current.widgets[body.selectedWidget])
+        )
+          throw new BadRequestException(
+            'The selected block is unchanged. Apply the requested change to its definition; preserve other blocks.',
+          );
         // A source counter represents events, not the number of pre-aggregated physical rows.
         if (requestCounter && /requests|요청/i.test(body.prompt)) {
           for (const [widgetIndex, widget] of (parsed.widgets || []).entries()) {

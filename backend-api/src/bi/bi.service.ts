@@ -634,6 +634,7 @@ export class BiService {
         databaseId: compiled.draft.databaseId,
         currentDraft: compiled.draft,
         selectedWidget: index,
+        requireSelectedChange: true,
         prompt,
       },
       actor,
