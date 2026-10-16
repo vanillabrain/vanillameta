@@ -34,3 +34,18 @@ it.each([
   api.post.mockResolvedValue({ data: { ...run, creationResult: { ...binding, proposalId: 'child' }, ...patch } });
   await expect(clarifyExecutionCreation(run, request)).rejects.toThrow();
 });
+
+it('UC034 accepts a newly bound requested source and rejects an unrelated source response', async () => {
+  const request = {
+    requestId: 'source-1',
+    proposalId: 'parent',
+    expectedSourceRevision: binding.sourceRevision,
+    targetSourceId: 33,
+  };
+  api.post.mockResolvedValue({
+    data: { ...run, creationResult: { ...binding, proposalId: 'child', sourceId: 33, sourceRevision: 'b'.repeat(64) } },
+  });
+  expect((await clarifyExecutionCreation(run, request)).creationResult?.sourceId).toBe(33);
+  api.post.mockResolvedValue({ data: { ...run, creationResult: { ...binding, proposalId: 'child', sourceId: 34 } } });
+  await expect(clarifyExecutionCreation(run, request)).rejects.toThrow();
+});

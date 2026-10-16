@@ -410,8 +410,10 @@ export type CreationClarificationRequest = {
   requestId: string;
   proposalId: string;
   expectedSourceRevision: string;
-  refundDenominator: 'orders' | 'amount';
-};
+} & (
+  | { refundDenominator: 'orders' | 'amount'; targetSourceId?: never }
+  | { targetSourceId: number; refundDenominator?: never }
+);
 export async function clarifyExecutionCreation(
   run: StudioExecution,
   request: CreationClarificationRequest,
@@ -426,8 +428,8 @@ export async function clarifyExecutionCreation(
     completed.runId === run.runId &&
       !!completed.creationResult &&
       !!run.creationResult &&
-      completed.creationResult.sourceId === run.creationResult.sourceId &&
-      completed.creationResult.sourceRevision === request.expectedSourceRevision &&
+      completed.creationResult.sourceId === (request.targetSourceId ?? run.creationResult.sourceId) &&
+      (request.targetSourceId !== undefined || completed.creationResult.sourceRevision === request.expectedSourceRevision) &&
       completed.creationResult.proposalId !== request.proposalId,
     '계산 기준 답변의 실행을 확인하지 못했습니다.',
   );

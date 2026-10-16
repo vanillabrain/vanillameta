@@ -3,7 +3,7 @@ import { Notice as Alert } from '@/components/ui/notice';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { studioRequestId } from './studioApi';
-import { CreationProposal } from './studioCreation';
+import { CreationProposal, fetchStudioSources, StudioSource } from './studioCreation';
 import { CreationClarificationRequest, StudioExecution, getExecutionCreation } from './studioExecution';
 import StudioSemanticReview from './StudioSemanticReview';
 
@@ -25,6 +25,12 @@ export default function StudioConversationCreation({
   const [loading, setLoading] = useState(true);
   const [uncertain, setUncertain] = useState(false);
   const [answer, setAnswer] = useState('');
+  const [targetSource, setTargetSource] = useState('');
+  const [sources, setSources] = useState<StudioSource[]>([]);
+  const [sourceAttempt, setSourceAttempt] = useState(0);
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceError, setSourceError] = useState('');
+  const missingSource = !!proposal?.clarifications?.some(c => c.id === 'missingColumns');
   const [answering, setAnswering] = useState(false);
   const [answerUncertain, setAnswerUncertain] = useState(false);
   const [readAttempt, setReadAttempt] = useState(0);
@@ -72,8 +78,30 @@ export default function StudioConversationCreation({
       current = false;
     };
   }, [run.runId, run.creationResult?.proposalId, !!run.creationSaveResult, readAttempt]);
+  useEffect(() => {
+    if (!missingSource || !onClarify) return;
+    let current = true;
+    setSourceLoading(true);
+    setSourceError('');
+    setSources([]);
+    setTargetSource('');
+    fetchStudioSources()
+      .then(rows => {
+        if (current) setSources(rows.filter(source => source.engine === 'duckdb' && source.id !== proposal.sourceId));
+      })
+      .catch(() => {
+        if (current) setSourceError('데이터 소스 목록을 불러오지 못했습니다. 기존 질문은 유지됩니다.');
+      })
+      .finally(() => {
+        if (current) setSourceLoading(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [missingSource, !!onClarify, proposal?.proposalId, sourceAttempt]);
   const clarify = async () => {
-    if (pending.current || disabled || loading || !proposal || !answer || !onClarify) return;
+    if (pending.current || disabled || loading || !proposal || !(missingSource ? targetSource : answer) || !onClarify)
+      return;
     pending.current = true;
     const controller = new AbortController();
     answerAbort.current = controller;
@@ -83,7 +111,7 @@ export default function StudioConversationCreation({
       requestId: studioRequestId(),
       proposalId: proposal.proposalId,
       expectedSourceRevision: proposal.sourceRevision,
-      refundDenominator: answer as 'orders' | 'amount',
+      ...(missingSource ? { targetSourceId: Number(targetSource) } : { refundDenominator: answer as 'orders' | 'amount' }),
     };
     try {
       await onClarify(run, answerRequest.current, controller.signal);
@@ -146,7 +174,8 @@ export default function StudioConversationCreation({
     );
   return (
     <div className="studio-conversation-creation">
-      <p className="studio-creation-scope">새 대시보드 · 현재 소스 · 전체 기간 · 필터 없음</p>
+      <p className="studio-creation-scope">새 대시보드 · 소스 #{run.creationResult?.sourceId} · 전체 기간 · 필터 없음</p>
+      {proposal?.profile?.name && <p className="studio-execution-hint">분석할 데이터: {proposal.profile.name}</p>}
       <p>현재 대시보드의 기간·필터와 배치를 복사하지 않습니다. 저장 전에 아래 계산 결과를 확인하세요.</p>
       {loading && <p role="status">지표·차원과 미리보기를 불러오는 중입니다…</p>}
       {error && <Alert severity="error">{error}</Alert>}
@@ -194,22 +223,89 @@ export default function StudioConversationCreation({
           <p className="studio-execution-hint">답변은 계산 미리보기만 만듭니다. 확인 후 비공개 저장을 선택하세요.</p>
         </div>
       )}
-      {!!proposal?.clarifications?.length &&
-        (!onClarify || !proposal.clarifications.some(c => c.id === 'refundDenominator')) && (
-          <Button variant="outline" asChild disabled={disabled || loading}>
-            <a
-              href={'/studio/new?sourceId=' + proposal.sourceId + '&proposalId=' + encodeURIComponent(proposal.proposalId)}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-disabled={disabled || loading}
-              onClick={e => {
-                if (disabled || loading) e.preventDefault();
-              }}
-            >
-              같은 질문의 계산 기준 확인
-            </a>
+      {missingSource && onClarify && (
+        <div className="flex flex-col gap-3 py-3">
+          <p>필요한 열이 있는 다른 소스로 원래 질문을 다시 확인하세요. 현재 편집기의 데이터는 바뀌지 않습니다.</p>
+          {sourceLoading && <p role="status">데이터 소스를 불러오는 중…</p>}
+          {sourceError && <Alert severity="error">{sourceError}</Alert>}
+          {!sourceLoading && (sourceError || !sources.length) && (
+            <>
+              {!sourceError && (
+                <>
+                  <p>선택할 수 있는 다른 서버 DuckDB 소스가 없습니다.</p>
+                  <Button variant="outline" asChild disabled={disabled || answering || answerUncertain}>
+                    <a
+                      href={
+                        '/studio/new?sourceId=' +
+                        proposal.sourceId +
+                        '&proposalId=' +
+                        encodeURIComponent(proposal.proposalId)
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={event => {
+                        if (disabled || answering || answerUncertain) event.preventDefault();
+                      }}
+                    >
+                      파일·원본 열 확인
+                    </a>
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="outline"
+                disabled={disabled || answering || answerUncertain}
+                onClick={() => setSourceAttempt(value => value + 1)}
+              >
+                소스 목록 다시 불러오기
+              </Button>
+            </>
+          )}
+          <TextField
+            select
+            label="다시 분석할 데이터"
+            value={targetSource}
+            disabled={disabled || loading || sourceLoading || answering || answerUncertain || !sources.length}
+            onChange={event => {
+              setTargetSource(event.target.value);
+              answerRequest.current = null;
+            }}
+          >
+            <option value="" disabled>
+              데이터를 선택하세요
+            </option>
+            {sources.map(source => (
+              <option key={source.id} value={source.id}>
+                {source.name}
+              </option>
+            ))}
+          </TextField>
+          <Button disabled={disabled || loading || sourceLoading || answering || !targetSource} onClick={clarify}>
+            {answering ? '다른 소스로 확인하는 중…' : answerUncertain ? '같은 답변으로 다시 확인' : '이 소스로 미리보기'}
           </Button>
-        )}
+          {answering && (
+            <Button variant="ghost" onClick={() => answerAbort.current?.abort()}>
+              계산 요청 중지
+            </Button>
+          )}
+          <p className="studio-execution-hint">미리보기 후 비공개 저장을 선택해야 새 대시보드가 만들어집니다.</p>
+        </div>
+      )}
+      {!!proposal?.clarifications?.length && !onClarify && (
+        <Button variant="outline" asChild disabled={disabled || loading}>
+          <a
+            href={'/studio/new?sourceId=' + proposal.sourceId + '&proposalId=' + encodeURIComponent(proposal.proposalId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-disabled={disabled || loading}
+            onClick={e => {
+              if (disabled || loading) e.preventDefault();
+            }}
+          >
+            같은 질문의 계산 기준 확인
+          </a>
+        </Button>
+      )}
       {proposal?.preview && (
         <>
           <p className="studio-execution-hint">{proposal.profile.rowCount}행 · 제안은 10분간 유지됩니다.</p>

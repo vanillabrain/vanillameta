@@ -682,6 +682,23 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       await expect(propose()).rejects.toMatchObject({ status: 400 });
     },
   );
+  it('UC034 retains only the confirmed denominator with a cached missing-field question', async () => {
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        clarifications: [
+          { id: 'missingColumns', question: 'Missing field', choices: [], affectedBlockIds: [] },
+        ],
+      }),
+    );
+    const result = await propose({
+      prompt: 'refund rate',
+      clarificationAnswers: { refundDenominator: 'amount' },
+    });
+    expect(result.clarifications[0].id).toBe('missingColumns');
+    const cached = await service.proposal(result.proposalId, result.sourceId, 7);
+    expect(cached.requestAnswers).toEqual({ refundDenominator: 'amount' });
+    expect(cached.requestPrompt).toBe('refund rate');
+  });
   it('accepts a model missingColumns clarification without persisting or previewing it', async () => {
     llm.callLlm.mockResolvedValue(
       JSON.stringify({

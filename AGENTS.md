@@ -24,6 +24,8 @@
 
 - **Studio 생성 질문 후속:** [UC033 증빙](docs/testing/inline-creation-clarification.md)은 환불률 분모를 같은 대화에서 선택→미리보기→명시 비공개 저장으로 연결한다. Ego75 금액/주문 기준·응답 교체503/동일 답변 복구·저장42/reload·원본39/35 불변·390/768/1440 넘침0을 확인했다. 필수 열 질문은 기존 소스 확인 연결을 유지한다. 운영MySQL/실휴대폰/전체 수용은 별도다.
 
+- **Studio 필수 열 복구:** [UC034 증빙](docs/testing/inline-source-recovery.md)은 같은 카드 소스 교체→원 질문/이전 분모 유지→미리보기→명시 저장이다. Ego76 Rill 열 누락/다른 소스에도 누락·source32 복구/저장43/reload·원본35 불변·390/768/1440 넘침0을 확인했다. UC033의 필수 열 별도 이동은 이 흐름으로 보완하며 대체 소스가 없으면 준비 링크를 제공한다. 목록/불명확 응답 오류는 컴포넌트 회귀이고 운영/실휴대폰/전체 수용은 별도다.
+
 - **Studio 병행 흐름:** T10~T15의 대화·원자 저장·게시·내 데이터 복제 증빙은 docs/testing/dashboard-studio.md를 따른다. 기존 분석 편집 흐름 UC012~022의 증빙과 구분하며, Studio 흐름 자체의 잔여 조건은 PARTIAL이며, 분석 흐름의 UC023 전체 여정 증빙과 혼동하지 않는다. gpt-6-luna 및 VoiceOver BLOCKED를 유지한다.
 - **Studio T16 후속:** [후속 질문/첫 화면](docs/testing/studio-proposal-refinement.md)은 서버 부모 제안의 대상1블록 수정/추가→전체 미리보기→비공개28 저장/reload·동일 요청 복구를 실제 gpt-6-luna로 확인했다. Rill40그룹/634,513,000과 평균5.57USD, 비대상 정의/ID·원래25 보존,799.57초 실제 TTL400,390/768/1440 넘침0이다. 네이티브 선택창 방향키·편집기 run 링크 전체 실제 여정·운영/실휴대폰은 남아 있고 VoiceOver BLOCKED를 유지한다. 캡처는 Ego CDP 장애로 같은 Ego 창의 OS 캡처를 사용했다.
 

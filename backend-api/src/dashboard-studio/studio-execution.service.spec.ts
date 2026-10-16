@@ -138,6 +138,73 @@ describe('T7 durable executions', () => {
     };
     return { runner, creation, run, answer, parent, next };
   };
+  it('UC034 changes only a missing-field proposal source, preserves the server prompt and prior denominator, and replays without AI', async () => {
+    const { runner, creation, run, answer, parent, next } = await inlineCase();
+    parent.clarifications = [{ id: 'missingColumns', choices: [] }] as any;
+    (parent as any).requestAnswers = { refundDenominator: 'amount' };
+    const request = {
+      requestId: 'source-1',
+      proposalId: parent.proposalId,
+      expectedSourceRevision: parent.sourceRevision,
+      targetSourceId: 12,
+    };
+    const replacement = { ...next, sourceId: 12, sourceRevision: 'b'.repeat(64) };
+    creation.propose.mockResolvedValueOnce(replacement);
+    creation.proposal.mockImplementation(async id =>
+      id === parent.proposalId ? parent : replacement,
+    );
+    const updated = await runner.clarifyCreation(run.runId, request, 7);
+    expect(updated.creationResult).toEqual({
+      proposalId: replacement.proposalId,
+      sourceId: 12,
+      sourceRevision: 'b'.repeat(64),
+    });
+    expect(creation.propose.mock.calls[1][0]).toEqual({
+      sourceId: 12,
+      prompt: parent.requestPrompt,
+      clarificationAnswers: { refundDenominator: 'amount' },
+    });
+    expect((await runner.clarifyCreation(run.runId, request, 7)).creationResult).toEqual(
+      updated.creationResult,
+    );
+    expect(creation.propose).toHaveBeenCalledTimes(2);
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(creation.create).not.toHaveBeenCalled();
+    await expect(
+      runner.saveCreation(
+        run.runId,
+        { proposalId: answer.proposalId, expectedSourceRevision: answer.expectedSourceRevision },
+        7,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+  it('UC034 requires missing fields, a distinct valid source, and preserves the proposal on source access failure', async () => {
+    const { runner, creation, run, parent } = await inlineCase();
+    const request = {
+      requestId: 'source-1',
+      proposalId: parent.proposalId,
+      expectedSourceRevision: parent.sourceRevision,
+      targetSourceId: 12,
+    };
+    await expect(runner.clarifyCreation(run.runId, request, 7)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    parent.clarifications = [{ id: 'missingColumns', choices: [] }] as any;
+    for (const invalid of [
+      { targetSourceId: 0 },
+      { targetSourceId: parent.sourceId },
+      { refundDenominator: 'amount' },
+    ])
+      await expect(
+        runner.clarifyCreation(run.runId, { ...request, ...invalid }, 7),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    creation.propose.mockRejectedValueOnce(new ForbiddenException('target denied'));
+    await expect(runner.clarifyCreation(run.runId, request, 7)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect((await runner.get(run.runId, 7)).creationResult.proposalId).toBe(parent.proposalId);
+    expect(creation.create).not.toHaveBeenCalled();
+  });
   it('UC033 binds the answer to the server question, updates only its proposal, and saves the latest result', async () => {
     const { runner, creation, run, answer, next } = await inlineCase();
     const updated = await runner.clarifyCreation(run.runId, answer, 7);

@@ -777,10 +777,16 @@ export class StudioExecutionService implements OnModuleInit {
       actor,
     );
   }
-  /** UC-033: answer a server-owned question without modifying the initiating editor. */
+  /** UC-033/034: answer a server-owned question without modifying the initiating editor. */
   async clarifyCreation(id: string, body: any, actor: number, signal?: AbortSignal) {
     try {
-      studioKeys(body, ['requestId', 'proposalId', 'expectedSourceRevision', 'refundDenominator']);
+      studioKeys(body, [
+        'requestId',
+        'proposalId',
+        'expectedSourceRevision',
+        'refundDenominator',
+        'targetSourceId',
+      ]);
     } catch {
       throw new BadRequestException('계산 기준 답변을 확인해 주세요.');
     }
@@ -792,8 +798,13 @@ export class StudioExecutionService implements OnModuleInit {
       body.proposalId.length > 128 ||
       typeof body.expectedSourceRevision !== 'string' ||
       !/^[a-f0-9]{64}$/.test(body.expectedSourceRevision) ||
-      typeof body.refundDenominator !== 'string' ||
-      !['orders', 'amount'].includes(body.refundDenominator)
+      (body.targetSourceId === undefined
+        ? typeof body.refundDenominator !== 'string' ||
+          !['orders', 'amount'].includes(body.refundDenominator)
+        : typeof body.targetSourceId !== 'number' ||
+          !Number.isSafeInteger(body.targetSourceId) ||
+          body.targetSourceId <= 0 ||
+          body.refundDenominator !== undefined)
     )
       throw new BadRequestException('계산 기준 답변을 확인해 주세요.');
     const row = await this.owned(id, actor),
@@ -848,25 +859,40 @@ export class StudioExecutionService implements OnModuleInit {
     const parent = await this.creationService.proposal(body.proposalId, sourceId, actor);
     if (
       parent.preview ||
-      !parent.clarifications?.some(c => c.id === 'refundDenominator') ||
+      !parent.clarifications?.some(
+        c => c.id === (body.targetSourceId === undefined ? 'refundDenominator' : 'missingColumns'),
+      ) ||
       parent.sourceRevision !== body.expectedSourceRevision ||
       typeof parent.requestPrompt !== 'string' ||
       !parent.requestPrompt.trim() ||
       parent.requestPrompt.length > 2000
     )
-      throw new ConflictException('답변할 분모 질문이 없거나 생성안이 변경되었습니다.');
+      throw new ConflictException('답변할 질문이 없거나 생성안이 변경되었습니다.');
+    const targetSourceId = body.targetSourceId ?? sourceId;
+    if (body.targetSourceId === sourceId)
+      throw new BadRequestException('다른 데이터 소스를 선택해 주세요.');
     const next = await this.creationService.propose(
       {
-        sourceId,
+        sourceId: targetSourceId,
         prompt: parent.requestPrompt,
-        expectedSourceRevision: body.expectedSourceRevision,
-        clarificationAnswers: { refundDenominator: body.refundDenominator },
+        ...(body.targetSourceId === undefined
+          ? {
+              expectedSourceRevision: body.expectedSourceRevision,
+              clarificationAnswers: { refundDenominator: body.refundDenominator },
+            }
+          : parent.requestAnswers
+          ? { clarificationAnswers: parent.requestAnswers }
+          : {}),
       },
       actor,
       signal,
     );
     this.checkDisconnected(signal);
-    if (next.sourceId !== sourceId || next.sourceRevision !== body.expectedSourceRevision)
+    if (
+      next.sourceId !== targetSourceId ||
+      !/^[a-f0-9]{64}$/.test(next.sourceRevision) ||
+      (body.targetSourceId === undefined && next.sourceRevision !== body.expectedSourceRevision)
+    )
       throw new ConflictException('답변 중 데이터 기준이 변경되었습니다.');
     await this.studio.serializeWrite(async () => {
       const fresh = await this.owned(id, actor),
@@ -881,7 +907,7 @@ export class StudioExecutionService implements OnModuleInit {
       this.checkDisconnected(signal);
       current.creationResult = {
         proposalId: next.proposalId,
-        sourceId,
+        sourceId: targetSourceId,
         sourceRevision: next.sourceRevision,
       };
       current.creationClarification = { requestId: body.requestId, payloadHash: hash };
