@@ -68,6 +68,7 @@ export default function StudioConversationCreation({
       const status = Number((cause as any)?.response?.status);
       const unknown = !status || status >= 500;
       setUncertain(unknown);
+      if (status === 400) setProposal(null);
       setError(
         unknown
           ? '저장 완료 여부를 확인하지 못했습니다. 같은 생성 요청으로 재시도하면 기존 저장 결과를 확인합니다.'

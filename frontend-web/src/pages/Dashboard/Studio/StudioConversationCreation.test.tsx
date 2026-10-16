@@ -55,6 +55,16 @@ it('shows expired proposal guidance without invoking creation or showing a save 
   expect(screen.queryByRole('button')).toBeNull();
   expect(save).not.toHaveBeenCalled();
 });
+it('removes a stale preview and save control after the server rejects an expired proposal', async () => {
+  const save = vi.fn().mockRejectedValue({ response: { status: 400 } });
+  render(<StudioConversationCreation run={run} onSave={save} disabled={false} />);
+  fireEvent.click(await screen.findByRole('button', { name: '제안 확인 후 비공개 저장' }));
+  expect(await screen.findByText('생성안이 만료되었거나 저장할 수 없습니다. 새 생성 요청을 보내 주세요.')).toBeDefined();
+  expect(screen.queryByRole('button')).toBeNull();
+  expect(screen.queryByText(/634,513,000/)).toBeNull();
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(api.read).toHaveBeenCalledTimes(1);
+});
 it('displays missing meaning and blocks saving when the compiler asks for clarification', async () => {
   api.read.mockResolvedValue({
     ...proposal,

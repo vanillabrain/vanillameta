@@ -2,7 +2,7 @@
 
 ## 현재 범위와 실행 기준
 
-2026-10-16, T12~T15는 develop-v2에 통합되어 있다. 최신 UI 기준은 [Studio shadcn 검증](studio-shadcn.md)이며 공식 로고·빈 결과·모바일 패널 수정은 `d51585a4`까지 drumcap 커밋·push했다. T15 신규 생성 dispatch는 실제 gpt-6-luna/DuckDB로 확인했고, UI10에서 생성 저장 커밋 후 응답 유실→같은27 영수증 재확인·중복 생성0·reload를 추가 확인했다. UI11은 완료 링크 Enter→실제 새 탭 열림→원래 탭 복귀를 확인했다. 아래 과거 브랜치/미커밋/NOT_RUN은 당시 범위이며 최신 후속 결과를 우선한다. Studio TC-005/G4 전체 수용은 PARTIAL이다. 미저장 생성안 서버 재시작/실시간TTL·대화식 생성안 재설계·실기기·운영 gate가 남고 VoiceOver BLOCKED를 유지한다.
+2026-10-16, T12~T15는 develop-v2에 통합되어 있다. 최신 UI 기준은 [Studio shadcn 검증](studio-shadcn.md)이며 공식 로고·빈 결과·모바일 패널 수정은 `d51585a4`까지 drumcap 커밋·push했다. T15 신규 생성 dispatch는 실제 gpt-6-luna/DuckDB로 확인했고, UI10에서 생성 저장 커밋 후 응답 유실→같은27 영수증 재확인·중복 생성0·reload를 추가 확인했다. UI11은 완료 링크 Enter→실제 새 탭 열림→원래 탭 복귀를 확인했다. UI12는 미저장 제안의 실제 서버 재시작→400/만료 안내→명시 재생성·새 미저장 제안/원본 불변을 확인하고 만료 뒤 남던 저장 버튼을 수정했다. 아래 과거 브랜치/미커밋/NOT_RUN은 당시 범위이며 최신 후속 결과를 우선한다. Studio TC-005/G4 전체 수용은 PARTIAL이다. 실시간TTL·대화식 생성안 재설계·실기기·운영 gate가 남고 VoiceOver BLOCKED를 유지한다.
 
 ### T1 최초 시안 실행 기록 (역사적 기준)
 

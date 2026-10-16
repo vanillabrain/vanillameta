@@ -143,7 +143,35 @@ T14/T15에서 href/target만 확인하고 실제 호스트 새 탭 전달은 NOT
 
 ### 남은 우선순위
 
-1. T15 미저장 생성안의 실제 서버 재시작/캐시 소실 안내 및 재생성 연결. 기존 response 유실·영수증 복구와 구분하며, 현재 격리 DB에는 미저장 생성 실행이 없어 별도 준비가 필요하다.
+1. T15 미저장 생성안의 실제 서버 재시작/캐시 소실 안내 및 재생성 연결은 아래 UI12에서 선택 검증했다. 기존 response 유실·영수증 복구와 구분한다.
 2. 실제10분 TTL 대기와 전체 OS 날짜·파일·select 팝업 키보드. 현재 하위 TTL 검사·부분 키보드를 전체 통과로 확대하지 않는다.
 3. 홈의 빈 대화 진입/소스 선택, 같은 생성안의 지표·차원 대화식 재설계·clarification 이어받기는 미구현 제품 범위이며 별도 설계가 필요하다.
 4. 실휴대폰·운영 MySQL/동시 부하·전체 Studio 수용은 별도 gate다. VoiceOver는 기존 BLOCKED를 유지한다.
+
+## STUDIO-UI12 미저장 생성안 서버 재시작 — 2026-10-16
+
+기준 `4ba84614`, 동일 격리 DB/source9/dashboard25, FE3231/API4331. P3 실행 복구·T15 STUDIO-N03/N04의 남은 실제 재시작 조건이다. 정상 생성·응답 유실·저장 영수증·새 탭 PASS는 반복하지 않는다.
+
+| 조건 | 기대 | 상태 |
+| --- | --- | --- |
+| UI12-A | gpt-6-luna 신규 제안만 생성하고 저장하지 않는다. API4331의 정확한 Node 프로세스만 정상 재시작하여 메모리 캐시 소실을 만든다 | PASS_SELECTED: 실제 SIGTERM/동일 설정 재기동 |
+| UI12-B | 오래된 제안 저장/조회가 거절되면 재생성 안내·저장 차단, 원본·새 dashboard/metric/publication 추가0. reload가 모델/저장을 자동 실행하지 않음 | PASS_SELECTED: 오류 수정·실제400 재검증/GET 복원 |
+| UI12-C | 모바일·키보드로 새 생성 요청을 명시 전송하여 새 proposal/실제 미리보기를 받는다. 원래 문서/완료 영수증 유지, 새 제안은 저장 전 상태 | PASS_SELECTED: 실제 재생성/새 ID·미저장·원본 불변 |
+
+서버 실행 명령·포트·DB/업로드·Codex 모델 연결을 확인하고 같은 설정으로 복구한다. 실시간10분 TTL·SIGKILL·호스트 재부팅과 구분한다. 오류 발견 시 최소 안내/상태 변경과 해당 검사만 수행한다. 캡처는 저장소 밖 `studio-shadcn-20261016`에 남기며 gpt-6-luna/VoiceOver BLOCKED를 유지한다.
+
+### 실제 실행·수정·재검증
+
+- 기존 Ego TaskSpace10의 source9/dashboard25를 사용했다. 실제 gpt-6-luna 제안 실행 `0a577e9f-462d-440d-b66d-10f16427ef9c`/제안 `50565c64-7c2d-4b45-b617-5479c9647098`은 총634513000/차트2개를 미리보기만 하고 저장하지 않았다. 대시보드26개/지표36개/Studio게시8개가 준비 전후 같았다.
+- 포트 소유 PID55275, argv `node dist/src/main.js`, cwd `studio-develop-v2-merge-check/vanillameta/backend-api`, Node24를 확인했다. 비밀값이 아닌 이름 허용 목록으로 기존 HOST/PORT/CORS/SQLITE_PATH/FILE_UPLOAD_DIR/AI_PROVIDER/Codex URL·catalog/PATH만 확인해 같은 dist와 설정을 사용했다. PID55275만 SIGTERM 종료→PID36408로4331 재기동, 원래 검증 서버를 계속 사용할 수 있게 보존했다. 새 backend 코드/DB 초기화/다른 서버 종료는 없다. 실행 생성부터 재기동 로그 생성까지108초이므로10분TTL 시간 이동으로 소실을 대신하지 않았다.
+- 브라우저의 기존 미리보기 저장 Enter는 실제 POST400. **오류:** 만료 안내 뒤에도 오래된 preview/저장 버튼이 활성 상태였다. `StudioConversationCreation`의 명확한400 거절에만 proposal을 비워 저장 진입을 제거했다. network/5xx의 불확실 결과는 같은 요청 재확인 경로를 유지한다. 변경 전 PNG를 보존하고, HMR 후 같은 만료 생성안으로 POST400을 다시 받아 preview/저장 버튼0·재생성 안내를 확인했다.
+- reload 후 dashboard/runs/creation GET 및 OPTIONS만 관찰했고 POST0이었다. 생성안 읽기도400/재시작·만료 안내로 돌아오며 저장 버튼0. 과거 완료26/27의 복구 계약과 원래 문서25를 새 생성안으로 바꾸지 않았다. 이 GET/화면 복원을 새 모델 호출로 집계하지 않는다.
+- textarea 입력→Tab으로 전송→Enter의 명시 요청에서 실제 gpt-6-luna 재생성 실행 `4bcff8d2-1763-4c3d-8cf6-6c06c68177b9`/새 제안 `8c121168-7aee-4b1a-819f-a60b67e19e69`을 받았다. 기존 저장 지표35/v1을 재사용하며 총634513000·device_type 차트/1,391,572행이 표시된다. 새 저장 버튼은 포커스만 확인하고 누르지 않았다. 두 실행 모두 creationSaveResult 없음, 새 proposal ID는 다르며 원래 실패 실행도 미저장 상태다.
+- 최종 dashboard26/metric36/Studio게시8로 추가0,25의 dashboard/studio_state/dashboard_widget 해시는 모두 준비 전후 동일하다. 실제 모델 요청은 준비1+명시 재생성1이다. 설정 fallback/로컬 LLM 호출0, VoiceOver BLOCKED 유지, OS 설정 변경0.
+
+### 검사·디자인·증빙
+
+- 재현 회귀1개는 수정 전 활성 저장 버튼 때문에 FAIL, 수정 후 PASS. 같은 catch를 지나는 불확실 저장 재확인 기존 검사1개도 선택 실행해 총2 PASS/나머지4 skipped. FE 타입·변경2개TSX eslint·FE build·diff check PASS. 서버 코드/계산/일반 저장/게시/전체 E2E의 통과 조건은 반복하지 않았다.
+- 기능 PASS_SELECTED.390×844의 오류/재생성/새 저장 버튼 포커스와1440×1000의 원래 문서+새 미리보기를 실제 캡처·직접 확인해 관찰 디자인 PASS_SELECTED다. 새 오류는 카드 안에서 줄바꿈, 모바일 composer하단844, 새 저장 버튼과 입력 영역 겹침0, 가로 넘침0. 초기 reload 캡처는 Sheet 등장 전환 중 blur가 있어 최종 디자인 근거에서 제외한다. 만료 고정 화면과 재생성 최종 PNG를 근거로 사용한다.
+- 증빙: `restart-unsaved-{baseline,proposal,runtime,reload,browser-result,final}.json`, `restart-unsaved-error-before-mobile.png`, `restart-unsaved-expired-fixed-mobile.png`, `restart-unsaved-regenerated-mobile.png`, `restart-unsaved-review-keyboard-mobile.png`, `restart-unsaved-regenerated-desktop.png`. 폴더는 동일하다. TaskSpace10/viewport override를 정리했다. Ego 업데이트 안내는 적용하지 않았다.
+- 실시간10분 TTL, SIGKILL/호스트 재부팅, 운영MySQL/동시 부하, 실휴대폰/VoiceOver·전체 키보드/언어 조합은 NOT_RUN/BLOCKED다. 홈/빈 대화와 생성안 대화식 재설계는 별도 제품 범위다. 전체 Studio 수용 완료로 확대하지 않으며 이번 변경과 기록은 미커밋이다.
