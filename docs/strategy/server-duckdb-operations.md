@@ -37,3 +37,30 @@ API 요청이 끝날 때까지 import를 기다리는 동기 endpoint와 워커 
 ## 2026-10-14 단일 서버 Pivot 동시 요청 측정
 
 Rill1391572행·4개필터·4/8/16/24개 HTTP동시요청 선택검증.16까지 전부성공(p95 1.653초),24는17성공/7개의큐busy503 및후속복구확인. 실제브라우저 과부하 안내/재시도복구 확인. API peakRSS표본302.5MiB. 단일로컬서버/같은사용자/짧은burst 결과이며 운영사용자한도·SLA·지속부하·다중tenant/multi-replica보장이아니다. 상세 PIVOT-09: [explore-pivot.md](../testing/explore-pivot.md), 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-load-20261014/RESULTS.md`.
+
+## 복원 전 백업 검사
+
+보존 주기·별도 보관·키 복구는 [최소 운영 절차](backup-retention-recovery.md)를 따른다. 실제 외부 반출·자동 삭제/스케줄러는 아직 설정하지 않았다.
+
+쓰기/수입을 중지한 동일 시점의 메타데이터 SQL과 FILE_UPLOAD_DIR 전체를 한 세트로 보관한다. CONFIG_SECRET_KEY는 별도 비밀 보관소에 유지하며 증빙/manifest에 넣지 않는다. 검사 명령은 DB에 연결하지 않고 아래 세트의 누락·잘림·SHA-256 불일치를 거절한다. SQLite 백업을 MySQL SQL로 변환하는 도구는 아니다.
+
+```text
+backup/
+  metadata.sql
+  uploads/<UUID>/data.duckdb
+  uploads/<UUID>/source.parquet
+  uploads/<UUID>/import.json
+```
+
+신뢰할 수 있는 별도 manifest JSON은 `dump: {bytes: 양의 정수, sha256: 소문자64자리}`, `files: {"UUID/파일명": {bytes: 0이상 정수, sha256: 소문자64자리}}` 형식이다. `files`는 uploads 하위 전체 파일을 나열한다(보관 버전 파일도 포함). 기존 MYSQL03의 database/증빙 메타 필드는 검증 기준으로 쓰지 않는다. manifest는 별도 경로나 백업 루트에 둘 수 있다. 해시는 백업 완료 시 작성하고 신뢰 가능한 별도 위치에 보관한다. 손상된 내용으로 manifest를 다시 만들면 원래 백업과의 정합성을 증명하지 못한다.
+
+```sh
+# BACKUP_DIR, BACKUP_MANIFEST와 복원 전용 MySQL 설정/빈 대상 DB를 먼저 지정한다.
+# MySQL 설정 파일에는 별도로 관리하는 자격증명을 사용한다.
+python3 scripts/verify-backup.py --backup "$BACKUP_DIR" --manifest "$BACKUP_MANIFEST" &&
+  mysql --defaults-extra-file="$MYSQL_RESTORE_CONFIG" "$RESTORE_DATABASE" < "$BACKUP_DIR/metadata.sql"
+```
+
+검사 성공(exit0)일 때만 MySQL 클라이언트가 실행된다. 실패(exit1) 시 자동 복원/파일 삭제/재생성하지 않는다. 검사/복원 중 세트는 쓰기 중지된 비공개 디렉터리로 유지한다. `검사 && cat dump | mysql`은 shell 우선순위 때문에 검사 실패에도 mysql 프로세스를 시작할 수 있으므로 위 직접 stdin 방식을 사용한다.
+
+이 명령은 복원 허가/DB 선택·SQL 의미 검증·운영 스키마 호환성·검사 후 파일 교체 방지·악의적인 manifest 재작성 탐지를 제공하지 않는다. DB와 파일의 업무 시점 일치는 백업 작성 절차가 보장해야 한다. 정상 해시만으로 그 시점 일치까지 증명하지 않는다. 복원 후 별도 FILE_UPLOAD_DIR/암호화 키·저장 경로를 확인하고 정답 집계와 영수증을 조회한다. 경로가 달라지면 sourceRevision이 바뀔 수 있다. 로컬 선택 증빙: [MYSQL03](../testing/studio-mysql-recovery.md), [MYSQL05](../testing/studio-mysql-backup-validation.md).

@@ -59,3 +59,10 @@ MySQL DDL은 implicit commit이므로 전체19개가 하나의 rollback 가능�
 ### 원격 병행 변경 최종 통합
 
 후속 MySQL 수정/검증은 `54d50a0d`로 커밋했다. push 직전 원격 `a1de51f3`의 UC035가 추가돼 강제 push하지 않고 `d3d88f8b`로 보존 병합했다. 저장/게시/마이그레이션 수정 파일 충돌0, 최종 BE build·FE type PASS 및 추가된 UC035 실행기 조건만2 PASS/65 SKIP다. 게시/저장 구현에 추가 변경이 없어 위 실제 두 서버·UI 결과는 재사용했다. 기존 통과 전체는 반복하지 않았다.
+
+
+## 백업·중단 복구 후속 — 2026-10-16
+
+별도 [STUDIO-MYSQL03](studio-mysql-recovery.md)에서 메타데이터/파일 백업·새 DB/새 루트 복원, 실제 CLI의 DDL 직후 중단/재개 및 사전 백업 복귀를 검증했다. 위 당시 미검증 범위 중 이 로컬 선택 조건만 해소하며 MySQL 데몬 자체 crash·전체 운영/키 유실·PITR은 여전히 미검증이다.
+
+후속 최신 범위: [MYSQL04](studio-mysql-daemon.md)에서 별도 데몬 SIGKILL 복구, [MYSQL05](studio-mysql-backup-validation.md)에서 손상 백업 사전 차단, [MYSQL06](studio-backup-key-recovery.md)에서 키 누락/오류/원래 QA키 복구를 선택 검증했다. 실제 오프사이트/독립 키 저장소·호스트 전원 장애/PITR·운영 규모는 미검증이다. 이전 절의 잔여 조건은 해당 실행 시점의 기록이다.

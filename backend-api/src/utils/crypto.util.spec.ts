@@ -42,4 +42,23 @@ describe('crypto.util', () => {
     process.env.CONFIG_SECRET_KEY = 'other-secret';
     expect(() => decryptConnectionConfig(encrypted)).toThrow();
   });
+
+  it('키가 모두 누락된 복원 환경은 암호화 설정을 복호화하지 못한다', () => {
+    const encrypted = encryptConnectionConfig('{"a":1}');
+    delete process.env.CONFIG_SECRET_KEY;
+    delete process.env.ACCESS_SECRET;
+    expect(() => decryptConnectionConfig(encrypted)).toThrow(
+      'CONFIG_SECRET_KEY or ACCESS_SECRET environment variable is required',
+    );
+  });
+
+  it('ACCESS_SECRET으로 암호화했던 백업은 같은 fallback 키로 복구한다', () => {
+    delete process.env.CONFIG_SECRET_KEY;
+    process.env.ACCESS_SECRET = 'legacy-test-secret';
+    const encrypted = encryptConnectionConfig('{"a":1}');
+    process.env.ACCESS_SECRET = 'wrong-legacy-test-secret';
+    expect(() => decryptConnectionConfig(encrypted)).toThrow();
+    process.env.ACCESS_SECRET = 'legacy-test-secret';
+    expect(parseConnectionConfig(encrypted)).toEqual({ a: 1 });
+  });
 });
