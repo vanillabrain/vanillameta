@@ -9,6 +9,7 @@ import {
   executionAction,
   saveExecutionRemix,
   saveExecutionCreation,
+  clarifyExecutionCreation,
   listExecutions,
   retryStep,
   executionSummary,
@@ -289,6 +290,18 @@ export default function StudioConversation({ context, selectedTitle, filterScope
           onRefresh={refresh}
           onRetry={retry}
           onCancel={cancel}
+          onClarification={async (run, request, signal) => {
+            const dashboardId = current.current.dashboardId;
+            setActing(true);
+            try {
+              const completed = await clarifyExecutionCreation(run, request, signal);
+              if (dashboardId !== current.current.dashboardId) return;
+              updateRun(completed);
+              setNotice('계산 기준 답변을 반영했습니다. 아래 생성안을 확인해 주세요.');
+            } finally {
+              if (dashboardId === current.current.dashboardId) setActing(false);
+            }
+          }}
           onCreation={async run => {
             const dashboardId = current.current.dashboardId;
             setActing(true);

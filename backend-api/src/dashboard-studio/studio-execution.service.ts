@@ -41,6 +41,7 @@ export class StudioExecutionService implements OnModuleInit {
   private active = new Map<string, { controller: AbortController; promise: Promise<any> }>();
   private answers = new Map<string, { answer: string; expires: number }>();
   private contexts = new Map<string, { body: StudioExecutionRequest; expires: number }>();
+  private clarifications = new Map<string, { payloadHash: string; promise: Promise<any> }>();
   private remixes = new Map<string, { payloadHash: string; promise: Promise<any> }>();
   constructor(
     private readonly db: DataSource,
@@ -767,7 +768,122 @@ export class StudioExecutionService implements OnModuleInit {
       actor,
     );
   }
+  /** UC-033: answer a server-owned question without modifying the initiating editor. */
+  async clarifyCreation(id: string, body: any, actor: number, signal?: AbortSignal) {
+    try {
+      studioKeys(body, ['requestId', 'proposalId', 'expectedSourceRevision', 'refundDenominator']);
+    } catch {
+      throw new BadRequestException('계산 기준 답변을 확인해 주세요.');
+    }
+    if (
+      typeof body.requestId !== 'string' ||
+      !/^[-a-zA-Z0-9_]{1,128}$/.test(body.requestId) ||
+      typeof body.proposalId !== 'string' ||
+      !body.proposalId ||
+      body.proposalId.length > 128 ||
+      typeof body.expectedSourceRevision !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(body.expectedSourceRevision) ||
+      typeof body.refundDenominator !== 'string' ||
+      !['orders', 'amount'].includes(body.refundDenominator)
+    )
+      throw new BadRequestException('계산 기준 답변을 확인해 주세요.');
+    const row = await this.owned(id, actor),
+      state = this.state(row),
+      hash = studioDigest(body);
+    this.creationBody(row, state);
+    if (state.creationClarification?.requestId === body.requestId) {
+      if (state.creationClarification.payloadHash !== hash)
+        throw new ConflictException('같은 답변 요청의 내용이 다릅니다.');
+      return this.get(id, actor);
+    }
+    if (
+      state.creationSaveResult ||
+      state.creationResult.proposalId !== body.proposalId ||
+      state.creationResult.sourceRevision !== body.expectedSourceRevision
+    )
+      throw new ConflictException('최신 생성안과 답변 기준이 다릅니다. 상태를 다시 확인해 주세요.');
+    const pending = this.clarifications.get(id);
+    if (pending) {
+      if (pending.payloadHash !== hash)
+        throw new ConflictException('다른 계산 기준 답변을 처리하고 있습니다.');
+      return pending.promise;
+    }
+    if (this.clarifications.size >= 16)
+      throw new ServiceUnavailableException(
+        '계산 기준 요청이 많습니다. 잠시 후 다시 시도해 주세요.',
+      );
+    const promise = this.clarifyCreationOnce(
+      id,
+      body,
+      actor,
+      state.creationResult.sourceId,
+      hash,
+      signal,
+    );
+    this.clarifications.set(id, { payloadHash: hash, promise });
+    try {
+      return await promise;
+    } finally {
+      this.clarifications.delete(id);
+    }
+  }
+  private async clarifyCreationOnce(
+    id: string,
+    body: any,
+    actor: number,
+    sourceId: number,
+    hash: string,
+    signal?: AbortSignal,
+  ) {
+    this.checkDisconnected(signal);
+    const parent = await this.creationService.proposal(body.proposalId, sourceId, actor);
+    if (
+      parent.preview ||
+      !parent.clarifications?.some(c => c.id === 'refundDenominator') ||
+      parent.sourceRevision !== body.expectedSourceRevision ||
+      typeof parent.requestPrompt !== 'string' ||
+      !parent.requestPrompt.trim() ||
+      parent.requestPrompt.length > 2000
+    )
+      throw new ConflictException('답변할 분모 질문이 없거나 생성안이 변경되었습니다.');
+    const next = await this.creationService.propose(
+      {
+        sourceId,
+        prompt: parent.requestPrompt,
+        expectedSourceRevision: body.expectedSourceRevision,
+        clarificationAnswers: { refundDenominator: body.refundDenominator },
+      },
+      actor,
+      signal,
+    );
+    this.checkDisconnected(signal);
+    if (next.sourceId !== sourceId || next.sourceRevision !== body.expectedSourceRevision)
+      throw new ConflictException('답변 중 데이터 기준이 변경되었습니다.');
+    await this.studio.serializeWrite(async () => {
+      const fresh = await this.owned(id, actor),
+        current = this.state(fresh);
+      this.creationBody(fresh, current);
+      if (
+        current.creationSaveResult ||
+        current.creationResult.proposalId !== body.proposalId ||
+        current.creationResult.sourceRevision !== body.expectedSourceRevision
+      )
+        throw new ConflictException('답변 중 최신 생성안이 변경되었습니다.');
+      this.checkDisconnected(signal);
+      current.creationResult = {
+        proposalId: next.proposalId,
+        sourceId,
+        sourceRevision: next.sourceRevision,
+      };
+      current.creationClarification = { requestId: body.requestId, payloadHash: hash };
+      fresh.state = JSON.stringify(current);
+      await this.db.manager.save(StudioExecution, fresh);
+    });
+    return this.get(id, actor);
+  }
   async saveCreation(id: string, body: any, actor: number) {
+    if (this.clarifications.has(id))
+      throw new ConflictException('계산 기준 답변을 먼저 확인해 주세요.');
     try {
       studioKeys(body, ['proposalId', 'expectedSourceRevision']);
     } catch {

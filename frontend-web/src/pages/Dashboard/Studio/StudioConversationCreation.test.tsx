@@ -52,7 +52,7 @@ it('shows expired proposal guidance without invoking creation or showing a save 
   const save = vi.fn();
   render(<StudioConversationCreation run={run} onSave={save} disabled={false} />);
   expect(await screen.findByRole('alert')).toBeDefined();
-  expect(screen.queryByRole('button')).toBeNull();
+  expect(screen.queryByRole('button', { name: '제안 확인 후 비공개 저장' })).toBeNull();
   expect(save).not.toHaveBeenCalled();
 });
 it('removes a stale preview and save control after the server rejects an expired proposal', async () => {
@@ -60,7 +60,8 @@ it('removes a stale preview and save control after the server rejects an expired
   render(<StudioConversationCreation run={run} onSave={save} disabled={false} />);
   fireEvent.click(await screen.findByRole('button', { name: '제안 확인 후 비공개 저장' }));
   expect(await screen.findByText('생성안이 만료되었거나 저장할 수 없습니다. 새 생성 요청을 보내 주세요.')).toBeDefined();
-  expect(screen.queryByRole('button')).toBeNull();
+  expect(screen.queryByRole('button', { name: '제안 확인 후 비공개 저장' })).toBeNull();
+  expect(screen.getByRole('button', { name: '생성안 다시 불러오기' })).toBeDefined();
   expect(screen.queryByText(/634,513,000/)).toBeNull();
   expect(save).toHaveBeenCalledTimes(1);
   expect(api.read).toHaveBeenCalledTimes(1);
@@ -94,4 +95,90 @@ it('continues a clarification through its permission checked proposal without ex
   const link = await screen.findByRole('link', { name: '같은 질문의 계산 기준 확인' });
   expect(link.getAttribute('href')).toBe('/studio/new?sourceId=9&proposalId=clarify-parent');
   expect(screen.queryByRole('button')).toBeNull();
+});
+
+it('UC033 answers inline without opening a tab or saving and displays the newly bound preview', async () => {
+  const parent: any = {
+    ...proposal,
+    sourceId: 9,
+    proposalId: 'p1',
+    sourceRevision: 'a'.repeat(64),
+    preview: undefined,
+    clarifications: [
+      {
+        id: 'refundDenominator',
+        question: '분모를 선택해 주세요',
+        choices: [
+          { value: 'orders', label: '주문 건수' },
+          { value: 'amount', label: '매출 금액' },
+        ],
+      },
+    ],
+  };
+  api.read
+    .mockResolvedValueOnce(parent)
+    .mockResolvedValueOnce({ ...parent, proposalId: 'p2', clarifications: [], preview: {} });
+  const clarify = vi.fn().mockResolvedValue(undefined),
+    save = vi.fn();
+  const view = render(<StudioConversationCreation run={run} onSave={save} onClarify={clarify} disabled={false} />);
+  const choice = await screen.findByRole('combobox', { name: '환불률 분모' });
+  expect((screen.getByRole('button', { name: '답변하고 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(choice, { target: { value: 'amount' } });
+  fireEvent.click(screen.getByRole('button', { name: '답변하고 미리보기' }));
+  await waitFor(() => expect(clarify).toHaveBeenCalledTimes(1));
+  expect(clarify.mock.calls[0][1]).toMatchObject({
+    proposalId: 'p1',
+    expectedSourceRevision: 'a'.repeat(64),
+    refundDenominator: 'amount',
+  });
+  expect(save).not.toHaveBeenCalled();
+  expect(screen.queryByRole('link', { name: '같은 질문의 계산 기준 확인' })).toBeNull();
+  view.rerender(
+    <StudioConversationCreation
+      run={{ ...run, creationResult: { ...run.creationResult, proposalId: 'p2' } }}
+      onSave={save}
+      onClarify={clarify}
+      disabled={false}
+    />,
+  );
+  expect(await screen.findByRole('button', { name: '제안 확인 후 비공개 저장' })).toBeDefined();
+});
+it('UC033 preserves an uncertain answer and retries the exact same request without enabling another choice', async () => {
+  api.read.mockResolvedValue({
+    ...proposal,
+    proposalId: 'p1',
+    sourceRevision: 'a'.repeat(64),
+    preview: undefined,
+    clarifications: [
+      {
+        id: 'refundDenominator',
+        question: '분모?',
+        choices: [
+          { value: 'orders', label: '주문 건수' },
+          { value: 'amount', label: '매출 금액' },
+        ],
+      },
+    ],
+  });
+  const clarify = vi.fn().mockRejectedValue(new Error('lost'));
+  render(<StudioConversationCreation run={run} onClarify={clarify} disabled={false} />);
+  fireEvent.change(await screen.findByRole('combobox', { name: '환불률 분모' }), { target: { value: 'amount' } });
+  fireEvent.click(screen.getByRole('button', { name: '답변하고 미리보기' }));
+  await screen.findByRole('button', { name: '같은 답변으로 다시 확인' });
+  expect((screen.getByRole('combobox', { name: '환불률 분모' }) as HTMLSelectElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '같은 답변으로 다시 확인' }));
+  await waitFor(() => expect(clarify).toHaveBeenCalledTimes(2));
+  expect(clarify.mock.calls[0][1]).toEqual(clarify.mock.calls[1][1]);
+});
+
+it('UC033 retries a failed preview read without replaying an answer or a save', async () => {
+  api.read.mockRejectedValueOnce(new Error('503')).mockResolvedValueOnce(proposal);
+  const clarify = vi.fn(),
+    save = vi.fn();
+  render(<StudioConversationCreation run={run} onClarify={clarify} onSave={save} disabled={false} />);
+  fireEvent.click(await screen.findByRole('button', { name: '생성안 다시 불러오기' }));
+  await screen.findByRole('button', { name: '제안 확인 후 비공개 저장' });
+  expect(api.read).toHaveBeenCalledTimes(2);
+  expect(clarify).not.toHaveBeenCalled();
+  expect(save).not.toHaveBeenCalled();
 });

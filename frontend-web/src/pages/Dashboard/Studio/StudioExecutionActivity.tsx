@@ -6,6 +6,7 @@ import { Notice as Alert } from '@/components/ui/notice';
 import { Button } from '@/components/ui/button';
 import {
   StudioExecution,
+  CreationClarificationRequest,
   STEP_LABELS,
   STATUS_LABELS,
   executionSummary,
@@ -22,6 +23,7 @@ type Props = {
   onCancel: (run: StudioExecution) => void;
   canRetry: (run: StudioExecution) => boolean;
   onCreation?: (run: StudioExecution) => Promise<void>;
+  onClarification?: (run: StudioExecution, request: CreationClarificationRequest, signal?: AbortSignal) => Promise<void>;
   onRemix?: (run: StudioExecution, request: RemixSaveInput, isCurrent: () => boolean) => Promise<void>;
 };
 /** Mapping uses the same checked workflow as the published remix route. */
@@ -78,6 +80,7 @@ export default function StudioExecutionActivity({
   canRetry,
   onRemix,
   onCreation,
+  onClarification,
 }: Props) {
   return (
     <section className="studio-execution" aria-labelledby="studio-execution-heading">
@@ -148,7 +151,9 @@ export default function StudioExecutionActivity({
             </div>
           )}
           <RemixHandoff run={run} onRemix={onRemix} />
-          {run.creationResult && <StudioConversationCreation run={run} onSave={onCreation} disabled={busy} />}
+          {run.creationResult && (
+            <StudioConversationCreation run={run} onSave={onCreation} onClarify={onClarification} disabled={busy} />
+          )}
           <ol aria-label="실행 단계">
             {run.steps.map(step => (
               <li key={step.stepId}>

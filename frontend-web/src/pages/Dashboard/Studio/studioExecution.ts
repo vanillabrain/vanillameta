@@ -405,3 +405,31 @@ export async function saveExecutionCreation(run: StudioExecution): Promise<Studi
   );
   return completed;
 }
+
+export type CreationClarificationRequest = {
+  requestId: string;
+  proposalId: string;
+  expectedSourceRevision: string;
+  refundDenominator: 'orders' | 'amount';
+};
+export async function clarifyExecutionCreation(
+  run: StudioExecution,
+  request: CreationClarificationRequest,
+  signal?: AbortSignal,
+): Promise<StudioExecution> {
+  const { data } = await post('/studio/runs/' + encodeURIComponent(run.runId) + '/creation/clarify', request, {
+    timeout: 180000,
+    signal,
+  });
+  const completed = validateExecution(data, run.dashboardId);
+  studioAssert(
+    completed.runId === run.runId &&
+      !!completed.creationResult &&
+      !!run.creationResult &&
+      completed.creationResult.sourceId === run.creationResult.sourceId &&
+      completed.creationResult.sourceRevision === request.expectedSourceRevision &&
+      completed.creationResult.proposalId !== request.proposalId,
+    '계산 기준 답변의 실행을 확인하지 못했습니다.',
+  );
+  return completed;
+}

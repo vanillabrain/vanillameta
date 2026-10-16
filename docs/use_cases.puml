@@ -63,4 +63,6 @@ usecase "UC-031 Studio 생성 저장 확인" as UC031
 operator --> UC031
 usecase "UC-032 Studio 저장 확인 reload 복구" as UC032
 operator --> UC032
+usecase "UC-033 대화 안 계산 기준 확인" as UC033
+operator --> UC033
 @enduml

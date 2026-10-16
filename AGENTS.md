@@ -22,6 +22,8 @@
 - **잔여1–5 통합 최신:** [Ego74/UC032 A6 증빙](docs/testing/studio-completion-1-5.md)은 미전달→실제서버재시작→질문/소스유지·명시재제안→39저장, 대화분모확인→원질문새탭복원→금액환불률21.23%/40게시→새DECIMAL소스34/10%복제41→AI제목/저장/비공개게시/reload를확인했다. 뒤의보존문장이명시저장을가리던문제도문장별동의·인용제외/부정우선으로보완하고실제복합질문저장/reload를확인했다. 관련FE34/전체FE1328·BEcreation48/execution57·전체BE2047범위(포트실패6재검증)·build/type/lint/core8 PASS. 원본35/39/40·ID/SQL/배치보존,390/768/1440넘침0, 임시40/41게시중지·익명410·복사본소유조회200이다. 원격2fb2edb4/e2e5b715통합후관련106·BEbuild/lint·Ego저장41reload/GET만을재확인했다. MySQL은사용자지정으로나중에로컬Docker, 고객데이터/실휴대폰/VoiceOver/운영부하/전체수용은미완료다. 과거새요청으로만안내하던의미확인은선택한원제안handoff범위에서갱신한다.
 - **제품 계약:** 고객에게 모드/내부 구조 선택을 기본 선행 단계로 요구하지 않는다. AI와 직접 편집은 같은 블록 정의·배치를 수정하고, 기존 비대상 블록을 유지한다. Source·Measure·Dimension·Block·Dashboard·Publication 책임은 분리한다. 초안과 게시 버전, 원본과 복제본을 구분한다. 목표 전체 완료의 기준은 TC-005 실제 여정이며 주 여정 실행과 전체 수용·운영 gate는 최신 통합 증빙에서 구분한다.
 
+- **Studio 생성 질문 후속:** [UC033 증빙](docs/testing/inline-creation-clarification.md)은 환불률 분모를 같은 대화에서 선택→미리보기→명시 비공개 저장으로 연결한다. Ego75 금액/주문 기준·응답 교체503/동일 답변 복구·저장42/reload·원본39/35 불변·390/768/1440 넘침0을 확인했다. 필수 열 질문은 기존 소스 확인 연결을 유지한다. 운영MySQL/실휴대폰/전체 수용은 별도다.
+
 - **Studio 병행 흐름:** T10~T15의 대화·원자 저장·게시·내 데이터 복제 증빙은 docs/testing/dashboard-studio.md를 따른다. 기존 분석 편집 흐름 UC012~022의 증빙과 구분하며, Studio 흐름 자체의 잔여 조건은 PARTIAL이며, 분석 흐름의 UC023 전체 여정 증빙과 혼동하지 않는다. gpt-6-luna 및 VoiceOver BLOCKED를 유지한다.
 - **Studio T16 후속:** [후속 질문/첫 화면](docs/testing/studio-proposal-refinement.md)은 서버 부모 제안의 대상1블록 수정/추가→전체 미리보기→비공개28 저장/reload·동일 요청 복구를 실제 gpt-6-luna로 확인했다. Rill40그룹/634,513,000과 평균5.57USD, 비대상 정의/ID·원래25 보존,799.57초 실제 TTL400,390/768/1440 넘침0이다. 네이티브 선택창 방향키·편집기 run 링크 전체 실제 여정·운영/실휴대폰은 남아 있고 VoiceOver BLOCKED를 유지한다. 캡처는 Ego CDP 장애로 같은 Ego 창의 OS 캡처를 사용했다.
 
