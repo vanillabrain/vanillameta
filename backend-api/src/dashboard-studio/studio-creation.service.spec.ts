@@ -729,4 +729,111 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     );
     await expect(propose()).rejects.toMatchObject({ status: 400 });
   });
+  const refine = (p: any, target: number | 'append', extra = {}, actor = 7) =>
+    service.propose(
+      {
+        sourceId: 1,
+        prompt: 'Change selected chart to event_time',
+        parentProposalId: p.proposalId,
+        targetBlockIndex: target,
+        expectedSourceRevision: p.sourceRevision,
+        ...extra,
+      },
+      actor,
+    );
+  it('REFINE-01 replaces only selected block, preserving parent, IDs and metadata until explicit save', async () => {
+    const p = await propose();
+    const baseline = await Promise.all([db.manager.count(Dashboard), db.manager.count(Metric)]);
+    const block = semantics().semanticProposal[1];
+    block.kind = 'CHART_LINE';
+    block.dimension = { column: 'event_time' };
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        requiredFields: ['amount', 'event_time'],
+        title: 'ignored',
+        semanticProposal: [block],
+      }),
+    );
+    const next = await refine(p, 1);
+    expect(next.proposalId).not.toBe(p.proposalId);
+    expect(next.parentProposalId).toBe(p.proposalId);
+    expect(next.title).toBe(p.title);
+    expect(next.semanticProposal[0]).toEqual(p.semanticProposal[0]);
+    expect(next.semanticProposal[1].blockId).toBe(p.semanticProposal[1].blockId);
+    expect(next.semanticProposal[1].dimension.column).toBe('event_time');
+    expect(next.preview.widgets[0].datas).toEqual([{ value: 500 }]);
+    expect(await service.proposal(p.proposalId, 1, 7)).toEqual(JSON.parse(JSON.stringify(p)));
+    expect(await Promise.all([db.manager.count(Dashboard), db.manager.count(Metric)])).toEqual(
+      baseline,
+    );
+    expect(JSON.parse(llm.callLlm.mock.calls[1][1]).currentProposal.semanticProposal).toEqual(
+      p.semanticProposal,
+    );
+    const saved = await save(next, 'refine-save-' + next.proposalId);
+    expect((await save(next, 'refine-save-' + next.proposalId)).dashboardId).toBe(
+      saved.dashboardId,
+    );
+    const state = await db.manager.findOneByOrFail(StudioState, { dashboardId: saved.dashboardId });
+    expect((await studio.get(saved.dashboardId, 7)).document.blocks).toHaveLength(2);
+    expect(state.dashboardId).toBe(saved.dashboardId);
+  });
+  it('REFINE-02 appends one block and rejects a seventh before calling AI', async () => {
+    let p = await propose();
+    for (let i = 0; i < 4; i++) {
+      const block = semantics().semanticProposal[0];
+      block.title = 'Extra ' + i;
+      llm.callLlm.mockResolvedValueOnce(
+        JSON.stringify({ requiredFields: ['amount'], title: 'ignored', semanticProposal: [block] }),
+      );
+      const next = await refine(p, 'append');
+      expect(next.semanticProposal.slice(0, -1)).toEqual(p.semanticProposal);
+      p = next;
+    }
+    const calls = llm.callLlm.mock.calls.length;
+    await expect(refine(p, 'append')).rejects.toThrow('최대 6개');
+    expect(llm.callLlm).toHaveBeenCalledTimes(calls);
+  });
+  it('REFINE-03 keeps parent after failure, cancellation, unchanged output or multiple returned blocks', async () => {
+    const p = await propose();
+    llm.callLlm.mockRejectedValueOnce(new Error('provider unavailable'));
+    await expect(refine(p, 1)).rejects.toThrow('준비하지 못');
+    await expect(refine(p, 1)).rejects.toThrow('하나만');
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({ ...semantics(), semanticProposal: [semantics().semanticProposal[1]] }),
+    );
+    await expect(refine(p, 1)).rejects.toThrow('변경된 내용이 없습니다');
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      service.propose(
+        { sourceId: 1, prompt: 'change', parentProposalId: p.proposalId, targetBlockIndex: 1 },
+        7,
+        controller.signal,
+      ),
+    ).rejects.toThrow('취소');
+    expect(await service.proposal(p.proposalId, 1, 7)).toEqual(JSON.parse(JSON.stringify(p)));
+  });
+  it('REFINE-04 rejects expired, foreign, mismatched-source and invalid target before AI', async () => {
+    const p = await propose();
+    const calls = llm.callLlm.mock.calls.length;
+    await expect(refine(p, -1)).rejects.toThrow('블록');
+    await expect(refine(p, 2)).rejects.toThrow('블록');
+    await expect(refine(p, 0, {}, 8)).rejects.toThrow();
+    await expect(refine(p, 0, { sourceId: 99 })).rejects.toThrow();
+    await expect(refine(p, 0, { expectedSourceRevision: '0'.repeat(64) })).rejects.toThrow('변경');
+    await expect(refine(p, 0, { selectedMetricIds: [1] })).rejects.toThrow('기존 제안');
+    const profile = jest.spyOn(service, 'profile');
+    profile.mockResolvedValueOnce({ ...p.profile, dataVersion: 'f'.repeat(64) });
+    await expect(refine(p, 0, { expectedSourceRevision: undefined })).rejects.toThrow(
+      '데이터가 변경',
+    );
+    profile.mockRestore();
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 600001);
+    try {
+      await expect(refine(p, 0)).rejects.toThrow('만료');
+    } finally {
+      clock.mockRestore();
+    }
+    expect(llm.callLlm).toHaveBeenCalledTimes(calls);
+  });
 });

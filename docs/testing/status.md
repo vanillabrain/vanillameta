@@ -676,3 +676,7 @@ UI10은 실제 gpt-6-luna 생성 후27의 저장201 응답만 차단→같은 �
 `d51585a4`로 UI09/10 수정과 기록을 develop-v2에 drumcap push했다. UI11에서 완료 링크의 실제 키보드 Enter→popup27→원래25 복귀·모바일 완료 링크/composer를 확인해 기존 href-only 미검증을 좁게 해소했다. 새 모델/저장/게시0·DB 개수/원본 해시 불변. [새 탭 증빙과 남은 우선순위](studio-shadcn.md#studio-ui11-완료-링크-새-탭복귀--2026-10-16). 미저장 제안 서버 재시작·실TTL·홈/생성안 재설계·실기기/운영은 남으며 VoiceOver BLOCKED다.
 
 UI12 후속은 미저장 제안 후 실제API4331 SIGTERM/동일설정 재기동→400 거절/만료 안내→reload GET only→명시 gpt-6-luna 재생성·새proposal을 확인했다. 만료400 뒤 활성 저장 버튼이 남는 오류를 제거했고 같은 실제400으로 재검증했다. 관련2개 검사/type/lint/build PASS,390/1440 화면·키보드·추가 dashboard/metric/publication0·원본25 해시 불변. [재시작과 재생성 증빙](studio-shadcn.md#studio-ui12-미저장-생성안-서버-재시작--2026-10-16). 실TTL/운영/실기기·홈/생성안 재설계는 남고 VoiceOver BLOCKED다.
+
+## Studio 후속 질문·첫 화면 연결 — 2026-10-16
+
+최신 [명세/증빙](studio-proposal-refinement.md)을 따른다. REFINE-01~05/START-01 선택 조건 PASS: 실제 gpt-6-luna 차원 변경·KPI 추가, Rill40그룹/총634,513,000, 비공개28 저장/reload/동일 요청 복구,799.57초 실제 TTL400. REFINE-06 디자인390/768/1440 넘침0·선택 Tab/Enter PASS; 네이티브 선택창 방향키 PARTIAL. VoiceOver BLOCKED 유지. 파일/샘플 재수집·운영/실휴대폰·편집기 run 링크 전체 추가 여정은 남아 있다. 기존 TC005/G4 전체 수용을 완료로 바꾸지 않는다.

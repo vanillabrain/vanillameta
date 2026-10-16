@@ -18,9 +18,11 @@ import {
   proposeStudio,
   SourceProfile,
   StudioSource,
+  validateCreationProposal,
 } from './studioCreation';
 import StudioSourcePicker from './StudioSourcePicker';
 import StudioSemanticReview from './StudioSemanticReview';
+import StudioProposalRefinement from './StudioProposalRefinement';
 import './studio.css';
 export default function StudioCreate() {
   const navigate = useNavigate();
@@ -36,6 +38,9 @@ export default function StudioCreate() {
     [notice, setNotice] = useState('');
   const [proposal, setProposal] = useState<CreationProposal | null>(null),
     [answers, setAnswers] = useState<Record<string, string>>({});
+  const [refining, setRefining] = useState(false),
+    [saveUncertain, setSaveUncertain] = useState(false);
+  const locked = !!busy || refining || saveUncertain;
   const epoch = useRef(0),
     mounted = useRef(true),
     pending = useRef(false),
@@ -47,6 +52,7 @@ export default function StudioCreate() {
     abort.current = null;
     setProposal(null);
     setAnswers({});
+    setRefining(false);
     creation.current = null;
   };
   const loadSources = async () => {
@@ -81,11 +87,25 @@ export default function StudioCreate() {
     mounted.current = true;
     const initialEpoch = epoch.current;
     fetchStudioSources()
-      .then(rows => {
+      .then(async rows => {
         if (!mounted.current || epoch.current !== initialEpoch) return;
         setSources(rows);
         const initial = Number(params.get('sourceId'));
-        if (initial > 0 && rows.some(row => row.id === initial && row.engine === 'duckdb')) choose(initial);
+        if (initial > 0 && rows.some(row => row.id === initial && row.engine === 'duckdb')) {
+          await choose(initial);
+          const parentId = params.get('proposalId');
+          if (parentId && mounted.current) {
+            const generation = epoch.current;
+            try {
+              const response = await get('/studio/proposals/' + encodeURIComponent(parentId), { sourceId: initial });
+              if (mounted.current && generation === epoch.current)
+                setProposal(validateCreationProposal(creationData(response), initial));
+            } catch {
+              if (mounted.current && generation === epoch.current)
+                setError('생성안이 만료됐거나 불러올 수 없습니다. 이 소스로 새 생성 요청을 보내 주세요.');
+            }
+          }
+        }
       })
       .catch(cause => {
         if (mounted.current && epoch.current === initialEpoch) setError(creationError(cause));
@@ -137,7 +157,7 @@ export default function StudioCreate() {
       return data.sourceId;
     }, '샘플을 서버에 준비하는 중입니다…');
   const generate = async () => {
-    if (pending.current || !sourceId || !profile || !prompt.trim()) return;
+    if (pending.current || locked || !sourceId || !profile || !prompt.trim()) return;
     const old = proposal;
     pending.current = true;
     epoch.current += 1;
@@ -187,7 +207,7 @@ export default function StudioCreate() {
     setNotice('생성을 취소했습니다. 데이터와 입력은 유지됩니다.');
   };
   const save = async () => {
-    if (pending.current || !proposal?.preview || proposal.clarifications?.length) return;
+    if (pending.current || refining || !proposal?.preview || proposal.clarifications?.length) return;
     pending.current = true;
     setBusy('Studio에 저장하는 중입니다…');
     setError('');
@@ -200,9 +220,22 @@ export default function StudioCreate() {
         };
       const data = creationData(await post('/studio/dashboards', creation.current, { timeout: 180000 }));
       if (!Number.isSafeInteger(data?.dashboardId) || data.dashboardId <= 0) throw new Error('invalid create');
-      if (mounted.current) navigate('/dashboard/' + data.dashboardId + '/studio');
+      if (mounted.current) {
+        setSaveUncertain(false);
+        navigate('/dashboard/' + data.dashboardId + '/studio');
+      }
     } catch (cause) {
-      if (mounted.current) setError(creationError(cause));
+      if (mounted.current) {
+        const status = Number((cause as any)?.response?.status);
+        const uncertain = !status || status >= 500;
+        setSaveUncertain(uncertain);
+        if (status === 400) setProposal(null);
+        setError(
+          uncertain
+            ? '저장 완료 여부를 확인하지 못했습니다. 같은 저장 요청을 다시 확인해 주세요. 결과 확인 전에는 생성안을 변경하지 않습니다.'
+            : creationError(cause),
+        );
+      }
     } finally {
       pending.current = false;
       if (mounted.current) setBusy('');
@@ -257,7 +290,7 @@ export default function StudioCreate() {
             sources={sources}
             sourceId={sourceId}
             profile={profile}
-            busy={!!busy}
+            busy={locked}
             onSource={choose}
             onFile={upload}
             onSample={sample}
@@ -276,7 +309,7 @@ export default function StudioCreate() {
                   {metrics.map(metric => (
                     <Label key={metric.id} className="flex items-start gap-2 py-2">
                       <Checkbox
-                        disabled={!!busy}
+                        disabled={locked}
                         checked={selectedMetrics.includes(metric.id)}
                         onCheckedChange={checked => {
                           invalidate();
@@ -301,13 +334,13 @@ export default function StudioCreate() {
                 setPrompt(event.target.value);
                 setNotice('');
               }}
-              disabled={!!busy}
+              disabled={locked}
               inputProps={{ maxLength: 2000 }}
               placeholder="예: 총 요청 수와 평균 입찰 하한, 기기별 요청 수와 일별 추세를 보여 줘"
             />
             <div className="studio-create-request-actions">
               <span>Codex · gpt-6-luna 요청</span>
-              <Button variant="default" disabled={!!busy || !profile || !prompt.trim()} onClick={generate}>
+              <Button variant="default" disabled={locked || !profile || !prompt.trim()} onClick={generate}>
                 지표와 차트 제안
               </Button>
             </div>
@@ -327,7 +360,7 @@ export default function StudioCreate() {
                     label="환불률 분모"
                     value={answers[question.id] ?? ''}
                     onChange={event => setAnswers(current => ({ ...current, [question.id]: event.target.value }))}
-                    disabled={!!busy}
+                    disabled={locked}
                   >
                     <option value="" disabled>
                       의미를 선택하세요
@@ -348,7 +381,7 @@ export default function StudioCreate() {
             {proposal.clarifications.every(question => question.choices.length > 0) && (
               <Button
                 variant="default"
-                disabled={!!busy || proposal.clarifications.some(question => !answers[question.id])}
+                disabled={locked || proposal.clarifications.some(question => !answers[question.id])}
                 onClick={generate}
               >
                 의미 확인 후 다시 제안
@@ -359,10 +392,20 @@ export default function StudioCreate() {
         {proposal?.preview && (
           <>
             <StudioSemanticReview proposal={proposal} />
+            <StudioProposalRefinement
+              proposal={proposal}
+              disabled={!!busy || saveUncertain}
+              onBusy={setRefining}
+              onProposal={next => {
+                setProposal(next);
+                creation.current = null;
+                setNotice('');
+              }}
+            />
             <div className="studio-create-save">
               <p>확인한 지표와 차트를 비공개 대시보드로 저장합니다. 다음 화면에서 배치·표현·AI 수정을 이어가세요.</p>
-              <Button variant="default" disabled={!!busy} onClick={save}>
-                Studio에 저장하고 열기
+              <Button variant="default" disabled={!!busy || refining} onClick={save}>
+                {saveUncertain ? '같은 저장 요청 확인' : 'Studio에 저장하고 열기'}
               </Button>
             </div>
           </>

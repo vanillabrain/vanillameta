@@ -129,9 +129,10 @@ describe('Studio create workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Studio에 저장하고 열기' }));
     await screen.findByRole('alert');
     await waitFor(() =>
-      expect((screen.getByRole('button', { name: 'Studio에 저장하고 열기' }) as HTMLButtonElement).disabled).toBe(false),
+      expect((screen.getByRole('button', { name: '같은 저장 요청 확인' }) as HTMLButtonElement).disabled).toBe(false),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Studio에 저장하고 열기' }));
+    expect((screen.getByRole('button', { name: '수정안 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 확인' }));
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/dashboard/9/studio'));
     const calls = mocks.post.mock.calls.filter(c => c[0] === '/studio/dashboards');
     expect(calls[0][1]).toEqual(calls[1][1]);
@@ -225,5 +226,74 @@ describe('Studio create workflow', () => {
       clarificationAnswers: { refundDenominator: 'amount' },
       expectedSourceRevision: 'a'.repeat(64),
     });
+  });
+  it('REFINE preserves the proposal while composing, saves only the latest validated refinement', async () => {
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    const next = proposal();
+    next.proposalId = 'proposal-2';
+    (next as any).parentProposalId = 'proposal-1';
+    next.semanticProposal[0].title = '수정된 총매출';
+    mocks.post.mockImplementation(async (url: string) => ({
+      data: url === '/studio/proposals' ? next : { dashboardId: 10 },
+    }));
+    fireEvent.change(screen.getByRole('textbox', { name: '생성안 수정 요청' }), {
+      target: { value: '총매출 제목을 수정된 총매출로 바꿔' },
+    });
+    expect(screen.getByText('500')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '수정안 미리보기' }));
+    await screen.findByRole('heading', { name: '수정된 총매출' });
+    expect(mocks.post.mock.calls.filter(c => c[0] === '/studio/proposals').at(-1)?.[1]).toMatchObject({
+      parentProposalId: 'proposal-1',
+      targetBlockIndex: 0,
+    });
+    expect(mocks.post.mock.calls.filter(c => c[0] === '/studio/dashboards')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Studio에 저장하고 열기' }));
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/dashboard/10/studio'));
+    expect(mocks.post.mock.calls.filter(c => c[0] === '/studio/dashboards')[0][1].proposalId).toBe('proposal-2');
+  });
+  it('REFINE failure and cancelled late response preserve the old preview and user input', async () => {
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    mocks.post.mockRejectedValueOnce({ response: { status: 503 } });
+    fireEvent.change(screen.getByRole('textbox', { name: '생성안 수정 요청' }), { target: { value: '평균 매출로 바꿔' } });
+    fireEvent.click(screen.getByRole('button', { name: '수정안 미리보기' }));
+    await screen.findByText(/AI 연결 또는 처리 상태/);
+    expect(screen.getByText('500')).toBeTruthy();
+    let resolve: (v: any) => void = () => {
+      throw new Error('missing pending refinement');
+    };
+    mocks.post.mockImplementationOnce(
+      () =>
+        new Promise(r => {
+          resolve = r;
+        }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '수정안 미리보기' }));
+    fireEvent.click(await screen.findByRole('button', { name: '수정 중지' }));
+    const late = proposal();
+    late.title = '늦은 응답';
+    (late as any).parentProposalId = 'proposal-1';
+    await act(async () => {
+      resolve({ data: late });
+    });
+    expect(screen.queryByText('늦은 응답')).toBeNull();
+    expect(screen.getByText('500')).toBeTruthy();
+    expect((screen.getByRole('textbox', { name: '생성안 수정 요청' }) as HTMLTextAreaElement).value).toBe(
+      '평균 매출로 바꿔',
+    );
+  });
+  it('REFINE resumes a cached conversation proposal without invoking AI or saving', async () => {
+    mocks.params = 'sourceId=4&proposalId=proposal-1';
+    const original = mocks.get.getMockImplementation();
+    mocks.get.mockImplementation((url: string, ...args: any[]) =>
+      url.startsWith('/studio/proposals/') ? Promise.resolve({ data: proposal() }) : original?.(url, ...args),
+    );
+    render(<StudioCreate />);
+    await screen.findByText('500');
+    expect(screen.getByRole('textbox', { name: '생성안 수정 요청' })).toBeTruthy();
+    expect(mocks.post).not.toHaveBeenCalled();
   });
 });

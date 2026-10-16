@@ -111,6 +111,19 @@ export default function StudioConversationCreation({
         <>
           <p className="studio-execution-hint">{proposal.profile.rowCount}행 · 제안은 10분간 유지됩니다.</p>
           <StudioSemanticReview proposal={proposal} />
+          <Button variant="outline" asChild disabled={disabled || saving || uncertain}>
+            <a
+              href={'/studio/new?sourceId=' + proposal.sourceId + '&proposalId=' + encodeURIComponent(proposal.proposalId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={disabled || saving || uncertain}
+              onClick={e => {
+                if (disabled || saving || uncertain) e.preventDefault();
+              }}
+            >
+              이 생성안을 이어서 수정
+            </a>
+          </Button>
           <Button variant="default" disabled={disabled || saving || !onSave} onClick={save}>
             {saving ? '비공개 저장 확인 중…' : uncertain ? '같은 생성 요청으로 저장 확인' : '제안 확인 후 비공개 저장'}
           </Button>

@@ -489,3 +489,9 @@
 
 .studio-create-metric-options {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px;max-height:264px;overflow:auto;padding:4px;}
 @media(max-width:599px) {.studio-create-metric-options {grid-template-columns:minmax(0,1fr);}}
+
+/* Keep follow-up controls aligned with their labelled fields at every width. */
+.studio-proposal-refinement > .studio-create-request-actions,
+.studio-proposal-refinement > [role="alert"],
+.studio-proposal-refinement > [role="status"] {max-width:540px;}
+.studio-proposal-refinement > .studio-create-request-actions {flex-wrap:wrap;gap:12px;}

@@ -157,10 +157,10 @@ export default function GettingStarted({ returning = false }: { returning?: bool
         {returning ? '새로운 분석을 시작해 볼까요?' : '어떤 데이터를 분석해 볼까요?'}
       </h2>
       <p className="mb-4 text-sm text-muted-foreground">
-        샘플로 살펴보거나 내 데이터를 연결해 보세요. AI 설정 없이도 시작할 수 있습니다.
+        파일·샘플·저장된 데이터를 고르고 질문으로 차트를 제안받으세요. 계산을 확인하고 수정한 뒤 비공개로 저장합니다.
       </p>
       <Button className="mb-4 self-start" onClick={() => navigate('/studio/new')}>
-        Studio에서 내 데이터로 시작
+        질문으로 대시보드 만들기
       </Button>
       <div className="flex flex-col gap-4 md:flex-row">
         <Card className="min-w-0 flex-1">

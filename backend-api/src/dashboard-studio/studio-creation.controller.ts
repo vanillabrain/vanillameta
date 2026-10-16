@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StudioSampleService } from './studio-sample.service';
 import { StudioCreationService } from './studio-creation.service';
@@ -27,6 +27,13 @@ export class StudioCreationController {
       req.off('aborted', abort);
       res.off('close', close);
     }
+  }
+  @Get('proposals/:id') proposal(
+    @Param('id') id: string,
+    @Query('sourceId') sourceId: string,
+    @Req() req,
+  ) {
+    return this.creation.proposal(id, Number(sourceId), req.user?.accessKeyData?.id);
   }
   @Post('dashboards') create(@Body() body: any, @Req() req) {
     return this.creation.create(body, req.user?.accessKeyData?.id);

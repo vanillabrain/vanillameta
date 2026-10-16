@@ -274,7 +274,7 @@ it('cancels help, returns focus and keeps an immediate retry pending when the ol
 
 it('opens the Studio creation entry without installing a sample or invoking AI', () => {
   render(<GettingStarted />);
-  fireEvent.click(screen.getByRole('button', { name: 'Studio에서 내 데이터로 시작' }));
+  fireEvent.click(screen.getByRole('button', { name: '질문으로 대시보드 만들기' }));
   expect(mocks.navigate).toHaveBeenCalledWith('/studio/new');
   expect(mocks.post).not.toHaveBeenCalled();
 });
