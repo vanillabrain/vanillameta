@@ -203,3 +203,50 @@ describe('snapshot publication controls', () => {
     expect(publishDashboard).not.toHaveBeenCalled();
   });
 });
+
+it('UC038 pins the recovery link to the publication target and locks stale publication across close/reopen', async () => {
+  vi.mocked(publishDashboard).mockRejectedValueOnce({ response: { status: 409 } });
+  const view = render(<StudioPublish {...props} targetLabel="새 대시보드 #8 · 생성안 저장 버전 기준" />);
+  await waitFor(() => expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: '게시하기' }));
+  const link = await screen.findByRole('link', { name: '최신 저장본 확인' });
+  expect(link.getAttribute('href')).toBe('/dashboard/8/studio');
+  expect(link.getAttribute('target')).toBe('_blank');
+  expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '게시하기' }));
+  expect(publishDashboard).toHaveBeenCalledOnce();
+  view.rerender(<StudioPublish {...props} open={false} />);
+  view.rerender(<StudioPublish {...props} />);
+  await screen.findByRole('link', { name: '최신 저장본 확인' });
+  await waitFor(() => expect(fetchOwnerPublication).toHaveBeenCalledTimes(2));
+  expect((screen.getByRole('button', { name: '재게시' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(publishDashboard).toHaveBeenCalledOnce();
+});
+it('UC038 unlocks only when the parent supplies a different saved revision', async () => {
+  vi.mocked(publishDashboard).mockRejectedValueOnce({ response: { status: 409 } });
+  const view = render(<StudioPublish {...props} />);
+  await waitFor(() => expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: '게시하기' }));
+  await screen.findByRole('link', { name: '최신 저장본 확인' });
+  view.rerender(<StudioPublish {...props} revision={'c'.repeat(64)} />);
+  await waitFor(() => expect(screen.queryByRole('link', { name: '최신 저장본 확인' })).toBeNull());
+  expect(screen.queryByText(/저장 내용이 변경되었습니다/)).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '게시하기' }));
+  await screen.findByText(/버전 1 게시 완료/);
+  expect(vi.mocked(publishDashboard).mock.calls[1][1].expectedRevision).toBe('c'.repeat(64));
+});
+it('UC038 locks again if a newly supplied revision also conflicts without auto retry or publication', async () => {
+  vi.mocked(publishDashboard).mockRejectedValue({ response: { status: 409 } });
+  const view = render(<StudioPublish {...props} />);
+  await waitFor(() => expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: '게시하기' }));
+  await screen.findByRole('link', { name: '최신 저장본 확인' });
+  view.rerender(<StudioPublish {...props} revision={'d'.repeat(64)} />);
+  await waitFor(() => expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(false));
+  expect(publishDashboard).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: '게시하기' }));
+  await screen.findByRole('link', { name: '최신 저장본 확인' });
+  expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(publishDashboard).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(publishDashboard).mock.calls[1][1].expectedRevision).toBe('d'.repeat(64));
+});

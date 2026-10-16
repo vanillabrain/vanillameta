@@ -728,7 +728,8 @@ it('UC037 hands a saved creation to the top-level publisher, preserving dirty or
   await waitFor(() => expect(publish.disabled).toBe(false));
   api.post.mockRejectedValue({ response: { status: 409 } });
   fireEvent.click(publish);
-  await screen.findByText(/저장 내용이 변경되었습니다/);
+  await screen.findByText(/저장본이 변경되어 이 버전의 게시를 멈췄습니다/);
+  expect(screen.getByRole('link', { name: '최신 저장본 확인' }).getAttribute('href')).toBe('/dashboard/99/studio');
   expect(api.post.mock.calls[0][0]).toBe('/studio/dashboards/99/publications');
   expect(api.post.mock.calls[0][1]).toMatchObject({
     expectedRevision: NEXT_REVISION,

@@ -33,3 +33,5 @@ UC036의 저장 완료 후 원본 자동 복귀를 대체한다. 최근 생성 �
 strict spec lint는 기존 **12 errors/33 warnings/4 infos**이며 UC037 추가 이슈0, baseline 자동 승인0이다. pin/check는 문서 drift 검사이며 사람 승인/제품 수용이 아니다. 별도 code-reviewer 호출은 provider400으로 실패했으므로 독립 리뷰 완료를 주장하지 않는다. Main이 변경 경계를 별도 대조했고 UC036의 현재 계약·AGENTS·UC037/설계/계획/TC/다이어그램을 동기화했다. 기존 요구사항/엔티티/용어 책임은 바뀌지 않아 새 항목을 추가하지 않았다. packet은 awaiting_review/acceptance not_recorded다.
 
 초기 격리 core 실행의 sandbox EPERM은 포트 권한으로 실패했고, 권한 있는 재실행에서8개가 통과했다. 운영MySQL/실휴대폰/VoiceOver·임의 자연어 전체·최신 saved copy가 외부에서 변경된 실제409 화면·대상 전환을 포함한 모든 응답 유실 조합·사람 전체TC005 수용은 NOT_RUN/Open이다. Rill 고정 수치/탐색 UI를 변경하지 않은 게시 설정 연결이므로 새 Rill 화면 비교는 반복하지 않았다.
+
+후속 [UC038](publication-conflict.md)에서 외부 탭 변경의 실제409→최신 저장본 확인→명시 게시 여정을 추가 검증했다. 위 미검증 기록은 UC037 당시 상태다.

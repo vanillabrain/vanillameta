@@ -73,4 +73,6 @@ operator --> UC035
 operator --> UC036
 usecase "UC-037 저장 생성안 게시 연결" as UC037
 operator --> UC037
+usecase "UC-038 게시 충돌 후 최신본 확인" as UC038
+operator --> UC038
 @enduml
