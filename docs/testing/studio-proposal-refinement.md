@@ -51,3 +51,24 @@ Ego `Page.captureScreenshot`는 같은 공간/새 결과 탭에서도 시간 초
 `initial-proposal.json`, `refine-change.json`, `refine-append.json`, `comparison.json`, `oracle.json`, `save.json`, `saved-reloaded-and-ttl.json`, `baseline.json`, `final-verification.json`, `layout.json`, `onboarding.json`.
 
 대표 캡처: `refinement-390-native.png`, `refinement-1440-native.png`, `saved-28-native.png`, `onboarding-390-native.png`. 캡처는 생성 후 직접 확인했다. Ego 업데이트 알림은 기록만 하고 업그레이드하지 않았다.
+
+## 편집기 대화 이어받기 후속 — 2026-10-16
+
+기준 `582c41cf`. 이번에는 기존 REFINE-01~06/START-01 전체를 반복하지 않고 아래 연결 조건만 신규 검증한다.
+
+| ID | 입력/기대 결과 | 상태 |
+|---|---|---|
+| CONV-REFINE-01 | 원래25에 미저장 제목 편집 → 새 대시보드 생성 요청 → gpt-6-luna 제안 → 이어서 수정 링크. 원래 편집/저장본 유지, 확인 전 쓰기0. | PASS_SELECTED |
+| CONV-REFINE-02 | 실제 링크 클릭의 새 탭이 같은 proposalId/source9/정의/숫자를 GET 복원. 자동 AI/저장0. | PASS_SELECTED |
+| CONV-REFINE-03 | 복원 제안에서 블록 제목만 후속 수정 → 전체 미리보기 → 비공개 저장/reload. 원래 run/제안·비대상 정의 불변. | PASS_SELECTED |
+| CONV-REFINE-04 | 모바일 연결 화면/저장 화면의 넘침·크기·포커스 확인 및 캡처. 원래 편집의 미저장 변경 복귀·되돌리기. | PASS_SELECTED |
+
+
+Ego TaskSpace13에서 실제 gpt-6-luna 생성 → 실행 기록의 링크 클릭 → 새 탭의 동일 제안 GET 복원 → 첫 숫자 블록 제목만 후속 수정 → 전체 미리보기 → 비공개29 저장 → 새로고침을 확인했다. 원래25의 미저장 제목/1회 편집 이력은 별도 탭 작업 중 유지됐으며 마지막에 검증용 변경만 되돌려 저장된 상태로 복구했다. 원래25에 저장 POST는 하지 않았다.
+
+- 부모 `3a6c44ac-63b9-4c4d-8a0f-96285be26d48` → 수정 `a0742a6f-76ca-48ea-ae38-ff01a2366c9d`. 첫 제목은 `이어받기 수정 요청 수`, 계산식 SUM(bid_request_cnt)·정수 표시·제안 블록ID·비대상 블록은 보존했다. 신규 저장에는 새 영속 블록ID가 발급된다.
+- Rill source9 총 요청 **634,513,000**, device_type 차트2블록 저장/reload 일치. DB dashboard27→28, metric37/publication8 유지. 원래 dashboard25·studio_state25 SHA-256 불변, 부모 제안과 원래 실행 기록도 불변이다. 신규 저장 POST1회이며 게시하지 않았다.
+- 390px 연결 링크308×36px/글자14px·명시 focus 확인, 연결/저장 화면 가로 넘침0. 실제 키보드 전체 조작은 새로 실행하지 않아 기존 선택 검증 범위만 재사용한다. 데스크톱 저장 화면도 캡처했다. 새 제품 오류는 발견하지 않았다.
+- Ego 자체 캡처 시간 초과는 OS의 같은 Ego 창 캡처로 대체했다. 물리 창이 다른 공간을 가리킨 초기 캡처는 증빙에서 제거/교체하고 TaskSpace13의 실제 화면을 확인했다. 이미지의 청색 제어 테두리와 오른쪽 빈 영역은 Ego 오버레이/390px 에뮬레이션이다.
+- 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-conversation-refinement-20261016`의 `conversation-proposal.json`, `popup-restored.json`, `refined.json`, `saved-reloaded.json`, `verification.json`, `conversation-link-390.png`, `saved-29-390.png`, `saved-29-desktop.png`.
+- 제품 코드 변경0. 같은 코드의 BE46/FE36/type/lint/build 통과를 재사용하고 신규 MD 연결 조건만 실행했다. gpt-6-luna/VoiceOver BLOCKED 유지. 실제 휴대폰·운영MySQL·전체 키보드/스크린리더 수용은 이번 PASS에 포함하지 않는다.
