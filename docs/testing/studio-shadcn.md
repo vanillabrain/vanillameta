@@ -80,3 +80,47 @@ UI01~06의 관찰한 정상/선택/비활성/포커스 상태는 **디자인 PAS
 ## develop-v2 통합·커밋 — 2026-10-16
 
 원격 develop-v2가 `c4936ee1`까지 추가되어 이 기준 위에 Studio 변경을 rebase했다. 원격 추가23개 파일과 이번 변경37개 파일은 겹치지 않았고 충돌 없이 통합됐다. 로고 수정을 포함한 통합 결과의 FE 타입 검사·빌드·diff check를 새로 통과했다. 기존 UI93개와 화면 검증은 관련 Studio 구현이 변하지 않아 재사용했다. GitHub 활성 drumcap 계정을 확인했으며 원본 author 설정은 유지한다. gpt-6-luna와 VoiceOver 차단 설정을 수정하지 않았다.
+
+## STUDIO-UI09 빈 기간·날짜 오류 후속 — 2026-10-16
+
+기준 `3f313ebd`, 기존 source9/dashboard25. P1/P3의 결과 가시성·키보드 편집을 지원한다. 이전 정상 기간 집계·저장·게시·AI PASS는 재사용한다.
+
+| 조건 | 입력 / 기대 결과 | 상태 |
+| --- | --- | --- |
+| UI09-A | 날짜 누락 또는 시작일>종료일: 원인 안내·적용 차단·적용된 범위 불변.390px에서 오류와 컨트롤 겹침 없음 | PASS_SELECTED: 종료일 누락·역순 |
+| UI09-B | 공식 Rill 범위 밖 UTC 날짜: 실제 prepare 조회가 성공하면 빈 결과를 안내하고 이전634513000/막대를 현재 값처럼 표시하지 않음. 원본 저장본은 변경하지 않음 | PASS_SELECTED: 실제 API·빈 결과 화면 |
+| UI09-C | Escape로 기간 패널 닫기/초점 복귀·undo로 원래 범위/수치 복원.1440/390px 결과 확인·캡처 | PASS_SELECTED: Escape·Enter undo·reload |
+
+오류 발견 시 해당 표현/안내만 최소 수정하고 해당 회귀부터 재검증한다. 새 저장·게시·모델 호출·OS 권한 변경 없이 종료한다. gpt-6-luna 유지, VoiceOver BLOCKED 유지.
+
+### 실제 결과·수정·재검증
+
+- Ego TaskSpace7, FE3231/API4331의 기존 격리 fixture를 재사용했다. 종료일 누락·2023-10-02 시작/10-01 종료에서 각각 안내와 disabled 적용 버튼·전체 기간 유지,390px 컨트롤/안내 겹침 없음을 확인했다. Ego `fill`은 native date DOM 값과 React 입력 상태를 일치시키지 못해 날짜 값은 네이티브 value setter+input/change 이벤트로 입력했다. 실제 OS 날짜 팝업/전체 날짜 세그먼트 키보드 입력 통과로 계산하지 않는다. 적용 Enter, 패널 Escape·초점 복귀, undo Enter는 실제 키보드로 실행했다.
+- UTC 2023-10-02 하루를 적용한 실제 `/studio/dashboards/25/preview`201 응답: numeric1행 `value:null`, bar0행이다. 숫자는 '값 없음'으로 올바르게 표시됐지만 차트는 빈 canvas+데이터 표 버튼뿐이어서 정상 빈 결과와 실패를 구분하기 어려웠다. 변경 전 PNG를 보존하고, 비숫자 블록의 빈 `datas`에 '선택한 기간·필터에 해당하는 데이터가 없습니다.' status를 표시하도록 수정했다. 오류/없는 preview 경로 및 숫자0 계산은 바꾸지 않았다.
+- 수정 후 같은 기간의 실제 preview를 재확인했다.1440/390px 빈 결과·주변 제목/숫자·공통 기간을 실제 캡처하고 직접 확인했다. 모바일 document scrollWidth375≤viewport390(세로 스크롤바15px), 가로 넘침0, 안내가 카드 내부에 머문다. 기능·관찰한 디자인 PASS_SELECTED다.
+- Escape 후 공통 기간 버튼으로 포커스 복귀. 실제 undo Enter 후 preview201이 총634513000/차트9행을 반환하고 빈 안내는 사라졌다. reload GET 뒤 전체 기간·저장 상태 clean·같은 총계가 유지됐다. 관찰 구간의 Studio XHR은 preview POST3회(수정 전·후·undo),GET1회(HMR 재조회)이며 save/run/publish POST0이다. 마지막 reload는 관찰 wrapper를 해제하며 별도 화면으로 저장본 불변을 확인했다.
+- 새 선택 회귀1개 PASS/기존26개 skipped: 빈 chart는 WidgetViewer로 넘기지 않고 안내하며, 같은 화면의 정상0 numeric는0으로 유지하고 추가쓰기0. 초기 fixture의 categoryField/preview draft 누락을 바로잡은 뒤 통과했다. FE 타입·변경2개 파일 lint·FE build·diff check PASS. 이미 통과한 필터/저장/게시/AI와 전체 suite는 반복하지 않았다. 변경은 미커밋이다.
+- 증빙 폴더는 동일하다. `empty-date-invalid-mobile.png`(종료일 누락), `empty-date-reversed-mobile.png`, `empty-period-before-{desktop,mobile}.png`, `empty-period-after-{desktop,mobile}.png`, `empty-period-restored-mobile.png`, `empty-period-restore.json`. 이번에 기능/디자인의 선택 범위만 완료했으며 생성 저장 응답 장애·대화 생성안 재설계·실기기·운영 조건은 남아 있다. gpt-6-luna 유지/새 호출0, VoiceOver BLOCKED 유지.
+
+## STUDIO-UI10 신규 생성 저장 응답 유실 — 2026-10-16
+
+T15 STUDIO-N03/N04의 미실행 브라우저 장애 조건만 선택한다. 기준 `3f313ebd`+UI09 변경, source9/dashboard25. 같은 Rill 생성은 장애 검증을 위한 준비이며 정상 생성 전체를 재검사하지 않는다. gpt-6-luna만 사용한다. 별도 비공개 검증본을 생성하며 원본25/게시본과 기존 작업을 유지한다.
+
+1. 실제 생성안 미리보기 후 저장 응답 단계만 끊는다. 커밋 전 실패와 커밋 후 전달 실패를 구분한다.
+2. 모바일 불확실 안내·같은 생성 요청 재확인을 실제 키보드로 실행한다. 결과 dashboard ID/영수증이 같고 추가 생성0인지 확인한다.
+3. reload 복원·추가 쓰기0·원본 불변을 확인하고 모바일 오류/완료 캡처를 남긴다. 장애 주입은 해제한다. 실제 OS/VoiceOver/운영 장애 전체로 확대하지 않는다.
+
+### 결과 — 기능·디자인 PASS_SELECTED
+
+- 실제 Codex/gpt-6-luna 생성 요청으로 source9의 총634513000/디바이스별 막대2개를 제안받았다. 정상 생성 수용 전체를 반복한 것이 아니라 장애 전제다. 첫 Fetch 주입은 OPTIONS 응답에서 Node 실행이 끝나며 세션이 해제되어 정상 저장26이 완료됐다. 이를 응답 유실 성공으로 계산하지 않고 비공개 준비본으로 보존했다. 두 번째 실제 요청의 제안/실행에서 아래 장애를 확인했다. 새 모델 요청은2회이며 설정·대체 모델·로컬 LLM 변경은 없다.
+- 실행 `f3c833b8-7f65-4710-a091-a7a87791041b`의 creation POST response 단계201을 포착해 실제 커밋 영수증의 dashboard27/source9/revision을 읽은 뒤 `ConnectionClosed`로 브라우저 전달만 차단했다. OPTIONS는 통과시켰고 전체 Fetch 처리를 한 실행에서 수행한 후 finally에서 해제했다. 서버/DB/OS 프로세스를 종료한 장애로 확대하지 않는다.
+- 화면은 '저장 완료 여부를 확인하지 못했습니다. 같은 생성 요청으로 재시도하면 기존 저장 결과를 확인합니다.'와 '같은 생성 요청으로 저장 확인'을 표시했다. DB도27의 동일 영수증을 갖고 있었다. 실제 Enter 재확인 후27 완료·동일 revision, 대시보드26개/지표36개/Studio게시8개로 재시도 전후 동일했다.27의 게시0. 최초 생성만 dashboard+1/metric+1이며 중복 저장은0이다.
+- 완료 상태 자동 포커스→Tab으로 `/dashboard/27/studio` 링크에 진입했다. reload 후 runs GET으로27 완료 기록을 복원했고 관찰한 API POST0이다.27의 별도 Studio 재조회도 제목 '저장 응답 유실 검증'/총634513000/clean을 확인했다.25의 dashboard/studio_state/dashboard_widget 행 해시는 준비 전·후 동일하다. 신규26/27은 격리 DB의 비공개 검증본으로 보존했다.
+- **발견·수정:** 긴 생성/오류 카드가 모바일 panel 높이를2559px로 늘려 탭과 composer를 viewport 밖으로 밀어냈다. 기존 `.studio-panel-sheet .studio-panel`의 auto 높이 대신 Sheet→portal host→panel-content→panel의100% 높이와 min-height0을 연결했다. AI 본문만 내부 스크롤하고 inspector도 자체 스크롤한다. 로직·영수증·요청/저장 계약은 변경하지 않았다. CSS HMR 뒤에도 동일한 불확실 상태/제안이 유지돼 새 모델 호출 없이 재검증했다.
+- 실제390×844: panel844px, AI본문584px(client)/2299px(scroll), composer y641~844.768×1024: panel1024/composer하단1024.1440×1000: 기존 rail876px/composer하단992.2, 가로 넘침0.390px 설정 패널도787px 내부875px 스크롤, 마지막 삭제 버튼에 키보드 포커스만 이동한 뒤 Escape가 원래 설정 버튼으로 복귀했다. 삭제는 실행하지 않았다. 대표 오류·완료·설정 캡처를 직접 확인했다. 초기 설정 PNG는 전환 중 blur로 최종 근거에서 제외했다.
+- CSS 변경 뒤 FE build/diff check PASS. 새 JS/서버 변경이 없어 UI09의 타입·변경 lint·선택 회귀1개, 기존 T15 영수증/실행 계약 검사 결과를 재사용했다. 같은 통과 조건을 추가 재실행하지 않았다. gpt-6-luna와 VoiceOver BLOCKED 유지, 실휴대폰/실VoiceOver/호스트 재부팅·장기 오프라인/운영 MySQL·동시 부하는 NOT_RUN이다. 이번 상태로 전체 Studio/TC005 수용을 완료로 보고하지 않는다. 변경은 미커밋이다.
+- 증빙: 같은 폴더의 `creation-loss-{baseline,commit,after-commit,retry-result,reload,final}.json`, `creation-loss-error-mobile.png`(수정 전 panel overflow), `creation-loss-warning-mobile-fixed.png`, `creation-loss-recovered-mobile.png`, `creation-loss-reloaded-mobile.png`, `creation-loss-settings-mobile-fixed.png`. 생성안 재설계·홈의 빈 대화 진입 등은 별도 제품 범위다.
+
+### UI09·UI10 커밋 통합
+
+사용자 커밋·push 요청에 따라 원격 `a4b0f722` 위로 변경5개 파일을 충돌 없이 통합했다. 추가된 인증 helper 변경의 연결 영향을 확인하기 위해 auth.session 선택 검사14개, FE 타입·build를 실행해 통과했다. 기존 Studio 통과 화면/결과는 구현·fixture 변경 없는 범위에서 재사용한다. 실행 당시의 미커밋 표기는 역사적 상태이며 UI09·UI10 코드와 기록을 함께 커밋한다. GitHub drumcap 활성 계정·일반 push를 사용하고 author 설정을 바꾸지 않는다.

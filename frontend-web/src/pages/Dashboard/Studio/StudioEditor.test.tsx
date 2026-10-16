@@ -129,6 +129,35 @@ describe('studio editor rendering', () => {
     expect(saveButton().disabled).toBe(true);
   });
 
+  it('explains an empty chart without confusing a valid zero metric with no data', async () => {
+    const chart = block('b2', { kind: 'CHART_BAR', definitionKey: 'b2', title: '채널별 매출' });
+    const chartRow = {
+      ...row,
+      blockId: 'b2',
+      type: 'CHART_BAR',
+      title: chart.title,
+      categoryField: 'channel',
+      fields: ['channel', 'total'],
+      datas: [],
+    };
+    const zero = { ...row, datas: [{ total: 0 }] };
+    api.get.mockResolvedValue(
+      envelope({
+        document: doc({ blocks: [block('b1'), chart] }),
+        definitions: { ...definitions, entries: { ...definitions.entries, b2: { widget: chartRow } } },
+        preview: {
+          draft: { databaseId: 4, title: '매출 대시보드', explanation: '요약', widgets: [zero, chartRow] },
+          widgets: [zero, chartRow],
+        },
+      }),
+    );
+    render(<StudioEditor />);
+    expect(await screen.findByText('선택한 기간·필터에 해당하는 데이터가 없습니다.')).toBeTruthy();
+    expect(within(screen.getByLabelText('총매출 블록')).getByText('0')).toBeTruthy();
+    expect(screen.queryByTestId('widget-viewer')).toBeNull();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('shows local display settings before they are saved', () => {
     const merged = mergeStudioDisplay(row as any, { decimalPlaces: 2, prefix: '₩' });
     expect(merged.decimalPlaces).toBe(2);

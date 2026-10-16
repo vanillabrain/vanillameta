@@ -719,6 +719,16 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     };
     // Card padding 18px twice plus the 32px label row: the body is what is genuinely left over.
     const bodyHeight = Math.max(0, height - 68);
+    if (block.kind !== 'BOARD_NUMERIC' && row.datas.length === 0)
+      return (
+        <div
+          role="status"
+          className="flex items-center justify-center overflow-auto px-4 text-center text-sm text-muted-foreground"
+          style={{ height: bodyHeight }}
+        >
+          선택한 기간·필터에 해당하는 데이터가 없습니다.
+        </div>
+      );
     const numericValue = row.datas[0] ? (row.datas[0] as Record<string, any>)[row.valueField] : undefined;
     if (block.kind === 'BOARD_NUMERIC' && compact)
       return (
