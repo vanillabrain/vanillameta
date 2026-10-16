@@ -7,7 +7,12 @@ vi.mock('./studioExecution', () => ({ getExecutionCreation: api.read }));
 vi.mock('./studioCreation', () => ({ fetchStudioSources: api.sources }));
 vi.mock('./StudioSemanticReview', () => ({ default: ({ proposal }: any) => <div>{proposal.title} · 634,513,000</div> }));
 const run: any = { runId: 'creation1', creationResult: { proposalId: 'p1', sourceId: 9 } };
-const proposal = { title: '새 요청 분석', profile: { rowCount: '1391572' }, preview: {} };
+const proposal = {
+  semanticProposal: [{ title: '요청 수' }],
+  title: '새 요청 분석',
+  profile: { rowCount: '1391572' },
+  preview: {},
+};
 beforeEach(() => {
   vi.clearAllMocks();
   api.read.mockResolvedValue(proposal);
@@ -260,4 +265,26 @@ it('UC034 keeps the source preparation route when no alternative source is avail
   const link = await screen.findByRole('link', { name: '파일·원본 열 확인' });
   expect(link.getAttribute('href')).toBe('/studio/new?sourceId=9&proposalId=missing-parent');
   expect((screen.getByRole('button', { name: '이 소스로 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('UC035 keeps refinement collapsed, preserves an uncertain question and locks saving until the identical retry completes', async () => {
+  api.read.mockResolvedValue({ ...proposal, proposalId: 'p1', sourceRevision: 'a'.repeat(64) });
+  const clarify = vi.fn().mockRejectedValueOnce(new Error('lost')).mockResolvedValue(undefined),
+    save = vi.fn();
+  render(<StudioConversationCreation run={run} onClarify={clarify} onSave={save} disabled={false} />);
+  const summary = await screen.findByText('이 생성안 수정');
+  expect(summary.closest('details')?.open).toBe(false);
+  fireEvent.click(summary);
+  fireEvent.change(screen.getByLabelText('생성안에 다시 질문'), { target: { value: '제목만 합계로 바꿔 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: '수정안 전체 미리보기' }));
+  await screen.findByRole('button', { name: '같은 수정 요청으로 다시 확인' });
+  expect((screen.getByLabelText('생성안에 다시 질문') as HTMLTextAreaElement).value).toBe('제목만 합계로 바꿔 줘');
+  expect((screen.getByLabelText('생성안에 다시 질문') as HTMLTextAreaElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '제안 확인 후 비공개 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText(/634,513,000/)).toBeDefined();
+  fireEvent.click(screen.getByRole('button', { name: '같은 수정 요청으로 다시 확인' }));
+  await waitFor(() => expect(clarify).toHaveBeenCalledTimes(2));
+  expect(clarify.mock.calls[0][1]).toEqual(clarify.mock.calls[1][1]);
+  expect(clarify.mock.calls[0][1]).toMatchObject({ targetBlockIndex: 0, prompt: '제목만 합계로 바꿔 줘' });
+  expect(save).not.toHaveBeenCalled();
 });

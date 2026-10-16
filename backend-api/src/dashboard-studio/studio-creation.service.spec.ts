@@ -776,6 +776,38 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       },
       actor,
     );
+  it('UC035 keeps a confirmed refund denominator during title-only refinement', async () => {
+    const block = {
+      title: '환불률',
+      kind: 'BOARD_NUMERIC',
+      metric: {
+        label: '환불률',
+        aggregation: 'RATIO_SUM',
+        column: 'refund_amount',
+        denominatorColumn: 'amount',
+        scale: 100,
+      },
+    };
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        requiredFields: ['refund_amount', 'amount'],
+        title: 'Refund',
+        semanticProposal: [block],
+      }),
+    );
+    const parent = await propose({ prompt: '매출 금액 기준 환불률' });
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        requiredFields: ['refund_amount', 'amount'],
+        title: 'ignored',
+        semanticProposal: [{ ...block, title: '환불 비율' }],
+      }),
+    );
+    const next = await refine(parent, 0, { prompt: '제목만 환불 비율로 바꿔 줘' });
+    expect(next.preview.widgets[0].datas).toEqual([{ value: 6 }]);
+    expect(next.semanticProposal[0].metric).toEqual(parent.semanticProposal[0].metric);
+    expect(next.requestAnswers).toEqual({ refundDenominator: 'amount' });
+  });
   it('REFINE-01 replaces only selected block, preserving parent, IDs and metadata until explicit save', async () => {
     const p = await propose();
     const baseline = await Promise.all([db.manager.count(Dashboard), db.manager.count(Metric)]);

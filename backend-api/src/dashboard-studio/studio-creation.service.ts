@@ -250,7 +250,8 @@ export class StudioCreationService {
     };
     const missing = this.missingFields(this.explicitFields(prompt), profile);
     if (missing.length) return this.missingColumns(base, missing);
-    const denominator = this.denominator(body);
+    const denominator = this.denominator(body) ?? parent?.requestAnswers?.refundDenominator;
+    if (denominator) Object.assign(base, { requestAnswers: { refundDenominator: denominator } });
     // This gate precedes metric lookup, model invocation and compiled metric queries.
     if (this.refundRequest(prompt) && !denominator)
       return {
