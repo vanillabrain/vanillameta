@@ -1094,6 +1094,11 @@ function DashboardEditContent() {
             초안에는 계산식이 포함될 수 있으며 이 브라우저 탭에 최대24시간 보관됩니다. 미리보기와 저장·게시 요청은 다시
             실행하지 않습니다.
           </p>
+          {storedDraft.sourceId === editor.sourceId && storedDraft.baseRevision !== editor.revision && (
+            <p className="mb-3 text-sm break-words" role="status">
+              다른 탭이나 기기에서 저장본이 변경되었습니다. 초안을 복구한 뒤 저장 상태를 확인해 변경 항목을 비교해 주세요.
+            </p>
+          )}
           {storedDraft.sourceId !== editor.sourceId && (
             <p className="mb-2 text-sm text-destructive">데이터 소스가 달라 복구할 수 없습니다.</p>
           )}

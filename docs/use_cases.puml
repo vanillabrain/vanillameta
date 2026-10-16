@@ -49,4 +49,6 @@ operator --> UC024
 recipient --> UC024
 usecase "UC-025 브라우저 초안 복구" as UC025
 operator --> UC025
+usecase "UC-026 다른 탭 변경 후 초안 복구" as UC026
+operator --> UC026
 @enduml

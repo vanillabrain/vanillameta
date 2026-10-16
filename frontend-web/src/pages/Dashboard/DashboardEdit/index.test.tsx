@@ -1540,3 +1540,65 @@ it('UC025 reports a blocked draft write and preserves the in-memory form', async
   write.mockRestore();
   expect(Object.keys(sessionStorage).filter(k => k.startsWith(EDITOR_DRAFT_PREFIX))).toHaveLength(0);
 });
+
+it.each([false, true])(
+  'UC026 restores stale browser draft and explicitly merges latest fields (same field: %s)',
+  async sameField => {
+    enableBrowserDraft();
+    const first = await mount();
+    fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '내 보관 제목' } });
+    fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '보존할 질문' } });
+    const key = await editorDraftKey('draft-unit-session', 8);
+    await waitFor(() => expect(JSON.parse(sessionStorage.getItem(key)).prompt).toBe('보존할 질문'));
+    first.unmount();
+    const latest = {
+      ...editor,
+      revision: 'b'.repeat(64),
+      title: sameField ? '다른 탭 제목' : editor.title,
+      items: [{ ...item, unit: 'USD' }],
+    };
+    api.get.mockResolvedValue(success(latest));
+    const second = render(<DashboardEdit />);
+    await screen.findByText(
+      '다른 탭이나 기기에서 저장본이 변경되었습니다. 초안을 복구한 뒤 저장 상태를 확인해 변경 항목을 비교해 주세요.',
+    );
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: '보관한 초안 복구' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '보관한 초안 복구' }));
+    expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toBe('보존할 질문');
+    expect((screen.getByRole('button', { name: '변경 결과 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+    // A second reload while recovery is locked must keep the old base and the question.
+    await waitFor(() => expect(JSON.parse(sessionStorage.getItem(key)).conflict).toBe(true));
+    second.unmount();
+    render(<DashboardEdit />);
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: '보관한 초안 복구' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '보관한 초안 복구' }));
+    api.get.mockRejectedValueOnce(new Error('offline'));
+    fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+    await screen.findByText('저장 상태를 확인하지 못했습니다. 초안과 질문은 유지됩니다. 상태 확인을 다시 시도해 주세요.');
+    expect((screen.getByRole('button', { name: 'AI 요청 실행' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(api.post).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '저장 상태 확인' }));
+    const choice = await screen.findByRole('button', {
+      name: sameField ? '충돌 항목에 내 변경 사용' : '내 변경과 최신본 합치기',
+    });
+    await waitFor(() => expect((choice as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(choice);
+    expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('내 보관 제목');
+    expect((screen.getByLabelText('1번 차트 단위') as HTMLInputElement).value).toBe('USD');
+    expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toBe('보존할 질문');
+    expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('region', { name: '변경 결과 미리보기' })).toBeNull();
+    await requestPreview();
+    expect(api.post.mock.calls[0][1].expectedRevision).toBe(latest.revision);
+    api.post.mockRejectedValueOnce({ response: { status: 409 } });
+    fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+    await screen.findByRole('button', { name: '저장 상태 확인' });
+    expect(api.post.mock.calls[1][1].expectedRevision).toBe(latest.revision);
+    expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('내 보관 제목');
+    expect(sessionStorage.getItem(key)).not.toBeNull();
+  },
+);
