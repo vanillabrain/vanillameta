@@ -698,3 +698,52 @@ describe('Studio combined date scope preview', () => {
     expect(screen.getByText(/^화면 반영 ·/).textContent).toBe('화면 반영 · category 1개 값');
   });
 });
+
+it('UC037 hands a saved creation to the top-level publisher, preserving dirty original and pinning the copy revision', async () => {
+  const run = {
+    runId: 'saved-create',
+    requestId: 'saved-create-request',
+    dashboardId: 3,
+    status: 'succeeded',
+    steps: [{ stepId: 'createProposal', status: 'succeeded', retryable: false }],
+    creationResult: { proposalId: 'parent', sourceId: 4, sourceRevision: SOURCE_REVISION },
+    creationSaveResult: { dashboardId: 99, sourceId: 4, revision: NEXT_REVISION },
+  };
+  api.get.mockImplementation(async (url: string) =>
+    url === '/studio/runs' ? { data: [run] } : url.endsWith('/publications') ? { data: null } : envelope(),
+  );
+  render(<StudioEditor />);
+  await screen.findByText('500');
+  duplicateBlock();
+  await waitFor(() => expect(saveButton().disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 열기' }));
+  await screen.findByText('대상: 저장한 새 대시보드 #99');
+  fireEvent.change(screen.getByLabelText('AI에게 요청할 내용'), { target: { value: '게시 준비해 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: '전송' }));
+  await screen.findByRole('dialog', { name: '게시·공유' });
+  expect(screen.queryByRole('complementary', { name: 'Studio 보조 패널' })).toBeNull();
+  expect(screen.getByText('새 대시보드 #99 · 생성안 저장 버전 기준')).toBeDefined();
+  expect(api.post).not.toHaveBeenCalled();
+  const publish = screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement;
+  await waitFor(() => expect(publish.disabled).toBe(false));
+  api.post.mockRejectedValue({ response: { status: 409 } });
+  fireEvent.click(publish);
+  await screen.findByText(/저장 내용이 변경되었습니다/);
+  expect(api.post.mock.calls[0][0]).toBe('/studio/dashboards/99/publications');
+  expect(api.post.mock.calls[0][1]).toMatchObject({
+    expectedRevision: NEXT_REVISION,
+    visibility: 'private',
+    allowRemix: false,
+  });
+  fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(saveButton().disabled).toBe(false);
+  expect(screen.getAllByText('복사본 · 총매출').length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByRole('button', { name: '게시·공유' }));
+  await within(screen.getByRole('dialog', { name: '게시·공유' })).findByText(/저장되지 않은 변경이 있습니다/);
+  expect(screen.queryByText('새 대시보드 #99 · 생성안 저장 버전 기준')).toBeNull();
+  await waitFor(() =>
+    expect(api.get).toHaveBeenCalledWith('/studio/dashboards/3/publications', undefined, expect.anything()),
+  );
+  expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(true);
+});

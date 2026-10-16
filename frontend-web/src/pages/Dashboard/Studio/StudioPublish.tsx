@@ -18,8 +18,15 @@ import {
   revokePublication,
 } from './studioPublication';
 
-type Props = { open: boolean; onClose: () => void; dashboardId: number; revision: string; dirty: boolean };
-export default function StudioPublish({ open, onClose, dashboardId, revision, dirty }: Props) {
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  dashboardId: number;
+  revision: string;
+  dirty: boolean;
+  targetLabel?: string;
+};
+export default function StudioPublish({ open, onClose, dashboardId, revision, dirty, targetLabel }: Props) {
   const controlId = useId();
   const returnFocus = useRef<HTMLElement | null>(null);
   const [current, setCurrent] = useState<Publication | null>(null);
@@ -178,6 +185,11 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
           </DialogDescription>
         </DialogHeader>
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+          {targetLabel && (
+            <p className="text-sm font-medium" role="status">
+              {targetLabel}
+            </p>
+          )}
           {dirty && (
             <Notice severity="warning">
               저장되지 않은 변경이 있습니다. 닫고 먼저 저장한 뒤 게시해 주세요. 기존 게시본은 유지됩니다.

@@ -36,9 +36,18 @@ type Props = {
   filterScope?: { applied: StudioFilter[]; pending: boolean; dateRange?: StudioDateRange };
   onApply: (result: StudioRunResult) => boolean;
   locked: boolean;
+  onPrepareCreationPublication?: (target: NonNullable<StudioExecution['creationSaveResult']>) => void;
   onSaved?: (saved: StudioSaveResult, submitted: StudioRunContext) => Promise<boolean>;
 };
-export default function StudioConversation({ context, selectedTitle, filterScope, onApply, locked, onSaved }: Props) {
+export default function StudioConversation({
+  context,
+  selectedTitle,
+  filterScope,
+  onApply,
+  locked,
+  onSaved,
+  onPrepareCreationPublication,
+}: Props) {
   const current = useRef(context);
   current.current = context;
   const apply = useRef(onApply);
@@ -265,10 +274,28 @@ export default function StudioConversation({ context, selectedTitle, filterScope
     [stop],
   );
   const latest = runs[0];
-  const creationTarget =
-    latest?.status === 'succeeded' && latest.creationResult && !latest.creationSaveResult && latest.runId !== ignoredCreation
-      ? latest
-      : null;
+  // UC037: a saved creation remains the conversation target until explicit return.
+  const creationContext =
+    latest?.status === 'succeeded' && latest.creationResult && latest.runId !== ignoredCreation ? latest : null;
+  const creationTarget = creationContext && !creationContext.creationSaveResult ? creationContext : null;
+  const savedCreation = creationContext?.creationSaveResult;
+  const prepareCreationPublication = () => {
+    if (!savedCreation || busy || acting || lockedRef.current) return;
+    // Preparation is deliberately bounded; no model or original-editor fallback can publish.
+    if (
+      !/^(?:(?:저장한\s*대시보드\s*)?게시\s*준비\s*(?:해\s*줘|해\s*주세요|해주세요)|공유\s*설정\s*열어\s*(?:줘|주세요)|prepare publication)[.!。]?$/i.test(
+        input.trim(),
+      )
+    ) {
+      setCreationError(
+        '저장한 새 대시보드가 대상입니다. “게시 준비해 줘”로 공개 범위를 확인하세요. 내용 수정은 새 대시보드 열기에서 이어가세요. 질문은 유지됩니다.',
+      );
+      return;
+    }
+    setInput('');
+    setCreationError('');
+    onPrepareCreationPublication?.(savedCreation);
+  };
   const submitCreation = async () => {
     if (acting || busy || lockedRef.current || creationController.current || !input.trim()) return;
     const target = creationAttempt.current?.run ?? creationTarget;
@@ -348,26 +375,33 @@ export default function StudioConversation({ context, selectedTitle, filterScope
         <details className="studio-execution-hint">
           <summary>저장·공유 요청 안내</summary>
           <p>
-            “저장하고 링크로 공유해줘”라고 명시하면 저장 후 링크를 만듭니다. “내 데이터로 복제해줘”는 게시본과 열 매핑을
-            확인합니다. 공유 범위가 불분명하면 공개하지 않습니다.
+            {savedCreation
+              ? '“게시 준비해 줘”로 저장한 새 대시보드의 공개 범위를 확인하세요. 게시하기를 눌렀을 때 링크가 만들어집니다.'
+              : '“저장하고 링크로 공유해줘”라고 명시하면 저장 후 링크를 만듭니다. “내 데이터로 복제해줘”는 게시본과 열 매핑을 확인합니다. 공유 범위가 불분명하면 공개하지 않습니다.'}
           </p>
         </details>
         <div className="studio-context-card">
           <span className="studio-eyebrow">현재 문맥</span>
-          <strong>{creationTarget ? '새 대시보드 · 저장 전 생성안' : selectedTitle || '선택한 블록 없음'}</strong>
+          <strong>
+            {savedCreation
+              ? '새 대시보드 #' + savedCreation.dashboardId + ' · 저장 완료'
+              : creationTarget
+              ? '새 대시보드 · 저장 전 생성안'
+              : selectedTitle || '선택한 블록 없음'}
+          </strong>
           <span>
-            {creationTarget
-              ? '소스 #' + creationTarget.creationResult.sourceId + ' · 전체 기간 · 필터 없음'
+            {creationContext
+              ? '소스 #' + creationContext.creationResult.sourceId + ' · 전체 기간 · 필터 없음'
               : studioDateRangeSummary(filterScope?.dateRange) +
                 ' · ' +
                 (filterScope?.applied.length ? '공통 필터 ' + studioFilterSummary(filterScope.applied) : '필터 없음')}
           </span>
-          {!creationTarget && filterScope?.pending && (
+          {!creationContext && filterScope?.pending && (
             <span>
               문서의 날짜 범위·공통 필터는 아직 조회 결과에 반영되지 않았습니다. AI 요청은 저장된 문서 조건으로 처리됩니다.
             </span>
           )}
-          {!creationTarget && grain && grain !== 'auto' && (
+          {!creationContext && grain && grain !== 'auto' && (
             <span>{({ day: '일간', week: '주간', month: '월간' } as const)[grain]} 집계 · UTC</span>
           )}
           <span>Codex · gpt-6-luna 요청</span>
@@ -430,7 +464,9 @@ export default function StudioConversation({ context, selectedTitle, filterScope
               !!input.trim())
           }
         />
-        {creationTarget ? (
+        {savedCreation ? (
+          <p>저장한 새 대시보드의 게시를 준비할 수 있습니다. 내용 수정은 새 대시보드 열기에서 이어가세요.</p>
+        ) : creationTarget ? (
           <p>생성안은 블록 번호나 제목으로 수정하고, 확인 후 저장을 요청하세요. 원본 편집기는 유지됩니다.</p>
         ) : (
           !selectedTitle && <p>캔버스에서 블록을 먼저 선택하면 해당 블록만 수정할 수 있습니다.</p>
@@ -454,6 +490,10 @@ export default function StudioConversation({ context, selectedTitle, filterScope
           if (!input.trim() || busy || acting || locked) return;
           clearError();
           setNotice('');
+          if (savedCreation) {
+            prepareCreationPublication();
+            return;
+          }
           if (creationTarget || creationAttempt.current) {
             void submitCreation();
             return;
@@ -464,18 +504,20 @@ export default function StudioConversation({ context, selectedTitle, filterScope
       >
         <div className="flex flex-wrap items-center gap-2 text-xs" aria-label="대화 요청 대상">
           <span>
-            {creationTarget || creationAttempt.current
+            {savedCreation
+              ? '대상: 저장한 새 대시보드 #' + savedCreation.dashboardId
+              : creationTarget || creationAttempt.current
               ? '대상: 저장 전 생성안 · 소스 #' +
                 (creationAttempt.current?.run.creationResult?.sourceId ?? creationTarget?.creationResult?.sourceId)
               : '대상: 현재 원본 편집'}
           </span>
-          {creationTarget && (
+          {creationContext && (
             <Button
               variant="ghost"
               size="sm"
               disabled={busy || acting || creationUncertain || locked}
               onClick={() => {
-                setIgnoredCreation(creationTarget.runId);
+                setIgnoredCreation(creationContext.runId);
                 setCreationError('');
                 setNotice('현재 원본 편집으로 돌아왔습니다. 질문은 자동 전송하지 않았습니다.');
               }}
@@ -490,7 +532,11 @@ export default function StudioConversation({ context, selectedTitle, filterScope
           minRows={3}
           label="AI에게 요청할 내용"
           placeholder={
-            creationTarget ? '예: 첫 번째 블록의 제목을 바꿔 줘 / 이 생성안을 저장해 줘' : '선택 차트를 주간으로 바꿔 줘'
+            savedCreation
+              ? '예: 게시 준비해 줘'
+              : creationTarget
+              ? '예: 첫 번째 블록의 제목을 바꿔 줘 / 이 생성안을 저장해 줘'
+              : '선택 차트를 주간으로 바꿔 줘'
           }
           value={input}
           onChange={event => setInput(event.target.value)}
