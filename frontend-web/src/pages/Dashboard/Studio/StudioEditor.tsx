@@ -279,16 +279,21 @@ export default function StudioEditor() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
   const [result, setResult] = useState<StudioReplacePayload | null>(null);
+  const loadGeneration = useRef(0);
 
   const load = useCallback(async () => {
     if (!validId) return;
+    loadGeneration.current += 1;
+    const generation = loadGeneration.current;
     setStatus('loading');
     setError('');
     try {
       const next = await fetchStudioDashboard(id);
+      if (generation !== loadGeneration.current) return;
       setResult(next);
       setStatus('ready');
     } catch (cause) {
+      if (generation !== loadGeneration.current) return;
       setResult(null);
       setStatus('error');
       setError(cause instanceof Error ? cause.message : 'Studio 문서를 불러오지 못했습니다.');
@@ -297,6 +302,10 @@ export default function StudioEditor() {
 
   useEffect(() => {
     load();
+    return () => {
+      // UC039: older routes/retries cannot replace the current saved-document view.
+      loadGeneration.current += 1;
+    };
   }, [load]);
 
   const replace = useCallback((next: StudioReplacePayload) => {
@@ -307,7 +316,7 @@ export default function StudioEditor() {
 
   if (!validId)
     return <StudioStateScreen title="대시보드를 확인할 수 없습니다" description="주소의 대시보드 번호를 확인해 주세요." />;
-  if (status === 'loading')
+  if (status === 'loading' || (result && result.document.dashboardId !== id))
     return (
       <StudioStateScreen
         title="Studio를 준비하는 중입니다"

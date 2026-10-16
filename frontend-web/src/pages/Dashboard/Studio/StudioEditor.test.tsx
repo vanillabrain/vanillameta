@@ -5,10 +5,11 @@ import StudioEditor, { mergeStudioDisplay, reapplyStudioChanges, resolveBlockPre
 import { StudioDefinitions } from './studioAdapter';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
+const route = vi.hoisted(() => ({ dashboardId: '3' }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 vi.mock('react-router-dom', async () => {
   return {
-    useParams: () => ({ dashboardId: '3' }),
+    useParams: () => route,
     Link: ({ children }: any) => <a>{children}</a>,
   };
 });
@@ -89,6 +90,7 @@ const saveButton = () => screen.getByRole('button', { name: '저장' }) as HTMLB
 const duplicateBlock = () => fireEvent.change(addSelect(), { target: { value: 'b1' } });
 
 beforeEach(() => {
+  route.dashboardId = '3';
   vi.clearAllMocks();
   (globalThis as any).ResizeObserver = class {
     callback: any;
@@ -747,4 +749,57 @@ it('UC037 hands a saved creation to the top-level publisher, preserving dirty or
     expect(api.get).toHaveBeenCalledWith('/studio/dashboards/3/publications', undefined, expect.anything()),
   );
   expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('UC039 retries a failed latest read explicitly and never saves or publishes while loading', async () => {
+  api.get.mockRejectedValueOnce({ response: { status: 503 } }).mockResolvedValue(envelope());
+  render(<StudioEditor />);
+  await screen.findByText('Studio를 열지 못했습니다');
+  expect(screen.queryByRole('button', { name: '저장' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '게시·공유' })).toBeNull();
+  expect(api.get).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+  await screen.findByText('500');
+  expect(api.get).toHaveBeenCalledTimes(2);
+  expect(api.post).not.toHaveBeenCalled();
+});
+it('UC039 denies data, editing and publication when latest read is forbidden', async () => {
+  api.get.mockRejectedValue({ response: { status: 403 } });
+  render(<StudioEditor />);
+  await screen.findByText('이 대시보드를 편집할 권한이 없습니다.');
+  expect(screen.queryByText('500')).toBeNull();
+  expect(screen.queryByRole('button', { name: '게시·공유' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '저장' })).toBeNull();
+  expect(api.post).not.toHaveBeenCalled();
+});
+it.each(['success', 'failure'])('UC039 ignores an earlier target read %s after the current target loads', async outcome => {
+  let resolveOld: (value: any) => void, rejectOld: (cause: any) => void;
+  const old = new Promise((resolve, reject) => {
+    resolveOld = resolve;
+    rejectOld = reject;
+  });
+  api.get.mockImplementation((url: string) =>
+    url === '/studio/dashboards/3'
+      ? old
+      : Promise.resolve(
+          envelope({
+            document: doc({ dashboardId: 4, title: 'Current target 4' }),
+            definitions: { ...definitions, dashboardId: 4 },
+          }),
+        ),
+  );
+  const view = render(<StudioEditor />);
+  await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+  route.dashboardId = '4';
+  view.rerender(<StudioEditor />);
+  await screen.findAllByText('Current target 4');
+  await act(async () => {
+    if (outcome === 'success') resolveOld(envelope());
+    else rejectOld({ response: { status: 403 } });
+    await old.catch(() => undefined);
+  });
+  expect(screen.getAllByText('Current target 4').length).toBeGreaterThan(0);
+  expect(screen.queryByText('Studio를 열지 못했습니다')).toBeNull();
+  expect(screen.queryAllByText('매출 대시보드')).toHaveLength(0);
+  expect(api.post).not.toHaveBeenCalled();
 });
