@@ -62,7 +62,7 @@
 
 ### BR-022-02: Preview and revision continuity
 
-새 데이터의 전체 미리보기를 검토한 초안만 저장하고 성공 revision으로 게시 준비한다. block ID·비대상·모든 폭 배치는 유지한다.
+새 데이터의 전체 미리보기를 검토한 초안만 저장하고 성공 revision으로 게시 준비한다. block ID·비대상·모든 폭 배치는 유지한다. 원 질문에서 제목만/이름만을 명시하면 선택 블록의 계산·차트·표시는 유지하고 제목만 적용한다.
 
 ### BR-022-03: Explicit independent publication
 

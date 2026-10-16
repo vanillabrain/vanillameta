@@ -692,12 +692,25 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       else process.env.AI_PROVIDER = provider;
     }
   });
-  it.each([false, true])(
-    'UC022 retries an unchanged selected block, exhausted=%s',
-    async exhausted => {
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+  ])(
+    'UC022 retries an unchanged selected block, exhausted=%s defaults=%s',
+    async (exhausted, defaults) => {
       const id = (await service.save({ draft: draft() }, 7)).data.id;
       const current = (await service.analysis(id, 7)).data;
-      const unchanged = { ...draft(), widgets: [current.widgets[0]] };
+      const unchanged = {
+        ...draft(),
+        widgets: [
+          {
+            ...current.widgets[0],
+            ...(defaults ? { prefix: '', suffix: '', numberNotation: 'full' } : {}),
+          },
+        ],
+      };
       const changed = {
         ...unchanged,
         widgets: [{ ...current.widgets[0], sql: 'SELECT sum(amount) * 2 AS value FROM source' }],
@@ -726,6 +739,30 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       expect((await service.analysis(id, 7)).data).toEqual(current);
     },
   );
+  it('UC025 title-only recovery ignores generated calculation and chart drift', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    const current = (await service.analysis(id, 7)).data;
+    ai.callLlm.mockResolvedValueOnce(
+      JSON.stringify({ ...draft(), widgets: [{ ...current.widgets[1], title: '복구 완료' }] }),
+    );
+    const result = await service.generate(
+      {
+        dashboardId: id,
+        databaseId: 1,
+        currentDraft: current,
+        selectedWidget: 0,
+        requireSelectedChange: true,
+        renameOnly: true,
+        prompt: '1번 제목만 복구 완료로 변경',
+      },
+      7,
+    );
+    expect(result.status).toBe('SUCCESS');
+    if (!('data' in result)) throw new Error('Expected recovery');
+    expect(result.data.widgets[0]).toEqual({ ...current.widgets[0], title: '복구 완료' });
+    expect(result.data.widgets[1]).toEqual(current.widgets[1]);
+    expect((await service.analysis(id, 7)).data).toEqual(current);
+  });
   it.each([
     ['제목 유지', 'Revenue'],
     ['제목을 Renamed revenue로 변경', 'Renamed revenue'],

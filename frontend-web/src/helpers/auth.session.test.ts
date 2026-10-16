@@ -1,3 +1,5 @@
+import { webcrypto } from 'node:crypto';
+import { editorDraftKey } from './editorDraftStorage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getToken, setToken, STORAGE_ACCESS_TOKEN } from './authHelper';
 
@@ -47,6 +49,10 @@ const load = async () => {
 describe('axios refresh response forwarding and shared inflight recovery', () => {
   it('enables credential cookies and returns the retried response for legacy error data', async () => {
     setToken('unit-expired-fixture');
+    vi.stubGlobal('crypto', webcrypto);
+    const draftKey = await editorDraftKey('unit-expired-fixture', 8);
+    if (!draftKey) throw new Error('missing scope');
+    sessionStorage.setItem(draftKey, 'preserved-draft');
     seam.refresh.mockResolvedValue({ data: { accessToken: 'unit-new-fixture' } });
     const api = await load();
     expect(api.defaults.withCredentials).toBe(true);
@@ -55,6 +61,8 @@ describe('axios refresh response forwarding and shared inflight recovery', () =>
       throw expired(config);
     };
     expect((await api.get('/unit-private')).data).toEqual({ value: 'retried' });
+    expect(await editorDraftKey('unit-new-fixture', 8)).toBe(draftKey);
+    expect(sessionStorage.getItem(draftKey)).toBe('preserved-draft');
     expect(seam.refresh).toHaveBeenCalledTimes(1);
   });
 

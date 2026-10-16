@@ -782,14 +782,19 @@ describe('BiService dashboard editor boundaries', () => {
       body({
         items: [existing],
         selectedKey: existing.key,
-        prompt: '제목을 바꾸고 저장해 줘',
+        prompt: '제목만 바꾸고 저장해 줘',
         editMode: 'auto',
         layoutMode: 'desktop',
       }),
       actor,
     );
     expect(dashboards.generate).toHaveBeenCalledWith(
-      expect.objectContaining({ prompt: '제목을 바꿔 줘', selectedWidget: 0, databaseId: 1 }),
+      expect.objectContaining({
+        prompt: '제목을 바꿔 줘',
+        selectedWidget: 0,
+        databaseId: 1,
+        renameOnly: true,
+      }),
       actor,
       undefined,
     );

@@ -1,4 +1,6 @@
 import React from 'react';
+import { webcrypto } from 'node:crypto';
+import { editorDraftKey, EDITOR_DRAFT_PREFIX } from '@/helpers/editorDraftStorage';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import DashboardEdit from './index';
@@ -72,14 +74,22 @@ const preview = (count = 1) => ({
   })),
 });
 beforeEach(() => {
+  sessionStorage.clear();
+  localStorage.clear();
   vi.clearAllMocks();
   api.id = '8';
   api.get.mockResolvedValue(success(editor));
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  sessionStorage.clear();
+  localStorage.clear();
+});
 const mount = async () => {
   const view = render(<DashboardEdit />);
   await screen.findByLabelText('대시보드 제목');
+  await waitFor(() => expect(screen.queryByText('대시보드 불러오는 중…')).toBeNull());
   document.querySelectorAll('details').forEach(element => {
     element.open = true;
   });
@@ -153,6 +163,7 @@ it('undos title and size, clears redo on new edits and resets history after expl
 it('starts with optional settings collapsed and keeps block actions visible', async () => {
   render(<DashboardEdit />);
   await screen.findByLabelText('대시보드 제목');
+  await waitFor(() => expect(screen.queryByText('대시보드 불러오는 중…')).toBeNull());
   expect(document.querySelector('details')?.open).toBe(false);
   expect(screen.getByRole('button', { name: '1번 차트 복제' })).not.toBeNull();
 });
@@ -558,6 +569,7 @@ it('UC-013 defaults to auto, asks to clarify without changing the draft, and app
   api.get.mockResolvedValueOnce(success({ ...editor, items: [{ ...item, layouts }] }));
   render(<DashboardEdit />);
   await screen.findByLabelText('대시보드 제목');
+  await waitFor(() => expect(screen.queryByText('대시보드 불러오는 중…')).toBeNull());
   expect(document.querySelector('details')?.open).toBe(false);
   document.querySelectorAll('details').forEach(element => {
     if (!element.querySelector('summary')?.textContent?.includes('직접 지정')) element.open = true;
@@ -1439,4 +1451,92 @@ it('UC-017 ignores a state-check response from the previous dashboard route', as
   });
   expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('새 화면');
   expect(screen.queryByRole('button', { name: '저장된 화면 보기' })).toBeNull();
+});
+
+const enableBrowserDraft = () => {
+  vi.stubGlobal('crypto', webcrypto);
+  localStorage.setItem('accessToken', JSON.stringify('draft-unit-session'));
+};
+it('UC025 offers an unsaved draft after remount, restores question without replay and clears it after save', async () => {
+  enableBrowserDraft();
+  const first = await mount();
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: 'reload 초안' } });
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '실패한 질문' } });
+  const key = await editorDraftKey('draft-unit-session', 8);
+  if (!key) throw new Error('missing scope');
+  await waitFor(() => expect(JSON.parse(sessionStorage.getItem(key)).prompt).toBe('실패한 질문'));
+  const stored = sessionStorage.getItem(key);
+  first.unmount();
+  render(<DashboardEdit />);
+  await screen.findByRole('region', { name: '보관 초안 복구' });
+  expect(screen.queryByLabelText('AI 변경 요청')).toBeNull();
+  expect(sessionStorage.getItem(key)).toBe(stored);
+  expect(api.post).not.toHaveBeenCalled();
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '보관한 초안 복구' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '보관한 초안 복구' }));
+  expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('reload 초안');
+  expect((screen.getByLabelText('AI 변경 요청') as HTMLInputElement).value).toBe('실패한 질문');
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByRole('region', { name: '변경 결과 미리보기' })).toBeNull();
+  expect(api.post).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '재질문' } });
+  api.post.mockResolvedValueOnce(success({ ...aiResult(), targetKey: item.key, saveRequested: false }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 실행' }));
+  await screen.findByRole('heading', { name: '1번 차트 · AI 평균' });
+  api.post.mockResolvedValueOnce(success({ id: 8, revision: 'b'.repeat(64) }));
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
+  expect(sessionStorage.getItem(key)).toBeNull();
+});
+it.each(['revision', 'unknown', 'source'])('UC025 gates %s recovery before any AI or write', async mode => {
+  enableBrowserDraft();
+  const first = await mount();
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '復旧 초안' } });
+  const key = await editorDraftKey('draft-unit-session', 8);
+  if (!key) throw new Error('missing scope');
+  await waitFor(() => expect(sessionStorage.getItem(key)).not.toBeNull());
+  const stored = JSON.parse(sessionStorage.getItem(key));
+  if (mode === 'unknown') stored.unknownSave = true;
+  sessionStorage.setItem(key, JSON.stringify(stored));
+  first.unmount();
+  api.get.mockResolvedValue(
+    success({
+      ...editor,
+      ...(mode === 'revision' ? { revision: 'b'.repeat(64) } : {}),
+      ...(mode === 'source' ? { sourceId: 2 } : {}),
+    }),
+  );
+  render(<DashboardEdit />);
+  await screen.findByRole('region', { name: '보관 초안 복구' });
+  const restore = screen.getByRole('button', { name: '보관한 초안 복구' }) as HTMLButtonElement;
+  if (mode === 'source') {
+    expect(restore.disabled).toBe(true);
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: '보관한 초안 버리기' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '보관한 초안 버리기' }));
+    await screen.findByLabelText('대시보드 제목');
+    expect(sessionStorage.getItem(key)).toBeNull();
+  } else {
+    await waitFor(() => expect(restore.disabled).toBe(false));
+    fireEvent.click(restore);
+    expect(screen.getByRole('region', { name: '저장 복구' })).not.toBeNull();
+    expect((screen.getByRole('button', { name: 'AI 요청 실행' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  }
+  expect(api.post).not.toHaveBeenCalled();
+});
+it('UC025 reports a blocked draft write and preserves the in-memory form', async () => {
+  enableBrowserDraft();
+  await mount();
+  const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    throw new Error('quota');
+  });
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '메모리 초안' } });
+  await screen.findByText('브라우저에 초안을 보관하지 못했습니다. 새로고침 전에 저장해 주세요.');
+  expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('메모리 초안');
+  write.mockRestore();
+  expect(Object.keys(sessionStorage).filter(k => k.startsWith(EDITOR_DRAFT_PREFIX))).toHaveLength(0);
 });

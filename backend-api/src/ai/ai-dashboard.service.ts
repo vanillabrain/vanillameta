@@ -96,6 +96,24 @@ import {
  */
 type PublicationRequest = { publicationRequested?: true };
 
+// UC022/025: omitted empty display options do not constitute an AI content change.
+function sameSelectedDefinition(
+  left: ReturnType<typeof validateDraft>['widgets'][number],
+  right: ReturnType<typeof validateDraft>['widgets'][number],
+) {
+  if (!left || !right) return false;
+  const defaults = {
+    prefix: '',
+    suffix: '',
+    categoryField: '',
+    decimalPlaces: 0,
+    numberNotation: 'full',
+  };
+  return [...new Set([...Object.keys(left), ...Object.keys(right)])].every(
+    key => (left[key] ?? defaults[key]) === (right[key] ?? defaults[key]),
+  );
+}
+
 @Injectable()
 export class AiDashboardService {
   private readonly dimensionCache = new Map<
@@ -1028,6 +1046,14 @@ export class AiDashboardService {
           !parsed.widgets?.some(w => current.widgets.some(old => old.blockId === w.blockId))
         )
           throw new BadRequestException('기존 블록 ID를 유지해 주세요.');
+        // An explicit title-only question must never replace the selected calculation/chart.
+        if (body.renameOnly === true && current && Number.isInteger(body.selectedWidget)) {
+          parsed.widgets = current.widgets.map((widget, index) =>
+            index === body.selectedWidget
+              ? { ...widget, title: parsed.widgets[index].title }
+              : widget,
+          );
+        }
         const metricReferences = (parsed.widgets || []).flatMap((w, widgetIndex) => {
           const metric = savedMetrics.find(m => m.id === w.metricId);
           return metric ? [{ widgetIndex, metricId: metric.id, label: metric.label }] : [];
@@ -1047,8 +1073,10 @@ export class AiDashboardService {
           body.requireSelectedChange === true &&
           current &&
           Number.isInteger(body.selectedWidget) &&
-          JSON.stringify(validateDraft(parsed).widgets[body.selectedWidget]) ===
-            JSON.stringify(current.widgets[body.selectedWidget])
+          sameSelectedDefinition(
+            validateDraft(parsed).widgets[body.selectedWidget],
+            current.widgets[body.selectedWidget],
+          )
         )
           throw new BadRequestException(
             'The selected block is unchanged. Apply the requested change to its definition; preserve other blocks.',

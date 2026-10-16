@@ -1,3 +1,4 @@
+import { clearEditorDrafts } from './editorDraftStorage';
 export const STORAGE_ACCESS_TOKEN = 'accessToken';
 
 export const getToken = () => {
@@ -13,9 +14,11 @@ export const getToken = () => {
   localStorage.removeItem(STORAGE_ACCESS_TOKEN);
   return null;
 };
-export const setToken = accessToken => {
+export const setToken = (accessToken, preserveDrafts = false) => {
+  if (!preserveDrafts) clearEditorDrafts();
   localStorage.setItem(STORAGE_ACCESS_TOKEN, JSON.stringify(accessToken));
 };
 export const removeToken = () => {
+  clearEditorDrafts();
   localStorage.removeItem(STORAGE_ACCESS_TOKEN);
 };

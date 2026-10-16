@@ -19,6 +19,14 @@ import BlockLayoutCanvas, { validLayout } from './BlockLayoutCanvas';
 import { recoveryPlan, RECOVERY_DASHBOARD_TITLE_KEY } from './editorRecovery';
 import MetricTrend, { FormattedMetricTrendData } from '../Components/MetricTrend';
 import { cn } from '@/lib/utils';
+import { getToken } from '@/helpers/authHelper';
+import {
+  BrowserDraft,
+  editorDraftKey,
+  readEditorDraft,
+  writeEditorDraft,
+  removeEditorDraft,
+} from '@/helpers/editorDraftStorage';
 
 type Column = { name: string; type: string; numeric: boolean; temporal: boolean };
 type Metric = {
@@ -215,6 +223,9 @@ function DashboardEditContent() {
           items: latest.items,
         })
       : null;
+  const [draftKey, setDraftKey] = useState<string | null>(null);
+  const [storedDraft, setStoredDraft] = useState<BrowserDraft<Item> | null>(null);
+  const [draftStorageProblem, setDraftStorageProblem] = useState('');
   const [reloadDialog, setReloadDialog] = useState(false);
   const [reload, setReload] = useState(0);
   const [announcement, setAnnouncement] = useState('');
@@ -245,6 +256,9 @@ function DashboardEditContent() {
     request.current = abort;
     pending.current = true;
     setBusy('대시보드 불러오는 중…');
+    setDraftKey(null);
+    setStoredDraft(null);
+    setDraftStorageProblem('');
     setEditor(null);
     setPreview(null);
     setLayoutPreview(null);
@@ -265,8 +279,24 @@ function DashboardEditContent() {
     setFuture([]);
     void get(`/bi/dashboards/${encodeURIComponent(dashboardId ?? '')}/editor`, undefined, { signal: abort.signal })
       .then(unwrap<Editor>)
-      .then(result => {
+      .then(async result => {
+        let key: string | null = null;
+        let saved: BrowserDraft<Item> | null = null;
+        let problem = '';
+        try {
+          key = await editorDraftKey(getToken(), result.dashboardId);
+          if (key) {
+            const read = readEditorDraft<Item>(key, result.dashboardId);
+            saved = read.draft;
+            problem = read.problem ?? '';
+          }
+        } catch {
+          problem = '브라우저에 초안을 보관할 수 없습니다. 새로고침 전에 저장해 주세요.';
+        }
         if (token !== sequence.current) return;
+        setDraftKey(key);
+        setStoredDraft(saved);
+        setDraftStorageProblem(problem);
         setEditor(result);
         setTitle(result.title);
         setItems(result.items);
@@ -286,6 +316,96 @@ function DashboardEditContent() {
       pending.current = false;
     };
   }, [dashboardId, reload]);
+  // UC-025: offer a stored candidate before effects can overwrite it.
+  useEffect(() => {
+    if (!editor || !draftKey || storedDraft || editor.dashboardId !== Number(dashboardId)) return;
+    const changed = title !== editor.title || JSON.stringify(items) !== JSON.stringify(editor.items);
+    if (!changed && !aiPrompt && !conflict && !unknownSave) {
+      removeEditorDraft(draftKey);
+      return;
+    }
+    const ok = writeEditorDraft<Item>(draftKey, {
+      version: 1,
+      updatedAt: Date.now(),
+      dashboardId: editor.dashboardId,
+      sourceId: editor.sourceId,
+      baseRevision: editor.revision,
+      base: { title: editor.title, items: editor.items },
+      draft: { title, items },
+      prompt: aiPrompt,
+      selectedKey,
+      aiEditMode,
+      layoutMode,
+      conflict,
+      unknownSave,
+      saveAttempt,
+    });
+    setDraftStorageProblem(ok ? '' : '브라우저에 초안을 보관하지 못했습니다. 새로고침 전에 저장해 주세요.');
+  }, [
+    editor,
+    draftKey,
+    storedDraft,
+    dashboardId,
+    title,
+    items,
+    aiPrompt,
+    selectedKey,
+    aiEditMode,
+    layoutMode,
+    conflict,
+    unknownSave,
+    saveAttempt,
+  ]);
+  const clearBrowserDraft = () => {
+    removeEditorDraft(draftKey);
+    setDraftKey(null);
+    setStoredDraft(null);
+  };
+  const recoverBrowserDraft = () => {
+    if (!editor || !storedDraft || storedDraft.sourceId !== editor.sourceId) return;
+    const candidate = storedDraft;
+    if (
+      !validItems(candidate.draft.items, candidate.draft.title) ||
+      candidate.draft.items.some(
+        item =>
+          item.kind === 'draft' &&
+          !validDraft({
+            databaseId: editor.sourceId,
+            title: candidate.draft.title,
+            explanation: '',
+            widgets: [item.definition],
+          }),
+      )
+    ) {
+      setDraftStorageProblem('보관한 초안의 정의나 표시를 확인할 수 없습니다. 보관 초안을 버리고 최신본에서 계속해 주세요.');
+      return;
+    }
+    const changedRevision = candidate.baseRevision !== editor.revision;
+    setEditor({ ...editor, revision: candidate.baseRevision, title: candidate.base.title, items: candidate.base.items });
+    setTitle(candidate.draft.title);
+    setItems(candidate.draft.items);
+    setAiPrompt(candidate.prompt);
+    clearTarget();
+    setSelectedKey(candidate.draft.items.some(item => item.key === candidate.selectedKey) ? candidate.selectedKey : '');
+    setAiEditMode(candidate.aiEditMode);
+    setLayoutMode(candidate.layoutMode);
+    setConflict(changedRevision || candidate.conflict);
+    setUnknownSave(candidate.unknownSave);
+    setSaveAttempt(candidate.saveAttempt);
+    setLatest(null);
+    setPast([]);
+    setFuture([]);
+    setPreview(null);
+    setLayoutPreview(null);
+    setBatchSummary([]);
+    setError('');
+    setStoredDraft(null);
+    setAnnouncement(
+      changedRevision || candidate.conflict || candidate.unknownSave
+        ? '초안과 질문을 복구했습니다. 저장 상태를 확인한 뒤 계속해 주세요.'
+        : '초안과 질문을 복구했습니다. 미리보기나 AI 질문을 다시 실행해 주세요.',
+    );
+  };
   const dimensions = (chart: Item['chart']) =>
     (editor?.profile.columns ?? []).filter(
       column => chart !== 'line' || (column.temporal && /^(DATE|TIMESTAMP)/i.test(column.type)),
@@ -764,8 +884,12 @@ function DashboardEditContent() {
         if (result.publicationRequested === true) {
           if (typeof saved.revision !== 'string' || !/^[a-f0-9]{64}$/.test(saved.revision))
             throw new Error('Invalid saved revision');
+          clearBrowserDraft();
           navigate(`/dashboard/${saved.id}/publication?savedRevision=${saved.revision}`);
-        } else navigate(`/dashboard/${saved.id}`);
+        } else {
+          clearBrowserDraft();
+          navigate(`/dashboard/${saved.id}`);
+        }
       } else {
         setAnnouncement(
           appliedMode === 'batch'
@@ -859,6 +983,7 @@ function DashboardEditContent() {
       if (save) {
         const result = unwrap<{ id: number; revision: string }>(response);
         if (!Number.isInteger(result.id) || result.id !== editor.dashboardId) throw new Error('Invalid response');
+        clearBrowserDraft();
         navigate(`/dashboard/${result.id}`);
       } else {
         const result = unwrap<Preview>(response);
@@ -955,10 +1080,48 @@ function DashboardEditContent() {
             ))}
         </section>
       )}
-      <Button disabled={!!busy} onClick={() => (editor ? setReloadDialog(true) : setReload(value => value + 1))}>
+      {draftStorageProblem && (
+        <Notice severity="warning" className="my-4">
+          {draftStorageProblem}
+        </Notice>
+      )}
+      {editor && storedDraft && (
+        <section aria-label="보관 초안 복구" className="my-4 min-w-0 rounded-lg border border-border p-4">
+          <p className="mb-2 text-sm break-words">
+            이 탭에 저장하지 않은 초안과 질문이 있습니다. 복구해 계속할 수 있습니다.
+          </p>
+          <p className="mb-3 text-xs text-muted-foreground break-words">
+            초안에는 계산식이 포함될 수 있으며 이 브라우저 탭에 최대24시간 보관됩니다. 미리보기와 저장·게시 요청은 다시
+            실행하지 않습니다.
+          </p>
+          {storedDraft.sourceId !== editor.sourceId && (
+            <p className="mb-2 text-sm text-destructive">데이터 소스가 달라 복구할 수 없습니다.</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={!!busy || storedDraft.sourceId !== editor.sourceId} onClick={recoverBrowserDraft}>
+              보관한 초안 복구
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!!busy}
+              onClick={() => {
+                removeEditorDraft(draftKey);
+                setStoredDraft(null);
+                setDraftStorageProblem('');
+              }}
+            >
+              보관한 초안 버리기
+            </Button>
+          </div>
+        </section>
+      )}
+      <Button
+        disabled={!!busy || !!storedDraft}
+        onClick={() => (editor ? setReloadDialog(true) : setReload(value => value + 1))}
+      >
         최신 내용 다시 불러오기
       </Button>
-      {editor && (
+      {editor && !storedDraft && (
         <>
           <div className="my-4 flex flex-row flex-wrap gap-2">
             <Button variant="ghost" disabled={!!busy || past.length === 0} onClick={() => restore(false)}>
@@ -1496,6 +1659,7 @@ function DashboardEditContent() {
             </Button>
             <Button
               onClick={() => {
+                clearBrowserDraft();
                 setReloadDialog(false);
                 setReload(value => value + 1);
               }}

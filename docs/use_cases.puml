@@ -47,4 +47,6 @@ operator --> UC023
 usecase "UC-024 Reuse Selected Blocks" as UC024
 operator --> UC024
 recipient --> UC024
+usecase "UC-025 브라우저 초안 복구" as UC025
+operator --> UC025
 @enduml

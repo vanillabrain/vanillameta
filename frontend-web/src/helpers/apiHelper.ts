@@ -1,3 +1,4 @@
+import { retainEditorDraftSession } from '@/helpers/editorDraftStorage';
 import axios from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
@@ -141,13 +142,15 @@ async function resetTokenAndReattemptRequest(errorResponse) {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       // 문닫기 (한 번만 요청)
+      const previousToken = getToken();
       const { data } = await authService.refreshAccessToken();
       // 새로운 토큰 저장
       const newAccessToken = data?.accessToken;
       if (typeof newAccessToken !== 'string' || !newAccessToken.trim()) {
         throw new Error('invalid refresh response');
       }
-      setToken(newAccessToken);
+      await retainEditorDraftSession(previousToken, newAccessToken);
+      setToken(newAccessToken, true);
       return newAccessToken;
     })()
       .catch(error => {

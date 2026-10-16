@@ -635,6 +635,7 @@ export class BiService {
         currentDraft: compiled.draft,
         selectedWidget: index,
         requireSelectedChange: true,
+        renameOnly: /(?:제목|이름)\s*만/.test(body.prompt),
         prompt,
       },
       actor,
