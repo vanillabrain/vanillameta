@@ -30,3 +30,16 @@ Studio 도구줄의 ‘저장본 복제’는 마지막 저장본의 기존 소�
 - AIWF strict 기존12 errors/33 warnings/4 infos는 유지하며 pin/check는 승인/전체 수용이 아니다.
 - `/tmp/vm-uc044/`: `original-before/after.json`, `original-draft-preserved.json`, `preview-xhr.json`, `save-xhr.json`, `reload-xhr.json`, `copy.json`, `private-publication.json`, `raw-source34.json`, `oracle.cjs/json`, `assertions.py/json`, `origin-dirty/reuse-preview/copy-saved-{390,768,1440}.png/json`, `reuse-link-*.json`, `unit/type/lint/build.log`.
 - 초기 게시 확인용 잘못된 `/bi/.../publication`404는 증거로 사용하지 않았다. DB의 share/publication 상태·수정 시각과 실제 요청 기록으로 범위를 확인했다. 공유 행은 원래 존재하는 구조이므로 shareId 존재만으로 공개로 판정하지 않는다.
+
+## 복사본 AI 편집 후속 · Ego88 · 2026-10-17
+
+UC044로 생성한46/source34에서 선택 블록의 제목만 ‘금액 기준 환불률’로 변경해 달라고 실제 AI 대화로 요청했다. 저장/게시 금지를 명시했고 데이터 확인·AI 제안·계산 검증·초안 준비 단계가 완료됐다. UI의 지정 제공자/모델 표시는 Codex/gpt-6-luna를 유지했다. 실행ID `cc5bb50f-acdf-4302-833a-d78af46fb996`다.
+
+- 저장 전 서버46 응답은 시작과 완전히 동일했다. 이후 명시 저장 버튼1회로 제목을 저장하고 reload했다. reload GET만이며 저장 응답과 재조회 응답이 동일하다.
+- 문서·정의의 선택 제목만 변경됐다. SQL/다른 정의/모든 블록ID/모든 폭 배치·표시·소스34는 유지됐고 환불률10%·날짜별10/10·총매출300이 직전 독립 원본 oracle과 같다. 원본45 응답도 동일하다.
+- AI 패널의 초안 완료 상태와 저장 화면을390/768/1440에서 캡처·시각 확인/실측했고 가로 넘침0이다. 모바일 Sheet의 질문/실행 기록·입력 및 저장 화면 헤더/긴 제목/도구줄 정렬을 확인했다. 실제 휴대폰/전체 접근성·새 Rill 대조는 별도다.
+- 검증 후 직접 설정 화면에서 제목을 ‘환불 비율’로 원복하고 정상 저장했다.46의 문서/정의 내용은 시작과 같으며 두 번의 정상 저장으로 revision은 새 값이다.46의 게시0·원본45 불변을 확인했다. 새 공개 링크/새 복제/새 지표는 만들지 않았다.
+
+**기능/디자인 PASS_SELECTED. 제품 코드 수정0.** 직전 `4676ab0a`의 관련 FE48/type/lint/build 결과는 미변경 범위에서 재사용했고 이번 후속의 새 실행으로 집계하지 않는다. 새 단위/빌드/core E2E는 수행하지 않았다. 실제 증빙 대조13개 PASS와 AIWF 문서 체크를 추가했다. 모델 실행/모든 자연어 일반화·운영/실기기·고객 수용은 별도다.
+
+증빙은 `/tmp/vm-uc044-ai/`의 `before-copy/after-ai-server/saved-copy/reloaded-copy/restored-copy.json`, `before-original/after-original.json`, `runs.json`, `edit-save-xhr.json`, `reload-xhr.json`, `ai-draft/saved-{390,768,1440}.png/json`, `assertions.py/json`을 따른다. 원본 파일 oracle은 직전 `/tmp/vm-uc044/oracle.json`의 미변경 source34 결과를 재사용했다.
