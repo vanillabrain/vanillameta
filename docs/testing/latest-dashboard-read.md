@@ -32,3 +32,11 @@ UC038 최신 저장본 확인 이후의 읽기 실패/재시도·접근 거절�
 - Strict spec lint는 기존12 errors/33 warnings/4 infos이며 새UC039 이슈0이다. baseline 자동 승인0. pin/check는 digest 검사, packet은 awaiting_review/acceptance not_recorded다.
 
 Main이 source/호출부/UC·BR·TC를 별도 대조하고 AGENTS와 UC038 후속 증빙을 동기화했다. 독립 리뷰는 이번에 실행하지 않았다. 기존 요구사항/용어·엔티티 책임은 그대로다. UC038 A1의503과 실제 권한 거절 화면을 선택 확인했으며,45번 실제 권한 회수·다중 장애 반복/동시 새로고침·실브라우저의 늦은 응답 경로 전환·unmount 뒤 상태 갱신의 별도 계측·운영MySQL/실휴대폰/VoiceOver·사람 전체TC005 수용은 NOT_RUN/Open이다. Rill 분석/집계 구현은 바뀌지 않아 새 비교를 반복하지 않았다.
+
+## 실제 unmount 지연 응답 후속 — 2026-10-17
+
+[브라우저 늦은 조회 증빙](studio-late-read.md)에서 전용 MySQL 복사 DB/Ego9의 실제 응답 보류→이력 앞으로 이동/unmount→늦은200/503 완료 후 기존 보기 유지,1440/390 넘침0과 문서/영수증 불변을 확인했다. 서로 다른 대시보드 ID 전환·React 내부 상태 호출 계측·실기기/전체 수용은 여전히 미검증이다. 위 최초 실행의 NOT_RUN 중 이 선택 범위만 보완한다.
+
+### 서로 다른 정상 대시보드 ID 후속
+
+[ROUTE-READ 증빙](studio-late-read.md#두-정상-대시보드-id-전환-계획--2026-10-17)은 새 격리 MySQL/Ego10에서 A GET 보류→같은 route element의 B로 직접 history 전환→A 늦은200/503 완료에도 B ID·제목·634,513,000 유지/DOM 기록 A 재노출0을 확인했다. 같은 document timeOrigin·완료 응답·보호26테이블 불변·390/1440 배치 완료 후 넘침0이다. React 내부 instance ID/모든 resize 중간 frame·초안/인증이 겹친 전체 경합은 별도다.

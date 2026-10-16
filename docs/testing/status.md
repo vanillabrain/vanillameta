@@ -727,3 +727,7 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 - 2026-10-17: MYSQL03~06 증빙·백업 검사 명령/회귀·보존/키 복구 운영안을 누적 커밋 범위에 포함했다. 각 문서의 2026-10-16 미커밋 표기는 당시 상태이며, 이후 통합/원격 반영 결과는 아래 최신 기록과 Git 이력을 따른다. 실제 DB/UI 장애 검증은 재실행하지 않고 기존 증빙을 재사용한다.
 
 - 2026-10-17: 누적 MYSQL03~06 `8bca915d` + 원격 후속7개 `38732c4a` 보존 병합. 검토에서 빈 업로드 백업 거절을 수정하고 manifest1MiB 한도를 명시, Python11 PASS. BE2094+HTTP권한 재검사6 PASS, FE1360+timeout 단독 재검사1 PASS(최초 전체명령 실패는 로그 보존), 루트build/FEtype PASS. 상세 [MYSQL05 통합 기록](studio-mysql-backup-validation.md#커밋-전-검토원격-통합--2026-10-17). 실제 화면/DB 장애 통과 조건 재사용·새캡처0·gpt-6-luna/VoiceOver BLOCKED 유지. 본 보완과 기록은 develop-v2 커밋·push 범위다.
+
+- 2026-10-17: [UC039 실제 늦은 조회/unmount](studio-late-read.md) LATE-READ01~03 PASS_SELECTED. Ego9 실제 GET 보류→이력 이동/화면 이탈→늦은200/503 전달 완료에도 기존 보기/정확값634,513,000 유지, 편집기/이전오류 노출0·1440/390넘침0·도구32px/14px. MySQL 복사DB 보호27테이블 불변·저장/게시/AI0, 제품변경0/기존검사 재사용·문서미커밋. 다른 정상 대시보드ID 전환·실기기/운영/전체수용은 미검증, gpt-6-luna/VoiceOver BLOCKED 유지.
+
+- 2026-10-17: [UC039 두 정상 ID 지연 조회](studio-late-read.md#두-정상-대시보드-id-전환-계획--2026-10-17) ROUTE-READ01~03 PASS_SELECTED. 새 MySQL fixture A1/B2·Ego10의 같은 브라우저 문서/route에서 A보류→B GET200→A 늦은200/503 완료에도 B 제목/ID/634,513,000 유지·DOM A 재노출0. 보호26테이블 불변·저장/게시/LLM0,1440/390 배치 완료 넘침0(즉시 resize의 일시 넘침은 분리 기록). 제품변경0·기존검사 재사용·전용서버/공간 정리, 검증기록 미커밋. 초안/인증/취소의 전체 경합·운영/실기기/VoiceOver는 별도·gpt-6-luna 유지.
