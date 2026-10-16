@@ -45,3 +45,10 @@ DB transaction callback 뒤 rollback된 경우 파생 파일이 남는 경로를
 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/commerce-studio-bridge-20261017/`. `api-final.json`, `reuse-api.json`, `button-layouts.json`, `studio-layouts.json`, `restart-reuse-screen.txt`, `bridge-first-error-390.png`, `bridge-button-final-390.png`, `bridge-studio-1440.png`, `bridge-studio-768.png`, `bridge-studio-390-kpi.png`, 선택 검사 로그와 `manifest.json`.
 
 주문일 코호트 전체 기간/UTC이고 Commerce 이벤트 날짜·채널 필터는 넘기지 않는다. 별도 소스 준비는 처음 한 번 워커 파일을 생성하므로 대용량 추가 저장 비용 측정은 남아 있다. 메타데이터 tag/config가 독립적으로 재작성되면 재사용 식별이 달라질 수 있다. 실제 고객/운영 MySQL·장시간 부하·실휴대폰/전체 접근성·전체 제품 수용은 미완료다. gpt-6-luna와 VoiceOver BLOCKED를 유지한다. 코드·기록은 아직 미커밋이다.
+
+
+## 커밋·원격 후속 통합 — 2026-10-17
+
+원화 수집/보고서·Studio 배치·자동 연결 및 기록을 `5f7175c7`에 커밋했다. 원격 develop-v2의 Studio 질문 보존·복사본 handoff 4커밋(`7982392f`까지)을 `0669fe2d`로 충돌 없이 병합했다. 작성자 설정은 유지하고 GitHub 인증은 사용자 지정 drumcap을 확인했다.
+
+병합 영향 검사: BE Commerce/import/legacy 4 suite42개, FE Commerce/StudioEditor/questionDraft/DashboardReuse 4 suite81개 PASS. FE type/lint/build와 diff whitespace PASS. BE 제품 소스는 원격에서 변경되지 않아 직전 BE build/lint와 실제 Ego 3폭/키보드 캡처를 재사용한다. 새 LLM/게시·전체 E2E·이미 통과한 UI 조건은 반복하지 않았다. 로그는 같은 증빙 폴더의 `merge-*.log`다. 운영/실기기·VoiceOver BLOCKED·기존 INCONCLUSIVE 범위는 그대로다.
