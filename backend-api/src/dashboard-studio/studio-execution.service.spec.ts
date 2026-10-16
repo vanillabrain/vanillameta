@@ -853,6 +853,7 @@ describe('T7 durable executions', () => {
     };
     return {
       journal,
+      ownerMetadata: jest.fn(async () => null),
       committed: jest.fn(async id => journal.get(id)),
       publish: jest.fn(async (_dashboardId, b) => {
         journal.set(b.requestId, published);
@@ -885,6 +886,7 @@ describe('T7 durable executions', () => {
       }),
       7,
       expect.any(AbortSignal),
+      null,
     );
     expect(result.publicationResult.token).toBe('e'.repeat(64));
     expect((await runner.list(1, 7))[0].publicationResult).toEqual(result.publicationResult);
@@ -920,6 +922,15 @@ describe('T7 durable executions', () => {
     const next = await restarted.retry(first.runId, { stepId: 'publish' }, 7);
     expect(next.status).toBe('succeeded');
     expect(next.publicationResult).toBeDefined();
+    expect(publications.ownerMetadata).toHaveBeenCalledTimes(1);
+    expect(publications.publish).toHaveBeenNthCalledWith(
+      2,
+      1,
+      expect.anything(),
+      7,
+      expect.any(AbortSignal),
+      null,
+    );
     expect(studio.save).toHaveBeenCalledTimes(1);
     expect(ai.callLlm).not.toHaveBeenCalled();
     expect(await db.manager.count(StudioRun)).toBe(1);
@@ -927,6 +938,28 @@ describe('T7 durable executions', () => {
       'provider SQL SECRET',
     );
   });
+  it('requires fresh consent for legacy uncommitted publication retries with no durable basis', async () => {
+    const publications = publicationAdapter();
+    publications.publish.mockRejectedValueOnce(new Error('unavailable'));
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      publications as any,
+    );
+    const first = await runner.create({ ...body, prompt: '저장하고 링크로 공유해줘' }, 7);
+    const row = await db.manager.findOneBy(StudioExecution, { runId: first.runId });
+    const state = JSON.parse(row.state);
+    delete state.publicationBasis;
+    row.state = JSON.stringify(state);
+    await db.manager.save(StudioExecution, row);
+    await expect(runner.retry(first.runId, { stepId: 'publish' }, 7)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(publications.publish).toHaveBeenCalledTimes(1);
+    expect(studio.save).toHaveBeenCalledTimes(1);
+  });
+
   it('T8 recovers committed publication after response loss/restart and blocks ambiguous or negative consent', async () => {
     const publications = publicationAdapter();
     const real = publications.publish.getMockImplementation();

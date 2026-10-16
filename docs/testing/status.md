@@ -700,3 +700,12 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 
 
 - 2026-10-16: [UI16 게시 실패·상태 조회 복구](studio-shadcn.md#studio-ui16-게시-실패상태-조회-복구--2026-10-16) PASS_SELECTED. 비공개32의 전송 전503→동일 requestId/body Enter 재시도→실제 v1 생성→owner GET 전송 전503→Enter GET만 복구. 실제 게시1회/복구 추가POST0·저장본 해시/634,513,000 보존·390px 넘침0/버튼36px 캡처. 제품 변경0·AI 호출0/gpt-6-luna·VoiceOver BLOCKED 유지. 이전 미커밋 수정/기록은 `2fb2edb4`로 develop-v2/drumcap push 완료. 실행기 저장 후 게시 실패·취소/재시작·운영/실기기는 별도 미완료.
+
+
+- 2026-10-16: [UI17 대화 실행기 게시 장애·중지·재시작](studio-shadcn.md#studio-ui17-대화-실행기의-게시-장애중지재시작--2026-10-16) PASS_SELECTED. 실제 저장 뒤 게시 단계 예외→같은 run 게시만 재시도, 게시 대기 중 Enter 중지→저장 보존/공유 cancelled, 실제 Node TERM/같은 DB 재기동→publish interrupted→명시 게시만 재시도 완료. 세 run 각각 save journal1, 게시 journal1/0/1·정의 불변·634,513,000 유지.390px/1440px 캡처·넘침0, 제품 변경0·모델 호출0/gpt-6-luna·VoiceOver BLOCKED 유지. 로컬 게시본 비공개v4/정상 서버 복구. 기록 미커밋; commit 직후 장애·다중 탭 경쟁·운영/실기기는 별도 gate.
+
+
+- 2026-10-16: [UI18 실행기 게시 commit 이후 장애·응답 유실](studio-shadcn.md#studio-ui18-게시-commit-직후-장애응답-유실--2026-10-16) PASS_SELECTED. 실제 게시v5/journal commit 후 실행기 완료 전 Node TERM→정상 재시작→동일 run/버전 복원, 별도 실제 완료v6 응답1회 숨김→Enter GET만 복구. 두 run 각각 save/publication journal1·복구 추가POST0·정의/634,513,000 유지·390px 오류/복구 캡처/넘침0. 정상 서버·비공개v7 정리, 제품 수정/AI호출0·gpt-6-luna/VoiceOver BLOCKED 유지. UI17 기록은 `722b6fbc`로 develop-v2/drumcap push 완료; UI18 기록 미커밋. 다른 탭 경합·운영/실기기는 별도 gate.
+
+
+- 2026-10-16: [UI19 두 탭 게시 재시도 경합](studio-shadcn.md#studio-ui19-두-탭-게시-재시도-경합--2026-10-16) 최초 FAIL→수정 후 PASS_SELECTED. 오래된 실행 재시도가 B의 비공개v8을 공개v9로 덮던 오류를 게시 token/version 영속 기준과 내부 직렬 쓰기 비교로 수정. 실제 scope/revision 각각409·B 최신 제목/정의/배치·비공개v11/634,513,000 유지·각 save journal1/pub0·390px 캡처. BE73/build/변경lint/diff PASS, 정상 서버 복구·모델0/gpt-6-luna·VoiceOver BLOCKED 유지. UI18은 `74c5bf67`로 drumcap push 완료; 이번 코드/기록 미커밋. 다중 프로세스/MySQL·실기기/전체 수용은 별도.

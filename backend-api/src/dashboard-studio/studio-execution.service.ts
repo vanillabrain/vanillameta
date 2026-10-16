@@ -470,6 +470,15 @@ export class StudioExecutionService implements OnModuleInit {
     const target = state.steps.find(s => s.stepId === body.stepId);
     if (!target || !target.retryable || !['failed', 'interrupted'].includes(target.status))
       throw new ConflictException('실패하거나 중단한 단계만 재시도할 수 있습니다.');
+    if (
+      target.stepId === 'publish' &&
+      this.publications &&
+      state.publicationBasis === undefined &&
+      !(await this.publications?.committed(this.publicationId(row), actor))
+    )
+      throw new ConflictException(
+        '이전 실행의 게시 기준이 없습니다. 최신 공개 범위를 확인하고 새 요청으로 게시해 주세요.',
+      );
     if (this.active.has(id)) throw new ConflictException('실행이 진행 중입니다.');
     if (!state.saveOnly && !state.proposal && !this.context(id)) return this.get(id, actor);
     const earlier = state.steps.slice(0, state.steps.indexOf(target));
@@ -974,6 +983,7 @@ export class StudioExecutionService implements OnModuleInit {
         },
         row.actorId,
         signal,
+        this.state(row).publicationBasis,
       );
       return 'succeeded';
     }
@@ -1091,8 +1101,21 @@ export class StudioExecutionService implements OnModuleInit {
               row.actorId,
               signal,
             );
-        } else if (step.stepId === 'publish' || step.stepId === 'remix')
+        } else if (step.stepId === 'publish' || step.stepId === 'remix') {
+          if (
+            step.stepId === 'publish' &&
+            state.publish &&
+            state.publicationBasis === undefined &&
+            this.publications
+          ) {
+            const current = await this.publications.ownerMetadata(row.dashboardId, row.actorId);
+            state.publicationBasis = current
+              ? { token: current.token, version: current.version }
+              : null;
+            await this.persist(row, state);
+          }
           step.status = await this.externalStep(step.stepId, row, signal);
+        }
         if (step.stepId === 'publish' && state.publish) {
           const published = await this.publications?.committed(
             this.publicationId(row),
