@@ -59,4 +59,6 @@ usecase "UC-030 갱신 장애·탭 종료 복구" as UC030
 usecase "UC-029 다중 탭 동시 갱신 복구" as UC029
 operator --> UC029
 operator --> UC030
+usecase "UC-031 Studio 생성 저장 확인" as UC031
+operator --> UC031
 @enduml

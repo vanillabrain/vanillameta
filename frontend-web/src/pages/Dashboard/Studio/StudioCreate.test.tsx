@@ -131,11 +131,28 @@ describe('Studio create workflow', () => {
     await waitFor(() =>
       expect((screen.getByRole('button', { name: '같은 저장 요청 확인' }) as HTMLButtonElement).disabled).toBe(false),
     );
-    expect((screen.getByRole('button', { name: '수정안 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+    // UC-031: uncertainty keeps the reviewed proposal frozen until this exact save is confirmed.
+    const originalBody = JSON.parse(JSON.stringify(mocks.post.mock.calls.find(c => c[0] === '/studio/dashboards')[1]));
+    expect(saves).toBe(1);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    const prompt = screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement;
+    expect(prompt.disabled).toBe(true);
+    expect(prompt.value).toBe('총매출을 보여 줘');
+    expect(screen.getByText('500')).toBeTruthy();
+    for (const name of ['파일 선택', '매출·환불 샘플', 'Rill 광고 샘플', '지표와 차트 제안', '수정안 미리보기'])
+      expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('combobox', { name: '저장된 데이터' }) as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByRole('textbox', { name: '생성안 수정 요청' }) as HTMLTextAreaElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 확인' }));
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/dashboard/9/studio'));
     const calls = mocks.post.mock.calls.filter(c => c[0] === '/studio/dashboards');
-    expect(calls[0][1]).toEqual(calls[1][1]);
+    expect(calls).toHaveLength(2);
+    expect(calls[1][1]).toEqual(originalBody);
+    expect(calls[1][1]).toEqual({
+      requestId: 'request-create-1',
+      proposalId: 'proposal-1',
+      expectedSourceRevision: 'a'.repeat(64),
+    });
   });
   it('cancels a pending proposal and discards its delayed response', async () => {
     let resolve: (value: any) => void = () => {
