@@ -21,4 +21,4 @@
 
 ## Execution
 
-PASS_SELECTED_VARIANTS. [Ego55/API·단위/통합 검증](../testing/reuse-block-selection.md). 운영/실기기·모든 경합·제품 수용은 Open.
+PASS_SELECTED_VARIANTS. [Ego55/API·단위/통합 검증](../testing/reuse-block-selection.md). Studio 통합 후 Ego56에서도 모바일 제외→미리보기→복사본35 저장/reload·원본/배치 보존·390/769/1440 정렬을 확인했다. 선택한 소스에 이전 선택 안내가 남지 않는 회귀도 확인했다. 운영/실기기·모든 경합·제품 수용은 Open.

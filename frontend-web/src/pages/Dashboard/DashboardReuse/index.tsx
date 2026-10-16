@@ -282,7 +282,7 @@ function Content() {
             <div className={analysisPanelClassName}>
               <p className="mb-4 text-sm text-muted-foreground break-words">
                 원본: {draft.originalTitle}
-                {shared && ' · 내 소스를 선택해 주세요'}
+                {shared && !sourceId && ' · 내 소스를 선택해 주세요'}
               </p>
               <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                 <TextField

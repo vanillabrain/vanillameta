@@ -203,6 +203,7 @@ it('shared origin never selects or profiles the owner source and requires my sou
   expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.change(screen.getByLabelText('데이터 소스'), { target: { value: '2' } });
   await screen.findByLabelText('amount 연결');
+  expect(screen.queryByText('원본: 원본 · 내 소스를 선택해 주세요')).toBeNull();
   fireEvent.change(screen.getByLabelText('amount 연결'), { target: { value: 'amount_new' } });
   fireEvent.change(screen.getByLabelText('os 연결'), { target: { value: 'os_new' } });
   api.post.mockResolvedValueOnce(wrap({ ...preview('원본 복사본', 2), originalId: api.uuid }));
