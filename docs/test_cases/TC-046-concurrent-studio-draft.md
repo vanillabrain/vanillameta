@@ -23,3 +23,5 @@
 ## Execution
 
 PASS_SELECTED: Ego90 실제 두 탭의 충돌 비교/동의→미리보기→질문 복구→저장/reload·원본45 보존·46 내용 원복과390/768/1440을 확인했다. 장애/구조 변형은 회귀 증빙이며 실기기/운영/전체 수용은 별도다. [검증 증빙](../testing/concurrent-studio-draft.md).
+
+A3 실제 후속 PASS_SELECTED: Ego91의 GET503 한 건→재조회→두 번째 실제 저장/preview409→최신 재조회/재동의→preview201/save201/reload, 기록/질문/서버 보존과390/768/1440을 확인했다. 회귀44/type/lint·실제 대조36개 PASS. [A3 증빙](../testing/studio-draft-retry.md).

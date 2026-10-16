@@ -269,6 +269,14 @@ describe('studio editor rendering', () => {
   });
   it('preserves recovery on latest-read failure and requires a fresh comparison after preview409', async () => {
     const latest = doc({ revision: NEXT_REVISION, title: '다른 탭' });
+    const newestRevision = 'd'.repeat(64);
+    const newest = doc({
+      revision: newestRevision,
+      title: '다시 바뀐 최신본',
+      blocks: [block('b1', { description: '최신 비대상 설명' })],
+    });
+    const question = JSON.stringify({ version: 1, updatedAt: Date.now(), text: '보존한 복구 질문' });
+    sessionStorage.setItem('question-test-3', question);
     const record = JSON.stringify({
       version: 2,
       updatedAt: Date.now(),
@@ -281,8 +289,11 @@ describe('studio editor rendering', () => {
     api.get
       .mockResolvedValueOnce(envelope({ document: latest }))
       .mockRejectedValueOnce({ response: { status: 503 } })
-      .mockResolvedValue(envelope({ document: latest }));
-    api.post.mockRejectedValueOnce({ response: { status: 409 } });
+      .mockResolvedValueOnce(envelope({ document: latest }))
+      .mockResolvedValue(envelope({ document: newest }));
+    api.post.mockRejectedValueOnce({ response: { status: 409 } }).mockImplementation(async (_url: string, request: any) => ({
+      data: { document: request.document, preview: envelope().data.preview },
+    }));
     render(<StudioEditor />);
     fireEvent.click(await screen.findByRole('button', { name: '최신본과 초안 비교' }));
     await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
@@ -302,6 +313,21 @@ describe('studio editor rendering', () => {
     expect(
       (screen.getByRole('checkbox', { name: '충돌 항목에 내 초안 사용' }) as HTMLButtonElement).getAttribute('data-state'),
     ).toBe('unchecked');
+    expect((screen.getByRole('button', { name: '병합 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(api.get).toHaveBeenCalledTimes(4);
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(sessionStorage.getItem('document-test-3')).toBe(record);
+    expect(sessionStorage.getItem('question-test-3')).toBe(question);
+    fireEvent.click(screen.getByRole('checkbox', { name: '충돌 항목에 내 초안 사용' }));
+    fireEvent.click(screen.getByRole('button', { name: '병합 미리보기' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    expect(api.post.mock.calls[1][1]).toMatchObject({
+      expectedRevision: newestRevision,
+      document: { title: '내 초안', blocks: [expect.objectContaining({ description: '최신 비대상 설명' })] },
+    });
+    await waitFor(() =>
+      expect(JSON.parse(sessionStorage.getItem('document-test-3') ?? '{}').baseRevision).toBe(newestRevision),
+    );
   });
 
   it('clears a committed draft before the follow-up read completes', async () => {

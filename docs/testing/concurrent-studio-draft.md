@@ -40,3 +40,7 @@ Status: Draft · P1/P3 · UC046/TC046 · PASS_SELECTED.
 - AIWF strict 기존12 errors/33 warnings/4 infos를 유지한다. pin/check는 일치 확인이며 승인/전체 수용이 아니다. 스토리지 위임 시도는 제공자400으로 실행되지 않아 주 에이전트가 구현·수동 별도 검토했다. 독립 리뷰 승인으로 보고하지 않는다.
 - BE 코드 변경 없음. BE 단위/core E2E·실휴대폰/운영/전체 접근성/고객 수용은 NOT_RUN이며 다른 버전의 정의 교체 자동 병합·저장 불명확 요청 reload 확인은 후속이다.
 - 증빙 `/tmp/vm-uc046/`: `baseline{45,46}.json`, `stored-local.json`, `remote-save-events.json`, `remote46.json`, `reload-conflict.json`, `compare-events.json`, `conflict-controls.json`, `merge-preview-events.json`(초기 빈 관측), `merged-local.json`(초기 이전 기록), `merged-save-events.json`(완료된 preview/save 응답), `question-restored.json`, `saved46.json`, `reload-saved.json`, `save-cleanup-reload.json`, `final{45,46}.json`, `final-state.json`, `final-code-reload.json`, `final-code46.json`, `conflict/saved-{390,768,1440}.png/json`, `assertions.py/json`, `unit/type/lint/build/strict.log`. 토큰·비밀번호를 출력하지 않는다.
+
+## A3 최신 실제 검증
+
+[Ego91 조회 실패·재충돌 후속](studio-draft-retry.md)에서 명시 비교 GET503 한 건→재조회/동의→둘째 탭 재저장/실제 preview409→재조회/재동의→preview201/save201/reload를 확인했다. 위 Ego90의 장애 NOT_RUN은 역사적 실행 범위이며 최신 선택 검증은 후속 증빙을 따른다. 반복 장애·모든 경합/운영·전체 수용은 별도다.
