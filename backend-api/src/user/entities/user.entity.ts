@@ -33,8 +33,8 @@ export class User {
   @ApiProperty({ description: '유저 password' })
   password: string;
 
-  @CreateDateColumn({ default: () => 'CURRENT_TIMESTAMP', comment: '생성일' })
+  @CreateDateColumn({ comment: '생성일' })
   createdAt: Date;
-  @UpdateDateColumn({ default: () => 'CURRENT_TIMESTAMP', comment: '수정일' })
+  @UpdateDateColumn({ comment: '수정일' })
   updatedAt: Date;
 }

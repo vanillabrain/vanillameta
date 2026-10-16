@@ -5,6 +5,6 @@ export class RefreshToken {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'text' })
   refreshToken: string;
 }

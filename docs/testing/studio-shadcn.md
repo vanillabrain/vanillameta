@@ -360,3 +360,49 @@ STUDIO-A03/P02의 commit 이후 실행기 경계만 선택한다. UI16/17의 com
 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-publication-race-20261016`의 `adapter-events.jsonl`, `before-overwrite.json`, `fixed-scope-race.json`, `revision-race.json`, `verification-db.json`, `layout.json`, `cleanup.json`; 대표 PNG는 `before-overwrite-390.png`, `final-conflict-390.png`, `final-reloaded-390.png`다. 선택 테스트 최종 로그는 `/private/tmp/studio-publication-race-tests.log`다.
 
 이번 수정/기록은 미커밋이다. 다중 Node/MySQL의 행 잠금·다중 프로세스 쓰기 경합, 실제 휴대폰/전체 접근성·VoiceOver·운영 부하/제품 수용은 별도 gate다. 이번 단일 Node 직렬 경계 검증을 운영 전체 CAS 보장으로 확대하지 않는다.
+
+## 후속 MySQL 로컬 검증 준비 상태 — 2026-10-16
+
+UI19 수정/검증 기록은 `8108e3b6`으로 develop-v2에 drumcap push했다. 관련 BE73/Nest build/변경lint 근거는 코드 변경이 없어 재사용했다.
+
+다음 운영 gate의 로컬 Docker 준비만 읽기 전용으로 확인했다. Docker CLI는 있으나 `docker info --format '{{.ServerVersion}}'`는 `/Users/moonklabs/.docker/run/docker.sock` 데몬 연결 실패를 반환했다. Docker Desktop/OrbStack 앱은 확인한 표준 설치 경로에 없었고, 설치된 Colima의 `colima list --json`은 기존 `samba` 프로필을 Broken으로 반환했다. 이 프로필은 VanillaMeta 검증 전용 자원이라는 근거가 없어 시작/수리/초기화하거나 전역 Docker context를 변경하지 않았다.
+
+상태는 **MySQL 실행 BLOCKED(런타임 준비 필요)**이며 DB 검증 PASS가 아니다. 신규 VM/이미지/컨테이너·DB/사용자·포트 변경0, 기존 SQLite/DuckDB/API4331/FE3231/gpt-6-luna·VoiceOver BLOCKED 유지. 이번 단계는 환경 진단만 수행해 신규 브라우저 케이스/캡처가 없다. UI19 화면 근거를 재사용하며 MySQL 화면 증빙으로 확대하지 않는다.
+
+다음 단계는 VanillaMeta 전용 Docker 런타임을 준비한 뒤 기존 DB와 분리된 MySQL 인스턴스에서 저장 원자성·영수증·게시 재시도·재시작 복구를 검증하는 것이다. 운영 다중 인스턴스/실기기·VoiceOver·고객 업무 수용은 별도 gate다. 환경 진단 기록만 미커밋이다.
+
+## STUDIO-MYSQL01 전용 로컬 MySQL 검증 — 2026-10-16
+
+이전 Docker 차단 상태를 전용 Colima 프로필로 해결한다. 기존 samba 프로필·전역 Docker context·기존 SQLite/DuckDB 파일은 변경하지 않는다.
+
+| 조건 | 기대 결과 | 상태 |
+|---|---|---|
+| MYSQL01-A | 전용 VM/localhost MySQL 기동·실제 엔진/테이블 준비 확인 | PASS_SELECTED |
+| MYSQL01-B | 실행기 저장·영수증·게시 경합/복구의 기존 관련 테스트를 실제 MySQL DataSource로 실행 | PASS_SELECTED |
+| MYSQL01-C | 앱 연결/화면에서 저장·조회 확인, 준비 제한과 미실행 운영 조건 분리 | PASS_SELECTED |
+
+
+### 실행 환경과 범위
+
+기준 `8108e3b6` + 이번 미커밋 수정. 전용 Colima `vanillameta-verify`(2 CPU/2GiB, root/data 각10GiB, mount none)를 만들고 공식 mysql:8.4의 **실제 MySQL 8.4.11**을 컨테이너 `vm-studio-mysql-20261016`에서 실행했다. 호스트 bind는 **127.0.0.1:3359**다. 기존 `samba` Broken 프로필과 전역 Docker context `desktop-linux`는 그대로다. 누락된 desktop credential helper는 빈 전용 임시 Docker config로 우회했고 전역 인증 설정은 변경하지 않았다.
+
+`vm_studio_verify`는 서비스 테스트용 폐기 가능 스키마, `vm_studio_app`은 실제 앱 화면용 스키마로 분리했다. 기존 SQLite/DuckDB·FE3231/API4331은 건드리지 않았다. 검증 API4531/FE3431과 별도 업로드 경로를 사용했다. 비밀번호·JWT·비밀 설정은 임시600 파일에만 보관하며 증빙/저장소에 복사하지 않았다. 전용 VM/컨테이너/앱은 후속 검증을 위해 실행 상태로 보존한다.
+
+### 발견 오류와 수정
+
+1. **User DDL 최초 FAIL:** full AppModule schema 생성에서 `createdAt datetime(6) DEFAULT CURRENT_TIMESTAMP`가 `Invalid default value for createdAt`로 실패했다. User의 CreateDateColumn/UpdateDateColumn에 있던 raw default 두 개를 제거해 기존 드라이버가 정밀도에 맞는 기본값을 만들게 했다. 새 실제 저장·재조회 회귀로 MySQL RED→GREEN, SQLite도 PASS다.
+2. **로그인 최초 FAIL:** MySQL에서 refreshToken 기본 varchar255가 실제 서명 JWT보다 짧아 로그인 POST500(`Data too long for column refreshToken`)이 발생했다. 해당 열만 text로 변경하고 실제 서명 JWT(255자 초과)의 저장·재조회·서명 확인 회귀를 추가했다. MySQL RED→GREEN, SQLite도 PASS다. 재기동 시 기존 전용 앱 열을 synchronize로 text로 바꾼 뒤 실제 로그인201을 확인했다.
+
+테스트 계정의 최초 밑줄 ID가 클라이언트 정책에 맞지 않아 전용 계정 ID만 영숫자로 바꾼 일과, Ego 텍스트 선택자가 hidden option/heading 두 개에 걸린 일은 준비/도구 오류로 구분한다. 제품 오류 두 건과 섞지 않는다. 날짜/토큰 이외 인증 동작이나 UI 코드는 변경하지 않았다.
+
+### 검증 결과
+
+- **MYSQL01-B:** 기존 실행기58 + 게시15 = **73 PASS**, 실제 MySQL 드라이버/SQL/트랜잭션과 DuckDB 집계를 사용했다. 임시 Jest setup은 fixture의 SQLite `:memory:` DataSource 생성만 전용 MySQL 설정으로 바꾸며 서비스/쿼리는 mock하지 않는다. dropSchema는 고정 `vm_studio_verify:3359`만 허용하고 앱 스키마에는 적용하지 않는다. 첫 module resolve 실패는 절대 모듈 경로로 수정한 준비 오류다. 이번 73개는 단일 Node 서비스 테스트이며 실제 다중 프로세스 잠금을 증명하지 않는다.
+- **수정 회귀:** User timestamp MySQL1 PASS, refresh JWT MySQL1 PASS. 최종 SQLite User/refresh JWT/auth.session/login 4 suites **24 PASS**. Nest build·변경4파일 lint PASS. FE 코드 변경0이므로 기존 FE 검증은 재사용하고 전체 회귀는 반복하지 않았다.
+- **MYSQL01-C:** full AppModule MySQL 기동→기존 공개 Rill Parquet **1,391,572행**을 새 전용 DuckDB 파일로 import→MySQL dashboard1/source1 생성. 실제 Studio에서 `총 요청 수`→`MySQL 저장·복구 검증` 편집 후 Tab 확정→저장 버튼 Enter→‘서버에 저장했습니다’→reload를 수행했다. 제목과 정확한 집계 **634,513,000**이 유지됐다.
+- 해당 검증 API만 TERM/같은 MySQL/업로드 경로로 재시작→실제 화면 reload를 추가 확인했다. MySQL의 Studio document와 revision·저장 journal **1건**은 전후 동일하고 publication0이다. 재시작 후 실제 GET studio/userinfo200만 관측했다. 신규 게시 링크나 AI 요청은 만들지 않았다.
+- **대표 디자인/키보드:** 1440×1000,390×844에서 제목/컨트롤/숫자판 정렬·줄바꿈·가로 넘침0을 실제 캡처로 확인했다. 모바일 첫 캡처는 숫자판 하단이 viewport 아래라 스크롤 후 `restarted-390.png`로 전체 숫자를 보완했다. 키보드는 제목 Tab 확정·저장 Enter·설정 버튼 포커스/Tab만 확인했으며 전체 키보드/스크린리더 PASS로 확대하지 않는다. 기능/선택 디자인 PASS_SELECTED.
+
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-mysql-20261016`의 `fixture.json`, `db-before.json`, `db-after.json`, `restarted-ui.json`, 최초 `login-mysql-before.png`, 최종 `saved-1440.png`, `saved-390.png`, `restarted-390.png`와 선택 테스트 로그. 전후 DB JSON은 동일하며 refreshToken=text, User 날짜 precision6을 확인했다. 기존 Rill oracle 수치는 재사용했으며 Rill UI 전 여정/AI 생성 동등성을 이번에 재검증한 것은 아니다.
+
+기존 Docker BLOCKED는 **로컬 전용 MySQL 검증 범위에서 해소**됐다. NODE_ENV=dev/synchronize 기반 새 스키마 및 전용 앱 열 갱신 검증이며 **운영 MySQL 마이그레이션·기존 고객 DB 전환·실제 다중 Node 동시 쓰기/잠금·디스크 장애·부하/백업 복원은 NOT_RUN**이다. 모델 호출0/gpt-6-luna 설정·VoiceOver BLOCKED를 유지한다. 이번 제품 수정/회귀/기록은 미커밋이다.

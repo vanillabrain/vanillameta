@@ -709,3 +709,7 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 
 
 - 2026-10-16: [UI19 두 탭 게시 재시도 경합](studio-shadcn.md#studio-ui19-두-탭-게시-재시도-경합--2026-10-16) 최초 FAIL→수정 후 PASS_SELECTED. 오래된 실행 재시도가 B의 비공개v8을 공개v9로 덮던 오류를 게시 token/version 영속 기준과 내부 직렬 쓰기 비교로 수정. 실제 scope/revision 각각409·B 최신 제목/정의/배치·비공개v11/634,513,000 유지·각 save journal1/pub0·390px 캡처. BE73/build/변경lint/diff PASS, 정상 서버 복구·모델0/gpt-6-luna·VoiceOver BLOCKED 유지. UI18은 `74c5bf67`로 drumcap push 완료; 이번 코드/기록 미커밋. 다중 프로세스/MySQL·실기기/전체 수용은 별도.
+
+- 2026-10-16: UI19 게시 경합 수정/BE73·화면 검증을 `8108e3b6`으로 develop-v2/drumcap push 완료. 후속 로컬 MySQL은 Docker 데몬 연결 실패·기존 Colima samba Broken으로 **BLOCKED(런타임 준비)**. 기존 타 프로젝트 프로필/전역 context/DB를 변경하지 않았고 신규 테스트 PASS/캡처로 집계하지 않는다. [진단 기록](studio-shadcn.md#후속-mysql-로컬-검증-준비-상태--2026-10-16). gpt-6-luna/VoiceOver BLOCKED 유지; 진단 기록 미커밋.
+
+- 2026-10-16: [STUDIO-MYSQL01](studio-shadcn.md#studio-mysql01-전용-로컬-mysql-검증--2026-10-16) PASS_SELECTED. 전용 Colima/localhost MySQL8.4.11로 이전 런타임 BLOCKED를 해소했다. 실제 MySQL 실행기/게시73·User/refresh JWT 각1 PASS, SQLite 인증24·BE build/lint PASS. MySQL 날짜 기본값/refreshToken255 길이 오류를 최소 수정했다. Rill1,391,572행/634,513,000·Studio 키보드 저장/reload/API재시작·문서/저장영수증1 보존·390/1440 캡처/넘침0을 확인했다. 기존 DB/전역Docker/samba 불변. 운영 마이그레이션·다중 Node/부하/실기기는 NOT_RUN; 모델0/gpt-6-luna·VoiceOver BLOCKED 유지. 변경/기록 미커밋.
