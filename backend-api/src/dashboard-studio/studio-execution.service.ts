@@ -786,6 +786,8 @@ export class StudioExecutionService implements OnModuleInit {
         'expectedSourceRevision',
         'refundDenominator',
         'targetSourceId',
+        'prompt',
+        'targetBlockIndex',
       ]);
     } catch {
       throw new BadRequestException('계산 기준 답변을 확인해 주세요.');
@@ -798,7 +800,18 @@ export class StudioExecutionService implements OnModuleInit {
       body.proposalId.length > 128 ||
       typeof body.expectedSourceRevision !== 'string' ||
       !/^[a-f0-9]{64}$/.test(body.expectedSourceRevision) ||
-      (body.targetSourceId === undefined
+      (body.prompt !== undefined || body.targetBlockIndex !== undefined
+        ? typeof body.prompt !== 'string' ||
+          !body.prompt.trim() ||
+          body.prompt.length > 2000 ||
+          (body.targetBlockIndex !== 'append' &&
+            (typeof body.targetBlockIndex !== 'number' ||
+              !Number.isSafeInteger(body.targetBlockIndex) ||
+              body.targetBlockIndex < 0 ||
+              body.targetBlockIndex > 5)) ||
+          body.targetSourceId !== undefined ||
+          body.refundDenominator !== undefined
+        : body.targetSourceId === undefined
         ? typeof body.refundDenominator !== 'string' ||
           !['orders', 'amount'].includes(body.refundDenominator)
         : typeof body.targetSourceId !== 'number' ||
@@ -857,11 +870,15 @@ export class StudioExecutionService implements OnModuleInit {
   ) {
     this.checkDisconnected(signal);
     const parent = await this.creationService.proposal(body.proposalId, sourceId, actor);
+    const refining = body.prompt !== undefined;
     if (
-      parent.preview ||
-      !parent.clarifications?.some(
-        c => c.id === (body.targetSourceId === undefined ? 'refundDenominator' : 'missingColumns'),
-      ) ||
+      (refining
+        ? !parent.preview || !!parent.clarifications?.length
+        : parent.preview ||
+          !parent.clarifications?.some(
+            c =>
+              c.id === (body.targetSourceId === undefined ? 'refundDenominator' : 'missingColumns'),
+          )) ||
       parent.sourceRevision !== body.expectedSourceRevision ||
       typeof parent.requestPrompt !== 'string' ||
       !parent.requestPrompt.trim() ||
@@ -874,8 +891,14 @@ export class StudioExecutionService implements OnModuleInit {
     const next = await this.creationService.propose(
       {
         sourceId: targetSourceId,
-        prompt: parent.requestPrompt,
-        ...(body.targetSourceId === undefined
+        prompt: refining ? body.prompt.trim() : parent.requestPrompt,
+        ...(refining
+          ? {
+              expectedSourceRevision: body.expectedSourceRevision,
+              parentProposalId: parent.proposalId,
+              targetBlockIndex: body.targetBlockIndex,
+            }
+          : body.targetSourceId === undefined
           ? {
               expectedSourceRevision: body.expectedSourceRevision,
               clarificationAnswers: { refundDenominator: body.refundDenominator },
@@ -888,6 +911,13 @@ export class StudioExecutionService implements OnModuleInit {
       signal,
     );
     this.checkDisconnected(signal);
+    if (
+      refining &&
+      (next.parentProposalId !== parent.proposalId || !next.preview || next.clarifications?.length)
+    )
+      throw new BadRequestException(
+        '수정 내용을 완성하지 못했습니다. 필요한 열과 계산 기준을 질문에 구체적으로 적어 주세요. 이전 미리보기는 유지됩니다.',
+      );
     if (
       next.sourceId !== targetSourceId ||
       !/^[a-f0-9]{64}$/.test(next.sourceRevision) ||

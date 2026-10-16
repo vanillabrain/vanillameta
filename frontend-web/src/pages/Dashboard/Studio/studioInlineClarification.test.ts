@@ -49,3 +49,20 @@ it('UC034 accepts a newly bound requested source and rejects an unrelated source
   api.post.mockResolvedValue({ data: { ...run, creationResult: { ...binding, proposalId: 'child', sourceId: 34 } } });
   await expect(clarifyExecutionCreation(run, request)).rejects.toThrow();
 });
+
+it('UC035 sends a bound refinement with an abort signal and rejects a stale parent reply', async () => {
+  const edit = {
+    requestId: 'refine-1',
+    proposalId: 'parent',
+    expectedSourceRevision: binding.sourceRevision,
+    prompt: 'Rename',
+    targetBlockIndex: 'append' as const,
+  };
+  api.post.mockResolvedValue({ data: { ...run, creationResult: { ...binding, proposalId: 'edited' } } });
+  const controller = new AbortController();
+  expect((await clarifyExecutionCreation(run, edit, controller.signal)).creationResult?.proposalId).toBe('edited');
+  expect(api.post.mock.calls[0][1]).toEqual(edit);
+  expect(api.post.mock.calls[0][2].signal).toBe(controller.signal);
+  api.post.mockResolvedValue({ data: run });
+  await expect(clarifyExecutionCreation(run, edit)).rejects.toThrow();
+});

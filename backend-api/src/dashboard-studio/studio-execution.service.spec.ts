@@ -93,7 +93,7 @@ describe('T7 durable executions', () => {
     else process.env.AI_PROVIDER = provider;
   });
   const inlineCase = async () => {
-    const parent = {
+    const parent: any = {
       proposalId: 'meaning-parent',
       sourceId: body.document.sourceId,
       sourceRevision: body.expectedSourceRevision,
@@ -102,7 +102,7 @@ describe('T7 durable executions', () => {
         { id: 'refundDenominator', choices: [{ value: 'orders' }, { value: 'amount' }] },
       ],
     };
-    const next = {
+    const next: any = {
       ...parent,
       proposalId: 'meaning-next',
       clarifications: [],
@@ -138,6 +138,68 @@ describe('T7 durable executions', () => {
     };
     return { runner, creation, run, answer, parent, next };
   };
+  it('UC035 refines a completed parent with its bound source and replays the latest result without saving', async () => {
+    const { runner, creation, run, parent, next } = await inlineCase();
+    Object.assign(parent, { preview: { widgets: [] }, clarifications: [] });
+    const request = {
+      requestId: 'refine-1',
+      proposalId: parent.proposalId,
+      expectedSourceRevision: parent.sourceRevision,
+      prompt: '제목만 매출로 변경',
+      targetBlockIndex: 0,
+    };
+    creation.propose.mockResolvedValueOnce({ ...next, parentProposalId: parent.proposalId });
+    const result = await runner.clarifyCreation(run.runId, request, 7);
+    expect(result.creationResult.proposalId).toBe(next.proposalId);
+    expect(creation.propose.mock.calls[1][0]).toEqual({
+      sourceId: parent.sourceId,
+      prompt: request.prompt,
+      expectedSourceRevision: parent.sourceRevision,
+      parentProposalId: parent.proposalId,
+      targetBlockIndex: 0,
+    });
+    await runner.clarifyCreation(run.runId, request, 7);
+    expect(creation.propose).toHaveBeenCalledTimes(2);
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(creation.create).not.toHaveBeenCalled();
+  });
+  it('UC035 refuses mixed or incomplete refinements and retains the old preview on an incomplete model result', async () => {
+    const { runner, creation, run, parent, next } = await inlineCase();
+    const request = {
+      requestId: 'refine-1',
+      proposalId: parent.proposalId,
+      expectedSourceRevision: parent.sourceRevision,
+      prompt: 'add revenue',
+      targetBlockIndex: 'append',
+    };
+    await expect(runner.clarifyCreation(run.runId, request, 7)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    Object.assign(parent, { preview: { widgets: [] }, clarifications: [] });
+    for (const patch of [
+      { prompt: '' },
+      { targetBlockIndex: 6 },
+      { targetSourceId: 12 },
+      { refundDenominator: 'orders' },
+    ])
+      await expect(
+        runner.clarifyCreation(run.runId, { ...request, ...patch }, 7),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    creation.propose.mockResolvedValueOnce({
+      ...next,
+      preview: undefined,
+      parentProposalId: parent.proposalId,
+      clarifications: [{ id: 'missingColumns' }],
+    });
+    await expect(runner.clarifyCreation(run.runId, request, 7)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect((await runner.get(run.runId, 7)).creationResult.proposalId).toBe(parent.proposalId);
+    creation.propose.mockResolvedValueOnce({ ...next, parentProposalId: parent.proposalId });
+    expect((await runner.clarifyCreation(run.runId, request, 7)).creationResult.proposalId).toBe(
+      next.proposalId,
+    );
+  });
   it('UC034 changes only a missing-field proposal source, preserves the server prompt and prior denominator, and replays without AI', async () => {
     const { runner, creation, run, answer, parent, next } = await inlineCase();
     parent.clarifications = [{ id: 'missingColumns', choices: [] }] as any;

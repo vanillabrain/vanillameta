@@ -5,6 +5,7 @@ import { TextField } from '@/components/ui/text-field';
 import { studioRequestId } from './studioApi';
 import { CreationProposal, fetchStudioSources, StudioSource } from './studioCreation';
 import { CreationClarificationRequest, StudioExecution, getExecutionCreation } from './studioExecution';
+import StudioConversationRefinement from './StudioConversationRefinement';
 import StudioSemanticReview from './StudioSemanticReview';
 
 /** A new dashboard never replaces the editor that initiated the conversation. */
@@ -22,6 +23,7 @@ export default function StudioConversationCreation({
   const [proposal, setProposal] = useState<CreationProposal | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [refiningLocked, setRefiningLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uncertain, setUncertain] = useState(false);
   const [answer, setAnswer] = useState('');
@@ -134,7 +136,8 @@ export default function StudioConversationCreation({
     }
   };
   const save = async () => {
-    if (pending.current || disabled || !proposal?.preview || proposal.clarifications?.length || !onSave) return;
+    if (pending.current || disabled || refiningLocked || !proposal?.preview || proposal.clarifications?.length || !onSave)
+      return;
     pending.current = true;
     setSaving(true);
     setError('');
@@ -310,20 +313,35 @@ export default function StudioConversationCreation({
         <>
           <p className="studio-execution-hint">{proposal.profile.rowCount}행 · 제안은 10분간 유지됩니다.</p>
           <StudioSemanticReview proposal={proposal} />
-          <Button variant="outline" asChild disabled={disabled || saving || uncertain}>
-            <a
-              href={'/studio/new?sourceId=' + proposal.sourceId + '&proposalId=' + encodeURIComponent(proposal.proposalId)}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-disabled={disabled || saving || uncertain}
-              onClick={e => {
-                if (disabled || saving || uncertain) e.preventDefault();
-              }}
-            >
-              이 생성안을 이어서 수정
-            </a>
-          </Button>
-          <Button variant="default" disabled={disabled || loading || saving || answering || !onSave} onClick={save}>
+          {onClarify ? (
+            <StudioConversationRefinement
+              key={proposal.proposalId}
+              run={run}
+              proposal={proposal}
+              disabled={disabled || saving || uncertain}
+              onClarify={onClarify}
+              onLock={setRefiningLocked}
+            />
+          ) : (
+            <Button variant="outline" asChild disabled={disabled || saving || uncertain}>
+              <a
+                href={'/studio/new?sourceId=' + proposal.sourceId + '&proposalId=' + encodeURIComponent(proposal.proposalId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-disabled={disabled || saving || uncertain}
+                onClick={e => {
+                  if (disabled || saving || uncertain) e.preventDefault();
+                }}
+              >
+                이 생성안을 이어서 수정
+              </a>
+            </Button>
+          )}
+          <Button
+            variant="default"
+            disabled={disabled || loading || saving || answering || refiningLocked || !onSave}
+            onClick={save}
+          >
             {saving ? '비공개 저장 확인 중…' : uncertain ? '같은 생성 요청으로 저장 확인' : '제안 확인 후 비공개 저장'}
           </Button>
         </>

@@ -411,8 +411,9 @@ export type CreationClarificationRequest = {
   proposalId: string;
   expectedSourceRevision: string;
 } & (
-  | { refundDenominator: 'orders' | 'amount'; targetSourceId?: never }
-  | { targetSourceId: number; refundDenominator?: never }
+  | { refundDenominator: 'orders' | 'amount'; targetSourceId?: never; prompt?: never; targetBlockIndex?: never }
+  | { targetSourceId: number; refundDenominator?: never; prompt?: never; targetBlockIndex?: never }
+  | { prompt: string; targetBlockIndex: number | 'append'; targetSourceId?: never; refundDenominator?: never }
 );
 export async function clarifyExecutionCreation(
   run: StudioExecution,
