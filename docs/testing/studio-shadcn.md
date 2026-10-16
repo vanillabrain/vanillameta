@@ -175,3 +175,68 @@ T14/T15에서 href/target만 확인하고 실제 호스트 새 탭 전달은 NOT
 - 기능 PASS_SELECTED.390×844의 오류/재생성/새 저장 버튼 포커스와1440×1000의 원래 문서+새 미리보기를 실제 캡처·직접 확인해 관찰 디자인 PASS_SELECTED다. 새 오류는 카드 안에서 줄바꿈, 모바일 composer하단844, 새 저장 버튼과 입력 영역 겹침0, 가로 넘침0. 초기 reload 캡처는 Sheet 등장 전환 중 blur가 있어 최종 디자인 근거에서 제외한다. 만료 고정 화면과 재생성 최종 PNG를 근거로 사용한다.
 - 증빙: `restart-unsaved-{baseline,proposal,runtime,reload,browser-result,final}.json`, `restart-unsaved-error-before-mobile.png`, `restart-unsaved-expired-fixed-mobile.png`, `restart-unsaved-regenerated-mobile.png`, `restart-unsaved-review-keyboard-mobile.png`, `restart-unsaved-regenerated-desktop.png`. 폴더는 동일하다. TaskSpace10/viewport override를 정리했다. Ego 업데이트 안내는 적용하지 않았다.
 - 실시간10분 TTL, SIGKILL/호스트 재부팅, 운영MySQL/동시 부하, 실휴대폰/VoiceOver·전체 키보드/언어 조합은 NOT_RUN/BLOCKED다. 홈/빈 대화와 생성안 대화식 재설계는 별도 제품 범위다. 전체 Studio 수용 완료로 확대하지 않으며 이번 변경과 기록은 미커밋이다.
+
+## STUDIO-UI13 날짜 네이티브 키보드 후속 — 2026-10-16
+
+기존 UI09의 입력 이벤트 보조를 제외한 실제 날짜 입력/팝업 조건만 선택한다. source9/dashboard25, FE3231/API4331과 gpt-6-luna 설정을 유지한다. 저장·게시·AI 실행 없이 날짜 세그먼트 입력, 팝업 키보드/취소, 모바일 포커스·배치를 확인한다. 이미 통과한 빈 기간 집계·저장 조건은 재실행하지 않는다.
+
+| 조건 | 기대 결과 | 상태 |
+|---|---|---|
+| UI13-A | 실제 키보드로 날짜 세그먼트 입력·시작/종료 필드 이동, DOM 및 React 입력 상태 일치 | PASS_SELECTED |
+| UI13-B | 날짜 팝업 열기·방향키/Enter·Escape와 패널 포커스 복귀 | PASS_SELECTED |
+| UI13-C | 390px 실제 포커스/레이아웃 캡처·가로 넘침0·원본 저장본 불변 | PASS_SELECTED |
+
+### 실제 결과
+
+기준 `7d2b520e` + 기존 제목 보존 BE diff(날짜 UI 변경 없음). Ego TaskSpace18/source9/dashboard25에서 실행했다. 시작일의 연·월·일을 실제 키보드로2023-09-09 입력했고 불완전 안내/적용 전 변경 상태를 확인했다. 날짜 값 setter·input/change 이벤트는 사용하지 않았다. 날짜 입력의 달력 버튼으로 Tab→Space를 보내 실제 Chromium popup snapshot을 확인했고, 같은 실행 안의 ArrowRight→Enter로 **2023-09-10** 확정을 확인했다. 다시 popup에서 ArrowRight→Escape 후 **2023-09-10 유지**·INPUT 초점을 확인했다. Alt+ArrowDown은 이 환경에서 열리지 않아 성공으로 집계하지 않았다.
+
+날짜 세그먼트의 내부 포커스가 유지되므로 시작점을 왼쪽으로 맞춘 뒤 입력했다. `>> nth=1` selector 경로가 종료일 대신 시작일을 조작한 중간 결과는 보존하고 제품 실패로 분류하지 않았다. 실제 DOM id로 종료일을 다시 지정해 키보드2023-09-16 입력을 확인했다. 최종 시작/종료는2023-09-16/2023-09-16이다. 기간 열만 `selectOption(__time)`으로 준비했으며 기간 열 네이티브 키보드 PASS로 확대하지 않는다. React의 적용 버튼이 활성화된 것으로 날짜 입력 상태 일치도 확인했다. **적용 버튼은 누르지 않았다.**
+
+390×844에서 선택/날짜 입력 각각332×36px·16px, 가로 넘침0·보이는 날짜 세그먼트 포커스와 주변 라벨/버튼 정렬을 실제 OS 캡처로 확인했다. popup snapshot은 `popup-confirm.json`, 화면의 `calendar-desktop.png`는 popup이 닫힌 달력 버튼 포커스 상태이며 팝업 이미지 증빙으로 사용하지 않는다. 네이티브 popup이 라운드 간 관찰에서 사라지는 한계 때문에 같은 실행에서 열림·조작·확정/취소를 기록했다. 날짜 팝업의 모바일 전체 시각 배치·모든 날짜/언어/브라우저는 미검증이다.
+
+마지막 Escape는 패널을 접고 `공통 기간` 버튼(aria-expanded=false)으로 복귀했다. 문서는 clean·전체634,513,000 유지, reload로 미적용 입력을 정리하고 TaskSpace18만 종료했다. 저장/게시/AI 실행0, DB dashboard31/metric38/studio_publication8 유지. 제품 변경0, 기존 날짜 UI 단위/type/lint/build 결과를 재사용하고 문서 diff check PASS. 기능·선택 디자인 PASS_SELECTED이며 전체 키보드/실휴대폰/운영MySQL은 미완료, gpt-6-luna 및 VoiceOver BLOCKED 유지.
+
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-native-date-20261016`의 `popup-confirm.json`, `keyboard-result.json`(중간 selector 결과 포함), `mobile-ready.json`, `panel-escape.json`, `db-after.json`, `calendar-desktop.png`, `date-ready-390.png`. 캡처는 Ego 창의 OS 화면으로 에뮬레이션 여백·제어 오버레이를 포함한다. 기록은 미커밋이다.
+
+## STUDIO-UI14 파일 선택 취소 키보드 후속 — 2026-10-16
+
+UI06/T6의 정상 업로드는 재사용하고 source9를 고른 `/studio/new`에서 남은 취소 조건만 검증한다. 질문 입력 보존·기존 소스 유지·파일/업로드 없음이 기대값이다. 저장/게시/AI 실행 없이 종료한다.
+
+| 조건 | 기대 결과 | 상태 |
+|---|---|---|
+| UI14-A | 파일 선택 버튼 Enter로 실제 선택창 열기→Escape 취소→버튼으로 초점 복귀 | PARTIAL: Enter chooser event 확인·OS 표시 차단 / 실제 OS Escape 취소 PASS |
+| UI14-B | 취소 후 질문/소스/파일0 보존, Tab으로 다음 컨트롤 이동,390px 포커스·정렬·가로 넘침0 | PASS_SELECTED |
+
+### 실제 결과
+
+기준 `7d2b520e` + 기존 미커밋 제목 보존 수정, FE3231/API4331/source9. Ego TaskSpace19의 질문 `파일 선택 취소 뒤에도 이 요청을 유지해 줘`를 준비하고 파일 선택 버튼에 focus→Enter를 실행했다. Ego는 `This action opened a file chooser, which was cancelled before the system dialog appeared`를 반환했다. **Enter에서 chooser event 발생만 확인했으며 OS 선택창 표시 PASS로 계산하지 않는다.** 같은 탭의 Page.setInterceptFileChooserDialog를 일시 false로 바꾼 뒤 OS Return/Space·CDP 실제 Enter를 시도했지만 창 표시는 확인하지 못해 해당 경계는 PARTIAL로 남긴다. 시스템/권한/제품 설정은 바꾸지 않았다.
+
+같은 Ego 실제 창에서 파일 버튼 AX click으로 macOS `open-panel`/취소/비활성 열기 창을 확인했다. 이는 키보드 진입 성공의 대체 증빙이 아니라 **취소 검증을 위한 준비**다. 파일을 선택하지 않고 OS Escape로 닫은 뒤 DOM의 활성 요소 `파일 선택`, file.files.length0, 소스9, 질문 원문 보존을 확인했다. 사용자 다운로드 목록의 파일을 열거나 업로드하지 않았으며 목록/파일명은 별도 증빙에 저장하지 않았다.
+
+390×844에서 Tab→`매출·환불 샘플`, Shift+Tab→`파일 선택` 이동을 확인했다. 버튼3개 각각316×36px·일관된 세로 배치, 포커스 가시성·라벨/카드 정렬·가로 넘침0을 실제 캡처로 확인했다. 기능은 취소/보존/페이지 Tab 범위 PASS_SELECTED, 디자인은 선택 모바일 범위 PASS_SELECTED다. 실제 휴대폰 파일 선택·OS 전체 파일 탐색/확정·VoiceOver는 미완료다.
+
+저장/게시/AI 실행0·파일 업로드0, DB 개수 전후 동일(dashboard31/metric38/studio_publication8). 제품 오류를 확정하지 않아 제품 코드 변경0이며 기존 UI 검사 결과를 재사용했다. 문서 diff check PASS. 검증 탭의 intercept true·viewport를 복구하고 TaskSpace19를 종료했다. gpt-6-luna·VoiceOver BLOCKED 유지. 자동화 제한을 없애기 위해 제품 파일 입력을 교체하지 않는다.
+
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-native-file-20261016`의 `result.json`, `db-before.json`, `db-after.json`, `cancel-return-390.png`. OS 선택창 자체 캡처는 개인 파일 목록이 포함돼 남기지 않았으며 취소 후 제품 화면만 남겼다. 기록 미커밋. 다음은 반복적인 OS 도구 우회보다 미커밋 수정/기록 통합과 잔여 제품·운영 gate 우선순위 정리가 적절하다.
+
+## STUDIO-UI15 분모 확인 실패·재시도 후속 — 2026-10-16
+
+기존 source11/37주문 매출·환불 샘플을 재사용한다. 하위 검사로만 확인했던 clarification 재시도의 실제 UI 연결만 선택한다. 정상 샘플 업로드/저장/게시 조건은 반복하지 않는다.
+
+| 조건 | 기대 결과 | 상태 |
+|---|---|---|
+| UI15-A | 분모 없는 환불률 요청→명시 선택→1회 전송 전503 주입 후 질문·분모·소스 버전 보존·저장 없음 | PASS_SELECTED |
+| UI15-B | 같은 질문/선택/버전으로 명시 재시도→실제 gpt-6-luna/DuckDB 미리보기·정확한 계산 | PASS_SELECTED |
+| UI15-C | 390px 오류/복구 안내·선택/버튼·키보드·넘침 및 캡처, 저장·게시 없음 | PASS_SELECTED |
+
+### 실제 결과
+
+기준 `7d2b520e` + 기존 BE 제목 보존 diff. Ego TaskSpace20/FE3231/API4331/source11(37주문·8열)의 분모 없는 환불률 요청으로 실제 clarification 응답을 받았다. amount(성공 결제액)를 선택하고 Enter로 재요청할 때 **해당 탭 Axios request interceptor에서1회만 전송 전503 형태 오류**를 주입했다. 실제 서버503/호스트 장애로 확대하지 않는다. 기존 오류 안내, 질문 원문·소스11·amount 선택 보존, 저장 버튼 없음과 동일 expectedSourceRevision을 확인했다. 실패 시 자동 재시도는 없었으며 명시 Enter 후 세 번째 요청 body가 두 번째와 완전히 같았다.
+
+재시도는 정상 서버→기존 Codex/gpt-6-luna→DuckDB 경로로 성공했다. 최초 의미 확인은 서버 gate, 주입 요청은 전송 전 거절이므로 실제 모델 생성은 정상 재시도에서1회다. 저장 지표7/v1을 재사용한 RATIO_SUM(refund_amount)/revenue×100·정수 축약 없는2자리 표현을 반환했고 오류 안내는 사라졌다. 첫/마지막 proposal sourceRevision 일치. preview 내부 revision digest와 원본 sourceRevision을 혼동하지 않는다.
+
+원본 공개 payments.csv의 succeeded 합계20,994.61과 refunds.csv 합계4,457.60을 Python Decimal로 독립 계산했다. 기대21.23211624316908006388306332%, 실제21.232116243169088%(차이약7.94e-15), **표시21.23%** 일치. 이는 금액 기준이며 주문 기준8/35=22.86%와 구분한다. 신규 Rill UI를 재실행하지 않고 같은 원본의 이전 수치 기준을 재사용했다.
+
+390×844 오류 뒤 선택/질문 보존 화면과 복구 숫자 카드의 라벨·단위·줄바꿈·버튼 정렬을 실제 캡처로 확인했다. 가로 넘침0, 명시 Enter 재요청, 선택창36px를 확인했다. 물리 Space 전환이 viewport를 초기화한 중간 desktop 캡처는390px 최종 캡처로 교체했다. 기능·선택 모바일 디자인 PASS_SELECTED. 오류 안내 본문은 DOM/JSON으로 기록했고, 실패 PNG는 유지된 선택 부분을 보여준다. 화면 전체 키보드 순서·모바일 팝업·실휴대폰·운영은 별도다.
+
+제품 오류/제품 코드 변경0. 기존 동일 UI 관련 회귀/type/lint/build를 재사용하고 문서 diff check PASS. 저장/게시0·DB dashboard31/metric38/studio_publication8 유지. 임시 interceptor를 eject하고 TaskSpace20만 종료했다. gpt-6-luna 및 VoiceOver BLOCKED 유지. 증빙은 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-clarification-retry-20261016`의 `failed.json`, `recovered.json`, `verification.json`, `failed-selection-390.png`, `recovered-390.png`. 변경과 검증 기록은 미커밋이다.

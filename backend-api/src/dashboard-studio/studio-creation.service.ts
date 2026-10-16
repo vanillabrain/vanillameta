@@ -374,11 +374,15 @@ export class StudioCreationService {
       this.validateBlock(block, profile, catalog, denominator, this.refundRequest(prompt)),
     );
     if (parent) {
-      const changed = blocks[0];
+      let changed = blocks[0];
       blocks = copy(parent.semanticProposal);
       if (body.targetBlockIndex === 'append') blocks.push(changed);
       else {
         const index = body.targetBlockIndex;
+        // An explicit title-only request cannot replace the saved metric or chart definition.
+        if (/제목\s*만/.test(prompt)) {
+          changed = { ...blocks[index], title: changed.title };
+        }
         changed.blockId = blocks[index].blockId;
         if (studioDigest(changed) === studioDigest(blocks[index]))
           throw new BadRequestException(
