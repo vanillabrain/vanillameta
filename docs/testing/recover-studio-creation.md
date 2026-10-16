@@ -39,3 +39,19 @@ Main이 작성 후 별도 코드/명세/증빙 대조를 수행했다. 독립리
 ## 미확인
 
 실휴대폰·탭종료/다중pending요청·권한회수/인증갱신의모든경합·운영MySQL/전체부하·VoiceOver/전체키보드·사람제품수용은 미확인이다.24시간만료·저장소quota·일부새로그인/거절은 하위회귀이며 실제장애는commit후503/reload와초기sources503 변형이다. 새live Rill UI비교는 하지 않고 같은공개데이터 수치만 독립검증했다.
+
+## A5 미전달 저장 후속 — 2026-10-16
+
+기준 develop-v2 `73619453`, Ego73 하나, 기존 서버와 source30을 유지했다. 먼저 UC032 A5·설계·계획·TC·Main 명세 대조 기록을 추가한 뒤 실행했다. 제품 코드·의존성·DB 스키마 변경은 없으며 기존 UC032 복구 구현으로 통과했다. 증빙은 `/tmp/vm-uc032-undelivered/`다.
+
+1. 지정 Codex `gpt-6-luna`에 총 요청 수와 OS별 요청 수 두 블록을 질문해 실제 제안201·미리보기를 만들었다. 질문은 “대시보드 제목은 UC032 미전달 저장 복구. 전체 기간 SUM(my_requests) 총 요청 수 숫자 KPI와 my_os별 SUM(my_requests) 막대 차트 두 블록을 만들어 줘. 정확한 정수로 표시해 줘. 아직 저장하거나 게시하지 마.”다. 제안 전후 dashboard37/metric22/studio_run2/studio_state2·게시 개수는 동일했다.
+2. 실제 저장 버튼의 표식 POST 한 건만 임시프록시가 upstream 요청을 만들기 전에503으로 거절했다. `proxy-events.jsonl`의 not-forwarded 한 건과 remaining0이 근거다. 물리 회선 단절이나 오프라인을 시험한 것은 아니다. 실패→실제 reload→권한 GET 후 질문/요청 복구까지 `baseline=preview=not-delivered`이며 DB 쓰기0이다. 복구 reload audit은 GET만 있고 자동 생성/저장0이다.
+3. 정상 프록시로 복원한 뒤 복구 카드의 같은 저장 요청 확인을 클릭했다. 실패한 요청과 requestId/proposalId/sourceRevision 세 필드가 모두 같은 POST201로 비공개38번이 최초 생성됐다. dashboard/영수증/Studio상태만 각각1 증가하고 metric·게시 증가는0이다. 당시 원 제안 캐시가 유효한 조건이며, 캐시 만료나 서버 재시작 뒤 최초 저장까지 보장한 결과로 해석하지 않는다.
+4. 같은 요청을 별도 API로 한 번 재전송해201·동일38/document/idMap을 확인했다. 이것은 두 번째 실제 버튼 클릭이 아니라 영수증 재생 API 검증이다. `created=final`로 추가 생성0이다. 저장 후 복구 key0·질문 기록 정리를 확인했고 저장 Studio 실제 reload audit은 userinfo/문서 GET만, 추가 쓰기0이다. document/정의/sourceRevision과 모든 폭 배치를 유지했다.
+5. 독립 DuckDB로 같은 Parquet의1,391,572행·SUM634,513,000·OS28개 차원/값을 다시 계산해 saved/reloaded preview와 대조했다. 동률 그룹은 순서 대신 집합으로 비교했다. 원본35 dashboard/Studio/게시 SHA-256은 동일했다.38은 dashboard_share.shareYn=N·Studio게시0으로 보존했으며 새 공유/게시 링크를 만들지 않았다.
+
+기능 PASS_SELECTED_VARIANTS / 대표 디자인 PASS_SELECTED. 복구 카드와 저장 Studio 각각390/768/1440 CSS폭의 가로 넘침0을 실측·캡처했다. 복구 버튼36px/글자14px·390px 한열/1440px 같은행, 저장 화면의 도구32px/일반36px와 헤더·선택 입력·블록 간격을 확인했다.390px 복구/저장·1440px 저장 캡처를 직접 검토했으며 디자인 수정이 필요한 회귀는 없었다. 모바일은 Chromium 폭 에뮬레이션이다.
+
+Fresh 검사: FE Create/helper24개·BE Studio creation46개 PASS(`fe.log`, `be.log`). 이번 변경은 문서뿐이므로 같은 제품 코드의 앞선 전체BE2045/FE1321·build/type/lint·core8 증빙을 재사용했고 새로 실행한 것으로 집계하지 않는다. `assertions.py/json`, `oracle.json`, `baseline/preview/not-delivered/created/final`, `first-save-events/replay`, `saved/reloaded`, `recovery-audit-final/saved-reload-audit`, 폭별 JSON/PNG가 근거다. 최종 단언은 DB 관계 테이블의 실제 공유 상태를 조회했다. 임시 실패 프록시는 종료하고 기존 정상 서버를 복원했다.
+
+Main의 명세/증빙 대조이며 독립 리뷰나 사람 수용은 아니다. Draft·packet awaiting_review/acceptance not_recorded를 유지한다. AIWF strict 기존12오류/33경고/4정보와 pin 일치는 별도 결과다. 제안 만료/서버 재시작·물리 네트워크 단절·실휴대폰·모든 인증/동시성 변형·운영/전체 제품 수용은 미검증이다. 새 live Rill 화면 비교 대신 같은 공식 데모 파일 수치를 독립 비교했다.

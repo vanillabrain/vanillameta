@@ -60,11 +60,21 @@
 2. 담당자가 저장 확인 상태 다시 불러오기를 선택한다.
 3. Use case continues at step 4.
 
+### A5: Save request was not delivered
+
+**Trigger:** 첫 저장 요청이 서버에 전달되기 전에 실패 (step 3).
+**Flow:**
+
+1. 시스템은 확인 대기 기록을 유지하고 서버 처리 여부를 임의로 단정하지 않는다.
+2. 담당자가 reload 후 같은 질문/요청을 복구하고 명시 재확인한다.
+3. 서버에 영수증이 없고 원 제안이 유효하면 같은 request/proposal/revision으로 최초 비공개 저장한다. 제안 만료/권한 거절은 실패로 유지하고 임의 재생성하지 않는다.
+4. Use case continues at step 7.
+
 ## Postconditions
 
 ### Success Postconditions
 
-- 같은 request/proposal/revision으로 기존 ID를 확인하고 dashboard/영수증 추가 생성0이다.
+- 같은 request/proposal/revision으로 기존 ID를 확인하고 dashboard/영수증 추가 생성0이다. A5의 미전달 요청은 최초 저장 시에만 각각1개가 증가하고 그 뒤 재시도는 같은 ID다.
 
 ### Failure Postconditions
 
