@@ -7,6 +7,7 @@ const api = vi.hoisted(() => ({
   post: vi.fn(),
   navigate: vi.fn(),
   id: '12',
+  query: '',
   kind: undefined as string | undefined,
   uuid: undefined as string | undefined,
 }));
@@ -14,6 +15,7 @@ vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 vi.mock('react-router-dom', () => ({
   useParams: () => ({ dashboardId: api.id, kind: api.kind, uuid: api.uuid }),
   useNavigate: () => api.navigate,
+  useSearchParams: () => [new URLSearchParams(api.query)],
   Link: ({ to, children }: any) => <a href={to}>{children}</a>,
 }));
 vi.mock('../../Publication/SnapshotView', () => ({
@@ -55,6 +57,7 @@ const preview = (title = '원본 복사본', sourceId = 1) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   api.id = '12';
+  api.query = '';
   api.kind = undefined;
   api.uuid = undefined;
   api.get.mockImplementation(async (url: string) =>
@@ -188,6 +191,7 @@ it('malformed save response never navigates over the original', async () => {
 
 it('shared origin never selects or profiles the owner source and requires my source', async () => {
   api.kind = 'publication';
+  api.query = 'editor=studio';
   api.uuid = '11111111-1111-4111-8111-111111111111';
   api.get.mockImplementation(async (url: string) =>
     wrap(
@@ -199,6 +203,7 @@ it('shared origin never selects or profiles the owner source and requires my sou
   render(<DashboardReuse />);
   await screen.findByText('원본: 원본 · 내 소스를 선택해 주세요');
   expect(api.get).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('link', { name: '원본 보기' }).getAttribute('href')).toBe('/published/' + api.uuid);
   expect((screen.getByLabelText('데이터 소스') as HTMLSelectElement).value).toBe('');
   expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.change(screen.getByLabelText('데이터 소스'), { target: { value: '2' } });
@@ -243,4 +248,18 @@ it('UC024 removes only explicitly excluded block requirements and invalidates pr
   fireEvent.click(screen.getByLabelText('총 매출 포함'));
   fireEvent.click(screen.getByLabelText('OS별 매출 포함'));
   expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it.each([
+  ['editor=studio', '/dashboard/90/studio', '/dashboard/12/studio'],
+  ['editor=https%3A%2F%2Fexample.com', '/dashboard/90', '/dashboard/12'],
+])('keeps the copy handoff bounded for %s', async (query, target, origin) => {
+  api.query = query;
+  await open();
+  expect(screen.getByRole('link', { name: '원본 보기' }).getAttribute('href')).toBe(origin);
+  if (query === 'editor=studio') expect(screen.getByText(/원본 Studio의 미저장 변경은 포함하지 않습니다/)).toBeTruthy();
+  await makePreview();
+  api.post.mockResolvedValueOnce(wrap({ id: 90 }));
+  fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith(target));
 });

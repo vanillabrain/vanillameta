@@ -176,6 +176,11 @@ describe('studio editor rendering', () => {
     expect(link.getAttribute('href')).toBe('/dashboard');
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    const reuse = screen.getByRole('link', { name: '저장본 복제·소스 교체 새 탭에서 열기' });
+    expect(reuse.getAttribute('href')).toBe('/dashboard/3/reuse?editor=studio');
+    expect(reuse.getAttribute('target')).toBe('_blank');
+    expect(reuse.getAttribute('rel')).toBe('noopener noreferrer');
+
     duplicateBlock();
     expect(screen.getAllByText('복사본 · 총매출').length).toBeGreaterThan(0);
     expect(screen.getByLabelText('편집 이력 1회 변경')).toBeTruthy();

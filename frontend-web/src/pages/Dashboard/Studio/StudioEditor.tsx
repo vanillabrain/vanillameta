@@ -972,6 +972,17 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
         <Button variant="ghost" size="sm" asChild>
           <RouterLink to={'/dashboard/' + dashboardId}>기존 보기</RouterLink>
         </Button>
+        <Button variant="outline" size="sm" asChild>
+          <a
+            href={`/dashboard/${dashboardId}/reuse?editor=studio`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="저장본 복제·소스 교체 새 탭에서 열기"
+            title="마지막 저장본을 복제합니다. 현재 미저장 변경은 제외됩니다."
+          >
+            저장본 복제
+          </a>
+        </Button>
         <label>
           블록 추가
           <NativeSelect
