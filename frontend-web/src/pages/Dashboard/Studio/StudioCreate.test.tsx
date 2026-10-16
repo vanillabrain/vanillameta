@@ -1,4 +1,7 @@
 import React from 'react';
+import { webcrypto } from 'node:crypto';
+import { setToken } from '@/helpers/authHelper';
+import { creationConfirmationKey, writeCreationConfirmation } from './studioCreationRecovery';
 import { cleanup, fireEvent, render, screen, waitFor, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import StudioCreate from './StudioCreate';
@@ -56,7 +59,10 @@ const proposal = () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.params = '';
-  vi.stubGlobal('crypto', { randomUUID: () => 'request-create-1' });
+  localStorage.clear();
+  sessionStorage.clear();
+  vi.stubGlobal('crypto', { subtle: webcrypto.subtle, randomUUID: () => '11111111-1111-4111-8111-111111111111' });
+  setToken('unit-studio-session');
   mocks.get.mockImplementation(async (url: string) => ({
     data: {
       status: 'SUCCESS',
@@ -79,8 +85,15 @@ afterEach(() => {
 });
 const ready = async () => {
   render(<StudioCreate />);
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '매출·환불 샘플' }) as HTMLButtonElement).disabled).toBe(false),
+  );
   fireEvent.click(screen.getByRole('button', { name: '매출·환불 샘플' }));
   await screen.findByText('2행 · 1개 열 · 서버 DuckDB');
+  await waitFor(() => {
+    expect((screen.getByRole('combobox', { name: '저장된 데이터' }) as HTMLSelectElement).value).toBe('4');
+    expect((screen.getByRole('button', { name: '매출·환불 샘플' }) as HTMLButtonElement).disabled).toBe(false);
+  });
   fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '총매출을 보여 줘' } });
 };
 describe('Studio create workflow', () => {
@@ -149,10 +162,137 @@ describe('Studio create workflow', () => {
     expect(calls).toHaveLength(2);
     expect(calls[1][1]).toEqual(originalBody);
     expect(calls[1][1]).toEqual({
-      requestId: 'request-create-1',
+      requestId: '11111111-1111-4111-8111-111111111111',
       proposalId: 'proposal-1',
       expectedSourceRevision: 'a'.repeat(64),
     });
+  });
+  it('UC032 restores only the pending question and exact save after remount, without automatic requests', async () => {
+    let writes = 0;
+    mocks.post.mockImplementation(async (url: string) => {
+      if (url === '/studio/samples') return { data: { sourceId: 4 } };
+      if (url === '/studio/proposals') return { data: proposal() };
+      writes += 1;
+      if (writes === 1) throw new Error('response lost');
+      return { data: { dashboardId: 9 } };
+    });
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    fireEvent.click(screen.getByRole('button', { name: 'Studio에 저장하고 열기' }));
+    await screen.findByRole('button', { name: '같은 저장 요청 확인' });
+    const originalBody = JSON.parse(JSON.stringify(mocks.post.mock.calls.find(c => c[0] === '/studio/dashboards')[1]));
+    const key = await creationConfirmationKey();
+    expect(JSON.parse(sessionStorage.getItem(key)).request).toEqual(originalBody);
+    cleanup();
+    const postCount = mocks.post.mock.calls.length;
+    render(<StudioCreate />);
+    await screen.findByText('저장 요청과 질문을 복구했습니다');
+    expect(screen.getByText('총매출을 보여 줘')).toBeTruthy();
+    expect(screen.queryByText('500')).toBeNull();
+    expect(mocks.post).toHaveBeenCalledTimes(postCount);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 확인' }));
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/dashboard/9/studio'));
+    expect(mocks.post.mock.calls.filter(c => c[0] === '/studio/dashboards').map(c => c[1])).toEqual([
+      originalBody,
+      originalBody,
+    ]);
+    expect(sessionStorage.getItem(key)).toBeNull();
+  });
+  it('UC032 blocks saving before POST if the tab cannot retain its confirmation record', async () => {
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    const original = Storage.prototype.setItem;
+    const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+      if (key.endsWith(':studio-create-save')) throw new Error('quota');
+      return original.call(this, key, value);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Studio에 저장하고 열기' }));
+    await screen.findByText(/저장 요청을 보내지 않았습니다/);
+    expect(mocks.post.mock.calls.filter(c => c[0] === '/studio/dashboards')).toHaveLength(0);
+    expect(screen.getByText('500')).toBeTruthy();
+    storage.mockRestore();
+  });
+  it('UC032 preserves the original record after a confirmation error and supports explicit local discard', async () => {
+    const key = await creationConfirmationKey();
+    const record = {
+      version: 1 as const,
+      updatedAt: Date.now(),
+      sourceId: 4,
+      title: 'Pending',
+      prompt: 'Question',
+      request: { requestId: 'save-one', proposalId: 'p-one', expectedSourceRevision: 'a'.repeat(64) },
+    };
+    writeCreationConfirmation(key, record);
+    mocks.post.mockRejectedValueOnce({ response: { status: 503 } });
+    render(<StudioCreate />);
+    await screen.findByText('저장 요청과 질문을 복구했습니다');
+    fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 확인' }));
+    await screen.findByText(/저장 완료 여부를 확인하지 못했습니다/);
+    expect(JSON.parse(sessionStorage.getItem(key))).toEqual(record);
+    fireEvent.click(screen.getByRole('button', { name: '확인 대기 기록 지우기' }));
+    await screen.findByText(/이미 저장된 대시보드는 유지됩니다/);
+    expect(sessionStorage.getItem(key)).toBeNull();
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+  });
+  it('UC032 does not disclose or replay a record whose source is no longer accessible', async () => {
+    const key = await creationConfirmationKey();
+    writeCreationConfirmation(key, {
+      version: 1,
+      updatedAt: Date.now(),
+      sourceId: 99,
+      title: 'Hidden title',
+      prompt: 'Hidden question',
+      request: { requestId: 'save-one', proposalId: 'p-one', expectedSourceRevision: 'a'.repeat(64) },
+    });
+    render(<StudioCreate />);
+    await screen.findByText(/데이터 소스에 접근할 수 없습니다/);
+    expect(screen.queryByText('Hidden title')).toBeNull();
+    expect(screen.queryByText('Hidden question')).toBeNull();
+    expect(screen.queryByRole('button', { name: '같은 저장 요청 확인' })).toBeNull();
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+  it('UC032 fences a restored request when a newer login replaces the session before confirmation', async () => {
+    const key = await creationConfirmationKey();
+    writeCreationConfirmation(key, {
+      version: 1,
+      updatedAt: Date.now(),
+      sourceId: 4,
+      title: 'Pending',
+      prompt: 'Question',
+      request: { requestId: 'save-one', proposalId: 'p-one', expectedSourceRevision: 'a'.repeat(64) },
+    });
+    render(<StudioCreate />);
+    await screen.findByText('저장 요청과 질문을 복구했습니다');
+    // A second tab's new login rotates the shared scope without clearing this tab's record.
+    localStorage.removeItem('vm:editor-draft-auth:v1');
+    localStorage.setItem('accessToken', JSON.stringify('unit-new-login'));
+    fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 확인' }));
+    await screen.findByText(/로그인 범위가 바뀌었습니다/);
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(key)).not.toBeNull();
+  });
+  it('UC032 keeps a pending record and blocks replacement creation when initial permission lookup fails', async () => {
+    const key = await creationConfirmationKey();
+    const record = {
+      version: 1 as const,
+      updatedAt: Date.now(),
+      sourceId: 4,
+      title: 'Pending',
+      prompt: 'Question',
+      request: { requestId: 'save-one', proposalId: 'p-one', expectedSourceRevision: 'a'.repeat(64) },
+    };
+    writeCreationConfirmation(key, record);
+    mocks.get.mockRejectedValueOnce({ response: { status: 503 } });
+    render(<StudioCreate />);
+    await screen.findByRole('button', { name: '저장 확인 상태 다시 불러오기' });
+    expect(JSON.parse(sessionStorage.getItem(key))).toEqual(record);
+    expect((screen.getByRole('button', { name: '매출·환불 샘플' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).disabled).toBe(true);
+    expect(screen.queryByText('Question')).toBeNull();
+    expect(mocks.post).not.toHaveBeenCalled();
   });
   it('cancels a pending proposal and discards its delayed response', async () => {
     let resolve: (value: any) => void = () => {
@@ -174,7 +314,7 @@ describe('Studio create workflow', () => {
     expect(screen.queryByText('500')).toBeNull();
     expect(screen.getByText('생성을 취소했습니다. 데이터와 입력은 유지됩니다.')).toBeTruthy();
   });
-  it('ignores delayed initial URL selection after a newer sample and proposal started', async () => {
+  it('waits for recovery lookup before allowing a new sample, then uses the selected sample', async () => {
     mocks.params = 'sourceId=5';
     let first = true;
     let finishInitial: (value: any) => void = () => {
@@ -190,7 +330,9 @@ describe('Studio create workflow', () => {
       }
       return original?.(url, ...args);
     });
-    await ready();
+    const rendered = ready();
+    expect((screen.getByRole('button', { name: '매출·환불 샘플' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(mocks.post).not.toHaveBeenCalled();
     await act(async () => {
       finishInitial({
         data: {
@@ -202,6 +344,7 @@ describe('Studio create workflow', () => {
         },
       });
     });
+    await rendered;
     fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
     await screen.findByText('500');
     const calls = mocks.post.mock.calls.filter(call => call[0] === '/studio/proposals');
