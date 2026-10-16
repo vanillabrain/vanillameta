@@ -182,6 +182,24 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     }
     expect(llm.callLlm).toHaveBeenCalledTimes(1);
   });
+  it('A6 reports definitive missing proposal only after checking for an existing receipt', async () => {
+    const before = await db.manager.count(Dashboard);
+    const p = await propose();
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 600001);
+    try {
+      await expect(save(p)).rejects.toMatchObject({
+        response: { code: 'STUDIO_CREATION_REPROPOSE_REQUIRED' },
+      });
+    } finally {
+      clock.mockRestore();
+    }
+    expect(await db.manager.count(Dashboard)).toBe(before);
+  });
+  it('keeps the original question in the permission-scoped cached clarification', async () => {
+    const p = await propose({ prompt: '환불률을 알려줘' });
+    expect((await service.proposal(p.proposalId, 1, 7)).requestPrompt).toBe('환불률을 알려줘');
+    expect(llm.callLlm).not.toHaveBeenCalled();
+  });
   it('T15 caches clarification as read-only and refuses saving it before resolving meaning', async () => {
     const p = await propose({ prompt: '환불률 새 대시보드' });
     expect((await service.proposal(p.proposalId, 1, 7)).clarifications[0].id).toBe(

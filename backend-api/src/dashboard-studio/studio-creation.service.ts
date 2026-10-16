@@ -148,7 +148,7 @@ export class StudioCreationService {
     };
   }
   async propose(body: any, actor: number, signal?: AbortSignal): Promise<any> {
-    const value = await this.proposeOnce(body, actor, signal);
+    const value = { ...(await this.proposeOnce(body, actor, signal)), requestPrompt: body.prompt };
     if (signal?.aborted) throw new BadRequestException('AI 요청을 취소했습니다.');
     this.prune();
     if (!this.proposals.has(value.proposalId) && this.proposals.size >= 64)
@@ -295,6 +295,7 @@ export class StudioCreationService {
           'Existing reference is ONLY {"id":number,"definitionVersion":number}. Include every selectedMetricId at least once, retaining its exact canonical reference. Never rewrite selected metrics.',
           'New definition: {"label":string,"aggregation":"SUM"|"AVG"|"COUNT"|"COUNT_DISTINCT"|"MIN"|"MAX"|"RATIO_SUM"|"WEIGHTED_AVG","column":rawColumn,"denominatorColumn"?:rawColumn,"weightColumn"?:rawColumn,"scale"?:1|100,"unit"?:string,"decimalPlaces"?:0..6,"numberNotation"?:"plain"|"compact"}. Use only supplied raw columns. Never return SQL, code, expressions or invented columns.',
           'Numeric blocks have no dimension. Other blocks require a raw column dimension, CHART_LINE requires temporal. Prefer reuse of exact existing metric definitions. Do not invent a refund denominator; obey refundDenominator and use refunded_orders/paid_orders for orders, refund_amount/revenue (or amount) for amount when available. If required columns are absent, return {"clarifications":[{"id":"missingColumns","question":"explain missing raw fields","choices":[],"affectedBlockIds":[]}]} instead.',
+          'refundDenominator is the explicit user answer to your previous business question, not an unconfirmed hint. If amount is confirmed and numeric refund_amount and revenue exist, their mapping is explicitly confirmed; if orders is confirmed and numeric refunded_orders and paid_orders exist, their mapping is explicitly confirmed. Do not ask for the same mapping again or report those present fields as missing. Still refuse genuinely absent fields and never invent substitutes.',
           'For a confirmed refund percentage use RATIO_SUM, scale:100, unit:"%". With refundDenominator=amount use refund_amount / revenue (or the actual amount column); with orders use refunded_orders / paid_orders. Other requested sales/refund/net amount KPIs are independent SUM blocks, never percentages.',
           'Only when the user actually requests auction requests or average bid floor: requests use SUM(bid_request_cnt) and average bid floor uses RATIO_SUM(bid_floor,has_bid_floor_cnt), scale 1. These are not defaults and cannot substitute for missing revenue, sales, refund or other requested fields. A Rill source with absent commerce fields must return missingColumns for a commerce request. Commerce revenue is successful payment amount, not merchandise subtotal; refunded orders / paid orders is an order cohort ratio. All-time single-source scope only.',
         ].join('\n'),
@@ -800,9 +801,11 @@ export class StudioCreationService {
     this.prune();
     const stored = this.proposals.get(body.proposalId);
     if (!stored || stored.actor !== actor)
-      throw new BadRequestException(
-        '생성안이 만료되었거나 접근할 수 없습니다. 다시 생성해 주세요.',
-      );
+      throw new BadRequestException({
+        code: 'STUDIO_CREATION_REPROPOSE_REQUIRED',
+        message:
+          '저장 기록이 없고 생성안을 사용할 수 없습니다. 질문을 유지하고 새 제안을 준비해 주세요.',
+      });
     const p = stored.value;
     if (!p.preview || p.clarifications?.length)
       throw new BadRequestException('업무 의미와 필수 열을 확인한 뒤 다시 제안해 주세요.');

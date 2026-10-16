@@ -476,6 +476,23 @@ describe('T7 durable executions', () => {
     expect(studio.save).not.toHaveBeenCalled();
   });
   it.each([
+    '선택한 블록의 제목만 커머스 환불률로 바꾸고 저장해 줘. 계산식과 배치는 유지하고 게시하지 마.',
+    '선택한 제목을 바꾸고 저장해 줘! 게시하지 마.',
+  ])('saves an explicit sentence before trailing preservation constraints: %s', async prompt => {
+    const result = await service.create({ ...body, prompt }, 7);
+    expect(result.status).toBe('succeeded');
+    expect(studio.save).toHaveBeenCalledTimes(1);
+    expect(result.steps.map(s => s.stepId)).toContain('saveDraft');
+    expect(result.steps.map(s => s.stepId)).not.toContain('publish');
+  });
+  it.each([
+    '선택한 제목을 "그리고 저장해 줘."로 바꿔. 게시하지 마.',
+    '선택한 제목을 바꾸고 저장해 줘. 하지만 저장하지 마.',
+  ])('does not infer save consent from a quoted example or negative save: %s', async prompt => {
+    await service.create({ ...body, prompt }, 7);
+    expect(studio.save).not.toHaveBeenCalled();
+  });
+  it.each([
     '선택한 블록 제목만 바꾸고 저장하거나 게시하지 마.',
     '현재 조건을 설명하고 선택한 제목만 바꿔줘. 저장과 게시는 하지 마.',
     '선택한 블록 제목만 바꿔줘. 게시하지 마.',

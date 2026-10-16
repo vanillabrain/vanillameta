@@ -41,6 +41,7 @@ export type CreationClarification = {
 export type CreationProposal = {
   proposalId: string;
   parentProposalId?: string;
+  requestPrompt?: string;
   sourceId: number;
   sourceRevision: string;
   title: string;

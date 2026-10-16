@@ -70,6 +70,16 @@
 3. 서버에 영수증이 없고 원 제안이 유효하면 같은 request/proposal/revision으로 최초 비공개 저장한다. 제안 만료/권한 거절은 실패로 유지하고 임의 재생성하지 않는다.
 4. Use case continues at step 7.
 
+### A6: Proposal unavailable after confirmation
+
+**Trigger:** 같은 요청 확인에서 서버가 영수증 부재와 제안 부재를 확정 (step 6).
+**Flow:**
+
+1. 시스템은 질문·소스를 보존하고 새 제안 준비를 명시 선택하도록 한다. 일반 오류나 통신 실패에서는 이 동작을 제공하지 않는다.
+2. 담당자가 선택하면 이전 확인 기록만 정리하고 같은 소스·질문을 입력 화면으로 복원한다. AI와 저장은 자동 실행하지 않는다.
+3. 담당자가 새 제안과 미리보기를 검토한 후 새 요청으로 비공개 저장한다.
+4. Use case continues at step 7.
+
 ## Postconditions
 
 ### Success Postconditions

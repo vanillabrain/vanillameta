@@ -103,10 +103,24 @@ export default function StudioConversationCreation({
       {error && <Alert severity="error">{error}</Alert>}
       {proposal?.clarifications?.map(c => (
         <Alert severity="warning" key={c.id}>
-          {c.question} {c.choices.map(choice => choice.label).join(' / ')}. 아래 대화에 기준을 포함해 새 생성 요청을 보내
-          주세요.
+          {c.question} {c.choices.map(choice => choice.label).join(' / ')}. 같은 질문을 이어서 확인할 수 있습니다.
         </Alert>
       ))}
+      {!!proposal?.clarifications?.length && (
+        <Button variant="outline" asChild disabled={disabled || loading}>
+          <a
+            href={'/studio/new?sourceId=' + proposal.sourceId + '&proposalId=' + encodeURIComponent(proposal.proposalId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-disabled={disabled || loading}
+            onClick={e => {
+              if (disabled || loading) e.preventDefault();
+            }}
+          >
+            같은 질문의 계산 기준 확인
+          </a>
+        </Button>
+      )}
       {proposal?.preview && (
         <>
           <p className="studio-execution-hint">{proposal.profile.rowCount}행 · 제안은 10분간 유지됩니다.</p>

@@ -81,3 +81,17 @@ it('does not steal focus when a completed historical receipt is restored', () =>
   expect(document.activeElement).not.toBe(screen.getByRole('status'));
   expect(api.read).not.toHaveBeenCalled();
 });
+
+it('continues a clarification through its permission checked proposal without exposing the question in the URL', async () => {
+  api.read.mockResolvedValue({
+    ...proposal,
+    sourceId: 9,
+    proposalId: 'clarify-parent',
+    preview: undefined,
+    clarifications: [{ id: 'refundDenominator', question: '분모는?', choices: [{ value: 'amount', label: '매출 금액' }] }],
+  });
+  render(<StudioConversationCreation run={run} disabled={false} />);
+  const link = await screen.findByRole('link', { name: '같은 질문의 계산 기준 확인' });
+  expect(link.getAttribute('href')).toBe('/studio/new?sourceId=9&proposalId=clarify-parent');
+  expect(screen.queryByRole('button')).toBeNull();
+});

@@ -53,6 +53,7 @@ export default function StudioCreate() {
   const attempt = useRef<CreationConfirmation | null>(null);
   const [unavailableRecovery, setUnavailableRecovery] = useState(false);
   const [restoring, setRestoring] = useState(true);
+  const [canRepropose, setCanRepropose] = useState(false);
   const [initializationFailed, setInitializationFailed] = useState(false);
   const locked = initializationFailed || restoring || !!busy || refining || saveUncertain || !!recovery;
   const epoch = useRef(0),
@@ -132,8 +133,11 @@ export default function StudioCreate() {
             const generation = epoch.current;
             try {
               const response = await get('/studio/proposals/' + encodeURIComponent(parentId), { sourceId: initial });
-              if (mounted.current && generation === epoch.current)
-                setProposal(validateCreationProposal(creationData(response), initial));
+              if (mounted.current && generation === epoch.current) {
+                const restored = validateCreationProposal(creationData(response), initial);
+                setProposal(restored);
+                if (typeof restored.requestPrompt === 'string') setPrompt(restored.requestPrompt);
+              }
             } catch {
               if (mounted.current && generation === epoch.current)
                 setError('생성안이 만료됐거나 불러올 수 없습니다. 이 소스로 새 생성 요청을 보내 주세요.');
@@ -264,11 +268,28 @@ export default function StudioCreate() {
       setError('확인 기록을 지우지 못했습니다. 기록과 요청은 유지됩니다.');
     }
   };
+  const prepareReproposal = async () => {
+    if (pending.current || busy || !canRepropose || !recovery) return;
+    try {
+      const key = await creationConfirmationKey();
+      if (!mounted.current || key !== confirmationKey.current) throw new Error('scope changed');
+      removeCreationConfirmation(key);
+      const id = recovery.sourceId;
+      setRecovery(null);
+      setSaveUncertain(false);
+      setCanRepropose(false);
+      await choose(id);
+      if (mounted.current) setNotice('질문을 유지했습니다. 새 제안을 요청하고 미리보기를 확인한 뒤 저장하세요.');
+    } catch {
+      if (mounted.current) setError('로그인 범위나 확인 기록을 확인하지 못했습니다. 기존 기록을 유지합니다.');
+    }
+  };
   const save = async () => {
     if (pending.current || refining || (!recovery && (!proposal?.preview || proposal.clarifications?.length))) return;
     pending.current = true;
     setBusy('Studio에 저장하는 중입니다…');
     setError('');
+    setCanRepropose(false);
     let sent = false;
     try {
       const key = await creationConfirmationKey();
@@ -309,6 +330,9 @@ export default function StudioCreate() {
         } else {
           const status = Number((cause as any)?.response?.status);
           const uncertain = !status || status >= 500;
+          const unavailable =
+            status === 400 && (cause as any)?.response?.data?.data?.code === 'STUDIO_CREATION_REPROPOSE_REQUIRED';
+          setCanRepropose(unavailable);
           setSaveUncertain(uncertain);
           if (!uncertain) {
             setRecovery(attempt.current);
@@ -317,6 +341,8 @@ export default function StudioCreate() {
           setError(
             uncertain
               ? '저장 완료 여부를 확인하지 못했습니다. 같은 저장 요청을 다시 확인해 주세요. 결과 확인 전에는 생성안을 변경하지 않습니다.'
+              : unavailable
+              ? '저장된 결과가 없고 이전 생성안을 사용할 수 없습니다. 질문을 유지하고 새 제안을 준비할 수 있습니다.'
               : creationError(cause),
           );
         }
@@ -395,6 +421,11 @@ export default function StudioCreate() {
               {recovery && (
                 <Button disabled={!!busy} onClick={save}>
                   같은 저장 요청 확인
+                </Button>
+              )}
+              {canRepropose && recovery && (
+                <Button variant="outline" disabled={!!busy} onClick={prepareReproposal}>
+                  질문을 유지하고 새 제안 준비
                 </Button>
               )}
               <Button variant="outline" disabled={!!busy} onClick={discardConfirmation}>

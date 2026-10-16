@@ -57,7 +57,7 @@ const proposal = () => ({
   },
 });
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   mocks.params = '';
   localStorage.clear();
   sessionStorage.clear();
@@ -455,5 +455,88 @@ describe('Studio create workflow', () => {
     await screen.findByText('500');
     expect(screen.getByRole('textbox', { name: '생성안 수정 요청' })).toBeTruthy();
     expect(mocks.post).not.toHaveBeenCalled();
+  });
+  it('A6 restores the original question for a new preview only after a definitive unavailable proposal', async () => {
+    const key = await creationConfirmationKey();
+    writeCreationConfirmation(key, {
+      version: 1,
+      updatedAt: Date.now(),
+      sourceId: 4,
+      title: '매출 요약',
+      prompt: '총매출을 보여줘',
+      request: { requestId: 'old-request', proposalId: 'old-proposal', expectedSourceRevision: 'a'.repeat(64) },
+    });
+    mocks.post.mockRejectedValueOnce({
+      response: { status: 400, data: { success: false, code: 400, data: { code: 'STUDIO_CREATION_REPROPOSE_REQUIRED' } } },
+    });
+    render(<StudioCreate />);
+    fireEvent.click(await screen.findByRole('button', { name: '같은 저장 요청 확인' }));
+    fireEvent.click(await screen.findByRole('button', { name: '질문을 유지하고 새 제안 준비' }));
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: '지표와 차트 제안' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(
+      '총매출을 보여줘',
+    );
+    expect(sessionStorage.getItem(String(key))).toBeNull();
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    expect(mocks.post.mock.calls.at(-1)?.[1]).toEqual({ sourceId: 4, prompt: '총매출을 보여줘' });
+    mocks.post.mockResolvedValueOnce({ data: { dashboardId: 10 } });
+    fireEvent.click(screen.getByRole('button', { name: 'Studio에 저장하고 열기' }));
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/dashboard/10/studio'));
+    expect(mocks.post.mock.calls.at(-1)?.[1].requestId).not.toBe('old-request');
+  });
+  it.each([400, 403, 409, 503])('A6 never offers a new request on generic status %s', async status => {
+    const key = await creationConfirmationKey();
+    writeCreationConfirmation(key, {
+      version: 1,
+      updatedAt: Date.now(),
+      sourceId: 4,
+      title: '保留',
+      prompt: '質問',
+      request: { requestId: 'held', proposalId: 'held', expectedSourceRevision: 'a'.repeat(64) },
+    });
+    mocks.post.mockRejectedValueOnce({ response: { status } });
+    render(<StudioCreate />);
+    fireEvent.click(await screen.findByRole('button', { name: '같은 저장 요청 확인' }));
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('button', { name: '질문을 유지하고 새 제안 준비' })).toBeNull();
+    expect(sessionStorage.getItem(String(key))).not.toBeNull();
+  });
+  it('restores a cached clarification question for answering without retyping or model invocation', async () => {
+    mocks.params = 'sourceId=4&proposalId=clarify-parent';
+    const unclear: any = proposal();
+    delete unclear.preview;
+    unclear.semanticProposal = [];
+    unclear.requestPrompt = '환불률을 보여줘';
+    unclear.clarifications = [
+      {
+        id: 'refundDenominator',
+        question: '분모는?',
+        choices: [
+          { value: 'orders', label: '주문 건수' },
+          { value: 'amount', label: '매출 금액' },
+        ],
+        affectedBlockIds: [],
+      },
+    ];
+    const original = mocks.get.getMockImplementation();
+    mocks.get.mockImplementation((url: string, ...args: any[]) =>
+      url.startsWith('/studio/proposals/') ? Promise.resolve({ data: unclear }) : original?.(url, ...args),
+    );
+    render(<StudioCreate />);
+    fireEvent.change(await screen.findByRole('combobox', { name: '환불률 분모' }), { target: { value: 'amount' } });
+    expect(mocks.post).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: '의미 확인 후 다시 제안' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '의미 확인 후 다시 제안' }));
+    await screen.findByText('500');
+    expect(mocks.post.mock.calls[0][1]).toMatchObject({
+      prompt: '환불률을 보여줘',
+      clarificationAnswers: { refundDenominator: 'amount' },
+    });
   });
 });

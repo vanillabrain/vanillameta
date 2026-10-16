@@ -240,12 +240,18 @@ export class StudioExecutionService implements OnModuleInit {
       /저장\s*(?:하지|하지는|안|말|금지)|저장하지|don['’]?t\s+save|do\s+not\s+save|without\s+sav/i.test(
         prompt,
       );
-    // Only an explicit trailing positive command authorizes saving after an edit.
+    // A later preservation clause must not hide explicit consent in an earlier
+    // sentence. Quoted labels/examples are data, and any negative save still wins.
+    const commands = prompt
+      .replace(/"[^"]*"|'[^']*'|“[^”]*”|‘[^’]*’|`[^`]*`/gu, '')
+      .split(/[.!。;\n]+/u);
     const save =
       saveOnly ||
       (!negative &&
-        /(?:하고|고|후|뒤|다음|,|그리고)\s*저장\s*(?:해\s*줘|해\s*주세요|해주세요)[.!。]?$/u.test(
-          prompt,
+        commands.some(command =>
+          /(?:하고|고|후|뒤|다음|,|그리고)\s*저장\s*(?:해\s*줘|해\s*주세요|해주세요)$/u.test(
+            command.trim(),
+          ),
         ));
     return { save, saveOnly };
   }
