@@ -59,6 +59,13 @@ import {
 } from './studioTypes';
 import './studio.css';
 import { studioQuestionKey, readStudioQuestion, writeStudioQuestion, removeStudioQuestion } from './studioQuestionDraft';
+import {
+  StudioDocumentDraft,
+  studioDocumentDraftKey,
+  readStudioDocumentDraft,
+  writeStudioDocumentDraft,
+  removeStudioDocumentDraft,
+} from './studioDocumentDraft';
 
 const MAX_STUDIO_BLOCKS = 6;
 const scopeKey = (document: Pick<StudioDocumentV1, 'filters' | 'dateRange'>) =>
@@ -257,7 +264,7 @@ function StudioStateScreen({
 }
 
 /** Replace payload: the server document is always the new baseline; a draft only seeds the canvas. */
-type StudioReplacePayload = StudioLoadResult & { draft?: StudioDocumentV1 };
+type StudioReplacePayload = StudioLoadResult & { draft?: StudioDocumentV1; previewDocument?: StudioDocumentV1 };
 /** The server document stays the baseline; a re-applied draft is seeded as an unsaved change. */
 export const studioWorkspaceSeed = (payload: StudioReplacePayload): StudioState => {
   const created = createStudioState(payload.document);
@@ -395,7 +402,11 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     dateRange?: StudioDateRange;
   } | null>(
     initial.preview
-      ? { key: scopeKey(initial.document), filters: initial.document.filters ?? [], dateRange: initial.document.dateRange }
+      ? {
+          key: scopeKey(initial.previewDocument ?? initial.document),
+          filters: (initial.previewDocument ?? initial.document).filters ?? [],
+          dateRange: (initial.previewDocument ?? initial.document).dateRange,
+        }
       : null,
   );
   const confirmedScope = useRef(previewScope);
@@ -411,13 +422,102 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   }>({
     generation: 0,
     controller: null,
-    attempted: scopeKey(initial.document),
+    attempted: scopeKey(initial.previewDocument ?? initial.document),
     intent: 'history',
   });
   const editClock = useRef({ document: state.present, generation: 0 });
   if (editClock.current.document !== state.present) {
     editClock.current = { document: state.present, generation: editClock.current.generation + 1 };
   }
+  const documentDraftKey = useRef<string | null>(null);
+  const documentDraftLive = useRef(true);
+  const [documentDraftReady, setDocumentDraftReady] = useState(false);
+  const [documentRecovery, setDocumentRecovery] = useState<StudioDocumentDraft | null>(null);
+  const [documentRecoveryBusy, setDocumentRecoveryBusy] = useState(false);
+  const documentRecoveryPending = useRef(false);
+  const [documentRecoveryError, setDocumentRecoveryError] = useState('');
+  const [documentStorageError, setDocumentStorageError] = useState(false);
+  useEffect(() => {
+    let current = true;
+    documentDraftLive.current = true;
+    studioDocumentDraftKey(dashboardId)
+      .then(key => {
+        if (!current) return;
+        documentDraftKey.current = key;
+        if (!initial.draft) setDocumentRecovery(readStudioDocumentDraft(key, dashboardId));
+        setDocumentDraftReady(true);
+      })
+      .catch(() => {
+        if (current) setDocumentDraftReady(true);
+      });
+    return () => {
+      current = false;
+      documentDraftLive.current = false;
+    };
+  }, [dashboardId]);
+  useEffect(() => {
+    if (!documentDraftReady || documentRecovery || state.pendingSave || saving) return;
+    const ok =
+      state.saveState === 'clean'
+        ? removeStudioDocumentDraft(documentDraftKey.current)
+        : writeStudioDocumentDraft(documentDraftKey.current, {
+            version: 1,
+            updatedAt: Date.now(),
+            baseRevision: state.serverRevision ?? '',
+            sourceRevision,
+            document: state.present,
+          });
+    setDocumentStorageError(state.saveState !== 'clean' && !ok);
+  }, [
+    documentDraftReady,
+    documentRecovery,
+    state.present,
+    state.saveState,
+    state.serverRevision,
+    state.pendingSave,
+    saving,
+    sourceRevision,
+  ]);
+  const canRestoreDocument =
+    !!documentRecovery &&
+    state.saveState === 'clean' &&
+    !state.pendingSave &&
+    !saving &&
+    documentRecovery.baseRevision === state.serverRevision &&
+    documentRecovery.sourceRevision === sourceRevision;
+  const restoreDocument = async () => {
+    if (!canRestoreDocument || !documentRecovery || documentRecoveryPending.current) return;
+    documentRecoveryPending.current = true;
+    setDocumentRecoveryBusy(true);
+    setDocumentRecoveryError('');
+    const generation = editClock.current.generation;
+    const revision = state.serverRevision;
+    try {
+      const prepared = await prepareStudioDashboard(dashboardId, {
+        expectedRevision: revision,
+        expectedSourceRevision: sourceRevision,
+        document: documentRecovery.document,
+      });
+      if (!documentDraftLive.current) return;
+      if (editClock.current.generation !== generation || live.current.revision !== revision)
+        throw new Error('확인 중 현재 편집이 바뀌었습니다. 보관 초안과 현재 편집은 유지했습니다.');
+      onReplace({
+        ...initial,
+        preview: prepared.preview,
+        previewError: null,
+        draft: prepared.document,
+        previewDocument: prepared.document,
+      });
+    } catch (cause) {
+      if (documentDraftLive.current)
+        setDocumentRecoveryError(
+          cause instanceof Error ? cause.message : '초안을 다시 확인하지 못했습니다. 보관 내용은 유지했습니다.',
+        );
+    } finally {
+      documentRecoveryPending.current = false;
+      if (documentDraftLive.current) setDocumentRecoveryBusy(false);
+    }
+  };
 
   // Breakpoints follow the window, not the canvas: an open panel must not silently change the batch.
   const desktop = useMinWidth(1200);
@@ -825,9 +925,48 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
 
   const banner = (
     <>
+      {documentRecovery && (
+        <Alert severity="info" className="studio-status-banner">
+          <p>이 탭에 미저장 블록·배치 초안이 있습니다. 복구하면 다시 미리보기하며 저장·게시하지 않습니다.</p>
+          {!canRestoreDocument && (
+            <p>저장본·소스 기준이 다르거나 현재 편집 중입니다. 보관 초안을 자동으로 덮어쓰지 않습니다.</p>
+          )}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!canRestoreDocument || documentRecoveryBusy}
+              onClick={restoreDocument}
+            >
+              {documentRecoveryBusy ? '초안 확인 중…' : '블록 초안 복구'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={documentRecoveryBusy}
+              onClick={() => {
+                if (!removeStudioDocumentDraft(documentDraftKey.current)) {
+                  setDocumentRecoveryError('보관 초안을 지우지 못했습니다. 다시 시도해 주세요.');
+                  return;
+                }
+                setDocumentRecovery(null);
+                setDocumentRecoveryError('');
+              }}
+            >
+              보관 블록 초안 폐기
+            </Button>
+          </div>
+          {documentRecoveryError && <p role="alert">{documentRecoveryError}</p>}
+        </Alert>
+      )}
+      {documentStorageError && (
+        <Alert severity="warning" className="studio-status-banner">
+          블록 초안을 이 탭에 보관하지 못했습니다. 현재 편집은 유지되지만 새로고침하면 사라질 수 있습니다.
+        </Alert>
+      )}
       {questionRecovery !== null && (
         <Alert severity="info" className="studio-status-banner">
-          <p>이 탭에 보관한 미전송 질문이 있습니다. 질문만 최대 24시간 보관하며 블록 초안은 복구하지 않습니다.</p>
+          <p>이 탭에 보관한 미전송 질문이 있습니다. 최대 24시간 보관하며 블록 초안과 별도로 복구합니다.</p>
           {conversationInput.trim() && <span>현재 입력을 비우면 보관 질문을 복구할 수 있습니다.</span>}
           <div className="mt-2 flex flex-wrap gap-2">
             <Button
