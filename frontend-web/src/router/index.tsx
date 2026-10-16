@@ -11,7 +11,6 @@ const DashboardView = React.lazy(() => import('@/pages/Dashboard/DashboardView')
 const DashboardCreate = React.lazy(() => import('@/pages/Dashboard/DashboardCreate'));
 const Publication = React.lazy(() => import('@/pages/Publication'));
 const PublishedRoute = React.lazy(() => import('./PublishedRoute'));
-const StudioThemeBoundary = React.lazy(() => import('@/pages/Dashboard/Studio/StudioThemeBoundary'));
 const DashboardReuse = React.lazy(() => import('@/pages/Dashboard/DashboardReuse'));
 const DashboardEdit = React.lazy(() => import('@/pages/Dashboard/DashboardEdit'));
 const StudioCreate = React.lazy(() => import('@/pages/Dashboard/Studio/StudioCreate'));
@@ -44,16 +43,7 @@ function Router() {
   return (
     <Suspense fallback={null}>
       <Routes>
-        {import.meta.env.DEV && (
-          <Route
-            path="/_design/studio"
-            element={
-              <StudioThemeBoundary>
-                <StudioDesignPreview />
-              </StudioThemeBoundary>
-            }
-          />
-        )}
+        {import.meta.env.DEV && <Route path="/_design/studio" element={<StudioDesignPreview />} />}
         <Route
           path="/"
           element={
@@ -106,9 +96,7 @@ function Router() {
           path="/studio/new"
           element={
             <ProtectedRoute>
-              <StudioThemeBoundary>
-                <StudioCreate />
-              </StudioThemeBoundary>
+              <StudioCreate />
             </ProtectedRoute>
           }
         />
@@ -116,20 +104,11 @@ function Router() {
           path="/dashboard/:dashboardId/studio"
           element={
             <ProtectedRoute>
-              <StudioThemeBoundary>
-                <StudioEditor />
-              </StudioThemeBoundary>
+              <StudioEditor />
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/published/:token/remix"
-          element={
-            <StudioThemeBoundary>
-              <StudioRemix />
-            </StudioThemeBoundary>
-          }
-        />
+        <Route path="/published/:token/remix" element={<StudioRemix />} />
         <Route path="/published/:token" element={<PublishedRoute />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />

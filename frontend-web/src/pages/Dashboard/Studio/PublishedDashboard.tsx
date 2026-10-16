@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Button, useMediaQuery } from '@mui/material';
+import IconLogo from '@/assets/images/logo.svg?react';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
+import { useMinWidth } from '@/components/PageViewBox';
 import { useParams } from 'react-router-dom';
 import { formatMetric } from '@/utils/formatMetric';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
@@ -64,6 +67,8 @@ export function PublishedBlockView({ block }: { block: PublishedBlock }) {
       {block.kind === 'BOARD_NUMERIC' && (
         <Button
           className="studio-published-data-toggle"
+          variant="ghost"
+          size="sm"
           aria-expanded={showRows}
           onClick={() => setShowRows(value => !value)}
         >
@@ -105,8 +110,8 @@ export default function PublishedDashboard() {
   const [loading, setLoading] = useState(true);
   const generation = useRef(0);
   const checkedExpiry = useRef<string | null>(null);
-  const desktop = useMediaQuery('(min-width:1200px)');
-  const tablet = useMediaQuery('(min-width:600px)');
+  const desktop = useMinWidth(1200);
+  const tablet = useMinWidth(600);
   const breakpoint = desktop ? 'lg' : tablet ? 'md' : 'xs';
   const load = useCallback(async () => {
     generation.current += 1;
@@ -178,17 +183,17 @@ export default function PublishedDashboard() {
         대시보드로 건너뛰기
       </a>
       <header className="studio-published-header">
-        <a className="studio-brand" href="/">
-          vanilla<span>Meta</span>
+        <a className="studio-brand" href="/" aria-label="VanillaMeta">
+          <IconLogo aria-hidden="true" />
         </a>
         <span>게시된 대시보드 · 읽기 전용</span>
         <div className="studio-published-actions">
           {data?.allowRemix && (
-            <Button component="a" href={'/published/' + encodeURIComponent(token) + '/remix'} variant="outlined">
-              내 데이터로 복제
+            <Button asChild>
+              <a href={'/published/' + encodeURIComponent(token) + '/remix'}>내 데이터로 복제</a>
             </Button>
           )}
-          <Button onClick={load} disabled={loading}>
+          <Button variant="outline" onClick={load} disabled={loading}>
             다시 확인
           </Button>
         </div>
@@ -196,9 +201,9 @@ export default function PublishedDashboard() {
       <main id="published-main">
         {loading && <p role="status">게시 권한과 데이터를 확인하고 있습니다…</p>}
         {error && (
-          <Alert severity="warning" role="alert">
+          <Notice severity="warning" role="alert">
             {error}
-          </Alert>
+          </Notice>
         )}
         {data && snapshot && (
           <>

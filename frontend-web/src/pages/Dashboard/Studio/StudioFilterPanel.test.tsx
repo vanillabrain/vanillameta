@@ -4,48 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import StudioFilterPanel, { studioFilterOptions, StudioFilterPanelProps } from './StudioFilterPanel';
 import { STUDIO_FILTER_LIMITS, StudioFilter } from './studioTypes';
 
-// The repository's Vitest runtime cannot import the Emotion/MUI styled engine.
-vi.mock('@mui/material', () => {
-  const container = ({ children, component: Tag = 'div' }: any) => <Tag>{children}</Tag>;
-  return {
-    Box: container,
-    Typography: container,
-    Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    MenuItem: ({ value, children }: any) => <option value={value}>{children}</option>,
-    FormControlLabel: ({ control, label }: any) => (
-      <label>
-        {control}
-        {label}
-      </label>
-    ),
-    Checkbox: ({ checked, disabled, onChange }: any) => (
-      <input type="checkbox" role="checkbox" checked={checked} disabled={disabled} onChange={onChange} />
-    ),
-    Button: React.forwardRef<HTMLButtonElement, any>(({ children, onClick, disabled, ...props }, ref) => (
-      <button
-        ref={ref}
-        onClick={onClick}
-        disabled={disabled}
-        aria-label={props['aria-label']}
-        aria-expanded={props['aria-expanded']}
-      >
-        {children}
-      </button>
-    )),
-    TextField: ({ label, value, onChange, select, children, disabled }: any) =>
-      select ? (
-        <select aria-label={label} value={value} onChange={onChange} disabled={disabled}>
-          {children}
-        </select>
-      ) : (
-        <label>
-          {label}
-          <input value={value} onChange={onChange} />
-        </label>
-      ),
-  };
-});
-
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -115,11 +73,11 @@ describe('Studio common filter panel', () => {
     open();
     // Number 1 and string "1" are two different values, so both stay selectable and checked.
     expect(screen.getAllByLabelText('1')).toHaveLength(2);
-    expect((screen.getAllByLabelText('1')[0] as HTMLInputElement).checked).toBe(true);
-    expect((screen.getAllByLabelText('1')[1] as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByLabelText('TRUE') as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByLabelText('NULL') as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByLabelText('Mobile/Tablet') as HTMLInputElement).checked).toBe(false);
+    expect(screen.getAllByLabelText('1')[0].getAttribute('aria-checked')).toBe('true');
+    expect(screen.getAllByLabelText('1')[1].getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByLabelText('TRUE').getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByLabelText('NULL').getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByLabelText('Mobile/Tablet').getAttribute('aria-checked')).toBe('false');
     fireEvent.click(screen.getByLabelText('TRUE'));
     fireEvent.click(apply());
     expect(onApply).toHaveBeenCalledWith([{ column: 'device_type', values: [1, '1', null] }]);

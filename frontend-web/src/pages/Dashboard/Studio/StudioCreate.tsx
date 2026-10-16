@@ -1,5 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Checkbox, CircularProgress, FormControlLabel, MenuItem, TextField } from '@mui/material';
+import IconLogo from '@/assets/images/logo.svg?react';
+import { Notice as Alert } from '@/components/ui/notice';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Spinner } from '@/components/ui/spinner';
+import { Label } from '@/components/ui/label';
+import { TextField } from '@/components/ui/text-field';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
 import DatabaseService from '@/api/databaseService';
@@ -208,15 +214,15 @@ export default function StudioCreate() {
         생성 내용으로 건너뛰기
       </a>
       <header className="studio-create-header">
-        <Link to="/dashboard" className="studio-create-brand">
-          vanillaMeta
+        <Link to="/dashboard" className="studio-create-brand" aria-label="VanillaMeta">
+          <IconLogo aria-hidden="true" />
         </Link>
         <div>
           <span className="studio-eyebrow">DASHBOARD STUDIO</span>
           <h1>내 데이터로 시작하기</h1>
         </div>
-        <Button component={Link} to="/dashboard">
-          대시보드 목록
+        <Button variant="outline" asChild>
+          <Link to="/dashboard">대시보드 목록</Link>
         </Button>
       </header>
       <main id="studio-create-main" className="studio-create-main">
@@ -237,9 +243,13 @@ export default function StudioCreate() {
         )}
         {busy && (
           <div role="status" className="studio-create-busy">
-            <CircularProgress size={18} />
+            <Spinner />
             <span>{busy === 'source' ? '데이터 구조를 확인하는 중입니다…' : busy}</span>
-            {abort.current && <Button onClick={cancel}>생성 중지</Button>}
+            {abort.current && (
+              <Button variant="ghost" onClick={cancel}>
+                생성 중지
+              </Button>
+            )}
           </div>
         )}
         <div className="studio-create-setup">
@@ -262,32 +272,29 @@ export default function StudioCreate() {
             {metrics.length > 0 && (
               <fieldset className="studio-create-metrics">
                 <legend>재사용할 저장 지표 · 선택 사항</legend>
-                {metrics.map(metric => (
-                  <FormControlLabel
-                    key={metric.id}
-                    control={
+                <div className="studio-create-metric-options">
+                  {metrics.map(metric => (
+                    <Label key={metric.id} className="flex items-start gap-2 py-2">
                       <Checkbox
                         disabled={!!busy}
                         checked={selectedMetrics.includes(metric.id)}
-                        onChange={event => {
+                        onCheckedChange={checked => {
                           invalidate();
                           setSelectedMetrics(current =>
-                            event.target.checked ? [...current, metric.id] : current.filter(id => id !== metric.id),
+                            checked === true ? [...current, metric.id] : current.filter(id => id !== metric.id),
                           );
                         }}
                       />
-                    }
-                    label={metric.label + ' · v' + metric.definitionVersion}
-                  />
-                ))}
+                      <span>{metric.label + ' · v' + metric.definitionVersion}</span>
+                    </Label>
+                  ))}
+                </div>
               </fieldset>
             )}
             <TextField
               label="만들 대시보드 요청"
-              fullWidth
               multiline
               minRows={5}
-              maxRows={10}
               value={prompt}
               onChange={event => {
                 invalidate();
@@ -295,13 +302,12 @@ export default function StudioCreate() {
                 setNotice('');
               }}
               disabled={!!busy}
-              InputLabelProps={{ shrink: true }}
               inputProps={{ maxLength: 2000 }}
               placeholder="예: 총 요청 수와 평균 입찰 하한, 기기별 요청 수와 일별 추세를 보여 줘"
             />
             <div className="studio-create-request-actions">
               <span>Codex · gpt-6-luna 요청</span>
-              <Button variant="contained" disabled={!!busy || !profile || !prompt.trim()} onClick={generate}>
+              <Button variant="default" disabled={!!busy || !profile || !prompt.trim()} onClick={generate}>
                 지표와 차트 제안
               </Button>
             </div>
@@ -318,20 +324,18 @@ export default function StudioCreate() {
                 {question.choices.length ? (
                   <TextField
                     select
-                    fullWidth
                     label="환불률 분모"
                     value={answers[question.id] ?? ''}
                     onChange={event => setAnswers(current => ({ ...current, [question.id]: event.target.value }))}
-                    InputLabelProps={{ shrink: true }}
                     disabled={!!busy}
                   >
-                    <MenuItem value="" disabled>
+                    <option value="" disabled>
                       의미를 선택하세요
-                    </MenuItem>
+                    </option>
                     {question.choices.map(choice => (
-                      <MenuItem key={choice.value} value={choice.value}>
+                      <option key={choice.value} value={choice.value}>
                         {choice.label}
-                      </MenuItem>
+                      </option>
                     ))}
                   </TextField>
                 ) : (
@@ -343,7 +347,7 @@ export default function StudioCreate() {
             ))}
             {proposal.clarifications.every(question => question.choices.length > 0) && (
               <Button
-                variant="contained"
+                variant="default"
                 disabled={!!busy || proposal.clarifications.some(question => !answers[question.id])}
                 onClick={generate}
               >
@@ -357,7 +361,7 @@ export default function StudioCreate() {
             <StudioSemanticReview proposal={proposal} />
             <div className="studio-create-save">
               <p>확인한 지표와 차트를 비공개 대시보드로 저장합니다. 다음 화면에서 배치·표현·AI 수정을 이어가세요.</p>
-              <Button variant="contained" disabled={!!busy} onClick={save}>
+              <Button variant="default" disabled={!!busy} onClick={save}>
                 Studio에 저장하고 열기
               </Button>
             </div>

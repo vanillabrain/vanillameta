@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
-import { Alert, Button, TextField } from '@mui/material';
+import { Notice as Alert } from '@/components/ui/notice';
+import { Button } from '@/components/ui/button';
+import { TextField } from '@/components/ui/text-field';
 import {
   ExecutionRequest,
   StudioExecution,
@@ -351,22 +353,20 @@ export default function StudioConversation({ context, selectedTitle, filterScope
         }}
       >
         <TextField
-          fullWidth
           multiline
           minRows={3}
-          maxRows={6}
           label="AI에게 요청할 내용"
           placeholder="선택 차트를 주간으로 바꿔 줘"
           value={input}
           onChange={event => setInput(event.target.value)}
           inputProps={{ maxLength: 2000 }}
-          InputLabelProps={{ shrink: true }}
           disabled={busy || acting || locked}
         />
         <div>
           <span>수정은 초안 · 저장·링크 공유는 명시 요청 시</span>
           {busy ? (
             <Button
+              variant="ghost"
               onClick={() => {
                 stop();
                 setNotice('중지를 요청했습니다. 서버 실행 기록에서 저장 여부를 확인합니다.');
@@ -378,7 +378,7 @@ export default function StudioConversation({ context, selectedTitle, filterScope
               중지
             </Button>
           ) : (
-            <Button type="submit" variant="contained" disabled={!input.trim() || acting || locked}>
+            <Button type="submit" variant="default" disabled={!input.trim() || acting || locked}>
               전송
             </Button>
           )}

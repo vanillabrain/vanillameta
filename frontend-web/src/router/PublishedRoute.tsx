@@ -2,7 +2,6 @@ import React, { Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import PublicLayout from '@/layouts/PublicLayout';
 const StudioPublished = React.lazy(() => import('@/pages/Dashboard/Studio/PublishedDashboard'));
-const StudioThemeBoundary = React.lazy(() => import('@/pages/Dashboard/Studio/StudioThemeBoundary'));
 const AnalysisPublished = React.lazy(() => import('@/pages/Publication/Published'));
 
 /** Both issued URL formats stay valid; never probe two APIs or fall back after a refusal. */
@@ -17,9 +16,7 @@ export default function PublishedRoute() {
   return (
     <Suspense fallback={<p role="status">게시 결과를 불러오는 중…</p>}>
       {kind === 'studio' ? (
-        <StudioThemeBoundary>
-          <StudioPublished />
-        </StudioThemeBoundary>
+        <StudioPublished />
       ) : (
         <PublicLayout>
           {kind === 'analysis' ? <AnalysisPublished /> : <p role="alert">게시 링크 형식을 확인해 주세요.</p>}

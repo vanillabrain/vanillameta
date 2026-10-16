@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import GridLayout from 'react-grid-layout';
-import { Button } from '@mui/material';
-import DragIndicator from '@mui/icons-material/DragIndicator';
-import TuneOutlined from '@mui/icons-material/TuneOutlined';
+import { Button } from '@/components/ui/button';
+import { GripVertical, SlidersHorizontal } from 'lucide-react';
 import { formatMetric } from '@/utils/formatMetric';
 import MetricTrend from '../Components/MetricTrend';
 import { STUDIO_COLUMNS, StudioBlock, StudioBreakpoint, StudioDocumentV1, StudioOperation } from './studioTypes';
@@ -123,10 +122,12 @@ export default function StudioCanvas({
                         }
                       }}
                     >
-                      <DragIndicator fontSize="small" />
+                      <GripVertical size={20} aria-hidden="true" />
                     </button>
                     <h3>{block.title}</h3>
                     <Button
+                      variant="ghost"
+                      size="icon-sm"
                       className="studio-config-trigger"
                       aria-label={`${block.title} 설정`}
                       aria-pressed={selectedBlockId === block.id}
@@ -135,7 +136,7 @@ export default function StudioCanvas({
                         onSettings(block.id);
                       }}
                     >
-                      <TuneOutlined fontSize="small" />
+                      <SlidersHorizontal aria-hidden="true" />
                     </Button>
                   </div>
                   {renderBlock ? (

@@ -34,3 +34,7 @@ Rill은 Explore/Pivot의 밀도와 탐색 UX 기준이다. Rill의 정보 배치
 - 이전 적용 여부 감사: [baseline audit](shadcn-tailwind-audit.md)
 
 DialogContent의 desktop 최대 폭은 `sm:max-w-*`로 명시해 공식 기본값과 같은 breakpoint에서 덮어쓴다. 긴 미리보기는 header/body/footer를 나누고 가운데 body만 `min-h-0`과 스크롤을 갖게 한다. 직접 트리거가 없는 모달은 닫힘 시 원래 실행 버튼으로 포커스를 복구한다.
+
+## Studio 통일 — 2026-10-16
+
+Studio도 동일한 Button/TextField/Notice/Checkbox/ToggleGroup/Dialog/Sheet와 lucide를 사용한다. 별도 MUI ThemeProvider/테마/Emotion 의존성은 제거했다. `studio.css`는 공유 CSS 변수와 Studio 배치·스크롤을 담당하며 제어 높이·색·폰트를 전역 descendant 규칙으로 덮어쓰지 않는다. 모바일 Sheet는 단일 portal subtree를 유지하고 이전 focus scope가 해제된 다음 포커스를 복원한다. breakpoint에서 원래 trigger가 교체되면 같은 의미의 버튼을 찾아 복원한다. 선택 검증 범위·캡처·남은 접근성 조건은 [Studio shadcn MD](../testing/studio-shadcn.md)를 따른다.

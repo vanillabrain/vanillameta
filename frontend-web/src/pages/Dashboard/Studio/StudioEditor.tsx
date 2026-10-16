@@ -1,16 +1,10 @@
+import { NativeSelect } from '@/components/ui/native-select';
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Typography,
-  useMediaQuery,
-} from '@mui/material';
+import { Notice as Alert } from '@/components/ui/notice';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { useMinWidth } from '@/components/PageViewBox';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
@@ -252,28 +246,12 @@ function StudioStateScreen({
   onRetry?: () => void;
 }) {
   return (
-    <Box
-      className="vm-studio"
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 2,
-        minHeight: '60vh',
-        px: 3,
-        textAlign: 'center',
-      }}
-    >
-      {loading ? <CircularProgress size={28} /> : <Alert severity="warning">{description}</Alert>}
-      <Typography variant="h6">{title}</Typography>
-      {loading && <Typography variant="body2">{description}</Typography>}
-      {onRetry && (
-        <Button variant="contained" disableElevation onClick={onRetry}>
-          다시 시도
-        </Button>
-      )}
-    </Box>
+    <div className="vm-studio flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
+      {loading ? <Spinner /> : <Alert severity="warning">{description}</Alert>}
+      <h1 className="text-xl font-semibold">{title}</h1>
+      {loading && <p>{description}</p>}
+      {onRetry && <Button onClick={onRetry}>다시 시도</Button>}
+    </div>
   );
 }
 
@@ -358,6 +336,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<StudioLoadResult | null>(null);
   const [conflictOpen, setConflictOpen] = useState(false);
+  const conflictReturnFocus = useRef<HTMLElement | null>(null);
   const [publishOpen, setPublishOpen] = useState(false);
   const [conflictError, setConflictError] = useState('');
   /** Exact body of the in-flight save: a retry resends it verbatim, including its pinned source version. */
@@ -404,8 +383,8 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   }
 
   // Breakpoints follow the window, not the canvas: an open panel must not silently change the batch.
-  const desktop = useMediaQuery('(min-width:1200px)');
-  const tablet = useMediaQuery('(min-width:600px)');
+  const desktop = useMinWidth(1200);
+  const tablet = useMinWidth(600);
   const breakpoint: StudioBreakpoint = desktop ? 'lg' : tablet ? 'md' : 'xs';
   useEffect(() => {
     dispatch({ type: 'breakpoint', breakpoint });
@@ -722,7 +701,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     const row = aiRow ?? resolveBlockPreview({ block, definitions, preview });
     if (!row)
       return (
-        <div role="status" style={{ padding: '12px 2px', fontSize: 13, color: '#586579' }}>
+        <div role="status" className="px-0.5 py-3 text-sm text-muted-foreground">
           {previewError
             ? '미리보기를 불러오지 못했습니다. 저장은 계속할 수 있습니다.'
             : '이 블록의 데이터를 불러오지 못했습니다.'}
@@ -744,16 +723,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     if (block.kind === 'BOARD_NUMERIC' && compact)
       return (
         <div style={{ display: 'flex', alignItems: 'center', height: bodyHeight, minHeight: 0, overflow: 'hidden' }}>
-          <span
-            style={{
-              margin: 0,
-              fontSize: 26,
-              lineHeight: 1.2,
-              fontWeight: 650,
-              color: '#14243c',
-              overflowWrap: 'anywhere',
-            }}
-          >
+          <span className="m-0 break-words text-3xl font-semibold leading-tight tabular-nums text-foreground">
             {formatMetric(numericValue, display).text}
           </span>
         </div>
@@ -811,7 +781,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
       {previewError && (
         <Alert severity="warning" className="studio-status-banner">
           {previewError}
-          <Button size="small" onClick={refreshPreview}>
+          <Button variant="ghost" size="sm" onClick={refreshPreview}>
             미리보기 다시 시도
           </Button>
         </Alert>
@@ -820,7 +790,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
         <Alert severity="error" className="studio-status-banner">
           {saveError}
           {state.pendingSave ? (
-            <Button size="small" onClick={cancelPending}>
+            <Button variant="ghost" size="sm" onClick={cancelPending}>
               저장 시도 취소
             </Button>
           ) : null}
@@ -829,7 +799,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
       {conflict && !conflictOpen && (
         <Alert severity="warning" className="studio-status-banner">
           다른 곳에서 먼저 저장되었습니다. 내 편집 내용은 보존되어 있습니다.
-          <Button size="small" onClick={() => setConflictOpen(true)}>
+          <Button variant="ghost" size="sm" onClick={() => setConflictOpen(true)}>
             최신 내용 비교
           </Button>
         </Alert>
@@ -902,12 +872,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   const editToolbar = (
     <>
       <div className="studio-edit-toolbar">
-        <Button component={RouterLink} to={'/dashboard/' + dashboardId} size="small">
-          기존 보기
+        <Button variant="ghost" size="sm" asChild>
+          <RouterLink to={'/dashboard/' + dashboardId}>기존 보기</RouterLink>
         </Button>
         <label>
           블록 추가
-          <select
+          <NativeSelect
             aria-label="추가할 블록 정의"
             disabled={state.present.blocks.length >= MAX_STUDIO_BLOCKS}
             value=""
@@ -921,20 +891,21 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
                 {block.title}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <span>
           {state.present.blocks.length}/{MAX_STUDIO_BLOCKS} 블록 · {breakpointLabel(breakpoint)} 배치
         </span>
         {selected && geometry && (
           <div className="studio-placement" role="group" aria-label="선택 블록 배치">
-            <Button disabled={selectedOrder <= 0} onClick={() => reorder(-1)}>
+            <Button variant="ghost" disabled={selectedOrder <= 0} onClick={() => reorder(-1)}>
               앞으로
             </Button>
-            <Button disabled={selectedOrder >= ordered.length - 1} onClick={() => reorder(1)}>
+            <Button variant="ghost" disabled={selectedOrder >= ordered.length - 1} onClick={() => reorder(1)}>
               뒤로
             </Button>
             <Button
+              variant="ghost"
               onClick={() =>
                 operation({
                   type: 'resizeBlock',
@@ -951,6 +922,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
               기본 크기
             </Button>
             <Button
+              variant="ghost"
               onClick={() =>
                 operation({
                   type: 'resizeBlock',
@@ -1075,51 +1047,46 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
         revision={state.serverRevision ?? ''}
         dirty={state.saveState !== 'clean'}
       />
-      <Dialog
-        open={conflictOpen}
-        onClose={() => setConflictOpen(false)}
-        fullWidth
-        maxWidth="sm"
-        className="studio-conflict-dialog"
-        aria-labelledby="studio-conflict-heading"
-      >
-        <DialogTitle id="studio-conflict-heading">다른 곳에서 먼저 저장되었습니다</DialogTitle>
-        <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2, whiteSpace: 'pre-wrap' }}>
-            내 편집 내용은 그대로 있습니다. 자동으로 덮어쓰지 않습니다.
-          </Alert>
-          <Typography variant="body2" sx={{ mb: 0.5 }}>
-            최신 revision {conflict && conflict.document.revision ? conflict.document.revision.slice(0, 8) : '알 수 없음'} ·
-            블록 {conflict ? conflict.document.blocks.length : 0}개
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 1.5 }}>
+      <Dialog open={conflictOpen} onOpenChange={setConflictOpen}>
+        <DialogContent
+          className="studio-conflict-dialog max-h-[90dvh] overflow-y-auto sm:max-w-xl"
+          onOpenAutoFocus={() => {
+            conflictReturnFocus.current = document.activeElement as HTMLElement | null;
+          }}
+          onCloseAutoFocus={event => {
+            event.preventDefault();
+            if (conflictReturnFocus.current?.isConnected) conflictReturnFocus.current.focus();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>다른 곳에서 먼저 저장되었습니다</DialogTitle>
+            <DialogDescription>
+              내 편집 내용은 그대로 있습니다. 최신 내용과 비교한 뒤 처리 방법을 선택하세요.
+            </DialogDescription>
+          </DialogHeader>
+          <Alert severity="warning">내 편집 내용은 그대로 있습니다. 자동으로 덮어쓰지 않습니다.</Alert>
+          <p>
+            최신 revision {conflict?.document.revision?.slice(0, 8) ?? '알 수 없음'} · 블록{' '}
+            {conflict?.document.blocks.length ?? 0}개
+          </p>
+          <p>
             내 편집 · 블록 {state.present.blocks.length}개 · 되돌리기 {state.past.length}회
-          </Typography>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            내 화면에만 있는 블록
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
-            {localOnly.join(', ') || '없음'}
-          </Typography>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            최신 내용에만 있는 블록
-          </Typography>
-          <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-            {latestOnly.join(', ') || '없음'}
-          </Typography>
-          {conflictError && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {conflictError}
-            </Alert>
-          )}
+          </p>
+          <p className="font-semibold">내 화면에만 있는 블록</p>
+          <p className="break-all">{localOnly.join(', ') || '없음'}</p>
+          <p className="font-semibold">최신 내용에만 있는 블록</p>
+          <p className="break-all">{latestOnly.join(', ') || '없음'}</p>
+          {conflictError && <Alert severity="error">{conflictError}</Alert>}
+          <DialogFooter className="flex-wrap">
+            <Button variant="outline" onClick={() => setConflictOpen(false)}>
+              계속 편집
+            </Button>
+            <Button variant="outline" onClick={discardLocal}>
+              최신 내용 불러오기 (내 변경 버리기)
+            </Button>
+            <Button onClick={reapply}>최신 기준으로 내 변경 재적용</Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
-          <Button onClick={() => setConflictOpen(false)}>계속 편집</Button>
-          <Button onClick={discardLocal}>최신 내용 불러오기 (내 변경 버리기)</Button>
-          <Button variant="contained" disableElevation onClick={reapply}>
-            최신 기준으로 내 변경 재적용
-          </Button>
-        </DialogActions>
       </Dialog>
     </>
   );

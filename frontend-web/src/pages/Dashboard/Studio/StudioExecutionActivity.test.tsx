@@ -4,19 +4,6 @@ import { afterEach, it, expect, vi } from 'vitest';
 import StudioExecutionActivity from './StudioExecutionActivity';
 import { StudioExecution } from './studioExecution';
 vi.mock('./StudioSemanticReview', () => ({ default: () => <div>Semantic preview</div> }));
-vi.mock('@mui/material', () => ({
-  Alert: ({ children }: any) => <div role="alert">{children}</div>,
-  Button: ({ children, disabled, onClick, component, href, target, rel }: any) =>
-    component === 'a' ? (
-      <a href={href} target={target} rel={rel}>
-        {children}
-      </a>
-    ) : (
-      <button disabled={disabled} onClick={onClick}>
-        {children}
-      </button>
-    ),
-}));
 afterEach(cleanup);
 const run = (): StudioExecution => ({
   runId: 'r1',

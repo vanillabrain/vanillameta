@@ -5,19 +5,6 @@ import StudioConversationCreation from './StudioConversationCreation';
 const api = vi.hoisted(() => ({ read: vi.fn() }));
 vi.mock('./studioExecution', () => ({ getExecutionCreation: api.read }));
 vi.mock('./StudioSemanticReview', () => ({ default: ({ proposal }: any) => <div>{proposal.title} · 634,513,000</div> }));
-vi.mock('@mui/material', () => ({
-  Alert: ({ children }: any) => <div role="alert">{children}</div>,
-  Button: ({ children, disabled, onClick, component, href, target }: any) =>
-    component === 'a' ? (
-      <a href={href} target={target}>
-        {children}
-      </a>
-    ) : (
-      <button disabled={disabled} onClick={onClick}>
-        {children}
-      </button>
-    ),
-}));
 const run: any = { runId: 'creation1', creationResult: { proposalId: 'p1', sourceId: 9 } };
 const proposal = { title: '새 요청 분석', profile: { rowCount: '1391572' }, preview: {} };
 beforeEach(() => {
