@@ -2,8 +2,7 @@ import { editorDraftKey, EDITOR_DRAFT_TTL, EDITOR_DRAFT_LIMIT } from '@/helpers/
 import { getToken } from '@/helpers/authHelper';
 import { validateStudioDocument } from './studioDocument';
 import { StudioDocumentV1 } from './studioTypes';
-export type StudioDocumentDraft = {
-  version: 1;
+export type StudioDocumentDraft = ({ version: 1 } | { version: 2; baseline: StudioDocumentV1 }) & {
   updatedAt: number;
   baseRevision: string;
   sourceRevision: string;
@@ -16,8 +15,8 @@ function valid(v: any, id: number, now: number): v is StudioDocumentDraft {
       !v ||
       typeof v !== 'object' ||
       Array.isArray(v) ||
-      Object.keys(v).length !== 5 ||
-      v.version !== 1 ||
+      ![1, 2].includes(v.version) ||
+      Object.keys(v).length !== (v.version === 2 ? 6 : 5) ||
       !Number.isFinite(v.updatedAt) ||
       v.updatedAt > now + 60000 ||
       now - v.updatedAt >= EDITOR_DRAFT_TTL ||
@@ -26,6 +25,11 @@ function valid(v: any, id: number, now: number): v is StudioDocumentDraft {
     )
       return false;
     const d = validateStudioDocument(v.document);
+    if (v.version === 2) {
+      const b = validateStudioDocument(v.baseline);
+      if (b.dashboardId !== id || b.sourceId !== d.sourceId || (b.revision !== undefined && b.revision !== v.baseRevision))
+        return false;
+    }
     return d.dashboardId === id && (d.revision === undefined || d.revision === v.baseRevision);
   } catch {
     return false;

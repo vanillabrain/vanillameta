@@ -77,4 +77,6 @@ usecase "UC-038 게시 충돌 후 최신본 확인" as UC038
 operator --> UC038
 usecase "UC-039 최신 저장본 조회 재시도" as UC039
 operator --> UC039
+usecase "UC-046 Studio 보관 초안과 최신본 병합" as UC046
+operator --> UC046
 @enduml

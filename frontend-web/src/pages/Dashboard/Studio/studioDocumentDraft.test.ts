@@ -84,3 +84,24 @@ it('stores local revisionless reducer documents but rejects a conflicting embedd
   draft.document.revision = 'c'.repeat(64);
   expect(writeStudioDocumentDraft('local', draft)).toBe(false);
 });
+
+it('round trips v2 with baseline and rejects mismatched or missing comparison data', () => {
+  const old = fixture();
+  const baseline = structuredClone(old.document);
+  delete baseline.revision;
+  const draft: StudioDocumentDraft = { ...old, version: 2, baseline };
+  expect(writeStudioDocumentDraft('v2', draft)).toBe(true);
+  expect(readStudioDocumentDraft('v2', 46)).toEqual(draft);
+  for (const bad of [
+    undefined,
+    { ...baseline, sourceId: 99 },
+    { ...baseline, dashboardId: 45 },
+    { ...baseline, revision: 'c'.repeat(64) },
+    { ...baseline, sql: 'not allowed' },
+  ]) {
+    sessionStorage.setItem('v2', JSON.stringify({ ...draft, baseline: bad }));
+    expect(readStudioDocumentDraft('v2', 46)).toBeNull();
+  }
+  sessionStorage.setItem('v1', JSON.stringify(old));
+  expect(readStudioDocumentDraft('v1', 46)).toEqual(old);
+});

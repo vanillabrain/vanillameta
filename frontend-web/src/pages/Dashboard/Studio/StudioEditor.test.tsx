@@ -168,7 +168,9 @@ describe('studio editor rendering', () => {
     );
     api.get.mockResolvedValue(envelope());
     render(<StudioEditor />);
-    const restore = await screen.findByRole('button', { name: '블록 초안 복구' });
+    const restore = await screen.findByRole('button', {
+      name: kind === 'revision' ? '최신본과 초안 비교' : '블록 초안 복구',
+    });
     expect((restore as HTMLButtonElement).disabled).toBe(true);
     expect(sessionStorage.getItem('document-test-3')).not.toBeNull();
     expect(api.post).not.toHaveBeenCalled();
@@ -226,6 +228,92 @@ describe('studio editor rendering', () => {
     expect(screen.queryByRole('button', { name: '지연된 복구 제목 설정' })).toBeNull();
     expect(sessionStorage.getItem('document-test-3')).toBe(stored);
     expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('compares latest state, requires conflict consent and previews a merged document without saving', async () => {
+    const local = doc({ blocks: [block('b1', { title: '내 초안 제목' })] });
+    const latest = doc({
+      revision: NEXT_REVISION,
+      blocks: [block('b1', { title: '다른 탭 제목', description: '최신 설명 보존' })],
+    });
+    const record = JSON.stringify({
+      version: 2,
+      updatedAt: Date.now(),
+      baseRevision: DOC_REVISION,
+      sourceRevision: SOURCE_REVISION,
+      baseline: doc(),
+      document: local,
+    });
+    sessionStorage.setItem('document-test-3', record);
+    api.get.mockResolvedValue(envelope({ document: latest }));
+    api.post.mockImplementation(async (_url: string, request: any) => ({
+      data: { document: request.document, preview: envelope().data.preview },
+    }));
+    render(<StudioEditor />);
+    fireEvent.click(await screen.findByRole('button', { name: '최신본과 초안 비교' }));
+    const preview = await screen.findByRole('button', { name: '병합 미리보기' });
+    expect((preview as HTMLButtonElement).disabled).toBe(true);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem('document-test-3')).toBe(record);
+    fireEvent.click(screen.getByRole('checkbox', { name: '충돌 항목에 내 초안 사용' }));
+    fireEvent.click(preview);
+    await screen.findByRole('button', { name: '내 초안 제목 설정' });
+    expect(api.post).toHaveBeenCalledTimes(1);
+    const request = api.post.mock.calls[0][1];
+    expect(request.expectedRevision).toBe(NEXT_REVISION);
+    expect(request.document.blocks[0]).toMatchObject({ title: '내 초안 제목', description: '최신 설명 보존' });
+    expect(saveButton().disabled).toBe(false);
+    await waitFor(() =>
+      expect(JSON.parse(sessionStorage.getItem('document-test-3') ?? '{}').baseRevision).toBe(NEXT_REVISION),
+    );
+  });
+  it('preserves recovery on latest-read failure and requires a fresh comparison after preview409', async () => {
+    const latest = doc({ revision: NEXT_REVISION, title: '다른 탭' });
+    const record = JSON.stringify({
+      version: 2,
+      updatedAt: Date.now(),
+      baseRevision: DOC_REVISION,
+      sourceRevision: SOURCE_REVISION,
+      baseline: doc(),
+      document: doc({ title: '내 초안' }),
+    });
+    sessionStorage.setItem('document-test-3', record);
+    api.get
+      .mockResolvedValueOnce(envelope({ document: latest }))
+      .mockRejectedValueOnce({ response: { status: 503 } })
+      .mockResolvedValue(envelope({ document: latest }));
+    api.post.mockRejectedValueOnce({ response: { status: 409 } });
+    render(<StudioEditor />);
+    fireEvent.click(await screen.findByRole('button', { name: '최신본과 초안 비교' }));
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: '최신본과 초안 비교' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    expect(sessionStorage.getItem('document-test-3')).toBe(record);
+    fireEvent.click(screen.getByRole('button', { name: '최신본과 초안 비교' }));
+    await screen.findByRole('button', { name: '병합 미리보기' });
+    fireEvent.click(screen.getByRole('checkbox', { name: '충돌 항목에 내 초안 사용' }));
+    fireEvent.click(screen.getByRole('button', { name: '병합 미리보기' }));
+    await screen.findByRole('button', { name: '최신본과 초안 비교' });
+    expect(sessionStorage.getItem('document-test-3')).toBe(record);
+    expect(api.post).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: '최신본과 초안 비교' }));
+    await screen.findByRole('button', { name: '병합 미리보기' });
+    expect(
+      (screen.getByRole('checkbox', { name: '충돌 항목에 내 초안 사용' }) as HTMLButtonElement).getAttribute('data-state'),
+    ).toBe('unchecked');
+  });
+
+  it('clears a committed draft before the follow-up read completes', async () => {
+    api.get.mockResolvedValueOnce(envelope()).mockImplementation(() => new Promise(() => undefined));
+    api.post.mockResolvedValue(savedEnvelope());
+    render(<StudioEditor />);
+    await screen.findByText('500');
+    duplicateBlock();
+    await waitFor(() => expect(sessionStorage.getItem('document-test-3')).not.toBeNull());
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(sessionStorage.getItem('document-test-3')).toBeNull());
   });
 
   it('never replaces new typing with a delayed storage lookup', async () => {

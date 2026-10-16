@@ -2,6 +2,8 @@ import { NativeSelect } from '@/components/ui/native-select';
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { Notice as Alert } from '@/components/ui/notice';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { mergeStudioDraft } from './studioDraftMerge';
 import { Spinner } from '@/components/ui/spinner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useMinWidth } from '@/components/PageViewBox';
@@ -437,6 +439,9 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   const documentRecoveryPending = useRef(false);
   const [documentRecoveryError, setDocumentRecoveryError] = useState('');
   const [documentStorageError, setDocumentStorageError] = useState(false);
+  const [documentRecoveryLatest, setDocumentRecoveryLatest] = useState<StudioLoadResult | null>(null);
+  const [documentConflictConsent, setDocumentConflictConsent] = useState(false);
+  const [documentRecoveryNeedsLatest, setDocumentRecoveryNeedsLatest] = useState(false);
   useEffect(() => {
     let current = true;
     documentDraftLive.current = true;
@@ -456,63 +461,99 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     };
   }, [dashboardId]);
   useEffect(() => {
-    if (!documentDraftReady || documentRecovery || state.pendingSave || saving) return;
+    if (!documentDraftReady || documentRecovery || state.pendingSave) return;
     const ok =
       state.saveState === 'clean'
         ? removeStudioDocumentDraft(documentDraftKey.current)
         : writeStudioDocumentDraft(documentDraftKey.current, {
-            version: 1,
+            version: 2,
+            baseline: withoutRevision(state.savedBaseline),
             updatedAt: Date.now(),
             baseRevision: state.serverRevision ?? '',
             sourceRevision,
-            document: state.present,
+            document: withoutRevision(state.present),
           });
     setDocumentStorageError(state.saveState !== 'clean' && !ok);
   }, [
     documentDraftReady,
     documentRecovery,
     state.present,
+    state.savedBaseline,
     state.saveState,
     state.serverRevision,
     state.pendingSave,
     saving,
     sourceRevision,
   ]);
-  const canRestoreDocument =
+  const recoveryNeedsMerge =
+    !!documentRecovery && (documentRecoveryNeedsLatest || documentRecovery.baseRevision !== state.serverRevision);
+  const recoveryMerge =
+    documentRecovery?.version === 2 && documentRecoveryLatest
+      ? mergeStudioDraft(documentRecoveryLatest.document, documentRecovery.document, documentRecovery.baseline)
+      : null;
+  const recoveryContextReady =
     !!documentRecovery &&
     state.saveState === 'clean' &&
     !state.pendingSave &&
     !saving &&
-    documentRecovery.baseRevision === state.serverRevision &&
     documentRecovery.sourceRevision === sourceRevision;
+  const canRestoreDocument = recoveryContextReady && (!recoveryNeedsMerge || documentRecovery?.version === 2);
+  const recoveryBlocked = !!recoveryMerge?.blocked.length;
   const restoreDocument = async () => {
-    if (!canRestoreDocument || !documentRecovery || documentRecoveryPending.current) return;
+    if (
+      !canRestoreDocument ||
+      !documentRecovery ||
+      documentRecoveryPending.current ||
+      recoveryBlocked ||
+      (recoveryMerge?.conflicts.length && !documentConflictConsent)
+    )
+      return;
     documentRecoveryPending.current = true;
     setDocumentRecoveryBusy(true);
     setDocumentRecoveryError('');
     const generation = editClock.current.generation;
     const revision = state.serverRevision;
-    try {
-      const prepared = await prepareStudioDashboard(dashboardId, {
-        expectedRevision: revision,
-        expectedSourceRevision: sourceRevision,
-        document: documentRecovery.document,
-      });
-      if (!documentDraftLive.current) return;
+    const assertCurrent = () => {
+      if (!documentDraftLive.current) return false;
       if (editClock.current.generation !== generation || live.current.revision !== revision)
         throw new Error('확인 중 현재 편집이 바뀌었습니다. 보관 초안과 현재 편집은 유지했습니다.');
+      return true;
+    };
+    try {
+      if (recoveryNeedsMerge && !documentRecoveryLatest) {
+        const latest = await fetchStudioDashboard(dashboardId);
+        if (!assertCurrent()) return;
+        if (latest.sourceRevision !== documentRecovery.sourceRevision)
+          throw new Error('데이터 소스 기준이 바뀌어 병합할 수 없습니다. 보관 초안은 유지했습니다.');
+        setDocumentConflictConsent(false);
+        setDocumentRecoveryLatest(latest);
+        return;
+      }
+      const latest = documentRecoveryLatest ?? initial;
+      const prepared = await prepareStudioDashboard(dashboardId, {
+        expectedRevision: latest.document.revision,
+        expectedSourceRevision: latest.sourceRevision,
+        document: recoveryMerge?.document ?? documentRecovery.document,
+      });
+      if (!assertCurrent()) return;
       onReplace({
-        ...initial,
+        ...latest,
         preview: prepared.preview,
         previewError: null,
         draft: prepared.document,
         previewDocument: prepared.document,
       });
     } catch (cause) {
-      if (documentDraftLive.current)
+      if (documentDraftLive.current) {
+        if (isStudioApiError(cause) && cause.kind === 'conflict') {
+          setDocumentRecoveryNeedsLatest(true);
+          setDocumentRecoveryLatest(null);
+          setDocumentConflictConsent(false);
+        }
         setDocumentRecoveryError(
           cause instanceof Error ? cause.message : '초안을 다시 확인하지 못했습니다. 보관 내용은 유지했습니다.',
         );
+      }
     } finally {
       documentRecoveryPending.current = false;
       if (documentDraftLive.current) setDocumentRecoveryBusy(false);
@@ -637,6 +678,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
       } catch (cause) {
         if (prepare.current.generation !== generation || controller.signal.aborted) return null;
         if (isStudioApiError(cause) && cause.kind === 'conflict') {
+          setDocumentRecoveryNeedsLatest(true);
           await loadLatest(cause.message);
           return null;
         }
@@ -931,14 +973,58 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
           {!canRestoreDocument && (
             <p>저장본·소스 기준이 다르거나 현재 편집 중입니다. 보관 초안을 자동으로 덮어쓰지 않습니다.</p>
           )}
+          {recoveryNeedsMerge && <p>다른 탭에서 저장본이 변경되었습니다. 최신본과 비교한 뒤 내 변경만 합칩니다.</p>}
+          {recoveryNeedsMerge && documentRecovery.version === 1 && (
+            <p>이전 형식 초안에는 비교 기준이 없습니다. 버전이 다른 초안을 자동 병합할 수 없습니다.</p>
+          )}
+          {recoveryMerge?.blocked.map((reason, index) => (
+            <p key={index}>{reason}</p>
+          ))}
+          {!!recoveryMerge?.conflicts.length && (
+            <div className="mt-2 space-y-2">
+              <p>양쪽에서 바뀐 항목입니다. 나머지 최신 변경은 유지합니다.</p>
+              <ul className="space-y-2 break-words">
+                {recoveryMerge.conflicts.map((item, index) => (
+                  <li key={index}>
+                    <strong>{item.label}</strong>
+                    <br />
+                    최신: {item.latest}
+                    <br />내 초안: {item.mine}
+                  </li>
+                ))}
+              </ul>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={documentConflictConsent}
+                  disabled={documentRecoveryBusy || !recoveryContextReady}
+                  onCheckedChange={checked => setDocumentConflictConsent(checked === true)}
+                />
+                충돌 항목에 내 초안 사용
+              </label>
+            </div>
+          )}
+          {documentRecoveryLatest && !recoveryMerge?.conflicts.length && !recoveryBlocked && (
+            <p>서로 다른 항목의 변경을 함께 반영할 수 있습니다.</p>
+          )}
           <div className="mt-2 flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
-              disabled={!canRestoreDocument || documentRecoveryBusy}
+              disabled={
+                !canRestoreDocument ||
+                documentRecoveryBusy ||
+                recoveryBlocked ||
+                (!!recoveryMerge?.conflicts.length && !documentConflictConsent)
+              }
               onClick={restoreDocument}
             >
-              {documentRecoveryBusy ? '초안 확인 중…' : '블록 초안 복구'}
+              {documentRecoveryBusy
+                ? '초안 확인 중…'
+                : recoveryNeedsMerge
+                ? documentRecoveryLatest
+                  ? '병합 미리보기'
+                  : '최신본과 초안 비교'
+                : '블록 초안 복구'}
             </Button>
             <Button
               variant="ghost"
@@ -950,6 +1036,9 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
                   return;
                 }
                 setDocumentRecovery(null);
+                setDocumentRecoveryLatest(null);
+                setDocumentRecoveryNeedsLatest(false);
+                setDocumentConflictConsent(false);
                 setDocumentRecoveryError('');
               }}
             >
