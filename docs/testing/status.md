@@ -672,3 +672,5 @@ Studio 순수 문서/연산·history·legacy projection의 FE30/BE99 검사와 F
 후속 UI09는 실제 빈 UTC 기간의 null 숫자/0행 차트와 날짜 오류 안내를 확인했다. 빈 chart의 안내 누락을 수정하고1440/390px·Enter 적용/Escape/undo·reload 원본634513000 복원을 확인했다. 새 회귀1개·type/lint/build PASS, 기존 통과26개는 skipped. OS native 날짜 팝업은 미검증이며 입력 이벤트 보조와 실제 키보드 범위를 구분한다. [빈 기간 후속](studio-shadcn.md#studio-ui09-빈-기간날짜-오류-후속--2026-10-16).
 
 UI10은 실제 gpt-6-luna 생성 후27의 저장201 응답만 차단→같은 요청 재확인→동일 영수증·중복 생성0→reload POST0을 확인했다. 원본25 해시 불변·새27 비공개/게시0. 긴 생성 카드가 모바일 panel/composer를 밀어내는 CSS를 수정하고390/768/1440 치수·키보드·설정 내부 스크롤과 캡처를 확인했다. CSS 변경 뒤 build PASS, 기존 관련 타입/lint/회귀 재사용. [장애 주입 방식·첫 준비본26·미실행 범위](studio-shadcn.md#studio-ui10-신규-생성-저장-응답-유실--2026-10-16). VoiceOver BLOCKED·gpt-6-luna 유지.
+
+`d51585a4`로 UI09/10 수정과 기록을 develop-v2에 drumcap push했다. UI11에서 완료 링크의 실제 키보드 Enter→popup27→원래25 복귀·모바일 완료 링크/composer를 확인해 기존 href-only 미검증을 좁게 해소했다. 새 모델/저장/게시0·DB 개수/원본 해시 불변. [새 탭 증빙과 남은 우선순위](studio-shadcn.md#studio-ui11-완료-링크-새-탭복귀--2026-10-16). 미저장 제안 서버 재시작·실TTL·홈/생성안 재설계·실기기/운영은 남으며 VoiceOver BLOCKED다.

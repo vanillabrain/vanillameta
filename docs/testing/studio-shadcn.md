@@ -124,3 +124,26 @@ T15 STUDIO-N03/N04의 미실행 브라우저 장애 조건만 선택한다. 기�
 ### UI09·UI10 커밋 통합
 
 사용자 커밋·push 요청에 따라 원격 `a4b0f722` 위로 변경5개 파일을 충돌 없이 통합했다. 추가된 인증 helper 변경의 연결 영향을 확인하기 위해 auth.session 선택 검사14개, FE 타입·build를 실행해 통과했다. 기존 Studio 통과 화면/결과는 구현·fixture 변경 없는 범위에서 재사용한다. 실행 당시의 미커밋 표기는 역사적 상태이며 UI09·UI10 코드와 기록을 함께 커밋한다. GitHub drumcap 활성 계정·일반 push를 사용하고 author 설정을 바꾸지 않는다.
+
+## STUDIO-UI11 완료 링크 새 탭·복귀 — 2026-10-16
+
+T14/T15에서 href/target만 확인하고 실제 호스트 새 탭 전달은 NOT_RUN으로 남겼던 조건이다. 기존 비공개 완료27을 사용한다. 새 모델/저장/게시 없이 다음 조건만 확인한다.
+
+- 복원된 완료 링크를 키보드 Enter로 열 때 실제 popup Page의 URL이27 Studio이고 같은 수치/저장 상태를 표시한다.
+- 원래25 탭의 문서/대화 완료 상태가 유지된다. 새 탭을 닫고 원래 탭으로 돌아와 링크가 계속 조작 가능하다.
+- 모바일390px에서 링크·완료 카드·composer가 겹치지 않으며, viewport 변경이 새 탭에 적용되는 도구 동작은 명시적으로 구분한다. gpt-6-luna/VoiceOver BLOCKED 유지.
+
+### 실제 결과 — 기능·관찰한 디자인 PASS_SELECTED
+
+- 기준 `d51585a4`(UI09·UI10 drumcap/develop-v2 push 완료), 동일 FE3231/API4331/격리 fixture. Ego TaskSpace9의 원래25 페이지에서 복원된27 완료 링크에 focus→Enter를 실행했다. `waitForEvent("popup")`가 실제 p2를 반환했고 URL은 `/dashboard/27/studio`였다. p2를 직접 goto하지 않았다. 링크 target은 `_blank`, rel은 `noopener noreferrer`다.
+- p2는 '저장 응답 유실 검증'/총634513000/clean을 표시했다.1440px 실제 캡처로 공식 로고·헤더·값·차트를 확인했다. 새 탭을 닫자 원래25의 기존 완료 카드·원본 제목이 유지됐고 같은27 링크로 다시 포커스할 수 있었다.390px 원래 탭에서 composer하단844, scrollWidth390=viewport390, 완료 링크가 composer 위에 보이는 것을 실제 캡처·확인했다.
+- 새 탭의 viewport override 해제 후 원래 탭이 브라우저 기본1788px로 돌아가므로 최초 Sheet 대기는 timeout이었다. 제품 상태 유실이 아니며 원래 탭의 desktop rail/완료 링크가 존재함을 확인한 뒤390px을 명시 재적용했다. 최종 모바일 캡처만 디자인 근거로 사용한다.
+- DB 개수 dashboard26/metric36/Studio게시8은 UI10 종료 후와 같고,25의 dashboard/studio_state/dashboard_widget 해시도 동일하다. 새 모델·저장·게시·제품 코드 변경0이다. 이미 통과한 unit/type/build는 반복하지 않았다. 실제 새 탭 전환은 이번 Ego·현재 로그인 세션에서만 PASS이며 다른 브라우저·실기기/VoiceOver는 미검증이다. gpt-6-luna 및 VoiceOver BLOCKED 유지.
+- 증빙: 같은 폴더의 `creation-popup-opened-desktop.png`, `creation-popup-returned-mobile.png`, `creation-popup-result.json`, `creation-popup-db.json`. 임시 popup p2를 닫고 원래 페이지 override를 해제해 TaskSpace9를 종료했다. Ego 업데이트 안내를 관측했지만 업그레이드는 실행하지 않았다.
+
+### 남은 우선순위
+
+1. T15 미저장 생성안의 실제 서버 재시작/캐시 소실 안내 및 재생성 연결. 기존 response 유실·영수증 복구와 구분하며, 현재 격리 DB에는 미저장 생성 실행이 없어 별도 준비가 필요하다.
+2. 실제10분 TTL 대기와 전체 OS 날짜·파일·select 팝업 키보드. 현재 하위 TTL 검사·부분 키보드를 전체 통과로 확대하지 않는다.
+3. 홈의 빈 대화 진입/소스 선택, 같은 생성안의 지표·차원 대화식 재설계·clarification 이어받기는 미구현 제품 범위이며 별도 설계가 필요하다.
+4. 실휴대폰·운영 MySQL/동시 부하·전체 Studio 수용은 별도 gate다. VoiceOver는 기존 BLOCKED를 유지한다.
