@@ -148,7 +148,11 @@ export class StudioCreationService {
     };
   }
   async propose(body: any, actor: number, signal?: AbortSignal): Promise<any> {
-    const value = { ...(await this.proposeOnce(body, actor, signal)), requestPrompt: body.prompt };
+    const value = {
+      ...(await this.proposeOnce(body, actor, signal)),
+      requestPrompt: body.prompt,
+      ...(body.clarificationAnswers ? { requestAnswers: copy(body.clarificationAnswers) } : {}),
+    };
     if (signal?.aborted) throw new BadRequestException('AI 요청을 취소했습니다.');
     this.prune();
     if (!this.proposals.has(value.proposalId) && this.proposals.size >= 64)

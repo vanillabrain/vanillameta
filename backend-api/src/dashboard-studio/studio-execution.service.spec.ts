@@ -1,5 +1,10 @@
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
-import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -86,6 +91,239 @@ describe('T7 durable executions', () => {
     await db.destroy();
     if (provider === undefined) delete process.env.AI_PROVIDER;
     else process.env.AI_PROVIDER = provider;
+  });
+  const inlineCase = async () => {
+    const parent = {
+      proposalId: 'meaning-parent',
+      sourceId: body.document.sourceId,
+      sourceRevision: body.expectedSourceRevision,
+      requestPrompt: '환불률 새 대시보드',
+      clarifications: [
+        { id: 'refundDenominator', choices: [{ value: 'orders' }, { value: 'amount' }] },
+      ],
+    };
+    const next = {
+      ...parent,
+      proposalId: 'meaning-next',
+      clarifications: [],
+      preview: { widgets: [] },
+    };
+    let receipt: any;
+    const creation = {
+      propose: jest.fn(async (request: any) => (request.clarificationAnswers ? next : parent)),
+      proposal: jest.fn(async id => (id === parent.proposalId ? parent : next)),
+      create: jest.fn(async () => {
+        receipt = {
+          dashboardId: 25,
+          document: { sourceId: parent.sourceId, revision: 'f'.repeat(64) },
+        };
+        return receipt;
+      }),
+      receipt: jest.fn(async () => receipt),
+    };
+    const runner = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      undefined,
+      undefined,
+      creation as any,
+    );
+    const run = await runner.create({ ...body, prompt: parent.requestPrompt }, 7);
+    const answer = {
+      requestId: 'answer-1',
+      proposalId: parent.proposalId,
+      expectedSourceRevision: parent.sourceRevision,
+      refundDenominator: 'amount',
+    };
+    return { runner, creation, run, answer, parent, next };
+  };
+  it('UC034 changes only a missing-field proposal source, preserves the server prompt and prior denominator, and replays without AI', async () => {
+    const { runner, creation, run, answer, parent, next } = await inlineCase();
+    parent.clarifications = [{ id: 'missingColumns', choices: [] }] as any;
+    (parent as any).requestAnswers = { refundDenominator: 'amount' };
+    const request = {
+      requestId: 'source-1',
+      proposalId: parent.proposalId,
+      expectedSourceRevision: parent.sourceRevision,
+      targetSourceId: 12,
+    };
+    const replacement = { ...next, sourceId: 12, sourceRevision: 'b'.repeat(64) };
+    creation.propose.mockResolvedValueOnce(replacement);
+    creation.proposal.mockImplementation(async id =>
+      id === parent.proposalId ? parent : replacement,
+    );
+    const updated = await runner.clarifyCreation(run.runId, request, 7);
+    expect(updated.creationResult).toEqual({
+      proposalId: replacement.proposalId,
+      sourceId: 12,
+      sourceRevision: 'b'.repeat(64),
+    });
+    expect(creation.propose.mock.calls[1][0]).toEqual({
+      sourceId: 12,
+      prompt: parent.requestPrompt,
+      clarificationAnswers: { refundDenominator: 'amount' },
+    });
+    expect((await runner.clarifyCreation(run.runId, request, 7)).creationResult).toEqual(
+      updated.creationResult,
+    );
+    expect(creation.propose).toHaveBeenCalledTimes(2);
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(creation.create).not.toHaveBeenCalled();
+    await expect(
+      runner.saveCreation(
+        run.runId,
+        { proposalId: answer.proposalId, expectedSourceRevision: answer.expectedSourceRevision },
+        7,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+  it('UC034 requires missing fields, a distinct valid source, and preserves the proposal on source access failure', async () => {
+    const { runner, creation, run, parent } = await inlineCase();
+    const request = {
+      requestId: 'source-1',
+      proposalId: parent.proposalId,
+      expectedSourceRevision: parent.sourceRevision,
+      targetSourceId: 12,
+    };
+    await expect(runner.clarifyCreation(run.runId, request, 7)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    parent.clarifications = [{ id: 'missingColumns', choices: [] }] as any;
+    for (const invalid of [
+      { targetSourceId: 0 },
+      { targetSourceId: parent.sourceId },
+      { refundDenominator: 'amount' },
+    ])
+      await expect(
+        runner.clarifyCreation(run.runId, { ...request, ...invalid }, 7),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    creation.propose.mockRejectedValueOnce(new ForbiddenException('target denied'));
+    await expect(runner.clarifyCreation(run.runId, request, 7)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect((await runner.get(run.runId, 7)).creationResult.proposalId).toBe(parent.proposalId);
+    expect(creation.create).not.toHaveBeenCalled();
+  });
+  it('UC033 binds the answer to the server question, updates only its proposal, and saves the latest result', async () => {
+    const { runner, creation, run, answer, next } = await inlineCase();
+    const updated = await runner.clarifyCreation(run.runId, answer, 7);
+    expect(updated.creationResult.proposalId).toBe(next.proposalId);
+    expect(creation.propose.mock.calls[1][0]).toEqual({
+      sourceId: next.sourceId,
+      prompt: '환불률 새 대시보드',
+      expectedSourceRevision: next.sourceRevision,
+      clarificationAnswers: { refundDenominator: 'amount' },
+    });
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(creation.create).not.toHaveBeenCalled();
+    await expect(runner.saveCreation(run.runId, answer, 7)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    const saved = await runner.saveCreation(
+      run.runId,
+      { proposalId: next.proposalId, expectedSourceRevision: next.sourceRevision },
+      7,
+    );
+    expect(saved.creationSaveResult.dashboardId).toBe(25);
+    expect(
+      (await runner.clarifyCreation(run.runId, answer, 7)).creationSaveResult.dashboardId,
+    ).toBe(25);
+    expect(creation.propose).toHaveBeenCalledTimes(2);
+  });
+  it('UC033 shares simultaneous identical answers and rejects a different in-flight answer', async () => {
+    const { runner, creation, run, answer, next } = await inlineCase();
+    let resolve: (x: any) => void;
+    creation.propose.mockImplementationOnce(
+      () =>
+        new Promise(r => {
+          resolve = r;
+        }),
+    );
+    const first = runner.clarifyCreation(run.runId, answer, 7);
+    while (creation.propose.mock.calls.length < 2) await new Promise(r => setImmediate(r));
+    const second = runner.clarifyCreation(run.runId, answer, 7);
+    await expect(
+      runner.clarifyCreation(
+        run.runId,
+        { ...answer, requestId: 'other', refundDenominator: 'orders' },
+        7,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    resolve(next);
+    expect((await first).creationResult).toEqual((await second).creationResult);
+    expect(creation.propose).toHaveBeenCalledTimes(2);
+    await expect(
+      runner.clarifyCreation(run.runId, { ...answer, refundDenominator: 'orders' }, 7),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+  it('UC033 preserves a failed answer for retry and refuses foreign, stale or invalid answers before AI', async () => {
+    const { runner, creation, run, answer } = await inlineCase();
+    await expect(runner.clarifyCreation(run.runId, answer, 8)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    await expect(
+      runner.clarifyCreation(run.runId, { ...answer, proposalId: 'foreign' }, 7),
+    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      runner.clarifyCreation(run.runId, { ...answer, refundDenominator: 'guess' }, 7),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    creation.propose.mockRejectedValueOnce(new ServiceUnavailableException('temporary'));
+    await expect(runner.clarifyCreation(run.runId, answer, 7)).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+    expect((await runner.get(run.runId, 7)).creationResult.proposalId).toBe(answer.proposalId);
+    expect((await runner.clarifyCreation(run.runId, answer, 7)).creationResult.proposalId).toBe(
+      'meaning-next',
+    );
+  });
+  it('UC033 rejects an expired parent and a late response after the run binding changed', async () => {
+    const { runner, creation, run, answer, next } = await inlineCase();
+    creation.proposal.mockRejectedValueOnce(new BadRequestException('expired'));
+    await expect(runner.clarifyCreation(run.runId, answer, 7)).rejects.toThrow('expired');
+    let resolve: (x: any) => void;
+    creation.propose.mockImplementationOnce(
+      () =>
+        new Promise(r => {
+          resolve = r;
+        }),
+    );
+    const first = runner.clarifyCreation(run.runId, answer, 7);
+    while (creation.propose.mock.calls.length < 2) await new Promise(r => setImmediate(r));
+    const row = await db.manager.findOneBy(StudioExecution, { runId: run.runId });
+    const state = JSON.parse(row.state);
+    state.creationResult.proposalId = 'newer';
+    row.state = JSON.stringify(state);
+    await db.manager.save(StudioExecution, row);
+    resolve(next);
+    await expect(first).rejects.toBeInstanceOf(ConflictException);
+    expect((await runner.get(run.runId, 7)).creationResult.proposalId).toBe('newer');
+  });
+  it('UC033 preserves the question on cancellation and replays a completed answer after service restart without AI', async () => {
+    const { runner, creation, run, answer } = await inlineCase();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      runner.clarifyCreation(run.runId, answer, 7, controller.signal),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(creation.propose).toHaveBeenCalledTimes(1);
+    await runner.clarifyCreation(run.runId, answer, 7);
+    const restarted = new StudioExecutionService(
+      db,
+      studio,
+      new StudioRunService(studio, ai),
+      undefined,
+      undefined,
+      creation as any,
+    );
+    creation.proposal.mockRejectedValue(new BadRequestException('expired'));
+    expect((await restarted.clarifyCreation(run.runId, answer, 7)).creationResult.proposalId).toBe(
+      'meaning-next',
+    );
+    expect(creation.propose).toHaveBeenCalledTimes(2);
+    const row = await db.manager.findOneBy(StudioExecution, { runId: run.runId });
+    expect(row.state).not.toContain('환불률 새 대시보드');
+    expect(row.state).not.toContain('widgets');
   });
   it('T15 routes generation to the existing compiler, binds explicit save, and restores one receipt', async () => {
     const proposal = {
