@@ -92,7 +92,7 @@ describe('remix save and actor boundaries', () => {
     await ready();
     const select = screen.getByRole('combobox', { name: '대상 열: amount' }) as HTMLSelectElement;
     expect(select.tagName).toBe('SELECT');
-    expect([...select.options].map(option => option.value)).toEqual(['', 'amount', 'text_amount']);
+    expect(Array.from(select.options).map(option => option.value)).toEqual(['', 'amount', 'text_amount']);
     expect(document.getElementById(select.getAttribute('aria-describedby') ?? '')?.textContent).toBe('BIGINT · 연결됨');
     expect(screen.getByRole('link', { name: '게시본으로 돌아가기' }).getAttribute('href')).toBe(
       '/published/' + requirements.token,
@@ -162,7 +162,9 @@ describe('remix save and actor boundaries', () => {
     await ready();
     fireEvent.click(screen.getByRole('button', { name: '새 비공개 대시보드 만들기' }));
     localStorage.removeItem('accessToken');
-    act(() => window.dispatchEvent(new StorageEvent('storage', { key: 'accessToken' })));
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'accessToken' }));
+    });
     await screen.findByText('내 데이터를 쓰려면 로그인해 주세요');
     await act(async () => resolveSave({ dashboardId: 44, document: {} }));
     expect(navigate).not.toHaveBeenCalled();
