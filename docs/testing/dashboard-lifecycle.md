@@ -43,6 +43,10 @@ Rill9009 실제 aggregation 응답과 canonical 독립 DuckDB oracle을 비교�
 
 ## 자동 검사·남은 gate
 
+**최신 상태 참고(2026-10-17):** 아래 운영 MySQL 미검증 표기는 이 실행 당시다. 이후 [MYSQL02~06](studio-mysql-production.md)에서 로컬 마이그레이션/경합/복구를 선택 검증했다. 실제 운영·실휴대폰·사람 수용은 미완료이며 [최신 요약](status.md#최신-요약--2026-10-17)과 구분한다.
+
+
+
 루트 전체 BE97 suites/1,681개·FE67 files/1,017개, root build, FE type/변경 파일 eslint, 격리 core E2E8개 PASS. 최초 root 검사에서 새 응답 union에 맞지 않던 기존 테스트 타입 오류1개를 고친 뒤 전체를 재실행했다. 마지막 제공자 지침 문장 보완 뒤 BE37개와 BE build를 다시 확인했고, 로딩 해제 보완 뒤 FE27개·type/eslint/build를 다시 확인했다. 기존 전체 검사와 변경 후 선택 검사를 구분한다. 의미 검토는 Main의 구현/별도 리뷰 패스를 구분했으며 별도 native executor는 제공자400으로 실행되지 않았다.
 
 기존 strict spec lint12오류(UC007~010 형식/다이어그램)는 이번 신규 오류가 아니며 승인된 baseline으로 숨기지 않았다. pin/check는 drift 검사, packet은 awaiting_review/acceptance not_recorded다. 운영MySQL·실휴대폰·임의 자연어·모든 복구 경합·기존 거절된 타 계정 변경 POST 실제 실행·사람 제품 수용은 Open이다. 이 기록의 주 여정/선택 오류 PASS를 제품 전체 승인·운영 출시로 확대하지 않는다.

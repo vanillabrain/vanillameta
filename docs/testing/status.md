@@ -1,3 +1,23 @@
+# 최신 요약 — 2026-10-17
+
+이 요약은 아래 날짜별 기록의 후속 결과를 합친 상태다. **대표 흐름 PASS와 제품 전체 수용/출시 완료는 구분한다.** 과거의 미커밋·다음 작업·BLOCKED·NOT_RUN은 각 실행 당시 상태이며 최신 증빙과 Git 이력을 우선한다. 기존 통과 조건을 다시 실행하거나 카탈로그 완료 수를 임의로 늘리지 않는다.
+
+| 범위 | 최신 상태 | 근거/남은 조건 |
+|---|---|---|
+| 생성→직접/AI 수정→저장→게시→복제 | PASS_SELECTED / 전체 수용 OPEN | [TC005 주 여정](dashboard-lifecycle.md), [Studio 통합](studio-completion-1-5.md). 고객 데이터/담당자 수용은 별도 |
+| 같은 대화의 분모 확인·소스 교체·생성안 수정/저장·게시 준비 | PASS_SELECTED | [UC033](inline-creation-clarification.md)~[UC039](latest-dashboard-read.md), 임의 자연어/모든 오류 조합까지 완료한 것은 아님 |
+| Studio 진입·목록에서 다시 열기 | PASS_SELECTED | [UC040](studio-entry.md), [UC041](studio-list-reentry.md): 원격 후속 구현/실제 화면 증빙 보존 병합 |
+| 늦은200/503 응답·화면 이탈/다른 정상 ID 전환 | PASS_SELECTED | [Ego9/10](studio-late-read.md): 문서·숫자 보존/배치 완료390·1440 넘침0. 초안·인증·취소 복합 경합은 미검증 |
+| 로컬 MySQL 마이그레이션·동시 저장/게시·백업/복구 | PASS_SELECTED | [MYSQL02](studio-mysql-production.md)~[MYSQL06](studio-backup-key-recovery.md). 과거 MySQL 런타임 BLOCKED 해소, 실제 운영 전체 검증으로 확대하지 않음 |
+| 실제 고객 매출·환불/담당자 수용 | NOT_RUN | [첫 파일럿 입력·인수 조건](customer-pilot.md). 비식별 파일/독립 정답/담당자 입력 필요 |
+| 실휴대폰·전체 키보드/스크린리더 | PARTIAL / VoiceOver BLOCKED | 에뮬레이션·선택 키보드 결과 재사용, 실제 기기/전체 접근성 미검증 |
+| 운영 장시간 부하·오프사이트/독립 키 복구·RPO/RTO | NOT_RUN | [운영 절차](../strategy/backup-retention-recovery.md)는 도입안. 외부 보관/자동화 미설정 |
+| 명세 검사·사람 최종 제품 수용 | OPEN | 기존 strict12오류 미해결, 자동 기준선 승인/전체 TC005 수용으로 승격하지 않음 |
+
+우선순위: 최신 검증 이력 반영 → 첫 고객의 한 업무 질문/정답 확인 → 해당 파일로 최소 흐름 검증 → 실제 기기/접근성과 필요한 운영 gate. 모델은 gpt-6-luna를 유지한다. 데이터/정답이 없으면 합성 샘플을 고객 검증 PASS로 대신하지 않는다.
+
+## 과거 실행 기록
+
 2026-10-16 Studio T15: [대화 신규 생성·미리보기·비공개 저장](dashboard-studio.md#t15--대화에서-신규-생성검토비공개-저장--2026-10-16). STUDIO-N01~04 PASS_SELECTED. 기존 AI SDK 대화→실제 gpt-6-luna1회→지표·차원/실계산→모바일 확인→private25·재조회·동일 요청 replay25/journal1/publication0·reload POST0. 공식 Rill1391572행/총634513000·9차원 전체를 독립 Parquet 집계와 대조. 버전 의미 혼동409·좁은 카드 숫자 줄바꿈/중첩 스크롤·과거 영수증 포커스 수정,3폭/키보드 캡처. BE95/FE78·타입/lint/FE·BE build PASS. 기존21/게시20 불변. VoiceOver BLOCKED·gpt-6-luna 유지, 전체TC-005/G4 PARTIAL. 대화 신규 생성 dispatch는 더 이상 미지원이 아니다. 남은 범위는 홈/빈 대화 소스 선택·동일 제안의 대화식 재설계·확장 장애/실기기이며 아래 기록은 역사적 결과다. T14/T15는 현재 워크트리 미커밋.
 
 2026-10-16 Studio T14 후속: [실제 응답 유실·서버 재시작 복구](dashboard-studio.md#t14-후속--실제-응답-유실서버-재시작-복구--2026-10-16). STUDIO-R09/R10 PASS_SELECTED. 커밋된 저장 응답 유실 시 미저장으로 단정하던 안내 수정. 모바일 실제 XHR 실패→동일 본문 재시도2POST/private24·영수증1→실제 API 재기동→완료 이력·같은 ID 복원/관측 API POST0/DB 추가0. 원본·게시 불변, 최초재현23/수정검증24는 별도 실행. FE77 선택·타입/lint/build PASS, BE51 재사용. VoiceOver BLOCKED·gpt-6-luna 유지/모델0. 이번 수정·T14 미커밋. 전체TC-005/G4 PARTIAL, 다음은 대화 신규 생성 연결.
@@ -731,3 +751,5 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 - 2026-10-17: [UC039 실제 늦은 조회/unmount](studio-late-read.md) LATE-READ01~03 PASS_SELECTED. Ego9 실제 GET 보류→이력 이동/화면 이탈→늦은200/503 전달 완료에도 기존 보기/정확값634,513,000 유지, 편집기/이전오류 노출0·1440/390넘침0·도구32px/14px. MySQL 복사DB 보호27테이블 불변·저장/게시/AI0, 제품변경0/기존검사 재사용·문서미커밋. 다른 정상 대시보드ID 전환·실기기/운영/전체수용은 미검증, gpt-6-luna/VoiceOver BLOCKED 유지.
 
 - 2026-10-17: [UC039 두 정상 ID 지연 조회](studio-late-read.md#두-정상-대시보드-id-전환-계획--2026-10-17) ROUTE-READ01~03 PASS_SELECTED. 새 MySQL fixture A1/B2·Ego10의 같은 브라우저 문서/route에서 A보류→B GET200→A 늦은200/503 완료에도 B 제목/ID/634,513,000 유지·DOM A 재노출0. 보호26테이블 불변·저장/게시/LLM0,1440/390 배치 완료 넘침0(즉시 resize의 일시 넘침은 분리 기록). 제품변경0·기존검사 재사용·전용서버/공간 정리, 검증기록 미커밋. 초안/인증/취소의 전체 경합·운영/실기기/VoiceOver는 별도·gpt-6-luna 유지.
+
+- 2026-10-17 최신 정리: 검증 문서 커밋 `c8b3115c`와 원격 UC040/041 `5b759bcc`/`e0f0b69d`를 `7c7f7f3d`로 충돌 없이 보존 병합했다. 본문 최상단 최신 요약과 P1~P5 상태를 대표 검증/PARTIAL·전체 수용 OPEN으로 정리하고 당시 기록은 보존했다. [고객 파일럿](customer-pilot.md)7개 조건은 실제 입력/독립 정답 미제공으로 NOT_RUN이며 새 고객 데이터 검증을 주장하지 않는다. 새 통합 상태의 루트 BE2100/FE1368 전부 PASS·루트build/FEtype·문서 링크/diff PASS, 로그 `phase2-fix-evidence/status-sync-20261017`(저장소 밖). 기존 Ego/실LLM/DB 장애/core는 반복하지 않았다. 데이터 준비 후 한 업무 질문부터 실행하며 현재 commerce USD 제약·상품금액/결제금액·날짜 기준 차이를 먼저 맞춘다. gpt-6-luna/VoiceOver BLOCKED 유지.
