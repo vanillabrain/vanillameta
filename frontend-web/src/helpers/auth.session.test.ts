@@ -107,7 +107,7 @@ describe('axios refresh response forwarding and shared inflight recovery', () =>
     };
     const settled = Promise.allSettled([api.get('/unit-one'), api.get('/unit-two')]);
     await vi.waitFor(() => expect(seam.refresh).toHaveBeenCalledTimes(1));
-    rejectRefresh(new Error('unit-refresh-denied'));
+    rejectRefresh(Object.assign(new Error('unit-refresh-denied'), { response: { status: 401 } }));
     const results = await Promise.race([settled, new Promise(resolve => setTimeout(() => resolve('still-pending'), 500))]);
     expect(Array.isArray(results)).toBe(true);
     if (Array.isArray(results)) expect(results.map(result => result.status)).toEqual(['rejected', 'rejected']);
@@ -375,4 +375,55 @@ it('UC029 does not replay a late old 401 under a newer login generation', async 
   expect(getToken()).toBe('unit-new-login');
   expect(lock).not.toHaveBeenCalled();
   expect(seam.refresh).not.toHaveBeenCalled();
+});
+
+describe('UC030 interrupted token renewal', () => {
+  it.each([
+    ['server unavailable', { response: { status: 503 } }],
+    ['network error', {}],
+    ['network timeout', { code: 'ECONNABORTED' }],
+    ['malformed success', null],
+  ])('preserves drafts and login after %s and permits explicit retry', async (_label, failure) => {
+    vi.stubGlobal('crypto', webcrypto);
+    setToken('unit-old');
+    const key = await editorDraftKey('unit-old', 8);
+    sessionStorage.setItem(key, JSON.stringify({ prompt: 'keep my question', draft: 'unsaved' }));
+    const generation = localStorage.getItem('vm:editor-draft-auth:v1');
+    const assign = vi.fn();
+    vi.stubGlobal('window', { location: { assign }, localStorage });
+    if (failure === null) seam.refresh.mockResolvedValueOnce({ data: {} });
+    else seam.refresh.mockRejectedValueOnce(Object.assign(new Error('temporary renewal failure'), failure));
+    const api = await load();
+    api.defaults.adapter = async config => {
+      if (config.headers.Authorization === 'Bearer unit-new') return ok(config, 'recovered');
+      throw expired(config);
+    };
+    await expect(api.get('/unit-transient')).rejects.toThrow();
+    expect(getToken()).toBe('unit-old');
+    expect(localStorage.getItem('vm:editor-draft-auth:v1')).toBe(generation);
+    expect(JSON.parse(sessionStorage.getItem(key))).toEqual({ prompt: 'keep my question', draft: 'unsaved' });
+    expect(assign).not.toHaveBeenCalled();
+    expect(seam.refresh).toHaveBeenCalledTimes(1);
+    seam.refresh.mockResolvedValueOnce({ data: { accessToken: 'unit-new' } });
+    expect((await api.get('/unit-explicit-retry')).data.value).toBe('recovered');
+    expect(await editorDraftKey('unit-new', 8)).toBe(key);
+    expect(seam.refresh).toHaveBeenCalledTimes(2);
+  });
+  it.each([401, 403])('retains the explicit authentication rejection contract for refresh %s', async status => {
+    vi.stubGlobal('crypto', webcrypto);
+    setToken('unit-old');
+    const key = await editorDraftKey('unit-old', 8);
+    sessionStorage.setItem(key, 'old draft');
+    const assign = vi.fn();
+    vi.stubGlobal('window', { location: { assign }, localStorage });
+    seam.refresh.mockRejectedValueOnce(Object.assign(new Error('renewal rejected'), { response: { status } }));
+    const api = await load();
+    api.defaults.adapter = async config => {
+      throw expired(config);
+    };
+    await expect(api.get('/unit-rejected')).rejects.toThrow();
+    expect(getToken()).toBeNull();
+    expect(sessionStorage.getItem(key)).toBeNull();
+    expect(assign).toHaveBeenCalledWith('/login');
+  });
 });

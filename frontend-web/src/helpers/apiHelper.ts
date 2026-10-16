@@ -185,7 +185,9 @@ async function resetTokenAndReattemptRequest(errorResponse) {
         const current = winner();
         if (current) return current;
         // Lock acquisition failure must not destroy a valid session or its unsaved drafts.
-        if (refreshStarted && unchanged()) {
+        // UC-030: transport/server failures leave the session and draft retryable.
+        const refreshStatus = error?.response?.status;
+        if (refreshStarted && (refreshStatus === 401 || refreshStatus === 403) && unchanged()) {
           removeToken();
           window.location.assign('/login');
         }

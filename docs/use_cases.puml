@@ -55,6 +55,8 @@ usecase "UC-027 조회 실패·재충돌 복구" as UC027
 operator --> UC027
 usecase "UC-028 다른 탭 토큰 갱신 후 초안 복구" as UC028
 operator --> UC028
+usecase "UC-030 갱신 장애·탭 종료 복구" as UC030
 usecase "UC-029 다중 탭 동시 갱신 복구" as UC029
 operator --> UC029
+operator --> UC030
 @enduml
