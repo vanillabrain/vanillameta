@@ -41,6 +41,8 @@ export type StudioExecutionState = {
   saveOnly: boolean;
   publish?: boolean;
   publicationResult?: PublicationMetadata;
+  /** Owner publication observed before the first attempt; null means none existed. */
+  publicationBasis?: { token: string; version: number } | null;
   remix?: boolean;
   remixToken?: string;
   remixResult?: { token: string; version: number };

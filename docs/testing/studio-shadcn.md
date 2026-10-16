@@ -327,3 +327,36 @@ STUDIO-A03/P02의 commit 이후 실행기 경계만 선택한다. UI16/17의 com
 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-postcommit-recovery-20261016`의 `before.json`, `postcommit-events.jsonl`, `01-committed-before-stop.json`, `02-stopped-ui.json`, `03-restarted.json`/`03-restarted-db.json`, `preparation-stale-guard.json`, `04-response-lost.json`, `05-response-recovered.json`, `verification-db.json`, `layout.json`, `cleanup.json`. 대표 캡처 `02-stopped-390.png`, `03-restarted-390.png`, `04-response-lost-390.png`, `05-response-recovered-390.png`.
 
 후속 우선 gate는 다른 탭의 revision/게시 범위 변경과 재시도 경합이다. 운영 MySQL·다중 서버/디스크 장애·실휴대폰·VoiceOver·전체 제품 수용은 여전히 미완료다. 이번 기록은 미커밋이며 앞선 UI17까지의 push와 구분한다.
+
+## STUDIO-UI19 두 탭 게시 재시도 경합 — 2026-10-16
+
+| 조건 | 기대 결과 | 상태 |
+|---|---|---|
+| UI19-A | A의 저장 후 게시 실패→B의 공개 범위/게시 버전 변경→A 재시도는 최신 범위를 덮어쓰지 않음 | PASS_SELECTED |
+| UI19-B | A의 저장 후 게시 실패→B의 저장 revision 변경→A 재시도409·B 문서/게시 보존·중복 저장0 | PASS_SELECTED |
+| UI19-C | 390px 충돌 안내·키보드·레이아웃 및 실제 journal/수치 확인 | PASS_SELECTED |
+
+
+### 최초 오류와 최소 수정
+
+기준 develop-v2 `74c5bf67`(UI18 검증 기록 drumcap push 완료), 기존 FE3231/API4331/dashboard32/source9. Ego TaskSpace4의 실제 두 탭 p1/p2를 사용했다. 모델 없는 명시 ‘저장하고 링크로 공유해줘’ 실행의 저장 뒤 게시 호출에서, 해당 dashboard/publication-execution 요청만 전송 전1회 예외를 주입했다. 기존 UI16~18 전체 정상·장애 조건은 반복하지 않았다.
+
+**UI19-A 최초 FAIL:** A의 저장 후 게시 실패 상태에서 B가 비공개v8로 재게시했다. A의 ‘공유 다시 시도’ Enter가 v9/link를 만들어 B의 최신 비공개 설정을 덮어썼다. 저장 revision이 같아 기존 검사는 통과했으며 실행기가 게시 기준 버전을 보관하지 않은 것이 원인이다. 공개 Rill 집계만 사용했고 최초 증빙 `before-overwrite.json`/`before-overwrite-390.png`를 남긴 뒤 즉시 비공개v10으로 복구했다.
+
+수정은 BE 실행기·게시 서비스·상태 타입에 한정한다. 첫 게시 시 소유자가 확인한 token/version(게시 없음은 null)을 실행 journal의 publicationBasis에 보관하고 이후 재시도에서 갱신하지 않는다. 게시 서비스의 **내부 호출 인자**로 이를 전달해 기존 단일 Node의 같은 serializeWrite 경계 안에서 현재 게시 token/version과 비교한 뒤 snapshot을 쓴다. 공개 HTTP body/DB 스키마/의존성은 바꾸지 않았다. 다른 탭이 재게시·중지/새 링크를 만들면409로 거절한다. 이미 commit한 requestId는 먼저 영수증만 반환하므로 나중의 비공개 게시를 다시 쓰지 않는다. 기준 없는 과거 미완료 실행의 게시 재시도는 새 명시 요청이 필요하며, 과거 성공 영수증 조회는 유지한다. 수동 게시 대화상자의 모든 동시 편집을 새 CAS 계약으로 확장한 변경은 아니다.
+
+기존 게시가 없음/있음 두 변형의 실제 DuckDB·SQLite 회귀를 추가해 최초 실패를 확인했다. 공유 fixture requestId 충돌과 mock tuple 타입 오류는 테스트 준비 오류로 구분해 수정했다. 게시 어댑터 없는 기존 미지원 단계 fixture는 별도 경로로 보존했다. 기준의 서비스 재생성 후 유지·과거 기준 없음 거절·guarded 영수증 재조회가 나중 비공개 설정을 덮지 않는 회귀도 포함했다.
+
+### 실제 재검증
+
+- **UI19-A PASS_SELECTED:** 수정 서버에서 A run `575a3022-d316-4cd0-a5ea-cae4d155e64a`의 첫 게시 기준은v10이다. B의 비공개v11 재게시 후 A의 Enter 재시도는 실제409로 거절됐다. A의 저장 결과/부분 완료를 유지하고 B의 v11/private는 불변이다. 해당 save journal1·게시 journal0.
+- **UI19-B PASS_SELECTED:** 별도 run `d7afc9fd-9147-4b53-ac49-d4dcc6ef828a`의 기준은v11이며 B는 재게시하지 않았다. B의 블록 제목을 ‘두 탭 최신 요청 수’로 확정(Tab blur)하고 실제 저장했다. A의 기존 문서 기준으로 게시만 재시도하면 현재 게시 기준v11 비교는 통과하지만 **저장 revision 검사에서409**가 발생한다. B의 최신 제목·나머지 정의/SQL/ID/모든 폭 배치가 보존되고 게시v11/private·634,513,000 불변이다. 해당 save journal1·게시 journal0. 최초 저장 버튼 focus 실패는 제목 draft의 blur 전 비활성 상태였고, 일반 저장 뒤 패널 닫힘을 가정한 대기는 도구 가정 오류였다. 실제 저장 안내/읽기 상태를 확인한 뒤 이어갔으며 제품 저장 실패로 계산하지 않는다.
+- **UI19-C PASS_SELECTED:** 390×844 충돌 안내 전체/부분 완료·공유 실패·포커스가 있는 재시도 버튼·composer를 캡처하고 직접 확인했다. 카드/단계 정렬·줄바꿈·버튼36px·가로 넘침0을 확인했다. 초기 alert 캡처는 내부 스크롤 상단이 잘려 최종 `final-conflict-390.png`로 보완했다. 정상 서버의 reload 후 B 새 제목을 실제 다시 찾았고 `final-reloaded-390.png`에 남겼다. 숫자는 저장 정의/게시 snapshot으로 대조하며 PNG만으로 수치 정확성을 판단하지 않는다. 기능/선택 모바일 디자인 PASS_SELECTED, 전체 Tab/실휴대폰/VoiceOver는 별도다.
+
+최종 BE 실행기58개+게시15개=**73 PASS**, Nest build·변경5파일 ESLint·diff check PASS. FE 코드 변경0이므로 기존 FE 타입/빌드 결과를 재사용했다. 원격 통합 뒤 BE 빌드는 새로 수행했다. 최초 overwrite 실패와 수정 후 경합을 구분했으며 정상 전체 흐름/전 범위 회귀를 추가 반복하지 않았다. 검증 주입기는 새 내부 인자를 변형하지 않고 전달하도록 수정했고, 최종에는 주입기를 제거한 정상 최신 빌드로 API4331을 복구했다.
+
+최종 DB dashboard31/metric38, 두 재검증 run은 각각 save journal1/publication journal0이다. 소유자 비공개v11/복제 비허용을 유지하고, 검증용 문서32에는 B의 새 제목을 보존했다. 모델 호출0/gpt-6-luna 설정·VoiceOver BLOCKED 유지. 브라우저 임시 관측은 reload로 제거하고 viewport 해제·TaskSpace4의 두 탭을 종료했다.
+
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-publication-race-20261016`의 `adapter-events.jsonl`, `before-overwrite.json`, `fixed-scope-race.json`, `revision-race.json`, `verification-db.json`, `layout.json`, `cleanup.json`; 대표 PNG는 `before-overwrite-390.png`, `final-conflict-390.png`, `final-reloaded-390.png`다. 선택 테스트 최종 로그는 `/private/tmp/studio-publication-race-tests.log`다.
+
+이번 수정/기록은 미커밋이다. 다중 Node/MySQL의 행 잠금·다중 프로세스 쓰기 경합, 실제 휴대폰/전체 접근성·VoiceOver·운영 부하/제품 수용은 별도 gate다. 이번 단일 Node 직렬 경계 검증을 운영 전체 CAS 보장으로 확대하지 않는다.

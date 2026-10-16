@@ -141,6 +141,46 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
       7,
     );
   };
+  it.each([false, true])(
+    'guards an execution against intervening publication changes (existing=%s)',
+    async existing => {
+      const first = existing ? await publish('race-first-' + id) : null;
+      const basis = first ? { token: first.token, version: first.version } : null;
+      const latest = await publish('race-private-' + id, { visibility: 'private' });
+      const doc = (await studio.get(id, 7)).document;
+      await expect(
+        (publications.publish as any)(
+          id,
+          {
+            requestId: 'race-stale-' + id,
+            expectedRevision: doc.revision,
+            visibility: 'link',
+            allowRemix: false,
+          },
+          7,
+          undefined,
+          basis,
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(await publications.ownerMetadata(id, 7)).toEqual(latest);
+      expect(await publications.committed('race-stale-' + id, 7)).toBeUndefined();
+    },
+  );
+
+  it('replays a guarded committed receipt without overwriting a later private publication', async () => {
+    const doc = (await studio.get(id, 7)).document;
+    const request = {
+      requestId: 'guarded-replay-' + id,
+      expectedRevision: doc.revision,
+      visibility: 'link',
+      allowRemix: false,
+    };
+    const first = await publications.publish(id, request, 7, undefined, null);
+    const latest = await publish('guarded-newer-' + id, { visibility: 'private' });
+    expect(await publications.publish(id, request, 7, undefined, null)).toEqual(first);
+    expect(await publications.ownerMetadata(id, 7)).toEqual(latest);
+  });
+
   it('publishes recomputed numbers/trends/layouts, with an explicit public whitelist and no source IDs/SQL', async () => {
     const result = await publish();
     expect(result.version).toBe(1);

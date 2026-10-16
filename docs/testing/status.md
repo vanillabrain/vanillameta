@@ -706,3 +706,6 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 
 
 - 2026-10-16: [UI18 실행기 게시 commit 이후 장애·응답 유실](studio-shadcn.md#studio-ui18-게시-commit-직후-장애응답-유실--2026-10-16) PASS_SELECTED. 실제 게시v5/journal commit 후 실행기 완료 전 Node TERM→정상 재시작→동일 run/버전 복원, 별도 실제 완료v6 응답1회 숨김→Enter GET만 복구. 두 run 각각 save/publication journal1·복구 추가POST0·정의/634,513,000 유지·390px 오류/복구 캡처/넘침0. 정상 서버·비공개v7 정리, 제품 수정/AI호출0·gpt-6-luna/VoiceOver BLOCKED 유지. UI17 기록은 `722b6fbc`로 develop-v2/drumcap push 완료; UI18 기록 미커밋. 다른 탭 경합·운영/실기기는 별도 gate.
+
+
+- 2026-10-16: [UI19 두 탭 게시 재시도 경합](studio-shadcn.md#studio-ui19-두-탭-게시-재시도-경합--2026-10-16) 최초 FAIL→수정 후 PASS_SELECTED. 오래된 실행 재시도가 B의 비공개v8을 공개v9로 덮던 오류를 게시 token/version 영속 기준과 내부 직렬 쓰기 비교로 수정. 실제 scope/revision 각각409·B 최신 제목/정의/배치·비공개v11/634,513,000 유지·각 save journal1/pub0·390px 캡처. BE73/build/변경lint/diff PASS, 정상 서버 복구·모델0/gpt-6-luna·VoiceOver BLOCKED 유지. UI18은 `74c5bf67`로 drumcap push 완료; 이번 코드/기록 미커밋. 다중 프로세스/MySQL·실기기/전체 수용은 별도.
