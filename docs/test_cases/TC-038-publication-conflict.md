@@ -22,3 +22,7 @@
 ## Execution
 
 PASS_SELECTED: Ego80의 다른 탭 실제 저장→409→45번 최신 화면→미리보기/게시1/reload→중지410, 원본39 보존·45 내용 원복 및390/768/1440을 확인했다. FE47/type/lint/build/core8·실제 증빙40개 PASS. A1/A2의 실제 화면 전체와 수용은 Open. [증빙](../testing/publication-conflict.md).
+
+## A2 Follow-up Plan
+
+활성 게시본을 유지한 두 번째 실제409의 별도 실행은 [UC038 A2 계획](../plans/UC-038-A2.md)을 따른다. Ego82에서 활성 게시1 보존→첫409→최신R0 조회→다른 탭 저장R1→두 번째409→최신R1 확인→같은URL 재게시2/reload→중지410·제목 원복을 확인했다.390/768/1440·선택20개 테스트·실제 증빙48개 PASS이며 [A2 증빙](../testing/publication-reconflict.md)에 범위를 기록했다.
