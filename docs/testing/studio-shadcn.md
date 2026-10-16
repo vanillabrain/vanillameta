@@ -406,3 +406,8 @@ UI19 수정/검증 기록은 `8108e3b6`으로 develop-v2에 drumcap push했다. 
 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-mysql-20261016`의 `fixture.json`, `db-before.json`, `db-after.json`, `restarted-ui.json`, 최초 `login-mysql-before.png`, 최종 `saved-1440.png`, `saved-390.png`, `restarted-390.png`와 선택 테스트 로그. 전후 DB JSON은 동일하며 refreshToken=text, User 날짜 precision6을 확인했다. 기존 Rill oracle 수치는 재사용했으며 Rill UI 전 여정/AI 생성 동등성을 이번에 재검증한 것은 아니다.
 
 기존 Docker BLOCKED는 **로컬 전용 MySQL 검증 범위에서 해소**됐다. NODE_ENV=dev/synchronize 기반 새 스키마 및 전용 앱 열 갱신 검증이며 **운영 MySQL 마이그레이션·기존 고객 DB 전환·실제 다중 Node 동시 쓰기/잠금·디스크 장애·부하/백업 복원은 NOT_RUN**이다. 모델 호출0/gpt-6-luna 설정·VoiceOver BLOCKED를 유지한다. 이번 제품 수정/회귀/기록은 미커밋이다.
+
+
+## STUDIO-MYSQL02 후속 — 2026-10-16
+
+MYSQL01 오류 수정/검증 기록은953111c2, 원격 UC033/034 보존 병합은73636cbf로 develop-v2/drumcap push했다. 다음 [운영 마이그레이션·독립 두 서버 경합 증빙](studio-mysql-production.md)을 따른다. 기존 DB의 토큰 열 변경 누락과 두 서버 최초 게시 중복을 수정하고 실제 운영모드 CLI/데이터 보존/별도 Node4532·4533·영수증/Ego 결과를 확인했다. 운영 전체/모든 다중서버 경계·실기기·VoiceOver는 이 로컬 선택 검증으로 완료 처리하지 않는다.

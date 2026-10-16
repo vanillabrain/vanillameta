@@ -22,9 +22,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "deploy": "serverless deploy --stage prod",
     "seed": "cross-env NODE_ENV=local ts-node -r tsconfig-paths/register src/database/run-seed.ts",
-    "migration:run": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
-    "migration:revert": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
-    "migration:generate": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
+    "migration:run": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
+    "migration:revert": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
+    "migration:generate": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
     "deploy:dev": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod"
   },
