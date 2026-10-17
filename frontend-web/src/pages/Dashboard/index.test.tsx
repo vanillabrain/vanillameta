@@ -76,7 +76,7 @@ it.each([
       </MemoryRouter>
     </LoadingProvider>,
   );
-  expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.queryByText(/기존 소스 \d+ 편집/)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name }));
   expect(await screen.findByText('이동 완료 ' + destination)).toBeTruthy();
 });
@@ -89,7 +89,7 @@ it('preserves the existing source-specific AI panel link', () => {
       </MemoryRouter>
     </LoadingProvider>,
   );
-  expect(screen.getByRole('status').textContent).toBe('기존 소스 32 편집');
+  expect(screen.getByText('기존 소스 32 편집')).toBeTruthy();
 });
 
 it('releases the list loading overlay when a save handoff leaves a pending list refetch', async () => {

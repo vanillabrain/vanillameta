@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import PageTitleBox from '@/components/PageTitleBox';
-import BoardList from '@/components/BoardList';
+import ArtifactLibrary from './ArtifactLibrary';
 import { Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { MenuButton } from '@/components/button/AddIconButton';
 import { Plus } from 'lucide-react';
@@ -150,11 +150,7 @@ function Dashboard() {
             <GettingStarted returning={!noData} />
             {!noData && (
               <>
-                <BoardList
-                  postList={loadedDashboardData}
-                  handleDeleteSelect={handleDeleteSelect}
-                  studioHrefForItem={item => (item.analysisDefinition ? `/dashboard/${item.id}/studio` : undefined)}
-                />
+                <ArtifactLibrary items={loadedDashboardData} onDelete={handleDeleteSelect} />
               </>
             )}
           </PageTitleBox>

@@ -91,4 +91,6 @@ usecase "UC-047 Studio 저장 응답 유실 후 확인" as UC047
 operator --> UC047
 usecase "UC-048 새 생성 질문 복구" as UC048
 operator --> UC048
+usecase "UC-049 내 시각화 산출물 찾기" as UC049
+operator --> UC049
 @enduml
