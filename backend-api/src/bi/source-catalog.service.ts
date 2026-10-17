@@ -1,6 +1,11 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { createHash } from 'crypto';
-import { DataSource, QueryFailedError } from 'typeorm';
+import { DataSource, LessThan, QueryFailedError } from 'typeorm';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { BiService } from './bi.service';
 import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
@@ -99,6 +104,92 @@ export class SourceCatalogService {
         unit: '',
         ...metadata.columns.find(m => m.column === c.column),
       })),
+    };
+  }
+  private version(value: unknown): number {
+    if (!Number.isInteger(value) || Number(value) <= 0 || Number(value) > 2147483647)
+      throw new BadRequestException('저장 버전을 확인해 주세요.');
+    return Number(value);
+  }
+  private async historySource(sourceId: unknown, actor: number) {
+    this.access.actor(actor);
+    const id = this.access.id(sourceId);
+    await this.access.assert('database', id, actor);
+    return id;
+  }
+  async history(body: unknown, actor: number) {
+    const input = this.fields(body, ['sourceId', 'beforeVersion']);
+    const before =
+      input.beforeVersion === undefined ? undefined : this.version(input.beforeVersion);
+    const sourceId = await this.historySource(input.sourceId, actor);
+    const rows = await this.db.getRepository(SourceCatalogEntry).find({
+      where: { sourceId, ...(before === undefined ? {} : { version: LessThan(before) }) },
+      order: { version: 'DESC' },
+      take: 21,
+    });
+    const page = rows.slice(0, 20);
+    return {
+      sourceId,
+      entries: page.map(row => {
+        let label: string | null = null;
+        try {
+          label = this.storedMetadata(row).label;
+        } catch {
+          /* A damaged entry must not hide healthy history. */
+        }
+        return {
+          version: row.version,
+          createdAt: row.createdAt,
+          label,
+          unreadable: label === null,
+        };
+      }),
+      nextBeforeVersion: rows.length > 20 ? page[page.length - 1].version : null,
+    };
+  }
+  async compare(body: unknown, actor: number) {
+    const input = this.fields(body, ['sourceId', 'fromVersion', 'toVersion']);
+    const fromVersion = this.version(input.fromVersion),
+      toVersion = this.version(input.toVersion);
+    if (fromVersion >= toVersion)
+      throw new BadRequestException('이전 버전과 이후 버전을 순서대로 선택해 주세요.');
+    const sourceId = await this.historySource(input.sourceId, actor);
+    const repo = this.db.getRepository(SourceCatalogEntry);
+    const [before, after] = await Promise.all([
+      repo.findOneBy({ sourceId, version: fromVersion }),
+      repo.findOneBy({ sourceId, version: toVersion }),
+    ]);
+    if (!before || !after) throw new NotFoundException('선택한 저장 버전이 없습니다.');
+    const left = this.storedMetadata(before),
+      right = this.storedMetadata(after);
+    const changes: Array<{
+      column: string | null;
+      field: string;
+      before: string | null;
+      after: string | null;
+    }> = [];
+    const add = (column: string | null, field: string, a: string | null, b: string | null) => {
+      if (a !== b) changes.push({ column, field, before: a, after: b });
+    };
+    for (const field of ['label', 'description']) add(null, field, left[field], right[field]);
+    const oldColumns = new Map<string, ColumnMetadata>(left.columns.map(c => [c.column, c]));
+    const newColumns = new Map<string, ColumnMetadata>(right.columns.map(c => [c.column, c]));
+    for (const column of new Set([...oldColumns.keys(), ...newColumns.keys()])) {
+      for (const field of ['label', 'description', 'unit'])
+        add(
+          column,
+          field,
+          oldColumns.get(column)?.[field] ?? null,
+          newColumns.get(column)?.[field] ?? null,
+        );
+    }
+    return {
+      sourceId,
+      fromVersion,
+      toVersion,
+      schemaChanged: before.schemaRevision !== after.schemaRevision,
+      dataChanged: before.sourceRevision !== after.sourceRevision,
+      changes,
     };
   }
   async save(body: unknown, actor: number) {

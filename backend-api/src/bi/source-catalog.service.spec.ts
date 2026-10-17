@@ -159,4 +159,136 @@ describe('UC050 owned source business metadata', () => {
     bi.profile.mockResolvedValue({ ...profile(), supported: false });
     await expect(service.read({ sourceId: 3 }, 7)).rejects.toMatchObject({ status: 400 });
   });
+  it('lists saved versions and compares only changed business fields without writes or source queries', async () => {
+    await service.save(body(), 7);
+    await service.save(
+      {
+        ...body(),
+        version: 1,
+        label: '순매출',
+        columns: [{ ...body().columns[0], unit: 'KRW' }, body().columns[1]],
+      },
+      7,
+    );
+    bi.profile.mockClear();
+    const history = await service.history({ sourceId: 3 }, 7);
+    expect(history.entries.map(e => e.version)).toEqual([2, 1]);
+    expect(history.nextBeforeVersion).toBeNull();
+    expect(history.entries[0]).toMatchObject({ label: '순매출', unreadable: false });
+    const result = await service.compare({ sourceId: 3, fromVersion: 1, toVersion: 2 }, 7);
+    expect(result).toMatchObject({
+      fromVersion: 1,
+      toVersion: 2,
+      schemaChanged: false,
+      dataChanged: false,
+      changes: [
+        { column: null, field: 'label', before: '매출', after: '순매출' },
+        { column: 'amount', field: 'unit', before: '원', after: 'KRW' },
+      ],
+    });
+    expect(JSON.stringify(history)).not.toMatch(
+      /schemaRevision|sourceRevision|metadata|must not return/,
+    );
+    expect(bi.profile).not.toHaveBeenCalled();
+    expect(await db.getRepository(SourceCatalogEntry).count()).toBe(2);
+  });
+  it('paginates older versions without including a new head in the second page', async () => {
+    for (let version = 0; version < 22; version++) await service.save({ ...body(), version }, 7);
+    const first = await service.history({ sourceId: 3 }, 7);
+    expect(first.entries).toHaveLength(20);
+    expect(first.nextBeforeVersion).toBe(3);
+    await service.save({ ...body(), version: 22 }, 7);
+    const second = await service.history(
+      { sourceId: 3, beforeVersion: first.nextBeforeVersion },
+      7,
+    );
+    expect(second.entries.map(e => e.version)).toEqual([2, 1]);
+    expect(second.nextBeforeVersion).toBeNull();
+  });
+  it('returns empty history without inventing version zero', async () => {
+    expect(await service.history({ sourceId: 3 }, 7)).toEqual({
+      sourceId: 3,
+      entries: [],
+      nextBeforeVersion: null,
+    });
+    await expect(
+      service.compare({ sourceId: 3, fromVersion: 1, toVersion: 2 }, 7),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+  it('isolates unreadable history while allowing other healthy version comparisons', async () => {
+    for (let version = 0; version < 3; version++) await service.save({ ...body(), version }, 7);
+    await db
+      .getRepository(SourceCatalogEntry)
+      .update({ sourceId: 3, version: 3 }, { metadata: 'broken' });
+    expect((await service.history({ sourceId: 3 }, 7)).entries[0]).toMatchObject({
+      version: 3,
+      label: null,
+      unreadable: true,
+    });
+    expect(
+      (await service.compare({ sourceId: 3, fromVersion: 1, toVersion: 2 }, 7)).changes,
+    ).toEqual([]);
+    await expect(
+      service.compare({ sourceId: 3, fromVersion: 1, toVersion: 3 }, 7),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await db.getRepository(SourceCatalogEntry).count()).toBe(3);
+  });
+  it('detects added and removed columns and stored source changes', async () => {
+    await service.save(body(), 7);
+    const first = await db.getRepository(SourceCatalogEntry).findOneBy({ sourceId: 3, version: 1 });
+    const metadata = JSON.parse(first.metadata);
+    metadata.columns = [{ column: 'new', label: '새 열', description: '', unit: '' }];
+    await db.getRepository(SourceCatalogEntry).insert({
+      ...first,
+      version: 2,
+      metadata: JSON.stringify(metadata),
+      schemaRevision: 'changed',
+      sourceRevision: 'changed',
+    });
+    const result = await service.compare({ sourceId: 3, fromVersion: 1, toVersion: 2 }, 7);
+    expect(result).toMatchObject({ schemaChanged: true, dataChanged: true });
+    expect(result.changes).toEqual(
+      expect.arrayContaining([
+        { column: 'amount', field: 'unit', before: '원', after: null },
+        { column: 'new', field: 'label', before: null, after: '새 열' },
+      ]),
+    );
+  });
+  it('scopes every history read and exact comparison to the owned source', async () => {
+    await service.save(body(), 7);
+    await expect(service.history({ sourceId: 3 }, 8)).rejects.toThrow(ForbiddenException);
+    await expect(service.compare({ sourceId: 3, fromVersion: 1, toVersion: 2 }, 8)).rejects.toThrow(
+      ForbiddenException,
+    );
+    await expect(
+      service.compare({ sourceId: 4, fromVersion: 1, toVersion: 2 }, 7),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+  it.each([
+    { fromVersion: 0, toVersion: 1 },
+    { fromVersion: 2, toVersion: 1 },
+    { fromVersion: 1, toVersion: 1 },
+    { fromVersion: '1', toVersion: 2 },
+    { fromVersion: 1, toVersion: 2, ownerId: 9 },
+  ])('rejects invalid compare inputs: %j', async value => {
+    await expect(service.compare({ sourceId: 3, ...value }, 7)).rejects.toMatchObject({
+      status: 400,
+    });
+  });
+  it.each([0, -1, '2', 1.5])('rejects invalid history cursors: %j', async beforeVersion => {
+    await expect(service.history({ sourceId: 3, beforeVersion }, 7)).rejects.toMatchObject({
+      status: 400,
+    });
+  });
+  it('compares the final storable integer version while rejecting larger cursors', async () => {
+    await service.save(body(), 7);
+    const first = await db.getRepository(SourceCatalogEntry).findOneBy({ sourceId: 3, version: 1 });
+    await db.getRepository(SourceCatalogEntry).insert({ ...first, version: 2147483647 });
+    expect(
+      (await service.compare({ sourceId: 3, fromVersion: 1, toVersion: 2147483647 }, 7)).changes,
+    ).toEqual([]);
+    await expect(
+      service.history({ sourceId: 3, beforeVersion: 2147483648 }, 7),
+    ).rejects.toMatchObject({ status: 400 });
+  });
 });

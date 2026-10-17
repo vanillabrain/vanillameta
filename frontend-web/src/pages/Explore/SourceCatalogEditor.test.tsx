@@ -110,4 +110,25 @@ describe('UC050 business metadata editor', () => {
     await screen.findByText('저장 이력을 확인할 수 없습니다. 데이터 담당자의 확인이 필요합니다.');
     expect(screen.queryByRole('button', { name: '업무 설명 저장' })).toBeNull();
   });
+  it('preserves unsaved input while reading history and comparing saved versions', async () => {
+    render(<SourceCatalogEditor sourceId={3} />);
+    await open();
+    fireEvent.change(screen.getByLabelText('소스 표시명'), { target: { value: '미저장 초안' } });
+    vi.mocked(post).mockResolvedValueOnce(
+      response({
+        sourceId: 3,
+        entries: [2, 1].map(version => ({ version, label: '저장본', createdAt: '2026-10-18T00:00:00Z', unreadable: false })),
+        nextBeforeVersion: null,
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '저장 이력·버전 비교' }));
+    await screen.findByLabelText('이전 설명 버전');
+    vi.mocked(post).mockResolvedValueOnce(
+      response({ sourceId: 3, fromVersion: 1, toVersion: 2, changes: [], schemaChanged: false, dataChanged: false }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '선택한 버전 비교' }));
+    await screen.findByText('두 버전의 업무 설명은 같습니다.');
+    expect((screen.getByLabelText('소스 표시명') as HTMLInputElement).value).toBe('미저장 초안');
+    expect(vi.mocked(post).mock.calls.some(([url]) => url === '/bi/source-catalog/save')).toBe(false);
+  });
 });

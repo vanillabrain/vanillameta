@@ -11,4 +11,10 @@ export class SourceCatalogController {
   @Post('save') async save(@Body() body: unknown, @Req() req) {
     return { status: 'SUCCESS', data: await this.catalog.save(body, req.user.accessKeyData.id) };
   }
+  @Post('history') async history(@Body() body: unknown, @Req() req) {
+    return { status: 'SUCCESS', data: await this.catalog.history(body, req.user.accessKeyData.id) };
+  }
+  @Post('compare') async compare(@Body() body: unknown, @Req() req) {
+    return { status: 'SUCCESS', data: await this.catalog.compare(body, req.user.accessKeyData.id) };
+  }
 }

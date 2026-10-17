@@ -46,3 +46,7 @@
 ### UC050 First Slice
 
 전체 시나리오 상태는 NOT_RUN을 유지한다. 소유 DuckDB 소스의 표시명/설명·열별 표시명/설명/단위 버전 저장 부분만 [별도 증빙](../testing/source-catalog.md)에 연결한다. 실제 조직 권한·공식 승인/분류·날짜 형식·변경 영향 확인을 이 첫 단위의 자동 검사로 통과 처리하지 않는다.
+
+### UC050 Saved History Follow-up
+
+[후속 검증](../testing/source-catalog-history.md)에서 소유권·20건 커서·동일 소스의 두 저장 버전 차이·손상 이력·입력/저장본 불변을 선택 검증한다. 공식 승인/사용처 영향 검토·전체 TC050의 NOT_RUN을 대체하지 않는다.

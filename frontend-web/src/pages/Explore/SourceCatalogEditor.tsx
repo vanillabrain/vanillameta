@@ -1,3 +1,4 @@
+import SourceCatalogHistory from './SourceCatalogHistory';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
@@ -209,6 +210,7 @@ function Editor({ sourceId }: { sourceId: number }) {
               </span>
             )}
           </div>
+          <SourceCatalogHistory sourceId={sourceId} savedVersion={data?.version ?? 0} />
           {confirmReload && (
             <div className="space-y-2" role="group" aria-label="미저장 설명 교체 확인">
               <p className="text-sm">다시 읽으면 현재 입력을 최신 저장 내용으로 바꿉니다.</p>
