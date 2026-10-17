@@ -226,10 +226,13 @@ export default function StudioCreate() {
     if (restoring || !questionDirty.current || recovery || unavailableRecovery || saveUncertain) return;
     setQuestionStorageError(!writeCreationQuestion(questionKey.current, { sourceId, prompt }));
   }, [prompt, sourceId, restoring, recovery, unavailableRecovery, saveUncertain]);
-  const restoreQuestion = async () => {
+  const restoreQuestion = async (useSelectedSource = false) => {
     if (!questionRecovery || locked || prompt.trim()) return;
     const record = questionRecovery;
-    if (record.sourceId !== null && !(await choose(record.sourceId, false))) return;
+    // UC048 A3: replacing the source requires a separate explicit action and a fresh access check.
+    if (useSelectedSource && (!profile?.supported || profile.sourceId !== sourceId || sourceId === record.sourceId)) return;
+    const targetSource = useSelectedSource ? sourceId : record.sourceId;
+    if (targetSource !== null && !(await choose(targetSource, false))) return;
     if (!mounted.current) return;
     markQuestionEdited();
     setPrompt(record.prompt);
@@ -480,10 +483,20 @@ export default function StudioCreate() {
                   (questionRecovery.sourceId !== null &&
                     !sources.some(row => row.id === questionRecovery.sourceId && row.engine === 'duckdb'))
                 }
-                onClick={restoreQuestion}
+                onClick={() => restoreQuestion()}
               >
                 새 생성 질문 복구
               </Button>
+              {profile?.supported && profile.sourceId === sourceId && sourceId !== questionRecovery.sourceId && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={locked || !!prompt.trim()}
+                  onClick={() => restoreQuestion(true)}
+                >
+                  선택한 데이터로 질문 복구
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -496,7 +509,10 @@ export default function StudioCreate() {
                 보관 생성 질문 폐기
               </Button>
             </div>
-            <p>소스 구조는 다시 확인합니다. 저장 지표 선택과 이전 제안·미리보기는 복구하지 않습니다.</p>
+            <p>
+              다른 데이터를 아래에서 선택한 뒤 질문만 복구할 수도 있습니다. 소스 구조는 다시 확인하며, 저장 지표 선택과 이전
+              제안·미리보기는 복구하지 않습니다.
+            </p>
           </Alert>
         )}
         {questionStorageError && (

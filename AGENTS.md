@@ -130,3 +130,5 @@
 - **Studio 소스 연결 후속:** [UC040 증빙](docs/testing/studio-source-connection.md)은 생성 성공한 sourceId의 profile/지표를 직접 확인해 두 번째 전체목록 GET 의존성을 제거한다. 검증 성공한 미등재 ID만 현재목록에 추가하고 profile 실패는 동일ID 명시재조회·질문보존/생성추가0이다. FE32/type/lint/build PASS·BE변경0이며 Ego96 로그인만료/신규계정생성 자동승인거절로 실제UI·3폭은 BLOCKED다. 사용자 계정생성승인 또는 기존계정 로그인 후 같은 공간에서 검증한다. 고객파일럿/전체수용PASS가 아니다.
 
 - **Studio 새 생성 질문 복구:** [UC048 증빙](docs/testing/creation-question-recovery.md)은 미전송 질문·소스ID만 기존 로그인 scope/탭에24h/8KiB/2000자로 보관하고 권한 목록→명시 복구→소스 재확인으로 연결한다. 저장 확인/직접 링크 우선·자동POST0·실패 보존·저장 성공 정리/무관 기록 유지 회귀53개·type/lint PASS다. 기존32px 컴포넌트를 재사용했으며 Ego96 로그인 대기로 실제reload/390·768·1440 크기·정렬은 BLOCKED다. 실제UI·고객파일럿·전체수용을 완료로 보고하지 않는다.
+
+- **UC048 다른 소스 후속:** [A3 증빙](docs/testing/creation-question-recovery.md#a3-다른-소스로-질문-이어가기--2026-10-17)은 다른 본인 소스 선택→별도 명시 질문복구→profile/지표 재확인→질문·새sourceId 보관이다. 선택만으로 기록 변경/자동POST0이며403은 원래 질문 보존·재선택/재시도한다. 회귀55개 PASS·기존32px 재사용, 실제Ego/모바일은 로그인 대기 BLOCKED다.
