@@ -76,8 +76,9 @@ export default function StudioSaveRecovery({
             : '이 탭에 결과를 확인하지 못한 저장 요청이 있습니다. 확인 전까지 새 편집을 시작하지 않습니다.'}
         </p>
         <p>
-          같은 요청을 재확인합니다. 이미 저장됐다면 기존 결과를 확인하고, 미전달이었다면 저장을 완료합니다. 게시하지
-          않습니다.
+          {current.phase === 'confirmed'
+            ? '저장을 다시 실행하지 않고 현재 최신 저장본만 조회합니다. 게시하지 않습니다.'
+            : '같은 요청을 재확인합니다. 이미 저장됐다면 기존 결과를 확인하고, 미전달이었다면 저장을 완료합니다. 게시하지 않습니다.'}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button size="sm" disabled={busy} onClick={confirm}>

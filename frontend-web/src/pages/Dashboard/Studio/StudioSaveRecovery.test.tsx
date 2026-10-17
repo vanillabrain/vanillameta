@@ -151,3 +151,33 @@ it('replays temporary block IDs unchanged and opens server IDs and all layouts f
   expect(readStudioPendingSave('key', 3)).toBeNull();
   expect(sessionStorage.getItem('question')).toBe('keep');
 });
+
+it('restores confirmed state after reload and only reads latest data on explicit retry', async () => {
+  api.post.mockResolvedValue({ data: { document: { ...fixture().request.document, revision: 'c'.repeat(64) }, idMap: {} } });
+  api.get.mockRejectedValueOnce({ response: { status: 503 } });
+  const first = setup();
+  fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 재확인' }));
+  await screen.findByText('저장을 다시 실행하지 않고 현재 최신 저장본만 조회합니다. 게시하지 않습니다.');
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '최신 저장본 다시 조회' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  const retained = readStudioPendingSave('key', 3)!;
+  expect(retained.phase).toBe('confirmed');
+  expect(sessionStorage.getItem('key')).toBe('local draft');
+  first.unmount();
+  vi.clearAllMocks();
+  api.get.mockResolvedValue({ data: latest() });
+  const restored = setup(retained);
+  expect(api.post).not.toHaveBeenCalled();
+  expect(api.get).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: '같은 저장 요청 재확인' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '최신 저장본 다시 조회' }));
+  await waitFor(() =>
+    expect(restored.onResolved).toHaveBeenCalledWith(expect.objectContaining({ document: latest().document })),
+  );
+  expect(api.post).not.toHaveBeenCalled();
+  expect(api.get).toHaveBeenCalledTimes(1);
+  expect(readStudioPendingSave('key', 3)).toBeNull();
+  expect(sessionStorage.getItem('key')).toBeNull();
+  expect(sessionStorage.getItem('question')).toBe('keep');
+});

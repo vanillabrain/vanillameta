@@ -118,3 +118,5 @@
 - 커밋 작성자 이름·이메일은 GitHub 인증 계정과 별개이므로 기존 Git author 설정을 임의로 변경하지 않는다.
 
 - **Studio 신규 ID 저장 복구:** [UC047/Ego93 후속](docs/testing/studio-save-new-block-recovery.md)은 임시 ID 복제/크기 변경 저장commit201뒤503→reload/자동POST0→정확한 동일 요청/같은idMap·서버ID·revision/최신GET→4블록reload·추가영수증0을 확인했다. 질문·모든폭배치·원본45 보존/46 정상원복·비공개게시0,390/768/1440넘침0·확인버튼32px, FE9/type/lint·실제38개 PASS다. 제품소스6911c634 불변/직전build재사용이며 확정후GET실패reload·409초안복귀 실제검증/운영·실기기·전체수용은 별도다.
+
+- **Studio 확정 후 조회 복구:** [UC047/Ego94](docs/testing/studio-confirmed-read-recovery.md)는 동일 저장확인201→최신GET503한건→confirmed/문서/질문보존→reload/자동POST0→명시GET만→같은저장본/질문복구를 확인했다. 안내도 저장재실행 없이 조회만 설명한다. 영수증19/해당요청1·revision추가증가0·원본45불변/46내용원복·비공개게시0,390/768/1440넘침0/32px와 FE10/type/lint/build·실제43개 PASS다. 과거 확정후조회실패reload 미실행은 이 후속으로 보완하며409초안복귀 실제검증/반복장애·운영·실기기·전체수용은 별도다.

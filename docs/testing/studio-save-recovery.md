@@ -40,3 +40,7 @@ Status: Draft · UC047/P3 · TC047 · PASS_SELECTED.
 ## 신규 블록 후속
 
 [Ego93 임시 ID 복구](studio-save-new-block-recovery.md)에서 신규 복제 블록의 실제 commit→응답 유실→reload→같은 요청 재확인·같은 idMap/서버 ID/배치·추가 저장0을 확인했다. 위 Ego92의 신규 ID 미실행 표기는 당시 범위이며 최신 선택 검증은 이 후속을 따른다.
+
+## 저장 확정 후 조회 실패/reload 후속
+
+[Ego94 확인 후 최신 조회 복구](studio-confirmed-read-recovery.md)에서 명시 확인POST201→최신GET503→confirmed 기록/질문 보존→reload/자동POST0→명시GET만→저장본/질문 복구를 확인했다. 위 Ego92의 확정 후 GET 실패/reload 미실행 표기는 당시 범위이며 최신 선택 검증은 이 후속을 따른다.

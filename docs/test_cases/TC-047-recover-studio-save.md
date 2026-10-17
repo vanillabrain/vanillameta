@@ -26,3 +26,5 @@
 PASS_SELECTED: Ego92 실제 commit201 뒤503→reload/동일 요청 확인/영수증 증가0·미전달503→reload/동일 요청 최초저장1·질문 복구/원복·390/768/1440을 확인했다. 관련 FE111/type/lint/build·실제 대조31개 PASS. 조회 실패·409·이탈/저장소 변형은 회귀이며 전체 수용은 별도다. [증빙](../testing/studio-save-recovery.md).
 
 Ego93 후속 PASS_SELECTED: 복제 임시 ID/크기 변경 포함 저장201 뒤503→reload→동일 요청/동일 idMap→최신GET/4블록·추가 영수증0→질문 복구/원복을 확인했다. FE9/type/lint·실제38개와390/768/1440 넘침0. 제품 소스는6911c634이며 직전 build를 재사용했다. [신규 블록 증빙](../testing/studio-save-new-block-recovery.md).
+
+Ego94 후속 PASS_SELECTED: 명시 동일 저장 확인201 뒤 최신GET503→confirmed/문서/질문 보존→reload/자동POST0→명시GET만/영수증·revision 증가0→질문 복구/원복. FE10/type/lint/build·실제43개와390/768/1440 넘침0. [확정 후 조회 복구 증빙](../testing/studio-confirmed-read-recovery.md).
