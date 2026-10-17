@@ -1,10 +1,14 @@
+import { SourceCatalogUsageService } from './source-catalog-usage.service';
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SourceCatalogService } from './source-catalog.service';
 @UseGuards(JwtAuthGuard)
 @Controller('bi/source-catalog')
 export class SourceCatalogController {
-  constructor(private readonly catalog: SourceCatalogService) {}
+  constructor(
+    private readonly catalog: SourceCatalogService,
+    private readonly usageService: SourceCatalogUsageService,
+  ) {}
   @Post('read') async read(@Body() body: unknown, @Req() req) {
     return { status: 'SUCCESS', data: await this.catalog.read(body, req.user.accessKeyData.id) };
   }
@@ -19,5 +23,11 @@ export class SourceCatalogController {
   }
   @Post('preview') async preview(@Body() body: unknown, @Req() req) {
     return { status: 'SUCCESS', data: await this.catalog.preview(body, req.user.accessKeyData.id) };
+  }
+  @Post('usage') async usage(@Body() body: unknown, @Req() req) {
+    return {
+      status: 'SUCCESS',
+      data: await this.usageService.list(body, req.user.accessKeyData.id),
+    };
   }
 }

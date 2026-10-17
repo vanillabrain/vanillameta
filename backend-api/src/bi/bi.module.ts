@@ -1,3 +1,4 @@
+import { SourceCatalogUsageService } from './source-catalog-usage.service';
 import { SourceCatalogController } from './source-catalog.controller';
 import { SourceCatalogService } from './source-catalog.service';
 import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
@@ -55,6 +56,7 @@ import { BiService } from './bi.service';
   ],
   providers: [
     SourceCatalogService,
+    SourceCatalogUsageService,
     BiService,
     DashboardReuseService,
     SharedReuseOriginService,

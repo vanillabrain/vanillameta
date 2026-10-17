@@ -81,3 +81,5 @@ flowchart LR
 [UC050 이력 후속](../testing/source-catalog-history.md)은 기존 추가 전용 `source_catalog_entry`에서 소유권 검사 후20건 요약과 정확한 두 버전의 업무 필드 차이를 읽는다. 실제 데이터 프로파일/원본 행 조회·새 스키마/자동 복원 없이 편집 초안과 분리한다. 이력 비교는 지표/대시보드 사용처의 변경 영향 검토와 다른 기능이다.
 
 [UC050 저장 전 미리보기](../testing/source-catalog-preview.md)는 save의 권한/버전/업무 필드 검증과 이력 비교의 차이 계산을 공유하며 쓰기 없이 정규화한 draft를 반환한다. UI의 동의는 그 draft에만 연결하고 입력이 바뀌면 폐기한다. 기존 save API 호환성과 저장 직전 검증/CAS는 유지한다. 원본/분석 전파와 공식 승인·사용처 영향 검토는 추가하지 않는다.
+
+[UC050 직접 사용처 조회](../testing/source-catalog-usage.md)는 소스 소유권을 먼저 확인하고 Metric.databaseId/useYn와 Dashboard.analysisDefinition.databaseId·UserMapping/삭제 상태·기존 dashboard 권한으로 읽는다. ID/표시명만 반환하고 본인 분석 후보의20개 커서 구간을 명시한다. 새 물리 모델은 없으며 일반 위젯/게시/독립 사본 전체 의존 그래프·변경 영향 계산과 구분한다.

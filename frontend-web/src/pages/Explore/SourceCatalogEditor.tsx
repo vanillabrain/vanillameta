@@ -1,3 +1,4 @@
+import SourceCatalogUsage from './SourceCatalogUsage';
 import SourceCatalogChanges, { CatalogChange } from './SourceCatalogChanges';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -328,6 +329,7 @@ function Editor({ sourceId }: { sourceId: number }) {
               )}
             </section>
           )}
+          <SourceCatalogUsage sourceId={sourceId} />
           <SourceCatalogHistory sourceId={sourceId} savedVersion={data?.version ?? 0} />
           {confirmReload && (
             <div className="space-y-2" role="group" aria-label="미저장 설명 교체 확인">

@@ -243,4 +243,21 @@ describe('UC050 business metadata editor', () => {
     expect((screen.getByRole('button', { name: '확인한 변경 저장' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByLabelText('소스 표시명') as HTMLInputElement).value).toBe('결제 내역');
   });
+  it('keeps the draft, preview and confirmation while inspecting source usage', async () => {
+    render(<SourceCatalogEditor sourceId={3} />);
+    await open();
+    fireEvent.change(screen.getByLabelText('소스 표시명'), { target: { value: '보존할 초안' } });
+    await review('보존할 초안');
+    vi.mocked(post).mockResolvedValueOnce(
+      response({ sourceId: 3, kind: 'metrics', entries: [{ id: 1, title: '활성 매출 지표' }], nextAfterId: null }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '이 소스의 사용처 확인' }));
+    await screen.findByText('활성 매출 지표');
+    expect((screen.getByLabelText('소스 표시명') as HTMLInputElement).value).toBe('보존할 초안');
+    expect(screen.getByRole('checkbox', { name: '표시한 변경 내용을 확인했습니다' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    expect((screen.getByRole('button', { name: '확인한 변경 저장' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(vi.mocked(post).mock.calls.some(([url]) => url === '/bi/source-catalog/save')).toBe(false);
+  });
 });
