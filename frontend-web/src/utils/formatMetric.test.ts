@@ -62,3 +62,13 @@ it('does not emit negative zero but retains the exact negative value when displa
   expect(formatMetric('-0', { decimalPlaces: 2, signed: true }).exactText).toBe('0');
   expect(formatMetric('-0.000', { numberNotation: 'compact' }).text).toBe('0');
 });
+
+it('localizes only canonical count suffixes for Korean without changing custom units', async () => {
+  const { localizedMetricSuffix } = await import('./formatMetric');
+  expect(localizedMetricSuffix(' count', 'ko-KR')).toBe('건');
+  expect(localizedMetricSuffix('count', 'ko')).toBe('건');
+  expect(localizedMetricSuffix(' count', 'en-US')).toBe(' count');
+  expect(localizedMetricSuffix(' count', undefined)).toBe(' count');
+  expect(localizedMetricSuffix(' discount', 'ko')).toBe(' discount');
+  expect(localizedMetricSuffix(' KRW', 'ko')).toBe(' KRW');
+});

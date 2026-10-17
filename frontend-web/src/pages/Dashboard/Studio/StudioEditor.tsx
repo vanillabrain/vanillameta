@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { NativeSelect } from '@/components/ui/native-select';
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { Notice as Alert } from '@/components/ui/notice';
@@ -8,7 +9,7 @@ import { useMinWidth } from '@/components/PageViewBox';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
-import { formatMetric } from '@/utils/formatMetric';
+import { formatMetric, localizedMetricSuffix } from '@/utils/formatMetric';
 import MetricTrend from '../Components/MetricTrend';
 import StudioCanvas, { studioItemHeight } from './StudioCanvas';
 import StudioConversation from './StudioConversation';
@@ -337,6 +338,7 @@ type WorkspaceProps = {
 };
 
 function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
+  const { i18n } = useTranslation();
   const [conversationInput, setConversationInput] = useState('');
   const questionKey = useRef<string | null>(null);
   const [questionReady, setQuestionReady] = useState(false);
@@ -748,6 +750,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     const height = studioItemHeight(item ? item.h : 4);
     const compact = height < TREND_MIN_HEIGHT;
     const merged = mergeStudioDisplay(row, block.display);
+    merged.suffix = localizedMetricSuffix(merged.suffix, i18n?.resolvedLanguage || i18n?.language);
     const display = {
       prefix: merged.prefix,
       suffix: merged.suffix,

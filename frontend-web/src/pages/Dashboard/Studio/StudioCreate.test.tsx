@@ -89,7 +89,7 @@ const ready = async () => {
     expect((screen.getByRole('button', { name: '매출·환불 샘플' }) as HTMLButtonElement).disabled).toBe(false),
   );
   fireEvent.click(screen.getByRole('button', { name: '매출·환불 샘플' }));
-  await screen.findByText('2행 · 1개 열 · 서버 DuckDB');
+  await screen.findByText(/2행 · \d+개 열 · 서버 DuckDB/);
   await waitFor(() => {
     expect((screen.getByRole('combobox', { name: '저장된 데이터' }) as HTMLSelectElement).value).toBe('4');
     expect((screen.getByRole('button', { name: '매출·환불 샘플' }) as HTMLButtonElement).disabled).toBe(false);
@@ -97,6 +97,113 @@ const ready = async () => {
   fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '총매출을 보여 줘' } });
 };
 describe('Studio create workflow', () => {
+  it('offers only supported commerce questions and fills the editable prompt without posting', async () => {
+    const fallback = mocks.get.getMockImplementation();
+    mocks.get.mockImplementation(async (url: string, ...args: any[]) =>
+      url.endsWith('/profile')
+        ? {
+            data: {
+              ...profile(),
+              columns: [
+                { name: 'revenue', numeric: true },
+                { name: 'refund_amount', numeric: true },
+                { name: 'net_amount', numeric: true },
+                { name: 'paid_orders', numeric: true },
+                { name: 'refunded_orders', numeric: true },
+                { name: 'ordered_at', temporal: true },
+              ],
+            },
+          }
+        : fallback(url, ...args),
+    );
+    await ready();
+    mocks.post.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: '매출·환불 요약' }));
+    const input = screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement;
+    expect(input.value).toContain('결제 성공액');
+    expect(document.activeElement).toBe(input);
+    expect(mocks.post).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '주문 기준 환불률' }));
+    expect(input.value).toContain('주문 수 기준');
+    expect(screen.getByRole('button', { name: '주문일별 결제 추세' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    expect((screen.getByRole('button', { name: '매출·환불 요약' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+  it('hides questions whose required numeric data is entirely null', async () => {
+    const fallback = mocks.get.getMockImplementation();
+    mocks.get.mockImplementation(async (url: string, ...args: any[]) =>
+      url.endsWith('/profile')
+        ? {
+            data: {
+              ...profile(),
+              columns: [
+                { name: 'revenue', numeric: true, nullCount: '2' },
+                { name: 'refund_amount', numeric: true },
+                { name: 'net_amount', numeric: true },
+                { name: 'ordered_at', temporal: true },
+              ],
+            },
+          }
+        : fallback(url, ...args),
+    );
+    await ready();
+    expect(screen.queryByRole('group', { name: '추천 질문' })).toBeNull();
+  });
+  it('does not offer commerce prompts for unrelated or insufficient columns', async () => {
+    await ready();
+    expect(screen.queryByRole('button', { name: '매출·환불 요약' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '주문 기준 환불률' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '주문일별 결제 추세' })).toBeNull();
+  });
+  it.each([
+    {
+      columns: ['revenue', 'refund_amount', 'net_amount'],
+      example: '예: 결제 성공액, 환불액, 차감 수취액을 각각 숫자 지표로 보여 줘.',
+    },
+    {
+      columns: ['bid_request_cnt', 'bid_floor', 'has_bid_floor_cnt'],
+      example: '예: 총 요청 수와 평균 입찰 하한을 보여 줘.',
+    },
+    { columns: ['amount'], example: '예: 이 데이터에서 확인하고 싶은 지표를 적어 주세요.' },
+  ])('uses a source-specific placeholder for $columns without sending the example', async ({ columns, example }) => {
+    const fallback = mocks.get.getMockImplementation();
+    mocks.get.mockImplementation(async (url: string, ...args: any[]) =>
+      url.endsWith('/profile')
+        ? {
+            data: { ...profile(), columns: columns.map(name => ({ name, numeric: true, nullCount: '0' })) },
+          }
+        : fallback(url, ...args),
+    );
+    await ready();
+    const input = screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement;
+    expect(input.placeholder).toBe(example);
+    expect(input.value).toBe('총매출을 보여 줘');
+    expect(mocks.post.mock.calls.map(call => call[0])).toEqual(['/studio/samples']);
+  });
+  it('updates the placeholder after source switching while preserving the typed question', async () => {
+    const fallback = mocks.get.getMockImplementation();
+    mocks.get.mockImplementation(async (url: string, ...args: any[]) =>
+      url.endsWith('/profile')
+        ? {
+            data: {
+              ...profile(Number(url.split('/')[3])),
+              columns: url.includes('/4/')
+                ? ['revenue', 'refund_amount', 'net_amount'].map(name => ({ name, numeric: true }))
+                : profile(5).columns,
+            },
+          }
+        : fallback(url, ...args),
+    );
+    await ready();
+    const input = screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement;
+    expect(input.placeholder).toContain('결제 성공액');
+    mocks.post.mockClear();
+    fireEvent.change(screen.getByRole('combobox', { name: '저장된 데이터' }), { target: { value: '5' } });
+    await waitFor(() => expect(input.placeholder).toBe('예: 이 데이터에서 확인하고 싶은 지표를 적어 주세요.'));
+    expect(input.value).toBe('총매출을 보여 줘');
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
   it('previews semantics without saving, invalidates proposal on prompt edits', async () => {
     await ready();
     fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));

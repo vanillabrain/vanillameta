@@ -1312,13 +1312,16 @@ function Commerce() {
             </div>
             <Separator />
             {report.project && (
-              <p className="text-xs text-muted-foreground">
-                프로젝트: {report.project.name} · 리포트 데이터는 서버에서 계산했습니다. 검증 샘플 출처:{' '}
-                <a href="https://www.analyticsengineering.com/datasets/ecommerce-sales" target="_blank" rel="noreferrer">
-                  Analytics Engineering Ecommerce Sales &amp; Returns
-                </a>{' '}
-                (합성 데이터, CC BY 4.0). 업로드 데이터의 출처는 별도로 확인해 주세요.
-              </p>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p className="m-0">프로젝트: {report.project.name} · 리포트 데이터는 서버에서 계산했습니다.</p>
+                <p className="m-0">
+                  기본 제공 샘플의 원본·라이선스:{' '}
+                  <a href="https://www.analyticsengineering.com/datasets/ecommerce-sales" target="_blank" rel="noreferrer">
+                    Analytics Engineering Ecommerce Sales &amp; Returns
+                  </a>{' '}
+                  (합성 데이터, CC BY 4.0).
+                </p>
+              </div>
             )}
           </>
         )}

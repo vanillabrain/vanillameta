@@ -1,10 +1,12 @@
+import { useTranslation } from 'react-i18next';
 import React, { useId } from 'react';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
-import { formatMetric } from '@/utils/formatMetric';
+import { formatMetric, localizedMetricSuffix } from '@/utils/formatMetric';
 import { analysisOptions } from '../analysisOptions';
 import { CreationProposal } from './studioCreation';
 export default function StudioSemanticReview({ proposal }: { proposal: CreationProposal }) {
   const headingId = useId();
+  const { i18n } = useTranslation();
   return (
     <section className="studio-create-review" aria-labelledby={headingId}>
       <div className="studio-create-section-title">
@@ -19,6 +21,7 @@ export default function StudioSemanticReview({ proposal }: { proposal: CreationP
         {proposal.semanticProposal.map((item, index) => {
           const row = proposal.preview?.widgets[index];
           const metric = item.metric;
+          const suffix = localizedMetricSuffix(row?.suffix, i18n?.resolvedLanguage || i18n?.language);
           const value = row?.datas[0]?.[row.valueField];
           return (
             <article className="studio-create-preview-card" key={index} aria-label={item.title + ' 생성 미리보기'}>
@@ -46,7 +49,7 @@ export default function StudioSemanticReview({ proposal }: { proposal: CreationP
                     ? '—'
                     : formatMetric(value, {
                         prefix: row.prefix,
-                        suffix: row.suffix,
+                        suffix,
                         decimalPlaces: row.decimalPlaces ?? 0,
                         numberNotation: row.numberNotation === 'compact' ? 'compact' : 'full',
                       }).text}
@@ -56,7 +59,7 @@ export default function StudioSemanticReview({ proposal }: { proposal: CreationP
                   <WidgetViewer
                     hideHeader
                     widgetType={row.type}
-                    widgetOption={analysisOptions(row)}
+                    widgetOption={analysisOptions({ ...row, suffix })}
                     dataSet={row.datas}
                     isInvalidData={false}
                     title=""
