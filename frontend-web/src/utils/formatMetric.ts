@@ -10,6 +10,11 @@ export type MetricFormatOptions = {
   trimTrailingZeros?: boolean;
 };
 
+/** Translate only the canonical count unit; saved/custom suffixes remain untouched. */
+export function localizedMetricSuffix(suffix: string | undefined, language?: string) {
+  return /^ko(?:-|$)/i.test(language ?? '') && (suffix === ' count' || suffix === 'count') ? '건' : suffix;
+}
+
 /** Validate before parsing: null, blank, booleans and non-decimal syntax are never zero. */
 export function metricNumericText(value: unknown): string | null {
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null;

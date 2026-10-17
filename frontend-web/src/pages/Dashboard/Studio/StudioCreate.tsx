@@ -56,6 +56,47 @@ export default function StudioCreate() {
   const [canRepropose, setCanRepropose] = useState(false);
   const [initializationFailed, setInitializationFailed] = useState(false);
   const locked = initializationFailed || restoring || !!busy || refining || saveUncertain || !!recovery;
+  const promptInput = useRef<HTMLTextAreaElement>(null);
+  const suggestions = [
+    {
+      label: '매출·환불 요약',
+      columns: ['revenue', 'refund_amount', 'net_amount'],
+      prompt: '결제 성공액, 환불액, 차감 수취액을 각각 숫자 지표로 보여 줘.',
+    },
+    {
+      label: '주문일별 결제 추세',
+      columns: ['revenue'],
+      date: 'ordered_at',
+      prompt: '주문일별 결제 성공액 추세를 보여 줘.',
+    },
+    {
+      label: '주문 기준 환불률',
+      columns: ['paid_orders', 'refunded_orders'],
+      prompt: '결제 완료 주문 수와 환불 주문 수, 주문 수 기준 환불률을 숫자 지표로 보여 줘.',
+    },
+  ].filter(
+    suggestion =>
+      profile?.supported &&
+      profile.rowCount !== '0' &&
+      suggestion.columns.every(name =>
+        profile.columns.some(column => column.name === name && column.numeric && column.nullCount !== profile.rowCount),
+      ) &&
+      (!suggestion.date ||
+        profile.columns.some(
+          column => column.name === suggestion.date && column.temporal && column.nullCount !== profile.rowCount,
+        )),
+  );
+  const hasAuctionColumns =
+    profile?.supported &&
+    profile.rowCount !== '0' &&
+    ['bid_request_cnt', 'bid_floor', 'has_bid_floor_cnt'].every(name =>
+      profile.columns.some(column => column.name === name && column.numeric && column.nullCount !== profile.rowCount),
+    );
+  const promptExample = suggestions[0]
+    ? '예: ' + suggestions[0].prompt
+    : hasAuctionColumns
+    ? '예: 총 요청 수와 평균 입찰 하한을 보여 줘.'
+    : '예: 이 데이터에서 확인하고 싶은 지표를 적어 주세요.';
   const epoch = useRef(0),
     mounted = useRef(true),
     pending = useRef(false),
@@ -472,8 +513,35 @@ export default function StudioCreate() {
                     </div>
                   </fieldset>
                 )}
+                {suggestions.length > 0 && (
+                  <div className="studio-create-suggestions" role="group" aria-label="추천 질문">
+                    <span className="studio-create-note">추천 질문 · 입력 후 자유롭게 바꿀 수 있어요</span>
+                    <div className="studio-create-suggestion-actions">
+                      {suggestions.map(suggestion => (
+                        <Button
+                          key={suggestion.label}
+                          variant="outline"
+                          disabled={locked || !!proposal}
+                          onClick={() => {
+                            invalidate();
+                            setPrompt(suggestion.prompt);
+                            setError('');
+                            setNotice('');
+                            promptInput.current?.focus();
+                          }}
+                        >
+                          {suggestion.label}
+                        </Button>
+                      ))}
+                    </div>
+                    {proposal && (
+                      <span className="studio-create-note">생성안이 있을 때는 입력창에서 질문을 직접 수정해 주세요.</span>
+                    )}
+                  </div>
+                )}
                 <TextField
                   label="만들 대시보드 요청"
+                  inputRef={promptInput}
                   multiline
                   minRows={5}
                   value={prompt}
@@ -484,7 +552,7 @@ export default function StudioCreate() {
                   }}
                   disabled={locked}
                   inputProps={{ maxLength: 2000 }}
-                  placeholder="예: 총 요청 수와 평균 입찰 하한, 기기별 요청 수와 일별 추세를 보여 줘"
+                  placeholder={promptExample}
                 />
                 <div className="studio-create-request-actions">
                   <span>Codex · gpt-6-luna 요청</span>

@@ -1,0 +1,43 @@
+# Commerce→Studio 누적 변경 검토 — 2026-10-17
+
+기준: develop-v2 `2ef0743723d994782d262e2f162ac2bc4580e78f` 위 미커밋 변경. 이번 범위는 누적 Commerce 통화 문맥/추천 질문·placeholder/건수 현지화·게시 단일 점/헤더·모바일/업로드 출처 안내의 정적 검토와 기존 증빙 정리다. 원격 최신 develop-v2와의 병합 검증이나 운영 출시 승인이 아니다.
+
+## 검토 결과
+
+검토한 변경에서 구체적인 기능 회귀를 발견하지 못했다. 프런트6개 파일(StudioCreate/StudioEditor/StudioSemanticReview/PublishedDashboard/formatMetric/studio.css)은 별도 읽기 전용 에이전트가 검토했다. 서버의 commerceContext와 새 회귀·문맥 전달, 부모 제안/지표 참조 경계는 주 에이전트가 검토했다. 정적 무결과는 모든 실행 조합의 정확성을 증명하지 않는다.
+
+- 서버: 소스 권한·duckdb와 고정 연결 태그/버전/digest·현재 파일과 단일 버전을 확인한 경우에만 제한된 통화/주문일/행 단위 문맥을 전달한다. 반환 문맥은 경로/연결 설정/내부 origin ID를 포함하지 않는다. 기존 환불률 분모 gate·원 질문·저장 지표 참조 경로를 유지한다. 통화 단위를 모델 응답에서 결정적으로 강제하는 검증을 추가한 것은 아니다.
+- 프런트: 추천은 프로파일의 열·형식/null 조건으로 선택하며 자동 요청하지 않는다. 질문 변경/소스 변경 시 기존 잠금과 invalidate 경로를 사용한다. 건수 현지화는 새 표시 객체에만 적용하며 저장 정의를 수정하지 않는다. 게시 단일 점은 해당 렌더러 한 행에만 적용한다. 링크 버튼의 공통 색상 복원과 모바일 제목 배치는 게시 영역에 한정한다.
+- 보고서: 출처 문구 분리는 자동 provenance 판정이 아니며 기존 기본 샘플 저작자/라이선스 링크를 보존한다. 빈 환불은 필수 헤더0행이며 파일 자체 생략/0바이트 지원으로 확대하지 않는다.
+
+테스트 객체의 grain 들여쓰기1곳을 정리하고, status의 단일 점 가시성 잔여 문구를 DISPLAY 후속으로 연결했다. 새 제품 동작 변경은 없다. 해당 테스트 파일 Prettier check·diff whitespace PASS이며 기존 통과 테스트/브라우저는 반복하지 않았다. 신규 에이전트도 테스트/브라우저/편집을 실행하지 않았다.
+
+## 재사용한 검증 근거
+
+| 범위 | 가장 최근 증빙 | 결과의 한계 |
+|---|---|---|
+| 고정 Commerce 통화/주문일 문맥 | [CONTEXT-01~04](commerce-ai-context.md) · BE55·실제 지정 Codex/저장/reload·3폭 | 일반 CSV 추론·서버 단위 강제 미구현 |
+| 추천 질문/소스별 예시 | [QUESTION-01~06](commerce-suggested-questions.md) · 초기24/후속 신규4 선택·실제 환불률2/1/50%·질문 보존 | 모든 추천/스키마/실행 언어 전환 UI 조합은 별도 |
+| 한국어 건수/한 점/게시 헤더/오류 | [DISPLAY-01~06](commerce-display.md) · FE88·실제 렌더러·전체 wrapper 합성 응답·3폭/선택 키보드 | 전체 wrapper 후속의503/410은 합성, 실제 서버 권한/만료 검증으로 확대하지 않음 |
+| 환불0/고객 CSV 생략·출처 표시 | [EMPTY-01~04/문구 후속](commerce-empty-refunds.md) · 새 워커2·실제 수입/재조회·API13000/0/13000·3개 범위 캡처 | 실제 고객/원본 provenance 검증 아님 |
+
+검사 숫자는 서로 중복될 수 있어 총합하지 않는다. 전체 BE/FE/core E2E의 최신 실행을 새로 수행한 것으로 주장하지 않는다. 화면이 변경되지 않아 이번 검토에서는 새 캡처를 만들지 않고 각 문서의 실제 증빙을 재사용한다.
+
+## 다음 우선순위
+
+1. 현재 누적 변경을 하나의 검토 가능한 커밋 묶음으로 정리·저장한다. 이 검토 자체는 commit/push를 실행하지 않았다.
+2. 실제 비식별 고객 파일과 담당자 정답이 준비되면 [PILOT-01~07](customer-pilot.md)의 해당 조건을 실행한다. 미제공 상태를 합성 데이터로 대체하지 않는다.
+3. 실휴대폰·전체 키보드/VoiceOver와 운영 gate는 별도 진행한다. VoiceOver BLOCKED·gpt-6-luna 설정 유지, 고객/운영/전체 제품 수용은 OPEN이다.
+
+검토 증빙과 파일 해시는 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/commerce-review-20261017/manifest.json`에 기록했다. 이번에는 서버·브라우저·LLM을 기동하지 않았다.
+
+
+## 최신 develop-v2 통합 — 2026-10-17
+
+후속 사용자 지시에 따라 위 누적 변경을 `c090c4cd`로 커밋했다. fetch 시 원격에9개 후속 커밋(`dd15bf75`~`3a418b03`)이 있어 병합했다. StudioEditor는 원격 저장/초안 복구의 props·import와 로컬 표시 현지화를 모두 보존했고, status는 원격 UC045~047/strict 오류0·경고2 최신 판정에 로컬 Commerce 후속4개 행을 합쳤다. 과거의 strict12오류/미커밋 표시는 실행 당시 기록이며 현재 상태는 이 후속 및 Git 이력을 따른다.
+
+저장소 통합 지침에 따라 루트 build/test와 FE 타입, 관련 FE/BE lint를 실행했다. root build PASS·FE type PASS·변경 lint PASS다. root test의BE는122suite 중120suite/2118개 통과, 포트 개방 제한으로HTTP2suite/6개 실패였다. 실패한 두 controller suite만 포트 권한이 있는 환경에서 재실행해6개 모두 PASS했다. 따라서 BE2124개는 두 실행의 합성 결과이며 최초 root test 명령 자체가 성공했다고 보고하지 않는다. 이후 루트 test:web는98suite/1437개 모두 PASS했다. 테스트 재실행은 원격 통합으로 코드가 달라진 이번 범위에 한정했다.
+
+원격 저장 복구의 실제 UI 증빙은 해당 문서를 재사용하고 로컬 단위/표시·모바일 캡처도 기존 결과를 재사용했다. 이번에는 실제LLM/새브라우저/core Playwright를 실행하지 않았다. 핵심 E2E에는 이번 Studio 저장 복구 전용 케이스가 없으며 기존 일반 위젯/CSV 흐름의 반복으로 대체하지 않았다. 전체 고객 수용/모든 경합/운영 gate는 여전히 OPEN이다. gpt-6-luna·VoiceOver BLOCKED 유지.
+
+실행 로그·병합 소스 해시는 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/commerce-integration-20261017/`에 보관했다. GitHub 작업 인증은 사용자 지정drumcap이며 작성자 설정은 기존 값을 유지했다.

@@ -416,4 +416,56 @@ describe('DuckDB commerce bundle import', () => {
       ),
     ).not.toContain('customer_id');
   });
+  it.each([false, true])(
+    'imports header-only refunds without customers (analytical=%s)',
+    async analytical => {
+      const files = {
+        orders: csv(
+          'no-refund-orders.csv',
+          'order_id,customer_id,ordered_at,order_status,currency,subtotal,tax_amount,shipping_amount,order_total\nZ1,C1,2025-01-01T00:00:00Z,completed,KRW,10000,1000,1000,12000\nZ2,C2,2025-01-01T00:00:00Z,completed,KRW,1000,0,0,1000\n',
+        ),
+        payments: csv(
+          'no-refund-payments.csv',
+          'payment_id,order_id,paid_at,payment_status,amount\nP1,Z1,2025-01-01T01:00:00Z,succeeded,12000\nP2,Z2,2025-01-01T01:00:00Z,succeeded,1000\n',
+        ),
+        refunds: csv(
+          'no-refund-refunds.csv',
+          'refund_id,payment_id,order_id,refunded_at,refund_reason,amount\n',
+        ),
+      };
+      const imported = await worker.importCommerce({ files, analytical } as any);
+      expect(imported.validation.valid).toBe(true);
+      expect(imported.rows).toEqual({ orders: 2, payments: 2, refunds: 0 });
+      if (analytical) {
+        const rows = (
+          await worker.query(
+            imported.filename,
+            'SELECT SUM(revenue) AS sales, SUM(refund_amount) AS refund, SUM(net_amount) AS net, SUM(paid_orders) AS paid, SUM(refunded_orders) AS refunded FROM uploaded_data',
+          )
+        ).datas;
+        expect(rows[0]).toMatchObject({
+          sales: '13000.00',
+          refund: '0.00',
+          net: '13000.00',
+          paid: 2,
+          refunded: 0,
+        });
+      } else {
+        expect(
+          (await worker.query(imported.filename, 'SELECT COUNT(*) AS n FROM commerce_refunds'))
+            .datas[0],
+        ).toEqual({ n: 0 });
+        expect(
+          String(
+            (
+              await worker.query(
+                imported.filename,
+                'SELECT SUM(amount_minor) AS n FROM commerce_payments',
+              )
+            ).datas[0].n,
+          ),
+        ).toBe('1300000');
+      }
+    },
+  );
 });

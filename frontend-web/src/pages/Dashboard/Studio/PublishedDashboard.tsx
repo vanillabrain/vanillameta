@@ -1,10 +1,11 @@
+import { useTranslation } from 'react-i18next';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import IconLogo from '@/assets/images/logo.svg?react';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { useMinWidth } from '@/components/PageViewBox';
 import { useParams } from 'react-router-dom';
-import { formatMetric } from '@/utils/formatMetric';
+import { formatMetric, localizedMetricSuffix } from '@/utils/formatMetric';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import LineChart from '@/widget/modules/linechart/LineChart';
 import { analysisOptions } from '../analysisOptions';
@@ -16,9 +17,13 @@ import './studio.css';
 
 /** Deliberately pass only renderer data/options. No source lookup, SQL, links or executable content. */
 export function PublishedBlockView({ block }: { block: PublishedBlock }) {
+  const { i18n } = useTranslation();
+  const display = {
+    ...block.display,
+    suffix: localizedMetricSuffix(block.display?.suffix, i18n?.resolvedLanguage || i18n?.language),
+  };
   const [showRows, setShowRows] = useState(false);
-  const format = (value: unknown) =>
-    value === null || value === undefined ? '—' : formatMetric(value, block.display ?? {}).text;
+  const format = (value: unknown) => (value === null || value === undefined ? '—' : formatMetric(value, display).text);
   const fields = [block.categoryField, block.valueField].filter((value): value is string => typeof value === 'string');
   return (
     <>
@@ -36,10 +41,10 @@ export function PublishedBlockView({ block }: { block: PublishedBlock }) {
                 type: block.kind,
                 valueField: block.valueField,
                 categoryField: block.categoryField,
-                ...block.display,
+                ...display,
               })}
               dataSet={block.datas}
-              seriesOp={{ showSymbol: false }}
+              seriesOp={{ showSymbol: block.datas.length === 1, ...(block.datas.length === 1 ? { symbolSize: 7 } : {}) }}
               defaultOp={{ animation: false }}
               createOp={{ grid: { left: 52, right: 44, top: 12, bottom: 28, containLabel: false } }}
             />
@@ -51,7 +56,7 @@ export function PublishedBlockView({ block }: { block: PublishedBlock }) {
                 type: block.kind,
                 valueField: block.valueField,
                 categoryField: block.categoryField,
-                ...block.display,
+                ...display,
               })}
               dataSet={block.datas}
               isInvalidData={false}
@@ -62,7 +67,7 @@ export function PublishedBlockView({ block }: { block: PublishedBlock }) {
         </div>
       )}
       {block.kind === 'BOARD_NUMERIC' && block.trend && (
-        <MetricTrend trend={{ ...block.trend, column: '' }} title={block.title} {...block.display} />
+        <MetricTrend trend={{ ...block.trend, column: '' }} title={block.title} {...display} />
       )}
       {block.kind === 'BOARD_NUMERIC' && (
         <Button

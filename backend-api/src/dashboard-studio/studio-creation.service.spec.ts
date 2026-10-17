@@ -141,6 +141,75 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       { proposalId: p.proposalId, expectedSourceRevision: p.sourceRevision, requestId },
       7,
     );
+  it.each(['KRW', 'USD'])(
+    'sends pinned Commerce %s context without rewriting the user question',
+    async currency => {
+      const original = await db.manager.findOneByOrFail(Database, { id: 1 });
+      const config = JSON.parse(original.connectionConfig),
+        digest = 'a'.repeat(64);
+      await db.manager.update(Database, 1, {
+        description: `commerce-studio:order-cohort-v1:12:3:${digest}`,
+        connectionConfig: JSON.stringify({
+          ...config,
+          commerceSnapshot: {
+            projectId: 12,
+            version: 3,
+            digest,
+            currency,
+            timeBasis: 'order-cohort',
+          },
+          fileVersions: [{ filename: config.connection.filename }],
+        }),
+      });
+      try {
+        await propose();
+        const [system, user] = llm.callLlm.mock.calls[0],
+          payload = JSON.parse(user);
+        expect(payload.prompt).toBe('Show revenue and channels');
+        expect(payload.source.analysisContext).toEqual({
+          currency,
+          timezone: 'UTC',
+          timeBasis: 'order-cohort',
+          dateColumn: 'ordered_at',
+          scope: 'all-time',
+          grain: 'one row per order',
+          revenue: 'successful payments per order',
+          refunds: 'recorded refunds per order within this bundle',
+        });
+        expect(JSON.stringify(payload.source.analysisContext)).not.toMatch(
+          /filename|digest|projectId|connection/,
+        );
+        expect(system).toContain('Do not convert currencies');
+        llm.callLlm.mockClear();
+        await propose({ prompt: '환불률 보여줘' });
+        expect(llm.callLlm).not.toHaveBeenCalled();
+        await db.manager.update(Database, 1, {
+          connectionConfig: JSON.stringify({
+            ...config,
+            commerceSnapshot: {
+              projectId: 12,
+              version: 3,
+              digest,
+              currency,
+              timeBasis: 'order-cohort',
+            },
+            fileVersions: [{ filename: 'replaced.duckdb' }],
+          }),
+        });
+        await propose();
+        expect(JSON.parse(llm.callLlm.mock.calls[0][1]).source.analysisContext).toBeUndefined();
+      } finally {
+        await db.manager.update(Database, 1, {
+          description: original.description,
+          connectionConfig: original.connectionConfig,
+        });
+      }
+    },
+  );
+  it('does not guess Commerce semantics for ordinary files', async () => {
+    await propose();
+    expect(JSON.parse(llm.callLlm.mock.calls[0][1]).source.analysisContext).toBeUndefined();
+  });
   it('T15 reads only owned live proposals and restores the exact committed creation journal', async () => {
     const unique = semantics();
     unique.semanticProposal.forEach(b => {

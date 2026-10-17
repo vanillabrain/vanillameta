@@ -17,7 +17,7 @@
 | refunds | refund_id, payment_id, order_id, refunded_at, refund_reason, amount |
 | customers (선택) | customer_id, acquisition_channel |
 
-**현재 제약:** Commerce importer는 파일 묶음마다 USD(소수 최대2자리) 또는 KRW(정수 원) 한 통화를 지원한다. [합성 원화 검증](commerce-krw.md)은 실제 고객 검증과 구분한다. 다중통화/미지원 통화 파일은 currency만 USD로 바꾸거나 임의 환산해 통과시키지 않는다. [Studio 명시 원화 생성·수정·저장](studio-krw.md)은 합성 데이터로 확인했으며 통화 열의 자동 추론·고객 파일은 별도 확인이 필요하다. 주문 상태/결제 상태·금액 합계·참조 무결성도 기존 검사를 따른다. 없는 환불은 헤더가 있는 빈 파일 등 현재 importer 지원 여부를 해당 입력으로 확인하며 성공을 가정하지 않는다.
+**현재 제약:** Commerce importer는 파일 묶음마다 USD(소수 최대2자리) 또는 KRW(정수 원) 한 통화를 지원한다. [합성 원화 검증](commerce-krw.md)은 실제 고객 검증과 구분한다. 다중통화/미지원 통화 파일은 currency만 USD로 바꾸거나 임의 환산해 통과시키지 않는다. [Studio 명시 원화 생성·수정·저장](studio-krw.md)은 합성 데이터로 확인했으며 통화 열의 자동 추론·고객 파일은 별도 확인이 필요하다. 주문 상태/결제 상태·금액 합계·참조 무결성도 기존 검사를 따른다. 환불이 없으면 필수 헤더가 있는0행 CSV를 제공한다. [EMPTY-01~04 합성 검증](commerce-empty-refunds.md)에서 일반/분석 수입·실제 UI 저장/reload를 확인했으며 환불 파일 생략/0바이트 지원이나 고객 수용으로 확대하지 않는다.
 
 기존 commerce 요약의 상품금액(subtotal) 기준과 Studio 분석의 성공 결제 amount 합계 기준은 서로 같다고 가정하지 않는다. 날짜도 결제/환불 발생일 기준 현금 흐름과 주문일 코호트를 구분한다. 고객이 원하는 정의를 선택해 모든 비교에 같은 조건을 적용한다. 정의/타입/통화가 맞지 않으면 먼저 차이를 보고하고 완료 숫자를 만들기 위해 데이터를 바꾸지 않는다.
 
