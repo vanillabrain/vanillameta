@@ -98,6 +98,47 @@ const ready = async () => {
   fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '총매출을 보여 줘' } });
 };
 describe('Studio create workflow', () => {
+  it('UC050 preserves the question and generated preview during business description reads and errors', async () => {
+    const originalGet = mocks.get.getMockImplementation();
+    if (!originalGet) throw new Error('missing fixture');
+    mocks.get.mockImplementation(async (...args: any[]) => {
+      const response = await originalGet(...args);
+      if (args[0].endsWith('/profile')) response.data.data.dataVersion = 'a'.repeat(64);
+      return response;
+    });
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    mocks.post.mockClear();
+    mocks.post.mockResolvedValueOnce({
+      data: {
+        status: 'SUCCESS',
+        data: {
+          sourceId: 4,
+          sourceRevision: 'a'.repeat(64),
+          version: 1,
+          label: '주문 업무',
+          description: '',
+          schemaChanged: false,
+          columns: [{ column: 'amount', type: 'BIGINT', label: '결제액', description: '', unit: '원' }],
+        },
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '데이터 업무 설명 확인' }));
+    await screen.findByText('주문 업무');
+    const input = screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement;
+    expect(input.value).toBe('총매출을 보여 줘');
+    expect(screen.getByText('500')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Studio에 저장하고 열기' }) as HTMLButtonElement).disabled).toBe(false);
+    mocks.post.mockRejectedValueOnce({ response: { status: 503 } });
+    fireEvent.click(screen.getByRole('button', { name: '업무 설명 다시 조회' }));
+    await screen.findByText(/업무 설명을 확인하지 못했습니다/);
+    expect(input.value).toBe('총매출을 보여 줘');
+    expect(screen.getByText('500')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Studio에 저장하고 열기' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(mocks.post.mock.calls.map(call => call[0])).toEqual(['/bi/source-catalog/read', '/bi/source-catalog/read']);
+  });
+
   it('offers only supported commerce questions and fills the editable prompt without posting', async () => {
     const fallback = mocks.get.getMockImplementation();
     mocks.get.mockImplementation(async (url: string, ...args: any[]) =>

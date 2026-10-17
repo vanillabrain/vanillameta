@@ -83,3 +83,5 @@ flowchart LR
 [UC050 저장 전 미리보기](../testing/source-catalog-preview.md)는 save의 권한/버전/업무 필드 검증과 이력 비교의 차이 계산을 공유하며 쓰기 없이 정규화한 draft를 반환한다. UI의 동의는 그 draft에만 연결하고 입력이 바뀌면 폐기한다. 기존 save API 호환성과 저장 직전 검증/CAS는 유지한다. 원본/분석 전파와 공식 승인·사용처 영향 검토는 추가하지 않는다.
 
 [UC050 직접 사용처 조회](../testing/source-catalog-usage.md)는 소스 소유권을 먼저 확인하고 Metric.databaseId/useYn와 Dashboard.analysisDefinition.databaseId·UserMapping/삭제 상태·기존 dashboard 권한으로 읽는다. ID/표시명만 반환하고 본인 분석 후보의20개 커서 구간을 명시한다. 새 물리 모델은 없으며 일반 위젯/게시/독립 사본 전체 의존 그래프·변경 영향 계산과 구분한다.
+
+[UC050 Studio 조회](../testing/studio-source-catalog.md)는 Studio 생성/재사용 공용 선택기에서 기존 catalog/read의 소유권 검사를 재사용한다. sourceId/현재 profile.dataVersion·실제 열명/형식과 응답을 대조한 읽기 전용 설명이며 질문/LLM 문맥 자동 삽입과 계산/표시 이름 변경은 하지 않는다. 소스 snapshot key로 읽기 수명을 분리하고 질문 입력 재렌더는 재조회하지 않는다. 새 API/DB 스키마/의존성은 없다.

@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import StudioSourceCatalog from './StudioSourceCatalog';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { SourceProfile, StudioSource } from './studioCreation';
@@ -109,6 +110,7 @@ export default function StudioSourcePicker({
           </div>
         </div>
       )}
+      {profile && profile.sourceId === sourceId && <StudioSourceCatalog profile={profile} />}
     </section>
   );
 }

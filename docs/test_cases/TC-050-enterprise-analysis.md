@@ -58,3 +58,7 @@
 ### UC050 Direct Usage Follow-up
 
 [사용처 증빙](../testing/source-catalog-usage.md)은 소유 소스의 활성 지표·본인 저장 분석 직접 연결과 자원 권한·후보 페이지/손상 정의·조회 불변·초안/동의 보존을 선택 검증한다. 기존 분석의 전체 변경 영향 계산·공식 승인·실제 Ego/모바일·전체 TC050 NOT_RUN을 대체하지 않는다.
+
+### UC050 Studio Business Meaning Follow-up
+
+[Studio 조회 검증](../testing/studio-source-catalog.md)에서 명시 읽기·업무/원본 구분·미등록/버전·구조 불일치·오류 후 이전 표시 제거·늦은 응답 격리와 기존 질문/생성안/저장 버튼 보존을 선택 검증한다. 공용 선택기는 생성/소스 재사용에 연결되지만 실제 Ego/모바일·전체 TC050 NOT_RUN은 유지한다.
