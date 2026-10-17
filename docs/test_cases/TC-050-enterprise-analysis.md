@@ -42,3 +42,7 @@
 ## Execution
 
 전체 NOT_RUN. 요구사항/설계 추가 단계이며 코드·DB·실제 UI·외부 연계·운영 수용 시험은 수행하지 않았다. [설계](../architecture/enterprise-analysis.md)를 따른다. 기존 TC005 통과 증빙을 이 여정의 통과로 승계하지 않는다.
+
+### UC050 First Slice
+
+전체 시나리오 상태는 NOT_RUN을 유지한다. 소유 DuckDB 소스의 표시명/설명·열별 표시명/설명/단위 버전 저장 부분만 [별도 증빙](../testing/source-catalog.md)에 연결한다. 실제 조직 권한·공식 승인/분류·날짜 형식·변경 영향 확인을 이 첫 단위의 자동 검사로 통과 처리하지 않는다.

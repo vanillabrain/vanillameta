@@ -1,3 +1,4 @@
+import SourceCatalogEditor from './SourceCatalogEditor';
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -916,6 +917,7 @@ function SourceExploreContent() {
         </Button>
       </div>
       <Separator />
+      {catalog && <SourceCatalogEditor sourceId={catalog.sourceId} />}
       {catalog && (
         <div className="mt-3 flex min-w-0 flex-wrap items-start gap-2">
           {/* Our restful V1 state cannot carry the advanced Pivot, so classic save/load hides there. */}

@@ -1,3 +1,6 @@
+import { SourceCatalogController } from './source-catalog.controller';
+import { SourceCatalogService } from './source-catalog.service';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { SharedReuseOriginService } from './shared-reuse-origin.service';
 import {
   SharedReuseController,
@@ -33,9 +36,10 @@ import { BiService } from './bi.service';
   imports: [
     AiModule,
     ConnectionModule,
-    TypeOrmModule.forFeature([PersonalView, Dashboard, DashboardPublication]),
+    TypeOrmModule.forFeature([PersonalView, Dashboard, DashboardPublication, SourceCatalogEntry]),
   ],
   controllers: [
+    SourceCatalogController,
     BiController,
     DashboardReuseController,
     SharedReuseController,
@@ -50,6 +54,7 @@ import { BiService } from './bi.service';
     PublishedPublicationController,
   ],
   providers: [
+    SourceCatalogService,
     BiService,
     DashboardReuseService,
     SharedReuseOriginService,

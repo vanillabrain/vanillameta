@@ -13,7 +13,7 @@
 ## Preconditions
 
 - 요청자가 같은 조직의 유효한 업무 계정이며 대상의 현재 권한을 확인할 수 있다.
-- 신규 목표 명세이며 구현·실제 실행 검증은 NOT_RUN이다.
+- 전체 목표의 조직 관리자 권한·승인/분류·영향 확인은 미완료다. 소유 소스 업무 설명의 첫 구현 범위는 아래 Implementation Slice를 따른다.
 
 ## Main Success Scenario
 
@@ -55,4 +55,8 @@
 
 ## Source Evidence
 
-[VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)를 따른다. 신규 요구이며 구현/실행 검증은 미완료다.
+[VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)를 따른다. 전체 시나리오 수용은 미완료이며 첫 구현의 실행 범위는 아래 증빙을 따른다.
+
+## Implementation Slice — 2026-10-18
+
+[첫 구현 계획](../plans/UC-050.md)·[검증 기록](../testing/source-catalog.md)의 소유 DuckDB 소스 표시명/설명과 실제 열별 표시명/설명/단위 읽기·버전 저장을 구현했다. 기존 Explore에서 `데이터 업무 설명`을 열어 편집한다. 기존 소유권 검사만 사용하며 조직 관리자/공식 승인·활성 상태/분류·날짜 형식/유형 변경·기존 분석 전파는 미구현이다. 위 Main Success Scenario 전체와 TC050 전체는 여전히 미완료다. 열 구조가 변경되면 이력을 보존하고 저장을 잠근다. 실제 Ego/모바일 검증은 사용자 제어권 점유로 BLOCKED이며 자동 검사와 구분한다.

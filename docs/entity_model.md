@@ -181,3 +181,7 @@ Dimension은 첫 범위에서 source+원본 column 기반 안정적 논리 ID·�
 ## 기업 사내 분석 목표 객체 — UC050~055
 
 [기업용 설계](architecture/enterprise-analysis.md)의 Organization/Membership/Group·ResourceGrant·AnalysisCatalog/BusinessVariable·ConditionDefinition/ExecutionContext·ArtifactDelivery/Notification·ExportJob/ResultFile·PersonalLibraryState/UsageReference·BusinessAuditEvent는 목표 책임이다. 현재 DB 테이블·FK·마이그레이션 완료가 아니다. 조직/원천/산출물/전달 권한과 독립 사본·파일 결과를 분리하며 물리 모델은 구현 단위에서 검증한다. 기존 엔티티의 구현 상태는 그대로 유지한다.
+
+## UC050 첫 물리 모델
+
+`source_catalog_entry`는 `(sourceId, version)` 복합 기본키의 추가 전용 이력이다. `actorId`, `sourceRevision`(varchar128), `schemaRevision`(varchar64), `metadata`(text, UTF-8 60,000 bytes 이하), `createdAt`을 기록한다. 메타데이터는 소스 표시명(100자)/설명(1000자)·실제 열별 표시명(100자)/설명(1000자)/단위(24자)만 담고 원본 행·연결정보·SQL은 담지 않는다. 새 저장은 기존 최대 버전+1의 고유키로 경쟁을 거절한다. 조직 승인 카탈로그·공통 분류와는 별도 첫 단계이며 기존 Source/Measure/Dimension 정의를 자동 변경하지 않는다. [계획](plans/UC-050.md)·[검증](testing/source-catalog.md).

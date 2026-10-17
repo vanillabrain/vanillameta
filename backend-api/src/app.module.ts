@@ -1,3 +1,4 @@
+import { AddSourceCatalog1792300000000 } from './migrations/1792300000000-add-source-catalog';
 import { StudioModule } from './dashboard-studio/studio.module';
 import { AddDashboardStudio1792030000000 } from './migrations/1792030000000-add-dashboard-studio';
 import { AddAnalysisCreationReceipts1792030000000 } from './migrations/1792030000000-add-analysis-creation-receipts';
@@ -65,6 +66,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddSourceCatalog1792300000000,
         AddDashboardStudio1792030000000,
         AddDashboardReusePermissions1792120000000,
         AddDashboardPublications1792040000000,

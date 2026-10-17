@@ -764,3 +764,7 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 - 2026-10-17: [UC039 두 정상 ID 지연 조회](studio-late-read.md#두-정상-대시보드-id-전환-계획--2026-10-17) ROUTE-READ01~03 PASS_SELECTED. 새 MySQL fixture A1/B2·Ego10의 같은 브라우저 문서/route에서 A보류→B GET200→A 늦은200/503 완료에도 B 제목/ID/634,513,000 유지·DOM A 재노출0. 보호26테이블 불변·저장/게시/LLM0,1440/390 배치 완료 넘침0(즉시 resize의 일시 넘침은 분리 기록). 제품변경0·기존검사 재사용·전용서버/공간 정리, 검증기록 미커밋. 초안/인증/취소의 전체 경합·운영/실기기/VoiceOver는 별도·gpt-6-luna 유지.
 
 - 2026-10-17 최신 정리: 검증 문서 커밋 `c8b3115c`와 원격 UC040/041 `5b759bcc`/`e0f0b69d`를 `7c7f7f3d`로 충돌 없이 보존 병합했다. 본문 최상단 최신 요약과 P1~P5 상태를 대표 검증/PARTIAL·전체 수용 OPEN으로 정리하고 당시 기록은 보존했다. [고객 파일럿](customer-pilot.md)7개 조건은 실제 입력/독립 정답 미제공으로 NOT_RUN이며 새 고객 데이터 검증을 주장하지 않는다. 새 통합 상태의 루트 BE2100/FE1368 전부 PASS·루트build/FEtype·문서 링크/diff PASS, 로그 `phase2-fix-evidence/status-sync-20261017`(저장소 밖). 기존 Ego/실LLM/DB 장애/core는 반복하지 않았다. 데이터 준비 후 한 업무 질문부터 실행하며 현재 commerce USD 제약·상품금액/결제금액·날짜 기준 차이를 먼저 맞춘다. gpt-6-luna/VoiceOver BLOCKED 유지.
+
+## 2026-10-18 UC050 업무 메타데이터 첫 구현
+
+[증빙](source-catalog.md): 기존 소유 DuckDB 소스의 표시명/설명과 실제 열별 표시명/설명/단위 읽기·명시 저장을 Explore 접힌 편집기에 연결했다. 추가 전용 버전 이력/고유키 경합 거절·기존 원본/분석 불변이다. 조직 관리자·공식 승인·활성/분류·타입/날짜 변환·전파는 미구현이며 요구사항 Open/UC Draft를 유지한다. Ego96는 사용자 제어권 점유로 실제 화면/3폭 검증 BLOCKED다.
