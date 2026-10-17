@@ -95,7 +95,15 @@ it('keeps rejected request and draft until explicit return to draft recovery', a
   api.post.mockRejectedValue({ response: { status: 409 } });
   const t = setup();
   fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 재확인' }));
-  fireEvent.click(await screen.findByRole('button', { name: '보관 초안으로 돌아가기' }));
+  const returnButton = await screen.findByRole('button', { name: '보관 초안으로 돌아가기' });
+  expect(readStudioPendingSave('key', 3)?.request).toEqual(t.r.request);
+  expect(sessionStorage.getItem('key')).toBe('local draft');
+  expect(sessionStorage.getItem('question')).toBe('keep');
+  expect(t.onDraft).not.toHaveBeenCalled();
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(api.post.mock.calls[0][1]).toEqual(t.r.request);
+  expect(api.get).not.toHaveBeenCalled();
+  fireEvent.click(returnButton);
   expect(t.onDraft).toHaveBeenCalled();
   expect(readStudioPendingSave('key', 3)).toBeNull();
   expect(sessionStorage.getItem('key')).toBe('local draft');

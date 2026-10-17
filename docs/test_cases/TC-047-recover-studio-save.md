@@ -28,3 +28,5 @@ PASS_SELECTED: Ego92 실제 commit201 뒤503→reload/동일 요청 확인/영�
 Ego93 후속 PASS_SELECTED: 복제 임시 ID/크기 변경 포함 저장201 뒤503→reload→동일 요청/동일 idMap→최신GET/4블록·추가 영수증0→질문 복구/원복을 확인했다. FE9/type/lint·실제38개와390/768/1440 넘침0. 제품 소스는6911c634이며 직전 build를 재사용했다. [신규 블록 증빙](../testing/studio-save-new-block-recovery.md).
 
 Ego94 후속 PASS_SELECTED: 명시 동일 저장 확인201 뒤 최신GET503→confirmed/문서/질문 보존→reload/자동POST0→명시GET만/영수증·revision 증가0→질문 복구/원복. FE10/type/lint/build·실제43개와390/768/1440 넘침0. [확정 후 조회 복구 증빙](../testing/studio-confirmed-read-recovery.md).
+
+Ego95 후속 PASS_SELECTED: 실제 두 탭 저장409→기록/질문 보존→명시 초안 복귀→최신 비교/같은 항목 동의→전체 미리보기→최신 revision 새 저장/reload. 비대상 최신 제목·ID/SQL/모든폭배치/원본45 보존·46 정상원복·390/768/1440 넘침0. FE16/type/lint·실제52개이며 제품 코드fde87ab3/build 증빙을 재사용했다. [409 초안 복귀 증빙](../testing/studio-save-conflict-return.md).

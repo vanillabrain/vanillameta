@@ -44,3 +44,7 @@ Status: Draft · UC047/P3 · TC047 · PASS_SELECTED.
 ## 저장 확정 후 조회 실패/reload 후속
 
 [Ego94 확인 후 최신 조회 복구](studio-confirmed-read-recovery.md)에서 명시 확인POST201→최신GET503→confirmed 기록/질문 보존→reload/자동POST0→명시GET만→저장본/질문 복구를 확인했다. 위 Ego92의 확정 후 GET 실패/reload 미실행 표기는 당시 범위이며 최신 선택 검증은 이 후속을 따른다.
+
+## 409 보관 초안 복귀 후속
+
+[Ego95 실제409 복귀](studio-save-conflict-return.md)는 미전달503→다른 탭 실제 저장→동일 보관 요청409/기록 보존→명시 초안 복귀/최신 비교→같은 항목 동의/전체 미리보기→새 저장/reload를 확인했다. 위 Ego92의409 실제 미실행 표기는 당시 범위이며 이 후속에서 보완했다.
