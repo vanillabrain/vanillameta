@@ -31,7 +31,7 @@ export default function StudioSourcePicker({
   const normalize = (value: string) => value.normalize('NFKC').toLowerCase().trim();
   const query = searchOpen ? normalize(search) : '';
   const matches = sources.filter(source =>
-    normalize(`${source.catalogLabel ?? ''} ${source.name} ${source.id}`).includes(query),
+    normalize(`${source.catalogLabel ?? ''} ${source.name} #${source.id}`).includes(query),
   );
   const matchIds = new Set(matches.map(source => source.id));
   const options = sources.filter(source => source.id === sourceId || matchIds.has(source.id));

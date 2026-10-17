@@ -16,7 +16,7 @@ Studio의 공용 fetchStudioSources만 opt-in한다. 선택기 기본은 접힌 
 - FE 신규 선택기/목록 검증: 접힘·업무/원본/ID 검색·Unicode 정규화·동명이름·미지원·검색0건 선택 유지/접기 복원·목록 변경·busy 잠금·옵션 summary 검증. 생성 컴포넌트에서 제안500 이후 검색0건에도 선택/원 질문/생성안·저장 버튼 보존/추가GET·POST0을 확인한다.
 - 공용 선택기는 Studio 생성/재사용에 연결한다. 기존 Remix 테스트는 선택기를 mock하므로 재사용 실제 화면 증거로 확대하지 않는다. StudioCreate/대화 생성/업무설명·생성 계약 회귀를 함께 실행한다.
 
-선택 BE116개(4 suites: 신규11+기존 catalog/usage/Explore)·FE102개(7 files)가 통과했다. BE/FE build·변경 lint·FE type이 통과했다. 최초 BE lint의 포맷 오류는 수정 후 재실행 통과했다. strict 문서 검사는 오류0·기존 FR011/NFR002 상태 경고2로 exit1이며 승인 상태를 바꿔 숨기지 않았다. pin/check·독립 리뷰와 공개 변경 검사는 최종 기록을 따른다. 문서 상태는 실제 수용/승인으로 올리지 않는다.
+선택 BE116개(4 suites: 신규11+기존 catalog/usage/Explore)·FE102개(7 files)가 통과했다. BE/FE build·변경 lint·FE type이 통과했다. 최초 BE lint의 포맷 오류는 수정 후 재실행 통과했다. strict 문서 검사는 오류0·기존 FR011/NFR002 상태 경고2로 exit1이며 승인 상태를 바꿔 숨기지 않았다. pin/check는 일치했고 로컬 packet은 awaiting_review/acceptance not_recorded다. 별도 code-reviewer는 APPROVE·low1건(표시한 #ID 검색 불일치)을 보고했다. 해당 표시 ID 회귀 실패를 확인한 뒤 bare/#ID 모두 일치하도록 보완했다. 공개 대상15파일의 식별 문구0·비공개 경로0과 diff 공백 검사도 확인했다. 리뷰의 SQLite 표현식 probe를 MySQL 실제 실행으로 확대하지 않는다. 문서 상태는 실제 수용/승인으로 올리지 않는다.
 
 ## 화면 검증 경계
 

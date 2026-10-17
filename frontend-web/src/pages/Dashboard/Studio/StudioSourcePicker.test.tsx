@@ -39,7 +39,7 @@ it('normalizes unicode case and whitespace and matches ID', () => {
   search(' bids ');
   expect(screen.getByText(/검색 결과 1개/)).toBeTruthy();
   expect(screen.getByRole('option', { name: /ＢＩＤＳ/ })).toBeTruthy();
-  search('4');
+  search('#4');
   expect(screen.getByRole('option', { name: /billing/ })).toBeTruthy();
   expect(screen.queryByRole('option', { name: /ＢＩＤＳ/ })).toBeNull();
 });
