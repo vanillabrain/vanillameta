@@ -9,6 +9,10 @@ rectangle "VanillaMeta" {
  usecase "UC-013\nAuto Block Intent" as UC013
  usecase "UC-012\nSemantic Creation" as UC012
  usecase "UC-011\nAI Block Layout" as UC011
+ usecase "UC-007\nBlock Edit History" as UC007
+ usecase "UC-008\nAI Working Draft" as UC008
+ usecase "UC-009\nResponsive Block Layout" as UC009
+ usecase "UC-010\nPointer Block Layout" as UC010
  usecase "UC-006\nPreserve Block Layout" as UC006
  usecase "UC-005\nPrompt To Dashboard" as UC005
  usecase "UC-004\nBatch Metric Update" as UC004
@@ -21,6 +25,10 @@ operator --> UC014
 operator --> UC013
 operator --> UC012
 operator --> UC011
+operator --> UC007
+operator --> UC008
+operator --> UC009
+operator --> UC010
 operator --> UC006
 operator --> UC005
 actor "공유 수신자" as recipient
