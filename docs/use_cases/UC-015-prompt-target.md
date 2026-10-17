@@ -31,13 +31,15 @@
 
 1. 후보의 번호·제목을 표시하고 질문·초안·이력을 보존한다. 생성·미리보기·저장은 실행하지 않는다.
 2. 담당자가 후보를 선택하고 같은 질문을 다시 실행한다. 선택 확인은 그 질문/현재 후보에만 유효하다.
+3. Use case continues at step 2.
 
 ### A2: Explicit reference overrides context
 
 **Trigger:** 이전 선택 블록과 다른 정확한 번호/제목을 명시한다 (step 3).
 **Flow:**
 
-1. 명시한 대상이 우선이다. 잘못된/모호한 명시 참조는 이전 선택으로 조용히 대체하지 않는다.
+1. 유일하게 확인한 명시 대상이 우선이다. 잘못된/모호한 명시 참조는 이전 선택으로 조용히 대체하지 않고 A1을 따른다.
+2. Use case continues at step 4.
 
 ### A3: Invalid key, cancellation or conflict
 
@@ -45,6 +47,7 @@
 **Flow:**
 
 1. 기존 오류·취소·복구를 유지하고 다른 블록이나 늦은 결과를 적용하지 않는다.
+2. Use case ends.
 
 ## Postconditions
 
