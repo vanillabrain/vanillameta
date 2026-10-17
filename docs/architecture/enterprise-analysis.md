@@ -85,3 +85,5 @@ flowchart LR
 [UC050 직접 사용처 조회](../testing/source-catalog-usage.md)는 소스 소유권을 먼저 확인하고 Metric.databaseId/useYn와 Dashboard.analysisDefinition.databaseId·UserMapping/삭제 상태·기존 dashboard 권한으로 읽는다. ID/표시명만 반환하고 본인 분석 후보의20개 커서 구간을 명시한다. 새 물리 모델은 없으며 일반 위젯/게시/독립 사본 전체 의존 그래프·변경 영향 계산과 구분한다.
 
 [UC050 Studio 조회](../testing/studio-source-catalog.md)는 Studio 생성/재사용 공용 선택기에서 기존 catalog/read의 소유권 검사를 재사용한다. sourceId/현재 profile.dataVersion·실제 열명/형식과 응답을 대조한 읽기 전용 설명이며 질문/LLM 문맥 자동 삽입과 계산/표시 이름 변경은 하지 않는다. 소스 snapshot key로 읽기 수명을 분리하고 질문 입력 재렌더는 재조회하지 않는다. 새 API/DB 스키마/의존성은 없다.
+
+[UC050 Studio 소스 검색](../testing/studio-source-search.md)은 기존 GET /bi/sources의 명시 catalog=1에 한해 ownerId 제한과 최신 이력 MAX(version) LEFT JOIN 한 쿼리로 표시명/버전만 더한다. 기본 소비자에는 id/name/engine만 유지한다. 전체 이력·원본 프로파일/행·연결정보를 반환하지 않고, 손상 최신 표시명은 원본으로 되돌리되 과거 정상 이름을 자동 선택하지 않는다. 목록 업무 이름은 탐색 참고이며 선택 후 기존 현재 버전/열 검사를 대체하지 않는다.

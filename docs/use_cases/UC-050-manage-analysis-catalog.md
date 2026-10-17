@@ -76,3 +76,7 @@
 ### Studio Business Meaning Follow-up
 
 [Studio 업무 설명 조회](../testing/studio-source-catalog.md)는 생성/재사용 공용 소스 선택기에서 명시 펼침→기존 권한 읽기로 저장 설명을 확인한다. 선택 데이터 버전/열 이름·형식이 맞을 때만 업무 표시명/설명/단위를 원본 열과 구분해 보여준다. 질문·생성안/지표·차트에 자동 적용하지 않으며 미등록/불일치/오류는 안내·명시 재조회다. 전체 UC050 수용/공식 승인은 미완료다.
+
+### Studio Source Search Follow-up
+
+[업무 이름 데이터 검색](../testing/studio-source-search.md)은 현재 소유 목록의 최신 업무 이름 요약과 원본 이름·ID로 소스를 찾는다. 기본 sources API는 유지하며 Studio만 catalog=1을 요청한다. 손상/미등록은 원본 이름으로 표시하고 선택·질문·생성안은 검색으로 바꾸지 않는다. 업무 이름은 탐색 참고이며 최신 설명/열 검증과 공식 승인·전체 UC050 수용은 별도다.

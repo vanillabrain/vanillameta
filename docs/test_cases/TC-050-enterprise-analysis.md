@@ -62,3 +62,7 @@
 ### UC050 Studio Business Meaning Follow-up
 
 [Studio 조회 검증](../testing/studio-source-catalog.md)에서 명시 읽기·업무/원본 구분·미등록/버전·구조 불일치·오류 후 이전 표시 제거·늦은 응답 격리와 기존 질문/생성안/저장 버튼 보존을 선택 검증한다. 공용 선택기는 생성/소스 재사용에 연결되지만 실제 Ego/모바일·전체 TC050 NOT_RUN은 유지한다.
+
+### UC050 Studio Source Search Follow-up
+
+[데이터 찾기 검증](../testing/studio-source-search.md)은 소유권·최신/손상 요약·응답 최소화·조회 불변, 업무/원본 이름·ID 검색·동명이름 구별·선택/질문/생성안 보존을 선택 검증한다. 실제 Ego/모바일·운영MySQL·조직 카탈로그/전체 TC050 NOT_RUN을 대체하지 않는다.

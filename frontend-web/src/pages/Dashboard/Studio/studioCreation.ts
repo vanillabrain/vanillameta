@@ -1,7 +1,7 @@
 import { get, post } from '@/helpers/apiHelper';
 import { studioAssert } from './studioDocument';
 import { StudioPreview, validateStudioPreview } from './studioApi';
-export type StudioSource = { id: number; name: string; engine: string };
+export type StudioSource = { id: number; name: string; engine: string; catalogLabel?: string; catalogVersion?: number };
 export type SourceColumn = { name: string; type: string; numeric?: boolean; temporal?: boolean; nullCount?: string };
 export type SourceProfile = {
   sourceId: number;
@@ -120,11 +120,21 @@ export function validateCreationProposal(input: unknown, sourceId: number): Crea
   return p;
 }
 export const fetchStudioSources = async (): Promise<StudioSource[]> => {
-  const rows = creationData(await get('/bi/sources'));
+  const rows = creationData(await get('/bi/sources', { catalog: '1' }));
   studioAssert(
     Array.isArray(rows) &&
       rows.every(
-        row => Number.isSafeInteger(row.id) && row.id > 0 && typeof row.name === 'string' && typeof row.engine === 'string',
+        row =>
+          Number.isSafeInteger(row.id) &&
+          row.id > 0 &&
+          typeof row.name === 'string' &&
+          typeof row.engine === 'string' &&
+          ((row.catalogLabel === undefined && row.catalogVersion === undefined) ||
+            (typeof row.catalogLabel === 'string' &&
+              row.catalogLabel.trim().length > 0 &&
+              row.catalogLabel.length <= 100 &&
+              Number.isSafeInteger(row.catalogVersion) &&
+              row.catalogVersion > 0)),
       ),
     '데이터 소스 목록을 확인하지 못했습니다.',
   );

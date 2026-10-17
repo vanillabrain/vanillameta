@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BiService } from './bi.service';
 @UseGuards(JwtAuthGuard)
@@ -11,8 +22,10 @@ export class BiController {
   private success(data: any) {
     return { status: 'SUCCESS', data };
   }
-  @Get('sources') async sources(@Req() req) {
-    return this.success(await this.bi.sources(this.actor(req)));
+  @Get('sources') async sources(@Req() req, @Query('catalog') catalog?: string) {
+    if (catalog !== undefined && catalog !== '1')
+      throw new BadRequestException('Invalid catalog flag');
+    return this.success(await this.bi.sources(this.actor(req), catalog === '1'));
   }
   @Get('sources/:id/profile') async profile(@Param('id') id: string, @Req() req) {
     return this.success(await this.bi.profile(id, this.actor(req)));

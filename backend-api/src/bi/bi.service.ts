@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { dimensionDefinition } from './semantic-proposal';
 import { Database } from '../database/entities/database.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { Metric } from '../metric/entities/metric.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
@@ -55,11 +56,56 @@ export class BiService {
     private readonly connection: ConnectionService,
     private readonly dashboards: AiDashboardService,
   ) {}
-  async sources(actor: number) {
+  async sources(actor: number, includeCatalog = false) {
+    const ownerId = this.access.actor(actor);
+    if (!includeCatalog) {
+      const rows = await this.db.getRepository(Database).find({
+        where: { ownerId },
+        select: { id: true, name: true, engine: true },
+        order: { id: 'ASC' },
+      });
+      return rows.map(({ id, name, engine }) => ({ id, name, engine }));
+    }
+    // UC050: one latest entry per owned source; metadata is never returned to discovery clients.
     const rows = await this.db
       .getRepository(Database)
-      .find({ where: { ownerId: this.access.actor(actor) } });
-    return rows.map(({ id, name, engine }) => ({ id, name, engine }));
+      .createQueryBuilder('source')
+      .leftJoin(
+        SourceCatalogEntry,
+        'catalog',
+        `catalog.sourceId = source.id AND catalog.version = ${this.db
+          .createQueryBuilder()
+          .subQuery()
+          .select('MAX(latest.version)')
+          .from(SourceCatalogEntry, 'latest')
+          .where('latest.sourceId = source.id')
+          .getQuery()}`,
+      )
+      .select('source.id', 'id')
+      .addSelect('source.name', 'name')
+      .addSelect('source.engine', 'engine')
+      .addSelect('catalog.version', 'catalogVersion')
+      .addSelect('catalog.metadata', 'metadata')
+      .where('source.ownerId = :ownerId', { ownerId })
+      .orderBy('source.id', 'ASC')
+      .getRawMany();
+    return rows.map(({ id, name, engine, catalogVersion, metadata }) => {
+      const source = { id, name, engine };
+      try {
+        const label = JSON.parse(metadata)?.label;
+        if (
+          typeof label === 'string' &&
+          label.length <= 100 &&
+          label.trim() &&
+          Number.isSafeInteger(catalogVersion) &&
+          catalogVersion > 0
+        )
+          return { ...source, catalogLabel: label.trim(), catalogVersion };
+      } catch {
+        /* A damaged latest label does not hide an otherwise accessible source. */
+      }
+      return source;
+    });
   }
   async profile(id: unknown, actor: number) {
     await this.access.assert('database', id, actor);

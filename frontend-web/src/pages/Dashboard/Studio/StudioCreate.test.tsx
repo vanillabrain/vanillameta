@@ -98,6 +98,25 @@ const ready = async () => {
   fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '총매출을 보여 줘' } });
 };
 describe('Studio create workflow', () => {
+  it('UC050 source search preserves the selected source, question, proposal and save readiness', async () => {
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    mocks.post.mockClear();
+    mocks.get.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: '데이터 검색' }));
+    fireEvent.change(screen.getByLabelText('업무 이름·원본 이름으로 검색'), { target: { value: 'no-matches' } });
+    expect(screen.getByText(/검색 결과 0개/)).toBeTruthy();
+    expect((screen.getByLabelText('저장된 데이터') as HTMLSelectElement).value).toBe('4');
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(
+      '총매출을 보여 줘',
+    );
+    expect(screen.getByText('500')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Studio에 저장하고 열기' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(mocks.get).not.toHaveBeenCalled();
+  });
+
   it('UC050 preserves the question and generated preview during business description reads and errors', async () => {
     const originalGet = mocks.get.getMockImplementation();
     if (!originalGet) throw new Error('missing fixture');
@@ -705,7 +724,7 @@ it('connects a newly prepared source without refetching the source index', async
   });
   mocks.post.mockResolvedValue({ data: { sourceId: 6 } });
   render(<StudioCreate />);
-  await screen.findByRole('option', { name: 'Orders 4' });
+  await screen.findByRole('option', { name: 'Orders 4 · #4' });
   await waitFor(() =>
     expect((screen.getByRole('button', { name: '매출·환불 샘플' }) as HTMLButtonElement).disabled).toBe(false),
   );

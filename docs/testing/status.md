@@ -784,3 +784,7 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 ## 2026-10-18 UC050 Studio 업무 설명 조회
 
 [증빙](studio-source-catalog.md): 생성/재사용 공용 선택기의 별도 접힌 영역에서 저장 업무 설명을 조회한다. 현재 소스/데이터 버전/열 이름·형식 대조·읽기 오류 시 표시 제거/명시 재시도·질문/생성안 보존이며 자동 LLM 적용/저장 변경은 없다. FE82·type/lint/build 선택 검증을 기록한다. 실제 Ego/390·768·1440은 제어권 경계로 BLOCKED이며 전체 UC050/TC050 수용은 미완료다.
+
+## 2026-10-18 UC050 Studio 업무 이름 검색
+
+[증빙](studio-source-search.md): catalog=1의 소유 목록 최신 업무 이름 요약과 공용 선택기 업무/원본 이름·ID 검색이다. 손상 이름은 원본 fallback, 동명이름 구별·검색0건 선택/질문/제안 보존·기본 API 유지다. BE116/FE102·type/lint/build PASS이며 실제 Ego/3폭·운영MySQL/전체 수용은 미완료다.
