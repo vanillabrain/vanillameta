@@ -285,3 +285,7 @@ uploads/
 .claude/
 skills-lock.json
 frontend-web/e2e/fixtures/generated/
+
+# Private reference material and publication review records
+/private-reference/
+/docs/references/

@@ -1,0 +1,58 @@
+# Use Case: Manage Enterprise Access
+
+## Overview
+
+**Use Case ID:** UC-051
+**Use Case Name:** Manage Enterprise Access
+**Primary Actor:** 조직 관리자
+**Goal:** 직원·그룹과 데이터/산출물별 권한을 관리한다.
+**Trigger:** 직원 등록·소속 변경·권한 부여 또는 회수를 요청한다.
+**Status:** Draft
+**Requirements:** [FR-016, FR-017, NFR-005, NFR-007](../requirements.md)
+
+## Preconditions
+
+- 요청자가 같은 조직의 유효한 업무 계정이며 대상의 현재 권한을 확인할 수 있다.
+- 신규 목표 명세이며 구현·실제 실행 검증은 NOT_RUN이다.
+
+## Main Success Scenario
+
+1. 관리자가 직원·그룹·자원 범위를 검색한다.
+2. 직원 활성 상태/소속과 자원별 열람·편집·게시·내보내기 범위를 지정한다.
+3. 서버가 요청자 관리 범위·대상 조직·자원 권한과 자기 권한 확대 여부를 검증한다.
+4. 명시 변경을 저장하고 행위자/결과 이벤트를 기록한다.
+5. 다음 보호 요청에서 최신 활성 상태/권한을 검사하며 회수한 자원의 새 조회/작업을 차단한다.
+
+## Alternative Flows
+
+### A1: Rejected or incomplete operation
+
+**Trigger:** 관리 권한 부족·다른 조직 대상·사용자 비활성화 (step 2 or 3).
+**Flow:**
+
+1. 권한 확대나 자원 결과를 반환하지 않고 거절한다.
+2. Use case ends.
+
+## Postconditions
+
+### Success Postconditions
+
+- 직원·그룹과 데이터/산출물별 권한을 관리한다. 명시한 범위의 결과/이력이 제공된다.
+
+### Failure Postconditions
+
+- 비대상 자원·기존 초안/원본·허용되지 않은 권한을 변경하지 않는다. 작업/알림의 별도 성공 여부는 구분한다.
+
+## Business Rules
+
+### BR-051-01: Scoped business operation
+
+조직/소속/데이터/산출물 권한은 별도 자원이다. 기존 계정을 인증 우회로 대체하지 않으며 SSO 방식은 배포별 후속 설계다.
+
+### BR-051-02: Preservation and evidence
+
+목록·상세·변경·미리보기·공유·export·파일 전달 모두 서버 검사한다. 화면 숨김이나 MK AI의 확인만으로 권한을 증명하지 않는다.
+
+## Source Evidence
+
+[VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)를 따른다. 신규 요구이며 구현/실행 검증은 미완료다.

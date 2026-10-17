@@ -1,6 +1,7 @@
 @startuml
 left to right direction
 actor "운영 담당자" as operator
+actor "조직/데이터 관리자" as enterpriseAdmin
 rectangle "VanillaMeta" {
  usecase "UC-017\nEditor Request Recovery" as UC017
  usecase "UC-016\nBatch Block Edit" as UC016
@@ -93,4 +94,16 @@ usecase "UC-048 새 생성 질문 복구" as UC048
 operator --> UC048
 usecase "UC-049 내 시각화 산출물 찾기" as UC049
 operator --> UC049
+usecase "UC-050 Manage Analysis Catalog" as UC050
+enterpriseAdmin --> UC050
+usecase "UC-051 Manage Enterprise Access" as UC051
+enterpriseAdmin --> UC051
+usecase "UC-052 Explore Visual Conditions" as UC052
+operator --> UC052
+usecase "UC-053 Distribute Artifacts" as UC053
+operator --> UC053
+usecase "UC-054 Export Comparable Analysis" as UC054
+operator --> UC054
+usecase "UC-055 Archive Artifact Dependencies" as UC055
+operator --> UC055
 @enduml
