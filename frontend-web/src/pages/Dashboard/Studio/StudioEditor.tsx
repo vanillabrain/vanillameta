@@ -1,8 +1,17 @@
 import { useTranslation } from 'react-i18next';
+import StudioSaveRecovery from './StudioSaveRecovery';
+import {
+  StudioPendingSave,
+  readStudioPendingSave,
+  writeStudioPendingSave,
+  removeStudioPendingSave,
+} from './studioPendingSave';
 import { NativeSelect } from '@/components/ui/native-select';
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { Notice as Alert } from '@/components/ui/notice';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { mergeStudioDraft } from './studioDraftMerge';
 import { Spinner } from '@/components/ui/spinner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useMinWidth } from '@/components/PageViewBox';
@@ -60,6 +69,13 @@ import {
 } from './studioTypes';
 import './studio.css';
 import { studioQuestionKey, readStudioQuestion, writeStudioQuestion, removeStudioQuestion } from './studioQuestionDraft';
+import {
+  StudioDocumentDraft,
+  studioDocumentDraftKey,
+  readStudioDocumentDraft,
+  writeStudioDocumentDraft,
+  removeStudioDocumentDraft,
+} from './studioDocumentDraft';
 
 const MAX_STUDIO_BLOCKS = 6;
 const scopeKey = (document: Pick<StudioDocumentV1, 'filters' | 'dateRange'>) =>
@@ -258,7 +274,7 @@ function StudioStateScreen({
 }
 
 /** Replace payload: the server document is always the new baseline; a draft only seeds the canvas. */
-type StudioReplacePayload = StudioLoadResult & { draft?: StudioDocumentV1 };
+type StudioReplacePayload = StudioLoadResult & { draft?: StudioDocumentV1; previewDocument?: StudioDocumentV1 };
 /** The server document stays the baseline; a re-applied draft is seeded as an unsaved change. */
 export const studioWorkspaceSeed = (payload: StudioReplacePayload): StudioState => {
   const created = createStudioState(payload.document);
@@ -282,6 +298,8 @@ export default function StudioEditor() {
   const [error, setError] = useState('');
   const [result, setResult] = useState<StudioReplacePayload | null>(null);
   const loadGeneration = useRef(0);
+  const [storageKey, setStorageKey] = useState<string | null>(null);
+  const [saveRecovery, setSaveRecovery] = useState<{ record: StudioPendingSave; key: string | null } | null>(null);
 
   const load = useCallback(async () => {
     if (!validId) return;
@@ -291,7 +309,11 @@ export default function StudioEditor() {
     setError('');
     try {
       const next = await fetchStudioDashboard(id);
+      const documentKey = await studioDocumentDraftKey(id);
+      const pending = readStudioPendingSave(documentKey, id);
       if (generation !== loadGeneration.current) return;
+      setStorageKey(documentKey);
+      setSaveRecovery(pending ? { record: pending, key: documentKey } : null);
       setResult(next);
       setStatus('ready');
     } catch (cause) {
@@ -328,16 +350,42 @@ export default function StudioEditor() {
     );
   if (status === 'error' || !result)
     return <StudioStateScreen title="Studio를 열지 못했습니다" description={error} onRetry={load} />;
-  return <StudioWorkspace key={token} dashboardId={id} initial={result} onReplace={replace} />;
+  if (saveRecovery)
+    return (
+      <StudioSaveRecovery
+        key={id}
+        dashboardId={id}
+        title={result.document.title}
+        documentKey={saveRecovery.key}
+        record={saveRecovery.record}
+        onResolved={latest => {
+          setSaveRecovery(null);
+          replace(latest);
+        }}
+        onDraft={load}
+      />
+    );
+  return (
+    <StudioWorkspace
+      key={token}
+      dashboardId={id}
+      initial={result}
+      onReplace={replace}
+      onCheckSave={load}
+      storageKey={storageKey}
+    />
+  );
 }
 
 type WorkspaceProps = {
   dashboardId: number;
   initial: StudioReplacePayload;
   onReplace: (next: StudioReplacePayload) => void;
+  onCheckSave: () => void;
+  storageKey: string | null;
 };
 
-function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
+function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storageKey }: WorkspaceProps) {
   const { i18n } = useTranslation();
   const [conversationInput, setConversationInput] = useState('');
   const questionKey = useRef<string | null>(null);
@@ -397,7 +445,11 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     dateRange?: StudioDateRange;
   } | null>(
     initial.preview
-      ? { key: scopeKey(initial.document), filters: initial.document.filters ?? [], dateRange: initial.document.dateRange }
+      ? {
+          key: scopeKey(initial.previewDocument ?? initial.document),
+          filters: (initial.previewDocument ?? initial.document).filters ?? [],
+          dateRange: (initial.previewDocument ?? initial.document).dateRange,
+        }
       : null,
   );
   const confirmedScope = useRef(previewScope);
@@ -413,13 +465,141 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   }>({
     generation: 0,
     controller: null,
-    attempted: scopeKey(initial.document),
+    attempted: scopeKey(initial.previewDocument ?? initial.document),
     intent: 'history',
   });
   const editClock = useRef({ document: state.present, generation: 0 });
   if (editClock.current.document !== state.present) {
     editClock.current = { document: state.present, generation: editClock.current.generation + 1 };
   }
+  const documentDraftKey = useRef<string | null>(storageKey);
+  const documentDraftLive = useRef(true);
+  const [documentDraftReady, setDocumentDraftReady] = useState(false);
+  const [documentRecovery, setDocumentRecovery] = useState<StudioDocumentDraft | null>(null);
+  const [documentRecoveryBusy, setDocumentRecoveryBusy] = useState(false);
+  const documentRecoveryPending = useRef(false);
+  const [documentRecoveryError, setDocumentRecoveryError] = useState('');
+  const [documentStorageError, setDocumentStorageError] = useState(false);
+  const [documentRecoveryLatest, setDocumentRecoveryLatest] = useState<StudioLoadResult | null>(null);
+  const [documentConflictConsent, setDocumentConflictConsent] = useState(false);
+  const [documentRecoveryNeedsLatest, setDocumentRecoveryNeedsLatest] = useState(false);
+  useEffect(() => {
+    let current = true;
+    documentDraftLive.current = true;
+    studioDocumentDraftKey(dashboardId)
+      .then(key => {
+        if (!current) return;
+        documentDraftKey.current = key;
+        if (!initial.draft) setDocumentRecovery(readStudioDocumentDraft(key, dashboardId));
+        setDocumentDraftReady(true);
+      })
+      .catch(() => {
+        if (current) setDocumentDraftReady(true);
+      });
+    return () => {
+      current = false;
+      documentDraftLive.current = false;
+    };
+  }, [dashboardId]);
+  useEffect(() => {
+    if (!documentDraftReady || documentRecovery || state.pendingSave) return;
+    const ok =
+      state.saveState === 'clean'
+        ? removeStudioDocumentDraft(documentDraftKey.current)
+        : writeStudioDocumentDraft(documentDraftKey.current, {
+            version: 2,
+            baseline: withoutRevision(state.savedBaseline),
+            updatedAt: Date.now(),
+            baseRevision: state.serverRevision ?? '',
+            sourceRevision,
+            document: withoutRevision(state.present),
+          });
+    setDocumentStorageError(state.saveState !== 'clean' && !ok);
+  }, [
+    documentDraftReady,
+    documentRecovery,
+    state.present,
+    state.savedBaseline,
+    state.saveState,
+    state.serverRevision,
+    state.pendingSave,
+    saving,
+    sourceRevision,
+  ]);
+  const recoveryNeedsMerge =
+    !!documentRecovery && (documentRecoveryNeedsLatest || documentRecovery.baseRevision !== state.serverRevision);
+  const recoveryMerge =
+    documentRecovery?.version === 2 && documentRecoveryLatest
+      ? mergeStudioDraft(documentRecoveryLatest.document, documentRecovery.document, documentRecovery.baseline)
+      : null;
+  const recoveryContextReady =
+    !!documentRecovery &&
+    state.saveState === 'clean' &&
+    !state.pendingSave &&
+    !saving &&
+    documentRecovery.sourceRevision === sourceRevision;
+  const canRestoreDocument = recoveryContextReady && (!recoveryNeedsMerge || documentRecovery?.version === 2);
+  const recoveryBlocked = !!recoveryMerge?.blocked.length;
+  const restoreDocument = async () => {
+    if (
+      !canRestoreDocument ||
+      !documentRecovery ||
+      documentRecoveryPending.current ||
+      recoveryBlocked ||
+      (recoveryMerge?.conflicts.length && !documentConflictConsent)
+    )
+      return;
+    documentRecoveryPending.current = true;
+    setDocumentRecoveryBusy(true);
+    setDocumentRecoveryError('');
+    const generation = editClock.current.generation;
+    const revision = state.serverRevision;
+    const assertCurrent = () => {
+      if (!documentDraftLive.current) return false;
+      if (editClock.current.generation !== generation || live.current.revision !== revision)
+        throw new Error('확인 중 현재 편집이 바뀌었습니다. 보관 초안과 현재 편집은 유지했습니다.');
+      return true;
+    };
+    try {
+      if (recoveryNeedsMerge && !documentRecoveryLatest) {
+        const latest = await fetchStudioDashboard(dashboardId);
+        if (!assertCurrent()) return;
+        if (latest.sourceRevision !== documentRecovery.sourceRevision)
+          throw new Error('데이터 소스 기준이 바뀌어 병합할 수 없습니다. 보관 초안은 유지했습니다.');
+        setDocumentConflictConsent(false);
+        setDocumentRecoveryLatest(latest);
+        return;
+      }
+      const latest = documentRecoveryLatest ?? initial;
+      const prepared = await prepareStudioDashboard(dashboardId, {
+        expectedRevision: latest.document.revision,
+        expectedSourceRevision: latest.sourceRevision,
+        document: recoveryMerge?.document ?? documentRecovery.document,
+      });
+      if (!assertCurrent()) return;
+      onReplace({
+        ...latest,
+        preview: prepared.preview,
+        previewError: null,
+        draft: prepared.document,
+        previewDocument: prepared.document,
+      });
+    } catch (cause) {
+      if (documentDraftLive.current) {
+        if (isStudioApiError(cause) && cause.kind === 'conflict') {
+          setDocumentRecoveryNeedsLatest(true);
+          setDocumentRecoveryLatest(null);
+          setDocumentConflictConsent(false);
+        }
+        setDocumentRecoveryError(
+          cause instanceof Error ? cause.message : '초안을 다시 확인하지 못했습니다. 보관 내용은 유지했습니다.',
+        );
+      }
+    } finally {
+      documentRecoveryPending.current = false;
+      if (documentDraftLive.current) setDocumentRecoveryBusy(false);
+    }
+  };
 
   // Breakpoints follow the window, not the canvas: an open panel must not silently change the batch.
   const desktop = useMinWidth(1200);
@@ -484,10 +664,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
 
   const cancelPending = () => {
     if (!state.pendingSave) return;
-    dispatch({ type: 'saveFailed', requestId: state.pendingSave.requestId });
-    pendingRequest.current = null;
-    setSaveError(null);
-    setMessage('재시도 요청을 해제했습니다. 서버 저장 여부는 최신 내용을 확인해 주세요.');
+    onCheckSave();
   };
 
   const loadLatest = async (reason: string) => {
@@ -539,6 +716,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
       } catch (cause) {
         if (prepare.current.generation !== generation || controller.signal.aborted) return null;
         if (isStudioApiError(cause) && cause.kind === 'conflict') {
+          setDocumentRecoveryNeedsLatest(true);
           await loadLatest(cause.message);
           return null;
         }
@@ -640,13 +818,31 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
       if (state.saveState === 'clean') return;
       try {
         const requestId = studioRequestId();
-        dispatch({ type: 'saveStarted', requestId });
         request = {
           requestId,
           expectedRevision: state.serverRevision,
           expectedSourceRevision: sourceRevision,
           document: state.present,
         };
+        if (readStudioPendingSave(documentDraftKey.current, dashboardId)) {
+          onCheckSave();
+          return;
+        }
+        if (
+          !writeStudioDocumentDraft(documentDraftKey.current, {
+            version: 2,
+            updatedAt: Date.now(),
+            baseline: withoutRevision(state.savedBaseline),
+            baseRevision: state.serverRevision ?? '',
+            sourceRevision,
+            document: withoutRevision(state.present),
+          }) ||
+          !writeStudioPendingSave(documentDraftKey.current, { version: 1, updatedAt: Date.now(), phase: 'pending', request })
+        ) {
+          setSaveError('저장 확인 기록을 보관하지 못했습니다. 현재 편집을 유지했습니다. 다시 시도해 주세요.');
+          return;
+        }
+        dispatch({ type: 'saveStarted', requestId });
       } catch (error) {
         setSaveError(error instanceof Error ? error.message : '저장을 시작하지 못했습니다.');
         return;
@@ -658,6 +854,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     setSaveError(null);
     try {
       const saved = await saveStudioDashboard(dashboardId, request);
+      removeStudioPendingSave(documentDraftKey.current);
       pendingRequest.current = null;
       dispatch({
         type: 'saved',
@@ -670,6 +867,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     } catch (error) {
       const apiError = isStudioApiError(error) ? error : null;
       if (apiError && apiError.kind === 'conflict') {
+        removeStudioPendingSave(documentDraftKey.current);
         pendingRequest.current = null;
         try {
           dispatch({ type: 'saveFailed', requestId: request.requestId });
@@ -828,9 +1026,95 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
 
   const banner = (
     <>
+      {documentRecovery && (
+        <Alert severity="info" className="studio-status-banner">
+          <p>이 탭에 미저장 블록·배치 초안이 있습니다. 복구하면 다시 미리보기하며 저장·게시하지 않습니다.</p>
+          {!canRestoreDocument && (
+            <p>저장본·소스 기준이 다르거나 현재 편집 중입니다. 보관 초안을 자동으로 덮어쓰지 않습니다.</p>
+          )}
+          {recoveryNeedsMerge && <p>다른 탭에서 저장본이 변경되었습니다. 최신본과 비교한 뒤 내 변경만 합칩니다.</p>}
+          {recoveryNeedsMerge && documentRecovery.version === 1 && (
+            <p>이전 형식 초안에는 비교 기준이 없습니다. 버전이 다른 초안을 자동 병합할 수 없습니다.</p>
+          )}
+          {recoveryMerge?.blocked.map((reason, index) => (
+            <p key={index}>{reason}</p>
+          ))}
+          {!!recoveryMerge?.conflicts.length && (
+            <div className="mt-2 space-y-2">
+              <p>양쪽에서 바뀐 항목입니다. 나머지 최신 변경은 유지합니다.</p>
+              <ul className="space-y-2 break-words">
+                {recoveryMerge.conflicts.map((item, index) => (
+                  <li key={index}>
+                    <strong>{item.label}</strong>
+                    <br />
+                    최신: {item.latest}
+                    <br />내 초안: {item.mine}
+                  </li>
+                ))}
+              </ul>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={documentConflictConsent}
+                  disabled={documentRecoveryBusy || !recoveryContextReady}
+                  onCheckedChange={checked => setDocumentConflictConsent(checked === true)}
+                />
+                충돌 항목에 내 초안 사용
+              </label>
+            </div>
+          )}
+          {documentRecoveryLatest && !recoveryMerge?.conflicts.length && !recoveryBlocked && (
+            <p>서로 다른 항목의 변경을 함께 반영할 수 있습니다.</p>
+          )}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={
+                !canRestoreDocument ||
+                documentRecoveryBusy ||
+                recoveryBlocked ||
+                (!!recoveryMerge?.conflicts.length && !documentConflictConsent)
+              }
+              onClick={restoreDocument}
+            >
+              {documentRecoveryBusy
+                ? '초안 확인 중…'
+                : recoveryNeedsMerge
+                ? documentRecoveryLatest
+                  ? '병합 미리보기'
+                  : '최신본과 초안 비교'
+                : '블록 초안 복구'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={documentRecoveryBusy}
+              onClick={() => {
+                if (!removeStudioDocumentDraft(documentDraftKey.current)) {
+                  setDocumentRecoveryError('보관 초안을 지우지 못했습니다. 다시 시도해 주세요.');
+                  return;
+                }
+                setDocumentRecovery(null);
+                setDocumentRecoveryLatest(null);
+                setDocumentRecoveryNeedsLatest(false);
+                setDocumentConflictConsent(false);
+                setDocumentRecoveryError('');
+              }}
+            >
+              보관 블록 초안 폐기
+            </Button>
+          </div>
+          {documentRecoveryError && <p role="alert">{documentRecoveryError}</p>}
+        </Alert>
+      )}
+      {documentStorageError && (
+        <Alert severity="warning" className="studio-status-banner">
+          블록 초안을 이 탭에 보관하지 못했습니다. 현재 편집은 유지되지만 새로고침하면 사라질 수 있습니다.
+        </Alert>
+      )}
       {questionRecovery !== null && (
         <Alert severity="info" className="studio-status-banner">
-          <p>이 탭에 보관한 미전송 질문이 있습니다. 질문만 최대 24시간 보관하며 블록 초안은 복구하지 않습니다.</p>
+          <p>이 탭에 보관한 미전송 질문이 있습니다. 최대 24시간 보관하며 블록 초안과 별도로 복구합니다.</p>
           {conversationInput.trim() && <span>현재 입력을 비우면 보관 질문을 복구할 수 있습니다.</span>}
           <div className="mt-2 flex flex-wrap gap-2">
             <Button
@@ -880,7 +1164,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
           {saveError}
           {state.pendingSave ? (
             <Button variant="ghost" size="sm" onClick={cancelPending}>
-              저장 시도 취소
+              저장 결과 확인
             </Button>
           ) : null}
         </Alert>

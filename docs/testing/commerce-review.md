@@ -30,3 +30,14 @@
 3. 실휴대폰·전체 키보드/VoiceOver와 운영 gate는 별도 진행한다. VoiceOver BLOCKED·gpt-6-luna 설정 유지, 고객/운영/전체 제품 수용은 OPEN이다.
 
 검토 증빙과 파일 해시는 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/commerce-review-20261017/manifest.json`에 기록했다. 이번에는 서버·브라우저·LLM을 기동하지 않았다.
+
+
+## 최신 develop-v2 통합 — 2026-10-17
+
+후속 사용자 지시에 따라 위 누적 변경을 `c090c4cd`로 커밋했다. fetch 시 원격에9개 후속 커밋(`dd15bf75`~`3a418b03`)이 있어 병합했다. StudioEditor는 원격 저장/초안 복구의 props·import와 로컬 표시 현지화를 모두 보존했고, status는 원격 UC045~047/strict 오류0·경고2 최신 판정에 로컬 Commerce 후속4개 행을 합쳤다. 과거의 strict12오류/미커밋 표시는 실행 당시 기록이며 현재 상태는 이 후속 및 Git 이력을 따른다.
+
+저장소 통합 지침에 따라 루트 build/test와 FE 타입, 관련 FE/BE lint를 실행했다. root build PASS·FE type PASS·변경 lint PASS다. root test의BE는122suite 중120suite/2118개 통과, 포트 개방 제한으로HTTP2suite/6개 실패였다. 실패한 두 controller suite만 포트 권한이 있는 환경에서 재실행해6개 모두 PASS했다. 따라서 BE2124개는 두 실행의 합성 결과이며 최초 root test 명령 자체가 성공했다고 보고하지 않는다. 이후 루트 test:web는98suite/1437개 모두 PASS했다. 테스트 재실행은 원격 통합으로 코드가 달라진 이번 범위에 한정했다.
+
+원격 저장 복구의 실제 UI 증빙은 해당 문서를 재사용하고 로컬 단위/표시·모바일 캡처도 기존 결과를 재사용했다. 이번에는 실제LLM/새브라우저/core Playwright를 실행하지 않았다. 핵심 E2E에는 이번 Studio 저장 복구 전용 케이스가 없으며 기존 일반 위젯/CSV 흐름의 반복으로 대체하지 않았다. 전체 고객 수용/모든 경합/운영 gate는 여전히 OPEN이다. gpt-6-luna·VoiceOver BLOCKED 유지.
+
+실행 로그·병합 소스 해시는 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/commerce-integration-20261017/`에 보관했다. GitHub 작업 인증은 사용자 지정drumcap이며 작성자 설정은 기존 값을 유지했다.

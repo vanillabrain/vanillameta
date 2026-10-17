@@ -2,28 +2,46 @@
 
 이 요약은 아래 날짜별 기록의 후속 결과를 합친 상태다. **대표 흐름 PASS와 제품 전체 수용/출시 완료는 구분한다.** 과거의 미커밋·다음 작업·BLOCKED·NOT_RUN은 각 실행 당시 상태이며 최신 증빙과 Git 이력을 우선한다. 기존 통과 조건을 다시 실행하거나 카탈로그 완료 수를 임의로 늘리지 않는다.
 
-| 범위 | 최신 상태 | 근거/남은 조건 |
-|---|---|---|
-| 생성→직접/AI 수정→저장→게시→복제 | PASS_SELECTED / 전체 수용 OPEN | [TC005 주 여정](dashboard-lifecycle.md), [Studio 통합](studio-completion-1-5.md). 고객 데이터/담당자 수용은 별도 |
-| 같은 대화의 분모 확인·소스 교체·생성안 수정/저장·게시 준비 | PASS_SELECTED | [UC033](inline-creation-clarification.md)~[UC039](latest-dashboard-read.md), 임의 자연어/모든 오류 조합까지 완료한 것은 아님 |
-| Studio 진입·목록에서 다시 열기 | PASS_SELECTED | [UC040](studio-entry.md), [UC041](studio-list-reentry.md): 원격 후속 구현/실제 화면 증빙 보존 병합 |
-| 늦은200/503 응답·화면 이탈/다른 정상 ID 전환 | PASS_SELECTED | [Ego9/10](studio-late-read.md): 문서·숫자 보존/배치 완료390·1440 넘침0. 초안·인증·취소 복합 경합은 미검증 |
-| 로컬 MySQL 마이그레이션·동시 저장/게시·백업/복구 | PASS_SELECTED | [MYSQL02](studio-mysql-production.md)~[MYSQL06](studio-backup-key-recovery.md). 과거 MySQL 런타임 BLOCKED 해소, 실제 운영 전체 검증으로 확대하지 않음 |
-| Commerce 단일 KRW 수집·보고서 | PASS_SELECTED | [KRW-01~04](commerce-krw.md): 합성 원화 수치·실제 오류/보존·3폭/선택 키보드 확인. 고객/Studio 전체 통화 지원과 구분 |
-| Studio 명시 원화 생성·수정·저장 | PASS_SELECTED | [KRW-05~09](studio-krw.md): 실제 gpt-6-luna/원화 정답·저장/reload, 새 태블릿 기본 배치 공백 수정. 자동 통화 추론·고객 수용은 별도 |
-| Commerce→Studio 자동 비공개 소스 연결 | PASS_SELECTED | [BRIDGE-01~06](commerce-studio-bridge.md): 실제 gpt-6-luna 생성/저장·3폭/선택 키보드, 재시작 후 source 재사용. 운영 경합/대용량 저장 비용은 별도 |
+| 범위                                                       | 최신 상태                      | 근거/남은 조건                                                                                                                                                                                                                                                                               |
+| ---------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 생성→직접/AI 수정→저장→게시→복제                           | PASS_SELECTED / 전체 수용 OPEN | [TC005 주 여정](dashboard-lifecycle.md), [Studio 통합](studio-completion-1-5.md). 고객 데이터/담당자 수용은 별도                                                                                                                                                                             |
+| 같은 대화의 분모 확인·소스 교체·생성안 수정/저장·게시 준비 | PASS_SELECTED                  | [UC033](inline-creation-clarification.md)~[UC039](latest-dashboard-read.md), 임의 자연어/모든 오류 조합까지 완료한 것은 아님                                                                                                                                                                 |
+| Studio 진입·목록에서 다시 열기                             | PASS_SELECTED                  | [UC040](studio-entry.md), [UC041](studio-list-reentry.md): 원격 후속 구현/실제 화면 증빙 보존 병합                                                                                                                                                                                           |
+| 늦은200/503 응답·화면 이탈/다른 정상 ID 전환               | PASS_SELECTED                  | [Ego9/10](studio-late-read.md): 문서·숫자 보존/배치 완료390·1440 넘침0. 초안·인증·취소 복합 경합은 미검증                                                                                                                                                                                    |
+| Studio 질문·블록·다른 탭 초안/저장 복구                    | PASS_SELECTED                  | [UC043](studio-question-recovery.md)~[UC047](studio-save-recovery.md), [신규ID](studio-save-new-block-recovery.md)·[확정후조회](studio-confirmed-read-recovery.md)·[409복귀](studio-save-conflict-return.md): Ego92~95 실제 화면/요청 보존·명시 복구·추가 쓰기 방지. 전체 장애 조합은 미검증 |
+| 로컬 MySQL 마이그레이션·동시 저장/게시·백업/복구           | PASS_SELECTED                  | [MYSQL02](studio-mysql-production.md)~[MYSQL06](studio-backup-key-recovery.md). 과거 MySQL 런타임 BLOCKED 해소, 실제 운영 전체 검증으로 확대하지 않음                                                                                                                                        |
+| Commerce 단일 KRW 수집·보고서                              | PASS_SELECTED                  | [KRW-01~04](commerce-krw.md): 합성 원화 수치·실제 오류/보존·3폭/선택 키보드 확인. 고객/Studio 전체 통화 지원과 구분                                                                                                                                                                          |
+| Studio 명시 원화 생성·수정·저장                            | PASS_SELECTED                  | [KRW-05~09](studio-krw.md): 실제 gpt-6-luna/원화 정답·저장/reload, 새 태블릿 기본 배치 공백 수정. 자동 통화 추론·고객 수용은 별도                                                                                                                                                            |
+| Commerce→Studio 자동 비공개 소스 연결                      | PASS_SELECTED                  | [BRIDGE-01~06](commerce-studio-bridge.md): 실제 gpt-6-luna 생성/저장·3폭/선택 키보드, 재시작 후 source 재사용. 운영 경합/대용량 저장 비용은 별도                                                                                                                                             |
 | Commerce 통화·주문일 기준 AI 자동 전달 | PASS_SELECTED | [CONTEXT-01~04](commerce-ai-context.md): 단위 입력 없는 실제 생성·새 평균6500 KRW·주문일 추세·비공개 저장/reload/3폭. 일반 CSV 추론·단위 강제 검증은 별도. 단일 점 가시성은 아래 DISPLAY 후속 참조 |
 | Studio 매출·환불 추천 질문 | PASS_SELECTED | [QUESTION-01~06](commerce-suggested-questions.md): 지원 열별 추천·명시 실행/비공개 저장·실LLM2/1/50%. 후속 소스별 입력 예시4검사·3폭/질문 보존·키보드. 기존 통과 재실행 없음·고객 수용 별도 |
 | Studio 한국어 건수·게시 단일 점 표시 | PASS_SELECTED | [DISPLAY-01~06](commerce-display.md): 저장 count 불변·한국어 건/영어 count·실제 게시 렌더러 한 점. [Ego17 후속](commerce-display.md#display-04-게시-390px-후속--2026-10-17--ego17)에서 실제390/넘침0·키보드 표 확인. Ego19 전체 게시 wrapper 합성 응답390·키보드/3폭 확인·버튼 대비/긴 제목 수정. Ego20 합성503→키보드 재시도/200→410·데이터 제거/390 넘침0. 실제 수신자 권한·실기기는 별도 |
 | 환불 없는 기간·고객 CSV 생략 | PASS_SELECTED | [EMPTY-01~04](commerce-empty-refunds.md): 헤더 전용 환불·워커2검사/실제 수입·reload·13000/0/13000 KRW·환불률0%·390/1440. Ego22 업로드 보고서 정보와 기본 샘플 출처 문구 분리·390/1440 확인. 합성 데이터이며 고객 수용 별도 |
-| 실제 고객 매출·환불/담당자 수용 | NOT_RUN | [첫 파일럿 입력·인수 조건](customer-pilot.md). 비식별 파일/독립 정답/담당자 입력 필요 |
-| 실휴대폰·전체 키보드/스크린리더 | PARTIAL / VoiceOver BLOCKED | 에뮬레이션·선택 키보드 결과 재사용, 실제 기기/전체 접근성 미검증 |
-| 운영 장시간 부하·오프사이트/독립 키 복구·RPO/RTO | NOT_RUN | [운영 절차](../strategy/backup-retention-recovery.md)는 도입안. 외부 보관/자동화 미설정 |
-| 명세 검사·사람 최종 제품 수용 | OPEN | 기존 strict12오류 미해결, 자동 기준선 승인/전체 TC005 수용으로 승격하지 않음 |
+| 실제 고객 매출·환불/담당자 수용                            | NOT_RUN                        | [첫 파일럿 입력·인수 조건](customer-pilot.md). 비식별 파일/독립 정답/담당자 입력 필요                                                                                                                                                                                                        |
+| 실휴대폰·전체 키보드/스크린리더                            | PARTIAL / VoiceOver BLOCKED    | 에뮬레이션·선택 키보드 결과 재사용, 실제 기기/전체 접근성 미검증                                                                                                                                                                                                                             |
+| 운영 장시간 부하·오프사이트/독립 키 복구·RPO/RTO           | NOT_RUN                        | [운영 절차](../strategy/backup-retention-recovery.md)는 도입안. 외부 보관/자동화 미설정                                                                                                                                                                                                      |
+| 명세 연결 검사                                             | PASS / 경고2개                 | UC007~010 연결과 UC013~015 대안 종료/재진입 정리 후 strict 오류0/경고2/기준선 억제0. 제품 수용/사람 승인과 구분                                                                                                                                                                              |
+| 사람 최종 제품 수용                                        | OPEN                           | 첫 고객 파일럿·담당자 판단 미기록. 문서 검사 통과로 전체 TC005 수용을 승격하지 않음                                                                                                                                                                                                          |
 
-누적 변경의 정적 검토·증빙 재사용 범위는 [Commerce→Studio 검토](commerce-review.md)를 따른다. 구체적인 회귀 발견 없음은 전체 수용/출시 승인을 뜻하지 않으며 변경은 미커밋 상태다.
+통합 후속: Commerce/Studio 변경은 `c090c4cd`에 커밋하고 원격 `3a418b03`까지 보존 병합했다. BE2124(포트 제한6개 별도 재실행 포함)·FE1437·root build/type·변경 lint PASS. [검토·실행 범위](commerce-review.md#최신-develop-v2-통합--2026-10-17)를 따른다.
 
-우선순위: 최신 검증 이력 반영 → 첫 고객의 한 업무 질문/정답 확인 → 해당 파일로 최소 흐름 검증 → 실제 기기/접근성과 필요한 운영 gate. 모델은 gpt-6-luna를 유지한다. 데이터/정답이 없으면 합성 샘플을 고객 검증 PASS로 대신하지 않는다.
+누적 Commerce→Studio 변경과 개별 검증 범위는 [정적 검토](commerce-review.md)를 따른다. 구체적인 회귀 발견 없음은 전체 수용/출시 승인을 뜻하지 않는다.
+
+우선순위: 첫 고객의 한 업무 질문/정답 확인 → 해당 파일로 최소 흐름 검증 → 실제 기기/접근성과 필요한 운영 gate. 문서 연결·대표 저장 복구 증빙 정리는 완료했으며 같은 장애 조합의 끝없는 확장을 다음 제품 기능으로 취급하지 않는다. 모델은 gpt-6-luna를 유지한다. 데이터/정답이 없으면 합성 샘플을 고객 검증 PASS로 대신하지 않는다.
+
+## 명세 연결 정리 · 2026-10-17
+
+UC007~010의 기존 문장을 표준 Overview/사전조건/성공·대안/사후조건/규칙으로 재배치했다. 복제·undo 한도, 선택 AI·비대상 보존, 분석 화면의4/8/12열·좌표 경계, 포인터/키보드·미리보기 후 명시 저장 계약은 유지한다. UC009 분석 화면과 Studio의 다른 열 수를 혼합하지 않았다. 다이어그램 actor 연결과 TC005 step3/4의 UC 링크를 추가했다. 이 명세들은 Draft이며 고객/사람 승인으로 변경하지 않았다.
+
+검사 전에는12오류/33경고/4정보였고, 최종 strict는0오류/13경고/0정보/억제0이다. 기존 기준선을 수정하거나 경고를 승인 처리하지 않았다. 남은 경고는 FR011/NFR002의 문서 상태 집계 차이2개, UC013~015의 용어/대안 종료 표기10개, UC018의 용어1개다. 상태를 기계적 집계에 맞춰 임의 승격/강등하지 않는다. 링크·식별자·기존 규칙 보존을 별도로 대조했으며 pin/check는 지문 일치다. 독립 리뷰나 전체 제품 수용을 뜻하지 않는다.
+
+제품 코드/실행 환경 변경0으로 단위/빌드/Ego 실행을 반복하지 않았다. 최근 runtime 결과는 위 링크의 실제 실행 범위로만 재사용한다. 명세 정리는 새로운 기능 검증이 아니다. 요구사항·용어집·entity_model의 제품 의미 변경은 없다. 변경 문서의 로컬 링크287개 존재를 확인했고 새 깨진 링크0이다. 과거 기록에 남은 다른 호스트의 절대 경로1개는 현재 접근 불가로 구분했으며 과거 증빙을 임의 삭제하지 않았다. 검사 로그는 `/tmp/vm-spec-sync/strict.log`, 링크 대조는 `/tmp/vm-spec-sync/links.json`이다.
+
+## 대안 흐름 종료 후속 · 2026-10-17
+
+위 명세 연결 정리의0오류/13경고는70650b3b 당시 결과다. 이후 UC013~015 대안9곳에 각 실행의 종료 또는 재진입을 명시하고 UC013/018 사용자 흐름의 기술 용어2곳을 정리해 **최신0오류/2경고/0정보/억제0**이다. 모호/오류/취소/저장 실패는 해당 실행을 종료한다. UC015 후보 재실행은 권한·버전 검사(step2), 유일한 명시 대상은 생성/미리보기(step4)로 이어지고 잘못된 참조는 A1을 따른다. 자동 재시도·비대상 수정·모델 대체를 새로 허용하지 않았다. SQL 비제공/비공개 경계는 기존 규칙에 보존했다.
+
+남은 FR011/NFR002 경고는 실제 요구사항 검증 상태와 연결 UC의 Draft/검토 상태 집계 차이다. 문서 검토나 고객 승인을 발명해 경고를 지우지 않았으며 상태 원문·기준선은 변경하지 않았다. 제품 코드/실행 환경 불변으로 브라우저·단위·빌드 재실행0이며 고객 파일럿은 입력 부재로 NOT_RUN이다. 검사 로그 `/tmp/vm-spec-flows/strict.log`, 링크/상태 대조 `/tmp/vm-spec-flows/checks.json`을 따른다.
 
 ## 과거 실행 기록
 
@@ -414,11 +432,9 @@ source4 원본연결은 현서버 암호화키와 달라 config백업/동일sour
 - 범위: 단일로컬서버/같은QA사용자의 독립요청; 다중tenant·지속부하·실운영하드웨어·혼합import/write·multi-replica·crash복구 NOT_RUN.16은측정지점이며보장사용자한도아님. VoiceOverBLOCKED·gpt-6-luna유지/호출0.
 - 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-load-20261014/RESULTS.md`, `results.json`, `browser-results.json`, `busy-desktop.png`, `recovered-desktop.png`.
 
-
 PIVOT-10 **PASS_SELECTED_VARIANTS** (2026-10-14): 기본요청제한120회/60초 유지·8클라이언트·실측181.4초·455요청중183성공201/272제한429. 성공183건 모두4개필터정답·지표/revision·50×12상한일치,500/전송실패/timeout0. 성공응답p95=595ms. RSS1초표본peak347.0MiB/종료45.9MiB, 장시간누수판정아님. 제한해제뒤정상복구201/154ms, 총복구관찰20.2초는15초idle포함. 실제1440px429 표없음/CSV차단→수정한요청제한안내·부하종료정상표/634513000/pageerror0/overflow0 캡처PASS. 일반오류만보이던429안내를명확히수정, 새선택단위1PASS(8skip)·FEtype/lint/build PASS.
 
 초기helper는429를503로가정해중단→기존보호동작을그대로반영해재실행. 이실행은rate limit에따른대기포함이며3분내내worker포화검증이아니다. 무제한worker지속포화·장시간soak·다중사용자/tenant·운영하드웨어·혼합write/import·multi-replica/crash NOT_RUN. 기존단발부하·통과UI/Rill전체반복없음. gpt-6-luna/VoiceOverBLOCKED 유지. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-sustained-20261014/RESULTS.md`, `results.json`, `during-desktop.png`, `after-desktop.png`.
-
 
 ## PIVOT-DASH-05 — 여러 Pivot 중복 조회 최적화 (2026-10-14)
 
@@ -428,7 +444,6 @@ PIVOT-10 **PASS_SELECTED_VARIANTS** (2026-10-14): 기본요청제한120회/60초
 
 완료결과캐시/다른조건쿼리통합/빠른연속필터debounce는추가하지않았다. 별도대시보드/사용자전역공유없음. 전체Tab·실기기touch/VoiceOver미실행/차단유지. gpt-6-luna유지/호출0, 기존통과전체반복없음. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-dedup-20261014/RESULTS.md`, `before-results.json`, `after-results.json`, `after-desktop.png`, `after-mobile.png`.
 
-
 ## PIVOT-DASH-06 — 빠른 필터 변경 최종 조회 (2026-10-14)
 
 기준3d8c3a87+diff. 대시보드Pivot만최종필터250ms대기(초기/축/재시도즉시). 동일조건pending공유·완료캐시없음유지. 공통analysispause시예약취소/마지막제출필터비교유지. 초기화가조회중disabled여서키보드입력무시오류발견→busy조건제거·최종재검증.
@@ -437,7 +452,6 @@ PIVOT-10 **PASS_SELECTED_VARIANTS** (2026-10-14): 기본요청제한120회/60초
 
 공통AIpreview·독립Explore조회는변경없음(전체요청최적화로확대않음). 기존마지막제출필터로복귀시즉시조회; 다른필터변경은250ms대기. FullTab·실기기/VoiceOverNOT_RUN/BLOCKED. gpt-6-luna유지/호출0. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-filter-debounce-20261014/RESULTS.md`, `rapid-results.json`, `after-results.json`, `rapid-1440.png`, `rapid-390.png`. 이번후속변경미커밋,이전중복조회3d8c3a87커밋/push완료.
 
-
 ## CHART-FILTER-01 — 공통 차트 연속 필터 최종 조회 (2026-10-14)
 
 입력: dashboard/2, Rill auction_data 1,391,572행, 전체 기간에서 device_type Mobile/Tablet → Personal Computer를 250ms 이내 추가 선택. 1440×1000 및 390×844에서 Enter로 선택창 열기, Space로 두 옵션 선택, Escape로 닫기, Enter로 초기화.
@@ -445,7 +459,6 @@ PIVOT-10 **PASS_SELECTED_VARIANTS** (2026-10-14): 기본요청제한120회/60초
 결과 PASS_SELECTED_VARIANTS: 데스크톱 204ms/모바일 172ms 두 변경 각각 1요청; 두 화면 정확한 합계 481071000, 독립 DuckDB Parquet 계산 일치. 초기화 복귀 및 화면 확인. 관련 단위 39 PASS, FE 타입/변경 파일 lint PASS. 이전 응답은 serial로 무시하고 cleanup에서 AbortController 및 대기 timer 취소. HTTP 취소는 서버 실행 중 SQL 중단 보장이 아님. 최초조회·기간·집계·명시적 새로고침은 즉시 실행; 차원 선택창 필터만 250ms 대기. 전체 Tab/VoiceOver/실기기 touch NOT_RUN 또는 기존 BLOCKED 유지. gpt-6-luna 설정 변경/호출 없음. 이미 완료한 기능 MD 반복 없음.
 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/chart-filter-debounce-20261014/`의 results.json, oracle.json, chart-1440.png, chart-390.png. 일시 검증 스크립트는 저장소 밖 보관.
 이전 Pivot 최적화는 ed66a773 커밋·push, 이번 공통 차트 변경은 후속 작업으로 분리.
-
 
 ## 2026-10-14 취소불가 응답·진행 중 필터 변경 후속
 
@@ -457,7 +470,6 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/chart-inflight-20261014/`의 results.json, pending-1440.png, pending-390.png, final-1440.png, final-390.png, selected-tests.log. 기존 빌드 재사용(제품 변경 없음); FE 타입/변경 검사 lint 통과. 전체통과 MD 반복 없음. gpt-6-luna 설정 유지/호출0. VoiceOver BLOCKED·실기기touch·다중tenant/혼합write/import·장시간운영soak는 미검증 유지. 이번 후속 검사/기록은 미커밋.
 
-
 ## DESIGN-DASH-01 — 대시보드 버튼·필터 룩앤필 (2026-10-14)
 
 사용자 제공 1440px 화면을 기준으로 공통 차트 분석 영역과 대시보드 헤더만 변경. 버튼 대문자 변환 제거, 8px 반경/13px 글꼴, 헤더36px·모바일40px, 아이콘36px 터치영역 통일. 보조 외곽선은 중립색, 공유/Assistant는 브랜드색으로 강조. 필터 칩은 12px·32px, 값 타입은 접근성 이름에 보존하고 화면에는 컬럼/값만 표시. 조회 상태는 보조 문구로 낮췄다. 기간 패널은 흰색 배경/헤더 구분선/정렬된 차원·날짜·집계 그룹으로 재배치하고 모바일은 한 열로 표시. 카드 원본 행 동작은 테두리 없는 보조 버튼으로 정리. 전역 테마·데이터·집계·AI 설정은 변경하지 않음.
@@ -466,7 +478,6 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 결과 PASS_SELECTED_VARIANTS: headed Chromium 1440/390 두 상태 캡처 직접 검토, 문서scrollWidth=viewport, 키보드 선택창 열기/닫기 PASS. Aside 기존 탭에서도 최신 DOM/명칭 확인. Aside 절대경로 캡처는 세션 디렉터리 제한으로 저장되지 않아 Chromium 캡처를 증빙으로 사용. 타입·변경 파일 lint·FE build·diffcheck PASS. 단순 스타일 변경이므로 기존 숫자/SQL/통과 전체 테스트 재실행하지 않음. 실제 VoiceOver/실기기 touch/전체Tab 미검증 또는 차단 유지. gpt-6-luna 유지/호출0.
 
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/dashboard-design-20261014/`의 updated-1440.png, updated-390.png(펼침), overview-1440.png, overview-390.png(접힘), results.json, build.log. 이전 화면은 chart-inflight-20261014/final-1440.png. 이번 디자인 수정과 MD는 미커밋. 앞선 미커밋 경합 검증 기록/테스트는 그대로 보존.
-
 
 ## 2026-10-14 EXP-VIEW-05 실제 파일 갱신·복원 후속
 
@@ -480,7 +491,6 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-file-refresh-20261014/`의 api-results.json, ui-results.json, restored-desktop.png, restored-mobile.png, rollback-mobile.png, verify.cjs. DB 정리확인에서 metric은 soft-delete 의미로 해석한다. 이번 검증 기록은 미커밋. 다음 우선 조건은 EXP-VIEW-04 다른 사용자/공유토큰 실제 HTTP, EXP-VIEW-06 목록503·소스교체 경합이다.
 
-
 ## 2026-10-14 EXP-VIEW-04 다른 사용자·공유토큰 HTTP 후속
 
 기준 `3537adee` + 권한 안내 수정. Rill source3의 기존 보기1/지표/파일은 변경하지 않고 임시 개인 보기·다른 사용자 DB fixture·빈 공유 대시보드 생성. 다른 사용자는 서버 사용자 행+정상 해시+실제 signin으로 인증(가입/온보딩 검증 아님). 공유토큰은 소유자가 임시 대시보드에 실제 share-on201→공유조회200을 호출해 활성 토큰 확인, 저장보기/원본 데이터는 공유 대시보드에 포함하지 않음.
@@ -493,7 +503,6 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-access-20261014/`의 results.json(16조건), before-1440.png/before-390.png, denied-1440.png/denied-390.png(수정후), recovered-390.png, cleanup.json, build.log. 이번 제품수정/기록 미커밋. gpt-6-luna설정유지/호출0·VoiceOverBLOCKED유지. 다음 미검증은 EXP-VIEW-06 목록503·탐색보기지연중소스교체 UI.
 
-
 ## 2026-10-14 EXP-VIEW-06 목록503·복원중 소스교체 UI 후속
 
 기준 `3537adee` + 이전 권한안내 미커밋diff, 이번 제품수정0. Rill source3/view1/user2 및 신규 CSV 소스(두 행200+300=500)·SUM지표만 생성. 원파일·지표·보기는 변경하지 않음.
@@ -504,17 +513,15 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 
 임시소스API삭제/임시지표DELETE useYn=N 확인, cleanup.json temporarySources=0/activeTemporaryMetrics=0/기존보기1유지. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-list-race-20261014/` results.json, list503-1440.png/list503-390.png, list-recovered-1440.png/list-recovered-390.png, source-switched-1440.png/source-switched-390.png, cleanup.json. 기록미커밋. EXP-VIEW-06의목록503·탐색endpoint복원지연중소스교체선택조건해소; 전체조건조합/MySQL운영/VoiceOver등은완료로확대하지않음.
 
-
 ## 2026-10-14 EXP-VIEW-03 혼합필터·빈차원 실제 저장 후속
 
 기준 `3537adee` + 이전권한안내diff, 이번제품변경0. source3/user2/Rill1391572행의 device_type=Mobile/Tablet 값필터 + bid_floor1..10 숫자범위, 전체기간·주별·차원[]·지표순서[2,1]·순위지표1/value asc를 임시보기로 준비→실제화면에서복원→새이름으로현재보기POST201저장→전체새로고침후재복원. 첫준비만APIfixture, 최종저장은실제UI Enter 요청/state로 확인.
 
-**PASS_SELECTED_VARIANTS**1440×1000/390×844: POSTstate원본과동일·지표순서[2,1]/빈차원[]/값+범위타입·경계/날짜null/주집계 유지, 실제복원query201 요청[2,1]·leaderboards[]·요청수119028600 exact/평균입찰가2.8735833247140867(독립Parquet±1e-9). 원본SQL은동일필터의 SUM(bid_request_cnt),SUM(bid_floor)/SUM(has_bid_floor_cnt),COUNT(*)로직접계산. 화면표시119M/$2.87과순서확인, 문서overflow0·Enter저장/복원·패널접기·포커스/필터칩줄바꿈 캡처검토. 원본날짜/불완전날짜조건은기존하위검증재사용.
+**PASS_SELECTED_VARIANTS**1440×1000/390×844: POSTstate원본과동일·지표순서[2,1]/빈차원[]/값+범위타입·경계/날짜null/주집계 유지, 실제복원query201 요청[2,1]·leaderboards[]·요청수119028600 exact/평균입찰가2.8735833247140867(독립Parquet±1e-9). 원본SQL은동일필터의 SUM(bid_request_cnt),SUM(bid_floor)/SUM(has_bid_floor_cnt),COUNT(\*)로직접계산. 화면표시119M/$2.87과순서확인, 문서overflow0·Enter저장/복원·패널접기·포커스/필터칩줄바꿈 캡처검토. 원본날짜/불완전날짜조건은기존하위검증재사용.
 
 첫helper는reload초기조회중비활성복원버튼에Enter를보내응답timeout. 제품오류로세지않고button enabled를기다린뒤재검증PASS. 기존파일/지표/기본보기1변경없음, 생성보기만DELETE후cleanup temporaryViews=0/primaryViewPresent=1 확인. 제품수정없어기존단위/빌드재사용·문서diffcheck. gpt-6-luna유지/호출0·VoiceOverBLOCKED/실기기터치/전체Tab미검증유지.
 
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-mixed-empty-20261014/` oracle.json/results.json, saved-1440.png, restored-1440.png/restored-390.png, cleanup.json. 이번기록미커밋. 혼합값+범위·빈차원의실제저장/재조회선택변형해소이며모든상태조합으로확대하지않음.
-
 
 ## 2026-10-14 EXP-VIEW-05 컬럼명 교체 거부 실제 화면 후속
 
@@ -526,7 +533,6 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 
 기존Rill소스/보기/지표변경없음, 이번생성소스/보기를API삭제·지표비활성화. cleanup temporarySources/Views=0·primaryViewPresent=1 확인. 제품변경없어기존단위/빌드재사용·문서diffcheck. gpt-6-luna유지/호출0·VoiceOverBLOCKED유지. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-schema-ui-20261014/` results.json, schema-denied-1440.png/schema-denied-390.png, recovered-390.png, cleanup.json. 기록미커밋.
 
-
 ## DESIGN-EXPLORE-01 — 지표 탐색 모바일 룩앤필 (2026-10-14)
 
 사용자제공390px race-destination-qa 화면기준. SourceExplore범위에서보라색알약형Pill을브랜드파랑·옅은선택배경·7px모서리로교체, 버튼데스크톱36/모바일40px·입력40px/13px 통일. 탐색방식·기간/집계·필터·정렬·표시설정을흰색테두리패널에구분, 모바일기간2열/집계3버튼+비교한행·정렬2열, 데스크톱기간버튼은내용폭으로제한. 헤더의빌더버튼정렬·소스명중복제거(행수/연결상태만), KPI/차원결과카드10px반경·숫자34px/tabular·배경#f6f8fb. 접힌설정의중복지표/차원배지는펼침에만표시, 개수레이블유지. 모바일기술정렬설명/빈live영역여백축소. 쿼리/데이터/AI설정변경없음.
@@ -534,7 +540,6 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 **PASS_SELECTED_VARIANTS**: 실제1440×1000/390×844 임시CSV두행200+300=500, 같은source명·지표로사용자이미지와비교. 두뷰포트scrollWidth=width, Enter Explore→Pivot표→Explore500복귀·포커스유지. 최종캡처직접검토(버튼/입력높이·폰트·선택/비활성·패널·KPI·차원카드). 최초시안모바일집계월버튼/비교겹침→최소폭0/분리grid조정, 데스크톱집계폭과헤더버튼여백/중복배지보정→최종재캡처. 복원숫자/전체저장케이스반복않음. 영향받는초기선택단위1PASS/22skip·최종FEtype/lint/build·diffcheckPASS. 실제파일/지표설정조합/VoiceOver/실기기touch전체는확대검증않음.
 
 임시소스API삭제·지표비활성화/cleanup.json0확인. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/explore-design-20261014/` updated-1440.png/updated-390.png, results.json, build.log. 이전화면 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-list-race-20261014/source-switched-390.png`. 앞선권한안내미커밋수정과기록보존, 이번디자인도미커밋. gpt-6-luna/VoiceOverBLOCKED유지·AI호출0.
-
 
 ## 2026-10-14 동일 오류 화면의 파일 재선택 후속
 
@@ -545,7 +550,6 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 제품변경0/새결함0, 이전단위·타입·lint·빌드재사용·문서diffcheck. helper최초수정에서첫빌더진입까지제거해요소없음실패→초기진입보존/오류후재진입만제거→정확조건재검증PASS. 임시소스·보기API삭제/지표비활성화, cleanup.json임시0/기존보기1보존확인. gpt-6-luna설정유지/호출0·VoiceOverBLOCKED/실기기touch유지.
 
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-schema-inline-retry-20261014/` results.json, schema-denied-390.png, recovered-390.png, cleanup.json. 이후속기록만미커밋. 모든스키마강제변경/MySQL운영/스크린리더조건완료로확대않음.
-
 
 ## 2026-10-14 EXP-VIEW-05 지표 삭제 후 오래된 보기 삭제 HTTP
 
@@ -561,19 +565,17 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 
 잔여 범위: 강제 열 스키마 변경 이후 충돌(정상 파일 교체는 스키마 변경을 거부), MySQL·다중 서버 운영 통합, 실제 VoiceOver·실기기 터치/전체 키보드 조합은 완료로 확대하지 않는다. 이번 안내 수정과 이 검증 기록은 미커밋이다.
 
-
 ## 2026-10-14 EXP-VIEW-04 저장 보기 20개 한도·삭제 후 저장 복구
 
 오류 안내 수정과 앞선 검증 기록은 `faf5caa4`로 현재 `codex/self-service-next-20261014` 브랜치에 drumcap 계정으로 커밋·push했다. HEAD/원격 일치를 확인한 뒤, 기존 단위에서만 확인했던 20개 한도의 실제 HTTP·화면 연결만 선택 검증했다. 이미 통과한 파일 교체·정의409·일반 저장/복원 케이스는 반복하지 않았다.
 
 **PASS_SELECTED_VARIANTS — EXP-VIEW-04·07**: 별도 source24 CSV 두 행200+300=500과 SUM 지표24를 만들고, 같은 소스/사용자에 보기20개를 API로 준비했다. 21번째 POST400과 목록20개 유지 확인. 실제 headed Chromium 1440×1000/390×844에서 목록20개, 유효한 이름 입력 후에도 저장 버튼 비활성화, 최대20개/기존 보기 삭제 안내를 확인했다. 390px에서 삭제 Enter→취소 기본 초점→Shift+Tab 삭제 확인/Enter→DELETE200/19개→80자 이름 입력→저장 버튼 활성화/Enter POST201→새로고침→목록20개/80자 이름과 저장 state 보존을 확인했다. 목록 한도 재도달로 저장이 다시 비활성화됐다. 같은 소스의 UI 합계500, 두 문서 가로 넘침0. 긴 이름의 줄바꿈·버튼/입력 높이·정렬·초점과 한도 안내 캡처를 직접 검토했다.
 
-제품 결함·수정0. 동일 코드의 앞선 관련4개 단위/타입/lint/build 통과 결과를 재사용하고 문서 diff check만 추가했다. Aside 기존 탭은 로그인 화면이었으며 helper가 실제 접근성 이름 User ID*의 별표를 생략해 로그인 요소 탐색에 실패했다. 이를 제품 오류나 Aside 전체 장애로 보고하지 않는다. 해당 실행은 허용된 headed Playwright의 정상 로그인 및 실제 화면 캡처로 검증했고, Aside에서 검증한 것으로 세지 않았다. 인증정보는 출력·증빙에 남기지 않았다.
+제품 결함·수정0. 동일 코드의 앞선 관련4개 단위/타입/lint/build 통과 결과를 재사용하고 문서 diff check만 추가했다. Aside 기존 탭은 로그인 화면이었으며 helper가 실제 접근성 이름 User ID\*의 별표를 생략해 로그인 요소 탐색에 실패했다. 이를 제품 오류나 Aside 전체 장애로 보고하지 않는다. 해당 실행은 허용된 headed Playwright의 정상 로그인 및 실제 화면 캡처로 검증했고, Aside에서 검증한 것으로 세지 않았다. 인증정보는 출력·증빙에 남기지 않았다.
 
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-limit-ui-20261014/`: results.json, fixture.json, limit-1440.png/limit-390.png, restored-20-long-name-390.png, aside-initial.txt, cleanup.json. 임시 소스/보기 API 삭제·지표 soft-delete 후 DB에서 temporarySources/Views/activeTemporaryMetrics=0, 기존 source3/view1 보존을 확인했다. gpt-6-luna 설정/VoiceOver BLOCKED 유지, AI 호출0.
 
 20개 단일 서버 UI 경계와 삭제 후 복구만 완료했다. MySQL·다중 서버 동시성, 실제 VoiceOver·실기기 터치/전체 키보드 조합 및 강제 스키마 변경 조건은 미검증으로 유지한다.
-
 
 ## 2026-10-14 VERSION-06·07 — 5개 한도 실제 화면 후속
 
@@ -589,7 +591,6 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 
 이번 코드/검증 기록은 미커밋. 자동GC·crash 복구·장기 보존 정책·다중 서버/tenant·실기기·VoiceOver는 미검증/BLOCKED 유지. gpt-6-luna 설정 유지/AI 호출0, 기존130개 카탈로그 완료 집계는 확대하지 않았다.
 
-
 ## 2026-10-14 EXP-VIEW-04·06·07 — 다른 소스 ID·외부 삭제 404 후속
 
 복원 완료 안내 수정과 앞선 VERSION-06·07 기록을 `fb51a1de`로 현재 `codex/self-service-next-20261014` 브랜치에 drumcap 계정으로 커밋·push하고 원격 일치를 확인했다. 이번 실행은 제품 변경 없이 아직 실제 HTTP/화면으로 확인하지 않았던 다른 소스 ID와 없는 보기404 조건만 진행했다.
@@ -604,7 +605,6 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 
 MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드 조건은 미검증 유지. gpt-6-luna 설정과 VoiceOver BLOCKED 유지/AI 호출0. 전체130개 카탈로그 완료 집계는 확대하지 않는다.
 
-
 ## 2026-10-14 EXP-VIEW-06·07 — 삭제 실패 후 키보드 재시도
 
 기준 `a7dc501d` + 삭제 실패 초점 수정. 기존 삭제 실패 단위 검증을 실제 화면으로 연결한 선택 변형이다. 같은 Rill1391572행 source3·기존 지표1/2를 사용하고 임시 보기만 생성했다. 기존 정상 복원·저장·필터/수치 정답 전체는 반복하지 않았다.
@@ -616,7 +616,6 @@ MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-delete-retry-20261014/`: before-failed-delete-1440.png/before-failed-focus-1440.json(초점DIV), failed-delete-1440.png/failed-delete-390.png(수정 후 초점), retried-delete-1440.png/retried-delete-390.png, results.json, browser-before.log/browser-after.log, regression-before.log/regression-after.log, build.log, cleanup.json. 최초 애니메이션 중 캡처는 안정화 대기 후 다시 저장했고 제품 렌더링 오류로 세지 않았다. 생성한 정확한 보기 ID만 삭제했으며 temporaryViewsRemaining=0/primaryViewUnchanged=true를 API로 확인했다. 원본 파일·지표·대시보드 변경 없음.
 
 기존 허용된 headed Chromium으로 실제 화면/키보드를 검증했다. 전체Tab/실기기 터치·실제 서버 장애 복구·다중서버·VoiceOver 발화로 확대하지 않는다. gpt-6-luna 설정 유지/AI 호출0·VoiceOver BLOCKED 유지. 이번 초점 수정/검증 기록은 미커밋이다.
-
 
 ## 2026-10-14 RANGE-03·KEY-01 — 한쪽 경계·비정상 숫자 실제 화면
 
@@ -630,7 +629,6 @@ MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드
 
 이번 검증 기록은 미커밋. 최대5개 혼합필터의 전체 화면 조합·큰 정수 정렬의 실제 화면·실기기/전체Tab·MySQL 운영·실제 VoiceOver는 완료로 확대하지 않는다. 앞선 삭제 재시도 초점 수정도 미커밋 상태로 보존했다.
 
-
 ## 2026-10-14 RANGE-03·KEY-01 — 혼합5필터 한도와 같은 열 교체
 
 기준 `a7dc501d` + 앞선 삭제 재시도 초점 diff(보존). 이번 제품 변경0. 하위 검사에서만 확인했던 값·범위 혼합5개/6번째 열 거절/한도에서 같은 열 교체를 실제 화면으로 선택 검증했다. 앞선 한쪽 경계·비정상 숫자·일반 저장/복원·Rill 전체 수치 조건은 반복하지 않았다.
@@ -642,7 +640,6 @@ MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/range-filter-cap-20261014/`: results.json, sixth-rejected-1440.png/sixth-rejected-390.png, same-column-replaced-1440.png/same-column-replaced-390.png, cleanup.json. source34/metric34/view69만 API 삭제·metric soft-delete 후 DB temporarySources/Views/activeTemporaryMetrics=0, 기존 source3/view1 응답 불변 확인. gpt-6-luna 설정 유지/AI 호출0·VoiceOver BLOCKED 유지.
 
 이번 기록과 앞선 삭제 초점 수정은 미커밋. 혼합 필터의 모든 데이터 타입 조합·큰 정수 정렬 실제 화면·운영 다중 서버·실기기/VoiceOver는 미검증으로 유지한다.
-
 
 ## 2026-10-14 필터 적용 레이아웃·큰 정수 추세 후속
 
@@ -680,7 +677,7 @@ MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드
 - PASS_SELECTED_VARIANTS:1440/390px에서 복원 확인 중 별도 정상 갱신→낡은 복원409·최신 합계900/이력 보존→목록 새로고침 시 낡은 확인창 해제→명시적 재확인201·원합계300/세 이력 유지.
 - 새 오류/제품 변경0, 이전 관련18개·타입/lint/build 재사용·문서 diff check. 임시 source/metric56~58 정리·원보기1 보존. 교체409/정상 복원 전체는 반복하지 않았다.
 - 상세: [파일 전체 교체·복원](file-versions.md), 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/file-stale-restore-20261014/`. 미커밋, gpt-6-luna 설정·VoiceOver BLOCKED 유지.
-2026-10-14 Rill 범위/변화 순위 후속: EXPLORE-09/10 하위 및 Aside 선택 조건 PASS. 원본 숫자 범위 공통 적용·전체 차원 집계 후 값/변화량/변화율 양방향 정렬, 독립 SQL6조합과 실제 XHR55127800/122756행 확인. 대시보드 숫자 열 검사·날짜 없는 비교 비활성화·DECIMAL 비교 정확성 경계 수정. Rill의 집계 지표 임계값 필터와는 의미가 다르며 Pivot/보기 저장/내보내기·이번 컨트롤 전체 접근성/모바일은 NOT_RUN. [상세](rill-exploration.md).
+  2026-10-14 Rill 범위/변화 순위 후속: EXPLORE-09/10 하위 및 Aside 선택 조건 PASS. 원본 숫자 범위 공통 적용·전체 차원 집계 후 값/변화량/변화율 양방향 정렬, 독립 SQL6조합과 실제 XHR55127800/122756행 확인. 대시보드 숫자 열 검사·날짜 없는 비교 비활성화·DECIMAL 비교 정확성 경계 수정. Rill의 집계 지표 임계값 필터와는 의미가 다르며 Pivot/보기 저장/내보내기·이번 컨트롤 전체 접근성/모바일은 NOT_RUN. [상세](rill-exploration.md).
 
 ## 2026-10-14 develop-v2 통합 검증
 
@@ -710,12 +707,9 @@ UI12 후속은 미저장 제안 후 실제API4331 SIGTERM/동일설정 재기동
 
 최신 [명세/증빙](studio-proposal-refinement.md)을 따른다. REFINE-01~05/START-01 선택 조건 PASS: 실제 gpt-6-luna 차원 변경·KPI 추가, Rill40그룹/총634,513,000, 비공개28 저장/reload/동일 요청 복구,799.57초 실제 TTL400. REFINE-06 디자인390/768/1440 넘침0·선택 Tab/Enter PASS; 네이티브 선택창 방향키 PARTIAL. VoiceOver BLOCKED 유지. 파일/샘플 재수집·운영/실휴대폰·편집기 run 링크 전체 추가 여정은 남아 있다. 기존 TC005/G4 전체 수용을 완료로 바꾸지 않는다.
 
-
 후속 CONV-REFINE-01~04는 실제 편집기 생성→새 탭 이어받기→제목만 수정→비공개29 저장/reload·원본25 미저장 변경 보존/되돌리기를 확인했다. CREATE-RECOVERY-01~03은 `/studio/new` 신규 저장31 commit 뒤 응답 유실 주입→변경 차단→키보드 Enter로 같은 요청 확인→31/31 동일 문서·중복 생성0·reload634,513,000을 확인했다. 첫 주입 연결 실패의 정상 준비30은 장애 PASS에서 제외했다.390px 안내/컨트롤/결과 캡처·넘침0. 제품 코드 변경 없이 기존 통과 검사를 재사용했다. [실행 방식·잔여 범위](studio-proposal-refinement.md#신규-생성-저장-응답-유실-후속--2026-10-16). gpt-6-luna·VoiceOver BLOCKED 유지, 실휴대폰/운영/전체 키보드 수용은 남는다.
 
-
 REFINE-CANCEL-01~03은 실제 gpt-6-luna 수정 POST→중지→미리보기/질문 보존→Enter 재요청을 확인했다. 제목만 요청에서 지표38 참조를 잃는 오류를 발견해 서버가 제목 외 전체 정의를 보존하도록 수정했다. 신규 실패 회귀→관련5 PASS·BE build/lint·실제 같은 질문 재검증/390px 캡처·634,513,000/지표38 완전 보존·저장/게시0. [수정·미확인 범위](studio-proposal-refinement.md#발견-오류-수정재검증). 변경·기록은 미커밋이다.
-
 
 REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→Enter 비공개32 저장→reload를 확인했다. 제목·저장 지표38/v1·634,513,000 유지, 지표/게시 증가0·기존 지표38/원래25 해시 불변.1440/390px 캡처·넘침0이며 기존 성공 케이스는 재사용했다. [영속 검증 증빙](studio-proposal-refinement.md#제목만-수정-후-저장-지표-연결-유지--2026-10-16). gpt-6-luna·VoiceOver BLOCKED 유지.
 
@@ -727,15 +721,11 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 
 - 2026-10-16: [UI15 분모 확인 재시도](studio-shadcn.md#studio-ui15-분모-확인-실패재시도-후속--2026-10-16) 전송 전503 주입→질문/amount/소스 revision 보존→동일 body Enter→실제 gpt-6-luna 제안/21.23% 복구 PASS_SELECTED. 원본 CSV Decimal 일치·390px 넘침0·저장/게시0. 제품 변경0·기록 미커밋, VoiceOver BLOCKED 유지.
 
-
 - 2026-10-16: [UI16 게시 실패·상태 조회 복구](studio-shadcn.md#studio-ui16-게시-실패상태-조회-복구--2026-10-16) PASS_SELECTED. 비공개32의 전송 전503→동일 requestId/body Enter 재시도→실제 v1 생성→owner GET 전송 전503→Enter GET만 복구. 실제 게시1회/복구 추가POST0·저장본 해시/634,513,000 보존·390px 넘침0/버튼36px 캡처. 제품 변경0·AI 호출0/gpt-6-luna·VoiceOver BLOCKED 유지. 이전 미커밋 수정/기록은 `2fb2edb4`로 develop-v2/drumcap push 완료. 실행기 저장 후 게시 실패·취소/재시작·운영/실기기는 별도 미완료.
-
 
 - 2026-10-16: [UI17 대화 실행기 게시 장애·중지·재시작](studio-shadcn.md#studio-ui17-대화-실행기의-게시-장애중지재시작--2026-10-16) PASS_SELECTED. 실제 저장 뒤 게시 단계 예외→같은 run 게시만 재시도, 게시 대기 중 Enter 중지→저장 보존/공유 cancelled, 실제 Node TERM/같은 DB 재기동→publish interrupted→명시 게시만 재시도 완료. 세 run 각각 save journal1, 게시 journal1/0/1·정의 불변·634,513,000 유지.390px/1440px 캡처·넘침0, 제품 변경0·모델 호출0/gpt-6-luna·VoiceOver BLOCKED 유지. 로컬 게시본 비공개v4/정상 서버 복구. 기록 미커밋; commit 직후 장애·다중 탭 경쟁·운영/실기기는 별도 gate.
 
-
 - 2026-10-16: [UI18 실행기 게시 commit 이후 장애·응답 유실](studio-shadcn.md#studio-ui18-게시-commit-직후-장애응답-유실--2026-10-16) PASS_SELECTED. 실제 게시v5/journal commit 후 실행기 완료 전 Node TERM→정상 재시작→동일 run/버전 복원, 별도 실제 완료v6 응답1회 숨김→Enter GET만 복구. 두 run 각각 save/publication journal1·복구 추가POST0·정의/634,513,000 유지·390px 오류/복구 캡처/넘침0. 정상 서버·비공개v7 정리, 제품 수정/AI호출0·gpt-6-luna/VoiceOver BLOCKED 유지. UI17 기록은 `722b6fbc`로 develop-v2/drumcap push 완료; UI18 기록 미커밋. 다른 탭 경합·운영/실기기는 별도 gate.
-
 
 - 2026-10-16: [UI19 두 탭 게시 재시도 경합](studio-shadcn.md#studio-ui19-두-탭-게시-재시도-경합--2026-10-16) 최초 FAIL→수정 후 PASS_SELECTED. 오래된 실행 재시도가 B의 비공개v8을 공개v9로 덮던 오류를 게시 token/version 영속 기준과 내부 직렬 쓰기 비교로 수정. 실제 scope/revision 각각409·B 최신 제목/정의/배치·비공개v11/634,513,000 유지·각 save journal1/pub0·390px 캡처. BE73/build/변경lint/diff PASS, 정상 서버 복구·모델0/gpt-6-luna·VoiceOver BLOCKED 유지. UI18은 `74c5bf67`로 drumcap push 완료; 이번 코드/기록 미커밋. 다중 프로세스/MySQL·실기기/전체 수용은 별도.
 
