@@ -117,3 +117,37 @@ it('does not apply or clear data after the recovery screen unmounts', async () =
   expect(readStudioPendingSave('key', 3)?.phase).toBe('pending');
   expect(api.get).not.toHaveBeenCalled();
 });
+
+it('replays temporary block IDs unchanged and opens server IDs and all layouts from the latest read', async () => {
+  const r = fixture();
+  const temporary = 'temp-copy';
+  const serverId = 'block-saved-copy';
+  r.request.document.blocks.push({ ...r.request.document.blocks[0], id: temporary, title: '복사본' });
+  for (const size of ['lg', 'md', 'xs'] as const) {
+    r.request.document.layouts[size].push({ id: temporary, x: 0, y: 2, w: size === 'xs' ? 1 : 4, h: 6 });
+  }
+  const current = latest();
+  current.document.blocks = r.request.document.blocks.map(block => ({
+    ...block,
+    id: block.id === temporary ? serverId : block.id,
+  }));
+  for (const size of ['lg', 'md', 'xs'] as const) {
+    current.document.layouts[size] = r.request.document.layouts[size].map(item => ({
+      ...item,
+      id: item.id === temporary ? serverId : item.id,
+    }));
+  }
+  api.post.mockResolvedValue({
+    data: { document: { ...current.document, revision: 'c'.repeat(64) }, idMap: { [temporary]: serverId } },
+  });
+  api.get.mockResolvedValue({ data: current });
+  const t = setup(r);
+  expect(api.post).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 재확인' }));
+  await waitFor(() => expect(t.onResolved).toHaveBeenCalledWith(expect.objectContaining({ document: current.document })));
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(api.post.mock.calls[0][1]).toEqual(r.request);
+  expect(api.post.mock.calls[0][1].document.blocks[1].id).toBe(temporary);
+  expect(readStudioPendingSave('key', 3)).toBeNull();
+  expect(sessionStorage.getItem('question')).toBe('keep');
+});

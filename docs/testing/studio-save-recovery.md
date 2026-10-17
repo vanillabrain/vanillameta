@@ -36,3 +36,7 @@ Status: Draft · UC047/P3 · TC047 · PASS_SELECTED.
 - BE 코드/DB 변경 없음. BE 단위/core E2E·실휴대폰/운영/전체 접근성/고객 수용은 NOT_RUN이며 전체 P3/TC005 수용이 아니다.
 - AIWF strict 기존12 errors/33 warnings/4 infos 유지. pin/check는 일치 확인이며 packet은 awaiting_review/acceptance not_recorded다. 별도 독립 리뷰 승인은 없다.
 - 증빙 `/tmp/vm-uc047/`: `baseline{45,46}.json`, `fault.cjs/json`, `fault-events.jsonl`, `stored-after-loss.json`, `committed46.json`, `reload-pending.json`, `confirmation-events.json`, `confirmed46.json`, `confirmed-reload.json`, `after-confirmation-storage.json`, `receipt-after-commit/confirm.json`, `undelivered-storage/server46/reload.json`, `undelivered-confirm-events.json`, `undelivered-confirmed46.json`, `receipt-before/after-undelivered-confirm.json`, `question-restored.json`, `final{45,46}.json`, `final-state.json`, `final-code-state.json`, `confirmation-final-{390,768,1440}.png/json`, `assertions.py/json`, `unit/type/lint/build/strict.log`.
+
+## 신규 블록 후속
+
+[Ego93 임시 ID 복구](studio-save-new-block-recovery.md)에서 신규 복제 블록의 실제 commit→응답 유실→reload→같은 요청 재확인·같은 idMap/서버 ID/배치·추가 저장0을 확인했다. 위 Ego92의 신규 ID 미실행 표기는 당시 범위이며 최신 선택 검증은 이 후속을 따른다.
