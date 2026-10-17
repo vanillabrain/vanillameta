@@ -1,3 +1,4 @@
+import SourceCatalogChanges, { CatalogChange } from './SourceCatalogChanges';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
@@ -6,21 +7,18 @@ import { TextField } from '@/components/ui/text-field';
 
 type Entry = { version: number; label: string | null; createdAt: string; unreadable: boolean };
 type Page = { sourceId: number; entries: Entry[]; nextBeforeVersion: number | null };
-type Change = { column: string | null; field: string; before: string | null; after: string | null };
 type Comparison = {
   sourceId: number;
   fromVersion: number;
   toVersion: number;
   schemaChanged: boolean;
   dataChanged: boolean;
-  changes: Change[];
+  changes: CatalogChange[];
 };
 const unwrap = <T,>(response: any): T => {
   if (response?.data?.status !== 'SUCCESS' || !response.data.data) throw new Error('invalid response');
   return response.data.data;
 };
-const text = (value: string | null) => (value === null ? '항목 없음' : value === '' ? '빈 값' : value);
-const fieldLabel: Record<string, string> = { label: '표시명', description: '업무 설명', unit: '단위' };
 const savedAt = (value: string) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '시각 확인 불가' : date.toLocaleString('ko-KR');
@@ -212,26 +210,11 @@ function History({ sourceId }: { sourceId: number }) {
                 <p className="text-xs text-muted-foreground">저장 당시 기준 데이터 버전도 다릅니다.</p>
               )}
               {comparison.changes.length === 0 && <p className="text-sm">두 버전의 업무 설명은 같습니다.</p>}
-              {comparison.changes.map(change => (
-                <div
-                  key={JSON.stringify([change.column, change.field])}
-                  className="min-w-0 rounded-md border border-border p-3"
-                >
-                  <h3 className="mb-2 text-sm font-medium [overflow-wrap:anywhere]">
-                    {change.column === null ? '소스' : change.column} · {fieldLabel[change.field] ?? change.field}
-                  </h3>
-                  <dl className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="min-w-0">
-                      <dt className="text-xs text-muted-foreground">이전 · 버전 {comparison.fromVersion}</dt>
-                      <dd className="mt-1 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{text(change.before)}</dd>
-                    </div>
-                    <div className="min-w-0">
-                      <dt className="text-xs text-muted-foreground">이후 · 버전 {comparison.toVersion}</dt>
-                      <dd className="mt-1 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{text(change.after)}</dd>
-                    </div>
-                  </dl>
-                </div>
-              ))}
+              <SourceCatalogChanges
+                changes={comparison.changes}
+                beforeLabel={`이전 · 버전 ${comparison.fromVersion}`}
+                afterLabel={`이후 · 버전 ${comparison.toVersion}`}
+              />
             </div>
           )}
         </div>

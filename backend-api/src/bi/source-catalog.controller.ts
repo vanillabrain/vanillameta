@@ -17,4 +17,7 @@ export class SourceCatalogController {
   @Post('compare') async compare(@Body() body: unknown, @Req() req) {
     return { status: 'SUCCESS', data: await this.catalog.compare(body, req.user.accessKeyData.id) };
   }
+  @Post('preview') async preview(@Body() body: unknown, @Req() req) {
+    return { status: 'SUCCESS', data: await this.catalog.preview(body, req.user.accessKeyData.id) };
+  }
 }

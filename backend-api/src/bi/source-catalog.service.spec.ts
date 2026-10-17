@@ -291,4 +291,71 @@ describe('UC050 owned source business metadata', () => {
       service.history({ sourceId: 3, beforeVersion: 2147483648 }, 7),
     ).rejects.toMatchObject({ status: 400 });
   });
+  it('previews normalized initial changes without writing anything', async () => {
+    const preview = await service.preview({ ...body(), label: '  매출  ' }, 7);
+    expect(preview.draft).toMatchObject({ sourceId: 3, version: 0, label: '매출' });
+    expect(preview.changes).toContainEqual({
+      column: null,
+      field: 'label',
+      before: 'Orders',
+      after: '매출',
+    });
+    expect(preview.changes).toContainEqual({
+      column: 'amount',
+      field: 'unit',
+      before: '',
+      after: '원',
+    });
+    expect(await db.getRepository(SourceCatalogEntry).count()).toBe(0);
+    expect(JSON.stringify(preview)).not.toContain('must not return');
+  });
+  it('compares a proposal with the saved metadata and returns no differences for normalized no-op', async () => {
+    await service.save(body(), 7);
+    const before = await db.getRepository(SourceCatalogEntry).find();
+    const same = await service.preview({ ...body(), version: 1, label: '  매출 ' }, 7);
+    expect(same.changes).toEqual([]);
+    const updated = await service.preview({ ...body(), version: 1, description: '새 정의' }, 7);
+    expect(updated.changes).toEqual([
+      { column: null, field: 'description', before: '결제 기준', after: '새 정의' },
+    ]);
+    expect(await db.getRepository(SourceCatalogEntry).find()).toEqual(before);
+  });
+  it('rejects unauthorized, invalid and stale previews without writes', async () => {
+    await expect(service.preview(body(), 8)).rejects.toThrow(ForbiddenException);
+    await expect(service.preview({ ...body(), label: '' }, 7)).rejects.toMatchObject({
+      status: 400,
+    });
+    await expect(service.preview({ ...body(), sourceRevision: 'old' }, 7)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(await db.getRepository(SourceCatalogEntry).count()).toBe(0);
+  });
+  it('does not let preview bypass a later competing save', async () => {
+    const preview = await service.preview(body(), 7);
+    await service.save({ ...body(), label: '다른 저장' }, 7);
+    await expect(service.save(preview.draft, 7)).rejects.toMatchObject({ status: 409 });
+    expect(await db.getRepository(SourceCatalogEntry).count()).toBe(1);
+    expect((await service.read({ sourceId: 3 }, 7)).label).toBe('다른 저장');
+  });
+  it('uses the exact unsaved read projection as the preview baseline', async () => {
+    const baseline = await service.read({ sourceId: 3 }, 7);
+    const preview = await service.preview(
+      {
+        sourceId: baseline.sourceId,
+        sourceRevision: baseline.sourceRevision,
+        version: baseline.version,
+        label: baseline.label,
+        description: baseline.description,
+        columns: baseline.columns.map(({ column, label, description, unit }) => ({
+          column,
+          label,
+          description,
+          unit,
+        })),
+      },
+      7,
+    );
+    expect(preview.changes).toEqual([]);
+    expect(await db.getRepository(SourceCatalogEntry).count()).toBe(0);
+  });
 });

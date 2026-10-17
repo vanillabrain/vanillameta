@@ -50,3 +50,7 @@
 ### UC050 Saved History Follow-up
 
 [후속 검증](../testing/source-catalog-history.md)에서 소유권·20건 커서·동일 소스의 두 저장 버전 차이·손상 이력·입력/저장본 불변을 선택 검증한다. 공식 승인/사용처 영향 검토·전체 TC050의 NOT_RUN을 대체하지 않는다.
+
+### UC050 Pre-save Preview Follow-up
+
+[미리보기 증빙](../testing/source-catalog-preview.md)은 변경 입력→쓰기 없는 서버 미리보기→명시 확인→정확한 draft 저장과 경쟁409/입력 보존을 선택 검증한다. 실제 Ego/모바일·사용처 영향 검토/공식 승인·전체 TC050의 NOT_RUN을 대신하지 않는다.

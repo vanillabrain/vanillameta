@@ -81,7 +81,16 @@ export class SourceCatalogService {
       .findOne({ where: { sourceId: id }, order: { version: 'DESC' } });
     const metadata = entry
       ? this.storedMetadata(entry)
-      : { label: profile.name, description: '', columns: [] };
+      : {
+          label: profile.name,
+          description: '',
+          columns: schema.map(c => ({
+            column: c.column,
+            label: c.column,
+            description: '',
+            unit: '',
+          })),
+        };
     return { id, profile, schema, schemaRevision, entry, metadata };
   }
   async read(body: unknown, actor: number) {
@@ -147,21 +156,10 @@ export class SourceCatalogService {
       nextBeforeVersion: rows.length > 20 ? page[page.length - 1].version : null,
     };
   }
-  async compare(body: unknown, actor: number) {
-    const input = this.fields(body, ['sourceId', 'fromVersion', 'toVersion']);
-    const fromVersion = this.version(input.fromVersion),
-      toVersion = this.version(input.toVersion);
-    if (fromVersion >= toVersion)
-      throw new BadRequestException('이전 버전과 이후 버전을 순서대로 선택해 주세요.');
-    const sourceId = await this.historySource(input.sourceId, actor);
-    const repo = this.db.getRepository(SourceCatalogEntry);
-    const [before, after] = await Promise.all([
-      repo.findOneBy({ sourceId, version: fromVersion }),
-      repo.findOneBy({ sourceId, version: toVersion }),
-    ]);
-    if (!before || !after) throw new NotFoundException('선택한 저장 버전이 없습니다.');
-    const left = this.storedMetadata(before),
-      right = this.storedMetadata(after);
+  private changes(
+    left: { label: string; description: string; columns: ColumnMetadata[] },
+    right: { label: string; description: string; columns: ColumnMetadata[] },
+  ) {
     const changes: Array<{
       column: string | null;
       field: string;
@@ -183,6 +181,24 @@ export class SourceCatalogService {
           newColumns.get(column)?.[field] ?? null,
         );
     }
+    return changes;
+  }
+  async compare(body: unknown, actor: number) {
+    const input = this.fields(body, ['sourceId', 'fromVersion', 'toVersion']);
+    const fromVersion = this.version(input.fromVersion),
+      toVersion = this.version(input.toVersion);
+    if (fromVersion >= toVersion)
+      throw new BadRequestException('이전 버전과 이후 버전을 순서대로 선택해 주세요.');
+    const sourceId = await this.historySource(input.sourceId, actor);
+    const repo = this.db.getRepository(SourceCatalogEntry);
+    const [before, after] = await Promise.all([
+      repo.findOneBy({ sourceId, version: fromVersion }),
+      repo.findOneBy({ sourceId, version: toVersion }),
+    ]);
+    if (!before || !after) throw new NotFoundException('선택한 저장 버전이 없습니다.');
+    const left = this.storedMetadata(before),
+      right = this.storedMetadata(after);
+    const changes = this.changes(left, right);
     return {
       sourceId,
       fromVersion,
@@ -192,7 +208,7 @@ export class SourceCatalogService {
       changes,
     };
   }
-  async save(body: unknown, actor: number) {
+  private async prepare(body: unknown, actor: number) {
     const input = this.fields(body, [
       'sourceId',
       'sourceRevision',
@@ -201,10 +217,14 @@ export class SourceCatalogService {
       'description',
       'columns',
     ]);
-    const { id, profile, schema, schemaRevision, entry } = await this.snapshot(
-      input.sourceId,
-      actor,
-    );
+    const {
+      id,
+      profile,
+      schema,
+      schemaRevision,
+      entry,
+      metadata: previousMetadata,
+    } = await this.snapshot(input.sourceId, actor);
     if (!Number.isSafeInteger(input.version) || input.version < 0 || input.version >= 2147483647)
       throw new BadRequestException('업무 설명 버전을 확인해 주세요.');
     if (typeof input.sourceRevision !== 'string' || !input.sourceRevision)
@@ -242,6 +262,38 @@ export class SourceCatalogService {
     const metadata = JSON.stringify({ label, description, columns });
     if (Buffer.byteLength(metadata, 'utf8') > 60000)
       throw new BadRequestException('업무 설명 전체 크기는 60KB 이하여야 합니다.');
+    return {
+      id,
+      profile,
+      schema,
+      schemaRevision,
+      entry,
+      columns,
+      label,
+      description,
+      metadata,
+      version: input.version,
+      previousMetadata,
+    };
+  }
+  async preview(body: unknown, actor: number) {
+    const prepared = await this.prepare(body, actor);
+    const { id, profile, columns, label, description, version, previousMetadata } = prepared;
+    return {
+      draft: {
+        sourceId: id,
+        sourceRevision: profile.dataVersion,
+        version,
+        label,
+        description,
+        columns,
+      },
+      changes: this.changes(previousMetadata, { label, description, columns }),
+    };
+  }
+  async save(body: unknown, actor: number) {
+    const { id, profile, schema, schemaRevision, columns, label, description, metadata, version } =
+      await this.prepare(body, actor);
     // UC050: unique (sourceId,version) is the cross-process compare-and-swap, not a local mutex.
     await this.access.assert('database', id, actor);
     const latest = await this.bi.profile(id, actor);
@@ -250,7 +302,7 @@ export class SourceCatalogService {
     try {
       await this.db.getRepository(SourceCatalogEntry).insert({
         sourceId: id,
-        version: input.version + 1,
+        version: version + 1,
         actorId: actor,
         schemaRevision,
         sourceRevision: profile.dataVersion,
@@ -271,7 +323,7 @@ export class SourceCatalogService {
     return {
       sourceId: id,
       sourceRevision: profile.dataVersion,
-      version: input.version + 1,
+      version: version + 1,
       label,
       description,
       schemaChanged: false,

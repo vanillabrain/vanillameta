@@ -1,3 +1,6 @@
+import SourceCatalogChanges, { CatalogChange } from './SourceCatalogChanges';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import SourceCatalogHistory from './SourceCatalogHistory';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { post } from '@/helpers/apiHelper';
@@ -15,6 +18,16 @@ type Catalog = {
   schemaChanged: boolean;
   columns: BusinessColumn[];
 };
+type Draft = Omit<Catalog, 'schemaChanged' | 'columns'> & { columns: Array<Omit<BusinessColumn, 'type'>> };
+type Preview = { draft: Draft; changes: CatalogChange[] };
+const payload = (data: Catalog): Draft => ({
+  sourceId: data.sourceId,
+  sourceRevision: data.sourceRevision,
+  version: data.version,
+  label: data.label,
+  description: data.description,
+  columns: data.columns.map(({ column, label, description, unit }) => ({ column, label, description, unit })),
+});
 const unwrap = (response: any): Catalog => {
   if (response?.data?.status !== 'SUCCESS' || !response.data.data) throw new Error('invalid response');
   return response.data.data;
@@ -34,6 +47,12 @@ function Editor({ sourceId }: { sourceId: number }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [confirmReload, setConfirmReload] = useState(false);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [agreed, setAgreed] = useState(false);
+  const clearPreview = () => {
+    setPreview(null);
+    setAgreed(false);
+  };
   const dirty = data !== null && JSON.stringify(data) !== baseline;
   useEffect(() => {
     live.current = true;
@@ -42,6 +61,7 @@ function Editor({ sourceId }: { sourceId: number }) {
     };
   }, []);
   const read = async () => {
+    clearPreview();
     setConfirmReload(false);
     setBusy(true);
     setError('');
@@ -62,31 +82,77 @@ function Editor({ sourceId }: { sourceId: number }) {
       if (live.current) setBusy(false);
     }
   };
-  const save = async () => {
+  const buildPreview = async () => {
     if (!data || busy || data.schemaChanged) return;
+    clearPreview();
     setBusy(true);
     setError('');
     setNotice('');
     setConfirmReload(false);
     try {
-      const next = unwrap(
-        await post('/bi/source-catalog/save', {
-          sourceId,
-          sourceRevision: data.sourceRevision,
-          version: data.version,
-          label: data.label,
-          description: data.description,
-          columns: data.columns.map(({ column, label, description, unit }) => ({ column, label, description, unit })),
-        }),
-      );
+      const response = await post('/bi/source-catalog/preview', payload(data));
+      const next = response?.data?.data as Preview;
+      if (
+        response?.data?.status !== 'SUCCESS' ||
+        !next?.draft ||
+        !Array.isArray(next.changes) ||
+        next.draft.sourceId !== sourceId ||
+        next.draft.version !== data.version ||
+        next.draft.sourceRevision !== data.sourceRevision
+      )
+        throw new Error('invalid preview');
+      if (
+        next.changes.some(change => {
+          const candidate =
+            change.column === null ? next.draft : next.draft.columns.find(column => column.column === change.column);
+          const allowed = change.column === null ? ['label', 'description'] : ['label', 'description', 'unit'];
+          return (
+            !allowed.includes(change.field) ||
+            !candidate ||
+            typeof change.after !== 'string' ||
+            candidate[change.field] !== change.after
+          );
+        })
+      )
+        throw new Error('inconsistent preview');
+      if (live.current) {
+        setPreview(next);
+        // A server-confirmed normalized no-op needs no save or input replacement.
+        if (next.changes.length === 0) setBaseline(JSON.stringify(data));
+      }
+    } catch (failure) {
+      if (live.current)
+        setError(
+          failure?.response?.status === 400
+            ? '표시명·설명·단위를 확인해 주세요. 중복 표시명과 빈 이름은 사용할 수 없습니다.'
+            : failure?.response?.status === 409
+            ? '다른 창 또는 데이터가 변경됐습니다. 입력을 보존했습니다. 최신 설명을 다시 확인해 주세요.'
+            : '변경 내용을 확인하지 못했습니다. 입력을 보존했습니다. 미리보기를 다시 시도해 주세요.',
+        );
+    } finally {
+      if (live.current) setBusy(false);
+    }
+  };
+  const save = async () => {
+    if (!data || busy || data.schemaChanged || !preview || !agreed || !preview.changes.length) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    setConfirmReload(false);
+    try {
+      const next = unwrap(await post('/bi/source-catalog/save', preview.draft));
       if (!live.current) return;
       setData(next);
       setBaseline(JSON.stringify(next));
       setNotice('업무 설명을 저장했습니다.');
+      clearPreview();
     } catch (failure) {
       if (!live.current) return;
+      clearPreview();
       setError(
-        failure?.response?.status === 409
+        failure?.response?.status === 400
+          ? '입력 검증에 실패해 저장하지 않았습니다. 변경 내용을 다시 확인해 주세요.'
+          : failure?.response?.status === 409
           ? '다른 창 또는 데이터가 변경됐습니다. 입력을 보존했습니다. 최신 설명을 다시 확인해 주세요.'
           : '저장을 확인하지 못했습니다. 입력을 보존했습니다. 최신 설명을 읽어 반영 여부를 확인해 주세요.',
       );
@@ -95,6 +161,7 @@ function Editor({ sourceId }: { sourceId: number }) {
     }
   };
   const change = (next: Catalog) => {
+    clearPreview();
     setData(next);
     setNotice('');
     setConfirmReload(false);
@@ -190,9 +257,25 @@ function Editor({ sourceId }: { sourceId: number }) {
           )}
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             {data && (
-              <Button type="button" size="sm" disabled={busy || !dirty || data.schemaChanged} onClick={() => void save()}>
-                업무 설명 저장
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy || !dirty || data.schemaChanged}
+                  onClick={() => void buildPreview()}
+                >
+                  변경 내용 미리보기
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={busy || !preview || !agreed || !preview.changes.length || data.schemaChanged}
+                  onClick={() => void save()}
+                >
+                  확인한 변경 저장
+                </Button>
+              </>
             )}
             <Button
               type="button"
@@ -210,6 +293,41 @@ function Editor({ sourceId }: { sourceId: number }) {
               </span>
             )}
           </div>
+          {preview && (
+            <section
+              className="min-w-0 space-y-3 rounded-md border border-border p-3"
+              aria-label="저장 전 업무 설명 미리보기"
+            >
+              <p role="status" className="text-sm font-medium">
+                저장 전 변경 {preview.changes.length}개
+              </p>
+              <p className="text-xs text-muted-foreground">
+                아직 저장하지 않았습니다. 원본 열·계산식과 기존 분석은 바뀌지 않습니다.
+              </p>
+              {preview.changes.length === 0 ? (
+                <p className="text-sm">저장할 업무 설명 변경이 없습니다.</p>
+              ) : (
+                <>
+                  <SourceCatalogChanges
+                    changes={preview.changes}
+                    beforeLabel={data?.version === 0 ? '현재 기본값' : '현재 저장본'}
+                    afterLabel="저장할 내용"
+                  />
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id={`${panelId}-agree`}
+                      checked={agreed}
+                      disabled={busy}
+                      onCheckedChange={value => setAgreed(value === true)}
+                    />
+                    <Label htmlFor={`${panelId}-agree`} className="text-sm">
+                      표시한 변경 내용을 확인했습니다
+                    </Label>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
           <SourceCatalogHistory sourceId={sourceId} savedVersion={data?.version ?? 0} />
           {confirmReload && (
             <div className="space-y-2" role="group" aria-label="미저장 설명 교체 확인">
