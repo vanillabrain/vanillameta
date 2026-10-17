@@ -31,6 +31,13 @@ import {
   writeCreationConfirmation,
   removeCreationConfirmation,
 } from './studioCreationRecovery';
+import {
+  CreationQuestion,
+  creationQuestionKey,
+  readCreationQuestion,
+  writeCreationQuestion,
+  removeCreationQuestion,
+} from './studioCreationQuestion';
 import './studio.css';
 export default function StudioCreate() {
   const navigate = useNavigate();
@@ -50,6 +57,14 @@ export default function StudioCreate() {
     [saveUncertain, setSaveUncertain] = useState(false);
   const [recovery, setRecovery] = useState<CreationConfirmation | null>(null);
   const confirmationKey = useRef<string | null>(null);
+  const questionKey = useRef<string | null>(null),
+    questionDirty = useRef(false);
+  const [questionRecovery, setQuestionRecovery] = useState<CreationQuestion | null>(null);
+  const [questionStorageError, setQuestionStorageError] = useState(false);
+  const markQuestionEdited = () => {
+    questionDirty.current = true;
+    setQuestionRecovery(null);
+  };
   const attempt = useRef<CreationConfirmation | null>(null);
   const [unavailableRecovery, setUnavailableRecovery] = useState(false);
   const [restoring, setRestoring] = useState(true);
@@ -112,7 +127,8 @@ export default function StudioCreate() {
     creation.current = null;
     attempt.current = null;
   };
-  const choose = async (id: number) => {
+  const choose = async (id: number, remember = true) => {
+    if (remember && prompt.trim()) markQuestionEdited();
     invalidate();
     const generation = epoch.current;
     setSourceId(id);
@@ -133,8 +149,10 @@ export default function StudioCreate() {
       );
       setProfile(data);
       setMetrics(creationData(m));
+      return true;
     } catch (cause) {
       if (mounted.current && generation === epoch.current) setError(creationError(cause));
+      return false;
     } finally {
       if (mounted.current && generation === epoch.current) setBusy('');
     }
@@ -150,6 +168,7 @@ export default function StudioCreate() {
         const key = await creationConfirmationKey();
         if (!mounted.current || epoch.current !== initialEpoch) return;
         confirmationKey.current = key;
+        questionKey.current = creationQuestionKey(key);
         const stored = readCreationConfirmation(key);
         if (stored && rows.some(row => row.id === stored.sourceId && row.engine === 'duckdb')) {
           attempt.current = stored;
@@ -167,7 +186,7 @@ export default function StudioCreate() {
         }
         const initial = Number(params.get('sourceId'));
         if (initial > 0 && rows.some(row => row.id === initial && row.engine === 'duckdb')) {
-          await choose(initial);
+          await choose(initial, false);
           const parentId = params.get('proposalId');
           if (parentId && mounted.current) {
             const generation = epoch.current;
@@ -183,6 +202,8 @@ export default function StudioCreate() {
                 setError('생성안이 만료됐거나 불러올 수 없습니다. 이 소스로 새 생성 요청을 보내 주세요.');
             }
           }
+        } else if (!params.get('sourceId') && !params.get('proposalId')) {
+          setQuestionRecovery(readCreationQuestion(questionKey.current));
         }
       })
       .catch(() => {
@@ -201,6 +222,18 @@ export default function StudioCreate() {
       abort.current?.abort();
     };
   }, []);
+  useEffect(() => {
+    if (restoring || !questionDirty.current || recovery || unavailableRecovery || saveUncertain) return;
+    setQuestionStorageError(!writeCreationQuestion(questionKey.current, { sourceId, prompt }));
+  }, [prompt, sourceId, restoring, recovery, unavailableRecovery, saveUncertain]);
+  const restoreQuestion = async () => {
+    if (!questionRecovery || locked || prompt.trim()) return;
+    const record = questionRecovery;
+    if (record.sourceId !== null && !(await choose(record.sourceId, false))) return;
+    if (!mounted.current) return;
+    markQuestionEdited();
+    setPrompt(record.prompt);
+  };
   const prepareSource = async (
     task: () => Promise<number>,
     label: string,
@@ -356,6 +389,10 @@ export default function StudioCreate() {
       if (!Number.isSafeInteger(data?.dashboardId) || data.dashboardId <= 0) throw new Error('invalid create');
       if (mounted.current) {
         removeCreationConfirmation(key);
+        const savedQuestion = readCreationQuestion(questionKey.current);
+        if (questionDirty.current || (savedQuestion?.sourceId === sourceId && savedQuestion.prompt === prompt))
+          removeCreationQuestion(questionKey.current);
+        questionDirty.current = false;
         setSaveUncertain(false);
         navigate('/dashboard/' + data.dashboardId + '/studio');
       }
@@ -424,6 +461,48 @@ export default function StudioCreate() {
               저장 확인 상태 다시 불러오기
             </Button>
           </div>
+        )}
+        {questionRecovery && !restoring && !recovery && !unavailableRecovery && (
+          <Alert severity="info" className="studio-create-alert">
+            <p>
+              이 탭에 보관한 새 생성 질문이 있습니다. 최대 24시간 보관하며, 복구해도 AI 요청이나 저장은 실행하지 않습니다.
+            </p>
+            {questionRecovery.sourceId !== null &&
+              !sources.some(row => row.id === questionRecovery.sourceId && row.engine === 'duckdb') && (
+                <p>보관 질문의 데이터에 접근할 수 없습니다. 권한을 확인하거나 이 기록만 폐기해 주세요.</p>
+              )}
+            <div className="studio-create-source-actions">
+              <Button
+                size="sm"
+                disabled={
+                  locked ||
+                  !!prompt.trim() ||
+                  (questionRecovery.sourceId !== null &&
+                    !sources.some(row => row.id === questionRecovery.sourceId && row.engine === 'duckdb'))
+                }
+                onClick={restoreQuestion}
+              >
+                새 생성 질문 복구
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={locked}
+                onClick={() => {
+                  if (removeCreationQuestion(questionKey.current)) setQuestionRecovery(null);
+                  else setQuestionStorageError(true);
+                }}
+              >
+                보관 생성 질문 폐기
+              </Button>
+            </div>
+            <p>소스 구조는 다시 확인합니다. 저장 지표 선택과 이전 제안·미리보기는 복구하지 않습니다.</p>
+          </Alert>
+        )}
+        {questionStorageError && (
+          <Alert severity="info" className="studio-create-alert">
+            질문을 이 탭에 보관하지 못했습니다. 새로고침하면 입력이 사라질 수 있으며 현재 질문은 계속 사용할 수 있습니다.
+          </Alert>
         )}
         {notice && (
           <Alert severity="info" className="studio-create-alert">
@@ -524,6 +603,7 @@ export default function StudioCreate() {
                           disabled={locked || !!proposal}
                           onClick={() => {
                             invalidate();
+                            markQuestionEdited();
                             setPrompt(suggestion.prompt);
                             setError('');
                             setNotice('');
@@ -547,6 +627,7 @@ export default function StudioCreate() {
                   value={prompt}
                   onChange={event => {
                     invalidate();
+                    markQuestionEdited();
                     setPrompt(event.target.value);
                     setNotice('');
                   }}

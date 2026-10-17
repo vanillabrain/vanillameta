@@ -89,4 +89,6 @@ usecase "UC-046 Studio 보관 초안과 최신본 병합" as UC046
 operator --> UC046
 usecase "UC-047 Studio 저장 응답 유실 후 확인" as UC047
 operator --> UC047
+usecase "UC-048 새 생성 질문 복구" as UC048
+operator --> UC048
 @enduml
