@@ -71,11 +71,6 @@ export default function StudioCreate() {
     creation.current = null;
     attempt.current = null;
   };
-  const loadSources = async () => {
-    const rows = await fetchStudioSources();
-    if (mounted.current) setSources(rows);
-    return rows;
-  };
   const choose = async (id: number) => {
     invalidate();
     const generation = epoch.current;
@@ -91,6 +86,10 @@ export default function StudioCreate() {
       if (!mounted.current || generation !== epoch.current) return;
       const data = creationData(p);
       if (!data?.supported || data.sourceId !== id || !Array.isArray(data.columns)) throw new Error('unsupported');
+      // UC040: a verified new source does not depend on a second index read.
+      setSources(rows =>
+        rows.some(row => row.id === id) ? rows : [...rows, { id, name: data.name ?? '데이터 #' + id, engine: 'duckdb' }],
+      );
       setProfile(data);
       setMetrics(creationData(m));
     } catch (cause) {
@@ -174,8 +173,6 @@ export default function StudioCreate() {
     const generation = epoch.current;
     try {
       const id = await task();
-      if (!mounted.current || generation !== epoch.current) return;
-      await loadSources();
       if (!mounted.current || generation !== epoch.current) return;
       await choose(id);
     } catch (cause) {

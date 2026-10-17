@@ -126,3 +126,5 @@
 - **최신 판정 우선:** [testing/status.md](docs/testing/status.md)의 2026-10-17 요약을 우선한다. UC047 Ego92~95가 신규ID/확정후조회실패reload/409초안복귀의 과거 미실행을 보완했다. UC007~010 표준절·다이어그램·TC005 step3/4 연결 후 strict 오류0/경고13/억제0이며 Draft·사람수용Open을 유지한다. 문서변경만으로 runtime을 반복하지 않는다. 다음 최우선은 고객 한업무질문·독립정답 파일럿이며 입력없는 합성자료 재검증/무한 장애조합으로 대체하지 않는다. 실기기/VoiceOver/운영gate는 별도다.
 
 - **명세 경고 최신:** UC013~015의 대안 종료/재진입과 UC013/018 사용자 설명 정리 후 strict 오류0/경고2/억제0이다. 이전13경고 표기는70650b3b 당시 결과이며 [최신 요약](docs/testing/status.md)의 후속을 우선한다. FR011/NFR002 요구사항↔UC 상태집계 차이는 미해결로 남기고 상태/승인을 임의 변경하지 않는다. 제품코드/runtime 변경0·고객파일럿 입력대기 NOT_RUN이다.
+
+- **Studio 소스 연결 후속:** [UC040 증빙](docs/testing/studio-source-connection.md)은 생성 성공한 sourceId의 profile/지표를 직접 확인해 두 번째 전체목록 GET 의존성을 제거한다. 검증 성공한 미등재 ID만 현재목록에 추가하고 profile 실패는 동일ID 명시재조회·질문보존/생성추가0이다. FE32/type/lint/build PASS·BE변경0이며 Ego96 로그인만료/신규계정생성 자동승인거절로 실제UI·3폭은 BLOCKED다. 사용자 계정생성승인 또는 기존계정 로그인 후 같은 공간에서 검증한다. 고객파일럿/전체수용PASS가 아니다.

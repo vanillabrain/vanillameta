@@ -540,3 +540,59 @@ describe('Studio create workflow', () => {
     });
   });
 });
+
+it('connects a newly prepared source without refetching the source index', async () => {
+  let listCalls = 0;
+  mocks.get.mockImplementation(async (url: string) => {
+    if (url === '/bi/sources') {
+      listCalls += 1;
+      if (listCalls > 1) throw new Error('index unavailable');
+      return { data: [{ id: 4, name: 'Orders 4', engine: 'duckdb' }] };
+    }
+    return { data: url.startsWith('/bi/metrics') ? [] : profile(6) };
+  });
+  mocks.post.mockResolvedValue({ data: { sourceId: 6 } });
+  render(<StudioCreate />);
+  await screen.findByRole('option', { name: 'Orders 4' });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '매출·환불 샘플' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '총매출을 보여 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: '매출·환불 샘플' }));
+  await screen.findByText('2행 · 1개 열 · 서버 DuckDB');
+  expect((screen.getByRole('combobox', { name: '저장된 데이터' }) as HTMLSelectElement).value).toBe('6');
+  expect((screen.getByRole('button', { name: '지표와 차트 제안' }) as HTMLButtonElement).disabled).toBe(false);
+  expect(listCalls).toBe(1);
+  expect(mocks.post).toHaveBeenCalledTimes(1);
+  expect(mocks.get.mock.calls.some(([url]) => url === '/bi/sources/6/profile')).toBe(true);
+});
+
+it('rechecks a prepared source after a profile failure without creating it again', async () => {
+  let profileCalls = 0;
+  mocks.get.mockImplementation(async (url: string) => {
+    if (url === '/bi/sources') return { data: [{ id: 4, name: 'Orders 4', engine: 'duckdb' }] };
+    if (url.startsWith('/bi/metrics')) return { data: [] };
+    profileCalls += 1;
+    if (profileCalls === 1) throw { response: { status: 503 } };
+    return { data: profile(6) };
+  });
+  mocks.post.mockResolvedValue({ data: { sourceId: 6 } });
+  render(<StudioCreate />);
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '매출·환불 샘플' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '총매출을 보여 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: '매출·환불 샘플' }));
+  const retry = await screen.findByRole('button', { name: '소스 새로 확인' });
+  await waitFor(() => expect((retry as HTMLButtonElement).disabled).toBe(false));
+  expect((screen.getByRole('button', { name: '지표와 차트 제안' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByRole('option', { name: 'Orders 6' })).toBeNull();
+  fireEvent.click(retry);
+  await screen.findByText('2행 · 1개 열 · 서버 DuckDB');
+  expect((screen.getByRole('combobox', { name: '저장된 데이터' }) as HTMLSelectElement).value).toBe('6');
+  expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(
+    '총매출을 보여 줘',
+  );
+  expect(mocks.post).toHaveBeenCalledTimes(1);
+  expect(profileCalls).toBe(2);
+});
