@@ -1,3 +1,10 @@
+import StudioSaveRecovery from './StudioSaveRecovery';
+import {
+  StudioPendingSave,
+  readStudioPendingSave,
+  writeStudioPendingSave,
+  removeStudioPendingSave,
+} from './studioPendingSave';
 import { NativeSelect } from '@/components/ui/native-select';
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { Notice as Alert } from '@/components/ui/notice';
@@ -290,6 +297,8 @@ export default function StudioEditor() {
   const [error, setError] = useState('');
   const [result, setResult] = useState<StudioReplacePayload | null>(null);
   const loadGeneration = useRef(0);
+  const [storageKey, setStorageKey] = useState<string | null>(null);
+  const [saveRecovery, setSaveRecovery] = useState<{ record: StudioPendingSave; key: string | null } | null>(null);
 
   const load = useCallback(async () => {
     if (!validId) return;
@@ -299,7 +308,11 @@ export default function StudioEditor() {
     setError('');
     try {
       const next = await fetchStudioDashboard(id);
+      const documentKey = await studioDocumentDraftKey(id);
+      const pending = readStudioPendingSave(documentKey, id);
       if (generation !== loadGeneration.current) return;
+      setStorageKey(documentKey);
+      setSaveRecovery(pending ? { record: pending, key: documentKey } : null);
       setResult(next);
       setStatus('ready');
     } catch (cause) {
@@ -336,16 +349,42 @@ export default function StudioEditor() {
     );
   if (status === 'error' || !result)
     return <StudioStateScreen title="Studio를 열지 못했습니다" description={error} onRetry={load} />;
-  return <StudioWorkspace key={token} dashboardId={id} initial={result} onReplace={replace} />;
+  if (saveRecovery)
+    return (
+      <StudioSaveRecovery
+        key={id}
+        dashboardId={id}
+        title={result.document.title}
+        documentKey={saveRecovery.key}
+        record={saveRecovery.record}
+        onResolved={latest => {
+          setSaveRecovery(null);
+          replace(latest);
+        }}
+        onDraft={load}
+      />
+    );
+  return (
+    <StudioWorkspace
+      key={token}
+      dashboardId={id}
+      initial={result}
+      onReplace={replace}
+      onCheckSave={load}
+      storageKey={storageKey}
+    />
+  );
 }
 
 type WorkspaceProps = {
   dashboardId: number;
   initial: StudioReplacePayload;
   onReplace: (next: StudioReplacePayload) => void;
+  onCheckSave: () => void;
+  storageKey: string | null;
 };
 
-function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
+function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storageKey }: WorkspaceProps) {
   const [conversationInput, setConversationInput] = useState('');
   const questionKey = useRef<string | null>(null);
   const [questionReady, setQuestionReady] = useState(false);
@@ -431,7 +470,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
   if (editClock.current.document !== state.present) {
     editClock.current = { document: state.present, generation: editClock.current.generation + 1 };
   }
-  const documentDraftKey = useRef<string | null>(null);
+  const documentDraftKey = useRef<string | null>(storageKey);
   const documentDraftLive = useRef(true);
   const [documentDraftReady, setDocumentDraftReady] = useState(false);
   const [documentRecovery, setDocumentRecovery] = useState<StudioDocumentDraft | null>(null);
@@ -623,10 +662,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
 
   const cancelPending = () => {
     if (!state.pendingSave) return;
-    dispatch({ type: 'saveFailed', requestId: state.pendingSave.requestId });
-    pendingRequest.current = null;
-    setSaveError(null);
-    setMessage('재시도 요청을 해제했습니다. 서버 저장 여부는 최신 내용을 확인해 주세요.');
+    onCheckSave();
   };
 
   const loadLatest = async (reason: string) => {
@@ -780,13 +816,31 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
       if (state.saveState === 'clean') return;
       try {
         const requestId = studioRequestId();
-        dispatch({ type: 'saveStarted', requestId });
         request = {
           requestId,
           expectedRevision: state.serverRevision,
           expectedSourceRevision: sourceRevision,
           document: state.present,
         };
+        if (readStudioPendingSave(documentDraftKey.current, dashboardId)) {
+          onCheckSave();
+          return;
+        }
+        if (
+          !writeStudioDocumentDraft(documentDraftKey.current, {
+            version: 2,
+            updatedAt: Date.now(),
+            baseline: withoutRevision(state.savedBaseline),
+            baseRevision: state.serverRevision ?? '',
+            sourceRevision,
+            document: withoutRevision(state.present),
+          }) ||
+          !writeStudioPendingSave(documentDraftKey.current, { version: 1, updatedAt: Date.now(), phase: 'pending', request })
+        ) {
+          setSaveError('저장 확인 기록을 보관하지 못했습니다. 현재 편집을 유지했습니다. 다시 시도해 주세요.');
+          return;
+        }
+        dispatch({ type: 'saveStarted', requestId });
       } catch (error) {
         setSaveError(error instanceof Error ? error.message : '저장을 시작하지 못했습니다.');
         return;
@@ -798,6 +852,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     setSaveError(null);
     try {
       const saved = await saveStudioDashboard(dashboardId, request);
+      removeStudioPendingSave(documentDraftKey.current);
       pendingRequest.current = null;
       dispatch({
         type: 'saved',
@@ -810,6 +865,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
     } catch (error) {
       const apiError = isStudioApiError(error) ? error : null;
       if (apiError && apiError.kind === 'conflict') {
+        removeStudioPendingSave(documentDraftKey.current);
         pendingRequest.current = null;
         try {
           dispatch({ type: 'saveFailed', requestId: request.requestId });
@@ -1105,7 +1161,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace }: WorkspaceProps) {
           {saveError}
           {state.pendingSave ? (
             <Button variant="ghost" size="sm" onClick={cancelPending}>
-              저장 시도 취소
+              저장 결과 확인
             </Button>
           ) : null}
         </Alert>

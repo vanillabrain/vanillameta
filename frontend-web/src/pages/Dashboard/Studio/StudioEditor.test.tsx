@@ -2,6 +2,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import StudioEditor, { mergeStudioDisplay, reapplyStudioChanges, resolveBlockPreview } from './StudioEditor';
+import { writeStudioPendingSave } from './studioPendingSave';
 import { StudioDefinitions } from './studioAdapter';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
@@ -127,6 +128,45 @@ afterEach(() => {
 });
 
 describe('studio editor rendering', () => {
+  it('gates a reloaded unconfirmed save until explicit same-request confirmation and fresh read', async () => {
+    const request = {
+      requestId: 'recover-original',
+      expectedRevision: DOC_REVISION,
+      expectedSourceRevision: SOURCE_REVISION,
+      document: doc(),
+    };
+    const pending = { version: 1 as const, updatedAt: Date.now(), phase: 'pending' as const, request };
+    expect(writeStudioPendingSave('document-test-3', pending)).toBe(true);
+    const latest = doc({ revision: NEXT_REVISION, blocks: [block('b1', { title: '최신 저장 제목' })] });
+    api.get.mockResolvedValue(envelope({ document: latest }));
+    api.post.mockResolvedValue({ data: { document: doc({ revision: DOC_REVISION }), idMap: {} } });
+    render(<StudioEditor />);
+    await screen.findByRole('heading', { name: '저장 결과 확인' });
+    expect(api.post).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: '최신 저장 제목 설정' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 재확인' }));
+    await screen.findByRole('button', { name: '최신 저장 제목 설정' });
+    expect(api.post.mock.calls[0][1]).toEqual(request);
+    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(sessionStorage.getItem('document-test-3:pending-save')).toBeNull();
+  });
+  it('does not send a save when its recovery record cannot be stored', async () => {
+    api.get.mockResolvedValue(envelope());
+    render(<StudioEditor />);
+    await screen.findByText('500');
+    duplicateBlock();
+    const blocked = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw Error('quota');
+    });
+    try {
+      fireEvent.click(saveButton());
+      await screen.findByText('저장 확인 기록을 보관하지 못했습니다. 현재 편집을 유지했습니다. 다시 시도해 주세요.');
+      expect(api.post).not.toHaveBeenCalled();
+    } finally {
+      blocked.mockRestore();
+    }
+  });
+
   it('restores blocks only after explicit server preview and clears the draft after save', async () => {
     const draft = doc({ blocks: [block('b1', { title: '복구한 제목' })] });
     sessionStorage.setItem(
