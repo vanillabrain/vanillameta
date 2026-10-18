@@ -1,3 +1,8 @@
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from '../enterprise/entities/enterprise-group.entity';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import request = require('supertest');
@@ -110,6 +115,9 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
         EnterpriseMembership,
         EnterpriseAuditEvent,
         EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
         EnterpriseDeliveryReceipt,
         Dashboard,

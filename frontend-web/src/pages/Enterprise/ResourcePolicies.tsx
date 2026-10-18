@@ -1,3 +1,4 @@
+import GroupPolicies from './GroupPolicies';
 import Deliveries from './Deliveries';
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -615,6 +616,11 @@ function ResourcePolicyPanel({ organizationId, selfRecipientId }: { organization
             올라갑니다.
           </p>
 
+          <GroupPolicies
+            key={`group:${organizationId}:${selected.kind}:${selected.id}:${selfRecipientId}`}
+            kind={selected.kind}
+            resourceId={selected.id}
+          />
           {selected.kind === 'dashboard' && (
             <Deliveries
               key={`${organizationId}:${selected.id}:${selfRecipientId}`}

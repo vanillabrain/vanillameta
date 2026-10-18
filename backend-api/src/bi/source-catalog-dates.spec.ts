@@ -1,3 +1,8 @@
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from '../enterprise/entities/enterprise-group.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { DuckDBInstance, DuckDBConnection } from '@duckdb/node-api';
 import { DataSource } from 'typeorm';
@@ -22,7 +27,16 @@ describe('UC050 strict full-data date declarations', () => {
       type: 'sqlite',
       database: ':memory:',
       synchronize: true,
-      entities: [Database, User, EnterpriseMembership, EnterpriseResourceGrant, SourceCatalogEntry],
+      entities: [
+        Database,
+        User,
+        EnterpriseMembership,
+        EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
+        SourceCatalogEntry,
+      ],
     }).initialize();
     await db.getRepository(User).save({
       id: 7,

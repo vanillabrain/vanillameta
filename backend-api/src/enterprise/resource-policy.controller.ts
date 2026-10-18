@@ -44,6 +44,30 @@ export class EnterpriseResourceController {
   ) {
     return this.policy.set(this.policy.kind(kind), this.id(id), req.user.accessKeyData.id, body);
   }
+  @Get(':kind/:id/group-policies') groupPolicies(
+    @Req() req: any,
+    @Param('kind') kind: string,
+    @Param('id') id: string,
+  ) {
+    return this.policy.groupPolicies(
+      this.policy.kind(kind),
+      this.id(id),
+      req.user.accessKeyData.id,
+    );
+  }
+  @Post(':kind/:id/group-policies') setGroupPolicy(
+    @Req() req: any,
+    @Param('kind') kind: string,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.policy.setGroupPolicy(
+      this.policy.kind(kind),
+      this.id(id),
+      req.user.accessKeyData.id,
+      body,
+    );
+  }
   @Get(':kind/:id/access') access(
     @Req() req: any,
     @Param('kind') kind: string,

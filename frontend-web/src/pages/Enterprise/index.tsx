@@ -1,3 +1,4 @@
+import Groups from './Groups';
 import ReceivedDashboards from './ReceivedDashboards';
 import Notifications from './Notifications';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -917,6 +918,7 @@ export default function Enterprise() {
           )}
 
           {/* UC051: resource-level grants live beside the staff directory and are read only when an admin opens them. */}
+          {isAdmin && <Groups key={`groups:${organization.id}:${membership?.userId}`} organizationId={organization.id} />}
           <ResourcePolicies organizationId={organization.id} selfRecipientId={membership?.userId} />
         </div>
       )}

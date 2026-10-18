@@ -1,3 +1,8 @@
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from '../enterprise/entities/enterprise-group.entity';
 import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-dashboard-delivery.entity';
 jest.mock('../connection/connection.service', () => ({ ConnectionService: class {} }));
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
@@ -151,6 +156,9 @@ describe('UC-018 publication backend', () => {
         User,
         EnterpriseMembership,
         EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
       ],
       synchronize: true,

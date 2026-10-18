@@ -1,3 +1,8 @@
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from '../enterprise/entities/enterprise-group.entity';
 import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-dashboard-delivery.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api';
@@ -81,6 +86,9 @@ describe('UC052 protected conditions HTTP and independent population oracle', ()
         User,
         EnterpriseMembership,
         EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
         SourceConditionEntry,
       ],

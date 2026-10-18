@@ -1,3 +1,8 @@
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from './entities/enterprise-group.entity';
 import { EnterpriseDashboardDelivery } from './entities/enterprise-dashboard-delivery.entity';
 import { EnterpriseNotificationState } from './entities/enterprise-notification-state.entity';
 import { EnterpriseNotificationService } from './notification.service';
@@ -78,6 +83,9 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
         EnterpriseMembership,
         EnterpriseAuditEvent,
         EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
         Database,
         Dashboard,

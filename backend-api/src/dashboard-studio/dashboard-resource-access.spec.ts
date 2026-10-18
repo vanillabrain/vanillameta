@@ -1,3 +1,8 @@
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from '../enterprise/entities/enterprise-group.entity';
 import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-dashboard-delivery.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { ForbiddenException } from '@nestjs/common';
@@ -81,6 +86,9 @@ describe('UC-051 dashboard resource access', () => {
         UserMapping,
         EnterpriseMembership,
         EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
         StudioPublication,
         StudioPublicationRequest,
@@ -215,5 +223,55 @@ describe('UC-051 dashboard resource access', () => {
     await expect(publications.requireRemix(token, READER)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+  it('rechecks current group membership and activation for existing anonymous publication and remix reads', async () => {
+    await grant('dashboard', DASHBOARD, EDITOR, rights({ read: true, publish: false }), 99);
+    await grant('source', SOURCE, EDITOR, rights({ read: true }), 99);
+    await db.manager.save(EnterpriseGroup, {
+      id: 801,
+      organizationId: ORGANIZATION,
+      name: 'Publishers',
+      nameKey: 'publishers',
+      active: true,
+      version: 1,
+    });
+    await db.manager.save(EnterpriseGroupMember, { groupId: 801, userId: EDITOR });
+    await db.manager.save(EnterpriseGroupGrant, {
+      resourceKind: 'dashboard',
+      resourceId: DASHBOARD,
+      groupId: 801,
+      organizationId: ORGANIZATION,
+      ownerId: OWNER,
+      version: 1,
+      ...rights({ read: true, publish: true }),
+    });
+    const token = 'b'.repeat(64);
+    await db.manager.save(StudioPublication, {
+      token,
+      actorId: EDITOR,
+      dashboardId: DASHBOARD,
+      sourceId: SOURCE,
+      version: 1,
+      visibility: 'link',
+      allowRemix: true,
+      expiresAt: null,
+      revokedAt: null,
+      asOf: new Date().toISOString(),
+      dataVersion: 'synthetic-data',
+      snapshot: '{}',
+      remixTemplate: '{}',
+    });
+    await expect(publications.read(token)).resolves.toMatchObject({ token });
+    await expect(publications.requireRemix(token, READER)).resolves.toMatchObject({ token });
+    await db.manager.delete(EnterpriseGroupMember, { groupId: 801, userId: EDITOR });
+    await expect(publications.read(token)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(publications.requireRemix(token, READER)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    await db.manager.save(EnterpriseGroupMember, { groupId: 801, userId: EDITOR });
+    await db.manager.update(EnterpriseGroup, 801, { active: false });
+    await expect(publications.read(token)).rejects.toBeInstanceOf(ForbiddenException);
+    await db.manager.update(EnterpriseGroup, 801, { active: true });
+    await expect(publications.read(token)).resolves.toMatchObject({ token });
   });
 });

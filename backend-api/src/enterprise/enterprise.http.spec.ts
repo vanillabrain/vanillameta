@@ -1,3 +1,8 @@
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from './entities/enterprise-group.entity';
 import { EnterpriseDashboardDelivery } from './entities/enterprise-dashboard-delivery.entity';
 import { SourceLifecycleService } from './source-lifecycle.service';
 import { SourceAccessService } from '../ownership/source-access.service';
@@ -55,6 +60,9 @@ describe('Enterprise protected HTTP lifecycle', () => {
         EnterpriseAuditEvent,
         EnterpriseEnrollment,
         EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
         Database,
         Dashboard,

@@ -1,3 +1,8 @@
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from './entities/enterprise-group.entity';
 import { EnterpriseDashboardDelivery } from './entities/enterprise-dashboard-delivery.entity';
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { DataSource, Repository, QueryFailedError } from 'typeorm';
@@ -76,6 +81,9 @@ describe('SourceLifecycleService source availability contract', () => {
         EnterpriseMembership,
         EnterpriseAuditEvent,
         EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
         Database,
         Dashboard,

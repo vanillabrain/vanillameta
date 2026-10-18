@@ -1,3 +1,8 @@
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from './entities/enterprise-group.entity';
 import { EnterpriseDashboardDelivery } from './entities/enterprise-dashboard-delivery.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { DataSource } from 'typeorm';
@@ -34,6 +39,9 @@ describe('NFR005 reads committed authentication and availability', () => {
         Database,
         EnterpriseMembership,
         EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
         EnterpriseAuditEvent,
       ],

@@ -1,3 +1,8 @@
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from '../enterprise/entities/enterprise-group.entity';
 import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-dashboard-delivery.entity';
 import { ForbiddenException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
@@ -80,6 +85,9 @@ describe('UC-051 delegated dashboard patch', () => {
         UserMapping,
         EnterpriseMembership,
         EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
       ],
     }).initialize();

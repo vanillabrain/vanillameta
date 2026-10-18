@@ -1,3 +1,8 @@
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from './entities/enterprise-group.entity';
 import { AddDeliveryCopy1792470000000 } from '../migrations/1792470000000-add-delivery-copy';
 import { randomUUID } from 'crypto';
 import { DataSource } from 'typeorm';
@@ -33,6 +38,9 @@ const entities = [
   EnterpriseMembership,
   EnterpriseAuditEvent,
   EnterpriseResourceGrant,
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
   EnterpriseNotificationState,
   EnterpriseDashboardDelivery,
   EnterpriseDeliveryReceipt,
@@ -67,6 +75,9 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
       EnterpriseNotificationState,
       EnterpriseAuditEvent,
       EnterpriseResourceGrant,
+      EnterpriseGroup,
+      EnterpriseGroupMember,
+      EnterpriseGroupGrant,
       DashboardWidget,
       UserMapping,
       Dashboard,

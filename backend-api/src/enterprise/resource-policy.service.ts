@@ -1,3 +1,9 @@
+import { groupAdmin, groupKeys, groupWrite } from './group.service';
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from './entities/enterprise-group.entity';
 import { EnterpriseDashboardDelivery } from './entities/enterprise-dashboard-delivery.entity';
 import { serializeMetadataWork } from '../common/metadata-work';
 import { serializeEnterpriseWrite } from './enterprise-write';
@@ -116,8 +122,27 @@ export class EnterpriseResourcePolicyService {
       organizationId: membership.organizationId,
       ownerId: resource.ownerId,
     });
-    if (grant?.read === true)
-      return { ...this.rights(grant), publish: kind === 'dashboard' && grant.publish === true };
+    const grouped = await manager
+      .getRepository(EnterpriseGroupGrant)
+      .createQueryBuilder('gg')
+      .innerJoin(
+        EnterpriseGroup,
+        'egroup',
+        'egroup.id = gg.groupId AND egroup.organizationId = gg.organizationId AND egroup.active = :active',
+        { active: true },
+      )
+      .innerJoin(EnterpriseGroupMember, 'gm', 'gm.groupId = egroup.id AND gm.userId = :actor', {
+        actor,
+      })
+      .where(
+        'gg.resourceKind = :kind AND gg.resourceId = :id AND gg.ownerId = :owner AND gg.organizationId = :org AND gg.read = :active',
+        { kind, id, owner: resource.ownerId, org: membership.organizationId, active: true },
+      )
+      .getMany();
+    const rights = { read: false, edit: false, publish: false, export: false };
+    for (const row of [...(grant?.read === true ? [grant] : []), ...grouped])
+      for (const action of actions) rights[action] ||= row[action] === true;
+    if (rights.read) return { ...rights, publish: kind === 'dashboard' && rights.publish };
     const delivery =
       kind === 'dashboard' &&
       (await manager.findOneBy(EnterpriseDashboardDelivery, {
@@ -205,7 +230,9 @@ export class EnterpriseResourcePolicyService {
       .select('grant.resourceId', 'id')
       .orderBy('grant.resourceId', 'ASC')
       .getRawMany();
-    const direct = rows.map(row => Number(row.id));
+    const direct = Array.from(
+      new Set([...rows.map(row => Number(row.id)), ...(await this.groupIds(kind, actor))]),
+    ).sort((a, b) => a - b);
     if (kind !== 'dashboard') return direct;
     const delivered = await this.db
       .getRepository(EnterpriseDashboardDelivery)
@@ -248,6 +275,160 @@ export class EnterpriseResourcePolicyService {
     return Array.from(new Set([...direct, ...delivered.map(row => Number(row.id))])).sort(
       (a, b) => a - b,
     );
+  }
+  private async groupIds(kind: ResourceKind, actor: number) {
+    const query = this.db
+      .getRepository(EnterpriseGroupGrant)
+      .createQueryBuilder('gg')
+      .innerJoin(
+        EnterpriseGroup,
+        'egroup',
+        'egroup.id = gg.groupId AND egroup.organizationId = gg.organizationId AND egroup.active = :active',
+        { active: true },
+      )
+      .innerJoin(EnterpriseGroupMember, 'gm', 'gm.groupId = egroup.id AND gm.userId = :actor', {
+        actor,
+      })
+      .innerJoin(User, 'recipient', 'recipient.id = gm.userId AND recipient.active = :active')
+      .innerJoin(
+        EnterpriseMembership,
+        'member',
+        'member.userId = recipient.id AND member.organizationId = gg.organizationId',
+      )
+      .innerJoin(User, 'owner', 'owner.id = gg.ownerId AND owner.active = :active')
+      .innerJoin(
+        EnterpriseMembership,
+        'ownerMember',
+        'ownerMember.userId = owner.id AND ownerMember.organizationId = gg.organizationId',
+      )
+      .where('gg.resourceKind = :kind AND gg.read = :active', { kind, active: true });
+    if (kind === 'source')
+      query.innerJoin(
+        Database,
+        'resource',
+        'resource.id = gg.resourceId AND resource.ownerId = gg.ownerId AND resource.catalogActive = :active',
+      );
+    else
+      query
+        .innerJoin(
+          Dashboard,
+          'resource',
+          'resource.id = gg.resourceId AND resource.delYn <> :deleted',
+          { deleted: 'Y' },
+        )
+        .innerJoin(
+          UserMapping,
+          'mapping',
+          'mapping.dashboardId = resource.id AND mapping.userInfoId = gg.ownerId',
+        )
+        .andWhere(
+          '(SELECT COUNT(*) FROM user_mapping owning WHERE owning.dashboardId = resource.id) = 1',
+        );
+    const rows = await query
+      .select('gg.resourceId', 'id')
+      .distinct(true)
+      .orderBy('gg.resourceId', 'ASC')
+      .getRawMany();
+    return rows.map(row => Number(row.id));
+  }
+  async groupPolicies(kind: ResourceKind, id: number, actor: number) {
+    return serializeMetadataWork(this.db, async () => {
+      this.kind(kind);
+      const { membership } = await this.management(kind, id, actor, this.db.manager);
+      const rows = await this.db.manager.find(EnterpriseGroupGrant, {
+        where: {
+          resourceKind: kind,
+          resourceId: id,
+          ownerId: actor,
+          organizationId: membership.organizationId,
+        },
+        order: { groupId: 'ASC' },
+      });
+      return {
+        kind,
+        resourceId: id,
+        entries: rows.map(row => ({
+          groupId: row.groupId,
+          version: row.version,
+          rights: this.rights(row),
+        })),
+      };
+    });
+  }
+  async setGroupPolicy(kind: ResourceKind, id: number, actor: number, body: any) {
+    this.kind(kind);
+    this.id(id);
+    groupKeys(body, ['groupId', 'expectedGroupVersion', 'expectedVersion', 'rights']);
+    const groupId = this.id(body.groupId),
+      version = body.expectedVersion,
+      groupVersion = body.expectedGroupVersion;
+    const rights = body.rights;
+    if (
+      !Number.isSafeInteger(version) ||
+      version < 0 ||
+      version >= 2147483647 ||
+      !Number.isSafeInteger(groupVersion) ||
+      groupVersion < 1 ||
+      groupVersion >= 2147483647 ||
+      !rights ||
+      typeof rights !== 'object' ||
+      Array.isArray(rights) ||
+      Object.keys(rights).length !== 4 ||
+      Object.keys(rights).some(k => !actions.includes(k as ResourceAction)) ||
+      actions.some(k => typeof rights[k] !== 'boolean') ||
+      (!rights.read && (rights.edit || rights.publish || rights.export)) ||
+      (kind === 'source' && rights.publish)
+    )
+      throw new BadRequestException('그룹 권한·버전을 확인해 주세요.');
+    const next = this.rights(rights);
+    return groupWrite(this.db, async manager => {
+      await groupAdmin(actor, manager, true);
+      const { membership } = await this.management(kind, id, actor, manager);
+      const group = await manager.findOne(EnterpriseGroup, {
+        where: { id: groupId, organizationId: membership.organizationId },
+        ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+          ? { lock: { mode: 'pessimistic_write' as const } }
+          : {}),
+      });
+      if (!group || (!group.active && next.read))
+        throw new ForbiddenException('활성인 본인 조직 그룹만 권한을 추가할 수 있습니다.');
+      if (group.version !== groupVersion)
+        throw new ConflictException('그룹 구성이 변경됐습니다. 그룹과 권한을 다시 읽어 주세요.');
+      const key = { resourceKind: kind, resourceId: id, groupId },
+        prior = await manager.findOneBy(EnterpriseGroupGrant, key);
+      const same = prior?.ownerId === actor && prior?.organizationId === membership.organizationId;
+      if ((same ? prior.version : 0) !== version)
+        throw new ConflictException('그룹 자원 권한이 변경됐습니다. 다시 읽어 주세요.');
+      const values = {
+        ownerId: actor,
+        organizationId: membership.organizationId,
+        version: version + 1,
+        ...next,
+      };
+      if (prior) {
+        const changed = await manager.update(
+          EnterpriseGroupGrant,
+          {
+            ...key,
+            version: prior.version,
+            ownerId: prior.ownerId,
+            organizationId: prior.organizationId,
+          },
+          values,
+        );
+        if (changed.affected !== 1)
+          throw new ConflictException('권한 변경 경합입니다. 다시 읽어 주세요.');
+      } else await manager.insert(EnterpriseGroupGrant, { ...key, ...values });
+      await manager.insert(EnterpriseAuditEvent, {
+        organizationId: membership.organizationId,
+        actorId: actor,
+        action: `${kind}.group-permissions`,
+        resourceId: id,
+        subjectId: groupId,
+        version: version + 1,
+      });
+      return { kind, resourceId: id, groupId, version: version + 1, rights: next };
+    });
   }
   sourceIds(actor: number) {
     return serializeMetadataWork(this.db, async () => {

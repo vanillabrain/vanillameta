@@ -70,3 +70,7 @@
 [계정·세션 경계](../plans/UC-051-account-session-writes.md)는 현재 계정 token 연결과 인증 epoch를 commit 시 확인한다. [증빙](../testing/account-session-writes.md)의 부분 실패/SQLite 선택 회귀를 운영/모든 세션 수용으로 확대하지 않는다.
 
 [계정 무결성 설계](../plans/UC-051-identity-integrity.md)·[실제 MySQL 증빙](../testing/identity-integrity.md)은 신규 unique/FK와 동일 계정 잠금·부분 CAS를 연결한다. 초기 MySQL 가입/소속 경합의 알려진 잔여는 이 범위에서 보완했다. Enrollment 만료 코드나 다른 자산의 모든 참조 정리까지 포함하지 않으며 운영 DB 적용은 별도다.
+
+## UC051 동적 그룹 선택 검증
+
+[설계](../plans/UC-051-groups.md)·[증빙](../testing/dynamic-groups.md)은 E02/E03의 그룹/구성원 CAS·직접/그룹 권한 합산·현재 소속/활성/소스 독립·동일 JWT 회수·게시 소비자·원자 rollback·생성 영수증 재확인을 선택 검증한다. 그룹 전달/알림·영속 파일 소비자·실제 Ego/모바일/MySQL/운영·전체 수용은 별도이며 요건 상태를 승격하지 않는다.
