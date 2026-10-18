@@ -874,3 +874,7 @@ stage/commit/push/병합 종료는 수행하지 않았으므로 Git index의 UU�
 ## 2026-10-18 Studio 집계 Pivot 블록
 
 [계획](../plans/studio-pivot.md)·[실행 증빙](studio-pivot.md)을 따른다. 누적 Rill 시나리오/원격 통합은 `c13773b8`까지 drumcap으로 develop-v2에 push했다. 이후 저장된 집계 Pivot+차트 혼합 문서의 추가/제목·폭별 배치/미리보기/원자 저장·reload, 정적 게시·동일URL 재게시/중지, 같은 소스 비공개 복제 UI/API를 검증했다. 원래5차트·42개 지표 보존, 5431.25 USD/5.390840046029919% 독립 정답, 390/768/1440 넘침0, 복제 후 원본 초안·질문 유지다. SP01~05는 실행한 범위의 PASS_SELECTED이며 native select의 순수 방향키 선택·실기기/VoiceOver·운영 MySQL·다른 소스/remix·일반 Pivot 전체는 미완료/미지원이다. 새 Pivot 변경은 초기 push 이후의 미커밋 작업이다. 과거 Rill 숫자/CSV 및 기존 core 성공은 관련 변경 없이 재사용하고 전체 수용으로 승격하지 않는다.
+
+## 2026-10-19 Studio Pivot 커밋·통합과 조회 복구
+
+[후속 증빙](studio-pivot.md#2026-10-19-실제-후속-결과--ego34): 전날48파일 SHA256 불변을 확인한 뒤 `d40454b0`으로 커밋했고 최신 원격3커밋과 충돌 없이 병합해 **`21220bba`까지 drumcap으로 develop-v2 push 완료**다. 과거 미커밋 표기는 해당 시점 기록이다. 원격 영향 선택 BE50 PASS/6 MySQL SKIP·FE24/type/root build PASS이며 이전 전체 검사는 반복하지 않았다. SP-06 실제 목록 GET 통신 실패→초안/버튼 보호→키보드 명시 재조회→목록 복구·390px 넘침0·자산 쓰기0/서버 문서 불변을 확인했다. native select 방향키는 trusted 이벤트에도 값 변경이 확인되지 않아 자동화 미검증 유지다. 모델 gpt-6-luna/VoiceOver BLOCKED·실기기/운영/전체 수용 상태는 유지한다.

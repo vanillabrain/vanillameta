@@ -221,3 +221,5 @@
 - **UC050 직접 사용처:** [증빙](docs/testing/source-catalog-usage.md)은 소유 소스의 활성 지표/본인 저장 분석의 직접 연결·현재 자원 권한만 읽는다. 후보20개 cursor를 전진하므로 빈 구간을 전체 사용처 없음으로 단정하지 않는다. SQL/행/정의와 타인 제목은 반환하지 않고 초안/미리보기/동의·원본을 유지한다. 일반 위젯/게시/독립 사본 간접 영향·자동 전파는 미포함이며 실제 Ego/모바일은 미검증이다.
 
 - **Studio 집계 Pivot:** [계획](docs/plans/studio-pivot.md)·[증빙](docs/testing/studio-pivot.md)의 SP01~05를 따른다. 저장된 segment Pivot+일반 차트 혼합만 지원하며 recipe/안정ID/모든폭배치를 보존한다. 실제 Ego33 저장/reload·게시/중지·같은소스 비공개 복제와5431.25/5.390840046029919%·390/768/1440 넘침0을 확인했다. 원래5차트/42지표 불변·원본 초안/질문 유지다. 공개는 집계snapshot만/수신자remix·다른소스 매핑·Pivot-only는 명시 미지원이다. native select 방향키 선택/실휴대폰·VoiceOver/운영/전체수용은 미완료이며 gpt-6-luna 설정을 유지한다. 누적 통합 push는 c13773b8까지, 이 신규 기능은 그 이후 diff로 구별한다.
+
+- **Studio Pivot 후속2026-10-19:** [Ego34 증빙](docs/testing/studio-pivot.md#2026-10-19-실제-후속-결과--ego34)의 SP06 목록 GET 통신 실패·키보드 명시 재조회/초안 보존·자산 쓰기0/390px 넘침0을 확인했다. 신규 Pivot은 d40454b0 커밋/21220bba 최신 원격 보존 병합까지 drumcap으로 push했으므로 전날 미커밋 표기는 역사 기록이다. 원격 영향 BE50 PASS/6 MySQL SKIP·FE24/type/root build PASS이며 기존 전체 반복0이다. native select 방향키 선택은 자동화 미검증·VoiceOver BLOCKED/실기기·운영·전체 수용Open을 유지한다.

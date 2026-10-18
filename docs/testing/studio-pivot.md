@@ -69,3 +69,27 @@ API 전후 대조로 기존 **42개 지표 행 전체 불변**, 분석3의 원�
 `StudioPublish`의 원본 저장본에 Pivot이 있을 때만 수신자 재사용을 체크 해제/비활성화하고 같은 소스 복제 안내를 표시했다. 별도 생성 대시보드의 게시 대상에는 원본 Pivot 제한을 잘못 적용하지 않으며, 이미 전송한 pending 요청의 동일 envelope는 바꾸지 않는다. 관련2파일19개·type/lint PASS, FE 최종 build PASS다. 실제390px 대화상자358×588.19px·주요 버튼36px·넘침0·체크false/disabled를 확인했고 새 게시를 반복하지 않았다(`publish-support-390.png`, `publication-support-ui.json`). root build의 BE와 최종 FE build 결과를 함께 사용하며 앞선 게시/복제 수치 테스트는 관련 변경 없이 재사용한다.
 
 최종 실제 저장본 URL: `http://localhost:3460/dashboard/3/studio`, 비공개 복사본: `http://localhost:3460/dashboard/26/studio`. 모델 설정/인증정보는 커밋하지 않는다. 검사 로그는 `/tmp/vm-studio-pivot-root-build-final.log`, `/tmp/vm-studio-pivot-fe-build-last.log`, `/tmp/studio-pivot-breakpoint-height-test.log`, `/tmp/vm-studio-pivot-responsive-height-tests.log`, `/tmp/vm-studio-pivot-publication-remix-{tests,type,lint}.log`다. 최종 소스 파일별 SHA256·HEAD·재사용 범위는 외부 증빙 `manifest.json`에 기록한다.
+
+## 2026-10-19 후속 계획 — SP-06
+
+SP-06: 비공개 테스트 복사본25에서 기존 Pivot을 초안에서만 제거해 추가 공간을 만든다. 저장 Pivot 목록 GET만 해당 탭에서 통신 실패시킨다. 기존5개 초안·미저장 안내 보존/추가 비활성·오류 안내 → 차단 해제 → 명시 다시 읽기/목록 복구 → 취소/초안 undo로6개 복원. 저장·게시·복제 POST0, 서버 dashboard25/Studio문서/지표·영수증·게시 개수 불변을 확인한다. 최초 실행 전 NOT_RUN이며 기존 SP01~05 전체를 반복하지 않는다.
+
+## 2026-10-19 실제 후속 결과 — Ego34
+
+**최신 Git:** 기존48개 파일의 SHA256이 전날 manifest와 모두 일치함을 먼저 확인해 통과한 전체 테스트는 반복하지 않았다. Pivot 구현/기록은 `d40454b0`으로 커밋했고 원격 `e27d7607`·`f5f9a230`·`d8518702`의 업무 기준/MySQL 증빙·직원 조직 이관 변경을 충돌 없이 보존 병합했다. 병합본 **`21220bba`까지 drumcap으로 develop-v2 push 완료**다. 위의 ‘신규 Pivot 미커밋’ 표기는2026-10-18 실행 당시 상태이며 현재 상태가 아니다.
+
+원격 공통 권한/Studio 기준 영향만 선택해 BE3 suites **50 PASS/6 SKIP**(MySQL 변형 미실행), FE 직원 이관24 PASS·타입·루트 API/FE build PASS를 확인했다. 기존 Pivot/Rill/CSV·게시 전체를 반복하지 않았으며 이번에도 운영 MySQL 전체를 통과했다고 하지 않는다. 로그 `/tmp/vm-pivot-followup-merge-{be,fe,build,type}.log`를 따른다. 작업 소유 API만 새 빌드로 재기동했고 모델 설정은 그대로다.
+
+### SP-04 native 선택 키 재확인
+
+Ego34의390px·활성 native select에서 실제3개 보기/disabled false를 확인했다. ArrowDown/Enter, keyCode40을 명시한 CDP 진단, Alt+ArrowDown/Enter에도 value는 빈값이었다. 수신 이벤트는 trusted/keyCode40/defaultPrevented false였다. **선택 키는 자동화 한계로 NOT_RUN 유지**하며 제품 결함 확정이나 성공으로 바꾸지 않는다. DOM value 변경·selectOption으로 이 조건을 대체하지 않았다. 실제 휴대폰/VoiceOver의 상태도 유지한다. `native-key-diagnostic.json`, `native-keyboard-390.png` 참조.
+
+### SP-06 PASS_SELECTED — 실제 통신 실패와 명시 복구
+
+비공개 복사본25의 Pivot을 초안에서만 제거하고 `http://127.0.0.1:4560/v1/studio/dashboards/25/pivot-options` GET만 해당 탭의 CDP Network 차단으로 실패시켰다. HTTP503을 응답한 것은 아니며 실제 브라우저 통신 실패 변형이다. 오류 안내/‘다시 읽기’/추가 disabled와 기존5개 블록 ID·미저장 상태 보존을 확인했다. 차단 해제 후 포커스된 재조회 버튼의 Enter 실행로 선택지3개+placeholder가 복구됐고 페이지 넘침0이었다. 이후 취소·undo로 저장된6개 상태를 복원했다.
+
+기록한 비GET XHR은 **0개**였고 별도 DB 전후 비교에서 dashboard25/Studio 문서·metric42/dashboard26/studio_run24/studio_publication5가 모두 불변이었다. 해당 탭의 네트워크 차단은 finally에서 해제했다. 새 게시·복사본·지표를 만들지 않았으며, 로그인 세션 갱신을 자산 저장으로 세지 않는다. 임시 UI 편집은 최종 복원했다. 제품 코드 변경은 없으므로 이전 숫자/저장·게시 테스트를 재실행하지 않았다.
+
+대표390px의 오류/복구 화면을 직접 확인했다. 추가 HTTP 상태/지연 경합·다른 폭의 오류 상태·원래 남은 native 선택 키/실휴대폰/VoiceOver·운영은 이 조건의 선택 PASS로 승격하지 않는다.
+
+증빙: [2026-10-19 폴더](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-pivot-followup-20261019/), `picker-read-error-390.png`, `picker-read-recovered-390.png`, `read-recovery.json`, `read-recovery-db.json`. 이 후속은 문서/증빙만 추가하며 전체 제품 수용은 Open이다.
