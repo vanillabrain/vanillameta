@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react';
+import StudioMetricBasis, { MetricBasisDefinition } from './StudioMetricBasis';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -7,14 +8,7 @@ type SavedMetric = {
   id: number;
   label: string;
   definitionVersion: number | string;
-  definition?: {
-    aggregation?: string;
-    column?: string;
-    denominatorColumn?: string;
-    weightColumn?: string;
-    scale?: number;
-    unit?: string;
-  };
+  definition?: MetricBasisDefinition;
 };
 export default function StudioMetricPicker({
   metrics,
@@ -49,13 +43,6 @@ export default function StudioMetricPicker({
   );
   const matched = new Set(matches.map(metric => metric.id));
   const visible = metrics.filter(metric => matched.has(metric.id) || selected.includes(metric.id));
-  const fields = [
-    ['aggregation', '집계 방식'],
-    ['column', '대상 열'],
-    ['denominatorColumn', '분모 열'],
-    ['weightColumn', '가중치 열'],
-    ['scale', '배율'],
-  ] as const;
   return (
     <fieldset className="studio-create-metrics min-w-0">
       <legend>재사용할 저장 지표 · 선택 사항</legend>
@@ -112,26 +99,7 @@ export default function StudioMetricPicker({
                 <summary className="cursor-pointer rounded-sm py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                   계산 기준 확인 · #{metric.id}
                 </summary>
-                {typeof definition?.aggregation !== 'string' ? (
-                  <p>계산 기준을 확인하지 못했습니다.</p>
-                ) : (
-                  <dl className="mt-2 min-w-0 space-y-1">
-                    {fields.map(([key, label]) => {
-                      const value = definition[key];
-                      if (typeof value !== 'string' && !(typeof value === 'number' && Number.isFinite(value))) return null;
-                      return (
-                        <div key={key} className="flex min-w-0 flex-wrap gap-x-2">
-                          <dt>{label}</dt>
-                          <dd>{value}</dd>
-                        </div>
-                      );
-                    })}
-                    <div className="flex min-w-0 flex-wrap gap-x-2">
-                      <dt>단위</dt>
-                      <dd>{typeof definition.unit === 'string' && definition.unit.trim() ? definition.unit : '미지정'}</dd>
-                    </div>
-                  </dl>
-                )}
+                <StudioMetricBasis definition={definition} />
               </details>
             </div>
           );
