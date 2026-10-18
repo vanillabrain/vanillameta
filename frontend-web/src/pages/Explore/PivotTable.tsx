@@ -1,3 +1,4 @@
+import { get } from '@/helpers/apiHelper';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
@@ -35,6 +36,7 @@ export type PivotResult = {
   };
 };
 type Props = {
+  canExport?: boolean;
   sourceId: number;
   sourceRevision: string;
   dimensions: { column: string; temporal?: boolean }[];
@@ -83,6 +85,13 @@ export default function PivotTable(props: Props) {
   const [error, setError] = useState('');
   const [conflict, setConflict] = useState(false);
   const generation = useRef(0);
+  const exportGeneration = useRef(0);
+  useEffect(() => {
+    exportGeneration.current += 1;
+    return () => {
+      exportGeneration.current += 1;
+    };
+  }, [props.canExport]);
   const localPool = useRef<PivotRequestPool>(new Map());
   const rowDimensions = [row1, row2].filter(Boolean);
   const invalid =
@@ -157,9 +166,17 @@ export default function PivotTable(props: Props) {
       subscription?.release();
     };
   }, [requestKey, paused, reload, props.requestPool, props.filterDelayMs]);
-  const downloadCsv = () => {
-    if (!current) return;
+  const downloadCsv = async () => {
+    if (!current || props.canExport === false) return;
+    const exportRequest = exportGeneration.current;
+    const requestGeneration = generation.current;
     try {
+      // A visible download control is not authority; current server permission is checked again.
+      if (props.canExport !== undefined) {
+        const response = await get(`/enterprise/resources/source/${props.sourceId}/access`);
+        if (response?.data?.rights?.export !== true) throw new Error('export denied');
+        if (generation.current !== requestGeneration || exportGeneration.current !== exportRequest) return;
+      }
       const blob = new Blob([pivotCsv(result, { rowDimensions, columnDimensions: column ? [column] : [] })], {
         type: 'text/csv;charset=utf-8',
       });
@@ -273,7 +290,7 @@ export default function PivotTable(props: Props) {
         </div>
       )}
       <div className="mt-3 flex min-w-0 flex-wrap items-center gap-3">
-        <Button variant="outline" disabled={!current} onClick={downloadCsv}>
+        <Button variant="outline" disabled={!current || props.canExport === false} onClick={() => void downloadCsv()}>
           Pivot CSV 내보내기
         </Button>
         <p className="text-xs text-muted-foreground">

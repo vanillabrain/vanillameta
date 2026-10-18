@@ -246,6 +246,7 @@ describe('BiExploreService pivot over real DuckDB', () => {
       ),
     };
     const db = {
+      options: { type: 'sqlite' },
       getRepository: jest.fn((entity: any) => {
         if (entity === Database) return databaseRepo;
         if (entity === Metric) return metricRepo;

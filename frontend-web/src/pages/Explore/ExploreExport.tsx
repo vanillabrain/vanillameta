@@ -3,9 +3,13 @@ import { post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 
-type Props = { payload: { mode: 'explore' | 'pivot'; query: Record<string, unknown> }; disabled: boolean };
+type Props = {
+  allowed?: boolean;
+  payload: { mode: 'explore' | 'pivot'; query: Record<string, unknown> };
+  disabled: boolean;
+};
 
-export default function ExploreExport({ payload, disabled }: Props) {
+export default function ExploreExport({ payload, disabled, allowed = true }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -26,7 +30,7 @@ export default function ExploreExport({ payload, disabled }: Props) {
   }, [key, disabled]);
 
   const download = async () => {
-    if (busy || disabled) return;
+    if (busy || disabled || !allowed) return;
     generation.current += 1;
     const token = generation.current;
     const abort = new AbortController();
@@ -82,6 +86,7 @@ export default function ExploreExport({ payload, disabled }: Props) {
     }
   };
 
+  if (!allowed) return <p className="text-xs text-muted-foreground">내보내기 권한이 없습니다.</p>;
   return (
     <div className="min-w-0">
       <Button variant="ghost" aria-expanded={open} onClick={() => setOpen(value => !value)}>

@@ -97,3 +97,7 @@ flowchart LR
 ## UC051 조직·직원 첫 단위
 
 [UC051 계획](../plans/UC-051.md)과 [증빙](../testing/enterprise-membership.md)의 조직/직원 물리 모델을 추가한다. EnterpriseOrganization의 version CAS가 직원 변경을 직렬화하고 EnterpriseMembership은 계정당 한 조직만 허용한다. EnterpriseEnrollment는 미소속 본인이 발급한15분 일회용 코드 해시이며 명시 동의 없는 계정 편입을 막는다. EnterpriseAuditEvent는 성공한 조직/직원 변경의 actor/자원/버전/시각만 저장한다. User.active/authVersion과 기존 jwtId를 사용해 비활성·재활성 후 예전 bearer/refresh를 거절한다. 기존 개인 자원 소유권은 유지하며 조직 admin이 다른 직원의 데이터에 자동 접근하지 않는다. 자원별 grant/그룹·수신자 전달은 별도 후속이다.
+
+## UC051 자원별 동작 권한
+
+[권한 연결 설계](../plans/UC-051-resource-access.md)·[선택 검증](../testing/enterprise-resource-access.md)은 별도 grant의 read/edit/publish/export와 실제 actor를 사용한다. 소유자 매핑/소스 ownerId를 수신자로 바꾸지 않으며 대시보드 권한은 연결 소스로 전이하지 않는다. 기존 기본 owner-only 경계는 유지하고 명시 action 호출에만 grant를 사용한다. 개인 실행 기록은 actor 소유를 유지하며 게시자 publish 회수 시 공개 읽기도 재검사한다. 새 산출물의 소유권으로 읽기 grant를 게시/export 권한으로 바꾸는 우회를 금지한다. 정책 목록은 활성 사용자·동일 조직·현재 자원 소유자를 DB join으로 재확인하고 프로파일 캐시에 사용자별 권한을 섞지 않는다. UI 제어와 실제 화면·운영 수용은 별도다.

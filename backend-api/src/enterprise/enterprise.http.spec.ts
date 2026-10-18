@@ -1,3 +1,10 @@
+import { SourceAccessService } from '../ownership/source-access.service';
+import { Database } from '../database/entities/database.entity';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { UserMapping } from '../user/entities/user-mapping.entity';
+import { EnterpriseResourceGrant } from './entities/enterprise-resource-grant.entity';
+import { EnterpriseResourcePolicyService } from './resource-policy.service';
+import { EnterpriseResourceController } from './resource-policy.controller';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
@@ -45,6 +52,10 @@ describe('Enterprise protected HTTP lifecycle', () => {
         EnterpriseMembership,
         EnterpriseAuditEvent,
         EnterpriseEnrollment,
+        EnterpriseResourceGrant,
+        Database,
+        Dashboard,
+        UserMapping,
       ],
     }).initialize();
     await db.getRepository(User).save(
@@ -56,9 +67,11 @@ describe('Enterprise protected HTTP lifecycle', () => {
       })),
     );
     const module = await Test.createTestingModule({
-      controllers: [EnterpriseController],
+      controllers: [EnterpriseController, EnterpriseResourceController],
       providers: [
         EnterpriseService,
+        EnterpriseResourcePolicyService,
+        SourceAccessService,
         { provide: DataSource, useValue: db },
         { provide: JwtService, useValue: jwt },
       ],
@@ -126,5 +139,61 @@ describe('Enterprise protected HTTP lifecycle', () => {
     const recovered = (await call('get', '/enterprise/context', 2, undefined, 2).expect(200)).body;
     expect(recovered.membership.role).toBe('member');
     expect(await db.getRepository(EnterpriseAuditEvent).count()).toBe(5);
+  });
+  it('manages independent source permissions over protected HTTP and immediately denies a revoked reader', async () => {
+    await db.getRepository(Database).save({
+      id: 7,
+      ownerId: 1,
+      name: 'Synthetic source',
+      engine: 'duckdb',
+      type: 'file',
+      connectionConfig: 'synthetic-unused-config',
+    });
+    const uri = '/enterprise/resources/source/7';
+    const read = { read: true, edit: false, publish: false, export: false };
+    const clear = { read: false, edit: false, publish: false, export: false };
+    const listed = (await call('get', '/enterprise/resources', 1).expect(200)).body;
+    expect(listed.entries).toContainEqual({ kind: 'source', id: 7, label: 'Synthetic source' });
+    expect(JSON.stringify(listed)).not.toMatch(/connectionConfig|password/);
+    await call('post', `${uri}/policies`, 1, {
+      recipientId: 2,
+      expectedVersion: 0,
+      rights: read,
+    }).expect(201);
+    const permission = (await call('get', `${uri}/access`, 2, undefined, 2).expect(200)).body;
+    expect(permission.rights).toEqual(read);
+    await call('get', `${uri}/access`, 3).expect(403);
+    await call(
+      'post',
+      `${uri}/policies`,
+      2,
+      { recipientId: 3, expectedVersion: 0, rights: read },
+      2,
+    ).expect(403);
+    await call('post', `${uri}/policies`, 1, {
+      recipientId: 2,
+      expectedVersion: 0,
+      rights: clear,
+    }).expect(409);
+    await call('post', `${uri}/policies`, 1, {
+      recipientId: 2,
+      expectedVersion: 1,
+      rights: clear,
+    }).expect(201);
+    await call('get', `${uri}/access`, 2, undefined, 2).expect(403);
+    const audit = await db
+      .getRepository(EnterpriseAuditEvent)
+      .find({ where: { action: 'source.permissions' }, order: { id: 'ASC' } });
+    expect(
+      audit.map(row => ({
+        actorId: row.actorId,
+        subjectId: row.subjectId,
+        resourceId: row.resourceId,
+        version: row.version,
+      })),
+    ).toEqual([
+      { actorId: 1, subjectId: 2, resourceId: 7, version: 1 },
+      { actorId: 1, subjectId: 2, resourceId: 7, version: 2 },
+    ]);
   });
 });

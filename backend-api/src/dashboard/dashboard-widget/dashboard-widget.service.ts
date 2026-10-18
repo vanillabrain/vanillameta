@@ -3,7 +3,7 @@ import { CreateDashboardWidgetDto } from './dto/create-dashboard-widget.dto';
 import { UpdateDashboardWidgetDto } from './dto/update-dashboard-widget.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DashboardWidget } from './entities/dashboard-widget.entity';
-import { In, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { Widget } from '../../widget/entities/widget.entity';
 import { Component } from '../../component/entities/component.entity';
 
@@ -68,16 +68,24 @@ export class DashboardWidgetService {
     return result;
   }
 
-  async update(dashboardId: number, updateDashboardWidgetDto: UpdateDashboardWidgetDto) {
+  /** UC-051: the caller may pass its transaction manager so links commit with the dashboard row. */
+  async update(
+    dashboardId: number,
+    updateDashboardWidgetDto: UpdateDashboardWidgetDto,
+    manager?: EntityManager,
+  ) {
+    const repository = manager
+      ? manager.getRepository(DashboardWidget)
+      : this.dashboardWidgetRepository;
     // 전체 지우고, 다시 insert
-    await this.dashboardWidgetRepository.delete({ dashboardId });
+    await repository.delete({ dashboardId });
 
     const saveList = [];
     updateDashboardWidgetDto.widgetIds.map(item => {
       saveList.push({ dashboardId, widgetId: item });
     });
 
-    await this.dashboardWidgetRepository.save(saveList);
+    await repository.save(saveList);
   }
 
   async remove(dashboardId: number) {

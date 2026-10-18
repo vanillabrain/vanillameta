@@ -35,10 +35,18 @@ const unwrap = (response: any): Catalog => {
 };
 
 /** Source identity owns editor state; an old request can never populate another source. */
-export default function SourceCatalogEditor({ sourceId }: { sourceId: number }) {
-  return <Editor key={sourceId} sourceId={sourceId} />;
+type AccessProps = { sourceId: number; canEdit?: boolean; canInspectUsage?: boolean };
+export default function SourceCatalogEditor({ sourceId, canEdit = true, canInspectUsage = true }: AccessProps) {
+  return (
+    <Editor
+      key={`${sourceId}:${canEdit}:${canInspectUsage}`}
+      sourceId={sourceId}
+      canEdit={canEdit}
+      canInspectUsage={canInspectUsage}
+    />
+  );
 }
-function Editor({ sourceId }: { sourceId: number }) {
+function Editor({ sourceId, canEdit = true, canInspectUsage = true }: AccessProps) {
   const panelId = useId();
   const live = useRef(true);
   const [open, setOpen] = useState(false);
@@ -84,7 +92,7 @@ function Editor({ sourceId }: { sourceId: number }) {
     }
   };
   const buildPreview = async () => {
-    if (!data || busy || data.schemaChanged) return;
+    if (!canEdit || !data || busy || data.schemaChanged) return;
     clearPreview();
     setBusy(true);
     setError('');
@@ -135,7 +143,7 @@ function Editor({ sourceId }: { sourceId: number }) {
     }
   };
   const save = async () => {
-    if (!data || busy || data.schemaChanged || !preview || !agreed || !preview.changes.length) return;
+    if (!canEdit || !data || busy || data.schemaChanged || !preview || !agreed || !preview.changes.length) return;
     setBusy(true);
     setError('');
     setNotice('');
@@ -206,7 +214,7 @@ function Editor({ sourceId }: { sourceId: number }) {
             </Notice>
           )}
           {data && (
-            <fieldset disabled={busy || data.schemaChanged} className="min-w-0 space-y-3">
+            <fieldset disabled={!canEdit || busy || data.schemaChanged} className="min-w-0 space-y-3">
               <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                 <TextField
                   label="소스 표시명"
@@ -263,7 +271,7 @@ function Editor({ sourceId }: { sourceId: number }) {
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={busy || !dirty || data.schemaChanged}
+                  disabled={!canEdit || busy || !dirty || data.schemaChanged}
                   onClick={() => void buildPreview()}
                 >
                   변경 내용 미리보기
@@ -271,7 +279,7 @@ function Editor({ sourceId }: { sourceId: number }) {
                 <Button
                   type="button"
                   size="sm"
-                  disabled={busy || !preview || !agreed || !preview.changes.length || data.schemaChanged}
+                  disabled={!canEdit || busy || !preview || !agreed || !preview.changes.length || data.schemaChanged}
                   onClick={() => void save()}
                 >
                   확인한 변경 저장
@@ -329,7 +337,7 @@ function Editor({ sourceId }: { sourceId: number }) {
               )}
             </section>
           )}
-          <SourceCatalogUsage sourceId={sourceId} />
+          {canInspectUsage && <SourceCatalogUsage sourceId={sourceId} />}
           <SourceCatalogHistory sourceId={sourceId} savedVersion={data?.version ?? 0} />
           {confirmReload && (
             <div className="space-y-2" role="group" aria-label="미저장 설명 교체 확인">

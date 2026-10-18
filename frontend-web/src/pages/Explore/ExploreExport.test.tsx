@@ -300,3 +300,10 @@ it('rejects every invalid export response before creating an object URL', async 
     cleanup();
   }
 });
+
+it('does not offer or request an export when current resource rights deny it', () => {
+  render(<ExploreExport payload={explorePayload} disabled={false} allowed={false} />);
+  expect(screen.queryByRole('button', { name: '내보내기 ▾' })).toBeNull();
+  expect(screen.getByText('내보내기 권한이 없습니다.')).toBeTruthy();
+  expect(api.post).not.toHaveBeenCalled();
+});

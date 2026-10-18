@@ -51,6 +51,8 @@ type Measure = { id: number; label: string; definitionVersion?: number; definiti
 type Dimension = { column: string; type?: string; numeric?: boolean; temporal?: boolean };
 type TemporalColumn = { column: string; min?: string | null; max?: string | null };
 type Catalog = {
+  access?: { read: boolean; edit: boolean; publish: boolean; export: boolean };
+  owned?: boolean;
   sourceId: number;
   name: string;
   sourceRevision: string;
@@ -917,7 +919,9 @@ function SourceExploreContent() {
         </Button>
       </div>
       <Separator />
-      {catalog && <SourceCatalogEditor sourceId={catalog.sourceId} />}
+      {catalog && (
+        <SourceCatalogEditor sourceId={catalog.sourceId} canEdit={catalog.access?.edit} canInspectUsage={catalog.owned} />
+      )}
       {catalog && (
         <div className="mt-3 flex min-w-0 flex-wrap items-start gap-2">
           {/* Our restful V1 state cannot carry the advanced Pivot, so classic save/load hides there. */}
@@ -958,7 +962,7 @@ function SourceExploreContent() {
                   }
                   onApply={applySavedView}
                   renderViewAction={view =>
-                    view.state.mode === 'pivot' ? (
+                    view.state.mode === 'pivot' && catalog.owned !== false ? (
                       <PivotDashboardAdd sourceId={catalog.sourceId} viewId={view.id} name={view.name} />
                     ) : null
                   }
@@ -991,6 +995,7 @@ function SourceExploreContent() {
                 onRestore={restoreVersionedView}
               />
               <ExploreExport
+                allowed={catalog.access?.export}
                 payload={exportPayload}
                 disabled={
                   rangePaused ||
@@ -1480,6 +1485,7 @@ function SourceExploreContent() {
 
       {catalog && mode === 'pivot' && (
         <PivotTable
+          canExport={catalog.access?.export}
           key={catalog.sourceId}
           sourceId={catalog.sourceId}
           sourceRevision={catalog.sourceRevision}

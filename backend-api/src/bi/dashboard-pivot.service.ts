@@ -35,7 +35,7 @@ export class DashboardPivotService {
   }
   async list(id: unknown, actor: number) {
     const dashboardId = this.access.id(id);
-    await this.access.assert('dashboard', dashboardId, actor);
+    await this.access.assert('dashboard', dashboardId, actor, 'read');
     const row = await this.dashboards.findOneBy({ id: dashboardId });
     const items = this.items(row);
     if (!items.length) return { status: 'SUCCESS', data: [] };
@@ -65,7 +65,7 @@ export class DashboardPivotService {
   }
   async add(id: unknown, actor: number, body: any) {
     const dashboardId = this.access.id(id);
-    await this.access.assert('dashboard', dashboardId, actor);
+    await this.access.assert('dashboard', dashboardId, actor, 'edit');
     if (
       !body ||
       Array.isArray(body) ||
@@ -84,9 +84,10 @@ export class DashboardPivotService {
       state: view.state,
     };
     await serializedViewWrite(this.dashboards, async () => {
-      await this.access.assert('dashboard', dashboardId, actor);
-      await this.access.assert('database', sourceId, actor);
+      await this.access.assert('dashboard', dashboardId, actor, 'edit');
+      await this.access.assert('database', sourceId, actor, 'read');
       await this.dashboards.manager.transaction(async manager => {
+        await this.access.assert('dashboard', dashboardId, actor, 'edit', manager);
         const row = await manager.findOne(Dashboard, {
           where: { id: dashboardId },
           ...(manager.connection.options.type === 'mysql'
@@ -111,10 +112,11 @@ export class DashboardPivotService {
   }
   async remove(id: unknown, pivotId: string, actor: number) {
     const dashboardId = this.access.id(id);
-    await this.access.assert('dashboard', dashboardId, actor);
+    await this.access.assert('dashboard', dashboardId, actor, 'edit');
     await serializedViewWrite(this.dashboards, async () => {
-      await this.access.assert('dashboard', dashboardId, actor);
+      await this.access.assert('dashboard', dashboardId, actor, 'edit');
       await this.dashboards.manager.transaction(async manager => {
+        await this.access.assert('dashboard', dashboardId, actor, 'edit', manager);
         const row = await manager.findOne(Dashboard, {
           where: { id: dashboardId },
           ...(manager.connection.options.type === 'mysql'

@@ -59,4 +59,4 @@
 
 ## 첫 구현 단위
 
-[계획](../plans/UC-051.md)의 격리 조직 생성·조직 지정 본인 동의 코드·직원 역할/활성 관리·epoch 인증 회수를 진행했다. 데이터/산출물 grant·그룹·전체 E02/E03은 후속이며 Status Draft/요건 Open은 유지한다.
+[계획](../plans/UC-051.md)의 격리 조직 생성·조직 지정 본인 동의 코드·직원 역할/활성 관리·epoch 인증 회수를 진행했다. 자원 grant 후속은 [설계](../plans/UC-051-resource-access.md)와 [선택 검증](../testing/enterprise-resource-access.md)을 따른다. 원 소유권 유지·동작별 권한·별도 소스 read·실제 actor·CAS/회수/감사를 연결했다. 그룹·영속 export/파일·실제 UI·전체 E02/E03은 후속이며 Status Draft/요건 Open은 유지한다.

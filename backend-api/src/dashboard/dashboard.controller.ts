@@ -31,14 +31,21 @@ export class DashboardController {
     return this.access.filterResults(
       'dashboard',
       accessKeyData.id,
-      await this.dashboardService.findAll(accessKeyData.id),
+      await this.dashboardService.findAll(
+        accessKeyData.id,
+        await this.access.readableDashboardIds(accessKeyData.id),
+      ),
+      'read',
     );
   }
 
   @Get(':id')
   @ApiBearerAuth('AccessKey')
   async findOne(@Param('id') id: string, @Req() req) {
-    return this.dashboardService.findOne(+id, req.user.accessKeyData.id);
+    const actor = req.user.accessKeyData.id;
+    const dashboardId = this.access.id(id);
+    await this.access.dashboard(dashboardId, actor, 'read');
+    return this.dashboardService.findOne(dashboardId, actor, 'read');
   }
 
   @Get(':id/views')
@@ -65,8 +72,11 @@ export class DashboardController {
     @Body() updateDashboardDto: UpdateDashboardDto,
     @Req() req,
   ) {
-    await this.dashboardService.assertOwner(+id, req.user.accessKeyData.id);
-    return this.dashboardService.update(+id, updateDashboardDto);
+    const actor = req.user.accessKeyData.id;
+    const dashboardId = this.access.id(id);
+    // UC-051: direct dashboard save uses the explicit edit action; delete stays owner-only.
+    await this.access.dashboard(dashboardId, actor, 'edit');
+    return this.dashboardService.update(dashboardId, updateDashboardDto, actor, 'edit');
   }
 
   @Delete(':id')

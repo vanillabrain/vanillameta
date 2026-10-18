@@ -8,6 +8,7 @@ import { DashboardPublication } from '../dashboard/entities/dashboard-publicatio
 import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { UserMapping } from '../user/entities/user-mapping.entity';
 import { BiService } from './bi.service';
 import { buildReuseRecipe, readReuseRecipe } from './reuse-recipe';
 
@@ -27,6 +28,12 @@ export class SharedReuseOriginService {
     if (value !== 'share' && value !== 'publication') throw unavailable();
     return value;
   }
+  /** A row published before the delegation columns existed has no publisher: use the owner. */
+  private async legacyPublishOwner(dashboardId: number, manager: EntityManager) {
+    const mappings = await manager.find(UserMapping, { where: { dashboardId } });
+    if (mappings.length !== 1) throw unavailable();
+    return mappings[0].userInfoId;
+  }
   async resolve(kind: string, key: string, manager: EntityManager = this.db.manager) {
     this.kind(kind);
     if (!UUID.test(key)) throw unavailable();
@@ -39,6 +46,13 @@ export class SharedReuseOriginService {
       const row = await manager.findOne(DashboardPublication, { where: { uuid: key }, ...lock });
       if (!row?.active || !row.reuseDefinition || !(Date.parse(row.expiresAt) > Date.now()))
         throw unavailable();
+      // UC-051: the private recipe stays closed as soon as the real publisher loses publish or the
+      // original source read. Rows without a stored publisher fall back to the single owner.
+      const publisher =
+        row.publisherId ?? (await this.legacyPublishOwner(row.dashboardId, manager));
+      await this.access.dashboard(row.dashboardId, publisher, 'publish', manager);
+      if (row.sourceId !== null && row.sourceId !== undefined)
+        await this.access.assert('database', row.sourceId, publisher, 'read', manager);
       dashboard = await manager.findOne(Dashboard, { where: { id: row.dashboardId }, ...lock });
       recipe = row.reuseDefinition;
       identity = [kind, key, row.version, row.dashboardRevision, row.expiresAt, recipe];

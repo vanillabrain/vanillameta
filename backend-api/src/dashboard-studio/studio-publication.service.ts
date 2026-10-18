@@ -259,7 +259,8 @@ export class StudioPublicationService {
       throw new ConflictException('게시 버전이 변경되었습니다. 다시 확인해 주세요.');
     if (!row.remixTemplate)
       throw new ConflictException('소유자가 복제 허용을 선택하여 다시 게시해야 합니다.');
-    await this.studio.assertExecutionAccess(row.dashboardId, row.sourceId, row.actorId);
+    // UC-051: a revoke of the publisher's publish grant must close reuse, not only editing.
+    await this.studio.assertExecutionAccess(row.dashboardId, row.sourceId, row.actorId, 'publish');
     return row;
   }
   async read(token: string, actor?: number) {
@@ -269,7 +270,13 @@ export class StudioPublicationService {
         throw new GoneException('공유가 중지되었거나 만료되었습니다.');
       if (row.visibility === 'private' && row.actorId !== actor)
         throw new ForbiddenException('소유자만 볼 수 있는 비공개 게시입니다.');
-      await this.studio.assertExecutionAccess(row.dashboardId, row.sourceId, row.actorId);
+      // UC-051: the anonymous read re-checks the publisher's current publish authority.
+      await this.studio.assertExecutionAccess(
+        row.dashboardId,
+        row.sourceId,
+        row.actorId,
+        'publish',
+      );
       const metadata: Partial<PublicationMetadata> = this.metadata(row);
       delete metadata.dashboardId;
       delete metadata.revokedAt;

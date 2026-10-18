@@ -276,7 +276,13 @@ export class StudioExecutionService implements OnModuleInit {
   async create(body: any, actor: number, signal?: AbortSignal) {
     this.validate(body);
     this.checkDisconnected(signal);
-    await this.studio.assertExecutionAccess(body.dashboardId, body.document.sourceId, actor);
+    // UC-051: a new AI execution edits the dashboard, so the explicit edit action is required.
+    await this.studio.assertExecutionAccess(
+      body.dashboardId,
+      body.document.sourceId,
+      actor,
+      'edit',
+    );
     this.checkDisconnected(signal);
     const hash = studioDigest(body);
     const row = await this.studio.serializeWrite(async () => {
@@ -1150,10 +1156,13 @@ export class StudioExecutionService implements OnModuleInit {
       delete step.errorCode;
       await this.persist(row, state);
       try {
+        // UC-051: a running step previews/edits work in progress, so it needs the edit action; only
+        // reading a past record (list/get) stays on read.
         await this.studio.assertExecutionAccess(
           row.dashboardId,
           request.document.sourceId,
           row.actorId,
+          'edit',
         );
         if (step.stepId === 'inspectSource') {
           // A recipient handoff must not aggregate or expose the unrelated editing source.

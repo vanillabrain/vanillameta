@@ -810,6 +810,7 @@ describe('EnterpriseService organization and membership lifecycle', () => {
         'id',
         'organizationId',
         'resourceId',
+        'subjectId',
         'version',
       ]);
       expect(row.createdAt).toBeInstanceOf(Date);

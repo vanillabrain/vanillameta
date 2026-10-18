@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -28,6 +29,8 @@ import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { AiService } from './ai.service';
 import { CODEX_MODEL } from './coding-agent';
 import { ConnectionService } from '../connection/connection.service';
+import { SourceAccessService } from '../ownership/source-access.service';
+import { ResourceAction } from '../enterprise/resource-policy.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
@@ -124,14 +127,31 @@ export class AiDashboardService {
     private readonly ai: AiService,
     private readonly connection: ConnectionService,
     @InjectRepository(Dashboard) private readonly dashboards: Repository<Dashboard>,
+    @Optional() private readonly access?: SourceAccessService,
   ) {}
   private success(data: any) {
     return { status: ResponseStatus.SUCCESS, data };
   }
-  private async owner(id: number, userId: number, manager = this.dashboards.manager) {
+  /**
+   * UC-051: the legacy owner mapping stays the default. An explicit action is delegated to the
+   * shared policy, and manual constructions without the ownership module keep owner-only behavior.
+   */
+  private async owner(
+    id: number,
+    userId: number,
+    action: ResourceAction | 'owner' = 'read',
+    manager = this.dashboards.manager,
+  ) {
     positiveId(id);
     if (!Number.isSafeInteger(userId) || userId <= 0)
       throw new ForbiddenException('not dashboard owner');
+    if (this.access) {
+      const dashboard = await manager.findOne(Dashboard, { where: { id } });
+      if (!dashboard || dashboard.delYn === YesNo.YES)
+        throw new NotFoundException('dashboard not found');
+      await this.access.dashboard(id, userId, action, manager);
+      return dashboard;
+    }
     const mapping = await manager.findOne(UserMapping, {
       where: { dashboardId: id, userInfoId: userId },
     });
@@ -350,7 +370,7 @@ export class AiDashboardService {
   }
   async assistant(body: any, userId: number, abortSignal?: AbortSignal) {
     // Mandatory authorization precedes validation, source reads, and model invocation.
-    await this.owner(body?.dashboardId, userId);
+    await this.owner(body?.dashboardId, userId, 'edit');
     const current = validateDraft(body?.currentDraft);
     const { data: saved } = await this.analysis(body.dashboardId, userId);
     if (current.databaseId !== saved.databaseId)
@@ -657,7 +677,7 @@ export class AiDashboardService {
       let draft = change.draft;
       for (const index of candidate.widgetIndices)
         draft = applyCanonicalCalculation(draft, index, change.expression);
-      const row = await this.owner(target.dashboardId, userId);
+      const row = await this.owner(target.dashboardId, userId, 'edit');
       const stored = row.structuredDefinition ? JSON.parse(row.structuredDefinition) : null;
       change.snapshot = refreshMetricLinks(
         stored,
@@ -909,7 +929,7 @@ export class AiDashboardService {
     return rect;
   }
   async generate(body: any, userId: number, abortSignal?: AbortSignal) {
-    if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId);
+    if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId, 'edit');
     const id = positiveId(body?.databaseId);
     const current = body.currentDraft === undefined ? undefined : validateDraft(body.currentDraft);
     let savedResponsiveLayouts;
@@ -1119,8 +1139,9 @@ export class AiDashboardService {
       message: 'AI 결과를 검증하지 못했습니다. 요청을 구체적으로 작성해 다시 시도해 주세요.',
     };
   }
-  async preview(body: any, userId: number) {
-    if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId);
+  /** UC-051: an existing dashboard preview needs the explicit edit action; callers may pass read/publish. */
+  async preview(body: any, userId: number, action: ResourceAction | 'owner' = 'edit') {
+    if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId, action);
     const draft = validateDraft(body?.draft);
     return this.connection.withDuckDBSnapshot(draft.databaseId, () =>
       this.previewSnapshot(body, draft),
@@ -1993,6 +2014,31 @@ export class AiDashboardService {
       ...(body?.includeTrends === true || body?.includeQueries === true ? { queries } : {}),
     });
   }
+  /** UC-051: the stored data binding of a saved dashboard, never taken from the request body. */
+  private storedSourceId(dashboard?: Dashboard): number | undefined {
+    if (!dashboard) return undefined;
+    for (const stored of [dashboard.analysisDefinition, dashboard.structuredDefinition]) {
+      if (!stored) continue;
+      try {
+        const parsed = JSON.parse(stored);
+        const id = Number.isSafeInteger(parsed?.databaseId) ? parsed.databaseId : parsed?.sourceId;
+        if (Number.isSafeInteger(id)) return Number(id);
+      } catch {
+        // A malformed stored definition is not a source change.
+      }
+    }
+    return undefined;
+  }
+  /** Re-binding a saved dashboard's source needs the original owner and the new source's owner. */
+  private async assertSourceRebinding(
+    dashboardId: number,
+    sourceId: unknown,
+    userId: number,
+    manager?: EntityManager,
+  ) {
+    await this.owner(dashboardId, userId, 'owner', manager);
+    if (this.access) await this.access.assert('database', sourceId, userId, 'owner', manager);
+  }
   async save(
     body: any,
     userId: number,
@@ -2018,8 +2064,13 @@ export class AiDashboardService {
     )
       throw new BadRequestException('invalid dashboard revision');
     if (!Number.isSafeInteger(userId) || userId <= 0) throw new ForbiddenException('invalid owner');
+    // UC-051: a new dashboard is a new artifact, so it still requires source ownership.
+    if (body?.dashboardId === undefined && this.access)
+      await this.access.assert('database', body?.draft?.databaseId, userId);
     const existing =
-      body?.dashboardId !== undefined ? await this.owner(body.dashboardId, userId) : undefined;
+      body?.dashboardId !== undefined
+        ? await this.owner(body.dashboardId, userId, 'edit')
+        : undefined;
     const legacyDraft =
       existing && !existing.analysisDefinition
         ? (await this.analysis(body.dashboardId, userId)).data
@@ -2029,6 +2080,11 @@ export class AiDashboardService {
       userId,
     );
     const { draft } = prepared;
+    // UC-051: a delegated edit must never re-bind the saved artifact to another source. Changing
+    // the stored source requires the original dashboard owner and the new source owner.
+    const storedSource = this.storedSourceId(existing);
+    if (storedSource !== undefined && storedSource !== draft.databaseId)
+      await this.assertSourceRebinding(body.dashboardId, draft.databaseId, userId);
     prepared.widgets.forEach(widget => {
       if (widget.timeGrain && widget.timeGrain !== 'auto' && widget.grainUnavailable)
         throw new BadRequestException('요청한 시간 집계를 안전하게 저장할 수 없습니다.');
@@ -2036,9 +2092,12 @@ export class AiDashboardService {
     const persist = async (manager: EntityManager) => {
       let dashboard =
         body.dashboardId !== undefined
-          ? await this.owner(body.dashboardId, userId, manager)
+          ? await this.owner(body.dashboardId, userId, 'edit', manager)
           : undefined;
       const previous = dashboard ? { ...dashboard } : null;
+      const currentSource = this.storedSourceId(dashboard);
+      if (currentSource !== undefined && currentSource !== draft.databaseId)
+        await this.assertSourceRebinding(body.dashboardId, draft.databaseId, userId, manager);
       if (body.expectedRevision !== undefined && this.revision(dashboard) !== body.expectedRevision)
         throw new ConflictException(
           '대시보드가 다른 화면에서 변경되었습니다. 새로고침 후 다시 요청해 주세요.',
@@ -2284,8 +2343,13 @@ export class AiDashboardService {
     }
     return scope;
   }
-  async analysis(id: number, userId: number, includeRevision = false) {
-    const dashboard = await this.owner(id, userId);
+  async analysis(
+    id: number,
+    userId: number,
+    includeRevision = false,
+    action: ResourceAction | 'owner' = 'read',
+  ) {
+    const dashboard = await this.owner(id, userId, action);
     if (dashboard.analysisDefinition) {
       const draft = legacyBlockIds(
         validateDraft(JSON.parse(dashboard.analysisDefinition)),

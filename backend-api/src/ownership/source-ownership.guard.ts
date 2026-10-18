@@ -95,11 +95,17 @@ export class SourceOwnershipGuard implements CanActivate {
         await this.access.assert('database', param, actor);
       } else if (handler === 'dashboardDetails') {
         const dashboardId = this.access.id(body.dashboardId);
-        await this.access.assert('database', body.draft?.databaseId, actor);
-        await this.access.dashboard(dashboardId, actor);
+        await this.access.assert('database', body.draft?.databaseId, actor, 'read');
+        await this.access.dashboard(dashboardId, actor, 'read');
       } else if (['dashboardPreview', 'dashboardSave'].includes(handler)) {
-        await this.access.assert('database', body.draft?.databaseId, actor);
-        if (body.dashboardId !== undefined) await this.access.dashboard(body.dashboardId, actor);
+        await this.access.assert(
+          'database',
+          body.draft?.databaseId,
+          actor,
+          body.dashboardId !== undefined ? 'read' : 'owner',
+        );
+        if (body.dashboardId !== undefined)
+          await this.access.dashboard(body.dashboardId, actor, 'edit');
       } else if (['dashboardDraft', 'dashboardAssistant'].includes(handler)) {
         if (body.databaseId !== undefined)
           await this.access.assert('database', body.databaseId, actor);
@@ -121,13 +127,28 @@ export class SourceOwnershipGuard implements CanActivate {
             actor,
           );
       } else if (['dashboardAnalysis', 'dashboardInsight'].includes(handler))
-        await this.access.dashboard(param, actor);
+        await this.access.dashboard(param, actor, 'read');
       else throw new ForbiddenException('unsupported AI data access');
     } else if (group === 'DashboardController') {
-      if (handler !== 'create' && handler !== 'findAll') await this.access.dashboard(param, actor);
+      if (handler !== 'create' && handler !== 'findAll')
+        await this.access.dashboard(
+          param,
+          actor,
+          ['findOne', 'listViews', 'createView', 'loadView', 'removeView'].includes(handler)
+            ? 'read'
+            : handler === 'update'
+            ? 'edit'
+            : 'owner',
+        );
       if (body.layout !== undefined) {
         if (!Array.isArray(body.layout)) throw new ForbiddenException('invalid layout');
-        for (const item of body.layout) await this.access.assert('widget', item?.i, actor);
+        for (const item of body.layout)
+          await this.access.assert(
+            'widget',
+            item?.i,
+            actor,
+            handler === 'update' ? 'read' : 'owner',
+          );
       }
     } else if (group === 'TemplateController') {
       if (['findRecommendAll', 'getTemplateDashboardLayout'].includes(handler)) {

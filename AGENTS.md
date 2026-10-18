@@ -2,7 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
-- **추가 요건 완료 목표:** 사용자가 FR014~025/NFR005~008 전체 완료를 goal로 지정했다. [완료 계획](docs/plans/enterprise-completion.md)의16개 요건/TC050을 기준으로 추적하며 하위 구현 수를 전체 완료율로 계산하지 않는다. [UC051 첫 단위](docs/plans/UC-051.md)는 격리 조직·본인 발급/조직에 묶인 일회용 직원 연결 코드·admin/member/팀/활성·DB epoch 인증 회수다. 데이터 소유권/자원별 grant는 확장하지 않는다. 조직 소속 계정 일반 삭제는 탈퇴 처리 전409이며 실제 Ego/모바일·운영·전체 수용은 별도다.
+- **추가 요건 완료 목표:** 사용자가 FR014~025/NFR005~008 전체 완료를 goal로 지정했다. [완료 계획](docs/plans/enterprise-completion.md)의16개 요건/TC050을 기준으로 추적하며 하위 구현 수를 전체 완료율로 계산하지 않는다. [UC051 첫 단위](docs/plans/UC-051.md)는 격리 조직·본인 발급/조직에 묶인 일회용 직원 연결 코드·admin/member/팀/활성·DB epoch 인증 회수다. 첫 단위의 데이터 소유권은 유지하며 자원 grant 후속은 아래 계약을 따른다. 조직 소속 계정 일반 삭제는 탈퇴 처리 전409이며 실제 Ego/모바일·운영·전체 수용은 별도다.
+- **UC051 자원 권한 후속:** [설계](docs/plans/UC-051-resource-access.md)·[증빙](docs/testing/enterprise-resource-access.md)에 source/dashboard별 read/edit/publish/export·같은 조직의 활성 소유 admin 관리·CAS/회수/감사를 연결했다. 원 소유권과 실제 actor는 유지하고 대시보드에는 별도 source read도 필요하다. 수신자 새 산출물/소스 교체·삭제·임의 SQL은 소유권 경계를 유지한다. 게시자의 현재 publish와 원 소스 read를 공개 조회/재사용에서도 확인하고 열람 응답에서 익명 링크를 제거한다. 대시보드 export는 정책 기반이며 영속 파일 소비자·그룹·실제 Ego/모바일/운영/전체 수용은 미완료다.
 
 - **저장 분석 지표 기준:** [UC050 증빙](docs/testing/studio-saved-metric-basis.md)은 권한 보호 GET의 저장 snapshot 투영과 Inspector 접힌 읽기다. 소스/블록/지표/버전 일치 때만 표시하고 현재 Metric·AI 미저장 변경과 섞지 않는다. 편집 문서/저장 요청/SQL 불변이며 실제 Ego/모바일·전체 수용은 미확인이다.
 

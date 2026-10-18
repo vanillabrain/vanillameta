@@ -6,6 +6,7 @@ export class EnterpriseAuditEvent {
   @Column({ type: 'integer' }) actorId: number;
   @Column({ length: 40 }) action: string;
   @Column({ type: 'integer' }) resourceId: number;
+  @Column({ type: 'integer', nullable: true }) subjectId: number | null;
   @Column({ type: 'integer' }) version: number;
   @CreateDateColumn() createdAt: Date;
 }

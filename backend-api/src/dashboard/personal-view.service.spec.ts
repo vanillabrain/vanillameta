@@ -70,7 +70,7 @@ describe('personal saved views', () => {
       'revision',
       'state',
     ]);
-    expect(access.dashboard).toHaveBeenCalledWith(26, 5);
+    expect(access.dashboard).toHaveBeenCalledWith(26, 5, 'read', expect.anything());
     await reloaded.remove(26, created.data.id, 5);
     expect((await reloaded.list(26, 5)).data).toEqual([]);
     expect(await db.getRepository(Dashboard).count()).toBe(2);

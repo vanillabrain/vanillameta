@@ -25,6 +25,8 @@ type Column = {
   max?: string | null;
 };
 type Profile = {
+  access?: { read: boolean; edit: boolean; publish: boolean; export: boolean };
+  owned?: boolean;
   sourceId: number;
   name: string;
   engine: string;
@@ -217,7 +219,12 @@ export default function Explore() {
     ...(chart === 'number' ? {} : { dimension }),
   };
   const run = async (action: 'metric' | 'preview' | 'dashboard') => {
-    if (pending.current) return;
+    if (
+      pending.current ||
+      (action === 'metric' && profile?.access?.edit === false) ||
+      (action === 'dashboard' && profile?.owned === false)
+    )
+      return;
     pending.current = true;
     const token = revision.current;
     const abort = new AbortController();
@@ -283,7 +290,7 @@ export default function Explore() {
         </Button>
       </div>
       <p className="mb-6 text-muted-foreground">저장된 파일의 열을 선택해 지표와 차트를 만들고 대시보드에 저장하세요.</p>
-      {ready && profile.engine === 'duckdb' && !busy && (
+      {ready && profile.engine === 'duckdb' && profile.owned !== false && !busy && (
         <Button variant="outline" className="mb-4" onClick={() => navigate(`/dashboard?aiSourceId=${profile.sourceId}`)}>
           {useAiLabel}
         </Button>
@@ -417,7 +424,7 @@ export default function Explore() {
                   </TableBody>
                 </Table>
               </div>
-              {profile.engine?.toLowerCase() === 'duckdb' && (
+              {profile.engine?.toLowerCase() === 'duckdb' && profile.owned !== false && (
                 <FileVersions
                   sourceId={profile.sourceId}
                   disabled={!!busy}
@@ -571,7 +578,10 @@ export default function Explore() {
                     <option value="compact">축약 숫자</option>
                   </Select>
                 </div>
-                <Button disabled={!!busy || !validMetric || !!metricId} onClick={() => void run('metric')}>
+                <Button
+                  disabled={!!busy || !validMetric || !!metricId || profile?.access?.edit === false}
+                  onClick={() => void run('metric')}
+                >
                   지표 저장
                 </Button>
                 <p className="text-sm text-muted-foreground">
@@ -721,7 +731,7 @@ export default function Explore() {
                   </div>
                 )}
                 <Button
-                  disabled={!!busy || !preview || !metricId || !validMetric || !validChart}
+                  disabled={!!busy || !preview || !metricId || !validMetric || !validChart || profile?.owned === false}
                   onClick={() => void run('dashboard')}
                 >
                   대시보드 저장

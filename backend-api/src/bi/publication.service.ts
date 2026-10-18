@@ -16,6 +16,7 @@ import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { UserMapping } from '../user/entities/user-mapping.entity';
 import { BiService } from './bi.service';
 import { buildPublicationSnapshot } from './publication-snapshot';
 import { buildReuseRecipe } from './reuse-recipe';
@@ -42,6 +43,8 @@ type PublicationTicket = {
   revision: string;
   snapshot: string;
   reuseDefinition?: string | null;
+  /** UC-051: the bound source of the captured analysis, never taken from the publish body. */
+  sourceId: number;
   bytes: number;
   expiresAt: number;
 };
@@ -171,7 +174,9 @@ export class PublicationService {
 
   async state(id: unknown, actor: number) {
     const dashboardId = this.access.id(id);
-    await this.access.dashboard(dashboardId, actor);
+    // UC-051: the state carries the live public uuid, which is an anonymous capability, so only the
+    // publishing authority may read it. A read-only grantee must never receive that link.
+    await this.access.dashboard(dashboardId, actor, 'publish');
     const row = await this.publications.findOne({ where: { dashboardId } });
     const dashboard = await this.dashboardRow(dashboardId);
     return this.serializeState(dashboardId, dashboardRevision(dashboard), row);
@@ -184,14 +189,17 @@ export class PublicationService {
       throw new BadRequestException(SHAPE_MESSAGE);
     const allowReuse = body.allowReuse === true;
     const dashboardId = this.access.id(id);
-    await this.access.dashboard(dashboardId, actor);
+    // UC-051: both publication paths use the explicit publish action, never dashboard edit.
+    await this.access.dashboard(dashboardId, actor, 'publish');
     if (typeof body.expectedRevision !== 'string' || !REVISION.test(body.expectedRevision))
       throw new BadRequestException('저장 화면을 다시 불러온 뒤 미리보기를 실행해 주세요.');
     const before = await this.dashboardRow(dashboardId);
     if (dashboardRevision(before) !== body.expectedRevision)
       throw new ConflictException(STALE_SAVE_MESSAGE);
-    const analysis = (await this.ai.analysis(dashboardId, actor, true)).data;
-    const captured = (await this.ai.preview({ draft: analysis, includeTrends: true }, actor)).data;
+    const analysis = (await this.ai.analysis(dashboardId, actor, true, 'publish')).data;
+    const captured = (
+      await this.ai.preview({ draft: analysis, includeTrends: true }, actor, 'publish')
+    ).data;
     if (
       !Array.isArray(captured?.widgets) ||
       captured.widgets.some(widget => widget.contribution?.supported !== true)
@@ -200,7 +208,7 @@ export class PublicationService {
         '집계로 확인된 지표·분류 차트만 게시할 수 있습니다. 원본 행 조회는 게시하지 않습니다.',
       );
     // The capture must not race another save: ownership and revision are re-checked afterwards.
-    await this.access.dashboard(dashboardId, actor);
+    await this.access.dashboard(dashboardId, actor, 'publish');
     const after = await this.dashboardRow(dashboardId);
     if (dashboardRevision(after) !== body.expectedRevision)
       throw new ConflictException(STALE_SAVE_MESSAGE);
@@ -227,6 +235,7 @@ export class PublicationService {
       revision: body.expectedRevision,
       snapshot: JSON.stringify(snapshot),
       reuseDefinition,
+      sourceId: analysis.databaseId,
       bytes: bytes + Buffer.byteLength(reuseDefinition ?? ''),
     });
     return { dashboardId, revision: body.expectedRevision, ticket, snapshot, reusable: allowReuse };
@@ -308,7 +317,7 @@ export class PublicationService {
       'visibility',
     ]);
     const dashboardId = this.access.id(id);
-    await this.access.dashboard(dashboardId, actor);
+    await this.access.dashboard(dashboardId, actor, 'publish');
     if (typeof body.expectedRevision !== 'string' || !REVISION.test(body.expectedRevision))
       throw new BadRequestException('저장 화면을 다시 불러온 뒤 다시 시도해 주세요.');
     if (!Number.isSafeInteger(body.expectedVersion) || body.expectedVersion < 0)
@@ -336,7 +345,7 @@ export class PublicationService {
       );
     const result = await serializedViewWrite(this.publications, () =>
       this.publications.manager.transaction(async manager => {
-        await this.access.dashboard(dashboardId, actor);
+        await this.access.dashboard(dashboardId, actor, 'publish');
         const current = await this.find(manager, dashboardId);
         const concurrent = this.replay(current, requestId, payloadDigest, body.expectedVersion);
         if (concurrent)
@@ -404,6 +413,10 @@ export class PublicationService {
           active: true,
           requestId,
           payloadDigest,
+          // UC-051: store the real publishing actor and the captured source so a public read can
+          // re-check that authority later. Ownership is never moved by publishing.
+          publisherId: actor,
+          sourceId: ticket.sourceId ?? null,
         };
         if (current) {
           const update = await manager.update(
@@ -443,13 +456,13 @@ export class PublicationService {
   async revoke(id: unknown, actor: number, body: any) {
     this.shape(body, ['expectedVersion']);
     const dashboardId = this.access.id(id);
-    await this.access.dashboard(dashboardId, actor);
+    await this.access.dashboard(dashboardId, actor, 'publish');
     if (!Number.isSafeInteger(body.expectedVersion) || body.expectedVersion < 0)
       throw new BadRequestException('게시 버전을 확인해 주세요.');
     const expectedVersion = body.expectedVersion;
     return serializedViewWrite(this.publications, () =>
       this.publications.manager.transaction(async manager => {
-        await this.access.dashboard(dashboardId, actor);
+        await this.access.dashboard(dashboardId, actor, 'publish');
         const current = await this.find(manager, dashboardId);
         if (!current) throw new NotFoundException('게시 버전이 없습니다.');
         const dashboard = await manager.findOne(Dashboard, { where: { id: dashboardId } });
@@ -472,6 +485,13 @@ export class PublicationService {
   }
 
   /** Public read: no AI, no SQL, no source access and no token; only the stored snapshot. */
+  /** A row published before the delegation columns existed has no publisher: use the owner. */
+  private async legacyPublishOwner(dashboardId: number) {
+    const owners = await this.dashboards.manager.find(UserMapping, { where: { dashboardId } });
+    if (owners.length !== 1) throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
+    return owners[0].userInfoId;
+  }
+
   async publicResult(uuid: unknown) {
     if (typeof uuid !== 'string' || !UUID.test(uuid))
       throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
@@ -481,6 +501,12 @@ export class PublicationService {
     const dashboard = await this.dashboards.findOne({ where: { id: row.dashboardId } });
     if (!dashboard || dashboard.delYn === 'Y')
       throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
+    // UC-051: a public read re-checks the current authority of the real publisher. Rows created
+    // before the delegation columns existed fall back to the single dashboard owner.
+    const publisher = row.publisherId ?? (await this.legacyPublishOwner(row.dashboardId));
+    await this.access.dashboard(row.dashboardId, publisher, 'publish');
+    if (row.sourceId !== null && row.sourceId !== undefined)
+      await this.access.assert('database', row.sourceId, publisher, 'read');
     let snapshot: unknown;
     try {
       snapshot = JSON.parse(row.snapshot);

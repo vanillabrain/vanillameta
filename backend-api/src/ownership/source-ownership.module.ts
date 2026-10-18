@@ -1,9 +1,13 @@
+import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
+import { EnterpriseResourceGrant } from '../enterprise/entities/enterprise-resource-grant.entity';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { Global, Module } from '@nestjs/common';
 import { SourceAccessService } from './source-access.service';
 import { SourceOwnershipGuard } from './source-ownership.guard';
 @Global()
 @Module({
-  providers: [SourceAccessService, SourceOwnershipGuard],
-  exports: [SourceAccessService, SourceOwnershipGuard],
+  imports: [TypeOrmModule.forFeature([EnterpriseResourceGrant])],
+  providers: [EnterpriseResourcePolicyService, SourceAccessService, SourceOwnershipGuard],
+  exports: [EnterpriseResourcePolicyService, SourceAccessService, SourceOwnershipGuard],
 })
 export class SourceOwnershipModule {}

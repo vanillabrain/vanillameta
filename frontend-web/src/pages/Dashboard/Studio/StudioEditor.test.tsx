@@ -1167,3 +1167,26 @@ it.each(['success', 'failure'])('UC039 ignores an earlier target read %s after t
   expect(screen.queryAllByText('매출 대시보드')).toHaveLength(0);
   expect(api.post).not.toHaveBeenCalled();
 });
+
+it('UC051 renders a recipient read-only without edit, clone, save or publication actions', async () => {
+  api.get.mockResolvedValue(envelope({ access: { read: true, edit: false, publish: false, export: false }, owned: false }));
+  render(<StudioEditor />);
+  const settings = await screen.findByRole('button', { name: '총매출 설정' });
+  expect((settings as HTMLButtonElement).disabled).toBe(true);
+  expect(saveButton().disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '게시·공유' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByRole('link', { name: '저장본 복제·소스 교체 새 탭에서 열기' })).toBeNull();
+  expect(addSelect().closest('fieldset')?.disabled).toBe(true);
+  fireEvent.change(addSelect(), { target: { value: 'b1' } });
+  expect(screen.queryByText('복사본 · 총매출')).toBeNull();
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+it('UC051 keeps publish independent from edit for a recipient with explicit publication rights', async () => {
+  api.get.mockResolvedValue(envelope({ access: { read: true, edit: false, publish: true, export: false }, owned: false }));
+  render(<StudioEditor />);
+  await screen.findByRole('button', { name: '총매출 설정' });
+  expect(saveButton().disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '게시·공유' }) as HTMLButtonElement).disabled).toBe(false);
+  expect(api.post).not.toHaveBeenCalled();
+});

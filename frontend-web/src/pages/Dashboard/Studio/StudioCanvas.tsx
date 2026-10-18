@@ -15,6 +15,7 @@ export const studioItemHeight = (h: number) => STUDIO_ROW_HEIGHT * h + STUDIO_RO
 /** A saved short row keeps its height: this only lowers the resize floor, it never grows the row. */
 export const studioMinimumHeight = (kind: StudioBlock['kind'], h: number) => Math.min(h, kind === 'BOARD_NUMERIC' ? 5 : 6);
 type Props = {
+  readOnly?: boolean;
   document: StudioDocumentV1;
   breakpoint: StudioBreakpoint;
   selectedBlockId: string | null;
@@ -32,6 +33,7 @@ export default function StudioCanvas({
   onSelect,
   onSettings,
   renderBlock,
+  readOnly = false,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -70,7 +72,8 @@ export default function StudioCanvas({
             compactType={null}
             preventCollision
             draggableHandle=".studio-drag-handle"
-            isDraggable={breakpoint !== 'xs'}
+            isDraggable={!readOnly && breakpoint !== 'xs'}
+            isResizable={!readOnly}
             layout={ordered.map(g => ({
               i: g.id,
               x: g.x,
@@ -81,11 +84,13 @@ export default function StudioCanvas({
               minH: studioMinimumHeight(document.blocks.find(b => b.id === g.id)?.kind ?? 'CHART_LINE', g.h),
             }))}
             onDragStop={(_, old, item) => {
+              if (readOnly) return;
               onSelect(item.i);
               if (old.x !== item.x || old.y !== item.y)
                 onOperation({ type: 'moveBlock', blockId: item.i, breakpoint, x: item.x, y: item.y });
             }}
             onResizeStop={(_, old, item) => {
+              if (readOnly) return;
               onSelect(item.i);
               if (old.w !== item.w || old.h !== item.h)
                 onOperation({ type: 'resizeBlock', blockId: item.i, breakpoint, w: item.w, h: item.h });
@@ -110,12 +115,13 @@ export default function StudioCanvas({
                     <button
                       type="button"
                       className="studio-drag-handle"
+                      disabled={readOnly}
                       aria-label={`${block.title} 이동 핸들`}
                       aria-describedby="studio-move-help"
                       onFocus={() => onSelect(block.id)}
                       onKeyDown={e => {
                         const offsets = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
-                        if (offsets[e.key]) {
+                        if (!readOnly && offsets[e.key]) {
                           e.preventDefault();
                           const [dx, dy] = offsets[e.key];
                           onOperation({ type: 'moveBlock', blockId: block.id, breakpoint, x: g.x + dx, y: g.y + dy });
@@ -129,6 +135,7 @@ export default function StudioCanvas({
                       variant="ghost"
                       size="icon-sm"
                       className="studio-config-trigger"
+                      disabled={readOnly}
                       aria-label={`${block.title} 설정`}
                       aria-pressed={selectedBlockId === block.id}
                       onClick={() => {

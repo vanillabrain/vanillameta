@@ -1,3 +1,11 @@
+import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
+import { StudioPublicationService } from './studio-publication.service';
+import { User } from '../user/entities/user.entity';
+import { EnterpriseOrganization } from '../enterprise/entities/enterprise-organization.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { EnterpriseAuditEvent } from '../enterprise/entities/enterprise-audit-event.entity';
+import { EnterpriseResourceGrant } from '../enterprise/entities/enterprise-resource-grant.entity';
+import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { DataSource } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
@@ -79,6 +87,13 @@ describe('Studio real DuckDB and transactional metadata', () => {
         Metric,
         StudioState,
         StudioRun,
+        User,
+        EnterpriseOrganization,
+        EnterpriseMembership,
+        EnterpriseAuditEvent,
+        EnterpriseResourceGrant,
+        StudioPublication,
+        StudioPublicationRequest,
       ],
     }).initialize();
     await db.manager.save(Database, {
@@ -744,5 +759,109 @@ describe('Studio real DuckDB and transactional metadata', () => {
     } finally {
       await db.manager.update(Database, { id: 1 }, { ownerId: 7 });
     }
+  });
+  it('UC051 saves a granted editor actual DuckDB preview and rechecks edit before receipt replay', async () => {
+    await db.manager.save(User, [
+      {
+        id: 7,
+        userId: 'synthetic-owner',
+        email: 'owner@example.invalid',
+        password: 'synthetic-unused',
+      },
+      {
+        id: 8,
+        userId: 'synthetic-editor',
+        email: 'editor@example.invalid',
+        password: 'synthetic-unused',
+      },
+    ]);
+    await db.manager.save(EnterpriseOrganization, {
+      id: 1,
+      name: 'Synthetic organization',
+      version: 1,
+    });
+    await db.manager.save(EnterpriseMembership, [
+      { userId: 7, organizationId: 1, role: 'admin', team: '' },
+      { userId: 8, organizationId: 1, role: 'member', team: '' },
+    ]);
+    const policy = new EnterpriseResourcePolicyService(db);
+    const access = new SourceAccessService(db, policy);
+    const delegatedAi = new AiDashboardService(
+      {} as any,
+      connection,
+      db.getRepository(Dashboard),
+      access,
+    );
+    const delegatedStudio = new StudioService(db, delegatedAi, connection, access);
+    const rights = (over = {}) => ({
+      read: true,
+      edit: false,
+      publish: false,
+      export: false,
+      ...over,
+    });
+    await policy.set('source', 1, 7, { recipientId: 8, expectedVersion: 0, rights: rights() });
+    await policy.set('dashboard', id, 7, {
+      recipientId: 8,
+      expectedVersion: 0,
+      rights: rights({ edit: true }),
+    });
+    const initial = await delegatedStudio.get(id, 8);
+    expect(initial.owned).toBe(false);
+    expect(initial.preview.widgets[0].datas).toEqual([{ value: 500 }]);
+    const document = applyStudioOperation(initial.document, {
+      type: 'renameDashboard',
+      title: 'Granted editor changed title',
+    });
+    const request = {
+      requestId: 'granted-save-' + id,
+      expectedRevision: initial.document.revision,
+      expectedSourceRevision: initial.sourceRevision,
+      document,
+    };
+    const prepared = await delegatedStudio.prepare(id, request, 8);
+    expect(prepared.preview.widgets[0].datas).toEqual([{ value: 500 }]);
+    const saved = await delegatedStudio.save(id, request, 8);
+    const reloaded = await delegatedStudio.get(id, 8);
+    expect(reloaded.document).toEqual(saved.document);
+    expect(reloaded.document.title).toBe('Granted editor changed title');
+    expect(reloaded.preview.widgets[0].datas).toEqual([{ value: 500 }]);
+    expect(
+      await db.manager.count(StudioRun, { where: { requestId: request.requestId, actorId: 8 } }),
+    ).toBe(1);
+    expect(await db.manager.find(UserMapping, { where: { dashboardId: id } })).toEqual([
+      expect.objectContaining({ userInfoId: 7 }),
+    ]);
+    await policy.set('dashboard', id, 7, {
+      recipientId: 8,
+      expectedVersion: 1,
+      rights: rights({ edit: true, publish: true }),
+    });
+    const publications = new StudioPublicationService(db, delegatedStudio);
+    const published = await publications.publish(
+      id,
+      {
+        requestId: 'granted-publish-' + id,
+        expectedRevision: saved.document.revision,
+        visibility: 'link',
+        allowRemix: false,
+      },
+      8,
+    );
+    expect((await publications.read(published.token)).version).toBe(1);
+    expect(
+      await db.manager.findOneByOrFail(StudioPublication, { token: published.token }),
+    ).toMatchObject({ actorId: 8, sourceId: 1 });
+    await policy.set('dashboard', id, 7, { recipientId: 8, expectedVersion: 2, rights: rights() });
+    await expect(publications.read(published.token)).rejects.toMatchObject({ status: 403 });
+    await expect(delegatedStudio.save(id, request, 8)).rejects.toMatchObject({ status: 403 });
+    expect((await delegatedStudio.get(id, 8)).document).toEqual(saved.document);
+    await policy.set('source', 1, 7, {
+      recipientId: 8,
+      expectedVersion: 1,
+      rights: { read: false, edit: false, publish: false, export: false },
+    });
+    await expect(delegatedStudio.get(id, 8)).rejects.toMatchObject({ status: 403 });
+    expect((await db.manager.findOneByOrFail(Database, { id: 1 })).ownerId).toBe(7);
   });
 });

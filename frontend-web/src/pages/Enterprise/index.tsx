@@ -20,6 +20,7 @@ import {
   revokeEnrollment,
   updateMember,
 } from '@/api/enterpriseService';
+import ResourcePolicies from './ResourcePolicies';
 
 const ORGANIZATION_ID_PATTERN = /^[1-9][0-9]{0,18}$/;
 
@@ -910,6 +911,9 @@ export default function Enterprise() {
               )}
             </form>
           )}
+
+          {/* UC051: resource-level grants live beside the staff directory and are read only when an admin opens them. */}
+          <ResourcePolicies organizationId={organization.id} selfRecipientId={membership?.userId} />
         </div>
       )}
     </section>

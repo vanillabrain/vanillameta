@@ -45,6 +45,8 @@ export type StudioPreview = {
 };
 /** Load result for one dashboard: the editable document plus its definition catalog and preview. */
 export type StudioLoadResult = {
+  access?: { read: boolean; edit: boolean; publish: boolean; export: boolean };
+  owned?: boolean;
   dashboardId: number;
   /** Opaque data-source version from GET. Every save pins it; a change is reported as a conflict. */
   sourceRevision: string;
@@ -351,7 +353,26 @@ export async function fetchStudioDashboard(
       }
     }
     if (!preview && !previewError) previewError = '미리보기 결과를 받지 못했습니다. 편집과 저장은 계속할 수 있습니다.';
-    return { dashboardId, sourceRevision: payload.sourceRevision, document, definitions, preview, previewError };
+    if (payload.access !== undefined) {
+      studioAssert(
+        payload.access &&
+          typeof payload.access === 'object' &&
+          ['read', 'edit', 'publish', 'export'].every(key => typeof payload.access[key] === 'boolean') &&
+          payload.access.read === true,
+        '자원 권한 응답을 확인해 주세요.',
+      );
+    }
+    if (payload.owned !== undefined) studioAssert(typeof payload.owned === 'boolean', '소유권 응답을 확인해 주세요.');
+    return {
+      dashboardId,
+      sourceRevision: payload.sourceRevision,
+      document,
+      definitions,
+      preview,
+      previewError,
+      ...(payload.access !== undefined ? { access: payload.access } : {}),
+      ...(payload.owned !== undefined ? { owned: payload.owned } : {}),
+    };
   } catch (error) {
     throw invalid(error, 'Studio 문서를 확인하지 못했습니다.');
   }

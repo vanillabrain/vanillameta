@@ -287,7 +287,7 @@ export class VersionedExploreViewService {
   async list(body: any, actor: number) {
     const input = this.fields(body, SOURCE_FIELDS);
     const sourceId = this.access.id(input.sourceId);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const rows = await this.db.getRepository(ExploreView).find({
       where: { sourceId, userId: actor },
       order: { id: 'DESC' },
@@ -304,9 +304,9 @@ export class VersionedExploreViewService {
     const state = validateExploreViewState(input.state);
     const clientVersions = this.clientMeasureVersions(input.measureVersions, state.measureIds);
     const sourceId = this.access.id(input.sourceId);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     return this.write(async () => {
-      await this.access.assert('database', sourceId, actor);
+      await this.access.assert('database', sourceId, actor, 'read');
       // Hold the pinned file for the reads and the insert so a new upload cannot race the row.
       return this.connection.withDuckDBSnapshot(sourceId, async () => {
         const profile = await this.bi.profile(sourceId, actor);
@@ -327,6 +327,7 @@ export class VersionedExploreViewService {
             );
         const row = await this.db.transaction(async manager => {
           await this.lockSource(manager, sourceId);
+          await this.access.assert('database', sourceId, actor, 'read', manager);
           const repo = manager.getRepository(ExploreView);
           if ((await repo.count({ where: { sourceId, userId: actor } })) >= MAX_VIEWS_PER_SOURCE)
             throw new BadRequestException('탐색 보기는 소스별 최대 20개까지 저장할 수 있습니다.');
@@ -349,7 +350,7 @@ export class VersionedExploreViewService {
   async load(body: any, actor: number) {
     const input = this.fields(body, LOAD_FIELDS);
     const sourceId = this.access.id(input.sourceId);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const row = await this.db.getRepository(ExploreView).findOne({
       where: { id: this.access.id(input.viewId), sourceId, userId: actor },
     });
@@ -379,9 +380,9 @@ export class VersionedExploreViewService {
     const input = this.fields(body, REMOVE_FIELDS);
     const sourceId = this.access.id(input.sourceId);
     const viewId = this.access.id(input.viewId);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const result = await this.write(async () => {
-      await this.access.assert('database', sourceId, actor);
+      await this.access.assert('database', sourceId, actor, 'read');
       return this.db.getRepository(ExploreView).delete({ id: viewId, sourceId, userId: actor });
     });
     if (!result.affected) throw new NotFoundException('저장 보기를 찾을 수 없습니다.');

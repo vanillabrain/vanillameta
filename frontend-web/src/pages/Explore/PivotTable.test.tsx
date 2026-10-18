@@ -2,8 +2,8 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import PivotTable, { PivotResult } from './PivotTable';
-const api = vi.hoisted(() => ({ post: vi.fn() }));
-vi.mock('@/helpers/apiHelper', () => ({ post: api.post }));
+const api = vi.hoisted(() => ({ post: vi.fn(), get: vi.fn() }));
+vi.mock('@/helpers/apiHelper', () => ({ post: api.post, get: api.get }));
 const sample: PivotResult = {
   sourceRevision: 'rev',
   metrics: [
@@ -275,3 +275,15 @@ it.each(['success', 'error'])(
     expect(pool.size).toBe(0);
   },
 );
+
+it('checks current server export rights before making a CSV from rendered pivot data', async () => {
+  api.get.mockResolvedValue({ data: { rights: { read: true, export: false } } });
+  const blob = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:denied');
+  render(<PivotTable {...props()} canExport />);
+  const button = await screen.findByRole('button', { name: /CSV/ });
+  await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(button);
+  await waitFor(() => expect(api.get).toHaveBeenCalledWith('/enterprise/resources/source/3/access'));
+  expect(blob).not.toHaveBeenCalled();
+  blob.mockRestore();
+});

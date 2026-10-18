@@ -245,3 +245,14 @@ describe('Studio date scope response boundary', () => {
     ).toThrow(/날짜 열/);
   });
 });
+
+it('UC051 preserves current resource rights and ownership and rejects malformed permission responses', async () => {
+  const response = envelope(null, 'synthetic preview unavailable');
+  const rights = { read: true, edit: false, publish: true, export: false };
+  api.get.mockResolvedValue({ data: { ...response.data, access: rights, owned: false } });
+  const loaded = await fetchStudioDashboard(3);
+  expect(loaded.access).toEqual(rights);
+  expect(loaded.owned).toBe(false);
+  api.get.mockResolvedValue({ data: { ...response.data, access: { ...rights, edit: 'true' }, owned: false } });
+  await expect(fetchStudioDashboard(3)).rejects.toBeTruthy();
+});

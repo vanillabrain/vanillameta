@@ -12,6 +12,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { ConnectionService } from '../connection/connection.service';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { ResourceAction } from '../enterprise/resource-policy.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { Database } from '../database/entities/database.entity';
@@ -34,25 +35,41 @@ export class StudioService {
     private readonly connection: ConnectionService,
     private readonly access: SourceAccessService,
   ) {}
-  private async owner(id: number, actor: number, manager = this.db.manager) {
-    const mapping = await manager.findOne(UserMapping, {
-      where: { dashboardId: id, userInfoId: actor },
-    });
+  /**
+   * UC-051: the legacy owner mapping stays the default, and an explicit action is delegated to the
+   * shared policy. Linked sources remain a separate read dependency of that action.
+   */
+  private async owner(
+    id: number,
+    actor: number,
+    action: ResourceAction | 'owner' = 'owner',
+    manager = this.db.manager,
+  ) {
     const row = await manager.findOne(Dashboard, { where: { id } });
-    if (!mapping || !row || row.delYn === 'Y')
+    if (!row || row.delYn === 'Y')
       throw new ForbiddenException('대시보드 소유자만 편집할 수 있습니다.');
+    await this.access.dashboard(id, actor, action, manager);
     return row;
   }
-  private async source(id: number, actor: number, manager = this.db.manager) {
-    const row = await manager.findOne(Database, { where: { id } });
-    if (!row || row.ownerId !== actor)
-      throw new ForbiddenException('데이터 소스에 접근할 수 없습니다.');
+  /** Dashboard read/edit/publish never needs source edit rights, only a separate source read. */
+  private async source(
+    id: number,
+    actor: number,
+    action: ResourceAction | 'owner' = 'read',
+    manager = this.db.manager,
+  ) {
+    await this.access.assert('database', id, actor, action, manager);
   }
-  private async load(id: number, actor: number, manager = this.db.manager) {
-    const row = await this.owner(id, actor, manager);
-    const analysis = (await this.ai.analysis(id, actor, true)).data;
+  private async load(
+    id: number,
+    actor: number,
+    action: ResourceAction | 'owner' = 'owner',
+    manager = this.db.manager,
+  ) {
+    const row = await this.owner(id, actor, action, manager);
+    const analysis = (await this.ai.analysis(id, actor, true, action)).data;
     analysis.title = row.title;
-    await this.source(analysis.databaseId, actor, manager);
+    await this.source(analysis.databaseId, actor, 'read', manager);
     if (!(await this.connection.isDuckDB(analysis.databaseId)))
       throw new BadRequestException('Studio는 서버 DuckDB 분석을 지원합니다.');
     const schema = (
@@ -99,14 +116,20 @@ export class StudioService {
     };
   }
   async get(id: number, actor: number) {
-    await this.access.dashboard(id, actor);
+    // UC-051: report the actor's current rights plus real mapping ownership for the client.
+    const capabilities = await this.access.dashboardCapabilities(id, actor);
+    const owned = Boolean(
+      await this.db.manager.findOne(UserMapping, { where: { dashboardId: id, userInfoId: actor } }),
+    );
     const analysis = (await this.ai.analysis(id, actor, true)).data;
-    return this.connection.withDuckDBSnapshot(analysis.databaseId, () =>
+    const pinned = await this.connection.withDuckDBSnapshot(analysis.databaseId, () =>
       this.getPinned(id, actor, analysis.databaseId),
     );
+    // TOP-LEVEL `owned` is the real UserMapping ownership the client uses to hide clone/management.
+    return { ...pinned, access: capabilities, owned };
   }
   private async getPinned(id: number, actor: number, sourceId: number) {
-    const state = await this.load(id, actor);
+    const state = await this.load(id, actor, 'read');
     if (state.document.sourceId !== sourceId)
       throw new ConflictException('데이터 소스가 변경되었습니다. 다시 불러와 주세요.');
     let preview = null,
@@ -121,6 +144,7 @@ export class StudioService {
             includeTrends: true,
           },
           actor,
+          'read',
         )
       ).data;
     } catch {
@@ -162,12 +186,12 @@ export class StudioService {
       if (ref.schemaVersion !== schemaVersion || !schema.some(c => c.column_name === ref.key))
         throw new ConflictException('소스 열 구성이 변경되었습니다. 다시 불러와 주세요.');
   }
-  /** Owner-only unsaved document preview. SQL and references are resolved from the current server catalog. */
+  /** Unsaved document preview under the current explicit edit grant. References come from the server catalog. */
   async prepare(id: number, body: any, actor: number) {
-    await this.access.dashboard(id, actor);
+    await this.access.dashboard(id, actor, 'edit');
     const analysis = (await this.ai.analysis(id, actor, true)).data;
     return this.connection.withDuckDBSnapshot(analysis.databaseId, async () => {
-      const current = await this.load(id, actor);
+      const current = await this.load(id, actor, 'edit');
       if (
         current.document.revision !== body.expectedRevision ||
         current.sourceRevision !== body.expectedSourceRevision
@@ -234,6 +258,7 @@ export class StudioService {
             includeTrends: true,
           },
           actor,
+          'edit',
         )
       ).data;
       // A requested temporal transformation must be supported, not a silent fallback.
@@ -251,19 +276,25 @@ export class StudioService {
     });
   }
   /** Recheck both the original source and the current dashboard source on every execution read/replay. */
-  async assertExecutionAccess(id: number, originalSourceId: number, actor: number) {
-    await this.access.dashboard(id, actor);
-    await this.owner(id, actor);
-    await this.source(originalSourceId, actor);
-    const analysis = (await this.ai.analysis(id, actor, true)).data;
-    await this.source(analysis.databaseId, actor);
+  async assertExecutionAccess(
+    id: number,
+    originalSourceId: number,
+    actor: number,
+    action: ResourceAction | 'owner' = 'read',
+  ) {
+    await this.owner(id, actor, action);
+    await this.source(originalSourceId, actor, 'read');
+    const analysis = (await this.ai.analysis(id, actor, true, action)).data;
+    await this.source(analysis.databaseId, actor, 'read');
   }
-  /** Publication uses persisted definitions only and computes fresh aggregates under one pinned source. */
+  /**
+   * Publication uses persisted definitions only and computes fresh aggregates under one pinned
+   * source. UC-051: an explicit publish grant authorizes publishing; ownership never moves.
+   */
   async assertPublicationOwner(id: number, actor: number) {
-    await this.access.dashboard(id, actor);
-    await this.owner(id, actor);
-    const analysis = (await this.ai.analysis(id, actor, true)).data;
-    await this.source(analysis.databaseId, actor);
+    await this.owner(id, actor, 'publish');
+    const analysis = (await this.ai.analysis(id, actor, true, 'publish')).data;
+    await this.source(analysis.databaseId, actor, 'read');
   }
   async publicationSnapshot<T>(
     id: number,
@@ -275,12 +306,12 @@ export class StudioService {
     ) => Promise<T>,
   ): Promise<T> {
     await this.assertPublicationOwner(id, actor);
-    const analysis = (await this.ai.analysis(id, actor, true)).data;
+    const analysis = (await this.ai.analysis(id, actor, true, 'publish')).data;
     const initialSource = await this.db.manager.findOne(Database, {
       where: { id: analysis.databaseId },
     });
     return this.connection.withDuckDBSnapshot(analysis.databaseId, async () => {
-      const current = await this.load(id, actor);
+      const current = await this.load(id, actor, 'publish');
       if (
         current.document.revision !== expectedRevision ||
         current.document.sourceId !== analysis.databaseId
@@ -330,12 +361,13 @@ export class StudioService {
             includeTrends: true,
           },
           actor,
+          'publish',
         )
       ).data;
       // Publication and save share the metadata queue; recheck against legacy writes during aggregation too.
       return this.db.transaction(async manager => {
         await this.lockDashboard(manager, id);
-        const latest = await this.load(id, actor, manager);
+        const latest = await this.load(id, actor, 'publish', manager);
         const source = await manager.findOne(Database, { where: { id: analysis.databaseId } });
         if (
           latest.document.revision !== expectedRevision ||
@@ -389,7 +421,7 @@ export class StudioService {
     return result;
   }
   private async saveOnce(id: number, body: any, actor: number, signal?: AbortSignal) {
-    await this.access.dashboard(id, actor);
+    await this.access.dashboard(id, actor, 'edit');
     if (
       !body ||
       !/^[-a-zA-Z0-9_]{1,128}$/.test(body.requestId) ||
@@ -415,7 +447,7 @@ export class StudioService {
       (document.revision && document.revision !== body.expectedRevision)
     )
       throw new BadRequestException('저장할 대시보드와 블록을 확인해 주세요.');
-    await this.source(document.sourceId, actor);
+    await this.source(document.sourceId, actor, 'read');
     const payloadHash = studioDigest({
       id,
       expectedRevision: body.expectedRevision,
@@ -450,7 +482,7 @@ export class StudioService {
         this.db.transaction(async manager => {
           await this.lockDashboard(manager, id);
           checkCancelled();
-          const current = await this.load(id, actor, manager);
+          const current = await this.load(id, actor, 'edit', manager);
           if (current.sourceRevision !== body.expectedSourceRevision)
             throw new ConflictException(
               '데이터 파일이 교체되었습니다. 최신 결과를 확인한 뒤 다시 저장해 주세요.',
@@ -521,6 +553,7 @@ export class StudioService {
                 ...(document.dateRange ? { dateRange: document.dateRange } : {}),
               },
               actor,
+              'edit',
             );
           const previousSnapshot = { ...current.snapshot };
           delete previousSnapshot.studioFilters;
@@ -574,7 +607,7 @@ export class StudioService {
             return { i: String(links[index].widgetId), x: g.x, y: g.y, w: g.w, h: g.h };
           });
           await manager.update(Dashboard, { id }, { layout: JSON.stringify(layout) });
-          const row = await this.owner(id, actor, manager);
+          const row = await this.owner(id, actor, 'edit', manager);
           remapped.revision = dashboardRevision(row);
           await manager.save(StudioState, {
             dashboardId: id,

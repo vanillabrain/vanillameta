@@ -301,7 +301,16 @@ export class BiExploreService {
         .filter(column => column.temporal)
         .map(column => ({ column: column.name, min: column.min, max: column.max })),
     };
-    return { ...catalog, viewRevision: exploreViewRevision(catalog) };
+    // UC051: capabilities and ownership are per actor, so they are attached to the response and
+    // kept out of the view revision, which stays a function of the catalog content alone. A grant
+    // change therefore never invalidates a stored Explore view, and a grantee response never
+    // claims ownership of a foreign source.
+    return {
+      ...catalog,
+      access: profile.access,
+      owned: profile.owned,
+      viewRevision: exploreViewRevision(catalog),
+    };
   }
   /**
    * The original classic grid: one or two row dimensions and at most one column dimension.
@@ -907,11 +916,15 @@ export class BiExploreService {
         throw new BadRequestException(
           'CSV 내보내기에는 원본 행을 포함할 수 없습니다. includeRows를 끄고 다시 시도해 주세요.',
         );
+      // UC051: export is its own right, distinct from read. It is checked before the query and
+      // again before the file response so a revocation during the read is denied.
+      await this.bi.assertSourceAction(query.sourceId, actor, 'export');
       const result = await this.query(query, actor);
       const { csv, rowCount, bytes } = toCsv(
         this.exploreEntries(result, query),
         this.exploreConditions(query),
       );
+      await this.bi.assertSourceAction(query.sourceId, actor, 'export');
       return this.exportResponse(
         result.sourceRevision,
         `bi-explore-${query.sourceId}.csv`,
@@ -922,12 +935,14 @@ export class BiExploreService {
     }
     if ('rowDimensions' in query || 'columnDimensions' in query)
       throw new BadRequestException('고급 Pivot 조건으로 CSV를 내보내 주세요.');
+    await this.bi.assertSourceAction(query.sourceId, actor, 'export');
     const result: any = await this.pivot(query, actor);
     const labels = await this.measureLabels(result.sourceId, actor);
     const { csv, rowCount, bytes } = toCsv(
       this.pivotEntries(result, labels),
       this.pivotConditions(query),
     );
+    await this.bi.assertSourceAction(query.sourceId, actor, 'export');
     return this.exportResponse(
       result.sourceRevision,
       `bi-pivot-${result.sourceId}.csv`,

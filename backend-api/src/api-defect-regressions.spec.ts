@@ -198,6 +198,7 @@ describe('dashboard layout, membership and private-owner regressions', () => {
       { findDashboardId: jest.fn().mockResolvedValue([{ dashboardId: 17 }]) } as any,
       {} as any,
       widgets as any,
+      { dashboard: jest.fn(async () => undefined) } as any,
     );
   });
 
@@ -274,7 +275,19 @@ describe('dashboard layout, membership and private-owner regressions', () => {
   });
 
   it('controller private GET carries the requester and writes/deletes reject before mutations', async () => {
-    const controller = new DashboardController(service, {} as any, {} as any);
+    const access = {
+      id: (value: unknown) => {
+        const parsed = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+        if (!Number.isSafeInteger(parsed) || Number(parsed) <= 0)
+          throw new BadRequestException('invalid resource id');
+        return Number(parsed);
+      },
+      // Legacy owner-only fallback: no explicit grant exists for this actor.
+      dashboard: jest.fn(async (_id: number, actor: number) => {
+        if (actor !== 7) throw new ForbiddenException('not dashboard owner');
+      }),
+    };
+    const controller = new DashboardController(service, access as any, {} as any);
     const req = { user: { accessKeyData: { id: 8 } } };
     mappings.findOne.mockResolvedValue(null);
     await expect(controller.findOne('17', req)).rejects.toBeInstanceOf(ForbiddenException);

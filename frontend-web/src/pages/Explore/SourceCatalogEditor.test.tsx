@@ -261,3 +261,15 @@ describe('UC050 business metadata editor', () => {
     expect(vi.mocked(post).mock.calls.some(([url]) => url === '/bi/source-catalog/save')).toBe(false);
   });
 });
+
+it('keeps shared metadata readable but disables edits and does not expose owner usage', async () => {
+  vi.resetAllMocks();
+  vi.mocked(post).mockResolvedValue(response(data()));
+  render(<SourceCatalogEditor sourceId={3} canEdit={false} canInspectUsage={false} />);
+  await open();
+  expect(screen.getByLabelText('소스 표시명').closest('fieldset')?.disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '변경 내용 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '확인한 변경 저장' }));
+  expect(vi.mocked(post).mock.calls.map(call => call[0])).toEqual(['/bi/source-catalog/read']);
+  expect(screen.queryByText('이 소스의 사용처')).toBeNull();
+});

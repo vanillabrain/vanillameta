@@ -58,7 +58,8 @@ export class PersonalViewService {
       );
   }
   async list(dashboardId: number, userId: number) {
-    await this.access.dashboard(dashboardId, userId);
+    // UC-051: a personal saved view only reads the dashboard, so an explicit read grant is enough.
+    await this.access.dashboard(dashboardId, userId, 'read');
     const rows = await this.views.find({
       where: { dashboardId, userId },
       order: { id: 'DESC' },
@@ -67,7 +68,7 @@ export class PersonalViewService {
     return this.success(rows.map(row => this.publicView(row)));
   }
   async create(dashboardId: number, userId: number, body: any) {
-    await this.access.dashboard(dashboardId, userId);
+    await this.access.dashboard(dashboardId, userId, 'read');
     if (
       !body ||
       Object.keys(body).some(key => !['name', 'state', 'revision'].includes(key)) ||
@@ -78,8 +79,9 @@ export class PersonalViewService {
       throw new BadRequestException('보기 이름은 1~80자로 입력해 주세요.');
     const state = validatePersonalViewState(body.state);
     const row = await this.write(async () => {
-      await this.access.dashboard(dashboardId, userId);
+      await this.access.dashboard(dashboardId, userId, 'read');
       return this.views.manager.transaction(async manager => {
+        await this.access.dashboard(dashboardId, userId, 'read', manager);
         // Serialize MySQL admission on the existing dashboard row across server instances.
         await this.assertRevision(dashboardId, body.revision, manager, true);
         const repo = manager.getRepository(PersonalView);
@@ -99,7 +101,7 @@ export class PersonalViewService {
     return this.success(this.publicView(row));
   }
   async load(dashboardId: number, viewId: number, userId: number) {
-    await this.access.dashboard(dashboardId, userId);
+    await this.access.dashboard(dashboardId, userId, 'read');
     const row = await this.views.findOne({
       where: { id: this.access.id(viewId), dashboardId, userId },
     });
@@ -109,9 +111,9 @@ export class PersonalViewService {
     return this.success({ ...view, resolvedDateRange: resolveViewDates(view.state) });
   }
   async remove(dashboardId: number, viewId: number, userId: number) {
-    await this.access.dashboard(dashboardId, userId);
+    await this.access.dashboard(dashboardId, userId, 'read');
     const result = await this.write(async () => {
-      await this.access.dashboard(dashboardId, userId);
+      await this.access.dashboard(dashboardId, userId, 'read');
       return this.views.delete({ id: this.access.id(viewId), dashboardId, userId });
     });
     if (!result.affected) throw new NotFoundException('저장 보기를 찾을 수 없습니다.');

@@ -1,3 +1,4 @@
+import { serializeEnterpriseWrite } from './enterprise-write';
 import { createHash, randomBytes } from 'crypto';
 import { EnterpriseEnrollment } from './entities/enterprise-enrollment.entity';
 import {
@@ -11,7 +12,6 @@ import { User } from '../user/entities/user.entity';
 import { EnterpriseOrganization } from './entities/enterprise-organization.entity';
 import { EnterpriseMembership } from './entities/enterprise-membership.entity';
 import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
-const sqliteQueues = new WeakMap<DataSource, Promise<unknown>>();
 
 @Injectable()
 export class EnterpriseService {
@@ -125,14 +125,7 @@ export class EnterpriseService {
         throw error;
       }
     };
-    // TypeORM's SQLite driver shares one connection: overlapping BEGIN/ROLLBACK must not interfere.
-    if (this.db.options.type !== 'sqlite') return execute();
-    const pending = (sqliteQueues.get(this.db) ?? Promise.resolve()).then(execute, execute);
-    sqliteQueues.set(
-      this.db,
-      pending.catch(() => undefined),
-    );
-    return pending;
+    return serializeEnterpriseWrite(this.db, execute);
   }
   private async audit(
     manager: EntityManager,

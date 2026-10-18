@@ -40,7 +40,7 @@ export class ExploreViewService {
   }
   async list(source: unknown, actor: number) {
     const sourceId = this.access.id(source);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const rows = await this.views.find({
       where: { sourceId, userId: actor },
       order: { id: 'DESC' },
@@ -50,7 +50,7 @@ export class ExploreViewService {
   }
   async create(source: unknown, actor: number, body: any) {
     const sourceId = this.access.id(source);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     if (
       !body ||
       typeof body !== 'object' ||
@@ -66,7 +66,7 @@ export class ExploreViewService {
       this.conflict();
     const state = validateExploreViewState(body.state, catalog);
     const row = await serializedViewWrite(this.views, async () => {
-      await this.access.assert('database', sourceId, actor);
+      await this.access.assert('database', sourceId, actor, 'read');
       return this.views.manager.transaction(async manager => {
         const sourceRow = await manager.findOne(Database, {
           where: { id: sourceId },
@@ -74,8 +74,8 @@ export class ExploreViewService {
             ? { lock: { mode: 'pessimistic_write' as const } }
             : {}),
         });
-        if (!sourceRow || sourceRow.ownerId !== actor)
-          throw new ForbiddenException('source ownership required');
+        if (!sourceRow) throw new ForbiddenException('source access denied');
+        await this.access.assert('database', sourceId, actor, 'read', manager);
         const current = await this.explore.catalog({ sourceId }, actor);
         if (current.viewRevision !== body.revision) this.conflict();
         validateExploreViewState(state, current);
@@ -101,21 +101,21 @@ export class ExploreViewService {
   async load(source: unknown, view: unknown, actor: number) {
     const sourceId = this.access.id(source),
       viewId = this.access.id(view);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const row = await this.views.findOne({ where: { id: viewId, sourceId, userId: actor } });
     if (!row) throw new NotFoundException('탐색 저장 보기를 찾을 수 없습니다.');
     const catalog = await this.explore.catalog({ sourceId }, actor);
     if (row.revision !== catalog.viewRevision) this.conflict();
     const state = validateExploreViewState(JSON.parse(row.state), catalog);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     return this.success({ ...this.publicView(row), state, resolvedDateRange: state.dateRange });
   }
   async remove(source: unknown, view: unknown, actor: number) {
     const sourceId = this.access.id(source),
       viewId = this.access.id(view);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const result = await serializedViewWrite(this.views, async () => {
-      await this.access.assert('database', sourceId, actor);
+      await this.access.assert('database', sourceId, actor, 'read');
       return this.views.delete({ id: viewId, sourceId, userId: actor });
     });
     if (!result.affected) throw new NotFoundException('탐색 저장 보기를 찾을 수 없습니다.');

@@ -1,3 +1,4 @@
+import { serializeEnterpriseWrite } from '../enterprise/enterprise-write';
 import {
   BadRequestException,
   ConflictException,
@@ -67,10 +68,14 @@ export class SourceCatalogService {
       );
     }
   }
-  private async snapshot(sourceId: unknown, actor: number) {
+  /**
+   * UC051: the same stored-metadata snapshot serves read and edit callers, so the required
+   * source action is passed in instead of hard-coding owner-only access.
+   */
+  private async snapshot(sourceId: unknown, actor: number, action: 'read' | 'edit') {
     this.access.actor(actor);
     const id = this.access.id(sourceId);
-    await this.access.assert('database', id, actor);
+    await this.access.assert('database', id, actor, action);
     const profile = await this.bi.profile(id, actor);
     if (!profile.supported)
       throw new BadRequestException('서버에 저장한 DuckDB 소스를 선택해 주세요.');
@@ -98,6 +103,7 @@ export class SourceCatalogService {
     const { id, profile, schema, schemaRevision, entry, metadata } = await this.snapshot(
       input.sourceId,
       actor,
+      'read',
     );
     return {
       sourceId: id,
@@ -123,7 +129,7 @@ export class SourceCatalogService {
   private async historySource(sourceId: unknown, actor: number) {
     this.access.actor(actor);
     const id = this.access.id(sourceId);
-    await this.access.assert('database', id, actor);
+    await this.access.assert('database', id, actor, 'read');
     return id;
   }
   async history(body: unknown, actor: number) {
@@ -224,7 +230,7 @@ export class SourceCatalogService {
       schemaRevision,
       entry,
       metadata: previousMetadata,
-    } = await this.snapshot(input.sourceId, actor);
+    } = await this.snapshot(input.sourceId, actor, 'edit');
     if (!Number.isSafeInteger(input.version) || input.version < 0 || input.version >= 2147483647)
       throw new BadRequestException('업무 설명 버전을 확인해 주세요.');
     if (typeof input.sourceRevision !== 'string' || !input.sourceRevision)
@@ -294,32 +300,36 @@ export class SourceCatalogService {
   async save(body: unknown, actor: number) {
     const { id, profile, schema, schemaRevision, columns, label, description, metadata, version } =
       await this.prepare(body, actor);
-    // UC050: unique (sourceId,version) is the cross-process compare-and-swap, not a local mutex.
-    await this.access.assert('database', id, actor);
-    const latest = await this.bi.profile(id, actor);
-    if (!latest.supported || latest.dataVersion !== profile.dataVersion)
-      throw new ConflictException('저장 중 데이터가 변경됐습니다. 최신 내용을 다시 확인해 주세요.');
-    try {
-      await this.db.getRepository(SourceCatalogEntry).insert({
-        sourceId: id,
-        version: version + 1,
-        actorId: actor,
-        schemaRevision,
-        sourceRevision: profile.dataVersion,
-        metadata,
-      });
-    } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        ((error.driverError as any)?.code === 'ER_DUP_ENTRY' ||
-          ((error.driverError as any)?.code === 'SQLITE_CONSTRAINT' &&
-            /UNIQUE constraint failed: source_catalog_entry/.test(error.message)))
-      )
+    await serializeEnterpriseWrite(this.db, async () => {
+      // UC050: unique (sourceId,version) is the cross-process compare-and-swap, not a local mutex.
+      await this.access.assert('database', id, actor, 'edit');
+      const latest = await this.bi.profile(id, actor);
+      if (!latest.supported || latest.dataVersion !== profile.dataVersion)
         throw new ConflictException(
-          '다른 창에서 먼저 저장했습니다. 최신 내용을 다시 확인해 주세요.',
+          '저장 중 데이터가 변경됐습니다. 최신 내용을 다시 확인해 주세요.',
         );
-      throw error;
-    }
+      try {
+        await this.db.getRepository(SourceCatalogEntry).insert({
+          sourceId: id,
+          version: version + 1,
+          actorId: actor,
+          schemaRevision,
+          sourceRevision: profile.dataVersion,
+          metadata,
+        });
+      } catch (error) {
+        if (
+          error instanceof QueryFailedError &&
+          ((error.driverError as any)?.code === 'ER_DUP_ENTRY' ||
+            ((error.driverError as any)?.code === 'SQLITE_CONSTRAINT' &&
+              /UNIQUE constraint failed: source_catalog_entry/.test(error.message)))
+        )
+          throw new ConflictException(
+            '다른 창에서 먼저 저장했습니다. 최신 내용을 다시 확인해 주세요.',
+          );
+        throw error;
+      }
+    });
     return {
       sourceId: id,
       sourceRevision: profile.dataVersion,
