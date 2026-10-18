@@ -1,3 +1,4 @@
+import StaffDepartureImpact from './StaffDepartureImpact';
 import StaffTransfer from './StaffTransfer';
 import Classifications from './Classifications';
 import Groups from './Groups';
@@ -976,6 +977,12 @@ export default function Enterprise() {
               )}
             </form>
           )}
+
+          <StaffDepartureImpact
+            key={`departure:${organization.id}:${membership.userId}:${organization.version}:${contextRevision}`}
+            context={context}
+            members={membersDenied || membersLoading || membersError ? [] : members}
+          />
 
           {/* UC051: resource-level grants live beside the staff directory and are read only when an admin opens them. */}
           {isAdmin && <Groups key={`groups:${organization.id}:${membership?.userId}`} organizationId={organization.id} />}

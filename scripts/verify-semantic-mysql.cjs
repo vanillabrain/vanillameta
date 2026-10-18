@@ -12,7 +12,14 @@ const mysql = createRequire(path.join(backend, "package.json"))(
   "mysql2/promise"
 );
 const staff = process.argv.includes("--staff");
-const lanes = staff ? ["staff"] : ["studio", "runtime"];
+const departure = process.argv.includes("--departure");
+if (staff && departure)
+  throw new Error("Select only one owned validation lane");
+const lanes = departure
+  ? ["departure"]
+  : staff
+  ? ["staff"]
+  : ["studio", "runtime"];
 const owner = randomBytes(12).toString("hex");
 const password = randomBytes(32).toString("hex");
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vm-semantic-mysql-"));
@@ -207,7 +214,7 @@ const cleanup = () =>
         phase: "ready",
         engine: server.version,
         metadata: "MySQL",
-        aggregation: staff ? "not_used" : "native DuckDB",
+        aggregation: staff || departure ? "not_used" : "native DuckDB",
         lanes,
       })
     );
@@ -225,7 +232,9 @@ const cleanup = () =>
           "--runInBand",
           "--verbose",
           "--runTestsByPath",
-          ...(staff
+          ...(departure
+            ? ["src/enterprise/staff-departure-impact.spec.ts"]
+            : staff
             ? ["src/enterprise/staff-transfer.spec.ts"]
             : [
                 "src/dashboard-studio/studio-business-basis.spec.ts",
