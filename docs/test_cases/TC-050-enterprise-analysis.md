@@ -98,3 +98,7 @@
 ## UC051 SQLite 교차 작업 선택 검증 — 2026-10-18
 
 [공통 조정 증빙](../testing/sqlite-coordination.md)은 E02/E03/E12의 기반인 명시 transaction 원자성/확정 권한 조회를 실제 SQLite로 검증한다. Studio rollback 후 다른 enterprise 쓰기의 독립 commit과 미커밋 계정/소스 상태가 권한·JWT 검사에 섞이지 않는지 확인한다. 기존 생성/저장/게시/재사용 회귀는 전체 E07/E09/E10을 대신하지 않으며 일반 Repository 쓰기·다른 조회/운영 경합·E13 실제 화면·전체 NOT_RUN을 유지한다.
+
+## UC051 소스·지표/갱신 인증 후속 — 2026-10-18
+
+[경계 증빙](../testing/metadata-boundaries.md)은 E01/E02/E03 기반의 일반 source/metric 성공 쓰기 보존·확정 정의/refresh 인증 조회와 긴 분석 SQL의 큐 해제를 선택 검증한다. 기존 세션/계정 쓰기·다른 일반 경로·E13 실제 UI/운영·전체 TC050 NOT_RUN은 승격하지 않는다.

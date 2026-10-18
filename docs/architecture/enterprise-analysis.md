@@ -109,3 +109,5 @@ flowchart LR
 ## SQLite 메타데이터 작업 조정
 
 [UC051 설계](../plans/UC-051-sqlite-coordination.md)의 DataSource별 공통 큐는 SQLite의 단일 연결에서 독립 transaction이 다른 요청의 savepoint로 중첩되는 것을 막는다. 같은 작업의 기다리는 하위 호출은 살아 있는 AsyncLocalStorage lease를 재사용하고 종료 후 비동기 문맥은 새 작업으로 기다린다. 이것은 권한 승인이 아니며 기존 actor/grant·manager·CAS/isolation/영수증을 유지한다. 선택 권한/인증·Studio get/prepare·기존 게시 state/publicResult는 읽기 전체를 조정한다. 원시 Repository 단일 쓰기와 그 밖의 조회는 후속이며 MySQL은 기존 DB lock 의미를 유지한다. 새 모델/스키마/제품 UI 변경은 없다. [검증 범위](../testing/sqlite-coordination.md)는 전체 운영 경합 보장이 아니다.
+
+[일반 metadata 경계](../plans/UC-051-metadata-boundaries.md)는 Database/Metric의 metadata save/CAS·정의 RMW와 refresh User/Token 확정 조회에 같은 조정기를 적용한다. 불변 파일 import/분석 SQL·등록 후 보조 작업은 구간 밖에 두고 기존 CAS/실패 cleanup을 유지한다. 계정/세션 쓰기·나머지 일반 경로의 원자성·전체 NFR/운영 보장은 별도 후속이다. [검증](../testing/metadata-boundaries.md)을 따른다.

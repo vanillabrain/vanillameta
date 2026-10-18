@@ -7,6 +7,7 @@ describe('MetricService', () => {
   const mockKnex: any = { raw: rawMock };
 
   const metricRepository = {
+    manager: { connection: { options: { type: 'sqlite' } } },
     find: jest.fn(),
     findOne: jest.fn(),
     create: jest.fn(d => d),

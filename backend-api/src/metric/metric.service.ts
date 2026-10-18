@@ -1,3 +1,4 @@
+import { serializeMetadataWork } from '../common/metadata-work';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -19,98 +20,108 @@ export class MetricService {
   ) {}
 
   async findAll() {
-    const metrics = await this.metricRepository.find({ where: { useYn: YesNo.YES } });
-    return { status: ResponseStatus.SUCCESS, data: metrics.map(m => this.parseFilters(m)) };
+    return serializeMetadataWork(this.metricRepository.manager.connection, async () => {
+      const metrics = await this.metricRepository.find({ where: { useYn: YesNo.YES } });
+      return { status: ResponseStatus.SUCCESS, data: metrics.map(m => this.parseFilters(m)) };
+    });
   }
 
   async findOne(id: number) {
-    const metric = await this.metricRepository.findOne({ where: { id } });
-    if (!metric || metric.useYn === YesNo.NO)
-      return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
-    return { status: ResponseStatus.SUCCESS, data: this.parseFilters(metric) };
+    return serializeMetadataWork(this.metricRepository.manager.connection, async () => {
+      const metric = await this.metricRepository.findOne({ where: { id } });
+      if (!metric || metric.useYn === YesNo.NO)
+        return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
+      return { status: ResponseStatus.SUCCESS, data: this.parseFilters(metric) };
+    });
   }
 
   async create(dto: CreateMetricDto) {
-    if ((dto as any).definition !== undefined)
-      return {
-        status: ResponseStatus.ERROR,
-        message: '정의 snapshot은 제작 API에서만 저장합니다.',
-      };
-    try {
-      this.validateDefinition(dto);
-      // name 유니크 제약이 soft-delete 행에도 적용되므로, 삭제된 메트릭이면 재활성화
-      const existing = await this.metricRepository.findOne({ where: { name: dto.name } });
-      if (existing) {
-        if (existing.definition)
-          return {
-            status: ResponseStatus.ERROR,
-            message: '저장한 제작 지표는 새 정의로 만들어 주세요.',
-          };
-        if (existing.useYn === YesNo.YES) {
-          return { status: ResponseStatus.ERROR, message: '이미 존재하는 메트릭명입니다.' };
-        }
-        await this.metricRepository.update(existing.id, {
-          ...dto,
-          description: dto.description ?? null,
-          groupBy: dto.groupBy ?? null,
-          filters: dto.filters ? JSON.stringify(dto.filters) : null,
-          useYn: YesNo.YES,
-        });
+    return serializeMetadataWork(this.metricRepository.manager.connection, async () => {
+      if ((dto as any).definition !== undefined)
         return {
-          status: ResponseStatus.SUCCESS,
-          data: this.parseFilters({
-            ...existing,
+          status: ResponseStatus.ERROR,
+          message: '정의 snapshot은 제작 API에서만 저장합니다.',
+        };
+      try {
+        this.validateDefinition(dto);
+        // name 유니크 제약이 soft-delete 행에도 적용되므로, 삭제된 메트릭이면 재활성화
+        const existing = await this.metricRepository.findOne({ where: { name: dto.name } });
+        if (existing) {
+          if (existing.definition)
+            return {
+              status: ResponseStatus.ERROR,
+              message: '저장한 제작 지표는 새 정의로 만들어 주세요.',
+            };
+          if (existing.useYn === YesNo.YES) {
+            return { status: ResponseStatus.ERROR, message: '이미 존재하는 메트릭명입니다.' };
+          }
+          await this.metricRepository.update(existing.id, {
             ...dto,
             description: dto.description ?? null,
             groupBy: dto.groupBy ?? null,
-            useYn: YesNo.YES,
             filters: dto.filters ? JSON.stringify(dto.filters) : null,
-          }),
-        };
+            useYn: YesNo.YES,
+          });
+          return {
+            status: ResponseStatus.SUCCESS,
+            data: this.parseFilters({
+              ...existing,
+              ...dto,
+              description: dto.description ?? null,
+              groupBy: dto.groupBy ?? null,
+              useYn: YesNo.YES,
+              filters: dto.filters ? JSON.stringify(dto.filters) : null,
+            }),
+          };
+        }
+        const metric = this.metricRepository.create({
+          ...dto,
+          filters: dto.filters ? JSON.stringify(dto.filters) : null,
+        });
+        const saved = await this.metricRepository.save(metric);
+        return { status: ResponseStatus.SUCCESS, data: this.parseFilters(saved) };
+      } catch (e) {
+        return { status: ResponseStatus.ERROR, message: e.message };
       }
-      const metric = this.metricRepository.create({
-        ...dto,
-        filters: dto.filters ? JSON.stringify(dto.filters) : null,
-      });
-      const saved = await this.metricRepository.save(metric);
-      return { status: ResponseStatus.SUCCESS, data: this.parseFilters(saved) };
-    } catch (e) {
-      return { status: ResponseStatus.ERROR, message: e.message };
-    }
+    });
   }
 
   async update(id: number, dto: UpdateMetricDto) {
-    if ((dto as any).definition !== undefined)
-      return {
-        status: ResponseStatus.ERROR,
-        message: '정의 snapshot은 제작 API에서만 저장합니다.',
-      };
-    const metric = await this.metricRepository.findOne({ where: { id } });
-    if (!metric || metric.useYn === YesNo.NO)
-      return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
-    if (metric.definition)
-      return {
-        status: ResponseStatus.ERROR,
-        message: '저장한 제작 지표는 변경하지 않습니다. 새 지표를 만들어 적용해 주세요.',
-      };
-    try {
-      const merged = { ...this.parseFilters(metric), ...dto };
-      this.validateDefinition(merged as CreateMetricDto);
-      if (dto.filters !== undefined) {
-        (dto as any).filters = dto.filters ? JSON.stringify(dto.filters) : null;
+    return serializeMetadataWork(this.metricRepository.manager.connection, async () => {
+      if ((dto as any).definition !== undefined)
+        return {
+          status: ResponseStatus.ERROR,
+          message: '정의 snapshot은 제작 API에서만 저장합니다.',
+        };
+      const metric = await this.metricRepository.findOne({ where: { id } });
+      if (!metric || metric.useYn === YesNo.NO)
+        return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
+      if (metric.definition)
+        return {
+          status: ResponseStatus.ERROR,
+          message: '저장한 제작 지표는 변경하지 않습니다. 새 지표를 만들어 적용해 주세요.',
+        };
+      try {
+        const merged = { ...this.parseFilters(metric), ...dto };
+        this.validateDefinition(merged as CreateMetricDto);
+        if (dto.filters !== undefined) {
+          (dto as any).filters = dto.filters ? JSON.stringify(dto.filters) : null;
+        }
+        await this.metricRepository.update(id, dto as any);
+        return { status: ResponseStatus.SUCCESS, data: { id } };
+      } catch (e) {
+        return { status: ResponseStatus.ERROR, message: e.message };
       }
-      await this.metricRepository.update(id, dto as any);
-      return { status: ResponseStatus.SUCCESS, data: { id } };
-    } catch (e) {
-      return { status: ResponseStatus.ERROR, message: e.message };
-    }
+    });
   }
 
   async remove(id: number) {
-    const result = await this.metricRepository.update(id, { useYn: YesNo.NO });
-    if (result.affected === 0)
-      return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
-    return { status: ResponseStatus.SUCCESS, data: { id } };
+    return serializeMetadataWork(this.metricRepository.manager.connection, async () => {
+      const result = await this.metricRepository.update(id, { useYn: YesNo.NO });
+      if (result.affected === 0)
+        return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
+      return { status: ResponseStatus.SUCCESS, data: { id } };
+    });
   }
 
   /**
@@ -118,7 +129,9 @@ export class MetricService {
    * groupBy 지정 시 그룹별 시리즈, 아니면 단일 값 반환
    */
   async evaluate(id: number) {
-    const metric = await this.metricRepository.findOne({ where: { id } });
+    const metric = await serializeMetadataWork(this.metricRepository.manager.connection, () =>
+      this.metricRepository.findOne({ where: { id } }),
+    );
     if (!metric || metric.useYn === YesNo.NO)
       return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
 

@@ -36,16 +36,26 @@ const guardFor = (users: { findOne: jest.Mock }, jwt: JwtService) =>
   } as unknown as DataSource);
 
 describe('enterprise revocation: active flag and auth epoch on the account row', () => {
-  let users: { findOne: jest.Mock; save: jest.Mock; update: jest.Mock };
-  let refresh: { findOne: jest.Mock; save: jest.Mock };
+  let users: { findOne: jest.Mock; save: jest.Mock; update: jest.Mock; manager: unknown };
+  let refresh: { findOne: jest.Mock; save: jest.Mock; manager: unknown };
   let jwt: JwtService;
   let service: AuthService;
 
   beforeEach(() => {
     process.env.ACCESS_SECRET = ACCESS_SECRET;
     process.env.REFRESH_SECRET = REFRESH_SECRET;
-    users = { findOne: jest.fn(), save: jest.fn(), update: jest.fn() };
-    refresh = { findOne: jest.fn(), save: jest.fn() };
+    const metadataConnection = { options: { type: 'mysql' } };
+    users = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+      update: jest.fn(),
+      manager: { connection: metadataConnection },
+    };
+    refresh = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+      manager: { connection: metadataConnection },
+    };
     jwt = new JwtService();
     service = new AuthService(
       jwt,

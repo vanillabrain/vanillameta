@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **일반 metadata 후속:** [설계](docs/plans/UC-051-metadata-boundaries.md)·[증빙](docs/testing/metadata-boundaries.md)은 소스/지표 save/CAS·확정 정의/refresh 조회를 공통 큐에 연결한다. import/파일 작업·지표 SQL은 큐 밖이며 세션/계정 쓰기·다른 일반 CRUD/조회·Studio 집계 점유 범위·운영/전체 수용은 후속이다.
+
 - **SQLite 교차 작업 후속:** [UC051 설계](docs/plans/UC-051-sqlite-coordination.md)·[증빙](docs/testing/sqlite-coordination.md)은 명시 metadata transaction/기존 큐와 선택 권한·JWT·Studio/게시 조회를 DataSource별로 조정한다. Studio rollback이 다른 성공 쓰기를 지우는 경합을 재현해 보호한다. 같은 작업은 살아 있는 lease에서만 재진입한다. raw Repository 단일 쓰기/그 밖의 조회·운영 경합은 후속이며 전체 NFR/16개 요건 완료가 아니다.
 
 - **UC050 소스 활성 상태:** [설계](docs/plans/UC-050-source-availability.md)·[증빙](docs/testing/source-availability.md)는 활성 소유 admin의 상태 CAS/감사와 일반 SourceAccess/정책·목록/공개 게시의 비활성 차단을 연결한다. 관리 경로는 비활성에도 재활성용으로 유지한다. 원본·grant·분석/게시 행은 보존하며 진행 중 SQL 취소/이미 전달한 데이터 회수·이용 범위/승인·전체 영향·Ego/전체 수용은 별도다.

@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
 import { RefreshToken } from './entites/refresh_token.entity';
 import { hashPassword, verifyPassword } from '../utils/password.util';
+import { serializeMetadataWork } from '../common/metadata-work';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -149,22 +150,28 @@ export class AuthService {
       ) {
         throw new Error('invalid refresh actor');
       }
-      const user = await this.userRepository.findOne({
-        where: { id: actor.id, userId: actor.userId },
-      });
-      if (
-        !user ||
-        user.active === false ||
-        !Number.isSafeInteger(actor.authVersion ?? 0) ||
-        (actor.authVersion ?? 0) !== (user.authVersion ?? 0) ||
-        !Number.isSafeInteger(user.jwtId) ||
-        user.jwtId <= 0
-      ) {
-        throw new Error('missing refresh session');
-      }
-      const stored = await this.refreshTokenRepository.findOne({ where: { id: user.jwtId } });
-      if (!stored || stored.refreshToken !== token) throw new Error('revoked refresh session');
-      decoded.refreshKeyData.jwtId = user.jwtId;
+      const jwtId = await serializeMetadataWork(
+        this.userRepository.manager.connection,
+        async () => {
+          const user = await this.userRepository.findOne({
+            where: { id: actor.id, userId: actor.userId },
+          });
+          if (
+            !user ||
+            user.active === false ||
+            !Number.isSafeInteger(actor.authVersion ?? 0) ||
+            (actor.authVersion ?? 0) !== (user.authVersion ?? 0) ||
+            !Number.isSafeInteger(user.jwtId) ||
+            user.jwtId <= 0
+          ) {
+            throw new Error('missing refresh session');
+          }
+          const stored = await this.refreshTokenRepository.findOne({ where: { id: user.jwtId } });
+          if (!stored || stored.refreshToken !== token) throw new Error('revoked refresh session');
+          return user.jwtId;
+        },
+      );
+      decoded.refreshKeyData.jwtId = jwtId;
       return decoded;
     } catch (err) {
       throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);

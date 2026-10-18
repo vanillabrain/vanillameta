@@ -167,6 +167,24 @@ describe('file version replacement', () => {
     expect(directories()).toHaveLength(2);
     expect([30, 90]).toContain(await sum());
   });
+  it('CAS allows exactly one concurrent restoration and preserves both retained files', async () => {
+    const original = (await service.fileVersions(id, 7)).data;
+    const replaced = (await service.replaceFile(id, file(40), original.revision, 7)).data;
+    const retained = [...(await config()).fileVersions].map(version => version.filename);
+    const body = { expectedRevision: replaced.revision, versionId: original.currentVersionId };
+    const results = await Promise.allSettled([
+      service.restoreFile(id, body, 7),
+      service.restoreFile(id, body, 7),
+    ]);
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.find(result => result.status === 'rejected') as PromiseRejectedResult;
+    expect(rejected.reason).toBeInstanceOf(ConflictException);
+    expect((await service.fileVersions(id, 7)).data.currentVersionId).toBe(
+      original.currentVersionId,
+    );
+    expect(await sum()).toBe(10);
+    for (const filename of retained) expect(fs.existsSync(filename)).toBe(true);
+  });
   it('caps retained versions at five but still permits same-file no-op and restore', async () => {
     for (const n of [20, 30, 40, 50])
       await service.replaceFile(id, file(n), (await service.fileVersions(id, 7)).data.revision, 7);

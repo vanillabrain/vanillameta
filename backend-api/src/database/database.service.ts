@@ -1,3 +1,4 @@
+import { serializeMetadataWork } from '../common/metadata-work';
 import {
   BadRequestException,
   ConflictException,
@@ -76,27 +77,29 @@ export class DatabaseService {
    * @param createDatabaseDto
    */
   async create(createDatabaseDto: CreateDatabaseDto, ownerId?: number) {
-    const databaseDto = Database.toDto(createDatabaseDto);
-    databaseDto.ownerId = ownerId ?? null;
-    const connectionConfig = {
-      client: databaseDto.engine,
-      connection: databaseDto.connectionConfig,
-      useNullAsDefault: true,
-    };
-    if (connectionConfig.client === 'cockroachdb') {
-      const connectioninfo = connectionConfig.connection;
-      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
-      connectioninfo['connectionString'] = cockroach_url;
-    }
+    return serializeMetadataWork(this.databaseRepository.manager.connection, async () => {
+      const databaseDto = Database.toDto(createDatabaseDto);
+      databaseDto.ownerId = ownerId ?? null;
+      const connectionConfig = {
+        client: databaseDto.engine,
+        connection: databaseDto.connectionConfig,
+        useNullAsDefault: true,
+      };
+      if (connectionConfig.client === 'cockroachdb') {
+        const connectioninfo = connectionConfig.connection;
+        const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
+        connectioninfo['connectionString'] = cockroach_url;
+      }
 
-    databaseDto.connectionConfig = encryptConnectionConfig(JSON.stringify(connectionConfig));
-    databaseDto.timezone = 'Asia/Seoul';
+      databaseDto.connectionConfig = encryptConnectionConfig(JSON.stringify(connectionConfig));
+      databaseDto.timezone = 'Asia/Seoul';
 
-    const saveResult = await this.databaseRepository.save(databaseDto);
-    saveResult.connectionConfig = this.publicConnectionConfig(
-      JSON.parse(decryptConnectionConfig(saveResult.connectionConfig)),
-    );
-    return { status: ResponseStatus.SUCCESS, data: saveResult };
+      const saveResult = await this.databaseRepository.save(databaseDto);
+      saveResult.connectionConfig = this.publicConnectionConfig(
+        JSON.parse(decryptConnectionConfig(saveResult.connectionConfig)),
+      );
+      return { status: ResponseStatus.SUCCESS, data: saveResult };
+    });
   }
 
   /** Preserve raw files and import analytical data in the worker, leaving metadata in TypeORM. */
@@ -128,7 +131,9 @@ export class DatabaseService {
           ],
         }),
       );
-      saved = await this.databaseRepository.save(database);
+      saved = await serializeMetadataWork(this.databaseRepository.manager.connection, () =>
+        this.databaseRepository.save(database),
+      );
     } catch (error) {
       await this.duckdbService
         .discardImport(imported.filename)
@@ -149,7 +154,9 @@ export class DatabaseService {
 
   private async fileState(id: number, ownerId: number) {
     id = this.validateId(id);
-    const row = await this.databaseRepository.findOne({ where: { id } });
+    const row = await serializeMetadataWork(this.databaseRepository.manager.connection, () =>
+      this.databaseRepository.findOne({ where: { id } }),
+    );
     if (!row) throw new NotFoundException('데이터 소스를 찾을 수 없습니다.');
     if (row.ownerId !== ownerId || !Number.isSafeInteger(ownerId) || ownerId <= 0)
       throw new ForbiddenException('다른 사용자의 파일은 변경할 수 없습니다.');
@@ -215,28 +222,32 @@ export class DatabaseService {
   }
 
   private async switchFile(state: any, version: any, versions: any[]) {
-    const config = {
-      ...state.config,
-      connection: { ...state.config.connection, filename: version.filename },
-      fileVersions: versions,
-    };
-    const connectionConfig = encryptConnectionConfig(JSON.stringify(config));
-    const updated = await this.databaseRepository.update(
-      {
-        id: state.row.id,
-        ownerId: state.row.ownerId,
-        connectionConfig: state.row.connectionConfig,
-      },
-      { connectionConfig },
-    );
-    if (updated.affected !== 1)
-      throw new ConflictException('파일이 동시에 변경되었습니다. 최신 버전을 다시 불러와 주세요.');
-    // Return the state this request committed; a later request may already have switched again.
-    return this.publicVersions({
-      ...state,
-      config,
-      versions,
-      revision: createHash('sha256').update(connectionConfig).digest('hex'),
+    return serializeMetadataWork(this.databaseRepository.manager.connection, async () => {
+      const config = {
+        ...state.config,
+        connection: { ...state.config.connection, filename: version.filename },
+        fileVersions: versions,
+      };
+      const connectionConfig = encryptConnectionConfig(JSON.stringify(config));
+      const updated = await this.databaseRepository.update(
+        {
+          id: state.row.id,
+          ownerId: state.row.ownerId,
+          connectionConfig: state.row.connectionConfig,
+        },
+        { connectionConfig },
+      );
+      if (updated.affected !== 1)
+        throw new ConflictException(
+          '파일이 동시에 변경되었습니다. 최신 버전을 다시 불러와 주세요.',
+        );
+      // Return the state this request committed; a later request may already have switched again.
+      return this.publicVersions({
+        ...state,
+        config,
+        versions,
+        revision: createHash('sha256').update(connectionConfig).digest('hex'),
+      });
     });
   }
 
@@ -312,7 +323,9 @@ export class DatabaseService {
    * database 목록 조회
    */
   async findAll() {
-    const result = await this.databaseRepository.find();
+    const result = await serializeMetadataWork(this.databaseRepository.manager.connection, () =>
+      this.databaseRepository.find(),
+    );
     const alive: Database[] = [];
     result.forEach(db => {
       try {
@@ -340,7 +353,10 @@ export class DatabaseService {
   async findOne(id: number): Promise<any> {
     id = this.validateId(id);
     // 연동 db 정보
-    const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
+    const databaseInfo = await serializeMetadataWork(
+      this.databaseRepository.manager.connection,
+      () => this.databaseRepository.findOne({ where: { id } }),
+    );
     if (!databaseInfo) throw new NotFoundException('database not found');
     let connection: any;
     try {
@@ -433,7 +449,10 @@ export class DatabaseService {
   async findOneInfo(id: number): Promise<any> {
     id = this.validateId(id);
     // 연동 db 정보
-    const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
+    const databaseInfo = await serializeMetadataWork(
+      this.databaseRepository.manager.connection,
+      () => this.databaseRepository.findOne({ where: { id } }),
+    );
     if (!databaseInfo) throw new NotFoundException('database not found');
     let connection: any;
     try {
@@ -455,7 +474,10 @@ export class DatabaseService {
   private async findDB(id: number) {
     id = this.validateId(id);
     // 연동 db 정보
-    const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
+    const databaseInfo = await serializeMetadataWork(
+      this.databaseRepository.manager.connection,
+      () => this.databaseRepository.findOne({ where: { id } }),
+    );
     if (!databaseInfo) return null;
     databaseInfo.connectionConfig = JSON.parse(
       decryptConnectionConfig(databaseInfo.connectionConfig),
@@ -464,39 +486,48 @@ export class DatabaseService {
   }
 
   async update(id: number, updateDatabaseDto: UpdateDatabaseDto) {
-    id = this.validateId(id);
-    const one = await this.findDB(id);
-    if (!one)
-      return {
-        status: ResponseStatus.ERROR,
-        message: `조건에 맞는 데이터베이스를 찾지 못했습니다. id:${id}`,
-      };
+    const saveResult = await serializeMetadataWork(
+      this.databaseRepository.manager.connection,
+      async () => {
+        id = this.validateId(id);
+        const one = await this.findDB(id);
+        if (!one)
+          return {
+            status: ResponseStatus.ERROR,
+            message: `조건에 맞는 데이터베이스를 찾지 못했습니다. id:${id}`,
+          };
 
-    if (updateDatabaseDto.engine === 'cockroachdb') {
-      const connectioninfo = updateDatabaseDto.connectionConfig;
-      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
-      connectioninfo['connectionString'] = cockroach_url;
-    }
+        if (updateDatabaseDto.engine === 'cockroachdb') {
+          const connectioninfo = updateDatabaseDto.connectionConfig;
+          const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
+          connectioninfo['connectionString'] = cockroach_url;
+        }
 
-    const connectionConfig = {
-      client: one.engine,
-      connection: updateDatabaseDto.connectionConfig,
-      useNullAsDefault: true,
-    };
-    updateDatabaseDto.connectionConfig = encryptConnectionConfig(JSON.stringify(connectionConfig));
+        const connectionConfig = {
+          client: one.engine,
+          connection: updateDatabaseDto.connectionConfig,
+          useNullAsDefault: true,
+        };
+        updateDatabaseDto.connectionConfig = encryptConnectionConfig(
+          JSON.stringify(connectionConfig),
+        );
 
-    // const connectionConfig = {
-    //   client: one.engine,
-    //   connection: Object(one.connectionConfig).connection,
-    //   useNullAsDefault: true,
-    // };
-    // updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
+        // const connectionConfig = {
+        //   client: one.engine,
+        //   connection: Object(one.connectionConfig).connection,
+        //   useNullAsDefault: true,
+        // };
+        // updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
 
-    const saveResult = await this.databaseRepository.update(
-      { id },
-      { name: updateDatabaseDto.name, connectionConfig: updateDatabaseDto.connectionConfig },
+        const saveResult = await this.databaseRepository.update(
+          { id },
+          { name: updateDatabaseDto.name, connectionConfig: updateDatabaseDto.connectionConfig },
+        );
+
+        return saveResult;
+      },
     );
-
+    if ('status' in saveResult) return saveResult;
     if (saveResult.affected === 1) {
       await this.connectionService.removeKnex(id);
       return { status: ResponseStatus.SUCCESS, data: { message: `${id} 수정 완료` } };
@@ -506,27 +537,36 @@ export class DatabaseService {
   }
 
   async remove(id: number) {
-    id = this.validateId(id);
-    const one = await this.findDB(id);
-    if (!one)
+    const deleted = await serializeMetadataWork(
+      this.databaseRepository.manager.connection,
+      async () => {
+        id = this.validateId(id);
+        const one = await this.findDB(id);
+        if (!one) return null;
+
+        // 연관된 widget 제거
+        const deletedWidget = await this.datasetRepository.query(
+          `delete from widget
+where ((datasetType = 'DATASET' and datasetId in (select id from dataset where databaseId = ?)) or
+       (datasetType = 'TABLE' and datasetId in (select id from table_query where databaseId = ?)))`,
+          [id, id],
+        );
+        // table query 삭제
+        await this.tableQueryRepository.delete({ databaseId: id });
+        // dataset 삭제
+        const deletedDataset = await this.datasetRepository.delete({ databaseId: id });
+        // database 삭제
+        await this.databaseRepository.remove(one);
+
+        return { one, deletedWidget, deletedDataset };
+      },
+    );
+    if (!deleted)
       return {
         status: ResponseStatus.ERROR,
         message: `조건에 맞는 데이터베이스를 찾지 못했습니다. id:${id}`,
       };
-
-    // 연관된 widget 제거
-    const deletedWidget = await this.datasetRepository.query(
-      `delete from widget
-where ((datasetType = 'DATASET' and datasetId in (select id from dataset where databaseId = ?)) or
-       (datasetType = 'TABLE' and datasetId in (select id from table_query where databaseId = ?)))`,
-      [id, id],
-    );
-    // table query 삭제
-    await this.tableQueryRepository.delete({ databaseId: id });
-    // dataset 삭제
-    const deletedDataset = await this.datasetRepository.delete({ databaseId: id });
-    // database 삭제
-    await this.databaseRepository.remove(one);
+    const { one, deletedWidget, deletedDataset } = deleted;
     await this.connectionService.removeKnex(id);
     if (one.engine === 'duckdb') {
       const files = new Set<string>([
@@ -586,7 +626,10 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
         queryExecuteDto.query = datasetItem.query;
       } else {
         assertSafeIdentifier(tableName);
-        const databaseOne = await this.databaseRepository.findOne({ where: { id: databaseId } });
+        const databaseOne = await serializeMetadataWork(
+          this.databaseRepository.manager.connection,
+          () => this.databaseRepository.findOne({ where: { id: databaseId } }),
+        );
         let selectQuery;
         switch (databaseOne.type) {
           case 'bigquery':

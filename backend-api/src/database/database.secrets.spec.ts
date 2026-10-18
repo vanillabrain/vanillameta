@@ -27,6 +27,7 @@ describe('DatabaseService public connection responses', () => {
     };
     service = new DatabaseService(
       {
+        manager: { connection: { options: { type: 'sqlite' } } },
         find: jest.fn(async () => [{ ...stored }]),
         findOne: jest.fn(async () => ({ ...stored })),
         save: jest.fn(async entity => {

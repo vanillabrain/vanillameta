@@ -11,7 +11,12 @@ jest.mock('knex', () => {
 });
 
 describe('connection identity, pools and stored-config cache regressions', () => {
-  const repository = { findOne: jest.fn(), update: jest.fn(), remove: jest.fn() };
+  const repository = {
+    manager: { connection: { options: { type: 'sqlite' } } },
+    findOne: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
+  };
   const gateway = { emitTo: jest.fn() };
   let connection: ConnectionService;
   let database: DatabaseService;

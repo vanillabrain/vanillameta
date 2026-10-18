@@ -11,7 +11,10 @@ describe('DatabaseService uploadFile (DuckDB worker)', () => {
   let service: DatabaseService;
   let duckdb: DuckDBService;
   let savedEntity: any;
-  const repo = { save: jest.fn() };
+  const repo = {
+    manager: { connection: { options: { type: 'sqlite' } } },
+    save: jest.fn(),
+  };
   const previousEnv = {
     CONFIG_SECRET_KEY: process.env.CONFIG_SECRET_KEY,
     FILE_UPLOAD_DIR: process.env.FILE_UPLOAD_DIR,

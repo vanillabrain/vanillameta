@@ -10,16 +10,29 @@ import { LoginController } from '../login/login.controller';
 const unitActor = { id: 7, userId: 'unitactor', email: 'unit@example.invalid', jwtId: 31 };
 
 describe('persisted refresh sessions and cookie extraction', () => {
-  let users: Pick<jest.Mocked<Repository<User>>, 'findOne' | 'update'>;
-  let refresh: Pick<jest.Mocked<Repository<RefreshToken>>, 'findOne' | 'save'>;
+  let users: Pick<jest.Mocked<Repository<User>>, 'findOne' | 'update'> & {
+    manager: { connection: unknown };
+  };
+  let refresh: Pick<jest.Mocked<Repository<RefreshToken>>, 'findOne' | 'save'> & {
+    manager: { connection: unknown };
+  };
   let service: AuthService;
   let raw: string;
   const environment = { ...process.env };
 
   beforeEach(async () => {
     process.env.REFRESH_SECRET = 'unit-only-session-key';
-    users = { findOne: jest.fn(), update: jest.fn().mockResolvedValue({ affected: 1 }) };
-    refresh = { findOne: jest.fn(), save: jest.fn() };
+    const metadataConnection = { options: { type: 'mysql' } };
+    users = {
+      findOne: jest.fn(),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+      manager: { connection: metadataConnection },
+    };
+    refresh = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+      manager: { connection: metadataConnection },
+    };
     service = new AuthService(
       new JwtService(),
       users as unknown as Repository<User>,
