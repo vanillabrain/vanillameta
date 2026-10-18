@@ -74,3 +74,7 @@
 ### UC050 Generated Preview Basis Follow-up
 
 [계산 기준 표시 검증](../testing/studio-metric-basis.md)은 공통 선택기 회귀와 고정 생성안의 저장ID/버전·ratio/weighted 필드·누락 안내·SQL 미표시·details 기본접힘/명시 펼침·숫자/차트/입력 불변을 선택 검증한다. 새 수치 실행/현재 스키마 검증·실제 Ego/모바일·전체 TC050 NOT_RUN을 대체하지 않는다.
+
+### UC050 Saved Analysis Basis Follow-up
+
+[저장본 기준 검증](../testing/studio-saved-metric-basis.md)은 snapshot 연결/whitelist·입력불변/실제 Studio GET, 선택기/Inspector 참조 대조/새 요청·편집0·형식검증/backward 호환을 선택 검증한다. 현재 지표 변경 후에도 저장 버전 기준을 유지하며 기존409 경계는 그대로다. 실제 Ego/모바일·공식 승인/전체 TC050 NOT_RUN을 대신하지 않는다.

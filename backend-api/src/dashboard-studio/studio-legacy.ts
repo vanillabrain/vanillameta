@@ -86,20 +86,61 @@ export function importStudio(
     layouts: { lg, md: derive(8), xs: derive(1) },
   });
 }
-export function studioDefinitions(document: StudioDocumentV1, analysis: any) {
+function metricBasis(
+  document: StudioDocumentV1,
+  block: StudioBlock,
+  widget: any,
+  index: number,
+  snapshot: any,
+  analysis: any,
+) {
+  const item = metricLinkItems(snapshot, analysis)[index];
+  const ref = block.measureRefs[0];
+  if (
+    !item ||
+    widget?.blockId !== block.id ||
+    (item.key !== undefined && item.key !== block.id) ||
+    document.sourceId !== analysis.databaseId ||
+    block.measureRefs.length !== 1 ||
+    ref.id !== item.metricId ||
+    ref.definitionVersion !== String(item.definitionVersion) ||
+    !linkedMetricIndices(snapshot, analysis, ref.id).includes(index)
+  )
+    return undefined;
+  const definition = Object.fromEntries(
+    ['aggregation', 'column', 'denominatorColumn', 'weightColumn', 'scale', 'unit']
+      .filter(key =>
+        key === 'scale'
+          ? typeof item.definition[key] === 'number' && Number.isFinite(item.definition[key])
+          : typeof item.definition[key] === 'string',
+      )
+      .map(key => [key, item.definition[key]]),
+  );
+  return {
+    sourceId: document.sourceId,
+    metricId: ref.id,
+    definitionVersion: ref.definitionVersion,
+    definition,
+  };
+}
+export function studioDefinitions(document: StudioDocumentV1, analysis: any, snapshot?: any) {
   return {
     dashboardId: document.dashboardId,
     sourceId: document.sourceId,
     revision: document.revision,
     explanation: analysis.explanation,
     entries: Object.fromEntries(
-      document.blocks.map((b, i) => [
-        b.definitionKey,
-        {
-          widget: analysis.widgets[i],
-          ...(analysis.layoutSizes ? { layoutSize: analysis.layoutSizes[i] } : {}),
-        },
-      ]),
+      document.blocks.map((b, i) => {
+        const basis = metricBasis(document, b, analysis.widgets[i], i, snapshot, analysis);
+        return [
+          b.definitionKey,
+          {
+            widget: analysis.widgets[i],
+            ...(basis ? { metricBasis: basis } : {}),
+            ...(analysis.layoutSizes ? { layoutSize: analysis.layoutSizes[i] } : {}),
+          },
+        ];
+      }),
     ),
   };
 }

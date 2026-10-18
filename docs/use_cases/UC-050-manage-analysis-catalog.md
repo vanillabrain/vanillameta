@@ -88,3 +88,7 @@
 ### Generated Preview Basis Follow-up
 
 [생성 미리보기 기준 확인](../testing/studio-metric-basis.md)은 고정 생성안의 지표 정의를 선택기와 공통 표현으로 보여준다. 저장 ID/버전·집계/열 요약은 유지하고 접힌 기준에 분모/가중치/배율/단위를 제공한다. 누락 필드는 미확인/미지정이며 배율1을 추측하지 않는다. 현재 지표 재조회·계산/저장 변경·공식 승인·전체 수용은 포함하지 않는다.
+
+### Saved Analysis Basis Follow-up
+
+[저장 분석 기준](../testing/studio-saved-metric-basis.md)은 기존 권한 보호 Studio GET에서 저장 snapshot과 소스/블록/지표/버전 참조가 일치할 때만 계산 기준 whitelist를 반환한다. Inspector의 접힌 읽기 화면은 저장본 출처ID/버전을 표시하며 현재 지표/미저장 AI 변경을 검증한 것으로 보지 않는다. 미연결/불일치는 추정하지 않으며 전체 UC050 수용은 별도다.

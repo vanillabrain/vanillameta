@@ -1,3 +1,4 @@
+import type { MetricBasisDefinition } from './StudioMetricBasis';
 import { validDraft } from '../dashboardPreview';
 import {
   studioAssert,
@@ -28,12 +29,18 @@ type LegacyWidget = {
   categoryField?: string;
 } & StudioDisplay;
 type LegacySize = { width: 6 | 12; height: 3 | 5 | 7 };
+export type SavedMetricBasis = {
+  sourceId: number;
+  metricId: number;
+  definitionVersion: string;
+  definition: MetricBasisDefinition;
+};
 export type StudioDefinitions = {
   dashboardId: number;
   sourceId: number;
   revision: string;
   explanation: string;
-  entries: Record<string, { widget: LegacyWidget; layoutSize?: LegacySize }>;
+  entries: Record<string, { widget: LegacyWidget; layoutSize?: LegacySize; metricBasis?: SavedMetricBasis }>;
 };
 type Semantics = { measureRefs: StudioMeasureRef[]; dimensionRefs: StudioDimensionRef[] };
 export type StudioImportResult = {

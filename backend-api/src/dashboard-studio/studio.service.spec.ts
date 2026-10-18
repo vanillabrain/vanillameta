@@ -405,7 +405,14 @@ describe('Studio real DuckDB and transactional metadata', () => {
       ],
     };
     await db.manager.update(Dashboard, { id }, { structuredDefinition: JSON.stringify(snapshot) });
-    const doc = (await studio.get(id, 7)).document;
+    const loaded = await studio.get(id, 7);
+    const doc = loaded.document;
+    expect(loaded.definitions.entries[doc.blocks[0].definitionKey].metricBasis).toEqual({
+      sourceId: 1,
+      metricId: metric.id,
+      definitionVersion: '1',
+      definition: { aggregation: 'sum', column: 'amount' },
+    });
     expect(doc.blocks[0].measureRefs).toEqual([{ id: metric.id, definitionVersion: '1' }]);
     const next = applyStudioOperation(doc, {
       type: 'duplicateBlock',
@@ -428,6 +435,15 @@ describe('Studio real DuckDB and transactional metadata', () => {
       Metric,
       { id: metric.id },
       { definition: JSON.stringify({ ...definition, definitionVersion: 2 }) },
+    );
+    const frozen = await studio.get(id, 7);
+    expect(frozen.definitions.entries[frozen.document.blocks[0].definitionKey].metricBasis).toEqual(
+      {
+        sourceId: 1,
+        metricId: metric.id,
+        definitionVersion: '1',
+        definition: { aggregation: 'sum', column: 'amount' },
+      },
     );
     await expect(
       studio.prepare(

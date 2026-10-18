@@ -4,6 +4,7 @@ import { errorMessage, validDraft } from '../dashboardPreview';
 import { StudioDefinitions } from './studioAdapter';
 import {
   studioAssert,
+  studioKeys,
   studioFilterKey,
   studioDateRangeKey,
   studioFilterValueKey,
@@ -232,6 +233,24 @@ export const validateStudioDefinitions = (input: unknown): StudioDefinitions => 
   );
   for (const [key, rawEntry] of Object.entries(definitions.entries)) {
     studioText(key, 128);
+    if (rawEntry.metricBasis !== undefined) {
+      const basis = rawEntry.metricBasis;
+      studioKeys(basis, ['sourceId', 'metricId', 'definitionVersion', 'definition']);
+      studioPositive(basis.metricId);
+      studioAssert(
+        basis.sourceId === definitions.sourceId &&
+          typeof basis.definitionVersion === 'string' &&
+          /^[1-9][0-9]*$/.test(basis.definitionVersion) &&
+          basis.definitionVersion.length <= 128,
+        '저장 지표 기준을 확인해 주세요.',
+      );
+      studioKeys(basis.definition, ['aggregation', 'column', 'denominatorColumn', 'weightColumn', 'scale', 'unit']);
+      for (const [field, value] of Object.entries(basis.definition))
+        studioAssert(
+          field === 'scale' ? typeof value === 'number' && Number.isFinite(value) : typeof value === 'string',
+          '저장 지표 기준 필드가 올바르지 않습니다.',
+        );
+    }
     const widget = (rawEntry as { widget?: Record<string, any> } | undefined)?.widget;
     studioAssert(!!widget && typeof widget === 'object', '정의 위젯을 확인해 주세요.');
     studioAssert(

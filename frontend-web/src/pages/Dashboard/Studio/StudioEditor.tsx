@@ -1428,6 +1428,17 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
           <StudioInspector
             key={selected ? selected.id : 'none'}
             block={selected}
+            sourceId={state.present.sourceId}
+            metricBasis={
+              selected &&
+              selected.kind === definitions.entries[selected.definitionKey]?.widget.type &&
+              !(
+                aiRows.scope === (previewScope?.key ?? '') &&
+                aiRows.rows[selected.id + '|' + (selected.display.timeGrain ?? 'auto')]
+              )
+                ? definitions.entries[selected.definitionKey]?.metricBasis
+                : undefined
+            }
             onOperation={operation}
             canDuplicate={state.present.blocks.length < MAX_STUDIO_BLOCKS}
             onDuplicate={() => {

@@ -91,3 +91,5 @@ flowchart LR
 [StudioMetricPicker](../testing/studio-metric-picker.md)는 StudioCreate의 기존 `/bi/metrics` 응답과 체크 선택을 표시·검색한다. 서버 권한/계산/저장 API는 변경하지 않는다. 소스별 key로 검색 수명을 분리하고 검색/상세보기는 부모 콜백 없이 읽기만 한다. 체크 변경은 기존 proposal 무효화/selectedMetricIds 전달을 유지한다. 표시 상세는 구조화 필드 whitelist이며 SQL·연결정보/원본 행과 공식 승인 상태는 출력하지 않는다.
 
 [StudioMetricBasis](../testing/studio-metric-basis.md)는 선택기와 생성 미리보기의 계산 기준 whitelist/누락 표현을 공유한다. 미리보기는 서버 고정 proposal.semanticProposal[].metric만 사용하며 현재 catalog를 재조회하지 않는다. 구조화 필드 표시와 숫자/차트의 실제 preview 응답·접미사 책임은 분리한다. 원본/저장 요청·SQL/LLM·BE/API/DB 모델은 변경하지 않는다.
+
+[저장 분석 metricBasis](../testing/studio-saved-metric-basis.md)는 권한 보호 Studio GET의 definitions.entries optional 투영이다. 이미 읽은 structured snapshot의 source/key/metric/version과 블록 참조만 대조하고 계산 기준 whitelist를 반환한다. 현재 Metric을 basis용으로 조회하지 않는다. Inspector는 현재 선택/종류·참조에 맞는 저장 entry만 표시하고 활성 AI preview override에는 표시하지 않는다. 편집 문서/초안 보관/저장 요청/SQL/게시에는 새 메타데이터를 추가하지 않는다.

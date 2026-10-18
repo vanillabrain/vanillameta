@@ -128,6 +128,32 @@ afterEach(() => {
 });
 
 describe('studio editor rendering', () => {
+  it('UC050 shows only the selected stored basis without issuing another request or editing the document', async () => {
+    const basis = {
+      sourceId: 4,
+      metricId: 9,
+      definitionVersion: '2',
+      definition: { aggregation: 'SUM', column: 'amount', unit: '원' },
+    };
+    api.get.mockResolvedValue(
+      envelope({
+        document: doc({ blocks: [block('b1', { measureRefs: [{ id: 9, definitionVersion: '2' }] })] }),
+        definitions: { ...definitions, entries: { b1: { ...definitions.entries.b1, metricBasis: basis } } },
+      }),
+    );
+    render(<StudioEditor />);
+    await screen.findByRole('button', { name: '총매출 설정' });
+    fireEvent.click(screen.getByRole('button', { name: '총매출 설정' }));
+    api.get.mockClear();
+    api.post.mockClear();
+    fireEvent.click(screen.getByText('저장 계산 기준 확인'));
+    expect(screen.getByText(/소스 #4 · 지표 #9 · v2/)).toBeTruthy();
+    expect(screen.getByText('amount')).toBeTruthy();
+    expect(saveButton().disabled).toBe(true);
+    expect(api.get).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('gates a reloaded unconfirmed save until explicit same-request confirmation and fresh read', async () => {
     const request = {
       requestId: 'recover-original',

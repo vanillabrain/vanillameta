@@ -95,7 +95,7 @@ export class StudioService {
       dataVersion,
       document,
       items,
-      definitions: studioDefinitions(document, analysis),
+      definitions: studioDefinitions(document, analysis, snapshot),
     };
   }
   async get(id: number, actor: number) {

@@ -796,3 +796,7 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 ## 2026-10-18 UC050 생성안 계산 기준 일치
 
 [증빙](studio-metric-basis.md): 선택기/생성 미리보기의 계산 기준을 공통 표시로 연결했다. 저장ID/버전·집계 요약/숫자/차트는 유지하고 분모/가중치/배율/단위와 누락 안내를 접힌 기준에 표시한다. FE81·type/lint/build 선택 검증이며 현재 지표 재조회/새 계산·저장은 없다. 실제 Ego/3폭·전체 수용은 미완료다.
+
+## 2026-10-18 UC050 저장 분석 지표 기준
+
+[증빙](studio-saved-metric-basis.md): 저장 snapshot의 검증된 연결에서 source/metric/version과 계산 필드를 읽고 Inspector 접힌 상세로 제공한다. 현재 지표와 섞지 않으며 선택/참조 불일치와 AI override에서는 표시하지 않는다. BE28/FE97·type/lint/build 선택 검증이며 실제 Ego/3폭·전체 수용은 미완료다.
