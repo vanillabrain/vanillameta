@@ -1,3 +1,4 @@
+import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -64,6 +65,7 @@ describe('Enterprise protected HTTP lifecycle', () => {
         EnterpriseGroupMember,
         EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
+        EnterpriseGroupDelivery,
         Database,
         Dashboard,
         UserMapping,

@@ -1,3 +1,5 @@
+import { currentGroupDeliveries } from '../enterprise/group-delivery-query';
+import { EnterpriseGroup } from '../enterprise/entities/enterprise-group.entity';
 import {
   BadRequestException,
   ConflictException,
@@ -11,6 +13,8 @@ import { UserMapping } from '../user/entities/user-mapping.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { StudioService } from './studio.service';
 
+const GROUP_REFERENCE =
+  /^g-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([a-f0-9]{64})$/;
 const REFERENCE = /^d-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([a-f0-9]{64})$/;
 @Injectable()
 export class StudioReceivedRemixService {
@@ -33,14 +37,22 @@ export class StudioReceivedRemixService {
       active: true,
       allowCopy: true,
     });
-    if (!row) throw new ForbiddenException('소유자가 허용한 받은 자료만 복제할 수 있습니다.');
-    return row;
+    if (row) return { ...row, groupId: 0, groupVersion: 0 };
+    const grouped = await currentGroupDeliveries(manager, actor)
+      .andWhere('gd.dashboardId = :id AND gd.allowCopy = :copy', { id, copy: true })
+      .orderBy('gd.groupId', 'ASC')
+      .getOne();
+    if (!grouped) throw new ForbiddenException('소유자가 허용한 받은 자료만 복제할 수 있습니다.');
+    const group = await manager.findOneByOrFail(EnterpriseGroup, { id: grouped.groupId });
+    return { ...grouped, groupVersion: group.version };
   }
   private async capture(id: number, actor: number, manager: EntityManager) {
     const row = await this.context(id, actor, manager);
     const captured = await this.studio.captureRemix(id, actor, manager);
     const latest = await this.context(id, actor, manager);
     if (
+      latest.groupId !== row.groupId ||
+      latest.groupVersion !== row.groupVersion ||
       latest.version !== row.version ||
       latest.ownerId !== row.ownerId ||
       latest.organizationId !== row.organizationId
@@ -52,7 +64,9 @@ export class StudioReceivedRemixService {
     return this.studio.serializeWrite(async () => {
       const { row, fingerprint } = await this.capture(id, actor, this.db.manager);
       return {
-        reference: `d-${row.organizationId}-${row.ownerId}-${id}-${row.version}-${fingerprint}`,
+        reference: row.groupId
+          ? `g-${row.organizationId}-${row.ownerId}-${id}-${row.version}-${row.groupId}-${row.groupVersion}-${fingerprint}`
+          : `d-${row.organizationId}-${row.ownerId}-${id}-${row.version}-${fingerprint}`,
       };
     });
   }
@@ -62,12 +76,20 @@ export class StudioReceivedRemixService {
     expectedVersion?: number,
     manager = this.db.manager,
   ) => {
-    const parsed = typeof reference === 'string' && REFERENCE.exec(reference);
+    const grouped = typeof reference === 'string' && GROUP_REFERENCE.exec(reference);
+    const parsed = grouped || (typeof reference === 'string' && REFERENCE.exec(reference));
     if (!parsed || parsed.slice(1, 5).some(value => !Number.isSafeInteger(Number(value))))
       throw new BadRequestException('받은 자료 복제 기준을 확인해 주세요.');
-    const [, org, owner, id, version, fingerprint] = parsed;
+    const [, org, owner, id, version] = parsed;
+    const fingerprint = parsed[grouped ? 7 : 5];
+    if (grouped && parsed.slice(5, 7).some(value => !Number.isSafeInteger(Number(value))))
+      throw new BadRequestException('그룹 복제 기준을 확인해 주세요.');
     const current = await this.capture(Number(id), actor, manager);
     if (
+      (grouped
+        ? current.row.groupId !== Number(parsed[5]) ||
+          current.row.groupVersion !== Number(parsed[6])
+        : current.row.groupId !== 0) ||
       current.row.organizationId !== Number(org) ||
       current.row.ownerId !== Number(owner) ||
       current.row.version !== Number(version) ||

@@ -1,3 +1,4 @@
+import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -90,6 +91,7 @@ describe('UC-051 dashboard resource access', () => {
         EnterpriseGroupMember,
         EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
+        EnterpriseGroupDelivery,
         StudioPublication,
         StudioPublicationRequest,
       ],

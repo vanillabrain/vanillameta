@@ -1,3 +1,6 @@
+import { EnterpriseGroupDeliveryService } from './group-delivery.service';
+import { AddGroupDeliveries1792490000000 } from '../migrations/1792490000000-add-group-deliveries';
+import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -43,6 +46,7 @@ const entities = [
   EnterpriseGroupGrant,
   EnterpriseNotificationState,
   EnterpriseDashboardDelivery,
+  EnterpriseGroupDelivery,
   EnterpriseDeliveryReceipt,
 ];
 const rights = (read = false, edit = false) => ({ read, edit, publish: false, export: false });
@@ -72,6 +76,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     for (const entity of [
       EnterpriseDeliveryReceipt,
       EnterpriseDashboardDelivery,
+      EnterpriseGroupDelivery,
       EnterpriseNotificationState,
       EnterpriseAuditEvent,
       EnterpriseResourceGrant,
@@ -119,6 +124,194 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     await db.getRepository(UserMapping).save({ dashboardId: 20, userInfoId: 1 });
     for (const recipientId of [2, 3])
       await policy.set('source', 10, 1, { recipientId, expectedVersion: 0, rights: rights(true) });
+  });
+  const groupShare = (
+    groupId = 80,
+    expectedVersion = 0,
+    active = true,
+    allowCopy = false,
+    expectedGroupVersion = 1,
+  ) => ({
+    requestId: randomUUID(),
+    groupId,
+    expectedVersion,
+    active,
+    allowCopy,
+    expectedGroupVersion,
+  });
+  async function seedGroup() {
+    await db.manager.insert(EnterpriseGroup, {
+      id: 80,
+      organizationId: 1,
+      name: 'Synthetic group',
+      nameKey: 'synthetic group',
+      active: true,
+      version: 1,
+    });
+    await db.manager.insert(EnterpriseGroupMember, { groupId: 80, userId: 2 });
+    return new EnterpriseGroupDeliveryService(db, policy, access);
+  }
+  it('dynamically delivers to current and future members, deduplicates received rows and preserves independent rights', async () => {
+    const grouped = await seedGroup();
+    const request = groupShare(80, 0, true, true);
+    const before = await db.manager.find(Dashboard);
+    await grouped.set(20, 1, request);
+    expect((await service.received(2)).entries).toEqual([
+      { dashboardId: 20, title: 'Synthetic analysis', version: 1, allowCopy: true },
+    ]);
+    expect((await service.received(3)).entries).toEqual([]);
+    await db.manager.insert(EnterpriseGroupMember, { groupId: 80, userId: 3 });
+    await access.dashboard(20, 3, 'read');
+    expect(await policy.dashboardIds(3)).toEqual([20]);
+    for (const action of ['edit', 'publish', 'export'] as const)
+      await expect(access.dashboard(20, 3, action)).rejects.toMatchObject({ status: 403 });
+    await service.set(20, 1, input([2]));
+    expect((await service.received(2)).entries).toHaveLength(1);
+    await db.manager.delete(EnterpriseGroupMember, { groupId: 80, userId: 2 });
+    expect((await service.received(2)).entries[0].allowCopy).toBe(false);
+    await access.dashboard(20, 2, 'read');
+    await grouped.set(20, 1, groupShare(80, 1, false));
+    await expect(access.dashboard(20, 3, 'read')).rejects.toMatchObject({ status: 403 });
+    await expect(policy.assert('dashboard', 20, 3, 'read')).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.find(Dashboard)).toEqual(before);
+    expect((await grouped.set(20, 1, request)).replayed).toBe(true);
+    await expect(access.dashboard(20, 3, 'read')).rejects.toMatchObject({ status: 403 });
+    expect(
+      (await new EnterpriseNotificationService(db).list(3)).entries.every(
+        e => e.eventType === 'permissions',
+      ),
+    ).toBe(true);
+  });
+  it('keeps group sharing independent of source read, current owner/org/active and rolls back stale writes', async () => {
+    const grouped = await seedGroup();
+    await policy.set('source', 10, 1, {
+      recipientId: 2,
+      expectedVersion: 1,
+      rights: rights(false),
+    });
+    await grouped.set(20, 1, groupShare());
+    expect((await service.received(2)).entries).toEqual([]);
+    await expect(access.dashboard(20, 2, 'read')).rejects.toMatchObject({ status: 403 });
+    await policy.set('source', 10, 1, { recipientId: 2, expectedVersion: 2, rights: rights(true) });
+    await access.dashboard(20, 2, 'read');
+    const auditCount = await db.manager.count(EnterpriseAuditEvent);
+    await expect(grouped.set(20, 1, groupShare(80, 1, false, false, 2))).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(grouped.set(20, 1, groupShare(80, 0, false))).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(await db.manager.count(EnterpriseAuditEvent)).toBe(auditCount);
+    await db.manager.update(EnterpriseGroup, { id: 80 }, { active: false });
+    expect(await policy.dashboardIds(2)).toEqual([]);
+    await expect(access.dashboard(20, 2, 'read')).rejects.toMatchObject({ status: 403 });
+    await grouped.set(20, 1, groupShare(80, 1, false));
+    await expect(grouped.set(20, 1, groupShare(80, 2))).rejects.toMatchObject({ status: 403 });
+    await db.manager.update(EnterpriseGroup, { id: 80 }, { active: true });
+    await grouped.set(20, 1, groupShare(80, 2));
+    for (const [entity, where, patch, restore] of [
+      [User, { id: 2 }, { active: false }, { active: true }],
+      [EnterpriseMembership, { userId: 2 }, { organizationId: 2 }, { organizationId: 1 }],
+      [User, { id: 1 }, { active: false }, { active: true }],
+      [EnterpriseMembership, { userId: 1 }, { organizationId: 2 }, { organizationId: 1 }],
+    ] as any[]) {
+      await db.manager.update(entity, where, patch);
+      await expect(access.dashboard(20, 2, 'read')).rejects.toMatchObject({ status: 403 });
+      await db.manager.update(entity, where, restore);
+    }
+    await db.manager.update(UserMapping, { dashboardId: 20 }, { userInfoId: 3 });
+    await expect(access.dashboard(20, 2, 'read')).rejects.toMatchObject({ status: 403 });
+  });
+  it('binds receipt to group domain and rolls back relation/audit on receipt failure', async () => {
+    const grouped = await seedGroup(),
+      body = groupShare();
+    await db.query(
+      "CREATE TRIGGER reject_group_receipt BEFORE INSERT ON enterprise_delivery_receipt BEGIN SELECT RAISE(ABORT, 'receipt failure'); END",
+    );
+    try {
+      await expect(grouped.set(20, 1, body)).rejects.toThrow('receipt failure');
+    } finally {
+      await db.query('DROP TRIGGER reject_group_receipt');
+    }
+    expect(await db.manager.count(EnterpriseGroupDelivery)).toBe(0);
+    expect(
+      await db.manager.count(EnterpriseAuditEvent, { where: { action: 'dashboard.group-shared' } }),
+    ).toBe(0);
+    await grouped.set(20, 1, body);
+    await expect(grouped.set(20, 1, { ...body, allowCopy: true })).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(
+      service.set(20, 1, { ...input(), requestId: body.requestId }),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(grouped.set(20, 2, groupShare())).rejects.toMatchObject({ status: 403 });
+    await db.manager.update(EnterpriseGroup, { id: 80 }, { organizationId: 2 });
+    await expect(grouped.set(20, 1, groupShare(80, 1, false))).rejects.toMatchObject({
+      status: 403,
+    });
+    expect((await service.received(2)).entries).toEqual([]);
+  });
+  it('paginates unique group dashboard candidates even when hidden sources and overlapping groups fill a page', async () => {
+    await seedGroup();
+    await db.manager.insert(EnterpriseGroup, {
+      id: 81,
+      organizationId: 1,
+      name: 'Overlap',
+      nameKey: 'overlap',
+      active: true,
+      version: 1,
+    });
+    await db.manager.insert(EnterpriseGroupMember, { groupId: 81, userId: 2 });
+    await db.manager.save(Database, {
+      id: 11,
+      ownerId: 1,
+      name: 'Other source',
+      engine: 'duckdb',
+      type: 'duckdb',
+      connectionConfig: '{}',
+    });
+    for (let dashboardId = 30; dashboardId < 52; dashboardId++) {
+      await db.manager.save(Dashboard, {
+        id: dashboardId,
+        title: 'Group analysis ' + dashboardId,
+        analysisDefinition: JSON.stringify({ databaseId: dashboardId < 50 ? 11 : 10 }),
+        delYn: 'N',
+      });
+      await db.manager.save(UserMapping, { dashboardId, userInfoId: 1 });
+      for (const groupId of [80, 81])
+        await db.manager.insert(EnterpriseGroupDelivery, {
+          ownerId: 1,
+          organizationId: 1,
+          dashboardId,
+          groupId,
+          active: true,
+          allowCopy: groupId === 81,
+          version: 1,
+        });
+    }
+    const first = await service.received(2);
+    expect(first).toEqual({ entries: [], nextAfterId: 49 });
+    const next = await service.received(2, first.nextAfterId);
+    expect(next.nextAfterId).toBeNull();
+    expect(next.entries.map(row => row.dashboardId)).toEqual([50, 51]);
+    expect(next.entries.every(row => row.allowCopy)).toBe(true);
+  });
+  it('creates additive group delivery schema repeatedly without changing direct delivery', async () => {
+    const runner = db.createQueryRunner(),
+      migration = new AddGroupDeliveries1792490000000();
+    await runner.dropTable('enterprise_group_delivery');
+    await migration.up(runner);
+    await migration.up(runner);
+    const table = await runner.getTable('enterprise_group_delivery');
+    expect(table.primaryColumns.map(c => c.name)).toEqual([
+      'ownerId',
+      'organizationId',
+      'dashboardId',
+      'groupId',
+    ]);
+    expect(table.findColumnByName('allowCopy').default).toBe('false');
+    await expect(migration.down()).rejects.toThrow('backup');
+    await runner.release();
   });
   it('adds only read, appears in discovery and emits own share/revoke notifications without changing the source grant', async () => {
     const sourceBefore = await db.getRepository(EnterpriseResourceGrant).find();
@@ -402,6 +595,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
       controllers: [EnterpriseDeliveryController],
       providers: [
         EnterpriseDeliveryService,
+        EnterpriseGroupDeliveryService,
         { provide: DataSource, useValue: db },
         { provide: EnterpriseResourcePolicyService, useValue: policy },
         { provide: SourceAccessService, useValue: access },
@@ -457,6 +651,34 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
         dashboardId: 20,
         entries: [{ recipientId: 2, version: 1, active: true, allowCopy: false }],
       });
+      await seedGroup();
+      await request(app.getHttpServer())
+        .post('/enterprise/deliveries/dashboard/20/groups')
+        .send(groupShare())
+        .expect(401);
+      await request(app.getHttpServer())
+        .post('/enterprise/deliveries/dashboard/20/groups')
+        .set('Authorization', `Bearer ${token(2)}`)
+        .send(groupShare())
+        .expect(403);
+      await request(app.getHttpServer())
+        .post('/enterprise/deliveries/dashboard/20/groups')
+        .set('Authorization', `Bearer ${token(1)}`)
+        .send(groupShare(80, 0, true, true))
+        .expect(201);
+      await db.manager.insert(EnterpriseGroupMember, { groupId: 80, userId: 3 });
+      const sameToken = token(3);
+      const beforeGroupRemoval = await request(app.getHttpServer())
+        .get('/enterprise/deliveries/dashboard/received')
+        .set('Authorization', `Bearer ${sameToken}`)
+        .expect(200);
+      expect(beforeGroupRemoval.body.entries[0].allowCopy).toBe(true);
+      await db.manager.delete(EnterpriseGroupMember, { groupId: 80, userId: 3 });
+      const afterGroupRemoval = await request(app.getHttpServer())
+        .get('/enterprise/deliveries/dashboard/received')
+        .set('Authorization', `Bearer ${sameToken}`)
+        .expect(200);
+      expect(afterGroupRemoval.body.entries).toEqual([]);
       await request(app.getHttpServer())
         .get('/enterprise/deliveries/dashboard/1.5')
         .set('Authorization', `Bearer ${token(1)}`)

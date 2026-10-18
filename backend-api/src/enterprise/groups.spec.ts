@@ -1,3 +1,4 @@
+import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
 import { randomUUID } from 'crypto';
 import { DataSource } from 'typeorm';
 import { Test } from '@nestjs/testing';
@@ -41,6 +42,7 @@ const entities = [
   EnterpriseAuditEvent,
   EnterpriseResourceGrant,
   EnterpriseDashboardDelivery,
+  EnterpriseGroupDelivery,
   EnterpriseNotificationState,
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -79,6 +81,7 @@ describe('Dynamic organization groups and additive resource authorization', () =
       EnterpriseGroup,
       EnterpriseResourceGrant,
       EnterpriseDashboardDelivery,
+      EnterpriseGroupDelivery,
       EnterpriseNotificationState,
       EnterpriseAuditEvent,
       DashboardWidget,

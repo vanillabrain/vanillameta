@@ -1,3 +1,4 @@
+import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -43,6 +44,7 @@ describe('NFR005 reads committed authentication and availability', () => {
         EnterpriseGroupMember,
         EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
+        EnterpriseGroupDelivery,
         EnterpriseAuditEvent,
       ],
     }).initialize();

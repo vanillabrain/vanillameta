@@ -99,7 +99,8 @@ export type RemixPreview = RemixRequirements & {
 };
 const config = { timeout: 180000, headers: { 'Cache-Control': 'no-cache' } };
 const tokenPath = (token: string) => {
-  if (/^d-(?:[1-9][0-9]*-){4}[a-f0-9]{64}$/.test(token)) return '/studio/received/' + encodeURIComponent(token);
+  if (/^(?:d-(?:[1-9][0-9]*-){4}|g-(?:[1-9][0-9]*-){6})[a-f0-9]{64}$/.test(token))
+    return '/studio/received/' + encodeURIComponent(token);
   studioAssert(/^[a-f0-9]{64}$/.test(token), '복제 링크를 확인해 주세요.');
   return '/studio/publications/' + encodeURIComponent(token);
 };

@@ -1,3 +1,4 @@
+import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -87,6 +88,7 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
         EnterpriseGroupMember,
         EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
+        EnterpriseGroupDelivery,
         Database,
         Dashboard,
         Widget,

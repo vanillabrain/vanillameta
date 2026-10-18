@@ -1,3 +1,4 @@
+import { currentGroupDeliveries } from './group-delivery-query';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import {
@@ -128,13 +129,38 @@ export class EnterpriseDeliveryService {
         .orderBy('delivery.dashboardId', 'ASC')
         .limit(21)
         .getMany();
+      const groupCandidates = await currentGroupDeliveries(this.db.manager, actor)
+        .andWhere('gd.dashboardId > :gdAfter', { gdAfter: after })
+        .select('gd.dashboardId', 'dashboardId')
+        .distinct(true)
+        .orderBy('gd.dashboardId', 'ASC')
+        .limit(21)
+        .getRawMany();
+      const ids = Array.from(
+        new Set([
+          ...candidates.map(row => row.dashboardId),
+          ...groupCandidates.map(row => Number(row.dashboardId)),
+        ]),
+      )
+        .sort((a, b) => a - b)
+        .slice(0, 21);
       const entries: Array<{
         dashboardId: number;
         title: string;
         version: number;
         allowCopy: boolean;
       }> = [];
-      for (const row of candidates.slice(0, 20)) {
+      for (const dashboardId of ids.slice(0, 20)) {
+        const direct = candidates.find(row => row.dashboardId === dashboardId);
+        const grouped = await currentGroupDeliveries(this.db.manager, actor)
+          .andWhere('gd.dashboardId = :gdId', { gdId: dashboardId })
+          .getMany();
+        const relations = [...(direct ? [direct] : []), ...grouped];
+        const row = {
+          dashboardId,
+          version: Math.max(...relations.map(r => r.version)),
+          allowCopy: relations.some(r => r.allowCopy),
+        };
         try {
           await this.access.dashboard(row.dashboardId, actor, 'read');
           const dashboard = await this.db.manager.findOneOrFail(Dashboard, {
@@ -155,7 +181,7 @@ export class EnterpriseDeliveryService {
           if (!(error instanceof ForbiddenException)) throw error;
         }
       }
-      return { entries, nextAfterId: candidates.length > 20 ? candidates[19].dashboardId : null };
+      return { entries, nextAfterId: ids.length > 20 ? ids[19] : null };
     });
   }
   async list(dashboardId: number, actor: number) {

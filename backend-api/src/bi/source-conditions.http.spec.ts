@@ -1,3 +1,4 @@
+import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -90,6 +91,7 @@ describe('UC052 protected conditions HTTP and independent population oracle', ()
         EnterpriseGroupMember,
         EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
+        EnterpriseGroupDelivery,
         SourceConditionEntry,
       ],
     }).initialize();

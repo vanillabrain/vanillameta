@@ -27,7 +27,12 @@ export default function StudioReceivedRemix() {
         if (!current) return;
         if (
           typeof data?.reference !== 'string' ||
-          !new RegExp('^d-[1-9][0-9]*-[1-9][0-9]*-' + dashboardId + '-[1-9][0-9]*-[a-f0-9]{64}$').test(data.reference)
+          !(
+            new RegExp('^d-[1-9][0-9]*-[1-9][0-9]*-' + dashboardId + '-[1-9][0-9]*-[a-f0-9]{64}$').test(data.reference) ||
+            new RegExp('^g-[1-9][0-9]*-[1-9][0-9]*-' + dashboardId + '-(?:[1-9][0-9]*-){3}[a-f0-9]{64}$').test(
+              data.reference,
+            )
+          )
         )
           throw new Error('invalid reference');
         setReference(data.reference);

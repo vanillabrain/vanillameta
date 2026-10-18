@@ -1,3 +1,4 @@
+import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -19,6 +20,7 @@ import { SourceOwnershipGuard } from './source-ownership.guard';
       EnterpriseGroupGrant,
       EnterpriseResourceGrant,
       EnterpriseDashboardDelivery,
+      EnterpriseGroupDelivery,
     ]),
   ],
   providers: [EnterpriseResourcePolicyService, SourceAccessService, SourceOwnershipGuard],

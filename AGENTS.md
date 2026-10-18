@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC053 동적 그룹 공유:** [설계](docs/plans/UC-053-group-deliveries.md)·[증빙](docs/testing/group-deliveries.md)는 현재/향후 구성원의 조회 공유·받은함·명시 동의 독립 복제를 연결한다. 소스 read는 별도이고 개인 공유/권한/사본을 보존한다. 접어도 미확정 UUID 요청을 유지한다. 그룹 알림·reload 복구·실제 Ego/모바일/MySQL/운영·전체16개 수용은 후속이다.
+
 - **UC051 동적 그룹:** [설계](docs/plans/UC-051-groups.md)·[증빙](docs/testing/dynamic-groups.md)는 현재 구성원 기반 직접/그룹 권한 합산·CAS/감사·동일 token 회수·생성 영수증을 연결한다. 팀 자동 이관은 없으며 source read는 별도다. 동적 그룹 전달/알림·영속 파일·실제 Ego/모바일/MySQL/운영·전체16개 수용은 후속이다.
 
 - **UC053 독립 복제:** [설계](docs/plans/UC-053-copy.md)·[증빙](docs/testing/received-copy.md)은 소유자의 별도 allowCopy 동의/CAS→받은 자료→본인 소스 매핑/전체 미리보기→새 비공개 사본을 기존 StudioRemix 경계에 연결한다. private reference는 조직/소유자/관계 버전·문서/schema/파일/template digest에 묶이고 JWT/원본 read/허용을 매 단계 재검사한다. 회수는 기존 사본을 지우지 않는다. 익명 게시를 만들지 않으며 동적 그룹·실제 Ego/모바일/MySQL/전체 수용은 후속이다.

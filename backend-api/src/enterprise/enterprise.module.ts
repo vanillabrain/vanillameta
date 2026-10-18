@@ -1,3 +1,4 @@
+import { EnterpriseGroupDeliveryService } from './group-delivery.service';
 import { EnterpriseGroupService } from './group.service';
 import { EnterpriseGroupController } from './group.controller';
 import { EnterpriseDeliveryController } from './delivery.controller';
@@ -35,6 +36,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
   providers: [
     EnterpriseGroupService,
     EnterpriseDeliveryService,
+    EnterpriseGroupDeliveryService,
     EnterpriseNotificationService,
     SourceLifecycleService,
     EnterpriseService,

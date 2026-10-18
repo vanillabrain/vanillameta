@@ -1,3 +1,4 @@
+import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -172,6 +173,7 @@ describe('UC051 source grants across Explore, catalog and export', () => {
         EnterpriseGroupMember,
         EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
+        EnterpriseGroupDelivery,
         EnterpriseAuditEvent,
       ],
       synchronize: true,

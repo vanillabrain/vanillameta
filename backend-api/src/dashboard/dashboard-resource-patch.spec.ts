@@ -1,3 +1,4 @@
+import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -89,6 +90,7 @@ describe('UC-051 delegated dashboard patch', () => {
         EnterpriseGroupMember,
         EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
+        EnterpriseGroupDelivery,
       ],
     }).initialize();
     await db.getRepository(User).save([

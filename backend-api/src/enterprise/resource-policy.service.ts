@@ -1,3 +1,4 @@
+import { currentGroupDeliveries } from './group-delivery-query';
 import { groupAdmin, groupKeys, groupWrite } from './group.service';
 import {
   EnterpriseGroup,
@@ -152,7 +153,13 @@ export class EnterpriseResourcePolicyService {
         recipientId: actor,
         active: true,
       }));
-    if (!delivery) this.denied();
+    const groupDelivery =
+      kind === 'dashboard' &&
+      !delivery &&
+      (await currentGroupDeliveries(manager, actor)
+        .andWhere('gd.dashboardId = :gdId', { gdId: id })
+        .getOne());
+    if (!delivery && !groupDelivery) this.denied();
     return { read: true, edit: false, publish: false, export: false };
   }
   async assert(
@@ -272,9 +279,17 @@ export class EnterpriseResourcePolicyService {
       .select('delivery.dashboardId', 'id')
       .orderBy('delivery.dashboardId', 'ASC')
       .getRawMany();
-    return Array.from(new Set([...direct, ...delivered.map(row => Number(row.id))])).sort(
-      (a, b) => a - b,
-    );
+    const groupedDeliveries = await currentGroupDeliveries(this.db.manager, actor)
+      .select('gd.dashboardId', 'id')
+      .distinct(true)
+      .getRawMany();
+    return Array.from(
+      new Set([
+        ...direct,
+        ...delivered.map(row => Number(row.id)),
+        ...groupedDeliveries.map(row => Number(row.id)),
+      ]),
+    ).sort((a, b) => a - b);
   }
   private async groupIds(kind: ResourceKind, actor: number) {
     const query = this.db

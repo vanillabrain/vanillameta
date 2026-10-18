@@ -89,3 +89,22 @@ it('routes received templates to the JWT-only API and keeps publication requests
   await fetchRemixRequirements('c'.repeat(64));
   expect(mocks.get.mock.calls[1][0]).toBe('/studio/publications/' + 'c'.repeat(64) + '/remix-template');
 });
+
+it('accepts a group reference only for this dashboard and routes it to received JWT endpoints', async () => {
+  const grouped = 'g-1-7-20-2-80-3-' + 'a'.repeat(64);
+  mocks.get.mockResolvedValueOnce({ data: { reference: grouped } });
+  render(<StudioReceivedRemix />);
+  await screen.findByText(grouped);
+  mocks.get.mockRejectedValueOnce(new Error('stop after route'));
+  await expect(fetchRemixRequirements(grouped)).rejects.toThrow();
+  expect(mocks.get).toHaveBeenLastCalledWith(
+    '/studio/received/' + grouped + '/remix-template',
+    undefined,
+    expect.anything(),
+  );
+  cleanup();
+  mocks.get.mockResolvedValueOnce({ data: { reference: grouped.replace('-20-', '-21-') } });
+  render(<StudioReceivedRemix />);
+  await screen.findByText(/현재 복제 허용과 원본/);
+  expect(screen.queryByRole('button', { name: '복제 저장' })).toBeNull();
+});

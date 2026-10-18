@@ -13,7 +13,7 @@
 ## Preconditions
 
 - 요청자가 같은 조직의 유효한 업무 계정이며 대상의 현재 권한을 확인할 수 있다.
-- 직원 조회 공유/회수의 첫 단위는 [설계](../plans/UC-053-deliveries.md)·[증빙](../testing/recipient-deliveries.md)을 따른다. 받은 자료의 현재 권한 조회/열기는 [설계](../plans/UC-053-received.md)·[증빙](../testing/received-dashboards.md)을 따른다. 동의 기반 독립 사본 전달은 [설계](../plans/UC-053-copy.md)·[증빙](../testing/received-copy.md)을 따른다. 동적 그룹과 전체 실제 실행/수용은 목표 명세다. 권한 변경 본인 알림의 첫 구현은 [계획](../plans/UC-053-notifications.md)·[증빙](../testing/personal-notifications.md)을 따른다. 실제 Ego/모바일·전달 전체 실행은 NOT_RUN이다.
+- 직원 조회 공유/회수의 첫 단위는 [설계](../plans/UC-053-deliveries.md)·[증빙](../testing/recipient-deliveries.md)을 따른다. 받은 자료의 현재 권한 조회/열기는 [설계](../plans/UC-053-received.md)·[증빙](../testing/received-dashboards.md)을 따른다. 동의 기반 독립 사본 전달은 [설계](../plans/UC-053-copy.md)·[증빙](../testing/received-copy.md)을 따른다. 동적 그룹의 현재 서버 범위(그룹 관계 CAS/영수증·감사, 구성원 기반 받은 자료 조회, 복제 동의와 private reference 재검사)는 [계획](../plans/UC-053-group-deliveries.md)·[범위 증빙](../testing/group-deliveries.md)을 따른다. 이 구현 포인터는 수용 상태를 뜻하지 않는다. 권한 변경 본인 알림의 첫 구현은 [계획](../plans/UC-053-notifications.md)·[증빙](../testing/personal-notifications.md)을 따른다. 실제 UI/모바일·MySQL/운영·그룹 알림 및 전체 전달 수용은 미완료다.
 
 ## Main Success Scenario
 
@@ -56,4 +56,4 @@
 
 ## Source Evidence
 
-[VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)를 따른다. 신규 요구이며 구현/실행 검증은 미완료다.
+[VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)를 따른다. 그룹 전달의 구현 범위는 [현재 구현 포인터](../testing/group-deliveries.md)를 참조한다. UC-053 전체 수용 상태는 Draft이며 해당 실행/검증을 승격하지 않는다.

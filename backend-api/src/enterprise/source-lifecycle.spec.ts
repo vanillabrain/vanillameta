@@ -1,3 +1,4 @@
+import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -85,6 +86,7 @@ describe('SourceLifecycleService source availability contract', () => {
         EnterpriseGroupMember,
         EnterpriseGroupGrant,
         EnterpriseDashboardDelivery,
+        EnterpriseGroupDelivery,
         Database,
         Dashboard,
         Widget,

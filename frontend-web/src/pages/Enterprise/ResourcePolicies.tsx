@@ -1,3 +1,4 @@
+import GroupDeliveries from './GroupDeliveries';
 import GroupPolicies from './GroupPolicies';
 import Deliveries from './Deliveries';
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
@@ -621,6 +622,9 @@ function ResourcePolicyPanel({ organizationId, selfRecipientId }: { organization
             kind={selected.kind}
             resourceId={selected.id}
           />
+          {selected.kind === 'dashboard' && (
+            <GroupDeliveries key={`groups:${organizationId}:${selected.id}:${selfRecipientId}`} dashboardId={selected.id} />
+          )}
           {selected.kind === 'dashboard' && (
             <Deliveries
               key={`${organizationId}:${selected.id}:${selfRecipientId}`}

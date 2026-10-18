@@ -232,11 +232,13 @@ FR016/FR017의 첫 DB 제약이다. `user.userId`와 `user.email`에 명명된 u
 
 `enterprise_dashboard_delivery`는 ownerId+organizationId+dashboardId+recipientId 복합 PK와 active/version을 보관한다. 현재 소유권·양쪽 계정 활성/조직 binding을 확인할 때 read만 합성한다. 별도 직접 grant의 edit/publish/export를 공유 관계로 옮기지 않는다. 원본/사본의 소유권·정의도 변경하지 않는다. 수신자/조직/active 인덱스로 목록 허용 ID를 찾는다.
 
-`enterprise_delivery_receipt`는 ownerId+UUID requestId PK, organizationId·SHA256 digest·고정 응답 text다. 현재 소유 admin/조직을 재검증한 replay만 허용하고 다른 요청 내용/조직은409다. 영수증은 과거 저장 확인이며 현재 공유 상태가 아니다. 공유/감사/영수증은 한 transaction이다. 동적 그룹/독립 사본 전달의 후속 모델은 별도다.
+`enterprise_delivery_receipt`는 ownerId+UUID requestId PK, organizationId·SHA256 digest·고정 응답 text다. 현재 소유 admin/조직을 재검증한 replay만 허용하고 다른 요청 내용/조직은409다. 그룹 공유도 이 영수증을 재사용하지만 digest의 `group-delivery` domain으로 개인 공유 요청과 분리한다. 영수증은 과거 저장 확인이며 현재 공유 상태가 아니다. 관계 변경·감사·영수증은 한 transaction이다.
 
 UC053 받은 자료는 새 영속 엔티티가 아닌 현재 유효한 delivery의 읽기 투영이다. 모든 연결 소스의 read 후 dashboardId/title/version만 반환한다. cursor는 마지막 검사 후보이며 마지막 표시 행과 다를 수 있다. 알림 표시 상태·원본·공유 관계·영수증을 변경하지 않는다.
 
-UC053 delivery의 `allowCopy` boolean은 기본 false인 별도 독립 복제 동의다. 공유 API에서 생략하면 보존하고 회수 시 false로 정리한다. active/allowCopy 변화 모두 관계 version·감사/영수증 transaction에 묶인다. 받은 자료에는 boolean만 추가하며 private 복제 reference는 조직/소유자/분석/관계 version·현재 Studio 문서/schema/파일 revision/template fingerprint로 구성한다. reference 자체는 접근권이 아니고 필수 JWT/current read/허용을 요구한다. 사본의 새 소유/블록/지표 ID와 모든 폭 배치는 기존 StudioRemixRequest 원자 저장을 재사용한다.
+UC053 direct delivery의 `allowCopy` boolean은 기본 false인 별도 독립 복제 동의다. 공유 API에서 생략하면 보존하고 회수 시 false로 정리한다. active/allowCopy 변화 모두 관계 version·감사/영수증 transaction에 묶인다. 받은 자료에는 boolean만 추가하며 private 복제 reference는 조직/소유자/분석/관계 version·현재 Studio 문서/schema/파일 revision/template fingerprint로 구성한다. reference 자체는 접근권이 아니고 필수 JWT/current read/허용을 요구한다. 사본의 새 소유/블록/지표 ID와 모든 폭 배치는 기존 StudioRemixRequest 원자 저장을 재사용한다.
+
+그룹 전달 `enterprise_group_delivery`는 `(ownerId, organizationId, dashboardId, groupId)` 복합 PK와 `version`, `active`, `allowCopy`를 보관한다. 조직/활성 소유자·현재 활성 그룹/구성원·유일 소유권을 매 요청 확인하며 소스 read는 별도다. 그룹 전달도 위 ownerId+requestId 영수증을 재사용하되 digest domain으로 direct 전달과 구분한다. 감사 action은 `dashboard.group-shared`/`dashboard.group-unshared`, `subjectId`는 직원이 아닌 groupId이며 개인 알림 대상으로 해석하지 않는다. 그룹 private reference는 `g-` 형식으로 조직·소유자·대시보드·관계 version·groupId·group version·template fingerprint를 묶고 reference/preview/save에서 현재 권한을 다시 확인한다. [그룹 전달 계획](plans/UC-053-group-deliveries.md)·[범위 증빙](testing/group-deliveries.md)을 따른다.
 
 ## UC051 Dynamic Groups
 
