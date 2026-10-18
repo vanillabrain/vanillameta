@@ -61,6 +61,30 @@ describe('Studio AI local apply guard', () => {
     expect(next.proposedOperations).toHaveLength(1);
     expect(canApplyStudioRun(next, context)).toBe(true);
   });
+  it('accepts canonical source-pinned condition proposals without a selected block but rejects stale pins and no-ops', () => {
+    const c = { ...context, selectedBlockId: undefined };
+    const conditions = {
+      sourceRevision: c.expectedSourceRevision,
+      definition: { include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [100] }, exclude: null },
+    };
+    const raw: any = { ...result(), selectedBlockId: null, proposedOperations: [{ type: 'setConditions', conditions }] };
+    expect(validateStudioRun(raw, c).proposedOperations[0]).toEqual({ type: 'setConditions', conditions });
+    expect('conditions' in document).toBe(false);
+    expect(() =>
+      validateStudioRun(
+        {
+          ...raw,
+          proposedOperations: [{ type: 'setConditions', conditions: { ...conditions, sourceRevision: 'c'.repeat(64) } }],
+        },
+        c,
+      ),
+    ).toThrow();
+    expect(() => validateStudioRun(raw, { ...c, document: { ...document, conditions } as any })).toThrow();
+    expect(() => validateStudioRun({ ...raw, proposedOperations: [{ type: 'setConditions' }] }, c)).toThrow();
+    expect(() =>
+      validateStudioRun({ ...raw, proposedOperations: [{ type: 'setConditions', conditions, sql: 'bad' }] }, c),
+    ).toThrow();
+  });
   it('rejects an old response even if an undo restored identical content', () => {
     const next = validateStudioRun(result(), context);
     expect(canApplyStudioRun(next, { ...context, clientEditVersion: 4 })).toBe(false);
@@ -206,7 +230,7 @@ it('does not present malformed publication metadata as a successful shared link'
   }
 });
 
-it('UC052 AI followups retain exact applied scope and reject condition operations', () => {
+it('UC052 content followups retain scope while condition removal remains an explicit reviewable proposal', () => {
   const conditions = {
     sourceRevision: 'b'.repeat(64),
     definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'gt', values: [10] }, exclude: null },
@@ -217,7 +241,13 @@ it('UC052 AI followups retain exact applied scope and reject condition operation
   for (const operation of validated.proposedOperations) edited = applyStudioOperation(edited, operation) as typeof edited;
   expect(edited.conditions).toEqual(conditions);
   expect(edited.layouts).toEqual(document.layouts);
+  const removed = validateStudioRun(
+    { ...result(), proposedOperations: [{ type: 'setConditions', conditions: null }] },
+    scoped,
+  );
+  expect(removed.proposedOperations).toEqual([{ type: 'setConditions', conditions: null }]);
+  expect(scoped.document.conditions).toEqual(conditions);
   expect(() =>
-    validateStudioRun({ ...result(), proposedOperations: [{ type: 'setConditions', conditions: null }] }, scoped),
+    validateStudioRun({ ...result(), intent: 'ask', proposedOperations: removed.proposedOperations }, scoped),
   ).toThrow();
 });

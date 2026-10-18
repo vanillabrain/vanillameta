@@ -727,6 +727,85 @@ describe('Studio AI SDK selected block integration', () => {
     fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
     expect(screen.getByRole('heading', { name: '총매출' })).toBeTruthy();
   });
+  const conditionReply = (body: any) => {
+    const r = runReply(body);
+    r.data.status = 'unsupported';
+    Object.assign(r.data.steps[r.data.steps.length - 1], { status: 'unsupported', errorCode: 'CONDITION_REVIEW_REQUIRED' });
+    Object.assign(r.data.result, {
+      answer: '조건 변경안을 검토하세요.',
+      proposedOperations: [
+        {
+          type: 'setConditions',
+          conditions: {
+            sourceRevision: SOURCE_REVISION,
+            definition: { include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [100] }, exclude: null },
+          },
+        },
+      ],
+      preview: { ...envelope().data.preview, widgets: [{ ...row, datas: [{ total: 200 }] }] },
+    });
+    return r;
+  };
+  it('UC052 holds a full condition proposal for review, explicitly applies and undoes without auto-saving', async () => {
+    api.post.mockImplementation(async (url, body) =>
+      url === '/studio/executions'
+        ? conditionReply(body)
+        : {
+            data: {
+              document: body.document,
+              preview: {
+                ...envelope().data.preview,
+                widgets: [{ ...row, datas: [{ total: body.document.conditions ? 200 : 500 }] }],
+              },
+            },
+          },
+    );
+    await open('금액 100 이상 조건을 제안해 줘');
+    const review = await screen.findByRole('region', { name: 'AI 조건 변경안 검토' });
+    expect(within(review).getByText('현재 조건')).toBeTruthy();
+    expect(within(review).getByText('제안 조건')).toBeTruthy();
+    expect(within(review).getByText('200')).toBeTruthy();
+    expect(saveButton().disabled).toBe(true);
+    expect((screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }) as HTMLTextAreaElement).value).toBe(
+      '금액 100 이상 조건을 제안해 줘',
+    );
+    expect(api.post.mock.calls.map(c => c[0])).toEqual(['/studio/executions']);
+    fireEvent.click(within(review).getByRole('button', { name: '조건 변경안 적용' }));
+    await waitFor(() => expect(saveButton().disabled).toBe(false));
+    expect(screen.queryByRole('region', { name: 'AI 조건 변경안 검토' })).toBeNull();
+    expect(api.post.mock.calls.some(c => String(c[0]).endsWith('/save'))).toBe(false);
+    await waitFor(() => expect(api.post.mock.calls.some(c => c[1]?.document?.conditions)).toBe(true));
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+    await waitFor(() => expect(api.post.mock.calls.at(-1)?.[1]?.document?.conditions).toBeUndefined());
+  });
+  it('UC052 requires review even when the execution save step was refused, and can dismiss without changing the draft', async () => {
+    api.post.mockImplementation(async (_url, body) => {
+      const r: any = conditionReply(body);
+      r.data.status = 'unsupported';
+      r.data.steps.push({
+        stepId: 'saveDraft',
+        status: 'unsupported',
+        retryable: false,
+        errorCode: 'CONDITION_REVIEW_REQUIRED',
+      });
+      return r;
+    });
+    await open('금액 조건을 바꾸고 저장해줘');
+    const review = await screen.findByRole('region', { name: 'AI 조건 변경안 검토' });
+    fireEvent.click(within(review).getByRole('button', { name: '현재 조건 유지' }));
+    expect(saveButton().disabled).toBe(true);
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
+  it('UC052 disables stale pending scope after a manual edit and undo, preserving the current draft', async () => {
+    api.post.mockImplementation(async (_url, body) => conditionReply(body));
+    await open('공통 조건 변경안을 제안해 줘');
+    const review = await screen.findByRole('region', { name: 'AI 조건 변경안 검토' });
+    const handle = screen.getByRole('button', { name: '총매출 이동 핸들' });
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+    expect((within(review).getByRole('button', { name: '조건 변경안 적용' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
   it('rejects a response after a manual move and undo returned to identical content', async () => {
     let finish: (value: any) => void = () => {
       throw new Error('Pending response missing');
@@ -770,6 +849,9 @@ describe('Studio AI SDK selected block integration', () => {
     });
     await open('제목만 바꾸고 저장해줘');
     await screen.findByText(/초안에 자동 적용하지 않았습니다/);
+    expect((screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }) as HTMLTextAreaElement).value).toBe(
+      '제목만 바꾸고 저장해줘',
+    );
     expect(screen.getByRole('heading', { name: '총매출' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'AI 총매출' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '대시보드 저장 다시 시도' }));

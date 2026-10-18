@@ -284,7 +284,15 @@ export class StudioService {
               '이 차트는 요청한 시간 단위로 안전하게 집계할 수 없습니다. 기존 내용을 유지했습니다.',
             );
         });
-        return { document, preview };
+        return {
+          document,
+          preview,
+          // Authorized native schema for typed AI condition proposals; no row values/configuration.
+          conditionColumns: current.schema.map(column => ({
+            name: column.column_name,
+            type: column.column_type,
+          })),
+        };
       });
     });
   }

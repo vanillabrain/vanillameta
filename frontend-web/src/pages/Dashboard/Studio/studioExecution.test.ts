@@ -325,3 +325,19 @@ it('T15 validates new creation receipts without permitting current-document writ
   expect(() => validateExecution({ ...value, status: 'failed' }, 8)).toThrow();
   expect(() => validateExecution({ ...value, result: {} }, 8)).toThrow();
 });
+
+it('UC052 reports condition review pending rather than draft application or saving success', () => {
+  const value = validateExecution(
+    {
+      ...run(),
+      status: 'unsupported',
+      steps: [
+        { stepId: 'preview', status: 'succeeded', retryable: false },
+        { stepId: 'applyDraft', status: 'unsupported', retryable: false, errorCode: 'CONDITION_REVIEW_REQUIRED' },
+      ],
+    },
+    8,
+  );
+  expect(executionSummary(value)).toContain('조건 변경안 검토 대기');
+  expect(retryStep(value)).toBeUndefined();
+});

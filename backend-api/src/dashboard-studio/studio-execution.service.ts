@@ -379,7 +379,9 @@ export class StudioExecutionService implements OnModuleInit {
             ? '초안을 저장했습니다.'
             : '검증한 결과를 확인해 주세요.'
           : row.status === 'unsupported'
-          ? '요청한 작업은 아직 지원하지 않습니다. 공유 범위를 확인해 주세요.'
+          ? state.steps.some(step => step.errorCode === 'CONDITION_REVIEW_REQUIRED')
+            ? '조건 변경안을 검토하고 명시 적용한 뒤 저장해 주세요. 아직 저장하거나 게시하지 않았습니다.'
+            : '요청한 작업은 아직 지원하지 않습니다. 공유 범위를 확인해 주세요.'
           : '실행 단계와 재시도 가능 여부를 확인해 주세요.',
     };
   }
@@ -1227,6 +1229,13 @@ export class StudioExecutionService implements OnModuleInit {
             )
           ).preview;
         } else if (
+          (step.stepId === 'saveDraft' || step.stepId === 'applyDraft') &&
+          state.proposal?.operations.some(operation => operation.type === 'setConditions')
+        ) {
+          // UC052: a model may propose common scope, never consent to its own review.
+          step.status = 'unsupported';
+          step.errorCode = 'CONDITION_REVIEW_REQUIRED';
+        } else if (
           step.stepId === 'saveDraft' &&
           !state.saveOnly &&
           state.proposal?.intent !== 'edit'
@@ -1282,7 +1291,7 @@ export class StudioExecutionService implements OnModuleInit {
               ? this.publicationId(row)
               : row.runId + ':' + step.stepId;
         if (step.status === 'unsupported') {
-          step.errorCode = 'STEP_UNSUPPORTED';
+          step.errorCode ??= 'STEP_UNSUPPORTED';
           row.status = 'unsupported';
           break;
         }

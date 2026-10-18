@@ -20,6 +20,10 @@ describe('Studio AI scoped runs', () => {
     studio = {
       prepare: jest.fn(async (_id, b) => ({
         document: b.document,
+        conditionColumns: [
+          { name: 'amount', type: 'DOUBLE' },
+          { name: 'category', type: 'VARCHAR' },
+        ],
         preview: { draft: { databaseId: document.sourceId, widgets: [] }, widgets: [] },
       })),
     };
@@ -72,6 +76,121 @@ describe('Studio AI scoped runs', () => {
       service.run({ ...body, requestId: 'condition-ai-denied' }, 7),
     ).rejects.toMatchObject({ status: 400 });
     expect(body.document.conditions).toEqual(document.conditions);
+  });
+  it('proposes typed common conditions without selecting a block, pins the source and never mutates the input', async () => {
+    const before = JSON.stringify(document);
+    const definition = {
+      include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [100] },
+      exclude: null,
+    };
+    ai.callLlm.mockResolvedValue(
+      JSON.stringify({
+        intent: 'edit',
+        answer: '변경안을 검토하세요.',
+        operations: [{ type: 'setConditions', definition }],
+      }),
+    );
+    const result = await service.run(
+      { ...body, selectedBlockId: undefined, prompt: '금액 100 이상만 포함하는 조건을 제안해 줘' },
+      7,
+    );
+    expect(result.proposedOperations).toEqual([
+      {
+        type: 'setConditions',
+        conditions: { sourceRevision: body.expectedSourceRevision, definition },
+      },
+    ]);
+    expect(JSON.stringify(document)).toBe(before);
+    expect(JSON.parse(ai.callLlm.mock.calls[0][1]).conditionColumns).toEqual([
+      { name: 'amount', type: 'DOUBLE' },
+      { name: 'category', type: 'VARCHAR' },
+    ]);
+    expect(studio.prepare.mock.calls[1][1].document.conditions).toEqual(
+      result.proposedOperations[0].conditions,
+    );
+  });
+  it('proposes explicit condition removal while retaining blocks, filters and layout', async () => {
+    document.conditions = {
+      sourceRevision: body.expectedSourceRevision,
+      definition: {
+        include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [100] },
+        exclude: null,
+      },
+    };
+    ai.callLlm.mockResolvedValue(
+      JSON.stringify({
+        intent: 'edit',
+        answer: '제거안을 검토하세요.',
+        operations: [{ type: 'setConditions', definition: null }],
+      }),
+    );
+    const result = await service.run(body, 7);
+    expect(result.proposedOperations).toEqual([{ type: 'setConditions', conditions: null }]);
+    expect(studio.prepare.mock.calls[1][1].document.conditions).toBeUndefined();
+    expect(studio.prepare.mock.calls[1][1].document.blocks).toEqual(document.blocks);
+    expect(document.conditions).toBeDefined();
+  });
+  it.each([
+    {
+      include: { kind: 'predicate', column: 'missing', operator: 'eq', values: [1] },
+      exclude: null,
+    },
+    {
+      include: { kind: 'predicate', column: 'amount', operator: 'eq', values: ['100'] },
+      exclude: null,
+    },
+    {
+      include: { kind: 'predicate', column: 'category', operator: 'gte', values: ['M'] },
+      exclude: null,
+    },
+    {
+      include: {
+        kind: 'predicate',
+        column: 'amount',
+        operator: 'eq',
+        values: [100],
+        sql: 'DROP TABLE source',
+      },
+      exclude: null,
+    },
+    null,
+  ])(
+    'rejects invalid or unchanged condition proposals before the second preview %#',
+    async definition => {
+      ai.callLlm.mockResolvedValue(
+        JSON.stringify({
+          intent: 'edit',
+          answer: '변경',
+          operations: [{ type: 'setConditions', definition }],
+        }),
+      );
+      await expect(service.run(body, 7)).rejects.toMatchObject({ status: 400 });
+      expect(studio.prepare).toHaveBeenCalledTimes(1);
+      expect(document.conditions).toBeUndefined();
+    },
+  );
+  it('rejects a typed condition no-op and conditions without authoritative schema', async () => {
+    const definition = {
+      include: { kind: 'predicate', column: 'amount', operator: 'eq', values: [100] },
+      exclude: null,
+    };
+    document.conditions = { sourceRevision: body.expectedSourceRevision, definition };
+    ai.callLlm.mockResolvedValue(
+      JSON.stringify({
+        intent: 'edit',
+        answer: '변경',
+        operations: [{ type: 'setConditions', definition }],
+      }),
+    );
+    await expect(service.run(body, 7)).rejects.toMatchObject({ status: 400 });
+    delete document.conditions;
+    studio.prepare.mockImplementation(async (_id, b) => ({
+      document: b.document,
+      preview: { widgets: [] },
+    }));
+    await expect(service.run({ ...body, requestId: 'no-schema' }, 7)).rejects.toMatchObject({
+      status: 400,
+    });
   });
   it('supplies actual categorical scope to AI and preserves it in selected edits', async () => {
     document.filters = [{ column: 'category', values: ['Site'] }];

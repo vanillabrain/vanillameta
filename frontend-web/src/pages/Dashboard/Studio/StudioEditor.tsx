@@ -1289,6 +1289,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
   const applyAi = (result: StudioRunResult) => {
     if (!applyOperations(result.proposedOperations)) return false;
     const next = result.proposedOperations.reduce(applyStudioOperation, state.present);
+    if (result.proposedOperations.some(operation => operation.type === 'setConditions')) {
+      // The new common scope is re-prepared by the existing scope effect. Never label old rows as new.
+      setAiRows({ scope: '', rows: {} });
+      setMessage('AI 조건 변경안을 초안에 적용했습니다. 새 조건의 전체 결과를 조회한 뒤 저장하세요.');
+      return true;
+    }
     setAiRows({
       scope: previewScope?.key ?? '',
       rows: Object.fromEntries(

@@ -118,3 +118,7 @@
 ## UC052 Studio 조건 연결 선택 검증 — 2026-10-18
 
 [Studio 조건 증빙](../testing/studio-conditions.md)은 E04/E05/E08의 직접 적용/제거·저장/reload·독립 수치/영속 Dataset query·게시 집계/재사용 조건 보존을 선택 검증한다. AI 내용 변경은 기존 조건을 유지하며 AI 조건 변경 제안/차이 자체는 후속이다. 기존 core 통과를 새 UI의 E13 실제 Ego/모바일 검증으로 승계하지 않는다. 영속 export 작업·실휴대폰/운영·전체 TC050 표의 NOT_RUN은 유지한다.
+
+## UC052 AI 조건 변경안 선택 검증 — 2026-10-18
+
+[AI 제안 증빙](../testing/ai-condition-proposals.md)은 E04/E08 기반인 질문→현재/제안 조건·전체 미리보기→명시 적용/undo→저장/reload와 유형/열/무변경 거절·편집 세대 변경 후 stale 적용 차단·저장 요청의 검토 전 쓰기0을 검사한다. 모델 응답 fixture와 실제 SQLite/DuckDB 집계를 구분한다. E13 실제 Ego/390·768·1440·실휴대폰/실LLM·운영/사람 수용과 전체 TC050 NOT_RUN은 그대로다.

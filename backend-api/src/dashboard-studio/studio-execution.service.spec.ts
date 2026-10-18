@@ -12,6 +12,7 @@ import { StudioExecutionService } from './studio-execution.service';
 import { StudioExecution } from './entities/studio-execution.entity';
 import { StudioRun } from './entities/studio-run.entity';
 import { StudioRunService } from './studio-run.service';
+import { applyStudioOperation } from './studio-operations';
 import { StudioStepId } from './studio-execution-contract';
 describe('T7 durable executions', () => {
   let db: DataSource, service: StudioExecutionService, studio: any, ai: any, body: any;
@@ -48,6 +49,7 @@ describe('T7 durable executions', () => {
         if (actor !== 7) throw new ForbiddenException();
         return {
           document: b.document,
+          conditionColumns: [{ name: 'amount', type: 'DOUBLE' }],
           preview: { widgets: [{ datas: [{ secretRow: 'ROW_SECRET' }] }] },
         };
       }),
@@ -939,6 +941,76 @@ describe('T7 durable executions', () => {
     const completed = await service.create({ ...body, requestId: 'save2', prompt: '저장해줘' }, 7);
     expect((await service.cancel(completed.runId, 7)).status).toBe('succeeded');
     expect(await db.manager.count(StudioRun)).toBe(1);
+  });
+  it('UC052 never reports draft application succeeded before condition review', async () => {
+    ai.callLlm.mockResolvedValue(
+      JSON.stringify({
+        intent: 'edit',
+        answer: '조건 변경안을 검토하세요.',
+        operations: [
+          {
+            type: 'setConditions',
+            definition: {
+              include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [100] },
+              exclude: null,
+            },
+          },
+        ],
+      }),
+    );
+    const result = await service.create({ ...body, prompt: '금액 100 이상 조건을 제안해 줘' }, 7);
+    expect(result.steps.find(step => step.stepId === 'applyDraft')).toMatchObject({
+      status: 'unsupported',
+      errorCode: 'CONDITION_REVIEW_REQUIRED',
+    });
+    expect(result.result.proposedOperations[0].type).toBe('setConditions');
+    expect(result.answer).toContain('조건');
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(body.document.conditions).toBeUndefined();
+  });
+  it('UC052 never autosaves a condition proposal and preserves the checked result across GET/retry', async () => {
+    const definition = {
+      include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [100] },
+      exclude: null,
+    };
+    ai.callLlm.mockResolvedValue(
+      JSON.stringify({
+        intent: 'edit',
+        answer: '조건 변경안을 검토하세요.',
+        operations: [{ type: 'setConditions', definition }],
+      }),
+    );
+    const result = await service.create(
+      { ...body, prompt: '금액 100 이상 조건으로 바꾸고 저장해줘' },
+      7,
+    );
+    expect(result.status).toBe('unsupported');
+    expect(result.steps.find(s => s.stepId === 'applyDraft')).toMatchObject({
+      status: 'unsupported',
+      errorCode: 'CONDITION_REVIEW_REQUIRED',
+    });
+    expect(result.steps.find(s => s.stepId === 'saveDraft').status).toBe('pending');
+    expect(result.result.proposedOperations[0]).toEqual({
+      type: 'setConditions',
+      conditions: { sourceRevision: body.expectedSourceRevision, definition },
+    });
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(await db.manager.count(StudioRun)).toBe(0);
+    const again = await service.get(result.runId, 7);
+    expect(again.result.proposedOperations).toEqual(result.result.proposedOperations);
+    expect(again.answer).toContain('조건');
+    await expect(service.retry(result.runId, { stepId: 'saveDraft' }, 7)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(studio.save).not.toHaveBeenCalled();
+    const applied = result.result.proposedOperations.reduce(applyStudioOperation, body.document);
+    const saved = await service.create(
+      { ...body, requestId: 'reviewed-save', document: applied, prompt: '저장해줘' },
+      7,
+    );
+    expect(saved.status).toBe('succeeded');
+    expect(studio.save).toHaveBeenCalledTimes(1);
+    expect(studio.save.mock.calls[0][1].document.conditions.definition).toEqual(definition);
   });
   it('does not save when combined edit request needs clarification or is unsupported', async () => {
     for (const intent of ['clarify', 'unsupported']) {

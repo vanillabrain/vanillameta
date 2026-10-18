@@ -9,6 +9,7 @@ import { EnterpriseResourceGrant } from '../enterprise/entities/enterprise-resou
 import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { DataSource } from 'typeorm';
+import { createHash } from 'crypto';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { DuckDBService } from '../analysis/duckdb.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
@@ -24,6 +25,7 @@ import { StudioState } from './entities/studio-state.entity';
 import { StudioRun } from './entities/studio-run.entity';
 import { studioDigest } from './studio-legacy';
 import { StudioService } from './studio.service';
+import { StudioRunService } from './studio-run.service';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { applyStudioOperation } from './studio-operations';
 import * as fs from 'fs';
@@ -60,7 +62,8 @@ describe('Studio real DuckDB and transactional metadata', () => {
     studio: StudioService,
     root: string,
     id: number,
-    connection: any;
+    connection: any,
+    sourceRevision: string;
   const previous = process.env.FILE_UPLOAD_DIR;
   beforeAll(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-t4-'));
@@ -97,11 +100,15 @@ describe('Studio real DuckDB and transactional metadata', () => {
         StudioPublicationRequest,
       ],
     }).initialize();
+    sourceRevision = createHash('sha256').update(file.filename).digest('hex');
     await db.manager.save(Database, {
       id: 1,
       ownerId: 7,
       name: 'Source',
-      connectionConfig: '{}',
+      connectionConfig: JSON.stringify({
+        client: 'duckdb',
+        connection: { filename: file.filename },
+      }),
       engine: 'duckdb',
       type: 'FILE',
     });
@@ -109,7 +116,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
       await db.manager.save(Component, { type, title: type, option: '{}', useYn: 'Y' });
     connection = {
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
-      duckDBVersion: jest.fn().mockResolvedValue(studioDigest('test-source')),
+      duckDBVersion: jest.fn().mockResolvedValue(sourceRevision),
       isDuckDB: jest.fn().mockResolvedValue(true),
       queryDuckDB: jest.fn((_id, sql, bindings) => worker.query(file.filename, sql, bindings)),
     };
@@ -132,11 +139,103 @@ describe('Studio real DuckDB and transactional metadata', () => {
       {
         requestId,
         expectedRevision,
-        expectedSourceRevision: studioDigest('test-source'),
+        expectedSourceRevision: sourceRevision,
         document: doc,
       },
       7,
     );
+  it('UC052 AI typed proposal previews real aggregate without writing, then explicit application save/reload preserves scope', async () => {
+    const oldProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = 'codex';
+    try {
+      const initial = await studio.get(id, 7);
+      const definition = {
+        include: {
+          kind: 'group',
+          operator: 'or',
+          children: [
+            { kind: 'predicate', column: 'category', operator: 'eq', values: ['Site'] },
+            { kind: 'predicate', column: 'amount', operator: 'lt', values: [250] },
+          ],
+        },
+        exclude: { kind: 'predicate', column: 'amount', operator: 'gte', values: [300] },
+      };
+      const callLlm = jest.fn();
+      callLlm.mockResolvedValue(
+        JSON.stringify({
+          intent: 'edit',
+          answer: '조건을 검토하세요.',
+          operations: [{ type: 'setConditions', definition }],
+        }),
+      );
+      const model = { callLlm };
+      const runs = new StudioRunService(studio, model as any);
+      const before = {
+        dashboards: await db.manager.count(Dashboard),
+        widgets: await db.manager.count(Widget),
+        receipts: await db.manager.count(StudioRun),
+      };
+      const input = {
+        requestId: 'ai-conditions-' + id,
+        dashboardId: id,
+        document: initial.document,
+        expectedRevision: initial.document.revision,
+        expectedSourceRevision: initial.sourceRevision,
+        clientEditVersion: 1,
+        prompt: '금액 300 이상을 제외하는 포함/제외 조건을 제안해 줘',
+      };
+      const result = await runs.run(input, 7);
+      expect(result.preview.widgets[0].datas).toEqual([{ value: 200 }]);
+      expect(result.preview.widgets[1].datas).toEqual([{ category: 'Mobile', value: 200 }]);
+      expect(initial.document.conditions).toBeUndefined();
+      expect((await studio.get(id, 7)).preview.widgets[0].datas).toEqual([{ value: 500 }]);
+      expect({
+        dashboards: await db.manager.count(Dashboard),
+        widgets: await db.manager.count(Widget),
+        receipts: await db.manager.count(StudioRun),
+      }).toEqual(before);
+      const applied = result.proposedOperations.reduce(applyStudioOperation, initial.document);
+      expect(applied.blocks).toEqual(initial.document.blocks);
+      expect(applied.layouts).toEqual(initial.document.layouts);
+      await save(applied, 'ai-conditions-reviewed-' + id);
+      const restored = await studio.get(id, 7);
+      expect(restored.document.conditions.definition).toEqual(definition);
+      expect(restored.preview.widgets[0].datas).toEqual([{ value: 200 }]);
+      model.callLlm.mockResolvedValue(
+        JSON.stringify({
+          intent: 'edit',
+          answer: '誤',
+          operations: [
+            {
+              type: 'setConditions',
+              definition: {
+                include: { kind: 'predicate', column: 'invented', operator: 'eq', values: [1] },
+                exclude: null,
+              },
+            },
+          ],
+        }),
+      );
+      await expect(
+        runs.run(
+          {
+            ...input,
+            requestId: 'invalid-' + id,
+            document: restored.document,
+            expectedRevision: restored.document.revision,
+          },
+          7,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect((await studio.get(id, 7)).document).toEqual(restored.document);
+      expect((await ai.analysis(id, 7)).data.widgets.map(w => w.sql)).toEqual(
+        draft().widgets.map(w => w.sql),
+      );
+    } finally {
+      if (oldProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = oldProvider;
+    }
+  });
   it('UC052 preserves nested inclusion/exclusion through preview, save, detached Dataset queries and reload', async () => {
     const initial = await studio.get(id, 7);
     const definition = {
@@ -240,7 +339,9 @@ describe('Studio real DuckDB and transactional metadata', () => {
       connection.queryDuckDB.mockImplementation((_id, sql, bindings) =>
         worker.query(replacement.filename, sql, bindings),
       );
-      connection.duckDBVersion.mockResolvedValue(studioDigest('replacement-source'));
+      connection.duckDBVersion.mockResolvedValue(
+        createHash('sha256').update(replacement.filename).digest('hex'),
+      );
       await sourceRepository.update(1, {
         connectionConfig: JSON.stringify({
           client: 'duckdb',
@@ -709,7 +810,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
       expect(await db.manager.count(Widget)).toBe(before);
       expect((await studio.get(id, 7)).sourceRevision).toBe(studioDigest('new-source'));
     } finally {
-      connection.duckDBVersion.mockResolvedValue(studioDigest('test-source'));
+      connection.duckDBVersion.mockResolvedValue(sourceRevision);
     }
   });
   it('imports legacy single-block metric links with explicitly unlinked attached widgets', async () => {
@@ -877,7 +978,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
           {
             requestId: 'cancel-' + id,
             expectedRevision: document.revision,
-            expectedSourceRevision: studioDigest('test-source'),
+            expectedSourceRevision: sourceRevision,
             document: { ...document, title: 'Cancelled' },
           },
           7,
@@ -897,7 +998,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
     const request = {
       requestId: 'cancel-queued-' + id,
       expectedRevision: document.revision,
-      expectedSourceRevision: studioDigest('test-source'),
+      expectedSourceRevision: sourceRevision,
       document,
     };
     let release: () => void;
