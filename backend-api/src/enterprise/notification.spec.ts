@@ -132,6 +132,88 @@ describe('Personal notification projection and monotonic state', () => {
     expect(await db.manager.count(EnterpriseNotificationAudience)).toBe(2);
     expect(await db.manager.count(EnterpriseAuditEvent, { where: { id: 10 } })).toBe(1);
   });
+  it('projects only committed own export results as historical events with monotonic state', async () => {
+    const repo = db.getRepository(EnterpriseAuditEvent);
+    const events = await repo.save([
+      ...['ready', 'failed', 'cancelled'].map((status, index) => ({
+        organizationId: 1,
+        actorId: 2,
+        subjectId: 2,
+        action: 'export.' + status,
+        resourceId: 20 + index,
+        version: 3,
+      })),
+      {
+        organizationId: 1,
+        actorId: 2,
+        subjectId: 2,
+        action: 'export.running',
+        resourceId: 23,
+        version: 2,
+      },
+      {
+        organizationId: 1,
+        actorId: 2,
+        subjectId: 2,
+        action: 'export.queued',
+        resourceId: 24,
+        version: 1,
+      },
+      {
+        organizationId: 1,
+        actorId: 1,
+        subjectId: 1,
+        action: 'export.ready',
+        resourceId: 25,
+        version: 3,
+      },
+      {
+        organizationId: 2,
+        actorId: 2,
+        subjectId: 2,
+        action: 'export.ready',
+        resourceId: 26,
+        version: 3,
+      },
+      {
+        organizationId: 1,
+        actorId: 1,
+        subjectId: 2,
+        action: 'export.ready',
+        resourceId: 27,
+        version: 3,
+      },
+    ]);
+    const before = await repo.count();
+    const projected = (await service.list(2)).entries.filter(row => row.resourceKind === 'export');
+    expect(projected.map(row => [row.resourceId, row.eventType, row.version])).toEqual([
+      [22, 'cancelled', 3],
+      [21, 'failed', 3],
+      [20, 'ready', 3],
+    ]);
+    expect(Object.keys(projected[0]).sort()).toEqual(
+      ['id', 'resourceKind', 'resourceId', 'eventType', 'version', 'createdAt', 'read'].sort(),
+    );
+    await Promise.all([
+      service.mark(2, events[0].id, 'read'),
+      service.mark(2, events[0].id, 'remove'),
+    ]);
+    await service.mark(2, events[0].id, 'read');
+    expect((await service.list(2)).entries.some(row => row.id === events[0].id)).toBe(false);
+    for (const other of events.slice(3))
+      await expect(service.mark(2, other.id, 'read')).rejects.toMatchObject({ status: 403 });
+    expect(await repo.count()).toBe(before);
+    await db.manager.update(EnterpriseMembership, { userId: 2 }, { organizationId: 2 });
+    expect((await service.list(2)).entries.some(row => row.id === events[0].id)).toBe(false);
+    await expect(service.mark(2, events[0].id, 'remove')).rejects.toMatchObject({ status: 403 });
+  });
+  it('rechecks request epoch after queue entry without changing inbox state', async () => {
+    await db.manager.update(User, 2, { authVersion: 1 });
+    await expect(service.list(2, undefined, 0)).rejects.toMatchObject({ status: 401 });
+    await expect(service.mark(2, 1, 'read', 0)).rejects.toMatchObject({ status: 401 });
+    expect(await db.manager.count(EnterpriseNotificationState)).toBe(0);
+    expect((await service.list(2, undefined, 1)).entries.some(row => row.id === 1)).toBe(true);
+  });
   it('adds audience schema idempotently and preserves the event subject and previous state', async () => {
     const runner = db.createQueryRunner(),
       migration = new AddNotificationAudience1792500000000();
@@ -279,6 +361,36 @@ describe('Personal notification projection and monotonic state', () => {
       expect(await db.getRepository(EnterpriseNotificationState).find()).toEqual([
         { recipientId: 2, eventId: 1, read: true, removed: false },
       ]);
+      await db.manager.insert(EnterpriseAuditEvent, {
+        id: 9,
+        organizationId: 1,
+        actorId: 2,
+        subjectId: 2,
+        resourceId: 37,
+        version: 3,
+        action: 'export.ready',
+      });
+      const exportList = await request(server)
+        .get('/enterprise/notifications')
+        .set('Authorization', `Bearer ${token}`)
+        .expect('Cache-Control', 'no-store')
+        .expect(200);
+      expect(exportList.body.entries[0]).toMatchObject({
+        resourceKind: 'export',
+        resourceId: 37,
+        version: 3,
+        eventType: 'ready',
+      });
+      await request(server)
+        .post('/enterprise/notifications/9/read')
+        .set('Authorization', `Bearer ${token}`)
+        .expect('Cache-Control', 'no-store')
+        .expect(201);
+      await request(server)
+        .post('/enterprise/notifications/9/remove')
+        .set('Authorization', `Bearer ${token}`)
+        .expect('Cache-Control', 'no-store')
+        .expect(201);
       await db.manager.insert(EnterpriseAuditEvent, {
         id: 10,
         organizationId: 1,

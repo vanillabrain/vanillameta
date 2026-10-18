@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Header,
   Param,
   Post,
   Query,
@@ -20,16 +21,36 @@ export class EnterpriseNotificationController {
       throw new BadRequestException('알림 번호를 확인해 주세요.');
     return Number(raw);
   }
-  @Get() list(@Req() req: any, @Query('beforeId') beforeId?: unknown) {
+  @Get() @Header('Cache-Control', 'no-store') list(
+    @Req() req: any,
+    @Query('beforeId') beforeId?: unknown,
+  ) {
     return this.notifications.list(
       req.user.accessKeyData.id,
       beforeId === undefined ? undefined : this.id(beforeId),
+      req.user.accessKeyData.authVersion ?? 0,
     );
   }
-  @Post(':id/read') read(@Req() req: any, @Param('id') id: string) {
-    return this.notifications.mark(req.user.accessKeyData.id, this.id(id), 'read');
+  @Post(':id/read') @Header('Cache-Control', 'no-store') read(
+    @Req() req: any,
+    @Param('id') id: string,
+  ) {
+    return this.notifications.mark(
+      req.user.accessKeyData.id,
+      this.id(id),
+      'read',
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
-  @Post(':id/remove') remove(@Req() req: any, @Param('id') id: string) {
-    return this.notifications.mark(req.user.accessKeyData.id, this.id(id), 'remove');
+  @Post(':id/remove') @Header('Cache-Control', 'no-store') remove(
+    @Req() req: any,
+    @Param('id') id: string,
+  ) {
+    return this.notifications.mark(
+      req.user.accessKeyData.id,
+      this.id(id),
+      'remove',
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 }

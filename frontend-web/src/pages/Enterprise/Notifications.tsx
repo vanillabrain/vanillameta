@@ -101,9 +101,10 @@ export default function Notifications({ organizationId }: { organizationId: numb
       </Button>
       {open && (
         <div className="mt-3 min-w-0 space-y-3" aria-busy={busy}>
-          <p className="text-xs text-muted-foreground">
-            권한 변경과 공유·회수 기록입니다. 현재 접근 권한은 자료를 열 때 다시 확인합니다. 목록 제거는 자료나 권한을
-            삭제하지 않습니다.
+          <p className="break-words text-sm text-muted-foreground">
+            권한 변경과 공유·회수, 파일 작업 결과 기록입니다. 현재 접근 권한은 자료를 열 때 다시 확인합니다. 알림은 과거
+            사건이며 현재 작업 상태·파일 유효성·접근 권한을 증명하지 않습니다. 목록 제거는 자료나 권한, 파일 작업을 삭제하지
+            않습니다.
           </p>
           <Button variant="outline" size="sm" disabled={busy} onClick={() => void load()}>
             알림 다시 읽기
@@ -115,10 +116,16 @@ export default function Notifications({ organizationId }: { organizationId: numb
             {entries.map(entry => (
               <li key={entry.id} className="min-w-0 rounded-md border p-3">
                 <p className="break-words">
-                  {entry.resourceKind === 'source' ? '소스' : '대시보드'} #{entry.resourceId}{' '}
-                  {entry.viaGroup === true ? '그룹 ' : ''}
-                  {entry.eventType === 'shared' ? '조회 공유' : entry.eventType === 'unshared' ? '공유 회수' : '권한 변경'} ·
-                  버전 {entry.version}
+                  {entry.resourceKind === 'export' ? '파일 작업' : entry.resourceKind === 'source' ? '소스' : '대시보드'} #
+                  {entry.resourceId} {entry.viaGroup === true ? '그룹 ' : ''}
+                  {entry.resourceKind === 'export'
+                    ? { ready: '완료', failed: '실패', cancelled: '취소' }[entry.eventType]
+                    : entry.eventType === 'shared'
+                    ? '조회 공유'
+                    : entry.eventType === 'unshared'
+                    ? '공유 회수'
+                    : '권한 변경'}{' '}
+                  · 버전 {entry.version}
                 </p>
                 <p className="mt-1 break-words text-xs text-muted-foreground">
                   <time dateTime={entry.createdAt}>{new Date(entry.createdAt).toLocaleString()}</time> ·{' '}

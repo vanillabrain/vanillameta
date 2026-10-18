@@ -30,6 +30,9 @@ import { BiExploreService } from './bi-explore.service';
 import { ExportJobsService, exportParts } from './export-jobs.service';
 import { ExportJobsController } from './export-jobs.controller';
 import { ExportJob, ExportPart } from './entities/export-job.entity';
+import { EnterpriseNotificationService } from '../enterprise/notification.service';
+import { EnterpriseNotificationAudience } from '../enterprise/entities/enterprise-notification-audience.entity';
+import { EnterpriseNotificationState } from '../enterprise/entities/enterprise-notification-state.entity';
 import { AddExportJobs1792510000000 } from '../migrations/1792510000000-add-export-jobs';
 const deferred = () => {
   let resolve!: (v?: any) => void;
@@ -120,6 +123,8 @@ describe('UC054 durable aggregate export with actual SQLite DuckDB JWT', () => {
         EnterpriseGroupGrant,
         ExportJob,
         ExportPart,
+        EnterpriseNotificationAudience,
+        EnterpriseNotificationState,
       ],
     }).initialize();
     await db.manager.save(
@@ -171,7 +176,14 @@ describe('UC054 durable aggregate export with actual SQLite DuckDB JWT', () => {
   });
   beforeEach(async () => {
     jest.restoreAllMocks();
-    for (const entity of [ExportPart, ExportJob, EnterpriseAuditEvent, EnterpriseResourceGrant])
+    for (const entity of [
+      EnterpriseNotificationState,
+      EnterpriseNotificationAudience,
+      ExportPart,
+      ExportJob,
+      EnterpriseAuditEvent,
+      EnterpriseResourceGrant,
+    ])
       await db.getRepository(entity).clear();
     await db.manager.update(User, 7, { active: true, authVersion: 0 });
     await db.manager.update(Database, 1, {
@@ -527,6 +539,57 @@ describe('UC054 durable aggregate export with actual SQLite DuckDB JWT', () => {
       errorCode: 'ACCESS_REVOKED',
     });
     expect(await db.manager.count(ExportPart)).toBe(0);
+  });
+  it('projects only committed export results and keeps files independent of inbox failures or removal', async () => {
+    await policy.set('source', 1, 7, {
+      recipientId: 8,
+      expectedVersion: 0,
+      rights: { read: true, edit: false, publish: false, export: true },
+    });
+    const inbox = new EnterpriseNotificationService(db);
+    const ready = await jobs.create(input(), 8);
+    await jobs.run(ready.id, { expectedVersion: 1 }, 8);
+    const original = await jobs.file(ready.id, 8);
+    const failed = await jobs.create(input(), 8);
+    jest.spyOn(explore, 'exportCsv').mockRejectedValueOnce(new Error('private SQL detail'));
+    await jobs.run(failed.id, { expectedVersion: 1 }, 8);
+    const cancelled = await jobs.create(input(), 8);
+    await jobs.cancel(cancelled.id, { expectedVersion: 1 }, 8);
+    const results = (await inbox.list(8)).entries.filter(row => row.resourceKind === 'export');
+    expect(results.map(row => [row.resourceId, row.eventType])).toEqual([
+      [cancelled.id, 'cancelled'],
+      [failed.id, 'failed'],
+      [ready.id, 'ready'],
+    ]);
+    expect((await inbox.list(7)).entries.filter(row => row.resourceKind === 'export')).toEqual([]);
+    await jobs.run(ready.id, { expectedVersion: 1 }, 8);
+    await jobs.cancel(cancelled.id, { expectedVersion: 2 }, 8);
+    expect((await inbox.list(8)).entries.filter(row => row.resourceKind === 'export')).toHaveLength(
+      3,
+    );
+    const notification = results.find(row => row.resourceId === ready.id);
+    await inbox.mark(8, notification.id, 'read');
+    await inbox.mark(8, notification.id, 'remove');
+    expect((await jobs.file(ready.id, 8)).csv).toBe(original.csv);
+    await db.query('ALTER TABLE enterprise_notification_state RENAME TO unavailable_inbox_state');
+    try {
+      await expect(inbox.list(8)).rejects.toThrow();
+      expect((await jobs.file(ready.id, 8)).csv).toBe(original.csv);
+    } finally {
+      await db.query('ALTER TABLE unavailable_inbox_state RENAME TO enterprise_notification_state');
+    }
+    await policy.set('source', 1, 7, {
+      recipientId: 8,
+      expectedVersion: 1,
+      rights: { read: true, edit: false, publish: false, export: false },
+    });
+    await expect(jobs.file(ready.id, 8)).rejects.toMatchObject({ status: 403 });
+    expect(
+      (await inbox.list(8)).entries.some(
+        row => row.resourceId === failed.id && row.resourceKind === 'export',
+      ),
+    ).toBe(true);
+    expect(await db.manager.count(ExportPart, { where: { jobId: ready.id } })).toBeGreaterThan(0);
   });
   it('chunks Unicode without splitting surrogate pairs and enforces additive schema keys', async () => {
     const text = 'x'.repeat(11999) + '😀한'.repeat(25000),

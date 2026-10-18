@@ -214,23 +214,29 @@ const enterpriseService = {
 export default enterpriseService;
 
 export type PersonalNotification = {
-  viaGroup?: boolean;
-  eventType: 'permissions' | 'shared' | 'unshared';
   id: number;
-  resourceKind: 'source' | 'dashboard';
   resourceId: number;
+  /** Version recorded by this historical event, not the current resource/job version. */
   version: number;
   createdAt: string;
   read: boolean;
-};
+} & (
+  | { resourceKind: 'source'; eventType: 'permissions'; viaGroup?: never }
+  | { resourceKind: 'dashboard'; eventType: 'permissions' | 'shared' | 'unshared'; viaGroup?: boolean }
+  | { resourceKind: 'export'; eventType: 'ready' | 'failed' | 'cancelled'; viaGroup?: never }
+);
 export type NotificationPage = { entries: PersonalNotification[]; nextBeforeId: number | null };
 const notificationShape = (entry: any): entry is PersonalNotification =>
   !!entry &&
   positiveInteger(entry.id) &&
-  ['permissions', 'shared', 'unshared'].includes(entry.eventType) &&
-  (entry.viaGroup === undefined ||
-    (entry.viaGroup === true && entry.resourceKind === 'dashboard' && entry.eventType !== 'permissions')) &&
-  (entry.resourceKind === 'source' || entry.resourceKind === 'dashboard') &&
+  (entry.resourceKind === 'export'
+    ? ['ready', 'failed', 'cancelled'].includes(entry.eventType) && entry.viaGroup === undefined
+    : entry.resourceKind === 'source'
+    ? entry.eventType === 'permissions' && entry.viaGroup === undefined
+    : entry.resourceKind === 'dashboard' &&
+      ['permissions', 'shared', 'unshared'].includes(entry.eventType) &&
+      (entry.viaGroup === undefined ||
+        (entry.viaGroup === true && entry.resourceKind === 'dashboard' && entry.eventType !== 'permissions'))) &&
   positiveInteger(entry.resourceId) &&
   positiveInteger(entry.version) &&
   typeof entry.createdAt === 'string' &&

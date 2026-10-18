@@ -61,3 +61,5 @@
 ## Implemented Slice: Durable aggregate CSV
 
 Explore/고급 Pivot의 검토 조건과 소스/지표 버전을 고정해 멱등 접수→사용자의 CSV 만들기→상태 확인/취소→권한 보호 파일을 연결한다. SQL 없는 입력 검증과 현재 권한/인증 세대 재검사, CAS/실행 lease·원자 파일 저장은 위 구현 계획을 따른다. lease 복구 검사는 같은 SQLite connection에서 새 service 인스턴스를 만든 것이며 실제 프로세스 재시작 증거가 아니다. 이 부분 구현으로 전체 비교 리포트 시나리오·TC050 상태를 올리지 않는다.
+
+출력 완료/실패/취소의 과거 사건 알림은 [별도 계획](../plans/UC-054-export-notifications.md)·[증빙](../testing/export-notifications.md)을 따른다. 알림을 현재 파일 상태/유효성·권한으로 오인하지 않는다.
