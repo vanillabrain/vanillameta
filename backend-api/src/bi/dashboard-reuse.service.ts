@@ -1,4 +1,23 @@
-import { rejectPivotRemix } from '../dashboard-studio/studio-pivot.service';
+import { normalizeFormulaUnit } from './metric-formula';
+import { BiExploreService } from './bi-explore.service';
+import {
+  captureStudioReuseOrigin,
+  prepareStudioReusePlan,
+  StudioReusePlan,
+  StudioReuseOrigin,
+  StudioReusePreviewV1,
+} from './studio-reuse-plan';
+import { previewStudioReuse } from './studio-reuse-preview';
+import { persistStudioReuse } from './studio-reuse-persist';
+import { persistReuseMetricGraph } from './reuse-metric-graph';
+import { exploreViewRevision } from './explore-view-state';
+import {
+  catalogActorContext,
+  assertCatalogActor,
+  CatalogActorContext,
+} from './source-classifications';
+import { Metric } from '../metric/entities/metric.entity';
+import { lockMetricReferenceSets } from '../metric/metric-write-lock';
 import { bindMetricBlockKeys } from '../ai/metric-analysis-links';
 import { StudioState } from '../dashboard-studio/entities/studio-state.entity';
 import { validateStudioDocument } from '../dashboard-studio/studio-document';
@@ -59,6 +78,9 @@ const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-
 const TTL = 5 * 60 * 1000;
 type Plan = {
   actor: number;
+  mixed?: StudioReusePlan;
+  authority?: CatalogActorContext;
+  targetCatalogRevision?: string;
   reference?: ReuseReference;
   originalId: number;
   originalRevision: string;
@@ -99,6 +121,7 @@ export class DashboardReuseService {
     private readonly connection: ConnectionService,
     private readonly access: SourceAccessService,
     private readonly origins?: SharedReuseOriginService,
+    private readonly explore?: BiExploreService,
   ) {}
   private async original(id: unknown, actor: number, kind = 'owned') {
     this.access.actor(actor);
@@ -107,11 +130,9 @@ export class DashboardReuseService {
     const originalId = this.access.id(id);
     const analysis = (await this.dashboards.analysis(originalId, actor, true)).data;
     const storedPivot = await this.db.manager.findOne(Dashboard, { where: { id: originalId } });
-    if (
-      storedPivot?.structuredDefinition &&
-      JSON.parse(storedPivot.structuredDefinition).studioPivots?.length
-    )
-      throw rejectPivotRemix();
+    const mixedSnapshot = storedPivot?.structuredDefinition
+      ? JSON.parse(storedPivot.structuredDefinition)
+      : undefined;
     const profile = await this.bi.profile(analysis.databaseId, actor);
     if (
       analysis.defaultConditions !== undefined &&
@@ -141,18 +162,34 @@ export class DashboardReuseService {
         : undefined;
     if (
       studioDocument &&
+      !mixedSnapshot?.studioPivots?.length &&
       (studioDocument.sourceId !== profile.sourceId ||
         studioDocument.dashboardId !== originalId ||
         studioDocument.blocks.length !== analysis.widgets.length ||
         studioDocument.blocks.some((block, i) => block.id !== analysis.widgets[i].blockId))
     )
       throw stale();
+    let mixed: StudioReuseOrigin | undefined;
+    if (mixedSnapshot?.studioPivots?.length) {
+      if (!studioDocument) throw stale();
+      const schema = (await this.connection.queryDuckDB(profile.sourceId, 'DESCRIBE uploaded_data'))
+        .datas;
+      const catalog = await this.explore.catalog({ sourceId: profile.sourceId }, actor);
+      mixed = captureStudioReuseOrigin({
+        analysis,
+        snapshot: mixedSnapshot,
+        document: studioDocument,
+        catalog,
+        schemaVersion: studioDigest(schema),
+      });
+    }
     return {
       originalId,
       originalSourceId: profile.sourceId,
       analysis,
       profile,
       studioDocument,
+      mixed,
       reference: undefined as ReuseReference | undefined,
     };
   }
@@ -169,8 +206,53 @@ export class DashboardReuseService {
     }
     return result;
   }
-  async draft(id: unknown, actor: number, kind = 'owned') {
-    const { originalId, analysis, profile } = await this.original(id, actor, kind);
+  async draft(id: unknown, actor: number, kind = 'owned', authVersion?: number) {
+    const origin = await this.original(id, actor, kind);
+    const { originalId, analysis, profile } = origin;
+    if ('mixed' in origin && origin.mixed) {
+      await catalogActorContext(this.db.manager, actor, authVersion);
+      const used = new Set([
+        ...origin.mixed.entries.flatMap(e => e.columns),
+        ...(origin.mixed.document.filters ?? []).map(f => f.column),
+        ...(origin.mixed.document.dateRange ? [origin.mixed.document.dateRange.column] : []),
+      ]);
+      const currencies = [
+        ...new Set(
+          origin.mixed.entries
+            .flatMap(e => e.references)
+            .flatMap(r => {
+              const units = (d: any): string[] =>
+                d.aggregation === 'FORMULA'
+                  ? d.formula.operands.flatMap(o => units(o.definition))
+                  : ['COUNT', 'COUNT_DISTINCT'].includes(d.aggregation)
+                  ? []
+                  : [normalizeFormulaUnit(d.unit)];
+              return units(r.definition);
+            })
+            .filter(u => u === 'USD' || u === 'KRW'),
+        ),
+      ];
+      return {
+        studioMixed: true,
+        ...(currencies.length === 1 ? { currency: currencies[0] } : {}),
+        originalId,
+        originalTitle: analysis.title,
+        expectedRevision: analysis.revision,
+        originalSourceId: profile.sourceId,
+        title: `${analysis.title.slice(0, 296)} 복사본`,
+        columns: profile.columns.filter(c => used.has(c.name)),
+        blocks: origin.mixed.entries.map(e => ({
+          id: e.block.id,
+          title: e.block.title,
+          kind: e.block.kind,
+          columns: e.columns,
+          measures: e.references.map(r => ({ label: r.definition.label, unit: r.definition.unit })),
+          ...(e.block.pivot ? { conditions: e.block.pivot.state.segment.conditions } : {}),
+          ...(e.unsupportedReason ? { unsupportedReason: e.unsupportedReason } : {}),
+        })),
+        sources: (await this.bi.sources(actor)).filter(s => s.engine === 'duckdb'),
+      };
+    }
     const columns = this.columns(analysis, profile);
     const source =
       kind === 'owned'
@@ -212,12 +294,14 @@ export class DashboardReuseService {
     this.tickets.set(ticket, { ...plan, expiresAt: now + TTL });
     return ticket;
   }
-  async preview(id: unknown, body: any, actor: number, kind = 'owned') {
+  async preview(id: unknown, body: any, actor: number, kind = 'owned', authVersion?: number) {
     const required = ['expectedRevision', 'sourceId', 'sourceRevision', 'title', 'columnMap'];
     shape(body, [...required, 'blockIds', 'unitConfirmation'], required);
     if (!body.columnMap || typeof body.columnMap !== 'object' || Array.isArray(body.columnMap))
       throw new BadRequestException('열 연결을 확인해 주세요.');
     const origin = await this.original(id, actor, kind);
+    if ('mixed' in origin && origin.mixed)
+      return this.previewMixed(origin, body, actor, authVersion);
     const { originalId, originalSourceId, analysis, profile, reference } = origin;
     const studioDocument: StudioDocumentV1 | undefined =
       'studioDocument' in origin ? origin.studioDocument : undefined;
@@ -464,6 +548,278 @@ export class DashboardReuseService {
       };
     });
   }
+  private async mixedCatalogRevision(manager: EntityManager, sourceId: number, columns: any[]) {
+    const rows = await manager.find(Metric, { where: { databaseId: sourceId, useYn: 'Y' } });
+    return exploreViewRevision({
+      sourceId,
+      measures: rows
+        .filter(r => r.definition)
+        .map(r => {
+          const definition = JSON.parse(r.definition);
+          return {
+            id: r.id,
+            label: definition.label,
+            definitionVersion: definition.definitionVersion,
+            definition,
+          };
+        }),
+      dimensions: columns.map(c => ({
+        column: c.name,
+        type: c.type,
+        numeric: c.numeric,
+        temporal: c.temporal,
+      })),
+    });
+  }
+  private async currentMixed(manager: EntityManager, plan: Plan) {
+    await assertCatalogActor(manager, plan.authority);
+    await this.currentOriginal(manager, plan);
+    if (
+      (await this.mixedCatalogRevision(
+        manager,
+        plan.originalSourceId,
+        plan.mixed.origin.profile.columns,
+      )) !== plan.mixed.origin.catalog.viewRevision ||
+      (await this.mixedCatalogRevision(manager, plan.targetId, plan.mixed.target.columns)) !==
+        plan.targetCatalogRevision
+    )
+      throw stale();
+  }
+  private async previewMixed(
+    origin: any,
+    body: any,
+    actor: number,
+    authVersion?: number,
+  ): Promise<{
+    ticket: string;
+    expiresAt: string;
+    originalId: number;
+    sourceId: number;
+    studioPreview: StudioReusePreviewV1;
+    snapshot?: never;
+  }> {
+    if (body.expectedRevision !== origin.analysis.revision) throw stale();
+    const authority = await catalogActorContext(this.db.manager, actor, authVersion);
+    const targetId = this.access.id(body.sourceId);
+    if (targetId === origin.profile.sourceId)
+      throw new BadRequestException(
+        '다른 소스를 선택해 주세요. 같은 소스는 Studio 저장본 복제를 사용하세요.',
+      );
+    await this.access.assert('database', targetId, actor);
+    return this.connection.withDuckDBSnapshot(targetId, async () => {
+      const target = await this.bi.profile(targetId, actor);
+      if (target.dataVersion !== body.sourceRevision) throw stale();
+      const mixed = prepareStudioReusePlan(origin.mixed, target, {
+        title: body.title,
+        columnMap: body.columnMap,
+        blockIds: body.blockIds ?? origin.studioDocument.blocks.map(b => b.id),
+      });
+      const money = [
+        ...new Set(
+          mixed.graph.nodes
+            .filter(n => !['COUNT', 'COUNT_DISTINCT'].includes(String(n.definition.aggregation)))
+            .map(n => normalizeFormulaUnit(n.definition.unit))
+            .filter(u => u === 'USD' || u === 'KRW'),
+        ),
+      ];
+      if (money.length > 1) throw new BadRequestException('복제 지표의 금액 단위를 확인해 주세요.');
+      const targetRow = await this.db.manager.findOneBy(Database, { id: targetId });
+      assertReuseCurrency(
+        money[0] as string | undefined,
+        trustedReuseCurrency(targetRow),
+        body.unitConfirmation,
+      );
+      const schema = (await this.connection.queryDuckDB(targetId, 'DESCRIBE uploaded_data')).datas;
+      const plan: Omit<Plan, 'expiresAt'> = {
+        actor,
+        authority,
+        mixed,
+        originalId: origin.originalId,
+        originalRevision: origin.analysis.revision,
+        originalSourceId: origin.profile.sourceId,
+        originalSourceRevision: origin.profile.dataVersion,
+        targetId,
+        targetRevision: target.dataVersion,
+        targetCatalogRevision: await this.mixedCatalogRevision(
+          this.db.manager,
+          targetId,
+          target.columns,
+        ),
+        originalStudioDigest: studioDigest(origin.studioDocument),
+        schemaVersion: studioDigest(schema),
+        draft: mixed.draft,
+        filters: mixed.filters,
+        dateRange: mixed.dateRange,
+        layouts: [],
+        originalCurrency: money[0] as string | undefined,
+        targetCurrency: trustedReuseCurrency(targetRow),
+        unitConfirmation: body.unitConfirmation,
+      };
+      const full = { ...plan, expiresAt: Date.now() + TTL };
+      const studioPreview = await previewStudioReuse(mixed, {
+        assertCurrent: () =>
+          serializeMetadataWork(this.db, () => this.currentMixed(this.db.manager, full)),
+        query: async (sql, bindings) =>
+          (
+            await this.connection.queryDuckDB(targetId, sql, bindings)
+          ).datas,
+        previewCharts: async draft =>
+          (
+            await this.dashboards.preview(
+              {
+                draft,
+                filters: mixed.filters,
+                ...(mixed.dateRange ? { dateRange: mixed.dateRange } : {}),
+                includeTrends: true,
+              },
+              actor,
+              'edit',
+              authVersion,
+            )
+          ).data,
+      });
+      const ticket = this.put(plan);
+      return {
+        ticket,
+        expiresAt: new Date(Date.now() + TTL).toISOString(),
+        originalId: origin.originalId,
+        sourceId: targetId,
+        studioPreview,
+      };
+    });
+  }
+  private async replayMixed(
+    manager: EntityManager,
+    receipt: AnalysisCreationReceipt,
+    digest: string,
+    actor: number,
+    authVersion?: number,
+  ) {
+    await catalogActorContext(manager, actor, authVersion);
+    if (receipt.payloadDigest !== digest)
+      throw new ConflictException('같은 요청의 내용이 다릅니다.');
+    if (!receipt.dashboardId) throw stale();
+    const row = await manager.findOneBy(Dashboard, { id: receipt.dashboardId });
+    if (!row || row.delYn === 'Y')
+      throw new NotFoundException('저장한 복사본을 사용할 수 없습니다.');
+    await this.access.assert('dashboard', row.id, actor, 'owner', manager);
+    const snapshot = JSON.parse(row.structuredDefinition ?? 'null');
+    if (!snapshot?.sourceId) throw stale();
+    await this.access.assert('database', snapshot.sourceId, actor, 'owner', manager);
+    return { id: row.id, replayed: true };
+  }
+  private async saveMixed(
+    id: number,
+    body: any,
+    actor: number,
+    digest: string,
+    plan: Plan,
+    authVersion?: number,
+  ) {
+    if (
+      plan.actor !== actor ||
+      plan.originalId !== id ||
+      plan.reference ||
+      plan.expiresAt <= Date.now() ||
+      (plan.requestId && plan.requestId !== body.requestId)
+    )
+      throw stale();
+    await catalogActorContext(this.db.manager, actor, authVersion);
+    await serializeMetadataWork(this.db, () => this.currentMixed(this.db.manager, plan));
+    const mixed = plan.mixed;
+    const placeholder = {
+      schemaVersion: 2,
+      kind: 'structured-bi-dashboard',
+      sourceId: plan.targetId,
+      items: mixed.draft.widgets.map(() => ({})),
+      ...(mixed.filters.length ? { studioFilters: mixed.filters } : {}),
+      ...(mixed.dateRange ? { studioDateRange: mixed.dateRange } : {}),
+    };
+    const charts = mixed.blocks.filter(b => b.chart);
+    const layouts = charts.map(b =>
+      Object.fromEntries(
+        [
+          ['mobile', 'xs'],
+          ['tablet', 'md'],
+          ['desktop', 'lg'],
+        ].map(([name, bp]) => {
+          const r = mixed.layouts[bp].find(r => r.id === b.original.id);
+          return [name, { x: r.x, y: r.y, w: name === 'mobile' ? 4 : r.w, h: r.h }];
+        }),
+      ),
+    );
+    const prepared = await this.dashboards.prepareSave(
+      { draft: mixed.draft },
+      actor,
+      placeholder,
+      undefined,
+      false,
+      [],
+      layouts,
+      authVersion,
+      true,
+    );
+    plan.requestId = body.requestId;
+    return serializedViewWrite(this.db.getRepository(Dashboard), () =>
+      metadataTransaction(this.db, async manager => {
+        await assertCatalogActor(manager, plan.authority, true);
+        const receipt = await manager.findOneBy(AnalysisCreationReceipt, {
+          actorId: actor,
+          requestId: body.requestId,
+        });
+        if (receipt) return this.replayMixed(manager, receipt, digest, actor, authVersion);
+        await manager.findOne(Dashboard, {
+          where: { id },
+          ...(this.db.options.type === 'sqlite'
+            ? {}
+            : { lock: { mode: 'pessimistic_write' as const } }),
+        });
+        await lockMetricReferenceSets(manager, [
+          { sourceId: plan.originalSourceId, ids: mixed.graph.nodes.map(n => n.origin.id) },
+          { sourceId: plan.targetId, ids: [] },
+        ]);
+        await this.currentMixed(manager, plan);
+        const originSource = await manager.findOneBy(Database, { id: plan.originalSourceId });
+        const targetSource = await manager.findOneBy(Database, { id: plan.targetId });
+        assertReuseCurrency(
+          plan.originalCurrency,
+          trustedReuseCurrency(targetSource),
+          plan.unitConfirmation,
+        );
+        if (!originSource || !targetSource) throw stale();
+        const record = await manager.save(AnalysisCreationReceipt, {
+          actorId: actor,
+          requestId: body.requestId,
+          payloadDigest: digest,
+          dashboardId: null,
+        });
+        const metrics = await persistReuseMetricGraph(
+          mixed.graph,
+          plan.targetId,
+          plan.targetRevision,
+          manager,
+        );
+        const saved = await prepared.persist(manager);
+        const blockIdMap = Object.fromEntries(
+          charts.map((b, i) => [b.original.id, saved.draft.widgets[i].blockId]),
+        );
+        const result = await persistStudioReuse(
+          mixed,
+          metrics,
+          {
+            id: saved.id,
+            draft: saved.draft,
+            blockIdMap,
+            schemaVersion: plan.schemaVersion,
+            sourceRevision: await this.connection.duckDBVersion(plan.targetId),
+          },
+          manager,
+        );
+        await manager.update(AnalysisCreationReceipt, record.id, { dashboardId: result.id });
+        return { id: result.id, replayed: false };
+      }),
+    );
+  }
   private async currentSource(manager: EntityManager, id: number, actor: number, revision: string) {
     const source = await manager.findOne(Database, {
       where: { id },
@@ -542,7 +898,7 @@ export class DashboardReuseService {
     );
     await this.currentSource(manager, plan.targetId, plan.actor, plan.targetRevision);
   }
-  async save(id: unknown, body: any, actor: number, kind = 'owned') {
+  async save(id: unknown, body: any, actor: number, kind = 'owned', authVersion?: number) {
     shape(body, ['ticket', 'requestId']);
     this.access.actor(actor);
     const originalId = kind === 'owned' ? this.access.id(id) : String(id);
@@ -571,6 +927,28 @@ export class DashboardReuseService {
     const hasReceipt = await serializeMetadataWork(this.db, () =>
       this.db.manager.findOne(AnalysisCreationReceipt, { where: { actorId: actor, requestId } }),
     );
+    if (hasReceipt && kind === 'owned') {
+      const row =
+        hasReceipt.dashboardId &&
+        (await this.db.manager.findOneBy(Dashboard, { id: hasReceipt.dashboardId }));
+      if (
+        row?.structuredDefinition &&
+        (JSON.parse(row.structuredDefinition).studioSourceReuse === 1 ||
+          JSON.parse(row.structuredDefinition).studioPivots?.length)
+      )
+        return metadataTransaction(this.db, manager =>
+          this.replayMixed(manager, hasReceipt, digest, actor, authVersion),
+        );
+    }
+    if (candidate?.mixed && kind === 'owned')
+      return this.saveMixed(
+        originalId as number,
+        { ...body, requestId },
+        actor,
+        digest,
+        candidate,
+        authVersion,
+      );
     if (
       !hasReceipt &&
       candidate?.actor === actor &&

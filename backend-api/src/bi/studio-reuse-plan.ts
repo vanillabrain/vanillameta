@@ -46,6 +46,7 @@ export type StudioReusePlan = {
     pivot?: PreparedSegmentInput<CandidateMetricKey> & { measureKeys: CandidateMetricKey[] };
   }>;
   layouts: StudioDocumentV1['layouts'];
+  columnMap: Record<string, string>;
   draft: any;
   filters: any[];
   dateRange?: any;
@@ -352,6 +353,7 @@ export function prepareStudioReusePlan(
       const w = draft.widgets[chartEntries.indexOf(e)];
       if (typeof e.block.defaultDateColumn === 'string')
         w.defaultDateColumn = map[e.block.defaultDateColumn];
+      else if (e.block.defaultDateColumn === null) w.defaultDateColumn = null;
       return {
         original: clone(e.block),
         chart: w,
@@ -415,6 +417,7 @@ export function prepareStudioReusePlan(
     graph,
     blocks,
     layouts,
+    columnMap: map,
     draft,
     filters,
     ...(dateRange ? { dateRange } : {}),
