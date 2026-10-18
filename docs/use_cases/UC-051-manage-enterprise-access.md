@@ -66,3 +66,5 @@
 [설계](../plans/UC-051-sqlite-coordination.md)·[검증](../testing/sqlite-coordination.md)은 명시 transaction/기존 큐·선택 권한 조회를 공통 조정한다. Studio rollback 중 별도 쓰기 성공 유실과 미커밋 소스/계정 상태 노출을 재현해 보호한다. raw Repository 단일 쓰기·일반 조회 전체/운영·파일 전달은 후속이며 전체 요건/TC050 상태는 승격하지 않는다.
 
 [일반 metadata 경계 후속](../testing/metadata-boundaries.md)은 source/metric 저장·확정 정의와 refresh 조회를 연결한다. 이미 인증된 작업 전체 취소나 세션 회전 쓰기 원자성을 보장하는 기능은 아니다.
+
+[계정·세션 경계](../plans/UC-051-account-session-writes.md)는 현재 계정 token 연결과 인증 epoch를 commit 시 확인한다. [증빙](../testing/account-session-writes.md)의 부분 실패/SQLite 선택 회귀를 운영/모든 세션 수용으로 확대하지 않는다.

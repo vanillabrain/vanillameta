@@ -50,6 +50,7 @@ describe('SampleService private sample asset ownership', () => {
           databases.push(saved);
           return saved;
         }),
+        manager: { connection: { options: { type: 'mysql' } } },
       },
       Dataset: {
         findOne: jest.fn(({ where }) =>

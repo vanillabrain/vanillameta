@@ -285,7 +285,7 @@ describe('JwtAuthGuard bearer revocation: active flag and auth epoch', () => {
 });
 
 describe('reissued access tokens: reloaded account row versus verified refresh epoch', () => {
-  let users: { findOne: jest.Mock };
+  let users: { findOne: jest.Mock; manager: { connection: { options: { type: string } } } };
   let jwt: JwtService;
   let authService: AuthService;
   let service: UserService;
@@ -293,7 +293,7 @@ describe('reissued access tokens: reloaded account row versus verified refresh e
   beforeEach(() => {
     process.env.ACCESS_SECRET = ACCESS_SECRET;
     process.env.REFRESH_SECRET = REFRESH_SECRET;
-    users = { findOne: jest.fn() };
+    users = { findOne: jest.fn(), manager: { connection: { options: { type: 'mysql' } } } };
     jwt = new JwtService();
     authService = new AuthService(
       jwt,
@@ -437,13 +437,16 @@ describe('UserController forwarding of the verified refresh epoch', () => {
 });
 
 describe('UserService.deleteUser organization departure guard', () => {
-  let users: { manager: { findOneBy: jest.Mock }; delete: jest.Mock };
+  let users: {
+    manager: { findOneBy: jest.Mock; connection: { options: { type: string } } };
+    delete: jest.Mock;
+  };
   let authService: { checkAccess: jest.Mock };
   let service: UserService;
 
   beforeEach(() => {
     users = {
-      manager: { findOneBy: jest.fn() },
+      manager: { findOneBy: jest.fn(), connection: { options: { type: 'mysql' } } },
       delete: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     authService = { checkAccess: jest.fn() };

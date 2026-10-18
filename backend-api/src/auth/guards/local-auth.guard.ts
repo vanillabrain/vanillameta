@@ -27,6 +27,7 @@ export class LocalAuthGuard extends AuthGuard('local') {
     const userInfo = await this.validate(token);
     if (!userInfo) throw new HttpException('Unathorization', HttpStatus.UNAUTHORIZED);
     request.user = userInfo;
+    request.verifiedRefreshToken = token;
     return true;
   }
 

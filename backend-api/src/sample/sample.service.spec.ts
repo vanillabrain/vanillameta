@@ -14,7 +14,12 @@ import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboar
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { YesNo } from '../common/enum/yn.enum';
 
-const mockRepo = () => ({ findOne: jest.fn(), find: jest.fn(), save: jest.fn() });
+const mockRepo = () => ({
+  findOne: jest.fn(),
+  find: jest.fn(),
+  save: jest.fn(),
+  manager: { connection: { options: { type: 'mysql' } } },
+});
 
 describe('SampleService', () => {
   let service: SampleService;

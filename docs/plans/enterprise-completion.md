@@ -39,3 +39,7 @@
 [공통 transaction 조정](UC-051-sqlite-coordination.md)은 SQLite의 Studio/enterprise/view/semantic 큐와 명시 metadata transaction을 DataSource별로 통합한다. 실제 Studio rollback에 다른 작업의 성공 쓰기가 사라지는 결함과 미커밋 활성/인증 상태 조회를 재현·선택 검증한다. 원시 Repository 단일 save/update/delete와 다른 일반 조회 경로·운영 경합은 후속이다. [검증 증빙](../testing/sqlite-coordination.md)을 전체 NFR005/008 완료로 확대하지 않는다.
 
 [소스·지표/갱신 인증 후속](UC-051-metadata-boundaries.md)은 일반 metadata save/CAS·정의 RMW와 확정 refresh 조회를 이어간다. [증빙](../testing/metadata-boundaries.md)에 실제 rollback 저장 유실·확정 정의/SQL 구간 분리의 검증을 기록한다. 계정/세션 쓰기와 나머지 일반 경로/전체 NFR005/008은 후속이다.
+
+[계정·세션 쓰기](UC-051-account-session-writes.md)는 token/사용자 연결 transaction·현재 연결/actor·epoch 재검사와 계정/가입·샘플 metadata 경계를 보완한다. [검증](../testing/account-session-writes.md)에서 실제 rollback/부분 실패와 전체 회귀를 구분한다. 다른 일반 자산 경계와 공통 분류/조건·수신자·파일/export·보관 등 제품 요건은 계속 열린다.
+
+MySQL 계정 후속의 구체 잔여는 [계정·세션 계획](UC-051-account-session-writes.md#독립-검토의-잔여)의 가입 unique·membership FK/공통 잠금이다. SQLite 성공을 현재 없는 DB 제약의 증거로 대체하지 않는다.

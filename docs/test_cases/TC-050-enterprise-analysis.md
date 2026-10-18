@@ -102,3 +102,7 @@
 ## UC051 소스·지표/갱신 인증 후속 — 2026-10-18
 
 [경계 증빙](../testing/metadata-boundaries.md)은 E01/E02/E03 기반의 일반 source/metric 성공 쓰기 보존·확정 정의/refresh 인증 조회와 긴 분석 SQL의 큐 해제를 선택 검증한다. 기존 세션/계정 쓰기·다른 일반 경로·E13 실제 UI/운영·전체 TC050 NOT_RUN은 승격하지 않는다.
+
+## UC051 계정·세션 쓰기 후속 — 2026-10-18
+
+[계정·세션 증빙](../testing/account-session-writes.md)은 E02/E03 기반의 session row/계정 연결 실패 rollback·활성/epoch 재검사·로그아웃 및 계정 변경의 SQLite 성공 유실 방지를 검증한다. 기존 모든 token/계정 소비자·운영/MySQL·E13 실제 UI·전체 TC050 NOT_RUN을 승격하지 않는다.

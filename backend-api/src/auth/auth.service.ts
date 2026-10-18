@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
 import { RefreshToken } from './entites/refresh_token.entity';
 import { hashPassword, verifyPassword } from '../utils/password.util';
-import { serializeMetadataWork } from '../common/metadata-work';
+import { serializeMetadataWork, metadataTransaction } from '../common/metadata-work';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -76,54 +76,83 @@ export class AuthService {
     // accesstoken이 없을때
   }
 
-  async setRefreshKey(refreshToken: string, jwt_id: number, userId: number) {
-    if (!Number.isSafeInteger(userId) || userId <= 0) {
-      throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
-    }
-    const findToken =
-      Number.isSafeInteger(jwt_id) && jwt_id > 0
-        ? await this.refreshTokenRepository.findOne({ where: { id: jwt_id } })
-        : null;
+  async setRefreshKey(refreshToken: string, _previousJwtId: number, userId: number) {
+    const denied = () =>
+      new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
+    if (!Number.isSafeInteger(userId) || userId <= 0) throw denied();
     const token = refreshToken.replace('Bearer ', '');
-    const saved = await this.refreshTokenRepository.save({
-      ...(findToken || {}),
-      refreshToken: token,
+    let actor: any;
+    try {
+      actor = this.jwtService.verify(token, { secret: process.env.REFRESH_SECRET })?.refreshKeyData;
+      if (
+        actor?.id !== userId ||
+        typeof actor?.userId !== 'string' ||
+        !actor.userId ||
+        !Number.isSafeInteger(actor.authVersion ?? 0) ||
+        (actor.authVersion ?? 0) < 0
+      )
+        throw denied();
+    } catch {
+      throw denied();
+    }
+    // The current account linkage is authoritative; a stale login hint cannot select another row.
+    return metadataTransaction(this.userRepository.manager, async manager => {
+      const user = await manager.findOne(User, {
+        where: { id: userId, userId: actor.userId },
+        ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+          ? { lock: { mode: 'pessimistic_write' as const } }
+          : {}),
+      });
+      if (!user || user.active === false || (user.authVersion ?? 0) !== (actor.authVersion ?? 0))
+        throw denied();
+      const prior =
+        Number.isSafeInteger(user.jwtId) && user.jwtId > 0
+          ? await manager.findOne(RefreshToken, { where: { id: user.jwtId } })
+          : null;
+      const saved = await manager.save(RefreshToken, { ...(prior || {}), refreshToken: token });
+      const updated = await manager.update(User, userId, { jwtId: saved.id });
+      // Configured mysql2 keeps FOUND_ROWS enabled; a matched unchanged link still reports 1.
+      if (updated.affected !== 1) throw denied();
+      return saved;
     });
-    await this.userRepository.update(userId, { jwtId: saved.id });
-    return saved;
-    // 로그인시 갱신된 refreshToken 저장
   }
 
   async validateUser(userId: string, pass: string) {
-    const user = await this.userRepository.findOne({ where: { userId: userId } });
-    if (!user || user.active === false) return null;
+    return serializeMetadataWork(this.userRepository.manager.connection, async () => {
+      const user = await this.userRepository.findOne({ where: { userId: userId } });
+      if (!user || user.active === false) return null;
 
-    const { ok, needsRehash } = verifyPassword(pass, user.password);
-    if (!ok) return null;
+      const { ok, needsRehash } = verifyPassword(pass, user.password);
+      if (!ok) return null;
 
-    // 레거시 sha512 해시 사용자는 로그인 성공 시점에 scrypt로 재해싱
-    if (needsRehash) {
-      user.password = hashPassword(pass);
-      await this.userRepository.save(user);
-    }
-    delete user.password;
-    return user;
+      // 레거시 sha512 해시 사용자는 로그인 성공 시점에 scrypt로 재해싱
+      if (needsRehash) {
+        user.password = hashPassword(pass);
+        await this.userRepository.save(user);
+      }
+      delete user.password;
+      return user;
 
-    // 회원이 존재하는지 확인
+      // 회원이 존재하는지 확인
+    });
   }
 
-  async deleteRefreshToken(userId: number) {
-    if (!Number.isSafeInteger(userId) || userId <= 0) {
+  async deleteRefreshToken(sessionId: number, verifiedToken?: string) {
+    if (
+      !Number.isSafeInteger(sessionId) ||
+      sessionId <= 0 ||
+      typeof verifiedToken !== 'string' ||
+      !verifiedToken
+    ) {
       throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
     }
-    const refreshTokenInfo = await this.refreshTokenRepository.findOne({
-      where: { id: userId },
-    });
-    if (!refreshTokenInfo) {
-      throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
-    }
-    refreshTokenInfo.refreshToken = '';
-    await this.refreshTokenRepository.save(refreshTokenInfo);
+    // A late logout must not revoke a newer credential stored in the same linked row.
+    await serializeMetadataWork(this.refreshTokenRepository.manager.connection, () =>
+      this.refreshTokenRepository.update(
+        { id: sessionId, refreshToken: verifiedToken },
+        { refreshToken: '' },
+      ),
+    );
   }
 
   async verifyAccessToken(token: string) {

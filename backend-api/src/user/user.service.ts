@@ -8,6 +8,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { UserMapping } from './entities/user-mapping.entity.js';
 import { hashPassword } from '../utils/password.util';
+import { serializeMetadataWork } from '../common/metadata-work';
 
 @Injectable()
 export class UserService {
@@ -18,45 +19,56 @@ export class UserService {
   ) {}
 
   async findOne(userId: number) {
-    const userData = await this.userRepository.findOne({
-      where: { id: userId },
+    return serializeMetadataWork(this.userRepository.manager.connection, async () => {
+      const userData = await this.userRepository.findOne({
+        where: { id: userId },
+      });
+      if (!userData) {
+        return 'Bad Request';
+      } else {
+        delete userData.password;
+        return { data: userData, message: 'success' };
+      }
     });
-    if (!userData) {
-      return 'Bad Request';
-    } else {
-      delete userData.password;
-      return { data: userData, message: 'success' };
-    }
   }
 
   async updateUserInfo(userId: string, updateUserDto: UpdateUserDto) {
-    const findUser = await this.authService.checkAccess(userId, String(updateUserDto.password));
-    if (!findUser) {
-      throw new HttpException('not exist user', HttpStatus.CONFLICT);
-    } else {
-      findUser.email = String(updateUserDto.email);
-      findUser.password = hashPassword(String(updateUserDto.new_password));
-      await this.userRepository.save(findUser);
-      return `success`;
-    }
+    // NFR005/008: the password check and the account rewrite share one metadata scope, so a
+    // concurrent SQLite rollback cannot absorb an acknowledged change. checkAccess re-enters the
+    // same DataSource scope instead of waiting on itself.
+    return serializeMetadataWork(this.userRepository.manager.connection, async () => {
+      const findUser = await this.authService.checkAccess(userId, String(updateUserDto.password));
+      if (!findUser) {
+        throw new HttpException('not exist user', HttpStatus.CONFLICT);
+      } else {
+        findUser.email = String(updateUserDto.email);
+        findUser.password = hashPassword(String(updateUserDto.new_password));
+        await this.userRepository.save(findUser);
+        return 'success';
+      }
+    });
   }
 
   async deleteUser(userId: string, password: string) {
-    const findUser = await this.authService.checkAccess(userId, password);
-    if (!findUser) {
-      return 'Unauthorized';
-    } else {
-      if (
-        await this.userRepository.manager.findOneBy(EnterpriseMembership, { userId: findUser.id })
-      )
-        throw new ConflictException('조직 소속 계정은 조직 탈퇴 처리 후 삭제할 수 있습니다.');
-      await this.userRepository.delete(findUser.id);
-      return `success`;
-    }
+    return serializeMetadataWork(this.userRepository.manager.connection, async () => {
+      const findUser = await this.authService.checkAccess(userId, password);
+      if (!findUser) {
+        return 'Unauthorized';
+      } else {
+        if (
+          await this.userRepository.manager.findOneBy(EnterpriseMembership, { userId: findUser.id })
+        )
+          throw new ConflictException('조직 소속 계정은 조직 탈퇴 처리 후 삭제할 수 있습니다.');
+        await this.userRepository.delete(findUser.id);
+        return 'success';
+      }
+    });
   }
 
   async reissuanceAccessToken(userId: string, authVersion = 0) {
-    const payload = await this.userRepository.findOne({ where: { userId: userId } });
+    const payload = await serializeMetadataWork(this.userRepository.manager.connection, () =>
+      this.userRepository.findOne({ where: { userId: userId } }),
+    );
     if (
       !payload ||
       payload.active === false ||
@@ -73,17 +85,21 @@ export class UserService {
       dashboardId: dashboardId,
       userInfoId: userInfoId,
     };
-    await this.userMappingRepository.save(saveObj);
+    await serializeMetadataWork(this.userMappingRepository.manager.connection, () =>
+      this.userMappingRepository.save(saveObj),
+    );
   }
   // mapping table 대시보드id, 유저id 저장
 
   async findDashboardId(id: number) {
-    const findDashboard = await this.userMappingRepository
-      .createQueryBuilder('user_mapping')
-      .select('dashboardId')
-      .where('user_mapping.userInfoId = :userInfoId', { userInfoId: id })
-      .getRawMany();
-    return findDashboard;
+    return serializeMetadataWork(this.userMappingRepository.manager.connection, async () => {
+      const findDashboard = await this.userMappingRepository
+        .createQueryBuilder('user_mapping')
+        .select('dashboardId')
+        .where('user_mapping.userInfoId = :userInfoId', { userInfoId: id })
+        .getRawMany();
+      return findDashboard;
+    });
   }
   // 대시보드id찾는 코드
 }

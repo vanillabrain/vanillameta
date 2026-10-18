@@ -16,6 +16,7 @@ import { UserMapping } from '../user/entities/user-mapping.entity';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { YesNo } from '../common/enum/yn.enum';
 import { encryptConnectionConfig } from '../utils/crypto.util';
+import { serializeMetadataWork } from '../common/metadata-work';
 
 const SAMPLE_DB_NAME = '샘플 매출 데이터';
 const SAMPLE_TABLE = 'sales_data';
@@ -30,6 +31,7 @@ const CATEGORIES = ['전자제품', '의류', '식품', '가구', '도서'];
  * 신규 가입 사용자 온보딩 프로비저닝.
  * - 샘플 sqlite DB/데이터셋/위젯은 사용자별 비공개 자산으로 생성(idempotent)
  * - 대시보드는 가입할 때마다 해당 사용자에게 귀속되도록 생성
+ * - metadata 조회/저장은 공통 SQLite 범위에 참여하고, 별도 샘플 파일 생성/seed(외부 SQL)는 범위 밖에서 수행
  * 모든 실패는 로그만 남기고 가입 플로우를 막지 않는다.
  */
 @Injectable()
@@ -48,6 +50,11 @@ export class SampleService {
     @InjectRepository(UserMapping) private userMappingRepository: Repository<UserMapping>,
   ) {}
 
+  /** 샘플 metadata 작업을 Studio/enterprise와 같은 DataSource 범위에 참여시킨다. */
+  private queued<T>(operation: () => Promise<T>): Promise<T> {
+    return serializeMetadataWork(this.databaseRepository.manager.connection, operation);
+  }
+
   async provisionForUser(userInfoId: number): Promise<void> {
     try {
       const dataset = await this.ensureSampleAssets(userInfoId);
@@ -63,9 +70,11 @@ export class SampleService {
   }
 
   private async ensureSampleAssets(userInfoId: number): Promise<Dataset> {
-    let database = await this.databaseRepository.findOne({
-      where: { name: SAMPLE_DB_NAME, ownerId: userInfoId },
-    });
+    let database = await this.queued(() =>
+      this.databaseRepository.findOne({
+        where: { name: SAMPLE_DB_NAME, ownerId: userInfoId },
+      }),
+    );
     if (!database) {
       const dbPath = await this.writeSampleSqlite();
       const entity = new Database();
@@ -82,18 +91,22 @@ export class SampleService {
           useNullAsDefault: true,
         }),
       );
-      database = await this.databaseRepository.save(entity);
+      database = await this.queued(() => this.databaseRepository.save(entity));
     }
 
-    let dataset = await this.datasetRepository.findOne({
-      where: { title: SAMPLE_DATASET_TITLE, databaseId: database.id },
-    });
+    let dataset = await this.queued(() =>
+      this.datasetRepository.findOne({
+        where: { title: SAMPLE_DATASET_TITLE, databaseId: database.id },
+      }),
+    );
     if (!dataset) {
-      dataset = await this.datasetRepository.save({
-        title: SAMPLE_DATASET_TITLE,
-        databaseId: database.id,
-        query: `SELECT region, category, SUM(amount) AS total_amount, SUM(qty) AS total_qty FROM ${SAMPLE_TABLE} GROUP BY region, category`,
-      });
+      dataset = await this.queued(() =>
+        this.datasetRepository.save({
+          title: SAMPLE_DATASET_TITLE,
+          databaseId: database.id,
+          query: `SELECT region, category, SUM(amount) AS total_amount, SUM(qty) AS total_qty FROM ${SAMPLE_TABLE} GROUP BY region, category`,
+        }),
+      );
     }
     return dataset;
   }
@@ -143,10 +156,12 @@ export class SampleService {
   }
 
   private async ensureSampleWidgets(datasetId: number): Promise<Widget[]> {
-    const [numericComp, barComp] = await Promise.all([
-      this.componentRepository.findOne({ where: { type: 'BOARD_NUMERIC' } }),
-      this.componentRepository.findOne({ where: { type: 'CHART_BAR' } }),
-    ]);
+    const [numericComp, barComp] = await this.queued(() =>
+      Promise.all([
+        this.componentRepository.findOne({ where: { type: 'BOARD_NUMERIC' } }),
+        this.componentRepository.findOne({ where: { type: 'CHART_BAR' } }),
+      ]),
+    );
     if (!numericComp || !barComp) {
       throw new Error('component seed missing (run npm run seed)');
     }
@@ -175,24 +190,28 @@ export class SampleService {
 
     const widgets: Widget[] = [];
     for (const spec of specs) {
-      let widget = await this.widgetRepository.findOne({
-        where: {
-          datasetId,
-          datasetType: DatasetType.DATASET,
-          componentId: spec.componentId,
-          delYn: YesNo.NO,
-        },
-      });
+      let widget = await this.queued(() =>
+        this.widgetRepository.findOne({
+          where: {
+            datasetId,
+            datasetType: DatasetType.DATASET,
+            componentId: spec.componentId,
+            delYn: YesNo.NO,
+          },
+        }),
+      );
       if (!widget) {
-        widget = await this.widgetRepository.save({
-          title: spec.title,
-          description: '온보딩 샘플 위젯',
-          componentId: spec.componentId,
-          datasetType: DatasetType.DATASET,
-          datasetId,
-          option: JSON.stringify(spec.option),
-          delYn: YesNo.NO,
-        });
+        widget = await this.queued(() =>
+          this.widgetRepository.save({
+            title: spec.title,
+            description: '온보딩 샘플 위젯',
+            componentId: spec.componentId,
+            datasetType: DatasetType.DATASET,
+            datasetId,
+            option: JSON.stringify(spec.option),
+            delYn: YesNo.NO,
+          }),
+        );
       }
       widgets.push(widget);
     }
@@ -201,29 +220,39 @@ export class SampleService {
 
   private async createDashboardForUser(userInfoId: number, widgetIds: number[]): Promise<void> {
     // 같은 사용자에게 중복 생성 방지 — 해당 사용자의 매핑 전부 확인
-    const mappings = await this.userMappingRepository.find({ where: { userInfoId } });
+    const mappings = await this.queued(() =>
+      this.userMappingRepository.find({ where: { userInfoId } }),
+    );
     if (mappings.length) {
-      const dup = await this.dashboardRepository.findOne({
-        where: { title: SAMPLE_DASHBOARD_TITLE, delYn: YesNo.NO },
-      });
+      const dup = await this.queued(() =>
+        this.dashboardRepository.findOne({
+          where: { title: SAMPLE_DASHBOARD_TITLE, delYn: YesNo.NO },
+        }),
+      );
       if (dup && mappings.some(m => m.dashboardId === dup.id)) return;
     }
 
-    const share = await this.dashboardShareRepository.save({ uuid: uuidv4() });
+    const share = await this.queued(() => this.dashboardShareRepository.save({ uuid: uuidv4() }));
     const layout = widgetIds.map((id, i) => ({ i: id, x: i * 6, y: 0, w: 6, h: 4 }));
-    const dashboard = await this.dashboardRepository.save({
-      title: SAMPLE_DASHBOARD_TITLE,
-      layout: JSON.stringify(layout),
-      delYn: YesNo.NO,
-      shareId: share.id,
-    });
-    await this.userMappingRepository.save({
-      dashboardId: dashboard.id,
-      userInfoId,
-      createdAt: new Date(),
-    });
+    const dashboard = await this.queued(() =>
+      this.dashboardRepository.save({
+        title: SAMPLE_DASHBOARD_TITLE,
+        layout: JSON.stringify(layout),
+        delYn: YesNo.NO,
+        shareId: share.id,
+      }),
+    );
+    await this.queued(() =>
+      this.userMappingRepository.save({
+        dashboardId: dashboard.id,
+        userInfoId,
+        createdAt: new Date(),
+      }),
+    );
     for (const widgetId of widgetIds) {
-      await this.dashboardWidgetRepository.save({ dashboardId: dashboard.id, widgetId });
+      await this.queued(() =>
+        this.dashboardWidgetRepository.save({ dashboardId: dashboard.id, widgetId }),
+      );
     }
   }
 }
