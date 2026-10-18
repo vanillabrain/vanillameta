@@ -424,3 +424,83 @@ it('clears definite decision 409 uncertainty while preserving UUID and requires 
   await screen.findByText(/의향 수락 기록.*조직/);
   expect(api.post).toHaveBeenCalledTimes(2);
 });
+it('keeps parent proposal, request number, candidates and selection when an explicit dependency review fails', async () => {
+  const accepted = proposal({ status: 'accepted', version: 2, acceptedAt: '2026-10-19T12:00:00Z' });
+  const dependencies = {
+    requestId: uuid,
+    organizationId: 7,
+    ownerId: 42,
+    recipientId: 43,
+    proposalVersion: 2,
+    checkedAt: '2026-10-19T13:00:00Z',
+    scope: 'selected_dependencies_v1',
+    executionAvailable: false,
+    assets: [
+      {
+        ...asset(),
+        dependencyStatus: 'covered',
+        requiredSources: 1,
+        selectedSources: 1,
+        missingOwnedSources: 0,
+        otherSources: 0,
+        metricCount: 2,
+        storage: 'file_review_required',
+      },
+    ],
+  };
+  api.get.mockImplementation((url: string) =>
+    url.endsWith('/dependencies')
+      ? Promise.reject({ response: { status: 409 } })
+      : Promise.resolve({ data: url.endsWith('/candidates') ? { entries: [asset()], nextAfterId: null } : accepted }),
+  );
+  render(<HandoverProposal context={context()} />);
+  open();
+  await select();
+  await review();
+  expect(api.get).toHaveBeenCalledTimes(2);
+  click('연결 자료·보관 조건 확인 열기');
+  expect(api.get).toHaveBeenCalledTimes(2);
+  click('연결 자료·보관 조건 조회');
+  await screen.findByRole('alert');
+  expect(screen.getByLabelText('조회할 요청 번호')).toHaveProperty('value', uuid);
+  expect(screen.getByRole('list', { name: '검토한 고정 자료' })).toBeTruthy();
+  expect(screen.getByRole('list', { name: '공개할 제목과 번호' }).textContent).toContain(asset().title);
+  expect(screen.getByRole('checkbox', { name: /소스 #11/ })).toHaveProperty('checked', true);
+  expect(screen.queryByRole('list', { name: '선택 자료별 연결·보관 검토' })).toBeNull();
+  expect(api.post).not.toHaveBeenCalled();
+  api.get.mockResolvedValueOnce({ data: dependencies });
+  click('연결 자료·보관 조건 조회');
+  await screen.findByRole('list', { name: '선택 자료별 연결·보관 검토' });
+  click('요청 상태·고정 목록 검토');
+  await screen.findByRole('button', { name: '연결 자료·보관 조건 확인 열기' });
+  expect(screen.queryByRole('list', { name: '선택 자료별 연결·보관 검토' })).toBeNull();
+  expect(api.get.mock.calls.filter(call => call[0].endsWith('/dependencies'))).toHaveLength(2);
+  expect(api.post).not.toHaveBeenCalled();
+});
+it.each([
+  { actor: 42, change: {} },
+  { actor: 43, change: { status: 'accepted', version: 2, acceptedAt: '2026-10-19T12:00:00Z' } },
+  {
+    actor: 42,
+    change: { status: 'accepted', version: 2, acceptedAt: '2026-10-19T12:00:00Z', detailsAvailable: false, assets: [] },
+  },
+  {
+    actor: 42,
+    change: {
+      status: 'accepted',
+      version: 2,
+      acceptedAt: '2026-10-19T12:00:00Z',
+      expired: true,
+      detailsAvailable: false,
+      assets: [],
+    },
+  },
+])('withholds dependency information from pending/recipient/ended-disclosure contexts %j', async ({ actor, change }) => {
+  api.get.mockResolvedValue({ data: proposal(change) });
+  render(<HandoverProposal context={context(actor)} />);
+  open();
+  await review();
+  expect(screen.queryByRole('region', { name: '인계 전 연결 자료·보관 조건' })).toBeNull();
+  expect(api.get).toHaveBeenCalledOnce();
+  expect(api.post).not.toHaveBeenCalled();
+});

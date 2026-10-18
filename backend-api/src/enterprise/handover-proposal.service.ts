@@ -1,3 +1,4 @@
+import { handoverSourceCoverage, handoverStorage } from './handover-dependencies';
 import {
   BadRequestException,
   ConflictException,
@@ -108,6 +109,7 @@ export class HandoverProposalService {
     epoch: number,
     run: (manager: EntityManager, scope: any) => Promise<T>,
     proposalId?: string,
+    acceptedReview = false,
   ): Promise<T> {
     this.id(actor);
     return serializeMetadataWork(this.db, async () => {
@@ -123,7 +125,9 @@ export class HandoverProposalService {
         throw new ForbiddenException('현재 조직이 변경됐습니다.');
       if (hash(fresh) !== hash(result.scope))
         throw new ConflictException('조직 정보가 변경됐습니다. 다시 확인해 주세요.');
-      if (proposalId) {
+      if (proposalId && acceptedReview && new Date(fresh.expiresAt).getTime() <= Date.now())
+        throw new ConflictException('인계 의향이 만료됐습니다.');
+      if (proposalId && !acceptedReview) {
         const response = result.value as any;
         response.expired = Date.parse(response.expiresAt) <= Date.now();
         if (response.expired) {
@@ -291,6 +295,70 @@ export class HandoverProposalService {
       id,
     );
   }
+  async dependencies(requestId: unknown, actor: number, epoch: number) {
+    const id = this.uuid(requestId);
+    return this.read(
+      actor,
+      epoch,
+      async (manager, scope) => {
+        const row = await manager.findOneBy(EnterpriseHandoverProposal, { requestId: id });
+        this.access(row, actor, scope);
+        if (row.ownerId !== actor)
+          throw new ForbiddenException('소유자만 연결 자료를 검토할 수 있습니다.');
+        if (row.status !== 'accepted' || row.acceptedAt === null || !this.available(scope, row))
+          throw new ConflictException('현재 수락된 인계 의향을 다시 확인해 주세요.');
+        const organization = await manager.findOneBy(EnterpriseOrganization, {
+          id: row.organizationId,
+        });
+        await this.issued(manager, row, organization, true);
+        const manifest: Manifest[] = JSON.parse(row.manifestJson);
+        const selectedSources = new Set(
+          manifest.filter(asset => asset.kind === 'source').map(asset => asset.id),
+        );
+        const assets = [];
+        for (const { kind, id, title } of manifest) {
+          if (kind === 'dashboard') {
+            assets.push({
+              kind,
+              id,
+              title,
+              ...(await handoverSourceCoverage(manager, actor, selectedSources, id)),
+              metricCount: 0,
+              storage: 'not_applicable',
+            });
+          } else {
+            const source = await manager.findOneBy(Database, { id });
+            const storage = handoverStorage(source.engine);
+            assets.push({
+              kind,
+              id,
+              title,
+              dependencyStatus: storage === 'unresolved' ? 'unresolved' : 'covered',
+              requiredSources: 0,
+              selectedSources: 0,
+              missingOwnedSources: 0,
+              otherSources: 0,
+              metricCount: await manager.count(Metric, { where: { databaseId: id } }),
+              storage,
+            });
+          }
+        }
+        return {
+          requestId: row.requestId,
+          organizationId: row.organizationId,
+          ownerId: row.ownerId,
+          recipientId: row.recipientId,
+          proposalVersion: row.version,
+          checkedAt: new Date().toISOString(),
+          scope: 'selected_dependencies_v1',
+          executionAvailable: false,
+          assets,
+        };
+      },
+      id,
+      true,
+    );
+  }
   private assets(value: unknown): Asset[] {
     if (!Array.isArray(value) || value.length < 1 || value.length > 20)
       throw new BadRequestException('자료는 1~20개 선택해 주세요.');
@@ -312,24 +380,27 @@ export class HandoverProposalService {
     manager: EntityManager,
     owner: number,
     assets: Asset[],
+    readOnly = false,
   ): Promise<Manifest[]> {
     // Existing writer order: all selected Dashboard parents, then ALL Source parents,
     // then children. No unrelated dependencies or private file bytes are inspected.
-    for (const id of assets
-      .filter(a => a.kind === 'dashboard')
-      .map(a => a.id)
-      .sort((a, b) => a - b))
-      await lockDashboardWrite(manager, id);
-    await lockMetricSources(
-      manager,
-      assets.filter(a => a.kind === 'source').map(a => a.id),
-    );
+    if (!readOnly) {
+      for (const id of assets
+        .filter(a => a.kind === 'dashboard')
+        .map(a => a.id)
+        .sort((a, b) => a - b))
+        await lockDashboardWrite(manager, id);
+      await lockMetricSources(
+        manager,
+        assets.filter(a => a.kind === 'source').map(a => a.id),
+      );
+    }
     const result: Manifest[] = [];
     for (const asset of assets) {
       if (asset.kind === 'source') {
         const source = await manager.findOne(Database, {
           where: { id: asset.id },
-          ...this.lock(manager),
+          ...(readOnly ? {} : this.lock(manager)),
         });
         if (!source || source.ownerId !== owner || !source.catalogActive)
           throw new ConflictException('선택 소스의 소유·활성 상태가 변경됐습니다.');
@@ -337,7 +408,7 @@ export class HandoverProposalService {
           .createQueryBuilder(Metric, 'metric')
           .where('metric.databaseId = :id', { id: asset.id })
           .orderBy('metric.id', 'ASC');
-        if (this.lock(manager).lock) metrics.setLock('pessimistic_write');
+        if (!readOnly && this.lock(manager).lock) metrics.setLock('pessimistic_write');
         if (source.name.slice(0, 300) !== asset.title)
           throw new ConflictException('확인한 자료 제목이 변경됐습니다.');
         result.push({
@@ -348,13 +419,13 @@ export class HandoverProposalService {
       } else {
         const dashboard = await manager.findOne(Dashboard, {
           where: { id: asset.id },
-          ...this.lock(manager),
+          ...(readOnly ? {} : this.lock(manager)),
         });
         const mappings = manager
           .createQueryBuilder(UserMapping, 'mapping')
           .where('mapping.dashboardId = :id', { id: asset.id })
           .orderBy('mapping.id', 'ASC');
-        if (this.lock(manager).lock) mappings.setLock('pessimistic_write');
+        if (!readOnly && this.lock(manager).lock) mappings.setLock('pessimistic_write');
         const owners = await mappings.getMany();
         if (
           !dashboard?.assetActive ||
@@ -365,7 +436,7 @@ export class HandoverProposalService {
           throw new ConflictException('선택 대시보드의 소유·활성 상태가 변경됐습니다.');
         const studio = await manager.findOne(StudioState, {
           where: { dashboardId: asset.id },
-          ...this.lock(manager),
+          ...(readOnly ? {} : this.lock(manager)),
         });
         if (dashboard.title.slice(0, 300) !== asset.title)
           throw new ConflictException('확인한 자료 제목이 변경됐습니다.');
@@ -403,6 +474,7 @@ export class HandoverProposalService {
     manager: EntityManager,
     row: EnterpriseHandoverProposal,
     organization: EnterpriseOrganization,
+    readOnly = false,
   ) {
     const pair = await this.pair(manager, row.ownerId, row.recipientId, row.organizationId);
     if (
@@ -413,7 +485,12 @@ export class HandoverProposalService {
       throw new ConflictException(
         '발급 당시 계정·조직 기준이 변경됐습니다. 새 요청을 검토해 주세요.',
       );
-    const manifest = await this.manifest(manager, row.ownerId, JSON.parse(row.manifestJson));
+    const manifest = await this.manifest(
+      manager,
+      row.ownerId,
+      JSON.parse(row.manifestJson),
+      readOnly,
+    );
     if (hash(manifest) !== hash(JSON.parse(row.manifestJson)))
       throw new ConflictException('선택 자료가 변경됐습니다. 새 요청을 검토해 주세요.');
   }

@@ -1,3 +1,4 @@
+import HandoverDependencyReview from './HandoverDependencyReview';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { EnterpriseContext, enterpriseError } from '@/api/enterpriseService';
 import {
@@ -417,6 +418,17 @@ export default function HandoverProposal({ context }: { context: EnterpriseConte
                   </li>
                 ))}
               </ul>
+              {review.ownerId === membership.userId &&
+                review.status === 'accepted' &&
+                review.detailsAvailable &&
+                !review.expired && (
+                  <HandoverDependencyReview
+                    key={generation.current}
+                    review={review}
+                    scope={scope}
+                    organizationVersion={organization.version}
+                  />
+                )}
               <label className="flex min-h-9 items-center gap-2 text-sm">
                 <input
                   type="checkbox"

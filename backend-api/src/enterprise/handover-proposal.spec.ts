@@ -12,6 +12,11 @@ import { User } from '../user/entities/user.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { Database } from '../database/entities/database.entity';
 import { Metric, MetricAggregation } from '../metric/entities/metric.entity';
+import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
+import { Widget } from '../widget/entities/widget.entity';
+import { Dataset } from '../dataset/entities/dataset.entity';
+import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
+import { DatasetType } from '../common/enum/dataset-type.enum';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { StudioState } from '../dashboard-studio/entities/studio-state.entity';
 import { EnterpriseOrganization } from './entities/enterprise-organization.entity';
@@ -31,6 +36,10 @@ const entities = [
   Dashboard,
   UserMapping,
   StudioState,
+  DashboardWidget,
+  Widget,
+  Dataset,
+  TableQuery,
   EnterpriseAuditEvent,
   EnterpriseHandoverProposal,
 ];
@@ -864,5 +873,355 @@ describe('UC051 metadata-only handover proposals', () => {
       else await runner.changeColumn('enterprise_handover_proposal', changed, column);
       await runner.release();
     }
+  });
+  async function acceptedReview(prepare?: () => Promise<unknown>, assets = selected) {
+    await db
+      .getRepository(Dashboard)
+      .update(21, { analysisDefinition: null, structuredDefinition: null, pivotDefinitions: null });
+    await db.getRepository(StudioState).delete(21);
+    if (prepare) await prepare();
+    const row = await service.create(1, 0, { ...input(), assets });
+    return service.accept(row.requestId, 2, 0, terms(row));
+  }
+  it('reviews accepted selected assets with an exact counts-only contract and no DB/audit writes', async () => {
+    const row = await acceptedReview(async () => {
+      await db
+        .getRepository(Dashboard)
+        .update(21, { analysisDefinition: JSON.stringify({ databaseId: 11 }) });
+      await db.getRepository(Metric).update(31, { useYn: 'N' });
+    });
+    const before = await snapshot();
+    const result = (await http('get', '/' + row.requestId + '/dependencies').expect(200)).body;
+    expect(result).toEqual({
+      requestId: row.requestId,
+      organizationId: 10,
+      ownerId: 1,
+      recipientId: 2,
+      proposalVersion: 2,
+      checkedAt: expect.any(String),
+      scope: 'selected_dependencies_v1',
+      executionAvailable: false,
+      assets: [
+        {
+          kind: 'dashboard',
+          id: 21,
+          title: 'Dashboard title',
+          dependencyStatus: 'covered',
+          requiredSources: 1,
+          selectedSources: 1,
+          missingOwnedSources: 0,
+          otherSources: 0,
+          metricCount: 0,
+          storage: 'not_applicable',
+        },
+        {
+          kind: 'source',
+          id: 11,
+          title: 'Source title',
+          dependencyStatus: 'covered',
+          requiredSources: 0,
+          selectedSources: 0,
+          missingOwnedSources: 0,
+          otherSources: 0,
+          metricCount: 1,
+          storage: 'file_review_required',
+        },
+      ],
+    });
+    expect(Number.isFinite(Date.parse(result.checkedAt))).toBe(true);
+    expect(await snapshot()).toEqual(before);
+    expect(JSON.stringify(result)).not.toMatch(
+      /private|fingerprint|reviewBasis|connectionConfig|authVersion|AuditId/,
+    );
+  });
+  it.each(['analysis', 'structured', 'pivot', 'studio', 'dataset-widget', 'table-widget'])(
+    'collects declared %s connections and deduplicates repeated source IDs',
+    async form => {
+      const row = await acceptedReview(async () => {
+        if (form === 'analysis')
+          await db
+            .getRepository(Dashboard)
+            .update(21, { analysisDefinition: JSON.stringify({ databaseId: 11 }) });
+        if (form === 'structured')
+          await db
+            .getRepository(Dashboard)
+            .update(21, { structuredDefinition: JSON.stringify({ sourceId: 11 }) });
+        if (form === 'pivot')
+          await db
+            .getRepository(Dashboard)
+            .update(21, { pivotDefinitions: JSON.stringify([{ sourceId: 11 }, { sourceId: 11 }]) });
+        if (form === 'studio')
+          await db.getRepository(StudioState).save({
+            dashboardId: 21,
+            document: JSON.stringify({ document: { sourceId: 11 } }),
+            legacyRevision: 'synthetic',
+          });
+        if (form.endsWith('widget')) {
+          const entity = form === 'dataset-widget' ? Dataset : TableQuery;
+          await db
+            .getRepository(entity as any)
+            .save({ id: 51, databaseId: 11, query: 'private-sql' });
+          await db.getRepository(Widget).save({
+            id: 61,
+            componentId: 1,
+            datasetType: form === 'dataset-widget' ? DatasetType.DATASET : DatasetType.TABLE,
+            datasetId: 51,
+            option: 'private-widget-settings',
+          });
+          await db.getRepository(DashboardWidget).save([
+            { dashboardId: 21, widgetId: 61 },
+            { dashboardId: 21, widgetId: 61 },
+          ]);
+        }
+      });
+      const before = await snapshot();
+      const result = (await http('get', '/' + row.requestId + '/dependencies').expect(200)).body;
+      expect(result.assets[0]).toMatchObject({
+        dependencyStatus: 'covered',
+        requiredSources: 1,
+        selectedSources: 1,
+      });
+      expect(await snapshot()).toEqual(before);
+    },
+  );
+  it('counts distinct selected, missing owned, other and legacy sources without disclosing unselected IDs or content', async () => {
+    const row = await acceptedReview(async () => {
+      await db.getRepository(Database).save(
+        [81, 82, 83].map(id => ({
+          id,
+          ownerId: id === 81 ? 1 : id === 82 ? 2 : null,
+          name: 'private-hidden-source',
+          engine: 'duckdb',
+          type: 'file',
+          connectionConfig: 'private-hidden-path',
+        })),
+      );
+      await db.getRepository(Dashboard).update(21, {
+        analysisDefinition: JSON.stringify({ databaseId: 11 }),
+        structuredDefinition: JSON.stringify({ sourceId: 81 }),
+        pivotDefinitions: JSON.stringify([{ sourceId: 81 }, { sourceId: 82 }, { sourceId: 83 }]),
+      });
+    });
+    const before = await snapshot();
+    const result = (await http('get', '/' + row.requestId + '/dependencies').expect(200)).body;
+    expect(result.assets[0]).toMatchObject({
+      dependencyStatus: 'missing',
+      requiredSources: 4,
+      selectedSources: 1,
+      missingOwnedSources: 1,
+      otherSources: 2,
+    });
+    expect(JSON.stringify(result.assets)).not.toMatch(/81|82|83|private-hidden/);
+    expect(await snapshot()).toEqual(before);
+  });
+  it.each([
+    'bad-json',
+    'bad-shape',
+    'missing-ref',
+    'bad-pivot',
+    'bad-studio',
+    'missing-widget',
+    'unknown-widget',
+    'missing-dataset',
+    'bad-source-id',
+    'missing-source',
+    'inactive-source',
+  ])(
+    'reports %s as unresolved without hiding the invalid linkage or exposing its data',
+    async kind => {
+      const row = await acceptedReview(async () => {
+        if (kind === 'bad-json')
+          await db
+            .getRepository(Dashboard)
+            .update(21, { analysisDefinition: 'private-invalid-json' });
+        if (kind === 'bad-shape')
+          await db.getRepository(Dashboard).update(21, { structuredDefinition: '[]' });
+        if (kind === 'missing-ref')
+          await db.getRepository(Dashboard).update(21, { structuredDefinition: '{}' });
+        if (kind === 'bad-pivot')
+          await db.getRepository(Dashboard).update(21, { pivotDefinitions: '{}' });
+        if (kind === 'bad-studio')
+          await db
+            .getRepository(StudioState)
+            .save({ dashboardId: 21, document: '{}', legacyRevision: 'synthetic' });
+        if (kind === 'bad-source-id')
+          await db
+            .getRepository(Dashboard)
+            .update(21, { analysisDefinition: '{"databaseId":"11"}' });
+        if (kind === 'missing-source')
+          await db
+            .getRepository(Dashboard)
+            .update(21, { analysisDefinition: '{"databaseId":9876}' });
+        if (kind === 'inactive-source') {
+          await db.getRepository(Database).update(12, { catalogActive: false });
+          await db.getRepository(Dashboard).update(21, { analysisDefinition: '{"databaseId":12}' });
+        }
+        if (['missing-widget', 'unknown-widget', 'missing-dataset'].includes(kind)) {
+          await db.getRepository(DashboardWidget).save({ dashboardId: 21, widgetId: 61 });
+          if (kind !== 'missing-widget')
+            await db.getRepository(Widget).save({
+              id: 61,
+              componentId: 1,
+              datasetType:
+                kind === 'unknown-widget' ? ('UNSUPPORTED' as DatasetType) : DatasetType.DATASET,
+              datasetId: 9876,
+              option: 'private-option',
+            });
+        }
+      });
+      const before = await snapshot();
+      const result = (await http('get', '/' + row.requestId + '/dependencies').expect(200)).body;
+      expect(result.assets[0].dependencyStatus).toBe('unresolved');
+      expect(JSON.stringify(result.assets)).not.toMatch(/9876|private-invalid|private-option/);
+      expect(await snapshot()).toEqual(before);
+    },
+  );
+  it('reports an empty dashboard as zero connections', async () => {
+    const row = await acceptedReview();
+    const result = (await http('get', '/' + row.requestId + '/dependencies').expect(200)).body;
+    expect(result.assets[0]).toMatchObject({
+      dependencyStatus: 'covered',
+      requiredSources: 0,
+      selectedSources: 0,
+      storage: 'not_applicable',
+    });
+  });
+  it.each([
+    ['duckdb', 'file_review_required'],
+    ['sqlite3', 'file_review_required'],
+    ['mysql2', 'connection_review_required'],
+    [' MYSQL ', 'connection_review_required'],
+    ['postgres', 'connection_review_required'],
+    ['postgresql', 'connection_review_required'],
+    ['athena', 'unresolved'],
+    ['pg', 'connection_review_required'],
+    ['unknown', 'unresolved'],
+  ])(
+    'classifies %s storage without reading file paths or external connections',
+    async (engine, storage) => {
+      const row = await acceptedReview(() => db.getRepository(Database).update(11, { engine }));
+      const result = (await http('get', '/' + row.requestId + '/dependencies').expect(200)).body;
+      expect(result.assets[1].storage).toBe(storage);
+      expect(result.executionAvailable).toBe(false);
+      expect(JSON.stringify(result)).not.toMatch(/private-path|connectionConfig/);
+    },
+  );
+  it('protects dependency HTTP with the actual JWT/filter and restricts it to the active current owner', async () => {
+    const row = await acceptedReview(),
+      path = '/' + row.requestId + '/dependencies',
+      before = await snapshot();
+    await request(app.getHttpServer())
+      .get('/enterprise/handover' + path)
+      .expect(401);
+    for (const actor of [2, 3, 4, 5]) await http('get', path, actor).expect(403);
+    await http('get', path, 1, undefined, 1).expect(401);
+    await http('get', '/' + randomUUID() + '/dependencies').expect(404);
+    expect(await snapshot()).toEqual(before);
+  });
+  it.each([
+    'pending',
+    'expired',
+    'cancelled',
+    'owner-epoch',
+    'recipient-epoch',
+    'recipient-inactive',
+    'recipient-moved',
+    'org-version',
+    'source',
+    'metric',
+    'dashboard',
+    'mapping',
+    'studio',
+  ])('rejects %s review basis with409 and no read-side writes', async kind => {
+    const row = await acceptedReview();
+    if (kind === 'pending')
+      await db
+        .getRepository(EnterpriseHandoverProposal)
+        .update(row.requestId, { status: 'pending' });
+    if (kind === 'expired')
+      await db
+        .getRepository(EnterpriseHandoverProposal)
+        .update(row.requestId, { expiresAt: new Date('2020-01-01') });
+    if (kind === 'cancelled') await service.cancel(row.requestId, 1, 0, terms(row));
+    if (kind === 'owner-epoch') await db.getRepository(User).update(1, { authVersion: 1 });
+    if (kind === 'recipient-epoch') await db.getRepository(User).update(2, { authVersion: 1 });
+    if (kind === 'recipient-inactive') await db.getRepository(User).update(2, { active: false });
+    if (kind === 'recipient-moved')
+      await db.getRepository(EnterpriseMembership).update(2, { organizationId: 20 });
+    if (kind === 'org-version')
+      await db.getRepository(EnterpriseOrganization).update(10, { version: 2 });
+    if (kind === 'source') await db.getRepository(Database).update(11, { name: 'changed' });
+    if (kind === 'metric') await db.getRepository(Metric).update(31, { expression: 'changed' });
+    if (kind === 'dashboard') await db.getRepository(Dashboard).update(21, { title: 'changed' });
+    if (kind === 'mapping')
+      await db.getRepository(UserMapping).save({ dashboardId: 21, userInfoId: 1 });
+    if (kind === 'studio')
+      await db
+        .getRepository(StudioState)
+        .save({ dashboardId: 21, document: '{}', legacyRevision: 'changed' });
+    const before = await snapshot();
+    const result = await http(
+      'get',
+      '/' + row.requestId + '/dependencies',
+      1,
+      undefined,
+      kind === 'owner-epoch' ? 1 : 0,
+    ).expect(409);
+    expect(result.body).toMatchObject({ success: false, code: 409 });
+    expect(result.body).not.toHaveProperty('assets');
+    expect(await snapshot()).toEqual(before);
+  });
+  it.each(['cancel', 'recipient-epoch', 'org-version'])(
+    'does not return a review from a snapshot invalidated by committed %s',
+    async kind => {
+      const row = await acceptedReview();
+      afterSnapshot(async writer => {
+        if (kind === 'cancel')
+          await new HandoverProposalService(writer).cancel(row.requestId, 1, 0, terms(row));
+        if (kind === 'recipient-epoch')
+          await writer.getRepository(User).update(2, { authVersion: 1 });
+        if (kind === 'org-version')
+          await writer.getRepository(EnterpriseOrganization).update(10, { version: 2 });
+      });
+      const result = await http('get', '/' + row.requestId + '/dependencies').expect(409);
+      expect(JSON.stringify(result.body)).not.toMatch(/Source title|Dashboard title/);
+    },
+  );
+  it('uses only non-locking SELECTs for dependency review and preserves every fixture row', async () => {
+    const row = await acceptedReview(),
+      before = await snapshot();
+    const create = db.createQueryRunner.bind(db),
+      seen = new WeakSet(),
+      statements: string[] = [];
+    jest.spyOn(db, 'createQueryRunner').mockImplementation(mode => {
+      const runner = create(mode);
+      if (!seen.has(runner)) {
+        seen.add(runner);
+        const query = runner.query.bind(runner);
+        (jest.spyOn(runner, 'query') as any).mockImplementation((...args) => {
+          statements.push(String(args[0]));
+          return query(...args);
+        });
+      }
+      return runner;
+    });
+    await http('get', '/' + row.requestId + '/dependencies').expect(200);
+    expect(statements.some(sql => /^SELECT/i.test(sql.trim()))).toBe(true);
+    expect(
+      statements.filter(sql =>
+        /\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b|LOCK IN SHARE MODE/i.test(sql),
+      ),
+    ).toEqual([]);
+    expect(await snapshot()).toEqual(before);
+  });
+  it('rechecks expiry after the dependency snapshot without returning a partial or extra response shape', async () => {
+    const row = await acceptedReview();
+    const expiry = Date.parse(row.expiresAt);
+    afterSnapshot(async () => {
+      jest.spyOn(Date, 'now').mockReturnValue(expiry + 1);
+    });
+    const response = await http('get', '/' + row.requestId + '/dependencies').expect(409);
+    expect(response.body).not.toHaveProperty('assets');
+    expect(response.body).not.toHaveProperty('expired');
   });
 });

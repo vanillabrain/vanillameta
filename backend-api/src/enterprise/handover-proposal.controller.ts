@@ -21,6 +21,10 @@ export class HandoverProposalController {
     const a = r.user.accessKeyData;
     return this.service.detail(id, a.id, a.authVersion ?? 0);
   }
+  @Get(':id/dependencies') dependencies(@Req() r: any, @Param('id') id: string) {
+    const a = r.user.accessKeyData;
+    return this.service.dependencies(id, a.id, a.authVersion ?? 0);
+  }
   @Post(':id/accept') accept(@Req() r: any, @Param('id') id: string, @Body() body: unknown) {
     const a = r.user.accessKeyData;
     return this.service.accept(id, a.id, a.authVersion ?? 0, body);
