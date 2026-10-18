@@ -1,13 +1,14 @@
-import { Body, Controller, Delete, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StaffTransferService } from './staff-transfer.service';
 @Controller('enterprise/staff-transfer')
 @UseGuards(JwtAuthGuard)
 export class StaffTransferController {
   constructor(private readonly service: StaffTransferService) {}
-  @Get() status(@Req() r: any) {
+  @Get() async status(@Req() r: any, @Res() response: any) {
     const a = r.user.accessKeyData;
-    return this.service.status(a.id, a.authVersion ?? 0);
+    // Nest otherwise serializes null as an empty response, which is not the JSON contract.
+    return response.status(200).json(await this.service.status(a.id, a.authVersion ?? 0));
   }
   @Post() request(@Req() r: any, @Body() body: unknown) {
     const a = r.user.accessKeyData;

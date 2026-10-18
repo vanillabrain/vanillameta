@@ -31,6 +31,7 @@ export default function StaffTransfer({ context, onReload }: Props) {
   const [ack, setAck] = useState('');
   const [busy, setBusy] = useState(false);
   const [uncertain, setUncertain] = useState(false);
+  const [unknownOutcome, setUnknownOutcome] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -55,9 +56,11 @@ export default function StaffTransfer({ context, onReload }: Props) {
       await action();
     } catch (cause) {
       if (mounted.current) {
-        setError(enterpriseError(cause).message);
+        const failure = enterpriseError(cause);
+        setError(failure.message);
         if (mutation) {
           setUncertain(true);
+          setUnknownOutcome(failure.kind === 'network' || failure.status === null || failure.status >= 500);
           setReview(null);
           setIssued(null);
         }
@@ -136,8 +139,10 @@ export default function StaffTransfer({ context, onReload }: Props) {
           )}
           {uncertain && (
             <Notice severity="warning">
-              처리 결과가 확정되지 않았습니다. 본인은 내 이동 상태를 확인하고, 관리자는 해당 직원에게 현재 소속·수락 상태를
-              확인하세요. 조직·버전을 다시 불러온 뒤 새로 확인해야 하며 자동 재전송하지 않습니다.
+              {unknownOutcome
+                ? '처리 결과가 확정되지 않았습니다. 본인은 내 이동 상태를 확인하고, 관리자는 해당 직원에게 현재 소속·수락 상태를 확인하세요.'
+                : '변경 요청이 거절되어 이동하지 않았습니다. 최신 조직·수락 내용을 다시 확인하세요.'}{' '}
+              조직·버전을 다시 불러온 뒤 새로 확인해야 하며 자동 재전송하지 않습니다.
             </Notice>
           )}
           <div className="flex min-w-0 flex-col gap-2 rounded-md bg-muted/40 p-3">

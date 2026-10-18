@@ -1,3 +1,4 @@
+import { HttpExceptionFilter } from '../nest-utils/http-exception.filter';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -113,6 +114,7 @@ describe('UC051 staff search and consented organization transfer', () => {
       ],
     }).compile();
     app = module.createNestApplication();
+    app.useGlobalFilters(new HttpExceptionFilter());
     await app.init();
     await app.listen(0, '127.0.0.1');
   });
@@ -173,6 +175,16 @@ describe('UC051 staff search and consented organization transfer', () => {
     groupMembers: await db.getRepository(EnterpriseGroupMember).find(),
     groups: await db.getRepository(EnterpriseGroup).find(),
     deliveries: await db.getRepository(EnterpriseDashboardDelivery).find(),
+  });
+  it('serializes absent and revoked staff transfer status as explicit JSON null over protected HTTP', async () => {
+    const initial = await call('get', uri, 2).expect(200).expect('Content-Type', /json/);
+    expect(initial.text).toBe('null');
+    expect(initial.body).toBeNull();
+    await call('post', uri, 2, { targetOrganizationId: 20 }).expect(201);
+    expect((await call('get', uri, 2).expect(200)).body.status).toBe('pending');
+    await call('delete', uri, 2).expect(200);
+    const revoked = await call('get', uri, 2).expect(200).expect('Content-Type', /json/);
+    expect(revoked.text).toBe('null');
   });
   it('searches only own organization by literal login/team/id and rejects malformed queries', async () => {
     expect((await enterprise.members(1, undefined, '%_!')).entries.map(r => r.id)).toEqual([2]);

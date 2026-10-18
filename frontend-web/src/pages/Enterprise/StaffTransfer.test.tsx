@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import StaffTransfer from './StaffTransfer';
 import Enterprise from './index';
-import { fetchMembers } from '@/api/enterpriseService';
+import { fetchMembers, enterpriseError } from '@/api/enterpriseService';
 import {
   acceptStaffTransfer,
   completeStaffTransfer,
@@ -132,7 +132,7 @@ it('requires accepted source-admin review and automatically uses both reviewed v
   expect(reload).toHaveBeenCalledWith(expect.stringContaining('다시 로그인'));
   expect(screen.queryByText(/처리 결과가 확정되지 않았습니다/)).toBeNull();
 });
-it('does not retry an ambiguous write and requires context reload after conflict', async () => {
+it('distinguishes rejected conflict from uncertain outcome and requires context reload without retry', async () => {
   const reload = vi.fn();
   api.post.mockImplementation((url: string) =>
     url.endsWith('/review') ? Promise.resolve({ data: reviewed() }) : Promise.reject({ response: { status: 409 } }),
@@ -143,7 +143,8 @@ it('does not retry an ambiguous write and requires context reload after conflict
   await reviewCode();
   check(/대상 조직의 수락과 최신 버전/);
   fireEvent.click(screen.getByRole('button', { name: '현재 조직에서 최종 이동' }));
-  await screen.findByText(/처리 결과가 확정되지 않았습니다/);
+  await screen.findByText(/변경 요청이 거절되어 이동하지 않았습니다/);
+  expect(screen.queryByText(/처리 결과가 확정되지 않았습니다/)).toBeNull();
   expect(api.post).toHaveBeenCalledTimes(2);
   expect(screen.getByRole('button', { name: '대상 조직으로 수락' })).toHaveProperty('disabled', true);
   fireEvent.click(screen.getByRole('button', { name: '내 이동 상태 다시 불러오기' }));
@@ -208,6 +209,10 @@ it('integrates server search into the actual staff list and subsequent cursor pa
   );
   render(<Enterprise />);
   await screen.findByText('로그인 ID Other');
+  const search = screen.getByLabelText('직원 검색');
+  expect(document.getElementById(search.getAttribute('aria-describedby') || '')?.textContent).toContain(
+    '현재 조직의 내부 직원 번호',
+  );
   input('직원 검색', 'Ops');
   fireEvent.click(screen.getByRole('button', { name: '직원 검색 적용' }));
   await screen.findByText('로그인 ID Ops-21');
@@ -237,7 +242,7 @@ it('refreshes organization context alongside the staff list before allowing a fr
   await reviewCode();
   check(/대상 조직의 수락과 최신 버전/);
   fireEvent.click(screen.getByRole('button', { name: '현재 조직에서 최종 이동' }));
-  await screen.findByText(/처리 결과가 확정되지 않았습니다/);
+  await screen.findByText(/변경 요청이 거절되어 이동하지 않았습니다/);
   await waitFor(() =>
     expect(screen.getByRole('button', { name: '조직·버전 다시 불러오기' })).toHaveProperty('disabled', false),
   );
@@ -337,9 +342,44 @@ it('sends the exact captured review basis and requires a fresh review after an a
   currentBasis = 'c'.repeat(64); // Another acceptance changes the server basis after this review.
   check(/대상 조직의 수락과 최신 버전/);
   fireEvent.click(screen.getByRole('button', { name: '현재 조직에서 최종 이동' }));
-  await screen.findByText(/처리 결과가 확정되지 않았습니다/);
+  await screen.findByText(/변경 요청이 거절되어 이동하지 않았습니다/);
   expect(captured).toEqual([{ code, expectedVersion: 3, targetExpectedVersion: 6, reviewBasis: basis }]);
   expect(screen.queryByText(/검토한 직원/)).toBeNull();
   expect(screen.getByRole('checkbox', { name: /대상 조직의 수락과 최신 버전/ })).toHaveProperty('checked', false);
   expect(screen.getByRole('button', { name: '현재 조직에서 최종 이동' })).toHaveProperty('disabled', true);
+});
+
+it.each([400, 403, 409])('preserves explicit staff recovery reason from deployed error envelope status%s', status => {
+  const message = '수락 내용이 변경됐습니다. 이동 요청을 다시 검토해 주세요.';
+  expect(
+    enterpriseError({
+      response: { status, data: { success: false, code: status, data: { statusCode: status, message, error: 'Conflict' } } },
+    }).message,
+  ).toBe(message);
+});
+it('does not render arbitrary objects from malformed enterprise error envelopes', () => {
+  const error = enterpriseError({
+    response: {
+      status: 409,
+      data: { data: { message: { internal: 'not-for-display' }, connectionConfig: 'not-for-display' } },
+    },
+  });
+  expect(error.message).not.toContain('not-for-display');
+  expect(error.message).not.toContain('[object Object]');
+});
+
+it('marks a lost write response as uncertain and retains its code without automatic retry', async () => {
+  api.post.mockImplementation((url: string) =>
+    url.endsWith('/review') ? Promise.resolve({ data: reviewed() }) : Promise.reject(new Error('network loss')),
+  );
+  render(<StaffTransfer context={context('admin')} onReload={vi.fn()} />);
+  await open();
+  input('직원이 전달한 이동 코드', code);
+  await reviewCode();
+  check(/대상 조직의 수락과 최신 버전/);
+  fireEvent.click(screen.getByRole('button', { name: '현재 조직에서 최종 이동' }));
+  await screen.findByText(/처리 결과가 확정되지 않았습니다/);
+  expect(screen.queryByText(/변경 요청이 거절되어 이동하지 않았습니다/)).toBeNull();
+  expect(api.post).toHaveBeenCalledTimes(2);
+  expect((screen.getByLabelText('직원이 전달한 이동 코드') as HTMLInputElement).value).toBe(code);
 });

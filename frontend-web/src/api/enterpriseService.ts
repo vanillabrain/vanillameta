@@ -139,12 +139,17 @@ export const rawPayload = <T>(response: { data?: unknown }, shape: (input: unkno
 };
 
 const reasonFrom = (body: any): string | undefined => {
-  const message = Array.isArray(body?.message) ? body.message.join(' · ') : body?.message;
-  if (typeof message === 'string' && message.trim()) return message;
-  const data = body?.data;
-  if (typeof data === 'string' && data.trim()) return data;
-  if (Array.isArray(data)) return data.join(' · ');
-  return undefined;
+  const messageOf = (value: unknown): string | undefined => {
+    const text =
+      typeof value === 'string'
+        ? value
+        : Array.isArray(value) && value.every(item => typeof item === 'string')
+        ? value.join(' · ')
+        : undefined;
+    return text?.trim() ? text : undefined;
+  };
+  // The deployed HttpExceptionFilter wraps Nest error details in data.message.
+  return messageOf(body?.message) ?? messageOf(body?.data?.message) ?? messageOf(body?.data);
 };
 
 export const enterpriseError = (error: unknown): EnterpriseApiError => {

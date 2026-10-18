@@ -197,3 +197,7 @@ E11/E12의 대시보드 사용처/삭제·원자 영수증은 [UC055 계획](../
 ## E02/E03 직원 검색·이동 후속
 
 [설계](../plans/UC-051-staff-transfer.md)·[선택 검증](../testing/staff-transfer.md)의 현재 조직 문자 검색/비밀 비노출, 본인 동의→대상 admin 수락→원 조직 다른 admin 검토/이동, 변경된 reviewBasis·양쪽 version/epoch/만료/철회 거절을 검사한다. 기존 access/refresh 회수와 자료/소유/독립 사본/게시 행 보존, 이전 권한/그룹 해제 및 A→B→A 비부활, 실제 MySQL 두 연결 finalizer/권한·그룹 writer 경합과 late rollback을 구별한다. 선택 시나리오는 full E02/E03/TC050·운영·실기기/사람 수용 통과가 아니다.
+
+### E02/E03 Ego 화면 후속 — 2026-10-19
+
+[실행 범위](../testing/staff-transfer-ui.md)는 Ego101의 격리 SQLite 실제 로그인/검색/발급/철회/수락/최종 이동과 수락 변경409·명시 재검토·이전 토큰401·재로그인/reload,390/768/1440을 확인한다. 배경 API의 수락 변경을 실제 두 탭 동작으로 계산하지 않으며 MySQL25 HTTP 회귀는 별도 증거다. full TC050/운영/실기기/사람 수용 상태는 유지한다.

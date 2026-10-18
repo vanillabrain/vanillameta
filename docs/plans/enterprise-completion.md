@@ -105,3 +105,5 @@ MySQL 계정 후속의 구체 잔여는 [계정·세션 계획](UC-051-account-s
 ## UC051 직원 검색·조직 이동 후속
 
 [설계](UC-051-staff-transfer.md)·[증빙](../testing/staff-transfer.md)은 직원 검색과 본인/양쪽 admin 동의·고정 수락 기준·양쪽 조직 CAS·이전 access/refresh 회수·직접/그룹/전달 권한 회수 및 개인 자료/독립 사본/게시 행 보존을 연결한다. SQLite/실제 Docker MySQL·FE 선택 실행은 증빙에 한정한다. 전체 FR016/FR017·탈퇴/업무 자산 이관·실제 Ego/실기기/운영/사람 수용은 미완료다.
+
+[UC051 실제 화면 후속](../testing/staff-transfer-ui.md)은 초기 상태 조회 공백과 오류 안내/검색 정렬을 보완하고 Ego101에서 명시 조직 이동/409 복구/재로그인/reload를 확인했다. 직원 관리의 다음은 탈퇴/업무 자산 인계 계약이며 운영/전 경로/사람 수용은 남는다.

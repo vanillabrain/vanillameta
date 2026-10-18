@@ -695,16 +695,19 @@ export default function Enterprise() {
           >
             <TextField
               label="직원 검색"
+              aria-describedby="enterprise-member-search-description"
               value={memberQuery}
               maxLength={100}
               onChange={event => setMemberQuery(event.target.value)}
-              helperText="현재 조직의 내부 직원 번호·로그인 ID·팀 검색 (100자 이내)"
               className="w-full max-w-sm"
             />
             <Button type="submit" variant="outline" disabled={membersLoading || saving || adding}>
               직원 검색 적용
             </Button>
           </form>
+          <p id="enterprise-member-search-description" className="text-xs text-muted-foreground">
+            현재 조직의 내부 직원 번호·로그인 ID·팀 검색 (100자 이내)
+          </p>
 
           {editNotice && (
             <p role="status" className="text-[13px]">
