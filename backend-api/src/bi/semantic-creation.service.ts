@@ -14,7 +14,7 @@ import { Metric } from '../metric/entities/metric.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { decryptConnectionConfig } from '../utils/crypto.util';
-import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
+import { serializeMetadataWork } from '../common/metadata-work';
 import { ConnectionService } from '../connection/connection.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { BiService } from './bi.service';
@@ -27,6 +27,16 @@ import {
   shape,
 } from './semantic-proposal';
 import { sourceRevision } from './source-revision';
+import { catalogActorContext, assertCatalogActor } from './source-classifications';
+import { sourceWriteTransaction } from '../database/source-write-lock';
+import {
+  captureBusinessBasis,
+  assertBusinessBasisCurrent,
+  resolveBusinessBasis,
+  validateBasisBusinessDates,
+  sliceBusinessBasis,
+} from './semantic-business-basis';
+import { metricColumns, proposalBusinessColumns } from './semantic-proposal';
 
 @Injectable()
 export class SemanticCreationService {
@@ -55,7 +65,7 @@ export class SemanticCreationService {
       (await manager.findOne(UserMapping, {
         where: { dashboardId: receipt.dashboardId, userInfoId: actorId },
       }));
-    if (!dashboard || dashboard.delYn === 'Y' || !mapping)
+    if (!dashboard || dashboard.delYn === 'Y' || dashboard.assetActive === false || !mapping)
       throw new NotFoundException(
         '저장한 분석을 사용할 수 없습니다. 자동으로 다시 만들지 않습니다.',
       );
@@ -78,7 +88,7 @@ export class SemanticCreationService {
     if (sourceRevision(row, fileVersion) !== revision)
       throw new ConflictException('SOURCE_CHANGED');
   }
-  async save(body: any, actor: number) {
+  async save(body: any, actor: number, authVersion?: number) {
     shape(body, ['proposal', 'previewDigest', 'requestId']);
     if (!Number.isSafeInteger(actor) || actor <= 0) throw new ForbiddenException('invalid owner');
     if (
@@ -93,6 +103,7 @@ export class SemanticCreationService {
     )
       throw new BadRequestException('저장 요청을 확인해 주세요.');
     const requestId = body.requestId.toLowerCase();
+    const authority = await catalogActorContext(this.db.manager, actor, authVersion);
     // Independent of today's catalog/source and of UUIDs assigned during persistence.
     const payloadDigest = semanticDigest({
       proposal: body.proposal,
@@ -101,19 +112,101 @@ export class SemanticCreationService {
     const run = async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          const replay = await this.replay(this.db.manager, actor, requestId, payloadDigest);
+          const replay = await serializeMetadataWork(this.db, async () => {
+            await assertCatalogActor(this.db.manager, authority);
+            const prior = await this.replay(this.db.manager, actor, requestId, payloadDigest);
+            if (prior) await this.bi.assertSourceAction(body.proposal.sourceId, actor, 'read');
+            return prior;
+          });
           if (replay) return replay;
           return await this.connection.withDuckDBSnapshot(body.proposal.sourceId, async () => {
             const profile = await this.bi.profile(body.proposal.sourceId, actor);
-            const catalog = semanticCatalog(
-              await this.db.manager.find(Metric, {
-                where: { databaseId: profile.sourceId, useYn: 'Y' },
-              }),
+            await serializeMetadataWork(this.db, async () => {
+              await assertCatalogActor(this.db.manager, authority);
+              await this.currentSource(
+                this.db.manager,
+                profile.sourceId,
+                actor,
+                profile.dataVersion,
+              );
+              await resolveBusinessBasis(
+                this.db.manager,
+                profile.sourceId,
+                profile,
+                body.proposal.businessBasis,
+                profile.columns.map(column => column.name),
+              );
+            });
+            const latestBasisAtStart = await captureBusinessBasis(
+              this.db.manager,
+              profile.sourceId,
               profile,
             );
+            const rows = await serializeMetadataWork(this.db, () =>
+              this.db.manager.find(Metric, {
+                where: { databaseId: profile.sourceId, useYn: 'Y' },
+              }),
+            );
+            const valid = [];
+            for (const row of rows) {
+              try {
+                const definition = JSON.parse(row.definition);
+                await resolveBusinessBasis(
+                  this.db.manager,
+                  profile.sourceId,
+                  profile,
+                  definition.businessBasis,
+                  metricColumns(definition),
+                );
+                valid.push(row);
+              } catch (error) {
+                if (
+                  !(
+                    error instanceof SyntaxError ||
+                    error instanceof BadRequestException ||
+                    error instanceof ConflictException
+                  )
+                )
+                  throw error;
+                /* Invalid historic definitions are never native candidates. */
+              }
+            }
+            const catalog = semanticCatalog(valid, profile);
             const compiled = compileSemanticProposal(body.proposal, profile, catalog);
             if (compiled.previewDigest !== body.previewDigest)
               throw new ConflictException('PLAN_CHANGED');
+            let dateError: unknown;
+            try {
+              for (const basis of [
+                sliceBusinessBasis(
+                  compiled.proposal.businessBasis,
+                  proposalBusinessColumns(compiled.proposal),
+                ),
+                ...compiled.plan.measures.map(measure => measure.definition.businessBasis),
+              ])
+                await validateBasisBusinessDates(profile, basis, (sql, bindings) =>
+                  this.connection.queryDuckDB(profile.sourceId, sql, bindings),
+                );
+            } catch (error) {
+              dateError = error;
+            }
+            await serializeMetadataWork(this.db, async () => {
+              await assertCatalogActor(this.db.manager, authority);
+              await this.currentSource(
+                this.db.manager,
+                profile.sourceId,
+                actor,
+                profile.dataVersion,
+              );
+              await resolveBusinessBasis(
+                this.db.manager,
+                profile.sourceId,
+                profile,
+                compiled.proposal.businessBasis,
+                profile.columns.map(column => column.name),
+              );
+            });
+            if (dateError) throw dateError;
             const snapshot: any = {
               schemaVersion: 2,
               kind: 'structured-bi-dashboard',
@@ -126,7 +219,8 @@ export class SemanticCreationService {
               actor,
               snapshot,
             );
-            return metadataTransaction(this.db, 'SERIALIZABLE', async manager => {
+            return sourceWriteTransaction(this.db, async manager => {
+              await assertCatalogActor(manager, authority, true);
               await lockMetricReferences(
                 manager,
                 profile.sourceId,
@@ -138,6 +232,24 @@ export class SemanticCreationService {
                 actor,
                 body.proposal.sourceRevision,
               );
+              await assertBusinessBasisCurrent(
+                manager,
+                profile.sourceId,
+                profile,
+                latestBasisAtStart,
+              );
+              await resolveBusinessBasis(
+                manager,
+                profile.sourceId,
+                profile,
+                compiled.proposal.businessBasis,
+                profile.columns.map(column => column.name),
+              );
+              const prior = await this.replay(manager, actor, requestId, payloadDigest);
+              if (prior) {
+                await this.bi.assertSourceAction(profile.sourceId, actor, 'read');
+                return prior;
+              }
               const receipt = await manager.save(AnalysisCreationReceipt, {
                 actorId: actor,
                 requestId,
@@ -153,6 +265,14 @@ export class SemanticCreationService {
                     where: { id: measure.metricId, databaseId: profile.sourceId, useYn: 'Y' },
                   });
                   if (!row) throw new ConflictException('PLAN_CHANGED');
+                  const frozen = JSON.parse(row.definition);
+                  await resolveBusinessBasis(
+                    manager,
+                    profile.sourceId,
+                    profile,
+                    frozen.businessBasis,
+                    metricColumns(frozen),
+                  );
                   const current = semanticCatalog([row], profile)[0];
                   if (
                     !current ||
@@ -206,6 +326,7 @@ export class SemanticCreationService {
                         dimensionDefinition: dimensionDefinition(
                           profile,
                           profile.columns.find(c => c.name === dimension.column),
+                          compiled.proposal.businessBasis,
                         ),
                       }
                     : {}),
@@ -219,6 +340,14 @@ export class SemanticCreationService {
               const saved = await prepared.persist(manager);
               // This reads the CURRENT metadata pointer, not the pinned DuckDB version.
               await this.currentSource(manager, profile.sourceId, actor, profile.dataVersion);
+              await assertCatalogActor(manager, authority);
+              await resolveBusinessBasis(
+                manager,
+                profile.sourceId,
+                profile,
+                compiled.proposal.businessBasis,
+                profile.columns.map(column => column.name),
+              );
               for (const row of resolved.values()) {
                 const current = await manager.findOne(Metric, {
                   where: { id: row.id, definition: row.definition, useYn: 'Y' },
@@ -250,6 +379,6 @@ export class SemanticCreationService {
     };
     // SQLite shares one connection: join the common metadata queue so Studio/enterprise work
     // cannot observe this transaction's uncommitted receipt. DB unique + retry stay authoritative.
-    return serializeMetadataWork(this.db, run);
+    return run();
   }
 }

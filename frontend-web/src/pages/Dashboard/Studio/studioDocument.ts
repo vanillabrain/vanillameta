@@ -1,3 +1,4 @@
+import { assertOptionalBusinessBasis, assertDefaultDateColumn } from '@/api/businessBasis';
 import {
   isStudioId,
   STUDIO_BREAKPOINTS,
@@ -304,10 +305,12 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
     'filters',
     'dateRange',
     'conditions',
+    'businessBasis',
     'blocks',
     'layouts',
   ]);
   const d = input as StudioDocumentV1;
+  assertOptionalBusinessBasis(d);
   studioAssert(d.schemaVersion === 1, '지원하지 않는 Studio 문서 버전입니다.');
   studioPositive(d.sourceId);
   if (d.filters !== undefined) validateStudioFilters(d.filters);
@@ -320,7 +323,19 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
   studioAssert(Array.isArray(d.blocks) && d.blocks.length <= 6, '현재 최대 6개 블록을 지원합니다.');
   const ids = new Set<string>();
   Array.from(d.blocks).forEach(b => {
-    studioKeys(b, ['id', 'kind', 'definitionKey', 'title', 'description', 'measureRefs', 'dimensionRefs', 'display']);
+    studioKeys(b, [
+      'id',
+      'kind',
+      'definitionKey',
+      'title',
+      'description',
+      'measureRefs',
+      'dimensionRefs',
+      'display',
+      'businessBasis',
+      'defaultDateColumn',
+    ]);
+    assertDefaultDateColumn(b, b.kind);
     studioAssert(isStudioId(b.id) && !ids.has(b.id), '블록 ID가 없거나 중복됩니다.');
     ids.add(b.id);
     studioAssert(
@@ -348,7 +363,13 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
     });
     const dims = new Set<string>();
     Array.from(b.dimensionRefs).forEach(r => {
-      studioKeys(r, ['key', 'sourceId', 'schemaVersion']);
+      studioKeys(r, ['key', 'sourceId', 'schemaVersion', 'businessBasis']);
+      assertOptionalBusinessBasis(r);
+      if (r.businessBasis !== undefined)
+        studioAssert(
+          !!r.businessBasis && r.businessBasis.columns.length === 1 && r.businessBasis.columns[0].column === r.key,
+          '차원 업무 기준을 확인해 주세요.',
+        );
       studioText(r.key, 255);
       studioText(r.schemaVersion, 128);
       studioAssert(r.sourceId === d.sourceId && !dims.has(r.key), '차원의 소스가 다르거나 참조가 중복됩니다.');

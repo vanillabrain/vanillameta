@@ -1,3 +1,9 @@
+import {
+  BusinessBasis,
+  businessProfile,
+  businessDimensionExpression,
+  sliceBusinessBasis,
+} from '../bi/semantic-business-basis';
 import { quoteColumn } from '../ai/dashboard-draft';
 import { metricExpression, metricFields } from '../bi/metric-expression';
 import { StudioDocumentV1, STUDIO_BREAKPOINTS, StudioFilter } from './studio-contract';
@@ -11,6 +17,7 @@ import { RemixTemplate } from './studio-remix-contract';
 /** Private historical-schema evidence; never included in recipient requirements. */
 export type SemanticRemixTemplate = RemixTemplate & {
   conditionSchema?: Array<{ name: string; type: string }>;
+  businessSchema?: Array<{ name: string; type: string }>;
 };
 export function conditionColumnNames(definition: {
   include: ConditionNode | null;
@@ -32,8 +39,13 @@ export function canonicalMetricSql(
   kind: string,
   dimensionColumn: string | undefined,
   profile: any,
+  dimensionBasis?: BusinessBasis,
 ): string {
-  const dimension = dimensionColumn ? quoteColumn(dimensionColumn) : undefined;
+  const dimension = dimensionColumn
+    ? dimensionBasis
+      ? businessDimensionExpression(profile, dimensionBasis, dimensionColumn)
+      : quoteColumn(dimensionColumn)
+    : undefined;
   return `SELECT ${dimension ? dimension + ' AS dimension, ' : ''}${metricExpression(
     metric,
     profile,
@@ -46,6 +58,42 @@ export function canonicalMetricSql(
         ' LIMIT 500'
       : ''
   }`;
+}
+/** SQL safety proof only. Caller separately verifies current rights, exact frozen history and links. */
+export function isCanonicalMetricWidget(
+  widget: any,
+  metric: any,
+  dimensionColumn: string | undefined,
+  profile: any,
+  dimensionBasis?: BusinessBasis,
+): boolean {
+  try {
+    if (
+      !widget ||
+      !['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_BAR', 'CHART_LINE'].includes(widget.type) ||
+      widget.valueField !== 'value'
+    )
+      return false;
+    if (
+      widget.type === 'BOARD_NUMERIC'
+        ? dimensionColumn !== undefined
+        : !dimensionColumn || widget.categoryField !== 'dimension'
+    )
+      return false;
+    if (
+      widget.type === 'CHART_LINE' &&
+      !businessProfile(profile, dimensionBasis).columns.some(
+        c => c.name === dimensionColumn && c.temporal,
+      )
+    )
+      return false;
+    return (
+      widget.sql ===
+      canonicalMetricSql(metric, widget.type, dimensionColumn, profile, dimensionBasis)
+    );
+  } catch {
+    return false;
+  }
 }
 /** Capture only explicit canonical links. SQL is never parsed into guessed semantics. */
 export function captureRemixTemplate(
@@ -64,7 +112,7 @@ export function captureRemixTemplate(
   }));
   const required = new Map<string, { name: string; type: string; blockIds: string[] }>();
   const ids = new Map(document.blocks.map((b, i) => [b.id, 'block-' + (i + 1)]));
-  const blocks = document.blocks.map((block, index) => {
+  const blocks: RemixTemplate['blocks'] = document.blocks.map((block, index) => {
     const base = {
       id: ids.get(block.id),
       title: block.title,
@@ -91,12 +139,18 @@ export function captureRemixTemplate(
         throw new Error();
       const fields = metricFields(d, { columns });
       const dimension =
-        block.kind === 'BOARD_NUMERIC' ? undefined : columns.find(c => c.name === item.dimension);
+        block.kind === 'BOARD_NUMERIC'
+          ? undefined
+          : businessProfile({ columns }, item.dimensionBusinessBasis).columns.find(
+              c => c.name === item.dimension,
+            );
       if (
         (block.kind !== 'BOARD_NUMERIC' &&
           (!dimension ||
             block.dimensionRefs.length !== 1 ||
-            block.dimensionRefs[0].key !== dimension.name)) ||
+            block.dimensionRefs[0].key !== dimension.name ||
+            JSON.stringify(block.dimensionRefs[0].businessBasis) !==
+              JSON.stringify(item.dimensionBusinessBasis))) ||
         (block.kind === 'CHART_LINE' && !dimension?.temporal)
       )
         throw new Error();
@@ -106,7 +160,17 @@ export function captureRemixTemplate(
         widget.type !== block.kind ||
         widget.valueField !== 'value' ||
         (dimension && widget.categoryField !== 'dimension') ||
-        widget.sql !== canonicalMetricSql(d, block.kind, dimension?.name, { columns })
+        widget.sql !==
+          canonicalMetricSql(
+            d,
+            block.kind,
+            dimension?.name,
+            { columns },
+            item.dimensionBusinessBasis,
+          ) ||
+        JSON.stringify(widget.businessBasis) !==
+          JSON.stringify(item.businessBasis ?? item.dimensionBusinessBasis) ||
+        widget.defaultDateColumn !== item.defaultDateColumn
       )
         throw new Error();
       if (
@@ -126,6 +190,9 @@ export function captureRemixTemplate(
         fields.denominatorColumn,
         fields.weightColumn,
         dimension?.name,
+        ...(block.kind === 'BOARD_NUMERIC' && item.defaultDateColumn
+          ? [item.defaultDateColumn]
+          : []),
       ].filter(Boolean);
       for (const name of new Set<string>(names)) {
         const column = columns.find(c => c.name === name);
@@ -136,15 +203,46 @@ export function captureRemixTemplate(
       return {
         ...base,
         supported: true,
+        ...(item.defaultDateColumn !== undefined
+          ? { defaultDateColumn: item.defaultDateColumn }
+          : {}),
+        ...(item.businessBasis
+          ? { businessBasis: sliceBusinessBasis(item.businessBasis, names) }
+          : {}),
         metric: {
           label: d.label,
           aggregation: d.aggregation,
           ...fields,
+          ...(d.businessBasis
+            ? {
+                businessBasis: sliceBusinessBasis(
+                  d.businessBasis,
+                  [
+                    d.aggregation === 'COUNT' ? undefined : fields.column,
+                    fields.denominatorColumn,
+                    fields.weightColumn,
+                  ].filter(Boolean),
+                ),
+              }
+            : {}),
           unit: d.unit,
           decimalPlaces: d.decimalPlaces,
           numberNotation: d.numberNotation,
         },
-        ...(dimension ? { dimension: { column: dimension.name } } : {}),
+        ...(dimension
+          ? {
+              dimension: {
+                column: dimension.name,
+                ...(item.dimensionBusinessBasis
+                  ? {
+                      businessBasis: sliceBusinessBasis(item.dimensionBusinessBasis, [
+                        dimension.name,
+                      ]),
+                    }
+                  : {}),
+              },
+            }
+          : {}),
       };
     } catch {
       return {
@@ -220,6 +318,12 @@ export function captureRemixTemplate(
     title: document.title,
     ...(filters.length ? { filters } : {}),
     ...(dateRange ? { dateRange: { ...dateRange } } : {}),
+    ...(blocks.some(
+      b =>
+        b.supported && (b.businessBasis || b.metric?.businessBasis || b.dimension?.businessBasis),
+    )
+      ? { businessSchema: columns.map(({ name, type }) => ({ name, type })) }
+      : {}),
     requiredFields: [...required.values()],
     blocks,
     layouts: Object.fromEntries(

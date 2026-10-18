@@ -1,3 +1,5 @@
+import { validBusinessBasis } from '@/api/businessBasis';
+const basisValid = (v: any) => v?.businessBasis === undefined || validBusinessBasis(v.businessBasis);
 import isEqual from 'lodash/isEqual';
 import { validDraft, validPreview } from './dashboardPreview';
 
@@ -7,6 +9,7 @@ export const validSemanticCandidate = (value: any, sourceId: number) =>
   (!Object.prototype.hasOwnProperty.call(value ?? {}, 'publicationRequested') ||
     (value.publicationRequested === true && value.saveRequested === true)) &&
   value?.proposal?.schemaVersion === 1 &&
+  basisValid(value.proposal) &&
   value.proposal.sourceId === sourceId &&
   typeof value.proposal.sourceRevision === 'string' &&
   typeof value.previewDigest === 'string' &&
@@ -19,6 +22,7 @@ export const validSemanticCandidate = (value: any, sourceId: number) =>
   value.plan.measures.every(
     m =>
       ['create', 'reuse'].includes(m?.action) &&
+      basisValid(m.definition) &&
       typeof m.identity === 'string' &&
       typeof m.key === 'string' &&
       typeof m.definition?.label === 'string' &&
@@ -28,14 +32,16 @@ export const validSemanticCandidate = (value: any, sourceId: number) =>
   ) &&
   Array.isArray(value.plan?.dimensions) &&
   value.plan.dimensions.every(
-    d => typeof d?.key === 'string' && typeof d.label === 'string' && typeof d.type === 'string',
+    d => basisValid(d) && typeof d?.key === 'string' && typeof d.label === 'string' && typeof d.type === 'string',
   ) &&
   validDraft(value.draft) &&
+  isEqual(value.proposal.businessBasis, value.draft.businessBasis) &&
   value.draft.databaseId === sourceId &&
   value.draft.widgets.length === value.proposal.blocks.length;
 
 export const validSemanticPreview = (value: any, sourceId: number) =>
   validSemanticCandidate(value, sourceId) &&
   validPreview(value.preview) &&
+  isEqual(value.draft.businessBasis, value.preview.draft.businessBasis) &&
   isEqual(value.preview.draft.widgets, value.draft.widgets) &&
   value.preview.draft.databaseId === sourceId;

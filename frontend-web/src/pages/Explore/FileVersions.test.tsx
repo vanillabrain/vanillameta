@@ -1,3 +1,4 @@
+import { fetchBusinessBasis } from '@/api/businessBasis';
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -48,8 +49,18 @@ const mount = async () => {
   await screen.findByRole('rowheader', { name: /filename-derived.csv/ });
   return result;
 };
+vi.mock('@/api/businessBasis', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/api/businessBasis')>()),
+  fetchBusinessBasis: vi.fn(),
+}));
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(fetchBusinessBasis).mockImplementation(async id => {
+    const index = api.get.mock.calls.findLastIndex(([url]) => url === `/bi/sources/${id}/profile`);
+    const response = await api.get.mock.results[index].value;
+    const native = response.data.data;
+    return { sourceId: id, sourceRevision: native.dataVersion, businessBasis: null, businessColumns: native.columns };
+  });
   api.get.mockResolvedValue(success(snapshot()));
   api.postForm.mockResolvedValue(success(snapshot(1, 'fresh opaque revision', 'new-uuid')));
   api.post.mockResolvedValue(success(snapshot(1, 'restored revision', 'older')));

@@ -1,3 +1,4 @@
+import { BusinessBasis, assertOptionalBusinessBasis, assertDefaultDateColumn } from '@/api/businessBasis';
 import { readProfileColumns } from '../../Explore/conditionProfile';
 import type { Column } from '../../Explore/SourceConditions';
 // Studio server boundary. The /studio endpoints answer with the raw payload, not the legacy SUCCESS envelope.
@@ -27,6 +28,8 @@ import {
 
 /** One aggregated preview row. Rows arrive under `datas`; a row without `datas` is never rendered. */
 export type StudioPreviewRow = {
+  businessBasis?: BusinessBasis | null;
+  defaultDateColumn?: string | null;
   blockId?: string;
   type: string;
   title?: string;
@@ -157,6 +160,7 @@ export const studioRequestId = (): string => {
 const previewRow = (row: unknown): StudioPreviewRow => {
   studioAssert(!!row && typeof row === 'object' && !Array.isArray(row), '미리보기 위젯 형식을 확인해 주세요.');
   const widget = row as StudioPreviewRow;
+  assertDefaultDateColumn(widget, widget.type);
   studioAssert(typeof widget.type === 'string' && !!widget.type, '미리보기 위젯 종류를 확인해 주세요.');
   studioAssert(
     typeof widget.sql === 'string' && !!widget.sql && typeof widget.valueField === 'string' && !!widget.valueField,
@@ -194,6 +198,7 @@ export const validateStudioPreview = (input: unknown): StudioPreview => {
   studioAssert(!!input && typeof input === 'object' && !Array.isArray(input), '미리보기 응답을 확인해 주세요.');
   const preview = input as StudioPreview;
   studioAssert(validDraft(preview.draft), '미리보기 정의를 확인해 주세요.');
+  preview.draft.widgets.forEach(widget => assertDefaultDateColumn(widget, widget.type));
   studioAssert(
     Array.isArray(preview.widgets) && preview.widgets.length === preview.draft.widgets.length,
     '미리보기 위젯 수가 정의와 다릅니다.',
@@ -254,6 +259,7 @@ export const validateStudioDefinitions = (input: unknown): StudioDefinitions => 
   for (const [key, rawEntry] of Object.entries(definitions.entries)) {
     studioText(key, 128);
     if (rawEntry.metricBasis !== undefined) {
+      assertOptionalBusinessBasis(rawEntry.metricBasis.definition);
       const basis = rawEntry.metricBasis;
       studioKeys(basis, ['sourceId', 'metricId', 'definitionVersion', 'definition']);
       studioPositive(basis.metricId);
@@ -264,15 +270,25 @@ export const validateStudioDefinitions = (input: unknown): StudioDefinitions => 
           basis.definitionVersion.length <= 128,
         '저장 지표 기준을 확인해 주세요.',
       );
-      studioKeys(basis.definition, ['aggregation', 'column', 'denominatorColumn', 'weightColumn', 'scale', 'unit']);
+      studioKeys(basis.definition, [
+        'aggregation',
+        'column',
+        'denominatorColumn',
+        'weightColumn',
+        'scale',
+        'unit',
+        'businessBasis',
+      ]);
       for (const [field, value] of Object.entries(basis.definition))
-        studioAssert(
-          field === 'scale' ? typeof value === 'number' && Number.isFinite(value) : typeof value === 'string',
-          '저장 지표 기준 필드가 올바르지 않습니다.',
-        );
+        if (field !== 'businessBasis')
+          studioAssert(
+            field === 'scale' ? typeof value === 'number' && Number.isFinite(value) : typeof value === 'string',
+            '저장 지표 기준 필드가 올바르지 않습니다.',
+          );
     }
     const widget = (rawEntry as { widget?: Record<string, any> } | undefined)?.widget;
     studioAssert(!!widget && typeof widget === 'object', '정의 위젯을 확인해 주세요.');
+    assertDefaultDateColumn(widget, widget.type);
     studioAssert(
       typeof widget?.type === 'string' && typeof widget?.sql === 'string' && typeof widget?.valueField === 'string',
       '정의 위젯 내용을 확인해 주세요.',

@@ -1,8 +1,20 @@
+import isEqual from 'lodash/isEqual';
+import { BusinessBasis, assertOptionalBusinessBasis, assertDefaultDateColumn } from '@/api/businessBasis';
 import { get, post } from '@/helpers/apiHelper';
 import { studioAssert } from './studioDocument';
 import { StudioPreview, validateStudioPreview } from './studioApi';
 export type StudioSource = { id: number; name: string; engine: string; catalogLabel?: string; catalogVersion?: number };
-export type SourceColumn = { name: string; type: string; numeric?: boolean; temporal?: boolean; nullCount?: string };
+export type SourceColumn = {
+  label?: string;
+  unit?: string;
+  businessType?: string;
+  dateFormat?: string;
+  name: string;
+  type: string;
+  numeric?: boolean;
+  temporal?: boolean;
+  nullCount?: string;
+};
 export type SourceProfile = {
   sourceId: number;
   name?: string;
@@ -12,6 +24,7 @@ export type SourceProfile = {
   dataVersion?: string;
 };
 export type CreationMetric = {
+  businessBasis?: BusinessBasis | null;
   id?: number;
   definitionVersion?: number | string;
   label?: string;
@@ -26,10 +39,13 @@ export type CreationMetric = {
   [key: string]: unknown;
 };
 export type CreationSemantic = {
+  defaultDateColumn?: string | null;
+  businessBasis?: BusinessBasis | null;
+  dimensionBusinessBasis?: BusinessBasis | null;
   title: string;
   kind: string;
   metric: CreationMetric;
-  dimension?: { column: string; type: string; schemaVersion: string };
+  dimension?: { column: string; type: string; schemaVersion: string; businessBasis?: BusinessBasis | null };
   [key: string]: unknown;
 };
 export type CreationClarification = {
@@ -39,6 +55,7 @@ export type CreationClarification = {
   affectedBlockIds: string[];
 };
 export type CreationProposal = {
+  businessBasis?: BusinessBasis | null;
   proposalId: string;
   parentProposalId?: string;
   requestPrompt?: string;
@@ -53,6 +70,7 @@ export type CreationProposal = {
 export const creationData = (response: any) => (response?.data?.status === 'SUCCESS' ? response.data.data : response?.data);
 export function validateCreationProposal(input: unknown, sourceId: number): CreationProposal {
   const p = input as CreationProposal;
+  assertOptionalBusinessBasis(p);
   studioAssert(!!p && typeof p === 'object' && p.sourceId === sourceId, '선택한 데이터 소스와 다른 생성 결과입니다.');
   studioAssert(
     typeof p.sourceRevision === 'string' &&
@@ -66,8 +84,19 @@ export function validateCreationProposal(input: unknown, sourceId: number): Crea
     p.profile?.sourceId === sourceId && Array.isArray(p.profile.columns) && typeof p.profile.rowCount === 'string',
     '소스 프로파일을 확인하지 못했습니다.',
   );
+  if (p.businessBasis)
+    studioAssert(
+      p.businessBasis.columns.length === p.profile.columns.length &&
+        p.profile.columns.every(c => p.businessBasis?.columns.some(b => b.column === c.name && b.nativeType === c.type)),
+      '생성안의 전체 업무 기준이 누락됐습니다.',
+    );
   studioAssert(Array.isArray(p.semanticProposal) && p.semanticProposal.length <= 6, '지표 정의 수를 확인해 주세요.');
   for (const item of p.semanticProposal) {
+    assertDefaultDateColumn(item, item.kind);
+    if (Object.prototype.hasOwnProperty.call(item, 'dimensionBusinessBasis'))
+      assertOptionalBusinessBasis({ businessBasis: item.dimensionBusinessBasis });
+    assertOptionalBusinessBasis(item.metric);
+    assertOptionalBusinessBasis(item.dimension);
     studioAssert(
       typeof item.title === 'string' &&
         item.title.length > 0 &&
@@ -112,6 +141,7 @@ export function validateCreationProposal(input: unknown, sourceId: number): Crea
       '생성할 지표 정의가 없습니다.',
     );
     p.preview = validateStudioPreview(p.preview);
+    studioAssert(isEqual(p.businessBasis, p.preview.draft.businessBasis), '미리보기의 업무 기준이 생성안과 다릅니다.');
     studioAssert(
       p.preview.draft.databaseId === sourceId && p.preview.widgets.length === p.semanticProposal.length,
       '계산 미리보기의 소스 또는 지표 수가 다릅니다.',

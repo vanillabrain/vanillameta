@@ -1,3 +1,14 @@
+import {
+  CatalogActorContext,
+  catalogActorContext,
+  assertCatalogActor,
+} from './source-classifications';
+import { BusinessBasis, resolveBusinessBasis } from './semantic-business-basis';
+import { Metric } from '../metric/entities/metric.entity';
+import { lockMetricReferences } from '../metric/metric-write-lock';
+import { metricLinkItems, linkedMetricIndices } from '../ai/metric-analysis-links';
+import { isCanonicalMetricWidget } from '../dashboard-studio/studio-remix-template';
+import { studioDigest } from '../dashboard-studio/studio-legacy';
 import { sourceWriteTransaction } from '../database/source-write-lock';
 import { Database } from '../database/entities/database.entity';
 import { lockMetricSources } from '../metric/metric-write-lock';
@@ -42,6 +53,19 @@ const TICKET_MESSAGE = '게시 미리보기가 만료되었습니다. 미리보�
 const LAYOUT_RECOMPILE_MESSAGE =
   '게시할 블록 배치 정보를 확인할 수 없습니다. 저장 화면에서 배치를 다시 저장해 주세요.';
 
+type CanonicalPublicationEvidence = {
+  profile: { columns: Array<{ name: string; type: string; numeric: boolean; temporal: boolean }> };
+  root?: BusinessBasis;
+  contexts?: BusinessBasis[];
+  items: Array<{
+    metricId: number;
+    definition: any;
+    dimension?: string;
+    dimensionBusinessBasis?: BusinessBasis;
+    widgetBasis?: BusinessBasis;
+    defaultDateColumn?: string | null;
+  }>;
+};
 type PublicationTicket = {
   actorId: number;
   dashboardId: number;
@@ -51,6 +75,8 @@ type PublicationTicket = {
   /** UC-051: the bound source of the captured analysis, never taken from the publish body. */
   sourceId: number;
   sourceBasis?: string;
+  canonicalEvidence?: CanonicalPublicationEvidence;
+  actorContext?: CatalogActorContext;
   bytes: number;
   expiresAt: number;
 };
@@ -212,6 +238,11 @@ export class PublicationService {
     if (!sourceBefore) throw new ConflictException('게시 소스가 변경되었습니다.');
     const sourceBasis = createHash('sha256').update(JSON.stringify(sourceBefore)).digest('hex');
 
+    const hasBusinessContext =
+      analysis.businessBasis || analysis.widgets.some(widget => widget.businessBasis);
+    const actorContext = hasBusinessContext
+      ? await catalogActorContext(this.dashboards.manager, actor)
+      : undefined;
     const captured = (
       await this.ai.preview(
         {
@@ -229,25 +260,125 @@ export class PublicationService {
         'publish',
       )
     ).data;
-    if (
-      !Array.isArray(captured?.widgets) ||
-      captured.widgets.some(widget => widget.contribution?.supported !== true)
-    )
-      throw new BadRequestException(
-        '집계로 확인된 지표·분류 차트만 게시할 수 있습니다. 원본 행 조회는 게시하지 않습니다.',
+    let canonicalEvidence: CanonicalPublicationEvidence | undefined;
+    if (!Array.isArray(captured?.widgets))
+      throw new BadRequestException('게시할 집계 결과를 확인해 주세요.');
+    const unsupported = captured.widgets.flatMap((widget, index) =>
+      widget.contribution?.supported === true ? [] : [index],
+    );
+    if (unsupported.length) {
+      let snapshot: any;
+      try {
+        snapshot = before.structuredDefinition
+          ? JSON.parse(before.structuredDefinition)
+          : undefined;
+      } catch {
+        /* fail closed below */
+      }
+      const items = metricLinkItems(snapshot, analysis);
+      const linksValid = unsupported.every(index => {
+        const item = items[index],
+          widget = analysis.widgets[index];
+        return (
+          item?.metricId &&
+          linkedMetricIndices(snapshot, analysis, item.metricId).includes(index) &&
+          (!item.key || item.key === widget.blockId) &&
+          widget.blockId === captured.widgets[index]?.blockId
+        );
+      });
+      if (linksValid) {
+        const profile = await this.bi.profile(analysis.databaseId, actor);
+        if (
+          profile.supported &&
+          unsupported.every(index =>
+            isCanonicalMetricWidget(
+              analysis.widgets[index],
+              items[index].definition,
+              items[index].dimension,
+              profile,
+              items[index].dimensionBusinessBasis,
+            ),
+          )
+        ) {
+          canonicalEvidence = {
+            profile: {
+              columns: profile.columns.map(({ name, type, numeric, temporal }) => ({
+                name,
+                type,
+                numeric,
+                temporal,
+              })),
+            },
+            ...(analysis.businessBasis ? { root: analysis.businessBasis } : {}),
+            items: unsupported.map(index => ({
+              metricId: items[index].metricId,
+              definition: items[index].definition,
+              ...(items[index].dimension ? { dimension: items[index].dimension } : {}),
+              ...(items[index].dimensionBusinessBasis
+                ? { dimensionBusinessBasis: items[index].dimensionBusinessBasis }
+                : {}),
+              ...(analysis.widgets[index].businessBasis
+                ? { widgetBasis: analysis.widgets[index].businessBasis }
+                : {}),
+              ...(analysis.widgets[index].defaultDateColumn !== undefined
+                ? { defaultDateColumn: analysis.widgets[index].defaultDateColumn }
+                : {}),
+            })),
+          };
+          await this.assertCanonicalEvidence(
+            this.dashboards.manager,
+            analysis.databaseId,
+            canonicalEvidence,
+          );
+        }
+      }
+      if (!canonicalEvidence)
+        throw new BadRequestException(
+          '집계로 확인된 지표·분류 차트만 게시할 수 있습니다. 원본 행 조회는 게시하지 않습니다.',
+        );
+    }
+    if (hasBusinessContext) {
+      const profile =
+        canonicalEvidence?.profile ?? (await this.bi.profile(analysis.databaseId, actor));
+      canonicalEvidence = {
+        ...(canonicalEvidence ?? {
+          profile: {
+            columns: profile.columns.map(({ name, type, numeric, temporal }) => ({
+              name,
+              type,
+              numeric,
+              temporal,
+            })),
+          },
+          items: [],
+        }),
+        ...(analysis.businessBasis ? { root: analysis.businessBasis } : {}),
+        contexts: analysis.widgets.flatMap(widget =>
+          widget.businessBasis ? [widget.businessBasis] : [],
+        ),
+      };
+      await this.assertCanonicalEvidence(
+        this.dashboards.manager,
+        analysis.databaseId,
+        canonicalEvidence,
       );
+      await assertCatalogActor(this.dashboards.manager, actorContext);
+    }
     // The capture must not race another save: ownership and revision are re-checked afterwards.
     await this.access.dashboard(dashboardId, actor, 'publish');
     const after = await this.dashboardRow(dashboardId);
     if (dashboardRevision(after) !== body.expectedRevision)
       throw new ConflictException(STALE_SAVE_MESSAGE);
     const layouts = await this.blockLayouts(dashboardId, analysis, after);
-    const built = buildPublicationSnapshot({
-      title: analysis?.title ?? after.title,
-      widgets: captured?.widgets,
-      responsiveLayouts: layouts,
-      capturedAt: new Date(),
-    });
+    const built = buildPublicationSnapshot(
+      {
+        title: analysis?.title ?? after.title,
+        widgets: captured?.widgets,
+        responsiveLayouts: layouts,
+        capturedAt: new Date(),
+      },
+      new Set(unsupported),
+    );
     const snapshot = {
       ...built.snapshot,
       ...(analysis.defaultConditions !== undefined ? { conditionsApplied: true as const } : {}),
@@ -267,6 +398,10 @@ export class PublicationService {
     // Only an explicit owner opt-in captures the private recipe; it is frozen with this publish.
     let reuseDefinition: string | null = null;
     if (allowReuse) {
+      if (analysis.businessBasis || analysis.widgets.some(widget => widget.businessBasis))
+        throw new BadRequestException(
+          '업무 기준이 고정된 분석의 재사용은 Studio 복제를 사용해 주세요.',
+        );
       const profile = await this.bi.profile(analysis?.databaseId, actor);
       if (profile?.supported !== true)
         throw new BadRequestException('서버에 저장한 파일 분석만 재사용을 허용할 수 있습니다.');
@@ -288,9 +423,74 @@ export class PublicationService {
       reuseDefinition,
       sourceId: analysis.databaseId,
       sourceBasis,
-      bytes: bytes + Buffer.byteLength(reuseDefinition ?? ''),
+      ...(canonicalEvidence ? { canonicalEvidence } : {}),
+      ...(actorContext ? { actorContext } : {}),
+      bytes:
+        bytes +
+        Buffer.byteLength(reuseDefinition ?? '') +
+        Buffer.byteLength(JSON.stringify(canonicalEvidence ?? null)) +
+        Buffer.byteLength(JSON.stringify(actorContext ?? null)),
     });
     return { dashboardId, revision: body.expectedRevision, ticket, snapshot, reusable: allowReuse };
+  }
+
+  /** Metadata-only final proof. Full scans belong to the completed preview, never publication CAS. */
+  private async assertCanonicalEvidence(
+    manager: EntityManager,
+    sourceId: number,
+    evidence: CanonicalPublicationEvidence,
+  ) {
+    const { profile } = evidence;
+    await resolveBusinessBasis(
+      manager,
+      sourceId,
+      profile,
+      evidence.root,
+      profile.columns.map(c => c.name),
+    );
+    for (const basis of evidence.contexts ?? [])
+      await resolveBusinessBasis(manager, sourceId, profile, basis);
+    for (const item of evidence.items) {
+      const metric = await manager.findOne(Metric, {
+        where: { id: item.metricId, databaseId: sourceId, useYn: 'Y' },
+      });
+      let definition: any;
+      try {
+        definition = metric && JSON.parse(metric.definition);
+      } catch {
+        /* reject below */
+      }
+      if (!definition || studioDigest(definition) !== studioDigest(item.definition))
+        throw new ConflictException(
+          '게시 지표의 고정 정의가 변경되었습니다. 다시 미리보기해 주세요.',
+        );
+      const columns = [
+        item.definition.aggregation === 'COUNT' ? undefined : item.definition.column,
+        item.definition.denominatorColumn,
+        item.definition.weightColumn,
+      ].filter(Boolean);
+      await resolveBusinessBasis(
+        manager,
+        sourceId,
+        profile,
+        item.definition.businessBasis,
+        columns,
+      );
+      await resolveBusinessBasis(
+        manager,
+        sourceId,
+        profile,
+        item.dimensionBusinessBasis,
+        item.dimension ? [item.dimension] : [],
+      );
+      await resolveBusinessBasis(
+        manager,
+        sourceId,
+        profile,
+        item.widgetBasis,
+        [item.dimension, item.defaultDateColumn].filter(Boolean),
+      );
+    }
   }
 
   /** Stored responsive layouts win; legacy dashboards are rebuilt from the persisted grid. */
@@ -419,6 +619,7 @@ export class PublicationService {
           ticket.revision !== body.expectedRevision
         )
           throw new BadRequestException(TICKET_MESSAGE);
+        if (ticket.actorContext) await assertCatalogActor(manager, ticket.actorContext, true);
         const sources = await lockMetricSources(manager, [ticket.sourceId]);
         if (
           createHash('sha256')
@@ -427,6 +628,14 @@ export class PublicationService {
         )
           throw new ConflictException('게시 소스가 변경되었습니다.');
         await this.access.assert('database', ticket.sourceId, actor, 'read', manager);
+        if (ticket.canonicalEvidence) {
+          await lockMetricReferences(
+            manager,
+            ticket.sourceId,
+            ticket.canonicalEvidence.items.map(item => item.metricId),
+          );
+          await this.assertCanonicalEvidence(manager, ticket.sourceId, ticket.canonicalEvidence);
+        }
         // Conditional no-op update: a save that slips in between fails this CAS and rolls back.
         const guard = manager
           .createQueryBuilder()

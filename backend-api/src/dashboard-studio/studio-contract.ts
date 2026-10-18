@@ -1,3 +1,4 @@
+import type { BusinessBasis } from '../bi/semantic-business-basis';
 import type { ConditionSemantics } from '../bi/business-condition-semantics';
 import type { ConditionDefinition } from '../bi/source-condition-definition';
 import type { DashboardDateRange } from '../ai/dashboard-date-range';
@@ -8,7 +9,12 @@ export const STUDIO_BREAKPOINTS = ['lg', 'md', 'xs'] as const;
 export type StudioBreakpoint = (typeof STUDIO_BREAKPOINTS)[number];
 export type StudioBlockKind = 'BOARD_NUMERIC' | 'CHART_COLUMN' | 'CHART_BAR' | 'CHART_LINE';
 export type StudioMeasureRef = { id: number; definitionVersion: string };
-export type StudioDimensionRef = { key: string; sourceId: number; schemaVersion: string };
+export type StudioDimensionRef = {
+  key: string;
+  sourceId: number;
+  schemaVersion: string;
+  businessBasis?: BusinessBasis;
+};
 export type StudioDisplay = {
   timeGrain?: 'auto' | 'day' | 'week' | 'month';
   decimalPlaces?: number;
@@ -17,6 +23,8 @@ export type StudioDisplay = {
   suffix?: string;
 };
 export type StudioBlock = {
+  businessBasis?: BusinessBasis;
+  defaultDateColumn?: string | null;
   id: string;
   kind: StudioBlockKind;
   definitionKey: string;
@@ -36,6 +44,7 @@ export type StudioConditions = {
   semantics?: ConditionSemantics;
 };
 export type StudioDocumentV1 = {
+  businessBasis?: BusinessBasis;
   conditions?: StudioConditions;
   filters?: StudioFilter[];
   dateRange?: StudioDateRange;

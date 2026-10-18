@@ -45,12 +45,23 @@ export function importStudio(
         : [];
     const dimensionRefs =
       typeof item?.dimension === 'string'
-        ? [{ key: item.dimension, sourceId: analysis.databaseId, schemaVersion }]
+        ? [
+            {
+              key: item.dimension,
+              sourceId: analysis.databaseId,
+              schemaVersion,
+              ...(item.dimensionBusinessBasis
+                ? { businessBasis: item.dimensionBusinessBasis }
+                : {}),
+            },
+          ]
         : [];
     return {
       id: w.blockId,
       definitionKey: w.blockId,
       kind: w.type,
+      ...(w.businessBasis ? { businessBasis: w.businessBasis } : {}),
+      ...(w.defaultDateColumn !== undefined ? { defaultDateColumn: w.defaultDateColumn } : {}),
       title: w.title,
       description: w.description,
       measureRefs,
@@ -80,6 +91,11 @@ export function importStudio(
     revision: analysis.revision,
     title: analysis.title,
     sourceId: analysis.databaseId,
+    ...(analysis.businessBasis
+      ? { businessBasis: analysis.businessBasis }
+      : snapshot?.businessBasis
+      ? { businessBasis: snapshot.businessBasis }
+      : {}),
     ...(snapshot?.studioConditions !== undefined ? { conditions: snapshot.studioConditions } : {}),
     ...(snapshot?.studioFilters?.length ? { filters: snapshot.studioFilters } : {}),
     ...(snapshot?.studioDateRange ? { dateRange: snapshot.studioDateRange } : {}),

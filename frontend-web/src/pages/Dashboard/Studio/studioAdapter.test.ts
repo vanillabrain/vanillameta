@@ -171,3 +171,47 @@ it('UC052 roundtrips defaultConditions and fails closed on malformed saved scope
   ])
     expect(() => fromLegacyAnalysis({ ...data, analysis: { ...data.analysis, defaultConditions: value } })).toThrow();
 });
+it('roundtrips frozen root basis through legacy import/save and preserves it during document edits', async () => {
+  const { basisFixture } = await import('@/api/businessBasis.fixture');
+  const original: any = input();
+  original.analysis.businessBasis = basisFixture;
+  const imported = fromLegacyAnalysis(original);
+  const edited = applyStudioOperation(imported.document, { type: 'renameDashboard', title: '새 제목' });
+  expect(edited.businessBasis).toEqual(basisFixture);
+  expect(toLegacySave(edited, imported.definitions).draft.businessBasis).toEqual(basisFixture);
+  original.analysis.businessBasis = { ...basisFixture, catalogVersion: 0 };
+  expect(() => fromLegacyAnalysis(original)).toThrow();
+});
+it.each([undefined, null, 'day'])(
+  'roundtrips defaultDateColumn %s without converting legacy auto or explicit no-time',
+  async date => {
+    const { basisFixture } = await import('@/api/businessBasis.fixture');
+    const original: any = input();
+    original.analysis.widgets[0].businessBasis = basisFixture;
+    if (date !== undefined) original.analysis.widgets[0].defaultDateColumn = date;
+    const imported = fromLegacyAnalysis(original);
+    expect(imported.document.blocks[0].businessBasis).toEqual(basisFixture);
+    expect(imported.document.blocks[0].defaultDateColumn).toBe(date);
+    expect(Object.prototype.hasOwnProperty.call(imported.document.blocks[0], 'defaultDateColumn')).toBe(date !== undefined);
+    const edited = applyStudioOperation(imported.document, { type: 'renameDashboard', title: '이름만 수정' });
+    const output = toLegacySave(edited, imported.definitions);
+    expect(output.draft.widgets[0].defaultDateColumn).toBe(date);
+    expect(Object.prototype.hasOwnProperty.call(output.draft.widgets[0], 'defaultDateColumn')).toBe(date !== undefined);
+    expect(output.draft.widgets[0].businessBasis).toEqual(basisFixture);
+  },
+);
+it('rejects defaultDateColumn without a numeric block basis and malformed date column types', async () => {
+  const { basisFixture } = await import('@/api/businessBasis.fixture');
+  for (const invalid of [
+    { defaultDateColumn: null },
+    { defaultDateColumn: false, businessBasis: basisFixture },
+    { defaultDateColumn: '', businessBasis: basisFixture },
+  ]) {
+    const original: any = input();
+    Object.assign(original.analysis.widgets[0], invalid);
+    expect(() => fromLegacyAnalysis(original)).toThrow();
+  }
+  const chart: any = input();
+  Object.assign(chart.analysis.widgets[1], { businessBasis: basisFixture, defaultDateColumn: 'day' });
+  expect(() => fromLegacyAnalysis(chart)).toThrow();
+});

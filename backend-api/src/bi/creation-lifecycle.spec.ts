@@ -5,6 +5,12 @@ jest.mock('./bi.service', () => ({ BiService: class {} }));
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { SemanticProposalService } from './semantic-proposal.service';
 import { compileSemanticProposal } from './semantic-proposal';
+import { DataSource } from 'typeorm';
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
+import { Metric } from '../metric/entities/metric.entity';
+import { Database } from '../database/entities/database.entity';
 
 const profile = {
   sourceId: 7,
@@ -35,13 +41,39 @@ const proposal = {
 };
 describe('UC023 creation lifecycle without writes', () => {
   let service: SemanticProposalService, bi: any, ai: any, dashboards: any;
+  let db: DataSource;
   const body = () => ({
     proposal,
     previewDigest: compileSemanticProposal(proposal, profile, []).previewDigest,
     prompt: '현재 초안을 저장하고 게시 준비해 줘',
   });
-  beforeEach(() => {
-    bi = { profile: jest.fn().mockResolvedValue(profile) };
+  beforeEach(async () => {
+    db = await new DataSource({
+      type: 'sqlite',
+      database: ':memory:',
+      synchronize: true,
+      entities: [User, EnterpriseMembership, SourceCatalogEntry, Metric, Database],
+    }).initialize();
+    await db.manager.save(User, {
+      id: 10,
+      active: true,
+      authVersion: 0,
+      userId: 'lifecycle-fixture',
+      email: 'lifecycle-fixture@example.invalid',
+      password: 'fixture',
+    });
+    await db.manager.save(Database, {
+      id: 7,
+      ownerId: 10,
+      name: 'Fixture',
+      type: 'FILE',
+      engine: 'duckdb',
+      connectionConfig: '{}',
+    });
+    bi = {
+      profile: jest.fn().mockResolvedValue(profile),
+      assertSourceAction: jest.fn(async () => undefined),
+    };
     ai = { callLlm: jest.fn().mockResolvedValue(JSON.stringify(proposal)) };
     dashboards = {
       classifyBlockIntent: jest.fn().mockResolvedValue({
@@ -51,13 +83,10 @@ describe('UC023 creation lifecycle without writes', () => {
         publicationRequested: true,
       }),
     };
-    service = new SemanticProposalService(
-      bi,
-      { getRepository: () => ({ find: jest.fn().mockResolvedValue([]) }) } as any,
-      ai,
-      dashboards,
-      {} as any,
-    );
+    service = new SemanticProposalService(bi, db, ai, dashboards, {} as any);
+  });
+  afterEach(async () => {
+    await db.destroy();
   });
   it('extracts explicit initial save/publication intent before the strict proposal compiler', async () => {
     ai.callLlm.mockResolvedValueOnce(

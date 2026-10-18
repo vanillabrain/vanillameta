@@ -1,3 +1,16 @@
+import {
+  CatalogActorContext,
+  catalogActorContext,
+  assertCatalogActor,
+} from '../bi/source-classifications';
+import {
+  BusinessBasis,
+  captureBusinessBasis,
+  resolveBusinessBasis,
+  businessProfile,
+  sliceBusinessBasis,
+  assertBusinessBasisCurrent,
+} from '../bi/semantic-business-basis';
 import { serializeMetadataWork } from '../common/metadata-work';
 import {
   latestConditionSemantics,
@@ -123,9 +136,16 @@ export class StudioRemixService {
     template: SemanticRemixTemplate,
     manager = this.db.manager,
   ) {
-    if (template.conditions === undefined) return;
-    const conditions = validateStudioConditions(template.conditions);
-    if (!conditions.semantics) return;
+    const conditions =
+      template.conditions === undefined ? undefined : validateStudioConditions(template.conditions);
+    const bases = template.blocks
+      .flatMap(block => [
+        block.businessBasis,
+        block.metric?.businessBasis,
+        block.dimension?.businessBasis,
+      ])
+      .filter(Boolean);
+    if (!conditions?.semantics && !bases.length) return;
     let sourceId = row.sourceId;
     // Received references were already authorized by their resolver. Read only server metadata;
     // never query the origin's private rows or expose its source/schema to the recipient.
@@ -143,25 +163,77 @@ export class StudioRemixService {
     if (
       !Number.isSafeInteger(sourceId) ||
       sourceId <= 0 ||
-      !Array.isArray(template.conditionSchema)
+      (!Array.isArray(template.conditionSchema) && !Array.isArray(template.businessSchema))
     )
       throw new ConflictException('원본 조건의 업무 기준 이력을 확인해 주세요.');
-    const schema = template.conditionSchema;
+    const schema = template.businessSchema ?? template.conditionSchema;
     if (
       template.requiredFields.some(
         field => !schema.some(column => column.name === field.name && column.type === field.type),
       )
     )
       throw new ConflictException('원본 조건의 열 기준이 변경되었습니다.');
-    await resolveConditionSemantics(manager, sourceId, schema, conditions.semantics);
+    if (conditions?.semantics)
+      await resolveConditionSemantics(
+        manager,
+        sourceId,
+        template.conditionSchema ?? schema,
+        conditions.semantics,
+      );
+    for (const block of template.blocks) {
+      if (block.defaultDateColumn !== undefined && !block.businessBasis)
+        throw new ConflictException('원본 추세의 고정 날짜 기준을 확인해 주세요.');
+      if (block.businessBasis)
+        await resolveBusinessBasis(
+          manager,
+          sourceId,
+          { columns: schema },
+          block.businessBasis,
+          [
+            block.metric?.aggregation === 'COUNT' ? undefined : block.metric?.column,
+            block.metric?.denominatorColumn,
+            block.metric?.weightColumn,
+            block.dimension?.column,
+            block.defaultDateColumn,
+          ].filter(Boolean),
+        );
+      if (block.metric?.businessBasis)
+        await resolveBusinessBasis(
+          manager,
+          sourceId,
+          { columns: schema },
+          block.metric.businessBasis,
+          [
+            block.metric.aggregation === 'COUNT' ? undefined : block.metric.column,
+            block.metric.denominatorColumn,
+            block.metric.weightColumn,
+          ].filter(Boolean),
+        );
+      if (block.dimension?.businessBasis)
+        await resolveBusinessBasis(
+          manager,
+          sourceId,
+          { columns: schema },
+          block.dimension.businessBasis,
+          [block.dimension.column],
+        );
+    }
   }
 
   private async currentTargetSemantics(
     sourceId: number,
     profile: any,
-    mapped: { mappedConditions?: StudioConditions },
+    mapped: {
+      mappedConditions?: StudioConditions;
+      targetBusinessBasis?: BusinessBasis;
+      businessBasisCaptured?: boolean;
+      targetActorContext?: CatalogActorContext;
+    },
     manager = this.db.manager,
   ) {
+    if (mapped.targetActorContext) await assertCatalogActor(manager, mapped.targetActorContext);
+    if (mapped.businessBasisCaptured)
+      await assertBusinessBasisCurrent(manager, sourceId, profile, mapped.targetBusinessBasis);
     if (mapped.mappedConditions?.semantics)
       await assertLatestConditionSemantics(
         manager,
@@ -227,14 +299,92 @@ export class StudioRemixService {
       throw new BadRequestException('복제 요청과 기준 버전을 확인해 주세요.');
     }
   }
-  private async map(t: RemixTemplate, body: RemixPreviewRequest, profile: any) {
+  private usesBusinessBasis(t: RemixTemplate) {
+    return t.blocks.some(
+      b => b.businessBasis || b.metric?.businessBasis || b.dimension?.businessBasis,
+    );
+  }
+  private async map(
+    t: RemixTemplate,
+    body: RemixPreviewRequest,
+    profile: any,
+    actor: number,
+    capturedActor?: CatalogActorContext,
+  ) {
     if (
       Object.keys(body.mapping).some(name => !t.requiredFields.some(f => f.name === name)) ||
       body.excludedBlockIds.some(id => !t.blocks.some(b => b.id === id))
     )
       throw new BadRequestException('알 수 없는 열 또는 제외 블록입니다.');
+    const usesBusinessBasis = this.usesBusinessBasis(t);
+    const targetBusinessBasis = usesBusinessBasis
+      ? await captureBusinessBasis(this.db.manager, body.targetSourceId, profile)
+      : undefined;
+    const targetActorContext = usesBusinessBasis
+      ? capturedActor ?? (await catalogActorContext(this.db.manager, actor))
+      : undefined;
+    const effective = businessProfile(profile, targetBusinessBasis);
+    const compatibleMeaning = (name: string, target: string) => {
+      if (!usesBusinessBasis) return true;
+      const to = effective.columns.find(c => c.name === target);
+      if (!to) return false;
+      for (const block of t.blocks.filter(block => !body.excludedBlockIds.includes(block.id))) {
+        const operands = block.metric
+          ? [
+              block.metric.aggregation === 'COUNT' ? undefined : block.metric.column,
+              block.metric.denominatorColumn,
+              block.metric.weightColumn,
+            ].filter(Boolean)
+          : [];
+        const contexts = [
+          ...(block.businessBasis?.columns.some(c => c.column === name)
+            ? [block.businessBasis]
+            : []),
+          ...(operands.includes(name) ? [block.metric.businessBasis] : []),
+          ...(block.dimension?.column === name ? [block.dimension.businessBasis] : []),
+        ];
+        for (const basis of contexts) {
+          const from = basis?.columns.find(c => c.column === name);
+          const native = t.requiredFields.find(f => f.name === name);
+          const projected = businessProfile(
+            {
+              columns: [
+                {
+                  name,
+                  type: native.type,
+                  numeric:
+                    /^(U?(BIGINT|INTEGER|SMALLINT|TINYINT)|HUGEINT|UHUGEINT|FLOAT|DOUBLE|DECIMAL)/i.test(
+                      native.type,
+                    ),
+                  temporal: /^(DATE|TIMESTAMP)/i.test(native.type),
+                },
+              ],
+            },
+            undefined,
+          ).columns[0];
+          const meaning = (c: any, numeric: boolean, temporal: boolean) =>
+            c?.businessType && c.businessType !== 'auto'
+              ? c.businessType
+              : temporal
+              ? 'date'
+              : numeric
+              ? 'number'
+              : 'category';
+          const left = meaning(from, projected.numeric, projected.temporal),
+            right = meaning(to, to.numeric, to.temporal);
+          if (
+            left !== right ||
+            (left === 'date' && (from?.dateFormat || 'native') !== (to.dateFormat || 'native'))
+          )
+            return false;
+        }
+      }
+      return true;
+    };
     const fields: RemixField[] = t.requiredFields.map(f => {
-      const candidates = profile.columns.filter(c => c.type === f.type).map(c => c.name);
+      const candidates = profile.columns
+        .filter(c => c.type === f.type && compatibleMeaning(f.name, c.name))
+        .map(c => c.name);
       const targetColumn = Object.prototype.hasOwnProperty.call(body.mapping, f.name)
         ? body.mapping[f.name]
         : profile.columns.find(c => c.name === f.name && c.type === f.type)?.name;
@@ -248,7 +398,7 @@ export class StudioRemixService {
           targetColumn === ''
             ? 'missing'
             : targetColumn
-            ? target?.type === f.type
+            ? target?.type === f.type && compatibleMeaning(f.name, targetColumn)
               ? 'mapped'
               : 'incompatible'
             : candidates.length > 1
@@ -377,11 +527,37 @@ export class StudioRemixService {
           sourceId: body.targetSourceId,
           tableName: 'uploaded_data',
         };
+        delete metric.businessBasis;
         for (const key of ['column', 'denominatorColumn', 'weightColumn'])
           if (metric[key] && !(key === 'column' && metric.aggregation === 'COUNT'))
             metric[key] = mapping[metric[key]];
+        const metricColumns = [
+          metric.aggregation === 'COUNT' ? undefined : metric.column,
+          metric.denominatorColumn,
+          metric.weightColumn,
+        ].filter(Boolean);
+        if (targetBusinessBasis)
+          metric.businessBasis = sliceBusinessBasis(targetBusinessBasis, metricColumns);
         return {
           blockId: b.id,
+          ...(targetBusinessBasis
+            ? {
+                businessBasis: sliceBusinessBasis(
+                  targetBusinessBasis,
+                  [
+                    ...metricColumns,
+                    b.dimension ? mapping[b.dimension.column] : undefined,
+                    b.defaultDateColumn ? mapping[b.defaultDateColumn] : undefined,
+                  ].filter(Boolean),
+                ),
+              }
+            : {}),
+          ...(b.defaultDateColumn !== undefined
+            ? {
+                defaultDateColumn:
+                  b.defaultDateColumn === null ? null : mapping[b.defaultDateColumn],
+              }
+            : {}),
           title: b.title,
           description: b.description,
           kind: b.kind,
@@ -393,6 +569,13 @@ export class StudioRemixService {
                   column: mapping[b.dimension.column],
                   type: profile.columns.find(c => c.name === mapping[b.dimension.column]).type,
                   schemaVersion: profile.schemaVersion,
+                  ...(targetBusinessBasis
+                    ? {
+                        businessBasis: sliceBusinessBasis(targetBusinessBasis, [
+                          mapping[b.dimension.column],
+                        ]),
+                      }
+                    : {}),
                 },
               }
             : {}),
@@ -409,6 +592,9 @@ export class StudioRemixService {
       t.dateRange && dateTarget?.temporal ? { ...t.dateRange, column: dateTarget.name } : undefined;
     const unmappedDateRange = t.dateRange && !mappedDateRange ? t.dateRange.column : undefined;
     return {
+      targetBusinessBasis,
+      targetActorContext,
+      businessBasisCaptured: usesBusinessBasis,
       fields,
       mapping,
       unmappedBlocks,
@@ -472,18 +658,34 @@ export class StudioRemixService {
       return {
         row,
         identity: await this.sourceIdentity(body.targetSourceId, actor, this.db.manager),
+        actorContext: this.usesBusinessBasis(JSON.parse(row.remixTemplate))
+          ? await catalogActorContext(this.db.manager, actor)
+          : undefined,
       };
     });
     const row = initial.row;
     return this.connection.withDuckDBSnapshot(body.targetSourceId, async () => {
-      const context: { profile?: any; mapped?: { mappedConditions?: StudioConditions } } = {};
+      const context: {
+        profile?: any;
+        mapped?: {
+          mappedConditions?: StudioConditions;
+          targetBusinessBasis?: BusinessBasis;
+          businessBasisCaptured?: boolean;
+          targetActorContext?: CatalogActorContext;
+        };
+      } = {};
       try {
         const profile = await this.creation.profile(body.targetSourceId, actor);
         context.profile = profile;
         await this.creation.ensureCurrentSource(body.targetSourceId, actor, this.db.manager);
         const t: RemixTemplate = JSON.parse(row.remixTemplate),
-          mapped = await this.map(t, body, profile);
+          mapped = await this.map(t, body, profile, actor, initial.actorContext);
         context.mapped = mapped;
+        await this.creation.validateBusinessDates(
+          mapped.blocks,
+          profile,
+          mapped.targetBusinessBasis,
+        );
         if (mapped.mappedConditions)
           mapped.mappedConditions.sourceRevision = await this.connection.duckDBVersion(
             body.targetSourceId,
@@ -510,6 +712,7 @@ export class StudioRemixService {
                         t.title,
                         mapped.blocks,
                         profile,
+                        mapped.targetBusinessBasis,
                       ),
                       filters: mapped.filters,
                       ...(mapped.mappedDateRange ? { dateRange: mapped.mappedDateRange } : {}),
@@ -579,10 +782,23 @@ export class StudioRemixService {
     actor: number,
     body: RemixPreviewRequest,
     origin: RemixOriginResolver,
-    initial: { row: { version: number; remixTemplate: string }; identity: string },
-    context: { profile?: any; mapped?: { mappedConditions?: StudioConditions } },
+    initial: {
+      row: { version: number; remixTemplate: string };
+      identity: string;
+      actorContext?: CatalogActorContext;
+    },
+    context: {
+      profile?: any;
+      mapped?: {
+        mappedConditions?: StudioConditions;
+        targetBusinessBasis?: BusinessBasis;
+        businessBasisCaptured?: boolean;
+        targetActorContext?: CatalogActorContext;
+      };
+    },
   ) {
     await serializeMetadataWork(this.db, async () => {
+      if (initial.actorContext) await assertCatalogActor(this.db.manager, initial.actorContext);
       const current = await origin(token, actor, initial.row.version, this.db.manager);
       this.checkLifecycle(current, body.expectedLifecycleRevision);
       if (current.remixTemplate !== initial.row.remixTemplate)
@@ -661,19 +877,35 @@ export class StudioRemixService {
         row,
         t,
         identity: await this.sourceIdentity(body.targetSourceId, actor, this.db.manager),
+        actorContext: this.usesBusinessBasis(JSON.parse(row.remixTemplate))
+          ? await catalogActorContext(this.db.manager, actor)
+          : undefined,
       };
     });
     if ('result' in initial) return initial.result;
     return this.connection.withDuckDBSnapshot(body.targetSourceId, async () => {
-      const context: { profile?: any; mapped?: { mappedConditions?: StudioConditions } } = {};
+      const context: {
+        profile?: any;
+        mapped?: {
+          mappedConditions?: StudioConditions;
+          targetBusinessBasis?: BusinessBasis;
+          businessBasisCaptured?: boolean;
+          targetActorContext?: CatalogActorContext;
+        };
+      } = {};
       try {
         const { row, t, identity } = initial;
         const profile = await this.creation.profile(body.targetSourceId, actor);
         context.profile = profile;
         if (profile.dataVersion !== body.expectedSourceRevision)
           throw new ConflictException('대상 데이터가 변경되었습니다. 매핑을 다시 확인해 주세요.');
-        const mapped = await this.map(t, body, profile);
+        const mapped = await this.map(t, body, profile, actor, initial.actorContext);
         context.mapped = mapped;
+        await this.creation.validateBusinessDates(
+          mapped.blocks,
+          profile,
+          mapped.targetBusinessBasis,
+        );
         if (mapped.mappedConditions) {
           mapped.mappedConditions.sourceRevision = await this.connection.duckDBVersion(
             body.targetSourceId,
@@ -708,6 +940,7 @@ export class StudioRemixService {
           mapped.filters,
           mapped.mappedDateRange,
           mapped.mappedConditions,
+          mapped.targetBusinessBasis,
         );
         const latest = await this.creation.profile(body.targetSourceId, actor);
         if (
@@ -717,6 +950,8 @@ export class StudioRemixService {
           throw new ConflictException('저장 중 대상 데이터가 변경되었습니다.');
         return await this.studio.serializeWrite(() =>
           sourceWriteTransaction(this.db, async manager => {
+            if (mapped.targetActorContext)
+              await assertCatalogActor(manager, mapped.targetActorContext, true);
             const replayed = await this.replay(token, actor, body, payloadHash, origin, manager);
             if (replayed) return replayed;
             const check = async () => {

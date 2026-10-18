@@ -1,5 +1,8 @@
+import { BusinessBasis } from '@/api/businessBasis';
+import BusinessBasisDetails from '../../Explore/BusinessBasisDetails';
 import React from 'react';
 export type MetricBasisDefinition = {
+  businessBasis?: BusinessBasis | null;
   aggregation?: string;
   column?: string;
   denominatorColumn?: string;
@@ -11,7 +14,7 @@ export type MetricBasisDefinition = {
 export default function StudioMetricBasis({ definition }: { definition?: MetricBasisDefinition }) {
   if (typeof definition?.aggregation !== 'string' || !definition.aggregation.trim())
     return <p>계산 기준을 확인하지 못했습니다.</p>;
-  const fields: Array<[keyof MetricBasisDefinition, string]> = [
+  const fields: Array<[Exclude<keyof MetricBasisDefinition, 'businessBasis'>, string]> = [
     ['aggregation', '집계 방식'],
     ['column', '대상 열'],
   ];
@@ -39,6 +42,7 @@ export default function StudioMetricBasis({ definition }: { definition?: MetricB
         <dt>단위</dt>
         <dd>{typeof definition.unit === 'string' && definition.unit.trim() ? definition.unit : '미지정'}</dd>
       </div>
+      <BusinessBasisDetails basis={definition.businessBasis} />
     </dl>
   );
 }

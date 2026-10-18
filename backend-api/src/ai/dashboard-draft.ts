@@ -1,3 +1,9 @@
+import {
+  BusinessBasis,
+  businessDimensionExpression,
+  maskBusinessDateExpressions,
+  normalizeBusinessBasis,
+} from '../bi/semantic-business-basis';
 import type { ConditionSemantics } from '../bi/business-condition-semantics';
 import { BadRequestException } from '@nestjs/common';
 import { compileConditionDefinition, conditionColumns } from '../bi/source-condition-definition';
@@ -6,11 +12,14 @@ import { dateRangeBounds, isoSecond, validateDateRange } from './dashboard-date-
 export const DASHBOARD_TYPES = ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_BAR', 'CHART_LINE'];
 export interface DashboardDraft {
   databaseId: number;
+  businessBasis?: BusinessBasis;
   title: string;
   explanation: string;
   layoutSizes?: Array<{ width: 6 | 12; height: 3 | 5 | 7 }>;
   widgets: Array<{
     blockId?: string;
+    defaultDateColumn?: string | null;
+    businessBasis?: BusinessBasis;
     title: string;
     description: string;
     type: string;
@@ -37,8 +46,10 @@ function text(value: unknown, max: number, empty = false): string {
 }
 
 /** Deliberately small SELECT grammar: one source relation, no CTEs/subqueries or arbitrary functions. */
-export function validateSourceSql(sql: string): string {
+export function validateSourceSql(sql: string, businessBasis?: BusinessBasis): string {
   text(sql, 10000);
+  const original = sql;
+  sql = maskBusinessDateExpressions(sql, businessBasis);
   const tokens =
     sql.match(
       /'(?:''|[^'])*'|"(?:""|[^"])*"|[A-Za-z_][A-Za-z_0-9]*|\d+(?:\.\d+)?|\s+|[(),.*+\-\/%=<>!:]/g,
@@ -108,7 +119,7 @@ export function validateSourceSql(sql: string): string {
       throw new BadRequestException('unsupported SQL function');
     }
   }
-  return sql.trim();
+  return original.trim();
 }
 export function validateDraft(input: any): DashboardDraft {
   if (
@@ -134,7 +145,10 @@ export function validateDraft(input: any): DashboardDraft {
       ))
   )
     throw new BadRequestException('invalid layout sizes');
+  const businessBasis =
+    input.businessBasis === undefined ? undefined : normalizeBusinessBasis(input.businessBasis);
   return {
+    ...(businessBasis ? { businessBasis } : {}),
     databaseId: positiveId(input.databaseId),
     title: text(input.title, 300),
     explanation: text(input.explanation, 4000, true),
@@ -156,13 +170,30 @@ export function validateDraft(input: any): DashboardDraft {
         (w.type !== 'CHART_LINE' || !['auto', 'day', 'week', 'month'].includes(w.timeGrain))
       )
         throw new BadRequestException('invalid timeGrain');
+      if (
+        w.defaultDateColumn !== undefined &&
+        (w.type !== 'BOARD_NUMERIC' ||
+          w.businessBasis === undefined ||
+          (w.defaultDateColumn !== null &&
+            (typeof w.defaultDateColumn !== 'string' ||
+              !w.defaultDateColumn.length ||
+              w.defaultDateColumn.length > 255)))
+      )
+        throw new BadRequestException('invalid frozen default date column');
       return {
+        ...(w.defaultDateColumn !== undefined ? { defaultDateColumn: w.defaultDateColumn } : {}),
         ...(w.timeGrain !== undefined ? { timeGrain: w.timeGrain } : {}),
         ...(w.blockId !== undefined ? { blockId: w.blockId } : {}),
         title: text(w.title, 300),
         description: text(w.description, 1000, true),
         type: w.type,
-        sql: validateSourceSql(w.sql),
+        ...(w.businessBasis !== undefined
+          ? { businessBasis: normalizeBusinessBasis(w.businessBasis) }
+          : {}),
+        sql: validateSourceSql(
+          w.sql,
+          w.businessBasis === undefined ? businessBasis : normalizeBusinessBasis(w.businessBasis),
+        ),
         valueField: text(w.valueField, 255),
         ...(w.categoryField !== undefined ? { categoryField: text(w.categoryField, 255) } : {}),
         ...(w.decimalPlaces !== undefined ? { decimalPlaces: w.decimalPlaces } : {}),
@@ -257,13 +288,25 @@ export function sourceQuery(
   conditionsDefinition?: unknown,
   schema?: Array<{ name: string; type: string }>,
   conditionSemantics?: ConditionSemantics,
+  businessBasis?: BusinessBasis,
+  rangeBusinessBasis?: BusinessBasis,
 ) {
-  validateSourceSql(sql);
+  validateSourceSql(sql, businessBasis);
+  const rangeBasis = rangeBusinessBasis ?? businessBasis;
+  const scopedColumn = (column: string) =>
+    rangeBasis?.columns.find(c => c.column === column)?.businessType === 'date'
+      ? businessDimensionExpression({ columns: schema ?? [] }, rangeBasis, column)
+      : quoteColumn(column);
   const bindings: any[] = [];
   const conditions = normalizeSourceFilters(filters).map(f => {
     if (!columns.includes(f.column)) throw new BadRequestException('invalid filter column');
     if ('range' in f) {
-      if (!numericColumns.includes(f.column))
+      if (
+        !numericColumns.includes(f.column) ||
+        ['category', 'date'].includes(
+          rangeBasis?.columns.find(c => c.column === f.column)?.businessType,
+        )
+      )
         throw new BadRequestException(
           '숫자 열에만 범위 필터를 적용할 수 있습니다. (numeric source column required)',
         );
@@ -278,31 +321,49 @@ export function sourceQuery(
       return `(${clauses.join(' AND ')})`;
     }
     const unique = f.values;
+    if (
+      rangeBasis?.columns.find(c => c.column === f.column)?.businessType === 'date' &&
+      unique.some(
+        value =>
+          value !== null &&
+          (typeof value !== 'string' ||
+            !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value) ||
+            value.startsWith('0000') ||
+            !Number.isFinite(Date.parse(value + 'T00:00:00Z')) ||
+            new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) !== value),
+      )
+    )
+      throw new BadRequestException('업무 날짜 필터는 유효한 ISO 날짜를 사용해 주세요.');
     const nonNull = unique.filter(value => value !== null);
     const clauses = [];
     if (nonNull.length) {
       bindings.push(...nonNull);
-      clauses.push(`${quoteColumn(f.column)} IN (${nonNull.map(() => '?').join(', ')})`);
+      clauses.push(`${scopedColumn(f.column)} IN (${nonNull.map(() => '?').join(', ')})`);
     }
-    if (unique.includes(null)) clauses.push(`${quoteColumn(f.column)} IS NULL`);
+    if (unique.includes(null)) clauses.push(`${scopedColumn(f.column)} IS NULL`);
     return `(${clauses.join(' OR ')})`;
   });
   if (dateRange !== undefined) {
     const range = validateDateRange(dateRange);
     const { column } = range;
-    if (!columns.includes(column) || !temporalColumns.includes(column))
+    if (
+      !columns.includes(column) ||
+      rangeBasis?.columns.find(c => c.column === column)?.businessType === 'category' ||
+      (!temporalColumns.includes(column) &&
+        rangeBasis?.columns.find(c => c.column === column)?.businessType !== 'date')
+    )
       throw new BadRequestException('invalid UTC date range');
     const { start, end } = dateRangeBounds(range);
-    const instantCondition = `CAST(${quoteColumn(
+    const instantCondition = `CAST(${scopedColumn(
       column,
-    )} AS TIMESTAMPTZ) >= CAST(? AS TIMESTAMPTZ) AND CAST(${quoteColumn(
+    )} AS TIMESTAMPTZ) >= CAST(? AS TIMESTAMPTZ) AND CAST(${scopedColumn(
       column,
     )} AS TIMESTAMPTZ) < CAST(? AS TIMESTAMPTZ)`;
     if (range.timeZone && range.timeZone !== 'UTC' && !range.precision) {
       // DATE is already a civil date; TIMESTAMP without zone keeps the source's UTC convention.
-      conditions.push(`CASE WHEN typeof(${quoteColumn(column)}) = 'DATE' THEN
-        CAST(${quoteColumn(column)} AS DATE) >= CAST(? AS DATE) AND
-        CAST(${quoteColumn(column)} AS DATE) <= CAST(? AS DATE)
+      conditions.push(`CASE WHEN typeof(${scopedColumn(column)}) = 'DATE' THEN
+        CAST(${scopedColumn(column)} AS DATE) >= CAST(? AS DATE) AND
+        CAST(${scopedColumn(column)} AS DATE) <= CAST(? AS DATE)
         ELSE ${instantCondition} END`);
       bindings.push(range.start, range.end);
     } else conditions.push(instantCondition);

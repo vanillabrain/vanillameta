@@ -1,9 +1,21 @@
 import { DATE_FORMATS, stringType } from './business-variable';
-import { serializeEnterpriseWrite } from '../enterprise/enterprise-write';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { DataSource, In } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { dimensionDefinition } from './semantic-proposal';
+import { dimensionDefinition, metricColumns, semanticDigest, shape } from './semantic-proposal';
+import {
+  BusinessBasis,
+  captureBusinessBasis,
+  resolveBusinessBasis,
+  sliceBusinessBasis,
+  businessProfile,
+  assertBusinessBasisCurrent,
+  validateBasisBusinessDates,
+} from './semantic-business-basis';
+import { catalogActorContext, assertCatalogActor } from './source-classifications';
+import { serializeMetadataWork } from '../common/metadata-work';
+import { sourceWriteTransaction } from '../database/source-write-lock';
+import { lockMetricSources } from '../metric/metric-write-lock';
 import { Database } from '../database/entities/database.entity';
 import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { Metric } from '../metric/entities/metric.entity';
@@ -282,16 +294,79 @@ export class BiService {
       throw new BadRequestException('표시 이름을 확인해 주세요.');
     return value.trim();
   }
-  async createMetric(body: any, actor: number) {
+  async businessBasis(body: unknown, actor: number, authVersion?: number) {
+    shape(body, ['sourceId']);
+    const context = await catalogActorContext(this.db.manager, actor, authVersion);
+    const id = this.access.id((body as any).sourceId);
+    await this.access.assert('database', id, actor, 'read');
+    return this.connection.withDuckDBSnapshot(id, async () => {
+      const profile = await this.profile(id, actor);
+      if (!profile.supported) throw new BadRequestException('준비된 DuckDB 소스를 선택해 주세요.');
+      const basis = await captureBusinessBasis(this.db.manager, id, profile);
+      await serializeMetadataWork(this.db, async () => {
+        await assertCatalogActor(this.db.manager, context);
+        await this.access.assert('database', id, actor, 'read');
+        await assertBusinessBasisCurrent(this.db.manager, id, profile, basis);
+      });
+      if ((await this.profile(id, actor)).dataVersion !== profile.dataVersion)
+        throw new ConflictException('SOURCE_CHANGED');
+      await serializeMetadataWork(this.db, async () => {
+        await assertCatalogActor(this.db.manager, context);
+        await this.access.assert('database', id, actor, 'read');
+        await assertBusinessBasisCurrent(this.db.manager, id, profile, basis);
+      });
+      return {
+        sourceId: id,
+        sourceRevision: profile.dataVersion,
+        businessBasis: basis ?? null,
+        businessColumns: businessProfile(profile, basis).columns.map(column => ({
+          name: column.name,
+          type: column.type,
+          numeric: column.numeric,
+          temporal: column.temporal,
+          label: column.label ?? column.name,
+          description: column.description ?? '',
+          unit: column.unit ?? '',
+          businessType: column.businessType ?? 'auto',
+          dateFormat: column.dateFormat ?? '',
+          classification: column.classification ?? '',
+          ...(column.classificationRef === undefined
+            ? {}
+            : { classificationRef: column.classificationRef }),
+        })),
+      };
+    });
+  }
+  async createMetric(body: any, actor: number, authVersion?: number) {
+    const context = await catalogActorContext(this.db.manager, actor, authVersion);
     // UC051: a stored metric definition is written against the source, so it needs edit; the
     // read used for the profile must not be enough on its own.
     await this.access.assert('database', body?.sourceId, actor, 'edit');
     const profile = await this.profile(body?.sourceId, actor);
     if (!profile.supported)
       throw new BadRequestException('서버에 저장한 DuckDB 파일을 선택해 주세요.');
+    const source = await serializeMetadataWork(this.db, () =>
+      this.db.manager.findOneBy(Database, { id: profile.sourceId }),
+    );
+    const basis = await captureBusinessBasis(this.db.manager, profile.sourceId, profile);
+    if (body.businessBasis !== undefined) {
+      if (body.businessBasis === null) {
+        if (basis) throw new ConflictException('BUSINESS_BASIS_CHANGED');
+      } else {
+        const supplied = await resolveBusinessBasis(
+          this.db.manager,
+          profile.sourceId,
+          profile,
+          body.businessBasis,
+          metricColumns(body),
+        );
+        await assertBusinessBasisCurrent(this.db.manager, profile.sourceId, profile, supplied);
+      }
+    }
     const aggregation = body.aggregation;
     const label = this.text(body.label, 100);
-    const fields = metricFields(body, profile);
+    const fields = metricFields(body, profile, basis);
+    const usedBasis = sliceBusinessBasis(basis, metricColumns(fields));
     if (
       !Number.isInteger(body.decimalPlaces) ||
       body.decimalPlaces < 0 ||
@@ -299,7 +374,12 @@ export class BiService {
       !['plain', 'compact'].includes(body.numberNotation)
     )
       throw new BadRequestException('표시 형식을 확인해 주세요.');
-    if (typeof body.unit !== 'string' || body.unit.length > 12)
+    const unit =
+      body.unit ??
+      (['SUM', 'AVG', 'MIN', 'MAX'].includes(aggregation)
+        ? usedBasis?.columns.find(column => column.column === fields.column)?.unit ?? ''
+        : '');
+    if (typeof unit !== 'string' || unit.length > 12)
       throw new BadRequestException('단위를 확인해 주세요.');
     const definition = {
       schemaVersion: 1,
@@ -309,13 +389,37 @@ export class BiService {
       label,
       aggregation,
       ...fields,
-      unit: body.unit,
+      unit,
       decimalPlaces: body.decimalPlaces,
       numberNotation: body.numberNotation,
+      ...(usedBasis ? { businessBasis: usedBasis } : {}),
     };
-    const row = await serializeEnterpriseWrite(this.db, async () => {
+    let dateError: unknown;
+    try {
+      await this.connection.withDuckDBSnapshot(profile.sourceId, () =>
+        validateBasisBusinessDates(profile, usedBasis, (sql, bindings) =>
+          this.connection.queryDuckDB(profile.sourceId, sql, bindings),
+        ),
+      );
+    } catch (error) {
+      dateError = error;
+    }
+    const latest = await this.profile(profile.sourceId, actor);
+    await serializeMetadataWork(this.db, async () => {
+      await assertCatalogActor(this.db.manager, context);
       await this.access.assert('database', profile.sourceId, actor, 'edit');
-      const repo = this.db.getRepository(Metric);
+      await assertBusinessBasisCurrent(this.db.manager, profile.sourceId, profile, basis);
+      if (latest.dataVersion !== profile.dataVersion) throw new ConflictException('SOURCE_CHANGED');
+    });
+    if (dateError) throw dateError;
+    const row = await sourceWriteTransaction(this.db, async manager => {
+      await assertCatalogActor(manager, context, true);
+      const sources = await lockMetricSources(manager, [profile.sourceId]);
+      if (semanticDigest(sources.get(profile.sourceId)) !== semanticDigest(source))
+        throw new ConflictException('SOURCE_CHANGED');
+      await this.access.assert('database', profile.sourceId, actor, 'edit', manager);
+      await assertBusinessBasisCurrent(manager, profile.sourceId, profile, basis);
+      const repo = manager.getRepository(Metric);
       return repo.save(
         repo.create({
           name: 'bi_' + randomUUID(),
@@ -348,7 +452,13 @@ export class BiService {
         };
       });
   }
-  async prepare(body: any, actor: number) {
+  async prepare(
+    body: any,
+    actor: number,
+    frozenDimension?: { businessBasis?: BusinessBasis; rootBusinessBasis?: BusinessBasis },
+    authVersion?: number,
+  ) {
+    const authority = await catalogActorContext(this.db.manager, actor, authVersion);
     const profile = await this.profile(body?.sourceId, actor);
     await this.access.assert('metric', body?.metricId, actor, 'read');
     const row = await this.db
@@ -363,6 +473,83 @@ export class BiService {
       definition.sourceId !== profile.sourceId
     )
       throw new BadRequestException('지표 정의를 확인해 주세요.');
+    await resolveBusinessBasis(
+      this.db.manager,
+      profile.sourceId,
+      profile,
+      definition.businessBasis,
+      metricColumns(definition),
+    );
+    const rootBasis = frozenDimension
+      ? await resolveBusinessBasis(
+          this.db.manager,
+          profile.sourceId,
+          profile,
+          frozenDimension.rootBusinessBasis,
+          profile.columns.map(column => column.name),
+        )
+      : await captureBusinessBasis(this.db.manager, profile.sourceId, profile);
+    if (!frozenDimension && body.businessBasis !== undefined) {
+      if (body.businessBasis === null) {
+        if (rootBasis) throw new ConflictException('BUSINESS_BASIS_CHANGED');
+      } else {
+        const supplied = await resolveBusinessBasis(
+          this.db.manager,
+          profile.sourceId,
+          profile,
+          body.businessBasis,
+          profile.columns.map(column => column.name),
+        );
+        await assertBusinessBasisCurrent(this.db.manager, profile.sourceId, profile, supplied);
+      }
+    }
+    const dimensionBasis =
+      body.chart === 'number'
+        ? undefined
+        : frozenDimension
+        ? await resolveBusinessBasis(
+            this.db.manager,
+            profile.sourceId,
+            profile,
+            frozenDimension.businessBasis,
+            [body.dimension],
+          )
+        : sliceBusinessBasis(rootBasis, [body.dimension]);
+    let dateError: unknown;
+    try {
+      await this.connection.withDuckDBSnapshot(profile.sourceId, async () => {
+        for (const basis of [definition.businessBasis, dimensionBasis])
+          await validateBasisBusinessDates(profile, basis, (sql, bindings) =>
+            this.connection.queryDuckDB(profile.sourceId, sql, bindings),
+          );
+      });
+    } catch (error) {
+      dateError = error;
+    }
+    await assertCatalogActor(this.db.manager, authority);
+    await this.access.assert('database', profile.sourceId, actor, 'read');
+    await resolveBusinessBasis(
+      this.db.manager,
+      profile.sourceId,
+      profile,
+      definition.businessBasis,
+      metricColumns(definition),
+    );
+    if (!frozenDimension)
+      await assertBusinessBasisCurrent(this.db.manager, profile.sourceId, profile, rootBasis);
+    else
+      await resolveBusinessBasis(
+        this.db.manager,
+        profile.sourceId,
+        profile,
+        rootBasis,
+        profile.columns.map(column => column.name),
+      );
+    if ((await this.profile(profile.sourceId, actor)).dataVersion !== profile.dataVersion)
+      throw new ConflictException('SOURCE_CHANGED');
+    await assertCatalogActor(this.db.manager, authority);
+    await this.access.assert('database', profile.sourceId, actor, 'read');
+    if (dateError) throw dateError;
     const title = this.text(body.title, 300);
     const { widget, dimension } = compileMetricWidget(
       definition,
@@ -370,8 +557,10 @@ export class BiService {
       body.chart,
       body.dimension,
       title,
+      dimensionBasis,
     );
     const draft = {
+      ...(rootBasis ? { businessBasis: rootBasis } : {}),
       databaseId: profile.sourceId,
       title,
       explanation: definition.label,
@@ -386,22 +575,65 @@ export class BiService {
       definitionVersion: definition.definitionVersion,
       definition,
       dimension: dimension?.name,
-      ...(dimension ? { dimensionDefinition: dimensionDefinition(profile, dimension) } : {}),
+      ...(dimension
+        ? { dimensionDefinition: dimensionDefinition(profile, dimension, dimensionBasis) }
+        : {}),
       chart: body.chart,
     };
     return { draft, snapshot, profile, definition };
   }
-  async preview(body: any, actor: number) {
+  async preview(body: any, actor: number, authVersion?: number) {
     await this.access.assert('database', body?.sourceId, actor, 'read');
     return this.connection.withDuckDBSnapshot(this.access.id(body.sourceId), () =>
-      this.previewSnapshot(body, actor),
+      this.previewSnapshot(body, actor, authVersion),
     );
   }
-  private async previewSnapshot(body: any, actor: number) {
-    const { draft, snapshot, profile, definition } = await this.prepare(body, actor);
-    const rows = (
-      await this.connection.queryDuckDB(profile.sourceId, sourceQuery(draft.widgets[0].sql, []).sql)
-    ).datas;
+  private async previewSnapshot(body: any, actor: number, authVersion?: number) {
+    const authority = await catalogActorContext(this.db.manager, actor, authVersion);
+    const { draft, snapshot, profile, definition } = await this.prepare(
+      body,
+      actor,
+      undefined,
+      authVersion,
+    );
+    let rows: any, queryError: unknown;
+    try {
+      rows = (
+        await this.connection.queryDuckDB(
+          profile.sourceId,
+          sourceQuery(
+            draft.widgets[0].sql,
+            [],
+            [],
+            undefined,
+            [],
+            [],
+            undefined,
+            undefined,
+            undefined,
+            draft.businessBasis,
+          ).sql,
+        )
+      ).datas;
+    } catch (error) {
+      queryError = error;
+    }
+    await serializeMetadataWork(this.db, async () => {
+      await assertCatalogActor(this.db.manager, authority);
+      await this.access.assert('database', profile.sourceId, actor, 'read');
+      await this.access.assert('metric', snapshot.metricId, actor, 'read');
+      await assertBusinessBasisCurrent(
+        this.db.manager,
+        profile.sourceId,
+        profile,
+        draft.businessBasis,
+      );
+    });
+    if ((await this.profile(profile.sourceId, actor)).dataVersion !== profile.dataVersion)
+      throw new ConflictException('SOURCE_CHANGED');
+    await assertCatalogActor(this.db.manager, authority);
+    await this.access.assert('database', profile.sourceId, actor, 'read');
+    if (queryError) throw queryError;
     return {
       rows,
       metric: definition,
@@ -412,14 +644,26 @@ export class BiService {
       complete: body.chart === 'number',
     };
   }
-  async save(body: any, actor: number) {
+  async save(body: any, actor: number, authVersion?: number) {
     // UC051 bypass guard: a new dashboard minted from a source stays source-owner only, even for
     // an edit grantee, so a granted read/edit cannot turn a foreign source into an artifact the
     // actor then owns with default publish/export rights. Explore and metric/metadata edits are
     // the only granted source capabilities in this slice.
     await this.access.assert('database', body?.sourceId, actor);
-    const { draft, snapshot } = await this.prepare(body, actor);
-    return (await this.dashboards.save({ draft }, actor, snapshot)).data;
+    const { draft, snapshot } = await this.prepare(body, actor, undefined, authVersion);
+    return (
+      await this.dashboards.save(
+        { draft },
+        actor,
+        snapshot,
+        undefined,
+        undefined,
+        false,
+        [],
+        undefined,
+        authVersion,
+      )
+    ).data;
   }
   private async editorState(id: unknown, actor: number) {
     await this.access.assert('dashboard', id, actor);
@@ -548,6 +792,11 @@ export class BiService {
       let widget;
       let snapshot;
       if (item.kind === 'metric') {
+        const storedDimension = state.definitions[originalIndex];
+        const preserveDimension =
+          originalItem &&
+          originalItem.metricId === item.metricId &&
+          originalItem.dimension === item.dimension;
         const prepared = await this.prepare(
           {
             sourceId: state.sourceId,
@@ -557,6 +806,12 @@ export class BiService {
             title: item.title,
           },
           actor,
+          preserveDimension
+            ? {
+                businessBasis: storedDimension?.dimensionDefinition?.businessBasis,
+                rootBusinessBasis: state.analysis.businessBasis,
+              }
+            : undefined,
         );
         widget = prepared.draft.widgets[0];
         snapshot = prepared.snapshot;

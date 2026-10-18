@@ -1,9 +1,19 @@
 import { BadRequestException } from '@nestjs/common';
 import { MetricAggregation } from '../metric/entities/metric.entity';
 import { quoteColumn } from '../ai/dashboard-draft';
+import { BusinessBasis, businessProfile } from './semantic-business-basis';
 
 /** Canonical structured metric compiler shared by creation and AI references. */
-export function metricFields(body: any, profile: any) {
+export function metricFields(body: any, profile: any, basis: BusinessBasis = body.businessBasis) {
+  const native = {
+    ...profile,
+    columns: profile.columns.map(column => ({
+      ...column,
+      numeric: column.nativeNumeric ?? column.numeric,
+      temporal: column.nativeTemporal ?? column.temporal,
+    })),
+  };
+  profile = businessProfile(native, basis);
   const aggregation = body.aggregation;
   if (![...Object.values(MetricAggregation), 'RATIO_SUM', 'WEIGHTED_AVG'].includes(aggregation))
     throw new BadRequestException('지원하지 않는 집계입니다.');
@@ -25,8 +35,12 @@ export function metricFields(body: any, profile: any) {
   }
   return fields;
 }
-export function metricExpression(definition: any, profile: any) {
-  const fields = metricFields(definition, profile);
+export function metricExpression(
+  definition: any,
+  profile: any,
+  basis: BusinessBasis = definition.businessBasis,
+) {
+  const fields = metricFields(definition, profile, basis);
   const value = quoteColumn(fields.column);
   if (definition.aggregation === 'RATIO_SUM')
     return `SUM(CAST(${value} AS DOUBLE)) / NULLIF(SUM(CAST(${quoteColumn(

@@ -124,10 +124,13 @@ function projectTrend(trend: unknown, blockId: string): PublicationTrend {
   return projected;
 }
 
-export function sanitizePublicationWidget(input: any): PublicationWidget {
+export function sanitizePublicationWidget(
+  input: any,
+  canonicalAggregate = false,
+): PublicationWidget {
   const message = '게시할 수 없는 블록 정의입니다.';
   if (!input || typeof input !== 'object' || Array.isArray(input)) reject(message);
-  if (input.contribution?.supported !== true) reject(message);
+  if (input.contribution?.supported !== true && !canonicalAggregate) reject(message);
   const reserved = new Set(['__proto__', 'constructor', 'prototype']);
   const blockId = requiredText(input.blockId, 128, message);
   if (reserved.has(blockId)) reject(message);
@@ -213,12 +216,15 @@ function projectResponsiveLayouts(
   return result;
 }
 
-export function buildPublicationSnapshot(input: {
-  title: unknown;
-  widgets: unknown;
-  responsiveLayouts: unknown;
-  capturedAt?: Date | string;
-}): { snapshot: PublicationSnapshot; bytes: number } {
+export function buildPublicationSnapshot(
+  input: {
+    title: unknown;
+    widgets: unknown;
+    responsiveLayouts: unknown;
+    capturedAt?: Date | string;
+  },
+  canonicalAggregateIndices: ReadonlySet<number> = new Set(),
+): { snapshot: PublicationSnapshot; bytes: number } {
   const title = requiredText(input.title, 300, '게시할 분석 제목을 확인해 주세요.');
   if (
     !Array.isArray(input.widgets) ||
@@ -226,7 +232,10 @@ export function buildPublicationSnapshot(input: {
     input.widgets.length > PUBLICATION_MAX_WIDGETS
   )
     reject('게시에는 1~6개의 블록이 필요합니다.');
-  const widgets = input.widgets.map(sanitizePublicationWidget);
+  // An internal caller may independently prove exact compiler SQL; never rewrite drilldown capability.
+  const widgets = input.widgets.map((widget, index) =>
+    sanitizePublicationWidget(widget, canonicalAggregateIndices.has(index)),
+  );
   const blockIds = widgets.map(widget => widget.blockId);
   if (new Set(blockIds).size !== blockIds.length) reject('게시할 수 없는 블록 정의입니다.');
   const captured =

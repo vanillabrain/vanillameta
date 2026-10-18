@@ -1,3 +1,4 @@
+import { BusinessBasis, assertOptionalBusinessBasis } from '@/api/businessBasis';
 import type { Node } from '../../Explore/SourceConditions';
 import { get, post } from '@/helpers/apiHelper';
 import {
@@ -55,6 +56,7 @@ const conditionFields = (conditions?: StudioConditions): string[] => {
 };
 export type RemixBlock = { id: string; title: string; kind: string; supported: boolean; reason?: string };
 export type RemixRequirements = {
+  businessBasis?: BusinessBasis | null;
   lifecycleRevision: string;
   conditions?: StudioConditions;
   token: string;
@@ -83,6 +85,7 @@ export type RemixInput = {
 };
 export type RemixSaveInput = RemixInput & { requestId: string; expectedSourceRevision: string };
 export type RemixPreview = RemixRequirements & {
+  mappedBusinessBasis?: BusinessBasis | null;
   targetSourceId: number;
   sourceRevision: string;
   profile: SourceProfile;
@@ -143,6 +146,7 @@ export function validateRemixRequirements(input: any, token: string): RemixRequi
       ),
     '필수 열 정의를 확인해 주세요.',
   );
+  assertOptionalBusinessBasis(input);
   if (input.filters !== undefined) input.filters = remixFilters(input.filters, '게시본의 공통 필터를 확인하지 못했습니다.');
   if (input.dateRange !== undefined) input.dateRange = validateStudioDateRange(input.dateRange);
   if (input.conditions !== undefined) {
@@ -160,6 +164,10 @@ export function validateRemixRequirements(input: any, token: string): RemixRequi
   return input;
 }
 export function validateRemixPreview(input: any, token: string, request: RemixInput): RemixPreview {
+  assertOptionalBusinessBasis(input);
+  assertOptionalBusinessBasis(
+    input.mappedBusinessBasis === undefined ? undefined : { businessBasis: input.mappedBusinessBasis },
+  );
   validateRemixRequirements(input, token);
   studioAssert(
     input.lifecycleRevision === request.expectedLifecycleRevision &&

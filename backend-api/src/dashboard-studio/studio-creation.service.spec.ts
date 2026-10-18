@@ -1,3 +1,5 @@
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { createHash } from 'crypto';
@@ -84,6 +86,8 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       synchronize: true,
       entities: [
         SourceCatalogEntry,
+        User,
+        EnterpriseMembership,
         Dashboard,
         DashboardShare,
         DashboardWidget,
@@ -97,6 +101,14 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
         StudioRun,
       ],
     }).initialize();
+    await db.manager.save(User, {
+      id: 7,
+      userId: 'studio-owner',
+      email: 'studio-owner@example.invalid',
+      password: 'not-a-login-credential',
+      active: true,
+      authVersion: 0,
+    });
     await db.manager.save(Database, {
       id: 1,
       ownerId: 7,

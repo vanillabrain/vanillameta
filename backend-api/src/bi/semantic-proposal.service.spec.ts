@@ -4,6 +4,12 @@ jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 jest.mock('./bi.service', () => ({ BiService: class {} }));
 import { ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
 import { SemanticProposalService } from './semantic-proposal.service';
+import { DataSource } from 'typeorm';
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
+import { Metric } from '../metric/entities/metric.entity';
+import { Database } from '../database/entities/database.entity';
 const profile = {
   sourceId: 7,
   supported: true,
@@ -40,8 +46,34 @@ describe('semantic proposal service read boundaries', () => {
     repo: any,
     dashboards: any,
     connection: any;
-  beforeEach(() => {
-    bi = { profile: jest.fn().mockResolvedValue(profile) };
+  let db: DataSource;
+  beforeEach(async () => {
+    db = await new DataSource({
+      type: 'sqlite',
+      database: ':memory:',
+      synchronize: true,
+      entities: [User, EnterpriseMembership, SourceCatalogEntry, Metric, Database],
+    }).initialize();
+    await db.manager.save(User, {
+      id: 10,
+      active: true,
+      authVersion: 0,
+      userId: 'proposal-fixture',
+      email: 'proposal-fixture@example.invalid',
+      password: 'fixture',
+    });
+    await db.manager.save(Database, {
+      id: 7,
+      ownerId: 10,
+      name: 'Fixture',
+      type: 'FILE',
+      engine: 'duckdb',
+      connectionConfig: '{}',
+    });
+    bi = {
+      profile: jest.fn().mockResolvedValue(profile),
+      assertSourceAction: jest.fn(async () => undefined),
+    };
     ai = { callLlm: jest.fn().mockResolvedValue(JSON.stringify(proposal())) };
     repo = { find: jest.fn().mockResolvedValue([]), save: jest.fn(), delete: jest.fn() };
     dashboards = {
@@ -49,18 +81,17 @@ describe('semantic proposal service read boundaries', () => {
       save: jest.fn(),
     };
     connection = { withDuckDBSnapshot: jest.fn((_id, fn) => fn()) };
-    service = new SemanticProposalService(
-      bi,
-      { getRepository: () => repo } as any,
-      ai,
-      dashboards,
-      connection,
-    );
+    const repository = db.getRepository.bind(db);
+    jest
+      .spyOn(db, 'getRepository')
+      .mockImplementation((entity => (entity === Metric ? repo : repository(entity))) as any);
+    service = new SemanticProposalService(bi, db, ai, dashboards, connection);
   });
-  afterEach(() => {
+  afterEach(async () => {
     expect(repo.save).not.toHaveBeenCalled();
     expect(repo.delete).not.toHaveBeenCalled();
     expect(dashboards.save).not.toHaveBeenCalled();
+    await db.destroy();
   });
   it('only exposes schema and valid catalog to the provider, then revalidates', async () => {
     const result = await service.propose({ sourceId: 7, prompt: '합계 보여줘' }, 10);

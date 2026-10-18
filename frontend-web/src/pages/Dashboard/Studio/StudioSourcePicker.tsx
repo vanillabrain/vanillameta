@@ -139,7 +139,11 @@ export default function StudioSourcePicker({
               <tbody>
                 {profile.columns.map(column => (
                   <tr key={column.name}>
-                    <td>{column.name}</td>
+                    <td>
+                      {column.label && column.label !== column.name ? `${column.label} · ` : ''}
+                      {column.name}
+                      {column.unit ? ` · ${column.unit}` : ''}
+                    </td>
                     <td>{column.type}</td>
                     <td>{column.nullCount ?? '—'}</td>
                   </tr>

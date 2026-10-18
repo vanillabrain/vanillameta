@@ -1,6 +1,8 @@
+import { validBusinessBasis } from '@/api/businessBasis';
 const widgetTypes = ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_BAR', 'CHART_LINE'];
 export const validDraft = (draft: any) =>
   draft &&
+  (draft.businessBasis === undefined || validBusinessBasis(draft.businessBasis)) &&
   Number(draft.databaseId) > 0 &&
   typeof draft.title === 'string' &&
   draft.title.trim() &&
