@@ -80,6 +80,7 @@ import { comparisonValues, previousDateRange, validatePeriodOptions } from './da
 import { resolveDimensionColumn } from './dashboard-dimension';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
+import { metadataTransaction } from '../common/metadata-work';
 import {
   DASHBOARD_TYPES,
   positiveId,
@@ -737,7 +738,7 @@ export class AiDashboardService {
   }
   async metricBatchSave(body: any, userId: number) {
     const changes = await this.metricBatch(body, userId);
-    const saved = await this.dashboards.manager.transaction(async manager => {
+    const saved = await metadataTransaction(this.dashboards.manager, async manager => {
       const results = [];
       for (const [index, change] of changes.entries()) {
         const result = await this.save(
@@ -2302,7 +2303,7 @@ export class AiDashboardService {
     };
     const saved = sharedManager
       ? await persist(sharedManager)
-      : await this.dashboards.manager.transaction(persist);
+      : await metadataTransaction(this.dashboards.manager, persist);
     return this.success(saved);
   }
   /**

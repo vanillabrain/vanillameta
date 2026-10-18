@@ -105,3 +105,7 @@ flowchart LR
 [UC050 업무 변수](../plans/UC-050-variable-semantics.md)는 기존 업무 메타데이터 이력에 업무 유형·고정 날짜 형식·분류 문자열을 확장한다. 실제 문자열 날짜는 허용 형식으로 파싱한 뒤 같은 형식의 문자열과 왕복 대조하여 전체 값의 유효성을 검사한다. DuckDB [날짜 형식 함수](https://duckdb.org/docs/current/sql/functions/dateformat)는 try_strptime 실패의 NULL 처리와 strftime의 포맷을 정의한다. 정확한 패딩/공백 거절은 그 함수를 조합한 VM 검증 규칙이며 실제 DuckDB 테스트로 확인한다. 입력 형식은 SQL 자유 입력이 아니고 실제 열 식별자는 기존 quoteColumn으로 인용한다. 원본 값·SQL은 검증 응답에 반환하지 않는다. 기존 분석/AI 계산 자동 적용·조직 공통 분류/활성 상태의 전체 보호 경로는 후속이다.
 
 [UC050 소스 활성 상태](../plans/UC-050-source-availability.md)는 별도 관리 경로를 통해 재활성을 허용하고 일반 SourceAccess의 모든 동작과 dashboard/widget/source 연결 검사에서 비활성을 차단한다. 기존 공개 게시도 현재 게시자와 원 소스 권한 검사에 이 상태를 적용한다. 관리 API는 데이터 프로파일을 읽지 않으며 최소 상태/버전만 반환한다. 비활성화는 물리 삭제/승인 취소·전체 영향 그래프가 아니다.
+
+## SQLite 메타데이터 작업 조정
+
+[UC051 설계](../plans/UC-051-sqlite-coordination.md)의 DataSource별 공통 큐는 SQLite의 단일 연결에서 독립 transaction이 다른 요청의 savepoint로 중첩되는 것을 막는다. 같은 작업의 기다리는 하위 호출은 살아 있는 AsyncLocalStorage lease를 재사용하고 종료 후 비동기 문맥은 새 작업으로 기다린다. 이것은 권한 승인이 아니며 기존 actor/grant·manager·CAS/isolation/영수증을 유지한다. 선택 권한/인증·Studio get/prepare·기존 게시 state/publicResult는 읽기 전체를 조정한다. 원시 Repository 단일 쓰기와 그 밖의 조회는 후속이며 MySQL은 기존 DB lock 의미를 유지한다. 새 모델/스키마/제품 UI 변경은 없다. [검증 범위](../testing/sqlite-coordination.md)는 전체 운영 경합 보장이 아니다.

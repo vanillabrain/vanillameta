@@ -14,6 +14,7 @@ import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardPublication } from '../dashboard/entities/dashboard-publication.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
+import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
@@ -173,13 +174,16 @@ export class PublicationService {
   }
 
   async state(id: unknown, actor: number) {
-    const dashboardId = this.access.id(id);
-    // UC-051: the state carries the live public uuid, which is an anonymous capability, so only the
-    // publishing authority may read it. A read-only grantee must never receive that link.
-    await this.access.dashboard(dashboardId, actor, 'publish');
-    const row = await this.publications.findOne({ where: { dashboardId } });
-    const dashboard = await this.dashboardRow(dashboardId);
-    return this.serializeState(dashboardId, dashboardRevision(dashboard), row);
+    // NFR005/008: the snapshot row read must not run inside another write's uncommitted transaction.
+    return serializeMetadataWork(this.publications.manager.connection, async () => {
+      const dashboardId = this.access.id(id);
+      // UC-051: the state carries the live public uuid, which is an anonymous capability, so only the
+      // publishing authority may read it. A read-only grantee must never receive that link.
+      await this.access.dashboard(dashboardId, actor, 'publish');
+      const row = await this.publications.findOne({ where: { dashboardId } });
+      const dashboard = await this.dashboardRow(dashboardId);
+      return this.serializeState(dashboardId, dashboardRevision(dashboard), row);
+    });
   }
 
   /** Owner preview: read-only capture of the saved analysis, its revision and its block layout. */
@@ -344,7 +348,7 @@ export class PublicationService {
         replayed,
       );
     const result = await serializedViewWrite(this.publications, () =>
-      this.publications.manager.transaction(async manager => {
+      metadataTransaction(this.publications.manager, async manager => {
         await this.access.dashboard(dashboardId, actor, 'publish');
         const current = await this.find(manager, dashboardId);
         const concurrent = this.replay(current, requestId, payloadDigest, body.expectedVersion);
@@ -461,7 +465,7 @@ export class PublicationService {
       throw new BadRequestException('게시 버전을 확인해 주세요.');
     const expectedVersion = body.expectedVersion;
     return serializedViewWrite(this.publications, () =>
-      this.publications.manager.transaction(async manager => {
+      metadataTransaction(this.publications.manager, async manager => {
         await this.access.dashboard(dashboardId, actor, 'publish');
         const current = await this.find(manager, dashboardId);
         if (!current) throw new NotFoundException('게시 버전이 없습니다.');
@@ -493,35 +497,38 @@ export class PublicationService {
   }
 
   async publicResult(uuid: unknown) {
-    if (typeof uuid !== 'string' || !UUID.test(uuid))
-      throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
-    const row = await this.publications.findOne({ where: { uuid } });
-    if (!row || !row.active || this.expired(row))
-      throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
-    const dashboard = await this.dashboards.findOne({ where: { id: row.dashboardId } });
-    if (!dashboard || dashboard.delYn === 'Y')
-      throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
-    // UC-051: a public read re-checks the current authority of the real publisher. Rows created
-    // before the delegation columns existed fall back to the single dashboard owner.
-    const publisher = row.publisherId ?? (await this.legacyPublishOwner(row.dashboardId));
-    await this.access.dashboard(row.dashboardId, publisher, 'publish');
-    if (row.sourceId !== null && row.sourceId !== undefined)
-      await this.access.assert('database', row.sourceId, publisher, 'read');
-    let snapshot: unknown;
-    try {
-      snapshot = JSON.parse(row.snapshot);
-    } catch {
-      throw new ServiceUnavailableException('게시 결과를 불러올 수 없습니다.');
-    }
-    return {
-      version: row.version,
-      publishedAt: row.publishedAt,
-      expiresAt: row.expiresAt,
-      visibility: 'link',
-      dataMode: 'snapshot',
-      reusable: this.reusable(row),
-      snapshot,
-    };
+    // NFR005/008: the anonymous read must not observe another writer's uncommitted snapshot row.
+    return serializeMetadataWork(this.publications.manager.connection, async () => {
+      if (typeof uuid !== 'string' || !UUID.test(uuid))
+        throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
+      const row = await this.publications.findOne({ where: { uuid } });
+      if (!row || !row.active || this.expired(row))
+        throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
+      const dashboard = await this.dashboards.findOne({ where: { id: row.dashboardId } });
+      if (!dashboard || dashboard.delYn === 'Y')
+        throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
+      // UC-051: a public read re-checks the current authority of the real publisher. Rows created
+      // before the delegation columns existed fall back to the single dashboard owner.
+      const publisher = row.publisherId ?? (await this.legacyPublishOwner(row.dashboardId));
+      await this.access.dashboard(row.dashboardId, publisher, 'publish');
+      if (row.sourceId !== null && row.sourceId !== undefined)
+        await this.access.assert('database', row.sourceId, publisher, 'read');
+      let snapshot: unknown;
+      try {
+        snapshot = JSON.parse(row.snapshot);
+      } catch {
+        throw new ServiceUnavailableException('게시 결과를 불러올 수 없습니다.');
+      }
+      return {
+        version: row.version,
+        publishedAt: row.publishedAt,
+        expiresAt: row.expiresAt,
+        visibility: 'link',
+        dataMode: 'snapshot',
+        reusable: this.reusable(row),
+        snapshot,
+      };
+    });
   }
 }
 

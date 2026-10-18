@@ -14,6 +14,7 @@ import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { canonicalMetricSql } from './studio-remix-template';
 import { ConnectionService } from '../connection/connection.service';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { metadataTransaction } from '../common/metadata-work';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
@@ -876,7 +877,7 @@ export class StudioCreationService {
           profile.schemaVersion !== p.profile.schemaVersion
         )
           throw new ConflictException('데이터 소스가 변경되었습니다. 다시 생성해 주세요.');
-        return this.db.transaction(async manager => {
+        return metadataTransaction(this.db, async manager => {
           await this.ensureCurrentSource(p.sourceId, actor, manager);
           await this.revalidate(p.semanticProposal, profile, manager);
           const metrics = new Map<string, any>(),

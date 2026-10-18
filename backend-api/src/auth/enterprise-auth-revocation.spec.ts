@@ -31,6 +31,7 @@ function restoreEnvironment() {
 
 const guardFor = (users: { findOne: jest.Mock }, jwt: JwtService) =>
   new JwtAuthGuard(jwt, {
+    options: { type: 'sqlite' },
     getRepository: jest.fn((entity: any) => (entity === User ? users : undefined)),
   } as unknown as DataSource);
 

@@ -20,10 +20,10 @@
 | FR023  | 설계                                                       | 영속 export 상태/멱등/만료·파일 권한     |
 | FR024  | 직접 소스 사용처 일부                                      | 개인 보관/복원·자산 비활성/삭제 영향     |
 | FR025  | 기존 기간 비교 기반                                        | 동일 조건 비교 리포트/파일               |
-| NFR005 | 소유권·활성/epoch·동작별 grant 검사/회수 선택 검증         | 조직/활성/회수 전 보호 경로 일관성       |
+| NFR005 | 소유권·활성/epoch·grant·확정 권한 조회/교차 큐 선택 검증   | 조직/활성/회수 전 보호 경로 일관성       |
 | NFR006 | 기존 선택 숫자 정답 증빙                                   | 조건/비교/export 동일 문맥 독립 정답     |
 | NFR007 | 소스 설명 actor/version 이력 일부                          | 권한/공유/보관/export 감사               |
-| NFR008 | 기존 저장 영수증 기반                                      | 전달/export/알림 작업 복구               |
+| NFR008 | 기존 저장 영수증·명시 SQLite transaction 공통 조정         | 전달/export/알림 작업 복구               |
 
 ## 구현 순서
 
@@ -36,4 +36,4 @@
 
 각 단위는 AIWF 설계→작은 구현→선택 회귀/type/lint/build→독립 리뷰/화면 검증→문서/증빙→commit/push를 따른다. 테스트 계정/원본 데이터를 임의 정리하거나 운영을 변경하지 않는다. 전체 목표는 이 계획을 모두 채우기 전까지 active로 유지한다.
 
-공통 transaction 조정의 잔여도 추적한다. 조직/grant/소스 상태는 enterprise SQLite 큐를 공유하지만 Studio 등 별도 큐와의 전체 교차 작업은 아직 검증하지 않았다. 다음 보호 요청 차단·선택 경합/복구 통과를 모든 운영 경합의 보장으로 확대하지 않는다.
+[공통 transaction 조정](UC-051-sqlite-coordination.md)은 SQLite의 Studio/enterprise/view/semantic 큐와 명시 metadata transaction을 DataSource별로 통합한다. 실제 Studio rollback에 다른 작업의 성공 쓰기가 사라지는 결함과 미커밋 활성/인증 상태 조회를 재현·선택 검증한다. 원시 Repository 단일 save/update/delete와 다른 일반 조회 경로·운영 경합은 후속이다. [검증 증빙](../testing/sqlite-coordination.md)을 전체 NFR005/008 완료로 확대하지 않는다.

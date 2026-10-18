@@ -1,3 +1,4 @@
+import { serializeMetadataWork } from '../common/metadata-work';
 import { serializeEnterpriseWrite } from './enterprise-write';
 import { createHash, randomBytes } from 'crypto';
 import { EnterpriseEnrollment } from './entities/enterprise-enrollment.entity';
@@ -65,14 +66,16 @@ export class EnterpriseService {
     return { organization, membership };
   }
   async context(actor: number) {
-    await this.user(actor);
-    if (!(await this.db.manager.findOneBy(EnterpriseMembership, { userId: actor })))
-      return { organization: null, membership: null };
-    const { organization, membership } = await this.scope(actor);
-    return {
-      organization,
-      membership: { userId: membership.userId, role: membership.role, team: membership.team },
-    };
+    return serializeMetadataWork(this.db, async () => {
+      await this.user(actor);
+      if (!(await this.db.manager.findOneBy(EnterpriseMembership, { userId: actor })))
+        return { organization: null, membership: null };
+      const { organization, membership } = await this.scope(actor);
+      return {
+        organization,
+        membership: { userId: membership.userId, role: membership.role, team: membership.team },
+      };
+    });
   }
   async enrollment(actor: number, body: unknown) {
     const input = this.fields(body, ['organizationId']);
@@ -99,9 +102,11 @@ export class EnterpriseService {
     });
   }
   async revokeEnrollment(actor: number) {
-    await this.user(actor);
-    await this.db.manager.delete(EnterpriseEnrollment, { userId: actor });
-    return { revoked: true };
+    return serializeMetadataWork(this.db, async () => {
+      await this.user(actor);
+      await this.db.manager.delete(EnterpriseEnrollment, { userId: actor });
+      return { revoked: true };
+    });
   }
   private async mutation<T>(run: (manager: EntityManager) => Promise<T>) {
     const execute = async () => {
@@ -165,40 +170,42 @@ export class EnterpriseService {
     });
   }
   async members(actor: number, afterId?: unknown) {
-    const after =
-      afterId === undefined
-        ? 0
-        : this.id(
-            typeof afterId === 'string' && /^[1-9][0-9]*$/.test(afterId)
-              ? Number(afterId)
-              : afterId,
-          );
-    const { organization } = await this.scope(actor, this.db.manager, true);
-    const rows = await this.db
-      .getRepository(EnterpriseMembership)
-      .createQueryBuilder('membership')
-      .innerJoin(User, 'user', 'user.id = membership.userId')
-      .select('user.id', 'id')
-      .addSelect('user.userId', 'userId')
-      .addSelect('user.active', 'active')
-      .addSelect('membership.team', 'team')
-      .addSelect('membership.role', 'role')
-      .where('membership.organizationId = :organizationId AND user.id > :after', {
-        organizationId: organization.id,
-        after,
-      })
-      .orderBy('user.id', 'ASC')
-      .limit(21)
-      .getRawMany();
-    const entries = rows.slice(0, 20).map(row => ({
-      ...row,
-      active: row.active === true || row.active === 1 || row.active === '1',
-    }));
-    return {
-      organizationVersion: organization.version,
-      entries,
-      nextAfterId: rows.length > 20 ? entries[entries.length - 1].id : null,
-    };
+    return serializeMetadataWork(this.db, async () => {
+      const after =
+        afterId === undefined
+          ? 0
+          : this.id(
+              typeof afterId === 'string' && /^[1-9][0-9]*$/.test(afterId)
+                ? Number(afterId)
+                : afterId,
+            );
+      const { organization } = await this.scope(actor, this.db.manager, true);
+      const rows = await this.db
+        .getRepository(EnterpriseMembership)
+        .createQueryBuilder('membership')
+        .innerJoin(User, 'user', 'user.id = membership.userId')
+        .select('user.id', 'id')
+        .addSelect('user.userId', 'userId')
+        .addSelect('user.active', 'active')
+        .addSelect('membership.team', 'team')
+        .addSelect('membership.role', 'role')
+        .where('membership.organizationId = :organizationId AND user.id > :after', {
+          organizationId: organization.id,
+          after,
+        })
+        .orderBy('user.id', 'ASC')
+        .limit(21)
+        .getRawMany();
+      const entries = rows.slice(0, 20).map(row => ({
+        ...row,
+        active: row.active === true || row.active === 1 || row.active === '1',
+      }));
+      return {
+        organizationVersion: organization.version,
+        entries,
+        nextAfterId: rows.length > 20 ? entries[entries.length - 1].id : null,
+      };
+    });
   }
   private async claim(manager: EntityManager, actor: number, expected: number) {
     const { organization } = await this.scope(actor, manager, true);

@@ -23,6 +23,7 @@ import { YesNo } from 'src/common/enum/yn.enum';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { metadataTransaction } from '../common/metadata-work';
 
 @Injectable()
 export class DashboardService {
@@ -261,7 +262,7 @@ export class DashboardService {
       updateDashboardDto.layout !== undefined
         ? await this.validateLayout(updateDashboardDto.layout)
         : undefined;
-    return this.dashboardRepository.manager.transaction(async manager => {
+    return metadataTransaction(this.dashboardRepository.manager, async manager => {
       await this.authorizeGrantedEdit(id, actor, action, widgetIds, manager);
       return this.applyUpdate(id, updateDashboardDto, manager);
     });

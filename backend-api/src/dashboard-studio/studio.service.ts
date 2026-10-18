@@ -1,3 +1,4 @@
+import { serializeMetadataWork, metadataTransaction } from '../common/metadata-work';
 import { captureRemixTemplate } from './studio-remix-template';
 import { compileContribution } from '../ai/dashboard-contribution';
 import { createHash } from 'crypto';
@@ -116,17 +117,21 @@ export class StudioService {
     };
   }
   async get(id: number, actor: number) {
-    // UC-051: report the actor's current rights plus real mapping ownership for the client.
-    const capabilities = await this.access.dashboardCapabilities(id, actor);
-    const owned = Boolean(
-      await this.db.manager.findOne(UserMapping, { where: { dashboardId: id, userInfoId: actor } }),
-    );
-    const analysis = (await this.ai.analysis(id, actor, true)).data;
-    const pinned = await this.connection.withDuckDBSnapshot(analysis.databaseId, () =>
-      this.getPinned(id, actor, analysis.databaseId),
-    );
-    // TOP-LEVEL `owned` is the real UserMapping ownership the client uses to hide clone/management.
-    return { ...pinned, access: capabilities, owned };
+    return serializeMetadataWork(this.db, async () => {
+      // UC-051: report the actor's current rights plus real mapping ownership for the client.
+      const capabilities = await this.access.dashboardCapabilities(id, actor);
+      const owned = Boolean(
+        await this.db.manager.findOne(UserMapping, {
+          where: { dashboardId: id, userInfoId: actor },
+        }),
+      );
+      const analysis = (await this.ai.analysis(id, actor, true)).data;
+      const pinned = await this.connection.withDuckDBSnapshot(analysis.databaseId, () =>
+        this.getPinned(id, actor, analysis.databaseId),
+      );
+      // TOP-LEVEL `owned` is the real UserMapping ownership the client uses to hide clone/management.
+      return { ...pinned, access: capabilities, owned };
+    });
   }
   private async getPinned(id: number, actor: number, sourceId: number) {
     const state = await this.load(id, actor, 'read');
@@ -188,91 +193,93 @@ export class StudioService {
   }
   /** Unsaved document preview under the current explicit edit grant. References come from the server catalog. */
   async prepare(id: number, body: any, actor: number) {
-    await this.access.dashboard(id, actor, 'edit');
-    const analysis = (await this.ai.analysis(id, actor, true)).data;
-    return this.connection.withDuckDBSnapshot(analysis.databaseId, async () => {
-      const current = await this.load(id, actor, 'edit');
-      if (
-        current.document.revision !== body.expectedRevision ||
-        current.sourceRevision !== body.expectedSourceRevision
-      )
-        throw new ConflictException(
-          '기준 데이터가 변경되었습니다. 내 편집을 보존한 채 최신 내용을 확인해 주세요.',
-        );
-      let document: StudioDocumentV1;
-      try {
-        document = validateStudioDocument(body.document);
-      } catch {
-        throw new BadRequestException('블록과 공통 필터를 확인해 주세요.');
-      }
-      if (
-        document.dashboardId !== id ||
-        document.sourceId !== current.document.sourceId ||
-        !document.blocks.length ||
-        (document.revision && document.revision !== body.expectedRevision)
-      )
-        throw new BadRequestException('요청의 대시보드와 소스를 확인해 주세요.');
-      const widgets = await Promise.all(
-        document.blocks.map(async block => {
-          const original =
-            current.document.blocks.find(b => b.id === block.id) ??
-            (isTemporaryStudioId(block.id)
-              ? current.document.blocks.find(b => b.definitionKey === block.definitionKey)
-              : undefined);
-          if (
-            !original ||
-            original.kind !== block.kind ||
-            original.definitionKey !== block.definitionKey ||
-            studioDigest(original.measureRefs) !== studioDigest(block.measureRefs) ||
-            studioDigest(original.dimensionRefs) !== studioDigest(block.dimensionRefs)
-          )
-            throw new BadRequestException('기존 계산과 지표 연결을 유지해 주세요.');
-          await this.validateCurrentReferences(
-            block,
-            document.sourceId,
-            current.schemaVersion,
-            current.schema,
-          );
-          const template = current.definitions.entries[block.definitionKey].widget;
-          return {
-            ...template,
-            ...block.display,
-            blockId: isTemporaryStudioId(block.id) ? undefined : block.id,
-            title: block.title,
-            description: block.description,
-          };
-        }),
-      );
-      const draft = {
-        databaseId: document.sourceId,
-        title: document.title,
-        explanation: current.analysis.explanation,
-        widgets,
-      };
-      const preview = (
-        await this.ai.preview(
-          {
-            draft,
-            filters: document.filters ?? [],
-            ...(document.dateRange ? { dateRange: document.dateRange } : {}),
-            includeTrends: true,
-          },
-          actor,
-          'edit',
-        )
-      ).data;
-      // A requested temporal transformation must be supported, not a silent fallback.
-      preview.widgets.forEach((widget, i) => {
+    return serializeMetadataWork(this.db, async () => {
+      await this.access.dashboard(id, actor, 'edit');
+      const analysis = (await this.ai.analysis(id, actor, true)).data;
+      return this.connection.withDuckDBSnapshot(analysis.databaseId, async () => {
+        const current = await this.load(id, actor, 'edit');
         if (
-          document.blocks[i].display.timeGrain &&
-          document.blocks[i].display.timeGrain !== 'auto' &&
-          widget.grainUnavailable
+          current.document.revision !== body.expectedRevision ||
+          current.sourceRevision !== body.expectedSourceRevision
         )
-          throw new BadRequestException(
-            '이 차트는 요청한 시간 단위로 안전하게 집계할 수 없습니다. 기존 내용을 유지했습니다.',
+          throw new ConflictException(
+            '기준 데이터가 변경되었습니다. 내 편집을 보존한 채 최신 내용을 확인해 주세요.',
           );
+        let document: StudioDocumentV1;
+        try {
+          document = validateStudioDocument(body.document);
+        } catch {
+          throw new BadRequestException('블록과 공통 필터를 확인해 주세요.');
+        }
+        if (
+          document.dashboardId !== id ||
+          document.sourceId !== current.document.sourceId ||
+          !document.blocks.length ||
+          (document.revision && document.revision !== body.expectedRevision)
+        )
+          throw new BadRequestException('요청의 대시보드와 소스를 확인해 주세요.');
+        const widgets = await Promise.all(
+          document.blocks.map(async block => {
+            const original =
+              current.document.blocks.find(b => b.id === block.id) ??
+              (isTemporaryStudioId(block.id)
+                ? current.document.blocks.find(b => b.definitionKey === block.definitionKey)
+                : undefined);
+            if (
+              !original ||
+              original.kind !== block.kind ||
+              original.definitionKey !== block.definitionKey ||
+              studioDigest(original.measureRefs) !== studioDigest(block.measureRefs) ||
+              studioDigest(original.dimensionRefs) !== studioDigest(block.dimensionRefs)
+            )
+              throw new BadRequestException('기존 계산과 지표 연결을 유지해 주세요.');
+            await this.validateCurrentReferences(
+              block,
+              document.sourceId,
+              current.schemaVersion,
+              current.schema,
+            );
+            const template = current.definitions.entries[block.definitionKey].widget;
+            return {
+              ...template,
+              ...block.display,
+              blockId: isTemporaryStudioId(block.id) ? undefined : block.id,
+              title: block.title,
+              description: block.description,
+            };
+          }),
+        );
+        const draft = {
+          databaseId: document.sourceId,
+          title: document.title,
+          explanation: current.analysis.explanation,
+          widgets,
+        };
+        const preview = (
+          await this.ai.preview(
+            {
+              draft,
+              filters: document.filters ?? [],
+              ...(document.dateRange ? { dateRange: document.dateRange } : {}),
+              includeTrends: true,
+            },
+            actor,
+            'edit',
+          )
+        ).data;
+        // A requested temporal transformation must be supported, not a silent fallback.
+        preview.widgets.forEach((widget, i) => {
+          if (
+            document.blocks[i].display.timeGrain &&
+            document.blocks[i].display.timeGrain !== 'auto' &&
+            widget.grainUnavailable
+          )
+            throw new BadRequestException(
+              '이 차트는 요청한 시간 단위로 안전하게 집계할 수 없습니다. 기존 내용을 유지했습니다.',
+            );
+        });
+        return { document, preview };
       });
-      return { document, preview };
     });
   }
   /** Recheck both the original source and the current dashboard source on every execution read/replay. */
@@ -365,7 +372,7 @@ export class StudioService {
         )
       ).data;
       // Publication and save share the metadata queue; recheck against legacy writes during aggregation too.
-      return this.db.transaction(async manager => {
+      return metadataTransaction(this.db, async manager => {
         await this.lockDashboard(manager, id);
         const latest = await this.load(id, actor, 'publish', manager);
         const source = await manager.findOne(Database, { where: { id: analysis.databaseId } });
@@ -414,9 +421,14 @@ export class StudioService {
         '저장 요청이 많습니다. 잠시 후 같은 요청으로 다시 시도해 주세요.',
       );
     this.queued += 1;
-    const result = this.tail.then(run, run).finally(() => {
-      this.queued -= 1;
-    });
+    const result = this.tail
+      .then(
+        () => serializeMetadataWork(this.db, run),
+        () => serializeMetadataWork(this.db, run),
+      )
+      .finally(() => {
+        this.queued -= 1;
+      });
     this.tail = result.catch(() => undefined);
     return result;
   }
@@ -479,7 +491,7 @@ export class StudioService {
     checkCancelled();
     try {
       return await this.connection.withDuckDBSnapshot(document.sourceId, () =>
-        this.db.transaction(async manager => {
+        metadataTransaction(this.db, async manager => {
           await this.lockDashboard(manager, id);
           checkCancelled();
           const current = await this.load(id, actor, 'edit', manager);

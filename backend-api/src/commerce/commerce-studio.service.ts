@@ -13,6 +13,7 @@ import { DuckDBService } from '../analysis/duckdb.service';
 import { Database } from '../database/entities/database.entity';
 import { decryptConnectionConfig, encryptConnectionConfig } from '../utils/crypto.util';
 import { CommerceSource } from './entities/commerce-source.entity';
+import { metadataTransaction } from '../common/metadata-work';
 
 class CommerceStudioInputError extends BadRequestException {}
 
@@ -158,7 +159,7 @@ export class CommerceStudioService {
           '보관된 파일 검증에 실패했습니다. 원본 프로젝트를 확인해 주세요.',
         );
       let created = false;
-      const row = await this.db.transaction(async manager => {
+      const row = await metadataTransaction(this.db, async manager => {
         // Lock before the first consistent read so another MySQL creator cannot insert from an old snapshot.
         const current = await this.source(actor, source.id, manager, true);
         if (

@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 import { PersonalView } from '../dashboard/entities/personal-view.entity';
 import { Database } from '../database/entities/database.entity';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
+import { metadataTransaction } from '../common/metadata-work';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { BiExploreService } from './bi-explore.service';
 import { validateExploreViewState } from './explore-view-state';
@@ -67,7 +68,7 @@ export class ExploreViewService {
     const state = validateExploreViewState(body.state, catalog);
     const row = await serializedViewWrite(this.views, async () => {
       await this.access.assert('database', sourceId, actor, 'read');
-      return this.views.manager.transaction(async manager => {
+      return metadataTransaction(this.views.manager, async manager => {
         const sourceRow = await manager.findOne(Database, {
           where: { id: sourceId },
           ...(manager.connection.options.type === 'mysql'

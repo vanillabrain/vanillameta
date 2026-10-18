@@ -1,3 +1,4 @@
+import { serializeMetadataWork } from '../common/metadata-work';
 import {
   EnterpriseResourcePolicyService,
   ResourceAction,
@@ -37,16 +38,20 @@ export class SourceAccessService {
     return this.policy ? this.policy.dashboardIds(actor) : Promise.resolve([] as number[]);
   }
   async sourceCapabilities(id: number, actor: number) {
-    await this.assert('database', id, actor, 'read');
-    return this.policy
-      ? (await this.policy.capabilities('source', id, actor)).rights
-      : { read: true, edit: true, publish: false, export: true };
+    return serializeMetadataWork(this.db, async () => {
+      await this.assert('database', id, actor, 'read');
+      return this.policy
+        ? (await this.policy.capabilities('source', id, actor)).rights
+        : { read: true, edit: true, publish: false, export: true };
+    });
   }
   async dashboardCapabilities(id: number, actor: number) {
-    await this.dashboard(id, actor, 'read');
-    return this.policy
-      ? (await this.policy.capabilities('dashboard', id, actor)).rights
-      : { read: true, edit: true, publish: true, export: true };
+    return serializeMetadataWork(this.db, async () => {
+      await this.dashboard(id, actor, 'read');
+      return this.policy
+        ? (await this.policy.capabilities('dashboard', id, actor)).rights
+        : { read: true, edit: true, publish: true, export: true };
+    });
   }
   actor(value: unknown): number {
     if (!Number.isSafeInteger(value) || Number(value) <= 0)
@@ -90,23 +95,25 @@ export class SourceAccessService {
     action: ResourceAction | 'owner' = 'owner',
     manager: EntityManager = this.db.manager,
   ): Promise<void> {
-    this.actor(actor);
-    if (kind === 'dashboard') return this.dashboard(id, actor, action, manager);
-    const sourceId = await this.sourceId(kind, id, manager);
-    const source = await (manager ?? this.db)
-      .getRepository(Database)
-      .findOne({ where: { id: sourceId } });
-    // NULL legacy owners are locked; an authenticated first reader never acquires them.
-    if (!source || source.catalogActive === false)
-      throw new ForbiddenException('비활성 소스는 사용할 수 없습니다.');
-    if (source.ownerId === actor) {
+    return serializeMetadataWork(this.db, async () => {
+      this.actor(actor);
+      if (kind === 'dashboard') return this.dashboard(id, actor, action, manager);
+      const sourceId = await this.sourceId(kind, id, manager);
+      const source = await (manager ?? this.db)
+        .getRepository(Database)
+        .findOne({ where: { id: sourceId } });
+      // NULL legacy owners are locked; an authenticated first reader never acquires them.
+      if (!source || source.catalogActive === false)
+        throw new ForbiddenException('비활성 소스는 사용할 수 없습니다.');
+      if (source.ownerId === actor) {
+        if (action !== 'owner' && this.policy)
+          return this.policy.assert('source', source.id, actor, action, manager);
+        return;
+      }
       if (action !== 'owner' && this.policy)
         return this.policy.assert('source', source.id, actor, action, manager);
-      return;
-    }
-    if (action !== 'owner' && this.policy)
-      return this.policy.assert('source', source.id, actor, action, manager);
-    throw new ForbiddenException('data access denied: source ownership required');
+      throw new ForbiddenException('data access denied: source ownership required');
+    });
   }
   async dashboard(
     id: unknown,
@@ -114,53 +121,58 @@ export class SourceAccessService {
     action: ResourceAction | 'owner' = 'owner',
     manager: EntityManager = this.db.manager,
   ): Promise<void> {
-    const dashboardId = this.id(id);
-    this.actor(actor);
-    const mapping = await (manager ?? this.db)
-      .getRepository(UserMapping)
-      .findOne({ where: { dashboardId, userInfoId: actor } });
-    const dashboard = await (manager ?? this.db)
-      .getRepository(Dashboard)
-      .findOne({ where: { id: dashboardId } });
-    if (!dashboard || dashboard.delYn === 'Y') throw new ForbiddenException('not dashboard owner');
-    if (action !== 'owner' && this.policy)
-      await this.policy.assert('dashboard', dashboardId, actor, action, manager);
-    else if (!mapping) throw new ForbiddenException('not dashboard owner');
-    const links = await (manager ?? this.db)
-      .getRepository(DashboardWidget)
-      .find({ where: { dashboardId } });
-    for (const link of links)
-      await this.assert(
-        'widget',
-        link.widgetId,
-        actor,
-        action === 'owner' ? 'owner' : 'read',
-        manager,
-      );
-    if (dashboard.analysisDefinition) {
-      let definition: any;
-      try {
-        definition = JSON.parse(dashboard.analysisDefinition);
-      } catch {
-        throw new ForbiddenException('invalid stored source');
+    return serializeMetadataWork(this.db, async () => {
+      const dashboardId = this.id(id);
+      this.actor(actor);
+      const mapping = await (manager ?? this.db)
+        .getRepository(UserMapping)
+        .findOne({ where: { dashboardId, userInfoId: actor } });
+      const dashboard = await (manager ?? this.db)
+        .getRepository(Dashboard)
+        .findOne({ where: { id: dashboardId } });
+      if (!dashboard || dashboard.delYn === 'Y')
+        throw new ForbiddenException('not dashboard owner');
+      if (action !== 'owner' && this.policy)
+        await this.policy.assert('dashboard', dashboardId, actor, action, manager);
+      else if (!mapping) throw new ForbiddenException('not dashboard owner');
+      const links = await (manager ?? this.db)
+        .getRepository(DashboardWidget)
+        .find({ where: { dashboardId } });
+      for (const link of links)
+        await this.assert(
+          'widget',
+          link.widgetId,
+          actor,
+          action === 'owner' ? 'owner' : 'read',
+          manager,
+        );
+      if (dashboard.analysisDefinition) {
+        let definition: any;
+        try {
+          definition = JSON.parse(dashboard.analysisDefinition);
+        } catch {
+          throw new ForbiddenException('invalid stored source');
+        }
+        await this.assert(
+          'database',
+          definition.databaseId,
+          actor,
+          action === 'owner' ? 'owner' : 'read',
+          manager,
+        );
       }
-      await this.assert(
-        'database',
-        definition.databaseId,
-        actor,
-        action === 'owner' ? 'owner' : 'read',
-        manager,
-      );
-    }
+    });
   }
   async sharedDashboard(id: unknown): Promise<number> {
-    const dashboardId = this.id(id);
-    const mappings = await this.db.getRepository(UserMapping).find({ where: { dashboardId } });
-    if (mappings.length !== 1) throw new ForbiddenException('share source ownership required');
-    if (this.policy)
-      await this.policy.assert('dashboard', dashboardId, mappings[0].userInfoId, 'read');
-    await this.dashboard(dashboardId, mappings[0].userInfoId);
-    return mappings[0].userInfoId;
+    return serializeMetadataWork(this.db, async () => {
+      const dashboardId = this.id(id);
+      const mappings = await this.db.getRepository(UserMapping).find({ where: { dashboardId } });
+      if (mappings.length !== 1) throw new ForbiddenException('share source ownership required');
+      if (this.policy)
+        await this.policy.assert('dashboard', dashboardId, mappings[0].userInfoId, 'read');
+      await this.dashboard(dashboardId, mappings[0].userInfoId);
+      return mappings[0].userInfoId;
+    });
   }
   async filterResults(
     kind: SourceAsset,

@@ -60,3 +60,7 @@
 ## 첫 구현 단위
 
 [계획](../plans/UC-051.md)의 격리 조직 생성·조직 지정 본인 동의 코드·직원 역할/활성 관리·epoch 인증 회수를 진행했다. 자원 grant 후속은 [설계](../plans/UC-051-resource-access.md)와 [선택 검증](../testing/enterprise-resource-access.md)을 따른다. 원 소유권 유지·동작별 권한·별도 소스 read·실제 actor·CAS/회수/감사를 연결했다. 그룹·영속 export/파일·실제 UI·전체 E02/E03은 후속이며 Status Draft/요건 Open은 유지한다.
+
+## SQLite 교차 작업 경계
+
+[설계](../plans/UC-051-sqlite-coordination.md)·[검증](../testing/sqlite-coordination.md)은 명시 transaction/기존 큐·선택 권한 조회를 공통 조정한다. Studio rollback 중 별도 쓰기 성공 유실과 미커밋 소스/계정 상태 노출을 재현해 보호한다. raw Repository 단일 쓰기·일반 조회 전체/운영·파일 전달은 후속이며 전체 요건/TC050 상태는 승격하지 않는다.

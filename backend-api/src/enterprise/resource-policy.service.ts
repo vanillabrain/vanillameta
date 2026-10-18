@@ -1,3 +1,4 @@
+import { serializeMetadataWork } from '../common/metadata-work';
 import { serializeEnterpriseWrite } from './enterprise-write';
 import {
   BadRequestException,
@@ -87,7 +88,9 @@ export class EnterpriseResourcePolicyService {
   }
   /** UC050: management remains available while normal source access is disabled. */
   async assertManagement(kind: ResourceKind, id: number, actor: number, manager = this.db.manager) {
-    await this.management(kind, id, actor, manager);
+    return serializeMetadataWork(this.db, async () => {
+      await this.management(kind, id, actor, manager);
+    });
   }
   private async currentRights(
     kind: ResourceKind,
@@ -122,12 +125,16 @@ export class EnterpriseResourcePolicyService {
     action: ResourceAction,
     manager = this.db.manager,
   ): Promise<void> {
-    if (!actions.includes(action) || (kind === 'source' && action === 'publish')) this.denied();
-    const rights = await this.currentRights(kind, id, actor, manager);
-    if (rights[action] !== true) this.denied();
+    return serializeMetadataWork(this.db, async () => {
+      if (!actions.includes(action) || (kind === 'source' && action === 'publish')) this.denied();
+      const rights = await this.currentRights(kind, id, actor, manager);
+      if (rights[action] !== true) this.denied();
+    });
   }
   async capabilities(kind: ResourceKind, id: number, actor: number) {
-    return { rights: await this.currentRights(kind, id, actor, this.db.manager) };
+    return serializeMetadataWork(this.db, async () => {
+      return { rights: await this.currentRights(kind, id, actor, this.db.manager) };
+    });
   }
   private async allowedIds(kind: ResourceKind, actor: number) {
     this.id(actor);
@@ -189,93 +196,105 @@ export class EnterpriseResourcePolicyService {
     return rows.map(row => Number(row.id));
   }
   sourceIds(actor: number) {
-    return this.allowedIds('source', actor);
+    return serializeMetadataWork(this.db, async () => {
+      return this.allowedIds('source', actor);
+    });
   }
   dashboardIds(actor: number) {
-    return this.allowedIds('dashboard', actor);
+    return serializeMetadataWork(this.db, async () => {
+      return this.allowedIds('dashboard', actor);
+    });
   }
   async resources(actor: number, after?: unknown) {
-    const membership = await this.member(actor, this.db.manager);
-    if (!membership || membership.role !== 'admin') this.denied();
-    let cursor: { kind: ResourceKind; id: number } | undefined;
-    if (after !== undefined) {
-      const match = typeof after === 'string' && /^(dashboard|source):([1-9][0-9]*)$/.exec(after);
-      if (!match) throw new BadRequestException('목록 위치를 확인해 주세요.');
-      cursor = { kind: this.kind(match[1]), id: this.id(Number(match[2])) };
-    }
-    const mappings = await this.db.manager.find(UserMapping, { where: { userInfoId: actor } });
-    const dashboardIds = mappings.map(row => row.dashboardId);
-    const rows: Array<{ kind: ResourceKind; id: number; label: string }> = [];
-    if ((!cursor || cursor.kind === 'dashboard') && dashboardIds.length) {
-      const dashboards = await this.db
-        .getRepository(Dashboard)
-        .createQueryBuilder('d')
-        .where('d.id IN (:...ids)', { ids: dashboardIds })
-        .andWhere('d.delYn <> :deleted', { deleted: 'Y' })
-        .andWhere('d.id > :after', { after: cursor?.id ?? 0 })
-        .orderBy('d.id', 'ASC')
-        .take(21)
-        .select(['d.id', 'd.title'])
-        .getMany();
-      for (const d of dashboards) {
-        try {
-          await this.management('dashboard', d.id, actor, this.db.manager);
-          rows.push({ kind: 'dashboard', id: d.id, label: resourceLabel(d.title) });
-        } catch (error) {
-          if (!(error instanceof ForbiddenException)) throw error;
+    return serializeMetadataWork(this.db, async () => {
+      const membership = await this.member(actor, this.db.manager);
+      if (!membership || membership.role !== 'admin') this.denied();
+      let cursor: { kind: ResourceKind; id: number } | undefined;
+      if (after !== undefined) {
+        const match = typeof after === 'string' && /^(dashboard|source):([1-9][0-9]*)$/.exec(after);
+        if (!match) throw new BadRequestException('목록 위치를 확인해 주세요.');
+        cursor = { kind: this.kind(match[1]), id: this.id(Number(match[2])) };
+      }
+      const mappings = await this.db.manager.find(UserMapping, { where: { userInfoId: actor } });
+      const dashboardIds = mappings.map(row => row.dashboardId);
+      const rows: Array<{ kind: ResourceKind; id: number; label: string }> = [];
+      if ((!cursor || cursor.kind === 'dashboard') && dashboardIds.length) {
+        const dashboards = await this.db
+          .getRepository(Dashboard)
+          .createQueryBuilder('d')
+          .where('d.id IN (:...ids)', { ids: dashboardIds })
+          .andWhere('d.delYn <> :deleted', { deleted: 'Y' })
+          .andWhere('d.id > :after', { after: cursor?.id ?? 0 })
+          .orderBy('d.id', 'ASC')
+          .take(21)
+          .select(['d.id', 'd.title'])
+          .getMany();
+        for (const d of dashboards) {
+          try {
+            await this.management('dashboard', d.id, actor, this.db.manager);
+            rows.push({ kind: 'dashboard', id: d.id, label: resourceLabel(d.title) });
+          } catch (error) {
+            if (!(error instanceof ForbiddenException)) throw error;
+          }
         }
       }
-    }
-    if (rows.length <= 20) {
-      const sources = await this.db
-        .getRepository(Database)
-        .createQueryBuilder('s')
-        .where('s.ownerId = :owner', { owner: actor })
-        .andWhere('s.id > :after', { after: cursor?.kind === 'source' ? cursor.id : 0 })
-        .orderBy('s.id', 'ASC')
-        .take(21)
-        .select(['s.id', 's.name'])
-        .getMany();
-      rows.push(
-        ...sources.map(s => ({ kind: 'source' as const, id: s.id, label: resourceLabel(s.name) })),
-      );
-    }
-    const entries = rows.slice(0, 20),
-      last = entries[entries.length - 1];
-    return { entries, nextAfter: rows.length > 20 ? `${last.kind}:${last.id}` : null };
+      if (rows.length <= 20) {
+        const sources = await this.db
+          .getRepository(Database)
+          .createQueryBuilder('s')
+          .where('s.ownerId = :owner', { owner: actor })
+          .andWhere('s.id > :after', { after: cursor?.kind === 'source' ? cursor.id : 0 })
+          .orderBy('s.id', 'ASC')
+          .take(21)
+          .select(['s.id', 's.name'])
+          .getMany();
+        rows.push(
+          ...sources.map(s => ({
+            kind: 'source' as const,
+            id: s.id,
+            label: resourceLabel(s.name),
+          })),
+        );
+      }
+      const entries = rows.slice(0, 20),
+        last = entries[entries.length - 1];
+      return { entries, nextAfter: rows.length > 20 ? `${last.kind}:${last.id}` : null };
+    });
   }
   async policies(kind: ResourceKind, id: number, actor: number) {
-    this.kind(kind);
-    const { membership } = await this.management(kind, id, actor, this.db.manager);
-    const rows = await this.db.manager.find(EnterpriseResourceGrant, {
-      where: {
-        resourceKind: kind,
-        resourceId: id,
-        organizationId: membership.organizationId,
-        ownerId: actor,
-      },
-      order: { recipientId: 'ASC' },
+    return serializeMetadataWork(this.db, async () => {
+      this.kind(kind);
+      const { membership } = await this.management(kind, id, actor, this.db.manager);
+      const rows = await this.db.manager.find(EnterpriseResourceGrant, {
+        where: {
+          resourceKind: kind,
+          resourceId: id,
+          organizationId: membership.organizationId,
+          ownerId: actor,
+        },
+        order: { recipientId: 'ASC' },
+      });
+      const entries = [];
+      for (const row of rows) {
+        const member = await this.db.manager.findOneBy(EnterpriseMembership, {
+          userId: row.recipientId,
+          organizationId: membership.organizationId,
+        });
+        const user =
+          member &&
+          (await this.db.manager.findOne(User, {
+            where: { id: row.recipientId },
+            select: { id: true, userId: true },
+          }));
+        entries.push({
+          recipientId: row.recipientId,
+          userId: user?.userId ?? `직원 #${row.recipientId} (소속 확인 필요)`,
+          version: row.version,
+          rights: this.rights(row),
+        });
+      }
+      return { kind, resourceId: id, entries };
     });
-    const entries = [];
-    for (const row of rows) {
-      const member = await this.db.manager.findOneBy(EnterpriseMembership, {
-        userId: row.recipientId,
-        organizationId: membership.organizationId,
-      });
-      const user =
-        member &&
-        (await this.db.manager.findOne(User, {
-          where: { id: row.recipientId },
-          select: { id: true, userId: true },
-        }));
-      entries.push({
-        recipientId: row.recipientId,
-        userId: user?.userId ?? `직원 #${row.recipientId} (소속 확인 필요)`,
-        version: row.version,
-        rights: this.rights(row),
-      });
-    }
-    return { kind, resourceId: id, entries };
   }
   async set(kind: ResourceKind, id: number, actor: number, body: any) {
     this.kind(kind);

@@ -35,7 +35,10 @@ describe('T8 publication HTTP optional authentication and no-store', () => {
         },
         {
           provide: DataSource,
-          useValue: { getRepository: () => ({ findOne: async () => ({ id: 7, userId: 'test' }) }) },
+          useValue: {
+            options: { type: 'sqlite' },
+            getRepository: () => ({ findOne: async () => ({ id: 7, userId: 'test' }) }),
+          },
         },
       ],
     }).compile();

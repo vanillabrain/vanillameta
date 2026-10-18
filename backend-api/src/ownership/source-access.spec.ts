@@ -61,6 +61,7 @@ describe('source ownership boundary', () => {
   });
   beforeEach(() => {
     const db: any = {
+      options: { type: 'sqlite' },
       getRepository: entity => ({
         findOne: async ({ where }) =>
           rows[entity.name].find(row =>

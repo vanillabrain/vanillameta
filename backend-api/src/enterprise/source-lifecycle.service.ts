@@ -1,3 +1,4 @@
+import { serializeMetadataWork } from '../common/metadata-work';
 import { EnterpriseMembership } from './entities/enterprise-membership.entity';
 import {
   BadRequestException,
@@ -30,7 +31,9 @@ export class SourceLifecycleService {
     return { sourceId: row.id, active: row.catalogActive, version: row.catalogVersion };
   }
   async read(sourceId: number, actor: number) {
-    return this.output(await this.row(sourceId, actor, this.db.manager));
+    return serializeMetadataWork(this.db, async () => {
+      return this.output(await this.row(sourceId, actor, this.db.manager));
+    });
   }
   async set(sourceId: number, actor: number, body: any) {
     if (

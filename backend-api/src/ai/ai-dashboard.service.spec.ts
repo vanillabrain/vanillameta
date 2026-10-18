@@ -547,6 +547,7 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     const counts = await Promise.all(entities.map(e => db.manager.count(e)));
     const repo: any = {
       manager: {
+        connection: db,
         find: db.manager.find.bind(db.manager),
         findOne: db.manager.findOne.bind(db.manager),
         transaction: run =>

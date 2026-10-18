@@ -15,6 +15,7 @@ import { ConnectionService } from '../connection/connection.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
+import { metadataTransaction } from '../common/metadata-work';
 import { Database } from '../database/entities/database.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
@@ -285,7 +286,7 @@ export class DashboardReuseService {
       )
       .digest('hex');
     const run = () =>
-      this.db.transaction(async manager => {
+      metadataTransaction(this.db, async manager => {
         const receipt = await manager.findOne(AnalysisCreationReceipt, {
           where: { actorId: actor, requestId },
         });

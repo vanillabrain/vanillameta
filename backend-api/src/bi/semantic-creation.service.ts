@@ -13,6 +13,7 @@ import { Metric } from '../metric/entities/metric.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { decryptConnectionConfig } from '../utils/crypto.util';
+import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
 import { ConnectionService } from '../connection/connection.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { BiService } from './bi.service';
@@ -26,8 +27,6 @@ import {
 } from './semantic-proposal';
 import { sourceRevision } from './source-revision';
 
-// SQLite's TypeORM driver shares one connection. Cross-connection safety still uses DB unique + retry.
-const sqliteQueues = new WeakMap<DataSource, Promise<unknown>>();
 @Injectable()
 export class SemanticCreationService {
   constructor(
@@ -103,7 +102,7 @@ export class SemanticCreationService {
         try {
           const replay = await this.replay(this.db.manager, actor, requestId, payloadDigest);
           if (replay) return replay;
-          return await this.db.transaction('SERIALIZABLE', async manager => {
+          return await metadataTransaction(this.db, 'SERIALIZABLE', async manager => {
             // First write acquires SQLite's writer lock before source/catalog reads.
             const receipt = await manager.save(AnalysisCreationReceipt, {
               actorId: actor,
@@ -246,12 +245,8 @@ export class SemanticCreationService {
         }
       }
     };
-    if (this.db.options.type !== 'sqlite') return run();
-    const pending = (sqliteQueues.get(this.db) ?? Promise.resolve()).then(run, run);
-    sqliteQueues.set(
-      this.db,
-      pending.catch(() => undefined),
-    );
-    return pending;
+    // SQLite shares one connection: join the common metadata queue so Studio/enterprise work
+    // cannot observe this transaction's uncommitted receipt. DB unique + retry stay authoritative.
+    return serializeMetadataWork(this.db, run);
   }
 }

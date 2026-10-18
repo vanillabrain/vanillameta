@@ -3,6 +3,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { ConnectionService } from '../connection/connection.service';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { metadataTransaction } from '../common/metadata-work';
 import { Database } from '../database/entities/database.entity';
 import { StudioRemixRequest } from './entities/studio-remix.entity';
 import { StudioService } from './studio.service';
@@ -365,7 +366,7 @@ export class StudioRemixService {
         if (profile.dataVersion !== body.expectedSourceRevision)
           throw new ConflictException('대상 데이터가 변경되었습니다. 매핑을 다시 확인해 주세요.');
         const identity = await this.sourceIdentity(body.targetSourceId, actor, this.db.manager);
-        return this.db.transaction(async manager => {
+        return metadataTransaction(this.db, async manager => {
           const row = await this.publications.requireRemix(
             token,
             actor,

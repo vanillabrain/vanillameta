@@ -10,6 +10,7 @@ import { Dashboard } from './entities/dashboard.entity';
 import { dashboardRevision } from './dashboard-revision';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { serializedViewWrite } from './view-write-queue';
+import { metadataTransaction } from '../common/metadata-work';
 import { PersonalView } from './entities/personal-view.entity';
 import { resolveViewDates, validatePersonalViewState } from './personal-view-state';
 
@@ -80,7 +81,7 @@ export class PersonalViewService {
     const state = validatePersonalViewState(body.state);
     const row = await this.write(async () => {
       await this.access.dashboard(dashboardId, userId, 'read');
-      return this.views.manager.transaction(async manager => {
+      return metadataTransaction(this.views.manager, async manager => {
         await this.access.dashboard(dashboardId, userId, 'read', manager);
         // Serialize MySQL admission on the existing dashboard row across server instances.
         await this.assertRevision(dashboardId, body.revision, manager, true);

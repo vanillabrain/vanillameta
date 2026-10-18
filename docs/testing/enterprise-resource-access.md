@@ -27,7 +27,7 @@ Git 제외 `.aiwf/evidence/UC051-resource-access/`에 명령별 로그를 기록
 ## 미실행·잔여
 
 - 실제 Ego/390·768·1440 UI 크기·정렬은 사용자 제어권 경계로 BLOCKED. 단위/type/lint/build로 디자인 PASS를 대체하지 않는다.
-- 운영MySQL·실휴대폰·사람 수용·모든 동시성/오류 경로는 미검증이다. 조직/권한 쓰기는 같은 SQLite 큐를 공유하지만 모든 다른 모듈의 동시 transaction까지 일괄 검증한 것은 아니다.
+- 운영MySQL·실휴대폰·사람 수용·모든 동시성/오류 경로는 미검증이다. [공통 큐 후속](sqlite-coordination.md)에서 명시 transaction/선택 권한 읽기를 통합했으나 원시 Repository 단일 쓰기·일반 조회/운영 경합은 남아 있다.
 - 별도 그룹·수신자 전달/알림·영속 export/파일 만료·자산 보관·추가 요건 전체 수용은 이후 단계다.
 
 대시보드 export grant는 정책 저장/검사 기반이며 영속 출력 작업·파일 전달 소비자는 UC054/FR023에서 연결한다. 구형 metric SQL 변경 API는 소유자 전용이며 이 단위의 source edit는 업무 설명/지표 생성과 현재 Studio 편집에만 연결했다. 이 경계를 전체 FR017/TC050 완료로 확대하지 않는다.

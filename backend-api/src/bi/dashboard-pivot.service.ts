@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
+import { metadataTransaction } from '../common/metadata-work';
 import { ExploreViewService } from './explore-view.service';
 import { BiExploreService } from './bi-explore.service';
 import { validateExploreViewState } from './explore-view-state';
@@ -86,7 +87,7 @@ export class DashboardPivotService {
     await serializedViewWrite(this.dashboards, async () => {
       await this.access.assert('dashboard', dashboardId, actor, 'edit');
       await this.access.assert('database', sourceId, actor, 'read');
-      await this.dashboards.manager.transaction(async manager => {
+      await metadataTransaction(this.dashboards.manager, async manager => {
         await this.access.assert('dashboard', dashboardId, actor, 'edit', manager);
         const row = await manager.findOne(Dashboard, {
           where: { id: dashboardId },
@@ -115,7 +116,7 @@ export class DashboardPivotService {
     await this.access.assert('dashboard', dashboardId, actor, 'edit');
     await serializedViewWrite(this.dashboards, async () => {
       await this.access.assert('dashboard', dashboardId, actor, 'edit');
-      await this.dashboards.manager.transaction(async manager => {
+      await metadataTransaction(this.dashboards.manager, async manager => {
         await this.access.assert('dashboard', dashboardId, actor, 'edit', manager);
         const row = await manager.findOne(Dashboard, {
           where: { id: dashboardId },

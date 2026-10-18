@@ -45,6 +45,7 @@ describe('JwtAuthGuard persisted actors and dashboard-scoped shared datasets', (
       [Widget, widgets],
     ]);
     const dataSource = {
+      options: { type: 'sqlite' },
       getRepository: jest.fn(entity => repositories.get(entity)),
     } as unknown as DataSource;
     guard = new JwtAuthGuard(jwt, dataSource);

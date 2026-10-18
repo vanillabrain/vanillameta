@@ -7,6 +7,7 @@ import {
 import { DataSource, EntityManager } from 'typeorm';
 import { Database } from '../database/entities/database.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
 import { ConnectionService } from '../connection/connection.service';
 import { BiService } from './bi.service';
 import { ExploreView } from './entities/explore-view.entity';
@@ -23,8 +24,6 @@ const REMOVE_FIELDS = ['sourceId', 'viewId'];
 /** Personal saved exploration views scoped to one private actor and owned managed source. */
 @Injectable()
 export class VersionedExploreViewService {
-  // Local SQLite has one connection; do not overlap this service's write transactions.
-  private writeQueue: Promise<unknown> = Promise.resolve();
   constructor(
     private readonly db: DataSource,
     private readonly access: SourceAccessService,
@@ -84,13 +83,8 @@ export class VersionedExploreViewService {
   }
 
   private write<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.db.options.type !== 'sqlite') return operation();
-    const result = this.writeQueue.then(operation);
-    this.writeQueue = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
+    // SQLite shares one connection with the other metadata writers; use the common queue.
+    return serializeMetadataWork(this.db, operation);
   }
 
   /** Full view for a readable row; the state is already validated by the caller. */
@@ -325,7 +319,7 @@ export class VersionedExploreViewService {
             throw new ConflictException(
               '지표 정의가 변경되었습니다. 조건을 다시 확인하고 새 보기로 저장해 주세요.',
             );
-        const row = await this.db.transaction(async manager => {
+        const row = await metadataTransaction(this.db, async manager => {
           await this.lockSource(manager, sourceId);
           await this.access.assert('database', sourceId, actor, 'read', manager);
           const repo = manager.getRepository(ExploreView);
