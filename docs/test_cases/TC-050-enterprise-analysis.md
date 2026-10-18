@@ -66,3 +66,7 @@
 ### UC050 Studio Source Search Follow-up
 
 [데이터 찾기 검증](../testing/studio-source-search.md)은 소유권·최신/손상 요약·응답 최소화·조회 불변, 업무/원본 이름·ID 검색·동명이름 구별·선택/질문/생성안 보존을 선택 검증한다. 실제 Ego/모바일·운영MySQL·조직 카탈로그/전체 TC050 NOT_RUN을 대체하지 않는다.
+
+### UC050 Saved Metric Discovery Follow-up
+
+[지표 선택 검증](../testing/studio-metric-picker.md)은 동명이름 구별·정규화/열/단위 검색·선택 유지·계산 기준 필드/비대상 정의 미표시·busy와 생성 요청의 selectedMetricIds 및 검색 후 질문/계산안 보존을 선택 검증한다. 실제 Ego/모바일·새 저장/계산 실행·조직 승인·전체 TC050 NOT_RUN을 대신하지 않는다.

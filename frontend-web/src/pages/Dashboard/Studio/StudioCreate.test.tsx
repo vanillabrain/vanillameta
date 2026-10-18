@@ -98,6 +98,58 @@ const ready = async () => {
   fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '총매출을 보여 줘' } });
 };
 describe('Studio create workflow', () => {
+  it('UC050 preserves metric selection and generated preview while filtering, but rechecks on explicit selection changes', async () => {
+    const originalGet = mocks.get.getMockImplementation();
+    if (!originalGet) throw new Error('missing fixture');
+    mocks.get.mockImplementation(async (...args: any[]) =>
+      args[0].startsWith('/bi/metrics')
+        ? {
+            data: {
+              status: 'SUCCESS',
+              data: [
+                {
+                  id: 9,
+                  label: '환불률',
+                  definitionVersion: 3,
+                  definition: {
+                    aggregation: 'RATIO_SUM',
+                    column: 'amount',
+                    denominatorColumn: 'amount',
+                    scale: 100,
+                    unit: '%',
+                  },
+                },
+              ],
+            },
+          }
+        : originalGet(...args),
+    );
+    await ready();
+    fireEvent.click(screen.getByRole('checkbox', { name: '환불률 · #9 · v3' }));
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    const request = mocks.post.mock.calls.find(call => call[0] === '/studio/proposals');
+    expect(request?.[1].selectedMetricIds).toEqual([9]);
+    mocks.post.mockClear();
+    mocks.get.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: '저장 지표 검색' }));
+    fireEvent.change(screen.getByLabelText('지표 이름·열·단위로 검색'), { target: { value: 'no-match' } });
+    expect(screen.getByText(/검색 결과 0개 · 선택 1개/)).toBeTruthy();
+    expect(screen.getByText('500')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Studio에 저장하고 열기' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(mocks.get).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('checkbox', { name: '환불률 · #9 · v3' }));
+    expect(screen.queryByText('500')).toBeNull();
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(
+      '총매출을 보여 줘',
+    );
+    fireEvent.change(screen.getByLabelText('저장된 데이터'), { target: { value: '5' } });
+    await screen.findByRole('checkbox', { name: '환불률 · #9 · v3' });
+    expect(screen.queryByLabelText('지표 이름·열·단위로 검색')).toBeNull();
+    expect(screen.getByRole('checkbox', { name: '환불률 · #9 · v3' }).getAttribute('aria-checked')).toBe('false');
+  });
+
   it('UC050 source search preserves the selected source, question, proposal and save readiness', async () => {
     await ready();
     fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));

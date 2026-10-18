@@ -788,3 +788,7 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 ## 2026-10-18 UC050 Studio 업무 이름 검색
 
 [증빙](studio-source-search.md): catalog=1의 소유 목록 최신 업무 이름 요약과 공용 선택기 업무/원본 이름·ID 검색이다. 손상 이름은 원본 fallback, 동명이름 구별·검색0건 선택/질문/제안 보존·기본 API 유지다. BE116/FE102·type/lint/build PASS이며 실제 Ego/3폭·운영MySQL/전체 수용은 미완료다.
+
+## 2026-10-18 UC050 Studio 저장 지표 찾기
+
+[증빙](studio-metric-picker.md): 기존 소유 지표의 이름/ID/버전·열/단위 검색과 접힌 계산 기준 필드 확인이다. 검색/상세는 선택·질문·생성안을 유지하고 체크만 기존 제안 무효화/selectedMetricIds를 따른다. FE99·type/lint/build 선택 검증이며 새 BE/API/계산·저장 변경은 없다. 실제 Ego/3폭·전체 UC050/TC050 수용은 미완료다.

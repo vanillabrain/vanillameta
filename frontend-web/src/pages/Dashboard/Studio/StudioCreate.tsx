@@ -2,9 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import IconLogo from '@/assets/images/logo.svg?react';
 import { Notice as Alert } from '@/components/ui/notice';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import StudioMetricPicker from './StudioMetricPicker';
 import { Spinner } from '@/components/ui/spinner';
-import { Label } from '@/components/ui/label';
 import { TextField } from '@/components/ui/text-field';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
@@ -587,26 +586,18 @@ export default function StudioCreate() {
                 <h2 id="studio-request-heading">어떤 내용을 보고 싶으세요?</h2>
                 <p>총매출과 환불액, 날짜별 추세처럼 필요한 내용을 자연스럽게 적어 주세요.</p>
                 {metrics.length > 0 && (
-                  <fieldset className="studio-create-metrics">
-                    <legend>재사용할 저장 지표 · 선택 사항</legend>
-                    <div className="studio-create-metric-options">
-                      {metrics.map(metric => (
-                        <Label key={metric.id} className="flex items-start gap-2 py-2">
-                          <Checkbox
-                            disabled={locked}
-                            checked={selectedMetrics.includes(metric.id)}
-                            onCheckedChange={checked => {
-                              invalidate();
-                              setSelectedMetrics(current =>
-                                checked === true ? [...current, metric.id] : current.filter(id => id !== metric.id),
-                              );
-                            }}
-                          />
-                          <span>{metric.label + ' · v' + metric.definitionVersion}</span>
-                        </Label>
-                      ))}
-                    </div>
-                  </fieldset>
+                  <StudioMetricPicker
+                    key={sourceId}
+                    metrics={metrics}
+                    selected={selectedMetrics}
+                    busy={locked}
+                    onChange={(id, checked) => {
+                      invalidate();
+                      setSelectedMetrics(current =>
+                        checked ? Array.from(new Set([...current, id])) : current.filter(value => value !== id),
+                      );
+                    }}
+                  />
                 )}
                 {suggestions.length > 0 && (
                   <div className="studio-create-suggestions" role="group" aria-label="추천 질문">

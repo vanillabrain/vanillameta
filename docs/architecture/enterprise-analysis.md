@@ -87,3 +87,5 @@ flowchart LR
 [UC050 Studio 조회](../testing/studio-source-catalog.md)는 Studio 생성/재사용 공용 선택기에서 기존 catalog/read의 소유권 검사를 재사용한다. sourceId/현재 profile.dataVersion·실제 열명/형식과 응답을 대조한 읽기 전용 설명이며 질문/LLM 문맥 자동 삽입과 계산/표시 이름 변경은 하지 않는다. 소스 snapshot key로 읽기 수명을 분리하고 질문 입력 재렌더는 재조회하지 않는다. 새 API/DB 스키마/의존성은 없다.
 
 [UC050 Studio 소스 검색](../testing/studio-source-search.md)은 기존 GET /bi/sources의 명시 catalog=1에 한해 ownerId 제한과 최신 이력 MAX(version) LEFT JOIN 한 쿼리로 표시명/버전만 더한다. 기본 소비자에는 id/name/engine만 유지한다. 전체 이력·원본 프로파일/행·연결정보를 반환하지 않고, 손상 최신 표시명은 원본으로 되돌리되 과거 정상 이름을 자동 선택하지 않는다. 목록 업무 이름은 탐색 참고이며 선택 후 기존 현재 버전/열 검사를 대체하지 않는다.
+
+[StudioMetricPicker](../testing/studio-metric-picker.md)는 StudioCreate의 기존 `/bi/metrics` 응답과 체크 선택을 표시·검색한다. 서버 권한/계산/저장 API는 변경하지 않는다. 소스별 key로 검색 수명을 분리하고 검색/상세보기는 부모 콜백 없이 읽기만 한다. 체크 변경은 기존 proposal 무효화/selectedMetricIds 전달을 유지한다. 표시 상세는 구조화 필드 whitelist이며 SQL·연결정보/원본 행과 공식 승인 상태는 출력하지 않는다.

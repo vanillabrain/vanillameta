@@ -80,3 +80,7 @@
 ### Studio Source Search Follow-up
 
 [업무 이름 데이터 검색](../testing/studio-source-search.md)은 현재 소유 목록의 최신 업무 이름 요약과 원본 이름·ID로 소스를 찾는다. 기본 sources API는 유지하며 Studio만 catalog=1을 요청한다. 손상/미등록은 원본 이름으로 표시하고 선택·질문·생성안은 검색으로 바꾸지 않는다. 업무 이름은 탐색 참고이며 최신 설명/열 검증과 공식 승인·전체 UC050 수용은 별도다.
+
+### Saved Metric Discovery Follow-up
+
+[Studio 저장 지표 탐색](../testing/studio-metric-picker.md)은 기존 활성 지표 목록의 이름/ID/버전과 저장된 집계·열·분모/가중치·배율·단위 필드를 확인하고 재사용한다. 검색/상세 확인은 선택/질문/생성안을 유지하고 체크 선택 변경만 기존 재미리보기 경계를 따른다. 새 계산 실행/공식 승인·전체 UC050 수용은 별도다.
