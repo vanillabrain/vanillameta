@@ -1,5 +1,10 @@
+import { BusinessBasis, businessDateExpressions } from '../bi/semantic-business-basis';
 import { quoteColumn, validateSourceSql } from './dashboard-draft';
 import { validateBusinessTimeZone } from './dashboard-date-range';
+
+type BusinessTime = { timeZone: string; columnType: string; basis?: BusinessBasis };
+const frozenDateExpression = (column: string, business?: BusinessTime) =>
+  businessDateExpressions(business?.basis).find(value => value.column === column)?.expression;
 
 export type TrendGrain = 'hour' | 'day' | 'week' | 'month';
 
@@ -10,7 +15,12 @@ export interface TimeBucket {
 }
 
 /** Exact supported expressions only; an unbucketed timestamp has no proven grain. */
-function temporalProjection(expression: string, column: string, type = 'TIMESTAMP') {
+function temporalProjection(
+  expression: string,
+  column: string,
+  type = 'TIMESTAMP',
+  businessExpression?: string,
+) {
   const normalized = (value: string) =>
     (value.match(/'(?:''|[^'])*'|"(?:""|[^"])*"|[A-Za-z_][A-Za-z_0-9]*|[^\s]/g) || [])
       .map(token => (token.startsWith("'") || token.startsWith('"') ? token : token.toLowerCase()))
@@ -18,7 +28,11 @@ function temporalProjection(expression: string, column: string, type = 'TIMESTAM
   const direct = (value: string) => {
     const name = normalized(quoteColumn(column));
     const bare = /^[A-Za-z_][A-Za-z_0-9]*$/.test(column) ? column.toLowerCase() : undefined;
-    return [name, bare, `source . ${name}`, bare && `source . ${bare}`].includes(value);
+    return (
+      businessExpression
+        ? [normalized(businessExpression)]
+        : [name, bare, `source . ${name}`, bare && `source . ${bare}`]
+    ).includes(value);
   };
   const value = normalized(expression);
   const base = (expr: string): { grain?: TrendGrain; format: TimeBucket['format'] } | undefined => {
@@ -59,15 +73,16 @@ function timeQuery(
   grain: TrendGrain,
   timeField: string,
   valueAlias: string,
-  business?: { timeZone: string; columnType: string },
+  business?: BusinessTime,
 ) {
   const zone = business ? validateBusinessTimeZone(business.timeZone) : 'UTC';
   const regional = zone !== 'UTC';
   const civil = business?.columnType.toUpperCase() === 'DATE';
+  const sourceExpression = frozenDateExpression(dateColumn, business) ?? quoteColumn(dateColumn);
   const local =
     regional && !civil
-      ? `(CAST(${quoteColumn(dateColumn)} AS TIMESTAMPTZ) AT TIME ZONE '${zone}')`
-      : quoteColumn(dateColumn);
+      ? `(CAST(${sourceExpression} AS TIMESTAMPTZ) AT TIME ZONE '${zone}')`
+      : sourceExpression;
   const bucket = `date_trunc('${grain}', ${local})`;
   return {
     // Regional queries return civil labels; the service resolves canonical day boundaries.
@@ -89,7 +104,7 @@ export function buildTrendQuery(
   dateColumn: string,
   grain: TrendGrain,
   reservedNames: string[] = [],
-  business?: { timeZone: string; columnType: string },
+  business?: BusinessTime,
 ): { sql: string; timeField: string; valueAlias: string } | undefined {
   if (!['hour', 'day', 'week', 'month'].includes(grain)) return undefined;
   if (business?.timeZone !== undefined && business.timeZone !== 'UTC' && grain === 'hour')
@@ -160,6 +175,7 @@ export function buildTimeChartQuery(
   dateColumn: string,
   grain: TrendGrain,
   reservedNames: string[] = [],
+  business?: BusinessTime,
 ): { sql: string; timeField: string; valueAlias: string } | undefined {
   if (
     !categoryField ||
@@ -172,7 +188,7 @@ export function buildTimeChartQuery(
   )
     return undefined;
   try {
-    validateSourceSql(sql);
+    validateSourceSql(sql, business?.basis);
   } catch {
     return undefined;
   }
@@ -234,7 +250,12 @@ export function buildTimeChartQuery(
     )
       .map(token => (token.startsWith("'") || token.startsWith('"') ? token : token.toLowerCase()))
       .join(' ');
-  const categoryTime = temporalProjection(category.expression, dateColumn);
+  const categoryTime = temporalProjection(
+    category.expression,
+    dateColumn,
+    business?.columnType ?? 'TIMESTAMP',
+    frozenDateExpression(dateColumn, business),
+  );
   if (!categoryTime) return undefined;
   const groupEnd = order >= 0 ? top[order].index : limit >= 0 ? top[limit].index : sql.length;
   const groupExpression = sql.slice(top[group + 1].index + 2, groupEnd).trim();
@@ -247,7 +268,12 @@ export function buildTimeChartQuery(
     !(
       categoryTime.grain &&
       /^date_trunc \(/.test(normalized(groupExpression)) &&
-      temporalProjection(groupExpression, dateColumn)?.grain === categoryTime.grain
+      temporalProjection(
+        groupExpression,
+        dateColumn,
+        business?.columnType ?? 'TIMESTAMP',
+        frozenDateExpression(dateColumn, business),
+      )?.grain === categoryTime.grain
     )
   )
     return undefined;
@@ -267,7 +293,12 @@ export function buildTimeChartQuery(
       !(
         categoryTime.grain &&
         /^date_trunc \(/.test(normalized(orderExpression)) &&
-        temporalProjection(orderExpression, dateColumn)?.grain === categoryTime.grain
+        temporalProjection(
+          orderExpression,
+          dateColumn,
+          business?.columnType ?? 'TIMESTAMP',
+          frozenDateExpression(dateColumn, business),
+        )?.grain === categoryTime.grain
       )
     )
       return undefined;
@@ -318,9 +349,10 @@ export function buildTimeChartQuery(
     dateColumn,
     grain,
     reservedNames,
+    business,
   );
   return trend
-    ? timeQuery(value.expression, where, dateColumn, grain, categoryField, valueField)
+    ? timeQuery(value.expression, where, dateColumn, grain, categoryField, valueField, business)
     : undefined;
 }
 
@@ -330,6 +362,7 @@ export function resolveTimeChartBucket(
   valueField: string,
   categoryField: string | undefined,
   schema: Array<{ column_name: string; column_type: string }>,
+  basis?: BusinessBasis,
 ): TimeBucket | undefined {
   if (!categoryField) return undefined;
   const tokens = sql.match(/'(?:''|[^'])*'|"(?:""|[^"])*"|[A-Za-z_][A-Za-z_0-9]*|\s+|./g) || [];
@@ -355,11 +388,20 @@ export function resolveTimeChartBucket(
       : [];
   });
   if (expression.length !== 1) return undefined;
-  for (const column of schema.filter(item => /^(DATE|TIMESTAMP)/i.test(item.column_type))) {
+  for (const column of schema.filter(item => {
+    const declaration = basis?.columns.find(c => c.column === item.column_name);
+    return (
+      declaration?.businessType === 'date' ||
+      (declaration?.businessType !== 'category' && /^(DATE|TIMESTAMP)/i.test(item.column_type))
+    );
+  })) {
     const bucket = temporalProjection(
       expression[0],
       column.column_name,
-      column.column_type.toUpperCase(),
+      basis?.columns.find(c => c.column === column.column_name)?.businessType === 'date'
+        ? 'DATE'
+        : column.column_type.toUpperCase(),
+      businessDateExpressions(basis).find(c => c.column === column.column_name)?.expression,
     );
     if (
       bucket?.grain &&
@@ -370,6 +412,14 @@ export function resolveTimeChartBucket(
         column.column_name,
         bucket.grain,
         schema.map(item => item.column_name),
+        {
+          timeZone: 'UTC',
+          columnType:
+            basis?.columns.find(c => c.column === column.column_name)?.businessType === 'date'
+              ? 'DATE'
+              : column.column_type,
+          basis,
+        },
       )
     )
       return { column: column.column_name, grain: bucket.grain, format: bucket.format };

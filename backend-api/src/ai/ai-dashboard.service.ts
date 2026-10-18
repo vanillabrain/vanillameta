@@ -1,3 +1,11 @@
+import { catalogActorContext, assertCatalogActor } from '../bi/source-classifications';
+import {
+  BusinessBasis,
+  businessDimensionExpression,
+  businessProfile,
+  resolveBusinessBasis,
+  validateBasisBusinessDates,
+} from '../bi/semantic-business-basis';
 import {
   resolveConditionSemantics,
   validateConditionBusinessDates,
@@ -175,6 +183,86 @@ export class AiDashboardService {
       });
     }
     await proof;
+  }
+  private basisProfile(sourceId: number, schema: any[]) {
+    const numeric = numericSourceColumns(schema);
+    return {
+      sourceId,
+      supported: true,
+      columns: schema.map(c => ({
+        name: c.column_name,
+        type: c.column_type,
+        numeric: numeric.includes(c.column_name),
+        temporal: /^(DATE|TIMESTAMP)/i.test(c.column_type),
+      })),
+    };
+  }
+  /** Exact metadata is re-read on every request; only immutable-file date scans are cached. */
+  async assertBusinessBasis(
+    sourceId: number,
+    schema: any[],
+    basis?: BusinessBasis,
+    requiredColumns?: string[],
+  ) {
+    if (!basis) return;
+    const profile = this.basisProfile(sourceId, schema);
+    await resolveBusinessBasis(
+      this.dashboards.manager,
+      sourceId,
+      profile,
+      basis,
+      requiredColumns ?? basis.columns.map(c => c.column),
+    );
+    const key = JSON.stringify([
+      'business-basis',
+      sourceId,
+      await this.connection.duckDBVersion(sourceId),
+      basis,
+    ]);
+    let proof = this.conditionDateProofs.get(key);
+    if (!proof) {
+      if (this.conditionDateProofs.size >= 64)
+        this.conditionDateProofs.delete(this.conditionDateProofs.keys().next().value);
+      proof = validateBasisBusinessDates(profile, basis, (sql, bindings) =>
+        this.connection.queryDuckDB(sourceId, sql, bindings),
+      );
+      this.conditionDateProofs.set(key, proof);
+      const captured = proof;
+      void captured.catch(() => {
+        if (this.conditionDateProofs.get(key) === captured) this.conditionDateProofs.delete(key);
+      });
+    }
+    await proof;
+  }
+  private async assertDraftBusinessBases(draft: ReturnType<typeof validateDraft>, schema: any[]) {
+    if (draft.businessBasis)
+      await this.assertBusinessBasis(
+        draft.databaseId,
+        schema,
+        draft.businessBasis,
+        schema.map(c => c.column_name),
+      );
+    for (const widget of draft.widgets)
+      if (
+        widget.defaultDateColumn !== undefined &&
+        widget.defaultDateColumn !== null &&
+        !businessProfile(
+          this.basisProfile(draft.databaseId, schema),
+          widget.businessBasis,
+        ).columns.some(c => c.name === widget.defaultDateColumn && c.temporal)
+      )
+        throw new ConflictException('Frozen time column changed');
+    for (const widget of draft.widgets)
+      if (widget.businessBasis)
+        await this.assertBusinessBasis(draft.databaseId, schema, widget.businessBasis);
+  }
+  private async recheckBusinessFile(sourceId: number, revision?: string) {
+    if (!revision) return;
+    const fresh = await this.connection.captureDuckDBSnapshot(sourceId);
+    if ((await fresh.run(() => this.connection.duckDBVersion(sourceId))) !== revision)
+      throw new ConflictException(
+        '업무 기준 검증 중 파일이 변경됐습니다. 기존 제안과 질문을 유지하세요.',
+      );
   }
   private async recheckConditionError(sourceId: number, actor: number, conditions: any) {
     if (this.access) await this.access.assert('database', sourceId, actor, 'read');
@@ -1251,7 +1339,12 @@ export class AiDashboardService {
     };
   }
   /** UC-051: an existing dashboard preview needs the explicit edit action; callers may pass read/publish. */
-  async preview(body: any, userId: number, action: ResourceAction | 'owner' = 'edit') {
+  async preview(
+    body: any,
+    userId: number,
+    action: ResourceAction | 'owner' = 'edit',
+    authVersion?: number,
+  ) {
     if (body?.dashboardId !== undefined) {
       await this.owner(body.dashboardId, userId, action);
       if (body.conditions === undefined) {
@@ -1261,13 +1354,28 @@ export class AiDashboardService {
     }
     const draft = validateDraft(body?.draft);
     if (this.access) await this.access.assert('database', draft.databaseId, userId, 'read');
+    let executionRevision: string | undefined;
+    const hasBusinessBasis = draft.businessBasis || draft.widgets.some(w => w.businessBasis);
+    const authority = hasBusinessBasis
+      ? await catalogActorContext(this.dashboards.manager, userId, authVersion)
+      : undefined;
     const result = await this.connection
-      .withDuckDBSnapshot(draft.databaseId, () => this.previewSnapshot(body, draft))
+      .withDuckDBSnapshot(draft.databaseId, async () => {
+        if (hasBusinessBasis)
+          executionRevision = await this.connection.duckDBVersion(draft.databaseId);
+        return this.previewSnapshot(body, draft);
+      })
       .catch(async error => {
         await this.recheckConditionError(draft.databaseId, userId, body.conditions);
+        if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId, action);
+        if (authority) await assertCatalogActor(this.dashboards.manager, authority);
+        await this.recheckBusinessFile(draft.databaseId, executionRevision);
         throw error;
       });
     if (this.access) await this.access.assert('database', draft.databaseId, userId, 'read');
+    if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId, action);
+    if (authority) await assertCatalogActor(this.dashboards.manager, authority);
+    await this.recheckBusinessFile(draft.databaseId, executionRevision);
     return result;
   }
 
@@ -1277,6 +1385,7 @@ export class AiDashboardService {
     dateColumn: string | undefined,
     columns: string[],
     temporalColumns: string[],
+    basis?: BusinessBasis,
   ) {
     trendGrain = definition.timeGrain ?? trendGrain;
     // Explicit per-chart grain follows its proven raw temporal category, independently
@@ -1286,12 +1395,21 @@ export class AiDashboardService {
       definition.timeGrain &&
       definition.timeGrain !== 'auto'
     ) {
-      const dimension = resolveDimensionColumn(
+      const typed = resolveTimeChartBucket(
         definition.sql,
+        definition.valueField,
         definition.categoryField,
-        columns,
-        [],
+        columns.map(name => ({
+          column_name: name,
+          column_type:
+            basis?.columns.find(c => c.column === name)?.nativeType ??
+            (temporalColumns.includes(name) ? 'TIMESTAMP' : 'VARCHAR'),
+        })),
+        basis,
       );
+      const dimension =
+        typed?.column ??
+        resolveDimensionColumn(definition.sql, definition.categoryField, columns, []);
       if (dimension && temporalColumns.includes(dimension)) dateColumn = dimension;
     }
     const regroup =
@@ -1304,15 +1422,27 @@ export class AiDashboardService {
             dateColumn,
             trendGrain,
             columns,
+            {
+              timeZone: 'UTC',
+              columnType:
+                basis?.columns.find(c => c.column === dateColumn)?.businessType === 'date'
+                  ? 'DATE'
+                  : basis?.columns.find(c => c.column === dateColumn)?.nativeType ?? 'TIMESTAMP',
+              basis,
+            },
           )
         : undefined;
     return { sql: regroup ? regroup.sql : definition.sql, regroup, dateColumn };
   }
 
   /** Raw common-filter rows by default; opt-in contribution requests use the saved definition. */
-  async details(body: any, userId: number) {
+  async details(body: any, userId: number, authVersion?: number) {
     positiveId(body?.dashboardId);
     const draft = validateDraft(body?.draft);
+    const hasBusinessBasis = draft.businessBasis || draft.widgets.some(w => w.businessBasis);
+    const authority = hasBusinessBasis
+      ? await catalogActorContext(this.dashboards.manager, userId, authVersion)
+      : undefined;
     const page = body.page === undefined ? 0 : body.page;
     const pageSize = body.pageSize === undefined ? 50 : body.pageSize;
     if (!Number.isInteger(page) || page < 0 || page > 10000 || ![25, 50, 100].includes(pageSize))
@@ -1434,6 +1564,7 @@ export class AiDashboardService {
         )
           throw new ConflictException('Condition scope changed');
         const schema = await this.schema(draft.databaseId);
+        await this.assertDraftBusinessBases(draft, schema);
         await this.assertConditionSemantics(
           draft.databaseId,
           schema.map(c => ({ name: c.column_name, type: c.column_type })),
@@ -1464,6 +1595,7 @@ export class AiDashboardService {
             body.conditions?.definition,
             schema.map(c => ({ name: c.column_name, type: c.column_type })),
             body.conditions?.semantics,
+            draft.businessBasis,
           );
         const countQuery = query('SELECT CAST(count(*) AS VARCHAR) AS total FROM source');
         const count = await this.connection.queryDuckDB(
@@ -1505,9 +1637,15 @@ export class AiDashboardService {
       })
       .catch(async error => {
         await this.recheckConditionError(draft.databaseId, userId, body.conditions);
+        if (authority) await assertCatalogActor(this.dashboards.manager, authority);
+        if (hasBusinessBasis) await this.recheckBusinessFile(draft.databaseId, body.sourceRevision);
+        await this.owner(body.dashboardId, userId, 'read');
         throw error;
       });
     if (this.access) await this.access.assert('database', draft.databaseId, userId, 'read');
+    if (authority) await assertCatalogActor(this.dashboards.manager, authority);
+    if (hasBusinessBasis) await this.recheckBusinessFile(draft.databaseId, body.sourceRevision);
+    await this.owner(body.dashboardId, userId, 'read');
     return result;
   }
   /** Preview and point details share column selection, full-source auto stats and SQL. */
@@ -1519,14 +1657,27 @@ export class AiDashboardService {
     trendGrain: ReturnType<typeof validatePeriodOptions>['trendGrain'],
     stats?: { min: string; max: string },
     conditions?: StudioConditions,
+    basis?: BusinessBasis,
   ) {
-    const temporal = schema.filter(column => /^(DATE|TIMESTAMP)/i.test(column.column_type));
+    const profile = this.basisProfile(databaseId, schema);
+    const projected = businessProfile(profile, basis);
+    const temporal = schema.filter(
+      column => projected.columns.find(c => c.name === column.column_name)?.temporal,
+    );
+    if (
+      definition.defaultDateColumn !== undefined &&
+      definition.defaultDateColumn !== null &&
+      !temporal.some(item => item.column_name === definition.defaultDateColumn)
+    )
+      throw new ConflictException('Frozen time column changed');
     const column = temporal.some(item => item.column_name === dateRange?.column)
       ? dateRange.column
+      : definition.defaultDateColumn !== undefined
+      ? definition.defaultDateColumn ?? undefined
       : temporal[0]?.column_name;
     if (!column) return undefined;
     if (trendGrain === 'auto' && !dateRange && !stats) {
-      const name = quoteColumn(column);
+      const name = businessDimensionExpression(profile, basis, column);
       const sql = `SELECT CAST(CAST(min(${name}) AS DATE) AS VARCHAR) AS min, CAST(CAST(max(${name}) AS DATE) AS VARCHAR) AS max FROM source`;
       const query = conditions
         ? sourceQuery(
@@ -1539,6 +1690,7 @@ export class AiDashboardService {
             conditions.definition,
             schema.map(c => ({ name: c.column_name, type: c.column_type })),
             conditions.semantics,
+            basis,
           )
         : { sql: sql.replace('FROM source', 'FROM uploaded_data'), bindings: [] };
       const result = await this.connection.queryDuckDB(databaseId, query.sql, query.bindings);
@@ -1548,6 +1700,8 @@ export class AiDashboardService {
       trendGrain === 'auto'
         ? chooseTrendGrain(dateRange?.start ?? stats?.min, dateRange?.end ?? stats?.max)
         : trendGrain;
+    if (basis?.columns.find(c => c.column === column)?.businessType === 'date' && grain === 'hour')
+      grain = 'day';
     if (dateRange?.timeZone && dateRange.timeZone !== 'UTC' && grain === 'hour') grain = 'day';
     const query = buildTrendQuery(
       definition.sql,
@@ -1555,10 +1709,14 @@ export class AiDashboardService {
       column,
       grain,
       schema.map(item => item.column_name),
-      dateRange?.timeZone
+      dateRange?.timeZone || basis
         ? {
-            timeZone: dateRange.timeZone,
-            columnType: temporal.find(item => item.column_name === column).column_type,
+            timeZone: dateRange?.timeZone ?? 'UTC',
+            columnType:
+              basis?.columns.find(c => c.column === column)?.businessType === 'date'
+                ? 'DATE'
+                : temporal.find(item => item.column_name === column).column_type,
+            basis,
           }
         : undefined,
     );
@@ -1874,13 +2032,20 @@ export class AiDashboardService {
           '사전의 숫자 속성·집계된 고유값으로 합계나 전체 고유 인원을 계산할 수 없습니다. 원본 사실 행 또는 식별 키를 연결해 주세요.',
         );
     }
+    await this.assertDraftBusinessBases(draft, schema);
     await this.assertConditionSemantics(
       draft.databaseId,
       schema.map(c => ({ name: c.column_name, type: c.column_type })),
       conditions,
     );
     const columns = schema.map(c => c.column_name);
-    const temporal = schema.filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type));
+    const effectiveProfile = businessProfile(
+      this.basisProfile(draft.databaseId, schema),
+      draft.businessBasis,
+    );
+    const temporal = schema.filter(
+      c => effectiveProfile.columns.find(column => column.name === c.column_name)?.temporal,
+    );
     // Validate the current range before deriving or querying either comparison period.
     sourceQuery(
       draft.widgets[0].sql,
@@ -1892,6 +2057,8 @@ export class AiDashboardService {
       body.conditions?.definition,
       schema.map(c => ({ name: c.column_name, type: c.column_type })),
       body.conditions?.semantics,
+      draft.widgets[0].businessBasis ?? draft.businessBasis,
+      draft.businessBasis,
     );
     const previous = comparePrevious ? previousDateRange(body.dateRange) : undefined;
     const dateColumn = temporal.some(c => c.column_name === body?.dateRange?.column)
@@ -1912,6 +2079,7 @@ export class AiDashboardService {
         dateColumn,
         columns,
         temporal.map(c => c.column_name),
+        definition.businessBasis ?? draft.businessBasis,
       );
       const query = sourceQuery(
         widgetSql,
@@ -1923,6 +2091,8 @@ export class AiDashboardService {
         body.conditions?.definition,
         schema.map(c => ({ name: c.column_name, type: c.column_type })),
         body.conditions?.semantics,
+        definition.businessBasis ?? draft.businessBasis,
+        draft.businessBasis,
       );
       queries.push({ widgetIndex: widgets.length, kind: 'widget', ...query });
       const result = await this.connection.queryDuckDB(draft.databaseId, query.sql, query.bindings);
@@ -1975,6 +2145,7 @@ export class AiDashboardService {
               definition.valueField,
               definition.categoryField,
               schema,
+              definition.businessBasis ?? draft.businessBasis,
             );
         if (bucket) {
           const selection = buildTimeSelection(
@@ -2016,6 +2187,8 @@ export class AiDashboardService {
           body.conditions?.definition,
           schema.map(c => ({ name: c.column_name, type: c.column_type })),
           body.conditions?.semantics,
+          definition.businessBasis ?? draft.businessBasis,
+          draft.businessBasis,
         );
         queries.push({ widgetIndex: widgets.length, kind: 'previous-widget', ...previousQuery });
         const prior = await this.connection.queryDuckDB(
@@ -2045,6 +2218,7 @@ export class AiDashboardService {
             definition.valueField,
             definition.categoryField,
             schema,
+            definition.businessBasis ?? draft.businessBasis,
           );
           const fingerprint = contributionGroupFingerprint(
             prior.datas.map(row => row[definition.categoryField]),
@@ -2067,7 +2241,7 @@ export class AiDashboardService {
       }
       widgets.push(widget);
     }
-    const schemaKey = JSON.stringify([sourceRevision, schema, conditions]);
+    const schemaKey = JSON.stringify([sourceRevision, schema, conditions, draft.businessBasis]);
     const cached = this.dimensionCache.get(draft.databaseId);
     let dimensions =
       cached?.key === schemaKey && cached.expires > Date.now() ? cached.data : undefined;
@@ -2076,7 +2250,13 @@ export class AiDashboardService {
     if (!dimensions) {
       dimensions = [];
       const categorical = schema
-        .filter(c => /^(VARCHAR|CHAR|TEXT|BOOLEAN|ENUM)/i.test(c.column_type))
+        .filter(c => {
+          const declared = effectiveProfile.columns.find(column => column.name === c.column_name);
+          return (
+            declared?.businessType === 'category' ||
+            (!declared?.temporal && /^(VARCHAR|CHAR|TEXT|BOOLEAN|ENUM)/i.test(c.column_type))
+          );
+        })
         .sort(
           (a, b) =>
             Number(b.column_name === 'device_type') - Number(a.column_name === 'device_type'),
@@ -2094,6 +2274,7 @@ export class AiDashboardService {
               conditions.definition,
               schema.map(c => ({ name: c.column_name, type: c.column_type })),
               conditions.semantics,
+              draft.businessBasis,
             )
           : {
               sql: `SELECT DISTINCT ${name} AS value FROM uploaded_data WHERE ${name} IS NOT NULL ORDER BY value LIMIT 51`,
@@ -2113,7 +2294,11 @@ export class AiDashboardService {
       }
       temporalColumns = [];
       for (const column of temporal.slice(0, 5)) {
-        const name = quoteColumn(column.column_name);
+        const name = businessDimensionExpression(
+          this.basisProfile(draft.databaseId, schema),
+          draft.businessBasis,
+          column.column_name,
+        );
         const sql = `SELECT CAST(CAST(min(${name}) AS DATE) AS VARCHAR) AS min, CAST(CAST(max(${name}) AS DATE) AS VARCHAR) AS max FROM source`;
         const query = conditions
           ? sourceQuery(
@@ -2126,6 +2311,7 @@ export class AiDashboardService {
               conditions.definition,
               schema.map(c => ({ name: c.column_name, type: c.column_type })),
               conditions.semantics,
+              draft.businessBasis,
             )
           : { sql: sql.replace('FROM source', 'FROM uploaded_data'), bindings: [] };
         const result = await this.connection.queryDuckDB(
@@ -2160,10 +2346,6 @@ export class AiDashboardService {
               ]
             : []),
         ]) {
-          if (!dateColumn) {
-            widget[period.unavailable] = 'No temporal column is available.';
-            continue;
-          }
           const trendSql = await this.numericTrendQuery(
             widget,
             draft.databaseId,
@@ -2172,6 +2354,7 @@ export class AiDashboardService {
             trendGrain,
             temporalColumns.find((item: any) => item.column === dateColumn),
             conditions,
+            widget.businessBasis ?? draft.businessBasis,
           );
           if (!trendSql) {
             widget[period.unavailable] = 'The widget SQL cannot be safely grouped into a trend.';
@@ -2188,6 +2371,8 @@ export class AiDashboardService {
               body.conditions?.definition,
               schema.map(c => ({ name: c.column_name, type: c.column_type })),
               body.conditions?.semantics,
+              widget.businessBasis ?? draft.businessBasis,
+              draft.businessBasis,
             );
             queries.push({ widgetIndex: widgets.indexOf(widget), kind: period.kind, ...query });
             const result = await this.connection.queryDuckDB(
@@ -2201,7 +2386,7 @@ export class AiDashboardService {
               continue;
             }
             widget[period.key] = {
-              column: dateColumn,
+              column: trendSql.column,
               grain: trendSql.grain,
               ...(period.range?.timeZone ? { timeZone: period.range.timeZone } : {}),
               points: result.datas.map((row: any) => {
@@ -2212,7 +2397,7 @@ export class AiDashboardService {
                     period.range?.timeZone && period.range.timeZone !== 'UTC'
                       ? isoSecond(
                           dateRangeBounds({
-                            column: dateColumn,
+                            column: trendSql.column,
                             start: row[trendSql.timeField],
                             end: row[trendSql.timeField],
                             timeZone: period.range.timeZone,
@@ -2247,14 +2432,21 @@ export class AiDashboardService {
             );
             const fingerprint = contributionGroupFingerprint(pointTimes);
             widget[period.key].contribution =
-              plan.supported && fingerprint
+              !(widget.businessBasis ?? draft.businessBasis)?.columns.some(
+                c =>
+                  c.column === trendSql.column &&
+                  c.businessType === 'date' &&
+                  c.dateFormat !== 'native',
+              ) &&
+              plan.supported &&
+              fingerprint
                 ? { supported: true, groupFingerprint: fingerprint }
                 : {
                     supported: false,
                     reason: 'reason' in plan ? plan.reason : CONTRIBUTION_UNAVAILABLE,
                   };
             const civilColumn = /^DATE$/i.test(
-              schema.find(column => column.column_name === dateColumn)?.column_type ?? '',
+              schema.find(column => column.column_name === trendSql.column)?.column_type ?? '',
             );
             if (regional && civilColumn) {
               // sourceQuery only treats DATE as civil when precision is absent, so zone-shifted
@@ -2265,7 +2457,7 @@ export class AiDashboardService {
             } else {
               widget[period.key].timeSelection = buildTimeSelection(
                 pointTimes,
-                { column: dateColumn, grain: trendSql.grain, format: 'timestamp' },
+                { column: trendSql.column, grain: trendSql.grain, format: 'timestamp' },
                 period.range,
               );
             }
@@ -2327,6 +2519,7 @@ export class AiDashboardService {
     preserveLayout = false,
     preserveSizeIds: readonly string[] = [],
     layoutEdits?: BlockLayouts[],
+    authVersion?: number,
   ) {
     const prepared = await this.prepareSave(
       body,
@@ -2336,6 +2529,7 @@ export class AiDashboardService {
       preserveLayout,
       preserveSizeIds,
       layoutEdits,
+      authVersion,
     );
     const persist = (manager: EntityManager) => prepared.persist(manager);
     const saved = sharedManager
@@ -2359,6 +2553,7 @@ export class AiDashboardService {
     preserveLayout = false,
     preserveSizeIds: readonly string[] = [],
     layoutEdits?: BlockLayouts[],
+    authVersion?: number,
   ) {
     if (
       body?.expectedRevision !== undefined &&
@@ -2401,6 +2596,12 @@ export class AiDashboardService {
         JSON.stringify(savedScope.conditions)
     )
       throw new BadRequestException('Condition snapshot required');
+    const requestedDraft = validateDraft(body?.draft);
+    const hasBusinessBasis =
+      requestedDraft.businessBasis || requestedDraft.widgets.some(w => w.businessBasis);
+    const authority = hasBusinessBasis
+      ? await catalogActorContext(this.dashboards.manager, userId, authVersion)
+      : undefined;
     const { data: prepared } = await this.preview(
       {
         draft: body?.draft,
@@ -2410,7 +2611,19 @@ export class AiDashboardService {
         conditions: savedScope.conditions,
       },
       userId,
+      'edit',
+      authVersion,
     );
+    const basisSchema = hasBusinessBasis
+      ? await this.connection.withDuckDBSnapshot(prepared.draft.databaseId, async () => {
+          if (
+            (await this.connection.duckDBVersion(prepared.draft.databaseId)) !==
+            prepared.sourceRevision
+          )
+            throw new ConflictException('Business source revision changed');
+          return this.schema(prepared.draft.databaseId);
+        })
+      : undefined;
     // Fully render and size-check every Dataset query before the first write.
     const datasetQueries = prepared.draft.widgets.map((widget, widgetIndex) => {
       // Preserve the baseline unscoped source query. Scoped or regrouped widgets
@@ -2421,7 +2634,18 @@ export class AiDashboardService {
           ? prepared.queries?.find(
               query => query.kind === 'widget' && query.widgetIndex === widgetIndex,
             )
-          : sourceQuery(widget.sql, []);
+          : sourceQuery(
+              widget.sql,
+              [],
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              widget.businessBasis ?? prepared.draft.businessBasis,
+            );
       if (!query) throw new BadRequestException('Validated scoped query required');
       return renderValidatedQueryBindings(query.sql, query.bindings);
     });
@@ -2458,6 +2682,7 @@ export class AiDashboardService {
       { sourceId: draft.databaseId, ids: references().map(item => item.metricId) },
     ];
     const validate = async (manager: EntityManager, pendingMutation = metricMutation) => {
+      if (authority) await assertCatalogActor(manager, authority, true);
       const dashboard =
         body.dashboardId !== undefined
           ? await this.owner(body.dashboardId, userId, 'edit', manager, true)
@@ -2505,7 +2730,7 @@ export class AiDashboardService {
         throw new ConflictException(
           '대시보드가 다른 화면에서 변경되었습니다. 새로고침 후 다시 요청해 주세요.',
         );
-      if (savedScope.conditions) {
+      if (savedScope.conditions || hasBusinessBasis) {
         // An inherited DuckDB snapshot may still point at the preview's old file.
         // Read the current transaction's metadata directly before its first write.
         const source = await manager.findOne(Database, {
@@ -2526,9 +2751,29 @@ export class AiDashboardService {
         }
         if (
           currentRevision !== prepared.sourceRevision ||
-          currentRevision !== savedScope.conditions.sourceRevision
+          (savedScope.conditions && currentRevision !== savedScope.conditions.sourceRevision)
         )
           throw new ConflictException('Condition source revision changed');
+      }
+      if (basisSchema) {
+        const profile = this.basisProfile(draft.databaseId, basisSchema);
+        if (draft.businessBasis)
+          await resolveBusinessBasis(
+            manager,
+            draft.databaseId,
+            profile,
+            draft.businessBasis,
+            profile.columns.map(c => c.name),
+          );
+        for (const widget of draft.widgets)
+          if (widget.businessBasis)
+            await resolveBusinessBasis(
+              manager,
+              draft.databaseId,
+              profile,
+              widget.businessBasis,
+              widget.businessBasis.columns.map(c => c.column),
+            );
       }
       return { dashboard, previous };
     };

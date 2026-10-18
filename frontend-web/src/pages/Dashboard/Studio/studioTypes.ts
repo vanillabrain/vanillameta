@@ -1,3 +1,4 @@
+import type { BusinessBasis } from '@/api/businessBasis';
 import type { Definition } from '../../Explore/SourceConditions';
 /** Owner-only Studio protocol. Raw SQL, rows and credentials live outside this history document. */
 export const STUDIO_COLUMNS = { lg: 12, md: 8, xs: 1 } as const;
@@ -5,7 +6,12 @@ export const STUDIO_BREAKPOINTS = ['lg', 'md', 'xs'] as const;
 export type StudioBreakpoint = (typeof STUDIO_BREAKPOINTS)[number];
 export type StudioBlockKind = 'BOARD_NUMERIC' | 'CHART_COLUMN' | 'CHART_BAR' | 'CHART_LINE';
 export type StudioMeasureRef = { id: number; definitionVersion: string };
-export type StudioDimensionRef = { key: string; sourceId: number; schemaVersion: string };
+export type StudioDimensionRef = {
+  key: string;
+  sourceId: number;
+  schemaVersion: string;
+  businessBasis?: BusinessBasis | null;
+};
 export type StudioDisplay = {
   presentation?: 'visual' | 'table' | 'summary';
   timeGrain?: 'auto' | 'day' | 'week' | 'month';
@@ -15,6 +21,8 @@ export type StudioDisplay = {
   suffix?: string;
 };
 export type StudioBlock = {
+  businessBasis?: BusinessBasis | null;
+  defaultDateColumn?: string | null;
   id: string;
   kind: StudioBlockKind;
   definitionKey: string;
@@ -62,6 +70,7 @@ export type StudioDocumentV1 = {
   /** Common period. Absent means no period scope; a null operation removes the optional property. */
   dateRange?: StudioDateRange;
   conditions?: StudioConditions;
+  businessBasis?: BusinessBasis | null;
   blocks: StudioBlock[];
   layouts: Record<StudioBreakpoint, StudioLayoutItem[]>;
 };

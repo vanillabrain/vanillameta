@@ -1,3 +1,4 @@
+import { fetchBusinessBasis } from '@/api/businessBasis';
 import React from 'react';
 import { webcrypto } from 'node:crypto';
 import { setToken } from '@/helpers/authHelper';
@@ -57,8 +58,24 @@ const proposal = () => ({
     ],
   },
 });
+vi.mock('@/api/businessBasis', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/api/businessBasis')>()),
+  fetchBusinessBasis: vi.fn(),
+}));
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(fetchBusinessBasis).mockImplementation(async id => {
+    const calls = mocks.get.mock.calls;
+    const index = calls.findLastIndex(([url]) => url === `/bi/sources/${id}/profile`);
+    const response = await mocks.get.mock.results[index].value;
+    const native = response.data.status === 'SUCCESS' ? response.data.data : response.data;
+    return {
+      sourceId: id,
+      sourceRevision: 'a'.repeat(64),
+      businessBasis: null,
+      businessColumns: native.columns.map(c => ({ ...c, temporal: !!c.temporal })),
+    };
+  });
   mocks.params = '';
   localStorage.clear();
   sessionStorage.clear();
@@ -1100,4 +1117,43 @@ it('UC048 A3 rejects an old-source proposal without losing the replacement quest
   expect(screen.queryByText('500')).toBeNull();
   expect(readCreationQuestion(key)).toEqual({ sourceId: 5, prompt: '새 소스 질문 유지' });
   expect(mocks.post.mock.calls.map(call => call[0])).toEqual(['/studio/proposals']);
+});
+it('explicit latest-basis adoption preserves the previous proposal/question/selection after 409 and replaces only on success', async () => {
+  const { basisFixture } = await import('@/api/businessBasis.fixture');
+  await ready();
+  fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '총매출을 보여줘' } });
+  const withBasis = (version = 2) => ({
+    ...proposal(),
+    profile: { ...profile(), columns: basisFixture.columns.map(c => ({ name: c.column, type: c.nativeType })) },
+    businessBasis: { ...basisFixture, catalogVersion: version },
+    preview: {
+      ...proposal().preview,
+      draft: { ...proposal().preview.draft, businessBasis: { ...basisFixture, catalogVersion: version } },
+    },
+  });
+  mocks.post.mockResolvedValueOnce({ data: withBasis() });
+  fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+  await screen.findByRole('button', { name: '최신 업무 기준으로 다시 제안' });
+  const beforeSource = (screen.getByLabelText('저장된 데이터') as HTMLSelectElement).value;
+  mocks.post.mockRejectedValueOnce({ response: { status: 409 } });
+  fireEvent.click(screen.getByRole('button', { name: '최신 업무 기준으로 다시 제안' }));
+  await screen.findByText(/데이터 또는 지표 기준이 변경/);
+  expect(screen.getByRole('heading', { name: '매출 요약' })).toBeTruthy();
+  expect((screen.getByLabelText('만들 대시보드 요청') as HTMLTextAreaElement).value).toBe('총매출을 보여줘');
+  expect((screen.getByLabelText('저장된 데이터') as HTMLSelectElement).value).toBe(beforeSource);
+  expect(mocks.post.mock.lastCall?.[1]).toMatchObject({
+    parentProposalId: 'proposal-1',
+    targetBlockIndex: 0,
+    adoptLatestBusinessBasis: true,
+  });
+  mocks.post.mockResolvedValueOnce({
+    data: {
+      ...withBasis(3),
+      proposalId: 'proposal-2',
+      parentProposalId: 'proposal-1',
+      title: '최신 제안',
+    },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '최신 업무 기준으로 다시 제안' }));
+  await screen.findByRole('heading', { name: '최신 제안' });
 });

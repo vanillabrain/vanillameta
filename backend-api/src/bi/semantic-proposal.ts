@@ -2,6 +2,13 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { metricFields } from './metric-expression';
 import { compileMetricWidget } from './structured-widget';
+import {
+  BusinessBasis,
+  businessProfile,
+  sliceBusinessBasis,
+  businessExecutionIdentity,
+  normalizeBusinessBasis,
+} from './semantic-business-basis';
 
 const fail = () => {
   throw new BadRequestException('지표·분류·차트 제안을 확인해 주세요.');
@@ -44,9 +51,43 @@ export const semanticDigest = (value: any) =>
   createHash('sha256')
     .update(JSON.stringify(canonical(value)))
     .digest('hex');
-export function normalizeMetric(value: any, profile: any, allowSavedFormula = false) {
-  // Only persisted, owner-authorized catalog entries may carry server-pinned operand definitions.
-  if (value?.aggregation === 'FORMULA' && !allowSavedFormula) fail();
+export function metricColumns(value: any): string[] {
+  return [
+    ...new Set<string>(
+      [value.column, value.denominatorColumn, value.weightColumn].filter(
+        column => typeof column === 'string' && column !== '*',
+      ),
+    ),
+  ];
+}
+export function proposalBusinessColumns(value: any): string[] {
+  return [
+    ...new Set<string>([
+      ...(Array.isArray(value?.measures)
+        ? value.measures.flatMap(measure =>
+            measure?.reuse ? [] : metricColumns(measure?.definition ?? {}),
+          )
+        : []),
+      ...(Array.isArray(value?.dimensions)
+        ? value.dimensions
+            .map(dimension => dimension?.column)
+            .filter(column => typeof column === 'string')
+        : []),
+    ]),
+  ];
+}
+export function normalizeMetric(
+  value: any,
+  profile: any,
+  basisOrAllowSavedFormula: BusinessBasis | boolean = value?.businessBasis,
+  allowSavedFormula = false,
+) {
+  const basis =
+    typeof basisOrAllowSavedFormula === 'boolean' ? value?.businessBasis : basisOrAllowSavedFormula;
+  const savedFormula =
+    typeof basisOrAllowSavedFormula === 'boolean' ? basisOrAllowSavedFormula : allowSavedFormula;
+  // Pinned operands are admitted only for persisted, authorized catalog entries.
+  if (value?.aggregation === 'FORMULA' && !savedFormula) fail();
   const base = ['label', 'aggregation', 'column', 'unit', 'decimalPlaces', 'numberNotation'];
   const extra =
     value?.aggregation === 'FORMULA'
@@ -56,7 +97,7 @@ export function normalizeMetric(value: any, profile: any, allowSavedFormula = fa
       : value?.aggregation === 'WEIGHTED_AVG'
       ? ['weightColumn']
       : [];
-  shape(value, [...base, ...extra]);
+  shape(value, [...base, ...extra, 'businessBasis'], [...base, ...extra]);
   if (
     !Number.isInteger(value.decimalPlaces) ||
     value.decimalPlaces < 0 ||
@@ -65,13 +106,21 @@ export function normalizeMetric(value: any, profile: any, allowSavedFormula = fa
   )
     fail();
   if (value.aggregation === 'COUNT' && value.column !== '*') fail();
+  const usedBasis = basis ? sliceBusinessBasis(basis, metricColumns(value)) : undefined;
+  const fields = metricFields(value, profile, usedBasis);
+  if (
+    value.businessBasis !== undefined &&
+    semanticDigest(value.businessBasis) !== semanticDigest(usedBasis)
+  )
+    fail();
   return {
     label: text(value.label, 100),
     aggregation: value.aggregation,
-    ...metricFields(value, profile),
+    ...fields,
     unit: text(value.unit, 12, true),
     decimalPlaces: value.decimalPlaces,
     numberNotation: value.numberNotation,
+    ...(usedBasis ? { businessBasis: usedBasis } : {}),
   };
 }
 export function metricIdentity(definition: any, sourceId: number) {
@@ -79,15 +128,31 @@ export function metricIdentity(definition: any, sourceId: number) {
   delete calculation.label;
   delete calculation.decimalPlaces;
   delete calculation.numberNotation;
+  delete calculation.businessBasis;
+  const execution =
+    businessExecutionIdentity(definition.businessBasis, metricColumns(definition)) ?? [];
+  if (execution.length) calculation.businessMeaning = execution;
   return semanticDigest({ sourceId, tableName: 'uploaded_data', ...calculation });
 }
-export function dimensionDefinition(profile: any, column: any) {
+export function dimensionDefinition(profile: any, column: any, basis?: BusinessBasis) {
+  const used = basis ? sliceBusinessBasis(basis, [column.name]) : undefined;
+  const execution = businessExecutionIdentity(used, [column.name]) ?? [];
+  const effective = businessProfile(profile, used).columns.find(
+    value => value.name === column.name,
+  );
   return {
-    id: 'dim_' + semanticDigest({ sourceId: profile.sourceId, column: column.name }),
+    id:
+      'dim_' +
+      semanticDigest({
+        sourceId: profile.sourceId,
+        column: column.name,
+        ...(execution.length ? { businessMeaning: execution } : {}),
+      }),
     definitionVersion: 1,
     column: column.name,
     type: column.type,
-    label: column.name,
+    label: effective?.label ?? column.name,
+    ...(used ? { businessBasis: used } : {}),
   };
 }
 /** Invalid/inactive/foreign definitions are never candidates; no read repairs persisted rows. */
@@ -133,7 +198,7 @@ export function compileSemanticProposal(
   catalog: ReturnType<typeof semanticCatalog>,
 ) {
   if (Buffer.byteLength(JSON.stringify(input) ?? '') > 128 * 1024) fail();
-  shape(input, [
+  const rootFields = [
     'schemaVersion',
     'sourceId',
     'sourceRevision',
@@ -141,7 +206,15 @@ export function compileSemanticProposal(
     'measures',
     'dimensions',
     'blocks',
-  ]);
+  ];
+  shape(input, [...rootFields, 'businessBasis'], rootFields);
+  const basis =
+    input.businessBasis === undefined ? undefined : normalizeBusinessBasis(input.businessBasis);
+  if (basis)
+    sliceBusinessBasis(
+      basis,
+      profile.columns.map(column => column.name),
+    );
   if (input.schemaVersion !== 1 || input.sourceId !== profile.sourceId || !profile.supported)
     fail();
   if (input.sourceRevision !== profile.dataVersion)
@@ -161,7 +234,10 @@ export function compileSemanticProposal(
       if (reference.definitionVersion !== measure.reuse.definitionVersion)
         throw new ConflictException('저장 지표가 변경되었습니다. 다시 미리보기해 주세요.');
       definition = reference.definition;
-    } else definition = normalizeMetric(measure.definition, profile);
+    } else {
+      if (!basis && measure.definition?.businessBasis !== undefined) fail();
+      definition = normalizeMetric(measure.definition, profile, basis);
+    }
     const identity = metricIdentity(definition, profile.sourceId);
     const prior = measurePlan.find(
       m =>
@@ -203,6 +279,7 @@ export function compileSemanticProposal(
     ...dimensionDefinition(
       profile,
       profile.columns.find(c => c.name === d.column),
+      basis,
     ),
   }));
   const usedMeasures = new Set<string>(),
@@ -244,9 +321,11 @@ export function compileSemanticProposal(
     measures,
     dimensions,
     blocks,
+    ...(basis ? { businessBasis: basis } : {}),
   };
   const plan = { measures: measurePlan, dimensions: dimensionPlan };
   const draft = {
+    ...(proposal.businessBasis ? { businessBasis: proposal.businessBasis } : {}),
     databaseId: profile.sourceId,
     title: proposal.title,
     explanation: '구조화 지표·분류 제안',
@@ -258,6 +337,7 @@ export function compileSemanticProposal(
           b.chart,
           dimensions.find(d => d.key === b.dimensionKey)?.column,
           b.title,
+          basis,
         ).widget,
     ),
   };

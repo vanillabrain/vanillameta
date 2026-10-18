@@ -1,3 +1,4 @@
+import { fetchBusinessBasis } from '@/api/businessBasis';
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -59,8 +60,24 @@ const profile = {
     nullCount: '0',
   })),
 };
+vi.mock('@/api/businessBasis', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/api/businessBasis')>()),
+  fetchBusinessBasis: vi.fn(),
+}));
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(fetchBusinessBasis).mockImplementation(async id => {
+    const calls = api.get.mock.calls;
+    const index = calls.findLastIndex(([url]) => url === `/bi/sources/${id}/profile`);
+    const response = await api.get.mock.results[index].value;
+    const native = response.data.status === 'SUCCESS' ? response.data.data : response.data;
+    return {
+      sourceId: id,
+      sourceRevision: native.dataVersion,
+      businessBasis: null,
+      businessColumns: native.columns.map(c => ({ ...c, temporal: !!c.temporal })),
+    };
+  });
   api.metrics = [metric(weighted), metric(ratio, 11)];
   api.get.mockImplementation(async (url: string) =>
     success(
@@ -140,7 +157,7 @@ it.each([
   choose('지표 이름', '다른 지표 이름');
   expect(value('저장된 지표')).toBe('');
   expect(disabled('지표 저장')).toBe(false);
-  expect(await save()).toEqual({ ...(definition as object), label: '다른 지표 이름' });
+  expect(await save()).toEqual({ ...(definition as object), label: '다른 지표 이름', businessBasis: null });
 });
 
 it('selects and reloads formulas, labels, scale and NULL semantics', async () => {
@@ -293,4 +310,51 @@ it('clears the retained profile when same-source refresh fails', async () => {
   await screen.findByText('데이터를 불러오지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.');
   expect(screen.queryByRole('button', { name: '버전 복원 검증' })).toBeNull();
   expect(screen.queryByLabelText('지표 이름')).toBeNull();
+});
+it('uses effective category/date options and raw identifiers, posting the exact frozen basis for new metrics', async () => {
+  const { basisFixture, basisResponse } = await import('@/api/businessBasis.fixture');
+  const native = {
+    ...profile,
+    columns: basisResponse.businessColumns.map(c => ({
+      name: c.name,
+      type: c.type,
+      numeric: c.name !== 'day',
+      temporal: false,
+      nullCount: '0',
+    })),
+  };
+  api.get.mockImplementation(async url =>
+    success(url.endsWith('/profile') ? native : url === '/bi/metrics' ? [] : [{ id: 1, name: '파일', engine: 'duckdb' }]),
+  );
+  vi.mocked(fetchBusinessBasis).mockResolvedValue(basisResponse);
+  await mount();
+  const operands = within(screen.getByLabelText('집계할 열'));
+  expect(operands.queryByRole('option', { name: /고객 구분/ })).toBeNull();
+  expect(operands.getByRole('option', { name: /결제 금액 · amount/ }).getAttribute('value')).toBe('amount');
+  choose('집계할 열', 'amount');
+  choose('지표 이름', '매출 합계');
+  const body = await save();
+  expect(body.businessBasis).toEqual(basisFixture);
+  expect(body.column).toBe('amount');
+  expect(body.unit).toBe('원');
+  choose('차트 종류', 'bar');
+  expect(
+    within(screen.getByLabelText('범주 열'))
+      .getByRole('option', { name: /고객 구분/ })
+      .getAttribute('value'),
+  ).toBe('code');
+  choose('차트 종류', 'line');
+  expect(
+    within(screen.getByLabelText('날짜 열'))
+      .getByRole('option', { name: /주문일/ })
+      .getAttribute('value'),
+  ).toBe('day');
+});
+it('denies missing current business basis rather than offering native arithmetic fallback and preserves the source', async () => {
+  vi.mocked(fetchBusinessBasis).mockRejectedValueOnce(new Error('invalid basis'));
+  render(<Explore />);
+  await screen.findByText(/데이터를 불러오지 못했습니다/);
+  expect(screen.queryByLabelText('집계할 열')).toBeNull();
+  expect((screen.getByLabelText('데이터 소스') as HTMLSelectElement).value).toBe('1');
+  expect(api.post).not.toHaveBeenCalled();
 });

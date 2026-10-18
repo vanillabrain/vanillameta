@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   Post,
   Query,
@@ -33,17 +34,30 @@ export class BiController {
   @Get('metrics') async metrics(@Query('sourceId') sourceId: string, @Req() req) {
     return this.success(await this.bi.metrics(sourceId, this.actor(req)));
   }
+  @Header('Cache-Control', 'no-store')
+  @Post('business-basis')
+  async businessBasis(@Body() body: unknown, @Req() req) {
+    return this.success(
+      await this.bi.businessBasis(body, this.actor(req), req.user.accessKeyData.authVersion ?? 0),
+    );
+  }
   @Post('metrics') async createMetric(@Body() body: any, @Req() req) {
-    return this.success(await this.bi.createMetric(body, this.actor(req)));
+    return this.success(
+      await this.bi.createMetric(body, this.actor(req), req.user.accessKeyData.authVersion ?? 0),
+    );
   }
   @Post('formulas/preview') async previewFormula(@Body() body: any, @Req() req) {
     return this.success(await this.bi.previewFormula(body, this.actor(req)));
   }
   @Post('preview') async preview(@Body() body: any, @Req() req) {
-    return this.success(await this.bi.preview(body, this.actor(req)));
+    return this.success(
+      await this.bi.preview(body, this.actor(req), req.user.accessKeyData.authVersion ?? 0),
+    );
   }
   @Post('dashboards') async save(@Body() body: any, @Req() req) {
-    return this.success(await this.bi.save(body, this.actor(req)));
+    return this.success(
+      await this.bi.save(body, this.actor(req), req.user.accessKeyData.authVersion ?? 0),
+    );
   }
   @Get('dashboards/:id/editor') async editor(@Param('id') id: string, @Req() req) {
     return this.success(await this.bi.editor(id, this.actor(req)));

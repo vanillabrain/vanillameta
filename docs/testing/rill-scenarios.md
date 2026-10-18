@@ -632,10 +632,14 @@ Rill0.90.5의 같은 margin.csv를 열어 최초 Model Data 진입을 확인했�
 
 RXS01~24 및 C~G 후속의 누적 변경을 사용자 요청으로 develop-v2에 커밋·push한다. 로컬 f4c0f632 기준 root build PASS, 전체 BE2394 중 기존135파일 PASS와 실패5파일 수정 재검증을 합쳐2394 PASS, FE115파일1553 PASS다. 비가산 모델 metadata 조회가 추가된 뒤 구 테스트의 빈 manager mock이67건 실패했으며 제품의 검사를 완화하지 않고5개 fixture에 올바른 EntityManager.findOne 시그니처를 제공했다. 재실행4파일/마지막 탐색1파일에서 전부 확인했다. 기존 실제 브라우저/core 증빙은 관련 변경 없이 재사용했다. 원격 develop-v2가49커밋 앞선 상태를 확인했으므로 로컬 기록 커밋 후 병합/필요한 통합 검증을 별도로 기록한다. 검증 로그는 기존 외부 증빙 폴더에 보존하며 AI/VoiceOver 설정은 유지한다.
 
-### 最新 develop-v2 통합
+### 최신 develop-v2 통합
 
 로컬 누적 커밋 `a9b6e04e`와 원격 `e763aee3`(49커밋)의39개 충돌을 양쪽 기능·권한 계약을 보존해 해결했다. root build PASS. BE 전체 최초 실행은186파일3793 PASS/16파일94 FAIL/6파일87 SKIP였으며 실패16파일을 수정·선택 재실행해 모두 PASS다(전체 suite를 다시 실행했다고 보고하지 않는다). Studio 복제2건의 병렬 부하 timeout은 파일 단독49/49 PASS로 확인했고 한도를 늘리지 않았다. FE 전체154파일 중153파일2332 PASS, DataLayout 문구4건 실패는 기대 문구 수정 후 해당 파일15/15 PASS다. 격리 핵심 E2E는 원격에서 확장된 현재 구성16/16 PASS(1.1분)다.
 
 실제 제품 통합 수정은 파일 갱신의 인증 세대 전달이다. 같은 JWT 요청에서 확인된 epoch를 작업 접수/영속 저장/재시작·재시도/파일 포인터 활성화 트랜잭션에 연결했다. 현재 사용자 epoch로 대체해 권한을 새로 만들지 않는다. 기존 null epoch 작업은 fail-closed이며 nullable migration은 SQLite up/down/멱등 검증했다. guard 후 회수·클라이언트 덮어쓰기·null job HTTP를 포함한 파일22개 검증 PASS, 운영 MySQL은 미실행이다. 나머지는 새 manager/메타데이터·통화 확인 계약의 fixture 보정이며 조건/권한/타입 검사를 완화하지 않았다.
 
 증빙: `/tmp/vm-studio-pivot-merge-{full-tests,full-fe,full-build,core}.log`, `/tmp/vm-studio-merge-{remix-full-retry,legacy-retry2}.log`, `/private/tmp/vm-be-integration-handoff/REPORT.md`와 해당 선택 로그, `/tmp/vm-studio-pivot-merge-data-layout-recheck.log`. core 실행 루트는 `/var/folders/sl/hmhwv1h547bbqpt651cb43140000gn/T/vanillameta-qa-kO4wZG/`다. gpt-6-luna/VoiceOver BLOCKED 유지. 이 통합 검증은 신규 Studio Pivot 완료 증빙이 아니다.
+
+통합 커밋 `6ecb22a9`의 첫 push는 원격 동시 갱신으로 fetch-first 거절되어, 신규 `305bc9af` 업무 의미 고정 변경도 강제 push 없이 합쳤다. 추가8충돌과 자동 병합의 FORMULA 경계를 정리했다. 기존 보고서 presentation/통화 확인·비가산 열/저장 지표 식을 유지하고 새 raw 열 업무 기준·고정 이력과 결합했다. 계산 지표도 동일 actor/소스/참조 lock·트랜잭션을 거쳐 저장하며 Studio의 식 피연산자 열도 업무 기준에 포함한다. 추가 root build/type/lint PASS, Studio 기존 Service33 PASS 및 변경 Creation/Remix/BusinessBasis170 PASS, 관련 semantic/compiler/trend72 PASS·runtime/consumer/formula62 PASS와 helper40 PASS(중복 합산 금지), FE 관련155/후속107·최종표현8 PASS다. 신규 업무 기준 E2E1개는 직접 미리보기 범위 PASS이며 `QA_REAL_CODEX` 이후 실제 모델·저장·게시 분기는 이번 실행에서 미실행이다. 증빙 `/tmp/vm-second-merge-*.log`, `/tmp/vm-second-formula-runtime-tests.log`, `/tmp/vm-studio-merge2-fe-handoff.md`, 선택 E2E 루트 `/var/folders/sl/hmhwv1h547bbqpt651cb43140000gn/T/vanillameta-qa-NOl9Oq/`를 참조한다.
+
+추가 피연산자 의미 회귀24 PASS 및 BE 최종 build/lint PASS. 기존 native FORMULA의 계산/저장은 보존했지만 새 businessBasis 이력에 고정된 지표를 피연산자로 구성하는 FORMULA는 기존 엄격 helper가 거절한다. 이 조합의 지원은 미완료이며 의미를 제거해 우회하지 않는다. [BE 인계](/private/tmp/vm-second-merge-be-handoff/REPORT.md)의 한계를 유지한다.

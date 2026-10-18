@@ -56,6 +56,10 @@
 
 전체 시나리오 상태는 NOT_RUN을 유지한다. 소유 DuckDB 소스의 표시명/설명·열별 표시명/설명/단위 버전 저장 부분만 [별도 증빙](../testing/source-catalog.md)에 연결한다. 실제 조직 권한·공식 승인/분류·날짜 형식·변경 영향 확인을 이 첫 단위의 자동 검사로 통과 처리하지 않는다.
 
+### UC050 Semantic Business Basis — in progress
+
+[선택 증빙](../testing/semantic-business-basis.md)은 신규 직접/AI 지표·차원 고정 업무 의미, 실제 DuckDB/SQLite 정답·경합·저장/reload/게시/복제와 실제 Codex/headless390/768/1440을 기록한다. E01/E04/E08/E13/E14의 해당 선택 흐름은 검증했으나 이번 MySQL/Ego/실기기/운영·사람 및 전체 TC050/16개 요건 수용은 `NOT_RUN`이다.
+
 ### UC050 Saved History Follow-up
 
 [후속 검증](../testing/source-catalog-history.md)에서 소유권·20건 커서·동일 소스의 두 저장 버전 차이·손상 이력·입력/저장본 불변을 선택 검증한다. 공식 승인/사용처 영향 검토·전체 TC050의 NOT_RUN을 대체하지 않는다.

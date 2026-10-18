@@ -1,3 +1,6 @@
+import { BusinessBasisResult, fetchBusinessBasis } from '@/api/businessBasis';
+import BusinessBasisDetails from '../../Explore/BusinessBasisDetails';
+import { editorDraftSessionEpoch } from '@/helpers/editorDraftStorage';
 import React, { useEffect, useRef, useState } from 'react';
 import IconLogo from '@/assets/images/logo.svg?react';
 import { Notice as Alert } from '@/components/ui/notice';
@@ -40,11 +43,14 @@ import {
 } from './studioCreationQuestion';
 import './studio.css';
 export default function StudioCreate() {
+  const session = useRef(editorDraftSessionEpoch());
+  const currentSession = () => editorDraftSessionEpoch() === session.current;
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [sources, setSources] = useState<StudioSource[]>([]),
     [sourceId, setSourceId] = useState<number | null>(null),
     [profile, setProfile] = useState<SourceProfile | null>(null);
+  const [basis, setBasis] = useState<BusinessBasisResult | null>(null);
   const [metrics, setMetrics] = useState<any[]>([]),
     [selectedMetrics, setSelectedMetrics] = useState<number[]>([]);
   const [prompt, setPrompt] = useState(''),
@@ -168,22 +174,30 @@ export default function StudioCreate() {
     setNotice('');
     setBusy('source');
     try {
-      const [p, m] = await Promise.all([get('/bi/sources/' + id + '/profile'), get('/bi/metrics', { sourceId: id })]);
-      if (!mounted.current || generation !== epoch.current) return;
+      const [p, m, business] = await Promise.all([
+        get('/bi/sources/' + id + '/profile'),
+        get('/bi/metrics', { sourceId: id }),
+        fetchBusinessBasis(id),
+      ]);
+      if (!mounted.current || !currentSession() || generation !== epoch.current) return;
       const data = creationData(p);
       if (!data?.supported || data.sourceId !== id || !Array.isArray(data.columns)) throw new Error('unsupported');
       // UC040: a verified new source does not depend on a second index read.
       setSources(rows =>
         rows.some(row => row.id === id) ? rows : [...rows, { id, name: data.name ?? '데이터 #' + id, engine: 'duckdb' }],
       );
-      setProfile(data);
+      setBasis(business);
+      setProfile({
+        ...data,
+        columns: business.businessColumns.map(c => ({ ...data.columns.find(n => n.name === c.name), ...c })),
+      });
       setMetrics(creationData(m));
       return true;
     } catch (cause) {
-      if (mounted.current && generation === epoch.current) setError(creationError(cause));
+      if (mounted.current && currentSession() && generation === epoch.current) setError(creationError(cause));
       return false;
     } finally {
-      if (mounted.current && generation === epoch.current) setBusy('');
+      if (mounted.current && currentSession() && generation === epoch.current) setBusy('');
     }
   };
   useEffect(() => {
@@ -221,13 +235,13 @@ export default function StudioCreate() {
             const generation = epoch.current;
             try {
               const response = await get('/studio/proposals/' + encodeURIComponent(parentId), { sourceId: initial });
-              if (mounted.current && generation === epoch.current) {
+              if (mounted.current && currentSession() && generation === epoch.current) {
                 const restored = validateCreationProposal(creationData(response), initial);
                 setProposal(restored);
                 if (typeof restored.requestPrompt === 'string') setPrompt(restored.requestPrompt);
               }
             } catch {
-              if (mounted.current && generation === epoch.current)
+              if (mounted.current && currentSession() && generation === epoch.current)
                 setError('생성안이 만료됐거나 불러올 수 없습니다. 이 소스로 새 생성 요청을 보내 주세요.');
             }
           }
@@ -262,7 +276,7 @@ export default function StudioCreate() {
     if (useSelectedSource && (!profile?.supported || profile.sourceId !== sourceId || sourceId === record.sourceId)) return;
     const targetSource = useSelectedSource ? sourceId : record.sourceId;
     if (targetSource !== null && !(await choose(targetSource, false))) return;
-    if (!mounted.current) return;
+    if (!mounted.current || !currentSession()) return;
     markQuestionEdited();
     setPrompt(record.prompt);
   };
@@ -279,10 +293,10 @@ export default function StudioCreate() {
     const generation = epoch.current;
     try {
       const id = await task();
-      if (!mounted.current || generation !== epoch.current) return;
+      if (!mounted.current || !currentSession() || generation !== epoch.current) return;
       await choose(id);
     } catch (cause) {
-      if (mounted.current && generation === epoch.current) setError(creationError(cause, context));
+      if (mounted.current && currentSession() && generation === epoch.current) setError(creationError(cause, context));
     } finally {
       pending.current = false;
       if (mounted.current) setBusy('');
@@ -304,8 +318,8 @@ export default function StudioCreate() {
       if (!Number.isSafeInteger(data?.sourceId)) throw new Error('invalid sample');
       return data.sourceId;
     }, '샘플을 서버에 준비하는 중입니다…');
-  const generate = async () => {
-    if (pending.current || locked || !sourceId || !profile || !prompt.trim()) return;
+  const generate = async (adoptLatest = false) => {
+    if (pending.current || locked || !sourceId || !profile || !prompt.trim() || !currentSession()) return;
     const old = proposal;
     pending.current = true;
     epoch.current += 1;
@@ -316,7 +330,7 @@ export default function StudioCreate() {
     setBusy('AI가 지표 정의와 계산을 준비하고 있습니다…');
     setError('');
     setNotice('');
-    setProposal(old?.clarifications?.length ? old : null);
+    // A failed/slow refresh must not discard the existing complete preview.
     creation.current = null;
     attempt.current = null;
     try {
@@ -324,13 +338,16 @@ export default function StudioCreate() {
         {
           sourceId,
           prompt: prompt.trim(),
-          ...(selectedMetrics.length ? { selectedMetricIds: selectedMetrics } : {}),
+          ...(!adoptLatest && selectedMetrics.length ? { selectedMetricIds: selectedMetrics } : {}),
           ...(Object.keys(answers).length ? { clarificationAnswers: answers } : {}),
           ...(old ? { expectedSourceRevision: old.sourceRevision } : {}),
+          ...(adoptLatest && old
+            ? { parentProposalId: old.proposalId, targetBlockIndex: 0, adoptLatestBusinessBasis: true }
+            : {}),
         },
         controller.signal,
       );
-      if (!mounted.current || generation !== epoch.current || controller.signal.aborted) return;
+      if (!mounted.current || !currentSession() || generation !== epoch.current || controller.signal.aborted) return;
       setProposal(next);
       setNotice(
         next.clarifications?.length
@@ -338,9 +355,10 @@ export default function StudioCreate() {
           : '계산 결과가 준비됐습니다. 지표 정의를 확인한 뒤 저장하세요.',
       );
     } catch (cause) {
-      if (mounted.current && generation === epoch.current && !controller.signal.aborted) setError(creationError(cause));
+      if (mounted.current && currentSession() && generation === epoch.current && !controller.signal.aborted)
+        setError(creationError(cause));
     } finally {
-      if (mounted.current && generation === epoch.current) {
+      if (mounted.current && currentSession() && generation === epoch.current) {
         setBusy('');
         pending.current = false;
         abort.current = null;
@@ -388,7 +406,13 @@ export default function StudioCreate() {
     }
   };
   const save = async () => {
-    if (pending.current || refining || (!recovery && (!proposal?.preview || proposal.clarifications?.length))) return;
+    if (
+      !currentSession() ||
+      pending.current ||
+      refining ||
+      (!recovery && (!proposal?.preview || proposal.clarifications?.length))
+    )
+      return;
     pending.current = true;
     setBusy('Studio에 저장하는 중입니다…');
     setError('');
@@ -396,7 +420,7 @@ export default function StudioCreate() {
     let sent = false;
     try {
       const key = await creationConfirmationKey();
-      if (!mounted.current) return;
+      if (!mounted.current || !currentSession()) return;
       if (confirmationKey.current && key !== confirmationKey.current) throw new Error('confirmation scope changed');
       if (!creation.current && proposal)
         creation.current = {
@@ -419,7 +443,7 @@ export default function StudioCreate() {
       sent = true;
       const data = creationData(await post('/studio/dashboards', creation.current, { timeout: 180000 }));
       if (!Number.isSafeInteger(data?.dashboardId) || data.dashboardId <= 0) throw new Error('invalid create');
-      if (mounted.current) {
+      if (mounted.current && currentSession()) {
         removeCreationConfirmation(key);
         const savedQuestion = readCreationQuestion(questionKey.current);
         if (questionDirty.current || (savedQuestion?.sourceId === sourceId && savedQuestion.prompt === prompt))
@@ -615,6 +639,7 @@ export default function StudioCreate() {
                 <span className="studio-eyebrow">02 · 만들고 싶은 분석</span>
                 <h2 id="studio-request-heading">어떤 내용을 보고 싶으세요?</h2>
                 <p>총매출과 환불액, 날짜별 추세처럼 필요한 내용을 자연스럽게 적어 주세요.</p>
+                {basis && <BusinessBasisDetails basis={basis.businessBasis} />}
                 {metrics.length > 0 && (
                   <StudioMetricPicker
                     key={sourceId}
@@ -674,7 +699,7 @@ export default function StudioCreate() {
                 />
                 <div className="studio-create-request-actions">
                   <span>Codex · gpt-6-luna 요청</span>
-                  <Button variant="default" disabled={locked || !profile || !prompt.trim()} onClick={generate}>
+                  <Button variant="default" disabled={locked || !profile || !prompt.trim()} onClick={() => generate()}>
                     지표와 차트 제안
                   </Button>
                 </div>
@@ -720,7 +745,7 @@ export default function StudioCreate() {
                   <Button
                     variant="default"
                     disabled={locked || proposal.clarifications.some(question => !answers[question.id])}
-                    onClick={generate}
+                    onClick={() => generate()}
                   >
                     의미 확인 후 다시 제안
                   </Button>
@@ -730,6 +755,9 @@ export default function StudioCreate() {
             {proposal?.preview && (
               <>
                 <StudioSemanticReview proposal={proposal} />
+                <Button variant="outline" disabled={locked || !prompt.trim()} onClick={() => generate(true)}>
+                  최신 업무 기준으로 다시 제안
+                </Button>
                 <StudioProposalRefinement
                   proposal={proposal}
                   disabled={!!busy || saveUncertain}

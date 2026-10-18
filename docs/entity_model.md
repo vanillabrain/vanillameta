@@ -227,6 +227,10 @@ FR016/FR017의 첫 DB 제약이다. `user.userId`와 `user.email`에 명명된 u
 
 기존 `source_catalog_entry.metadata.columns` JSON에 optional businessType(auto/number/category/date), dateFormat(빈 값/native/YYYY-MM-DD/YYYY/MM/DD/YYYYMMDD), classification(정규화한80자 문자열)을 추가한다. 별도 테이블/마이그레이션은 없다. 이전 이력의 생략은 auto/빈 값이며 기존 클라이언트 쓰기에서 생략한 필드는 해당 열의 현재 선언을 보존한다. 원본 열 type은 읽기 전용으로 별도 유지한다. 변경은 동일 append-only sourceId/version·actorId와 schemaRevision/sourceRevision을 사용한다. 조직 공통 분류 식별자/사전이나 쿼리 계산식 변경을 구현한 것으로 보지 않는다.
 
+### UC050 신규 생성 고정 업무 기준 — 구현 진행 중
+
+신규 지표/차원과 제안 문맥은 별도 테이블 없이 선택적 `businessBasis` JSON snapshot으로 업무 기준을 고정한다. snapshot은 schemaVersion, source catalog version(또는 명시 native null), schema revision, 열의 물리명/native type 및 업무 label/설명/unit/businessType/dateFormat/classification/ref를 담는다. 서버는 정확한 catalog history와 실제 schema를 대조하며 SQL/표현식은 저장 기준으로 받지 않는다. 제안 문맥은 전체 기준을 보존하고 계산 정의는 사용 열의 기준만 보존한다. Metric의 실제 definition version, 파일 revision, source condition version과 catalogVersion은 서로 대체하지 않는다. 기존 기준 없는 정의는 native로 남는다. 공개 응답에 전체 기준을 투영하지 않는다. [계획](plans/UC-050-semantic-business-basis.md)·[진행 중 증빙](testing/semantic-business-basis.md)을 따른다. 해당 단위의 실제 Codex/headless 화면·SQLite/DuckDB 선택 증거는 위 증빙을 따른다. 이번 MySQL/Ego/실기기/운영·업무 수용은 미확인이다.
+
 ## UC050 소스 활성 상태
 
 기존 `database.catalogActive` boolean(defaulttrue)와 `catalogVersion` integer(default0)는 소스 사용 상태와 CAS 버전이다. 여기의 catalogVersion은 /bi/sources가 반환하는 동명 업무 설명 버전과 구분하며 상태 API에서는 version으로만 반환한다. 신규179242 마이그레이션은 기존 소유권/연결정보/행을 보존한다. 상태 관리에는 현재 활성 소유 admin만 접근하고 일반 read/edit와 분리한다. 권한·원본/분석/게시 행은 비활성화 시 삭제하지 않는다. 상태 변경은 enterprise_audit_event의 실제 actorId/resourceId/version과 source.activate/source.deactivate로 기록한다. source.updatedAt도 갱신되므로 오래된 데이터 버전 요청은 다시 확인해야 한다.

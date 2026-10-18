@@ -2,9 +2,22 @@ import { BadRequestException } from '@nestjs/common';
 import { MetricAggregation } from '../metric/entities/metric.entity';
 import { quoteColumn } from '../ai/dashboard-draft';
 import { compileMetricFormula, normalizeFormulaUnit } from './metric-formula';
+import { BusinessBasis, businessProfile } from './semantic-business-basis';
 
+/** Business projections never reinterpret a stored native metric's arithmetic. */
+function nativeMetricProfile(profile: any) {
+  return {
+    ...profile,
+    columns: profile.columns.map(column => ({
+      ...column,
+      numeric: column.nativeNumeric ?? column.numeric,
+      temporal: column.nativeTemporal ?? column.temporal,
+    })),
+  };
+}
 /** Canonical structured metric compiler shared by creation and AI references. */
-export function metricFields(body: any, profile: any) {
+export function metricFields(body: any, profile: any, basis: BusinessBasis = body.businessBasis) {
+  profile = businessProfile(nativeMetricProfile(profile), basis);
   const aggregation = body.aggregation;
   if (aggregation === 'FORMULA') {
     if (body.column !== '*') throw new BadRequestException('계산 지표의 정의를 확인해 주세요.');
@@ -41,10 +54,14 @@ export function metricFields(body: any, profile: any) {
   }
   return fields;
 }
-export function metricExpression(definition: any, profile: any) {
-  const fields = metricFields(definition, profile);
+export function metricExpression(
+  definition: any,
+  profile: any,
+  basis: BusinessBasis = definition.businessBasis,
+) {
+  const fields = metricFields(definition, profile, basis);
   if (definition.aggregation === 'FORMULA')
-    return compileMetricFormula(fields.formula, profile, metricExpression).sql;
+    return compileMetricFormula(fields.formula, nativeMetricProfile(profile), metricExpression).sql;
   const value = quoteColumn(fields.column);
   if (definition.aggregation === 'RATIO_SUM')
     return `SUM(CAST(${value} AS DOUBLE)) / NULLIF(SUM(CAST(${quoteColumn(

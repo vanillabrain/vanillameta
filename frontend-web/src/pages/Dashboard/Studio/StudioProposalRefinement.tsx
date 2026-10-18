@@ -1,3 +1,4 @@
+import isEqual from 'lodash/isEqual';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
@@ -58,7 +59,8 @@ export default function StudioProposalRefinement({
         controller.signal,
       );
       if (active.current !== controller || controller.signal.aborted) return;
-      if (next.parentProposalId !== proposal.proposalId) throw new Error('mismatched proposal');
+      if (next.parentProposalId !== proposal.proposalId || !isEqual(next.businessBasis, proposal.businessBasis))
+        throw new Error('mismatched proposal basis');
       if (next.clarifications?.length) {
         setQuestions(next.clarifications);
         return;

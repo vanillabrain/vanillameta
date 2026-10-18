@@ -80,17 +80,36 @@ export class AiController {
 
   @Post('dashboard-preview')
   dashboardPreview(@Body() body: any, @Req() req) {
-    return this.dashboards.preview(body, req.user.accessKeyData.id);
+    return this.dashboards.preview(
+      body,
+      req.user.accessKeyData.id,
+      'edit',
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   @Post('dashboard-save')
   dashboardSave(@Body() body: any, @Req() req) {
-    return this.dashboards.save(body, req.user.accessKeyData.id);
+    return this.dashboards.save(
+      body,
+      req.user.accessKeyData.id,
+      undefined,
+      undefined,
+      undefined,
+      false,
+      [],
+      undefined,
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   @Post('dashboard-details')
   dashboardDetails(@Body() body: any, @Req() req) {
-    return this.dashboards.details(body, req.user.accessKeyData.id);
+    return this.dashboards.details(
+      body,
+      req.user.accessKeyData.id,
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   @Get('dashboard-analysis/:id')

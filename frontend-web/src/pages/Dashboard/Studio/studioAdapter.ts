@@ -1,3 +1,4 @@
+import type { BusinessBasis } from '@/api/businessBasis';
 import type { MetricBasisDefinition } from './StudioMetricBasis';
 import { validDraft } from '../dashboardPreview';
 import {
@@ -21,6 +22,8 @@ import {
 } from './studioTypes';
 
 type LegacyWidget = {
+  businessBasis?: BusinessBasis | null;
+  defaultDateColumn?: string | null;
   blockId?: string;
   title: string;
   description: string;
@@ -87,7 +90,7 @@ export function fromLegacyAnalysis(input: {
     if (!semantic) unresolvedReferences.push(id);
     else studioKeys(semantic, ['measureRefs', 'dimensionRefs']);
     const widget: LegacyWidget = {
-      ...optional(w, ['blockId']),
+      ...optional(w, ['blockId', 'businessBasis', 'defaultDateColumn']),
       title: w.title,
       description: w.description,
       type: w.type,
@@ -98,6 +101,7 @@ export function fromLegacyAnalysis(input: {
     entries[definitionKey] = { widget, ...(a.layoutSizes ? { layoutSize: studioClone(a.layoutSizes[index]) } : {}) };
     return {
       id,
+      ...optional(w, ['businessBasis', 'defaultDateColumn']),
       kind: w.type,
       definitionKey,
       title: w.title,
@@ -141,6 +145,7 @@ export function fromLegacyAnalysis(input: {
     revision: a.revision,
     title: a.title,
     sourceId: a.databaseId,
+    ...(Object.prototype.hasOwnProperty.call(a, 'businessBasis') ? { businessBasis: a.businessBasis } : {}),
     ...(defaultFilters?.length ? { filters: defaultFilters } : {}),
     ...(a.defaultDateRange !== undefined ? { dateRange: validateStudioDateRange(a.defaultDateRange) } : {}),
     ...(Object.prototype.hasOwnProperty.call(a, 'defaultConditions')
@@ -175,7 +180,7 @@ export function toLegacySave(document: StudioDocumentV1, definitions: StudioDefi
   );
   studioAssert(d.blocks.length > 0, '저장할 블록을 추가해 주세요.');
   const sizes = d.blocks.map(b => definitions.entries[b.definitionKey]?.layoutSize);
-  const widgets = d.blocks.map(b => {
+  const widgets = d.blocks.map((b): LegacyWidget => {
     const original = definitions.entries[b.definitionKey]?.widget;
     studioAssert(original && original.type === b.kind, '블록의 원본 정의를 확인해 주세요.');
     const widget = {
@@ -186,6 +191,7 @@ export function toLegacySave(document: StudioDocumentV1, definitions: StudioDefi
     };
     return {
       ...studioClone(widget),
+      ...studioClone(optional(b, ['businessBasis', 'defaultDateColumn'])),
       title: b.title,
       description: b.description,
       ...studioClone(b.display),
@@ -197,6 +203,7 @@ export function toLegacySave(document: StudioDocumentV1, definitions: StudioDefi
     expectedRevision: revision,
     draft: {
       databaseId: d.sourceId,
+      ...(Object.prototype.hasOwnProperty.call(d, 'businessBasis') ? { businessBasis: studioClone(d.businessBasis) } : {}),
       title: d.title,
       explanation: definitions.explanation,
       ...(sizes.every(Boolean) ? { layoutSizes: studioClone(sizes) } : {}),

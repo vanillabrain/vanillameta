@@ -1,3 +1,4 @@
+import { normalizeBusinessBasis } from '../bi/semantic-business-basis';
 import { validateConditionSemantics } from '../bi/business-condition-semantics';
 import { validateConditionDefinition } from '../bi/source-condition-definition';
 import {
@@ -123,10 +124,12 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
     'filters',
     'dateRange',
     'conditions',
+    'businessBasis',
   ]);
   const doc = input as unknown as StudioDocumentV1;
   studioAssert(doc.schemaVersion === 1, 'Unsupported Studio schema version.');
   positiveId(doc.sourceId);
+  if (doc.businessBasis !== undefined) normalizeBusinessBasis(doc.businessBasis);
   if (doc.conditions !== undefined) validateStudioConditions(doc.conditions);
   if (doc.filters !== undefined) validateStudioFilters(doc.filters);
   if (doc.dateRange !== undefined) validateStudioDateRange(doc.dateRange);
@@ -146,6 +149,8 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
   for (const block of doc.blocks) {
     studioKeys(block, [
       'id',
+      'businessBasis',
+      'defaultDateColumn',
       'kind',
       'definitionKey',
       'title',
@@ -154,6 +159,14 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
       'dimensionRefs',
       'display',
     ]);
+    if (block.businessBasis !== undefined) normalizeBusinessBasis(block.businessBasis);
+    if (block.defaultDateColumn !== undefined) {
+      studioAssert(
+        block.kind === 'BOARD_NUMERIC',
+        'Only numeric blocks carry a default trend date.',
+      );
+      if (block.defaultDateColumn !== null) text(block.defaultDateColumn, 255);
+    }
     studioAssert(
       isStudioId(block.id) && !ids.has(block.id),
       'Invalid or duplicate Studio block ID.',
@@ -185,7 +198,14 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
     }
     const dimensionKeys = new Set<string>();
     for (const dimension of block.dimensionRefs) {
-      studioKeys(dimension, ['key', 'sourceId', 'schemaVersion']);
+      studioKeys(dimension, ['key', 'sourceId', 'schemaVersion', 'businessBasis']);
+      if (dimension.businessBasis !== undefined) {
+        const basis = normalizeBusinessBasis(dimension.businessBasis);
+        studioAssert(
+          basis.columns.length === 1 && basis.columns[0].column === dimension.key,
+          'Invalid Studio dimension business basis.',
+        );
+      }
       text(dimension.key, 255);
       text(dimension.schemaVersion, 128);
       studioAssert(

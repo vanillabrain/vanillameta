@@ -90,3 +90,54 @@ it.each([
   expect(message).toContain('다시 생성');
   expect(message).not.toMatch(/private-file|secret-path/);
 });
+it('preserves full root and private draft while reused metric/dimension bases stay independent', async () => {
+  const { basisFixture } = await import('@/api/businessBasis.fixture');
+  const raw: any = base();
+  raw.businessBasis = basisFixture;
+  raw.preview.draft.businessBasis = basisFixture;
+  raw.profile.columns = basisFixture.columns.map(c => ({ name: c.column, type: c.nativeType }));
+  raw.semanticProposal[0].metric = { id: 7, definitionVersion: 3, businessBasis: null };
+  raw.semanticProposal[0].dimension = {
+    column: 'code',
+    type: 'INTEGER',
+    schemaVersion: 'v1',
+    businessBasis: { ...basisFixture, columns: basisFixture.columns.slice(0, 1) },
+  };
+  const result = validateCreationProposal(raw, 4);
+  expect(result.businessBasis).toEqual(basisFixture);
+  expect(result.preview?.draft.businessBasis).toEqual(basisFixture);
+  expect(result.semanticProposal[0].metric.businessBasis).toBeNull();
+  expect(result.semanticProposal[0].dimension?.businessBasis?.columns).toHaveLength(1);
+  raw.semanticProposal[0].metric.businessBasis = { ...basisFixture, catalogVersion: 0 };
+  expect(() => validateCreationProposal(raw, 4)).toThrow();
+});
+it('rejects a truncated root context or missing/divergent private draft basis instead of substituting metric lineage', async () => {
+  const { basisFixture } = await import('@/api/businessBasis.fixture');
+  const raw: any = base();
+  raw.profile.columns = basisFixture.columns.map(c => ({ name: c.column, type: c.nativeType }));
+  raw.businessBasis = basisFixture;
+  expect(() => validateCreationProposal(raw, 4)).toThrow(/업무 기준/);
+  raw.preview.draft.businessBasis = { ...basisFixture, catalogVersion: 3 };
+  expect(() => validateCreationProposal(raw, 4)).toThrow(/업무 기준/);
+  raw.preview.draft.businessBasis = basisFixture;
+  raw.businessBasis = { ...basisFixture, columns: [basisFixture.columns[1]] };
+  expect(() => validateCreationProposal(raw, 4)).toThrow(/전체 업무 기준/);
+  raw.businessBasis = basisFixture;
+  expect(validateCreationProposal(raw, 4).businessBasis?.columns).toHaveLength(3);
+});
+it.each([null, 'day'])(
+  'preserves proposal/widget explicit defaultDateColumn %s with independent full block basis',
+  async date => {
+    const { basisFixture } = await import('@/api/businessBasis.fixture');
+    const raw: any = base();
+    raw.semanticProposal[0].businessBasis = basisFixture;
+    raw.semanticProposal[0].defaultDateColumn = date;
+    Object.assign(raw.preview.draft.widgets[0], { businessBasis: basisFixture, defaultDateColumn: date });
+    const result = validateCreationProposal(raw, 4);
+    expect(result.semanticProposal[0].defaultDateColumn).toBe(date);
+    expect(result.preview?.draft.widgets[0].defaultDateColumn).toBe(date);
+    expect(result.semanticProposal[0].businessBasis).toEqual(basisFixture);
+    raw.semanticProposal[0].defaultDateColumn = 1;
+    expect(() => validateCreationProposal(raw, 4)).toThrow();
+  },
+);

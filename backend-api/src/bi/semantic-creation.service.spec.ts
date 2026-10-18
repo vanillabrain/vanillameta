@@ -1,5 +1,6 @@
 jest.mock('../connection/connection.service', () => ({ ConnectionService: class {} }));
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
+import { ForbiddenException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { createHash, randomUUID } from 'crypto';
 import * as fs from 'fs';
@@ -21,6 +22,9 @@ import { compileSemanticProposal, semanticCatalog } from './semantic-proposal';
 import { sourceRevision } from './source-revision';
 import { linkedMetricIndices, refreshMetricLinks } from '../ai/metric-analysis-links';
 import { AddAnalysisCreationReceipts1792030000000 } from '../migrations/1792030000000-add-analysis-creation-receipts';
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 
 const entities = [
   Database,
@@ -33,6 +37,9 @@ const entities = [
   Widget,
   Component,
   AnalysisCreationReceipt,
+  User,
+  EnterpriseMembership,
+  SourceCatalogEntry,
 ];
 const def = {
   label: '매출',
@@ -76,7 +83,14 @@ describe('UC012 B SQLite atomic creation', () => {
         } as any),
     );
     const connection = { withDuckDBSnapshot: (_id, fn) => fn() };
-    const bi = { profile: jest.fn().mockImplementation(async () => profile) };
+    const bi = {
+      profile: jest.fn().mockImplementation(async () => profile),
+      assertSourceAction: jest.fn(async (id, actor) => {
+        const row = await source.manager.findOneBy(Database, { id });
+        if (!row || row.ownerId !== actor || row.catalogActive === false)
+          throw new ForbiddenException('source ownership required');
+      }),
+    };
     return {
       service: new SemanticCreationService(source, bi as any, ai, connection as any),
       ai,
@@ -99,6 +113,17 @@ describe('UC012 B SQLite atomic creation', () => {
       entities,
       synchronize: true,
     }).initialize();
+    await db.manager.save(
+      User,
+      [10, 11].map(id => ({
+        id,
+        active: true,
+        authVersion: 0,
+        userId: `creator-${id}`,
+        email: `creator-${id}@example.invalid`,
+        password: 'fixture',
+      })),
+    );
     const source = await db.getRepository(Database).save({
       id: 1,
       ownerId: 10,

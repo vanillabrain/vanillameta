@@ -1,3 +1,4 @@
+import type { BusinessBasis } from './businessBasis';
 import { submitMetricDeletion } from '@/api/metricDeletionService';
 import { get, post, put } from '@/helpers/apiHelper';
 
@@ -10,6 +11,7 @@ export interface MetricFilter {
 }
 
 export interface MetricDefinition {
+  businessBasis?: BusinessBasis | null;
   id?: number;
   name: string;
   description?: string;

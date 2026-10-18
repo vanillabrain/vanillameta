@@ -108,3 +108,48 @@ it('distinguishes disclosures for multiple blocks even when their titles match',
   expect(screen.getByLabelText('1번 매출 기준 계산 기준 확인')).toBeTruthy();
   expect(screen.getByLabelText('2번 매출 기준 계산 기준 확인')).toBeTruthy();
 });
+
+it.each([
+  {
+    presentation: 'summary' as const,
+    kind: 'BOARD_NUMERIC',
+    value: 13000,
+    prefix: '',
+    suffix: ' KRW',
+    decimals: 0,
+    expected: '13,000 KRW',
+  },
+  {
+    presentation: 'table' as const,
+    kind: 'CHART_BAR',
+    value: 12.5,
+    prefix: '$',
+    suffix: '',
+    decimals: 2,
+    expected: '$12.50',
+  },
+])('preserves frozen root/reused metric bases and currency in $presentation previews', async item => {
+  const { basisFixture } = await import('@/api/businessBasis.fixture');
+  const p = proposal({ id: 9, definitionVersion: 3, aggregation: 'SUM', column: 'amount', businessBasis: null }, item.kind);
+  p.businessBasis = structuredClone(basisFixture);
+  const row = p.preview?.widgets[0];
+  if (!row) throw new Error('missing preview fixture');
+  Object.assign(row, {
+    presentation: item.presentation,
+    prefix: item.prefix,
+    suffix: item.suffix,
+    decimalPlaces: item.decimals,
+    categoryField: 'category',
+    datas: [{ category: '직접 분류', value: item.value }],
+  });
+  const before = JSON.stringify(p);
+  render(<StudioSemanticReview proposal={p} />);
+  expect(screen.getByText('업무 기준 확인 · 카탈로그 v2')).toBeTruthy();
+  expect(within(basis()).getByText('업무 기준 확인 · 원본 유형 기준')).toBeTruthy();
+  const output =
+    item.presentation === 'table' ? screen.getByRole('table') : screen.getByRole('note', { name: '매출 기준 집계 요약' });
+  expect(within(output).getByText(item.expected)).toBeTruthy();
+  expect(screen.queryByTestId('chart')).toBeNull();
+  expect(screen.queryByText('private SQL')).toBeNull();
+  expect(JSON.stringify(p)).toBe(before);
+});

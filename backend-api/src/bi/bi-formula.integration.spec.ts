@@ -5,7 +5,15 @@ import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
+import {
+  businessSchemaRevision,
+  businessProfile,
+  captureBusinessBasis,
+} from './semantic-business-basis';
 import { DuckDBService } from '../analysis/duckdb.service';
 import { ConnectionService } from '../connection/connection.service';
 import { studioDemoData } from '../dashboard-studio/studio-demo-data';
@@ -104,7 +112,7 @@ describe('saved FORMULA metrics over real DuckDB and the SQLite metric repositor
       type: 'sqlite',
       database: ':memory:',
       synchronize: true,
-      entities: [Database, Metric],
+      entities: [Database, Metric, User, EnterpriseMembership, SourceCatalogEntry],
     }).initialize();
     const sources = db.getRepository(Database);
     const connectionConfig = (fileVersion = true) =>
@@ -165,6 +173,24 @@ describe('saved FORMULA metrics over real DuckDB and the SQLite metric repositor
   });
 
   beforeEach(async () => {
+    jest.restoreAllMocks();
+    await db.manager.save(User, {
+      id: actor,
+      userId: 'formula-owner',
+      email: 'formula-owner@example.invalid',
+      password: 'unused',
+      active: true,
+      authVersion: 3,
+    });
+    await db.manager.save(User, {
+      id: stranger,
+      userId: 'formula-stranger',
+      email: 'formula-stranger@example.invalid',
+      password: 'unused',
+      active: true,
+      authVersion: 0,
+    });
+    await db.manager.clear(SourceCatalogEntry);
     await metrics().clear();
     await saveMetric(1, storedDefinition('매출', 'revenue'));
     await saveMetric(2, storedDefinition('비용', 'cost'));
@@ -217,6 +243,116 @@ describe('saved FORMULA metrics over real DuckDB and the SQLite metric repositor
     expect(await metricCount()).toBe(before);
   });
 
+  it.each([
+    'epoch',
+    'inactive-actor',
+    'source-file',
+    'source-owner',
+    'operand-version',
+    'operand-definition',
+    'operand-inactive',
+  ] as const)(
+    'rejects %s changes after FORMULA preparation without writing a metric',
+    async change => {
+      const before = await metricCount();
+      const source = await db.manager.findOneByOrFail(Database, { id: 1 });
+      const prepare = bi.prepareFormula.bind(bi);
+      const spy = jest.spyOn(bi, 'prepareFormula').mockImplementationOnce(async (...args) => {
+        const result = await prepare(...args);
+        if (change === 'epoch') await db.manager.update(User, actor, { authVersion: 4 });
+        if (change === 'inactive-actor') await db.manager.update(User, actor, { active: false });
+        if (change === 'source-file')
+          await db.manager.update(Database, 1, { connectionConfig: source.connectionConfig + ' ' });
+        if (change === 'source-owner') await db.manager.update(Database, 1, { ownerId: stranger });
+        if (change === 'operand-version')
+          await db.manager.update(Metric, 1, {
+            definition: JSON.stringify({
+              ...storedDefinition('매출', 'revenue'),
+              definitionVersion: 2,
+            }),
+          });
+        if (change === 'operand-definition')
+          await db.manager.update(Metric, 1, {
+            definition: JSON.stringify(storedDefinition('다른 계산', 'profit')),
+          });
+        if (change === 'operand-inactive') await db.manager.update(Metric, 1, { useYn: 'N' });
+        return result;
+      });
+      try {
+        await expect(bi.createMetric(formulaBody(marginRatio()), actor, 3)).rejects.toMatchObject({
+          status:
+            change === 'epoch'
+              ? 401
+              : ['inactive-actor', 'operand-inactive'].includes(change)
+              ? 403
+              : 409,
+        });
+        expect(await metricCount()).toBe(before);
+      } finally {
+        spy.mockRestore();
+        await db.manager.update(Database, 1, {
+          ownerId: source.ownerId,
+          connectionConfig: source.connectionConfig,
+        });
+      }
+    },
+  );
+  it('persists FORMULA only in the active metadata transaction with the request epoch', async () => {
+    const save = EntityManager.prototype.save;
+    const spy = jest
+      .spyOn(EntityManager.prototype, 'save')
+      .mockImplementation(async function (...args: any[]) {
+        if (args[0] === Metric) expect(this.queryRunner?.isTransactionActive).toBe(true);
+        return save.apply(this, args);
+      });
+    try {
+      await bi.createMetric(formulaBody(marginRatio()), actor, 3);
+      expect(spy).toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+  it('keeps historical native FORMULA operands when a current catalog declares their columns categories', async () => {
+    await db.manager.insert(SourceCatalogEntry, {
+      sourceId: 1,
+      version: 1,
+      actorId: actor,
+      schemaRevision: businessSchemaRevision(profile),
+      sourceRevision: profile.dataVersion,
+      metadata: JSON.stringify({
+        label: 'Catalog',
+        description: '',
+        columns: profile.columns.map(c => ({
+          column: c.name,
+          label: c.name,
+          description: '',
+          unit: '',
+          dateFormat: '',
+          classification: '',
+          businessType: ['revenue', 'cost'].includes(c.name) ? 'category' : 'auto',
+        })),
+      }),
+    });
+    const created = await bi.createMetric(formulaBody(marginRatio()), actor, 3);
+    const prepared = await bi.prepare(
+      { sourceId: 1, metricId: created.id, title: 'Native formula', chart: 'number' },
+      actor,
+      undefined,
+      3,
+    );
+    expect(prepared.draft.widgets[0].sql).toBe(
+      `SELECT ${metricExpression(created.definition, profile)} AS value FROM source`,
+    );
+    expect(
+      created.definition.formula.operands.every(o => o.definition.businessBasis === undefined),
+    ).toBe(true);
+    const currentBasis = await captureBusinessBasis(db.manager, 1, profile);
+    const projected = businessProfile(profile, currentBasis);
+    expect(projected.columns.find(c => c.name === 'revenue').numeric).toBe(false);
+    expect(metricExpression(created.definition, projected)).toBe(
+      metricExpression(created.definition, profile),
+    );
+  });
   it('rejects stale revisions, unusable operands and client-supplied snapshot fields before writing', async () => {
     const before = await metricCount();
     await expect(

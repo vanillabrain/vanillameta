@@ -1,3 +1,18 @@
+import {
+  CatalogActorContext,
+  catalogActorContext,
+  assertCatalogActor,
+} from '../bi/source-classifications';
+import {
+  BusinessBasis,
+  businessSchemaRevision,
+  captureBusinessBasis,
+  resolveBusinessBasis,
+  sliceBusinessBasis,
+  businessProfile,
+  assertBusinessBasisCurrent,
+  validateBasisBusinessDates,
+} from '../bi/semantic-business-basis';
 import { resolveConditionSemantics } from '../bi/business-condition-context';
 import { lockMetricSources, lockMetricReferences } from '../metric/metric-write-lock';
 import {
@@ -86,7 +101,16 @@ const text = (value: any, max: number) => {
 /** Single-source semantic proposals. Only this server compiler can produce executable SQL. */
 @Injectable()
 export class StudioCreationService {
-  private proposals = new Map<string, { actor: number; expires: number; value: any }>();
+  private proposals = new Map<
+    string,
+    {
+      actor: number;
+      expires: number;
+      value: any;
+      basis?: BusinessBasis;
+      context?: CatalogActorContext;
+    }
+  >();
   constructor(
     private readonly db: DataSource,
     private readonly bi: BiService,
@@ -313,9 +337,20 @@ export class StudioCreationService {
       ],
     };
   }
-  async propose(body: any, actor: number, signal?: AbortSignal): Promise<any> {
+  async propose(
+    body: any,
+    actor: number,
+    signal?: AbortSignal,
+    authVersion?: number,
+  ): Promise<any> {
+    const { contextBusinessBasis, contextActor, ...proposed } = await this.proposeOnce(
+      body,
+      actor,
+      signal,
+      authVersion,
+    );
     const value = {
-      ...(await this.proposeOnce(body, actor, signal)),
+      ...proposed,
       requestPrompt: body.prompt,
       ...(body.clarificationAnswers ? { requestAnswers: copy(body.clarificationAnswers) } : {}),
     };
@@ -327,10 +362,17 @@ export class StudioCreationService {
       actor,
       expires: Date.now() + 600000,
       value: copy(value),
+      basis: contextBusinessBasis,
+      context: contextActor,
     });
     return value;
   }
-  private async proposeOnce(body: any, actor: number, signal?: AbortSignal): Promise<any> {
+  private async proposeOnce(
+    body: any,
+    actor: number,
+    signal?: AbortSignal,
+    authVersion?: number,
+  ): Promise<any> {
     const active = () => {
       if (signal?.aborted) throw new BadRequestException('AI 요청을 취소했습니다.');
     };
@@ -344,6 +386,7 @@ export class StudioCreationService {
       'selectedMetricIds',
       'parentProposalId',
       'targetBlockIndex',
+      'adoptLatestBusinessBasis',
     ]);
     this.access.actor(actor);
     const sourceId = this.access.id(body.sourceId),
@@ -367,6 +410,11 @@ export class StudioCreationService {
         throw new BadRequestException('후속 질문은 기존 제안의 지표를 기준으로 합니다.');
     }
     if (
+      body.adoptLatestBusinessBasis !== undefined &&
+      (body.adoptLatestBusinessBasis !== true || !parent)
+    )
+      throw new BadRequestException('최신 업무 기준은 기존 생성안에서 명시적으로 채택해 주세요.');
+    if (
       body.expectedSourceRevision !== undefined &&
       !/^[a-f0-9]{64}$/.test(body.expectedSourceRevision)
     )
@@ -389,6 +437,7 @@ export class StudioCreationService {
       selected.some(id => !Number.isSafeInteger(id) || id <= 0)
     )
       throw new BadRequestException('저장 지표는 최대 6개까지 선택해 주세요.');
+    const initialActor = await catalogActorContext(this.db.manager, actor, authVersion);
     const profile = await this.connection.withDuckDBSnapshot(sourceId, async () => {
       if (
         body.expectedFileRevision &&
@@ -405,12 +454,41 @@ export class StudioCreationService {
         parent.profile.schemaVersion !== profile.schemaVersion)
     )
       throw new ConflictException('생성안의 데이터가 변경되었습니다. 새 생성 요청을 보내 주세요.');
+    const basis =
+      parent && !body.adoptLatestBusinessBasis
+        ? this.proposals.get(parent.proposalId)?.basis
+        : await captureBusinessBasis(this.db.manager, sourceId, profile);
+    await resolveBusinessBasis(
+      this.db.manager,
+      sourceId,
+      profile,
+      basis,
+      profile.columns.map(c => c.name),
+    );
+    const contextActor = initialActor;
+    const guardBasis = async () => {
+      if (contextActor) await assertCatalogActor(this.db.manager, contextActor);
+      await this.ensureCurrentSource(sourceId, actor, this.db.manager);
+      await resolveBusinessBasis(
+        this.db.manager,
+        sourceId,
+        profile,
+        basis,
+        profile.columns.map(c => c.name),
+      );
+      if (!parent || body.adoptLatestBusinessBasis)
+        await assertBusinessBasisCurrent(this.db.manager, sourceId, profile, basis);
+    };
+    const effective = businessProfile(profile, basis);
     const base = {
       ...(parent ? { parentProposalId: parent.proposalId } : {}),
       proposalId: randomUUID(),
       sourceId,
       sourceRevision: profile.dataVersion,
-      profile,
+      profile: { ...profile, columns: effective.columns },
+      contextBusinessBasis: basis,
+      contextActor,
+      ...(basis ? { businessBasis: basis } : {}),
       title: '새 대시보드',
       semanticProposal: [],
     };
@@ -491,6 +569,7 @@ export class StudioCreationService {
           'source.modelContext describes a validated fact-to-unique-lookup snapshot. The listed lookupAttributes are already connected categorical columns in this source; use them as dimensions without asking for another raw author/provider field. Unmatched fact rows remain with NULL labels. SUM an additive fact measure grouped by those labels is supported. Do not use a lookup attribute marked nonAdditive as a measure. No parent row count is implied; distinguish active fact-key counts from all registered parent entities.',
           'New raw-column definition: {"label":string,"aggregation":"SUM"|"AVG"|"COUNT"|"COUNT_DISTINCT"|"MIN"|"MAX"|"RATIO_SUM"|"WEIGHTED_AVG","column":rawColumn,"denominatorColumn"?:rawColumn,"weightColumn"?:rawColumn,"scale"?:1|100,"unit"?:string,"decimalPlaces"?:0..6,"numberNotation"?:"plain"|"compact"}. Use only supplied raw columns. Never return SQL, code, free-form expression strings or invented columns.',
           'To compose saved measures, a new FORMULA is ONLY {"label":string,"aggregation":"FORMULA","expression":node,"decimalPlaces":0..6,"numberNotation":"plain"|"compact"}. A node is {"metricId":catalogId,"definitionVersion":catalogVersion}, {"op":"add"|"subtract","left":node,"right":node}, or {"op":"ratio","left":node,"right":node,"scale":1|100}. Use only existing non-FORMULA catalog measures, same units for both sides, depth at most4, at most6 distinct references; no operand definitions, SQL, constants, unit overrides or invented metric IDs. The server pins definitions and infers units. For (revenue-cost)/revenue, inline the subtract node; do not invent a reference to the not-yet-saved profit. Missing measures still require clarification, never substitute a ratio for an unavailable amount.',
+          'Business column labels are descriptions, never SQL identifiers. Resolve ambiguous names with missingColumns. category columns (including numeric codes) are dimensions, never SUM/AVG/MIN/MAX, ratio or weight operands. date columns, including declared string dates, are temporal dimensions, never arithmetic operands. Use raw physical column names. Units apply only to monetary/additive metrics; counts and ratios retain count/percentage units.',
           'Numeric blocks have no dimension. Other blocks require a raw column dimension, CHART_LINE requires temporal. Prefer reuse of exact existing metric definitions. Do not invent a refund denominator; obey refundDenominator and use refunded_orders/paid_orders for orders, refund_amount/revenue (or amount) for amount when available. If required columns are absent, return {"clarifications":[{"id":"missingColumns","question":"explain missing raw fields","choices":[],"affectedBlockIds":[]}]} instead.',
           'refundDenominator is the explicit user answer to your previous business question, not an unconfirmed hint. If amount is confirmed and numeric refund_amount and revenue exist, their mapping is explicitly confirmed; if orders is confirmed and numeric refunded_orders and paid_orders exist, their mapping is explicitly confirmed. Do not ask for the same mapping again or report those present fields as missing. Still refuse genuinely absent fields and never invent substitutes.',
           'For a confirmed refund percentage use RATIO_SUM, scale:100, unit:"%". With refundDenominator=amount use refund_amount / revenue (or the actual amount column); with orders use refunded_orders / paid_orders. Other requested sales/refund/net amount KPIs are independent SUM blocks, never percentages.',
@@ -502,7 +581,7 @@ export class StudioCreationService {
           source: {
             sourceId,
             rowCount: profile.rowCount,
-            columns: profile.columns,
+            columns: effective.columns,
             ...(analysisContext ? { analysisContext } : {}),
             ...(modelContext ? { modelContext } : {}),
           },
@@ -521,12 +600,14 @@ export class StudioCreationService {
       if (controller.signal.aborted) throw new Error('timeout');
       response = JSON.parse(raw);
     } catch {
+      await guardBasis();
       throw new ServiceUnavailableException('AI 생성안을 준비하지 못했습니다. 다시 시도해 주세요.');
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener('abort', abort);
     }
     active();
+    await guardBasis();
     this.keys(response, ['title', 'semanticProposal', 'clarifications', 'requiredFields']);
     // Successful semantics require an actual declaration. A clarification may omit
     // it, but a supplied value (including null) must still satisfy the same schema.
@@ -576,12 +657,38 @@ export class StudioCreationService {
       throw new BadRequestException('후속 질문은 선택한 블록 하나만 변경할 수 있습니다.');
     let blocks = await Promise.all(
       response.semanticProposal.map((block: any) =>
-        this.validateBlock(block, profile, catalog, denominator, this.refundRequest(prompt), actor),
+        this.validateBlock(
+          block,
+          profile,
+          catalog,
+          denominator,
+          this.refundRequest(prompt),
+          actor,
+          basis,
+        ),
       ),
     );
     if (parent) {
       let changed = blocks[0];
       blocks = copy(parent.semanticProposal);
+      if (body.adoptLatestBusinessBasis) {
+        const oldBasis = this.proposals.get(parent.proposalId)?.basis;
+        blocks = blocks.map(block =>
+          block.businessBasis
+            ? block
+            : {
+                ...block,
+                businessBasis: this.blockBasis(block, profile, oldBasis),
+                ...(block.kind === 'BOARD_NUMERIC'
+                  ? {
+                      defaultDateColumn:
+                        businessProfile(profile, oldBasis).columns.find(c => c.temporal)?.name ??
+                        null,
+                    }
+                  : {}),
+              },
+        );
+      }
       if (body.targetBlockIndex === 'append') blocks.push(changed);
       else {
         const index = body.targetBlockIndex;
@@ -589,8 +696,33 @@ export class StudioCreationService {
         if (/제목\s*만/.test(prompt)) {
           changed = { ...blocks[index], title: changed.title };
         }
+        if (body.adoptLatestBusinessBasis && /제목\s*만/.test(prompt)) {
+          const definition = { ...changed.metric };
+          delete definition.businessBasis;
+          changed = {
+            ...changed,
+            metric: changed.metric.id
+              ? changed.metric
+              : this.definition(definition, profile, basis),
+            ...(changed.dimension
+              ? {
+                  dimension: {
+                    ...changed.dimension,
+                    businessBasis: sliceBusinessBasis(basis, [changed.dimension.column]),
+                  },
+                }
+              : {}),
+            businessBasis: this.blockBasis(changed, profile, basis),
+            ...(changed.kind === 'BOARD_NUMERIC'
+              ? {
+                  defaultDateColumn:
+                    businessProfile(profile, basis).columns.find(c => c.temporal)?.name ?? null,
+                }
+              : {}),
+          };
+        }
         changed.blockId = blocks[index].blockId;
-        if (studioDigest(changed) === studioDigest(blocks[index]))
+        if (!body.adoptLatestBusinessBasis && studioDigest(changed) === studioDigest(blocks[index]))
           throw new BadRequestException(
             '변경된 내용이 없습니다. 바꿀 지표·차원을 구체적으로 적어 주세요.',
           );
@@ -620,22 +752,31 @@ export class StudioCreationService {
         throw new ConflictException('생성 중 데이터가 변경되었습니다. 다시 생성해 주세요.');
       await this.ensureCurrentSource(sourceId, actor, this.db.manager);
       await this.revalidate(blocks, current, this.db.manager);
-      const draft = this.compile(sourceId, title, blocks, current);
+      if (!parent || body.adoptLatestBusinessBasis)
+        await assertBusinessBasisCurrent(this.db.manager, sourceId, current, basis);
+      try {
+        await this.validateBusinessDates(blocks, current, basis);
+      } catch (error) {
+        await guardBasis();
+        throw error;
+      }
+      const draft = this.compile(sourceId, title, blocks, current, basis);
       const preview = (await this.dashboards.preview({ draft, includeTrends: true }, actor)).data;
       await this.ensureCurrentSource(sourceId, actor, this.db.manager);
       if (preview.sourceRevision !== (await this.connection.duckDBVersion(sourceId)))
         throw new ConflictException('미리보기 데이터가 변경되었습니다. 다시 생성해 주세요.');
+      if (!parent || body.adoptLatestBusinessBasis)
+        await assertBusinessBasisCurrent(this.db.manager, sourceId, current, basis);
+      await this.revalidate(blocks, current, this.db.manager);
+      await guardBasis();
       active();
-      const value = { ...base, title, semanticProposal: blocks, preview };
-      this.prune();
-      if (this.proposals.size >= 64)
-        throw new ServiceUnavailableException('생성 요청이 많습니다. 잠시 후 다시 시도해 주세요.');
-      // Stored snapshot cannot be mutated through the HTTP response or caller references.
-      this.proposals.set(base.proposalId, {
-        actor,
-        expires: Date.now() + 600000,
-        value: copy(value),
-      });
+      const value = {
+        ...base,
+        ...(basis ? { businessBasis: basis } : {}),
+        title,
+        semanticProposal: blocks,
+        preview,
+      };
       return value;
     });
   }
@@ -646,6 +787,7 @@ export class StudioCreationService {
     denominator: string,
     refund: boolean,
     actor: number,
+    basis?: BusinessBasis,
   ) {
     this.keys(block, ['title', 'kind', 'metric', 'dimension', 'presentation']);
     const title = text(block.title, 300);
@@ -666,7 +808,8 @@ export class StudioCreationService {
         m => m.id === block.metric.id && m.definitionVersion === block.metric.definitionVersion,
       );
       if (!found) throw new BadRequestException('저장 지표 버전을 확인해 주세요.');
-      metric = { id: found.id, ...this.definition(found.definition, profile, true) };
+      metricFields(found.definition, profile);
+      metric = { ...copy(found.definition), id: found.id };
     } else if (block.metric?.aggregation === 'FORMULA') {
       this.keys(block.metric, [
         'label',
@@ -688,7 +831,7 @@ export class StudioCreationService {
     } else {
       if (block.metric?.definitionVersion !== undefined && block.metric.definitionVersion !== 1)
         throw new BadRequestException('새 지표 버전은 1입니다.');
-      metric = this.definition(block.metric, profile);
+      metric = this.definition(block.metric, profile, basis);
     }
     // Refund amount SUM is independent of refund rate. Rate labels (or a percentage
     // over refund columns) must not bypass the confirmed ratio by choosing AVG/SUM.
@@ -725,14 +868,21 @@ export class StudioCreationService {
     let dimension: any;
     if (block.dimension !== undefined) {
       this.keys(block.dimension, ['column']);
-      const column = profile.columns.find(c => c.name === block.dimension.column);
+      const column = businessProfile(profile, basis).columns.find(
+        c => c.name === block.dimension.column,
+      );
       if (
         !column ||
         block.kind === 'BOARD_NUMERIC' ||
         (block.kind === 'CHART_LINE' && !column.temporal)
       )
         throw new BadRequestException('분류 열의 타입을 확인해 주세요.');
-      dimension = { column: column.name, type: column.type, schemaVersion: profile.schemaVersion };
+      dimension = {
+        column: column.name,
+        type: column.type,
+        schemaVersion: profile.schemaVersion,
+        ...(basis ? { businessBasis: sliceBusinessBasis(basis, [column.name]) } : {}),
+      };
     } else if (block.kind !== 'BOARD_NUMERIC')
       throw new BadRequestException('분류 열을 선택해 주세요.');
     return {
@@ -742,12 +892,23 @@ export class StudioCreationService {
       ...(block.presentation !== undefined
         ? { display: { presentation: block.presentation } }
         : {}),
+      ...(basis
+        ? {
+            businessBasis: this.blockBasis({ metric, dimension, kind: block.kind }, profile, basis),
+          }
+        : {}),
+      ...(basis && block.kind === 'BOARD_NUMERIC'
+        ? {
+            defaultDateColumn:
+              businessProfile(profile, basis).columns.find(c => c.temporal)?.name ?? null,
+          }
+        : {}),
       metric,
       ...(dimension ? { dimension } : {}),
     };
   }
-  private definition(input: any, profile: any, allowSavedFormula = false) {
-    if (input?.aggregation === 'FORMULA' && !allowSavedFormula)
+  private definition(input: any, profile: any, basis?: BusinessBasis) {
+    if (input?.aggregation === 'FORMULA')
       throw new BadRequestException('계산 지표를 먼저 미리보기·저장한 뒤 참조해 주세요.');
     this.keys(input, [
       'schemaVersion',
@@ -763,7 +924,6 @@ export class StudioCreationService {
       'unit',
       'decimalPlaces',
       'numberNotation',
-      ...(allowSavedFormula && input?.aggregation === 'FORMULA' ? ['formula'] : []),
     ]);
     if (
       (input.schemaVersion !== undefined && input.schemaVersion !== 1) ||
@@ -773,10 +933,14 @@ export class StudioCreationService {
         (!Number.isSafeInteger(input.definitionVersion) || input.definitionVersion < 1))
     )
       throw new BadRequestException('지표 정의 버전을 확인해 주세요.');
-    const fields = metricFields(input, profile),
+    const fields = metricFields(input, profile, basis),
       label = text(input.label, 100);
     const decimalPlaces = input.decimalPlaces ?? 2,
-      unit = input.unit ?? '',
+      unit =
+        input.unit ??
+        (['SUM', 'AVG', 'MIN', 'MAX', 'WEIGHTED_AVG'].includes(input.aggregation)
+          ? basis?.columns.find(c => c.column === fields.column)?.unit ?? ''
+          : ''),
       numberNotation = input.numberNotation ?? 'plain';
     if (
       !Number.isInteger(decimalPlaces) ||
@@ -795,14 +959,18 @@ export class StudioCreationService {
       label,
       aggregation: input.aggregation,
       ...fields,
+      ...(basis
+        ? { businessBasis: sliceBusinessBasis(basis, this.metricColumns({ ...input, ...fields })) }
+        : {}),
       unit,
       decimalPlaces,
       numberNotation,
     };
   }
-  compile(sourceId: number, title: string, blocks: any[], profile: any) {
+  compile(sourceId: number, title: string, blocks: any[], profile: any, basis?: BusinessBasis) {
     return {
       databaseId: sourceId,
+      ...(basis ? { businessBasis: basis } : {}),
       title,
       explanation: 'All time · structured semantic metrics',
       widgets: blocks.map(b => {
@@ -811,7 +979,9 @@ export class StudioCreationService {
           title: b.title,
           description: b.metric.label,
           type: b.kind,
-          sql: canonicalMetricSql(b.metric, b.kind, dimension, profile),
+          sql: canonicalMetricSql(b.metric, b.kind, dimension, profile, b.dimension?.businessBasis),
+          ...(b.businessBasis ? { businessBasis: b.businessBasis } : {}),
+          ...(b.defaultDateColumn !== undefined ? { defaultDateColumn: b.defaultDateColumn } : {}),
           valueField: 'value',
           ...(dimension ? { categoryField: 'dimension' } : {}),
           decimalPlaces: b.metric.decimalPlaces,
@@ -824,6 +994,7 @@ export class StudioCreationService {
   }
   async ensureCurrentSource(sourceId: number, actor: number, manager: EntityManager) {
     return serializeMetadataWork(this.db, async () => {
+      await this.access.assert('database', sourceId, actor, 'read', manager);
       const source = await manager.findOne(Database, { where: { id: sourceId } });
       if (!source || source.ownerId !== actor || source.catalogActive === false)
         throw new ForbiddenException('데이터 소스에 접근할 수 없습니다.');
@@ -841,6 +1012,44 @@ export class StudioCreationService {
   private async revalidate(blocks: any[], profile: any, manager: EntityManager) {
     for (const b of blocks) {
       metricFields(b.metric, profile);
+      await resolveBusinessBasis(
+        manager,
+        profile.sourceId,
+        profile,
+        b.businessBasis,
+        b.businessBasis
+          ? [...this.metricColumns(b.metric), b.dimension?.column, b.defaultDateColumn].filter(
+              Boolean,
+            )
+          : [],
+      );
+      if (
+        b.defaultDateColumn !== undefined &&
+        b.defaultDateColumn !== null &&
+        !businessProfile(profile, b.businessBasis).columns.some(
+          c => c.name === b.defaultDateColumn && c.temporal,
+        )
+      )
+        throw new ConflictException('자동 추세의 날짜 기준이 변경되었습니다.');
+      await resolveBusinessBasis(
+        manager,
+        profile.sourceId,
+        profile,
+        b.metric.businessBasis,
+        this.metricColumns(b.metric),
+      );
+      if (b.dimension) {
+        await resolveBusinessBasis(manager, profile.sourceId, profile, b.dimension.businessBasis, [
+          b.dimension.column,
+        ]);
+        if (
+          b.kind === 'CHART_LINE' &&
+          !businessProfile(profile, b.dimension.businessBasis).columns.find(
+            c => c.name === b.dimension.column,
+          )?.temporal
+        )
+          throw new ConflictException('분류 열의 날짜 기준이 변경되었습니다.');
+      }
       if (
         b.dimension &&
         (b.dimension.schemaVersion !== profile.schemaVersion ||
@@ -886,6 +1095,73 @@ export class StudioCreationService {
       }
     }
   }
+  private blockBasis(block: any, profile: any, basis?: BusinessBasis): BusinessBasis {
+    const full = basis ?? {
+      schemaVersion: 1,
+      catalogVersion: null,
+      schemaRevision: businessSchemaRevision(profile),
+      columns: profile.columns
+        .map(c => ({
+          column: c.name,
+          nativeType: c.type,
+          label: c.name,
+          description: '',
+          unit: '',
+          businessType: 'auto' as const,
+          dateFormat: '' as const,
+          classification: '',
+        }))
+        .sort((a, b) => (a.column < b.column ? -1 : a.column > b.column ? 1 : 0)),
+    };
+    return sliceBusinessBasis(
+      full,
+      [
+        ...this.metricColumns(block.metric),
+        block.dimension?.column,
+        block.kind === 'BOARD_NUMERIC'
+          ? block.defaultDateColumn !== undefined
+            ? block.defaultDateColumn
+            : businessProfile(profile, basis).columns.find(c => c.temporal)?.name
+          : undefined,
+      ].filter(Boolean),
+    );
+  }
+  private metricColumns(metric: any): string[] {
+    if (metric.aggregation === 'FORMULA')
+      return [
+        ...new Set<string>(
+          metric.formula.operands.flatMap(operand => this.metricColumns(operand.definition)),
+        ),
+      ];
+    return [
+      metric.aggregation === 'COUNT' ? undefined : metric.column,
+      metric.denominatorColumn,
+      metric.weightColumn,
+    ].filter(Boolean);
+  }
+  async validateBusinessDates(blocks: any[], profile: any, context?: BusinessBasis) {
+    const seen = new Set<string>();
+    for (const basis of [
+      context,
+      ...blocks.flatMap(block => [
+        block.businessBasis,
+        block.metric.businessBasis,
+        block.dimension?.businessBasis,
+      ]),
+    ]) {
+      if (!basis) continue;
+      const dates = basis.columns
+        .filter(column => column.businessType === 'date' && column.dateFormat !== 'native')
+        .map(({ column, dateFormat }) => ({ column, dateFormat }));
+      if (!dates.length) continue;
+      const key = studioDigest(dates);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      await validateBasisBusinessDates(profile, basis, (sql, bindings) =>
+        this.connection.queryDuckDB(profile.sourceId, sql, bindings),
+      );
+    }
+  }
   /** The remix date scope must stay applicable on the target source before any write. */
   private validateRemixDateRange(input: unknown, profile: any): StudioDateRange {
     let range: StudioDateRange;
@@ -910,6 +1186,7 @@ export class StudioCreationService {
     filters: StudioFilter[] = [],
     dateRange?: StudioDateRange,
     conditions?: StudioConditions,
+    basis?: BusinessBasis,
   ) {
     await this.ensureCurrentSource(sourceId, actor, this.db.manager);
     let scope: StudioFilter[];
@@ -951,11 +1228,21 @@ export class StudioCreationService {
         mappedConditions.semantics,
       ).definition;
     }
-    const draft = this.compile(sourceId, template.title, blocks, profile);
+    await resolveBusinessBasis(
+      this.db.manager,
+      sourceId,
+      profile,
+      basis,
+      profile.columns.map(c => c.name),
+    );
+    await this.revalidate(blocks, profile, this.db.manager);
+    await this.validateBusinessDates(blocks, profile, basis);
+    const draft = this.compile(sourceId, template.title, blocks, profile, basis);
     const snapshot: any = {
       schemaVersion: 2,
       kind: 'structured-bi-dashboard',
       sourceId,
+      ...(basis ? { businessBasis: basis } : {}),
       dataVersion: profile.dataVersion,
       ...(scope.length ? { studioFilters: scope } : {}),
       ...(range ? { studioDateRange: range } : {}),
@@ -975,6 +1262,14 @@ export class StudioCreationService {
     return async (manager: EntityManager) => {
       await lockMetricSources(manager, [sourceId]);
       await this.ensureCurrentSource(sourceId, actor, manager);
+      await resolveBusinessBasis(
+        manager,
+        sourceId,
+        profile,
+        basis,
+        profile.columns.map(c => c.name),
+      );
+      await this.revalidate(blocks, profile, manager);
       const metrics = new Map<string, any>();
       for (const block of blocks) {
         metricFields(block.metric, profile);
@@ -1005,6 +1300,13 @@ export class StudioCreationService {
           definitionVersion: 1,
           definition,
           dimension: block.dimension?.column,
+          ...(block.businessBasis ? { businessBasis: copy(block.businessBasis) } : {}),
+          ...(block.defaultDateColumn !== undefined
+            ? { defaultDateColumn: block.defaultDateColumn }
+            : {}),
+          ...(block.dimension?.businessBasis
+            ? { dimensionBusinessBasis: copy(block.dimension.businessBasis) }
+            : {}),
           chart:
             block.kind === 'BOARD_NUMERIC'
               ? 'number'
@@ -1101,7 +1403,7 @@ export class StudioCreationService {
       return result;
     });
   }
-  async create(body: any, actor: number) {
+  async create(body: any, actor: number, authVersion?: number) {
     this.keys(body, ['requestId', 'proposalId', 'expectedSourceRevision']);
     this.access.actor(actor);
     if (
@@ -1111,7 +1413,13 @@ export class StudioCreationService {
       !/^[a-f0-9]{64}$/.test(body.expectedSourceRevision)
     )
       throw new BadRequestException('생성 저장 요청을 확인해 주세요.');
-    return this.studio.serializeWrite(() => this.createOnce(body, actor));
+    const requestedActor = await catalogActorContext(this.db.manager, actor, authVersion);
+    return this.studio.serializeWrite(async () => {
+      await assertCatalogActor(this.db.manager, requestedActor);
+      const result = await this.createOnce(body, actor);
+      await assertCatalogActor(this.db.manager, requestedActor);
+      return result;
+    });
   }
 
   private async createOnce(body: any, actor: number) {
@@ -1144,6 +1452,7 @@ export class StudioCreationService {
       throw new BadRequestException('업무 의미와 필수 열을 확인한 뒤 다시 제안해 주세요.');
     if (p.sourceRevision !== body.expectedSourceRevision)
       throw new ConflictException('소스 버전이 생성안과 다릅니다.');
+    if (stored.context) await assertCatalogActor(this.db.manager, stored.context);
     try {
       const result = await this.connection.withDuckDBSnapshot(p.sourceId, async () => {
         const profile = await this.profile(p.sourceId, actor);
@@ -1154,20 +1463,32 @@ export class StudioCreationService {
           throw new ConflictException('데이터 소스가 변경되었습니다. 다시 생성해 주세요.');
         const analysisContext = await this.trustedSourceContext(p.sourceId, actor);
         if (analysisContext) this.validateUnits(p.semanticProposal, pinnedUnits(analysisContext));
+        await resolveBusinessBasis(
+          this.db.manager,
+          p.sourceId,
+          profile,
+          stored.basis,
+          profile.columns.map(c => c.name),
+        );
         const blocks = copy(p.semanticProposal);
+        await this.revalidate(blocks, profile, this.db.manager);
+        if (stored.context) await assertCatalogActor(this.db.manager, stored.context);
+        await this.validateBusinessDates(blocks, profile, stored.basis);
         const snapshot: any = {
           schemaVersion: 2,
           kind: 'structured-bi-dashboard',
           sourceId: p.sourceId,
+          ...(stored.basis ? { businessBasis: stored.basis } : {}),
           dataVersion: profile.dataVersion,
           items: [],
         };
         const prepared = await this.dashboards.prepareSave(
-          { draft: this.compile(p.sourceId, p.title, blocks, profile) },
+          { draft: this.compile(p.sourceId, p.title, blocks, profile, stored.basis) },
           actor,
           snapshot,
         );
         return metadataTransaction(this.db, async manager => {
+          if (stored.context) await assertCatalogActor(manager, stored.context, true);
           await lockMetricSources(manager, [p.sourceId]);
           await this.ensureCurrentSource(p.sourceId, actor, manager);
           const candidates = await manager.find(Metric, {
@@ -1186,6 +1507,13 @@ export class StudioCreationService {
             manager,
             p.sourceId,
             blocks.flatMap(b => (b.metric.id ? [b.metric.id] : [])),
+          );
+          await resolveBusinessBasis(
+            manager,
+            p.sourceId,
+            profile,
+            stored.basis,
+            profile.columns.map(c => c.name),
           );
           await this.revalidate(blocks, profile, manager);
           const metrics = new Map<string, any>();
@@ -1218,6 +1546,13 @@ export class StudioCreationService {
               definitionVersion: definition.definitionVersion,
               definition,
               dimension: b.dimension?.column,
+              ...(b.businessBasis ? { businessBasis: copy(b.businessBasis) } : {}),
+              ...(b.defaultDateColumn !== undefined
+                ? { defaultDateColumn: b.defaultDateColumn }
+                : {}),
+              ...(b.dimension?.businessBasis
+                ? { dimensionBusinessBasis: copy(b.dimension.businessBasis) }
+                : {}),
               chart:
                 b.kind === 'BOARD_NUMERIC' ? 'number' : b.kind === 'CHART_LINE' ? 'line' : 'bar',
             };
@@ -1241,6 +1576,7 @@ export class StudioCreationService {
             legacyRevision: document.revision,
           });
           await this.ensureCurrentSource(p.sourceId, actor, manager);
+          if (stored.context) await assertCatalogActor(manager, stored.context);
           const result = { dashboardId: saved.id, document, idMap };
           await manager.insert(StudioRun, {
             actorId: actor,
@@ -1260,6 +1596,15 @@ export class StudioCreationService {
         this.proposals.delete(body.proposalId);
         return recovered;
       }
+      if (stored.context) await assertCatalogActor(this.db.manager, stored.context);
+      await this.ensureCurrentSource(p.sourceId, actor, this.db.manager);
+      await resolveBusinessBasis(
+        this.db.manager,
+        p.sourceId,
+        p.profile,
+        stored.basis,
+        p.profile.columns.map(c => c.name),
+      );
       throw error;
     }
   }

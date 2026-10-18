@@ -1,3 +1,12 @@
+import { editorDraftSessionEpoch } from '@/helpers/editorDraftStorage';
+import {
+  BusinessBasis,
+  BusinessBasisResult,
+  fetchBusinessBasis,
+  businessColumnLabel,
+  assertOptionalBusinessBasis,
+} from '@/api/businessBasis';
+import BusinessBasisDetails from './BusinessBasisDetails';
 import { chartColors, chartTheme } from '@/components/charts/chartTheme';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -46,6 +55,7 @@ type Aggregation = 'FORMULA' | 'SUM' | 'COUNT' | 'COUNT_DISTINCT' | 'AVG' | 'MIN
 type Definition = {
   schemaVersion?: 1;
   formula?: { operands?: Array<{ id: number; definitionVersion: number; definition: { label: string } }> };
+  businessBasis?: BusinessBasis | null;
   sourceId: number;
   label: string;
   aggregation: Aggregation;
@@ -111,6 +121,8 @@ function Select({
 }
 
 export default function Explore() {
+  const session = useRef(editorDraftSessionEpoch());
+  const currentSession = () => editorDraftSessionEpoch() === session.current;
   const navigate = useNavigate();
   const { t } = useTranslation();
   const useAiLabel = t('fileAnalysis.buildWithAi');
@@ -120,12 +132,19 @@ export default function Explore() {
     /^\d+$/.test(searchParams.get('sourceId') || '') ? searchParams.get('sourceId') || '' : '',
   );
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [basis, setBasis] = useState<BusinessBasisResult | null>(null);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [metricId, setMetricId] = useState('');
   const [definition, setDefinition] = useState<Definition>(emptyDefinition);
   const [chart, setChart] = useState<Chart>('number');
   const [dimension, setDimension] = useState('');
   const [title, setTitle] = useState('');
+  const chartHost = useRef<HTMLDivElement>(null);
+  const chartInstance = useRef<{ resize: (options: { width: number }) => void } | null>(null);
+  const resizePreviewChart = () => {
+    const width = chartHost.current?.getBoundingClientRect().width;
+    if (width && chartInstance.current) chartInstance.current.resize({ width: Math.floor(width) });
+  };
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -157,28 +176,42 @@ export default function Explore() {
       try {
         if (!sourceId) {
           const list = unwrap<Source[]>(await get('/bi/sources', undefined, { signal: abort.signal }));
-          if (revision.current === token) setSources(list);
+          if (revision.current === token && currentSession()) setSources(list);
         } else {
-          const [nextProfile, saved, sourceList] = await Promise.all([
+          const [nextProfile, saved, sourceList, business] = await Promise.all([
             get(`/bi/sources/${encodeURIComponent(sourceId)}/profile`, undefined, { signal: abort.signal }).then(
               unwrap<Profile>,
             ),
             get('/bi/metrics', { sourceId: Number(sourceId) }, { signal: abort.signal }).then(unwrap<Metric[]>),
-            get('/bi/sources', undefined, { signal: abort.signal }).then(unwrap<Source[]>),
+            get('/bi/sources', undefined, { signal: abort.signal })
+              .then(unwrap<Source[]>)
+              .then(list => {
+                if (revision.current === token && currentSession()) setSources(list);
+                return list;
+              }),
+            fetchBusinessBasis(Number(sourceId), abort.signal),
           ]);
-          if (revision.current === token) {
+          if (revision.current === token && currentSession()) {
+            if (
+              business.sourceRevision !== nextProfile.dataVersion ||
+              business.businessColumns.length !== nextProfile.columns?.length ||
+              business.businessColumns.some(c => !nextProfile.columns?.some(n => n.name === c.name && n.type === c.type))
+            )
+              throw new Error('source changed');
             setSources(sourceList);
             setProfile(nextProfile);
+            setBasis(business);
             setMetrics(saved);
           }
         }
       } catch {
-        if (revision.current === token) {
+        if (revision.current === token && currentSession()) {
           setProfile(null);
+          setBasis(null);
           setError('데이터를 불러오지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.');
         }
       } finally {
-        if (revision.current === token) {
+        if (revision.current === token && currentSession()) {
           pending.current = false;
           setBusy('');
         }
@@ -192,7 +225,18 @@ export default function Explore() {
     };
   }, [sourceId, reload]);
 
-  const columns = profile?.columns ?? [];
+  useEffect(() => {
+    if (!preview || chart === 'number' || !chartHost.current || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(resizePreviewChart);
+    observer.observe(chartHost.current);
+    return () => observer.disconnect();
+  }, [preview, chart]);
+
+  const columns =
+    basis?.sourceId === Number(sourceId)
+      ? basis.businessColumns.map(c => ({ ...profile?.columns?.find(n => n.name === c.name), ...c }))
+      : [];
+  const columnLabel = (column: (typeof columns)[number]) => businessColumnLabel(column);
   const ready = profile?.supported && profile.status === 'ready';
   const weighted = definition.aggregation === 'WEIGHTED_AVG';
   const ratio = definition.aggregation === 'RATIO_SUM';
@@ -200,9 +244,7 @@ export default function Explore() {
   const eligibleColumns = columns.filter(
     column => !['SUM', 'AVG', 'MIN', 'MAX', 'WEIGHTED_AVG', 'RATIO_SUM'].includes(definition.aggregation) || column.numeric,
   );
-  const dimensions = columns.filter(column =>
-    chart === 'line' ? column.temporal && /^(DATE|TIMESTAMP)/i.test(column.type) : !column.numeric && !column.temporal,
-  );
+  const dimensions = columns.filter(column => (chart === 'line' ? column.temporal : !column.numeric && !column.temporal));
   const validMetric =
     !!definition.label.trim() &&
     ((!!metricId && definition.aggregation === 'FORMULA') ||
@@ -216,16 +258,21 @@ export default function Explore() {
   const changeDefinition = (patch: Partial<Definition>) => {
     invalidate();
     setMetricId('');
-    setDefinition(current => ({ ...current, ...patch }));
+    setDefinition(current => ({ ...current, ...patch, businessBasis: basis?.businessBasis }));
   };
   const body = {
     sourceId: Number(sourceId),
     metricId: Number(metricId),
     chart,
+    businessBasis: basis?.businessBasis,
     title: title.trim(),
     ...(chart === 'number' ? {} : { dimension }),
   };
   const run = async (action: 'metric' | 'preview' | 'dashboard') => {
+    if (!currentSession()) {
+      setError('로그인 문맥이 변경됐습니다. 입력을 보존했습니다. 페이지를 다시 확인하세요.');
+      return;
+    }
     if (
       pending.current ||
       (action === 'metric' && profile?.access?.edit === false) ||
@@ -245,6 +292,7 @@ export default function Explore() {
             '/bi/metrics',
             {
               ...definition,
+              businessBasis: basis?.businessBasis,
               sourceId: Number(sourceId),
               label: definition.label.trim(),
               column: ['COUNT', 'FORMULA'].includes(definition.aggregation) ? '*' : definition.column,
@@ -252,7 +300,9 @@ export default function Explore() {
             { signal: abort.signal },
           ),
         );
-        if (token !== revision.current) return;
+        if (token !== revision.current || !currentSession()) return;
+        assertOptionalBusinessBasis(saved.definition);
+        if (basis?.businessBasis && saved.definition?.businessBasis === undefined) throw new Error('missing saved basis');
         setMetrics(current => [...current.filter(metric => metric.id !== saved.id), saved]);
         setMetricId(String(saved.id));
         setDefinition(saved.definition);
@@ -260,14 +310,14 @@ export default function Explore() {
       } else if (action === 'preview') {
         setPreview(null);
         const result = unwrap<Preview>(await post('/bi/preview', body, { signal: abort.signal }));
-        if (token === revision.current) setPreview(result);
+        if (token === revision.current && currentSession()) setPreview(result);
       } else {
         const saved = unwrap<{ id: number; revision: string }>(await post('/bi/dashboards', body, { signal: abort.signal }));
-        if (token === revision.current) navigate(`/dashboard/${saved.id}`);
+        if (token === revision.current && currentSession()) navigate(`/dashboard/${saved.id}`);
       }
     } catch (e: unknown) {
       const serverMessage = (e as { response?: { data?: { data?: unknown } } })?.response?.data?.data;
-      if (token === revision.current)
+      if (token === revision.current && currentSession())
         setError(
           action === 'metric'
             ? typeof serverMessage === 'string'
@@ -278,7 +328,7 @@ export default function Explore() {
             : '대시보드를 저장하지 못했습니다. 아래 대시보드 저장 버튼으로 다시 시도해 주세요.',
         );
     } finally {
-      if (token === revision.current) {
+      if (token === revision.current && currentSession()) {
         pending.current = false;
         setBusy('');
       }
@@ -394,10 +444,10 @@ export default function Explore() {
                     {columns.map(column => (
                       <TableRow key={column.name} className="border-0 hover:bg-transparent">
                         <TableHead scope="row" className="h-auto border-b p-2 text-left align-top font-normal wrap-anywhere">
-                          {column.name}
+                          {columnLabel(column)}
                         </TableHead>
                         <TableCell className="border-b p-2 text-left wrap-anywhere">{column.type}</TableCell>
-                        <TableCell className="border-b p-2 text-left wrap-anywhere">{column.nullCount}</TableCell>
+                        <TableCell className="border-b p-2 text-left wrap-anywhere">{text(column.nullCount)}</TableCell>
                         <TableCell className="border-b p-2 text-left wrap-anywhere">
                           {column.temporal ? `${column.min ?? '—'} ~ ${column.max ?? '—'}` : '—'}
                         </TableCell>
@@ -413,7 +463,7 @@ export default function Explore() {
                     <TableRow className="border-0 hover:bg-transparent">
                       {columns.map(column => (
                         <TableHead scope="col" key={column.name} className="h-auto border-b p-2 text-left wrap-anywhere">
-                          {column.name}
+                          {columnLabel(column)}
                         </TableHead>
                       ))}
                     </TableRow>
@@ -453,6 +503,7 @@ export default function Explore() {
           <>
             <Card className="min-w-0 p-4 md:p-6">
               <h2 className="mb-4 text-lg font-semibold">2. 지표 저장 또는 재사용</h2>
+              <BusinessBasisDetails basis={metricId ? definition.businessBasis : basis?.businessBasis} />
               <div className="flex flex-col gap-4">
                 <Select
                   label="저장된 지표"
@@ -462,7 +513,11 @@ export default function Explore() {
                     invalidate();
                     setMetricId(value);
                     const saved = metrics.find(metric => String(metric.id) === value);
-                    setDefinition(saved ? saved.definition : { ...emptyDefinition, sourceId: Number(sourceId) });
+                    setDefinition(
+                      saved
+                        ? saved.definition
+                        : { ...emptyDefinition, sourceId: Number(sourceId), businessBasis: basis?.businessBasis },
+                    );
                   }}
                 >
                   <option value="">새 지표 만들기</option>
@@ -500,6 +555,7 @@ export default function Explore() {
                         onChange={value =>
                           changeDefinition({
                             aggregation: value as Aggregation,
+                            unit: '',
                             column: value === 'COUNT' ? '*' : '',
                             weightColumn: undefined,
                             denominatorColumn: undefined,
@@ -520,7 +576,14 @@ export default function Explore() {
                         label={weighted ? '값 열' : ratio ? '분자 열' : '집계할 열'}
                         value={definition.aggregation === 'COUNT' ? '*' : definition.column}
                         disabled={!!busy || definition.aggregation === 'COUNT'}
-                        onChange={value => changeDefinition({ column: value })}
+                        onChange={value =>
+                          changeDefinition({
+                            column: value,
+                            ...(!['COUNT', 'COUNT_DISTINCT', 'RATIO_SUM'].includes(definition.aggregation)
+                              ? { unit: columns.find(c => c.name === value)?.unit ?? '' }
+                              : {}),
+                          })
+                        }
                       >
                         {definition.aggregation === 'COUNT' ? (
                           <option value="*">전체 행 (*)</option>
@@ -529,7 +592,7 @@ export default function Explore() {
                             <option value="">열을 선택하세요</option>
                             {eligibleColumns.map(column => (
                               <option key={column.name} value={column.name}>
-                                {column.name}
+                                {columnLabel(column)}
                               </option>
                             ))}
                           </>
@@ -547,7 +610,7 @@ export default function Explore() {
                           <option value="">숫자 열을 선택하세요</option>
                           {numericColumns.map(column => (
                             <option key={column.name} value={column.name}>
-                              {column.name}
+                              {columnLabel(column)}
                             </option>
                           ))}
                         </Select>
@@ -675,7 +738,7 @@ export default function Explore() {
                     <option value="">열을 선택하세요</option>
                     {dimensions.map(column => (
                       <option key={column.name} value={column.name}>
-                        {column.name}
+                        {columnLabel(column)}
                       </option>
                     ))}
                   </Select>
@@ -709,32 +772,38 @@ export default function Explore() {
                         />
                       </div>
                     ) : (
-                      <React.Suspense fallback={<p>차트 불러오는 중…</p>}>
-                        <ChartPreview
-                          theme={chartTheme}
-                          style={{ height: 280, width: '100%' }}
-                          option={{
-                            color: [chartColors.primary],
-                            animation: false,
-                            grid: { left: 16, right: 16, bottom: 48, top: 24, containLabel: true },
-                            tooltip: { trigger: 'axis' },
-                            xAxis: {
-                              type: 'category',
-                              data: preview.rows.map(row => text(row.dimension)),
-                              axisLabel: { color: chartColors.muted, hideOverlap: true },
-                            },
-                            yAxis: { type: 'value', axisLabel: { color: chartColors.muted } },
-                            series: [
-                              {
-                                type: chart,
-                                name: preview.metric.label,
-                                data: preview.rows.map(row => (row.value == null ? null : Number(row.value))),
+                      <div ref={chartHost} className="min-w-0 w-full">
+                        <React.Suspense fallback={<p>차트 불러오는 중…</p>}>
+                          <ChartPreview
+                            onChartReady={instance => {
+                              chartInstance.current = instance;
+                              resizePreviewChart();
+                            }}
+                            theme={chartTheme}
+                            style={{ height: 280, width: '100%' }}
+                            option={{
+                              color: [chartColors.primary],
+                              animation: false,
+                              grid: { left: 16, right: 16, bottom: 48, top: 24, containLabel: true },
+                              tooltip: { trigger: 'axis' },
+                              xAxis: {
+                                type: 'category',
+                                data: preview.rows.map(row => text(row.dimension)),
+                                axisLabel: { color: chartColors.muted, hideOverlap: true },
                               },
-                            ],
-                          }}
-                          opts={{ renderer: 'svg' }}
-                        />
-                      </React.Suspense>
+                              yAxis: { type: 'value', axisLabel: { color: chartColors.muted } },
+                              series: [
+                                {
+                                  type: chart,
+                                  name: preview.metric.label,
+                                  data: preview.rows.map(row => (row.value == null ? null : Number(row.value))),
+                                },
+                              ],
+                            }}
+                            opts={{ renderer: 'svg' }}
+                          />
+                        </React.Suspense>
+                      </div>
                     )}
                     <Table style={{ width: '100%' }}>
                       <TableCaption className="mt-0 mb-1 text-left text-inherit">

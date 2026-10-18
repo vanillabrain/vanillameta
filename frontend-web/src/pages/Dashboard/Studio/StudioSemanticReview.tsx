@@ -1,4 +1,5 @@
 import StudioReport from './StudioReport';
+import BusinessBasisDetails from '../../Explore/BusinessBasisDetails';
 import { useTranslation } from 'react-i18next';
 import React, { useId } from 'react';
 import StudioMetricBasis from './StudioMetricBasis';
@@ -19,6 +20,7 @@ export default function StudioSemanticReview({ proposal }: { proposal: CreationP
         <span>저장 전 · {proposal.semanticProposal.length}개 블록</span>
       </div>
       <p>지표와 차원을 확인하세요. 저장하면 같은 Studio에서 배치와 표현을 편집할 수 있습니다.</p>
+      <BusinessBasisDetails basis={proposal.businessBasis} />
       <div className="studio-create-preview-grid">
         {proposal.semanticProposal.map((item, index) => {
           const row = proposal.preview?.widgets[index];
@@ -50,7 +52,10 @@ export default function StudioSemanticReview({ proposal }: { proposal: CreationP
               </details>
               {item.dimension && (
                 <p className="studio-create-definition">
-                  차원: {item.dimension.column} · {item.dimension.type}
+                  차원:{' '}
+                  {item.dimension.businessBasis?.columns.find(c => c.column === item.dimension?.column)?.label ??
+                    item.dimension.column}{' '}
+                  · {item.dimension.column} · {item.dimension.type}
                 </p>
               )}
               {!row ? (

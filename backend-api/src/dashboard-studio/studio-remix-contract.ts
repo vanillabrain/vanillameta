@@ -1,3 +1,4 @@
+import type { BusinessBasis } from '../bi/semantic-business-basis';
 import {
   StudioBlockKind,
   StudioConditions,
@@ -23,9 +24,12 @@ export type RemixTemplate = {
   requiredFields: RemixRequiredField[];
   blocks: Array<
     RemixBlock & {
+      businessBasis?: BusinessBasis;
+      defaultDateColumn?: string | null;
       description: string;
       display: StudioDisplay;
       metric?: {
+        businessBasis?: BusinessBasis;
         label: string;
         aggregation: string;
         column: string;
@@ -36,7 +40,7 @@ export type RemixTemplate = {
         decimalPlaces: number;
         numberNotation: string;
       };
-      dimension?: { column: string };
+      dimension?: { column: string; businessBasis?: BusinessBasis };
     }
   >;
   layouts: StudioDocumentV1['layouts'];

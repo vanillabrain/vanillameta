@@ -22,7 +22,12 @@ export class StudioCreationController {
     res.once('close', close);
     if (req.aborted) abort();
     try {
-      return await this.creation.propose(body, req.user?.accessKeyData?.id, controller.signal);
+      return await this.creation.propose(
+        body,
+        req.user?.accessKeyData?.id,
+        controller.signal,
+        req.user?.accessKeyData?.authVersion ?? 0,
+      );
     } finally {
       req.off('aborted', abort);
       res.off('close', close);
@@ -36,6 +41,10 @@ export class StudioCreationController {
     return this.creation.proposal(id, Number(sourceId), req.user?.accessKeyData?.id);
   }
   @Post('dashboards') create(@Body() body: any, @Req() req) {
-    return this.creation.create(body, req.user?.accessKeyData?.id);
+    return this.creation.create(
+      body,
+      req.user?.accessKeyData?.id,
+      req.user?.accessKeyData?.authVersion ?? 0,
+    );
   }
 }

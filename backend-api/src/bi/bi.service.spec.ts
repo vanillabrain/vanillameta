@@ -6,6 +6,9 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api';
 import { Database } from '../database/entities/database.entity';
 import { Metric } from '../metric/entities/metric.entity';
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { BiService } from './bi.service';
 
@@ -68,14 +71,30 @@ describe('BiService structured file analysis', () => {
     const sourceRepo = {
       findOne: jest.fn(async ({ where }) => sources.find(row => row.id === where.id)),
     };
-    const db = {
+    const db: any = {
       options: { type: 'sqlite' },
       getRepository: jest.fn(entity => {
         if (entity === Database) return sourceRepo;
         if (entity === Metric) return metricRepo;
+        if (entity === User)
+          return {
+            findOne: async ({ where }) =>
+              where.id === 10 ? { id: 10, active: true, authVersion: 0 } : null,
+          };
+        if (entity === EnterpriseMembership || entity === SourceCatalogEntry)
+          return { findOne: async () => null };
         throw new Error('unexpected repository');
       }),
     };
+    const manager = {
+      connection: db,
+      queryRunner: { isTransactionActive: false },
+      getRepository: db.getRepository,
+      findOne: (entity, options) => db.getRepository(entity).findOne(options),
+      findOneBy: (entity, where) => db.getRepository(entity).findOne({ where }),
+    };
+    db.manager = manager;
+    db.transaction = async run => run({ ...manager, queryRunner: { isTransactionActive: true } });
     queryDuckDB = jest.fn(async (_id, sql) => ({
       datas: (await duck.runAndReadAll(sql)).getRowObjectsJson(),
     }));
@@ -283,6 +302,12 @@ describe('BiService structured file analysis', () => {
         }),
         chart: 'bar',
       },
+      undefined,
+      undefined,
+      false,
+      [],
+      undefined,
+      undefined,
     );
     saveDashboard.mockRejectedValueOnce(new Error('transaction rolled back'));
     await expect(service.save(body, 10)).rejects.toThrow('transaction rolled back');

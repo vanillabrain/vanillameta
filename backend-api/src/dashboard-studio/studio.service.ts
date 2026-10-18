@@ -1,3 +1,4 @@
+import { resolveBusinessBasis } from '../bi/semantic-business-basis';
 import {
   latestConditionSemantics,
   resolveConditionSemantics,
@@ -89,6 +90,14 @@ export class StudioService {
     ).datas;
     const schemaVersion = studioDigest(schema);
     const snapshot = row.structuredDefinition ? JSON.parse(row.structuredDefinition) : null;
+    const profile = { columns: schema.map(c => ({ name: c.column_name, type: c.column_type })) };
+    await resolveBusinessBasis(
+      manager,
+      analysis.databaseId,
+      profile,
+      analysis.businessBasis,
+      profile.columns.map(c => c.name),
+    );
     const items = metricLinkItems(snapshot, analysis);
     // The legacy single-block form explicitly describes index 0 only. Newly attached legacy
     // widgets have no canonical link; record that fact rather than guessing a metric for them.
@@ -336,6 +345,13 @@ export class StudioService {
     schema: any[],
     manager = this.db.manager,
   ) {
+    const basisProfile = {
+      columns: schema.map(c => ({ name: c.column_name, type: c.column_type })),
+    };
+    const usedBasisColumns: string[] = [
+      ...block.dimensionRefs.map(ref => ref.key),
+      ...(block.defaultDateColumn ? [block.defaultDateColumn] : []),
+    ];
     for (const ref of block.measureRefs) {
       const metric = await manager.findOne(Metric, {
         where: { id: ref.id, databaseId: sourceId, useYn: 'Y' },
@@ -351,10 +367,43 @@ export class StudioService {
         String(definition.definitionVersion) !== ref.definitionVersion
       )
         throw new ConflictException('지표 정의가 변경되었습니다. 최신 지표를 다시 확인해 주세요.');
+      usedBasisColumns.push(
+        ...[
+          definition.aggregation === 'COUNT' ? undefined : definition.column,
+          definition.denominatorColumn,
+          definition.weightColumn,
+        ].filter(Boolean),
+      );
+      await resolveBusinessBasis(
+        manager,
+        sourceId,
+        { columns: schema.map(c => ({ name: c.column_name, type: c.column_type })) },
+        definition.businessBasis,
+        [
+          definition.aggregation === 'COUNT' ? undefined : definition.column,
+          definition.denominatorColumn,
+          definition.weightColumn,
+        ].filter(Boolean),
+      );
     }
-    for (const ref of block.dimensionRefs)
+    await resolveBusinessBasis(
+      manager,
+      sourceId,
+      basisProfile,
+      block.businessBasis,
+      usedBasisColumns,
+    );
+    for (const ref of block.dimensionRefs) {
+      await resolveBusinessBasis(
+        manager,
+        sourceId,
+        { columns: schema.map(c => ({ name: c.column_name, type: c.column_type })) },
+        ref.businessBasis,
+        [ref.key],
+      );
       if (ref.schemaVersion !== schemaVersion || !schema.some(c => c.column_name === ref.key))
         throw new ConflictException('소스 열 구성이 변경되었습니다. 다시 불러와 주세요.');
+    }
   }
   /** Unsaved document preview under the current explicit edit grant. References come from the server catalog. */
   async prepare(id: number, body: any, actor: number) {
@@ -366,6 +415,11 @@ export class StudioService {
     return pin.run(async () => {
       const captured = await serializeMetadataWork(this.db, async () => {
         const current = await this.load(id, actor, 'edit');
+        if (
+          studioDigest(body.document?.businessBasis ?? null) !==
+          studioDigest(current.document.businessBasis ?? null)
+        )
+          throw new BadRequestException('저장된 업무 기준은 편집 문서에서 바꿀 수 없습니다.');
         if (
           current.document.revision !== body.expectedRevision ||
           current.sourceRevision !== body.expectedSourceRevision
@@ -410,7 +464,10 @@ export class StudioService {
               original.kind !== block.kind ||
               original.definitionKey !== block.definitionKey ||
               studioDigest(original.measureRefs) !== studioDigest(block.measureRefs) ||
-              studioDigest(original.dimensionRefs) !== studioDigest(block.dimensionRefs)
+              studioDigest(original.dimensionRefs) !== studioDigest(block.dimensionRefs) ||
+              studioDigest(original.businessBasis ?? null) !==
+                studioDigest(block.businessBasis ?? null) ||
+              original.defaultDateColumn !== block.defaultDateColumn
             )
               throw new BadRequestException('기존 계산과 지표 연결을 유지해 주세요.');
             await this.validateCurrentReferences(
@@ -431,6 +488,9 @@ export class StudioService {
         );
         const draft = {
           databaseId: document.sourceId,
+          ...(current.analysis.businessBasis
+            ? { businessBasis: current.analysis.businessBasis }
+            : {}),
           title: document.title,
           explanation: current.analysis.explanation,
           widgets,
@@ -733,7 +793,9 @@ export class StudioService {
         // DISTINCT is safe for publication when the exact server canonical compiler proves it;
         // contribution drilldown intentionally declines DISTINCT and keeps its narrower contract.
         const canonicalDistinct =
-          current.items[index]?.definition?.aggregation === 'COUNT_DISTINCT' &&
+          (current.items[index]?.definition?.aggregation === 'COUNT_DISTINCT' ||
+            current.items[index]?.dimensionBusinessBasis ||
+            current.items[index]?.definition?.businessBasis) &&
           captureRemixTemplate(
             current.document,
             current.items,
@@ -966,6 +1028,11 @@ export class StudioService {
         });
         const current = await this.load(id, actor, 'edit');
         if (
+          studioDigest(body.document?.businessBasis ?? null) !==
+          studioDigest(current.document.businessBasis ?? null)
+        )
+          throw new BadRequestException('저장된 업무 기준은 편집 문서에서 바꿀 수 없습니다.');
+        if (
           current.document.conditions?.semantics &&
           document.conditions &&
           !document.conditions.semantics
@@ -1003,7 +1070,10 @@ export class StudioService {
             (!isTemporaryStudioId(block.id) &&
               (!prior || prior.definitionKey !== block.definitionKey)) ||
             studioDigest(original.measureRefs) !== studioDigest(block.measureRefs) ||
-            studioDigest(original.dimensionRefs) !== studioDigest(block.dimensionRefs)
+            studioDigest(original.dimensionRefs) !== studioDigest(block.dimensionRefs) ||
+            studioDigest(original.businessBasis ?? null) !==
+              studioDigest(block.businessBasis ?? null) ||
+            original.defaultDateColumn !== block.defaultDateColumn
           )
             throw new BadRequestException(
               '기존 블록의 계산 정의와 참조를 유지해 주세요. 새 지표 생성은 아직 지원하지 않습니다.',
@@ -1034,6 +1104,9 @@ export class StudioService {
         }
         const draft = {
           databaseId: document.sourceId,
+          ...(current.analysis.businessBasis
+            ? { businessBasis: current.analysis.businessBasis }
+            : {}),
           title: document.title,
           explanation: current.analysis.explanation,
           widgets,
