@@ -184,4 +184,49 @@ describe('DashboardService actual transaction fixture', () => {
     });
     expect((result as any).data.governed).toBe(true);
   });
+  const foreignParent = async () => {
+    await db.manager.insert(Dashboard, { id: 43, title: 'Recipient dashboard', layout: '[]' });
+    await db.manager.insert(UserMapping, { dashboardId: 43, userInfoId: 8 });
+    await db.manager.insert(DashboardWidget, { dashboardId: 43, widgetId: 20 });
+    await db.manager.delete(DashboardWidget, { dashboardId: 42, widgetId: 20 });
+  };
+  it('rejects attaching a transferred widget even when the actor owns its source', async () => {
+    await foreignParent();
+    const before = await db.manager.find(DashboardWidget);
+    await expect(
+      service.update(42, { layout: [{ i: '20', x: 0, y: 0, w: 6, h: 3 }] } as any, 7),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.find(DashboardWidget)).toEqual(before);
+    expect((await db.manager.findOneBy(Dashboard, { id: 42 })).layout).toBe('[]');
+  });
+  it('rejects foreign widget creation without leftover asset rows', async () => {
+    await foreignParent();
+    const counts = await Promise.all(
+      [Dashboard, DashboardShare, UserMapping, DashboardWidget].map(e => db.manager.count(e)),
+    );
+    await expect(
+      service.create(
+        { title: 'Must fail', layout: [{ i: '20', x: 0, y: 0, w: 6, h: 3 }] } as any,
+        7,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(
+      await Promise.all(
+        [Dashboard, DashboardShare, UserMapping, DashboardWidget].map(e => db.manager.count(e)),
+      ),
+    ).toEqual(counts);
+  });
+  it('keeps valid same-owner widget reuse working', async () => {
+    await db.manager.insert(Dashboard, { id: 43, title: 'Another owned', layout: '[]' });
+    await db.manager.insert(UserMapping, { dashboardId: 43, userInfoId: 7 });
+    await service.update(43, { layout: [{ i: '10', x: 0, y: 0, w: 6, h: 3 }] } as any, 7);
+    expect(await db.manager.countBy(DashboardWidget, { dashboardId: 43, widgetId: 10 })).toBe(1);
+  });
+  it('rejects an ambiguous widget parent ownership', async () => {
+    await foreignParent();
+    await db.manager.insert(UserMapping, { dashboardId: 43, userInfoId: 7 });
+    await expect(
+      service.update(42, { layout: [{ i: '20', x: 0, y: 0, w: 6, h: 3 }] } as any, 7),
+    ).rejects.toMatchObject({ status: 403 });
+  });
 });

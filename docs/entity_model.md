@@ -317,3 +317,9 @@ ownerId는 제안 소유자이고 기존 Database.ownerId/UserMapping의 소유�
 [인계 전 연결·보관 조건 검토](plans/UC-051-handover-review.md)는 기존 의향/자산/연결 행에서 계산하는 비영속 읽기 투영이다. schema·migration·감사·원본 파일은 추가/변경하지 않는다. checkedAt은 조회 snapshot의 시각이며 실행 기준이나 새 수락 기록이 아니다. 소유자에게 선택 자료의 명시 연결 건수/보관 검토 필요만 제공하고 미선택 소스의 신원·내용을 응답하지 않는다.
 
 [파일 보관 검토](plans/UC-051-handover-custody.md)는 기존 Source 설정/관리 파일 신원·Database/CommerceSource 소비자·FileRefresh의 비영속 읽기 투영이다. 새 소유권/파일 보관 책임 열·영수증·migration을 만들지 않는다. 신원/소비자/lease는 관측이며 파일 bytes 검증이나 실행 ticket이 아니고 내부 proof·경로·미선택 자료 신원은 응답하지 않는다.
+
+## UC051 비공개 대시보드 최종 인계
+
+[최종 이전 설계](plans/UC-051-handover-transfer.md)의 `enterprise_handover_transfer`는 제목 공개 의향과 별개인 최종 동의/실행 영수증이다. proposalId UUID PK·requestId UUID unique, 현재 조직/양쪽 actor·발급 epoch/조직 버전·CAS version, prepared/accepted/completed/cancelled 상태, 의향 만료 또는 준비15분 중 이른 expiresAt, acceptedAt/completedAt nullable, 고정 dashboard manifestJson·내부 basisHash/payloadHash·불투명 reviewBasis와 단계별 정확한 감사 ID를 저장한다. 최종 요청은 의향 하나당 하나이며 취소/만료 뒤 자동 재활성화하지 않는다. 내부 hash/미선택 자료/SQL·파일 경로는 응답하지 않는다.
+
+최종 실행은 같은 transaction에서 기존 `user_mapping.userInfoId`만 수신자로 변경하고 `dashboard.assetVersion`을 증가시킨다. `studio_state.legacyRevision`은 새 dashboardRevision에 묶되 document bytes는 보존한다. 새 대시보드·블록·파일 사본을 만들거나 과거 actor/관계/게시/독립 사본을 재작성하지 않는다. 완료 영수증은 현재 소유권/접근권 증명이 아니며 현재 활성 당사자/조직으로만 읽는다. additive migration의 기존 schema 검사·운영 적용 및 source/파일 인계·전체 수용은 별도다.

@@ -1,3 +1,6 @@
+import { HandoverTransferService } from './handover-transfer.service';
+import { HandoverTransferController } from './handover-transfer.controller';
+import { EnterpriseHandoverTransfer } from './entities/enterprise-handover-transfer.entity';
 import { HandoverProposalService } from './handover-proposal.service';
 import { HandoverProposalController } from './handover-proposal.controller';
 import { EnterpriseHandoverProposal } from './entities/enterprise-handover-proposal.entity';
@@ -38,6 +41,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
   imports: [
     TypeOrmModule.forFeature([
       EnterpriseHandoverProposal,
+      EnterpriseHandoverTransfer,
       EnterpriseStaffTransfer,
       EnterpriseClassification,
       EnterpriseClassificationRequest,
@@ -50,6 +54,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
   ],
   controllers: [
     HandoverProposalController,
+    HandoverTransferController,
     StaffDepartureImpactController,
     StaffTransferController,
     EnterpriseClassificationController,
@@ -62,6 +67,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
   ],
   providers: [
     HandoverProposalService,
+    HandoverTransferService,
     StaffDepartureImpactService,
     StaffTransferService,
     EnterpriseClassificationService,

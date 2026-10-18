@@ -1,3 +1,4 @@
+import HandoverFinalTransfer from './HandoverFinalTransfer';
 import HandoverDependencyReview from './HandoverDependencyReview';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { EnterpriseContext, enterpriseError } from '@/api/enterpriseService';
@@ -429,6 +430,12 @@ export default function HandoverProposal({ context }: { context: EnterpriseConte
                     organizationVersion={organization.version}
                   />
                 )}
+              <HandoverFinalTransfer
+                key={`final:${generation.current}`}
+                review={review}
+                scope={scope}
+                organizationVersion={organization.version}
+              />
               <label className="flex min-h-9 items-center gap-2 text-sm">
                 <input
                   type="checkbox"

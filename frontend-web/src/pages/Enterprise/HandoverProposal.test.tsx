@@ -504,3 +504,50 @@ it.each([
   expect(api.get).toHaveBeenCalledOnce();
   expect(api.post).not.toHaveBeenCalled();
 });
+it.each([42, 43])(
+  'integrates separate folded final transfer for party %i without automatic calls or changing intent consent',
+  async actor => {
+    api.get.mockResolvedValue({
+      data: proposal({
+        status: 'accepted',
+        version: 2,
+        acceptedAt: '2026-10-19T12:00:00Z',
+        assets: [asset(21, 'dashboard')],
+      }),
+    });
+    render(<HandoverProposal context={context(actor)} />);
+    open();
+    await review();
+    expect(screen.getByRole('button', { name: '최종 대시보드 인계 열기' })).toBeTruthy();
+    click('최종 대시보드 인계 열기');
+    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(screen.getByRole('checkbox', { name: /위 고정 목록/ })).toHaveProperty('checked', false);
+    expect(screen.queryByRole('button', { name: '최종 인계 수락' })).toBeNull();
+    click('업무 자료 인계 접기');
+    expect(screen.queryByRole('region', { name: '최종 대시보드 인계' })).toBeNull();
+  },
+);
+it('final review failure preserves parent request/fixed list; parent explicit re-read remounts folded final child', async () => {
+  const accepted = proposal({
+    status: 'accepted',
+    version: 2,
+    acceptedAt: '2026-10-19T12:00:00Z',
+    assets: [asset(21, 'dashboard')],
+  });
+  api.get.mockResolvedValue({ data: accepted });
+  render(<HandoverProposal context={context()} />);
+  open();
+  await review();
+  click('최종 대시보드 인계 열기');
+  api.get.mockRejectedValueOnce({ response: { status: 409 } });
+  click('최종 이전 조건 검토');
+  await waitFor(() => expect(screen.queryByText('최종 인계 확인 중…')).toBeNull());
+  expect(screen.getByLabelText('조회할 요청 번호')).toHaveProperty('value', uuid);
+  expect(screen.getByRole('list', { name: '검토한 고정 자료' }).textContent).toContain(asset(21, 'dashboard').title);
+  expect(api.post).not.toHaveBeenCalled();
+  click('요청 상태·고정 목록 검토');
+  await screen.findByRole('button', { name: '최종 대시보드 인계 열기' });
+  expect(screen.queryByRole('button', { name: '최종 요청 상태 조회' })).toBeNull();
+  expect(api.post).not.toHaveBeenCalled();
+});

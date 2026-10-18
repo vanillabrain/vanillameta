@@ -237,7 +237,10 @@ const cleanup = () =>
           "--verbose",
           "--runTestsByPath",
           ...(handover
-            ? ["src/enterprise/handover-proposal.spec.ts"]
+            ? [
+                "src/enterprise/handover-proposal.spec.ts",
+                "src/enterprise/handover-transfer.spec.ts",
+              ]
             : departure
             ? ["src/enterprise/staff-departure-impact.spec.ts"]
             : staff

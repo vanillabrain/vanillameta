@@ -1,3 +1,4 @@
+import { AddHandoverTransfer1792610000000 } from './migrations/1792610000000-add-handover-transfer';
 import { AddHandoverProposal1792600000000 } from './migrations/1792600000000-add-handover-proposal';
 import { AddStaffTransfer1792590000000 } from './migrations/1792590000000-add-staff-transfer';
 import { AddConditionReports1792300004000 } from './migrations/1792300004000-add-condition-reports';
@@ -96,6 +97,7 @@ import { apiEnvFiles } from './config-env';
       autoLoadEntities: true,
       migrations: [
         AddHandoverProposal1792600000000,
+        AddHandoverTransfer1792610000000,
         AddFileRefresh1792300000000,
         AddFileRefreshActorEpoch1792580001000,
         AddFileCorrection1792300001000,

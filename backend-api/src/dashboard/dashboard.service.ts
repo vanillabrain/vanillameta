@@ -1,4 +1,4 @@
-import { lockDashboardWrite } from './dashboard-write-lock';
+import { lockWidgetAttachmentParents } from './widget-attachment-lock';
 import {
   BadRequestException,
   ForbiddenException,
@@ -117,6 +117,13 @@ export class DashboardService {
     return ids;
   }
 
+  private attachmentTransaction<T>(run: (manager: EntityManager) => Promise<T>) {
+    const manager = this.dashboardRepository.manager;
+    return ['mysql', 'mariadb'].includes(manager.connection.options.type)
+      ? metadataTransaction(manager, 'READ COMMITTED', run)
+      : metadataTransaction(manager, run);
+  }
+
   async create(createDashboardDto: CreateDashboardDto, accessToken: number) {
     this.rejectLifecycleFields(createDashboardDto);
     const userData = await this.userRepository.findOne({
@@ -126,52 +133,26 @@ export class DashboardService {
       return 'Bad Request';
     }
     const widgetIds = await this.validateLayout(createDashboardDto.layout);
-    const share_id = await this.dashboardShareRepository.save({
-      uuid: uuidv4(), // uuid의 버전 uuidv1의 결우 mac의 정보등을 담고있음.
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    return this.attachmentTransaction(async manager => {
+      await lockWidgetAttachmentParents(manager, widgetIds, accessToken);
+      for (const widgetId of widgetIds)
+        await this.access.assert('widget', widgetId, accessToken, 'owner', manager);
+      const share = await manager.save(DashboardShare, { uuid: uuidv4(), shareYn: YesNo.NO });
+      const dashboard = await manager.save(Dashboard, {
+        assetActive: true,
+        assetVersion: 0,
+        title: createDashboardDto.title,
+        layout: JSON.stringify(createDashboardDto.layout),
+        delYn: YesNo.NO,
+        shareId: share.id,
+      });
+      await manager.save(UserMapping, { dashboardId: dashboard.id, userInfoId: accessToken });
+      await this.dashboardWidgetService.create({ dashboardId: dashboard.id, widgetIds }, manager);
+      return {
+        status: ResponseStatus.SUCCESS,
+        data: { ...dashboard, layout: JSON.parse(dashboard.layout) },
+      };
     });
-    console.log('test', share_id);
-    const saveObj = {
-      assetActive: true,
-      assetVersion: 0,
-      title: createDashboardDto.title,
-      layout: JSON.stringify(createDashboardDto.layout),
-      delYn: YesNo.NO,
-      shareId: share_id.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const newDashboard = await this.dashboardRepository.save(saveObj);
-
-    await this.userMappingRepository.save({
-      dashboardId: newDashboard.id,
-      userInfoId: accessToken,
-      createdAt: new Date(),
-    });
-
-    // const newDashboard = await this.dashboardRepository.save(saveObj);
-
-    // user테이블에 대시보드id저장
-    // const test = await this.dashboardRepository
-    //   .createQueryBuilder()
-    //   .insert()
-    //   .into(Dashboard, ['title', 'layout'])
-    //   .values(saveObj)
-    //   .orUpdate(['title', 'layout'], ['id'])
-    //   .execute();
-    // console.log('test', test.generatedMaps[0].id);
-    // 기존 코드
-
-    // await this.userService.saveDashboard(newDashboard.id, id);
-
-    const saveObjDW = {
-      dashboardId: newDashboard.id,
-      widgetIds: widgetIds,
-    };
-    newDashboard.layout = JSON.parse(newDashboard.layout);
-    await this.dashboardWidgetService.create(saveObjDW);
-    return { status: ResponseStatus.SUCCESS, data: newDashboard };
   }
 
   /**
@@ -294,8 +275,8 @@ export class DashboardService {
       updateDashboardDto.layout !== undefined
         ? await this.validateLayout(updateDashboardDto.layout)
         : undefined;
-    return metadataTransaction(this.dashboardRepository.manager, async manager => {
-      const dashboard = await lockDashboardWrite(manager, id);
+    return this.attachmentTransaction(async manager => {
+      const dashboard = await lockWidgetAttachmentParents(manager, widgetIds ?? [], actor, id);
       if (actor !== undefined)
         await this.authorizeGrantedEdit(id, actor, action, widgetIds, manager);
       return this.applyUpdate(id, updateDashboardDto, manager, dashboard);

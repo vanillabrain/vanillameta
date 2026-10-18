@@ -74,7 +74,8 @@ export class HandoverProposalService {
       ? { lock: { mode: 'pessimistic_write' as const } }
       : {};
   }
-  private async context(manager: EntityManager, actor: number, epoch: number, proposalId?: string) {
+  /** Internal enterprise workflow boundary; not an HTTP API. */
+  async context(manager: EntityManager, actor: number, epoch: number, proposalId?: string) {
     const query = manager
       .createQueryBuilder(User, 'u')
       .leftJoin(EnterpriseMembership, 'm', 'm.userId = u.id')
@@ -215,7 +216,8 @@ export class HandoverProposalService {
     ])
       query.addSelect(field, alias);
   }
-  private available(basis: any, row: EnterpriseHandoverProposal) {
+  /** Internal enterprise workflow boundary; not an HTTP API. */
+  available(basis: any, row: EnterpriseHandoverProposal) {
     return (
       row.status !== 'cancelled' &&
       row.expiresAt.getTime() > Date.now() &&
@@ -275,7 +277,8 @@ export class HandoverProposalService {
       expired: row.expiresAt.getTime() <= Date.now(),
     };
   }
-  private access(row: EnterpriseHandoverProposal, actor: number, scope: any) {
+  /** Internal enterprise workflow boundary; not an HTTP API. */
+  access(row: EnterpriseHandoverProposal, actor: number, scope: any) {
     if (!row) throw new NotFoundException('인계 의향 요청을 찾을 수 없습니다.');
     if (
       ![row.ownerId, row.recipientId].includes(actor) ||
@@ -534,7 +537,8 @@ export class HandoverProposalService {
       throw new ForbiddenException('같은 조직의 다른 활성 직원만 인계 의향을 확인할 수 있습니다.');
     return { ownerEpoch: ownerUser.authVersion ?? 0, recipientEpoch: receiver.authVersion ?? 0 };
   }
-  private async issued(
+  /** Internal enterprise workflow boundary; not an HTTP API. */
+  async issued(
     manager: EntityManager,
     row: EnterpriseHandoverProposal,
     organization: EnterpriseOrganization,
