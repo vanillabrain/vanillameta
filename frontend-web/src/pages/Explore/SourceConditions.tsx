@@ -1,3 +1,5 @@
+import ConditionProfilePanel from './ConditionProfilePanel';
+import { profileKey } from './conditionProfile';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
@@ -559,6 +561,32 @@ function Editor({ sourceId, canEdit }: Props) {
                   />
                 ))}
               </fieldset>
+              <ConditionProfilePanel
+                columns={data.columns}
+                disabled={busy}
+                contextKey={profileKey({
+                  sourceId,
+                  sourceRevision: data.sourceRevision,
+                  version: data.version,
+                  definition,
+                  columns: data.columns,
+                })}
+                scopeLabel="전체 소스 · 전체 기간 · UTC · 현재 포함/제외 입력"
+                load={async (columns, signal) => {
+                  const draft = {
+                    sourceId,
+                    sourceRevision: data.sourceRevision,
+                    version: data.version,
+                    definition: compile(definition, data.columns),
+                  };
+                  const raw = unwrap(
+                    await post('/bi/source-conditions/profile', { ...draft, columns }, { signal, timeout: 180000 }),
+                  );
+                  if (profileKey(raw?.draft) !== profileKey(draft))
+                    throw new Error('분포 조회의 조건 기준이 요청과 다릅니다.');
+                  return raw;
+                }}
+              />
             </>
           )}
           <div className="flex flex-wrap gap-2">

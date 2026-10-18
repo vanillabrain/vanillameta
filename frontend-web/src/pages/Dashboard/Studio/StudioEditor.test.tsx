@@ -674,6 +674,76 @@ describe('three-way reapply', () => {
   });
 });
 
+it('UC052 profiles current Studio source scope without editing the document or question', async () => {
+  api.get.mockImplementation(async url =>
+    url === '/studio/runs'
+      ? { data: [] }
+      : envelope({ profileColumns: [{ name: 'category', type: 'VARCHAR', kind: 'string' }] }),
+  );
+  api.post.mockImplementation(async (url, body) => ({
+    data: {
+      scope: {
+        dashboardId: 3,
+        sourceId: 4,
+        expectedRevision: body.expectedRevision,
+        expectedSourceRevision: body.expectedSourceRevision,
+        filters: [],
+        dateRange: null,
+        conditions: null,
+      },
+      population: { total: '2', matched: '2', excluded: '0', remaining: '2', matchedRatio: 1, remainingRatio: 1 },
+      distributions: [
+        {
+          column: 'category',
+          type: 'VARCHAR',
+          limit: 20,
+          totalGroups: '2',
+          hasMore: false,
+          rows: ['A', 'B'].map(value => ({
+            value,
+            valueTruncated: false,
+            total: '1',
+            matched: '1',
+            excluded: '0',
+            remaining: '1',
+          })),
+          other: { total: '0', matched: '0', excluded: '0', remaining: '0' },
+          range: { minimum: 'A', maximum: 'B', minimumTruncated: false, maximumTruncated: false },
+        },
+      ],
+      sample: {
+        columns: [{ name: 'category', type: 'VARCHAR' }],
+        rows: ['A', 'B'].map(value => ({ values: [value], truncated: [false] })),
+        limit: 20,
+        totalRows: '2',
+        hasMore: false,
+        selection: 'ordered',
+        representative: false,
+      },
+    },
+  }));
+  render(<StudioEditor />);
+  await screen.findByText('500');
+  fireEvent.click(screen.getByRole('button', { name: 'AI 열기' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }), { target: { value: '유지할 질문' } });
+  fireEvent.click(screen.getByRole('button', { name: '분포·표본 탐색' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'category 분포·표본 선택' }));
+  expect(api.post).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '분포·표본 조회' }));
+  await screen.findByText(/현재 범위 전체 2행/);
+  expect(api.post.mock.calls[0][0]).toBe('/studio/dashboards/3/profile');
+  expect(api.post.mock.calls[0][1]).toMatchObject({
+    columns: ['category'],
+    expectedSourceRevision: SOURCE_REVISION,
+    expectedRevision: DOC_REVISION,
+    document: expect.objectContaining({ dashboardId: 3, sourceId: 4, blocks: doc().blocks, layouts: doc().layouts }),
+  });
+  expect((screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }) as HTMLTextAreaElement).value).toBe('유지할 질문');
+  expect(saveButton().disabled).toBe(true);
+  expect(screen.getByRole('heading', { name: '총매출' })).toBeTruthy();
+  expect(screen.getByText('500')).toBeTruthy();
+});
+
 describe('Studio AI SDK selected block integration', () => {
   const legacyReply = (body: any) => ({
     data: {

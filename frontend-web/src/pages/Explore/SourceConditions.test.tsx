@@ -544,3 +544,58 @@ it.each([
     definition: { include: { kind: 'predicate', column: 'amount', operator: 'eq', values: [expected] }, exclude: null },
   });
 });
+
+it('UC052 read grant can explicitly profile current unsaved condition without saving or altering it', async () => {
+  const columns = [{ name: 'name', type: 'VARCHAR', kind: 'string' }];
+  const definition = { include: { kind: 'predicate', column: 'name', operator: 'eq', values: ['A'] }, exclude: null };
+  vi.mocked(post).mockImplementation(async (url, body: any) => {
+    if (url.endsWith('/read')) return response({ ...initial, columns, definition });
+    const { columns: selected, ...draft } = body;
+    expect(selected).toEqual(['name']);
+    return response({
+      draft,
+      population: { total: '2', matched: '1', excluded: '0', remaining: '1', matchedRatio: 0.5, remainingRatio: 0.5 },
+      distributions: [
+        {
+          column: 'name',
+          type: 'VARCHAR',
+          limit: 20,
+          totalGroups: '2',
+          hasMore: false,
+          rows: [
+            { value: 'A', valueTruncated: false, total: '1', matched: '1', excluded: '0', remaining: '1' },
+            { value: 'B', valueTruncated: false, total: '1', matched: '0', excluded: '0', remaining: '0' },
+          ],
+          other: { total: '0', matched: '0', excluded: '0', remaining: '0' },
+          range: { minimum: 'A', maximum: 'B', minimumTruncated: false, maximumTruncated: false },
+        },
+      ],
+      sample: {
+        columns: [{ name: 'name', type: 'VARCHAR' }],
+        rows: [{ values: ['A'], truncated: [false] }],
+        limit: 20,
+        totalRows: '1',
+        hasMore: false,
+        selection: 'ordered',
+        representative: false,
+      },
+    });
+  });
+  render(<SourceConditions sourceId={3} canEdit={false} />);
+  await open();
+  click('분포·표본 탐색');
+  fireEvent.click(screen.getByRole('checkbox', { name: 'name 분포·표본 선택' }));
+  expect(post).toHaveBeenCalledTimes(1);
+  click('분포·표본 조회');
+  await screen.findByText(/현재 범위 전체 2행/);
+  expect(post).toHaveBeenLastCalledWith(
+    '/bi/source-conditions/profile',
+    { sourceId: 3, sourceRevision: 'r1', version: 0, definition, columns: ['name'] },
+    expect.objectContaining({ signal: expect.anything() }),
+  );
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('A');
+  expect((screen.getByRole('button', { name: '확인한 조건 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  change('포함 값 1', 'B');
+  expect(screen.queryByText(/현재 범위 전체 2행/)).toBeNull();
+  expect(post).toHaveBeenCalledTimes(2);
+});

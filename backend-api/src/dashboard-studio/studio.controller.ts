@@ -15,6 +15,13 @@ export class StudioController {
   ) {
     return this.studio.prepare(id, body, req.user?.accessKeyData?.id);
   }
+  @Post(':id/profile') profile(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+    @Req() req,
+  ) {
+    return this.studio.profile(id, body, req.user?.accessKeyData?.id);
+  }
   @Post(':id/save') save(@Param('id', ParseIntPipe) id: number, @Body() body: any, @Req() req) {
     return this.studio.save(id, body, req.user?.accessKeyData?.id);
   }

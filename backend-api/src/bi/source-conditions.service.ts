@@ -6,6 +6,7 @@ import { ConnectionService } from '../connection/connection.service';
 import { Database } from '../database/entities/database.entity';
 import { sourceRevision } from './source-revision';
 import { SourceConditionEntry } from './entities/source-condition-entry.entity';
+import { conditionPopulation, sourceConditionProfile } from './source-condition-profile';
 import { compileConditionDefinition, conditionColumns } from './source-condition-definition';
 
 const conflict = () =>
@@ -150,29 +151,9 @@ export class SourceConditionsService {
         CAST(COUNT(*) FILTER (WHERE included AND NOT excluded) AS VARCHAR) AS remaining FROM evaluated`,
         compiled.bindings,
       );
-      const raw = rows.datas?.[0];
-      const counts = Object.fromEntries(
-        ['total', 'matched', 'excluded', 'remaining'].map(key => [key, String(raw?.[key])]),
-      );
-      if (
-        Object.values(counts).some(value => !/^\d{1,20}$/.test(value)) ||
-        BigInt(counts.matched) > BigInt(counts.total) ||
-        BigInt(counts.excluded) + BigInt(counts.remaining) !== BigInt(counts.matched)
-      )
-        throw new ConflictException('집계 결과를 확인할 수 없습니다. 다시 미리보기해 주세요.');
+      const population = conditionPopulation(rows.datas?.[0]);
       await this.current(state.id, actor, draft.sourceRevision, 'read', draft.version);
-      const total = Number(counts.total);
-      return {
-        draft,
-        population: {
-          total: counts.total,
-          matched: counts.matched,
-          excluded: counts.excluded,
-          remaining: counts.remaining,
-          matchedRatio: total ? Number(counts.matched) / total : null,
-          remainingRatio: total ? Number(counts.remaining) / total : null,
-        },
-      };
+      return { draft, population };
     });
     // A file replacement outside the pinned worker snapshot cannot make an old count current.
     await this.current(
@@ -183,6 +164,35 @@ export class SourceConditionsService {
       result.draft.version,
     );
     return result;
+  }
+  async profile(body: unknown, actor: number) {
+    const input = this.fields(body, [
+      'sourceId',
+      'sourceRevision',
+      'version',
+      'definition',
+      'columns',
+    ]);
+    const { state, compiled, draft } = await this.prepare(
+      {
+        sourceId: input.sourceId,
+        sourceRevision: input.sourceRevision,
+        version: input.version,
+        definition: input.definition,
+      },
+      actor,
+      'read',
+    );
+    const result = await state.pin.run(() =>
+      sourceConditionProfile({
+        schema: state.columns,
+        columns: input.columns,
+        definition: compiled.definition,
+        query: (sql, bindings) => this.connection.queryDuckDB(state.id, sql, bindings),
+      }),
+    );
+    await this.current(state.id, actor, draft.sourceRevision, 'read', draft.version);
+    return { draft, ...result };
   }
   async save(body: unknown, actor: number) {
     const { state, compiled, draft } = await this.prepare(body, actor, 'edit');

@@ -127,3 +127,7 @@ UC052의 [소스 조건 계획](../plans/UC-052.md)은 포함/제외 트리의 �
 ## UC052 AI 조건 제안
 
 [AI 조건 설계](../plans/UC-052-ai-conditions.md)는 기존 StudioRun/Execution을 확장하고 추가 영속 모델/새 모드/LLM 런타임을 도입하지 않는다. prepare의 허용 실제 schema를 모델 문맥에 제공하며 모델 조건 정의는 compiler 검증 후 서버 sourceRevision wrapper로 바꾼다. 문서 전체/원본 SQL/지표·레이아웃을 모델 임의 응답으로 교체하지 않는다. 조건 op가 있는 실행은 applyDraft/saveDraft에서 CONDITION_REVIEW_REQUIRED로 중단하므로 재시도/게시가 검토를 우회하지 않는다. FE는 응답을 pending 검토로 보관하고 원문서/편집 세대·선택/revision/file이 일치할 때만 공통 reducer로 명시 적용한다. 조건 적용 후 이전 수치를 새 scope로 표시하지 않고 기존 scope 미리보기를 다시 확인한다. 실행 GET은 현재 권한/기준으로 preview를 재검사하며 모델 자유 답변·원본 행을 새 영속 이력에 추가하지 않는다.
+
+## UC052 전체 프로파일과 제한 표본
+
+[공통 프로파일](../plans/UC-052-profile.md)은 기존 condition compiler와 sourceQuery의 기간/공통 필터 구성을 재사용한다. 고정 생성 SQL에서 전체 모집단과 실제 native 값 그룹을 집계하고 표본은 별도 LIMIT20로 선택 열만 투영한다. 값 비교를 DOUBLE로 승격하지 않고 표본/범위는 native 문자열로 보존한다. Source metadata revision/version과 Studio file hash/revision은 서로 비교하지 않는다. 현재 권한 아래 확정 pin/schema를 캡처한 후 긴 SQL은 큐 밖, 응답 전 권한/활성/원본 기준은 새 pin으로 확인한다. Studio profile은 블록 SQL을 실행하지 않고 공통 문서 범위만 읽는다. 새 영속 모델/AI 실행/공개 게시 필드는 없고 GET profileColumns는 허용 native 열의 advisory whitelist다. UI는 결과 scope echo/열 선택/문서 기준이 다르면 표시하지 않는다.

@@ -64,3 +64,7 @@ AI와 직접 편집은 공통 검증 조건 정의를 사용한다. 임의 SQL�
 ## Validated AI Condition Proposal
 
 [AI 검토 설계](../plans/UC-052-ai-conditions.md)에서 실제 허용 schema의 열명/native type과 현재 조건을 AI에 제공한다. 질문·설명은0연산이며 변경 제안은 선택 블록 내용 또는 전체 포함/제외 한 종류만 허용한다. 조건 제안은 서버가 파일 hash를 고정하고 공통 compiler와 재미리보기로 검증한다. 현재/제안 트리와 전체 블록 결과를 확인하고 명시 적용하기 전 초안/저장/게시는 변하지 않는다. 저장을 함께 요청해도 CONDITION_REVIEW_REQUIRED로 멈추며 적용한 문서의 후속 저장은 기존 경로를 사용한다. 검증/취소·409·실패는 초안/질문을 보존한다. [증빙](../testing/ai-condition-proposals.md)의 mock 모델 응답과 실제 SQLite/DuckDB 검사를 실LLM/전체 실제 UI 수용으로 승격하지 않는다.
+
+## Full Distribution And Selected Sample
+
+[분포·표본 설계](../plans/UC-052-profile.md)는 Source 또는 Studio 현재 범위를 분모로 포함/제외 전후의 전체 값 빈도·상위20+나머지·NULL/범위를 조회한다. 선택 열1~6개의 최대20행 정렬 표본은 같은 최종 조건을 사용하고 무작위/대표표본으로 표시하지 않는다. 요청/응답의 현재 권한·파일/revision/version을 검사하며 원본/SQL·초안·질문/undo·저장을 바꾸지 않는다. 셀200문자 잘림·총256KiB·미지원 native 열을 명시하며 선택하지 않은 열은 표본으로 반환하지 않는다. [검증](../testing/condition-profile.md)은 E05의 전체/표본 분모·정답과 권한 회수/변경 중 거절 범위를 구분하고 실제 UI/운영 수용은 미실행으로 둔다.

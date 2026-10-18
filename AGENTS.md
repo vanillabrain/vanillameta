@@ -14,6 +14,8 @@
 
 - **UC050 업무 변수 후속:** [설계](docs/plans/UC-050-variable-semantics.md)·[증빙](docs/testing/source-variable-semantics.md)는 업무 유형/날짜 형식/분류 문자열과 전체 문자열 날짜 검증을 기존 미리보기/버전 저장에 연결한다. 생략한 새 필드는 기존 선언을 보존하고 원본/SQL은 변경하지 않는다. Explore/Studio 공통 표시이며 조직 분류 ID·활성/공식 승인·조건/AI 실행 적용/실제 Ego·전체 요건 수용은 후속이다.
 
+- **UC052 분포·표본:** [설계](docs/plans/UC-052-profile.md)·[증빙](docs/testing/condition-profile.md)는 Source와 Studio 현재 범위의 전체 값 빈도/상위20+나머지·정확 건수와 선택 열1~6개/최대20행 정렬 표본을 구분한다. 셀200문자/256KiB·native 정밀도/NULL·미선택 열 비노출·조회 전후 현재 권한/버전·긴 SQL 큐 해제를 검사한다. 무작위/대표표본·전체 수용으로 확대하지 않는다. 새 Ego/모바일/이번 MySQL·대규모 운영·전체16개 수용은 미완료다.
+
 - **UC052 AI 조건 검토:** [설계](docs/plans/UC-052-ai-conditions.md)·[증빙](docs/testing/ai-condition-proposals.md)는 실제 schema 검증·파일 hash 고정·현재/제안 조건/전체 미리보기→명시 적용·기존 저장을 따른다. 질문의 저장 요청도 조건 검토 전에는 CONDITION_REVIEW_REQUIRED/쓰기0이다. 설명·조회는0연산이며 unknown/type/no-op·stale 응답은 초안·질문을 보존한다. 실제 Ego/모바일/실LLM·이번 MySQL/운영·전체16개 수용은 별도다.
 
 - **UC052 Studio 조건:** [설계](docs/plans/UC-052-studio-conditions.md)·[증빙](docs/testing/studio-conditions.md)은 소스 조건의 명시 복사/편집·undo/redo·저장/reload와 숫자/추세·게시/재사용 보존을 연결한다. 파일 경로 hash와 소스 조건 metadata revision을 혼동하지 않는다. 파일 교체 시 초안을 보존하고 자동 재바인딩하지 않는다. 공개 응답에는 적용 여부만 추가한다. AI 조건 검토는 위 후속을 따르며 분포/표본·영속 export·Ego/실휴대폰/운영·전체16개 수용은 미완료다.

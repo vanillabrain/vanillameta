@@ -199,6 +199,11 @@ describe('UC052 protected conditions HTTP and independent population oracle', ()
       .send(input)
       .expect(401);
     await call('preview', 9, input).expect(403);
+    await call('profile', 9, { ...input, columns: ['amount'] }).expect(403);
+    await request(app.getHttpServer())
+      .post('/bi/source-conditions/profile')
+      .send({ ...input, columns: ['amount'] })
+      .expect(401);
     expect(query).not.toHaveBeenCalled();
     await db.getRepository(Database).update(3, { catalogActive: false });
     await call('read', 7, { sourceId: 3 }).expect(403);
@@ -207,12 +212,23 @@ describe('UC052 protected conditions HTTP and independent population oracle', ()
   it('allows current read grant preview but not saving, and honors grant revocation', async () => {
     const input = await draft(8);
     await call('preview', 8, input).expect(201);
+    const profile = (await call('profile', 8, { ...input, columns: ['amount'] }).expect(201)).body
+      .data;
+    expect(profile.population).toMatchObject({
+      total: '8',
+      matched: '4',
+      excluded: '1',
+      remaining: '3',
+    });
+    expect(profile.sample.columns.map(c => c.name)).toEqual(['amount']);
+    expect(profile.sample.rows.map(r => Number(r.values[0]))).toEqual([10, 30, 50]);
     await call('save', 8, input).expect(403);
     await db
       .getRepository(EnterpriseResourceGrant)
       .update({ resourceId: 3, recipientId: 8 }, { read: false });
     query.mockClear();
     await call('preview', 8, input).expect(403);
+    await call('profile', 8, { ...input, columns: ['amount'] }).expect(403);
     expect(query).not.toHaveBeenCalled();
     expect(await db.getRepository(SourceConditionEntry).count()).toBe(1);
   });
@@ -231,6 +247,46 @@ describe('UC052 protected conditions HTTP and independent population oracle', ()
     };
     await call('preview', 7, invalid).expect(400);
     await call('save', 7, invalid).expect(400);
+    expect(await db.getRepository(SourceConditionEntry).count()).toBe(1);
+  });
+  it('rejects a profile if permission or metadata changes during full aggregation, without writes', async () => {
+    const input = await draft();
+    const repo = db.getRepository(Database);
+    const row = await repo.findOneByOrFail({ id: 3 });
+    const original = query.getMockImplementation();
+    let changed = false;
+    query.mockImplementation(async (id, sql, bindings = []) => {
+      const result = await original(id, sql, bindings);
+      if (!changed && sql.includes('grouped AS')) {
+        changed = true;
+        await repo.update(3, { catalogActive: false });
+      }
+      return result;
+    });
+    try {
+      await call('profile', 7, { ...input, columns: ['amount'] }).expect(403);
+      expect(changed).toBe(true);
+    } finally {
+      query.mockImplementation(original);
+      await repo.update(3, { catalogActive: true, updatedAt: row.updatedAt });
+    }
+    const input2 = await draft();
+    changed = false;
+    query.mockImplementation(async (id, sql, bindings = []) => {
+      const result = await original(id, sql, bindings);
+      if (!changed && sql.includes('grouped AS')) {
+        changed = true;
+        await repo.update(3, { updatedAt: new Date(row.updatedAt.getTime() + 10000) });
+      }
+      return result;
+    });
+    try {
+      await call('profile', 7, { ...input2, columns: ['amount'] }).expect(409);
+      expect(changed).toBe(true);
+    } finally {
+      query.mockImplementation(original);
+      await repo.update(3, { updatedAt: row.updatedAt });
+    }
     expect(await db.getRepository(SourceConditionEntry).count()).toBe(1);
   });
 });

@@ -1,3 +1,5 @@
+import { sourceConditionProfile } from '../bi/source-condition-profile';
+import { conditionColumns } from '../bi/source-condition-definition';
 import { serializeMetadataWork, metadataTransaction } from '../common/metadata-work';
 import { captureRemixTemplate } from './studio-remix-template';
 import { compileContribution } from '../ai/dashboard-contribution';
@@ -22,7 +24,7 @@ import { Metric } from '../metric/entities/metric.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { metricLinkItems } from '../ai/metric-analysis-links';
 import { isTemporaryStudioId, STUDIO_BREAKPOINTS, StudioDocumentV1 } from './studio-contract';
-import { validateStudioDocument } from './studio-document';
+import { studioKeys, validateStudioDocument } from './studio-document';
 import { importStudio, studioDefinitions, studioDigest } from './studio-legacy';
 import { StudioState } from './entities/studio-state.entity';
 import { StudioRun } from './entities/studio-run.entity';
@@ -161,6 +163,10 @@ export class StudioService {
       document: state.document,
       sourceRevision: state.sourceRevision,
       definitions: state.definitions,
+      profileColumns:
+        state.schema.length <= 128
+          ? conditionColumns(state.schema.map(c => ({ name: c.column_name, type: c.column_type })))
+          : [],
       preview,
       ...(previewError ? { previewError } : {}),
     };
@@ -295,6 +301,72 @@ export class StudioService {
         };
       });
     });
+  }
+  /** UC052: read-only profile captures metadata, releases the lease for SQL, then checks fresh authority/file. */
+  async profile(id: number, body: any, actor: number) {
+    studioKeys(body, ['expectedRevision', 'expectedSourceRevision', 'document', 'columns']);
+    const captured = await serializeMetadataWork(this.db, async () => {
+      await this.access.dashboard(id, actor, 'read');
+      const analysis = (await this.ai.analysis(id, actor, true, 'read')).data;
+      await this.source(analysis.databaseId, actor, 'read');
+      const pin = await this.connection.captureDuckDBSnapshot(analysis.databaseId);
+      const current = await pin.run(() => this.load(id, actor, 'read'));
+      if (
+        current.document.revision !== body.expectedRevision ||
+        current.sourceRevision !== body.expectedSourceRevision
+      )
+        throw new ConflictException(
+          '분포 조회의 기준이 변경됐습니다. 현재 초안을 유지하고 최신 상태를 확인하세요.',
+        );
+      const document = validateStudioDocument(body.document);
+      if (
+        document.dashboardId !== id ||
+        document.sourceId !== current.document.sourceId ||
+        (document.revision && document.revision !== body.expectedRevision)
+      )
+        throw new BadRequestException('조회할 문서와 소스를 확인해 주세요.');
+      if (document.conditions && document.conditions.sourceRevision !== current.sourceRevision)
+        throw new ConflictException('조건 파일이 변경됐습니다. 초안을 유지하고 조건을 확인하세요.');
+      return { current, pin, document };
+    });
+    const { current, pin, document } = captured;
+    const result = await pin.run(() =>
+      sourceConditionProfile({
+        schema: current.schema.map(c => ({ name: c.column_name, type: c.column_type })),
+        columns: body.columns,
+        definition: document.conditions?.definition ?? { include: null, exclude: null },
+        filters: document.filters,
+        dateRange: document.dateRange,
+        query: (sql, bindings) => this.connection.queryDuckDB(document.sourceId, sql, bindings),
+      }),
+    );
+    await serializeMetadataWork(this.db, async () => {
+      const row = await this.owner(id, actor, 'read');
+      await this.source(document.sourceId, actor, 'read');
+      if (dashboardRevision(row) !== current.document.revision)
+        throw new ConflictException('분포 조회 중 저장본이 변경됐습니다. 다시 조회하세요.');
+      const latest = (await this.ai.analysis(id, actor, true, 'read')).data;
+      if (latest.databaseId !== document.sourceId)
+        throw new ConflictException('분포 조회 중 소스가 변경됐습니다.');
+      const fresh = await this.connection.captureDuckDBSnapshot(document.sourceId);
+      if (
+        (await fresh.run(() => this.connection.duckDBVersion(document.sourceId))) !==
+        current.sourceRevision
+      )
+        throw new ConflictException('분포 조회 중 파일이 변경됐습니다. 다시 조회하세요.');
+    });
+    return {
+      scope: {
+        dashboardId: id,
+        sourceId: document.sourceId,
+        expectedRevision: body.expectedRevision,
+        expectedSourceRevision: body.expectedSourceRevision,
+        filters: document.filters ?? [],
+        dateRange: document.dateRange ?? null,
+        conditions: document.conditions ?? null,
+      },
+      ...result,
+    };
   }
   /** Recheck both the original source and the current dashboard source on every execution read/replay. */
   async assertExecutionAccess(

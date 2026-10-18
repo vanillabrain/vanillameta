@@ -122,3 +122,7 @@
 ## UC052 AI 조건 변경안 선택 검증 — 2026-10-18
 
 [AI 제안 증빙](../testing/ai-condition-proposals.md)은 E04/E08 기반인 질문→현재/제안 조건·전체 미리보기→명시 적용/undo→저장/reload와 유형/열/무변경 거절·편집 세대 변경 후 stale 적용 차단·저장 요청의 검토 전 쓰기0을 검사한다. 모델 응답 fixture와 실제 SQLite/DuckDB 집계를 구분한다. E13 실제 Ego/390·768·1440·실휴대폰/실LLM·운영/사람 수용과 전체 TC050 NOT_RUN은 그대로다.
+
+## UC052 전체 값 분포·명시 표본 선택 검증 — 2026-10-18
+
+[분포 증빙](../testing/condition-profile.md)은 E05/E08 중 현재 전체/포함/제외/최종 건수·빈도 상위20/나머지·NULL·정밀 타입·잘림/중복/0행과 동일 조건의 선택 열20행 정렬 표본을 독립 원본 정답과 대조한다. Source JWT/read grant/회수·조회 중 권한/파일/metadata 변경 거절·Studio metadata lease 밖 SQL·화면의 명시 실행/late/초안·질문 보존을 선택 검사한다. 실제 Ego/390·768·1440/실휴대폰·대규모/운영/전체 TC050 NOT_RUN을 승격하지 않는다.

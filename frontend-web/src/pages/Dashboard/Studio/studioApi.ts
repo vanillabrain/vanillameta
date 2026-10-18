@@ -1,3 +1,5 @@
+import { readProfileColumns } from '../../Explore/conditionProfile';
+import type { Column } from '../../Explore/SourceConditions';
 // Studio server boundary. The /studio endpoints answer with the raw payload, not the legacy SUCCESS envelope.
 import { get, post } from '@/helpers/apiHelper';
 import { errorMessage, validDraft } from '../dashboardPreview';
@@ -46,6 +48,7 @@ export type StudioPreview = {
 };
 /** Load result for one dashboard: the editable document plus its definition catalog and preview. */
 export type StudioLoadResult = {
+  profileColumns?: Column[];
   access?: { read: boolean; edit: boolean; publish: boolean; export: boolean };
   owned?: boolean;
   dashboardId: number;
@@ -365,7 +368,14 @@ export async function fetchStudioDashboard(
       );
     }
     if (payload.owned !== undefined) studioAssert(typeof payload.owned === 'boolean', '소유권 응답을 확인해 주세요.');
+    let profileColumns: Column[] = [];
+    try {
+      if (payload.profileColumns !== undefined) profileColumns = readProfileColumns(payload.profileColumns);
+    } catch {
+      /* Advisory profile choices never replace the authorized document. */
+    }
     return {
+      profileColumns,
       dashboardId,
       sourceRevision: payload.sourceRevision,
       document,

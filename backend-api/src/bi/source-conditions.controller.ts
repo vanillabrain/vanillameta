@@ -14,6 +14,12 @@ export class SourceConditionsController {
       data: await this.conditions.preview(body, req.user.accessKeyData.id),
     };
   }
+  @Post('profile') async profile(@Body() body: unknown, @Req() req) {
+    return {
+      status: 'SUCCESS',
+      data: await this.conditions.profile(body, req.user.accessKeyData.id),
+    };
+  }
   @Post('save') async save(@Body() body: unknown, @Req() req) {
     return { status: 'SUCCESS', data: await this.conditions.save(body, req.user.accessKeyData.id) };
   }

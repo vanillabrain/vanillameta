@@ -1,3 +1,4 @@
+import { serializeMetadataWork } from '../common/metadata-work';
 import { SourceLifecycleService } from '../enterprise/source-lifecycle.service';
 import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
 import { StudioPublicationService } from './studio-publication.service';
@@ -116,6 +117,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
       await db.manager.save(Component, { type, title: type, option: '{}', useYn: 'Y' });
     connection = {
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
+      captureDuckDBSnapshot: jest.fn(async () => ({ run: async cb => cb() })),
       duckDBVersion: jest.fn().mockResolvedValue(sourceRevision),
       isDuckDB: jest.fn().mockResolvedValue(true),
       queryDuckDB: jest.fn((_id, sql, bindings) => worker.query(file.filename, sql, bindings)),
@@ -144,6 +146,109 @@ describe('Studio real DuckDB and transactional metadata', () => {
       },
       7,
     );
+  it('UC052 profiles the unsaved Studio condition/date/filter scope read-only with fresh file validation', async () => {
+    const initial = await studio.get(id, 7);
+    expect(initial.profileColumns.map(c => c.name)).toEqual(['category', 'amount', 'event_time']);
+    const document = applyStudioOperation(initial.document, {
+      type: 'setConditions',
+      conditions: {
+        sourceRevision: initial.sourceRevision,
+        definition: {
+          include: { kind: 'predicate', column: 'amount', operator: 'lt', values: [250] },
+          exclude: null,
+        },
+      },
+    });
+    document.dateRange = { column: 'event_time', start: '2026-01-02', end: '2026-01-02' };
+    const before = await db.manager.count(StudioRun);
+    const body = {
+      expectedRevision: initial.document.revision,
+      expectedSourceRevision: initial.sourceRevision,
+      document,
+      columns: ['category', 'amount'],
+    };
+    const profile = await studio.profile(id, body, 7);
+    expect(profile.population).toMatchObject({ total: '1', matched: '1', remaining: '1' });
+    expect(profile.sample.rows.map(row => row.values)).toEqual([['Mobile', '200']]);
+    expect(profile.scope.conditions).toEqual(document.conditions);
+    expect((await studio.get(id, 7)).document.conditions).toBeUndefined();
+    expect(await db.manager.count(StudioRun)).toBe(before);
+    const original = connection.queryDuckDB.getMockImplementation();
+    connection.queryDuckDB.mockImplementation(async (id, sql, bindings) => {
+      const result = await original(id, sql, bindings);
+      if (sql.includes('grouped AS')) connection.duckDBVersion.mockResolvedValue('f'.repeat(64));
+      return result;
+    });
+    try {
+      await expect(studio.profile(id, body, 7)).rejects.toMatchObject({ status: 409 });
+    } finally {
+      connection.queryDuckDB.mockImplementation(original);
+      connection.duckDBVersion.mockResolvedValue(sourceRevision);
+    }
+    connection.queryDuckDB.mockClear();
+    await expect(studio.profile(id, body, 8)).rejects.toMatchObject({ status: 403 });
+    expect(connection.queryDuckDB).not.toHaveBeenCalled();
+  });
+  it('UC052 releases metadata lease during profile aggregates and still returns the pinned result', async () => {
+    const initial = await studio.get(id, 7);
+    const source = await db.manager.findOneByOrFail(Database, { id: 1 });
+    const original = connection.queryDuckDB.getMockImplementation();
+    let reached: () => void = () => {
+      throw new Error('profile gate not initialized');
+    };
+    let release: () => void = () => {
+      throw new Error('profile gate not initialized');
+    };
+    const started = new Promise<void>(resolve => {
+      reached = resolve;
+    });
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    let held = false;
+    connection.queryDuckDB.mockImplementation(async (source, sql, bindings) => {
+      if (!held && sql.includes('grouped AS')) {
+        held = true;
+        reached();
+        await gate;
+      }
+      return original(source, sql, bindings);
+    });
+    const pending = studio.profile(
+      id,
+      {
+        expectedRevision: initial.document.revision,
+        expectedSourceRevision: initial.sourceRevision,
+        document: initial.document,
+        columns: ['amount'],
+      },
+      7,
+    );
+    let timeout: ReturnType<typeof setTimeout>;
+    try {
+      await started;
+      await Promise.race([
+        serializeMetadataWork(db, () =>
+          db.manager.update(Database, { id: 1 }, { name: 'Independent committed metadata' }),
+        ),
+        new Promise((_, reject) => {
+          timeout = setTimeout(() => reject(new Error('profile held metadata lease')), 1000);
+        }),
+      ]);
+      clearTimeout(timeout);
+      release();
+      expect((await pending).population).toMatchObject({ total: '2', remaining: '2' });
+    } finally {
+      release();
+      await pending.catch(() => undefined);
+      connection.queryDuckDB.mockImplementation(original);
+      await db.manager.update(
+        Database,
+        { id: 1 },
+        { name: source.name, updatedAt: source.updatedAt },
+      );
+    }
+  });
   it('UC052 AI typed proposal previews real aggregate without writing, then explicit application save/reload preserves scope', async () => {
     const oldProvider = process.env.AI_PROVIDER;
     process.env.AI_PROVIDER = 'codex';

@@ -1,3 +1,4 @@
+import { post as postProfile } from '@/helpers/apiHelper';
 import { useTranslation } from 'react-i18next';
 import StudioSaveRecovery from './StudioSaveRecovery';
 import {
@@ -24,6 +25,8 @@ import StudioCanvas, { studioItemHeight } from './StudioCanvas';
 import StudioConversation from './StudioConversation';
 import StudioFilterPanel from './StudioFilterPanel';
 import StudioDateRangePanel from './StudioDateRangePanel';
+import ConditionProfilePanel from '../../Explore/ConditionProfilePanel';
+import { profileKey } from '../../Explore/conditionProfile';
 import StudioConditionsPanel from './StudioConditionsPanel';
 import StudioPublish from './StudioPublish';
 import { StudioRunContext, StudioRunResult } from './studioRunTransport';
@@ -430,6 +433,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
   }, [conversationInput, questionReady, questionRecovery]);
   const [state, dispatch] = useReducer(studioReducer, initial, studioWorkspaceSeed);
   const [definitions, setDefinitions] = useState<StudioDefinitions>(initial.definitions);
+  const [profileColumns, setProfileColumns] = useState(initial.profileColumns ?? []);
   const [preview, setPreview] = useState<StudioPreview | null>(initial.preview);
   const [previewError, setPreviewError] = useState<string | null>(initial.previewError);
   const [message, setMessage] = useState('블록을 선택해 내용·순서·크기를 편집하고, 저장을 누르면 서버에 반영됩니다.');
@@ -665,6 +669,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     try {
       const next = await fetchStudioDashboard(dashboardId);
       setDefinitions(next.definitions);
+      setProfileColumns(next.profileColumns ?? []);
       setPreview(next.preview);
       setPreviewError(next.previewError);
       setSourceRevision(next.sourceRevision);
@@ -1478,6 +1483,40 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
               busy={filterBusy}
               disabled={!canEdit || saving || !!state.pendingSave || !!conflict || state.present.blocks.length === 0}
               onApply={applyConditions}
+            />
+            <ConditionProfilePanel
+              columns={profileColumns}
+              disabled={saving || !!state.pendingSave || !!conflict}
+              contextKey={profileKey({
+                document: state.present,
+                expectedRevision: state.serverRevision,
+                sourceRevision,
+                profileColumns,
+              })}
+              scopeLabel={
+                studioDateRangeSummary(state.present.dateRange) + ' · 문서의 공통 필터/포함·제외 기준 · 원본 행 정렬 표본'
+              }
+              load={async (columns, signal) => {
+                const document = state.present;
+                const expectedRevision = state.serverRevision;
+                const scope = {
+                  dashboardId,
+                  sourceId: document.sourceId,
+                  expectedRevision,
+                  expectedSourceRevision: sourceRevision,
+                  filters: document.filters ?? [],
+                  dateRange: document.dateRange ?? null,
+                  conditions: document.conditions ?? null,
+                };
+                const response = await postProfile(
+                  `/studio/dashboards/${dashboardId}/profile`,
+                  { expectedRevision, expectedSourceRevision: sourceRevision, document, columns },
+                  { signal, timeout: 180000 },
+                );
+                if (profileKey(response?.data?.scope) !== profileKey(scope))
+                  throw new Error('분포 조회의 문서 기준이 요청과 다릅니다.');
+                return response.data;
+              }}
             />
             <StudioFilterPanel
               filters={documentFilters}
