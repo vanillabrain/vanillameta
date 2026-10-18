@@ -1,4 +1,4 @@
-import { lockMetricReferences } from '../metric/metric-write-lock';
+import { lockMetricReferences, lockMetricSources } from '../metric/metric-write-lock';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { sourceConditionProfile } from '../bi/source-condition-profile';
 import { conditionColumns } from '../bi/source-condition-definition';
@@ -395,7 +395,13 @@ export class StudioService {
     originalSourceId: number,
     actor: number,
     action: ResourceAction | 'owner' = 'read',
+    manager?: EntityManager,
   ) {
+    if (manager) {
+      await this.owner(id, actor, action, manager);
+      await this.source(originalSourceId, actor, 'read', manager);
+      return;
+    }
     await this.owner(id, actor, action);
     await this.source(originalSourceId, actor, 'read');
     const analysis = (await this.ai.analysis(id, actor, true, action)).data;
@@ -415,7 +421,14 @@ export class StudioService {
     expectedRevision: string,
     actor: number,
     commit: (
-      value: { document: StudioDocumentV1; preview: any; dataVersion: string },
+      value: {
+        document: StudioDocumentV1;
+        preview: any;
+        dataVersion: string;
+        schema: any[];
+        items: any[];
+        analysis: any;
+      },
       manager: EntityManager,
     ) => Promise<T>,
   ): Promise<T> {
@@ -481,13 +494,13 @@ export class StudioService {
       ).data;
       // Publication and save share the metadata queue; recheck against legacy writes during aggregation too.
       return metadataTransaction(this.db, async manager => {
-        await this.lockDashboard(manager, id);
-        const latest = await this.load(id, actor, 'publish', manager);
+        const dashboard = await this.lockDashboard(manager, id);
+        await lockMetricSources(manager, [analysis.databaseId]);
+        await this.access.dashboard(id, actor, 'publish', manager);
+        await this.source(analysis.databaseId, actor, 'read', manager);
         const source = await manager.findOne(Database, { where: { id: analysis.databaseId } });
         if (
-          latest.document.revision !== expectedRevision ||
-          latest.dataVersion !== current.dataVersion ||
-          latest.document.sourceId !== current.document.sourceId ||
+          dashboardRevision(dashboard) !== expectedRevision ||
           !initialSource ||
           source.connectionConfig !== initialSource.connectionConfig ||
           String(source.updatedAt) !== String(initialSource.updatedAt)
@@ -495,16 +508,23 @@ export class StudioService {
           throw new ConflictException(
             '집계 중 초안이나 데이터가 변경되었습니다. 다시 게시해 주세요.',
           );
-        for (const block of latest.document.blocks)
+        for (const block of current.document.blocks)
           await this.validateCurrentReferences(
             block,
-            latest.document.sourceId,
-            latest.schemaVersion,
-            latest.schema,
+            current.document.sourceId,
+            current.schemaVersion,
+            current.schema,
             manager,
           );
         return commit(
-          { document: current.document, preview, dataVersion: current.dataVersion },
+          {
+            document: current.document,
+            preview,
+            dataVersion: current.dataVersion,
+            schema: current.schema,
+            items: current.items,
+            analysis: current.analysis,
+          },
           manager,
         );
       });

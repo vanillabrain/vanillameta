@@ -10,8 +10,6 @@ import {
 import { randomBytes } from 'crypto';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { ConnectionService } from '../connection/connection.service';
-import { Dashboard } from '../dashboard/entities/dashboard.entity';
-import { metricLinkItems } from '../ai/metric-analysis-links';
 import { captureRemixTemplate } from './studio-remix-template';
 import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
 import { StudioService } from './studio.service';
@@ -140,7 +138,7 @@ export class StudioPublicationService {
         id,
         body.expectedRevision,
         actor,
-        async ({ document, preview, dataVersion }, manager) => {
+        async ({ document, preview, dataVersion, schema, items, analysis }, manager) => {
           // Another process may have committed this request while aggregation was running.
           const receipt = await manager.findOne(StudioPublicationRequest, {
             where: { actorId: actor, requestId: body.requestId },
@@ -175,23 +173,8 @@ export class StudioPublicationService {
           const snapshot = this.sanitize(document, preview);
           let remixTemplate: string | null = null;
           if (body.allowRemix) {
-            const dashboard = await manager.findOne(Dashboard, { where: { id } });
-            const items = metricLinkItems(
-              dashboard.structuredDefinition ? JSON.parse(dashboard.structuredDefinition) : null,
-              { databaseId: document.sourceId } as any,
-            );
-            const schema =
-              items.some(item => item?.definition) && this.connection
-                ? (await this.connection.queryDuckDB(document.sourceId, 'DESCRIBE uploaded_data'))
-                    .datas
-                : [];
             remixTemplate = JSON.stringify(
-              captureRemixTemplate(
-                document,
-                items,
-                schema,
-                JSON.parse(dashboard.analysisDefinition).widgets,
-              ),
+              captureRemixTemplate(document, items, schema, analysis.widgets),
             );
           }
           const encoded = JSON.stringify(snapshot);

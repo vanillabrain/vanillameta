@@ -58,15 +58,27 @@ test('저장 탐색 지표 삭제 차단 → 보기 명시 삭제 → 다시 읽
     await expect(dialog.getByRole('button', { name: '지표 삭제', exact: true })).toBeDisabled();
     for (const width of [390, 768, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
+      await expect(dialog).toBeVisible();
+      await expect
+        .poll(() =>
+          dialog.evaluate(element =>
+            element
+              .getAnimations({ subtree: true })
+              .every(animation => animation.playState === 'finished' || animation.playState === 'idle'),
+          ),
+        )
+        .toBe(true);
       const box = await dialog.boundingBox();
-      expect(box).not.toBeNull();
-      expect(box!.x).toBeGreaterThanOrEqual(-1);
-      expect(box!.x + box!.width).toBeLessThanOrEqual(width + 1);
+      if (!box) throw new Error('Metric deletion dialog is not visible');
+      expect(box.x).toBeGreaterThanOrEqual(-1);
+      expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
       for (const label of ['사용처 다시 읽기', '지표 삭제', '닫기']) {
-        const control = await dialog.getByRole('button', { name: label, exact: true }).boundingBox();
-        expect(control?.height).toBeGreaterThanOrEqual(31);
-        expect(control?.height).toBeLessThanOrEqual(33);
+        const control = dialog.getByRole('button', { name: label, exact: true });
+        await expect(control).toHaveCSS('height', '32px');
+        const bounds = await control.boundingBox();
+        expect(bounds?.height).toBeGreaterThanOrEqual(31);
+        expect(bounds?.height).toBeLessThanOrEqual(33);
       }
       await page.screenshot({ path: info.outputPath(`metric-deletion-${width}.png`), fullPage: true });
     }

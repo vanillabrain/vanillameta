@@ -1,3 +1,4 @@
+import { Database } from '../database/entities/database.entity';
 jest.mock('./bi.service', () => ({ BiService: class {} }));
 import { DataSource } from 'typeorm';
 import { ForbiddenException } from '@nestjs/common';
@@ -33,13 +34,22 @@ describe('UC050 owned source business metadata', () => {
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: [SourceCatalogEntry],
+      entities: [SourceCatalogEntry, Database],
       synchronize: false,
     }).initialize();
     const runner = db.createQueryRunner();
     await new AddSourceCatalog1792300000000().up(runner);
     await new AddSourceCatalog1792300000000().up(runner);
     await runner.release();
+    await db.synchronize();
+    await db.manager.save(Database, {
+      id: 3,
+      name: 'Orders',
+      ownerId: 7,
+      engine: 'duckdb',
+      type: 'duckdb',
+      connectionConfig: '{}',
+    });
     access = {
       actor: v => v,
       id: v => Number(v),
@@ -51,6 +61,16 @@ describe('UC050 owned source business metadata', () => {
     service = new SourceCatalogService(db, access, bi);
   });
   afterEach(async () => db?.destroy());
+  it('UC055 refuses a history append when Source is deleted after SQL preparation', async () => {
+    const prepare = (service as any).prepare.bind(service);
+    jest.spyOn(service as any, 'prepare').mockImplementation(async (...args: any[]) => {
+      const result = await prepare(...args);
+      await db.manager.delete(Database, 3);
+      return result;
+    });
+    await expect(service.save(body(), 7)).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.count(SourceCatalogEntry)).toBe(0);
+  });
   it('reads actual schema without rows, credentials or writes', async () => {
     const data = await service.read({ sourceId: 3 }, 7);
     expect(data).toMatchObject({

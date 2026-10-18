@@ -8,6 +8,7 @@ import WidgetModify from './WidgetModify';
 import WidgetView from './WidgetView';
 import DashboardView from '@/pages/Dashboard/DashboardView';
 import DataLayout from '@/pages/Data/DataLayout';
+import { setToken } from '@/helpers/authHelper';
 import PageTitleBox from '@/components/PageTitleBox';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { LayoutContext } from '@/contexts/LayoutContext';
@@ -222,6 +223,9 @@ async function confirmSave() {
 }
 
 beforeEach(() => {
+  localStorage.clear();
+  sessionStorage.clear();
+  setToken('widget-regression-session');
   vi.clearAllMocks();
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   mocks.params = { widgetId: '1', dashboardId: '1' };

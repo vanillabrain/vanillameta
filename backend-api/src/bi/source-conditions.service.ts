@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { DataSource, QueryFailedError } from 'typeorm';
-import { serializeMetadataWork } from '../common/metadata-work';
+import { lockMetricSources } from '../metric/metric-write-lock';
+import { serializeMetadataWork, metadataTransaction } from '../common/metadata-work';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { ConnectionService } from '../connection/connection.service';
 import { Database } from '../database/entities/database.entity';
@@ -44,7 +45,13 @@ export class SourceConditionsService {
       const entry = await this.db
         .getRepository(SourceConditionEntry)
         .findOne({ where: { sourceId: id }, order: { version: 'DESC' } });
-      return { id, profile: { dataVersion: sourceRevision(row, version) }, entry, pin };
+      return {
+        id,
+        sourceBasis: JSON.stringify(row),
+        profile: { dataVersion: sourceRevision(row, version) },
+        entry,
+        pin,
+      };
     });
   }
   private async snapshot(source: unknown, actor: number, action: 'read' | 'edit') {
@@ -196,15 +203,18 @@ export class SourceConditionsService {
   }
   async save(body: unknown, actor: number) {
     const { state, compiled, draft } = await this.prepare(body, actor, 'edit');
-    await serializeMetadataWork(this.db, async () => {
-      await this.current(state.id, actor, draft.sourceRevision, 'edit');
-      const latest = await this.db
+    await this.current(state.id, actor, draft.sourceRevision, 'edit');
+    await metadataTransaction(this.db, async manager => {
+      const sources = await lockMetricSources(manager, [state.id]);
+      if (JSON.stringify(sources.get(state.id)) !== state.sourceBasis) throw conflict();
+      await this.access.assert('database', state.id, actor, 'edit', manager);
+      const latest = await manager
         .getRepository(SourceConditionEntry)
         .findOne({ where: { sourceId: state.id }, order: { version: 'DESC' } });
       if ((latest?.version ?? 0) !== draft.version) throw conflict();
       this.stored(latest, state.columns);
       try {
-        await this.db.getRepository(SourceConditionEntry).insert({
+        await manager.getRepository(SourceConditionEntry).insert({
           sourceId: state.id,
           version: draft.version + 1,
           actorId: actor,

@@ -1,5 +1,7 @@
 import { businessVariable, BusinessVariable } from './business-variable';
-import { serializeEnterpriseWrite } from '../enterprise/enterprise-write';
+import { metadataTransaction } from '../common/metadata-work';
+import { lockMetricSources } from '../metric/metric-write-lock';
+import { Database } from '../database/entities/database.entity';
 import {
   BadRequestException,
   ConflictException,
@@ -349,18 +351,22 @@ export class SourceCatalogService {
   async save(body: unknown, actor: number) {
     const { id, profile, schema, schemaRevision, columns, label, description, metadata, version } =
       await this.prepare(body, actor);
-    await serializeEnterpriseWrite(this.db, async () => {
-      // UC050: unique (sourceId,version) is the cross-process compare-and-swap, not a local mutex.
-      await this.access.assert('database', id, actor, 'edit');
-      const latest = await this.bi.profile(id, actor);
-      if (!latest.supported || latest.dataVersion !== profile.dataVersion)
+    // Profile/schema validation can query the source; finish it before acquiring metadata locks.
+    const basis = await this.db.getRepository(Database).findOne({ where: { id } });
+    const latest = await this.bi.profile(id, actor);
+    if (!latest.supported || latest.dataVersion !== profile.dataVersion)
+      throw new ConflictException('저장 중 데이터가 변경됐습니다. 최신 내용을 다시 확인해 주세요.');
+    await metadataTransaction(this.db, async manager => {
+      const sources = await lockMetricSources(manager, [id]);
+      if (JSON.stringify(sources.get(id)) !== JSON.stringify(basis))
         throw new ConflictException(
           '저장 중 데이터가 변경됐습니다. 최신 내용을 다시 확인해 주세요.',
         );
+      await this.access.assert('database', id, actor, 'edit', manager);
       // The immutable file revision above pins prepare()'s date validation result. Recheck
       // authority/version here without repeating a full scan while holding the SQLite write queue.
       try {
-        await this.db.getRepository(SourceCatalogEntry).insert({
+        await manager.getRepository(SourceCatalogEntry).insert({
           sourceId: id,
           version: version + 1,
           actorId: actor,

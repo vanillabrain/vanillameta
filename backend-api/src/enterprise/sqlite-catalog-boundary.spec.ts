@@ -67,11 +67,12 @@ describe('NFR005/008 catalog metadata operations', () => {
       sources.create(
         {
           name: 'Source',
-          engine: 'duckdb',
-          type: 'FILE',
-          connectionConfig: { filename: 'synthetic.duckdb' },
+          engine: 'pg',
+          type: 'postgresql',
+          connectionConfig: { host: 'synthetic.invalid', database: 'synthetic' },
         } as any,
         1,
+        0,
       ),
       metrics.create(
         {

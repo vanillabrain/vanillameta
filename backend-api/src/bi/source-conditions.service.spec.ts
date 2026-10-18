@@ -64,6 +64,16 @@ describe('UC052 saved source condition context', () => {
     service = new SourceConditionsService(db, access, connection);
   });
   afterEach(async () => db?.destroy());
+  it('UC055 refuses a history append when Source is deleted after SQL preparation', async () => {
+    const current = (service as any).current.bind(service);
+    jest.spyOn(service as any, 'current').mockImplementation(async (...args: any[]) => {
+      const result = await current(...args);
+      await db.manager.delete(Database, 3);
+      return result;
+    });
+    await expect(service.save(request(), 7)).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.count(SourceConditionEntry)).toBe(0);
+  });
   it('starts empty and never returns source rows or writes', async () => {
     const result = await service.read({ sourceId: 3 }, 7);
     expect(result).toMatchObject({

@@ -163,3 +163,5 @@ E11의 개인 보관/복원은 [UC055 계획](../plans/UC-055-library-archive.md
 E11/E12의 대시보드 사용처/삭제·원자 영수증은 [UC055 계획](../plans/UC-055-dashboard-delete.md)·[검증](../testing/dashboard-deletion.md)을 따른다. source/metric 삭제·조직 비활성·전체 E11/E12 수용은 별도이며 실제 MySQL과 headless/Ego/실기기를 구별한다.
 
 지표 삭제 보호의 다음 단위는 [계획](../plans/UC-055-metric-delete.md)·[증빙](../testing/metric-deletion.md)을 따른다. 저장 분석/Pivot·Studio/탐색 보기의 현재 참조와 source 소유/계정·조직·기준을 재확인하며 자동 연결 해제는 하지 않는다. source/조직 비활성·전체 TC050/16개 수용은 별도다.
+
+소스 삭제 보호는 [계획](../plans/UC-055-source-delete.md)·[증빙](../testing/source-deletion.md)의 고정10종 영향/기준 확인과 원자 metadata 삭제·별도 지속 파일 정리를 따른다. 현재 참조·하위 공유 파일은 차단하며 자동 연쇄 삭제0이다. 실제 MySQL/파일/자동 화면·Ego/실기기/운영을 구별하고 조직 비활성·전체 E11/E12/TC050 수용은 별도다.

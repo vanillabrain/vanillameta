@@ -96,6 +96,28 @@ export async function deleteMetric(owner: Actor, id: number) {
   });
 }
 
+/** Explicitly remove only a reference-free owned fixture, then finish its file receipt. */
+export async function deleteSource(owner: Actor, id: number) {
+  const impact = await ok(await call(owner, 'GET', `/database/${id}/delete-impact`));
+  expect(impact.canDelete, 'fixture still has source references').toBe(true);
+  const response = await call(owner, 'DELETE', `/database/${id}`, {
+    requestId: randomUUID(),
+    expectedRevision: impact.revision,
+    expectedActorId: impact.actorId,
+    expectedOrganizationId: impact.organizationId,
+  });
+  const receipt = await ok(response);
+  if (receipt.cleanup.status !== 'complete') {
+    const cleaned = await ok(
+      await call(owner, 'POST', `/database/deletions/${receipt.receiptId}/cleanup`, {
+        requestId: receipt.requestId,
+      }),
+    );
+    expect(cleaned.cleanup.status).toBe('complete');
+  }
+  return response;
+}
+
 export async function error(response: APIResponse) {
   expect(response.status(), 'unexpected server failure').toBeLessThan(500);
   const value = await body(response);

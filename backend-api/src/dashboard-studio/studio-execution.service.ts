@@ -1,3 +1,6 @@
+import { metadataTransaction } from '../common/metadata-work';
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
+import { lockMetricSources } from '../metric/metric-write-lock';
 import { StudioCreationService } from './studio-creation.service';
 import { StudioPublicationService } from './studio-publication.service';
 import {
@@ -60,6 +63,7 @@ export class StudioExecutionService implements OnModuleInit {
         where: { status: In(['pending', 'running']) },
       });
       for (const row of rows) {
+        const initialState = row.state;
         const state = this.state(row);
         const committed = await this.committed(row, false);
         const published = state.publish
@@ -89,7 +93,25 @@ export class StudioExecutionService implements OnModuleInit {
           ? 'partial'
           : 'interrupted';
         row.state = JSON.stringify(state);
-        await this.db.manager.save(StudioExecution, row);
+        // Recovery is a system transition, so revoked actor permissions must not prevent startup.
+        // Do not revive a row another process completed while recovery inspected its journals.
+        await metadataTransaction(this.db, async manager => {
+          try {
+            await lockDashboardWrite(manager, row.dashboardId);
+            await lockMetricSources(manager, [state.request.document.sourceId]);
+          } catch (error) {
+            if (error instanceof ForbiddenException) return;
+            throw error;
+          }
+          const fresh = await manager.findOne(StudioExecution, { where: { runId: row.runId } });
+          if (
+            !fresh ||
+            !['pending', 'running'].includes(fresh.status) ||
+            fresh.state !== initialState
+          )
+            return;
+          await manager.save(StudioExecution, row);
+        });
       }
     });
   }
@@ -285,9 +307,18 @@ export class StudioExecutionService implements OnModuleInit {
     );
     this.checkDisconnected(signal);
     const hash = studioDigest(body);
-    const row = await this.studio.serializeWrite(async () => {
+    const row = await metadataTransaction(this.db, async manager => {
+      await lockDashboardWrite(manager, body.dashboardId);
+      await lockMetricSources(manager, [body.document.sourceId]);
+      await this.studio.assertExecutionAccess(
+        body.dashboardId,
+        body.document.sourceId,
+        actor,
+        'edit',
+        manager,
+      );
       this.checkDisconnected(signal);
-      const prior = await this.db.manager.findOne(StudioExecution, {
+      const prior = await manager.findOne(StudioExecution, {
         where: { actorId: actor, requestId: body.requestId },
       });
       if (prior) {
@@ -311,7 +342,7 @@ export class StudioExecutionService implements OnModuleInit {
         ...plan,
         steps: ids.map(stepId => ({ stepId, status: 'pending', retryable: false })),
       };
-      const entity = await this.db.manager.save(StudioExecution, {
+      const entity = await manager.save(StudioExecution, {
         runId: randomUUID(),
         actorId: actor,
         dashboardId: body.dashboardId,
@@ -1073,7 +1104,20 @@ export class StudioExecutionService implements OnModuleInit {
   }
   private persist(row: StudioExecution, state: StudioExecutionState) {
     row.state = JSON.stringify(state);
-    return this.studio.serializeWrite(() => this.db.manager.save(StudioExecution, row));
+    return metadataTransaction(this.db, async manager => {
+      if (!['succeeded', 'unsupported', 'cancelled'].includes(row.status)) {
+        await lockDashboardWrite(manager, row.dashboardId);
+        await lockMetricSources(manager, [state.request.document.sourceId]);
+        await this.studio.assertExecutionAccess(
+          row.dashboardId,
+          state.request.document.sourceId,
+          row.actorId,
+          'edit',
+          manager,
+        );
+      }
+      return manager.save(StudioExecution, row);
+    });
   }
   private checkDisconnected(signal?: AbortSignal) {
     if (signal?.aborted) throw new BadRequestException('실행 요청을 취소했습니다.');

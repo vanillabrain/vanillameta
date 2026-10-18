@@ -16,7 +16,9 @@ import { UserMapping } from '../user/entities/user-mapping.entity';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { YesNo } from '../common/enum/yn.enum';
 import { encryptConnectionConfig } from '../utils/crypto.util';
-import { serializeMetadataWork } from '../common/metadata-work';
+import { lockMetricSources } from '../metric/metric-write-lock';
+import { ForbiddenException } from '@nestjs/common';
+import { serializeMetadataWork, metadataTransaction } from '../common/metadata-work';
 
 const SAMPLE_DB_NAME = '샘플 매출 데이터';
 const SAMPLE_TABLE = 'sales_data';
@@ -94,20 +96,26 @@ export class SampleService {
       database = await this.queued(() => this.databaseRepository.save(entity));
     }
 
-    let dataset = await this.queued(() =>
-      this.datasetRepository.findOne({
-        where: { title: SAMPLE_DATASET_TITLE, databaseId: database.id },
-      }),
+    const dataset = await metadataTransaction(
+      this.databaseRepository.manager.connection,
+      async manager => {
+        const sources = await lockMetricSources(manager, [database.id]);
+        const current = sources.get(database.id);
+        if (current.ownerId !== userInfoId || current.catalogActive === false)
+          throw new ForbiddenException('Source ownership required.');
+        const prior = await manager.findOne(Dataset, {
+          where: { title: SAMPLE_DATASET_TITLE, databaseId: current.id },
+        });
+        return (
+          prior ??
+          manager.save(Dataset, {
+            title: SAMPLE_DATASET_TITLE,
+            databaseId: current.id,
+            query: `SELECT region, category, SUM(amount) AS total_amount, SUM(qty) AS total_qty FROM ${SAMPLE_TABLE} GROUP BY region, category`,
+          })
+        );
+      },
     );
-    if (!dataset) {
-      dataset = await this.queued(() =>
-        this.datasetRepository.save({
-          title: SAMPLE_DATASET_TITLE,
-          databaseId: database.id,
-          query: `SELECT region, category, SUM(amount) AS total_amount, SUM(qty) AS total_qty FROM ${SAMPLE_TABLE} GROUP BY region, category`,
-        }),
-      );
-    }
     return dataset;
   }
 

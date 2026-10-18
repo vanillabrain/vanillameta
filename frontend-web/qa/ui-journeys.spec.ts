@@ -13,6 +13,7 @@ import {
   call,
   dashboard,
   deleteDashboard,
+  deleteSource,
   dataset,
   execute,
   metric,
@@ -916,11 +917,53 @@ test('WIDGET-03 actual title and option edit survives reload and dashboard', asy
   await expect(page.getByText(title, { exact: true })).toBeVisible();
 });
 
-for (const resource of ['widget', 'dashboard'] as const) {
-  test(`${resource === 'widget' ? 'WIDGET-04' : 'DASH-04'} actual list cancel deletion then remove only owned ID`, async ({
-    page,
-  }) => {
+for (const resource of ['database', 'widget', 'dashboard'] as const) {
+  test(`${
+    resource === 'database' ? 'SOURCE-04' : resource === 'widget' ? 'WIDGET-04' : 'DASH-04'
+  } actual list cancel deletion then remove only owned ID`, async ({ page }) => {
     const { user, chart, board } = await boardFixture(page);
+    if (resource === 'database') {
+      const ownSource = await upload(user);
+      const saved = (await persisted(user, 'database', ownSource.id)).databaseInfo;
+      expect(saved.id).toBe(ownSource.id);
+      expect(typeof saved.name).toBe('string');
+      expect(saved.name.length).toBeGreaterThan(0);
+      const before = await inventory(user, 'database');
+      await page.goto('/data');
+      const sourceCard = page.locator('li').filter({ has: page.locator(`a[href="/data/source/modify/${ownSource.id}"]`) });
+      await expect(sourceCard).toHaveCount(1);
+      await sourceCard.getByRole('button', { name: `Delete ${saved.name}`, exact: true }).click();
+      const sourceDialog = page.getByRole('dialog', { name: '소스 삭제 영향' });
+      await expect(sourceDialog.getByRole('button', { name: '소스 삭제', exact: true })).toBeEnabled();
+      await sourceDialog.getByRole('button', { name: '닫기', exact: true }).click();
+      expect((await persisted(user, 'database', ownSource.id)).databaseInfo.name).toBe(saved.name);
+      await sourceCard.getByRole('button', { name: `Delete ${saved.name}`, exact: true }).click();
+      await expect(sourceDialog.getByRole('button', { name: '소스 삭제', exact: true })).toBeEnabled();
+      const deleted = page.waitForResponse(
+        r => r.url().endsWith(`/database/${ownSource.id}`) && r.request().method() === 'DELETE',
+      );
+      await sourceDialog.getByRole('button', { name: '소스 삭제', exact: true }).click();
+      const result = await deleted;
+      expect(result.ok()).toBe(true);
+      const receipt = (await result.json()).data;
+      expect(receipt.deleted).toBe(true);
+      if (receipt.cleanup.status !== 'complete') {
+        const cleanup = page.waitForResponse(
+          r => r.url().endsWith(`/database/deletions/${receipt.receiptId}/cleanup`) && r.request().method() === 'POST',
+        );
+        await sourceDialog.getByRole('button', { name: '파일 정리', exact: true }).click();
+        expect((await (await cleanup).json()).data.cleanup.status).toBe('complete');
+      }
+      if (await sourceDialog.count()) await sourceDialog.getByRole('button', { name: '닫기', exact: true }).click();
+      await expect(sourceCard).toHaveCount(0);
+      expect((await inventory(user, 'database')).map((entry: any) => entry.id).sort()).toEqual(
+        before
+          .filter((entry: any) => entry.id !== ownSource.id)
+          .map((entry: any) => entry.id)
+          .sort(),
+      );
+      return;
+    }
     const target = resource === 'widget' ? chart : board;
     const before = await inventory(user, resource);
     await page.goto(`/${resource}`);
@@ -957,7 +1000,10 @@ for (const variant of ['missing-widget', 'deleted-datasource']) {
     const valid = await widget(user, validSource.id);
     if (variant === 'deleted-datasource') {
       const definition = await persisted(user, 'dataset', chart.datasetId);
-      await ok(await call(user, 'DELETE', `/database/${definition.databaseId}`));
+      // Explicitly remove the owned Dataset first; Source deletion never cascades references.
+      const removed = await call(user, 'DELETE', `/dataset/${chart.datasetId}`);
+      expect(removed.ok()).toBe(true);
+      await deleteSource(user, definition.databaseId);
     }
     await page.goto(`/widget/${variant === 'missing-widget' ? 999999999 : chart.id}`);
     await expect(page.locator('body')).toContainText(/not found|unavailable|Failed to load|does not exist/i);

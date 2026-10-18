@@ -1,3 +1,6 @@
+import { SourceDeletionService } from './source-deletion.service';
+import { SourceDeletionController } from './source-deletion.controller';
+import { SourceDeleteReceipt } from './entities/source-delete-receipt.entity';
 import { Module } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { DatabaseController } from './database.controller';
@@ -10,8 +13,10 @@ import { DatabaseType } from './entities/database_type.entity';
 import { JwtService } from '@nestjs/jwt';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType])],
-  controllers: [DatabaseController],
-  providers: [DatabaseService, ConnectionService, JwtService],
+  imports: [
+    TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType, SourceDeleteReceipt]),
+  ],
+  controllers: [SourceDeletionController, DatabaseController],
+  providers: [SourceDeletionService, DatabaseService, ConnectionService, JwtService],
 })
 export class DatabaseModule {}

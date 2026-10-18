@@ -1,3 +1,8 @@
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
+import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
+import { Widget } from '../widget/entities/widget.entity';
+import { Database } from '../database/entities/database.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import {
   BadRequestException,
@@ -22,7 +27,15 @@ describe('T7 durable executions', () => {
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: [StudioExecution, StudioRun],
+      entities: [
+        StudioExecution,
+        StudioRun,
+        Dashboard,
+        DashboardShare,
+        DashboardWidget,
+        Widget,
+        Database,
+      ],
       synchronize: true,
     }).initialize();
     const document = JSON.parse(
@@ -30,6 +43,15 @@ describe('T7 durable executions', () => {
     );
     document.dashboardId = 1;
     document.revision = 'a'.repeat(64);
+    await db.manager.save(Dashboard, { id: 1, title: 'Execution parent' });
+    await db.manager.save(Database, {
+      id: document.sourceId,
+      ownerId: 7,
+      name: 'Execution source',
+      engine: 'duckdb',
+      type: 'duckdb',
+      connectionConfig: '{}',
+    });
     body = {
       requestId: 't7',
       dashboardId: 1,
@@ -93,6 +115,30 @@ describe('T7 durable executions', () => {
     await db.destroy();
     if (provider === undefined) delete process.env.AI_PROVIDER;
     else process.env.AI_PROVIDER = provider;
+  });
+  it('rejects creating an execution after its original Source was deleted, with no execution or LLM writes', async () => {
+    await db.manager.delete(Database, body.document.sourceId);
+    await expect(service.create(body, 7)).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.count(StudioExecution)).toBe(0);
+    expect(ai.callLlm).not.toHaveBeenCalled();
+  });
+  it('rejects actual retry after original Source deletion before running-state or LLM writes', async () => {
+    const result = await service.create(body, 7);
+    const row = await db.manager.findOneBy(StudioExecution, { runId: result.runId });
+    const state = JSON.parse(row.state);
+    row.status = 'failed';
+    state.steps[0].status = 'failed';
+    state.steps[0].retryable = true;
+    for (const step of state.steps.slice(1)) step.status = 'pending';
+    row.state = JSON.stringify(state);
+    await db.manager.save(StudioExecution, row);
+    await db.manager.delete(Database, body.document.sourceId);
+    const calls = ai.callLlm.mock.calls.length;
+    await expect(
+      service.retry(row.runId, { stepId: state.steps[0].stepId, request: body }, 7),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.findOneBy(StudioExecution, { runId: row.runId })).toEqual(row);
+    expect(ai.callLlm).toHaveBeenCalledTimes(calls);
   });
   const inlineCase = async () => {
     const parent: any = {

@@ -579,6 +579,24 @@ describe('UC-018 publication backend', () => {
     );
   });
 
+  it('UC055 rejects a captured publication after Source deletion before any publication/CAS write', async () => {
+    const preview = await service.preview(DASHBOARD, ACTOR, { expectedRevision: revision });
+    const before = await db.manager.findOneBy(Dashboard, { id: DASHBOARD });
+    await db.manager.delete(Database, 7);
+    await expect(
+      service.publish(DASHBOARD, ACTOR, await publishBody(preview, 0)),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.count(DashboardPublication)).toBe(0);
+    expect(await db.manager.findOneBy(Dashboard, { id: DASHBOARD })).toEqual(before);
+  });
+  it('UC055 rejects source metadata replacement after the publication preview with zero publication writes', async () => {
+    const preview = await service.preview(DASHBOARD, ACTOR, { expectedRevision: revision });
+    await db.manager.update(Database, 7, { connectionConfig: '{"changed":true}' });
+    await expect(
+      service.publish(DASHBOARD, ACTOR, await publishBody(preview, 0)),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await db.manager.count(DashboardPublication)).toBe(0);
+  });
   it('refuses owner endpoints for a dashboard the actor does not own', async () => {
     for (const call of [
       () => service.state(DASHBOARD, OTHER),

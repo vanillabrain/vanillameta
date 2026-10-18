@@ -1,4 +1,5 @@
-import { del, get, post, postForm, put } from '@/helpers/apiHelper';
+import { submitSourceDeletion } from '@/api/sourceDeletionService';
+import { get, post, postForm, put } from '@/helpers/apiHelper';
 
 export const URL_DATABASE = '/database';
 
@@ -10,7 +11,7 @@ const executeQuery = (data: unknown): Promise<any> => post(URL_DATABASE + '/exec
 const selectDatabaseTypeList = (): Promise<any> => get(URL_DATABASE + '/type');
 const createDatabase = (data: unknown): Promise<any> => post(URL_DATABASE, data);
 const updateDatabase = (id: string | number, data: unknown): Promise<any> => put(URL_DATABASE + '/' + id, data);
-const deleteDatabase = (id: string | number): Promise<any> => del(URL_DATABASE + '/' + id);
+const deleteDatabase = submitSourceDeletion;
 const selectData = (data: unknown): Promise<any> => get(URL_DATABASE + '/data', data);
 const uploadFile = (file: File): Promise<any> => {
   const form = new FormData();

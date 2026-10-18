@@ -19,8 +19,12 @@ export class WidgetController {
    * @param createWidgetDto
    */
   @Post()
-  create(@Body() createWidgetDto: CreateWidgetDto) {
-    return this.widgetService.create(createWidgetDto);
+  create(@Body() createWidgetDto: CreateWidgetDto, @Req() req) {
+    return this.widgetService.create(
+      createWidgetDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   /**
@@ -50,8 +54,13 @@ export class WidgetController {
    * @param updateWidgetDto
    */
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateWidgetDto: UpdateWidgetDto) {
-    return this.widgetService.update(+id, updateWidgetDto);
+  update(@Param('id') id: string, @Body() updateWidgetDto: UpdateWidgetDto, @Req() req) {
+    return this.widgetService.update(
+      +id,
+      updateWidgetDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   /**

@@ -1,4 +1,6 @@
-import { serializeMetadataWork } from '../common/metadata-work';
+import { lockSourceActor, assertSourceOwner, sourceWriteFields } from './source-write-lock';
+import { lockMetricSources } from '../metric/metric-write-lock';
+import { serializeMetadataWork, metadataTransaction } from '../common/metadata-work';
 import {
   BadRequestException,
   ConflictException,
@@ -76,10 +78,13 @@ export class DatabaseService {
    * database(데이터소스) 생성
    * @param createDatabaseDto
    */
-  async create(createDatabaseDto: CreateDatabaseDto, ownerId?: number) {
-    return serializeMetadataWork(this.databaseRepository.manager.connection, async () => {
+  async create(createDatabaseDto: CreateDatabaseDto, ownerId?: number, expectedEpoch?: number) {
+    createDatabaseDto = this.writeInput(createDatabaseDto);
+    this.webConfig(createDatabaseDto.engine, createDatabaseDto.connectionConfig);
+    return metadataTransaction(this.databaseRepository.manager, async manager => {
+      await lockSourceActor(manager, ownerId, expectedEpoch);
       const databaseDto = Database.toDto(createDatabaseDto);
-      databaseDto.ownerId = ownerId ?? null;
+      databaseDto.ownerId = ownerId;
       const connectionConfig = {
         client: databaseDto.engine,
         connection: databaseDto.connectionConfig,
@@ -94,7 +99,7 @@ export class DatabaseService {
       databaseDto.connectionConfig = encryptConnectionConfig(JSON.stringify(connectionConfig));
       databaseDto.timezone = 'Asia/Seoul';
 
-      const saveResult = await this.databaseRepository.save(databaseDto);
+      const saveResult = await manager.save(Database, databaseDto);
       saveResult.connectionConfig = this.publicConnectionConfig(
         JSON.parse(decryptConnectionConfig(saveResult.connectionConfig)),
       );
@@ -103,11 +108,11 @@ export class DatabaseService {
   }
 
   /** Preserve raw files and import analytical data in the worker, leaving metadata in TypeORM. */
-  async uploadFile(file: AnalysisUpload, ownerId?: number) {
+  async uploadFile(file: AnalysisUpload, ownerId?: number, expectedEpoch?: number) {
     const imported = await this.duckdbService.importFile(file);
     const baseName = path.basename(file.originalname, path.extname(file.originalname));
     const database = new Database();
-    database.ownerId = ownerId ?? null;
+    database.ownerId = ownerId;
     database.name = baseName;
     database.description = `File upload: ${file.originalname}`;
     database.engine = 'duckdb';
@@ -131,9 +136,10 @@ export class DatabaseService {
           ],
         }),
       );
-      saved = await serializeMetadataWork(this.databaseRepository.manager.connection, () =>
-        this.databaseRepository.save(database),
-      );
+      saved = await metadataTransaction(this.databaseRepository.manager, async manager => {
+        await lockSourceActor(manager, ownerId, expectedEpoch);
+        return manager.save(Database, database);
+      });
     } catch (error) {
       await this.duckdbService
         .discardImport(imported.filename)
@@ -160,6 +166,7 @@ export class DatabaseService {
     if (!row) throw new NotFoundException('데이터 소스를 찾을 수 없습니다.');
     if (row.ownerId !== ownerId || !Number.isSafeInteger(ownerId) || ownerId <= 0)
       throw new ForbiddenException('다른 사용자의 파일은 변경할 수 없습니다.');
+    if (row.catalogActive === false) throw new ForbiddenException('Source unavailable.');
     if (row.engine !== 'duckdb')
       throw new BadRequestException('서버에 저장한 파일만 교체할 수 있습니다.');
     const config = JSON.parse(decryptConnectionConfig(row.connectionConfig));
@@ -221,15 +228,24 @@ export class DatabaseService {
       );
   }
 
-  private async switchFile(state: any, version: any, versions: any[]) {
-    return serializeMetadataWork(this.databaseRepository.manager.connection, async () => {
+  private async switchFile(
+    state: any,
+    version: any,
+    versions: any[],
+    actor: number,
+    epoch: number,
+  ) {
+    return metadataTransaction(this.databaseRepository.manager, async manager => {
+      await lockSourceActor(manager, actor, epoch);
+      const sources = await lockMetricSources(manager, [state.row.id]);
+      assertSourceOwner(sources.get(state.row.id), actor);
       const config = {
         ...state.config,
         connection: { ...state.config.connection, filename: version.filename },
         fileVersions: versions,
       };
       const connectionConfig = encryptConnectionConfig(JSON.stringify(config));
-      const updated = await this.databaseRepository.update(
+      const updated = await manager.getRepository(Database).update(
         {
           id: state.row.id,
           ownerId: state.row.ownerId,
@@ -251,7 +267,13 @@ export class DatabaseService {
     });
   }
 
-  async replaceFile(id: number, file: AnalysisUpload, expectedRevision: unknown, ownerId: number) {
+  async replaceFile(
+    id: number,
+    file: AnalysisUpload,
+    expectedRevision: unknown,
+    ownerId: number,
+    expectedEpoch?: number,
+  ) {
     let imported: Awaited<ReturnType<DuckDBService['importFile']>>;
     let committed = false;
     try {
@@ -291,7 +313,13 @@ export class DatabaseService {
         uploadedAt: new Date().toISOString(),
         sha256,
       };
-      const result = await this.switchFile(state, version, [...state.versions, version]);
+      const result = await this.switchFile(
+        state,
+        version,
+        [...state.versions, version],
+        ownerId,
+        expectedEpoch,
+      );
       committed = true;
       try {
         await this.duckdbService.registerImport(imported.filename, id);
@@ -309,14 +337,15 @@ export class DatabaseService {
     }
   }
 
-  async restoreFile(id: number, body: any, ownerId: number) {
+  async restoreFile(id: number, body: any, ownerId: number, expectedEpoch?: number) {
+    sourceWriteFields(body, ['expectedRevision', 'versionId']);
     const state = await this.fileState(id, ownerId);
     this.expectFileRevision(state, body?.expectedRevision);
     const version = state.versions.find(v => v.id === body?.versionId);
     if (!version) throw new BadRequestException('보관된 파일 버전을 선택해 주세요.');
     if (version.filename === state.config.connection.filename) return this.publicVersions(state);
     await this.duckdbService.query(version.filename, 'DESCRIBE uploaded_data');
-    return this.switchFile(state, version, state.versions);
+    return this.switchFile(state, version, state.versions, ownerId, expectedEpoch);
   }
 
   /**
@@ -485,103 +514,82 @@ export class DatabaseService {
     return databaseInfo;
   }
 
-  async update(id: number, updateDatabaseDto: UpdateDatabaseDto) {
-    const saveResult = await serializeMetadataWork(
-      this.databaseRepository.manager.connection,
-      async () => {
-        id = this.validateId(id);
-        const one = await this.findDB(id);
-        if (!one)
-          return {
-            status: ResponseStatus.ERROR,
-            message: `조건에 맞는 데이터베이스를 찾지 못했습니다. id:${id}`,
-          };
-
-        if (updateDatabaseDto.engine === 'cockroachdb') {
-          const connectioninfo = updateDatabaseDto.connectionConfig;
-          const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
-          connectioninfo['connectionString'] = cockroach_url;
-        }
-
-        const connectionConfig = {
-          client: one.engine,
-          connection: updateDatabaseDto.connectionConfig,
-          useNullAsDefault: true,
-        };
-        updateDatabaseDto.connectionConfig = encryptConnectionConfig(
-          JSON.stringify(connectionConfig),
-        );
-
-        // const connectionConfig = {
-        //   client: one.engine,
-        //   connection: Object(one.connectionConfig).connection,
-        //   useNullAsDefault: true,
-        // };
-        // updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
-
-        const saveResult = await this.databaseRepository.update(
-          { id },
-          { name: updateDatabaseDto.name, connectionConfig: updateDatabaseDto.connectionConfig },
-        );
-
-        return saveResult;
-      },
-    );
-    if ('status' in saveResult) return saveResult;
-    if (saveResult.affected === 1) {
-      await this.connectionService.removeKnex(id);
-      return { status: ResponseStatus.SUCCESS, data: { message: `${id} 수정 완료` } };
-    } else {
-      return { status: ResponseStatus.ERROR, message: '수정 실패' };
-    }
+  private writeInput<T extends UpdateDatabaseDto>(input: T): T {
+    return sourceWriteFields(input, [
+      'name',
+      'description',
+      'connectionConfig',
+      'engine',
+      'type',
+      'timezone',
+    ]);
   }
-
-  async remove(id: number) {
-    const deleted = await serializeMetadataWork(
-      this.databaseRepository.manager.connection,
-      async () => {
-        id = this.validateId(id);
-        const one = await this.findDB(id);
-        if (!one) return null;
-
-        // 연관된 widget 제거
-        const deletedWidget = await this.datasetRepository.query(
-          `delete from widget
-where ((datasetType = 'DATASET' and datasetId in (select id from dataset where databaseId = ?)) or
-       (datasetType = 'TABLE' and datasetId in (select id from table_query where databaseId = ?)))`,
-          [id, id],
+  private webConfig(engine: string, config: unknown) {
+    if (['duckdb', 'sqlite', 'sqlite3', 'better-sqlite3'].includes(String(engine).toLowerCase()))
+      throw new ForbiddenException('File sources require managed upload.');
+    sourceWriteFields(config, [
+      'host',
+      'port',
+      'user',
+      'password',
+      'database',
+      'schema',
+      'ssl',
+      'name',
+      'sid',
+      'serviceName',
+      'domain',
+      'options',
+      'projectId',
+      'keyFilename',
+      'instanceName',
+      'fetchAsString',
+      'requestTimeout',
+      'account',
+      'username',
+      'application',
+      'warehouse',
+    ]);
+    // Connection paths and nested driver configuration are server-owned.
+    for (const [key, value] of Object.entries(config))
+      if (
+        value !== null &&
+        typeof value === 'object' &&
+        !(
+          key === 'fetchAsString' &&
+          Array.isArray(value) &&
+          value.every(v => typeof v === 'string')
+        )
+      )
+        throw new BadRequestException('연결 설정 값을 확인해 주세요.');
+  }
+  async update(
+    id: number,
+    updateDatabaseDto: UpdateDatabaseDto,
+    actor?: number,
+    expectedEpoch?: number,
+  ) {
+    const input = this.writeInput(updateDatabaseDto);
+    id = this.validateId(id);
+    await metadataTransaction(this.databaseRepository.manager, async manager => {
+      await lockSourceActor(manager, actor, expectedEpoch);
+      const source = (await lockMetricSources(manager, [id])).get(id);
+      assertSourceOwner(source, actor);
+      const patch: Partial<Database> = {};
+      if (input.name !== undefined) patch.name = input.name;
+      if (input.connectionConfig !== undefined) {
+        this.webConfig(source.engine, input.connectionConfig);
+        const connection = { ...(input.connectionConfig as any) };
+        if (source.engine === 'cockroachdb')
+          connection.connectionString = `postgresql://${connection.user}:${connection.password}@${connection.host}:${connection.port}/${connection.database}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
+        patch.connectionConfig = encryptConnectionConfig(
+          JSON.stringify({ client: source.engine, connection, useNullAsDefault: true }),
         );
-        // table query 삭제
-        await this.tableQueryRepository.delete({ databaseId: id });
-        // dataset 삭제
-        const deletedDataset = await this.datasetRepository.delete({ databaseId: id });
-        // database 삭제
-        await this.databaseRepository.remove(one);
-
-        return { one, deletedWidget, deletedDataset };
-      },
-    );
-    if (!deleted)
-      return {
-        status: ResponseStatus.ERROR,
-        message: `조건에 맞는 데이터베이스를 찾지 못했습니다. id:${id}`,
-      };
-    const { one, deletedWidget, deletedDataset } = deleted;
+      }
+      if (Object.keys(patch).length) await manager.update(Database, id, patch);
+    });
     await this.connectionService.removeKnex(id);
-    if (one.engine === 'duckdb') {
-      const files = new Set<string>([
-        one.connectionConfig['connection'].filename,
-        ...(one.connectionConfig['fileVersions'] || []).map(v => v.filename),
-      ]);
-      for (const filename of files) await this.duckdbService.removeImport(filename);
-    }
-
-    return {
-      status: ResponseStatus.SUCCESS,
-      data: {
-        message: `${deletedWidget.affected}개의 widget, ${deletedDataset.affected}개의 dataset, databse [${one.name}] 삭제 완료`,
-      },
-    };
+    return { status: ResponseStatus.SUCCESS, data: { message: `${id} 수정 완료` } };
   }
 
   /**

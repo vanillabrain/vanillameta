@@ -165,6 +165,27 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
   const own = (dashboardId: number, userId: number) =>
     mappings.save({ dashboardId, userInfoId: userId });
 
+  it('UC055 refuses direct/group Source grants after parent deletion without grant or audit inserts', async () => {
+    await sources.delete(101);
+    await expect(
+      policy.set('source', 101, 1, {
+        recipientId: 2,
+        expectedVersion: 0,
+        rights: rights({ read: true }),
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      policy.setGroupPolicy('source', 101, 1, {
+        groupId: 1,
+        expectedVersion: 0,
+        expectedGroupVersion: 1,
+        rights: rights({ read: true }),
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(await grants.count()).toBe(0);
+    expect(await db.manager.count(EnterpriseGroupGrant)).toBe(0);
+    expect(await audits.count()).toBe(0);
+  });
   it('projects committed grant changes and preserves grants while personal notifications are removed', async () => {
     const notifications = new EnterpriseNotificationService(db);
     await policy.set('source', 101, 1, {

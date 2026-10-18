@@ -1,3 +1,6 @@
+import { sourceWriteTransaction } from '../database/source-write-lock';
+import { Database } from '../database/entities/database.entity';
+import { lockMetricSources } from '../metric/metric-write-lock';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import {
   BadRequestException,
@@ -47,6 +50,7 @@ type PublicationTicket = {
   reuseDefinition?: string | null;
   /** UC-051: the bound source of the captured analysis, never taken from the publish body. */
   sourceId: number;
+  sourceBasis?: string;
   bytes: number;
   expiresAt: number;
 };
@@ -202,6 +206,12 @@ export class PublicationService {
     if (dashboardRevision(before) !== body.expectedRevision)
       throw new ConflictException(STALE_SAVE_MESSAGE);
     const analysis = (await this.ai.analysis(dashboardId, actor, true, 'publish')).data;
+    const sourceBefore = await this.dashboards.manager.findOne(Database, {
+      where: { id: analysis.databaseId },
+    });
+    if (!sourceBefore) throw new ConflictException('게시 소스가 변경되었습니다.');
+    const sourceBasis = createHash('sha256').update(JSON.stringify(sourceBefore)).digest('hex');
+
     const captured = (
       await this.ai.preview(
         {
@@ -262,6 +272,14 @@ export class PublicationService {
         throw new BadRequestException('서버에 저장한 파일 분석만 재사용을 허용할 수 있습니다.');
       reuseDefinition = buildReuseRecipe({ ...analysis, responsiveLayouts: layouts }, profile);
     }
+    const sourceAfter = await this.dashboards.manager.findOne(Database, {
+      where: { id: analysis.databaseId },
+    });
+    if (
+      !sourceAfter ||
+      createHash('sha256').update(JSON.stringify(sourceAfter)).digest('hex') !== sourceBasis
+    )
+      throw new ConflictException('게시 소스가 변경되었습니다.');
     const ticket = this.tickets.put({
       actorId: actor,
       dashboardId,
@@ -269,6 +287,7 @@ export class PublicationService {
       snapshot: JSON.stringify(snapshot),
       reuseDefinition,
       sourceId: analysis.databaseId,
+      sourceBasis,
       bytes: bytes + Buffer.byteLength(reuseDefinition ?? ''),
     });
     return { dashboardId, revision: body.expectedRevision, ticket, snapshot, reusable: allowReuse };
@@ -377,7 +396,7 @@ export class PublicationService {
         replayed,
       );
     const result = await serializedViewWrite(this.publications, () =>
-      metadataTransaction(this.publications.manager, async manager => {
+      sourceWriteTransaction(this.publications.manager, async manager => {
         const dashboard = await lockDashboardWrite(manager, dashboardId);
         await this.access.dashboard(dashboardId, actor, 'publish', manager);
         const current = await this.find(manager, dashboardId);
@@ -400,6 +419,14 @@ export class PublicationService {
           ticket.revision !== body.expectedRevision
         )
           throw new BadRequestException(TICKET_MESSAGE);
+        const sources = await lockMetricSources(manager, [ticket.sourceId]);
+        if (
+          createHash('sha256')
+            .update(JSON.stringify(sources.get(ticket.sourceId)))
+            .digest('hex') !== ticket.sourceBasis
+        )
+          throw new ConflictException('게시 소스가 변경되었습니다.');
+        await this.access.assert('database', ticket.sourceId, actor, 'read', manager);
         // Conditional no-op update: a save that slips in between fails this CAS and rolls back.
         const guard = manager
           .createQueryBuilder()

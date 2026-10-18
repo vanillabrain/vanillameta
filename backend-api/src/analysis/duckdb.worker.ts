@@ -1,8 +1,7 @@
 import { parentPort } from 'worker_threads';
 import { DuckDBInstance, DuckDBConnection, DuckDBTimestampTZValue } from '@duckdb/node-api';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import { importCommerce } from './commerce-import';
+import { removeDeletionImport, removeDeletionSqlite } from './source-file-deletion';
 
 // The adapter defaults to the host offset independently of the connection's UTC setting.
 DuckDBTimestampTZValue.timezoneOffsetInMinutes = 0;
@@ -31,8 +30,14 @@ parentPort.on('message', async task => {
   let instance: DuckDBInstance;
   let connection: DuckDBConnection;
   try {
-    if (task.kind === 'remove') {
-      await fs.rm(path.dirname(task.filename), { recursive: true, force: true });
+    if (task.kind === 'remove') throw new Error('managed import deletion validation failed');
+    if (task.kind === 'remove-sqlite') {
+      await removeDeletionSqlite(task.root, task.filename, task.sourceId, task.proof);
+      parentPort.postMessage({ id: task.id, result: {} });
+      return;
+    }
+    if (task.kind === 'remove-owned') {
+      await removeDeletionImport(task.root, task.filename, task.sourceId, task.proof);
       parentPort.postMessage({ id: task.id, result: {} });
       return;
     }
@@ -168,13 +173,18 @@ parentPort.on('message', async task => {
     runningConnection = undefined;
     connection?.closeSync();
     instance?.closeSync();
-    const message = /Expected top-level JSON array/.test(error.message)
-      ? 'json file must contain an array of objects'
-      : error.message
-          .replaceAll(task.sourcePath || '\0', '<uploaded file>')
-          .replaceAll(task.sourcePaths?.[0] || '\0', '<orders CSV>')
-          .replaceAll(task.sourcePaths?.[1] || '\0', '<payments CSV>')
-          .replaceAll(task.sourcePaths?.[2] || '\0', '<refunds CSV>');
+    const message =
+      task.kind === 'remove-sqlite'
+        ? 'managed SQLite deletion validation failed'
+        : ['remove-owned', 'remove'].includes(task.kind)
+        ? 'managed import deletion validation failed'
+        : /Expected top-level JSON array/.test(error.message)
+        ? 'json file must contain an array of objects'
+        : error.message
+            .replaceAll(task.sourcePath || '\0', '<uploaded file>')
+            .replaceAll(task.sourcePaths?.[0] || '\0', '<orders CSV>')
+            .replaceAll(task.sourcePaths?.[1] || '\0', '<payments CSV>')
+            .replaceAll(task.sourcePaths?.[2] || '\0', '<refunds CSV>');
     parentPort.postMessage({ id: task.id, error: message });
   }
 });
