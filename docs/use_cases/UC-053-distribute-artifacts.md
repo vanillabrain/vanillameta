@@ -13,7 +13,7 @@
 ## Preconditions
 
 - 요청자가 같은 조직의 유효한 업무 계정이며 대상의 현재 권한을 확인할 수 있다.
-- 직원 조회 공유/회수의 첫 단위는 [설계](../plans/UC-053-deliveries.md)·[증빙](../testing/recipient-deliveries.md)을 따른다. 그룹/독립 사본 전달은 목표 명세다. 권한 변경 본인 알림의 첫 구현은 [계획](../plans/UC-053-notifications.md)·[증빙](../testing/personal-notifications.md)을 따른다. 실제 Ego/모바일·전달 전체 실행은 NOT_RUN이다.
+- 직원 조회 공유/회수의 첫 단위는 [설계](../plans/UC-053-deliveries.md)·[증빙](../testing/recipient-deliveries.md)을 따른다. 받은 자료의 현재 권한 조회/열기는 [설계](../plans/UC-053-received.md)·[증빙](../testing/received-dashboards.md)을 따른다. 그룹/독립 사본 전달은 목표 명세다. 권한 변경 본인 알림의 첫 구현은 [계획](../plans/UC-053-notifications.md)·[증빙](../testing/personal-notifications.md)을 따른다. 실제 Ego/모바일·전달 전체 실행은 NOT_RUN이다.
 
 ## Main Success Scenario
 

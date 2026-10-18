@@ -248,6 +248,115 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     ])
       await expect(service.set(20, 1, invalid)).rejects.toMatchObject({ status: 400 });
   });
+  it('lists only currently readable deliveries and keeps direct grants independent on revoke', async () => {
+    const dashboards = db.getRepository(Dashboard);
+    const request = input();
+    await service.set(20, 1, request);
+    const before = {
+      audits: await db.getRepository(EnterpriseAuditEvent).count(),
+      receipts: await db.getRepository(EnterpriseDeliveryReceipt).count(),
+      relations: await db.getRepository(EnterpriseDashboardDelivery).find(),
+    };
+    expect(await service.received(2)).toEqual({
+      entries: [{ dashboardId: 20, title: 'Synthetic analysis', version: 1 }],
+      nextAfterId: null,
+    });
+    expect(await service.received(3)).toEqual({ entries: [], nextAfterId: null });
+    await dashboards.update(20, {
+      title: 'Current title',
+      structuredDefinition: 'synthetic private recipe',
+      layout: 'synthetic private layout',
+    });
+    const result = await service.received(2);
+    expect(result.entries).toEqual([{ dashboardId: 20, title: 'Current title', version: 1 }]);
+    expect(JSON.stringify(result)).not.toMatch(
+      /private|analysisDefinition|source|ownerId|layout|databaseId|token/,
+    );
+    expect(await db.getRepository(EnterpriseAuditEvent).count()).toBe(before.audits);
+    expect(await db.getRepository(EnterpriseDeliveryReceipt).count()).toBe(before.receipts);
+    expect(await db.getRepository(EnterpriseDashboardDelivery).find()).toEqual(before.relations);
+    await policy.set('dashboard', 20, 1, {
+      recipientId: 2,
+      expectedVersion: 0,
+      rights: rights(true),
+    });
+    await service.set(20, 1, input([2], false, 1));
+    expect((await service.received(2)).entries).toEqual([]);
+    await access.dashboard(20, 2, 'read');
+  });
+  it('rechecks both accounts, memberships, all sources and current ownership before projecting titles', async () => {
+    await service.set(20, 1, input());
+    await db.getRepository(User).update(2, { active: false });
+    await expect(service.received(2)).rejects.toMatchObject({ status: 403 });
+    await db.getRepository(User).update(2, { active: true });
+    await db.getRepository(User).update(1, { active: false });
+    expect((await service.received(2)).entries).toEqual([]);
+    await db.getRepository(User).update(1, { active: true });
+    await db.getRepository(EnterpriseMembership).update(2, { organizationId: 2 });
+    expect((await service.received(2)).entries).toEqual([]);
+    await db.getRepository(EnterpriseMembership).update(2, { organizationId: 1 });
+    await db.getRepository(Database).update(10, { catalogActive: false });
+    expect((await service.received(2)).entries).toEqual([]);
+    await db.getRepository(Database).update(10, { catalogActive: true });
+    await policy.set('source', 10, 1, { recipientId: 2, expectedVersion: 1, rights: rights() });
+    expect((await service.received(2)).entries).toEqual([]);
+    await policy.set('source', 10, 1, { recipientId: 2, expectedVersion: 2, rights: rights(true) });
+    await db.getRepository(UserMapping).save({ dashboardId: 20, userInfoId: 3 });
+    expect((await service.received(2)).entries).toEqual([]);
+    await db.getRepository(UserMapping).delete({ dashboardId: 20, userInfoId: 3 });
+    await db.getRepository(Dashboard).update(20, { delYn: 'Y' });
+    expect((await service.received(2)).entries).toEqual([]);
+    await db.getRepository(EnterpriseMembership).delete(2);
+    await expect(service.received(2)).rejects.toMatchObject({ status: 403 });
+  });
+  it('advances over a wholly hidden page without exposing titles or stalling', async () => {
+    const dashboards = db.getRepository(Dashboard);
+    const sources = db.getRepository(Database);
+    const deliveries = db.getRepository(EnterpriseDashboardDelivery);
+    await sources.save({
+      id: 11,
+      ownerId: 1,
+      name: 'Unshared source',
+      engine: 'duckdb',
+      type: 'duckdb',
+      connectionConfig: '{}',
+    });
+    for (let id = 100; id <= 120; id += 1) {
+      await dashboards.save({
+        id,
+        title: `Dashboard ${id}`,
+        analysisDefinition: JSON.stringify({ databaseId: id === 120 ? 10 : 11 }),
+      });
+      await db.getRepository(UserMapping).save({ dashboardId: id, userInfoId: 1 });
+      await deliveries.save({
+        ownerId: 1,
+        organizationId: 1,
+        dashboardId: id,
+        recipientId: 2,
+        version: 1,
+        active: true,
+      });
+    }
+    expect(await service.received(2)).toEqual({ entries: [], nextAfterId: 119 });
+    expect(await service.received(2, 119)).toEqual({
+      entries: [{ dashboardId: 120, title: 'Dashboard 120', version: 1 }],
+      nextAfterId: null,
+    });
+    for (const invalid of [0, -1, 1.5, '119', NaN])
+      await expect(service.received(2, invalid)).rejects.toMatchObject({ status: 400 });
+  });
+  it('bounds legacy titles without splitting surrogate pairs and lets database failures surface', async () => {
+    await service.set(20, 1, input());
+    await db.getRepository(Dashboard).update(20, { title: 'a'.repeat(298) + '🚀'.repeat(40) });
+    const title = (await service.received(2)).entries[0].title;
+    expect(title.length).toBeLessThanOrEqual(300);
+    expect(title).toBe('a'.repeat(298) + '…');
+    const spy = jest
+      .spyOn(access, 'dashboard')
+      .mockRejectedValueOnce(new Error('synthetic unavailable'));
+    await expect(service.received(2)).rejects.toThrow('synthetic unavailable');
+    spy.mockRestore();
+  });
   it('enforces JWT actor and validates route ids over HTTP', async () => {
     const previous = process.env.ACCESS_SECRET;
     process.env.ACCESS_SECRET = 'synthetic-delivery-test-secret';
@@ -285,6 +394,24 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
         .set('Authorization', `Bearer ${token(1)}`)
         .send(input())
         .expect(201);
+      const received = await request(app.getHttpServer())
+        .get('/enterprise/deliveries/dashboard/received')
+        .set('Authorization', `Bearer ${token(2)}`)
+        .expect(200);
+      expect(received.body.entries).toEqual([
+        { dashboardId: 20, title: 'Synthetic analysis', version: 1 },
+      ]);
+      await request(app.getHttpServer())
+        .get('/enterprise/deliveries/dashboard/received')
+        .expect(401);
+      await request(app.getHttpServer())
+        .get('/enterprise/deliveries/dashboard/received?afterId=1.2')
+        .set('Authorization', `Bearer ${token(2)}`)
+        .expect(400);
+      await request(app.getHttpServer())
+        .get('/enterprise/deliveries/dashboard/received?afterId=1&afterId=2')
+        .set('Authorization', `Bearer ${token(2)}`)
+        .expect(400);
       const result = await request(app.getHttpServer())
         .get('/enterprise/deliveries/dashboard/20')
         .set('Authorization', `Bearer ${token(1)}`)

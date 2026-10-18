@@ -1,3 +1,5 @@
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { UserMapping } from '../user/entities/user-mapping.entity';
 import {
   BadRequestException,
   ConflictException,
@@ -61,6 +63,78 @@ export class EnterpriseDeliveryService {
     if (new Set(recipients.map(entry => entry.recipientId)).size !== recipients.length)
       throw new BadRequestException('수신자가 중복됐습니다.');
     return { requestId: body.requestId as string, active: body.active as boolean, recipients };
+  }
+  async received(actor: number, afterId?: unknown) {
+    if (!Number.isSafeInteger(actor) || actor <= 0)
+      throw new ForbiddenException('계정 확인이 필요합니다.');
+    const after = afterId === undefined ? 0 : afterId;
+    if (
+      !Number.isSafeInteger(after) ||
+      Number(after) < 0 ||
+      (afterId !== undefined && Number(after) === 0)
+    )
+      throw new BadRequestException('받은 자료 목록 위치를 확인해 주세요.');
+    return serializeMetadataWork(this.db, async () => {
+      const user = await this.db.manager.findOne(User, {
+        where: { id: actor, active: true },
+        select: { id: true },
+      });
+      const member = await this.db.manager.findOneBy(EnterpriseMembership, { userId: actor });
+      if (!user || !member)
+        throw new ForbiddenException('본인 조직의 받은 자료만 확인할 수 있습니다.');
+      const candidates = await this.db
+        .getRepository(EnterpriseDashboardDelivery)
+        .createQueryBuilder('delivery')
+        .innerJoin(User, 'owner', 'owner.id = delivery.ownerId AND owner.active = :active', {
+          active: true,
+        })
+        .innerJoin(
+          EnterpriseMembership,
+          'ownerMember',
+          'ownerMember.userId = owner.id AND ownerMember.organizationId = delivery.organizationId',
+        )
+        .innerJoin(
+          Dashboard,
+          'dashboard',
+          'dashboard.id = delivery.dashboardId AND dashboard.delYn <> :deleted',
+          { deleted: 'Y' },
+        )
+        .innerJoin(
+          UserMapping,
+          'mapping',
+          'mapping.dashboardId = dashboard.id AND mapping.userInfoId = delivery.ownerId',
+        )
+        .where(
+          'delivery.recipientId = :actor AND delivery.organizationId = :org AND delivery.active = :active',
+          { actor, org: member.organizationId, active: true },
+        )
+        .andWhere('delivery.dashboardId > :after', { after })
+        .andWhere(
+          '(SELECT COUNT(*) FROM user_mapping owning WHERE owning.dashboardId = dashboard.id) = 1',
+        )
+        .select(['delivery.dashboardId', 'delivery.version'])
+        .orderBy('delivery.dashboardId', 'ASC')
+        .limit(21)
+        .getMany();
+      const entries: Array<{ dashboardId: number; title: string; version: number }> = [];
+      for (const row of candidates.slice(0, 20)) {
+        try {
+          await this.access.dashboard(row.dashboardId, actor, 'read');
+          const dashboard = await this.db.manager.findOneOrFail(Dashboard, {
+            where: { id: row.dashboardId },
+            select: { id: true, title: true },
+          });
+          const title =
+            dashboard.title.length <= 300
+              ? dashboard.title
+              : dashboard.title.slice(0, 299).replace(/[\uD800-\uDBFF]$/, '') + '…';
+          entries.push({ dashboardId: row.dashboardId, title, version: row.version });
+        } catch (error) {
+          if (!(error instanceof ForbiddenException)) throw error;
+        }
+      }
+      return { entries, nextAfterId: candidates.length > 20 ? candidates[19].dashboardId : null };
+    });
   }
   async list(dashboardId: number, actor: number) {
     return serializeMetadataWork(this.db, async () => {

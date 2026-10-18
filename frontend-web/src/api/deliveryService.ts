@@ -42,3 +42,29 @@ export const saveDeliveries = async (
     throw new Error('공유 결과를 확인할 수 없습니다. 같은 요청으로 다시 확인해 주세요.');
   return data;
 };
+
+export type ReceivedDashboard = { dashboardId: number; title: string; version: number };
+export type ReceivedPage = { entries: ReceivedDashboard[]; nextAfterId: number | null };
+export const fetchReceivedDashboards = async (afterId?: number): Promise<ReceivedPage> => {
+  const { data } = await get('/enterprise/deliveries/dashboard/received', afterId === undefined ? {} : { afterId });
+  const positive = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) > 0;
+  if (
+    !data ||
+    !Array.isArray(data.entries) ||
+    data.entries.length > 20 ||
+    !(data.nextAfterId === null || (positive(data.nextAfterId) && data.nextAfterId > (afterId ?? 0))) ||
+    !data.entries.every(
+      (entry: any, index: number) =>
+        !!entry &&
+        positive(entry.dashboardId) &&
+        entry.dashboardId > (afterId ?? 0) &&
+        (index === 0 || entry.dashboardId > data.entries[index - 1].dashboardId) &&
+        (data.nextAfterId === null || entry.dashboardId <= data.nextAfterId) &&
+        typeof entry.title === 'string' &&
+        entry.title.length <= 300 &&
+        positive(entry.version),
+    )
+  )
+    throw new Error('받은 자료 응답을 확인할 수 없습니다.');
+  return data;
+};
