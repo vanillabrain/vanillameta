@@ -1,19 +1,27 @@
+import { MetricController } from './metric.controller';
+import { SourceAccessService } from '../ownership/source-access.service';
 import { MetricService } from './metric.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
-import { MetricAggregation } from './entities/metric.entity';
+import { Metric, MetricAggregation } from './entities/metric.entity';
+import { DataSource } from 'typeorm';
+import { User } from '../user/entities/user.entity';
+import { Database } from '../database/entities/database.entity';
 
 describe('MetricService', () => {
   const rawMock = jest.fn();
   const mockKnex: any = { raw: rawMock };
 
-  const metricRepository = {
-    manager: { connection: { options: { type: 'sqlite' } } },
-    find: jest.fn(),
-    findOne: jest.fn(),
-    create: jest.fn(d => d),
-    save: jest.fn(d => Promise.resolve({ id: 1, ...d })),
-    update: jest.fn().mockResolvedValue({ affected: 1 }),
-  } as any;
+  let db: DataSource;
+  let metricRepository: any;
+  const seed = (row: any) =>
+    db.manager.save(Metric, {
+      name: 'Synthetic',
+      databaseId: 1,
+      tableName: 'orders',
+      aggregation: MetricAggregation.SUM,
+      expression: 'amount',
+      ...row,
+    });
 
   const connectionService = {
     getKnex: jest.fn().mockResolvedValue(mockKnex),
@@ -21,14 +29,45 @@ describe('MetricService', () => {
 
   let service: MetricService;
 
-  beforeEach(() => {
-    service = new MetricService(metricRepository, connectionService);
+  beforeEach(async () => {
     jest.clearAllMocks();
+    db = await new DataSource({
+      type: 'sqlite',
+      database: ':memory:',
+      synchronize: true,
+      entities: [Database, Metric, User],
+    }).initialize();
+    await db.manager.insert(User, {
+      id: 7,
+      userId: 'metric-owner',
+      email: 'metric-owner@example.invalid',
+      password: 'unused',
+    });
+    for (const id of [1, 2])
+      await db.manager.insert(Database, {
+        id,
+        ownerId: 7,
+        name: 'Synthetic source ' + id,
+        engine: 'duckdb',
+        type: 'FILE',
+        connectionConfig: '{}',
+      });
+    metricRepository = db.getRepository(Metric);
+    for (const method of ['find', 'findOne', 'create', 'save', 'update'])
+      jest.spyOn(metricRepository, method);
+    service = new MetricService(metricRepository, connectionService);
   });
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    await db.destroy();
+  });
+
+  const create = (dto: any) => service.create(dto, 7, 0);
+  const update = (id: number, dto: any) => service.update(id, dto, 7, 0);
 
   describe('create', () => {
     it('recreation replaces optional grouping, description and filters from the deleted definition', async () => {
-      metricRepository.findOne.mockResolvedValueOnce({
+      await seed({
         id: 5,
         name: 'revived',
         useYn: 'N',
@@ -36,15 +75,14 @@ describe('MetricService', () => {
         description: 'old description',
         filters: JSON.stringify([{ column: 'region', op: '=', value: '서울' }]),
       });
-      const res = await service.create({
+      const res = await create({
         name: 'revived',
         databaseId: 2,
         tableName: 'uploaded_data',
         aggregation: MetricAggregation.MAX,
         expression: 'amount',
       });
-      expect(metricRepository.update).toHaveBeenCalledWith(
-        5,
+      expect(await db.manager.findOneBy(Metric, { id: 5 })).toEqual(
         expect.objectContaining({
           groupBy: null,
           description: null,
@@ -56,7 +94,7 @@ describe('MetricService', () => {
       );
     });
     it('정상적인 메트릭을 생성한다', async () => {
-      const res = await service.create({
+      const res = await create({
         name: 'total_sales',
         databaseId: 1,
         tableName: 'orders',
@@ -67,7 +105,7 @@ describe('MetricService', () => {
     });
 
     it('식별자가 안전하지 않으면 거부한다', async () => {
-      const res = await service.create({
+      const res = await create({
         name: 'evil',
         databaseId: 1,
         tableName: 'orders; DROP TABLE users',
@@ -78,7 +116,7 @@ describe('MetricService', () => {
     });
 
     it('지원하지 않는 집계함수를 거부한다', async () => {
-      const res = await service.create({
+      const res = await create({
         name: 'evil',
         databaseId: 1,
         tableName: 'orders',
@@ -89,8 +127,8 @@ describe('MetricService', () => {
     });
 
     it('같은 이름의 활성 메트릭이 있으면 거부한다', async () => {
-      metricRepository.findOne.mockResolvedValueOnce({ id: 5, name: 'dup', useYn: 'Y' });
-      const res = await service.create({
+      await seed({ id: 5, name: 'dup', useYn: 'Y' });
+      const res = await create({
         name: 'dup',
         databaseId: 1,
         tableName: 'orders',
@@ -102,8 +140,8 @@ describe('MetricService', () => {
     });
 
     it('soft-delete된 메트릭과 같은 이름이면 재활성화한다', async () => {
-      metricRepository.findOne.mockResolvedValueOnce({ id: 5, name: 'revived', useYn: 'N' });
-      const res = await service.create({
+      await seed({ id: 5, name: 'revived', useYn: 'N' });
+      const res = await create({
         name: 'revived',
         databaseId: 2,
         tableName: 'orders',
@@ -113,15 +151,14 @@ describe('MetricService', () => {
       expect(res.status).toBe(ResponseStatus.SUCCESS);
       expect(res.data.id).toBe(5);
       expect(res.data.useYn).toBe('Y');
-      expect(metricRepository.update).toHaveBeenCalledWith(
-        5,
+      expect(await db.manager.findOneBy(Metric, { id: 5 })).toEqual(
         expect.objectContaining({ useYn: 'Y' }),
       );
     });
   });
 
   it('rejects empty IN values before create persistence', async () => {
-    const res = await service.create({
+    const res = await create({
       name: 'empty_in',
       databaseId: 1,
       tableName: 'orders',
@@ -145,7 +182,7 @@ describe('MetricService', () => {
       filters: null,
       useYn: 'Y',
     });
-    const res = await service.update(1, { filters: [{ column: 'region', op: 'IN', value: [] }] });
+    const res = await update(1, { filters: [{ column: 'region', op: 'IN', value: [] }] });
     expect(res.status).toBe(ResponseStatus.ERROR);
     expect(metricRepository.update).not.toHaveBeenCalled();
   });
@@ -154,9 +191,7 @@ describe('MetricService', () => {
     metricRepository.findOne.mockResolvedValue({ id: 1, useYn: 'N' });
     expect((await service.findOne(1)).status).toBe(ResponseStatus.ERROR);
     expect((await service.evaluate(1)).status).toBe(ResponseStatus.ERROR);
-    expect((await service.update(1, { name: 'should_not_restore' })).status).toBe(
-      ResponseStatus.ERROR,
-    );
+    expect((await update(1, { name: 'should_not_restore' })).status).toBe(ResponseStatus.ERROR);
     expect(connectionService.getKnex).not.toHaveBeenCalled();
     expect(metricRepository.update).not.toHaveBeenCalled();
   });
@@ -179,6 +214,28 @@ describe('MetricService', () => {
       column: 'amount',
     });
 
+    it.each(['useYn', 'id', 'createdAt', 'updatedAt', 'unknown'])(
+      'rejects runtime %s fields on both legacy writes without touching the row',
+      async key => {
+        await seed({ id: 5, name: 'plain', definition: null });
+        const before = await db.manager.find(Metric);
+        const dto = {
+          name: 'new',
+          databaseId: 1,
+          tableName: 'orders',
+          aggregation: MetricAggregation.SUM,
+          expression: 'amount',
+        };
+        await expect(
+          service.create({ ...dto, [key]: key === 'useYn' ? 'N' : 1 }, 7, 0),
+        ).rejects.toMatchObject({ status: 400 });
+        await expect(
+          service.update(5, { [key]: key === 'useYn' ? 'N' : 1 }, 7, 0),
+        ).rejects.toMatchObject({ status: 400 });
+        expect(await db.manager.find(Metric)).toEqual(before);
+      },
+    );
+
     it.each(['create', 'update'] as const)(
       'rejects forged definition JSON through legacy %s before persistence',
       async operation => {
@@ -190,8 +247,7 @@ describe('MetricService', () => {
         });
         // Extra JSON fields can reach the service at runtime despite DTO typing.
         const dto = { ...legacyDto, definition };
-        const result =
-          operation === 'create' ? await service.create(dto) : await service.update(5, dto);
+        const result = operation === 'create' ? await create(dto) : await update(5, dto);
         expect(result.status).toBe(ResponseStatus.ERROR);
         expect(metricRepository.save).not.toHaveBeenCalled();
         expect(metricRepository.update).not.toHaveBeenCalled();
@@ -200,8 +256,8 @@ describe('MetricService', () => {
 
     it('does not reactivate a soft-deleted structured metric through legacy create', async () => {
       const stored = { ...legacyDto, id: 5, definition, useYn: 'N' };
-      metricRepository.findOne.mockResolvedValueOnce(stored);
-      const result = await service.create({ ...legacyDto, expression: 'other_amount' });
+      await seed(stored);
+      const result = await create({ ...legacyDto, expression: 'other_amount' });
       expect(result.status).toBe(ResponseStatus.ERROR);
       expect(metricRepository.findOne).toHaveBeenCalledWith({ where: { name: legacyDto.name } });
       expect(metricRepository.save).not.toHaveBeenCalled();
@@ -212,7 +268,7 @@ describe('MetricService', () => {
     it('keeps an active structured metric immutable even when update supplies no definition', async () => {
       const stored = { ...legacyDto, id: 5, definition, useYn: 'Y' };
       metricRepository.findOne.mockResolvedValueOnce(stored);
-      const result = await service.update(5, {
+      const result = await update(5, {
         databaseId: 2,
         aggregation: MetricAggregation.AVG,
         expression: 'other_amount',
@@ -228,6 +284,52 @@ describe('MetricService', () => {
       });
     });
   });
+
+  it.each(['create', 'update'] as const)(
+    'requires a server actor for legacy %s and never falls back to a test/internal owner',
+    async operation => {
+      await seed({ id: 5, name: 'plain' });
+      const dto = {
+        name: 'new',
+        databaseId: 1,
+        tableName: 'orders',
+        aggregation: MetricAggregation.SUM,
+        expression: 'amount',
+      };
+      await expect(
+        operation === 'create' ? service.create(dto) : service.update(5, dto),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(await db.manager.count(Metric)).toBe(1);
+      expect((await db.manager.findOneBy(Metric, { id: 5 })).name).toBe('plain');
+    },
+  );
+  it.each(['inactive', 'epoch', 'owner', 'source-inactive'])(
+    'controller-derived actor/epoch fences %s changes before either legacy write',
+    async change => {
+      await seed({ id: 5, name: 'plain' });
+      const controller = new MetricController(service, new SourceAccessService(db));
+      const request = { user: { accessKeyData: { id: 7, authVersion: 0 } } };
+      const repo = db.getRepository(Metric);
+      const dto = {
+        name: 'new',
+        databaseId: 1,
+        tableName: 'orders',
+        aggregation: MetricAggregation.SUM,
+        expression: 'amount',
+      };
+      const before = await repo.find();
+      if (change === 'inactive') await db.manager.update(User, 7, { active: false });
+      if (change === 'epoch') await db.manager.update(User, 7, { authVersion: 1 });
+      if (change === 'owner') await db.manager.update(Database, 1, { ownerId: 8 });
+      if (change === 'source-inactive')
+        await db.manager.update(Database, 1, { catalogActive: false });
+      await expect(controller.create(dto, request)).rejects.toMatchObject({ status: 403 });
+      await expect(
+        controller.update('5', { expression: 'other_amount' }, request),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(await repo.find()).toEqual(before);
+    },
+  );
 
   describe('evaluate', () => {
     const baseMetric = {

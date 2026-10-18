@@ -1,3 +1,4 @@
+import { User } from '../user/entities/user.entity';
 jest.mock('../connection/connection.service', () => ({ ConnectionService: class {} }));
 import { DataSource } from 'typeorm';
 import { serializeMetadataWork } from '../common/metadata-work';
@@ -22,8 +23,14 @@ describe('NFR005/008 catalog metadata operations', () => {
       type: 'sqlite',
       database: ':memory:',
       synchronize: true,
-      entities: [Database, Metric],
+      entities: [Database, Metric, User],
     }).initialize();
+    await db.manager.insert(User, {
+      id: 1,
+      userId: 'catalog-owner',
+      email: 'catalog-owner@example.invalid',
+      password: 'unused',
+    });
   });
   afterEach(async () => {
     await db.destroy();
@@ -66,13 +73,17 @@ describe('NFR005/008 catalog metadata operations', () => {
         } as any,
         1,
       ),
-      metrics.create({
-        name: 'Revenue',
-        databaseId: 1,
-        tableName: 'uploaded_data',
-        expression: 'amount',
-        aggregation: MetricAggregation.SUM,
-      }),
+      metrics.create(
+        {
+          name: 'Revenue',
+          databaseId: 1,
+          tableName: 'uploaded_data',
+          expression: 'amount',
+          aggregation: MetricAggregation.SUM,
+        },
+        1,
+        0,
+      ),
     ]).then(result => {
       completed++;
       return result;

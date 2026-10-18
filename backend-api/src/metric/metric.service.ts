@@ -1,7 +1,9 @@
-import { serializeMetadataWork } from '../common/metadata-work';
-import { Injectable } from '@nestjs/common';
+import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
+import { lockMetricSources, lockMetricWrite } from './metric-write-lock';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { User } from '../user/entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
 import { ConnectionService } from '../connection/connection.service';
@@ -19,6 +21,50 @@ export class MetricService {
     private readonly connectionService: ConnectionService,
   ) {}
 
+  private writeInput<T extends CreateMetricDto | UpdateMetricDto>(input: T): T {
+    const fields = [
+      'name',
+      'description',
+      'databaseId',
+      'tableName',
+      'aggregation',
+      'expression',
+      'groupBy',
+      'filters',
+      'definition',
+    ];
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      Array.isArray(input) ||
+      Object.keys(input).some(key => !fields.includes(key))
+    )
+      throw new BadRequestException('메트릭 요청 항목을 확인해 주세요.');
+    // Copy only the checked own fields. Runtime extras must never reach an ORM update/save.
+    return Object.fromEntries(Object.keys(input).map(key => [key, input[key]])) as T;
+  }
+
+  private async currentActor(manager: EntityManager, actor: number, epoch: number) {
+    const user = await manager.findOne(User, {
+      where: { id: actor },
+      ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ? { lock: { mode: 'pessimistic_write' as const } }
+        : {}),
+    });
+    if (
+      !user ||
+      user.active !== true ||
+      !Number.isSafeInteger(epoch) ||
+      epoch < 0 ||
+      user.authVersion !== epoch
+    )
+      throw new ForbiddenException('Current actor required.');
+  }
+  private sourceOwner(source: { ownerId: number; catalogActive: boolean }, actor: number) {
+    if (source.ownerId !== actor || source.catalogActive === false)
+      throw new ForbiddenException('Source ownership required.');
+  }
+
   async findAll() {
     return serializeMetadataWork(this.metricRepository.manager.connection, async () => {
       const metrics = await this.metricRepository.find({ where: { useYn: YesNo.YES } });
@@ -35,9 +81,16 @@ export class MetricService {
     });
   }
 
-  async create(dto: CreateMetricDto) {
+  async create(
+    dto: CreateMetricDto,
+    actor?: number,
+    expectedEpoch = 0,
+  ): Promise<{ status: ResponseStatus; data?: any; message?: string }> {
+    if (!Number.isSafeInteger(actor) || actor <= 0)
+      throw new ForbiddenException('Current actor required.');
+    dto = this.writeInput(dto);
     return serializeMetadataWork(this.metricRepository.manager.connection, async () => {
-      if ((dto as any).definition !== undefined)
+      if (Object.prototype.hasOwnProperty.call(dto, 'definition'))
         return {
           status: ResponseStatus.ERROR,
           message: '정의 snapshot은 제작 API에서만 저장합니다.',
@@ -46,49 +99,70 @@ export class MetricService {
         this.validateDefinition(dto);
         // name 유니크 제약이 soft-delete 행에도 적용되므로, 삭제된 메트릭이면 재활성화
         const existing = await this.metricRepository.findOne({ where: { name: dto.name } });
-        if (existing) {
-          if (existing.definition)
-            return {
-              status: ResponseStatus.ERROR,
-              message: '저장한 제작 지표는 새 정의로 만들어 주세요.',
-            };
-          if (existing.useYn === YesNo.YES) {
-            return { status: ResponseStatus.ERROR, message: '이미 존재하는 메트릭명입니다.' };
-          }
-          await this.metricRepository.update(existing.id, {
-            ...dto,
-            description: dto.description ?? null,
-            groupBy: dto.groupBy ?? null,
-            filters: dto.filters ? JSON.stringify(dto.filters) : null,
-            useYn: YesNo.YES,
-          });
-          return {
-            status: ResponseStatus.SUCCESS,
-            data: this.parseFilters({
-              ...existing,
+        return await metadataTransaction(this.metricRepository.manager, async manager => {
+          await this.currentActor(manager, actor, expectedEpoch);
+          const sources = await lockMetricSources(manager, [
+            dto.databaseId,
+            ...(existing ? [existing.databaseId] : []),
+          ]);
+          for (const source of sources.values()) this.sourceOwner(source, actor);
+          const repo = manager.getRepository(Metric);
+          const named = await repo.findOne({ where: { name: dto.name } });
+          if (named?.id !== existing?.id)
+            throw new Error('메트릭이 변경되었습니다. 다시 불러와 주세요.');
+          const current = existing
+            ? await lockMetricWrite(manager, existing.id, { allowInactive: true })
+            : undefined;
+          if (current && current.databaseId !== existing.databaseId)
+            throw new Error('메트릭 소스가 변경되었습니다. 다시 불러와 주세요.');
+          if (current) {
+            if (current.definition)
+              return {
+                status: ResponseStatus.ERROR,
+                message: '저장한 제작 지표는 새 정의로 만들어 주세요.',
+              };
+            if (current.useYn === YesNo.YES) {
+              return { status: ResponseStatus.ERROR, message: '이미 존재하는 메트릭명입니다.' };
+            }
+            await repo.update(current.id, {
               ...dto,
               description: dto.description ?? null,
               groupBy: dto.groupBy ?? null,
-              useYn: YesNo.YES,
               filters: dto.filters ? JSON.stringify(dto.filters) : null,
-            }),
-          };
-        }
-        const metric = this.metricRepository.create({
-          ...dto,
-          filters: dto.filters ? JSON.stringify(dto.filters) : null,
+              useYn: YesNo.YES,
+            });
+            return {
+              status: ResponseStatus.SUCCESS,
+              data: this.parseFilters({
+                ...current,
+                ...dto,
+                description: dto.description ?? null,
+                groupBy: dto.groupBy ?? null,
+                useYn: YesNo.YES,
+                filters: dto.filters ? JSON.stringify(dto.filters) : null,
+              }),
+            };
+          }
+          const metric = repo.create({
+            ...dto,
+            filters: dto.filters ? JSON.stringify(dto.filters) : null,
+          });
+          const saved = await repo.save(metric);
+          return { status: ResponseStatus.SUCCESS, data: this.parseFilters(saved) };
         });
-        const saved = await this.metricRepository.save(metric);
-        return { status: ResponseStatus.SUCCESS, data: this.parseFilters(saved) };
       } catch (e) {
+        if (e instanceof ForbiddenException) throw e;
         return { status: ResponseStatus.ERROR, message: e.message };
       }
     });
   }
 
-  async update(id: number, dto: UpdateMetricDto) {
+  async update(id: number, dto: UpdateMetricDto, actor?: number, expectedEpoch = 0) {
+    if (!Number.isSafeInteger(actor) || actor <= 0)
+      throw new ForbiddenException('Current actor required.');
+    dto = this.writeInput(dto);
     return serializeMetadataWork(this.metricRepository.manager.connection, async () => {
-      if ((dto as any).definition !== undefined)
+      if (Object.prototype.hasOwnProperty.call(dto, 'definition'))
         return {
           status: ResponseStatus.ERROR,
           message: '정의 snapshot은 제작 API에서만 저장합니다.',
@@ -104,23 +178,29 @@ export class MetricService {
       try {
         const merged = { ...this.parseFilters(metric), ...dto };
         this.validateDefinition(merged as CreateMetricDto);
-        if (dto.filters !== undefined) {
-          (dto as any).filters = dto.filters ? JSON.stringify(dto.filters) : null;
-        }
-        await this.metricRepository.update(id, dto as any);
-        return { status: ResponseStatus.SUCCESS, data: { id } };
+        return await metadataTransaction(this.metricRepository.manager, async manager => {
+          await this.currentActor(manager, actor, expectedEpoch);
+          const sources = await lockMetricSources(manager, [
+            metric.databaseId,
+            ...(dto.databaseId === undefined ? [] : [dto.databaseId]),
+          ]);
+          for (const source of sources.values()) this.sourceOwner(source, actor);
+          const current = await lockMetricWrite(manager, id);
+          if (current.databaseId !== metric.databaseId || current.definition !== metric.definition)
+            throw new Error('메트릭이 변경되었습니다. 다시 불러와 주세요.');
+          this.validateDefinition({ ...this.parseFilters(current), ...dto } as CreateMetricDto);
+          await manager.update(Metric, id, {
+            ...dto,
+            ...(dto.filters === undefined
+              ? {}
+              : { filters: dto.filters ? JSON.stringify(dto.filters) : null }),
+          } as any);
+          return { status: ResponseStatus.SUCCESS, data: { id } };
+        });
       } catch (e) {
+        if (e instanceof ForbiddenException) throw e;
         return { status: ResponseStatus.ERROR, message: e.message };
       }
-    });
-  }
-
-  async remove(id: number) {
-    return serializeMetadataWork(this.metricRepository.manager.connection, async () => {
-      const result = await this.metricRepository.update(id, { useYn: YesNo.NO });
-      if (result.affected === 0)
-        return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
-      return { status: ResponseStatus.SUCCESS, data: { id } };
     });
   }
 

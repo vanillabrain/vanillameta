@@ -266,3 +266,7 @@ UC053 direct delivery의 `allowCopy` boolean은 기본 false인 별도 독립 �
 ## UC055 대시보드 삭제 영수증
 
 추가 마이그레이션 `1792530000000-add-dashboard-delete-receipts`의 `dashboard_delete_receipt`는 generated id, actorId/requestId unique, nullable organizationId, dashboardId index, expectedRevision/digest, createdAt을 보관한다. 원본 삭제·소유 연결 정리와 한 transaction으로 저장하는 과거 확인 기록이다. FK/cascade로 독립 사본/게시/개인 상태를 삭제하지 않는다. 조직 감사 `dashboard-deletion.completed`의 resourceId는 이 영수증 id이며 version1의 완료 사건이다. 영수증의 dashboardId/expectedRevision이 삭제 대상·기준을 잇고 조직 없는 과거 기록도 actor/기준/시각을 보존한다. [계획](plans/UC-055-dashboard-delete.md)·[증빙](testing/dashboard-deletion.md)을 따르며 운영 보관 정책은 별도다.
+
+### MetricDeleteReceipt (UC055)
+
+지표의 명시 논리 삭제에 대한 과거 확정 영수증이다. `actorId+requestId` unique, nullable organizationId, metricId, expectedRevision, digest, createdAt을 보존한다. Metric/다른 자원의 소유권/현재 상태를 대신하지 않으며 재확인은 useYn을 다시 변경하지 않는다. 조직 감사 `metric-deletion.completed`의 resourceId는 영수증ID/version=1이다.

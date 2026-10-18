@@ -45,9 +45,9 @@ export async function createdId(response: Response) {
 export async function removeOwned(page: Page, headers: Record<string, string>, resource: string, id?: number) {
   if (!id) return;
   let data: Record<string, unknown> | undefined;
-  if (resource === 'dashboard') {
-    const impact = await page.request.get(`${API}/dashboard/${id}/delete-impact`, { headers });
-    expect(impact.ok(), 'Read owned test dashboard deletion impact').toBe(true);
+  if (resource === 'dashboard' || resource === 'metric') {
+    const impact = await page.request.get(`${API}/${resource}/${id}/delete-impact`, { headers });
+    expect(impact.ok(), 'Read owned test resource deletion impact').toBe(true);
     const result = await impact.json();
     expect(result.status).toBe('SUCCESS');
     expect(result.data.canDelete, JSON.stringify(result.data.dependencies)).toBe(true);

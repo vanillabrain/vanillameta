@@ -18,7 +18,7 @@
 | FR021  | 배치 공유·받은 자료·동의 기반 독립 복제/영수증·동적 그룹 받은 자료/복제     | 실제 UI·MySQL/운영·공유/복제 통합 수용                  |
 | FR022  | 권한/공유/회수 본인 알림·그룹 사건 수신자 snapshot·읽음/목록 제거·멱등 상태 | 계정/조직 활성 변경 auto-notice·실제 UI/MySQL/운영 수용 |
 | FR023  | 영속 집계 export 작업·멱등 접수/CAS 실행·만료/권한 보호 파일의 구현 slice   | 실제 UI/기기·MySQL/운영·사람 수용 및 전체 TC050         |
-| FR024  | 개인 보관/복원·Dashboard 사용처 확인/원자 삭제·공통 부모 잠금               | 소스/지표 삭제·조직 비활성·실제 UI/MySQL/운영 수용      |
+| FR024  | 개인 보관/복원·Dashboard 원자 삭제·지표 사용처/논리 삭제·공통 잠금          | 소스 영구 삭제·조직 비활성·실제 Ego/운영 수용           |
 | FR025  | 기존 기간 비교 기반·고정 집계 export 문맥                                   | 전체 비교 리포트/파일 업무 수용·독립 oracle 통합        |
 | NFR005 | 소유권·활성/epoch·grant·확정 권한 조회/교차 큐 선택 검증                    | 조직/활성/회수 전 보호 경로 일관성                      |
 | NFR006 | 기존 선택 숫자 정답 증빙                                                    | 조건/비교/export 동일 문맥 독립 정답                    |
@@ -75,3 +75,5 @@ MySQL 계정 후속의 구체 잔여는 [계정·세션 계획](UC-051-account-s
 [UC055 개인 보관/복원 계획](UC-055-library-archive.md)은 기존 허용 목록과 분리한 본인/현재 조직 상태로 active/archived 목록을 연결한다. [삭제 보호 후속 설계](UC-055-dependency-deletion.md)는 현재 순차 삭제의 원자성/사용처 경합 공백을 기록한다. 개인 보관을 영구 삭제 보호 완료로 승계하지 않으며 FR024 전체·실제 UI/운영 수용은 계속 열린다.
 
 [UC055 대시보드 삭제](UC-055-dashboard-delete.md)는 사용처 종류/건수·현재 소유/actor/org/JWT epoch·기준 재검증과 공통 부모 잠금 아래 원자 삭제/영수증을 연결한다. [증빙](../testing/dashboard-deletion.md)은 실제 SQLite/JWT·선택 공유/저장 경합과 자동 화면의 범위를 구분한다. source/metric 삭제·조직 비활성·실제 Ego/실휴대폰/MySQL/운영 및 전체 FR024/NFR005/007/008 수용은 계속 열린다.
+
+[UC055 지표 삭제 보호](UC-055-metric-delete.md)는 Dashboard 구조화 정의/붙은 Pivot·현재 Studio 문서·ExploreView/소스 PersonalView를 현재 명시 참조로 조사한다. [증빙](../testing/metric-deletion.md)은 source 소유/현재 계정/조직/epoch·삭제 기준과 Source→Metric 잠금/영수증의 실행 범위를 기록한다. 무조건 논리 삭제를 보호 경로로 교체하지만 source 영구 삭제·조직 비활성·실제 Ego/실기기/운영 및 전체16개 수용으로 승계하지 않는다.

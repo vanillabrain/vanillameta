@@ -1077,16 +1077,47 @@ describe('Studio real DuckDB and transactional metadata', () => {
     );
     expect(undo.preview.widgets[1].datas).toHaveLength(2);
   });
+  it('UC055 completes real Studio save SQL before opening the persistence transaction', async () => {
+    const state = await studio.get(id, 7);
+    const query = connection.queryDuckDB.getMockImplementation();
+    let calls = 0;
+    connection.queryDuckDB.mockImplementation(async (...args) => {
+      expect(db.createQueryRunner().isTransactionActive).toBe(false);
+      calls++;
+      return query(...args);
+    });
+    try {
+      await studio.save(
+        id,
+        {
+          requestId: 'sql-outside-' + id,
+          expectedRevision: state.document.revision,
+          expectedSourceRevision: state.sourceRevision,
+          document: { ...state.document, title: 'SQL before lock' },
+        },
+        7,
+      );
+      expect(calls).toBeGreaterThan(0);
+    } finally {
+      connection.queryDuckDB.mockImplementation(query);
+    }
+  });
   it('T7 rolls back all metadata and save journal when cancellation arrives before commit', async () => {
     const document = (await studio.get(id, 7)).document;
     const before = await db.manager.findOneBy(Dashboard, { id });
     const count = await db.manager.count(Widget);
     const controller = new AbortController();
-    const originalSave = ai.save.bind(ai);
-    const hook = jest.spyOn(ai, 'save').mockImplementation(async (...args) => {
-      const result = await originalSave(...args);
-      controller.abort();
-      return result;
+    const originalSave = ai.prepareSave.bind(ai);
+    const hook = jest.spyOn(ai, 'prepareSave').mockImplementation(async (...args) => {
+      const prepared = await originalSave(...args);
+      return {
+        ...prepared,
+        persist: async (...values) => {
+          const result = await prepared.persist(...values);
+          controller.abort();
+          return result;
+        },
+      };
     });
     try {
       await expect(

@@ -62,3 +62,5 @@
 [개인 보관/복원](../plans/UC-055-library-archive.md)은 본인의 현재 조직 허용 목록에만 상태를 적용하고 원본/공유/게시/타인 목록을 보존한다. 기존 조직 없는 계정의 탐색은 유지한다. [삭제 보호 후속](../plans/UC-055-dependency-deletion.md)은 현재 사용처/원자 삭제의 공백과 필요한 재검증을 명시한다. 설계·부분 구현·실제 화면/운영·전체 수용은 구별한다.
 
 대시보드의 사용처 확인/삭제는 [구체 계획](../plans/UC-055-dashboard-delete.md)·[선택 실행](../testing/dashboard-deletion.md)으로 이어진다. source/metric·조직 자산 비활성 및 실제 UI/운영·전체 수용은 같은 단위로 완료 처리하지 않는다.
+
+지표 삭제 보호의 다음 단위는 [계획](../plans/UC-055-metric-delete.md)·[증빙](../testing/metric-deletion.md)을 따른다. 저장 분석/Pivot·Studio/탐색 보기의 현재 참조와 source 소유/계정·조직·기준을 재확인하며 자동 연결 해제는 하지 않는다. source/조직 비활성·전체 TC050/16개 수용은 별도다.

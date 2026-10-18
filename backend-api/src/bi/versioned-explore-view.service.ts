@@ -1,10 +1,11 @@
+import { lockMetricReferences } from '../metric/metric-write-lock';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { Database } from '../database/entities/database.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
@@ -269,15 +270,6 @@ export class VersionedExploreViewService {
     if (!temporal.has(dateRange.column)) throw new BadRequestException('unknown date column');
   }
 
-  /** MySQL admission serializes on the existing source row across server instances. */
-  private async lockSource(manager: EntityManager, sourceId: number) {
-    if (manager.connection.options.type !== 'mysql') return;
-    await manager.findOne(Database, {
-      where: { id: sourceId },
-      lock: { mode: 'pessimistic_write' },
-    });
-  }
-
   async list(body: any, actor: number) {
     const input = this.fields(body, SOURCE_FIELDS);
     const sourceId = this.access.id(input.sourceId);
@@ -303,6 +295,7 @@ export class VersionedExploreViewService {
       await this.access.assert('database', sourceId, actor, 'read');
       // Hold the pinned file for the reads and the insert so a new upload cannot race the row.
       return this.connection.withDuckDBSnapshot(sourceId, async () => {
+        const sourceBefore = await this.db.manager.findOne(Database, { where: { id: sourceId } });
         const profile = await this.bi.profile(sourceId, actor);
         if (!profile.supported)
           throw new BadRequestException('서버에 저장한 DuckDB 파일을 선택해 주세요.');
@@ -320,7 +313,18 @@ export class VersionedExploreViewService {
               '지표 정의가 변경되었습니다. 조건을 다시 확인하고 새 보기로 저장해 주세요.',
             );
         const row = await metadataTransaction(this.db, async manager => {
-          await this.lockSource(manager, sourceId);
+          const current = await lockMetricReferences(manager, sourceId, state.measureIds);
+          const sourceNow = await manager.findOne(Database, { where: { id: sourceId } });
+          if (!sourceBefore || sourceNow.connectionConfig !== sourceBefore.connectionConfig)
+            throw new ConflictException('Source changed.');
+          for (const [id, metric] of current) {
+            let definition;
+            try {
+              definition = JSON.parse(metric.definition);
+            } catch {}
+            if (definition?.definitionVersion !== measureVersions[id])
+              throw new ConflictException('Saved metric changed.');
+          }
           await this.access.assert('database', sourceId, actor, 'read', manager);
           const repo = manager.getRepository(ExploreView);
           if ((await repo.count({ where: { sourceId, userId: actor } })) >= MAX_VIEWS_PER_SOURCE)

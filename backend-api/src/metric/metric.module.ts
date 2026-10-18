@@ -1,3 +1,6 @@
+import { MetricDeletionService } from './metric-deletion.service';
+import { MetricDeletionController } from './metric-deletion.controller';
+import { MetricDeleteReceipt } from './entities/metric-delete-receipt.entity';
 import { Module } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -8,8 +11,8 @@ import { MetricController } from './metric.controller';
 import { MetricService } from './metric.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Metric, Database])],
-  controllers: [MetricController],
-  providers: [MetricService, ConnectionService, JwtService],
+  imports: [TypeOrmModule.forFeature([Metric, Database, MetricDeleteReceipt])],
+  controllers: [MetricDeletionController, MetricController],
+  providers: [MetricDeletionService, MetricService, ConnectionService, JwtService],
 })
 export class MetricModule {}

@@ -1,6 +1,6 @@
 import { SourceAccessService } from '../ownership/source-access.service';
 import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, UseGuards, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CreateMetricDto, UpdateMetricDto } from './dto/metric.dto';
@@ -36,18 +36,22 @@ export class MetricController {
    * 메트릭 정의 생성
    */
   @Post()
-  create(@Body() createMetricDto: CreateMetricDto) {
-    return this.metricService.create(createMetricDto);
+  create(@Body() createMetricDto: CreateMetricDto, @Req() req) {
+    return this.metricService.create(
+      createMetricDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateMetricDto: UpdateMetricDto) {
-    return this.metricService.update(+id, updateMetricDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.metricService.remove(+id);
+  update(@Param('id') id: string, @Body() updateMetricDto: UpdateMetricDto, @Req() req) {
+    return this.metricService.update(
+      +id,
+      updateMetricDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   /**

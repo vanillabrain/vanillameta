@@ -10,6 +10,7 @@ import {
   call,
   dashboard,
   deleteDashboard,
+  deleteMetric,
   dataset,
   error,
   execute,
@@ -375,7 +376,7 @@ test('[METRIC-07] update and failed update preserve correct metric definition', 
 
 test('[METRIC-08] soft delete and recreate same name restores one correct active metric', async () => {
   const saved = await metric(owner, source.id);
-  await ok(await call(owner, 'DELETE', `/metric/${saved.id}`));
+  await ok(await deleteMetric(owner, saved.id));
   const revived = await metric(owner, source.id, { name: saved.name, aggregation: 'MAX' });
   expect(revived.id).toBe(saved.id);
   const list = await ok(await call(owner, 'GET', '/metric'));
@@ -385,7 +386,7 @@ test('[METRIC-08] soft delete and recreate same name restores one correct active
 
 test('[METRIC-09] a deleted metric cannot still evaluate as active', async () => {
   const saved = await metric(owner, source.id);
-  await ok(await call(owner, 'DELETE', `/metric/${saved.id}`));
+  await ok(await deleteMetric(owner, saved.id));
   await error(await call(owner, 'POST', `/metric/${saved.id}/evaluate`));
   await error(await call(owner, 'POST', '/metric/99999999/evaluate'));
 });

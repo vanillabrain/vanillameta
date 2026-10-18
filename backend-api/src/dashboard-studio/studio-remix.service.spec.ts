@@ -450,13 +450,13 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
           .mockImplementationOnce(async (...args) => {
             const result = await persist(...args);
             if (mode === 'group')
-              await args[5].update(
+              await args[0].update(
                 EnterpriseGroupDelivery,
                 { ownerId: 7, organizationId: 1, dashboardId: id, groupId: 80 },
                 { allowCopy: false },
               );
             else
-              await args[5].update(
+              await args[0].update(
                 EnterpriseDashboardDelivery,
                 { ownerId: 7, organizationId: 1, dashboardId: id, recipientId: 8 },
                 { allowCopy: false },
@@ -977,16 +977,22 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
         v = await preview(p);
       const n = await db.manager.count(Dashboard),
         m = await db.manager.count(Metric);
-      const original = dashboards.save.bind(dashboards);
-      const spy = jest.spyOn(dashboards, 'save').mockImplementation(async (...args) => {
-        const result = await original(...args);
-        if (change === 'source') await db.manager.update(Database, 2, { ownerId: 9 });
-        else if (change === 'publication')
-          await db.manager.update(StudioPublication, p.token, {
-            revokedAt: new Date().toISOString(),
-          });
-        else await db.manager.update(Dashboard, id, { delYn: 'Y' as any });
-        return result;
+      const original = dashboards.prepareSave.bind(dashboards);
+      const spy = jest.spyOn(dashboards, 'prepareSave').mockImplementation(async (...args) => {
+        const prepared = await original(...args);
+        return {
+          ...prepared,
+          persist: async (...values) => {
+            const result = await prepared.persist(...values);
+            if (change === 'source') await db.manager.update(Database, 2, { ownerId: 9 });
+            else if (change === 'publication')
+              await db.manager.update(StudioPublication, p.token, {
+                revokedAt: new Date().toISOString(),
+              });
+            else await db.manager.update(Dashboard, id, { delYn: 'Y' as any });
+            return result;
+          },
+        };
       });
       try {
         await expect(
@@ -1010,13 +1016,30 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
     expect(v.blocks[0].supported).toBe(false);
     await expect(saveRemix(p, v)).rejects.toMatchObject({ status: 400 });
   });
+  it('UC055 completes real remix SQL before the clone source/metric persistence fences', async () => {
+    const p = await publish(),
+      v = await preview(p);
+    const query = connection.queryDuckDB.getMockImplementation();
+    let calls = 0;
+    connection.queryDuckDB.mockImplementation(async (...args) => {
+      expect(db.createQueryRunner().isTransactionActive).toBe(false);
+      calls++;
+      return query(...args);
+    });
+    try {
+      await saveRemix(p, v);
+      expect(calls).toBeGreaterThan(0);
+    } finally {
+      connection.queryDuckDB.mockImplementation(query);
+    }
+  });
   it('detects a schema change during save and rolls back every new asset', async () => {
     const p = await publish(),
       v = await preview(p),
       before = await db.manager.count(Dashboard);
-    const original = dashboards.save.bind(dashboards),
+    const original = dashboards.prepareSave.bind(dashboards),
       query = connection.queryDuckDB.getMockImplementation();
-    const spy = jest.spyOn(dashboards, 'save').mockImplementation(async (...args) => {
+    const spy = jest.spyOn(dashboards, 'prepareSave').mockImplementation(async (...args) => {
       const result = await original(...args);
       connection.queryDuckDB.mockImplementation(async (sourceId, sql, bindings) => {
         const data = await query(sourceId, sql, bindings);
@@ -1303,8 +1326,8 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       metrics: await db.manager.count(Metric),
     };
     await expect(
-      db.transaction(manager =>
-        creation.persistRemix(
+      db.transaction(() =>
+        creation.prepareRemix(
           6,
           {
             schemaVersion: 1,
@@ -1316,7 +1339,6 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
           [],
           profile,
           8,
-          manager,
           [
             { column: 'total', values: [300] },
             { column: 'total', values: [200] },
@@ -1461,8 +1483,8 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       metrics: await db.manager.count(Metric),
     };
     await expect(
-      db.transaction(manager =>
-        creation.persistRemix(
+      db.transaction(() =>
+        creation.prepareRemix(
           2,
           {
             schemaVersion: 1,
@@ -1474,7 +1496,6 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
           [],
           profile,
           8,
-          manager,
           [],
           { column: 'segment', start: '2026-01-01', end: '2026-01-01' },
         ),

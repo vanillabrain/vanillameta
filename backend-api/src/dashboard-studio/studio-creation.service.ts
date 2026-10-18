@@ -1,3 +1,4 @@
+import { lockMetricSources, lockMetricReferences } from '../metric/metric-write-lock';
 import {
   BadRequestException,
   ConflictException,
@@ -686,18 +687,17 @@ export class StudioCreationService {
   }
 
   /** Internal server-only remix persistence. Caller owns snapshot, queue and transaction. */
-  async persistRemix(
+  async prepareRemix(
     sourceId: number,
     template: RemixTemplate,
     blocks: any[],
     profile: any,
     actor: number,
-    manager: EntityManager,
     filters: StudioFilter[] = [],
     dateRange?: StudioDateRange,
     conditions?: StudioConditions,
   ) {
-    await this.ensureCurrentSource(sourceId, actor, manager);
+    await this.ensureCurrentSource(sourceId, actor, this.db.manager);
     let scope: StudioFilter[];
     try {
       scope = validateStudioFilters(filters);
@@ -721,40 +721,7 @@ export class StudioCreationService {
       ).definition;
     }
     const draft = this.compile(sourceId, template.title, blocks, profile);
-    // Prove the published scope, including value/type compatibility, before any metric or dashboard
-    // write. A direct remix call cannot persist scope that the query boundary cannot apply.
-    if (scope.length || range || mappedConditions)
-      await this.dashboards.preview(
-        {
-          draft,
-          filters: scope,
-          ...(range ? { dateRange: range } : {}),
-          ...(mappedConditions ? { conditions: mappedConditions } : {}),
-        },
-        actor,
-      );
-    const metrics = new Map<string, any>();
-    for (const block of blocks) {
-      metricFields(block.metric, profile);
-      const key = studioDigest(block.metric);
-      let metric = metrics.get(key);
-      if (!metric) {
-        // Always allocate a clone-local metric, including same-owner/same-source remixes.
-        metric = await manager.save(Metric, {
-          name: 'bi_' + randomUUID(),
-          databaseId: sourceId,
-          tableName: 'uploaded_data',
-          aggregation: block.metric.aggregation,
-          expression: block.metric.aggregation === 'COUNT' ? 'count_rows' : block.metric.column,
-          description: block.metric.label,
-          definition: JSON.stringify(block.metric),
-          useYn: 'Y',
-        });
-        metrics.set(key, metric);
-      }
-      block.metric = { ...block.metric, id: metric.id };
-    }
-    const snapshot = {
+    const snapshot: any = {
       schemaVersion: 2,
       kind: 'structured-bi-dashboard',
       sourceId,
@@ -762,7 +729,43 @@ export class StudioCreationService {
       ...(scope.length ? { studioFilters: scope } : {}),
       ...(range ? { studioDateRange: range } : {}),
       ...(mappedConditions ? { studioConditions: copy(mappedConditions) } : {}),
-      items: blocks.map(block => {
+      items: [],
+    };
+    const prepared = await this.dashboards.prepareSave(
+      {
+        draft,
+        filters: scope,
+        ...(range ? { dateRange: range } : {}),
+        ...(mappedConditions ? { conditions: mappedConditions } : {}),
+      },
+      actor,
+      snapshot,
+    );
+    return async (manager: EntityManager) => {
+      await lockMetricSources(manager, [sourceId]);
+      await this.ensureCurrentSource(sourceId, actor, manager);
+      const metrics = new Map<string, any>();
+      for (const block of blocks) {
+        metricFields(block.metric, profile);
+        const key = studioDigest(block.metric);
+        let metric = metrics.get(key);
+        if (!metric) {
+          // Always allocate a clone-local metric, including same-owner/same-source remixes.
+          metric = await manager.save(Metric, {
+            name: 'bi_' + randomUUID(),
+            databaseId: sourceId,
+            tableName: 'uploaded_data',
+            aggregation: block.metric.aggregation,
+            expression: block.metric.aggregation === 'COUNT' ? 'count_rows' : block.metric.column,
+            description: block.metric.label,
+            definition: JSON.stringify(block.metric),
+            useYn: 'Y',
+          });
+          metrics.set(key, metric);
+        }
+        block.metric = { ...block.metric, id: metric.id };
+      }
+      snapshot.items = blocks.map(block => {
         const { id: metricId, ...definition } = block.metric;
         return {
           sourceId,
@@ -778,68 +781,65 @@ export class StudioCreationService {
               ? 'line'
               : 'bar',
         };
-      }),
-    };
-    const saved = (
-      await this.dashboards.save(
-        {
-          draft,
-          filters: scope,
-          ...(range ? { dateRange: range } : {}),
-          ...(mappedConditions ? { conditions: mappedConditions } : {}),
-        },
-        actor,
+      });
+      const saved = await prepared.persist(manager);
+      const document = importStudio(
+        saved.id,
+        { ...saved.draft, revision: saved.revision },
         snapshot,
-        undefined,
-        manager,
-      )
-    ).data;
-    const document = importStudio(
-      saved.id,
-      { ...saved.draft, revision: saved.revision },
-      snapshot,
-      profile.schemaVersion,
-    );
-    // The remixed draft inherits the published scope under the target column names.
-    if (scope.length)
-      document.filters = scope.map(filter => ({
-        column: filter.column,
-        values: [...filter.values],
-      }));
-    // The remixed draft inherits the published date scope on the mapped target column.
-    if (range) document.dateRange = { ...range };
-    if (mappedConditions) document.conditions = copy(mappedConditions);
-    const idMap = new Map(blocks.map((b, i) => [b.blockId, document.blocks[i].id]));
-    document.layouts = Object.fromEntries(
-      STUDIO_BREAKPOINTS.map(bp => [
-        bp,
-        template.layouts[bp].filter(g => idMap.has(g.id)).map(g => ({ ...g, id: idMap.get(g.id) })),
-      ]),
-    ) as typeof document.layouts;
-    document.blocks.forEach((block, i) => {
-      block.description = blocks[i].description;
-    });
-    const links = await manager.find(DashboardWidget, {
-      where: { dashboardId: saved.id },
-      order: { id: 'ASC' },
-    });
-    const widgetIds = new Map(document.blocks.map((b, i) => [b.id, String(links[i].widgetId)]));
-    const row = await manager.findOne(Dashboard, { where: { id: saved.id } });
-    row.layout = JSON.stringify(
-      document.layouts.lg.map(g => ({ i: widgetIds.get(g.id), x: g.x, y: g.y, w: g.w, h: g.h })),
-    );
-    await manager.save(Dashboard, row);
-    document.revision = dashboardRevision(row);
-    await manager.save(StudioState, {
-      dashboardId: saved.id,
-      document: JSON.stringify({
-        document,
-        sourceRevision: await this.connection.duckDBVersion(sourceId),
-      }),
-      legacyRevision: document.revision,
-    });
-    await this.ensureCurrentSource(sourceId, actor, manager);
-    return { dashboardId: saved.id, document };
+        profile.schemaVersion,
+      );
+      // The remixed draft inherits the published scope under the target column names.
+      if (scope.length)
+        document.filters = scope.map(filter => ({
+          column: filter.column,
+          values: [...filter.values],
+        }));
+      // The remixed draft inherits the published date scope on the mapped target column.
+      if (range) document.dateRange = { ...range };
+      if (mappedConditions) document.conditions = copy(mappedConditions);
+      const idMap = new Map(blocks.map((b, i) => [b.blockId, document.blocks[i].id]));
+      document.layouts = Object.fromEntries(
+        STUDIO_BREAKPOINTS.map(bp => [
+          bp,
+          template.layouts[bp]
+            .filter(g => idMap.has(g.id))
+            .map(g => ({ ...g, id: idMap.get(g.id) })),
+        ]),
+      ) as typeof document.layouts;
+      document.blocks.forEach((block, i) => {
+        block.description = blocks[i].description;
+      });
+      const links = await manager.find(DashboardWidget, {
+        where: { dashboardId: saved.id },
+        order: { id: 'ASC' },
+      });
+      const widgetIds = new Map(document.blocks.map((b, i) => [b.id, String(links[i].widgetId)]));
+      const row = await manager.findOne(Dashboard, { where: { id: saved.id } });
+      row.layout = JSON.stringify(
+        document.layouts.lg.map(g => ({ i: widgetIds.get(g.id), x: g.x, y: g.y, w: g.w, h: g.h })),
+      );
+      await manager.save(Dashboard, row);
+      document.revision = dashboardRevision(row);
+      await manager.save(StudioState, {
+        dashboardId: saved.id,
+        document: JSON.stringify({
+          document,
+          sourceRevision: await this.connection.duckDBVersion(sourceId),
+        }),
+        legacyRevision: document.revision,
+      });
+      await this.ensureCurrentSource(sourceId, actor, manager);
+      return { dashboardId: saved.id, document };
+    };
+  }
+  /** Persist only a server preparation completed before opening the caller transaction. */
+  async persistRemix(
+    manager: EntityManager,
+    prepared: Awaited<ReturnType<StudioCreationService['prepareRemix']>>,
+  ) {
+    if (!prepared) throw new BadRequestException('Prepare remix before persistence.');
+    return prepared(manager);
   }
   /** Ephemeral preview only. Read never invokes a model or recreates an expired proposal. */
   async proposal(proposalId: string, sourceId: number, actor: number) {
@@ -921,66 +921,75 @@ export class StudioCreationService {
           profile.schemaVersion !== p.profile.schemaVersion
         )
           throw new ConflictException('데이터 소스가 변경되었습니다. 다시 생성해 주세요.');
+        const blocks = copy(p.semanticProposal);
+        const snapshot: any = {
+          schemaVersion: 2,
+          kind: 'structured-bi-dashboard',
+          sourceId: p.sourceId,
+          dataVersion: profile.dataVersion,
+          items: [],
+        };
+        const prepared = await this.dashboards.prepareSave(
+          { draft: this.compile(p.sourceId, p.title, blocks, profile) },
+          actor,
+          snapshot,
+        );
         return metadataTransaction(this.db, async manager => {
+          await lockMetricSources(manager, [p.sourceId]);
           await this.ensureCurrentSource(p.sourceId, actor, manager);
-          await this.revalidate(p.semanticProposal, profile, manager);
-          const metrics = new Map<string, any>(),
-            blocks = copy(p.semanticProposal);
+          const candidates = await manager.find(Metric, {
+            where: { databaseId: p.sourceId, useYn: 'Y' },
+          });
+          for (const block of blocks) {
+            if (block.metric.id) continue;
+            const match = candidates.find(
+              row =>
+                row.definition &&
+                studioDigest(JSON.parse(row.definition)) === studioDigest(block.metric),
+            );
+            if (match) block.metric.id = match.id;
+          }
+          await lockMetricReferences(
+            manager,
+            p.sourceId,
+            blocks.flatMap(b => (b.metric.id ? [b.metric.id] : [])),
+          );
+          await this.revalidate(blocks, profile, manager);
+          const metrics = new Map<string, any>();
           for (const b of blocks) {
             if (b.metric.id) continue;
             const key = studioDigest(b.metric);
             let metric = metrics.get(key);
             if (!metric) {
-              // Reuse an exact active canonical definition, including concurrent earlier saves.
-              const rows = await manager.find(Metric, {
-                where: { databaseId: p.sourceId, useYn: 'Y' },
+              // Existing canonical matches were resolved and fenced as one set before any insert.
+              metric = await manager.save(Metric, {
+                name: 'bi_' + randomUUID(),
+                databaseId: p.sourceId,
+                tableName: 'uploaded_data',
+                aggregation: b.metric.aggregation,
+                expression: b.metric.aggregation === 'COUNT' ? 'count_rows' : b.metric.column,
+                description: b.metric.label,
+                definition: JSON.stringify(b.metric),
+                useYn: 'Y',
               });
-              metric = rows.find(
-                r => r.definition && studioDigest(JSON.parse(r.definition)) === key,
-              );
-              if (!metric)
-                metric = await manager.save(Metric, {
-                  name: 'bi_' + randomUUID(),
-                  databaseId: p.sourceId,
-                  tableName: 'uploaded_data',
-                  aggregation: b.metric.aggregation,
-                  expression: b.metric.aggregation === 'COUNT' ? 'count_rows' : b.metric.column,
-                  description: b.metric.label,
-                  definition: JSON.stringify(b.metric),
-                  useYn: 'Y',
-                });
               metrics.set(key, metric);
             }
             b.metric.id = metric.id;
           }
-          const snapshot = {
-            schemaVersion: 2,
-            kind: 'structured-bi-dashboard',
-            sourceId: p.sourceId,
-            dataVersion: profile.dataVersion,
-            items: blocks.map(b => {
-              const { id, ...definition } = b.metric;
-              return {
-                sourceId: p.sourceId,
-                dataVersion: profile.dataVersion,
-                metricId: id,
-                definitionVersion: definition.definitionVersion,
-                definition,
-                dimension: b.dimension?.column,
-                chart:
-                  b.kind === 'BOARD_NUMERIC' ? 'number' : b.kind === 'CHART_LINE' ? 'line' : 'bar',
-              };
-            }),
-          };
-          const saved = (
-            await this.dashboards.save(
-              { draft: this.compile(p.sourceId, p.title, blocks, profile) },
-              actor,
-              snapshot,
-              undefined,
-              manager,
-            )
-          ).data;
+          snapshot.items = blocks.map(b => {
+            const { id, ...definition } = b.metric;
+            return {
+              sourceId: p.sourceId,
+              dataVersion: profile.dataVersion,
+              metricId: id,
+              definitionVersion: definition.definitionVersion,
+              definition,
+              dimension: b.dimension?.column,
+              chart:
+                b.kind === 'BOARD_NUMERIC' ? 'number' : b.kind === 'CHART_LINE' ? 'line' : 'bar',
+            };
+          });
+          const saved = await prepared.persist(manager);
           const document = importStudio(
             saved.id,
             { ...saved.draft, revision: saved.revision },

@@ -1,3 +1,4 @@
+import { AddMetricDeleteReceipts1792540000000 } from './migrations/1792540000000-add-metric-delete-receipts';
 import { AddDashboardDeleteReceipts1792530000000 } from './migrations/1792530000000-add-dashboard-delete-receipts';
 import { AddPersonalLibraryState1792520000000 } from './migrations/1792520000000-add-personal-library-state';
 import { AddExportJobs1792510000000 } from './migrations/1792510000000-add-export-jobs';
@@ -83,6 +84,7 @@ import { apiEnvFiles } from './config-env';
       autoLoadEntities: true,
       migrations: [
         AddDashboardDeleteReceipts1792530000000,
+        AddMetricDeleteReceipts1792540000000,
         AddPersonalLibraryState1792520000000,
         AddExportJobs1792510000000,
         AddNotificationAudience1792500000000,

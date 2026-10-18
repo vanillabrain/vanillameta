@@ -291,12 +291,17 @@ describe('UC054 durable aggregate export with actual SQLite DuckDB JWT', () => {
     const job = await jobs.create(input(), 7),
       spy = jest.spyOn(explore, 'exportCsv');
     await db.manager.update(Metric, 1, { definition: JSON.stringify(definition(2)) });
-    const failed = await jobs.run(job.id, { expectedVersion: 1 }, 7);
-    expect(failed).toMatchObject({ status: 'failed', errorCode: 'BASIS_CHANGED' });
+    const before = await db.manager.findOneBy(ExportJob, { id: job.id });
+    const audits = await db.manager.count(EnterpriseAuditEvent);
+    await expect(jobs.run(job.id, { expectedVersion: 1 }, 7)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(await db.manager.findOneBy(ExportJob, { id: job.id })).toEqual(before);
+    expect(await db.manager.count(EnterpriseAuditEvent)).toBe(audits);
     expect(spy).not.toHaveBeenCalled();
     await db.manager.update(Metric, 1, { definition: JSON.stringify(definition()) });
     spy.mockRejectedValueOnce(new Error('sensitive SELECT customer_secret'));
-    const again = await jobs.run(job.id, { expectedVersion: failed.version }, 7);
+    const again = await jobs.run(job.id, { expectedVersion: job.version }, 7);
     expect(again.errorCode).toBe('QUERY_FAILED');
     expect(JSON.stringify(again)).not.toContain('customer_secret');
     const count = spy.mock.calls.length;

@@ -386,22 +386,12 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
     const row = await db.manager.findOne(StudioPublication, { where: { token: p.token } });
     const template = JSON.parse(row.remixTemplate);
     const profile = await creation.profile(2, 8);
-    await expect(
-      creation.persistRemix(2, template, [], profile, 8, db.manager),
-    ).rejects.toMatchObject({ status: 400 });
+    await expect(creation.prepareRemix(2, template, [], profile, 8)).rejects.toMatchObject({
+      status: 400,
+    });
     const conditions = { ...(await conditionScope()), sourceRevision: 'f'.repeat(64) };
     await expect(
-      creation.persistRemix(
-        2,
-        template,
-        [],
-        profile,
-        8,
-        db.manager,
-        [],
-        undefined,
-        conditions as any,
-      ),
+      creation.prepareRemix(2, template, [], profile, 8, [], undefined, conditions as any),
     ).rejects.toMatchObject({ status: 409 });
     template.conditions.definition.include.children[0].column = 'absent';
     row.remixTemplate = JSON.stringify(template);

@@ -444,6 +444,16 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
         column: 'amount',
       },
     };
+    const metric = await db.manager.save(Metric, {
+      name: 'snapshot-reference',
+      databaseId: 1,
+      tableName: 'uploaded_data',
+      aggregation: 'SUM' as any,
+      expression: 'amount',
+      definition: JSON.stringify(snapshot.definition),
+      useYn: 'Y',
+    });
+    snapshot.metricId = metric.id;
     const initial = { ...draft(), widgets: [draft().widgets[0]] };
     const id = (await service.save({ draft: initial }, 7, snapshot)).data.id;
     expect(
@@ -1197,6 +1207,28 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       }
     },
   );
+  it('UC055 rejects changed inherited metric links after preparation even without a client revision', async () => {
+    const { primary } = await batchFixture();
+    const current = (await service.analysis(primary.data.id, 7, true)).data;
+    const prepared = await service.prepareSave({ dashboardId: primary.data.id, draft: current }, 7);
+    const row = await db.manager.findOneBy(Dashboard, { id: primary.data.id });
+    const snapshot = JSON.parse(row.structuredDefinition);
+    await db.manager.update(Dashboard, primary.data.id, {
+      structuredDefinition: JSON.stringify({
+        ...snapshot,
+        dataVersion: 'concurrent-reference-snapshot',
+      }),
+    });
+    const before = await Promise.all(
+      [Dataset, Widget, DashboardWidget].map(entity => db.manager.count(entity)),
+    );
+    await expect(db.transaction(manager => prepared.persist(manager))).rejects.toThrow(
+      'Saved metric links changed',
+    );
+    expect(
+      await Promise.all([Dataset, Widget, DashboardWidget].map(entity => db.manager.count(entity))),
+    ).toEqual(before);
+  });
   it('UC-004 excludes deleted/foreign/different source links and rejects unlinked target injection', async () => {
     const { body, metric, unlinked } = await batchFixture();
     const original = await db.manager.findOne(Dashboard, { where: { id: body.dashboardId } });

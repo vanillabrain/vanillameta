@@ -1,3 +1,4 @@
+import { lockMetricReferences, lockMetricReferenceSets } from '../metric/metric-write-lock';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import {
   BadRequestException,
@@ -773,8 +774,12 @@ export class AiDashboardService {
       ))
         await lockDashboardWrite(manager, id);
       // Recheck every target under its parent fence before the first Metric CAS/write.
+      await lockMetricReferenceSets(
+        manager,
+        prepared.flatMap(item => item.referenceSets()),
+      );
       const current = [];
-      for (const item of prepared) current.push(await item.validate(manager));
+      for (const item of prepared) current.push(await item.validate(manager, changes[0].mutation));
       const results = [];
       for (const index of changes.keys()) {
         results.push(await prepared[index].persist(manager, current[index]));
@@ -2209,7 +2214,8 @@ export class AiDashboardService {
       : await metadataTransaction(this.dashboards.manager, persist);
     return this.success(saved);
   }
-  private async prepareSave(
+  /** Internal persistence preparation: all SQL completes before a caller opens its transaction. */
+  async prepareSave(
     body: any,
     userId: number,
     structuredSnapshot?: object,
@@ -2300,12 +2306,63 @@ export class AiDashboardService {
       if (widget.timeGrain && widget.timeGrain !== 'auto' && widget.grainUnavailable)
         throw new BadRequestException('요청한 시간 집계를 안전하게 저장할 수 없습니다.');
     });
-    const validate = async (manager: EntityManager) => {
+    const baseline = existing?.analysisDefinition
+      ? legacyBlockIds(validateDraft(JSON.parse(existing.analysisDefinition)), existing.id)
+      : legacyDraft;
+    draft.widgets = validateDraft(storedBlockIds(draft, baseline)).widgets;
+    const references = () => {
+      let snapshot = structuredSnapshot;
+      if (snapshot === undefined && existing?.structuredDefinition && baseline) {
+        try {
+          snapshot = preserveMetricLinks(
+            JSON.parse(existing.structuredDefinition),
+            baseline,
+            draft,
+          );
+        } catch {
+          snapshot = undefined;
+        } // Ordinary SQL saves clear malformed prior unscoped metadata.
+      }
+      return metricLinkItems(snapshot, draft).filter(item => item?.metricId !== undefined);
+    };
+    const referenceSets = () => [
+      { sourceId: draft.databaseId, ids: references().map(item => item.metricId) },
+    ];
+    const validate = async (manager: EntityManager, pendingMutation = metricMutation) => {
       const dashboard =
         body.dashboardId !== undefined
           ? await this.owner(body.dashboardId, userId, 'edit', manager, true)
           : undefined;
       const previous = dashboard ? { ...dashboard } : null;
+      if (
+        structuredSnapshot === undefined &&
+        existing &&
+        previous?.structuredDefinition !== existing.structuredDefinition
+      )
+        throw new ConflictException('Saved metric links changed.');
+      const metrics = await lockMetricReferences(manager, draft.databaseId, referenceSets()[0].ids);
+      if (this.access)
+        await this.access.assert(
+          'database',
+          draft.databaseId,
+          userId,
+          dashboard ? 'read' : 'owner',
+          manager,
+        );
+      for (const ref of references()) {
+        const row = metrics.get(ref.metricId);
+        let definition;
+        try {
+          definition = row.definition && JSON.parse(row.definition);
+        } catch {}
+        const pending =
+          pendingMutation?.id === row.id &&
+          row.definition === pendingMutation.previous &&
+          JSON.stringify(ref.definition) === pendingMutation.definition;
+        if (!definition || (!pending && definition.definitionVersion !== ref.definitionVersion))
+          throw new ConflictException('Saved metric changed.');
+      }
+
       if (
         structuredSnapshot === undefined &&
         JSON.stringify(this.readStructuredScope(previous?.structuredDefinition).scope) !==
@@ -2358,7 +2415,6 @@ export class AiDashboardService {
         : previous
         ? legacyDraft
         : undefined;
-      draft.widgets = validateDraft(storedBlockIds(draft, oldDraft)).widgets;
       if (metricMutation) {
         const update = await manager.update(
           Metric,
@@ -2555,7 +2611,7 @@ export class AiDashboardService {
         },
       };
     };
-    return { validate, persist };
+    return { validate, persist, referenceSets };
   }
   /**
    * Saved Studio scope is server-owned metadata. A malformed stored value must stay distinguishable

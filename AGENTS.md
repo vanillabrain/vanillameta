@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC055 지표 삭제 보호:** [계획](docs/plans/UC-055-metric-delete.md)·[증빙](docs/testing/metric-deletion.md)은 저장 분석/Pivot·Studio 문서·두 탐색 보기·대기/실행 출력 작업의 명시 참조를 확인해 지표 논리 삭제/영수증으로 연결한다. 현재 소스 소유/actor/org/epoch·기준과 공통 Source→Metric 잠금을 재검사하며 참조를 자동 해제하지 않는다. 실제 격리 MySQL8.4.11의20개(두 연결 잠금 경합 포함)를 확인했지만 모든 writer/운영 통과는 아니다. source 영구 삭제·조직 비활성·실제 Ego/실휴대폰/운영·전체16개 수용은 별도다.
+
 - **UC055 삭제 보호:** [계획](docs/plans/UC-055-dashboard-delete.md)·[증빙](docs/testing/dashboard-deletion.md)은 현재 소유/계정·조직·기준과 8종 설정을 재검사해 대시보드 원자 삭제/영수증으로 이어진다. 삭제·기존-ID 저장·새 공유/게시의 부모 잠금은 공통이며 삭제된 ID를 재생성하지 않는다. source/metric/조직 비활성·실제 Ego/MySQL/운영·전체16개 수용은 별도다.
 
 - **UC055 개인 보관:** [계획](docs/plans/UC-055-library-archive.md)·[증빙](docs/testing/personal-library-archive.md)은 본인/현재 조직의 목록 보관·복원을 원본/공유/게시와 분리한다. 읽은 계정/조직·개인 버전·현재 read/JWT epoch를 검사하고 조직 없는 기존 탐색을 보존한다. [삭제 보호 후속](docs/plans/UC-055-dependency-deletion.md)·실제 UI/모바일/MySQL/운영·전체16개 수용은 별도다.

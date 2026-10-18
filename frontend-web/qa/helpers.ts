@@ -85,6 +85,17 @@ export async function deleteDashboard(owner: Actor, id: number) {
   });
 }
 
+export async function deleteMetric(owner: Actor, id: number) {
+  const impact = await ok(await call(owner, 'GET', `/metric/${id}/delete-impact`));
+  expect(impact.canDelete, 'fixture still has configured metric references').toBe(true);
+  return call(owner, 'DELETE', `/metric/${id}`, {
+    requestId: randomUUID(),
+    expectedRevision: impact.revision,
+    expectedActorId: impact.actorId,
+    expectedOrganizationId: impact.organizationId,
+  });
+}
+
 export async function error(response: APIResponse) {
   expect(response.status(), 'unexpected server failure').toBeLessThan(500);
   const value = await body(response);

@@ -1,4 +1,5 @@
-import { del, get, post, put } from '@/helpers/apiHelper';
+import { submitMetricDeletion } from '@/api/metricDeletionService';
+import { get, post, put } from '@/helpers/apiHelper';
 
 export const URL_METRIC = '/metric';
 
@@ -23,7 +24,7 @@ export interface MetricDefinition {
 const selectMetrics = (): Promise<any> => get(URL_METRIC);
 const createMetric = (data: MetricDefinition): Promise<any> => post(URL_METRIC, data);
 const updateMetric = (id: number, data: Partial<MetricDefinition>): Promise<any> => put(`${URL_METRIC}/${id}`, data);
-const deleteMetric = (id: number): Promise<any> => del(`${URL_METRIC}/${id}`);
+const deleteMetric = submitMetricDeletion;
 const evaluateMetric = (id: number): Promise<any> => post(`${URL_METRIC}/${id}/evaluate`);
 
 const MetricService = {

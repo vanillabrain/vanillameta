@@ -440,49 +440,51 @@ export class StudioRemixService {
         if (profile.dataVersion !== body.expectedSourceRevision)
           throw new ConflictException('대상 데이터가 변경되었습니다. 매핑을 다시 확인해 주세요.');
         const identity = await this.sourceIdentity(body.targetSourceId, actor, this.db.manager);
+        const row = await origin(token, actor, body.expectedVersion);
+        const t: RemixTemplate = JSON.parse(row.remixTemplate),
+          mapped = this.map(t, body, profile);
+        if (mapped.mappedConditions)
+          mapped.mappedConditions.sourceRevision = await this.connection.duckDBVersion(
+            body.targetSourceId,
+          );
+        if (mapped.unmappedConditions.length)
+          throw new BadRequestException(
+            '게시 포함·제외 조건의 모든 열을 대상 소스에 연결해 주세요.',
+          );
+        if (mapped.unmappedFilters.length)
+          throw new BadRequestException('게시 범위 필터 열을 대상 소스 열로 매핑해 주세요.');
+        if (mapped.unmappedDateRange)
+          throw new BadRequestException(
+            '게시 기간의 날짜 열을 대상 소스의 같은 형식 날짜 열로 매핑해 주세요.',
+          );
+        if (!mapped.kept.length || mapped.unmappedBlocks.length)
+          throw new BadRequestException(
+            '남길 블록의 모든 필수 열을 매핑하거나 해당 블록을 명시적으로 제외해 주세요.',
+          );
+        const preparation = await this.creation.prepareRemix(
+          body.targetSourceId,
+          t,
+          mapped.blocks,
+          profile,
+          actor,
+          mapped.filters,
+          mapped.mappedDateRange,
+          mapped.mappedConditions,
+        );
+        const latest = await this.creation.profile(body.targetSourceId, actor);
+        if (
+          latest.dataVersion !== body.expectedSourceRevision ||
+          latest.schemaVersion !== profile.schemaVersion
+        )
+          throw new ConflictException('저장 중 대상 데이터가 변경되었습니다.');
         return metadataTransaction(this.db, async manager => {
-          const row = await origin(token, actor, body.expectedVersion, manager);
+          await origin(token, actor, body.expectedVersion, manager);
           if (identity !== (await this.sourceIdentity(body.targetSourceId, actor, manager)))
             throw new ConflictException('대상 소스가 변경되었습니다.');
-          const t: RemixTemplate = JSON.parse(row.remixTemplate),
-            mapped = this.map(t, body, profile);
-          if (mapped.mappedConditions)
-            mapped.mappedConditions.sourceRevision = await this.connection.duckDBVersion(
-              body.targetSourceId,
-            );
-          if (mapped.unmappedConditions.length)
-            throw new BadRequestException(
-              '게시 포함·제외 조건의 모든 열을 대상 소스에 연결해 주세요.',
-            );
-          if (mapped.unmappedFilters.length)
-            throw new BadRequestException('게시 범위 필터 열을 대상 소스 열로 매핑해 주세요.');
-          if (mapped.unmappedDateRange)
-            throw new BadRequestException(
-              '게시 기간의 날짜 열을 대상 소스의 같은 형식 날짜 열로 매핑해 주세요.',
-            );
-          if (!mapped.kept.length || mapped.unmappedBlocks.length)
-            throw new BadRequestException(
-              '남길 블록의 모든 필수 열을 매핑하거나 해당 블록을 명시적으로 제외해 주세요.',
-            );
-          const result = await this.creation.persistRemix(
-            body.targetSourceId,
-            t,
-            mapped.blocks,
-            profile,
-            actor,
-            manager,
-            mapped.filters,
-            mapped.mappedDateRange,
-            mapped.mappedConditions,
-          );
+          const result = await this.creation.persistRemix(manager, preparation);
           // Recheck after save/aggregate awaits, including legacy metadata writes outside Studio's queue.
           await origin(token, actor, body.expectedVersion, manager);
-          const latest = await this.creation.profile(body.targetSourceId, actor);
-          if (
-            identity !== (await this.sourceIdentity(body.targetSourceId, actor, manager)) ||
-            latest.dataVersion !== body.expectedSourceRevision ||
-            latest.schemaVersion !== profile.schemaVersion
-          )
+          if (identity !== (await this.sourceIdentity(body.targetSourceId, actor, manager)))
             throw new ConflictException('저장 중 대상 데이터가 변경되었습니다.');
           await manager.insert(StudioRemixRequest, {
             actorId: actor,

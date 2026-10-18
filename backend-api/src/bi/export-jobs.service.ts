@@ -1,3 +1,4 @@
+import { lockMetricReferences } from '../metric/metric-write-lock';
 import {
   BadRequestException,
   ConflictException,
@@ -160,6 +161,19 @@ export class ExportJobsService {
       throw new BadRequestException('지표 버전을 확인해 주세요.');
     return { value: frozen, json, digest: hash(json) };
   }
+  private async lockReferences(m: EntityManager, sourceId: number, payload: any, versions: any) {
+    if (payload?.query?.sourceId !== sourceId)
+      throw new ConflictException('파일 작업 소스 기준이 다릅니다.');
+    const rows = await lockMetricReferences(m, sourceId, payload.query.measureIds);
+    for (const [id, row] of rows) {
+      let definition;
+      try {
+        definition = JSON.parse(row.definition);
+      } catch {}
+      if (!definition || definition.definitionVersion !== versions[String(id)])
+        throw new ConflictException('지표 기준이 변경됐습니다. 새 기준으로 작업을 접수해 주세요.');
+    }
+  }
   private async basis(
     sourceId: number,
     payload: any,
@@ -218,10 +232,11 @@ export class ExportJobsService {
     expectedEpoch?: number,
   ) {
     const scope = await this.scope(actor, m, lock, expectedEpoch);
-    const job = await m.findOneBy(ExportJob, {
-      id: this.id(id),
-      ownerId: actor,
-      organizationId: scope.org,
+    const job = await m.findOne(ExportJob, {
+      where: { id: this.id(id), ownerId: actor, organizationId: scope.org },
+      ...(lock && ['mysql', 'mariadb'].includes(m.connection.options.type)
+        ? { lock: { mode: 'pessimistic_write' as const } }
+        : {}),
     });
     if (!job) throw new ForbiddenException('본인 조직의 파일 작업만 확인할 수 있습니다.');
     if ((await this.source(job.sourceId, actor, m)) !== job.sourceOwnerId)
@@ -267,6 +282,7 @@ export class ExportJobsService {
           throw new ConflictException('같은 요청 번호의 조직·조건이 다릅니다.');
         return this.dto(prior);
       }
+      await this.lockReferences(m, q.sourceId, input.value.payload, input.value.measureVersions);
       const basisJson = await this.basis(
         q.sourceId,
         input.value.payload,
@@ -284,7 +300,7 @@ export class ExportJobsService {
         ownerId: actor,
         organizationId: scope.org,
         sourceId: q.sourceId,
-        sourceOwnerId: ownerId,
+        sourceOwnerId: JSON.parse(basisJson).ownerId,
         requestId: input.value.requestId,
         digest: input.digest,
         requestJson: input.json,
@@ -345,6 +361,13 @@ export class ExportJobsService {
         (job.status === 'running' && job.leaseUntil && job.leaseUntil.getTime() > Date.now())
       )
         return { result: this.dto(job) };
+      const request = this.input(JSON.parse(job.requestJson)).value;
+      await this.lockReferences(m, job.sourceId, request.payload, request.measureVersions);
+      if (
+        (await this.basis(job.sourceId, request.payload, request.measureVersions, actor, m)) !==
+        job.basisJson
+      )
+        throw new ConflictException('고정 기준이 변경됐습니다.');
       const token = randomUUID(),
         version = job.version + 1;
       const update = await m.update(

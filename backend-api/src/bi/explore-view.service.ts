@@ -1,9 +1,9 @@
+import { lockMetricReferences } from '../metric/metric-write-lock';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -62,6 +62,7 @@ export class ExploreViewService {
       body.name.trim().length > 80
     )
       throw new BadRequestException('보기 이름은 1~80자로 입력해 주세요.');
+    const sourceBefore = await this.views.manager.findOne(Database, { where: { id: sourceId } });
     const catalog = await this.explore.catalog({ sourceId }, actor);
     if (!/^[a-f0-9]{64}$/.test(body.revision ?? '') || body.revision !== catalog.viewRevision)
       this.conflict();
@@ -69,17 +70,16 @@ export class ExploreViewService {
     const row = await serializedViewWrite(this.views, async () => {
       await this.access.assert('database', sourceId, actor, 'read');
       return metadataTransaction(this.views.manager, async manager => {
-        const sourceRow = await manager.findOne(Database, {
-          where: { id: sourceId },
-          ...(manager.connection.options.type === 'mysql'
-            ? { lock: { mode: 'pessimistic_write' as const } }
-            : {}),
-        });
-        if (!sourceRow) throw new ForbiddenException('source access denied');
+        const metrics = await lockMetricReferences(manager, sourceId, state.measureIds);
+        const sourceRow = await manager.findOne(Database, { where: { id: sourceId } });
+        if (!sourceBefore || sourceRow.connectionConfig !== sourceBefore.connectionConfig)
+          this.conflict();
         await this.access.assert('database', sourceId, actor, 'read', manager);
-        const current = await this.explore.catalog({ sourceId }, actor);
-        if (current.viewRevision !== body.revision) this.conflict();
-        validateExploreViewState(state, current);
+        for (const [id, metric] of metrics) {
+          const expected = catalog.measures.find(measure => measure.id === id);
+          if (!expected || JSON.stringify(expected.definition) !== metric.definition)
+            this.conflict();
+        }
         const repo = manager.getRepository(PersonalView);
         if ((await repo.count({ where: { sourceId, userId: actor } })) >= 20)
           throw new BadRequestException(

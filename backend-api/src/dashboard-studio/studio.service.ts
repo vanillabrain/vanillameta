@@ -1,3 +1,4 @@
+import { lockMetricReferences } from '../metric/metric-write-lock';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { sourceConditionProfile } from '../bi/source-condition-profile';
 import { conditionColumns } from '../bi/source-condition-definition';
@@ -593,46 +594,140 @@ export class StudioService {
     };
     checkCancelled();
     try {
-      return await this.connection.withDuckDBSnapshot(document.sourceId, () =>
-        metadataTransaction(this.db, async manager => {
-          await this.lockDashboard(manager, id);
-          checkCancelled();
-          const current = await this.load(id, actor, 'edit', manager);
-          if (current.sourceRevision !== body.expectedSourceRevision)
-            throw new ConflictException(
-              '데이터 파일이 교체되었습니다. 최신 결과를 확인한 뒤 다시 저장해 주세요.',
+      return await this.connection.withDuckDBSnapshot(document.sourceId, async () => {
+        checkCancelled();
+        const sourceBefore = await this.db.manager.findOne(Database, {
+          where: { id: document.sourceId },
+        });
+        const current = await this.load(id, actor, 'edit');
+        if (current.sourceRevision !== body.expectedSourceRevision)
+          throw new ConflictException(
+            '데이터 파일이 교체되었습니다. 최신 결과를 확인한 뒤 다시 저장해 주세요.',
+          );
+        if (current.document.revision !== body.expectedRevision)
+          throw new ConflictException(
+            '다른 화면에서 변경되었습니다. 내 변경을 보존한 채 최신 내용을 확인해 주세요.',
+          );
+        if (current.document.sourceId !== document.sourceId)
+          throw new ForbiddenException('데이터 소스를 바꿀 수 없습니다.');
+        if (document.conditions && document.conditions.sourceRevision !== current.sourceRevision)
+          throw new ConflictException(
+            '조건의 데이터 파일이 변경됐습니다. 조건을 다시 적용하거나 명시 제거해 주세요.',
+          );
+        const old = current.document;
+        const items = current.items;
+        const indices = new Map(old.blocks.map((b, i) => [b.definitionKey, i]));
+        const snapshots = [];
+        const widgets = [];
+        for (const block of document.blocks) {
+          const persistedIndex = old.blocks.findIndex(b => b.id === block.id);
+          const index = persistedIndex >= 0 ? persistedIndex : indices.get(block.definitionKey);
+          const original = index === undefined ? undefined : old.blocks[index];
+          const prior = old.blocks.find(b => b.id === block.id);
+          if (
+            !original ||
+            original.kind !== block.kind ||
+            (!isTemporaryStudioId(block.id) &&
+              (!prior || prior.definitionKey !== block.definitionKey)) ||
+            studioDigest(original.measureRefs) !== studioDigest(block.measureRefs) ||
+            studioDigest(original.dimensionRefs) !== studioDigest(block.dimensionRefs)
+          )
+            throw new BadRequestException(
+              '기존 블록의 계산 정의와 참조를 유지해 주세요. 새 지표 생성은 아직 지원하지 않습니다.',
             );
-          if (current.document.revision !== body.expectedRevision)
-            throw new ConflictException(
-              '다른 화면에서 변경되었습니다. 내 변경을 보존한 채 최신 내용을 확인해 주세요.',
-            );
-          if (current.document.sourceId !== document.sourceId)
-            throw new ForbiddenException('데이터 소스를 바꿀 수 없습니다.');
-          if (document.conditions && document.conditions.sourceRevision !== current.sourceRevision)
-            throw new ConflictException(
-              '조건의 데이터 파일이 변경됐습니다. 조건을 다시 적용하거나 명시 제거해 주세요.',
-            );
-          const old = current.document;
-          const items = current.items;
-          const indices = new Map(old.blocks.map((b, i) => [b.definitionKey, i]));
-          const snapshots = [];
-          const widgets = [];
-          for (const block of document.blocks) {
-            const persistedIndex = old.blocks.findIndex(b => b.id === block.id);
-            const index = persistedIndex >= 0 ? persistedIndex : indices.get(block.definitionKey);
-            const original = index === undefined ? undefined : old.blocks[index];
-            const prior = old.blocks.find(b => b.id === block.id);
-            if (
-              !original ||
-              original.kind !== block.kind ||
-              (!isTemporaryStudioId(block.id) &&
-                (!prior || prior.definitionKey !== block.definitionKey)) ||
-              studioDigest(original.measureRefs) !== studioDigest(block.measureRefs) ||
-              studioDigest(original.dimensionRefs) !== studioDigest(block.dimensionRefs)
-            )
-              throw new BadRequestException(
-                '기존 블록의 계산 정의와 참조를 유지해 주세요. 새 지표 생성은 아직 지원하지 않습니다.',
-              );
+          await this.validateCurrentReferences(
+            block,
+            document.sourceId,
+            current.schemaVersion,
+            current.schema,
+            this.db.manager,
+          );
+          const template = current.analysis.widgets[index];
+          widgets.push({
+            ...template,
+            ...block.display,
+            title: block.title,
+            description: block.description,
+            ...(isTemporaryStudioId(block.id) ? { blockId: undefined } : { blockId: block.id }),
+          });
+          snapshots.push(
+            current.snapshot
+              ? {
+                  ...items[index],
+                  ...(items[index]?.dataVersion ? { dataVersion: current.dataVersion } : {}),
+                }
+              : {},
+          );
+        }
+        const draft = {
+          databaseId: document.sourceId,
+          title: document.title,
+          explanation: current.analysis.explanation,
+          widgets,
+        };
+        // Validate source columns/types and the scoped query before committing any writes.
+        if (document.filters?.length || document.dateRange || document.conditions)
+          await this.ai.preview(
+            {
+              draft,
+              filters: document.filters ?? [],
+              ...(document.conditions ? { conditions: document.conditions } : {}),
+              ...(document.dateRange ? { dateRange: document.dateRange } : {}),
+            },
+            actor,
+            'edit',
+          );
+        const previousSnapshot = { ...current.snapshot };
+        delete previousSnapshot.studioFilters;
+        delete previousSnapshot.studioDateRange;
+        delete previousSnapshot.studioConditions;
+        const snapshot =
+          current.snapshot || document.filters?.length || document.dateRange || document.conditions
+            ? {
+                ...previousSnapshot,
+                ...(document.filters?.length ? { studioFilters: document.filters } : {}),
+                ...(document.dateRange ? { studioDateRange: document.dateRange } : {}),
+                ...(document.conditions ? { studioConditions: document.conditions } : {}),
+                schemaVersion: 2,
+                kind: 'structured-bi-dashboard',
+                sourceId: document.sourceId,
+                dataVersion: current.dataVersion,
+                items: snapshots,
+              }
+            : undefined;
+        const prepared = await this.ai.prepareSave(
+          {
+            dashboardId: id,
+            expectedRevision: body.expectedRevision,
+            draft,
+            ...(document.conditions
+              ? {
+                  conditions: document.conditions,
+                  filters: document.filters ?? [],
+                  ...(document.dateRange ? { dateRange: document.dateRange } : {}),
+                }
+              : {}),
+          },
+          actor,
+          snapshot,
+          undefined,
+          true,
+        );
+        return metadataTransaction(this.db, async manager => {
+          const locked = await this.lockDashboard(manager, id);
+          if (dashboardRevision(locked) !== body.expectedRevision)
+            throw new ConflictException('다른 화면에서 변경되었습니다.');
+          await this.access.dashboard(id, actor, 'edit', manager);
+          await lockMetricReferences(
+            manager,
+            document.sourceId,
+            document.blocks.flatMap(block => block.measureRefs.map(ref => ref.id)),
+          );
+          await this.source(document.sourceId, actor, 'read', manager);
+          const sourceNow = await manager.findOne(Database, { where: { id: document.sourceId } });
+          if (!sourceBefore || sourceNow.connectionConfig !== sourceBefore.connectionConfig)
+            throw new ConflictException('데이터 파일이 교체되었습니다.');
+          for (const block of document.blocks)
             await this.validateCurrentReferences(
               block,
               document.sourceId,
@@ -640,83 +735,7 @@ export class StudioService {
               current.schema,
               manager,
             );
-            const template = current.analysis.widgets[index];
-            widgets.push({
-              ...template,
-              ...block.display,
-              title: block.title,
-              description: block.description,
-              ...(isTemporaryStudioId(block.id) ? { blockId: undefined } : { blockId: block.id }),
-            });
-            snapshots.push(
-              current.snapshot
-                ? {
-                    ...items[index],
-                    ...(items[index]?.dataVersion ? { dataVersion: current.dataVersion } : {}),
-                  }
-                : {},
-            );
-          }
-          const draft = {
-            databaseId: document.sourceId,
-            title: document.title,
-            explanation: current.analysis.explanation,
-            widgets,
-          };
-          // Validate source columns/types and the scoped query before committing any writes.
-          if (document.filters?.length || document.dateRange || document.conditions)
-            await this.ai.preview(
-              {
-                draft,
-                filters: document.filters ?? [],
-                ...(document.conditions ? { conditions: document.conditions } : {}),
-                ...(document.dateRange ? { dateRange: document.dateRange } : {}),
-              },
-              actor,
-              'edit',
-            );
-          const previousSnapshot = { ...current.snapshot };
-          delete previousSnapshot.studioFilters;
-          delete previousSnapshot.studioDateRange;
-          delete previousSnapshot.studioConditions;
-          const snapshot =
-            current.snapshot ||
-            document.filters?.length ||
-            document.dateRange ||
-            document.conditions
-              ? {
-                  ...previousSnapshot,
-                  ...(document.filters?.length ? { studioFilters: document.filters } : {}),
-                  ...(document.dateRange ? { studioDateRange: document.dateRange } : {}),
-                  ...(document.conditions ? { studioConditions: document.conditions } : {}),
-                  schemaVersion: 2,
-                  kind: 'structured-bi-dashboard',
-                  sourceId: document.sourceId,
-                  dataVersion: current.dataVersion,
-                  items: snapshots,
-                }
-              : undefined;
-          const saved = (
-            await this.ai.save(
-              {
-                dashboardId: id,
-                expectedRevision: body.expectedRevision,
-                draft,
-                ...(document.conditions
-                  ? {
-                      conditions: document.conditions,
-                      filters: document.filters ?? [],
-                      ...(document.dateRange ? { dateRange: document.dateRange } : {}),
-                    }
-                  : {}),
-              },
-              actor,
-              snapshot,
-              undefined,
-              manager,
-              true,
-            )
-          ).data;
+          const saved = await prepared.persist(manager);
           const idMap: Record<string, string> = {};
           document.blocks.forEach((b, i) => {
             if (isTemporaryStudioId(b.id)) idMap[b.id] = saved.draft.widgets[i].blockId;
@@ -762,8 +781,8 @@ export class StudioService {
           });
           checkCancelled();
           return result;
-        }),
-      );
+        });
+      });
     } catch (error) {
       const recovered = await replay();
       if (recovered) return recovered;

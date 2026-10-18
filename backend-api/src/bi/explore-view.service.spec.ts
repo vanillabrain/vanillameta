@@ -1,3 +1,4 @@
+import { Metric } from '../metric/entities/metric.entity';
 import { DataSource } from 'typeorm';
 import { ForbiddenException } from '@nestjs/common';
 import { PersonalView } from '../dashboard/entities/personal-view.entity';
@@ -48,7 +49,7 @@ describe('exploration saved views', () => {
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: [PersonalView, Database],
+      entities: [PersonalView, Database, Metric],
       synchronize: true,
     }).initialize();
     await db.getRepository(Database).save({
@@ -60,6 +61,16 @@ describe('exploration saved views', () => {
       type: 'FILE',
     });
     current = catalog();
+    await db.manager.insert(Metric, {
+      id: 1,
+      name: 'requests',
+      databaseId: 3,
+      tableName: 'uploaded_data',
+      aggregation: 'SUM' as any,
+      expression: 'requests',
+      definition: JSON.stringify(current.measures[0].definition),
+      useYn: 'Y',
+    });
     access = {
       id: (v: any) => {
         const n = Number(v);
@@ -169,12 +180,12 @@ describe('exploration saved views', () => {
     await expect(
       service.create(3, 2, { name: 'x', state: state(), revision: 'a'.repeat(64) }),
     ).rejects.toMatchObject({ status: 409 });
-    explorer.catalog
-      .mockImplementationOnce(async () => ({
-        ...current,
-        viewRevision: exploreViewRevision(current),
-      }))
-      .mockImplementationOnce(async () => ({ ...current, viewRevision: 'f'.repeat(64) }));
+    explorer.catalog.mockImplementationOnce(async () => {
+      await db.manager.update(Metric, 1, {
+        definition: JSON.stringify({ aggregation: 'AVG', column: 'requests' }),
+      });
+      return { ...current, viewRevision: exploreViewRevision(current) };
+    });
     await expect(create()).rejects.toMatchObject({ status: 409 });
     expect(await db.getRepository(PersonalView).count()).toBe(0);
   });
