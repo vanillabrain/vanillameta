@@ -1,3 +1,4 @@
+import { businessVariable, BusinessVariable } from './business-variable';
 import { serializeEnterpriseWrite } from '../enterprise/enterprise-write';
 import {
   BadRequestException,
@@ -11,7 +12,12 @@ import { SourceAccessService } from '../ownership/source-access.service';
 import { BiService } from './bi.service';
 import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 
-type ColumnMetadata = { column: string; label: string; description: string; unit: string };
+type ColumnMetadata = {
+  column: string;
+  label: string;
+  description: string;
+  unit: string;
+} & BusinessVariable;
 @Injectable()
 export class SourceCatalogService {
   constructor(
@@ -60,6 +66,7 @@ export class SourceCatalogService {
           label: c.label,
           description: c.description,
           unit: c.unit,
+          ...businessVariable(c),
         })),
       };
     } catch {
@@ -94,8 +101,27 @@ export class SourceCatalogService {
             label: c.column,
             description: '',
             unit: '',
+            ...businessVariable({}),
           })),
         };
+    if (entry && entry.schemaRevision === schemaRevision) {
+      try {
+        if (
+          metadata.columns.length !== schema.length ||
+          new Set(metadata.columns.map(c => c.column)).size !== schema.length
+        )
+          throw new Error('invalid stored columns');
+        for (const column of metadata.columns) {
+          const actual = schema.find(c => c.column === column.column);
+          if (!actual) throw new Error('missing stored column');
+          businessVariable(column, undefined, actual.type);
+        }
+      } catch {
+        throw new ConflictException(
+          '저장된 업무 유형이 현재 열과 맞지 않습니다. 데이터 담당자의 확인이 필요합니다.',
+        );
+      }
+    }
     return { id, profile, schema, schemaRevision, entry, metadata };
   }
   async read(body: unknown, actor: number) {
@@ -117,6 +143,7 @@ export class SourceCatalogService {
         label: c.column,
         description: '',
         unit: '',
+        ...businessVariable({}),
         ...metadata.columns.find(m => m.column === c.column),
       })),
     };
@@ -179,7 +206,14 @@ export class SourceCatalogService {
     const oldColumns = new Map<string, ColumnMetadata>(left.columns.map(c => [c.column, c]));
     const newColumns = new Map<string, ColumnMetadata>(right.columns.map(c => [c.column, c]));
     for (const column of new Set([...oldColumns.keys(), ...newColumns.keys()])) {
-      for (const field of ['label', 'description', 'unit'])
+      for (const field of [
+        'label',
+        'description',
+        'unit',
+        'businessType',
+        'dateFormat',
+        'classification',
+      ])
         add(
           column,
           field,
@@ -250,7 +284,15 @@ export class SourceCatalogService {
     const names = new Set<string>(),
       labels = new Set<string>();
     const columns: ColumnMetadata[] = input.columns.map(value => {
-      const c = this.fields(value, ['column', 'label', 'description', 'unit']);
+      const c = this.fields(value, [
+        'column',
+        'label',
+        'description',
+        'unit',
+        'businessType',
+        'dateFormat',
+        'classification',
+      ]);
       if (!schema.some(s => s.column === c.column) || names.has(c.column))
         throw new BadRequestException('열 이름은 실제 열과 일치해야 합니다.');
       names.add(c.column);
@@ -259,6 +301,11 @@ export class SourceCatalogService {
         label: this.text(c.label, 100, true),
         description: this.text(c.description, 1000),
         unit: this.text(c.unit, 24),
+        ...businessVariable(
+          c,
+          previousMetadata.columns.find(m => m.column === c.column),
+          schema.find(s => s.column === c.column).type,
+        ),
       };
       const key = result.label.normalize('NFKC').toLowerCase();
       if (labels.has(key)) throw new BadRequestException('열 표시명은 중복될 수 없습니다.');
@@ -268,6 +315,8 @@ export class SourceCatalogService {
     const metadata = JSON.stringify({ label, description, columns });
     if (Buffer.byteLength(metadata, 'utf8') > 60000)
       throw new BadRequestException('업무 설명 전체 크기는 60KB 이하여야 합니다.');
+    const dates = columns.filter(c => c.businessType === 'date' && c.dateFormat !== 'native');
+    if (dates.length) await this.bi.validateBusinessDates(id, actor, profile.dataVersion, dates);
     return {
       id,
       profile,
@@ -308,6 +357,8 @@ export class SourceCatalogService {
         throw new ConflictException(
           '저장 중 데이터가 변경됐습니다. 최신 내용을 다시 확인해 주세요.',
         );
+      // The immutable file revision above pins prepare()'s date validation result. Recheck
+      // authority/version here without repeating a full scan while holding the SQLite write queue.
       try {
         await this.db.getRepository(SourceCatalogEntry).insert({
           sourceId: id,

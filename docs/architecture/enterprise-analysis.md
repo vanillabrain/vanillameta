@@ -101,3 +101,5 @@ flowchart LR
 ## UC051 자원별 동작 권한
 
 [권한 연결 설계](../plans/UC-051-resource-access.md)·[선택 검증](../testing/enterprise-resource-access.md)은 별도 grant의 read/edit/publish/export와 실제 actor를 사용한다. 소유자 매핑/소스 ownerId를 수신자로 바꾸지 않으며 대시보드 권한은 연결 소스로 전이하지 않는다. 기존 기본 owner-only 경계는 유지하고 명시 action 호출에만 grant를 사용한다. 개인 실행 기록은 actor 소유를 유지하며 게시자 publish 회수 시 공개 읽기도 재검사한다. 새 산출물의 소유권으로 읽기 grant를 게시/export 권한으로 바꾸는 우회를 금지한다. 정책 목록은 활성 사용자·동일 조직·현재 자원 소유자를 DB join으로 재확인하고 프로파일 캐시에 사용자별 권한을 섞지 않는다. UI 제어와 실제 화면·운영 수용은 별도다.
+
+[UC050 업무 변수](../plans/UC-050-variable-semantics.md)는 기존 업무 메타데이터 이력에 업무 유형·고정 날짜 형식·분류 문자열을 확장한다. 실제 문자열 날짜는 허용 형식으로 파싱한 뒤 같은 형식의 문자열과 왕복 대조하여 전체 값의 유효성을 검사한다. DuckDB [날짜 형식 함수](https://duckdb.org/docs/current/sql/functions/dateformat)는 try_strptime 실패의 NULL 처리와 strftime의 포맷을 정의한다. 정확한 패딩/공백 거절은 그 함수를 조합한 VM 검증 규칙이며 실제 DuckDB 테스트로 확인한다. 입력 형식은 SQL 자유 입력이 아니고 실제 열 식별자는 기존 quoteColumn으로 인용한다. 원본 값·SQL은 검증 응답에 반환하지 않는다. 기존 분석/AI 계산 자동 적용·조직 공통 분류/활성 상태의 전체 보호 경로는 후속이다.

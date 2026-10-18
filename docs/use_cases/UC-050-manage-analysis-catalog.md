@@ -92,3 +92,7 @@
 ### Saved Analysis Basis Follow-up
 
 [저장 분석 기준](../testing/studio-saved-metric-basis.md)은 기존 권한 보호 Studio GET에서 저장 snapshot과 소스/블록/지표/버전 참조가 일치할 때만 계산 기준 whitelist를 반환한다. Inspector의 접힌 읽기 화면은 저장본 출처ID/버전을 표시하며 현재 지표/미저장 AI 변경을 검증한 것으로 보지 않는다. 미연결/불일치는 추정하지 않으며 전체 UC050 수용은 별도다.
+
+### Variable Semantics Follow-up
+
+[업무 변수 설계](../plans/UC-050-variable-semantics.md)는 원본 유형과 별도의 auto/수치/범주/날짜·날짜 형식·업무 분류를 기존 버전 저장에 연결한다. 문자열 날짜는 실제 전체 값의 형식/유효 날짜를 검증하며 원본 값은 반환하지 않는다. 이전 클라이언트 생략은 현재 의미를 보존하고 명시 auto/빈 값만 초기화한다. Explore와 Studio 조회가 같은 표현을 사용하지만 기존 SQL/AI 계산을 자동 변환하지 않는다. 조직 공통 분류 ID/승인·활성/실행 의미 적용·전체 FR015와 TC050 수용은 후속이다. [선택 증빙](../testing/source-variable-semantics.md)에서 자동 검사와 실제 UI를 구분한다.

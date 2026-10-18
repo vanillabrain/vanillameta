@@ -145,3 +145,28 @@ it('does not refetch when the parent renders an equivalent profile snapshot', as
   expect(screen.getByText('결제 내역')).toBeTruthy();
   expect(post).toHaveBeenCalledTimes(1);
 });
+
+it('shows saved business meaning separately from the physical type without new requests', async () => {
+  vi.mocked(post).mockResolvedValue(
+    response({
+      ...catalog(),
+      columns: [{ ...catalog().columns[0], businessType: 'number', dateFormat: '', classification: '매출' }],
+    }),
+  );
+  render(<StudioSourceCatalog profile={profile} />);
+  open();
+  await screen.findByText('업무 유형: 수치');
+  expect(screen.getByText('업무 분류: 매출')).toBeTruthy();
+  expect(screen.getByText('DOUBLE')).toBeTruthy();
+  expect(vi.mocked(post).mock.calls).toHaveLength(1);
+  expect(screen.queryByRole('textbox')).toBeNull();
+});
+it('hides malformed saved business fields instead of displaying an accepted definition', async () => {
+  vi.mocked(post).mockResolvedValue(
+    response({ ...catalog(), columns: [{ ...catalog().columns[0], businessType: 'date', dateFormat: 'anything' }] }),
+  );
+  render(<StudioSourceCatalog profile={profile} />);
+  open();
+  await screen.findByText(/업무 설명을 확인하지 못했습니다/);
+  expect(screen.queryByText('결제액')).toBeNull();
+});

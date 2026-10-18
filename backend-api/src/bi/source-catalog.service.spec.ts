@@ -358,4 +358,111 @@ describe('UC050 owned source business metadata', () => {
     expect(preview.changes).toEqual([]);
     expect(await db.getRepository(SourceCatalogEntry).count()).toBe(0);
   });
+  it('previews, saves and compares declared semantics without mutating old history', async () => {
+    const declared = {
+      ...body(),
+      columns: [
+        { ...body().columns[0], businessType: 'number', dateFormat: '', classification: ' Ａ ' },
+        {
+          ...body().columns[1],
+          businessType: 'date',
+          dateFormat: 'native',
+          classification: '결제',
+        },
+      ],
+    };
+    const preview = await service.preview(declared, 7);
+    expect(preview.draft.columns[0]).toMatchObject({ businessType: 'number', classification: 'A' });
+    expect(preview.changes).toContainEqual({
+      column: 'day',
+      field: 'dateFormat',
+      before: '',
+      after: 'native',
+    });
+    expect(await db.getRepository(SourceCatalogEntry).count()).toBe(0);
+    await service.save(preview.draft, 7);
+    // An older client submits only original fields: it must not erase the declaration.
+    await service.save({ ...body(), version: 1, label: '구형 편집' }, 7);
+    const read = await new SourceCatalogService(db, access, bi).read({ sourceId: 3 }, 7);
+    expect(read.columns[1]).toMatchObject({
+      businessType: 'date',
+      dateFormat: 'native',
+      classification: '결제',
+    });
+    expect(
+      (await service.compare({ sourceId: 3, fromVersion: 1, toVersion: 2 }, 7)).changes,
+    ).toEqual([{ column: null, field: 'label', before: '매출', after: '구형 편집' }]);
+    const reset = {
+      ...body(),
+      version: 2,
+      columns: body().columns.map(c => ({
+        ...c,
+        businessType: 'auto',
+        dateFormat: '',
+        classification: '',
+      })),
+    };
+    const resetPreview = await service.preview(reset, 7);
+    expect(resetPreview.changes).toContainEqual({
+      column: 'day',
+      field: 'businessType',
+      before: 'date',
+      after: 'auto',
+    });
+    await service.save(resetPreview.draft, 7);
+    expect((await service.read({ sourceId: 3 }, 7)).columns[1].businessType).toBe('auto');
+    expect(
+      JSON.parse(
+        (await db.getRepository(SourceCatalogEntry).findOneBy({ sourceId: 3, version: 1 }))
+          .metadata,
+      ).columns[1].businessType,
+    ).toBe('date');
+  });
+  it('rejects corrupt new stored semantics instead of dropping them', async () => {
+    await service.save(body(), 7);
+    const row = await db.getRepository(SourceCatalogEntry).findOneBy({ sourceId: 3, version: 1 });
+    const metadata = JSON.parse(row.metadata);
+    metadata.columns[0].businessType = 'date';
+    metadata.columns[0].dateFormat = 'bad';
+    await db
+      .getRepository(SourceCatalogEntry)
+      .update({ sourceId: 3, version: 1 }, { metadata: JSON.stringify(metadata) });
+    await expect(service.read({ sourceId: 3 }, 7)).rejects.toMatchObject({ status: 409 });
+    await expect(service.save({ ...body(), version: 1 }, 7)).rejects.toMatchObject({ status: 409 });
+    expect(await db.getRepository(SourceCatalogEntry).count()).toBe(1);
+  });
+  it('blocks a syntactically valid but schema-incompatible stored declaration', async () => {
+    await service.save(body(), 7);
+    const row = await db.getRepository(SourceCatalogEntry).findOneBy({ sourceId: 3, version: 1 });
+    const metadata = JSON.parse(row.metadata);
+    metadata.columns[0].businessType = 'date';
+    metadata.columns[0].dateFormat = 'native';
+    await db
+      .getRepository(SourceCatalogEntry)
+      .update({ sourceId: 3, version: 1 }, { metadata: JSON.stringify(metadata) });
+    await expect(service.read({ sourceId: 3 }, 7)).rejects.toMatchObject({ status: 409 });
+    expect(await db.getRepository(SourceCatalogEntry).count()).toBe(1);
+  });
+  it('rejects oversized metadata before performing a full date scan', async () => {
+    bi.profile.mockResolvedValue({
+      ...profile(),
+      columns: Array.from({ length: 128 }, (_, i) => ({ name: 'c' + i, type: 'VARCHAR' })),
+    });
+    bi.validateBusinessDates = jest.fn();
+    const oversized = {
+      ...body(),
+      columns: Array.from({ length: 128 }, (_, i) => ({
+        column: 'c' + i,
+        label: 'c' + i,
+        description: 'x'.repeat(1000),
+        unit: '',
+        businessType: i === 0 ? 'date' : 'auto',
+        dateFormat: i === 0 ? 'YYYYMMDD' : '',
+        classification: '',
+      })),
+    };
+    await expect(service.preview(oversized, 7)).rejects.toMatchObject({ status: 400 });
+    expect(bi.validateBusinessDates).not.toHaveBeenCalled();
+    expect(await db.getRepository(SourceCatalogEntry).count()).toBe(0);
+  });
 });

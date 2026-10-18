@@ -273,3 +273,104 @@ it('keeps shared metadata readable but disables edits and does not expose owner 
   expect(vi.mocked(post).mock.calls.map(call => call[0])).toEqual(['/bi/source-catalog/read']);
   expect(screen.queryByText('이 소스의 사용처')).toBeNull();
 });
+
+it('keeps variable declarations through preview consent save and remount, with fresh consent on edit', async () => {
+  vi.resetAllMocks();
+  const initial = {
+    ...data(),
+    columns: [{ ...data().columns[0], type: 'VARCHAR', businessType: 'auto', dateFormat: '', classification: '' }],
+  };
+  vi.mocked(post).mockResolvedValue(response(initial));
+  const view = render(<SourceCatalogEditor sourceId={3} />);
+  await open();
+  fireEvent.change(screen.getByLabelText('amount 업무 유형'), { target: { value: 'date' } });
+  expect((screen.getByLabelText('amount 날짜 형식') as HTMLSelectElement).value).toBe('YYYY-MM-DD');
+  fireEvent.change(screen.getByLabelText('amount 날짜 형식'), { target: { value: 'YYYYMMDD' } });
+  fireEvent.change(screen.getByLabelText('amount 업무 분류'), { target: { value: '결제' } });
+  const declared = {
+    ...draft('주문'),
+    columns: [{ ...draft('주문').columns[0], businessType: 'date', dateFormat: 'YYYYMMDD', classification: '결제' }],
+  };
+  const changes = [
+    { column: 'amount', field: 'businessType', before: 'auto', after: 'date' },
+    { column: 'amount', field: 'dateFormat', before: '', after: 'YYYYMMDD' },
+    { column: 'amount', field: 'classification', before: '', after: '결제' },
+  ];
+  vi.mocked(post).mockResolvedValueOnce(response({ draft: declared, changes }));
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 미리보기' }));
+  await screen.findByText('저장 전 변경 3개');
+  expect(post).toHaveBeenLastCalledWith('/bi/source-catalog/preview', declared);
+  fireEvent.click(screen.getByRole('checkbox', { name: '표시한 변경 내용을 확인했습니다' }));
+  fireEvent.change(screen.getByLabelText('amount 업무 분류'), { target: { value: '판매' } });
+  expect((screen.getByRole('button', { name: '확인한 변경 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  declared.columns[0].classification = '판매';
+  changes[2].after = '판매';
+  vi.mocked(post).mockResolvedValueOnce(response({ draft: declared, changes }));
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 미리보기' }));
+  await screen.findByText('저장 전 변경 3개');
+  fireEvent.click(screen.getByRole('checkbox', { name: '표시한 변경 내용을 확인했습니다' }));
+  const saved = { ...initial, version: 1, columns: [{ ...declared.columns[0], type: 'VARCHAR' }] };
+  vi.mocked(post).mockResolvedValueOnce(response(saved));
+  fireEvent.click(screen.getByRole('button', { name: '확인한 변경 저장' }));
+  await screen.findByText('업무 설명을 저장했습니다.');
+  expect(post).toHaveBeenLastCalledWith('/bi/source-catalog/save', declared);
+  view.unmount();
+  vi.mocked(post).mockResolvedValue(response(saved));
+  render(<SourceCatalogEditor sourceId={3} />);
+  await open();
+  expect((screen.getByLabelText('amount 업무 유형') as HTMLSelectElement).value).toBe('date');
+  expect((screen.getByLabelText('amount 날짜 형식') as HTMLSelectElement).value).toBe('YYYYMMDD');
+  expect((screen.getByLabelText('amount 업무 분류') as HTMLInputElement).value).toBe('판매');
+});
+it('preserves a bad date proposal on 400 and clears the format only when the type changes', async () => {
+  vi.resetAllMocks();
+  vi.mocked(post).mockResolvedValue(response(data()));
+  render(<SourceCatalogEditor sourceId={3} />);
+  await open();
+  fireEvent.change(screen.getByLabelText('amount 업무 유형'), { target: { value: 'date' } });
+  vi.mocked(post).mockRejectedValueOnce({ response: { status: 400 } });
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 미리보기' }));
+  await screen.findByText(/업무 유형·날짜 형식을 확인/);
+  expect((screen.getByLabelText('amount 업무 유형') as HTMLSelectElement).value).toBe('date');
+  expect((screen.getByRole('button', { name: '확인한 변경 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(screen.getByLabelText('amount 업무 유형'), { target: { value: 'number' } });
+  expect((screen.getByLabelText('amount 날짜 형식') as HTMLSelectElement).value).toBe('');
+  expect((screen.getByLabelText('amount 날짜 형식') as HTMLSelectElement).disabled).toBe(true);
+});
+it('rejects malformed semantic metadata rather than silently replacing it with legacy defaults', async () => {
+  vi.resetAllMocks();
+  vi.mocked(post).mockResolvedValue(
+    response({ ...data(), columns: [{ ...data().columns[0], businessType: 'date', dateFormat: 'SQL' }] }),
+  );
+  render(<SourceCatalogEditor sourceId={3} />);
+  fireEvent.click(screen.getByRole('button', { name: '데이터 업무 설명' }));
+  await screen.findByText(/업무 설명을 불러오지 못했습니다/);
+  expect(screen.queryByLabelText('amount 표시명')).toBeNull();
+});
+
+it('explains invalid and blank date counts while keeping the proposal and raw values private', async () => {
+  vi.resetAllMocks();
+  vi.mocked(post).mockResolvedValue(response(data()));
+  render(<SourceCatalogEditor sourceId={3} />);
+  await open();
+  fireEvent.change(screen.getByLabelText('amount 업무 유형'), { target: { value: 'date' } });
+  vi.mocked(post).mockRejectedValueOnce({
+    response: {
+      status: 400,
+      data: {
+        data: {
+          code: 'INVALID_BUSINESS_DATES',
+          details: [
+            { column: 'amount', invalidCount: '7', blankCount: '2' },
+            { column: 'foreign', invalidCount: '3', blankCount: '1' },
+          ],
+        },
+      },
+    },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 미리보기' }));
+  await screen.findByText(/amount 7개 \(빈 문자열 2개\)/);
+  expect(screen.queryByText(/foreign/)).toBeNull();
+  expect((screen.getByLabelText('amount 업무 유형') as HTMLSelectElement).value).toBe('date');
+  expect((screen.getByRole('button', { name: '확인한 변경 저장' }) as HTMLButtonElement).disabled).toBe(true);
+});

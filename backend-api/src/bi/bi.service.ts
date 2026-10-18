@@ -1,3 +1,4 @@
+import { DATE_FORMATS, stringType } from './business-variable';
 import { serializeEnterpriseWrite } from '../enterprise/enterprise-write';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { DataSource, In } from 'typeorm';
@@ -131,6 +132,61 @@ export class BiService {
       }
       return source;
     });
+  }
+  /** UC050: fixed formats + quoted actual identifiers; only aggregate invalid counts leave DuckDB. */
+  async validateBusinessDates(
+    sourceId: number,
+    actor: number,
+    revision: string,
+    columns: Array<{ column: string; dateFormat: string }>,
+  ) {
+    await this.access.assert('database', sourceId, actor, 'edit');
+    const issues = await this.connection.withDuckDBSnapshot(sourceId, async () => {
+      const before = await this.profile(sourceId, actor);
+      if (!before.supported || before.dataVersion !== revision)
+        throw new ConflictException('날짜 확인 기준 데이터가 변경됐습니다. 다시 조회해 주세요.');
+      if (!Array.isArray(columns) || !columns.length || columns.length > 128)
+        throw new BadRequestException('날짜 열 목록을 확인해 주세요.');
+      const expressions = columns.map((c, i) => {
+        if (
+          !c ||
+          !Object.prototype.hasOwnProperty.call(DATE_FORMATS, c.dateFormat) ||
+          !before.columns.some(s => s.name === c.column && stringType(s.type))
+        )
+          throw new BadRequestException('날짜 열·형식을 확인해 주세요.');
+        const raw = `CAST(${quoteColumn(c.column)} AS VARCHAR)`,
+          format = DATE_FORMATS[c.dateFormat];
+        const parsed = `try_strptime(${raw}, '${format}')`;
+        return `COUNT(*) FILTER (WHERE ${quoteColumn(
+          c.column,
+        )} IS NOT NULL AND (${parsed} IS NULL OR strftime(${parsed}, '${format}') <> ${raw})) AS invalid_${i}, COUNT(*) FILTER (WHERE ${quoteColumn(
+          c.column,
+        )} IS NOT NULL AND trim(${raw}) = '') AS blank_${i}`;
+      });
+      const result = (
+        await this.connection.queryDuckDB(
+          sourceId,
+          `SELECT ${expressions.join(', ')} FROM uploaded_data`,
+        )
+      ).datas[0];
+      await this.access.assert('database', sourceId, actor, 'edit');
+      return columns.map((c, i) => ({
+        column: c.column,
+        invalidCount: String(result?.[`invalid_${i}`]),
+        blankCount: String(result?.[`blank_${i}`]),
+      }));
+    });
+    // Re-read outside the pinned file too: replacing the source during validation invalidates it.
+    await this.access.assert('database', sourceId, actor, 'edit');
+    if ((await this.profile(sourceId, actor)).dataVersion !== revision)
+      throw new ConflictException('날짜 확인 중 데이터가 변경됐습니다. 다시 조회해 주세요.');
+    if (issues.some(issue => issue.invalidCount !== '0'))
+      throw new BadRequestException({
+        code: 'INVALID_BUSINESS_DATES',
+        message:
+          '날짜 형식과 맞지 않는 값이 있습니다. 빈 문자열도 날짜가 아닙니다. 값이 없으면 NULL로 준비해 주세요.',
+        details: issues,
+      });
   }
   async profile(id: unknown, actor: number) {
     const sourceId = this.access.id(id);

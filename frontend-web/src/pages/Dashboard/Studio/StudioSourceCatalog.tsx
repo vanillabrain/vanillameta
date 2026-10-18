@@ -1,3 +1,9 @@
+import {
+  BusinessSemantics,
+  businessTypeLabels,
+  validBusinessSemantics,
+  variableText,
+} from '@/pages/Explore/businessVariable';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
@@ -10,7 +16,7 @@ type Catalog = {
   label: string;
   description: string;
   schemaChanged: boolean;
-  columns: Array<{ column: string; type: string; label: string; description: string; unit: string }>;
+  columns: Array<{ column: string; type: string; label: string; description: string; unit: string } & BusinessSemantics>;
 };
 export default function StudioSourceCatalog({ profile }: { profile: SourceProfile }) {
   const key = JSON.stringify([profile.sourceId, profile.dataVersion, profile.columns.map(c => [c.name, c.type])]);
@@ -58,7 +64,10 @@ function CatalogRead({ profile }: { profile: SourceProfile }) {
           typeof next.schemaChanged !== 'boolean' ||
           !Array.isArray(next.columns) ||
           next.columns.some(
-            c => !c || ['column', 'type', 'label', 'description', 'unit'].some(field => typeof c[field] !== 'string'),
+            c =>
+              !c ||
+              ['column', 'type', 'label', 'description', 'unit'].some(field => typeof c[field] !== 'string') ||
+              !validBusinessSemantics(c),
           )
         )
           throw new Error('invalid metadata');
@@ -110,6 +119,11 @@ function CatalogRead({ profile }: { profile: SourceProfile }) {
                   <p className="text-xs text-muted-foreground">
                     원본 열: <span>{c.column}</span> · 형식: <span>{c.type}</span>
                   </p>
+                  <p className="text-xs">업무 유형: {businessTypeLabels[c.businessType ?? 'auto']}</p>
+                  {c.businessType === 'date' && (
+                    <p className="text-xs">날짜 형식: {variableText('dateFormat', c.dateFormat ?? '')}</p>
+                  )}
+                  {c.classification && <p className="text-xs">업무 분류: {c.classification}</p>}
                   {c.unit && (
                     <p className="text-xs">
                       단위: <span>{c.unit}</span>
