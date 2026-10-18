@@ -6,24 +6,26 @@
 
 각 요건의 구현/자동 검사/실제 UI/권한·정답 대조/운영·사람 수용을 구분한다. [TC050](../test_cases/TC-050-enterprise-analysis.md) E01~E14 전체와 기존 TC005 회귀를 종료 기준으로 한다. 실제 Ego 사용자 제어권·실기기/운영 접근 등 미실행은 분리하고 완료로 승계하지 않는다. 진행률은 완전 충족 항목 수/16이며 하위 UI 작업 수를 전체 비율로 계산하지 않는다.
 
-| 요건   | 현재 범위                                                                                                                                                                                   | 남은 결과                                               |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| FR014  | 소스 설명/이력/미리보기·선택 사용처·직접/그룹 이용 권한·활성 중앙 차단                                                                                                                      | 전체 변경 영향 확인·실제 UI/업무 수용                   |
-| FR015  | 표시명/설명/단위·업무 유형/날짜·분류·지표 기준·고정 의미 조건 실행 선택 검증; 신규 semantic 지표/차원·숫자+추세 고정 기준 및 선택 실행 검증 ([증빙](../testing/semantic-business-basis.md)) | 이번 MySQL/Ego·실기기/운영·전체 생성 조합·업무 수용     |
-| FR016  | 격리 조직/직원·팀·동적 그룹/구성원 CAS 자동/HTTP 검증                                                                                                                                       | 실제 UI·운영 조직 관리 수용                             |
-| FR017  | 직접/그룹 grant·현재 구성원/권한·회수 자동/HTTP 검증                                                                                                                                        | 영속 파일 소비자/실제 UI 수용                           |
-| FR018  | 중첩 조건 저장·Studio 명시 적용/복구·게시/복제 연결                                                                                                                                         | 실LLM·실제 UI 수용                                      |
-| FR019  | 전체 건수·값 빈도/상위20+나머지·선택 열 정렬 표본                                                                                                                                           | 실제 UI·대규모 성능/운영 수용                           |
-| FR020  | 직접/AI 조건 검증·차이/전체 미리보기·명시 적용                                                                                                                                              | 실LLM/설명·조회 구분의 실제 UI 수용                     |
-| FR021  | 배치 공유·받은 자료·동의 기반 독립 복제/영수증·동적 그룹 받은 자료/복제                                                                                                                     | 실제 UI·MySQL/운영·공유/복제 통합 수용                  |
-| FR022  | 권한/공유/회수 본인 알림·그룹 사건 수신자 snapshot·읽음/목록 제거·멱등 상태                                                                                                                 | 계정/조직 활성 변경 auto-notice·실제 UI/MySQL/운영 수용 |
-| FR023  | 영속 집계 export 작업·멱등 접수/CAS 실행·만료/권한 보호 파일의 구현 slice                                                                                                                   | 실제 UI/기기·MySQL/운영·사람 수용 및 전체 TC050         |
-| FR024  | 개인 보관/복원·Dashboard 원자 삭제·지표·소스 삭제 보호/영수증·관리 파일 정리·조직 대시보드 상태                                                                                             | 조직 상태·소스 정리 통합/실제 Ego/운영 수용             |
-| FR025  | 기존 기간 비교 기반·고정 집계 export 문맥                                                                                                                                                   | 전체 비교 리포트/파일 업무 수용·독립 oracle 통합        |
-| NFR005 | 소유권·활성/epoch·grant·확정 권한 조회/교차 큐 선택 검증                                                                                                                                    | 조직/활성/회수 전 보호 경로 일관성                      |
-| NFR006 | 기존 선택 숫자 정답 증빙                                                                                                                                                                    | 조건/비교/export 동일 문맥 독립 정답                    |
-| NFR007 | 소스 설명·권한/전달·보관/삭제·export actor/version 감사                                                                                                                                     | 전체 사건 추적·운영/사람 감사 수용                      |
-| NFR008 | 저장/공유/export/삭제 영수증·명시 SQLite transaction 조정                                                                                                                                   | 실제 UI·재시작/경합·MySQL/운영 통합 복구 수용           |
+최신 세부 대조는 [16개 요건 수용 점검](../testing/enterprise-acceptance-audit.md)을 따른다. 아래는 현재 표이며, 뒤의 누적 후속 문단은 각 실행 당시의 역사 기록이다. 이미 확인한 기능·정답·실모델/화면을 전부 미구현으로 재분류하지 않는다.
+
+| 요건   | 현재 확인 범위                                                                                 | 남은 구현·수용                                         |
+| ------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| FR014  | 설명/이력/직접 사용처·권한·활성 차단                                                           | 전체 영향 지원 범위·schema/권한 변경 안내·업무 수용    |
+| FR015  | 업무 유형/날짜/단위/공통 분류·고정 의미·직접/실AI 생성·저장/게시/복제·이번 MySQL64 선택 통과   | 복합 부정/전체 생성 조합·실기기·운영/업무 의미 수용    |
+| FR016  | 계정 연결·팀/역할/활성·epoch·동적 그룹·계정 MySQL·직원 검색/명시 조직 이동·권한 회수/자료 보존 | 탈퇴·업무 자산 이관 계약·실제 관리 화면/운영·사람 수용 |
+| FR017  | 직접/그룹 권한·소스 read·완료 파일 현재 권한 검사                                              | 전 역할×보호 경로 대조·운영 경합 수용                  |
+| FR018  | 중첩 조건/명시 적용·저장/reload/게시/복제·실 Codex 단일 조건                                   | 복합 부정·중첩/오류 연속 화면·사용자 수용              |
+| FR019  | 전체 분포/건수·선택 정렬 표본·독립 정답                                                        | 실제 화면/키보드·목표 데이터 규모 성능 수용            |
+| FR020  | 설명/조회0연산·차이/전체 미리보기·명시 적용·실 Codex 사례                                      | 복합 부정·실모델 설명/조회/오류 각 여정 수용           |
+| FR021  | 직접/그룹 공유·받은함·동의 복제·원본/사본 분리                                                 | member 공유 정책·미확정 reload 복구·통합 UI/MySQL 수용 |
+| FR022  | 권한/공유/그룹/출력 알림·본인 읽음/제거                                                        | 계정/조직 자동 사건 계약·장애·격리 통합 수용           |
+| FR023  | 영속 export/CAS/lease·원자 파일·권한/만료·인스턴스 복구                                        | 실제 프로세스 재시작·MySQL 부분 실패·파일 업무 수용    |
+| FR024  | 보관·Dashboard/Metric/Source 삭제 보호·정리·대시보드 상태                                      | 조직 자체 상태와 구분·통합 정리/Ego/운영 수용          |
+| FR025  | 직전 기간 비교/Pivot/CSV 독립 정답·동일 기준 headless2                                         | 임의 비교 기간 계약·대표 보고서 전체 여정 수용         |
+| NFR005 | 현재 계정/epoch/조직·권한/회수·선택 교차 큐·이번 MySQL 잠금                                    | 전 보호 경로/일반 쓰기 일관성·운영 수용                |
+| NFR006 | 조건/비교/Pivot/CSV와 semantic 독립 oracle                                                     | 고정 기준 전체 여정·정밀/오차 기준·업무 정답 승인      |
+| NFR007 | 정의/권한/공유/삭제/export actor/version 감사                                                  | 전체 사건 필수 필드·열람/보존 정책·운영 감사 수용      |
+| NFR008 | 영수증/rollback·stale worker·일부 reload·MySQL 두 연결                                         | 공유/복제 reload·실제 재시작/실패 조합 통합 수용       |
 
 ## 구현 순서
 
@@ -95,3 +97,13 @@ MySQL 계정 후속의 구체 잔여는 [계정·세션 계획](UC-051-account-s
 [UC050 조직 공통 분류](UC-050-classifications.md)·[선택 증빙](../testing/organization-classifications.md)은 현재 조직 registry와 source edit의 분리, 두 source의 같은 ID 연결·역사 이름/ref 보존·명시 최신 채택·nullable 해제, UUID 생성 영수증/CAS/감사를 연결한다. registry47 PASS와 실제 MySQL15 PASS는 각각의 실행 범위이며 합산하지 않는다. 실제 SourceCatalogService/DuckDB·InnoDB 잠금 대기/rollback·migration 반복과 격리 fixture CLEANUP PASS를 확인했다. 생성 영수증은 현재 상태 증명이 아니며 reload 복구는 로그인 세대/actor/조직에 묶인24시간/8KiB 최소 요청의 명시 확인/자동 POST0이다. catalog read/JWT 보강 후135 PASS·types/lint/격리 build·Bernoulli APPROVE0와 실제 ui-second1 PASS/9.7초를 확인했다. Main의 Source/조직390/768/1440 열람은 overflow0·controls36px·입력900px 미만16px/desktop14px다. BE 최종10 suites/293 PASS는 registry47/catalog135/condition regression111을 포함하며 다시 더하지 않는다. global BE types/lint/build와 FE helper read/delete 수정 후8 suites/102 PASS·types/lint/build를 확인했다. read-guard 후 MySQL 최종15 PASS/8.924초는 현재8개 source hash 실행 중 불변·owned CLEANUP PASS이며 이전15를 더하지 않는다. core-final15 PASS/51.0초 뒤 마지막 FE receipt/pagination finding을 수정했다. 영향 Classifications13 PASS·types/lint/build는 기존102와 겹치며 새3개를 포함하므로102+13으로 합산하지 않는다. 수정 후 실제 ui-stable2 PASS/13.4초는 확장 전체 흐름과 페이지 밖 역사 영수증/현재 목록 분리를 확인했다. Jason 최종 FE·Bernoulli BE는 모두 APPROVE0다. Main이 최종6개 controls capture를 열람해768/1440에서 업무 유형/날짜 custom label+NativeSelect와 분류 TextField 입력 상단이 약7px 어긋나는 문제를 확인했다. Tesla가 기존 UI Kit을 유지하며 동일 TextField select로 맞추는 수정과 세 입력행 top 차이≤1px assertion을 포함한 실제 UI2 재실행이 대기다. 이전 UI2 PASS는 시각 수정 전 결과이며 최종 정렬 PASS로 승계하지 않는다. Ego96 제어권 인수·물리 휴대폰·운영·사람 수용은 미실행이다. 새 semantic 지표/차원 생성·실제 Ego/휴대폰/운영·사람 및 전체16개 요건 수용은 열린다.
 
 [신규 semantic 업무 기준](UC-050-semantic-business-basis.md)·[증빙](../testing/semantic-business-basis.md)은 실제 Codex/격리 Chromium의 직접/AI 생성·정답60/30/30/40/20·저장/reload·비공개 게시/중지와390/768/1440을 선택 검증했다. 모바일 SVG 너비 오류도 수정·실측했다. BE481/검토 영향161·FE182/후속124/98은 중복이므로 합산하지 않는다. 다음 수용은 이번 단위 MySQL과 남은 TC050 요건별 결손 감사·실기기/운영/사람이며 전체16개 goal은 계속 활성이다.
+
+## 고정 업무 기준 MySQL 후속
+
+[계획](UC-050-semantic-mysql.md)·[실행 증빙](../testing/semantic-business-mysql.md)은 이번 metadata MySQL8.4.11/native DuckDB의64개(이전61과 중복)와 실제 두 연결의 User 잠금·동시 게시 영수증·rollback/409를 확인한다. LLM/Studio snapshot fixture와 runtime의 실제 ConnectionService를 구분한다. 기존 조건·파일 권한·출력 알림·삭제 보호·독립 oracle를 현재 표에 반영했다. [전체 수용 점검](../testing/enterprise-acceptance-audit.md)의 계약/검증/운영·사람 잔여가 모두 해소되기 전 전체16개 완료로 판정하지 않는다.
+
+## UC051 직원 검색·조직 이동 후속
+
+[설계](UC-051-staff-transfer.md)·[증빙](../testing/staff-transfer.md)은 직원 검색과 본인/양쪽 admin 동의·고정 수락 기준·양쪽 조직 CAS·이전 access/refresh 회수·직접/그룹/전달 권한 회수 및 개인 자료/독립 사본/게시 행 보존을 연결한다. SQLite/실제 Docker MySQL·FE 선택 실행은 증빙에 한정한다. 전체 FR016/FR017·탈퇴/업무 자산 이관·실제 Ego/실기기/운영/사람 수용은 미완료다.
+
+[UC051 실제 화면 후속](../testing/staff-transfer-ui.md)은 초기 상태 조회 공백과 오류 안내/검색 정렬을 보완하고 Ego101에서 명시 조직 이동/409 복구/재로그인/reload를 확인했다. 직원 관리의 다음은 탈퇴/업무 자산 인계 계약이며 운영/전 경로/사람 수용은 남는다.

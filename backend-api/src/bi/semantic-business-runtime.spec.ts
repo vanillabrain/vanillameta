@@ -1,3 +1,4 @@
+import { semanticMetadata, assertSemanticMysqlIdentity } from '../../test/util/semantic-mysql';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { DuckDBInstance } from '@duckdb/node-api';
 import { createHash, randomUUID } from 'crypto';
@@ -66,7 +67,7 @@ const amountDefinition = {
   numberNotation: 'plain',
 };
 
-describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle', () => {
+describe('FR015 semantic business basis actual metadata/DuckDB independent oracle', () => {
   jest.setTimeout(30000);
   let root: string,
     filename: string,
@@ -166,7 +167,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
     fs.mkdirSync(replacementDirectory);
     replacementFilename = path.join(replacementDirectory, 'data.duckdb');
     fs.copyFileSync(filename, replacementFilename);
-    db = await new DataSource({
+    db = await semanticMetadata('runtime', {
       type: 'sqlite',
       database: path.join(root, 'metadata.sqlite'),
       synchronize: true,
@@ -189,7 +190,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
         Metric,
         SourceCatalogEntry,
       ],
-    }).initialize();
+    });
     await db.manager.insert(User, {
       id: 7,
       userId: 'semantic-business-owner',
@@ -485,6 +486,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
     await append(2);
     await db.destroy();
     await db.initialize();
+    await assertSemanticMysqlIdentity(db);
     expect(
       JSON.parse((await db.manager.findOneByOrFail(Metric, { id: created.id })).definition),
     ).toEqual(original);
@@ -526,7 +528,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
     );
     expect(counted.definition.unit).toBe('');
   });
-  it('resolves exact historical basis after SQLite reconnect while current capture sees metadata V2', async () => {
+  it('resolves exact historical basis after metadata reconnect while current capture sees metadata V2', async () => {
     const { profile, basis } = await context();
     const stored = await db.manager.findOneByOrFail(SourceCatalogEntry, {
       sourceId: 1,
@@ -535,6 +537,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
     await append(2);
     await db.destroy();
     await db.initialize();
+    await assertSemanticMysqlIdentity(db);
     const restored = await resolveBusinessBasis(db.manager, 1, profile, basis, [
       'amount',
       'category_code',
@@ -623,7 +626,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
       expect(await db.manager.count(Metric)).toBe(0);
     },
   );
-  it('lets unrelated SQLite metadata commit while actual full-date validation SQL is held outside the metadata queue', async () => {
+  it('lets unrelated metadata commit while actual full-date validation SQL is held outside the metadata queue', async () => {
     const { profile, basis } = await context();
     let entered: () => void, resume: () => void;
     const reached = new Promise<void>(resolve => {
@@ -738,6 +741,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
       await append(2);
       await db.destroy();
       await db.initialize();
+      await assertSemanticMysqlIdentity(db);
       const loaded: any = await ai.analysis(saved.data.id, 7, true);
       expect(loaded.data.businessBasis.catalogVersion).toBe(1);
       assertPreview(
@@ -795,7 +799,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
         const result = await original(...args);
         if (!changed && /SUM\("amount"\) AS value/i.test(args[1])) {
           changed = true;
-          await db.query('UPDATE "database" SET "connectionConfig" = ? WHERE "id" = 1', [
+          await db.query('UPDATE `database` SET `connectionConfig` = ? WHERE `id` = 1', [
             JSON.stringify({ client: 'duckdb', connection: { filename: replacementFilename } }),
           ]);
         }
@@ -809,7 +813,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
         expect(await storedCounts()).toEqual(before);
       } finally {
         jest.restoreAllMocks();
-        await db.query('UPDATE "database" SET "connectionConfig" = ? WHERE "id" = 1', [
+        await db.query('UPDATE `database` SET `connectionConfig` = ? WHERE `id` = 1', [
           source.connectionConfig,
         ]);
       }
@@ -831,7 +835,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
           source = await db.manager.findOneByOrFail(Database, { id: 1 });
         if (change === 'epoch') await db.manager.update(User, 7, { authVersion: 1 });
         else
-          await db.query('UPDATE "database" SET "connectionConfig" = ? WHERE "id" = 1', [
+          await db.query('UPDATE `database` SET `connectionConfig` = ? WHERE `id` = 1', [
             JSON.stringify({ client: 'duckdb', connection: { filename: replacementFilename } }),
           ]);
         try {
@@ -840,7 +844,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
           });
           expect(await storedCounts()).toEqual(before);
         } finally {
-          await db.query('UPDATE "database" SET "connectionConfig" = ? WHERE "id" = 1', [
+          await db.query('UPDATE `database` SET `connectionConfig` = ? WHERE `id` = 1', [
             source.connectionConfig,
           ]);
         }
@@ -938,7 +942,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
         const result = await original(...args);
         if (!changed && /ORDER BY ALL LIMIT/.test(args[1])) {
           changed = true;
-          await db.query('UPDATE "database" SET "connectionConfig" = ? WHERE "id" = 1', [
+          await db.query('UPDATE `database` SET `connectionConfig` = ? WHERE `id` = 1', [
             JSON.stringify({ client: 'duckdb', connection: { filename: replacementFilename } }),
           ]);
         }
@@ -950,7 +954,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
         expect(await storedCounts()).toEqual(before);
       } finally {
         jest.restoreAllMocks();
-        await db.query('UPDATE "database" SET "connectionConfig" = ? WHERE "id" = 1', [
+        await db.query('UPDATE `database` SET `connectionConfig` = ? WHERE `id` = 1', [
           source.connectionConfig,
         ]);
       }
@@ -973,7 +977,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
             if (change === 'epoch')
               await serializeMetadataWork(db, () => db.manager.update(User, 7, { authVersion: 1 }));
             if (change === 'file')
-              await db.query('UPDATE "database" SET "connectionConfig" = ? WHERE "id" = 1', [
+              await db.query('UPDATE `database` SET `connectionConfig` = ? WHERE `id` = 1', [
                 JSON.stringify({ client: 'duckdb', connection: { filename: replacementFilename } }),
               ]);
             throw new Error('synthetic KPI SQL failure');
@@ -989,7 +993,7 @@ describe('FR015 semantic business basis actual SQLite/DuckDB independent oracle'
           expect(await storedCounts()).toEqual(before);
         } finally {
           jest.restoreAllMocks();
-          await db.query('UPDATE "database" SET "connectionConfig" = ? WHERE "id" = 1', [
+          await db.query('UPDATE `database` SET `connectionConfig` = ? WHERE `id` = 1', [
             source.connectionConfig,
           ]);
         }

@@ -176,7 +176,7 @@ export class EnterpriseService {
       };
     });
   }
-  async members(actor: number, afterId?: unknown) {
+  async members(actor: number, afterId?: unknown, query?: unknown) {
     return serializeMetadataWork(this.db, async () => {
       const after =
         afterId === undefined
@@ -186,6 +186,7 @@ export class EnterpriseService {
                 ? Number(afterId)
                 : afterId,
             );
+      const q = query === undefined ? '' : this.text(query, 100);
       const { organization } = await this.scope(actor, this.db.manager, true);
       const rows = await this.db
         .getRepository(EnterpriseMembership)
@@ -200,6 +201,15 @@ export class EnterpriseService {
           organizationId: organization.id,
           after,
         })
+        .andWhere(
+          q
+            ? "(user.userId LIKE :search ESCAPE '!' OR membership.team LIKE :search ESCAPE '!' OR user.id = :exactId)"
+            : '1=1',
+          {
+            search: '%' + q.replace(/[!%_]/g, ch => '!' + ch) + '%',
+            exactId: /^[1-9][0-9]*$/.test(q) && Number.isSafeInteger(Number(q)) ? Number(q) : -1,
+          },
+        )
         .orderBy('user.id', 'ASC')
         .limit(21)
         .getRawMany();

@@ -1,3 +1,4 @@
+import { lockStaffWrite } from './staff-write-lock';
 import { groupMembershipNotifications, groupRecipients } from './group-notification';
 import { createHash } from 'crypto';
 import {
@@ -209,6 +210,7 @@ export class EnterpriseGroupService {
     const memberIds: number[] = [...body.memberIds].sort((a, b) => a - b),
       active = body.active;
     return groupWrite(this.db, async manager => {
+      await lockStaffWrite(manager, [actor, ...memberIds]);
       const scope = await groupAdmin(actor, manager, true);
       const group = await manager.findOne(EnterpriseGroup, {
         where: { id, organizationId: scope.organizationId },

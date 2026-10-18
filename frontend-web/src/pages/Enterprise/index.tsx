@@ -1,3 +1,4 @@
+import StaffTransfer from './StaffTransfer';
 import Classifications from './Classifications';
 import Groups from './Groups';
 import ReceivedDashboards from './ReceivedDashboards';
@@ -46,6 +47,8 @@ export default function Enterprise() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [reload, setReload] = useState(0);
+  const [contextRevision, setContextRevision] = useState(0);
+  const [transferNotice, setTransferNotice] = useState('');
 
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -64,6 +67,8 @@ export default function Enterprise() {
   const [enrollmentNotice, setEnrollmentNotice] = useState('');
   const organizationIdRef = useRef<HTMLInputElement | null>(null);
 
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
   const [members, setMembers] = useState<EnterpriseMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState('');
@@ -91,6 +96,8 @@ export default function Enterprise() {
 
   /** Bumped whenever a directory read starts, so any in-flight read or write answer becomes stale. */
   const readGeneration = useRef(0);
+  // Context and staff reads can refresh together after a transfer; neither may invalidate the other.
+  const contextReadGeneration = useRef(0);
   /** Bumped whenever a directory read starts; a mutation captures it once and never re-reads it later. */
   const directoryGeneration = useRef(0);
   /** Why the directory was withdrawn, so the refusal is readable on screen instead of inside a hidden form. */
@@ -130,25 +137,28 @@ export default function Enterprise() {
   };
 
   useEffect(() => {
-    readGeneration.current += 1;
-    const read = readGeneration.current;
+    contextReadGeneration.current += 1;
+    const read = contextReadGeneration.current;
     const abort = new AbortController();
     setLoading(true);
     setLoadError('');
     fetchContext({ signal: abort.signal })
       .then(data => {
-        if (readGeneration.current === read) setContext(data);
+        if (contextReadGeneration.current === read) {
+          setContext(data);
+          setContextRevision(value => value + 1);
+        }
       })
       .catch(error => {
-        if (readGeneration.current !== read || abort.signal.aborted) return;
+        if (contextReadGeneration.current !== read || abort.signal.aborted) return;
         const failure = enterpriseError(error);
         setLoadError(failure.kind === 'auth' ? 'auth' : reasonOf(failure));
       })
       .finally(() => {
-        if (readGeneration.current === read) setLoading(false);
+        if (contextReadGeneration.current === read) setLoading(false);
       });
     return () => {
-      readGeneration.current += 1;
+      contextReadGeneration.current += 1;
       abort.abort();
     };
   }, [reload]);
@@ -174,7 +184,7 @@ export default function Enterprise() {
     setDeniedReason('');
     setMembers([]);
     setNextAfterId(null);
-    fetchMembers(undefined, { signal: abort.signal })
+    fetchMembers(undefined, { signal: abort.signal }, memberSearch || undefined)
       .then(page => {
         if (readGeneration.current !== read || directoryGeneration.current !== directoryRead) return;
         setMembers(page.entries);
@@ -196,7 +206,7 @@ export default function Enterprise() {
       readGeneration.current += 1;
       abort.abort();
     };
-  }, [isAdmin, membersReload]);
+  }, [isAdmin, membersReload, memberSearch]);
 
   const loadMore = useCallback(async () => {
     if (nextAfterId === null || membersLoading || !organization) return;
@@ -206,7 +216,7 @@ export default function Enterprise() {
     setMembersLoading(true);
     setMembersError('');
     try {
-      const page = await fetchMembers(nextAfterId, {});
+      const page = await fetchMembers(nextAfterId, {}, memberSearch || undefined);
       if (!isCurrent(directoryRead) || organization?.id !== organizationId) return;
       if (page.organizationVersion !== version) {
         // A newer organization version means the pages no longer form one snapshot; start over.
@@ -227,7 +237,7 @@ export default function Enterprise() {
     } finally {
       setMembersLoading(false);
     }
-  }, [nextAfterId, membersLoading, organization]);
+  }, [nextAfterId, membersLoading, organization, memberSearch]);
 
   const issueEnrollment = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -644,6 +654,23 @@ export default function Enterprise() {
         </div>
       )}
 
+      {transferNotice && (
+        <p role="status" className="mt-3 text-sm">
+          {transferNotice}
+        </p>
+      )}
+      {organization && membership && (
+        <StaffTransfer
+          key={`transfer:${organization.id}:${membership.userId}:${organization.version}:${contextRevision}`}
+          context={context}
+          onReload={message => {
+            setTransferNotice(message || '');
+            setReload(value => value + 1);
+            setMembersReload(value => value + 1);
+          }}
+        />
+      )}
+
       {created && membersDenied && (
         <Notice severity="error" className="mt-3">
           조직 정보를 볼 권한이 없습니다. 조직 정보를 다시 불러온 뒤 다시 확인해 주세요.
@@ -653,6 +680,34 @@ export default function Enterprise() {
       {isAdmin && organization && (
         <div className="mt-6 flex min-w-0 flex-col gap-3">
           <h2 className="text-base font-semibold text-foreground">직원 목록</h2>
+          <form
+            className="flex min-w-0 flex-wrap items-end gap-2"
+            onSubmit={event => {
+              event.preventDefault();
+              if (membersLoading || saving || adding || memberQuery.length > 100) return;
+              directoryGeneration.current += 1;
+              setEdit(null);
+              setEditAck(false);
+              setEditingRowId(null);
+              setMemberSearch(memberQuery);
+              setMembersReload(value => value + 1);
+            }}
+          >
+            <TextField
+              label="직원 검색"
+              aria-describedby="enterprise-member-search-description"
+              value={memberQuery}
+              maxLength={100}
+              onChange={event => setMemberQuery(event.target.value)}
+              className="w-full max-w-sm"
+            />
+            <Button type="submit" variant="outline" disabled={membersLoading || saving || adding}>
+              직원 검색 적용
+            </Button>
+          </form>
+          <p id="enterprise-member-search-description" className="text-xs text-muted-foreground">
+            현재 조직의 내부 직원 번호·로그인 ID·팀 검색 (100자 이내)
+          </p>
 
           {editNotice && (
             <p role="status" className="text-[13px]">
@@ -675,13 +730,16 @@ export default function Enterprise() {
                 {nextAfterId === null ? ' · 마지막 페이지' : ' · 다음 페이지 있음'}
               </p>
               {members.length === 0 && !membersLoading && !membersError && (
-                <p className="text-sm text-muted-foreground">아직 추가된 직원이 없습니다.</p>
+                <p className="text-sm text-muted-foreground">
+                  {memberSearch ? '검색된 직원이 없습니다.' : '아직 추가된 직원이 없습니다.'}
+                </p>
               )}
               <ul className="flex min-w-0 flex-col gap-2">
                 {members.map(member => (
                   <li key={member.id} className="flex min-w-0 flex-col gap-2 rounded-lg border border-border p-3">
                     <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                       <span className="wrap-anywhere font-medium text-foreground">로그인 ID {member.userId}</span>
+                      <span className="text-muted-foreground">직원 번호 #{member.id}</span>
                       <span className="wrap-anywhere text-muted-foreground">팀 {member.team || '미지정'}</span>
                       <span className="text-muted-foreground">역할 {roleLabel(member.role)}</span>
                       <span className="text-muted-foreground">상태 {activeLabel(member.active)}</span>

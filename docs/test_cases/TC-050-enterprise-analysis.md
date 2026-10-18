@@ -189,3 +189,15 @@ E11/E12의 대시보드 사용처/삭제·원자 영수증은 [UC055 계획](../
 [분류 증빙](../testing/organization-classifications.md)은 E01/E02/E03/E12/E13 중 조직 사전 조회/admin 관리·별도 source edit·명시 연결/해제/최신 채택과 사건 당시 영수증을 구분한다. registry SQLite/JWT HTTP47 PASS와 실제 MySQL8.4.11/두 DuckDB 소스15 PASS는 독립 실행이며 합산하지 않는다. MySQL 분류/User lock 대기·stale CAS/epoch·audit/receipt rollback·migration 반복과 표식한 격리 자산 cleanup을 확인했다.
 
 검토 항목에는 bound ref 생략/legacy 문자열 편집 차이, 명시 null의 저장/preview 보존, 이름 변경/비활성 뒤 역사 ref 보존, 생성 유실→로그인 세대/actor/조직에 묶인24시간/8KiB reload 복구→현재 권한 조회→동일 UUID 명시 확인/자동 POST0을 포함한다. catalog read/JWT 보강 후135 PASS·types/lint/격리 build·Bernoulli APPROVE0, 실제 ui-second1 PASS/9.7초를 확인했다. commit503→reload→자동 POST0/동일 UUID와 전체 본문 확인·entry1, 두 source 연결/rename 보존/최신 채택·비활성 보존/해제를 포함한다. Main은 Source/조직390/768/1440 overflow0·controls36px·입력900px 미만16px/desktop14px를 열람했다. 최초768px14px 테스트 기대값은 기존 토큰에 맞춰 수정했다. BE 최종10 suites/293 PASS는 registry47/catalog135/condition regression111을 포함하며 다시 더하지 않는다. global BE types/lint/build와 FE helper read/delete 수정 후8 suites/102 PASS·types/lint/build를 확인했다. read-guard 후 MySQL 최종15 PASS/8.924초는 현재8개 source hash 실행 중 불변·owned CLEANUP PASS이며 이전15를 더하지 않는다. core-final15 PASS/51.0초 뒤 마지막 FE receipt/pagination finding을 수정했다. 영향 Classifications13 PASS·types/lint/build는 기존102와 겹치며 새3개를 포함하므로102+13으로 합산하지 않는다. 수정 후 실제 ui-stable2 PASS/13.4초는 확장 전체 흐름과 페이지 밖 역사 영수증/현재 목록 분리를 확인했다. Jason 최종 FE·Bernoulli BE는 모두 APPROVE0다. Main이 최종6개 controls capture를 열람해768/1440에서 업무 유형/날짜 custom label+NativeSelect와 분류 TextField 입력 상단이 약7px 어긋나는 문제를 확인했다. Tesla가 기존 UI Kit을 유지하며 동일 TextField select로 맞추는 수정과 세 입력행 top 차이≤1px assertion을 포함한 실제 UI2 재실행이 대기다. 이전 UI2 PASS는 시각 수정 전 결과이며 최종 정렬 PASS로 승계하지 않는다. Ego96 제어권 인수·물리 휴대폰·운영·사람 수용은 미실행이다. 이 선택 실행을 수용으로 승격하지 않으며 E01~E14·전체 TC050의 NOT_RUN과 새 semantic 지표/차원 생성·전체16개 요건 수용 상태는 승격하지 않는다.
+
+## 고정 업무 기준 MySQL 선택 후속
+
+[계획](../plans/UC-050-semantic-mysql.md)·[증빙](../testing/semantic-business-mysql.md)은 E01/E04/E08/E13/E14의 metadata MySQL8.4.11/native DuckDB64개를 실행했다. 두 connection의 실제 잠금·epoch 회수·동시 게시 영수증·rollback/409도 포함하지만, 실제 LLM/브라우저/MySQL 앱 서버·운영 migration·모든 조합을 의미하지 않는다. [16개 수용 점검](../testing/enterprise-acceptance-audit.md)은 이미 실행한 기능/정답을 미구현으로 계산하지 않고 계약/실행/운영·사람 잔여를 분리한다. 전체 E01~E14/16개 수용은 NOT_RUN을 유지한다.
+
+## E02/E03 직원 검색·이동 후속
+
+[설계](../plans/UC-051-staff-transfer.md)·[선택 검증](../testing/staff-transfer.md)의 현재 조직 문자 검색/비밀 비노출, 본인 동의→대상 admin 수락→원 조직 다른 admin 검토/이동, 변경된 reviewBasis·양쪽 version/epoch/만료/철회 거절을 검사한다. 기존 access/refresh 회수와 자료/소유/독립 사본/게시 행 보존, 이전 권한/그룹 해제 및 A→B→A 비부활, 실제 MySQL 두 연결 finalizer/권한·그룹 writer 경합과 late rollback을 구별한다. 선택 시나리오는 full E02/E03/TC050·운영·실기기/사람 수용 통과가 아니다.
+
+### E02/E03 Ego 화면 후속 — 2026-10-19
+
+[실행 범위](../testing/staff-transfer-ui.md)는 Ego101의 격리 SQLite 실제 로그인/검색/발급/철회/수락/최종 이동과 수락 변경409·명시 재검토·이전 토큰401·재로그인/reload,390/768/1440을 확인한다. 배경 API의 수락 변경을 실제 두 탭 동작으로 계산하지 않으며 MySQL25 HTTP 회귀는 별도 증거다. full TC050/운영/실기기/사람 수용 상태는 유지한다.

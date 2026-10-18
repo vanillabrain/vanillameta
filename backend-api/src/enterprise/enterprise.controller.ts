@@ -40,8 +40,8 @@ export class EnterpriseController {
   }
 
   @Get('members')
-  members(@Req() request: any, @Query('afterId') afterId?: unknown) {
-    return this.service.members(request.user.accessKeyData.id, afterId);
+  members(@Req() request: any, @Query('afterId') afterId?: unknown, @Query('q') q?: unknown) {
+    return this.service.members(request.user.accessKeyData.id, afterId, q);
   }
 
   @Post('members')

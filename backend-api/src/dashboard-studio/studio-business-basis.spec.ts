@@ -1,3 +1,4 @@
+import { semanticMetadata, assertSemanticMysqlIdentity } from '../../test/util/semantic-mysql';
 import { PublicationService } from '../bi/publication.service';
 import { DashboardPublication } from '../dashboard/entities/dashboard-publication.entity';
 import { randomUUID } from 'crypto';
@@ -36,7 +37,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-describe('UC050 Studio business basis with real DuckDB and SQLite persistence', () => {
+describe('UC050 Studio business basis with real DuckDB and metadata persistence', () => {
+  jest.setTimeout(30000);
   let db: DataSource,
     worker: DuckDBService,
     dashboards: AiDashboardService,
@@ -97,7 +99,7 @@ describe('UC050 Studio business basis with real DuckDB and SQLite persistence', 
       files.set(sourceId, extra.filename);
       fileNames.set(sourceId, 'fixture-' + sourceId + '.duckdb');
     }
-    db = await new DataSource({
+    db = await semanticMetadata('studio', {
       type: 'sqlite',
       database: ':memory:',
       synchronize: true,
@@ -121,7 +123,7 @@ describe('UC050 Studio business basis with real DuckDB and SQLite persistence', 
         StudioState,
         StudioRun,
       ],
-    }).initialize();
+    });
     await db.manager.save(User, {
       id: 7,
       userId: 'studio-owner',
@@ -720,4 +722,158 @@ describe('UC050 Studio business basis with real DuckDB and SQLite persistence', 
       ]),
     ).toEqual(counts);
   });
+  const mysqlOnly = process.env.VM_SEMANTIC_MYSQL_CONFIG ? it : it.skip;
+  const peerDatabase = async () => {
+    const peer = await new DataSource({ ...db.options, synchronize: false }).initialize();
+    await assertSemanticMysqlIdentity(peer);
+    return peer;
+  };
+  const observeLockWait = async (peer: DataSource, table: string, blockerId: number) => {
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      const rows = await peer.query(
+        `SELECT r.PROCESSLIST_ID AS requestingId, b.PROCESSLIST_ID AS blockingId FROM performance_schema.data_lock_waits w JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID=w.REQUESTING_ENGINE_LOCK_ID JOIN performance_schema.threads r ON r.THREAD_ID=w.REQUESTING_THREAD_ID JOIN performance_schema.threads b ON b.THREAD_ID=w.BLOCKING_THREAD_ID WHERE l.OBJECT_SCHEMA=DATABASE() AND l.OBJECT_NAME=?`,
+        [table],
+      );
+      if (rows.length) {
+        expect(Number(rows[0].blockingId)).toBe(blockerId);
+        expect(Number(rows[0].requestingId)).not.toBe(blockerId);
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    throw new Error('Expected actual InnoDB lock wait for ' + table);
+  };
+  mysqlOnly(
+    'fences an epoch committed by another connection while creation waits on an actual User lock',
+    async () => {
+      await catalog();
+      const p = await propose();
+      const peer = await peerDatabase();
+      const tx = peer.createQueryRunner();
+      let pending: Promise<any> | undefined;
+      const before = await Promise.all([
+        db.manager.count(Dashboard),
+        db.manager.count(Metric),
+        db.manager.count(StudioRun),
+      ]);
+      try {
+        await tx.startTransaction();
+        await tx.manager.findOne(User, { where: { id: 7 }, lock: { mode: 'pessimistic_write' } });
+        await tx.manager.update(User, 7, { authVersion: 1 });
+        pending = service
+          .create(
+            {
+              requestId: 'actual-user-wait',
+              proposalId: p.proposalId,
+              expectedSourceRevision: p.sourceRevision,
+            },
+            7,
+            0,
+          )
+          .then(
+            value => ({ value }),
+            error => ({ error }),
+          );
+        const [blocking] = await tx.query('SELECT CONNECTION_ID() AS id');
+        await observeLockWait(peer, 'user', Number(blocking.id));
+        await tx.commitTransaction();
+        expect((await pending).error).toMatchObject({ status: 401 });
+        expect(
+          await Promise.all([
+            db.manager.count(Dashboard),
+            db.manager.count(Metric),
+            db.manager.count(StudioRun),
+          ]),
+        ).toEqual(before);
+      } finally {
+        if (tx.isTransactionActive) await tx.rollbackTransaction();
+        if (pending) await pending;
+        await tx.release();
+        await peer.destroy();
+      }
+    },
+  );
+  mysqlOnly(
+    'confirms one publication receipt under two independent MySQL connections and services',
+    async () => {
+      await catalog();
+      const saved = await save(await propose());
+      const peer = await peerDatabase();
+      try {
+        const access = new SourceAccessService(peer);
+        const ai = new AiDashboardService({} as any, connection, peer.getRepository(Dashboard));
+        const peerStudio = new StudioService(peer, ai, connection, access);
+        const peerPublications = new StudioPublicationService(peer, peerStudio, access, connection);
+        const body = {
+          requestId: 'actual-concurrent-pub-' + saved.dashboardId,
+          expectedRevision: saved.document.revision,
+          visibility: 'private',
+          allowRemix: true,
+        };
+        const before = await db.manager.count(StudioPublicationRequest);
+        const [first, second] = await Promise.all([
+          publications.publish(saved.dashboardId, body, 7),
+          peerPublications.publish(saved.dashboardId, body, 7),
+        ]);
+        expect(first.token).toBe(second.token);
+        expect(first.version).toBe(second.version);
+        expect(await db.manager.count(StudioPublicationRequest)).toBe(before + 1);
+        expect(
+          await db.manager.count(StudioPublication, { where: { dashboardId: saved.dashboardId } }),
+        ).toBe(1);
+      } finally {
+        await peer.destroy();
+      }
+    },
+  );
+  mysqlOnly(
+    'rolls back real aggregate persistence and rejects a peer revision change without overwriting it',
+    async () => {
+      await catalog();
+      const p = await propose();
+      const prepared = await dashboards.prepareSave({ draft: p.preview.draft }, 7);
+      const entities = [
+        Dashboard,
+        Metric,
+        Dataset,
+        Widget,
+        DashboardWidget,
+        UserMapping,
+        StudioRun,
+        StudioState,
+      ];
+      const before = await Promise.all(entities.map(entity => db.manager.count(entity)));
+      const injected = new Error('synthetic rollback after all artifact writes');
+      await expect(
+        db.transaction(async manager => {
+          await prepared.persist(manager);
+          throw injected;
+        }),
+      ).rejects.toBe(injected);
+      expect(await Promise.all(entities.map(entity => db.manager.count(entity)))).toEqual(before);
+      const saved = await save(p);
+      const loaded = (await dashboards.analysis(saved.dashboardId, 7, true)).data;
+      const update = await dashboards.prepareSave(
+        {
+          dashboardId: saved.dashboardId,
+          expectedRevision: loaded.revision,
+          draft: { ...loaded, title: 'My draft' },
+        },
+        7,
+      );
+      const peer = await peerDatabase();
+      try {
+        await peer.manager.update(Dashboard, saved.dashboardId, { title: 'Peer committed title' });
+        await expect(db.transaction(manager => update.persist(manager))).rejects.toMatchObject({
+          status: 409,
+        });
+        expect(
+          (await peer.manager.findOneByOrFail(Dashboard, { id: saved.dashboardId })).title,
+        ).toBe('Peer committed title');
+      } finally {
+        await peer.destroy();
+      }
+    },
+  );
 });

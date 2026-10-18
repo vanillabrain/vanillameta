@@ -139,12 +139,17 @@ export const rawPayload = <T>(response: { data?: unknown }, shape: (input: unkno
 };
 
 const reasonFrom = (body: any): string | undefined => {
-  const message = Array.isArray(body?.message) ? body.message.join(' · ') : body?.message;
-  if (typeof message === 'string' && message.trim()) return message;
-  const data = body?.data;
-  if (typeof data === 'string' && data.trim()) return data;
-  if (Array.isArray(data)) return data.join(' · ');
-  return undefined;
+  const messageOf = (value: unknown): string | undefined => {
+    const text =
+      typeof value === 'string'
+        ? value
+        : Array.isArray(value) && value.every(item => typeof item === 'string')
+        ? value.join(' · ')
+        : undefined;
+    return text?.trim() ? text : undefined;
+  };
+  // The deployed HttpExceptionFilter wraps Nest error details in data.message.
+  return messageOf(body?.message) ?? messageOf(body?.data?.message) ?? messageOf(body?.data);
 };
 
 export const enterpriseError = (error: unknown): EnterpriseApiError => {
@@ -173,10 +178,17 @@ export const fetchContext = (config: Record<string, unknown> = {}): Promise<Ente
 export const createOrganization = (name: string): Promise<EnterpriseContext> =>
   post('/enterprise/organizations', { name }).then(response => rawPayload<EnterpriseContext>(response, contextShape));
 
-export const fetchMembers = (afterId?: number, config: Record<string, unknown> = {}): Promise<EnterpriseMemberPage> =>
-  get('/enterprise/members', afterId === undefined ? {} : { afterId }, config).then(response =>
-    rawPayload<EnterpriseMemberPage>(response, pageShape),
+export const fetchMembers = (
+  afterId?: number,
+  config: Record<string, unknown> = {},
+  q?: string,
+): Promise<EnterpriseMemberPage> => {
+  if (q !== undefined && (typeof q !== 'string' || q.length > 100))
+    return Promise.reject(invalid('직원 검색어는 100자 이내로 입력해 주세요.'));
+  return get('/enterprise/members', { ...(afterId === undefined ? {} : { afterId }), ...(q ? { q } : {}) }, config).then(
+    response => rawPayload<EnterpriseMemberPage>(response, pageShape),
   );
+};
 
 export const addMember = (input: {
   /** Login id of the existing account, matched verbatim by the server (never a numeric internal id). */

@@ -1,3 +1,4 @@
+import { lockStaffWrite } from './staff-write-lock';
 import { lockMetricSources } from '../metric/metric-write-lock';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { currentGroupDeliveries } from './group-delivery-query';
@@ -591,6 +592,7 @@ export class EnterpriseResourcePolicyService {
       throw new BadRequestException('권한·대상·버전을 확인해 주세요.');
     const run = async () =>
       this.db.transaction(async manager => {
+        await lockStaffWrite(manager, [actor, recipientId]);
         const { membership } = await this.management(kind, id, actor, manager);
         const prior = await manager.findOneBy(EnterpriseResourceGrant, {
           resourceKind: kind,
