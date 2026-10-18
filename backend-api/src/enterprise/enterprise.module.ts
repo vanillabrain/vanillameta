@@ -1,3 +1,5 @@
+import { StaffDepartureImpactService } from './staff-departure-impact.service';
+import { StaffDepartureImpactController } from './staff-departure-impact.controller';
 import { StaffTransferService } from './staff-transfer.service';
 import { StaffTransferController } from './staff-transfer.controller';
 import { EnterpriseStaffTransfer } from './entities/enterprise-staff-transfer.entity';
@@ -43,6 +45,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     ]),
   ],
   controllers: [
+    StaffDepartureImpactController,
     StaffTransferController,
     EnterpriseClassificationController,
     DashboardLifecycleController,
@@ -53,6 +56,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     EnterpriseDeliveryController,
   ],
   providers: [
+    StaffDepartureImpactService,
     StaffTransferService,
     EnterpriseClassificationService,
     DashboardLifecycleService,
