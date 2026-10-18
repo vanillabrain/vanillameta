@@ -46,6 +46,7 @@ export type StudioExecutionState = {
   remix?: boolean;
   remixToken?: string;
   remixResult?: { token: string; version: number };
+  remixLifecycleRevision?: string;
   /**
    * Claim for the single private clone of this execution. It records the exact remix request
    * identity and digest only: no mapping values, rows, credential or prompt history.
@@ -62,6 +63,7 @@ export type StudioExecutionState = {
   proposal?: { intent: string; operations: StudioOperation[]; document: StudioDocumentV1 };
 };
 export type StudioRemixSaveClaim = {
+  expectedLifecycleRevision: string;
   /** Deterministic remix request ID derived from the run ID, so a retry can never duplicate a clone. */
   requestId: string;
   payloadHash: string;

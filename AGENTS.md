@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC055 대시보드 상태:** [계획](docs/plans/UC-055-dashboard-lifecycle.md)·[증빙](docs/testing/dashboard-asset-lifecycle.md)은 조직의 현재 소유 admin이8종 영향을 확인하고 비활성화/복원하는 구현 단위다. 일반 이용 차단과 제한된 관리/회수를 구별하고 정의·관계·게시/독립 사본은 보존한다. 과거 영수증은 현재 상태가 아니며 복원 전 준비 요청의 lifecycle 기준도 재검사한다. 실행/전체16개 수용은 증빙의 확정 범위만 따른다.
+
 - **UC055 소스 삭제:** [계획](docs/plans/UC-055-source-delete.md)·[증빙](docs/testing/source-deletion.md)은 고정10종 현재 사용처·actor/org/epoch/기준과 Source 부모 잠금 아래 Database 한 행 삭제/지속 영수증을 연결한다. 파일은 암호화 계획·신원 proof·명시 정리/lease/재시도로 분리하며 하위 공유 파일·다른 자원/외부 원본을 자동 삭제하지 않는다. 실제 MySQL24·실제 임시 파일 통합의 선택 검증이며 Ego/실기기/운영·전체16개 수용은 별도다.
 
 - **UC055 지표 삭제 보호:** [계획](docs/plans/UC-055-metric-delete.md)·[증빙](docs/testing/metric-deletion.md)은 저장 분석/Pivot·Studio 문서·두 탐색 보기·대기/실행 출력 작업의 명시 참조를 확인해 지표 논리 삭제/영수증으로 연결한다. 현재 소스 소유/actor/org/epoch·기준과 공통 Source→Metric 잠금을 재검사하며 참조를 자동 해제하지 않는다. 실제 격리 MySQL8.4.11의20개(두 연결 잠금 경합 포함)를 확인했지만 모든 writer/운영 통과는 아니다. source 영구 삭제·조직 비활성·실제 Ego/실휴대폰/운영·전체16개 수용은 별도다.

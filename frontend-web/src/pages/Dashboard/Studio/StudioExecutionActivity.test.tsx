@@ -262,6 +262,7 @@ vi.mock('./StudioRemix', () => ({
             mapping: { amount: 'amount' },
             excludedBlockIds: [],
             expectedVersion: 3,
+            expectedLifecycleRevision: 'd'.repeat(64),
             expectedSourceRevision: 'b'.repeat(64),
           },
           () => true,

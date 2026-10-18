@@ -63,6 +63,23 @@ describe('shared Dashboard write parent fence', () => {
       });
     },
   );
+  it('denies inactive ordinary writes while allowing only explicit internal management locks', async () => {
+    const row = { id: 1, delYn: 'N', assetActive: false };
+    const manager = {
+      queryRunner: { isTransactionActive: true },
+      connection: { options: { type: 'sqlite' } },
+      findOne: jest.fn(async () => row),
+    } as any;
+    await expect(lockDashboardWrite(manager, 1)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(lockDashboardWrite(manager, 1, { allowInactive: false })).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(await lockDashboardWrite(manager, 1, { allowInactive: true })).toBe(row);
+    row.delYn = 'Y';
+    await expect(lockDashboardWrite(manager, 1, { allowInactive: true })).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
   it.each([undefined, { isTransactionActive: false }])(
     'rejects a manager without an active transaction: %j',
     async queryRunner => {

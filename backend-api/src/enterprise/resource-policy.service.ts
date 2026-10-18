@@ -82,16 +82,16 @@ export class EnterpriseResourcePolicyService {
     }
     const row = await manager.findOne(Dashboard, {
       where: { id },
-      select: { id: true, title: true, delYn: true },
+      select: { id: true, title: true, delYn: true, assetActive: true },
     });
     const owners = await manager.find(UserMapping, { where: { dashboardId: id }, take: 2 });
     if (!row || row.delYn === 'Y' || owners.length !== 1) this.denied();
-    return { ownerId: owners[0].userInfoId, label: row.title };
+    return { ownerId: owners[0].userInfoId, label: row.title, active: row.assetActive };
   }
   private async management(kind: ResourceKind, id: number, actor: number, manager: EntityManager) {
     // Only management writes fence the parent; ordinary policy/read paths remain non-locking.
     if (manager.queryRunner?.isTransactionActive) {
-      if (kind === 'dashboard') await lockDashboardWrite(manager, id);
+      if (kind === 'dashboard') await lockDashboardWrite(manager, id, { allowInactive: true });
       else await lockMetricSources(manager, [id]);
     }
     const [membership, resource] = await Promise.all([
@@ -118,7 +118,7 @@ export class EnterpriseResourcePolicyService {
     this.id(id);
     const resource = await this.resource(kind, id, manager);
     const membership = await this.member(actor, manager);
-    if (kind === 'source' && resource.active === false) this.denied();
+    if (resource.active === false) this.denied();
     if (resource.ownerId === actor)
       return { read: true, edit: true, publish: kind === 'dashboard', export: true };
     const owner = await this.member(resource.ownerId, manager);
@@ -229,8 +229,8 @@ export class EnterpriseResourcePolicyService {
         .innerJoin(
           Dashboard,
           'resource',
-          'resource.id = grant.resourceId AND resource.delYn <> :deleted',
-          { deleted: 'Y' },
+          'resource.id = grant.resourceId AND resource.delYn <> :deleted AND resource.assetActive = :dashboardActive',
+          { deleted: 'Y', dashboardActive: true },
         )
         .innerJoin(
           UserMapping,
@@ -271,8 +271,8 @@ export class EnterpriseResourcePolicyService {
       .innerJoin(
         Dashboard,
         'resource',
-        'resource.id = delivery.dashboardId AND resource.delYn <> :deleted',
-        { deleted: 'Y' },
+        'resource.id = delivery.dashboardId AND resource.delYn <> :deleted AND resource.assetActive = :dashboardActive',
+        { deleted: 'Y', dashboardActive: true },
       )
       .innerJoin(
         UserMapping,
@@ -287,6 +287,12 @@ export class EnterpriseResourcePolicyService {
       .orderBy('delivery.dashboardId', 'ASC')
       .getRawMany();
     const groupedDeliveries = await currentGroupDeliveries(this.db.manager, actor)
+      .innerJoin(
+        Dashboard,
+        'activeDashboard',
+        'activeDashboard.id = gd.dashboardId AND activeDashboard.assetActive = :dashboardActive AND activeDashboard.delYn <> :dashboardDeleted',
+        { dashboardActive: true, dashboardDeleted: 'Y' },
+      )
       .select('gd.dashboardId', 'id')
       .distinct(true)
       .getRawMany();
@@ -335,8 +341,8 @@ export class EnterpriseResourcePolicyService {
         .innerJoin(
           Dashboard,
           'resource',
-          'resource.id = gg.resourceId AND resource.delYn <> :deleted',
-          { deleted: 'Y' },
+          'resource.id = gg.resourceId AND resource.delYn <> :deleted AND resource.assetActive = :dashboardActive',
+          { deleted: 'Y', dashboardActive: true },
         )
         .innerJoin(
           UserMapping,

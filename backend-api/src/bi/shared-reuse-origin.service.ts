@@ -58,7 +58,9 @@ export class SharedReuseOriginService {
       await this.access.dashboard(row.dashboardId, publisher, 'publish', manager);
       if (row.sourceId !== null && row.sourceId !== undefined)
         await this.access.assert('database', row.sourceId, publisher, 'read', manager);
-      dashboard = await manager.findOne(Dashboard, { where: { id: row.dashboardId }, ...lock });
+      dashboard = manager.queryRunner?.isTransactionActive
+        ? await lockDashboardWrite(manager, row.dashboardId)
+        : await manager.findOne(Dashboard, { where: { id: row.dashboardId } });
       recipe = row.reuseDefinition;
       identity = [kind, key, row.version, row.dashboardRevision, row.expiresAt, recipe];
     } else {
@@ -73,7 +75,12 @@ export class SharedReuseOriginService {
         where: { shareId: (row as DashboardShare).id },
         ...lock,
       });
-      if (!dashboard || dashboard.delYn === 'Y' || !dashboard.analysisDefinition)
+      if (
+        !dashboard ||
+        dashboard.delYn === 'Y' ||
+        dashboard.assetActive === false ||
+        !dashboard.analysisDefinition
+      )
         throw unavailable();
       // Resolve schema/definition as the owner; no original result preview is executed for a recipient.
       const owner = await this.access.sharedDashboard(dashboard.id);
@@ -105,7 +112,9 @@ export class SharedReuseOriginService {
           : await capture();
       identity = [kind, key, row.reuseVersion, row.endDate, dashboardRevision(dashboard), recipe];
     }
-    if (!dashboard || dashboard.delYn === 'Y') throw unavailable();
+    if (!dashboard || dashboard.delYn === 'Y' || dashboard.assetActive === false)
+      throw unavailable();
+    identity.push(dashboard.assetVersion ?? 0);
     const { analysis, profile } = readReuseRecipe(recipe);
     const revision = createHash('sha256').update(JSON.stringify(identity)).digest('hex');
     return {
@@ -142,7 +151,7 @@ export class SharedReuseOriginService {
           ? { id: (row as DashboardPublication).dashboardId }
           : { shareId: (row as DashboardShare).id },
     });
-    return { reusable: !!dashboard && dashboard.delYn !== 'Y' };
+    return { reusable: !!dashboard && dashboard.delYn !== 'Y' && dashboard.assetActive !== false };
   }
   async grant(id: unknown, actor: number, body?: any) {
     const dashboardId = this.access.id(id);
@@ -160,8 +169,11 @@ export class SharedReuseOriginService {
     const allowReuse = body.allowReuse;
     return serializedViewWrite(this.db.getRepository(DashboardShare), () =>
       metadataTransaction(this.db, async manager => {
-        const dashboard = await lockDashboardWrite(manager, dashboardId);
-        await this.access.dashboard(dashboardId, actor, 'owner', manager);
+        const dashboard = await lockDashboardWrite(manager, dashboardId, {
+          allowInactive: !allowReuse,
+        });
+        if (allowReuse) await this.access.dashboard(dashboardId, actor, 'owner', manager);
+        else await this.access.dashboardRevocation(dashboardId, actor, 'owner', manager);
         const share = await manager.findOne(DashboardShare, { where: { id: dashboard.shareId } });
         if (!share) throw unavailable();
         await manager

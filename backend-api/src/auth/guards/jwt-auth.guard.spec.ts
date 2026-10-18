@@ -57,6 +57,15 @@ describe('JwtAuthGuard persisted actors and dashboard-scoped shared datasets', (
     };
   });
 
+  it('denies an existing share token while the dashboard is inactive and preserves expiry after restoration', async () => {
+    dashboard.findOne.mockResolvedValue({ id: 17, shareId: 9, delYn: 'N', assetActive: false });
+    await expect(guard.canActivate(context())).rejects.toMatchObject({ status: 401 });
+    expect(mappings.find).not.toHaveBeenCalled();
+    dashboard.findOne.mockResolvedValue({ id: 17, shareId: 9, delYn: 'N', assetActive: true });
+    expect(await guard.canActivate(context())).toBe(true);
+    share.findOne.mockResolvedValue({ id: 9, shareYn: 'Y', endDate: new Date(0) });
+    await expect(guard.canActivate(context())).rejects.toMatchObject({ status: 401 });
+  });
   it('allows only a persisted active share and dataset pair of its linked widget', async () => {
     expect(await guard.canActivate(context())).toBe(true);
     expect(share.findOne).toHaveBeenCalledWith({

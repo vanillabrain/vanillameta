@@ -461,3 +461,61 @@ it('offers the source availability control only for a selected source, and reads
   await screen.findByText(/버전 2/);
   expect(api.post).not.toHaveBeenCalled();
 });
+
+it('offers dashboard lifecycle alongside source lifecycle without reading until its explicit impact action', async () => {
+  const { webcrypto } = await import('node:crypto');
+  const { setToken } = await import('@/helpers/authHelper');
+  vi.stubGlobal('crypto', webcrypto);
+  localStorage.clear();
+  sessionStorage.clear();
+  setToken('enterprise-lifecycle-test');
+  try {
+    api.get.mockResolvedValueOnce(raw(resourcePage([resource('dashboard', 12, '관리 대시보드')])));
+    api.get.mockResolvedValueOnce(raw(policyList('dashboard', 12, [])));
+    render(<ResourcePolicies organizationId={7} />);
+    openPanel();
+    await screen.findByText('관리 대시보드');
+    fireEvent.click(resourceButton('대시보드', '관리 대시보드', 12));
+    await screen.findByText('아직 이 자원에 부여된 권한이 없습니다.');
+    expect(api.get).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole('button', { name: '대시보드 상태 관리 열기' }));
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: '현재 상태·영향 읽기' }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    expect(api.get).toHaveBeenCalledTimes(2);
+    api.get.mockResolvedValueOnce({
+      data: {
+        status: 'SUCCESS',
+        data: {
+          dashboardId: 12,
+          actorId: 19,
+          organizationId: 7,
+          active: true,
+          version: 0,
+          revision: 'a'.repeat(64),
+          dependencies: [
+            'directPermissions',
+            'groupPermissions',
+            'directDeliveries',
+            'groupDeliveries',
+            'liveShare',
+            'legacyPublications',
+            'studioPublications',
+            'sharedShareRecords',
+          ].map(kind => ({ kind, count: 0 })),
+        },
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '현재 상태·영향 읽기' }));
+    await screen.findByRole('region', { name: '현재 대시보드 상태' });
+    expect(api.get).toHaveBeenLastCalledWith('/enterprise/resources/dashboard/12/lifecycle', undefined, {
+      signal: expect.anything(),
+    });
+    expect(api.post).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+    localStorage.clear();
+    sessionStorage.clear();
+    vi.unstubAllGlobals();
+  }
+});

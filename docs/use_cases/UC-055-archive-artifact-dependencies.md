@@ -66,3 +66,5 @@
 지표 삭제 보호의 다음 단위는 [계획](../plans/UC-055-metric-delete.md)·[증빙](../testing/metric-deletion.md)을 따른다. 저장 분석/Pivot·Studio/탐색 보기의 현재 참조와 source 소유/계정·조직·기준을 재확인하며 자동 연결 해제는 하지 않는다. source/조직 비활성·전체 TC050/16개 수용은 별도다.
 
 소스 삭제 보호는 [계획](../plans/UC-055-source-delete.md)·[증빙](../testing/source-deletion.md)의 고정10종 영향/기준 확인과 원자 metadata 삭제·별도 지속 파일 정리를 따른다. 현재 참조·하위 공유 파일은 차단하며 자동 연쇄 삭제0이다. 실제 MySQL/파일/자동 화면·Ego/실기기/운영을 구별하고 조직 비활성·전체 E11/E12/TC050 수용은 별도다.
+
+조직 대시보드 비활성화/복원은 [계획](../plans/UC-055-dashboard-lifecycle.md)·[증빙](../testing/dashboard-asset-lifecycle.md)을 따른다. 비활성 일반 이용과 제한된 현재 소유 admin 관리/회수를 구분하며 원본·관계·게시·독립 사본을 보존한다. 복원 전 준비 요청의 lifecycle 기준과 과거 영수증/현재 상태를 구별하고, 실행 결과와 전체 E03/E11/E12/E14 수용은 별도로 판정한다.

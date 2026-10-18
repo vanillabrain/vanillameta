@@ -50,8 +50,70 @@ export function deletionRevision(row: Dashboard) {
     row.seq,
     row.shareId,
     row.delYn,
+    row.assetActive,
+    row.assetVersion,
     row.updatedAt,
   ]);
+}
+export async function dashboardDependencyCounts(row: Dashboard, m: EntityManager) {
+  const result: Array<{ kind: (typeof DELETE_DEPENDENCY_KINDS)[number]; count: number }> = [];
+  const count = (kind: (typeof DELETE_DEPENDENCY_KINDS)[number], value: number) => {
+    if (!Number.isSafeInteger(value) || value < 0)
+      throw new InternalServerErrorException('사용처를 확인할 수 없습니다.');
+    result.push({ kind, count: value });
+  };
+  for (const [entity, kind] of [
+    [EnterpriseResourceGrant, 'directPermissions'],
+    [EnterpriseGroupGrant, 'groupPermissions'],
+  ] as const) {
+    count(
+      kind,
+      await m
+        .createQueryBuilder(entity, 'g')
+        .where('g.resourceKind = :kind AND g.resourceId = :id', { kind: 'dashboard', id: row.id })
+        .andWhere('(g.read <> :off OR g.edit <> :off OR g.publish <> :off OR g.export <> :off)', {
+          off: false,
+        })
+        .getCount(),
+    );
+  }
+  for (const [entity, kind] of [
+    [EnterpriseDashboardDelivery, 'directDeliveries'],
+    [EnterpriseGroupDelivery, 'groupDeliveries'],
+  ] as const) {
+    count(
+      kind,
+      await m
+        .createQueryBuilder(entity, 'd')
+        .where('d.dashboardId = :id AND d.active <> :off', { id: row.id, off: false })
+        .getCount(),
+    );
+  }
+  const shareId = row.shareId;
+  if (shareId !== null && shareId !== undefined && !positive(shareId))
+    throw new ConflictException('공유 연결을 확인한 뒤 다시 시도해 주세요.');
+  const share = positive(shareId) ? await m.findOneBy(DashboardShare, { id: shareId }) : null;
+  count('liveShare', share && share.shareYn !== 'N' ? 1 : 0);
+  count(
+    'legacyPublications',
+    await m
+      .createQueryBuilder(DashboardPublication, 'p')
+      .where('p.dashboardId = :id AND p.active <> :off', { id: row.id, off: false })
+      .getCount(),
+  );
+  count(
+    'studioPublications',
+    await m
+      .createQueryBuilder(StudioPublication, 'p')
+      .where('p.dashboardId = :id', { id: row.id })
+      .andWhere('(p.revokedAt IS NULL OR p.revokedAt = :empty)', { empty: '' })
+      .getCount(),
+  );
+  count(
+    'sharedShareRecords',
+    positive(shareId) ? await m.count(Dashboard, { where: { shareId, id: Not(row.id) } }) : 0,
+  );
+  return result;
 }
 @Injectable()
 export class DashboardDeletionService {
@@ -87,78 +149,40 @@ export class DashboardDeletionService {
       throw new ForbiddenException('삭제할 본인 대시보드를 확인할 수 없습니다.');
     return row;
   }
-  private async dependencies(row: Dashboard, m: EntityManager) {
-    const result: Array<{ kind: (typeof DELETE_DEPENDENCY_KINDS)[number]; count: number }> = [];
-    const count = (kind: (typeof DELETE_DEPENDENCY_KINDS)[number], value: number) => {
-      if (!Number.isSafeInteger(value) || value < 0)
-        throw new InternalServerErrorException('사용처를 확인할 수 없습니다.');
-      result.push({ kind, count: value });
-    };
-    for (const [entity, kind] of [
-      [EnterpriseResourceGrant, 'directPermissions'],
-      [EnterpriseGroupGrant, 'groupPermissions'],
-    ] as const) {
-      count(
-        kind,
-        await m
-          .createQueryBuilder(entity, 'g')
-          .where('g.resourceKind = :kind AND g.resourceId = :id', { kind: 'dashboard', id: row.id })
-          .andWhere('(g.read <> :off OR g.edit <> :off OR g.publish <> :off OR g.export <> :off)', {
-            off: false,
-          })
-          .getCount(),
+
+  private async inactiveManagement(
+    row: Dashboard,
+    actor: number,
+    organizationId: number | null,
+    manager: EntityManager,
+  ) {
+    if (row.assetActive !== false) return;
+    const member = await manager.findOneBy(EnterpriseMembership, { userId: actor });
+    if (
+      !positive(organizationId) ||
+      !member ||
+      member.role !== 'admin' ||
+      member.organizationId !== organizationId
+    )
+      throw new ForbiddenException(
+        '비활성 대시보드는 현재 조직의 소유 관리자만 삭제할 수 있습니다.',
       );
-    }
-    for (const [entity, kind] of [
-      [EnterpriseDashboardDelivery, 'directDeliveries'],
-      [EnterpriseGroupDelivery, 'groupDeliveries'],
-    ] as const) {
-      count(
-        kind,
-        await m
-          .createQueryBuilder(entity, 'd')
-          .where('d.dashboardId = :id AND d.active <> :off', { id: row.id, off: false })
-          .getCount(),
-      );
-    }
-    const shareId = row.shareId;
-    if (shareId !== null && shareId !== undefined && !positive(shareId))
-      throw new ConflictException('공유 연결을 확인한 뒤 다시 시도해 주세요.');
-    const share = positive(shareId) ? await m.findOneBy(DashboardShare, { id: shareId }) : null;
-    count('liveShare', share && share.shareYn !== 'N' ? 1 : 0);
-    count(
-      'legacyPublications',
-      await m
-        .createQueryBuilder(DashboardPublication, 'p')
-        .where('p.dashboardId = :id AND p.active <> :off', { id: row.id, off: false })
-        .getCount(),
-    );
-    count(
-      'studioPublications',
-      await m
-        .createQueryBuilder(StudioPublication, 'p')
-        .where('p.dashboardId = :id', { id: row.id })
-        .andWhere('(p.revokedAt IS NULL OR p.revokedAt = :empty)', { empty: '' })
-        .getCount(),
-    );
-    count(
-      'sharedShareRecords',
-      positive(shareId) ? await m.count(Dashboard, { where: { shareId, id: Not(row.id) } }) : 0,
-    );
-    return result;
   }
+
   async impact(value: unknown, actor: number, expectedEpoch = 0) {
     const id = this.id(value);
     return serializeMetadataWork(this.db, async () => {
       const org = await this.scope(actor, expectedEpoch, this.db.manager);
       const row = await this.owned(id, actor, this.db.manager);
-      const dependencies = await this.dependencies(row, this.db.manager);
+      await this.inactiveManagement(row, actor, org, this.db.manager);
+      const dependencies = await dashboardDependencyCounts(row, this.db.manager);
       const current = await this.owned(id, actor, this.db.manager);
       if (
         (await this.scope(actor, expectedEpoch, this.db.manager)) !== org ||
         deletionRevision(current) !== deletionRevision(row)
       )
         throw new ConflictException('삭제 기준이 변경되었습니다. 다시 확인해 주세요.');
+      await this.inactiveManagement(current, actor, org, this.db.manager);
       return {
         status: 'SUCCESS',
         data: {
@@ -231,10 +255,17 @@ export class DashboardDeletionService {
           throw new ConflictException('같은 요청 번호의 삭제 기준이 다릅니다.');
         return this.receipt(prior, true);
       }
-      const row = await this.owned(id, actor, m, await lockDashboardWrite(m, id));
+      const row = await this.owned(
+        id,
+        actor,
+        m,
+        await lockDashboardWrite(m, id, { allowInactive: true }),
+      );
+      // Historical receipt replay above remains available without authorizing a new deletion.
+      await this.inactiveManagement(row, actor, org, m);
       if (deletionRevision(row) !== input.expectedRevision)
         throw new ConflictException('저장 내용이 변경되었습니다. 삭제 영향을 다시 확인해 주세요.');
-      const dependencies = await this.dependencies(row, m);
+      const dependencies = await dashboardDependencyCounts(row, m);
       if (dependencies.some(item => item.count > 0))
         throw new ConflictException(
           '사용처가 남아 있습니다. 공유·권한·게시 설정을 중지하고 삭제 영향을 다시 확인해 주세요.',

@@ -12,6 +12,8 @@ export function dashboardRevision(dashboard: Dashboard): string {
         dashboard.analysisDefinition ?? null,
         dashboard.structuredDefinition ?? null,
         dashboard.delYn,
+        dashboard.assetActive,
+        dashboard.assetVersion,
       ]),
     )
     .digest('hex');

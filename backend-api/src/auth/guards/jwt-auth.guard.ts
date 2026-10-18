@@ -130,7 +130,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
           const dashboard = await this.dataSource.getRepository(Dashboard).findOne({
             where: { id: scope.dashboardId, shareId: share.id },
           });
-          if (!dashboard || dashboard.delYn === YesNo.YES)
+          if (!dashboard || dashboard.delYn === YesNo.YES || dashboard.assetActive === false)
             throw new Error('missing share dashboard');
           return verifyUrl;
         } catch {

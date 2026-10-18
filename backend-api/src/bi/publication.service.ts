@@ -509,14 +509,14 @@ export class PublicationService {
   async revoke(id: unknown, actor: number, body: any) {
     this.shape(body, ['expectedVersion']);
     const dashboardId = this.access.id(id);
-    await this.access.dashboard(dashboardId, actor, 'publish');
+    await this.access.dashboardRevocation(dashboardId, actor, 'publish');
     if (!Number.isSafeInteger(body.expectedVersion) || body.expectedVersion < 0)
       throw new BadRequestException('게시 버전을 확인해 주세요.');
     const expectedVersion = body.expectedVersion;
     return serializedViewWrite(this.publications, () =>
       metadataTransaction(this.publications.manager, async manager => {
-        const dashboard = await lockDashboardWrite(manager, dashboardId);
-        await this.access.dashboard(dashboardId, actor, 'publish', manager);
+        const dashboard = await lockDashboardWrite(manager, dashboardId, { allowInactive: true });
+        await this.access.dashboardRevocation(dashboardId, actor, 'publish', manager);
         const current = await this.find(manager, dashboardId);
         if (!current) throw new NotFoundException('게시 버전이 없습니다.');
         const revision = dashboardRevision(dashboard);
@@ -554,7 +554,7 @@ export class PublicationService {
       if (!row || !row.active || this.expired(row))
         throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
       const dashboard = await this.dashboards.findOne({ where: { id: row.dashboardId } });
-      if (!dashboard || dashboard.delYn === 'Y')
+      if (!dashboard || dashboard.delYn === 'Y' || dashboard.assetActive === false)
         throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
       // UC-051: a public read re-checks the current authority of the real publisher. Rows created
       // before the delegation columns existed fall back to the single dashboard owner.

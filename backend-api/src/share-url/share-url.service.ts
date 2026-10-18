@@ -118,8 +118,8 @@ export class ShareUrlService {
       return 'not exist user';
     } else {
       if (findUser.active === false) throw new HttpException('access denied', HttpStatus.FORBIDDEN);
-      const findDashboard = await lockDashboardWrite(manager, dashboardId);
-      await this.dashboardService.assertOwner(dashboardId, findUser.id, manager);
+      const findDashboard = await lockDashboardWrite(manager, dashboardId, { allowInactive: true });
+      await this.dashboardService.assertRevocationOwner(dashboardId, findUser.id, manager);
       const findDashboardShare = await manager.findOne(DashboardShare, {
         where: { id: findDashboard.shareId },
       });
@@ -149,7 +149,7 @@ export class ShareUrlService {
     let share = await this.dashboardShareRepository.findOne({ where: { uuid } });
     this.assertActiveShare(share);
     const dashboard = await this.dashboardRepository.findOne({ where: { shareId: share.id } });
-    if (!dashboard || dashboard.delYn === YesNo.YES) {
+    if (!dashboard || dashboard.delYn === YesNo.YES || dashboard.assetActive === false) {
       throw new HttpException({ message: 'not exist share dashboard' }, HttpStatus.NOT_FOUND);
     }
     const decoded = await this.authService.readUrlAccessToken(share.shareToken);

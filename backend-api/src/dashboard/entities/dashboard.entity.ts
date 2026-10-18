@@ -5,6 +5,12 @@ import { YesNo } from '../../common/enum/yn.enum';
 
 @Entity()
 export class Dashboard extends BaseEntity {
+  @Column({ type: 'boolean', default: true })
+  assetActive: boolean;
+
+  @Column({ type: 'integer', default: 0 })
+  assetVersion: number;
+
   @PrimaryGeneratedColumn({ comment: '대시보드 ID' })
   id: number;
 

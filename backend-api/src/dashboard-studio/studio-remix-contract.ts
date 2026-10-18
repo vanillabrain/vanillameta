@@ -42,6 +42,7 @@ export type RemixTemplate = {
   layouts: StudioDocumentV1['layouts'];
 };
 export type RemixPreviewRequest = {
+  expectedLifecycleRevision: string;
   targetSourceId: number;
   mapping: Record<string, string>;
   excludedBlockIds?: string[];
@@ -53,6 +54,7 @@ export type RemixRequest = RemixPreviewRequest & {
   expectedSourceRevision: string;
 };
 export type RemixRequirements = {
+  lifecycleRevision: string;
   conditions?: StudioConditions;
   token: string;
   version: number;

@@ -128,7 +128,7 @@ describe('UC-051 dashboard resource access', () => {
       { withDuckDBSnapshot: (_id: number, run: () => any) => run() } as any,
       access,
     );
-    publications = new StudioPublicationService(db, studio);
+    publications = new StudioPublicationService(db, studio, access);
   });
 
   afterAll(async () => {

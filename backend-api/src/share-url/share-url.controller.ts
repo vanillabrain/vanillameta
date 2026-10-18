@@ -31,7 +31,7 @@ export class ShareUrlController {
   async checkShareUrlOff(@Req() req, @Param() params, @Body() shareUrlOnDto: ShareUrlOnDto) {
     const { userId } = req.user.accessKeyData;
     const { dashboardId } = params;
-    await this.access.dashboard(dashboardId, req.user.accessKeyData.id);
+    await this.access.dashboardRevocation(dashboardId, req.user.accessKeyData.id);
     return this.shareUrlService.checkShareUrlOff(userId, +dashboardId);
   }
 

@@ -8,6 +8,10 @@ import {
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { SourceAccessService } from '../ownership/source-access.service';
+import { sourceWriteTransaction } from '../database/source-write-lock';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { ConnectionService } from '../connection/connection.service';
 import { captureRemixTemplate } from './studio-remix-template';
@@ -40,6 +44,7 @@ export class StudioPublicationService {
   constructor(
     private readonly db: DataSource,
     private readonly studio: StudioService,
+    private readonly access: SourceAccessService,
     private readonly connection?: ConnectionService,
   ) {}
   private metadata(row: StudioPublication): PublicationMetadata {
@@ -236,8 +241,16 @@ export class StudioPublicationService {
     if (!Number.isSafeInteger(actor) || actor <= 0)
       throw new ForbiddenException('로그인이 필요합니다.');
     if (!/^[a-f0-9]{64}$/.test(token)) throw new NotFoundException('공유 링크를 찾을 수 없습니다.');
+    // This unlocked hint only identifies the parent; never retain its publication state across a wait.
+    const hint = await manager.findOne(StudioPublication, { where: { token } });
+    if (!hint) throw new NotFoundException('공유 링크를 찾을 수 없습니다.');
+    const dashboard = manager.queryRunner?.isTransactionActive
+      ? await lockDashboardWrite(manager, hint.dashboardId)
+      : await manager.findOne(Dashboard, { where: { id: hint.dashboardId } });
     const row = await manager.findOne(StudioPublication, { where: { token } });
     if (!row) throw new NotFoundException('공유 링크를 찾을 수 없습니다.');
+    if (row.token !== hint.token || row.dashboardId !== hint.dashboardId)
+      throw new ConflictException('게시 대상이 변경되었습니다. 다시 확인해 주세요.');
     if (row.revokedAt || (row.expiresAt && Date.parse(row.expiresAt) <= Date.now()))
       throw new GoneException('공유가 중지되었거나 만료되었습니다.');
     if (row.visibility === 'private' && row.actorId !== actor)
@@ -248,8 +261,22 @@ export class StudioPublicationService {
     if (!row.remixTemplate)
       throw new ConflictException('소유자가 복제 허용을 선택하여 다시 게시해야 합니다.');
     // UC-051: a revoke of the publisher's publish grant must close reuse, not only editing.
-    await this.studio.assertExecutionAccess(row.dashboardId, row.sourceId, row.actorId, 'publish');
-    return row;
+    await this.studio.assertExecutionAccess(
+      row.dashboardId,
+      row.sourceId,
+      row.actorId,
+      'publish',
+      manager,
+    );
+    if (!dashboard || dashboard.assetActive === false)
+      throw new ForbiddenException('Dashboard unavailable.');
+    return {
+      ...row,
+      lifecycleRevision: studioDigest({
+        dashboardId: row.dashboardId,
+        assetVersion: dashboard.assetVersion ?? 0,
+      }),
+    };
   }
   async read(token: string, actor?: number) {
     return this.studio.serializeWrite(async () => {
@@ -272,17 +299,29 @@ export class StudioPublicationService {
     });
   }
   async revoke(token: string, actor: number): Promise<PublicationMetadata> {
-    return this.studio.serializeWrite(async () => {
-      const row = await this.find(token);
-      if (row.actorId !== actor)
-        throw new ForbiddenException('소유자만 공유를 중지할 수 있습니다.');
-      await this.studio.assertPublicationOwner(row.dashboardId, actor);
-      if (!row.revokedAt) {
-        row.revokedAt = new Date().toISOString();
-        await this.db.manager.save(StudioPublication, row);
-      }
-      return this.metadata(row);
-    });
+    return this.studio.serializeWrite(() =>
+      sourceWriteTransaction(this.db, async manager => {
+        if (!/^[a-f0-9]{64}$/.test(token))
+          throw new NotFoundException('공유 링크를 찾을 수 없습니다.');
+        const hint = await manager.findOne(StudioPublication, { where: { token } });
+        if (!hint) throw new NotFoundException('공유 링크를 찾을 수 없습니다.');
+        const dashboard = await lockDashboardWrite(manager, hint.dashboardId, {
+          allowInactive: true,
+        });
+        const row = await manager.findOne(StudioPublication, { where: { token } });
+        if (!row) throw new NotFoundException('공유 링크를 찾을 수 없습니다.');
+        if (row.token !== hint.token || row.dashboardId !== hint.dashboardId)
+          throw new ConflictException('게시 대상이 변경되었습니다. 다시 확인해 주세요.');
+        await this.access.dashboardRevocation(row.dashboardId, actor, 'publish', manager);
+        if (dashboard.assetActive !== false && row.actorId !== actor)
+          throw new ForbiddenException('소유자만 공유를 중지할 수 있습니다.');
+        if (!row.revokedAt) {
+          row.revokedAt = new Date().toISOString();
+          await manager.update(StudioPublication, { token }, { revokedAt: row.revokedAt });
+        }
+        return this.metadata(row);
+      }),
+    );
   }
   private sanitize(document: StudioDocumentV1, preview: any): PublicationSnapshot {
     const invalid = () => {

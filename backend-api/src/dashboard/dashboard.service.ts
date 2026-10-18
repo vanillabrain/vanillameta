@@ -52,7 +52,7 @@ export class DashboardService {
       ? manager.getRepository(Dashboard)
       : this.dashboardRepository
     ).findOne({ where: { id: dashboardId } });
-    if (!dashboard || dashboard.delYn === YesNo.YES) {
+    if (!dashboard || dashboard.delYn === YesNo.YES || dashboard.assetActive === false) {
       throw new NotFoundException('dashboard not found');
     }
     if (!Number.isInteger(userId) || userId <= 0)
@@ -64,6 +64,24 @@ export class DashboardService {
       where: { dashboardId, userInfoId: userId },
     });
     if (!mapping) throw new ForbiddenException('not dashboard owner');
+  }
+
+  async assertRevocationOwner(id: number, actor: number, manager?: EntityManager): Promise<void> {
+    await this.access.dashboardRevocation(id, actor, 'owner', manager);
+    // Keep the original mapping-only owner semantics for active legacy share-off.
+    const row = await (manager ?? this.dashboardRepository.manager).findOne(Dashboard, {
+      where: { id },
+    });
+    if (row.assetActive !== false) await this.assertOwner(id, actor, manager);
+  }
+
+  private rejectLifecycleFields(body: unknown) {
+    if (
+      body &&
+      typeof body === 'object' &&
+      ['assetActive', 'assetVersion'].some(key => key in body)
+    )
+      throw new BadRequestException('Use the dashboard lifecycle action to change asset state.');
   }
 
   private async validateLayout(layout: unknown): Promise<number[]> {
@@ -100,6 +118,7 @@ export class DashboardService {
   }
 
   async create(createDashboardDto: CreateDashboardDto, accessToken: number) {
+    this.rejectLifecycleFields(createDashboardDto);
     const userData = await this.userRepository.findOne({
       where: { id: accessToken },
     });
@@ -114,6 +133,8 @@ export class DashboardService {
     });
     console.log('test', share_id);
     const saveObj = {
+      assetActive: true,
+      assetVersion: 0,
       title: createDashboardDto.title,
       layout: JSON.stringify(createDashboardDto.layout),
       delYn: YesNo.NO,
@@ -175,7 +196,8 @@ export class DashboardService {
           title: 'asc',
         },
       });
-      if (dashboard && dashboard.delYn !== YesNo.YES) find_all.push(dashboard);
+      if (dashboard && dashboard.delYn !== YesNo.YES && dashboard.assetActive !== false)
+        find_all.push(dashboard);
     }
     find_all.forEach(el => {
       el.layout = JSON.parse(el.layout);
@@ -236,7 +258,11 @@ export class DashboardService {
 
   private async assembleDashboard(id: number) {
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
-    if (!find_dashboard) {
+    if (
+      !find_dashboard ||
+      find_dashboard.delYn === YesNo.YES ||
+      find_dashboard.assetActive === false
+    ) {
       return { status: ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
     }
 
@@ -263,6 +289,7 @@ export class DashboardService {
     actor?: number,
     action: 'owner' | 'edit' = 'owner',
   ) {
+    this.rejectLifecycleFields(updateDashboardDto);
     const widgetIds =
       updateDashboardDto.layout !== undefined
         ? await this.validateLayout(updateDashboardDto.layout)

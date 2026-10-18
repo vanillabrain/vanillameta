@@ -612,6 +612,7 @@ export class StudioExecutionService implements OnModuleInit {
         'mapping',
         'excludedBlockIds',
         'expectedVersion',
+        'expectedLifecycleRevision',
         'expectedSourceRevision',
       ]);
       if (
@@ -636,6 +637,8 @@ export class StudioExecutionService implements OnModuleInit {
             body.excludedBlockIds.length > 6 ||
             new Set(body.excludedBlockIds).size !== body.excludedBlockIds.length ||
             body.excludedBlockIds.some(id => typeof id !== 'string'))) ||
+        typeof body.expectedLifecycleRevision !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(body.expectedLifecycleRevision) ||
         !Number.isSafeInteger(body.expectedVersion) ||
         Number(body.expectedVersion) < 1 ||
         typeof body.expectedSourceRevision !== 'string' ||
@@ -654,7 +657,10 @@ export class StudioExecutionService implements OnModuleInit {
       throw new ConflictException(
         '복제 준비가 끝난 실행에서만 비공개 복제본을 저장할 수 있습니다.',
       );
-    if (body.expectedVersion !== state.remixResult.version)
+    if (
+      body.expectedVersion !== state.remixResult.version ||
+      body.expectedLifecycleRevision !== state.remixLifecycleRevision
+    )
       throw new ConflictException('게시 버전이 변경되었습니다. 실행 기록을 새로 확인해 주세요.');
     const mapping = body.mapping as Record<string, string>;
     // Never the body: the published token and version are the ones this run was prepared with.
@@ -666,6 +672,7 @@ export class StudioExecutionService implements OnModuleInit {
       excludedBlockIds:
         body.excludedBlockIds === undefined ? [] : [...(body.excludedBlockIds as string[])],
       expectedVersion: state.remixResult.version,
+      expectedLifecycleRevision: body.expectedLifecycleRevision,
       expectedSourceRevision: body.expectedSourceRevision as string,
     };
     const payloadHash = studioDigest({ token, ...request });
@@ -679,6 +686,7 @@ export class StudioExecutionService implements OnModuleInit {
         targetSourceId: request.targetSourceId,
         expectedSourceRevision: request.expectedSourceRevision,
         expectedVersion: request.expectedVersion,
+        expectedLifecycleRevision: request.expectedLifecycleRevision,
       },
     };
   }
@@ -1241,6 +1249,7 @@ export class StudioExecutionService implements OnModuleInit {
           );
           // No source configuration, template, server URL or new dashboard is returned.
           state.remixResult = { token: publication.token, version: publication.version };
+          state.remixLifecycleRevision = publication.lifecycleRevision;
         } else if (state.unsupported === step.stepId)
           step.status = await this.externalStep(step.stepId, row, signal);
         else if (step.stepId === 'proposeSemantics') {

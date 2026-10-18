@@ -1,3 +1,6 @@
+import { DashboardLifecycleService } from './dashboard-lifecycle.service';
+import { DashboardLifecycleController } from './dashboard-lifecycle.controller';
+import { DashboardLifecycleReceipt } from './entities/dashboard-lifecycle-receipt.entity';
 import { EnterpriseGroupDeliveryService } from './group-delivery.service';
 import { EnterpriseGroupService } from './group.service';
 import { EnterpriseGroupController } from './group.controller';
@@ -20,6 +23,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      DashboardLifecycleReceipt,
       EnterpriseEnrollment,
       EnterpriseOrganization,
       EnterpriseMembership,
@@ -27,6 +31,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     ]),
   ],
   controllers: [
+    DashboardLifecycleController,
     EnterpriseGroupController,
     EnterpriseController,
     EnterpriseResourceController,
@@ -34,6 +39,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     EnterpriseDeliveryController,
   ],
   providers: [
+    DashboardLifecycleService,
     EnterpriseGroupService,
     EnterpriseDeliveryService,
     EnterpriseGroupDeliveryService,

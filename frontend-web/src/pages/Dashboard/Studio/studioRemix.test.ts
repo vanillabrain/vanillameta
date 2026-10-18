@@ -3,12 +3,19 @@ import { canCreateRemix, validateRemixPreview, validateRemixRequirements } from 
 const token = 'a'.repeat(64);
 const requirements = () => ({
   token,
+  lifecycleRevision: 'c'.repeat(64),
   version: 1,
   title: 'Shared',
   requiredFields: [{ name: 'amount', type: 'BIGINT', blockIds: ['block-1'] }],
   blocks: [{ id: 'block-1', title: 'Total', kind: 'BOARD_NUMERIC', supported: true }],
 });
-const request = () => ({ targetSourceId: 4, mapping: { amount: 'total' }, excludedBlockIds: [], expectedVersion: 1 });
+const request = () => ({
+  expectedLifecycleRevision: 'c'.repeat(64),
+  targetSourceId: 4,
+  mapping: { amount: 'total' },
+  excludedBlockIds: [],
+  expectedVersion: 1,
+});
 const preview = () => ({
   ...requirements(),
   targetSourceId: 4,
@@ -138,4 +145,15 @@ it('review BLOCK2 accepts supported-only condition field links but requires expl
   expect(() =>
     validateRemixRequirements({ ...mixed, blocks: [...requirements().blocks, secondSupported] }, token),
   ).toThrow();
+});
+
+describe('lifecycle proof contract', () => {
+  it('requires an opaque lifecycle revision and never defaults missing proof', () => {
+    for (const lifecycleRevision of [undefined, null, '', 'invalid'])
+      expect(() => validateRemixRequirements({ ...requirements(), lifecycleRevision }, token)).toThrow();
+  });
+  it('rejects a preview from another lifecycle generation even if token/version/source match', () => {
+    expect(() => validateRemixPreview({ ...preview(), lifecycleRevision: 'd'.repeat(64) }, token, request())).toThrow();
+    expect(validateRemixPreview(preview(), token, request()).lifecycleRevision).toBe('c'.repeat(64));
+  });
 });

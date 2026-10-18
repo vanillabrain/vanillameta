@@ -78,6 +78,7 @@ it('routes received templates to the JWT-only API and keeps publication requests
   const requirements = {
     token: reference,
     version: 2,
+    lifecycleRevision: 'c'.repeat(64),
     title: 'Received',
     requiredFields: [],
     blocks: [{ id: 'block-1', title: 'Total', kind: 'BOARD_NUMERIC', supported: true }],

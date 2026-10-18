@@ -155,6 +155,7 @@ export function StudioRemixFlow({
       mapping: selectedMapping,
       excludedBlockIds: excludedIds,
       expectedVersion: requirements.version,
+      expectedLifecycleRevision: requirements.lifecycleRevision,
     };
     try {
       const next = await previewRemix(token, body, controller.signal);
@@ -220,6 +221,7 @@ export function StudioRemixFlow({
         mapping: { ...preview.mapping },
         excludedBlockIds: [...excluded],
         expectedVersion: preview.version,
+        expectedLifecycleRevision: preview.lifecycleRevision,
         expectedSourceRevision: preview.sourceRevision,
       };
     const request = pendingSave.current;

@@ -18,6 +18,7 @@ import {
   saveResourcePolicy,
 } from '@/api/resourcePolicyService';
 import SourceLifecycle from './SourceLifecycle';
+import DashboardLifecycle from './DashboardLifecycle';
 
 const KIND_LABEL: Record<ResourceKind, string> = { dashboard: '대시보드', source: '데이터 소스' };
 const RIGHT_LABEL: Record<keyof ResourceRights, string> = {
@@ -631,6 +632,9 @@ function ResourcePolicyPanel({ organizationId, selfRecipientId }: { organization
               dashboardId={selected.id}
               selfId={selfRecipientId}
             />
+          )}
+          {selected.kind === 'dashboard' && (
+            <DashboardLifecycle dashboardId={selected.id} organizationId={organizationId} dashboardLabel={selected.label} />
           )}
           {selected.kind === 'source' && (
             // UC050: availability of this exact source. The control reads nothing until the admin opens it, and no

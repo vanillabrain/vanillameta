@@ -555,6 +555,51 @@ describe('UC-018 publication backend', () => {
     ).toBeNull();
   });
 
+  it('blocks inactive public snapshots and old prepared publish tickets across restoration without changing snapshot/version', async () => {
+    const prepared = await ownerPreview();
+    const body = await publishBody(prepared, 0);
+    const published = await service.publish(DASHBOARD, ACTOR, body);
+    const row = await publications().findOneOrFail({ where: { dashboardId: DASHBOARD } });
+    const another = await ownerPreview();
+    const pending = await publishBody(another, 1);
+    await db.manager.update(Dashboard, DASHBOARD, { assetActive: false, assetVersion: 1 });
+    await expect(service.publicResult(row.uuid)).rejects.toMatchObject({ status: 404 });
+    await db.manager.update(Dashboard, DASHBOARD, { assetActive: true, assetVersion: 2 });
+    await expect(service.publish(DASHBOARD, ACTOR, pending)).rejects.toMatchObject({ status: 409 });
+    expect(await publications().findOneBy({ dashboardId: DASHBOARD })).toEqual(row);
+    expect((await service.publicResult(published.publication.uuid)).version).toBe(1);
+  });
+  it('lets the current inactive owner admin revoke and restoration never revives that snapshot', async () => {
+    const preview = await ownerPreview();
+    const result = await service.publish(DASHBOARD, ACTOR, await publishBody(preview, 0));
+    await db.manager.save(User, {
+      id: ACTOR,
+      userId: 'lifecycle-owner',
+      email: 'lifecycle-owner@example.invalid',
+      password: 'unused',
+      active: true,
+    });
+    await db.manager.save(EnterpriseMembership, {
+      userId: ACTOR,
+      organizationId: 1,
+      role: 'admin',
+      team: '',
+    });
+    const managed = new PublicationService(
+      publications(),
+      db.getRepository(Dashboard),
+      new SourceAccessService(db, new EnterpriseResourcePolicyService(db)),
+      ai as any,
+      bi as any,
+    );
+    await db.manager.update(Dashboard, DASHBOARD, { assetActive: false, assetVersion: 1 });
+    await managed.revoke(DASHBOARD, ACTOR, { expectedVersion: 1 });
+    await db.manager.update(Dashboard, DASHBOARD, { assetActive: true, assetVersion: 2 });
+    await expect(service.publicResult(result.publication.uuid)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect((await publications().findOneBy({ dashboardId: DASHBOARD })).active).toBe(false);
+  });
   it('hides unknown, revoked, expired and deleted publications behind 404', async () => {
     await expect(service.publicResult(randomUUID())).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.publicResult('not-a-uuid')).rejects.toBeInstanceOf(NotFoundException);

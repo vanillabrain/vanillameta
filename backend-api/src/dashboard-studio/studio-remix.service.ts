@@ -3,7 +3,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { ConnectionService } from '../connection/connection.service';
 import { SourceAccessService } from '../ownership/source-access.service';
-import { metadataTransaction } from '../common/metadata-work';
+import { sourceWriteTransaction } from '../database/source-write-lock';
 import { Database } from '../database/entities/database.entity';
 import { StudioRemixRequest } from './entities/studio-remix.entity';
 import { StudioService } from './studio.service';
@@ -25,12 +25,14 @@ import {
   RemixRequirements,
   RemixTemplate,
 } from './studio-remix-contract';
-export type RemixOriginResolver = (
+export type RemixOriginResolver = ((
   reference: string,
   actor: number,
   expectedVersion?: number,
   manager?: EntityManager,
-) => Promise<{ version: number; remixTemplate: string }>;
+) => Promise<{ version: number; remixTemplate: string; lifecycleRevision: string }>) & {
+  authorizeReceipt?: (reference: string, actor: number, manager?: EntityManager) => Promise<void>;
+};
 @Injectable()
 export class StudioRemixService {
   constructor(
@@ -42,10 +44,16 @@ export class StudioRemixService {
     private readonly connection: ConnectionService,
     private readonly access: SourceAccessService,
   ) {}
-  private requirements(token: string, version: number, t: RemixTemplate): RemixRequirements {
+  private requirements(
+    token: string,
+    version: number,
+    t: RemixTemplate,
+    lifecycleRevision: string,
+  ): RemixRequirements {
     return {
       token,
       version,
+      lifecycleRevision,
       title: t.title,
       filters: t.filters ?? [],
       ...(t.conditions !== undefined ? { conditions: validateStudioConditions(t.conditions) } : {}),
@@ -68,12 +76,22 @@ export class StudioRemixService {
     this.access.actor(actor);
     return this.studio.serializeWrite(async () => {
       const row = await origin(token, actor);
-      return this.requirements(token, row.version, JSON.parse(row.remixTemplate));
+      return this.requirements(
+        token,
+        row.version,
+        JSON.parse(row.remixTemplate),
+        row.lifecycleRevision,
+      );
     });
   }
-  private validate(body: any, save: boolean): RemixRequest {
+  private checkLifecycle(row: { lifecycleRevision: string }, expected: string) {
+    if (row.lifecycleRevision !== expected)
+      throw new ConflictException('원본 상태가 변경되었습니다. 복제 조건을 다시 확인해 주세요.');
+  }
+  private validate(body: any, save: boolean, legacyConfirmation = false): RemixRequest {
     try {
       (studioKeys as (value: any, keys: string[]) => void)(body, [
+        ...(legacyConfirmation ? [] : ['expectedLifecycleRevision']),
         'targetSourceId',
         'mapping',
         'excludedBlockIds',
@@ -81,6 +99,9 @@ export class StudioRemixService {
         ...(save ? ['requestId', 'expectedSourceRevision'] : []),
       ]);
       if (
+        (!legacyConfirmation &&
+          (typeof body.expectedLifecycleRevision !== 'string' ||
+            !/^[a-f0-9]{64}$/.test(body.expectedLifecycleRevision))) ||
         !Number.isSafeInteger(body.targetSourceId) ||
         body.targetSourceId <= 0 ||
         !body.mapping ||
@@ -326,6 +347,7 @@ export class StudioRemixService {
     const body = this.validate(input, false);
     return this.studio.serializeWrite(async () => {
       const row = await origin(token, actor, body.expectedVersion);
+      this.checkLifecycle(row, body.expectedLifecycleRevision);
       await this.access.assert('database', body.targetSourceId, actor);
       return this.connection.withDuckDBSnapshot(body.targetSourceId, async () => {
         const profile = await this.creation.profile(body.targetSourceId, actor);
@@ -370,9 +392,12 @@ export class StudioRemixService {
           latest.schemaVersion !== profile.schemaVersion
         )
           throw new ConflictException('대상 데이터가 변경되었습니다. 매핑을 다시 확인해 주세요.');
-        await origin(token, actor, row.version);
+        this.checkLifecycle(
+          await origin(token, actor, row.version),
+          body.expectedLifecycleRevision,
+        );
         return {
-          ...this.requirements(token, row.version, t),
+          ...this.requirements(token, row.version, t, row.lifecycleRevision),
           targetSourceId: body.targetSourceId,
           sourceRevision: profile.dataVersion,
           profile: {
@@ -420,27 +445,41 @@ export class StudioRemixService {
     origin: RemixOriginResolver = this.publications.requireRemix.bind(this.publications),
   ) {
     this.access.actor(actor);
-    const body = this.validate(input, true),
+    // Cached old clients may only confirm an already committed exact legacy receipt.
+    // This branch never supplies a lifecycle proof or authorizes a new copy.
+    const legacyConfirmation =
+      input && typeof input === 'object' && !('expectedLifecycleRevision' in input);
+    const body = this.validate(input, true, legacyConfirmation),
       payloadHash = studioDigest({ token, ...body });
     return this.studio.serializeWrite(async () => {
-      await origin(token, actor, body.expectedVersion);
-      await this.access.assert('database', body.targetSourceId, actor);
       const prior = await this.db.manager.findOne(StudioRemixRequest, {
         where: { actorId: actor, requestId: body.requestId },
       });
       if (prior) {
         if (prior.payloadHash !== payloadHash)
           throw new ConflictException('같은 요청 ID에 다른 복제 내용을 보낼 수 없습니다.');
+        // Historical confirmation requires current authority, not a still-current preparation fingerprint.
+        if (origin.authorizeReceipt) await origin.authorizeReceipt(token, actor, this.db.manager);
+        else await origin(token, actor);
         const result = JSON.parse(prior.result);
         await this.access.dashboard(result.dashboardId, actor);
         return result;
       }
+      await origin(token, actor);
+      if (legacyConfirmation)
+        throw new ConflictException('확정된 복제 기록이 없습니다. 복제 조건을 다시 확인해 주세요.');
+      this.checkLifecycle(
+        await origin(token, actor, body.expectedVersion),
+        body.expectedLifecycleRevision,
+      );
+      await this.access.assert('database', body.targetSourceId, actor);
       return this.connection.withDuckDBSnapshot(body.targetSourceId, async () => {
         const profile = await this.creation.profile(body.targetSourceId, actor);
         if (profile.dataVersion !== body.expectedSourceRevision)
           throw new ConflictException('대상 데이터가 변경되었습니다. 매핑을 다시 확인해 주세요.');
         const identity = await this.sourceIdentity(body.targetSourceId, actor, this.db.manager);
         const row = await origin(token, actor, body.expectedVersion);
+        this.checkLifecycle(row, body.expectedLifecycleRevision);
         const t: RemixTemplate = JSON.parse(row.remixTemplate),
           mapped = this.map(t, body, profile);
         if (mapped.mappedConditions)
@@ -477,13 +516,19 @@ export class StudioRemixService {
           latest.schemaVersion !== profile.schemaVersion
         )
           throw new ConflictException('저장 중 대상 데이터가 변경되었습니다.');
-        return metadataTransaction(this.db, async manager => {
-          await origin(token, actor, body.expectedVersion, manager);
+        return sourceWriteTransaction(this.db, async manager => {
+          this.checkLifecycle(
+            await origin(token, actor, body.expectedVersion, manager),
+            body.expectedLifecycleRevision,
+          );
           if (identity !== (await this.sourceIdentity(body.targetSourceId, actor, manager)))
             throw new ConflictException('대상 소스가 변경되었습니다.');
           const result = await this.creation.persistRemix(manager, preparation);
           // Recheck after save/aggregate awaits, including legacy metadata writes outside Studio's queue.
-          await origin(token, actor, body.expectedVersion, manager);
+          this.checkLifecycle(
+            await origin(token, actor, body.expectedVersion, manager),
+            body.expectedLifecycleRevision,
+          );
           if (identity !== (await this.sourceIdentity(body.targetSourceId, actor, manager)))
             throw new ConflictException('저장 중 대상 데이터가 변경되었습니다.');
           await manager.insert(StudioRemixRequest, {

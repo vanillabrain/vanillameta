@@ -55,6 +55,7 @@ const conditionFields = (conditions?: StudioConditions): string[] => {
 };
 export type RemixBlock = { id: string; title: string; kind: string; supported: boolean; reason?: string };
 export type RemixRequirements = {
+  lifecycleRevision: string;
   conditions?: StudioConditions;
   token: string;
   version: number;
@@ -74,6 +75,7 @@ export type RemixField = {
   candidates: string[];
 };
 export type RemixInput = {
+  expectedLifecycleRevision: string;
   targetSourceId: number;
   mapping: Record<string, string>;
   excludedBlockIds: string[];
@@ -108,6 +110,8 @@ export function validateRemixRequirements(input: any, token: string): RemixRequi
   studioAssert(
     !!input &&
       input.token === token &&
+      typeof input.lifecycleRevision === 'string' &&
+      /^[a-f0-9]{64}$/.test(input.lifecycleRevision) &&
       Number.isSafeInteger(input.version) &&
       input.version > 0 &&
       typeof input.title === 'string' &&
@@ -158,7 +162,8 @@ export function validateRemixRequirements(input: any, token: string): RemixRequi
 export function validateRemixPreview(input: any, token: string, request: RemixInput): RemixPreview {
   validateRemixRequirements(input, token);
   studioAssert(
-    input.version === request.expectedVersion &&
+    input.lifecycleRevision === request.expectedLifecycleRevision &&
+      input.version === request.expectedVersion &&
       input.targetSourceId === request.targetSourceId &&
       /^[a-f0-9]{64}$/.test(input.sourceRevision ?? '') &&
       input.profile?.sourceId === request.targetSourceId &&

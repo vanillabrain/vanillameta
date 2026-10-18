@@ -1269,7 +1269,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
       expectedVersion: 1,
       rights: rights({ edit: true, publish: true }),
     });
-    const publications = new StudioPublicationService(db, delegatedStudio);
+    const publications = new StudioPublicationService(db, delegatedStudio, access);
     const published = await publications.publish(
       id,
       {

@@ -678,6 +678,7 @@ describe('T7 durable executions', () => {
       token: 'e'.repeat(64),
       version: 2,
       remixTemplate: 'PRIVATE_DEFINITION',
+      lifecycleRevision: 'd'.repeat(64),
     })),
     publish: jest.fn(),
     committed: jest.fn(async () => undefined),
@@ -793,7 +794,12 @@ describe('T7 durable executions', () => {
     const publications = remixAdapter();
     publications.requireRemix.mockImplementationOnce(async () => {
       controller.abort();
-      return { token: 'e'.repeat(64), version: 2, remixTemplate: '' };
+      return {
+        token: 'e'.repeat(64),
+        version: 2,
+        remixTemplate: '',
+        lifecycleRevision: 'd'.repeat(64),
+      };
     });
     const runner = new StudioExecutionService(
       db,
@@ -1408,6 +1414,7 @@ describe('T7 durable executions', () => {
       mapping: { amount: 'amount' },
       excludedBlockIds: [],
       expectedVersion: 2,
+      expectedLifecycleRevision: 'd'.repeat(64),
       expectedSourceRevision: 'b'.repeat(64),
     });
     const harness = async () => {

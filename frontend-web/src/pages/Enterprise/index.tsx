@@ -608,23 +608,23 @@ export default function Enterprise() {
         <div className="mt-4 flex min-w-0 flex-col gap-2">
           <dl className="flex min-w-0 flex-wrap gap-x-6 gap-y-1 text-sm">
             <div className="flex min-w-0 gap-2">
-              <dt className="text-muted-foreground">조직</dt>
-              <dd className="wrap-anywhere font-medium text-foreground">{organization.name}</dd>
+              <dt className="shrink-0 whitespace-nowrap text-muted-foreground">조직</dt>
+              <dd className="min-w-0 wrap-anywhere font-medium text-foreground">{organization.name}</dd>
             </div>
             <div className="flex min-w-0 gap-2">
-              <dt className="text-muted-foreground">조직 번호</dt>
+              <dt className="shrink-0 whitespace-nowrap text-muted-foreground">조직 번호</dt>
               <dd className="font-medium text-foreground">#{organization.id}</dd>
             </div>
             <div className="flex min-w-0 gap-2">
-              <dt className="text-muted-foreground">내 역할</dt>
+              <dt className="shrink-0 whitespace-nowrap text-muted-foreground">내 역할</dt>
               <dd className="font-medium text-foreground">{roleLabel(membership.role)}</dd>
             </div>
             <div className="flex min-w-0 gap-2">
-              <dt className="text-muted-foreground">팀</dt>
-              <dd className="wrap-anywhere font-medium text-foreground">{membership.team || '미지정'}</dd>
+              <dt className="shrink-0 whitespace-nowrap text-muted-foreground">팀</dt>
+              <dd className="min-w-0 wrap-anywhere font-medium text-foreground">{membership.team || '미지정'}</dd>
             </div>
             <div className="flex min-w-0 gap-2">
-              <dt className="text-muted-foreground">조직 버전</dt>
+              <dt className="shrink-0 whitespace-nowrap text-muted-foreground">조직 버전</dt>
               <dd className="font-medium text-foreground">{organization.version}</dd>
             </div>
           </dl>

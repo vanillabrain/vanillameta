@@ -1,9 +1,14 @@
+jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
+import { SharedReuseOriginService } from '../bi/shared-reuse-origin.service';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { DashboardService } from '../dashboard/dashboard.service';
 import { SourceAccessService } from '../ownership/source-access.service';
@@ -28,7 +33,14 @@ describe('share ownership, calendar expiry and legacy token rotation regressions
       type: 'sqlite',
       database: ':memory:',
       synchronize: true,
-      entities: [User, UserMapping, Dashboard, DashboardShare],
+      entities: [
+        User,
+        UserMapping,
+        Dashboard,
+        DashboardShare,
+        DashboardWidget,
+        EnterpriseMembership,
+      ],
     }).initialize();
     await db.manager.insert(User, {
       id: 7,
@@ -91,9 +103,55 @@ describe('share ownership, calendar expiry and legacy token rotation regressions
     await db?.destroy();
   });
 
+  it('rejects inactive live metadata before any token repair, and restoration preserves expiry/disabled gates', async () => {
+    await dashboards.update(17, { assetActive: false, assetVersion: 1 });
+    await expect(service.shareDashboardInfo(unitUuid)).rejects.toMatchObject({ status: 404 });
+    expect(auth.generateUrlAccessToken).not.toHaveBeenCalled();
+    expect(shares.update).not.toHaveBeenCalled();
+    await dashboards.update(17, { assetActive: true, assetVersion: 2 });
+    await expect(service.shareDashboardInfo(unitUuid)).resolves.toMatchObject({
+      status: 'SUCCESS',
+    });
+    await shares.update(9, { endDate: new Date(0) });
+    await expect(service.shareDashboardInfo(unitUuid)).rejects.toMatchObject({ status: 401 });
+    await shares.update(9, { shareYn: 'N', endDate: new Date(2099, 1, 1) });
+    await expect(service.shareDashboardInfo(unitUuid)).rejects.toMatchObject({ status: 403 });
+  });
+  it('allows only the inactive current owner admin to stop live sharing/reuse, without reactivating it', async () => {
+    await db.manager.save(EnterpriseMembership, {
+      userId: 7,
+      organizationId: 1,
+      role: 'admin',
+      team: '',
+    });
+    const access = new SourceAccessService(db, new EnterpriseResourcePolicyService(db));
+    const managed = new DashboardService(
+      dashboards,
+      users,
+      shares,
+      db.getRepository(UserMapping),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      access,
+    );
+    const stop = new ShareUrlService(users, dashboards, shares, auth, managed);
+    const reuse = new SharedReuseOriginService(db, undefined, undefined, access);
+    await dashboards.update(17, { assetActive: false, assetVersion: 1 });
+    await expect(
+      stop.checkShareUrlOn('unitactor', 17, { endDate: '12/31/2099' } as any),
+    ).rejects.toMatchObject({ status: 403 });
+    await stop.checkShareUrlOff('unitactor', 17);
+    await reuse.grant(17, 7, { allowReuse: false });
+    expect(await active()).toMatchObject({ shareYn: 'N', allowReuse: false });
+    await dashboards.update(17, { assetActive: true, assetVersion: 2 });
+    await expect(stop.shareDashboardInfo(unitUuid)).rejects.toMatchObject({ status: 403 });
+  });
   it('canonicalizes route dashboard ids before owner checks and signed claims', async () => {
     const controller = new ShareUrlController(service, {
       dashboard: jest.fn().mockResolvedValue(undefined),
+      dashboardRevocation: jest.fn().mockResolvedValue(undefined),
     } as any);
     const req = { user: { accessKeyData: { id: 7, userId: 'unitactor' } } };
     await controller.checkShareUrlOn(

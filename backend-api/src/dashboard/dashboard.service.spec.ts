@@ -108,6 +108,47 @@ describe('DashboardService actual transaction fixture', () => {
     expect(service).toBeDefined();
   });
 
+  it.each(['assetActive', 'assetVersion'])(
+    'rejects raw lifecycle field %s on generic create/update before any writes',
+    async field => {
+      const before = await db.manager.find(Dashboard);
+      await expect(
+        service.create(
+          { title: 'Injected', layout: [], [field]: field === 'assetActive' ? false : 99 } as any,
+          7,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      await expect(
+        service.update(
+          42,
+          { title: 'Injected', [field]: field === 'assetActive' ? true : 0 } as any,
+          7,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(await db.manager.find(Dashboard)).toEqual(before);
+      expect(await db.manager.count(DashboardShare)).toBe(0);
+    },
+  );
+  it('creates only active epoch-zero assets and keeps ordinary legacy fields working', async () => {
+    const result = await service.create(
+      { title: 'Normal', layout: [], legacyUnused: true } as any,
+      7,
+    );
+    expect(typeof result !== 'string' && result.data).toMatchObject({
+      assetActive: true,
+      assetVersion: 0,
+    });
+    await service.update(42, { title: 'Ordinary edit', legacyUnused: true } as any, 7);
+    expect(await db.manager.findOneBy(Dashboard, { id: 42 })).toMatchObject({
+      title: 'Ordinary edit',
+      assetActive: true,
+      assetVersion: 0,
+    });
+    await db.manager.update(Dashboard, 42, { assetActive: false, assetVersion: 1 });
+    await expect(service.update(42, { title: 'Must fail' } as any, 7)).rejects.toMatchObject({
+      status: 403,
+    });
+  });
   it('UC-006 keeps analysis mapping order when a grid save reorders presentation entries', async () => {
     const update = links.update.bind(links);
     const spy = jest.spyOn(links, 'update').mockImplementation(async (id, body, manager) => {

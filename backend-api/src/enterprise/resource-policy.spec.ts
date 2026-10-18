@@ -186,6 +186,58 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
     expect(await db.manager.count(EnterpriseGroupGrant)).toBe(0);
     expect(await audits.count()).toBe(0);
   });
+  it('denies inactive dashboard owner/granted rights and read discovery while preserving admin management', async () => {
+    await dashboards.save({ id: 51, title: 'Lifecycle parent' });
+    await own(51, 1);
+    await policy.set('dashboard', 51, 1, {
+      recipientId: 2,
+      expectedVersion: 0,
+      rights: rights({ read: true, edit: true, publish: true, export: true }),
+    });
+    await dashboards.update(51, { assetActive: false });
+    for (const action of ['read', 'edit', 'publish', 'export'] as const) {
+      await expect(policy.assert('dashboard', 51, 1, action)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      await expect(policy.assert('dashboard', 51, 2, action)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    }
+    await expect(access.dashboard(51, 1)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(await policy.dashboardIds(2)).not.toContain(51);
+    expect((await policy.resources(1)).entries).toContainEqual({
+      kind: 'dashboard',
+      id: 51,
+      label: 'Lifecycle parent',
+    });
+    await expect(policy.assertManagement('dashboard', 51, 1)).resolves.toBeUndefined();
+    await policy.set('dashboard', 51, 1, {
+      recipientId: 2,
+      expectedVersion: 1,
+      rights: rights({}),
+    });
+    expect((await dashboards.findOneBy({ id: 51 })).assetActive).toBe(false);
+  });
+  it('permits only owner-admin inactive revocation without Source read and restores normal active checks', async () => {
+    await dashboards.save({
+      id: 51,
+      title: 'Lifecycle recovery',
+      assetActive: false,
+      analysisDefinition: JSON.stringify({ databaseId: 999 }),
+    });
+    await own(51, 1);
+    const sourceRead = jest.spyOn(access, 'assert');
+    await expect(access.dashboardRevocation(51, 1, 'publish')).resolves.toBeUndefined();
+    expect(sourceRead).not.toHaveBeenCalled();
+    await expect(access.dashboardRevocation(51, 2, 'publish')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    await dashboards.update(51, { assetActive: true });
+    await expect(access.dashboardRevocation(51, 1, 'publish')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    sourceRead.mockRestore();
+  });
   it('projects committed grant changes and preserves grants while personal notifications are removed', async () => {
     const notifications = new EnterpriseNotificationService(db);
     await policy.set('source', 101, 1, {

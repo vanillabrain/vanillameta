@@ -132,6 +132,7 @@ export class StudioService {
     return {
       template,
       fingerprint: studioDigest([
+        state.row.assetVersion ?? 0,
         state.document.revision,
         state.schemaVersion,
         state.sourceRevision,

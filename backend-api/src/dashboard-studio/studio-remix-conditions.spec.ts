@@ -1,3 +1,4 @@
+import { studioDigest } from './studio-legacy';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { createHash } from 'crypto';
 import { DuckDBInstance } from '@duckdb/node-api';
@@ -128,7 +129,7 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
     const access = new SourceAccessService(db);
     dashboards = new AiDashboardService({} as any, connection, db.getRepository(Dashboard));
     studio = new StudioService(db, dashboards, connection, access);
-    publications = new StudioPublicationService(db, studio, connection);
+    publications = new StudioPublicationService(db, studio, access, connection);
     creation = new StudioCreationService(
       db,
       new BiService(db, access, connection, dashboards),
@@ -254,13 +255,14 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
       connection,
       new SourceAccessService(db),
     );
-  const preview = (p: any, extra: any = {}) =>
+  const preview = async (p: any, extra: any = {}) =>
     remixService().preview(
       p.token,
       {
         targetSourceId: 2,
         mapping,
         expectedVersion: p.version,
+        expectedLifecycleRevision: studioDigest({ dashboardId: id, assetVersion: 0 }),
         ...extra,
       },
       8,
@@ -274,6 +276,7 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
         mapping,
         expectedVersion: p.version,
         expectedSourceRevision: v.sourceRevision,
+        expectedLifecycleRevision: v.lifecycleRevision,
         ...extra,
       },
       8,

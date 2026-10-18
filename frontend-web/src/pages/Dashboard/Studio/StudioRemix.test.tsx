@@ -28,6 +28,7 @@ vi.mock('./studioRemixApi', async () => ({
 }));
 const requirements = {
   token: 'a'.repeat(64),
+  lifecycleRevision: 'c'.repeat(64),
   version: 6,
   title: 'Shared',
   requiredFields: [{ name: 'amount', type: 'BIGINT', blockIds: ['block-1'] }],
@@ -193,6 +194,7 @@ describe('T14 embedded mapping', () => {
       mapping: { amount: 'amount' },
       excludedBlockIds: [],
       expectedVersion: 6,
+      expectedLifecycleRevision: requirements.lifecycleRevision,
       expectedSourceRevision: 'b'.repeat(64),
     });
     expect(saveRemix).not.toHaveBeenCalled();
@@ -217,4 +219,12 @@ it('shows received-origin navigation and refreshes its immutable reference expli
   fireEvent.click(button);
   expect(refresh).toHaveBeenCalledOnce();
   expect(onSave).not.toHaveBeenCalled();
+});
+
+it('binds preview and frozen save retries to the exact lifecycle proof', async () => {
+  render(<StudioRemix />);
+  await screen.findByText('내 파일 선택');
+  fireEvent.click(screen.getByText('내 파일 선택'));
+  await waitFor(() => expect(previewRemix).toHaveBeenCalled());
+  expect(vi.mocked(previewRemix).mock.calls[0][1].expectedLifecycleRevision).toBe(requirements.lifecycleRevision);
 });

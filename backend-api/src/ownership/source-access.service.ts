@@ -130,7 +130,7 @@ export class SourceAccessService {
       const dashboard = await (manager ?? this.db)
         .getRepository(Dashboard)
         .findOne({ where: { id: dashboardId } });
-      if (!dashboard || dashboard.delYn === 'Y')
+      if (!dashboard || dashboard.delYn === 'Y' || dashboard.assetActive === false)
         throw new ForbiddenException('not dashboard owner');
       if (action !== 'owner' && this.policy)
         await this.policy.assert('dashboard', dashboardId, actor, action, manager);
@@ -161,6 +161,26 @@ export class SourceAccessService {
           manager,
         );
       }
+    });
+  }
+  /** Internal explicit stop/revoke only; ordinary dashboard access never bypasses lifecycle. */
+  async dashboardRevocation(
+    id: unknown,
+    actor: number,
+    action: 'owner' | 'publish' = 'owner',
+    manager: EntityManager = this.db.manager,
+  ): Promise<void> {
+    return serializeMetadataWork(this.db, async () => {
+      const dashboardId = this.id(id);
+      this.actor(actor);
+      const row = await manager.findOne(Dashboard, { where: { id: dashboardId } });
+      if (!row || row.delYn === 'Y') throw new ForbiddenException('not dashboard owner');
+      if (row.assetActive === false) {
+        if (!this.policy) throw new ForbiddenException('자원 권한이 없습니다.');
+        await this.policy.assertManagement('dashboard', dashboardId, actor, manager);
+        return;
+      }
+      await this.dashboard(dashboardId, actor, action, manager);
     });
   }
   async sharedDashboard(id: unknown): Promise<number> {
