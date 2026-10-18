@@ -1190,3 +1190,82 @@ it('UC051 keeps publish independent from edit for a recipient with explicit publ
   expect((screen.getByRole('button', { name: '게시·공유' }) as HTMLButtonElement).disabled).toBe(false);
   expect(api.post).not.toHaveBeenCalled();
 });
+
+describe('UC052 Studio whole-document conditions', () => {
+  const conditions = {
+    sourceRevision: SOURCE_REVISION,
+    definition: { include: { kind: 'predicate', column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  const conditionRead = () => ({
+    data: {
+      status: 'SUCCESS',
+      data: {
+        sourceId: 4,
+        sourceRevision: 'metadata-only-hash',
+        version: 3,
+        schemaChanged: false,
+        definition: conditions.definition,
+        columns: [{ name: 'amount', type: 'BIGINT', kind: 'number' }],
+      },
+    },
+  });
+  const previewFor = (body: any) => ({
+    data: {
+      document: body.document,
+      preview: {
+        draft: { databaseId: 4, title: '매출', explanation: '', widgets: [row] },
+        widgets: [{ ...row, datas: [{ total: body.document.conditions ? 90 : 500 }] }],
+      },
+    },
+  });
+  it('reads without applying, applies via prepare, clear/undo/redo invalidate preview, and saves/reloads the exact scope', async () => {
+    api.get.mockResolvedValue(envelope());
+    api.post.mockImplementation(async (url, body) =>
+      url === '/bi/source-conditions/read'
+        ? conditionRead()
+        : url.endsWith('/save')
+        ? { data: { document: { ...body.document, revision: NEXT_REVISION }, idMap: {} } }
+        : previewFor(body),
+    );
+    render(<StudioEditor />);
+    await screen.findByText('500');
+    fireEvent.click(screen.getByRole('button', { name: '포함·제외 조건' }));
+    fireEvent.click(screen.getByRole('button', { name: '저장 조건 읽기' }));
+    await screen.findByText(/소스 조건 버전 3/);
+    expect(api.post.mock.calls).toHaveLength(1);
+    expect(saveButton().disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: '조건 명시 적용' }));
+    await screen.findByText('90');
+    expect(api.post.mock.lastCall?.[1].document.conditions).toEqual(conditions);
+    fireEvent.click(screen.getByRole('button', { name: '조건 전체 해제' }));
+    await screen.findByText('500');
+    expect(api.post.mock.lastCall?.[1].document.conditions).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기', exact: true }));
+    await screen.findByText('90');
+    fireEvent.click(screen.getByRole('button', { name: '다시 실행', exact: true }));
+    await screen.findByText('500');
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기', exact: true }));
+    await screen.findByText('90');
+    api.get.mockResolvedValue(envelope({ document: doc({ conditions, revision: NEXT_REVISION }) }));
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(api.post.mock.calls.some(([url]) => url.endsWith('/save'))).toBe(true));
+    const save = api.post.mock.calls.find(([url]) => url.endsWith('/save'))[1];
+    expect(save.document.conditions).toEqual(conditions);
+    expect(save.document.blocks).toEqual(doc().blocks);
+    expect(save.document.layouts).toEqual(doc().layouts);
+    cleanup();
+    render(<StudioEditor />);
+    await screen.findByText('조건 적용됨');
+  });
+  it('409 prepare preserves the applied scope and never rebinds its source hash', async () => {
+    api.get.mockResolvedValue(envelope({ document: doc({ conditions }) }));
+    api.post.mockRejectedValue({ response: { status: 409 } });
+    render(<StudioEditor />);
+    await screen.findByText('조건 적용됨');
+    fireEvent.click(screen.getByRole('button', { name: '포함·제외 조건' }));
+    fireEvent.click(screen.getByRole('button', { name: '조건 전체 해제' }));
+    await waitFor(() => expect(api.get.mock.calls.length).toBeGreaterThan(1));
+    expect(screen.getByText('조건 적용됨')).toBeTruthy();
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
+});

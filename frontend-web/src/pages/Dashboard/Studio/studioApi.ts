@@ -4,6 +4,7 @@ import { errorMessage, validDraft } from '../dashboardPreview';
 import { StudioDefinitions } from './studioAdapter';
 import {
   studioAssert,
+  studioConditionsKey,
   studioKeys,
   studioFilterKey,
   studioDateRangeKey,
@@ -304,7 +305,8 @@ export async function prepareStudioDashboard(
     studioAssert(
       document.dashboardId === dashboardId &&
         studioFilterKey(document.filters) === studioFilterKey(requested) &&
-        studioDateRangeKey(document.dateRange) === studioDateRangeKey(request.document.dateRange),
+        studioDateRangeKey(document.dateRange) === studioDateRangeKey(request.document.dateRange) &&
+        studioConditionsKey(document.conditions) === studioConditionsKey(request.document.conditions),
       '요청한 날짜 범위·공통 필터와 다른 미리보기 결과입니다.',
     );
     return { document, preview: validateStudioPreview(payload.preview) };
@@ -412,6 +414,10 @@ export async function saveStudioDashboard(
     studioAssert(!!payload && typeof payload === 'object' && !Array.isArray(payload), '저장 응답을 확인해 주세요.');
     const document = validateStudioDocument(payload.document);
     studioAssert(document.dashboardId === dashboardId, '저장된 문서가 요청한 대시보드와 다릅니다.');
+    studioAssert(
+      studioConditionsKey(document.conditions) === studioConditionsKey(request.document.conditions),
+      '저장 응답의 포함·제외 조건이 요청과 다릅니다.',
+    );
     studioAssert(
       typeof document.revision === 'string' && /^[a-f0-9]{64}$/.test(document.revision),
       '저장 응답의 revision을 확인해 주세요.',

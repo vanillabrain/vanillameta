@@ -1,3 +1,4 @@
+import type { StudioConditions } from '../Studio/studioTypes';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -13,12 +14,14 @@ export default function DashboardPivots({
   dashboardId,
   filters,
   dateRange,
+  conditions,
   paused,
   onFilter,
 }: {
   dashboardId: number;
   filters: ExploreFilter[];
   dateRange?: any;
+  conditions?: StudioConditions;
   paused: boolean;
   onFilter: (filters: ExploreFilter[]) => void;
 }) {
@@ -82,6 +85,7 @@ export default function DashboardPivots({
           requestPool={requestPool}
           common={stableFilters}
           dateRange={dateRange}
+          conditions={conditions}
           paused={paused}
           onFilter={onFilter}
           removing={removing === item.id}
@@ -131,7 +135,17 @@ function DashboardPivot(props: any) {
     </Card>
   );
 }
-function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemove, removing, requestPool }: any) {
+function ValidDashboardPivot({
+  item,
+  common,
+  dateRange,
+  conditions,
+  paused,
+  onFilter,
+  onRemove,
+  removing,
+  requestPool,
+}: any) {
   const filters = useMemo(() => mergePivotFilters(item.state.filters, common), [item.state.filters, common]);
   const range: ExploreDateRange | undefined = dateRange ?? item.state.dateRange ?? undefined;
   const timeUnsupported = !!range && (!/^\d{4}-\d{2}-\d{2}$/.test(range.start) || !/^\d{4}-\d{2}-\d{2}$/.test(range.end));
@@ -159,6 +173,7 @@ function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemo
         axes={item.state.pivot}
         filters={filters}
         dateRange={range}
+        conditions={conditions}
         paused={paused || filters.length > 5 || timeUnsupported}
         pauseReason={
           filters.length > 5

@@ -16,7 +16,12 @@ import { captureRemixTemplate } from './studio-remix-template';
 import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
 import { StudioService } from './studio.service';
 import { studioDigest } from './studio-legacy';
-import { studioKeys, validateStudioDateRange, validateStudioFilters } from './studio-document';
+import {
+  studioKeys,
+  validateStudioConditions,
+  validateStudioDateRange,
+  validateStudioFilters,
+} from './studio-document';
 import { PublicationMetadata, PublicationSnapshot } from './studio-publication-contract';
 import { STUDIO_BREAKPOINTS, StudioDateRange, StudioDocumentV1 } from './studio-contract';
 
@@ -385,7 +390,9 @@ export class StudioPublicationService {
     });
     // The date scope is revalidated here: a stored draft can never publish a partial range.
     const dateRange = documentDateRange(document);
+    if (document.conditions !== undefined) validateStudioConditions(document.conditions);
     return {
+      ...(document.conditions !== undefined ? { conditionsApplied: true as const } : {}),
       title: document.title,
       periodLabel: dateRange ? dateRangePeriodLabel(dateRange) : '전체 기간',
       // Published scope is the exact validated categorical filter list; raw rows and SQL stay out.

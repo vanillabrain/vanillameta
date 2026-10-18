@@ -9,6 +9,16 @@ import {
 import { createHash, randomUUID } from 'crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
+import {
+  StudioConditions,
+  StudioDateRange,
+  StudioFilter,
+} from '../dashboard-studio/studio-contract';
+import {
+  validateStudioConditions,
+  validateStudioFilters,
+  validateStudioDateRange,
+} from '../dashboard-studio/studio-document';
 import { validateDraft } from '../ai/dashboard-draft';
 import { responsiveLayouts } from '../ai/responsive-layout';
 import { ConnectionService } from '../connection/connection.service';
@@ -38,6 +48,9 @@ type Plan = {
   targetId: number;
   targetRevision: string;
   draft: any;
+  conditions?: StudioConditions;
+  filters?: StudioFilter[];
+  dateRange?: StudioDateRange;
   layouts: any[];
   expiresAt: number;
   requestId?: string;
@@ -64,6 +77,12 @@ export class DashboardReuseService {
     const originalId = this.access.id(id);
     const analysis = (await this.dashboards.analysis(originalId, actor, true)).data;
     const profile = await this.bi.profile(analysis.databaseId, actor);
+    if (
+      analysis.defaultConditions !== undefined &&
+      validateStudioConditions(analysis.defaultConditions).sourceRevision !==
+        (await this.connection.duckDBVersion(analysis.databaseId))
+    )
+      throw stale();
     if (!profile.supported)
       throw new BadRequestException('서버에 저장한 파일 분석만 복제할 수 있습니다.');
     return { originalId, analysis, profile, reference: undefined as ReuseReference | undefined };
@@ -137,7 +156,19 @@ export class DashboardReuseService {
       const target = await this.bi.profile(targetId, actor);
       if (!target.supported) throw new BadRequestException('서버 파일 소스를 선택해 주세요.');
       if (target.dataVersion !== body.sourceRevision) throw stale();
+      await this.currentSource(this.db.manager, targetId, actor, target.dataVersion);
       const remapped = remapDashboard(selected, profile, target, body.columnMap);
+      const conditions = remapped.conditionDefinition
+        ? {
+            sourceRevision: await this.connection.duckDBVersion(targetId),
+            definition: remapped.conditionDefinition,
+          }
+        : undefined;
+      const scope = {
+        ...(conditions ? { conditions } : {}),
+        ...(remapped.defaultFilters !== undefined ? { filters: remapped.defaultFilters } : {}),
+        ...(remapped.defaultDateRange ? { dateRange: remapped.defaultDateRange } : {}),
+      };
       const draft = validateDraft({
         ...remapped,
         title: body.title,
@@ -161,12 +192,19 @@ export class DashboardReuseService {
         undefined,
         layouts,
       );
-      const result = (await this.dashboards.preview({ draft, includeTrends: true }, actor)).data;
+      const result = (
+        await this.dashboards.preview({ draft, ...scope, includeTrends: true }, actor)
+      ).data;
       // A profile snapshot is not proof the persisted source pointer stayed unchanged.
       await this.currentSource(this.db.manager, targetId, actor, target.dataVersion);
       const current = await this.db.manager.findOne(Dashboard, { where: { id: originalId } });
       if (reference) await this.origins.current(reference, this.db.manager);
       else if (!current || dashboardRevision(current) !== analysis.revision) throw stale();
+      if (
+        conditions &&
+        conditions.sourceRevision !== (await this.connection.duckDBVersion(targetId))
+      )
+        throw stale();
       const ticket = this.put({
         actor,
         reference,
@@ -177,6 +215,7 @@ export class DashboardReuseService {
         targetId,
         targetRevision: target.dataVersion,
         draft,
+        ...scope,
         layouts,
       });
       return {
@@ -188,7 +227,12 @@ export class DashboardReuseService {
           schemaVersion: 1,
           title: draft.title,
           capturedAt: new Date().toISOString(),
-          scope: `새 소스: ${target.name} · 전체 기간 · 필터 없음 · UTC`,
+          ...(conditions ? { conditionsApplied: true as const } : {}),
+          scope: `새 소스: ${target.name} · ${
+            conditions || remapped.defaultFilters?.length || remapped.defaultDateRange
+              ? '저장된 분석 범위 적용'
+              : '전체 기간 · 필터 없음'
+          } · UTC`,
           widgets: result.widgets.map((widget, index) => {
             const visible = reference
               ? Object.fromEntries(
@@ -333,11 +377,35 @@ export class DashboardReuseService {
         const saved = await this.connection.withDuckDBSnapshot(plan.targetId, async () => {
           const profile = await this.bi.profile(plan.targetId, actor);
           if (profile.dataVersion !== plan.targetRevision) throw stale();
+          if (
+            plan.conditions &&
+            plan.conditions.sourceRevision !== (await this.connection.duckDBVersion(plan.targetId))
+          )
+            throw stale();
           return (
             await this.dashboards.save(
-              { draft: plan.draft },
+              {
+                draft: plan.draft,
+                ...(plan.conditions ? { conditions: plan.conditions } : {}),
+                ...(plan.filters !== undefined ? { filters: plan.filters } : {}),
+                ...(plan.dateRange ? { dateRange: plan.dateRange } : {}),
+              },
               actor,
-              null,
+              // Legacy copies already carry server-captured filters/date scope. Keep those
+              // in an explicit snapshot; condition-only copies use save's new-artifact API.
+              plan.filters?.length || plan.dateRange
+                ? {
+                    schemaVersion: 2,
+                    kind: 'structured-bi-dashboard',
+                    sourceId: plan.targetId,
+                    ...(plan.conditions ? { studioConditions: plan.conditions } : {}),
+                    ...(plan.filters?.length ? { studioFilters: plan.filters } : {}),
+                    ...(plan.dateRange ? { studioDateRange: plan.dateRange } : {}),
+                    items: plan.draft.widgets.map(() => ({})),
+                  }
+                : plan.conditions
+                ? undefined
+                : null,
               undefined,
               manager,
               false,
@@ -346,6 +414,31 @@ export class DashboardReuseService {
             )
           ).data;
         });
+        // A persistence adapter must never silently widen the captured scope.
+        if (plan.conditions || plan.filters?.length || plan.dateRange) {
+          const row = await manager.findOne(Dashboard, { where: { id: saved.id } });
+          const stored = row?.structuredDefinition ? JSON.parse(row.structuredDefinition) : {};
+          const persisted = [
+            stored.studioConditions === undefined
+              ? undefined
+              : validateStudioConditions(stored.studioConditions),
+            stored.studioFilters?.length ? validateStudioFilters(stored.studioFilters) : undefined,
+            stored.studioDateRange === undefined
+              ? undefined
+              : validateStudioDateRange(stored.studioDateRange),
+          ];
+          if (
+            JSON.stringify(persisted) !==
+            JSON.stringify([
+              plan.conditions,
+              plan.filters?.length ? plan.filters : undefined,
+              plan.dateRange,
+            ])
+          )
+            throw new BadRequestException(
+              '복사본의 적용 범위를 확인할 수 없어 저장하지 않았습니다.',
+            );
+        }
         await this.currentOriginal(manager, plan);
         await manager.update(AnalysisCreationReceipt, { id: record.id }, { dashboardId: saved.id });
         return { id: saved.id, replayed: false };

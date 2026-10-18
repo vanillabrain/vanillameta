@@ -50,6 +50,29 @@ describe('Studio AI scoped runs', () => {
       prompt: '선택 제목을 New title로 바꿔',
     };
   });
+  it('UC052 preserves pinned nested conditions during AI content edits and rejects scope changes', async () => {
+    document.conditions = {
+      sourceRevision: body.expectedSourceRevision,
+      definition: {
+        include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [10] },
+        exclude: null,
+      },
+    };
+    await service.run(body, 7);
+    expect(JSON.parse(ai.callLlm.mock.calls[0][1]).conditions).toEqual(document.conditions);
+    expect(studio.prepare.mock.calls[1][1].document.conditions).toEqual(document.conditions);
+    ai.callLlm.mockResolvedValue(
+      JSON.stringify({
+        intent: 'edit',
+        answer: 'Change scope',
+        operations: [{ type: 'setConditions', conditions: null }],
+      }),
+    );
+    await expect(
+      service.run({ ...body, requestId: 'condition-ai-denied' }, 7),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(body.document.conditions).toEqual(document.conditions);
+  });
   it('supplies actual categorical scope to AI and preserves it in selected edits', async () => {
     document.filters = [{ column: 'category', values: ['Site'] }];
     const result = await service.run(body, 7);

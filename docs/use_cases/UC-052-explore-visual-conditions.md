@@ -13,7 +13,7 @@
 ## Preconditions
 
 - 요청자가 같은 조직의 유효한 업무 계정이며 대상의 현재 권한을 확인할 수 있다.
-- 현재 소스별 조건 편집/미리보기/버전 저장은 [구현 계획](../plans/UC-052.md)의 첫 단위로 진행한다. Studio/AI/분포·출력·실제 화면/전체 수용은 별도다.
+- 현재 소스별 조건 편집/미리보기/버전 저장은 [구현 계획](../plans/UC-052.md)의 첫 단위로 진행한다. [Studio 연결](../plans/UC-052-studio-conditions.md)은 조건을 명시 복사해 공통 편집 문서에 보존한다. AI 조건 제안/차이·분포/영속 출력·실제 화면/전체 수용은 별도다.
 
 ## Main Success Scenario
 
@@ -56,3 +56,7 @@ AI와 직접 편집은 공통 검증 조건 정의를 사용한다. 임의 SQL�
 ## Source Evidence
 
 [VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)·[구현 계획](../plans/UC-052.md)을 따른다. 전체 구현/실행 수용은 미완료다.
+
+## Studio Condition Follow-up
+
+[선택 검증](../testing/studio-conditions.md)은 직접 조건 적용/제거·undo/redo·미리보기/저장/reload·AI 내용 편집의 조건 보존과 게시/재사용을 다룬다. 조건의 sourceRevision은 관리형 불변 파일 경로 hash이며 소스 조건 저장의 metadata revision과 다르다. 파일 교체 후 GET은 초안을 보존하고 실행을 거절하며 명시 제거 후 재검증한다. 공개 응답에는 적용 여부만 추가한다. AI가 조건 변경을 제안하는 흐름과 전체 E04/E05/E08/E13 수용은 완료로 승계하지 않는다.

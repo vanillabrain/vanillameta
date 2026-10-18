@@ -207,7 +207,7 @@ const labels: Record<string, string> = {
   isNull: 'NULL임',
   isNotNull: 'NULL 아님',
 };
-function Tree({
+export function Tree({
   node,
   columns,
   label,

@@ -1,3 +1,4 @@
+import type { StudioConditions } from '../Studio/studioTypes';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -36,6 +37,7 @@ type Props = {
   open: boolean;
   dashboardId: number;
   draft: unknown;
+  conditions?: StudioConditions;
   filters: { column: string; values: FilterValue[] }[];
   dateRange?: DateRange | null;
   comparePrevious?: boolean;
@@ -227,6 +229,7 @@ export default function SourceDetails({
   dashboardId,
   draft,
   filters,
+  conditions,
   dateRange,
   comparePrevious = false,
   previousDateRange,
@@ -255,6 +258,7 @@ export default function SourceDetails({
     dashboardId,
     draft,
     filters,
+    conditions,
     dateRange: dateRange ?? null,
     comparePrevious,
     previousDateRange,
@@ -313,6 +317,7 @@ export default function SourceDetails({
           dashboardId,
           draft,
           filters,
+          ...(conditions ? { conditions } : {}),
           ...(dateRange ? { dateRange } : {}),
           ...(contribution?.period === 'previous' ? { comparePrevious: true } : {}),
           sourceRevision,

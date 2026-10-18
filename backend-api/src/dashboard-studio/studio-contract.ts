@@ -1,3 +1,4 @@
+import type { ConditionDefinition } from '../bi/source-condition-definition';
 import type { DashboardDateRange } from '../ai/dashboard-date-range';
 
 /** Owner-only Studio protocol. Raw SQL, rows and credentials live outside this history document. */
@@ -28,7 +29,9 @@ export type StudioLayoutItem = { id: string; x: number; y: number; w: number; h:
 export type StudioFilter = { column: string; values: Array<string | number | boolean | null> };
 /** Saved common date range reuses the shared validated contract; the alias keeps Studio vocabulary local. */
 export type StudioDateRange = DashboardDateRange;
+export type StudioConditions = { sourceRevision: string; definition: ConditionDefinition };
 export type StudioDocumentV1 = {
+  conditions?: StudioConditions;
   filters?: StudioFilter[];
   dateRange?: StudioDateRange;
   schemaVersion: 1;
@@ -56,6 +59,7 @@ export type StudioOperation =
   | { type: 'moveBlock'; blockId: string; breakpoint: StudioBreakpoint; x: number; y: number }
   | { type: 'resizeBlock'; blockId: string; breakpoint: StudioBreakpoint; w: number; h: number }
   | { type: 'renameDashboard'; title: string }
+  | { type: 'setConditions'; conditions: StudioConditions | null }
   | { type: 'setFilters'; filters: StudioFilter[] }
   | { type: 'setDateRange'; dateRange: StudioDateRange | null };
 export const isTemporaryStudioId = (id: unknown): id is string =>

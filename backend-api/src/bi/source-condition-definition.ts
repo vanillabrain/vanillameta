@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
-import { quoteColumn } from '../ai/dashboard-draft';
+// Keep the compiler independent from dashboard-draft (which consumes it).
+const quoteColumn = (column: string) => `"${column.replace(/"/g, '""')}"`;
 
 export type ConditionSchemaColumn = {
   name: string;
@@ -180,6 +181,82 @@ function numericParameter(type: string, values: number[]): { sql: string; bindin
   return { sql: '?', bindings: values };
 }
 
+/** Schema-free JSON AST validation for stored/document projections. Execution still
+ * requires compileConditionDefinition against the actual native source schema. */
+export function validateConditionDefinition(input: unknown): ConditionDefinition {
+  try {
+    const root = record(input);
+    keys(root, ['include', 'exclude']);
+    let nodes = 0;
+    function visit(value: unknown, depth: number): ConditionNode {
+      if (++nodes > 32) invalid();
+      const node = record(value);
+      if (node.kind === 'group') {
+        keys(node, ['kind', 'operator', 'children']);
+        if (depth >= 4 || !['and', 'or'].includes(node.operator)) invalid();
+        return {
+          kind: 'group',
+          operator: node.operator,
+          children: array(node.children, 8).map(child => visit(child, depth + 1)),
+        };
+      }
+      if (
+        node.kind !== 'predicate' ||
+        typeof node.column !== 'string' ||
+        !node.column ||
+        node.column.includes('\0')
+      )
+        invalid();
+      const nullOp = ['isNull', 'isNotNull'].includes(node.operator);
+      keys(
+        node,
+        nullOp ? ['kind', 'column', 'operator'] : ['kind', 'column', 'operator', 'values'],
+      );
+      if (
+        ![
+          'eq',
+          'ne',
+          'in',
+          'notIn',
+          'contains',
+          'gt',
+          'gte',
+          'lt',
+          'lte',
+          'between',
+          'isNull',
+          'isNotNull',
+        ].includes(node.operator)
+      )
+        invalid();
+      if (nullOp) return { kind: 'predicate', column: node.column, operator: node.operator };
+      const values = array(node.values, 50).map(value => {
+        if (typeof value === 'number') {
+          if (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER) invalid();
+        } else if (typeof value === 'string') {
+          if (value.length > 2000) invalid();
+        } else if (typeof value !== 'boolean') invalid();
+        return value;
+      });
+      if (
+        node.operator === 'between'
+          ? values.length !== 2
+          : !['in', 'notIn'].includes(node.operator) && values.length !== 1
+      )
+        invalid();
+      return { kind: 'predicate', column: node.column, operator: node.operator, values };
+    }
+    const definition = {
+      include: root.include === null ? null : visit(root.include, 0),
+      exclude: root.exclude === null ? null : visit(root.exclude, 0),
+    };
+    if (Buffer.byteLength(JSON.stringify(definition), 'utf8') > 32 * 1024) invalid();
+    return definition;
+  } catch {
+    return invalid();
+  }
+}
+
 export function compileConditionDefinition(
   input: unknown,
   columns: ConditionSchemaColumn[],
@@ -194,7 +271,7 @@ export function compileConditionDefinition(
     const mapped = conditionColumns(columns);
     if (mapped.some((column, index) => column.kind !== columns[index].kind)) invalid();
     const byName = new Map(mapped.map(column => [column.name, column]));
-    const root = record(input);
+    const root = record(validateConditionDefinition(input));
     keys(root, ['include', 'exclude']);
     let nodes = 0;
     const bindings: any[] = [];

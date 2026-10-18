@@ -13,6 +13,30 @@ const context = () => ({
 });
 
 describe('Studio document server contract', () => {
+  it.each([
+    { sourceRevision: 'bad', definition: { include: null, exclude: null } },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: { include: { kind: 'group', operator: 'or', children: [] }, exclude: null },
+    },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: { include: null, exclude: null },
+      sql: 'SELECT secret',
+    },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: {
+        include: { kind: 'predicate', column: 'amount', operator: 'eq', values: [null] },
+        exclude: null,
+      },
+    },
+  ])('UC052 rejects malformed scope without mutating input %#', conditions => {
+    const input = { ...fixture(), conditions };
+    const before = JSON.stringify(input);
+    expect(() => validateStudioDocument(input)).toThrow();
+    expect(JSON.stringify(input)).toBe(before);
+  });
   const dayRange = { column: 'event_time', start: '2026-01-01', end: '2026-01-01' };
   it.each([
     [dayRange],

@@ -10,8 +10,13 @@ import { StudioService } from './studio.service';
 import { StudioCreationService } from './studio-creation.service';
 import { StudioPublicationService } from './studio-publication.service';
 import { studioDigest } from './studio-legacy';
-import { studioKeys } from './studio-document';
-import { StudioDateRange, StudioFilter } from './studio-contract';
+import {
+  compileConditionDefinition,
+  conditionColumns,
+  ConditionNode,
+} from '../bi/source-condition-definition';
+import { studioKeys, validateStudioConditions } from './studio-document';
+import { StudioConditions, StudioDateRange, StudioFilter } from './studio-contract';
 import {
   RemixField,
   RemixPreview,
@@ -37,6 +42,7 @@ export class StudioRemixService {
       version,
       title: t.title,
       filters: t.filters ?? [],
+      ...(t.conditions !== undefined ? { conditions: validateStudioConditions(t.conditions) } : {}),
       ...(t.dateRange ? { dateRange: { ...t.dateRange } } : {}),
       requiredFields: t.requiredFields,
       blocks: t.blocks.map(({ id, title, kind, supported, reason }) => ({
@@ -156,6 +162,42 @@ export class StudioRemixService {
         filters.push({ column: targetColumn, values: [...filter.values] });
       } else unmappedFilters.push(filter.column);
     }
+    let mappedConditions: StudioConditions | undefined;
+    const unmappedConditions: string[] = [];
+    if (t.conditions !== undefined) {
+      const stored = validateStudioConditions(t.conditions);
+      const definition = compileConditionDefinition(
+        stored.definition,
+        conditionColumns(t.requiredFields),
+      ).definition;
+      const targets = new Map<string, string>();
+      const visit = (node: ConditionNode | null): ConditionNode | null => {
+        if (!node) return null;
+        if (node.kind === 'group') return { ...node, children: node.children.map(visit) };
+        const field = fields.find(f => f.sourceColumn === node.column);
+        if (field?.status !== 'mapped') {
+          if (!unmappedConditions.includes(node.column)) unmappedConditions.push(node.column);
+          return node;
+        }
+        const prior = targets.get(field.targetColumn);
+        if (prior && prior !== node.column)
+          throw new BadRequestException('서로 다른 조건 열을 같은 대상 열에 연결할 수 없습니다.');
+        targets.set(field.targetColumn, node.column);
+        return { ...node, column: field.targetColumn };
+      };
+      const mappedDefinition = {
+        include: visit(definition.include),
+        exclude: visit(definition.exclude),
+      };
+      if (!unmappedConditions.length)
+        mappedConditions = {
+          sourceRevision: stored.sourceRevision,
+          definition: compileConditionDefinition(
+            mappedDefinition,
+            conditionColumns(profile.columns),
+          ).definition,
+        };
+    }
     const unmappedBlocks = kept.flatMap(block => {
       const missingFields = fields
         .filter(
@@ -226,6 +268,8 @@ export class StudioRemixService {
       unmappedFilters,
       mappedDateRange,
       unmappedDateRange,
+      mappedConditions,
+      unmappedConditions,
     };
   }
   private safePreview(preview: any) {
@@ -273,10 +317,17 @@ export class StudioRemixService {
         await this.creation.ensureCurrentSource(body.targetSourceId, actor, this.db.manager);
         const t: RemixTemplate = JSON.parse(row.remixTemplate),
           mapped = this.map(t, body, profile);
+        if (mapped.mappedConditions)
+          mapped.mappedConditions.sourceRevision = await this.connection.duckDBVersion(
+            body.targetSourceId,
+          );
         // Unmapped scope must never produce aggregates that look like the published scope applied.
         // A scope the target cannot apply must never produce aggregates that look scoped.
         const preview =
-          mapped.blocks.length && !mapped.unmappedFilters.length && !mapped.unmappedDateRange
+          mapped.blocks.length &&
+          !mapped.unmappedFilters.length &&
+          !mapped.unmappedDateRange &&
+          !mapped.unmappedConditions.length
             ? this.safePreview(
                 (
                   await this.dashboards.preview(
@@ -289,6 +340,7 @@ export class StudioRemixService {
                       ),
                       filters: mapped.filters,
                       ...(mapped.mappedDateRange ? { dateRange: mapped.mappedDateRange } : {}),
+                      ...(mapped.mappedConditions ? { conditions: mapped.mappedConditions } : {}),
                       includeTrends: true,
                     },
                     actor,
@@ -322,6 +374,8 @@ export class StudioRemixService {
           },
           mapping: mapped.mapping,
           fields: mapped.fields,
+          ...(mapped.mappedConditions ? { mappedConditions: mapped.mappedConditions } : {}),
+          unmappedConditions: mapped.unmappedConditions,
           mappedFilters: mapped.filters,
           unmappedFilters: mapped.unmappedFilters,
           ...(mapped.mappedDateRange ? { mappedDateRange: mapped.mappedDateRange } : {}),
@@ -377,6 +431,14 @@ export class StudioRemixService {
             throw new ConflictException('대상 소스가 변경되었습니다.');
           const t: RemixTemplate = JSON.parse(row.remixTemplate),
             mapped = this.map(t, body, profile);
+          if (mapped.mappedConditions)
+            mapped.mappedConditions.sourceRevision = await this.connection.duckDBVersion(
+              body.targetSourceId,
+            );
+          if (mapped.unmappedConditions.length)
+            throw new BadRequestException(
+              '게시 포함·제외 조건의 모든 열을 대상 소스에 연결해 주세요.',
+            );
           if (mapped.unmappedFilters.length)
             throw new BadRequestException('게시 범위 필터 열을 대상 소스 열로 매핑해 주세요.');
           if (mapped.unmappedDateRange)
@@ -396,6 +458,7 @@ export class StudioRemixService {
             manager,
             mapped.filters,
             mapped.mappedDateRange,
+            mapped.mappedConditions,
           );
           // Recheck after save/aggregate awaits, including legacy metadata writes outside Studio's queue.
           await this.publications.requireRemix(token, actor, body.expectedVersion, manager);

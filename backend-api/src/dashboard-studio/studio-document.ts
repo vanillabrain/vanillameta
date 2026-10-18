@@ -1,3 +1,4 @@
+import { validateConditionDefinition } from '../bi/source-condition-definition';
 import {
   isStudioId,
   STUDIO_BREAKPOINTS,
@@ -6,6 +7,7 @@ import {
   StudioLayoutItem,
   StudioFilter,
   StudioDateRange,
+  StudioConditions,
 } from './studio-contract';
 import { dateRangeBounds, validateDateRange } from '../ai/dashboard-date-range';
 
@@ -91,6 +93,19 @@ export function validateStudioDateRange(input: unknown): StudioDateRange {
   return range;
 }
 
+/** Stored copy with a pinned immutable file; actual schema is checked before execution. */
+export function validateStudioConditions(input: unknown): StudioConditions {
+  studioKeys(input, ['sourceRevision', 'definition']);
+  studioAssert(
+    typeof input.sourceRevision === 'string' && /^[a-f0-9]{64}$/.test(input.sourceRevision),
+    'Invalid condition source revision.',
+  );
+  return {
+    sourceRevision: input.sourceRevision,
+    definition: validateConditionDefinition(input.definition),
+  };
+}
+
 /** Structural protocol validation only; does not assert authorization or live availability. */
 export function validateStudioDocument(input: unknown): StudioDocumentV1 {
   studioKeys(input, [
@@ -103,10 +118,12 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
     'layouts',
     'filters',
     'dateRange',
+    'conditions',
   ]);
   const doc = input as unknown as StudioDocumentV1;
   studioAssert(doc.schemaVersion === 1, 'Unsupported Studio schema version.');
   positiveId(doc.sourceId);
+  if (doc.conditions !== undefined) validateStudioConditions(doc.conditions);
   if (doc.filters !== undefined) validateStudioFilters(doc.filters);
   if (doc.dateRange !== undefined) validateStudioDateRange(doc.dateRange);
   text(doc.title, 300);

@@ -24,6 +24,7 @@ import StudioCanvas, { studioItemHeight } from './StudioCanvas';
 import StudioConversation from './StudioConversation';
 import StudioFilterPanel from './StudioFilterPanel';
 import StudioDateRangePanel from './StudioDateRangePanel';
+import StudioConditionsPanel from './StudioConditionsPanel';
 import StudioPublish from './StudioPublish';
 import { StudioRunContext, StudioRunResult } from './studioRunTransport';
 import StudioInspector from './StudioInspector';
@@ -38,6 +39,7 @@ import {
   studioFilterKey,
   studioFilterSummary,
   studioDateRangeKey,
+  studioConditionsKey,
   studioDateRangeSummary,
   validateStudioDocument,
 } from './studioDocument';
@@ -63,6 +65,7 @@ import {
   StudioDisplay,
   StudioDocumentV1,
   StudioDateRange,
+  StudioConditions,
   StudioFilter,
   StudioOperation,
   StudioState,
@@ -78,8 +81,12 @@ import {
 } from './studioDocumentDraft';
 
 const MAX_STUDIO_BLOCKS = 6;
-const scopeKey = (document: Pick<StudioDocumentV1, 'filters' | 'dateRange'>) =>
-  JSON.stringify([studioFilterDraftKey(document.filters), studioDateRangeKey(document.dateRange)]);
+const scopeKey = (document: Pick<StudioDocumentV1, 'filters' | 'dateRange' | 'conditions'>) =>
+  JSON.stringify([
+    studioFilterDraftKey(document.filters),
+    studioDateRangeKey(document.dateRange),
+    studioConditionsKey(document.conditions),
+  ]);
 const TREND_MIN_HEIGHT = 260;
 const DISPLAY_FIELDS = ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain'] as const;
 const breakpointLabel = (breakpoint: StudioBreakpoint) =>
@@ -183,6 +190,11 @@ export function reapplyStudioChanges(
     studioDateRangeKey(mine.dateRange) !== studioDateRangeKey(base.dateRange)
   )
     operations.push({ type: 'setDateRange', dateRange: mine.dateRange ?? null });
+  if (
+    studioConditionsKey(mine.conditions) !== studioConditionsKey(origin.conditions) &&
+    studioConditionsKey(mine.conditions) !== studioConditionsKey(base.conditions)
+  )
+    operations.push({ type: 'setConditions', conditions: mine.conditions ?? null });
   let addedBlocks = 0;
   for (const block of mine.blocks) {
     const originBlock = origin.blocks.find(candidate => candidate.id === block.id);
@@ -446,12 +458,14 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     key: string;
     filters: StudioFilter[];
     dateRange?: StudioDateRange;
+    conditionsApplied?: boolean;
   } | null>(
     initial.preview
       ? {
           key: scopeKey(initial.previewDocument ?? initial.document),
           filters: (initial.previewDocument ?? initial.document).filters ?? [],
           dateRange: (initial.previewDocument ?? initial.document).dateRange,
+          conditionsApplied: !!(initial.previewDocument ?? initial.document).conditions,
         }
       : null,
   );
@@ -657,7 +671,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
       setAiRows({ scope: '', rows: {} });
       setPreviewScope(
         next.preview
-          ? { key: scopeKey(next.document), filters: next.document.filters ?? [], dateRange: next.document.dateRange }
+          ? {
+              key: scopeKey(next.document),
+              filters: next.document.filters ?? [],
+              dateRange: next.document.dateRange,
+              conditionsApplied: !!next.document.conditions,
+            }
           : null,
       );
     } catch (error) {
@@ -691,8 +710,11 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
       filters: StudioFilter[],
       intent: 'history' | 'apply',
       dateRange: StudioDateRange | null | undefined = live.current.document.dateRange,
+      conditions: StudioConditions | null | undefined = live.current.document.conditions,
     ): Promise<StudioPrepareResult | null> => {
-      const requested = scopeKey({ filters, dateRange: dateRange ?? undefined });
+      const requestedSource = live.current.source;
+      const requestedDocument = JSON.stringify(live.current.document);
+      const requested = scopeKey({ filters, dateRange: dateRange ?? undefined, conditions: conditions ?? undefined });
       prepare.current.attempted = requested;
       prepare.current.intent = intent;
       const generation = prepare.current.generation + 1;
@@ -709,15 +731,24 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
           {
             expectedRevision: live.current.revision,
             expectedSourceRevision: live.current.source,
-            document: applyStudioOperation(applyStudioOperation(live.current.document, { type: 'setFilters', filters }), {
-              type: 'setDateRange',
-              dateRange: dateRange ?? null,
-            }),
+            document: applyStudioOperation(
+              applyStudioOperation(applyStudioOperation(live.current.document, { type: 'setFilters', filters }), {
+                type: 'setDateRange',
+                dateRange: dateRange ?? null,
+              }),
+              { type: 'setConditions', conditions: conditions ?? null },
+            ),
           },
           { signal: controller.signal },
         );
       } catch (cause) {
-        if (prepare.current.generation !== generation || controller.signal.aborted) return null;
+        if (
+          prepare.current.generation !== generation ||
+          controller.signal.aborted ||
+          requestedSource !== live.current.source ||
+          requestedDocument !== JSON.stringify(live.current.document)
+        )
+          return null;
         if (isStudioApiError(cause) && cause.kind === 'conflict') {
           setDocumentRecoveryNeedsLatest(true);
           await loadLatest(cause.message);
@@ -729,7 +760,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
       } finally {
         if (prepare.current.generation === generation) setFilterBusy(false);
       }
-      if (prepare.current.generation !== generation) return null;
+      if (
+        prepare.current.generation !== generation ||
+        requestedSource !== live.current.source ||
+        requestedDocument !== JSON.stringify(live.current.document)
+      )
+        return null;
       // A history-driven query is accepted only while the document still asks for that scope, so a
       // late answer for a superseded undo/redo step can never relabel the rows on screen.
       if (intent === 'history' && scopeKey(live.current.document) !== requested) return null;
@@ -740,10 +776,13 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
       setPreviewScope({
         key: scopeKey(prepared.document),
         dateRange: prepared.document.dateRange,
+        conditionsApplied: !!prepared.document.conditions,
         filters: studioClone(prepared.document.filters ?? []),
       });
       setFilterMessage(
-        prepared.document.dateRange
+        prepared.document.conditions
+          ? '포함·제외 조건과 공통 범위를 모든 블록에 적용했습니다. 저장하면 함께 저장됩니다.'
+          : prepared.document.dateRange
           ? '날짜 범위와 공통 필터를 모든 블록에 적용했습니다. 저장하면 이 조건이 함께 저장됩니다.'
           : (prepared.document.filters ?? []).length
           ? '공통 필터를 모든 블록에 적용했습니다. 저장하면 이 조건이 함께 저장됩니다.'
@@ -771,6 +810,18 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     const prepared = await prepareScope(live.current.document.filters ?? [], 'apply', dateRange);
     if (!prepared) return;
     dispatch({ type: 'apply', operation: { type: 'setDateRange', dateRange: prepared.document.dateRange ?? null } });
+  };
+
+  const applyConditions = async (conditions: StudioConditions | null) => {
+    setFilterMessage(null);
+    const prepared = await prepareScope(
+      live.current.document.filters ?? [],
+      'apply',
+      live.current.document.dateRange,
+      conditions,
+    );
+    if (!prepared) return;
+    dispatch({ type: 'apply', operation: { type: 'setConditions', conditions: prepared.document.conditions ?? null } });
   };
 
   const documentFilters = state.present.filters ?? [];
@@ -1226,7 +1277,8 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
   const scopeLabel = previewScope
     ? '화면 반영 · ' +
       (previewScope.dateRange ? studioDateRangeSummary(previewScope.dateRange) + ' · ' : '') +
-      (previewScope.filters.length ? studioFilterSummary(previewScope.filters) : '공통 필터 없음')
+      (previewScope.filters.length ? studioFilterSummary(previewScope.filters) : '공통 필터 없음') +
+      (previewScope.conditionsApplied ? ' · 포함·제외 조건 적용됨' : '')
     : '공통 필터 결과 미확인';
   const scopePending = (previewScope?.key ?? null) !== documentFilterKey;
   const pendingLabel = !scopePending
@@ -1375,7 +1427,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
             }}
             context={runContext}
             selectedTitle={selected?.title}
-            filterScope={{ applied: previewScope?.filters ?? [], pending: scopePending, dateRange: previewScope?.dateRange }}
+            filterScope={{
+              applied: previewScope?.filters ?? [],
+              pending: scopePending,
+              dateRange: previewScope?.dateRange,
+              conditionsApplied: previewScope?.conditionsApplied,
+            }}
             onApply={applyAi}
             onSaved={async (saved, submitted) => {
               if (editClock.current.generation !== submitted.clientEditVersion) return false;
@@ -1407,6 +1464,14 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
               disabled={!canEdit || saving || !!state.pendingSave || !!conflict || state.present.blocks.length === 0}
               error={null}
               onApply={applyDateRange}
+            />
+            <StudioConditionsPanel
+              sourceId={state.present.sourceId}
+              sourceRevision={sourceRevision}
+              conditions={state.present.conditions}
+              busy={filterBusy}
+              disabled={!canEdit || saving || !!state.pendingSave || !!conflict || state.present.blocks.length === 0}
+              onApply={applyConditions}
             />
             <StudioFilterPanel
               filters={documentFilters}

@@ -114,3 +114,7 @@
 ## UC052 소스 조건·모집단 선택 검증 — 2026-10-18
 
 [공통 조건 증빙](../testing/source-conditions.md)은 E04/E05의 유형별 중첩AND/OR·포함/제외·NULL·전체/충족/제외/최종 건수·비율·조건 버전 저장/재조회와 JWT/실제 권한/회수·독립 DuckDB 정답을 선택 검증한다. Studio/AI 차이 적용·분포/표본·기간/지표 버전/파일·E13 실제 Ego/모바일과 전체 TC050은 NOT_RUN을 유지한다.
+
+## UC052 Studio 조건 연결 선택 검증 — 2026-10-18
+
+[Studio 조건 증빙](../testing/studio-conditions.md)은 E04/E05/E08의 직접 적용/제거·저장/reload·독립 수치/영속 Dataset query·게시 집계/재사용 조건 보존을 선택 검증한다. AI 내용 변경은 기존 조건을 유지하며 AI 조건 변경 제안/차이 자체는 후속이다. 기존 core 통과를 새 UI의 E13 실제 Ego/모바일 검증으로 승계하지 않는다. 영속 export 작업·실휴대폰/운영·전체 TC050 표의 NOT_RUN은 유지한다.

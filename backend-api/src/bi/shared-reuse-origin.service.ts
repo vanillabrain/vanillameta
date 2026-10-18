@@ -1,5 +1,5 @@
 import { serializedViewWrite } from '../dashboard/view-write-queue';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
@@ -9,6 +9,8 @@ import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
+import { ConnectionService } from '../connection/connection.service';
+import { validateStudioConditions } from '../dashboard-studio/studio-document';
 import { BiService } from './bi.service';
 import { buildReuseRecipe, readReuseRecipe } from './reuse-recipe';
 
@@ -23,6 +25,7 @@ export class SharedReuseOriginService {
     private readonly ai: AiDashboardService,
     private readonly bi: BiService,
     private readonly access: SourceAccessService,
+    @Optional() private readonly connection?: ConnectionService,
   ) {}
   private kind(value: string): 'share' | 'publication' {
     if (value !== 'share' && value !== 'publication') throw unavailable();
@@ -73,8 +76,31 @@ export class SharedReuseOriginService {
       // Resolve schema/definition as the owner; no original result preview is executed for a recipient.
       const owner = await this.access.sharedDashboard(dashboard.id);
       const analysis = (await this.ai.analysis(dashboard.id, owner, true)).data;
-      const profile = await this.bi.profile(analysis.databaseId, owner);
-      recipe = buildReuseRecipe(analysis, profile);
+      const capture = async () => {
+        const conditions =
+          analysis.defaultConditions === undefined
+            ? undefined
+            : validateStudioConditions(analysis.defaultConditions);
+        if (
+          conditions &&
+          (!this.connection ||
+            conditions.sourceRevision !==
+              (await this.connection.duckDBVersion(analysis.databaseId)))
+        )
+          throw unavailable();
+        const profile = await this.bi.profile(analysis.databaseId, owner);
+        const result = buildReuseRecipe(analysis, profile);
+        if (
+          conditions &&
+          conditions.sourceRevision !== (await this.connection.duckDBVersion(analysis.databaseId))
+        )
+          throw unavailable();
+        return result;
+      };
+      recipe =
+        analysis.defaultConditions !== undefined && this.connection
+          ? await this.connection.withDuckDBSnapshot(analysis.databaseId, capture)
+          : await capture();
       identity = [kind, key, row.reuseVersion, row.endDate, dashboardRevision(dashboard), recipe];
     }
     if (!dashboard || dashboard.delYn === 'Y') throw unavailable();

@@ -70,6 +70,7 @@ describe('time selection: actual UTC DuckDB preview and details', () => {
       })
     ).filename;
     const repository = {
+      manager: { connection: { options: { type: 'mysql' } } },
       findOne: jest.fn(async () => ({
         connectionConfig: JSON.stringify({ client: 'duckdb', connection: { filename } }),
       })),

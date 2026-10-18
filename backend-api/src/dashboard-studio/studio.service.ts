@@ -145,6 +145,7 @@ export class StudioService {
           {
             draft: state.analysis,
             filters: state.document.filters ?? [],
+            ...(state.document.conditions ? { conditions: state.document.conditions } : {}),
             ...(state.document.dateRange ? { dateRange: state.document.dateRange } : {}),
             includeTrends: true,
           },
@@ -218,6 +219,10 @@ export class StudioService {
           (document.revision && document.revision !== body.expectedRevision)
         )
           throw new BadRequestException('요청의 대시보드와 소스를 확인해 주세요.');
+        if (document.conditions && document.conditions.sourceRevision !== current.sourceRevision)
+          throw new ConflictException(
+            '조건의 데이터 파일이 변경됐습니다. 조건을 다시 적용하거나 명시 제거해 주세요.',
+          );
         const widgets = await Promise.all(
           document.blocks.map(async block => {
             const original =
@@ -260,6 +265,7 @@ export class StudioService {
             {
               draft,
               filters: document.filters ?? [],
+              ...(document.conditions ? { conditions: document.conditions } : {}),
               ...(document.dateRange ? { dateRange: document.dateRange } : {}),
               includeTrends: true,
             },
@@ -364,6 +370,7 @@ export class StudioService {
           {
             draft: current.analysis,
             filters: current.document.filters ?? [],
+            ...(current.document.conditions ? { conditions: current.document.conditions } : {}),
             ...(current.document.dateRange ? { dateRange: current.document.dateRange } : {}),
             includeTrends: true,
           },
@@ -505,6 +512,10 @@ export class StudioService {
             );
           if (current.document.sourceId !== document.sourceId)
             throw new ForbiddenException('데이터 소스를 바꿀 수 없습니다.');
+          if (document.conditions && document.conditions.sourceRevision !== current.sourceRevision)
+            throw new ConflictException(
+              '조건의 데이터 파일이 변경됐습니다. 조건을 다시 적용하거나 명시 제거해 주세요.',
+            );
           const old = current.document;
           const items = current.items;
           const indices = new Map(old.blocks.map((b, i) => [b.definitionKey, i]));
@@ -557,11 +568,12 @@ export class StudioService {
             widgets,
           };
           // Validate source columns/types and the scoped query before committing any writes.
-          if (document.filters?.length || document.dateRange)
+          if (document.filters?.length || document.dateRange || document.conditions)
             await this.ai.preview(
               {
                 draft,
                 filters: document.filters ?? [],
+                ...(document.conditions ? { conditions: document.conditions } : {}),
                 ...(document.dateRange ? { dateRange: document.dateRange } : {}),
               },
               actor,
@@ -570,12 +582,17 @@ export class StudioService {
           const previousSnapshot = { ...current.snapshot };
           delete previousSnapshot.studioFilters;
           delete previousSnapshot.studioDateRange;
+          delete previousSnapshot.studioConditions;
           const snapshot =
-            current.snapshot || document.filters?.length || document.dateRange
+            current.snapshot ||
+            document.filters?.length ||
+            document.dateRange ||
+            document.conditions
               ? {
                   ...previousSnapshot,
                   ...(document.filters?.length ? { studioFilters: document.filters } : {}),
                   ...(document.dateRange ? { studioDateRange: document.dateRange } : {}),
+                  ...(document.conditions ? { studioConditions: document.conditions } : {}),
                   schemaVersion: 2,
                   kind: 'structured-bi-dashboard',
                   sourceId: document.sourceId,
@@ -585,7 +602,18 @@ export class StudioService {
               : undefined;
           const saved = (
             await this.ai.save(
-              { dashboardId: id, expectedRevision: body.expectedRevision, draft },
+              {
+                dashboardId: id,
+                expectedRevision: body.expectedRevision,
+                draft,
+                ...(document.conditions
+                  ? {
+                      conditions: document.conditions,
+                      filters: document.filters ?? [],
+                      ...(document.dateRange ? { dateRange: document.dateRange } : {}),
+                    }
+                  : {}),
+              },
               actor,
               snapshot,
               undefined,

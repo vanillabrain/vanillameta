@@ -15,6 +15,14 @@ import { PivotRowSort, compareTuples, sortPivotRows } from './bi-explore-sort';
 import { PivotBucket, pivotAxisExpression, pivotBucket, previousBucket } from './bi-explore-time';
 import { exploreViewRevision } from './explore-view-state';
 import { BiService } from './bi.service';
+import { validateStudioConditions } from '../dashboard-studio/studio-document';
+import type { StudioConditions } from '../dashboard-studio/studio-contract';
+
+/** One immutable wrapper and the actual native schema captured inside a file snapshot. */
+type ConditionQueryScope = {
+  conditions: StudioConditions;
+  schema: Array<{ name: string; type: string }>;
+};
 
 const MAX_MEASURES = 6;
 const PIVOT_ROW_LIMIT = 50;
@@ -63,6 +71,7 @@ const QUERY_FIELDS = [
   'leaderboardSort',
   'rankingSort',
   'filters',
+  'conditions',
   'dateRange',
   'trendGrain',
   'comparePrevious',
@@ -70,7 +79,15 @@ const QUERY_FIELDS = [
   'pageSize',
   'includeRows',
 ];
-const VALUES_FIELDS = ['sourceId', 'sourceRevision', 'column', 'search', 'filters', 'dateRange'];
+const VALUES_FIELDS = [
+  'sourceId',
+  'sourceRevision',
+  'column',
+  'search',
+  'filters',
+  'dateRange',
+  'conditions',
+];
 /**
  * rowDimensions/columnDimensions are the original exploration axis names; they stay accepted so a
  * stored v1 exploration view keeps loading after the pivot contract was widened.
@@ -84,6 +101,7 @@ const PIVOT_FIELDS = [
   'rowDimensions',
   'columnDimensions',
   'filters',
+  'conditions',
   'dateRange',
   'comparePrevious',
   'rowHierarchy',
@@ -255,6 +273,35 @@ export class BiExploreService {
     return value;
   }
 
+  private async conditionScope(
+    conditions: StudioConditions | undefined,
+    sourceId: number,
+    sourceRevision: string,
+  ): Promise<ConditionQueryScope | undefined> {
+    if (conditions === undefined) return undefined;
+    // Request sourceRevision keeps its existing contract. The wrapper pin is independently
+    // compared with the actual immutable file version, never with a metadata revision.
+    if (conditions.sourceRevision !== sourceRevision)
+      throw new ConflictException('Condition source revision changed');
+    const actual = await this.connection.queryDuckDB(sourceId, 'DESCRIBE uploaded_data');
+    const schema = actual.datas.map(column => ({
+      name: column.column_name,
+      type: column.column_type,
+    }));
+    // Validate even an empty axis/result before any population query can escape unscoped.
+    sourceQuery(
+      'SELECT count(*) AS value FROM source',
+      schema.map(column => column.name),
+      [],
+      undefined,
+      [],
+      [],
+      conditions.definition,
+      schema,
+    );
+    return { conditions, schema };
+  }
+
   private scalar(value: unknown): number | string | null {
     if (value === null || value === undefined) return null;
     if (typeof value === 'string' && value.trim() && Number.isFinite(Number(value))) return value;
@@ -339,6 +386,7 @@ export class BiExploreService {
         throw new ConflictException(
           '파일 버전이 변경되었습니다. 소스를 새로고침한 뒤 다시 시도해 주세요.',
         );
+      const scope = await this.conditionScope(input.conditions, profile.sourceId, sourceRevision);
       const columns = profile.columns.map(column => column.name);
       const rowDimensions = this.dimensions(input.rowDimensions, columns);
       const columnDimensions = this.dimensions(input.columnDimensions, columns);
@@ -387,6 +435,8 @@ export class BiExploreService {
         numericSourceColumns(
           profile.columns.map(column => ({ column_name: column.name, column_type: column.type })),
         ),
+        scope?.conditions.definition,
+        scope?.schema,
       );
       const sourceCte = filtered.sql.slice(0, -grandSql.length);
       const run = async (sql: string): Promise<Array<Record<string, any>>> =>
@@ -473,12 +523,14 @@ export class BiExploreService {
         for (const row of rows)
           row.cells.sort((a, b) => columnOrder.get(a.columnKey) - columnOrder.get(b.columnKey));
       }
+      if (scope) await this.bi.assertSourceAction(sourceId, actor, 'read');
       return {
         sourceRevision,
         metrics,
         rows,
         columns: pivotColumns,
         grandTotals,
+        ...(scope ? { applied: { conditions: scope.conditions } } : {}),
         limits: {
           rowLimit: PIVOT_ROW_LIMIT,
           columnLimit: PIVOT_COLUMN_LIMIT,
@@ -492,7 +544,11 @@ export class BiExploreService {
   }
 
   async query(body: any, actor: number) {
-    const input = this.fields(body, QUERY_FIELDS);
+    const input: Record<string, any> = {
+      ...this.fields(body, QUERY_FIELDS),
+      conditions:
+        body?.conditions === undefined ? undefined : validateStudioConditions(body.conditions),
+    };
     const expected = this.revision(input.sourceRevision);
     const measureIds = this.measureIds(input.measureIds);
     const { trendGrain, comparePrevious } = validatePeriodOptions(input);
@@ -516,6 +572,7 @@ export class BiExploreService {
     )
       throw new BadRequestException('rankingMeasureId must be one of the selected measures');
     const rankingMeasureId = Number(input.rankingMeasureId);
+    if (input.conditions) await this.bi.assertSourceAction(input.sourceId, actor, 'read');
     return this.connection.withDuckDBSnapshot(input.sourceId, () =>
       this.querySnapshot({
         actor,
@@ -527,6 +584,7 @@ export class BiExploreService {
         ...(input.leaderboardSort !== undefined ? { leaderboardSort: input.leaderboardSort } : {}),
         dimensionColumns: input.dimensionColumns,
         filters,
+        conditions: input.conditions,
         dateRange,
         trendGrain,
         comparePrevious,
@@ -548,6 +606,7 @@ export class BiExploreService {
     leaderboardSort?: unknown;
     dimensionColumns: unknown;
     filters: SourceFilter[];
+    conditions?: StudioConditions;
     dateRange: any;
     trendGrain: 'auto' | 'day' | 'week' | 'month';
     comparePrevious: boolean;
@@ -563,6 +622,7 @@ export class BiExploreService {
       throw new ConflictException(
         '파일 버전이 변경되었습니다. 소스를 새로고침한 뒤 다시 시도해 주세요.',
       );
+    const scope = await this.conditionScope(input.conditions, profile.sourceId, sourceRevision);
     const columns = profile.columns.map((column: any) => column.name);
     const temporal = profile.columns
       .filter((column: any) => column.temporal)
@@ -587,6 +647,7 @@ export class BiExploreService {
       {
         draft: { databaseId: profile.sourceId, title: 'BI explore', explanation: '', widgets },
         filters: input.filters,
+        ...(scope ? { conditions: scope.conditions } : {}),
         ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
         trendGrain: input.trendGrain,
         comparePrevious: input.comparePrevious,
@@ -615,6 +676,8 @@ export class BiExploreService {
             input.dateRange,
             temporal,
             numeric,
+            scope?.conditions.definition,
+            scope?.schema,
           );
           const current = await this.connection.queryDuckDB(
             profile.sourceId,
@@ -634,6 +697,8 @@ export class BiExploreService {
             input.dateRange,
             temporal,
             numeric,
+            scope?.conditions.definition,
+            scope?.schema,
           );
           const prior = sourceQuery(
             groupedSql,
@@ -642,6 +707,8 @@ export class BiExploreService {
             previous,
             temporal,
             numeric,
+            scope?.conditions.definition,
+            scope?.schema,
           );
           const joined = this.joinLeaderboardSql(current, prior, input.rankingSort);
           const result = await this.connection.queryDuckDB(
@@ -677,6 +744,8 @@ export class BiExploreService {
         input.dateRange,
         temporal,
         numeric,
+        scope?.conditions.definition,
+        scope?.schema,
       );
       const count = await this.connection.queryDuckDB(
         profile.sourceId,
@@ -695,6 +764,8 @@ export class BiExploreService {
         input.dateRange,
         temporal,
         numeric,
+        scope?.conditions.definition,
+        scope?.schema,
       );
       const rows = await this.connection.queryDuckDB(
         profile.sourceId,
@@ -713,6 +784,7 @@ export class BiExploreService {
       };
     }
 
+    if (scope) await this.bi.assertSourceAction(profile.sourceId, input.actor, 'read');
     return {
       sourceRevision,
       kpis,
@@ -721,6 +793,7 @@ export class BiExploreService {
       applied: {
         filters: input.filters,
         leaderboardSort: input.rankingSort,
+        ...(scope ? { conditions: scope.conditions } : {}),
         ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
         trendGrain: input.trendGrain,
         comparePrevious: input.comparePrevious,
@@ -825,7 +898,11 @@ export class BiExploreService {
   }
 
   async values(body: any, actor: number) {
-    const input = this.fields(body, VALUES_FIELDS);
+    const input: Record<string, any> = {
+      ...this.fields(body, VALUES_FIELDS),
+      conditions:
+        body?.conditions === undefined ? undefined : validateStudioConditions(body.conditions),
+    };
     const expected = this.revision(input.sourceRevision);
     if (typeof input.column !== 'string' || !input.column.trim() || input.column.length > 128)
       throw new BadRequestException('invalid column');
@@ -833,6 +910,7 @@ export class BiExploreService {
     if (typeof search !== 'string' || search.length > MAX_SEARCH_LENGTH)
       throw new BadRequestException('search must be at most 200 characters');
     const filters = this.filters(input.filters);
+    if (input.conditions) await this.bi.assertSourceAction(input.sourceId, actor, 'read');
     return this.connection.withDuckDBSnapshot(input.sourceId, async () => {
       const profile = await this.bi.profile(input.sourceId, actor);
       if (!profile.supported)
@@ -842,6 +920,7 @@ export class BiExploreService {
         throw new ConflictException(
           '파일 버전이 변경되었습니다. 소스를 새로고침한 뒤 다시 시도해 주세요.',
         );
+      const scope = await this.conditionScope(input.conditions, profile.sourceId, sourceRevision);
       const columns = profile.columns.map((column: any) => column.name);
       if (!columns.includes(input.column)) throw new BadRequestException('unknown column');
       const temporal = profile.columns
@@ -858,8 +937,10 @@ export class BiExploreService {
         input.dateRange,
         temporal,
         numeric,
+        scope,
       );
       const result = await this.connection.queryDuckDB(profile.sourceId, query.sql, query.bindings);
+      if (scope) await this.bi.assertSourceAction(profile.sourceId, actor, 'read');
       const values = result.datas.map((row: any) => row.value);
       return {
         values: values.slice(0, MAX_VALUES),
@@ -878,6 +959,7 @@ export class BiExploreService {
     dateRange: any,
     temporal: string[],
     numeric: string[],
+    scope?: ConditionQueryScope,
   ) {
     const predicate = search
       ? ` WHERE lower(CAST(${quoteColumn(column)} AS VARCHAR)) LIKE ${SEARCH_PARAMETER} ESCAPE '\\'`
@@ -891,6 +973,8 @@ export class BiExploreService {
       dateRange,
       temporal,
       numeric,
+      scope?.conditions.definition,
+      scope?.schema,
     );
     if (!search) return query;
     const parts = query.sql.split(SEARCH_PARAMETER);
@@ -908,7 +992,15 @@ export class BiExploreService {
     const input = this.fields(body, EXPORT_FIELDS);
     if (input.mode !== 'explore' && input.mode !== 'pivot')
       throw new BadRequestException('mode must be explore or pivot');
-    const query = input.query;
+    const query =
+      input.query && typeof input.query === 'object' && !Array.isArray(input.query)
+        ? {
+            ...input.query,
+            ...(input.query.conditions !== undefined
+              ? { conditions: validateStudioConditions(input.query.conditions) }
+              : {}),
+          }
+        : input.query;
     if (!query || typeof query !== 'object' || Array.isArray(query))
       throw new BadRequestException('invalid query');
     if (input.mode === 'explore') {
@@ -1102,6 +1194,9 @@ export class BiExploreService {
     return {
       sourceId: query.sourceId,
       sourceRevision: query.sourceRevision,
+      ...(query.conditions !== undefined
+        ? { conditions: validateStudioConditions(query.conditions) }
+        : {}),
       filters: query.filters ?? [],
       dateRange: query.dateRange ?? null,
       comparePrevious: query.comparePrevious ?? false,
@@ -1116,6 +1211,9 @@ export class BiExploreService {
     return {
       sourceId: query.sourceId,
       sourceRevision: query.sourceRevision,
+      ...(query.conditions !== undefined
+        ? { conditions: validateStudioConditions(query.conditions) }
+        : {}),
       measureIds: query.measureIds ?? [],
       rowColumns: query.rowColumns ?? [],
       columnColumns: query.columnColumns ?? [],
@@ -1149,7 +1247,11 @@ export class BiExploreService {
    * presence of those two fields selects it and mixing both shapes in one request is rejected.
    */
   async pivot(body: any, actor: number): Promise<any> {
-    const input = this.fields(body, PIVOT_FIELDS);
+    const input: Record<string, any> = {
+      ...this.fields(body, PIVOT_FIELDS),
+      conditions:
+        body?.conditions === undefined ? undefined : validateStudioConditions(body.conditions),
+    };
     if (input.rowDimensions !== undefined || input.columnDimensions !== undefined) {
       if (
         ['rowColumns', 'columnColumns', 'rowHierarchy', 'rowSort', 'timeAxis', 'tableMode'].some(
@@ -1174,6 +1276,7 @@ export class BiExploreService {
       throw new BadRequestException('플랫 표에는 행 계층을 사용할 수 없습니다.');
     if (tableMode === 'flat' && rowSort.columnTuple !== undefined)
       throw new BadRequestException('플랫 표에는 열 셀 정렬을 사용할 수 없습니다.');
+    if (input.conditions) await this.bi.assertSourceAction(input.sourceId, actor, 'read');
     return this.connection.withDuckDBSnapshot(input.sourceId, () =>
       this.pivotSnapshot({
         actor,
@@ -1183,6 +1286,7 @@ export class BiExploreService {
         rowColumns: input.rowColumns,
         columnColumns: input.columnColumns,
         filters,
+        conditions: input.conditions,
         dateRange,
         comparePrevious,
         rowHierarchy,
@@ -1201,6 +1305,7 @@ export class BiExploreService {
     rowColumns: unknown;
     columnColumns: unknown;
     filters: SourceFilter[];
+    conditions?: StudioConditions;
     dateRange: any;
     comparePrevious: boolean;
     rowHierarchy: boolean;
@@ -1216,6 +1321,7 @@ export class BiExploreService {
       throw new ConflictException(
         '파일 버전이 변경되었습니다. 소스를 새로고침한 뒤 다시 시도해 주세요.',
       );
+    const scope = await this.conditionScope(input.conditions, profile.sourceId, sourceRevision);
     const columns = profile.columns.map((column: any) => column.name);
     const temporal = profile.columns
       .filter((column: any) => column.temporal)
@@ -1268,6 +1374,7 @@ export class BiExploreService {
       temporal,
       numeric,
       bucket,
+      scope,
     );
     const priorTuples =
       previous === undefined
@@ -1282,6 +1389,7 @@ export class BiExploreService {
             temporal,
             numeric,
             priorBucket,
+            scope,
           );
     // Bound the union of both periods after the union: a previous-only tuple must still be shown.
     const rows = this.boundedTuples(
@@ -1331,6 +1439,7 @@ export class BiExploreService {
       temporal,
       numeric,
       bucket,
+      scope,
     );
     const prior =
       previous === undefined
@@ -1346,6 +1455,7 @@ export class BiExploreService {
             temporal,
             numeric,
             priorBucket,
+            scope,
           );
     // Parent grain and parent x full-column grain are reaggregated from the raw source too.
     const parentTotals = hierarchy
@@ -1359,6 +1469,7 @@ export class BiExploreService {
           temporal,
           numeric,
           bucket,
+          scope,
         )
       : undefined;
     const priorParentTotals =
@@ -1373,6 +1484,7 @@ export class BiExploreService {
             temporal,
             numeric,
             priorBucket,
+            scope,
           )
         : undefined;
     const empty = measures.map(() => null);
@@ -1405,6 +1517,7 @@ export class BiExploreService {
             temporal,
             numeric,
             bucket,
+            scope,
           )
         : parentTotals;
     const priorParentCells =
@@ -1421,6 +1534,7 @@ export class BiExploreService {
             temporal,
             numeric,
             priorBucket,
+            scope,
           )
         : priorParentTotals;
     const measureIndex =
@@ -1498,6 +1612,7 @@ export class BiExploreService {
       }),
     );
 
+    if (scope) await this.bi.assertSourceAction(profile.sourceId, input.actor, 'read');
     return {
       sourceId: profile.sourceId,
       sourceRevision,
@@ -1522,6 +1637,7 @@ export class BiExploreService {
       ),
       applied: {
         filters: input.filters,
+        ...(scope ? { conditions: scope.conditions } : {}),
         ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
         comparePrevious: input.comparePrevious,
         rowHierarchy: input.rowHierarchy,
@@ -1560,6 +1676,7 @@ export class BiExploreService {
     temporal: string[],
     numeric: string[],
     bucket?: PivotBucket,
+    scope?: ConditionQueryScope,
   ) {
     return {
       rows: await this.axisTuples(
@@ -1572,6 +1689,7 @@ export class BiExploreService {
         temporal,
         numeric,
         bucket,
+        scope,
       ),
       columns: await this.axisTuples(
         sourceId,
@@ -1583,6 +1701,7 @@ export class BiExploreService {
         temporal,
         numeric,
         bucket,
+        scope,
       ),
     };
   }
@@ -1598,13 +1717,23 @@ export class BiExploreService {
     temporal: string[],
     numeric: string[],
     bucket?: PivotBucket,
+    scope?: ConditionQueryScope,
   ) {
     // An empty axis is the overall aggregate: one singleton tuple, no group query.
     if (!axis.length) return [[]] as PivotTuple[];
     const sql = `SELECT DISTINCT ${axis
       .map((column, index) => `${pivotAxisExpression(column, bucket)} AS "__vm_axis_${index}"`)
       .join(', ')} FROM source LIMIT ${max + 1}`;
-    const query = sourceQuery(sql, columns, filters, dateRange, temporal, numeric);
+    const query = sourceQuery(
+      sql,
+      columns,
+      filters,
+      dateRange,
+      temporal,
+      numeric,
+      scope?.conditions.definition,
+      scope?.schema,
+    );
     const result = await this.connection.queryDuckDB(sourceId, query.sql, query.bindings);
     return result.datas.map((row: any) =>
       axis.map((_column, index) => this.grouping(row[`__vm_axis_${index}`])),
@@ -1653,6 +1782,7 @@ export class BiExploreService {
     temporal: string[],
     numeric: string[],
     bucket?: PivotBucket,
+    scope?: ConditionQueryScope,
   ) {
     const projection = [
       ...axis.map(
@@ -1671,6 +1801,8 @@ export class BiExploreService {
       dateRange,
       temporal,
       numeric,
+      scope?.conditions.definition,
+      scope?.schema,
     );
     const result = await this.connection.queryDuckDB(sourceId, query.sql, query.bindings);
     const groups = new Map<string, PivotValues>();
@@ -1697,6 +1829,7 @@ export class BiExploreService {
     temporal: string[],
     numeric: string[],
     bucket?: PivotBucket,
+    scope?: ConditionQueryScope,
   ): Promise<PivotGroups> {
     const grand = await this.pivotAggregate(
       sourceId,
@@ -1708,6 +1841,7 @@ export class BiExploreService {
       temporal,
       numeric,
       bucket,
+      scope,
     );
     const grain = [...rowColumns, ...columnColumns];
     // An empty axis group is the grand total itself; no second query is needed for it.
@@ -1723,6 +1857,7 @@ export class BiExploreService {
             temporal,
             numeric,
             bucket,
+            scope,
           )
         : grand,
       rows: rowColumns.length
@@ -1736,6 +1871,7 @@ export class BiExploreService {
             temporal,
             numeric,
             bucket,
+            scope,
           )
         : grand,
       columns: columnColumns.length
@@ -1749,6 +1885,7 @@ export class BiExploreService {
             temporal,
             numeric,
             bucket,
+            scope,
           )
         : grand,
       grand,

@@ -1,6 +1,12 @@
 import { quoteColumn } from '../ai/dashboard-draft';
 import { metricExpression, metricFields } from '../bi/metric-expression';
 import { StudioDocumentV1, STUDIO_BREAKPOINTS, StudioFilter } from './studio-contract';
+import {
+  compileConditionDefinition,
+  conditionColumns,
+  ConditionNode,
+} from '../bi/source-condition-definition';
+import { validateStudioConditions } from './studio-document';
 import { RemixTemplate } from './studio-remix-contract';
 
 export function canonicalMetricSql(
@@ -163,8 +169,32 @@ export function captureRemixTemplate(
     field.blockIds = supportedIds.filter(id => union.has(id));
     required.set(dateRange.column, field);
   }
+  const conditions =
+    document.conditions === undefined ? undefined : validateStudioConditions(document.conditions);
+  if (conditions) {
+    // Validate against the actual source, then freeze every predicate as global required scope.
+    conditions.definition = compileConditionDefinition(
+      conditions.definition,
+      conditionColumns(columns),
+    ).definition;
+    const visit = (node: ConditionNode | null) => {
+      if (!node) return;
+      if (node.kind === 'group') return node.children.forEach(visit);
+      const column = columns.find(c => c.name === node.column);
+      const field = required.get(node.column) ?? {
+        name: node.column,
+        type: column.type,
+        blockIds: [],
+      };
+      field.blockIds = [...supportedIds];
+      required.set(node.column, field);
+    };
+    visit(conditions.definition.include);
+    visit(conditions.definition.exclude);
+  }
   return {
     schemaVersion: 1,
+    ...(conditions ? { conditions } : {}),
     title: document.title,
     ...(filters.length ? { filters } : {}),
     ...(dateRange ? { dateRange: { ...dateRange } } : {}),

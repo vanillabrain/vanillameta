@@ -146,3 +146,28 @@ describe('Legacy analysis projection', () => {
     expect(p.draft.widgets[0].sql).toBe(input().analysis.widgets[1].sql);
   });
 });
+
+it('UC052 roundtrips defaultConditions and fails closed on malformed saved scope', () => {
+  const conditions = {
+    sourceRevision: 'b'.repeat(64),
+    definition: { include: { kind: 'predicate', column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  const data = input();
+  const imported = fromLegacyAnalysis({ ...data, analysis: { ...data.analysis, defaultConditions: conditions } });
+  expect(imported.document.conditions).toEqual(conditions);
+  const saved = toLegacySave(imported.document, imported.definitions);
+  expect(saved.draft.defaultConditions).toEqual(conditions);
+  const reimported = fromLegacyAnalysis({
+    ...data,
+    analysis: { ...saved.draft, revision: data.analysis.revision, blockLayouts: data.analysis.blockLayouts },
+  });
+  expect(reimported.document.conditions).toEqual(conditions);
+  for (const value of [
+    null,
+    undefined,
+    {},
+    { ...conditions, sourceRevision: 'metadata-revision' },
+    { ...conditions, definition: { include: null } },
+  ])
+    expect(() => fromLegacyAnalysis({ ...data, analysis: { ...data.analysis, defaultConditions: value } })).toThrow();
+});

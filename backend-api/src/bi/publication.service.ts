@@ -19,7 +19,7 @@ import { serializedViewWrite } from '../dashboard/view-write-queue';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { BiService } from './bi.service';
-import { buildPublicationSnapshot } from './publication-snapshot';
+import { buildPublicationSnapshot, PUBLICATION_MAX_BYTES } from './publication-snapshot';
 import { buildReuseRecipe } from './reuse-recipe';
 
 export const PUBLICATION_TICKET_TTL_MS = 5 * 60 * 1000;
@@ -202,7 +202,21 @@ export class PublicationService {
       throw new ConflictException(STALE_SAVE_MESSAGE);
     const analysis = (await this.ai.analysis(dashboardId, actor, true, 'publish')).data;
     const captured = (
-      await this.ai.preview({ draft: analysis, includeTrends: true }, actor, 'publish')
+      await this.ai.preview(
+        {
+          draft: analysis,
+          includeTrends: true,
+          ...(analysis.defaultConditions !== undefined
+            ? { conditions: analysis.defaultConditions }
+            : {}),
+          ...(analysis.defaultFilters !== undefined ? { filters: analysis.defaultFilters } : {}),
+          ...(analysis.defaultDateRange !== undefined
+            ? { dateRange: analysis.defaultDateRange }
+            : {}),
+        },
+        actor,
+        'publish',
+      )
     ).data;
     if (
       !Array.isArray(captured?.widgets) ||
@@ -217,12 +231,23 @@ export class PublicationService {
     if (dashboardRevision(after) !== body.expectedRevision)
       throw new ConflictException(STALE_SAVE_MESSAGE);
     const layouts = await this.blockLayouts(dashboardId, analysis, after);
-    const { snapshot, bytes } = buildPublicationSnapshot({
+    const built = buildPublicationSnapshot({
       title: analysis?.title ?? after.title,
       widgets: captured?.widgets,
       responsiveLayouts: layouts,
       capturedAt: new Date(),
     });
+    const snapshot = {
+      ...built.snapshot,
+      ...(analysis.defaultConditions !== undefined ? { conditionsApplied: true as const } : {}),
+      ...(analysis.defaultConditions !== undefined ||
+      analysis.defaultFilters?.length ||
+      analysis.defaultDateRange
+        ? { scope: '저장된 분석 범위 적용 · UTC' }
+        : {}),
+    };
+    const bytes = Buffer.byteLength(JSON.stringify(snapshot));
+    if (bytes > PUBLICATION_MAX_BYTES) throw new BadRequestException('게시 결과가 너무 큽니다.');
     if (this.publications.manager.connection.options.type === 'mysql' && bytes > 60 * 1024)
       throw new BadRequestException('이 서버의 게시 결과 한도는 60KiB입니다. 블록을 줄여 주세요.');
     // Only an explicit owner opt-in captures the private recipe; it is frozen with this publish.

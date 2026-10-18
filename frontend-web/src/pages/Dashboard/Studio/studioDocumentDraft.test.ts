@@ -105,3 +105,15 @@ it('round trips v2 with baseline and rejects mismatched or missing comparison da
   sessionStorage.setItem('v1', JSON.stringify(old));
   expect(readStudioDocumentDraft('v1', 46)).toEqual(old);
 });
+
+it('UC052 persists applied conditions exactly through browser draft/recovery and rejects malformed scope', () => {
+  const d = fixture();
+  d.document.conditions = {
+    sourceRevision: 'b'.repeat(64),
+    definition: { include: { kind: 'predicate', column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  expect(writeStudioDocumentDraft('scope', d)).toBe(true);
+  expect(readStudioDocumentDraft('scope', 46)?.document.conditions).toEqual(d.document.conditions);
+  sessionStorage.setItem('bad', JSON.stringify({ ...d, document: { ...d.document, conditions: { definition: null } } }));
+  expect(readStudioDocumentDraft('bad', 46)).toBeNull();
+});

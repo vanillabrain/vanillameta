@@ -185,3 +185,15 @@ it('time bucket forwards exact UTC timestamp precision to proposal and preview a
   expect(result[0].messageMetadata.result.base).toBe(JSON.stringify(current));
   expect(api.post).toHaveBeenCalledTimes(2);
 });
+it('UC052 forwards the immutable condition scope to legacy AI and its preview unchanged', async () => {
+  const conditions = {
+    sourceRevision: 'b'.repeat(64),
+    definition: { include: { kind: 'predicate', column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  const scoped = { ...context, conditions, currentDraft: { ...draft, defaultConditions: conditions } };
+  api.post.mockResolvedValueOnce(success(draft)).mockResolvedValueOnce(success(preview));
+  await chunks(await send(scoped));
+  expect(api.post.mock.calls[0][1].conditions).toEqual(conditions);
+  expect(api.post.mock.calls[0][1].currentDraft.defaultConditions).toEqual(conditions);
+  expect(api.post.mock.calls[1][1].conditions).toEqual(conditions);
+});

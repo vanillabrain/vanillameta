@@ -1,3 +1,4 @@
+import type { Definition } from '../../Explore/SourceConditions';
 /** Owner-only Studio protocol. Raw SQL, rows and credentials live outside this history document. */
 export const STUDIO_COLUMNS = { lg: 12, md: 8, xs: 1 } as const;
 export const STUDIO_BREAKPOINTS = ['lg', 'md', 'xs'] as const;
@@ -39,6 +40,7 @@ export type StudioDateRange = {
   precision?: 'timestamp';
   timeZone?: string;
 };
+export type StudioConditions = { sourceRevision: string; definition: Definition };
 export type StudioDocumentV1 = {
   schemaVersion: 1;
   dashboardId?: number;
@@ -49,6 +51,7 @@ export type StudioDocumentV1 = {
   filters?: StudioFilter[];
   /** Common period. Absent means no period scope; a null operation removes the optional property. */
   dateRange?: StudioDateRange;
+  conditions?: StudioConditions;
   blocks: StudioBlock[];
   layouts: Record<StudioBreakpoint, StudioLayoutItem[]>;
 };
@@ -67,7 +70,8 @@ export type StudioOperation =
   | { type: 'resizeBlock'; blockId: string; breakpoint: StudioBreakpoint; w: number; h: number }
   | { type: 'renameDashboard'; title: string }
   | { type: 'setFilters'; filters: StudioFilter[] }
-  | { type: 'setDateRange'; dateRange: StudioDateRange | null };
+  | { type: 'setDateRange'; dateRange: StudioDateRange | null }
+  | { type: 'setConditions'; conditions: StudioConditions | null };
 export type StudioState = {
   present: StudioDocumentV1;
   past: StudioDocumentV1[];

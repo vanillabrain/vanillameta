@@ -326,6 +326,12 @@ export function StudioRemixFlow({
                       ))}
                     </div>
                   )}
+                  {requirements.conditions && (
+                    <p role="note" className="min-w-0 break-words">
+                      포함·제외 조건이 있는 게시본입니다. 모든 조건 열을 연결해야 하며 조건을 제거한 복사본은 만들지
+                      않습니다.
+                    </p>
+                  )}
                   {requirements.dateRange && (
                     <div className="studio-published-filters" role="note" aria-label="원본 게시본 공통 기간">
                       <span className="studio-eyebrow">원본 공통 기간 · 읽기 전용</span>
@@ -474,6 +480,13 @@ export function StudioRemixFlow({
                     형식이 맞는 대상 열을 선택한 뒤 매핑 확인을 눌러 주세요.
                   </Notice>
                 )}
+                {!!preview?.unmappedConditions?.length && (
+                  <Notice severity="warning">
+                    포함·제외 조건 열을 연결할 수 없습니다: {preview.unmappedConditions.join(', ')}. 모든 조건 열을 연결해야
+                    저장할 수 있습니다.
+                  </Notice>
+                )}
+                {preview?.mappedConditions && <p role="note">포함·제외 조건 적용됨 · 읽기 전용</p>}
                 {preview?.unmappedDateRange && (
                   <Notice severity="warning" role="alert">
                     저장된 기간 열 '{preview.unmappedDateRange}'을(를) 대상 데이터에서 확인할 수 없습니다. 기간이 빠진 결과로

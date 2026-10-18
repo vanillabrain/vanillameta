@@ -17,6 +17,7 @@ export type PublicationMetadata = {
   dashboardId: number;
 };
 export type PublicationSnapshot = {
+  conditionsApplied?: true;
   title: string;
   periodLabel: string;
   filters: StudioFilter[];

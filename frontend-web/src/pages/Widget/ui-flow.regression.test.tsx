@@ -134,6 +134,12 @@ vi.mock('@/components/PageViewBox', () => ({
     </section>
   ),
 }));
+// These DashboardView cases isolate dashboardService/grid error handling. Scope loading and
+// fail-closed behavior belong to DashboardAnalysis.test.tsx; never rely on an unmocked HTTP
+// failure making its children render as if the saved scope had been verified.
+vi.mock('@/pages/Dashboard/Components/DashboardAnalysis', () => ({
+  default: ({ children }: any) => <>{children}</>,
+}));
 vi.mock('@/components/button/ShareButton', () => ({ default: () => null }));
 vi.mock('@/seo/Seo', () => ({ default: () => null }));
 vi.mock('react-grid-layout', () => ({

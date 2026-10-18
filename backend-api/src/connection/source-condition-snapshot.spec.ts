@@ -36,6 +36,32 @@ describe('UC052 committed snapshot capture without SQL metadata lease', () => {
     service = new ConnectionService(db.getRepository(Database), {} as any, duck);
   });
   afterEach(async () => db?.destroy());
+  it('UC052 ordinary preview snapshots also wait for committed connection metadata', async () => {
+    const entered = gate(),
+      release = gate();
+    const rollback = metadataTransaction(db, async manager => {
+      await manager.update(Database, 3, { connectionConfig: config('rolled_back') });
+      entered.resolve();
+      await release.promise;
+      throw new Error('expected rollback');
+    }).catch(error => expect(error.message).toBe('expected rollback'));
+    await entered.promise;
+    let settled = false;
+    const pending = service
+      .withDuckDBSnapshot(3, () => service.queryDuckDB(3, 'DESCRIBE uploaded_data'))
+      .then(result => {
+        settled = true;
+        return result;
+      });
+    await new Promise(resolve => setImmediate(resolve));
+    try {
+      expect(settled).toBe(false);
+    } finally {
+      release.resolve();
+      await rollback;
+    }
+    expect((await pending).datas[0].column_name).toBe('clean_column');
+  });
   it('waits for dirty connection rollback before capturing columns', async () => {
     const entered = gate(),
       release = gate();

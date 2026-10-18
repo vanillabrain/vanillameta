@@ -9,6 +9,18 @@
  * storage or HTTP.
  */
 import { BadRequestException } from '@nestjs/common';
+import {
+  ConditionDefinition,
+  ConditionNode,
+  compileConditionDefinition,
+  conditionColumns,
+} from './source-condition-definition';
+import {
+  validateStudioConditions,
+  validateStudioDateRange,
+  validateStudioFilters,
+} from '../dashboard-studio/studio-document';
+import { StudioDateRange, StudioFilter } from '../dashboard-studio/studio-contract';
 import { DashboardDraft, positiveId, quoteColumn, validateSourceSql } from '../ai/dashboard-draft';
 
 /** One source column reused by the draft; the shape BiService.profile already returns. */
@@ -315,6 +327,66 @@ function reusedColumns(plans: SqlPlan[], columns: Map<string, ReuseColumn>): Reu
   return [...used.values()];
 }
 
+/** Frozen scope is independent of source identity in a private reuse recipe. */
+export type ReuseScope = {
+  conditionDefinition?: ConditionDefinition;
+  defaultFilters?: StudioFilter[];
+  defaultDateRange?: StudioDateRange;
+};
+export function reuseScope(draft: any, profile: ReuseSourceProfile): ReuseScope {
+  const scope: ReuseScope = {};
+  if (draft.defaultConditions !== undefined && draft.conditionDefinition !== undefined)
+    throw new BadRequestException('ambiguous reuse conditions');
+  const definition =
+    draft.defaultConditions !== undefined
+      ? validateStudioConditions(draft.defaultConditions).definition
+      : draft.conditionDefinition;
+  if (definition !== undefined)
+    scope.conditionDefinition = compileConditionDefinition(
+      definition,
+      conditionColumns(profile.columns),
+    ).definition;
+  if (draft.defaultFilters !== undefined)
+    scope.defaultFilters = validateStudioFilters(draft.defaultFilters);
+  if (draft.defaultDateRange !== undefined)
+    scope.defaultDateRange = validateStudioDateRange(draft.defaultDateRange);
+  return scope;
+}
+function scopeColumns(scope: ReuseScope, columns: Map<string, ReuseColumn>): ReuseColumn[] {
+  const used = new Map<string, ReuseColumn>();
+  const add = (name: string) => {
+    const column = columns.get(name.toLowerCase());
+    if (!column) throw new BadRequestException('missing reuse scope column');
+    used.set(column.name.toLowerCase(), column);
+  };
+  const visit = (node: ConditionNode | null) => {
+    if (!node) return;
+    if (node.kind === 'group') return node.children.forEach(visit);
+    add(node.column);
+  };
+  if (scope.conditionDefinition) {
+    visit(scope.conditionDefinition.include);
+    visit(scope.conditionDefinition.exclude);
+  }
+  for (const filter of scope.defaultFilters ?? []) add(filter.column);
+  if (scope.defaultDateRange) {
+    add(scope.defaultDateRange.column);
+    if (!columns.get(scope.defaultDateRange.column.toLowerCase()).temporal)
+      throw new BadRequestException('invalid reuse date column');
+  }
+  return [...used.values()];
+}
+function allColumns(plans: SqlPlan[], columns: Map<string, ReuseColumn>, scope: ReuseScope) {
+  return [
+    ...new Map(
+      [...reusedColumns(plans, columns), ...scopeColumns(scope, columns)].map(column => [
+        column.name.toLowerCase(),
+        column,
+      ]),
+    ).values(),
+  ];
+}
+
 /** The source columns a draft actually reads, in first-use order. */
 export function reuseColumns(
   draft: DashboardDraft,
@@ -323,9 +395,10 @@ export function reuseColumns(
   const columns = collectColumns(sourceProfile);
   if (!draft || !Array.isArray(draft.widgets) || !draft.widgets.length)
     throw new BadRequestException('invalid draft');
-  return reusedColumns(
+  return allColumns(
     draft.widgets.map(widget => planSql(widget.sql, columns)),
     columns,
+    reuseScope(draft, sourceProfile),
   );
 }
 
@@ -353,7 +426,7 @@ export function remapDashboard(
   sourceProfile: ReuseSourceProfile,
   targetProfile: ReuseSourceProfile,
   columnMap: Record<string, string>,
-): DashboardDraft {
+): DashboardDraft & ReuseScope {
   const source = collectColumns(sourceProfile);
   const target = collectColumns(targetProfile);
   const databaseId = positiveId(targetProfile.sourceId);
@@ -362,7 +435,8 @@ export function remapDashboard(
   if (!columnMap || typeof columnMap !== 'object' || Array.isArray(columnMap))
     throw new BadRequestException('invalid column mapping');
   const plans = draft.widgets.map(widget => planSql(widget.sql, source));
-  const required = reusedColumns(plans, source);
+  const scope = reuseScope(draft, sourceProfile);
+  const required = allColumns(plans, source, scope);
   const mapping = new Map<string, string>();
   for (const [key, value] of Object.entries(columnMap)) {
     if (typeof value !== 'string' || !value.trim())
@@ -380,12 +454,59 @@ export function remapDashboard(
   for (const column of required)
     if (!mapping.has(column.name.toLowerCase()))
       throw new BadRequestException(`missing column mapping: ${column.name}`);
-  return {
+  const scoped = scopeColumns(scope, source);
+  const scopeTargets = new Set<string>();
+  for (const column of scoped) {
+    const targetName = mapping.get(column.name.toLowerCase());
+    if (scopeTargets.has(targetName.toLowerCase()))
+      throw new BadRequestException('duplicate reuse scope target');
+    scopeTargets.add(targetName.toLowerCase());
+  }
+  const visit = (node: ConditionNode | null): ConditionNode | null => {
+    if (!node) return null;
+    if (node.kind === 'group') return { ...node, children: node.children.map(visit) };
+    return { ...node, column: mapping.get(node.column.toLowerCase()) };
+  };
+  const mapped: ReuseScope = {
+    ...(scope.conditionDefinition
+      ? {
+          conditionDefinition: compileConditionDefinition(
+            {
+              include: visit(scope.conditionDefinition.include),
+              exclude: visit(scope.conditionDefinition.exclude),
+            },
+            conditionColumns(targetProfile.columns),
+          ).definition,
+        }
+      : {}),
+    ...(scope.defaultFilters
+      ? {
+          defaultFilters: scope.defaultFilters.map(filter => ({
+            ...filter,
+            column: mapping.get(filter.column.toLowerCase()),
+            values: [...filter.values],
+          })),
+        }
+      : {}),
+    ...(scope.defaultDateRange
+      ? {
+          defaultDateRange: {
+            ...scope.defaultDateRange,
+            column: mapping.get(scope.defaultDateRange.column.toLowerCase()),
+          },
+        }
+      : {}),
+  };
+  const result = {
     ...draft,
+    ...mapped,
     databaseId,
     widgets: draft.widgets.map((widget, index) => ({
       ...widget,
       sql: validateSourceSql(rewriteSql(plans[index], mapping)),
     })),
   };
+  // Never forward the owner's file identity to a recipient or let validateDraft erase scope.
+  delete (result as any).defaultConditions;
+  return result;
 }

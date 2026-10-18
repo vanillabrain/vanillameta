@@ -34,7 +34,7 @@ type Props = {
   context: StudioRunContext;
   selectedTitle?: string;
   /** Scope confirmed for the rows on screen. The card never claims a filter that is not displayed yet. */
-  filterScope?: { applied: StudioFilter[]; pending: boolean; dateRange?: StudioDateRange };
+  filterScope?: { applied: StudioFilter[]; pending: boolean; dateRange?: StudioDateRange; conditionsApplied?: boolean };
   onApply: (result: StudioRunResult) => boolean;
   locked: boolean;
   onPrepareCreationPublication?: (target: NonNullable<StudioExecution['creationSaveResult']>) => void;
@@ -398,7 +398,8 @@ export default function StudioConversation({
               ? '소스 #' + creationContext.creationResult.sourceId + ' · 전체 기간 · 필터 없음'
               : studioDateRangeSummary(filterScope?.dateRange) +
                 ' · ' +
-                (filterScope?.applied.length ? '공통 필터 ' + studioFilterSummary(filterScope.applied) : '필터 없음')}
+                (filterScope?.applied.length ? '공통 필터 ' + studioFilterSummary(filterScope.applied) : '필터 없음') +
+                (filterScope?.conditionsApplied ? ' · 포함·제외 조건 적용됨' : '')}
           </span>
           {!creationContext && filterScope?.pending && (
             <span>

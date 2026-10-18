@@ -86,6 +86,7 @@ describe('aggregate inputs: actual DuckDB, stored definitions and snapshots', ()
       analysisDefinition: JSON.stringify(definition()),
     };
     const source = {
+      manager: { connection: { options: { type: 'mysql' } } },
       findOne: jest.fn(async () => ({
         connectionConfig: JSON.stringify({ client: 'duckdb', connection: { filename } }),
       })),

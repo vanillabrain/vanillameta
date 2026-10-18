@@ -186,6 +186,7 @@ describe('BiExploreService dynamic exploration over real DuckDB', () => {
         throw new Error('unexpected repository');
       }),
     };
+    Object.assign(databaseRepo, { manager: { connection: db } });
     const connection = new ConnectionService(databaseRepo, {} as any, worker);
     const bi = new BiService(db as any, new SourceAccessService(db as any), connection, {
       save: jest.fn(),

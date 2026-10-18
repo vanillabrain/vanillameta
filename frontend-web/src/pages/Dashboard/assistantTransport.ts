@@ -36,6 +36,7 @@ export function assistantTransport(context: () => any): ChatTransport<AssistantM
                 draft,
                 dashboardId: current.dashboardId,
                 filters: current.filters,
+                ...(current.conditions ? { conditions: current.conditions } : {}),
                 ...(current.dateRange ? { dateRange: current.dateRange } : {}),
                 includeTrends: true,
                 trendGrain: current.trendGrain ?? 'auto',

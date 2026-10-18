@@ -80,6 +80,7 @@ export function importStudio(
     revision: analysis.revision,
     title: analysis.title,
     sourceId: analysis.databaseId,
+    ...(snapshot?.studioConditions !== undefined ? { conditions: snapshot.studioConditions } : {}),
     ...(snapshot?.studioFilters?.length ? { filters: snapshot.studioFilters } : {}),
     ...(snapshot?.studioDateRange ? { dateRange: snapshot.studioDateRange } : {}),
     blocks,

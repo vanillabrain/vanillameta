@@ -89,3 +89,29 @@ it('keeps stale Pivot removable while valid sibling stays visible', async () => 
   await waitFor(() => expect(ui.queryByText('Stale')).toBeNull());
   expect(ui.getByText('Valid')).toBeTruthy();
 });
+it('UC052 preserves conditioned Pivot through the dashboard without comparing metadata and file hashes', async () => {
+  api.pivot.mockClear();
+  const conditions = {
+    sourceRevision: 'b'.repeat(64),
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  const item = {
+    id: 'scope',
+    name: 'Scoped',
+    sourceId: 3,
+    sourceRevision: 'different-metadata-hash',
+    dimensions: [{ column: 'device' }],
+    state: { measureIds: [1], pivot: { rowDimensions: ['device'], columnDimensions: [] }, filters: [] },
+  };
+  api.get.mockResolvedValue({ data: { status: 'SUCCESS', data: [item] } });
+  const view = render(
+    <DashboardPivots dashboardId={2} filters={[]} conditions={conditions} paused={false} onFilter={vi.fn()} />,
+  );
+  await waitFor(() => expect(api.pivot).toHaveBeenCalled());
+  expect(api.pivot.mock.lastCall[0].conditions).toEqual(conditions);
+  expect(api.pivot.mock.lastCall[0].sourceRevision).toBe('different-metadata-hash');
+  expect(api.pivot.mock.lastCall[0].paused).toBe(false);
+  const next = { ...conditions, sourceRevision: 'c'.repeat(64) };
+  view.rerender(<DashboardPivots dashboardId={2} filters={[]} conditions={next} paused={false} onFilter={vi.fn()} />);
+  expect(api.pivot.mock.lastCall[0].conditions).toEqual(next);
+});

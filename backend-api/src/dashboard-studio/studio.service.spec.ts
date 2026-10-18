@@ -137,6 +137,188 @@ describe('Studio real DuckDB and transactional metadata', () => {
       },
       7,
     );
+  it('UC052 preserves nested inclusion/exclusion through preview, save, detached Dataset queries and reload', async () => {
+    const initial = await studio.get(id, 7);
+    const definition = {
+      include: {
+        kind: 'group',
+        operator: 'or',
+        children: [
+          { kind: 'predicate', column: 'category', operator: 'eq', values: ['Site'] },
+          { kind: 'predicate', column: 'amount', operator: 'lt', values: [250] },
+        ],
+      },
+      exclude: { kind: 'predicate', column: 'amount', operator: 'gte', values: [300] },
+    };
+    const conditions = { sourceRevision: initial.sourceRevision, definition };
+    const document = applyStudioOperation(initial.document, { type: 'setConditions', conditions });
+    const beforeLayouts = JSON.parse(JSON.stringify(document.layouts));
+    const beforeBlocks = document.blocks.map(block => block.id);
+    const prepared = await studio.prepare(
+      id,
+      {
+        document,
+        expectedRevision: document.revision,
+        expectedSourceRevision: initial.sourceRevision,
+      },
+      7,
+    );
+    expect(prepared.preview.widgets[0].datas).toEqual([{ value: 200 }]);
+    expect(prepared.preview.widgets[1].datas).toEqual([{ category: 'Mobile', value: 200 }]);
+    expect((await studio.get(id, 7)).document.conditions).toBeUndefined();
+    await save(document, 'nested-conditions-save-' + id);
+    const restored = await studio.get(id, 7);
+    expect(restored.document.conditions).toEqual(conditions);
+    expect(restored.document.layouts).toEqual(beforeLayouts);
+    expect(restored.document.blocks.map(block => block.id)).toEqual(beforeBlocks);
+    expect(restored.preview.widgets[0].datas).toEqual([{ value: 200 }]);
+    const analysis = (await ai.analysis(id, 7)).data;
+    expect(analysis.defaultConditions).toEqual(conditions);
+    expect(analysis.widgets.map(w => w.sql)).toEqual(draft().widgets.map(w => w.sql));
+    const links = await db
+      .getRepository(DashboardWidget)
+      .find({ where: { dashboardId: id }, order: { id: 'ASC' } });
+    const dataset = await db.getRepository(Dataset).findOneByOrFail({
+      id: (await db.getRepository(Widget).findOneByOrFail({ id: links[0].widgetId })).datasetId,
+    });
+    expect((await connection.queryDuckDB(1, dataset.query)).datas).toEqual([{ value: 200 }]);
+    // A legacy content save must preserve server-owned scope, not silently broaden the dataset.
+    await ai.save(
+      {
+        dashboardId: id,
+        expectedRevision: analysis.revision,
+        draft: { ...draft(), title: 'Content change after conditions' },
+      },
+      7,
+    );
+    const legacyRestored = await studio.get(id, 7);
+    expect(legacyRestored.document.conditions).toEqual(conditions);
+    expect(legacyRestored.preview.widgets[0].datas).toEqual([{ value: 200 }]);
+    const latestLinks = await db
+      .getRepository(DashboardWidget)
+      .find({ where: { dashboardId: id }, order: { id: 'ASC' } });
+    const latestWidget = await db
+      .getRepository(Widget)
+      .findOneByOrFail({ id: latestLinks[0].widgetId });
+    const latestDataset = await db
+      .getRepository(Dataset)
+      .findOneByOrFail({ id: latestWidget.datasetId });
+    expect((await connection.queryDuckDB(1, latestDataset.query)).datas).toEqual([{ value: 200 }]);
+    const cleared = applyStudioOperation(legacyRestored.document, {
+      type: 'setConditions',
+      conditions: null,
+    });
+    await save(cleared, 'nested-conditions-clear-' + id);
+    expect((await studio.get(id, 7)).document.conditions).toBeUndefined();
+    expect((await ai.analysis(id, 7)).data.defaultConditions).toBeUndefined();
+    expect((await studio.get(id, 7)).preview.widgets[0].datas).toEqual([{ value: 500 }]);
+  });
+  it('UC052 keeps stale saved conditions visible after a real file replacement and permits explicit removal', async () => {
+    const initial = await studio.get(id, 7);
+    const applied = applyStudioOperation(initial.document, {
+      type: 'setConditions',
+      conditions: {
+        sourceRevision: initial.sourceRevision,
+        definition: {
+          include: { kind: 'predicate', column: 'category', operator: 'eq', values: ['Site'] },
+          exclude: null,
+        },
+      },
+    });
+    await save(applied, 'replace-before-' + id);
+    const originalQuery = connection.queryDuckDB.getMockImplementation();
+    const originalVersion = connection.duckDBVersion.getMockImplementation();
+    const sourceRepository = db.getRepository(Database);
+    const source = await sourceRepository.findOneByOrFail({ id: 1 });
+    const replacement = await worker.importFile({
+      originalname: 'replacement.csv',
+      buffer: Buffer.from(
+        'category,amount,event_time\nSite,900,2026-01-01T00:00:00Z\nMobile,100,2026-01-02T00:00:00Z\n',
+      ),
+    });
+    try {
+      connection.queryDuckDB.mockImplementation((_id, sql, bindings) =>
+        worker.query(replacement.filename, sql, bindings),
+      );
+      connection.duckDBVersion.mockResolvedValue(studioDigest('replacement-source'));
+      await sourceRepository.update(1, {
+        connectionConfig: JSON.stringify({
+          client: 'duckdb',
+          connection: { filename: replacement.filename },
+        }),
+      });
+      const stale = await studio.get(id, 7);
+      expect(stale.document.conditions).toEqual(applied.conditions);
+      expect(stale.preview).toBeNull();
+      expect(stale.previewError).toBeTruthy();
+      const cleared = applyStudioOperation(stale.document, {
+        type: 'setConditions',
+        conditions: null,
+      });
+      const body = {
+        document: cleared,
+        expectedRevision: cleared.revision,
+        expectedSourceRevision: stale.sourceRevision,
+      };
+      expect((await studio.prepare(id, body, 7)).preview.widgets[0].datas).toEqual([
+        { value: 1000 },
+      ]);
+      await studio.save(id, { ...body, requestId: 'replace-clear-' + id }, 7);
+      const restored = await studio.get(id, 7);
+      expect(restored.document.conditions).toBeUndefined();
+      expect(restored.preview.widgets[0].datas).toEqual([{ value: 1000 }]);
+    } finally {
+      connection.queryDuckDB.mockImplementation(originalQuery);
+      connection.duckDBVersion.mockImplementation(originalVersion);
+      await db
+        .getRepository(Database)
+        .update(1, { connectionConfig: source.connectionConfig, updatedAt: source.updatedAt });
+    }
+  });
+
+  it('UC052 rejects stale file pins and invalid condition types without changing saved state', async () => {
+    const initial = await studio.get(id, 7);
+    const row = await db.getRepository(Dashboard).findOneByOrFail({ id });
+    const definition = {
+      include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [200] },
+      exclude: null,
+    };
+    const stale = {
+      ...initial.document,
+      conditions: { sourceRevision: 'a'.repeat(64), definition },
+    };
+    await expect(
+      studio.prepare(
+        id,
+        {
+          document: stale,
+          expectedRevision: stale.revision,
+          expectedSourceRevision: initial.sourceRevision,
+        },
+        7,
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    const wrong = {
+      ...initial.document,
+      conditions: {
+        sourceRevision: initial.sourceRevision,
+        definition: { ...definition, include: { ...definition.include, values: ['200'] } },
+      },
+    };
+    await expect(
+      studio.prepare(
+        id,
+        {
+          document: wrong,
+          expectedRevision: wrong.revision,
+          expectedSourceRevision: initial.sourceRevision,
+        },
+        7,
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(await db.getRepository(Dashboard).findOneByOrFail({ id })).toEqual(row);
+  });
+
   it('filters every block before aggregation, persists scope without changing canonical SQL, clears scope', async () => {
     const initial = await studio.get(id, 7);
     const document = applyStudioOperation(initial.document, {

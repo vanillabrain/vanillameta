@@ -38,6 +38,7 @@ export type PublishedSnapshot = Publication & {
     filters?: StudioFilter[];
     /** Published period, read-only on this screen. Absent means the whole period was in scope. */
     dateRange?: StudioDateRange;
+    conditionsApplied?: true;
     blocks: PublishedBlock[];
     layouts: StudioDocumentV1['layouts'];
   };
@@ -108,6 +109,9 @@ export async function fetchPublished(token: string): Promise<PublishedSnapshot> 
   let dateRange: StudioDateRange | undefined;
   try {
     // Absent means the publisher had no common scope; a malformed list is never silently ignored.
+    if (snapshot.conditionsApplied !== undefined && snapshot.conditionsApplied !== true)
+      throw new Error('Invalid conditions flag');
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'conditions')) throw new Error('Raw conditions are private');
     filters = snapshot.filters === undefined ? [] : validateStudioFilters(snapshot.filters);
     dateRange = snapshot.dateRange === undefined ? undefined : validateStudioDateRange(snapshot.dateRange);
   } catch {

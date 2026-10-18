@@ -172,11 +172,9 @@ export class ConnectionService {
     const databaseId = this.validateId(id);
     const snapshots = this.duckDBSnapshots.getStore();
     if (snapshots?.has(databaseId)) return callback();
-    const config = await this.getConnectionConfig(databaseId);
-    if (config.client !== 'duckdb') throw new BadRequestException('not a DuckDB source');
-    const pinned = new Map(snapshots);
-    pinned.set(databaseId, config);
-    return this.duckDBSnapshots.run(pinned, callback);
+    // A preview must not pin a connection change that another SQLite transaction rolls back.
+    const capture = await this.captureDuckDBSnapshot(databaseId);
+    return capture.run(async () => callback());
   }
 
   /** Opaque revision of the selected file; respects any active snapshot. */

@@ -117,3 +117,9 @@ flowchart LR
 [계정 DB 무결성](../plans/UC-051-identity-integrity.md)은 기존 User identity unique와 Membership→User RESTRICT FK를 추가하고 기존 이상 데이터에는 DDL 전에 중단한다. 편입/삭제는 동일 User 행을 잠그고 legacy rehash는 active/epoch/password 조건의 부분 CAS다. [MySQL8.4.11 실제 검증](../testing/identity-integrity.md)은 합성 격리 엔진의 동작 증거이며 운영 data migration·전체 자산 참조 정리/권한 수용은 아니다.
 
 UC052의 [소스 조건 계획](../plans/UC-052.md)은 포함/제외 트리의 공통 검증/바인딩 컴파일과 전체 모집단 집계 문맥을 도입한다. sourceRevision과 조건 version이 불일치하면 이전 수치를 현재 결과로 반환하지 않는다. 현재 소스별 공통 조건 저장은 기존 Studio/게시 결과에 자동 적용하지 않으며, 동일 계약의 Studio/AI/출력 통합은 이어서 검증한다.
+
+## UC052 Studio 조건 복사본
+
+[연결 설계](../plans/UC-052-studio-conditions.md)는 공통 ConditionDefinition을 StudioDocumentV1.conditions에 명시 복사한다. 현재 실제 schema로 검증한 동일 조건을 숫자/추세/상세와 저장된 Dataset query에 적용하고 기존 filters/dateRange와 AND로 조합한다. 문서의 sourceRevision은 관리형 불변 파일 경로 식별자 hash이며 내용 checksum이나 소스 조건 metadata revision이 아니다. 현재 파일이 달라지면 자동 재바인딩하지 않는다. 일반 withDuckDBSnapshot도 확정 metadata 캡처를 재사용해 rollback될 연결을 읽지 않게 한다. 긴 Studio 집계가 상위 lease를 점유하는 범위의 처리량은 별도 측정 대상이다.
+
+조건은 소스 조건 저장 후 기존 분석에 자동 전파하지 않는다. AI 내용 편집은 적용 조건을 유지하며 조건 변경 제안은 별도 후속이다. 공개 게시에는 집계/적용 여부만 추가하고 opt-in private recipe는 전체 조건 열 매핑을 요구한다. 수신자 소스의 실제 유형/불변 파일 hash로 새 복사본을 검증한다. 실행/회귀와 미실행 화면·운영 범위는 [증빙](../testing/studio-conditions.md)을 따른다.

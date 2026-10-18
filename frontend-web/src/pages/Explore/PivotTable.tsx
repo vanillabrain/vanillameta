@@ -1,3 +1,5 @@
+import type { StudioConditions } from '../Dashboard/Studio/studioTypes';
+import { validateStudioConditions } from '../Dashboard/Studio/studioDocument';
 import { get } from '@/helpers/apiHelper';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -43,6 +45,7 @@ type Props = {
   measureIds: number[];
   filters: ExploreFilter[];
   dateRange?: ExploreDateRange;
+  conditions?: StudioConditions;
   paused: boolean;
   pauseReason?: string;
   fixedAxes?: boolean;
@@ -96,7 +99,14 @@ export default function PivotTable(props: Props) {
   const rowDimensions = [row1, row2].filter(Boolean);
   const invalid =
     !row1 || new Set([...rowDimensions, column].filter(Boolean)).size !== rowDimensions.length + Number(!!column);
-  const paused = props.paused || !props.measureIds.length || invalid;
+  let conditions: StudioConditions | undefined;
+  let conditionError = '';
+  try {
+    if (props.conditions !== undefined) conditions = validateStudioConditions(props.conditions);
+  } catch {
+    conditionError = '포함·제외 조건을 확인하지 못했습니다. 조건 없는 결과로 대체하지 않습니다.';
+  }
+  const paused = !!conditionError || props.paused || !props.measureIds.length || invalid;
   const requestKey = pivotRequestKey({
     sourceId: props.sourceId,
     sourceRevision: props.sourceRevision,
@@ -105,7 +115,10 @@ export default function PivotTable(props: Props) {
     columnDimensions: column ? [column] : [],
     filters: props.filters,
     dateRange: props.dateRange,
+    ...(conditions ? { conditions } : {}),
   });
+  const currentRequestKey = useRef(requestKey);
+  currentRequestKey.current = requestKey;
   const filterKey = JSON.stringify(props.filters);
   const previousFilters = useRef(filterKey);
   const current = !!result && resultKey === requestKey && !paused && !busy && !error;
@@ -139,6 +152,7 @@ export default function PivotTable(props: Props) {
         columnDimensions: column ? [column] : [],
         filters: props.filters,
         ...(props.dateRange ? { dateRange: props.dateRange } : {}),
+        ...(conditions ? { conditions } : {}),
       });
       void subscription.promise
         .then(response => {
@@ -172,11 +186,12 @@ export default function PivotTable(props: Props) {
     const requestGeneration = generation.current;
     try {
       // A visible download control is not authority; current server permission is checked again.
-      if (props.canExport !== undefined) {
-        const response = await get(`/enterprise/resources/source/${props.sourceId}/access`);
-        if (response?.data?.rights?.export !== true) throw new Error('export denied');
-        if (generation.current !== requestGeneration || exportGeneration.current !== exportRequest) return;
-      }
+      // canExport is an optional UI hint, including for embedded dashboards. Its absence
+      // never bypasses current source authorization, and no permission is cached across downloads.
+      const response = await get(`/enterprise/resources/source/${props.sourceId}/access`);
+      if (response?.data?.rights?.export !== true) throw new Error('export denied');
+      if (generation.current !== requestGeneration || exportGeneration.current !== exportRequest) return;
+      if (currentRequestKey.current !== requestKey || generation.current !== requestGeneration) return;
       const blob = new Blob([pivotCsv(result, { rowDimensions, columnDimensions: column ? [column] : [] })], {
         type: 'text/csv;charset=utf-8',
       });
@@ -238,6 +253,16 @@ export default function PivotTable(props: Props) {
   };
   return (
     <section aria-label="Pivot 탐색" className="mt-4 min-w-0">
+      {conditions && (
+        <p role="note" className="min-w-0 break-words text-sm">
+          포함·제외 조건 적용됨 · 읽기 전용
+        </p>
+      )}
+      {conditionError && (
+        <Notice severity="warning" role="alert">
+          {conditionError}
+        </Notice>
+      )}
       {!props.embedded && <h2 className="text-lg font-semibold">Pivot</h2>}
       <p className="mt-1 mb-3 text-sm text-muted-foreground">행·열 차원별 교차 분석 · 현재 기간과 공통 필터 적용</p>
       {props.embedded ? (

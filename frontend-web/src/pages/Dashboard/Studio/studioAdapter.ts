@@ -9,6 +9,7 @@ import {
   validateStudioDocument,
   validateStudioFilters,
   validateStudioDateRange,
+  validateStudioConditions,
 } from './studioDocument';
 import {
   isTemporaryStudioId,
@@ -142,6 +143,9 @@ export function fromLegacyAnalysis(input: {
     sourceId: a.databaseId,
     ...(defaultFilters?.length ? { filters: defaultFilters } : {}),
     ...(a.defaultDateRange !== undefined ? { dateRange: validateStudioDateRange(a.defaultDateRange) } : {}),
+    ...(Object.prototype.hasOwnProperty.call(a, 'defaultConditions')
+      ? { conditions: validateStudioConditions(a.defaultConditions) }
+      : {}),
     blocks,
     layouts: { lg, md, xs },
   });
@@ -196,6 +200,9 @@ export function toLegacySave(document: StudioDocumentV1, definitions: StudioDefi
       title: d.title,
       explanation: definitions.explanation,
       ...(sizes.every(Boolean) ? { layoutSizes: studioClone(sizes) } : {}),
+      ...(d.filters ? { defaultFilters: studioClone(d.filters) } : {}),
+      ...(d.dateRange ? { defaultDateRange: studioClone(d.dateRange) } : {}),
+      ...(d.conditions ? { defaultConditions: studioClone(d.conditions) } : {}),
       widgets,
     },
     blockLayouts: studioClone(d.layouts),

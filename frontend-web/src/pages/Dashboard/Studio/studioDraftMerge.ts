@@ -51,8 +51,13 @@ export function mergeStudioDraft(
       ) || !equal(geometry(d, block.id), geometry(baseline, block.id));
     const document = studioClone(latest);
     document.title = atom(baseline.title, local.title, latest.title, '대시보드 제목');
-    for (const key of ['filters', 'dateRange'] as const) {
-      const value = atom(baseline[key], local[key], latest[key], key === 'filters' ? '공통 필터' : '공통 기간');
+    for (const key of ['filters', 'dateRange', 'conditions'] as const) {
+      const value = atom(
+        baseline[key],
+        local[key],
+        latest[key],
+        key === 'filters' ? '공통 필터' : key === 'conditions' ? '포함·제외 조건' : '공통 기간',
+      );
       if (value === undefined) delete document[key];
       else (document as any)[key] = value;
     }

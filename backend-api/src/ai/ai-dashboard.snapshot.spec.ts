@@ -61,6 +61,7 @@ describe('AI dashboard preview file snapshots', () => {
   it('pins schema, widgets, dimensions and trends; refreshes cached options for a new file with the same schema', async () => {
     let current = files[0];
     const repository = {
+      manager: { connection: { options: { type: 'mysql' } } },
       findOne: jest.fn(async () => ({
         connectionConfig: JSON.stringify({ client: 'duckdb', connection: { filename: current } }),
       })),

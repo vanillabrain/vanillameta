@@ -1,3 +1,4 @@
+import { applyStudioOperation } from './studioReducer';
 import { describe, it, expect, vi } from 'vitest';
 import { canApplyStudioRun, validateStudioRun, studioAssistantTransport } from './studioRunTransport';
 import { validateStudioDocument } from './studioDocument';
@@ -203,4 +204,20 @@ it('does not present malformed publication metadata as a successful shared link'
   } finally {
     spy.mockRestore();
   }
+});
+
+it('UC052 AI followups retain exact applied scope and reject condition operations', () => {
+  const conditions = {
+    sourceRevision: 'b'.repeat(64),
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  const scoped = { ...context, document: { ...document, conditions } };
+  const validated = validateStudioRun(result(), scoped);
+  let edited = scoped.document;
+  for (const operation of validated.proposedOperations) edited = applyStudioOperation(edited, operation) as typeof edited;
+  expect(edited.conditions).toEqual(conditions);
+  expect(edited.layouts).toEqual(document.layouts);
+  expect(() =>
+    validateStudioRun({ ...result(), proposedOperations: [{ type: 'setConditions', conditions: null }] }, scoped),
+  ).toThrow();
 });

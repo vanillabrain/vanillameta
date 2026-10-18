@@ -151,6 +151,7 @@ export class StudioRunService {
             : 'all time',
           ...(dateRange ? { dateRange } : {}),
           filters: prepared.document.filters ?? [],
+          ...(prepared.document.conditions ? { conditions: prepared.document.conditions } : {}),
           preview: prepared.preview.widgets.map(w => ({
             blockId: w.blockId,
             title: w.title,

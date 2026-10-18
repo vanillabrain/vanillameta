@@ -1,4 +1,9 @@
-vi.mock('./DashboardPivots', () => ({ default: () => null }));
+vi.mock('./DashboardPivots', () => ({
+  default: (props: any) => {
+    api.pivots(props);
+    return null;
+  },
+}));
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -6,7 +11,7 @@ import DashboardAnalysis, { parseDefaultDateRange } from './DashboardAnalysis';
 import userEvent from '@testing-library/user-event';
 import type { DateRange } from './PersonalSavedViews';
 import { installRadixBrowserAPIs, selectRadixOption } from './dashboardTestUtils';
-const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), timeProps: vi.fn() }));
+const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), timeProps: vi.fn(), pivots: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('./DashboardAssistant', () => ({ default: () => null }));
 // Saved-view API/UI behavior is exercised by PersonalSavedViews.test.tsx.
@@ -821,4 +826,36 @@ it('initializes the dated saved scope together with category filters and preserv
   );
   await idle();
   expect(api.post.mock.lastCall?.[1].dateRange).toEqual(dateRange);
+});
+
+it('UC052 loads legacy defaultConditions into every preview and fails closed on malformed persisted scope', async () => {
+  const conditions = {
+    sourceRevision: 'b'.repeat(64),
+    definition: { include: { kind: 'predicate', column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  const analysis = scopedAnalysis();
+  analysis.data.data.defaultConditions = conditions;
+  const view = await mountScoped(analysis);
+  expect(api.post.mock.lastCall?.[1].conditions).toEqual(conditions);
+  expect(api.pivots.mock.lastCall?.[0].conditions).toEqual(conditions);
+  expect(screen.getByText(/포함·제외 조건 적용됨/)).toBeTruthy();
+  view.unmount();
+  cleanup();
+  api.post.mockClear();
+  api.get.mockResolvedValue({
+    ...analysis,
+    data: {
+      ...analysis.data,
+      data: { ...analysis.data.data, defaultConditions: { ...conditions, sourceRevision: 'wrong' } },
+    },
+  });
+  render(
+    <DashboardAnalysis dashboardId={3} onSaved={vi.fn()}>
+      Fallback
+    </DashboardAnalysis>,
+  );
+  await screen.findByRole('alert');
+  await idle();
+  expect(api.post).not.toHaveBeenCalled();
+  expect(screen.queryByText('Fallback')).toBeNull();
 });

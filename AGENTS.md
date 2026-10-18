@@ -14,7 +14,7 @@
 
 - **UC050 업무 변수 후속:** [설계](docs/plans/UC-050-variable-semantics.md)·[증빙](docs/testing/source-variable-semantics.md)는 업무 유형/날짜 형식/분류 문자열과 전체 문자열 날짜 검증을 기존 미리보기/버전 저장에 연결한다. 생략한 새 필드는 기존 선언을 보존하고 원본/SQL은 변경하지 않는다. Explore/Studio 공통 표시이며 조직 분류 ID·활성/공식 승인·조건/AI 실행 적용/실제 Ego·전체 요건 수용은 후속이다.
 
-- **UC052 조건 최신:** [계획](docs/plans/UC-052.md)·[증빙](docs/testing/source-conditions.md)은 허용 소스의 중첩AND/OR·포함/제외·전체 모집단 건수/비율·버전 저장/재조회다. 권한/소스·조건 버전/연결은 확정 metadata lease에서 캡처하고 SQL은 밖에서 실행한다. 기존 Studio/AI/게시에는 자동 적용하지 않으며 해당 통합·분포/표본·출력·Ego/실기기·전체 수용은 미완료다.
+- **UC052 Studio 조건:** [설계](docs/plans/UC-052-studio-conditions.md)·[증빙](docs/testing/studio-conditions.md)은 소스 조건의 명시 복사/편집·undo/redo·저장/reload와 숫자/추세·게시/재사용 보존을 연결한다. 파일 경로 hash와 소스 조건 metadata revision을 혼동하지 않는다. 파일 교체 시 초안을 보존하고 자동 재바인딩하지 않는다. 공개 응답에는 적용 여부만 추가한다. AI 조건 제안/차이·분포/표본·영속 export·Ego/실휴대폰/운영·전체16개 수용은 미완료다.
 
 - **UC051 계정 무결성 최신:** [설계](docs/plans/UC-051-identity-integrity.md)·[증빙](docs/testing/identity-integrity.md)의 userId/email unique·명명 membership FK·공통 User 잠금·부분 credential CAS를 실제 격리 MySQL8.4.11에서 검증했다. 미래 버전 요청은 읽은 조직 버전 불일치 시 쓰기 전409다. 최종 선택109(실제 MySQL9 포함)/type/lint/build·기존 core8 PASS이며 테스트 컨테이너/임시 credential은 정리했다. 기존 데이터 운영 진단/maintenance DDL·Ego/실기기·전체16개 수용은 미완료다.
 
