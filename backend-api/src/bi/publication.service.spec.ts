@@ -184,6 +184,20 @@ describe('UC-018 publication backend', () => {
     jest.clearAllMocks();
   });
 
+  it('closes old public snapshots and pending publication tickets after organization policy', async () => {
+    const preview = await ownerPreview();
+    const first = await service.publish(DASHBOARD, ACTOR, await publishBody(preview, 0));
+    const pending = await ownerPreview();
+    await db.getRepository(Dashboard).update(DASHBOARD, { governed: true });
+    await expect(service.publicResult(first.publication.uuid)).rejects.toMatchObject({ status: 404 });
+    await expect(
+      service.publish(DASHBOARD, ACTOR, await publishBody(pending, first.version)),
+    ).rejects.toMatchObject({ status: 403 });
+    expect((await publications().findOneBy({ dashboardId: DASHBOARD })).version).toBe(
+      first.version,
+    );
+  });
+
   it('captures a read-only sanitized snapshot with a ticket and hides source detail', async () => {
     const before = await dashboard();
     const result = await ownerPreview();

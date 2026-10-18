@@ -53,6 +53,23 @@ const compareDecimals = (left: Decimal, right: Decimal) => {
   return left.negative ? -order : order;
 };
 
+/** Bounded exact numeric comparison for persisted condition reports; no lossy Number coercion. */
+export const compareExactNumeric = (left: unknown, right: unknown): number | null => {
+  if ([left, right].some(v => typeof v === 'string' && v.length > 4096)) return null;
+  const one = decimal(left),
+    other = decimal(right);
+  if (
+    !one ||
+    !other ||
+    !Number.isFinite(one.exponent) ||
+    !Number.isFinite(other.exponent) ||
+    Math.abs(one.exponent) > 10000 ||
+    Math.abs(other.exponent) > 10000
+  )
+    return null;
+  return compareDecimals(one, other);
+};
+
 const compareText = (left: unknown, right: unknown) => {
   const one = String(left);
   const other = String(right);

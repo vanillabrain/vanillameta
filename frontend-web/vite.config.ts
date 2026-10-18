@@ -2,10 +2,28 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
 import path from 'path';
+import type { Plugin, ViteDevServer, PreviewServer } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
+// Protected organization documents are embeddable only by our trusted same-origin portal.
+// Public /embed and /share routes keep their existing framing behavior.
+const organizationFrames: Plugin = {
+  name: 'organization-frame-policy',
+  configureServer: installOrganizationHeaders,
+  configurePreviewServer: installOrganizationHeaders,
+};
+function installOrganizationHeaders(server: ViteDevServer | PreviewServer) {
+  server.middlewares.use((req, res, next) => {
+    if (/^\/organizations(?:[/?]|$)/.test(req.url || '')) {
+      res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+      res.setHeader('Cache-Control', 'no-store');
+    }
+    next();
+  });
+}
 export default defineConfig({
   plugins: [
+    organizationFrames,
     tailwindcss(),
     react(),
     // CRA 호환: import { ReactComponent as X } from '*.svg'

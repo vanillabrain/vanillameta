@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
@@ -309,6 +310,8 @@ export class PublicationService {
     ]);
     const dashboardId = this.access.id(id);
     await this.access.dashboard(dashboardId, actor);
+    if ((await this.dashboardRow(dashboardId)).governed)
+      throw new ForbiddenException('조직 정책이 적용된 분석은 공개 게시할 수 없습니다.');
     if (typeof body.expectedRevision !== 'string' || !REVISION.test(body.expectedRevision))
       throw new BadRequestException('저장 화면을 다시 불러온 뒤 다시 시도해 주세요.');
     if (!Number.isSafeInteger(body.expectedVersion) || body.expectedVersion < 0)
@@ -353,6 +356,8 @@ export class PublicationService {
         });
         if (!dashboard || dashboard.delYn === 'Y')
           throw new NotFoundException('저장 분석을 찾을 수 없습니다.');
+        if (dashboard.governed)
+          throw new ForbiddenException('조직 정책이 적용된 분석은 공개 게시할 수 없습니다.');
         const revision = dashboardRevision(dashboard);
         if (revision !== body.expectedRevision) throw new ConflictException(STALE_SAVE_MESSAGE);
         if ((current?.version ?? 0) !== body.expectedVersion)
@@ -479,7 +484,7 @@ export class PublicationService {
     if (!row || !row.active || this.expired(row))
       throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
     const dashboard = await this.dashboards.findOne({ where: { id: row.dashboardId } });
-    if (!dashboard || dashboard.delYn === 'Y')
+    if (!dashboard || dashboard.delYn === 'Y' || dashboard.governed)
       throw new NotFoundException('게시가 중지되었거나 만료된 링크입니다.');
     let snapshot: unknown;
     try {

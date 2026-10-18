@@ -302,7 +302,12 @@ describe('BiExploreService CSV export over real DuckDB', () => {
     } as any);
     service = new BiExploreService(
       bi,
-      new AiDashboardService({} as any, connection, {} as any),
+      new AiDashboardService({} as any, connection, {
+        manager: {
+          findOne: async (entity: any, options: any) =>
+            entity === Database ? databaseRepo.findOne(options) : null,
+        },
+      } as any),
       connection,
     );
   });

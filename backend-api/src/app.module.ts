@@ -1,3 +1,8 @@
+import { AddConditionReports1792300004000 } from './migrations/1792300004000-add-condition-reports';
+import { AddFileCorrection1792300001000 } from './migrations/1792300001000-add-file-correction';
+import { AddSourceModelReceipt1792300002000 } from './migrations/1792300002000-add-source-model-receipt';
+import { AddBiGovernance1792300003000 } from './migrations/1792300003000-add-bi-governance';
+import { AddFileRefresh1792300000000 } from './migrations/1792300000000-add-file-refresh';
 import { StudioModule } from './dashboard-studio/studio.module';
 import { AddDashboardStudio1792030000000 } from './migrations/1792030000000-add-dashboard-studio';
 import { AddAnalysisCreationReceipts1792030000000 } from './migrations/1792030000000-add-analysis-creation-receipts';
@@ -65,6 +70,11 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddFileRefresh1792300000000,
+        AddFileCorrection1792300001000,
+        AddSourceModelReceipt1792300002000,
+        AddBiGovernance1792300003000,
+        AddConditionReports1792300004000,
         AddDashboardStudio1792030000000,
         AddDashboardReusePermissions1792120000000,
         AddDashboardPublications1792040000000,

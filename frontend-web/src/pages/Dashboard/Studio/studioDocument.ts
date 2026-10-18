@@ -230,8 +230,15 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
       studioAssert(r.sourceId === d.sourceId && !dims.has(r.key), '차원의 소스가 다르거나 참조가 중복됩니다.');
       dims.add(r.key);
     });
-    studioKeys(b.display, ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain']);
+    studioKeys(b.display, ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain', 'presentation']);
     const p = b.display;
+    if (p.presentation !== undefined)
+      studioAssert(
+        p.presentation === 'visual' ||
+          (p.presentation === 'summary' && b.kind === 'BOARD_NUMERIC') ||
+          (p.presentation === 'table' && b.kind !== 'BOARD_NUMERIC'),
+        '표·집계 요약의 종류를 확인해 주세요.',
+      );
     if (p.timeGrain !== undefined)
       studioAssert(
         b.kind === 'CHART_LINE' && ['auto', 'day', 'week', 'month'].includes(p.timeGrain),

@@ -137,6 +137,16 @@ export const creationError = (cause: unknown, context: 'file' | 'generation' = '
   if (status === 409) return '데이터 또는 지표 기준이 변경되었습니다. 소스를 새로 확인하고 다시 생성해 주세요.';
   if (status === 400 && context === 'file')
     return '파일을 읽지 못했습니다. CSV·JSON·Parquet 형식과 파일 손상 여부를 확인한 뒤 다시 선택해 주세요.';
+  const body = (cause as any)?.response?.data;
+  const detail = body?.data ?? body;
+  if (status === 400 && ['STUDIO_COMMERCE_UNIT_MISMATCH', 'STUDIO_UNIT_MISMATCH'].includes(detail?.code)) {
+    const currency = detail.currency === 'KRW' ? 'KRW(소수 0자리)' : detail.currency === 'USD' ? 'USD' : '소스 통화';
+    return (
+      'AI가 제안한 지표 단위가 데이터 기준과 맞지 않습니다. 금액은 ' +
+      currency +
+      ', 건수는 count 또는 건, 백분율은 %인지 확인하고 다시 생성해 주세요. 기존 지표와 입력은 유지됩니다.'
+    );
+  }
   if (status === 400) return '필수 열과 지표 정의를 확인해 주세요. 요청을 구체적으로 적어 다시 시도할 수 있습니다.';
   if (status === 503)
     return 'AI 연결 또는 처리 상태를 확인하지 못했습니다. 기존 입력을 유지했습니다. 잠시 후 다시 시도해 주세요.';

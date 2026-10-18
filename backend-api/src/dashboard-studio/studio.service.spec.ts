@@ -121,6 +121,22 @@ describe('Studio real DuckDB and transactional metadata', () => {
       },
       7,
     );
+  it('returns pinned execution evidence only to the owner, without adding writes', async () => {
+    const counts = await Promise.all(
+      [Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity)),
+    );
+    const initial = await studio.get(id, 7);
+    expect(initial.preview.evidence.source.id).toBe(initial.document.sourceId);
+    expect(initial.preview.evidence.source.revision).toBe(initial.sourceRevision);
+    expect(initial.preview.evidence.blocks).toHaveLength(initial.document.blocks.length);
+    expect(initial.preview.evidence.blocks[0].calculation).toBeNull();
+    expect(initial.preview.evidence.blocks[0].aggregateRowCount).toBe(1);
+    expect(JSON.stringify(initial.preview.evidence)).not.toMatch(/SELECT|connectionConfig/);
+    await expect(studio.get(id, 99)).rejects.toThrow();
+    expect(
+      await Promise.all([Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity))),
+    ).toEqual(counts);
+  });
   it('filters every block before aggregation, persists scope without changing canonical SQL, clears scope', async () => {
     const initial = await studio.get(id, 7);
     const document = applyStudioOperation(initial.document, {

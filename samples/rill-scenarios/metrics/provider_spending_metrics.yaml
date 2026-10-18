@@ -1,0 +1,24 @@
+type: metrics_view
+model: provider_spending
+timeseries: month
+dimensions:
+  - column: provider_name
+    display_name: Provider
+  - column: provider_region
+    display_name: Region
+  - column: procedure_code
+    display_name: Procedure
+measures:
+  - name: paid
+    expression: sum(total_paid)
+    display_name: Paid amount
+    format_preset: currency_usd
+  - name: claims
+    expression: sum(claim_count)
+    display_name: Claims
+  - name: provider_codes
+    expression: count(distinct provider_id)
+    display_name: Provider codes (including unmatched)
+  - name: facts
+    expression: count(*)
+    display_name: Fact rows

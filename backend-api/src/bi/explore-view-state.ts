@@ -44,6 +44,7 @@ export function validateExploreViewState(input: any, catalog: any) {
     'version',
     'mode',
     'pivot',
+    'segment',
     'measureIds',
     'dimensionColumns',
     'rankingMeasureId',
@@ -82,7 +83,58 @@ export function validateExploreViewState(input: any, catalog: any) {
     input.dimensionColumns.some(name => !columns.includes(name))
   )
     invalid();
-  if (input.mode !== undefined && !['explore', 'pivot'].includes(input.mode)) invalid();
+  if (input.mode !== undefined && !['explore', 'pivot', 'segment'].includes(input.mode)) invalid();
+  if (input.mode === 'segment') {
+    const segment = input.segment;
+    object(segment, ['dimensionColumn', 'conditions', 'pivotColumn']);
+    if (
+      typeof segment.dimensionColumn !== 'string' ||
+      !segment.dimensionColumn.trim() ||
+      segment.dimensionColumn.length > 128 ||
+      input.dimensionColumns.length !== 1 ||
+      input.dimensionColumns[0] !== segment.dimensionColumn ||
+      input.comparePrevious ||
+      input.includeRows ||
+      input.leaderboardSort?.by !== 'value' ||
+      input.leaderboardSort?.direction !== 'desc'
+    )
+      invalid();
+    const axes = [
+      segment.dimensionColumn,
+      ...(segment.pivotColumn === undefined ? [] : [segment.pivotColumn]),
+    ];
+    if (
+      new Set(axes).size !== axes.length ||
+      axes.some(name => typeof name !== 'string' || !name.trim() || name.length > 128)
+    )
+      invalid();
+    if (
+      axes.some(
+        name =>
+          !catalog.dimensions.some(d => d.column === name && !d.numeric) ||
+          catalog.temporalColumns.some(d => d.column === name),
+      )
+    )
+      invalid();
+    if (
+      !Array.isArray(segment.conditions) ||
+      segment.conditions.length < 1 ||
+      segment.conditions.length > 3
+    )
+      invalid();
+    for (const condition of segment.conditions) {
+      object(condition, ['measureId', 'operator', 'value']);
+      if (
+        !Number.isSafeInteger(condition.measureId) ||
+        !input.measureIds.includes(condition.measureId) ||
+        !['gte', 'gt', 'lte', 'lt', 'eq'].includes(condition.operator) ||
+        typeof condition.value !== 'number' ||
+        !Number.isFinite(condition.value) ||
+        Math.abs(condition.value) > Number.MAX_SAFE_INTEGER
+      )
+        invalid();
+    }
+  } else if (input.segment !== undefined) invalid();
   if (input.mode === 'pivot') {
     object(input.pivot, ['rowDimensions', 'columnDimensions']);
     const axes = input.pivot;

@@ -38,4 +38,8 @@ export class Dashboard extends BaseEntity {
   @Optional()
   @Column({ length: 1, default: YesNo.NO, comment: '삭제여부' })
   delYn: string;
+
+  /** Organization reader policies never grant an anonymous/live sharing bypass. */
+  @Column({ type: 'boolean', default: false })
+  governed: boolean;
 }

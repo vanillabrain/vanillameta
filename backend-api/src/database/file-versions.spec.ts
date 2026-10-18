@@ -127,6 +127,75 @@ describe('file version replacement', () => {
     expect(await sum()).toBe(10);
     expect(directories()).toHaveLength(1);
   });
+  const schemaError = async (csv: string, originalname = 'changed.csv') => {
+    const before = (await service.fileVersions(id, 7)).data;
+    const error: any = await service
+      .replaceFile(id, { originalname, buffer: Buffer.from(csv) }, before.revision, 7)
+      .then(
+        () => null,
+        (thrown: unknown) => thrown,
+      );
+    return { before, error };
+  };
+  it('returns a structured FILE_SCHEMA_CHANGED payload for a removed and added column', async () => {
+    const { before, error } = await schemaError('day,channel,other\n2026-01-01,online,30\n');
+    expect(error).toBeInstanceOf(BadRequestException);
+    const payload: any = error.getResponse();
+    expect(payload.code).toBe('FILE_SCHEMA_CHANGED');
+    expect(payload.message).toBe(
+      '컬럼 이름 또는 타입이 기존 파일과 다릅니다. 기존 데이터는 유지됩니다. 같은 형식으로 수정하거나 새 데이터 소스로 연결해 주세요.',
+    );
+    expect(Object.keys(payload).sort()).toEqual(['changes', 'code', 'message']);
+    expect(Object.keys(payload.changes).sort()).toEqual([
+      'added',
+      'removed',
+      'truncated',
+      'typeChanged',
+    ]);
+    expect(payload.changes.removed.map((c: any) => c.name)).toEqual(['amount']);
+    expect(payload.changes.added.map((c: any) => c.name)).toEqual(['other']);
+    expect(payload.changes.typeChanged).toEqual([]);
+    expect(payload.changes.truncated).toBe(false);
+    for (const entry of [...payload.changes.removed, ...payload.changes.added]) {
+      expect(Object.keys(entry).sort()).toEqual(['name', 'type']);
+      expect(typeof entry.type).toBe('string');
+    }
+    const json = JSON.stringify(payload);
+    expect(json).not.toContain(root);
+    expect(json).not.toContain('.duckdb');
+    expect(json).not.toContain('SELECT');
+    expect((await service.fileVersions(id, 7)).data).toEqual(before);
+    expect(await sum()).toBe(10);
+    expect(directories()).toHaveLength(1);
+  });
+  it('reports a type change as from/to and keeps the active version', async () => {
+    const { before, error } = await schemaError('day,channel,amount\n2026-01-01,online,hello\n');
+    expect(error).toBeInstanceOf(BadRequestException);
+    const payload: any = error.getResponse();
+    expect(payload.code).toBe('FILE_SCHEMA_CHANGED');
+    expect(payload.changes.typeChanged.map((c: any) => c.name)).toEqual(['amount']);
+    expect(Object.keys(payload.changes.typeChanged[0]).sort()).toEqual(['from', 'name', 'to']);
+    expect(payload.changes.removed).toEqual([]);
+    expect(payload.changes.added).toEqual([]);
+    expect(payload.changes.truncated).toBe(false);
+    expect(JSON.stringify(payload)).not.toContain(root);
+    expect((await service.fileVersions(id, 7)).data).toEqual(before);
+    expect(await sum()).toBe(10);
+    expect(directories()).toHaveLength(1);
+  });
+  it('reports an extra column as added without touching the last good version', async () => {
+    const { before, error } = await schemaError(
+      'day,channel,amount,extra\n2026-01-01,online,30,1\n',
+    );
+    const payload: any = error.getResponse();
+    expect(payload.code).toBe('FILE_SCHEMA_CHANGED');
+    expect(payload.changes.added.map((c: any) => c.name)).toEqual(['extra']);
+    expect(payload.changes.removed).toEqual([]);
+    expect(payload.changes.typeChanged).toEqual([]);
+    expect((await service.fileVersions(id, 7)).data).toEqual(before);
+    expect(await sum()).toBe(10);
+    expect(directories()).toHaveLength(1);
+  });
   it('rejects malformed input without any pointer or directory change', async () => {
     const before = (await service.fileVersions(id, 7)).data;
     await expect(
@@ -257,5 +326,23 @@ describe('file version replacement', () => {
     await service.remove(id);
     expect(await row()).toBeNull();
     expect(directories()).toHaveLength(0);
+  });
+  it('keeps an activated file when metadata commit succeeds but its result is lost', async () => {
+    const before = (await service.fileVersions(id, 7)).data;
+    const repository = db.getRepository(Database),
+      update = repository.update.bind(repository);
+    const spy = jest.spyOn(repository, 'update').mockImplementationOnce(async (where, patch) => {
+      await update(where, patch);
+      throw new Error('metadata result lost after commit');
+    });
+    await expect(service.replaceFile(id, file(42), before.revision, 7)).rejects.toThrow(
+      'result lost',
+    );
+    spy.mockRestore();
+    expect(await sum()).toBe(42);
+    const after = (await service.fileVersions(id, 7)).data;
+    expect(after.versions).toHaveLength(2);
+    expect(after.currentVersionId).not.toBe(before.currentVersionId);
+    expect(fs.existsSync((await config()).connection.filename)).toBe(true);
   });
 });

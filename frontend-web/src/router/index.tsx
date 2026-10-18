@@ -34,6 +34,9 @@ const Status404 = React.lazy(() => import('@/pages/Status404'));
 const Explore = React.lazy(() => import('@/pages/Explore'));
 const SourceExplore = React.lazy(() => import('@/pages/Explore/SourceExplore'));
 const Commerce = React.lazy(() => import('@/pages/Commerce'));
+const Organizations = React.lazy(() => import('@/pages/Organization'));
+const EmbedPortal = React.lazy(() => import('@/pages/Organization/EmbedPortal'));
+const GovernedDashboard = React.lazy(() => import('@/pages/Organization/GovernedDashboard'));
 
 const StudioDesignPreview = import.meta.env.DEV
   ? React.lazy(() => import('@/pages/Dashboard/Studio/StudioDesignPreview'))
@@ -73,6 +76,7 @@ function Router() {
           </Route>
 
           <Route path="/explore" element={<Explore />} />
+          <Route path="/organizations" element={<Organizations />} />
           <Route path="/explore/source" element={<SourceExplore />} />
           <Route path="/data" element={<Data />} />
           <Route path="/commerce" element={<Commerce />} />
@@ -97,6 +101,22 @@ function Router() {
           element={
             <ProtectedRoute>
               <StudioCreate />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizations/:orgId/embed/:dashboardId"
+          element={
+            <ProtectedRoute>
+              <EmbedPortal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizations/:orgId/dashboard/:dashboardId"
+          element={
+            <ProtectedRoute>
+              <GovernedDashboard />
             </ProtectedRoute>
           }
         />

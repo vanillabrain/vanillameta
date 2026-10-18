@@ -22,10 +22,14 @@ import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { AnalysisCreationReceipt } from './analysis-creation-receipt.entity';
 import { DashboardReuseService } from './dashboard-reuse.service';
 import { sourceRevision } from './source-revision';
+import { StudioState } from '../dashboard-studio/entities/studio-state.entity';
+import { importStudio } from '../dashboard-studio/studio-legacy';
+import { canonicalMetricSql } from '../dashboard-studio/studio-remix-template';
 import type { BiService } from './bi.service';
 
 const ACTOR = 10;
 const ENTITIES = [
+  StudioState,
   Database,
   Metric,
   Dashboard,
@@ -221,7 +225,13 @@ describe('UC020 dashboard reuse SQLite atomic save', () => {
       source,
       bi as BiService,
       dashboards,
-      { withDuckDBSnapshot: (_id: number, run: any) => run() } as any,
+      {
+        withDuckDBSnapshot: (_id: number, run: any) => run(),
+        queryDuckDB: async () => ({
+          datas: COLUMNS.map(c => ({ column_name: c.name, column_type: c.type })),
+        }),
+        duckDBVersion: async () => 'target-file',
+      } as any,
       new SourceAccessService(source),
     );
   };
@@ -235,6 +245,7 @@ describe('UC020 dashboard reuse SQLite atomic save', () => {
         sourceId: targetId,
         sourceRevision: (await profileOf(targetId, actor)).dataVersion,
         title: '복사본 제목',
+        unitConfirmation: 'same-unit',
         columnMap: COLUMN_MAP,
       },
       actor,
@@ -392,7 +403,7 @@ describe('UC020 dashboard reuse SQLite atomic save', () => {
     expect(preview.snapshot.widgets.map(w => w.title)).toEqual(['총 매출', 'OS별 매출']);
     await expect(
       service.preview(originalId, { ...body, blockIds: ['orig-sales'] }, ACTOR),
-    ).rejects.toThrow('unsupported column mapping: os');
+    ).rejects.toThrow('열 연결의 이름과 타입을 확인해 주세요: os');
   });
 
   it('binds the draft and preview to the current revisions without writing', async () => {
@@ -575,5 +586,134 @@ describe('UC020 dashboard reuse SQLite atomic save', () => {
     expect(await counts()).toEqual(before);
     expect(await db.getRepository(Dashboard).count()).toBe(2);
     expect(created.replayed).toBe(false);
+  });
+  const canonical = async () => {
+    const row = await db.getRepository(Dashboard).findOneByOrFail({ id: originalId });
+    const analysis = JSON.parse(row.analysisDefinition);
+    const definition = {
+      schemaVersion: 1,
+      definitionVersion: 2,
+      sourceId: 1,
+      tableName: 'uploaded_data',
+      label: '매출',
+      aggregation: 'SUM',
+      column: 'amount',
+      unit: 'USD',
+      decimalPlaces: 2,
+      numberNotation: 'plain',
+    };
+    analysis.widgets = analysis.widgets.map((w, i) => ({
+      ...w,
+      sql: canonicalMetricSql(definition, w.type, i ? 'os' : undefined, { columns: COLUMNS }),
+      ...(i ? { categoryField: 'dimension' } : {}),
+    }));
+    const snapshot = {
+      schemaVersion: 2,
+      kind: 'structured-bi-dashboard',
+      sourceId: 1,
+      studioFilters: [{ column: 'os', values: ['Mobile'] }],
+      items: analysis.widgets.map((w, i) => ({
+        key: w.blockId,
+        sourceId: 1,
+        metricId: 100,
+        definitionVersion: 2,
+        definition,
+        ...(i ? { dimension: 'os' } : {}),
+        chart: i ? 'bar' : 'number',
+      })),
+    };
+    await db.getRepository(Dashboard).update(originalId, {
+      analysisDefinition: JSON.stringify(analysis),
+      structuredDefinition: JSON.stringify(snapshot),
+    });
+    return await db.getRepository(Dashboard).findOneByOrFail({ id: originalId });
+  };
+  it('copies one canonical metric once, keeps filters and clone-local links in the same receipt transaction', async () => {
+    const original = await canonical();
+    const { ticket } = await flow();
+    expect(await db.getRepository(Metric).count()).toBe(0);
+    const request = { ticket, requestId: randomUUID() };
+    const saved = await service.save(originalId, request, ACTOR);
+    const row = await db.getRepository(Dashboard).findOneByOrFail({ id: saved.id });
+    const snapshot = JSON.parse(row.structuredDefinition);
+    const metrics = await db.getRepository(Metric).find();
+    expect(metrics).toHaveLength(1);
+    expect(snapshot.items.map(i => i.metricId)).toEqual([metrics[0].id, metrics[0].id]);
+    expect(
+      snapshot.items.every(
+        i =>
+          i.sourceId === targetId &&
+          i.definition.sourceId === targetId &&
+          i.definitionVersion === 1,
+      ),
+    ).toBe(true);
+    expect(snapshot.studioFilters).toEqual([{ column: 'os', values: ['Mobile'] }]);
+    expect((await service.save(originalId, request, ACTOR)).id).toBe(saved.id);
+    expect(await db.getRepository(Metric).count()).toBe(1);
+    expect(await db.getRepository(Dashboard).findOneByOrFail({ id: originalId })).toEqual(original);
+  });
+  it('rolls back clone-local metrics together with a failed dashboard write', async () => {
+    await canonical();
+    const { ticket } = await flow();
+    await db.getRepository(Component).update({ type: 'CHART_COLUMN' }, { useYn: 'N' });
+    const before = await counts();
+    await expect(
+      service.save(originalId, { ticket, requestId: randomUUID() }, ACTOR),
+    ).rejects.toThrow('component unavailable');
+    expect(await counts()).toEqual(before);
+  });
+  it('preserves independently edited Studio mobile/tablet geometry through a saved copy', async () => {
+    const row = await canonical();
+    const analysis = JSON.parse(row.analysisDefinition);
+    analysis.blockLayouts = Object.fromEntries(
+      analysis.widgets.map((w, i) => [w.blockId, RECTS.desktop[i]]),
+    );
+    const doc = importStudio(
+      originalId,
+      { ...analysis, revision: dashboardRevision(row) },
+      JSON.parse(row.structuredDefinition),
+      'schema',
+    );
+    doc.layouts.xs[0].h = 4;
+    doc.layouts.xs[1].y = 7;
+    doc.layouts.xs[1].h = 6;
+    doc.layouts.md[0].w = 3;
+    doc.layouts.md[1].y = 5;
+    // Layout array order may differ from block order and must not change identity assignment.
+    doc.layouts.xs.reverse();
+    await db.manager.save(StudioState, {
+      dashboardId: originalId,
+      legacyRevision: dashboardRevision(row),
+      document: JSON.stringify({ document: doc, sourceRevision: 'old' }),
+    });
+    const { ticket, preview } = await flow();
+    const first = preview.snapshot.widgets[0].blockId;
+    expect(preview.snapshot.responsiveLayouts.mobile[first]).toEqual({ x: 0, y: 0, w: 4, h: 4 });
+    const request = { ticket, requestId: randomUUID() };
+    const saved = await service.save(originalId, request, ACTOR);
+    const state = await db.manager.findOneByOrFail(StudioState, { dashboardId: saved.id });
+    const copied = JSON.parse(state.document).document;
+    const ids = new Map(doc.blocks.map((b, i) => [b.id, copied.blocks[i].id]));
+    for (const bp of ['xs', 'md', 'lg'])
+      expect(copied.layouts[bp]).toEqual(doc.layouts[bp].map(g => ({ ...g, id: ids.get(g.id) })));
+    expect((await service.save(originalId, request, ACTOR)).id).toBe(saved.id);
+    expect(await db.manager.count(StudioState)).toBe(2);
+    const next = await flow();
+    const rowBefore = await db.manager.findOneByOrFail(Dashboard, { id: originalId });
+    const altered = JSON.parse(JSON.stringify(doc));
+    altered.layouts.xs[0].h += 1;
+    await db.manager.update(
+      StudioState,
+      { dashboardId: originalId },
+      { document: JSON.stringify({ document: altered, sourceRevision: 'old' }) },
+    );
+    expect(dashboardRevision(await db.manager.findOneByOrFail(Dashboard, { id: originalId }))).toBe(
+      dashboardRevision(rowBefore),
+    );
+    const before = await counts();
+    await expect(
+      service.save(originalId, { ticket: next.ticket, requestId: randomUUID() }, ACTOR),
+    ).rejects.toThrow('변경되었습니다');
+    expect(await counts()).toEqual(before);
   });
 });

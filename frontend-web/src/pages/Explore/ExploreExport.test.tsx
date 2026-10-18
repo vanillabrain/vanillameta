@@ -3,6 +3,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ExploreExport from './ExploreExport';
 
+const identity = vi.hoisted(() => ({ token: 'owner-token', epoch: 'owner-epoch' }));
+vi.mock('@/helpers/authHelper', () => ({ getToken: () => identity.token }));
+vi.mock('@/helpers/editorDraftStorage', () => ({ editorDraftSessionEpoch: () => identity.epoch }));
 const api = vi.hoisted(() => ({ post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ get: vi.fn(), post: api.post }));
 const CSV = 'metric,device_type,value\n1,app,10\n2,web,20\n';
@@ -72,6 +75,8 @@ const renderExport = (over: { payload?: any; disabled?: boolean } = {}) =>
 
 beforeEach(() => {
   api.post.mockReset();
+  identity.token = 'owner-token';
+  identity.epoch = 'owner-epoch';
   created = [];
   clicked = [];
   Object.defineProperty(URL, 'createObjectURL', {
@@ -299,4 +304,40 @@ it('rejects every invalid export response before creating an object URL', async 
     expect(api.post.mock.calls.at(-1)?.[1], label).toEqual(explorePayload);
     cleanup();
   }
+});
+
+it('exports aggregate segments with applied view identity and rejects a stale response', async () => {
+  const payload = { mode: 'segment' as const, query: { ...explorePayload.query, viewRevision: 'a'.repeat(64) } };
+  api.post.mockResolvedValue(success(exportData({ viewRevision: 'a'.repeat(64) })));
+  renderExport({ payload });
+  fireEvent.click(screen.getByRole('button', { name: '집계 조건 내보내기' }));
+  fireEvent.click(downloadButton());
+  await waitFor(() => expect(clicked).toHaveLength(1));
+  expect(api.post).toHaveBeenCalledWith('/bi/explore/segments/export', payload.query, expect.anything());
+  api.post.mockResolvedValue(success(exportData({ viewRevision: 'b'.repeat(64) })));
+  fireEvent.click(downloadButton());
+  await screen.findByText('집계 조건 또는 지표가 변경되었습니다. 다시 적용한 뒤 내보내세요.');
+  expect(clicked).toHaveLength(1);
+});
+
+it('does not download an old account response even before a storage event arrives', async () => {
+  const pending = deferred();
+  api.post.mockReturnValue(pending.promise);
+  renderExport();
+  openPanel();
+  fireEvent.click(downloadButton());
+  identity.epoch = 'new-login';
+  identity.token = 'other-account';
+  await act(async () => pending.resolve(success(exportData())));
+  await screen.findByText(/로그인 계정이 변경/);
+  expect(created).toHaveLength(0);
+  expect(clicked).toHaveLength(0);
+});
+
+it('keeps a dashboard summary and trigger together with a full-width export panel', () => {
+  render(<ExploreExport payload={explorePayload} disabled={false} summary={<p role="status">대상2개 · 원본8행</p>} />);
+  expect(screen.getByRole('status').textContent).toBe('대상2개 · 원본8행');
+  openPanel();
+  expect(downloadButton().hasAttribute('disabled')).toBe(false);
+  expect(api.post).not.toHaveBeenCalled();
 });

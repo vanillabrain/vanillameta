@@ -1,3 +1,5 @@
+import FileRefreshJob from './FileRefreshJob';
+import FileSchemaChange from './FileSchemaChange';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
@@ -12,8 +14,16 @@ type Versions = {
   limit: 5;
   versions: Version[];
   unchanged?: boolean;
+  supportsCorrection?: boolean;
+  supportsRefresh?: boolean;
 };
-type Props = { sourceId: number; onChanged: () => void; disabled?: boolean };
+type Props = {
+  sourceId: number;
+  onChanged: () => void;
+  disabled?: boolean;
+  durableRefresh?: boolean;
+  columns?: Array<{ name: string; type: string }>;
+};
 
 function timestamp(uploadedAt: string) {
   const date = new Date(uploadedAt);
@@ -44,14 +54,22 @@ function unwrap(response: { data: { status: string; data: Versions } }, sourceId
   return data;
 }
 
-export default function FileVersions({ sourceId, onChanged, disabled = false }: Props) {
+export default function FileVersions({
+  sourceId,
+  onChanged,
+  disabled = false,
+  durableRefresh = false,
+  columns = [],
+}: Props) {
   const [versions, setVersions] = useState<Versions | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  const [schemaChanges, setSchemaChanges] = useState<unknown>(null);
   const [notice, setNotice] = useState('');
   const [reload, setReload] = useState(0);
+  const [refreshLocked, setRefreshLocked] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const generation = useRef(0);
   const controller = useRef<AbortController | null>(null);
@@ -68,6 +86,7 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
     if (input.current) input.current.value = '';
     setConfirmId(null);
     setError('');
+    setSchemaChanges(null);
     setNotice('');
     setBusy('파일 버전 불러오는 중…');
     void (async () => {
@@ -96,7 +115,7 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
 
   const current = versions?.sourceId === sourceId ? versions : null;
   const confirmVersion = current?.versions.find(version => version.id === confirmId && !version.current);
-  const locked = disabled || !!busy;
+  const locked = disabled || !!busy || refreshLocked;
   const change = async (versionId?: string) => {
     if (pending.current || disabled || !current || (!versionId && !file)) return;
     if (versionId && (confirmId !== versionId || !current.versions.some(v => v.id === versionId && !v.current))) return;
@@ -107,6 +126,7 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
     controller.current = abort;
     setBusy(versionId ? '파일 버전 복원 중…' : '파일 검증 및 교체 중…');
     setError('');
+    setSchemaChanges(null);
     setNotice('');
     try {
       let response;
@@ -138,8 +158,10 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
       );
       if (!unchanged) onChanged();
     } catch (e: unknown) {
-      if (token === generation.current && !abort.signal.aborted)
+      if (token === generation.current && !abort.signal.aborted) {
         setError(serverError(e, '파일 변경에 실패했습니다. 파일과 최신 버전을 확인한 뒤 다시 시도해 주세요.'));
+        setSchemaChanges((e as any)?.response?.data);
+      }
     } finally {
       if (token === generation.current && !abort.signal.aborted) {
         pending.current = false;
@@ -148,6 +170,13 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
     }
   };
 
+  if (current?.supportsRefresh === false)
+    return (
+      <Notice severity="info" className="mt-4">
+        연결 모델은 확인한 원본 두 개의 고정 스냅샷입니다. 파일을 교체하지 않고 원본 품질을 다시 확인해 새 연결 소스로 만들어
+        주세요.
+      </Notice>
+    );
   return (
     <section aria-label="파일 교체 및 버전 관리" className="mt-6 min-w-0">
       <h3 className="mb-2 text-lg font-semibold">파일 교체 및 버전</h3>
@@ -156,31 +185,49 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
         소스·지표·차트는 유지되며, 현재 데이터가 바뀌면 연결된 대시보드에도 반영됩니다. 현재 버전을 포함해 최대 5개 버전을
         보관합니다.
       </p>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <input
-          ref={input}
-          type="file"
-          accept=".csv,.json,.parquet"
-          aria-label="교체할 파일"
-          disabled={locked || !current}
-          className="hidden"
-          onChange={event => {
-            setFile(event.target.files?.[0] ?? null);
+      {durableRefresh && current ? (
+        <FileRefreshJob
+          sourceId={sourceId}
+          columns={columns}
+          allowCorrection={current.supportsCorrection === true}
+          revision={current.revision}
+          disabled={disabled || !!busy}
+          onLockedChange={setRefreshLocked}
+          onCompleted={result => {
+            setFile(null);
             setConfirmId(null);
-            setError('');
-            setNotice('');
+            setReload(value => value + 1);
+            if (!result.unchanged) onChanged();
           }}
         />
-        <Button variant="outline" disabled={locked || !current} onClick={() => input.current?.click()}>
-          파일 선택
-        </Button>
-        <p className="min-w-0 flex-1 break-words text-sm" aria-live="polite">
-          {file ? `선택한 파일: ${file.name}` : '선택한 파일 없음'}
-        </p>
-        <Button disabled={locked || !current || !file} onClick={() => void change()}>
-          검증 후 파일 교체
-        </Button>
-      </div>
+      ) : !durableRefresh ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            ref={input}
+            type="file"
+            accept=".csv,.json,.parquet"
+            aria-label="교체할 파일"
+            disabled={locked || !current}
+            className="hidden"
+            onChange={event => {
+              setFile(event.target.files?.[0] ?? null);
+              setConfirmId(null);
+              setError('');
+              setSchemaChanges(null);
+              setNotice('');
+            }}
+          />
+          <Button variant="outline" disabled={locked || !current} onClick={() => input.current?.click()}>
+            파일 선택
+          </Button>
+          <p className="min-w-0 flex-1 break-words text-sm" aria-live="polite">
+            {file ? `선택한 파일: ${file.name}` : '선택한 파일 없음'}
+          </p>
+          <Button disabled={locked || !current || !file} onClick={() => void change()}>
+            검증 후 파일 교체
+          </Button>
+        </div>
+      ) : null}
       <p role="status" aria-live="polite" className="my-2">
         {busy || notice}
       </p>
@@ -189,6 +236,7 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
           {error}
         </Notice>
       )}
+      <FileSchemaChange value={schemaChanges} />
       <Button variant="ghost" disabled={locked} onClick={() => setReload(value => value + 1)}>
         버전 목록 새로고침
       </Button>
@@ -200,13 +248,13 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
             tabIndex={0}
             className="max-w-full overflow-x-auto text-xs sm:text-sm"
           >
-            <Table style={{ width: '100%', tableLayout: 'fixed' }}>
+            <Table className="text-xs sm:text-sm" style={{ width: '100%', tableLayout: 'fixed' }}>
               <TableCaption className="mt-0 mb-2 text-left text-inherit">보관된 파일 버전 · 최대 5개</TableCaption>
               <colgroup>
                 <col style={{ width: '28%' }} />
-                <col style={{ width: '14%' }} />
+                <col style={{ width: '24%' }} />
                 <col style={{ width: '30%' }} />
-                <col style={{ width: '28%' }} />
+                <col style={{ width: '18%' }} />
               </colgroup>
               <TableHeader className="[&_tr]:border-0">
                 <TableRow className="border-0 hover:bg-transparent">
@@ -252,10 +300,11 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
                             variant="ghost"
                             disabled={locked}
                             aria-label="이 버전으로 복원"
-                            className="h-11 whitespace-nowrap px-1 text-inherit"
+                            className="h-11 whitespace-nowrap px-1 text-xs text-inherit sm:text-sm"
                             onClick={() => {
                               setConfirmId(version.id);
                               setError('');
+                              setSchemaChanges(null);
                             }}
                           >
                             <span className="hidden sm:inline">이 버전으로 복원</span>

@@ -63,7 +63,7 @@ export class SharedReuseOriginService {
       recipe = buildReuseRecipe(analysis, profile);
       identity = [kind, key, row.reuseVersion, row.endDate, dashboardRevision(dashboard), recipe];
     }
-    if (!dashboard || dashboard.delYn === 'Y') throw unavailable();
+    if (!dashboard || dashboard.delYn === 'Y' || dashboard.governed) throw unavailable();
     const { analysis, profile } = readReuseRecipe(recipe);
     const revision = createHash('sha256').update(JSON.stringify(identity)).digest('hex');
     return {
@@ -100,12 +100,13 @@ export class SharedReuseOriginService {
           ? { id: (row as DashboardPublication).dashboardId }
           : { shareId: (row as DashboardShare).id },
     });
-    return { reusable: !!dashboard && dashboard.delYn !== 'Y' };
+    return { reusable: !!dashboard && dashboard.delYn !== 'Y' && !dashboard.governed };
   }
   async grant(id: unknown, actor: number, body?: any) {
     const dashboardId = this.access.id(id);
     await this.access.dashboard(dashboardId, actor);
     const dashboard = await this.db.manager.findOne(Dashboard, { where: { id: dashboardId } });
+    if (dashboard.governed && body?.allowReuse === true) throw unavailable();
     const share = await this.db.manager.findOne(DashboardShare, {
       where: { id: dashboard.shareId },
     });

@@ -56,6 +56,11 @@ export class ShareUrlService {
       await this.dashboardService.assertOwner(dashboardId, findUser.id);
       const endDate = this.parseEndDate(shareUrlOnDto.endDate);
       const findDashboard = await this.dashboardRepository.findOne({ where: { id: dashboardId } });
+      if (findDashboard?.governed)
+        throw new HttpException(
+          '조직 정책이 적용된 분석은 공개 공유할 수 없습니다.',
+          HttpStatus.FORBIDDEN,
+        );
       const findDashboardShare = await this.dashboardShareRepository.findOne({
         where: { id: findDashboard.shareId },
       });

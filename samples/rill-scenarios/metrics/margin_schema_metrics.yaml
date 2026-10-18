@@ -1,0 +1,23 @@
+type: metrics_view
+version: 1
+model: margin_schema
+timeseries: day
+smallest_time_grain: day
+dimensions:
+  - name: day
+    column: day
+  - name: company
+    column: company
+measures:
+  - name: revenue
+    expression: SUM(sales_amount)
+    format_preset: currency_usd
+  - name: cost
+    expression: SUM(actual_cost)
+    format_preset: currency_usd
+  - name: profit
+    expression: SUM(net_profit)
+    format_preset: currency_usd
+  - name: cost_ratio
+    expression: SUM(actual_cost)/NULLIF(SUM(sales_amount),0)
+    format_preset: percentage

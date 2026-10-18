@@ -119,6 +119,7 @@ export function applyStudioOperation(
           'prefix',
           'suffix',
           'timeGrain',
+          'presentation',
         ]);
       }
       Object.assign(block, op.patch);

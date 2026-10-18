@@ -98,6 +98,10 @@ export async function fetchPublished(token: string): Promise<PublishedSnapshot> 
         typeof block.id === 'string' &&
         typeof block.title === 'string' &&
         ['BOARD_NUMERIC', 'CHART_LINE', 'CHART_BAR', 'CHART_COLUMN'].includes(block.kind) &&
+        (block.display?.presentation === undefined ||
+          block.display.presentation === 'visual' ||
+          (block.display.presentation === 'summary' && block.kind === 'BOARD_NUMERIC') ||
+          (block.display.presentation === 'table' && block.kind !== 'BOARD_NUMERIC')) &&
         typeof block.valueField === 'string' &&
         Array.isArray(block.datas) &&
         block.datas.every((row: any) => row && typeof row === 'object' && !Array.isArray(row)),

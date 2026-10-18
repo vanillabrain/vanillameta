@@ -66,7 +66,9 @@ describe('AI dashboard preview file snapshots', () => {
       })),
     };
     const connection = new ConnectionService(repository as any, {} as any, worker);
-    const service = new AiDashboardService({} as any, connection, {} as any);
+    const service = new AiDashboardService({} as any, connection, {
+      manager: { findOne: jest.fn(async () => null) },
+    } as any);
     const oldRevision = await connection.duckDBVersion(1);
     const query = worker.query.bind(worker);
     let replaced = false;

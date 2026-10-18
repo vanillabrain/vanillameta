@@ -1,3 +1,6 @@
+import { FileRefresh } from './entities/file-refresh.entity';
+import { FileRefreshService } from './file-refresh.service';
+import { FileRefreshController, FileRefreshOwnerGuard } from './file-refresh.controller';
 import { Module } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { DatabaseController } from './database.controller';
@@ -10,8 +13,14 @@ import { DatabaseType } from './entities/database_type.entity';
 import { JwtService } from '@nestjs/jwt';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType])],
-  controllers: [DatabaseController],
-  providers: [DatabaseService, ConnectionService, JwtService],
+  imports: [TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType, FileRefresh])],
+  controllers: [DatabaseController, FileRefreshController],
+  providers: [
+    FileRefreshService,
+    FileRefreshOwnerGuard,
+    DatabaseService,
+    ConnectionService,
+    JwtService,
+  ],
 })
 export class DatabaseModule {}

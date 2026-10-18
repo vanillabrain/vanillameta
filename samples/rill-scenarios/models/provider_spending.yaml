@@ -1,0 +1,4 @@
+type: model
+sql: |
+  SELECT f.*, CAST(p.provider_name AS VARCHAR) AS provider_name, CAST(p.region AS VARCHAR) AS provider_region
+  FROM spending_facts f LEFT JOIN providers p ON f.provider_id = p.provider_id

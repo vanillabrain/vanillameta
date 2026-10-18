@@ -1,0 +1,7 @@
+type: explore
+metrics_view: funnel_metrics
+display_name: VM app conversion comparison
+dimensions: '*'
+measures: '*'
+time_ranges:
+  - inf

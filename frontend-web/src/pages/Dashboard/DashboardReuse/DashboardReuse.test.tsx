@@ -263,3 +263,36 @@ it.each([
   fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
   await waitFor(() => expect(api.navigate).toHaveBeenCalledWith(target));
 });
+
+it('preserves mapping and title after unit failure and sends only explicit same-unit confirmation', async () => {
+  api.get.mockImplementation(async (url: string) =>
+    wrap(url.endsWith('/reuse') ? { ...original(), currency: 'USD' } : profile()),
+  );
+  await open();
+  api.post.mockRejectedValueOnce({
+    response: { status: 400, data: { message: '새 파일의 금액 단위를 자동으로 확인할 수 없습니다.' } },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '전체 미리보기' }));
+  await screen.findByText('새 파일의 금액 단위를 자동으로 확인할 수 없습니다.');
+  expect((screen.getByLabelText('복사본 제목') as HTMLInputElement).value).toBe('원본 복사본');
+  expect((screen.getByLabelText('amount 연결') as HTMLSelectElement).value).toBe('amount');
+  fireEvent.click(screen.getByRole('checkbox', { name: /같은 USD 금액 단위/ }));
+  api.post.mockResolvedValueOnce(wrap(preview()));
+  fireEvent.click(screen.getByRole('button', { name: '전체 미리보기' }));
+  await screen.findByText('미리보기: 원본 복사본 · reuse');
+  expect(api.post.mock.calls[1][1].unitConfirmation).toBe('same-unit');
+});
+it('prepares a private demo source without automatic preview, AI or dashboard save', async () => {
+  api.query = 'editor=studio';
+  api.get.mockImplementation(async (url: string) =>
+    wrap(url.endsWith('/reuse') ? { ...original(), currency: 'USD' } : profile(url.includes('/2/') ? 2 : 1)),
+  );
+  await open();
+  api.post.mockResolvedValueOnce({ data: { sourceId: 2, name: '새 USD 파일' } });
+  fireEvent.click(screen.getByRole('button', { name: '정상 USD 파일' }));
+  await waitFor(() => expect((screen.getByLabelText('데이터 소스') as HTMLSelectElement).value).toBe('2'));
+  await waitFor(() => expect((screen.getByLabelText('amount 연결') as HTMLSelectElement).value).toBe(''));
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(api.post.mock.calls[0].slice(0, 2)).toEqual(['/studio/samples', { sample: 'margin-reuse' }]);
+  expect((screen.getByRole('button', { name: '복사본 저장' }) as HTMLButtonElement).disabled).toBe(true);
+});

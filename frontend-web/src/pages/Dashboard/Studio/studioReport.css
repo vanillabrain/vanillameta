@@ -1,0 +1,26 @@
+/* Report views share the executed aggregate; keep wide data inside the named scroll region. */
+.studio-report { width: 100%; font-size: 14px; line-height: 1.6; }
+.studio-report .studio-report-scope { color: var(--muted-foreground); font-size: 12px; margin: 0 0 12px; overflow-wrap: anywhere; }
+.studio-report .studio-report-summary { display: grid; gap: 12px; overflow-wrap: anywhere; }
+.studio-report .studio-report-summary p { margin: 0; font-size: 14px; }
+.studio-report .studio-report-summary strong { color: var(--foreground); }
+.studio-report .studio-report-summary summary { cursor: pointer; font-size: 12px; }
+.studio-report .studio-report-table { width: 100%; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+.studio-report .studio-report-table:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.studio-report .studio-report-table table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.studio-report .studio-report-table caption { text-align: left; padding: 8px 12px; font-size: 12px; color: var(--muted-foreground); }
+.studio-report .studio-report-table th, .studio-report .studio-report-table td { padding: 10px 12px; border-top: 1px solid var(--border); }
+.studio-report .studio-report-table thead th { background: var(--muted); font-size: 12px; font-weight: 500; text-align: left; }
+.studio-report .studio-report-table tbody th { text-align: left; font-weight: 500; max-width: 240px; overflow-wrap: anywhere; }
+.studio-report .studio-report-table td { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.studio-report .studio-report-comment { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; overflow-wrap: anywhere; }
+.studio-report .studio-report-comment span { color: var(--muted-foreground); font-size: 12px; }
+.studio-report .studio-report-comment p { white-space: pre-wrap; margin: 4px 0 0; }
+
+.studio-report .studio-report-table td details { font-size: 12px; color: var(--muted-foreground); margin-top: 2px; }
+.studio-report .studio-report-table td details span { white-space: normal; overflow-wrap: anywhere; }
+.studio-report .studio-report-table td summary { cursor: pointer; }
+
+.studio-report-compact:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.studio-report-compact .studio-report-summary { gap: 4px; }
+.studio-report-compact .studio-report-summary .studio-report-value { font-size: 20px; line-height: 28px; font-variant-numeric: tabular-nums; }

@@ -1,0 +1,29 @@
+type: metrics_view
+model: git_changes
+timeseries: changed_at
+dimensions:
+  - column: path_directory
+    display_name: Directory
+  - column: commit_author
+    display_name: Author
+  - column: file_path
+    display_name: Full path
+measures:
+  - name: file_events
+    expression: count(*)
+    display_name: File change events
+  - name: commits
+    expression: count(distinct commit_id)
+    display_name: Active commits (including unmatched)
+  - name: paths
+    expression: count(distinct file_path)
+    display_name: Full paths
+  - name: basenames
+    expression: count(distinct path_filename)
+    display_name: Basenames
+  - name: additions
+    expression: sum(additions)
+    display_name: Added lines
+  - name: deletions
+    expression: sum(deletions)
+    display_name: Deleted lines

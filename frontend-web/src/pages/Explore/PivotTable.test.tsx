@@ -2,8 +2,9 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import PivotTable, { PivotResult } from './PivotTable';
-const api = vi.hoisted(() => ({ post: vi.fn() }));
+const api = vi.hoisted(() => ({ post: vi.fn(), authCheck: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ post: api.post }));
+vi.mock('@/helpers/authResponseFence', () => ({ captureAuthResponseFence: () => api.authCheck }));
 const sample: PivotResult = {
   sourceRevision: 'rev',
   metrics: [
@@ -50,6 +51,7 @@ const props = () => ({
   onReloadCatalog: vi.fn(),
 });
 beforeEach(() => {
+  api.authCheck.mockReset();
   api.post.mockReset();
   api.post.mockResolvedValue(success());
 });
@@ -275,3 +277,13 @@ it.each(['success', 'error'])(
     expect(pool.size).toBe(0);
   },
 );
+
+it('handles missing auth at delayed dispatch without a POST or stuck loading', async () => {
+  api.authCheck.mockImplementation(() => {
+    throw new Error('missing authentication');
+  });
+  render(<PivotTable {...props()} filterDelayMs={250} />);
+  await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('불러오지 못했습니다'));
+  expect(api.post).not.toHaveBeenCalled();
+  expect(screen.queryByRole('status', { name: 'Pivot 집계 중' })).toBeNull();
+});

@@ -1,3 +1,4 @@
+import StudioReport from './StudioReport';
 import { useTranslation } from 'react-i18next';
 import React, { useId } from 'react';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
@@ -28,8 +29,14 @@ export default function StudioSemanticReview({ proposal }: { proposal: CreationP
               <h3>{item.title}</h3>
               <p className="studio-create-definition">
                 {metric.id ? '저장 지표 #' + metric.id + ' · v' + metric.definitionVersion : '새 지표'} ·{' '}
-                {metric.aggregation ?? '저장된 계산'}
-                {metric.column ? '(' + metric.column + ')' : ''}
+                {metric.aggregation === 'FORMULA' ? (
+                  '저장 지표 조합 · 참조 정의 고정'
+                ) : (
+                  <>
+                    {metric.aggregation ?? '저장된 계산'}
+                    {metric.column ? '(' + metric.column + ')' : ''}
+                  </>
+                )}
               </p>
               {metric.denominatorColumn && (
                 <p className="studio-create-definition">
@@ -43,6 +50,24 @@ export default function StudioSemanticReview({ proposal }: { proposal: CreationP
               )}
               {!row ? (
                 <p>계산 결과가 없습니다.</p>
+              ) : row.presentation === 'table' || row.presentation === 'summary' ? (
+                <StudioReport
+                  title={item.title}
+                  description=""
+                  kind={row.type}
+                  presentation={row.presentation}
+                  display={{
+                    prefix: row.prefix,
+                    suffix,
+                    decimalPlaces: row.decimalPlaces,
+                    numberNotation: row.numberNotation === 'compact' ? 'compact' : 'full',
+                  }}
+                  rows={row.datas}
+                  valueField={row.valueField}
+                  categoryField={row.categoryField}
+                  period="전체 기간"
+                  scope="필터 없음"
+                />
               ) : row.type === 'BOARD_NUMERIC' ? (
                 <div className="studio-create-number">
                   {value === null || value === undefined

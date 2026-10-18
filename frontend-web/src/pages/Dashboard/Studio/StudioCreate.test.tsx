@@ -97,6 +97,61 @@ const ready = async () => {
   fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '총매출을 보여 줘' } });
 };
 describe('Studio create workflow', () => {
+  it('prepares VM margin data without invoking AI or replacing an existing question', async () => {
+    const fallback = mocks.get.getMockImplementation();
+    mocks.get.mockImplementation(async (url: string, ...args: any[]) =>
+      url.endsWith('/profile')
+        ? {
+            data: {
+              ...profile(),
+              columns: [
+                ...['revenue', 'cost', 'profit'].map(name => ({ name, numeric: true, nullCount: '0' })),
+                { name: 'company', numeric: false, nullCount: '0' },
+                { name: 'day', temporal: true, nullCount: '0' },
+              ],
+            },
+          }
+        : fallback(url, ...args),
+    );
+    render(<StudioCreate />);
+    const margin = screen.getByRole('button', { name: '비용·마진 샘플' });
+    await waitFor(() => expect((margin as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '내 질문 유지' } });
+    fireEvent.click(margin);
+    await screen.findByRole('button', { name: '고객별 매출·비용' });
+    expect(mocks.post.mock.calls.map(call => [call[0], call[1]])).toEqual([['/studio/samples', { sample: 'margin' }]]);
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe('내 질문 유지');
+    fireEvent.click(screen.getByRole('button', { name: '마진과 이익 추세' }));
+    const input = screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement;
+    expect(input.value).toContain('SUM(profit) / SUM(revenue) * 100');
+    expect(input.value).not.toContain('USD');
+    expect(document.activeElement).toBe(input);
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+  });
+  it('offers funnel ratios from numeric step columns while requiring a real version dimension', async () => {
+    const fallback = mocks.get.getMockImplementation();
+    mocks.get.mockImplementation(async (url: string, ...args: any[]) =>
+      url.endsWith('/profile')
+        ? {
+            data: {
+              ...profile(),
+              columns: ['visits', 'downloads', 'signups'].map(name => ({ name, numeric: true, nullCount: '0' })),
+            },
+          }
+        : fallback(url, ...args),
+    );
+    render(<StudioCreate />);
+    const funnel = screen.getByRole('button', { name: '앱 전환 샘플' });
+    await waitFor(() => expect((funnel as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(funnel);
+    const suggestion = await screen.findByRole('button', { name: '앱 단계별 전환' });
+    expect(screen.queryByRole('button', { name: '버전별 다운로드' })).toBeNull();
+    fireEvent.click(suggestion);
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toContain(
+      'SUM(signups) / SUM(downloads)',
+    );
+    expect(mocks.post.mock.calls.map(call => call[0])).toEqual(['/studio/samples']);
+  });
   it('offers only supported commerce questions and fills the editable prompt without posting', async () => {
     const fallback = mocks.get.getMockImplementation();
     mocks.get.mockImplementation(async (url: string, ...args: any[]) =>

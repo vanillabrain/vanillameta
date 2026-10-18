@@ -246,12 +246,9 @@ export class DashboardService {
           widgetIds = original.map(m => m.widgetId);
       }
 
-      if (updateDashboardDto.title) {
-        find_dashboard.title = updateDashboardDto.title;
-      }
-      if (hasLayout) {
-        find_dashboard.layout = JSON.stringify(updateDashboardDto.layout);
-      }
+      const changes: Partial<Dashboard> = {};
+      if (updateDashboardDto.title) changes.title = updateDashboardDto.title;
+      if (hasLayout) changes.layout = JSON.stringify(updateDashboardDto.layout);
 
       const saveObjDW = {
         dashboardId: id,
@@ -259,7 +256,9 @@ export class DashboardService {
       };
       // 업데이트할 데이터
       if (hasLayout) await this.dashboardWidgetService.update(id, saveObjDW);
-      const updatedDashboard = await this.dashboardRepository.save(find_dashboard);
+      // Persist presentation only: a concurrent policy activation must remain sticky.
+      if (Object.keys(changes).length) await this.dashboardRepository.update(id, changes);
+      const updatedDashboard = await this.dashboardRepository.findOne({ where: { id } });
 
       updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
       return { status: ResponseStatus.SUCCESS, data: updatedDashboard };

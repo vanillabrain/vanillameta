@@ -135,6 +135,7 @@ export class StudioRunService {
           'Return ONLY JSON: {"intent":"ask"|"edit"|"unsupported"|"clarify","answer":"concise Korean","operations":[]}.',
           'Infer intent from the request; do not ask the user to select an ask/edit mode.',
           'Only edit the selectedBlockId. Supported operation: {"type":"updateBlock","blockId":"exact selected ID","patch":{"title"?:string,"description"?:string,"display"?:{"decimalPlaces"?:0..6,"numberNotation"?:"full"|"compact","prefix"?:string,"suffix"?:string,"timeGrain"?:"auto"|"day"|"week"|"month"}}}.',
+          'display.presentation can be visual, table for grouped/time blocks, or summary for BOARD_NUMERIC; preserve canonical kind and metric references. Summary numbers come from server aggregates, never invented prose.',
           'timeGrain is only for CHART_LINE. Weekly=week, daily=day, monthly=month. Never scale numeric SQL for formatting.',
           'Never change SQL, source, metric references, definition keys, other blocks, IDs, layout or chart kind. Never add/delete blocks, create dashboards, save, publish or share. Those requests are unsupported and operations must be empty.',
           'For edit without a selected block return clarify with empty operations. For questions use only verified preview values and disclose missing evidence. Never invent results or claim persistence.',

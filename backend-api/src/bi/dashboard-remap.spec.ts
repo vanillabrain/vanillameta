@@ -403,3 +403,60 @@ describe('UC-020 dashboard column remap', () => {
     expect(compatibleReuseColumn(flagged, numeric)).toBe(false);
   });
 });
+
+it('uses the exact target identifier spelling for a case-only rename', () => {
+  const columns = [{ name: 'revenue', type: 'DOUBLE', numeric: true, temporal: false }];
+  const draft = {
+    databaseId: 1,
+    title: 'a',
+    explanation: '',
+    widgets: [
+      {
+        blockId: 'a',
+        title: 'a',
+        description: '',
+        type: 'BOARD_NUMERIC',
+        valueField: 'value',
+        sql: 'SELECT SUM("revenue") AS value FROM source',
+      },
+    ],
+  };
+  const actual = remapDashboard(
+    draft as any,
+    { sourceId: 1, columns },
+    { sourceId: 2, columns: [{ ...columns[0], name: 'Revenue' }] },
+    { revenue: 'Revenue' },
+  );
+  expect(actual.widgets[0].sql).toBe('SELECT SUM("Revenue") AS value FROM source');
+});
+
+it.each(['SELECT * FROM source', 'SELECT source.* FROM source'])(
+  'rejects ambiguous wildcard dependencies and remapping: %s',
+  sql => {
+    const input = draft([widget({ sql, valueField: 'bid_request_cnt' })]);
+    expect(() => reuseColumns(input, source)).toThrow('wildcard');
+    expect(() => remapDashboard(input, source, target, {})).toThrow('wildcard');
+  },
+);
+it('keeps explicit multiplication dependencies and column-independent COUNT(*)', () => {
+  expect(
+    reuseColumns(
+      draft([widget({ sql: 'SELECT SUM(bid_request_cnt * 2) AS value FROM source' })]),
+      source,
+    ).map(c => c.name),
+  ).toEqual(['bid_request_cnt']);
+  expect(
+    reuseColumns(draft([widget({ sql: 'SELECT COUNT(*) AS value FROM source' })]), source),
+  ).toEqual([]);
+});
+
+it.each([
+  'CASE WHEN SUM(bid_request_cnt) > 0 THEN SUM(bid_request_cnt) ELSE 0 END * 2',
+  '2 * CASE WHEN SUM(bid_request_cnt) > 0 THEN SUM(bid_request_cnt) ELSE 0 END',
+])('preserves CASE multiplication while rejecting projections: %s', expression => {
+  const input = draft([widget({ sql: `SELECT ${expression} AS value FROM source` })]);
+  expect(reuseColumns(input, source).map(c => c.name)).toEqual(['bid_request_cnt']);
+  expect(
+    remapDashboard(input, source, target, { bid_request_cnt: 'requests' }).widgets[0].sql,
+  ).toContain('"requests"');
+});

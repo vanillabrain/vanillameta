@@ -1,0 +1,7 @@
+type: model
+sql: |
+  SELECT f.*, CAST(c.author AS VARCHAR) AS commit_author,
+    parse_filename(f.file_path, false, 'forward_slash') AS path_filename,
+    parse_dirpath(f.file_path, 'forward_slash') AS path_directory,
+    regexp_extract(parse_filename(f.file_path, false, 'forward_slash'), '^.+\.([^.]+)$', 1) AS path_extension
+  FROM git_files f LEFT JOIN git_commits c ON f.commit_id = c.commit_id

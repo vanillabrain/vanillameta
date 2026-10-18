@@ -9,10 +9,14 @@ export default function PivotDashboardAdd({
   sourceId,
   viewId,
   name,
+  disabled = false,
+  onMutationPendingChange,
 }: {
   sourceId: number;
   viewId: number | string;
   name: string;
+  disabled?: boolean;
+  onMutationPendingChange?: (pending: boolean) => void;
 }) {
   const [open, setOpen] = useState(false),
     [dashboards, setDashboards] = useState<any[]>([]),
@@ -50,6 +54,8 @@ export default function PivotDashboardAdd({
     return () => abort.abort();
   }, [open]);
   const add = async () => {
+    if (busy || disabled) return;
+    onMutationPendingChange?.(true);
     setBusy(true);
     setError('');
     try {
@@ -62,12 +68,13 @@ export default function PivotDashboardAdd({
         e.response?.data?.data?.message || e.response?.data?.message || 'Pivot을 추가하지 못했습니다. 다시 시도해 주세요.',
       );
     } finally {
+      onMutationPendingChange?.(false);
       setBusy(false);
     }
   };
   return (
     <>
-      <Button aria-label={`${name} 대시보드에 추가`} onClick={() => setOpen(true)}>
+      <Button disabled={disabled} aria-label={`${name} 대시보드에 추가`} onClick={() => setOpen(true)}>
         대시보드에 추가
       </Button>
       <p role="status" className="text-xs">
@@ -83,8 +90,8 @@ export default function PivotDashboardAdd({
           <DialogHeader>
             <DialogTitle>저장한 Pivot을 대시보드에 추가</DialogTitle>
             <DialogDescription>
-              같은 데이터 소스의 분석 대시보드를 선택하세요. 행·열·지표와 기본 필터를 복사하고 대시보드 공통 필터·기간을
-              연결합니다.
+              같은 데이터 소스의 분석 대시보드를 선택하세요. 행·열·지표·집계 조건과 기본 필터를 복사하고 공통 필터·기간을
+              연결합니다. 개인 대시보드에서 조회하며 공개 게시본에는 추가하지 않습니다.
             </DialogDescription>
           </DialogHeader>
           <TextField

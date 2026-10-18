@@ -5,11 +5,14 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Worker } from 'worker_threads';
+import { AsyncLocalStorage } from 'async_hooks';
 import { createHash, randomUUID } from 'crypto';
 import * as fs from 'fs/promises';
 import { createReadStream, existsSync } from 'fs';
 import * as path from 'path';
 import { CommerceImportInput, CommerceImportResult } from './commerce-import';
+import { FileCorrection, FileCorrectionResult } from './file-correction';
+import { FileLookup } from './file-lookup';
 
 export type AnalysisUpload = {
   originalname: string;
@@ -43,6 +46,13 @@ export class DuckDBService implements OnModuleDestroy {
   private active: any;
   private closing = false;
   private restarting = false;
+  private readonly cancellation = new AsyncLocalStorage<AbortSignal>();
+
+  /** Server-owned operation scope; never accept a cancellation ID from query SQL. */
+  withCancellation<T>(signal: AbortSignal, operation: () => Promise<T>): Promise<T> {
+    if (signal.aborted) return Promise.reject(new Error('analysis task cancelled'));
+    return this.cancellation.run(signal, operation);
+  }
 
   private root() {
     return path.resolve(process.env.FILE_UPLOAD_DIR || 'uploads');
@@ -260,10 +270,92 @@ export class DuckDBService implements OnModuleDestroy {
     return this.digestPath(source);
   }
 
+  async correctFile(
+    candidateFilename: string,
+    retainedFilename: string,
+    settings: FileCorrection,
+  ): Promise<FileCorrectionResult> {
+    const filename = this.managed(candidateFilename);
+    retainedFilename = this.managed(retainedFilename);
+    if (filename === retainedFilename)
+      throw new BadRequestException('a separate candidate file is required');
+    await fs.access(filename);
+    await fs.access(retainedFilename);
+    const result = await this.submit(
+      {
+        kind: 'file-correction',
+        filename,
+        retainedFilename,
+        settings,
+        maxStorageBytes: positive(process.env.ANALYSIS_MAX_STORAGE_BYTES, 2 * 1024 * 1024 * 1024),
+      },
+      positive(process.env.FILE_IMPORT_TIMEOUT_MS, 300000),
+    );
+    await this.checkImportStorage({
+      filename,
+      maxStorageBytes: positive(process.env.ANALYSIS_MAX_STORAGE_BYTES, 2 * 1024 * 1024 * 1024),
+    });
+    const directory = path.dirname(filename);
+    const existing = JSON.parse(await fs.readFile(path.join(directory, 'import.json'), 'utf8'));
+    await this.manifest(directory, {
+      ...existing,
+      status: 'ready',
+      kind: 'file-correction',
+      rows: result.unchanged ? result.inputRows : result.rows,
+      inputRows: result.inputRows,
+    });
+    return result;
+  }
+
   async registerImport(filename: string, databaseId: number) {
     const directory = path.dirname(this.managed(filename));
     const existing = JSON.parse(await fs.readFile(path.join(directory, 'import.json'), 'utf8'));
     await this.manifest(directory, { ...existing, databaseId });
+  }
+
+  async lookupFiles(
+    factFilename: string,
+    lookupFilename: string,
+    definition: FileLookup,
+    materialize: boolean,
+  ) {
+    factFilename = this.managed(factFilename);
+    lookupFilename = this.managed(lookupFilename);
+    if (factFilename === lookupFilename)
+      throw new BadRequestException('서로 다른 두 소스를 선택해 주세요.');
+    await fs.access(factFilename);
+    await fs.access(lookupFilename);
+    const directory = path.join(this.root(), randomUUID());
+    const filename = path.join(directory, 'data.duckdb');
+    await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+    let retained = false;
+    try {
+      await this.manifest(directory, { status: 'importing', kind: 'file-lookup' });
+      const result = await this.submit(
+        {
+          kind: 'file-lookup',
+          filename,
+          factFilename,
+          lookupFilename,
+          definition,
+          materialize,
+          maxStorageBytes: positive(process.env.ANALYSIS_MAX_STORAGE_BYTES, 2 * 1024 * 1024 * 1024),
+        },
+        positive(process.env.FILE_IMPORT_TIMEOUT_MS, 300000),
+      );
+      if (materialize && result.quality.ready) {
+        await fs.chmod(filename, 0o600);
+        await this.manifest(directory, {
+          status: 'ready',
+          kind: 'file-lookup',
+          rows: result.quality.outputRows,
+        });
+        retained = true;
+      }
+      return { ...result, ...(retained ? { filename } : {}) };
+    } finally {
+      if (!retained) await fs.rm(directory, { recursive: true, force: true });
+    }
   }
 
   async removeImport(filename: string) {
@@ -301,16 +393,30 @@ export class DuckDBService implements OnModuleDestroy {
   }
 
   private submit(task: any, timeout: number): Promise<any> {
+    const signal = this.cancellation.getStore();
+    if (signal?.aborted) return Promise.reject(new Error('analysis task cancelled'));
     if (this.closing || this.queue.length >= positive(process.env.ANALYSIS_MAX_QUEUE, 16)) {
       return Promise.reject(new ServiceUnavailableException('analysis worker busy; retry later'));
     }
     return new Promise((resolve, reject) => {
       const job = { ...task, id: randomUUID(), resolve, reject, timer: null };
+      const abort = () => {
+        if (this.active === job) this.failWorker(new Error('analysis task cancelled'));
+        else if (this.queue.includes(job)) {
+          this.queue = this.queue.filter(item => item !== job);
+          clearTimeout(job.timer);
+          job.detachCancellation();
+          reject(new Error('analysis task cancelled'));
+        }
+      };
+      job.detachCancellation = () => signal?.removeEventListener('abort', abort);
+      signal?.addEventListener('abort', abort, { once: true });
       // Includes time spent waiting: requests cannot wait forever behind imports.
       job.timer = setTimeout(() => {
         if (this.active === job) this.failWorker(new Error('analysis task timeout'));
         else {
           this.queue = this.queue.filter(item => item !== job);
+          job.detachCancellation();
           reject(new Error('analysis queue timeout'));
         }
       }, timeout);
@@ -332,8 +438,12 @@ export class DuckDBService implements OnModuleDestroy {
       worker.on('message', async message => {
         if (this.worker !== worker || this.active?.id !== message.id) return;
         const job = this.active;
+        job.nativeSettled = true;
         clearInterval(job.storageTimer);
-        if (['import', 'commerce-import'].includes(job.kind) && !message.error) {
+        if (
+          ['import', 'commerce-import', 'file-correction', 'file-lookup'].includes(job.kind) &&
+          !message.error
+        ) {
           try {
             await this.checkImportStorage(job);
           } catch (error) {
@@ -344,7 +454,14 @@ export class DuckDBService implements OnModuleDestroy {
         }
         this.active = undefined;
         clearTimeout(job.timer);
-        if (message.error) job.reject(new Error(message.error));
+        job.detachCancellation();
+        if (message.error)
+          job.reject(
+            Object.assign(
+              new Error(message.error),
+              message.errorCode ? { code: message.errorCode } : {},
+            ),
+          );
         else job.resolve(message.result);
         this.pump();
       });
@@ -357,7 +474,7 @@ export class DuckDBService implements OnModuleDestroy {
     }
     this.active = this.queue.shift();
     const job = this.active;
-    if (['import', 'commerce-import'].includes(job.kind)) {
+    if (['import', 'commerce-import', 'file-correction', 'file-lookup'].includes(job.kind)) {
       let checking = false;
       job.storageTimer = setInterval(async () => {
         if (checking || this.active !== job) return;
@@ -376,6 +493,7 @@ export class DuckDBService implements OnModuleDestroy {
     delete task.reject;
     delete task.timer;
     delete task.storageTimer;
+    delete task.detachCancellation;
     this.worker.postMessage({
       ...task,
       maxResultBytes: positive(process.env.ANALYSIS_MAX_RESULT_BYTES, 8 * 1024 * 1024),
@@ -384,6 +502,26 @@ export class DuckDBService implements OnModuleDestroy {
       threads: positive(process.env.ANALYSIS_THREADS, 2),
       tempDirectory: path.join(path.dirname(task.filename), 'spill'),
     });
+  }
+
+  private stopWorker(worker: Worker, job: any) {
+    if (!worker) return Promise.resolve();
+    // Native calls must settle before destroying their JS environment. Otherwise an
+    // interrupt racing connection initialization can strand work or abort the API.
+    return new Promise<void>(resolve => {
+      const settled = () => {
+        worker.off('message', message);
+        worker.off('exit', settled);
+        resolve();
+      };
+      const message = (reply: any) => {
+        if (reply.id === job?.id) settled();
+      };
+      worker.on('message', message);
+      worker.once('exit', settled);
+      if (!job || job.nativeSettled || worker.threadId === -1) settled();
+      else worker.postMessage({ kind: 'cancel' });
+    }).then(() => worker.terminate());
   }
 
   private failWorker(error: Error) {
@@ -395,12 +533,10 @@ export class DuckDBService implements OnModuleDestroy {
     if (job) {
       clearTimeout(job.timer);
       clearInterval(job.storageTimer);
+      job.detachCancellation();
     }
     // Wait for termination before letting callers remove files or accepting new DB work.
-    worker?.postMessage({ kind: 'cancel' });
-    const termination = worker
-      ? new Promise(resolve => setTimeout(resolve, 25)).then(() => worker.terminate())
-      : Promise.resolve();
+    const termination = this.stopWorker(worker, job);
     termination.finally(() => {
       this.restarting = false;
       if (job) {
@@ -415,6 +551,7 @@ export class DuckDBService implements OnModuleDestroy {
     this.closing = true;
     for (const job of this.queue.splice(0)) {
       clearTimeout(job.timer);
+      job.detachCancellation();
       job.reject(new Error('analysis worker shutting down'));
     }
     const worker = this.worker;
@@ -422,11 +559,10 @@ export class DuckDBService implements OnModuleDestroy {
     if (this.active) {
       clearTimeout(this.active.timer);
       clearInterval(this.active.storageTimer);
+      this.active.detachCancellation();
     }
     if (worker) {
-      worker.postMessage({ kind: 'cancel' });
-      await new Promise(resolve => setTimeout(resolve, 25));
-      await worker.terminate();
+      await this.stopWorker(worker, this.active);
     }
     if (this.active) {
       clearTimeout(this.active.timer);

@@ -1,3 +1,7 @@
+import { StudioState } from '../dashboard-studio/entities/studio-state.entity';
+import { validateStudioDocument } from '../dashboard-studio/studio-document';
+import { importStudio, studioDigest } from '../dashboard-studio/studio-legacy';
+import { StudioDocumentV1, STUDIO_BREAKPOINTS } from '../dashboard-studio/studio-contract';
 import { SharedReuseOriginService, ReuseReference } from './shared-reuse-origin.service';
 import {
   BadRequestException,
@@ -21,8 +25,15 @@ import { UserMapping } from '../user/entities/user-mapping.entity';
 import { decryptConnectionConfig } from '../utils/crypto.util';
 import { AnalysisCreationReceipt } from './analysis-creation-receipt.entity';
 import { BiService } from './bi.service';
-import { remapDashboard, reuseColumns } from './dashboard-remap';
+import { compatibleReuseColumn, remapDashboard, reuseColumns } from './dashboard-remap';
 import { shape } from './semantic-proposal';
+import {
+  declaredReuseCurrency,
+  prepareStructuredReuse,
+  persistStructuredReuse,
+  StructuredReusePlan,
+} from './structured-reuse';
+import { assertReuseCurrency, trustedReuseCurrency } from './reuse-units';
 import { sourceRevision } from './source-revision';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -38,6 +49,16 @@ type Plan = {
   targetRevision: string;
   draft: any;
   layouts: any[];
+  structured?: StructuredReusePlan;
+  studioLayouts?: StudioDocumentV1['layouts'];
+  studioBlockIds?: string[];
+  originalStudioDigest?: string;
+  schemaVersion?: string;
+  filters: any[];
+  dateRange?: any;
+  originalCurrency?: string;
+  targetCurrency?: string;
+  unitConfirmation?: string;
   expiresAt: number;
   requestId?: string;
 };
@@ -65,12 +86,62 @@ export class DashboardReuseService {
     const profile = await this.bi.profile(analysis.databaseId, actor);
     if (!profile.supported)
       throw new BadRequestException('서버에 저장한 파일 분석만 복제할 수 있습니다.');
-    return { originalId, analysis, profile, reference: undefined as ReuseReference | undefined };
+    const state = this.db.hasMetadata(StudioState)
+      ? await this.db.manager.findOne(StudioState, { where: { dashboardId: originalId } })
+      : undefined;
+    const studioDocument =
+      state?.legacyRevision === analysis.revision
+        ? validateStudioDocument({
+            ...JSON.parse(state.document).document,
+            revision: analysis.revision,
+          })
+        : undefined;
+    if (
+      studioDocument &&
+      (studioDocument.sourceId !== profile.sourceId ||
+        studioDocument.dashboardId !== originalId ||
+        studioDocument.blocks.length !== analysis.widgets.length ||
+        studioDocument.blocks.some((block, i) => block.id !== analysis.widgets[i].blockId))
+    )
+      throw stale();
+    return {
+      originalId,
+      analysis,
+      profile,
+      studioDocument,
+      reference: undefined as ReuseReference | undefined,
+    };
+  }
+  private columns(analysis: any, profile: any) {
+    const result = reuseColumns(analysis, profile);
+    const names = [
+      ...(analysis.defaultFilters ?? []).map(f => f.column),
+      ...(analysis.defaultDateRange ? [analysis.defaultDateRange.column] : []),
+    ];
+    for (const name of names) {
+      const value = profile.columns.find(c => c.name === name);
+      if (!value) throw new BadRequestException(`기간·필터 열을 확인해 주세요: ${name}`);
+      if (!result.some(c => c.name === name)) result.push(value);
+    }
+    return result;
   }
   async draft(id: unknown, actor: number, kind = 'owned') {
     const { originalId, analysis, profile } = await this.original(id, actor, kind);
-    const columns = reuseColumns(analysis, profile);
+    const columns = this.columns(analysis, profile);
+    const source =
+      kind === 'owned'
+        ? await this.db.manager.findOne(Database, { where: { id: profile.sourceId } })
+        : undefined;
+    const stored =
+      kind === 'owned'
+        ? await this.db.manager.findOne(Dashboard, { where: { id: originalId } })
+        : undefined;
+    const declared = stored?.structuredDefinition
+      ? declaredReuseCurrency(JSON.parse(stored.structuredDefinition), analysis)
+      : undefined;
+    const currency = (source ? trustedReuseCurrency(source) : undefined) ?? declared;
     return {
+      ...(currency ? { currency } : {}),
       originalId: kind === 'owned' ? originalId : String(id),
       originalTitle: analysis.title,
       expectedRevision: analysis.revision,
@@ -80,7 +151,7 @@ export class DashboardReuseService {
       blocks: analysis.widgets.map(widget => ({
         id: widget.blockId,
         title: widget.title,
-        columns: reuseColumns({ ...analysis, widgets: [widget] }, profile).map(
+        columns: this.columns({ ...analysis, widgets: [widget] }, profile).map(
           column => column.name,
         ),
       })),
@@ -99,8 +170,13 @@ export class DashboardReuseService {
   }
   async preview(id: unknown, body: any, actor: number, kind = 'owned') {
     const required = ['expectedRevision', 'sourceId', 'sourceRevision', 'title', 'columnMap'];
-    shape(body, [...required, 'blockIds'], required);
-    const { originalId, analysis, profile, reference } = await this.original(id, actor, kind);
+    shape(body, [...required, 'blockIds', 'unitConfirmation'], required);
+    if (!body.columnMap || typeof body.columnMap !== 'object' || Array.isArray(body.columnMap))
+      throw new BadRequestException('열 연결을 확인해 주세요.');
+    const origin = await this.original(id, actor, kind);
+    const { originalId, analysis, profile, reference } = origin;
+    const studioDocument: StudioDocumentV1 | undefined =
+      'studioDocument' in origin ? origin.studioDocument : undefined;
     if (body.expectedRevision !== analysis.revision) throw stale();
     // UC024: explicit selection only; preserve original order regardless of request order.
     if (Object.prototype.hasOwnProperty.call(body, 'blockIds')) {
@@ -136,19 +212,106 @@ export class DashboardReuseService {
       const target = await this.bi.profile(targetId, actor);
       if (!target.supported) throw new BadRequestException('서버 파일 소스를 선택해 주세요.');
       if (target.dataVersion !== body.sourceRevision) throw stale();
-      const remapped = remapDashboard(selected, profile, target, body.columnMap);
+      const originSource =
+        kind === 'owned'
+          ? await this.db.manager.findOne(Database, { where: { id: profile.sourceId } })
+          : undefined;
+      const targetSource = await this.db.manager.findOne(Database, { where: { id: targetId } });
+      const originalRow = await this.db.manager.findOne(Dashboard, { where: { id: originalId } });
+      const snapshot =
+        kind === 'owned' && originalRow?.structuredDefinition
+          ? JSON.parse(originalRow.structuredDefinition)
+          : undefined;
+      const declaredCurrency = declaredReuseCurrency(snapshot, analysis);
+      const originalCurrency =
+        (originSource ? trustedReuseCurrency(originSource) : undefined) ?? declaredCurrency;
+      const targetCurrency = trustedReuseCurrency(targetSource);
+      assertReuseCurrency(originalCurrency, targetCurrency, body.unitConfirmation);
+      assertReuseCurrency(declaredCurrency, targetCurrency, body.unitConfirmation);
+      const requiredColumns = this.columns(selected, profile);
+      for (const [name, mapped] of Object.entries(body.columnMap as Record<string, string>)) {
+        const from = requiredColumns.find(c => c.name.toLowerCase() === name.toLowerCase());
+        const to =
+          typeof mapped === 'string' &&
+          target.columns.find(c => c.name.toLowerCase() === mapped.toLowerCase());
+        if (!from || !to || !compatibleReuseColumn(from, to))
+          throw new BadRequestException(`열 연결의 이름과 타입을 확인해 주세요: ${name}`);
+      }
+      const sqlColumns = reuseColumns(selected, profile);
+      const sqlMap = Object.fromEntries(
+        Object.entries(body.columnMap as Record<string, string>).filter(([name]) =>
+          sqlColumns.some(c => c.name.toLowerCase() === name.toLowerCase()),
+        ),
+      );
+      const remapped = remapDashboard(selected, profile, target, sqlMap);
+      const mapColumn = (name: string) => {
+        const entry = Object.entries(body.columnMap).find(
+          ([key]) => key.toLowerCase() === name.toLowerCase(),
+        );
+        if (!entry) throw new BadRequestException(`기간·필터 열 연결을 확인해 주세요: ${name}`);
+        const value = target.columns.find(
+          c => c.name.toLowerCase() === String(entry[1]).toLowerCase(),
+        );
+        if (!value) throw new BadRequestException(`기간·필터 열 연결을 확인해 주세요: ${name}`);
+        return value.name;
+      };
+      const filters = (analysis.defaultFilters ?? []).map(f => ({
+        ...f,
+        column: mapColumn(f.column),
+      }));
+      const dateRange = analysis.defaultDateRange
+        ? { ...analysis.defaultDateRange, column: mapColumn(analysis.defaultDateRange.column) }
+        : undefined;
+      const structured = prepareStructuredReuse(
+        snapshot,
+        analysis,
+        selected,
+        remapped,
+        profile,
+        target,
+        body.columnMap,
+      );
       const draft = validateDraft({
         ...remapped,
         title: body.title,
         widgets: remapped.widgets.map(widget => ({ ...widget, blockId: `copy-${randomUUID()}` })),
       });
       // Candidate IDs are local to preview. Persistence assigns fresh IDs and reapplies geometry by order.
+      const studioLayouts = studioDocument
+        ? (Object.fromEntries(
+            STUDIO_BREAKPOINTS.map(bp => [
+              bp,
+              studioDocument.layouts[bp].filter(g =>
+                selected.widgets.some(w => w.blockId === g.id),
+              ),
+            ]),
+          ) as StudioDocumentV1['layouts'])
+        : undefined;
+      const schemaVersion = studioLayouts
+        ? studioDigest(
+            (await this.connection.queryDuckDB(targetId, 'DESCRIBE uploaded_data')).datas,
+          )
+        : undefined;
       const layouts = selected.widgets.map(widget =>
-        Object.fromEntries(
-          ['mobile', 'tablet', 'desktop']
-            .map(name => [name, analysis.responsiveLayouts?.[name]?.[widget.blockId]])
-            .filter(([, rect]) => rect !== undefined),
-        ),
+        studioLayouts
+          ? Object.fromEntries(
+              [
+                ['mobile', 'xs'],
+                ['tablet', 'md'],
+                ['desktop', 'lg'],
+              ].map(([name, bp]) => {
+                const rect = studioLayouts[bp].find(g => g.id === widget.blockId);
+                return [
+                  name,
+                  { x: rect.x, y: rect.y, w: name === 'mobile' ? 4 : rect.w, h: rect.h },
+                ];
+              }),
+            )
+          : Object.fromEntries(
+              ['mobile', 'tablet', 'desktop']
+                .map(name => [name, analysis.responsiveLayouts?.[name]?.[widget.blockId]])
+                .filter(([, rect]) => rect !== undefined),
+            ),
       );
       if (layouts.some(value => !value.desktop))
         throw new BadRequestException(
@@ -160,12 +323,23 @@ export class DashboardReuseService {
         undefined,
         layouts,
       );
-      const result = (await this.dashboards.preview({ draft, includeTrends: true }, actor)).data;
+      const result = (
+        await this.dashboards.preview(
+          { draft, filters, ...(dateRange ? { dateRange } : {}), includeTrends: true },
+          actor,
+        )
+      ).data;
       // A profile snapshot is not proof the persisted source pointer stayed unchanged.
       await this.currentSource(this.db.manager, targetId, actor, target.dataVersion);
       const current = await this.db.manager.findOne(Dashboard, { where: { id: originalId } });
       if (reference) await this.origins.current(reference, this.db.manager);
       else if (!current || dashboardRevision(current) !== analysis.revision) throw stale();
+      if (
+        kind === 'owned' &&
+        (await this.currentStudioDigest(this.db.manager, originalId, analysis.revision)) !==
+          (studioDocument ? studioDigest(studioDocument) : undefined)
+      )
+        throw stale();
       const ticket = this.put({
         actor,
         reference,
@@ -177,6 +351,16 @@ export class DashboardReuseService {
         targetRevision: target.dataVersion,
         draft,
         layouts,
+        structured,
+        studioLayouts,
+        studioBlockIds: selected.widgets.map(w => w.blockId),
+        originalStudioDigest: studioDocument ? studioDigest(studioDocument) : undefined,
+        schemaVersion,
+        filters,
+        dateRange,
+        originalCurrency,
+        targetCurrency,
+        unitConfirmation: body.unitConfirmation,
       });
       return {
         ticket,
@@ -187,7 +371,9 @@ export class DashboardReuseService {
           schemaVersion: 1,
           title: draft.title,
           capturedAt: new Date().toISOString(),
-          scope: `새 소스: ${target.name} · 전체 기간 · 필터 없음 · UTC`,
+          scope: `새 소스: ${target.name} · ${dateRange ? '선택 기간' : '전체 기간'} · 필터 ${
+            filters.length
+          }개 · UTC`,
           widgets: result.widgets.map((widget, index) => {
             const visible = reference
               ? Object.fromEntries(
@@ -235,6 +421,19 @@ export class DashboardReuseService {
     const version = createHash('sha256').update(config.connection.filename).digest('hex');
     if (sourceRevision(source, version) !== revision) throw stale();
   }
+  private async currentStudioDigest(manager: EntityManager, id: number, revision: string) {
+    if (!this.db.hasMetadata(StudioState)) return undefined;
+    const state = await manager.findOne(StudioState, {
+      where: { dashboardId: id },
+      ...(manager.queryRunner?.isTransactionActive && this.db.options.type !== 'sqlite'
+        ? { lock: { mode: 'pessimistic_write' as const } }
+        : {}),
+    });
+    if (state?.legacyRevision !== revision) return undefined;
+    return studioDigest(
+      validateStudioDocument({ ...JSON.parse(state.document).document, revision }),
+    );
+  }
   private async currentOriginal(manager: EntityManager, plan: Plan) {
     if (plan.reference) {
       await this.origins.current(plan.reference, manager);
@@ -251,6 +450,11 @@ export class DashboardReuseService {
       where: { dashboardId: plan.originalId, userInfoId: plan.actor },
     });
     if (!row || row.delYn === 'Y' || !owner || dashboardRevision(row) !== plan.originalRevision)
+      throw stale();
+    if (
+      (await this.currentStudioDigest(manager, plan.originalId, plan.originalRevision)) !==
+      plan.originalStudioDigest
+    )
       throw stale();
     await this.currentSource(
       manager,
@@ -332,11 +536,45 @@ export class DashboardReuseService {
         const saved = await this.connection.withDuckDBSnapshot(plan.targetId, async () => {
           const profile = await this.bi.profile(plan.targetId, actor);
           if (profile.dataVersion !== plan.targetRevision) throw stale();
-          return (
+          const originalSource = await manager.findOne(Database, {
+            where: { id: plan.originalSourceId },
+          });
+          const targetSource = await manager.findOne(Database, { where: { id: plan.targetId } });
+          if (
+            (!plan.reference &&
+              trustedReuseCurrency(originalSource) !== undefined &&
+              trustedReuseCurrency(originalSource) !== plan.originalCurrency) ||
+            trustedReuseCurrency(targetSource) !== plan.targetCurrency
+          )
+            throw stale();
+          assertReuseCurrency(plan.originalCurrency, plan.targetCurrency, plan.unitConfirmation);
+          const links = plan.structured
+            ? await persistStructuredReuse(
+                plan.structured,
+                plan.targetId,
+                profile.dataVersion,
+                manager,
+              )
+            : null;
+          const snapshot =
+            links || plan.filters.length || plan.dateRange
+              ? {
+                  ...(links ?? {
+                    schemaVersion: 2,
+                    kind: 'structured-bi-dashboard',
+                    sourceId: plan.targetId,
+                    dataVersion: profile.dataVersion,
+                    items: plan.draft.widgets.map(() => ({})),
+                  }),
+                  ...(plan.filters.length ? { studioFilters: plan.filters } : {}),
+                  ...(plan.dateRange ? { studioDateRange: plan.dateRange } : {}),
+                }
+              : null;
+          const result = (
             await this.dashboards.save(
               { draft: plan.draft },
               actor,
-              null,
+              snapshot,
               undefined,
               manager,
               false,
@@ -344,6 +582,33 @@ export class DashboardReuseService {
               plan.layouts,
             )
           ).data;
+          if (plan.studioLayouts) {
+            const document = importStudio(
+              result.id,
+              { ...result.draft, revision: result.revision },
+              snapshot,
+              plan.schemaVersion,
+            );
+            document.layouts = Object.fromEntries(
+              STUDIO_BREAKPOINTS.map(bp => [
+                bp,
+                plan.studioLayouts[bp].map(g => ({
+                  ...g,
+                  id: document.blocks[plan.studioBlockIds.indexOf(g.id)].id,
+                })),
+              ]),
+            ) as StudioDocumentV1['layouts'];
+            validateStudioDocument(document);
+            await manager.save(StudioState, {
+              dashboardId: result.id,
+              legacyRevision: result.revision,
+              document: JSON.stringify({
+                document,
+                sourceRevision: await this.connection.duckDBVersion(plan.targetId),
+              }),
+            });
+          }
+          return result;
         });
         await this.currentOriginal(manager, plan);
         await manager.update(AnalysisCreationReceipt, { id: record.id }, { dashboardId: saved.id });

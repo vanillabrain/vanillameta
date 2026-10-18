@@ -180,6 +180,38 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     if (uploadRoot === undefined) delete process.env.FILE_UPLOAD_DIR;
     else process.env.FILE_UPLOAD_DIR = uploadRoot;
   });
+  it('rejects model-source nonadditive SQL before aggregate execution, including AI aliases and casts', async () => {
+    const source = await db.manager.findOneByOrFail(Database, { id: 1 });
+    const previous = source.connectionConfig;
+    await db.manager.update(Database, 1, {
+      connectionConfig: JSON.stringify({ fileModel: { nonAdditiveColumns: ['amount'] } }),
+    });
+    try {
+      for (const sql of [
+        'SELECT SUM(amount) AS value FROM source',
+        'SELECT SUM(CAST("amount" AS DOUBLE)) AS value FROM source',
+        'SELECT COUNT(DISTINCT amount) AS value FROM source',
+      ]) {
+        connection.queryDuckDB.mockClear();
+        const blocked = { ...draft(), widgets: [{ ...draft().widgets[0], sql }] };
+        await expect(service.preview({ draft: blocked }, 7)).rejects.toThrow('집계된 고유값');
+        expect(connection.queryDuckDB.mock.calls.some(call => call[1].includes(' AS value'))).toBe(
+          false,
+        );
+      }
+      const allowed = {
+        ...draft(),
+        widgets: [
+          { ...draft().widgets[0], sql: 'SELECT COUNT(DISTINCT device_type) AS value FROM source' },
+        ],
+      };
+      expect((await service.preview({ draft: allowed }, 7)).data.widgets[0].datas).toEqual([
+        { value: 2 },
+      ]);
+    } finally {
+      await db.manager.update(Database, 1, { connectionConfig: previous });
+    }
+  });
   it('filters before aggregation; caches dimensions and does not interpolate injections', async () => {
     const all = await service.preview({ draft: draft() }, 7);
     expect(all.data.widgets[0].datas).toEqual([{ value: 130 }]);

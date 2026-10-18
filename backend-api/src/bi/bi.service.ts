@@ -9,8 +9,11 @@ import { SourceAccessService } from '../ownership/source-access.service';
 import { ConnectionService } from '../connection/connection.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { sourceRevision } from './source-revision';
+import { decryptConnectionConfig } from '../utils/crypto.util';
 import { compileMetricWidget } from './structured-widget';
 import { metricFields } from './metric-expression';
+import { metricExpression } from './metric-expression';
+import { collectFormulaReferences, pinMetricFormula } from './metric-formula';
 import { quoteColumn, sourceQuery, validateDraft } from '../ai/dashboard-draft';
 import { resolveBlockTarget } from './block-target';
 import { explicitRenameRequested } from '../ai/saved-metric-reference';
@@ -91,6 +94,10 @@ export class BiService {
     const cached = this.profiles.get(source.id);
     if (cached?.version === version) return cached.data;
     const schema = (await this.connection.queryDuckDB(source.id, 'DESCRIBE uploaded_data')).datas;
+    const model =
+      source.connectionConfig &&
+      JSON.parse(decryptConnectionConfig(source.connectionConfig)).fileModel;
+    const nonAdditive = new Set<string>(model?.nonAdditiveColumns ?? []);
     if (!schema.length || schema.length > 128)
       throw new BadRequestException('지원 컬럼 수는 1~128개입니다.');
     const columns = schema.map(row => ({
@@ -100,6 +107,7 @@ export class BiService {
         row.column_type,
       ),
       temporal: /^(DATE|TIMESTAMP)/i.test(row.column_type),
+      ...(nonAdditive.has(row.column_name) ? { nonAdditive: true } : {}),
     }));
     const expressions = ['COUNT(*) AS row_count'];
     columns.forEach((c, i) => {
@@ -130,6 +138,20 @@ export class BiService {
         ...(c.temporal ? { min: stats[`min_${i}`], max: stats[`max_${i}`] } : {}),
       })),
       preview,
+      ...(model
+        ? {
+            modelInfo: {
+              type: model.type,
+              grain: model.grain,
+              quality: model.quality,
+              factSourceId: model.spec.factSourceId,
+              lookupSourceId: model.spec.lookupSourceId,
+              factKey: model.spec.definition.factKey,
+              lookupAttributes: model.spec.definition.attributes.map(a => a.alias),
+              nonAdditiveColumns: model.nonAdditiveColumns,
+            },
+          }
+        : {}),
     };
     if (this.profiles.size >= 50) this.profiles.delete(this.profiles.keys().next().value);
     this.profiles.set(source.id, { version, data });
@@ -141,6 +163,26 @@ export class BiService {
     return value.trim();
   }
   async createMetric(body: any, actor: number) {
+    if (body?.aggregation === 'FORMULA') {
+      await this.access.assert('database', body.sourceId, actor);
+      return this.connection.withDuckDBSnapshot(body.sourceId, async () => {
+        const { profile, definition } = await this.prepareFormula(body, actor);
+        const repo = this.db.getRepository(Metric);
+        const row = await repo.save(
+          repo.create({
+            name: 'bi_' + randomUUID(),
+            databaseId: profile.sourceId,
+            tableName: 'uploaded_data',
+            aggregation: 'FORMULA' as any,
+            expression: 'structured_formula',
+            description: definition.label,
+            definition: JSON.stringify(definition),
+            useYn: 'Y',
+          }),
+        );
+        return { id: row.id, label: definition.label, definitionVersion: 1, definition };
+      });
+    }
     const profile = await this.profile(body?.sourceId, actor);
     if (!profile.supported)
       throw new BadRequestException('서버에 저장한 DuckDB 파일을 선택해 주세요.');
@@ -182,6 +224,81 @@ export class BiService {
       }),
     );
     return { id: row.id, label, definitionVersion: 1, definition };
+  }
+  /** Resolve live references here; clients can never supply the trusted operand snapshots. */
+  async prepareFormula(body: any, actor: number) {
+    const allowed = [
+      'sourceId',
+      'expectedSourceRevision',
+      'label',
+      'aggregation',
+      'expression',
+      'decimalPlaces',
+      'numberNotation',
+    ];
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Array.isArray(body) ||
+      Object.keys(body).some(key => !allowed.includes(key)) ||
+      body.aggregation !== 'FORMULA'
+    )
+      throw new BadRequestException('계산 지표 요청을 확인해 주세요.');
+    const profile = await this.profile(body.sourceId, actor);
+    if (!profile.supported) throw new BadRequestException('서버 DuckDB 소스를 선택해 주세요.');
+    if (
+      typeof body.expectedSourceRevision !== 'string' ||
+      body.expectedSourceRevision !== profile.dataVersion
+    )
+      throw new ConflictException('원본 버전이 변경되었습니다. 다시 미리보기해 주세요.');
+    const references = collectFormulaReferences(body.expression),
+      operands = [];
+    for (const ref of references) {
+      await this.access.assert('metric', ref.metricId, actor);
+      const row = await this.db.getRepository(Metric).findOne({ where: { id: ref.metricId } });
+      if (!row || row.databaseId !== profile.sourceId || row.useYn !== 'Y' || !row.definition)
+        throw new BadRequestException('같은 소스의 활성 저장 지표를 선택해 주세요.');
+      const d = JSON.parse(row.definition);
+      if (d.definitionVersion !== ref.definitionVersion)
+        throw new ConflictException('참조 지표가 변경되었습니다. 다시 미리보기해 주세요.');
+      operands.push({ id: row.id, definitionVersion: d.definitionVersion, definition: d });
+    }
+    const formula = pinMetricFormula(body.expression, operands, profile);
+    if (
+      !Number.isInteger(body.decimalPlaces) ||
+      body.decimalPlaces < 0 ||
+      body.decimalPlaces > 6 ||
+      !['plain', 'compact'].includes(body.numberNotation)
+    )
+      throw new BadRequestException('계산 표시 형식을 확인해 주세요.');
+    const definition = {
+      schemaVersion: 1,
+      definitionVersion: 1,
+      sourceId: profile.sourceId,
+      tableName: 'uploaded_data',
+      label: this.text(body.label, 100),
+      aggregation: 'FORMULA',
+      column: '*',
+      formula,
+      unit: formula.unit,
+      decimalPlaces: body.decimalPlaces,
+      numberNotation: body.numberNotation,
+    };
+    metricFields(definition, profile);
+    return { profile, definition };
+  }
+  async previewFormula(body: any, actor: number) {
+    // Prove source ownership before opening a pinned file, including on a malformed foreign source.
+    await this.access.assert('database', body?.sourceId, actor);
+    return this.connection.withDuckDBSnapshot(body.sourceId, async () => {
+      const { profile, definition } = await this.prepareFormula(body, actor);
+      const query = sourceQuery(
+        `SELECT ${metricExpression(definition, profile)} AS value FROM source`,
+        profile.columns.map(column => column.name),
+      );
+      const result = await this.connection.queryDuckDB(profile.sourceId, query.sql, query.bindings);
+      return { sourceRevision: profile.dataVersion, definition, rows: result.datas };
+    });
   }
   async metrics(sourceId: unknown, actor: number) {
     await this.access.assert('database', sourceId, actor);

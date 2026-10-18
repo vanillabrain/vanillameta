@@ -1,0 +1,3 @@
+type: source
+connector: local_file
+path: data/margin.csv

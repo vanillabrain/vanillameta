@@ -1,4 +1,4 @@
-import { captureRemixTemplate } from './studio-remix-template';
+import { canonicalMetricSql, captureRemixTemplate } from './studio-remix-template';
 import { compileContribution } from '../ai/dashboard-contribution';
 import { createHash } from 'crypto';
 import {
@@ -20,10 +20,11 @@ import { Metric } from '../metric/entities/metric.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { metricLinkItems } from '../ai/metric-analysis-links';
 import { isTemporaryStudioId, STUDIO_BREAKPOINTS, StudioDocumentV1 } from './studio-contract';
-import { validateStudioDocument } from './studio-document';
+import { studioKeys, validateStudioDocument } from './studio-document';
 import { importStudio, studioDefinitions, studioDigest } from './studio-legacy';
 import { StudioState } from './entities/studio-state.entity';
 import { StudioRun } from './entities/studio-run.entity';
+import { buildStudioEvidence } from './studio-evidence';
 @Injectable()
 export class StudioService {
   private queued = 0;
@@ -98,6 +99,106 @@ export class StudioService {
       definitions: studioDefinitions(document, analysis),
     };
   }
+  /** Read-only handoff of one saved canonical block. URL references never grant source access. */
+  async exploreHandoff(id: number, query: any, actor: number) {
+    try {
+      studioKeys(query, ['blockId', 'expectedRevision', 'expectedSourceRevision']);
+      if (
+        typeof query.blockId !== 'string' ||
+        query.blockId.length > 128 ||
+        typeof query.expectedRevision !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(query.expectedRevision) ||
+        typeof query.expectedSourceRevision !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(query.expectedSourceRevision)
+      )
+        throw new Error();
+    } catch {
+      throw new BadRequestException('탐색으로 넘길 저장 기준을 확인해 주세요.');
+    }
+    await this.access.dashboard(id, actor);
+    const analysis = (await this.ai.analysis(id, actor, true)).data;
+    return this.connection.withDuckDBSnapshot(analysis.databaseId, async () => {
+      const current = await this.load(id, actor);
+      if (
+        current.document.revision !== query.expectedRevision ||
+        current.sourceRevision !== query.expectedSourceRevision
+      )
+        throw new ConflictException(
+          '보고서나 데이터가 변경되었습니다. Studio에서 다시 조회해 주세요.',
+        );
+      const index = current.document.blocks.findIndex(block => block.id === query.blockId);
+      const block = current.document.blocks[index],
+        item = current.items[index];
+      const definition = item?.definition;
+      const unsupported = () =>
+        new BadRequestException(
+          '이 블록은 같은 조건 탐색을 지원하지 않습니다. 원본 Studio를 유지했습니다.',
+        );
+      if (
+        !block ||
+        block.kind === 'CHART_LINE' ||
+        block.measureRefs.length !== 1 ||
+        block.dimensionRefs.length > 1 ||
+        !definition ||
+        definition.sourceId !== current.document.sourceId ||
+        item.metricId !== block.measureRefs[0].id ||
+        String(definition.definitionVersion) !== block.measureRefs[0].definitionVersion ||
+        current.document.dateRange?.precision === 'timestamp'
+      )
+        throw unsupported();
+      const profile = {
+        sourceId: current.document.sourceId,
+        columns: current.schema.map(c => ({
+          name: c.column_name,
+          type: c.column_type,
+          numeric: /^(U?BIGINT|U?INTEGER|U?SMALLINT|U?TINYINT|HUGEINT|FLOAT|DOUBLE|DECIMAL)/i.test(
+            c.column_type,
+          ),
+          temporal: /^(DATE|TIMESTAMP)/i.test(c.column_type),
+        })),
+      };
+      if (
+        current.analysis.widgets[index].sql !==
+        canonicalMetricSql(definition, block.kind, item.dimension, profile)
+      )
+        throw unsupported();
+      const metric = await this.db.manager.findOne(Metric, {
+        where: { id: item.metricId, databaseId: current.document.sourceId, useYn: 'Y' },
+      });
+      if (!metric || studioDigest(JSON.parse(metric.definition)) !== studioDigest(definition))
+        throw new ConflictException('지표 정의가 변경되었습니다. Studio에서 다시 확인해 주세요.');
+      return {
+        dashboardId: id,
+        blockId: block.id,
+        dashboardTitle: current.document.title,
+        blockTitle: block.title,
+        revision: current.document.revision,
+        sourceId: current.document.sourceId,
+        sourceRevision: current.sourceRevision,
+        measureGuards: [
+          {
+            id: item.metricId,
+            definitionVersion: String(definition.definitionVersion),
+            digest: studioDigest(definition),
+          },
+        ],
+        state: {
+          version: 1,
+          mode: 'explore',
+          measureIds: [item.metricId],
+          rankingMeasureId: item.metricId,
+          dimensionColumns: block.dimensionRefs.map(ref => ref.key),
+          leaderboardSort: { by: 'value', direction: 'desc' },
+          filters: current.document.filters ?? [],
+          dateRange: current.document.dateRange ?? null,
+          relativePeriod: null,
+          trendGrain: 'day',
+          comparePrevious: false,
+          includeRows: false,
+        },
+      };
+    });
+  }
   async get(id: number, actor: number) {
     await this.access.dashboard(id, actor);
     const analysis = (await this.ai.analysis(id, actor, true)).data;
@@ -123,6 +224,16 @@ export class StudioService {
           actor,
         )
       ).data;
+      preview.evidence = buildStudioEvidence({
+        document: state.document,
+        sourceRevision: state.sourceRevision,
+        schemaVersion: state.schemaVersion,
+        dataVersion: state.dataVersion,
+        definitionBlocks: state.document.blocks,
+        calculationItems: state.items,
+        schema: state.schema,
+        preview,
+      });
     } catch {
       previewError =
         '데이터를 불러오지 못했습니다. 편집 내용은 유지됩니다. 잠시 후 다시 조회해 주세요.';
@@ -246,6 +357,16 @@ export class StudioService {
           throw new BadRequestException(
             '이 차트는 요청한 시간 단위로 안전하게 집계할 수 없습니다. 기존 내용을 유지했습니다.',
           );
+      });
+      preview.evidence = buildStudioEvidence({
+        document,
+        sourceRevision: current.sourceRevision,
+        schemaVersion: current.schemaVersion,
+        dataVersion: current.dataVersion,
+        definitionBlocks: current.document.blocks,
+        calculationItems: current.items,
+        schema: current.schema,
+        preview,
       });
       return { document, preview };
     });

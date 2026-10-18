@@ -3,6 +3,8 @@ import { DuckDBInstance, DuckDBConnection, DuckDBTimestampTZValue } from '@duckd
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { importCommerce } from './commerce-import';
+import { applyFileCorrection } from './file-correction';
+import { buildFileLookup } from './file-lookup';
 
 // The adapter defaults to the host offset independently of the connection's UTC setting.
 DuckDBTimestampTZValue.timezoneOffsetInMinutes = 0;
@@ -23,11 +25,14 @@ const normalize = (value: any): any => {
 };
 
 let runningConnection: DuckDBConnection;
+let cancellationRequested = false;
 parentPort.on('message', async task => {
   if (task.kind === 'cancel') {
+    cancellationRequested = true;
     runningConnection?.interrupt();
     return;
   }
+  cancellationRequested = false;
   let instance: DuckDBInstance;
   let connection: DuckDBConnection;
   try {
@@ -37,21 +42,55 @@ parentPort.on('message', async task => {
       return;
     }
     instance = await DuckDBInstance.create(task.filename, {
-      access_mode: ['import', 'commerce-import'].includes(task.kind) ? 'READ_WRITE' : 'READ_ONLY',
+      access_mode: ['import', 'commerce-import', 'file-correction', 'file-lookup'].includes(
+        task.kind,
+      )
+        ? 'READ_WRITE'
+        : 'READ_ONLY',
       memory_limit: task.memoryLimit,
       threads: String(task.threads),
       temp_directory: task.tempDirectory,
       max_temp_directory_size: task.tempLimit,
-      enable_external_access: ['import', 'commerce-import'].includes(task.kind) ? 'true' : 'false',
+      enable_external_access: [
+        'import',
+        'commerce-import',
+        'file-correction',
+        'file-lookup',
+      ].includes(task.kind)
+        ? 'true'
+        : 'false',
       autoinstall_known_extensions: 'false',
       autoload_known_extensions: 'false',
       allow_unsigned_extensions: 'false',
     });
     connection = await instance.connect();
+    if (cancellationRequested) throw new Error('analysis task cancelled');
     await connection.run("SET TimeZone = 'UTC'");
     runningConnection = connection;
+    if (cancellationRequested) throw new Error('analysis task cancelled');
     let result: any;
-    if (task.kind === 'commerce-import') {
+    if (task.kind === 'file-lookup') {
+      result = normalize(
+        await buildFileLookup(
+          connection,
+          task.factFilename,
+          task.lookupFilename,
+          task.definition,
+          task.materialize,
+          task.maxResultBytes,
+        ),
+      );
+      if (Buffer.byteLength(JSON.stringify(result)) > task.maxResultBytes)
+        throw Object.assign(
+          new Error(
+            '연결 미리보기 결과가 큽니다. 큰 텍스트 열을 줄인 뒤 다시 확인해 주세요. 원본은 유지됩니다.',
+          ),
+          { code: 'FILE_LOOKUP_INVALID' },
+        );
+    } else if (task.kind === 'file-correction') {
+      result = await applyFileCorrection(connection, task.retainedFilename, task.settings);
+      await connection.run('CHECKPOINT');
+    } else if (task.kind === 'commerce-import') {
       result = await importCommerce(connection, {
         files: {
           orders: task.sourcePaths[0],
@@ -175,6 +214,15 @@ parentPort.on('message', async task => {
           .replaceAll(task.sourcePaths?.[0] || '\0', '<orders CSV>')
           .replaceAll(task.sourcePaths?.[1] || '\0', '<payments CSV>')
           .replaceAll(task.sourcePaths?.[2] || '\0', '<refunds CSV>');
-    parentPort.postMessage({ id: task.id, error: message });
+    parentPort.postMessage({
+      id: task.id,
+      error: message
+        .replaceAll(task.retainedFilename || '\0', '<retained file>')
+        .replaceAll(task.factFilename || '\0', '<fact file>')
+        .replaceAll(task.lookupFilename || '\0', '<lookup file>'),
+      ...(['file-correction', 'file-lookup'].includes(task.kind) && error.code
+        ? { errorCode: error.code }
+        : {}),
+    });
   }
 });

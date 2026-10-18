@@ -42,6 +42,8 @@ type Props<State extends ViewPeriodState> = {
   revision?: string;
   state: State;
   disabledReason?: string;
+  saveDisabledReason?: string;
+  onMutationPendingChange?: (pending: boolean) => void;
   sourceRevision?: string;
   onApply: (state: State, dateRange: DateRange | null) => void;
   renderViewAction?: (view: SavedView<State>) => React.ReactNode;
@@ -210,9 +212,11 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
   revision,
   state,
   disabledReason = '',
+  saveDisabledReason = '',
   sourceRevision,
   onApply,
   renderViewAction,
+  onMutationPendingChange,
 }: Props<State>) {
   const apiPath = endpoint ?? `/dashboard/${dashboardId}/views`;
   const parseState = customParser ?? (stateData as unknown as (value: unknown) => State);
@@ -287,6 +291,7 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
       : '');
   const nameValid = !!name.trim() && name.trim().length <= 80;
   const actionLocked = !!busy || !loaded || !!blocked || !!error;
+  const saveLocked = actionLocked || !!saveDisabledReason;
   const restoreFocus = () => {
     const element = trigger.current;
     if (element?.isConnected && !(element as HTMLButtonElement).disabled) element.focus();
@@ -297,11 +302,12 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
       pending.current ||
       !loaded ||
       (action !== 'delete' && actionLocked) ||
-      (action === 'save' && (!nameValid || views.length >= 20)) ||
+      (action === 'save' && (saveLocked || !nameValid || views.length >= 20)) ||
       (action !== 'save' && !view)
     )
       return;
     pending.current = true;
+    if (action !== 'load') onMutationPendingChange?.(true);
     generation.current += 1;
     const token = generation.current;
     const abort = new AbortController();
@@ -357,6 +363,7 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
     } catch (e: unknown) {
       if (token === generation.current && !abort.signal.aborted) setError(errorText(e, subject));
     } finally {
+      if (action !== 'load') onMutationPendingChange?.(false);
       if (token === generation.current && !abort.signal.aborted) {
         pending.current = false;
         setBusy('');
@@ -372,7 +379,7 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
       <h2 className="text-lg">{subject === 'explore' ? '탐색 저장 보기' : '개인 저장 보기'}</h2>
       <p className="mt-2 mb-3 text-sm">
         {subject === 'explore'
-          ? '탐색 방식·Pivot 행과 열·선택한 지표·차원·적용한 필터·기간·집계·비교·정렬을 개인별로 저장합니다. 열 때 최신 정상 데이터로 조회합니다. 소스별 최대 20개입니다.'
+          ? '탐색 방식·Pivot 행과 열·집계 조건·선택한 지표·차원·필터·기간·집계·비교·정렬을 개인별로 저장합니다. 집계 조건은 복원 후 명시 적용하고 현재 데이터로 계산합니다. 소스별 최대 20개입니다.'
           : '현재 적용한 필터·기간·숫자 표시·집계 단위·이전 기간 비교를 개인별로 저장합니다. 대시보드 정의는 바뀌지 않습니다. 최대 20개입니다.'}
       </p>
       {sourceRevision && <p className="text-xs [overflow-wrap:anywhere]">데이터 버전: {sourceRevision.slice(0, 12)}</p>}
@@ -389,13 +396,13 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
         <Button
           variant="outline"
           className="shrink-0 whitespace-nowrap sm:min-w-[132px]"
-          disabled={actionLocked || !nameValid || views.length >= 20}
+          disabled={saveLocked || !nameValid || views.length >= 20}
           onClick={() => void run('save')}
         >
           현재 보기 저장
         </Button>
       </div>
-      {blocked && <p className="mt-2 text-sm">{blocked}</p>}
+      {(blocked || saveDisabledReason) && <p className="mt-2 text-sm">{blocked || saveDisabledReason}</p>}
       {views.length >= 20 && (
         <p className="text-sm">저장 보기가 20개입니다. 새 보기를 저장하려면 기존 보기를 삭제해 주세요.</p>
       )}

@@ -1,0 +1,217 @@
+{
+  "checked_on": "2026-10-18",
+  "timezone": "Asia/Seoul",
+  "repository": "https://github.com/rilldata/rill-examples",
+  "commit": "b84d2a2bb66026c9322d4d35daaebfcf83d555c8",
+  "commit_tree": "44443ff787856bbcbe96be36fc8376c04e1ea9ec",
+  "truncated": false,
+  "counts": {
+    "example_folders": 13,
+    "dashboard_yaml": 31,
+    "model_gallery_configs": 36,
+    "embedding_example_routes": 9
+  },
+  "projects": [
+    {
+      "folder": "clickhouse-s3-postgres",
+      "dashboard_yaml_count": 1,
+      "dashboard_paths": [
+        "clickhouse-s3-postgres/dashboards/events_explore.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/clickhouse-s3-postgres/README.md"
+    },
+    {
+      "folder": "connector-clickhouse",
+      "dashboard_yaml_count": 1,
+      "dashboard_paths": [
+        "connector-clickhouse/dashboards/git_commits_metrics_explore.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/connector-clickhouse/README.md"
+    },
+    {
+      "folder": "embedding",
+      "dashboard_yaml_count": 5,
+      "dashboard_paths": [
+        "embedding/rill-project/dashboards/auctions_canvas.yaml",
+        "embedding/rill-project/dashboards/auctions_explore.yaml",
+        "embedding/rill-project/dashboards/auctions_explore_hide_pivot.yaml",
+        "embedding/rill-project/dashboards/auctions_explore_security_custom_attributes.yaml",
+        "embedding/rill-project/dashboards/auctions_explore_security_domain.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/embedding/README.md"
+    },
+    {
+      "folder": "medicaid-provider-spending",
+      "dashboard_yaml_count": 1,
+      "dashboard_paths": [
+        "medicaid-provider-spending/dashboards/medicaid_provider_spending.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/medicaid-provider-spending/README.md"
+    },
+    {
+      "folder": "rill-app-engagement",
+      "dashboard_yaml_count": 1,
+      "dashboard_paths": [
+        "rill-app-engagement/dashboards/mobile_events_explore.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/rill-app-engagement/README.md"
+    },
+    {
+      "folder": "rill-cost-monitoring",
+      "dashboard_yaml_count": 2,
+      "dashboard_paths": [
+        "rill-cost-monitoring/dashboards/margin_scorecard.yaml",
+        "rill-cost-monitoring/dashboards/metrics_margin_explore.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/rill-cost-monitoring/README.md"
+    },
+    {
+      "folder": "rill-github-analytics",
+      "dashboard_yaml_count": 6,
+      "dashboard_paths": [
+        "rill-github-analytics/dashboards/clickhouse_commits_explore.yaml",
+        "rill-github-analytics/dashboards/duckdb_commits_explore.yaml",
+        "rill-github-analytics/dashboards/mcp_servers_commits_explore.yaml",
+        "rill-github-analytics/dashboards/repo_compare_canvas.yaml",
+        "rill-github-analytics/dashboards/rill_commits_explore.yaml",
+        "rill-github-analytics/dashboards/wandb_commits.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/rill-github-analytics/README.md"
+    },
+    {
+      "folder": "rill-modeling-examples",
+      "dashboard_yaml_count": 0,
+      "dashboard_paths": [],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/rill-modeling-examples/README.md"
+    },
+    {
+      "folder": "rill-openrtb-prog-ads",
+      "dashboard_yaml_count": 3,
+      "dashboard_paths": [
+        "rill-openrtb-prog-ads/dashboards/auction_explore.yaml",
+        "rill-openrtb-prog-ads/dashboards/bids_explore.yaml",
+        "rill-openrtb-prog-ads/dashboards/executive_overview.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/rill-openrtb-prog-ads/README.md"
+    },
+    {
+      "folder": "rill-openrtb-prog-ads-canvas",
+      "dashboard_yaml_count": 3,
+      "dashboard_paths": [
+        "rill-openrtb-prog-ads-canvas/dashboards/auction_explore.yaml",
+        "rill-openrtb-prog-ads-canvas/dashboards/bids_explore.yaml",
+        "rill-openrtb-prog-ads-canvas/dashboards/executive_overview.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/rill-openrtb-prog-ads-canvas/README.md"
+    },
+    {
+      "folder": "rill-openrtb-prog-ads-clickhouse",
+      "dashboard_yaml_count": 2,
+      "dashboard_paths": [
+        "rill-openrtb-prog-ads-clickhouse/dashboards/auctions_explore.yaml",
+        "rill-openrtb-prog-ads-clickhouse/dashboards/bids_explore.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/rill-openrtb-prog-ads-clickhouse/README.md"
+    },
+    {
+      "folder": "rill-partner-filtered-dashboards",
+      "dashboard_yaml_count": 5,
+      "dashboard_paths": [
+        "rill-partner-filtered-dashboards/dashboards/admin_access_only_metrics_explore.yaml",
+        "rill-partner-filtered-dashboards/dashboards/custom_attributes_metrics_explore.yaml",
+        "rill-partner-filtered-dashboards/dashboards/exclude_columns_metrics_explore.yaml",
+        "rill-partner-filtered-dashboards/dashboards/mapped_row_access_policy_metrics_explore.yaml",
+        "rill-partner-filtered-dashboards/dashboards/restricted_by_groups_metrics_explore.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/rill-partner-filtered-dashboards/README.md"
+    },
+    {
+      "folder": "rill-sec-formd",
+      "dashboard_yaml_count": 1,
+      "dashboard_paths": [
+        "rill-sec-formd/dashboards/offerings_issuers_explore.yaml"
+      ],
+      "readme_url": "https://github.com/rilldata/rill-examples/blob/b84d2a2bb66026c9322d4d35daaebfcf83d555c8/rill-sec-formd/README.md"
+    }
+  ],
+  "model_gallery_paths": [
+    "rill-modeling-examples/models/bigquery/00_full_refresh.yaml",
+    "rill-modeling-examples/models/bigquery/01_hourly_partition_overwrite_watermark.yaml",
+    "rill-modeling-examples/models/bigquery/02_daily_partition_overwrite_watermark.yaml",
+    "rill-modeling-examples/models/bigquery/03_hourly_merge_late.yaml",
+    "rill-modeling-examples/models/bigquery/04_schema_patch.yaml",
+    "rill-modeling-examples/models/bigquery/05_schema_reset.yaml",
+    "rill-modeling-examples/models/bigquery/06_hooks_retry.yaml",
+    "rill-modeling-examples/models/bigquery/07_hash_buckets.yaml",
+    "rill-modeling-examples/models/bigquery/08_state_incremental.yaml",
+    "rill-modeling-examples/models/clickhouse/00_full_refresh.yaml",
+    "rill-modeling-examples/models/clickhouse/01_hourly_partition_overwrite_watermark.yaml",
+    "rill-modeling-examples/models/clickhouse/02_daily_partition_overwrite_watermark.yaml",
+    "rill-modeling-examples/models/clickhouse/03_hourly_merge_late.yaml",
+    "rill-modeling-examples/models/clickhouse/04_schema_patch.yaml",
+    "rill-modeling-examples/models/clickhouse/05_schema_reset.yaml",
+    "rill-modeling-examples/models/clickhouse/06_hooks_retry.yaml",
+    "rill-modeling-examples/models/clickhouse/07_hash_buckets.yaml",
+    "rill-modeling-examples/models/clickhouse/08_state_incremental.yaml",
+    "rill-modeling-examples/models/s3/00_full_refresh.yaml",
+    "rill-modeling-examples/models/s3/01_hourly_partition_overwrite_watermark.yaml",
+    "rill-modeling-examples/models/s3/02_daily_partition_overwrite_watermark.yaml",
+    "rill-modeling-examples/models/s3/03_hourly_merge_late.yaml",
+    "rill-modeling-examples/models/s3/04_schema_patch.yaml",
+    "rill-modeling-examples/models/s3/05_schema_reset.yaml",
+    "rill-modeling-examples/models/s3/06_hooks_retry.yaml",
+    "rill-modeling-examples/models/s3/07_hash_buckets.yaml",
+    "rill-modeling-examples/models/s3/08_state_incremental.yaml",
+    "rill-modeling-examples/models/snowflake/00_full_refresh.yaml",
+    "rill-modeling-examples/models/snowflake/01_hourly_partition_overwrite_watermark.yaml",
+    "rill-modeling-examples/models/snowflake/02_daily_partition_overwrite_watermark.yaml",
+    "rill-modeling-examples/models/snowflake/03_hourly_merge_late.yaml",
+    "rill-modeling-examples/models/snowflake/04_schema_patch.yaml",
+    "rill-modeling-examples/models/snowflake/05_schema_reset.yaml",
+    "rill-modeling-examples/models/snowflake/06_hooks_retry.yaml",
+    "rill-modeling-examples/models/snowflake/07_hash_buckets.yaml",
+    "rill-modeling-examples/models/snowflake/08_state_incremental.yaml"
+  ],
+  "embedding_routes": [
+    "embedding/web/src/app/basics/canvas/page.tsx",
+    "embedding/web/src/app/basics/explore/page.tsx",
+    "embedding/web/src/app/basics/navigation/page.tsx",
+    "embedding/web/src/app/customization/disable-pivots/page.tsx",
+    "embedding/web/src/app/customization/themes/page.tsx",
+    "embedding/web/src/app/customization/ui-state/page.tsx",
+    "embedding/web/src/app/security/ai-chat-history/page.tsx",
+    "embedding/web/src/app/security/filter-by-custom-attributes/page.tsx",
+    "embedding/web/src/app/security/filter-by-user/page.tsx"
+  ],
+  "public_data_head_checks": [
+    {
+      "url": "https://storage.googleapis.com/rilldata-public/auction_data.parquet",
+      "status": 200,
+      "bytes": "39015650",
+      "etag": "\"5d8df51fd58a4ad196e1e205847d213d\""
+    },
+    {
+      "url": "https://storage.googleapis.com/rilldata-public/bids_data.parquet",
+      "status": 200,
+      "bytes": "35514874",
+      "etag": "\"71d16165f18ad712813b4ac01cf51c86\""
+    },
+    {
+      "url": "https://storage.googleapis.com/rilldata-public/mobile-demo-funnel.parquet",
+      "status": 200,
+      "bytes": "211992357",
+      "etag": "\"0eb4e18ce4551f1ee29424d680cac22d\""
+    },
+    {
+      "url": "https://storage.googleapis.com/rilldata-public/metrics_margin_monitoring.parquet",
+      "status": 200,
+      "bytes": "977134",
+      "etag": "\"27746d6107c0e2c6bf1f87a637fba3e4\""
+    }
+  ],
+  "limits": [
+    "Counts are overlapping inventory units, not unique business datasets.",
+    "No fresh Rill UI, data-body integrity, row-count or VM scenario execution in this research.",
+    "HEAD sizes are compressed file bytes, not runtime resource requirements."
+  ]
+}

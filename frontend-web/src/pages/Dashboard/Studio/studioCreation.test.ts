@@ -79,3 +79,14 @@ describe('Studio creation boundary', () => {
 it('explains file parsing failures as a file recovery action', () => {
   expect(creationError({ response: { status: 400 } }, 'file')).toContain('파일 손상');
 });
+
+it.each([
+  { code: 'STUDIO_COMMERCE_UNIT_MISMATCH', currency: 'KRW' },
+  { data: { code: 'STUDIO_COMMERCE_UNIT_MISMATCH', currency: 'USD' } },
+  { code: 'STUDIO_UNIT_MISMATCH', currency: 'USD' },
+])('explains pinned unit mismatch without displaying server details', data => {
+  const message = creationError({ response: { status: 400, data: { ...data, message: 'private-file secret-path' } } });
+  expect(message).toContain('단위');
+  expect(message).toContain('다시 생성');
+  expect(message).not.toMatch(/private-file|secret-path/);
+});

@@ -114,6 +114,11 @@ export class StudioPublicationService {
   ): Promise<PublicationMetadata> {
     this.validate(id, body);
     await this.studio.assertPublicationOwner(id, actor);
+    if (
+      body.visibility === 'link' &&
+      (await this.db.manager.findOne(Dashboard, { where: { id } }))?.governed
+    )
+      throw new ForbiddenException('조직 정책이 적용된 분석은 공개 게시할 수 없습니다.');
     const payloadHash = studioDigest({ dashboardId: id, ...body });
     return this.studio.serializeWrite(async () => {
       await this.studio.assertPublicationOwner(id, actor);
@@ -136,6 +141,11 @@ export class StudioPublicationService {
         body.expectedRevision,
         actor,
         async ({ document, preview, dataVersion }, manager) => {
+          if (
+            body.visibility === 'link' &&
+            (await manager.findOne(Dashboard, { where: { id } }))?.governed
+          )
+            throw new ForbiddenException('조직 정책이 적용된 분석은 공개 게시할 수 없습니다.');
           // Another process may have committed this request while aggregation was running.
           const receipt = await manager.findOne(StudioPublicationRequest, {
             where: { actorId: actor, requestId: body.requestId },
@@ -254,6 +264,11 @@ export class StudioPublicationService {
       throw new GoneException('공유가 중지되었거나 만료되었습니다.');
     if (row.visibility === 'private' && row.actorId !== actor)
       throw new ForbiddenException('소유자만 볼 수 있는 비공개 게시입니다.');
+    if (
+      row.actorId !== actor &&
+      (await manager.findOne(Dashboard, { where: { id: row.dashboardId } }))?.governed
+    )
+      throw new ForbiddenException('로그인한 조직 보기에서 확인해 주세요.');
     if (!row.allowRemix) throw new ForbiddenException('내 데이터로 복제가 허용되지 않았습니다.');
     if (expectedVersion !== undefined && row.version !== expectedVersion)
       throw new ConflictException('게시 버전이 변경되었습니다. 다시 확인해 주세요.');
@@ -269,6 +284,11 @@ export class StudioPublicationService {
         throw new GoneException('공유가 중지되었거나 만료되었습니다.');
       if (row.visibility === 'private' && row.actorId !== actor)
         throw new ForbiddenException('소유자만 볼 수 있는 비공개 게시입니다.');
+      if (
+        row.actorId !== actor &&
+        (await this.db.manager.findOne(Dashboard, { where: { id: row.dashboardId } }))?.governed
+      )
+        throw new ForbiddenException('로그인한 조직 보기에서 확인해 주세요.');
       await this.studio.assertExecutionAccess(row.dashboardId, row.sourceId, row.actorId);
       const metadata: Partial<PublicationMetadata> = this.metadata(row);
       delete metadata.dashboardId;
@@ -331,7 +351,7 @@ export class StudioPublicationService {
         return { columnName: name, columnType: f.columnType };
       });
       const display = Object.fromEntries(
-        ['timeGrain', 'decimalPlaces', 'numberNotation', 'prefix', 'suffix']
+        ['timeGrain', 'decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'presentation']
           .filter(k => block.display[k] !== undefined)
           .map(k => [k, block.display[k]]),
       );

@@ -21,6 +21,7 @@ import {
   validateCreationProposal,
 } from './studioCreation';
 import StudioSourcePicker from './StudioSourcePicker';
+import { StudioSampleId } from './studioDemoSamples';
 import StudioSemanticReview from './StudioSemanticReview';
 import StudioProposalRefinement from './StudioProposalRefinement';
 import {
@@ -59,6 +60,33 @@ export default function StudioCreate() {
   const promptInput = useRef<HTMLTextAreaElement>(null);
   const suggestions = [
     {
+      label: '고객별 매출·비용',
+      columns: ['revenue', 'cost', 'profit'],
+      dimension: 'company',
+      prompt:
+        '총매출 SUM(revenue), 총비용 SUM(cost), profit 열 기준 이익 SUM(profit)을 각각 숫자 지표로, company별 이익을 막대 차트로 보여 줘. 금액은 소수점 둘째 자리까지 표시하고 통화를 추측하지 말아 줘.',
+    },
+    {
+      label: '마진과 이익 추세',
+      columns: ['profit', 'revenue'],
+      date: 'day',
+      prompt:
+        '전체 마진을 SUM(profit) / SUM(revenue) * 100인 백분율 숫자 지표로 보여 줘. day별 이익 SUM(profit) 추세를 소수점 둘째 자리로 보여 줘. 통화는 추측하지 말고 0매출 분모는 빈 값으로 유지해 줘.',
+    },
+    {
+      label: '앱 단계별 전환',
+      columns: ['visits', 'downloads', 'signups'],
+      prompt:
+        '전체 방문 수 SUM(visits), 다운로드 수 SUM(downloads), 가입 수 SUM(signups)를 숫자 지표로 보여 줘. 다운로드 전환율은 SUM(downloads) / SUM(visits) * 100, 가입 전환율은 SUM(signups) / SUM(downloads) * 100인 백분율 지표로 보여 줘.',
+    },
+    {
+      label: '버전별 다운로드',
+      columns: ['visits', 'downloads'],
+      dimension: 'version',
+      prompt:
+        'version별 다운로드 수 SUM(downloads)를 막대 차트로 보여 줘. 전체 다운로드 전환율 SUM(downloads) / SUM(visits) * 100을 백분율 숫자 지표로 추가해 줘.',
+    },
+    {
       label: '매출·환불 요약',
       columns: ['revenue', 'refund_amount', 'net_amount'],
       prompt: '결제 성공액, 환불액, 차감 수취액을 각각 숫자 지표로 보여 줘.',
@@ -81,6 +109,8 @@ export default function StudioCreate() {
       suggestion.columns.every(name =>
         profile.columns.some(column => column.name === name && column.numeric && column.nullCount !== profile.rowCount),
       ) &&
+      (!suggestion.dimension ||
+        profile.columns.some(column => column.name === suggestion.dimension && column.nullCount !== profile.rowCount)) &&
       (!suggestion.date ||
         profile.columns.some(
           column => column.name === suggestion.date && column.temporal && column.nullCount !== profile.rowCount,
@@ -236,7 +266,7 @@ export default function StudioCreate() {
       '파일을 서버에 저장하는 중입니다…',
       'file',
     );
-  const sample = (sample: 'rill' | 'commerce') =>
+  const sample = (sample: StudioSampleId) =>
     prepareSource(async () => {
       const data = creationData(await post('/studio/samples', { sample }, { timeout: 360000 }));
       if (!Number.isSafeInteger(data?.sourceId)) throw new Error('invalid sample');
@@ -569,7 +599,11 @@ export default function StudioCreate() {
             {!!proposal?.clarifications?.length && (
               <section className="studio-create-clarify" aria-labelledby="studio-clarify-heading">
                 <h2 id="studio-clarify-heading">계산 전에 확인해 주세요</h2>
-                <p>분모를 추측해 계산하지 않습니다. 선택 후 같은 요청을 다시 검증합니다.</p>
+                <p>
+                  {proposal.clarifications.some(question => question.id === 'refundDenominator')
+                    ? '분모를 추측해 계산하지 않습니다. 선택 후 같은 요청을 다시 검증합니다.'
+                    : '필요한 데이터를 먼저 확인합니다. 없는 열이나 업무 수치를 다른 지표로 대체하지 않습니다.'}
+                </p>
                 {proposal.clarifications.map(question => (
                   <div className="studio-create-question" key={question.id}>
                     <p>{question.question}</p>

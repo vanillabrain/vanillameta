@@ -27,7 +27,7 @@ describe('dashboard Pivot snapshots', () => {
     const catalog: any = {
       sourceId: 3,
       sourceRevision: 'rev',
-      measures: [{ id: 1 }],
+      measures: [{ id: 1, label: 'Revenue' }],
       dimensions: [
         { column: 'device', type: 'VARCHAR' },
         { column: 'app', type: 'VARCHAR' },
@@ -77,6 +77,23 @@ describe('dashboard Pivot snapshots', () => {
     expect((await db.getRepository(Dashboard).findOneBy({ id: 1 })).analysisDefinition).toBe(
       JSON.stringify({ databaseId: 3 }),
     );
+  });
+  it('persists a qualified segment Pivot snapshot and rejects summaries without a column', async () => {
+    state.mode = 'segment';
+    delete state.pivot;
+    state.segment = {
+      dimensionColumn: 'device',
+      pivotColumn: 'app',
+      conditions: [{ measureId: 1, operator: 'gte', value: 1000 }],
+    };
+    const added = await service.add(1, 2, { sourceId: 3, viewId: 7 });
+    state.segment.conditions[0].value = 9999;
+    expect((await service.list(1, 2)).data[0].state.segment.conditions[0].value).toBe(1000);
+    expect((await service.list(1, 2)).data[0].measures).toEqual([{ id: 1, label: 'Revenue' }]);
+    delete state.segment.pivotColumn;
+    await expect(service.add(1, 2, { sourceId: 3, viewId: 7 })).rejects.toThrow('Pivot');
+    await service.remove(1, added.data.id, 2);
+    expect((await service.list(1, 2)).data).toEqual([]);
   });
   it('rejects foreign ownership, other source, non-Pivot and over limit', async () => {
     await expect(service.add(1, 9, { sourceId: 3, viewId: 7 })).rejects.toThrow('denied');

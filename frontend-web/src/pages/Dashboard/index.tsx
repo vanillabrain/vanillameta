@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useState } from 'react';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
-import { Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { MenuButton } from '@/components/button/AddIconButton';
 import { Plus } from 'lucide-react';
 import DashboardService from '@/api/dashboardService';
@@ -148,6 +149,14 @@ function Dashboard() {
             }
           >
             <GettingStarted returning={!noData} />
+            <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/organizations">조직 분석</Link>
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                그룹별로 허용된 분석을 확인하거나 접근 범위를 관리하세요.
+              </span>
+            </div>
             {!noData && (
               <>
                 <BoardList

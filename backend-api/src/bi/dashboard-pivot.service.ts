@@ -21,6 +21,9 @@ export class DashboardPivotService {
     private readonly views: ExploreViewService,
     private readonly explore: BiExploreService,
   ) {}
+  private isPivot(state: any): boolean {
+    return state?.mode === 'pivot' || (state?.mode === 'segment' && !!state.segment?.pivotColumn);
+  }
   private items(row: Dashboard): any[] {
     const items = row.pivotDefinitions ? JSON.parse(row.pivotDefinitions) : [];
     if (!Array.isArray(items) || items.length > 8)
@@ -48,12 +51,15 @@ export class DashboardPivotService {
             'Pivot 지표·열 정의가 변경되었습니다. 저장 보기를 갱신한 뒤 다시 추가해 주세요.',
           );
         const state = validateExploreViewState(item.state, catalog);
-        if (state.mode !== 'pivot') throw new ConflictException('잘못된 Pivot 설정입니다.');
+        if (!this.isPivot(state)) throw new ConflictException('잘못된 Pivot 설정입니다.');
         return {
           ...item,
           state,
           sourceRevision: catalog.sourceRevision,
           dimensions: catalog.dimensions,
+          ...(state.mode === 'segment'
+            ? { measures: catalog.measures.map(({ id, label }) => ({ id, label })) }
+            : {}),
         };
       } catch (error) {
         if (!(error instanceof BadRequestException || error instanceof ConflictException))
@@ -74,7 +80,7 @@ export class DashboardPivotService {
       throw new BadRequestException('Pivot 저장 보기를 선택해 주세요.');
     const sourceId = this.access.id(body.sourceId);
     const view = (await this.views.load(sourceId, body.viewId, actor)).data;
-    if (view.state.mode !== 'pivot')
+    if (!this.isPivot(view.state))
       throw new BadRequestException('Pivot 보기만 추가할 수 있습니다.');
     const item = {
       id: randomUUID(),
@@ -104,7 +110,7 @@ export class DashboardPivotService {
         const items = this.items(row);
         if (items.length >= 8) throw new BadRequestException('Pivot은 대시보드별 최대 8개입니다.');
         row.pivotDefinitions = JSON.stringify([...items, item]);
-        await manager.save(Dashboard, row);
+        await manager.update(Dashboard, row.id, { pivotDefinitions: row.pivotDefinitions });
       });
     });
     return { status: 'SUCCESS', data: item };
@@ -125,7 +131,7 @@ export class DashboardPivotService {
         if (!items.some(item => item.id === pivotId))
           throw new NotFoundException('Pivot을 찾을 수 없습니다.');
         row.pivotDefinitions = JSON.stringify(items.filter(item => item.id !== pivotId));
-        await manager.save(Dashboard, row);
+        await manager.update(Dashboard, row.id, { pivotDefinitions: row.pivotDefinitions });
       });
     });
     return { status: 'SUCCESS', data: { id: pivotId } };

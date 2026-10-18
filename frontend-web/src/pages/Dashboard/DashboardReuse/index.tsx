@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Notice } from '@/components/ui/notice';
 import { TextField } from '@/components/ui/text-field';
 import SnapshotView, { Snapshot } from '../../Publication/SnapshotView';
+import { creationData } from '../Studio/studioCreation';
 import { errorMessage, responseData } from '../dashboardPreview';
 
 type Column = { name: string; type: string; numeric: boolean; temporal: boolean };
@@ -15,6 +16,7 @@ type Draft = {
   originalTitle: string;
   expectedRevision: string;
   originalSourceId?: number;
+  currency?: string;
   title: string;
   columns: Column[];
   blocks?: Array<{ id: string; title: string; columns: string[] }>;
@@ -45,6 +47,7 @@ function Content() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sourceId, setSourceId] = useState('');
   const [title, setTitle] = useState('');
+  const [unitConfirmed, setUnitConfirmed] = useState(false);
   const [columnMap, setColumnMap] = useState<Record<string, string>>({});
   const [blockIds, setBlockIds] = useState<string[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -137,6 +140,7 @@ function Content() {
     setSourceId(value);
     setProfile(null);
     setColumnMap({});
+    setUnitConfirmed(false);
     if (!value || !draft) return;
     const token = sequence.current,
       abort = new AbortController();
@@ -152,6 +156,35 @@ function Content() {
       if (token === sequence.current) setError(errorMessage(failure));
     } finally {
       if (token === sequence.current) {
+        setBusy('');
+        pending.current = false;
+      }
+    }
+  };
+  const prepareSample = async (sample: 'margin-reuse' | 'margin-missing' | 'margin-krw') => {
+    if (pending.current || lock || !draft) return;
+    invalidate();
+    pending.current = true;
+    setBusy('복제 연습 파일을 준비하는 중…');
+    const token = sequence.current;
+    try {
+      const value = creationData(await post('/studio/samples', { sample }, { timeout: 120000 }));
+      if (token !== sequence.current) return;
+      if (!Number.isSafeInteger(value?.sourceId) || !value.name) throw new Error('연습 파일을 확인하지 못했습니다.');
+      setDraft(
+        current =>
+          current && {
+            ...current,
+            sources: current.sources.some(s => s.id === value.sourceId)
+              ? current.sources
+              : [...current.sources, { id: value.sourceId, name: value.name }],
+          },
+      );
+      pending.current = false;
+      await selectSource(String(value.sourceId));
+    } catch (failure) {
+      if (token === sequence.current) {
+        setError(errorMessage(failure));
         setBusy('');
         pending.current = false;
       }
@@ -194,6 +227,7 @@ function Content() {
             sourceId: profile.sourceId,
             sourceRevision: profile.dataVersion,
             title,
+            ...(unitConfirmed ? { unitConfirmation: 'same-unit' } : {}),
             columnMap: Object.fromEntries(requiredColumns.map(column => [column.name, columnMap[column.name]])),
             ...(draft.blocks && selectedBlocks.length !== draft.blocks.length ? { blockIds } : {}),
           },
@@ -267,6 +301,9 @@ function Content() {
       <p className="mb-4 text-sm text-muted-foreground">
         원본은 유지하고 새 데이터로 복사본을 만듭니다. 결과를 확인한 뒤 저장하세요. 복사본은 비공개로 시작합니다.
         {studioReturn && ' 마지막 저장본을 복제합니다. 원본 Studio의 미저장 변경은 포함하지 않습니다.'}
+        <span className="mt-1 block">
+          기간·필터와 확인된 지표는 새 소스에 연결합니다. 없는 열은 직접 연결하거나 새 파일을 선택하세요.
+        </span>
       </p>
       {busy && (
         <p role="status" className="mb-3 text-sm">
@@ -313,6 +350,61 @@ function Content() {
                   ))}
                 </TextField>
               </div>
+              {studioReturn && draft.currency === 'USD' && (
+                <details className="mt-4 rounded-md border border-border p-3">
+                  <summary className="cursor-pointer text-sm font-medium">샘플 파일로 복제 연습</summary>
+                  <p className="my-2 text-xs text-muted-foreground">
+                    VM 합성 데이터입니다. 새 비공개 파일만 준비하며 AI 실행이나 대시보드 저장은 하지 않습니다. 정상 파일은
+                    매출 2배·비용 3배이며 금액 열 이름이 다릅니다.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!!busy}
+                      onClick={() => void prepareSample('margin-reuse')}
+                    >
+                      정상 USD 파일
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!!busy}
+                      onClick={() => void prepareSample('margin-missing')}
+                    >
+                      이익 열 누락 파일
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!!busy}
+                      onClick={() => void prepareSample('margin-krw')}
+                    >
+                      KRW 단위 오류 파일
+                    </Button>
+                  </div>
+                </details>
+              )}
+              {draft.currency && (
+                <div className="mt-4 rounded-md bg-muted/40 p-3 text-sm">
+                  <p className="mb-2">
+                    원본 금액 단위: {draft.currency}. 통화 환산 없이 복제합니다. 알려진 다른 통화는 차단합니다.
+                  </p>
+                  <label className="flex min-h-9 cursor-pointer items-start gap-3">
+                    <Checkbox
+                      className="mt-0.5 shrink-0"
+                      checked={unitConfirmed}
+                      onCheckedChange={checked => {
+                        invalidate();
+                        setUnitConfirmed(checked === true);
+                      }}
+                    />
+                    <span className="min-w-0">
+                      단위를 자동 확인할 수 없는 내 파일은 같은 {draft.currency} 금액 단위임을 확인했습니다.
+                    </span>
+                  </label>
+                </div>
+              )}
               {draft.blocks && (
                 <details
                   className="mt-4"

@@ -1,3 +1,4 @@
+import StudioReport from './StudioReport';
 import { useTranslation } from 'react-i18next';
 import StudioSaveRecovery from './StudioSaveRecovery';
 import {
@@ -27,6 +28,7 @@ import StudioDateRangePanel from './StudioDateRangePanel';
 import StudioPublish from './StudioPublish';
 import { StudioRunContext, StudioRunResult } from './studioRunTransport';
 import StudioInspector from './StudioInspector';
+import StudioEvidence from './StudioEvidence';
 import StudioShell, { StudioDesignDocument, StudioProductContext } from './StudioShell';
 import { applyStudioOperation, createStudioState, studioReducer } from './studioReducer';
 import { studioOrderOperations } from './studioEditing';
@@ -81,7 +83,7 @@ const MAX_STUDIO_BLOCKS = 6;
 const scopeKey = (document: Pick<StudioDocumentV1, 'filters' | 'dateRange'>) =>
   JSON.stringify([studioFilterDraftKey(document.filters), studioDateRangeKey(document.dateRange)]);
 const TREND_MIN_HEIGHT = 260;
-const DISPLAY_FIELDS = ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain'] as const;
+const DISPLAY_FIELDS = ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain', 'presentation'] as const;
 const breakpointLabel = (breakpoint: StudioBreakpoint) =>
   breakpoint === 'xs' ? '모바일' : breakpoint === 'md' ? '태블릿' : '데스크톱';
 
@@ -957,6 +959,22 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     };
     // Card padding 18px twice plus the 32px label row: the body is what is genuinely left over.
     const bodyHeight = Math.max(0, height - 68);
+    if (block.display.presentation === 'summary' || block.display.presentation === 'table')
+      return (
+        <StudioReport
+          title={block.title}
+          description={block.description}
+          kind={block.kind}
+          presentation={block.display.presentation}
+          display={display}
+          rows={row.datas}
+          valueField={row.valueField}
+          categoryField={row.categoryField}
+          height={bodyHeight}
+          period={studioDateRangeSummary(previewScope?.dateRange)}
+          scope={studioFilterSummary(previewScope?.filters ?? [])}
+        />
+      );
     if (block.kind !== 'BOARD_NUMERIC' && row.datas.length === 0)
       return (
         <div
@@ -1270,6 +1288,17 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
             저장본 복제
           </a>
         </Button>
+        <Button variant="outline" size="sm" asChild>
+          <a
+            href={`/organizations?dashboardId=${dashboardId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="조직 접근 설정 새 탭에서 열기"
+            title="마지막 저장본의 조직별 보기 권한을 설정합니다."
+          >
+            조직 접근
+          </a>
+        </Button>
         <label>
           블록 추가
           <NativeSelect
@@ -1393,6 +1422,15 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         }
         canvas={
           <>
+            <StudioEvidence
+              saved={state.saveState === 'clean' && !filterBusy}
+              document={{ ...state.present, revision: state.serverRevision }}
+              evidence={previewError ? null : preview?.evidence}
+              unverifiedAi={
+                aiRows.scope === (previewScope?.key ?? '') &&
+                state.present.blocks.some(block => !!aiRows.rows[block.id + '|' + (block.display.timeGrain ?? 'auto')])
+              }
+            />
             <StudioDateRangePanel
               dateRange={state.present.dateRange}
               columns={preview?.temporalColumns ?? []}

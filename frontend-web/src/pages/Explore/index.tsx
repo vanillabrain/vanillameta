@@ -11,6 +11,8 @@ import { get, post } from '@/helpers/apiHelper';
 import NumericBoard from '@/widget/modules/board/NumericBoard';
 import { analysisOptions } from '@/pages/Dashboard/analysisOptions';
 import FileVersions from './FileVersions';
+import CalculatedMetricBuilder from './CalculatedMetricBuilder';
+import SourceModelBuilder from './SourceModelBuilder';
 
 const ChartPreview = React.lazy(() => import('echarts-for-react'));
 
@@ -20,6 +22,7 @@ type Column = {
   type: string;
   numeric: boolean;
   temporal: boolean;
+  nonAdditive?: boolean;
   nullCount: string;
   min?: string | null;
   max?: string | null;
@@ -35,10 +38,12 @@ type Profile = {
   rowCount: string;
   columns?: Column[];
   preview?: Record<string, unknown>[];
+  modelInfo?: any;
 };
-type Aggregation = 'SUM' | 'COUNT' | 'COUNT_DISTINCT' | 'AVG' | 'MIN' | 'MAX' | 'WEIGHTED_AVG' | 'RATIO_SUM';
+type Aggregation = 'FORMULA' | 'SUM' | 'COUNT' | 'COUNT_DISTINCT' | 'AVG' | 'MIN' | 'MAX' | 'WEIGHTED_AVG' | 'RATIO_SUM';
 type Definition = {
   schemaVersion?: 1;
+  formula?: { operands?: Array<{ id: number; definitionVersion: number; definition: { label: string } }> };
   sourceId: number;
   label: string;
   aggregation: Aggregation;
@@ -198,7 +203,9 @@ export default function Explore() {
   );
   const validMetric =
     !!definition.label.trim() &&
-    (definition.aggregation === 'COUNT' || eligibleColumns.some(column => column.name === definition.column)) &&
+    ((!!metricId && definition.aggregation === 'FORMULA') ||
+      definition.aggregation === 'COUNT' ||
+      eligibleColumns.some(column => column.name === definition.column)) &&
     (!weighted || numericColumns.some(column => column.name === definition.weightColumn)) &&
     (!ratio ||
       (numericColumns.some(column => column.name === definition.denominatorColumn) &&
@@ -233,7 +240,7 @@ export default function Explore() {
               ...definition,
               sourceId: Number(sourceId),
               label: definition.label.trim(),
-              column: definition.aggregation === 'COUNT' ? '*' : definition.column,
+              column: ['COUNT', 'FORMULA'].includes(definition.aggregation) ? '*' : definition.column,
             },
             { signal: abort.signal },
           ),
@@ -419,6 +426,8 @@ export default function Explore() {
               </div>
               {profile.engine?.toLowerCase() === 'duckdb' && (
                 <FileVersions
+                  durableRefresh
+                  columns={profile.columns}
                   sourceId={profile.sourceId}
                   disabled={!!busy}
                   onChanged={() => {
@@ -426,6 +435,9 @@ export default function Explore() {
                     setReload(value => value + 1);
                   }}
                 />
+              )}
+              {profile.engine?.toLowerCase() === 'duckdb' && (
+                <SourceModelBuilder key={profile.sourceId} profile={profile} sources={sources} disabled={!!busy} />
               )}
             </>
           )}
@@ -453,134 +465,167 @@ export default function Explore() {
                     </option>
                   ))}
                 </Select>
-                <TextField
-                  label="지표 이름"
-                  value={definition.label}
-                  disabled={!!busy}
-                  onChange={event => changeDefinition({ label: event.target.value })}
-                />
-                <div className="flex flex-col gap-4 sm:flex-row">
-                  <Select
-                    label="집계 방법"
-                    value={definition.aggregation}
-                    disabled={!!busy}
-                    onChange={value =>
-                      changeDefinition({
-                        aggregation: value as Aggregation,
-                        column: value === 'COUNT' ? '*' : '',
-                        weightColumn: undefined,
-                        denominatorColumn: undefined,
-                        scale: value === 'RATIO_SUM' ? 1 : undefined,
-                      })
-                    }
-                  >
-                    <option value="SUM">합계</option>
-                    <option value="COUNT">행 수</option>
-                    <option value="COUNT_DISTINCT">고유 값 수</option>
-                    <option value="AVG">평균</option>
-                    <option value="MIN">최솟값</option>
-                    <option value="MAX">최댓값</option>
-                    <option value="WEIGHTED_AVG">가중 평균</option>
-                    <option value="RATIO_SUM">합계 비율</option>
-                  </Select>
-                  <Select
-                    label={weighted ? '값 열' : ratio ? '분자 열' : '집계할 열'}
-                    value={definition.aggregation === 'COUNT' ? '*' : definition.column}
-                    disabled={!!busy || definition.aggregation === 'COUNT'}
-                    onChange={value => changeDefinition({ column: value })}
-                  >
-                    {definition.aggregation === 'COUNT' ? (
-                      <option value="*">전체 행 (*)</option>
-                    ) : (
-                      <>
-                        <option value="">열을 선택하세요</option>
-                        {eligibleColumns.map(column => (
-                          <option key={column.name} value={column.name}>
-                            {column.name}
+                {definition.aggregation === 'FORMULA' ? (
+                  <Notice severity="info">
+                    <p className="font-medium">{definition.label} · 저장된 계산 정의</p>
+                    <p className="mt-1">
+                      참조 지표의 정의를 고정해 계산합니다. 아래에서 숫자·차트 미리보기를 확인할 수 있습니다.
+                    </p>
+                    <p className="mt-1 text-xs">
+                      {definition.formula?.operands
+                        ?.map(value => `${value.definition.label} (#${value.id} · v${value.definitionVersion})`)
+                        .join(' · ')}
+                    </p>
+                  </Notice>
+                ) : (
+                  <>
+                    <TextField
+                      label="지표 이름"
+                      value={definition.label}
+                      disabled={!!busy}
+                      onChange={event => changeDefinition({ label: event.target.value })}
+                    />
+                    <div className="flex flex-col gap-4 sm:flex-row">
+                      <Select
+                        label="집계 방법"
+                        value={definition.aggregation}
+                        disabled={!!busy}
+                        onChange={value =>
+                          changeDefinition({
+                            aggregation: value as Aggregation,
+                            column: value === 'COUNT' ? '*' : '',
+                            weightColumn: undefined,
+                            denominatorColumn: undefined,
+                            scale: value === 'RATIO_SUM' ? 1 : undefined,
+                          })
+                        }
+                      >
+                        <option value="SUM">합계</option>
+                        <option value="COUNT">행 수</option>
+                        <option value="COUNT_DISTINCT">고유 값 수</option>
+                        <option value="AVG">평균</option>
+                        <option value="MIN">최솟값</option>
+                        <option value="MAX">최댓값</option>
+                        <option value="WEIGHTED_AVG">가중 평균</option>
+                        <option value="RATIO_SUM">합계 비율</option>
+                      </Select>
+                      <Select
+                        label={weighted ? '값 열' : ratio ? '분자 열' : '집계할 열'}
+                        value={definition.aggregation === 'COUNT' ? '*' : definition.column}
+                        disabled={!!busy || definition.aggregation === 'COUNT'}
+                        onChange={value => changeDefinition({ column: value })}
+                      >
+                        {definition.aggregation === 'COUNT' ? (
+                          <option value="*">전체 행 (*)</option>
+                        ) : (
+                          <>
+                            <option value="">열을 선택하세요</option>
+                            {eligibleColumns.map(column => (
+                              <option key={column.name} value={column.name}>
+                                {column.name}
+                              </option>
+                            ))}
+                          </>
+                        )}
+                      </Select>
+                      {(weighted || ratio) && (
+                        <Select
+                          label={weighted ? '가중치 열' : '분모 열'}
+                          value={(weighted ? definition.weightColumn : definition.denominatorColumn) ?? ''}
+                          disabled={!!busy}
+                          onChange={value =>
+                            changeDefinition(weighted ? { weightColumn: value } : { denominatorColumn: value })
+                          }
+                        >
+                          <option value="">숫자 열을 선택하세요</option>
+                          {numericColumns.map(column => (
+                            <option key={column.name} value={column.name}>
+                              {column.name}
+                            </option>
+                          ))}
+                        </Select>
+                      )}
+                    </div>
+                    {ratio && (
+                      <Select
+                        label="결과 배율"
+                        value={String(definition.scale ?? 1)}
+                        disabled={!!busy}
+                        onChange={value => changeDefinition({ scale: Number(value) as 1 | 100 })}
+                      >
+                        <option value="1">1 (비율)</option>
+                        <option value="100">100 (백분율)</option>
+                      </Select>
+                    )}
+                    {weighted && (
+                      <p className="text-sm text-muted-foreground">
+                        계산식: SUM(값 × 가중치) / SUM(가중치). 값과 가중치가 모두 있는 행만 포함하며, 둘 중 하나라도 빈
+                        값(NULL)이면 해당 행을 제외합니다. 가중치 합계가 0이거나 음수 가중치가 있으면 해당 그룹의 결과는 값
+                        없음(NULL, —)입니다.
+                      </p>
+                    )}
+                    {ratio && (
+                      <p className="text-sm text-muted-foreground">
+                        계산식: SUM(분자) / SUM(분모) × {definition.scale ?? 1}. 분자와 분모는 각각 자신의 빈 값(NULL)을
+                        제외하고 합산합니다. 분모 합계가 0이거나 어느 한쪽에 값이 없으면 결과는 값 없음(NULL, —)입니다.
+                      </p>
+                    )}
+                    <div className="flex flex-col gap-4 sm:flex-row">
+                      <TextField
+                        label="단위 (선택)"
+                        value={definition.unit}
+                        disabled={!!busy}
+                        onChange={event => changeDefinition({ unit: event.target.value })}
+                      />
+                      <Select
+                        label="소수 자릿수"
+                        value={String(definition.decimalPlaces)}
+                        disabled={!!busy}
+                        onChange={value => changeDefinition({ decimalPlaces: Number(value) })}
+                      >
+                        {Array.from({ length: 7 }, (_, index) => (
+                          <option key={index} value={index}>
+                            {index}자리
                           </option>
                         ))}
-                      </>
-                    )}
-                  </Select>
-                  {(weighted || ratio) && (
-                    <Select
-                      label={weighted ? '가중치 열' : '분모 열'}
-                      value={(weighted ? definition.weightColumn : definition.denominatorColumn) ?? ''}
-                      disabled={!!busy}
-                      onChange={value => changeDefinition(weighted ? { weightColumn: value } : { denominatorColumn: value })}
-                    >
-                      <option value="">숫자 열을 선택하세요</option>
-                      {numericColumns.map(column => (
-                        <option key={column.name} value={column.name}>
-                          {column.name}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </div>
-                {ratio && (
-                  <Select
-                    label="결과 배율"
-                    value={String(definition.scale ?? 1)}
-                    disabled={!!busy}
-                    onChange={value => changeDefinition({ scale: Number(value) as 1 | 100 })}
-                  >
-                    <option value="1">1 (비율)</option>
-                    <option value="100">100 (백분율)</option>
-                  </Select>
+                      </Select>
+                      <Select
+                        label="숫자 표시"
+                        value={definition.numberNotation}
+                        disabled={!!busy}
+                        onChange={value => changeDefinition({ numberNotation: value as Definition['numberNotation'] })}
+                      >
+                        <option value="plain">일반 숫자</option>
+                        <option value="compact">축약 숫자</option>
+                      </Select>
+                    </div>
+                    <Button disabled={!!busy || !validMetric || !!metricId} onClick={() => void run('metric')}>
+                      지표 저장
+                    </Button>
+                  </>
                 )}
-                {weighted && (
-                  <p className="text-sm text-muted-foreground">
-                    계산식: SUM(값 × 가중치) / SUM(가중치). 값과 가중치가 모두 있는 행만 포함하며, 둘 중 하나라도 빈
-                    값(NULL)이면 해당 행을 제외합니다. 가중치 합계가 0이거나 음수 가중치가 있으면 해당 그룹의 결과는 값
-                    없음(NULL, —)입니다.
-                  </p>
-                )}
-                {ratio && (
-                  <p className="text-sm text-muted-foreground">
-                    계산식: SUM(분자) / SUM(분모) × {definition.scale ?? 1}. 분자와 분모는 각각 자신의 빈 값(NULL)을 제외하고
-                    합산합니다. 분모 합계가 0이거나 어느 한쪽에 값이 없으면 결과는 값 없음(NULL, —)입니다.
-                  </p>
-                )}
-                <div className="flex flex-col gap-4 sm:flex-row">
-                  <TextField
-                    label="단위 (선택)"
-                    value={definition.unit}
-                    disabled={!!busy}
-                    onChange={event => changeDefinition({ unit: event.target.value })}
-                  />
-                  <Select
-                    label="소수 자릿수"
-                    value={String(definition.decimalPlaces)}
-                    disabled={!!busy}
-                    onChange={value => changeDefinition({ decimalPlaces: Number(value) })}
-                  >
-                    {Array.from({ length: 7 }, (_, index) => (
-                      <option key={index} value={index}>
-                        {index}자리
-                      </option>
-                    ))}
-                  </Select>
-                  <Select
-                    label="숫자 표시"
-                    value={definition.numberNotation}
-                    disabled={!!busy}
-                    onChange={value => changeDefinition({ numberNotation: value as Definition['numberNotation'] })}
-                  >
-                    <option value="plain">일반 숫자</option>
-                    <option value="compact">축약 숫자</option>
-                  </Select>
-                </div>
-                <Button disabled={!!busy || !validMetric || !!metricId} onClick={() => void run('metric')}>
-                  지표 저장
-                </Button>
                 <p className="text-sm text-muted-foreground">
                   {metricId
-                    ? '저장된 지표를 사용합니다. 내용을 변경하면 새 지표로 저장할 수 있습니다.'
+                    ? definition.aggregation === 'FORMULA'
+                      ? '계산을 바꾸려면 아래에서 새 계산 지표를 만드세요. 기존 지표는 유지됩니다.'
+                      : '저장된 지표를 사용합니다. 내용을 변경하면 새 지표로 저장할 수 있습니다.'
                     : '먼저 지표를 저장한 뒤 결과를 확인하세요. 합계·평균·최솟값·최댓값·가중 평균·합계 비율은 숫자 열만 선택할 수 있습니다.'}
                 </p>
               </div>
             </Card>
+            <CalculatedMetricBuilder
+              key={profile.sourceId}
+              sourceId={profile.sourceId}
+              sourceRevision={profile.dataVersion}
+              metrics={metrics}
+              disabled={!!busy}
+              onCreated={saved => {
+                invalidate();
+                setMetrics(current => [...current.filter(metric => metric.id !== saved.id), saved]);
+                setMetricId(String(saved.id));
+                setDefinition(saved.definition);
+              }}
+            />
             <Card className="min-w-0 p-4 md:p-6">
               <h2 className="mb-4 text-lg font-semibold">3. 차트 결과 확인</h2>
               <div className="flex flex-col gap-4">

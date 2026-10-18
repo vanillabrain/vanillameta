@@ -151,7 +151,7 @@ export default function StudioInspector({ block, onOperation, onDuplicate, onRem
     <div className="studio-inspector">
       <span className="studio-eyebrow">선택한 블록</span>
       <h2>{block.title}</h2>
-      <p>제목과 설명, 숫자 표시를 조정합니다. 종류와 계산 정의는 읽기 전용입니다.</p>
+      <p>제목과 설명, 숫자 표시를 조정합니다. 계산 정의는 유지하고 표·요약 표현을 선택할 수 있습니다.</p>
       <TextField
         inputRef={titleInput}
         label="블록 제목"
@@ -172,6 +172,27 @@ export default function StudioInspector({ block, onOperation, onDuplicate, onRem
         onKeyDown={commitDescriptionOnEnter}
         maxLength={DESCRIPTION_MAX}
       />
+      <TextField
+        select
+        label="블록 표현"
+        value={block.display.presentation ?? 'visual'}
+        helperText="계산과 필터는 유지됩니다. 요약 수치는 집계 결과에서 가져옵니다."
+        onChange={event =>
+          onOperation({
+            type: 'updateBlock',
+            blockId: block.id,
+            patch: { display: { presentation: event.target.value as 'visual' | 'table' | 'summary' } },
+          })
+        }
+        onKeyDown={keepArrowsInField}
+      >
+        <option value="visual">{block.kind === 'BOARD_NUMERIC' ? '숫자·추세' : '차트'}</option>
+        {block.kind === 'BOARD_NUMERIC' ? (
+          <option value="summary">집계 요약</option>
+        ) : (
+          <option value="table">집계 표</option>
+        )}
+      </TextField>
       <TextField
         select
         label="숫자 표시"

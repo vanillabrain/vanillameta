@@ -49,7 +49,7 @@ describe('DashboardService', () => {
     const repo = (service as any).dashboardRepository;
     repo.findOne.mockResolvedValue(row);
     repo.manager = { find: jest.fn().mockResolvedValue([{ widgetId: 10 }, { widgetId: 20 }]) };
-    repo.save.mockImplementation(async x => x);
+    repo.update.mockImplementation(async (_id, changes) => { Object.assign(row, changes); return { affected: 1 }; });
     (service as any).widgetRepository.find.mockResolvedValue([{ id: 10 }, { id: 20 }]);
     (service as any).dashboardWidgetService.update = jest.fn();
     const layout = [
@@ -63,4 +63,26 @@ describe('DashboardService', () => {
     });
     expect(row.layout).toEqual(layout);
   });
+  it('keeps a concurrently enabled organization policy when a legacy edit resumes', async () => {
+    const current = { id: 43, title: 'Old', layout: '[]', governed: false };
+    const repo = (service as any).dashboardRepository;
+    repo.findOne.mockImplementation(async () => ({ ...current }));
+    repo.update.mockImplementation(async (_id, changes) => { Object.assign(current, changes); return { affected: 1 }; });
+    let resume: () => void;
+    let entered: () => void;
+    const blocked = new Promise<void>(r => { entered = r; });
+    (service as any).dashboardWidgetService.update = jest.fn(async () => {
+      entered(); await new Promise<void>(r => { resume = r; });
+    });
+    const saving = service.update(43, { title: 'New', layout: [] } as any);
+    await blocked;
+    current.governed = true;
+    resume();
+    const result = await saving;
+    expect(current).toMatchObject({ title: 'New', governed: true });
+    expect(repo.update).toHaveBeenCalledWith(43, { title: 'New', layout: '[]' });
+    expect(repo.save).not.toHaveBeenCalled();
+    expect((result as any).data.governed).toBe(true);
+  });
+
 });

@@ -173,8 +173,22 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
       );
       dimensionKeys.add(dimension.key);
     }
-    studioKeys(block.display, ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain']);
+    studioKeys(block.display, [
+      'decimalPlaces',
+      'numberNotation',
+      'prefix',
+      'suffix',
+      'timeGrain',
+      'presentation',
+    ]);
     const display = block.display;
+    if (display.presentation !== undefined)
+      studioAssert(
+        display.presentation === 'visual' ||
+          (display.presentation === 'summary' && block.kind === 'BOARD_NUMERIC') ||
+          (display.presentation === 'table' && block.kind !== 'BOARD_NUMERIC'),
+        'Invalid Studio report presentation.',
+      );
     if (display.timeGrain !== undefined)
       studioAssert(
         block.kind === 'CHART_LINE' && ['auto', 'day', 'week', 'month'].includes(display.timeGrain),

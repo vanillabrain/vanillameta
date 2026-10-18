@@ -1,0 +1,44 @@
+type: canvas
+display_name: VM margin report
+max_width: 1360
+filters:
+  enable: true
+defaults:
+  time_range: inf
+  comparison_mode: none
+rows:
+  - height: 200px
+    items:
+      - width: 12
+        kpi_grid:
+          metrics_view: margin_metrics
+          measures: [revenue, cost, profit]
+  - height: 260px
+    items:
+      - width: 12
+        line_chart:
+          metrics_view: margin_metrics
+          x:
+            field: day
+            type: temporal
+          y:
+            field: cost
+            type: quantitative
+            zeroBasedOrigin: true
+  - height: 340px
+    items:
+      - width: 12
+        table:
+          metrics_view: margin_metrics
+          columns: [company, profit]
+          sort_by: profit
+          sort_dir: desc
+  - height: 160px
+    items:
+      - width: 12
+        markdown:
+          content: |
+            ## Reading this report
+            VM-owned synthetic customer/day data, recorded USD amounts.
+            The profit table and KPIs use the current shared period and filters.
+            This note is authored context, not a dynamically computed numeric claim.

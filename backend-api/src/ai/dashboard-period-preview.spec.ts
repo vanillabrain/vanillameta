@@ -53,7 +53,9 @@ describe('period comparison and grain: actual DuckDB preview', () => {
       withDuckDBSnapshot: jest.fn((_id, callback) => callback()),
       queryDuckDB: jest.fn((_id, sql, bindings) => worker.query(filename, sql, bindings)),
     };
-    service = new AiDashboardService({} as any, connection, {} as any);
+    service = new AiDashboardService({} as any, connection, {
+      manager: { findOne: jest.fn(async () => null) },
+    } as any);
   });
   afterAll(async () => {
     await worker?.onModuleDestroy();

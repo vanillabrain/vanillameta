@@ -235,7 +235,7 @@ export class StudioRemixService {
         type: w.type,
         valueField: w.valueField,
         ...Object.fromEntries(
-          ['prefix', 'suffix', 'decimalPlaces', 'numberNotation', 'timeGrain']
+          ['prefix', 'suffix', 'decimalPlaces', 'numberNotation', 'timeGrain', 'presentation']
             .filter(key => w[key] !== undefined)
             .map(key => [key, w[key]]),
         ),

@@ -6,6 +6,10 @@ import Explore from './index';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), postForm: vi.fn(), changed: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post, postForm: api.postForm }));
+vi.mock('@/helpers/editorDraftStorage', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/helpers/editorDraftStorage')>()),
+  editorDraftKey: async () => 'test:refresh-scope',
+}));
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
   useSearchParams: () => [new URLSearchParams('sourceId=1')],
@@ -54,7 +58,10 @@ beforeEach(() => {
   api.postForm.mockResolvedValue(success(snapshot(1, 'fresh opaque revision', 'new-uuid')));
   api.post.mockResolvedValue(success(snapshot(1, 'restored revision', 'older')));
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  sessionStorage.clear();
+});
 
 it.each(['payload', 'envelope'])(
   'handles an unchanged replacement as a no-op (%s) with the large-import timeout',
@@ -200,7 +207,7 @@ it('renders fixed mobile columns and compact date and time without splitting sho
   const table = screen.getByRole('table') as HTMLTableElement;
   expect(table.style.width).toBe('100%');
   expect(table.style.tableLayout).toBe('fixed');
-  expect(Array.from(table.querySelectorAll('col')).map(column => column.style.width)).toEqual(['28%', '14%', '30%', '28%']);
+  expect(Array.from(table.querySelectorAll('col')).map(column => column.style.width)).toEqual(['28%', '24%', '30%', '18%']);
   expect(rowHeader.style.overflowWrap).toBe('break-word');
   expect(rowHeader.style.wordBreak).toBe('normal');
   expect(within(table).getByRole('columnheader', { name: '행 수' })).not.toBeNull();
@@ -344,6 +351,7 @@ it('reloads Explore profile and metrics and clears a chart preview after replace
   let rowCount = '42';
   let metricLoads = 0;
   api.get.mockImplementation(async (url: string) => {
+    if (url.endsWith('/file-refreshes/latest')) return success(null);
     if (url.endsWith('/file-versions')) return success(snapshot());
     if (url.endsWith('/profile'))
       return success({
@@ -372,6 +380,17 @@ it('reloads Explore profile and metrics and clears a chart preview after replace
       limit: 500,
     }),
   );
+  api.postForm.mockImplementation(async (_url, form) =>
+    success({
+      id: '11111111-1111-4111-8111-111111111111',
+      requestId: form.get('requestId'),
+      sourceId: 1,
+      originalname: 'new.csv',
+      status: 'succeeded',
+      attempts: 1,
+      result: snapshot(1, 'new revision', 'next-file'),
+    }),
+  );
   render(<Explore />);
   await screen.findByRole('rowheader', { name: /filename-derived.csv/ });
   fireEvent.change(screen.getByLabelText('저장된 지표'), { target: { value: '10' } });
@@ -386,4 +405,34 @@ it('reloads Explore profile and metrics and clears a chart preview after replace
   expect(screen.queryByRole('region', { name: '집계 결과 표' })).toBeNull();
   expect(disabled('대시보드 저장')).toBe(true);
   expect((screen.getByLabelText('저장된 지표') as HTMLSelectElement).value).toBe('10');
+});
+
+it('shows bounded schema changes while preserving the active version and selected file', async () => {
+  await mount();
+  selectFile('schema-change.csv');
+  api.postForm.mockRejectedValueOnce({
+    response: {
+      status: 400,
+      data: {
+        code: 'FILE_SCHEMA_CHANGED',
+        message: '기존 데이터는 유지됩니다.',
+        changes: {
+          added: [{ name: 'new_field', type: 'VARCHAR' }],
+          removed: [{ name: 'amount', type: 'DECIMAL(18,2)' }],
+          typeChanged: [{ name: 'ordered_at', from: 'TIMESTAMP', to: 'VARCHAR' }],
+          truncated: false,
+        },
+      },
+    },
+  });
+  fireEvent.click(button('검증 후 파일 교체'));
+  await screen.findByRole('region', { name: '열 구성 변경 내역' });
+  expect(screen.getByText('추가: new_field (VARCHAR)')).toBeTruthy();
+  expect(screen.getByText('삭제: amount (DECIMAL(18,2))')).toBeTruthy();
+  expect(screen.getByText('타입 변경: ordered_at (TIMESTAMP → VARCHAR)')).toBeTruthy();
+  expect(screen.getByText('선택한 파일: schema-change.csv')).toBeTruthy();
+  expect(screen.getByRole('rowheader', { name: /filename-derived.csv/ })).toBeTruthy();
+  expect(api.changed).not.toHaveBeenCalled();
+  selectFile('next.csv');
+  expect(screen.queryByRole('region', { name: '열 구성 변경 내역' })).toBeNull();
 });

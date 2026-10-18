@@ -23,6 +23,9 @@ export class BiController {
   @Post('metrics') async createMetric(@Body() body: any, @Req() req) {
     return this.success(await this.bi.createMetric(body, this.actor(req)));
   }
+  @Post('formulas/preview') async previewFormula(@Body() body: any, @Req() req) {
+    return this.success(await this.bi.previewFormula(body, this.actor(req)));
+  }
   @Post('preview') async preview(@Body() body: any, @Req() req) {
     return this.success(await this.bi.preview(body, this.actor(req)));
   }

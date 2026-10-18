@@ -24,6 +24,25 @@ const doc = () => ({
   },
 });
 describe('Studio explicit time grain', () => {
+  it('changes report presentation without changing query references, source or layout', () => {
+    const original = validateStudioDocument(doc());
+    const next = applyStudioOperation(original, {
+      type: 'updateBlock',
+      blockId: 'b1',
+      patch: { display: { presentation: 'table' } },
+    });
+    expect(next.blocks[0].display.presentation).toBe('table');
+    expect(next.layouts).toEqual(original.layouts);
+    expect(next.blocks[0].measureRefs).toEqual(original.blocks[0].measureRefs);
+    expect(next.blocks[0].kind).toBe(original.blocks[0].kind);
+    expect(() =>
+      applyStudioOperation(next, {
+        type: 'updateBlock',
+        blockId: 'b1',
+        patch: { display: { presentation: 'summary' } },
+      }),
+    ).toThrow();
+  });
   it('changes a selected temporal display without changing SQL references or layout', () => {
     const original = validateStudioDocument(doc());
     const next = applyStudioOperation(original, {

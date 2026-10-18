@@ -41,7 +41,7 @@ export type StudioImportResult = {
   definitions: StudioDefinitions;
   unresolvedReferences: string[];
 };
-const displayFields = ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain'] as const;
+const displayFields = ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain', 'presentation'] as const;
 const optional = <T extends object>(value: T, keys: readonly string[]) =>
   Object.fromEntries(keys.filter(k => value[k] !== undefined).map(k => [k, value[k]]));
 

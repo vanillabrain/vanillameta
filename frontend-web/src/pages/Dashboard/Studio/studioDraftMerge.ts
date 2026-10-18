@@ -20,6 +20,7 @@ const displayLabels: Record<string, string> = {
   prefix: '접두 단위',
   suffix: '접미 단위',
   timeGrain: '시간 단위',
+  presentation: '블록 표현',
 };
 const describe = (v: unknown) => (v === undefined ? '없음' : typeof v === 'string' ? v : JSON.stringify(v));
 

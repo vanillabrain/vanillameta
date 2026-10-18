@@ -1,5 +1,6 @@
+import ReportExplore from './ReportExplore';
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { get, post } from '@/helpers/apiHelper';
 import PersonalSavedViews from '@/pages/Dashboard/Components/PersonalSavedViews';
@@ -24,6 +25,8 @@ import {
   LeaderboardSort,
 } from './exploreViewState';
 import PivotTable from './PivotTable';
+import AggregateSegment from './AggregateSegment';
+import DimensionSeries from './DimensionSeries';
 import PivotDashboardAdd from './PivotDashboardAdd';
 import { pivotRequestKey } from './pivotCsv';
 import MetricTrend, { FormattedMetricTrendData } from '@/pages/Dashboard/Components/MetricTrend';
@@ -321,6 +324,9 @@ function LeaderboardCard({
 
 function SourceExploreContent() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeState = location.state as { initialExplore?: { sourceId: number; state: unknown } } | null;
+  const initialView = useRef<{ sourceId: number; state: unknown } | null>(routeState?.initialExplore ?? null);
   const [searchParams] = useSearchParams();
   const [sources, setSources] = useState<Source[]>([]);
   const [sourceId, setSourceId] = useState(() =>
@@ -349,11 +355,19 @@ function SourceExploreContent() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [pivotAxes, setPivotAxes] = useState({ rowDimensions: [] as string[], columnDimensions: [] as string[] });
   const [pivotReady, setPivotReady] = useState({ key: '', reason: 'Pivot을 조회한 뒤 저장해 주세요.' });
-  const [mode, setMode] = useState<'explore' | 'pivot' | 'advanced'>('explore');
+  const [mode, setMode] = useState<'explore' | 'pivot' | 'advanced' | 'segment' | 'series'>('explore');
   const [advancedAxes, setAdvancedAxes] = useState<AdvancedPivotAxes>({ rowColumns: [], columnColumns: [] });
   const [advancedReady, setAdvancedReady] = useState(false);
   const [savedViewsOpen, setSavedViewsOpen] = useState(false);
+  const [segmentRestoration, setSegmentRestoration] = useState<{
+    sourceId: number;
+    nonce: number;
+    state: ExploreViewState;
+  } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => {
+    if (mode !== 'segment') setSegmentRestoration(null);
+  }, [mode]);
   const [filterColumn, setFilterColumn] = useState('');
   const [filterSearch, setFilterSearch] = useState('');
   const [filterSelection, setFilterSelection] = useState<FilterValue[]>([]);
@@ -387,6 +401,7 @@ function SourceExploreContent() {
   const rangePaused = rangeIncomplete || rangeBackwards;
 
   const resetAllState = () => {
+    setSegmentRestoration(null);
     setMode('explore');
     setPivotAxes({ rowDimensions: [], columnDimensions: [] });
     setAdvancedAxes({ rowColumns: [], columnColumns: [] });
@@ -456,6 +471,27 @@ function SourceExploreContent() {
         const selected = (data.measures ?? []).slice(0, DEFAULT_MEASURE_COUNT).map(measure => measure.id);
         setMeasureIds(selected);
         setRankingMeasureId(selected[0] ?? null);
+        if (initialView.current?.sourceId === data.sourceId) {
+          const initial = initialView.current;
+          initialView.current = null;
+          try {
+            const state = parseExploreViewState(initial.state, data);
+            if (state.dateRange && state.dateRange.column !== data.temporalColumns[0]?.column)
+              throw Error('날짜 열을 다시 확인해 주세요.');
+            setMeasureIds(state.measureIds);
+            setRankingMeasureId(state.rankingMeasureId);
+            setDimensions(state.dimensionColumns);
+            setFilters(state.filters);
+            setGrain(state.trendGrain);
+            setDateMode(state.dateRange ? 'custom' : 'all');
+            setTimeZone(state.dateRange?.timeZone ?? 'UTC');
+            setStartDate(state.dateRange?.start ?? '');
+            setEndDate(state.dateRange?.end ?? '');
+          } catch {
+            setMeasureIds([]);
+            setCatalogError('전달받은 분석 조건을 확인하지 못했습니다. 소스를 명시적으로 다시 불러와 주세요.');
+          }
+        }
       })
       .catch(err => {
         if (catalogRevision.current !== token || isAborted(err)) return;
@@ -718,6 +754,8 @@ function SourceExploreContent() {
   const applySavedView = (value: ExploreViewState) => {
     const next = parseExploreViewState(value, catalog);
     setMode(next.mode ?? 'explore');
+    if (next.mode === 'segment')
+      setSegmentRestoration(previous => ({ sourceId: Number(sourceId), nonce: (previous?.nonce ?? 0) + 1, state: next }));
     if (next.pivot) setPivotAxes(next.pivot);
     setMeasureIds(next.measureIds);
     setDimensions(next.dimensionColumns);
@@ -919,7 +957,7 @@ function SourceExploreContent() {
       {catalog && (
         <div className="mt-3 flex min-w-0 flex-wrap items-start gap-2">
           {/* Our restful V1 state cannot carry the advanced Pivot, so classic save/load hides there. */}
-          {mode !== 'advanced' && (
+          {mode !== 'advanced' && mode !== 'segment' && mode !== 'series' && (
             <div className="min-w-0">
               <Button variant="ghost" aria-expanded={savedViewsOpen} onClick={() => setSavedViewsOpen(open => !open)}>
                 {savedViewsOpen ? '저장 보기 닫기' : '저장 보기'}
@@ -956,7 +994,7 @@ function SourceExploreContent() {
                   }
                   onApply={applySavedView}
                   renderViewAction={view =>
-                    view.state.mode === 'pivot' ? (
+                    view.state.mode === 'pivot' || (view.state.mode === 'segment' && view.state.segment?.pivotColumn) ? (
                       <PivotDashboardAdd sourceId={catalog.sourceId} viewId={view.id} name={view.name} />
                     ) : null
                   }
@@ -965,7 +1003,7 @@ function SourceExploreContent() {
             </div>
           )}
           {/* Classic Pivot keeps its own PivotTable save/CSV, so the versioned controls stay hidden there. */}
-          {mode !== 'pivot' && (
+          {mode !== 'pivot' && mode !== 'segment' && mode !== 'series' && (
             <>
               <ExploreSavedViews
                 sourceId={catalog.sourceId}
@@ -1024,6 +1062,22 @@ function SourceExploreContent() {
               setSavedViewsOpen(false);
             }}
           />
+          <AnalysisChoice
+            label="집계 조건"
+            selected={mode === 'segment'}
+            onClick={() => {
+              setMode('segment');
+              setSavedViewsOpen(false);
+            }}
+          />
+          <AnalysisChoice
+            label="차원 추세 비교"
+            selected={mode === 'series'}
+            onClick={() => {
+              setMode('series');
+              setSavedViewsOpen(false);
+            }}
+          />
         </div>
 
         <div className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[repeat(4,max-content)]">
@@ -1076,7 +1130,35 @@ function SourceExploreContent() {
               </div>
             </div>
           )}
-          {mode !== 'pivot' && (
+          {mode === 'segment' && (
+            <div role="group" aria-label="집계 단위" className="col-span-full flex flex-wrap items-center gap-1">
+              {GRAINS.map(item => (
+                <AnalysisChoice
+                  key={item.value}
+                  label={item.label}
+                  ariaLabel={`집계 단위 ${item.label}`}
+                  selected={grain === item.value}
+                  onClick={() => setGrain(item.value)}
+                />
+              ))}
+              <span className="ml-1 text-xs text-muted-foreground">추세는 UTC 기준</span>
+            </div>
+          )}
+          {mode === 'series' && (
+            <div role="group" aria-label="집계 단위" className="col-span-full flex flex-wrap items-center gap-1">
+              {GRAINS.map(item => (
+                <AnalysisChoice
+                  key={item.value}
+                  label={item.label}
+                  ariaLabel={`집계 단위 ${item.label}`}
+                  selected={grain === item.value}
+                  onClick={() => setGrain(item.value)}
+                />
+              ))}
+              <span className="ml-1 text-xs text-muted-foreground">비교 추세는 UTC 기준입니다.</span>
+            </div>
+          )}
+          {mode !== 'pivot' && mode !== 'segment' && mode !== 'series' && (
             <>
               <div role="group" aria-label="집계 단위" className="col-span-1 flex min-w-0 items-center gap-0.5 sm:col-auto">
                 {GRAINS.map(item => (
@@ -1326,7 +1408,7 @@ function SourceExploreContent() {
         )}
         <Separator className="my-4" />
 
-        {catalog && (
+        {catalog && mode !== 'segment' && (
           <div className="flex min-w-0 flex-col gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
               <Button
@@ -1472,8 +1554,42 @@ function SourceExploreContent() {
         </Notice>
       )}
 
-      {catalog && measureIds.length === 0 && (
+      {catalog && mode !== 'segment' && measureIds.length === 0 && (
         <Notice severity="info">지표를 하나 이상 선택하세요. 위의 지표 목록에서 선택하면 결과가 표시됩니다.</Notice>
+      )}
+
+      {catalog && mode === 'segment' && (
+        <AggregateSegment
+          key={`${catalog.sourceId}-${catalog.sourceRevision}`}
+          sourceId={catalog.sourceId}
+          sourceRevision={catalog.sourceRevision}
+          measures={catalog.measures}
+          dimensions={catalog.dimensions}
+          filters={filters}
+          dateRange={dateRange}
+          grain={grain}
+          paused={rangePaused}
+          onReloadCatalog={reloadCatalog}
+          catalogRevision={catalog.viewRevision}
+          restoration={segmentRestoration?.sourceId === catalog.sourceId ? segmentRestoration : undefined}
+          onRestore={applySavedView}
+        />
+      )}
+
+      {catalog && mode === 'series' && (
+        <DimensionSeries
+          key={`${catalog.sourceId}-${catalog.sourceRevision}`}
+          sourceId={catalog.sourceId}
+          sourceRevision={catalog.sourceRevision}
+          measures={catalog.measures}
+          dimensions={catalog.dimensions}
+          filters={filters}
+          dateRange={dateRange}
+          grain={grain}
+          measureIds={measureIds}
+          paused={rangePaused}
+          onReloadCatalog={reloadCatalog}
+        />
       )}
 
       {catalog && mode === 'pivot' && (
@@ -1699,9 +1815,10 @@ function SourceExploreContent() {
  * implementation is lost.
  */
 export default function SourceExplore() {
+  const [params] = useSearchParams();
   return (
     <AnalysisUiProvider>
-      <SourceExploreContent />
+      {params.has('studioDashboard') ? <ReportExplore search={params.toString()} /> : <SourceExploreContent />}
     </AnalysisUiProvider>
   );
 }

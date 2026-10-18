@@ -1,0 +1,6 @@
+commit_id,author,is_merge
+C1,Alice,false
+C2,Bob,false
+C3,Alice,true
+C4,No files,false
+C6,No files,false

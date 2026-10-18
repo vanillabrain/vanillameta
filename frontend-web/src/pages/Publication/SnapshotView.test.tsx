@@ -76,3 +76,46 @@ it('labels a reuse preview as unsaved without publication instructions', () => {
   expect(screen.getByText(/저장 전 미리보기/)).toBeTruthy();
   expect(screen.queryByText(/재게시 후 반영/)).toBeNull();
 });
+
+it('keeps report table and aggregate summary presentations in a source-reuse preview', () => {
+  render(
+    <SnapshotView
+      context="reuse"
+      snapshot={{
+        schemaVersion: 1,
+        title: '복제 보고서',
+        scope: '새 USD 소스',
+        capturedAt: '2026-10-18',
+        responsiveLayouts: {},
+        widgets: [
+          {
+            blockId: 'table',
+            type: 'CHART_BAR',
+            presentation: 'table',
+            title: '회사별 이익',
+            valueField: 'value',
+            categoryField: 'dimension',
+            datas: [{ dimension: '회사', value: -6964.84 }],
+            suffix: ' USD',
+            decimalPlaces: 2,
+          },
+          {
+            blockId: 'summary',
+            type: 'BOARD_NUMERIC',
+            presentation: 'summary',
+            title: '이익 요약',
+            valueField: 'value',
+            datas: [{ value: -6964.84 }],
+            suffix: ' USD',
+            decimalPlaces: 2,
+          },
+        ],
+      }}
+    />,
+  );
+  expect(screen.getByRole('region', { name: '회사별 이익 집계 표' })).toBeTruthy();
+  expect(screen.getByRole('note', { name: '이익 요약 집계 요약' })).toBeTruthy();
+  expect(screen.getAllByText(/6,964.84 USD/).length).toBeGreaterThan(0);
+  expect(calls.widget).not.toHaveBeenCalled();
+  expect(calls.trend).not.toHaveBeenCalled();
+});

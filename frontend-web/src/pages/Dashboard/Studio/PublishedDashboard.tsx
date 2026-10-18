@@ -1,3 +1,4 @@
+import StudioReport from './StudioReport';
 import { useTranslation } from 'react-i18next';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import IconLogo from '@/assets/images/logo.svg?react';
@@ -28,8 +29,25 @@ export function PublishedBlockView({ block }: { block: PublishedBlock }) {
   return (
     <>
       <h2>{block.title}</h2>
-      {block.description && <p className="studio-published-description">{block.description}</p>}
-      {block.kind === 'BOARD_NUMERIC' ? (
+      {block.description && (
+        <p className="studio-published-description">
+          {(block.display?.presentation === 'summary' || block.display?.presentation === 'table') &&
+            '작성 설명 · 수치 검증 대상 아님: '}
+          {block.description}
+        </p>
+      )}
+      {block.display?.presentation === 'summary' || block.display?.presentation === 'table' ? (
+        <StudioReport
+          title={block.title}
+          description=""
+          kind={block.kind}
+          presentation={block.display.presentation}
+          display={display}
+          rows={block.datas}
+          valueField={block.valueField}
+          categoryField={block.categoryField}
+        />
+      ) : block.kind === 'BOARD_NUMERIC' ? (
         <div className="studio-published-value" title={String(block.datas[0]?.[block.valueField] ?? '')}>
           {format(block.datas[0]?.[block.valueField])}
         </div>
@@ -66,7 +84,7 @@ export function PublishedBlockView({ block }: { block: PublishedBlock }) {
           )}
         </div>
       )}
-      {block.kind === 'BOARD_NUMERIC' && block.trend && (
+      {block.kind === 'BOARD_NUMERIC' && block.display?.presentation !== 'summary' && block.trend && (
         <MetricTrend trend={{ ...block.trend, column: '' }} title={block.title} {...display} />
       )}
       {block.kind === 'BOARD_NUMERIC' && (

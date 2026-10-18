@@ -242,4 +242,38 @@ describe('exploration saved views', () => {
       await isolated.destroy();
     }
   });
+  it('persists aggregate segment conditions and pivot column and rejects unsupported variants', async () => {
+    const segmentState = {
+      ...state(),
+      mode: 'segment',
+      dimensionColumns: ['device'],
+      comparePrevious: false,
+      includeRows: false,
+      leaderboardSort: { by: 'value', direction: 'desc' },
+      segment: {
+        dimensionColumn: 'device',
+        conditions: [{ measureId: 1, operator: 'gte', value: 1000 }],
+      },
+    };
+    const saved = await service.create(3, 2, {
+      name: 'Segment',
+      state: segmentState,
+      revision: exploreViewRevision(current),
+    });
+    expect((await service.load(3, saved.data.id, 2)).data.state).toEqual(segmentState);
+    for (const patch of [
+      { conditions: [] },
+      { conditions: [{ measureId: 99, operator: 'gte', value: 1000 }] },
+      { pivotColumn: 'device' },
+      { pivotColumn: 'amount' },
+      { sql: 'SELECT 1' },
+    ])
+      expect(() =>
+        validateExploreViewState(
+          { ...segmentState, segment: { ...segmentState.segment, ...patch } },
+          current,
+        ),
+      ).toThrow();
+    expect(() => validateExploreViewState({ ...segmentState, mode: 'explore' }, current)).toThrow();
+  });
 });

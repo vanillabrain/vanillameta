@@ -15,6 +15,10 @@ export const validDraft = (draft: any) =>
   draft.widgets.every(
     widget =>
       widgetTypes.includes(widget.type) &&
+      (widget.presentation === undefined ||
+        widget.presentation === 'visual' ||
+        (widget.presentation === 'summary' && widget.type === 'BOARD_NUMERIC') ||
+        (widget.presentation === 'table' && widget.type !== 'BOARD_NUMERIC')) &&
       typeof widget.sql === 'string' &&
       widget.sql.trim() &&
       typeof widget.valueField === 'string' &&

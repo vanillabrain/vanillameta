@@ -8,7 +8,12 @@ export type ExploreDateRange = { column: string; start: string; end: string; tim
 export type PivotAxes = { rowDimensions: string[]; columnDimensions: string[] };
 export type ExploreViewState = {
   version: 1;
-  mode?: 'explore' | 'pivot';
+  mode?: 'explore' | 'pivot' | 'segment';
+  segment?: {
+    dimensionColumn: string;
+    conditions: Array<{ measureId: number; operator: 'gte' | 'gt' | 'lte' | 'lt' | 'eq'; value: number }>;
+    pivotColumn?: string;
+  };
   pivot?: PivotAxes;
   measureIds: number[];
   dimensionColumns: string[];
@@ -47,6 +52,7 @@ export function parseExploreViewState(value: unknown, catalog?: ViewCatalog): Ex
     'version',
     'mode',
     'pivot',
+    'segment',
     'measureIds',
     'dimensionColumns',
     'rankingMeasureId',
@@ -138,7 +144,51 @@ export function parseExploreViewState(value: unknown, catalog?: ViewCatalog): Ex
         invalid();
     }
   }
-  if (state.mode !== undefined && !['explore', 'pivot'].includes(state.mode)) invalid();
+  if (state.mode !== undefined && !['explore', 'pivot', 'segment'].includes(state.mode)) invalid();
+  if (state.mode === 'segment') {
+    const segment = state.segment;
+    object(segment, ['dimensionColumn', 'conditions', 'pivotColumn']);
+    if (
+      typeof segment.dimensionColumn !== 'string' ||
+      !segment.dimensionColumn.trim() ||
+      segment.dimensionColumn.length > 128 ||
+      state.dimensionColumns.length !== 1 ||
+      state.dimensionColumns[0] !== segment.dimensionColumn ||
+      state.comparePrevious ||
+      state.includeRows ||
+      state.leaderboardSort?.by !== 'value' ||
+      state.leaderboardSort?.direction !== 'desc'
+    )
+      invalid();
+    const axes = [segment.dimensionColumn, ...(segment.pivotColumn === undefined ? [] : [segment.pivotColumn])];
+    if (
+      new Set(axes).size !== axes.length ||
+      axes.some(name => typeof name !== 'string' || !name.trim() || name.length > 128)
+    )
+      invalid();
+    if (
+      catalog &&
+      axes.some(
+        name =>
+          !catalog.dimensions.some(d => d.column === name && !d.numeric) ||
+          catalog.temporalColumns.some(d => d.column === name),
+      )
+    )
+      invalid();
+    if (!Array.isArray(segment.conditions) || segment.conditions.length < 1 || segment.conditions.length > 3) invalid();
+    for (const condition of segment.conditions) {
+      object(condition, ['measureId', 'operator', 'value']);
+      if (
+        !Number.isSafeInteger(condition.measureId) ||
+        !state.measureIds.includes(condition.measureId) ||
+        !['gte', 'gt', 'lte', 'lt', 'eq'].includes(condition.operator) ||
+        typeof condition.value !== 'number' ||
+        !Number.isFinite(condition.value) ||
+        Math.abs(condition.value) > Number.MAX_SAFE_INTEGER
+      )
+        invalid();
+    }
+  } else if (state.segment !== undefined) invalid();
   if (state.mode === 'pivot') {
     object(state.pivot, ['rowDimensions', 'columnDimensions']);
     const axes = state.pivot;

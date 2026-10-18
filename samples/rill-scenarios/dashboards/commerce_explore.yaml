@@ -1,0 +1,7 @@
+type: explore
+metrics_view: commerce_metrics
+display_name: VM order-cohort refund comparison
+dimensions: '*'
+measures: '*'
+time_ranges:
+  - inf

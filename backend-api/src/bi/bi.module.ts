@@ -1,3 +1,21 @@
+import { ConditionReport, ConditionReportOccurrence } from './condition-report.entity';
+import { ConditionReportService } from './condition-report.service';
+import { ConditionReportController } from './condition-report.controller';
+import { FileSchemaImpactService } from './file-schema-impact.service';
+import { GovernanceController } from './governance.controller';
+import { GovernanceService } from './governance.service';
+import {
+  BiOrganization,
+  BiOrganizationGroup,
+  BiOrganizationMember,
+  BiDashboardPolicy,
+  BiPolicyAudit,
+} from './governance.entity';
+import { FileSchemaDiagnosisService } from './file-schema-diagnosis.service';
+import { SourceModelService } from './source-model.service';
+import { SourceModelController } from './source-model.controller';
+import { SourceModelReceipt } from './source-model-receipt.entity';
+import { FileSchemaImpactController } from './file-schema-impact.controller';
 import { SharedReuseOriginService } from './shared-reuse-origin.service';
 import {
   SharedReuseController,
@@ -28,14 +46,34 @@ import { BiExploreController } from './bi-explore.controller';
 import { VersionedExploreViewService } from './versioned-explore-view.service';
 import { BiExploreViewsController } from './bi-explore-views.controller';
 import { BiExploreService } from './bi-explore.service';
+import { BiSegmentController } from './bi-segment.controller';
+import { BiSegmentService } from './bi-segment.service';
+import { BiSeriesController } from './bi-series.controller';
+import { BiSeriesService } from './bi-series.service';
 import { BiService } from './bi.service';
 @Module({
   imports: [
     AiModule,
     ConnectionModule,
-    TypeOrmModule.forFeature([PersonalView, Dashboard, DashboardPublication]),
+    TypeOrmModule.forFeature([
+      PersonalView,
+      Dashboard,
+      DashboardPublication,
+      SourceModelReceipt,
+      ConditionReport,
+      ConditionReportOccurrence,
+      BiOrganization,
+      BiOrganizationGroup,
+      BiOrganizationMember,
+      BiDashboardPolicy,
+      BiPolicyAudit,
+    ]),
   ],
   controllers: [
+    ConditionReportController,
+    GovernanceController,
+    SourceModelController,
+    FileSchemaImpactController,
     BiController,
     DashboardReuseController,
     SharedReuseController,
@@ -43,6 +81,8 @@ import { BiService } from './bi.service';
     ReuseAccessController,
     SemanticProposalController,
     BiExploreController,
+    BiSegmentController,
+    BiSeriesController,
     ExploreViewController,
     DashboardPivotController,
     BiExploreViewsController,
@@ -50,12 +90,19 @@ import { BiService } from './bi.service';
     PublishedPublicationController,
   ],
   providers: [
+    ConditionReportService,
+    GovernanceService,
+    SourceModelService,
+    FileSchemaImpactService,
+    FileSchemaDiagnosisService,
     BiService,
     DashboardReuseService,
     SharedReuseOriginService,
     SemanticProposalService,
     SemanticCreationService,
     BiExploreService,
+    BiSegmentService,
+    BiSeriesService,
     ExploreViewService,
     DashboardPivotService,
     VersionedExploreViewService,

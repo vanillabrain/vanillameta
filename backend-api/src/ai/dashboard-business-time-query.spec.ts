@@ -69,7 +69,9 @@ describe('business-date adapter through real DuckDB filtering', () => {
       {} as any,
       worker,
     );
-    service = new AiDashboardService({} as any, connection, {} as any);
+    service = new AiDashboardService({} as any, connection, {
+      manager: { findOne: jest.fn(async () => null) },
+    } as any);
     jest
       .spyOn(service, 'analysis')
       .mockImplementation(async () => ({ status: 'SUCCESS', data: draft } as any));

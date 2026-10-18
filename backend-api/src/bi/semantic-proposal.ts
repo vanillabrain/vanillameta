@@ -44,10 +44,14 @@ export const semanticDigest = (value: any) =>
   createHash('sha256')
     .update(JSON.stringify(canonical(value)))
     .digest('hex');
-export function normalizeMetric(value: any, profile: any) {
+export function normalizeMetric(value: any, profile: any, allowSavedFormula = false) {
+  // Only persisted, owner-authorized catalog entries may carry server-pinned operand definitions.
+  if (value?.aggregation === 'FORMULA' && !allowSavedFormula) fail();
   const base = ['label', 'aggregation', 'column', 'unit', 'decimalPlaces', 'numberNotation'];
   const extra =
-    value?.aggregation === 'RATIO_SUM'
+    value?.aggregation === 'FORMULA'
+      ? ['formula']
+      : value?.aggregation === 'RATIO_SUM'
       ? ['denominatorColumn', 'scale']
       : value?.aggregation === 'WEIGHTED_AVG'
       ? ['weightColumn']
@@ -108,7 +112,7 @@ export function semanticCatalog(rows: any[], profile: any) {
         for (const k of ['schemaVersion', 'definitionVersion', 'sourceId', 'tableName'])
           delete fields[k];
         const definitionVersion = d.definitionVersion;
-        const definition = normalizeMetric(fields, profile);
+        const definition = normalizeMetric(fields, profile, true);
         return [
           {
             id: row.id,

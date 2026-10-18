@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { cn } from '@/lib/utils';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
+import StudioReport from '../Dashboard/Studio/StudioReport';
 import MetricTrend from '../Dashboard/Components/MetricTrend';
 import { analysisOptions } from '../Dashboard/analysisOptions';
 import { responsiveBlockStyle } from '../Dashboard/responsiveBlockStyle';
@@ -66,16 +67,38 @@ export default function SnapshotView({
             )}
             style={blockStyle(widget.blockId)}
           >
-            <div className={cn('min-w-0', widget.type === 'BOARD_NUMERIC' ? 'h-[155px]' : 'h-[300px]')}>
-              <WidgetViewer
-                title={widget.title}
-                description={widget.description}
-                widgetType={widget.type}
-                widgetOption={analysisOptions(widget)}
-                dataSet={widget.datas}
-              />
-            </div>
-            {widget.type === 'BOARD_NUMERIC' && (
+            {widget.presentation === 'table' || widget.presentation === 'summary' ? (
+              <div className="min-w-0 p-4">
+                <h3 className="mb-3 text-sm font-semibold break-words">{widget.title}</h3>
+                <StudioReport
+                  title={widget.title}
+                  description={widget.description}
+                  kind={widget.type}
+                  presentation={widget.presentation}
+                  display={{
+                    prefix: widget.prefix,
+                    suffix: widget.suffix,
+                    decimalPlaces: widget.decimalPlaces ?? 0,
+                    numberNotation: widget.numberNotation,
+                  }}
+                  rows={widget.datas}
+                  valueField={widget.valueField}
+                  categoryField={widget.categoryField}
+                  scope={snapshot.scope}
+                />
+              </div>
+            ) : (
+              <div className={cn('min-w-0', widget.type === 'BOARD_NUMERIC' ? 'h-[155px]' : 'h-[300px]')}>
+                <WidgetViewer
+                  title={widget.title}
+                  description={widget.description}
+                  widgetType={widget.type}
+                  widgetOption={analysisOptions(widget)}
+                  dataSet={widget.datas}
+                />
+              </div>
+            )}
+            {widget.type === 'BOARD_NUMERIC' && widget.presentation !== 'summary' && (
               <MetricTrend
                 title={widget.title}
                 trend={widget.trend}

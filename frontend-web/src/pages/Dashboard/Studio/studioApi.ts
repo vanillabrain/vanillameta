@@ -28,6 +28,7 @@ export type StudioPreviewRow = {
   suffix?: string;
   decimalPlaces?: number;
   numberNotation?: string;
+  presentation?: 'visual' | 'table' | 'summary';
   trend?: Record<string, any>;
   trendUnavailable?: string;
   previousTrend?: Record<string, any>;

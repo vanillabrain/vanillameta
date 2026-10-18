@@ -20,6 +20,7 @@ export interface DashboardDraft {
     suffix?: string;
     numberNotation?: 'full' | 'compact';
     timeGrain?: 'auto' | 'day' | 'week' | 'month';
+    presentation?: 'visual' | 'table' | 'summary';
   }>;
 }
 export function positiveId(value: unknown): number {
@@ -154,7 +155,17 @@ export function validateDraft(input: any): DashboardDraft {
         (w.type !== 'CHART_LINE' || !['auto', 'day', 'week', 'month'].includes(w.timeGrain))
       )
         throw new BadRequestException('invalid timeGrain');
+      if (
+        w.presentation !== undefined &&
+        !(
+          w.presentation === 'visual' ||
+          (w.presentation === 'summary' && w.type === 'BOARD_NUMERIC') ||
+          (w.presentation === 'table' && w.type !== 'BOARD_NUMERIC')
+        )
+      )
+        throw new BadRequestException('invalid report presentation');
       return {
+        ...(w.presentation !== undefined ? { presentation: w.presentation } : {}),
         ...(w.timeGrain !== undefined ? { timeGrain: w.timeGrain } : {}),
         ...(w.blockId !== undefined ? { blockId: w.blockId } : {}),
         title: text(w.title, 300),
@@ -314,6 +325,7 @@ export function widgetOptions(w: DashboardDraft['widgets'][number]) {
   if (w.type === 'BOARD_NUMERIC')
     return {
       header: { title: w.valueField, fontSize: 13, color: '#586579' },
+      ...(w.presentation !== undefined ? { presentation: w.presentation } : {}),
       content: {
         field: w.valueField,
         aggregation: 'sum',
@@ -327,6 +339,7 @@ export function widgetOptions(w: DashboardDraft['widgets'][number]) {
       },
     };
   return {
+    ...(w.presentation !== undefined ? { presentation: w.presentation } : {}),
     [w.type === 'CHART_COLUMN' ? 'yField' : 'xField']: w.categoryField,
     series: [
       { field: w.valueField, fieldLabel: w.valueField, aggregation: 'sum', color: '#2563eb' },

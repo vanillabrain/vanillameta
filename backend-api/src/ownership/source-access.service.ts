@@ -82,6 +82,13 @@ export class SourceAccessService {
   }
   async sharedDashboard(id: unknown): Promise<number> {
     const dashboardId = this.id(id);
+    const dashboard = await this.db
+      .getRepository(Dashboard)
+      .findOne({ where: { id: dashboardId } });
+    if (dashboard?.governed)
+      throw new ForbiddenException(
+        '조직 정책이 적용된 분석은 로그인한 조직 보기에서 확인해 주세요.',
+      );
     const mappings = await this.db.getRepository(UserMapping).find({ where: { dashboardId } });
     if (mappings.length !== 1) throw new ForbiddenException('share source ownership required');
     await this.dashboard(dashboardId, mappings[0].userInfoId);

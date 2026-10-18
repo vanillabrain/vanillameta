@@ -1,3 +1,4 @@
+import { studioDigest } from '../dashboard-studio/studio-legacy';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
@@ -191,11 +192,44 @@ describe('BiExploreService dynamic exploration over real DuckDB', () => {
     } as any);
     service = new BiExploreService(
       bi,
-      new AiDashboardService({} as any, connection, {} as any),
+      new AiDashboardService({} as any, connection, {
+        manager: { findOne: (_entity: any, options: any) => databaseRepo.findOne(options) },
+      } as any),
       connection,
     );
   });
 
+  it('guards report queries against same-version definition replacement and malformed guards', async () => {
+    const catalog = await service.catalog({ sourceId: 1 }, actor),
+      measure = catalog.measures[0];
+    const guard = {
+      id: measure.id,
+      definitionVersion: String(measure.definitionVersion),
+      digest: studioDigest(measure.definition),
+    };
+    const body = {
+      sourceId: 1,
+      sourceRevision: catalog.sourceRevision,
+      measureIds: [measure.id],
+      rankingMeasureId: measure.id,
+      dimensionColumns: ['region'],
+      measureGuards: [guard],
+    };
+    expect((await service.query(body, actor)).kpis).toHaveLength(1);
+    const original = metrics[0].definition;
+    metrics[0].definition = JSON.stringify({ ...JSON.parse(original), column: 'weight' });
+    await expect(service.query(body, actor)).rejects.toBeInstanceOf(ConflictException);
+    metrics[0].definition = original;
+    for (const measureGuards of [
+      [],
+      [guard, guard],
+      [{ ...guard, digest: 'bad' }],
+      [{ ...guard, id: 999 }],
+    ])
+      await expect(service.query({ ...body, measureGuards }, actor)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+  });
   it('returns a catalog with revision, row count, measures, dimensions and temporal bounds', async () => {
     const catalog = await service.catalog({ sourceId: 1 }, actor);
     expect(catalog).toMatchObject({ sourceId: 1, name: 'Explorer', rowCount: '9' });

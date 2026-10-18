@@ -333,7 +333,7 @@ describe('numberNotation persistence', () => {
       input.widgets.forEach(w => Object.assign(w, { numberNotation }));
       const validated = validateDraft(input);
       expect(validated.widgets[0].numberNotation).toBe(numberNotation);
-      expect(widgetOptions(validated.widgets[0]).content.numberNotation).toBe(numberNotation);
+      expect(widgetOptions(validated.widgets[0])).toMatchObject({ content: { numberNotation } });
       expect(widgetOptions(validated.widgets[1])).toMatchObject({ numberNotation });
       expect(validateDraft(JSON.parse(JSON.stringify(validated)))).toEqual(validated);
     },

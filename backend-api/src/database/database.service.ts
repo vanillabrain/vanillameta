@@ -10,7 +10,7 @@ import { CreateDatabaseDto } from './dto/create-database.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Database } from './entities/database.entity';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { ConnectionService } from '../connection/connection.service';
 import { Dataset } from '../dataset/entities/dataset.entity';
 import { ResponseStatus } from '../common/enum/response-status.enum';
@@ -25,8 +25,14 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { createHash } from 'crypto';
 import { AnalysisUpload, DuckDBService } from '../analysis/duckdb.service';
+import { diffFileSchema } from './file-schema-diff';
+import { FileCorrection } from '../analysis/file-correction';
 
 const UPLOAD_TABLE = 'uploaded_data';
+/** Internal hook: a durable receipt can commit atomically with the source pointer. */
+export type FileReplacementCommit = (
+  activate: (manager: EntityManager) => Promise<any>,
+) => Promise<any>;
 
 @Injectable()
 export class DatabaseService {
@@ -187,6 +193,8 @@ export class DatabaseService {
       status: ResponseStatus.SUCCESS,
       data: {
         sourceId: state.row.id,
+        supportsCorrection: !state.config.fileModel,
+        ...(state.config.fileModel ? { supportsRefresh: false } : {}),
         revision: state.revision,
         limit: 5,
         currentVersionId: path.basename(path.dirname(state.config.connection.filename)),
@@ -214,63 +222,144 @@ export class DatabaseService {
       );
   }
 
-  private async switchFile(state: any, version: any, versions: any[]) {
+  private async switchFile(
+    state: any,
+    version: any,
+    versions: any[],
+    commit?: FileReplacementCommit,
+  ) {
     const config = {
       ...state.config,
       connection: { ...state.config.connection, filename: version.filename },
       fileVersions: versions,
     };
     const connectionConfig = encryptConnectionConfig(JSON.stringify(config));
-    const updated = await this.databaseRepository.update(
-      {
-        id: state.row.id,
-        ownerId: state.row.ownerId,
-        connectionConfig: state.row.connectionConfig,
-      },
-      { connectionConfig },
-    );
-    if (updated.affected !== 1)
-      throw new ConflictException('파일이 동시에 변경되었습니다. 최신 버전을 다시 불러와 주세요.');
-    // Return the state this request committed; a later request may already have switched again.
-    return this.publicVersions({
-      ...state,
-      config,
-      versions,
-      revision: createHash('sha256').update(connectionConfig).digest('hex'),
+    const activate = async (manager?: EntityManager) => {
+      const repository = manager ? manager.getRepository(Database) : this.databaseRepository;
+      const updated = await repository.update(
+        {
+          id: state.row.id,
+          ownerId: state.row.ownerId,
+          connectionConfig: state.row.connectionConfig,
+        },
+        { connectionConfig },
+      );
+      if (updated.affected !== 1)
+        throw new ConflictException(
+          '파일이 동시에 변경되었습니다. 최신 버전을 다시 불러와 주세요.',
+        );
+      return this.publicVersions({
+        ...state,
+        config,
+        versions,
+        revision: createHash('sha256').update(connectionConfig).digest('hex'),
+      });
+    };
+    return commit ? commit(activate) : activate();
+  }
+
+  private async confirmFileUnchanged(
+    state: any,
+    expected: unknown,
+    commit?: FileReplacementCommit,
+    correctionStats?: any,
+  ) {
+    const latest = await this.fileState(state.row.id, state.row.ownerId);
+    this.expectFileRevision(latest, expected);
+    const result = () => {
+      const value = this.publicVersions(latest);
+      return {
+        ...value,
+        data: { ...value.data, ...(correctionStats ? { correctionStats } : {}) },
+        unchanged: true,
+      };
+    };
+    if (!commit) return result();
+    return commit(async manager => {
+      const current = await manager.findOne(Database, {
+        where: {
+          id: state.row.id,
+          ownerId: state.row.ownerId,
+          connectionConfig: latest.row.connectionConfig,
+        },
+        ...(manager.connection.options.type !== 'sqlite'
+          ? { lock: { mode: 'pessimistic_write' as const } }
+          : {}),
+      });
+      if (!current)
+        throw new ConflictException(
+          '파일이 동시에 변경되었습니다. 최신 버전을 다시 불러와 주세요.',
+        );
+      return result();
     });
   }
 
-  async replaceFile(id: number, file: AnalysisUpload, expectedRevision: unknown, ownerId: number) {
+  async replaceFile(
+    id: number,
+    file: AnalysisUpload,
+    expectedRevision: unknown,
+    ownerId: number,
+    commit?: FileReplacementCommit,
+    correction?: FileCorrection,
+  ) {
     let imported: Awaited<ReturnType<DuckDBService['importFile']>>;
     let committed = false;
     try {
       const state = await this.fileState(id, ownerId);
+      if (state.config.fileModel)
+        throw new BadRequestException(
+          '연결 모델은 고정 스냅샷입니다. 원본 품질을 다시 확인해 새 연결 소스로 만들어 주세요.',
+        );
       this.expectFileRevision(state, expectedRevision);
       const sha256 = await this.duckdbService.uploadDigest(file);
       const current = state.versions.find(v => v.filename === state.config.connection.filename);
       if (
+        !correction &&
         current?.sha256 === sha256 &&
         path.extname(current.originalname).toLowerCase() ===
           path.extname(file.originalname).toLowerCase()
       ) {
-        const latest = await this.fileState(id, ownerId);
-        this.expectFileRevision(latest, expectedRevision);
-        return { ...this.publicVersions(latest), unchanged: true };
+        return this.confirmFileUnchanged(state, expectedRevision, commit);
       }
-      if (state.versions.length >= 5)
+      if (!correction && state.versions.length >= 5)
         throw new BadRequestException(
           '최대 5개 파일 버전을 보관합니다. 추가 갱신은 보존 정책 정리 후 진행해 주세요.',
         );
       imported = await this.duckdbService.importFile(file);
-      const schema = async (filename: string) =>
-        JSON.stringify(
-          (await this.duckdbService.query(filename, 'DESCRIBE uploaded_data')).datas
-            .map(c => [c.column_name, c.column_type])
-            .sort((a, b) => a[0].localeCompare(b[0])),
-        );
-      if ((await schema(state.config.connection.filename)) !== (await schema(imported.filename)))
+      const columns = async (filename: string) =>
+        (await this.duckdbService.query(filename, 'DESCRIBE uploaded_data')).datas.map(c => ({
+          name: c.column_name,
+          type: c.column_type,
+        }));
+      const schemaDiff = diffFileSchema(
+        await columns(state.config.connection.filename),
+        await columns(imported.filename),
+      );
+      if (schemaDiff.changed)
+        throw new BadRequestException({
+          code: 'FILE_SCHEMA_CHANGED',
+          message:
+            '컬럼 이름 또는 타입이 기존 파일과 다릅니다. 기존 데이터는 유지됩니다. 같은 형식으로 수정하거나 새 데이터 소스로 연결해 주세요.',
+          changes: {
+            added: schemaDiff.added,
+            removed: schemaDiff.removed,
+            typeChanged: schemaDiff.typeChanged,
+            truncated: schemaDiff.truncated,
+          },
+        });
+      const correctionStats = correction
+        ? await this.duckdbService.correctFile(
+            imported.filename,
+            state.config.connection.filename,
+            correction,
+          )
+        : undefined;
+      if (correctionStats?.unchanged)
+        return this.confirmFileUnchanged(state, expectedRevision, commit, correctionStats);
+      if (correctionStats) imported.rows = correctionStats.rows;
+      if (state.versions.length >= 5)
         throw new BadRequestException(
-          '컬럼 이름 또는 타입이 기존 파일과 다릅니다. 기존 데이터는 유지됩니다. 같은 형식으로 수정하거나 새 데이터 소스로 연결해 주세요.',
+          '최대 5개 파일 버전을 보관합니다. 추가 갱신은 보존 정책 정리 후 진행해 주세요.',
         );
       const version = {
         id: path.basename(path.dirname(imported.filename)),
@@ -278,28 +367,55 @@ export class DatabaseService {
         originalname: file.originalname,
         rows: imported.rows,
         uploadedAt: new Date().toISOString(),
-        sha256,
+        ...(correction ? { correction: true } : { sha256 }),
       };
-      const result = await this.switchFile(state, version, [...state.versions, version]);
+      const activate =
+        correctionStats && commit
+          ? async (write: (manager: EntityManager) => Promise<any>) =>
+              commit(async manager => {
+                const result = await write(manager);
+                return { ...result, data: { ...result.data, correctionStats } };
+              })
+          : commit;
+      const result = await this.switchFile(state, version, [...state.versions, version], activate);
       committed = true;
       try {
         await this.duckdbService.registerImport(imported.filename, id);
       } catch {
         this.logger.warn(`analysis manifest registration failed for database ${id}`);
       }
-      return result;
+      return correctionStats ? { ...result, data: { ...result.data, correctionStats } } : result;
     } finally {
       // Only discard this request's unregistered candidate, never an active or historical file.
-      if (imported && !committed)
-        await this.duckdbService
-          .discardImport(imported.filename)
-          .catch(() => this.logger.warn('unregistered analysis candidate cleanup failed'));
+      if (imported && !committed) {
+        // An ambiguous metadata commit must not delete an active or retained file.
+        let referenced = true;
+        try {
+          const current = await this.databaseRepository.findOne({ where: { id } });
+          const config = current
+            ? JSON.parse(decryptConnectionConfig(current.connectionConfig))
+            : undefined;
+          referenced =
+            config?.connection?.filename === imported.filename ||
+            !!config?.fileVersions?.some(v => v.filename === imported.filename);
+        } catch {
+          this.logger.warn('analysis candidate cleanup deferred until metadata is readable');
+        }
+        if (!referenced)
+          await this.duckdbService
+            .discardImport(imported.filename)
+            .catch(() => this.logger.warn('unregistered analysis candidate cleanup failed'));
+      }
       if (file?.path) await fs.rm(file.path, { force: true });
     }
   }
 
   async restoreFile(id: number, body: any, ownerId: number) {
     const state = await this.fileState(id, ownerId);
+    if (state.config.fileModel)
+      throw new BadRequestException(
+        '연결 모델은 파일 교체·복원 대신 새 연결 소스로 만들어 주세요.',
+      );
     this.expectFileRevision(state, body?.expectedRevision);
     const version = state.versions.find(v => v.id === body?.versionId);
     if (!version) throw new BadRequestException('보관된 파일 버전을 선택해 주세요.');

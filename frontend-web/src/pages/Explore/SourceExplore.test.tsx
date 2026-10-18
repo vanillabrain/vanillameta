@@ -8,12 +8,15 @@ const api = vi.hoisted(() => ({
   post: vi.fn(),
   navigate: vi.fn(),
   search: 'sourceId=3',
+  locationState: null as any,
   savedState: null as any,
   viewProps: null as any,
 }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
+vi.mock('@/helpers/authResponseFence', () => ({ captureAuthResponseFence: () => () => undefined }));
 vi.mock('react-router-dom', () => ({
   useNavigate: () => api.navigate,
+  useLocation: () => ({ state: api.locationState }),
   useSearchParams: () => [new URLSearchParams(api.search)],
 }));
 vi.mock('@/pages/Dashboard/Components/PersonalSavedViews', () => ({
@@ -102,6 +105,7 @@ const queryResult = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   vi.resetAllMocks();
   api.search = 'sourceId=3';
+  api.locationState = null;
   api.get.mockImplementation(async (url: string) =>
     success(
       url === '/bi/sources'
@@ -152,6 +156,37 @@ const mount = async () => {
   await act(async () => undefined);
 };
 const openSettings = () => fireEvent.click(screen.getByRole('button', { name: /표시 설정/ }));
+
+it('continues a report with its exact initial conditions instead of first querying default measures', async () => {
+  api.locationState = {
+    initialExplore: {
+      sourceId: 3,
+      state: {
+        version: 1,
+        mode: 'explore',
+        measureIds: [2],
+        dimensionColumns: ['device_os'],
+        rankingMeasureId: 2,
+        leaderboardSort: { by: 'value', direction: 'desc' },
+        filters: [{ column: 'device_type', values: ['Mobile/Tablet'] }],
+        dateRange: null,
+        relativePeriod: null,
+        trendGrain: 'day',
+        comparePrevious: false,
+        includeRows: false,
+      },
+    },
+  };
+  render(<SourceExplore />);
+  await waitFor(() => expect(api.post.mock.calls.some(([url]) => url === '/bi/explore/query')).toBe(true));
+  const requests = api.post.mock.calls.filter(([url]) => url === '/bi/explore/query');
+  expect(requests).toHaveLength(1);
+  expect(requests[0][1]).toMatchObject({
+    measureIds: [2],
+    dimensionColumns: ['device_os'],
+    filters: [{ column: 'device_type', values: ['Mobile/Tablet'] }],
+  });
+});
 
 it('loads the catalog and queries with default selections over all data', async () => {
   await mount();
@@ -1536,4 +1571,43 @@ it('saves a restored v4 view with the time axis and the cell tuple intact', asyn
   await waitFor(() =>
     expect(api.post.mock.calls.find(([url]) => url === '/bi/explore/views/create')?.[1].state).toEqual(v4State),
   );
+});
+
+it('keeps aggregate segment scope separate from Explore saved views and exports', async () => {
+  render(<SourceExplore />);
+  await screen.findByRole('button', { name: '집계 조건' });
+  fireEvent.click(screen.getByRole('button', { name: '집계 조건' }));
+  await screen.findByRole('region', { name: '집계 조건 탐색' });
+  expect(screen.queryByRole('button', { name: '저장 보기' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '이전 기간 비교' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /표시 설정/ })).toBeNull();
+  expect(api.post.mock.calls.filter(([url]: any[]) => url === '/bi/explore/segments')).toHaveLength(0);
+});
+
+it('does not reuse a segment restoration after leaving the segment flow', async () => {
+  api.savedState = {
+    version: 1,
+    mode: 'segment',
+    segment: { dimensionColumn: 'device_type', conditions: [{ measureId: 1, operator: 'gte', value: 1000 }] },
+    measureIds: [1],
+    dimensionColumns: ['device_type'],
+    rankingMeasureId: 1,
+    leaderboardSort: { by: 'value', direction: 'desc' },
+    filters: [],
+    dateRange: null,
+    relativePeriod: null,
+    trendGrain: 'day',
+    comparePrevious: false,
+    includeRows: false,
+  };
+  render(<SourceExplore />);
+  await screen.findByRole('button', { name: '저장 보기' });
+  fireEvent.click(screen.getByRole('button', { name: '저장 보기' }));
+  fireEvent.click(screen.getByRole('button', { name: '테스트 보기 복원' }));
+  await screen.findByText(/저장한 집계 조건을 복원/);
+  expect((screen.getByLabelText('조건 1 기준값') as HTMLInputElement).value).toBe('1000');
+  fireEvent.click(screen.getByRole('button', { name: 'Explore' }));
+  fireEvent.click(screen.getByRole('button', { name: '집계 조건' }));
+  expect((screen.getByLabelText('조건 1 기준값') as HTMLInputElement).value).toBe('');
+  expect(screen.queryByText(/저장한 집계 조건을 복원/)).toBeNull();
 });

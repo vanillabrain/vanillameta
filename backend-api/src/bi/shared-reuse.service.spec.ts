@@ -336,6 +336,36 @@ describe('UC021 shared dashboard reuse SQLite graph', () => {
     expect(await counts()).toEqual(before);
   });
 
+  it('closes old share/publication recipes and already issued preview tickets after organization policy', async () => {
+    await origins.grant(originalId, OWNER, { allowReuse: true });
+    const analysis = (await dashboards.analysis(originalId, OWNER, true)).data;
+    await db
+      .getRepository(DashboardPublication)
+      .update(
+        { dashboardId: originalId },
+        {
+          active: true,
+          reuseDefinition: buildReuseRecipe(analysis, await profileOf(originalSourceId, OWNER)),
+        },
+      );
+    const shared = await flow('share');
+    const published = await flow('publication');
+    const before = await counts();
+    await db.getRepository(Dashboard).update(originalId, { governed: true });
+    for (const [kind, key, ticket] of [
+      ['share', shareUuid, shared.ticket],
+      ['publication', publicationUuid, published.ticket],
+    ] as const) {
+      expect(await origins.status(kind, key)).toEqual({ reusable: false });
+      await expect(service.draft(key, RECIPIENT, kind)).rejects.toThrow();
+      await expect(
+        service.save(key, { ticket, requestId: randomUUID() }, RECIPIENT, kind),
+      ).rejects.toThrow();
+    }
+    await expect(origins.grant(originalId, OWNER, { allowReuse: true })).rejects.toThrow();
+    expect(await counts()).toEqual(before);
+  });
+
   it('opens the granted share to the recipient with columns and their own sources only', async () => {
     await origins.grant(originalId, OWNER, { allowReuse: true });
     const share = await shareRow();

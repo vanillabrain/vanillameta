@@ -36,3 +36,6 @@ Ego14, 합성 KRW Commerce 연결 source4에서 아래 질문을 실제 Codex gp
 `before.json`, `api-final.json`, `preview.txt`, `saved-reload.txt`, `layouts.json`, `average-first-clarification.png/txt`, `preview-save-keyboard.png`, `saved-1440.png`, `saved-768.png`, `saved-390.png`, `saved-390-average-keyboard.png`, `tests-red.log`, `tests-green.log`, `build.log`, `lint.log`, `manifest.json`.
 
 기준 develop-v2 `2ef07437` + 이번 미커밋 변경. gpt-6-luna 유지·VoiceOver BLOCKED 유지. 이 문맥은 고정된 연결 버전의 기준이며 원본 Commerce에 새 버전이 생겨도 기존 분석 소스를 자동 교체하지 않는다.
+
+
+2026-10-18 후속: 고정 소스의 생성/신규 저장 단위는 [UNIT-01~06](commerce-units.md)에서 결정적 검증을 추가했다. 위 모델 지침만 존재하던 한계는 해당 경로에 한해 보완했으며 일반 CSV/기존 편집 AI 전체에 적용한 것은 아니다.

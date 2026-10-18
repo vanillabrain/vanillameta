@@ -2,12 +2,18 @@ import React from 'react';
 import { expect, it, vi, afterEach } from 'vitest';
 import { render, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import DashboardPivots, { mergePivotFilters } from './DashboardPivots';
-const api = vi.hoisted(() => ({ get: vi.fn(), del: vi.fn(), pivot: vi.fn() }));
+const api = vi.hoisted(() => ({ get: vi.fn(), del: vi.fn(), pivot: vi.fn(), segment: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('@/pages/Explore/PivotTable', () => ({
   default: (props: any) => {
     api.pivot(props);
     return <div>Pivot data</div>;
+  },
+}));
+vi.mock('./DashboardSegmentPivot', () => ({
+  default: (props: any) => {
+    api.segment(props);
+    return <div>Segment Pivot</div>;
   },
 }));
 afterEach(cleanup);
@@ -88,4 +94,44 @@ it('keeps stale Pivot removable while valid sibling stays visible', async () => 
   await waitFor(() => expect(api.del).toHaveBeenCalledWith('/bi/dashboard/2/pivots/stale'));
   await waitFor(() => expect(ui.queryByText('Stale')).toBeNull());
   expect(ui.getByText('Valid')).toBeTruthy();
+});
+
+it('routes aggregate saved Pivots through qualification with merged common raw scope', async () => {
+  const item = {
+    id: 'segment1',
+    name: 'Qualified',
+    sourceId: 3,
+    sourceRevision: 'rev',
+    dimensions: [],
+    state: {
+      mode: 'segment',
+      measureIds: [1],
+      segment: {
+        dimensionColumn: 'company',
+        pivotColumn: 'component',
+        conditions: [{ measureId: 1, operator: 'gte', value: 1000 }],
+      },
+      filters: [
+        { column: 'component', values: ['Storage'] },
+        { column: 'region', values: ['KR'] },
+      ],
+      dateRange: { column: 'day', start: '2025-01-01', end: '2025-01-03' },
+    },
+  };
+  api.get.mockResolvedValue({ data: { status: 'SUCCESS', data: [item] } });
+  const props = {
+    dashboardId: 2,
+    filters: [{ column: 'component', values: ['Compute'] }],
+    paused: false,
+    onFilter: vi.fn(),
+  };
+  const ui = render(<DashboardPivots {...props} />);
+  await waitFor(() => expect(ui.getByText('Segment Pivot')).toBeTruthy());
+  expect(api.segment.mock.lastCall[0].filters).toEqual([{ column: 'region', values: ['KR'] }, ...props.filters]);
+  expect(api.segment.mock.lastCall[0].dateRange).toEqual(item.state.dateRange);
+  const dateRange = { column: 'day', start: '2025-01-02', end: '2025-01-02' };
+  ui.rerender(<DashboardPivots {...props} dateRange={dateRange} />);
+  expect(api.segment.mock.lastCall[0].dateRange).toEqual(dateRange);
+  ui.rerender(<DashboardPivots {...props} paused />);
+  expect(api.segment.mock.lastCall[0].paused).toBe(true);
 });

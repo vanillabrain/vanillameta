@@ -1,0 +1,17 @@
+date,version,country,device,new_existing,visits,downloads,signups
+2025-01-13T09:00:00,v1.9,KR,mobile,new,1000,200,60
+2025-01-13T09:00:00,v1.9,KR,mobile,returning,500,100,30
+2025-01-13T09:00:00,v1.9,KR,desktop,new,400,80,24
+2025-01-13T09:00:00,v1.9,US,mobile,new,600,120,36
+2025-01-13T09:00:00,v1.9,US,desktop,returning,300,60,18
+2025-01-14T09:00:00,v1.9,KR,mobile,new,800,160,48
+2025-01-14T09:00:00,v1.9,US,mobile,returning,250,50,15
+2025-01-14T09:00:00,v1.9,US,desktop,new,350,70,21
+2025-01-18T09:00:00,v2.0,KR,mobile,new,1200,300,90
+2025-01-18T09:00:00,v2.0,KR,mobile,returning,700,175,52
+2025-01-18T09:00:00,v2.0,KR,desktop,new,450,90,27
+2025-01-18T09:00:00,v2.0,US,mobile,new,900,225,67
+2025-01-18T09:00:00,v2.0,US,desktop,returning,320,64,19
+2025-01-19T09:00:00,v2.0,KR,desktop,new,150,0,0
+2025-01-19T09:00:00,v2.0,US,mobile,returning,260,65,20
+2025-01-19T09:00:00,v2.0,US,desktop,new,380,95,28

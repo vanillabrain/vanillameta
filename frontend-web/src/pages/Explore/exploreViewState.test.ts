@@ -76,3 +76,24 @@ it('restores Pivot axes and mode while retaining legacy Explore views', () => {
   expect(() => parseExploreViewState({ ...pivot, pivot: undefined }, catalog)).toThrow();
   expect(parseExploreViewState(state(), catalog)).toEqual(state());
 });
+
+it('validates aggregate segment conditions and typed pivot column before restoring', () => {
+  const input = {
+    ...state(),
+    mode: 'segment',
+    dimensionColumns: ['device_type'],
+    comparePrevious: false,
+    includeRows: false,
+    leaderboardSort: { by: 'value', direction: 'desc' },
+    segment: { dimensionColumn: 'device_type', conditions: [{ measureId: 1, operator: 'gte', value: 1000 }] },
+  };
+  expect(parseExploreViewState(input, catalog)).toEqual(input);
+  for (const patch of [
+    { conditions: [] },
+    { pivotColumn: 'device_type' },
+    { pivotColumn: 'bid_floor' },
+    { conditions: [{ measureId: 99, operator: 'gt', value: 1 }] },
+  ])
+    expect(() => parseExploreViewState({ ...input, segment: { ...input.segment, ...patch } }, catalog)).toThrow();
+  expect(() => parseExploreViewState({ ...input, mode: 'explore' }, catalog)).toThrow();
+});

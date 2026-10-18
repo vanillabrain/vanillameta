@@ -155,7 +155,7 @@ export default function StudioFilterPanel({
               {draft.length}/{STUDIO_FILTER_LIMITS.columns}개 열
             </span>
           </div>
-          {!draft.length && <p>적용된 공통 필터가 없습니다. 모든 블록이 전체 범위를 조회합니다.</p>}
+          {!draft.length && <p>선택한 필터 열이 없습니다. 적용하면 모든 블록이 전체 범위를 조회합니다.</p>}
           {draft.map(filter => {
             const choice = choices.find(candidate => candidate.column === filter.column);
             const options = studioFilterOptions(choice, filter.values);

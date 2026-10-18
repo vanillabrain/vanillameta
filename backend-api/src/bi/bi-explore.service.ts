@@ -1,3 +1,4 @@
+import { studioDigest } from '../dashboard-studio/studio-legacy';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import {
@@ -69,6 +70,7 @@ const QUERY_FIELDS = [
   'page',
   'pageSize',
   'includeRows',
+  'measureGuards',
 ];
 const VALUES_FIELDS = ['sourceId', 'sourceRevision', 'column', 'search', 'filters', 'dateRange'];
 /**
@@ -486,6 +488,27 @@ export class BiExploreService {
     const input = this.fields(body, QUERY_FIELDS);
     const expected = this.revision(input.sourceRevision);
     const measureIds = this.measureIds(input.measureIds);
+    const measureGuards = input.measureGuards;
+    if (measureGuards !== undefined) {
+      if (
+        !Array.isArray(measureGuards) ||
+        measureGuards.length !== measureIds.length ||
+        new Set(measureGuards.map(g => g?.id)).size !== measureIds.length
+      )
+        throw new BadRequestException('invalid measure guards');
+      for (const guard of measureGuards) {
+        this.fields(guard, ['id', 'definitionVersion', 'digest']);
+        if (
+          !measureIds.includes(guard.id) ||
+          typeof guard.definitionVersion !== 'string' ||
+          !guard.definitionVersion ||
+          guard.definitionVersion.length > 128 ||
+          typeof guard.digest !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(guard.digest)
+        )
+          throw new BadRequestException('invalid measure guards');
+      }
+    }
     const { trendGrain, comparePrevious } = validatePeriodOptions(input);
     // rankingSort is the current name for the leaderboard order; leaderboardSort is the v1 alias.
     const sortField = input.rankingSort === undefined ? 'leaderboardSort' : 'rankingSort';
@@ -515,6 +538,7 @@ export class BiExploreService {
         measureIds,
         rankingMeasureId,
         rankingSort,
+        measureGuards,
         ...(input.leaderboardSort !== undefined ? { leaderboardSort: input.leaderboardSort } : {}),
         dimensionColumns: input.dimensionColumns,
         filters,
@@ -535,6 +559,7 @@ export class BiExploreService {
     measureIds: number[];
     rankingMeasureId: number;
     rankingSort: RankingSort;
+    measureGuards?: Array<{ id: number; definitionVersion: string; digest: string }>;
     /** Echoed only for a v1 client that still sends the original field name. */
     leaderboardSort?: unknown;
     dimensionColumns: unknown;
@@ -566,6 +591,16 @@ export class BiExploreService {
     const known = new Map(catalog.map((measure: any) => [measure.id, measure]));
     for (const measureId of input.measureIds)
       if (!known.has(measureId)) throw new BadRequestException('unknown measure id');
+    for (const guard of input.measureGuards ?? []) {
+      const current: any = known.get(guard.id);
+      if (
+        String(current.definitionVersion) !== guard.definitionVersion ||
+        studioDigest(current.definition) !== guard.digest
+      )
+        throw new ConflictException(
+          '보고서의 지표 정의가 변경되었습니다. Studio에서 다시 확인해 주세요.',
+        );
+    }
 
     const { measures, widgets } = await this.measureExpressions(
       profile,
@@ -574,6 +609,14 @@ export class BiExploreService {
       known,
     );
 
+    // Check the definitions that actually produced SQL, closing the catalog-to-prepare race.
+    for (const guard of input.measureGuards ?? []) {
+      const compiled = measures.find(measure => measure.metricId === guard.id)?.definition;
+      if (!compiled || studioDigest(compiled) !== guard.digest)
+        throw new ConflictException(
+          '보고서의 지표 정의가 변경되었습니다. Studio에서 다시 확인해 주세요.',
+        );
+    }
     const preview = await this.dashboards.preview(
       {
         draft: { databaseId: profile.sourceId, title: 'BI explore', explanation: '', widgets },

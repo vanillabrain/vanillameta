@@ -118,4 +118,47 @@ describe('DuckDB worker boundaries and recovery', () => {
       [{ n: 2 }],
     );
   });
+  it('physically stops only an aborted active task and keeps an independent queued query', async () => {
+    const cancellation = new AbortController();
+    const slow = worker.withCancellation(cancellation.signal, () =>
+      worker.query(
+        filename,
+        'SELECT sum(a.range*b.range) FROM range(1000000) a CROSS JOIN range(1000000) b',
+      ),
+    );
+    const rejected = expect(slow).rejects.toThrow('cancelled');
+    while (!(worker as any).active) await new Promise(resolve => setTimeout(resolve, 1));
+    const oldWorker = (worker as any).worker;
+    const next = worker.query(filename, 'SELECT count(*) AS n FROM uploaded_data');
+    cancellation.abort();
+    await rejected;
+    expect((await next).datas).toEqual([{ n: 2 }]);
+    expect((worker as any).worker).not.toBe(oldWorker);
+  });
+  it('removes an aborted queued task without interrupting its unrelated active task', async () => {
+    const active = worker.query(filename, 'SELECT sum(range) AS n FROM range(10000000)');
+    const oldWorker = (worker as any).worker;
+    const cancellation = new AbortController();
+    const queued = worker.withCancellation(cancellation.signal, () =>
+      worker.query(filename, 'SELECT 99 AS n'),
+    );
+    const rejected = expect(queued).rejects.toThrow('cancelled');
+    cancellation.abort();
+    await rejected;
+    expect((await active).datas).toEqual([{ n: 49999995000000 }]);
+    expect((worker as any).worker).toBe(oldWorker);
+    expect((await worker.query(filename, 'SELECT 1 AS n')).datas).toEqual([{ n: 1 }]);
+  });
+  it('does not submit an already aborted scope or leak a completed scope to later work', async () => {
+    const cancellation = new AbortController();
+    await worker.withCancellation(cancellation.signal, () => worker.query(filename, 'SELECT 1'));
+    cancellation.abort();
+    const spy = jest.spyOn(worker as any, 'submit');
+    await expect(
+      worker.withCancellation(cancellation.signal, () => worker.query(filename, 'SELECT 2')),
+    ).rejects.toThrow('cancelled');
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+    expect((await worker.query(filename, 'SELECT 3 AS n')).datas).toEqual([{ n: 3 }]);
+  });
 });

@@ -17,6 +17,7 @@ import { StudioRun } from './entities/studio-run.entity';
 import { studioDigest } from './studio-legacy';
 import { StudioService } from './studio.service';
 import { StudioCreationService } from './studio-creation.service';
+import { studioDemoData } from './studio-demo-data';
 import { BiService } from '../bi/bi.service';
 import { SourceAccessService } from '../ownership/source-access.service';
 import * as fs from 'fs';
@@ -31,6 +32,7 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     service: StudioCreationService,
     studio: StudioService,
     root: string,
+    marginDigest: string,
     connection: any;
   const llm = { callLlm: jest.fn() };
   const previous = process.env.FILE_UPLOAD_DIR;
@@ -106,15 +108,60 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       engine: 'duckdb',
       type: 'FILE',
     });
+    const margin = studioDemoData('margin');
+    const marginFile = await worker.importFile({
+      originalname: margin.filename,
+      buffer: margin.csv,
+    });
+    marginDigest = createHash('sha256').update(margin.csv).digest('hex');
+    await db.manager.save(Database, {
+      id: 2,
+      ownerId: 7,
+      name: 'VM margin demo',
+      description: 'studio-sample:vm-margin-v1-' + marginDigest,
+      connectionConfig: JSON.stringify({
+        client: 'duckdb',
+        connection: { filename: 'vm-margin.duckdb' },
+        fileVersions: [
+          {
+            id: path.basename(path.dirname(marginFile.filename)),
+            filename: 'vm-margin.duckdb',
+            originalname: margin.filename,
+            rows: margin.rows,
+            uploadedAt: new Date().toISOString(),
+            sha256: marginDigest,
+          },
+        ],
+      }),
+      engine: 'duckdb',
+      type: 'FILE',
+      timezone: 'UTC',
+    });
     for (const type of ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_LINE'])
       await db.manager.save(Component, { type, title: type, option: '{}', useYn: 'Y' });
+    // Source 1 keeps its legacy sentinel filename. Each pinned source resolves to the real imported
+    // file, and its recorded revision stays fixed, so metadata tampering still exercises the real
+    // revision checks instead of being mirrored back by the mock.
+    const pinned: Record<number, { file: string; filename: string }> = {
+      1: { file: file.filename, filename: 'fixture.duckdb' },
+      2: { file: marginFile.filename, filename: 'vm-margin.duckdb' },
+    };
+    const recordedFilename = async (id: number) =>
+      pinned[id]?.filename ??
+      JSON.parse((await db.manager.findOneByOrFail(Database, { id })).connectionConfig).connection
+        .filename;
+    const recordedFile = async (id: number) => pinned[id]?.file ?? (await recordedFilename(id));
     connection = {
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
-      duckDBVersion: jest
-        .fn()
-        .mockResolvedValue(createHash('sha256').update('fixture.duckdb').digest('hex')),
+      duckDBVersion: jest.fn(async (id: number) =>
+        createHash('sha256')
+          .update(await recordedFilename(id))
+          .digest('hex'),
+      ),
       isDuckDB: jest.fn().mockResolvedValue(true),
-      queryDuckDB: jest.fn((_id, sql, bindings) => worker.query(file.filename, sql, bindings)),
+      queryDuckDB: jest.fn(async (id: number, sql: string, bindings: any[]) =>
+        worker.query(await recordedFile(id), sql, bindings),
+      ),
     };
     const access = new SourceAccessService(db);
     dashboards = new AiDashboardService({} as any, connection, db.getRepository(Dashboard));
@@ -141,6 +188,101 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       { proposalId: p.proposalId, expectedSourceRevision: p.sourceRevision, requestId },
       7,
     );
+  it('passes the connected categorical meaning without private origin IDs or configuration to the model', async () => {
+    const profile = service.profile.bind(service);
+    const spy = jest
+      .spyOn(service, 'profile')
+      .mockImplementation(async (...args) => ({
+        ...(await profile(...args)),
+        modelInfo: {
+          type: 'lookup',
+          factKey: 'channel',
+          lookupAttributes: ['channel'],
+          quality: { unmatchedFactRows: 1 },
+          nonAdditiveColumns: [],
+          factSourceId: 9999,
+          lookupSourceId: 8888,
+          filename: '/private/model-origin',
+          sql: 'private-sql',
+        },
+      }));
+    try {
+      await propose();
+      const user = JSON.parse(llm.callLlm.mock.calls[0][1]);
+      expect(user.source.modelContext).toEqual({
+        grain: 'one output row per original fact row',
+        factKey: 'channel',
+        lookupAttributes: ['channel'],
+        unmatchedFactRows: 1,
+        nonAdditiveColumns: [],
+      });
+      expect(JSON.stringify(user)).not.toMatch(/9999|8888|private-sql|private\/model-origin/);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+  it('previews and atomically stores real table/summary presentations without altering queries or source', async () => {
+    const response = semantics();
+    response.semanticProposal.forEach(block => {
+      block.metric.label = 'Report aggregate';
+    });
+    Object.assign(response.semanticProposal[0], { presentation: 'summary' });
+    Object.assign(response.semanticProposal[1], { presentation: 'table' });
+    llm.callLlm.mockResolvedValueOnce(JSON.stringify(response));
+    const proposal = await propose();
+    expect(proposal.preview.widgets.map(w => w.presentation)).toEqual(['summary', 'table']);
+    expect(proposal.preview.widgets[0].datas[0].value).toBe(500);
+    const saved = await save(proposal);
+    const loaded = await studio.get(saved.document.dashboardId, 7);
+    expect(loaded.document.blocks.map(b => b.display.presentation)).toEqual(['summary', 'table']);
+    expect(loaded.preview.widgets.map(w => w.presentation)).toEqual(['summary', 'table']);
+    expect(loaded.preview.widgets[0].datas[0].value).toBe(500);
+    expect(loaded.preview.widgets[1].datas.map(r => r.value).sort()).toEqual([200, 300]);
+    expect(loaded.document.blocks[0].measureRefs).toEqual(loaded.document.blocks[1].measureRefs);
+    expect((await save(proposal)).document.dashboardId).toBe(saved.document.dashboardId);
+    const basis = {
+      blockId: loaded.document.blocks[1].id,
+      expectedRevision: loaded.document.revision,
+      expectedSourceRevision: loaded.sourceRevision,
+    };
+    const handoff = await studio.exploreHandoff(saved.document.dashboardId, basis, 7);
+    expect(handoff.state.dimensionColumns).toEqual(['channel']);
+    expect(handoff.state.measureIds).toEqual([loaded.document.blocks[1].measureRefs[0].id]);
+    expect(JSON.stringify(handoff)).not.toMatch(/sql|password|filename|datas/);
+    await expect(studio.exploreHandoff(saved.document.dashboardId, basis, 9)).rejects.toMatchObject(
+      { status: 403 },
+    );
+    await expect(
+      studio.exploreHandoff(
+        saved.document.dashboardId,
+        { ...basis, expectedRevision: 'f'.repeat(64) },
+        7,
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    const metric = await db.manager.findOneByOrFail(Metric, { id: handoff.state.measureIds[0] });
+    const original = metric.definition;
+    await db.manager.update(Metric, metric.id, {
+      definition: JSON.stringify({ ...JSON.parse(original), label: 'Same version replacement' }),
+    });
+    try {
+      await expect(
+        studio.exploreHandoff(saved.document.dashboardId, basis, 7),
+      ).rejects.toMatchObject({ status: 409 });
+    } finally {
+      await db.manager.update(Metric, metric.id, { definition: original });
+    }
+  });
+  it.each(['table', '<script>'])(
+    'rejects unsupported numeric report presentation %s before any write',
+    async presentation => {
+      const response = semantics();
+      Object.assign(response.semanticProposal[0], { presentation });
+      const before = await db.manager.count(Dashboard);
+      llm.callLlm.mockResolvedValueOnce(JSON.stringify(response));
+      await expect(propose()).rejects.toThrow();
+      expect(await db.manager.count(Dashboard)).toBe(before);
+    },
+  );
   it.each(['KRW', 'USD'])(
     'sends pinned Commerce %s context without rewriting the user question',
     async currency => {
@@ -206,9 +348,429 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       }
     },
   );
+  it.each([
+    ['wrong currency', 'SUM', 'refund_amount', 'USD', 0, undefined, undefined, false],
+    ['missing money unit', 'SUM', 'refund_amount', '', 0, undefined, undefined, false],
+    ['money as percentage', 'SUM', 'refund_amount', '%', 0, undefined, undefined, false],
+    ['fractional won display', 'SUM', 'refund_amount', 'KRW', 2, undefined, undefined, false],
+    ['count as money', 'SUM', 'paid_orders', 'KRW', 0, undefined, undefined, false],
+    ['row count as money', 'COUNT', '*', 'KRW', 0, undefined, undefined, false],
+    ['percentage as count', 'RATIO_SUM', 'refunded_orders', 'count', 2, 'paid_orders', 100, false],
+    ['fraction as percentage', 'RATIO_SUM', 'paid_orders', '%', 2, 'paid_orders', 1, false],
+    ['valid won', 'SUM', 'refund_amount', 'KRW', 0, undefined, undefined, true],
+    ['valid count', 'SUM', 'paid_orders', 'count', 0, undefined, undefined, true],
+    ['valid percentage', 'RATIO_SUM', 'refunded_orders', '%', 2, 'paid_orders', 100, true],
+    ['valid fraction', 'RATIO_SUM', 'paid_orders', '', 3, 'paid_orders', 1, true],
+    ['unsupported inverse unit', 'RATIO_SUM', 'paid_orders', 'count', 0, 'refund_amount', 1, false],
+    ['money per order', 'RATIO_SUM', 'refund_amount', 'KRW', 0, 'paid_orders', 1, true],
+    ['money share', 'RATIO_SUM', 'refund_amount', '%', 2, 'refund_amount', 100, true],
+  ])(
+    'checks Commerce units before preview: %s',
+    async (_label, aggregation, column, unit, decimalPlaces, denominatorColumn, scale, valid) => {
+      const original = await db.manager.findOneByOrFail(Database, { id: 1 });
+      const config = JSON.parse(original.connectionConfig),
+        digest = 'b'.repeat(64);
+      await db.manager.update(Database, 1, {
+        description: `commerce-studio:order-cohort-v1:12:3:${digest}`,
+        connectionConfig: JSON.stringify({
+          ...config,
+          commerceSnapshot: {
+            projectId: 12,
+            version: 3,
+            digest,
+            currency: 'KRW',
+            timeBasis: 'order-cohort',
+          },
+          fileVersions: [{ filename: config.connection.filename }],
+        }),
+      });
+      const preview = jest.spyOn(dashboards, 'preview');
+      const counts = await Promise.all(
+        [Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity)),
+      );
+      const metric = {
+        label: 'Value',
+        aggregation,
+        column,
+        unit,
+        decimalPlaces,
+        ...(denominatorColumn ? { denominatorColumn, scale } : {}),
+      };
+      llm.callLlm.mockResolvedValueOnce(
+        JSON.stringify({
+          requiredFields:
+            column === '*' ? [] : [column, ...(denominatorColumn ? [denominatorColumn] : [])],
+          title: 'Units',
+          semanticProposal: [{ title: 'Value', kind: 'BOARD_NUMERIC', metric }],
+        }),
+      );
+      try {
+        if (valid) {
+          const proposal = await propose({ prompt: '지표를 보여 줘' });
+          expect(proposal.semanticProposal[0].metric.unit).toBe(unit);
+          expect(preview).toHaveBeenCalledTimes(1);
+        } else {
+          await expect(propose({ prompt: '지표를 보여 줘' })).rejects.toThrow('단위');
+          expect(preview).not.toHaveBeenCalled();
+        }
+        expect(
+          await Promise.all([Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity))),
+        ).toEqual(counts);
+      } finally {
+        preview.mockRestore();
+        await db.manager.update(Database, 1, {
+          description: original.description,
+          connectionConfig: original.connectionConfig,
+        });
+      }
+    },
+  );
+  it.each([
+    ['KRW', 'KRW', true],
+    ['KRW', 'USD', false],
+    ['USD', 'USD', true],
+    ['USD', 'KRW', false],
+  ])(
+    'checks reused Commerce %s metric unit %s without rewriting it',
+    async (currency, unit, valid) => {
+      const original = await db.manager.findOneByOrFail(Database, { id: 1 });
+      const config = JSON.parse(original.connectionConfig),
+        digest = 'c'.repeat(64);
+      const m = await bi.createMetric(
+        {
+          sourceId: 1,
+          label: 'Pinned refund',
+          aggregation: 'SUM',
+          column: 'refund_amount',
+          unit,
+          decimalPlaces: currency === 'KRW' ? 0 : 2,
+          numberNotation: 'plain',
+        },
+        7,
+      );
+      const before = await db.manager.findOneByOrFail(Metric, { id: m.id });
+      await db.manager.update(Database, 1, {
+        description: `commerce-studio:order-cohort-v1:12:3:${digest}`,
+        connectionConfig: JSON.stringify({
+          ...config,
+          commerceSnapshot: {
+            projectId: 12,
+            version: 3,
+            digest,
+            currency,
+            timeBasis: 'order-cohort',
+          },
+          fileVersions: [{ filename: config.connection.filename }],
+        }),
+      });
+      llm.callLlm.mockResolvedValueOnce(
+        JSON.stringify({
+          requiredFields: ['refund_amount'],
+          title: 'Reuse',
+          semanticProposal: [
+            {
+              title: 'Value',
+              kind: 'BOARD_NUMERIC',
+              metric: { id: m.id, definitionVersion: m.definitionVersion },
+            },
+          ],
+        }),
+      );
+      try {
+        if (valid) {
+          const proposal = await propose({ prompt: '금액 지표', selectedMetricIds: [m.id] });
+          expect(proposal.semanticProposal[0].metric.id).toBe(m.id);
+          expect(proposal.semanticProposal[0].metric.unit).toBe(unit);
+        } else
+          await expect(propose({ prompt: '금액 지표', selectedMetricIds: [m.id] })).rejects.toThrow(
+            '단위',
+          );
+        expect((await db.manager.findOneByOrFail(Metric, { id: m.id })).definition).toBe(
+          before.definition,
+        );
+      } finally {
+        await db.manager.delete(Metric, m.id);
+        await db.manager.update(Database, 1, {
+          description: original.description,
+          connectionConfig: original.connectionConfig,
+        });
+      }
+    },
+  );
+  it('rechecks cached Commerce units and preserves source-version checks before writes', async () => {
+    const original = await db.manager.findOneByOrFail(Database, { id: 1 });
+    const config = JSON.parse(original.connectionConfig),
+      digest = 'd'.repeat(64);
+    const pin = currency =>
+      db.manager.update(Database, 1, {
+        description: `commerce-studio:order-cohort-v1:12:3:${digest}`,
+        connectionConfig: JSON.stringify({
+          ...config,
+          commerceSnapshot: {
+            projectId: 12,
+            version: 3,
+            digest,
+            currency,
+            timeBasis: 'order-cohort',
+          },
+          fileVersions: [{ filename: config.connection.filename }],
+        }),
+      });
+    await pin('KRW');
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        requiredFields: ['refund_amount'],
+        title: 'Amount',
+        semanticProposal: [
+          {
+            title: 'Value',
+            kind: 'BOARD_NUMERIC',
+            metric: {
+              label: 'Value',
+              aggregation: 'SUM',
+              column: 'refund_amount',
+              unit: 'KRW',
+              decimalPlaces: 0,
+            },
+          },
+        ],
+      }),
+    );
+    try {
+      const proposal = await propose({ prompt: '금액 지표' });
+      const counts = await Promise.all(
+        [Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity)),
+      );
+      // Internal cache fault injection: create requests never accept client metric definitions.
+      const cached = (service as any).proposals.get(proposal.proposalId).value;
+      cached.semanticProposal[0].metric.unit = 'USD';
+      await expect(save(proposal)).rejects.toThrow('단위');
+      cached.semanticProposal[0].metric.unit = 'KRW';
+      await pin('USD');
+      await expect(save(proposal)).rejects.toThrow(/데이터 소스가 변경|지표 단위/);
+      expect(
+        await Promise.all([Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity))),
+      ).toEqual(counts);
+    } finally {
+      await db.manager.update(Database, 1, {
+        description: original.description,
+        connectionConfig: original.connectionConfig,
+      });
+    }
+  });
   it('does not guess Commerce semantics for ordinary files', async () => {
     await propose();
     expect(JSON.parse(llm.callLlm.mock.calls[0][1]).source.analysisContext).toBeUndefined();
+  });
+  const marginRow = () => db.manager.findOneByOrFail(Database, { id: 2 });
+  const marginPatch = (config: any, description?: string) =>
+    db.manager.update(Database, 2, {
+      ...(description ? { description } : {}),
+      connectionConfig: JSON.stringify(config),
+    });
+  it('sends the pinned VM margin context and accepts USD amounts and the margin percentage', async () => {
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        requiredFields: ['revenue', 'cost', 'profit', 'company'],
+        title: 'Margin',
+        semanticProposal: [
+          {
+            title: 'Revenue',
+            kind: 'BOARD_NUMERIC',
+            metric: {
+              label: 'Revenue',
+              aggregation: 'SUM',
+              column: 'revenue',
+              unit: 'USD',
+              decimalPlaces: 2,
+            },
+          },
+          {
+            title: 'Margin',
+            kind: 'BOARD_NUMERIC',
+            metric: {
+              label: 'Margin',
+              aggregation: 'RATIO_SUM',
+              column: 'profit',
+              denominatorColumn: 'revenue',
+              scale: 100,
+              unit: '%',
+              decimalPlaces: 2,
+            },
+          },
+        ],
+      }),
+    );
+    const proposal = await propose({ sourceId: 2, prompt: '고객사별 매출과 마진' });
+    const [system, user] = llm.callLlm.mock.calls[0],
+      payload = JSON.parse(user);
+    expect(payload.source.analysisContext).toEqual({
+      currency: 'USD',
+      timezone: 'UTC',
+      timeBasis: 'daily-demo',
+      dateColumn: 'day',
+      scope: 'all-time',
+      grain: 'one row per customer/day',
+      amounts:
+        'revenue, cost and profit are recorded USD amounts; profit is the fixture profit column, not a stored metric definition',
+    });
+    expect(JSON.stringify(payload.source.analysisContext)).not.toMatch(
+      /filename|sha256|digest|fileVersions|uploadedAt|studio-sample|uploads/,
+    );
+    expect(system).toContain('not Commerce');
+    expect(system).not.toContain('server-verified Commerce snapshot semantics');
+    expect(proposal.semanticProposal.map(b => b.metric.unit)).toEqual(['USD', '%']);
+    expect(Number(proposal.preview.widgets[0].datas[0].value)).toBeCloseTo(14937.49, 6);
+    expect(Number(proposal.preview.widgets[1].datas[0].value)).toBeCloseTo(17.7911416, 6);
+  });
+  it.each([
+    ['wrong currency on an amount sum', 'SUM', 'revenue', 'KRW', 0, undefined, undefined, false],
+    ['percentage label on an amount sum', 'SUM', 'profit', '%', 2, undefined, undefined, false],
+    ['count label on an amount sum', 'SUM', 'cost', 'count', 2, undefined, undefined, false],
+    ['USD amount', 'SUM', 'revenue', 'USD', 2, undefined, undefined, true],
+    ['margin percentage', 'RATIO_SUM', 'profit', '%', 2, 'revenue', 100, true],
+    ['cost share fraction', 'RATIO_SUM', 'cost', '', 3, 'revenue', 1, true],
+  ])(
+    'checks VM margin units before preview: %s',
+    async (_label, aggregation, column, unit, decimalPlaces, denominatorColumn, scale, valid) => {
+      const preview = jest.spyOn(dashboards, 'preview');
+      const counts = await Promise.all(
+        [Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity)),
+      );
+      const metric = {
+        label: 'Value',
+        aggregation,
+        column,
+        unit,
+        decimalPlaces,
+        ...(denominatorColumn ? { denominatorColumn, scale } : {}),
+      };
+      llm.callLlm.mockResolvedValueOnce(
+        JSON.stringify({
+          requiredFields: [column, ...(denominatorColumn ? [denominatorColumn] : [])],
+          title: 'Units',
+          semanticProposal: [{ title: 'Value', kind: 'BOARD_NUMERIC', metric }],
+        }),
+      );
+      try {
+        if (valid) {
+          const proposal = await propose({ sourceId: 2, prompt: '마진 지표' });
+          expect(proposal.semanticProposal[0].metric.unit).toBe(unit);
+          expect(preview).toHaveBeenCalledTimes(1);
+        } else {
+          await expect(propose({ sourceId: 2, prompt: '마진 지표' })).rejects.toThrow('단위');
+          expect(preview).not.toHaveBeenCalled();
+        }
+        expect(
+          await Promise.all([Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity))),
+        ).toEqual(counts);
+      } finally {
+        preview.mockRestore();
+      }
+    },
+  );
+  it.each([
+    [
+      'a replaced active file version',
+      (config: any) => ({
+        config: {
+          ...config,
+          fileVersions: [{ ...config.fileVersions[0], filename: 'replaced.duckdb' }],
+        },
+      }),
+    ],
+    [
+      'an extra recorded version',
+      (config: any) => ({
+        config: {
+          ...config,
+          fileVersions: [
+            config.fileVersions[0],
+            { ...config.fileVersions[0], filename: 'replaced.duckdb' },
+          ],
+        },
+      }),
+    ],
+    [
+      'a version checksum that no longer matches the fixture',
+      (config: any) => ({
+        config: {
+          ...config,
+          fileVersions: [{ ...config.fileVersions[0], sha256: 'e'.repeat(64) }],
+        },
+      }),
+    ],
+    [
+      'a description tag for another fixture digest',
+      (config: any) => ({ config, description: 'studio-sample:vm-margin-v1-' + 'f'.repeat(64) }),
+    ],
+  ] as Array<[string, (config: any) => { config: any; description?: string }]>)(
+    'drops the VM margin contract for %s and never infers units from an ordinary file',
+    async (_label, replace) => {
+      const original = await marginRow();
+      const { config, description } = replace(JSON.parse(original.connectionConfig));
+      await marginPatch(config, description);
+      llm.callLlm.mockResolvedValueOnce(
+        JSON.stringify({
+          requiredFields: ['revenue'],
+          title: 'Units',
+          semanticProposal: [
+            {
+              title: 'Value',
+              kind: 'BOARD_NUMERIC',
+              metric: {
+                label: 'Value',
+                aggregation: 'SUM',
+                column: 'revenue',
+                unit: 'KRW',
+                decimalPlaces: 2,
+              },
+            },
+          ],
+        }),
+      );
+      try {
+        const proposal = await propose({ sourceId: 2, prompt: '매출 금액' });
+        expect(JSON.parse(llm.callLlm.mock.calls[0][1]).source.analysisContext).toBeUndefined();
+        expect(proposal.semanticProposal[0].metric.unit).toBe('KRW');
+      } finally {
+        await marginPatch(JSON.parse(original.connectionConfig), original.description);
+      }
+    },
+  );
+  it('rechecks cached VM margin units before writing', async () => {
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        requiredFields: ['revenue'],
+        title: 'Margin revenue',
+        semanticProposal: [
+          {
+            title: 'Revenue',
+            kind: 'BOARD_NUMERIC',
+            metric: {
+              label: 'Revenue',
+              aggregation: 'SUM',
+              column: 'revenue',
+              unit: 'USD',
+              decimalPlaces: 2,
+            },
+          },
+        ],
+      }),
+    );
+    const proposal = await propose({ sourceId: 2, prompt: '매출 금액' });
+    const counts = await Promise.all(
+      [Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity)),
+    );
+    // Internal cache fault injection: create requests never accept client metric definitions.
+    const cached = (service as any).proposals.get(proposal.proposalId).value;
+    cached.semanticProposal[0].metric.unit = 'KRW';
+    await expect(save(proposal)).rejects.toThrow('단위');
+    expect(
+      await Promise.all([Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity))),
+    ).toEqual(counts);
+    cached.semanticProposal[0].metric.unit = 'USD';
+    expect((await save(proposal)).document.blocks[0].measureRefs).toBeDefined();
   });
   it('T15 reads only owned live proposals and restores the exact committed creation journal', async () => {
     const unique = semantics();
@@ -1032,5 +1594,136 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       clock.mockRestore();
     }
     expect(llm.callLlm).toHaveBeenCalledTimes(calls);
+  });
+
+  describe('AI saved-measure composition', () => {
+    const bases = async () => {
+      const metrics = [];
+      for (const column of ['revenue', 'cost'])
+        metrics.push(
+          await bi.createMetric(
+            {
+              sourceId: 2,
+              label: 'Formula ' + column,
+              aggregation: 'SUM',
+              column,
+              unit: 'USD',
+              decimalPlaces: 2,
+              numberNotation: 'plain',
+            },
+            7,
+          ),
+        );
+      return metrics;
+    };
+    const response = (revenue: any, cost: any, override = {}) => ({
+      requiredFields: ['revenue', 'cost'],
+      title: 'Cost ratio',
+      semanticProposal: [
+        {
+          title: 'Cost ratio',
+          kind: 'BOARD_NUMERIC',
+          metric: {
+            label: 'Composed cost ratio',
+            aggregation: 'FORMULA',
+            decimalPlaces: 2,
+            numberNotation: 'plain',
+            expression: {
+              op: 'ratio',
+              left: { metricId: cost.id, definitionVersion: 1 },
+              right: { metricId: revenue.id, definitionVersion: 1 },
+              scale: 100,
+            },
+            ...override,
+          },
+        },
+      ],
+    });
+    const counts = () => Promise.all([db.manager.count(Dashboard), db.manager.count(Metric)]);
+    it('previews without writes, pins selected operands and atomically saves/reloads one formula', async () => {
+      const [revenue, cost] = await bases(),
+        before = await counts();
+      llm.callLlm.mockResolvedValueOnce(JSON.stringify(response(revenue, cost)));
+      const proposal = await propose({
+        sourceId: 2,
+        prompt: '저장 지표로 비용률',
+        selectedMetricIds: [revenue.id, cost.id],
+      });
+      expect(await counts()).toEqual(before);
+      expect(proposal.preview.widgets[0].datas[0].value).toBeCloseTo(82.20885838249933, 8);
+      expect(proposal.semanticProposal[0].metric).toMatchObject({
+        aggregation: 'FORMULA',
+        unit: '%',
+        formula: {
+          operands: expect.arrayContaining([
+            { id: revenue.id, definitionVersion: 1, definition: revenue.definition },
+            { id: cost.id, definitionVersion: 1, definition: cost.definition },
+          ]),
+        },
+      });
+      const saved = await save(proposal),
+        reloaded = await studio.get(saved.dashboardId, 7);
+      expect(await counts()).toEqual([before[0] + 1, before[1] + 1]);
+      expect(reloaded.preview.widgets[0].sql).toContain('NULLIF');
+      expect(reloaded.preview.widgets[0].datas[0].value).toBeCloseTo(82.20885838249933, 8);
+      expect((await save(proposal)).dashboardId).toBe(saved.dashboardId);
+      expect(await counts()).toEqual([before[0] + 1, before[1] + 1]);
+      expect((await db.manager.findOneByOrFail(Metric, { id: revenue.id })).definition).toBe(
+        JSON.stringify(revenue.definition),
+      );
+    });
+    it.each(['version', 'definition', 'inactive'])(
+      'rejects changed %s before any save writes',
+      async change => {
+        const [revenue, cost] = await bases();
+        llm.callLlm.mockResolvedValueOnce(JSON.stringify(response(revenue, cost)));
+        const proposal = await propose({ sourceId: 2 });
+        const definition = {
+          ...cost.definition,
+          ...(change === 'version' ? { definitionVersion: 2 } : { column: 'profit' }),
+        };
+        await db.manager.update(
+          Metric,
+          cost.id,
+          change === 'inactive' ? { useYn: 'N' } : { definition: JSON.stringify(definition) },
+        );
+        const before = await counts();
+        await expect(save(proposal)).rejects.toThrow('참조');
+        expect(await counts()).toEqual(before);
+      },
+    );
+    it('rejects model snapshots, unit overrides, raw SQL and cross-source leaves without writes', async () => {
+      const [revenue, cost] = await bases(),
+        foreign = await bi.createMetric(
+          {
+            sourceId: 1,
+            label: 'Foreign',
+            aggregation: 'SUM',
+            column: 'amount',
+            unit: 'USD',
+            decimalPlaces: 2,
+            numberNotation: 'plain',
+          },
+          7,
+        );
+      const before = await counts();
+      for (const override of [
+        { unit: 'KRW' },
+        { formula: { operands: [] } },
+        { expression: 'SUM(revenue)' },
+        {
+          expression: {
+            op: 'ratio',
+            left: { metricId: cost.id, definitionVersion: 1 },
+            right: { metricId: foreign.id, definitionVersion: 1 },
+            scale: 100,
+          },
+        },
+      ]) {
+        llm.callLlm.mockResolvedValueOnce(JSON.stringify(response(revenue, cost, override)));
+        await expect(propose({ sourceId: 2 })).rejects.toThrow();
+        expect(await counts()).toEqual(before);
+      }
+    });
   });
 });

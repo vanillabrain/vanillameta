@@ -962,3 +962,24 @@ it('exploration 409 leaves current state and saved row available for deletion', 
   expect(within(dialog).queryByRole('alert')).toBeNull();
   expect(api.del).not.toHaveBeenCalled();
 });
+
+it('allows loading saved conditions when only save readiness is blocked', async () => {
+  api.get.mockImplementation(async (url: string) => success(url.endsWith('/1') ? row() : [row()]));
+  await mount({ saveDisabledReason: '현재 집계를 먼저 적용해 주세요.' });
+  nameView();
+  expect(disabled('현재 보기 저장')).toBe(true);
+  expect(disabled('보기 1 보기 불러오기')).toBe(false);
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  await waitFor(() => expect(api.apply).toHaveBeenCalledTimes(1));
+});
+
+it('does not apply a delayed load after a partial date edit blocks restoration', async () => {
+  const pending = deferred();
+  api.get.mockImplementation((url: string) => (url.endsWith('/1') ? pending.promise : Promise.resolve(success([row()]))));
+  const view = await mount({ saveDisabledReason: '집계 적용 전' });
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  view.rerender(<PersonalSavedViews {...props()} disabledReason="기간 입력 중" saveDisabledReason="집계 적용 전" />);
+  await act(async () => pending.resolve(success(row())));
+  await screen.findByText('화면 조건이 바뀌었습니다. 저장 보기를 다시 불러와 주세요.');
+  expect(api.apply).not.toHaveBeenCalled();
+});

@@ -13,10 +13,12 @@
 | Commerce 단일 KRW 수집·보고서                              | PASS_SELECTED                  | [KRW-01~04](commerce-krw.md): 합성 원화 수치·실제 오류/보존·3폭/선택 키보드 확인. 고객/Studio 전체 통화 지원과 구분                                                                                                                                                                          |
 | Studio 명시 원화 생성·수정·저장                            | PASS_SELECTED                  | [KRW-05~09](studio-krw.md): 실제 gpt-6-luna/원화 정답·저장/reload, 새 태블릿 기본 배치 공백 수정. 자동 통화 추론·고객 수용은 별도                                                                                                                                                            |
 | Commerce→Studio 자동 비공개 소스 연결                      | PASS_SELECTED                  | [BRIDGE-01~06](commerce-studio-bridge.md): 실제 gpt-6-luna 생성/저장·3폭/선택 키보드, 재시작 후 source 재사용. 운영 경합/대용량 저장 비용은 별도                                                                                                                                             |
-| Commerce 통화·주문일 기준 AI 자동 전달 | PASS_SELECTED | [CONTEXT-01~04](commerce-ai-context.md): 단위 입력 없는 실제 생성·새 평균6500 KRW·주문일 추세·비공개 저장/reload/3폭. 일반 CSV 추론·단위 강제 검증은 별도. 단일 점 가시성은 아래 DISPLAY 후속 참조 |
+| Commerce 통화·주문일 기준 AI 자동 전달 | PASS_SELECTED | [CONTEXT-01~04](commerce-ai-context.md): 단위 입력 없는 실제 생성·새 평균6500 KRW·주문일 추세·비공개 저장/reload/3폭. 일반 CSV 추론은 별도. 고정 소스 생성 단위 검증은 UNIT 후속, 단일 점 가시성은 DISPLAY 후속 참조 |
 | Studio 매출·환불 추천 질문 | PASS_SELECTED | [QUESTION-01~06](commerce-suggested-questions.md): 지원 열별 추천·명시 실행/비공개 저장·실LLM2/1/50%. 후속 소스별 입력 예시4검사·3폭/질문 보존·키보드. 기존 통과 재실행 없음·고객 수용 별도 |
 | Studio 한국어 건수·게시 단일 점 표시 | PASS_SELECTED | [DISPLAY-01~06](commerce-display.md): 저장 count 불변·한국어 건/영어 count·실제 게시 렌더러 한 점. [Ego17 후속](commerce-display.md#display-04-게시-390px-후속--2026-10-17--ego17)에서 실제390/넘침0·키보드 표 확인. Ego19 전체 게시 wrapper 합성 응답390·키보드/3폭 확인·버튼 대비/긴 제목 수정. Ego20 합성503→키보드 재시도/200→410·데이터 제거/390 넘침0. 실제 수신자 권한·실기기는 별도 |
 | 환불 없는 기간·고객 CSV 생략 | PASS_SELECTED | [EMPTY-01~04](commerce-empty-refunds.md): 헤더 전용 환불·워커2검사/실제 수입·reload·13000/0/13000 KRW·환불률0%·390/1440. Ego22 업로드 보고서 정보와 기본 샘플 출처 문구 분리·390/1440 확인. 합성 데이터이며 고객 수용 별도 |
+| Commerce 생성·신규 저장 단위 검증 | PASS_SELECTED | [UNIT-01~06](commerce-units.md): 고정 소스의 통화/건수/비율 검증·BE75/FE8·실gpt-6-luna/기존 지표 재사용/비공개7·390/1440. 일반 CSV·기존 편집 AI 전체 정책은 별도 |
+| 기업 데이터 Artifact A/B1 | PASS_SELECTED / 전체 구현 진행 중 | [실행 근거·스키마 오류](enterprise-data-artifact.md): owner 조회 근거/저장 지표 snapshot·3폭/키보드, 실제 교체 거절·데이터 보존. 영속 갱신 상태·기업 정책·설명/필터 블록·예약 수집은 미완료 |
 | 실제 고객 매출·환불/담당자 수용                            | NOT_RUN                        | [첫 파일럿 입력·인수 조건](customer-pilot.md). 비식별 파일/독립 정답/담당자 입력 필요                                                                                                                                                                                                        |
 | 실휴대폰·전체 키보드/스크린리더                            | PARTIAL / VoiceOver BLOCKED    | 에뮬레이션·선택 키보드 결과 재사용, 실제 기기/전체 접근성 미검증                                                                                                                                                                                                                             |
 | 운영 장시간 부하·오프사이트/독립 키 복구·RPO/RTO           | NOT_RUN                        | [운영 절차](../strategy/backup-retention-recovery.md)는 도입안. 외부 보관/자동화 미설정                                                                                                                                                                                                      |
@@ -752,3 +754,66 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 - 2026-10-17: [UC039 두 정상 ID 지연 조회](studio-late-read.md#두-정상-대시보드-id-전환-계획--2026-10-17) ROUTE-READ01~03 PASS_SELECTED. 새 MySQL fixture A1/B2·Ego10의 같은 브라우저 문서/route에서 A보류→B GET200→A 늦은200/503 완료에도 B 제목/ID/634,513,000 유지·DOM A 재노출0. 보호26테이블 불변·저장/게시/LLM0,1440/390 배치 완료 넘침0(즉시 resize의 일시 넘침은 분리 기록). 제품변경0·기존검사 재사용·전용서버/공간 정리, 검증기록 미커밋. 초안/인증/취소의 전체 경합·운영/실기기/VoiceOver는 별도·gpt-6-luna 유지.
 
 - 2026-10-17 최신 정리: 검증 문서 커밋 `c8b3115c`와 원격 UC040/041 `5b759bcc`/`e0f0b69d`를 `7c7f7f3d`로 충돌 없이 보존 병합했다. 본문 최상단 최신 요약과 P1~P5 상태를 대표 검증/PARTIAL·전체 수용 OPEN으로 정리하고 당시 기록은 보존했다. [고객 파일럿](customer-pilot.md)7개 조건은 실제 입력/독립 정답 미제공으로 NOT_RUN이며 새 고객 데이터 검증을 주장하지 않는다. 새 통합 상태의 루트 BE2100/FE1368 전부 PASS·루트build/FEtype·문서 링크/diff PASS, 로그 `phase2-fix-evidence/status-sync-20261017`(저장소 밖). 기존 Ego/실LLM/DB 장애/core는 반복하지 않았다. 데이터 준비 후 한 업무 질문부터 실행하며 현재 commerce USD 제약·상품금액/결제금액·날짜 기준 차이를 먼저 맞춘다. gpt-6-luna/VoiceOver BLOCKED 유지.
+
+- 2026-10-18 최신 후속: [Rill24 시나리오 실행](rill-scenarios.md) 전체 목표 ACTIVE. VM 고정 마진18행/전환16행을 기존 Studio 샘플에 연결해 실제 gpt-6-luna 생성·비공개 저장/reload·세폭/키보드를 검증했다. 같은CSV Rill0.90.5 실제 대조, 집계 조건 신규 API/UI의 회사2곳/8행·매출5431.25/이익292.79/마진5.39% 및 Rill UI CSV Decimal 일치·기간 재자격/0분모/빈 결과·390px 키보드 스크롤을 확인했다. RXS01/02/05 선택 범위만 PASS이며 전체24·기업 정책/운영 완료가 아니다. 고정 USD 단위 검증/실패 import 정리 보강·관련 하위검사/type/lint/build PASS, 기존 통과 조건 재사용·VoiceOver BLOCKED/gpt-6-luna 유지·이번 변경 미커밋.
+
+### RXS03 저장 지표 조합 후속 — 2026-10-18
+
+[실행 기록](rill-scenarios.md#rxs03-저장-지표-조합ai-신규-계산--ego25-후속)의 선택 범위를 확인했다. 직접 저장 계산10/11의2657.55/17.7911…%·Explore/Pivot/CSV·0분모, 실제 gpt-6-luna의 신규 비용률12/비공개7·82.208858…%·저장/reload·390/768/1440·키보드를 검증했다. 미리보기 쓰기0·동일 정의 중복0, 고정 operand 버전/단위·변경 저장409와 전체 creation92 PASS다. 계산식 소스 재매핑/저장 FORMULA 재귀 참조는 명시 미지원이고 전체24 목표 ACTIVE·VoiceOver BLOCKED/운영·실기기는 별도다. 다음은 차원 값별 추세와 동일 조건 상세/Pivot 왕복이다.
+
+### RXS13/14 샘플 업무 의미 후속 — 2026-10-18
+
+[분모/누락 자료 기록](rill-scenarios.md#rxs1314-분모-확인없는-금액-안내--ego25-후속). 기존 금액 기준21.23% 저장 증빙을 재사용하고, 새37주문 source6에서 주문 기준22.86%→명시 비공개8 저장/reload를 확인했다. 독립 CSV hash/Decimal·35/8·VM/Rill 같은37행도 대조했다. 실제 gpt-6-luna가 금액 없는 앱 소스5의 매출 질문을 다운로드/비율로 대체하지 않고 필요한 금액 자료를 물었고 미리보기/저장0이었다. 일반 누락 안내에 잘못 붙던 분모 문구를 구분해 세폭 재캡처·FE30을 확인했다. 전체24 목표ACTIVE·임의 자연어/고객/운영·실기기/VoiceOver는 별도다.
+
+- RXS06/Ego25: 버전별 추세→시간 상세/Pivot/복귀·country 필터/무자동조회·실제409·세폭/표 키보드 선택 PASS. 카탈로그 재조회는 탐색 초기화이며 UTC외/저장 보기/CSV·운영은 별도. [상세](rill-scenarios.md#rxs06-버전별-추세시간-pivot-왕복--ego25-후속). 전체24 목표 ACTIVE.
+
+- RXS09/Ego25: 실제gpt-6-luna 표/집계 요약 보고서 생성→비공개9 저장/reload→비공개게시1·익명403·초안 편집에도snapshot불변, 고객 필터/모바일 키보드/세폭 선택 PASS. 단일차원·단일지표 표/제한 집계문이며 자유형 서술·다중열/클레임 인용은 후속. [상세](rill-scenarios.md#rxs09-표집계-요약-보고서--ego25-후속).
+
+- RXS10/Ego25: 저장 보고서→같은 조건 조회/일반 Explore 전달, source/metric digest guard·실제409/익명401·전체2657.55/고객1763.65/하루735·세폭/키보드 선택 PASS. Rill 직접Flat Pivot735 보존 대조; VM 중간 확인 단계·직접Pivot 차이는 명시. [상세](rill-scenarios.md#rxs10-최종-rill-대조검사-범위). 전체24 목표 ACTIVE.
+
+
+- 2026-10-18 RXS11 선택 범위 PASS / RXS12 PARTIAL: 실제CSV파일선택→업로드source9·미확인단위400/Space동의·계산복사본11(123.31%), 누락열→정상파일/재매핑·보고서12(-6964.84 USD). clone-local 지표/FORMULA 잎·비공개·원본/게시 불변과xs/md/lg배치/reload·390/768/1440을 확인했다. 최초10의모바일배치실패는수정후12로재검증했고짧은요약숫자우선표현도보완했다. 대화형AI오류진단/수정안은미완료다. 전체RXS24목표ACTIVE, gpt-6-luna/VoiceOverBLOCKED유지. 자세한범위/증빙은 [RXS 기록](rill-scenarios.md#rxs11-내-파일-복제rxs12-직접-오류-복구--ego25-후속)을따른다.
+
+- 2026-10-18 RXS15 선택 범위 PASS: 실제 source9 파일18→19행 교체·업무일1월20일/수집10월18일 구분, 비용률121.91%와 같은 CSV Rill 일치·비공개 게시v1의123.31% 전체본문 불변·390/768/1440 넘침0. 제품 코드 변경0, 기존 하위 검사 재사용. RXS24 전체 목표 ACTIVE이며 지속 갱신 작업/중단 복구는 RXS16 미완료다. [기록](rill-scenarios.md#rxs15-파일-갱신과-게시-불변--ego25-후속).
+
+
+### 2026-10-18 RXS16 지속 파일 갱신 후속
+
+[상세 증빙](rill-scenarios.md#rxs16-지속-갱신실제-서버-재시작--ego25-후속): 실제 접수 응답 유실 GET 복구·API 강제 종료/재기동·같은 job 명시 재시도/20→100만행 활성화1회·Rill121.78%/비공개 게시123.31% 불변·세폭/Enter를 확인했다. 모바일100만행 표의 숫자/날짜 겹침과 네트워크 안내를 수정했다. BE30/FE26/type/lint/build PASS. 전체24목표 ACTIVE, 선택PASS13/PARTIAL1/NOT_RUN10이며 다음RXS17이다. 물리 취소/후보 crash 정리·운영·VoiceOver BLOCKED는 유지한다.
+
+
+### 2026-10-18 RXS17 열 변경 영향·복구
+
+[상세 증빙](rill-scenarios.md#rxs17-열-변경-영향새-파일로-복구--ego25-후속): 실제 열 삭제/타입 변경 거절→지표2/블록3 영향→새 source11/명시 매핑/비공개13 저장·reload·Rill60.89%·원본100만행/게시 불변을 확인했다. wildcard 오판정과CASE 곱셈 회귀를 수정했으며 BE59/FE30/type/lint/build, 세폭 넘침0·36px/14px·Tab/Enter/Space PASS다. 저장 분석의 선택 범위만 완료, 일반 위젯/Pivot/미저장/타 사용자 제외를 명시한다. 전체24 목표 ACTIVE/PASS14/PARTIAL1/NOT_RUN9, 다음RXS18이다.
+
+
+- 2026-10-18 RXS18 선택 범위 PASS: 실제 주문3→4행·지연 환불90/순매출910/환불률9%·정정 통계·역순 동일 배치 no-op·동일 시점 충돌 전체 거절·서버 재시작 설정 보존과 Rill/저장14/reload·세폭을 확인했다. AI의 표/차트 지침을 명확히 하고 실제 Luna 두 시각화 미리보기/쓰기0을 추가 확인했다. [상세](rill-scenarios.md#rxs18-지연-환불정정-배치--ego25-후속). 전체24 ACTIVE/PASS15/PARTIAL1/NOT_RUN8이며 RXS19 물리 취소를 진행한다.
+
+
+- 2026-10-18 RXS19 선택 범위 PASS: 실제400만행 적재/Decimal·원 정의/게시 보존과 별도400만 실행 중 Enter 취소→입력/후보 정리→기존20행/저장본 불변·세폭을 확인했다. native 초기화/강제종료 경합과 정리 실패 controller 잔류를 수정했다. 관련BE57/FE37/type/lint/build PASS·실측RSS 최대약883MiB(512MB는DuckDB buffer 제한/프로세스 상한 아님). [상세](rill-scenarios.md#rxs19-대표-부하실행-중-취소--ego25-후속). 전체24 ACTIVE/PASS16/PARTIAL1/NOT_RUN7, 운영p95/실기기/VoiceOver는 별도다.
+
+- 2026-10-18 RXS07/08 선택 범위 PASS: 실제 fact→유일 lookup·중복키 차단/미매칭 명시 유지·경로 파생·비가산 서버400/실제 Luna 원본ID 질문을 추가했다. Git 저장15의4/6/4/62줄, 지출 저장16의800USD/14건/NULL100이 독립 CSV/Rill과 일치·세폭/키보드/reload 확인. [상세](rill-scenarios.md#rxs0708-관계품질비가산-지표--ego25-후속). 전체24 ACTIVE/PASS18/PARTIAL1/NOT_RUN5, gpt-6-luna/VoiceOver BLOCKED 유지·미커밋.
+
+- 2026-10-18 RXS12 선택 범위 PASS: 실제 파일 열 변경 거절→서버 observedChanges/실제 Luna 명시 원가 매핑→전체3블록 미리보기·비공개17/reload·원본60.89%/복구123.31%·원본/게시/배치 보존·세폭/키보드 확인. 모델 설명의 diff 혼동을 서버 근거 분리로, 저장 의존성 경합을 fingerprint 전후검사로 보완. BE23/FE7/type/lint/build PASS. [상세](rill-scenarios.md#rxs12-대화형-오류-진단비공개-복구--ego25-후속). 전체24 ACTIVE/PASS19/NOT_RUN5, gpt-6-luna/VoiceOver BLOCKED 유지·미커밋.
+
+- 2026-10-18 Rill 전체 시나리오 후속: RXS21–23 실제 조직/파트너별 조회·필터/상세/CSV·Luna/AI 금지·회수/만료·모바일/키보드 선택 범위를 확인했다. [최신 증빙](rill-scenarios.md#rxs2123-조직그룹행열ai-정책--ego25-후속): 선택 PASS22/NOT_RUN2(RXS20·24), 전체 목표 ACTIVE. 운영/실기기/VoiceOver/고객 수용을 완료로 승격하지 않는다.
+
+- Rill 후속 RXS20: 본인 수신 앱 안 임계값 보고를 실제 예약/중복 확인/서버 재시작 자동 재개/중지로 검증했다. 범위 변경 뒤 과거 숫자 숨김·다음 배경 발생 stale/result NULL, 최종 검증 예약 모두 중지. 선택 PASS23/NOT_RUN1(RXS24), 전체 목표 ACTIVE.
+
+- 2026-10-18 최종 Rill 샘플 데모: [RXS01~24](rill-scenarios.md#최종-판정--2026-10-18) 선택 시연 범위24/24 PASS. 실제 RXS24 Luna/계정·같은JWT그룹/만료·다른origin차단, 자연 높이 수정 후 세폭 넘침0. [시연 진입점](../../samples/rill-scenarios/README.md#24개-시나리오-시연-순서) 보존. BE 보고/정책16+마이그레이션3/FE16·build/type/lint·격리core8 PASS. Rill 전체 동등성·실고객/운영/외부채널/실기기/VoiceOver/사람 수용은 별도이며 commit/push는 하지 않았다.
+
+- 2026-10-18 RXS02 CSV 후속 C1~C3 선택 PASS: 실제 같은 조건2대상8행/5431.25USD·5.3908400460…%, desktop/mobile/API/final-code CSV 동일·조건/파일409/타인403/익명401·390/768/1440 넘침0/36px·14px. 원본 상세 조회 생략·로그인 세대/subject 변경 뒤 늦은 다운로드 차단을 보완했다. BE34/FE30/build/type/lint·영향 core1 PASS. [상세](rill-scenarios.md#rxs02-c1c3-결과--2026-10-18-ego26). 저장 보기/Pivot 연결·운영/실기기/VoiceOver는 별도, 미커밋.
+
+- 2026-10-18 RXS02 저장·집계 Pivot S1~S3 선택 PASS: 개인 보기1/2 실제 저장·reload·명시 복원/재계산,2대상8행5431.25USD/5.39%와 기간Compute3460/12.77%, 원본 기준 Pivot 모든 셀·열합계/CSV 동일·세폭 넘침0·모바일 Home/End0↔313. 미조회 불러오기/소스 초기화/지연 날짜 복원 문제를 보완했다. BE50/FE154/type/lint/build·영향 core1 PASS. [상세](rill-scenarios.md#rxs02-s1s3-결과--2026-10-18-ego27). 대시보드 추가/공통 필터·운영/실기기/VoiceOver는 별도, 미커밋.
+
+
+- 2026-10-18 RXS02 대시보드 집계 Pivot D1~D3 선택 PASS: 실제 개인 보기1/2→기존 마진3 추가/Enter/reload, 공통 Compute3460/12.77%·Baro+Compute 빈 결과·기본값/날짜 우선·22.8ms 변경의 마지막 조건2건(day/week). 지표 revision 조회 전후409·계정별 pending 분리/비동기 인증 거절과 카드 padding/간격/ring 수정. BE55/FE99+디자인영향8·type/lint/build·격리core1 PASS. [상세](rill-scenarios.md#rxs02-d1d3-결과--2026-10-18-ego28). 세폭 넘침0·모바일 End329/Home0/Tab, Studio 블록/공개 게시 확장·운영/실기기는 별도. gpt-6-luna/VoiceOver BLOCKED 유지·미커밋.
+
+
+- 2026-10-18 RXS02 대시보드 CSV E1~E2 선택 PASS: 현재 공통 조건+저장 catalogRevision/결과 digest를 기존 Export에 연결했다. 실제 기본50행5431.25/Compute32행3460/기간31행3460USD·CSV/응답 바이트 동일·모바일Tab/Enter·세폭 넘침0/36px·14px. 툴바 summary/전체 폭 안내로768px 줄바꿈과1440px 빈 공간을 수정했다. FE16/type/lint/build PASS, 서버/SQL/core/Rill 기존 결과 재사용. [상세](rill-scenarios.md#rxs02-e1e2-결과--2026-10-18-ego29). 미커밋·gpt-6-luna/VoiceOver BLOCKED 유지.
+
+
+- 2026-10-18 RXS02 대시보드 조건 재사용 F1~F3 선택 PASS: 실제 Compute 매출≥600/마진<20→4100.50USD·8.78%→새 개인 보기3/기존 대시보드3 추가/reload, 기존 두 보기/Pivot·정의/배치/게시 보존·9000 미저장 취소 DB 불변. 저장/추가 pending 닫기 잠금과768px 여백 오류를 수정했다. BE4/FE 고유145·type/lint/build·격리core1 PASS, 세폭 넘침0/358·736·1100px/모바일 End189·Home0. [상세](rill-scenarios.md#rxs02-f1f3-결과--2026-10-18-ego30). 미커밋·gpt-6-luna/VoiceOver BLOCKED 유지, Studio/공개 게시 Pivot·운영/실기기는 별도.
+
+
+- 2026-10-18 RXS02 Pivot 기여 원본 G1~G3 선택 PASS: 셀/행·열·전체 합계→HAVING 뒤 원본 제한/정확 합계·페이지를 기존 DuckDB로 연결했다. 실제 Baro×Compute3행640.50USD/-12.79%는 Rill 같은 전체 기간/회사/컴포넌트와 일치하며 원래 조건/DB/보기·CSV는 보존한다. 401/403/409/API·세폭 넘침0·End606/Home0·중첩 Tab/Enter/Escape·포커스 복귀 확인. BE23/FE고유82·build/type/lint PASS, 기존 미변경 core 재사용. [상세](rill-scenarios.md#rxs02-g1g3-결과--2026-10-18-ego31). 미커밋·gpt-6-luna/VoiceOver BLOCKED 유지, 실제20행 초과 브라우저 페이지/운영/실기기는 별도.

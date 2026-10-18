@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { SourceProfile, StudioSource } from './studioCreation';
+import { StudioSampleId, studioDemoSamples } from './studioDemoSamples';
 type Props = {
   idPrefix?: string;
   sources: StudioSource[];
@@ -10,7 +11,7 @@ type Props = {
   busy: boolean;
   onSource: (id: number) => void;
   onFile: (file: File) => void;
-  onSample: (sample: 'rill' | 'commerce') => void;
+  onSample: (sample: StudioSampleId) => void;
   onRefresh: () => void;
 };
 export default function StudioSourcePicker({
@@ -46,15 +47,21 @@ export default function StudioSourcePicker({
             event.target.value = '';
           }}
         />
-        <Button variant="outline" disabled={busy} onClick={() => onSample('commerce')}>
-          매출·환불 샘플
-        </Button>
-        <Button variant="outline" disabled={busy} onClick={() => onSample('rill')}>
-          Rill 광고 샘플
-        </Button>
+      </div>
+      <div className="studio-demo-samples" role="group" aria-label="업무별 샘플 데모">
+        {studioDemoSamples.map(sample => (
+          <div key={sample.id} className="studio-demo-sample">
+            <Button variant="outline" disabled={busy} onClick={() => onSample(sample.id)}>
+              {sample.title}
+            </Button>
+            <p>{sample.description}</p>
+            <span>{sample.scope}</span>
+          </div>
+        ))}
       </div>
       <p className="studio-create-sample-credit">
-        매출·환불 샘플은 Analytics Engineering의 공개 합성 데이터입니다.{' '}
+        샘플 선택은 내 비공개 소스만 준비합니다. AI 생성·게시를 자동 실행하지 않습니다. 비용·마진과 앱 전환은 VM 합성
+        데이터이며, Rill 원본의 수치와 다릅니다. 매출·환불 샘플은 Analytics Engineering의 공개 합성 데이터입니다.{' '}
         <a href="https://www.analyticsengineering.com/datasets/ecommerce-sales" target="_blank" rel="noreferrer">
           출처 · CC BY 4.0
         </a>

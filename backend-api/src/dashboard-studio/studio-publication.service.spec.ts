@@ -141,6 +141,17 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
       7,
     );
   };
+  it('closes previously issued public/remix tokens when organization policy is applied', async () => {
+    const first = await publish('before-policy-' + id, { allowRemix: true });
+    expect((await publications.read(first.token)).snapshot.blocks).toHaveLength(2);
+    await db.manager.update(Dashboard, id, { governed: true });
+    await expect(publications.read(first.token)).rejects.toMatchObject({ status: 403 });
+    await expect(publications.read(first.token, 8)).rejects.toMatchObject({ status: 403 });
+    await expect(publications.requireRemix(first.token, 8)).rejects.toMatchObject({ status: 403 });
+    await expect(publish('after-policy-' + id)).rejects.toMatchObject({ status: 403 });
+    expect((await publications.read(first.token, 7)).snapshot.blocks).toHaveLength(2);
+    expect((await db.manager.findOneBy(StudioPublication, { token: first.token })).version).toBe(1);
+  });
   it.each([false, true])(
     'guards an execution against intervening publication changes (existing=%s)',
     async existing => {
@@ -293,6 +304,23 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
     expect(await publications.ownerMetadata(id, 7)).toEqual(result);
     await expect(publications.ownerMetadata(id, 8)).rejects.toMatchObject({ status: 403 });
     await expect(publications.revoke(result.token, 8)).rejects.toMatchObject({ status: 403 });
+  });
+  it('freezes table and summary presentations and computed aggregates, excluding private identifiers', async () => {
+    const doc = (await studio.get(id, 7)).document;
+    doc.blocks[0].display.presentation = 'summary';
+    doc.blocks[1].display.presentation = 'table';
+    await save(doc, 'report-save-' + id);
+    const published = await publish('report-' + id, { visibility: 'private' });
+    const frozen = (await publications.read(published.token, 7)).snapshot;
+    expect(frozen.blocks.map(b => b.display.presentation)).toEqual(['summary', 'table']);
+    expect(frozen.blocks[0].datas[0].value).toBe(500);
+    expect(frozen.blocks[1].datas.map(r => r.value).sort()).toEqual([200, 300]);
+    expect(JSON.stringify(frozen)).not.toMatch(/sql|sourceId|measureRefs|metricId/);
+    const edited = (await studio.get(id, 7)).document;
+    edited.blocks[0].display.presentation = 'visual';
+    edited.blocks[0].description = 'Unpublished explanation';
+    await save(edited, 'report-edit-' + id);
+    expect((await publications.read(published.token, 7)).snapshot).toEqual(frozen);
   });
   it('keeps old snapshot after draft edit and changes same token only on explicit republish', async () => {
     const first = await publish();

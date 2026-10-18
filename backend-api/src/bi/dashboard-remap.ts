@@ -232,6 +232,27 @@ function planSql(sql: string, columns: Map<string, ReuseColumn>): SqlPlan {
       if (castTypeDepth > walkDepth) castTypeDepth = -1;
       continue;
     }
+    if (punct === '*') {
+      const previous = k > 0 ? tokenAt(k - 1) : undefined;
+      const next = k + 1 < size ? tokenAt(k + 1) : undefined;
+      const countStar =
+        previous?.text === '(' && next?.text === ')' && calls[calls.length - 1]?.fn === 'count';
+      const operand = (value: Token | undefined) =>
+        value &&
+        (['number', 'quoted', 'string'].includes(value.kind) ||
+          (value.kind === 'word' && !WORD_KEYWORDS.has(value.text.toLowerCase())));
+      const multiply =
+        (operand(previous) ||
+          previous?.text === ')' ||
+          (previous?.kind === 'word' &&
+            ['end', 'null', 'true', 'false'].includes(previous.text.toLowerCase()))) &&
+        (operand(next) ||
+          ['(', '+', '-'].includes(next?.text) ||
+          (next?.kind === 'word' &&
+            ['case', 'null', 'true', 'false'].includes(next.text.toLowerCase())));
+      if (!countStar && !multiply)
+        throw new BadRequestException('wildcard source projections require explicit columns');
+    }
     if (!isIdentifier(token)) {
       pendingFn = '';
       continue;
@@ -288,7 +309,7 @@ function rewriteSql(plan: SqlPlan, mapping: Map<string, string>): string {
   for (const ref of plan.refs) {
     const target = mapping.get(ref.name.toLowerCase());
     if (target === undefined) throw new BadRequestException(`missing column mapping: ${ref.name}`);
-    if (target.toLowerCase() === ref.original.toLowerCase()) continue;
+    if (target === ref.original) continue;
     tokens[ref.index] = { ...tokens[ref.index], text: quoteColumn(target) };
   }
   const insertions: Array<{ at: number; text: string }> = [];

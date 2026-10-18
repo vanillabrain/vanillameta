@@ -75,17 +75,75 @@ describe('T6 owned samples with actual source oracles', () => {
     await expect(service.sample({ sample: 'commerce', path: '/tmp/other' }, 7)).rejects.toThrow();
     await expect(service.sample({ sample: 'commerce' }, 0)).rejects.toThrow();
   });
-  it('rolls back failed source registration and removes only its own unregistered import', async () => {
+  it.each(['margin', 'funnel', 'margin-reuse', 'margin-missing', 'margin-krw'])(
+    'installs VM %s once per owner and verifies reused data',
+    async sample => {
+      const before = await db.manager.count(Database);
+      const [a, b] = await Promise.all([
+        service.sample({ sample }, 71),
+        service.sample({ sample }, 71),
+      ]);
+      expect(a).toEqual(b);
+      expect(await service.sample({ sample }, 71)).toEqual(a);
+      const other = await service.sample({ sample }, 72);
+      expect(other.sourceId).not.toBe(a.sourceId);
+      expect(await db.manager.count(Database)).toBe(before + 2);
+      const corruptedResult = jest
+        .spyOn(worker, 'query')
+        .mockResolvedValueOnce({ datas: [{ n: 0 }] } as any);
+      try {
+        await expect(service.sample({ sample }, 71)).rejects.toThrow('고정된 수치 기준과 다릅니다');
+      } finally {
+        corruptedResult.mockRestore();
+      }
+    },
+  );
+  it('rolls back failed source registration and discards exactly its own unregistered import', async () => {
+    const sibling = await service.sample({ sample: 'funnel' }, 21);
+    const siblingFile = JSON.parse(
+      (await db.manager.findOneByOrFail(Database, { id: sibling.sourceId })).connectionConfig,
+    ).connection.filename;
     const count = await db.manager.count(Database);
+    const imported: string[] = [];
+    const originalImport = worker.importFile.bind(worker);
+    const importing = jest
+      .spyOn(worker, 'importFile')
+      .mockImplementation(async (...args: any[]) => {
+        const result = await (originalImport as any)(...args);
+        imported.push(result.filename);
+        return result;
+      });
+    const originalCommerce = worker.importCommerce.bind(worker);
+    const importingCommerce = jest
+      .spyOn(worker, 'importCommerce')
+      .mockImplementation(async (...args: any[]) => {
+        const result = await (originalCommerce as any)(...args);
+        imported.push(result.filename);
+        return result;
+      });
+    const discard = jest.spyOn(worker, 'discardImport');
     await db.query(
       "CREATE TRIGGER fail_sample BEFORE INSERT ON database BEGIN SELECT RAISE(ABORT,'metadata unavailable'); END",
     );
     try {
-      await expect(service.sample({ sample: 'commerce' }, 9)).rejects.toThrow(
+      await expect(service.sample({ sample: 'commerce' }, 21)).rejects.toThrow(
         'metadata unavailable',
       );
+      // Only the abandoned import is discarded, and its own directory is actually gone.
+      expect(imported).toHaveLength(1);
+      expect(discard).toHaveBeenCalledTimes(1);
+      expect(discard).toHaveBeenCalledWith(imported[0]);
+      expect(fs.existsSync(path.dirname(imported[0]))).toBe(false);
+      // The registered sibling keeps its file and stays queryable.
+      expect(fs.existsSync(siblingFile)).toBe(true);
+      expect(
+        (await query(sibling.sourceId, 'SELECT COUNT(*) AS n FROM uploaded_data')).datas,
+      ).toEqual([{ n: 16 }]);
       expect(await db.manager.count(Database)).toBe(count);
     } finally {
+      discard.mockRestore();
+      importing.mockRestore();
+      importingCommerce.mockRestore();
       await db.query('DROP TRIGGER fail_sample');
     }
   });

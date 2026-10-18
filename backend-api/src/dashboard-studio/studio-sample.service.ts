@@ -10,6 +10,9 @@ import { SourceAccessService } from '../ownership/source-access.service';
 import { ConnectionService } from '../connection/connection.service';
 import { encryptConnectionConfig } from '../utils/crypto.util';
 import { studioKeys } from './studio-document';
+import { StudioDemoSampleId, studioDemoData } from './studio-demo-data';
+
+type StudioSampleId = 'rill' | 'commerce' | StudioDemoSampleId;
 
 const RILL = {
   url: 'https://storage.googleapis.com/rilldata-public/auction_data.parquet',
@@ -31,18 +34,44 @@ export class StudioSampleService {
     } catch {
       throw new BadRequestException('샘플을 선택해 주세요.');
     }
-    if (typeof body.sample !== 'string' || !['rill', 'commerce'].includes(body.sample))
+    if (
+      typeof body.sample !== 'string' ||
+      ![
+        'rill',
+        'commerce',
+        'margin',
+        'funnel',
+        'margin-reuse',
+        'margin-missing',
+        'margin-krw',
+      ].includes(body.sample)
+    )
       throw new BadRequestException('샘플을 선택해 주세요.');
     const key = actor + ':' + body.sample;
     const previous = this.pending.get(key);
     if (previous) return previous;
     if (this.pending.size >= 16)
       throw new ServiceUnavailableException('샘플 준비 요청이 많습니다.');
-    const promise = this.install(body.sample, actor).finally(() => this.pending.delete(key));
+    const promise = this.install(body.sample as StudioSampleId, actor).finally(() =>
+      this.pending.delete(key),
+    );
     this.pending.set(key, promise);
     return promise;
   }
   private async oracle(sample: string, query: (sql: string) => Promise<any>) {
+    if (sample === 'margin' || sample === 'funnel' || sample.startsWith('margin-')) {
+      const fixture = studioDemoData(sample as StudioDemoSampleId);
+      const rows = (await query(fixture.oracleSql)).datas;
+      if (
+        rows.length !== 1 ||
+        Object.entries(fixture.oracle).some(([key, expected]) => {
+          const actual = Number(rows[0][key]);
+          return !Number.isFinite(actual) || actual !== Number(expected);
+        })
+      )
+        throw new ServiceUnavailableException('VM 데모 데이터가 고정된 수치 기준과 다릅니다.');
+      return;
+    }
     const sql =
       sample === 'rill'
         ? 'SELECT COUNT(*) AS n, SUM(bid_request_cnt) AS requests, SUM(bid_floor)/SUM(has_bid_floor_cnt) AS average FROM uploaded_data'
@@ -103,10 +132,15 @@ export class StudioSampleService {
       );
     }
   }
-  private async install(sample: string, actor: number) {
+  private async install(sample: StudioSampleId, actor: number) {
+    const fixture = sample !== 'rill' && sample !== 'commerce' ? studioDemoData(sample) : undefined;
     const tag =
       'studio-sample:' +
-      (sample === 'rill' ? 'rill-auction-' + RILL.sha256 : 'ae-commerce-demo-v1-order-cohort');
+      (fixture
+        ? 'vm-' + sample + '-v1-' + createHash('sha256').update(fixture.csv).digest('hex')
+        : sample === 'rill'
+        ? 'rill-auction-' + RILL.sha256
+        : 'ae-commerce-demo-v1-order-cohort');
     const existing = await this.db.manager.findOne(Database, {
       where: { ownerId: actor, description: tag, engine: 'duckdb' },
     });
@@ -119,8 +153,15 @@ export class StudioSampleService {
     }
     let imported: { filename: string; rows?: any }, checksum: string;
     const name =
-      sample === 'rill' ? 'Rill 공식 Auction 샘플' : '매출·환불 샘플 · 37주문 · 주문일 코호트';
-    if (sample === 'rill') {
+      fixture?.name ??
+      (sample === 'rill' ? 'Rill 공식 Auction 샘플' : '매출·환불 샘플 · 37주문 · 주문일 코호트');
+    if (fixture) {
+      imported = await this.duckdb.importFile({
+        originalname: fixture.filename,
+        buffer: fixture.csv,
+      });
+      checksum = createHash('sha256').update(fixture.csv).digest('hex');
+    } else if (sample === 'rill') {
       imported = await this.duckdb.importFile({
         originalname: 'auction_data.parquet',
         buffer: await this.rillBytes(),
@@ -157,7 +198,7 @@ export class StudioSampleService {
     let saved: Database;
     try {
       await this.oracle(sample, sql => this.duckdb.query(imported.filename, sql));
-      const rows = sample === 'rill' ? 1391572 : 37;
+      const rows = fixture?.rows ?? (sample === 'rill' ? 1391572 : 37);
       saved = await this.db.manager.save(Database, {
         ownerId: actor,
         name,
@@ -174,7 +215,8 @@ export class StudioSampleService {
                 id: path.basename(path.dirname(imported.filename)),
                 filename: imported.filename,
                 originalname:
-                  sample === 'rill' ? 'auction_data.parquet' : 'ae-commerce-demo-v1-order-cohort',
+                  fixture?.filename ??
+                  (sample === 'rill' ? 'auction_data.parquet' : 'ae-commerce-demo-v1-order-cohort'),
                 rows,
                 uploadedAt: new Date().toISOString(),
                 sha256: checksum,

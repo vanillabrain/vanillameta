@@ -1,0 +1,23 @@
+type: metrics_view
+version: 1
+model: orders_correction_final
+timeseries: ordered_at
+smallest_time_grain: day
+dimensions:
+  - name: channel
+    column: channel
+measures:
+  - name: revenue
+    expression: SUM(revenue)
+    format_preset: currency_usd
+  - name: refunds
+    expression: SUM(refund_amount)
+    format_preset: currency_usd
+  - name: net
+    expression: SUM(net_amount)
+    format_preset: currency_usd
+  - name: refund_rate
+    expression: SUM(refund_amount)/NULLIF(SUM(revenue),0)
+    format_preset: percentage
+  - name: orders
+    expression: COUNT(DISTINCT order_id)

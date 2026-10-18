@@ -58,6 +58,21 @@ describe('Studio document server contract', () => {
     const input = fixture();
     expect(() => validateStudioDocument({ ...input, dateRange: null })).toThrow();
   });
+  it('preserves report presentations while rejecting mismatched kinds and executable payloads', () => {
+    const input = fixture();
+    input.blocks[0].display.presentation = 'summary';
+    input.blocks[1].display.presentation = 'table';
+    expect(validateStudioDocument(input)).toEqual(input);
+    for (const [index, value] of [
+      [0, 'table'],
+      [1, 'summary'],
+      [0, '<script>'],
+    ] as const) {
+      const invalid = JSON.parse(JSON.stringify(input));
+      invalid.blocks[index].display.presentation = value;
+      expect(() => validateStudioDocument(invalid)).toThrow();
+    }
+  });
   it('accepts the shared fixture and returns a detached document', () => {
     const input = fixture();
     const result = validateStudioDocument(input);

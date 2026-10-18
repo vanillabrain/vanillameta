@@ -1,0 +1,25 @@
+type: metrics_view
+version: 1
+model: commerce
+timeseries: ordered_at
+smallest_time_grain: day
+dimensions:
+  - name: channel
+    column: channel
+measures:
+  - name: revenue
+    expression: SUM(revenue)
+    format_preset: currency_usd
+  - name: refunds
+    expression: SUM(refund_amount)
+    format_preset: currency_usd
+  - name: paid_orders
+    expression: SUM(paid_orders)
+  - name: refunded_orders
+    expression: SUM(refunded_orders)
+  - name: order_refund_rate
+    expression: SUM(refunded_orders)/NULLIF(SUM(paid_orders),0)
+    format_preset: percentage
+  - name: amount_refund_rate
+    expression: SUM(refund_amount)/NULLIF(SUM(revenue),0)
+    format_preset: percentage
