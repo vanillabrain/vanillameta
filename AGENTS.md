@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC051 직원 검색·조직 이동:** [계획](docs/plans/UC-051-staff-transfer.md)·[증빙](docs/testing/staff-transfer.md)은 현재 조직 검색과 본인→대상 admin 수락→원 조직 다른 admin 검토/이동을 연결한다. 고정 reviewBasis/양쪽 CAS·현재 epoch를 확인하고 직접/그룹/전달 권한·로그인을 회수하되 소유 ID·원본·독립 사본·게시 행은 보존한다. 소유자 현재 소속이 조직 문맥이며 새 조직 자동 공개/업무 이관은 없다. 게시 가용성은 현재 원 소스 권한에 따른다. 실제 MySQL24·관련 BE128(3 SKIP)·FE31과 원본/지표/Studio 문서 보존을 확인했으며 실행은 겹치므로 합산하지 않는다. 탈퇴·전 경로/운영·Ego/실기기·사람/전체16개 수용은 별도다.
+
 - **UC050 고정 업무 기준 MySQL:** [계획](docs/plans/UC-050-semantic-mysql.md)·[증빙](docs/testing/semantic-business-mysql.md)은 전용 Docker MySQL8.4.11 metadata/native DuckDB64개·실제 두 connection의 User 잠금/epoch·동시 게시 영수증·rollback/409와 소유 정리를 구분한다. SQLite69 PASS/3 MySQL전용 SKIP와 중복 합산하지 않는다. 실제 LLM/Studio snapshot fixture, 운영 migration/실제 MySQL 앱 화면은 별도다. [16개 수용 점검](docs/testing/enterprise-acceptance-audit.md)을 최신 잔여표로 사용하며 직원 검색/이동·공유/복제 reload·실제 export 재시작/역할 행렬·운영/사람 수용이 남는다.
 
 - **UC050 조직 공통 분류:** [계획](docs/plans/UC-050-classifications.md)·[증빙](docs/testing/organization-classifications.md)은 조직 사전과 source edit를 구별하고 역사 ref/명시 null·과거 영수증/현재 목록을 보존한다. 생성 미확정 요청은24h/8KiB 탭 복구 후 명시 확인만 한다. BE293·실제 MySQL15·core15와 후속 UI2, 390/768/1440 및 필드 top 차이0px를 확인했다. 중복 배치는 합산하지 않는다. 새 semantic 생성·Ego/실기기/운영/사람·전체16개 수용은 열림이다.

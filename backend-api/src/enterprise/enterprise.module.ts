@@ -1,3 +1,6 @@
+import { StaffTransferService } from './staff-transfer.service';
+import { StaffTransferController } from './staff-transfer.controller';
+import { EnterpriseStaffTransfer } from './entities/enterprise-staff-transfer.entity';
 import { EnterpriseClassificationService } from './classification.service';
 import { EnterpriseClassificationController } from './classification.controller';
 import {
@@ -29,6 +32,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      EnterpriseStaffTransfer,
       EnterpriseClassification,
       EnterpriseClassificationRequest,
       DashboardLifecycleReceipt,
@@ -39,6 +43,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     ]),
   ],
   controllers: [
+    StaffTransferController,
     EnterpriseClassificationController,
     DashboardLifecycleController,
     EnterpriseGroupController,
@@ -48,6 +53,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     EnterpriseDeliveryController,
   ],
   providers: [
+    StaffTransferService,
     EnterpriseClassificationService,
     DashboardLifecycleService,
     EnterpriseGroupService,

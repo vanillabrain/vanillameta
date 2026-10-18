@@ -193,3 +193,7 @@ E11/E12의 대시보드 사용처/삭제·원자 영수증은 [UC055 계획](../
 ## 고정 업무 기준 MySQL 선택 후속
 
 [계획](../plans/UC-050-semantic-mysql.md)·[증빙](../testing/semantic-business-mysql.md)은 E01/E04/E08/E13/E14의 metadata MySQL8.4.11/native DuckDB64개를 실행했다. 두 connection의 실제 잠금·epoch 회수·동시 게시 영수증·rollback/409도 포함하지만, 실제 LLM/브라우저/MySQL 앱 서버·운영 migration·모든 조합을 의미하지 않는다. [16개 수용 점검](../testing/enterprise-acceptance-audit.md)은 이미 실행한 기능/정답을 미구현으로 계산하지 않고 계약/실행/운영·사람 잔여를 분리한다. 전체 E01~E14/16개 수용은 NOT_RUN을 유지한다.
+
+## E02/E03 직원 검색·이동 후속
+
+[설계](../plans/UC-051-staff-transfer.md)·[선택 검증](../testing/staff-transfer.md)의 현재 조직 문자 검색/비밀 비노출, 본인 동의→대상 admin 수락→원 조직 다른 admin 검토/이동, 변경된 reviewBasis·양쪽 version/epoch/만료/철회 거절을 검사한다. 기존 access/refresh 회수와 자료/소유/독립 사본/게시 행 보존, 이전 권한/그룹 해제 및 A→B→A 비부활, 실제 MySQL 두 연결 finalizer/권한·그룹 writer 경합과 late rollback을 구별한다. 선택 시나리오는 full E02/E03/TC050·운영·실기기/사람 수용 통과가 아니다.

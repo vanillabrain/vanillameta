@@ -301,3 +301,9 @@ name은 NFKC/trim 후 UTF-16 길이1~80이며 nameKey는 lowercase UTF8 SHA256 h
 `source_catalog_entry.metadata.columns`의 선택적 `classificationRef`는 `{organizationId,id,version} | null`이다. null은 명시 해제이며 저장/preview draft/조회/이력에서 키를 없애지 않는다. ref는 역사적 이름과 함께 append-only JSON에 남고 사전 rename/비활성/소속 이동으로 자동 갱신하지 않는다. 현재 bound ref 생략은 연결/이름 보존, ref 없는 legacy/해제된 열의 생략은 제공한 자유 문자열 편집 허용이다. 명시 해제는 기존 이름을 유지하며 후속 별도 편집에서 이름을 바꾼다. 신규/변경/최신 채택만 현재 조직·활성·정확 버전과 source edit를 검증한다. ConditionSemantics에는 이 ref를 넣지 않는다.
 
 분류 생성의 reload 복구는 DB entity가 아닌 탭 `classificationCreate` 최소 요청이다. 현재 로그인 세대/actor/조직 scope·24시간/8KiB이며 자동 POST 없이 현재 목록/권한 확인 후 명시 재확인한다. 기본 생성 유실/reload/동일 요청은 ui-second1 PASS로 확인했다. FE helper read/delete 실패 처리는 수정 후 FE8 suites/102 PASS·types/lint/build를 확인했다. core-final15 PASS/51.0초 뒤 FE receipt/pagination을 보강해 영향13 PASS·types/lint/build와 수정 후 ui-stable2 PASS/13.4초·Jason 최종 APPROVE0를 확인했다. 이전102와13은 중복 합산하지 않는다. 이후 Main의 최종6개 화면 열람에서768/1440 입력 상단 약7px 정렬 차이가 발견되어 UI Kit을 유지한 TextField select 수정과 행 top 차이≤1px 검증/UI2 재실행은 대기다. 과거 영수증은 페이지 밖 entry를 현재 목록에 삽입하지 않으며 현재 이름/활성은 명시 load-more 조회로 확인한다. Ego96 제어권 인수·물리 휴대폰·운영·사람 수용은 미실행이다.
+
+## UC051 직원 이동 동의
+
+`enterprise_staff_transfer`는 userId PK, sourceOrganizationId/targetOrganizationId/authVersion integer, codeHash varchar64 unique, expiresAt datetime, nullable acceptedBy/acceptedEpoch/targetVersion integer, team varchar100 default empty, completed boolean defaultfalse다. code 원문은 최초 발급 응답에만 반환한다. 코드 hash·당사자·계정 epoch·수락자/epoch/팀·대상 조직 version의 고정 digest reviewBasis는 조회에서 계산하며 최종 요청과 대조한다. 새 동의 발급은 이전 코드를 대체하고 완료 행은 현재 소속의 증거가 아닌 본인 확인 기록이다. 다음 동의로 대체되어도 target admin의 `member.transfer.accepted`와 양쪽 조직의 `member.transferred` 감사는 남는다.
+
+migration `1792590000000-add-staff-transfer`는 새 테이블만 추가한다. 기존 테이블은 필수 type/length/null/default·PK/unique를 검사해 불일치 시 자동 재작성 없이 중단한다. FK/cascade·소유권/자료 재배치는 추가하지 않는다. [설계](plans/UC-051-staff-transfer.md)·[선택 검증](testing/staff-transfer.md)을 따른다.

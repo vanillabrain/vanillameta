@@ -11,6 +11,8 @@ const backend = path.join(root, "backend-api");
 const mysql = createRequire(path.join(backend, "package.json"))(
   "mysql2/promise"
 );
+const staff = process.argv.includes("--staff");
+const lanes = staff ? ["staff"] : ["studio", "runtime"];
 const owner = randomBytes(12).toString("hex");
 const password = randomBytes(32).toString("hex");
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vm-semantic-mysql-"));
@@ -170,7 +172,7 @@ const cleanup = () =>
       "SELECT VERSION() AS version, @@server_uuid AS uuid"
     );
     if (!/^8\.4\./.test(server.version)) throw new Error("Expected MySQL8.4");
-    for (const lane of ["studio", "runtime"]) {
+    for (const lane of lanes) {
       const db = prefix + "_" + lane;
       await admin.query(
         "CREATE DATABASE `" + db + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_bin"
@@ -205,8 +207,8 @@ const cleanup = () =>
         phase: "ready",
         engine: server.version,
         metadata: "MySQL",
-        aggregation: "native DuckDB",
-        lanes: ["studio", "runtime"],
+        aggregation: staff ? "not_used" : "native DuckDB",
+        lanes,
       })
     );
     if (process.argv.includes("--probe-interrupt")) {
@@ -223,8 +225,12 @@ const cleanup = () =>
           "--runInBand",
           "--verbose",
           "--runTestsByPath",
-          "src/dashboard-studio/studio-business-basis.spec.ts",
-          "src/bi/semantic-business-runtime.spec.ts",
+          ...(staff
+            ? ["src/enterprise/staff-transfer.spec.ts"]
+            : [
+                "src/dashboard-studio/studio-business-basis.spec.ts",
+                "src/bi/semantic-business-runtime.spec.ts",
+              ]),
         ],
         {
           cwd: backend,
@@ -256,7 +262,7 @@ const cleanup = () =>
       });
     });
     checkStopped();
-    for (const lane of ["studio", "runtime"]) {
+    for (const lane of lanes) {
       const [[marker]] = await admin.query(
         "SELECT token FROM `" + prefix + "_" + lane + "`.semantic_fixture_owner"
       );

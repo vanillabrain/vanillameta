@@ -3,7 +3,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 
 /** Test-only opt-in. Validate fixture ownership before TypeORM may create any tables. */
 export async function semanticMetadata(
-  lane: 'studio' | 'runtime',
+  lane: 'studio' | 'runtime' | 'staff',
   sqlite: DataSourceOptions,
 ): Promise<DataSource> {
   const file = process.env.VM_SEMANTIC_MYSQL_CONFIG;
@@ -59,7 +59,7 @@ export async function assertSemanticMysqlIdentity(db: DataSource) {
   if (
     !/^8\.4\./.test(server.version) ||
     server.uuid !== c.serverUuid ||
-    !['studio', 'runtime'].some(lane => server.db === c.databasePrefix + '_' + lane)
+    !['studio', 'runtime', 'staff'].some(lane => server.db === c.databasePrefix + '_' + lane)
   )
     throw new Error('Unexpected semantic MySQL identity');
   const [marker] = await db.query('SELECT token FROM semantic_fixture_owner');

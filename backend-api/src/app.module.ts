@@ -1,3 +1,4 @@
+import { AddStaffTransfer1792590000000 } from './migrations/1792590000000-add-staff-transfer';
 import { AddConditionReports1792300004000 } from './migrations/1792300004000-add-condition-reports';
 import { AddFileCorrection1792300001000 } from './migrations/1792300001000-add-file-correction';
 import { AddSourceModelReceipt1792300002000 } from './migrations/1792300002000-add-source-model-receipt';
@@ -115,6 +116,7 @@ import { apiEnvFiles } from './config-env';
         AddNotificationState1792450000000,
         AddSourceConditions1792440000000,
         AddAccountIntegrity1792430000000,
+        AddStaffTransfer1792590000000,
         AddSourceAvailability1792420000000,
         AddEnterpriseResourceGrants1792410000000,
         AddEnterpriseMembership1792400000000,
