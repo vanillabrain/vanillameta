@@ -122,3 +122,7 @@ P4의 남은 선택 조건이다. 비공개 샘플 복사본26(일반 차트5+�
 증빙: [만료 검증 폴더](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-pivot-expiry-20261019/). 성공 기준은 `confirmed-setup.json`·`confirmed-anonymous-before-private.json`·`confirmed-before-expiry-390.png`, `browser-expired.json`·`automatic-expired-390.png`, `anonymous-after.json`·`owner-and-cleanup.json`이다. `refresh-focus-before-fix.json`과 `refresh-focus-after-fix.json`/`keyboard-retry-fixed-390.png`로 오류 전후를 구별했다. 초기 재조회 스크립트의 단순 alert 대기는 이전 alert를 관찰할 수 있어, 최종 검증은 새 resource 완료+busy false를 기다려 판정했다.
 
 검사 로그 `/tmp/vm-pivot-expiry-focus-{red,green}.log`, `/tmp/vm-pivot-expiry-{type,lint,build}.log`. 제품 변경은 FE 버튼 한 곳·회귀1개이며 BE/전체 단위/전체 E2E를 반복하지 않았다. 실제 사람의 native 날짜/방향키·다른 폭의 만료/모든 권한·동시 경합·운영은 후속이다.
+
+### SP-07 커밋과 원격 보존 병합
+
+수정/회귀/증빙5파일은 `3437f79e`에 커밋했다. push 전 추가된 원격 `7bf8061e`(직원 퇴직 영향의 읽기 전용 조회)를 충돌 없이 `c72e89bc`에 보존 병합했다. 새 원격 영향만 BE21 PASS/1 MySQL SKIP·FE37 PASS·FE type으로 검사했으며 앞선 공개 재조회11개·실제 만료 증빙과 합산하거나 새 기업 기능의 실제 UI PASS로 승계하지 않는다. 최종 통합 root build 결과는 외부 manifest와 `/tmp/vm-pivot-expiry-merge-build.log`를 따른다. 이 병합은 공개 만료/포커스 제품 파일을 바꾸지 않았다. 전체 단위/기존 core 반복0이다.
