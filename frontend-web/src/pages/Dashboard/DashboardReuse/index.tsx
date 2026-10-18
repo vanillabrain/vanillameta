@@ -1,3 +1,5 @@
+import StudioReusePreview from './StudioReusePreview';
+import { validateStudioReusePreview, StudioReusePreviewV1 } from './studioReusePreviewContract';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
@@ -12,6 +14,7 @@ import { errorMessage, responseData } from '../dashboardPreview';
 
 type Column = { name: string; type: string; numeric: boolean; temporal: boolean };
 type Draft = {
+  studioMixed?: boolean;
   originalId: number | string;
   originalTitle: string;
   expectedRevision: string;
@@ -19,11 +22,25 @@ type Draft = {
   currency?: string;
   title: string;
   columns: Column[];
-  blocks?: Array<{ id: string; title: string; columns: string[] }>;
+  blocks?: Array<{
+    id: string;
+    title: string;
+    columns: string[];
+    kind?: string;
+    unsupportedReason?: string;
+    measures?: Array<{ label: string; unit: string }>;
+    conditions?: Array<{ measureId: number; operator: string; value: number }>;
+  }>;
   sources: Array<{ id: number; name: string }>;
 };
 type Profile = { sourceId: number; dataVersion: string; supported: boolean; columns: Column[] };
-type Preview = { ticket: string; originalId: number | string; sourceId: number; snapshot: Snapshot };
+type Preview = {
+  ticket: string;
+  originalId: number | string;
+  sourceId: number;
+  snapshot?: Snapshot;
+  studioPreview?: StudioReusePreviewV1;
+};
 function compatible(from: Column, to: Column) {
   if (from.numeric || to.numeric) return !!from.numeric && !!to.numeric;
   if (from.temporal || to.temporal)
@@ -109,7 +126,7 @@ function Content() {
         setDraft(value);
         setTitle(value.title);
         setBlockIds(value.blocks?.map(block => block.id) ?? []);
-        if (shared) return;
+        if (shared || value.studioMixed) return;
         setSourceId(String(value.originalSourceId));
         const source = responseData(
           await get(`/bi/sources/${value.originalSourceId}/profile`, undefined, { signal: abort.signal }),
@@ -204,6 +221,8 @@ function Content() {
     draft &&
     profile &&
     (!draft.blocks || selectedBlocks.length > 0) &&
+    (!draft.studioMixed ||
+      (selectedBlocks.some(b => b.kind !== 'SEGMENT_PIVOT') && !selectedBlocks.some(b => b.unsupportedReason))) &&
     title.trim() &&
     title.length <= 300 &&
     requiredColumns.every(column => {
@@ -235,10 +254,20 @@ function Content() {
         ),
       ) as Preview;
       if (token !== sequence.current) return;
-      if (
-        result.originalId !== draft.originalId ||
-        result.sourceId !== profile.sourceId ||
-        !result.ticket ||
+      if (result.originalId !== draft.originalId || result.sourceId !== profile.sourceId || !result.ticket)
+        throw new Error('미리보기를 확인할 수 없습니다.');
+      if (draft.studioMixed) {
+        if (result.snapshot !== undefined) throw new Error('혼합 미리보기 형식을 확인해 주세요.');
+        const mixed = validateStudioReusePreview(result.studioPreview);
+        if (
+          mixed.title !== title.trim() ||
+          mixed.blocks.length !== selectedBlocks.length ||
+          mixed.blocks.some((b, i) => b.blockId !== selectedBlocks[i].id || b.kind !== selectedBlocks[i].kind)
+        )
+          throw new Error('선택한 블록과 미리보기가 다릅니다. 입력을 유지하고 다시 확인해 주세요.');
+        result.studioPreview = mixed;
+      } else if (
+        result.studioPreview !== undefined ||
         result.snapshot?.title !== title ||
         !Array.isArray(result.snapshot?.widgets) ||
         !result.snapshot.widgets.length ||
@@ -343,13 +372,20 @@ function Content() {
                   onChange={event => void selectSource(event.target.value)}
                 >
                   <option value="">소스를 선택해 주세요</option>
-                  {draft.sources.map(source => (
-                    <option key={source.id} value={source.id}>
-                      {source.name}
-                    </option>
-                  ))}
+                  {draft.sources
+                    .filter(source => !draft.studioMixed || source.id !== draft.originalSourceId)
+                    .map(source => (
+                      <option key={source.id} value={source.id}>
+                        {source.name}
+                      </option>
+                    ))}
                 </TextField>
               </div>
+              {draft.studioMixed && (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  다른 파일 소스를 선택하세요. 같은 소스는 Studio의 저장본 복제를 이용할 수 있습니다.
+                </p>
+              )}
               {studioReturn && draft.currency === 'USD' && (
                 <details className="mt-4 rounded-md border border-border p-3">
                   <summary className="cursor-pointer text-sm font-medium">샘플 파일로 복제 연습</summary>
@@ -434,7 +470,18 @@ function Content() {
                           }}
                         />
                         <span className="min-w-0 text-sm [overflow-wrap:anywhere]">
-                          {block.title}
+                          <span className="font-medium">{block.title}</span>
+                          {block.kind && (
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              {block.kind === 'SEGMENT_PIVOT' ? '집계 Pivot' : '차트'}
+                              {block.measures?.length
+                                ? ' · ' + block.measures.map(m => m.label + (m.unit ? ' (' + m.unit + ')' : '')).join(', ')
+                                : ''}
+                            </span>
+                          )}
+                          {block.unsupportedReason && (
+                            <span className="mt-1 block text-xs text-destructive">{block.unsupportedReason}</span>
+                          )}
                           {profile && blockIds.includes(block.id) && missingFor(block).length > 0 && (
                             <span className="mt-1 block text-xs text-destructive">
                               연결 필요: {missingFor(block).join(', ')}
@@ -444,6 +491,11 @@ function Content() {
                       </label>
                     ))}
                   </div>
+                  {draft.studioMixed &&
+                    selectedBlocks.length > 0 &&
+                    !selectedBlocks.some(b => b.kind !== 'SEGMENT_PIVOT') && (
+                      <p className="mt-2 text-sm text-destructive">일반 차트가 하나 이상 포함되어야 합니다.</p>
+                    )}
                   {!selectedBlocks.length && (
                     <p className="mt-2 text-sm text-destructive">복제할 블록을 하나 이상 선택해 주세요.</p>
                   )}
@@ -508,7 +560,11 @@ function Content() {
                   {selectedBlocks.length}개 블록 포함 · {draft.blocks.length - selectedBlocks.length}개 제외
                 </p>
               )}
-              <SnapshotView snapshot={preview.snapshot} context="reuse" />
+              {preview.studioPreview ? (
+                <StudioReusePreview preview={preview.studioPreview} />
+              ) : (
+                <SnapshotView snapshot={preview.snapshot} context="reuse" />
+              )}
             </>
           )}
         </>

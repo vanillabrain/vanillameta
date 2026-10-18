@@ -2,6 +2,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import DashboardReuse from './index';
+import { mixedReusePreview } from './studioReusePreview.fixture';
 const api = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock('../../Publication/SnapshotView', () => ({
     </div>
   ),
 }));
+vi.mock('./StudioReusePreview', () => ({ default: ({ preview }: any) => <div>혼합 미리보기: {preview.title}</div> }));
 const columns = [
   { name: 'amount', numeric: true, temporal: false, type: 'DOUBLE' },
   { name: 'os', numeric: false, temporal: false, type: 'VARCHAR' },
@@ -65,6 +67,54 @@ beforeEach(() => {
   );
 });
 afterEach(cleanup);
+const mixedOriginal = () => ({
+  ...original(),
+  studioMixed: true,
+  blocks: [
+    { id: 'chart1', title: 'Sales', kind: 'BOARD_NUMERIC', columns: ['amount'] },
+    { id: 'pivot1', title: 'Margin', kind: 'SEGMENT_PIVOT', columns: ['amount', 'os'] },
+  ],
+});
+it('mixed_source_mapping_has_no_automatic_source_or_write_and_renders_whole_preview', async () => {
+  api.query = 'editor=studio';
+  api.get.mockImplementation(async (url: string) =>
+    wrap(url.endsWith('/reuse') ? mixedOriginal() : { ...profile(2), columns }),
+  );
+  render(<DashboardReuse />);
+  await screen.findByLabelText('데이터 소스');
+  await waitFor(() => expect(screen.queryByText('원본을 불러오는 중…')).toBeNull());
+  expect((screen.getByLabelText('데이터 소스') as HTMLSelectElement).value).toBe('');
+  expect(api.post).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('데이터 소스'), { target: { value: '2' } });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  const value = mixedReusePreview();
+  value.title = '원본 복사본';
+  api.post.mockResolvedValueOnce(wrap({ ticket: 'mixed-ticket', originalId: 12, sourceId: 2, studioPreview: value }));
+  fireEvent.click(screen.getByRole('button', { name: '전체 미리보기' }));
+  await screen.findByText('혼합 미리보기: 원본 복사본');
+  expect((screen.getByRole('button', { name: '복사본 저장' }) as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(screen.getByLabelText('Sales 포함'));
+  expect(screen.queryByText('혼합 미리보기: 원본 복사본')).toBeNull();
+  expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText(/일반 차트가 하나 이상/)).toBeTruthy();
+});
+it('unsupported_blocks_require_explicit_exclusion', async () => {
+  const source = mixedOriginal();
+  (source.blocks[1] as any).unsupportedReason = '업무 의미 매핑 미지원';
+  api.get.mockImplementation(async (url: string) => wrap(url.endsWith('/reuse') ? source : { ...profile(2), columns }));
+  render(<DashboardReuse />);
+  await screen.findByLabelText('데이터 소스');
+  fireEvent.change(screen.getByLabelText('데이터 소스'), { target: { value: '2' } });
+  await screen.findByText('업무 의미 매핑 미지원');
+  expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByLabelText('Margin 포함'));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  expect(api.post).not.toHaveBeenCalled();
+});
 async function open() {
   const view = render(<DashboardReuse />);
   await waitFor(() =>

@@ -101,6 +101,9 @@ it('adds only a draft then requires whole preview before save, preserving title 
   fireEvent.change(screen.getByLabelText('저장한 집계 Pivot'), { target: { value: '1' } });
   fireEvent.click(screen.getByRole('button', { name: '초안에 추가' }));
   await screen.findByRole('button', { name: '고객 Pivot 설정' });
+  expect(screen.getByRole('link', { name: '저장본 복제·소스 교체 새 탭에서 열기' }).getAttribute('href')).toBe(
+    '/dashboard/3/reuse?editor=studio',
+  );
   expect(api.post).not.toHaveBeenCalled();
   expect((screen.getByRole('button', { name: '저장' }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: '전체 미리보기' }));

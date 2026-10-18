@@ -440,6 +440,14 @@ describe('Studio mixed source replacement on real DuckDB and SQLite', () => {
     ).rejects.toThrow();
     expect(await assets()).toBe(before);
   });
+  it('draft_keeps_common_filter_columns_required_for_each_retained_chart', async () => {
+    const { service, saved } = await prepare();
+    const doc = JSON.parse(JSON.stringify(saved.document));
+    doc.filters = [{ column: 'category', values: ['Site'] }];
+    await save(doc, randomUUID());
+    const draft = await service.draft(id, 7, 'owned', 0);
+    expect(draft.blocks.every(b => b.columns.includes('category'))).toBe(true);
+  });
   it('revoked_epoch_rejects_before_insert', async () => {
     const { service, request } = await prepare();
     const p: any = await service.preview(id, request, 7, 'owned', 0);

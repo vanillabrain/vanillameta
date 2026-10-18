@@ -1417,7 +1417,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         <Button variant="ghost" size="sm" asChild>
           <RouterLink to={'/dashboard/' + dashboardId}>기존 보기</RouterLink>
         </Button>
-        {owned && !hasStudioPivot(state.present) && !hasStudioPivot(state.savedBaseline) && (
+        {owned && (
           <Button variant="outline" size="sm" asChild>
             <a
               href={`/dashboard/${dashboardId}/reuse?editor=studio`}
@@ -1756,7 +1756,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         dirty={!creationPublication && state.saveState !== 'clean'}
         remixUnsupportedReason={
           !creationPublication && hasStudioPivot(state.savedBaseline)
-            ? '집계 Pivot은 같은 소스의 Studio 저장본 복제만 지원합니다. 다른 데이터/수신자 재사용은 아직 지원하지 않습니다.'
+            ? '집계 Pivot은 소유자의 저장본 복제·소스 교체를 지원합니다. 공개 링크 수신자의 재사용은 아직 지원하지 않습니다.'
             : undefined
         }
       />
