@@ -1,4 +1,4 @@
-import SourceCatalogChanges, { CatalogChange } from './SourceCatalogChanges';
+import SourceCatalogChanges, { CatalogChange, validCatalogChanges } from './SourceCatalogChanges';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
@@ -76,6 +76,13 @@ function History({ sourceId }: { sourceId: number }) {
       const next = unwrap<Comparison>(
         await post('/bi/source-catalog/compare', { sourceId, fromVersion: Number(from), toVersion: Number(to) }),
       );
+      if (
+        next.sourceId !== sourceId ||
+        next.fromVersion !== Number(from) ||
+        next.toVersion !== Number(to) ||
+        !validCatalogChanges(next.changes)
+      )
+        throw new Error('invalid comparison');
       if (live.current) setComparison(next);
     } catch (failure) {
       if (live.current)

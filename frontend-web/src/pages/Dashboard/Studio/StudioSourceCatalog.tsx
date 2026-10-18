@@ -124,6 +124,12 @@ function CatalogRead({ profile }: { profile: SourceProfile }) {
                     <p className="text-xs">날짜 형식: {variableText('dateFormat', c.dateFormat ?? '')}</p>
                   )}
                   {c.classification && <p className="text-xs">업무 분류: {c.classification}</p>}
+                  {c.classificationRef && (
+                    <p className="text-xs break-words">
+                      공통 분류 연결: 조직 {c.classificationRef.organizationId} · 분류 {c.classificationRef.id} · 버전{' '}
+                      {c.classificationRef.version} (저장 당시 기준)
+                    </p>
+                  )}
                   {c.unit && (
                     <p className="text-xs">
                       단위: <span>{c.unit}</span>

@@ -1,3 +1,4 @@
+import { AddEnterpriseClassifications1792580000000 } from './migrations/1792580000000-add-enterprise-classifications';
 import { AddSourceConditionSemantics1792570000000 } from './migrations/1792570000000-add-source-condition-semantics';
 import { AddDashboardLifecycle1792560000000 } from './migrations/1792560000000-add-dashboard-lifecycle';
 import { AddSourceDeleteReceipts1792550000000 } from './migrations/1792550000000-add-source-delete-receipts';
@@ -86,6 +87,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddEnterpriseClassifications1792580000000,
         AddSourceConditionSemantics1792570000000,
         AddDashboardLifecycle1792560000000,
         AddDashboardDeleteReceipts1792530000000,

@@ -14,6 +14,9 @@ import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.s
 import { SourceAccessService } from '../ownership/source-access.service';
 import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { SourceCatalogService } from './source-catalog.service';
+import { EnterpriseClassification } from '../enterprise/entities/enterprise-classification.entity';
+import { createHash } from 'crypto';
+import { serializeMetadataWork } from '../common/metadata-work';
 import { BiService } from './bi.service';
 
 /** Full real SQLite→policy→catalog→DuckDB aggregate path, with independent calendar fixtures. */
@@ -36,6 +39,7 @@ describe('UC050 strict full-data date declarations', () => {
         EnterpriseGroupMember,
         EnterpriseGroupGrant,
         SourceCatalogEntry,
+        EnterpriseClassification,
       ],
     }).initialize();
     await db.getRepository(User).save({
@@ -234,5 +238,47 @@ describe('UC050 strict full-data date declarations', () => {
     });
     await expect(catalog.preview(d, 7)).rejects.toMatchObject({ status: 409 });
     expect(await db.getRepository(SourceCatalogEntry).count()).toBe(0);
+  });
+  it('keeps classification metadata out of real date SQL and releases the metadata queue during the full scan', async () => {
+    await duck.run(`UPDATE uploaded_data SET ${quote(quotedName)}='2024-02-29'`);
+    await db.manager.save(EnterpriseClassification, {
+      id: 1,
+      organizationId: 1,
+      name: 'Shared',
+      nameKey: createHash('sha256').update('shared').digest('hex'),
+      version: 1,
+      active: true,
+    });
+    const body = await dateDraft();
+    body.columns[1].classificationRef = { organizationId: 1, id: 1, version: 1 };
+    const original = query.getMockImplementation();
+    let outsideScan = false;
+    let startPeer: () => void;
+    const peerReady = new Promise<void>(resolve => {
+      startPeer = resolve;
+    });
+    const peer = (async () => {
+      await peerReady;
+      await serializeMetadataWork(db, async () => {
+        outsideScan = true;
+        await db.manager.update(EnterpriseClassification, 1, { version: 2 });
+      });
+    })();
+    query.mockImplementation(async (id, sql) => {
+      if (sql.includes('AS invalid_0')) {
+        expect(db.createQueryRunner().isTransactionActive).toBe(false);
+        startPeer();
+        await peer;
+      }
+      expect(sql).not.toMatch(/Shared|enterprise_classification|classificationRef/);
+      return original(id, sql);
+    });
+    await expect(catalog.save(body, 7, 0)).rejects.toMatchObject({ status: 409 });
+    expect(outsideScan).toBe(true);
+    expect(await db.manager.count(SourceCatalogEntry)).toBe(0);
+    expect(
+      (await duck.runAndReadAll('SELECT count(*) AS n FROM uploaded_data')).getRowObjectsJson()[0]
+        .n,
+    ).toBe('7');
   });
 });

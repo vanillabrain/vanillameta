@@ -170,3 +170,41 @@ it('hides malformed saved business fields instead of displaying an accepted defi
   await screen.findByText(/업무 설명을 확인하지 못했습니다/);
   expect(screen.queryByText('결제액')).toBeNull();
 });
+
+it('preserves a frozen old-organization classification reference and name without current-registry lookup', async () => {
+  vi.mocked(post).mockResolvedValueOnce(
+    response({
+      ...catalog(),
+      columns: [
+        {
+          ...catalog().columns[0],
+          classification: '과거 분류 이름',
+          classificationRef: { organizationId: 99, id: 4, version: 2 },
+        },
+      ],
+    }),
+  );
+  render(<StudioSourceCatalog profile={profile} />);
+  open();
+  await screen.findByText(/업무 분류: 과거 분류 이름/);
+  expect(screen.getByText(/조직 99 · 분류 4 · 버전 2/)).toBeTruthy();
+  expect(post).toHaveBeenCalledTimes(1);
+});
+it('accepts stored null as detached metadata and rejects malformed linked refs', async () => {
+  vi.mocked(post).mockResolvedValueOnce(
+    response({ ...catalog(), columns: [{ ...catalog().columns[0], classification: '자유 분류', classificationRef: null }] }),
+  );
+  const view = render(<StudioSourceCatalog profile={profile} />);
+  open();
+  await screen.findByText(/업무 분류: 자유 분류/);
+  view.unmount();
+  vi.mocked(post).mockResolvedValueOnce(
+    response({
+      ...catalog(),
+      columns: [{ ...catalog().columns[0], classificationRef: { organizationId: 99, id: 4, version: 0 } }],
+    }),
+  );
+  render(<StudioSourceCatalog profile={profile} />);
+  open();
+  await screen.findByText(/업무 설명을 확인하지 못했습니다/);
+});

@@ -1,3 +1,5 @@
+import { validClassificationRef } from '@/api/classificationService';
+import { Notice } from '@/components/ui/notice';
 import { variableText } from './businessVariable';
 import React from 'react';
 export type CatalogChange = { column: string | null; field: string; before: string | null; after: string | null };
@@ -9,8 +11,31 @@ const fieldLabel: Record<string, string> = {
   businessType: '업무 유형',
   dateFormat: '날짜 형식',
   classification: '업무 분류',
+  classificationRef: '공통 분류 연결',
 };
 
+export function validCatalogChanges(value: unknown): value is CatalogChange[] {
+  if (!Array.isArray(value)) return false;
+  return value.every(change => {
+    if (
+      !change ||
+      !(change.column === null || typeof change.column === 'string') ||
+      !Object.prototype.hasOwnProperty.call(fieldLabel, change.field)
+    )
+      return false;
+    return [change.before, change.after].every(v => {
+      if (v === null) return true;
+      if (typeof v !== 'string') return false;
+      if (change.field !== 'classificationRef') return true;
+      try {
+        const ref = JSON.parse(v);
+        return ref === null || validClassificationRef(ref);
+      } catch {
+        return false;
+      }
+    });
+  });
+}
 /** Same before/after presentation for immutable history and a validated unsaved proposal. */
 export default function SourceCatalogChanges({
   changes,
@@ -21,6 +46,8 @@ export default function SourceCatalogChanges({
   beforeLabel: string;
   afterLabel: string;
 }) {
+  if (!validCatalogChanges(changes))
+    return <Notice severity="error">변경 이력의 분류 연결 기준을 확인하지 못했습니다.</Notice>;
   return (
     <>
       {changes.map(change => (
@@ -32,13 +59,17 @@ export default function SourceCatalogChanges({
             <div className="min-w-0">
               <dt className="text-xs text-muted-foreground">{beforeLabel}</dt>
               <dd className="mt-1 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
-                {text(change.before === null ? null : variableText(change.field, change.before))}
+                {change.field === 'classificationRef' && change.before === null
+                  ? '연결 없음'
+                  : text(change.before === null ? null : variableText(change.field, change.before))}
               </dd>
             </div>
             <div className="min-w-0">
               <dt className="text-xs text-muted-foreground">{afterLabel}</dt>
               <dd className="mt-1 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
-                {text(change.after === null ? null : variableText(change.field, change.after))}
+                {change.field === 'classificationRef' && change.after === null
+                  ? '연결 없음'
+                  : text(change.after === null ? null : variableText(change.field, change.after))}
               </dd>
             </div>
           </dl>

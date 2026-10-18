@@ -1,5 +1,13 @@
 import { businessVariable, BusinessVariable } from './business-variable';
-import { metadataTransaction } from '../common/metadata-work';
+import { serializeMetadataWork } from '../common/metadata-work';
+import { sourceWriteTransaction } from '../database/source-write-lock';
+import {
+  assertCatalogActor,
+  assertCatalogBindings,
+  catalogActorContext,
+  CatalogActorContext,
+  resolveCatalogBindings,
+} from './source-classifications';
 import { lockMetricSources } from '../metric/metric-write-lock';
 import { Database } from '../database/entities/database.entity';
 import {
@@ -84,15 +92,21 @@ export class SourceCatalogService {
   private async snapshot(sourceId: unknown, actor: number, action: 'read' | 'edit') {
     this.access.actor(actor);
     const id = this.access.id(sourceId);
-    await this.access.assert('database', id, actor, action);
+    const basis = await serializeMetadataWork(this.db, async () => {
+      await this.access.assert('database', id, actor, action);
+      return this.db.manager.findOneBy(Database, { id });
+    });
     const profile = await this.bi.profile(id, actor);
     if (!profile.supported)
       throw new BadRequestException('서버에 저장한 DuckDB 소스를 선택해 주세요.');
     const schema = profile.columns.map(c => ({ column: c.name, type: c.type }));
     const schemaRevision = createHash('sha256').update(JSON.stringify(schema)).digest('hex');
-    const entry = await this.db
-      .getRepository(SourceCatalogEntry)
-      .findOne({ where: { sourceId: id }, order: { version: 'DESC' } });
+    const entry = await serializeMetadataWork(this.db, async () => {
+      await this.access.assert('database', id, actor, action);
+      return this.db
+        .getRepository(SourceCatalogEntry)
+        .findOne({ where: { sourceId: id }, order: { version: 'DESC' } });
+    });
     const metadata = entry
       ? this.storedMetadata(entry)
       : {
@@ -124,15 +138,23 @@ export class SourceCatalogService {
         );
       }
     }
-    return { id, profile, schema, schemaRevision, entry, metadata };
+    return { id, profile, schema, schemaRevision, entry, metadata, basis };
   }
-  async read(body: unknown, actor: number) {
+  private async readGuard(id: number, context: CatalogActorContext) {
+    await serializeMetadataWork(this.db, async () => {
+      await assertCatalogActor(this.db.manager, context);
+      await this.access.assert('database', id, context.actorId, 'read');
+    });
+  }
+  async read(body: unknown, actor: number, authVersion?: number) {
     const input = this.fields(body, ['sourceId']);
+    const context = await catalogActorContext(this.db.manager, actor, authVersion);
     const { id, profile, schema, schemaRevision, entry, metadata } = await this.snapshot(
       input.sourceId,
       actor,
       'read',
     );
+    await this.readGuard(id, context);
     return {
       sourceId: id,
       sourceRevision: profile.dataVersion,
@@ -161,16 +183,20 @@ export class SourceCatalogService {
     await this.access.assert('database', id, actor, 'read');
     return id;
   }
-  async history(body: unknown, actor: number) {
+  async history(body: unknown, actor: number, authVersion?: number) {
     const input = this.fields(body, ['sourceId', 'beforeVersion']);
     const before =
       input.beforeVersion === undefined ? undefined : this.version(input.beforeVersion);
+    const context = await catalogActorContext(this.db.manager, actor, authVersion);
     const sourceId = await this.historySource(input.sourceId, actor);
-    const rows = await this.db.getRepository(SourceCatalogEntry).find({
-      where: { sourceId, ...(before === undefined ? {} : { version: LessThan(before) }) },
-      order: { version: 'DESC' },
-      take: 21,
-    });
+    const rows = await serializeMetadataWork(this.db, () =>
+      this.db.getRepository(SourceCatalogEntry).find({
+        where: { sourceId, ...(before === undefined ? {} : { version: LessThan(before) }) },
+        order: { version: 'DESC' },
+        take: 21,
+      }),
+    );
+    await this.readGuard(sourceId, context);
     const page = rows.slice(0, 20);
     return {
       sourceId,
@@ -222,21 +248,39 @@ export class SourceCatalogService {
           oldColumns.get(column)?.[field] ?? null,
           newColumns.get(column)?.[field] ?? null,
         );
+      const describeRef = (value?: ColumnMetadata) =>
+        value?.classificationRef
+          ? JSON.stringify({
+              organizationId: value.classificationRef.organizationId,
+              id: value.classificationRef.id,
+              version: value.classificationRef.version,
+            })
+          : null;
+      add(
+        column,
+        'classificationRef',
+        describeRef(oldColumns.get(column)),
+        describeRef(newColumns.get(column)),
+      );
     }
     return changes;
   }
-  async compare(body: unknown, actor: number) {
+  async compare(body: unknown, actor: number, authVersion?: number) {
     const input = this.fields(body, ['sourceId', 'fromVersion', 'toVersion']);
     const fromVersion = this.version(input.fromVersion),
       toVersion = this.version(input.toVersion);
     if (fromVersion >= toVersion)
       throw new BadRequestException('이전 버전과 이후 버전을 순서대로 선택해 주세요.');
+    const context = await catalogActorContext(this.db.manager, actor, authVersion);
     const sourceId = await this.historySource(input.sourceId, actor);
     const repo = this.db.getRepository(SourceCatalogEntry);
-    const [before, after] = await Promise.all([
-      repo.findOneBy({ sourceId, version: fromVersion }),
-      repo.findOneBy({ sourceId, version: toVersion }),
-    ]);
+    const [before, after] = await serializeMetadataWork(this.db, () =>
+      Promise.all([
+        repo.findOneBy({ sourceId, version: fromVersion }),
+        repo.findOneBy({ sourceId, version: toVersion }),
+      ]),
+    );
+    await this.readGuard(sourceId, context);
     if (!before || !after) throw new NotFoundException('선택한 저장 버전이 없습니다.');
     const left = this.storedMetadata(before),
       right = this.storedMetadata(after);
@@ -250,7 +294,7 @@ export class SourceCatalogService {
       changes,
     };
   }
-  private async prepare(body: unknown, actor: number) {
+  private async prepare(body: unknown, actor: number, authVersion?: number) {
     const input = this.fields(body, [
       'sourceId',
       'sourceRevision',
@@ -259,6 +303,7 @@ export class SourceCatalogService {
       'description',
       'columns',
     ]);
+    const context = await catalogActorContext(this.db.manager, actor, authVersion);
     const {
       id,
       profile,
@@ -266,6 +311,7 @@ export class SourceCatalogService {
       schemaRevision,
       entry,
       metadata: previousMetadata,
+      basis,
     } = await this.snapshot(input.sourceId, actor, 'edit');
     if (!Number.isSafeInteger(input.version) || input.version < 0 || input.version >= 2147483647)
       throw new BadRequestException('업무 설명 버전을 확인해 주세요.');
@@ -285,7 +331,7 @@ export class SourceCatalogService {
       throw new BadRequestException('실제 열 목록과 일치해야 합니다.');
     const names = new Set<string>(),
       labels = new Set<string>();
-    const columns: ColumnMetadata[] = input.columns.map(value => {
+    const proposed: ColumnMetadata[] = input.columns.map(value => {
       const c = this.fields(value, [
         'column',
         'label',
@@ -294,6 +340,7 @@ export class SourceCatalogService {
         'businessType',
         'dateFormat',
         'classification',
+        'classificationRef',
       ]);
       if (!schema.some(s => s.column === c.column) || names.has(c.column))
         throw new BadRequestException('열 이름은 실제 열과 일치해야 합니다.');
@@ -314,11 +361,44 @@ export class SourceCatalogService {
       labels.add(key);
       return result;
     });
+    const { columns, bindings } = await serializeMetadataWork(this.db, async () => {
+      await assertCatalogActor(this.db.manager, context);
+      return resolveCatalogBindings(this.db.manager, context, proposed, previousMetadata.columns);
+    });
     const metadata = JSON.stringify({ label, description, columns });
     if (Buffer.byteLength(metadata, 'utf8') > 60000)
       throw new BadRequestException('업무 설명 전체 크기는 60KB 이하여야 합니다.');
     const dates = columns.filter(c => c.businessType === 'date' && c.dateFormat !== 'native');
-    if (dates.length) await this.bi.validateBusinessDates(id, actor, profile.dataVersion, dates);
+    let dateError: unknown;
+    try {
+      if (dates.length) await this.bi.validateBusinessDates(id, actor, profile.dataVersion, dates);
+    } catch (error) {
+      dateError = error;
+    }
+    // Source SQL stays outside metadata leases; stale authority wins over date diagnostics.
+    await serializeMetadataWork(this.db, async () => {
+      await assertCatalogActor(this.db.manager, context);
+      await this.access.assert('database', id, actor, 'edit');
+    });
+    const latestProfile = await this.bi.profile(id, actor);
+    await serializeMetadataWork(this.db, async () => {
+      await assertCatalogActor(this.db.manager, context);
+      await this.access.assert('database', id, actor, 'edit');
+      const currentSource = await this.db.manager.findOneBy(Database, { id });
+      const latestEntry = await this.db.manager.findOne(SourceCatalogEntry, {
+        where: { sourceId: id },
+        order: { version: 'DESC' },
+      });
+      if (
+        !latestProfile.supported ||
+        latestProfile.dataVersion !== profile.dataVersion ||
+        JSON.stringify(basis) !== JSON.stringify(currentSource) ||
+        (latestEntry?.version ?? 0) !== input.version
+      )
+        throw new ConflictException('데이터 또는 업무 설명이 변경됐습니다. 다시 확인해 주세요.');
+      await assertCatalogBindings(this.db.manager, context, bindings);
+    });
+    if (dateError) throw dateError;
     return {
       id,
       profile,
@@ -331,10 +411,13 @@ export class SourceCatalogService {
       metadata,
       version: input.version,
       previousMetadata,
+      context,
+      bindings,
+      basis,
     };
   }
-  async preview(body: unknown, actor: number) {
-    const prepared = await this.prepare(body, actor);
+  async preview(body: unknown, actor: number, authVersion?: number) {
+    const prepared = await this.prepare(body, actor, authVersion);
     const { id, profile, columns, label, description, version, previousMetadata } = prepared;
     return {
       draft: {
@@ -348,21 +431,37 @@ export class SourceCatalogService {
       changes: this.changes(previousMetadata, { label, description, columns }),
     };
   }
-  async save(body: unknown, actor: number) {
-    const { id, profile, schema, schemaRevision, columns, label, description, metadata, version } =
-      await this.prepare(body, actor);
+  async save(body: unknown, actor: number, authVersion?: number) {
+    const {
+      id,
+      profile,
+      schema,
+      schemaRevision,
+      columns,
+      label,
+      description,
+      metadata,
+      version,
+      context,
+      bindings,
+      basis,
+    } = await this.prepare(body, actor, authVersion);
     // Profile/schema validation can query the source; finish it before acquiring metadata locks.
-    const basis = await this.db.getRepository(Database).findOne({ where: { id } });
-    const latest = await this.bi.profile(id, actor);
-    if (!latest.supported || latest.dataVersion !== profile.dataVersion)
-      throw new ConflictException('저장 중 데이터가 변경됐습니다. 최신 내용을 다시 확인해 주세요.');
-    await metadataTransaction(this.db, async manager => {
+    await sourceWriteTransaction(this.db, async manager => {
+      await assertCatalogActor(manager, context, true);
       const sources = await lockMetricSources(manager, [id]);
       if (JSON.stringify(sources.get(id)) !== JSON.stringify(basis))
         throw new ConflictException(
           '저장 중 데이터가 변경됐습니다. 최신 내용을 다시 확인해 주세요.',
         );
       await this.access.assert('database', id, actor, 'edit', manager);
+      const latest = await manager.findOne(SourceCatalogEntry, {
+        where: { sourceId: id },
+        order: { version: 'DESC' },
+      });
+      if ((latest?.version ?? 0) !== version)
+        throw new ConflictException('다른 창에서 먼저 저장했습니다. 다시 확인해 주세요.');
+      await assertCatalogBindings(manager, context, bindings, true);
       // The immutable file revision above pins prepare()'s date validation result. Recheck
       // authority/version here without repeating a full scan while holding the SQLite write queue.
       try {

@@ -1,4 +1,6 @@
 import { Database } from '../database/entities/database.entity';
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 jest.mock('./bi.service', () => ({ BiService: class {} }));
 import { DataSource } from 'typeorm';
 import { ForbiddenException } from '@nestjs/common';
@@ -34,7 +36,7 @@ describe('UC050 owned source business metadata', () => {
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: [SourceCatalogEntry, Database],
+      entities: [SourceCatalogEntry, Database, User, EnterpriseMembership],
       synchronize: false,
     }).initialize();
     const runner = db.createQueryRunner();
@@ -42,6 +44,14 @@ describe('UC050 owned source business metadata', () => {
     await new AddSourceCatalog1792300000000().up(runner);
     await runner.release();
     await db.synchronize();
+    await db.manager.save(User, {
+      id: 7,
+      userId: 'catalog-owner',
+      email: 'catalog-owner@example.invalid',
+      password: 'fixture',
+      active: true,
+      authVersion: 0,
+    });
     await db.manager.save(Database, {
       id: 3,
       name: 'Orders',

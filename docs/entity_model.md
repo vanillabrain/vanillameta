@@ -282,3 +282,18 @@ Dashboard.assetActive(boolean defaulttrue), assetVersion(integer default0)는 �
 ### Applied Explore condition and measure basis (UC052/054)
 
 [설계](plans/UC-052-explore-basis.md)의 적용 조건은 기존 PersonalView/ExploreView state JSON에 선택적으로 보관하는 StudioConditions(sourceRevision, definition, optional semantics)다. semantics가 없으면 legacy native이며 최신 catalog를 자동 상속하지 않는다. 별도 테이블·조건 metadata 저장/동기화는 없다. 기존 version1~5 보기와 조건 없는 상태를 유지하고 복구 시 현재 파일/schema를 검증한다. 조회의 measureVersions는 실제 사용한 지표 정의 version 집합이며 출력의 expectedMeasureVersions와 대조한다. sourceRevision과 지표 버전·source 조건 metadata version은 서로 대체하지 않는다.
+
+## UC050 조직 공통 분류 물리 모델
+
+추가 migration `1792580000000-add-enterprise-classifications`는 `enterprise_classification`과 `enterprise_classification_request`를 만든다. [계획](plans/UC-050-classifications.md)·[선택 증빙](testing/organization-classifications.md)을 따른다.
+
+| Entity                            | Key / fields                                                                                         | Constraints                                                         |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| enterprise_classification         | id integer PK·organizationId integer·name varchar80·nameKey varchar64·active boolean·version integer | 조직/nameKey unique·양의32비트 CAS·비활성 이름 예약·물리 삭제 없음  |
+| enterprise_classification_request | actorId/requestId 복합 PK·organizationId integer·payloadHash varchar64·result text                   | UUID/canonical 본문/조직에 묶인 최초 생성 snapshot·감사와 원자 저장 |
+
+name은 NFKC/trim 후 UTF-16 길이1~80이며 nameKey는 lowercase UTF8 SHA256 hex64다. 생성 영수증 result는 actorId/organizationId/entry의 허용 shape만 저장·검증하고 최초 active=true/version=1을 반환한다. 이후 이름/활성이 바뀌어도 과거 결과이며 현재 상태·접근/새 연결 허용의 증거가 아니다. `enterprise_audit_event`에는 classification.created/changed의 actor/자원/version을 남긴다. source 권한이나 역방향 source 잠금은 추가하지 않는다.
+
+`source_catalog_entry.metadata.columns`의 선택적 `classificationRef`는 `{organizationId,id,version} | null`이다. null은 명시 해제이며 저장/preview draft/조회/이력에서 키를 없애지 않는다. ref는 역사적 이름과 함께 append-only JSON에 남고 사전 rename/비활성/소속 이동으로 자동 갱신하지 않는다. 현재 bound ref 생략은 연결/이름 보존, ref 없는 legacy/해제된 열의 생략은 제공한 자유 문자열 편집 허용이다. 명시 해제는 기존 이름을 유지하며 후속 별도 편집에서 이름을 바꾼다. 신규/변경/최신 채택만 현재 조직·활성·정확 버전과 source edit를 검증한다. ConditionSemantics에는 이 ref를 넣지 않는다.
+
+분류 생성의 reload 복구는 DB entity가 아닌 탭 `classificationCreate` 최소 요청이다. 현재 로그인 세대/actor/조직 scope·24시간/8KiB이며 자동 POST 없이 현재 목록/권한 확인 후 명시 재확인한다. 기본 생성 유실/reload/동일 요청은 ui-second1 PASS로 확인했다. FE helper read/delete 실패 처리는 수정 후 FE8 suites/102 PASS·types/lint/build를 확인했다. core-final15 PASS/51.0초 뒤 FE receipt/pagination을 보강해 영향13 PASS·types/lint/build와 수정 후 ui-stable2 PASS/13.4초·Jason 최종 APPROVE0를 확인했다. 이전102와13은 중복 합산하지 않는다. 이후 Main의 최종6개 화면 열람에서768/1440 입력 상단 약7px 정렬 차이가 발견되어 UI Kit을 유지한 TextField select 수정과 행 top 차이≤1px 검증/UI2 재실행은 대기다. 과거 영수증은 페이지 밖 entry를 현재 목록에 삽입하지 않으며 현재 이름/활성은 명시 load-more 조회로 확인한다. Ego96 제어권 인수·물리 휴대폰·운영·사람 수용은 미실행이다.

@@ -5,10 +5,43 @@ export const DATE_FORMATS = {
   'YYYY/MM/DD': '%Y/%m/%d',
   YYYYMMDD: '%Y%m%d',
 } as const;
+export type ClassificationRef = { organizationId: number; id: number; version: number };
+
+/** History validation only: never resolve a saved reference against today's registry. */
+export function classificationRef(value: unknown): ClassificationRef | null {
+  if (value === null) return null;
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Reflect.ownKeys(value).length !== 3 ||
+    Reflect.ownKeys(value).some(
+      key => typeof key !== 'string' || !['organizationId', 'id', 'version'].includes(key),
+    ) ||
+    ['organizationId', 'id', 'version'].some(key => {
+      const field = Object.getOwnPropertyDescriptor(value, key);
+      return (
+        !field ||
+        !('value' in field) ||
+        !Number.isSafeInteger(field.value) ||
+        field.value <= 0 ||
+        field.value > 2147483647
+      );
+    })
+  )
+    throw new BadRequestException('분류 연결 기준을 확인해 주세요.');
+  const ref = value as ClassificationRef;
+  return { organizationId: ref.organizationId, id: ref.id, version: ref.version };
+}
+
+export const sameClassificationRef = (a?: ClassificationRef | null, b?: ClassificationRef | null) =>
+  a?.organizationId === b?.organizationId && a?.id === b?.id && a?.version === b?.version;
+
 export type BusinessVariable = {
   businessType: 'auto' | 'number' | 'category' | 'date';
   dateFormat: '' | 'native' | keyof typeof DATE_FORMATS;
   classification: string;
+  classificationRef?: ClassificationRef | null;
 };
 export const numericType = (type: string) =>
   /^(U?(BIGINT|INTEGER|SMALLINT|TINYINT)|HUGEINT|UHUGEINT|FLOAT|DOUBLE|DECIMAL)(\b|\()/i.test(type);
@@ -22,6 +55,14 @@ export function businessVariable(
   previous?: BusinessVariable,
   physicalType?: string,
 ): BusinessVariable {
+  const previousRef =
+    previous?.classificationRef === undefined
+      ? undefined
+      : classificationRef(previous.classificationRef);
+  const ref =
+    input.classificationRef === undefined
+      ? previousRef
+      : classificationRef(input.classificationRef);
   const value = {
     businessType:
       input.businessType === undefined ? previous?.businessType ?? 'auto' : input.businessType,
@@ -40,6 +81,12 @@ export function businessVariable(
   value.classification = value.classification.normalize('NFKC').trim();
   if (value.classification.length > 80 || /[\u0000-\u001f\u007f]/.test(value.classification))
     throw new BadRequestException('분류는 제어 문자 없이 80자 이하여야 합니다.');
+  if (
+    previousRef &&
+    (ref === null || sameClassificationRef(ref, previousRef)) &&
+    value.classification !== previous.classification
+  )
+    throw new BadRequestException('연결된 분류 이름은 선택한 기준으로 유지해야 합니다.');
   if ((value.businessType === 'date') !== (value.dateFormat !== ''))
     throw new BadRequestException(
       '날짜 유형에는 날짜 형식이 필요합니다. 다른 유형의 날짜 형식은 비워 주세요.',
@@ -62,5 +109,5 @@ export function businessVariable(
     if (!compatible)
       throw new BadRequestException('업무 유형·날짜 형식이 원본 열 유형과 맞지 않습니다.');
   }
-  return value as BusinessVariable;
+  return { ...value, ...(ref === undefined ? {} : { classificationRef: ref }) } as BusinessVariable;
 }

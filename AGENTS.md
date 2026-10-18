@@ -2,7 +2,9 @@
 
 ## 세션 시작 핵심 지침
 
-- **UC050 조건 업무 의미:** [계획](docs/plans/UC-050-condition-semantics.md)·[증빙](docs/testing/business-condition-semantics.md)은 파일/metadata/catalog 버전을 구별한 고정 의미와 legacy native 보존·명시 최신 채택을 연결한다. Source49/MySQL2·FE802·Source UI1은 범위별 증빙이며 합산하지 않는다. 실 Codex 단일 조건 UI1개14.5초·core headless14개49.4초 PASS다. Explore oracle8 PASS/22 SKIP는 별도다. BE26 suites/884 unique는 단계별 검증·두 reviewer APPROVE0이며 안정 BE type/lint/build·최종 dist ui-stable1개11.9초 PASS다(이전 UI와 합산0). core-stable 실행 결과·복합 부정 의도 제한, 공통 분류·새 semantic 지표/차원 생성·실제 Ego/휴대폰/운영/사람·전체16개 수용은 대기다.
+- **UC050 조직 공통 분류:** [계획](docs/plans/UC-050-classifications.md)·[증빙](docs/testing/organization-classifications.md)은 조직 사전과 source edit를 구별하고 역사 ref/명시 null·과거 영수증/현재 목록을 보존한다. 생성 미확정 요청은24h/8KiB 탭 복구 후 명시 확인만 한다. BE293·실제 MySQL15·core15와 후속 UI2, 390/768/1440 및 필드 top 차이0px를 확인했다. 중복 배치는 합산하지 않는다. 새 semantic 생성·Ego/실기기/운영/사람·전체16개 수용은 열림이다.
+
+- **UC050 조건 업무 의미:** [계획](docs/plans/UC-050-condition-semantics.md)·[증빙](docs/testing/business-condition-semantics.md)은 파일/metadata/catalog 버전을 구별한 고정 의미와 legacy native 보존·명시 최신 채택을 연결한다. Source49/MySQL2·FE802·Source UI1은 범위별 증빙이며 합산하지 않는다. 실 Codex 단일 조건 UI1개14.5초·core headless14개49.4초 PASS다. Explore oracle8 PASS/22 SKIP는 별도다. BE26 suites/884 unique는 단계별 검증·두 reviewer APPROVE0이며 안정 BE type/lint/build·최종 dist ui-stable1개11.9초 PASS다(이전 UI와 합산0). 조건 의미 단위 core-stable14 PASS/38.3초는 새 분류 검증으로 승계하지 않는다. 공통 분류는 별도 최신 증빙을 따른다. 복합 부정 의도 제한·새 semantic 지표/차원 생성·실제 Ego/휴대폰/운영/사람·전체16개 수용은 대기다.
 
 - **UC052/054 동일 조회·출력 기준:** [설계](docs/plans/UC-052-explore-basis.md)·[증빙](docs/testing/explore-reviewed-basis.md)은 검증 preview.analysisConditions의 파일 hash/definition을 명시 적용해 Explore/Pivot·보기 v1~v5·CSV로 연결한다. 편집 draft metadata revision을 실행 hash로 사용하지 않는다. 실제 응답 measureVersions로 출력하고 계산 전후 새 파일/지표·권한을 검사한다. 완료 영속 파일은 과거 기준이다. BE397/FE237·격리 headless2와390/768/1440을 확인했으며 Ego/실기기/이번MySQL/운영·전체16개 수용은 별도다.
 

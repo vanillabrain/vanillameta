@@ -1,7 +1,13 @@
-import { NativeSelect } from '@/components/ui/native-select';
-import { BusinessSemantics, businessTypeLabels, validBusinessSemantics, variableFields } from './businessVariable';
+import ClassificationPicker from './ClassificationPicker';
+import {
+  BusinessSemantics,
+  businessTypeLabels,
+  classificationRefKey,
+  validBusinessSemantics,
+  variableFields,
+} from './businessVariable';
 import SourceCatalogUsage from './SourceCatalogUsage';
-import SourceCatalogChanges, { CatalogChange } from './SourceCatalogChanges';
+import SourceCatalogChanges, { CatalogChange, validCatalogChanges } from './SourceCatalogChanges';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import SourceCatalogHistory from './SourceCatalogHistory';
@@ -37,6 +43,7 @@ const payload = (data: Catalog): Draft => ({
     ...(c.businessType === undefined ? {} : { businessType: c.businessType }),
     ...(c.dateFormat === undefined ? {} : { dateFormat: c.dateFormat }),
     ...(c.classification === undefined ? {} : { classification: c.classification }),
+    ...(c.classificationRef === undefined ? {} : { classificationRef: c.classificationRef }),
   })),
 });
 const validCatalog = (value: any) =>
@@ -66,6 +73,7 @@ export default function SourceCatalogEditor({ sourceId, canEdit = true, canInspe
 function Editor({ sourceId, canEdit = true, canInspectUsage = true }: AccessProps) {
   const panelId = useId();
   const live = useRef(true);
+  const savedCatalog = useRef<Catalog | null>(null);
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<Catalog | null>(null);
   const [baseline, setBaseline] = useState('');
@@ -95,6 +103,7 @@ function Editor({ sourceId, canEdit = true, canInspectUsage = true }: AccessProp
     try {
       const next = unwrap(await post('/bi/source-catalog/read', { sourceId }));
       if (!live.current) return;
+      savedCatalog.current = next;
       setData(next);
       setBaseline(JSON.stringify(next));
     } catch (failure) {
@@ -139,7 +148,7 @@ function Editor({ sourceId, canEdit = true, canInspectUsage = true }: AccessProp
       if (
         response?.data?.status !== 'SUCCESS' ||
         !validCatalog(next?.draft) ||
-        !Array.isArray(next.changes) ||
+        !validCatalogChanges(next.changes) ||
         next.draft.sourceId !== sourceId ||
         next.draft.version !== data.version ||
         next.draft.sourceRevision !== data.sourceRevision
@@ -154,12 +163,25 @@ function Editor({ sourceId, canEdit = true, canInspectUsage = true }: AccessProp
           return (
             !allowed.includes(change.field) ||
             !candidate ||
-            typeof change.after !== 'string' ||
-            candidate[change.field] !== change.after
+            (change.field === 'classificationRef'
+              ? classificationRefKey((candidate as BusinessSemantics).classificationRef) !==
+                classificationRefKey(change.after === null ? null : JSON.parse(change.after))
+              : typeof change.after !== 'string' || candidate[change.field] !== change.after)
           );
         })
       )
         throw new Error('inconsistent preview');
+      if (
+        data.columns.some(
+          c =>
+            c.classificationRef !== undefined &&
+            !Object.prototype.hasOwnProperty.call(
+              next.draft.columns.find(n => n.column === c.column) ?? {},
+              'classificationRef',
+            ),
+        )
+      )
+        throw new Error('missing classification reference');
       if (live.current) {
         setPreview(next);
         // A server-confirmed normalized no-op needs no save or input replacement.
@@ -188,6 +210,18 @@ function Editor({ sourceId, canEdit = true, canInspectUsage = true }: AccessProp
     try {
       const next = unwrap(await post('/bi/source-catalog/save', preview.draft));
       if (!live.current) return;
+      if (
+        preview.draft.columns.some(c => {
+          const saved = next.columns.find(n => n.column === c.column);
+          return (
+            !saved ||
+            classificationRefKey(saved.classificationRef) !== classificationRefKey(c.classificationRef) ||
+            (c.classificationRef !== undefined && saved.classification !== c.classification)
+          );
+        })
+      )
+        throw new Error('classification reference changed in save response');
+      savedCatalog.current = next;
       setData(next);
       setBaseline(JSON.stringify(next));
       setNotice('업무 설명을 저장했습니다.');
@@ -268,6 +302,9 @@ function Editor({ sourceId, canEdit = true, canInspectUsage = true }: AccessProp
               </div>
               <ul className="min-w-0 space-y-3">
                 {data.columns.map((column, index) => {
+                  const detachPending =
+                    column.classificationRef === null &&
+                    !!savedCatalog.current?.columns.find(c => c.column === column.column)?.classificationRef;
                   const update = (key: 'label' | 'description' | 'unit', value: string) =>
                     change({ ...data, columns: data.columns.map((c, i) => (i === index ? { ...c, [key]: value } : c)) });
                   return (
@@ -298,68 +335,63 @@ function Editor({ sourceId, canEdit = true, canInspectUsage = true }: AccessProp
                       <details className="mt-3 min-w-0">
                         <summary className="cursor-pointer text-sm font-medium">업무 유형·날짜·분류 설정</summary>
                         <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
-                          <label className="min-w-0 space-y-1 text-sm">
-                            <span>{column.column} 업무 유형</span>
-                            <NativeSelect
-                              className="w-full"
-                              aria-label={`${column.column} 업무 유형`}
-                              value={column.businessType ?? 'auto'}
-                              onChange={e => {
-                                const kind = e.target.value as BusinessSemantics['businessType'];
-                                change({
-                                  ...data,
-                                  columns: data.columns.map((c, i) =>
-                                    i === index
-                                      ? {
-                                          ...c,
-                                          businessType: kind,
-                                          dateFormat:
-                                            kind === 'date'
-                                              ? /^(DATE|TIMESTAMP)/i.test(c.type)
-                                                ? 'native'
-                                                : 'YYYY-MM-DD'
-                                              : '',
-                                        }
-                                      : c,
-                                  ),
-                                });
-                              }}
-                            >
-                              {Object.entries(businessTypeLabels).map(([value, label]) => (
-                                <option key={value} value={value}>
-                                  {label}
-                                </option>
-                              ))}
-                            </NativeSelect>
-                          </label>
-                          <label className="min-w-0 space-y-1 text-sm">
-                            <span>{column.column} 날짜 형식</span>
-                            <NativeSelect
-                              className="w-full"
-                              aria-label={`${column.column} 날짜 형식`}
-                              value={column.dateFormat ?? ''}
-                              disabled={column.businessType !== 'date'}
-                              onChange={e =>
-                                change({
-                                  ...data,
-                                  columns: data.columns.map((c, i) =>
-                                    i === index
-                                      ? { ...c, dateFormat: e.target.value as BusinessSemantics['dateFormat'] }
-                                      : c,
-                                  ),
-                                })
-                              }
-                            >
-                              <option value="">해당 없음</option>
-                              <option value="native">원본 날짜·시간</option>
-                              {['YYYY-MM-DD', 'YYYY/MM/DD', 'YYYYMMDD'].map(format => (
-                                <option key={format} value={format}>
-                                  {format}
-                                </option>
-                              ))}
-                            </NativeSelect>
-                          </label>
                           <TextField
+                            select
+                            label={`${column.column} 업무 유형`}
+                            aria-label={`${column.column} 업무 유형`}
+                            value={column.businessType ?? 'auto'}
+                            onChange={e => {
+                              const kind = e.target.value as BusinessSemantics['businessType'];
+                              change({
+                                ...data,
+                                columns: data.columns.map((c, i) =>
+                                  i === index
+                                    ? {
+                                        ...c,
+                                        businessType: kind,
+                                        dateFormat:
+                                          kind === 'date'
+                                            ? /^(DATE|TIMESTAMP)/i.test(c.type)
+                                              ? 'native'
+                                              : 'YYYY-MM-DD'
+                                            : '',
+                                      }
+                                    : c,
+                                ),
+                              });
+                            }}
+                          >
+                            {Object.entries(businessTypeLabels).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </TextField>
+                          <TextField
+                            select
+                            label={`${column.column} 날짜 형식`}
+                            aria-label={`${column.column} 날짜 형식`}
+                            value={column.dateFormat ?? ''}
+                            disabled={column.businessType !== 'date'}
+                            onChange={e =>
+                              change({
+                                ...data,
+                                columns: data.columns.map((c, i) =>
+                                  i === index ? { ...c, dateFormat: e.target.value as BusinessSemantics['dateFormat'] } : c,
+                                ),
+                              })
+                            }
+                          >
+                            <option value="">해당 없음</option>
+                            <option value="native">원본 날짜·시간</option>
+                            {['YYYY-MM-DD', 'YYYY/MM/DD', 'YYYYMMDD'].map(format => (
+                              <option key={format} value={format}>
+                                {format}
+                              </option>
+                            ))}
+                          </TextField>
+                          <TextField
+                            readOnly={!!column.classificationRef || detachPending}
                             label={`${column.column} 업무 분류`}
                             maxLength={80}
                             value={column.classification ?? ''}
@@ -373,6 +405,25 @@ function Editor({ sourceId, canEdit = true, canInspectUsage = true }: AccessProp
                             }
                           />
                         </div>
+                        <ClassificationPicker
+                          column={column.column}
+                          reference={column.classificationRef}
+                          detachPending={detachPending}
+                          onSelect={(name, ref) =>
+                            change({
+                              ...data,
+                              columns: data.columns.map((c, i) =>
+                                i === index ? { ...c, classification: name, classificationRef: ref } : c,
+                              ),
+                            })
+                          }
+                          onDetach={() =>
+                            change({
+                              ...data,
+                              columns: data.columns.map((c, i) => (i === index ? { ...c, classificationRef: null } : c)),
+                            })
+                          }
+                        />
                         <p className="mt-2 text-xs text-muted-foreground">
                           문자열 날짜는 전체 값의 형식을 확인합니다. 기존 계산식과 원본 데이터는 바꾸지 않습니다.
                         </p>

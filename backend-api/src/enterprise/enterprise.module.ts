@@ -1,3 +1,9 @@
+import { EnterpriseClassificationService } from './classification.service';
+import { EnterpriseClassificationController } from './classification.controller';
+import {
+  EnterpriseClassification,
+  EnterpriseClassificationRequest,
+} from './entities/enterprise-classification.entity';
 import { DashboardLifecycleService } from './dashboard-lifecycle.service';
 import { DashboardLifecycleController } from './dashboard-lifecycle.controller';
 import { DashboardLifecycleReceipt } from './entities/dashboard-lifecycle-receipt.entity';
@@ -23,6 +29,8 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      EnterpriseClassification,
+      EnterpriseClassificationRequest,
       DashboardLifecycleReceipt,
       EnterpriseEnrollment,
       EnterpriseOrganization,
@@ -31,6 +39,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     ]),
   ],
   controllers: [
+    EnterpriseClassificationController,
     DashboardLifecycleController,
     EnterpriseGroupController,
     EnterpriseController,
@@ -39,6 +48,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     EnterpriseDeliveryController,
   ],
   providers: [
+    EnterpriseClassificationService,
     DashboardLifecycleService,
     EnterpriseGroupService,
     EnterpriseDeliveryService,

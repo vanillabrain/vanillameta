@@ -132,3 +132,46 @@ it('resets the history on a saved-version change while an old comparison is pend
   await waitFor(() => expect(screen.queryByText('stale result')).toBeNull());
   expect(screen.getByRole('button', { name: '저장 이력·버전 비교' }).getAttribute('aria-expanded')).toBe('false');
 });
+
+it('renders frozen ref-only and detach history as human provenance without consulting the current registry', async () => {
+  render(<SourceCatalogHistory sourceId={3} savedVersion={2} />);
+  open();
+  await screen.findByLabelText('이전 설명 버전');
+  vi.mocked(post).mockResolvedValueOnce(
+    response({
+      sourceId: 3,
+      fromVersion: 1,
+      toVersion: 2,
+      schemaChanged: false,
+      dataChanged: false,
+      changes: [
+        {
+          column: 'amount',
+          field: 'classificationRef',
+          before: JSON.stringify({ organizationId: 99, id: 4, version: 1 }),
+          after: null,
+        },
+      ],
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '선택한 버전 비교' }));
+  await screen.findByText('amount · 공통 분류 연결');
+  expect(screen.getByText('조직 99 · 분류 4 · 버전 1')).toBeTruthy();
+  expect(screen.getByText('연결 없음')).toBeTruthy();
+  expect(vi.mocked(post).mock.calls).toHaveLength(2);
+});
+it('rejects malformed ref history explicitly instead of dropping the reference or crashing render', async () => {
+  render(<SourceCatalogHistory sourceId={3} savedVersion={2} />);
+  open();
+  await screen.findByLabelText('이전 설명 버전');
+  vi.mocked(post).mockResolvedValueOnce(
+    response({
+      sourceId: 3,
+      fromVersion: 1,
+      toVersion: 2,
+      changes: [{ column: 'amount', field: 'classificationRef', before: null, after: 'organizationId=7; id=4; version=1' }],
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '선택한 버전 비교' }));
+  await screen.findByText(/버전 비교에 실패/);
+});

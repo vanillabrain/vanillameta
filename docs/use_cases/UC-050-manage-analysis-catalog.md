@@ -13,7 +13,7 @@
 ## Preconditions
 
 - 요청자가 같은 조직의 유효한 업무 계정이며 대상의 현재 권한을 확인할 수 있다.
-- 전체 목표의 조직 관리자 권한·승인/분류·영향 확인은 미완료다. 소유 소스 업무 설명의 첫 구현 범위는 아래 Implementation Slice를 따른다.
+- 전체 목표의 공식 승인·전체 영향 확인·업무 수용은 미완료다. 조직 분류 사전의 관리자 권한과 소스 edit는 분리하며, 첫 구현과 후속 단위의 범위는 아래를 따른다.
 
 ## Main Success Scenario
 
@@ -103,4 +103,10 @@
 
 ### Condition Execution Semantics Follow-up
 
-업무 날짜·수치/범주 의미는 [고정 기준 계획](../plans/UC-050-condition-semantics.md)·[선택 증빙](../testing/business-condition-semantics.md)에 따라 명시 조건 wrapper로 실행한다. legacy native/과거 semantic 기준은 최신 카탈로그 편집으로 바꾸지 않는다. 최신 의미는 명시 채택·재검토·미리보기/저장하며 잘못된 전체 날짜/이력은 거절한다. nullable SourceConditionEntry 이력과 실제 파일 기준을 구별한다. 실 Codex 단일 조건 제안→V3 검토/명시 적용/저장/reload는1 PASS다. 복합 부정 의도 제한·조직 공통 분류 재사용·새 semantic 지표/차원 생성·안정 dist core 최종 검증·실제 Ego/휴대폰/운영·사람 및 전체 FR015 수용은 열린다.
+업무 날짜·수치/범주 의미는 [고정 기준 계획](../plans/UC-050-condition-semantics.md)·[선택 증빙](../testing/business-condition-semantics.md)에 따라 명시 조건 wrapper로 실행한다. legacy native/과거 semantic 기준은 최신 카탈로그 편집으로 바꾸지 않는다. 최신 의미는 명시 채택·재검토·미리보기/저장하며 잘못된 전체 날짜/이력은 거절한다. nullable SourceConditionEntry 이력과 실제 파일 기준을 구별한다. 실 Codex 단일 조건 제안→V3 검토/명시 적용/저장/reload는1 PASS다. 이 조건 의미 단위의 안정 dist core-stable14 PASS/38.3초는 [동일 증빙](../testing/business-condition-semantics.md)에 기록했다. 새 분류의 실제 UI/통합 검증으로 승계하지 않는다. 복합 부정 의도 제한·새 semantic 지표/차원 생성·실제 Ego/휴대폰/운영·사람 및 전체 FR015 수용은 열린다.
+
+### Organization Classification Follow-up
+
+[조직 공통 분류 계획](../plans/UC-050-classifications.md)·[선택 증빙](../testing/organization-classifications.md)은 활성 구성원의 현재 조직 사전 조회와 admin 생성/이름·활성 CAS, 별도 source edit가 필요한 명시 열 연결을 다룬다. 같은 ID를 두 소스가 재사용하고 사전 rename 뒤 과거 이름/ref를 유지하며, 명시 최신 채택만 새 catalog 이력으로 저장한다. 기존 bound ref 생략은 이름까지 보존하지만 ref 없는 legacy/해제된 열은 생략 시 자유 문자열 편집이 가능하다. 명시 null 해제는 기존 이름과 null 키를 저장/preview에 남긴다. 생성 영수증은 과거 snapshot이며 현재 상태 증명이 아니다.
+
+registry47·read/JWT 보강 후 catalog135·read-guard 후 최종 MySQL15·실제 ui-second1 PASS/9.7초는 개별 증거다. catalog types/lint/격리 build·Bernoulli APPROVE0를 확인했고 Main은 Source/조직390/768/1440 overflow0·controls36px·900px 미만 입력16px/desktop14px를 열람했다. BE 최종10 suites/293 PASS는 registry47/catalog135/condition regression111을 포함하며 다시 더하지 않는다. global BE types/lint/build와 FE helper read/delete 수정 후8 suites/102 PASS·types/lint/build를 확인했다. read-guard 후 MySQL 최종15 PASS/8.924초는 현재8개 source hash 실행 중 불변·owned CLEANUP PASS이며 이전15를 더하지 않는다. core-final15 PASS/51.0초 뒤 마지막 FE receipt/pagination finding을 수정했다. 영향 Classifications13 PASS·types/lint/build는 기존102와 겹치며 새3개를 포함하므로102+13으로 합산하지 않는다. 수정 후 실제 ui-stable2 PASS/13.4초는 확장 전체 흐름과 페이지 밖 역사 영수증/현재 목록 분리를 확인했다. Jason 최종 FE·Bernoulli BE는 모두 APPROVE0다. Main이 최종6개 controls capture를 열람해768/1440에서 업무 유형/날짜 custom label+NativeSelect와 분류 TextField 입력 상단이 약7px 어긋나는 문제를 확인했다. Tesla가 기존 UI Kit을 유지하며 동일 TextField select로 맞추는 수정과 세 입력행 top 차이≤1px assertion을 포함한 실제 UI2 재실행이 대기다. 이전 UI2 PASS는 시각 수정 전 결과이며 최종 정렬 PASS로 승계하지 않는다. Ego96 제어권 인수·물리 휴대폰·운영·사람 수용은 미실행이다. 생성 reload는 로그인 세대/actor/조직에 묶인24시간/8KiB 최소 요청의 명시 확인이며 자동 POST하지 않는다. 이 단위는 SQL/조건 의미·소스 권한을 바꾸지 않으며 새 semantic 지표/차원 생성과 전체 FR015/16개 요건 수용은 계속 열린다.

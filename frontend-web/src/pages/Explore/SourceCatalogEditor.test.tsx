@@ -2,8 +2,8 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SourceCatalogEditor from './SourceCatalogEditor';
-import { post } from '@/helpers/apiHelper';
-vi.mock('@/helpers/apiHelper', () => ({ post: vi.fn() }));
+import { post, get } from '@/helpers/apiHelper';
+vi.mock('@/helpers/apiHelper', () => ({ post: vi.fn(), get: vi.fn() }));
 afterEach(cleanup);
 const data = () => ({
   sourceId: 3,
@@ -373,4 +373,96 @@ it('explains invalid and blank date counts while keeping the proposal and raw va
   expect(screen.queryByText(/foreign/)).toBeNull();
   expect((screen.getByLabelText('amount 업무 유형') as HTMLSelectElement).value).toBe('date');
   expect((screen.getByRole('button', { name: '확인한 변경 저장' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+const ref = { organizationId: 7, id: 4, version: 1 };
+it('keeps frozen bound labels/refs without registry reads and accepts a same-name ref-only preview change', async () => {
+  const input = { ...data(), columns: [{ ...data().columns[0], classification: '매출', classificationRef: ref }] };
+  vi.mocked(post).mockResolvedValueOnce(response(input));
+  render(<SourceCatalogEditor sourceId={3} />);
+  await open();
+  expect((screen.getByLabelText('amount 업무 분류') as HTMLInputElement).readOnly).toBe(true);
+  expect(get).not.toHaveBeenCalled();
+  vi.mocked(get).mockResolvedValue({
+    data: {
+      actorId: 1,
+      organizationId: 7,
+      canManage: false,
+      entries: [{ id: 4, name: '매출', active: true, version: 2 }],
+      nextAfterId: null,
+    },
+  } as any);
+  fireEvent.click(screen.getByRole('button', { name: '공통 분류 불러오기' }));
+  await screen.findByLabelText('amount 공통 분류');
+  fireEvent.change(screen.getByLabelText('amount 공통 분류'), { target: { value: '4' } });
+  await waitFor(() => expect(screen.getByText(/분류 4 · 버전 2/)).toBeTruthy());
+  const request = {
+    ...draft('주문'),
+    columns: [{ ...draft('주문').columns[0], classification: '매출', classificationRef: { ...ref, version: 2 } }],
+  };
+  vi.mocked(post).mockResolvedValueOnce(
+    response({
+      draft: request,
+      changes: [
+        {
+          column: 'amount',
+          field: 'classificationRef',
+          before: JSON.stringify(ref),
+          after: JSON.stringify({ ...ref, version: 2 }),
+        },
+      ],
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 미리보기' }));
+  await screen.findByText('amount · 공통 분류 연결');
+  expect(post).toHaveBeenLastCalledWith('/bi/source-catalog/preview', request);
+  expect(screen.getByText('조직 7 · 분류 4 · 버전 2')).toBeTruthy();
+});
+it('preserves explicit null detach through preview/save then permits free-label editing after saved null', async () => {
+  const input = { ...data(), columns: [{ ...data().columns[0], classification: '기존 이름', classificationRef: ref }] };
+  vi.mocked(post).mockResolvedValueOnce(response(input));
+  render(<SourceCatalogEditor sourceId={3} />);
+  await open();
+  fireEvent.click(screen.getByRole('button', { name: '공통 분류 연결 해제' }));
+  expect((screen.getByLabelText('amount 업무 분류') as HTMLInputElement).readOnly).toBe(true);
+  const request = {
+    ...draft('주문'),
+    columns: [{ ...draft('주문').columns[0], classification: '기존 이름', classificationRef: null }],
+  };
+  vi.mocked(post).mockResolvedValueOnce(
+    response({
+      draft: request,
+      changes: [{ column: 'amount', field: 'classificationRef', before: JSON.stringify(ref), after: null }],
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 미리보기' }));
+  await screen.findByText('amount · 공통 분류 연결');
+  expect(post).toHaveBeenLastCalledWith('/bi/source-catalog/preview', request);
+  fireEvent.click(screen.getByRole('checkbox', { name: /변경 내용을 확인/ }));
+  vi.mocked(post).mockResolvedValueOnce(
+    response({ ...input, version: 1, columns: [{ ...input.columns[0], classificationRef: null }] }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '확인한 변경 저장' }));
+  await screen.findByText('업무 설명을 저장했습니다.');
+  expect(post).toHaveBeenLastCalledWith('/bi/source-catalog/save', request);
+  expect((screen.getByLabelText('amount 업무 분류') as HTMLInputElement).readOnly).toBe(false);
+  fireEvent.change(screen.getByLabelText('amount 업무 분류'), { target: { value: '자유 분류명' } });
+  expect((screen.getByLabelText('amount 업무 분류') as HTMLInputElement).value).toBe('자유 분류명');
+});
+it('does not drop an existing ref when a preview response omits it', async () => {
+  vi.mocked(post).mockResolvedValueOnce(
+    response({
+      ...data(),
+      columns: [{ ...data().columns[0], classification: '과거 이름', classificationRef: { ...ref, organizationId: 99 } }],
+    }),
+  );
+  render(<SourceCatalogEditor sourceId={3} />);
+  await open();
+  fireEvent.change(screen.getByLabelText('소스 표시명'), { target: { value: '변경' } });
+  vi.mocked(post).mockResolvedValueOnce(
+    response({ draft: draft('변경'), changes: [{ column: null, field: 'label', before: '주문', after: '변경' }] }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 미리보기' }));
+  await screen.findByText(/변경 내용을 확인하지 못했습니다/);
+  expect(screen.getByText(/조직 99 · 분류 4 · 버전 1/)).toBeTruthy();
 });
