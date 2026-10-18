@@ -99,6 +99,7 @@ export type RemixPreview = RemixRequirements & {
 };
 const config = { timeout: 180000, headers: { 'Cache-Control': 'no-cache' } };
 const tokenPath = (token: string) => {
+  if (/^d-(?:[1-9][0-9]*-){4}[a-f0-9]{64}$/.test(token)) return '/studio/received/' + encodeURIComponent(token);
   studioAssert(/^[a-f0-9]{64}$/.test(token), '복제 링크를 확인해 주세요.');
   return '/studio/publications/' + encodeURIComponent(token);
 };
@@ -289,8 +290,13 @@ export async function saveRemix(
   );
   return { dashboardId: data.dashboardId, document };
 }
-export function remixError(error: any): string {
+export function remixError(error: any, received = false): string {
   const status = error?.response?.status;
+  if (received && status === 403) return '복제 허용이 중지됐거나 받은 분석·대상 데이터에 접근할 권한이 없습니다.';
+  if (received && status === 409)
+    return '공유 원본이나 복제 허용 버전이 변경되었습니다. 원본을 새로 확인하고 매핑을 검토해 주세요.';
+  if (received && (status === 404 || status === 410))
+    return '복제할 받은 분석을 확인할 수 없습니다. 받은 자료에서 다시 시작해 주세요.';
   if (status === 401) return '로그인이 필요합니다. 로그인한 뒤 이 화면에서 다시 확인해 주세요.';
   if (status === 403) return '복제가 허용되지 않았거나 게시본·대상 데이터에 접근할 권한이 없습니다.';
   if (status === 410) return '게시가 중지되었거나 만료되었습니다. 새 링크를 요청해 주세요.';

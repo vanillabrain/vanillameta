@@ -207,3 +207,14 @@ describe('T14 embedded mapping', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 });
+it('shows received-origin navigation and refreshes its immutable reference explicitly', async () => {
+  const refresh = vi.fn(),
+    onSave = vi.fn();
+  render(<StudioRemixFlow token={'d-1-7-20-2-' + 'a'.repeat(64)} onOriginRefresh={refresh} onSave={onSave} />);
+  const button = await screen.findByRole('button', { name: '공유 원본 새로 확인 (매핑 초기화)' });
+  await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+  expect(screen.getByRole('link', { name: '받은 자료로 돌아가기' }).getAttribute('href')).toBe('/organization');
+  fireEvent.click(button);
+  expect(refresh).toHaveBeenCalledOnce();
+  expect(onSave).not.toHaveBeenCalled();
+});

@@ -81,6 +81,16 @@ function ReceivedPanel() {
                   대시보드 #{entry.dashboardId} · 공유 버전 {entry.version}
                 </p>
               </div>
+              {entry.allowCopy === true && (
+                <Button size="sm" variant="outline" asChild>
+                  <a
+                    href={`/received/${entry.dashboardId}/remix`}
+                    aria-label={`대시보드 ${entry.dashboardId} 내 소스로 복제`}
+                  >
+                    내 소스로 복제
+                  </a>
+                </Button>
+              )}
               <Button size="sm" variant="outline" asChild>
                 <a href={`/dashboard/${entry.dashboardId}`} aria-label={`대시보드 ${entry.dashboardId} 열기`}>
                   열기

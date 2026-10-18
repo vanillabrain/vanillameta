@@ -105,3 +105,20 @@ it('survives StrictMode effect replay and discards the first slower answer', asy
   expect(screen.queryByText('공유 대시보드 20')).toBeNull();
   expect(api.post).not.toHaveBeenCalled();
 });
+it('offers own-source remix only when the server explicitly permits independent copying', async () => {
+  api.get.mockResolvedValueOnce({
+    data: {
+      entries: [
+        { ...entry(20), allowCopy: true },
+        { ...entry(21), allowCopy: false },
+      ],
+      nextAfterId: null,
+    },
+  });
+  render(<ReceivedDashboards />);
+  open();
+  const link = await screen.findByRole('link', { name: '대시보드 20 내 소스로 복제' });
+  expect(link.getAttribute('href')).toBe('/received/20/remix');
+  expect(screen.queryByRole('link', { name: '대시보드 21 내 소스로 복제' })).toBeNull();
+  expect(api.post).not.toHaveBeenCalled();
+});

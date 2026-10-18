@@ -9,6 +9,7 @@ export class EnterpriseDashboardDelivery {
   @PrimaryColumn({ type: 'integer' }) recipientId: number;
   @Column({ type: 'integer' }) version: number;
   @Column({ type: 'boolean', default: false }) active: boolean;
+  @Column({ type: 'boolean', default: false }) allowCopy: boolean;
 }
 
 @Entity('enterprise_delivery_receipt')

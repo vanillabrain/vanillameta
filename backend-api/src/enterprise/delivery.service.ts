@@ -34,12 +34,19 @@ export class EnterpriseDeliveryService {
   ) {}
   private input(body: any) {
     if (
-      !exact(body, ['requestId', 'active', 'recipients']) ||
+      !exact(body, [
+        'requestId',
+        'active',
+        'recipients',
+        ...(body?.allowCopy === undefined ? [] : ['allowCopy']),
+      ]) ||
       typeof body.requestId !== 'string' ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
         body.requestId,
       ) ||
       typeof body.active !== 'boolean' ||
+      (body.allowCopy !== undefined &&
+        (typeof body.allowCopy !== 'boolean' || (!body.active && body.allowCopy))) ||
       !Array.isArray(body.recipients) ||
       body.recipients.length < 1 ||
       body.recipients.length > 50
@@ -62,7 +69,12 @@ export class EnterpriseDeliveryService {
     recipients.sort((a, b) => a.recipientId - b.recipientId);
     if (new Set(recipients.map(entry => entry.recipientId)).size !== recipients.length)
       throw new BadRequestException('수신자가 중복됐습니다.');
-    return { requestId: body.requestId as string, active: body.active as boolean, recipients };
+    return {
+      requestId: body.requestId as string,
+      active: body.active as boolean,
+      ...(body.allowCopy !== undefined ? { allowCopy: body.allowCopy as boolean } : {}),
+      recipients,
+    };
   }
   async received(actor: number, afterId?: unknown) {
     if (!Number.isSafeInteger(actor) || actor <= 0)
@@ -112,11 +124,16 @@ export class EnterpriseDeliveryService {
         .andWhere(
           '(SELECT COUNT(*) FROM user_mapping owning WHERE owning.dashboardId = dashboard.id) = 1',
         )
-        .select(['delivery.dashboardId', 'delivery.version'])
+        .select(['delivery.dashboardId', 'delivery.version', 'delivery.allowCopy'])
         .orderBy('delivery.dashboardId', 'ASC')
         .limit(21)
         .getMany();
-      const entries: Array<{ dashboardId: number; title: string; version: number }> = [];
+      const entries: Array<{
+        dashboardId: number;
+        title: string;
+        version: number;
+        allowCopy: boolean;
+      }> = [];
       for (const row of candidates.slice(0, 20)) {
         try {
           await this.access.dashboard(row.dashboardId, actor, 'read');
@@ -128,7 +145,12 @@ export class EnterpriseDeliveryService {
             dashboard.title.length <= 300
               ? dashboard.title
               : dashboard.title.slice(0, 299).replace(/[\uD800-\uDBFF]$/, '') + '…';
-          entries.push({ dashboardId: row.dashboardId, title, version: row.version });
+          entries.push({
+            dashboardId: row.dashboardId,
+            title,
+            version: row.version,
+            allowCopy: row.allowCopy,
+          });
         } catch (error) {
           if (!(error instanceof ForbiddenException)) throw error;
         }
@@ -150,6 +172,7 @@ export class EnterpriseDeliveryService {
           recipientId: row.recipientId,
           version: row.version,
           active: row.active,
+          allowCopy: row.allowCopy,
         })),
       };
     });
@@ -216,14 +239,16 @@ export class EnterpriseDeliveryService {
             if (!recipient || !user)
               throw new ForbiddenException('같은 조직의 활성 수신자만 공유할 수 있습니다.');
           }
-          const changed = (prior?.active ?? false) !== input.active;
+          const allowCopy = input.active && (input.allowCopy ?? prior?.allowCopy ?? false);
+          const changed =
+            (prior?.active ?? false) !== input.active || (prior?.allowCopy ?? false) !== allowCopy;
           const version = (prior?.version ?? 0) + (changed ? 1 : 0);
           if (changed) {
             if (prior) {
               const result = await manager.update(
                 EnterpriseDashboardDelivery,
                 { ...key, version: prior.version },
-                { active: input.active, version },
+                { active: input.active, allowCopy, version },
               );
               if (result.affected !== 1)
                 throw new ConflictException('공유가 변경됐습니다. 다시 읽어 주세요.');
@@ -232,6 +257,7 @@ export class EnterpriseDeliveryService {
                 ...key,
                 version,
                 active: input.active,
+                allowCopy,
               });
             await manager.insert(EnterpriseAuditEvent, {
               organizationId: member.organizationId,
@@ -244,7 +270,12 @@ export class EnterpriseDeliveryService {
           }
           if (input.active)
             await this.access.dashboard(dashboardId, target.recipientId, 'read', manager);
-          entries.push({ recipientId: target.recipientId, version, active: input.active });
+          entries.push({
+            recipientId: target.recipientId,
+            version,
+            active: input.active,
+            ...(input.allowCopy !== undefined ? { allowCopy } : {}),
+          });
         }
         const response = { requestId: input.requestId, dashboardId, entries };
         await manager.insert(EnterpriseDeliveryReceipt, {

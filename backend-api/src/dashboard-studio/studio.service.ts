@@ -118,6 +118,25 @@ export class StudioService {
       definitions: studioDefinitions(document, analysis, snapshot),
     };
   }
+  /** Internal, read-authorized semantic recipe. Never return this template from a read endpoint. */
+  async captureRemix(id: number, actor: number, manager = this.db.manager) {
+    const state = await this.load(id, actor, 'read', manager);
+    const template = captureRemixTemplate(
+      state.document,
+      state.items,
+      state.schema,
+      state.analysis.widgets,
+    );
+    return {
+      template,
+      fingerprint: studioDigest([
+        state.document.revision,
+        state.schemaVersion,
+        state.sourceRevision,
+        template,
+      ]),
+    };
+  }
   async get(id: number, actor: number) {
     return serializeMetadataWork(this.db, async () => {
       // UC-051: report the actor's current rights plus real mapping ownership for the client.

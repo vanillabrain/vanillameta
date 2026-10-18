@@ -1,8 +1,9 @@
 import { get, post } from '@/helpers/apiHelper';
-export type DeliveryEntry = { recipientId: number; version: number; active: boolean };
+export type DeliveryEntry = { recipientId: number; version: number; active: boolean; allowCopy?: boolean };
 export type DeliveryInput = {
   requestId: string;
   active: boolean;
+  allowCopy?: boolean;
   recipients: Array<{ recipientId: number; expectedVersion: number }>;
 };
 const entriesShape = (rows: any): rows is DeliveryEntry[] =>
@@ -15,6 +16,7 @@ const entriesShape = (rows: any): rows is DeliveryEntry[] =>
       Number.isSafeInteger(row.version) &&
       row.version >= 0 &&
       typeof row.active === 'boolean' &&
+      (row.allowCopy === undefined || typeof row.allowCopy === 'boolean') &&
       (index === 0 || row.recipientId > rows[index - 1].recipientId),
   );
 export const fetchDeliveries = async (id: number): Promise<DeliveryEntry[]> => {
@@ -35,7 +37,10 @@ export const saveDeliveries = async (
     !entriesShape(data.entries) ||
     data.entries.length !== expected.length ||
     data.entries.some(
-      (entry: DeliveryEntry, index: number) => entry.recipientId !== expected[index] || entry.active !== input.active,
+      (entry: DeliveryEntry, index: number) =>
+        entry.recipientId !== expected[index] ||
+        entry.active !== input.active ||
+        (input.allowCopy !== undefined && entry.allowCopy !== input.allowCopy),
     ) ||
     typeof data.replayed !== 'boolean'
   )
@@ -43,7 +48,7 @@ export const saveDeliveries = async (
   return data;
 };
 
-export type ReceivedDashboard = { dashboardId: number; title: string; version: number };
+export type ReceivedDashboard = { dashboardId: number; title: string; version: number; allowCopy?: boolean };
 export type ReceivedPage = { entries: ReceivedDashboard[]; nextAfterId: number | null };
 export const fetchReceivedDashboards = async (afterId?: number): Promise<ReceivedPage> => {
   const { data } = await get('/enterprise/deliveries/dashboard/received', afterId === undefined ? {} : { afterId });
@@ -62,7 +67,8 @@ export const fetchReceivedDashboards = async (afterId?: number): Promise<Receive
         (data.nextAfterId === null || entry.dashboardId <= data.nextAfterId) &&
         typeof entry.title === 'string' &&
         entry.title.length <= 300 &&
-        positive(entry.version),
+        positive(entry.version) &&
+        (entry.allowCopy === undefined || typeof entry.allowCopy === 'boolean'),
     )
   )
     throw new Error('받은 자료 응답을 확인할 수 없습니다.');

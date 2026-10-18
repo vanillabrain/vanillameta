@@ -1,3 +1,4 @@
+import { AddDeliveryCopy1792470000000 } from './migrations/1792470000000-add-delivery-copy';
 import { AddDashboardDeliveries1792460000000 } from './migrations/1792460000000-add-dashboard-deliveries';
 import { AddNotificationState1792450000000 } from './migrations/1792450000000-add-notification-state';
 import { AddSourceConditions1792440000000 } from './migrations/1792440000000-add-source-conditions';
@@ -75,6 +76,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddDeliveryCopy1792470000000,
         AddDashboardDeliveries1792460000000,
         AddNotificationState1792450000000,
         AddSourceConditions1792440000000,

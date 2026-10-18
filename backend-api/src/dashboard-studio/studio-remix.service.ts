@@ -25,6 +25,12 @@ import {
   RemixRequirements,
   RemixTemplate,
 } from './studio-remix-contract';
+export type RemixOriginResolver = (
+  reference: string,
+  actor: number,
+  expectedVersion?: number,
+  manager?: EntityManager,
+) => Promise<{ version: number; remixTemplate: string }>;
 @Injectable()
 export class StudioRemixService {
   constructor(
@@ -54,10 +60,14 @@ export class StudioRemixService {
       })),
     };
   }
-  async template(token: string, actor: number) {
+  async template(
+    token: string,
+    actor: number,
+    origin: RemixOriginResolver = this.publications.requireRemix.bind(this.publications),
+  ) {
     this.access.actor(actor);
     return this.studio.serializeWrite(async () => {
-      const row = await this.publications.requireRemix(token, actor);
+      const row = await origin(token, actor);
       return this.requirements(token, row.version, JSON.parse(row.remixTemplate));
     });
   }
@@ -306,11 +316,16 @@ export class StudioRemixService {
       })),
     };
   }
-  async preview(token: string, input: RemixPreviewRequest, actor: number): Promise<RemixPreview> {
+  async preview(
+    token: string,
+    input: RemixPreviewRequest,
+    actor: number,
+    origin: RemixOriginResolver = this.publications.requireRemix.bind(this.publications),
+  ): Promise<RemixPreview> {
     this.access.actor(actor);
     const body = this.validate(input, false);
     return this.studio.serializeWrite(async () => {
-      const row = await this.publications.requireRemix(token, actor, body.expectedVersion);
+      const row = await origin(token, actor, body.expectedVersion);
       await this.access.assert('database', body.targetSourceId, actor);
       return this.connection.withDuckDBSnapshot(body.targetSourceId, async () => {
         const profile = await this.creation.profile(body.targetSourceId, actor);
@@ -355,7 +370,7 @@ export class StudioRemixService {
           latest.schemaVersion !== profile.schemaVersion
         )
           throw new ConflictException('대상 데이터가 변경되었습니다. 매핑을 다시 확인해 주세요.');
-        await this.publications.requireRemix(token, actor, row.version);
+        await origin(token, actor, row.version);
         return {
           ...this.requirements(token, row.version, t),
           targetSourceId: body.targetSourceId,
@@ -398,12 +413,17 @@ export class StudioRemixService {
       row.updatedAt,
     ]);
   }
-  async remix(token: string, input: RemixRequest, actor: number) {
+  async remix(
+    token: string,
+    input: RemixRequest,
+    actor: number,
+    origin: RemixOriginResolver = this.publications.requireRemix.bind(this.publications),
+  ) {
     this.access.actor(actor);
     const body = this.validate(input, true),
       payloadHash = studioDigest({ token, ...body });
     return this.studio.serializeWrite(async () => {
-      await this.publications.requireRemix(token, actor, body.expectedVersion);
+      await origin(token, actor, body.expectedVersion);
       await this.access.assert('database', body.targetSourceId, actor);
       const prior = await this.db.manager.findOne(StudioRemixRequest, {
         where: { actorId: actor, requestId: body.requestId },
@@ -421,12 +441,7 @@ export class StudioRemixService {
           throw new ConflictException('대상 데이터가 변경되었습니다. 매핑을 다시 확인해 주세요.');
         const identity = await this.sourceIdentity(body.targetSourceId, actor, this.db.manager);
         return metadataTransaction(this.db, async manager => {
-          const row = await this.publications.requireRemix(
-            token,
-            actor,
-            body.expectedVersion,
-            manager,
-          );
+          const row = await origin(token, actor, body.expectedVersion, manager);
           if (identity !== (await this.sourceIdentity(body.targetSourceId, actor, manager)))
             throw new ConflictException('대상 소스가 변경되었습니다.');
           const t: RemixTemplate = JSON.parse(row.remixTemplate),
@@ -461,7 +476,7 @@ export class StudioRemixService {
             mapped.mappedConditions,
           );
           // Recheck after save/aggregate awaits, including legacy metadata writes outside Studio's queue.
-          await this.publications.requireRemix(token, actor, body.expectedVersion, manager);
+          await origin(token, actor, body.expectedVersion, manager);
           const latest = await this.creation.profile(body.targetSourceId, actor);
           if (
             identity !== (await this.sourceIdentity(body.targetSourceId, actor, manager)) ||

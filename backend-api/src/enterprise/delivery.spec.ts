@@ -1,3 +1,4 @@
+import { AddDeliveryCopy1792470000000 } from '../migrations/1792470000000-add-delivery-copy';
 import { randomUUID } from 'crypto';
 import { DataSource } from 'typeorm';
 import { Test } from '@nestjs/testing';
@@ -193,7 +194,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     const before = await db.getRepository(EnterpriseAuditEvent).count();
     await expect(service.set(20, 1, input([2, 3]))).rejects.toMatchObject({ status: 409 });
     expect((await service.list(20, 1)).entries).toEqual([
-      { recipientId: 3, version: 1, active: true },
+      { recipientId: 3, version: 1, active: true, allowCopy: false },
     ]);
     expect(await db.getRepository(EnterpriseDeliveryReceipt).count()).toBe(1);
     expect(await db.getRepository(EnterpriseAuditEvent).count()).toBe(before);
@@ -258,7 +259,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
       relations: await db.getRepository(EnterpriseDashboardDelivery).find(),
     };
     expect(await service.received(2)).toEqual({
-      entries: [{ dashboardId: 20, title: 'Synthetic analysis', version: 1 }],
+      entries: [{ dashboardId: 20, title: 'Synthetic analysis', version: 1, allowCopy: false }],
       nextAfterId: null,
     });
     expect(await service.received(3)).toEqual({ entries: [], nextAfterId: null });
@@ -268,7 +269,9 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
       layout: 'synthetic private layout',
     });
     const result = await service.received(2);
-    expect(result.entries).toEqual([{ dashboardId: 20, title: 'Current title', version: 1 }]);
+    expect(result.entries).toEqual([
+      { dashboardId: 20, title: 'Current title', version: 1, allowCopy: false },
+    ]);
     expect(JSON.stringify(result)).not.toMatch(
       /private|analysisDefinition|source|ownerId|layout|databaseId|token/,
     );
@@ -339,7 +342,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     }
     expect(await service.received(2)).toEqual({ entries: [], nextAfterId: 119 });
     expect(await service.received(2, 119)).toEqual({
-      entries: [{ dashboardId: 120, title: 'Dashboard 120', version: 1 }],
+      entries: [{ dashboardId: 120, title: 'Dashboard 120', version: 1, allowCopy: false }],
       nextAfterId: null,
     });
     for (const invalid of [0, -1, 1.5, '119', NaN])
@@ -356,6 +359,29 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
       .mockRejectedValueOnce(new Error('synthetic unavailable'));
     await expect(service.received(2)).rejects.toThrow('synthetic unavailable');
     spy.mockRestore();
+  });
+  it('requires explicit copy consent, preserves omitted consent and clears it on revoke', async () => {
+    await service.set(20, 1, input());
+    expect((await service.list(20, 1)).entries[0].allowCopy).toBe(false);
+    const body = { ...input([2], true, 1), allowCopy: true };
+    expect((await service.set(20, 1, body)).entries[0]).toMatchObject({
+      version: 2,
+      allowCopy: true,
+    });
+    expect((await service.received(2)).entries[0].allowCopy).toBe(true);
+    await service.set(20, 1, input([2], true, 2));
+    expect((await service.list(20, 1)).entries[0]).toMatchObject({ version: 2, allowCopy: true });
+    await expect(
+      service.set(20, 1, { ...input([2], false, 2), allowCopy: true }),
+    ).rejects.toMatchObject({ status: 400 });
+    await service.set(20, 1, input([2], false, 2));
+    expect((await service.list(20, 1)).entries[0]).toMatchObject({
+      version: 3,
+      active: false,
+      allowCopy: false,
+    });
+    expect((await service.set(20, 1, body)).replayed).toBe(true);
+    expect((await service.list(20, 1)).entries[0].allowCopy).toBe(false);
   });
   it('enforces JWT actor and validates route ids over HTTP', async () => {
     const previous = process.env.ACCESS_SECRET;
@@ -399,7 +425,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
         .set('Authorization', `Bearer ${token(2)}`)
         .expect(200);
       expect(received.body.entries).toEqual([
-        { dashboardId: 20, title: 'Synthetic analysis', version: 1 },
+        { dashboardId: 20, title: 'Synthetic analysis', version: 1, allowCopy: false },
       ]);
       await request(app.getHttpServer())
         .get('/enterprise/deliveries/dashboard/received')
@@ -418,7 +444,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
         .expect(200);
       expect(result.body).toEqual({
         dashboardId: 20,
-        entries: [{ recipientId: 2, version: 1, active: true }],
+        entries: [{ recipientId: 2, version: 1, active: true, allowCopy: false }],
       });
       await request(app.getHttpServer())
         .get('/enterprise/deliveries/dashboard/1.5')
@@ -436,10 +462,17 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     await runner.dropTable('enterprise_delivery_receipt');
     await runner.dropTable('enterprise_dashboard_delivery');
     await migration.up(runner);
+    await runner.query(
+      'INSERT INTO enterprise_dashboard_delivery (ownerId,organizationId,dashboardId,recipientId,version,active) VALUES (1,1,20,3,4,0)',
+    );
+    const copyMigration = new AddDeliveryCopy1792470000000();
+    await copyMigration.up(runner);
+    await copyMigration.up(runner);
     await service.set(20, 1, input());
     await migration.up(runner);
     expect((await service.list(20, 1)).entries).toEqual([
-      { recipientId: 2, version: 1, active: true },
+      { recipientId: 2, version: 1, active: true, allowCopy: false },
+      { recipientId: 3, version: 4, active: false, allowCopy: false },
     ]);
     expect(await db.getRepository(EnterpriseDeliveryReceipt).count()).toBe(1);
     await expect(

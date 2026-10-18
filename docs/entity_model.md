@@ -235,3 +235,5 @@ FR016/FR017의 첫 DB 제약이다. `user.userId`와 `user.email`에 명명된 u
 `enterprise_delivery_receipt`는 ownerId+UUID requestId PK, organizationId·SHA256 digest·고정 응답 text다. 현재 소유 admin/조직을 재검증한 replay만 허용하고 다른 요청 내용/조직은409다. 영수증은 과거 저장 확인이며 현재 공유 상태가 아니다. 공유/감사/영수증은 한 transaction이다. 동적 그룹/독립 사본 전달의 후속 모델은 별도다.
 
 UC053 받은 자료는 새 영속 엔티티가 아닌 현재 유효한 delivery의 읽기 투영이다. 모든 연결 소스의 read 후 dashboardId/title/version만 반환한다. cursor는 마지막 검사 후보이며 마지막 표시 행과 다를 수 있다. 알림 표시 상태·원본·공유 관계·영수증을 변경하지 않는다.
+
+UC053 delivery의 `allowCopy` boolean은 기본 false인 별도 독립 복제 동의다. 공유 API에서 생략하면 보존하고 회수 시 false로 정리한다. active/allowCopy 변화 모두 관계 version·감사/영수증 transaction에 묶인다. 받은 자료에는 boolean만 추가하며 private 복제 reference는 조직/소유자/분석/관계 version·현재 Studio 문서/schema/파일 revision/template fingerprint로 구성한다. reference 자체는 접근권이 아니고 필수 JWT/current read/허용을 요구한다. 사본의 새 소유/블록/지표 ID와 모든 폭 배치는 기존 StudioRemixRequest 원자 저장을 재사용한다.

@@ -23,7 +23,12 @@ beforeEach(() => {
         dashboardId: 20,
         entries: [...body.recipients]
           .sort((a, b) => a.recipientId - b.recipientId)
-          .map(row => ({ recipientId: row.recipientId, version: row.expectedVersion + 1, active: body.active })),
+          .map(row => ({
+            recipientId: row.recipientId,
+            version: row.expectedVersion + 1,
+            active: body.active,
+            ...(body.allowCopy !== undefined ? { allowCopy: body.allowCopy } : {}),
+          })),
         replayed: false,
       },
     }),
@@ -165,4 +170,32 @@ it('preserves an uncertain request through a failed latest read and permits an i
   fireEvent.click(screen.getByRole('button', { name: '같은 공유 요청 확인' }));
   await screen.findByText(/선택한 수신자의 공유를 저장/);
   expect(api.post.mock.calls[1][1]).toEqual(original);
+});
+it('requires distinct consent before sharing editable independent-copy semantics', async () => {
+  render(<Deliveries dashboardId={20} selfId={1} />);
+  open();
+  load();
+  await screen.findByText(/operator-2/);
+  fireEvent.click(screen.getByRole('checkbox', { name: /operator-2/ }));
+  fireEvent.change(screen.getByRole('combobox', { name: '독립 복제 설정' }), { target: { value: 'allow' } });
+  ack();
+  expect((screen.getByRole('button', { name: '공유 변경 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('checkbox', { name: /편집 가능한 독립 사본/ }));
+  save();
+  await screen.findByText(/선택한 수신자의 공유를 저장/);
+  expect(api.post.mock.calls[0][1].allowCopy).toBe(true);
+});
+it('can revoke without the now-hidden independent-copy consent', async () => {
+  render(<Deliveries dashboardId={20} selfId={1} />);
+  open();
+  load();
+  await screen.findByText(/operator-2/);
+  fireEvent.change(screen.getByRole('combobox', { name: '독립 복제 설정' }), { target: { value: 'allow' } });
+  fireEvent.click(screen.getByRole('radio', { name: '공유 회수' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: /operator-2/ }));
+  ack();
+  save();
+  await screen.findByText(/선택한 수신자의 공유를 저장/);
+  expect(api.post.mock.calls[0][1].active).toBe(false);
+  expect(api.post.mock.calls[0][1].allowCopy).toBeUndefined();
 });

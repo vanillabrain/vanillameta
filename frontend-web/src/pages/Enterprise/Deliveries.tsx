@@ -22,6 +22,8 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
   const [rows, setRows] = useState<DeliveryEntry[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [active, setActive] = useState(true);
+  const [copyMode, setCopyMode] = useState('preserve');
+  const [copyAck, setCopyAck] = useState(false);
   const [ack, setAck] = useState(false);
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
@@ -46,6 +48,8 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
     setError('');
     setNotice('');
     setAck(false);
+    setCopyMode('preserve');
+    setCopyAck(false);
     try {
       const [relations, page] = await Promise.all([fetchDeliveries(dashboardId), fetchMembers()]);
       if (generation.current !== current) return;
@@ -90,7 +94,11 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
     }
   };
   const save = async () => {
-    if (pending.current || (!attempt && (!ready || !ack || !selected.length))) return;
+    if (
+      pending.current ||
+      (!attempt && (!ready || !ack || (active && copyMode === 'allow' && !copyAck) || !selected.length))
+    )
+      return;
     const current = generation.current;
     pending.current = true;
     setBusy(true);
@@ -100,6 +108,7 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
       const request = attempt ?? {
         requestId: crypto.randomUUID(),
         active,
+        ...(active && copyMode !== 'preserve' ? { allowCopy: copyMode === 'allow' } : {}),
         recipients: selected.map(recipientId => ({
           recipientId,
           expectedVersion: rows.find(row => row.recipientId === recipientId)?.version ?? 0,
@@ -189,6 +198,42 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
               공유 회수
             </label>
           </div>
+          {active && (
+            <div className="min-w-0 space-y-2">
+              <label className="flex min-w-0 flex-wrap items-center gap-2">
+                독립 복제 설정
+                <select
+                  className="h-8 max-w-full rounded-md border bg-background px-2 text-base text-foreground sm:text-sm"
+                  aria-label="독립 복제 설정"
+                  disabled={locked}
+                  value={copyMode}
+                  onChange={event => {
+                    setCopyMode(event.target.value);
+                    setCopyAck(false);
+                    setAck(false);
+                  }}
+                >
+                  <option value="preserve">기존 설정 유지 (신규 미허용)</option>
+                  <option value="allow">독립 복제 허용</option>
+                  <option value="deny">독립 복제 중지</option>
+                </select>
+              </label>
+              {copyMode === 'allow' && (
+                <label className="flex min-h-8 min-w-0 items-start gap-2">
+                  <input
+                    type="checkbox"
+                    disabled={locked}
+                    checked={copyAck}
+                    onChange={event => setCopyAck(event.target.checked)}
+                  />
+                  <span className="break-words text-xs">
+                    지표 계산식·조건·배치가 수신자의 편집 가능한 독립 사본에 제공되며 공유를 회수해도 이미 저장한 사본은 남는
+                    것을 확인했습니다.
+                  </span>
+                </label>
+              )}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             최대50명. 팀 선택은 지금 불러온 명단만 선택하며, 이후 소속 변경에 따라 자동으로 인원을 추가하지 않습니다.
           </p>
@@ -226,7 +271,8 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
                   />
                   <span className="break-all">
                     {member.userId} · #{member.id} ·{' '}
-                    {rows.find(row => row.recipientId === member.id)?.active ? '공유 중' : '공유 없음'}
+                    {rows.find(row => row.recipientId === member.id)?.active ? '공유 중' : '공유 없음'} ·{' '}
+                    {rows.find(row => row.recipientId === member.id)?.allowCopy ? '복제 허용' : '복제 미허용'}
                   </span>
                 </label>
               </li>
@@ -261,7 +307,11 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
             />
             선택한 수신자와 공유 변경을 확인했습니다.
           </label>
-          <Button size="sm" disabled={busy || !ack || !selected.length} onClick={() => void save()}>
+          <Button
+            size="sm"
+            disabled={busy || !ack || (!attempt && active && copyMode === 'allow' && !copyAck) || !selected.length}
+            onClick={() => void save()}
+          >
             {attempt ? '같은 공유 요청 확인' : '공유 변경 저장'}
           </Button>
         </>
