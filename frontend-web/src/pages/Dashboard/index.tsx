@@ -4,9 +4,7 @@ import ArtifactLibrary from './ArtifactLibrary';
 import { Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { MenuButton } from '@/components/button/AddIconButton';
 import { Plus } from 'lucide-react';
-import DashboardService from '@/api/dashboardService';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { STATUS } from '@/constant';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -14,6 +12,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import AiDashboardPanel from './Components/AiDashboardPanel';
 import GettingStarted from './Components/GettingStarted';
+import DashboardDeleteDialog, { DashboardDeleteTarget } from './Components/DashboardDeleteDialog';
 import { STORAGE_ACCESS_TOKEN } from '@/helpers/authHelper';
 import {
   personalLibrarySessionScope,
@@ -176,17 +175,8 @@ function Dashboard() {
     if (isError) alert.error(t('dashboard.loadFailed'));
   }, [isError]);
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => DashboardService.deleteDashboard(id),
-    onSuccess: response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        queryClient.invalidateQueries({ queryKey: ['dashboards'] });
-        snackbar.success(t('dashboard.deleted'));
-      } else {
-        alert.error(t('dashboard.deleteFailed'));
-      }
-    },
-  });
+  const [deleteTarget, setDeleteTarget] = useState<DashboardDeleteTarget | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const menuList = [
     { name: 'AI 대시보드 만들기', link: '/studio/new', id: 'ai' },
     { name: t('nav.dashboard'), link: '/dashboard/create', id: 'dashboard' },
@@ -194,22 +184,8 @@ function Dashboard() {
   ];
 
   const handleDeleteSelect = (id, title) => {
-    alert.success(
-      <div className="[&_span]:font-semibold">
-        <span>{title}</span>
-        <br />
-        {t('dashboard.deleteConfirm')}
-      </div>,
-      {
-        closeCopy: t('data.cancel'),
-        actions: [
-          {
-            copy: t('data.confirm'),
-            onClick: () => deleteMutation.mutate(id),
-          },
-        ],
-      },
-    );
+    setDeleteTarget({ id: Number(id), title });
+    setDeleteOpen(true);
   };
 
   const handleMenuSelect = item => {
@@ -227,6 +203,15 @@ function Dashboard() {
   return (
     <div className="flex h-full w-full flex-auto flex-col">
       <Seo title={title} />
+      <DashboardDeleteDialog
+        target={deleteTarget}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onDeleted={() => {
+          void queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+          snackbar.success(t('dashboard.deleted'));
+        }}
+      />
       <AiDashboardPanel
         open={aiOpen}
         initialDatabaseId={aiSourceId}

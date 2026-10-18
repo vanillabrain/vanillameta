@@ -159,3 +159,5 @@
 [출력 결과 알림 선택 검증](../testing/export-notifications.md)은 E07/E09/E10의 확정 사건·본인 조직/상태 보존 경계를 다룬다. 전체 TC050 또는 실제 새 UI/운영 수용 통과로 승계하지 않는다.
 
 E11의 개인 보관/복원은 [UC055 계획](../plans/UC-055-library-archive.md), 참조 중 삭제 보호는 [별도 후속 설계](../plans/UC-055-dependency-deletion.md)를 따른다. 개인 보관 상태 저장으로 조직 자산 비활성화·삭제 보호·전체 E11 통과를 대체하지 않는다.
+
+E11/E12의 대시보드 사용처/삭제·원자 영수증은 [UC055 계획](../plans/UC-055-dashboard-delete.md)·[검증](../testing/dashboard-deletion.md)을 따른다. source/metric 삭제·조직 비활성·전체 E11/E12 수용은 별도이며 실제 MySQL과 headless/Ego/실기기를 구별한다.

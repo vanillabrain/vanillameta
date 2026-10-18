@@ -12,6 +12,7 @@ import {
   body,
   call,
   dashboard,
+  deleteDashboard,
   dataset,
   execute,
   metric,
@@ -1042,7 +1043,7 @@ test('DASH-03 real drag and resize persist finite changed layout after save relo
 for (const variant of ['unknown', 'deleted']) {
   test(`DASH-07 ${variant} deep link has explicit unavailable state`, async ({ page }) => {
     const { user, board } = await boardFixture(page);
-    if (variant === 'deleted') await ok(await call(user, 'DELETE', `/dashboard/${board.id}`));
+    if (variant === 'deleted') await ok(await deleteDashboard(user, board.id));
     await page.goto(`/dashboard/${variant === 'unknown' ? 999999999 : board.id}`);
     await feedback(page, 'Failed to load dashboard.');
     await expect(page.locator('.react-grid-item')).toHaveCount(0);

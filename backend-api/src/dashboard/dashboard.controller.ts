@@ -78,11 +78,4 @@ export class DashboardController {
     await this.access.dashboard(dashboardId, actor, 'edit');
     return this.dashboardService.update(dashboardId, updateDashboardDto, actor, 'edit');
   }
-
-  @Delete(':id')
-  @ApiBearerAuth('AccessKey')
-  async remove(@Param('id') id: string, @Req() req) {
-    await this.dashboardService.assertOwner(+id, req.user.accessKeyData.id);
-    return this.dashboardService.remove(+id);
-  }
 }

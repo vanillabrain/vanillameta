@@ -1,3 +1,4 @@
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import {
   BadRequestException,
   ConflictException,
@@ -88,13 +89,8 @@ export class DashboardPivotService {
       await this.access.assert('dashboard', dashboardId, actor, 'edit');
       await this.access.assert('database', sourceId, actor, 'read');
       await metadataTransaction(this.dashboards.manager, async manager => {
+        const row = await lockDashboardWrite(manager, dashboardId);
         await this.access.assert('dashboard', dashboardId, actor, 'edit', manager);
-        const row = await manager.findOne(Dashboard, {
-          where: { id: dashboardId },
-          ...(manager.connection.options.type === 'mysql'
-            ? { lock: { mode: 'pessimistic_write' as const } }
-            : {}),
-        });
         if (!row || this.source(row) !== sourceId)
           throw new BadRequestException(
             '대시보드와 Pivot의 데이터 소스가 같아야 공통 필터를 연결할 수 있습니다.',
@@ -117,13 +113,8 @@ export class DashboardPivotService {
     await serializedViewWrite(this.dashboards, async () => {
       await this.access.assert('dashboard', dashboardId, actor, 'edit');
       await metadataTransaction(this.dashboards.manager, async manager => {
+        const row = await lockDashboardWrite(manager, dashboardId);
         await this.access.assert('dashboard', dashboardId, actor, 'edit', manager);
-        const row = await manager.findOne(Dashboard, {
-          where: { id: dashboardId },
-          ...(manager.connection.options.type === 'mysql'
-            ? { lock: { mode: 'pessimistic_write' as const } }
-            : {}),
-        });
         const items = this.items(row);
         if (!items.some(item => item.id === pivotId))
           throw new NotFoundException('Pivot을 찾을 수 없습니다.');

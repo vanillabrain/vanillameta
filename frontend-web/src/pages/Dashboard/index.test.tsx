@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, expect, it, afterEach, beforeEach } from 'vitest';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import Dashboard from './index';
+import { deletionDependencyLabels } from '@/api/dashboardDeletionService';
 import { fetchPersonalLibrary, savePersonalLibrary, personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { editorDraftSessionEpoch } from '@/helpers/editorDraftStorage';
 import { setToken } from '@/helpers/authHelper';
@@ -121,11 +122,22 @@ beforeEach(() => {
   setToken(TOKEN_A);
   localStorage.setItem(AUTH_META, JSON.stringify({ epoch: SESSION_A }));
   api.get.mockImplementation(async (path, params) => {
+    if (path === '/dashboard/28/delete-impact')
+      return response({
+        dashboardId: 28,
+        actorId: 7,
+        organizationId: 7,
+        revision: 'a'.repeat(64),
+        canDelete: true,
+        dependencies: Object.keys(deletionDependencyLabels).map(kind => ({ kind, count: 0 })),
+      });
     if (path !== '/dashboard/library') throw new Error('unexpected legacy list request');
     return library(params.view);
   });
   api.put.mockResolvedValue(receipt());
-  api.del.mockResolvedValue(response({}));
+  api.del.mockImplementation(async (_path, config) =>
+    response({ dashboardId: 28, requestId: config.data.requestId, receiptId: 1, deleted: true, replayed: false }),
+  );
 });
 afterEach(() => {
   cleanup();
@@ -166,12 +178,15 @@ it('preserves title, Studio, rename and delete actions in the new authorized lis
   expect(screen.getByText('Beta dashboard').closest('a')?.getAttribute('href')).toBe('/dashboard/28');
   expect(screen.queryByRole('link', { name: 'Beta dashboard · Studio 열기' })).toBeNull();
   click('Beta dashboard · 삭제');
-  const actions = api.success.mock.calls.at(-1)?.[1].actions;
-  await act(async () => actions[0].onClick());
-  await waitFor(() => expect(api.del).toHaveBeenCalledWith('/dashboard/28'));
+  await screen.findByText('현재 확인한 사용처 설정이 없습니다. 삭제하면 원본 대시보드를 되돌릴 수 없습니다.');
+  expect(api.del).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   click('Beta dashboard · 수정');
   expect(await screen.findByText(/이동 완료 \/dashboard\/modify/)).toBeTruthy();
-  expect(api.get.mock.calls.every(call => call[0] === '/dashboard/library')).toBe(true);
+  expect(
+    api.get.mock.calls.every(call => call[0] === '/dashboard/library' || call[0] === '/dashboard/28/delete-impact'),
+  ).toBe(true);
 });
 it('defaults to active, archives with the confirmed organization/version, and restores from the archive', async () => {
   show();
@@ -652,4 +667,75 @@ it('pins the confirmed actor in the body even if the interceptor would receive a
     expectedActorId: 7,
   });
   expect(api.post).not.toHaveBeenCalled();
+});
+
+it('refreshes the library only after a shared dialog confirms a deletion receipt', async () => {
+  const { client } = show();
+  const invalidate = vi.spyOn(client, 'invalidateQueries');
+  await screen.findByText('Beta dashboard');
+  click('Beta dashboard · 삭제');
+  await screen.findByText('현재 확인한 사용처 설정이 없습니다. 삭제하면 원본 대시보드를 되돌릴 수 없습니다.');
+  expect(invalidate).not.toHaveBeenCalled();
+  expect(api.del).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '대시보드 삭제' }));
+  await waitFor(() => expect(api.success).toHaveBeenCalledWith('dashboard.deleted'));
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['dashboards'] });
+  expect(api.del).toHaveBeenCalledWith('/dashboard/28', {
+    data: {
+      requestId: expect.any(String),
+      expectedRevision: 'a'.repeat(64),
+      expectedActorId: 7,
+      expectedOrganizationId: 7,
+    },
+  });
+});
+
+it('keeps the always-mounted dialog frozen across unknown-close and another card selection, then frees the new target after explicit replay confirmation', async () => {
+  const { client } = show();
+  const invalidate = vi.spyOn(client, 'invalidateQueries');
+  await screen.findByText('Beta dashboard');
+  click('Beta dashboard · 삭제');
+  await screen.findByText('현재 확인한 사용처 설정이 없습니다. 삭제하면 원본 대시보드를 되돌릴 수 없습니다.');
+  api.del.mockRejectedValueOnce(new Error('committed but receipt lost'));
+  fireEvent.click(screen.getByRole('button', { name: '대시보드 삭제' }));
+  await screen.findByText(/삭제 결과를 확인하지 못했습니다/);
+  const original = { ...api.del.mock.calls[0][1].data };
+  const impactReads = api.get.mock.calls.filter(call => call[0].endsWith('/delete-impact')).length;
+  api.get.mockImplementation(async (path, params) => {
+    if (path.endsWith('/delete-impact')) throw { response: { status: 403 } };
+    return library(params.view);
+  });
+  fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+  click('Alpha analysis · 삭제');
+  expect(screen.getByRole('dialog', { name: '대시보드 삭제 영향' })).toBeTruthy();
+  expect(screen.getByText(/원래 대상의 미확정 요청을 보존했습니다/)).toBeTruthy();
+  expect(screen.getByText(/Beta dashboard · 사용처 설정을 먼저 확인합니다/)).toBeTruthy();
+  expect((screen.getByRole('button', { name: '같은 요청으로 삭제 결과 확인' }) as HTMLButtonElement).disabled).toBe(false);
+  expect(api.get.mock.calls.filter(call => call[0].endsWith('/delete-impact'))).toHaveLength(impactReads);
+  expect(api.del).toHaveBeenCalledTimes(1);
+  expect(invalidate).not.toHaveBeenCalled();
+  api.del.mockResolvedValueOnce(
+    response({ dashboardId: 28, requestId: original.requestId, receiptId: 1, deleted: true, replayed: true }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '같은 요청으로 삭제 결과 확인' }));
+  await waitFor(() => expect(api.success).toHaveBeenCalledWith('dashboard.deleted'));
+  expect(api.del.mock.calls[1]).toEqual(['/dashboard/28', { data: original }]);
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['dashboards'] });
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  await screen.findByRole('button', { name: 'Alpha analysis · 삭제' });
+  api.get.mockResolvedValueOnce(
+    response({
+      dashboardId: 45,
+      actorId: 7,
+      organizationId: 7,
+      revision: 'b'.repeat(64),
+      canDelete: true,
+      dependencies: Object.keys(deletionDependencyLabels).map(kind => ({ kind, count: 0 })),
+    }),
+  );
+  click('Alpha analysis · 삭제');
+  await screen.findByText('현재 확인한 사용처 설정이 없습니다. 삭제하면 원본 대시보드를 되돌릴 수 없습니다.');
+  expect((screen.getByRole('button', { name: '대시보드 삭제' }) as HTMLButtonElement).disabled).toBe(false);
+  expect(api.get).toHaveBeenLastCalledWith('/dashboard/45/delete-impact', undefined, { signal: expect.anything() });
+  expect(api.del).toHaveBeenCalledTimes(2);
 });

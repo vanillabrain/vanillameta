@@ -1,3 +1,4 @@
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import {
   BadRequestException,
   ConflictException,
@@ -248,7 +249,10 @@ export class PublicationService {
     };
     const bytes = Buffer.byteLength(JSON.stringify(snapshot));
     if (bytes > PUBLICATION_MAX_BYTES) throw new BadRequestException('게시 결과가 너무 큽니다.');
-    if (this.publications.manager.connection.options.type === 'mysql' && bytes > 60 * 1024)
+    if (
+      ['mysql', 'mariadb'].includes(this.publications.manager.connection.options.type) &&
+      bytes > 60 * 1024
+    )
       throw new BadRequestException('이 서버의 게시 결과 한도는 60KiB입니다. 블록을 줄여 주세요.');
     // Only an explicit owner opt-in captures the private recipe; it is frozen with this publish.
     let reuseDefinition: string | null = null;
@@ -374,7 +378,8 @@ export class PublicationService {
       );
     const result = await serializedViewWrite(this.publications, () =>
       metadataTransaction(this.publications.manager, async manager => {
-        await this.access.dashboard(dashboardId, actor, 'publish');
+        const dashboard = await lockDashboardWrite(manager, dashboardId);
+        await this.access.dashboard(dashboardId, actor, 'publish', manager);
         const current = await this.find(manager, dashboardId);
         const concurrent = this.replay(current, requestId, payloadDigest, body.expectedVersion);
         if (concurrent)
@@ -383,14 +388,6 @@ export class PublicationService {
             dashboardRevision(await this.dashboardRow(dashboardId, manager)),
             concurrent,
           );
-        const dashboard = await manager.findOne(Dashboard, {
-          where: { id: dashboardId },
-          ...(manager.connection.options.type === 'mysql'
-            ? { lock: { mode: 'pessimistic_write' as const } }
-            : {}),
-        });
-        if (!dashboard || dashboard.delYn === 'Y')
-          throw new NotFoundException('저장 분석을 찾을 수 없습니다.');
         const revision = dashboardRevision(dashboard);
         if (revision !== body.expectedRevision) throw new ConflictException(STALE_SAVE_MESSAGE);
         if ((current?.version ?? 0) !== body.expectedVersion)
@@ -475,7 +472,7 @@ export class PublicationService {
   private find(manager: EntityManager, dashboardId: number) {
     return manager.findOne(DashboardPublication, {
       where: { dashboardId },
-      ...(manager.connection.options.type === 'mysql'
+      ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });
@@ -491,11 +488,11 @@ export class PublicationService {
     const expectedVersion = body.expectedVersion;
     return serializedViewWrite(this.publications, () =>
       metadataTransaction(this.publications.manager, async manager => {
-        await this.access.dashboard(dashboardId, actor, 'publish');
+        const dashboard = await lockDashboardWrite(manager, dashboardId);
+        await this.access.dashboard(dashboardId, actor, 'publish', manager);
         const current = await this.find(manager, dashboardId);
         if (!current) throw new NotFoundException('게시 버전이 없습니다.');
-        const dashboard = await manager.findOne(Dashboard, { where: { id: dashboardId } });
-        const revision = dashboard ? dashboardRevision(dashboard) : current.dashboardRevision;
+        const revision = dashboardRevision(dashboard);
         if (current.version !== expectedVersion) throw new ConflictException(STALE_VERSION_MESSAGE);
         if (!current.active) return this.serializeState(dashboardId, revision, current);
         const update = await manager.update(

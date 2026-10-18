@@ -1,3 +1,4 @@
+import { lockDashboardWrite } from './dashboard-write-lock';
 import {
   BadRequestException,
   ForbiddenException,
@@ -43,17 +44,23 @@ export class DashboardService {
     private readonly access: SourceAccessService,
   ) {}
 
-  async assertOwner(dashboardId: number, userId: number): Promise<void> {
+  async assertOwner(dashboardId: number, userId: number, manager?: EntityManager): Promise<void> {
     if (!Number.isInteger(dashboardId) || dashboardId <= 0) {
       throw new BadRequestException('invalid dashboard id');
     }
-    const dashboard = await this.dashboardRepository.findOne({ where: { id: dashboardId } });
+    const dashboard = await (manager
+      ? manager.getRepository(Dashboard)
+      : this.dashboardRepository
+    ).findOne({ where: { id: dashboardId } });
     if (!dashboard || dashboard.delYn === YesNo.YES) {
       throw new NotFoundException('dashboard not found');
     }
     if (!Number.isInteger(userId) || userId <= 0)
       throw new ForbiddenException('not dashboard owner');
-    const mapping = await this.userMappingRepository.findOne({
+    const mapping = await (manager
+      ? manager.getRepository(UserMapping)
+      : this.userMappingRepository
+    ).findOne({
       where: { dashboardId, userInfoId: userId },
     });
     if (!mapping) throw new ForbiddenException('not dashboard owner');
@@ -125,7 +132,6 @@ export class DashboardService {
     // const newDashboard = await this.dashboardRepository.save(saveObj);
 
     // user테이블에 대시보드id저장
-    const { id } = userData;
     // const test = await this.dashboardRepository
     //   .createQueryBuilder()
     //   .insert()
@@ -257,14 +263,15 @@ export class DashboardService {
     actor?: number,
     action: 'owner' | 'edit' = 'owner',
   ) {
-    if (actor === undefined || action === 'owner') return this.applyUpdate(id, updateDashboardDto);
     const widgetIds =
       updateDashboardDto.layout !== undefined
         ? await this.validateLayout(updateDashboardDto.layout)
         : undefined;
     return metadataTransaction(this.dashboardRepository.manager, async manager => {
-      await this.authorizeGrantedEdit(id, actor, action, widgetIds, manager);
-      return this.applyUpdate(id, updateDashboardDto, manager);
+      const dashboard = await lockDashboardWrite(manager, id);
+      if (actor !== undefined)
+        await this.authorizeGrantedEdit(id, actor, action, widgetIds, manager);
+      return this.applyUpdate(id, updateDashboardDto, manager, dashboard);
     });
   }
 
@@ -294,73 +301,41 @@ export class DashboardService {
   private async applyUpdate(
     id: number,
     updateDashboardDto: UpdateDashboardDto,
-    manager?: EntityManager,
+    manager: EntityManager,
+    find_dashboard: Dashboard,
   ) {
-    // UC-051: a granted edit writes through its transaction manager; the legacy path is unchanged.
-    const find_dashboard = manager
-      ? await manager.findOne(Dashboard, { where: { id: id } })
-      : await this.dashboardRepository.findOne({ where: { id: id } });
-
-    if (!find_dashboard) {
-      return 'Not exist dashboard';
-    } else {
-      const hasLayout = updateDashboardDto.layout !== undefined;
-      let widgetIds = hasLayout ? await this.validateLayout(updateDashboardDto.layout) : [];
-      // UC-006: grid order is presentation, not analysis widget identity/order.
-      if (hasLayout && find_dashboard.analysisDefinition) {
-        const links = manager ?? this.dashboardRepository.manager;
-        const original = await links.find(DashboardWidget, {
-          where: { dashboardId: id },
-          order: { id: 'ASC' },
-        });
-        if (
-          original.length === widgetIds.length &&
-          original.every(m => widgetIds.includes(m.widgetId))
-        )
-          widgetIds = original.map(m => m.widgetId);
-      }
-
-      if (updateDashboardDto.title) {
-        find_dashboard.title = updateDashboardDto.title;
-      }
-      if (hasLayout) {
-        find_dashboard.layout = JSON.stringify(updateDashboardDto.layout);
-      }
-
-      const saveObjDW = {
-        dashboardId: id,
-        widgetIds: widgetIds,
-      };
-      // 업데이트할 데이터
-      if (hasLayout)
-        await (manager
-          ? this.dashboardWidgetService.update(id, saveObjDW, manager)
-          : this.dashboardWidgetService.update(id, saveObjDW));
-      const updatedDashboard = await (manager
-        ? manager.save(find_dashboard)
-        : this.dashboardRepository.save(find_dashboard));
-
-      updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
-      return { status: ResponseStatus.SUCCESS, data: updatedDashboard };
-    }
-  }
-
-  async remove(id: number) {
-    const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
-    if (!find_dashboard) {
-      return { status: ResponseStatus.ERROR, message: 'No exist dashboard' };
-    } else {
-      await this.dashboardRepository.delete(id);
-      await this.dashboardWidgetService.remove(id);
-      const find_dashboardId = await this.userMappingRepository.findOne({
+    const hasLayout = updateDashboardDto.layout !== undefined;
+    let widgetIds = hasLayout ? await this.validateLayout(updateDashboardDto.layout) : [];
+    // UC-006: grid order is presentation, not analysis widget identity/order.
+    if (hasLayout && find_dashboard.analysisDefinition) {
+      const links = manager;
+      const original = await links.find(DashboardWidget, {
         where: { dashboardId: id },
+        order: { id: 'ASC' },
       });
-      await this.userMappingRepository.delete(find_dashboardId.id);
-      await this.dashboardShareRepository.delete(find_dashboard.shareId);
-      return {
-        status: ResponseStatus.SUCCESS,
-        data: { message: `This action removes a #${id} dashboard` },
-      };
+      if (
+        original.length === widgetIds.length &&
+        original.every(m => widgetIds.includes(m.widgetId))
+      )
+        widgetIds = original.map(m => m.widgetId);
     }
+
+    if (updateDashboardDto.title) {
+      find_dashboard.title = updateDashboardDto.title;
+    }
+    if (hasLayout) {
+      find_dashboard.layout = JSON.stringify(updateDashboardDto.layout);
+    }
+
+    const saveObjDW = {
+      dashboardId: id,
+      widgetIds: widgetIds,
+    };
+    // 업데이트할 데이터
+    if (hasLayout) await this.dashboardWidgetService.update(id, saveObjDW, manager);
+    const updatedDashboard = await manager.save(find_dashboard);
+
+    updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
+    return { status: ResponseStatus.SUCCESS, data: updatedDashboard };
   }
 }

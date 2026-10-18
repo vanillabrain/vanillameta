@@ -2,7 +2,7 @@
 
 ## 현재 확인과 범위
 
-개인 보관/복원은 [별도 구현 계획](UC-055-library-archive.md)을 따른다. 이번 조사에서 `DashboardService.remove`가 dashboard→widget 연결→단일 userMapping→share를 서로 다른 쓰기로 지우며, controller의 소유 확인 후에는 현재 권한/정의/참조를 다시 검사하지 않는 것을 확인했다. 이를 참조 중 자산 삭제 보호나 원자 삭제 완료로 표시하지 않는다.
+개인 보관/복원은 [별도 구현 계획](UC-055-library-archive.md)을 따른다. 구현 전 조사에서 기존 `DashboardService.remove`가 dashboard→widget 연결→단일 userMapping→share를 서로 다른 쓰기로 지우며, controller의 소유 확인 후에는 현재 권한/정의/참조를 다시 검사하지 않는 것을 확인했다. 이를 참조 중 자산 삭제 보호나 원자 삭제 완료로 표시하지 않는다.
 
 ## 구현해야 할 계약
 
@@ -15,4 +15,10 @@
 
 ## 종료 증거
 
-사용처 있음/없음·권한 부족·독립 사본·새 참조 경합·저장 중 실패에서 원본/연결/게시/사본/감사 불변 또는 허용한 원자 변경을 실제 DB/JWT로 대조한다. 영향 UI→명시 요청→409/성공→새로고침 및390/768/1440을 실제 확인한다. 이 문서는 설계이며 구현/테스트/운영 수용은 NOT_RUN이다.
+사용처 있음/없음·권한 부족·독립 사본·새 참조 경합·저장 중 실패에서 원본/연결/게시/사본/감사 불변 또는 허용한 원자 변경을 실제 DB/JWT로 대조한다. 영향 UI→명시 요청→409/성공→새로고침 및390/768/1440을 실제 확인한다. 이 문서는 초기 설계다. 대시보드는 [구체 구현 계획](UC-055-dashboard-delete.md)·[선택 증빙](../testing/dashboard-deletion.md)으로 이어지며, source/metric·조직 비활성 및 운영/전체 수용은 별도다.
+
+## 다음 단위의 코드 근거
+
+Dashboard 후속 정적 조사에서 `DatabaseService.remove`는 widget/table_query/dataset/Database와 파일 버전을 순차 제거하며, `MetricService.remove`는 저장 참조 확인 없이 useYn=N으로 만든다. guard 단계 소유권 검사만으로 삭제 시점의 actor/org/epoch·새 참조 경합을 보장하지 않는다. 이 두 경로는 Dashboard의 새 삭제 보호에 포함되지 않는다.
+
+다음 최소 단위는 지표의 사용처 확인·보호된 논리 삭제다. Dashboard structuredDefinition/StudioState measureRefs와 저장 ExploreView의 명시 참조를 조사하고, 영향 확인→현재 소스 소유권/활성/조직/epoch·기준 재검사→참조가 있으면409/쓰기0을 설계한다. 참조 저장/지표 변경과 공통 잠금, 실패 rollback·동일 요청 재확인·독립 사본 제외를 함께 검증해야 한다. 이 문단은 조사/후속 순서이며 아직 구현 또는 실제 경합 재현 증거가 아니다. 소스 영구 삭제·외부 파일 정리는 별도 후속이다.

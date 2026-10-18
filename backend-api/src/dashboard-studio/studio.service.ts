@@ -1,3 +1,4 @@
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { sourceConditionProfile } from '../bi/source-condition-profile';
 import { conditionColumns } from '../bi/source-condition-definition';
 import { serializeMetadataWork, metadataTransaction } from '../common/metadata-work';
@@ -513,11 +514,7 @@ export class StudioService {
   }
   /** Cross-process Studio writes lock an existing row, including the first publication. */
   private async lockDashboard(manager: EntityManager, id: number) {
-    if (['mysql', 'mariadb'].includes(this.db.options.type))
-      await manager.findOne(Dashboard, {
-        where: { id },
-        lock: { mode: 'pessimistic_write' },
-      });
+    return lockDashboardWrite(manager, id);
   }
   /** All Studio metadata transactions share the single SQLite connection's queue. */
   async serializeWrite<T>(run: () => Promise<T>): Promise<T> {

@@ -1,6 +1,8 @@
+import { lockDashboardWrite } from './dashboard-write-lock';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -42,12 +44,17 @@ export class PersonalViewService {
     manager: EntityManager = this.views.manager,
     lock = false,
   ) {
-    const current = await manager.findOne(Dashboard, {
-      where: { id: dashboardId },
-      ...(lock && manager.connection.options.type === 'mysql'
-        ? { lock: { mode: 'pessimistic_write' as const } }
-        : {}),
-    });
+    let current: Dashboard;
+    try {
+      current = lock
+        ? await lockDashboardWrite(manager, dashboardId)
+        : await manager.findOne(Dashboard, { where: { id: dashboardId } });
+    } catch (error) {
+      if (!(error instanceof ForbiddenException)) throw error;
+      throw new ConflictException(
+        '대시보드 정의가 변경되었습니다. 현재 대시보드에서 조건을 확인하고 새 보기로 저장해 주세요.',
+      );
+    }
     if (
       !current ||
       current.delYn === 'Y' ||
@@ -82,9 +89,9 @@ export class PersonalViewService {
     const row = await this.write(async () => {
       await this.access.dashboard(dashboardId, userId, 'read');
       return metadataTransaction(this.views.manager, async manager => {
-        await this.access.dashboard(dashboardId, userId, 'read', manager);
-        // Serialize MySQL admission on the existing dashboard row across server instances.
         await this.assertRevision(dashboardId, body.revision, manager, true);
+        await this.access.dashboard(dashboardId, userId, 'read', manager);
+        // Parent revision and existence were checked under the shared write fence above.
         const repo = manager.getRepository(PersonalView);
         if ((await repo.count({ where: { dashboardId, userId } })) >= 20)
           throw new BadRequestException('개인 보기는 대시보드별 최대 20개까지 저장할 수 있습니다.');

@@ -1,3 +1,5 @@
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
+import { metadataTransaction } from '../common/metadata-work';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
 import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createHash } from 'crypto';
@@ -144,25 +146,32 @@ export class SharedReuseOriginService {
   }
   async grant(id: unknown, actor: number, body?: any) {
     const dashboardId = this.access.id(id);
-    await this.access.dashboard(dashboardId, actor);
-    const dashboard = await this.db.manager.findOne(Dashboard, { where: { id: dashboardId } });
-    const share = await this.db.manager.findOne(DashboardShare, {
-      where: { id: dashboard.shareId },
-    });
-    if (!share) throw unavailable();
-    if (body !== undefined) {
-      if (!body || Object.keys(body).length !== 1 || typeof body.allowReuse !== 'boolean')
-        throw new BadRequestException('재사용 허용 설정을 확인해 주세요.');
-      await serializedViewWrite(this.db.getRepository(DashboardShare), () =>
-        this.db.manager
+    if (body === undefined) {
+      await this.access.dashboard(dashboardId, actor);
+      const dashboard = await this.db.manager.findOne(Dashboard, { where: { id: dashboardId } });
+      const share = await this.db.manager.findOne(DashboardShare, {
+        where: { id: dashboard.shareId },
+      });
+      if (!share) throw unavailable();
+      return { allowReuse: share.allowReuse === true };
+    }
+    if (!body || Object.keys(body).length !== 1 || typeof body.allowReuse !== 'boolean')
+      throw new BadRequestException('재사용 허용 설정을 확인해 주세요.');
+    const allowReuse = body.allowReuse;
+    return serializedViewWrite(this.db.getRepository(DashboardShare), () =>
+      metadataTransaction(this.db, async manager => {
+        const dashboard = await lockDashboardWrite(manager, dashboardId);
+        await this.access.dashboard(dashboardId, actor, 'owner', manager);
+        const share = await manager.findOne(DashboardShare, { where: { id: dashboard.shareId } });
+        if (!share) throw unavailable();
+        await manager
           .createQueryBuilder()
           .update(DashboardShare)
-          .set({ allowReuse: body.allowReuse, reuseVersion: () => 'reuseVersion + 1' })
+          .set({ allowReuse, reuseVersion: () => 'reuseVersion + 1' })
           .where('id = :id', { id: share.id })
-          .execute(),
-      );
-      return { allowReuse: body.allowReuse };
-    }
-    return { allowReuse: share.allowReuse === true };
+          .execute();
+        return { allowReuse };
+      }),
+    );
   }
 }

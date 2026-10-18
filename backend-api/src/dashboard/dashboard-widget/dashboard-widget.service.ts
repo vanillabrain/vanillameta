@@ -1,9 +1,11 @@
+import { lockDashboardWrite } from '../dashboard-write-lock';
+import { metadataTransaction } from '../../common/metadata-work';
 import { Injectable } from '@nestjs/common';
 import { CreateDashboardWidgetDto } from './dto/create-dashboard-widget.dto';
 import { UpdateDashboardWidgetDto } from './dto/update-dashboard-widget.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DashboardWidget } from './entities/dashboard-widget.entity';
-import { EntityManager, In, Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Widget } from '../../widget/entities/widget.entity';
 import { Component } from '../../component/entities/component.entity';
 
@@ -22,15 +24,17 @@ export class DashboardWidgetService {
    * 대시보드에 해당하는 widget 목록 저장
    * @param createDashboardWidgetDto
    */
-  async create(createDashboardWidgetDto: CreateDashboardWidgetDto) {
+  async create(createDashboardWidgetDto: CreateDashboardWidgetDto, manager?: EntityManager) {
     const { dashboardId, widgetIds } = createDashboardWidgetDto;
-
-    const saveList = [];
-    widgetIds.map(item => {
-      saveList.push({ dashboardId, widgetId: item });
-    });
-
-    return await this.dashboardWidgetRepository.save(saveList);
+    const run = async (tx: EntityManager) => {
+      await lockDashboardWrite(tx, dashboardId);
+      return tx
+        .getRepository(DashboardWidget)
+        .save(widgetIds.map(widgetId => ({ dashboardId, widgetId })));
+    };
+    return manager
+      ? run(manager)
+      : metadataTransaction(this.dashboardWidgetRepository.manager, run);
   }
 
   async findWidgets(dashboardId: number) {
@@ -74,18 +78,17 @@ export class DashboardWidgetService {
     updateDashboardWidgetDto: UpdateDashboardWidgetDto,
     manager?: EntityManager,
   ) {
-    const repository = manager
-      ? manager.getRepository(DashboardWidget)
-      : this.dashboardWidgetRepository;
-    // 전체 지우고, 다시 insert
-    await repository.delete({ dashboardId });
-
-    const saveList = [];
-    updateDashboardWidgetDto.widgetIds.map(item => {
-      saveList.push({ dashboardId, widgetId: item });
-    });
-
-    await repository.save(saveList);
+    const run = async (tx: EntityManager) => {
+      await lockDashboardWrite(tx, dashboardId);
+      const repository = tx.getRepository(DashboardWidget);
+      await repository.delete({ dashboardId });
+      await repository.save(
+        updateDashboardWidgetDto.widgetIds.map(widgetId => ({ dashboardId, widgetId })),
+      );
+    };
+    return manager
+      ? run(manager)
+      : metadataTransaction(this.dashboardWidgetRepository.manager, run);
   }
 
   async remove(dashboardId: number) {

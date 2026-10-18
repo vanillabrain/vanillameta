@@ -1,5 +1,5 @@
 import { APIRequestContext, APIResponse, expect, Page, request } from '@playwright/test';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -13,7 +13,14 @@ if (!ROOT || !API?.startsWith('http://127.0.0.1:4100/')) {
   throw new Error('Comprehensive scenarios require the isolated QA runtime.');
 }
 
-export type Actor = { userId: string; email: string; password: string; token: string; context: APIRequestContext; base: string };
+export type Actor = {
+  userId: string;
+  email: string;
+  password: string;
+  token: string;
+  context: APIRequestContext;
+  base: string;
+};
 export const unique = (prefix = 'qa') => `${prefix}_${randomBytes(5).toString('hex')}`;
 let nextRequestAt = 0;
 
@@ -25,12 +32,22 @@ export async function paced() {
 
 export async function body(response: APIResponse): Promise<any> {
   const text = await response.text();
-  try { return JSON.parse(text); } catch { return text; }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 export async function call(actor: Actor, method: string, suffix: string, data?: unknown, options: any = {}) {
   await paced();
-  return actor.context.fetch(actor.base + suffix, { method, timeout: 5000, data, ...options, headers: { Authorization: `Bearer ${actor.token}`, ...(options.headers || {}) } });
+  return actor.context.fetch(actor.base + suffix, {
+    method,
+    timeout: 5000,
+    data,
+    ...options,
+    headers: { Authorization: `Bearer ${actor.token}`, ...(options.headers || {}) },
+  });
 }
 
 export async function actor(base = API): Promise<Actor> {
@@ -56,6 +73,18 @@ export async function ok(response: APIResponse) {
   return value.data;
 }
 
+/** Delete only an owned fixture after reviewing its current non-cascading impact. */
+export async function deleteDashboard(owner: Actor, id: number) {
+  const impact = await ok(await call(owner, 'GET', `/dashboard/${id}/delete-impact`));
+  expect(impact.canDelete, 'fixture still has configured dependencies').toBe(true);
+  return call(owner, 'DELETE', `/dashboard/${id}`, {
+    requestId: randomUUID(),
+    expectedRevision: impact.revision,
+    expectedActorId: impact.actorId,
+    expectedOrganizationId: impact.organizationId,
+  });
+}
+
 export async function error(response: APIResponse) {
   expect(response.status(), 'unexpected server failure').toBeLessThan(500);
   const value = await body(response);
@@ -70,7 +99,13 @@ export async function error(response: APIResponse) {
 
 export async function upload(owner: Actor, contents = GOLD.salesCsv, extension = 'csv') {
   const response = await call(owner, 'POST', '/database/upload', undefined, {
-    multipart: { file: { name: `${unique()}.${extension}`, mimeType: extension === 'json' ? 'application/json' : 'text/csv', buffer: Buffer.from(contents) } },
+    multipart: {
+      file: {
+        name: `${unique()}.${extension}`,
+        mimeType: extension === 'json' ? 'application/json' : 'text/csv',
+        buffer: Buffer.from(contents),
+      },
+    },
   });
   const saved = await ok(response);
   expect(saved.rows).toBe(3);
@@ -99,15 +134,37 @@ export async function widget(owner: Actor, databaseId: number) {
   const components = await body(await call(owner, 'GET', '/component'));
   const numeric = components.find((item: any) => item.componentType === 'BOARD_NUMERIC');
   expect(numeric).toBeTruthy();
-  return ok(await call(owner, 'POST', '/widget', { title: unique(), componentId: numeric.id, datasetType: 'DATASET', datasetId: set.id, option: numericOption }));
+  return ok(
+    await call(owner, 'POST', '/widget', {
+      title: unique(),
+      componentId: numeric.id,
+      datasetType: 'DATASET',
+      datasetId: set.id,
+      option: numericOption,
+    }),
+  );
 }
 
 export async function dashboard(owner: Actor, widgetId?: number) {
-  return ok(await call(owner, 'POST', '/dashboard', { title: unique(), layout: widgetId ? [{ i: widgetId, x: 0, y: 0, w: 6, h: 4 }] : [] }));
+  return ok(
+    await call(owner, 'POST', '/dashboard', {
+      title: unique(),
+      layout: widgetId ? [{ i: widgetId, x: 0, y: 0, w: 6, h: 4 }] : [],
+    }),
+  );
 }
 
 export async function metric(owner: Actor, databaseId: number, extra: Record<string, unknown> = {}) {
-  return ok(await call(owner, 'POST', '/metric', { name: unique(), databaseId, tableName: 'uploaded_data', aggregation: 'SUM', expression: 'amount', ...extra }));
+  return ok(
+    await call(owner, 'POST', '/metric', {
+      name: unique(),
+      databaseId,
+      tableName: 'uploaded_data',
+      aggregation: 'SUM',
+      expression: 'amount',
+      ...extra,
+    }),
+  );
 }
 
 export async function signIn(page: Page, owner: Actor) {
@@ -125,7 +182,11 @@ export async function authorize(page: Page, owner: Actor) {
 }
 
 export async function provider(mode: string) {
-  const response = await fetch('http://127.0.0.1:4310/qa/mode', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode }) });
+  const response = await fetch('http://127.0.0.1:4310/qa/mode', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ mode }),
+  });
   expect(response.ok).toBe(true);
 }
 
@@ -149,7 +210,14 @@ export async function parquetBuffer(rows = RECORDS) {
   const folder = path.join(ROOT, 'fixtures');
   await fs.mkdir(folder, { recursive: true });
   const filename = path.join(folder, `${unique()}.parquet`);
-  const schema = new ParquetSchema({ id: { type: 'INT32' }, region: { type: 'UTF8' }, category: { type: 'UTF8' }, amount: { type: 'INT32' }, qty: { type: 'INT32' }, name: { type: 'UTF8' } });
+  const schema = new ParquetSchema({
+    id: { type: 'INT32' },
+    region: { type: 'UTF8' },
+    category: { type: 'UTF8' },
+    amount: { type: 'INT32' },
+    qty: { type: 'INT32' },
+    name: { type: 'UTF8' },
+  });
   const writer = await ParquetWriter.openFile(schema, filename);
   for (const row of rows) await writer.appendRow(row);
   await writer.close();

@@ -1,10 +1,12 @@
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
+import { metadataTransaction } from '../common/metadata-work';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
 import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from '../auth/auth.service.js';
 import { Dashboard } from '../dashboard/entities/dashboard.entity.js';
 import { User } from '../user/entities/user.entity.js';
-import { IsNull, Repository } from 'typeorm';
+import { EntityManager, IsNull, Repository } from 'typeorm';
 import { YesNo } from '../common/enum/yn.enum.js';
 import { ShareUrlOnDto } from './dto/create-share-url.dto';
 import { DashboardService } from '../dashboard/dashboard.service';
@@ -45,18 +47,31 @@ export class ShareUrlService {
 
   async checkShareUrlOn(userId: string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto) {
     return serializedViewWrite(this.dashboardShareRepository, () =>
-      this.shareOn(userId, dashboardId, shareUrlOnDto),
+      metadataTransaction(this.dashboardRepository.manager, manager =>
+        this.shareOn(userId, dashboardId, shareUrlOnDto, manager),
+      ),
     );
   }
-  private async shareOn(userId: string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto) {
-    const findUser = await this.userRepository.findOne({ where: { userId: userId } });
+  private async shareOn(
+    userId: string,
+    dashboardId: number,
+    shareUrlOnDto: ShareUrlOnDto,
+    manager: EntityManager,
+  ) {
+    const findUser = await manager.findOne(User, {
+      where: { userId },
+      ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ? { lock: { mode: 'pessimistic_write' as const } }
+        : {}),
+    });
     if (!findUser) {
       return 'not exist user';
     } else {
-      await this.dashboardService.assertOwner(dashboardId, findUser.id);
+      if (findUser.active === false) throw new HttpException('access denied', HttpStatus.FORBIDDEN);
+      const findDashboard = await lockDashboardWrite(manager, dashboardId);
+      await this.dashboardService.assertOwner(dashboardId, findUser.id, manager);
       const endDate = this.parseEndDate(shareUrlOnDto.endDate);
-      const findDashboard = await this.dashboardRepository.findOne({ where: { id: dashboardId } });
-      const findDashboardShare = await this.dashboardShareRepository.findOne({
+      const findDashboardShare = await manager.findOne(DashboardShare, {
         where: { id: findDashboard.shareId },
       });
       if (!findDashboardShare) {
@@ -69,7 +84,7 @@ export class ShareUrlService {
       findDashboardShare.shareToken = newToken;
       findDashboardShare.shareYn = YesNo.YES;
       findDashboardShare.endDate = endDate;
-      await this.dashboardShareRepository
+      await manager
         .createQueryBuilder()
         .update(DashboardShare)
         .set({
@@ -87,17 +102,25 @@ export class ShareUrlService {
 
   async checkShareUrlOff(userId: string, dashboardId: number) {
     return serializedViewWrite(this.dashboardShareRepository, () =>
-      this.shareOff(userId, dashboardId),
+      metadataTransaction(this.dashboardRepository.manager, manager =>
+        this.shareOff(userId, dashboardId, manager),
+      ),
     );
   }
-  private async shareOff(userId: string, dashboardId: number) {
-    const findUser = await this.userRepository.findOne({ where: { userId: userId } });
+  private async shareOff(userId: string, dashboardId: number, manager: EntityManager) {
+    const findUser = await manager.findOne(User, {
+      where: { userId },
+      ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ? { lock: { mode: 'pessimistic_write' as const } }
+        : {}),
+    });
     if (!findUser) {
       return 'not exist user';
     } else {
-      await this.dashboardService.assertOwner(dashboardId, findUser.id);
-      const findDashboard = await this.dashboardRepository.findOne({ where: { id: dashboardId } });
-      const findDashboardShare = await this.dashboardShareRepository.findOne({
+      if (findUser.active === false) throw new HttpException('access denied', HttpStatus.FORBIDDEN);
+      const findDashboard = await lockDashboardWrite(manager, dashboardId);
+      await this.dashboardService.assertOwner(dashboardId, findUser.id, manager);
+      const findDashboardShare = await manager.findOne(DashboardShare, {
         where: { id: findDashboard.shareId },
       });
       if (!findDashboardShare) {
@@ -106,7 +129,7 @@ export class ShareUrlService {
       findDashboardShare.shareToken = '';
       findDashboardShare.shareYn = YesNo.NO;
       findDashboardShare.endDate = null;
-      await this.dashboardShareRepository
+      await manager
         .createQueryBuilder()
         .update(DashboardShare)
         .set({

@@ -1,3 +1,4 @@
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import {
   BadRequestException,
   ConflictException,
@@ -146,12 +147,14 @@ export class AiDashboardService {
     userId: number,
     action: ResourceAction | 'owner' = 'read',
     manager = this.dashboards.manager,
+    write = false,
   ) {
     positiveId(id);
     if (!Number.isSafeInteger(userId) || userId <= 0)
       throw new ForbiddenException('not dashboard owner');
+    const locked = write ? await lockDashboardWrite(manager, id) : undefined;
     if (this.access) {
-      const dashboard = await manager.findOne(Dashboard, { where: { id } });
+      const dashboard = locked ?? (await manager.findOne(Dashboard, { where: { id } }));
       if (!dashboard || dashboard.delYn === YesNo.YES)
         throw new NotFoundException('dashboard not found');
       await this.access.dashboard(id, userId, action, manager);
@@ -161,7 +164,7 @@ export class AiDashboardService {
       where: { dashboardId: id, userInfoId: userId },
     });
     if (!mapping) throw new ForbiddenException('not dashboard owner');
-    const dashboard = await manager.findOne(Dashboard, { where: { id } });
+    const dashboard = locked ?? (await manager.findOne(Dashboard, { where: { id } }));
     if (!dashboard || dashboard.delYn === YesNo.YES)
       throw new NotFoundException('dashboard not found');
     return dashboard;
@@ -747,10 +750,11 @@ export class AiDashboardService {
   }
   async metricBatchSave(body: any, userId: number) {
     const changes = await this.metricBatch(body, userId);
-    const saved = await metadataTransaction(this.dashboards.manager, async manager => {
-      const results = [];
-      for (const [index, change] of changes.entries()) {
-        const result = await this.save(
+    // Complete every validated query/aggregate before taking any metadata or parent lock.
+    const prepared = [];
+    for (const [index, change] of changes.entries())
+      prepared.push(
+        await this.prepareSave(
           {
             dashboardId: change.dashboardId,
             expectedRevision: change.expectedRevision,
@@ -759,10 +763,21 @@ export class AiDashboardService {
           userId,
           change.snapshot,
           index === 0 ? change.mutation : undefined,
-          manager,
           true,
-        );
-        results.push(result.data);
+        ),
+      );
+    const saved = await metadataTransaction(this.dashboards.manager, async manager => {
+      // Acquire the entire set before the first Metric CAS, independent of primary-first save order.
+      for (const id of [...new Set<number>(changes.map(change => change.dashboardId))].sort(
+        (a, b) => a - b,
+      ))
+        await lockDashboardWrite(manager, id);
+      // Recheck every target under its parent fence before the first Metric CAS/write.
+      const current = [];
+      for (const item of prepared) current.push(await item.validate(manager));
+      const results = [];
+      for (const index of changes.keys()) {
+        results.push(await prepared[index].persist(manager, current[index]));
       }
       return results;
     });
@@ -2179,6 +2194,37 @@ export class AiDashboardService {
     preserveSizeIds: readonly string[] = [],
     layoutEdits?: BlockLayouts[],
   ) {
+    const prepared = await this.prepareSave(
+      body,
+      userId,
+      structuredSnapshot,
+      metricMutation,
+      preserveLayout,
+      preserveSizeIds,
+      layoutEdits,
+    );
+    const persist = (manager: EntityManager) => prepared.persist(manager);
+    const saved = sharedManager
+      ? await persist(sharedManager)
+      : await metadataTransaction(this.dashboards.manager, persist);
+    return this.success(saved);
+  }
+  private async prepareSave(
+    body: any,
+    userId: number,
+    structuredSnapshot?: object,
+    metricMutation?: {
+      id: number;
+      databaseId: number;
+      previous: string;
+      definition: string;
+      aggregation: any;
+      column: string;
+    },
+    preserveLayout = false,
+    preserveSizeIds: readonly string[] = [],
+    layoutEdits?: BlockLayouts[],
+  ) {
     if (
       body?.expectedRevision !== undefined &&
       (body.dashboardId === undefined ||
@@ -2254,10 +2300,10 @@ export class AiDashboardService {
       if (widget.timeGrain && widget.timeGrain !== 'auto' && widget.grainUnavailable)
         throw new BadRequestException('요청한 시간 집계를 안전하게 저장할 수 없습니다.');
     });
-    const persist = async (manager: EntityManager) => {
-      let dashboard =
+    const validate = async (manager: EntityManager) => {
+      const dashboard =
         body.dashboardId !== undefined
-          ? await this.owner(body.dashboardId, userId, 'edit', manager)
+          ? await this.owner(body.dashboardId, userId, 'edit', manager, true)
           : undefined;
       const previous = dashboard ? { ...dashboard } : null;
       if (
@@ -2298,6 +2344,15 @@ export class AiDashboardService {
         )
           throw new ConflictException('Condition source revision changed');
       }
+      return { dashboard, previous };
+    };
+    const persist = async (
+      manager: EntityManager,
+      current?: Awaited<ReturnType<typeof validate>>,
+    ) => {
+      const validated = current ?? (await validate(manager));
+      let { dashboard } = validated;
+      const { previous } = validated;
       const oldDraft = previous?.analysisDefinition
         ? legacyBlockIds(validateDraft(JSON.parse(previous.analysisDefinition)), previous.id)
         : previous
@@ -2500,10 +2555,7 @@ export class AiDashboardService {
         },
       };
     };
-    const saved = sharedManager
-      ? await persist(sharedManager)
-      : await metadataTransaction(this.dashboards.manager, persist);
-    return this.success(saved);
+    return { validate, persist };
   }
   /**
    * Saved Studio scope is server-owned metadata. A malformed stored value must stay distinguishable

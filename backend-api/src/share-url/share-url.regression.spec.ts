@@ -1,6 +1,12 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { IsNull } from 'typeorm';
+import { DataSource, EntityManager, IsNull } from 'typeorm';
+import { User } from '../user/entities/user.entity';
+import { UserMapping } from '../user/entities/user-mapping.entity';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
+import { DashboardService } from '../dashboard/dashboard.service';
+import { SourceAccessService } from '../ownership/source-access.service';
 import { ShareUrlService } from './share-url.service';
 import { ShareUrlController } from './share-url.controller';
 import { AuthService } from '../auth/auth.service';
@@ -14,59 +20,76 @@ describe('share ownership, calendar expiry and legacy token rotation regressions
   let auth: any;
   let dashboardService: any;
   let service: ShareUrlService;
-  let active: any;
+  let db: DataSource;
+  const active = () => db.manager.findOneBy(DashboardShare, { id: 9 });
 
-  beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['performance'] }).setSystemTime(new Date(2026, 2, 1, 12));
-    active = {
+  beforeEach(async () => {
+    db = await new DataSource({
+      type: 'sqlite',
+      database: ':memory:',
+      synchronize: true,
+      entities: [User, UserMapping, Dashboard, DashboardShare],
+    }).initialize();
+    await db.manager.insert(User, {
+      id: 7,
+      userId: 'unitactor',
+      email: 'share-owner@example.invalid',
+      password: 'unused',
+    });
+    await db.manager.insert(Dashboard, {
+      id: 17,
+      title: 'Synthetic',
+      shareId: 9,
+      layout: '[]',
+      delYn: 'N',
+    });
+    await db.manager.insert(UserMapping, { dashboardId: 17, userInfoId: 7 });
+    await db.manager.insert(DashboardShare, {
       id: 9,
       uuid: unitUuid,
       shareYn: 'Y',
       shareToken: 'unit-legacy-token',
-      endDate: new Date(2026, 2, 2, 23, 59, 59, 999),
-    };
-    users = { findOne: jest.fn().mockResolvedValue({ id: 7, userId: 'unitactor' }) };
-    dashboards = { findOne: jest.fn().mockResolvedValue({ id: 17, shareId: 9, delYn: 'N' }) };
-    shares = {
-      manager: { connection: { options: { type: 'mysql' } } },
-      createQueryBuilder: jest.fn().mockImplementation(() => {
-        let fields: any;
-        const builder = {
-          update: jest.fn(() => builder),
-          set: jest.fn(value => {
-            fields = value;
-            return builder;
-          }),
-          where: jest.fn(() => builder),
-          execute: jest.fn(async () => {
-            active = { ...active, ...fields, reuseVersion: (active.reuseVersion || 0) + 1 };
-            return { affected: 1 };
-          }),
-        };
-        return builder;
-      }),
-      findOne: jest.fn().mockImplementation(async () => ({ ...active })),
-      save: jest.fn().mockImplementation(async value => {
-        active = { ...value };
-        return active;
-      }),
-      update: jest.fn().mockImplementation(async (_where, fields) => {
-        active = { ...active, ...fields };
-        return { affected: 1 };
-      }),
-    };
+      endDate: new Date(2099, 11, 31, 23, 59, 59, 999),
+    });
+    users = db.getRepository(User);
+    dashboards = db.getRepository(Dashboard);
+    shares = db.getRepository(DashboardShare);
+    jest.spyOn(dashboards, 'findOne');
+    jest.spyOn(shares, 'findOne');
+    jest.spyOn(shares, 'save');
+    jest.spyOn(shares, 'update');
     auth = {
       generateUrlAccessToken: jest.fn().mockResolvedValue('unit-scoped-token'),
       readUrlAccessToken: jest.fn().mockResolvedValue(null),
     };
-    dashboardService = {
-      assertOwner: jest.fn().mockResolvedValue(undefined),
-      findShared: jest.fn().mockResolvedValue({ status: 'SUCCESS', data: { id: 17 } }),
-    };
+    dashboardService = new DashboardService(
+      dashboards,
+      users,
+      shares,
+      db.getRepository(UserMapping),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      new SourceAccessService(db),
+    );
+    const assertOwner = dashboardService.assertOwner.bind(dashboardService);
+    jest
+      .spyOn(dashboardService, 'assertOwner')
+      .mockImplementation(async (id, actor, manager: EntityManager) => {
+        expect(manager.queryRunner.isTransactionActive).toBe(true);
+        return assertOwner(id, actor, manager);
+      });
+    jest
+      .spyOn(dashboardService, 'findShared')
+      .mockResolvedValue({ status: 'SUCCESS', data: { id: 17 } } as any);
     service = new ShareUrlService(users, dashboards, shares, auth, dashboardService);
   });
 
-  afterEach(() => jest.useRealTimers());
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    await db?.destroy();
+  });
 
   it('canonicalizes route dashboard ids before owner checks and signed claims', async () => {
     const controller = new ShareUrlController(service, {
@@ -78,14 +101,14 @@ describe('share ownership, calendar expiry and legacy token rotation regressions
       { dashboardId: '17' },
       { userId: 'unitactor', endDate: '03/01/2026' },
     );
-    expect(dashboardService.assertOwner).toHaveBeenCalledWith(17, 7);
+    expect(dashboardService.assertOwner).toHaveBeenCalledWith(17, 7, expect.any(EntityManager));
     expect(auth.generateUrlAccessToken).toHaveBeenCalledWith({ dashboardId: 17, uuid: unitUuid });
     await controller.checkShareUrlOff(req, { dashboardId: '17' }, {} as any);
-    expect(dashboardService.assertOwner).toHaveBeenLastCalledWith(17, 7);
+    expect(dashboardService.assertOwner).toHaveBeenLastCalledWith(17, 7, expect.any(EntityManager));
   });
 
   it('rejects non-owner sharing on and off before state or token changes', async () => {
-    dashboardService.assertOwner.mockRejectedValue(new ForbiddenException());
+    await db.manager.delete(UserMapping, { dashboardId: 17, userInfoId: 7 });
     await expect(
       service.checkShareUrlOn('unitactor', 17, { userId: 'unitactor', endDate: '03/01/2026' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -94,6 +117,7 @@ describe('share ownership, calendar expiry and legacy token rotation regressions
     );
     expect(auth.generateUrlAccessToken).not.toHaveBeenCalled();
     expect(shares.save).not.toHaveBeenCalled();
+    expect((await active()).reuseVersion).toBe(0);
   });
 
   it.each([
@@ -112,35 +136,53 @@ describe('share ownership, calendar expiry and legacy token rotation regressions
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(auth.generateUrlAccessToken).not.toHaveBeenCalled();
     expect(shares.save).not.toHaveBeenCalled();
+    expect((await active()).reuseVersion).toBe(0);
   });
 
   it('keeps today valid through local end of day and expires yesterday', async () => {
-    await service.checkShareUrlOn('unitactor', 17, { userId: 'unitactor', endDate: '03/01/2026' });
-    expect(active.endDate.getTime()).toBe(new Date(2026, 2, 1, 23, 59, 59, 999).getTime());
+    // Keep the native Date constructor: TypeORM uses it to hydrate SQLite datetimes.
+    const today = new Date();
+    const calendar = (date: Date) =>
+      `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(
+        2,
+        '0',
+      )}/${date.getFullYear()}`;
+    await service.checkShareUrlOn('unitactor', 17, {
+      userId: 'unitactor',
+      endDate: calendar(today),
+    });
+    const end = new Date(today);
+    end.setHours(23, 59, 59, 999);
+    expect(new Date((await active()).endDate).getTime()).toBe(end.getTime());
     auth.readUrlAccessToken.mockResolvedValue({
       shareKeyData: { dashboardId: 17, uuid: unitUuid },
     });
     await service.shareDashboardInfo(unitUuid);
     expect(dashboardService.findShared).toHaveBeenCalledWith(17);
-    await service.checkShareUrlOn('unitactor', 17, { userId: 'unitactor', endDate: '02/28/2026' });
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    await service.checkShareUrlOn('unitactor', 17, {
+      userId: 'unitactor',
+      endDate: calendar(yesterday),
+    });
     await expect(service.shareDashboardInfo(unitUuid)).rejects.toMatchObject({ status: 401 });
   });
 
   it('accepts a valid leap-day calendar date', async () => {
     await service.checkShareUrlOn('unitactor', 17, { userId: 'unitactor', endDate: '02/29/2028' });
-    expect(active.endDate.getDate()).toBe(29);
-    expect(active.endDate.getMonth()).toBe(1);
+    expect(new Date((await active()).endDate).getDate()).toBe(29);
+    expect(new Date((await active()).endDate).getMonth()).toBe(1);
   });
 
   it('denies missing, revoked, invalid-expiry and deleted-dashboard UUID reads', async () => {
     shares.findOne.mockResolvedValueOnce(null);
     await expect(service.shareDashboardInfo(unitUuid)).rejects.toMatchObject({ status: 404 });
-    active.shareYn = 'N';
+    await db.manager.update(DashboardShare, 9, { shareYn: 'N' });
     await expect(service.shareDashboardInfo(unitUuid)).rejects.toMatchObject({ status: 403 });
-    active.shareYn = 'Y';
-    active.endDate = new Date(NaN);
+    await db.manager.update(DashboardShare, 9, { shareYn: 'Y' });
+    shares.findOne.mockResolvedValueOnce({ ...(await active()), endDate: new Date(NaN) });
     await expect(service.shareDashboardInfo(unitUuid)).rejects.toMatchObject({ status: 401 });
-    active.endDate = new Date(2026, 2, 2);
+
     dashboards.findOne.mockResolvedValueOnce(null);
     await expect(service.shareDashboardInfo(unitUuid)).rejects.toMatchObject({ status: 404 });
     expect(dashboardService.findShared).not.toHaveBeenCalled();
@@ -161,7 +203,7 @@ describe('share ownership, calendar expiry and legacy token rotation regressions
   });
 
   it('uses IsNull for a legacy null token compare-and-set', async () => {
-    active.shareToken = null;
+    await db.manager.update(DashboardShare, 9, { shareToken: null });
     await service.shareDashboardInfo(unitUuid);
     expect(shares.update).toHaveBeenCalledWith(
       { id: 9, shareToken: IsNull(), shareYn: 'Y' },
@@ -172,8 +214,8 @@ describe('share ownership, calendar expiry and legacy token rotation regressions
   it('reloads a winning concurrent rotation instead of invalidating viewers again', async () => {
     shares.update.mockResolvedValue({ affected: 0 });
     shares.findOne
-      .mockResolvedValueOnce({ ...active })
-      .mockResolvedValueOnce({ ...active, shareToken: 'unit-winning-token' });
+      .mockResolvedValueOnce({ ...(await active()) })
+      .mockResolvedValueOnce({ ...(await active()), shareToken: 'unit-winning-token' });
     auth.readUrlAccessToken
       .mockResolvedValueOnce({ accessKeyData: {} })
       .mockResolvedValueOnce({ shareKeyData: { dashboardId: 17, uuid: unitUuid } });

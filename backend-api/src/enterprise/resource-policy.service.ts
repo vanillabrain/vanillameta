@@ -1,3 +1,4 @@
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { currentGroupDeliveries } from './group-delivery-query';
 import { groupAdmin, groupKeys, groupWrite } from './group.service';
 import {
@@ -87,6 +88,9 @@ export class EnterpriseResourcePolicyService {
     return { ownerId: owners[0].userInfoId, label: row.title };
   }
   private async management(kind: ResourceKind, id: number, actor: number, manager: EntityManager) {
+    // Only management writes fence the parent; ordinary policy/read paths remain non-locking.
+    if (kind === 'dashboard' && manager.queryRunner?.isTransactionActive)
+      await lockDashboardWrite(manager, id);
     const [membership, resource] = await Promise.all([
       this.member(actor, manager),
       this.resource(kind, id, manager),

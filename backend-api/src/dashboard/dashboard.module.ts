@@ -1,3 +1,6 @@
+import { DashboardDeletionController } from './dashboard-deletion.controller';
+import { DashboardDeletionService } from './dashboard-deletion.service';
+import { DashboardDeleteReceipt } from './entities/dashboard-delete-receipt.entity';
 import { PersonalLibraryController } from './personal-library.controller';
 import { PersonalLibraryService } from './personal-library.service';
 import { PersonalLibraryState } from './entities/personal-library-state.entity';
@@ -23,6 +26,7 @@ import { PersonalViewService } from './personal-view.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      DashboardDeleteReceipt,
       PersonalLibraryState,
       PersonalView,
       Dashboard,
@@ -35,8 +39,9 @@ import { PersonalViewService } from './personal-view.service';
       RefreshToken,
     ]),
   ],
-  controllers: [PersonalLibraryController, DashboardController],
+  controllers: [DashboardDeletionController, PersonalLibraryController, DashboardController],
   providers: [
+    DashboardDeletionService,
     PersonalLibraryService,
     DashboardService,
     DashboardWidgetService,

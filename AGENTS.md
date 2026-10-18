@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC055 삭제 보호:** [계획](docs/plans/UC-055-dashboard-delete.md)·[증빙](docs/testing/dashboard-deletion.md)은 현재 소유/계정·조직·기준과 8종 설정을 재검사해 대시보드 원자 삭제/영수증으로 이어진다. 삭제·기존-ID 저장·새 공유/게시의 부모 잠금은 공통이며 삭제된 ID를 재생성하지 않는다. source/metric/조직 비활성·실제 Ego/MySQL/운영·전체16개 수용은 별도다.
+
 - **UC055 개인 보관:** [계획](docs/plans/UC-055-library-archive.md)·[증빙](docs/testing/personal-library-archive.md)은 본인/현재 조직의 목록 보관·복원을 원본/공유/게시와 분리한다. 읽은 계정/조직·개인 버전·현재 read/JWT epoch를 검사하고 조직 없는 기존 탐색을 보존한다. [삭제 보호 후속](docs/plans/UC-055-dependency-deletion.md)·실제 UI/모바일/MySQL/운영·전체16개 수용은 별도다.
 
 - **UC054 출력 알림:** [계획](docs/plans/UC-054-export-notifications.md)·[증빙](docs/testing/export-notifications.md)은 확정 export 완료/실패/취소의 본인/현재 조직 투영과 기존 읽음/제거를 연결한다. 과거 사건이며 파일 접근권 증명이 아니고 알림 장애/제거는 파일을 바꾸지 않는다. 외부 발송·실제 Ego/모바일/MySQL/운영·전체16개 수용은 별도다.
