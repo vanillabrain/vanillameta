@@ -1,3 +1,5 @@
+import { EnterpriseModule } from './enterprise/enterprise.module';
+import { AddEnterpriseMembership1792400000000 } from './migrations/1792400000000-add-enterprise-membership';
 import { AddSourceCatalog1792300000000 } from './migrations/1792300000000-add-source-catalog';
 import { StudioModule } from './dashboard-studio/studio.module';
 import { AddDashboardStudio1792030000000 } from './migrations/1792030000000-add-dashboard-studio';
@@ -40,6 +42,7 @@ import { apiEnvFiles } from './config-env';
 
 @Module({
   imports: [
+    EnterpriseModule,
     StudioModule,
     AnalysisModule,
     BiModule,
@@ -66,6 +69,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddEnterpriseMembership1792400000000,
         AddSourceCatalog1792300000000,
         AddDashboardStudio1792030000000,
         AddDashboardReusePermissions1792120000000,

@@ -13,7 +13,7 @@
 ## Preconditions
 
 - 요청자가 같은 조직의 유효한 업무 계정이며 대상의 현재 권한을 확인할 수 있다.
-- 신규 목표 명세이며 구현·실제 실행 검증은 NOT_RUN이다.
+- 전체 목표 명세는 Draft다. 조직/직원 첫 단위 구현·자동 검사와 전체 자원 권한/실제 UI 검증을 [증빙](../testing/enterprise-membership.md)에서 구분한다.
 
 ## Main Success Scenario
 
@@ -56,3 +56,7 @@
 ## Source Evidence
 
 [VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)를 따른다. 신규 요구이며 구현/실행 검증은 미완료다.
+
+## 첫 구현 단위
+
+[계획](../plans/UC-051.md)의 격리 조직 생성·조직 지정 본인 동의 코드·직원 역할/활성 관리·epoch 인증 회수를 진행했다. 데이터/산출물 grant·그룹·전체 E02/E03은 후속이며 Status Draft/요건 Open은 유지한다.

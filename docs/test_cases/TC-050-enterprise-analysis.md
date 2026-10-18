@@ -78,3 +78,7 @@
 ### UC050 Saved Analysis Basis Follow-up
 
 [저장본 기준 검증](../testing/studio-saved-metric-basis.md)은 snapshot 연결/whitelist·입력불변/실제 Studio GET, 선택기/Inspector 참조 대조/새 요청·편집0·형식검증/backward 호환을 선택 검증한다. 현재 지표 변경 후에도 저장 버전 기준을 유지하며 기존409 경계는 그대로다. 실제 Ego/모바일·공식 승인/전체 TC050 NOT_RUN을 대신하지 않는다.
+
+## UC051 첫 단위 선택 검증 — 2026-10-18
+
+[조직·직원 증빙](../testing/enterprise-membership.md)은 E02/E03 중 조직 격리·동의 없는 편입 거절·관리자 CAS·계정 비활성/재활성 인증 경계만 확인한다. 데이터/산출물 자원별 허용·회수·export/파일과 실제 UI는 이 실행에 포함하지 않으므로 표의 전체 NOT_RUN을 승격하지 않는다.

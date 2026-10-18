@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import IconUser from '@/assets/images/icon/ic-user.svg?react';
 import ProfileModify from '@/components/user/ProfileModify';
+import OrganizationMenuLink from '@/components/user/OrganizationMenuLink';
 import { AuthContext } from '@/contexts/AuthContext';
 import Logout from '@/components/user/Logout';
 
@@ -44,10 +45,12 @@ const ProfileViewButton = () => {
               <span className="ml-1 font-normal text-muted-foreground">님</span>
             </span>
             <span className="mt-2 text-sm leading-5 text-foreground">{userState.userEmail}</span>
-            <div className="mt-8 flex flex-row items-center justify-center text-center text-sm text-muted-foreground">
+            <div className="mt-8 flex flex-row flex-wrap items-center justify-center gap-x-3 gap-y-2 text-center text-sm text-muted-foreground">
               <Logout className="underline hover:underline" />
-              <span className="mx-3 h-[10px] w-px bg-[#cccfd8]" />
+              <span className="hidden h-[10px] w-px bg-[#cccfd8] sm:block" />
               <ProfileModify />
+              <span className="hidden h-[10px] w-px bg-[#cccfd8] sm:block" />
+              <OrganizationMenuLink className="underline hover:underline" />
             </div>
           </div>
         </div>

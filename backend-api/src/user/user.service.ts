@@ -1,3 +1,5 @@
+import { ConflictException } from '@nestjs/common';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from '../auth/auth.service.js';
@@ -44,13 +46,24 @@ export class UserService {
     if (!findUser) {
       return 'Unauthorized';
     } else {
+      if (
+        await this.userRepository.manager.findOneBy(EnterpriseMembership, { userId: findUser.id })
+      )
+        throw new ConflictException('조직 소속 계정은 조직 탈퇴 처리 후 삭제할 수 있습니다.');
       await this.userRepository.delete(findUser.id);
       return `success`;
     }
   }
 
-  async reissuanceAccessToken(userId: string) {
+  async reissuanceAccessToken(userId: string, authVersion = 0) {
     const payload = await this.userRepository.findOne({ where: { userId: userId } });
+    if (
+      !payload ||
+      payload.active === false ||
+      !Number.isSafeInteger(authVersion) ||
+      authVersion !== (payload.authVersion ?? 0)
+    )
+      throw new UnauthorizedException('refreshTokenExpired');
     return await this.authService.generateAccessToken(payload);
   }
   // AccessToken 만료시 재발급 코드

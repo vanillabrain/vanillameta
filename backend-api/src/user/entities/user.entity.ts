@@ -14,6 +14,12 @@ export class User {
   @ApiProperty({ description: 'id' })
   id: number;
 
+  @Column({ type: 'boolean', default: true })
+  active: boolean;
+
+  @Column({ type: 'integer', default: 0 })
+  authVersion: number;
+
   @IsNotEmpty()
   @Column({ length: 255, comment: '유저 Id' })
   @ApiProperty({ description: '유저Id' })

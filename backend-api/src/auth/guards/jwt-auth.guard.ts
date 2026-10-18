@@ -86,7 +86,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         const user = await this.dataSource.getRepository(User).findOne({
           where: { id: actor.id, userId: actor.userId },
         });
-        if (!user) throw new Error('missing actor');
+        if (
+          !user ||
+          user.active === false ||
+          !Number.isSafeInteger(actor.authVersion ?? 0) ||
+          (actor.authVersion ?? 0) !== (user.authVersion ?? 0)
+        )
+          throw new Error('revoked actor');
         return verify;
       } catch {
         throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);

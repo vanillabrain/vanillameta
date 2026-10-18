@@ -21,6 +21,7 @@ export class AuthService {
       userId: payload.userId,
       email: payload.email,
       id: payload.id,
+      authVersion: payload.authVersion ?? 0,
     };
     const accessToken = await this.jwtService.sign(
       { accessKeyData },
@@ -60,6 +61,7 @@ export class AuthService {
       userId: payload.userId,
       email: payload.email,
       id: payload.id,
+      authVersion: payload.authVersion ?? 0,
     };
     const refreshToken = await this.jwtService.sign(
       { refreshKeyData },
@@ -93,7 +95,7 @@ export class AuthService {
 
   async validateUser(userId: string, pass: string) {
     const user = await this.userRepository.findOne({ where: { userId: userId } });
-    if (!user) return null;
+    if (!user || user.active === false) return null;
 
     const { ok, needsRehash } = verifyPassword(pass, user.password);
     if (!ok) return null;
@@ -150,7 +152,14 @@ export class AuthService {
       const user = await this.userRepository.findOne({
         where: { id: actor.id, userId: actor.userId },
       });
-      if (!user || !Number.isSafeInteger(user.jwtId) || user.jwtId <= 0) {
+      if (
+        !user ||
+        user.active === false ||
+        !Number.isSafeInteger(actor.authVersion ?? 0) ||
+        (actor.authVersion ?? 0) !== (user.authVersion ?? 0) ||
+        !Number.isSafeInteger(user.jwtId) ||
+        user.jwtId <= 0
+      ) {
         throw new Error('missing refresh session');
       }
       const stored = await this.refreshTokenRepository.findOne({ where: { id: user.jwtId } });

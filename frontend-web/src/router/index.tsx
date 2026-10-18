@@ -26,6 +26,7 @@ const DataSource = React.lazy(() => import('@/pages/Data/DataSource'));
 const DataSet = React.lazy(() => import('@/pages/Data/DataSet'));
 const FileAnalysis = React.lazy(() => import('@/pages/Data/FileAnalysis'));
 const Metric = React.lazy(() => import('@/pages/Data/Metric'));
+const Enterprise = React.lazy(() => import('@/pages/Enterprise'));
 const Login = React.lazy(() => import('@/pages/Login'));
 const SignUp = React.lazy(() => import('@/pages/SignUp'));
 const Share = React.lazy(() => import('@/pages/Share'));
@@ -79,6 +80,7 @@ function Router() {
           <Route path="/commerce/:projectId" element={<Commerce />} />
           <Route path="/data/file" element={<FileAnalysis />} />
           <Route path="/data/metric" element={<Metric />} />
+          <Route path="/organization" element={<Enterprise />} />
           <Route path="/data/source/create" element={<DataSource />} />
           <Route path="/data/source/modify" element={<DataSource />}>
             <Route path=":sourceId" element={<DataSource />} />

@@ -800,3 +800,7 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 ## 2026-10-18 UC050 저장 분석 지표 기준
 
 [증빙](studio-saved-metric-basis.md): 저장 snapshot의 검증된 연결에서 source/metric/version과 계산 필드를 읽고 Inspector 접힌 상세로 제공한다. 현재 지표와 섞지 않으며 선택/참조 불일치와 AI override에서는 표시하지 않는다. BE28/FE97·type/lint/build 선택 검증이며 실제 Ego/3폭·전체 수용은 미완료다.
+
+## 2026-10-18 UC051 조직·직원 및 인증 회수 첫 단위
+
+[전체 추가 요건 목표](../plans/enterprise-completion.md)와 [증빙](enterprise-membership.md)을 기준으로 진행한다. 격리 조직 생성·조직에 묶인 본인 동의 코드/취소·직원 팀/역할/활성·버전CAS/감사·비활성/재활성 epoch 회수를 구현했다. 기존 개인 데이터 소유권은 확장하지 않고 자원별 grant는 후속이다. SQLite 실제 트랜잭션/인증/사용자123개·HTTP 선택 여정·격리 core8·BE build를 확인했고 프론트 자동 검사는 최종 증빙을 따른다. 실제 Ego/390·768·1440은 제어권 경계로 BLOCKED, 운영MySQL/실휴대폰·TC050 전체 수용은 미완료이며16개 요건은 Open을 유지한다.

@@ -306,6 +306,9 @@ export default {
     expired: '로그인이 만료되었습니다.\n다시 로그인 해주세요.',
     failed: '프로필 수정에 실패했습니다.\n다시 시도해 주세요.',
   },
+  organization: {
+    menu: '조직·직원',
+  },
   dataRecommend: {
     create: '대시보드 생성',
     nameLabel: '대시보드 이름',
