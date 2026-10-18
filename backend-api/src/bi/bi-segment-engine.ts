@@ -24,6 +24,8 @@ export type PreparedSegmentInput<K extends MetricKey> = {
   filters: SourceFilter[];
   dateRange?: DashboardDateRange;
   trendGrain: 'day' | 'week' | 'month';
+  /** Server-pinned source trend column; null explicitly preserves no trend. */
+  trendColumn?: string | null;
   page: number;
   pageSize: number;
   aggregateOnly: boolean;
@@ -286,7 +288,10 @@ export async function executePreparedSegment<K extends MetricKey>(
     };
   }
 
-  const timeColumn: string | undefined = temporal[0];
+  const timeColumn: string | undefined =
+    input.trendColumn === undefined ? temporal[0] : input.trendColumn ?? undefined;
+  if (timeColumn && !temporal.includes(timeColumn))
+    throw new BadRequestException('Invalid prepared trend column');
   const trends: Array<{
     time: string;
     values: Array<{ id: K; value: number | string | null }>;

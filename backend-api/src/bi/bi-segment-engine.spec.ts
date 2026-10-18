@@ -99,6 +99,21 @@ describe('prepared segment execution without saved candidate metrics', () => {
     expect(query.mock.calls.some(([sql]) => sql.includes('__vm_detail_'))).toBe(false);
     expect(assertCurrent).toHaveBeenCalledTimes(1);
   });
+  it('candidate_without_a_source_trend_does_not_adopt_a_target_date', async () => {
+    const result = await executePreparedSegment(
+      { ...input(), trendColumn: null },
+      {
+        profile,
+        sourceRevision: 'v',
+        viewRevision: 'v',
+        query,
+        assertCurrent,
+      },
+    );
+    if ('selection' in result) throw new Error('unexpected details');
+    expect(result.time).toBeNull();
+    expect(result.trends).toEqual([]);
+  });
   it('prepared_result_rechecks_before_return', async () => {
     assertCurrent.mockRejectedValueOnce(new Error('source changed'));
     await expect(execute()).rejects.toThrow('source changed');
