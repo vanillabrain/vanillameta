@@ -1,3 +1,4 @@
+import HandoverFileCustodyReview from './HandoverFileCustodyReview';
 import React, { useEffect, useRef, useState } from 'react';
 import { enterpriseError } from '@/api/enterpriseService';
 import { HandoverProposal, HandoverScope } from '@/api/handoverService';
@@ -33,7 +34,7 @@ export default function HandoverDependencyReview(props: Props) {
   const identity = JSON.stringify([scope, props.organizationVersion, review]);
   return allowed ? <DependencyRead key={identity} {...props} /> : null;
 }
-function DependencyRead({ review, scope }: Props) {
+function DependencyRead({ review, scope, organizationVersion }: Props) {
   const [open, setOpen] = useState(false);
   const [report, setReport] = useState<HandoverDependencyReport | null>(null);
   const [busy, setBusy] = useState(false);
@@ -149,6 +150,12 @@ function DependencyRead({ review, scope }: Props) {
             </div>
           )}
           {error && <Notice severity="error">{error}</Notice>}
+          <HandoverFileCustodyReview
+            key={generation.current}
+            review={review}
+            scope={scope}
+            organizationVersion={organizationVersion}
+          />
           <details className="text-xs text-muted-foreground">
             <summary className="cursor-pointer py-1">검토 범위와 제외 사항</summary>
             <p className="mt-2">

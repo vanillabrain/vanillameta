@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC051 인계 파일 관측:** [설계](docs/plans/UC-051-handover-custody.md)·[증빙](docs/testing/handover-file-custody.md)은 수락 요청 소유자만 관리 파일 신원·알려진 공유·미해제 갱신을 읽는다. ready/등록/실체와 bounded 비재귀 검사·파일 검사 후 권한/metadata 재검사를 따르며 양성 공유/hardlink는 다른 실패/순회 상한에도 유지한다. observed/미관측은 내용 정상·배타적 보관/실행 승인이 아니다. MySQL151·SQLite146/5SKIP·FE서비스61/표시45는 범위별 중복 배치다. Ego105 실패/재조회·파일 상태변경/reload·390/768/1440과 순수 GET66표/13파일 불변을 확인했다. 최종 인계 동의·원자 이전/영수증·퇴사/운영/실기기/전체16개 수용은 후속이다.
+
 - **UC051 인계 전 연결 검토:** [설계](docs/plans/UC-051-handover-review.md)·[증빙](docs/testing/handover-dependency-review.md)은 수락된 고정 요청의 소유자만 명시 연결/소스 선택 누락·보관 검토 필요를 읽는다. 미선택 자료 신원/내용은 비공개며 covered는 전체 이전 가능 판정이 아니고 executionAvailable=false다. 최종 MySQL110·SQLite105/5SKIP·FE63/후속36은 중복 범위다. Ego104 실패/자료변경409·명시 재조회/reload·390/768/1440 및 순수 GET66표 불변을 확인했다. 파일 실체/공유 소비자/갱신·실제 이전/탈퇴·운영/실휴대폰/전체16개 수용은 후속이다.
 
 - **UC051 인계 의향:** [설계](docs/plans/UC-051-handover-proposal.md)·[증빙](docs/testing/handover-proposal.md)은 소유자의 활성 source/단독 dashboard 선택·정확한 제목 공개 동의→지정 직원 검토/수락·철회를 연결한다. 소유권/접근권 이전은 없고 철회/만료/양쪽 epoch 변경은 제목 공개를 중단한다. 같은 UUID의 현재 상태·과거 수락과 감사 ID 연결을 구분한다. MySQL62·SQLite100/9SKIP·FE49는 중복 배치이며 Ego103 생성/409/재검토/수락/reload/철회·390/768/1440·원본60표 보존을 확인했다. 실제 인계/탈퇴 확정·운영/실휴대폰/전체16개 수용은 별도다.

@@ -83,7 +83,7 @@ it('is folded and never requests on opening alone; explicitly displays missing s
   expect(screen.getByText('파일 실체·보관 주체 별도 검토 필요')).toBeTruthy();
   expect(screen.getByText(/실제 이전 실행 불가/)).toBeTruthy();
   expect(screen.getByText('검토 범위와 제외 사항').closest('details').open).toBe(false);
-  expect(screen.getAllByRole('button')).toHaveLength(2);
+  expect(screen.getAllByRole('button')).toHaveLength(3);
   expect(api.post).not.toHaveBeenCalled();
   expect(api.patch).not.toHaveBeenCalled();
   expect(api.del).not.toHaveBeenCalled();

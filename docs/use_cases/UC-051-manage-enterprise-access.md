@@ -79,6 +79,17 @@
 4. 실패/기준 변경은 이전 결과를 숨기고 요청 번호와 선택을 보존해 명시 재조회한다. 이 조회는 실제 이전 권한이나 실행 ticket이 아니다.
 5. Use case ends.
 
+### A6: Managed file custody observation
+
+**Trigger:** 소유자가 수락된 의향의 선택 소스 파일·공유 사용처·갱신 상태를 확인한다 (step 2).
+**Flow:**
+
+1. 기존 연결 검토를 연 소유자가 파일·갱신 상태 확인을 명시한다.
+2. 서버는 현재 고정 의향과 파일 관리 경계를 확인하고 선택 파일 신원/알려진 소비자/열린 갱신을 조회한다.
+3. 확인 실패·누락·손상·미지원·공유 소비자·열린 lease를 구별하고 경로/신원 proof/미선택 자료 정보는 공개하지 않는다.
+4. 실패 시 이전 결과를 숨기고 요청을 유지한다. 재시도와 새로고침 이후 조회는 명시 동작이며 실제 이전/파일 변경을 수행하지 않는다.
+5. Use case ends.
+
 ## Postconditions
 
 ### Success Postconditions
@@ -114,6 +125,10 @@
 ### BR-051-06: Read-only dependency and custody prerequisites
 
 [연결 검토 계약](../plans/UC-051-handover-review.md)은 현재 소유자에게만 수락된 고정 선택 자료의 명시 연결 범위를 제공한다. 소스 누락은 자동 포함하지 않고 새 의향 요청을 요구한다. covered는 선택 연결의 포함 여부일 뿐 전역 의존성·파일 실체/배타 보관·자격정보 이전 가능·실행 승인 증명이 아니다. 수신자에게 공개 범위를 확대하지 않으며 모든 결과의 executionAvailable=false를 유지한다.
+
+### BR-051-07: Custody observation cannot authorize transfer
+
+[파일 보관 검토](../plans/UC-051-handover-custody.md)는 현재 소유자의 수락된 고정 요청에 한정한다. observed는 관리 파일 신원의 관측이며 내용 정상/배타적 보관/수신자 책임 증명이 아니다. 소비자 미관측은 알려진 검사 범위만 뜻하며 검사 실패/순회 상한을 성공으로 대체하지 않는다. 열린/만료 lease는 자동 회수하지 않고 주의 상태로 남긴다. 파일·DB·권한 쓰기0/실행 불가와 현재 기준 재검사를 유지한다.
 
 ## Source Evidence
 

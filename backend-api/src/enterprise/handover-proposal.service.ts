@@ -1,3 +1,4 @@
+import { custodyMetadata, custodyRefresh, inspectHandoverCustody } from './handover-custody';
 import { handoverSourceCoverage, handoverStorage } from './handover-dependencies';
 import {
   BadRequestException,
@@ -301,16 +302,7 @@ export class HandoverProposalService {
       actor,
       epoch,
       async (manager, scope) => {
-        const row = await manager.findOneBy(EnterpriseHandoverProposal, { requestId: id });
-        this.access(row, actor, scope);
-        if (row.ownerId !== actor)
-          throw new ForbiddenException('소유자만 연결 자료를 검토할 수 있습니다.');
-        if (row.status !== 'accepted' || row.acceptedAt === null || !this.available(scope, row))
-          throw new ConflictException('현재 수락된 인계 의향을 다시 확인해 주세요.');
-        const organization = await manager.findOneBy(EnterpriseOrganization, {
-          id: row.organizationId,
-        });
-        await this.issued(manager, row, organization, true);
+        const row = await this.acceptedOwner(manager, scope, id, actor);
         const manifest: Manifest[] = JSON.parse(row.manifestJson);
         const selectedSources = new Set(
           manifest.filter(asset => asset.kind === 'source').map(asset => asset.id),
@@ -353,6 +345,78 @@ export class HandoverProposalService {
           scope: 'selected_dependencies_v1',
           executionAvailable: false,
           assets,
+        };
+      },
+      id,
+      true,
+    );
+  }
+  private async acceptedOwner(manager: EntityManager, scope: any, id: string, actor: number) {
+    const row = await manager.findOneBy(EnterpriseHandoverProposal, { requestId: id });
+    this.access(row, actor, scope);
+    if (row.ownerId !== actor)
+      throw new ForbiddenException('소유자만 보관 조건을 검토할 수 있습니다.');
+    if (row.status !== 'accepted' || row.acceptedAt === null || !this.available(scope, row))
+      throw new ConflictException('현재 수락된 인계 의향을 다시 확인해 주세요.');
+    const organization = await manager.findOneBy(EnterpriseOrganization, {
+      id: row.organizationId,
+    });
+    await this.issued(manager, row, organization, true);
+    return row;
+  }
+  async custody(requestId: unknown, actor: number, epoch: number) {
+    const id = this.uuid(requestId);
+    const captured = await this.read(
+      actor,
+      epoch,
+      async (manager, scope) => {
+        const row = await this.acceptedOwner(manager, scope, id, actor);
+        const manifest: Manifest[] = JSON.parse(row.manifestJson);
+        const sources = [];
+        for (const asset of manifest.filter(asset => asset.kind === 'source')) {
+          sources.push({
+            asset,
+            source: await manager.findOneBy(Database, { id: asset.id }),
+            refresh: await custodyRefresh(manager, asset.id),
+          });
+        }
+        return { row, sources, metadata: sources.length ? await custodyMetadata(manager) : null };
+      },
+      id,
+      true,
+    );
+    // No metadata transaction/locks span FS inspection. These observations are not atomic
+    // with metadata or with a hostile same-UID process. Every authority/asset basis is checked again.
+    const sources = [];
+    for (const { asset, source, refresh } of captured.sources) {
+      sources.push({
+        kind: 'source',
+        id: asset.id,
+        title: asset.title,
+        ...(await inspectHandoverCustody(source, captured.metadata, refresh)),
+      });
+    }
+    return this.read(
+      actor,
+      epoch,
+      async (manager, scope) => {
+        const row = await this.acceptedOwner(manager, scope, id, actor);
+        if (
+          row.version !== captured.row.version ||
+          row.reviewBasis !== captured.row.reviewBasis ||
+          row.manifestJson !== captured.row.manifestJson
+        )
+          throw new ConflictException('인계 의향 기준이 변경됐습니다.');
+        return {
+          requestId: row.requestId,
+          organizationId: row.organizationId,
+          ownerId: row.ownerId,
+          recipientId: row.recipientId,
+          proposalVersion: row.version,
+          checkedAt: new Date().toISOString(),
+          scope: 'selected_file_custody_v1',
+          executionAvailable: false,
+          sources,
         };
       },
       id,

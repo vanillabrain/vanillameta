@@ -1,3 +1,8 @@
+import fs = require('fs/promises');
+import * as path from 'path';
+import * as os from 'os';
+import { FileRefresh } from '../database/entities/file-refresh.entity';
+import { CommerceSource } from '../commerce/entities/commerce-source.entity';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
@@ -32,6 +37,8 @@ const entities = [
   EnterpriseOrganization,
   EnterpriseMembership,
   Database,
+  FileRefresh,
+  CommerceSource,
   Metric,
   Dashboard,
   UserMapping,
@@ -102,6 +109,17 @@ describe('UC051 metadata-only handover proposals', () => {
     await db?.destroy();
     if (oldSecret === undefined) delete process.env.ACCESS_SECRET;
     else process.env.ACCESS_SECRET = oldSecret;
+  });
+  let custodyDirectory: string;
+  const oldUploadDir = process.env.FILE_UPLOAD_DIR;
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    if (custodyDirectory) {
+      await fs.rm(custodyDirectory, { recursive: true, force: true });
+      custodyDirectory = undefined;
+    }
+    if (oldUploadDir === undefined) delete process.env.FILE_UPLOAD_DIR;
+    else process.env.FILE_UPLOAD_DIR = oldUploadDir;
   });
   beforeEach(async () => {
     jest.restoreAllMocks();
@@ -1223,5 +1241,491 @@ describe('UC051 metadata-only handover proposals', () => {
     const response = await http('get', '/' + row.requestId + '/dependencies').expect(409);
     expect(response.body).not.toHaveProperty('assets');
     expect(response.body).not.toHaveProperty('expired');
+  });
+  async function custodyFile(
+    kind = 'duckdb',
+    options: { registered?: boolean; status?: string; id?: number } = {},
+  ) {
+    if (!custodyDirectory) {
+      custodyDirectory = await fs.realpath(
+        await fs.mkdtemp(path.join(os.tmpdir(), 'vm-handover-custody-')),
+      );
+      process.env.FILE_UPLOAD_DIR = custodyDirectory;
+      await db.getRepository(Database).update(12, { engine: 'mysql2', connectionConfig: '{}' });
+    }
+    const filename =
+      kind === 'duckdb'
+        ? path.join(custodyDirectory, randomUUID(), 'data.duckdb')
+        : path.join(custodyDirectory, 'sample-' + randomUUID() + '.db');
+    await fs.mkdir(path.dirname(filename), { recursive: true });
+    const bytes = Buffer.alloc(100);
+    if (kind !== 'duckdb') {
+      Buffer.from('SQLite format 3\0').copy(bytes);
+      bytes.writeUInt16BE(4096, 16);
+      bytes[18] = 1;
+      bytes[19] = 1;
+    }
+    await fs.writeFile(filename, bytes);
+    if (kind === 'duckdb')
+      await fs.writeFile(
+        path.join(path.dirname(filename), 'import.json'),
+        JSON.stringify({
+          status: options.status ?? 'ready',
+          ...(options.registered === false ? {} : { databaseId: options.id ?? 11 }),
+        }),
+      );
+    return filename;
+  }
+  async function custodyProposal(filename: string, engine = 'duckdb', versions?: string[]) {
+    return acceptedReview(
+      () =>
+        db.getRepository(Database).update(11, {
+          engine,
+          connectionConfig: JSON.stringify({
+            client: engine,
+            connection: { filename },
+            ...(versions ? { fileVersions: versions.map(filename => ({ filename })) } : {}),
+          }),
+        }),
+      [selected[0]],
+    );
+  }
+  it.each(['duckdb', 'sqlite3'])(
+    'observes only managed %s file identity with no source SQL, DB/audit or file-byte changes',
+    async engine => {
+      const filename = await custodyFile(engine === 'duckdb' ? 'duckdb' : 'sqlite');
+      const row = await custodyProposal(filename, engine),
+        before = await snapshot(),
+        bytes = await fs.readFile(filename);
+      const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+      expect(result).toEqual({
+        requestId: row.requestId,
+        organizationId: 10,
+        ownerId: 1,
+        recipientId: 2,
+        proposalVersion: 2,
+        checkedAt: expect.any(String),
+        scope: 'selected_file_custody_v1',
+        executionAvailable: false,
+        sources: [
+          {
+            kind: 'source',
+            id: 11,
+            title: 'Source title',
+            storage: 'managed_file',
+            identity: 'observed',
+            filesChecked: 1,
+            consumers: 'none_observed',
+            refresh: 'none_observed',
+          },
+        ],
+      });
+      expect(await snapshot()).toEqual(before);
+      expect(await fs.readFile(filename)).toEqual(bytes);
+      expect(JSON.stringify(result)).not.toMatch(
+        /filename|inode|device|digest|import.json|connectionConfig|private-/,
+      );
+    },
+  );
+  it.each([
+    'unregistered',
+    'wrong-id',
+    'validation_failed',
+    'missing',
+    'symlink',
+    'marker-symlink',
+    'bad-header',
+    'outside',
+    'versions-partial',
+    'versions-overflow',
+    'bad-config',
+  ])(
+    'keeps %s custody unresolved instead of inheriting deletion recovery allowances',
+    async mode => {
+      let filename = await custodyFile(mode === 'bad-header' ? 'sqlite' : 'duckdb', {
+        registered: mode !== 'unregistered',
+        status: mode === 'validation_failed' ? 'validation_failed' : 'ready',
+        id: mode === 'wrong-id' ? 12 : 11,
+      });
+      const engine = mode === 'bad-header' ? 'sqlite3' : 'duckdb';
+      if (mode === 'missing') await fs.unlink(filename);
+      if (mode === 'symlink') {
+        const other = filename + '.actual';
+        await fs.rename(filename, other);
+        await fs.symlink(other, filename);
+      }
+      if (mode === 'marker-symlink') {
+        const marker = path.join(path.dirname(filename), 'import.json');
+        await fs.rename(marker, marker + '.actual');
+        await fs.symlink(marker + '.actual', marker);
+      }
+      if (mode === 'bad-header') await fs.writeFile(filename, 'invalid-header');
+      if (mode === 'outside') filename = path.join(path.dirname(custodyDirectory), 'outside.db');
+      const versions =
+        mode === 'versions-partial'
+          ? [path.join(custodyDirectory, randomUUID(), 'data.duckdb')]
+          : mode === 'versions-overflow'
+          ? Array.from({ length: 6 }, () =>
+              path.join(custodyDirectory, randomUUID(), 'data.duckdb'),
+            )
+          : undefined;
+      const row = await custodyProposal(filename, engine, versions);
+      if (mode === 'bad-config') {
+        // Reissue before acceptance so the damage is part of the fixed metadata, not a stale409.
+        await db.getRepository(Database).update(11, { connectionConfig: 'enc:v1:invalid' });
+        const replacement = await service.create(1, 0, { ...input(), assets: [selected[0]] });
+        await service.accept(replacement.requestId, 2, 0, terms(replacement));
+        row.requestId = replacement.requestId;
+      }
+      const before = await snapshot();
+      const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+      expect(result.sources[0].identity).toBe('unresolved');
+      expect(result.sources[0].filesChecked).toBeLessThanOrEqual(5);
+      expect(result.sources[0].consumers).toBe('unresolved');
+      expect(await snapshot()).toEqual(before);
+    },
+  );
+  it.each(['same-path', 'directory-child', 'hardlink', 'sqlite-companion', 'commerce'])(
+    'detects a %s known consumer without disclosing its identity',
+    async mode => {
+      const filename = await custodyFile(mode === 'sqlite-companion' ? 'sqlite' : 'duckdb');
+      let consumer = filename;
+      if (mode === 'directory-child') {
+        consumer = path.join(path.dirname(filename), 'child', 'part');
+        await fs.mkdir(path.dirname(consumer));
+        await fs.writeFile(consumer, 'synthetic');
+      }
+      if (mode === 'hardlink') {
+        consumer = path.join(custodyDirectory, randomUUID(), 'data.duckdb');
+        await fs.mkdir(path.dirname(consumer));
+        await fs.link(filename, consumer);
+      }
+      if (mode === 'sqlite-companion') {
+        consumer = filename + '-wal';
+        await fs.writeFile(consumer, 'synthetic-companion');
+      }
+      if (mode === 'commerce')
+        await db
+          .getRepository(CommerceSource)
+          .save({ ownerId: 2, name: 'private-commerce-name', publishedFilename: consumer });
+      else
+        await db.getRepository(Database).update(12, {
+          engine: 'duckdb',
+          connectionConfig: JSON.stringify({ connection: { filename: consumer } }),
+        });
+      const row = await custodyProposal(
+        filename,
+        mode === 'sqlite-companion' ? 'sqlite3' : 'duckdb',
+      );
+      const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+      expect(result.sources[0]).toMatchObject({ identity: 'observed', consumers: 'present' });
+      expect(JSON.stringify(result)).not.toMatch(
+        /private-commerce|publishedFilename|filename|inode/,
+      );
+    },
+  );
+  it.each(['malformed', 'long-path', 'deep-path', 'limit'])(
+    'does not report none_observed when consumer inspection is %s',
+    async mode => {
+      const filename = await custodyFile(),
+        row = await custodyProposal(filename);
+      if (mode === 'limit') {
+        for (let start = 0; start < 1999; start += 250)
+          await db.getRepository(CommerceSource).insert(
+            Array.from({ length: Math.min(250, 1999 - start) }, (_, i) => ({
+              id: start + i + 1,
+              ownerId: 2,
+              name: 'synthetic',
+              publishedFilename: null,
+            })),
+          );
+      } else
+        await db.getRepository(Database).update(12, {
+          engine: 'duckdb',
+          connectionConfig:
+            mode === 'malformed'
+              ? 'invalid'
+              : JSON.stringify({
+                  connection: {
+                    filename:
+                      mode === 'long-path'
+                        ? path.join(custodyDirectory, 'x'.repeat(4097))
+                        : path.join(custodyDirectory, randomUUID(), ...Array(33).fill('child')),
+                  },
+                }),
+        });
+      const before = await snapshot();
+      const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+      expect(result.sources[0]).toMatchObject({ identity: 'observed', consumers: 'unresolved' });
+      expect(await snapshot()).toEqual(before);
+    },
+  );
+  it.each(['queued', 'running', 'failed-lease', 'succeeded', 'unsupported'])(
+    'reports %s refresh conservatively without clearing an expired lease',
+    async state => {
+      const filename = await custodyFile(),
+        row = await custodyProposal(filename),
+        id = randomUUID();
+      await db.getRepository(FileRefresh).save({
+        id,
+        actorId: 1,
+        actorEpoch: 0,
+        sourceId: 11,
+        requestId: id,
+        payloadDigest: 'synthetic',
+        inputDigest: 'synthetic',
+        expectedRevision: 'synthetic',
+        originalname: 'private-original',
+        extension: 'csv',
+        status: (state === 'failed-lease' ? 'failed' : state) as any,
+        leaseToken: state === 'failed-lease' ? randomUUID() : null,
+        leaseUntil: state === 'failed-lease' ? '2020-01-01T00:00:00Z' : null,
+        storageDigest: 'synthetic',
+      });
+      const before = await snapshot();
+      const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+      expect(result.sources[0].refresh).toBe(
+        state === 'succeeded' ? 'none_observed' : 'active_or_unresolved',
+      );
+      expect(await snapshot()).toEqual(before);
+    },
+  );
+  it('returns external connections and a source-free proposal without attempting file access', async () => {
+    const row = await acceptedReview(
+      () => db.getRepository(Database).update(11, { engine: 'mysql2', connectionConfig: '{}' }),
+      [selected[0]],
+    );
+    const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+    expect(result.sources[0]).toMatchObject({
+      storage: 'external_connection',
+      identity: 'not_applicable',
+      filesChecked: 0,
+      consumers: 'not_applicable',
+      refresh: 'not_applicable',
+    });
+    const empty = await acceptedReview(undefined, [selected[1]]);
+    expect(
+      (await http('get', '/' + empty.requestId + '/custody').expect(200)).body.sources,
+    ).toEqual([]);
+  });
+  it('protects custody with current owner JWT/organization and hides unauthorized details', async () => {
+    const filename = await custodyFile(),
+      row = await custodyProposal(filename),
+      endpoint = '/' + row.requestId + '/custody';
+    for (const actor of [2, 3, 4, 5]) await http('get', endpoint, actor).expect(403);
+    await http('get', endpoint, 1, undefined, 1).expect(401);
+    await http('get', '/' + randomUUID() + '/custody').expect(404);
+  });
+  it('bounds a manifest that grows after pre-stat to at most1MiB+1 bytes read', async () => {
+    const filename = await custodyFile(),
+      row = await custodyProposal(filename),
+      marker = path.join(path.dirname(filename), 'import.json');
+    const open = fs.open.bind(fs);
+    let grew = false,
+      bytes = 0;
+    (jest.spyOn(fs, 'open') as any).mockImplementation(async (...args) => {
+      const handle = await open(args[0], args[1], args[2]);
+      if (String(args[0]) === marker) {
+        const read = handle.read.bind(handle);
+        (jest.spyOn(handle, 'read') as any).mockImplementation(
+          async (buffer, offset, length, position) => {
+            if (!grew) {
+              grew = true;
+              await fs.appendFile(marker, Buffer.alloc(2 * 1024 * 1024, 32));
+            }
+            const result = await read(buffer, offset, length, position);
+            bytes += result.bytesRead;
+            return result;
+          },
+        );
+        jest.spyOn(handle, 'readFile').mockImplementation(async () => {
+          throw new Error('Unbounded readFile forbidden');
+        });
+      }
+      return handle;
+    });
+    const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+    expect(grew).toBe(true);
+    expect(bytes).toBeLessThanOrEqual(1024 * 1024 + 1);
+    expect(result.sources[0].identity).toBe('unresolved');
+  });
+  it.each(['metric', 'epoch', 'cancel'])(
+    'rejects a %s change committed during filesystem inspection after rechecking the full selected basis',
+    async mode => {
+      const filename = await custodyFile(),
+        row = await custodyProposal(filename),
+        marker = path.join(path.dirname(filename), 'import.json');
+      const open = fs.open.bind(fs);
+      let changed = false;
+      (jest.spyOn(fs, 'open') as any).mockImplementation(async (...args) => {
+        const handle = await open(args[0], args[1], args[2]);
+        if (String(args[0]) === marker) {
+          const close = handle.close.bind(handle);
+          jest.spyOn(handle, 'close').mockImplementation(async () => {
+            await close();
+            if (!changed) {
+              changed = true;
+              if (mode === 'metric')
+                await db.getRepository(Metric).update(31, { expression: 'changed-during-fs' });
+              if (mode === 'epoch') await db.getRepository(User).update(1, { authVersion: 1 });
+              if (mode === 'cancel') await service.cancel(row.requestId, 1, 0, terms(row));
+            }
+          });
+        }
+        return handle;
+      });
+      const response = await http('get', '/' + row.requestId + '/custody').expect(
+        mode === 'epoch' ? 401 : 409,
+      );
+      expect(changed).toBe(true);
+      expect(response.body).not.toHaveProperty('sources');
+    },
+  );
+  it('detects file replacement between identity observations without following or reporting private paths', async () => {
+    const filename = await custodyFile(),
+      row = await custodyProposal(filename),
+      marker = path.join(path.dirname(filename), 'import.json');
+    const open = fs.open.bind(fs);
+    let changed = false;
+    (jest.spyOn(fs, 'open') as any).mockImplementation(async (...args) => {
+      const handle = await open(args[0], args[1], args[2]);
+      if (String(args[0]) === marker) {
+        const close = handle.close.bind(handle);
+        jest.spyOn(handle, 'close').mockImplementation(async () => {
+          await close();
+          if (!changed) {
+            changed = true;
+            await fs.rename(filename, filename + '.old');
+            await fs.writeFile(filename, Buffer.alloc(100));
+          }
+        });
+      }
+      return handle;
+    });
+    const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+    expect(changed).toBe(true);
+    expect(result.sources[0].identity).toBe('unresolved');
+    expect(JSON.stringify(result)).not.toContain(custodyDirectory);
+  });
+  it.each(['length', 'components'])(
+    'rejects consumer path %s bounds before attempting filesystem IO on that path',
+    async mode => {
+      const filename = await custodyFile(),
+        row = await custodyProposal(filename);
+      const invalid =
+        mode === 'length'
+          ? path.join(custodyDirectory, randomUUID(), 'x'.repeat(4097))
+          : path.join(custodyDirectory, randomUUID(), ...Array(33).fill('child'));
+      await db
+        .getRepository(CommerceSource)
+        .save({ ownerId: 2, name: 'private-consumer', publishedFilename: invalid });
+      const stat = fs.lstat.bind(fs),
+        paths: string[] = [];
+      (jest.spyOn(fs, 'lstat') as any).mockImplementation((...args) => {
+        paths.push(String(args[0]));
+        return stat(args[0], args[1]);
+      });
+      const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+      expect(result.sources[0].consumers).toBe('unresolved');
+      expect(
+        paths.some(
+          value =>
+            value === invalid ||
+            value.startsWith(
+              path.join(
+                custodyDirectory,
+                path.relative(custodyDirectory, invalid).split(path.sep)[0],
+              ),
+            ),
+        ),
+      ).toBe(false);
+    },
+  );
+  it('does not inspect unrelated file trees or require registration of other-source consumer candidates', async () => {
+    const filename = await custodyFile(),
+      unregistered = await custodyFile('duckdb', { registered: false });
+    await fs.mkdir(path.join(path.dirname(filename), 'unrelated'));
+    await fs.symlink(
+      '/unopened-outside-target',
+      path.join(path.dirname(filename), 'unrelated', 'link'),
+    );
+    await db.getRepository(Database).update(12, {
+      engine: 'duckdb',
+      connectionConfig: JSON.stringify({ connection: { filename: unregistered } }),
+    });
+    const row = await custodyProposal(filename);
+    const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+    expect(result.sources[0]).toMatchObject({ identity: 'observed', consumers: 'none_observed' });
+  });
+  it('checks all five deduplicated version files and does not count duplicate references twice', async () => {
+    const files = [];
+    for (let i = 0; i < 5; i++) files.push(await custodyFile());
+    const row = await custodyProposal(files[0], 'duckdb', files);
+    const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+    expect(result.sources[0]).toMatchObject({
+      identity: 'observed',
+      filesChecked: 5,
+      consumers: 'none_observed',
+    });
+  });
+  it.each(['malformed', 'outside-managed-root'])(
+    'retains positive shared-file evidence alongside an %s consumer without exposing private information',
+    async mode => {
+      const filename = await custodyFile();
+      await db.getRepository(Database).update(12, {
+        engine: 'duckdb',
+        connectionConfig: JSON.stringify({ connection: { filename } }),
+      });
+      await db.getRepository(Database).save({
+        id: 13,
+        ownerId: 2,
+        name: 'private-uninspectable-source',
+        engine: 'sqlite3',
+        type: 'file',
+        connectionConfig:
+          mode === 'malformed'
+            ? 'invalid-private-config'
+            : JSON.stringify({
+                connection: { filename: '/unopened-outside-root/private-sample.db' },
+              }),
+      });
+      const row = await custodyProposal(filename),
+        before = await snapshot();
+      const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+      expect(result.sources).toEqual([
+        {
+          kind: 'source',
+          id: 11,
+          title: 'Source title',
+          storage: 'managed_file',
+          identity: 'observed',
+          filesChecked: 1,
+          consumers: 'present',
+          refresh: 'none_observed',
+        },
+      ]);
+      expect(JSON.stringify(result.sources)).not.toMatch(
+        /private|filename|connectionConfig|ownerId|count|inode/i,
+      );
+      expect(await snapshot()).toEqual(before);
+    },
+  );
+  it('retains observed hardlink evidence when the consumer scan reaches its row limit', async () => {
+    const filename = await custodyFile();
+    await fs.link(filename, path.join(path.dirname(filename), 'linked-synthetic.bin'));
+    for (let start = 0; start < 1999; start += 250)
+      await db.getRepository(CommerceSource).insert(
+        Array.from({ length: Math.min(250, 1999 - start) }, (_, i) => ({
+          id: start + i + 1,
+          ownerId: 2,
+          name: 'synthetic-limit-consumer',
+          publishedFilename: null,
+        })),
+      );
+    const row = await custodyProposal(filename),
+      before = await snapshot();
+    const result = (await http('get', '/' + row.requestId + '/custody').expect(200)).body;
+    expect(result.sources[0]).toMatchObject({ identity: 'observed', consumers: 'present' });
+    expect(await snapshot()).toEqual(before);
   });
 });

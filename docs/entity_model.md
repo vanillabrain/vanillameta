@@ -315,3 +315,5 @@ migration `1792590000000-add-staff-transfer`는 새 테이블만 추가한다. �
 ownerId는 제안 소유자이고 기존 Database.ownerId/UserMapping의 소유권을 변경하는 열이 아니다. recipientId는 검토 수신자이며 자원 grant가 아니다. 수락/철회 감사와 의향 행만 원자 저장하며 자산·독립 사본·과거 게시/출력·영수증의 actor를 소급 변경하지 않는다. additive migration은 기존 행을 삭제/병합하지 않으며 운영 적용과 전체 인계/탈퇴 수용은 별도다.
 
 [인계 전 연결·보관 조건 검토](plans/UC-051-handover-review.md)는 기존 의향/자산/연결 행에서 계산하는 비영속 읽기 투영이다. schema·migration·감사·원본 파일은 추가/변경하지 않는다. checkedAt은 조회 snapshot의 시각이며 실행 기준이나 새 수락 기록이 아니다. 소유자에게 선택 자료의 명시 연결 건수/보관 검토 필요만 제공하고 미선택 소스의 신원·내용을 응답하지 않는다.
+
+[파일 보관 검토](plans/UC-051-handover-custody.md)는 기존 Source 설정/관리 파일 신원·Database/CommerceSource 소비자·FileRefresh의 비영속 읽기 투영이다. 새 소유권/파일 보관 책임 열·영수증·migration을 만들지 않는다. 신원/소비자/lease는 관측이며 파일 bytes 검증이나 실행 ticket이 아니고 내부 proof·경로·미선택 자료 신원은 응답하지 않는다.
