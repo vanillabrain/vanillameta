@@ -362,6 +362,7 @@ export class BiExploreService {
     conditions: StudioConditions | undefined,
     sourceId: number,
     sourceRevision: string,
+    actor: number,
   ): Promise<ConditionQueryScope | undefined> {
     if (conditions === undefined) return undefined;
     // Request sourceRevision keeps its existing contract. The wrapper pin is independently
@@ -373,6 +374,22 @@ export class BiExploreService {
       name: column.column_name,
       type: column.column_type,
     }));
+    if (conditions.semantics) {
+      try {
+        await this.dashboards.assertConditionSemantics(sourceId, schema, conditions);
+      } catch (error) {
+        await this.bi.assertSourceAction(sourceId, actor, 'read');
+        const fresh = await this.connection.captureDuckDBSnapshot(sourceId);
+        if (
+          (await fresh.run(() => this.connection.duckDBVersion(sourceId))) !==
+          conditions.sourceRevision
+        )
+          throw new ConflictException(
+            '업무 조건 검증 중 파일이 변경됐습니다. 입력을 유지해 주세요.',
+          );
+        throw error;
+      }
+    }
     // Validate even an empty axis/result before any population query can escape unscoped.
     sourceQuery(
       'SELECT count(*) AS value FROM source',
@@ -383,6 +400,7 @@ export class BiExploreService {
       [],
       conditions.definition,
       schema,
+      conditions.semantics,
     );
     return { conditions, schema };
   }
@@ -472,7 +490,12 @@ export class BiExploreService {
         throw new ConflictException(
           '파일 버전이 변경되었습니다. 소스를 새로고침한 뒤 다시 시도해 주세요.',
         );
-      const scope = await this.conditionScope(input.conditions, profile.sourceId, sourceRevision);
+      const scope = await this.conditionScope(
+        input.conditions,
+        profile.sourceId,
+        sourceRevision,
+        actor,
+      );
       const columns = profile.columns.map(column => column.name);
       const rowDimensions = this.dimensions(input.rowDimensions, columns);
       const columnDimensions = this.dimensions(input.columnDimensions, columns);
@@ -527,6 +550,7 @@ export class BiExploreService {
         ),
         scope?.conditions.definition,
         scope?.schema,
+        scope?.conditions.semantics,
       );
       const sourceCte = filtered.sql.slice(0, -grandSql.length);
       const run = async (sql: string): Promise<Array<Record<string, any>>> =>
@@ -754,7 +778,12 @@ export class BiExploreService {
       throw new ConflictException(
         '파일 버전이 변경되었습니다. 소스를 새로고침한 뒤 다시 시도해 주세요.',
       );
-    const scope = await this.conditionScope(input.conditions, profile.sourceId, sourceRevision);
+    const scope = await this.conditionScope(
+      input.conditions,
+      profile.sourceId,
+      sourceRevision,
+      input.actor,
+    );
     const columns = profile.columns.map((column: any) => column.name);
     const temporal = profile.columns
       .filter((column: any) => column.temporal)
@@ -811,6 +840,7 @@ export class BiExploreService {
             numeric,
             scope?.conditions.definition,
             scope?.schema,
+            scope?.conditions.semantics,
           );
           const current = await this.connection.queryDuckDB(
             profile.sourceId,
@@ -832,6 +862,7 @@ export class BiExploreService {
             numeric,
             scope?.conditions.definition,
             scope?.schema,
+            scope?.conditions.semantics,
           );
           const prior = sourceQuery(
             groupedSql,
@@ -842,6 +873,7 @@ export class BiExploreService {
             numeric,
             scope?.conditions.definition,
             scope?.schema,
+            scope?.conditions.semantics,
           );
           const joined = this.joinLeaderboardSql(current, prior, input.rankingSort);
           const result = await this.connection.queryDuckDB(
@@ -879,6 +911,7 @@ export class BiExploreService {
         numeric,
         scope?.conditions.definition,
         scope?.schema,
+        scope?.conditions.semantics,
       );
       const count = await this.connection.queryDuckDB(
         profile.sourceId,
@@ -899,6 +932,7 @@ export class BiExploreService {
         numeric,
         scope?.conditions.definition,
         scope?.schema,
+        scope?.conditions.semantics,
       );
       const rows = await this.connection.queryDuckDB(
         profile.sourceId,
@@ -1052,7 +1086,12 @@ export class BiExploreService {
         throw new ConflictException(
           '파일 버전이 변경되었습니다. 소스를 새로고침한 뒤 다시 시도해 주세요.',
         );
-      const scope = await this.conditionScope(input.conditions, profile.sourceId, sourceRevision);
+      const scope = await this.conditionScope(
+        input.conditions,
+        profile.sourceId,
+        sourceRevision,
+        actor,
+      );
       const columns = profile.columns.map((column: any) => column.name);
       if (!columns.includes(input.column)) throw new BadRequestException('unknown column');
       const temporal = profile.columns
@@ -1107,6 +1146,7 @@ export class BiExploreService {
       numeric,
       scope?.conditions.definition,
       scope?.schema,
+      scope?.conditions.semantics,
     );
     if (!search) return query;
     const parts = query.sql.split(SEARCH_PARAMETER);
@@ -1513,7 +1553,12 @@ export class BiExploreService {
       throw new ConflictException(
         '파일 버전이 변경되었습니다. 소스를 새로고침한 뒤 다시 시도해 주세요.',
       );
-    const scope = await this.conditionScope(input.conditions, profile.sourceId, sourceRevision);
+    const scope = await this.conditionScope(
+      input.conditions,
+      profile.sourceId,
+      sourceRevision,
+      input.actor,
+    );
     const columns = profile.columns.map((column: any) => column.name);
     const temporal = profile.columns
       .filter((column: any) => column.temporal)
@@ -1925,6 +1970,7 @@ export class BiExploreService {
       numeric,
       scope?.conditions.definition,
       scope?.schema,
+      scope?.conditions.semantics,
     );
     const result = await this.connection.queryDuckDB(sourceId, query.sql, query.bindings);
     return result.datas.map((row: any) =>
@@ -1995,6 +2041,7 @@ export class BiExploreService {
       numeric,
       scope?.conditions.definition,
       scope?.schema,
+      scope?.conditions.semantics,
     );
     const result = await this.connection.queryDuckDB(sourceId, query.sql, query.bindings);
     const groups = new Map<string, PivotValues>();

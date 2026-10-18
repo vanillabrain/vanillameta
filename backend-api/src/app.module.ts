@@ -1,3 +1,4 @@
+import { AddSourceConditionSemantics1792570000000 } from './migrations/1792570000000-add-source-condition-semantics';
 import { AddDashboardLifecycle1792560000000 } from './migrations/1792560000000-add-dashboard-lifecycle';
 import { AddSourceDeleteReceipts1792550000000 } from './migrations/1792550000000-add-source-delete-receipts';
 import { AddMetricDeleteReceipts1792540000000 } from './migrations/1792540000000-add-metric-delete-receipts';
@@ -85,6 +86,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddSourceConditionSemantics1792570000000,
         AddDashboardLifecycle1792560000000,
         AddDashboardDeleteReceipts1792530000000,
         AddMetricDeleteReceipts1792540000000,

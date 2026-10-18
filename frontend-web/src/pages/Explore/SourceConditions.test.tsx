@@ -475,7 +475,8 @@ it.each([
   await screen.findByText(/저장을 확인하지 못했습니다/);
   expect(screen.queryByText('조건을 저장했습니다.')).toBeNull();
   expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('7');
-  expect(screen.getByText('조건 버전 0 · 미저장 변경')).toBeTruthy();
+  expect(screen.getByText('조건 버전 0')).toBeTruthy();
+  expect(screen.getByText(/미저장 변경/)).toBeTruthy();
   expect((screen.getByRole('button', { name: '확인한 조건 저장' }) as HTMLButtonElement).disabled).toBe(true);
 });
 
@@ -773,4 +774,97 @@ it('provides an independent definition clone so a consumer cannot mutate the val
   click('확인한 조건 저장');
   await screen.findByText('조건을 저장했습니다.');
   expect(post).toHaveBeenLastCalledWith('/bi/source-conditions/save', previewDraft);
+});
+
+const categorySemantics = {
+  schemaVersion: 1 as const,
+  catalogVersion: 5,
+  columns: [{ column: 'amount', businessType: 'category' as const, dateFormat: '' as const }],
+};
+it('adopts latest semantics only explicitly, preserves invalid old operators/values and requires a new preview', async () => {
+  render(<SourceConditions sourceId={3} />);
+  await open();
+  click('포함 조건 추가');
+  change('포함 연산자', 'gt');
+  change('포함 값 1', '12.5');
+  const next = {
+    ...initial,
+    semantics: categorySemantics,
+    columns: initial.columns.map(c => (c.name === 'amount' ? { ...c, businessType: 'category', dateFormat: '' } : c)),
+  };
+  vi.mocked(post).mockResolvedValueOnce(response(next));
+  click('최신 업무 의미 채택');
+  await screen.findByText(/업무 의미 카탈로그 버전 5/);
+  expect(post).toHaveBeenLastCalledWith('/bi/source-conditions/read', { sourceId: 3, adoptCurrentSemantics: true });
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('12.5');
+  expect((screen.getByLabelText('포함 연산자') as HTMLSelectElement).value).toBe('gt');
+  const before = vi.mocked(post).mock.calls.length;
+  click('건수 미리보기');
+  await screen.findByText(/열과 원본 유형에 맞는 연산자/);
+  expect(vi.mocked(post).mock.calls).toHaveLength(before);
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('12.5');
+});
+it('carries frozen semantics through preview/apply/save, and rejects a save response silently omitting them', async () => {
+  const apply = vi.fn();
+  vi.mocked(post).mockResolvedValueOnce(response({ ...initial, semantics: categorySemantics }));
+  render(<SourceConditions sourceId={3} onApply={apply} />);
+  await open();
+  click('포함 조건 추가');
+  change('포함 값 1', '10');
+  vi.mocked(post).mockImplementationOnce(async (_url, draft: any) =>
+    response({
+      ...analysisPreview(draft),
+      analysisConditions: { sourceRevision: analysisFileRevision, definition: draft.definition, semantics: draft.semantics },
+    }),
+  );
+  click('건수 미리보기');
+  await screen.findByText('최종 70건 · 전체 대비 70%');
+  const draft = vi.mocked(post).mock.lastCall?.[1] as any;
+  expect(draft.semantics).toEqual(categorySemantics);
+  click('이 분석에 조건 적용');
+  expect(apply).toHaveBeenCalledWith({
+    sourceRevision: analysisFileRevision,
+    definition: draft.definition,
+    semantics: categorySemantics,
+  });
+  vi.mocked(post).mockResolvedValueOnce(response({ ...initial, version: 1, definition: draft.definition }));
+  click('확인한 조건 저장');
+  await screen.findByText(/저장을 확인하지 못했습니다/);
+  expect(post).toHaveBeenLastCalledWith('/bi/source-conditions/save', draft);
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('10');
+  expect(screen.getByText(/업무 의미 카탈로그 버전 5/)).toBeTruthy();
+});
+
+it('posts canonical UUID category values so validated preview/apply matches while authoring text stays unchanged', async () => {
+  const upper = 'ABCDEF01-2345-6789-ABCD-0123456789AB';
+  const semantics = {
+    schemaVersion: 1 as const,
+    catalogVersion: 2,
+    columns: [{ column: 'id', businessType: 'category' as const, dateFormat: '' as const }],
+  };
+  vi.mocked(post).mockResolvedValueOnce(
+    response({
+      ...initial,
+      semantics,
+      columns: [{ name: 'id', type: 'UUID', kind: 'string', businessType: 'category', dateFormat: '' }],
+    }),
+  );
+  const apply = vi.fn();
+  render(<SourceConditions sourceId={3} onApply={apply} />);
+  await open();
+  click('포함 조건 추가');
+  change('포함 값 1', upper);
+  vi.mocked(post).mockImplementationOnce(async (_url, draft: any) =>
+    response({
+      ...analysisPreview(draft),
+      analysisConditions: { sourceRevision: analysisFileRevision, definition: draft.definition, semantics: draft.semantics },
+    }),
+  );
+  click('건수 미리보기');
+  await screen.findByText('최종 70건 · 전체 대비 70%');
+  expect((vi.mocked(post).mock.lastCall?.[1] as any).definition.include.values).toEqual([upper.toLowerCase()]);
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe(upper);
+  click('이 분석에 조건 적용');
+  expect(apply.mock.lastCall?.[0].definition.include.values).toEqual([upper.toLowerCase()]);
+  expect(apply.mock.lastCall?.[0].semantics).toEqual(semantics);
 });

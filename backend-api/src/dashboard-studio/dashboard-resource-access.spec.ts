@@ -1,3 +1,4 @@
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
@@ -80,6 +81,7 @@ describe('UC-051 dashboard resource access', () => {
       database: ':memory:',
       synchronize: true,
       entities: [
+        SourceCatalogEntry,
         User,
         Dashboard,
         DashboardWidget,
@@ -125,7 +127,10 @@ describe('UC-051 dashboard resource access', () => {
     studio = new StudioService(
       db,
       { analysis: jest.fn(async () => ({ data: { databaseId: SOURCE } })) } as any,
-      { withDuckDBSnapshot: (_id: number, run: () => any) => run() } as any,
+      {
+        withDuckDBSnapshot: (_id: number, run: () => any) => run(),
+        captureDuckDBSnapshot: async () => ({ run: async (run: () => any) => run() }),
+      } as any,
       access,
     );
     publications = new StudioPublicationService(db, studio, access);

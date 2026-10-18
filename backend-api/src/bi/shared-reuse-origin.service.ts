@@ -1,3 +1,4 @@
+import { resolveConditionSemantics } from './business-condition-context';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { metadataTransaction } from '../common/metadata-work';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
@@ -46,7 +47,7 @@ export class SharedReuseOriginService {
       manager.queryRunner?.isTransactionActive && this.db.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {};
-    let dashboard: Dashboard, recipe: string, identity: any;
+    let dashboard: Dashboard, recipe: string, identity: any, originalSourceId: number | undefined;
     if (kind === 'publication') {
       const row = await manager.findOne(DashboardPublication, { where: { uuid: key }, ...lock });
       if (!row?.active || !row.reuseDefinition || !(Date.parse(row.expiresAt) > Date.now()))
@@ -61,6 +62,7 @@ export class SharedReuseOriginService {
       dashboard = manager.queryRunner?.isTransactionActive
         ? await lockDashboardWrite(manager, row.dashboardId)
         : await manager.findOne(Dashboard, { where: { id: row.dashboardId } });
+      originalSourceId = row.sourceId;
       recipe = row.reuseDefinition;
       identity = [kind, key, row.version, row.dashboardRevision, row.expiresAt, recipe];
     } else {
@@ -85,6 +87,7 @@ export class SharedReuseOriginService {
       // Resolve schema/definition as the owner; no original result preview is executed for a recipient.
       const owner = await this.access.sharedDashboard(dashboard.id);
       const analysis = (await this.ai.analysis(dashboard.id, owner, true)).data;
+      originalSourceId = analysis.databaseId;
       const capture = async () => {
         const conditions =
           analysis.defaultConditions === undefined
@@ -98,6 +101,12 @@ export class SharedReuseOriginService {
         )
           throw unavailable();
         const profile = await this.bi.profile(analysis.databaseId, owner);
+        await resolveConditionSemantics(
+          manager,
+          originalSourceId,
+          profile.columns,
+          conditions?.semantics,
+        );
         const result = buildReuseRecipe(analysis, profile);
         if (
           conditions &&
@@ -116,9 +125,25 @@ export class SharedReuseOriginService {
       throw unavailable();
     identity.push(dashboard.assetVersion ?? 0);
     const { analysis, profile } = readReuseRecipe(recipe);
+    if (analysis.conditionSemantics) {
+      // The recipe sourceId=1 is a redacted placeholder, never an authority for catalog lookup.
+      if (
+        !Number.isSafeInteger(originalSourceId) ||
+        originalSourceId <= 0 ||
+        !profile.conditionSchema
+      )
+        throw unavailable();
+      await resolveConditionSemantics(
+        manager,
+        originalSourceId,
+        profile.conditionSchema,
+        analysis.conditionSemantics,
+      );
+    }
     const revision = createHash('sha256').update(JSON.stringify(identity)).digest('hex');
     return {
       originalId: dashboard.id,
+      originalSourceId,
       analysis: { ...analysis, revision },
       profile,
       reference: { kind: this.kind(kind), key, revision } as ReuseReference,

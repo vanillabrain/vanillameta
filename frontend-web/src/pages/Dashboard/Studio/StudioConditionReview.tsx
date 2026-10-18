@@ -66,12 +66,15 @@ export default function StudioConditionReview({
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
         {(
           [
-            { title: '현재 조건', definition: before.conditions?.definition },
-            { title: '제안 조건', definition: proposed },
+            { title: '현재 조건', definition: before.conditions?.definition, semantics: before.conditions?.semantics },
+            { title: '제안 조건', definition: proposed, semantics: operation.conditions?.semantics },
           ] as const
-        ).map(({ title, definition }) => (
+        ).map(({ title, definition, semantics }) => (
           <div key={title} className="min-w-0 space-y-2 rounded-md border border-border p-2">
             <h3 className="text-sm font-semibold">{title}</h3>
+            <p className="text-sm">
+              {semantics ? `업무 의미 카탈로그 버전 ${semantics.catalogVersion}` : '원본 유형 기준 (legacy native)'}
+            </p>
             {(['include', 'exclude'] as const).map(key => (
               <div key={key} className="min-w-0">
                 <h4 className="text-sm font-medium">

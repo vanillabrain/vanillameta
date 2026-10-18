@@ -1,3 +1,4 @@
+import { validateConditionSemantics } from '../bi/business-condition-semantics';
 import { validateConditionDefinition } from '../bi/source-condition-definition';
 import {
   isStudioId,
@@ -95,7 +96,7 @@ export function validateStudioDateRange(input: unknown): StudioDateRange {
 
 /** Stored copy with a pinned immutable file; actual schema is checked before execution. */
 export function validateStudioConditions(input: unknown): StudioConditions {
-  studioKeys(input, ['sourceRevision', 'definition']);
+  studioKeys(input, ['sourceRevision', 'definition', 'semantics']);
   studioAssert(
     typeof input.sourceRevision === 'string' && /^[a-f0-9]{64}$/.test(input.sourceRevision),
     'Invalid condition source revision.',
@@ -103,6 +104,9 @@ export function validateStudioConditions(input: unknown): StudioConditions {
   return {
     sourceRevision: input.sourceRevision,
     definition: validateConditionDefinition(input.definition),
+    ...(input.semantics === undefined
+      ? {}
+      : { semantics: validateConditionSemantics(input.semantics) }),
   };
 }
 

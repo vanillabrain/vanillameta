@@ -74,3 +74,7 @@ AI와 직접 편집은 공통 검증 조건 정의를 사용한다. 임의 SQL�
 [명시 적용 설계](../plans/UC-052-explore-basis.md)는 검증한 소스 조건 미리보기의 snapshot을 현재 Explore에 적용하고 조회/값 검색/Pivot/CSV·저장 보기로 이어가는 후속 단위다. 소스 저장은 별도이며 읽기 사용자도 본인 분석에 적용할 수 있다. metadata 조건 version이 아닌 파일 sourceRevision에 묶고 원본 변경은 재검토를 요구한다. 전체 기간 UTC의 소스 건수와 현재 분석 범위의 결과는 구별한다. 실제 실행 결과는 후속 증빙으로 판정하며 설계만으로 전체 수용 상태를 바꾸지 않는다.
 
 [동일 기준 실행 증빙](../testing/explore-reviewed-basis.md)은 BE397/FE237과 격리 headless 고유2개의 명시 조건 적용·보기 복구·현재/이전 기간·CSV·지표 변경 거절 범위를 기록한다. 실제 Ego/휴대폰/이번 MySQL/운영 및 전체16개/TC050 수용은 별도다.
+
+### Frozen Business Condition Context
+
+[고정 의미 실행 증빙](../testing/business-condition-semantics.md)은 직접/AI 조건과 조회/분포·보기·출력·재사용 소비자의 semantic wrapper 보존을 다룬다. 제공된 분석 문맥은 무관한 Source 저장 조건과 독립적으로 파일/native schema/정확한 이력을 검증하고 Source 쓰기 없이 편집한다. Source UI1과390/768/1440 측정·FE802는 선택 범위이며 합산/전체 수용하지 않는다. 실 Codex 단일 조건 질문 UI1개는14.5초 PASS이며 V3 검토/명시 적용/저장/reload200·모바일390 overflow0을 확인했다. BE26 suites/884 unique는 실패 fixture suite의 전체 재실행을 포함한 단계별 검증이고 Jason·Bernoulli는 APPROVE/0 findings다. 안정 BE type/lint/build와 최종 dist ui-stable1 PASS/11.9초를 확인했다. 같은 시나리오의 이전 ui-codex와 합산하지 않는다. 복합 부정 의도 제한·core-stable 실행 결과 및 실제 Ego/휴대폰/운영·전체 TC050은 열린다.

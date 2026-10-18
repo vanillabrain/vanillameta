@@ -1,3 +1,4 @@
+import { resolveConditionSemantics } from './business-condition-context';
 import { lockMetricReferences } from '../metric/metric-write-lock';
 import {
   BadRequestException,
@@ -337,6 +338,13 @@ export class VersionedExploreViewService {
         this.validateAgainstCatalog(state, profile, metrics);
         if (state.conditions)
           validateExploreViewConditions(state.conditions, sourceRevision, profile.columns);
+        if (state.conditions?.semantics)
+          await resolveConditionSemantics(
+            this.db.manager,
+            sourceId,
+            profile.columns,
+            state.conditions.semantics,
+          );
         const measureVersions = this.serverMeasureVersions(state, metrics);
         for (const id of state.measureIds)
           if (clientVersions.get(id) !== measureVersions[id])
@@ -410,6 +418,13 @@ export class VersionedExploreViewService {
     if (state.conditions) {
       try {
         validateExploreViewConditions(state.conditions, current.sourceRevision, current.columns);
+        if (state.conditions.semantics)
+          await resolveConditionSemantics(
+            this.db.manager,
+            sourceId,
+            current.columns,
+            state.conditions.semantics,
+          );
       } catch {
         throw new ConflictException(
           '저장 조건의 파일·열 기준이 변경되었습니다. 현재 분석을 유지하고 다시 확인해 주세요.',

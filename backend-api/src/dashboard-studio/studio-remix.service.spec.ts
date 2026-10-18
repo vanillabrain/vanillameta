@@ -1,3 +1,4 @@
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { studioDigest } from './studio-legacy';
 import { EnterpriseNotificationAudience } from '../enterprise/entities/enterprise-notification-audience.entity';
 import { EnterpriseGroupDeliveryService } from '../enterprise/group-delivery.service';
@@ -115,6 +116,7 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       database: ':memory:',
       synchronize: true,
       entities: [
+        SourceCatalogEntry,
         User,
         EnterpriseMembership,
         EnterpriseAuditEvent,
@@ -158,6 +160,7 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       await db.manager.save(Component, { type, title: type, option: '{}', useYn: 'Y' });
     connection = {
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
+      captureDuckDBSnapshot: jest.fn(async () => ({ run: async cb => cb() })),
       duckDBVersion: jest.fn(async id => createHash('sha256').update(filename(id)).digest('hex')),
       isDuckDB: jest.fn().mockResolvedValue(true),
       queryDuckDB: jest.fn((id, sql, bindings) => worker.query(files.get(id), sql, bindings)),
@@ -177,6 +180,7 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
     );
   });
   beforeEach(async () => {
+    await db.manager.clear(SourceCatalogEntry);
     const definition = {
       schemaVersion: 1,
       definitionVersion: 1,
@@ -253,7 +257,7 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       },
       7,
     );
-  it.each(['individual', 'group'])(
+  it.each(['individual', 'group', 'semantic'])(
     'copies an explicitly allowed %s received analysis using only recipient data, then survives revocation independently',
     async mode => {
       await db.manager.save(
@@ -307,6 +311,60 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
         expectedVersion: sourceGrantVersion,
         rights: { read: true, edit: false, publish: false, export: false },
       });
+      const declareCategory = async (sourceId: number, column: string, version: number) => {
+        const profile = await copyCreation.profile(sourceId, sourceId === 1 ? 7 : 8);
+        await db.manager.save(SourceCatalogEntry, {
+          sourceId,
+          version,
+          actorId: sourceId === 1 ? 7 : 8,
+          sourceRevision: profile.dataVersion,
+          schemaRevision: createHash('sha256')
+            .update(JSON.stringify(profile.columns.map(c => ({ column: c.name, type: c.type }))))
+            .digest('hex'),
+          metadata: JSON.stringify({
+            label: 'Business fields',
+            description: '',
+            columns: profile.columns.map(c => ({
+              column: c.name,
+              label: c.name,
+              description: '',
+              unit: '',
+              classification: '',
+              businessType: c.name === column ? 'category' : 'auto',
+              dateFormat: '',
+            })),
+          }),
+        });
+        return {
+          schemaVersion: 1 as const,
+          catalogVersion: version,
+          columns: [{ column, businessType: 'category' as const, dateFormat: '' as const }],
+        };
+      };
+      if (mode === 'semantic') {
+        const semantics = await declareCategory(1, 'channel', 1);
+        const state = await copyStudio.get(id, 7);
+        await copyStudio.save(
+          id,
+          {
+            requestId: 'received-conditions-' + id,
+            expectedRevision: state.document.revision,
+            expectedSourceRevision: state.sourceRevision,
+            document: {
+              ...state.document,
+              conditions: {
+                sourceRevision: state.sourceRevision,
+                semantics,
+                definition: {
+                  include: { kind: 'predicate', column: 'channel', operator: 'isNotNull' },
+                  exclude: null,
+                },
+              },
+            },
+          },
+          7,
+        );
+      }
       if (mode === 'group') {
         await db.manager.insert(EnterpriseGroup, {
           id: 80,
@@ -408,6 +466,7 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
           connection: { filename: filename(9) },
         }),
       });
+      if (mode === 'semantic') await declareCategory(9, 'segment', 4);
       const previousSecret = process.env.ACCESS_SECRET;
       process.env.ACCESS_SECRET = 'synthetic-received-copy-http';
       const jwt = new JwtService();
@@ -638,6 +697,14 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
           });
         }
         const saved = await copyStudio.get(result.dashboardId, 8);
+        if (mode === 'semantic') {
+          expect(saved.document.conditions.semantics).toEqual({
+            schemaVersion: 1,
+            catalogVersion: 4,
+            columns: [{ column: 'segment', businessType: 'category', dateFormat: '' }],
+          });
+          expect(JSON.stringify(requirements)).not.toContain('conditionSchema');
+        }
         expect(
           saved.document.blocks.every(
             block => !originalDocument.blocks.some(prior => prior.id === block.id),
@@ -1095,10 +1162,12 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
     const fresh = await publish({ requestId: 'fresh-' + id }),
       w = await preview(fresh);
     const saved = saveRemix(fresh, w);
-    const later = publications.revoke(fresh.token, 7);
-    const result = await saved;
-    await later;
-    expect(result.dashboardId).not.toBe(id);
+    // Preparation no longer monopolizes the metadata queue. Revocation can commit while
+    // aggregate work is in flight, and the final transaction must reject without a copy.
+    const rejected = expect(saved).rejects.toMatchObject({ status: 410 });
+    await publications.revoke(fresh.token, 7);
+    await rejected;
+    expect(await db.manager.count(Dashboard)).toBe(before);
     await expect(saveRemix(fresh, w)).rejects.toMatchObject({ status: 410 });
   });
 

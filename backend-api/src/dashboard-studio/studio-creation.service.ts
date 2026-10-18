@@ -1,3 +1,4 @@
+import { resolveConditionSemantics } from '../bi/business-condition-context';
 import { lockMetricSources, lockMetricReferences } from '../metric/metric-write-lock';
 import {
   BadRequestException,
@@ -13,10 +14,10 @@ import { BiService } from '../bi/bi.service';
 import { metricFields } from '../bi/metric-expression';
 import { AiService } from '../ai/ai.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
-import { canonicalMetricSql } from './studio-remix-template';
+import { canonicalMetricSql, conditionColumnNames } from './studio-remix-template';
 import { ConnectionService } from '../connection/connection.service';
 import { SourceAccessService } from '../ownership/source-access.service';
-import { metadataTransaction } from '../common/metadata-work';
+import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
@@ -639,18 +640,20 @@ export class StudioCreationService {
     };
   }
   async ensureCurrentSource(sourceId: number, actor: number, manager: EntityManager) {
-    const source = await manager.findOne(Database, { where: { id: sourceId } });
-    if (!source || source.ownerId !== actor || source.catalogActive === false)
-      throw new ForbiddenException('데이터 소스에 접근할 수 없습니다.');
-    const config = JSON.parse(decryptConnectionConfig(source.connectionConfig));
-    if (
-      source.engine !== 'duckdb' ||
-      config.client !== 'duckdb' ||
-      typeof config.connection?.filename !== 'string' ||
-      createHash('sha256').update(config.connection.filename).digest('hex') !==
-        (await this.connection.duckDBVersion(sourceId))
-    )
-      throw new ConflictException('데이터 파일이 교체되었습니다. 다시 생성해 주세요.');
+    return serializeMetadataWork(this.db, async () => {
+      const source = await manager.findOne(Database, { where: { id: sourceId } });
+      if (!source || source.ownerId !== actor || source.catalogActive === false)
+        throw new ForbiddenException('데이터 소스에 접근할 수 없습니다.');
+      const config = JSON.parse(decryptConnectionConfig(source.connectionConfig));
+      if (
+        source.engine !== 'duckdb' ||
+        config.client !== 'duckdb' ||
+        typeof config.connection?.filename !== 'string' ||
+        createHash('sha256').update(config.connection.filename).digest('hex') !==
+          (await this.connection.duckDBVersion(sourceId))
+      )
+        throw new ConflictException('데이터 파일이 교체되었습니다. 다시 생성해 주세요.');
+    });
   }
   private async revalidate(blocks: any[], profile: any, manager: EntityManager) {
     for (const b of blocks) {
@@ -713,11 +716,28 @@ export class StudioCreationService {
     if (template.conditions !== undefined && mappedConditions === undefined)
       throw new BadRequestException('복제할 포함·제외 조건을 모두 연결해 주세요.');
     if (mappedConditions) {
+      const original =
+        template.conditions === undefined
+          ? undefined
+          : validateStudioConditions(template.conditions);
+      const used = original ? conditionColumnNames(original.definition) : new Set<string>();
+      if (
+        original?.semantics?.columns.some(column => used.has(column.column)) &&
+        !mappedConditions.semantics
+      )
+        throw new BadRequestException('복제할 조건의 업무 기준을 유지해 주세요.');
+      await resolveConditionSemantics(
+        this.db.manager,
+        sourceId,
+        profile.columns,
+        mappedConditions.semantics,
+      );
       if (mappedConditions.sourceRevision !== (await this.connection.duckDBVersion(sourceId)))
         throw new ConflictException('조건의 원본 파일이 변경되었습니다.');
       mappedConditions.definition = compileConditionDefinition(
         mappedConditions.definition,
-        conditionColumns(profile.columns),
+        conditionColumns(profile.columns, mappedConditions.semantics),
+        mappedConditions.semantics,
       ).definition;
     }
     const draft = this.compile(sourceId, template.title, blocks, profile);

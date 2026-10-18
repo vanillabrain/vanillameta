@@ -100,3 +100,7 @@
 ### Source Availability Follow-up
 
 [소스 상태 설계](../plans/UC-050-source-availability.md)는 활성 소유 admin의 별도 상태 관리와 다음 일반 보호 요청 차단을 분리한다. 비활성 소스의 원본/권한/분석/게시 행을 삭제하지 않고 중앙 SourceAccess/정책과 일반 소스 목록에서 적용한다. 관리 목록과 명시 재활성 경로는 남긴다. [선택 증빙](../testing/source-availability.md)에서 실제 DB/HTTP와 UI 미실행을 구분한다. 이용 범위/공식 승인·전체 사용처 영향 확인/공통 분류·전체 FR014는 후속이다.
+
+### Condition Execution Semantics Follow-up
+
+업무 날짜·수치/범주 의미는 [고정 기준 계획](../plans/UC-050-condition-semantics.md)·[선택 증빙](../testing/business-condition-semantics.md)에 따라 명시 조건 wrapper로 실행한다. legacy native/과거 semantic 기준은 최신 카탈로그 편집으로 바꾸지 않는다. 최신 의미는 명시 채택·재검토·미리보기/저장하며 잘못된 전체 날짜/이력은 거절한다. nullable SourceConditionEntry 이력과 실제 파일 기준을 구별한다. 실 Codex 단일 조건 제안→V3 검토/명시 적용/저장/reload는1 PASS다. 복합 부정 의도 제한·조직 공통 분류 재사용·새 semantic 지표/차원 생성·안정 dist core 최종 검증·실제 Ego/휴대폰/운영·사람 및 전체 FR015 수용은 열린다.

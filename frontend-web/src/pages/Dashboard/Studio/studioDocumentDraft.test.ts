@@ -110,6 +110,11 @@ it('UC052 persists applied conditions exactly through browser draft/recovery and
   const d = fixture();
   d.document.conditions = {
     sourceRevision: 'b'.repeat(64),
+    semantics: {
+      schemaVersion: 1,
+      catalogVersion: 4,
+      columns: [{ column: 'amount', businessType: 'number', dateFormat: '' }],
+    },
     definition: { include: { kind: 'predicate', column: 'amount', operator: 'gt', values: [10] }, exclude: null },
   };
   expect(writeStudioDocumentDraft('scope', d)).toBe(true);

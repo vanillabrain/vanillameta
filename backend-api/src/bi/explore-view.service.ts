@@ -1,3 +1,4 @@
+import { resolveConditionSemantics } from './business-condition-context';
 import { lockMetricReferences } from '../metric/metric-write-lock';
 import {
   BadRequestException,
@@ -84,6 +85,13 @@ export class ExploreViewService {
     if (!/^[a-f0-9]{64}$/.test(body.revision ?? '') || body.revision !== catalog.viewRevision)
       this.conflict();
     const state = validateExploreViewState(body.state, catalog);
+    if (state.conditions?.semantics)
+      await resolveConditionSemantics(
+        this.views.manager,
+        sourceId,
+        catalog.dimensions.map(d => ({ name: d.column, type: d.type })),
+        state.conditions.semantics,
+      );
     const row = await serializedViewWrite(this.views, async () => {
       await this.access.assert('database', sourceId, actor, 'read');
       return metadataTransaction(this.views.manager, async manager => {
@@ -136,6 +144,13 @@ export class ExploreViewService {
       let state;
       try {
         state = validateExploreViewState(stored, catalog);
+        if (state.conditions?.semantics)
+          await resolveConditionSemantics(
+            this.views.manager,
+            sourceId,
+            catalog.dimensions.map(d => ({ name: d.column, type: d.type })),
+            state.conditions.semantics,
+          );
       } catch {
         throw new ConflictException(
           '저장 조건의 파일·열 기준이 변경되었습니다. 현재 분석을 유지하고 다시 확인해 주세요.',

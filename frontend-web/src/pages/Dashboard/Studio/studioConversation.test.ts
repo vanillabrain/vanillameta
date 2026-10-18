@@ -251,3 +251,33 @@ it('UC052 content followups retain scope while condition removal remains an expl
     validateStudioRun({ ...result(), intent: 'ask', proposedOperations: removed.proposedOperations }, scoped),
   ).toThrow();
 });
+
+it('AI preserves frozen semantics, rejects silent native/version switches, and permits explicit full removal', () => {
+  const semantics = {
+    schemaVersion: 1 as const,
+    catalogVersion: 4,
+    columns: [{ column: 'amount', businessType: 'number' as const, dateFormat: '' as const }],
+  };
+  const before = {
+    sourceRevision: context.expectedSourceRevision,
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'gte', values: [10] }, exclude: null },
+    semantics,
+  };
+  const c = { ...context, selectedBlockId: undefined, document: { ...document, conditions: before } };
+  const conditions = {
+    ...before,
+    definition: { ...before.definition, include: { ...before.definition.include, values: [20] } },
+  };
+  const raw = { ...result(), selectedBlockId: null, proposedOperations: [{ type: 'setConditions', conditions }] };
+  expect(validateStudioRun(raw, c).proposedOperations[0]).toEqual({ type: 'setConditions', conditions });
+  for (const wrong of [undefined, { ...semantics, catalogVersion: 5 }])
+    expect(() =>
+      validateStudioRun(
+        { ...raw, proposedOperations: [{ type: 'setConditions', conditions: { ...conditions, semantics: wrong } }] },
+        c,
+      ),
+    ).toThrow(/업무 의미/);
+  expect(
+    validateStudioRun({ ...raw, proposedOperations: [{ type: 'setConditions', conditions: null }] }, c).proposedOperations,
+  ).toEqual([{ type: 'setConditions', conditions: null }]);
+});

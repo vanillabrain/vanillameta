@@ -9,6 +9,9 @@ import { DuckDBService } from '../analysis/duckdb.service';
 import { ConnectionService } from '../connection/connection.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
+import type { ConditionSemantics } from './business-condition-semantics';
 import { Database } from '../database/entities/database.entity';
 import { Metric } from '../metric/entities/metric.entity';
 import { User } from '../user/entities/user.entity';
@@ -193,7 +196,7 @@ describe('UC052 same-basis actual DuckDB Explore/Pivot/CSV oracle', () => {
       native = await instance.connect();
     try {
       await native.run(
-        'CREATE TABLE uploaded_data(region VARCHAR, channel VARCHAR, amount DOUBLE, weight DOUBLE, event_time TIMESTAMP)',
+        'CREATE TABLE uploaded_data(region VARCHAR, channel VARCHAR, amount DOUBLE, weight DOUBLE, event_time TIMESTAMP, business_day VARCHAR)',
       );
       const quote = (s: string) => "'" + s.replace(/'/g, "''") + "'";
       await native.run(
@@ -203,7 +206,7 @@ describe('UC052 same-basis actual DuckDB Explore/Pivot/CSV oracle', () => {
               row =>
                 `(${quote(row.region)},${quote(row.channel)},${row.amount},${row.weight},${quote(
                   row.time,
-                )})`,
+                )},${quote(row.time.slice(0, 10).replace(/-/g, '/'))})`,
             )
             .join(','),
       );
@@ -236,6 +239,8 @@ describe('UC052 same-basis actual DuckDB Explore/Pivot/CSV oracle', () => {
         EnterpriseMembership,
         EnterpriseAuditEvent,
         Database,
+        Dashboard,
+        SourceCatalogEntry,
         Metric,
         EnterpriseResourceGrant,
         EnterpriseGroup,
@@ -284,7 +289,7 @@ describe('UC052 same-basis actual DuckDB Explore/Pivot/CSV oracle', () => {
     connection = new ConnectionService(db.getRepository(Database), {} as any, worker);
     revision = await connection.duckDBVersion(1);
     const access = new SourceAccessService(db, new EnterpriseResourcePolicyService(db));
-    const ai = new AiDashboardService({} as any, connection, {} as any, access);
+    const ai = new AiDashboardService({} as any, connection, db.getRepository(Dashboard), access);
     bi = new BiService(db, access, connection, ai);
     explore = new BiExploreService(bi, ai, connection);
     jobs = freshJobs();
@@ -606,4 +611,191 @@ describe('UC052 same-basis actual DuckDB Explore/Pivot/CSV oracle', () => {
       expect(await db.manager.count(ExportJob)).toBe(0);
     },
   );
+  describe('business semantics all-path wiring with actual catalog history', () => {
+    const meaning: ConditionSemantics = {
+      schemaVersion: 1,
+      catalogVersion: 1,
+      columns: [{ column: 'business_day', businessType: 'date', dateFormat: 'YYYY/MM/DD' }],
+    };
+    const businessConditions = () => ({
+      ...conditions(),
+      semantics: meaning,
+      definition: {
+        ...conditions().definition,
+        include: {
+          kind: 'group',
+          operator: 'and',
+          children: [
+            conditions().definition.include,
+            {
+              kind: 'predicate',
+              column: 'business_day',
+              operator: 'between',
+              values: ['2026-03-08', '2026-03-09'],
+            },
+          ],
+        },
+      },
+    });
+    const businessQuery = () => ({ ...query(), conditions: businessConditions() });
+    const businessPivot = () => ({ ...pivot(), conditions: businessConditions() });
+    const businessPayload = (mode: string) => ({
+      mode,
+      query: mode === 'explore' ? businessQuery() : businessPivot(),
+    });
+    const businessCsv = (mode: string) => ({
+      ...businessPayload(mode),
+      query: { ...businessPayload(mode).query, expectedMeasureVersions: versions },
+    });
+    // Independent row predicate: UTC source strings AND existing NY civil range/filter/OR/exclude.
+    const eligible = (start: string, end: string) =>
+      select(start, end).filter(
+        row => row.time.slice(0, 10) >= '2026-03-08' && row.time.slice(0, 10) <= '2026-03-09',
+      );
+    const current = aggregate(eligible('2026-03-08', '2026-03-09'));
+    const prior = aggregate(eligible('2026-03-06', '2026-03-07'));
+    const appendCatalog = async (version: number) => {
+      const schema = (await connection.queryDuckDB(1, 'DESCRIBE uploaded_data')).datas.map(
+        column => ({ column: column.column_name, type: column.column_type }),
+      );
+      expect(schema.find(column => column.column === 'business_day').type).toBe('VARCHAR');
+      await db.manager.insert(SourceCatalogEntry, {
+        sourceId: 1,
+        version,
+        actorId: 7,
+        sourceRevision: revision,
+        schemaRevision: createHash('sha256').update(JSON.stringify(schema)).digest('hex'),
+        metadata: JSON.stringify({
+          label: 'Owned business oracle',
+          description: '',
+          columns: schema.map(column => ({
+            column: column.column,
+            label: column.column,
+            description: '',
+            unit: '',
+            classification: '',
+            businessType:
+              column.column === 'business_day' ? (version === 1 ? 'date' : 'category') : 'auto',
+            dateFormat: column.column === 'business_day' && version === 1 ? 'YYYY/MM/DD' : '',
+          })),
+        }),
+      });
+    };
+    const assertCsv = (csv: string, mode: string) => {
+      const parsed = csvRows(csv),
+        section = mode === 'explore' ? 'kpi' : 'grand_total';
+      const sum = parsed.find(row => row.section === section && row.measure_id === '1');
+      expect(Number(sum.value)).toBe(current.sum);
+      expect(Number(sum.previous_value)).toBe(prior.sum);
+      expect(
+        Number(parsed.find(row => row.section === section && row.measure_id === '2').value),
+      ).toBe(current.ratio);
+      expect(
+        Number(parsed.find(row => row.section === section && row.measure_id === '3').value),
+      ).toBe(current.count);
+      const wrapper = parsed.find(
+        row => row.section === 'condition' && JSON.parse(row.row_axis).field === 'conditions',
+      );
+      expect(JSON.parse(wrapper.value)).toEqual(businessConditions());
+    };
+    beforeEach(async () => {
+      await db.getRepository(SourceCatalogEntry).clear();
+      await appendCatalog(1);
+      expect(current).toEqual({ sum: 100, ratio: 12.5, count: 2 });
+      expect(prior).toEqual({ sum: 30, ratio: 10, count: 1 });
+    });
+    it.each(['query', 'classic Pivot', 'advanced Pivot'])(
+      'uses frozen VARCHAR-date V1 semantics for %s after the real catalog advances to category V2',
+      async mode => {
+        await appendCatalog(2);
+        if (mode === 'query') {
+          const result: any = await explore.query(businessQuery(), 7);
+          expect(result.kpis.map(kpi => kpi.value)).toEqual([
+            current.sum,
+            current.ratio,
+            current.count,
+          ]);
+          expect(result.kpis[0].comparison.previousValue).toBe(prior.sum);
+          expect(
+            result.leaderboards[0].rows.map(row => [row.category, row.value, row.previousValue]),
+          ).toEqual([
+            ['A', 100, null],
+            ['B', null, 30],
+          ]);
+          expect(result.kpis[0].trend.points.map(point => point.value)).toEqual([40, 60]);
+          expect(result.measureVersions).toEqual(versions);
+        } else if (mode === 'classic Pivot') {
+          const result: any = await explore.pivot(
+            {
+              ...scope(),
+              conditions: businessConditions(),
+              rowDimensions: ['region'],
+              columnDimensions: ['channel'],
+            },
+            7,
+          );
+          expect(result.grandTotals).toEqual([current.sum, current.ratio, current.count]);
+          expect(result.rows.map(row => row.values)).toEqual([['A']]);
+          expect(result.measureVersions).toEqual(versions);
+        } else {
+          const result: any = await explore.pivot(businessPivot(), 7);
+          expect(result.grandTotal.map(measure => measure.value)).toEqual([
+            current.sum,
+            current.ratio,
+            current.count,
+          ]);
+          expect(result.grandTotal.map(measure => measure.comparison.previousValue)).toEqual([
+            prior.sum,
+            prior.ratio,
+            prior.count,
+          ]);
+          expect(result.measureVersions).toEqual(versions);
+        }
+      },
+    );
+    it.each(['explore', 'pivot'])(
+      'preserves real semantic wrapper and oracle values in immediate %s CSV after catalog V2',
+      async mode => {
+        await appendCatalog(2);
+        const file = await explore.exportCsv(businessCsv(mode), 7);
+        assertCsv(file.csv, mode);
+        expect(file.sourceRevision).toBe(revision);
+      },
+    );
+    it.each(['explore', 'pivot'])(
+      'persists V1 semantic %s CSV job, executes after V2, and reads unchanged completed bytes from a fresh service',
+      async mode => {
+        const payload = businessPayload(mode);
+        const queued = await jobs.create(
+          { requestId: randomUUID(), payload, measureVersions: versions },
+          7,
+        );
+        const stored = await db.manager.findOneByOrFail(ExportJob, { id: queued.id });
+        expect(JSON.parse(stored.requestJson).payload.query.conditions).toEqual(
+          businessConditions(),
+        );
+        await appendCatalog(2);
+        expect(
+          await freshJobs().run(queued.id, { expectedVersion: queued.version }, 7),
+        ).toMatchObject({ status: 'ready' });
+        const file = await freshJobs().file(queued.id, 7);
+        assertCsv(file.csv, mode);
+        expect(file.sha256).toBe(createHash('sha256').update(file.csv).digest('hex'));
+        const immediate = await explore.exportCsv(businessCsv(mode), 7);
+        expect(semanticCsv(file.csv)).toEqual(semanticCsv(immediate.csv));
+        expect((await freshJobs().file(queued.id, 7)).csv).toBe(file.csv);
+      },
+    );
+    it('rejects missing catalog history across query/Pivot/immediate CSV instead of interpreting dates as native strings', async () => {
+      await db.getRepository(SourceCatalogEntry).clear();
+      for (const execute of [
+        () => explore.query(businessQuery(), 7),
+        () => explore.pivot(businessPivot(), 7),
+        () => explore.exportCsv(businessCsv('explore'), 7),
+        () => explore.exportCsv(businessCsv('pivot'), 7),
+      ])
+        await expect(execute()).rejects.toMatchObject({ status: 409 });
+      expect(await db.manager.count(ExportJob)).toBe(0);
+    });
+  });
 });

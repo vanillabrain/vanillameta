@@ -1,3 +1,4 @@
+import { categoryTextType } from './businessVariable';
 import type { Column } from './SourceConditions';
 export const profileKey = (value: unknown): string =>
   JSON.stringify(value, (_key, v) =>
@@ -41,8 +42,18 @@ export function readProfileColumns(value: unknown): Column[] {
         c.type.length <= 200 &&
         ['string', 'number', 'boolean', 'date', 'timestamp', 'unsupported'].includes(c.kind),
     );
+    if (c.businessType !== undefined) assert(['auto', 'number', 'category', 'date'].includes(c.businessType));
+    if (c.dateFormat !== undefined) assert(['', 'native', 'YYYY-MM-DD', 'YYYY/MM/DD', 'YYYYMMDD'].includes(c.dateFormat));
+    if (c.businessType === 'date') assert(['native', 'YYYY-MM-DD', 'YYYY/MM/DD', 'YYYYMMDD'].includes(c.dateFormat));
+    if (categoryTextType(c.type)) assert(c.kind === (c.businessType === 'category' ? 'string' : 'unsupported'));
     names.add(c.name);
-    return { name: c.name, type: c.type, kind: c.kind };
+    return {
+      name: c.name,
+      type: c.type,
+      kind: c.kind,
+      ...(c.businessType === undefined ? {} : { businessType: c.businessType }),
+      ...(c.dateFormat === undefined ? {} : { dateFormat: c.dateFormat }),
+    };
   });
 }
 export function readConditionProfile(input: any, selected: string[], columns: Column[]) {

@@ -8,6 +8,24 @@ import {
 } from '../bi/source-condition-definition';
 import { validateStudioConditions } from './studio-document';
 import { RemixTemplate } from './studio-remix-contract';
+/** Private historical-schema evidence; never included in recipient requirements. */
+export type SemanticRemixTemplate = RemixTemplate & {
+  conditionSchema?: Array<{ name: string; type: string }>;
+};
+export function conditionColumnNames(definition: {
+  include: ConditionNode | null;
+  exclude: ConditionNode | null;
+}): Set<string> {
+  const names = new Set<string>();
+  const visit = (node: ConditionNode | null) => {
+    if (!node) return;
+    if (node.kind === 'group') node.children.forEach(visit);
+    else names.add(node.column);
+  };
+  visit(definition.include);
+  visit(definition.exclude);
+  return names;
+}
 
 export function canonicalMetricSql(
   metric: any,
@@ -35,7 +53,7 @@ export function captureRemixTemplate(
   items: any[],
   schema: any[],
   widgets: any[],
-): RemixTemplate {
+): SemanticRemixTemplate {
   const columns = schema.map(c => ({
     name: c.column_name,
     type: c.column_type,
@@ -175,7 +193,8 @@ export function captureRemixTemplate(
     // Validate against the actual source, then freeze every predicate as global required scope.
     conditions.definition = compileConditionDefinition(
       conditions.definition,
-      conditionColumns(columns),
+      conditionColumns(columns, conditions.semantics),
+      conditions.semantics,
     ).definition;
     const visit = (node: ConditionNode | null) => {
       if (!node) return;
@@ -195,6 +214,9 @@ export function captureRemixTemplate(
   return {
     schemaVersion: 1,
     ...(conditions ? { conditions } : {}),
+    ...(conditions?.semantics
+      ? { conditionSchema: columns.map(({ name, type }) => ({ name, type })) }
+      : {}),
     title: document.title,
     ...(filters.length ? { filters } : {}),
     ...(dateRange ? { dateRange: { ...dateRange } } : {}),

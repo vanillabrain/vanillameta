@@ -1,3 +1,7 @@
+import {
+  resolveConditionSemantics,
+  validateConditionBusinessDates,
+} from '../bi/business-condition-context';
 import { lockMetricReferences, lockMetricReferenceSets } from '../metric/metric-write-lock';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import {
@@ -136,6 +140,53 @@ export class AiDashboardService {
     @InjectRepository(Dashboard) private readonly dashboards: Repository<Dashboard>,
     @Optional() private readonly access?: SourceAccessService,
   ) {}
+  private readonly conditionDateProofs = new Map<string, Promise<void>>();
+  /** Caller has already established source rights and the immutable execution file. */
+  async assertConditionSemantics(
+    sourceId: number,
+    schema: Array<{ name: string; type: string }>,
+    conditions?: StudioConditions,
+  ) {
+    if (!conditions?.semantics) return;
+    await resolveConditionSemantics(
+      this.dashboards.manager,
+      sourceId,
+      schema,
+      conditions.semantics,
+    );
+    const key = JSON.stringify([
+      sourceId,
+      await this.connection.duckDBVersion(sourceId),
+      conditions.semantics,
+    ]);
+    let proof = this.conditionDateProofs.get(key);
+    if (!proof) {
+      if (this.conditionDateProofs.size >= 64)
+        this.conditionDateProofs.delete(this.conditionDateProofs.keys().next().value);
+      proof = validateConditionBusinessDates(schema, conditions.semantics, (sql, bindings) =>
+        this.connection.queryDuckDB(sourceId, sql, bindings),
+      );
+      this.conditionDateProofs.set(key, proof);
+      const captured = proof;
+      void captured.catch(() => {
+        if (this.conditionDateProofs.get(key) === captured) this.conditionDateProofs.delete(key);
+      });
+    }
+    await proof;
+  }
+  private async recheckConditionError(sourceId: number, actor: number, conditions: any) {
+    if (this.access) await this.access.assert('database', sourceId, actor, 'read');
+    if (conditions?.semantics && typeof conditions.sourceRevision === 'string') {
+      const fresh = await this.connection.captureDuckDBSnapshot(sourceId);
+      if (
+        (await fresh.run(() => this.connection.duckDBVersion(sourceId))) !==
+        conditions.sourceRevision
+      )
+        throw new ConflictException(
+          '업무 조건 검증 중 파일이 변경됐습니다. 입력을 유지하고 다시 검토해 주세요.',
+        );
+    }
+  }
   private success(data: any) {
     return { status: ResponseStatus.SUCCESS, data };
   }
@@ -1193,9 +1244,12 @@ export class AiDashboardService {
     }
     const draft = validateDraft(body?.draft);
     if (this.access) await this.access.assert('database', draft.databaseId, userId, 'read');
-    const result = await this.connection.withDuckDBSnapshot(draft.databaseId, () =>
-      this.previewSnapshot(body, draft),
-    );
+    const result = await this.connection
+      .withDuckDBSnapshot(draft.databaseId, () => this.previewSnapshot(body, draft))
+      .catch(async error => {
+        await this.recheckConditionError(draft.databaseId, userId, body.conditions);
+        throw error;
+      });
     if (this.access) await this.access.assert('database', draft.databaseId, userId, 'read');
     return result;
   }
@@ -1341,89 +1395,101 @@ export class AiDashboardService {
     } else if (saved.data.databaseId !== draft.databaseId)
       throw new BadRequestException('dashboard source mismatch');
     if (this.access) await this.access.assert('database', draft.databaseId, userId, 'read');
-    const result = await this.connection.withDuckDBSnapshot(draft.databaseId, async () => {
-      const sourceRevision = await this.connection.duckDBVersion(draft.databaseId);
-      if (body.sourceRevision !== sourceRevision)
-        throw new ConflictException(
-          '파일 버전이 변경되었습니다. 대시보드를 새로고침한 뒤 상세 내역을 다시 열어 주세요.',
+    const result = await this.connection
+      .withDuckDBSnapshot(draft.databaseId, async () => {
+        const sourceRevision = await this.connection.duckDBVersion(draft.databaseId);
+        if (body.sourceRevision !== sourceRevision)
+          throw new ConflictException(
+            '파일 버전이 변경되었습니다. 대시보드를 새로고침한 뒤 상세 내역을 다시 열어 주세요.',
+          );
+        body = {
+          ...body,
+          conditions:
+            body.conditions === undefined ? saved.data.defaultConditions : body.conditions,
+        };
+        const conditions =
+          body.conditions === undefined ? undefined : validateStudioConditions(body.conditions);
+        if (conditions && conditions.sourceRevision !== sourceRevision)
+          throw new ConflictException('Condition source revision changed');
+        if (
+          contributionMode &&
+          JSON.stringify(conditions) !== JSON.stringify(saved.data.defaultConditions)
+        )
+          throw new ConflictException('Condition scope changed');
+        const schema = await this.schema(draft.databaseId);
+        await this.assertConditionSemantics(
+          draft.databaseId,
+          schema.map(c => ({ name: c.column_name, type: c.column_type })),
+          conditions,
         );
-      body = {
-        ...body,
-        conditions: body.conditions === undefined ? saved.data.defaultConditions : body.conditions,
-      };
-      const conditions =
-        body.conditions === undefined ? undefined : validateStudioConditions(body.conditions);
-      if (conditions && conditions.sourceRevision !== sourceRevision)
-        throw new ConflictException('Condition source revision changed');
-      if (
-        contributionMode &&
-        JSON.stringify(conditions) !== JSON.stringify(saved.data.defaultConditions)
-      )
-        throw new ConflictException('Condition scope changed');
-      const schema = await this.schema(draft.databaseId);
-      const columns = schema.map(c => c.column_name);
-      const temporal = schema
-        .filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type))
-        .map(c => c.column_name);
-      if (contributionMode)
-        return this.contributionDetails(
-          body,
-          saved.data,
-          schema,
-          sourceRevision,
+        const columns = schema.map(c => c.column_name);
+        const temporal = schema
+          .filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type))
+          .map(c => c.column_name);
+        if (contributionMode)
+          return this.contributionDetails(
+            body,
+            saved.data,
+            schema,
+            sourceRevision,
+            page,
+            pageSize,
+            userId,
+          );
+        const query = (sql: string) =>
+          sourceQuery(
+            sql,
+            columns,
+            body.filters,
+            body.dateRange,
+            temporal,
+            numericSourceColumns(schema),
+            body.conditions?.definition,
+            schema.map(c => ({ name: c.column_name, type: c.column_type })),
+            body.conditions?.semantics,
+          );
+        const countQuery = query('SELECT CAST(count(*) AS VARCHAR) AS total FROM source');
+        const count = await this.connection.queryDuckDB(
+          draft.databaseId,
+          countQuery.sql,
+          countQuery.bindings,
+        );
+        // A bounded projection and deterministic ordering avoid sending an entire wide source to the browser.
+        // Equal projected rows are indistinguishable in this table; ORDER BY ALL also avoids shadowed rowid columns.
+        const selectedColumns = columns.slice(0, 50);
+        // DuckDB's object adapter assigns onto {}, so magic property names need safe transport aliases.
+        const rowsQuery = query(
+          `SELECT ${selectedColumns
+            .map((column, index) => `${quoteColumn(column)} AS "__vm_detail_${index}"`)
+            .join(', ')} FROM source ORDER BY ALL LIMIT ${pageSize} OFFSET ${page * pageSize}`,
+        );
+        const rows = await this.connection.queryDuckDB(
+          draft.databaseId,
+          rowsQuery.sql,
+          rowsQuery.bindings,
+        );
+        return this.success({
+          fields: rows.fields.map((field: any, index: number) => ({
+            ...field,
+            columnName: selectedColumns[index],
+          })),
+          datas: rows.datas.map((row: any) =>
+            Object.fromEntries(
+              selectedColumns.map((column, index) => [column, row[`__vm_detail_${index}`]]),
+            ),
+          ),
+          totalRows: String(count.datas[0].total),
           page,
           pageSize,
-          userId,
-        );
-      const query = (sql: string) =>
-        sourceQuery(
-          sql,
-          columns,
-          body.filters,
-          body.dateRange,
-          temporal,
-          numericSourceColumns(schema),
-          body.conditions?.definition,
-          schema.map(c => ({ name: c.column_name, type: c.column_type })),
-        );
-      const countQuery = query('SELECT CAST(count(*) AS VARCHAR) AS total FROM source');
-      const count = await this.connection.queryDuckDB(
-        draft.databaseId,
-        countQuery.sql,
-        countQuery.bindings,
-      );
-      // A bounded projection and deterministic ordering avoid sending an entire wide source to the browser.
-      // Equal projected rows are indistinguishable in this table; ORDER BY ALL also avoids shadowed rowid columns.
-      const selectedColumns = columns.slice(0, 50);
-      // DuckDB's object adapter assigns onto {}, so magic property names need safe transport aliases.
-      const rowsQuery = query(
-        `SELECT ${selectedColumns
-          .map((column, index) => `${quoteColumn(column)} AS "__vm_detail_${index}"`)
-          .join(', ')} FROM source ORDER BY ALL LIMIT ${pageSize} OFFSET ${page * pageSize}`,
-      );
-      const rows = await this.connection.queryDuckDB(
-        draft.databaseId,
-        rowsQuery.sql,
-        rowsQuery.bindings,
-      );
-      return this.success({
-        fields: rows.fields.map((field: any, index: number) => ({
-          ...field,
-          columnName: selectedColumns[index],
-        })),
-        datas: rows.datas.map((row: any) =>
-          Object.fromEntries(
-            selectedColumns.map((column, index) => [column, row[`__vm_detail_${index}`]]),
-          ),
-        ),
-        totalRows: String(count.datas[0].total),
-        page,
-        pageSize,
-        sourceRevision,
-        columnCount: columns.length,
-        scope: 'current common-filter source rows',
+          sourceRevision,
+          columnCount: columns.length,
+          scope: 'current common-filter source rows',
+        });
+      })
+      .catch(async error => {
+        await this.recheckConditionError(draft.databaseId, userId, body.conditions);
+        throw error;
       });
-    });
     if (this.access) await this.access.assert('database', draft.databaseId, userId, 'read');
     return result;
   }
@@ -1455,6 +1521,7 @@ export class AiDashboardService {
             [],
             conditions.definition,
             schema.map(c => ({ name: c.column_name, type: c.column_type })),
+            conditions.semantics,
           )
         : { sql: sql.replace('FROM source', 'FROM uploaded_data'), bindings: [] };
       const result = await this.connection.queryDuckDB(databaseId, query.sql, query.bindings);
@@ -1513,6 +1580,7 @@ export class AiDashboardService {
       numericSourceColumns(schema),
       body.conditions?.definition,
       schema.map(c => ({ name: c.column_name, type: c.column_type })),
+      body.conditions?.semantics,
     );
     const dateRange =
       input.period === 'previous' ? previousDateRange(body.dateRange) : body.dateRange;
@@ -1526,6 +1594,7 @@ export class AiDashboardService {
         numericSourceColumns(schema),
         body.conditions?.definition,
         schema.map(c => ({ name: c.column_name, type: c.column_type })),
+        body.conditions?.semantics,
       );
     const { trendGrain } = validatePeriodOptions({ trendGrain: input.trendGrain });
     const dateColumn = temporal.includes(body.dateRange?.column)
@@ -1756,6 +1825,11 @@ export class AiDashboardService {
     if (conditions && conditions.sourceRevision !== sourceRevision)
       throw new ConflictException('Condition source revision changed');
     const schema = await this.schema(draft.databaseId);
+    await this.assertConditionSemantics(
+      draft.databaseId,
+      schema.map(c => ({ name: c.column_name, type: c.column_type })),
+      conditions,
+    );
     const columns = schema.map(c => c.column_name);
     const temporal = schema.filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type));
     // Validate the current range before deriving or querying either comparison period.
@@ -1768,6 +1842,7 @@ export class AiDashboardService {
       numericSourceColumns(schema),
       body.conditions?.definition,
       schema.map(c => ({ name: c.column_name, type: c.column_type })),
+      body.conditions?.semantics,
     );
     const previous = comparePrevious ? previousDateRange(body.dateRange) : undefined;
     const dateColumn = temporal.some(c => c.column_name === body?.dateRange?.column)
@@ -1798,6 +1873,7 @@ export class AiDashboardService {
         numericSourceColumns(schema),
         body.conditions?.definition,
         schema.map(c => ({ name: c.column_name, type: c.column_type })),
+        body.conditions?.semantics,
       );
       queries.push({ widgetIndex: widgets.length, kind: 'widget', ...query });
       const result = await this.connection.queryDuckDB(draft.databaseId, query.sql, query.bindings);
@@ -1890,6 +1966,7 @@ export class AiDashboardService {
           numericSourceColumns(schema),
           body.conditions?.definition,
           schema.map(c => ({ name: c.column_name, type: c.column_type })),
+          body.conditions?.semantics,
         );
         queries.push({ widgetIndex: widgets.length, kind: 'previous-widget', ...previousQuery });
         const prior = await this.connection.queryDuckDB(
@@ -1967,6 +2044,7 @@ export class AiDashboardService {
               [],
               conditions.definition,
               schema.map(c => ({ name: c.column_name, type: c.column_type })),
+              conditions.semantics,
             )
           : {
               sql: `SELECT DISTINCT ${name} AS value FROM uploaded_data WHERE ${name} IS NOT NULL ORDER BY value LIMIT 51`,
@@ -1998,6 +2076,7 @@ export class AiDashboardService {
               [],
               conditions.definition,
               schema.map(c => ({ name: c.column_name, type: c.column_type })),
+              conditions.semantics,
             )
           : { sql: sql.replace('FROM source', 'FROM uploaded_data'), bindings: [] };
         const result = await this.connection.queryDuckDB(
@@ -2059,6 +2138,7 @@ export class AiDashboardService {
               numericSourceColumns(schema),
               body.conditions?.definition,
               schema.map(c => ({ name: c.column_name, type: c.column_type })),
+              body.conditions?.semantics,
             );
             queries.push({ widgetIndex: widgets.indexOf(widget), kind: period.kind, ...query });
             const result = await this.connection.queryDuckDB(

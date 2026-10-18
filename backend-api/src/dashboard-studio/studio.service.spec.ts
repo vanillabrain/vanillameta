@@ -1,3 +1,6 @@
+import { BadRequestException } from '@nestjs/common';
+import { latestConditionSemantics } from '../bi/business-condition-context';
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
@@ -88,6 +91,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
       database: ':memory:',
       synchronize: true,
       entities: [
+        SourceCatalogEntry,
         Dashboard,
         DashboardShare,
         DashboardWidget,
@@ -201,6 +205,49 @@ describe('Studio real DuckDB and transactional metadata', () => {
     await expect(studio.profile(id, body, 8)).rejects.toMatchObject({ status: 403 });
     expect(connection.queryDuckDB).not.toHaveBeenCalled();
   });
+  it.each(['semantic', 'sql', 'revoked', 'replaced'])(
+    'UC050 profile failure preserves errors after fresh guards: %s',
+    async mode => {
+      const initial = await studio.get(id, 7);
+      const body = {
+        expectedRevision: initial.document.revision,
+        expectedSourceRevision: initial.sourceRevision,
+        document: initial.document,
+        columns: ['amount'],
+      };
+      const original = connection.queryDuckDB.getMockImplementation();
+      const failure = new BadRequestException('invalid business date count: 1');
+      const semantic =
+        mode === 'semantic'
+          ? jest.spyOn(ai, 'assertConditionSemantics').mockRejectedValue(failure)
+          : undefined;
+      if (semantic)
+        body.document.conditions = {
+          sourceRevision: initial.sourceRevision,
+          definition: { include: null, exclude: null },
+          semantics: { schemaVersion: 1, catalogVersion: 1, columns: [] },
+        };
+      if (!semantic)
+        connection.queryDuckDB.mockImplementation(async (source, sql, bindings) => {
+          if (sql.includes('grouped AS')) {
+            if (mode === 'revoked') await db.manager.update(Database, { id: 1 }, { ownerId: 8 });
+            if (mode === 'replaced') connection.duckDBVersion.mockResolvedValue('f'.repeat(64));
+            throw failure;
+          }
+          return original(source, sql, bindings);
+        });
+      try {
+        await expect(studio.profile(id, body, 7)).rejects.toMatchObject({
+          status: mode === 'revoked' ? 403 : mode === 'replaced' ? 409 : 400,
+        });
+      } finally {
+        semantic?.mockRestore();
+        connection.queryDuckDB.mockImplementation(original);
+        connection.duckDBVersion.mockResolvedValue(sourceRevision);
+        await db.manager.update(Database, { id: 1 }, { ownerId: 7 });
+      }
+    },
+  );
   it('UC052 releases metadata lease during profile aggregates and still returns the pinned result', async () => {
     const initial = await studio.get(id, 7);
     const source = await db.manager.findOneByOrFail(Database, { id: 1 });
@@ -1302,5 +1349,140 @@ describe('Studio real DuckDB and transactional metadata', () => {
     });
     await expect(delegatedStudio.get(id, 8)).rejects.toMatchObject({ status: 403 });
     expect((await db.manager.findOneByOrFail(Database, { id: 1 })).ownerId).toBe(7);
+  });
+  it('FR015 direct and AI use the same frozen business-date meaning through preview/save/reload after newer catalog semantics', async () => {
+    const previousProvider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = 'codex';
+    expect(await db.manager.count(SourceCatalogEntry, { where: { sourceId: 1 } })).toBe(0);
+    try {
+      const schema = (await connection.queryDuckDB(1, 'DESCRIBE uploaded_data')).datas.map(c => ({
+        name: c.column_name,
+        type: c.column_type,
+      }));
+      const columns = schema.map(c => ({
+        column: c.name,
+        label: c.name,
+        description: '',
+        unit: '',
+        classification: '',
+        businessType: c.name === 'event_time' ? 'date' : 'auto',
+        dateFormat: c.name === 'event_time' ? 'native' : '',
+      }));
+      const schemaRevision = createHash('sha256')
+        .update(JSON.stringify(schema.map(c => ({ column: c.name, type: c.type }))))
+        .digest('hex');
+      await db.manager.insert(SourceCatalogEntry, {
+        sourceId: 1,
+        version: 1,
+        actorId: 7,
+        schemaRevision,
+        sourceRevision: 'test-metadata-revision',
+        metadata: JSON.stringify({ label: 'Dates', description: '', columns }),
+      });
+      const semantics = await latestConditionSemantics(db.manager, 1, schema);
+      const initial = await studio.get(id, 7);
+      const definition = {
+        include: {
+          kind: 'predicate',
+          column: 'event_time',
+          operator: 'eq',
+          values: ['2026-01-02'],
+        },
+        exclude: null,
+      };
+      const document = {
+        ...initial.document,
+        conditions: { sourceRevision, definition, semantics },
+      };
+      const checked = await studio.prepare(
+        id,
+        {
+          expectedRevision: initial.document.revision,
+          expectedSourceRevision: sourceRevision,
+          document,
+        },
+        7,
+      );
+      expect(checked.preview.widgets[0].datas).toEqual([{ value: 200 }]);
+      expect(checked.conditionColumns.find(c => c.name === 'event_time').kind).toBe('date');
+      await save(document, 'business-direct-' + id);
+      let restored = await studio.get(id, 7);
+      expect(restored.document.conditions.semantics).toEqual(semantics);
+      expect(restored.preview.widgets[0].datas).toEqual([{ value: 200 }]);
+      await db.manager.insert(SourceCatalogEntry, {
+        sourceId: 1,
+        version: 2,
+        actorId: 7,
+        schemaRevision,
+        sourceRevision: 'test-metadata-revision',
+        metadata: JSON.stringify({
+          label: 'Dates',
+          description: '',
+          columns: columns.map(c =>
+            c.column === 'event_time' ? { ...c, businessType: 'category', dateFormat: '' } : c,
+          ),
+        }),
+      });
+      const kept = await studio.get(id, 7);
+      expect(kept.profileColumns.find(c => c.name === 'event_time').kind).toBe('date');
+      expect(kept.preview.widgets[0].datas).toEqual([{ value: 200 }]);
+      const proposed = {
+        include: {
+          kind: 'predicate',
+          column: 'event_time',
+          operator: 'between',
+          values: ['2026-01-01', '2026-01-01'],
+        },
+        exclude: null,
+      };
+      const model = {
+        callLlm: jest.fn().mockResolvedValue(
+          JSON.stringify({
+            intent: 'edit',
+            answer: '조건을 검토하세요.',
+            operations: [{ type: 'setConditions', definition: proposed }],
+          }),
+        ),
+      };
+      const runs = new StudioRunService(studio, model as any);
+      const before = await db.manager.count(StudioRun);
+      const result = await runs.run(
+        {
+          requestId: 'business-ai-' + id,
+          dashboardId: id,
+          document: kept.document,
+          expectedRevision: kept.document.revision,
+          expectedSourceRevision: sourceRevision,
+          clientEditVersion: 1,
+          prompt: '2026년 1월 1일의 업무 날짜 조건으로 검토해 줘',
+        },
+        7,
+      );
+      const context = JSON.parse(model.callLlm.mock.calls[0][1]);
+      expect(context.conditionColumns.find(c => c.name === 'event_time')).toMatchObject({
+        kind: 'date',
+        businessType: 'date',
+        dateFormat: 'native',
+      });
+      expect(result.proposedOperations[0].conditions.semantics).toEqual(semantics);
+      expect(result.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+      expect(await db.manager.count(StudioRun)).toBe(before);
+      const applied = result.proposedOperations.reduce(applyStudioOperation, kept.document);
+      await save(applied, 'business-ai-reviewed-' + id);
+      restored = await studio.get(id, 7);
+      expect(restored.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+      expect(restored.document.conditions.semantics.catalogVersion).toBe(1);
+      const dropped = {
+        ...restored.document,
+        conditions: { sourceRevision, definition: proposed },
+      };
+      await expect(save(dropped, 'business-meaning-drop-' + id)).rejects.toThrow('업무 의미');
+      expect((await studio.get(id, 7)).document.conditions.semantics).toEqual(semantics);
+    } finally {
+      await db.manager.delete(SourceCatalogEntry, { sourceId: 1, version: 2 });
+      await db.manager.delete(SourceCatalogEntry, { sourceId: 1, version: 1 });
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+    }
   });
 });

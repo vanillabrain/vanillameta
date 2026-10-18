@@ -177,14 +177,49 @@ export const studioScopeKey = (
     dateRange ? studioDateRangeKey(validateStudioDateRange(dateRange)) : '',
     studioConditionsKey(conditions),
   ]);
+/** Shape validation only; the server proves the full declaration against append-only catalog history. */
+export function validateConditionSemantics(input: unknown): import('./studioTypes').ConditionSemantics {
+  studioKeys(input, ['schemaVersion', 'catalogVersion', 'columns']);
+  const value = input as import('./studioTypes').ConditionSemantics;
+  studioAssert(
+    value.schemaVersion === 1 &&
+      Number.isSafeInteger(value.catalogVersion) &&
+      value.catalogVersion > 0 &&
+      Array.isArray(value.columns) &&
+      value.columns.length <= 128 &&
+      new TextEncoder().encode(JSON.stringify(value)).length <= 32768,
+    '업무 의미 버전을 확인해 주세요.',
+  );
+  let previous: string | undefined;
+  const names = new Set<string>();
+  for (const column of value.columns) {
+    studioKeys(column, ['column', 'businessType', 'dateFormat']);
+    studioAssert(
+      typeof column.column === 'string' &&
+        !!column.column &&
+        !column.column.includes('\0') &&
+        !names.has(column.column.replace(/[A-Z]/g, letter => letter.toLowerCase())) &&
+        (previous === undefined || previous < column.column) &&
+        ['number', 'category', 'date'].includes(column.businessType) &&
+        (column.businessType === 'date'
+          ? ['native', 'YYYY-MM-DD', 'YYYY/MM/DD', 'YYYYMMDD'].includes(column.dateFormat)
+          : column.dateFormat === ''),
+      '업무 의미의 열·유형·날짜 형식을 확인해 주세요.',
+    );
+    names.add(column.column.replace(/[A-Z]/g, letter => letter.toLowerCase()));
+    previous = column.column;
+  }
+  return studioClone(value);
+}
 /** Shape-only validation. Whole-document prepare proves the immutable file hash and live schema. */
 export function validateStudioConditions(input: unknown): StudioConditions {
-  studioKeys(input, ['sourceRevision', 'definition']);
+  studioKeys(input, ['sourceRevision', 'definition', 'semantics']);
   const value = input as StudioConditions;
   studioAssert(
     typeof value.sourceRevision === 'string' && /^[a-f0-9]{64}$/.test(value.sourceRevision),
     '조건 파일 버전을 확인해 주세요.',
   );
+  if (value.semantics !== undefined) validateConditionSemantics(value.semantics);
   studioKeys(value.definition, ['include', 'exclude']);
   let count = 0;
   const visit = (node: any, depth: number) => {

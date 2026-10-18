@@ -1,3 +1,9 @@
+import {
+  resolveConditionSemantics,
+  latestConditionSemantics,
+  assertLatestConditionSemantics,
+} from './business-condition-context';
+import { ConditionSemantics } from './business-condition-semantics';
 import { SharedReuseOriginService, ReuseReference } from './shared-reuse-origin.service';
 import {
   BadRequestException,
@@ -25,14 +31,14 @@ import { ConnectionService } from '../connection/connection.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
-import { metadataTransaction } from '../common/metadata-work';
+import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
 import { Database } from '../database/entities/database.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { decryptConnectionConfig } from '../utils/crypto.util';
 import { AnalysisCreationReceipt } from './analysis-creation-receipt.entity';
 import { BiService } from './bi.service';
-import { remapDashboard, reuseColumns } from './dashboard-remap';
+import { remapDashboard, reuseColumns, reuseScope, usesReuseSemantics } from './dashboard-remap';
 import { shape } from './semantic-proposal';
 import { sourceRevision } from './source-revision';
 
@@ -47,6 +53,9 @@ type Plan = {
   originalSourceRevision: string;
   targetId: number;
   targetRevision: string;
+  targetColumns?: Array<{ name: string; type: string }>;
+  originalColumns?: Array<{ name: string; type: string }>;
+  originalSemantics?: ConditionSemantics;
   draft: any;
   conditions?: StudioConditions;
   filters?: StudioFilter[];
@@ -85,7 +94,21 @@ export class DashboardReuseService {
       throw stale();
     if (!profile.supported)
       throw new BadRequestException('서버에 저장한 파일 분석만 복제할 수 있습니다.');
-    return { originalId, analysis, profile, reference: undefined as ReuseReference | undefined };
+    await resolveConditionSemantics(
+      this.db.manager,
+      profile.sourceId,
+      profile.columns,
+      analysis.defaultConditions === undefined
+        ? undefined
+        : validateStudioConditions(analysis.defaultConditions).semantics,
+    );
+    return {
+      originalId,
+      originalSourceId: profile.sourceId,
+      analysis,
+      profile,
+      reference: undefined as ReuseReference | undefined,
+    };
   }
   async draft(id: unknown, actor: number, kind = 'owned') {
     const { originalId, analysis, profile } = await this.original(id, actor, kind);
@@ -120,7 +143,11 @@ export class DashboardReuseService {
   async preview(id: unknown, body: any, actor: number, kind = 'owned') {
     const required = ['expectedRevision', 'sourceId', 'sourceRevision', 'title', 'columnMap'];
     shape(body, [...required, 'blockIds'], required);
-    const { originalId, analysis, profile, reference } = await this.original(id, actor, kind);
+    const { originalId, originalSourceId, analysis, profile, reference } = await this.original(
+      id,
+      actor,
+      kind,
+    );
     if (body.expectedRevision !== analysis.revision) throw stale();
     // UC024: explicit selection only; preserve original order regardless of request order.
     if (Object.prototype.hasOwnProperty.call(body, 'blockIds')) {
@@ -157,11 +184,16 @@ export class DashboardReuseService {
       if (!target.supported) throw new BadRequestException('서버 파일 소스를 선택해 주세요.');
       if (target.dataVersion !== body.sourceRevision) throw stale();
       await this.currentSource(this.db.manager, targetId, actor, target.dataVersion);
-      const remapped = remapDashboard(selected, profile, target, body.columnMap);
+      const originalScope = reuseScope(selected, profile);
+      const targetMeaning = usesReuseSemantics(originalScope)
+        ? await latestConditionSemantics(this.db.manager, targetId, target.columns)
+        : undefined;
+      const remapped = remapDashboard(selected, profile, target, body.columnMap, targetMeaning);
       const conditions = remapped.conditionDefinition
         ? {
             sourceRevision: await this.connection.duckDBVersion(targetId),
             definition: remapped.conditionDefinition,
+            ...(remapped.conditionSemantics ? { semantics: remapped.conditionSemantics } : {}),
           }
         : undefined;
       const scope = {
@@ -192,9 +224,37 @@ export class DashboardReuseService {
         undefined,
         layouts,
       );
-      const result = (
-        await this.dashboards.preview({ draft, ...scope, includeTrends: true }, actor)
-      ).data;
+      const plan = {
+        expiresAt: Date.now() + TTL,
+        actor,
+        reference,
+        originalId,
+        originalRevision: analysis.revision,
+        originalSourceId: originalSourceId ?? profile.sourceId,
+        ...(originalScope.conditionSemantics
+          ? {
+              originalSemantics: originalScope.conditionSemantics,
+              originalColumns: profile.conditionSchema ?? profile.columns,
+            }
+          : {}),
+        originalSourceRevision: profile.dataVersion,
+        targetId,
+        targetRevision: target.dataVersion,
+        ...(conditions?.semantics
+          ? { targetColumns: target.columns.map(({ name, type }) => ({ name, type })) }
+          : {}),
+        draft,
+        ...scope,
+        layouts,
+      };
+      let result: any;
+      try {
+        result = (await this.dashboards.preview({ draft, ...scope, includeTrends: true }, actor))
+          .data;
+      } catch (error) {
+        await serializeMetadataWork(this.db, () => this.currentOriginal(this.db.manager, plan));
+        throw error;
+      }
       // A profile snapshot is not proof the persisted source pointer stayed unchanged.
       await this.currentSource(this.db.manager, targetId, actor, target.dataVersion);
       const current = await this.db.manager.findOne(Dashboard, { where: { id: originalId } });
@@ -205,19 +265,14 @@ export class DashboardReuseService {
         conditions.sourceRevision !== (await this.connection.duckDBVersion(targetId))
       )
         throw stale();
-      const ticket = this.put({
-        actor,
-        reference,
-        originalId,
-        originalRevision: analysis.revision,
-        originalSourceId: profile.sourceId,
-        originalSourceRevision: profile.dataVersion,
-        targetId,
-        targetRevision: target.dataVersion,
-        draft,
-        ...scope,
-        layouts,
-      });
+      if (conditions?.semantics)
+        await assertLatestConditionSemantics(
+          this.db.manager,
+          targetId,
+          target.columns,
+          conditions.semantics,
+        );
+      const ticket = this.put(plan);
       return {
         ticket,
         expiresAt: new Date(Date.now() + TTL).toISOString(),
@@ -273,7 +328,14 @@ export class DashboardReuseService {
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });
-    if (!source || source.ownerId !== actor || source.engine !== 'duckdb') throw stale();
+    if (
+      !source ||
+      source.ownerId !== actor ||
+      source.engine !== 'duckdb' ||
+      source.catalogActive === false
+    )
+      throw stale();
+    await this.access.assert('database', id, actor, 'read', manager);
     const config = JSON.parse(decryptConnectionConfig(source.connectionConfig));
     if (config.client !== 'duckdb' || typeof config.connection?.filename !== 'string')
       throw stale();
@@ -281,6 +343,20 @@ export class DashboardReuseService {
     if (sourceRevision(source, version) !== revision) throw stale();
   }
   private async currentOriginal(manager: EntityManager, plan: Plan) {
+    if (plan.conditions?.semantics)
+      await assertLatestConditionSemantics(
+        manager,
+        plan.targetId,
+        plan.targetColumns,
+        plan.conditions.semantics,
+      );
+    if (plan.originalSemantics)
+      await resolveConditionSemantics(
+        manager,
+        plan.originalSourceId,
+        plan.originalColumns,
+        plan.originalSemantics,
+      );
     if (plan.reference) {
       await this.origins.current(plan.reference, manager);
       await this.currentSource(manager, plan.targetId, plan.actor, plan.targetRevision);
@@ -329,6 +405,64 @@ export class DashboardReuseService {
         ]),
       )
       .digest('hex');
+    const candidate = this.tickets.get(body.ticket);
+    let preparation: Awaited<ReturnType<AiDashboardService['prepareSave']>> | undefined;
+    const hasReceipt = await serializeMetadataWork(this.db, () =>
+      this.db.manager.findOne(AnalysisCreationReceipt, { where: { actorId: actor, requestId } }),
+    );
+    if (
+      !hasReceipt &&
+      candidate?.actor === actor &&
+      candidate.conditions?.semantics &&
+      candidate.expiresAt > Date.now() &&
+      (!candidate.requestId || candidate.requestId === requestId) &&
+      (candidate.reference
+        ? candidate.reference.key === originalId && candidate.reference.kind === kind
+        : kind === 'owned' && candidate.originalId === originalId)
+    ) {
+      await serializeMetadataWork(this.db, () => this.currentOriginal(this.db.manager, candidate));
+      try {
+        preparation = await this.connection.withDuckDBSnapshot(candidate.targetId, async () => {
+          const profile = await this.bi.profile(candidate.targetId, actor);
+          if (profile.dataVersion !== candidate.targetRevision) throw stale();
+          // No new full-source business-date scan may execute under the persistence transaction.
+          await this.dashboards.assertConditionSemantics(
+            candidate.targetId,
+            profile.columns,
+            candidate.conditions,
+          );
+          return this.dashboards.prepareSave(
+            {
+              draft: candidate.draft,
+              conditions: candidate.conditions,
+              ...(candidate.filters !== undefined ? { filters: candidate.filters } : {}),
+              ...(candidate.dateRange ? { dateRange: candidate.dateRange } : {}),
+            },
+            actor,
+            candidate.filters?.length || candidate.dateRange
+              ? {
+                  schemaVersion: 2,
+                  kind: 'structured-bi-dashboard',
+                  sourceId: candidate.targetId,
+                  studioConditions: candidate.conditions,
+                  ...(candidate.filters?.length ? { studioFilters: candidate.filters } : {}),
+                  ...(candidate.dateRange ? { studioDateRange: candidate.dateRange } : {}),
+                  items: candidate.draft.widgets.map(() => ({})),
+                }
+              : undefined,
+            undefined,
+            false,
+            [],
+            candidate.layouts,
+          );
+        });
+      } catch (error) {
+        await serializeMetadataWork(this.db, () =>
+          this.currentOriginal(this.db.manager, candidate),
+        );
+        throw error;
+      }
+    }
     const run = () =>
       metadataTransaction(this.db, async manager => {
         const receipt = await manager.findOne(AnalysisCreationReceipt, {
@@ -382,6 +516,10 @@ export class DashboardReuseService {
             plan.conditions.sourceRevision !== (await this.connection.duckDBVersion(plan.targetId))
           )
             throw stale();
+          if (plan.conditions?.semantics) {
+            if (!preparation || plan !== candidate) throw stale();
+            return preparation.persist(manager);
+          }
           return (
             await this.dashboards.save(
               {

@@ -1,3 +1,4 @@
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { DataSource } from 'typeorm';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -43,7 +44,7 @@ describe('Commerce immutable Studio source bridge', () => {
       type: 'sqlite',
       database: ':memory:',
       synchronize: true,
-      entities: [CommerceSource, Database],
+      entities: [SourceCatalogEntry, CommerceSource, Database],
     }).initialize();
   });
   beforeEach(async () => {

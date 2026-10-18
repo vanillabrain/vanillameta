@@ -77,7 +77,7 @@ export class StudioRunService {
     if (signal?.aborted) abort();
     const timer = setTimeout(abort, 175000);
     try {
-      const proposal = await this.propose(body, prepared, controller.signal);
+      const proposal = await this.propose(body, prepared, controller.signal, actor);
       const checked = await this.studio.prepare(
         body.dashboardId,
         { ...body, document: proposal.document },
@@ -117,7 +117,7 @@ export class StudioRunService {
     }
   }
 
-  async propose(body: any, prepared: any, signal?: AbortSignal) {
+  async propose(body: any, prepared: any, signal?: AbortSignal, actor?: number) {
     if (process.env.AI_PROVIDER !== 'codex')
       throw new ServiceUnavailableException(
         'Studio AI는 Codex gpt-6-luna 연결이 필요합니다. 다른 모델로 대체하지 않습니다.',
@@ -128,6 +128,8 @@ export class StudioRunService {
     if (signal?.aborted) abort();
     const timer = setTimeout(abort, 175000);
     try {
+      if (prepared.conditionSemantics)
+        await this.studio.validateConditionProposalContext(prepared, actor);
       const selected = prepared.document.blocks.find(b => b.id === body.selectedBlockId);
       const dateRange = prepared.document.dateRange;
       const raw = await this.ai.callLlm(
@@ -138,7 +140,7 @@ export class StudioRunService {
           'For block content only edit the selectedBlockId. Supported operation: {"type":"updateBlock","blockId":"exact selected ID","patch":{"title"?:string,"description"?:string,"display"?:{"decimalPlaces"?:0..6,"numberNotation"?:"full"|"compact","prefix"?:string,"suffix"?:string,"timeGrain"?:"auto"|"day"|"week"|"month"}}}.',
           'timeGrain is only for CHART_LINE. Weekly=week, daily=day, monthly=month. Never scale numeric SQL for formatting.',
           'For common inclusion/exclusion changes use exactly one operation: {"type":"setConditions","definition":{"include":predicateOrGroupOrNull,"exclude":predicateOrGroupOrNull}|null}. Null removes all common conditions. No selected block is needed for common conditions. Never mix with block edits. The server binds the immutable source file; do not supply a sourceRevision or conditions wrapper.',
-          'A predicate is {"kind":"predicate","column":"exact native column name","operator":"eq"|"ne"|"in"|"notIn"|"contains"|"gt"|"gte"|"lt"|"lte"|"between"|"isNull"|"isNotNull","values":[typed primitives]}. Null operators omit values. A group is {"kind":"group","operator":"and"|"or","children":[nodes]}. Use provided conditionColumns and existing conditions only. Number/boolean/string/date types and UTC timestamp bounds must match native schema. Preserve unchanged include/exclude branches; ambiguous columns or values require clarify with no operations. No-op changes are invalid.',
+          'A predicate is {"kind":"predicate","column":"exact native column name","operator":"eq"|"ne"|"in"|"notIn"|"contains"|"gt"|"gte"|"lt"|"lte"|"between"|"isNull"|"isNotNull","values":[typed primitives]}. Null operators omit values. A group is {"kind":"group","operator":"and"|"or","children":[nodes]}. Use provided conditionColumns and existing conditions only. Use the server-projected kind/businessType/dateFormat: date predicate values are ISO YYYY-MM-DD even when the physical source is VARCHAR; category allows eq/ne/in/notIn/isNull/isNotNull only, with original scalar value types. UTC timestamp bounds and precision must match actual native schema. Preserve unchanged include/exclude branches; ambiguous columns or values require clarify with no operations. No-op changes are invalid.',
           'Condition changes are proposals requiring explicit human review of before/after and all-block preview before applying locally. Never claim that they were applied, saved, published or shared. For explanations/queries return ask with no operations. An edit involving both conditions and block content requires clarify.',
           'Never change SQL, source, metric references, definition keys, other blocks, IDs, layout or chart kind. Never add/delete blocks, create dashboards, save, publish or share. Those requests are unsupported and operations must be empty.',
           'For block content edit without a selected block return clarify with empty operations. For questions use only verified preview values and disclose missing evidence. Never invent results or claim persistence.',
@@ -156,6 +158,9 @@ export class StudioRunService {
           ...(dateRange ? { dateRange } : {}),
           filters: prepared.document.filters ?? [],
           conditionColumns: prepared.conditionColumns ?? [],
+          ...(prepared.conditionSemantics
+            ? { conditionSemantics: prepared.conditionSemantics }
+            : {}),
           ...(prepared.document.conditions ? { conditions: prepared.document.conditions } : {}),
           preview: prepared.preview.widgets.map(w => ({
             blockId: w.blockId,
@@ -202,14 +207,18 @@ export class StudioRunService {
                 ? null
                 : {
                     sourceRevision: body.expectedSourceRevision,
+                    ...(prepared.conditionSemantics
+                      ? { semantics: prepared.conditionSemantics }
+                      : {}),
                     definition: compileConditionDefinition(
                       operation.definition,
-                      conditionColumns(prepared.conditionColumns),
+                      conditionColumns(prepared.conditionColumns, prepared.conditionSemantics),
+                      prepared.conditionSemantics,
                     ).definition,
                   };
             if (
-              studioDigest(conditions?.definition ?? null) ===
-              studioDigest(prepared.document.conditions?.definition ?? null)
+              studioDigest(conditions ?? null) ===
+              studioDigest(prepared.document.conditions ?? null)
             )
               throw new Error();
             const canonical: StudioOperation = { type: 'setConditions', conditions };
@@ -228,6 +237,11 @@ export class StudioRunService {
           'AI 변경안을 검증하지 못했습니다. 기존 블록과 배치를 유지했습니다. 요청을 구체적으로 작성해 주세요.',
         );
       }
+      if (
+        operations.some(operation => operation.type === 'setConditions') &&
+        prepared.conditionSemantics
+      )
+        await this.studio.validateConditionProposalContext(prepared, actor);
       return { intent: response.intent, operations, document: next, answer: response.answer };
     } catch (error) {
       if (controller.signal.aborted)

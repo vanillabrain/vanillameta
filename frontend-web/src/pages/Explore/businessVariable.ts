@@ -21,3 +21,10 @@ export function variableText(field: string, value: string) {
   if (field === 'dateFormat' && value === 'native') return '원본 날짜·시간';
   return value;
 }
+
+/** Only explicit business categories project these native scalar types to text. */
+export function categoryTextType(type: string): 'uuid' | 'enum' | undefined {
+  if (/^UUID$/i.test(type.trim())) return 'uuid';
+  if (/^ENUM(?:\s*\(|$)/i.test(type.trim())) return 'enum';
+  return undefined;
+}

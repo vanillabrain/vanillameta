@@ -7,5 +7,6 @@ export class SourceConditionEntry {
   @Column({ type: 'integer' }) actorId: number;
   @Column({ length: 128 }) sourceRevision: string;
   @Column({ type: 'text' }) definition: string;
+  @Column({ type: 'text', nullable: true }) semanticsJSON: string | null;
   @CreateDateColumn() createdAt: Date;
 }

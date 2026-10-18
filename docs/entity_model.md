@@ -233,7 +233,7 @@ FR016/FR017의 첫 DB 제약이다. `user.userId`와 `user.email`에 명명된 u
 
 ## UC052 소스 조건 버전
 
-`source_condition_entry`는 sourceId/version 복합 PK로 포함/제외 조건 정의를 append하고 actorId/sourceRevision/createdAt을 보존한다. 값이 포함된 정의는 현재 소스 read/edit 정책으로 보호하며 원본 행/SQL/연결 정보를 저장하지 않는다. 기존 파일·분석·게시를 자동 변경하지 않는다. 다른 조건 자산/Studio·AI/출력 연결과 이력 조회 UI는 후속이다.
+`source_condition_entry`는 sourceId/version 복합 PK로 포함/제외 조건 정의를 append하고 actorId/sourceRevision/createdAt을 보존한다. 값이 포함된 정의는 현재 소스 read/edit 정책으로 보호하며 원본 행/SQL/연결 정보를 저장하지 않는다. 기존 파일·분석·게시를 자동 변경하지 않는다. 선택적 semanticsJSON(text nullable)은 마이그레이션1792570000000으로 추가한다. SQL NULL은 legacy native이고 JSON은 schemaVersion1/catalogVersion/전체 non-auto 선언의 고정 snapshot이다. 정확한 SourceCatalogEntry 이력/native schema를 대조하고 기존 행·시각·NULL을 보존한다. sourceRevision은 조건 편집 metadata 기준으로 분석 wrapper의 불변 파일 기준과 다르다. [조건 의미 증빙](testing/business-condition-semantics.md)은 Source/Studio·보기/출력/재사용 연결의 선택 실행을 기록하며 전체 이력 UI/FR015 수용을 뜻하지 않는다.
 
 ## UC053 Personal Notification State
 
@@ -281,4 +281,4 @@ Dashboard.assetActive(boolean defaulttrue), assetVersion(integer default0)는 �
 
 ### Applied Explore condition and measure basis (UC052/054)
 
-[설계](plans/UC-052-explore-basis.md)의 적용 조건은 기존 PersonalView/ExploreView state JSON에 선택적으로 보관하는 StudioConditions(sourceRevision, definition)다. 별도 테이블·조건 metadata 저장/동기화는 없다. 기존 version1~5 보기와 조건 없는 상태를 유지하고 복구 시 현재 파일/schema를 검증한다. 조회의 measureVersions는 실제 사용한 지표 정의 version 집합이며 출력의 expectedMeasureVersions와 대조한다. sourceRevision과 지표 버전·source 조건 metadata version은 서로 대체하지 않는다.
+[설계](plans/UC-052-explore-basis.md)의 적용 조건은 기존 PersonalView/ExploreView state JSON에 선택적으로 보관하는 StudioConditions(sourceRevision, definition, optional semantics)다. semantics가 없으면 legacy native이며 최신 catalog를 자동 상속하지 않는다. 별도 테이블·조건 metadata 저장/동기화는 없다. 기존 version1~5 보기와 조건 없는 상태를 유지하고 복구 시 현재 파일/schema를 검증한다. 조회의 measureVersions는 실제 사용한 지표 정의 version 집합이며 출력의 expectedMeasureVersions와 대조한다. sourceRevision과 지표 버전·source 조건 metadata version은 서로 대체하지 않는다.

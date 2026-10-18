@@ -1,3 +1,4 @@
+import { ConditionSemantics, validateConditionSemantics } from './business-condition-semantics';
 /**
  * UC-020: bounded, pure remap of a saved dashboard draft onto a different DuckDB source.
  *
@@ -32,6 +33,8 @@ export interface ReuseColumn {
 }
 export interface ReuseSourceProfile {
   sourceId: number;
+  /** Private historical evidence, never returned as recipient mapping fields. */
+  conditionSchema?: Array<{ name: string; type: string }>;
   columns: Array<{ name: string; type: string; numeric?: boolean; temporal?: boolean }>;
 }
 type TokenKind = 'space' | 'string' | 'quoted' | 'word' | 'number' | 'punct';
@@ -330,6 +333,7 @@ function reusedColumns(plans: SqlPlan[], columns: Map<string, ReuseColumn>): Reu
 /** Frozen scope is independent of source identity in a private reuse recipe. */
 export type ReuseScope = {
   conditionDefinition?: ConditionDefinition;
+  conditionSemantics?: ConditionSemantics;
   defaultFilters?: StudioFilter[];
   defaultDateRange?: StudioDateRange;
 };
@@ -337,21 +341,52 @@ export function reuseScope(draft: any, profile: ReuseSourceProfile): ReuseScope 
   const scope: ReuseScope = {};
   if (draft.defaultConditions !== undefined && draft.conditionDefinition !== undefined)
     throw new BadRequestException('ambiguous reuse conditions');
-  const definition =
-    draft.defaultConditions !== undefined
-      ? validateStudioConditions(draft.defaultConditions).definition
-      : draft.conditionDefinition;
-  if (definition !== undefined)
+  if (draft.defaultConditions !== undefined && draft.conditionSemantics !== undefined)
+    throw new BadRequestException('ambiguous reuse semantics');
+  const wrapper =
+    draft.defaultConditions === undefined
+      ? undefined
+      : validateStudioConditions(draft.defaultConditions);
+  const definition = wrapper ? wrapper.definition : draft.conditionDefinition;
+  const semantics =
+    wrapper?.semantics ??
+    (draft.conditionSemantics === undefined
+      ? undefined
+      : validateConditionSemantics(draft.conditionSemantics));
+  if (semantics && definition === undefined)
+    throw new BadRequestException('missing reuse conditions');
+  if (definition !== undefined) {
     scope.conditionDefinition = compileConditionDefinition(
       definition,
-      conditionColumns(profile.columns),
+      conditionColumns(profile.conditionSchema ?? profile.columns, semantics),
+      semantics,
     ).definition;
+    if (semantics) scope.conditionSemantics = semantics;
+  }
   if (draft.defaultFilters !== undefined)
     scope.defaultFilters = validateStudioFilters(draft.defaultFilters);
   if (draft.defaultDateRange !== undefined)
     scope.defaultDateRange = validateStudioDateRange(draft.defaultDateRange);
   return scope;
 }
+export function reuseConditionNames(definition?: ConditionDefinition): Set<string> {
+  const names = new Set<string>();
+  const visit = (node: ConditionNode | null) => {
+    if (!node) return;
+    if (node.kind === 'group') node.children.forEach(visit);
+    else names.add(node.column);
+  };
+  if (definition) {
+    visit(definition.include);
+    visit(definition.exclude);
+  }
+  return names;
+}
+export function usesReuseSemantics(scope: ReuseScope): boolean {
+  const used = reuseConditionNames(scope.conditionDefinition);
+  return scope.conditionSemantics?.columns.some(column => used.has(column.column)) ?? false;
+}
+
 function scopeColumns(scope: ReuseScope, columns: Map<string, ReuseColumn>): ReuseColumn[] {
   const used = new Map<string, ReuseColumn>();
   const add = (name: string) => {
@@ -426,6 +461,7 @@ export function remapDashboard(
   sourceProfile: ReuseSourceProfile,
   targetProfile: ReuseSourceProfile,
   columnMap: Record<string, string>,
+  targetSemantics?: ConditionSemantics,
 ): DashboardDraft & ReuseScope {
   const source = collectColumns(sourceProfile);
   const target = collectColumns(targetProfile);
@@ -462,12 +498,35 @@ export function remapDashboard(
       throw new BadRequestException('duplicate reuse scope target');
     scopeTargets.add(targetName.toLowerCase());
   }
+  const usesMeaning = usesReuseSemantics(scope);
+  const canonicalTarget = usesMeaning
+    ? targetSemantics === undefined
+      ? undefined
+      : validateConditionSemantics(targetSemantics)
+    : undefined;
+  if (usesMeaning && !canonicalTarget)
+    throw new BadRequestException('대상 조건의 업무 기준을 확인해 주세요.');
+  if (canonicalTarget) {
+    conditionColumns(targetProfile.columns, canonicalTarget);
+    for (const name of reuseConditionNames(scope.conditionDefinition)) {
+      const from = scope.conditionSemantics.columns.find(column => column.column === name);
+      const to = canonicalTarget.columns.find(
+        column => column.column === mapping.get(name.toLowerCase()),
+      );
+      if (
+        (from?.businessType ?? 'auto') !== (to?.businessType ?? 'auto') ||
+        (from?.dateFormat ?? '') !== (to?.dateFormat ?? '')
+      )
+        throw new BadRequestException('대상 열의 업무 유형·날짜 형식이 원본 조건과 다릅니다.');
+    }
+  }
   const visit = (node: ConditionNode | null): ConditionNode | null => {
     if (!node) return null;
     if (node.kind === 'group') return { ...node, children: node.children.map(visit) };
     return { ...node, column: mapping.get(node.column.toLowerCase()) };
   };
   const mapped: ReuseScope = {
+    ...(canonicalTarget ? { conditionSemantics: canonicalTarget } : {}),
     ...(scope.conditionDefinition
       ? {
           conditionDefinition: compileConditionDefinition(
@@ -475,7 +534,8 @@ export function remapDashboard(
               include: visit(scope.conditionDefinition.include),
               exclude: visit(scope.conditionDefinition.exclude),
             },
-            conditionColumns(targetProfile.columns),
+            conditionColumns(targetProfile.columns, canonicalTarget),
+            canonicalTarget,
           ).definition,
         }
       : {}),
@@ -508,5 +568,6 @@ export function remapDashboard(
   };
   // Never forward the owner's file identity to a recipient or let validateDraft erase scope.
   delete (result as any).defaultConditions;
+  if (!canonicalTarget) delete result.conditionSemantics;
   return result;
 }

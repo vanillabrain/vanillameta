@@ -1,3 +1,4 @@
+import type { ConditionSemantics } from './business-condition-semantics';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { sourceQuery, quoteColumn } from '../ai/dashboard-draft';
 import { compileConditionDefinition, conditionColumns } from './source-condition-definition';
@@ -25,11 +26,13 @@ export async function sourceConditionProfile(input: {
   schema: Array<{ name: string; type: string }>;
   columns: unknown;
   definition: unknown;
+  semantics?: ConditionSemantics;
   filters?: unknown;
   dateRange?: unknown;
   query: (sql: string, bindings: unknown[]) => Promise<{ datas: any[] }>;
 }) {
-  const schema = conditionColumns(input.schema);
+  const schema = conditionColumns(input.schema, input.semantics);
+  const nativeSchema = conditionColumns(input.schema);
   if (input.filters !== undefined && !Array.isArray(input.filters))
     throw new BadRequestException('공통 필터를 확인해 주세요.');
   if (
@@ -46,7 +49,7 @@ export async function sourceConditionProfile(input: {
       throw new BadRequestException('분포와 표본을 지원하는 현재 열을 선택해 주세요.');
     return column;
   });
-  const compiled = compileConditionDefinition(input.definition, schema);
+  const compiled = compileConditionDefinition(input.definition, schema, input.semantics);
   const evaluated = (projection: string) => {
     const marker = 'SELECT * FROM source';
     const base = sourceQuery(
@@ -54,8 +57,8 @@ export async function sourceConditionProfile(input: {
       schema.map(c => c.name),
       input.filters as any[],
       input.dateRange,
-      schema.filter(c => ['date', 'timestamp'].includes(c.kind)).map(c => c.name),
-      schema.filter(c => c.kind === 'number').map(c => c.name),
+      nativeSchema.filter(c => ['date', 'timestamp'].includes(c.kind)).map(c => c.name),
+      nativeSchema.filter(c => c.kind === 'number').map(c => c.name),
     );
     if (!base.sql.endsWith(marker))
       throw new BadRequestException('분포 범위를 구성하지 못했습니다.');

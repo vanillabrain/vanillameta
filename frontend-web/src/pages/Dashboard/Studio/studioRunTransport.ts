@@ -62,6 +62,14 @@ export function validateStudioRun(input: unknown, context: StudioRunContext): St
         !conditions || conditions.sourceRevision === context.expectedSourceRevision,
         '조건 파일 버전이 다릅니다.',
       );
+      if (conditions && context.document.conditions) {
+        const semanticKey = (value: typeof conditions) =>
+          studioConditionsKey({ ...value, definition: { include: null, exclude: null } });
+        studioAssert(
+          semanticKey(conditions) === semanticKey(context.document.conditions),
+          'AI 조건의 업무 의미가 현재 검토 기준과 다릅니다. 최신 업무 의미는 명시적으로 채택하세요.',
+        );
+      }
       studioAssert(
         studioConditionsKey(conditions) !== studioConditionsKey(context.document.conditions),
         '조건 변경이 없습니다.',

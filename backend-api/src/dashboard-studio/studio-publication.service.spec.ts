@@ -1,3 +1,4 @@
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { User } from '../user/entities/user.entity';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
@@ -74,6 +75,7 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
       database: ':memory:',
       synchronize: true,
       entities: [
+        SourceCatalogEntry,
         User,
         EnterpriseMembership,
         Dashboard,
@@ -102,6 +104,7 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
     for (const type of ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_LINE'])
       await db.manager.save(Component, { type, title: type, option: '{}', useYn: 'Y' });
     connection = {
+      captureDuckDBSnapshot: jest.fn(async () => ({ run: async callback => callback() })),
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
       duckDBVersion: jest.fn().mockResolvedValue(studioDigest('test-source')),
       isDuckDB: jest.fn().mockResolvedValue(true),

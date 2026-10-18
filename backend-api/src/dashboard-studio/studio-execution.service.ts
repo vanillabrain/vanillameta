@@ -1264,7 +1264,7 @@ export class StudioExecutionService implements OnModuleInit {
                 ),
               }
             : body;
-          const proposal = await this.runs.propose(modelBody, prepared, signal);
+          const proposal = await this.runs.propose(modelBody, prepared, signal, row.actorId);
           this.rememberAnswer(row.runId, String(proposal.answer));
           // Deliberately omit free-form model answer from durable history.
           state.proposal = {

@@ -23,6 +23,8 @@ import { SourceConditionsService } from './source-conditions.service';
 import { SourceConditionsController } from './source-conditions.controller';
 
 import { ConnectionService } from '../connection/connection.service';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
+import { createHash } from 'crypto';
 
 /** Real JWT + SQLite policy/CAS + DuckDB execution; no external data or LLM. */
 describe('UC052 protected conditions HTTP and independent population oracle', () => {
@@ -93,6 +95,7 @@ describe('UC052 protected conditions HTTP and independent population oracle', ()
         EnterpriseDashboardDelivery,
         EnterpriseGroupDelivery,
         SourceConditionEntry,
+        SourceCatalogEntry,
       ],
     }).initialize();
     const users = db.getRepository(User);
@@ -205,6 +208,124 @@ describe('UC052 protected conditions HTTP and independent population oracle', ()
     expect(
       (await duck.runAndReadAll('SELECT COUNT(*) n FROM uploaded_data')).getRowObjectsJson()[0].n,
     ).toBe('8');
+  });
+  it('executes frozen business dates/categories with reader rights and persists semantics without changing source rows', async () => {
+    await duck.run(
+      "ALTER TABLE uploaded_data ADD COLUMN daytext VARCHAR; UPDATE uploaded_data SET daytext = CASE WHEN amount <= 20 THEN '2024/02/29' WHEN amount IS NOT NULL THEN '2024/03/01' ELSE NULL END",
+    );
+    try {
+      await db.manager.save(Database, {
+        id: 4,
+        ownerId: 7,
+        name: 'Semantic fixture',
+        engine: 'duckdb',
+        type: 'FILE',
+        connectionConfig: '{}',
+      });
+      await db.manager.save(EnterpriseResourceGrant, {
+        resourceKind: 'source',
+        resourceId: 4,
+        ownerId: 7,
+        organizationId: 1,
+        recipientId: 8,
+        version: 1,
+        read: true,
+        edit: false,
+        publish: false,
+        export: false,
+      });
+      const schema = (await duck.runAndReadAll('DESCRIBE uploaded_data'))
+        .getRowObjectsJson()
+        .map(c => ({ column: String(c.column_name), type: String(c.column_type) }));
+      const metadata = {
+        label: 'Fixture',
+        description: '',
+        columns: schema.map(c => ({
+          column: c.column,
+          label: c.column,
+          description: '',
+          unit: '',
+          businessType:
+            c.column === 'amount' ? 'category' : c.column === 'daytext' ? 'date' : 'auto',
+          dateFormat: c.column === 'daytext' ? 'YYYY/MM/DD' : '',
+          classification: '',
+        })),
+      };
+      const schemaRevision = createHash('sha256').update(JSON.stringify(schema)).digest('hex');
+      await db.manager.save(SourceCatalogEntry, {
+        sourceId: 4,
+        version: 1,
+        actorId: 7,
+        schemaRevision,
+        sourceRevision: 'catalog-metadata',
+        metadata: JSON.stringify(metadata),
+      });
+      const read = (await call('read', 8, { sourceId: 4 }).expect(201)).body.data;
+      const businessDefinition = {
+        include: {
+          kind: 'group',
+          operator: 'and',
+          children: [
+            predicate('daytext', 'between', ['2024-02-29', '2024-02-29']),
+            predicate('amount', 'in', [10, 20]),
+          ],
+        },
+        exclude: null,
+      };
+      const input = {
+        sourceId: 4,
+        sourceRevision: read.sourceRevision,
+        version: 0,
+        definition: businessDefinition,
+        semantics: read.semantics,
+      };
+      const preview = (await call('preview', 8, input).expect(201)).body.data;
+      expect(preview.population.remaining).toBe(
+        String(rows.filter(r => r.amount === 10 || r.amount === 20).length),
+      );
+      expect(preview.analysisConditions).toEqual({
+        sourceRevision: 'f'.repeat(64),
+        definition: businessDefinition,
+        semantics: read.semantics,
+      });
+      await call('save', 8, input).expect(403);
+      await call('save', 7, preview.draft).expect(201);
+      await db.manager.save(SourceCatalogEntry, {
+        sourceId: 4,
+        version: 2,
+        actorId: 7,
+        schemaRevision,
+        sourceRevision: 'new-catalog-metadata',
+        metadata: JSON.stringify(metadata),
+      });
+      expect((await call('read', 8, { sourceId: 4 }).expect(201)).body.data.semantics).toEqual(
+        read.semantics,
+      );
+      expect(
+        (await call('read', 8, { sourceId: 4, adoptCurrentSemantics: true }).expect(201)).body.data
+          .semantics.catalogVersion,
+      ).toBe(2);
+      await call('preview', 8, { ...input, version: 1, semantics: undefined }).expect(409);
+      const profile = (
+        await call('profile', 8, { ...input, version: 1, columns: ['amount'] }).expect(201)
+      ).body.data;
+      expect(profile.population.remaining).toBe('2');
+      await duck.run("UPDATE uploaded_data SET daytext = '2023/02/29' WHERE amount = 50");
+      const invalid = (await call('preview', 8, { ...input, version: 1 }).expect(400)).body;
+      expect(invalid.code).toBe('INVALID_BUSINESS_DATES');
+      expect(invalid.details).toEqual([{ column: 'daytext', invalidCount: '1', blankCount: '0' }]);
+      expect(JSON.stringify(invalid)).not.toContain('2023/02/29');
+      expect(await db.manager.count(SourceConditionEntry, { where: { sourceId: 4 } })).toBe(1);
+      expect(
+        (await duck.runAndReadAll('SELECT COUNT(*) n FROM uploaded_data')).getRowObjectsJson()[0].n,
+      ).toBe('8');
+    } finally {
+      await duck.run('ALTER TABLE uploaded_data DROP COLUMN daytext');
+      await db.manager.delete(SourceConditionEntry, { sourceId: 4 });
+      await db.manager.delete(SourceCatalogEntry, { sourceId: 4 });
+      await db.manager.delete(EnterpriseResourceGrant, { resourceKind: 'source', resourceId: 4 });
+      await db.manager.delete(Database, 4);
+    }
   });
   it('rejects anonymous, cross-organization and inactive source before any analysis query', async () => {
     const input = await draft();

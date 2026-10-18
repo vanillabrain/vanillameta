@@ -59,7 +59,11 @@ export function validateExploreViewConditions(
     throw new ConflictException(
       '조건의 파일 기준이 변경되었습니다. 현재 조건을 유지하고 다시 확인해 주세요.',
     );
-  compileConditionDefinition(conditions.definition, conditionColumns(columns));
+  compileConditionDefinition(
+    conditions.definition,
+    conditionColumns(columns, conditions.semantics),
+    conditions.semantics,
+  );
   return conditions;
 }
 export function validateExploreViewState(input: any, catalog: any) {

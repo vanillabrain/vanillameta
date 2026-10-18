@@ -1,3 +1,4 @@
+import type { ConditionSemantics } from '../bi/business-condition-semantics';
 import type { ConditionDefinition } from '../bi/source-condition-definition';
 import type { DashboardDateRange } from '../ai/dashboard-date-range';
 
@@ -29,7 +30,11 @@ export type StudioLayoutItem = { id: string; x: number; y: number; w: number; h:
 export type StudioFilter = { column: string; values: Array<string | number | boolean | null> };
 /** Saved common date range reuses the shared validated contract; the alias keeps Studio vocabulary local. */
 export type StudioDateRange = DashboardDateRange;
-export type StudioConditions = { sourceRevision: string; definition: ConditionDefinition };
+export type StudioConditions = {
+  sourceRevision: string;
+  definition: ConditionDefinition;
+  semantics?: ConditionSemantics;
+};
 export type StudioDocumentV1 = {
   conditions?: StudioConditions;
   filters?: StudioFilter[];

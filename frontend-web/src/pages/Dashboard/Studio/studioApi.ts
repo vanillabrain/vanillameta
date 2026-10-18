@@ -14,8 +14,16 @@ import {
   studioPositive,
   studioText,
   validateStudioDocument,
+  validateConditionSemantics,
 } from './studioDocument';
-import { isStudioId, STUDIO_FILTER_LIMITS, StudioDocumentV1, StudioFilter, StudioFilterValue } from './studioTypes';
+import {
+  isStudioId,
+  STUDIO_FILTER_LIMITS,
+  StudioDocumentV1,
+  StudioFilter,
+  StudioFilterValue,
+  ConditionSemantics,
+} from './studioTypes';
 
 /** One aggregated preview row. Rows arrive under `datas`; a row without `datas` is never rendered. */
 export type StudioPreviewRow = {
@@ -67,7 +75,13 @@ export type StudioPrepareRequest = {
   expectedSourceRevision: string;
   document: StudioDocumentV1;
 };
-export type StudioPrepareResult = { document: StudioDocumentV1; preview: StudioPreview };
+export type StudioPrepareResult = {
+  document: StudioDocumentV1;
+  preview: StudioPreview;
+  conditionColumns?: Column[];
+  conditionSemantics?: ConditionSemantics;
+  conditionSemanticsLatest?: boolean;
+};
 export type StudioSaveRequest = {
   requestId: string;
   expectedRevision?: string;
@@ -312,7 +326,36 @@ export async function prepareStudioDashboard(
         studioConditionsKey(document.conditions) === studioConditionsKey(request.document.conditions),
       '요청한 날짜 범위·공통 필터와 다른 미리보기 결과입니다.',
     );
-    return { document, preview: validateStudioPreview(payload.preview) };
+    const conditionColumns =
+      payload.conditionColumns === undefined ? undefined : readProfileColumns(payload.conditionColumns);
+    const conditionSemantics =
+      payload.conditionSemantics === undefined ? undefined : validateConditionSemantics(payload.conditionSemantics);
+    if (payload.conditionSemanticsLatest !== undefined)
+      studioAssert(typeof payload.conditionSemanticsLatest === 'boolean', '업무 의미 기준을 확인해 주세요.');
+    if (payload.conditionSourceRevision !== undefined)
+      studioAssert(payload.conditionSourceRevision === request.expectedSourceRevision, '조건 파일 버전이 다릅니다.');
+    if (document.conditions && conditionColumns !== undefined) {
+      const contextKey = (semantics?: ConditionSemantics) =>
+        studioConditionsKey({
+          sourceRevision: request.expectedSourceRevision,
+          definition: { include: null, exclude: null },
+          ...(semantics ? { semantics } : {}),
+        });
+      studioAssert(
+        contextKey(conditionSemantics) === contextKey(document.conditions.semantics) &&
+          payload.conditionSemanticsLatest !== true,
+        '문서 조건의 업무 의미가 응답에서 변경됐습니다.',
+      );
+    }
+    return {
+      document,
+      preview: validateStudioPreview(payload.preview),
+      ...(conditionColumns === undefined ? {} : { conditionColumns }),
+      ...(conditionSemantics === undefined ? {} : { conditionSemantics }),
+      ...(payload.conditionSemanticsLatest === undefined
+        ? {}
+        : { conditionSemanticsLatest: payload.conditionSemanticsLatest }),
+    };
   } catch (error) {
     throw invalid(error, '미리보기 응답을 확인하지 못했습니다.');
   }

@@ -1,3 +1,4 @@
+import type { ConditionSemantics } from '../bi/business-condition-semantics';
 import { BadRequestException } from '@nestjs/common';
 import { compileConditionDefinition, conditionColumns } from '../bi/source-condition-definition';
 import { dateRangeBounds, isoSecond, validateDateRange } from './dashboard-date-range';
@@ -255,6 +256,7 @@ export function sourceQuery(
   numericColumns: string[] = [],
   conditionsDefinition?: unknown,
   schema?: Array<{ name: string; type: string }>,
+  conditionSemantics?: ConditionSemantics,
 ) {
   validateSourceSql(sql);
   const bindings: any[] = [];
@@ -308,7 +310,11 @@ export function sourceQuery(
   }
   if (conditionsDefinition !== undefined) {
     if (!schema) throw new BadRequestException('condition schema required');
-    const compiled = compileConditionDefinition(conditionsDefinition, conditionColumns(schema));
+    const compiled = compileConditionDefinition(
+      conditionsDefinition,
+      conditionColumns(schema, conditionSemantics),
+      conditionSemantics,
+    );
     conditions.push(`(${compiled.includeSql}) AND NOT (${compiled.excludeSql})`);
     bindings.push(...compiled.bindings);
   }

@@ -1,3 +1,6 @@
+import { ForbiddenException } from '@nestjs/common';
+import { serializeMetadataWork } from '../common/metadata-work';
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { PublicationService } from '../bi/publication.service';
 import { DashboardReuseService } from '../bi/dashboard-reuse.service';
 import { SharedReuseOriginService } from '../bi/shared-reuse-origin.service';
@@ -42,6 +45,7 @@ describe('UC052 legacy lifecycle propagation with real SQLite/DuckDB', () => {
     root: string,
     connection: any,
     id: number;
+  let activeRead = true;
   const previous = process.env.FILE_UPLOAD_DIR;
   const files = new Map<number, string>();
   const filename = (id: number) => 'source-' + id + '.duckdb';
@@ -87,11 +91,25 @@ describe('UC052 legacy lifecycle propagation with real SQLite/DuckDB', () => {
         instance.closeSync();
       }
     }
+    const targetFile = await DuckDBInstance.create(files.get(2));
+    const targetConnection = await targetFile.connect();
+    try {
+      await targetConnection.run(
+        "ALTER TABLE uploaded_data ADD COLUMN invoice_day VARCHAR DEFAULT '2026/01/01'",
+      );
+      await targetConnection.run(
+        "UPDATE uploaded_data SET invoice_day = CASE WHEN total = 300 THEN '2026/01/01' ELSE '2026/01/02' END",
+      );
+    } finally {
+      targetConnection.closeSync();
+      targetFile.closeSync();
+    }
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
       synchronize: true,
       entities: [
+        SourceCatalogEntry,
         Dashboard,
         DashboardShare,
         DashboardWidget,
@@ -126,6 +144,7 @@ describe('UC052 legacy lifecycle propagation with real SQLite/DuckDB', () => {
       await db.manager.save(Component, { type, title: type, option: '{}', useYn: 'Y' });
     connection = {
       manager: db.manager,
+      captureDuckDBSnapshot: jest.fn(async () => ({ run: async callback => callback() })),
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
       duckDBVersion: jest.fn(async id => createHash('sha256').update(filename(id)).digest('hex')),
       isDuckDB: jest.fn().mockResolvedValue(true),
@@ -145,6 +164,8 @@ describe('UC052 legacy lifecycle propagation with real SQLite/DuckDB', () => {
     );
   });
   beforeEach(async () => {
+    activeRead = true;
+    await db.manager.clear(SourceCatalogEntry);
     await db.manager.update(Database, 2, { ownerId: 8 });
     const definition = {
       schemaVersion: 1,
@@ -233,7 +254,16 @@ describe('UC052 legacy lifecycle propagation with real SQLite/DuckDB', () => {
   };
 
   const services = () => {
-    const access = new SourceAccessService(db);
+    const access = new SourceAccessService(db, {
+      sourceIds: async () => [],
+      dashboardIds: async () => [],
+      capabilities: async () => ({
+        rights: { read: true, edit: true, publish: false, export: true },
+      }),
+      assert: async () => {
+        if (!activeRead) throw new ForbiddenException('inactive account');
+      },
+    } as any);
     const bi = new BiService(db, access, connection, dashboards);
     const origins = new SharedReuseOriginService(db, dashboards, bi, access, connection);
     return {
@@ -545,4 +575,406 @@ describe('UC052 legacy lifecycle propagation with real SQLite/DuckDB', () => {
       broken.mockRestore();
     }
   });
+  const catalog = async (
+    sourceId: number,
+    owner: number,
+    version: number,
+    declarations: Record<string, { businessType: string; dateFormat: string }>,
+  ) => {
+    const profile = await creation.profile(sourceId, owner);
+    const columns = profile.columns.map(c => ({
+      column: c.name,
+      label: c.name,
+      description: '',
+      unit: '',
+      classification: '',
+      businessType: declarations[c.name]?.businessType ?? 'auto',
+      dateFormat: declarations[c.name]?.dateFormat ?? '',
+    }));
+    await db.manager.save(SourceCatalogEntry, {
+      sourceId,
+      version,
+      actorId: owner,
+      sourceRevision: profile.dataVersion,
+      schemaRevision: createHash('sha256')
+        .update(JSON.stringify(profile.columns.map(c => ({ column: c.name, type: c.type }))))
+        .digest('hex'),
+      metadata: JSON.stringify({ label: 'Business fields', description: '', columns }),
+    });
+    return JSON.parse(
+      JSON.stringify({
+        schemaVersion: 1,
+        catalogVersion: version,
+        columns: columns
+          .filter(c => c.businessType !== 'auto')
+          .map(({ column, businessType, dateFormat }) => ({ column, businessType, dateFormat }))
+          .sort((a, b) => (a.column < b.column ? -1 : a.column > b.column ? 1 : 0)),
+      }),
+    );
+  };
+  const semanticOriginal = async () => {
+    files.set(11, files.get(1));
+    await db.manager.save(Database, {
+      id: 11,
+      ownerId: 7,
+      name: 'Private semantic origin',
+      engine: 'duckdb',
+      type: 'FILE',
+      connectionConfig: JSON.stringify({
+        client: 'duckdb',
+        connection: { filename: filename(11) },
+      }),
+    });
+    const definition = {
+      schemaVersion: 1,
+      definitionVersion: 1,
+      sourceId: 11,
+      tableName: 'uploaded_data',
+      label: 'Revenue',
+      aggregation: 'SUM',
+      column: 'amount',
+      unit: '',
+      decimalPlaces: 2,
+      numberNotation: 'plain',
+    };
+    const metric = await db.manager.save(Metric, {
+      name: 'semantic-' + randomUUID(),
+      databaseId: 11,
+      tableName: 'uploaded_data',
+      aggregation: 'SUM' as any,
+      expression: 'amount',
+      definition: JSON.stringify(definition),
+    });
+    const profile = await creation.profile(11, 7);
+    id = (
+      await dashboards.save(
+        {
+          draft: creation.compile(
+            11,
+            'Private semantic original',
+            [{ title: 'Revenue', kind: 'BOARD_NUMERIC', metric: definition }],
+            profile,
+          ),
+        },
+        7,
+        {
+          schemaVersion: 2,
+          kind: 'structured-bi-dashboard',
+          sourceId: 11,
+          items: [
+            {
+              sourceId: 11,
+              metricId: metric.id,
+              definitionVersion: 1,
+              definition,
+              chart: 'number',
+            },
+          ],
+        },
+      )
+    ).data.id;
+    const meaning = await catalog(11, 7, 1, {
+      event_time: { businessType: 'date', dateFormat: 'native' },
+      channel: { businessType: 'category', dateFormat: '' },
+    });
+    // A different real history at the redacted placeholder proves it cannot authorize origin11.
+    await catalog(1, 7, 1, { event_time: { businessType: 'category', dateFormat: '' } });
+    const current = await studio.get(id, 7);
+    await studio.save(
+      id,
+      {
+        requestId: randomUUID(),
+        expectedRevision: current.document.revision,
+        expectedSourceRevision: current.sourceRevision,
+        document: {
+          ...current.document,
+          conditions: {
+            sourceRevision: current.sourceRevision,
+            semantics: meaning,
+            definition: {
+              include: {
+                kind: 'predicate',
+                column: 'event_time',
+                operator: 'eq',
+                values: ['2026-01-01'],
+              },
+              exclude: null,
+            },
+          },
+        },
+      },
+      7,
+    );
+    return meaning;
+  };
+  const legacyOrigin = async (kind: string) => {
+    let key: string | number = id;
+    if (kind === 'share') {
+      const dashboard = await db.manager.findOneByOrFail(Dashboard, { id });
+      const share = await db.manager.findOneByOrFail(DashboardShare, { id: dashboard.shareId });
+      await db.manager.update(DashboardShare, share.id, {
+        shareYn: 'Y',
+        allowReuse: true,
+        endDate: new Date(Date.now() + 3600000),
+      });
+      key = share.uuid;
+    } else if (kind === 'publication') key = (await legacyPublish()).uuid;
+    return key;
+  };
+  it.each(['owned', 'share', 'publication'])(
+    'independently preserves frozen business meaning in actual legacy %s copies without leaking origin identity or unused columns',
+    async kind => {
+      await semanticOriginal();
+      const targetMeaning = await catalog(2, 8, 4, {
+        occurred_at: { businessType: 'date', dateFormat: 'native' },
+        segment: { businessType: 'category', dateFormat: '' },
+        invoice_day: { businessType: 'date', dateFormat: 'YYYY/MM/DD' },
+      });
+      if (kind === 'owned') await db.manager.update(Database, 2, { ownerId: 7 });
+      const actor = kind === 'owned' ? 7 : 8;
+      const key = await legacyOrigin(kind);
+      const { reuse, origins } = services();
+      const req = await reuse.draft(key, actor, kind);
+      expect(req.columns.map(c => c.name).sort()).toEqual(['amount', 'event_time']);
+      expect(JSON.stringify(req)).not.toContain('conditionSchema');
+      expect(JSON.stringify(req)).not.toContain('channel');
+      if (kind !== 'owned') {
+        expect(req).not.toHaveProperty('originalSourceId');
+        const internal = await origins.resolve(kind, String(key));
+        expect(internal.profile.sourceId).toBe(1);
+        expect(internal.originalSourceId).toBe(11);
+      }
+      const v = await reuse.preview(
+        key,
+        {
+          expectedRevision: req.expectedRevision,
+          sourceId: 2,
+          sourceRevision: (await creation.profile(2, actor)).dataVersion,
+          title: 'Legacy semantic copy',
+          columnMap: { amount: 'total', event_time: 'occurred_at' },
+        },
+        actor,
+        kind,
+      );
+      const oracle = await worker.query(
+        files.get(2),
+        "SELECT SUM(total) AS value FROM uploaded_data WHERE CAST(occurred_at AS DATE) = DATE '2026-01-01'",
+      );
+      expect(v.snapshot.widgets[0].datas).toEqual(oracle.datas);
+      expect(oracle.datas).toEqual([{ value: 300 }]);
+      const requestId = randomUUID();
+      const saved = await reuse.save(key, { ticket: v.ticket, requestId }, actor, kind);
+      const clone = (await dashboards.analysis(saved.id, actor, true)).data;
+      expect(clone.defaultConditions.semantics).toEqual(targetMeaning);
+      expect(clone.defaultConditions.sourceRevision).toBe(await connection.duckDBVersion(2));
+      const row = await db.manager.findOneByOrFail(Dashboard, { id: saved.id });
+      expect(JSON.parse(row.structuredDefinition).studioConditions.semantics).toEqual(
+        targetMeaning,
+      );
+      await catalog(11, 7, 2, { event_time: { businessType: 'category', dateFormat: '' } });
+      if (kind === 'publication')
+        expect((await reuse.draft(key, actor, kind)).columns.map(c => c.name)).toEqual(
+          req.columns.map(c => c.name),
+        );
+      await db.manager.clear(SourceCatalogEntry);
+      const queries = connection.queryDuckDB.mock.calls.length;
+      expect(await reuse.save(key, { ticket: v.ticket, requestId }, actor, kind)).toEqual({
+        id: saved.id,
+        replayed: true,
+      });
+      expect(connection.queryDuckDB.mock.calls.length).toBe(queries);
+    },
+  );
+  it('refuses a missing/wrong-source historical semantic recipe and missing private schema before any target copy', async () => {
+    await semanticOriginal();
+    await catalog(2, 8, 4, { occurred_at: { businessType: 'date', dateFormat: 'native' } });
+    const key = await legacyOrigin('publication');
+    const { reuse } = services();
+    const publication = await db.manager.findOneByOrFail(DashboardPublication, {
+      uuid: String(key),
+    });
+    const original = publication.reuseDefinition;
+    const recipe = JSON.parse(original);
+    recipe.analysis.conditionSemantics.catalogVersion = 99;
+    await db.manager.update(DashboardPublication, publication.dashboardId, {
+      reuseDefinition: JSON.stringify(recipe),
+    });
+    await expect(reuse.draft(key, 8, 'publication')).rejects.toMatchObject({ status: 409 });
+    await db.manager.update(DashboardPublication, publication.dashboardId, {
+      reuseDefinition: original,
+    });
+    await db.manager.delete(SourceCatalogEntry, { sourceId: 11, version: 1 });
+    await expect(reuse.draft(key, 8, 'publication')).rejects.toMatchObject({ status: 409 });
+    delete recipe.conditionSchema;
+    await db.manager.update(DashboardPublication, publication.dashboardId, {
+      reuseDefinition: JSON.stringify(recipe),
+    });
+    await expect(reuse.draft(key, 8, 'publication')).rejects.toMatchObject({ status: 400 });
+  });
+  it('rejects incompatible target meaning and a target catalog change between semantic preview and save without assets', async () => {
+    await semanticOriginal();
+    const key = await legacyOrigin('publication');
+    const { reuse } = services();
+    const req = await reuse.draft(key, 8, 'publication');
+    const body = {
+      expectedRevision: req.expectedRevision,
+      sourceId: 2,
+      sourceRevision: (await creation.profile(2, 8)).dataVersion,
+      title: 'Scoped copy',
+      columnMap: { amount: 'total', event_time: 'occurred_at' },
+    };
+    await catalog(2, 8, 4, { occurred_at: { businessType: 'category', dateFormat: '' } });
+    await expect(reuse.preview(key, body, 8, 'publication')).rejects.toMatchObject({ status: 400 });
+    await catalog(2, 8, 5, { occurred_at: { businessType: 'date', dateFormat: 'native' } });
+    const v = await reuse.preview(key, body, 8, 'publication');
+    const before = await db.manager.count(Dashboard);
+    await catalog(2, 8, 6, { occurred_at: { businessType: 'category', dateFormat: '' } });
+    await expect(
+      reuse.save(key, { ticket: v.ticket, requestId: randomUUID() }, 8, 'publication'),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await db.manager.count(Dashboard)).toBe(before);
+  });
+  it('does a cold full-target-date save validation outside the legacy metadata transaction', async () => {
+    await semanticOriginal();
+    await catalog(2, 8, 19, {
+      occurred_at: { businessType: 'date', dateFormat: 'native' },
+      invoice_day: { businessType: 'date', dateFormat: 'YYYY/MM/DD' },
+    });
+    const key = await legacyOrigin('publication');
+    const { reuse } = services();
+    const req = await reuse.draft(key, 8, 'publication');
+    const v = await reuse.preview(
+      key,
+      {
+        expectedRevision: req.expectedRevision,
+        sourceId: 2,
+        sourceRevision: (await creation.profile(2, 8)).dataVersion,
+        title: 'Cold proof',
+        columnMap: { amount: 'total', event_time: 'occurred_at' },
+      },
+      8,
+      'publication',
+    );
+    (dashboards as any).conditionDateProofs.clear();
+    let signal: () => void;
+    const entered = new Promise<void>(resolve => {
+      signal = resolve;
+    });
+    let metadataRan = false;
+    const competitor = entered.then(() =>
+      serializeMetadataWork(db, async () => {
+        metadataRan = true;
+      }),
+    );
+    const original = connection.queryDuckDB.getMockImplementation();
+    let scans = 0;
+    connection.queryDuckDB.mockImplementation(async (sourceId, sql, bindings) => {
+      if (sourceId === 2 && sql.includes('AS invalid_0')) {
+        scans += 1;
+        expect(db.manager.queryRunner?.isTransactionActive ?? false).toBe(false);
+        signal();
+        let timer: ReturnType<typeof setTimeout>;
+        try {
+          await Promise.race([
+            competitor,
+            new Promise((_resolve, reject) => {
+              timer = setTimeout(
+                () => reject(new Error('legacy metadata queue held during date scan')),
+                1500,
+              );
+            }),
+          ]);
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      return original(sourceId, sql, bindings);
+    });
+    try {
+      expect(
+        (await reuse.save(key, { ticket: v.ticket, requestId: randomUUID() }, 8, 'publication'))
+          .replayed,
+      ).toBe(false);
+      expect(scans).toBe(1);
+      expect(metadataRan).toBe(true);
+    } finally {
+      signal();
+      connection.queryDuckDB.mockImplementation(original);
+    }
+  });
+  it.each(['current', 'owner', 'inactive'])(
+    'guards invalid target dates against concurrent access loss (%s)',
+    async revoked => {
+      await semanticOriginal();
+      files.set(
+        9,
+        (
+          await worker.importFile({
+            originalname: 'invalid-date.csv',
+            buffer: Buffer.from(
+              'segment,total,occurred_at,invoice_day\nSite,300,2026-01-01T00:00:00Z,2026/01/01\nMobile,200,2026-01-02T00:00:00Z,2026/02/30\n',
+            ),
+          })
+        ).filename,
+      );
+      await db.manager.save(Database, {
+        id: 9,
+        ownerId: 8,
+        name: 'Invalid declared dates',
+        engine: 'duckdb',
+        type: 'FILE',
+        connectionConfig: JSON.stringify({
+          client: 'duckdb',
+          connection: { filename: filename(9) },
+        }),
+      });
+      await catalog(9, 8, 4, {
+        occurred_at: { businessType: 'date', dateFormat: 'native' },
+        invoice_day: { businessType: 'date', dateFormat: 'YYYY/MM/DD' },
+      });
+      const key = await legacyOrigin('publication');
+      const { reuse } = services();
+      const req = await reuse.draft(key, 8, 'publication');
+      const before = await db.manager.count(Dashboard);
+      const originalQuery = connection.queryDuckDB.getMockImplementation();
+      let changed = false;
+      if (revoked !== 'current')
+        connection.queryDuckDB.mockImplementation(async (sourceId, sql, bindings) => {
+          const result = await originalQuery(sourceId, sql, bindings);
+          if (!changed && sourceId === 9 && sql.includes('AS invalid_0')) {
+            changed = true;
+            if (revoked === 'inactive') activeRead = false;
+            else
+              await serializeMetadataWork(db, () => db.manager.update(Database, 9, { ownerId: 9 }));
+          }
+          return result;
+        });
+      try {
+        await expect(
+          reuse.preview(
+            key,
+            {
+              expectedRevision: req.expectedRevision,
+              sourceId: 9,
+              sourceRevision: (await creation.profile(9, 8)).dataVersion,
+              title: 'Reject invalid dates',
+              columnMap: { amount: 'total', event_time: 'occurred_at' },
+            },
+            8,
+            'publication',
+          ),
+        ).rejects.toMatchObject(
+          revoked !== 'current'
+            ? { status: revoked === 'inactive' ? 403 : 409 }
+            : { status: 400, response: { code: 'INVALID_BUSINESS_DATES' } },
+        );
+        if (revoked !== 'current') expect(changed).toBe(true);
+      } finally {
+        activeRead = true;
+        connection.queryDuckDB.mockImplementation(originalQuery);
+        await db.manager.update(Database, 9, { ownerId: 8 });
+      }
+      expect(await db.manager.count(Dashboard)).toBe(before);
+    },
+  );
 });

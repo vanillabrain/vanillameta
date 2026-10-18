@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
-import { API, authHeaders, createResponse, createdId, login, removeOwned } from './core-helpers';
+import { API, authHeaders, createResponse, createdId, removeOwned } from './core-helpers';
 
 // Compare CSV data and decoded JSON context; JSON property order is not a business difference.
 function csvContent(csv: string) {
@@ -56,7 +56,19 @@ function csvContent(csv: string) {
 test('검토 조건 명시 적용 → 비교·Pivot·CSV → 보기 reload → 지표 변경 차단', async ({ page }, info) => {
   test.setTimeout(120000);
   expect(process.env.QA_RUN_ROOT).toBeTruthy();
-  await login(page);
+  // This organization must not change the shared root fixture's policy context for later tests.
+  const userId = `basis${randomBytes(5).toString('hex')}`;
+  const password = `Qa1!${randomBytes(6).toString('hex')}`;
+  expect(
+    (
+      await page.request.post(`${API}/login/signup`, { data: { userId, password, email: `${userId}@example.invalid` } })
+    ).status(),
+  ).toBe(201);
+  await page.goto('/login');
+  await page.getByLabel('User ID').fill(userId);
+  await page.getByLabel(/^Password\s*\*?$/).fill(password);
+  await page.getByRole('button', { name: 'Login', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
   const headers = await authHeaders(page);
   expect(
     (

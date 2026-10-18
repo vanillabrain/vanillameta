@@ -94,3 +94,205 @@ describe('Studio explicit conditions review', () => {
     expect(onApply).not.toHaveBeenCalled();
   });
 });
+
+const semanticScope = {
+  schemaVersion: 1 as const,
+  catalogVersion: 3,
+  columns: [{ column: 'amount', businessType: 'category' as const, dateFormat: '' as const }],
+};
+const categoryColumns = [
+  { name: 'amount', type: 'BIGINT', kind: 'number' as const, businessType: 'category' as const, dateFormat: '' as const },
+];
+it('imports source semantics explicitly but schema reads preserve the current edited wrapper instead of Source entry context', async () => {
+  const onApply = vi.fn();
+  const local = {
+    ...conditions,
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'eq', values: [10] }, exclude: null },
+    semantics: semanticScope,
+  };
+  const source = {
+    ...reply().data.data,
+    definition: { ...local.definition, include: { ...local.definition.include, values: [20] } },
+    semantics: { ...semanticScope, catalogVersion: 8 },
+    columns: categoryColumns,
+  };
+  api.post.mockImplementation(async (_url, body) => ({
+    data: {
+      status: 'SUCCESS',
+      data: body.analysisConditions
+        ? { ...source, definition: body.analysisConditions.definition, semantics: body.analysisConditions.semantics }
+        : source,
+    },
+  }));
+  render(
+    <StudioConditionsPanel
+      sourceId={4}
+      sourceRevision={hash}
+      conditions={local}
+      columns={categoryColumns}
+      onApply={onApply}
+    />,
+  );
+  open();
+  fireEvent.change(screen.getByLabelText('포함 값 1'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '적용된 조건 검토' }));
+  await screen.findByText(/소스 조건 버전 7/);
+  expect(api.post.mock.lastCall?.[1].analysisConditions).toEqual({
+    ...local,
+    definition: { ...local.definition, include: { ...local.definition.include, values: [11] } },
+  });
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('11');
+  expect(screen.getByText(/업무 의미 카탈로그 버전 3/)).toBeTruthy();
+  read();
+  await screen.findByText(/업무 의미 카탈로그 버전 8/);
+  expect(api.post.mock.lastCall?.[1]).toEqual({ sourceId: 4 });
+  fireEvent.click(screen.getByRole('button', { name: '조건 명시 적용' }));
+  expect(onApply.mock.lastCall?.[0].semantics.catalogVersion).toBe(8);
+  fireEvent.change(screen.getByLabelText('포함 값 1'), { target: { value: '21' } });
+  fireEvent.click(screen.getByRole('button', { name: '적용된 조건 검토' }));
+  await screen.findByText(/업무 의미 카탈로그 버전 8/);
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('21');
+  expect(screen.queryByRole('option', { name: '초과', exact: true })).toBeNull();
+});
+it('explicit latest adoption preserves invalid local values and cannot silently discard semantics', async () => {
+  const onApply = vi.fn();
+  const local = {
+    ...conditions,
+    semantics: {
+      ...semanticScope,
+      columns: [{ column: 'amount', businessType: 'number' as const, dateFormat: '' as const }],
+    },
+  };
+  render(
+    <StudioConditionsPanel
+      sourceId={4}
+      sourceRevision={hash}
+      conditions={local}
+      columns={[{ name: 'amount', type: 'BIGINT', kind: 'number' }]}
+      onApply={onApply}
+    />,
+  );
+  open();
+  fireEvent.change(screen.getByLabelText('포함 값 1'), { target: { value: '23' } });
+  api.post.mockImplementation(async (_url, body) => ({
+    data: {
+      status: 'SUCCESS',
+      data: {
+        ...reply().data.data,
+        definition: body.analysisConditions.definition,
+        semantics: { ...semanticScope, catalogVersion: 4 },
+        columns: categoryColumns,
+      },
+    },
+  }));
+  fireEvent.click(screen.getByRole('button', { name: '최신 업무 의미 채택' }));
+  await screen.findByText(/업무 의미 카탈로그 버전 4/);
+  expect(api.post).toHaveBeenLastCalledWith('/bi/source-conditions/read', {
+    sourceId: 4,
+    adoptCurrentSemantics: true,
+    analysisConditions: {
+      ...local,
+      definition: { ...local.definition, include: { ...local.definition.include, values: [23] } },
+    },
+  });
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('23');
+  fireEvent.click(screen.getByRole('button', { name: '조건 명시 적용' }));
+  await screen.findByRole('alert');
+  expect(onApply).not.toHaveBeenCalled();
+  api.post.mockResolvedValue(reply());
+  read();
+  await screen.findByRole('alert');
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('23');
+  expect(screen.getByText(/업무 의미 카탈로그 버전 4/)).toBeTruthy();
+});
+
+it('accepts prepared latest semantics for a new condition scope, while later profile refreshes preserve edited values', () => {
+  const onApply = vi.fn();
+  const { rerender } = render(
+    <StudioConditionsPanel
+      sourceId={4}
+      sourceRevision={hash}
+      columns={categoryColumns}
+      conditionSemantics={semanticScope}
+      onApply={onApply}
+    />,
+  );
+  open();
+  fireEvent.click(screen.getByRole('button', { name: '포함 조건 추가' }));
+  fireEvent.change(screen.getByLabelText('포함 값 1'), { target: { value: '42' } });
+  rerender(
+    <StudioConditionsPanel
+      sourceId={4}
+      sourceRevision={hash}
+      columns={categoryColumns}
+      conditionSemantics={semanticScope}
+      onApply={onApply}
+    />,
+  );
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('42');
+  fireEvent.click(screen.getByRole('button', { name: '조건 명시 적용' }));
+  expect(onApply.mock.lastCall?.[0].semantics).toEqual(semanticScope);
+  expect(onApply.mock.lastCall?.[0].definition.include.values).toEqual([42]);
+});
+
+it('recovers missing local columns using the exact applied wrapper, never the unrelated source entry context', async () => {
+  const onApply = vi.fn();
+  const local = {
+    ...conditions,
+    semantics: semanticScope,
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'eq', values: [10] }, exclude: null },
+  };
+  api.post.mockResolvedValue({
+    data: {
+      status: 'SUCCESS',
+      data: { ...reply().data.data, definition: local.definition, semantics: semanticScope, columns: categoryColumns },
+    },
+  });
+  render(<StudioConditionsPanel sourceId={4} sourceRevision={hash} conditions={local} onApply={onApply} />);
+  open();
+  fireEvent.click(screen.getByRole('button', { name: '적용된 조건 검토' }));
+  await screen.findByLabelText('포함 값 1');
+  expect(api.post).toHaveBeenCalledWith('/bi/source-conditions/read', { sourceId: 4, analysisConditions: local });
+  fireEvent.change(screen.getByLabelText('포함 값 1'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '조건 명시 적용' }));
+  expect(onApply.mock.lastCall?.[0].semantics).toEqual(semanticScope);
+});
+
+it('rejects schema replies from a different frozen Source context without replacing the edited draft or semantics', async () => {
+  const onApply = vi.fn();
+  const local = {
+    ...conditions,
+    semantics: semanticScope,
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'eq', values: [10] }, exclude: null },
+  };
+  render(
+    <StudioConditionsPanel
+      sourceId={4}
+      sourceRevision={hash}
+      conditions={local}
+      columns={categoryColumns}
+      onApply={onApply}
+    />,
+  );
+  open();
+  fireEvent.change(screen.getByLabelText('포함 값 1'), { target: { value: '99' } });
+  api.post.mockResolvedValue({
+    data: {
+      status: 'SUCCESS',
+      data: {
+        ...reply().data.data,
+        definition: local.definition,
+        semantics: { ...semanticScope, catalogVersion: 9 },
+        columns: categoryColumns,
+      },
+    },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '적용된 조건 검토' }));
+  await screen.findByRole('alert');
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('99');
+  expect(screen.getByText(/업무 의미 카탈로그 버전 3/)).toBeTruthy();
+  expect(onApply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '조건 명시 적용' }));
+  expect(onApply.mock.lastCall?.[0].semantics).toEqual(semanticScope);
+  expect(onApply.mock.lastCall?.[0].definition.include.values).toEqual([99]);
+});

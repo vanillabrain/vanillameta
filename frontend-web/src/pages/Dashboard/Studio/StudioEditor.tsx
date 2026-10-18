@@ -434,6 +434,11 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
   const [state, dispatch] = useReducer(studioReducer, initial, studioWorkspaceSeed);
   const [definitions, setDefinitions] = useState<StudioDefinitions>(initial.definitions);
   const [profileColumns, setProfileColumns] = useState(initial.profileColumns ?? []);
+  const [conditionContext, setConditionContext] = useState({
+    key: studioConditionsKey(initial.document.conditions),
+    columns: initial.profileColumns ?? [],
+    semantics: initial.document.conditions?.semantics,
+  });
   const [preview, setPreview] = useState<StudioPreview | null>(initial.preview);
   const [previewError, setPreviewError] = useState<string | null>(initial.previewError);
   const [message, setMessage] = useState('블록을 선택해 내용·순서·크기를 편집하고, 저장을 누르면 서버에 반영됩니다.');
@@ -670,6 +675,11 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
       const next = await fetchStudioDashboard(dashboardId);
       setDefinitions(next.definitions);
       setProfileColumns(next.profileColumns ?? []);
+      setConditionContext({
+        key: studioConditionsKey(next.document.conditions),
+        columns: next.profileColumns ?? [],
+        semantics: next.document.conditions?.semantics,
+      });
       setPreview(next.preview);
       setPreviewError(next.previewError);
       setSourceRevision(next.sourceRevision);
@@ -774,6 +784,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
       // A history-driven query is accepted only while the document still asks for that scope, so a
       // late answer for a superseded undo/redo step can never relabel the rows on screen.
       if (intent === 'history' && scopeKey(live.current.document) !== requested) return null;
+      if (prepared.conditionColumns)
+        setConditionContext({
+          key: studioConditionsKey(prepared.document.conditions),
+          columns: prepared.conditionColumns,
+          semantics: prepared.conditionSemantics,
+        });
       setPreview(prepared.preview);
       setPreviewError(null);
       // Rows rendered from an AI draft belong to the previous scope and must not survive a filter change.
@@ -1477,6 +1493,14 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
               onApply={applyDateRange}
             />
             <StudioConditionsPanel
+              columns={
+                conditionContext.key === studioConditionsKey(state.present.conditions) ? conditionContext.columns : []
+              }
+              conditionSemantics={
+                conditionContext.key === studioConditionsKey(state.present.conditions)
+                  ? conditionContext.semantics
+                  : undefined
+              }
               sourceId={state.present.sourceId}
               sourceRevision={sourceRevision}
               conditions={state.present.conditions}

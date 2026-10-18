@@ -279,3 +279,40 @@ it('UC052 prepare/save keep exact conditions and reject response scope loss', as
   api.post.mockResolvedValue({ data: { document: { ...scoped, revision: NEXT_REVISION }, idMap: {} } });
   expect((await saveStudioDashboard(3, request)).document.conditions).toEqual(conditions);
 });
+
+it('retains projected condition columns/semantics from prepare and rejects mismatch with an existing frozen wrapper', async () => {
+  const semantics = {
+    schemaVersion: 1 as const,
+    catalogVersion: 3,
+    columns: [{ column: 'amount', businessType: 'category' as const, dateFormat: '' as const }],
+  };
+  const columns = [{ name: 'amount', type: 'BIGINT', kind: 'number', businessType: 'category', dateFormat: '' }];
+  const conditions = {
+    sourceRevision: SOURCE_REVISION,
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'eq', values: [10] }, exclude: null },
+    semantics,
+  };
+  const preview = { draft: { databaseId: 4, title: '매출', explanation: '', widgets: [widgetRow] }, widgets: [widgetRow] };
+  const scoped = { ...document, conditions };
+  const request = { expectedSourceRevision: SOURCE_REVISION, document: scoped };
+  const payload = {
+    document: scoped,
+    preview,
+    conditionColumns: columns,
+    conditionSemantics: semantics,
+    conditionSemanticsLatest: false,
+    conditionSourceRevision: SOURCE_REVISION,
+  };
+  api.post.mockResolvedValue({ data: payload });
+  expect(await prepareStudioDashboard(3, request)).toMatchObject({
+    conditionColumns: columns,
+    conditionSemantics: semantics,
+    conditionSemanticsLatest: false,
+  });
+  for (const conditionSemantics of [undefined, { ...semantics, catalogVersion: 4 }]) {
+    api.post.mockResolvedValue({ data: { ...payload, conditionSemantics } });
+    await expect(prepareStudioDashboard(3, request)).rejects.toMatchObject({ kind: 'invalid' });
+  }
+  api.post.mockResolvedValue({ data: { ...payload, conditionSourceRevision: 'c'.repeat(64) } });
+  await expect(prepareStudioDashboard(3, request)).rejects.toMatchObject({ kind: 'invalid' });
+});

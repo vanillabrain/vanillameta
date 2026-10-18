@@ -1022,6 +1022,9 @@ function SourceExploreContent() {
           className="flex flex-wrap items-center gap-2 rounded-md border p-3 text-sm"
         >
           <span>
+            {conditions.semantics
+              ? `업무 의미 카탈로그 버전 ${conditions.semantics.catalogVersion} · `
+              : '원본 유형 기준 · '}
             분석 조건 적용 중 · 포함 {conditions.definition.include ? '있음' : '없음'} · 제외{' '}
             {conditions.definition.exclude ? '있음' : '없음'}. 현재 기간·필터·시간대에 적용합니다.
           </span>

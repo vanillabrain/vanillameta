@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { DataSource, QueryFailedError } from 'typeorm';
 import { lockMetricSources } from '../metric/metric-write-lock';
 import { serializeMetadataWork, metadataTransaction } from '../common/metadata-work';
@@ -9,6 +14,14 @@ import { sourceRevision } from './source-revision';
 import { SourceConditionEntry } from './entities/source-condition-entry.entity';
 import { conditionPopulation, sourceConditionProfile } from './source-condition-profile';
 import { compileConditionDefinition, conditionColumns } from './source-condition-definition';
+import { ConditionSemantics } from './business-condition-semantics';
+import { validateStudioConditions } from '../dashboard-studio/studio-document';
+import {
+  resolveConditionSemantics,
+  latestConditionSemantics,
+  assertLatestConditionSemantics,
+  validateConditionBusinessDates,
+} from './business-condition-context';
 
 const conflict = () =>
   new ConflictException(
@@ -38,7 +51,8 @@ export class SourceConditionsService {
       const id = this.access.id(source);
       await this.access.assert('database', id, actor, action);
       const row = await this.db.getRepository(Database).findOne({ where: { id } });
-      if (!row || row.engine !== 'duckdb')
+      if (!row) throw new ForbiddenException('Source unavailable.');
+      if (row.engine !== 'duckdb')
         throw new BadRequestException('서버에 저장한 DuckDB 소스를 선택해 주세요.');
       const pin = await this.connection.captureDuckDBSnapshot(id);
       const version = await pin.run(() => this.connection.duckDBVersion(id));
@@ -49,12 +63,18 @@ export class SourceConditionsService {
         id,
         sourceBasis: JSON.stringify(row),
         profile: { dataVersion: sourceRevision(row, version) },
+        fileRevision: version,
         entry,
         pin,
       };
     });
   }
-  private async snapshot(source: unknown, actor: number, action: 'read' | 'edit') {
+  private async snapshot(
+    source: unknown,
+    actor: number,
+    action: 'read' | 'edit',
+    analysisContext = false,
+  ) {
     const captured = await this.capture(source, actor, action);
     // DESCRIBE and population SQL run outside the metadata lease against the captured file.
     const schema = await captured.pin.run(() =>
@@ -62,16 +82,43 @@ export class SourceConditionsService {
     );
     if (!schema.datas.length || schema.datas.length > 128)
       throw new BadRequestException('지원 컬럼 수는 1~128개입니다.');
-    const columns = conditionColumns(
-      schema.datas.map(c => ({ name: c.column_name, type: c.column_type })),
-    );
-    return { ...captured, columns };
+    const nativeSchema = schema.datas.map(c => ({ name: c.column_name, type: c.column_type }));
+    let frozen: unknown;
+    try {
+      frozen =
+        analysisContext || captured.entry?.semanticsJSON == null
+          ? undefined
+          : JSON.parse(captured.entry.semanticsJSON);
+    } catch {
+      throw conflict();
+    }
+    let semantics: ConditionSemantics | undefined;
+    try {
+      semantics = analysisContext
+        ? undefined
+        : captured.entry
+        ? await resolveConditionSemantics(this.db.manager, captured.id, nativeSchema, frozen)
+        : await latestConditionSemantics(this.db.manager, captured.id, nativeSchema);
+    } catch {
+      throw conflict();
+    }
+    return {
+      ...captured,
+      nativeSchema,
+      semantics,
+      columns: conditionColumns(nativeSchema, semantics),
+    };
   }
-  private stored(entry: SourceConditionEntry | null, columns: ReturnType<typeof conditionColumns>) {
+  private stored(
+    entry: SourceConditionEntry | null,
+    columns: ReturnType<typeof conditionColumns>,
+    semantics?: ConditionSemantics,
+  ) {
     try {
       return compileConditionDefinition(
         entry ? JSON.parse(entry.definition) : { include: null, exclude: null },
         columns,
+        semantics,
       ).definition;
     } catch {
       throw new ConflictException(
@@ -79,19 +126,32 @@ export class SourceConditionsService {
       );
     }
   }
-  private response(state: Awaited<ReturnType<SourceConditionsService['snapshot']>>) {
+  private response(
+    state: Awaited<ReturnType<SourceConditionsService['snapshot']>>,
+    semantics = state.semantics,
+  ) {
     return {
       sourceId: state.id,
       sourceRevision: state.profile.dataVersion,
       version: state.entry?.version ?? 0,
-      definition: this.stored(state.entry, state.columns),
+      definition: this.stored(state.entry, state.columns, state.semantics),
       schemaChanged: !!state.entry && state.entry.sourceRevision !== state.profile.dataVersion,
-      columns: state.columns,
+      columns: conditionColumns(state.nativeSchema, semantics),
+      ...(semantics === undefined ? {} : { semantics }),
     };
   }
   async read(body: unknown, actor: number) {
-    const input = this.fields(body, ['sourceId']);
+    const input = this.fields(body, ['sourceId', 'adoptCurrentSemantics', 'analysisConditions']);
+    if (
+      input.adoptCurrentSemantics !== undefined &&
+      typeof input.adoptCurrentSemantics !== 'boolean'
+    )
+      throw new BadRequestException('업무 기준 채택 요청을 확인해 주세요.');
+    if (input.analysisConditions !== undefined) return this.readAnalysis(input, actor);
     const state = await this.snapshot(input.sourceId, actor, 'read');
+    const semantics = input.adoptCurrentSemantics
+      ? await latestConditionSemantics(this.db.manager, state.id, state.nativeSchema)
+      : state.semantics;
     await this.current(
       state.id,
       actor,
@@ -99,10 +159,65 @@ export class SourceConditionsService {
       'read',
       state.entry?.version ?? 0,
     );
-    return this.response(state);
+    if (input.adoptCurrentSemantics || !state.entry)
+      await assertLatestConditionSemantics(
+        this.db.manager,
+        state.id,
+        state.nativeSchema,
+        semantics,
+      );
+    return this.response(state, semantics);
+  }
+  private async readAnalysis(input: Record<string, any>, actor: number) {
+    let analysis;
+    try {
+      analysis = validateStudioConditions(input.analysisConditions);
+    } catch {
+      throw new BadRequestException('분석 조건의 기준을 확인해 주세요.');
+    }
+    const state = await this.snapshot(input.sourceId, actor, 'read', true);
+    if (analysis.sourceRevision !== state.fileRevision) throw conflict();
+    const frozen = await resolveConditionSemantics(
+      this.db.manager,
+      state.id,
+      state.nativeSchema,
+      analysis.semantics,
+    );
+    const definition = compileConditionDefinition(
+      analysis.definition,
+      conditionColumns(state.nativeSchema, frozen),
+      frozen,
+    ).definition;
+    const semantics = input.adoptCurrentSemantics
+      ? await latestConditionSemantics(this.db.manager, state.id, state.nativeSchema)
+      : frozen;
+    await this.current(state.id, actor, state.profile.dataVersion, 'read');
+    await resolveConditionSemantics(this.db.manager, state.id, state.nativeSchema, frozen);
+    if (input.adoptCurrentSemantics)
+      await assertLatestConditionSemantics(
+        this.db.manager,
+        state.id,
+        state.nativeSchema,
+        semantics,
+      );
+    return {
+      sourceId: state.id,
+      sourceRevision: state.profile.dataVersion,
+      version: state.entry?.version ?? 0,
+      definition,
+      columns: conditionColumns(state.nativeSchema, semantics),
+      schemaChanged: !!state.entry && state.entry.sourceRevision !== state.profile.dataVersion,
+      ...(semantics === undefined ? {} : { semantics }),
+    };
   }
   private async prepare(body: unknown, actor: number, action: 'read' | 'edit') {
-    const input = this.fields(body, ['sourceId', 'sourceRevision', 'version', 'definition']);
+    const input = this.fields(body, [
+      'sourceId',
+      'sourceRevision',
+      'version',
+      'definition',
+      'semantics',
+    ]);
     if (
       !Number.isInteger(input.version) ||
       input.version < 0 ||
@@ -118,16 +233,69 @@ export class SourceConditionsService {
       input.version !== (state.entry?.version ?? 0)
     )
       throw conflict();
-    this.stored(state.entry, state.columns);
-    const compiled = compileConditionDefinition(input.definition, state.columns);
+    this.stored(state.entry, state.columns, state.semantics);
+    const semantics = await resolveConditionSemantics(
+      this.db.manager,
+      state.id,
+      state.nativeSchema,
+      input.semantics,
+    );
+    let usesLatest = !state.entry;
+    if (JSON.stringify(semantics) !== JSON.stringify(state.semantics)) {
+      if (semantics === undefined) throw conflict();
+      await assertLatestConditionSemantics(
+        this.db.manager,
+        state.id,
+        state.nativeSchema,
+        semantics,
+      );
+      usesLatest = true;
+    }
+    if (!state.entry)
+      await assertLatestConditionSemantics(
+        this.db.manager,
+        state.id,
+        state.nativeSchema,
+        semantics,
+      );
+    const columns = conditionColumns(state.nativeSchema, semantics);
+    const compiled = compileConditionDefinition(input.definition, columns, semantics);
+    let dateFailure: unknown;
+    try {
+      await state.pin.run(() =>
+        validateConditionBusinessDates(state.nativeSchema, semantics, (sql, bindings) =>
+          this.connection.queryDuckDB(state.id, sql, bindings),
+        ),
+      );
+    } catch (error) {
+      dateFailure = error;
+    }
+    await this.current(
+      state.id,
+      actor,
+      state.profile.dataVersion,
+      action,
+      state.entry?.version ?? 0,
+    );
+    await resolveConditionSemantics(this.db.manager, state.id, state.nativeSchema, semantics);
+    if (usesLatest)
+      await assertLatestConditionSemantics(
+        this.db.manager,
+        state.id,
+        state.nativeSchema,
+        semantics,
+      );
+    if (dateFailure) throw dateFailure;
     return {
-      state,
+      state: { ...state, columns, semantics },
+      usesLatest,
       compiled,
       draft: {
         sourceId: state.id,
         sourceRevision: input.sourceRevision,
         version: input.version,
         definition: compiled.definition,
+        ...(semantics === undefined ? {} : { semantics }),
       },
     };
   }
@@ -147,7 +315,7 @@ export class SourceConditionsService {
     return latest;
   }
   async preview(body: unknown, actor: number) {
-    const { state, compiled, draft } = await this.prepare(body, actor, 'read');
+    const { state, compiled, draft, usesLatest } = await this.prepare(body, actor, 'read');
     const result = await state.pin.run(async () => {
       const rows = await this.connection.queryDuckDB(
         state.id,
@@ -162,6 +330,7 @@ export class SourceConditionsService {
       const analysisConditions = {
         sourceRevision: await this.connection.duckDBVersion(state.id),
         definition: compiled.definition,
+        ...(state.semantics === undefined ? {} : { semantics: state.semantics }),
       };
       await this.current(state.id, actor, draft.sourceRevision, 'read', draft.version);
       return { draft, population, analysisConditions };
@@ -174,6 +343,13 @@ export class SourceConditionsService {
       'read',
       result.draft.version,
     );
+    if (usesLatest)
+      await assertLatestConditionSemantics(
+        this.db.manager,
+        state.id,
+        state.nativeSchema,
+        state.semantics,
+      );
     return result;
   }
   async profile(body: unknown, actor: number) {
@@ -183,13 +359,15 @@ export class SourceConditionsService {
       'version',
       'definition',
       'columns',
+      'semantics',
     ]);
-    const { state, compiled, draft } = await this.prepare(
+    const { state, compiled, draft, usesLatest } = await this.prepare(
       {
         sourceId: input.sourceId,
         sourceRevision: input.sourceRevision,
         version: input.version,
         definition: input.definition,
+        ...(input.semantics === undefined ? {} : { semantics: input.semantics }),
       },
       actor,
       'read',
@@ -199,14 +377,22 @@ export class SourceConditionsService {
         schema: state.columns,
         columns: input.columns,
         definition: compiled.definition,
+        semantics: state.semantics,
         query: (sql, bindings) => this.connection.queryDuckDB(state.id, sql, bindings),
       }),
     );
     await this.current(state.id, actor, draft.sourceRevision, 'read', draft.version);
+    if (usesLatest)
+      await assertLatestConditionSemantics(
+        this.db.manager,
+        state.id,
+        state.nativeSchema,
+        state.semantics,
+      );
     return { draft, ...result };
   }
   async save(body: unknown, actor: number) {
-    const { state, compiled, draft } = await this.prepare(body, actor, 'edit');
+    const { state, compiled, draft, usesLatest } = await this.prepare(body, actor, 'edit');
     await this.current(state.id, actor, draft.sourceRevision, 'edit');
     await metadataTransaction(this.db, async manager => {
       const sources = await lockMetricSources(manager, [state.id]);
@@ -216,7 +402,14 @@ export class SourceConditionsService {
         .getRepository(SourceConditionEntry)
         .findOne({ where: { sourceId: state.id }, order: { version: 'DESC' } });
       if ((latest?.version ?? 0) !== draft.version) throw conflict();
-      this.stored(latest, state.columns);
+      if (usesLatest)
+        await assertLatestConditionSemantics(
+          manager,
+          state.id,
+          state.nativeSchema,
+          state.semantics,
+        );
+      await resolveConditionSemantics(manager, state.id, state.nativeSchema, state.semantics);
       try {
         await manager.getRepository(SourceConditionEntry).insert({
           sourceId: state.id,
@@ -224,6 +417,7 @@ export class SourceConditionsService {
           actorId: actor,
           sourceRevision: draft.sourceRevision,
           definition: JSON.stringify(compiled.definition),
+          semanticsJSON: state.semantics === undefined ? null : JSON.stringify(state.semantics),
         });
       } catch (error) {
         if (
@@ -243,6 +437,7 @@ export class SourceConditionsService {
       definition: compiled.definition,
       schemaChanged: false,
       columns: state.columns,
+      ...(state.semantics === undefined ? {} : { semantics: state.semantics }),
     };
   }
 }

@@ -40,7 +40,16 @@ export type StudioDateRange = {
   precision?: 'timestamp';
   timeZone?: string;
 };
-export type StudioConditions = { sourceRevision: string; definition: Definition };
+export type ConditionSemantics = {
+  schemaVersion: 1;
+  catalogVersion: number;
+  columns: Array<{
+    column: string;
+    businessType: 'number' | 'category' | 'date';
+    dateFormat: '' | 'native' | 'YYYY-MM-DD' | 'YYYY/MM/DD' | 'YYYYMMDD';
+  }>;
+};
+export type StudioConditions = { sourceRevision: string; definition: Definition; semantics?: ConditionSemantics };
 export type StudioDocumentV1 = {
   schemaVersion: 1;
   dashboardId?: number;

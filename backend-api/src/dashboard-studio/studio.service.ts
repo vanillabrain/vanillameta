@@ -1,3 +1,9 @@
+import {
+  latestConditionSemantics,
+  resolveConditionSemantics,
+  assertLatestConditionSemantics,
+} from '../bi/business-condition-context';
+import type { ConditionSemantics } from '../bi/business-condition-semantics';
 import { lockMetricReferences, lockMetricSources } from '../metric/metric-write-lock';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { sourceConditionProfile } from '../bi/source-condition-profile';
@@ -26,7 +32,7 @@ import { Metric } from '../metric/entities/metric.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { metricLinkItems } from '../ai/metric-analysis-links';
 import { isTemporaryStudioId, STUDIO_BREAKPOINTS, StudioDocumentV1 } from './studio-contract';
-import { studioKeys, validateStudioDocument } from './studio-document';
+import { studioKeys, validateStudioDocument, validateStudioConditions } from './studio-document';
 import { importStudio, studioDefinitions, studioDigest } from './studio-legacy';
 import { StudioState } from './entities/studio-state.entity';
 import { StudioRun } from './entities/studio-run.entity';
@@ -141,8 +147,7 @@ export class StudioService {
     };
   }
   async get(id: number, actor: number) {
-    return serializeMetadataWork(this.db, async () => {
-      // UC-051: report the actor's current rights plus real mapping ownership for the client.
+    const context = await serializeMetadataWork(this.db, async () => {
       const capabilities = await this.access.dashboardCapabilities(id, actor);
       const owned = Boolean(
         await this.db.manager.findOne(UserMapping, {
@@ -150,15 +155,14 @@ export class StudioService {
         }),
       );
       const analysis = (await this.ai.analysis(id, actor, true)).data;
-      const pinned = await this.connection.withDuckDBSnapshot(analysis.databaseId, () =>
-        this.getPinned(id, actor, analysis.databaseId),
-      );
-      // TOP-LEVEL `owned` is the real UserMapping ownership the client uses to hide clone/management.
-      return { ...pinned, access: capabilities, owned };
+      return { capabilities, owned, analysis };
     });
+    const pin = await this.connection.captureDuckDBSnapshot(context.analysis.databaseId);
+    const result = await pin.run(() => this.getPinned(id, actor, context.analysis.databaseId));
+    return { ...result, access: context.capabilities, owned: context.owned };
   }
   private async getPinned(id: number, actor: number, sourceId: number) {
-    const state = await this.load(id, actor, 'read');
+    const state = await serializeMetadataWork(this.db, () => this.load(id, actor, 'read'));
     if (state.document.sourceId !== sourceId)
       throw new ConflictException('데이터 소스가 변경되었습니다. 다시 불러와 주세요.');
     let preview = null,
@@ -181,14 +185,35 @@ export class StudioService {
       previewError =
         '데이터를 불러오지 못했습니다. 편집 내용은 유지됩니다. 잠시 후 다시 조회해 주세요.';
     }
+    const freshPin = await this.connection.captureDuckDBSnapshot(sourceId);
+    await freshPin.run(() =>
+      serializeMetadataWork(this.db, async () => {
+        const fresh = await this.load(id, actor, 'read');
+        if (
+          fresh.document.revision !== state.document.revision ||
+          fresh.sourceRevision !== state.sourceRevision
+        )
+          throw new ConflictException(
+            '조회 중 분석이나 원본이 변경됐습니다. 초안을 유지하고 다시 조회해 주세요.',
+          );
+      }),
+    );
+    let profileColumns: ReturnType<typeof conditionColumns> = [];
+    try {
+      if (state.schema.length <= 128)
+        profileColumns = conditionColumns(
+          state.schema.map(c => ({ name: c.column_name, type: c.column_type })),
+          state.document.conditions?.semantics,
+        );
+    } catch {
+      previewError =
+        '조건의 업무 의미가 현재 원본 열과 다릅니다. 초안을 유지하고 조건을 다시 검토하거나 명시 제거해 주세요.';
+    }
     return {
       document: state.document,
       sourceRevision: state.sourceRevision,
       definitions: state.definitions,
-      profileColumns:
-        state.schema.length <= 128
-          ? conditionColumns(state.schema.map(c => ({ name: c.column_name, type: c.column_type })))
-          : [],
+      profileColumns,
       preview,
       ...(previewError ? { previewError } : {}),
     };
@@ -222,10 +247,13 @@ export class StudioService {
   }
   /** Unsaved document preview under the current explicit edit grant. References come from the server catalog. */
   async prepare(id: number, body: any, actor: number) {
-    return serializeMetadataWork(this.db, async () => {
+    const analysis = await serializeMetadataWork(this.db, async () => {
       await this.access.dashboard(id, actor, 'edit');
-      const analysis = (await this.ai.analysis(id, actor, true)).data;
-      return this.connection.withDuckDBSnapshot(analysis.databaseId, async () => {
+      return (await this.ai.analysis(id, actor, true)).data;
+    });
+    const pin = await this.connection.captureDuckDBSnapshot(analysis.databaseId);
+    return pin.run(async () => {
+      const captured = await serializeMetadataWork(this.db, async () => {
         const current = await this.load(id, actor, 'edit');
         if (
           current.document.revision !== body.expectedRevision ||
@@ -250,6 +278,14 @@ export class StudioService {
         if (document.conditions && document.conditions.sourceRevision !== current.sourceRevision)
           throw new ConflictException(
             '조건의 데이터 파일이 변경됐습니다. 조건을 다시 적용하거나 명시 제거해 주세요.',
+          );
+        if (
+          current.document.conditions?.semantics &&
+          document.conditions &&
+          !document.conditions.semantics
+        )
+          throw new BadRequestException(
+            '기존 조건의 업무 의미를 유지하거나 전체 조건을 명시 제거해 주세요.',
           );
         const widgets = await Promise.all(
           document.blocks.map(async block => {
@@ -288,41 +324,133 @@ export class StudioService {
           explanation: current.analysis.explanation,
           widgets,
         };
-        const preview = (
-          await this.ai.preview(
-            {
-              draft,
-              filters: document.filters ?? [],
-              ...(document.conditions ? { conditions: document.conditions } : {}),
-              ...(document.dateRange ? { dateRange: document.dateRange } : {}),
-              includeTrends: true,
-            },
-            actor,
-            'edit',
-          )
-        ).data;
-        // A requested temporal transformation must be supported, not a silent fallback.
-        preview.widgets.forEach((widget, i) => {
-          if (
-            document.blocks[i].display.timeGrain &&
-            document.blocks[i].display.timeGrain !== 'auto' &&
-            widget.grainUnavailable
-          )
-            throw new BadRequestException(
-              '이 차트는 요청한 시간 단위로 안전하게 집계할 수 없습니다. 기존 내용을 유지했습니다.',
-            );
-        });
-        return {
-          document,
-          preview,
-          // Authorized native schema for typed AI condition proposals; no row values/configuration.
-          conditionColumns: current.schema.map(column => ({
-            name: column.column_name,
-            type: column.column_type,
-          })),
-        };
+
+        const columns = current.schema.map(c => ({ name: c.column_name, type: c.column_type }));
+        const conditionSemantics = document.conditions
+          ? await resolveConditionSemantics(
+              this.db.manager,
+              document.sourceId,
+              columns,
+              document.conditions.semantics,
+            )
+          : await latestConditionSemantics(this.db.manager, document.sourceId, columns);
+        return { current, document, draft, columns, conditionSemantics };
       });
+      const { current, document, draft, columns, conditionSemantics } = captured;
+      // Full business-date validation and all aggregate SQL run outside the SQLite metadata lease.
+      const preview = (
+        await this.ai.preview(
+          {
+            draft,
+            filters: document.filters ?? [],
+            ...(document.conditions ? { conditions: document.conditions } : {}),
+            ...(document.dateRange ? { dateRange: document.dateRange } : {}),
+            includeTrends: true,
+          },
+          actor,
+          'edit',
+        )
+      ).data;
+      preview.widgets.forEach((widget, i) => {
+        if (
+          document.blocks[i].display.timeGrain &&
+          document.blocks[i].display.timeGrain !== 'auto' &&
+          widget.grainUnavailable
+        )
+          throw new BadRequestException(
+            '이 차트는 요청한 시간 단위로 안전하게 집계할 수 없습니다. 기존 내용을 유지했습니다.',
+          );
+      });
+      const latest = await this.connection.captureDuckDBSnapshot(document.sourceId);
+      await latest.run(() =>
+        serializeMetadataWork(this.db, async () => {
+          const fresh = await this.load(id, actor, 'edit');
+          if (
+            fresh.document.revision !== current.document.revision ||
+            fresh.sourceRevision !== current.sourceRevision ||
+            studioDigest(fresh.definitions) !== studioDigest(current.definitions)
+          )
+            throw new ConflictException(
+              '검토 중 분석이나 원본이 변경됐습니다. 초안과 질문을 유지하고 다시 검토해 주세요.',
+            );
+          if (!document.conditions)
+            await assertLatestConditionSemantics(
+              this.db.manager,
+              document.sourceId,
+              columns,
+              conditionSemantics,
+            );
+        }),
+      );
+      return {
+        document,
+        preview,
+        conditionColumns: conditionColumns(columns, conditionSemantics),
+        ...(conditionSemantics ? { conditionSemantics } : {}),
+        conditionSemanticsLatest: !document.conditions,
+        conditionSourceRevision: current.sourceRevision,
+      };
     });
+  }
+  /** AI creates a wrapper from this server-selected context, never from model-provided metadata. */
+  async validateConditionProposalContext(
+    prepared: {
+      document: StudioDocumentV1;
+      conditionSemantics?: ConditionSemantics;
+      conditionSemanticsLatest?: boolean;
+      conditionSourceRevision?: string;
+      conditionColumns: Array<{ name: string; type: string }>;
+    },
+    actor: number,
+  ) {
+    if (!prepared.conditionSemantics) return;
+    const sourceId = prepared.document.sourceId;
+    const currentAccess = async () => {
+      await this.access.dashboard(prepared.document.dashboardId, actor, 'edit');
+      await this.source(sourceId, actor, 'read');
+    };
+    await currentAccess();
+    const pin = await this.connection.captureDuckDBSnapshot(sourceId);
+    let failure: unknown;
+    try {
+      await pin.run(async () => {
+        if (
+          prepared.conditionSourceRevision &&
+          prepared.conditionSourceRevision !== (await this.connection.duckDBVersion(sourceId))
+        )
+          throw new ConflictException(
+            '업무 조건의 파일이 변경됐습니다. 질문과 초안을 유지하고 다시 검토해 주세요.',
+          );
+        await this.ai.assertConditionSemantics(sourceId, prepared.conditionColumns, {
+          sourceRevision: await this.connection.duckDBVersion(sourceId),
+          definition: { include: null, exclude: null },
+          semantics: prepared.conditionSemantics,
+        });
+        if (prepared.conditionSemanticsLatest)
+          await serializeMetadataWork(this.db, () =>
+            assertLatestConditionSemantics(
+              this.db.manager,
+              sourceId,
+              prepared.conditionColumns,
+              prepared.conditionSemantics,
+            ),
+          );
+      });
+    } catch (error) {
+      failure = error;
+    }
+    // Invalid-date counts are also data: denial/fresh-file conflict must precede their response.
+    await currentAccess();
+    const fresh = await this.connection.captureDuckDBSnapshot(sourceId);
+    if (
+      prepared.conditionSourceRevision &&
+      (await fresh.run(() => this.connection.duckDBVersion(sourceId))) !==
+        prepared.conditionSourceRevision
+    )
+      throw new ConflictException(
+        '업무 조건 검증 중 원본 파일이 변경됐습니다. 질문을 유지해 주세요.',
+      );
+    if (failure) throw failure;
   }
   /** UC052: read-only profile captures metadata, releases the lease for SQL, then checks fresh authority/file. */
   async profile(id: number, body: any, actor: number) {
@@ -352,16 +480,29 @@ export class StudioService {
       return { current, pin, document };
     });
     const { current, pin, document } = captured;
-    const result = await pin.run(() =>
-      sourceConditionProfile({
-        schema: current.schema.map(c => ({ name: c.column_name, type: c.column_type })),
-        columns: body.columns,
-        definition: document.conditions?.definition ?? { include: null, exclude: null },
-        filters: document.filters,
-        dateRange: document.dateRange,
-        query: (sql, bindings) => this.connection.queryDuckDB(document.sourceId, sql, bindings),
-      }),
-    );
+    let failure: unknown;
+    const result = await pin
+      .run(async () => {
+        if (document.conditions?.semantics)
+          await this.ai.assertConditionSemantics(
+            document.sourceId,
+            current.schema.map(c => ({ name: c.column_name, type: c.column_type })),
+            document.conditions,
+          );
+        return sourceConditionProfile({
+          schema: current.schema.map(c => ({ name: c.column_name, type: c.column_type })),
+          columns: body.columns,
+          definition: document.conditions?.definition ?? { include: null, exclude: null },
+          semantics: document.conditions?.semantics,
+          filters: document.filters,
+          dateRange: document.dateRange,
+          query: (sql, bindings) => this.connection.queryDuckDB(document.sourceId, sql, bindings),
+        });
+      })
+      .catch(error => {
+        failure = error;
+        return null;
+      });
     await serializeMetadataWork(this.db, async () => {
       const row = await this.owner(id, actor, 'read');
       await this.source(document.sourceId, actor, 'read');
@@ -377,6 +518,7 @@ export class StudioService {
       )
         throw new ConflictException('분포 조회 중 파일이 변경됐습니다. 다시 조회하세요.');
     });
+    if (failure) throw failure;
     return {
       scope: {
         dashboardId: id,
@@ -531,7 +673,88 @@ export class StudioService {
       });
     });
   }
+  private async preflightConditionData(
+    id: number,
+    actor: number,
+    action: 'edit' | 'publish',
+    sourceId: number,
+    input: unknown,
+  ) {
+    const conditions = validateStudioConditions(input);
+    const authorize = async () => {
+      await this.access.dashboard(id, actor, action);
+      await this.source(sourceId, actor, 'read');
+    };
+    await authorize();
+    const pin = await this.connection.captureDuckDBSnapshot(sourceId);
+    let failure: unknown;
+    try {
+      await pin.run(async () => {
+        if (conditions.sourceRevision !== (await this.connection.duckDBVersion(sourceId)))
+          throw new ConflictException('조건의 파일 기준이 변경됐습니다. 초안을 유지해 주세요.');
+        const schema = (await this.connection.queryDuckDB(sourceId, 'DESCRIBE uploaded_data'))
+          .datas;
+        await this.ai.assertConditionSemantics(
+          sourceId,
+          schema.map(c => ({ name: c.column_name, type: c.column_type })),
+          conditions,
+        );
+      });
+    } catch (error) {
+      failure = error;
+    }
+    await authorize();
+    const fresh = await this.connection.captureDuckDBSnapshot(sourceId);
+    if (
+      (await fresh.run(() => this.connection.duckDBVersion(sourceId))) !== conditions.sourceRevision
+    )
+      throw new ConflictException('업무 날짜 검증 중 파일이 변경됐습니다. 초안을 유지해 주세요.');
+    if (failure) throw failure;
+  }
+  /** No publication write: establish immutable date validation before the publication queue. */
+  async preflightPublicationConditions(id: number, actor: number, expectedRevision: string) {
+    const state = await serializeMetadataWork(this.db, async () => {
+      await this.assertPublicationOwner(id, actor);
+      const current = await this.load(id, actor, 'publish');
+      if (current.document.revision !== expectedRevision)
+        throw new ConflictException('저장한 최신 분석을 다시 확인해 주세요.');
+      return current;
+    });
+    if (!state.document.conditions?.semantics) return;
+    await this.preflightConditionData(
+      id,
+      actor,
+      'publish',
+      state.document.sourceId,
+      state.document.conditions,
+    );
+  }
   async save(id: number, body: any, actor: number, signal?: AbortSignal) {
+    // Receipt replay stays metadata-only. A new semantic write validates its immutable date file
+    // before entering the write queue; saveOnce still rechecks rights/file/revision atomically.
+    if (body?.document?.conditions?.semantics) {
+      const hasReceipt = await serializeMetadataWork(this.db, async () => {
+        await this.access.dashboard(id, actor, 'edit');
+        if (typeof body.requestId !== 'string') return false;
+        return Boolean(
+          await this.db.manager.findOne(StudioRun, {
+            where: { actorId: actor, requestId: body.requestId },
+          }),
+        );
+      });
+      if (!hasReceipt) {
+        const document = validateStudioDocument(body.document);
+        if (document.dashboardId !== id)
+          throw new BadRequestException('저장할 분석을 확인해 주세요.');
+        await this.preflightConditionData(
+          id,
+          actor,
+          'edit',
+          document.sourceId,
+          document.conditions,
+        );
+      }
+    }
     return this.serializeWrite(() => this.saveOnce(id, body, actor, signal));
   }
   /** Cross-process Studio writes lock an existing row, including the first publication. */
@@ -621,6 +844,14 @@ export class StudioService {
           where: { id: document.sourceId },
         });
         const current = await this.load(id, actor, 'edit');
+        if (
+          current.document.conditions?.semantics &&
+          document.conditions &&
+          !document.conditions.semantics
+        )
+          throw new BadRequestException(
+            '기존 조건의 업무 의미를 유지하거나 전체 조건을 명시 제거해 주세요.',
+          );
         if (current.sourceRevision !== body.expectedSourceRevision)
           throw new ConflictException(
             '데이터 파일이 교체되었습니다. 최신 결과를 확인한 뒤 다시 저장해 주세요.',

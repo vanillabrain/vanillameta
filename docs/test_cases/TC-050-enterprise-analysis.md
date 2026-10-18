@@ -173,3 +173,9 @@ E11/E12의 대시보드 사용처/삭제·원자 영수증은 [UC055 계획](../
 [UC052/054 설계](../plans/UC-052-explore-basis.md)는 E05/E08/E14의 검토 조건 명시 적용→동일 비교·Pivot→보기 저장/reload→CSV 및 조회 후 지표 변경 거절을 연결한다. 실제 DuckDB 독립 정답과 격리 headless UI의 실행 결과를 별도 기록한다. 사용자 제어 Ego96/실휴대폰/운영·전체16개 사람 수용 및 위 전체 NOT_RUN 표를 이 단위로 승격하지 않는다.
 
 [동일 기준 실행 증빙](../testing/explore-reviewed-basis.md)은 BE397/FE237과 격리 headless 고유2개의 명시 조건 적용·보기 복구·현재/이전 기간·CSV·지표 변경 거절 범위를 기록한다. 실제 Ego/휴대폰/이번 MySQL/운영 및 전체16개/TC050 수용은 별도다.
+
+### UC050/052 고정 업무 의미 선택 검증 — 2026-10-18
+
+[업무 조건 의미 증빙](../testing/business-condition-semantics.md)은 E01/E04/E05/E08/E13/E14 중 과거 이력/native 보존·전체 날짜 정답·명시 최신 채택·저장 보기 복구·조회/출력/재사용 소비자의 선택 검사를 연결한다. Source49·격리 MySQL migration/영속2·Studio profile41·FE52 suites/802 distinct·Source headless UI1은 별도 배치이며 합산하지 않는다. UI390/768/1440 overflow0·채택36px/14px를 확인했지만 실 Codex 단일 조건 질문1개는14.5초 PASS로 V3 검토/명시 적용/저장/reload200·모바일390 overflow0을 확인했다. 앞선 취소 시도와 복합 부정 의도 제한은 남기며 BE26 suites/884 unique는 단계별 검증 완료, Jason·Bernoulli 범위 검토는 APPROVE/0 findings다. 안정 BE type/lint/build·최종 dist ui-stable1 PASS/11.9초를 확인했고 core-stable만 실행 대기다. 조직 공통 분류·새 semantic 지표/차원 생성·실제 Ego/휴대폰/운영·사람/전체16개 및 위 표의 TC050 NOT_RUN은 승격하지 않는다.
+
+위 선택 증빙의 후속은 core headless14 PASS/49.4초와 Explore semantic oracle8 PASS/22 SKIP다. Source390/실 Codex 저장 Studio390 스크린샷은 Main이 넘침 없음을 열람 확인했다. BE26-suite 최초24 PASS/2 FAIL 뒤 stale fixture suite legacy18/resource6을 전체 재실행해26 suites/884 unique를 단계별 검증했다. 최초864 PASS에는 두 suite의 성공4개가 포함돼864+24로 합산하지 않는다. 비활성 계정 read guard 수정·두 reviewer APPROVE0·안정 BE type/lint/build PASS·최종 dist ui-stable1 PASS/11.9초이며 core-stable14개만 실행 대기다. 이전 ui-codex와 같은 시나리오이므로 합산하지 않는다. 전체 TC050 NOT_RUN은 유지한다.

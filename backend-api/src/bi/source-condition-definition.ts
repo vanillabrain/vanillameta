@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
+import { conditionDateExpression, projectConditionColumns } from './business-condition-semantics';
+import type { ConditionSemantics } from './business-condition-semantics';
 // Keep the compiler independent from dashboard-draft (which consumes it).
-const quoteColumn = (column: string) => `"${column.replace(/"/g, '""')}"`;
 
 export type ConditionSchemaColumn = {
   name: string;
@@ -12,8 +13,10 @@ export type ConditionSchemaColumn = {
    * BIGNUM thresholds must be safe JS integers. */
   type: string;
   kind: 'number' | 'string' | 'boolean' | 'date' | 'timestamp' | 'unsupported';
+  businessType?: ConditionSemantics['columns'][number]['businessType'];
+  dateFormat?: ConditionSemantics['columns'][number]['dateFormat'];
 };
-type ConditionOperator =
+export type ConditionOperator =
   | 'eq'
   | 'ne'
   | 'in'
@@ -41,45 +44,34 @@ function invalid(): never {
   throw new BadRequestException('Invalid condition definition');
 }
 
-function nativeKind(type: string): ConditionSchemaColumn['kind'] {
-  const native = type.trim().toUpperCase();
-  if (
-    /^(?:U?(?:TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT)|FLOAT|DOUBLE|REAL|INT|INT[1248]|SIGNED|UNSIGNED|BIGNUM)$/.test(
-      native,
-    )
-  )
-    return 'number';
-  const decimal = /^(?:DECIMAL|NUMERIC)\((\d{1,2}),\s*(\d{1,2})\)$/.exec(native);
-  if (decimal && +decimal[1] >= 1 && +decimal[1] <= 38 && +decimal[2] <= +decimal[1])
-    return 'number';
-  if (/^(?:VARCHAR|CHAR|TEXT|STRING|BPCHAR)$/.test(native)) return 'string';
-  if (native === 'BOOLEAN' || native === 'BOOL') return 'boolean';
-  if (native === 'DATE') return 'date';
-  if (/^(?:TIMESTAMP(?:_S|_MS|_NS)?|TIMESTAMPTZ|TIMESTAMP WITH TIME ZONE)$/.test(native))
-    return 'timestamp';
-  return 'unsupported';
-}
-
 export function conditionColumns(
   schema: Array<{ name: string; type: string }>,
+  semantics?: ConditionSemantics,
 ): ConditionSchemaColumn[] {
-  if (!Array.isArray(schema)) invalid();
-  const names = new Set<string>();
-  return schema.map(column => {
-    if (
-      !column ||
-      typeof column.name !== 'string' ||
-      !column.name ||
-      column.name.includes('\0') ||
-      typeof column.type !== 'string'
-    )
-      invalid();
-    // DuckDB quoted identifiers are still ASCII case insensitive.
-    const identity = column.name.replace(/[A-Z]/g, letter => letter.toLowerCase());
-    if (names.has(identity)) invalid();
-    names.add(identity);
-    return { name: column.name, type: column.type, kind: nativeKind(column.type) };
-  });
+  try {
+    return projectConditionColumns(schema, semantics);
+  } catch {
+    return invalid();
+  }
+}
+
+/** category keeps its native scalar kind but offers equality/list/NULL operations only. */
+export function conditionOperators(column: ConditionSchemaColumn): ConditionOperator[] {
+  if (column.kind === 'unsupported') return ['isNull', 'isNotNull'];
+  const ordered =
+    column.businessType !== 'category' && ['number', 'date', 'timestamp'].includes(column.kind);
+  return [
+    'eq',
+    'ne',
+    'in',
+    'notIn',
+    'isNull',
+    'isNotNull',
+    ...(ordered ? (['gt', 'gte', 'lt', 'lte', 'between'] as const) : []),
+    ...(column.kind === 'string' && column.businessType !== 'category'
+      ? (['contains'] as const)
+      : []),
+  ];
 }
 
 /** Plain JSON data only: no prototypes, symbols, accessors or invisible fields. */
@@ -260,6 +252,7 @@ export function validateConditionDefinition(input: unknown): ConditionDefinition
 export function compileConditionDefinition(
   input: unknown,
   columns: ConditionSchemaColumn[],
+  semantics?: ConditionSemantics,
 ): {
   definition: ConditionDefinition;
   includeSql: string;
@@ -268,8 +261,19 @@ export function compileConditionDefinition(
 } {
   // Catch unexpected object/proxy traps too; validation errors never disclose inputs.
   try {
-    const mapped = conditionColumns(columns);
-    if (mapped.some((column, index) => column.kind !== columns[index].kind)) invalid();
+    const native = conditionColumns(columns);
+    const mapped = conditionColumns(columns, semantics);
+    if (
+      mapped.some(
+        (column, index) =>
+          (columns[index].kind !== native[index].kind && columns[index].kind !== column.kind) ||
+          (columns[index].businessType !== undefined &&
+            columns[index].businessType !== column.businessType) ||
+          (columns[index].dateFormat !== undefined &&
+            columns[index].dateFormat !== column.dateFormat),
+      )
+    )
+      invalid();
     const byName = new Map(mapped.map(column => [column.name, column]));
     const root = record(validateConditionDefinition(input));
     keys(root, ['include', 'exclude']);
@@ -301,24 +305,16 @@ export function compileConditionDefinition(
       );
       const column = byName.get(node.column);
       if (!column) invalid();
-      const quoted = quoteColumn(column.name);
+      const quoted = conditionDateExpression(column);
       const nativeType = column.type.trim().toUpperCase();
-      const nanoseconds = nativeType === 'TIMESTAMP_NS';
+      const nanoseconds = column.kind === 'timestamp' && nativeType === 'TIMESTAMP_NS';
       if (nullOp)
         return {
           node: { kind: 'predicate', column: column.name, operator: node.operator },
           sql: `COALESCE((${quoted} IS ${node.operator === 'isNull' ? '' : 'NOT '}NULL), FALSE)`,
         };
-      const ordered = ['number', 'date', 'timestamp'].includes(column.kind);
-      const allowed = [
-        'eq',
-        'ne',
-        'in',
-        'notIn',
-        ...(ordered ? ['gt', 'gte', 'lt', 'lte', 'between'] : []),
-        ...(column.kind === 'string' ? ['contains'] : []),
-      ];
-      if (column.kind === 'unsupported' || !allowed.includes(node.operator)) invalid();
+      if (column.kind === 'unsupported' || !conditionOperators(column).includes(node.operator))
+        invalid();
       const values = array(node.values, 50).map(value => {
         if (column.kind === 'number') {
           if (
@@ -331,6 +327,11 @@ export function compileConditionDefinition(
           if (typeof value !== 'boolean') invalid();
         } else {
           if (typeof value !== 'string' || value.length > 2000) invalid();
+          if (column.businessType === 'category' && nativeType === 'UUID') {
+            if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))
+              invalid();
+            return value.toLowerCase();
+          }
           if (column.kind === 'date' && !calendar(value)) invalid();
           if (column.kind === 'timestamp') return instant(value, nanoseconds);
         }

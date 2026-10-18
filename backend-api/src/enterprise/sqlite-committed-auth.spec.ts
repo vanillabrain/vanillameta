@@ -1,3 +1,4 @@
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
@@ -36,6 +37,7 @@ describe('NFR005 reads committed authentication and availability', () => {
       database: ':memory:',
       synchronize: true,
       entities: [
+        SourceCatalogEntry,
         User,
         Database,
         EnterpriseMembership,

@@ -1,8 +1,9 @@
+import { categoryTextType } from './businessVariable';
 import ConditionProfilePanel from './ConditionProfilePanel';
-import { profileKey } from './conditionProfile';
+import { profileKey, readProfileColumns } from './conditionProfile';
 import React, { useEffect, useId, useRef, useState } from 'react';
-import type { StudioConditions } from '@/pages/Dashboard/Studio/studioTypes';
-import { validateStudioConditions } from '@/pages/Dashboard/Studio/studioDocument';
+import type { StudioConditions, ConditionSemantics } from '@/pages/Dashboard/Studio/studioTypes';
+import { validateStudioConditions, validateConditionSemantics } from '@/pages/Dashboard/Studio/studioDocument';
 import { post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
@@ -12,12 +13,20 @@ export type Column = {
   name: string;
   type: string;
   kind: 'number' | 'string' | 'boolean' | 'date' | 'timestamp' | 'unsupported';
+  businessType?: 'auto' | 'number' | 'category' | 'date';
+  dateFormat?: '' | 'native' | 'YYYY-MM-DD' | 'YYYY/MM/DD' | 'YYYYMMDD';
 };
 export type Node =
   | { kind: 'group'; operator: 'and' | 'or'; children: Node[] }
   | { kind: 'predicate'; column: string; operator: string; values?: Array<string | number | boolean> };
 export type Definition = { include: Node | null; exclude: Node | null };
-export type Draft = { sourceId: number; sourceRevision: string; version: number; definition: Definition };
+export type Draft = {
+  sourceId: number;
+  sourceRevision: string;
+  version: number;
+  definition: Definition;
+  semantics?: ConditionSemantics;
+};
 export type Conditions = Draft & { schemaChanged: boolean; columns: Column[] };
 export type Preview = {
   draft: Draft;
@@ -32,10 +41,12 @@ export type Preview = {
   };
 };
 export const nullOperator = (operator: string) => operator === 'isNull' || operator === 'isNotNull';
-export const operators = (kind: Column['kind']) => [
+export const operators = (kind: Column['kind'], businessType?: Column['businessType']) => [
   ...(kind === 'unsupported' ? [] : ['eq', 'ne', 'in', 'notIn']),
-  ...(['number', 'date', 'timestamp'].includes(kind) ? ['gt', 'gte', 'lt', 'lte', 'between'] : []),
-  ...(kind === 'string' ? ['contains'] : []),
+  ...(businessType !== 'category' && ['number', 'date', 'timestamp'].includes(kind)
+    ? ['gt', 'gte', 'lt', 'lte', 'between']
+    : []),
+  ...(businessType !== 'category' && kind === 'string' ? ['contains'] : []),
   'isNull',
   'isNotNull',
 ];
@@ -75,7 +86,12 @@ export function compile(definition: Definition, columns: Column[]): Definition {
       return { ...node, children: node.children.map(child => visit(child, depth + 1) as Node) };
     }
     const column = columns.find(c => c.name === node.column);
-    if (!column || !operators(column.kind).includes(node.operator))
+    const textCategory = column && categoryTextType(column.type);
+    if (
+      !column ||
+      (textCategory && column.kind !== (column.businessType === 'category' ? 'string' : 'unsupported')) ||
+      !operators(column.kind, column.businessType).includes(node.operator)
+    )
       throw new Error('열과 원본 유형에 맞는 연산자를 확인해 주세요.');
     if (nullOperator(node.operator)) return { kind: 'predicate', column: node.column, operator: node.operator };
     const values = node.values ?? [];
@@ -85,6 +101,15 @@ export function compile(definition: Definition, columns: Column[]): Definition {
     const parsed = values.map(value => {
       const text = String(value);
       if (text.length > 2000) throw new Error('값은 2000자까지 가능합니다.');
+      if (column.businessType === 'category' && textCategory) {
+        if (typeof value !== 'string') throw new Error('UUID·ENUM 범주 값은 문자열로 입력하세요.');
+        if (textCategory === 'uuid') {
+          if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value))
+            throw new Error('유효한 36자 UUID를 입력하세요.');
+          return value.toLowerCase();
+        }
+        return value;
+      }
       if (column.kind === 'number') {
         if (
           !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text) ||
@@ -165,7 +190,22 @@ export function readConditions(value: Conditions, sourceId: number): Conditions 
   )
     throw new Error('invalid response');
   // The read contract returns current columns and a still-valid stored definition, even when the revision changed.
-  compile(value.definition, value.columns);
+  readProfileColumns(value.columns);
+  if (value.semantics !== undefined) validateConditionSemantics(value.semantics);
+  for (const column of value.columns) {
+    if (
+      categoryTextType(column.type) &&
+      (column.businessType === 'category') !==
+        (value.semantics?.columns.find(c => c.column === column.name)?.businessType === 'category')
+    )
+      throw new Error('UUID·ENUM 범주의 업무 의미 기준을 확인해 주세요.');
+  }
+  // A newly adopted schema can make old values invalid. Preserve them for explicit review; compile before preview/save.
+  validateStudioConditions({
+    sourceRevision: 'a'.repeat(64),
+    definition: value.definition,
+    ...(value.semantics !== undefined ? { semantics: value.semantics } : {}),
+  });
   return value;
 }
 // Object property order is not part of the API; array order and primitive types are.
@@ -197,7 +237,11 @@ export function readPreview(value: Preview, draft: Draft): Preview {
     throw new Error('invalid population');
   if (value.analysisConditions !== undefined) {
     const analysisConditions = validateStudioConditions(value.analysisConditions);
-    if (!sameValue(analysisConditions.definition, draft.definition)) throw new Error('invalid analysis conditions');
+    if (
+      !sameValue(analysisConditions.definition, draft.definition) ||
+      !sameValue(analysisConditions.semantics, draft.semantics)
+    )
+      throw new Error('invalid analysis conditions');
     return { ...value, analysisConditions };
   }
   return value;
@@ -313,7 +357,18 @@ export function Tree({
               });
             }}
           >
-            {operators(columns.find(c => c.name === node.column)?.kind ?? 'unsupported').map(op => (
+            {!operators(
+              columns.find(c => c.name === node.column)?.kind ?? 'unsupported',
+              columns.find(c => c.name === node.column)?.businessType,
+            ).includes(node.operator) && (
+              <option value={node.operator} disabled>
+                {labels[node.operator] ?? node.operator} (현재 업무 의미에서 사용 불가)
+              </option>
+            )}
+            {operators(
+              columns.find(c => c.name === node.column)?.kind ?? 'unsupported',
+              columns.find(c => c.name === node.column)?.businessType,
+            ).map(op => (
               <option key={op} value={op}>
                 {labels[op]}
               </option>
@@ -458,14 +513,14 @@ function Editor({ sourceId, canEdit, onApply }: Props) {
     validatedPreview.current = null;
     setPreview(null);
   };
-  const dirty = JSON.stringify(definition) !== baseline && !!data;
+  const dirty = JSON.stringify({ definition, semantics: data?.semantics }) !== baseline && !!data;
   const accept = (next: Conditions) => {
     setData(next);
     setDefinition(next.definition);
-    setBaseline(JSON.stringify(next.definition));
+    setBaseline(JSON.stringify({ definition: next.definition, semantics: next.semantics }));
     invalidatePreview();
   };
-  const request = async (action: 'read' | 'preview' | 'save') => {
+  const request = async (action: 'read' | 'preview' | 'save', adoptCurrentSemantics = false) => {
     if (inFlight.current || (action !== 'read' && !data) || (action === 'save' && (!canEdit || !validatedPreview.current)))
       return;
     inFlight.current = true;
@@ -484,9 +539,15 @@ function Editor({ sourceId, canEdit, onApply }: Props) {
           sourceRevision: data.sourceRevision,
           version: data.version,
           definition: compile(definition, data.columns),
+          ...(data.semantics !== undefined ? { semantics: data.semantics } : {}),
         };
       if (action === 'save') draft = validatedPreview.current?.draft;
-      const result = unwrap(await post(`/bi/source-conditions/${action}`, draft ?? { sourceId }));
+      const result = unwrap(
+        await post(
+          `/bi/source-conditions/${action}`,
+          draft ?? { sourceId, ...(adoptCurrentSemantics ? { adoptCurrentSemantics: true } : {}) },
+        ),
+      );
       if (serial.current !== token) return;
       if (action === 'preview' && draft) {
         const validated = readPreview(result, draft);
@@ -494,15 +555,21 @@ function Editor({ sourceId, canEdit, onApply }: Props) {
         setPreview(validated);
       } else {
         const next = readConditions(result, sourceId);
+        if (data?.semantics && next.semantics === undefined) throw new Error('업무 의미가 누락됐습니다. 입력을 보존합니다.');
         if (
           action === 'save' &&
           (!draft ||
             next.sourceRevision !== draft.sourceRevision ||
             next.version !== draft.version + 1 ||
-            !sameValue(next.definition, compile(draft.definition, data.columns)))
+            !sameValue(next.definition, compile(draft.definition, data.columns)) ||
+            !sameValue(next.semantics, draft.semantics))
         )
           throw new Error('invalid save response');
-        accept(next);
+        if (adoptCurrentSemantics && data) {
+          setData(next);
+          invalidatePreview();
+          setNotice('최신 업무 의미를 채택했습니다. 기존 조건 값은 보존했습니다. 다시 미리보기하세요.');
+        } else accept(next);
         if (action === 'save') setNotice('조건을 저장했습니다.');
       }
     } catch (failure) {
@@ -569,8 +636,8 @@ function Editor({ sourceId, canEdit, onApply }: Props) {
             NULL은 명시적으로 선택하세요.
           </p>
           <p className="text-xs text-muted-foreground">
-            원본 열 유형만 사용합니다. 기존 분석·Studio·게시에는 자동 적용하지 않습니다. 최대 깊이 4 · 그룹 자식 8 · 총 노드
-            32 · 목록 값 50.
+            조건에 고정한 업무 의미를 사용하며, 업무 의미가 없으면 원본 유형을 따릅니다. 기존 분석·Studio·게시에는 자동
+            적용하지 않습니다. 최대 깊이 4 · 그룹 자식 8 · 총 노드 32 · 목록 값 50.
           </p>
           {onApply && (
             <p>
@@ -590,7 +657,10 @@ function Editor({ sourceId, canEdit, onApply }: Props) {
           {data && (
             <>
               <p>
-                조건 버전 {data.version}
+                <span>조건 버전 {data.version}</span> ·{' '}
+                {data.semantics
+                  ? `업무 의미 카탈로그 버전 ${data.semantics.catalogVersion}`
+                  : '원본 유형 기준 (legacy native)'}
                 {dirty ? ' · 미저장 변경' : ''}
               </p>
               {data.schemaChanged && (
@@ -619,6 +689,7 @@ function Editor({ sourceId, canEdit, onApply }: Props) {
                   sourceRevision: data.sourceRevision,
                   version: data.version,
                   definition,
+                  semantics: data.semantics,
                   columns: data.columns,
                 })}
                 scopeLabel="전체 소스 · 전체 기간 · UTC · 현재 포함/제외 입력"
@@ -628,6 +699,7 @@ function Editor({ sourceId, canEdit, onApply }: Props) {
                     sourceRevision: data.sourceRevision,
                     version: data.version,
                     definition: compile(definition, data.columns),
+                    ...(data.semantics !== undefined ? { semantics: data.semantics } : {}),
                   };
                   const raw = unwrap(
                     await post('/bi/source-conditions/profile', { ...draft, columns }, { signal, timeout: 180000 }),
@@ -664,6 +736,11 @@ function Editor({ sourceId, canEdit, onApply }: Props) {
               최신 조건 다시 읽기
             </Button>
           </div>
+          {data && (
+            <Button type="button" variant="outline" disabled={busy} onClick={() => void request('read', true)}>
+              최신 업무 의미 채택
+            </Button>
+          )}
           {confirm && (
             <Notice severity="warning">
               <p>미저장 입력을 버리고 최신 조건을 읽겠습니까?</p>

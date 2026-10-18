@@ -123,6 +123,15 @@ export class StudioPublicationService {
     this.validate(id, body);
     await this.studio.assertPublicationOwner(id, actor);
     const payloadHash = studioDigest({ dashboardId: id, ...body });
+    const hasReceipt = await this.studio.serializeWrite(async () =>
+      Boolean(
+        await this.db.manager.findOne(StudioPublicationRequest, {
+          where: { actorId: actor, requestId: body.requestId },
+        }),
+      ),
+    );
+    if (!hasReceipt)
+      await this.studio.preflightPublicationConditions(id, actor, body.expectedRevision);
     return this.studio.serializeWrite(async () => {
       await this.studio.assertPublicationOwner(id, actor);
       const prior = await this.db.manager.findOne(StudioPublicationRequest, {

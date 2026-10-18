@@ -1,3 +1,6 @@
+import { ForbiddenException } from '@nestjs/common';
+import { serializeMetadataWork } from '../common/metadata-work';
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { studioDigest } from './studio-legacy';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { createHash } from 'crypto';
@@ -38,6 +41,7 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
     root: string,
     connection: any,
     id: number;
+  let activeRead = true;
   const previous = process.env.FILE_UPLOAD_DIR;
   const files = new Map<number, string>();
   const filename = (id: number) => 'source-' + id + '.duckdb';
@@ -58,6 +62,14 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
       [
         6,
         'created_at,segment,total,occurred_at\n2025-11-01T00:00:00Z,Site,300,2026-01-01T00:00:00Z\n2025-12-01T00:00:00Z,Mobile,200,2026-01-02T00:00:00Z\n',
+      ],
+      [
+        9,
+        'segment,total,weight,occurred_at,invoice_day\nSite,300,2,2026-01-01T00:00:00Z,2026/01/01\nMobile,200,1,2026-01-02T00:00:00Z,2026/01/02\n',
+      ],
+      [
+        10,
+        'segment,total,weight,occurred_at,invoice_day\nSite,300,2,2026-01-01T00:00:00Z,2026/01/01\nMobile,200,1,2026-01-02T00:00:00Z,2026/02/30\n',
       ],
       [7, '*\n300\n200\n'],
       [8, '*,total\n900,300\n800,200\n'],
@@ -84,11 +96,29 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
         instance.closeSync();
       }
     }
+    // CSV inference may parse valid slash dates as native DATE. Freeze these fixture columns
+    // explicitly as VARCHAR so this exercises declared string-date semantics, not native dates.
+    for (const sourceId of [9, 10]) {
+      const instance = await DuckDBInstance.create(files.get(sourceId));
+      const conn = await instance.connect();
+      try {
+        await conn.run('ALTER TABLE uploaded_data ALTER COLUMN invoice_day TYPE VARCHAR');
+        await conn.run(
+          `UPDATE uploaded_data SET invoice_day = CASE WHEN total = 300 THEN '2026/01/01' ELSE '${
+            sourceId === 9 ? '2026/01/02' : '2026/02/30'
+          }' END`,
+        );
+      } finally {
+        conn.closeSync();
+        instance.closeSync();
+      }
+    }
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
       synchronize: true,
       entities: [
+        SourceCatalogEntry,
         Dashboard,
         DashboardShare,
         DashboardWidget,
@@ -122,6 +152,7 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
     connection = {
       manager: db.manager,
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
+      captureDuckDBSnapshot: jest.fn(async () => ({ run: async cb => cb() })),
       duckDBVersion: jest.fn(async id => createHash('sha256').update(filename(id)).digest('hex')),
       isDuckDB: jest.fn().mockResolvedValue(true),
       queryDuckDB: jest.fn((id, sql, bindings) => worker.query(files.get(id), sql, bindings)),
@@ -141,6 +172,8 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
     );
   });
   beforeEach(async () => {
+    activeRead = true;
+    await db.manager.clear(SourceCatalogEntry);
     const definition = {
       schemaVersion: 1,
       definitionVersion: 1,
@@ -253,7 +286,11 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
       creation,
       dashboards,
       connection,
-      new SourceAccessService(db),
+      new SourceAccessService(db, {
+        assert: async () => {
+          if (!activeRead) throw new ForbiddenException('inactive account');
+        },
+      } as any),
     );
   const preview = async (p: any, extra: any = {}) =>
     remixService().preview(
@@ -516,6 +553,330 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
       expect(await db.manager.count(StudioPublication, { where: { dashboardId: id } })).toBe(0);
     } finally {
       connection.duckDBVersion.mockImplementation(version);
+    }
+  });
+  const catalog = async (
+    sourceId: number,
+    version: number,
+    declarations: Record<string, { businessType: string; dateFormat: string }>,
+  ) => {
+    const profile = await creation.profile(sourceId, sourceId === 1 ? 7 : 8);
+    const columns = profile.columns.map(c => ({
+      column: c.name,
+      label: c.name,
+      description: '',
+      unit: '',
+      classification: '',
+      businessType: declarations[c.name]?.businessType ?? 'auto',
+      dateFormat: declarations[c.name]?.dateFormat ?? '',
+    }));
+    await db.manager.save(SourceCatalogEntry, {
+      sourceId,
+      version,
+      actorId: sourceId === 1 ? 7 : 8,
+      sourceRevision: profile.dataVersion,
+      schemaRevision: createHash('sha256')
+        .update(JSON.stringify(profile.columns.map(c => ({ column: c.name, type: c.type }))))
+        .digest('hex'),
+      metadata: JSON.stringify({ label: 'Business fields', description: '', columns }),
+    });
+    return JSON.parse(
+      JSON.stringify({
+        schemaVersion: 1 as const,
+        catalogVersion: version,
+        columns: columns
+          .filter(c => c.businessType !== 'auto')
+          .map(({ column, businessType, dateFormat }) => ({ column, businessType, dateFormat }))
+          .sort((a, b) => (a.column < b.column ? -1 : a.column > b.column ? 1 : 0)),
+      }),
+    );
+  };
+  const applySemantic = async (semantics: any, definition?: any) => {
+    const current = await studio.get(id, 7);
+    return studio.save(
+      id,
+      {
+        requestId: 'semantic-' + id,
+        expectedRevision: current.document.revision,
+        expectedSourceRevision: current.sourceRevision,
+        document: {
+          ...current.document,
+          conditions: {
+            ...(await conditionScope()),
+            semantics,
+            ...(definition ? { definition } : {}),
+          },
+        },
+      },
+      7,
+    );
+  };
+  const dateMeaning = { businessType: 'date', dateFormat: 'native' };
+  const stringDate = { businessType: 'date', dateFormat: 'YYYY/MM/DD' };
+  const dateDefinition = {
+    include: { kind: 'predicate', column: 'event_time', operator: 'eq', values: ['2026-01-01'] },
+    exclude: null,
+  };
+  it('maps used frozen origin meaning to the full target canonical version while hiding unrelated private declarations', async () => {
+    const sourceMeaning = await catalog(1, 1, {
+      event_time: dateMeaning,
+      amount: { businessType: 'number', dateFormat: '' },
+    });
+    const targetMeaning = await catalog(9, 7, {
+      occurred_at: dateMeaning,
+      invoice_day: stringDate,
+      segment: { businessType: 'category', dateFormat: '' },
+    });
+    await applySemantic(sourceMeaning, dateDefinition);
+    const p = await publish();
+    const required = await remixService().template(p.token, 8);
+    expect(required.conditions.semantics.columns).toEqual([
+      { column: 'event_time', ...dateMeaning },
+    ]);
+    expect(JSON.stringify(required)).not.toContain('conditionSchema');
+    const v = await preview(p, { targetSourceId: 9 });
+    expect(v.mappedConditions.semantics).toEqual(targetMeaning);
+    expect(v.mappedConditions.semantics.catalogVersion).toBe(7);
+    expect(v.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+    const saved = await saveRemix(p, v, { targetSourceId: 9 });
+    expect((await studio.get(saved.dashboardId, 8)).document.conditions).toEqual(
+      v.mappedConditions,
+    );
+    await catalog(1, 2, { event_time: { businessType: 'category', dateFormat: '' } });
+    expect((await preview(p, { targetSourceId: 9 })).mappedConditions).toEqual(v.mappedConditions);
+  });
+  it('keeps native legacy meaning even when the target now declares that numeric predicate a category', async () => {
+    await applyConditions();
+    await catalog(2, 1, { weight: { businessType: 'category', dateFormat: '' } });
+    const p = await publish();
+    const v = await preview(p);
+    expect(v.mappedConditions.semantics).toBeUndefined();
+    expect(v.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+    const saved = await saveRemix(p, v);
+    expect((await studio.get(saved.dashboardId, 8)).document.conditions.semantics).toBeUndefined();
+  });
+  it('does not require target catalog registration for declarations irrelevant to all condition predicates', async () => {
+    const original = await catalog(1, 1, { amount: { businessType: 'number', dateFormat: '' } });
+    await applySemantic(original);
+    const p = await publish();
+    expect((await remixService().template(p.token, 8)).conditions.semantics.columns).toEqual([]);
+    const v = await preview(p);
+    expect(v.mappedConditions.semantics).toBeUndefined();
+    expect(v.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+    expect(await db.manager.count(SourceCatalogEntry, { where: { sourceId: 2 } })).toBe(0);
+    expect((await saveRemix(p, v)).dashboardId).toBeGreaterThan(0);
+  });
+  it('rejects semantic loss, nonexistent origin history and history present only on another source', async () => {
+    const sourceMeaning = await catalog(1, 1, { event_time: dateMeaning });
+    await catalog(9, 7, { occurred_at: dateMeaning, invoice_day: stringDate });
+    await applySemantic(sourceMeaning, dateDefinition);
+    const p = await publish();
+    const v = await preview(p, { targetSourceId: 9 });
+    const row = await db.manager.findOneByOrFail(StudioPublication, { token: p.token });
+    const t = JSON.parse(row.remixTemplate);
+    const profile = await creation.profile(9, 8);
+    const withoutSemantics = { ...v.mappedConditions };
+    delete withoutSemantics.semantics;
+    await expect(
+      creation.prepareRemix(9, t, [], profile, 8, [], undefined, withoutSemantics),
+    ).rejects.toMatchObject({ status: 400 });
+    t.conditions.semantics.catalogVersion = 99;
+    await db.manager.update(StudioPublication, p.token, { remixTemplate: JSON.stringify(t) });
+    await expect(preview(p, { targetSourceId: 9 })).rejects.toMatchObject({ status: 409 });
+    t.conditions.semantics.catalogVersion = 1;
+    await db.manager.update(StudioPublication, p.token, { remixTemplate: JSON.stringify(t) });
+    const entry = await db.manager.findOneByOrFail(SourceCatalogEntry, { sourceId: 1, version: 1 });
+    await db.manager.save(SourceCatalogEntry, { ...entry, sourceId: 2 });
+    await db.manager.delete(SourceCatalogEntry, { sourceId: 1, version: 1 });
+    await expect(remixService().template(p.token, 8)).rejects.toMatchObject({ status: 409 });
+  });
+  it('rejects incompatible used meaning and invalid dates in any declared target column before producing aggregates or copies', async () => {
+    const original = await catalog(1, 1, { event_time: dateMeaning });
+    await applySemantic(original, dateDefinition);
+    const p = await publish();
+    await catalog(9, 7, { occurred_at: { businessType: 'category', dateFormat: '' } });
+    await expect(preview(p, { targetSourceId: 9 })).rejects.toMatchObject({ status: 400 });
+    await catalog(10, 7, { occurred_at: dateMeaning, invoice_day: stringDate });
+    const count = await db.manager.count(Dashboard);
+    const aggregate = jest.spyOn(dashboards, 'preview');
+    try {
+      await expect(preview(p, { targetSourceId: 10 })).rejects.toMatchObject({
+        status: 400,
+        response: {
+          code: 'INVALID_BUSINESS_DATES',
+          details: [{ column: 'invoice_day', invalidCount: '1', blankCount: '0' }],
+        },
+      });
+      expect(aggregate).not.toHaveBeenCalled();
+    } finally {
+      aggregate.mockRestore();
+    }
+    expect(await db.manager.count(Dashboard)).toBe(count);
+  });
+  it.each(
+    (['preview', 'remix'] as const).flatMap(operation =>
+      (['origin', 'owner', 'file', 'inactive'] as const).map(change => ({ operation, change })),
+    ),
+  )(
+    'hides computed date errors after $change changes during $operation',
+    async ({ operation, change }) => {
+      const original = await catalog(1, 1, { event_time: dateMeaning });
+      await catalog(10, 7, { occurred_at: dateMeaning, invoice_day: stringDate });
+      await applySemantic(original, dateDefinition);
+      const p = await publish();
+      const source = await db.manager.findOneByOrFail(Database, { id: 10 });
+      const counts = await Promise.all(
+        [Dashboard, Metric, StudioRemixRequest].map(entity => db.manager.count(entity)),
+      );
+      const originalQuery = connection.queryDuckDB.getMockImplementation();
+      let changed = false;
+      connection.queryDuckDB.mockImplementation(async (sourceId, sql, bindings) => {
+        const result = await originalQuery(sourceId, sql, bindings);
+        if (!changed && sourceId === 10 && sql.includes('AS invalid_0')) {
+          changed = true;
+          await serializeMetadataWork(db, async () => {
+            if (change === 'origin')
+              await db.manager.update(
+                StudioPublication,
+                { token: p.token },
+                { revokedAt: new Date().toISOString() },
+              );
+            else if (change === 'inactive') activeRead = false;
+            else if (change === 'owner') await db.manager.update(Database, 10, { ownerId: 9 });
+            else
+              await db.manager.update(Database, 10, {
+                connectionConfig: JSON.stringify({
+                  client: 'duckdb',
+                  connection: { filename: filename(9) },
+                }),
+                updatedAt: source.updatedAt,
+              });
+          });
+        }
+        return result;
+      });
+      try {
+        const result =
+          operation === 'preview'
+            ? preview(p, { targetSourceId: 10 })
+            : saveRemix(
+                p,
+                {
+                  sourceRevision: (await creation.profile(10, 8)).dataVersion,
+                  lifecycleRevision: studioDigest({ dashboardId: id, assetVersion: 0 }),
+                },
+                { targetSourceId: 10 },
+              );
+        const error = await result.then(
+          () => {
+            throw new Error('expected rejection');
+          },
+          error => error,
+        );
+        expect(changed).toBe(true);
+        expect(error.status).toBe(
+          change === 'origin' ? 410 : change === 'owner' || change === 'inactive' ? 403 : 409,
+        );
+        expect(JSON.stringify(error)).not.toContain('INVALID_BUSINESS_DATES');
+        expect(JSON.stringify(error)).not.toContain('invalidCount');
+        expect(
+          await Promise.all(
+            [Dashboard, Metric, StudioRemixRequest].map(entity => db.manager.count(entity)),
+          ),
+        ).toEqual(counts);
+      } finally {
+        connection.queryDuckDB.mockImplementation(originalQuery);
+        await db.manager.update(Database, 10, {
+          ownerId: source.ownerId,
+          connectionConfig: source.connectionConfig,
+          updatedAt: source.updatedAt,
+        });
+        await db.manager.update(StudioPublication, { token: p.token }, { revokedAt: null });
+      }
+    },
+  );
+  it('releases metadata coordination during the first full target date scan', async () => {
+    const original = await catalog(1, 1, { event_time: dateMeaning });
+    await catalog(9, 17, { occurred_at: dateMeaning, invoice_day: stringDate });
+    await applySemantic(original, dateDefinition);
+    const p = await publish();
+    let signal: () => void;
+    const entered = new Promise<void>(resolve => {
+      signal = resolve;
+    });
+    let competitorRan = false;
+    const competitor = entered.then(() =>
+      serializeMetadataWork(db, async () => {
+        competitorRan = true;
+      }),
+    );
+    const originalQuery = connection.queryDuckDB.getMockImplementation();
+    let scanned = false;
+    connection.queryDuckDB.mockImplementation(async (sourceId, sql, bindings) => {
+      if (sourceId === 9 && sql.includes('AS invalid_0')) {
+        scanned = true;
+        signal();
+        let timer: ReturnType<typeof setTimeout>;
+        try {
+          await Promise.race([
+            competitor,
+            new Promise((_resolve, reject) => {
+              timer = setTimeout(
+                () => reject(new Error('metadata queue held during full scan')),
+                1500,
+              );
+            }),
+          ]);
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      return originalQuery(sourceId, sql, bindings);
+    });
+    try {
+      const v = await preview(p, { targetSourceId: 9 });
+      expect(v.preview.widgets[0].datas).toEqual([{ value: 300 }]);
+      expect(scanned).toBe(true);
+      expect(competitorRan).toBe(true);
+    } finally {
+      signal();
+      connection.queryDuckDB.mockImplementation(originalQuery);
+    }
+  });
+  it('rechecks target catalog CAS after preparation and confirms an old receipt without new origin/target date queries', async () => {
+    const original = await catalog(1, 1, { event_time: dateMeaning });
+    await catalog(9, 7, { occurred_at: dateMeaning, invoice_day: stringDate });
+    await applySemantic(original, dateDefinition);
+    const p = await publish();
+    const v = await preview(p, { targetSourceId: 9 });
+    const prepare = dashboards.prepareSave.bind(dashboards);
+    const spy = jest.spyOn(dashboards, 'prepareSave').mockImplementationOnce(async (...args) => {
+      const result = await prepare(...args);
+      await catalog(9, 8, {
+        occurred_at: { businessType: 'category', dateFormat: '' },
+        invoice_day: stringDate,
+      });
+      return result;
+    });
+    const count = await db.manager.count(Dashboard);
+    try {
+      await expect(saveRemix(p, v, { targetSourceId: 9 })).rejects.toMatchObject({ status: 409 });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await db.manager.count(Dashboard)).toBe(count);
+    await db.manager.delete(SourceCatalogEntry, { sourceId: 9, version: 8 });
+    const saved = await saveRemix(p, v, { targetSourceId: 9 });
+    await db.manager.clear(SourceCatalogEntry);
+    const proof = jest.spyOn(dashboards, 'assertConditionSemantics');
+    const queries = connection.queryDuckDB.mock.calls.length;
+    try {
+      expect(await saveRemix(p, v, { targetSourceId: 9 })).toEqual(saved);
+      expect(proof).not.toHaveBeenCalled();
+      expect(connection.queryDuckDB.mock.calls.length).toBe(queries);
+      expect(await db.manager.count(Dashboard)).toBe(count + 1);
+    } finally {
+      proof.mockRestore();
     }
   });
 });

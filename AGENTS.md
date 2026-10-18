@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC050 조건 업무 의미:** [계획](docs/plans/UC-050-condition-semantics.md)·[증빙](docs/testing/business-condition-semantics.md)은 파일/metadata/catalog 버전을 구별한 고정 의미와 legacy native 보존·명시 최신 채택을 연결한다. Source49/MySQL2·FE802·Source UI1은 범위별 증빙이며 합산하지 않는다. 실 Codex 단일 조건 UI1개14.5초·core headless14개49.4초 PASS다. Explore oracle8 PASS/22 SKIP는 별도다. BE26 suites/884 unique는 단계별 검증·두 reviewer APPROVE0이며 안정 BE type/lint/build·최종 dist ui-stable1개11.9초 PASS다(이전 UI와 합산0). core-stable 실행 결과·복합 부정 의도 제한, 공통 분류·새 semantic 지표/차원 생성·실제 Ego/휴대폰/운영/사람·전체16개 수용은 대기다.
+
 - **UC052/054 동일 조회·출력 기준:** [설계](docs/plans/UC-052-explore-basis.md)·[증빙](docs/testing/explore-reviewed-basis.md)은 검증 preview.analysisConditions의 파일 hash/definition을 명시 적용해 Explore/Pivot·보기 v1~v5·CSV로 연결한다. 편집 draft metadata revision을 실행 hash로 사용하지 않는다. 실제 응답 measureVersions로 출력하고 계산 전후 새 파일/지표·권한을 검사한다. 완료 영속 파일은 과거 기준이다. BE397/FE237·격리 headless2와390/768/1440을 확인했으며 Ego/실기기/이번MySQL/운영·전체16개 수용은 별도다.
 
 - **UC055 대시보드 상태:** [계획](docs/plans/UC-055-dashboard-lifecycle.md)·[증빙](docs/testing/dashboard-asset-lifecycle.md)은 조직의 현재 소유 admin이8종 영향을 확인하고 비활성화/복원하는 구현 단위다. 일반 이용 차단과 제한된 관리/회수를 구별하고 정의·관계·게시/독립 사본은 보존한다. 과거 영수증은 현재 상태가 아니며 복원 전 준비 요청의 lifecycle 기준도 재검사한다. 실행/전체16개 수용은 증빙의 확정 범위만 따른다.

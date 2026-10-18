@@ -23,7 +23,7 @@ export const REUSE_RECIPE_MAX_BYTES = 60 * 1024;
 export const REUSE_RECIPE_SOURCE_ID = 1;
 
 const BREAKPOINTS = ['mobile', 'tablet', 'desktop'] as const;
-const RECIPE_KEYS = ['schemaVersion', 'analysis', 'profile'];
+const RECIPE_KEYS = ['schemaVersion', 'analysis', 'profile', 'conditionSchema'];
 const PROFILE_KEYS = ['sourceId', 'columns'];
 const MESSAGE = '재사용 정의를 확인할 수 없습니다. 다시 캡처해 주세요.';
 
@@ -122,6 +122,18 @@ export function buildReuseRecipe(analysis: unknown, sourceProfile: ReuseRecipePr
   const columns = reuseColumns({ ...draft, ...scope }, sourceProfile);
   const recipe = {
     schemaVersion: REUSE_RECIPE_SCHEMA_VERSION,
+    ...(scope.conditionSemantics
+      ? {
+          conditionSchema: projectColumns(
+            (sourceProfile.conditionSchema ?? sourceProfile.columns).map(column => ({
+              name: column.name,
+              type: column.type,
+              ...('numeric' in column ? { numeric: column.numeric } : {}),
+              ...('temporal' in column ? { temporal: column.temporal } : {}),
+            })),
+          ),
+        }
+      : {}),
     analysis: {
       ...draft,
       ...scope,
@@ -169,7 +181,22 @@ export function readReuseRecipe(serialized: unknown): {
   if (profile.sourceId !== REUSE_RECIPE_SOURCE_ID) reject();
   const columns = projectColumns(profile.columns);
   if (stored.defaultConditions !== undefined) reject();
-  const scope = reuseScope(stored, { sourceId: REUSE_RECIPE_SOURCE_ID, columns });
+  const conditionSchema =
+    parsed.conditionSchema === undefined ? undefined : projectColumns(parsed.conditionSchema);
+  if ((stored.conditionSemantics !== undefined) !== (conditionSchema !== undefined)) reject();
+  if (
+    conditionSchema &&
+    columns.some(
+      column =>
+        !conditionSchema.some(native => native.name === column.name && native.type === column.type),
+    )
+  )
+    reject();
+  const scope = reuseScope(stored, {
+    sourceId: REUSE_RECIPE_SOURCE_ID,
+    columns,
+    ...(conditionSchema ? { conditionSchema } : {}),
+  });
   const analysis: ReuseRecipeAnalysis = {
     ...draft,
     ...scope,
@@ -181,12 +208,23 @@ export function readReuseRecipe(serialized: unknown): {
   };
   // The stored columns must be exactly what the draft reads, so a shortened or padded
   // profile can never be forwarded to the recipient's remap.
-  const required = reuseColumns(analysis, { sourceId: REUSE_RECIPE_SOURCE_ID, columns });
+  const required = reuseColumns(analysis, {
+    sourceId: REUSE_RECIPE_SOURCE_ID,
+    columns,
+    ...(conditionSchema ? { conditionSchema } : {}),
+  });
   const names = (values: ReuseColumn[]) =>
     values
       .map(column => column.name.trim().toLowerCase())
       .sort()
       .join(',');
   if (names(required) !== names(columns)) reject();
-  return { analysis, profile: { sourceId: REUSE_RECIPE_SOURCE_ID, columns } };
+  return {
+    analysis,
+    profile: {
+      sourceId: REUSE_RECIPE_SOURCE_ID,
+      columns,
+      ...(conditionSchema ? { conditionSchema } : {}),
+    },
+  };
 }

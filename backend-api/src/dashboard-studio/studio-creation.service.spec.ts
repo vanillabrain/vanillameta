@@ -1,3 +1,4 @@
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { createHash } from 'crypto';
 import { DataSource } from 'typeorm';
@@ -82,6 +83,7 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       database: ':memory:',
       synchronize: true,
       entities: [
+        SourceCatalogEntry,
         Dashboard,
         DashboardShare,
         DashboardWidget,
@@ -110,6 +112,7 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       await db.manager.save(Component, { type, title: type, option: '{}', useYn: 'Y' });
     connection = {
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
+      captureDuckDBSnapshot: jest.fn(async () => ({ run: async cb => cb() })),
       duckDBVersion: jest
         .fn()
         .mockResolvedValue(createHash('sha256').update('fixture.duckdb').digest('hex')),
