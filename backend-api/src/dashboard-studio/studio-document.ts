@@ -1,3 +1,4 @@
+import { validateExploreViewState } from '../bi/explore-view-state';
 import { normalizeBusinessBasis } from '../bi/semantic-business-basis';
 import { validateConditionSemantics } from '../bi/business-condition-semantics';
 import { validateConditionDefinition } from '../bi/source-condition-definition';
@@ -149,6 +150,7 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
   for (const block of doc.blocks) {
     studioKeys(block, [
       'id',
+      'pivot',
       'businessBasis',
       'defaultDateColumn',
       'kind',
@@ -173,7 +175,9 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
     );
     ids.add(block.id);
     studioAssert(
-      ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_BAR', 'CHART_LINE'].includes(block.kind),
+      ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_BAR', 'CHART_LINE', 'SEGMENT_PIVOT'].includes(
+        block.kind,
+      ),
       'Unsupported Studio block kind.',
     );
     text(block.definitionKey, 128);
@@ -214,6 +218,42 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
       );
       dimensionKeys.add(dimension.key);
     }
+    if (block.kind === 'SEGMENT_PIVOT') {
+      studioKeys(block.pivot, ['revision', 'state']);
+      studioAssert(
+        typeof block.pivot.revision === 'string' && /^[a-f0-9]{64}$/.test(block.pivot.revision),
+        'Invalid Pivot revision.',
+      );
+      const state = block.pivot.state;
+      studioAssert(
+        state?.mode === 'segment' && !!state.segment?.pivotColumn && state.conditions === undefined,
+        'SEGMENT_PIVOT_UNSUPPORTED: row AST composition is unsupported.',
+      );
+      validateExploreViewState(state, {
+        sourceRevision: '',
+        measures: block.measureRefs.map(r => ({ id: r.id })),
+        dimensions: block.dimensionRefs
+          .map(r => ({ column: r.key, type: 'VARCHAR', numeric: false }))
+          .concat(
+            (state.filters ?? [])
+              .filter(f => !block.dimensionRefs.some(r => r.key === f.column))
+              .map(f => ({ column: f.column, type: 'VARCHAR', numeric: false })),
+            state.dateRange &&
+              !block.dimensionRefs.some(r => r.key === state.dateRange.column) &&
+              !(state.filters ?? []).some(f => f.column === state.dateRange.column)
+              ? [{ column: state.dateRange.column, type: 'TIMESTAMP', numeric: false }]
+              : [],
+          ),
+        temporalColumns: state.dateRange ? [{ column: state.dateRange.column }] : [],
+      });
+      studioAssert(
+        !doc.conditions &&
+          block.businessBasis === undefined &&
+          block.display.presentation === undefined &&
+          block.display.timeGrain === undefined,
+        'SEGMENT_PIVOT_UNSUPPORTED: preserve the saved Pivot recipe.',
+      );
+    } else studioAssert(block.pivot === undefined, 'Only Pivot blocks carry a Pivot recipe.');
     studioKeys(block.display, [
       'decimalPlaces',
       'numberNotation',

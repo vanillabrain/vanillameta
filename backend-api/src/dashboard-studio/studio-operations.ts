@@ -75,7 +75,15 @@ export function applyStudioOperation(
           : numeric
           ? ({ lg: 6, md: 4, xs: 1 } as const)[breakpoint]
           : STUDIO_COLUMNS[breakpoint],
-        h: original ? original.h : numeric ? 3 : 5,
+        h: original
+          ? original.h
+          : numeric
+          ? 3
+          : block.kind === 'SEGMENT_PIVOT'
+          ? breakpoint === 'xs'
+            ? 10
+            : 8
+          : 5,
       });
     }
   }
@@ -85,6 +93,7 @@ export function applyStudioOperation(
       studioKeys(op, ['type', 'block']);
       studioKeys(op.block, [
         'id',
+        'pivot',
         'kind',
         'definitionKey',
         'title',
@@ -113,6 +122,7 @@ export function applyStudioOperation(
       studioKeys(op, ['type', 'blockId', 'patch']);
       const block = findBlock(op.blockId);
       studioKeys(op.patch, CONTENT_FIELDS);
+      if (block.kind === 'SEGMENT_PIVOT') studioKeys(op.patch, ['title', 'description', 'display']);
       const display = block.display;
       if (Object.prototype.hasOwnProperty.call(op.patch, 'display')) {
         studioKeys(op.patch.display, [

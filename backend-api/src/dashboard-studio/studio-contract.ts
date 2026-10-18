@@ -7,7 +7,12 @@ import type { DashboardDateRange } from '../ai/dashboard-date-range';
 export const STUDIO_COLUMNS = { lg: 12, md: 8, xs: 1 } as const;
 export const STUDIO_BREAKPOINTS = ['lg', 'md', 'xs'] as const;
 export type StudioBreakpoint = (typeof STUDIO_BREAKPOINTS)[number];
-export type StudioBlockKind = 'BOARD_NUMERIC' | 'CHART_COLUMN' | 'CHART_BAR' | 'CHART_LINE';
+export type StudioBlockKind =
+  | 'BOARD_NUMERIC'
+  | 'CHART_COLUMN'
+  | 'CHART_BAR'
+  | 'CHART_LINE'
+  | 'SEGMENT_PIVOT';
 export type StudioMeasureRef = { id: number; definitionVersion: string };
 export type StudioDimensionRef = {
   key: string;
@@ -23,7 +28,12 @@ export type StudioDisplay = {
   prefix?: string;
   suffix?: string;
 };
+export type StudioPivotRecipe = {
+  revision: string;
+  state: ReturnType<typeof import('../bi/explore-view-state').validateExploreViewState>;
+};
 export type StudioBlock = {
+  pivot?: StudioPivotRecipe;
   businessBasis?: BusinessBasis;
   defaultDateColumn?: string | null;
   id: string;

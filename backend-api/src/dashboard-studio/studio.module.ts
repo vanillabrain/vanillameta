@@ -1,3 +1,7 @@
+import { PersonalView } from '../dashboard/entities/personal-view.entity';
+import { BiExploreService } from '../bi/bi-explore.service';
+import { BiSegmentService } from '../bi/bi-segment.service';
+import { StudioPivotService } from './studio-pivot.service';
 import { StudioReceivedRemixService } from './studio-received-remix.service';
 import { StudioReceivedRemixController } from './studio-received-remix.controller';
 import { StudioRemixRequest } from './entities/studio-remix.entity';
@@ -33,6 +37,7 @@ import { StudioRun } from './entities/studio-run.entity';
     AiModule,
     ConnectionModule,
     TypeOrmModule.forFeature([
+      PersonalView,
       StudioState,
       StudioRun,
       StudioExecution,
@@ -56,6 +61,9 @@ import { StudioRun } from './entities/studio-run.entity';
     StudioRemixService,
     StudioPublicationGuard,
     StudioService,
+    StudioPivotService,
+    BiExploreService,
+    BiSegmentService,
     StudioExecutionService,
     StudioRunService,
     StudioCreationService,

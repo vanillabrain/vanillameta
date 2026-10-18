@@ -18,6 +18,17 @@ export class StudioController {
   @Get(':id') get(@Param('id', ParseIntPipe) id: number, @Req() req) {
     return this.studio.get(id, req.user?.accessKeyData?.id);
   }
+  @Get(':id/pivot-options') pivotOptions(@Param('id', ParseIntPipe) id: number, @Req() req) {
+    return this.studio.pivotOptions(id, req.user?.accessKeyData?.id);
+  }
+  @Post(':id/copy') copy(@Param('id', ParseIntPipe) id: number, @Body() body: any, @Req() req) {
+    return this.studio.copy(
+      id,
+      body,
+      req.user?.accessKeyData?.id,
+      req.user?.accessKeyData?.authVersion ?? 0,
+    );
+  }
   @Get(':id/explore') explore(
     @Param('id', ParseIntPipe) id: number,
     @Query() query: any,

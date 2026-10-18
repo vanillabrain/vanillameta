@@ -2,6 +2,7 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import StudioInspector from './StudioInspector';
+import { pivotBlock } from './studioPivot.fixture';
 import { validateStudioDefinitions } from './studioApi';
 import { StudioBlock } from './studioTypes';
 afterEach(cleanup);
@@ -96,4 +97,27 @@ it('does not show saved-basis status in a design-only inspector without a source
   render(<StudioInspector {...props()} sourceId={undefined} metricBasis={undefined} />);
   expect(screen.queryByText('저장 계산 기준 확인')).toBeNull();
   expect(screen.getByLabelText('블록 제목')).toBeTruthy();
+});
+
+it('labels Pivot conditions with preview measures and units, falling back to selection order without changing the recipe', () => {
+  const selected = pivotBlock();
+  if (!selected.pivot?.state.segment) throw new Error('Pivot fixture requires segment conditions');
+  selected.pivot.state.measureIds = [1, 4];
+  selected.pivot.state.segment.conditions.push({ measureId: 4, operator: 'lt', value: 20 });
+  const before = JSON.stringify(selected);
+  const p = { ...props(), block: selected };
+  const view = render(<StudioInspector {...p} />);
+  expect(screen.getByText('조건 선택 지표 1 ≥ 1,000 · 선택 지표 2 < 20')).toBeTruthy();
+  view.rerender(
+    <StudioInspector
+      {...p}
+      pivotMeasures={[
+        { id: 4, label: '마진', unit: '%', value: 10, decimalPlaces: 2 },
+        { id: 1, label: '총매출', unit: '', value: 2000, decimalPlaces: 2 },
+      ]}
+    />,
+  );
+  expect(screen.getByText('조건 총매출 ≥ 1,000 · 마진 < 20%')).toBeTruthy();
+  expect(p.onOperation).not.toHaveBeenCalled();
+  expect(JSON.stringify(selected)).toBe(before);
 });

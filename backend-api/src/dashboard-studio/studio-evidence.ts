@@ -56,6 +56,7 @@ export const studioEvidenceQuery = (document: StudioDocumentV1) => ({
     measureRefs: block.measureRefs,
     dimensionRefs: block.dimensionRefs,
     timeGrain: block.display.timeGrain ?? 'auto',
+    ...(block.pivot ? { pivot: block.pivot } : {}),
   })),
 });
 

@@ -1,3 +1,11 @@
+import { catalogActorContext, assertCatalogActor } from '../bi/source-classifications';
+import { randomUUID } from 'crypto';
+import {
+  StudioPivotService,
+  studioCharts,
+  isStudioPivot,
+  rejectPivotRemix,
+} from './studio-pivot.service';
 import { resolveBusinessBasis } from '../bi/semantic-business-basis';
 import {
   latestConditionSemantics,
@@ -5,7 +13,7 @@ import {
   assertLatestConditionSemantics,
 } from '../bi/business-condition-context';
 import type { ConditionSemantics } from '../bi/business-condition-semantics';
-import { lockMetricReferences, lockMetricSources } from '../metric/metric-write-lock';
+import { lockMetricReferences } from '../metric/metric-write-lock';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { sourceConditionProfile } from '../bi/source-condition-profile';
 import { conditionColumns } from '../bi/source-condition-definition';
@@ -19,6 +27,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Optional,
 } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
@@ -47,6 +56,7 @@ export class StudioService {
     private readonly ai: AiDashboardService,
     private readonly connection: ConnectionService,
     private readonly access: SourceAccessService,
+    @Optional() private readonly pivots?: StudioPivotService,
   ) {}
   /**
    * UC-051: the legacy owner mapping stays the default, and an explicit action is delegated to the
@@ -121,7 +131,7 @@ export class StudioService {
       saved?.legacyRevision === revision
         ? validateStudioDocument({ ...JSON.parse(saved.document).document, revision })
         : importStudio(id, analysis, snapshot, schemaVersion);
-    if (document.blocks.length !== analysis.widgets.length)
+    if (studioCharts(document).length !== analysis.widgets.length)
       throw new ConflictException('블록 연결 정보를 다시 불러와 주세요.');
     return {
       row,
@@ -132,13 +142,16 @@ export class StudioService {
       sourceRevision,
       dataVersion,
       document,
-      items,
+      items: document.blocks.map(b =>
+        isStudioPivot(b) ? {} : items[analysis.widgets.findIndex(w => w.blockId === b.id)],
+      ),
       definitions: studioDefinitions(document, analysis, snapshot),
     };
   }
   /** Internal, read-authorized semantic recipe. Never return this template from a read endpoint. */
   async captureRemix(id: number, actor: number, manager = this.db.manager) {
     const state = await this.load(id, actor, 'read', manager);
+    if (state.document.blocks.some(isStudioPivot)) throw rejectPivotRemix();
     const template = captureRemixTemplate(
       state.document,
       state.items,
@@ -256,6 +269,284 @@ export class StudioService {
       };
     });
   }
+  async pivotOptions(id: number, actor: number) {
+    const current = await serializeMetadataWork(this.db, () => this.load(id, actor, 'edit'));
+    const result = await this.connection.withDuckDBSnapshot(current.document.sourceId, async () => {
+      const pinned = await serializeMetadataWork(this.db, () => this.load(id, actor, 'edit'));
+      if (
+        pinned.document.revision !== current.document.revision ||
+        pinned.sourceRevision !== current.sourceRevision
+      )
+        throw new ConflictException('보고서나 소스가 변경되었습니다. 다시 불러와 주세요.');
+      return this.pivots.options(pinned.document.sourceId, actor, pinned.schemaVersion);
+    });
+    await this.access.dashboard(id, actor, 'edit');
+    return result;
+  }
+  async copy(id: number, body: any, actor: number, authVersion?: number) {
+    const authority = await catalogActorContext(this.db.manager, actor, authVersion);
+    try {
+      studioKeys(body as unknown, [
+        'requestId',
+        'expectedRevision',
+        'expectedSourceRevision',
+        'title',
+      ]);
+      if (
+        typeof body.requestId !== 'string' ||
+        !/^[-a-zA-Z0-9_]{1,128}$/.test(body.requestId) ||
+        !/^[a-f0-9]{64}$/.test(body.expectedRevision) ||
+        !/^[a-f0-9]{64}$/.test(body.expectedSourceRevision) ||
+        (body.title !== undefined &&
+          (typeof body.title !== 'string' || !body.title.trim() || body.title.length > 300))
+      )
+        throw new Error();
+    } catch {
+      throw new BadRequestException('복제 요청 기준을 확인해 주세요.');
+    }
+    return this.serializeWrite(async () => {
+      await this.owner(id, actor);
+      const payloadHash = studioDigest({ operation: 'studio-same-source-copy', id, ...body });
+      const replay = async (manager = this.db.manager) => {
+        const receipt = await manager.findOne(StudioRun, {
+          where: { actorId: actor, requestId: body.requestId },
+        });
+        if (!receipt) return null;
+        if (receipt.payloadHash !== payloadHash)
+          throw new ConflictException('같은 요청 ID에 다른 복제 내용을 보낼 수 없습니다.');
+        const result = JSON.parse(receipt.result);
+        if (!result.dashboardId || !result.document || !result.idMap)
+          throw new ConflictException('복제 완료 기록을 확인할 수 없습니다.');
+        await this.owner(id, actor, 'owner', manager);
+        await this.owner(result.dashboardId, actor, 'owner', manager);
+        await assertCatalogActor(manager, authority);
+        await this.source(result.document.sourceId, actor, 'owner', manager);
+        return result;
+      };
+      const prior = await replay();
+      if (prior) return prior;
+      const initial = await this.load(id, actor);
+      await this.source(initial.document.sourceId, actor, 'owner');
+      return this.connection.withDuckDBSnapshot(initial.document.sourceId, async () => {
+        const current = await this.load(id, actor);
+        if (
+          current.document.revision !== body.expectedRevision ||
+          current.sourceRevision !== body.expectedSourceRevision
+        )
+          throw new ConflictException('보고서나 소스가 변경되었습니다. 다시 확인해 주세요.');
+        const sourceBefore = await this.db.manager.findOne(Database, {
+          where: { id: current.document.sourceId },
+        });
+        const idMap: Record<string, string> = Object.fromEntries(
+          current.document.blocks.map(b => [b.id, randomUUID()]),
+        );
+        const title = body.title ?? `${current.document.title.slice(0, 296)} 복사본`;
+        const document = validateStudioDocument({
+          ...current.document,
+          title,
+          blocks: current.document.blocks.map(b => ({
+            ...b,
+            id: idMap[b.id],
+            definitionKey: idMap[b.id],
+          })),
+          layouts: Object.fromEntries(
+            STUDIO_BREAKPOINTS.map(bp => [
+              bp,
+              current.document.layouts[bp].map(g => ({ ...g, id: idMap[g.id] })),
+            ]),
+          ),
+        });
+        const draft = {
+          ...current.analysis,
+          title,
+          widgets: current.analysis.widgets.map(w => ({ ...w, blockId: idMap[w.blockId] })),
+        };
+        await this.mixedPreview(
+          current.document,
+          current.analysis,
+          actor,
+          current.schemaVersion,
+          'owner',
+        );
+        const snapshot = {
+          ...current.snapshot,
+          schemaVersion: 2,
+          kind: 'structured-bi-dashboard',
+          sourceId: document.sourceId,
+          dataVersion: current.dataVersion,
+          items: current.items.filter((_, i) => !isStudioPivot(current.document.blocks[i])),
+          studioPivots: document.blocks.filter(isStudioPivot),
+          studioLayouts: document.layouts,
+          studioBlockOrder: document.blocks.map(b => b.id),
+        };
+        const prepared = await this.ai.prepareSave(
+          { draft },
+          actor,
+          snapshot,
+          undefined,
+          true,
+          [],
+          undefined,
+          undefined,
+          true,
+        );
+        const pivotCatalog = document.blocks.some(isStudioPivot)
+          ? await this.pivots.catalog(document.sourceId, actor)
+          : undefined;
+        return metadataTransaction(this.db, async manager => {
+          await assertCatalogActor(manager, authority, true);
+          const row = await this.lockDashboard(manager, id);
+          await this.owner(id, actor, 'owner', manager);
+          await lockMetricReferences(
+            manager,
+            document.sourceId,
+            document.blocks.flatMap(b => b.measureRefs.map(r => r.id)),
+          );
+          await this.source(document.sourceId, actor, 'owner', manager);
+          const receipt = await replay(manager);
+          if (receipt) return receipt;
+          const sourceNow = await manager.findOne(Database, { where: { id: document.sourceId } });
+          if (
+            dashboardRevision(row) !== body.expectedRevision ||
+            sourceBefore.connectionConfig !== sourceNow?.connectionConfig ||
+            String(sourceBefore.updatedAt) !== String(sourceNow.updatedAt)
+          )
+            throw new ConflictException('복제 중 저장 기준이 변경되었습니다.');
+          for (const block of document.blocks) {
+            await this.validateCurrentReferences(
+              block,
+              document.sourceId,
+              current.schemaVersion,
+              current.schema,
+              manager,
+            );
+            if (isStudioPivot(block))
+              await this.pivots.locked(block, document.sourceId, manager, pivotCatalog);
+          }
+          const saved = await prepared.persist(manager);
+          const copiedCharts = studioCharts(current.document);
+          const replacement: Record<string, string> = {};
+          copiedCharts.forEach((old, i) => {
+            replacement[idMap[old.id]] = saved.draft.widgets[i].blockId;
+            idMap[old.id] = saved.draft.widgets[i].blockId;
+          });
+          document.blocks = document.blocks.map(b => ({
+            ...b,
+            id: replacement[b.id] ?? b.id,
+            definitionKey: replacement[b.id] ?? b.id,
+          }));
+          for (const bp of STUDIO_BREAKPOINTS)
+            document.layouts[bp] = document.layouts[bp].map(g => ({
+              ...g,
+              id: replacement[g.id] ?? g.id,
+            }));
+          document.dashboardId = saved.id;
+          // Preserve all three layouts; legacy widget positions include charts only.
+          const links = await manager.find(DashboardWidget, {
+            where: { dashboardId: saved.id },
+            order: { id: 'ASC' },
+          });
+          const charts = studioCharts(document);
+          const layout = document.layouts.lg
+            .filter(g => charts.some(b => b.id === g.id))
+            .map(g => ({
+              i: String(links[charts.findIndex(b => b.id === g.id)].widgetId),
+              x: g.x,
+              y: g.y,
+              w: g.w,
+              h: g.h,
+            }));
+          const persisted = JSON.parse(
+            (await manager.findOne(Dashboard, { where: { id: saved.id } })).structuredDefinition,
+          );
+          await manager.update(
+            Dashboard,
+            { id: saved.id },
+            {
+              layout: JSON.stringify(layout),
+              structuredDefinition: JSON.stringify({
+                ...persisted,
+                studioPivots: document.blocks.filter(isStudioPivot),
+                studioLayouts: document.layouts,
+                studioBlockOrder: document.blocks.map(b => b.id),
+              }),
+            },
+          );
+          document.revision = dashboardRevision(
+            await manager.findOne(Dashboard, { where: { id: saved.id } }),
+          );
+          await manager.save(StudioState, {
+            dashboardId: saved.id,
+            legacyRevision: document.revision,
+            document: JSON.stringify({ document, sourceRevision: current.sourceRevision }),
+          });
+          const result = { dashboardId: saved.id, document, idMap };
+          await manager.insert(StudioRun, {
+            actorId: actor,
+            requestId: body.requestId,
+            payloadHash,
+            result: JSON.stringify(result),
+          });
+          return result;
+        });
+      });
+    });
+  }
+  private assertMixedCharts(document: any) {
+    if (document?.conditions && document?.blocks?.some(b => b?.kind === 'SEGMENT_PIVOT'))
+      throw new BadRequestException(
+        'SEGMENT_PIVOT_UNSUPPORTED: 공통 행 AST 조건 조합은 지원하지 않습니다.',
+      );
+    if (
+      Array.isArray(document?.blocks) &&
+      document.blocks.length &&
+      document.blocks.every(b => b?.kind === 'SEGMENT_PIVOT')
+    )
+      throw new BadRequestException(
+        '현재 Pivot은 차트가 있는 Studio에 추가할 수 있습니다. 마지막 차트를 유지해 주세요.',
+      );
+  }
+  private async mixedPreview(
+    document: StudioDocumentV1,
+    draft: any,
+    actor: number,
+    schemaVersion: string,
+    action: ResourceAction | 'owner',
+  ) {
+    if (document.blocks.some(isStudioPivot) && document.conditions)
+      throw new BadRequestException(
+        'SEGMENT_PIVOT_UNSUPPORTED: 공통 행 AST 조건 조합은 지원하지 않습니다.',
+      );
+    const preview = draft.widgets.length
+      ? (
+          await this.ai.preview(
+            {
+              draft,
+              filters: document.filters ?? [],
+              ...(document.conditions ? { conditions: document.conditions } : {}),
+              ...(document.dateRange ? { dateRange: document.dateRange } : {}),
+              includeTrends: true,
+            },
+            actor,
+            action,
+          )
+        ).data
+      : {
+          draft,
+          widgets: [],
+          sourceRevision: await this.connection.duckDBVersion(document.sourceId),
+        };
+    const chartWidgets = [...preview.widgets];
+    let index = 0;
+    preview.widgets = [];
+    for (const block of document.blocks)
+      preview.widgets.push(
+        isStudioPivot(block)
+          ? await this.pivots.preview(document, block, actor, schemaVersion)
+          : chartWidgets[index++],
+      );
+    return preview;
+  }
   async get(id: number, actor: number) {
     const context = await serializeMetadataWork(this.db, async () => {
       const capabilities = await this.access.dashboardCapabilities(id, actor);
@@ -278,19 +569,13 @@ export class StudioService {
     let preview = null,
       previewError: string | undefined;
     try {
-      preview = (
-        await this.ai.preview(
-          {
-            draft: state.analysis,
-            filters: state.document.filters ?? [],
-            ...(state.document.conditions ? { conditions: state.document.conditions } : {}),
-            ...(state.document.dateRange ? { dateRange: state.document.dateRange } : {}),
-            includeTrends: true,
-          },
-          actor,
-          'read',
-        )
-      ).data;
+      preview = await this.mixedPreview(
+        state.document,
+        state.analysis,
+        actor,
+        state.schemaVersion,
+        'read',
+      );
       preview.evidence = buildStudioEvidence({
         document: state.document,
         sourceRevision: state.sourceRevision,
@@ -407,6 +692,7 @@ export class StudioService {
   }
   /** Unsaved document preview under the current explicit edit grant. References come from the server catalog. */
   async prepare(id: number, body: any, actor: number) {
+    this.assertMixedCharts(body?.document);
     const analysis = await serializeMetadataWork(this.db, async () => {
       await this.access.dashboard(id, actor, 'edit');
       return (await this.ai.analysis(id, actor, true)).data;
@@ -452,8 +738,28 @@ export class StudioService {
           throw new BadRequestException(
             '기존 조건의 업무 의미를 유지하거나 전체 조건을 명시 제거해 주세요.',
           );
+        for (const block of document.blocks.filter(isStudioPivot)) {
+          const original =
+            current.document.blocks.find(b => b.id === block.id) ??
+            (isTemporaryStudioId(block.id)
+              ? current.document.blocks.find(b => b.definitionKey === block.definitionKey)
+              : undefined);
+          if (original) {
+            if (
+              !isStudioPivot(original) ||
+              original.definitionKey !== block.definitionKey ||
+              studioDigest(original.pivot) !== studioDigest(block.pivot)
+            )
+              throw new BadRequestException(
+                'Pivot 계산 변경은 지원하지 않습니다. 저장 보기를 다시 추가해 주세요.',
+              );
+          } else if (!isTemporaryStudioId(block.id))
+            throw new BadRequestException('새 Pivot은 임시 ID를 사용해 주세요.');
+          await this.pivots.validate(block, document.sourceId, actor, current.schemaVersion);
+          if (!original) await this.pivots.assertSaved(block, document.sourceId, actor);
+        }
         const widgets = await Promise.all(
-          document.blocks.map(async block => {
+          studioCharts(document).map(async block => {
             const original =
               current.document.blocks.find(b => b.id === block.id) ??
               (isTemporaryStudioId(block.id)
@@ -509,19 +815,13 @@ export class StudioService {
       });
       const { current, document, draft, columns, conditionSemantics } = captured;
       // Full business-date validation and all aggregate SQL run outside the SQLite metadata lease.
-      const preview = (
-        await this.ai.preview(
-          {
-            draft,
-            filters: document.filters ?? [],
-            ...(document.conditions ? { conditions: document.conditions } : {}),
-            ...(document.dateRange ? { dateRange: document.dateRange } : {}),
-            includeTrends: true,
-          },
-          actor,
-          'edit',
-        )
-      ).data;
+      const preview = await this.mixedPreview(
+        document,
+        draft,
+        actor,
+        current.schemaVersion,
+        'edit',
+      );
       preview.widgets.forEach((widget, i) => {
         if (
           document.blocks[i].display.timeGrain &&
@@ -775,7 +1075,8 @@ export class StudioService {
           current.schemaVersion,
           current.schema,
         );
-        const widget = current.analysis.widgets[index];
+        if (isStudioPivot(block)) continue;
+        const widget = current.analysis.widgets.find(w => w.blockId === block.id);
         const proven = compileContribution(widget, current.schema).supported;
         // Snapshot charts may group by an exact timestamp without inferring a time bucket.
         // Reuse the same strict aggregate/group parser, treating time as a scalar category only
@@ -797,31 +1098,32 @@ export class StudioService {
             current.items[index]?.dimensionBusinessBasis ||
             current.items[index]?.definition?.businessBasis) &&
           captureRemixTemplate(
-            current.document,
-            current.items,
+            { ...current.document, blocks: studioCharts(current.document) },
+            current.items.filter((_, i) => !isStudioPivot(current.document.blocks[i])),
             current.schema,
             current.analysis.widgets,
-          ).blocks[index].supported;
+          ).blocks[studioCharts(current.document).findIndex(b => b.id === block.id)].supported;
         if (!proven && !exactTimeAggregate && !canonicalDistinct)
           throw new BadRequestException('안전한 집계로 확인된 차트만 게시할 수 있습니다.');
       }
-      const preview = (
-        await this.ai.preview(
-          {
-            draft: current.analysis,
-            filters: current.document.filters ?? [],
-            ...(current.document.conditions ? { conditions: current.document.conditions } : {}),
-            ...(current.document.dateRange ? { dateRange: current.document.dateRange } : {}),
-            includeTrends: true,
-          },
-          actor,
-          'publish',
-        )
-      ).data;
+      const preview = await this.mixedPreview(
+        current.document,
+        current.analysis,
+        actor,
+        current.schemaVersion,
+        'publish',
+      );
+      const pivotCatalog = current.document.blocks.some(isStudioPivot)
+        ? await this.pivots.catalog(current.document.sourceId, actor)
+        : undefined;
       // Publication and save share the metadata queue; recheck against legacy writes during aggregation too.
       return metadataTransaction(this.db, async manager => {
         const dashboard = await this.lockDashboard(manager, id);
-        await lockMetricSources(manager, [analysis.databaseId]);
+        await lockMetricReferences(
+          manager,
+          analysis.databaseId,
+          current.document.blocks.flatMap(b => b.measureRefs.map(r => r.id)),
+        );
         await this.access.dashboard(id, actor, 'publish', manager);
         await this.source(analysis.databaseId, actor, 'read', manager);
         const source = await manager.findOne(Database, { where: { id: analysis.databaseId } });
@@ -842,6 +1144,9 @@ export class StudioService {
             current.schema,
             manager,
           );
+        if (pivotCatalog)
+          for (const block of current.document.blocks.filter(isStudioPivot))
+            await this.pivots.locked(block, current.document.sourceId, manager, pivotCatalog);
         return commit(
           {
             document: current.document,
@@ -964,6 +1269,7 @@ export class StudioService {
     return result;
   }
   private async saveOnce(id: number, body: any, actor: number, signal?: AbortSignal) {
+    this.assertMixedCharts(body?.document);
     await this.access.dashboard(id, actor, 'edit');
     if (
       !body ||
@@ -1060,6 +1366,32 @@ export class StudioService {
         const snapshots = [];
         const widgets = [];
         for (const block of document.blocks) {
+          if (isStudioPivot(block)) {
+            const original =
+              old.blocks.find(b => b.id === block.id) ??
+              (isTemporaryStudioId(block.id)
+                ? old.blocks.find(b => b.definitionKey === block.definitionKey)
+                : undefined);
+            if (
+              original
+                ? !isStudioPivot(original) ||
+                  original.definitionKey !== block.definitionKey ||
+                  studioDigest(original.pivot) !== studioDigest(block.pivot)
+                : !isTemporaryStudioId(block.id)
+            )
+              throw new BadRequestException(
+                'Pivot 계산 변경은 지원하지 않습니다. 저장 보기를 다시 추가해 주세요.',
+              );
+            await this.pivots.validate(block, document.sourceId, actor, current.schemaVersion);
+            if (!original) await this.pivots.assertSaved(block, document.sourceId, actor);
+            await this.validateCurrentReferences(
+              block,
+              document.sourceId,
+              current.schemaVersion,
+              current.schema,
+            );
+            continue;
+          }
           const persistedIndex = old.blocks.findIndex(b => b.id === block.id);
           const index = persistedIndex >= 0 ? persistedIndex : indices.get(block.definitionKey);
           const original = index === undefined ? undefined : old.blocks[index];
@@ -1085,7 +1417,7 @@ export class StudioService {
             current.schema,
             this.db.manager,
           );
-          const template = current.analysis.widgets[index];
+          const template = current.analysis.widgets.find(w => w.blockId === original.id);
           widgets.push({
             ...template,
             ...block.display,
@@ -1111,8 +1443,9 @@ export class StudioService {
           explanation: current.analysis.explanation,
           widgets,
         };
-        // Validate source columns/types and the scoped query before committing any writes.
-        if (document.filters?.length || document.dateRange || document.conditions)
+        if (document.blocks.some(isStudioPivot))
+          await this.mixedPreview(document, draft, actor, current.schemaVersion, 'edit');
+        else if (document.filters?.length || document.dateRange || document.conditions)
           await this.ai.preview(
             {
               draft,
@@ -1128,7 +1461,11 @@ export class StudioService {
         delete previousSnapshot.studioDateRange;
         delete previousSnapshot.studioConditions;
         const snapshot =
-          current.snapshot || document.filters?.length || document.dateRange || document.conditions
+          current.snapshot ||
+          document.blocks.some(isStudioPivot) ||
+          document.filters?.length ||
+          document.dateRange ||
+          document.conditions
             ? {
                 ...previousSnapshot,
                 ...(document.filters?.length ? { studioFilters: document.filters } : {}),
@@ -1139,6 +1476,9 @@ export class StudioService {
                 sourceId: document.sourceId,
                 dataVersion: current.dataVersion,
                 items: snapshots,
+                studioPivots: document.blocks.filter(isStudioPivot),
+                studioLayouts: document.layouts,
+                studioBlockOrder: document.blocks.map(b => b.id),
               }
             : undefined;
         const prepared = await this.ai.prepareSave(
@@ -1158,7 +1498,14 @@ export class StudioService {
           snapshot,
           undefined,
           true,
+          [],
+          undefined,
+          undefined,
+          true,
         );
+        const pivotCatalog = document.blocks.some(isStudioPivot)
+          ? await this.pivots.catalog(document.sourceId, actor)
+          : undefined;
         return metadataTransaction(this.db, async manager => {
           const locked = await this.lockDashboard(manager, id);
           if (dashboardRevision(locked) !== body.expectedRevision)
@@ -1171,7 +1518,11 @@ export class StudioService {
           );
           await this.source(document.sourceId, actor, 'read', manager);
           const sourceNow = await manager.findOne(Database, { where: { id: document.sourceId } });
-          if (!sourceBefore || sourceNow.connectionConfig !== sourceBefore.connectionConfig)
+          if (
+            !sourceBefore ||
+            sourceNow.connectionConfig !== sourceBefore.connectionConfig ||
+            String(sourceNow.updatedAt) !== String(sourceBefore.updatedAt)
+          )
             throw new ConflictException('데이터 파일이 교체되었습니다.');
           for (const block of document.blocks)
             await this.validateCurrentReferences(
@@ -1181,10 +1532,18 @@ export class StudioService {
               current.schema,
               manager,
             );
+          if (pivotCatalog)
+            for (const block of document.blocks.filter(isStudioPivot))
+              await this.pivots.locked(block, document.sourceId, manager, pivotCatalog);
           const saved = await prepared.persist(manager);
           const idMap: Record<string, string> = {};
-          document.blocks.forEach((b, i) => {
-            if (isTemporaryStudioId(b.id)) idMap[b.id] = saved.draft.widgets[i].blockId;
+          let chartIndex = 0;
+          document.blocks.forEach(b => {
+            if (isTemporaryStudioId(b.id))
+              idMap[b.id] = isStudioPivot(b)
+                ? randomUUID()
+                : saved.draft.widgets[chartIndex].blockId;
+            if (!isStudioPivot(b)) chartIndex++;
           });
           const map = (value: string) => idMap[value] ?? value;
           const remapped = validateStudioDocument({
@@ -1201,13 +1560,34 @@ export class StudioService {
             where: { dashboardId: id },
             order: { id: 'ASC' },
           });
-          if (links.length !== remapped.blocks.length)
+          if (links.length !== studioCharts(remapped).length)
             throw new ConflictException('차트 배치를 다시 불러와 주세요.');
-          const layout = remapped.layouts.lg.map(g => {
-            const index = remapped.blocks.findIndex(b => b.id === g.id);
-            return { i: String(links[index].widgetId), x: g.x, y: g.y, w: g.w, h: g.h };
-          });
-          await manager.update(Dashboard, { id }, { layout: JSON.stringify(layout) });
+          const layout = remapped.layouts.lg
+            .filter(g => studioCharts(remapped).some(b => b.id === g.id))
+            .map(g => {
+              const index = studioCharts(remapped).findIndex(b => b.id === g.id);
+              return { i: String(links[index].widgetId), x: g.x, y: g.y, w: g.w, h: g.h };
+            });
+          const persistedSnapshot = snapshot
+            ? {
+                ...JSON.parse(
+                  (await manager.findOne(Dashboard, { where: { id } })).structuredDefinition,
+                ),
+                studioPivots: remapped.blocks.filter(isStudioPivot),
+                studioLayouts: remapped.layouts,
+                studioBlockOrder: remapped.blocks.map(b => b.id),
+              }
+            : undefined;
+          await manager.update(
+            Dashboard,
+            { id },
+            {
+              layout: JSON.stringify(layout),
+              ...(persistedSnapshot
+                ? { structuredDefinition: JSON.stringify(persistedSnapshot) }
+                : {}),
+            },
+          );
           const row = await this.owner(id, actor, 'edit', manager);
           remapped.revision = dashboardRevision(row);
           await manager.save(StudioState, {

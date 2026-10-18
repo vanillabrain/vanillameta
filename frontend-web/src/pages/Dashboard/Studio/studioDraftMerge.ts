@@ -76,13 +76,19 @@ export function mergeStudioDraft(
         continue;
       }
       if (
-        ['kind', 'definitionKey', 'measureRefs', 'dimensionRefs'].some(k => !equal((remote as any)[k], (base as any)[k])) &&
+        ['kind', 'definitionKey', 'measureRefs', 'dimensionRefs', 'pivot'].some(
+          k => !equal((remote as any)[k], (base as any)[k]),
+        ) &&
         changed(local, base)
       ) {
         blocked.push(base.title + ': 최신 계산 정의가 바뀌어 자동 병합할 수 없습니다.');
         continue;
       }
-      if (['kind', 'definitionKey', 'measureRefs', 'dimensionRefs'].some(k => !equal((mine as any)[k], (base as any)[k]))) {
+      if (
+        ['kind', 'definitionKey', 'measureRefs', 'dimensionRefs', 'pivot'].some(
+          k => !equal((mine as any)[k], (base as any)[k]),
+        )
+      ) {
         blocked.push(base.title + ': 초안의 계산 정의 변경은 자동 병합할 수 없습니다.');
         continue;
       }
@@ -110,7 +116,10 @@ export function mergeStudioDraft(
     for (const mine of local.blocks.filter(b => !baseline.blocks.some(base => base.id === b.id))) {
       if (!isTemporaryStudioId(mine.id) || latest.blocks.some(b => b.id === mine.id))
         throw Error('새 블록의 기준을 확인할 수 없습니다. 보관 초안은 유지했습니다.');
-      if (!latest.blocks.some(b => b.definitionKey === mine.definitionKey && b.kind === mine.kind))
+      if (
+        mine.kind !== 'SEGMENT_PIVOT' &&
+        !latest.blocks.some(b => b.definitionKey === mine.definitionKey && b.kind === mine.kind)
+      )
         throw Error('복제한 블록의 계산 정의가 최신본에 없습니다. 보관 초안은 유지했습니다.');
       document.blocks.push(studioClone(mine));
     }

@@ -2554,6 +2554,7 @@ export class AiDashboardService {
     preserveSizeIds: readonly string[] = [],
     layoutEdits?: BlockLayouts[],
     authVersion?: number,
+    studioMutation = false,
   ) {
     if (
       body?.expectedRevision !== undefined &&
@@ -2588,6 +2589,8 @@ export class AiDashboardService {
       };
     }
     const prior = this.readStructuredScope(existing?.structuredDefinition);
+    if (prior.structured?.studioPivots?.length && !studioMutation)
+      throw new BadRequestException('Pivot이 포함된 대시보드는 Studio에서 편집해 주세요.');
     const savedScope =
       structuredSnapshot === undefined ? prior.scope : this.studioSavedScope(structuredSnapshot);
     if (

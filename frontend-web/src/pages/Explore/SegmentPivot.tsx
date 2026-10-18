@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { SegmentResult } from './AggregateSegment';
+import type { StudioPivotResult as SegmentResult } from '../Dashboard/Studio/studioPivot';
 const category = (v: unknown) => (v === null ? '(값 없음)' : v === '' ? '(빈 문자열)' : String(v));
 export type SegmentSelection = { row?: string | number | boolean | null; column?: string | number | boolean | null };
 export default function SegmentPivot({

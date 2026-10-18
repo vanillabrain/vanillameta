@@ -28,10 +28,11 @@ export type PublicationSnapshot = {
     description: string;
     kind: StudioBlockKind;
     display: StudioDisplay;
-    valueField: string;
+    pivot?: ReturnType<typeof import('./studio-pivot.service').studioPivotResult>;
+    valueField?: string;
     categoryField?: string;
-    fields: Array<{ columnName: string; columnType: string }>;
-    datas: Array<Record<string, string | number | boolean | null>>;
+    fields?: Array<{ columnName: string; columnType: string }>;
+    datas?: Array<Record<string, string | number | boolean | null>>;
     trend?: {
       grain: string;
       timeZone?: string;

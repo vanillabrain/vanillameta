@@ -148,6 +148,8 @@ export default function StudioCanvas({
                   </div>
                   {renderBlock ? (
                     <div className="studio-live-block">{renderBlock(block)}</div>
+                  ) : block.kind === 'SEGMENT_PIVOT' ? (
+                    <p>집계 Pivot은 서버의 전체 미리보기를 확인한 뒤 표시합니다.</p>
                   ) : block.kind === 'BOARD_NUMERIC' ? (
                     <>
                       <div className="studio-metric-value" title={formatted.fullText}>

@@ -86,6 +86,65 @@ describe('Studio pure operations', () => {
     expect(block.display.prefix).toBeUndefined();
     expect(input).toEqual(before);
   });
+  it('adds a full-width Pivot with breakpoint heights without changing saved layouts, and duplicates saved geometry', () => {
+    const input = fixture();
+    const block: StudioBlock = {
+      id: newId,
+      kind: 'SEGMENT_PIVOT',
+      definitionKey: 'pivot:saved',
+      title: 'Saved Pivot',
+      description: '',
+      measureRefs: [{ id: 10, definitionVersion: '1' }],
+      dimensionRefs: ['customer', 'component'].map(key => ({
+        key,
+        sourceId: input.sourceId,
+        schemaVersion: 'schema-v1',
+      })),
+      display: {},
+      pivot: {
+        revision: 'a'.repeat(64),
+        state: {
+          version: 1,
+          mode: 'segment',
+          segment: {
+            dimensionColumn: 'customer',
+            pivotColumn: 'component',
+            conditions: [{ measureId: 10, operator: 'gte', value: 1000 }],
+          },
+          measureIds: [10],
+          dimensionColumns: ['customer'],
+          rankingMeasureId: 10,
+          leaderboardSort: { by: 'value', direction: 'desc' },
+          filters: [],
+          dateRange: null,
+          relativePeriod: null,
+          trendGrain: 'day',
+          comparePrevious: false,
+          includeRows: false,
+        },
+      },
+    };
+    const added = applyStudioOperation(input, { type: 'addBlock', block });
+    for (const [bp, width, height] of [
+      ['lg', 12, 8],
+      ['md', 8, 8],
+      ['xs', 1, 10],
+    ] as const) {
+      expect(added.layouts[bp].slice(0, 2)).toEqual(input.layouts[bp]);
+      expect(added.layouts[bp][2]).toMatchObject({ id: newId, w: width, h: height });
+      added.layouts[bp][2].h = 6;
+    }
+    const duplicate = applyStudioOperation(added, {
+      type: 'duplicateBlock',
+      blockId: newId,
+      newId: 'new:00000000-0000-0000-0000-000000000002',
+    });
+    for (const bp of ['lg', 'md', 'xs'] as const) {
+      expect(duplicate.layouts[bp].slice(0, 3)).toEqual(added.layouts[bp]);
+      expect(duplicate.layouts[bp][3].h).toBe(6);
+    }
+    expect(input).toEqual(fixture());
+  });
   it('duplicates original dimensions at each breakpoint and detaches nested refs', () => {
     const input = fixture();
     input.layouts.md[1].h = 7;

@@ -870,3 +870,7 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 FE `tsc --noEmit` PASS, 소유 FE 13개 파일 ESLint PASS, 충돌 마커0 및 지정 문서의 로컬 링크 누락0이다. 선택 단위는 12개 파일/고유321개 PASS: 충돌 관련6개 파일184개와 편집기·목록·segment·지표 빌더 후속7개 파일160개 중 공통 CSV23개는 한 번만 집계했다. 초기 요약 배치 테스트의 지표 버전 fixture 누락1건을 보완한 뒤 최종 CSV23개 PASS다. 실제 브라우저/시각·API·BE·DB·전체 build는 이 단위에서 NOT_RUN이며 기존 증빙을 새 통합의 PASS로 승계하지 않는다.
 
 stage/commit/push/병합 종료는 수행하지 않았으므로 Git index의 UU는 유지된다. 다른 worker의 파일과 gpt-6-luna/VoiceOver 설정은 변경하지 않았다. 전체 제품 수용·운영·실기기 gate는 기존 상태를 유지한다.
+
+## 2026-10-18 Studio 집계 Pivot 블록
+
+[계획](../plans/studio-pivot.md)·[실행 증빙](studio-pivot.md)을 따른다. 누적 Rill 시나리오/원격 통합은 `c13773b8`까지 drumcap으로 develop-v2에 push했다. 이후 저장된 집계 Pivot+차트 혼합 문서의 추가/제목·폭별 배치/미리보기/원자 저장·reload, 정적 게시·동일URL 재게시/중지, 같은 소스 비공개 복제 UI/API를 검증했다. 원래5차트·42개 지표 보존, 5431.25 USD/5.390840046029919% 독립 정답, 390/768/1440 넘침0, 복제 후 원본 초안·질문 유지다. SP01~05는 실행한 범위의 PASS_SELECTED이며 native select의 순수 방향키 선택·실기기/VoiceOver·운영 MySQL·다른 소스/remix·일반 Pivot 전체는 미완료/미지원이다. 새 Pivot 변경은 초기 push 이후의 미커밋 작업이다. 과거 Rill 숫자/CSV 및 기존 core 성공은 관련 변경 없이 재사용하고 전체 수용으로 승격하지 않는다.

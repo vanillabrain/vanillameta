@@ -1,3 +1,4 @@
+import { rejectPivotRemix } from '../dashboard-studio/studio-pivot.service';
 import { bindMetricBlockKeys } from '../ai/metric-analysis-links';
 import { StudioState } from '../dashboard-studio/entities/studio-state.entity';
 import { validateStudioDocument } from '../dashboard-studio/studio-document';
@@ -105,6 +106,12 @@ export class DashboardReuseService {
     await this.access.assert('dashboard', id, actor);
     const originalId = this.access.id(id);
     const analysis = (await this.dashboards.analysis(originalId, actor, true)).data;
+    const storedPivot = await this.db.manager.findOne(Dashboard, { where: { id: originalId } });
+    if (
+      storedPivot?.structuredDefinition &&
+      JSON.parse(storedPivot.structuredDefinition).studioPivots?.length
+    )
+      throw rejectPivotRemix();
     const profile = await this.bi.profile(analysis.databaseId, actor);
     if (
       analysis.defaultConditions !== undefined &&

@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import {
   BusinessBasis,
   businessProfile,
@@ -102,6 +103,10 @@ export function captureRemixTemplate(
   schema: any[],
   widgets: any[],
 ): SemanticRemixTemplate {
+  if (document.blocks.some(b => b.kind === 'SEGMENT_PIVOT'))
+    throw new BadRequestException(
+      'SEGMENT_PIVOT_UNSUPPORTED: 같은 소스 비공개 복제를 사용해 주세요.',
+    );
   const columns = schema.map(c => ({
     name: c.column_name,
     type: c.column_type,

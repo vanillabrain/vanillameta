@@ -180,6 +180,28 @@ export class MetricDeletionService {
             throw new ConflictException('저장 분석의 지표 연결을 확인할 수 없습니다.');
           if (entries?.some(item => item?.metricId === row.id)) boardReferenced = true;
           if (
+            definition.studioPivots !== undefined &&
+            (sourceId === row.databaseId || sourceId === null)
+          ) {
+            const pivots = definition.studioPivots;
+            if (
+              !Array.isArray(pivots) ||
+              pivots.some(
+                block =>
+                  block?.kind !== 'SEGMENT_PIVOT' ||
+                  !Array.isArray(block.measureRefs) ||
+                  !block.measureRefs.length ||
+                  block.measureRefs.some(ref => !positive(ref?.id)) ||
+                  !Array.isArray(block.pivot?.state?.measureIds) ||
+                  JSON.stringify(block.measureRefs.map(ref => ref.id)) !==
+                    JSON.stringify(block.pivot.state.measureIds),
+              )
+            )
+              throw new ConflictException('Studio Pivot 지표 연결을 확인할 수 없습니다.');
+            if (pivots.some(block => block.measureRefs.some(ref => ref.id === row.id)))
+              boardReferenced = true;
+          }
+          if (
             (sourceId === row.databaseId || sourceId === null) &&
             entries?.some(
               item =>

@@ -1,3 +1,4 @@
+import { validateStudioPivotRecipe } from './studioPivot';
 import { assertOptionalBusinessBasis, assertDefaultDateColumn } from '@/api/businessBasis';
 import {
   isStudioId,
@@ -334,14 +335,34 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
       'display',
       'businessBasis',
       'defaultDateColumn',
+      'pivot',
     ]);
     assertDefaultDateColumn(b, b.kind);
     studioAssert(isStudioId(b.id) && !ids.has(b.id), '블록 ID가 없거나 중복됩니다.');
     ids.add(b.id);
     studioAssert(
-      ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_BAR', 'CHART_LINE'].includes(b.kind),
+      ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_BAR', 'CHART_LINE', 'SEGMENT_PIVOT'].includes(b.kind),
       '지원하지 않는 블록 종류입니다.',
     );
+    if (b.kind === 'SEGMENT_PIVOT') {
+      const recipe = validateStudioPivotRecipe(b.pivot);
+      studioAssert(
+        b.measureRefs.length === recipe.state.measureIds.length &&
+          b.measureRefs.every((m, i) => m.id === recipe.state.measureIds[i]),
+        'Pivot 지표 참조가 다릅니다.',
+      );
+      studioAssert(
+        b.dimensionRefs.length === 2 &&
+          [recipe.state.segment.dimensionColumn, recipe.state.segment.pivotColumn].every(key =>
+            b.dimensionRefs.some(r => r.key === key),
+          ),
+        'Pivot 축 참조가 다릅니다.',
+      );
+      studioAssert(
+        Object.keys(b.display).length === 0 && b.defaultDateColumn === undefined && b.businessBasis === undefined,
+        'Pivot의 지표별 표시 기준을 유지해 주세요.',
+      );
+    } else studioAssert(!Object.prototype.hasOwnProperty.call(b, 'pivot'), '차트에 Pivot 정의를 사용할 수 없습니다.');
     studioText(b.definitionKey, 128);
     studioAssert(/^[A-Za-z0-9:_-]+$/.test(b.definitionKey), '정의 참조를 확인해 주세요.');
     studioText(b.title, 300);

@@ -80,6 +80,8 @@ export function validateStudioRun(input: unknown, context: StudioRunContext): St
         '선택한 블록만 수정할 수 있습니다.',
       );
       studioKeys(operation.patch, ['title', 'description', 'display']);
+      if (context.document.blocks.find(b => b.id === operation.blockId)?.kind === 'SEGMENT_PIVOT')
+        studioKeys(operation.patch, ['title', 'description']);
     }
     document = applyStudioOperation(document, operation);
   }
@@ -89,7 +91,7 @@ export function validateStudioRun(input: unknown, context: StudioRunContext): St
       result.steps.every(s => typeof s.name === 'string' && s.name.length <= 100 && s.status === 'succeeded'),
     'AI 검증 단계가 완료되지 않았습니다.',
   );
-  result.preview = validateStudioPreview(result.preview);
+  result.preview = validateStudioPreview(result.preview, document, context.expectedSourceRevision);
   studioAssert(
     result.preview.draft.databaseId === context.document.sourceId &&
       result.preview.widgets.length === context.document.blocks.length,

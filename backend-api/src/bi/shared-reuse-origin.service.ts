@@ -1,3 +1,4 @@
+import { rejectPivotRemix } from '../dashboard-studio/studio-pivot.service';
 import { resolveConditionSemantics } from './business-condition-context';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { metadataTransaction } from '../common/metadata-work';
@@ -87,6 +88,11 @@ export class SharedReuseOriginService {
       // Resolve schema/definition as the owner; no original result preview is executed for a recipient.
       const owner = await this.access.sharedDashboard(dashboard.id);
       const analysis = (await this.ai.analysis(dashboard.id, owner, true)).data;
+      if (
+        dashboard.structuredDefinition &&
+        JSON.parse(dashboard.structuredDefinition).studioPivots?.length
+      )
+        throw rejectPivotRemix();
       originalSourceId = analysis.databaseId;
       const capture = async () => {
         const conditions =
@@ -128,6 +134,11 @@ export class SharedReuseOriginService {
       dashboard.governed
     )
       throw unavailable();
+    if (
+      dashboard.structuredDefinition &&
+      JSON.parse(dashboard.structuredDefinition).studioPivots?.length
+    )
+      throw rejectPivotRemix();
     identity.push(dashboard.assetVersion ?? 0);
     const { analysis, profile } = readReuseRecipe(recipe);
     if (analysis.conditionSemantics) {
@@ -186,7 +197,11 @@ export class SharedReuseOriginService {
         !!dashboard &&
         dashboard.delYn !== 'Y' &&
         dashboard.assetActive !== false &&
-        !dashboard.governed,
+        !dashboard.governed &&
+        !(
+          dashboard.structuredDefinition &&
+          JSON.parse(dashboard.structuredDefinition).studioPivots?.length
+        ),
     };
   }
   async grant(id: unknown, actor: number, body?: any) {

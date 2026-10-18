@@ -25,8 +25,17 @@ type Props = {
   revision: string;
   dirty: boolean;
   targetLabel?: string;
+  remixUnsupportedReason?: string;
 };
-export default function StudioPublish({ open, onClose, dashboardId, revision, dirty, targetLabel }: Props) {
+export default function StudioPublish({
+  open,
+  onClose,
+  dashboardId,
+  revision,
+  dirty,
+  targetLabel,
+  remixUnsupportedReason,
+}: Props) {
   const controlId = useId();
   const returnFocus = useRef<HTMLElement | null>(null);
   const [current, setCurrent] = useState<Publication | null>(null);
@@ -88,7 +97,7 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
         requestId: studioRequestId(),
         expectedRevision: revision,
         visibility,
-        allowRemix,
+        allowRemix: remixUnsupportedReason ? false : allowRemix,
         ...(expiry ? { expiresAt: new Date(expiry).toISOString() } : {}),
       };
     }
@@ -284,17 +293,19 @@ export default function StudioPublish({ open, onClose, dashboardId, revision, di
               <Checkbox
                 id={controlId + '-remix'}
                 className="mt-0.5"
-                checked={allowRemix}
-                disabled={settingsLocked}
-                onCheckedChange={checked => setAllowRemix(checked === true)}
+                checked={remixUnsupportedReason ? false : allowRemix}
+                disabled={settingsLocked || !!remixUnsupportedReason}
+                onCheckedChange={checked => {
+                  if (!remixUnsupportedReason) setAllowRemix(checked === true);
+                }}
               />
               <Label htmlFor={controlId + '-remix'} className="leading-5">
                 내 데이터로 복제 허용
               </Label>
             </div>
             <p className="studio-publish-note">
-              허용하면 원본 열 이름과 지표 정의를 재사용할 수 있습니다. 원본 행·연결 정보·SQL은 공유하지 않습니다. 새
-              복제본은 비공개로 생성됩니다.
+              {remixUnsupportedReason ??
+                '허용하면 원본 열 이름과 지표 정의를 재사용할 수 있습니다. 원본 행·연결 정보·SQL은 공유하지 않습니다. 새 복제본은 비공개로 생성됩니다.'}
             </p>
             <TextField
               type="datetime-local"

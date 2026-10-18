@@ -557,3 +557,8 @@
   border-radius: 6px;
 }
 .vm-studio .studio-evidence-blocks span { display: block; font-size: 12px; }
+
+/* Pivot scroll stays inside the existing grid item; chart geometry and tokens are unchanged. */
+.studio-pivot-body {display:flex;flex-direction:column;min-height:0;min-width:0;flex:1;overflow:auto;}
+.studio-pivot-body > div {min-height:0;min-width:0;}
+.studio-pivot-body [role=region] {flex-shrink:0;}

@@ -146,6 +146,10 @@ export function validateRemixRequirements(input: any, token: string): RemixRequi
       ),
     '필수 열 정의를 확인해 주세요.',
   );
+  studioAssert(
+    !input.blocks?.some((b: any) => b.kind === 'SEGMENT_PIVOT'),
+    '집계 Pivot은 같은 데이터의 Studio 저장본 복제만 지원합니다. 원본은 유지됩니다.',
+  );
   assertOptionalBusinessBasis(input);
   if (input.filters !== undefined) input.filters = remixFilters(input.filters, '게시본의 공통 필터를 확인하지 못했습니다.');
   if (input.dateRange !== undefined) input.dateRange = validateStudioDateRange(input.dateRange);

@@ -73,6 +73,11 @@ export function importStudio(
       ),
     };
   });
+  if (Array.isArray(snapshot?.studioPivots)) blocks.push(...snapshot.studioPivots);
+  if (Array.isArray(snapshot?.studioBlockOrder))
+    blocks.sort(
+      (a, b) => snapshot.studioBlockOrder.indexOf(a.id) - snapshot.studioBlockOrder.indexOf(b.id),
+    );
   const lg = blocks.map(b => ({ id: b.id, ...analysis.blockLayouts[b.id] }));
   const sorted = [...lg].sort((a, b) => a.y - b.y || a.x - b.x);
   const derive = (cols: number) => {
@@ -100,7 +105,7 @@ export function importStudio(
     ...(snapshot?.studioFilters?.length ? { filters: snapshot.studioFilters } : {}),
     ...(snapshot?.studioDateRange ? { dateRange: snapshot.studioDateRange } : {}),
     blocks,
-    layouts: { lg, md: derive(8), xs: derive(1) },
+    layouts: snapshot?.studioLayouts ?? { lg, md: derive(8), xs: derive(1) },
   });
 }
 function metricBasis(
@@ -147,7 +152,9 @@ export function studioDefinitions(document: StudioDocumentV1, analysis: any, sna
     revision: document.revision,
     explanation: analysis.explanation,
     entries: Object.fromEntries(
-      document.blocks.map((b, i) => {
+      document.blocks.map(b => {
+        if (b.kind === 'SEGMENT_PIVOT') return [b.definitionKey, { pivot: b.pivot }];
+        const i = analysis.widgets.findIndex(w => w.blockId === b.id);
         const basis = metricBasis(document, b, analysis.widgets[i], i, snapshot, analysis);
         return [
           b.definitionKey,

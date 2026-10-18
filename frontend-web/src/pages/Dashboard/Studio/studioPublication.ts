@@ -1,5 +1,6 @@
+import { validateStudioPivotResult, StudioPivotResult } from './studioPivot';
 import { get, post } from '@/helpers/apiHelper';
-import { validateStudioDateRange, validateStudioFilters } from './studioDocument';
+import { studioKeys, validateStudioDateRange, validateStudioFilters } from './studioDocument';
 import { StudioDateRange, StudioDisplay, StudioDocumentV1, StudioFilter } from './studioTypes';
 export type Publication = {
   token: string;
@@ -23,12 +24,13 @@ export type PublishedBlock = {
   title: string;
   description: string;
   kind: string;
+  pivot?: StudioPivotResult;
   display: StudioDisplay;
   trend?: { grain: string; timeZone?: string; points: { time: string; value: string | number | null }[] };
-  valueField: string;
+  valueField?: string;
   categoryField?: string;
-  fields: unknown[];
-  datas: Record<string, unknown>[];
+  fields?: unknown[];
+  datas?: Record<string, unknown>[];
 };
 export type PublishedSnapshot = Publication & {
   snapshot: {
@@ -94,8 +96,21 @@ export async function fetchPublished(token: string): Promise<PublishedSnapshot> 
     typeof snapshot.title !== 'string' ||
     !Array.isArray(snapshot.blocks) ||
     snapshot.blocks.length > 6 ||
-    !snapshot.blocks.every(
-      (block: any) =>
+    !snapshot.blocks.every((block: any) => {
+      if (block?.kind === 'SEGMENT_PIVOT') {
+        studioKeys(block, ['id', 'title', 'description', 'kind', 'display', 'pivot']);
+        if (
+          typeof block.id !== 'string' ||
+          typeof block.title !== 'string' ||
+          typeof block.description !== 'string' ||
+          !block.display ||
+          Object.keys(block.display).length
+        )
+          return false;
+        block.pivot = validateStudioPivotResult(block.pivot, true);
+        return true;
+      }
+      return (
         typeof block.id === 'string' &&
         typeof block.title === 'string' &&
         ['BOARD_NUMERIC', 'CHART_LINE', 'CHART_BAR', 'CHART_COLUMN'].includes(block.kind) &&
@@ -105,8 +120,9 @@ export async function fetchPublished(token: string): Promise<PublishedSnapshot> 
           (block.display.presentation === 'table' && block.kind !== 'BOARD_NUMERIC')) &&
         typeof block.valueField === 'string' &&
         Array.isArray(block.datas) &&
-        block.datas.every((row: any) => row && typeof row === 'object' && !Array.isArray(row)),
-    )
+        block.datas.every((row: any) => row && typeof row === 'object' && !Array.isArray(row))
+      );
+    })
   )
     throw new Error('게시된 데이터 형식을 확인하지 못했습니다.');
   let filters: StudioFilter[] = [];

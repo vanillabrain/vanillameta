@@ -1,3 +1,7 @@
+import StudioPivotPicker from './StudioPivotPicker';
+import StudioSavedCopy from './StudioSavedCopy';
+import SegmentPivot from '../../Explore/SegmentPivot';
+import { hasStudioPivot, studioCalculationKey, studioPivotKey, studioPivotMetricText } from './studioPivot';
 import StudioReport from './StudioReport';
 import { post as postProfile } from '@/helpers/apiHelper';
 import { useTranslation } from 'react-i18next';
@@ -86,8 +90,9 @@ import {
 } from './studioDocumentDraft';
 
 const MAX_STUDIO_BLOCKS = 6;
-const scopeKey = (document: Pick<StudioDocumentV1, 'filters' | 'dateRange' | 'conditions'>) =>
+const scopeKey = (document: Pick<StudioDocumentV1, 'filters' | 'dateRange' | 'conditions'> & Partial<StudioDocumentV1>) =>
   JSON.stringify([
+    document.blocks?.some(b => b.kind === 'SEGMENT_PIVOT') ? studioCalculationKey(document as StudioDocumentV1) : '',
     studioFilterDraftKey(document.filters),
     studioDateRangeKey(document.dateRange),
     studioConditionsKey(document.conditions),
@@ -126,9 +131,12 @@ export function resolveBlockPreview(input: {
   const rows = preview?.widgets;
   if (!Array.isArray(rows) || !rows.length) return null;
   const usable = (row: StudioPreviewRow) =>
-    !!row && row.type === block.kind && Array.isArray(row.datas) && Array.isArray(row.fields);
+    !!row &&
+    row.type === block.kind &&
+    (block.kind === 'SEGMENT_PIVOT' ? !!row.pivot : Array.isArray(row.datas) && Array.isArray(row.fields));
   const byBlock = rows.find(row => usable(row) && typeof row.blockId === 'string' && row.blockId === block.id);
   if (byBlock) return byBlock;
+  if (block.kind === 'SEGMENT_PIVOT') return null;
   const definition = definitions?.entries?.[block.definitionKey]?.widget;
   if (!definition) return null;
   return (
@@ -209,7 +217,8 @@ export function reapplyStudioChanges(
       // still point at a definition the latest document knows.
       if (!isTemporaryStudioId(block.id) || target) continue;
       studioAssert(
-        base.blocks.some(candidate => candidate.definitionKey === block.definitionKey && candidate.kind === block.kind),
+        block.kind === 'SEGMENT_PIVOT' ||
+          base.blocks.some(candidate => candidate.definitionKey === block.definitionKey && candidate.kind === block.kind),
         '복제한 블록의 원본 정의가 최신 내용에 없습니다. 최신 내용을 확인한 뒤 다시 복제해 주세요.',
       );
       operations.push({ type: 'addBlock', block: studioClone(block) });
@@ -224,6 +233,11 @@ export function reapplyStudioChanges(
       originBlock.definitionKey !== block.definitionKey
     )
       continue;
+    studioAssert(
+      studioPivotKey(target.pivot) === studioPivotKey(originBlock.pivot) &&
+        studioPivotKey(block.pivot) === studioPivotKey(originBlock.pivot),
+      'Pivot 기준이 변경되어 자동 재적용할 수 없습니다. 초안은 유지됩니다.',
+    );
     const patch: Record<string, any> = {};
     if (block.title !== originBlock.title && block.title !== target.title) patch.title = block.title;
     if (block.description !== originBlock.description && block.description !== target.description)
@@ -640,7 +654,11 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
   const applyOperations = (operations: StudioOperation[]) => {
     if (!canEdit || !operations.length) return false;
     try {
-      operations.reduce(applyStudioOperation, state.present);
+      const next = operations.reduce(applyStudioOperation, state.present);
+      studioAssert(
+        !hasStudioPivot(next) || next.blocks.some(b => b.kind !== 'SEGMENT_PIVOT'),
+        '집계 Pivot은 일반 차트와 함께 사용할 수 있습니다. 일반 차트 하나 이상을 유지해 주세요. 현재 문서는 유지했습니다.',
+      );
       dispatch({ type: 'applyBatch', operations });
       return true;
     } catch (error) {
@@ -731,7 +749,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     ): Promise<StudioPrepareResult | null> => {
       const requestedSource = live.current.source;
       const requestedDocument = JSON.stringify(live.current.document);
-      const requested = scopeKey({ filters, dateRange: dateRange ?? undefined, conditions: conditions ?? undefined });
+      const requested = scopeKey({
+        ...live.current.document,
+        filters,
+        dateRange: dateRange ?? undefined,
+        conditions: conditions ?? undefined,
+      });
       prepare.current.attempted = requested;
       prepare.current.intent = intent;
       const generation = prepare.current.generation + 1;
@@ -870,6 +893,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
       return;
     }
     if (prepare.current.attempted === documentFilterKey) return;
+    if (hasStudioPivot(live.current.document)) return;
     void prepareScope(filters, 'history', live.current.document.dateRange);
   }, [documentFilterKey, prepareScope, cancelPrepare]);
   useEffect(
@@ -882,6 +906,10 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
 
   const save = async () => {
     if (!canEdit || saving) return;
+    if (!state.pendingSave && hasStudioPivot(state.present) && scopeKey(state.present) !== previewScope?.key) {
+      setSaveError('Pivot을 포함한 전체 미리보기를 확인한 뒤 저장해 주세요. 초안은 유지됩니다.');
+      return;
+    }
     const pending = state.pendingSave;
     let request: StudioSaveRequest | null = pending
       ? pendingRequest.current ?? {
@@ -1013,6 +1041,28 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     const confirmed = previewScope?.key ?? '';
     const aiRow = aiRows.scope === confirmed ? aiRows.rows[block.id + '|' + (block.display.timeGrain ?? 'auto')] : undefined;
     const row = aiRow ?? resolveBlockPreview({ block, definitions, preview });
+    if (block.kind === 'SEGMENT_PIVOT') {
+      if (scopeKey(state.present) !== confirmed || !row?.pivot)
+        return (
+          <p role="status" className="py-3 text-sm">
+            Pivot 전체 미리보기가 필요합니다. 초안을 보존하고 계산 검증을 실행해 주세요.
+          </p>
+        );
+      return (
+        <div className="studio-pivot-body">
+          <p className="text-xs leading-relaxed text-muted-foreground" role="note">
+            저장 보기 조건 적용 · 저장 필터 {block.pivot.state.filters.length}개 · 저장 기간{' '}
+            {block.pivot.state.dateRange
+              ? `${block.pivot.state.dateRange.start} ~ ${block.pivot.state.dateRange.end} · ${
+                  block.pivot.state.dateRange.timeZone ?? 'UTC'
+                }`
+              : '전체 기간'}
+            . 공통 필터/기간이 있으면 같은 열·기간을 대체합니다.
+          </p>
+          <SegmentPivot embedded result={row.pivot} metricText={studioPivotMetricText(formatMetric)} />
+        </div>
+      );
+    }
     if (!row)
       return (
         <div role="status" className="px-0.5 py-3 text-sm text-muted-foreground">
@@ -1288,7 +1338,13 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     save: {
       label: saving ? '저장 중…' : '저장',
       // A failed-but-pending request stays retryable even when undo returned to the baseline.
-      disabled: !canEdit || saving || (!state.pendingSave && (state.saveState === 'clean' || !state.present.blocks.length)),
+      disabled:
+        !canEdit ||
+        saving ||
+        (!state.pendingSave &&
+          (state.saveState === 'clean' ||
+            !state.present.blocks.length ||
+            (hasStudioPivot(state.present) && scopeKey(state.present) !== previewScope?.key))),
       pending: saving,
       status: state.saveState === 'clean' ? '저장됨' : '저장되지 않음',
       onSave: save,
@@ -1361,7 +1417,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         <Button variant="ghost" size="sm" asChild>
           <RouterLink to={'/dashboard/' + dashboardId}>기존 보기</RouterLink>
         </Button>
-        {owned && (
+        {owned && !hasStudioPivot(state.present) && !hasStudioPivot(state.savedBaseline) && (
           <Button variant="outline" size="sm" asChild>
             <a
               href={`/dashboard/${dashboardId}/reuse?editor=studio`}
@@ -1385,6 +1441,42 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
             조직 접근
           </a>
         </Button>
+        <StudioPivotPicker
+          document={state.present}
+          disabled={
+            !canEdit || saving || !!state.pendingSave || !!conflict || state.present.blocks.length >= MAX_STUDIO_BLOCKS
+          }
+          onAdd={block => {
+            if (!applyOperations([{ type: 'addBlock', block }])) return false;
+            dispatch({ type: 'select', blockId: block.id });
+            setMessage('Pivot을 초안에 추가했습니다. 전체 미리보기 후 명시적으로 저장해 주세요.');
+            return true;
+          }}
+        />
+        {hasStudioPivot(state.present) && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={filterBusy || saving || !!state.pendingSave || !!conflict}
+            onClick={() => void prepareScope(state.present.filters ?? [], 'history')}
+          >
+            전체 미리보기
+          </Button>
+        )}
+        {owned && (hasStudioPivot(state.present) || hasStudioPivot(state.savedBaseline)) && (
+          <StudioSavedCopy
+            savedDocument={state.savedBaseline}
+            dashboardId={dashboardId}
+            revision={state.serverRevision ?? ''}
+            sourceRevision={sourceRevision}
+            disabled={saving || !!state.pendingSave || !!conflict}
+            onCopied={id => {
+              setMessage(
+                `저장본을 복제했습니다. 복제 대화상자의 링크에서 새 복사본 ${id}을 열 수 있습니다. 현재 초안과 질문은 유지됩니다.`,
+              );
+            }}
+          />
+        )}
         <label>
           블록 추가
           <NativeSelect
@@ -1422,10 +1514,19 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
                   blockId: selected.id,
                   breakpoint,
                   w:
-                    breakpoint === 'xs'
+                    selected.kind === 'SEGMENT_PIVOT'
+                      ? STUDIO_COLUMNS[breakpoint] - geometry.x
+                      : breakpoint === 'xs'
                       ? 1
                       : Math.min(STUDIO_COLUMNS[breakpoint] - geometry.x, Math.ceil(STUDIO_COLUMNS[breakpoint] / 2)),
-                  h: selected.kind === 'BOARD_NUMERIC' ? 5 : 6,
+                  h:
+                    selected.kind === 'SEGMENT_PIVOT'
+                      ? breakpoint === 'xs'
+                        ? 10
+                        : 8
+                      : selected.kind === 'BOARD_NUMERIC'
+                      ? 5
+                      : 6,
                 })
               }
             >
@@ -1439,7 +1540,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
                   blockId: selected.id,
                   breakpoint,
                   w: STUDIO_COLUMNS[breakpoint] - geometry.x,
-                  h: Math.max(geometry.h, 6),
+                  h: Math.max(geometry.h, selected.kind === 'SEGMENT_PIVOT' ? (breakpoint === 'xs' ? 10 : 8) : 6),
                 })
               }
             >
@@ -1610,9 +1711,14 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
               key={selected ? selected.id : 'none'}
               block={selected}
               sourceId={state.present.sourceId}
+              pivotMeasures={
+                selected?.kind === 'SEGMENT_PIVOT' && scopeKey(state.present) === previewScope?.key
+                  ? resolveBlockPreview({ block: selected, definitions, preview })?.pivot?.kpis
+                  : undefined
+              }
               metricBasis={
                 selected &&
-                selected.kind === definitions.entries[selected.definitionKey]?.widget.type &&
+                selected.kind === definitions.entries[selected.definitionKey]?.widget?.type &&
                 !(
                   aiRows.scope === (previewScope?.key ?? '') &&
                   aiRows.rows[selected.id + '|' + (selected.display.timeGrain ?? 'auto')]
@@ -1648,6 +1754,11 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         dashboardId={creationPublication?.dashboardId ?? dashboardId}
         revision={creationPublication?.revision ?? state.serverRevision ?? ''}
         dirty={!creationPublication && state.saveState !== 'clean'}
+        remixUnsupportedReason={
+          !creationPublication && hasStudioPivot(state.savedBaseline)
+            ? '집계 Pivot은 같은 소스의 Studio 저장본 복제만 지원합니다. 다른 데이터/수신자 재사용은 아직 지원하지 않습니다.'
+            : undefined
+        }
       />
       <Dialog open={conflictOpen} onOpenChange={setConflictOpen}>
         <DialogContent

@@ -15,6 +15,7 @@ import {
 import {
   isTemporaryStudioId,
   StudioBlockKind,
+  StudioBlock,
   StudioDimensionRef,
   StudioDisplay,
   StudioDocumentV1,
@@ -44,7 +45,15 @@ export type StudioDefinitions = {
   sourceId: number;
   revision: string;
   explanation: string;
-  entries: Record<string, { widget: LegacyWidget; layoutSize?: LegacySize; metricBasis?: SavedMetricBasis }>;
+  entries: Record<
+    string,
+    {
+      widget?: LegacyWidget;
+      pivot?: import('./studioPivot').StudioPivotRecipe;
+      layoutSize?: LegacySize;
+      metricBasis?: SavedMetricBasis;
+    }
+  >;
 };
 type Semantics = { measureRefs: StudioMeasureRef[]; dimensionRefs: StudioDimensionRef[] };
 export type StudioImportResult = {
@@ -61,10 +70,25 @@ export function fromLegacyAnalysis(input: {
   dashboardId: number;
   analysis: unknown;
   semanticSnapshot?: Record<string, Semantics>;
+  snapshot?: { studioPivots?: StudioBlock[]; studioLayouts?: StudioDocumentV1['layouts']; studioBlockOrder?: string[] };
 }): StudioImportResult {
   studioPositive(input.dashboardId);
   const a = input.analysis as any;
-  studioAssert(validDraft(a) && a.widgets.length <= 6, '기존 분석 정의를 확인해 주세요.');
+  const pivotBlocks = input.snapshot?.studioPivots ?? [];
+  studioAssert(
+    Array.isArray(pivotBlocks) &&
+      (validDraft(a) ||
+        (pivotBlocks.length > 0 &&
+          a &&
+          Number.isSafeInteger(a.databaseId) &&
+          a.databaseId > 0 &&
+          typeof a.title === 'string' &&
+          Array.isArray(a.widgets) &&
+          a.widgets.length === 0)) &&
+      a.widgets.length + pivotBlocks.length <= 6,
+    '기존 분석 정의를 확인해 주세요.',
+  );
+  studioAssert(!a.studioPivots && !a.studioBlockOrder, 'Pivot snapshot을 별도로 확인해 주세요. 기존 정의는 유지됩니다.');
   studioText(a.explanation, 4000, true);
   studioAssert(typeof a.revision === 'string' && /^[a-f0-9]{64}$/.test(a.revision), '기존 분석 revision이 필요합니다.');
   studioAssert(
@@ -82,7 +106,7 @@ export function fromLegacyAnalysis(input: {
   const unresolvedReferences: string[] = [];
   // Server-owned structured definition scope arrives as an optional default, never as a user edit.
   const defaultFilters = a.defaultFilters === undefined ? undefined : validateStudioFilters(a.defaultFilters);
-  const blocks = a.widgets.map((w: any, index: number) => {
+  const chartBlocks = a.widgets.map((w: any, index: number) => {
     const id = w.blockId ?? `legacy-${input.dashboardId}-${index}`;
     studioAssert(!isTemporaryStudioId(id), '저장된 블록 ID를 확인해 주세요.');
     const definitionKey = id;
@@ -111,9 +135,26 @@ export function fromLegacyAnalysis(input: {
       display: optional(w, displayFields),
     };
   });
+  const combined: StudioBlock[] = [...chartBlocks, ...studioClone(pivotBlocks)];
+  const order = input.snapshot?.studioBlockOrder;
+  studioAssert(
+    !pivotBlocks.length ||
+      (Array.isArray(order) &&
+        order.length === combined.length &&
+        new Set(order).size === combined.length &&
+        combined.every(b => order.includes(b.id)) &&
+        input.snapshot?.studioLayouts),
+    'Pivot 순서와 배치를 확인해 주세요.',
+  );
+  const blocks: StudioBlock[] = order ? order.map(id => combined.find(b => b.id === id)) : combined;
+  for (const block of pivotBlocks) {
+    studioAssert(block.kind === 'SEGMENT_PIVOT' && !!block.pivot, 'Pivot snapshot을 확인해 주세요.');
+    entries[block.definitionKey] = { pivot: studioClone(block.pivot) };
+  }
   const ids = new Set<string>(blocks.map(b => b.id));
   studioAssert(
-    Object.keys(a.blockLayouts).length === ids.size && Object.keys(a.blockLayouts).every(id => ids.has(id)),
+    Object.keys(a.blockLayouts).length === chartBlocks.length &&
+      Object.keys(a.blockLayouts).every(id => chartBlocks.some(b => b.id === id)),
     '블록과 기존 배치가 일치하지 않습니다.',
   );
   if (input.semanticSnapshot)
@@ -121,7 +162,7 @@ export function fromLegacyAnalysis(input: {
       Object.keys(input.semanticSnapshot).every(id => ids.has(id)),
       '참조 snapshot의 블록이 없습니다.',
     );
-  const lg = blocks.map(b => {
+  const lg = chartBlocks.map(b => {
     const g = a.blockLayouts[b.id];
     studioKeys(g, ['x', 'y', 'w', 'h']);
     return { id: b.id, x: g.x, y: g.y, w: g.w, h: g.h };
@@ -152,7 +193,7 @@ export function fromLegacyAnalysis(input: {
       ? { conditions: validateStudioConditions(a.defaultConditions) }
       : {}),
     blocks,
-    layouts: { lg, md, xs },
+    layouts: input.snapshot?.studioLayouts ?? { lg, md, xs },
   });
   return {
     document,
@@ -179,8 +220,10 @@ export function toLegacySave(document: StudioDocumentV1, definitions: StudioDefi
     '다른 소스의 정의를 저장할 수 없습니다.',
   );
   studioAssert(d.blocks.length > 0, '저장할 블록을 추가해 주세요.');
-  const sizes = d.blocks.map(b => definitions.entries[b.definitionKey]?.layoutSize);
-  const widgets = d.blocks.map((b): LegacyWidget => {
+  const chartBlocks = d.blocks.filter(b => b.kind !== 'SEGMENT_PIVOT');
+  studioAssert(chartBlocks.length > 0, '집계 Pivot은 일반 차트 하나 이상과 함께 저장해 주세요. 기존 문서는 유지됩니다.');
+  const sizes = chartBlocks.map(b => definitions.entries[b.definitionKey]?.layoutSize);
+  const widgets = chartBlocks.map((b): LegacyWidget => {
     const original = definitions.entries[b.definitionKey]?.widget;
     studioAssert(original && original.type === b.kind, '블록의 원본 정의를 확인해 주세요.');
     const widget = {
@@ -213,6 +256,11 @@ export function toLegacySave(document: StudioDocumentV1, definitions: StudioDefi
       widgets,
     },
     blockLayouts: studioClone(d.layouts),
+    studioSnapshot: {
+      studioPivots: studioClone(d.blocks.filter(b => b.kind === 'SEGMENT_PIVOT')),
+      studioLayouts: studioClone(d.layouts),
+      studioBlockOrder: d.blocks.map(b => b.id),
+    },
     semanticRefs: Object.fromEntries(
       d.blocks.map(b => [b.id, { measureRefs: studioClone(b.measureRefs), dimensionRefs: studioClone(b.dimensionRefs) }]),
     ),

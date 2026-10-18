@@ -287,3 +287,37 @@ it('UC038 A2 preserves the active publication and link through two conflicts, th
   ]);
   expect((screen.getByRole('textbox', { name: '게시 링크' }) as HTMLInputElement).value).toBe(originalLink);
 });
+
+it('disables unsupported remix and sends false even if the previous publication allowed it', async () => {
+  const reason =
+    '집계 Pivot은 같은 소스의 Studio 저장본 복제만 지원합니다. 다른 데이터/수신자 재사용은 아직 지원하지 않습니다.';
+  vi.mocked(fetchOwnerPublication)
+    .mockReset()
+    .mockResolvedValue({ ...metadata, allowRemix: true });
+  render(<StudioPublish {...props} remixUnsupportedReason={reason} />);
+  await waitFor(() => expect((screen.getByRole('button', { name: '재게시' }) as HTMLButtonElement).disabled).toBe(false));
+  const checkbox = screen.getByRole('checkbox', { name: '내 데이터로 복제 허용' });
+  expect((checkbox as HTMLButtonElement).disabled).toBe(true);
+  expect(checkbox.getAttribute('aria-checked')).toBe('false');
+  expect(screen.getByText(reason)).toBeTruthy();
+  expect(screen.queryByText(/허용하면 원본 열 이름/)).toBeNull();
+  fireEvent.click(checkbox);
+  fireEvent.click(screen.getByRole('button', { name: '재게시' }));
+  await waitFor(() => expect(publishDashboard).toHaveBeenCalledOnce());
+  expect(vi.mocked(publishDashboard).mock.calls[0][1].allowRemix).toBe(false);
+});
+it('keeps an already pending publication envelope intact when an unsupported reason arrives', async () => {
+  vi.mocked(publishDashboard).mockRejectedValueOnce(new Error('lost response'));
+  const view = render(<StudioPublish {...props} />);
+  await waitFor(() => expect((screen.getByRole('button', { name: '게시하기' }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('checkbox', { name: '내 데이터로 복제 허용' }));
+  fireEvent.click(screen.getByRole('button', { name: '게시하기' }));
+  await screen.findByRole('button', { name: '같은 요청 재시도' });
+  const body = structuredClone(vi.mocked(publishDashboard).mock.calls[0][1]);
+  expect(body.allowRemix).toBe(true);
+  view.rerender(<StudioPublish {...props} remixUnsupportedReason="Pivot 재사용 미지원" />);
+  expect(screen.getByRole('checkbox').getAttribute('aria-checked')).toBe('false');
+  fireEvent.click(screen.getByRole('button', { name: '같은 요청 재시도' }));
+  await waitFor(() => expect(publishDashboard).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(publishDashboard).mock.calls[1][1]).toEqual(body);
+});

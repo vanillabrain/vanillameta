@@ -139,6 +139,7 @@ export class StudioRunService {
           'Infer intent from the request; do not ask the user to select an ask/edit mode.',
           'For block content only edit the selectedBlockId. Supported operation: {"type":"updateBlock","blockId":"exact selected ID","patch":{"title"?:string,"description"?:string,"display"?:{"decimalPlaces"?:0..6,"numberNotation"?:"full"|"compact","prefix"?:string,"suffix"?:string,"timeGrain"?:"auto"|"day"|"week"|"month"}}}.',
           'display.presentation can be visual, table for grouped/time blocks, or summary for BOARD_NUMERIC; preserve canonical kind and metric references. Summary numbers come from server aggregates, never invented prose.',
+          'SEGMENT_PIVOT supports title, description, numeric display and layout only. Preserve its entire recipe/references; calculations, HAVING, axes or metric changes are unsupported and operations must be empty. Common row AST conditions with any Pivot are unsupported.',
           'timeGrain is only for CHART_LINE. Weekly=week, daily=day, monthly=month. Never scale numeric SQL for formatting.',
           'For common inclusion/exclusion changes use exactly one operation: {"type":"setConditions","definition":{"include":predicateOrGroupOrNull,"exclude":predicateOrGroupOrNull}|null}. Null removes all common conditions. No selected block is needed for common conditions. Never mix with block edits. The server binds the immutable source file; do not supply a sourceRevision or conditions wrapper.',
           'A predicate is {"kind":"predicate","column":"exact native column name","operator":"eq"|"ne"|"in"|"notIn"|"contains"|"gt"|"gte"|"lt"|"lte"|"between"|"isNull"|"isNotNull","values":[typed primitives]}. Null operators omit values. A group is {"kind":"group","operator":"and"|"or","children":[nodes]}. Use provided conditionColumns and existing conditions only. Use the server-projected kind/businessType/dateFormat: date predicate values are ISO YYYY-MM-DD even when the physical source is VARCHAR; category allows eq/ne/in/notIn/isNull/isNotNull only, with original scalar value types. UTC timestamp bounds and precision must match actual native schema. Preserve unchanged include/exclude branches; ambiguous columns or values require clarify with no operations. No-op changes are invalid.',
@@ -163,15 +164,19 @@ export class StudioRunService {
             ? { conditionSemantics: prepared.conditionSemantics }
             : {}),
           ...(prepared.document.conditions ? { conditions: prepared.document.conditions } : {}),
-          preview: prepared.preview.widgets.map(w => ({
-            blockId: w.blockId,
-            title: w.title,
-            type: w.type,
-            valueField: w.valueField,
-            categoryField: w.categoryField,
-            datas: w.datas.slice(0, 30),
-            truncated: w.datas.length > 30,
-          })),
+          preview: prepared.preview.widgets.map(w =>
+            w.type === 'SEGMENT_PIVOT'
+              ? { blockId: w.blockId, title: w.title, type: w.type, pivot: w.pivot }
+              : {
+                  blockId: w.blockId,
+                  title: w.title,
+                  type: w.type,
+                  valueField: w.valueField,
+                  categoryField: w.categoryField,
+                  datas: w.datas.slice(0, 30),
+                  truncated: w.datas.length > 30,
+                },
+          ),
         }),
         true,
         controller.signal,

@@ -69,7 +69,7 @@ export function applyStudioOperation(document: StudioDocumentV1, operation: Stud
         x: 0,
         y: Math.max(0, ...items.map(g => g.y + g.h)),
         w: old?.w ?? (bp === 'xs' ? 1 : block.kind === 'BOARD_NUMERIC' ? STUDIO_COLUMNS[bp] / 2 : STUDIO_COLUMNS[bp]),
-        h: old?.h ?? (block.kind === 'BOARD_NUMERIC' ? 3 : 5),
+        h: old?.h ?? (block.kind === 'SEGMENT_PIVOT' ? (bp === 'xs' ? 10 : 8) : block.kind === 'BOARD_NUMERIC' ? 3 : 5),
       });
     }
     next.blocks.push(block);
@@ -77,6 +77,11 @@ export function applyStudioOperation(document: StudioDocumentV1, operation: Stud
     const index = next.blocks.findIndex(b => b.id === operation.blockId);
     studioAssert(index >= 0, '변경할 블록이 없습니다.');
     if (operation.type === 'removeBlock') {
+      const remaining = next.blocks.filter(b => b.id !== operation.blockId);
+      studioAssert(
+        !remaining.some(b => b.kind === 'SEGMENT_PIVOT') || remaining.some(b => b.kind !== 'SEGMENT_PIVOT'),
+        '집계 Pivot은 일반 차트와 함께 사용합니다. 마지막 일반 차트를 삭제하지 않았습니다. 현재 문서는 유지됩니다.',
+      );
       next.blocks.splice(index, 1);
       for (const bp of STUDIO_BREAKPOINTS) next.layouts[bp] = next.layouts[bp].filter(g => g.id !== operation.blockId);
     } else if (operation.type === 'updateBlock') {

@@ -1,3 +1,5 @@
+import SegmentPivot from '../../Explore/SegmentPivot';
+import { studioPivotMetricText } from './studioPivot';
 import StudioReport from './StudioReport';
 import { useTranslation } from 'react-i18next';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -36,7 +38,11 @@ export function PublishedBlockView({ block }: { block: PublishedBlock }) {
           {block.description}
         </p>
       )}
-      {block.display?.presentation === 'summary' || block.display?.presentation === 'table' ? (
+      {block.kind === 'SEGMENT_PIVOT' ? (
+        <div className="studio-pivot-body">
+          <SegmentPivot embedded result={block.pivot} metricText={studioPivotMetricText(formatMetric)} />
+        </div>
+      ) : block.display?.presentation === 'summary' || block.display?.presentation === 'table' ? (
         <StudioReport
           title={block.title}
           description=""

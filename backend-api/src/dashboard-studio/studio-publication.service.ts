@@ -1,3 +1,4 @@
+import { studioPivotResult, rejectPivotRemix, isStudioPivot } from './studio-pivot.service';
 import {
   BadRequestException,
   ConflictException,
@@ -197,6 +198,7 @@ export class StudioPublicationService {
           const snapshot = this.sanitize(document, preview);
           let remixTemplate: string | null = null;
           if (body.allowRemix) {
+            if (document.blocks.some(isStudioPivot)) throw rejectPivotRemix();
             remixTemplate = JSON.stringify(
               captureRemixTemplate(document, items, schema, analysis.widgets),
             );
@@ -371,6 +373,17 @@ export class StudioPublicationService {
     };
     const blocks = document.blocks.map((block, i) => {
       const widget = preview.widgets[i];
+      if (isStudioPivot(block)) {
+        if (widget.type !== 'SEGMENT_PIVOT' || widget.blockId !== block.id) invalid();
+        return {
+          id: ids.get(block.id),
+          title: block.title,
+          description: block.description,
+          kind: block.kind,
+          display: { ...block.display },
+          pivot: studioPivotResult(widget.pivot, true),
+        };
+      }
       const names = [
         widget.valueField,
         ...(block.kind === 'BOARD_NUMERIC' ? [] : [widget.categoryField]),

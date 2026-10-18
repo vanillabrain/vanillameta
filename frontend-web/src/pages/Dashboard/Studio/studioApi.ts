@@ -1,3 +1,4 @@
+import { validateStudioPivotRecipe, validateStudioPivotResult, studioPivotKey } from './studioPivot';
 import { BusinessBasis, assertOptionalBusinessBasis, assertDefaultDateColumn } from '@/api/businessBasis';
 import { readProfileColumns } from '../../Explore/conditionProfile';
 import type { Column } from '../../Explore/SourceConditions';
@@ -34,11 +35,12 @@ export type StudioPreviewRow = {
   type: string;
   title?: string;
   description?: string;
-  sql: string;
-  valueField: string;
+  sql?: string;
+  pivot?: import('./studioPivot').StudioPivotResult;
+  valueField?: string;
   categoryField?: string;
-  fields: unknown[];
-  datas: unknown[];
+  fields?: unknown[];
+  datas?: unknown[];
   prefix?: string;
   suffix?: string;
   decimalPlaces?: number;
@@ -129,6 +131,12 @@ export const toStudioApiError = (error: unknown): StudioApiError => {
       'network',
     );
   }
+  if (status === 400 && JSON.stringify((error as any)?.response?.data ?? '').includes('SEGMENT_PIVOT_UNSUPPORTED'))
+    return new StudioApiError(
+      '집계 Pivot의 공통 행 조건·새 데이터 연결·수신자 재사용 조합은 아직 지원하지 않습니다. 현재 초안을 보존했습니다. 같은 데이터의 Studio 저장본 복제를 사용해 주세요.',
+      'server',
+      status,
+    );
   const known = HTTP_ERRORS[status];
   if (known) return new StudioApiError(known[1], known[0], status);
   const message = errorMessage(error);
@@ -161,6 +169,14 @@ export const studioRequestId = (): string => {
 const previewRow = (row: unknown): StudioPreviewRow => {
   studioAssert(!!row && typeof row === 'object' && !Array.isArray(row), '미리보기 위젯 형식을 확인해 주세요.');
   const widget = row as StudioPreviewRow;
+  if (widget.type === 'SEGMENT_PIVOT') {
+    studioKeys(widget, ['blockId', 'type', 'title', 'description', 'pivot']);
+    studioAssert(isStudioId(widget.blockId), 'Pivot 블록 ID가 필요합니다.');
+    studioText(widget.title, 300);
+    studioText(widget.description, 1000, true);
+    widget.pivot = validateStudioPivotResult(widget.pivot);
+    return widget;
+  }
   assertDefaultDateColumn(widget, widget.type);
   studioAssert(typeof widget.type === 'string' && !!widget.type, '미리보기 위젯 종류를 확인해 주세요.');
   studioAssert(
@@ -195,16 +211,62 @@ const previewChoice = (input: unknown): StudioFilterChoice => {
   }
   return { column: choice.column, values };
 };
-export const validateStudioPreview = (input: unknown): StudioPreview => {
+export const validateStudioPreview = (
+  input: unknown,
+  document?: StudioDocumentV1,
+  sourceRevision?: string,
+): StudioPreview => {
   studioAssert(!!input && typeof input === 'object' && !Array.isArray(input), '미리보기 응답을 확인해 주세요.');
   const preview = input as StudioPreview;
-  studioAssert(validDraft(preview.draft), '미리보기 정의를 확인해 주세요.');
+  studioAssert(
+    validDraft(preview.draft),
+    '미리보기 정의를 확인해 주세요. 집계 Pivot은 일반 차트 하나 이상과 함께 사용합니다.',
+  );
   preview.draft.widgets.forEach(widget => assertDefaultDateColumn(widget, widget.type));
   studioAssert(
-    Array.isArray(preview.widgets) && preview.widgets.length === preview.draft.widgets.length,
+    Array.isArray(preview.widgets) &&
+      preview.widgets.length <= 6 &&
+      preview.widgets.filter(w => w.type !== 'SEGMENT_PIVOT').length === preview.draft.widgets.length,
     '미리보기 위젯 수가 정의와 다릅니다.',
   );
   preview.widgets = preview.widgets.map(previewRow);
+  if (preview.widgets.some(row => row.type === 'SEGMENT_PIVOT')) {
+    const ids = preview.widgets.map(row => row.blockId);
+    studioAssert(
+      ids.every(id => isStudioId(id)) && new Set(ids).size === ids.length,
+      '혼합 미리보기의 블록 ID가 없거나 중복됩니다.',
+    );
+    if (document)
+      studioAssert(
+        document.blocks.length === preview.widgets.length &&
+          document.blocks.every(
+            (block, i) => block.id === preview.widgets[i].blockId && block.kind === preview.widgets[i].type,
+          ),
+        '미리보기의 블록 순서 또는 종류가 다릅니다.',
+      );
+    if (document)
+      for (const block of document.blocks.filter(b => b.kind === 'SEGMENT_PIVOT')) {
+        const row = preview.widgets.find(w => w.blockId === block.id);
+        studioAssert(
+          row?.pivot &&
+            studioPivotKey(row.pivot.kpis.map(k => k.id)) === studioPivotKey(block.pivot.state.measureIds) &&
+            row.pivot.scope.dimensionColumn === block.pivot.state.segment.dimensionColumn &&
+            row.pivot.pivot.column === block.pivot.state.segment.pivotColumn &&
+            (!sourceRevision || row.pivot.sourceRevision === sourceRevision),
+          'Pivot 결과의 파일·지표·축 기준이 요청과 다릅니다. 초안은 유지됩니다.',
+        );
+      }
+    const charts = preview.widgets.filter(row => row.type !== 'SEGMENT_PIVOT');
+    studioAssert(
+      charts.every(
+        (row, i) =>
+          row.type === preview.draft.widgets[i].type &&
+          row.sql === preview.draft.widgets[i].sql &&
+          row.valueField === preview.draft.widgets[i].valueField,
+      ),
+      '차트 미리보기 기준이 다릅니다.',
+    );
+  }
   // Dimensions are optional: an older or unsupported source simply offers no categorical choices.
   if (preview.dimensions !== undefined) {
     studioAssert(
@@ -287,6 +349,11 @@ export const validateStudioDefinitions = (input: unknown): StudioDefinitions => 
             '저장 지표 기준 필드가 올바르지 않습니다.',
           );
     }
+    if (rawEntry.pivot !== undefined) {
+      studioKeys(rawEntry, ['pivot']);
+      validateStudioPivotRecipe(rawEntry.pivot);
+      continue;
+    }
     const widget = (rawEntry as { widget?: Record<string, any> } | undefined)?.widget;
     studioAssert(!!widget && typeof widget === 'object', '정의 위젯을 확인해 주세요.');
     assertDefaultDateColumn(widget, widget.type);
@@ -298,11 +365,20 @@ export const validateStudioDefinitions = (input: unknown): StudioDefinitions => 
   return definitions;
 };
 
+function validateStudioMixedDocument(input: StudioDocumentV1) {
+  const document = validateStudioDocument(input);
+  studioAssert(
+    !document.blocks.some(b => b.kind === 'SEGMENT_PIVOT') || document.blocks.some(b => b.kind !== 'SEGMENT_PIVOT'),
+    '집계 Pivot은 일반 차트 하나 이상과 함께 사용해 주세요. 현재 문서는 유지됩니다.',
+  );
+  return document;
+}
+
 /** The exact preview body. It mirrors the save body so the server resolves the same scope. */
 export const studioPrepareBody = (request: StudioPrepareRequest) => ({
   ...(request.expectedRevision ? { expectedRevision: request.expectedRevision } : {}),
   expectedSourceRevision: request.expectedSourceRevision,
-  document: validateStudioDocument(request.document),
+  document: validateStudioMixedDocument(request.document),
 });
 
 /**
@@ -343,6 +419,13 @@ export async function prepareStudioDashboard(
         studioConditionsKey(document.conditions) === studioConditionsKey(request.document.conditions),
       '요청한 날짜 범위·공통 필터와 다른 미리보기 결과입니다.',
     );
+    studioAssert(
+      studioPivotKey(document.blocks.filter(b => b.kind === 'SEGMENT_PIVOT').map(b => ({ id: b.id, pivot: b.pivot }))) ===
+        studioPivotKey(
+          request.document.blocks.filter(b => b.kind === 'SEGMENT_PIVOT').map(b => ({ id: b.id, pivot: b.pivot })),
+        ),
+      '미리보기 Pivot 기준이 요청과 다릅니다.',
+    );
     const conditionColumns =
       payload.conditionColumns === undefined ? undefined : readProfileColumns(payload.conditionColumns);
     const conditionSemantics =
@@ -366,7 +449,7 @@ export async function prepareStudioDashboard(
     }
     return {
       document,
-      preview: validateStudioPreview(payload.preview),
+      preview: validateStudioPreview(payload.preview, document, request.expectedSourceRevision),
       ...(conditionColumns === undefined ? {} : { conditionColumns }),
       ...(conditionSemantics === undefined ? {} : { conditionSemantics }),
       ...(payload.conditionSemanticsLatest === undefined
@@ -411,7 +494,7 @@ export async function fetchStudioDashboard(
       typeof payload.previewError === 'string' && payload.previewError.trim() ? payload.previewError : null;
     if (payload.preview !== undefined && payload.preview !== null) {
       try {
-        preview = validateStudioPreview(payload.preview);
+        preview = validateStudioPreview(payload.preview, document, payload.sourceRevision);
       } catch (error) {
         preview = null;
         previewError = previewError || (error instanceof Error ? error.message : '미리보기를 확인하지 못했습니다.');
@@ -455,7 +538,7 @@ export const studioSaveBody = (request: StudioSaveRequest) => ({
   requestId: request.requestId,
   ...(request.expectedRevision ? { expectedRevision: request.expectedRevision } : {}),
   expectedSourceRevision: request.expectedSourceRevision,
-  document: validateStudioDocument(request.document),
+  document: validateStudioMixedDocument(request.document),
 });
 
 /** POST /studio/dashboards/:id/save -> {document, idMap}. A 409 is terminal for that requestId. */
