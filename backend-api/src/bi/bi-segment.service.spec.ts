@@ -16,6 +16,9 @@ import { BiSegmentController } from './bi-segment.controller';
 import { BiSegmentService } from './bi-segment.service';
 import { BiService } from './bi.service';
 import { BiExploreService } from './bi-explore.service';
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 
 jest.setTimeout(120000);
 
@@ -245,6 +248,12 @@ describe('BiSegmentService aggregate segments over real DuckDB', () => {
       }),
     };
     db.manager = db;
+    db.connection = db;
+    db.findOne = jest.fn(async (entity, options) => {
+      if (entity === User) return { id: actor, active: true, authVersion: 0 };
+      if (entity === EnterpriseMembership || entity === SourceCatalogEntry) return null;
+      return db.getRepository(entity).findOne(options);
+    });
     databaseRepo.manager = { connection: db };
     connection = new ConnectionService(databaseRepo, {} as any, worker);
     const bi = new BiService(db as any, new SourceAccessService(db as any), connection, {
