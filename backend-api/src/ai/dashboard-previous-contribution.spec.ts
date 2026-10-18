@@ -89,6 +89,7 @@ describe('previous-period contributor points: actual DuckDB', () => {
     save();
     connection = new ConnectionService(
       {
+        manager: { connection: { options: { type: 'mysql' } } },
         findOne: jest.fn(async () => ({
           connectionConfig: JSON.stringify({ client: 'duckdb', connection: { filename } }),
         })),

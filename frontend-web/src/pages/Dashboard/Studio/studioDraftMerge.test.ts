@@ -121,3 +121,19 @@ it('requires no conflict choice when both tabs reached the same result', () => {
   local.blocks[0].title = '동일';
   expect(mergeStudioDraft(local, local, base).conflicts).toEqual([]);
 });
+it('UC052 merges condition edits atomically and reports condition conflicts', () => {
+  const base = doc(),
+    local = doc(),
+    latest = doc();
+  const conditions = {
+    sourceRevision: 'b'.repeat(64),
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  local.conditions = conditions;
+  latest.blocks[0].title = 'remote title';
+  const merged = mergeStudioDraft(latest, local, base);
+  expect(merged.document?.conditions).toEqual(conditions);
+  expect(merged.document?.blocks[0].title).toBe('remote title');
+  latest.conditions = { ...conditions, sourceRevision: 'c'.repeat(64) };
+  expect(mergeStudioDraft(latest, local, base).conflicts).toEqual([expect.objectContaining({ label: '포함·제외 조건' })]);
+});

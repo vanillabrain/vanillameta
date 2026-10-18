@@ -236,13 +236,16 @@ describe('BiSegmentService aggregate segments over real DuckDB', () => {
         metrics.find(candidate => candidate.id === where.id),
       ),
     };
-    const db = {
+    const db: any = {
+      options: { type: 'sqlite' },
       getRepository: jest.fn((entity: any) => {
         if (entity === Database) return databaseRepo;
         if (entity === Metric) return metricRepo;
         throw new Error('unexpected repository');
       }),
     };
+    db.manager = db;
+    databaseRepo.manager = { connection: db };
     connection = new ConnectionService(databaseRepo, {} as any, worker);
     const bi = new BiService(db as any, new SourceAccessService(db as any), connection, {
       save: jest.fn(),

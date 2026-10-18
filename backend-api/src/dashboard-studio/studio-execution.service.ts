@@ -1,3 +1,6 @@
+import { metadataTransaction } from '../common/metadata-work';
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
+import { lockMetricSources } from '../metric/metric-write-lock';
 import { StudioCreationService } from './studio-creation.service';
 import { StudioPublicationService } from './studio-publication.service';
 import {
@@ -60,6 +63,7 @@ export class StudioExecutionService implements OnModuleInit {
         where: { status: In(['pending', 'running']) },
       });
       for (const row of rows) {
+        const initialState = row.state;
         const state = this.state(row);
         const committed = await this.committed(row, false);
         const published = state.publish
@@ -89,7 +93,25 @@ export class StudioExecutionService implements OnModuleInit {
           ? 'partial'
           : 'interrupted';
         row.state = JSON.stringify(state);
-        await this.db.manager.save(StudioExecution, row);
+        // Recovery is a system transition, so revoked actor permissions must not prevent startup.
+        // Do not revive a row another process completed while recovery inspected its journals.
+        await metadataTransaction(this.db, async manager => {
+          try {
+            await lockDashboardWrite(manager, row.dashboardId);
+            await lockMetricSources(manager, [state.request.document.sourceId]);
+          } catch (error) {
+            if (error instanceof ForbiddenException) return;
+            throw error;
+          }
+          const fresh = await manager.findOne(StudioExecution, { where: { runId: row.runId } });
+          if (
+            !fresh ||
+            !['pending', 'running'].includes(fresh.status) ||
+            fresh.state !== initialState
+          )
+            return;
+          await manager.save(StudioExecution, row);
+        });
       }
     });
   }
@@ -276,12 +298,27 @@ export class StudioExecutionService implements OnModuleInit {
   async create(body: any, actor: number, signal?: AbortSignal) {
     this.validate(body);
     this.checkDisconnected(signal);
-    await this.studio.assertExecutionAccess(body.dashboardId, body.document.sourceId, actor);
+    // UC-051: a new AI execution edits the dashboard, so the explicit edit action is required.
+    await this.studio.assertExecutionAccess(
+      body.dashboardId,
+      body.document.sourceId,
+      actor,
+      'edit',
+    );
     this.checkDisconnected(signal);
     const hash = studioDigest(body);
-    const row = await this.studio.serializeWrite(async () => {
+    const row = await metadataTransaction(this.db, async manager => {
+      await lockDashboardWrite(manager, body.dashboardId);
+      await lockMetricSources(manager, [body.document.sourceId]);
+      await this.studio.assertExecutionAccess(
+        body.dashboardId,
+        body.document.sourceId,
+        actor,
+        'edit',
+        manager,
+      );
       this.checkDisconnected(signal);
-      const prior = await this.db.manager.findOne(StudioExecution, {
+      const prior = await manager.findOne(StudioExecution, {
         where: { actorId: actor, requestId: body.requestId },
       });
       if (prior) {
@@ -305,7 +342,7 @@ export class StudioExecutionService implements OnModuleInit {
         ...plan,
         steps: ids.map(stepId => ({ stepId, status: 'pending', retryable: false })),
       };
-      const entity = await this.db.manager.save(StudioExecution, {
+      const entity = await manager.save(StudioExecution, {
         runId: randomUUID(),
         actorId: actor,
         dashboardId: body.dashboardId,
@@ -373,7 +410,9 @@ export class StudioExecutionService implements OnModuleInit {
             ? '초안을 저장했습니다.'
             : '검증한 결과를 확인해 주세요.'
           : row.status === 'unsupported'
-          ? '요청한 작업은 아직 지원하지 않습니다. 공유 범위를 확인해 주세요.'
+          ? state.steps.some(step => step.errorCode === 'CONDITION_REVIEW_REQUIRED')
+            ? '조건 변경안을 검토하고 명시 적용한 뒤 저장해 주세요. 아직 저장하거나 게시하지 않았습니다.'
+            : '요청한 작업은 아직 지원하지 않습니다. 공유 범위를 확인해 주세요.'
           : '실행 단계와 재시도 가능 여부를 확인해 주세요.',
     };
   }
@@ -573,6 +612,7 @@ export class StudioExecutionService implements OnModuleInit {
         'mapping',
         'excludedBlockIds',
         'expectedVersion',
+        'expectedLifecycleRevision',
         'expectedSourceRevision',
       ]);
       if (
@@ -597,6 +637,8 @@ export class StudioExecutionService implements OnModuleInit {
             body.excludedBlockIds.length > 6 ||
             new Set(body.excludedBlockIds).size !== body.excludedBlockIds.length ||
             body.excludedBlockIds.some(id => typeof id !== 'string'))) ||
+        typeof body.expectedLifecycleRevision !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(body.expectedLifecycleRevision) ||
         !Number.isSafeInteger(body.expectedVersion) ||
         Number(body.expectedVersion) < 1 ||
         typeof body.expectedSourceRevision !== 'string' ||
@@ -615,7 +657,10 @@ export class StudioExecutionService implements OnModuleInit {
       throw new ConflictException(
         '복제 준비가 끝난 실행에서만 비공개 복제본을 저장할 수 있습니다.',
       );
-    if (body.expectedVersion !== state.remixResult.version)
+    if (
+      body.expectedVersion !== state.remixResult.version ||
+      body.expectedLifecycleRevision !== state.remixLifecycleRevision
+    )
       throw new ConflictException('게시 버전이 변경되었습니다. 실행 기록을 새로 확인해 주세요.');
     const mapping = body.mapping as Record<string, string>;
     // Never the body: the published token and version are the ones this run was prepared with.
@@ -627,6 +672,7 @@ export class StudioExecutionService implements OnModuleInit {
       excludedBlockIds:
         body.excludedBlockIds === undefined ? [] : [...(body.excludedBlockIds as string[])],
       expectedVersion: state.remixResult.version,
+      expectedLifecycleRevision: body.expectedLifecycleRevision,
       expectedSourceRevision: body.expectedSourceRevision as string,
     };
     const payloadHash = studioDigest({ token, ...request });
@@ -640,6 +686,7 @@ export class StudioExecutionService implements OnModuleInit {
         targetSourceId: request.targetSourceId,
         expectedSourceRevision: request.expectedSourceRevision,
         expectedVersion: request.expectedVersion,
+        expectedLifecycleRevision: request.expectedLifecycleRevision,
       },
     };
   }
@@ -1065,7 +1112,20 @@ export class StudioExecutionService implements OnModuleInit {
   }
   private persist(row: StudioExecution, state: StudioExecutionState) {
     row.state = JSON.stringify(state);
-    return this.studio.serializeWrite(() => this.db.manager.save(StudioExecution, row));
+    return metadataTransaction(this.db, async manager => {
+      if (!['succeeded', 'unsupported', 'cancelled'].includes(row.status)) {
+        await lockDashboardWrite(manager, row.dashboardId);
+        await lockMetricSources(manager, [state.request.document.sourceId]);
+        await this.studio.assertExecutionAccess(
+          row.dashboardId,
+          state.request.document.sourceId,
+          row.actorId,
+          'edit',
+          manager,
+        );
+      }
+      return manager.save(StudioExecution, row);
+    });
   }
   private checkDisconnected(signal?: AbortSignal) {
     if (signal?.aborted) throw new BadRequestException('실행 요청을 취소했습니다.');
@@ -1150,10 +1210,13 @@ export class StudioExecutionService implements OnModuleInit {
       delete step.errorCode;
       await this.persist(row, state);
       try {
+        // UC-051: a running step previews/edits work in progress, so it needs the edit action; only
+        // reading a past record (list/get) stays on read.
         await this.studio.assertExecutionAccess(
           row.dashboardId,
           request.document.sourceId,
           row.actorId,
+          'edit',
         );
         if (step.stepId === 'inspectSource') {
           // A recipient handoff must not aggregate or expose the unrelated editing source.
@@ -1186,6 +1249,7 @@ export class StudioExecutionService implements OnModuleInit {
           );
           // No source configuration, template, server URL or new dashboard is returned.
           state.remixResult = { token: publication.token, version: publication.version };
+          state.remixLifecycleRevision = publication.lifecycleRevision;
         } else if (state.unsupported === step.stepId)
           step.status = await this.externalStep(step.stepId, row, signal);
         else if (step.stepId === 'proposeSemantics') {
@@ -1200,7 +1264,7 @@ export class StudioExecutionService implements OnModuleInit {
                 ),
               }
             : body;
-          const proposal = await this.runs.propose(modelBody, prepared, signal);
+          const proposal = await this.runs.propose(modelBody, prepared, signal, row.actorId);
           this.rememberAnswer(row.runId, String(proposal.answer));
           // Deliberately omit free-form model answer from durable history.
           state.proposal = {
@@ -1217,6 +1281,13 @@ export class StudioExecutionService implements OnModuleInit {
               row.actorId,
             )
           ).preview;
+        } else if (
+          (step.stepId === 'saveDraft' || step.stepId === 'applyDraft') &&
+          state.proposal?.operations.some(operation => operation.type === 'setConditions')
+        ) {
+          // UC052: a model may propose common scope, never consent to its own review.
+          step.status = 'unsupported';
+          step.errorCode = 'CONDITION_REVIEW_REQUIRED';
         } else if (
           step.stepId === 'saveDraft' &&
           !state.saveOnly &&
@@ -1273,7 +1344,7 @@ export class StudioExecutionService implements OnModuleInit {
               ? this.publicationId(row)
               : row.runId + ':' + step.stepId;
         if (step.status === 'unsupported') {
-          step.errorCode = 'STEP_UNSUPPORTED';
+          step.errorCode ??= 'STEP_UNSUPPORTED';
           row.status = 'unsupported';
           break;
         }

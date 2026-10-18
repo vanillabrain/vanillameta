@@ -231,8 +231,8 @@ describe('owner-only changed-column impact', () => {
         databaseId: 1,
         title: 'Owned',
         revision: 'r1',
-        defaultDateRange: { column: 'day' },
-        defaultFilters: [{ column: 'company' }],
+        defaultDateRange: { column: 'day', start: '2026-01-01', end: '2026-01-31' },
+        defaultFilters: [{ column: 'company', values: ['Acme'] }],
         widgets: [
           {
             blockId: 'revenue',

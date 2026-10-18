@@ -1,3 +1,8 @@
+import { Test } from '@nestjs/testing';
+import { JwtService } from '@nestjs/jwt';
+import request = require('supertest');
+import { FileRefreshController } from './file-refresh.controller';
+import { AddFileRefreshActorEpoch1792580001000 } from '../migrations/1792580001000-add-file-refresh-actor-epoch';
 jest.mock('../utils/crypto.util', () => ({
   encryptConnectionConfig: (v: string) => v,
   decryptConnectionConfig: (v: string) => v,
@@ -17,6 +22,7 @@ import { FileRefresh } from './entities/file-refresh.entity';
 import { DatabaseService } from './database.service';
 import { FileRefreshService } from './file-refresh.service';
 
+const AUTH_EPOCH = 3;
 const file = (amount = '20.00') => ({
   originalname: 'amounts.csv',
   buffer: Buffer.from('day,amount\n2025-01-01,' + amount + '\n'),
@@ -48,6 +54,8 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
     }).initialize();
     await db.manager.save(User, {
       id: 1,
+      authVersion: AUTH_EPOCH,
+      active: true,
       userId: 'test-refresh',
       password: 'not-used-by-test',
       email: 'test-refresh@example.invalid',
@@ -61,7 +69,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       { removeKnex: jest.fn() } as any,
       worker,
     );
-    id = (await files.uploadFile(file('10.00'), 1)).data.id;
+    id = (await files.uploadFile(file('10.00'), 1, AUTH_EPOCH)).data.id;
     revision = (await state()).revision;
     service = make();
   });
@@ -77,14 +85,16 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
   });
   it('commits pointer and receipt together, replays the same request and exposes no private paths', async () => {
     const requestId = randomUUID();
-    const job = await service.start(id, file(), revision, requestId, 1);
+    const job = await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
     await settle();
     const done = await service.get(id, requestId, 1);
     expect(done.status).toBe('succeeded');
     expect(done.attempts).toBe(1);
     expect(done.result.versions).toHaveLength(2);
     const spy = jest.spyOn(worker, 'importFile');
-    expect((await service.start(id, file(), revision, requestId, 1)).id).toBe(job.id);
+    expect(
+      (await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH)).id,
+    ).toBe(job.id);
     await settle();
     expect(spy).not.toHaveBeenCalled();
     expect(JSON.stringify(done)).not.toContain(root);
@@ -94,13 +104,150 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       code: 'ENOENT',
     });
   });
+  it('retains the admission epoch through restart and rejects activation or retry after revocation', async () => {
+    jest.spyOn(service as any, 'schedule').mockImplementation(() => undefined);
+    const requestId = randomUUID();
+    const job = await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
+    expect((await db.manager.findOneByOrFail(FileRefresh, { id: job.id })).actorEpoch).toBe(
+      AUTH_EPOCH,
+    );
+    await service.onModuleDestroy();
+    service = make();
+    await db.manager.update(User, 1, { authVersion: AUTH_EPOCH + 1 });
+    await (service as any).run(job.id);
+    expect((await service.get(id, requestId, 1)).status).toBe('failed');
+    expect((await state()).revision).toBe(revision);
+    expect((await db.manager.findOneByOrFail(FileRefresh, { id: job.id })).actorEpoch).toBe(
+      AUTH_EPOCH,
+    );
+    await expect(service.retry(id, requestId, 1, AUTH_EPOCH + 1)).rejects.toMatchObject({
+      status: 403,
+    });
+    expect((await state()).versions).toHaveLength(1);
+  });
+  it('rejects a stale admission epoch before admitting a job', async () => {
+    await db.manager.update(User, 1, { authVersion: AUTH_EPOCH + 1 });
+    await expect(
+      service.start(id, file(), revision, randomUUID(), 1, undefined, AUTH_EPOCH),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.count(FileRefresh)).toBe(0);
+    expect((await state()).revision).toBe(revision);
+  });
+  it('does not infer a missing legacy job epoch from the current user', async () => {
+    jest.spyOn(service as any, 'schedule').mockImplementation(() => undefined);
+    const requestId = randomUUID();
+    const job = await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
+    await db.manager.update(FileRefresh, job.id, { actorEpoch: null });
+    await (service as any).run(job.id);
+    expect((await service.get(id, requestId, 1)).status).toBe('failed');
+    expect((await state()).revision).toBe(revision);
+    await expect(service.retry(id, requestId, 1, AUTH_EPOCH)).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+  it('migrates legacy receipts without assigning an invented actor epoch', async () => {
+    jest.spyOn(service as any, 'schedule').mockImplementation(() => undefined);
+    const requestId = randomUUID();
+    const job = await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
+    const runner = db.createQueryRunner();
+    const migration = new AddFileRefreshActorEpoch1792580001000();
+    try {
+      await migration.down(runner);
+      expect(await runner.hasColumn('file_refresh', 'actorEpoch')).toBe(false);
+      await migration.up(runner);
+      await migration.up(runner);
+      expect(await db.manager.findOneByOrFail(FileRefresh, { id: job.id })).toMatchObject({
+        id: job.id,
+        actorEpoch: null,
+        status: 'queued',
+        expectedRevision: revision,
+      });
+      await expect(service.retry(id, requestId, 1, AUTH_EPOCH)).rejects.toMatchObject({
+        status: 403,
+      });
+      expect((await state()).revision).toBe(revision);
+    } finally {
+      await runner.release();
+    }
+  });
+  it('binds admitted job epoch to the verified JWT and rejects revocation after the API guard', async () => {
+    const previousSecret = process.env.ACCESS_SECRET;
+    process.env.ACCESS_SECRET = 'synthetic-file-refresh-http-only';
+    const jwt = new JwtService();
+    const module = await Test.createTestingModule({
+      controllers: [FileRefreshController],
+      providers: [
+        { provide: FileRefreshService, useValue: service },
+        { provide: SourceAccessService, useValue: new SourceAccessService(db) },
+        { provide: JwtService, useValue: jwt },
+        { provide: DataSource, useValue: db },
+      ],
+    }).compile();
+    const app = module.createNestApplication();
+    jest.spyOn(service as any, 'schedule').mockImplementation(() => undefined);
+    const auth = (epoch: number) =>
+      'Bearer ' +
+      jwt.sign(
+        {
+          accessKeyData: { id: 1, userId: 'test-refresh', authVersion: epoch },
+        },
+        { secret: process.env.ACCESS_SECRET },
+      );
+    try {
+      await app.init();
+      await app.listen(0, '127.0.0.1');
+      const server = app.getHttpServer();
+      const requestId = randomUUID();
+      const upload = (token: string, requestId: string) =>
+        request(server)
+          .post(`/database/${id}/file-refreshes`)
+          .set('Authorization', token)
+          .field('requestId', requestId)
+          .field('expectedRevision', revision)
+          .field('actorEpoch', '999')
+          .field('authVersion', '999')
+          .attach('file', file().buffer, file().originalname);
+      const admitted = await upload(auth(AUTH_EPOCH), requestId).expect(201);
+      const job = await db.manager.findOneByOrFail(FileRefresh, { id: admitted.body.data.id });
+      expect(job.actorEpoch).toBe(AUTH_EPOCH);
+      expect(admitted.body.data).not.toHaveProperty('actorEpoch');
+      await upload(auth(AUTH_EPOCH + 1), randomUUID()).expect(401);
+      expect(await db.manager.count(FileRefresh)).toBe(1);
+
+      // Revoke after JwtAuthGuard has verified the request, before the admission transaction.
+      const digest = worker.uploadDigest.bind(worker);
+      jest.spyOn(worker, 'uploadDigest').mockImplementationOnce(async input => {
+        await db.manager.update(User, 1, { authVersion: AUTH_EPOCH + 1 });
+        return digest(input);
+      });
+      await upload(auth(AUTH_EPOCH), randomUUID()).expect(403);
+      expect(await db.manager.count(FileRefresh)).toBe(1);
+      expect((await state()).revision).toBe(revision);
+
+      await db.manager.update(User, 1, { authVersion: AUTH_EPOCH });
+      await db.manager.update(FileRefresh, job.id, { actorEpoch: null });
+      await request(server)
+        .post(`/database/${id}/file-refreshes/${requestId}/retry`)
+        .set('Authorization', auth(AUTH_EPOCH))
+        .expect(403);
+      expect(await db.manager.findOneByOrFail(FileRefresh, { id: job.id })).toMatchObject({
+        actorEpoch: null,
+        status: 'queued',
+        attempts: 0,
+      });
+    } finally {
+      await app.close();
+      if (previousSecret === undefined) delete process.env.ACCESS_SECRET;
+      else process.env.ACCESS_SECRET = previousSecret;
+    }
+  });
   it('rejects a different payload or actor without applying an additional version', async () => {
     const requestId = randomUUID();
-    await service.start(id, file(), revision, requestId, 1);
+    await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
     await settle();
-    await expect(service.start(id, file('21.00'), revision, requestId, 1)).rejects.toThrow(
-      '파일 또는 기준 버전',
-    );
+    await expect(
+      service.start(id, file('21.00'), revision, requestId, 1, undefined, AUTH_EPOCH),
+    ).rejects.toThrow('파일 또는 기준 버전');
     await expect(service.get(id, requestId, 2)).rejects.toThrow();
     expect((await state()).versions).toHaveLength(2);
     expect(await db.manager.count(FileRefresh)).toBe(1);
@@ -108,7 +255,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
   it('keeps an admitted input and the last success across a new service instance, then explicitly retries one job', async () => {
     const schedule = jest.spyOn(service as any, 'schedule').mockImplementation(() => undefined);
     const requestId = randomUUID();
-    const job = await service.start(id, file(), revision, requestId, 1);
+    const job = await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
     await db.manager.update(
       FileRefresh,
       { id: job.id },
@@ -125,7 +272,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
     const interrupted = await service.get(id, requestId, 1);
     expect(interrupted.status).toBe('interrupted');
     expect((await state()).versions).toHaveLength(1);
-    await service.retry(id, requestId, 1);
+    await service.retry(id, requestId, 1, AUTH_EPOCH);
     await settle();
     const done = await service.get(id, requestId, 1);
     expect(done.id).toBe(job.id);
@@ -148,12 +295,12 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
         return update.call(this, entity, criteria, patch);
       } as any);
     const requestId = randomUUID();
-    await service.start(id, file(), revision, requestId, 1);
+    await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
     await settle();
     expect((await service.get(id, requestId, 1)).status).toBe('failed');
     expect((await state()).versions).toHaveLength(1);
     spy.mockRestore();
-    await service.retry(id, requestId, 1);
+    await service.retry(id, requestId, 1, AUTH_EPOCH);
     await settle();
     expect((await service.get(id, requestId, 1)).status).toBe('succeeded');
     expect((await state()).versions).toHaveLength(2);
@@ -166,6 +313,8 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       revision,
       requestId,
       1,
+      undefined,
+      AUTH_EPOCH,
     );
     await settle();
     const failed = await service.get(id, requestId, 1);
@@ -177,7 +326,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
   it('resolves a same-file no-op as one successful receipt without importing or activating again', async () => {
     const spy = jest.spyOn(worker, 'importFile');
     const requestId = randomUUID();
-    await service.start(id, file('10.00'), revision, requestId, 1);
+    await service.start(id, file('10.00'), revision, requestId, 1, undefined, AUTH_EPOCH);
     await settle();
     expect(spy).not.toHaveBeenCalled();
     expect((await service.get(id, requestId, 1)).result.unchanged).toBe(true);
@@ -186,7 +335,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
   it('does not activate a queued job cancelled before execution', async () => {
     const schedule = jest.spyOn(service as any, 'schedule').mockImplementation(() => undefined);
     const requestId = randomUUID();
-    const job = await service.start(id, file(), revision, requestId, 1);
+    const job = await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
     expect((await service.cancel(id, requestId, 1)).status).toBe('cancelled');
     schedule.mockRestore();
     await (service as any).run(job.id);
@@ -208,7 +357,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       }
       return remove(filename, options);
     });
-    const job = await service.start(id, file(), revision, requestId, 1);
+    const job = await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
     await settle();
     expect(injected).toBe(true);
     expect((service as any).cancellations.size).toBe(0);
@@ -244,6 +393,8 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
         revision,
         requestId,
         1,
+        undefined,
+        AUTH_EPOCH,
       );
       const deadline = Date.now() + 10000;
       const kind = origin === 'local' ? 'import' : 'query';
@@ -270,7 +421,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       await expect(fs.stat(path.join(root, 'refresh-input', job.id))).rejects.toMatchObject({
         code: 'ENOENT',
       });
-      await expect(service.retry(id, requestId, 1)).rejects.toThrow('다시 실행');
+      await expect(service.retry(id, requestId, 1, AUTH_EPOCH)).rejects.toThrow('다시 실행');
       if (origin !== 'local') await canceller.onModuleDestroy();
     },
   );
@@ -284,14 +435,14 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
         throw new Error('committed response lost');
       });
     const requestId = randomUUID();
-    const admitted = await service.start(id, file(), revision, requestId, 1);
+    const admitted = await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
     expect(admitted.status).toBe('queued');
     await expect(
       fs.stat(path.join(root, 'refresh-input', admitted.id, 'source.csv')),
     ).resolves.toBeDefined();
     transaction.mockRestore();
     schedule.mockRestore();
-    await service.retry(id, requestId, 1);
+    await service.retry(id, requestId, 1, AUTH_EPOCH);
     await settle();
     expect((await service.get(id, requestId, 1)).status).toBe('succeeded');
     expect((await state()).versions).toHaveLength(2);
@@ -313,7 +464,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       return result;
     });
     const requestId = randomUUID();
-    const job = await service.start(id, file(), revision, requestId, 1);
+    const job = await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
     await entered;
     await db.manager.update(
       FileRefresh,
@@ -321,7 +472,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       { leaseUntil: new Date(Date.now() - 1000).toISOString() },
     );
     expect((await service.get(id, requestId, 1)).status).toBe('interrupted');
-    await service.retry(id, requestId, 1);
+    await service.retry(id, requestId, 1, AUTH_EPOCH);
     release();
     await settle();
     const done = await service.get(id, requestId, 1);
@@ -342,7 +493,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
         return original(target, options);
       });
     const requestId = randomUUID();
-    const job = await service.start(id, file(), revision, requestId, 1);
+    const job = await service.start(id, file(), revision, requestId, 1, undefined, AUTH_EPOCH);
     await settle();
     expect((await service.get(id, requestId, 1)).cleanupPending).toBe(true);
     expect(await db.manager.count(FileRefresh, { where: { inputRetained: true } })).toBe(1);
@@ -366,9 +517,9 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       if (++reads === 2) throw new Error('reconciliation unavailable');
       return find(criteria);
     });
-    await expect(service.start(id, file(), revision, randomUUID(), 1)).rejects.toThrow(
-      '파일은 보존',
-    );
+    await expect(
+      service.start(id, file(), revision, randomUUID(), 1, undefined, AUTH_EPOCH),
+    ).rejects.toThrow('파일은 보존');
     transaction.mockRestore();
     lookup.mockRestore();
     expect(await db.manager.count(FileRefresh)).toBe(0);
@@ -405,7 +556,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
     'ORD-001,2025-01-03T00:00:00,100.00,10.00',
   ];
   const prepareOrders = async () => {
-    id = (await files.uploadFile(orderFile(initialOrders), 1)).data.id;
+    id = (await files.uploadFile(orderFile(initialOrders), 1, AUTH_EPOCH)).data.id;
     revision = (await state()).revision;
   };
   it('commits correction statistics with the file receipt, replays it and applies reordered duplicate batches without another version', async () => {
@@ -419,6 +570,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       requestId,
       1,
       JSON.stringify(correctionSettings),
+      AUTH_EPOCH,
     );
     await settle();
     const done = await service.get(id, requestId, 1);
@@ -453,6 +605,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
           requestId,
           1,
           JSON.stringify(correctionSettings),
+          AUTH_EPOCH,
         )
       ).id,
     ).toBe(done.id);
@@ -464,6 +617,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
         requestId,
         1,
         JSON.stringify({ keyColumn: 'updated_at', updatedAtColumn: 'order_id' }),
+        AUTH_EPOCH,
       ),
     ).rejects.toThrow('파일 또는 기준 버전');
     const duplicate = randomUUID();
@@ -475,6 +629,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       duplicate,
       1,
       JSON.stringify(correctionSettings),
+      AUTH_EPOCH,
     );
     await settle();
     const replay = await service.get(id, duplicate, 1);
@@ -496,6 +651,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       requestId,
       1,
       JSON.stringify(correctionSettings),
+      AUTH_EPOCH,
     );
     await settle();
     const failed = await service.get(id, requestId, 1);
@@ -516,6 +672,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
       requestId,
       1,
       JSON.stringify(correctionSettings),
+      AUTH_EPOCH,
     );
     await db.manager.update(
       FileRefresh,
@@ -531,7 +688,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
     schedule.mockRestore();
     service = make();
     expect((await service.get(id, requestId, 1)).correction).toEqual(correctionSettings);
-    await service.retry(id, requestId, 1);
+    await service.retry(id, requestId, 1, AUTH_EPOCH);
     await settle();
     const done = await service.get(id, requestId, 1);
     expect(done.id).toBe(job.id);

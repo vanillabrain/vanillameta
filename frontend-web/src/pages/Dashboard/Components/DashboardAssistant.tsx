@@ -1,3 +1,4 @@
+import { studioConditionsKey } from '../Studio/studioDocument';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { Button } from '@/components/ui/button';
@@ -87,6 +88,7 @@ function DashboardAssistantContent({
   dashboardId,
   draft,
   filters,
+  conditions,
   dateRange,
   trendGrain = 'auto',
   comparePrevious = false,
@@ -114,6 +116,7 @@ function DashboardAssistantContent({
     databaseId: draft.databaseId,
     currentDraft: draft,
     filters,
+    ...(conditions ? { conditions } : {}),
     trendGrain,
     comparePrevious,
     ...(dateRange ? { dateRange } : {}),
@@ -202,7 +205,10 @@ function DashboardAssistantContent({
     setSaving(true);
     setSaveError('');
     const before = draft;
-    const next = revert ? undo.before : proposal.preview.draft;
+    const next = {
+      ...(revert ? undo.before : proposal.preview.draft),
+      ...(conditions ? { defaultConditions: conditions } : {}),
+    };
     try {
       const result = responseData(
         await post(
@@ -212,7 +218,17 @@ function DashboardAssistantContent({
         ),
       );
       if (result?.id !== dashboardId) throw new Error('변경을 저장하지 못했습니다.');
-      const persisted = { ...(result.draft || next), ...(result.revision ? { revision: result.revision } : {}) };
+      if (
+        result.draft &&
+        Object.prototype.hasOwnProperty.call(result.draft, 'defaultConditions') &&
+        studioConditionsKey(result.draft.defaultConditions) !== studioConditionsKey(conditions)
+      )
+        throw new Error('저장 응답의 포함·제외 조건이 다릅니다. 최신 정의를 다시 조회하세요.');
+      const persisted = {
+        ...(result.draft || next),
+        ...(conditions ? { defaultConditions: conditions } : {}),
+        ...(result.revision ? { revision: result.revision } : {}),
+      };
       setUndo(revert ? null : { before, after: JSON.stringify(persisted) });
       setProposal(null);
       setSelectedWidget('');

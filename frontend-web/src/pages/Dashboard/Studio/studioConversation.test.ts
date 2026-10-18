@@ -1,3 +1,4 @@
+import { applyStudioOperation } from './studioReducer';
 import { describe, it, expect, vi } from 'vitest';
 import { canApplyStudioRun, validateStudioRun, studioAssistantTransport } from './studioRunTransport';
 import { validateStudioDocument } from './studioDocument';
@@ -59,6 +60,30 @@ describe('Studio AI local apply guard', () => {
     const next = validateStudioRun(result(), context);
     expect(next.proposedOperations).toHaveLength(1);
     expect(canApplyStudioRun(next, context)).toBe(true);
+  });
+  it('accepts canonical source-pinned condition proposals without a selected block but rejects stale pins and no-ops', () => {
+    const c = { ...context, selectedBlockId: undefined };
+    const conditions = {
+      sourceRevision: c.expectedSourceRevision,
+      definition: { include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [100] }, exclude: null },
+    };
+    const raw: any = { ...result(), selectedBlockId: null, proposedOperations: [{ type: 'setConditions', conditions }] };
+    expect(validateStudioRun(raw, c).proposedOperations[0]).toEqual({ type: 'setConditions', conditions });
+    expect('conditions' in document).toBe(false);
+    expect(() =>
+      validateStudioRun(
+        {
+          ...raw,
+          proposedOperations: [{ type: 'setConditions', conditions: { ...conditions, sourceRevision: 'c'.repeat(64) } }],
+        },
+        c,
+      ),
+    ).toThrow();
+    expect(() => validateStudioRun(raw, { ...c, document: { ...document, conditions } as any })).toThrow();
+    expect(() => validateStudioRun({ ...raw, proposedOperations: [{ type: 'setConditions' }] }, c)).toThrow();
+    expect(() =>
+      validateStudioRun({ ...raw, proposedOperations: [{ type: 'setConditions', conditions, sql: 'bad' }] }, c),
+    ).toThrow();
   });
   it('rejects an old response even if an undo restored identical content', () => {
     const next = validateStudioRun(result(), context);
@@ -203,4 +228,56 @@ it('does not present malformed publication metadata as a successful shared link'
   } finally {
     spy.mockRestore();
   }
+});
+
+it('UC052 content followups retain scope while condition removal remains an explicit reviewable proposal', () => {
+  const conditions = {
+    sourceRevision: 'b'.repeat(64),
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  const scoped = { ...context, document: { ...document, conditions } };
+  const validated = validateStudioRun(result(), scoped);
+  let edited = scoped.document;
+  for (const operation of validated.proposedOperations) edited = applyStudioOperation(edited, operation) as typeof edited;
+  expect(edited.conditions).toEqual(conditions);
+  expect(edited.layouts).toEqual(document.layouts);
+  const removed = validateStudioRun(
+    { ...result(), proposedOperations: [{ type: 'setConditions', conditions: null }] },
+    scoped,
+  );
+  expect(removed.proposedOperations).toEqual([{ type: 'setConditions', conditions: null }]);
+  expect(scoped.document.conditions).toEqual(conditions);
+  expect(() =>
+    validateStudioRun({ ...result(), intent: 'ask', proposedOperations: removed.proposedOperations }, scoped),
+  ).toThrow();
+});
+
+it('AI preserves frozen semantics, rejects silent native/version switches, and permits explicit full removal', () => {
+  const semantics = {
+    schemaVersion: 1 as const,
+    catalogVersion: 4,
+    columns: [{ column: 'amount', businessType: 'number' as const, dateFormat: '' as const }],
+  };
+  const before = {
+    sourceRevision: context.expectedSourceRevision,
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'gte', values: [10] }, exclude: null },
+    semantics,
+  };
+  const c = { ...context, selectedBlockId: undefined, document: { ...document, conditions: before } };
+  const conditions = {
+    ...before,
+    definition: { ...before.definition, include: { ...before.definition.include, values: [20] } },
+  };
+  const raw = { ...result(), selectedBlockId: null, proposedOperations: [{ type: 'setConditions', conditions }] };
+  expect(validateStudioRun(raw, c).proposedOperations[0]).toEqual({ type: 'setConditions', conditions });
+  for (const wrong of [undefined, { ...semantics, catalogVersion: 5 }])
+    expect(() =>
+      validateStudioRun(
+        { ...raw, proposedOperations: [{ type: 'setConditions', conditions: { ...conditions, semantics: wrong } }] },
+        c,
+      ),
+    ).toThrow(/업무 의미/);
+  expect(
+    validateStudioRun({ ...raw, proposedOperations: [{ type: 'setConditions', conditions: null }] }, c).proposedOperations,
+  ).toEqual([{ type: 'setConditions', conditions: null }]);
 });

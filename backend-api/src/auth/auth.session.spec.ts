@@ -10,16 +10,36 @@ import { LoginController } from '../login/login.controller';
 const unitActor = { id: 7, userId: 'unitactor', email: 'unit@example.invalid', jwtId: 31 };
 
 describe('persisted refresh sessions and cookie extraction', () => {
-  let users: Pick<jest.Mocked<Repository<User>>, 'findOne' | 'update'>;
-  let refresh: Pick<jest.Mocked<Repository<RefreshToken>>, 'findOne' | 'save'>;
+  let users: Pick<jest.Mocked<Repository<User>>, 'findOne' | 'update'> & {
+    manager: any;
+  };
+  let refresh: Pick<jest.Mocked<Repository<RefreshToken>>, 'findOne' | 'save' | 'update'> & {
+    manager: any;
+  };
   let service: AuthService;
   let raw: string;
   const environment = { ...process.env };
 
   beforeEach(async () => {
     process.env.REFRESH_SECRET = 'unit-only-session-key';
-    users = { findOne: jest.fn(), update: jest.fn().mockResolvedValue({ affected: 1 }) };
-    refresh = { findOne: jest.fn(), save: jest.fn() };
+    const metadataConnection = { options: { type: 'mysql' } };
+    const manager: any = { connection: metadataConnection };
+    manager.transaction = async run => run(manager);
+    manager.findOne = (entity, options) =>
+      entity === User ? users.findOne(options) : refresh.findOne(options);
+    manager.save = (_entity, row) => refresh.save(row);
+    manager.update = (_entity, id, changes) => users.update(id, changes);
+    users = {
+      findOne: jest.fn(),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+      manager,
+    };
+    refresh = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+      manager,
+    };
     service = new AuthService(
       new JwtService(),
       users as unknown as Repository<User>,
@@ -45,6 +65,7 @@ describe('persisted refresh sessions and cookie extraction', () => {
   it.each([null, 0, undefined, -1, NaN])(
     'first login with prior jwtId %p cannot look up another users row',
     async prior => {
+      users.findOne.mockResolvedValue({ ...unitActor, jwtId: null } as User);
       const saved = await service.setRefreshKey.call(service, raw, prior, 7);
       expect(refresh.findOne).not.toHaveBeenCalled();
       expect(saved?.id).toBe(31);
@@ -52,11 +73,15 @@ describe('persisted refresh sessions and cookie extraction', () => {
     },
   );
 
-  it('updates only the supplied existing refresh row and returns its linked id', async () => {
+  it('updates the current linked refresh row and returns its linked id', async () => {
     const saved = await service.setRefreshKey.call(service, raw, 31, 7);
     expect(refresh.findOne).toHaveBeenCalledWith({ where: { id: 31 } });
     expect(saved?.id).toBe(31);
     expect(users.update).toHaveBeenCalledWith(7, { jwtId: 31 });
+    expect(users.findOne).toHaveBeenCalledWith({
+      where: { id: 7, userId: 'unitactor' },
+      lock: { mode: 'pessimistic_write' },
+    });
   });
 
   it('rejects an invalid login owner id before any refresh row lookup/save', async () => {
@@ -99,6 +124,7 @@ describe('persisted refresh sessions and cookie extraction', () => {
     const context = { switchToHttp: () => ({ getRequest: () => request }) } as ExecutionContext;
     expect(await guard.canActivate(context)).toBe(true);
     expect(request.user.refreshKeyData.jwtId).toBe(31);
+    expect(request.verifiedRefreshToken).toBe(raw);
   });
 
   it('header fallback finds jwt_re behind another cookie and preserves its entire value', async () => {
@@ -110,6 +136,7 @@ describe('persisted refresh sessions and cookie extraction', () => {
       } as ExecutionContext),
     ).toBe(true);
     expect(request.user.refreshKeyData.jwtId).toBe(31);
+    expect(request.verifiedRefreshToken).toBe(raw);
   });
 
   it.each([{}, { cookie: 'other=x' }, { cookie: 'jwt_re=invalid-unit-token' }])(
@@ -134,20 +161,22 @@ describe('persisted refresh sessions and cookie extraction', () => {
       clearCookie: jest.fn().mockReturnThis(),
       json: jest.fn(),
     };
-    await controller.signOut(res, { user: verified });
+    await controller.signOut(res, { user: verified, verifiedRefreshToken: raw });
     expect(refresh.findOne.mock.calls.every(([options]) => (options as any).where.id === 31)).toBe(
       true,
     );
-    expect(refresh.save).toHaveBeenCalledTimes(1);
-    expect(refresh.save.mock.calls[0][0].id).toBe(31);
-    expect(refresh.save.mock.calls[0][0].refreshToken).toBe('');
+    expect(refresh.update).toHaveBeenCalledWith(
+      { id: 31, refreshToken: raw },
+      { refreshToken: '' },
+    );
+    expect(refresh.save).not.toHaveBeenCalled();
   });
 
   it('invalid or missing logout references return 401 instead of querying undefined ids', async () => {
     await expect(service.deleteRefreshToken(undefined)).rejects.toMatchObject({ status: 401 });
     expect(refresh.findOne).not.toHaveBeenCalled();
-    refresh.findOne.mockResolvedValueOnce(null);
     await expect(service.deleteRefreshToken(31)).rejects.toMatchObject({ status: 401 });
+    expect(refresh.update).not.toHaveBeenCalled();
   });
 });
 
@@ -184,8 +213,11 @@ describe('HTTP-only refresh cookie environments and matching clear options', () 
       secure: stage === 'prod',
       path: '/',
     });
-    await controller.signOut(res, { user: { refreshKeyData: { jwtId: 31 } } });
+    await controller.signOut(res, {
+      user: { refreshKeyData: { jwtId: 31 } },
+      verifiedRefreshToken: 'unit-refresh-fixture',
+    });
     expect(res.clearCookie).toHaveBeenCalledWith('jwt_re', options);
-    expect(auth.deleteRefreshToken).toHaveBeenCalledWith(31);
+    expect(auth.deleteRefreshToken).toHaveBeenCalledWith(31, 'unit-refresh-fixture');
   });
 });

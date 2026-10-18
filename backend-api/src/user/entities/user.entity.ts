@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity()
@@ -14,7 +15,14 @@ export class User {
   @ApiProperty({ description: 'id' })
   id: number;
 
+  @Column({ type: 'boolean', default: true })
+  active: boolean;
+
+  @Column({ type: 'integer', default: 0 })
+  authVersion: number;
+
   @IsNotEmpty()
+  @Index('UQ_user_userId', { unique: true })
   @Column({ length: 255, comment: '유저 Id' })
   @ApiProperty({ description: '유저Id' })
   userId: string;
@@ -24,6 +32,7 @@ export class User {
   jwtId: number;
 
   @IsNotEmpty()
+  @Index('UQ_user_email', { unique: true })
   @Column({ length: 255, comment: '유저 email' })
   @ApiProperty({ description: '유저 email' })
   email: string;

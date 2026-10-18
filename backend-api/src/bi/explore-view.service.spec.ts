@@ -1,3 +1,4 @@
+import { Metric } from '../metric/entities/metric.entity';
 import { DataSource } from 'typeorm';
 import { ForbiddenException } from '@nestjs/common';
 import { PersonalView } from '../dashboard/entities/personal-view.entity';
@@ -7,6 +8,7 @@ import { exploreViewRevision, validateExploreViewState } from './explore-view-st
 import { AddPersonalViews1791854000000 } from '../migrations/1791854000000-add-personal-views';
 import { AddExploreViews1791941000000 } from '../migrations/1791941000000-add-explore-views';
 jest.mock('./bi-explore.service', () => ({ BiExploreService: class {} }));
+jest.mock('../connection/connection.service', () => ({ ConnectionService: class {} }));
 const catalog = () => ({
   sourceId: 3,
   sourceRevision: 'data1',
@@ -43,12 +45,17 @@ const state = () => ({
   leaderboardSort: { by: 'percentChange', direction: 'asc' },
 });
 describe('exploration saved views', () => {
-  let db: DataSource, service: ExploreViewService, access: any, current: any, explorer: any;
+  let db: DataSource,
+    service: ExploreViewService,
+    access: any,
+    current: any,
+    explorer: any,
+    snapshots: any;
   beforeEach(async () => {
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: [PersonalView, Database],
+      entities: [PersonalView, Database, Metric],
       synchronize: true,
     }).initialize();
     await db.getRepository(Database).save({
@@ -60,6 +67,16 @@ describe('exploration saved views', () => {
       type: 'FILE',
     });
     current = catalog();
+    await db.manager.insert(Metric, {
+      id: 1,
+      name: 'requests',
+      databaseId: 3,
+      tableName: 'uploaded_data',
+      aggregation: 'SUM' as any,
+      expression: 'requests',
+      definition: JSON.stringify(current.measures[0].definition),
+      useYn: 'Y',
+    });
     access = {
       id: (v: any) => {
         const n = Number(v);
@@ -74,7 +91,11 @@ describe('exploration saved views', () => {
     explorer = {
       catalog: jest.fn(async () => ({ ...current, viewRevision: exploreViewRevision(current) })),
     };
-    service = new ExploreViewService(db.getRepository(PersonalView), access, explorer);
+    snapshots = {
+      captureDuckDBSnapshot: jest.fn(async () => ({ run: async operation => operation() })),
+      duckDBVersion: jest.fn(async () => current.sourceRevision),
+    };
+    service = new ExploreViewService(db.getRepository(PersonalView), access, explorer, snapshots);
   });
   afterEach(async () => {
     await db.destroy();
@@ -86,7 +107,12 @@ describe('exploration saved views', () => {
       .getRepository(PersonalView)
       .save({ dashboardId: 9, userId: 2, name: 'legacy', revision: 'a'.repeat(64), state: '{}' });
     const saved = await create();
-    const fresh = new ExploreViewService(db.getRepository(PersonalView), access, explorer);
+    const fresh = new ExploreViewService(
+      db.getRepository(PersonalView),
+      access,
+      explorer,
+      snapshots,
+    );
     expect((await fresh.load(3, saved.data.id, 2)).data.state).toEqual(state());
     expect((await fresh.list(3, 2)).data).toHaveLength(1);
     expect(await db.getRepository(PersonalView).count({ where: { dashboardId: 9 } })).toBe(1);
@@ -95,6 +121,85 @@ describe('exploration saved views', () => {
     expect((await fresh.list(3, 2)).data).toEqual([]);
     expect(await db.getRepository(PersonalView).count()).toBe(1);
   });
+  it('persists explicit conditions under a file snapshot and rejects stale restoration without changing saved/current inputs', async () => {
+    current.sourceRevision = 'a'.repeat(64);
+    const conditions = {
+      sourceRevision: current.sourceRevision,
+      definition: {
+        include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [2] },
+        exclude: null,
+      },
+    };
+    const input = { ...state(), conditions };
+    const original = JSON.stringify(input);
+    const sourceBefore = await db.manager.findOneBy(Database, { id: 3 });
+    const saved = await service.create(3, 2, {
+      name: 'Condition',
+      state: input,
+      revision: exploreViewRevision(current),
+    });
+    expect((await service.load(3, saved.data.id, 2)).data.state).toEqual(input);
+    expect(snapshots.captureDuckDBSnapshot).toHaveBeenCalledTimes(4);
+    expect(await db.manager.findOneBy(Database, { id: 3 })).toEqual(sourceBefore);
+    current.sourceRevision = 'b'.repeat(64);
+    await expect(service.load(3, saved.data.id, 2)).rejects.toMatchObject({ status: 409 });
+    await expect(
+      service.create(3, 2, { name: 'Stale', state: input, revision: exploreViewRevision(current) }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(JSON.stringify(input)).toBe(original);
+    expect(await db.getRepository(PersonalView).count()).toBe(1);
+    expect(
+      JSON.parse((await db.getRepository(PersonalView).findOneBy({ id: saved.data.id })).state),
+    ).toEqual(input);
+  });
+  it.each([
+    { sourceRevision: 'metadata-revision', definition: { include: null, exclude: null } },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: { include: null, exclude: null },
+      sql: 'SELECT private',
+    },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: {
+        include: { kind: 'predicate', column: 'unknown', operator: 'eq', values: ['x'] },
+        exclude: null,
+      },
+    },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: {
+        include: { kind: 'predicate', column: 'device', operator: 'gt', values: [2] },
+        exclude: null,
+      },
+    },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: {
+        include: {
+          kind: 'predicate',
+          column: 'device',
+          operator: 'eq',
+          values: ['x'.repeat(33000)],
+        },
+        exclude: null,
+      },
+    },
+  ])(
+    'rejects malformed or schema-incompatible condition snapshots without saving',
+    async conditions => {
+      current.sourceRevision = 'a'.repeat(64);
+      await expect(
+        service.create(3, 2, {
+          name: 'Invalid',
+          revision: exploreViewRevision(current),
+          state: { ...state(), conditions },
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(await db.getRepository(PersonalView).count()).toBe(0);
+    },
+  );
+
   it('persists Pivot axes across service reload and rejects invalid new settings', async () => {
     const pivot = {
       ...state(),
@@ -106,7 +211,12 @@ describe('exploration saved views', () => {
       revision: exploreViewRevision(current),
       state: pivot,
     });
-    const fresh = new ExploreViewService(db.getRepository(PersonalView), access, explorer);
+    const fresh = new ExploreViewService(
+      db.getRepository(PersonalView),
+      access,
+      explorer,
+      snapshots,
+    );
     expect((await fresh.load(3, saved.data.id, 2)).data.state).toEqual(pivot);
     for (const axes of [
       { rowDimensions: [], columnDimensions: [] },
@@ -169,12 +279,12 @@ describe('exploration saved views', () => {
     await expect(
       service.create(3, 2, { name: 'x', state: state(), revision: 'a'.repeat(64) }),
     ).rejects.toMatchObject({ status: 409 });
-    explorer.catalog
-      .mockImplementationOnce(async () => ({
-        ...current,
-        viewRevision: exploreViewRevision(current),
-      }))
-      .mockImplementationOnce(async () => ({ ...current, viewRevision: 'f'.repeat(64) }));
+    explorer.catalog.mockImplementationOnce(async () => {
+      await db.manager.update(Metric, 1, {
+        definition: JSON.stringify({ aggregation: 'AVG', column: 'requests' }),
+      });
+      return { ...current, viewRevision: exploreViewRevision(current) };
+    });
     await expect(create()).rejects.toMatchObject({ status: 409 });
     expect(await db.getRepository(PersonalView).count()).toBe(0);
   });

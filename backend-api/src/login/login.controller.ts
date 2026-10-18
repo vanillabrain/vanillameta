@@ -63,7 +63,7 @@ export class LoginController {
   @ApiOperation({ summary: '로그아웃' })
   async signOut(@Res() res, @Req() req) {
     const { jwtId } = req.user.refreshKeyData;
-    await this.authService.deleteRefreshToken(jwtId);
+    await this.authService.deleteRefreshToken(jwtId, req.verifiedRefreshToken);
     return res
       .status(201)
       .clearCookie('jwt_re', {

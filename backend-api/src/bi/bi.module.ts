@@ -16,6 +16,15 @@ import { SourceModelService } from './source-model.service';
 import { SourceModelController } from './source-model.controller';
 import { SourceModelReceipt } from './source-model-receipt.entity';
 import { FileSchemaImpactController } from './file-schema-impact.controller';
+import { ExportJobsService } from './export-jobs.service';
+import { ExportJobsController } from './export-jobs.controller';
+import { SourceConditionsController } from './source-conditions.controller';
+import { SourceConditionsService } from './source-conditions.service';
+import { SourceConditionEntry } from './entities/source-condition-entry.entity';
+import { SourceCatalogUsageService } from './source-catalog-usage.service';
+import { SourceCatalogController } from './source-catalog.controller';
+import { SourceCatalogService } from './source-catalog.service';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { SharedReuseOriginService } from './shared-reuse-origin.service';
 import {
   SharedReuseController,
@@ -67,6 +76,8 @@ import { BiService } from './bi.service';
       BiOrganizationMember,
       BiDashboardPolicy,
       BiPolicyAudit,
+      SourceCatalogEntry,
+      SourceConditionEntry,
     ]),
   ],
   controllers: [
@@ -74,6 +85,9 @@ import { BiService } from './bi.service';
     GovernanceController,
     SourceModelController,
     FileSchemaImpactController,
+    ExportJobsController,
+    SourceConditionsController,
+    SourceCatalogController,
     BiController,
     DashboardReuseController,
     SharedReuseController,
@@ -95,6 +109,10 @@ import { BiService } from './bi.service';
     SourceModelService,
     FileSchemaImpactService,
     FileSchemaDiagnosisService,
+    ExportJobsService,
+    SourceConditionsService,
+    SourceCatalogService,
+    SourceCatalogUsageService,
     BiService,
     DashboardReuseService,
     SharedReuseOriginService,

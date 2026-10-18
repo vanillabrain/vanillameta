@@ -180,12 +180,14 @@ describe('BiExploreService dynamic exploration over real DuckDB', () => {
       ),
     };
     const db = {
+      options: { type: 'sqlite' },
       getRepository: jest.fn((entity: any) => {
         if (entity === Database) return databaseRepo;
         if (entity === Metric) return metricRepo;
         throw new Error('unexpected repository');
       }),
     };
+    Object.assign(databaseRepo, { manager: { connection: db } });
     const connection = new ConnectionService(databaseRepo, {} as any, worker);
     const bi = new BiService(db as any, new SourceAccessService(db as any), connection, {
       save: jest.fn(),
@@ -613,6 +615,118 @@ describe('BiExploreService dynamic exploration over real DuckDB', () => {
       },
       actor,
     );
+
+  const basisRequest = async (mode: string, extra: any = {}) => {
+    const body = { sourceId: 1, sourceRevision: await revision(), measureIds: [1], ...extra };
+    return mode === 'query'
+      ? service.query({ ...body, rankingMeasureId: 1 }, actor)
+      : service.pivot(
+          {
+            ...body,
+            ...(mode === 'classic'
+              ? { rowDimensions: ['region'], columnDimensions: [] }
+              : { rowColumns: ['region'], columnColumns: [] }),
+          },
+          actor,
+        );
+  };
+  it.each(['query', 'classic', 'advanced'])(
+    'returns actual %s metric versions and rejects stale expected versions',
+    async mode => {
+      expect(
+        (await basisRequest(mode, { expectedMeasureVersions: { '1': 1 } })).measureVersions,
+      ).toEqual({ '1': 1 });
+      const definition = JSON.parse(metrics[0].definition);
+      metrics[0].definition = JSON.stringify({ ...definition, definitionVersion: 2, scale: 2 });
+      await expect(
+        basisRequest(mode, { expectedMeasureVersions: { '1': 1 } }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect((await basisRequest(mode)).measureVersions).toEqual({ '1': 2 });
+    },
+  );
+  it.each(['query', 'classic', 'advanced'])(
+    'rejects %s in-flight metric changes even without expected versions',
+    async mode => {
+      const connection = (service as any).connection as ConnectionService;
+      const original = connection.queryDuckDB.bind(connection);
+      const sourceRevision = await revision();
+      let changed = false;
+      const spy = jest.spyOn(connection, 'queryDuckDB').mockImplementation(async (...args) => {
+        const result = await original(...args);
+        if (!changed && args[1].includes('SELECT') && !args[1].includes('null_')) {
+          changed = true;
+          metrics[0].definition = JSON.stringify({
+            ...JSON.parse(metrics[0].definition),
+            definitionVersion: 2,
+          });
+        }
+        return result;
+      });
+      try {
+        await expect(basisRequest(mode, { sourceRevision })).rejects.toMatchObject({ status: 409 });
+        expect(changed).toBe(true);
+      } finally {
+        spy.mockRestore();
+      }
+    },
+  );
+  it('rejects a same-timestamp source pointer switch inside an outer pin and preserves that caller pin', async () => {
+    const dashboards = (service as any).dashboards as AiDashboardService;
+    const original = dashboards.preview.bind(dashboards);
+    const spy = jest.spyOn(dashboards, 'preview').mockImplementationOnce(async (...args) => {
+      const result = await original(...args);
+      state.filename = bulkFile;
+      return result;
+    });
+    const connection = (service as any).connection as ConnectionService;
+    try {
+      await connection.withDuckDBSnapshot(1, async () => {
+        const pinned = await connection.duckDBVersion(1);
+        await expect(basisRequest('query')).rejects.toMatchObject({ status: 409 });
+        expect(state.filename).toBe(bulkFile);
+        expect(await connection.duckDBVersion(1)).toBe(pinned);
+        const fresh = await connection.captureDuckDBSnapshot(1);
+        expect(await fresh.run(() => connection.duckDBVersion(1))).not.toBe(pinned);
+      });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('rejects a catalog/prepare race before aggregate SQL can run', async () => {
+    const bi = (service as any).bi as BiService;
+    const dashboards = (service as any).dashboards as AiDashboardService;
+    const original = bi.prepare.bind(bi);
+    const spy = jest.spyOn(bi, 'prepare').mockImplementationOnce(async (...args) => {
+      metrics[0].definition = JSON.stringify({
+        ...JSON.parse(metrics[0].definition),
+        definitionVersion: 2,
+      });
+      return original(...args);
+    });
+    const aggregate = jest.spyOn(dashboards, 'preview');
+    try {
+      await expect(basisRequest('query')).rejects.toMatchObject({ status: 409 });
+      expect(aggregate).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+      aggregate.mockRestore();
+    }
+  });
+  it('rechecks source rights after aggregate calculation for legacy requests', async () => {
+    const dashboards = (service as any).dashboards as AiDashboardService;
+    const original = dashboards.preview.bind(dashboards);
+    const spy = jest.spyOn(dashboards, 'preview').mockImplementationOnce(async (...args) => {
+      const result = await original(...args);
+      sources[0].ownerId = 20;
+      return result;
+    });
+    try {
+      await expect(basisRequest('query')).rejects.toMatchObject({ status: 403 });
+    } finally {
+      spy.mockRestore();
+    }
+  });
 
   it('applies the same range to KPIs, both trends, comparison, leaderboard, details and value search', async () => {
     const filters = [{ column: 'amount', range: { min: 20, max: 50 } }];
@@ -1087,7 +1201,7 @@ describe('BiExploreService dynamic exploration over real DuckDB', () => {
     query.mockRestore();
   });
 
-  it('pivot pins the DuckDB source snapshot across all aggregate queries', async () => {
+  it('pivot pins aggregate SQL but rejects a source switch before returning its result', async () => {
     const connection = (service as any).connection as ConnectionService;
     const original = connection.queryDuckDB.bind(connection);
     const query = jest.spyOn(connection, 'queryDuckDB').mockImplementation(async (...args) => {
@@ -1095,12 +1209,16 @@ describe('BiExploreService dynamic exploration over real DuckDB', () => {
       if (args[1].includes('__vm_pivot_m0')) state.filename = bulkFile;
       return result;
     });
-    const result = await pivot();
-    expect(result.grandTotals[0]).toBe(311);
-    expect(result.rows[0].values).toEqual(['A']);
-    expect(result.rows[0].cells).toHaveLength(2);
-    query.mockRestore();
-    expect(result.sourceRevision).not.toBe(await revision());
+    try {
+      await expect(pivot()).rejects.toMatchObject({ status: 409 });
+      // All aggregate SQL still uses the original pin; the final current-source check refuses
+      // to publish those results once the selected file changes.
+      expect(
+        query.mock.calls.filter(([, sql]) => sql.includes('__vm_pivot_m0')).length,
+      ).toBeGreaterThan(1);
+    } finally {
+      query.mockRestore();
+    }
   });
 
   it('pivot authorizes before decrypting broken foreign connection config', async () => {

@@ -11,6 +11,8 @@ import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
 const dashboard = {
   id: 26,
   title: 'Saved dashboard',
+  assetActive: true,
+  assetVersion: 0,
   delYn: 'N',
   layout: null,
   analysisDefinition: null,
@@ -70,7 +72,7 @@ describe('personal saved views', () => {
       'revision',
       'state',
     ]);
-    expect(access.dashboard).toHaveBeenCalledWith(26, 5);
+    expect(access.dashboard).toHaveBeenCalledWith(26, 5, 'read', expect.anything());
     await reloaded.remove(26, created.data.id, 5);
     expect((await reloaded.list(26, 5)).data).toEqual([]);
     expect(await db.getRepository(Dashboard).count()).toBe(2);

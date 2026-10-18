@@ -97,3 +97,32 @@ it('validates aggregate segment conditions and typed pivot column before restori
     expect(() => parseExploreViewState({ ...input, segment: { ...input.segment, ...patch } }, catalog)).toThrow();
   expect(() => parseExploreViewState({ ...input, mode: 'explore' }, catalog)).toThrow();
 });
+
+const snapshot = () => ({
+  sourceRevision: 'a'.repeat(64),
+  definition: { include: { kind: 'predicate', column: 'device_type', operator: 'eq', values: ['App'] }, exclude: null },
+});
+it('roundtrips an immutable condition snapshot and rejects stale files before restoring', () => {
+  const input = { ...state(), conditions: snapshot() };
+  const parsed = parseExploreViewState(input, { ...catalog, sourceRevision: 'a'.repeat(64) });
+  expect(parsed.conditions).toEqual(input.conditions);
+  input.conditions.definition.include.values[0] = 'changed';
+  expect((parsed.conditions.definition.include as any).values).toEqual(['App']);
+  expect(() => parseExploreViewState(input, { ...catalog, sourceRevision: 'b'.repeat(64) })).toThrow(/파일 버전/);
+});
+it.each([
+  null,
+  {},
+  { ...snapshot(), extra: true },
+  { ...snapshot(), definition: { include: null } },
+  {
+    ...snapshot(),
+    definition: { include: { kind: 'predicate', column: 'x', operator: 'sql', values: ['x'] }, exclude: null },
+  },
+  {
+    ...snapshot(),
+    definition: { include: { kind: 'predicate', column: 'x', operator: 'eq', values: ['x'.repeat(40000)] }, exclude: null },
+  },
+])('rejects invalid or oversized saved conditions %j', conditions => {
+  expect(() => parseExploreViewState({ ...state(), conditions })).toThrow();
+});

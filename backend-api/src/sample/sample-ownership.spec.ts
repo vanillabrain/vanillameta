@@ -42,7 +42,11 @@ describe('SampleService private sample asset ownership', () => {
       Database: {
         findOne: jest.fn(({ where }) =>
           Promise.resolve(
-            databases.find(row => row.name === where.name && row.ownerId === where.ownerId) || null,
+            databases.find(row =>
+              where.id !== undefined
+                ? row.id === where.id
+                : row.name === where.name && row.ownerId === where.ownerId,
+            ) || null,
           ),
         ),
         save: jest.fn(async row => {
@@ -50,6 +54,7 @@ describe('SampleService private sample asset ownership', () => {
           databases.push(saved);
           return saved;
         }),
+        manager: { connection: { options: { type: 'mysql' } } },
       },
       Dataset: {
         findOne: jest.fn(({ where }) =>
@@ -93,6 +98,22 @@ describe('SampleService private sample asset ownership', () => {
       DashboardWidget: { save: jest.fn() },
       UserMapping: { find: jest.fn(), save: jest.fn() },
     };
+    const connection: any = { options: { type: 'mysql' } };
+    const manager: any = {
+      connection,
+      queryRunner: { isTransactionActive: false },
+      findOne: jest.fn((entity, options) => repositories[entity.name].findOne(options)),
+      save: jest.fn((entity, value) => repositories[entity.name].save(value)),
+    };
+    connection.transaction = jest.fn(async run => {
+      manager.queryRunner.isTransactionActive = true;
+      try {
+        return await run(manager);
+      } finally {
+        manager.queryRunner.isTransactionActive = false;
+      }
+    });
+    repositories.Database.manager = manager;
     const entities = [
       Database,
       Dataset,

@@ -2,6 +2,78 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC050 조직 공통 분류:** [계획](docs/plans/UC-050-classifications.md)·[증빙](docs/testing/organization-classifications.md)은 조직 사전과 source edit를 구별하고 역사 ref/명시 null·과거 영수증/현재 목록을 보존한다. 생성 미확정 요청은24h/8KiB 탭 복구 후 명시 확인만 한다. BE293·실제 MySQL15·core15와 후속 UI2, 390/768/1440 및 필드 top 차이0px를 확인했다. 중복 배치는 합산하지 않는다. 새 semantic 생성·Ego/실기기/운영/사람·전체16개 수용은 열림이다.
+
+- **UC050 조건 업무 의미:** [계획](docs/plans/UC-050-condition-semantics.md)·[증빙](docs/testing/business-condition-semantics.md)은 파일/metadata/catalog 버전을 구별한 고정 의미와 legacy native 보존·명시 최신 채택을 연결한다. Source49/MySQL2·FE802·Source UI1은 범위별 증빙이며 합산하지 않는다. 실 Codex 단일 조건 UI1개14.5초·core headless14개49.4초 PASS다. Explore oracle8 PASS/22 SKIP는 별도다. BE26 suites/884 unique는 단계별 검증·두 reviewer APPROVE0이며 안정 BE type/lint/build·최종 dist ui-stable1개11.9초 PASS다(이전 UI와 합산0). 조건 의미 단위 core-stable14 PASS/38.3초는 새 분류 검증으로 승계하지 않는다. 공통 분류는 별도 최신 증빙을 따른다. 복합 부정 의도 제한·새 semantic 지표/차원 생성·실제 Ego/휴대폰/운영/사람·전체16개 수용은 대기다.
+
+- **UC052/054 동일 조회·출력 기준:** [설계](docs/plans/UC-052-explore-basis.md)·[증빙](docs/testing/explore-reviewed-basis.md)은 검증 preview.analysisConditions의 파일 hash/definition을 명시 적용해 Explore/Pivot·보기 v1~v5·CSV로 연결한다. 편집 draft metadata revision을 실행 hash로 사용하지 않는다. 실제 응답 measureVersions로 출력하고 계산 전후 새 파일/지표·권한을 검사한다. 완료 영속 파일은 과거 기준이다. BE397/FE237·격리 headless2와390/768/1440을 확인했으며 Ego/실기기/이번MySQL/운영·전체16개 수용은 별도다.
+
+- **UC055 대시보드 상태:** [계획](docs/plans/UC-055-dashboard-lifecycle.md)·[증빙](docs/testing/dashboard-asset-lifecycle.md)은 조직의 현재 소유 admin이8종 영향을 확인하고 비활성화/복원하는 구현 단위다. 일반 이용 차단과 제한된 관리/회수를 구별하고 정의·관계·게시/독립 사본은 보존한다. 과거 영수증은 현재 상태가 아니며 복원 전 준비 요청의 lifecycle 기준도 재검사한다. 실행/전체16개 수용은 증빙의 확정 범위만 따른다.
+
+- **UC055 소스 삭제:** [계획](docs/plans/UC-055-source-delete.md)·[증빙](docs/testing/source-deletion.md)은 고정10종 현재 사용처·actor/org/epoch/기준과 Source 부모 잠금 아래 Database 한 행 삭제/지속 영수증을 연결한다. 파일은 암호화 계획·신원 proof·명시 정리/lease/재시도로 분리하며 하위 공유 파일·다른 자원/외부 원본을 자동 삭제하지 않는다. 실제 MySQL24·실제 임시 파일 통합의 선택 검증이며 Ego/실기기/운영·전체16개 수용은 별도다.
+
+- **UC055 지표 삭제 보호:** [계획](docs/plans/UC-055-metric-delete.md)·[증빙](docs/testing/metric-deletion.md)은 저장 분석/Pivot·Studio 문서·두 탐색 보기·대기/실행 출력 작업의 명시 참조를 확인해 지표 논리 삭제/영수증으로 연결한다. 현재 소스 소유/actor/org/epoch·기준과 공통 Source→Metric 잠금을 재검사하며 참조를 자동 해제하지 않는다. 실제 격리 MySQL8.4.11의20개(두 연결 잠금 경합 포함)를 확인했지만 모든 writer/운영 통과는 아니다. source 영구 삭제·조직 비활성·실제 Ego/실휴대폰/운영·전체16개 수용은 별도다.
+
+- **UC055 삭제 보호:** [계획](docs/plans/UC-055-dashboard-delete.md)·[증빙](docs/testing/dashboard-deletion.md)은 현재 소유/계정·조직·기준과 8종 설정을 재검사해 대시보드 원자 삭제/영수증으로 이어진다. 삭제·기존-ID 저장·새 공유/게시의 부모 잠금은 공통이며 삭제된 ID를 재생성하지 않는다. source/metric/조직 비활성·실제 Ego/MySQL/운영·전체16개 수용은 별도다.
+
+- **UC055 개인 보관:** [계획](docs/plans/UC-055-library-archive.md)·[증빙](docs/testing/personal-library-archive.md)은 본인/현재 조직의 목록 보관·복원을 원본/공유/게시와 분리한다. 읽은 계정/조직·개인 버전·현재 read/JWT epoch를 검사하고 조직 없는 기존 탐색을 보존한다. [삭제 보호 후속](docs/plans/UC-055-dependency-deletion.md)·실제 UI/모바일/MySQL/운영·전체16개 수용은 별도다.
+
+- **UC054 출력 알림:** [계획](docs/plans/UC-054-export-notifications.md)·[증빙](docs/testing/export-notifications.md)은 확정 export 완료/실패/취소의 본인/현재 조직 투영과 기존 읽음/제거를 연결한다. 과거 사건이며 파일 접근권 증명이 아니고 알림 장애/제거는 파일을 바꾸지 않는다. 외부 발송·실제 Ego/모바일/MySQL/운영·전체16개 수용은 별도다.
+
+- **UC054 영속 집계 export:** [계획](docs/plans/UC-054-export-jobs.md)·[증빙](docs/testing/export-jobs.md)은 고정 조건/버전의 UUID 접수→CSV 만들기→조회/취소/파일을 연결한다. SQL 없는 접수 검증·현재 권한/JWT epoch·CAS/lease·원자 파일과 감사 경계를 따른다. 만료 중 실행은 완료하지 않으며 응답 유실은 동일 요청을 확인한다. 전체 비교 리포트·완료 알림·보관 정리·실제 Ego/모바일/MySQL/운영 및 전체16개 수용은 후속이다.
+
+- **UC053 그룹 알림:** [설계](docs/plans/UC-053-group-notifications.md)·[증빙](docs/testing/group-notifications.md)는 사건 당시 audience와 그룹 subject를 분리해 공유/회수·명시 가입/제외/그룹 활성 사건을 본인 알림으로 연결한다. 현재 권한은 별도이며 원본/관계/사본을 바꾸지 않는다. 계정·조직 변경만의 자동 사건/export·실제 Ego/모바일/MySQL/운영·전체16개 수용은 후속이다.
+
+- **UC053 동적 그룹 공유:** [설계](docs/plans/UC-053-group-deliveries.md)·[증빙](docs/testing/group-deliveries.md)는 현재/향후 구성원의 조회 공유·받은함·명시 동의 독립 복제를 연결한다. 소스 read는 별도이고 개인 공유/권한/사본을 보존한다. 접어도 미확정 UUID 요청을 유지한다. 그룹 알림·reload 복구·실제 Ego/모바일/MySQL/운영·전체16개 수용은 후속이다.
+
+- **UC051 동적 그룹:** [설계](docs/plans/UC-051-groups.md)·[증빙](docs/testing/dynamic-groups.md)는 현재 구성원 기반 직접/그룹 권한 합산·CAS/감사·동일 token 회수·생성 영수증을 연결한다. 팀 자동 이관은 없으며 source read는 별도다. 동적 그룹 전달/알림·영속 파일·실제 Ego/모바일/MySQL/운영·전체16개 수용은 후속이다.
+
+- **UC053 독립 복제:** [설계](docs/plans/UC-053-copy.md)·[증빙](docs/testing/received-copy.md)은 소유자의 별도 allowCopy 동의/CAS→받은 자료→본인 소스 매핑/전체 미리보기→새 비공개 사본을 기존 StudioRemix 경계에 연결한다. private reference는 조직/소유자/관계 버전·문서/schema/파일/template digest에 묶이고 JWT/원본 read/허용을 매 단계 재검사한다. 회수는 기존 사본을 지우지 않는다. 익명 게시를 만들지 않으며 동적 그룹·실제 Ego/모바일/MySQL/전체 수용은 후속이다.
+
+- **UC053 받은 자료:** [설계](docs/plans/UC-053-received.md)·[증빙](docs/testing/received-dashboards.md)은 현재 조직/active delivery/유일 소유권·모든 소스 read를 확인한 후 제목/번호/버전만 투영한다. 숨겨진20개 구간도 검사 cursor로 계속하며 읽기 쓰기0다. 조직 화면의 접힌 본인 목록에서 기존 보호 대시보드로 연다. 독립 사본 전달/동적 그룹·실제 Ego/모바일/MySQL·전체 수용은 후속이다.
+
+- **UC053 조회 공유:** [설계](docs/plans/UC-053-deliveries.md)·[증빙](docs/testing/recipient-deliveries.md)은 직접 grant와 별도인 최대50명 read-only 관계/CAS·원자 배치·조직별 멱등 영수증·공유/회수 알림을 연결한다. 소스 read는 별도이고 회수는 직접 grant/원본/독립 사본을 삭제하지 않는다. 영수증은 과거 저장 확인이며 최신 권한 증명이 아니다. 팀 선택은 불러온 명단 snapshot이다. 동적 그룹/독립 사본 전달·실제 Ego/모바일/MySQL/전체 수용은 후속이다.
+
+- **UC053 본인 알림:** [설계](docs/plans/UC-053-notifications.md)·[증빙](docs/testing/personal-notifications.md)은 확정 권한 감사 이벤트의 본인/현재 조직 투영과 별도 읽음/목록 제거를 연결한다. 제거는 grant/감사/자원을 삭제하지 않으며 알림은 현재 접근권 증명이 아니다. 직원/그룹 전달·독립 사본·공유/export 알림·실제 Ego/모바일/MySQL/전체 FR021/022 수용은 후속이다.
+
+- **계정 DB 무결성:** [설계](docs/plans/UC-051-identity-integrity.md)·[증빙](docs/testing/identity-integrity.md)은 userId/email unique·Membership RESTRICT FK·동일 User 잠금·legacy rehash 부분 CAS를 적용한다. 실제 로컬 MySQL8.4.11의 가입/소속/비활성9개를 검증했다. 기존 이상 데이터는 식별값 없이 사전 중단하며 자동 삭제/병합하지 않는다. 운영 적용·다른 참조/보호 경로·실제 UI/전체16개 완료는 별도다.
+
+- **계정·세션 쓰기:** [설계](docs/plans/UC-051-account-session-writes.md)·[증빙](docs/testing/account-session-writes.md)은 현재 token/계정 연결의 원자 저장·actor/active/epoch 검사와 계정/가입·샘플 metadata 조정을 따른다. 이전 jwtId로 다른 연결을 덮지 않는다. 샘플 외부 파일/seed는 queue 밖이며 전체 샘플 작업/운영·실제 UI·추가16개 완료는 별도다.
+
+- **일반 metadata 후속:** [설계](docs/plans/UC-051-metadata-boundaries.md)·[증빙](docs/testing/metadata-boundaries.md)은 소스/지표 save/CAS·확정 정의/refresh 조회를 공통 큐에 연결한다. import/파일 작업·지표 SQL은 큐 밖이며 세션/계정 쓰기·다른 일반 CRUD/조회·Studio 집계 점유 범위·운영/전체 수용은 후속이다.
+
+- **SQLite 교차 작업 후속:** [UC051 설계](docs/plans/UC-051-sqlite-coordination.md)·[증빙](docs/testing/sqlite-coordination.md)은 명시 metadata transaction/기존 큐와 선택 권한·JWT·Studio/게시 조회를 DataSource별로 조정한다. Studio rollback이 다른 성공 쓰기를 지우는 경합을 재현해 보호한다. 같은 작업은 살아 있는 lease에서만 재진입한다. raw Repository 단일 쓰기/그 밖의 조회·운영 경합은 후속이며 전체 NFR/16개 요건 완료가 아니다.
+
+- **UC050 소스 활성 상태:** [설계](docs/plans/UC-050-source-availability.md)·[증빙](docs/testing/source-availability.md)는 활성 소유 admin의 상태 CAS/감사와 일반 SourceAccess/정책·목록/공개 게시의 비활성 차단을 연결한다. 관리 경로는 비활성에도 재활성용으로 유지한다. 원본·grant·분석/게시 행은 보존하며 진행 중 SQL 취소/이미 전달한 데이터 회수·이용 범위/승인·전체 영향·Ego/전체 수용은 별도다.
+
+- **UC050 업무 변수 후속:** [설계](docs/plans/UC-050-variable-semantics.md)·[증빙](docs/testing/source-variable-semantics.md)는 업무 유형/날짜 형식/분류 문자열과 전체 문자열 날짜 검증을 기존 미리보기/버전 저장에 연결한다. 생략한 새 필드는 기존 선언을 보존하고 원본/SQL은 변경하지 않는다. Explore/Studio 공통 표시이며 조직 분류 ID·활성/공식 승인·조건/AI 실행 적용/실제 Ego·전체 요건 수용은 후속이다.
+
+- **UC052 분포·표본:** [설계](docs/plans/UC-052-profile.md)·[증빙](docs/testing/condition-profile.md)는 Source와 Studio 현재 범위의 전체 값 빈도/상위20+나머지·정확 건수와 선택 열1~6개/최대20행 정렬 표본을 구분한다. 셀200문자/256KiB·native 정밀도/NULL·미선택 열 비노출·조회 전후 현재 권한/버전·긴 SQL 큐 해제를 검사한다. 무작위/대표표본·전체 수용으로 확대하지 않는다. 새 Ego/모바일/이번 MySQL·대규모 운영·전체16개 수용은 미완료다.
+
+- **UC052 AI 조건 검토:** [설계](docs/plans/UC-052-ai-conditions.md)·[증빙](docs/testing/ai-condition-proposals.md)는 실제 schema 검증·파일 hash 고정·현재/제안 조건/전체 미리보기→명시 적용·기존 저장을 따른다. 질문의 저장 요청도 조건 검토 전에는 CONDITION_REVIEW_REQUIRED/쓰기0이다. 설명·조회는0연산이며 unknown/type/no-op·stale 응답은 초안·질문을 보존한다. 실제 Ego/모바일/실LLM·이번 MySQL/운영·전체16개 수용은 별도다.
+
+- **UC052 Studio 조건:** [설계](docs/plans/UC-052-studio-conditions.md)·[증빙](docs/testing/studio-conditions.md)은 소스 조건의 명시 복사/편집·undo/redo·저장/reload와 숫자/추세·게시/재사용 보존을 연결한다. 파일 경로 hash와 소스 조건 metadata revision을 혼동하지 않는다. 파일 교체 시 초안을 보존하고 자동 재바인딩하지 않는다. 공개 응답에는 적용 여부만 추가한다. AI 조건 검토는 위 후속을 따르며 분포/표본·영속 export·Ego/실휴대폰/운영·전체16개 수용은 미완료다.
+
+- **UC051 계정 무결성 최신:** [설계](docs/plans/UC-051-identity-integrity.md)·[증빙](docs/testing/identity-integrity.md)의 userId/email unique·명명 membership FK·공통 User 잠금·부분 credential CAS를 실제 격리 MySQL8.4.11에서 검증했다. 미래 버전 요청은 읽은 조직 버전 불일치 시 쓰기 전409다. 최종 선택109(실제 MySQL9 포함)/type/lint/build·기존 core8 PASS이며 테스트 컨테이너/임시 credential은 정리했다. 기존 데이터 운영 진단/maintenance DDL·Ego/실기기·전체16개 수용은 미완료다.
+
+- **추가 요건 완료 목표:** 사용자가 FR014~025/NFR005~008 전체 완료를 goal로 지정했다. [완료 계획](docs/plans/enterprise-completion.md)의16개 요건/TC050을 기준으로 추적하며 하위 구현 수를 전체 완료율로 계산하지 않는다. [UC051 첫 단위](docs/plans/UC-051.md)는 격리 조직·본인 발급/조직에 묶인 일회용 직원 연결 코드·admin/member/팀/활성·DB epoch 인증 회수다. 첫 단위의 데이터 소유권은 유지하며 자원 grant 후속은 아래 계약을 따른다. 조직 소속 계정 일반 삭제는 탈퇴 처리 전409이며 실제 Ego/모바일·운영·전체 수용은 별도다.
+- **UC051 자원 권한 후속:** [설계](docs/plans/UC-051-resource-access.md)·[증빙](docs/testing/enterprise-resource-access.md)에 source/dashboard별 read/edit/publish/export·같은 조직의 활성 소유 admin 관리·CAS/회수/감사를 연결했다. 원 소유권과 실제 actor는 유지하고 대시보드에는 별도 source read도 필요하다. 수신자 새 산출물/소스 교체·삭제·임의 SQL은 소유권 경계를 유지한다. 게시자의 현재 publish와 원 소스 read를 공개 조회/재사용에서도 확인하고 열람 응답에서 익명 링크를 제거한다. 대시보드 export는 정책 기반이며 영속 파일 소비자·그룹·실제 Ego/모바일/운영/전체 수용은 미완료다.
+
+- **저장 분석 지표 기준:** [UC050 증빙](docs/testing/studio-saved-metric-basis.md)은 권한 보호 GET의 저장 snapshot 투영과 Inspector 접힌 읽기다. 소스/블록/지표/버전 일치 때만 표시하고 현재 Metric·AI 미저장 변경과 섞지 않는다. 편집 문서/저장 요청/SQL 불변이며 실제 Ego/모바일·전체 수용은 미확인이다.
+
+- **생성안 지표 기준:** [UC050 증빙](docs/testing/studio-metric-basis.md)은 선택기/생성 미리보기 공통 계산 기준 표시다. 고정 생성안 필드만 읽으며 현재 지표 재조회·기본 배율 추측/SQL/숫자·차트/저장 변경은 없다. 실제 Ego/모바일·전체 수용은 미확인이다.
+
+- **Studio 저장 지표 탐색:** [UC050 증빙](docs/testing/studio-metric-picker.md)은 이름/ID/버전 검색과 저장된 계산 기준 필드 확인이다. 검색/상세보기는 질문·선택·생성안을 유지하고 체크 변경만 기존 재미리보기를 요구한다. 공식 승인/계산 검증·실제 Ego/모바일·전체 수용은 별도다.
+
+- **Studio 데이터 찾기:** [UC050 증빙](docs/testing/studio-source-search.md)은 소유 목록 최신 업무 이름 요약과 원본 이름·ID 검색이다. catalog=1 opt-in/손상은 원본 fallback·검색은 선택/질문/생성안을 바꾸지 않는다. 공식 승인/최신 설명·열 검증을 대신하지 않으며 실제 Ego/모바일은 미확인이다.
+
+- **카탈로그 Studio 조회:** [UC050 증빙](docs/testing/studio-source-catalog.md)은 생성/재사용 공용 소스 선택기에서 저장 업무 설명을 명시 조회한다. 현재 소스/데이터 버전/열명·형식 대조 후 읽기만 하며 질문·LLM/계산·저장에 자동 적용하지 않는다. 실제 Ego/모바일·전체 수용은 미확인이다.
+
+- **비공개 자료 경계:** 고객/기업 식별 정보·사례 원문·출처 경로·문서 지문은 공개 커밋에 포함하지 않는다. 비공개 자료는 Git 제외 디렉터리에 보존하고 공개 요건은 출처를 식별할 수 없게 일반화한다. 커밋 본문·파일명·링크·이력도 함께 확인한다.
+- **사내 추가 요건:** FR014~025/NFR005~008·UC050~055·TC050의 카탈로그/변수·조직 권한·조건 탐색·수신자 공유·출력·보관은 목표 명세다. MK AI 연동 계약은 보류하며 구현/수용 완료로 표시하지 않는다.
+
+- **최신 제품 우선순위(2026-10-18):** MK AI는 별도 프로젝트이며 연동 계약/API·MCP 정의는 현재 제외한다. [사내 Artifact 순서](docs/strategy/internal-artifacts.md)에 따라 보관함→조직 권한/공유→공식 지표/출처→갱신형 게시→재사용/조합부터 진행한다. UC049 첫 단위는 기존 서버 허용 목록 검색/유형/정렬이며 부서 공유·즐겨찾기·보관 완료가 아니다. 기존 로그인 대기의 실제UI/모바일 검증을 회귀 통과로 대체하지 않는다.
+
 - **최상위 목표:** 프롬프트로 대시보드 생성·수정·저장·게시를 이어가고, 반응형 블록 편집과 복제·소스 교체·재사용까지 완성한다. [제품 목표](docs/strategy/prompt-to-dashboard.md)가 우선순위의 기준이며 [통합 설계](docs/architecture/prompt-to-dashboard.md), [UC-005/계획](docs/plans/UC-005.md)에 구현·검증 계약이 있다. UC-001~004와 Rill 작업은 이 전체 여정을 지원하는 기반이다.
 - **방향 유지:** 새 작업은 P1~P5/FR/수용 기준과 연결하고 부족점·최소 변경·검증·종료 조건을 기록한다. 블록 ID·공통 AI 초안·복제/undo·화면 폭별 좌표 편집은 구현했으며 최신 [UC-009 증빙](docs/testing/responsive-block-layout.md)은 단위/실LLM/API PASS, 실제 UI BLOCKED다. [UC-010](docs/testing/pointer-block-layout.md)의 포인터 drag/resize 연결·키보드 편집은 컴포넌트/API PASS이며 실제 키보드·저장·새로고침과390/768/1440 대표 화면을 확인했다. [Ego 후속 증빙](docs/testing/pointer-block-layout.md#ego-실제-포인터-후속--2026-10-15)에서 분석22의 데스크톱/390px 모바일 배치 실제 마우스 drag/resize→미리보기→저장→reload→좌표 재조회와390/768/1440 저장 화면·컨트롤 정렬을 확인했다. [Ego 터치 후속](docs/testing/pointer-block-layout.md#ego-모바일-터치겹침경계-후속--2026-10-15)은390px Chromium 터치 에뮬레이션 drag/resize·겹침/좌상우 경계·최소/최대 너비·undo/redo→저장→reload를 확인했다. 작은 가로 차트의 축 라벨 공간 문제도 수정했다. 실제 휴대폰/멀티터치는 미검증이다. 이전 data: 오류 탭의 프로토콜 거절을 전체 브라우저 차단으로 일반화하지 말고 정상 HTTP 연결 상태를 확인한다. [UC-011](docs/testing/ai-block-layout.md)의 선택 블록 AI 배치 변경은 단위/실LLM/UI 저장·새로고침을 확인했다. 목적을 배치로 선택한 요청만 선택 폭에 적용한다. [연속 편집 회귀](docs/testing/block-editor-continuity.md)는 복제→직접→내용 AI→배치 AI→4단계 undo/redo→저장·새로고침을 확인했다. 과거 추가 모바일 차단 후 사용자 지정 Ego에서 [모바일 연속 편집 후속](docs/testing/block-editor-continuity.md#ego-모바일-후속--2026-10-15)을 수행해 복제→직접 제목→내용 AI→한 칸 배치 AI→4단계undo/redo→저장/reload와 비대상 정의/배치 불변을 확인했다. 실패 후 이전 성공 안내가 남는 오류도 수정했다. 임의 좌표 배치 문장의 unsupported 반환·실제 휴대폰은 남아 있다. P1 실제 터치/모든 경계 변형 gate는 Open이며, [UC-012 설계](docs/architecture/semantic-creation.md)는 P2 지표·원본 열 차원·분석의 제안/재사용·원자 저장 계약이다(Draft). [계획 A](docs/plans/UC-012.md)의 쓰기 없는 구조화 제안/미리보기 API는 단위90개·실LLM/API·Rill Parquet 수치 및 미리보기 DB 내용 불변을 확인했다([증빙](docs/testing/semantic-proposal.md)). [계획 B](docs/testing/semantic-creation-save.md)의 원자 저장·영수증 재시도·지표 링크는 단위/SQLite134개와 실제 API 검증을 완료했다. [C 기존 질문 UI 연결](docs/testing/semantic-creation-ui.md)은 FE60개·type/lint/build·실LLM/API 저장·재조회 PASS다. 생성은 구조화 API, 기존 수정은 종전 경로를 유지한다. 과거 Aside 차단 후 사용자가 명시 승인하고 Ego를 지정했다. Ego 실제 질문→미리보기→분석22 저장→새로고침/XHR·390/768/1440 대표 화면·Rill 수치/화면 비교를 확인했다. 저장 화면 부모 크기 덮어쓰기를 제거해 주요 버튼28px/입력32px를 실측했다. 운영 MySQL·모바일 오류/로딩 전체 상태·P1 실제 터치·제품 전체 수용은 미검증이다. 분석12의 공개 Rill 데이터 임시 익명 공유는 사용자 명시 허용 후 API 조회/기간갱신/중지를 검증했고 현재 중지 상태다. 지표를 먼저 저장해 미리보기를 만들지 않는다. 전체 여정에 직접 기여하지 않는 Rill 기능 고도화로 우선순위를 바꾸지 않는다.
 - **P3 현재:** [UC013 의도](docs/testing/auto-block-intent.md)·[UC014 명시저장](docs/testing/prompt-save.md)·[UC015 대상](docs/testing/prompt-target.md)·[UC016 다중변경](docs/testing/batch-block-edit.md)을 구현했다. [UC017 복구](docs/testing/editor-recovery.md)는409/저장결과불명확에서초안·질문을보존하고읽기상태확인→동일저장확인또는최신본과제한병합→전체재미리보기/저장으로연결한다. 같은단위충돌은명시적으로내변경을선택하며비대상최신변경은유지한다. Ego실제2탭409·commit후본문유실/GET추가쓰기0·미전달/조회503복구·실제Codex시작후취소/종료·같은질문재시도/save/reload와390/768/1440패널28/32px·넘침0을확인했다. 구조변경자동병합·브라우저reload후영구초안·모든지표활성변형·운영/실기기·게시·전체P3/TC005는미완료다. 게시 연결은 아래 UC019를 따르며 P3 잔여 복구 경계와 전체 수용은 Open이다.
@@ -126,3 +198,19 @@
 - **최신 판정 우선:** [testing/status.md](docs/testing/status.md)의 2026-10-17 요약을 우선한다. UC047 Ego92~95가 신규ID/확정후조회실패reload/409초안복귀의 과거 미실행을 보완했다. UC007~010 표준절·다이어그램·TC005 step3/4 연결 후 strict 오류0/경고13/억제0이며 Draft·사람수용Open을 유지한다. 문서변경만으로 runtime을 반복하지 않는다. 다음 최우선은 고객 한업무질문·독립정답 파일럿이며 입력없는 합성자료 재검증/무한 장애조합으로 대체하지 않는다. 실기기/VoiceOver/운영gate는 별도다.
 
 - **명세 경고 최신:** UC013~015의 대안 종료/재진입과 UC013/018 사용자 설명 정리 후 strict 오류0/경고2/억제0이다. 이전13경고 표기는70650b3b 당시 결과이며 [최신 요약](docs/testing/status.md)의 후속을 우선한다. FR011/NFR002 요구사항↔UC 상태집계 차이는 미해결로 남기고 상태/승인을 임의 변경하지 않는다. 제품코드/runtime 변경0·고객파일럿 입력대기 NOT_RUN이다.
+
+- **Studio 소스 연결 후속:** [UC040 증빙](docs/testing/studio-source-connection.md)은 생성 성공한 sourceId의 profile/지표를 직접 확인해 두 번째 전체목록 GET 의존성을 제거한다. 검증 성공한 미등재 ID만 현재목록에 추가하고 profile 실패는 동일ID 명시재조회·질문보존/생성추가0이다. FE32/type/lint/build PASS·BE변경0이며 Ego96 로그인만료/신규계정생성 자동승인거절로 실제UI·3폭은 BLOCKED다. 사용자 계정생성승인 또는 기존계정 로그인 후 같은 공간에서 검증한다. 고객파일럿/전체수용PASS가 아니다.
+
+- **Studio 새 생성 질문 복구:** [UC048 증빙](docs/testing/creation-question-recovery.md)은 미전송 질문·소스ID만 기존 로그인 scope/탭에24h/8KiB/2000자로 보관하고 권한 목록→명시 복구→소스 재확인으로 연결한다. 저장 확인/직접 링크 우선·자동POST0·실패 보존·저장 성공 정리/무관 기록 유지 회귀53개·type/lint PASS다. 기존32px 컴포넌트를 재사용했으며 Ego96 로그인 대기로 실제reload/390·768·1440 크기·정렬은 BLOCKED다. 실제UI·고객파일럿·전체수용을 완료로 보고하지 않는다.
+
+- **UC048 다른 소스 후속:** [A3 증빙](docs/testing/creation-question-recovery.md#a3-다른-소스로-질문-이어가기--2026-10-17)은 다른 본인 소스 선택→별도 명시 질문복구→profile/지표 재확인→질문·새sourceId 보관이다. 선택만으로 기록 변경/자동POST0이며403은 원래 질문 보존·재선택/재시도한다. 회귀55개 PASS·기존32px 재사용, 실제Ego/모바일은 로그인 대기 BLOCKED다.
+
+- **UC048 제안·저장 연결 후속:** [A3 여정](docs/testing/creation-question-recovery.md#a3-제안저장-연결-후속--2026-10-17)은 소스 교체 질문복구→재마운트/명시복구→새소스 제안·미리보기/저장과503→재마운트/UC032우선→동일요청확인/기록정리를 컴포넌트 통합 회귀로 확인했다. 이전소스 응답 차단 포함58개 PASS, 제품코드d7bd2f5f 불변이다. 실제API/모델/DB·Ego/모바일은 이 회귀로 검증한 것이 아니며 로그인 BLOCKED/전체수용Open을 유지한다.
+
+- **업무 카탈로그 첫 단위:** [UC050 계획](docs/plans/UC-050.md)·[검증](docs/testing/source-catalog.md)은 소유 DuckDB 소스의 표시명/설명과 실제 열별 표시명/설명/단위를 추가 전용 버전 이력으로 관리한다. Explore의 접힌 `데이터 업무 설명`에서 명시 저장하며 기존 원본·계산식/분석에는 전파하지 않는다. 조직 관리자/공식 승인·활성/분류·날짜/유형 변경은 미구현이다. Ego96 사용자 제어권 점유로 실제 화면/모바일은 BLOCKED이며 전체 UC050/TC050 수용으로 보고하지 않는다.
+
+- **UC050 이력 후속:** [저장 이력·설명 비교](docs/testing/source-catalog-history.md)는 기존 추가 전용 이력의20건 커서 목록·정확한 두 저장 버전 업무 필드 차이를 읽기 전용으로 제공한다. 손상 이력은 목록에서 격리하고 선택 비교는409다. 현재 입력/기존 분석 불변이며 자동 복원/사용처 영향·공식 승인은 미구현이다. 실제 Ego/모바일은 사용자 제어 경계로 미검증이다.
+
+- **UC050 저장 전 미리보기:** [증빙](docs/testing/source-catalog-preview.md)은 쓰기 없는 서버 검증/정규화·업무 필드 차이→명시 동의→같은 draft 저장이다. 입력/기준 변경·실패는 미리보기/동의를 해제하고 저장409/503은 초안을 보존한다. 기존 save API/CAS·원본/분석 불변이며 공식 승인/사용처 영향 검토와 구분한다. 실제 Ego/모바일은 제어권 경계로 미검증이다.
+
+- **UC050 직접 사용처:** [증빙](docs/testing/source-catalog-usage.md)은 소유 소스의 활성 지표/본인 저장 분석의 직접 연결·현재 자원 권한만 읽는다. 후보20개 cursor를 전진하므로 빈 구간을 전체 사용처 없음으로 단정하지 않는다. SQL/행/정의와 타인 제목은 반환하지 않고 초안/미리보기/동의·원본을 유지한다. 일반 위젯/게시/독립 사본 간접 영향·자동 전파는 미포함이며 실제 Ego/모바일은 미검증이다.

@@ -1,3 +1,5 @@
+import type { StudioConditions } from '@/pages/Dashboard/Studio/studioTypes';
+import { exploreConditions } from './exploreBasis';
 import { validTimeZone } from '@/pages/Dashboard/Components/timeSelection';
 
 export type ExploreFilter =
@@ -14,6 +16,7 @@ export type ExploreViewState = {
     conditions: Array<{ measureId: number; operator: 'gte' | 'gt' | 'lte' | 'lt' | 'eq'; value: number }>;
     pivotColumn?: string;
   };
+  conditions?: StudioConditions;
   pivot?: PivotAxes;
   measureIds: number[];
   dimensionColumns: string[];
@@ -27,6 +30,7 @@ export type ExploreViewState = {
   includeRows: boolean;
 };
 type ViewCatalog = {
+  sourceRevision?: string;
   measures: Array<{ id: number }>;
   dimensions: Array<{ column: string; numeric?: boolean }>;
   temporalColumns: Array<{ column: string }>;
@@ -50,6 +54,7 @@ export function parseExploreViewState(value: unknown, catalog?: ViewCatalog): Ex
   const state = value as ExploreViewState;
   object(state, [
     'version',
+    'conditions',
     'mode',
     'pivot',
     'segment',
@@ -144,6 +149,7 @@ export function parseExploreViewState(value: unknown, catalog?: ViewCatalog): Ex
         invalid();
     }
   }
+  if (state.conditions !== undefined) exploreConditions(state.conditions, catalog?.sourceRevision);
   if (state.mode !== undefined && !['explore', 'pivot', 'segment'].includes(state.mode)) invalid();
   if (state.mode === 'segment') {
     const segment = state.segment;

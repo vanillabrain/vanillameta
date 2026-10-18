@@ -193,6 +193,268 @@ describe('VersionedExploreViewService saved exploration views', () => {
     expect(loaded.data).toEqual({ ...created.data });
   });
 
+  it.each([1, 2, 3, 4, 5])(
+    'preserves explicit conditions across version %i save/list/reload without source writes',
+    async version => {
+      const fileRevision = await revision();
+      const conditions = {
+        sourceRevision: fileRevision,
+        definition: {
+          include: {
+            kind: 'group',
+            operator: 'or',
+            children: [
+              { kind: 'predicate', column: 'amount', operator: 'gte', values: [20] },
+              { kind: 'predicate', column: 'region', operator: 'eq', values: ['A'] },
+            ],
+          },
+          exclude: { kind: 'predicate', column: 'channel', operator: 'eq', values: ['app'] },
+        },
+      };
+      const input =
+        version === 1
+          ? state({ conditions })
+          : version === 2
+          ? v2({ enabled: true, rowColumns: ['region'], columnColumns: [] }, { conditions })
+          : version === 3
+          ? v3(pivotV3(), { conditions })
+          : version === 4
+          ? v4(pivotV4(), { conditions })
+          : v5(pivotV5(), { conditions });
+      const snapshot = JSON.stringify(input);
+      const sourceBefore = await db.manager.findOneBy(Database, { id: 1 });
+      const created = await service.create(
+        {
+          sourceId: 1,
+          name: 'Scoped',
+          sourceRevision: fileRevision,
+          measureVersions: { 1: 1 },
+          state: input,
+        },
+        actor,
+      );
+      const fresh = new VersionedExploreViewService(db, access, bi, connection);
+      expect(
+        (await fresh.load({ sourceId: 1, viewId: created.data.id }, actor)).data.state.conditions,
+      ).toEqual(conditions);
+      expect((await fresh.list({ sourceId: 1 }, actor)).data[0]).toMatchObject({
+        stale: false,
+        state: { conditions },
+      });
+      expect(
+        JSON.parse((await views().findOneBy({ id: created.data.id })).state).conditions,
+      ).toEqual(conditions);
+      expect(await db.manager.findOneBy(Database, { id: 1 })).toEqual(sourceBefore);
+      await db.manager.update(Database, 1, { name: 'Metadata changed' });
+      expect(
+        (await fresh.load({ sourceId: 1, viewId: created.data.id }, actor)).data.state.conditions,
+      ).toEqual(conditions);
+      expect((await bi.profile(1, actor)).dataVersion).not.toBe(fileRevision);
+      expect(JSON.stringify(input)).toBe(snapshot);
+    },
+  );
+
+  it('denies mismatched condition file hashes and schema changes on load without rewriting state', async () => {
+    const fileRevision = await revision();
+    const conditions = {
+      sourceRevision: fileRevision,
+      definition: {
+        include: { kind: 'predicate', column: 'amount', operator: 'gt', values: [10] },
+        exclude: null,
+      },
+    };
+    const request = {
+      sourceId: 1,
+      name: 'Scoped',
+      sourceRevision: fileRevision,
+      measureVersions: { 1: 1 },
+      state: state({ conditions }),
+    };
+    await expect(
+      service.create(
+        {
+          ...request,
+          state: state({
+            conditions: { ...conditions, sourceRevision: (await bi.profile(1, actor)).dataVersion },
+          }),
+        },
+        actor,
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await views().count()).toBe(0);
+    const created = await service.create(request, actor);
+    const stored = await views().findOneBy({ id: created.data.id });
+    const profile = await bi.profile(1, actor);
+    const changed = {
+      ...profile,
+      columns: profile.columns.map(c =>
+        c.name === 'amount' ? { ...c, type: 'VARCHAR', numeric: false } : c,
+      ),
+    };
+    const spy = jest.spyOn(bi, 'profile').mockResolvedValue(changed);
+    try {
+      await expect(
+        service.load({ sourceId: 1, viewId: created.data.id }, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      expect((await service.list({ sourceId: 1 }, actor)).data[0].stale).toBe(true);
+      await expect(service.create(request, actor)).rejects.toMatchObject({ status: 400 });
+    } finally {
+      spy.mockRestore();
+    }
+    await db.manager.update(Database, 1, {
+      connectionConfig: source(1, actor, altFile).connectionConfig,
+    });
+    await expect(
+      service.load({ sourceId: 1, viewId: created.data.id }, actor),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await views().findOneBy({ id: created.data.id })).toEqual(stored);
+  });
+
+  it('rejects an old inherited file pin for condition create/load rather than rebinding the view', async () => {
+    const fileRevision = await revision();
+    const conditions = {
+      sourceRevision: fileRevision,
+      definition: { include: null, exclude: null },
+    };
+    const body = {
+      sourceId: 1,
+      name: 'Pinned',
+      sourceRevision: fileRevision,
+      measureVersions: { 1: 1 },
+      state: state({ conditions }),
+    };
+    const created = await service.create(body, actor);
+    const stored = await views().findOneBy({ id: created.data.id });
+    await connection.withDuckDBSnapshot(1, async () => {
+      await db.manager.update(Database, 1, {
+        connectionConfig: source(1, actor, altFile).connectionConfig,
+      });
+      expect(await connection.duckDBVersion(1)).toBe(fileRevision);
+      await expect(
+        service.load({ sourceId: 1, viewId: created.data.id }, actor),
+      ).rejects.toMatchObject({ status: 409 });
+      await expect(service.create(body, actor)).rejects.toMatchObject({ status: 409 });
+    });
+    expect(await views().count()).toBe(1);
+    expect(await views().findOneBy({ id: created.data.id })).toEqual(stored);
+  });
+  it('rechecks the current file after condition restore reads finish', async () => {
+    const fileRevision = await revision();
+    const conditions = {
+      sourceRevision: fileRevision,
+      definition: { include: null, exclude: null },
+    };
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'Racing restore',
+        sourceRevision: fileRevision,
+        measureVersions: { 1: 1 },
+        state: state({ conditions }),
+      },
+      actor,
+    );
+    const stored = await views().findOneBy({ id: created.data.id });
+    const metrics = bi.metrics.bind(bi);
+    const spy = jest.spyOn(bi, 'metrics').mockImplementationOnce(async (...args) => {
+      const result = await metrics(...args);
+      await db.manager.update(Database, 1, {
+        connectionConfig: source(1, actor, altFile).connectionConfig,
+      });
+      return result;
+    });
+    try {
+      await expect(
+        service.load({ sourceId: 1, viewId: created.data.id }, actor),
+      ).rejects.toMatchObject({ status: 409 });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await views().findOneBy({ id: created.data.id })).toEqual(stored);
+  });
+  it('rejects a file switch between snapshot capture and source metadata reads before writing', async () => {
+    const fileRevision = await revision();
+    const conditions = {
+      sourceRevision: fileRevision,
+      definition: { include: null, exclude: null },
+    };
+    const capture = connection.captureDuckDBSnapshot.bind(connection);
+    const spy = jest
+      .spyOn(connection, 'captureDuckDBSnapshot')
+      .mockImplementationOnce(async sourceId => {
+        const snapshot = await capture(sourceId);
+        await db.manager.update(Database, 1, {
+          connectionConfig: source(1, actor, altFile).connectionConfig,
+        });
+        return snapshot;
+      });
+    try {
+      await expect(
+        service.create(
+          {
+            sourceId: 1,
+            name: 'Racing save',
+            sourceRevision: fileRevision,
+            measureVersions: { 1: 1 },
+            state: state({ conditions }),
+          },
+          actor,
+        ),
+      ).rejects.toMatchObject({ status: 409 });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await views().count()).toBe(0);
+  });
+
+  it.each([
+    null,
+    { sourceRevision: 'metadata-revision', definition: { include: null, exclude: null } },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: { include: null, exclude: null },
+      sql: 'SELECT private',
+    },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: {
+        include: {
+          kind: 'predicate',
+          column: 'region',
+          operator: 'eq',
+          values: ['x'.repeat(33000)],
+        },
+        exclude: null,
+      },
+    },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: {
+        include: {
+          kind: 'predicate',
+          column: 'region',
+          operator: 'in',
+          values: Array.from({ length: 18 }, (_, i) => String(i) + 'x'.repeat(1900)),
+        },
+        exclude: null,
+      },
+    },
+  ])('rejects malformed condition wrappers before creating a row (%j)', async conditions => {
+    await expect(
+      service.create(
+        {
+          sourceId: 1,
+          name: 'Invalid',
+          sourceRevision: await revision(),
+          measureVersions: { 1: 1 },
+          state: state({ conditions }),
+        },
+        actor,
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(await views().count()).toBe(0);
+  });
+
   it('persists rows in real SQLite independent of the service instance cache', async () => {
     const created = await service.create(
       {

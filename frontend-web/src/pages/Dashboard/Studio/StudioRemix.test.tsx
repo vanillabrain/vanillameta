@@ -28,6 +28,7 @@ vi.mock('./studioRemixApi', async () => ({
 }));
 const requirements = {
   token: 'a'.repeat(64),
+  lifecycleRevision: 'c'.repeat(64),
   version: 6,
   title: 'Shared',
   requiredFields: [{ name: 'amount', type: 'BIGINT', blockIds: ['block-1'] }],
@@ -193,6 +194,7 @@ describe('T14 embedded mapping', () => {
       mapping: { amount: 'amount' },
       excludedBlockIds: [],
       expectedVersion: 6,
+      expectedLifecycleRevision: requirements.lifecycleRevision,
       expectedSourceRevision: 'b'.repeat(64),
     });
     expect(saveRemix).not.toHaveBeenCalled();
@@ -206,4 +208,23 @@ describe('T14 embedded mapping', () => {
     expect(screen.queryByRole('button', { name: '내 파일 선택' })).toBeNull();
     expect(onSave).not.toHaveBeenCalled();
   });
+});
+it('shows received-origin navigation and refreshes its immutable reference explicitly', async () => {
+  const refresh = vi.fn(),
+    onSave = vi.fn();
+  render(<StudioRemixFlow token={'d-1-7-20-2-' + 'a'.repeat(64)} onOriginRefresh={refresh} onSave={onSave} />);
+  const button = await screen.findByRole('button', { name: '공유 원본 새로 확인 (매핑 초기화)' });
+  await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+  expect(screen.getByRole('link', { name: '받은 자료로 돌아가기' }).getAttribute('href')).toBe('/organization');
+  fireEvent.click(button);
+  expect(refresh).toHaveBeenCalledOnce();
+  expect(onSave).not.toHaveBeenCalled();
+});
+
+it('binds preview and frozen save retries to the exact lifecycle proof', async () => {
+  render(<StudioRemix />);
+  await screen.findByText('내 파일 선택');
+  fireEvent.click(screen.getByText('내 파일 선택'));
+  await waitFor(() => expect(previewRemix).toHaveBeenCalled());
+  expect(vi.mocked(previewRemix).mock.calls[0][1].expectedLifecycleRevision).toBe(requirements.lifecycleRevision);
 });

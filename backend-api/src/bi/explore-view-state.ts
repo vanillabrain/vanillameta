@@ -1,4 +1,6 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
+import { validateStudioConditions } from '../dashboard-studio/studio-document';
+import { compileConditionDefinition, conditionColumns } from './source-condition-definition';
 import { createHash } from 'crypto';
 import { dateRangeBounds } from '../ai/dashboard-date-range';
 import { normalizeSourceFilters, numericSourceColumns, sourceQuery } from '../ai/dashboard-draft';
@@ -39,6 +41,31 @@ export function exploreViewRevision(catalog: any): string {
     )
     .digest('hex');
 }
+/** Only the file hash pins conditions; catalog/source metadata revisions have a separate meaning. */
+export function parseExploreViewConditions(input: unknown) {
+  try {
+    return validateStudioConditions(input);
+  } catch {
+    throw new BadRequestException('Invalid saved-view conditions');
+  }
+}
+export function validateExploreViewConditions(
+  input: unknown,
+  fileRevision: string,
+  columns: Array<{ name: string; type: string }>,
+) {
+  const conditions = parseExploreViewConditions(input);
+  if (conditions.sourceRevision !== fileRevision)
+    throw new ConflictException(
+      '조건의 파일 기준이 변경되었습니다. 현재 조건을 유지하고 다시 확인해 주세요.',
+    );
+  compileConditionDefinition(
+    conditions.definition,
+    conditionColumns(columns, conditions.semantics),
+    conditions.semantics,
+  );
+  return conditions;
+}
 export function validateExploreViewState(input: any, catalog: any) {
   object(input, [
     'version',
@@ -55,6 +82,7 @@ export function validateExploreViewState(input: any, catalog: any) {
     'trendGrain',
     'comparePrevious',
     'includeRows',
+    'conditions',
   ]);
   if (
     input.version !== 1 ||
@@ -190,5 +218,15 @@ export function validateExploreViewState(input: any, catalog: any) {
     temporal,
     numeric,
   );
-  return JSON.parse(JSON.stringify({ ...input, filters }));
+  const conditions =
+    input.conditions === undefined
+      ? undefined
+      : validateExploreViewConditions(
+          input.conditions,
+          catalog.sourceRevision,
+          catalog.dimensions.map(d => ({ name: d.column, type: d.type })),
+        );
+  return JSON.parse(
+    JSON.stringify({ ...input, filters, ...(conditions === undefined ? {} : { conditions }) }),
+  );
 }

@@ -11,6 +11,9 @@ export class DashboardPublication extends BaseEntity {
   @Column({ length: 36, comment: '공개 링크 UUID' })
   uuid: string;
 
+  @Column({ type: 'integer', nullable: true }) publisherId: number | null;
+  @Column({ type: 'integer', nullable: true }) sourceId: number | null;
+
   @Column({ type: 'integer', default: 0, comment: '게시 버전' })
   version: number;
 

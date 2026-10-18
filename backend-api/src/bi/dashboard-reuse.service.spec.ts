@@ -17,6 +17,7 @@ import { Metric } from '../metric/entities/metric.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { Widget } from '../widget/entities/widget.entity';
+import { sourceQuery } from '../ai/dashboard-draft';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { AnalysisCreationReceipt } from './analysis-creation-receipt.entity';
@@ -219,7 +220,28 @@ describe('UC020 dashboard reuse SQLite atomic save', () => {
         duringSave = null;
         await hook();
       }
-      return { status: 'SUCCESS', data: { draft: body.draft, widgets: body.draft.widgets } } as any;
+      return {
+        status: 'SUCCESS',
+        data: {
+          draft: body.draft,
+          widgets: body.draft.widgets,
+          queries: body.draft.widgets.map((widget, widgetIndex) => ({
+            widgetIndex,
+            kind: 'widget',
+            ...sourceQuery(
+              widget.sql,
+              COLUMNS.map(c => c.name),
+              body.filters,
+              body.dateRange,
+              [],
+              COLUMNS.filter(c => c.numeric).map(c => c.name),
+              body.conditions?.definition,
+              COLUMNS,
+              body.conditions?.semantics,
+            ),
+          })),
+        },
+      } as any;
     });
     return new DashboardReuseService(
       source,
@@ -403,7 +425,7 @@ describe('UC020 dashboard reuse SQLite atomic save', () => {
     expect(preview.snapshot.widgets.map(w => w.title)).toEqual(['총 매출', 'OS별 매출']);
     await expect(
       service.preview(originalId, { ...body, blockIds: ['orig-sales'] }, ACTOR),
-    ).rejects.toThrow('열 연결의 이름과 타입을 확인해 주세요: os');
+    ).rejects.toThrow('unsupported column mapping: os');
   });
 
   it('binds the draft and preview to the current revisions without writing', async () => {

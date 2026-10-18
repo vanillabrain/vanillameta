@@ -1,5 +1,9 @@
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { DuckDBService } from '../analysis/duckdb.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
@@ -71,6 +75,9 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
       database: ':memory:',
       synchronize: true,
       entities: [
+        SourceCatalogEntry,
+        User,
+        EnterpriseMembership,
         Dashboard,
         DashboardShare,
         DashboardWidget,
@@ -97,6 +104,7 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
     for (const type of ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_LINE'])
       await db.manager.save(Component, { type, title: type, option: '{}', useYn: 'Y' });
     connection = {
+      captureDuckDBSnapshot: jest.fn(async () => ({ run: async callback => callback() })),
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
       duckDBVersion: jest.fn().mockResolvedValue(studioDigest('test-source')),
       isDuckDB: jest.fn().mockResolvedValue(true),
@@ -104,7 +112,7 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
     };
     ai = new AiDashboardService({} as any, connection, db.getRepository(Dashboard));
     studio = new StudioService(db, ai, connection, new SourceAccessService(db));
-    publications = new StudioPublicationService(db, studio);
+    publications = new StudioPublicationService(db, studio, new SourceAccessService(db));
   });
   beforeEach(async () => {
     id = (await ai.save({ draft: draft() }, 7)).data.id;
@@ -152,6 +160,88 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
     expect((await publications.read(first.token, 7)).snapshot.blocks).toHaveLength(2);
     expect((await db.manager.findOneBy(StudioPublication, { token: first.token })).version).toBe(1);
   });
+  it.each([
+    ['revoked', { revokedAt: '2026-01-01T00:00:00.000Z' }, 410],
+    ['remix disabled', { allowRemix: false }, 403],
+    ['version changed', { version: 9 }, 409],
+    ['parent changed', { dashboardId: 999999 }, 409],
+    ['private visibility', { visibility: 'private' }, 403],
+    ['expired', { expiresAt: '2000-01-01T00:00:00.000Z' }, 410],
+    ['recipe removed', { remixTemplate: null }, 409],
+  ] as const)(
+    'rereads publication state after acquiring its parent (%s)',
+    async (_label, change, status) => {
+      const p = await publish('wait-parent-' + id, { allowRemix: true });
+      await db.transaction(async manager => {
+        const read = manager.findOne.bind(manager);
+        let waited = false;
+        const spy = jest
+          .spyOn(manager, 'findOne')
+          .mockImplementation(async (entity: any, options: any) => {
+            if (entity === Dashboard && !waited) {
+              waited = true;
+              // Simulate a committed peer change while the parent acquisition was waiting.
+              await manager.update(StudioPublication, { token: p.token }, change);
+            }
+            return read(entity, options);
+          });
+        try {
+          await expect(
+            publications.requireRemix(p.token, 8, p.version, manager),
+          ).rejects.toMatchObject({ status });
+          const reads = spy.mock.calls.filter(([entity]) => entity === StudioPublication);
+          expect(reads).toHaveLength(2);
+          expect(reads.every(([, options]) => !options.lock)).toBe(true);
+        } finally {
+          spy.mockRestore();
+        }
+      });
+    },
+  );
+
+  it.each([false, true])(
+    'revoke uses current publication after its parent wait (publisherChanged=%s)',
+    async publisherChanged => {
+      const p = await publish('revoke-wait-' + id, { allowRemix: true });
+      const original = EntityManager.prototype.findOne;
+      let waited = false;
+      const spy = jest
+        .spyOn(EntityManager.prototype, 'findOne')
+        .mockImplementation(async function (entity: any, options: any) {
+          if (entity === Dashboard && this.queryRunner?.isTransactionActive && !waited) {
+            waited = true;
+            await this.update(
+              StudioPublication,
+              { token: p.token },
+              {
+                version: 9,
+                allowRemix: false,
+                snapshot: '{"newSnapshot":true}',
+                ...(publisherChanged ? { actorId: 8 } : {}),
+              },
+            );
+          }
+          return original.call(this, entity, options);
+        });
+      try {
+        if (publisherChanged) {
+          await expect(publications.revoke(p.token, 7)).rejects.toMatchObject({ status: 403 });
+        } else {
+          expect((await publications.revoke(p.token, 7)).version).toBe(9);
+          expect(await db.manager.findOneBy(StudioPublication, { token: p.token })).toMatchObject({
+            version: 9,
+            allowRemix: false,
+            snapshot: '{"newSnapshot":true}',
+            revokedAt: expect.any(String),
+          });
+        }
+        expect(waited).toBe(true);
+      } finally {
+        spy.mockRestore();
+      }
+    },
+  );
+
   it.each([false, true])(
     'guards an execution against intervening publication changes (existing=%s)',
     async existing => {
@@ -344,7 +434,7 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
     const results = await Promise.all([publish('concurrent-' + id), publish('concurrent-' + id)]);
     expect(results[0]).toEqual(results[1]);
     expect(await db.manager.count(StudioPublication, { where: { dashboardId: id } })).toBe(1);
-    const restarted = new StudioPublicationService(db, studio);
+    const restarted = new StudioPublicationService(db, studio, new SourceAccessService(db));
     const row = await publications.revoke(results[0].token, 7);
     expect(row.revokedAt).toBeTruthy();
     const doc = (await studio.get(id, 7)).document;
@@ -367,6 +457,38 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
     expect(next.token).not.toBe(row.token);
     expect(next.version).toBe(1);
     await expect(restarted.read(row.token)).rejects.toMatchObject({ status: 410 });
+  });
+  it('preserves snapshots while inactive and allows current owner admin revoke without source read', async () => {
+    const p = await publish('inactive-stop-' + id);
+    await db.manager.save(User, {
+      id: 7,
+      userId: 'snapshot-owner',
+      email: 'snapshot-owner@example.invalid',
+      password: 'unused',
+      active: true,
+    });
+    await db.manager.save(EnterpriseMembership, {
+      userId: 7,
+      organizationId: 1,
+      role: 'admin',
+      team: '',
+    });
+    const managed = new StudioPublicationService(
+      db,
+      studio,
+      new SourceAccessService(db, new EnterpriseResourcePolicyService(db)),
+      connection,
+    );
+    await db.manager.update(Dashboard, id, { assetActive: false, assetVersion: 1 });
+    await expect(publications.read(p.token)).rejects.toMatchObject({ status: 403 });
+    await db.manager.update(Database, 1, { catalogActive: false });
+    await managed.revoke(p.token, 7);
+    await db.manager.update(Dashboard, id, { assetActive: true, assetVersion: 2 });
+    await expect(publications.read(p.token)).rejects.toMatchObject({ status: 410 });
+    await db.manager.update(Database, 1, { catalogActive: true });
+    expect(
+      (await db.manager.findOneBy(StudioPublication, { token: p.token })).revokedAt,
+    ).toBeTruthy();
   });
   it('requires owner authentication for private snapshots and returns no data on expiry, revoke or unknown token', async () => {
     const first = await publish(undefined, {

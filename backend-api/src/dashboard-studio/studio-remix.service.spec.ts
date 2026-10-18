@@ -1,5 +1,31 @@
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
+import { studioDigest } from './studio-legacy';
+import { EnterpriseNotificationAudience } from '../enterprise/entities/enterprise-notification-audience.entity';
+import { EnterpriseGroupDeliveryService } from '../enterprise/group-delivery.service';
+import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from '../enterprise/entities/enterprise-group.entity';
+import { Test } from '@nestjs/testing';
+import { JwtService } from '@nestjs/jwt';
+import request = require('supertest');
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { EnterpriseAuditEvent } from '../enterprise/entities/enterprise-audit-event.entity';
+import { EnterpriseResourceGrant } from '../enterprise/entities/enterprise-resource-grant.entity';
+import {
+  EnterpriseDashboardDelivery,
+  EnterpriseDeliveryReceipt,
+} from '../enterprise/entities/enterprise-dashboard-delivery.entity';
+import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
+import { EnterpriseDeliveryService } from '../enterprise/delivery.service';
+import { StudioReceivedRemixService } from './studio-received-remix.service';
+import { StudioReceivedRemixController } from './studio-received-remix.controller';
+import { StudioPublicationGuard } from './studio-publication.controller';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { DataSource } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
@@ -90,6 +116,18 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       database: ':memory:',
       synchronize: true,
       entities: [
+        SourceCatalogEntry,
+        User,
+        EnterpriseMembership,
+        EnterpriseAuditEvent,
+        EnterpriseNotificationAudience,
+        EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
+        EnterpriseDashboardDelivery,
+        EnterpriseGroupDelivery,
+        EnterpriseDeliveryReceipt,
         Dashboard,
         DashboardShare,
         DashboardWidget,
@@ -122,6 +160,7 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       await db.manager.save(Component, { type, title: type, option: '{}', useYn: 'Y' });
     connection = {
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
+      captureDuckDBSnapshot: jest.fn(async () => ({ run: async cb => cb() })),
       duckDBVersion: jest.fn(async id => createHash('sha256').update(filename(id)).digest('hex')),
       isDuckDB: jest.fn().mockResolvedValue(true),
       queryDuckDB: jest.fn((id, sql, bindings) => worker.query(files.get(id), sql, bindings)),
@@ -129,7 +168,7 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
     const access = new SourceAccessService(db);
     dashboards = new AiDashboardService({} as any, connection, db.getRepository(Dashboard));
     studio = new StudioService(db, dashboards, connection, access);
-    publications = new StudioPublicationService(db, studio, connection);
+    publications = new StudioPublicationService(db, studio, access, connection);
     creation = new StudioCreationService(
       db,
       new BiService(db, access, connection, dashboards),
@@ -141,6 +180,7 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
     );
   });
   beforeEach(async () => {
+    await db.manager.clear(SourceCatalogEntry);
     const definition = {
       schemaVersion: 1,
       definitionVersion: 1,
@@ -217,6 +257,493 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       },
       7,
     );
+  it.each(['individual', 'group', 'semantic'])(
+    'copies an explicitly allowed %s received analysis using only recipient data, then survives revocation independently',
+    async mode => {
+      await db.manager.save(
+        User,
+        [7, 8].map(userId => ({
+          id: userId,
+          userId: `copy-${userId}`,
+          email: `copy-${userId}@example.invalid`,
+          password: 'synthetic-unused',
+          active: true,
+        })),
+      );
+      await db.manager.save(EnterpriseMembership, [
+        { userId: 7, organizationId: 1, role: 'admin', team: '' },
+        { userId: 8, organizationId: 1, role: 'member', team: '' },
+      ]);
+      const policy = new EnterpriseResourcePolicyService(db),
+        access = new SourceAccessService(db, policy);
+      const ai = new AiDashboardService({} as any, connection, db.getRepository(Dashboard), access);
+      const copyStudio = new StudioService(db, ai, connection, access);
+      const copyCreation = new StudioCreationService(
+        db,
+        new BiService(db, access, connection, ai),
+        {} as any,
+        ai,
+        connection,
+        access,
+        copyStudio,
+      );
+      const remix = new StudioRemixService(
+        db,
+        copyStudio,
+        new StudioPublicationService(db, copyStudio, access, connection),
+        copyCreation,
+        ai,
+        connection,
+        access,
+      );
+      const received = new StudioReceivedRemixService(db, copyStudio, access),
+        delivery = new EnterpriseDeliveryService(db, policy, access);
+      const sourceGrantVersion =
+        (
+          await db.manager.findOneBy(EnterpriseResourceGrant, {
+            resourceKind: 'source',
+            resourceId: 1,
+            recipientId: 8,
+          })
+        )?.version ?? 0;
+      await policy.set('source', 1, 7, {
+        recipientId: 8,
+        expectedVersion: sourceGrantVersion,
+        rights: { read: true, edit: false, publish: false, export: false },
+      });
+      const declareCategory = async (sourceId: number, column: string, version: number) => {
+        const profile = await copyCreation.profile(sourceId, sourceId === 1 ? 7 : 8);
+        await db.manager.save(SourceCatalogEntry, {
+          sourceId,
+          version,
+          actorId: sourceId === 1 ? 7 : 8,
+          sourceRevision: profile.dataVersion,
+          schemaRevision: createHash('sha256')
+            .update(JSON.stringify(profile.columns.map(c => ({ column: c.name, type: c.type }))))
+            .digest('hex'),
+          metadata: JSON.stringify({
+            label: 'Business fields',
+            description: '',
+            columns: profile.columns.map(c => ({
+              column: c.name,
+              label: c.name,
+              description: '',
+              unit: '',
+              classification: '',
+              businessType: c.name === column ? 'category' : 'auto',
+              dateFormat: '',
+            })),
+          }),
+        });
+        return {
+          schemaVersion: 1 as const,
+          catalogVersion: version,
+          columns: [{ column, businessType: 'category' as const, dateFormat: '' as const }],
+        };
+      };
+      if (mode === 'semantic') {
+        const semantics = await declareCategory(1, 'channel', 1);
+        const state = await copyStudio.get(id, 7);
+        await copyStudio.save(
+          id,
+          {
+            requestId: 'received-conditions-' + id,
+            expectedRevision: state.document.revision,
+            expectedSourceRevision: state.sourceRevision,
+            document: {
+              ...state.document,
+              conditions: {
+                sourceRevision: state.sourceRevision,
+                semantics,
+                definition: {
+                  include: { kind: 'predicate', column: 'channel', operator: 'isNotNull' },
+                  exclude: null,
+                },
+              },
+            },
+          },
+          7,
+        );
+      }
+      if (mode === 'group') {
+        await db.manager.insert(EnterpriseGroup, {
+          id: 80,
+          organizationId: 1,
+          name: 'Shared group',
+          nameKey: 'shared group',
+          active: true,
+          version: 1,
+        });
+        await db.manager.insert(EnterpriseGroupMember, { groupId: 80, userId: 8 });
+      }
+      const share = (version: number, allowCopy?: boolean, active = true) =>
+        mode === 'group'
+          ? new EnterpriseGroupDeliveryService(db, policy, access).set(id, 7, {
+              requestId: randomUUID(),
+              groupId: 80,
+              expectedGroupVersion: 1,
+              expectedVersion: version,
+              active,
+              allowCopy: active && (allowCopy ?? false),
+            })
+          : delivery.set(id, 7, {
+              requestId: randomUUID(),
+              recipients: [{ recipientId: 8, expectedVersion: version }],
+              active,
+              ...(allowCopy === undefined ? {} : { allowCopy }),
+            });
+      await share(0);
+      await expect(received.reference(id, 8)).rejects.toMatchObject({ status: 403 });
+      await share(1, true);
+      const original = await db.manager.findOneBy(Dashboard, { id });
+      const originalDocument = (await copyStudio.get(id, 7)).document;
+      const publicationsBefore = await db.manager.count(StudioPublication);
+      const { reference } = await received.reference(id, 8);
+      if (mode === 'group') {
+        expect(reference.startsWith('g-')).toBe(true);
+        await db.manager.update(EnterpriseGroup, { id: 80 }, { version: 2 });
+        await expect(received.resolve(reference, 8)).rejects.toMatchObject({ status: 409 });
+        await db.manager.update(EnterpriseGroup, { id: 80 }, { version: 1 });
+        await db.manager.delete(EnterpriseGroupMember, { groupId: 80, userId: 8 });
+        await expect(received.resolve(reference, 8)).rejects.toMatchObject({ status: 403 });
+        await db.manager.insert(EnterpriseGroupMember, { groupId: 80, userId: 8 });
+      }
+      await expect(remix.template(reference, 8)).rejects.toMatchObject({ status: 404 });
+      await expect(remix.template('a'.repeat(64), 8, received.resolve)).rejects.toMatchObject({
+        status: 400,
+      });
+      const requirements = await remix.template(reference, 8, received.resolve);
+      await db.manager.update(Dashboard, id, { assetActive: false, assetVersion: 1 });
+      await expect(received.resolve(reference, 8)).rejects.toMatchObject({ status: 403 });
+      await db.manager.update(Dashboard, id, { assetActive: true, assetVersion: 2 });
+      await expect(received.resolve(reference, 8)).rejects.toMatchObject({ status: 409 });
+      const replacement = (await received.reference(id, 8)).reference;
+      expect(replacement).not.toBe(reference);
+      expect((await remix.template(replacement, 8, received.resolve)).lifecycleRevision).not.toBe(
+        requirements.lifecycleRevision,
+      );
+      // Reset this fixture to the exact captured baseline for the existing remainder of this test.
+      await db.manager.update(Dashboard, id, {
+        assetActive: original.assetActive,
+        assetVersion: original.assetVersion,
+        updatedAt: original.updatedAt,
+      });
+
+      expect(requirements.version).toBe(2);
+      expect(requirements.blocks.every(block => block.supported)).toBe(true);
+      expect(JSON.stringify(requirements)).not.toMatch(
+        /SELECT|connectionConfig|analysisDefinition|source-1/,
+      );
+      await expect(received.reference(id, 7)).rejects.toMatchObject({ status: 403 });
+      await db.manager.update(Dashboard, { id }, { title: 'Changed while choosing source' });
+      await expect(remix.template(reference, 8, received.resolve)).rejects.toMatchObject({
+        status: 409,
+      });
+      await db.manager.update(
+        Dashboard,
+        { id },
+        { title: original.title, updatedAt: original.updatedAt },
+      );
+      files.set(
+        9,
+        (
+          await worker.importFile({
+            originalname: 'private-target.csv',
+            buffer: Buffer.from(
+              'segment,total,occurred_at\nSite,900,2026-01-01T00:00:00Z\nMobile,100,2026-01-02T00:00:00Z\n',
+            ),
+          })
+        ).filename,
+      );
+      await db.manager.save(Database, {
+        id: 9,
+        ownerId: 8,
+        name: 'Recipient data',
+        engine: 'duckdb',
+        type: 'FILE',
+        connectionConfig: JSON.stringify({
+          client: 'duckdb',
+          connection: { filename: filename(9) },
+        }),
+      });
+      if (mode === 'semantic') await declareCategory(9, 'segment', 4);
+      const previousSecret = process.env.ACCESS_SECRET;
+      process.env.ACCESS_SECRET = 'synthetic-received-copy-http';
+      const jwt = new JwtService();
+      const module = await Test.createTestingModule({
+        controllers: [StudioReceivedRemixController],
+        providers: [
+          StudioPublicationGuard,
+          { provide: StudioReceivedRemixService, useValue: received },
+          { provide: StudioRemixService, useValue: remix },
+          { provide: DataSource, useValue: db },
+          { provide: JwtService, useValue: jwt },
+        ],
+      }).compile();
+      const app = module.createNestApplication();
+      await app.init();
+      await app.listen(0, '127.0.0.1');
+      const auth =
+        'Bearer ' +
+        jwt.sign(
+          { accessKeyData: { id: 8, userId: 'copy-8', authVersion: 0 } },
+          { secret: process.env.ACCESS_SECRET },
+        );
+      try {
+        const unauth = await request(app.getHttpServer())
+          .get(`/studio/received/${id}/remix-reference`)
+          .expect(401);
+        expect(unauth.headers['cache-control']).toContain('no-store');
+        const fresh = await request(app.getHttpServer())
+          .get(`/studio/received/${id}/remix-reference`)
+          .set('Authorization', auth)
+          .expect(200);
+        expect(fresh.body.reference).toBe(reference);
+        const before = await db.manager.count(Dashboard);
+        const preview = await request(app.getHttpServer())
+          .post(`/studio/received/${reference}/remix-preview`)
+          .set('Authorization', auth)
+          .send({
+            targetSourceId: 9,
+            mapping,
+            expectedVersion: 2,
+            expectedLifecycleRevision: requirements.lifecycleRevision,
+          })
+          .expect(201);
+        expect(await db.manager.count(Dashboard)).toBe(before);
+        expect(Number(preview.body.preview.widgets[0].datas[0].value)).toBe(1000);
+        const save = {
+          targetSourceId: 9,
+          mapping,
+          expectedVersion: 2,
+          expectedSourceRevision: preview.body.sourceRevision,
+          expectedLifecycleRevision: preview.body.lifecycleRevision,
+          requestId: 'received-copy-' + id,
+        };
+        await request(app.getHttpServer())
+          .post(`/studio/received/${reference}/remix-preview`)
+          .set('Authorization', auth)
+          .send({
+            targetSourceId: 1,
+            mapping: {},
+            expectedVersion: 2,
+            expectedLifecycleRevision: requirements.lifecycleRevision,
+          })
+          .expect(403);
+        const metricCount = await db.manager.count(Metric);
+        const persist = copyCreation.persistRemix.bind(copyCreation);
+        const revokeDuringSave = jest
+          .spyOn(copyCreation, 'persistRemix')
+          .mockImplementationOnce(async (...args) => {
+            const result = await persist(...args);
+            if (mode === 'group')
+              await args[0].update(
+                EnterpriseGroupDelivery,
+                { ownerId: 7, organizationId: 1, dashboardId: id, groupId: 80 },
+                { allowCopy: false },
+              );
+            else
+              await args[0].update(
+                EnterpriseDashboardDelivery,
+                { ownerId: 7, organizationId: 1, dashboardId: id, recipientId: 8 },
+                { allowCopy: false },
+              );
+            return result;
+          });
+        try {
+          await request(app.getHttpServer())
+            .post(`/studio/received/${reference}/remix`)
+            .set('Authorization', auth)
+            .send(save)
+            .expect(403);
+          expect(await db.manager.count(Dashboard)).toBe(before);
+          expect(await db.manager.count(Metric)).toBe(metricCount);
+          expect(
+            await db.manager.count(StudioRemixRequest, {
+              where: { actorId: 8, requestId: save.requestId },
+            }),
+          ).toBe(0);
+        } finally {
+          revokeDuringSave.mockRestore();
+        }
+        const created = await request(app.getHttpServer())
+          .post(`/studio/received/${reference}/remix`)
+          .set('Authorization', auth)
+          .send(save)
+          .expect(201);
+        const result = created.body;
+        expect(result.dashboardId).not.toBe(id);
+        expect(result.document.sourceId).toBe(9);
+        expect(await db.manager.count(Dashboard)).toBe(before + 1);
+        const replay = await remix.remix(reference, save, 8, received.resolve);
+        expect(replay.dashboardId).toBe(result.dashboardId);
+        expect(await db.manager.count(Dashboard)).toBe(before + 1);
+        expect(await db.manager.findOneBy(Dashboard, { id })).toEqual(original);
+        const state = await (copyStudio as any).load(id, 8, 'read', db.manager);
+        const capture = await copyStudio.captureRemix(id, 8);
+        const oldFingerprint = studioDigest([
+          state.document.revision,
+          state.schemaVersion,
+          state.sourceRevision,
+          capture.template,
+        ]);
+        const legacyReference = reference.replace(/[a-f0-9]{64}$/, oldFingerprint);
+        const legacySave: any = {
+          ...save,
+          requestId: 'predeploy-received-' + id,
+        };
+        delete legacySave.expectedLifecycleRevision;
+        await db.manager.insert(StudioRemixRequest, {
+          actorId: 8,
+          requestId: legacySave.requestId,
+          payloadHash: studioDigest({
+            token: legacyReference,
+            ...legacySave,
+            excludedBlockIds: [],
+          }),
+          result: JSON.stringify(result),
+        });
+        await expect(received.resolve(legacyReference, 8)).rejects.toMatchObject({ status: 409 });
+        const receiptCount = await db.manager.count(StudioRemixRequest);
+        const noNewCopy = jest.spyOn(copyCreation, 'persistRemix');
+        try {
+          expect(
+            (await remix.remix(legacyReference, legacySave as any, 8, received.resolve))
+              .dashboardId,
+          ).toBe(result.dashboardId);
+          const relationEntity =
+            mode === 'group' ? EnterpriseGroupDelivery : EnterpriseDashboardDelivery;
+          const relationKey =
+            mode === 'group'
+              ? { dashboardId: id, groupId: 80 }
+              : { dashboardId: id, recipientId: 8 };
+          await db.manager.update(relationEntity, relationKey, { version: 3 });
+          expect((await remix.remix(reference, save, 8, received.resolve)).dashboardId).toBe(
+            result.dashboardId,
+          );
+          await db.manager.update(relationEntity, relationKey, { version: 2 });
+          await db.manager.update(Dashboard, id, { assetActive: false, assetVersion: 1 });
+          await expect(remix.remix(reference, save, 8, received.resolve)).rejects.toMatchObject({
+            status: 403,
+          });
+          await db.manager.update(Dashboard, id, { assetActive: true, assetVersion: 2 });
+          await expect(received.resolve(reference, 8)).rejects.toMatchObject({ status: 409 });
+          expect((await remix.remix(reference, save, 8, received.resolve)).dashboardId).toBe(
+            result.dashboardId,
+          );
+          expect(
+            (await remix.remix(legacyReference, legacySave as any, 8, received.resolve))
+              .dashboardId,
+          ).toBe(result.dashboardId);
+          await expect(
+            remix.remix(
+              reference,
+              { ...save, requestId: 'missing-old-receipt-' + id },
+              8,
+              received.resolve,
+            ),
+          ).rejects.toMatchObject({ status: 409 });
+          await expect(
+            remix.remix(
+              legacyReference,
+              { ...legacySave, requestId: 'missing-predeploy-' + id } as any,
+              8,
+              received.resolve,
+            ),
+          ).rejects.toMatchObject({ status: 409 });
+          if (mode === 'group') {
+            // A now-preferred direct delivery must not replace the exact referenced group authority.
+            await db.manager.insert(EnterpriseDashboardDelivery, {
+              ownerId: 7,
+              organizationId: 1,
+              dashboardId: id,
+              recipientId: 8,
+              active: true,
+              allowCopy: true,
+              version: 1,
+            });
+            await db.manager.update(EnterpriseGroup, 80, { version: 2 });
+            expect((await remix.remix(reference, save, 8, received.resolve)).dashboardId).toBe(
+              result.dashboardId,
+            );
+            await db.manager.update(
+              EnterpriseGroupDelivery,
+              { dashboardId: id, groupId: 80 },
+              { allowCopy: false },
+            );
+            await expect(remix.remix(reference, save, 8, received.resolve)).rejects.toMatchObject({
+              status: 403,
+            });
+            await db.manager.update(
+              EnterpriseGroupDelivery,
+              { dashboardId: id, groupId: 80 },
+              { allowCopy: true },
+            );
+            await db.manager.update(EnterpriseGroup, 80, { version: 1 });
+            await db.manager.delete(EnterpriseDashboardDelivery, {
+              dashboardId: id,
+              recipientId: 8,
+            });
+          }
+          expect(await db.manager.count(Dashboard)).toBe(before + 1);
+          expect(await db.manager.count(StudioRemixRequest)).toBe(receiptCount);
+          expect(noNewCopy).not.toHaveBeenCalled();
+        } finally {
+          noNewCopy.mockRestore();
+          await db.manager.update(Dashboard, id, {
+            assetActive: original.assetActive,
+            assetVersion: original.assetVersion,
+            updatedAt: original.updatedAt,
+          });
+        }
+        const saved = await copyStudio.get(result.dashboardId, 8);
+        if (mode === 'semantic') {
+          expect(saved.document.conditions.semantics).toEqual({
+            schemaVersion: 1,
+            catalogVersion: 4,
+            columns: [{ column: 'segment', businessType: 'category', dateFormat: '' }],
+          });
+          expect(JSON.stringify(requirements)).not.toContain('conditionSchema');
+        }
+        expect(
+          saved.document.blocks.every(
+            block => !originalDocument.blocks.some(prior => prior.id === block.id),
+          ),
+        ).toBe(true);
+        expect(Number(saved.preview.widgets[0].datas[0].value)).toBe(1000);
+        for (const breakpoint of Object.keys(originalDocument.layouts)) {
+          expect(
+            saved.document.layouts[breakpoint].map(({ x, y, w, h }) => ({ x, y, w, h })),
+          ).toEqual(originalDocument.layouts[breakpoint].map(({ x, y, w, h }) => ({ x, y, w, h })));
+        }
+        await share(2, false);
+        await expect(remix.template(reference, 8, received.resolve)).rejects.toMatchObject({
+          status: 403,
+        });
+        await expect(remix.remix(reference, save, 8, received.resolve)).rejects.toMatchObject({
+          status: 403,
+        });
+        await share(3, undefined, false);
+        await policy.set('source', 1, 7, {
+          recipientId: 8,
+          expectedVersion: sourceGrantVersion + 1,
+          rights: { read: false, edit: false, publish: false, export: false },
+        });
+        await expect(remix.remix(reference, save, 8, received.resolve)).rejects.toMatchObject({
+          status: 403,
+        });
+        expect(
+          Number((await copyStudio.get(result.dashboardId, 8)).preview.widgets[0].datas[0].value),
+        ).toBe(1000);
+        expect(await db.manager.count(StudioPublication)).toBe(publicationsBefore);
+      } finally {
+        await app.close();
+        if (previousSecret === undefined) delete process.env.ACCESS_SECRET;
+        else process.env.ACCESS_SECRET = previousSecret;
+      }
+    },
+    15000,
+  );
   it('captures source-independent whitelisted semantics only with explicit publication consent', async () => {
     const p = await publish();
     const row: any = await db.manager.findOne(StudioPublication, { where: { token: p.token } });
@@ -256,10 +783,16 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       new SourceAccessService(db),
     );
   };
-  const preview = (p: any, extra: any = {}) =>
+  const preview = async (p: any, extra: any = {}) =>
     remixService().preview(
       p.token,
-      { targetSourceId: 2, mapping, expectedVersion: p.version, ...extra },
+      {
+        targetSourceId: 2,
+        mapping,
+        expectedVersion: p.version,
+        expectedLifecycleRevision: studioDigest({ dashboardId: id, assetVersion: 0 }),
+        ...extra,
+      },
       8,
     );
   const saveRemix = (p: any, v: any, extra: any = {}) =>
@@ -271,10 +804,116 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
         mapping,
         expectedVersion: p.version,
         expectedSourceRevision: v.sourceRevision,
+        expectedLifecycleRevision: v.lifecycleRevision,
         ...extra,
       },
       8,
     );
+  it('binds frozen publication remix across deactivate/restore and replays only confirmed receipts with current authority', async () => {
+    const p = await publish();
+    const old = await preview(p);
+    const before = await db.manager.count(Dashboard);
+    await db.manager.update(Dashboard, id, { assetActive: false, assetVersion: 1 });
+    await expect(publications.read(p.token)).rejects.toMatchObject({ status: 403 });
+    await expect(saveRemix(p, old)).rejects.toMatchObject({ status: 403 });
+    await db.manager.update(Dashboard, id, { assetActive: true, assetVersion: 2 });
+    await expect(saveRemix(p, old)).rejects.toMatchObject({ status: 409 });
+    expect(await db.manager.count(Dashboard)).toBe(before);
+    const next = await preview(p, {
+      expectedLifecycleRevision: (await remixService().template(p.token, 8)).lifecycleRevision,
+    });
+    expect(next.version).toBe(old.version);
+    expect(next.lifecycleRevision).not.toBe(old.lifecycleRevision);
+    const saved = await saveRemix(p, next);
+    expect(await db.manager.findOneBy(Dashboard, { id: saved.dashboardId })).toMatchObject({
+      assetActive: true,
+      assetVersion: 0,
+    });
+    const count = await db.manager.count(Dashboard);
+    await db.manager.update(Dashboard, id, { assetActive: false, assetVersion: 3 });
+    await expect(saveRemix(p, next)).rejects.toMatchObject({ status: 403 });
+    expect((await studio.get(saved.dashboardId, 8)).document.dashboardId).toBe(saved.dashboardId);
+    await db.manager.update(Dashboard, id, { assetActive: true, assetVersion: 4 });
+    expect((await saveRemix(p, next)).dashboardId).toBe(saved.dashboardId);
+    expect(await db.manager.count(Dashboard)).toBe(count);
+    const persisted = await db.manager.findOneByOrFail(StudioPublication, { token: p.token });
+    expect(persisted.version).toBe(p.version);
+  });
+  it('confirms an exact legacy receipt without lifecycle proof, with current origin/copy authority and no writes', async () => {
+    const p = await publish();
+    const prepared = await preview(p);
+    const saved = await saveRemix(p, prepared);
+    const legacy = {
+      requestId: 'remix-' + id,
+      targetSourceId: 2,
+      mapping,
+      expectedVersion: p.version,
+      expectedSourceRevision: prepared.sourceRevision,
+    };
+    await db.manager.update(
+      StudioRemixRequest,
+      { actorId: 8, requestId: legacy.requestId },
+      {
+        payloadHash: studioDigest({ token: p.token, ...legacy, excludedBlockIds: [] }),
+      },
+    );
+    const service = remixService();
+    const persist = jest.spyOn((service as any).creation, 'persistRemix');
+    const before = await db.manager.count(Dashboard);
+    await db.manager.update(Dashboard, id, { assetActive: false, assetVersion: 1 });
+    await expect(service.remix(p.token, legacy as any, 8)).rejects.toMatchObject({ status: 403 });
+    await db.manager.update(Dashboard, id, { assetActive: true, assetVersion: 2 });
+    expect(await service.remix(p.token, legacy as any, 8)).toEqual(saved);
+    await expect(
+      service.remix(p.token, { ...legacy, mapping: {} } as any, 8),
+    ).rejects.toMatchObject({ status: 409 });
+    await db.manager.update(Dashboard, saved.dashboardId, { assetActive: false, assetVersion: 1 });
+    await expect(service.remix(p.token, legacy as any, 8)).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.count(Dashboard)).toBe(before);
+    expect(persist).not.toHaveBeenCalled();
+    persist.mockRestore();
+  });
+  it('rejects an unconfirmed legacy request before any copy creation and still requires preview lifecycle proof', async () => {
+    const p = await publish();
+    const prepared = await preview(p);
+    const legacy = {
+      requestId: 'unconfirmed-legacy',
+      targetSourceId: 2,
+      mapping,
+      expectedVersion: p.version,
+      expectedSourceRevision: prepared.sourceRevision,
+    };
+    const service = remixService();
+    const persist = jest.spyOn((service as any).creation, 'persistRemix');
+    const before = await db.manager.count(Dashboard);
+    const receiptsBefore = await db.manager.count(StudioRemixRequest);
+    await expect(service.remix(p.token, legacy as any, 8)).rejects.toMatchObject({ status: 409 });
+    await expect(
+      service.preview(p.token, { targetSourceId: 2, mapping } as any, 8),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(await db.manager.count(Dashboard)).toBe(before);
+    expect(await db.manager.count(StudioRemixRequest)).toBe(receiptsBefore);
+    expect(persist).not.toHaveBeenCalled();
+    persist.mockRestore();
+  });
+  it('rechecks lifecycle at the final transaction after target preview, with rollback and no new copy', async () => {
+    const p = await publish();
+    const prepared = await preview(p);
+    const before = await db.manager.count(Dashboard);
+    const creation = (remixService() as any).creation;
+    const original = creation.prepareRemix.bind(creation);
+    const swap = jest.spyOn(creation, 'prepareRemix').mockImplementation(async (...args: any[]) => {
+      const result = await original(...args);
+      await db.manager.update(Dashboard, id, { assetActive: true, assetVersion: 2 });
+      return result;
+    });
+    try {
+      await expect(saveRemix(p, prepared)).rejects.toMatchObject({ status: 409 });
+    } finally {
+      swap.mockRestore();
+    }
+    expect(await db.manager.count(Dashboard)).toBe(before);
+  });
   it('discovers requirements without target selection or recipient access to the private original source', async () => {
     const p = await publish();
     await expect(new SourceAccessService(db).assert('database', 1, 8)).rejects.toThrow();
@@ -408,7 +1047,15 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
   it('allocates independent metric IDs even when owner remixes onto the same source', async () => {
     const p = await publish(),
       service = remixService();
-    const v = await service.preview(p.token, { targetSourceId: 1, mapping: {} }, 7);
+    const v = await service.preview(
+      p.token,
+      {
+        targetSourceId: 1,
+        mapping: {},
+        expectedLifecycleRevision: studioDigest({ dashboardId: id, assetVersion: 0 }),
+      },
+      7,
+    );
     const a = await service.remix(
       p.token,
       {
@@ -417,6 +1064,7 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
         mapping: {},
         expectedVersion: p.version,
         expectedSourceRevision: v.sourceRevision,
+        expectedLifecycleRevision: v.lifecycleRevision,
       },
       7,
     );
@@ -514,10 +1162,12 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
     const fresh = await publish({ requestId: 'fresh-' + id }),
       w = await preview(fresh);
     const saved = saveRemix(fresh, w);
-    const later = publications.revoke(fresh.token, 7);
-    const result = await saved;
-    await later;
-    expect(result.dashboardId).not.toBe(id);
+    // Preparation no longer monopolizes the metadata queue. Revocation can commit while
+    // aggregate work is in flight, and the final transaction must reject without a copy.
+    const rejected = expect(saved).rejects.toMatchObject({ status: 410 });
+    await publications.revoke(fresh.token, 7);
+    await rejected;
+    expect(await db.manager.count(Dashboard)).toBe(before);
     await expect(saveRemix(fresh, w)).rejects.toMatchObject({ status: 410 });
   });
 
@@ -668,16 +1318,22 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
         v = await preview(p);
       const n = await db.manager.count(Dashboard),
         m = await db.manager.count(Metric);
-      const original = dashboards.save.bind(dashboards);
-      const spy = jest.spyOn(dashboards, 'save').mockImplementation(async (...args) => {
-        const result = await original(...args);
-        if (change === 'source') await db.manager.update(Database, 2, { ownerId: 9 });
-        else if (change === 'publication')
-          await db.manager.update(StudioPublication, p.token, {
-            revokedAt: new Date().toISOString(),
-          });
-        else await db.manager.update(Dashboard, id, { delYn: 'Y' as any });
-        return result;
+      const original = dashboards.prepareSave.bind(dashboards);
+      const spy = jest.spyOn(dashboards, 'prepareSave').mockImplementation(async (...args) => {
+        const prepared = await original(...args);
+        return {
+          ...prepared,
+          persist: async (...values) => {
+            const result = await prepared.persist(...values);
+            if (change === 'source') await db.manager.update(Database, 2, { ownerId: 9 });
+            else if (change === 'publication')
+              await db.manager.update(StudioPublication, p.token, {
+                revokedAt: new Date().toISOString(),
+              });
+            else await db.manager.update(Dashboard, id, { delYn: 'Y' as any });
+            return result;
+          },
+        };
       });
       try {
         await expect(
@@ -701,13 +1357,30 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
     expect(v.blocks[0].supported).toBe(false);
     await expect(saveRemix(p, v)).rejects.toMatchObject({ status: 400 });
   });
+  it('UC055 completes real remix SQL before the clone source/metric persistence fences', async () => {
+    const p = await publish(),
+      v = await preview(p);
+    const query = connection.queryDuckDB.getMockImplementation();
+    let calls = 0;
+    connection.queryDuckDB.mockImplementation(async (...args) => {
+      expect(db.createQueryRunner().isTransactionActive).toBe(false);
+      calls++;
+      return query(...args);
+    });
+    try {
+      await saveRemix(p, v);
+      expect(calls).toBeGreaterThan(0);
+    } finally {
+      connection.queryDuckDB.mockImplementation(query);
+    }
+  });
   it('detects a schema change during save and rolls back every new asset', async () => {
     const p = await publish(),
       v = await preview(p),
       before = await db.manager.count(Dashboard);
-    const original = dashboards.save.bind(dashboards),
+    const original = dashboards.prepareSave.bind(dashboards),
       query = connection.queryDuckDB.getMockImplementation();
-    const spy = jest.spyOn(dashboards, 'save').mockImplementation(async (...args) => {
+    const spy = jest.spyOn(dashboards, 'prepareSave').mockImplementation(async (...args) => {
       const result = await original(...args);
       connection.queryDuckDB.mockImplementation(async (sourceId, sql, bindings) => {
         const data = await query(sourceId, sql, bindings);
@@ -977,7 +1650,10 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
     };
     const commitError: any = await saveRemix(
       p,
-      { sourceRevision: (await creation.profile(6, 8)).dataVersion },
+      {
+        sourceRevision: (await creation.profile(6, 8)).dataVersion,
+        lifecycleRevision: studioDigest({ dashboardId: id, assetVersion: 0 }),
+      },
       duplicate,
     ).catch(error => error);
     expect(commitError.status).toBe(400);
@@ -994,8 +1670,8 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       metrics: await db.manager.count(Metric),
     };
     await expect(
-      db.transaction(manager =>
-        creation.persistRemix(
+      db.transaction(() =>
+        creation.prepareRemix(
           6,
           {
             schemaVersion: 1,
@@ -1007,7 +1683,6 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
           [],
           profile,
           8,
-          manager,
           [
             { column: 'total', values: [300] },
             { column: 'total', values: [200] },
@@ -1152,8 +1827,8 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
       metrics: await db.manager.count(Metric),
     };
     await expect(
-      db.transaction(manager =>
-        creation.persistRemix(
+      db.transaction(() =>
+        creation.prepareRemix(
           2,
           {
             schemaVersion: 1,
@@ -1165,7 +1840,6 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
           [],
           profile,
           8,
-          manager,
           [],
           { column: 'segment', start: '2026-01-01', end: '2026-01-01' },
         ),

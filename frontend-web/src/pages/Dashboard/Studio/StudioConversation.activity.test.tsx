@@ -228,6 +228,7 @@ vi.mock('./StudioRemix', () => ({
             mapping: { amount: 'amount' },
             excludedBlockIds: [],
             expectedVersion: 3,
+            expectedLifecycleRevision: 'd'.repeat(64),
             expectedSourceRevision: 'b'.repeat(64),
           },
           () => true,
@@ -257,6 +258,7 @@ it('completes confirmed mapping inside the conversation without applying the clo
   const link = await screen.findByRole('link', { name: '비공개 복제본 열기' });
   expect(link.getAttribute('href')).toBe('/dashboard/44/studio');
   expect(api.post.mock.calls[0][0]).toBe('/studio/runs/run-publication/remix');
+  expect(api.post.mock.calls[0][1].expectedLifecycleRevision).toBe('d'.repeat(64));
   expect(defaultProps.onApply).not.toHaveBeenCalled();
   expect(defaultProps.onSaved).not.toHaveBeenCalled();
   expect(chat.sendMessage).not.toHaveBeenCalled();

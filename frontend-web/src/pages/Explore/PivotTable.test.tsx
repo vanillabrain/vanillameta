@@ -2,8 +2,8 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import PivotTable, { PivotResult } from './PivotTable';
-const api = vi.hoisted(() => ({ post: vi.fn(), authCheck: vi.fn() }));
-vi.mock('@/helpers/apiHelper', () => ({ post: api.post }));
+const api = vi.hoisted(() => ({ post: vi.fn(), get: vi.fn(), authCheck: vi.fn() }));
+vi.mock('@/helpers/apiHelper', () => ({ post: api.post, get: api.get }));
 vi.mock('@/helpers/authResponseFence', () => ({ captureAuthResponseFence: () => api.authCheck }));
 const sample: PivotResult = {
   sourceRevision: 'rev',
@@ -286,4 +286,128 @@ it('handles missing auth at delayed dispatch without a POST or stuck loading', a
   await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('불러오지 못했습니다'));
   expect(api.post).not.toHaveBeenCalled();
   expect(screen.queryByRole('status', { name: 'Pivot 집계 중' })).toBeNull();
+});
+
+it('checks current server export rights before making a CSV from rendered pivot data', async () => {
+  api.get.mockResolvedValue({ data: { rights: { read: true, export: false } } });
+  const blob = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:denied');
+  render(<PivotTable {...props()} canExport />);
+  const button = await screen.findByRole('button', { name: /CSV/ });
+  await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(button);
+  await waitFor(() => expect(api.get).toHaveBeenCalledWith('/enterprise/resources/source/3/access'));
+  expect(blob).not.toHaveBeenCalled();
+  blob.mockRestore();
+});
+it('UC052 conditions reach Pivot requests/cache identity, readonly label and CSV selector; late old scope is discarded', async () => {
+  const conditions = {
+    sourceRevision: 'b'.repeat(64),
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  const p = props();
+  const view = render(<PivotTable {...p} conditions={conditions} />);
+  await screen.findByRole('table');
+  expect(api.post.mock.lastCall[1].conditions).toEqual(conditions);
+  expect(api.post.mock.lastCall[1].sourceRevision).toBe('rev');
+  expect(screen.getByRole('note').textContent).toContain('포함·제외 조건 적용됨');
+  view.rerender(<PivotTable {...p} conditions={structuredClone(conditions)} />);
+  expect(api.post).toHaveBeenCalledTimes(1);
+  let late: (value: any) => void;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        late = resolve;
+      }),
+  );
+  const next = {
+    ...conditions,
+    definition: { ...conditions.definition, include: { ...conditions.definition.include, values: [20] } },
+  };
+  view.rerender(<PivotTable {...p} conditions={next} />);
+  expect((screen.getByRole('button', { name: 'Pivot CSV 내보내기' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(api.post.mock.lastCall[1].conditions).toEqual(next);
+  view.rerender(<PivotTable {...p} conditions={conditions} />);
+  await screen.findByRole('table');
+  await act(async () => late(success({ ...sample, grandTotals: ['wrong-old-scope', null] })));
+  expect(screen.queryByText('wrong-old-scope')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Pivot CSV 내보내기' }) as HTMLButtonElement).disabled).toBe(false);
+});
+it('UC052 malformed conditions block Pivot queries and CSV without unscoped fallback', () => {
+  render(
+    <PivotTable {...props()} conditions={{ sourceRevision: 'malformed', definition: { include: null, exclude: null } }} />,
+  );
+  expect(screen.getByRole('alert').textContent).toContain('조건 없는 결과로 대체하지 않습니다');
+  expect(api.post).not.toHaveBeenCalled();
+  expect((screen.getByRole('button', { name: 'Pivot CSV 내보내기' }) as HTMLButtonElement).disabled).toBe(true);
+});
+it.each([false, true])(
+  'review BLOCK2 rejects absent export authority with undefined canExport (embedded=%s)',
+  async embedded => {
+    api.get.mockResolvedValue({ data: { rights: { read: true, export: false } } });
+    const blob = vi.spyOn(globalThis, 'Blob');
+    const url = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:denied');
+    try {
+      render(<PivotTable {...props()} embedded={embedded} />);
+      await screen.findByRole('table');
+      fireEvent.click(screen.getByRole('button', { name: 'Pivot CSV 내보내기' }));
+      await screen.findByText('CSV를 만들지 못했습니다. 다시 시도해 주세요.');
+      expect(api.get).toHaveBeenCalledWith('/enterprise/resources/source/3/access');
+      expect(blob).not.toHaveBeenCalled();
+      expect(url).not.toHaveBeenCalled();
+    } finally {
+      blob.mockRestore();
+      url.mockRestore();
+    }
+  },
+);
+it('review BLOCK2 checks fresh export authorization per download and fails closed on revoked, malformed or failed permission reads', async () => {
+  api.get.mockReset();
+  api.get
+    .mockResolvedValueOnce({ data: { rights: { read: true, export: true } } })
+    .mockResolvedValueOnce({ data: { rights: { read: true, export: false } } })
+    .mockResolvedValueOnce({ data: { rights: { export: 'true' } } })
+    .mockRejectedValueOnce(new Error('permission unavailable'));
+  const url = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:authorized');
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+  try {
+    render(<PivotTable {...props()} />);
+    await screen.findByRole('table');
+    const download = screen.getByRole('button', { name: 'Pivot CSV 내보내기' });
+    fireEvent.click(download);
+    await screen.findByText('Pivot CSV를 내보냈습니다. 숫자는 축약·반올림하지 않은 집계값입니다.');
+    expect(url).toHaveBeenCalledTimes(1);
+    for (let attempt = 2; attempt <= 4; attempt++) {
+      await act(async () => {
+        fireEvent.click(download);
+      });
+      await waitFor(() => expect(api.get).toHaveBeenCalledTimes(attempt));
+      expect(url).toHaveBeenCalledTimes(1);
+      expect(click).toHaveBeenCalledTimes(1);
+    }
+  } finally {
+    url.mockRestore();
+    click.mockRestore();
+  }
+});
+it('review BLOCK2 drops export permission arriving after the source scope changes', async () => {
+  let permit: (value: any) => void;
+  api.get.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        permit = resolve;
+      }),
+  );
+  const url = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:stale');
+  try {
+    const p = props();
+    const view = render(<PivotTable {...p} />);
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: 'Pivot CSV 내보내기' }));
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    view.rerender(<PivotTable {...p} filters={[{ column: 'device_type', values: ['next'] }]} />);
+    await act(async () => permit({ data: { rights: { read: true, export: true } } }));
+    expect(url).not.toHaveBeenCalled();
+  } finally {
+    url.mockRestore();
+  }
 });

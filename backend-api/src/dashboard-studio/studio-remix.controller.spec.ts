@@ -33,6 +33,7 @@ describe('T9 authenticated no-store remix HTTP API', () => {
         {
           provide: DataSource,
           useValue: {
+            options: { type: 'sqlite' },
             getRepository: () => ({ findOne: async () => ({ id: 8, userId: 'recipient' }) }),
           },
         },

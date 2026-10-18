@@ -1,16 +1,20 @@
+import { resolveConditionSemantics } from './business-condition-context';
+import { lockMetricReferences } from '../metric/metric-write-lock';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { Database } from '../database/entities/database.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
 import { ConnectionService } from '../connection/connection.service';
 import { BiService } from './bi.service';
 import { ExploreView } from './entities/explore-view.entity';
 import { ExploreViewState, validateExploreViewState } from './versioned-explore-view-state';
+import { validateExploreViewConditions } from './explore-view-state';
 
 const MAX_VIEWS_PER_SOURCE = 20;
 const MAX_NAME_LENGTH = 80;
@@ -23,8 +27,6 @@ const REMOVE_FIELDS = ['sourceId', 'viewId'];
 /** Personal saved exploration views scoped to one private actor and owned managed source. */
 @Injectable()
 export class VersionedExploreViewService {
-  // Local SQLite has one connection; do not overlap this service's write transactions.
-  private writeQueue: Promise<unknown> = Promise.resolve();
   constructor(
     private readonly db: DataSource,
     private readonly access: SourceAccessService,
@@ -84,13 +86,8 @@ export class VersionedExploreViewService {
   }
 
   private write<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.db.options.type !== 'sqlite') return operation();
-    const result = this.writeQueue.then(operation);
-    this.writeQueue = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
+    // SQLite shares one connection with the other metadata writers; use the common queue.
+    return serializeMetadataWork(this.db, operation);
   }
 
   /** Full view for a readable row; the state is already validated by the caller. */
@@ -154,7 +151,11 @@ export class VersionedExploreViewService {
    */
   private summary(
     row: ExploreView,
-    current: { sourceRevision: string; versions: Map<number, number> } | null,
+    current: {
+      sourceRevision: string;
+      versions: Map<number, number>;
+      columns: Array<{ name: string; type: string }>;
+    } | null,
   ) {
     const state = this.parseState(row);
     if (!state)
@@ -178,15 +179,21 @@ export class VersionedExploreViewService {
   private async currentVersions(
     sourceId: number,
     actor: number,
-  ): Promise<{ sourceRevision: string; versions: Map<number, number> } | null> {
+  ): Promise<{
+    sourceRevision: string;
+    versions: Map<number, number>;
+    columns: Array<{ name: string; type: string }>;
+  } | null> {
     try {
-      return await this.connection.withDuckDBSnapshot(sourceId, async () => {
+      const snapshot = await this.connection.captureDuckDBSnapshot(sourceId);
+      return await snapshot.run(async () => {
         const profile = await this.bi.profile(sourceId, actor);
         if (!profile.supported) return null;
         const sourceRevision = await this.connection.duckDBVersion(profile.sourceId);
         const metrics = await this.bi.metrics(profile.sourceId, actor);
         return {
           sourceRevision,
+          columns: profile.columns.map(({ name, type }) => ({ name, type })),
           versions: new Map(metrics.map(measure => [measure.id, measure.definitionVersion])),
         };
       });
@@ -197,13 +204,23 @@ export class VersionedExploreViewService {
 
   private isStale(
     row: ExploreView,
-    current: { sourceRevision: string; versions: Map<number, number> } | null,
+    current: {
+      sourceRevision: string;
+      versions: Map<number, number>;
+      columns: Array<{ name: string; type: string }>;
+    } | null,
   ) {
     const state = this.parseState(row);
     if (!state) return true;
     const stored = this.storedVersions(row, state);
     if (!stored) return true;
     if (!current || current.sourceRevision !== row.sourceRevision) return true;
+    try {
+      if (state.conditions)
+        validateExploreViewConditions(state.conditions, current.sourceRevision, current.columns);
+    } catch {
+      return true;
+    }
     for (const [id, version] of stored) if (current.versions.get(id) !== version) return true;
     return false;
   }
@@ -224,6 +241,14 @@ export class VersionedExploreViewService {
   }
 
   /** Catalog membership and temporal bounds; never runs the heavy aggregate query. */
+  private async assertConditionsFile(sourceId: number, expected: string) {
+    const current = await this.connection.captureDuckDBSnapshot(sourceId);
+    if ((await current.run(() => this.connection.duckDBVersion(sourceId))) !== expected)
+      throw new ConflictException(
+        '조건의 파일 기준이 변경되었습니다. 현재 분석을 유지하고 다시 확인해 주세요.',
+      );
+  }
+
   private validateAgainstCatalog(state: ExploreViewState, profile: any, metrics: any[]) {
     const columns = new Set(profile.columns.map((column: any) => column.name));
     const numeric = new Set(
@@ -275,19 +300,10 @@ export class VersionedExploreViewService {
     if (!temporal.has(dateRange.column)) throw new BadRequestException('unknown date column');
   }
 
-  /** MySQL admission serializes on the existing source row across server instances. */
-  private async lockSource(manager: EntityManager, sourceId: number) {
-    if (manager.connection.options.type !== 'mysql') return;
-    await manager.findOne(Database, {
-      where: { id: sourceId },
-      lock: { mode: 'pessimistic_write' },
-    });
-  }
-
   async list(body: any, actor: number) {
     const input = this.fields(body, SOURCE_FIELDS);
     const sourceId = this.access.id(input.sourceId);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const rows = await this.db.getRepository(ExploreView).find({
       where: { sourceId, userId: actor },
       order: { id: 'DESC' },
@@ -304,11 +320,12 @@ export class VersionedExploreViewService {
     const state = validateExploreViewState(input.state);
     const clientVersions = this.clientMeasureVersions(input.measureVersions, state.measureIds);
     const sourceId = this.access.id(input.sourceId);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     return this.write(async () => {
-      await this.access.assert('database', sourceId, actor);
+      await this.access.assert('database', sourceId, actor, 'read');
       // Hold the pinned file for the reads and the insert so a new upload cannot race the row.
-      return this.connection.withDuckDBSnapshot(sourceId, async () => {
+      const execute = async () => {
+        const sourceBefore = await this.db.manager.findOne(Database, { where: { id: sourceId } });
         const profile = await this.bi.profile(sourceId, actor);
         if (!profile.supported)
           throw new BadRequestException('서버에 저장한 DuckDB 파일을 선택해 주세요.');
@@ -319,14 +336,37 @@ export class VersionedExploreViewService {
           );
         const metrics = await this.bi.metrics(profile.sourceId, actor);
         this.validateAgainstCatalog(state, profile, metrics);
+        if (state.conditions)
+          validateExploreViewConditions(state.conditions, sourceRevision, profile.columns);
+        if (state.conditions?.semantics)
+          await resolveConditionSemantics(
+            this.db.manager,
+            sourceId,
+            profile.columns,
+            state.conditions.semantics,
+          );
         const measureVersions = this.serverMeasureVersions(state, metrics);
         for (const id of state.measureIds)
           if (clientVersions.get(id) !== measureVersions[id])
             throw new ConflictException(
               '지표 정의가 변경되었습니다. 조건을 다시 확인하고 새 보기로 저장해 주세요.',
             );
-        const row = await this.db.transaction(async manager => {
-          await this.lockSource(manager, sourceId);
+        const row = await metadataTransaction(this.db, async manager => {
+          const current = await lockMetricReferences(manager, sourceId, state.measureIds);
+          const sourceNow = await manager.findOne(Database, { where: { id: sourceId } });
+          if (!sourceBefore || sourceNow.connectionConfig !== sourceBefore.connectionConfig)
+            throw new ConflictException('Source changed.');
+          for (const [id, metric] of current) {
+            let definition;
+            try {
+              definition = JSON.parse(metric.definition);
+            } catch {}
+            if (definition?.definitionVersion !== measureVersions[id])
+              throw new ConflictException('Saved metric changed.');
+          }
+          await this.access.assert('database', sourceId, actor, 'read', manager);
+          if (state.conditions)
+            await this.assertConditionsFile(sourceId, state.conditions.sourceRevision);
           const repo = manager.getRepository(ExploreView);
           if ((await repo.count({ where: { sourceId, userId: actor } })) >= MAX_VIEWS_PER_SOURCE)
             throw new BadRequestException('탐색 보기는 소스별 최대 20개까지 저장할 수 있습니다.');
@@ -342,14 +382,17 @@ export class VersionedExploreViewService {
           );
         });
         return this.success(this.fullView(row, state));
-      });
+      };
+      return state.conditions
+        ? (await this.connection.captureDuckDBSnapshot(sourceId)).run(execute)
+        : this.connection.withDuckDBSnapshot(sourceId, execute);
     });
   }
 
   async load(body: any, actor: number) {
     const input = this.fields(body, LOAD_FIELDS);
     const sourceId = this.access.id(input.sourceId);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const row = await this.db.getRepository(ExploreView).findOne({
       where: { id: this.access.id(input.viewId), sourceId, userId: actor },
     });
@@ -372,6 +415,25 @@ export class VersionedExploreViewService {
         throw new ConflictException(
           '지표 정의가 변경되었습니다. 조건을 다시 확인하고 새 보기로 저장해 주세요.',
         );
+    if (state.conditions) {
+      try {
+        validateExploreViewConditions(state.conditions, current.sourceRevision, current.columns);
+        if (state.conditions.semantics)
+          await resolveConditionSemantics(
+            this.db.manager,
+            sourceId,
+            current.columns,
+            state.conditions.semantics,
+          );
+      } catch {
+        throw new ConflictException(
+          '저장 조건의 파일·열 기준이 변경되었습니다. 현재 분석을 유지하고 다시 확인해 주세요.',
+        );
+      }
+    }
+    await this.access.assert('database', sourceId, actor, 'read');
+    if (state.conditions)
+      await this.assertConditionsFile(sourceId, state.conditions.sourceRevision);
     return this.success(this.fullView(row, state));
   }
 
@@ -379,9 +441,9 @@ export class VersionedExploreViewService {
     const input = this.fields(body, REMOVE_FIELDS);
     const sourceId = this.access.id(input.sourceId);
     const viewId = this.access.id(input.viewId);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const result = await this.write(async () => {
-      await this.access.assert('database', sourceId, actor);
+      await this.access.assert('database', sourceId, actor, 'read');
       return this.db.getRepository(ExploreView).delete({ id: viewId, sourceId, userId: actor });
     });
     if (!result.affected) throw new NotFoundException('저장 보기를 찾을 수 없습니다.');

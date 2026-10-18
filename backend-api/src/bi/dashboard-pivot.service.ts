@@ -1,3 +1,6 @@
+import { lockMetricReferences } from '../metric/metric-write-lock';
+import { Database } from '../database/entities/database.entity';
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import {
   BadRequestException,
   ConflictException,
@@ -10,6 +13,7 @@ import { randomUUID } from 'crypto';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
+import { metadataTransaction } from '../common/metadata-work';
 import { ExploreViewService } from './explore-view.service';
 import { BiExploreService } from './bi-explore.service';
 import { validateExploreViewState } from './explore-view-state';
@@ -38,7 +42,7 @@ export class DashboardPivotService {
   }
   async list(id: unknown, actor: number) {
     const dashboardId = this.access.id(id);
-    await this.access.assert('dashboard', dashboardId, actor);
+    await this.access.assert('dashboard', dashboardId, actor, 'read');
     const row = await this.dashboards.findOneBy({ id: dashboardId });
     const items = this.items(row);
     if (!items.length) return { status: 'SUCCESS', data: [] };
@@ -71,7 +75,7 @@ export class DashboardPivotService {
   }
   async add(id: unknown, actor: number, body: any) {
     const dashboardId = this.access.id(id);
-    await this.access.assert('dashboard', dashboardId, actor);
+    await this.access.assert('dashboard', dashboardId, actor, 'edit');
     if (
       !body ||
       Array.isArray(body) ||
@@ -89,24 +93,32 @@ export class DashboardPivotService {
       revision: view.revision,
       state: view.state,
     };
+    const sourceBefore = await this.dashboards.manager.findOne(Database, {
+      where: { id: sourceId },
+    });
+    const catalog = await this.explore.catalog({ sourceId }, actor);
+    if (catalog.viewRevision !== item.revision)
+      throw new ConflictException('Pivot 정의가 변경되었습니다. 다시 불러와 주세요.');
+    validateExploreViewState(item.state, catalog);
     await serializedViewWrite(this.dashboards, async () => {
-      await this.access.assert('dashboard', dashboardId, actor);
-      await this.access.assert('database', sourceId, actor);
-      await this.dashboards.manager.transaction(async manager => {
-        const row = await manager.findOne(Dashboard, {
-          where: { id: dashboardId },
-          ...(manager.connection.options.type === 'mysql'
-            ? { lock: { mode: 'pessimistic_write' as const } }
-            : {}),
-        });
+      await this.access.assert('dashboard', dashboardId, actor, 'edit');
+      await this.access.assert('database', sourceId, actor, 'read');
+      await metadataTransaction(this.dashboards.manager, async manager => {
+        const row = await lockDashboardWrite(manager, dashboardId);
+        await this.access.assert('dashboard', dashboardId, actor, 'edit', manager);
         if (!row || this.source(row) !== sourceId)
           throw new BadRequestException(
             '대시보드와 Pivot의 데이터 소스가 같아야 공통 필터를 연결할 수 있습니다.',
           );
-        const catalog = await this.explore.catalog({ sourceId }, actor);
-        if (catalog.viewRevision !== item.revision)
-          throw new ConflictException('Pivot 정의가 변경되었습니다. 다시 불러와 주세요.');
-        validateExploreViewState(item.state, catalog);
+        const metrics = await lockMetricReferences(manager, sourceId, item.state.measureIds);
+        const sourceNow = await manager.findOne(Database, { where: { id: sourceId } });
+        if (!sourceBefore || sourceNow.connectionConfig !== sourceBefore.connectionConfig)
+          throw new ConflictException('Source changed.');
+        for (const [id, metric] of metrics) {
+          const expected = catalog.measures.find(measure => measure.id === id);
+          if (!expected || JSON.stringify(expected.definition) !== metric.definition)
+            throw new ConflictException('Saved metric changed.');
+        }
         const items = this.items(row);
         if (items.length >= 8) throw new BadRequestException('Pivot은 대시보드별 최대 8개입니다.');
         row.pivotDefinitions = JSON.stringify([...items, item]);
@@ -117,16 +129,12 @@ export class DashboardPivotService {
   }
   async remove(id: unknown, pivotId: string, actor: number) {
     const dashboardId = this.access.id(id);
-    await this.access.assert('dashboard', dashboardId, actor);
+    await this.access.assert('dashboard', dashboardId, actor, 'edit');
     await serializedViewWrite(this.dashboards, async () => {
-      await this.access.assert('dashboard', dashboardId, actor);
-      await this.dashboards.manager.transaction(async manager => {
-        const row = await manager.findOne(Dashboard, {
-          where: { id: dashboardId },
-          ...(manager.connection.options.type === 'mysql'
-            ? { lock: { mode: 'pessimistic_write' as const } }
-            : {}),
-        });
+      await this.access.assert('dashboard', dashboardId, actor, 'edit');
+      await metadataTransaction(this.dashboards.manager, async manager => {
+        const row = await lockDashboardWrite(manager, dashboardId);
+        await this.access.assert('dashboard', dashboardId, actor, 'edit', manager);
         const items = this.items(row);
         if (!items.some(item => item.id === pivotId))
           throw new NotFoundException('Pivot을 찾을 수 없습니다.');

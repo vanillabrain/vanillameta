@@ -14,6 +14,8 @@ export type FileRefreshStatus =
 export class FileRefresh extends BaseEntity {
   @PrimaryColumn({ type: 'varchar', length: 36 }) id: string;
   @Column({ type: 'integer' }) actorId: number;
+  /** Immutable admission authentication snapshot; legacy jobs stay unverified. */
+  @Column({ type: 'integer', nullable: true }) actorEpoch: number | null;
   @Column({ type: 'integer' }) sourceId: number;
   @Column({ type: 'varchar', length: 36 }) requestId: string;
   @Column({ type: 'varchar', length: 64 }) payloadDigest: string;

@@ -1,3 +1,5 @@
+import StudioMetricBasis from './StudioMetricBasis';
+import type { SavedMetricBasis } from './studioAdapter';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
@@ -19,6 +21,8 @@ const TITLE_REQUIRED = '블록 제목을 입력해 주세요. 빈 제목으로�
 
 export type StudioInspectorProps = {
   block: StudioBlock | null;
+  sourceId?: number;
+  metricBasis?: SavedMetricBasis;
   onOperation: (operation: StudioOperation) => void;
   onDuplicate: () => void;
   onRemove: () => void;
@@ -41,7 +45,15 @@ const dimensionSummary = (block: StudioBlock) =>
     : '나눠 볼 기준 · 연결된 차원 참조 없음';
 
 /** Block settings for the selected Studio block. Arrow keys stay in the field while editing. */
-export default function StudioInspector({ block, onOperation, onDuplicate, onRemove, canDuplicate }: StudioInspectorProps) {
+export default function StudioInspector({
+  block,
+  sourceId,
+  metricBasis,
+  onOperation,
+  onDuplicate,
+  onRemove,
+  canDuplicate,
+}: StudioInspectorProps) {
   const [titleDraft, setTitleDraft] = useState(block?.title ?? '');
   const [descriptionDraft, setDescriptionDraft] = useState(block?.description ?? '');
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -142,6 +154,13 @@ export default function StudioInspector({ block, onOperation, onDuplicate, onRem
       </div>
     );
 
+  const savedBasis =
+    metricBasis?.sourceId === sourceId &&
+    block.measureRefs.length === 1 &&
+    block.measureRefs[0].id === metricBasis?.metricId &&
+    block.measureRefs[0].definitionVersion === metricBasis?.definitionVersion
+      ? metricBasis
+      : undefined;
   const decimals = decimalsOf(block);
   const decimalOptions = DECIMAL_OPTIONS.includes(decimals)
     ? DECIMAL_OPTIONS
@@ -224,6 +243,28 @@ export default function StudioInspector({ block, onOperation, onDuplicate, onRem
         <span>{measureSummary(block)}</span>
         <span>{dimensionSummary(block)}</span>
       </div>
+      {sourceId !== undefined && (
+        <details className="min-w-0 text-xs text-muted-foreground [overflow-wrap:anywhere]">
+          <summary
+            aria-label={`${block.title} 저장 계산 기준 확인`}
+            className="cursor-pointer rounded-sm py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            저장 계산 기준 확인
+          </summary>
+          {savedBasis ? (
+            <>
+              <p>
+                이 분석의 저장본 기준 · 소스 #{savedBasis.sourceId} · 지표 #{savedBasis.metricId} · v
+                {savedBasis.definitionVersion}
+              </p>
+              <p>현재 지표나 미저장 변경의 계산 기준을 새로 확인한 결과는 아닙니다.</p>
+              <StudioMetricBasis definition={savedBasis.definition} />
+            </>
+          ) : (
+            <p>이 블록의 저장 계산 기준을 확인하지 못했습니다. 현재 지표로 추정하지 않습니다.</p>
+          )}
+        </details>
+      )}
       <div className="studio-inspector-actions">
         <Button
           variant="outline"

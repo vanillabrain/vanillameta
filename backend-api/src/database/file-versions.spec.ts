@@ -1,5 +1,7 @@
+import { SourceDeletionService } from './source-deletion.service';
+import { User } from '../user/entities/user.entity';
 jest.mock('../connection/connection.service', () => ({ ConnectionService: class {} }));
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   BadRequestException,
   ConflictException,
@@ -49,9 +51,15 @@ describe('file version replacement', () => {
       type: 'sqlite',
       database: ':memory:',
       synchronize: true,
-      entities: [Database],
+      entities: [Database, User],
     });
     await db.initialize();
+    await db.manager.save(User, {
+      id: 7,
+      userId: 'owner',
+      email: 'owner@example.invalid',
+      password: 'synthetic',
+    });
     service = new DatabaseService(
       db.getRepository(Database),
       {} as any,
@@ -67,8 +75,8 @@ describe('file version replacement', () => {
   beforeEach(async () => {
     await db.getRepository(Database).clear();
     for (const name of directories())
-      await worker.removeImport(path.join(root, name, 'data.duckdb'));
-    id = (await service.uploadFile(file(), 7)).data.id;
+      await fs.promises.rm(path.join(root, name), { recursive: true, force: true });
+    id = (await service.uploadFile(file(), 7, 0)).data.id;
   });
   afterAll(async () => {
     await worker.onModuleDestroy();
@@ -82,7 +90,7 @@ describe('file version replacement', () => {
   it('atomically replaces and restores data without changing source ID and retains old files', async () => {
     const before = (await service.fileVersions(id, 7)).data;
     const oldFile = (await config()).connection.filename;
-    const after = (await service.replaceFile(id, file(30), before.revision, 7)).data;
+    const after = (await service.replaceFile(id, file(30), before.revision, 7, 0)).data;
     expect(after.sourceId).toBe(id);
     expect(after.revision).not.toBe(before.revision);
     expect(after.versions).toHaveLength(2);
@@ -94,6 +102,7 @@ describe('file version replacement', () => {
         id,
         { expectedRevision: after.revision, versionId: before.currentVersionId },
         7,
+        0,
       )
     ).data;
     expect(restored.currentVersionId).toBe(before.currentVersionId);
@@ -103,7 +112,7 @@ describe('file version replacement', () => {
   it('same raw file is a no-op even when renamed', async () => {
     const before = (await service.fileVersions(id, 7)).data;
     const importSpy = jest.spyOn(worker, 'importFile');
-    const res = await service.replaceFile(id, file(10, 'renamed.csv'), before.revision, 7);
+    const res = await service.replaceFile(id, file(10, 'renamed.csv'), before.revision, 7, 0);
     expect(importSpy).not.toHaveBeenCalled();
     importSpy.mockRestore();
     expect(res).toMatchObject({ unchanged: true, data: before });
@@ -121,6 +130,7 @@ describe('file version replacement', () => {
         { originalname: 'changed.csv', buffer: Buffer.from(csv) },
         before.revision,
         7,
+        0,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect((await service.fileVersions(id, 7)).data).toEqual(before);
@@ -204,6 +214,7 @@ describe('file version replacement', () => {
         { originalname: 'bad.json', buffer: Buffer.from('{broken') },
         before.revision,
         7,
+        0,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect((await service.fileVersions(id, 7)).data).toEqual(before);
@@ -211,24 +222,29 @@ describe('file version replacement', () => {
   });
   it('cleans incoming stale requests and rejects restore path injection', async () => {
     const before = (await service.fileVersions(id, 7)).data;
-    await service.replaceFile(id, file(30), before.revision, 7);
+    await service.replaceFile(id, file(30), before.revision, 7, 0);
     const incoming = path.join(root, 'incoming.csv');
     fs.writeFileSync(incoming, file(90).buffer);
     await expect(
-      service.replaceFile(id, { originalname: 'new.csv', path: incoming }, before.revision, 7),
+      service.replaceFile(id, { originalname: 'new.csv', path: incoming }, before.revision, 7, 0),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(fs.existsSync(incoming)).toBe(false);
     const now = (await service.fileVersions(id, 7)).data;
     await expect(
-      service.restoreFile(id, { expectedRevision: now.revision, versionId: '../data.duckdb' }, 7),
+      service.restoreFile(
+        id,
+        { expectedRevision: now.revision, versionId: '../data.duckdb' },
+        7,
+        0,
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(await sum()).toBe(30);
   });
   it('CAS allows exactly one concurrent replacement, removing only the losing candidate', async () => {
     const before = (await service.fileVersions(id, 7)).data;
     const results = await Promise.allSettled([
-      service.replaceFile(id, file(30), before.revision, 7),
-      service.replaceFile(id, file(90), before.revision, 7),
+      service.replaceFile(id, file(30), before.revision, 7, 0),
+      service.replaceFile(id, file(90), before.revision, 7, 0),
     ]);
     expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
     const failed = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
@@ -236,21 +252,48 @@ describe('file version replacement', () => {
     expect(directories()).toHaveLength(2);
     expect([30, 90]).toContain(await sum());
   });
+  it('CAS allows exactly one concurrent restoration and preserves both retained files', async () => {
+    const original = (await service.fileVersions(id, 7)).data;
+    const replaced = (await service.replaceFile(id, file(40), original.revision, 7, 0)).data;
+    const retained = [...(await config()).fileVersions].map(version => version.filename);
+    const body = { expectedRevision: replaced.revision, versionId: original.currentVersionId };
+    const results = await Promise.allSettled([
+      service.restoreFile(id, body, 7, 0),
+      service.restoreFile(id, body, 7, 0),
+    ]);
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.find(result => result.status === 'rejected') as PromiseRejectedResult;
+    expect(rejected.reason).toBeInstanceOf(ConflictException);
+    expect((await service.fileVersions(id, 7)).data.currentVersionId).toBe(
+      original.currentVersionId,
+    );
+    expect(await sum()).toBe(10);
+    for (const filename of retained) expect(fs.existsSync(filename)).toBe(true);
+  });
   it('caps retained versions at five but still permits same-file no-op and restore', async () => {
     for (const n of [20, 30, 40, 50])
-      await service.replaceFile(id, file(n), (await service.fileVersions(id, 7)).data.revision, 7);
+      await service.replaceFile(
+        id,
+        file(n),
+        (
+          await service.fileVersions(id, 7)
+        ).data.revision,
+        7,
+        0,
+      );
     const before = (await service.fileVersions(id, 7)).data;
     expect(before.versions).toHaveLength(5);
-    await expect(service.replaceFile(id, file(60), before.revision, 7)).rejects.toBeInstanceOf(
+    await expect(service.replaceFile(id, file(60), before.revision, 7, 0)).rejects.toBeInstanceOf(
       BadRequestException,
     );
-    expect(await service.replaceFile(id, file(50), before.revision, 7)).toMatchObject({
+    expect(await service.replaceFile(id, file(50), before.revision, 7, 0)).toMatchObject({
       unchanged: true,
     });
     await service.restoreFile(
       id,
       { expectedRevision: before.revision, versionId: before.versions[0].id },
       7,
+      0,
     );
     expect(await sum()).toBe(10);
     expect(directories()).toHaveLength(5);
@@ -260,18 +303,18 @@ describe('file version replacement', () => {
     fs.writeFileSync(incoming, file(90).buffer);
     await expect(service.fileVersions(id, 8)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(
-      service.replaceFile(id, { originalname: 'new.csv', path: incoming }, 'a'.repeat(64), 8),
+      service.replaceFile(id, { originalname: 'new.csv', path: incoming }, 'a'.repeat(64), 8, 0),
     ).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(service.restoreFile(id, {}, 8)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.restoreFile(id, {}, 8, 0)).rejects.toBeInstanceOf(ForbiddenException);
     expect(fs.existsSync(incoming)).toBe(false);
     expect(directories()).toHaveLength(1);
   });
   it('keeps active version intact if metadata commit fails', async () => {
     const before = (await service.fileVersions(id, 7)).data;
     const spy = jest
-      .spyOn(db.getRepository(Database), 'update')
+      .spyOn(Repository.prototype, 'update')
       .mockRejectedValueOnce(new Error('metadata unavailable'));
-    await expect(service.replaceFile(id, file(30), before.revision, 7)).rejects.toThrow(
+    await expect(service.replaceFile(id, file(30), before.revision, 7, 0)).rejects.toThrow(
       'metadata unavailable',
     );
     spy.mockRestore();
@@ -286,11 +329,11 @@ describe('file version replacement', () => {
     const before = (await service.fileVersions(id, 7)).data;
     expect((await row()).connectionConfig).toBe(raw);
     expect(before.versions[0].rows).toBe(1);
-    const after = (await service.replaceFile(id, file(30), before.revision, 7)).data;
+    const after = (await service.replaceFile(id, file(30), before.revision, 7, 0)).data;
     expect(after.versions).toHaveLength(2);
     expect(after.versions[0].id).toBe(before.versions[0].id);
   });
-  it('discards an unregistered candidate even when the worker queue is saturated', async () => {
+  it('discards an unregistered candidate when its schema query is rejected as saturated', async () => {
     const before = (await service.fileVersions(id, 7)).data;
     const original = worker.query.bind(worker);
     let describes = 0;
@@ -299,11 +342,14 @@ describe('file version replacement', () => {
         return Promise.reject(new ServiceUnavailableException('analysis worker busy; retry later'));
       return original(filename, sql, bindings);
     });
-    const removeSpy = jest.spyOn(worker, 'removeImport').mockRejectedValue(new Error('queue full'));
-    await expect(service.replaceFile(id, file(30), before.revision, 7)).rejects.toThrow(
+    const currentFilename = (await config()).connection.filename;
+    const removeSpy = jest.spyOn(worker, 'removeImport');
+    await expect(service.replaceFile(id, file(30), before.revision, 7, 0)).rejects.toThrow(
       'analysis worker busy; retry later',
     );
-    expect(removeSpy).not.toHaveBeenCalled();
+    expect(removeSpy).toHaveBeenCalledTimes(1);
+    expect(removeSpy.mock.calls[0][0]).not.toBe(currentFilename);
+    expect(fs.existsSync(removeSpy.mock.calls[0][0])).toBe(false);
     querySpy.mockRestore();
     removeSpy.mockRestore();
     expect((await service.fileVersions(id, 7)).data).toEqual(before);
@@ -312,7 +358,15 @@ describe('file version replacement', () => {
   });
   it('omits retained private paths and hashes from the general source list', async () => {
     const oldFilename = (await config()).connection.filename;
-    await service.replaceFile(id, file(30), (await service.fileVersions(id, 7)).data.revision, 7);
+    await service.replaceFile(
+      id,
+      file(30),
+      (
+        await service.fileVersions(id, 7)
+      ).data.revision,
+      7,
+      0,
+    );
     const stored = await config();
     const list = await service.findAll();
     const json = JSON.stringify(list);
@@ -321,21 +375,92 @@ describe('file version replacement', () => {
     for (const version of stored.fileVersions) expect(json).not.toContain(version.sha256);
     expect(stored.fileVersions).toHaveLength(2);
   });
-  it('source deletion removes all retained file versions', async () => {
-    await service.replaceFile(id, file(30), (await service.fileVersions(id, 7)).data.revision, 7);
-    await service.remove(id);
-    expect(await row()).toBeNull();
-    expect(directories()).toHaveLength(0);
+  it('refuses replacement after Source deletion during schema SQL and removes only the unregistered candidate', async () => {
+    const original = worker.query.bind(worker);
+    let describes = 0;
+    const retained = directories();
+    const before = (await service.fileVersions(id, 7)).data;
+    const spy = jest.spyOn(worker, 'query').mockImplementation(async (filename, sql, bindings) => {
+      expect(db.createQueryRunner().isTransactionActive).toBe(false);
+      const result = await original(filename, sql, bindings);
+      if (sql === 'DESCRIBE uploaded_data' && ++describes === 2)
+        await db.manager.delete(Database, id);
+      return result;
+    });
+    try {
+      await expect(service.replaceFile(id, file(30), before.revision, 7, 0)).rejects.toMatchObject({
+        status: 403,
+      });
+      expect(await row()).toBeNull();
+      expect(directories()).toEqual(retained);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+  it('refuses restore after Source deletion during schema SQL without changing retained files', async () => {
+    await service.replaceFile(
+      id,
+      file(30),
+      (
+        await service.fileVersions(id, 7)
+      ).data.revision,
+      7,
+      0,
+    );
+    const before = (await service.fileVersions(id, 7)).data;
+    const retained = directories();
+    const original = worker.query.bind(worker);
+    const spy = jest.spyOn(worker, 'query').mockImplementation(async (filename, sql, bindings) => {
+      expect(db.createQueryRunner().isTransactionActive).toBe(false);
+      const result = await original(filename, sql, bindings);
+      await db.manager.delete(Database, id);
+      return result;
+    });
+    try {
+      await expect(
+        service.restoreFile(
+          id,
+          {
+            expectedRevision: before.revision,
+            versionId: before.versions.find(v => !v.current).id,
+          },
+          7,
+          0,
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(await row()).toBeNull();
+      expect(directories()).toEqual(retained);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+  it('requires explicit impact confirmation and never cascades through the retired DatabaseService.remove', async () => {
+    await service.replaceFile(
+      id,
+      file(30),
+      (
+        await service.fileVersions(id, 7)
+      ).data.revision,
+      7,
+      0,
+    );
+    const before = await row();
+    const retained = directories();
+    const deletion = new SourceDeletionService(db, worker, { removeKnex: jest.fn() } as any);
+    await expect(deletion.remove(id, 7, {})).rejects.toMatchObject({ status: 400 });
+    expect((service as any).remove).toBeUndefined();
+    expect(await row()).toEqual(before);
+    expect(directories()).toEqual(retained);
+    expect((await config()).fileVersions).toHaveLength(2);
   });
   it('keeps an activated file when metadata commit succeeds but its result is lost', async () => {
     const before = (await service.fileVersions(id, 7)).data;
-    const repository = db.getRepository(Database),
-      update = repository.update.bind(repository);
-    const spy = jest.spyOn(repository, 'update').mockImplementationOnce(async (where, patch) => {
-      await update(where, patch);
+    const transaction = db.manager.transaction.bind(db.manager);
+    const spy = jest.spyOn(db.manager, 'transaction').mockImplementationOnce(async (run: any) => {
+      await transaction(run);
       throw new Error('metadata result lost after commit');
     });
-    await expect(service.replaceFile(id, file(42), before.revision, 7)).rejects.toThrow(
+    await expect(service.replaceFile(id, file(42), before.revision, 7, 0)).rejects.toThrow(
       'result lost',
     );
     spy.mockRestore();

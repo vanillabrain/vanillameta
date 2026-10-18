@@ -1,35 +1,47 @@
-# 최신 요약 — 2026-10-17
+# 최신 요약 — 2026-10-18
 
 이 요약은 아래 날짜별 기록의 후속 결과를 합친 상태다. **대표 흐름 PASS와 제품 전체 수용/출시 완료는 구분한다.** 과거의 미커밋·다음 작업·BLOCKED·NOT_RUN은 각 실행 당시 상태이며 최신 증빙과 Git 이력을 우선한다. 기존 통과 조건을 다시 실행하거나 카탈로그 완료 수를 임의로 늘리지 않는다.
 
-| 범위                                                       | 최신 상태                      | 근거/남은 조건                                                                                                                                                                                                                                                                               |
-| ---------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 생성→직접/AI 수정→저장→게시→복제                           | PASS_SELECTED / 전체 수용 OPEN | [TC005 주 여정](dashboard-lifecycle.md), [Studio 통합](studio-completion-1-5.md). 고객 데이터/담당자 수용은 별도                                                                                                                                                                             |
-| 같은 대화의 분모 확인·소스 교체·생성안 수정/저장·게시 준비 | PASS_SELECTED                  | [UC033](inline-creation-clarification.md)~[UC039](latest-dashboard-read.md), 임의 자연어/모든 오류 조합까지 완료한 것은 아님                                                                                                                                                                 |
-| Studio 진입·목록에서 다시 열기                             | PASS_SELECTED                  | [UC040](studio-entry.md), [UC041](studio-list-reentry.md): 원격 후속 구현/실제 화면 증빙 보존 병합                                                                                                                                                                                           |
-| 늦은200/503 응답·화면 이탈/다른 정상 ID 전환               | PASS_SELECTED                  | [Ego9/10](studio-late-read.md): 문서·숫자 보존/배치 완료390·1440 넘침0. 초안·인증·취소 복합 경합은 미검증                                                                                                                                                                                    |
-| Studio 질문·블록·다른 탭 초안/저장 복구                    | PASS_SELECTED                  | [UC043](studio-question-recovery.md)~[UC047](studio-save-recovery.md), [신규ID](studio-save-new-block-recovery.md)·[확정후조회](studio-confirmed-read-recovery.md)·[409복귀](studio-save-conflict-return.md): Ego92~95 실제 화면/요청 보존·명시 복구·추가 쓰기 방지. 전체 장애 조합은 미검증 |
-| 로컬 MySQL 마이그레이션·동시 저장/게시·백업/복구           | PASS_SELECTED                  | [MYSQL02](studio-mysql-production.md)~[MYSQL06](studio-backup-key-recovery.md). 과거 MySQL 런타임 BLOCKED 해소, 실제 운영 전체 검증으로 확대하지 않음                                                                                                                                        |
-| Commerce 단일 KRW 수집·보고서                              | PASS_SELECTED                  | [KRW-01~04](commerce-krw.md): 합성 원화 수치·실제 오류/보존·3폭/선택 키보드 확인. 고객/Studio 전체 통화 지원과 구분                                                                                                                                                                          |
-| Studio 명시 원화 생성·수정·저장                            | PASS_SELECTED                  | [KRW-05~09](studio-krw.md): 실제 gpt-6-luna/원화 정답·저장/reload, 새 태블릿 기본 배치 공백 수정. 자동 통화 추론·고객 수용은 별도                                                                                                                                                            |
-| Commerce→Studio 자동 비공개 소스 연결                      | PASS_SELECTED                  | [BRIDGE-01~06](commerce-studio-bridge.md): 실제 gpt-6-luna 생성/저장·3폭/선택 키보드, 재시작 후 source 재사용. 운영 경합/대용량 저장 비용은 별도                                                                                                                                             |
-| Commerce 통화·주문일 기준 AI 자동 전달 | PASS_SELECTED | [CONTEXT-01~04](commerce-ai-context.md): 단위 입력 없는 실제 생성·새 평균6500 KRW·주문일 추세·비공개 저장/reload/3폭. 일반 CSV 추론은 별도. 고정 소스 생성 단위 검증은 UNIT 후속, 단일 점 가시성은 DISPLAY 후속 참조 |
-| Studio 매출·환불 추천 질문 | PASS_SELECTED | [QUESTION-01~06](commerce-suggested-questions.md): 지원 열별 추천·명시 실행/비공개 저장·실LLM2/1/50%. 후속 소스별 입력 예시4검사·3폭/질문 보존·키보드. 기존 통과 재실행 없음·고객 수용 별도 |
-| Studio 한국어 건수·게시 단일 점 표시 | PASS_SELECTED | [DISPLAY-01~06](commerce-display.md): 저장 count 불변·한국어 건/영어 count·실제 게시 렌더러 한 점. [Ego17 후속](commerce-display.md#display-04-게시-390px-후속--2026-10-17--ego17)에서 실제390/넘침0·키보드 표 확인. Ego19 전체 게시 wrapper 합성 응답390·키보드/3폭 확인·버튼 대비/긴 제목 수정. Ego20 합성503→키보드 재시도/200→410·데이터 제거/390 넘침0. 실제 수신자 권한·실기기는 별도 |
-| 환불 없는 기간·고객 CSV 생략 | PASS_SELECTED | [EMPTY-01~04](commerce-empty-refunds.md): 헤더 전용 환불·워커2검사/실제 수입·reload·13000/0/13000 KRW·환불률0%·390/1440. Ego22 업로드 보고서 정보와 기본 샘플 출처 문구 분리·390/1440 확인. 합성 데이터이며 고객 수용 별도 |
-| Commerce 생성·신규 저장 단위 검증 | PASS_SELECTED | [UNIT-01~06](commerce-units.md): 고정 소스의 통화/건수/비율 검증·BE75/FE8·실gpt-6-luna/기존 지표 재사용/비공개7·390/1440. 일반 CSV·기존 편집 AI 전체 정책은 별도 |
-| 기업 데이터 Artifact A/B1 | PASS_SELECTED / 전체 구현 진행 중 | [실행 근거·스키마 오류](enterprise-data-artifact.md): owner 조회 근거/저장 지표 snapshot·3폭/키보드, 실제 교체 거절·데이터 보존. 영속 갱신 상태·기업 정책·설명/필터 블록·예약 수집은 미완료 |
-| 실제 고객 매출·환불/담당자 수용                            | NOT_RUN                        | [첫 파일럿 입력·인수 조건](customer-pilot.md). 비식별 파일/독립 정답/담당자 입력 필요                                                                                                                                                                                                        |
-| 실휴대폰·전체 키보드/스크린리더                            | PARTIAL / VoiceOver BLOCKED    | 에뮬레이션·선택 키보드 결과 재사용, 실제 기기/전체 접근성 미검증                                                                                                                                                                                                                             |
-| 운영 장시간 부하·오프사이트/독립 키 복구·RPO/RTO           | NOT_RUN                        | [운영 절차](../strategy/backup-retention-recovery.md)는 도입안. 외부 보관/자동화 미설정                                                                                                                                                                                                      |
-| 명세 연결 검사                                             | PASS / 경고2개                 | UC007~010 연결과 UC013~015 대안 종료/재진입 정리 후 strict 오류0/경고2/기준선 억제0. 제품 수용/사람 승인과 구분                                                                                                                                                                              |
-| 사람 최종 제품 수용                                        | OPEN                           | 첫 고객 파일럿·담당자 판단 미기록. 문서 검사 통과로 전체 TC005 수용을 승격하지 않음                                                                                                                                                                                                          |
+| 범위                                                       | 최신 상태                         | 근거/남은 조건                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 생성→직접/AI 수정→저장→게시→복제                           | PASS_SELECTED / 전체 수용 OPEN    | [TC005 주 여정](dashboard-lifecycle.md), [Studio 통합](studio-completion-1-5.md). 고객 데이터/담당자 수용은 별도                                                                                                                                                                                                                                                                            |
+| 같은 대화의 분모 확인·소스 교체·생성안 수정/저장·게시 준비 | PASS_SELECTED                     | [UC033](inline-creation-clarification.md)~[UC039](latest-dashboard-read.md), 임의 자연어/모든 오류 조합까지 완료한 것은 아님                                                                                                                                                                                                                                                                |
+| Studio 진입·목록에서 다시 열기                             | PASS_SELECTED                     | [UC040](studio-entry.md), [UC041](studio-list-reentry.md): 원격 후속 구현/실제 화면 증빙 보존 병합                                                                                                                                                                                                                                                                                          |
+| 늦은200/503 응답·화면 이탈/다른 정상 ID 전환               | PASS_SELECTED                     | [Ego9/10](studio-late-read.md): 문서·숫자 보존/배치 완료390·1440 넘침0. 초안·인증·취소 복합 경합은 미검증                                                                                                                                                                                                                                                                                   |
+| Studio 질문·블록·다른 탭 초안/저장 복구                    | PASS_SELECTED                     | [UC043](studio-question-recovery.md)~[UC047](studio-save-recovery.md), [신규ID](studio-save-new-block-recovery.md)·[확정후조회](studio-confirmed-read-recovery.md)·[409복귀](studio-save-conflict-return.md): Ego92~95 실제 화면/요청 보존·명시 복구·추가 쓰기 방지. 전체 장애 조합은 미검증                                                                                                |
+| 로컬 MySQL 마이그레이션·동시 저장/게시·백업/복구           | PASS_SELECTED                     | [MYSQL02](studio-mysql-production.md)~[MYSQL06](studio-backup-key-recovery.md). 과거 MySQL 런타임 BLOCKED 해소, 실제 운영 전체 검증으로 확대하지 않음                                                                                                                                                                                                                                       |
+| Commerce 단일 KRW 수집·보고서                              | PASS_SELECTED                     | [KRW-01~04](commerce-krw.md): 합성 원화 수치·실제 오류/보존·3폭/선택 키보드 확인. 고객/Studio 전체 통화 지원과 구분                                                                                                                                                                                                                                                                         |
+| Studio 명시 원화 생성·수정·저장                            | PASS_SELECTED                     | [KRW-05~09](studio-krw.md): 실제 gpt-6-luna/원화 정답·저장/reload, 새 태블릿 기본 배치 공백 수정. 자동 통화 추론·고객 수용은 별도                                                                                                                                                                                                                                                           |
+| Commerce→Studio 자동 비공개 소스 연결                      | PASS_SELECTED                     | [BRIDGE-01~06](commerce-studio-bridge.md): 실제 gpt-6-luna 생성/저장·3폭/선택 키보드, 재시작 후 source 재사용. 운영 경합/대용량 저장 비용은 별도                                                                                                                                                                                                                                            |
+| Commerce 통화·주문일 기준 AI 자동 전달                     | PASS_SELECTED                     | [CONTEXT-01~04](commerce-ai-context.md): 단위 입력 없는 실제 생성·새 평균6500 KRW·주문일 추세·비공개 저장/reload/3폭. 일반 CSV 추론은 별도. 고정 소스 생성 단위 검증은 UNIT 후속, 단일 점 가시성은 DISPLAY 후속 참조                                                                                                                                                                        |
+| Studio 매출·환불 추천 질문                                 | PASS_SELECTED                     | [QUESTION-01~06](commerce-suggested-questions.md): 지원 열별 추천·명시 실행/비공개 저장·실LLM2/1/50%. 후속 소스별 입력 예시4검사·3폭/질문 보존·키보드. 기존 통과 재실행 없음·고객 수용 별도                                                                                                                                                                                                 |
+| Studio 한국어 건수·게시 단일 점 표시                       | PASS_SELECTED                     | [DISPLAY-01~06](commerce-display.md): 저장 count 불변·한국어 건/영어 count·실제 게시 렌더러 한 점. [Ego17 후속](commerce-display.md#display-04-게시-390px-후속--2026-10-17--ego17)에서 실제390/넘침0·키보드 표 확인. Ego19 전체 게시 wrapper 합성 응답390·키보드/3폭 확인·버튼 대비/긴 제목 수정. Ego20 합성503→키보드 재시도/200→410·데이터 제거/390 넘침0. 실제 수신자 권한·실기기는 별도 |
+| 환불 없는 기간·고객 CSV 생략                               | PASS_SELECTED                     | [EMPTY-01~04](commerce-empty-refunds.md): 헤더 전용 환불·워커2검사/실제 수입·reload·13000/0/13000 KRW·환불률0%·390/1440. Ego22 업로드 보고서 정보와 기본 샘플 출처 문구 분리·390/1440 확인. 합성 데이터이며 고객 수용 별도                                                                                                                                                                  |
+| Commerce 생성·신규 저장 단위 검증                          | PASS_SELECTED                     | [UNIT-01~06](commerce-units.md): 고정 소스의 통화/건수/비율 검증·BE75/FE8·실gpt-6-luna/기존 지표 재사용/비공개7·390/1440. 일반 CSV·기존 편집 AI 전체 정책은 별도                                                                                                                                                                                                                            |
+| 기업 데이터 Artifact A/B1                                  | PASS_SELECTED / 전체 구현 진행 중 | [실행 근거·스키마 오류](enterprise-data-artifact.md): owner 조회 근거/저장 지표 snapshot·3폭/키보드, 실제 교체 거절·데이터 보존. 영속 갱신 상태·기업 정책·설명/필터 블록·예약 수집은 미완료                                                                                                                                                                                                 |
+| 실제 고객 매출·환불/담당자 수용                            | NOT_RUN                           | [첫 파일럿 입력·인수 조건](customer-pilot.md). 비식별 파일/독립 정답/담당자 입력 필요                                                                                                                                                                                                                                                                                                       |
+| 실휴대폰·전체 키보드/스크린리더                            | PARTIAL / VoiceOver BLOCKED       | 에뮬레이션·선택 키보드 결과 재사용, 실제 기기/전체 접근성 미검증                                                                                                                                                                                                                                                                                                                            |
+| 운영 장시간 부하·오프사이트/독립 키 복구·RPO/RTO           | NOT_RUN                           | [운영 절차](../strategy/backup-retention-recovery.md)는 도입안. 외부 보관/자동화 미설정                                                                                                                                                                                                                                                                                                     |
+| 명세 연결 검사                                             | PASS / 경고2개                    | UC007~010 연결과 UC013~015 대안 종료/재진입 정리 후 strict 오류0/경고2/기준선 억제0. 제품 수용/사람 승인과 구분                                                                                                                                                                                                                                                                             |
+| 사람 최종 제품 수용                                        | OPEN                              | 첫 고객 파일럿·담당자 판단 미기록. 문서 검사 통과로 전체 TC005 수용을 승격하지 않음                                                                                                                                                                                                                                                                                                         |
+| 사내 분석 추가 요건                                        | 설계 추가 · 구현/실행 NOT_RUN     | [기업 설계](../architecture/enterprise-analysis.md): FR014~025/NFR005~008·UC050~055·TC050. 신규 요구는 미구현이며 운영 보장을 뜻하지 않음. MK AI 계약 보류 유지                                                                                                                                                                                                                             |
+| 사내 산출물 보관함 첫 단위                                 | 구현/회귀 PASS · 실제 UI BLOCKED  | [UC049](artifact-library.md): 허용 목록 제목 검색/유형/정렬·페이지 복귀·기존 링크 유지. 회귀13/type/lint/build PASS, 부서 공유·영속 즐겨찾기/보관은 후속. MK AI 계약은 사용자 지정으로 보류                                                                                                                                                                                                 |
+| 생성된 소스에서 첫 질문 연결 후속                          | 구현/회귀 PASS · 실제 UI BLOCKED  | [UC040 후속](studio-source-connection.md): 생성 sourceId의 profile/지표 직접 확인·재생성 방지. 통합 회귀39개/type/lint/build는 기존 기록이며 Ego96 실제 업로드/질문·3폭은 로그인 대기                                                                                                                                                                                                       |
+| 새 생성 질문 보관·다른 소스로 복구→제안·저장               | 구현/회귀 PASS · 실제 UI BLOCKED  | [UC048](creation-question-recovery.md): 탭별24h 보관/명시 복구·새 소스 재확인·동일 저장 요청 복구. 최신58개/type/lint PASS는 mock API 컴포넌트/보관 회귀이며 실제 서버·모델·DB·브라우저reload/3폭 검증이 아님                                                                                                                                                                               |
 
 통합 후속: Commerce/Studio 변경은 `c090c4cd`에 커밋하고 원격 `3a418b03`까지 보존 병합했다. BE2124(포트 제한6개 별도 재실행 포함)·FE1437·root build/type·변경 lint PASS. [검토·실행 범위](commerce-review.md#최신-develop-v2-통합--2026-10-17)를 따른다.
 
 누적 Commerce→Studio 변경과 개별 검증 범위는 [정적 검토](commerce-review.md)를 따른다. 구체적인 회귀 발견 없음은 전체 수용/출시 승인을 뜻하지 않는다.
 
 우선순위: 첫 고객의 한 업무 질문/정답 확인 → 해당 파일로 최소 흐름 검증 → 실제 기기/접근성과 필요한 운영 gate. 문서 연결·대표 저장 복구 증빙 정리는 완료했으며 같은 장애 조합의 끝없는 확장을 다음 제품 기능으로 취급하지 않는다. 모델은 gpt-6-luna를 유지한다. 데이터/정답이 없으면 합성 샘플을 고객 검증 PASS로 대신하지 않는다.
+
+## 실제 화면 재개와 최신 결과 연결 — 2026-10-18
+
+소스 연결 후속은 `e2388f4f`/통합`8e6f6008`·증빙`e40b25a8`, UC048은 `86bcfe3c`/`d7bd2f5f`·통합 회귀`c75a406a`로 develop-v2에 반영됐다. 기존 UC040/041 진입의 실제 화면 PASS와 새 소스 연결 후속의 UI_BLOCKED는 다른 조건이다. UC048 회귀의 재마운트·mock 응답을 실제 브라우저reload·서버 저장 검증으로 승격하지 않는다.
+
+Ego96을 사용자의 계속 요청에 따라 다시 제어해 확인했으며 `/login` 화면이었다. 계정 생성/로그인 시도/업로드/게시 없이 기존 계정 로그인을 위해 사용자에게 인계했다. 실제 소스 교체→질문 복구→미리보기→저장/reload·390/768/1440 크기/정렬은 BLOCKED를 유지한다. 다음 해소 조건은 같은 공간의 기존 계정 로그인 후 명시 재개다. 고객 파일/정답·실기기·운영 조건은 별도이며 임의 합성 기능이나 반복 장애 회귀로 대체하지 않는다.
+
+이번 변경은 결과 연결 문서만 수정했다. 제품 코드·실행 환경·기존 검사 결과는 변경하지 않았으며 전체 단위/빌드·모델/DB 재실행은 하지 않는다. 과거 결과와 사람 수용 상태는 그대로 유지한다.
 
 ## 명세 연결 정리 · 2026-10-17
 
@@ -771,24 +783,19 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 
 - RXS10/Ego25: 저장 보고서→같은 조건 조회/일반 Explore 전달, source/metric digest guard·실제409/익명401·전체2657.55/고객1763.65/하루735·세폭/키보드 선택 PASS. Rill 직접Flat Pivot735 보존 대조; VM 중간 확인 단계·직접Pivot 차이는 명시. [상세](rill-scenarios.md#rxs10-최종-rill-대조검사-범위). 전체24 목표 ACTIVE.
 
-
 - 2026-10-18 RXS11 선택 범위 PASS / RXS12 PARTIAL: 실제CSV파일선택→업로드source9·미확인단위400/Space동의·계산복사본11(123.31%), 누락열→정상파일/재매핑·보고서12(-6964.84 USD). clone-local 지표/FORMULA 잎·비공개·원본/게시 불변과xs/md/lg배치/reload·390/768/1440을 확인했다. 최초10의모바일배치실패는수정후12로재검증했고짧은요약숫자우선표현도보완했다. 대화형AI오류진단/수정안은미완료다. 전체RXS24목표ACTIVE, gpt-6-luna/VoiceOverBLOCKED유지. 자세한범위/증빙은 [RXS 기록](rill-scenarios.md#rxs11-내-파일-복제rxs12-직접-오류-복구--ego25-후속)을따른다.
 
 - 2026-10-18 RXS15 선택 범위 PASS: 실제 source9 파일18→19행 교체·업무일1월20일/수집10월18일 구분, 비용률121.91%와 같은 CSV Rill 일치·비공개 게시v1의123.31% 전체본문 불변·390/768/1440 넘침0. 제품 코드 변경0, 기존 하위 검사 재사용. RXS24 전체 목표 ACTIVE이며 지속 갱신 작업/중단 복구는 RXS16 미완료다. [기록](rill-scenarios.md#rxs15-파일-갱신과-게시-불변--ego25-후속).
-
 
 ### 2026-10-18 RXS16 지속 파일 갱신 후속
 
 [상세 증빙](rill-scenarios.md#rxs16-지속-갱신실제-서버-재시작--ego25-후속): 실제 접수 응답 유실 GET 복구·API 강제 종료/재기동·같은 job 명시 재시도/20→100만행 활성화1회·Rill121.78%/비공개 게시123.31% 불변·세폭/Enter를 확인했다. 모바일100만행 표의 숫자/날짜 겹침과 네트워크 안내를 수정했다. BE30/FE26/type/lint/build PASS. 전체24목표 ACTIVE, 선택PASS13/PARTIAL1/NOT_RUN10이며 다음RXS17이다. 물리 취소/후보 crash 정리·운영·VoiceOver BLOCKED는 유지한다.
 
-
 ### 2026-10-18 RXS17 열 변경 영향·복구
 
 [상세 증빙](rill-scenarios.md#rxs17-열-변경-영향새-파일로-복구--ego25-후속): 실제 열 삭제/타입 변경 거절→지표2/블록3 영향→새 source11/명시 매핑/비공개13 저장·reload·Rill60.89%·원본100만행/게시 불변을 확인했다. wildcard 오판정과CASE 곱셈 회귀를 수정했으며 BE59/FE30/type/lint/build, 세폭 넘침0·36px/14px·Tab/Enter/Space PASS다. 저장 분석의 선택 범위만 완료, 일반 위젯/Pivot/미저장/타 사용자 제외를 명시한다. 전체24 목표 ACTIVE/PASS14/PARTIAL1/NOT_RUN9, 다음RXS18이다.
 
-
 - 2026-10-18 RXS18 선택 범위 PASS: 실제 주문3→4행·지연 환불90/순매출910/환불률9%·정정 통계·역순 동일 배치 no-op·동일 시점 충돌 전체 거절·서버 재시작 설정 보존과 Rill/저장14/reload·세폭을 확인했다. AI의 표/차트 지침을 명확히 하고 실제 Luna 두 시각화 미리보기/쓰기0을 추가 확인했다. [상세](rill-scenarios.md#rxs18-지연-환불정정-배치--ego25-후속). 전체24 ACTIVE/PASS15/PARTIAL1/NOT_RUN8이며 RXS19 물리 취소를 진행한다.
-
 
 - 2026-10-18 RXS19 선택 범위 PASS: 실제400만행 적재/Decimal·원 정의/게시 보존과 별도400만 실행 중 Enter 취소→입력/후보 정리→기존20행/저장본 불변·세폭을 확인했다. native 초기화/강제종료 경합과 정리 실패 controller 잔류를 수정했다. 관련BE57/FE37/type/lint/build PASS·실측RSS 최대약883MiB(512MB는DuckDB buffer 제한/프로세스 상한 아님). [상세](rill-scenarios.md#rxs19-대표-부하실행-중-취소--ego25-후속). 전체24 ACTIVE/PASS16/PARTIAL1/NOT_RUN7, 운영p95/실기기/VoiceOver는 별도다.
 
@@ -806,14 +813,60 @@ REFINE-TITLE-SAVE-01~02에서 기존 수정안 GET 재사용(모델 호출0)→E
 
 - 2026-10-18 RXS02 저장·집계 Pivot S1~S3 선택 PASS: 개인 보기1/2 실제 저장·reload·명시 복원/재계산,2대상8행5431.25USD/5.39%와 기간Compute3460/12.77%, 원본 기준 Pivot 모든 셀·열합계/CSV 동일·세폭 넘침0·모바일 Home/End0↔313. 미조회 불러오기/소스 초기화/지연 날짜 복원 문제를 보완했다. BE50/FE154/type/lint/build·영향 core1 PASS. [상세](rill-scenarios.md#rxs02-s1s3-결과--2026-10-18-ego27). 대시보드 추가/공통 필터·운영/실기기/VoiceOver는 별도, 미커밋.
 
-
 - 2026-10-18 RXS02 대시보드 집계 Pivot D1~D3 선택 PASS: 실제 개인 보기1/2→기존 마진3 추가/Enter/reload, 공통 Compute3460/12.77%·Baro+Compute 빈 결과·기본값/날짜 우선·22.8ms 변경의 마지막 조건2건(day/week). 지표 revision 조회 전후409·계정별 pending 분리/비동기 인증 거절과 카드 padding/간격/ring 수정. BE55/FE99+디자인영향8·type/lint/build·격리core1 PASS. [상세](rill-scenarios.md#rxs02-d1d3-결과--2026-10-18-ego28). 세폭 넘침0·모바일 End329/Home0/Tab, Studio 블록/공개 게시 확장·운영/실기기는 별도. gpt-6-luna/VoiceOver BLOCKED 유지·미커밋.
-
 
 - 2026-10-18 RXS02 대시보드 CSV E1~E2 선택 PASS: 현재 공통 조건+저장 catalogRevision/결과 digest를 기존 Export에 연결했다. 실제 기본50행5431.25/Compute32행3460/기간31행3460USD·CSV/응답 바이트 동일·모바일Tab/Enter·세폭 넘침0/36px·14px. 툴바 summary/전체 폭 안내로768px 줄바꿈과1440px 빈 공간을 수정했다. FE16/type/lint/build PASS, 서버/SQL/core/Rill 기존 결과 재사용. [상세](rill-scenarios.md#rxs02-e1e2-결과--2026-10-18-ego29). 미커밋·gpt-6-luna/VoiceOver BLOCKED 유지.
 
-
 - 2026-10-18 RXS02 대시보드 조건 재사용 F1~F3 선택 PASS: 실제 Compute 매출≥600/마진<20→4100.50USD·8.78%→새 개인 보기3/기존 대시보드3 추가/reload, 기존 두 보기/Pivot·정의/배치/게시 보존·9000 미저장 취소 DB 불변. 저장/추가 pending 닫기 잠금과768px 여백 오류를 수정했다. BE4/FE 고유145·type/lint/build·격리core1 PASS, 세폭 넘침0/358·736·1100px/모바일 End189·Home0. [상세](rill-scenarios.md#rxs02-f1f3-결과--2026-10-18-ego30). 미커밋·gpt-6-luna/VoiceOver BLOCKED 유지, Studio/공개 게시 Pivot·운영/실기기는 별도.
 
-
 - 2026-10-18 RXS02 Pivot 기여 원본 G1~G3 선택 PASS: 셀/행·열·전체 합계→HAVING 뒤 원본 제한/정확 합계·페이지를 기존 DuckDB로 연결했다. 실제 Baro×Compute3행640.50USD/-12.79%는 Rill 같은 전체 기간/회사/컴포넌트와 일치하며 원래 조건/DB/보기·CSV는 보존한다. 401/403/409/API·세폭 넘침0·End606/Home0·중첩 Tab/Enter/Escape·포커스 복귀 확인. BE23/FE고유82·build/type/lint PASS, 기존 미변경 core 재사용. [상세](rill-scenarios.md#rxs02-g1g3-결과--2026-10-18-ego31). 미커밋·gpt-6-luna/VoiceOver BLOCKED 유지, 실제20행 초과 브라우저 페이지/운영/실기기는 별도.
+
+## 2026-10-18 UC050 업무 메타데이터 첫 구현
+
+[증빙](source-catalog.md): 기존 소유 DuckDB 소스의 표시명/설명과 실제 열별 표시명/설명/단위 읽기·명시 저장을 Explore 접힌 편집기에 연결했다. 추가 전용 버전 이력/고유키 경합 거절·기존 원본/분석 불변이다. 조직 관리자·공식 승인·활성/분류·타입/날짜 변환·전파는 미구현이며 요구사항 Open/UC Draft를 유지한다. Ego96는 사용자 제어권 점유로 실제 화면/3폭 검증 BLOCKED다.
+
+## 2026-10-18 UC050 저장 이력·버전 비교
+
+[후속 증빙](source-catalog-history.md): 기존 저장 이력의20건 커서 목록·명시 두 버전 업무 필드 비교를 Explore의 접힌 영역에 추가했다. 읽기 전용/소유권 재검사·손상 이력 격리·입력 보존이며 새 DB 스키마는 없다. BE93/FE59·type/build/lint 자동 검사 범위를 증빙에 기록한다. Ego 사용자 제어 경계를 유지해 실제 화면/모바일은 BLOCKED이며 전체 UC050/TC050 수용은 미완료다.
+
+## 2026-10-18 UC050 저장 전 변경 미리보기
+
+[증빙](source-catalog-preview.md): 서버 검증/정규화·쓰기 없는 업무 필드 차이→명시 확인→같은 draft 저장을 연결했다. 입력 변경/재조회/오류는 미리보기·동의를 해제하고 저장409/503은 입력을 보존한다. 기존 save/CAS 계약·원본/기존 분석 불변이며 새 스키마/의존성은 없다. BE98/FE66·type/lint/build PASS, 실제 Ego/3폭은 제어권 경계로 BLOCKED다. 전체 UC050/TC050 수용은 미완료다.
+
+## 2026-10-18 UC050 직접 사용처 확인
+
+[증빙](source-catalog-usage.md): 소유 소스의 활성 지표/본인 저장 분석 직접 연결을 읽고 현재 dashboard 권한을 재검사한다.20개 후보 커서/빈 구간 이어가기·정의/SQL 미노출·새 탭/초안/미리보기/동의 보존·권한 거절 후 이전 목록 제거다. BE105/FE76의 선택 범위를 증빙에 기록한다. 전체 의존 그래프/자동 전파는 미구현이며 실제 Ego/3폭은 제어권 경계로 BLOCKED·전체 UC050/TC050 수용은 미완료다.
+
+## 2026-10-18 UC050 Studio 업무 설명 조회
+
+[증빙](studio-source-catalog.md): 생성/재사용 공용 선택기의 별도 접힌 영역에서 저장 업무 설명을 조회한다. 현재 소스/데이터 버전/열 이름·형식 대조·읽기 오류 시 표시 제거/명시 재시도·질문/생성안 보존이며 자동 LLM 적용/저장 변경은 없다. FE82·type/lint/build 선택 검증을 기록한다. 실제 Ego/390·768·1440은 제어권 경계로 BLOCKED이며 전체 UC050/TC050 수용은 미완료다.
+
+## 2026-10-18 UC050 Studio 업무 이름 검색
+
+[증빙](studio-source-search.md): catalog=1의 소유 목록 최신 업무 이름 요약과 공용 선택기 업무/원본 이름·ID 검색이다. 손상 이름은 원본 fallback, 동명이름 구별·검색0건 선택/질문/제안 보존·기본 API 유지다. BE116/FE102·type/lint/build PASS이며 실제 Ego/3폭·운영MySQL/전체 수용은 미완료다.
+
+## 2026-10-18 UC050 Studio 저장 지표 찾기
+
+[증빙](studio-metric-picker.md): 기존 소유 지표의 이름/ID/버전·열/단위 검색과 접힌 계산 기준 필드 확인이다. 검색/상세는 선택·질문·생성안을 유지하고 체크만 기존 제안 무효화/selectedMetricIds를 따른다. FE99·type/lint/build 선택 검증이며 새 BE/API/계산·저장 변경은 없다. 실제 Ego/3폭·전체 UC050/TC050 수용은 미완료다.
+
+## 2026-10-18 UC050 생성안 계산 기준 일치
+
+[증빙](studio-metric-basis.md): 선택기/생성 미리보기의 계산 기준을 공통 표시로 연결했다. 저장ID/버전·집계 요약/숫자/차트는 유지하고 분모/가중치/배율/단위와 누락 안내를 접힌 기준에 표시한다. FE81·type/lint/build 선택 검증이며 현재 지표 재조회/새 계산·저장은 없다. 실제 Ego/3폭·전체 수용은 미완료다.
+
+## 2026-10-18 UC050 저장 분석 지표 기준
+
+[증빙](studio-saved-metric-basis.md): 저장 snapshot의 검증된 연결에서 source/metric/version과 계산 필드를 읽고 Inspector 접힌 상세로 제공한다. 현재 지표와 섞지 않으며 선택/참조 불일치와 AI override에서는 표시하지 않는다. BE28/FE97·type/lint/build 선택 검증이며 실제 Ego/3폭·전체 수용은 미완료다.
+
+## 2026-10-18 UC051 조직·직원 및 인증 회수 첫 단위
+
+[전체 추가 요건 목표](../plans/enterprise-completion.md)와 [증빙](enterprise-membership.md)을 기준으로 진행한다. 격리 조직 생성·조직에 묶인 본인 동의 코드/취소·직원 팀/역할/활성·버전CAS/감사·비활성/재활성 epoch 회수를 구현했다. 기존 개인 데이터 소유권은 확장하지 않고 자원별 grant는 후속이다. SQLite 실제 트랜잭션/인증/사용자123개·HTTP 선택 여정·격리 core8·BE build를 확인했고 프론트 자동 검사는 최종 증빙을 따른다. 실제 Ego/390·768·1440은 제어권 경계로 BLOCKED, 운영MySQL/실휴대폰·TC050 전체 수용은 미완료이며16개 요건은 Open을 유지한다.
+
+## 2026-10-18 develop-v2 충돌 통합 — FE 선택 검증
+
+로컬 `a9b6e04e`와 원격 `e763aee3`의 진행 중 병합에서 FE 충돌 13개 파일과 `requirements.md`/본 문서만 직접 수정했다. 로컬 Rill segment·Pivot·CSV·보고서·조직 진입 링크와 원격 권한·업무 조건·카탈로그·보관함 계약을 충돌별로 보존했다. 일반 CSV는 실제 응답 지표 버전을 고정하고 segment CSV는 별도 endpoint/`viewRevision` 계약을 유지한다. 영속 작업은 지원하는 Explore/Pivot 모드만 전달한다. 지표 저장의 edit 거절과 소유자 복제 제한도 유지한다.
+
+업무 포함·제외 조건과 로컬 segment/차원 추세의 결합은 아직 호출 계약이 없다. 소유 FE 경계에서 조건을 보존하고 해당 조합의 조회를 차단하며 조건 없는 결과로 대체하지 않는다. 기본 segment/차원 추세는 유지한다. parent 후속: 비충돌 segment/차원 추세 컴포넌트와 BE의 조건·권한 계약을 함께 검토해야 한다. 요구사항의 EA와 TC050은 같은 FR/NFR 번호를 서로 다른 의미로 사용하므로 절의 명세 범위를 구별해 보존했다. 외부 참조 문서의 ID 정리는 이번 쓰기 범위 밖이다.
+
+FE `tsc --noEmit` PASS, 소유 FE 13개 파일 ESLint PASS, 충돌 마커0 및 지정 문서의 로컬 링크 누락0이다. 선택 단위는 12개 파일/고유321개 PASS: 충돌 관련6개 파일184개와 편집기·목록·segment·지표 빌더 후속7개 파일160개 중 공통 CSV23개는 한 번만 집계했다. 초기 요약 배치 테스트의 지표 버전 fixture 누락1건을 보완한 뒤 최종 CSV23개 PASS다. 실제 브라우저/시각·API·BE·DB·전체 build는 이 단위에서 NOT_RUN이며 기존 증빙을 새 통합의 PASS로 승계하지 않는다.
+
+stage/commit/push/병합 종료는 수행하지 않았으므로 Git index의 UU는 유지된다. 다른 worker의 파일과 gpt-6-luna/VoiceOver 설정은 변경하지 않았다. 전체 제품 수용·운영·실기기 gate는 기존 상태를 유지한다.

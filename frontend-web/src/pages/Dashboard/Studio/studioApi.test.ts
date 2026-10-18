@@ -245,3 +245,74 @@ describe('Studio date scope response boundary', () => {
     ).toThrow(/날짜 열/);
   });
 });
+
+it('UC051 preserves current resource rights and ownership and rejects malformed permission responses', async () => {
+  const response = envelope(null, 'synthetic preview unavailable');
+  const rights = { read: true, edit: false, publish: true, export: false };
+  api.get.mockResolvedValue({ data: { ...response.data, access: rights, owned: false } });
+  const loaded = await fetchStudioDashboard(3);
+  expect(loaded.access).toEqual(rights);
+  expect(loaded.owned).toBe(false);
+  api.get.mockResolvedValue({ data: { ...response.data, access: { ...rights, edit: 'true' }, owned: false } });
+  await expect(fetchStudioDashboard(3)).rejects.toBeTruthy();
+});
+it('UC052 prepare/save keep exact conditions and reject response scope loss', async () => {
+  const conditions = {
+    sourceRevision: SOURCE_REVISION,
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  const scoped = { ...document, conditions };
+  const request = {
+    requestId: '11111111-1111-4111-8111-111111111111',
+    expectedRevision: DOC_REVISION,
+    expectedSourceRevision: SOURCE_REVISION,
+    document: scoped,
+  };
+  const preview = { draft: { databaseId: 4, title: '매출', explanation: '', widgets: [widgetRow] }, widgets: [widgetRow] };
+  api.post.mockResolvedValue({ data: { document: scoped, preview } });
+  expect((await prepareStudioDashboard(3, request)).document.conditions).toEqual(conditions);
+  expect(api.post.mock.lastCall?.[1].document.conditions).toEqual(conditions);
+  api.post.mockResolvedValue({ data: { document, preview } });
+  await expect(prepareStudioDashboard(3, request)).rejects.toMatchObject({ kind: 'invalid' });
+  api.post.mockResolvedValue({ data: { document, idMap: {} } });
+  await expect(saveStudioDashboard(3, request)).rejects.toMatchObject({ kind: 'invalid' });
+  api.post.mockResolvedValue({ data: { document: { ...scoped, revision: NEXT_REVISION }, idMap: {} } });
+  expect((await saveStudioDashboard(3, request)).document.conditions).toEqual(conditions);
+});
+
+it('retains projected condition columns/semantics from prepare and rejects mismatch with an existing frozen wrapper', async () => {
+  const semantics = {
+    schemaVersion: 1 as const,
+    catalogVersion: 3,
+    columns: [{ column: 'amount', businessType: 'category' as const, dateFormat: '' as const }],
+  };
+  const columns = [{ name: 'amount', type: 'BIGINT', kind: 'number', businessType: 'category', dateFormat: '' }];
+  const conditions = {
+    sourceRevision: SOURCE_REVISION,
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'eq', values: [10] }, exclude: null },
+    semantics,
+  };
+  const preview = { draft: { databaseId: 4, title: '매출', explanation: '', widgets: [widgetRow] }, widgets: [widgetRow] };
+  const scoped = { ...document, conditions };
+  const request = { expectedSourceRevision: SOURCE_REVISION, document: scoped };
+  const payload = {
+    document: scoped,
+    preview,
+    conditionColumns: columns,
+    conditionSemantics: semantics,
+    conditionSemanticsLatest: false,
+    conditionSourceRevision: SOURCE_REVISION,
+  };
+  api.post.mockResolvedValue({ data: payload });
+  expect(await prepareStudioDashboard(3, request)).toMatchObject({
+    conditionColumns: columns,
+    conditionSemantics: semantics,
+    conditionSemanticsLatest: false,
+  });
+  for (const conditionSemantics of [undefined, { ...semantics, catalogVersion: 4 }]) {
+    api.post.mockResolvedValue({ data: { ...payload, conditionSemantics } });
+    await expect(prepareStudioDashboard(3, request)).rejects.toMatchObject({ kind: 'invalid' });
+  }
+  api.post.mockResolvedValue({ data: { ...payload, conditionSourceRevision: 'c'.repeat(64) } });
+  await expect(prepareStudioDashboard(3, request)).rejects.toMatchObject({ kind: 'invalid' });
+});

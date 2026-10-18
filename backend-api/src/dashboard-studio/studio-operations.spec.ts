@@ -12,6 +12,24 @@ const newBlock = (kind: StudioBlock['kind'] = 'BOARD_NUMERIC'): StudioBlock => (
 });
 
 describe('Studio pure operations', () => {
+  it('UC052 applies detached scope and clears it without changing blocks or layouts', () => {
+    const input = fixture();
+    const conditions = {
+      sourceRevision: 'a'.repeat(64),
+      definition: {
+        include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [1] },
+        exclude: null,
+      },
+    };
+    const applied = applyStudioOperation(input, { type: 'setConditions', conditions });
+    expect(applied.conditions).toEqual(conditions);
+    expect(input.conditions).toBeUndefined();
+    expect(applied.blocks).toEqual(input.blocks);
+    expect(applied.layouts).toEqual(input.layouts);
+    expect(
+      applyStudioOperation(applied, { type: 'setConditions', conditions: null }).conditions,
+    ).toBeUndefined();
+  });
   const range = { column: 'event_time', start: '2026-01-01', end: '2026-01-02' };
   it('applies, replaces and removes the optional common date range', () => {
     const input = fixture();

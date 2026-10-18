@@ -1,3 +1,4 @@
+import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { createHash } from 'crypto';
 import { DataSource } from 'typeorm';
@@ -84,6 +85,7 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       database: ':memory:',
       synchronize: true,
       entities: [
+        SourceCatalogEntry,
         Dashboard,
         DashboardShare,
         DashboardWidget,
@@ -153,6 +155,7 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     const recordedFile = async (id: number) => pinned[id]?.file ?? (await recordedFilename(id));
     connection = {
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
+      captureDuckDBSnapshot: jest.fn(async () => ({ run: async cb => cb() })),
       duckDBVersion: jest.fn(async (id: number) =>
         createHash('sha256')
           .update(await recordedFilename(id))
@@ -190,22 +193,20 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     );
   it('passes the connected categorical meaning without private origin IDs or configuration to the model', async () => {
     const profile = service.profile.bind(service);
-    const spy = jest
-      .spyOn(service, 'profile')
-      .mockImplementation(async (...args) => ({
-        ...(await profile(...args)),
-        modelInfo: {
-          type: 'lookup',
-          factKey: 'channel',
-          lookupAttributes: ['channel'],
-          quality: { unmatchedFactRows: 1 },
-          nonAdditiveColumns: [],
-          factSourceId: 9999,
-          lookupSourceId: 8888,
-          filename: '/private/model-origin',
-          sql: 'private-sql',
-        },
-      }));
+    const spy = jest.spyOn(service, 'profile').mockImplementation(async (...args) => ({
+      ...(await profile(...args)),
+      modelInfo: {
+        type: 'lookup',
+        factKey: 'channel',
+        lookupAttributes: ['channel'],
+        quality: { unmatchedFactRows: 1 },
+        nonAdditiveColumns: [],
+        factSourceId: 9999,
+        lookupSourceId: 8888,
+        filename: '/private/model-origin',
+        sql: 'private-sql',
+      },
+    }));
     try {
       await propose();
       const user = JSON.parse(llm.callLlm.mock.calls[0][1]);
@@ -1110,19 +1111,41 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     await expect(propose()).rejects.toThrow();
   });
 
+  it('UC055 completes real creation SQL before the source/metric persistence fences', async () => {
+    const p = await propose();
+    const query = connection.queryDuckDB.getMockImplementation();
+    let calls = 0;
+    connection.queryDuckDB.mockImplementation(async (...args) => {
+      expect(db.createQueryRunner().isTransactionActive).toBe(false);
+      calls++;
+      return query(...args);
+    });
+    try {
+      await save(p);
+      expect(calls).toBeGreaterThan(0);
+    } finally {
+      connection.queryDuckDB.mockImplementation(query);
+    }
+  });
   it('detects a source swap during the save preview and rolls back every created row', async () => {
     const p = await propose();
     const before = await db.manager.count(Dashboard);
-    const original = dashboards.save.bind(dashboards);
-    const spy = jest.spyOn(dashboards, 'save').mockImplementation(async (...args) => {
-      const result = await original(...args);
-      await db.manager.update(Database, 1, {
-        connectionConfig: JSON.stringify({
-          client: 'duckdb',
-          connection: { filename: 'swapped.duckdb' },
-        }),
-      });
-      return result;
+    const original = dashboards.prepareSave.bind(dashboards);
+    const spy = jest.spyOn(dashboards, 'prepareSave').mockImplementation(async (...args) => {
+      const prepared = await original(...args);
+      return {
+        ...prepared,
+        persist: async (...values) => {
+          const result = await prepared.persist(...values);
+          await db.manager.update(Database, 1, {
+            connectionConfig: JSON.stringify({
+              client: 'duckdb',
+              connection: { filename: 'swapped.duckdb' },
+            }),
+          });
+          return result;
+        },
+      };
     });
     try {
       await expect(save(p)).rejects.toMatchObject({ status: 409 });

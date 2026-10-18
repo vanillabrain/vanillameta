@@ -1,4 +1,5 @@
 import StudioReport from './StudioReport';
+import { post as postProfile } from '@/helpers/apiHelper';
 import { useTranslation } from 'react-i18next';
 import StudioSaveRecovery from './StudioSaveRecovery';
 import {
@@ -25,6 +26,9 @@ import StudioCanvas, { studioItemHeight } from './StudioCanvas';
 import StudioConversation from './StudioConversation';
 import StudioFilterPanel from './StudioFilterPanel';
 import StudioDateRangePanel from './StudioDateRangePanel';
+import ConditionProfilePanel from '../../Explore/ConditionProfilePanel';
+import { profileKey } from '../../Explore/conditionProfile';
+import StudioConditionsPanel from './StudioConditionsPanel';
 import StudioPublish from './StudioPublish';
 import { StudioRunContext, StudioRunResult } from './studioRunTransport';
 import StudioInspector from './StudioInspector';
@@ -40,6 +44,7 @@ import {
   studioFilterKey,
   studioFilterSummary,
   studioDateRangeKey,
+  studioConditionsKey,
   studioDateRangeSummary,
   validateStudioDocument,
 } from './studioDocument';
@@ -65,6 +70,7 @@ import {
   StudioDisplay,
   StudioDocumentV1,
   StudioDateRange,
+  StudioConditions,
   StudioFilter,
   StudioOperation,
   StudioState,
@@ -80,8 +86,12 @@ import {
 } from './studioDocumentDraft';
 
 const MAX_STUDIO_BLOCKS = 6;
-const scopeKey = (document: Pick<StudioDocumentV1, 'filters' | 'dateRange'>) =>
-  JSON.stringify([studioFilterDraftKey(document.filters), studioDateRangeKey(document.dateRange)]);
+const scopeKey = (document: Pick<StudioDocumentV1, 'filters' | 'dateRange' | 'conditions'>) =>
+  JSON.stringify([
+    studioFilterDraftKey(document.filters),
+    studioDateRangeKey(document.dateRange),
+    studioConditionsKey(document.conditions),
+  ]);
 const TREND_MIN_HEIGHT = 260;
 const DISPLAY_FIELDS = ['decimalPlaces', 'numberNotation', 'prefix', 'suffix', 'timeGrain', 'presentation'] as const;
 const breakpointLabel = (breakpoint: StudioBreakpoint) =>
@@ -185,6 +195,11 @@ export function reapplyStudioChanges(
     studioDateRangeKey(mine.dateRange) !== studioDateRangeKey(base.dateRange)
   )
     operations.push({ type: 'setDateRange', dateRange: mine.dateRange ?? null });
+  if (
+    studioConditionsKey(mine.conditions) !== studioConditionsKey(origin.conditions) &&
+    studioConditionsKey(mine.conditions) !== studioConditionsKey(base.conditions)
+  )
+    operations.push({ type: 'setConditions', conditions: mine.conditions ?? null });
   let addedBlocks = 0;
   for (const block of mine.blocks) {
     const originBlock = origin.blocks.find(candidate => candidate.id === block.id);
@@ -388,6 +403,9 @@ type WorkspaceProps = {
 };
 
 function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storageKey }: WorkspaceProps) {
+  const canEdit = initial.access?.edit !== false;
+  const canPublish = initial.access?.publish !== false;
+  const owned = initial.owned !== false;
   const { i18n } = useTranslation();
   const [conversationInput, setConversationInput] = useState('');
   const questionKey = useRef<string | null>(null);
@@ -417,6 +435,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
   }, [conversationInput, questionReady, questionRecovery]);
   const [state, dispatch] = useReducer(studioReducer, initial, studioWorkspaceSeed);
   const [definitions, setDefinitions] = useState<StudioDefinitions>(initial.definitions);
+  const [profileColumns, setProfileColumns] = useState(initial.profileColumns ?? []);
+  const [conditionContext, setConditionContext] = useState({
+    key: studioConditionsKey(initial.document.conditions),
+    columns: initial.profileColumns ?? [],
+    semantics: initial.document.conditions?.semantics,
+  });
   const [preview, setPreview] = useState<StudioPreview | null>(initial.preview);
   const [previewError, setPreviewError] = useState<string | null>(initial.previewError);
   const [message, setMessage] = useState('블록을 선택해 내용·순서·크기를 편집하고, 저장을 누르면 서버에 반영됩니다.');
@@ -445,12 +469,14 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     key: string;
     filters: StudioFilter[];
     dateRange?: StudioDateRange;
+    conditionsApplied?: boolean;
   } | null>(
     initial.preview
       ? {
           key: scopeKey(initial.previewDocument ?? initial.document),
           filters: (initial.previewDocument ?? initial.document).filters ?? [],
           dateRange: (initial.previewDocument ?? initial.document).dateRange,
+          conditionsApplied: !!(initial.previewDocument ?? initial.document).conditions,
         }
       : null,
   );
@@ -612,7 +638,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
   }, [breakpoint]);
 
   const applyOperations = (operations: StudioOperation[]) => {
-    if (!operations.length) return false;
+    if (!canEdit || !operations.length) return false;
     try {
       operations.reduce(applyStudioOperation, state.present);
       dispatch({ type: 'applyBatch', operations });
@@ -650,13 +676,24 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     try {
       const next = await fetchStudioDashboard(dashboardId);
       setDefinitions(next.definitions);
+      setProfileColumns(next.profileColumns ?? []);
+      setConditionContext({
+        key: studioConditionsKey(next.document.conditions),
+        columns: next.profileColumns ?? [],
+        semantics: next.document.conditions?.semantics,
+      });
       setPreview(next.preview);
       setPreviewError(next.previewError);
       setSourceRevision(next.sourceRevision);
       setAiRows({ scope: '', rows: {} });
       setPreviewScope(
         next.preview
-          ? { key: scopeKey(next.document), filters: next.document.filters ?? [], dateRange: next.document.dateRange }
+          ? {
+              key: scopeKey(next.document),
+              filters: next.document.filters ?? [],
+              dateRange: next.document.dateRange,
+              conditionsApplied: !!next.document.conditions,
+            }
           : null,
       );
     } catch (error) {
@@ -690,8 +727,11 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
       filters: StudioFilter[],
       intent: 'history' | 'apply',
       dateRange: StudioDateRange | null | undefined = live.current.document.dateRange,
+      conditions: StudioConditions | null | undefined = live.current.document.conditions,
     ): Promise<StudioPrepareResult | null> => {
-      const requested = scopeKey({ filters, dateRange: dateRange ?? undefined });
+      const requestedSource = live.current.source;
+      const requestedDocument = JSON.stringify(live.current.document);
+      const requested = scopeKey({ filters, dateRange: dateRange ?? undefined, conditions: conditions ?? undefined });
       prepare.current.attempted = requested;
       prepare.current.intent = intent;
       const generation = prepare.current.generation + 1;
@@ -708,15 +748,24 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
           {
             expectedRevision: live.current.revision,
             expectedSourceRevision: live.current.source,
-            document: applyStudioOperation(applyStudioOperation(live.current.document, { type: 'setFilters', filters }), {
-              type: 'setDateRange',
-              dateRange: dateRange ?? null,
-            }),
+            document: applyStudioOperation(
+              applyStudioOperation(applyStudioOperation(live.current.document, { type: 'setFilters', filters }), {
+                type: 'setDateRange',
+                dateRange: dateRange ?? null,
+              }),
+              { type: 'setConditions', conditions: conditions ?? null },
+            ),
           },
           { signal: controller.signal },
         );
       } catch (cause) {
-        if (prepare.current.generation !== generation || controller.signal.aborted) return null;
+        if (
+          prepare.current.generation !== generation ||
+          controller.signal.aborted ||
+          requestedSource !== live.current.source ||
+          requestedDocument !== JSON.stringify(live.current.document)
+        )
+          return null;
         if (isStudioApiError(cause) && cause.kind === 'conflict') {
           setDocumentRecoveryNeedsLatest(true);
           await loadLatest(cause.message);
@@ -728,10 +777,21 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
       } finally {
         if (prepare.current.generation === generation) setFilterBusy(false);
       }
-      if (prepare.current.generation !== generation) return null;
+      if (
+        prepare.current.generation !== generation ||
+        requestedSource !== live.current.source ||
+        requestedDocument !== JSON.stringify(live.current.document)
+      )
+        return null;
       // A history-driven query is accepted only while the document still asks for that scope, so a
       // late answer for a superseded undo/redo step can never relabel the rows on screen.
       if (intent === 'history' && scopeKey(live.current.document) !== requested) return null;
+      if (prepared.conditionColumns)
+        setConditionContext({
+          key: studioConditionsKey(prepared.document.conditions),
+          columns: prepared.conditionColumns,
+          semantics: prepared.conditionSemantics,
+        });
       setPreview(prepared.preview);
       setPreviewError(null);
       // Rows rendered from an AI draft belong to the previous scope and must not survive a filter change.
@@ -739,10 +799,13 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
       setPreviewScope({
         key: scopeKey(prepared.document),
         dateRange: prepared.document.dateRange,
+        conditionsApplied: !!prepared.document.conditions,
         filters: studioClone(prepared.document.filters ?? []),
       });
       setFilterMessage(
-        prepared.document.dateRange
+        prepared.document.conditions
+          ? '포함·제외 조건과 공통 범위를 모든 블록에 적용했습니다. 저장하면 함께 저장됩니다.'
+          : prepared.document.dateRange
           ? '날짜 범위와 공통 필터를 모든 블록에 적용했습니다. 저장하면 이 조건이 함께 저장됩니다.'
           : (prepared.document.filters ?? []).length
           ? '공통 필터를 모든 블록에 적용했습니다. 저장하면 이 조건이 함께 저장됩니다.'
@@ -770,6 +833,18 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     const prepared = await prepareScope(live.current.document.filters ?? [], 'apply', dateRange);
     if (!prepared) return;
     dispatch({ type: 'apply', operation: { type: 'setDateRange', dateRange: prepared.document.dateRange ?? null } });
+  };
+
+  const applyConditions = async (conditions: StudioConditions | null) => {
+    setFilterMessage(null);
+    const prepared = await prepareScope(
+      live.current.document.filters ?? [],
+      'apply',
+      live.current.document.dateRange,
+      conditions,
+    );
+    if (!prepared) return;
+    dispatch({ type: 'apply', operation: { type: 'setConditions', conditions: prepared.document.conditions ?? null } });
   };
 
   const documentFilters = state.present.filters ?? [];
@@ -806,7 +881,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
   );
 
   const save = async () => {
-    if (saving) return;
+    if (!canEdit || saving) return;
     const pending = state.pendingSave;
     let request: StudioSaveRequest | null = pending
       ? pendingRequest.current ?? {
@@ -1204,14 +1279,16 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     period: studioDateRangeSummary(state.present.dateRange),
     blockCount: state.present.blocks.length,
     canvasTitle: state.present.title,
-    canvasDescription: '블록을 옮기고 수치를 확인한 뒤 저장하세요. 저장 전에는 서버에 반영되지 않습니다.',
+    canvasDescription: canEdit
+      ? '블록을 옮기고 수치를 확인한 뒤 저장하세요. 저장 전에는 서버에 반영되지 않습니다.'
+      : '열람 권한으로 보고 있습니다. 블록 변경과 저장은 편집 권한이 필요합니다.',
     dataLabel: preview ? '실데이터 미리보기' : '미리보기 없음',
     notice:
       state.saveState === 'clean' ? 'Studio 편집 · 저장된 내용과 같습니다' : 'Studio 편집 · 저장되지 않은 변경이 있습니다',
     save: {
       label: saving ? '저장 중…' : '저장',
       // A failed-but-pending request stays retryable even when undo returned to the baseline.
-      disabled: saving || (!state.pendingSave && (state.saveState === 'clean' || !state.present.blocks.length)),
+      disabled: !canEdit || saving || (!state.pendingSave && (state.saveState === 'clean' || !state.present.blocks.length)),
       pending: saving,
       status: state.saveState === 'clean' ? '저장됨' : '저장되지 않음',
       onSave: save,
@@ -1221,7 +1298,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         setCreationPublication(null);
         setPublishOpen(true);
       },
-      disabled: saving || !!state.pendingSave || !!conflict,
+      disabled: !canPublish || saving || !!state.pendingSave || !!conflict,
     },
     banner,
     aiBlockSummary: state.present.blocks.map(block => block.title).join(' · ') || '아직 블록이 없습니다',
@@ -1239,7 +1316,8 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
   const scopeLabel = previewScope
     ? '화면 반영 · ' +
       (previewScope.dateRange ? studioDateRangeSummary(previewScope.dateRange) + ' · ' : '') +
-      (previewScope.filters.length ? studioFilterSummary(previewScope.filters) : '공통 필터 없음')
+      (previewScope.filters.length ? studioFilterSummary(previewScope.filters) : '공통 필터 없음') +
+      (previewScope.conditionsApplied ? ' · 포함·제외 조건 적용됨' : '')
     : '공통 필터 결과 미확인';
   const scopePending = (previewScope?.key ?? null) !== documentFilterKey;
   const pendingLabel = !scopePending
@@ -1250,6 +1328,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
   const applyAi = (result: StudioRunResult) => {
     if (!applyOperations(result.proposedOperations)) return false;
     const next = result.proposedOperations.reduce(applyStudioOperation, state.present);
+    if (result.proposedOperations.some(operation => operation.type === 'setConditions')) {
+      // The new common scope is re-prepared by the existing scope effect. Never label old rows as new.
+      setAiRows({ scope: '', rows: {} });
+      setMessage('AI 조건 변경안을 초안에 적용했습니다. 새 조건의 전체 결과를 조회한 뒤 저장하세요.');
+      return true;
+    }
     setAiRows({
       scope: previewScope?.key ?? '',
       rows: Object.fromEntries(
@@ -1277,17 +1361,19 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         <Button variant="ghost" size="sm" asChild>
           <RouterLink to={'/dashboard/' + dashboardId}>기존 보기</RouterLink>
         </Button>
-        <Button variant="outline" size="sm" asChild>
-          <a
-            href={`/dashboard/${dashboardId}/reuse?editor=studio`}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="저장본 복제·소스 교체 새 탭에서 열기"
-            title="마지막 저장본을 복제합니다. 현재 미저장 변경은 제외됩니다."
-          >
-            저장본 복제
-          </a>
-        </Button>
+        {owned && (
+          <Button variant="outline" size="sm" asChild>
+            <a
+              href={`/dashboard/${dashboardId}/reuse?editor=studio`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="저장본 복제·소스 교체 새 탭에서 열기"
+              title="마지막 저장본을 복제합니다. 현재 미저장 변경은 제외됩니다."
+            >
+              저장본 복제
+            </a>
+          </Button>
+        )}
         <Button variant="outline" size="sm" asChild>
           <a
             href={`/organizations?dashboardId=${dashboardId}`}
@@ -1380,8 +1466,8 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         onStageChange={() => undefined}
         onPanelChange={panel => dispatch({ type: 'panel', panel })}
         history={{
-          canUndo: !!state.past.length,
-          canRedo: !!state.future.length,
+          canUndo: canEdit && !!state.past.length,
+          canRedo: canEdit && !!state.future.length,
           count: state.past.length,
           onUndo: () => dispatch({ type: 'undo' }),
           onRedo: () => dispatch({ type: 'redo' }),
@@ -1397,7 +1483,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
             }}
             context={runContext}
             selectedTitle={selected?.title}
-            filterScope={{ applied: previewScope?.filters ?? [], pending: scopePending, dateRange: previewScope?.dateRange }}
+            filterScope={{
+              applied: previewScope?.filters ?? [],
+              pending: scopePending,
+              dateRange: previewScope?.dateRange,
+              conditionsApplied: previewScope?.conditionsApplied,
+            }}
             onApply={applyAi}
             onSaved={async (saved, submitted) => {
               if (editClock.current.generation !== submitted.clientEditVersion) return false;
@@ -1417,7 +1508,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
                 return false;
               }
             }}
-            locked={saving || !!state.pendingSave || !!conflict}
+            locked={!canEdit || saving || !!state.pendingSave || !!conflict}
           />
         }
         canvas={
@@ -1435,9 +1526,59 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
               dateRange={state.present.dateRange}
               columns={preview?.temporalColumns ?? []}
               busy={filterBusy}
-              disabled={saving || !!state.pendingSave || !!conflict || state.present.blocks.length === 0}
+              disabled={!canEdit || saving || !!state.pendingSave || !!conflict || state.present.blocks.length === 0}
               error={null}
               onApply={applyDateRange}
+            />
+            <StudioConditionsPanel
+              columns={
+                conditionContext.key === studioConditionsKey(state.present.conditions) ? conditionContext.columns : []
+              }
+              conditionSemantics={
+                conditionContext.key === studioConditionsKey(state.present.conditions)
+                  ? conditionContext.semantics
+                  : undefined
+              }
+              sourceId={state.present.sourceId}
+              sourceRevision={sourceRevision}
+              conditions={state.present.conditions}
+              busy={filterBusy}
+              disabled={!canEdit || saving || !!state.pendingSave || !!conflict || state.present.blocks.length === 0}
+              onApply={applyConditions}
+            />
+            <ConditionProfilePanel
+              columns={profileColumns}
+              disabled={saving || !!state.pendingSave || !!conflict}
+              contextKey={profileKey({
+                document: state.present,
+                expectedRevision: state.serverRevision,
+                sourceRevision,
+                profileColumns,
+              })}
+              scopeLabel={
+                studioDateRangeSummary(state.present.dateRange) + ' · 문서의 공통 필터/포함·제외 기준 · 원본 행 정렬 표본'
+              }
+              load={async (columns, signal) => {
+                const document = state.present;
+                const expectedRevision = state.serverRevision;
+                const scope = {
+                  dashboardId,
+                  sourceId: document.sourceId,
+                  expectedRevision,
+                  expectedSourceRevision: sourceRevision,
+                  filters: document.filters ?? [],
+                  dateRange: document.dateRange ?? null,
+                  conditions: document.conditions ?? null,
+                };
+                const response = await postProfile(
+                  `/studio/dashboards/${dashboardId}/profile`,
+                  { expectedRevision, expectedSourceRevision: sourceRevision, document, columns },
+                  { signal, timeout: 180000 },
+                );
+                if (profileKey(response?.data?.scope) !== profileKey(scope))
+                  throw new Error('분포 조회의 문서 기준이 요청과 다릅니다.');
+                return response.data;
+              }}
             />
             <StudioFilterPanel
               filters={documentFilters}
@@ -1445,13 +1586,14 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
               scopeLabel={scopeLabel}
               pendingLabel={pendingLabel}
               busy={filterBusy}
-              disabled={saving || !!state.pendingSave || !!conflict || state.present.blocks.length === 0}
+              disabled={!canEdit || saving || !!state.pendingSave || !!conflict || state.present.blocks.length === 0}
               error={filterError}
               message={filterMessage}
               onApply={applyFilters}
               onRetry={() => void prepareScope(documentFilters, 'history')}
             />
             <StudioCanvas
+              readOnly={!canEdit}
               document={state.present}
               breakpoint={breakpoint}
               selectedBlockId={state.selectedBlockId}
@@ -1463,21 +1605,38 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
           </>
         }
         inspector={
-          <StudioInspector
-            key={selected ? selected.id : 'none'}
-            block={selected}
-            onOperation={operation}
-            canDuplicate={state.present.blocks.length < MAX_STUDIO_BLOCKS}
-            onDuplicate={() => {
-              if (selected) duplicateBlock(selected.id, '복사본 · ');
-            }}
-            onRemove={() => {
-              if (!selected) return;
-              if (operation({ type: 'removeBlock', blockId: selected.id })) dispatch({ type: 'panel', panel: null });
-            }}
-          />
+          <fieldset disabled={!canEdit} className="min-w-0">
+            <StudioInspector
+              key={selected ? selected.id : 'none'}
+              block={selected}
+              sourceId={state.present.sourceId}
+              metricBasis={
+                selected &&
+                selected.kind === definitions.entries[selected.definitionKey]?.widget.type &&
+                !(
+                  aiRows.scope === (previewScope?.key ?? '') &&
+                  aiRows.rows[selected.id + '|' + (selected.display.timeGrain ?? 'auto')]
+                )
+                  ? definitions.entries[selected.definitionKey]?.metricBasis
+                  : undefined
+              }
+              onOperation={operation}
+              canDuplicate={state.present.blocks.length < MAX_STUDIO_BLOCKS}
+              onDuplicate={() => {
+                if (selected) duplicateBlock(selected.id, '복사본 · ');
+              }}
+              onRemove={() => {
+                if (!selected) return;
+                if (operation({ type: 'removeBlock', blockId: selected.id })) dispatch({ type: 'panel', panel: null });
+              }}
+            />
+          </fieldset>
         }
-        editToolbar={editToolbar}
+        editToolbar={
+          <fieldset disabled={!canEdit} className="min-w-0">
+            {editToolbar}
+          </fieldset>
+        }
       />
       <StudioPublish
         key={creationPublication ? creationPublication.dashboardId + ':' + creationPublication.revision : 'editor'}

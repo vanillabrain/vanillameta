@@ -61,6 +61,7 @@ describe('source ownership boundary', () => {
   });
   beforeEach(() => {
     const db: any = {
+      options: { type: 'sqlite' },
       getRepository: entity => ({
         findOne: async ({ where }) =>
           rows[entity.name].find(row =>
@@ -182,7 +183,7 @@ describe('source ownership boundary', () => {
       ),
     ).rejects.toThrow();
   });
-  it('dashboardDetails requires ownership of both the draft source and dashboard', async () => {
+  it('dashboardDetails requires explicit read access to both the draft source and dashboard', async () => {
     const source = jest.spyOn(access, 'assert');
     const dashboard = jest.spyOn(access, 'dashboard');
     await expect(
@@ -193,8 +194,8 @@ describe('source ownership boundary', () => {
         }),
       ),
     ).resolves.toBe(true);
-    expect(source).toHaveBeenCalledWith('database', 1, 7);
-    expect(dashboard).toHaveBeenCalledWith(51, 7);
+    expect(source).toHaveBeenCalledWith('database', 1, 7, 'read');
+    expect(dashboard).toHaveBeenCalledWith(51, 7, 'read');
   });
   it.each([undefined, null, false, 0, -1, 1.5, 'invalid', '0', Number.MAX_SAFE_INTEGER + 1])(
     'dashboardDetails rejects missing or invalid dashboardId %p even with a valid draft and decoy URL ID',
@@ -268,6 +269,21 @@ describe('source ownership boundary', () => {
       ),
     ).rejects.toThrow();
   });
+  it.each(['listViews', 'createView', 'loadView', 'removeView'])(
+    'uses dashboard read for personal view handler %s',
+    async handler => {
+      const authorization = jest.spyOn(access, 'dashboard');
+      await expect(
+        guard.canActivate(
+          request('DashboardController', handler, {
+            params: { id: '51' },
+            user: { accessKeyData: { id: 7 } },
+          }),
+        ),
+      ).resolves.toBe(true);
+      expect(authorization).toHaveBeenCalledWith('51', 7, 'read');
+    },
+  );
 });
 it('migration preserves legacy NULL owners, is repeatable, and supports fresh installation', async () => {
   const db = await new DataSource({

@@ -246,12 +246,14 @@ describe('BiExploreService pivot over real DuckDB', () => {
       ),
     };
     const db = {
+      options: { type: 'sqlite' },
       getRepository: jest.fn((entity: any) => {
         if (entity === Database) return databaseRepo;
         if (entity === Metric) return metricRepo;
         throw new Error('unexpected repository');
       }),
     };
+    Object.assign(databaseRepo, { manager: { connection: db } });
     const connection = new ConnectionService(databaseRepo, {} as any, worker);
     const bi = new BiService(db as any, new SourceAccessService(db as any), connection, {
       save: jest.fn(),

@@ -289,3 +289,35 @@ describe('Studio common date range', () => {
     expect(() => studioScopeKey([{ column: 'a', values: [] }], null)).toThrow();
   });
 });
+
+it('UC052 apply/clear/undo/redo and content edits preserve exact immutable condition scope', () => {
+  const conditions = {
+    sourceRevision: 'b'.repeat(64),
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  expect(studioScopeKey(undefined, null, conditions)).not.toBe(studioScopeKey(undefined, null));
+  let state = createStudioState(fresh());
+  state = studioReducer(state, { type: 'apply', operation: { type: 'setConditions', conditions } });
+  expect(state.saveState).toBe('dirty');
+  expect(state.present.conditions).toEqual(conditions);
+  expect(state.present.blocks).toEqual(fixture.blocks);
+  expect(state.present.layouts).toEqual(fixture.layouts);
+  const edited = studioReducer(state, {
+    type: 'apply',
+    operation: { type: 'updateBlock', blockId: 'b1', patch: { title: 'AI title' } },
+  });
+  expect(edited.present.conditions).toEqual(conditions);
+  state = studioReducer(state, { type: 'apply', operation: { type: 'setConditions', conditions: null } });
+  expect(state.present.conditions).toBeUndefined();
+  expect(studioReducer(state, { type: 'undo' }).present.conditions).toEqual(conditions);
+  expect(studioReducer(studioReducer(state, { type: 'undo' }), { type: 'redo' }).present.conditions).toBeUndefined();
+  for (const invalid of [
+    { ...conditions, provenance: 'unverified' },
+    { ...conditions, definition: { include: undefined, exclude: null } },
+    {
+      ...conditions,
+      definition: { include: { kind: 'predicate', column: 'a', operator: 'eq', values: [null] }, exclude: null },
+    },
+  ])
+    expect(() => applyStudioOperation(fresh(), { type: 'setConditions', conditions: invalid } as any)).toThrow();
+});

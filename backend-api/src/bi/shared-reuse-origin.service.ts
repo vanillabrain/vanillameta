@@ -1,5 +1,8 @@
+import { resolveConditionSemantics } from './business-condition-context';
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
+import { metadataTransaction } from '../common/metadata-work';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
@@ -8,6 +11,9 @@ import { DashboardPublication } from '../dashboard/entities/dashboard-publicatio
 import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { UserMapping } from '../user/entities/user-mapping.entity';
+import { ConnectionService } from '../connection/connection.service';
+import { validateStudioConditions } from '../dashboard-studio/studio-document';
 import { BiService } from './bi.service';
 import { buildReuseRecipe, readReuseRecipe } from './reuse-recipe';
 
@@ -22,10 +28,17 @@ export class SharedReuseOriginService {
     private readonly ai: AiDashboardService,
     private readonly bi: BiService,
     private readonly access: SourceAccessService,
+    @Optional() private readonly connection?: ConnectionService,
   ) {}
   private kind(value: string): 'share' | 'publication' {
     if (value !== 'share' && value !== 'publication') throw unavailable();
     return value;
+  }
+  /** A row published before the delegation columns existed has no publisher: use the owner. */
+  private async legacyPublishOwner(dashboardId: number, manager: EntityManager) {
+    const mappings = await manager.find(UserMapping, { where: { dashboardId } });
+    if (mappings.length !== 1) throw unavailable();
+    return mappings[0].userInfoId;
   }
   async resolve(kind: string, key: string, manager: EntityManager = this.db.manager) {
     this.kind(kind);
@@ -34,12 +47,22 @@ export class SharedReuseOriginService {
       manager.queryRunner?.isTransactionActive && this.db.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {};
-    let dashboard: Dashboard, recipe: string, identity: any;
+    let dashboard: Dashboard, recipe: string, identity: any, originalSourceId: number | undefined;
     if (kind === 'publication') {
       const row = await manager.findOne(DashboardPublication, { where: { uuid: key }, ...lock });
       if (!row?.active || !row.reuseDefinition || !(Date.parse(row.expiresAt) > Date.now()))
         throw unavailable();
-      dashboard = await manager.findOne(Dashboard, { where: { id: row.dashboardId }, ...lock });
+      // UC-051: the private recipe stays closed as soon as the real publisher loses publish or the
+      // original source read. Rows without a stored publisher fall back to the single owner.
+      const publisher =
+        row.publisherId ?? (await this.legacyPublishOwner(row.dashboardId, manager));
+      await this.access.dashboard(row.dashboardId, publisher, 'publish', manager);
+      if (row.sourceId !== null && row.sourceId !== undefined)
+        await this.access.assert('database', row.sourceId, publisher, 'read', manager);
+      dashboard = manager.queryRunner?.isTransactionActive
+        ? await lockDashboardWrite(manager, row.dashboardId)
+        : await manager.findOne(Dashboard, { where: { id: row.dashboardId } });
+      originalSourceId = row.sourceId;
       recipe = row.reuseDefinition;
       identity = [kind, key, row.version, row.dashboardRevision, row.expiresAt, recipe];
     } else {
@@ -54,20 +77,78 @@ export class SharedReuseOriginService {
         where: { shareId: (row as DashboardShare).id },
         ...lock,
       });
-      if (!dashboard || dashboard.delYn === 'Y' || !dashboard.analysisDefinition)
+      if (
+        !dashboard ||
+        dashboard.delYn === 'Y' ||
+        dashboard.assetActive === false ||
+        !dashboard.analysisDefinition
+      )
         throw unavailable();
       // Resolve schema/definition as the owner; no original result preview is executed for a recipient.
       const owner = await this.access.sharedDashboard(dashboard.id);
       const analysis = (await this.ai.analysis(dashboard.id, owner, true)).data;
-      const profile = await this.bi.profile(analysis.databaseId, owner);
-      recipe = buildReuseRecipe(analysis, profile);
+      originalSourceId = analysis.databaseId;
+      const capture = async () => {
+        const conditions =
+          analysis.defaultConditions === undefined
+            ? undefined
+            : validateStudioConditions(analysis.defaultConditions);
+        if (
+          conditions &&
+          (!this.connection ||
+            conditions.sourceRevision !==
+              (await this.connection.duckDBVersion(analysis.databaseId)))
+        )
+          throw unavailable();
+        const profile = await this.bi.profile(analysis.databaseId, owner);
+        await resolveConditionSemantics(
+          manager,
+          originalSourceId,
+          profile.columns,
+          conditions?.semantics,
+        );
+        const result = buildReuseRecipe(analysis, profile);
+        if (
+          conditions &&
+          conditions.sourceRevision !== (await this.connection.duckDBVersion(analysis.databaseId))
+        )
+          throw unavailable();
+        return result;
+      };
+      recipe =
+        analysis.defaultConditions !== undefined && this.connection
+          ? await this.connection.withDuckDBSnapshot(analysis.databaseId, capture)
+          : await capture();
       identity = [kind, key, row.reuseVersion, row.endDate, dashboardRevision(dashboard), recipe];
     }
-    if (!dashboard || dashboard.delYn === 'Y' || dashboard.governed) throw unavailable();
+    if (
+      !dashboard ||
+      dashboard.delYn === 'Y' ||
+      dashboard.assetActive === false ||
+      dashboard.governed
+    )
+      throw unavailable();
+    identity.push(dashboard.assetVersion ?? 0);
     const { analysis, profile } = readReuseRecipe(recipe);
+    if (analysis.conditionSemantics) {
+      // The recipe sourceId=1 is a redacted placeholder, never an authority for catalog lookup.
+      if (
+        !Number.isSafeInteger(originalSourceId) ||
+        originalSourceId <= 0 ||
+        !profile.conditionSchema
+      )
+        throw unavailable();
+      await resolveConditionSemantics(
+        manager,
+        originalSourceId,
+        profile.conditionSchema,
+        analysis.conditionSemantics,
+      );
+    }
     const revision = createHash('sha256').update(JSON.stringify(identity)).digest('hex');
     return {
       originalId: dashboard.id,
+      originalSourceId,
       analysis: { ...analysis, revision },
       profile,
       reference: { kind: this.kind(kind), key, revision } as ReuseReference,
@@ -100,30 +181,46 @@ export class SharedReuseOriginService {
           ? { id: (row as DashboardPublication).dashboardId }
           : { shareId: (row as DashboardShare).id },
     });
-    return { reusable: !!dashboard && dashboard.delYn !== 'Y' && !dashboard.governed };
+    return {
+      reusable:
+        !!dashboard &&
+        dashboard.delYn !== 'Y' &&
+        dashboard.assetActive !== false &&
+        !dashboard.governed,
+    };
   }
   async grant(id: unknown, actor: number, body?: any) {
     const dashboardId = this.access.id(id);
-    await this.access.dashboard(dashboardId, actor);
-    const dashboard = await this.db.manager.findOne(Dashboard, { where: { id: dashboardId } });
-    if (dashboard.governed && body?.allowReuse === true) throw unavailable();
-    const share = await this.db.manager.findOne(DashboardShare, {
-      where: { id: dashboard.shareId },
-    });
-    if (!share) throw unavailable();
-    if (body !== undefined) {
-      if (!body || Object.keys(body).length !== 1 || typeof body.allowReuse !== 'boolean')
-        throw new BadRequestException('재사용 허용 설정을 확인해 주세요.');
-      await serializedViewWrite(this.db.getRepository(DashboardShare), () =>
-        this.db.manager
+    if (body === undefined) {
+      await this.access.dashboard(dashboardId, actor);
+      const dashboard = await this.db.manager.findOne(Dashboard, { where: { id: dashboardId } });
+      const share = await this.db.manager.findOne(DashboardShare, {
+        where: { id: dashboard.shareId },
+      });
+      if (!share) throw unavailable();
+      return { allowReuse: share.allowReuse === true };
+    }
+    if (!body || Object.keys(body).length !== 1 || typeof body.allowReuse !== 'boolean')
+      throw new BadRequestException('재사용 허용 설정을 확인해 주세요.');
+    const allowReuse = body.allowReuse;
+    return serializedViewWrite(this.db.getRepository(DashboardShare), () =>
+      metadataTransaction(this.db, async manager => {
+        const dashboard = await lockDashboardWrite(manager, dashboardId, {
+          allowInactive: !allowReuse,
+        });
+        if (allowReuse) await this.access.dashboard(dashboardId, actor, 'owner', manager);
+        else await this.access.dashboardRevocation(dashboardId, actor, 'owner', manager);
+        if (dashboard.governed && allowReuse) throw unavailable();
+        const share = await manager.findOne(DashboardShare, { where: { id: dashboard.shareId } });
+        if (!share) throw unavailable();
+        await manager
           .createQueryBuilder()
           .update(DashboardShare)
-          .set({ allowReuse: body.allowReuse, reuseVersion: () => 'reuseVersion + 1' })
+          .set({ allowReuse, reuseVersion: () => 'reuseVersion + 1' })
           .where('id = :id', { id: share.id })
-          .execute(),
-      );
-      return { allowReuse: body.allowReuse };
-    }
-    return { allowReuse: share.allowReuse === true };
+          .execute();
+        return { allowReuse };
+      }),
+    );
   }
 }

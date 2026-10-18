@@ -3,6 +3,7 @@ import {
   studioClone,
   studioKeys,
   studioText,
+  validateStudioConditions,
   validateStudioDateRange,
   validateStudioDocument,
   validateStudioFilters,
@@ -32,6 +33,7 @@ export function applyStudioOperation(document: StudioDocumentV1, operation: Stud
     renameDashboard: ['type', 'title'],
     setFilters: ['type', 'filters'],
     setDateRange: ['type', 'dateRange'],
+    setConditions: ['type', 'conditions'],
   };
   studioAssert(Object.prototype.hasOwnProperty.call(fields, operation.type), '지원하지 않는 변경 작업입니다.');
   studioKeys(operation, fields[operation.type]);
@@ -41,6 +43,9 @@ export function applyStudioOperation(document: StudioDocumentV1, operation: Stud
     const filters = validateStudioFilters(operation.filters);
     if (filters.length) next.filters = filters;
     else delete next.filters;
+  } else if (operation.type === 'setConditions') {
+    if (operation.conditions === null) delete next.conditions;
+    else next.conditions = validateStudioConditions(operation.conditions);
   } else if (operation.type === 'setDateRange') {
     // A null range clears the common period; anything else is validated before it enters history.
     if (operation.dateRange === null) delete next.dateRange;

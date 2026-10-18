@@ -13,6 +13,14 @@ import * as path from 'path';
 import { CommerceImportInput, CommerceImportResult } from './commerce-import';
 import { FileCorrection, FileCorrectionResult } from './file-correction';
 import { FileLookup } from './file-lookup';
+import {
+  DeletionImportProof,
+  DeletionSqliteProof,
+  inspectDeletionImport,
+  inspectDeletionSqlite,
+  resolveDeletionFilename,
+} from './source-file-deletion';
+export { DeletionImportProof, DeletionSqliteProof } from './source-file-deletion';
 
 export type AnalysisUpload = {
   originalname: string;
@@ -53,6 +61,9 @@ export class DuckDBService implements OnModuleDestroy {
     if (signal.aborted) return Promise.reject(new Error('analysis task cancelled'));
     return this.cancellation.run(signal, operation);
   }
+  private temporaryImports = new Map<string, DeletionImportProof>();
+  private registrationIntents = new Map<string, { sourceId: number; proof: DeletionImportProof }>();
+  private registrationRequests = new Map<string, { sourceId: number; promise: Promise<void> }>();
 
   private root() {
     return path.resolve(process.env.FILE_UPLOAD_DIR || 'uploads');
@@ -141,6 +152,10 @@ export class DuckDBService implements OnModuleDestroy {
         originalname: file.originalname,
         rows: result.rows,
       });
+      this.temporaryImports.set(
+        filename,
+        await inspectDeletionImport(this.root(), filename, undefined, { allowUnregistered: true }),
+      );
       return { filename, sourcePath, rows: result.rows };
     } catch (error) {
       await fs.rm(directory, { force: true, recursive: true });
@@ -223,6 +238,10 @@ export class DuckDBService implements OnModuleDestroy {
         kind: 'commerce',
         ...result,
       });
+      this.temporaryImports.set(
+        filename,
+        await inspectDeletionImport(this.root(), filename, undefined, { allowUnregistered: true }),
+      );
       return {
         filename,
         rows: result.counts,
@@ -304,13 +323,68 @@ export class DuckDBService implements OnModuleDestroy {
       rows: result.unchanged ? result.inputRows : result.rows,
       inputRows: result.inputRows,
     });
+    this.temporaryImports.set(
+      filename,
+      await inspectDeletionImport(this.root(), filename, undefined, { allowUnregistered: true }),
+    );
     return result;
   }
 
   async registerImport(filename: string, databaseId: number) {
-    const directory = path.dirname(this.managed(filename));
-    const existing = JSON.parse(await fs.readFile(path.join(directory, 'import.json'), 'utf8'));
-    await this.manifest(directory, { ...existing, databaseId });
+    // Metadata has already committed; even failed registration revokes temporary cleanup.
+    const temporary = this.temporaryImports.get(filename);
+    this.temporaryImports.delete(filename);
+    const denied = () => new BadRequestException('managed import registration validation failed');
+    if (
+      typeof filename !== 'string' ||
+      !filename ||
+      !Number.isSafeInteger(databaseId) ||
+      databaseId <= 0
+    )
+      throw denied();
+    const pending = this.registrationRequests.get(filename);
+    if (pending) {
+      if (pending.sourceId !== databaseId) throw denied();
+      return pending.promise;
+    }
+    let intent = this.registrationIntents.get(filename);
+    if (intent && intent.sourceId !== databaseId) throw denied();
+    if (!intent && temporary?.state === 'owned') {
+      intent = { sourceId: databaseId, proof: { ...temporary, sourceId: databaseId } };
+      this.registrationIntents.set(filename, intent);
+    }
+    const promise = (async () => {
+      // Without this process's original import proof, only an already registered same
+      // owner is accepted. Such retries are read-only, including after a restart.
+      if (!intent) {
+        await inspectDeletionImport(this.root(), filename, databaseId);
+        return;
+      }
+      const checked = await inspectDeletionImport(this.root(), filename, databaseId, {
+        proof: intent.proof,
+      });
+      if (checked.state !== 'owned') throw denied();
+      if (checked.manifestDatabaseId === databaseId) {
+        this.registrationIntents.delete(filename);
+        return;
+      }
+      const canonical = await resolveDeletionFilename(this.root(), filename, 'duckdb');
+      const directory = path.dirname(canonical.filename);
+      const existing = JSON.parse(await fs.readFile(path.join(directory, 'import.json'), 'utf8'));
+      // Recheck stable content/identities immediately before the auxiliary manifest write.
+      await inspectDeletionImport(this.root(), filename, databaseId, { proof: checked });
+      await this.manifest(directory, { ...existing, databaseId });
+      this.registrationIntents.delete(filename);
+    })().catch(() => {
+      throw denied();
+    });
+    this.registrationRequests.set(filename, { sourceId: databaseId, promise });
+    try {
+      await promise;
+    } finally {
+      if (this.registrationRequests.get(filename)?.promise === promise)
+        this.registrationRequests.delete(filename);
+    }
   }
 
   async lookupFiles(
@@ -350,6 +424,12 @@ export class DuckDBService implements OnModuleDestroy {
           kind: 'file-lookup',
           rows: result.quality.outputRows,
         });
+        this.temporaryImports.set(
+          filename,
+          await inspectDeletionImport(this.root(), filename, undefined, {
+            allowUnregistered: true,
+          }),
+        );
         retained = true;
       }
       return { ...result, ...(retained ? { filename } : {}) };
@@ -358,16 +438,73 @@ export class DuckDBService implements OnModuleDestroy {
     }
   }
 
-  async removeImport(filename: string) {
+  /** Call only after SourceCore has checked ownership/configuration and other source references.
+   * Missing directories require explicit server-only allowMissing. No files are written here.
+   */
+  async validateDeletionImport(
+    filename: string,
+    sourceId: number,
+    options: { allowUnregistered?: boolean; allowMissing?: boolean } = {},
+  ): Promise<DeletionImportProof> {
+    if (
+      typeof filename !== 'string' ||
+      !filename ||
+      !Number.isSafeInteger(sourceId) ||
+      sourceId <= 0
+    )
+      throw new BadRequestException('managed import deletion validation failed');
+    return inspectDeletionImport(this.root(), filename, sourceId, options);
+  }
+
+  /** The durable outbox owns filename/sourceId/proof, never a client-supplied request. */
+  async removeOwnedImport(filename: string, sourceId: number, proof?: DeletionImportProof) {
+    if (
+      typeof filename !== 'string' ||
+      !filename ||
+      !Number.isSafeInteger(sourceId) ||
+      sourceId <= 0
+    )
+      throw new BadRequestException('managed import deletion validation failed');
     await this.submit(
-      { kind: 'remove', filename: this.managed(filename) },
+      { kind: 'remove-owned', filename, root: this.root(), sourceId, proof },
       positive(process.env.FILE_IMPORT_TIMEOUT_MS, 300000),
     );
   }
 
+  /** SourceCore must prove current ownership and exclusive file references under its lock. */
+  async validateDeletionSqlite(filename: string, sourceId: number): Promise<DeletionSqliteProof> {
+    return inspectDeletionSqlite(this.root(), filename, sourceId);
+  }
+
+  /** Run only after the metadata commit and awaited removeKnex; proof is server-only. */
+  async removeOwnedSqlite(filename: string, sourceId: number, proof: DeletionSqliteProof) {
+    if (
+      typeof filename !== 'string' ||
+      !filename ||
+      !Number.isSafeInteger(sourceId) ||
+      sourceId <= 0
+    )
+      throw new BadRequestException('managed SQLite deletion validation failed');
+    await this.submit(
+      { kind: 'remove-sqlite', filename, root: this.root(), sourceId, proof },
+      positive(process.env.FILE_IMPORT_TIMEOUT_MS, 300000),
+    );
+  }
+
+  /** Legacy temporary cleanup only. Registered files must use removeOwnedImport. */
+  async removeImport(filename: string) {
+    const proof = this.temporaryImports.get(filename);
+    if (!proof) throw new BadRequestException('managed import deletion validation failed');
+    await this.submit(
+      { kind: 'remove-owned', filename, root: this.root(), proof },
+      positive(process.env.FILE_IMPORT_TIMEOUT_MS, 300000),
+    );
+    this.temporaryImports.delete(filename);
+  }
+
   /** Only for a settled import never registered in metadata; no query can reference it. */
   async discardImport(filename: string) {
-    await fs.rm(path.dirname(this.managed(filename)), { recursive: true, force: true });
+    await this.removeImport(filename);
   }
 
   async query(filename: string, sql: string, bindings: any[] = []) {

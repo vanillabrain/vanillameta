@@ -26,6 +26,8 @@ import { dateData } from '@/utils/util';
 import { cn } from '@/lib/utils';
 import { readLayouts } from '../readLayouts';
 import DashboardAnalysis from '../Components/DashboardAnalysis';
+import DashboardDeleteDialog from '../Components/DashboardDeleteDialog';
+import { useQueryClient } from '@tanstack/react-query';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 const defaultDashboardInfo = {
@@ -42,6 +44,8 @@ const DashboardView = () => {
   const { t } = useTranslation();
   const { dashboardId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const { userState } = useContext(AuthContext);
@@ -163,39 +167,6 @@ const DashboardView = () => {
     });
   };
 
-  const handleDeleteSelect = () => {
-    alert.success(
-      <div className="[&_span]:font-semibold">
-        <span>{dashboardInfo.title}</span>
-        <br />
-        {t('dashboard.deleteConfirm')}
-      </div>,
-      {
-        closeCopy: t('data.cancel'),
-        actions: [
-          {
-            copy: t('data.confirm'),
-            onClick: () => {
-              showLoading();
-              DashboardService.deleteDashboard(dashboardId)
-                .then(response => {
-                  if (response.data.status == STATUS.SUCCESS) {
-                    navigate('/dashboard', { replace: true });
-                    snackbar.success(t('dashboard.deleted'));
-                  } else {
-                    alert.error(t('dashboard.deleteFailed'));
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
-            },
-          },
-        ],
-      },
-    );
-  };
-
   const handleShareToggle = () => {
     const data = {
       userId: userState.userId,
@@ -250,6 +221,16 @@ const DashboardView = () => {
     >
       <>
         <Seo title={dashboardInfo.title} />
+        <DashboardDeleteDialog
+          target={{ id: Number(dashboardId), title: dashboardInfo.title }}
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          onDeleted={receipt => {
+            void queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+            if (receipt.dashboardId === Number(dashboardId)) navigate('/dashboard', { replace: true });
+            snackbar.success(t('dashboard.deleted'));
+          }}
+        />
         <div className={cn('min-w-0', assistantOpen ? 'w-full lg:w-[calc(100%-400px)]' : 'w-full')}>
           <PageViewBox
             preserveChildren
@@ -295,7 +276,7 @@ const DashboardView = () => {
                     onClick={event => {
                       event.preventDefault();
                       event.stopPropagation();
-                      handleDeleteSelect();
+                      setDeleteOpen(true);
                     }}
                   />
                 </div>

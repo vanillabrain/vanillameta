@@ -12,7 +12,9 @@ import { createHash, randomUUID } from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { AnalysisUpload, DuckDBService } from '../analysis/duckdb.service';
-import { User } from '../user/entities/user.entity';
+import { lockSourceActor } from './source-write-lock';
+import { metadataTransaction } from '../common/metadata-work';
+import { ForbiddenException } from '@nestjs/common';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { Database } from './entities/database.entity';
@@ -267,9 +269,12 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
     request: unknown,
     actor: number,
     correctionInput?: unknown,
+    expectedEpoch?: number,
   ) {
     try {
       const source = await this.owner(sourceId, actor);
+      if (!Number.isSafeInteger(expectedEpoch) || expectedEpoch < 0)
+        throw new ForbiddenException('Current actor required.');
       const correction = this.correction(correctionInput);
       const requestId = this.requestId(request);
       if (typeof expected !== 'string' || !/^[a-f0-9]{64}$/.test(expected))
@@ -333,13 +338,7 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
         await fs.chmod(staged, 0o600);
         const job = await serializedViewWrite(this.repository(), () =>
           this.db.transaction(async manager => {
-            const user = await manager.findOne(User, {
-              where: { id: actor },
-              ...(this.db.options.type !== 'sqlite'
-                ? { lock: { mode: 'pessimistic_write' as const } }
-                : {}),
-            });
-            if (!user) throw new NotFoundException('사용자를 확인해 주세요.');
+            await lockSourceActor(manager, actor, expectedEpoch);
             const prior = await manager.findOne(FileRefresh, {
               where: { actorId: actor, requestId },
             });
@@ -355,6 +354,7 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
             return manager.save(FileRefresh, {
               id,
               actorId: actor,
+              actorEpoch: expectedEpoch,
               sourceId: source.id,
               requestId,
               payloadDigest,
@@ -399,7 +399,7 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
       if (file?.path) await fs.rm(file.path, { force: true });
     }
   }
-  async retry(sourceId: unknown, request: unknown, actor: number) {
+  async retry(sourceId: unknown, request: unknown, actor: number, expectedEpoch?: number) {
     await this.get(sourceId, request, actor);
     const job = await this.repository().findOneByOrFail({
       actorId: actor,
@@ -407,6 +407,11 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
       requestId: this.requestId(request),
     });
     if (job.status === 'succeeded' || job.status === 'running') return this.view(job);
+    if (job.actorEpoch === null || job.actorEpoch !== expectedEpoch)
+      throw new ForbiddenException(
+        '갱신을 접수한 인증 기준이 달라졌습니다. 최신 소스를 확인해 새 요청을 만들어 주세요.',
+      );
+    await metadataTransaction(this.db, manager => lockSourceActor(manager, actor, expectedEpoch));
     if (!['queued', 'interrupted', 'failed'].includes(job.status))
       throw new ConflictException('이 작업은 다시 실행할 수 없습니다.');
     if (job.attempts >= 3)
@@ -532,8 +537,9 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
           async activate =>
             serializedViewWrite(this.repository(), () =>
               this.db.transaction(async manager => {
+                await lockSourceActor(manager, job.actorId, job.actorEpoch);
                 const current = await manager.findOne(FileRefresh, {
-                  where: { id, status: 'running', leaseToken: token },
+                  where: { id, status: 'running', leaseToken: token, actorEpoch: job.actorEpoch },
                   ...(this.db.options.type !== 'sqlite'
                     ? { lock: { mode: 'pessimistic_write' as const } }
                     : {}),
@@ -571,6 +577,7 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
               }),
             ),
           job.correction ? JSON.parse(job.correction) : undefined,
+          job.actorEpoch,
         ),
       );
       await this.cleanupInput(id);

@@ -11,6 +11,7 @@ import {
   studioAssert,
   studioKeys,
   validateStudioDateRange,
+  validateStudioConditions,
   validateStudioDocument,
 } from './studio-document';
 
@@ -43,6 +44,7 @@ export function applyStudioOperation(
     'title',
     'filters',
     'dateRange',
+    'conditions',
   ]);
   const op = operation as unknown as StudioOperation;
 
@@ -146,6 +148,11 @@ export function applyStudioOperation(
       }
       break;
     }
+    case 'setConditions':
+      studioKeys(op, ['type', 'conditions']);
+      if (op.conditions === null) delete next.conditions;
+      else next.conditions = validateStudioConditions(op.conditions);
+      break;
     case 'setFilters':
       studioKeys(op, ['type', 'filters']);
       if (Array.isArray(op.filters) && op.filters.length === 0) delete next.filters;

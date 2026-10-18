@@ -33,7 +33,7 @@ describe('owned source lookup preview and atomic snapshot receipts', () => {
     JSON.parse((await db.manager.findOneByOrFail(Database, { id })).connectionConfig);
   const make = () => new SourceModelService(db, bi, new SourceAccessService(db), worker);
   const upload = async (name: string, body: string) =>
-    (await files.uploadFile({ originalname: name, buffer: Buffer.from(body) }, 1)).data.id;
+    (await files.uploadFile({ originalname: name, buffer: Buffer.from(body) }, 1, 3)).data.id;
   const counts = async () => ({
     sources: await db.manager.count(Database),
     receipts: await db.manager.count(SourceModelReceipt),
@@ -56,6 +56,8 @@ describe('owned source lookup preview and atomic snapshot receipts', () => {
     }).initialize();
     await db.manager.save(User, {
       id: 1,
+      authVersion: 3,
+      active: true,
       userId: 'model-test',
       password: 'not-used',
       email: 'model@example.invalid',

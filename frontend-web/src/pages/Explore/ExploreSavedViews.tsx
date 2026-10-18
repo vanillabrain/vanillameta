@@ -1,3 +1,5 @@
+import type { StudioConditions } from '@/pages/Dashboard/Studio/studioTypes';
+import { exploreConditions } from './exploreBasis';
 import { analysisPanelClassName } from '@/components/analysis/AnalysisUi';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +11,7 @@ import type { PivotRowSort, PivotTableMode, PivotTimeAxis } from './ExplorePivot
 
 export type ExploreViewState = {
   version: 1 | 2 | 3 | 4 | 5;
+  conditions?: StudioConditions;
   pivot?: {
     enabled: boolean;
     rowColumns: string[];
@@ -292,7 +295,9 @@ export default function ExploreSavedViews({
           throw Object.assign(new Error('source revision changed'), { response: { status: 409 } });
         if (!restorable(view.state))
           throw new Error('저장된 탐색 조건의 버전을 확인할 수 없습니다. 다른 보기를 선택하거나 삭제해 주세요.');
-        onRestore(view.state);
+        const conditions =
+          view.state.conditions === undefined ? undefined : exploreConditions(view.state.conditions, sourceRevision);
+        onRestore({ ...view.state, ...(conditions ? { conditions } : {}) });
         setNotice(`“${view.name}” 조건을 복원했습니다.`);
       } else {
         unwrap<{ id: number }>(response);

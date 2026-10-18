@@ -19,6 +19,7 @@ interface BoardItemProps {
   handleDeleteSelect: (id, title) => void;
   studioHref?: string;
   showStudioColumn?: boolean;
+  archiveAction?: { label: string; disabled?: boolean; onClick: () => void };
 }
 
 const TitleSpan = ({ children, className = '' }) => (
@@ -38,14 +39,19 @@ const IconRowHeader = ({ icon }) => (
 );
 
 function BoardItem(props: BoardItemProps) {
-  const { data, handleDeleteSelect, studioHref, showStudioColumn } = props;
+  const { data, handleDeleteSelect, studioHref, showStudioColumn, archiveAction } = props;
   const { id, title, componentType, icon, updatedAt } = data;
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
 
   return (
-    <li className="flex items-center gap-3 border-b border-border px-4 py-4 last:border-b-0 sm:px-5">
+    <li
+      className={cn(
+        'flex items-center gap-3 border-b border-border px-4 py-4 last:border-b-0 sm:px-5',
+        archiveAction && 'flex-wrap',
+      )}
+    >
       <RouterLink
         className="flex min-h-8 min-w-0 flex-1 flex-row items-center justify-between gap-3"
         to={String(id)}
@@ -67,6 +73,22 @@ function BoardItem(props: BoardItemProps) {
         </Button>
       )}
       {!studioHref && showStudioColumn && <span className="w-24 shrink-0" aria-hidden="true" />}
+      {archiveAction && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="max-w-full whitespace-normal break-words text-sm"
+          disabled={archiveAction.disabled}
+          aria-label={title + ' · ' + archiveAction.label}
+          onClick={event => {
+            event.preventDefault();
+            event.stopPropagation();
+            archiveAction.onClick();
+          }}
+        >
+          {archiveAction.label}
+        </Button>
+      )}
       <span className="hidden shrink-0 items-center gap-2 sm:ml-5 sm:flex">
         <ModifyButton
           aria-label={title + ' · 수정'}

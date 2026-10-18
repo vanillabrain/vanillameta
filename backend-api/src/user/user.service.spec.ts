@@ -16,6 +16,7 @@ describe('UserService', () => {
     update: jest.fn(),
     delete: jest.fn(),
     createQueryBuilder: jest.fn(),
+    manager: { connection: { options: { type: 'mysql' } } },
   });
 
   beforeEach(async () => {

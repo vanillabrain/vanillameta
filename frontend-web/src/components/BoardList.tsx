@@ -21,7 +21,7 @@ const GTSpan = ({ children, className = '' }) => (
 
 function BoardList(props) {
   const { t } = useTranslation();
-  const { postList, handleDeleteSelect, className, studioHrefForItem } = props;
+  const { postList, handleDeleteSelect, className, studioHrefForItem, archiveActionForItem } = props;
   const [totalCount, setTotalCount] = useState(1);
   const [page, setPage] = useState(1);
 
@@ -64,6 +64,7 @@ function BoardList(props) {
               handleDeleteSelect={handleDeleteSelect}
               studioHref={studioHrefForItem?.(item)}
               showStudioColumn={!!studioHrefForItem}
+              archiveAction={archiveActionForItem?.(item)}
             />
           );
         })}

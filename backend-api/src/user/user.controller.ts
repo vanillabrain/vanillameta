@@ -48,7 +48,10 @@ export class UserController {
   @ApiOperation({ summary: 'AccessToken 재 발급' })
   async reissuanceAccessToken(@Req() req, @Res() res) {
     const { userId } = req.user.refreshKeyData;
-    const accessToken = await this.userService.reissuanceAccessToken(userId);
+    const accessToken = await this.userService.reissuanceAccessToken(
+      userId,
+      req.user.refreshKeyData.authVersion ?? 0,
+    );
     return res.status(201).json({ accessToken: accessToken, message: 'success' });
   }
 

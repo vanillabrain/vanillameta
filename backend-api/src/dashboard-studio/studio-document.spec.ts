@@ -1,6 +1,10 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { validateStudioDocument, assertStudioReferences } from './studio-document';
+import {
+  validateStudioConditions,
+  validateStudioDocument,
+  assertStudioReferences,
+} from './studio-document';
 
 const fixture = () =>
   JSON.parse(readFileSync(resolve(__dirname, '../../../fixtures/studio/document-v1.json'), 'utf8'));
@@ -13,6 +17,30 @@ const context = () => ({
 });
 
 describe('Studio document server contract', () => {
+  it.each([
+    { sourceRevision: 'bad', definition: { include: null, exclude: null } },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: { include: { kind: 'group', operator: 'or', children: [] }, exclude: null },
+    },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: { include: null, exclude: null },
+      sql: 'SELECT secret',
+    },
+    {
+      sourceRevision: 'a'.repeat(64),
+      definition: {
+        include: { kind: 'predicate', column: 'amount', operator: 'eq', values: [null] },
+        exclude: null,
+      },
+    },
+  ])('UC052 rejects malformed scope without mutating input %#', conditions => {
+    const input = { ...fixture(), conditions };
+    const before = JSON.stringify(input);
+    expect(() => validateStudioDocument(input)).toThrow();
+    expect(JSON.stringify(input)).toBe(before);
+  });
   const dayRange = { column: 'event_time', start: '2026-01-01', end: '2026-01-01' };
   it.each([
     [dayRange],
@@ -233,4 +261,35 @@ it('rejects a dimension from a different source schema version', () => {
   const doc = fixture();
   doc.blocks[1].dimensionRefs[0].schemaVersion = 'stale-schema';
   expect(() => assertStudioReferences(doc, context())).toThrow();
+});
+
+// FR015: wrappers preserve the exact executable snapshot; legacy absence stays native.
+describe('condition business meaning snapshots', () => {
+  const definition = { include: null, exclude: null };
+  const semantics = {
+    schemaVersion: 1,
+    catalogVersion: 3,
+    columns: [{ column: 'business_day', businessType: 'date', dateFormat: 'YYYY/MM/DD' }],
+  };
+  it('keeps frozen meaning and never attaches latest meaning to legacy conditions', () => {
+    const legacy = { sourceRevision: 'a'.repeat(64), definition };
+    expect(validateStudioConditions(legacy)).toEqual(legacy);
+    const input = { ...legacy, semantics };
+    expect(validateStudioConditions(input)).toEqual(input);
+    expect(input.semantics.catalogVersion).toBe(3);
+  });
+  it.each([
+    null,
+    { ...semantics, catalogVersion: 0 },
+    { ...semantics, sql: 'SELECT private' },
+    { ...semantics, columns: [...semantics.columns, ...semantics.columns] },
+    {
+      ...semantics,
+      columns: [{ column: 'business_day', businessType: 'date', dateFormat: '%Y/%m/%d' }],
+    },
+  ])('refuses malformed executable metadata without stripping it (%j)', value => {
+    expect(() =>
+      validateStudioConditions({ sourceRevision: 'a'.repeat(64), definition, semantics: value }),
+    ).toThrow();
+  });
 });

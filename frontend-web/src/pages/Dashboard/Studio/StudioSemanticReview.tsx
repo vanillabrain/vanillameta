@@ -1,6 +1,7 @@
 import StudioReport from './StudioReport';
 import { useTranslation } from 'react-i18next';
 import React, { useId } from 'react';
+import StudioMetricBasis from './StudioMetricBasis';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { formatMetric, localizedMetricSuffix } from '@/utils/formatMetric';
 import { analysisOptions } from '../analysisOptions';
@@ -38,11 +39,15 @@ export default function StudioSemanticReview({ proposal }: { proposal: CreationP
                   </>
                 )}
               </p>
-              {metric.denominatorColumn && (
-                <p className="studio-create-definition">
-                  분모: {metric.denominatorColumn} · 배율 {metric.scale ?? 1}
-                </p>
-              )}
+              <details className="min-w-0 text-xs text-muted-foreground">
+                <summary
+                  aria-label={`${index + 1}번 ${item.title} 계산 기준 확인`}
+                  className="cursor-pointer rounded-sm py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  계산 기준 확인
+                </summary>
+                <StudioMetricBasis definition={metric} />
+              </details>
               {item.dimension && (
                 <p className="studio-create-definition">
                   차원: {item.dimension.column} · {item.dimension.type}

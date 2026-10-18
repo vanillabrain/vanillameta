@@ -1,3 +1,4 @@
+import type { StudioConditions } from '../Studio/studioTypes';
 import { responsiveBlockStyle } from '../responsiveBlockStyle';
 import DashboardPivots from './DashboardPivots';
 import React, { useEffect, useRef, useState } from 'react';
@@ -40,7 +41,7 @@ import SourceDetails, {
   sameContributionDateRange,
 } from './SourceDetails';
 import { TimeSelection, timeRangeLabel, validTimeRange } from './timeSelection';
-import { validateStudioFilters, validateStudioDateRange } from '../Studio/studioDocument';
+import { validateStudioFilters, validateStudioDateRange, validateStudioConditions } from '../Studio/studioDocument';
 import { cn } from '@/lib/utils';
 
 const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
@@ -68,6 +69,16 @@ export const parseDefaultDateRange = (
   if (input === undefined) return { kind: 'none' };
   try {
     return { kind: 'range', dateRange: validateStudioDateRange(input) };
+  } catch {
+    return { kind: 'invalid' };
+  }
+};
+export const parseDefaultConditions = (
+  input: unknown,
+): { kind: 'none' } | { kind: 'conditions'; conditions: StudioConditions } | { kind: 'invalid' } => {
+  if (input === undefined) return { kind: 'none' };
+  try {
+    return { kind: 'conditions', conditions: validateStudioConditions(input) };
   } catch {
     return { kind: 'invalid' };
   }
@@ -117,6 +128,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
   const [preview, setPreview] = useState<any>(null);
   const [filters, setFilters] = useState<Record<string, FilterValue[]>>({});
   const [dateDraft, setDateDraft] = useState<DateRange>({ column: '', start: '', end: '' });
+  const [conditions, setConditions] = useState<StudioConditions | undefined>();
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [trendGrain, setTrendGrain] = useState<TrendGrain>('auto');
   const [comparePrevious, setComparePrevious] = useState(false);
@@ -172,6 +184,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
       setFilters({});
       setDateDraft({ column: '', start: '', end: '' });
       setDateRange(null);
+      setConditions(undefined);
       setTrendGrain('auto');
       setComparePrevious(false);
       setRelativePeriod(null);
@@ -196,7 +209,13 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           const firstLoad = loadedDashboard.current !== dashboardId;
           const defaults = parseDefaultFilters(response.data.data?.defaultFilters);
           const defaultDateRange = parseDefaultDateRange(response.data.data?.defaultDateRange);
-          if (defaults.kind === 'invalid' || defaultDateRange.kind === 'invalid') {
+          const defaultConditions = parseDefaultConditions(response.data.data?.defaultConditions);
+          if (
+            Object.prototype.hasOwnProperty.call(response.data.data ?? {}, 'defaultConditions') &&
+            response.data.data.defaultConditions === undefined
+          )
+            defaultConditions.kind = 'invalid';
+          if (defaultConditions.kind === 'invalid' || defaults.kind === 'invalid' || defaultDateRange.kind === 'invalid') {
             // Never query an unverified scope: this screen keeps the saved definition authoritative
             // and offers a retry instead of rendering a whole or partially filtered dataset.
             canonicalRefreshDone.current = analysisRefresh;
@@ -208,6 +227,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           canonicalRefreshDone.current = analysisRefresh;
           loadedDashboard.current = dashboardId;
           setDraft(response.data.data);
+          setConditions(defaultConditions.kind === 'conditions' ? defaultConditions.conditions : undefined);
           setDefinitionError('');
           // The server-owned default scope applies on the first load of this dashboard only, and it
           // never overwrites a filter the user already chose (including one applied during the fetch).
@@ -221,7 +241,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
                 ? current
                 : Object.fromEntries(defaults.filters.map(filter => [filter.column, filter.values])),
             );
-        } else if (analysisRefresh) {
+        } else {
           throw new Error('저장된 대시보드 정의를 다시 읽지 못했습니다. 전체 데이터로 복구하거나 화면을 다시 열어 주세요.');
         }
         // Ordinary dashboards remain usable if their sources cannot support common filters.
@@ -238,8 +258,8 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           );
           return;
         }
-        if (request === loadSerial.current && analysisRefresh) {
-          setError('저장된 대시보드 정의를 다시 읽지 못했습니다. 화면을 다시 열어 주세요.');
+        if (request === loadSerial.current) {
+          setDefinitionError('저장된 대시보드 정의를 다시 읽지 못했습니다. 화면을 다시 열어 주세요.');
           setBusy(false);
         }
         // Unsupported dashboards keep their standard viewer.
@@ -297,6 +317,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           comparePrevious: comparePrevious && !!dateRange,
           filters: JSON.parse(previewFilterKey),
           ...(dateRange ? { dateRange } : {}),
+          ...(conditions ? { conditions } : {}),
         },
         { timeout: 60000, signal: controller.signal },
       )
@@ -324,6 +345,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
   }, [
     draft,
     previewFilterKey,
+    conditions,
     dateRange,
     dashboardId,
     trendGrain,
@@ -387,7 +409,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
     intent.cancel();
     if (abandoned && target && !target.disabled && !document.querySelector('[role="dialog"]')) target.focus();
   }, [busy, analysisLoading, error, preview, filters, dashboardId, detailsOpen, editing]);
-  if (!draft) {
+  if (!draft || definitionError) {
     contributionInteraction.current = { disabled: true, preview: null, periodKey: '' };
     // A malformed saved scope must not fall through to the ordinary viewer: that would show the
     // whole dataset under a dashboard whose common filters are unknown.
@@ -395,10 +417,13 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
       return (
         <Notice severity="warning" role="alert">
           {definitionError}
-          <Button onClick={() => setDefinitionRetry(value => value + 1)}>대시보드 정의 다시 조회</Button>
+          {analysisLoading && <Skeleton role="progressbar" aria-label="분석 범위 다시 확인 중" className="h-2 w-full" />}
+          <Button disabled={analysisLoading} onClick={() => setDefinitionRetry(value => value + 1)}>
+            대시보드 정의 다시 조회
+          </Button>
         </Notice>
       );
-    return <>{children}</>;
+    return analysisLoading ? <Skeleton className="h-32 w-full" aria-label="분석 범위 확인 중" /> : <>{children}</>;
   }
   const dimensions = preview?.dimensions || [];
   const temporalColumns = preview?.temporalColumns || [];
@@ -1394,13 +1419,21 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
             </Card>
           ))}
         </div>
+      ) : conditions ? (
+        <Notice severity="info">포함·제외 조건의 미리보기 결과를 확인하는 중입니다. 원본 범위로 대체하지 않습니다.</Notice>
       ) : (
         children
+      )}
+      {conditions && (
+        <Notice severity="info" role="note">
+          포함·제외 조건 적용됨 · 저장된 분석 범위이며 읽기 전용입니다.
+        </Notice>
       )}
       <DashboardPivots
         dashboardId={Number(dashboardId)}
         filters={active.map(([column, values]) => ({ column, values }))}
         dateRange={dateRange ?? undefined}
+        conditions={conditions}
         paused={analysisLoading || busy || !!error || !!dateError || unappliedDates}
         onFilter={next =>
           setFilters(Object.fromEntries(next.filter(f => 'values' in f).map(f => [f.column, 'values' in f ? f.values : []])))
@@ -1412,6 +1445,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           open={detailsOpen}
           dashboardId={Number(dashboardId)}
           draft={draft}
+          conditions={conditions}
           filters={active.map(([column, values]) => ({ column, values }))}
           dateRange={dateRange}
           comparePrevious={comparePrevious}
@@ -1446,6 +1480,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
         }}
         dashboardId={Number(dashboardId)}
         draft={draft}
+        conditions={conditions}
         filters={active.map(([column, values]) => ({ column, values }))}
         dateRange={dateRange}
         trendGrain={trendGrain}
@@ -1458,6 +1493,12 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           } catch {
             /* Display remains usable without browser storage. */
           }
+          const scope = parseDefaultConditions(next.defaultConditions);
+          if (scope.kind === 'invalid' || (conditions && scope.kind !== 'conditions')) {
+            setDefinitionError('저장된 포함·제외 조건을 확인할 수 없습니다. 다시 조회하세요.');
+            return;
+          }
+          setConditions(scope.kind === 'conditions' ? scope.conditions : undefined);
           setDraft(next);
           setPeriodHistory([]);
           pendingTimeFocus.current?.cancel();

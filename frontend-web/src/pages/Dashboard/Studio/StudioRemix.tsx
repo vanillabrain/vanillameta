@@ -60,10 +60,12 @@ export function StudioRemixFlow({
   embedded = false,
   expectedVersion,
   onSave,
+  onOriginRefresh,
 }: {
   token: string;
   embedded?: boolean;
   expectedVersion?: number;
+  onOriginRefresh?: () => void;
   onSave: (request: RemixSaveInput, isCurrent: () => boolean) => Promise<void>;
 }) {
   const identity = useId().replace(/:/g, '');
@@ -84,7 +86,8 @@ export function StudioRemixFlow({
     activeActor = useRef(actorKey()),
     mounted = useRef(true),
     abort = useRef<AbortController | null>(null);
-  const path = '/published/' + encodeURIComponent(token);
+  const received = token.startsWith('d-');
+  const path = received ? '/received/' + token.split('-')[3] : '/published/' + encodeURIComponent(token);
   const initialize = useCallback(async () => {
     epoch.current += 1;
     const generation = epoch.current;
@@ -115,7 +118,7 @@ export function StudioRemixFlow({
       setSources(rows);
     } catch (cause: any) {
       if (mounted.current && generation === epoch.current) {
-        setError(remixError(cause));
+        setError(remixError(cause, received));
         if (cause?.response?.status === 401) setLogin(true);
       }
     } finally {
@@ -152,6 +155,7 @@ export function StudioRemixFlow({
       mapping: selectedMapping,
       excludedBlockIds: excludedIds,
       expectedVersion: requirements.version,
+      expectedLifecycleRevision: requirements.lifecycleRevision,
     };
     try {
       const next = await previewRemix(token, body, controller.signal);
@@ -166,7 +170,7 @@ export function StudioRemixFlow({
       );
     } catch (cause: any) {
       if (mounted.current && generation === epoch.current && !controller.signal.aborted) {
-        setError(remixError(cause));
+        setError(remixError(cause, received));
         if (cause?.response?.status === 401) setLogin(true);
       }
     } finally {
@@ -203,7 +207,7 @@ export function StudioRemixFlow({
       choose(id);
     } catch (cause) {
       if (mounted.current && generation === epoch.current) {
-        setError(remixError(cause));
+        setError(remixError(cause, received));
         setBusy('');
       }
     }
@@ -217,6 +221,7 @@ export function StudioRemixFlow({
         mapping: { ...preview.mapping },
         excludedBlockIds: [...excluded],
         expectedVersion: preview.version,
+        expectedLifecycleRevision: preview.lifecycleRevision,
         expectedSourceRevision: preview.sourceRevision,
       };
     const request = pendingSave.current;
@@ -234,7 +239,7 @@ export function StudioRemixFlow({
       if (!isCurrent()) return;
       if (cause?.response?.status && cause.response.status < 500 && pendingSave.current === request)
         pendingSave.current = null;
-      setError(remixError(cause));
+      setError(remixError(cause, received));
       if (pendingSave.current === request)
         setNotice('저장 완료 여부를 확인하지 못했습니다. 같은 요청으로 재시도하면 기존 저장 결과를 확인합니다.');
     } finally {
@@ -262,14 +267,14 @@ export function StudioRemixFlow({
             </div>
             <Button asChild variant="ghost" className={pendingSave.current ? 'pointer-events-none opacity-50' : undefined}>
               <a
-                href={path}
+                href={received ? '/organization' : path}
                 aria-disabled={!!pendingSave.current || undefined}
                 tabIndex={pendingSave.current ? -1 : undefined}
                 onClick={event => {
                   if (pendingSave.current) event.preventDefault();
                 }}
               >
-                게시본으로 돌아가기
+                {received ? '받은 자료로 돌아가기' : '게시본으로 돌아가기'}
               </a>
             </Button>
           </header>
@@ -291,7 +296,7 @@ export function StudioRemixFlow({
           <section className="studio-remix-login">
             <h2>내 데이터를 쓰려면 로그인해 주세요</h2>
             <p>
-              별도 창에서 로그인한 뒤 이 화면으로 돌아오세요. 공개 원본의 데이터를 가져오지 않고 내 소유 데이터에 지표를
+              별도 창에서 로그인한 뒤 이 화면으로 돌아오세요. 원본의 데이터를 가져오지 않고 내 소유 데이터에 지표를
               연결합니다.
             </p>
             <Button asChild>
@@ -299,21 +304,23 @@ export function StudioRemixFlow({
                 별도 창에서 로그인
               </a>
             </Button>
-            <Button variant="outline" onClick={initialize}>
+            <Button variant="outline" onClick={received && onOriginRefresh ? onOriginRefresh : initialize}>
               로그인 후 다시 확인
             </Button>
           </section>
         ) : (
           <>
             {!requirements && !busy && (
-              <Button variant="outline" onClick={initialize}>
+              <Button variant="outline" onClick={received && onOriginRefresh ? onOriginRefresh : initialize}>
                 복제 정의 다시 확인
               </Button>
             )}
             {requirements && (
               <>
                 <section className="studio-remix-origin">
-                  <span className="studio-eyebrow">원본 게시본 · V{requirements.version}</span>
+                  <span className="studio-eyebrow">
+                    {received ? '받은 분석' : '원본 게시본'} · V{requirements.version}
+                  </span>
                   <h2>{requirements.title}</h2>
                   <p>구조화된 지표와 배치를 가져옵니다. 원본 파일·연결 정보·공유 링크·실행 이력은 복사하지 않습니다.</p>
                   {!!requirements.filters?.length && (
@@ -326,14 +333,24 @@ export function StudioRemixFlow({
                       ))}
                     </div>
                   )}
+                  {requirements.conditions && (
+                    <p role="note" className="min-w-0 break-words">
+                      포함·제외 조건이 있는 게시본입니다. 모든 조건 열을 연결해야 하며 조건을 제거한 복사본은 만들지
+                      않습니다.
+                    </p>
+                  )}
                   {requirements.dateRange && (
                     <div className="studio-published-filters" role="note" aria-label="원본 게시본 공통 기간">
                       <span className="studio-eyebrow">원본 공통 기간 · 읽기 전용</span>
                       <span className="studio-published-filter">{studioDateRangeSummary(requirements.dateRange)}</span>
                     </div>
                   )}
-                  <Button variant="outline" onClick={initialize} disabled={locked}>
-                    게시 정의 새로 확인 (매핑 초기화)
+                  <Button
+                    variant="outline"
+                    onClick={received && onOriginRefresh ? onOriginRefresh : initialize}
+                    disabled={locked}
+                  >
+                    {received ? '공유 원본' : '게시 정의'} 새로 확인 (매핑 초기화)
                   </Button>
                 </section>
                 <div className="studio-remix-columns">
@@ -474,6 +491,13 @@ export function StudioRemixFlow({
                     형식이 맞는 대상 열을 선택한 뒤 매핑 확인을 눌러 주세요.
                   </Notice>
                 )}
+                {!!preview?.unmappedConditions?.length && (
+                  <Notice severity="warning">
+                    포함·제외 조건 열을 연결할 수 없습니다: {preview.unmappedConditions.join(', ')}. 모든 조건 열을 연결해야
+                    저장할 수 있습니다.
+                  </Notice>
+                )}
+                {preview?.mappedConditions && <p role="note">포함·제외 조건 적용됨 · 읽기 전용</p>}
                 {preview?.unmappedDateRange && (
                   <Notice severity="warning" role="alert">
                     저장된 기간 열 '{preview.unmappedDateRange}'을(를) 대상 데이터에서 확인할 수 없습니다. 기간이 빠진 결과로

@@ -8,6 +8,7 @@ import WidgetModify from './WidgetModify';
 import WidgetView from './WidgetView';
 import DashboardView from '@/pages/Dashboard/DashboardView';
 import DataLayout from '@/pages/Data/DataLayout';
+import { setToken } from '@/helpers/authHelper';
 import PageTitleBox from '@/components/PageTitleBox';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { LayoutContext } from '@/contexts/LayoutContext';
@@ -134,6 +135,12 @@ vi.mock('@/components/PageViewBox', () => ({
     </section>
   ),
 }));
+// These DashboardView cases isolate dashboardService/grid error handling. Scope loading and
+// fail-closed behavior belong to DashboardAnalysis.test.tsx; never rely on an unmocked HTTP
+// failure making its children render as if the saved scope had been verified.
+vi.mock('@/pages/Dashboard/Components/DashboardAnalysis', () => ({
+  default: ({ children }: any) => <>{children}</>,
+}));
 vi.mock('@/components/button/ShareButton', () => ({ default: () => null }));
 vi.mock('@/seo/Seo', () => ({ default: () => null }));
 vi.mock('react-grid-layout', () => ({
@@ -216,6 +223,9 @@ async function confirmSave() {
 }
 
 beforeEach(() => {
+  localStorage.clear();
+  sessionStorage.clear();
+  setToken('widget-regression-session');
   vi.clearAllMocks();
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   mocks.params = { widgetId: '1', dashboardId: '1' };

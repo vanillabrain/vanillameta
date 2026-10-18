@@ -1,3 +1,4 @@
+import type { StudioConditions } from '../Studio/studioTypes';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -15,12 +16,14 @@ export default function DashboardPivots({
   dashboardId,
   filters,
   dateRange,
+  conditions,
   paused,
   onFilter,
 }: {
   dashboardId: number;
   filters: ExploreFilter[];
   dateRange?: any;
+  conditions?: StudioConditions;
   paused: boolean;
   onFilter: (filters: ExploreFilter[]) => void;
 }) {
@@ -85,6 +88,7 @@ export default function DashboardPivots({
           onReload={() => setReload(v => v + 1)}
           common={stableFilters}
           dateRange={dateRange}
+          conditions={conditions}
           paused={paused}
           onFilter={onFilter}
           removing={removing === item.id}
@@ -136,7 +140,18 @@ function DashboardPivot(props: any) {
     </Card>
   );
 }
-function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemove, removing, requestPool, onReload }: any) {
+function ValidDashboardPivot({
+  item,
+  common,
+  dateRange,
+  conditions,
+  paused,
+  onFilter,
+  onRemove,
+  removing,
+  requestPool,
+  onReload,
+}: any) {
   const filters = useMemo(() => mergePivotFilters(item.state.filters, common), [item.state.filters, common]);
   const range: ExploreDateRange | undefined = dateRange ?? item.state.dateRange ?? undefined;
   const timeUnsupported = !!range && (!/^\d{4}-\d{2}-\d{2}$/.test(range.start) || !/^\d{4}-\d{2}-\d{2}$/.test(range.end));
@@ -155,7 +170,7 @@ function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemo
           기간 {range ? `${range.start} ~ ${range.end} · ${range.timeZone ?? 'UTC'}` : '전체'} · 필터{' '}
           {filters.map(f => f.column).join(', ') || '없음'}
         </p>
-        {item.state.mode === 'segment' && Array.isArray(item.measures) && (
+        {item.state.mode === 'segment' && !(conditions || item.state.conditions) && Array.isArray(item.measures) && (
           <DashboardSegmentExplore
             item={item}
             filters={filters}
@@ -164,7 +179,11 @@ function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemo
             onReload={onReload}
           />
         )}
-        {item.state.mode === 'segment' ? (
+        {item.state.mode === 'segment' && (conditions || item.state.conditions) ? (
+          <Notice severity="warning">
+            집계 조건 Pivot은 적용한 분석 조건을 아직 지원하지 않습니다. 조건을 보존하며 조건 없는 결과로 대체하지 않습니다.
+          </Notice>
+        ) : item.state.mode === 'segment' ? (
           <DashboardSegmentPivot
             item={item}
             filters={filters}
@@ -185,6 +204,7 @@ function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemo
             axes={item.state.pivot}
             filters={filters}
             dateRange={range}
+            conditions={conditions}
             paused={paused || filters.length > 5 || timeUnsupported}
             pauseReason={
               filters.length > 5

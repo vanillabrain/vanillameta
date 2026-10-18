@@ -275,6 +275,8 @@ export const executionSummary = (run: StudioExecution) => {
     return ['succeeded', 'completed'].includes(run.status)
       ? '저장 완료 · 서버에 반영됐습니다.'
       : '저장 완료 · 이후 단계는 끝나지 않았습니다. 저장 결과는 유지됩니다.';
+  if (run.steps.some(step => step.errorCode === 'CONDITION_REVIEW_REQUIRED'))
+    return '조건 변경안 검토 대기 · 명시 적용 후 저장하세요. 아직 초안에 적용하거나 저장하지 않았습니다.';
   if (run.status === 'unsupported') return '지원 예정 기능입니다. 저장하거나 공유하지 않았습니다.';
   if (run.status === 'interrupted') return '서버 실행이 중단됐습니다. 완료 단계는 유지되며 자동 재실행하지 않습니다.';
   if (run.status === 'cancelled') return '실행을 중지했습니다. 단계별 저장 여부를 확인하세요.';

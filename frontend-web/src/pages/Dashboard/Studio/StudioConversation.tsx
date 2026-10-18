@@ -21,6 +21,7 @@ import { studioRequestId, StudioSaveResult } from './studioApi';
 import { studioFilterSummary, studioDateRangeSummary } from './studioDocument';
 import { StudioFilter, StudioDateRange } from './studioTypes';
 import StudioExecutionActivity from './StudioExecutionActivity';
+import StudioConditionReview from './StudioConditionReview';
 import { AssistantMessage, messageText } from '../assistantTransport';
 import {
   canApplyStudioRun,
@@ -34,7 +35,7 @@ type Props = {
   context: StudioRunContext;
   selectedTitle?: string;
   /** Scope confirmed for the rows on screen. The card never claims a filter that is not displayed yet. */
-  filterScope?: { applied: StudioFilter[]; pending: boolean; dateRange?: StudioDateRange };
+  filterScope?: { applied: StudioFilter[]; pending: boolean; dateRange?: StudioDateRange; conditionsApplied?: boolean };
   onApply: (result: StudioRunResult) => boolean;
   locked: boolean;
   onPrepareCreationPublication?: (target: NonNullable<StudioExecution['creationSaveResult']>) => void;
@@ -58,8 +59,15 @@ export default function StudioConversation({
   lockedRef.current = locked;
   const [localInput, setLocalInput] = useState('');
   const input = draft?.text ?? localInput;
+  const inputRef = useRef(input);
+  inputRef.current = input;
   const setInput = draft?.onChange ?? setLocalInput;
   const [notice, setNotice] = useState('');
+  const [conditionReview, setConditionReview] = useState<{ result: StudioRunResult; before: StudioRunContext } | null>(null);
+  useEffect(
+    () => setConditionReview(null),
+    [context.dashboardId, context.document.sourceId, context.expectedSourceRevision],
+  );
   const [runs, setRuns] = useState<StudioExecution[]>([]);
   const [activityError, setActivityError] = useState('');
   const [acting, setActing] = useState(false);
@@ -122,6 +130,22 @@ export default function StudioConversation({
       if (!applied) setNotice(executionSummary(run) + ' 현재 편집은 유지했습니다.');
       return;
     }
+    // A common-scope proposal never inherits model consent from a combined save request.
+    if (result?.intent === 'edit' && result.proposedOperations.some(operation => operation.type === 'setConditions')) {
+      const before = presentationContexts.current.get(run.requestId);
+      if (
+        !before ||
+        before.dashboardId !== current.current.dashboardId ||
+        lockedRef.current ||
+        !canApplyStudioRun(result, current.current)
+      ) {
+        setNotice('조건 변경안을 기다리는 동안 편집 기준이 바뀌었습니다. 초안을 유지했습니다. 현재 상태로 다시 질문하세요.');
+        return;
+      }
+      setConditionReview({ result, before });
+      setNotice('조건 변경안과 전체 미리보기를 확인하세요. 적용하거나 저장하지 않았습니다.');
+      return;
+    }
     if (run.steps.some(step => step.stepId === 'saveDraft' && step.status !== 'succeeded')) {
       setNotice(
         'AI 제안은 준비됐지만 저장은 완료되지 않았습니다. 초안에 자동 적용하지 않았습니다. 실패한 저장 단계부터 다시 시도하세요.',
@@ -154,6 +178,7 @@ export default function StudioConversation({
     () =>
       studioAssistantTransport(() => current.current, {
         onRequest: request => {
+          setConditionReview(null);
           requests.current.set(request.requestId, request);
           presentationContexts.current.set(request.requestId, request);
           if (requests.current.size > 10) requests.current.delete(requests.current.keys().next().value);
@@ -168,7 +193,15 @@ export default function StudioConversation({
     transport,
     onFinish: ({ message, isAbort, isError }) => {
       const payload = message.metadata?.result;
-      if (!isAbort && !isError && payload?.execution) receive.current(payload.execution, payload.result);
+      if (!isAbort && !isError && payload?.execution) {
+        receive.current(payload.execution, payload.result);
+        const request = requests.current.get(payload.execution.requestId);
+        const conditionProposal = payload.result?.proposedOperations.some(operation => operation.type === 'setConditions');
+        // Keep the submitted question on failure/cancel or while reviewing common-scope changes.
+        // A late successful response must not clear a newer question.
+        if (payload.execution.status === 'succeeded' && !conditionProposal && request?.prompt === inputRef.current.trim())
+          setInput('');
+      }
     },
   });
   const busy = status === 'submitted' || status === 'streaming';
@@ -398,7 +431,8 @@ export default function StudioConversation({
               ? '소스 #' + creationContext.creationResult.sourceId + ' · 전체 기간 · 필터 없음'
               : studioDateRangeSummary(filterScope?.dateRange) +
                 ' · ' +
-                (filterScope?.applied.length ? '공통 필터 ' + studioFilterSummary(filterScope.applied) : '필터 없음')}
+                (filterScope?.applied.length ? '공통 필터 ' + studioFilterSummary(filterScope.applied) : '필터 없음') +
+                (filterScope?.conditionsApplied ? ' · 포함·제외 조건 적용됨' : '')}
           </span>
           {!creationContext && filterScope?.pending && (
             <span>
@@ -410,6 +444,40 @@ export default function StudioConversation({
           )}
           <span>Codex · gpt-6-luna 요청</span>
         </div>
+        {conditionReview && (
+          <StudioConditionReview
+            before={conditionReview.before.document}
+            result={conditionReview.result}
+            disabled={
+              locked ||
+              busy ||
+              acting ||
+              !canApplyStudioRun(conditionReview.result, context) ||
+              JSON.stringify(conditionReview.before.document) !== JSON.stringify(context.document)
+            }
+            onDismiss={() => {
+              setConditionReview(null);
+              setNotice('조건 변경안을 닫았습니다. 현재 초안을 유지했습니다.');
+            }}
+            onApply={() => {
+              const pending = conditionReview;
+              if (
+                lockedRef.current ||
+                busy ||
+                acting ||
+                !canApplyStudioRun(pending.result, current.current) ||
+                JSON.stringify(pending.before.document) !== JSON.stringify(current.current.document)
+              ) {
+                setNotice('조건 변경안의 기준이 달라졌습니다. 현재 초안을 유지했습니다. 다시 질문하세요.');
+                return;
+              }
+              if (apply.current(pending.result)) {
+                setConditionReview(null);
+                setNotice('조건 변경안을 초안에 적용했습니다. 아직 저장하지 않았습니다. 되돌리기로 취소할 수 있습니다.');
+              } else setNotice('조건 변경안을 적용하지 못했습니다. 초안과 질문을 유지했습니다.');
+            }}
+          />
+        )}
         <StudioExecutionActivity
           runs={runs}
           busy={acting || creationUncertain}
@@ -503,7 +571,6 @@ export default function StudioConversation({
             return;
           }
           sendMessage({ text: input.trim() });
-          setInput('');
         }}
       >
         <div className="flex flex-wrap items-center gap-2 text-xs" aria-label="대화 요청 대상">

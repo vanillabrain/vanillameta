@@ -191,7 +191,7 @@ describe('UC012 B SQLite atomic creation', () => {
     expect(await db.getRepository(AnalysisCreationReceipt).count()).toBe(1);
     expect(await db.getRepository(Metric).count()).toBe(1);
   });
-  it('orders an independent source writer after the creation transaction', async () => {
+  it('allows an independent source writer during SQL preparation then rejects its changed pointer before persistence', async () => {
     second = await new DataSource({
       type: 'sqlite',
       database: path.join(dir, 'metadata.db'),
@@ -201,15 +201,15 @@ describe('UC012 B SQLite atomic creation', () => {
     jest.spyOn(dashboards, 'preview').mockImplementation(async (b: any) => {
       await expect(
         second.query("UPDATE database SET connectionConfig = '{}' WHERE id = 1"),
-      ).rejects.toThrow('SQLITE_BUSY');
+      ).resolves.toBeUndefined();
       return {
         status: 'SUCCESS',
         data: { draft: b.draft, widgets: b.draft.widgets.map(w => ({ ...w, datas: [] })) },
       } as any;
     });
-    const saved = await service.save(body, 10);
-    await second.query("UPDATE database SET connectionConfig = '{}' WHERE id = 1");
-    expect((await service.save(body, 10)).id).toBe(saved.id);
+    const before = await counts();
+    await expect(service.save(body, 10)).rejects.toThrow('SOURCE_CHANGED');
+    expect(await counts()).toEqual(before);
   });
   it('makes different simultaneous request keys re-preview instead of duplicating a new metric', async () => {
     second = await new DataSource({
@@ -277,14 +277,22 @@ describe('UC012 B SQLite atomic creation', () => {
   });
   it('detects current pointer replacement even when pinned profile is unchanged', async () => {
     const before = await counts();
-    jest.spyOn(dashboards, 'save').mockImplementation(async () => {
-      await db.getRepository(Database).update(1, {
-        connectionConfig: JSON.stringify({
-          client: 'duckdb',
-          connection: { filename: '/immutable/v2.duckdb' },
-        }),
-      });
-      return { data: { id: 123, draft: { widgets: [{ blockId: 'a' }, { blockId: 'b' }] } } } as any;
+    const original = dashboards.prepareSave.bind(dashboards);
+    jest.spyOn(dashboards, 'prepareSave').mockImplementation(async (...args) => {
+      const prepared = await original(...args);
+      return {
+        ...prepared,
+        persist: async (...values) => {
+          const result = await prepared.persist(...values);
+          await db.getRepository(Database).update(1, {
+            connectionConfig: JSON.stringify({
+              client: 'duckdb',
+              connection: { filename: '/immutable/v2.duckdb' },
+            }),
+          });
+          return result;
+        },
+      };
     });
     await expect(service.save(body, 10)).rejects.toThrow('SOURCE_CHANGED');
     expect(await counts()).toEqual(before);

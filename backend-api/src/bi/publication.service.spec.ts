@@ -1,3 +1,10 @@
+import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
+import {
+  EnterpriseGroup,
+  EnterpriseGroupMember,
+  EnterpriseGroupGrant,
+} from '../enterprise/entities/enterprise-group.entity';
+import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-dashboard-delivery.entity';
 jest.mock('../connection/connection.service', () => ({ ConnectionService: class {} }));
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import {
@@ -16,6 +23,11 @@ import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboar
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { EnterpriseResourceGrant } from '../enterprise/entities/enterprise-resource-grant.entity';
+import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
+import { SharedReuseOriginService } from './shared-reuse-origin.service';
 import {
   PUBLICATION_TICKET_BYTES,
   PUBLICATION_TICKET_LIMIT,
@@ -29,6 +41,8 @@ import { readReuseRecipe } from './reuse-recipe';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACTOR = 2;
 const OTHER = 3;
+/** UC-051: a delegated publisher who is neither the dashboard owner nor the source owner. */
+const DELEGATE = 5;
 const DASHBOARD = 12;
 const blocks = ['block-1', 'block-2'];
 const layouts = () => ({
@@ -94,7 +108,27 @@ describe('UC-018 publication backend', () => {
   let ai: { analysis: jest.Mock; preview: jest.Mock };
   let bi: { profile: jest.Mock };
   let revision: string;
+  let access: SourceAccessService;
   const publications = () => db.getRepository(DashboardPublication);
+  /** UC-051 grants are inserted directly; the administration API has its own policy tests. */
+  const grant = (
+    kind: 'source' | 'dashboard',
+    resourceId: number,
+    rights: { read?: boolean; publish?: boolean },
+    version = 1,
+  ) =>
+    db.getRepository(EnterpriseResourceGrant).save({
+      resourceKind: kind,
+      resourceId,
+      recipientId: DELEGATE,
+      organizationId: 1,
+      ownerId: ACTOR,
+      version,
+      read: rights.read === true,
+      edit: false,
+      publish: rights.publish === true,
+      export: false,
+    });
   const dashboard = () => db.getRepository(Dashboard).findOneOrFail({ where: { id: DASHBOARD } });
   const currentRevision = async () => dashboardRevision(await dashboard());
 
@@ -114,7 +148,21 @@ describe('UC-018 publication backend', () => {
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: [Dashboard, DashboardPublication, DashboardWidget, UserMapping, Database],
+      entities: [
+        Dashboard,
+        DashboardPublication,
+        DashboardWidget,
+        UserMapping,
+        Database,
+        User,
+        EnterpriseMembership,
+        EnterpriseResourceGrant,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
+        EnterpriseDashboardDelivery,
+        EnterpriseGroupDelivery,
+      ],
       synchronize: true,
     }).initialize();
     await db.getRepository(Dashboard).save({
@@ -171,10 +219,12 @@ describe('UC-018 publication backend', () => {
         ],
       })),
     };
+    // The shared fixture keeps the legacy owner-only service; the delegation test injects the policy.
+    access = new SourceAccessService(db);
     service = new PublicationService(
       publications(),
       db.getRepository(Dashboard),
-      new SourceAccessService(db),
+      access,
       ai as any,
       bi as any,
     );
@@ -201,10 +251,11 @@ describe('UC-018 publication backend', () => {
   it('captures a read-only sanitized snapshot with a ticket and hides source detail', async () => {
     const before = await dashboard();
     const result = await ownerPreview();
-    expect(ai.analysis).toHaveBeenCalledWith(DASHBOARD, ACTOR, true);
+    expect(ai.analysis).toHaveBeenCalledWith(DASHBOARD, ACTOR, true, 'publish');
     expect(ai.preview).toHaveBeenCalledWith(
       expect.objectContaining({ includeTrends: true }),
       ACTOR,
+      'publish',
     );
     expect(result.dashboardId).toBe(DASHBOARD);
     expect(result.revision).toBe(revision);
@@ -518,6 +569,51 @@ describe('UC-018 publication backend', () => {
     ).toBeNull();
   });
 
+  it('blocks inactive public snapshots and old prepared publish tickets across restoration without changing snapshot/version', async () => {
+    const prepared = await ownerPreview();
+    const body = await publishBody(prepared, 0);
+    const published = await service.publish(DASHBOARD, ACTOR, body);
+    const row = await publications().findOneOrFail({ where: { dashboardId: DASHBOARD } });
+    const another = await ownerPreview();
+    const pending = await publishBody(another, 1);
+    await db.manager.update(Dashboard, DASHBOARD, { assetActive: false, assetVersion: 1 });
+    await expect(service.publicResult(row.uuid)).rejects.toMatchObject({ status: 404 });
+    await db.manager.update(Dashboard, DASHBOARD, { assetActive: true, assetVersion: 2 });
+    await expect(service.publish(DASHBOARD, ACTOR, pending)).rejects.toMatchObject({ status: 409 });
+    expect(await publications().findOneBy({ dashboardId: DASHBOARD })).toEqual(row);
+    expect((await service.publicResult(published.publication.uuid)).version).toBe(1);
+  });
+  it('lets the current inactive owner admin revoke and restoration never revives that snapshot', async () => {
+    const preview = await ownerPreview();
+    const result = await service.publish(DASHBOARD, ACTOR, await publishBody(preview, 0));
+    await db.manager.save(User, {
+      id: ACTOR,
+      userId: 'lifecycle-owner',
+      email: 'lifecycle-owner@example.invalid',
+      password: 'unused',
+      active: true,
+    });
+    await db.manager.save(EnterpriseMembership, {
+      userId: ACTOR,
+      organizationId: 1,
+      role: 'admin',
+      team: '',
+    });
+    const managed = new PublicationService(
+      publications(),
+      db.getRepository(Dashboard),
+      new SourceAccessService(db, new EnterpriseResourcePolicyService(db)),
+      ai as any,
+      bi as any,
+    );
+    await db.manager.update(Dashboard, DASHBOARD, { assetActive: false, assetVersion: 1 });
+    await managed.revoke(DASHBOARD, ACTOR, { expectedVersion: 1 });
+    await db.manager.update(Dashboard, DASHBOARD, { assetActive: true, assetVersion: 2 });
+    await expect(service.publicResult(result.publication.uuid)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect((await publications().findOneBy({ dashboardId: DASHBOARD })).active).toBe(false);
+  });
   it('hides unknown, revoked, expired and deleted publications behind 404', async () => {
     await expect(service.publicResult(randomUUID())).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.publicResult('not-a-uuid')).rejects.toBeInstanceOf(NotFoundException);
@@ -542,6 +638,24 @@ describe('UC-018 publication backend', () => {
     );
   });
 
+  it('UC055 rejects a captured publication after Source deletion before any publication/CAS write', async () => {
+    const preview = await service.preview(DASHBOARD, ACTOR, { expectedRevision: revision });
+    const before = await db.manager.findOneBy(Dashboard, { id: DASHBOARD });
+    await db.manager.delete(Database, 7);
+    await expect(
+      service.publish(DASHBOARD, ACTOR, await publishBody(preview, 0)),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.count(DashboardPublication)).toBe(0);
+    expect(await db.manager.findOneBy(Dashboard, { id: DASHBOARD })).toEqual(before);
+  });
+  it('UC055 rejects source metadata replacement after the publication preview with zero publication writes', async () => {
+    const preview = await service.preview(DASHBOARD, ACTOR, { expectedRevision: revision });
+    await db.manager.update(Database, 7, { connectionConfig: '{"changed":true}' });
+    await expect(
+      service.publish(DASHBOARD, ACTOR, await publishBody(preview, 0)),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await db.manager.count(DashboardPublication)).toBe(0);
+  });
   it('refuses owner endpoints for a dashboard the actor does not own', async () => {
     for (const call of [
       () => service.state(DASHBOARD, OTHER),
@@ -560,6 +674,68 @@ describe('UC-018 publication backend', () => {
       NotFoundException,
     );
   });
+  it('rechecks the delegated publisher for state, public read and private reuse', async () => {
+    await db.getRepository(User).save([
+      { id: ACTOR, userId: 'owner', email: 'owner@example.com', password: 'x', active: true },
+      {
+        id: DELEGATE,
+        userId: 'delegate',
+        email: 'delegate@example.com',
+        password: 'x',
+        active: true,
+      },
+    ]);
+    await db.getRepository(EnterpriseMembership).save([
+      { userId: ACTOR, organizationId: 1, role: 'admin', team: '' },
+      { userId: DELEGATE, organizationId: 1, role: 'member', team: '' },
+    ]);
+    await grant('dashboard', DASHBOARD, { read: true });
+    await grant('source', 7, { read: true });
+    const delegatedAccess = new SourceAccessService(db, new EnterpriseResourcePolicyService(db));
+    const delegated = new PublicationService(
+      publications(),
+      db.getRepository(Dashboard),
+      delegatedAccess,
+      ai as any,
+      bi as any,
+    );
+    // A read-only grantee must not receive the anonymous publication uuid, and cannot publish.
+    await expect(delegated.state(DASHBOARD, DELEGATE)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      delegated.preview(DASHBOARD, DELEGATE, { expectedRevision: revision }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    await grant('dashboard', DASHBOARD, { read: true, publish: true }, 2);
+    const preview = await delegated.preview(DASHBOARD, DELEGATE, {
+      expectedRevision: revision,
+      allowReuse: true,
+    });
+    await delegated.publish(DASHBOARD, DELEGATE, await publishBody(preview, 0));
+    const row = await publications().findOneOrFail({ where: { dashboardId: DASHBOARD } });
+    // The real publishing actor and the captured source are stored, never the dashboard owner.
+    expect(row.publisherId).toBe(DELEGATE);
+    expect(row.sourceId).toBe(7);
+    await expect(delegated.state(DASHBOARD, DELEGATE)).resolves.toMatchObject({ version: 1 });
+
+    const published: any = await delegated.publicResult(row.uuid);
+    expect(published).not.toHaveProperty('publisherId');
+    expect(published.snapshot).toBeDefined();
+
+    const reuse = new SharedReuseOriginService(db, ai as any, bi as any, delegatedAccess);
+    await expect(reuse.resolve('publication', row.uuid)).resolves.toMatchObject({
+      originalId: DASHBOARD,
+    });
+
+    // Publish revoked while read is kept: the public link and the private recipe both close.
+    await grant('dashboard', DASHBOARD, { read: true, publish: false }, 3);
+    await expect(delegated.publicResult(row.uuid)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(reuse.resolve('publication', row.uuid)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(await db.getRepository(UserMapping).count()).toBe(1);
+
+    // A row published before the delegation columns existed keeps the single-owner fallback.
+    await publications().update({ dashboardId: DASHBOARD }, { publisherId: null, sourceId: null });
+    await expect(delegated.publicResult(row.uuid)).resolves.toBeDefined();
+  });
 });
 
 describe('publication preview tickets', () => {
@@ -570,6 +746,7 @@ describe('publication preview tickets', () => {
       actorId: 1,
       dashboardId: 2,
       revision: 'r',
+      sourceId: 7,
       snapshot: '{}',
       bytes: 2,
     });
@@ -579,6 +756,7 @@ describe('publication preview tickets', () => {
       actorId: 1,
       dashboardId: 2,
       revision: 'r',
+      sourceId: 7,
       snapshot: '{}',
       bytes: 2,
     });
@@ -590,19 +768,41 @@ describe('publication preview tickets', () => {
   it('caps stored tickets at 100 entries and 20MiB', () => {
     const store = new PublicationTicketStore();
     for (let i = 0; i <= PUBLICATION_TICKET_LIMIT; i++)
-      store.put({ actorId: 1, dashboardId: i, revision: 'r', snapshot: '{}', bytes: 10 });
+      store.put({
+        actorId: 1,
+        dashboardId: i,
+        revision: 'r',
+        sourceId: 7,
+        snapshot: '{}',
+        bytes: 10,
+      });
     expect(store.size).toBe(PUBLICATION_TICKET_LIMIT);
     const big = new PublicationTicketStore();
     for (let i = 0; i < 19; i++)
-      big.put({ actorId: 1, dashboardId: i, revision: 'r', snapshot: 'x', bytes: 1024 * 1024 });
+      big.put({
+        actorId: 1,
+        dashboardId: i,
+        revision: 'r',
+        sourceId: 7,
+        snapshot: 'x',
+        bytes: 1024 * 1024,
+      });
     expect(big.size).toBe(19);
-    big.put({ actorId: 1, dashboardId: 99, revision: 'r', snapshot: 'x', bytes: 1024 * 1024 });
+    big.put({
+      actorId: 1,
+      dashboardId: 99,
+      revision: 'r',
+      sourceId: 7,
+      snapshot: 'x',
+      bytes: 1024 * 1024,
+    });
     expect(big.size).toBe(20);
     expect(() =>
       big.put({
         actorId: 1,
         dashboardId: 100,
         revision: 'r',
+        sourceId: 7,
         snapshot: 'x',
         bytes: PUBLICATION_TICKET_BYTES + 1,
       }),

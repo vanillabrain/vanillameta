@@ -9,10 +9,8 @@ import {
   Body,
   Headers,
   Controller,
-  Delete,
   Get,
   Param,
-  Patch,
   Post,
   Put,
   Query,
@@ -85,6 +83,7 @@ export class DatabaseController {
     return this.databaseService.create(
       createDatabaseDto,
       this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
     );
   }
 
@@ -111,7 +110,11 @@ export class DatabaseController {
     }),
   )
   uploadFile(@UploadedFile() file: AnalysisUpload, @Req() req) {
-    return this.databaseService.uploadFile(file, this.access.actor(req.user.accessKeyData.id));
+    return this.databaseService.uploadFile(
+      file,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   @Get(':id/file-versions')
@@ -148,6 +151,7 @@ export class DatabaseController {
       file,
       expectedRevision,
       this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
     );
   }
 
@@ -157,6 +161,7 @@ export class DatabaseController {
       +id,
       body,
       this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
     );
   }
 
@@ -206,12 +211,12 @@ export class DatabaseController {
    * @param updateDatabaseDto
    */
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateDatabaseDto: UpdateDatabaseDto) {
-    return this.databaseService.update(+id, updateDatabaseDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.databaseService.remove(+id);
+  update(@Param('id') id: string, @Body() updateDatabaseDto: UpdateDatabaseDto, @Req() req) {
+    return this.databaseService.update(
+      +id,
+      updateDatabaseDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 }

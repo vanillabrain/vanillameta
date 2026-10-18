@@ -252,6 +252,7 @@ export default function PublishedDashboard() {
                 ))}
               </div>
             )}
+            {snapshot.conditionsApplied && <p role="note">포함·제외 조건 적용됨</p>}
             {snapshot.dateRange && (
               <div className="studio-published-filters" role="note" aria-label="게시 시점 공통 기간">
                 <span className="studio-eyebrow">게시 시점 공통 기간 · 읽기 전용</span>

@@ -117,6 +117,11 @@ test.describe('제품 핵심 플로우', () => {
       }
     } finally {
       try {
+        if (dashboardId) {
+          // Explicitly stop only the live share created by this test before reviewed deletion.
+          const stopped = await page.request.post(`${API}/share-url/share-off/${dashboardId}`, { headers });
+          expect(stopped.ok()).toBe(true);
+        }
         await removeOwned(page, headers, 'dashboard', dashboardId);
       } finally {
         await removeOwned(page, headers, 'widget', widgetId);

@@ -5,7 +5,7 @@ import { AiDashboardService } from './ai-dashboard.service';
 import { buildTrendQuery, chooseTrendGrain } from './dashboard-trend';
 import { validateDraft, validateSourceSql, sourceQuery } from './dashboard-draft';
 import { DuckDBService } from '../analysis/duckdb.service';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
@@ -476,6 +476,16 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
         column: 'amount',
       },
     };
+    const metric = await db.manager.save(Metric, {
+      name: 'snapshot-reference',
+      databaseId: 1,
+      tableName: 'uploaded_data',
+      aggregation: 'SUM' as any,
+      expression: 'amount',
+      definition: JSON.stringify(snapshot.definition),
+      useYn: 'Y',
+    });
+    snapshot.metricId = metric.id;
     const initial = { ...draft(), widgets: [draft().widgets[0]] };
     const id = (await service.save({ draft: initial }, 7, snapshot)).data.id;
     expect(
@@ -579,6 +589,7 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     const counts = await Promise.all(entities.map(e => db.manager.count(e)));
     const repo: any = {
       manager: {
+        connection: db,
         find: db.manager.find.bind(db.manager),
         findOne: db.manager.findOne.bind(db.manager),
         transaction: run =>
@@ -1108,6 +1119,148 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       'sum(amount)',
     );
   });
+  it('UC055 finishes real aggregate queries before sorted parent locks, validates all targets, then writes', async () => {
+    const { body, primary, other } = await batchFixture();
+    // Primary save order deliberately differs from parent lock order.
+    const reversed = { ...body, dashboardId: other.data.id, expectedRevision: other.data.revision };
+    const events: string[] = [];
+    const query = connection.queryDuckDB.getMockImplementation();
+    const find = EntityManager.prototype.findOne;
+    const update = EntityManager.prototype.update;
+    const save = EntityManager.prototype.save;
+    connection.queryDuckDB.mockImplementation(async (...args) => {
+      expect(db.createQueryRunner().isTransactionActive).toBe(false);
+      expect(events.some(e => e.startsWith('parent:'))).toBe(false);
+      const result = await query(...args);
+      events.push('sql-done');
+      return result;
+    });
+    const findSpy = jest
+      .spyOn(EntityManager.prototype, 'findOne')
+      .mockImplementation(function (entity: any, options: any) {
+        if (entity === Dashboard && this.queryRunner?.isTransactionActive)
+          events.push(`parent:${options.where.id}`);
+        return find.call(this, entity, options);
+      });
+    const updateSpy = jest
+      .spyOn(EntityManager.prototype, 'update')
+      .mockImplementation(function (entity: any, ...args: any[]) {
+        if (entity === Metric) events.push('metric-cas');
+        return update.call(this, entity, ...args);
+      });
+    const saveSpy = jest
+      .spyOn(EntityManager.prototype, 'save')
+      .mockImplementation(function (...args: any[]) {
+        if (this.queryRunner?.isTransactionActive) events.push('persist');
+        return save.apply(this, args);
+      });
+    try {
+      const result = await service.metricBatchSave(reversed, 7);
+      expect(result.data.updatedAnalyses).toEqual([other.data.id, primary.data.id]);
+      expect(events.filter(e => e === 'sql-done').length).toBeGreaterThanOrEqual(2);
+      const ids = [primary.data.id, other.data.id].sort((a, b) => a - b);
+      expect(events.filter(e => e.startsWith('parent:')).slice(0, 2)).toEqual(
+        ids.map(id => `parent:${id}`),
+      );
+      const cas = events.indexOf('metric-cas');
+      expect(cas).toBeGreaterThan(events.lastIndexOf('sql-done'));
+      expect(
+        events.slice(0, cas).filter(e => e.startsWith('parent:')).length,
+      ).toBeGreaterThanOrEqual(4);
+      expect(events.indexOf('persist')).toBeGreaterThan(cas);
+    } finally {
+      connection.queryDuckDB.mockImplementation(query);
+      findSpy.mockRestore();
+      updateSpy.mockRestore();
+      saveSpy.mockRestore();
+    }
+  });
+  it.each(['revision', 'owner', 'deleted'])(
+    'UC055 rejects %s changes after real batch preparation before any Metric/child write',
+    async race => {
+      const { body, metric, other } = await batchFixture();
+      const counts = await Promise.all(
+        [Dataset, Widget, DashboardWidget].map(entity => db.manager.count(entity)),
+      );
+      const preview = service.preview.bind(service);
+      const update = EntityManager.prototype.update;
+      const save = EntityManager.prototype.save;
+      let metricWrites = 0,
+        childWrites = 0;
+      const updateSpy = jest
+        .spyOn(EntityManager.prototype, 'update')
+        .mockImplementation(function (entity: any, ...args: any[]) {
+          if (entity === Metric) metricWrites++;
+          return update.call(this, entity, ...args);
+        });
+      const saveSpy = jest
+        .spyOn(EntityManager.prototype, 'save')
+        .mockImplementation(function (...args: any[]) {
+          if (this.queryRunner?.isTransactionActive) childWrites++;
+          return save.apply(this, args);
+        });
+      let calls = 0;
+      const spy = jest.spyOn(service, 'preview').mockImplementation(async (...args) => {
+        const result = await preview(...args);
+        // prepareSave previews each target. Change the later target after all SQL completes.
+        if (++calls === body.targets.length) {
+          expect(db.createQueryRunner().isTransactionActive).toBe(false);
+          if (race === 'revision')
+            await db.manager.update(Dashboard, other.data.id, { title: 'Concurrent title' });
+          if (race === 'owner')
+            await db.manager.update(UserMapping, { dashboardId: other.data.id }, { userInfoId: 8 });
+          if (race === 'deleted') await db.manager.delete(Dashboard, other.data.id);
+        }
+        return result;
+      });
+      try {
+        await expect(service.metricBatchSave(body, 7)).rejects.toThrow(
+          race === 'revision'
+            ? '다른 화면'
+            : race === 'owner'
+            ? 'not dashboard owner'
+            : 'Dashboard unavailable',
+        );
+        expect(calls).toBe(body.targets.length);
+        expect(metricWrites).toBe(0);
+        expect(childWrites).toBe(0);
+        expect((await db.manager.findOneBy(Metric, { id: metric.id })).definition).toBe(
+          metric.definition,
+        );
+        expect(
+          await Promise.all(
+            [Dataset, Widget, DashboardWidget].map(entity => db.manager.count(entity)),
+          ),
+        ).toEqual(counts);
+      } finally {
+        spy.mockRestore();
+        updateSpy.mockRestore();
+        saveSpy.mockRestore();
+      }
+    },
+  );
+  it('UC055 rejects changed inherited metric links after preparation even without a client revision', async () => {
+    const { primary } = await batchFixture();
+    const current = (await service.analysis(primary.data.id, 7, true)).data;
+    const prepared = await service.prepareSave({ dashboardId: primary.data.id, draft: current }, 7);
+    const row = await db.manager.findOneBy(Dashboard, { id: primary.data.id });
+    const snapshot = JSON.parse(row.structuredDefinition);
+    await db.manager.update(Dashboard, primary.data.id, {
+      structuredDefinition: JSON.stringify({
+        ...snapshot,
+        dataVersion: 'concurrent-reference-snapshot',
+      }),
+    });
+    const before = await Promise.all(
+      [Dataset, Widget, DashboardWidget].map(entity => db.manager.count(entity)),
+    );
+    await expect(db.transaction(manager => prepared.persist(manager))).rejects.toThrow(
+      'Saved metric links changed',
+    );
+    expect(
+      await Promise.all([Dataset, Widget, DashboardWidget].map(entity => db.manager.count(entity))),
+    ).toEqual(before);
+  });
   it('UC-004 excludes deleted/foreign/different source links and rejects unlinked target injection', async () => {
     const { body, metric, unlinked } = await batchFixture();
     const original = await db.manager.findOne(Dashboard, { where: { id: body.dashboardId } });
@@ -1169,13 +1322,10 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     const { body, metric } = await batchFixture();
     const before = await Promise.all(body.targets.map(t => service.analysis(t.dashboardId, 7)));
     const counts = [await db.manager.count(Dataset), await db.manager.count(Widget)];
-    const spy = jest.spyOn(service, 'save');
     await db.manager.update(Component, { type: 'CHART_COLUMN' }, { useYn: 'N' as any });
     try {
       await expect(service.metricBatchSave(body, 7)).rejects.toThrow('component unavailable');
-      expect(spy).toHaveBeenCalledTimes(2);
     } finally {
-      spy.mockRestore();
       await db.manager.update(Component, { type: 'CHART_COLUMN' }, { useYn: 'Y' as any });
     }
     expect(await Promise.all(body.targets.map(t => service.analysis(t.dashboardId, 7)))).toEqual(

@@ -8,11 +8,13 @@ vi.mock('@/helpers/authHelper', () => ({ getToken: () => identity.token }));
 vi.mock('@/helpers/editorDraftStorage', () => ({ editorDraftSessionEpoch: () => identity.epoch }));
 const api = vi.hoisted(() => ({ post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ get: vi.fn(), post: api.post }));
+const BASIS = { '1': 7, '2': 9 };
 const CSV = 'metric,device_type,value\n1,app,10\n2,web,20\n';
 /** Blob sizing is byte based, so a UTF-8 export must not be compared against string length. */
 const bytes = (text: string) => new TextEncoder().encode(text).length;
 const exportData = (over: Record<string, unknown> = {}) => ({
   sourceRevision: 'rev-3',
+  measureVersions: BASIS,
   filename: 'explore-3.csv',
   mimeType: 'text/csv;charset=utf-8',
   csv: CSV,
@@ -71,7 +73,7 @@ const deferred = () => {
   return { promise, resolve };
 };
 const renderExport = (over: { payload?: any; disabled?: boolean } = {}) =>
-  render(<ExploreExport payload={explorePayload} disabled={false} {...over} />);
+  render(<ExploreExport measureVersions={BASIS} payload={explorePayload} disabled={false} {...over} />);
 
 beforeEach(() => {
   api.post.mockReset();
@@ -106,9 +108,13 @@ it('posts the payload and downloads a validated CSV blob through a temporary anc
 
   await waitFor(() => expect(clicked).toHaveLength(1));
   expect(api.post).toHaveBeenCalledTimes(1);
-  expect(api.post).toHaveBeenCalledWith('/bi/explore/export', explorePayload, {
-    signal: expect.anything(),
-  });
+  expect(api.post).toHaveBeenCalledWith(
+    '/bi/explore/export',
+    { ...explorePayload, query: { ...explorePayload.query, expectedMeasureVersions: BASIS } },
+    {
+      signal: expect.anything(),
+    },
+  );
   expect(created).toHaveLength(1);
   expect(created[0].type).toBe('text/csv;charset=utf-8');
   expect(created[0].size).toBe(bytes(CSV));
@@ -138,7 +144,7 @@ it('accepts a UTF-8 CSV whose byte size exceeds its character count', async () =
 
 it('stays closed until opened and blocks the download while disabled or busy', async () => {
   api.post.mockResolvedValue(success(exportData()));
-  const { rerender } = render(<ExploreExport payload={explorePayload} disabled />);
+  const { rerender } = render(<ExploreExport measureVersions={BASIS} payload={explorePayload} disabled />);
   expect(screen.queryByRole('button', { name: 'CSV 다운로드' })).toBeNull();
   openPanel();
   const disabledButton = downloadButton() as HTMLButtonElement;
@@ -149,7 +155,7 @@ it('stays closed until opened and blocks the download while disabled or busy', a
 
   const pending = deferred();
   api.post.mockImplementation(() => pending.promise);
-  rerender(<ExploreExport payload={explorePayload} disabled={false} />);
+  rerender(<ExploreExport measureVersions={BASIS} payload={explorePayload} disabled={false} />);
   fireEvent.click(downloadButton());
   await waitFor(() => expect(screen.getByRole('button', { name: 'CSV 준비 중…' })).toBeTruthy());
   const busyButton = screen.getByRole('button', { name: 'CSV 준비 중…' }) as HTMLButtonElement;
@@ -188,7 +194,7 @@ it('explains a 409 revision conflict instead of the generic failure', async () =
 
   await waitFor(() =>
     expect(screen.getByRole('alert').textContent).toBe(
-      '데이터 버전이 변경되었습니다. 카탈로그를 다시 불러온 뒤 내보내세요.',
+      '데이터 또는 지표 기준이 변경되었습니다. 현재 입력을 보존하고 다시 조회한 뒤 내보내세요.',
     ),
   );
   expect(created).toHaveLength(0);
@@ -217,7 +223,11 @@ it('surfaces the real exception envelope for the export limits and keeps the 409
       { message: '내보낼 행이 10000개를 넘습니다. 필터를 좁히거나 축을 줄여 주세요.' },
       '내보낼 행이 10000개를 넘습니다. 필터를 좁히거나 축을 줄여 주세요.',
     ],
-    [409, { message: '파일 버전이 변경되었습니다.' }, '데이터 버전이 변경되었습니다. 카탈로그를 다시 불러온 뒤 내보내세요.'],
+    [
+      409,
+      { message: '파일 버전이 변경되었습니다.' },
+      '데이터 또는 지표 기준이 변경되었습니다. 현재 입력을 보존하고 다시 조회한 뒤 내보내세요.',
+    ],
   ];
   for (const [status, data, expected] of cases) {
     api.post.mockRejectedValueOnce(filterError(status, data));
@@ -240,7 +250,7 @@ it('drops a late response after the payload changes and aborts the in-flight req
   const signal = api.post.mock.calls[0][2].signal as AbortSignal;
   expect(signal.aborted).toBe(false);
 
-  rerender(<ExploreExport payload={pivotPayload} disabled={false} />);
+  rerender(<ExploreExport measureVersions={BASIS} payload={pivotPayload} disabled={false} />);
   await waitFor(() => expect(signal.aborted).toBe(true));
   await act(async () => pending.resolve(success(exportData())));
   expect(created).toHaveLength(0);
@@ -250,7 +260,10 @@ it('drops a late response after the payload changes and aborts the in-flight req
   api.post.mockResolvedValueOnce(success({ ...exportData(), filename: 'pivot-3.csv' }));
   fireEvent.click(downloadButton());
   await waitFor(() => expect(clicked).toHaveLength(1));
-  expect(api.post.mock.calls.at(-1)?.[1]).toEqual(pivotPayload);
+  expect(api.post.mock.calls.at(-1)?.[1]).toEqual({
+    ...pivotPayload,
+    query: { ...pivotPayload.query, expectedMeasureVersions: BASIS },
+  });
   expect(clicked[0].download).toBe('pivot-3.csv');
 });
 
@@ -290,7 +303,7 @@ it('rejects every invalid export response before creating an object URL', async 
   ];
   const expectedMessage = (label: string) =>
     label === 'stale source revision'
-      ? '데이터 버전이 변경되었습니다. 카탈로그를 다시 불러온 뒤 내보내세요.'
+      ? '데이터 또는 지표 기준이 변경되었습니다. 현재 입력을 보존하고 다시 조회한 뒤 내보내세요.'
       : 'CSV를 내보내지 못했습니다. 조건을 확인하고 다시 시도해 주세요.';
   for (const [label, over] of cases) {
     api.post.mockResolvedValueOnce(success(exportData(over)));
@@ -301,7 +314,10 @@ it('rejects every invalid export response before creating an object URL', async 
     expect(screen.getByRole('alert').textContent, label).toBe(expectedMessage(label));
     expect(created, label).toHaveLength(0);
     expect(clicked, label).toHaveLength(0);
-    expect(api.post.mock.calls.at(-1)?.[1], label).toEqual(explorePayload);
+    expect(api.post.mock.calls.at(-1)?.[1], label).toEqual({
+      ...explorePayload,
+      query: { ...explorePayload.query, expectedMeasureVersions: BASIS },
+    });
     cleanup();
   }
 });
@@ -335,9 +351,57 @@ it('does not download an old account response even before a storage event arrive
 });
 
 it('keeps a dashboard summary and trigger together with a full-width export panel', () => {
-  render(<ExploreExport payload={explorePayload} disabled={false} summary={<p role="status">대상2개 · 원본8행</p>} />);
+  render(
+    <ExploreExport
+      measureVersions={BASIS}
+      payload={explorePayload}
+      disabled={false}
+      summary={<p role="status">대상2개 · 원본8행</p>}
+    />,
+  );
   expect(screen.getByRole('status').textContent).toBe('대상2개 · 원본8행');
   openPanel();
   expect(downloadButton().hasAttribute('disabled')).toBe(false);
   expect(api.post).not.toHaveBeenCalled();
+});
+
+it('does not offer or request an export when current resource rights deny it', () => {
+  render(<ExploreExport measureVersions={BASIS} payload={explorePayload} disabled={false} allowed={false} />);
+  expect(screen.queryByRole('button', { name: '내보내기 ▾' })).toBeNull();
+  expect(screen.getByText('내보내기 권한이 없습니다.')).toBeTruthy();
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+it.each([undefined, {}, { '1': 7 }, { '1': 7, '2': 0 }, { '1': 7, '2': 9, '3': 1 }])(
+  'fails closed on absent or malformed actual response basis %j',
+  measureVersions => {
+    render(<ExploreExport payload={explorePayload} disabled={false} measureVersions={measureVersions} />);
+    openPanel();
+    expect((downloadButton() as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(downloadButton());
+    expect(api.post).not.toHaveBeenCalled();
+  },
+);
+it.each([undefined, { '1': 8, '2': 9 }, { '1': 7 }, { '1': 7, '2': 9, '3': 1 }])(
+  'never downloads when export returns a missing or changed metric basis %j',
+  async measureVersions => {
+    api.post.mockResolvedValue(success(exportData({ measureVersions })));
+    renderExport();
+    openPanel();
+    fireEvent.click(downloadButton());
+    await screen.findByText(/지표 기준이 변경/);
+    expect(created).toHaveLength(0);
+    expect(clicked).toHaveLength(0);
+  },
+);
+it('suppresses an old CSV response when only the actual metric version basis changes', async () => {
+  const pending = deferred();
+  api.post.mockImplementation(() => pending.promise);
+  const { rerender } = renderExport();
+  openPanel();
+  fireEvent.click(downloadButton());
+  rerender(<ExploreExport payload={explorePayload} disabled={false} measureVersions={{ '1': 8, '2': 9 }} />);
+  await act(async () => pending.resolve(success(exportData())));
+  expect(created).toHaveLength(0);
+  expect(clicked).toHaveLength(0);
 });

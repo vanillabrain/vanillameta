@@ -9,7 +9,13 @@
  */
 import { BadRequestException } from '@nestjs/common';
 import { DashboardDraft, validateDraft } from '../ai/dashboard-draft';
-import { ReuseColumn, ReuseSourceProfile, reuseColumns } from './dashboard-remap';
+import {
+  ReuseColumn,
+  ReuseSourceProfile,
+  reuseColumns,
+  reuseScope,
+  ReuseScope,
+} from './dashboard-remap';
 
 export const REUSE_RECIPE_SCHEMA_VERSION = 1 as const;
 export const REUSE_RECIPE_MAX_BYTES = 60 * 1024;
@@ -17,7 +23,7 @@ export const REUSE_RECIPE_MAX_BYTES = 60 * 1024;
 export const REUSE_RECIPE_SOURCE_ID = 1;
 
 const BREAKPOINTS = ['mobile', 'tablet', 'desktop'] as const;
-const RECIPE_KEYS = ['schemaVersion', 'analysis', 'profile'];
+const RECIPE_KEYS = ['schemaVersion', 'analysis', 'profile', 'conditionSchema'];
 const PROFILE_KEYS = ['sourceId', 'columns'];
 const MESSAGE = '재사용 정의를 확인할 수 없습니다. 다시 캡처해 주세요.';
 
@@ -29,10 +35,11 @@ export type ReuseRecipeRect = { x: number; y: number; w: number; h: number };
 export type ReuseRecipeLayouts = Partial<
   Record<(typeof BREAKPOINTS)[number], Record<string, ReuseRecipeRect>>
 >;
-export type ReuseRecipeAnalysis = DashboardDraft & {
-  databaseId: number;
-  responsiveLayouts: ReuseRecipeLayouts;
-};
+export type ReuseRecipeAnalysis = DashboardDraft &
+  ReuseScope & {
+    databaseId: number;
+    responsiveLayouts: ReuseRecipeLayouts;
+  };
 export type ReuseRecipeProfile = ReuseSourceProfile & { supported?: boolean };
 
 /**
@@ -111,11 +118,25 @@ export function buildReuseRecipe(analysis: unknown, sourceProfile: ReuseRecipePr
   if (sourceProfile?.supported === false)
     throw new BadRequestException('서버에 저장한 파일 분석만 재사용을 허용할 수 있습니다.');
   const draft = validateDraft(analysis as any);
-  const columns = reuseColumns(draft, sourceProfile);
+  const scope = reuseScope(analysis, sourceProfile);
+  const columns = reuseColumns({ ...draft, ...scope }, sourceProfile);
   const recipe = {
     schemaVersion: REUSE_RECIPE_SCHEMA_VERSION,
+    ...(scope.conditionSemantics
+      ? {
+          conditionSchema: projectColumns(
+            (sourceProfile.conditionSchema ?? sourceProfile.columns).map(column => ({
+              name: column.name,
+              type: column.type,
+              ...('numeric' in column ? { numeric: column.numeric } : {}),
+              ...('temporal' in column ? { temporal: column.temporal } : {}),
+            })),
+          ),
+        }
+      : {}),
     analysis: {
       ...draft,
+      ...scope,
       databaseId: REUSE_RECIPE_SOURCE_ID,
       responsiveLayouts: projectLayouts(
         (analysis as any)?.responsiveLayouts,
@@ -159,8 +180,26 @@ export function readReuseRecipe(serialized: unknown): {
   if (Object.keys(profile).some(key => !PROFILE_KEYS.includes(key))) reject();
   if (profile.sourceId !== REUSE_RECIPE_SOURCE_ID) reject();
   const columns = projectColumns(profile.columns);
+  if (stored.defaultConditions !== undefined) reject();
+  const conditionSchema =
+    parsed.conditionSchema === undefined ? undefined : projectColumns(parsed.conditionSchema);
+  if ((stored.conditionSemantics !== undefined) !== (conditionSchema !== undefined)) reject();
+  if (
+    conditionSchema &&
+    columns.some(
+      column =>
+        !conditionSchema.some(native => native.name === column.name && native.type === column.type),
+    )
+  )
+    reject();
+  const scope = reuseScope(stored, {
+    sourceId: REUSE_RECIPE_SOURCE_ID,
+    columns,
+    ...(conditionSchema ? { conditionSchema } : {}),
+  });
   const analysis: ReuseRecipeAnalysis = {
     ...draft,
+    ...scope,
     databaseId: REUSE_RECIPE_SOURCE_ID,
     responsiveLayouts: projectLayouts(
       stored.responsiveLayouts,
@@ -169,12 +208,23 @@ export function readReuseRecipe(serialized: unknown): {
   };
   // The stored columns must be exactly what the draft reads, so a shortened or padded
   // profile can never be forwarded to the recipient's remap.
-  const required = reuseColumns(draft, { sourceId: REUSE_RECIPE_SOURCE_ID, columns });
+  const required = reuseColumns(analysis, {
+    sourceId: REUSE_RECIPE_SOURCE_ID,
+    columns,
+    ...(conditionSchema ? { conditionSchema } : {}),
+  });
   const names = (values: ReuseColumn[]) =>
     values
       .map(column => column.name.trim().toLowerCase())
       .sort()
       .join(',');
   if (names(required) !== names(columns)) reject();
-  return { analysis, profile: { sourceId: REUSE_RECIPE_SOURCE_ID, columns } };
+  return {
+    analysis,
+    profile: {
+      sourceId: REUSE_RECIPE_SOURCE_ID,
+      columns,
+      ...(conditionSchema ? { conditionSchema } : {}),
+    },
+  };
 }

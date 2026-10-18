@@ -177,3 +177,123 @@ Dimension은 첫 범위에서 source+원본 column 기반 안정적 논리 ID·�
 ## UC028 브라우저 로그인 세대
 
 서버 엔티티/DB는 그대로다. [설계](architecture/cross-tab-token-draft.md)의 기능 전용 localStorage 메타데이터는 로그인 세대(epoch)·현재 tokenHash·초안 scope만 보관한다. 본문은 UC025 sessionStorage에 유지한다. 정상 refresh는 scope를 승계하고 새 로그인/로그아웃은 세대를 교체한다. 토큰 원문/SQL/질문/행/preview는 이 공유 메타데이터에 포함하지 않는다. 다른 탭 보관 본문은 직접 지우지 않고 다른 로그인 세대로 연결하지 않는다.
+
+## 기업 사내 분석 목표 객체 — UC050~055
+
+[기업용 설계](architecture/enterprise-analysis.md)의 Organization/Membership/Group·ResourceGrant·AnalysisCatalog/BusinessVariable·ConditionDefinition/ExecutionContext·ArtifactDelivery/Notification·ExportJob/ResultFile·PersonalLibraryState/UsageReference·BusinessAuditEvent는 목표 책임이다. 현재 DB 테이블·FK·마이그레이션 완료가 아니다. 조직/원천/산출물/전달 권한과 독립 사본·파일 결과를 분리하며 물리 모델은 구현 단위에서 검증한다. 기존 엔티티의 구현 상태는 그대로 유지한다.
+
+## UC050 첫 물리 모델
+
+`source_catalog_entry`는 `(sourceId, version)` 복합 기본키의 추가 전용 이력이다. `actorId`, `sourceRevision`(varchar128), `schemaRevision`(varchar64), `metadata`(text, UTF-8 60,000 bytes 이하), `createdAt`을 기록한다. 메타데이터는 소스 표시명(100자)/설명(1000자)·실제 열별 표시명(100자)/설명(1000자)/단위(24자)만 담고 원본 행·연결정보·SQL은 담지 않는다. 새 저장은 기존 최대 버전+1의 고유키로 경쟁을 거절한다. 조직 승인 카탈로그·공통 분류와는 별도 첫 단계이며 기존 Source/Measure/Dimension 정의를 자동 변경하지 않는다. [계획](plans/UC-050.md)·[검증](testing/source-catalog.md).
+
+## UC051 조직·직원 물리 모델
+
+새 SQLite/MySQL 추가 마이그레이션의 모델이며 기존 소스/분석 소유권을 자동 이전하지 않는다.
+
+| Entity                  | Key / fields                                                                     | Constraints                             |
+| ----------------------- | -------------------------------------------------------------------------------- | --------------------------------------- |
+| enterprise_organization | id PK·name varchar100·version integer                                            | 직원 변경의 version CAS                 |
+| enterprise_membership   | userId integer PK·organizationId integer index·role varchar16·team varchar100    | 한 계정 한 조직·admin/member            |
+| enterprise_enrollment   | userId integer PK·organizationId integer·codeHash varchar64·expiresAt datetime   | 본인 발급 SHA256·15분·등록 시 원자 소비 |
+| enterprise_audit_event  | id PK·organizationId index·actorId·action varchar40·resourceId·version·createdAt | 성공한 변경만·원문/비밀 값 없음         |
+| User 추가 컬럼          | active boolean defaulttrue·authVersion integer default0                          | 비활성/재활성 때 epoch 증가·jwtId 제거  |
+
+관계는 서비스에서 확인하는 논리ID이며 자동 삭제·연쇄 전파는 추가하지 않는다. 계정 유일성과 소속 무결성의 물리 제약은 아래 계정 유일성·소속 무결성 물리 모델을 따른다. 기존 로그인/토큰은 epoch0으로 호환하고 마이그레이션의 파괴적 down은 거절한다. 그룹/자원 권한·조직 이동/탈퇴는 이 스키마만으로 구현됐다고 보지 않는다.
+
+## UC051 계정 유일성·소속 무결성 물리 모델
+
+FR016/FR017의 첫 DB 제약이다. `user.userId`와 `user.email`에 명명된 unique index `UQ_user_userId`·`UQ_user_email`를 두고, `enterprise_membership.userId`→`user.id`에 `FK_enterprise_membership_user` RESTRICT 외래 키를 둔다. 관계는 자동 조회하지 않으며 API 응답 필드를 추가하지 않는다. `enterprise_membership.userId`는 계속 기본 키이고 관계는 같은 컬럼을 참조한다.
+
+추가 전용 `1792430000000-add-account-integrity` 마이그레이션은 모든 DDL 전에 중복 userId/email·NULL·소속 고아·참조 컬럼 타입/unsigned·user.id PK 여부·membership.userId PK 여부·membership.userId 컬럼 존재·같은 이름 인덱스/FK 정의·비 InnoDB 엔진을 검사한다. 비정상 데이터나 정의 불일치가 있으면 식별값 없이 종류/개수만 알리고 중단하며 사용자·소속·기존 인덱스·FK를 자동 삭제·병합·복구하지 않는다. user 테이블이 없는 신규 DB는 sync baseline에 맡기고, 컬럼이 불완전한 기존 user 테이블과 userId 없는 membership 테이블은 fail-closed한다. up은 반복 실행해도 안전하고 down은 검토된 백업 없이 거절한다. MySQL DDL은 비원자적이므로 운영에서는 writer 중지·백업·InnoDB 확인 후 적용하며 이번 검증에서는 운영 DB에 실행하지 않았다. 실제 SQLite 제약/마이그레이션과 MySQL 동시성 검증은 `.aiwf/evidence/UC051-identity-integrity`와 `docs/plans/UC-051-identity-integrity.md`를 따른다.
+
+## UC051 자원별 권한 물리 모델
+
+`enterprise_resource_grant`의 복합PK는 resourceKind(varchar16 source/dashboard)·resourceId(integer)·recipientId(integer)다. organizationId·ownerId가 부여 권한 주체를 고정하고 version(integer)과 read/edit/publish/export(boolean defaultfalse)가 현재 정책을 나타낸다. 수신자/조직 조회 index를 둔다. 전체 false 회수 행도 보존한다. 기존 `enterprise_audit_event.subjectId` nullable integer는 권한 변경 대상 직원ID이며 actorId와 구분한다. 신규 추가 마이그레이션은 기존 이력을 변경하지 않고 파괴적 down을 거절한다. 그룹/파일 작업 모델이 구현됐다는 의미는 아니다.
+
+기존 dashboard_publication에도 nullable publisherId/sourceId를 추가해 실제 게시자와 원래 소스의 현재 권한을 익명 읽기/재사용에서 확인한다. 기존 null 값만 단일 원래 소유자 기준으로 호환하며 이 두 값은 공개 snapshot/메타데이터에 출력하지 않는다.
+
+## UC054 영속 집계 export 작업
+
+현재 물리 모델은 추가 마이그레이션 `1792510000000-add-export-jobs`의 `export_job`과 `export_part`다. 목표 객체 목록의 ExportJob/ResultFile을 실제 저장 책임으로 구체화하며, 결과 파일은 filesystem 경로가 아닌 DB TEXT 조각으로 저장한다.
+
+| Entity        | Key / fields                                                                                                                                                                                                               | Constraints                                                                                       |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `export_job`  | id PK; ownerId, organizationId, sourceId, sourceOwnerId; requestId, digest, requestJson, basisJson; status, version, attemptToken, leaseUntil; createdAt, expiresAt; filename, hash, errorCode, rowCount, bytes, partCount | `(ownerId, requestId)` unique; actor/org/id 목록 index; owner당 미만료 100개; 24h 만료; 5m lease  |
+| `export_part` | `(jobId, part)` composite PK; `data` TEXT                                                                                                                                                                                  | CSV 조각 순서 보존; 조각당 UTF-8 36 KiB 이하, 최대 200조각; job FK/cascade는 모델에 선언하지 않음 |
+
+요청은 집계 조건과 소스 revision 및 선택 지표의 version/digest를 고정한다. 작업 생성은 aggregate SQL을 실행하지 않는다. 명시 실행은 status/version/attempt token CAS를 통과해야 하며 SQL은 metadata transaction/SQLite queue 밖에서 수행한다. 완료 metadata와 조각은 원자 저장한다. 실패 정리는 소유 attempt의 CAS 성공 후에만 파일 조각을 삭제한다. 파일 조회 때 현재 actor/조직/소유권/export 권한/auth epoch, 만료와 checksum을 확인한다. 상태 응답에는 attempt token, checksum, 부분 내용이 포함되지 않는다. 전체 저장 모델과 미확정 수용 범위는 [UC-054 계획](plans/UC-054-export-jobs.md)·[검증 증빙](testing/export-jobs.md)을 따른다.
+
+## UC050 업무 변수 의미 확장
+
+기존 `source_catalog_entry.metadata.columns` JSON에 optional businessType(auto/number/category/date), dateFormat(빈 값/native/YYYY-MM-DD/YYYY/MM/DD/YYYYMMDD), classification(정규화한80자 문자열)을 추가한다. 별도 테이블/마이그레이션은 없다. 이전 이력의 생략은 auto/빈 값이며 기존 클라이언트 쓰기에서 생략한 필드는 해당 열의 현재 선언을 보존한다. 원본 열 type은 읽기 전용으로 별도 유지한다. 변경은 동일 append-only sourceId/version·actorId와 schemaRevision/sourceRevision을 사용한다. 조직 공통 분류 식별자/사전이나 쿼리 계산식 변경을 구현한 것으로 보지 않는다.
+
+## UC050 소스 활성 상태
+
+기존 `database.catalogActive` boolean(defaulttrue)와 `catalogVersion` integer(default0)는 소스 사용 상태와 CAS 버전이다. 여기의 catalogVersion은 /bi/sources가 반환하는 동명 업무 설명 버전과 구분하며 상태 API에서는 version으로만 반환한다. 신규179242 마이그레이션은 기존 소유권/연결정보/행을 보존한다. 상태 관리에는 현재 활성 소유 admin만 접근하고 일반 read/edit와 분리한다. 권한·원본/분석/게시 행은 비활성화 시 삭제하지 않는다. 상태 변경은 enterprise_audit_event의 실제 actorId/resourceId/version과 source.activate/source.deactivate로 기록한다. source.updatedAt도 갱신되므로 오래된 데이터 버전 요청은 다시 확인해야 한다.
+
+## UC052 소스 조건 버전
+
+`source_condition_entry`는 sourceId/version 복합 PK로 포함/제외 조건 정의를 append하고 actorId/sourceRevision/createdAt을 보존한다. 값이 포함된 정의는 현재 소스 read/edit 정책으로 보호하며 원본 행/SQL/연결 정보를 저장하지 않는다. 기존 파일·분석·게시를 자동 변경하지 않는다. 선택적 semanticsJSON(text nullable)은 마이그레이션1792570000000으로 추가한다. SQL NULL은 legacy native이고 JSON은 schemaVersion1/catalogVersion/전체 non-auto 선언의 고정 snapshot이다. 정확한 SourceCatalogEntry 이력/native schema를 대조하고 기존 행·시각·NULL을 보존한다. sourceRevision은 조건 편집 metadata 기준으로 분석 wrapper의 불변 파일 기준과 다르다. [조건 의미 증빙](testing/business-condition-semantics.md)은 Source/Studio·보기/출력/재사용 연결의 선택 실행을 기록하며 전체 이력 UI/FR015 수용을 뜻하지 않는다.
+
+## UC053 Personal Notification State
+
+기존 `EnterpriseAuditEvent`의 수신자/조직·권한 action을 알림 원장으로 사용한다. 별도 개인 표시 상태 `enterprise_notification_state`는 recipientId+eventId 복합 PK와 read/removed boolean(default false)이다. 논리적으로 User/AuditEvent와 연결하지만 물리 FK/cascade는 추가하지 않는다. 상태 변경 API는 본인 active 계정/현재 소속/원장 이벤트를 재검증한다. 상태 제거는 감사/권한/자원 삭제가 아니며 false→true 단방향 멱등 갱신이다. 감사 원장의 subjectId/organizationId/id 복합 인덱스로 본인 최신순 조회를 지원한다. 직원/그룹 전달 관계·export job은 이 테이블에 혼합하지 않으며 별도 후속 모델이다.
+
+## UC053 Dashboard Delivery and Receipt
+
+`enterprise_dashboard_delivery`는 ownerId+organizationId+dashboardId+recipientId 복합 PK와 active/version을 보관한다. 현재 소유권·양쪽 계정 활성/조직 binding을 확인할 때 read만 합성한다. 별도 직접 grant의 edit/publish/export를 공유 관계로 옮기지 않는다. 원본/사본의 소유권·정의도 변경하지 않는다. 수신자/조직/active 인덱스로 목록 허용 ID를 찾는다.
+
+`enterprise_delivery_receipt`는 ownerId+UUID requestId PK, organizationId·SHA256 digest·고정 응답 text다. 현재 소유 admin/조직을 재검증한 replay만 허용하고 다른 요청 내용/조직은409다. 그룹 공유도 이 영수증을 재사용하지만 digest의 `group-delivery` domain으로 개인 공유 요청과 분리한다. 영수증은 과거 저장 확인이며 현재 공유 상태가 아니다. 관계 변경·감사·영수증은 한 transaction이다.
+
+UC053 받은 자료는 새 영속 엔티티가 아닌 현재 유효한 delivery의 읽기 투영이다. 모든 연결 소스의 read 후 dashboardId/title/version만 반환한다. cursor는 마지막 검사 후보이며 마지막 표시 행과 다를 수 있다. 알림 표시 상태·원본·공유 관계·영수증을 변경하지 않는다.
+
+UC053 direct delivery의 `allowCopy` boolean은 기본 false인 별도 독립 복제 동의다. 공유 API에서 생략하면 보존하고 회수 시 false로 정리한다. active/allowCopy 변화 모두 관계 version·감사/영수증 transaction에 묶인다. 받은 자료에는 boolean만 추가하며 private 복제 reference는 조직/소유자/분석/관계 version·현재 Studio 문서/schema/파일 revision/template fingerprint로 구성한다. reference 자체는 접근권이 아니고 필수 JWT/current read/허용을 요구한다. 사본의 새 소유/블록/지표 ID와 모든 폭 배치는 기존 StudioRemixRequest 원자 저장을 재사용한다.
+
+그룹 전달 `enterprise_group_delivery`는 `(ownerId, organizationId, dashboardId, groupId)` 복합 PK와 `version`, `active`, `allowCopy`를 보관한다. 조직/활성 소유자·현재 활성 그룹/구성원·유일 소유권을 매 요청 확인하며 소스 read는 별도다. 그룹 전달도 위 ownerId+requestId 영수증을 재사용하되 digest domain으로 direct 전달과 구분한다. 감사 action은 `dashboard.group-shared`/`dashboard.group-unshared`, `subjectId`는 직원이 아닌 groupId이며 개인 알림 대상으로 해석하지 않는다. 그룹 private reference는 `g-` 형식으로 조직·소유자·대시보드·관계 version·groupId·group version·template fingerprint를 묶고 reference/preview/save에서 현재 권한을 다시 확인한다. [그룹 전달 계획](plans/UC-053-group-deliveries.md)·[범위 증빙](testing/group-deliveries.md)을 따른다.
+
+그룹 알림은 `enterprise_notification_audience`의 `(eventId, recipientId)` 복합 PK로 사건 당시 수신자를 고정하며 현재 grant를 복제하지 않는다. 그룹 공유/회수 action의 `subjectId`는 계속 groupId다. `dashboard.group-shared`/`group-unshared`와 명시적 구성원 추가·제외 또는 그룹 활성 복원·비활성의 `dashboard.group-joined`/`group-left`만 대상으로 하며, 이름 변경이나 조직/계정 활성 변경은 사건을 만들지 않는다. 기존 그룹 감사에는 수신자 snapshot을 소급 생성하지 않는다. [계획](plans/UC-053-group-notifications.md)·[증빙](testing/group-notifications.md)을 따른다.
+
+## UC051 Dynamic Groups
+
+`enterprise_group`은 id PK·organizationId/nameKey unique·name/active/version이다. nameKey는 trim/NFKC/소문자로 정규화한다. `enterprise_group_member`는 groupId/userId PK·userId/groupId index다. `enterprise_group_grant`는 resourceKind/resourceId/groupId PK와 organizationId/ownerId/version·read/edit/publish/export(defaultfalse)를 보관한다. 현재 조직/활성/소유자/그룹/구성원 연결을 매 요청 확인하고 직접 권한과 합산한다. 팀 문자열 이관이나 물리 cascade/User FK는 추가하지 않는다.
+
+`enterprise_group_request`는 actorId/requestId UUID PK·organizationId/payloadHash/groupId다. 생성과 감사에 원자적으로 저장하며 동일 요청 replay는 현재 원래 그룹을 반환한다. 그룹은 삭제 대신 비활성화하고 구성원/정책/감사를 보존한다. 그룹 정책 감사의 subjectId는 그룹ID이며 개인 알림 대상 직원ID로 해석하지 않는다. [설계](plans/UC-051-groups.md)·[검증](testing/dynamic-groups.md)을 따른다.
+
+## UC055 개인 산출물 상태
+
+추가 마이그레이션 `1792520000000-add-personal-library-state`의 `personal_library_state`는 `(userId, organizationId, dashboardId)` 복합 기본키와 archived(boolean), version(integer), updatedAt(datetime)을 저장한다. 원본 Dashboard나 공유/게시 행과 별개인 본인 목록 선호다. 상태 없음은 false/version0이며 실제 조직의 현재 read 권한을 재검사해야 조회·변경할 수 있다. 조직 없는 계정은 상태를 만들지 않고 기존 허용 목록만 탐색한다. 현재 조직과 요청에서 확인한 조직이 다르면 새 상태를 쓰지 않는다. FK/cascade·자산 삭제 정책으로 확대하지 않으며 [계획](plans/UC-055-library-archive.md)과 [증빙](testing/personal-library-archive.md)을 따른다.
+
+## UC055 대시보드 삭제 영수증
+
+추가 마이그레이션 `1792530000000-add-dashboard-delete-receipts`의 `dashboard_delete_receipt`는 generated id, actorId/requestId unique, nullable organizationId, dashboardId index, expectedRevision/digest, createdAt을 보관한다. 원본 삭제·소유 연결 정리와 한 transaction으로 저장하는 과거 확인 기록이다. FK/cascade로 독립 사본/게시/개인 상태를 삭제하지 않는다. 조직 감사 `dashboard-deletion.completed`의 resourceId는 이 영수증 id이며 version1의 완료 사건이다. 영수증의 dashboardId/expectedRevision이 삭제 대상·기준을 잇고 조직 없는 과거 기록도 actor/기준/시각을 보존한다. [계획](plans/UC-055-dashboard-delete.md)·[증빙](testing/dashboard-deletion.md)을 따르며 운영 보관 정책은 별도다.
+
+### MetricDeleteReceipt (UC055)
+
+지표의 명시 논리 삭제에 대한 과거 확정 영수증이다. `actorId+requestId` unique, nullable organizationId, metricId, expectedRevision, digest, createdAt을 보존한다. Metric/다른 자원의 소유권/현재 상태를 대신하지 않으며 재확인은 useYn을 다시 변경하지 않는다. 조직 감사 `metric-deletion.completed`의 resourceId는 영수증ID/version=1이다.
+
+### SourceDeleteReceipt (UC055)
+
+마이그레이션 `1792550000000-add-source-delete-receipts`의 `source_delete_receipt`는 generated id, actorId/requestId unique, nullable organizationId, sourceId index, expectedRevision/digest, createdAt을 저장한다. 삭제 원자 transaction의 과거 확정 기록이며 Source 재생성/복원 권한이 아니다. 암호화 filePlan에는 서버 관리 파일의 경계·신원 proof와 파일별 진행 상태를 보관한다. managedFiles·cleanupStatus(pending/complete/retry_required)·cleanupVersion·cleanupAttempt·cleanupLeaseUntil로 별도 파일 정리의 CAS/lease를 관리한다. FK/cascade 없이 기존 자원·과거 이력을 보존한다. 조직 감사 source-deletion.completed 및 source-cleanup.completed/retry-required의 resourceId는 이 영수증ID다. 현재 actor/org/epoch를 확인한 안전한 상태만 응답하며 파일 계획/경로/연결 설정은 공개하지 않는다. [계획](plans/UC-055-source-delete.md)·[증빙](testing/source-deletion.md)을 따른다.
+
+### Dashboard lifecycle (UC055)
+
+Dashboard.assetActive(boolean defaulttrue), assetVersion(integer default0)는 조직 자산의 일반 이용 상태다. delYn/개인 보관 상태/소스 catalogActive/게시 version과 별도다. `dashboard_lifecycle_receipt`는 generated id, actorId/requestId unique, organizationId/dashboardId/payloadDigest/active/version/createdAt을 저장한다. 요청 재확인이 현재 상태를 덮지 않으며 FK/cascade로 기존 자원을 삭제하지 않는다. 상태 CAS·영수증·조직 감사 dashboard.activate/deactivate는 한 transaction이다. 감사 resourceId는 실제 dashboardId, version은 상태 버전이다. [계획](plans/UC-055-dashboard-lifecycle.md)·[실행 범위](testing/dashboard-asset-lifecycle.md)를 따른다.
+
+### Applied Explore condition and measure basis (UC052/054)
+
+[설계](plans/UC-052-explore-basis.md)의 적용 조건은 기존 PersonalView/ExploreView state JSON에 선택적으로 보관하는 StudioConditions(sourceRevision, definition, optional semantics)다. semantics가 없으면 legacy native이며 최신 catalog를 자동 상속하지 않는다. 별도 테이블·조건 metadata 저장/동기화는 없다. 기존 version1~5 보기와 조건 없는 상태를 유지하고 복구 시 현재 파일/schema를 검증한다. 조회의 measureVersions는 실제 사용한 지표 정의 version 집합이며 출력의 expectedMeasureVersions와 대조한다. sourceRevision과 지표 버전·source 조건 metadata version은 서로 대체하지 않는다.
+
+## UC050 조직 공통 분류 물리 모델
+
+추가 migration `1792580000000-add-enterprise-classifications`는 `enterprise_classification`과 `enterprise_classification_request`를 만든다. [계획](plans/UC-050-classifications.md)·[선택 증빙](testing/organization-classifications.md)을 따른다.
+
+| Entity                            | Key / fields                                                                                         | Constraints                                                         |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| enterprise_classification         | id integer PK·organizationId integer·name varchar80·nameKey varchar64·active boolean·version integer | 조직/nameKey unique·양의32비트 CAS·비활성 이름 예약·물리 삭제 없음  |
+| enterprise_classification_request | actorId/requestId 복합 PK·organizationId integer·payloadHash varchar64·result text                   | UUID/canonical 본문/조직에 묶인 최초 생성 snapshot·감사와 원자 저장 |
+
+name은 NFKC/trim 후 UTF-16 길이1~80이며 nameKey는 lowercase UTF8 SHA256 hex64다. 생성 영수증 result는 actorId/organizationId/entry의 허용 shape만 저장·검증하고 최초 active=true/version=1을 반환한다. 이후 이름/활성이 바뀌어도 과거 결과이며 현재 상태·접근/새 연결 허용의 증거가 아니다. `enterprise_audit_event`에는 classification.created/changed의 actor/자원/version을 남긴다. source 권한이나 역방향 source 잠금은 추가하지 않는다.
+
+`source_catalog_entry.metadata.columns`의 선택적 `classificationRef`는 `{organizationId,id,version} | null`이다. null은 명시 해제이며 저장/preview draft/조회/이력에서 키를 없애지 않는다. ref는 역사적 이름과 함께 append-only JSON에 남고 사전 rename/비활성/소속 이동으로 자동 갱신하지 않는다. 현재 bound ref 생략은 연결/이름 보존, ref 없는 legacy/해제된 열의 생략은 제공한 자유 문자열 편집 허용이다. 명시 해제는 기존 이름을 유지하며 후속 별도 편집에서 이름을 바꾼다. 신규/변경/최신 채택만 현재 조직·활성·정확 버전과 source edit를 검증한다. ConditionSemantics에는 이 ref를 넣지 않는다.
+
+분류 생성의 reload 복구는 DB entity가 아닌 탭 `classificationCreate` 최소 요청이다. 현재 로그인 세대/actor/조직 scope·24시간/8KiB이며 자동 POST 없이 현재 목록/권한 확인 후 명시 재확인한다. 기본 생성 유실/reload/동일 요청은 ui-second1 PASS로 확인했다. FE helper read/delete 실패 처리는 수정 후 FE8 suites/102 PASS·types/lint/build를 확인했다. core-final15 PASS/51.0초 뒤 FE receipt/pagination을 보강해 영향13 PASS·types/lint/build와 수정 후 ui-stable2 PASS/13.4초·Jason 최종 APPROVE0를 확인했다. 이전102와13은 중복 합산하지 않는다. 이후 Main의 최종6개 화면 열람에서768/1440 입력 상단 약7px 정렬 차이가 발견되어 UI Kit을 유지한 TextField select 수정과 행 top 차이≤1px 검증/UI2 재실행은 대기다. 과거 영수증은 페이지 밖 entry를 현재 목록에 삽입하지 않으며 현재 이름/활성은 명시 load-more 조회로 확인한다. Ego96 제어권 인수·물리 휴대폰·운영·사람 수용은 미실행이다.

@@ -2,7 +2,7 @@ import type { ChatTransport } from 'ai';
 import { post } from '@/helpers/apiHelper';
 import { AssistantMessage, assistantResultStream, messageText } from '../assistantTransport';
 import { validateStudioPreview, StudioPreview, StudioApiError, toStudioApiError, studioRequestId } from './studioApi';
-import { studioAssert, studioKeys } from './studioDocument';
+import { studioAssert, studioKeys, studioConditionsKey, validateStudioConditions } from './studioDocument';
 import { applyStudioOperation } from './studioReducer';
 import { StudioDocumentV1, StudioOperation } from './studioTypes';
 import { validateExecution, executionSummary, StudioExecution, ExecutionRequest } from './studioExecution';
@@ -54,11 +54,33 @@ export function validateStudioRun(input: unknown, context: StudioRunContext): St
   );
   let document = context.document;
   for (const operation of result.proposedOperations) {
-    studioAssert(
-      operation.type === 'updateBlock' && operation.blockId === context.selectedBlockId,
-      '선택한 블록만 수정할 수 있습니다.',
-    );
-    studioKeys(operation.patch, ['title', 'description', 'display']);
+    if (operation.type === 'setConditions') {
+      studioKeys(operation, ['type', 'conditions']);
+      studioAssert(Object.prototype.hasOwnProperty.call(operation, 'conditions'), '조건 변경안이 누락됐습니다.');
+      const conditions = operation.conditions === null ? undefined : validateStudioConditions(operation.conditions);
+      studioAssert(
+        !conditions || conditions.sourceRevision === context.expectedSourceRevision,
+        '조건 파일 버전이 다릅니다.',
+      );
+      if (conditions && context.document.conditions) {
+        const semanticKey = (value: typeof conditions) =>
+          studioConditionsKey({ ...value, definition: { include: null, exclude: null } });
+        studioAssert(
+          semanticKey(conditions) === semanticKey(context.document.conditions),
+          'AI 조건의 업무 의미가 현재 검토 기준과 다릅니다. 최신 업무 의미는 명시적으로 채택하세요.',
+        );
+      }
+      studioAssert(
+        studioConditionsKey(conditions) !== studioConditionsKey(context.document.conditions),
+        '조건 변경이 없습니다.',
+      );
+    } else {
+      studioAssert(
+        operation.type === 'updateBlock' && operation.blockId === context.selectedBlockId,
+        '선택한 블록만 수정할 수 있습니다.',
+      );
+      studioKeys(operation.patch, ['title', 'description', 'display']);
+    }
     document = applyStudioOperation(document, operation);
   }
   studioAssert(

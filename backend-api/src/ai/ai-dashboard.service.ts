@@ -1,14 +1,25 @@
 import {
+  resolveConditionSemantics,
+  validateConditionBusinessDates,
+} from '../bi/business-condition-context';
+import { lockMetricReferences, lockMetricReferenceSets } from '../metric/metric-write-lock';
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { validateStudioConditions } from '../dashboard-studio/studio-document';
+import type { StudioConditions } from '../dashboard-studio/studio-contract';
+import { renderValidatedQueryBindings } from '../common/validated-query-bindings';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
+import { parseConnectionConfig } from '../utils/crypto.util';
 import {
   responsiveLayouts,
   BlockLayouts,
@@ -28,6 +39,8 @@ import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { AiService } from './ai.service';
 import { CODEX_MODEL } from './coding-agent';
 import { ConnectionService } from '../connection/connection.service';
+import { SourceAccessService } from '../ownership/source-access.service';
+import { ResourceAction } from '../enterprise/resource-policy.service';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
@@ -79,6 +92,7 @@ import { comparisonValues, previousDateRange, validatePeriodOptions } from './da
 import { resolveDimensionColumn } from './dashboard-dimension';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
+import { metadataTransaction } from '../common/metadata-work';
 import {
   DASHBOARD_TYPES,
   positiveId,
@@ -126,19 +140,85 @@ export class AiDashboardService {
     private readonly ai: AiService,
     private readonly connection: ConnectionService,
     @InjectRepository(Dashboard) private readonly dashboards: Repository<Dashboard>,
+    @Optional() private readonly access?: SourceAccessService,
   ) {}
+  private readonly conditionDateProofs = new Map<string, Promise<void>>();
+  /** Caller has already established source rights and the immutable execution file. */
+  async assertConditionSemantics(
+    sourceId: number,
+    schema: Array<{ name: string; type: string }>,
+    conditions?: StudioConditions,
+  ) {
+    if (!conditions?.semantics) return;
+    await resolveConditionSemantics(
+      this.dashboards.manager,
+      sourceId,
+      schema,
+      conditions.semantics,
+    );
+    const key = JSON.stringify([
+      sourceId,
+      await this.connection.duckDBVersion(sourceId),
+      conditions.semantics,
+    ]);
+    let proof = this.conditionDateProofs.get(key);
+    if (!proof) {
+      if (this.conditionDateProofs.size >= 64)
+        this.conditionDateProofs.delete(this.conditionDateProofs.keys().next().value);
+      proof = validateConditionBusinessDates(schema, conditions.semantics, (sql, bindings) =>
+        this.connection.queryDuckDB(sourceId, sql, bindings),
+      );
+      this.conditionDateProofs.set(key, proof);
+      const captured = proof;
+      void captured.catch(() => {
+        if (this.conditionDateProofs.get(key) === captured) this.conditionDateProofs.delete(key);
+      });
+    }
+    await proof;
+  }
+  private async recheckConditionError(sourceId: number, actor: number, conditions: any) {
+    if (this.access) await this.access.assert('database', sourceId, actor, 'read');
+    if (conditions?.semantics && typeof conditions.sourceRevision === 'string') {
+      const fresh = await this.connection.captureDuckDBSnapshot(sourceId);
+      if (
+        (await fresh.run(() => this.connection.duckDBVersion(sourceId))) !==
+        conditions.sourceRevision
+      )
+        throw new ConflictException(
+          '업무 조건 검증 중 파일이 변경됐습니다. 입력을 유지하고 다시 검토해 주세요.',
+        );
+    }
+  }
   private success(data: any) {
     return { status: ResponseStatus.SUCCESS, data };
   }
-  private async owner(id: number, userId: number, manager = this.dashboards.manager) {
+  /**
+   * UC-051: the legacy owner mapping stays the default. An explicit action is delegated to the
+   * shared policy, and manual constructions without the ownership module keep owner-only behavior.
+   */
+  private async owner(
+    id: number,
+    userId: number,
+    action: ResourceAction | 'owner' = 'read',
+    manager = this.dashboards.manager,
+    write = false,
+  ) {
     positiveId(id);
     if (!Number.isSafeInteger(userId) || userId <= 0)
       throw new ForbiddenException('not dashboard owner');
+    const locked = write ? await lockDashboardWrite(manager, id) : undefined;
+    if (this.access) {
+      const dashboard = locked ?? (await manager.findOne(Dashboard, { where: { id } }));
+      if (!dashboard || dashboard.delYn === YesNo.YES)
+        throw new NotFoundException('dashboard not found');
+      await this.access.dashboard(id, userId, action, manager);
+      return dashboard;
+    }
     const mapping = await manager.findOne(UserMapping, {
       where: { dashboardId: id, userInfoId: userId },
     });
     if (!mapping) throw new ForbiddenException('not dashboard owner');
-    const dashboard = await manager.findOne(Dashboard, { where: { id } });
+    const dashboard = locked ?? (await manager.findOne(Dashboard, { where: { id } }));
     if (!dashboard || dashboard.delYn === YesNo.YES)
       throw new NotFoundException('dashboard not found');
     return dashboard;
@@ -191,6 +271,7 @@ export class AiDashboardService {
       {
         draft: current,
         filters: body.filters,
+        conditions: body.conditions,
         dateRange: body.dateRange,
         trendGrain: body.trendGrain,
         comparePrevious: body.comparePrevious,
@@ -353,12 +434,16 @@ export class AiDashboardService {
   }
   async assistant(body: any, userId: number, abortSignal?: AbortSignal) {
     // Mandatory authorization precedes validation, source reads, and model invocation.
-    await this.owner(body?.dashboardId, userId);
+    await this.owner(body?.dashboardId, userId, 'edit');
     const current = validateDraft(body?.currentDraft);
     const { data: saved } = await this.analysis(body.dashboardId, userId);
     if (current.databaseId !== saved.databaseId)
       throw new BadRequestException('dashboard source mismatch');
     const history = this.conversation(body, current);
+    body = {
+      ...body,
+      conditions: body.conditions === undefined ? saved.defaultConditions : body.conditions,
+    };
     const context = await this.previewContext(body, current, userId);
     if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     const ai = {
@@ -673,7 +758,7 @@ export class AiDashboardService {
       let draft = change.draft;
       for (const index of candidate.widgetIndices)
         draft = applyCanonicalCalculation(draft, index, change.expression);
-      const row = await this.owner(target.dashboardId, userId);
+      const row = await this.owner(target.dashboardId, userId, 'edit');
       const stored = row.structuredDefinition ? JSON.parse(row.structuredDefinition) : null;
       change.snapshot = refreshMetricLinks(
         stored,
@@ -733,10 +818,11 @@ export class AiDashboardService {
   }
   async metricBatchSave(body: any, userId: number) {
     const changes = await this.metricBatch(body, userId);
-    const saved = await this.dashboards.manager.transaction(async manager => {
-      const results = [];
-      for (const [index, change] of changes.entries()) {
-        const result = await this.save(
+    // Complete every validated query/aggregate before taking any metadata or parent lock.
+    const prepared = [];
+    for (const [index, change] of changes.entries())
+      prepared.push(
+        await this.prepareSave(
           {
             dashboardId: change.dashboardId,
             expectedRevision: change.expectedRevision,
@@ -745,10 +831,25 @@ export class AiDashboardService {
           userId,
           change.snapshot,
           index === 0 ? change.mutation : undefined,
-          manager,
           true,
-        );
-        results.push(result.data);
+        ),
+      );
+    const saved = await metadataTransaction(this.dashboards.manager, async manager => {
+      // Acquire the entire set before the first Metric CAS, independent of primary-first save order.
+      for (const id of [...new Set<number>(changes.map(change => change.dashboardId))].sort(
+        (a, b) => a - b,
+      ))
+        await lockDashboardWrite(manager, id);
+      // Recheck every target under its parent fence before the first Metric CAS/write.
+      await lockMetricReferenceSets(
+        manager,
+        prepared.flatMap(item => item.referenceSets()),
+      );
+      const current = [];
+      for (const item of prepared) current.push(await item.validate(manager, changes[0].mutation));
+      const results = [];
+      for (const index of changes.keys()) {
+        results.push(await prepared[index].persist(manager, current[index]));
       }
       return results;
     });
@@ -925,7 +1026,7 @@ export class AiDashboardService {
     return rect;
   }
   async generate(body: any, userId: number, abortSignal?: AbortSignal) {
-    if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId);
+    if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId, 'edit');
     const id = positiveId(body?.databaseId);
     const current = body.currentDraft === undefined ? undefined : validateDraft(body.currentDraft);
     let savedResponsiveLayouts;
@@ -934,6 +1035,10 @@ export class AiDashboardService {
     if (body.dashboardId !== undefined) {
       const { data: saved } = await this.analysis(body.dashboardId, userId);
       savedResponsiveLayouts = saved.responsiveLayouts;
+      body = {
+        ...body,
+        conditions: body.conditions === undefined ? saved.defaultConditions : body.conditions,
+      };
       if (id !== saved.databaseId) throw new BadRequestException('dashboard source mismatch');
     }
     const history = this.conversation(body, current);
@@ -941,6 +1046,7 @@ export class AiDashboardService {
       !current &&
       (body.filters !== undefined ||
         body.dateRange !== undefined ||
+        body.conditions !== undefined ||
         body.trendGrain !== undefined ||
         body.comparePrevious !== undefined)
     )
@@ -1114,7 +1220,15 @@ export class AiDashboardService {
             }
           }
         }
-        const preview = await this.preview({ draft: parsed }, userId);
+        const preview = await this.preview(
+          {
+            draft: parsed,
+            conditions: body.conditions,
+            filters: body.filters,
+            dateRange: body.dateRange,
+          },
+          userId,
+        );
         return this.success({
           ...preview.data.draft,
           ...(savedResponsiveLayouts ? { responsiveLayouts: savedResponsiveLayouts } : {}),
@@ -1136,12 +1250,25 @@ export class AiDashboardService {
       message: 'AI 결과를 검증하지 못했습니다. 요청을 구체적으로 작성해 다시 시도해 주세요.',
     };
   }
-  async preview(body: any, userId: number) {
-    if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId);
+  /** UC-051: an existing dashboard preview needs the explicit edit action; callers may pass read/publish. */
+  async preview(body: any, userId: number, action: ResourceAction | 'owner' = 'edit') {
+    if (body?.dashboardId !== undefined) {
+      await this.owner(body.dashboardId, userId, action);
+      if (body.conditions === undefined) {
+        const { data: saved } = await this.analysis(body.dashboardId, userId, false, action);
+        body = { ...body, conditions: saved.defaultConditions };
+      }
+    }
     const draft = validateDraft(body?.draft);
-    return this.connection.withDuckDBSnapshot(draft.databaseId, () =>
-      this.previewSnapshot(body, draft),
-    );
+    if (this.access) await this.access.assert('database', draft.databaseId, userId, 'read');
+    const result = await this.connection
+      .withDuckDBSnapshot(draft.databaseId, () => this.previewSnapshot(body, draft))
+      .catch(async error => {
+        await this.recheckConditionError(draft.databaseId, userId, body.conditions);
+        throw error;
+      });
+    if (this.access) await this.access.assert('database', draft.databaseId, userId, 'read');
+    return result;
   }
 
   private effectiveWidgetQuery(
@@ -1284,74 +1411,104 @@ export class AiDashboardService {
         );
     } else if (saved.data.databaseId !== draft.databaseId)
       throw new BadRequestException('dashboard source mismatch');
-    return this.connection.withDuckDBSnapshot(draft.databaseId, async () => {
-      const sourceRevision = await this.connection.duckDBVersion(draft.databaseId);
-      if (body.sourceRevision !== sourceRevision)
-        throw new ConflictException(
-          '파일 버전이 변경되었습니다. 대시보드를 새로고침한 뒤 상세 내역을 다시 열어 주세요.',
+    if (this.access) await this.access.assert('database', draft.databaseId, userId, 'read');
+    const result = await this.connection
+      .withDuckDBSnapshot(draft.databaseId, async () => {
+        const sourceRevision = await this.connection.duckDBVersion(draft.databaseId);
+        if (body.sourceRevision !== sourceRevision)
+          throw new ConflictException(
+            '파일 버전이 변경되었습니다. 대시보드를 새로고침한 뒤 상세 내역을 다시 열어 주세요.',
+          );
+        body = {
+          ...body,
+          conditions:
+            body.conditions === undefined ? saved.data.defaultConditions : body.conditions,
+        };
+        const conditions =
+          body.conditions === undefined ? undefined : validateStudioConditions(body.conditions);
+        if (conditions && conditions.sourceRevision !== sourceRevision)
+          throw new ConflictException('Condition source revision changed');
+        if (
+          contributionMode &&
+          JSON.stringify(conditions) !== JSON.stringify(saved.data.defaultConditions)
+        )
+          throw new ConflictException('Condition scope changed');
+        const schema = await this.schema(draft.databaseId);
+        await this.assertConditionSemantics(
+          draft.databaseId,
+          schema.map(c => ({ name: c.column_name, type: c.column_type })),
+          conditions,
         );
-      const schema = await this.schema(draft.databaseId);
-      const columns = schema.map(c => c.column_name);
-      const temporal = schema
-        .filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type))
-        .map(c => c.column_name);
-      if (contributionMode)
-        return this.contributionDetails(
-          body,
-          saved.data,
-          schema,
-          sourceRevision,
+        const columns = schema.map(c => c.column_name);
+        const temporal = schema
+          .filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type))
+          .map(c => c.column_name);
+        if (contributionMode)
+          return this.contributionDetails(
+            body,
+            saved.data,
+            schema,
+            sourceRevision,
+            page,
+            pageSize,
+            userId,
+          );
+        const query = (sql: string) =>
+          sourceQuery(
+            sql,
+            columns,
+            body.filters,
+            body.dateRange,
+            temporal,
+            numericSourceColumns(schema),
+            body.conditions?.definition,
+            schema.map(c => ({ name: c.column_name, type: c.column_type })),
+            body.conditions?.semantics,
+          );
+        const countQuery = query('SELECT CAST(count(*) AS VARCHAR) AS total FROM source');
+        const count = await this.connection.queryDuckDB(
+          draft.databaseId,
+          countQuery.sql,
+          countQuery.bindings,
+        );
+        // A bounded projection and deterministic ordering avoid sending an entire wide source to the browser.
+        // Equal projected rows are indistinguishable in this table; ORDER BY ALL also avoids shadowed rowid columns.
+        const selectedColumns = columns.slice(0, 50);
+        // DuckDB's object adapter assigns onto {}, so magic property names need safe transport aliases.
+        const rowsQuery = query(
+          `SELECT ${selectedColumns
+            .map((column, index) => `${quoteColumn(column)} AS "__vm_detail_${index}"`)
+            .join(', ')} FROM source ORDER BY ALL LIMIT ${pageSize} OFFSET ${page * pageSize}`,
+        );
+        const rows = await this.connection.queryDuckDB(
+          draft.databaseId,
+          rowsQuery.sql,
+          rowsQuery.bindings,
+        );
+        return this.success({
+          fields: rows.fields.map((field: any, index: number) => ({
+            ...field,
+            columnName: selectedColumns[index],
+          })),
+          datas: rows.datas.map((row: any) =>
+            Object.fromEntries(
+              selectedColumns.map((column, index) => [column, row[`__vm_detail_${index}`]]),
+            ),
+          ),
+          totalRows: String(count.datas[0].total),
           page,
           pageSize,
-          userId,
-        );
-      const query = (sql: string) =>
-        sourceQuery(
-          sql,
-          columns,
-          body.filters,
-          body.dateRange,
-          temporal,
-          numericSourceColumns(schema),
-        );
-      const countQuery = query('SELECT CAST(count(*) AS VARCHAR) AS total FROM source');
-      const count = await this.connection.queryDuckDB(
-        draft.databaseId,
-        countQuery.sql,
-        countQuery.bindings,
-      );
-      // A bounded projection and deterministic ordering avoid sending an entire wide source to the browser.
-      // Equal projected rows are indistinguishable in this table; ORDER BY ALL also avoids shadowed rowid columns.
-      const selectedColumns = columns.slice(0, 50);
-      // DuckDB's object adapter assigns onto {}, so magic property names need safe transport aliases.
-      const rowsQuery = query(
-        `SELECT ${selectedColumns
-          .map((column, index) => `${quoteColumn(column)} AS "__vm_detail_${index}"`)
-          .join(', ')} FROM source ORDER BY ALL LIMIT ${pageSize} OFFSET ${page * pageSize}`,
-      );
-      const rows = await this.connection.queryDuckDB(
-        draft.databaseId,
-        rowsQuery.sql,
-        rowsQuery.bindings,
-      );
-      return this.success({
-        fields: rows.fields.map((field: any, index: number) => ({
-          ...field,
-          columnName: selectedColumns[index],
-        })),
-        datas: rows.datas.map((row: any) =>
-          Object.fromEntries(
-            selectedColumns.map((column, index) => [column, row[`__vm_detail_${index}`]]),
-          ),
-        ),
-        totalRows: String(count.datas[0].total),
-        page,
-        pageSize,
-        sourceRevision,
-        columnCount: columns.length,
-        scope: 'current common-filter source rows',
+          sourceRevision,
+          columnCount: columns.length,
+          scope: 'current common-filter source rows',
+        });
+      })
+      .catch(async error => {
+        await this.recheckConditionError(draft.databaseId, userId, body.conditions);
+        throw error;
       });
-    });
+    if (this.access) await this.access.assert('database', draft.databaseId, userId, 'read');
+    return result;
   }
   /** Preview and point details share column selection, full-source auto stats and SQL. */
   private async numericTrendQuery(
@@ -1361,6 +1518,7 @@ export class AiDashboardService {
     dateRange: any,
     trendGrain: ReturnType<typeof validatePeriodOptions>['trendGrain'],
     stats?: { min: string; max: string },
+    conditions?: StudioConditions,
   ) {
     const temporal = schema.filter(column => /^(DATE|TIMESTAMP)/i.test(column.column_type));
     const column = temporal.some(item => item.column_name === dateRange?.column)
@@ -1369,10 +1527,21 @@ export class AiDashboardService {
     if (!column) return undefined;
     if (trendGrain === 'auto' && !dateRange && !stats) {
       const name = quoteColumn(column);
-      const result = await this.connection.queryDuckDB(
-        databaseId,
-        `SELECT CAST(CAST(min(${name}) AS DATE) AS VARCHAR) AS min, CAST(CAST(max(${name}) AS DATE) AS VARCHAR) AS max FROM uploaded_data`,
-      );
+      const sql = `SELECT CAST(CAST(min(${name}) AS DATE) AS VARCHAR) AS min, CAST(CAST(max(${name}) AS DATE) AS VARCHAR) AS max FROM source`;
+      const query = conditions
+        ? sourceQuery(
+            sql,
+            schema.map(c => c.column_name),
+            [],
+            undefined,
+            [],
+            [],
+            conditions.definition,
+            schema.map(c => ({ name: c.column_name, type: c.column_type })),
+            conditions.semantics,
+          )
+        : { sql: sql.replace('FROM source', 'FROM uploaded_data'), bindings: [] };
+      const result = await this.connection.queryDuckDB(databaseId, query.sql, query.bindings);
       stats = result.datas[0];
     }
     let grain =
@@ -1426,18 +1595,39 @@ export class AiDashboardService {
       body.dateRange,
       temporal,
       numericSourceColumns(schema),
+      body.conditions?.definition,
+      schema.map(c => ({ name: c.column_name, type: c.column_type })),
+      body.conditions?.semantics,
     );
     const dateRange =
       input.period === 'previous' ? previousDateRange(body.dateRange) : body.dateRange;
     const query = (sql: string) =>
-      sourceQuery(sql, columns, body.filters, dateRange, temporal, numericSourceColumns(schema));
+      sourceQuery(
+        sql,
+        columns,
+        body.filters,
+        dateRange,
+        temporal,
+        numericSourceColumns(schema),
+        body.conditions?.definition,
+        schema.map(c => ({ name: c.column_name, type: c.column_type })),
+        body.conditions?.semantics,
+      );
     const { trendGrain } = validatePeriodOptions({ trendGrain: input.trendGrain });
     const dateColumn = temporal.includes(body.dateRange?.column)
       ? body.dateRange.column
       : temporal[0];
     const trendPoint = input.trendPoint;
     const trend = trendPoint
-      ? await this.numericTrendQuery(definition, saved.databaseId, schema, dateRange, trendGrain)
+      ? await this.numericTrendQuery(
+          definition,
+          saved.databaseId,
+          schema,
+          dateRange,
+          trendGrain,
+          undefined,
+          body.conditions,
+        )
       : undefined;
     if (
       trendPoint &&
@@ -1647,6 +1837,10 @@ export class AiDashboardService {
     if (comparePrevious && !body.dateRange)
       throw new BadRequestException('이전 기간 비교에는 적용한 날짜 범위가 필요합니다.');
     const sourceRevision = await this.connection.duckDBVersion(draft.databaseId);
+    const conditions =
+      body.conditions === undefined ? undefined : validateStudioConditions(body.conditions);
+    if (conditions && conditions.sourceRevision !== sourceRevision)
+      throw new ConflictException('Condition source revision changed');
     const schema = await this.schema(draft.databaseId);
     const modelSource = await this.dashboards.manager.findOne(Database, {
       where: { id: draft.databaseId },
@@ -1680,6 +1874,11 @@ export class AiDashboardService {
           '사전의 숫자 속성·집계된 고유값으로 합계나 전체 고유 인원을 계산할 수 없습니다. 원본 사실 행 또는 식별 키를 연결해 주세요.',
         );
     }
+    await this.assertConditionSemantics(
+      draft.databaseId,
+      schema.map(c => ({ name: c.column_name, type: c.column_type })),
+      conditions,
+    );
     const columns = schema.map(c => c.column_name);
     const temporal = schema.filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type));
     // Validate the current range before deriving or querying either comparison period.
@@ -1690,6 +1889,9 @@ export class AiDashboardService {
       body.dateRange,
       temporal.map(c => c.column_name),
       numericSourceColumns(schema),
+      body.conditions?.definition,
+      schema.map(c => ({ name: c.column_name, type: c.column_type })),
+      body.conditions?.semantics,
     );
     const previous = comparePrevious ? previousDateRange(body.dateRange) : undefined;
     const dateColumn = temporal.some(c => c.column_name === body?.dateRange?.column)
@@ -1718,6 +1920,9 @@ export class AiDashboardService {
         body.dateRange,
         temporal.map(c => c.column_name),
         numericSourceColumns(schema),
+        body.conditions?.definition,
+        schema.map(c => ({ name: c.column_name, type: c.column_type })),
+        body.conditions?.semantics,
       );
       queries.push({ widgetIndex: widgets.length, kind: 'widget', ...query });
       const result = await this.connection.queryDuckDB(draft.databaseId, query.sql, query.bindings);
@@ -1808,6 +2013,9 @@ export class AiDashboardService {
           previous,
           temporal.map(c => c.column_name),
           numericSourceColumns(schema),
+          body.conditions?.definition,
+          schema.map(c => ({ name: c.column_name, type: c.column_type })),
+          body.conditions?.semantics,
         );
         queries.push({ widgetIndex: widgets.length, kind: 'previous-widget', ...previousQuery });
         const prior = await this.connection.queryDuckDB(
@@ -1859,7 +2067,7 @@ export class AiDashboardService {
       }
       widgets.push(widget);
     }
-    const schemaKey = JSON.stringify([sourceRevision, schema]);
+    const schemaKey = JSON.stringify([sourceRevision, schema, conditions]);
     const cached = this.dimensionCache.get(draft.databaseId);
     let dimensions =
       cached?.key === schemaKey && cached.expires > Date.now() ? cached.data : undefined;
@@ -1875,9 +2083,26 @@ export class AiDashboardService {
         );
       for (const column of categorical.slice(0, 10)) {
         const name = quoteColumn(column.column_name);
+        const query = conditions
+          ? sourceQuery(
+              `SELECT ${name} AS value FROM source WHERE ${name} IS NOT NULL GROUP BY ${name} ORDER BY value LIMIT 51`,
+              columns,
+              [],
+              undefined,
+              [],
+              [],
+              conditions.definition,
+              schema.map(c => ({ name: c.column_name, type: c.column_type })),
+              conditions.semantics,
+            )
+          : {
+              sql: `SELECT DISTINCT ${name} AS value FROM uploaded_data WHERE ${name} IS NOT NULL ORDER BY value LIMIT 51`,
+              bindings: [],
+            };
         const result = await this.connection.queryDuckDB(
           draft.databaseId,
-          `SELECT DISTINCT ${name} AS value FROM uploaded_data WHERE ${name} IS NOT NULL ORDER BY value LIMIT 51`,
+          query.sql,
+          query.bindings,
         );
         if (result.datas.length && result.datas.length <= 50)
           dimensions.push({
@@ -1889,9 +2114,24 @@ export class AiDashboardService {
       temporalColumns = [];
       for (const column of temporal.slice(0, 5)) {
         const name = quoteColumn(column.column_name);
+        const sql = `SELECT CAST(CAST(min(${name}) AS DATE) AS VARCHAR) AS min, CAST(CAST(max(${name}) AS DATE) AS VARCHAR) AS max FROM source`;
+        const query = conditions
+          ? sourceQuery(
+              sql,
+              columns,
+              [],
+              undefined,
+              [],
+              [],
+              conditions.definition,
+              schema.map(c => ({ name: c.column_name, type: c.column_type })),
+              conditions.semantics,
+            )
+          : { sql: sql.replace('FROM source', 'FROM uploaded_data'), bindings: [] };
         const result = await this.connection.queryDuckDB(
           draft.databaseId,
-          `SELECT CAST(CAST(min(${name}) AS DATE) AS VARCHAR) AS min, CAST(CAST(max(${name}) AS DATE) AS VARCHAR) AS max FROM uploaded_data`,
+          query.sql,
+          query.bindings,
         );
         temporalColumns.push({ column: column.column_name, ...result.datas[0] });
       }
@@ -1931,6 +2171,7 @@ export class AiDashboardService {
             period.range,
             trendGrain,
             temporalColumns.find((item: any) => item.column === dateColumn),
+            conditions,
           );
           if (!trendSql) {
             widget[period.unavailable] = 'The widget SQL cannot be safely grouped into a trend.';
@@ -1944,6 +2185,9 @@ export class AiDashboardService {
               period.range,
               temporal.map(c => c.column_name),
               numericSourceColumns(schema),
+              body.conditions?.definition,
+              schema.map(c => ({ name: c.column_name, type: c.column_type })),
+              body.conditions?.semantics,
             );
             queries.push({ widgetIndex: widgets.indexOf(widget), kind: period.kind, ...query });
             const result = await this.connection.queryDuckDB(
@@ -2042,6 +2286,31 @@ export class AiDashboardService {
       ...(body?.includeTrends === true || body?.includeQueries === true ? { queries } : {}),
     });
   }
+  /** UC-051: the stored data binding of a saved dashboard, never taken from the request body. */
+  private storedSourceId(dashboard?: Dashboard): number | undefined {
+    if (!dashboard) return undefined;
+    for (const stored of [dashboard.analysisDefinition, dashboard.structuredDefinition]) {
+      if (!stored) continue;
+      try {
+        const parsed = JSON.parse(stored);
+        const id = Number.isSafeInteger(parsed?.databaseId) ? parsed.databaseId : parsed?.sourceId;
+        if (Number.isSafeInteger(id)) return Number(id);
+      } catch {
+        // A malformed stored definition is not a source change.
+      }
+    }
+    return undefined;
+  }
+  /** Re-binding a saved dashboard's source needs the original owner and the new source's owner. */
+  private async assertSourceRebinding(
+    dashboardId: number,
+    sourceId: unknown,
+    userId: number,
+    manager?: EntityManager,
+  ) {
+    await this.owner(dashboardId, userId, 'owner', manager);
+    if (this.access) await this.access.assert('database', sourceId, userId, 'owner', manager);
+  }
   async save(
     body: any,
     userId: number,
@@ -2059,6 +2328,38 @@ export class AiDashboardService {
     preserveSizeIds: readonly string[] = [],
     layoutEdits?: BlockLayouts[],
   ) {
+    const prepared = await this.prepareSave(
+      body,
+      userId,
+      structuredSnapshot,
+      metricMutation,
+      preserveLayout,
+      preserveSizeIds,
+      layoutEdits,
+    );
+    const persist = (manager: EntityManager) => prepared.persist(manager);
+    const saved = sharedManager
+      ? await persist(sharedManager)
+      : await metadataTransaction(this.dashboards.manager, persist);
+    return this.success(saved);
+  }
+  /** Internal persistence preparation: all SQL completes before a caller opens its transaction. */
+  async prepareSave(
+    body: any,
+    userId: number,
+    structuredSnapshot?: object,
+    metricMutation?: {
+      id: number;
+      databaseId: number;
+      previous: string;
+      definition: string;
+      aggregation: any;
+      column: string;
+    },
+    preserveLayout = false,
+    preserveSizeIds: readonly string[] = [],
+    layoutEdits?: BlockLayouts[],
+  ) {
     if (
       body?.expectedRevision !== undefined &&
       (body.dashboardId === undefined ||
@@ -2067,37 +2368,182 @@ export class AiDashboardService {
     )
       throw new BadRequestException('invalid dashboard revision');
     if (!Number.isSafeInteger(userId) || userId <= 0) throw new ForbiddenException('invalid owner');
+    // UC-051: a new dashboard is a new artifact, so it still requires source ownership.
+    if (body?.dashboardId === undefined && this.access)
+      await this.access.assert('database', body?.draft?.databaseId, userId);
     const existing =
-      body?.dashboardId !== undefined ? await this.owner(body.dashboardId, userId) : undefined;
+      body?.dashboardId !== undefined
+        ? await this.owner(body.dashboardId, userId, 'edit')
+        : undefined;
     const legacyDraft =
       existing && !existing.analysisDefinition
         ? (await this.analysis(body.dashboardId, userId)).data
         : undefined;
+    // Legacy reuse creates a new artifact without Studio's structured snapshot.
+    // Only this new-artifact path may establish a request-supplied condition scope.
+    if (!existing && structuredSnapshot === undefined && body.conditions !== undefined) {
+      const conditions = validateStudioConditions(body.conditions);
+      const draft = validateDraft(body.draft);
+      structuredSnapshot = {
+        schemaVersion: 2,
+        kind: 'structured-bi-dashboard',
+        sourceId: draft.databaseId,
+        studioConditions: conditions,
+        items: draft.widgets.map(() => ({})),
+      };
+    }
+    const prior = this.readStructuredScope(existing?.structuredDefinition);
+    const savedScope =
+      structuredSnapshot === undefined ? prior.scope : this.studioSavedScope(structuredSnapshot);
+    if (
+      body.conditions !== undefined &&
+      JSON.stringify(validateStudioConditions(body.conditions)) !==
+        JSON.stringify(savedScope.conditions)
+    )
+      throw new BadRequestException('Condition snapshot required');
     const { data: prepared } = await this.preview(
-      { draft: body?.draft, includeQueries: true },
+      {
+        draft: body?.draft,
+        includeQueries: true,
+        filters: savedScope.filters,
+        dateRange: savedScope.dateRange,
+        conditions: savedScope.conditions,
+      },
       userId,
     );
+    // Fully render and size-check every Dataset query before the first write.
+    const datasetQueries = prepared.draft.widgets.map((widget, widgetIndex) => {
+      // Preserve the baseline unscoped source query. Scoped or regrouped widgets
+      // must use the exact validated query and bindings prepared by the preview.
+      const scoped = savedScope.conditions || savedScope.filters || savedScope.dateRange;
+      const query =
+        scoped || (widget.timeGrain && widget.timeGrain !== 'auto')
+          ? prepared.queries?.find(
+              query => query.kind === 'widget' && query.widgetIndex === widgetIndex,
+            )
+          : sourceQuery(widget.sql, []);
+      if (!query) throw new BadRequestException('Validated scoped query required');
+      return renderValidatedQueryBindings(query.sql, query.bindings);
+    });
     const { draft } = prepared;
+    // UC-051: a delegated edit must never re-bind the saved artifact to another source. Changing
+    // the stored source requires the original dashboard owner and the new source owner.
+    const storedSource = this.storedSourceId(existing);
+    if (storedSource !== undefined && storedSource !== draft.databaseId)
+      await this.assertSourceRebinding(body.dashboardId, draft.databaseId, userId);
     prepared.widgets.forEach(widget => {
       if (widget.timeGrain && widget.timeGrain !== 'auto' && widget.grainUnavailable)
         throw new BadRequestException('요청한 시간 집계를 안전하게 저장할 수 없습니다.');
     });
-    const persist = async (manager: EntityManager) => {
-      let dashboard =
+    const baseline = existing?.analysisDefinition
+      ? legacyBlockIds(validateDraft(JSON.parse(existing.analysisDefinition)), existing.id)
+      : legacyDraft;
+    draft.widgets = validateDraft(storedBlockIds(draft, baseline)).widgets;
+    const references = () => {
+      let snapshot = structuredSnapshot;
+      if (snapshot === undefined && existing?.structuredDefinition && baseline) {
+        try {
+          snapshot = preserveMetricLinks(
+            JSON.parse(existing.structuredDefinition),
+            baseline,
+            draft,
+          );
+        } catch {
+          snapshot = undefined;
+        } // Ordinary SQL saves clear malformed prior unscoped metadata.
+      }
+      return metricLinkItems(snapshot, draft).filter(item => item?.metricId !== undefined);
+    };
+    const referenceSets = () => [
+      { sourceId: draft.databaseId, ids: references().map(item => item.metricId) },
+    ];
+    const validate = async (manager: EntityManager, pendingMutation = metricMutation) => {
+      const dashboard =
         body.dashboardId !== undefined
-          ? await this.owner(body.dashboardId, userId, manager)
+          ? await this.owner(body.dashboardId, userId, 'edit', manager, true)
           : undefined;
       const previous = dashboard ? { ...dashboard } : null;
+      if (
+        structuredSnapshot === undefined &&
+        existing &&
+        previous?.structuredDefinition !== existing.structuredDefinition
+      )
+        throw new ConflictException('Saved metric links changed.');
+      const metrics = await lockMetricReferences(manager, draft.databaseId, referenceSets()[0].ids);
+      if (this.access)
+        await this.access.assert(
+          'database',
+          draft.databaseId,
+          userId,
+          dashboard ? 'read' : 'owner',
+          manager,
+        );
+      for (const ref of references()) {
+        const row = metrics.get(ref.metricId);
+        let definition;
+        try {
+          definition = row.definition && JSON.parse(row.definition);
+        } catch {}
+        const pending =
+          pendingMutation?.id === row.id &&
+          row.definition === pendingMutation.previous &&
+          JSON.stringify(ref.definition) === pendingMutation.definition;
+        if (!definition || (!pending && definition.definitionVersion !== ref.definitionVersion))
+          throw new ConflictException('Saved metric changed.');
+      }
+
+      if (
+        structuredSnapshot === undefined &&
+        JSON.stringify(this.readStructuredScope(previous?.structuredDefinition).scope) !==
+          JSON.stringify(prior.scope)
+      )
+        throw new ConflictException('Saved Studio scope changed');
+      const currentSource = this.storedSourceId(dashboard);
+      if (currentSource !== undefined && currentSource !== draft.databaseId)
+        await this.assertSourceRebinding(body.dashboardId, draft.databaseId, userId, manager);
       if (body.expectedRevision !== undefined && this.revision(dashboard) !== body.expectedRevision)
         throw new ConflictException(
           '대시보드가 다른 화면에서 변경되었습니다. 새로고침 후 다시 요청해 주세요.',
         );
+      if (savedScope.conditions) {
+        // An inherited DuckDB snapshot may still point at the preview's old file.
+        // Read the current transaction's metadata directly before its first write.
+        const source = await manager.findOne(Database, {
+          where: { id: draft.databaseId },
+          // MySQL RR needs a current read, retained through commit so a file
+          // replacement cannot pass between this check and the metadata writes.
+          ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+            ? { lock: { mode: 'pessimistic_write' as const } }
+            : {}),
+        });
+        let currentRevision: string | undefined;
+        try {
+          const config = source && parseConnectionConfig(source.connectionConfig);
+          if (config?.client === 'duckdb' && typeof config.connection?.filename === 'string')
+            currentRevision = createHash('sha256').update(config.connection.filename).digest('hex');
+        } catch {
+          // Invalid/replaced configuration fails closed without exposing its contents.
+        }
+        if (
+          currentRevision !== prepared.sourceRevision ||
+          currentRevision !== savedScope.conditions.sourceRevision
+        )
+          throw new ConflictException('Condition source revision changed');
+      }
+      return { dashboard, previous };
+    };
+    const persist = async (
+      manager: EntityManager,
+      current?: Awaited<ReturnType<typeof validate>>,
+    ) => {
+      const validated = current ?? (await validate(manager));
+      let { dashboard } = validated;
+      const { previous } = validated;
       const oldDraft = previous?.analysisDefinition
         ? legacyBlockIds(validateDraft(JSON.parse(previous.analysisDefinition)), previous.id)
         : previous
         ? legacyDraft
         : undefined;
-      draft.widgets = validateDraft(storedBlockIds(draft, oldDraft)).widgets;
       if (metricMutation) {
         const update = await manager.update(
           Metric,
@@ -2140,12 +2586,7 @@ export class AiDashboardService {
         const dataset = await manager.save(Dataset, {
           title: definition.title,
           databaseId: draft.databaseId,
-          query:
-            definition.timeGrain && definition.timeGrain !== 'auto'
-              ? prepared.queries.find(
-                  query => query.kind === 'widget' && query.widgetIndex === widgetIndex,
-                ).sql
-              : sourceQuery(definition.sql, []).sql,
+          query: datasetQueries[widgetIndex],
         });
         widgets.push(
           await manager.save(Widget, {
@@ -2172,6 +2613,15 @@ export class AiDashboardService {
           priorSnapshot = null;
         }
         snapshot = preserveMetricLinks(priorSnapshot, oldDraft, draft);
+        if (prior.scope.conditions || prior.scope.filters || prior.scope.dateRange) {
+          snapshot = {
+            ...(snapshot ?? {}),
+            sourceId: draft.databaseId,
+            ...(prior.scope.filters ? { studioFilters: prior.scope.filters } : {}),
+            ...(prior.scope.dateRange ? { studioDateRange: prior.scope.dateRange } : {}),
+            ...(prior.scope.conditions ? { studioConditions: prior.scope.conditions } : {}),
+          };
+        }
       }
       dashboard.structuredDefinition = snapshot
         ? JSON.stringify(bindMetricBlockKeys(snapshot, draft))
@@ -2297,10 +2747,7 @@ export class AiDashboardService {
         },
       };
     };
-    const saved = sharedManager
-      ? await persist(sharedManager)
-      : await this.dashboards.manager.transaction(persist);
-    return this.success(saved);
+    return { validate, persist, referenceSets };
   }
   /**
    * Saved Studio scope is server-owned metadata. A malformed stored value must stay distinguishable
@@ -2309,10 +2756,12 @@ export class AiDashboardService {
   private studioSavedScope(structured: any): {
     filters?: ReturnType<typeof normalizeSourceFilters>;
     dateRange?: DashboardDateRange;
+    conditions?: StudioConditions;
   } {
     const scope: {
       filters?: ReturnType<typeof normalizeSourceFilters>;
       dateRange?: DashboardDateRange;
+      conditions?: StudioConditions;
     } = {};
     if (structured?.studioFilters !== undefined) {
       try {
@@ -2338,10 +2787,28 @@ export class AiDashboardService {
         });
       }
     }
+    if (structured && Object.prototype.hasOwnProperty.call(structured, 'studioConditions')) {
+      scope.conditions = validateStudioConditions(structured.studioConditions);
+    }
     return scope;
   }
-  async analysis(id: number, userId: number, includeRevision = false) {
-    const dashboard = await this.owner(id, userId);
+  private readStructuredScope(raw: string | null | undefined) {
+    let structured: any = null;
+    try {
+      structured = raw ? JSON.parse(raw) : null;
+    } catch {
+      if (/"studio(?:Filters|DateRange|Conditions)"\s*:/.test(raw ?? ''))
+        throw new BadRequestException('Invalid saved Studio scope');
+    }
+    return { structured, scope: this.studioSavedScope(structured) };
+  }
+  async analysis(
+    id: number,
+    userId: number,
+    includeRevision = false,
+    action: ResourceAction | 'owner' = 'read',
+  ) {
+    const dashboard = await this.owner(id, userId, action);
     if (dashboard.analysisDefinition) {
       const draft = legacyBlockIds(
         validateDraft(JSON.parse(dashboard.analysisDefinition)),
@@ -2359,7 +2826,9 @@ export class AiDashboardService {
       } catch {
         // Legacy link metadata may be repaired by an ordinary save. Never silently drop
         // an indicated Studio scope, which could broaden the displayed rows.
-        if (/"studio(?:Filters|DateRange)"\s*:/.test(dashboard.structuredDefinition ?? ''))
+        if (
+          /"studio(?:Filters|DateRange|Conditions)"\s*:/.test(dashboard.structuredDefinition ?? '')
+        )
           throw new BadRequestException('저장된 기간·필터 정보를 확인하지 못했습니다.');
       }
       const scope = this.studioSavedScope(structured);
@@ -2367,6 +2836,7 @@ export class AiDashboardService {
         ...draft,
         ...(scope.filters ? { defaultFilters: scope.filters } : {}),
         ...(scope.dateRange ? { defaultDateRange: scope.dateRange } : {}),
+        ...(scope.conditions ? { defaultConditions: scope.conditions } : {}),
         blockLayouts: readBlockLayouts(draft, JSON.parse(dashboard.layout || 'null'), mappings),
         responsiveLayouts: responsiveLayouts(
           draft.widgets.map(w => w.blockId),

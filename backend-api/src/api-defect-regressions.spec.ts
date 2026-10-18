@@ -7,6 +7,19 @@ import { DashboardService } from './dashboard/dashboard.service';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { ResponseStatus } from './common/enum/response-status.enum';
 
+import { randomUUID } from 'crypto';
+import { DataSource, EntityManager } from 'typeorm';
+import { Dashboard } from './dashboard/entities/dashboard.entity';
+import { DashboardShare } from './dashboard/entities/dashboard_share.entity';
+import { DashboardDeleteReceipt } from './dashboard/entities/dashboard-delete-receipt.entity';
+import { DashboardDeletionService, deletionRevision } from './dashboard/dashboard-deletion.service';
+import { DashboardDeletionController } from './dashboard/dashboard-deletion.controller';
+import { User } from './user/entities/user.entity';
+import { UserMapping } from './user/entities/user-mapping.entity';
+import { Widget } from './widget/entities/widget.entity';
+import { DatasetType } from './common/enum/dataset-type.enum';
+import { EnterpriseMembership } from './enterprise/entities/enterprise-membership.entity';
+
 const repository = () => ({
   find: jest.fn().mockResolvedValue([]),
   findOne: jest.fn(),
@@ -160,29 +173,66 @@ describe('template bounded GET and pre-write validation regressions', () => {
 });
 
 describe('dashboard layout, membership and private-owner regressions', () => {
-  let dashboards: ReturnType<typeof repository>;
-  let shares: ReturnType<typeof repository>;
-  let users: ReturnType<typeof repository>;
-  let mappings: ReturnType<typeof repository>;
-  let widgets: ReturnType<typeof repository>;
+  let db: DataSource;
+  let dashboards: any, shares: any, users: any, mappings: any, widgets: any;
   let membership: any;
   let service: DashboardService;
-  beforeEach(() => {
-    dashboards = repository();
-    shares = repository();
-    users = repository();
-    mappings = repository();
-    widgets = repository();
-    dashboards.findOne.mockImplementation(async () => ({
+  beforeEach(async () => {
+    db = await new DataSource({
+      type: 'sqlite',
+      database: ':memory:',
+      synchronize: true,
+      entities: [
+        Dashboard,
+        DashboardShare,
+        User,
+        UserMapping,
+        Widget,
+        EnterpriseMembership,
+        DashboardDeleteReceipt,
+      ],
+    }).initialize();
+    await db.manager.insert(
+      User,
+      [7, 8].map(id => ({
+        id,
+        userId: `api-owner-${id}`,
+        email: `api-owner-${id}@example.invalid`,
+        password: 'unused',
+        active: true,
+        authVersion: 0,
+      })),
+    );
+    await db.manager.insert(Dashboard, {
       id: 17,
       shareId: 9,
       title: 'old',
       layout: JSON.stringify([layoutItem]),
       delYn: 'N',
-    }));
-    users.findOne.mockResolvedValue({ id: 7 });
-    mappings.findOne.mockResolvedValue({ dashboardId: 17, userInfoId: 7 });
-    widgets.find.mockResolvedValue([{ id: 1 }]);
+    });
+    await db.manager.insert(UserMapping, { dashboardId: 17, userInfoId: 7 });
+    await db.manager.insert(Widget, {
+      id: 1,
+      title: 'Value',
+      componentId: 1,
+      datasetType: DatasetType.DATASET,
+      datasetId: 1,
+      option: '{}',
+      delYn: 'N',
+    });
+    dashboards = db.getRepository(Dashboard);
+    shares = db.getRepository(DashboardShare);
+    users = db.getRepository(User);
+    mappings = db.getRepository(UserMapping);
+    widgets = db.getRepository(Widget);
+    for (const [repo, methods] of [
+      [dashboards, ['findOne', 'save', 'delete']],
+      [shares, ['findOne', 'save']],
+      [users, ['findOne']],
+      [mappings, ['findOne']],
+      [widgets, ['find']],
+    ] as Array<[any, string[]]>)
+      for (const method of methods) jest.spyOn(repo, method);
     membership = {
       create: jest.fn(),
       update: jest.fn(),
@@ -190,15 +240,20 @@ describe('dashboard layout, membership and private-owner regressions', () => {
       findWidgets: jest.fn().mockResolvedValue([]),
     };
     service = new DashboardService(
-      dashboards as any,
-      users as any,
-      shares as any,
-      mappings as any,
+      dashboards,
+      users,
+      shares,
+      mappings,
       membership,
       { findDashboardId: jest.fn().mockResolvedValue([{ dashboardId: 17 }]) } as any,
       {} as any,
-      widgets as any,
+      widgets,
+      { dashboard: jest.fn(async () => undefined) } as any,
     );
+  });
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    await db?.destroy();
   });
 
   it('preserves membership and layout on title-only updates', async () => {
@@ -210,10 +265,18 @@ describe('dashboard layout, membership and private-owner regressions', () => {
 
   it('updates membership only when layout is provided and canonicalizes widget ids', async () => {
     await service.update(17, { layout: [{ ...layoutItem, i: '1' }] } as any);
-    expect(membership.update).toHaveBeenCalledWith(17, { dashboardId: 17, widgetIds: [1] });
+    expect(membership.update).toHaveBeenCalledWith(
+      17,
+      { dashboardId: 17, widgetIds: [1] },
+      expect.any(EntityManager),
+    );
     membership.update.mockClear();
     await service.update(17, { dashboardId: 17, layout: [] });
-    expect(membership.update).toHaveBeenCalledWith(17, { dashboardId: 17, widgetIds: [] });
+    expect(membership.update).toHaveBeenCalledWith(
+      17,
+      { dashboardId: 17, widgetIds: [] },
+      expect.any(EntityManager),
+    );
   });
 
   it.each([
@@ -274,14 +337,44 @@ describe('dashboard layout, membership and private-owner regressions', () => {
   });
 
   it('controller private GET carries the requester and writes/deletes reject before mutations', async () => {
-    const controller = new DashboardController(service, {} as any, {} as any);
+    const access = {
+      id: (value: unknown) => {
+        const parsed = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+        if (!Number.isSafeInteger(parsed) || Number(parsed) <= 0)
+          throw new BadRequestException('invalid resource id');
+        return Number(parsed);
+      },
+      // Legacy owner-only fallback: no explicit grant exists for this actor.
+      dashboard: jest.fn(async (_id: number, actor: number) => {
+        if (actor !== 7) throw new ForbiddenException('not dashboard owner');
+      }),
+    };
+    const controller = new DashboardController(service, access as any, {} as any);
     const req = { user: { accessKeyData: { id: 8 } } };
     mappings.findOne.mockResolvedValue(null);
     await expect(controller.findOne('17', req)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(
       controller.update('17', { dashboardId: 17, title: 'evil' }, req),
     ).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(controller.remove('17', req)).rejects.toBeInstanceOf(ForbiddenException);
+    // DELETE moved to the impact/revision/identity-bound service; there is no legacy bypass.
+    expect((controller as any).remove).toBeUndefined();
+    const deletion = new DashboardDeletionController(new DashboardDeletionService(db));
+    const row = await db.manager.findOneBy(Dashboard, { id: 17 });
+    await expect(deletion.impact('17', req)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      deletion.remove(
+        '17',
+        {
+          requestId: randomUUID(),
+          expectedRevision: deletionRevision(row),
+          expectedActorId: 8,
+          expectedOrganizationId: null,
+        },
+        req,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(await db.manager.count(DashboardDeleteReceipt)).toBe(0);
+    expect(await db.manager.findOneBy(Dashboard, { id: 17 })).toEqual(row);
     expect(dashboards.save).not.toHaveBeenCalled();
     expect(dashboards.delete).not.toHaveBeenCalled();
     expect(membership.update).not.toHaveBeenCalled();

@@ -227,6 +227,7 @@ describe('dashboard details: actual DuckDB source rows', () => {
   beforeEach(() => {
     current = files[0];
     const repository = {
+      manager: { connection: { options: { type: 'mysql' } } },
       findOne: jest.fn(async () => ({
         connectionConfig: JSON.stringify({ client: 'duckdb', connection: { filename: current } }),
       })),

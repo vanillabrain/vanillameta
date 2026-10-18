@@ -128,6 +128,32 @@ afterEach(() => {
 });
 
 describe('studio editor rendering', () => {
+  it('UC050 shows only the selected stored basis without issuing another request or editing the document', async () => {
+    const basis = {
+      sourceId: 4,
+      metricId: 9,
+      definitionVersion: '2',
+      definition: { aggregation: 'SUM', column: 'amount', unit: '원' },
+    };
+    api.get.mockResolvedValue(
+      envelope({
+        document: doc({ blocks: [block('b1', { measureRefs: [{ id: 9, definitionVersion: '2' }] })] }),
+        definitions: { ...definitions, entries: { b1: { ...definitions.entries.b1, metricBasis: basis } } },
+      }),
+    );
+    render(<StudioEditor />);
+    await screen.findByRole('button', { name: '총매출 설정' });
+    fireEvent.click(screen.getByRole('button', { name: '총매출 설정' }));
+    api.get.mockClear();
+    api.post.mockClear();
+    fireEvent.click(screen.getByText('저장 계산 기준 확인'));
+    expect(screen.getByText(/소스 #4 · 지표 #9 · v2/)).toBeTruthy();
+    expect(screen.getByText('amount')).toBeTruthy();
+    expect(saveButton().disabled).toBe(true);
+    expect(api.get).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('gates a reloaded unconfirmed save until explicit same-request confirmation and fresh read', async () => {
     const request = {
       requestId: 'recover-original',
@@ -648,6 +674,76 @@ describe('three-way reapply', () => {
   });
 });
 
+it('UC052 profiles current Studio source scope without editing the document or question', async () => {
+  api.get.mockImplementation(async url =>
+    url === '/studio/runs'
+      ? { data: [] }
+      : envelope({ profileColumns: [{ name: 'category', type: 'VARCHAR', kind: 'string' }] }),
+  );
+  api.post.mockImplementation(async (url, body) => ({
+    data: {
+      scope: {
+        dashboardId: 3,
+        sourceId: 4,
+        expectedRevision: body.expectedRevision,
+        expectedSourceRevision: body.expectedSourceRevision,
+        filters: [],
+        dateRange: null,
+        conditions: null,
+      },
+      population: { total: '2', matched: '2', excluded: '0', remaining: '2', matchedRatio: 1, remainingRatio: 1 },
+      distributions: [
+        {
+          column: 'category',
+          type: 'VARCHAR',
+          limit: 20,
+          totalGroups: '2',
+          hasMore: false,
+          rows: ['A', 'B'].map(value => ({
+            value,
+            valueTruncated: false,
+            total: '1',
+            matched: '1',
+            excluded: '0',
+            remaining: '1',
+          })),
+          other: { total: '0', matched: '0', excluded: '0', remaining: '0' },
+          range: { minimum: 'A', maximum: 'B', minimumTruncated: false, maximumTruncated: false },
+        },
+      ],
+      sample: {
+        columns: [{ name: 'category', type: 'VARCHAR' }],
+        rows: ['A', 'B'].map(value => ({ values: [value], truncated: [false] })),
+        limit: 20,
+        totalRows: '2',
+        hasMore: false,
+        selection: 'ordered',
+        representative: false,
+      },
+    },
+  }));
+  render(<StudioEditor />);
+  await screen.findByText('500');
+  fireEvent.click(screen.getByRole('button', { name: 'AI 열기' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }), { target: { value: '유지할 질문' } });
+  fireEvent.click(screen.getByRole('button', { name: '분포·표본 탐색' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'category 분포·표본 선택' }));
+  expect(api.post).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '분포·표본 조회' }));
+  await screen.findByText(/현재 범위 전체 2행/);
+  expect(api.post.mock.calls[0][0]).toBe('/studio/dashboards/3/profile');
+  expect(api.post.mock.calls[0][1]).toMatchObject({
+    columns: ['category'],
+    expectedSourceRevision: SOURCE_REVISION,
+    expectedRevision: DOC_REVISION,
+    document: expect.objectContaining({ dashboardId: 3, sourceId: 4, blocks: doc().blocks, layouts: doc().layouts }),
+  });
+  expect((screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }) as HTMLTextAreaElement).value).toBe('유지할 질문');
+  expect(saveButton().disabled).toBe(true);
+  expect(screen.getByRole('heading', { name: '총매출' })).toBeTruthy();
+  expect(screen.getByText('500')).toBeTruthy();
+});
+
 describe('Studio AI SDK selected block integration', () => {
   const legacyReply = (body: any) => ({
     data: {
@@ -701,6 +797,85 @@ describe('Studio AI SDK selected block integration', () => {
     fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
     expect(screen.getByRole('heading', { name: '총매출' })).toBeTruthy();
   });
+  const conditionReply = (body: any) => {
+    const r = runReply(body);
+    r.data.status = 'unsupported';
+    Object.assign(r.data.steps[r.data.steps.length - 1], { status: 'unsupported', errorCode: 'CONDITION_REVIEW_REQUIRED' });
+    Object.assign(r.data.result, {
+      answer: '조건 변경안을 검토하세요.',
+      proposedOperations: [
+        {
+          type: 'setConditions',
+          conditions: {
+            sourceRevision: SOURCE_REVISION,
+            definition: { include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [100] }, exclude: null },
+          },
+        },
+      ],
+      preview: { ...envelope().data.preview, widgets: [{ ...row, datas: [{ total: 200 }] }] },
+    });
+    return r;
+  };
+  it('UC052 holds a full condition proposal for review, explicitly applies and undoes without auto-saving', async () => {
+    api.post.mockImplementation(async (url, body) =>
+      url === '/studio/executions'
+        ? conditionReply(body)
+        : {
+            data: {
+              document: body.document,
+              preview: {
+                ...envelope().data.preview,
+                widgets: [{ ...row, datas: [{ total: body.document.conditions ? 200 : 500 }] }],
+              },
+            },
+          },
+    );
+    await open('금액 100 이상 조건을 제안해 줘');
+    const review = await screen.findByRole('region', { name: 'AI 조건 변경안 검토' });
+    expect(within(review).getByText('현재 조건')).toBeTruthy();
+    expect(within(review).getByText('제안 조건')).toBeTruthy();
+    expect(within(review).getByText('200')).toBeTruthy();
+    expect(saveButton().disabled).toBe(true);
+    expect((screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }) as HTMLTextAreaElement).value).toBe(
+      '금액 100 이상 조건을 제안해 줘',
+    );
+    expect(api.post.mock.calls.map(c => c[0])).toEqual(['/studio/executions']);
+    fireEvent.click(within(review).getByRole('button', { name: '조건 변경안 적용' }));
+    await waitFor(() => expect(saveButton().disabled).toBe(false));
+    expect(screen.queryByRole('region', { name: 'AI 조건 변경안 검토' })).toBeNull();
+    expect(api.post.mock.calls.some(c => String(c[0]).endsWith('/save'))).toBe(false);
+    await waitFor(() => expect(api.post.mock.calls.some(c => c[1]?.document?.conditions)).toBe(true));
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+    await waitFor(() => expect(api.post.mock.calls.at(-1)?.[1]?.document?.conditions).toBeUndefined());
+  });
+  it('UC052 requires review even when the execution save step was refused, and can dismiss without changing the draft', async () => {
+    api.post.mockImplementation(async (_url, body) => {
+      const r: any = conditionReply(body);
+      r.data.status = 'unsupported';
+      r.data.steps.push({
+        stepId: 'saveDraft',
+        status: 'unsupported',
+        retryable: false,
+        errorCode: 'CONDITION_REVIEW_REQUIRED',
+      });
+      return r;
+    });
+    await open('금액 조건을 바꾸고 저장해줘');
+    const review = await screen.findByRole('region', { name: 'AI 조건 변경안 검토' });
+    fireEvent.click(within(review).getByRole('button', { name: '현재 조건 유지' }));
+    expect(saveButton().disabled).toBe(true);
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
+  it('UC052 disables stale pending scope after a manual edit and undo, preserving the current draft', async () => {
+    api.post.mockImplementation(async (_url, body) => conditionReply(body));
+    await open('공통 조건 변경안을 제안해 줘');
+    const review = await screen.findByRole('region', { name: 'AI 조건 변경안 검토' });
+    const handle = screen.getByRole('button', { name: '총매출 이동 핸들' });
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+    expect((within(review).getByRole('button', { name: '조건 변경안 적용' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
   it('rejects a response after a manual move and undo returned to identical content', async () => {
     let finish: (value: any) => void = () => {
       throw new Error('Pending response missing');
@@ -744,6 +919,9 @@ describe('Studio AI SDK selected block integration', () => {
     });
     await open('제목만 바꾸고 저장해줘');
     await screen.findByText(/초안에 자동 적용하지 않았습니다/);
+    expect((screen.getByRole('textbox', { name: 'AI에게 요청할 내용' }) as HTMLTextAreaElement).value).toBe(
+      '제목만 바꾸고 저장해줘',
+    );
     expect(screen.getByRole('heading', { name: '총매출' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'AI 총매출' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '대시보드 저장 다시 시도' }));
@@ -1140,4 +1318,106 @@ it.each(['success', 'failure'])('UC039 ignores an earlier target read %s after t
   expect(screen.queryByText('Studio를 열지 못했습니다')).toBeNull();
   expect(screen.queryAllByText('매출 대시보드')).toHaveLength(0);
   expect(api.post).not.toHaveBeenCalled();
+});
+
+it('UC051 renders a recipient read-only without edit, clone, save or publication actions', async () => {
+  api.get.mockResolvedValue(envelope({ access: { read: true, edit: false, publish: false, export: false }, owned: false }));
+  render(<StudioEditor />);
+  const settings = await screen.findByRole('button', { name: '총매출 설정' });
+  expect((settings as HTMLButtonElement).disabled).toBe(true);
+  expect(saveButton().disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '게시·공유' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByRole('link', { name: '저장본 복제·소스 교체 새 탭에서 열기' })).toBeNull();
+  expect(addSelect().closest('fieldset')?.disabled).toBe(true);
+  fireEvent.change(addSelect(), { target: { value: 'b1' } });
+  expect(screen.queryByText('복사본 · 총매출')).toBeNull();
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+it('UC051 keeps publish independent from edit for a recipient with explicit publication rights', async () => {
+  api.get.mockResolvedValue(envelope({ access: { read: true, edit: false, publish: true, export: false }, owned: false }));
+  render(<StudioEditor />);
+  await screen.findByRole('button', { name: '총매출 설정' });
+  expect(saveButton().disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '게시·공유' }) as HTMLButtonElement).disabled).toBe(false);
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+describe('UC052 Studio whole-document conditions', () => {
+  const conditions = {
+    sourceRevision: SOURCE_REVISION,
+    definition: { include: { kind: 'predicate', column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  const conditionRead = () => ({
+    data: {
+      status: 'SUCCESS',
+      data: {
+        sourceId: 4,
+        sourceRevision: 'metadata-only-hash',
+        version: 3,
+        schemaChanged: false,
+        definition: conditions.definition,
+        columns: [{ name: 'amount', type: 'BIGINT', kind: 'number' }],
+      },
+    },
+  });
+  const previewFor = (body: any) => ({
+    data: {
+      document: body.document,
+      preview: {
+        draft: { databaseId: 4, title: '매출', explanation: '', widgets: [row] },
+        widgets: [{ ...row, datas: [{ total: body.document.conditions ? 90 : 500 }] }],
+      },
+    },
+  });
+  it('reads without applying, applies via prepare, clear/undo/redo invalidate preview, and saves/reloads the exact scope', async () => {
+    api.get.mockResolvedValue(envelope());
+    api.post.mockImplementation(async (url, body) =>
+      url === '/bi/source-conditions/read'
+        ? conditionRead()
+        : url.endsWith('/save')
+        ? { data: { document: { ...body.document, revision: NEXT_REVISION }, idMap: {} } }
+        : previewFor(body),
+    );
+    render(<StudioEditor />);
+    await screen.findByText('500');
+    fireEvent.click(screen.getByRole('button', { name: '포함·제외 조건' }));
+    fireEvent.click(screen.getByRole('button', { name: '저장 조건 읽기' }));
+    await screen.findByText(/소스 조건 버전 3/);
+    expect(api.post.mock.calls).toHaveLength(1);
+    expect(saveButton().disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: '조건 명시 적용' }));
+    await screen.findByText('90');
+    expect(api.post.mock.lastCall?.[1].document.conditions).toEqual(conditions);
+    fireEvent.click(screen.getByRole('button', { name: '조건 전체 해제' }));
+    await screen.findByText('500');
+    expect(api.post.mock.lastCall?.[1].document.conditions).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기', exact: true }));
+    await screen.findByText('90');
+    fireEvent.click(screen.getByRole('button', { name: '다시 실행', exact: true }));
+    await screen.findByText('500');
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기', exact: true }));
+    await screen.findByText('90');
+    api.get.mockResolvedValue(envelope({ document: doc({ conditions, revision: NEXT_REVISION }) }));
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(api.post.mock.calls.some(([url]) => url.endsWith('/save'))).toBe(true));
+    const save = api.post.mock.calls.find(([url]) => url.endsWith('/save'))[1];
+    expect(save.document.conditions).toEqual(conditions);
+    expect(save.document.blocks).toEqual(doc().blocks);
+    expect(save.document.layouts).toEqual(doc().layouts);
+    cleanup();
+    render(<StudioEditor />);
+    await screen.findByText('조건 적용됨');
+  });
+  it('409 prepare preserves the applied scope and never rebinds its source hash', async () => {
+    api.get.mockResolvedValue(envelope({ document: doc({ conditions }) }));
+    api.post.mockRejectedValue({ response: { status: 409 } });
+    render(<StudioEditor />);
+    await screen.findByText('조건 적용됨');
+    fireEvent.click(screen.getByRole('button', { name: '포함·제외 조건' }));
+    fireEvent.click(screen.getByRole('button', { name: '조건 전체 해제' }));
+    await waitFor(() => expect(api.get.mock.calls.length).toBeGreaterThan(1));
+    expect(screen.getByText('조건 적용됨')).toBeTruthy();
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
 });

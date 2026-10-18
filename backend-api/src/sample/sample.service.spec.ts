@@ -14,7 +14,12 @@ import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboar
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { YesNo } from '../common/enum/yn.enum';
 
-const mockRepo = () => ({ findOne: jest.fn(), find: jest.fn(), save: jest.fn() });
+const mockRepo = () => ({
+  findOne: jest.fn(),
+  find: jest.fn(),
+  save: jest.fn(),
+  manager: { connection: { options: { type: 'mysql' } } },
+});
 
 describe('SampleService', () => {
   let service: SampleService;
@@ -46,6 +51,21 @@ describe('SampleService', () => {
     ];
     const module: TestingModule = await Test.createTestingModule({ providers }).compile();
     service = module.get<SampleService>(SampleService);
+    // Reuse the actual mocked save result for the locked reread, never fabricate a parent.
+    const tx: any = {
+      connection: { options: { type: 'mysql' } },
+      queryRunner: { isTransactionActive: true },
+      findOne: jest.fn(async (entity, options) => {
+        const repo = repos[entity.name];
+        const result = await repo.findOne(options);
+        // The saved parent is now read again under the Source fence.
+        return entity === Database && !result && options.where.id
+          ? await repos.Database.save.mock.results.at(-1)?.value
+          : result;
+      }),
+      save: (entity, row) => repos[entity.name].save(row),
+    };
+    (repos.Database.manager.connection as any).transaction = run => run(tx);
   });
 
   afterEach(() => {
@@ -98,7 +118,12 @@ describe('SampleService', () => {
   });
 
   it('멱등성: 이미 샘플 대시보드가 있는 사용자는 건너뜀', async () => {
-    repos.Database.findOne.mockResolvedValue({ id: 11, name: '샘플 매출 데이터' });
+    repos.Database.findOne.mockResolvedValue({
+      id: 11,
+      ownerId: 7,
+      catalogActive: true,
+      name: '샘플 매출 데이터',
+    });
     repos.Dataset.findOne.mockResolvedValue({ id: 21 });
     repos.Component.findOne.mockResolvedValueOnce({ id: 100 }).mockResolvedValueOnce({ id: 101 });
     repos.Widget.findOne.mockResolvedValue({ id: 50 });
@@ -116,7 +141,12 @@ describe('SampleService', () => {
   });
 
   it('컴포넌트 시드가 없으면 조용히 실패(로그)하고 예외를 던지지 않음', async () => {
-    repos.Database.findOne.mockResolvedValue({ id: 11, name: '샘플 매출 데이터' });
+    repos.Database.findOne.mockResolvedValue({
+      id: 11,
+      ownerId: 7,
+      catalogActive: true,
+      name: '샘플 매출 데이터',
+    });
     repos.Dataset.findOne.mockResolvedValue({ id: 21 });
     repos.Component.findOne.mockResolvedValue(null);
     const warnSpy = jest.spyOn(service['logger'], 'warn').mockImplementation();

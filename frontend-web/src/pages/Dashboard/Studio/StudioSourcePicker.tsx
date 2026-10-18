@@ -1,4 +1,5 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
+import StudioSourceCatalog from './StudioSourceCatalog';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { SourceProfile, StudioSource } from './studioCreation';
@@ -26,6 +27,15 @@ export default function StudioSourcePicker({
   onRefresh,
 }: Props) {
   const input = useRef<HTMLInputElement>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const normalize = (value: string) => value.normalize('NFKC').toLowerCase().trim();
+  const query = searchOpen ? normalize(search) : '';
+  const matches = sources.filter(source =>
+    normalize(`${source.catalogLabel ?? ''} ${source.name} #${source.id}`).includes(query),
+  );
+  const matchIds = new Set(matches.map(source => source.id));
+  const options = sources.filter(source => source.id === sourceId || matchIds.has(source.id));
   return (
     <section className="studio-create-source" aria-labelledby={idPrefix + '-source-heading'}>
       <span className="studio-eyebrow">01 · 데이터 준비</span>
@@ -66,6 +76,36 @@ export default function StudioSourcePicker({
           출처 · CC BY 4.0
         </a>
       </p>
+      <div className="min-w-0 space-y-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={busy}
+          aria-expanded={searchOpen}
+          aria-controls={idPrefix + '-source-search'}
+          onClick={() => setSearchOpen(!searchOpen)}
+        >
+          데이터 검색
+        </Button>
+        {searchOpen && (
+          <div id={idPrefix + '-source-search'} className="min-w-0 space-y-2">
+            <TextField
+              label="업무 이름·원본 이름으로 검색"
+              value={search}
+              disabled={busy}
+              onChange={event => setSearch(event.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              업무 이름은 목록 조회 시점의 안내입니다. 최신 설명은 데이터 선택 후 확인하세요.
+            </p>
+            <p role="status" className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+              검색 결과 {matches.length}개
+              {sourceId && !matches.some(source => source.id === sourceId) ? ' · 현재 선택한 데이터는 유지됩니다.' : ''}
+            </p>
+          </div>
+        )}
+      </div>
       <TextField
         select
         label="저장된 데이터"
@@ -76,9 +116,9 @@ export default function StudioSourcePicker({
         <option value="" disabled>
           데이터를 선택하세요
         </option>
-        {sources.map(source => (
+        {options.map(source => (
           <option key={source.id} value={source.id} disabled={source.engine !== 'duckdb'}>
-            {source.name}
+            {source.catalogLabel ? `${source.catalogLabel} · ${source.name}` : source.name} · #{source.id}
             {source.engine !== 'duckdb' ? ' · Studio 미지원' : ''}
           </option>
         ))}
@@ -116,6 +156,7 @@ export default function StudioSourcePicker({
           </div>
         </div>
       )}
+      {profile && profile.sourceId === sourceId && <StudioSourceCatalog profile={profile} />}
     </section>
   );
 }

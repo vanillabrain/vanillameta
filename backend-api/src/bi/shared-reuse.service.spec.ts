@@ -635,6 +635,47 @@ describe('UC021 shared dashboard reuse SQLite graph', () => {
     expect((await dashboardRow()).title).toBe('수정된 원본');
   });
 
+  it('invalidates a frozen publication ticket across lifecycle restoration without changing its publication version', async () => {
+    const analysis = (await dashboards.analysis(originalId, OWNER, true)).data;
+    const recipe = buildReuseRecipe(analysis, await profileOf(originalSourceId, OWNER));
+    await db
+      .getRepository(DashboardPublication)
+      .update({ dashboardId: originalId }, { active: true, reuseDefinition: recipe });
+    const before = await counts();
+    const publication = await db.manager.findOneBy(DashboardPublication, {
+      dashboardId: originalId,
+    });
+    const old = await flow('publication');
+    await db.manager.update(Dashboard, originalId, { assetActive: false, assetVersion: 1 });
+    expect(await origins.status('publication', publicationUuid)).toEqual({ reusable: false });
+    await expect(service.draft(publicationUuid, RECIPIENT, 'publication')).rejects.toThrow();
+    await db.manager.update(Dashboard, originalId, { assetActive: true, assetVersion: 2 });
+    await expect(
+      service.save(
+        publicationUuid,
+        { ticket: old.ticket, requestId: randomUUID() },
+        RECIPIENT,
+        'publication',
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(await counts()).toEqual(before);
+    const fresh = await flow('publication');
+    expect(fresh.draft.expectedRevision).not.toBe(old.draft.expectedRevision);
+    const saved = await service.save(
+      publicationUuid,
+      { ticket: fresh.ticket, requestId: randomUUID() },
+      RECIPIENT,
+      'publication',
+    );
+    expect(await db.manager.findOneBy(Dashboard, { id: saved.id })).toMatchObject({
+      assetActive: true,
+      assetVersion: 0,
+    });
+    expect(
+      (await db.manager.findOneBy(DashboardPublication, { dashboardId: originalId })).version,
+    ).toBe(publication.version);
+  });
+
   it('freezes the publication recipe across an original edit and rejects a re-published link', async () => {
     const ownerAnalysis = (await dashboards.analysis(originalId, OWNER, true)).data;
     const recipe = buildReuseRecipe(ownerAnalysis, await profileOf(originalSourceId, OWNER));

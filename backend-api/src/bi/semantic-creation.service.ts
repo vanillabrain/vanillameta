@@ -1,3 +1,4 @@
+import { lockMetricReferences } from '../metric/metric-write-lock';
 import {
   BadRequestException,
   ConflictException,
@@ -13,6 +14,7 @@ import { Metric } from '../metric/entities/metric.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { decryptConnectionConfig } from '../utils/crypto.util';
+import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
 import { ConnectionService } from '../connection/connection.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { BiService } from './bi.service';
@@ -26,8 +28,6 @@ import {
 } from './semantic-proposal';
 import { sourceRevision } from './source-revision';
 
-// SQLite's TypeORM driver shares one connection. Cross-connection safety still uses DB unique + retry.
-const sqliteQueues = new WeakMap<DataSource, Promise<unknown>>();
 @Injectable()
 export class SemanticCreationService {
   constructor(
@@ -68,7 +68,8 @@ export class SemanticCreationService {
     revision: string,
   ) {
     const row = await manager.findOne(Database, { where: { id: sourceId } });
-    if (!row || row.ownerId !== actor) throw new ForbiddenException('source ownership required');
+    if (!row || row.ownerId !== actor || row.catalogActive === false)
+      throw new ForbiddenException('source ownership required');
     if (row.engine !== 'duckdb') throw new ConflictException('SOURCE_CHANGED');
     const config = JSON.parse(decryptConnectionConfig(row.connectionConfig));
     if (config.client !== 'duckdb' || typeof config.connection?.filename !== 'string')
@@ -102,29 +103,47 @@ export class SemanticCreationService {
         try {
           const replay = await this.replay(this.db.manager, actor, requestId, payloadDigest);
           if (replay) return replay;
-          return await this.db.transaction('SERIALIZABLE', async manager => {
-            // First write acquires SQLite's writer lock before source/catalog reads.
-            const receipt = await manager.save(AnalysisCreationReceipt, {
-              actorId: actor,
-              requestId,
-              payloadDigest,
-              dashboardId: null,
-            });
-            await this.currentSource(
-              manager,
-              body.proposal.sourceId,
-              actor,
-              body.proposal.sourceRevision,
+          return await this.connection.withDuckDBSnapshot(body.proposal.sourceId, async () => {
+            const profile = await this.bi.profile(body.proposal.sourceId, actor);
+            const catalog = semanticCatalog(
+              await this.db.manager.find(Metric, {
+                where: { databaseId: profile.sourceId, useYn: 'Y' },
+              }),
+              profile,
             );
-            return this.connection.withDuckDBSnapshot(body.proposal.sourceId, async () => {
-              const profile = await this.bi.profile(body.proposal.sourceId, actor);
-              const catalog = semanticCatalog(
-                await manager.find(Metric, { where: { databaseId: profile.sourceId, useYn: 'Y' } }),
-                profile,
+            const compiled = compileSemanticProposal(body.proposal, profile, catalog);
+            if (compiled.previewDigest !== body.previewDigest)
+              throw new ConflictException('PLAN_CHANGED');
+            const snapshot: any = {
+              schemaVersion: 2,
+              kind: 'structured-bi-dashboard',
+              sourceId: profile.sourceId,
+              dataVersion: profile.dataVersion,
+              items: [],
+            };
+            const prepared = await this.dashboards.prepareSave(
+              { draft: compiled.draft },
+              actor,
+              snapshot,
+            );
+            return metadataTransaction(this.db, 'SERIALIZABLE', async manager => {
+              await lockMetricReferences(
+                manager,
+                profile.sourceId,
+                compiled.plan.measures.filter(m => m.action === 'reuse').map(m => m.metricId),
               );
-              const compiled = compileSemanticProposal(body.proposal, profile, catalog);
-              if (compiled.previewDigest !== body.previewDigest)
-                throw new ConflictException('PLAN_CHANGED');
+              await this.currentSource(
+                manager,
+                body.proposal.sourceId,
+                actor,
+                body.proposal.sourceRevision,
+              );
+              const receipt = await manager.save(AnalysisCreationReceipt, {
+                actorId: actor,
+                requestId,
+                payloadDigest,
+                dashboardId: null,
+              });
               const resolved = new Map<string, any>();
               const created = new Map<string, any>();
               for (const measure of compiled.plan.measures) {
@@ -169,51 +188,35 @@ export class SemanticCreationService {
                 }
                 resolved.set(measure.key, row);
               }
-              const snapshot = {
-                schemaVersion: 2,
-                kind: 'structured-bi-dashboard',
-                sourceId: profile.sourceId,
-                dataVersion: profile.dataVersion,
-                items: compiled.proposal.blocks.map(block => {
-                  const row = resolved.get(block.measureKey);
-                  const measure = compiled.plan.measures.find(m => m.key === block.measureKey);
-                  const dimension = compiled.plan.dimensions.find(
-                    d => d.key === block.dimensionKey,
-                  );
-                  const definition = JSON.parse(row.definition);
-                  return {
-                    key: block.key,
-                    sourceId: profile.sourceId,
-                    metricId: row.id,
-                    definitionVersion: definition.definitionVersion,
-                    definition,
-                    chart: block.chart,
-                    ...(dimension
-                      ? {
-                          dimension: dimension.column,
-                          dimensionDefinition: dimensionDefinition(
-                            profile,
-                            profile.columns.find(c => c.name === dimension.column),
-                          ),
-                        }
-                      : {}),
-                    presentation: {
-                      unit: measure.definition.unit,
-                      decimalPlaces: measure.definition.decimalPlaces,
-                      numberNotation: measure.definition.numberNotation,
-                    },
-                  };
-                }),
-              };
-              const saved = (
-                await this.dashboards.save(
-                  { draft: compiled.draft },
-                  actor,
-                  snapshot,
-                  undefined,
-                  manager,
-                )
-              ).data;
+              snapshot.items = compiled.proposal.blocks.map(block => {
+                const row = resolved.get(block.measureKey);
+                const measure = compiled.plan.measures.find(m => m.key === block.measureKey);
+                const dimension = compiled.plan.dimensions.find(d => d.key === block.dimensionKey);
+                const definition = JSON.parse(row.definition);
+                return {
+                  key: block.key,
+                  sourceId: profile.sourceId,
+                  metricId: row.id,
+                  definitionVersion: definition.definitionVersion,
+                  definition,
+                  chart: block.chart,
+                  ...(dimension
+                    ? {
+                        dimension: dimension.column,
+                        dimensionDefinition: dimensionDefinition(
+                          profile,
+                          profile.columns.find(c => c.name === dimension.column),
+                        ),
+                      }
+                    : {}),
+                  presentation: {
+                    unit: measure.definition.unit,
+                    decimalPlaces: measure.definition.decimalPlaces,
+                    numberNotation: measure.definition.numberNotation,
+                  },
+                };
+              });
+              const saved = await prepared.persist(manager);
               // This reads the CURRENT metadata pointer, not the pinned DuckDB version.
               await this.currentSource(manager, profile.sourceId, actor, profile.dataVersion);
               for (const row of resolved.values()) {
@@ -245,12 +248,8 @@ export class SemanticCreationService {
         }
       }
     };
-    if (this.db.options.type !== 'sqlite') return run();
-    const pending = (sqliteQueues.get(this.db) ?? Promise.resolve()).then(run, run);
-    sqliteQueues.set(
-      this.db,
-      pending.catch(() => undefined),
-    );
-    return pending;
+    // SQLite shares one connection: join the common metadata queue so Studio/enterprise work
+    // cannot observe this transaction's uncommitted receipt. DB unique + retry stay authoritative.
+    return serializeMetadataWork(this.db, run);
   }
 }

@@ -1936,3 +1936,19 @@ it('retry focus recovery does not steal focus moved by the user while the reques
   await userEvent.keyboard('{Escape}');
   expect(props.onClose).toHaveBeenCalledTimes(1);
 });
+it('UC052 includes immutable conditions in source detail requests and invalidates them when scope changes', async () => {
+  const conditions = {
+    sourceRevision: 'b'.repeat(64),
+    definition: { include: { kind: 'predicate' as const, column: 'amount', operator: 'gt', values: [10] }, exclude: null },
+  };
+  api.post.mockResolvedValue(success(detailData()));
+  const view = render(<SourceDetails {...props} conditions={conditions} />);
+  await waitFor(() => expect(api.post).toHaveBeenCalled());
+  expect(api.post.mock.lastCall?.[1].conditions).toEqual(conditions);
+  const next = {
+    ...conditions,
+    definition: { ...conditions.definition, include: { ...conditions.definition.include, values: [20] } },
+  };
+  view.rerender(<SourceDetails {...props} conditions={next} />);
+  await waitFor(() => expect(api.post.mock.lastCall?.[1].conditions).toEqual(next));
+});

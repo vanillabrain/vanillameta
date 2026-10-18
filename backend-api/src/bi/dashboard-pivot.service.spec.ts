@@ -1,3 +1,5 @@
+import { Metric } from '../metric/entities/metric.entity';
+import { Database } from '../database/entities/database.entity';
 import { DataSource } from 'typeorm';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardPivotService } from './dashboard-pivot.service';
@@ -15,7 +17,7 @@ describe('dashboard Pivot snapshots', () => {
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: [Dashboard],
+      entities: [Dashboard, Database, Metric],
       synchronize: true,
     }).initialize();
     await db.getRepository(Dashboard).save({
@@ -27,13 +29,31 @@ describe('dashboard Pivot snapshots', () => {
     const catalog: any = {
       sourceId: 3,
       sourceRevision: 'rev',
-      measures: [{ id: 1, label: 'Revenue' }],
+      measures: [{ id: 1, label: 'Revenue', definition: { aggregation: 'SUM', column: 'amount' } }],
       dimensions: [
         { column: 'device', type: 'VARCHAR' },
         { column: 'app', type: 'VARCHAR' },
       ],
       temporalColumns: [],
     };
+    await db.manager.insert(Database, {
+      id: 3,
+      ownerId: 2,
+      name: 'Synthetic',
+      engine: 'duckdb',
+      type: 'FILE',
+      connectionConfig: '{}',
+    });
+    await db.manager.insert(Metric, {
+      id: 1,
+      name: 'value',
+      databaseId: 3,
+      tableName: 'uploaded_data',
+      aggregation: 'SUM' as any,
+      expression: 'amount',
+      definition: JSON.stringify(catalog.measures[0].definition),
+      useYn: 'Y',
+    });
     catalog.viewRevision = exploreViewRevision(catalog);
     state = {
       version: 1,

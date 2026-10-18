@@ -79,7 +79,15 @@ export class FileRefreshController {
   ) {
     return {
       status: 'SUCCESS',
-      data: await this.refreshes.start(id, file, revision, requestId, this.actor(req), correction),
+      data: await this.refreshes.start(
+        id,
+        file,
+        revision,
+        requestId,
+        this.actor(req),
+        correction,
+        req.user.accessKeyData.authVersion ?? 0,
+      ),
     };
   }
   @Post(':requestId/retry') async retry(
@@ -87,7 +95,15 @@ export class FileRefreshController {
     @Param('requestId') requestId: string,
     @Req() req,
   ) {
-    return { status: 'SUCCESS', data: await this.refreshes.retry(id, requestId, this.actor(req)) };
+    return {
+      status: 'SUCCESS',
+      data: await this.refreshes.retry(
+        id,
+        requestId,
+        this.actor(req),
+        req.user.accessKeyData.authVersion ?? 0,
+      ),
+    };
   }
   @Post(':requestId/cancel') async cancel(
     @Param('id') id: string,

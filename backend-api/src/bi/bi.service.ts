@@ -1,8 +1,11 @@
+import { DATE_FORMATS, stringType } from './business-variable';
+import { serializeEnterpriseWrite } from '../enterprise/enterprise-write';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { dimensionDefinition } from './semantic-proposal';
 import { Database } from '../database/entities/database.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { Metric } from '../metric/entities/metric.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
@@ -58,21 +61,160 @@ export class BiService {
     private readonly connection: ConnectionService,
     private readonly dashboards: AiDashboardService,
   ) {}
-  async sources(actor: number) {
+  /**
+   * UC051: the export boundary re-checks the current source action instead of trusting an
+   * earlier read, so a revoked or downgraded grant is denied before a query runs and again
+   * before a file response is serialized.
+   */
+  async assertSourceAction(
+    sourceId: unknown,
+    actor: number,
+    action: 'read' | 'edit' | 'export',
+  ): Promise<void> {
+    await this.access.assert('database', sourceId, actor, action);
+  }
+  /**
+   * UC051: discovery lists the acting user's own sources plus the sources a current grant makes
+   * readable. The union never impersonates the granting owner: ownerId stays the real actor and
+   * granted ids are added explicitly, with the latest organization/active/grant state per request.
+   */
+  async sources(actor: number, includeCatalog = false) {
+    const ownerId = this.access.actor(actor);
+    const granted = await this.access.readableSourceIds(actor);
+    if (!includeCatalog) {
+      const rows = await this.db.getRepository(Database).find({
+        where: granted.length
+          ? [
+              { ownerId, catalogActive: true },
+              { id: In(granted), catalogActive: true },
+            ]
+          : { ownerId, catalogActive: true },
+        select: { id: true, name: true, engine: true },
+        order: { id: 'ASC' },
+      });
+      return rows.map(({ id, name, engine }) => ({ id, name, engine }));
+    }
+    // UC050/UC051: one latest entry per accessible source; metadata is never returned to
+    // discovery clients.
     const rows = await this.db
       .getRepository(Database)
-      .find({ where: { ownerId: this.access.actor(actor) } });
-    return rows.map(({ id, name, engine }) => ({ id, name, engine }));
+      .createQueryBuilder('source')
+      .leftJoin(
+        SourceCatalogEntry,
+        'catalog',
+        `catalog.sourceId = source.id AND catalog.version = ${this.db
+          .createQueryBuilder()
+          .subQuery()
+          .select('MAX(latest.version)')
+          .from(SourceCatalogEntry, 'latest')
+          .where('latest.sourceId = source.id')
+          .getQuery()}`,
+      )
+      .select('source.id', 'id')
+      .addSelect('source.name', 'name')
+      .addSelect('source.engine', 'engine')
+      .addSelect('catalog.version', 'catalogVersion')
+      .addSelect('catalog.metadata', 'metadata')
+      .where(
+        granted.length
+          ? '(source.ownerId = :ownerId OR source.id IN (:...granted))'
+          : 'source.ownerId = :ownerId',
+        granted.length ? { ownerId, granted } : { ownerId },
+      )
+      .andWhere('source.catalogActive = :catalogActive', { catalogActive: true })
+      .orderBy('source.id', 'ASC')
+      .getRawMany();
+    return rows.map(({ id, name, engine, catalogVersion, metadata }) => {
+      const source = { id, name, engine };
+      try {
+        const label = JSON.parse(metadata)?.label;
+        if (
+          typeof label === 'string' &&
+          label.length <= 100 &&
+          label.trim() &&
+          Number.isSafeInteger(catalogVersion) &&
+          catalogVersion > 0
+        )
+          return { ...source, catalogLabel: label.trim(), catalogVersion };
+      } catch {
+        /* A damaged latest label does not hide an otherwise accessible source. */
+      }
+      return source;
+    });
+  }
+  /** UC050: fixed formats + quoted actual identifiers; only aggregate invalid counts leave DuckDB. */
+  async validateBusinessDates(
+    sourceId: number,
+    actor: number,
+    revision: string,
+    columns: Array<{ column: string; dateFormat: string }>,
+  ) {
+    await this.access.assert('database', sourceId, actor, 'edit');
+    const issues = await this.connection.withDuckDBSnapshot(sourceId, async () => {
+      const before = await this.profile(sourceId, actor);
+      if (!before.supported || before.dataVersion !== revision)
+        throw new ConflictException('날짜 확인 기준 데이터가 변경됐습니다. 다시 조회해 주세요.');
+      if (!Array.isArray(columns) || !columns.length || columns.length > 128)
+        throw new BadRequestException('날짜 열 목록을 확인해 주세요.');
+      const expressions = columns.map((c, i) => {
+        if (
+          !c ||
+          !Object.prototype.hasOwnProperty.call(DATE_FORMATS, c.dateFormat) ||
+          !before.columns.some(s => s.name === c.column && stringType(s.type))
+        )
+          throw new BadRequestException('날짜 열·형식을 확인해 주세요.');
+        const raw = `CAST(${quoteColumn(c.column)} AS VARCHAR)`,
+          format = DATE_FORMATS[c.dateFormat];
+        const parsed = `try_strptime(${raw}, '${format}')`;
+        return `COUNT(*) FILTER (WHERE ${quoteColumn(
+          c.column,
+        )} IS NOT NULL AND (${parsed} IS NULL OR strftime(${parsed}, '${format}') <> ${raw})) AS invalid_${i}, COUNT(*) FILTER (WHERE ${quoteColumn(
+          c.column,
+        )} IS NOT NULL AND trim(${raw}) = '') AS blank_${i}`;
+      });
+      const result = (
+        await this.connection.queryDuckDB(
+          sourceId,
+          `SELECT ${expressions.join(', ')} FROM uploaded_data`,
+        )
+      ).datas[0];
+      await this.access.assert('database', sourceId, actor, 'edit');
+      return columns.map((c, i) => ({
+        column: c.column,
+        invalidCount: String(result?.[`invalid_${i}`]),
+        blankCount: String(result?.[`blank_${i}`]),
+      }));
+    });
+    // Re-read outside the pinned file too: replacing the source during validation invalidates it.
+    await this.access.assert('database', sourceId, actor, 'edit');
+    if ((await this.profile(sourceId, actor)).dataVersion !== revision)
+      throw new ConflictException('날짜 확인 중 데이터가 변경됐습니다. 다시 조회해 주세요.');
+    if (issues.some(issue => issue.invalidCount !== '0'))
+      throw new BadRequestException({
+        code: 'INVALID_BUSINESS_DATES',
+        message:
+          '날짜 형식과 맞지 않는 값이 있습니다. 빈 문자열도 날짜가 아닙니다. 값이 없으면 NULL로 준비해 주세요.',
+        details: issues,
+      });
   }
   async profile(id: unknown, actor: number) {
-    await this.access.assert('database', id, actor);
     const sourceId = this.access.id(id);
+    // Permissions and ownership are resolved per request and merged outside the shared snapshot
+    // cache, so one actor's granted rights are never stored in (or served from) another actor's
+    // cache entry. sourceCapabilities performs the read check for this request.
+    const access = await this.access.sourceCapabilities(sourceId, actor);
     const source = await this.db.getRepository(Database).findOne({ where: { id: sourceId } });
-    if (source.engine !== 'duckdb') return this.profileSnapshot(id, actor);
-    return this.connection.withDuckDBSnapshot(sourceId, () => this.profileSnapshot(id, actor));
+    const owned = source.ownerId === actor;
+    if (source.engine !== 'duckdb')
+      return { ...(await this.profileSnapshot(id, actor)), access, owned };
+    return this.connection.withDuckDBSnapshot(sourceId, async () => ({
+      ...(await this.profileSnapshot(id, actor)),
+      access,
+      owned,
+    }));
   }
   private async profileSnapshot(id: unknown, actor: number) {
-    await this.access.assert('database', id, actor);
+    await this.access.assert('database', id, actor, 'read');
     const source = await this.db
       .getRepository(Database)
       .findOne({ where: { id: this.access.id(id) } });
@@ -163,23 +305,28 @@ export class BiService {
     return value.trim();
   }
   async createMetric(body: any, actor: number) {
+    // UC051: a stored metric definition is written against the source, so it needs edit; the
+    // read used for the profile must not be enough on its own.
+    await this.access.assert('database', body?.sourceId, actor, 'edit');
     if (body?.aggregation === 'FORMULA') {
-      await this.access.assert('database', body.sourceId, actor);
       return this.connection.withDuckDBSnapshot(body.sourceId, async () => {
         const { profile, definition } = await this.prepareFormula(body, actor);
-        const repo = this.db.getRepository(Metric);
-        const row = await repo.save(
-          repo.create({
-            name: 'bi_' + randomUUID(),
-            databaseId: profile.sourceId,
-            tableName: 'uploaded_data',
-            aggregation: 'FORMULA' as any,
-            expression: 'structured_formula',
-            description: definition.label,
-            definition: JSON.stringify(definition),
-            useYn: 'Y',
-          }),
-        );
+        const row = await serializeEnterpriseWrite(this.db, async () => {
+          await this.access.assert('database', body.sourceId, actor, 'edit');
+          const repo = this.db.getRepository(Metric);
+          return repo.save(
+            repo.create({
+              name: 'bi_' + randomUUID(),
+              databaseId: profile.sourceId,
+              tableName: 'uploaded_data',
+              aggregation: 'FORMULA' as any,
+              expression: 'structured_formula',
+              description: definition.label,
+              definition: JSON.stringify(definition),
+              useYn: 'Y',
+            }),
+          );
+        });
         return { id: row.id, label: definition.label, definitionVersion: 1, definition };
       });
     }
@@ -210,19 +357,22 @@ export class BiService {
       decimalPlaces: body.decimalPlaces,
       numberNotation: body.numberNotation,
     };
-    const repo = this.db.getRepository(Metric);
-    const row = await repo.save(
-      repo.create({
-        name: 'bi_' + randomUUID(),
-        databaseId: profile.sourceId,
-        tableName: 'uploaded_data',
-        aggregation,
-        expression: aggregation === 'COUNT' ? 'count_rows' : fields.column,
-        description: label,
-        definition: JSON.stringify(definition),
-        useYn: 'Y',
-      }),
-    );
+    const row = await serializeEnterpriseWrite(this.db, async () => {
+      await this.access.assert('database', profile.sourceId, actor, 'edit');
+      const repo = this.db.getRepository(Metric);
+      return repo.save(
+        repo.create({
+          name: 'bi_' + randomUUID(),
+          databaseId: profile.sourceId,
+          tableName: 'uploaded_data',
+          aggregation,
+          expression: aggregation === 'COUNT' ? 'count_rows' : fields.column,
+          description: label,
+          definition: JSON.stringify(definition),
+          useYn: 'Y',
+        }),
+      );
+    });
     return { id: row.id, label, definitionVersion: 1, definition };
   }
   /** Resolve live references here; clients can never supply the trusted operand snapshots. */
@@ -301,7 +451,7 @@ export class BiService {
     });
   }
   async metrics(sourceId: unknown, actor: number) {
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const rows = await this.db
       .getRepository(Metric)
       .find({ where: { databaseId: this.access.id(sourceId), useYn: 'Y' } });
@@ -319,7 +469,7 @@ export class BiService {
   }
   async prepare(body: any, actor: number) {
     const profile = await this.profile(body?.sourceId, actor);
-    await this.access.assert('metric', body?.metricId, actor);
+    await this.access.assert('metric', body?.metricId, actor, 'read');
     const row = await this.db
       .getRepository(Metric)
       .findOne({ where: { id: this.access.id(body.metricId) } });
@@ -361,7 +511,7 @@ export class BiService {
     return { draft, snapshot, profile, definition };
   }
   async preview(body: any, actor: number) {
-    await this.access.assert('database', body?.sourceId, actor);
+    await this.access.assert('database', body?.sourceId, actor, 'read');
     return this.connection.withDuckDBSnapshot(this.access.id(body.sourceId), () =>
       this.previewSnapshot(body, actor),
     );
@@ -382,6 +532,11 @@ export class BiService {
     };
   }
   async save(body: any, actor: number) {
+    // UC051 bypass guard: a new dashboard minted from a source stays source-owner only, even for
+    // an edit grantee, so a granted read/edit cannot turn a foreign source into an artifact the
+    // actor then owns with default publish/export rights. Explore and metric/metadata edits are
+    // the only granted source capabilities in this slice.
+    await this.access.assert('database', body?.sourceId, actor);
     const { draft, snapshot } = await this.prepare(body, actor);
     return (await this.dashboards.save({ draft }, actor, snapshot)).data;
   }

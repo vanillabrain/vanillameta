@@ -1,8 +1,22 @@
+import type { Node } from '../../Explore/SourceConditions';
 import { get, post } from '@/helpers/apiHelper';
-import { studioAssert, validateStudioDateRange, validateStudioDocument, validateStudioFilters } from './studioDocument';
+import {
+  studioAssert,
+  validateStudioConditions,
+  validateStudioDateRange,
+  validateStudioDocument,
+  validateStudioFilters,
+} from './studioDocument';
 import { SourceProfile } from './studioCreation';
 import { PublishedBlock } from './studioPublication';
-import { STUDIO_DATE_LIMITS, STUDIO_FILTER_LIMITS, StudioDateRange, StudioDocumentV1, StudioFilter } from './studioTypes';
+import {
+  STUDIO_DATE_LIMITS,
+  STUDIO_FILTER_LIMITS,
+  StudioConditions,
+  StudioDateRange,
+  StudioDocumentV1,
+  StudioFilter,
+} from './studioTypes';
 /** A single date column name reported by the remix contract. */
 const remixDateColumn = (input: unknown, message: string): string => {
   studioAssert(typeof input === 'string' && !!input.trim() && input.length <= STUDIO_DATE_LIMITS.columnLength, message);
@@ -26,8 +40,23 @@ const remixColumns = (input: unknown, message: string): string[] => {
   studioAssert(new Set(columns).size === columns.length, message);
   return columns;
 };
+const conditionFields = (conditions?: StudioConditions): string[] => {
+  const names = new Set<string>();
+  const visit = (node: Node | null) => {
+    if (!node) return;
+    if (node.kind === 'group') node.children.forEach(visit);
+    else names.add(node.column);
+  };
+  if (conditions) {
+    visit(conditions.definition.include);
+    visit(conditions.definition.exclude);
+  }
+  return Array.from(names);
+};
 export type RemixBlock = { id: string; title: string; kind: string; supported: boolean; reason?: string };
 export type RemixRequirements = {
+  lifecycleRevision: string;
+  conditions?: StudioConditions;
   token: string;
   version: number;
   title: string;
@@ -46,6 +75,7 @@ export type RemixField = {
   candidates: string[];
 };
 export type RemixInput = {
+  expectedLifecycleRevision: string;
   targetSourceId: number;
   mapping: Record<string, string>;
   excludedBlockIds: string[];
@@ -63,12 +93,16 @@ export type RemixPreview = RemixRequirements & {
   mappedFilters?: StudioFilter[];
   unmappedFilters?: string[];
   /** Period applied to this preview, and the saved period column the target cannot apply. */
+  mappedConditions?: StudioConditions;
+  unmappedConditions: string[];
   mappedDateRange?: StudioDateRange;
   unmappedDateRange?: string;
   preview?: { widgets: any[] };
 };
 const config = { timeout: 180000, headers: { 'Cache-Control': 'no-cache' } };
 const tokenPath = (token: string) => {
+  if (/^(?:d-(?:[1-9][0-9]*-){4}|g-(?:[1-9][0-9]*-){6})[a-f0-9]{64}$/.test(token))
+    return '/studio/received/' + encodeURIComponent(token);
   studioAssert(/^[a-f0-9]{64}$/.test(token), '복제 링크를 확인해 주세요.');
   return '/studio/publications/' + encodeURIComponent(token);
 };
@@ -76,6 +110,8 @@ export function validateRemixRequirements(input: any, token: string): RemixRequi
   studioAssert(
     !!input &&
       input.token === token &&
+      typeof input.lifecycleRevision === 'string' &&
+      /^[a-f0-9]{64}$/.test(input.lifecycleRevision) &&
       Number.isSafeInteger(input.version) &&
       input.version > 0 &&
       typeof input.title === 'string' &&
@@ -109,12 +145,25 @@ export function validateRemixRequirements(input: any, token: string): RemixRequi
   );
   if (input.filters !== undefined) input.filters = remixFilters(input.filters, '게시본의 공통 필터를 확인하지 못했습니다.');
   if (input.dateRange !== undefined) input.dateRange = validateStudioDateRange(input.dateRange);
+  if (input.conditions !== undefined) {
+    input.conditions = validateStudioConditions(input.conditions);
+    studioAssert(
+      conditionFields(input.conditions).every(name =>
+        input.requiredFields.some(
+          (f: any) =>
+            f.name === name && input.blocks.filter((b: any) => b.supported).every((b: any) => f.blockIds.includes(b.id)),
+        ),
+      ),
+      '포함·제외 조건의 필수 연결 열이 누락됐습니다.',
+    );
+  }
   return input;
 }
 export function validateRemixPreview(input: any, token: string, request: RemixInput): RemixPreview {
   validateRemixRequirements(input, token);
   studioAssert(
-    input.version === request.expectedVersion &&
+    input.lifecycleRevision === request.expectedLifecycleRevision &&
+      input.version === request.expectedVersion &&
       input.targetSourceId === request.targetSourceId &&
       /^[a-f0-9]{64}$/.test(input.sourceRevision ?? '') &&
       input.profile?.sourceId === request.targetSourceId &&
@@ -150,6 +199,28 @@ export function validateRemixPreview(input: any, token: string, request: RemixIn
     ),
     '미연결 블록 상태를 확인해 주세요.',
   );
+  studioAssert(
+    conditionFields(input.conditions).every(name => input.fields.some((f: any) => f.sourceColumn === name)),
+    '포함·제외 조건의 열 연결 상태가 누락됐습니다.',
+  );
+  if (input.mappedConditions !== undefined) input.mappedConditions = validateStudioConditions(input.mappedConditions);
+  if (input.unmappedConditions === undefined && input.conditions === undefined && input.mappedConditions === undefined)
+    input.unmappedConditions = [];
+  if (input.conditions !== undefined || input.mappedConditions !== undefined)
+    studioAssert(Array.isArray(input.unmappedConditions), '조건 연결 결과가 누락됐습니다.');
+  if (input.unmappedConditions !== undefined) {
+    studioAssert(
+      Array.isArray(input.unmappedConditions) &&
+        input.unmappedConditions.length <= 32 &&
+        input.unmappedConditions.every((c: unknown) => typeof c === 'string' && !!c && !c.includes('\0')) &&
+        new Set(input.unmappedConditions).size === input.unmappedConditions.length,
+      '적용하지 못한 조건 열을 확인하지 못했습니다.',
+    );
+  }
+  studioAssert(
+    !input.conditions || input.mappedConditions || input.unmappedConditions?.length,
+    '조건 연결 결과가 누락됐습니다.',
+  );
   if (input.mappedFilters !== undefined)
     input.mappedFilters = remixFilters(input.mappedFilters, '적용된 공통 필터를 확인하지 못했습니다.');
   if (input.unmappedFilters !== undefined)
@@ -176,7 +247,10 @@ export const canCreateRemix = (p: RemixPreview | null, excluded: string[]) =>
   p.unmappedBlocks.length === 0 &&
   // A saved period the target source cannot apply is refused here as well; the server blocks it too.
   !p.unmappedDateRange &&
-  p.blocks.some(b => !excluded.includes(b.id)) &&
+  !p.unmappedConditions?.length &&
+  (!p.conditions || !!p.mappedConditions) &&
+  p.blocks.every(b => b.supported || excluded.includes(b.id)) &&
+  p.blocks.some(b => b.supported && !excluded.includes(b.id)) &&
   !!p.preview?.widgets.length;
 export function remixPreviewBlocks(p: RemixPreview): PublishedBlock[] {
   const retained = p.blocks;
@@ -222,8 +296,13 @@ export async function saveRemix(
   );
   return { dashboardId: data.dashboardId, document };
 }
-export function remixError(error: any): string {
+export function remixError(error: any, received = false): string {
   const status = error?.response?.status;
+  if (received && status === 403) return '복제 허용이 중지됐거나 받은 분석·대상 데이터에 접근할 권한이 없습니다.';
+  if (received && status === 409)
+    return '공유 원본이나 복제 허용 버전이 변경되었습니다. 원본을 새로 확인하고 매핑을 검토해 주세요.';
+  if (received && (status === 404 || status === 410))
+    return '복제할 받은 분석을 확인할 수 없습니다. 받은 자료에서 다시 시작해 주세요.';
   if (status === 401) return '로그인이 필요합니다. 로그인한 뒤 이 화면에서 다시 확인해 주세요.';
   if (status === 403) return '복제가 허용되지 않았거나 게시본·대상 데이터에 접근할 권한이 없습니다.';
   if (status === 410) return '게시가 중지되었거나 만료되었습니다. 새 링크를 요청해 주세요.';

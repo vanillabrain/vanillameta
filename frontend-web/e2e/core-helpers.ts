@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { expect, Page, Response } from '@playwright/test';
 import { confirmDialog } from './ui-locators';
 
@@ -43,10 +44,35 @@ export async function createdId(response: Response) {
 
 export async function removeOwned(page: Page, headers: Record<string, string>, resource: string, id?: number) {
   if (!id) return;
-  const response = await page.request.delete(`${API}/${resource}/${id}`, { headers });
+  let data: Record<string, unknown> | undefined;
+  if (resource === 'dashboard' || resource === 'metric' || resource === 'database') {
+    const impact = await page.request.get(`${API}/${resource}/${id}/delete-impact`, { headers });
+    expect(impact.ok(), 'Read owned test resource deletion impact').toBe(true);
+    const result = await impact.json();
+    expect(result.status).toBe('SUCCESS');
+    expect(result.data.canDelete, JSON.stringify(result.data.dependencies)).toBe(true);
+    data = {
+      requestId: randomUUID(),
+      expectedRevision: result.data.revision,
+      expectedActorId: result.data.actorId,
+      expectedOrganizationId: result.data.organizationId,
+    };
+  }
+  const response = await page.request.delete(`${API}/${resource}/${id}`, { headers, ...(data ? { data } : {}) });
   expect(response.ok(), `DELETE ${resource}/${id}: ${await response.text()}`).toBe(true);
   // Dataset DELETE returns plain text; other owned resources return JSON.
   const text = await response.text();
   if (resource === 'dataset') expect(text).toBe(`This action removes a #${id} dataset`);
-  else expect(JSON.parse(text).status).toBe('SUCCESS');
+  else {
+    const result = JSON.parse(text);
+    expect(result.status).toBe('SUCCESS');
+    if (resource === 'database' && result.data.cleanup.status !== 'complete') {
+      const cleanup = await page.request.post(`${API}/database/deletions/${result.data.receiptId}/cleanup`, {
+        headers,
+        data: { requestId: result.data.requestId },
+      });
+      expect(cleanup.ok(), `Clean owned source files: ${await cleanup.text()}`).toBe(true);
+      expect((await cleanup.json()).data.cleanup.status).toBe('complete');
+    }
+  }
 }

@@ -2,7 +2,29 @@ import { AddConditionReports1792300004000 } from './migrations/1792300004000-add
 import { AddFileCorrection1792300001000 } from './migrations/1792300001000-add-file-correction';
 import { AddSourceModelReceipt1792300002000 } from './migrations/1792300002000-add-source-model-receipt';
 import { AddBiGovernance1792300003000 } from './migrations/1792300003000-add-bi-governance';
+import { AddFileRefreshActorEpoch1792580001000 } from './migrations/1792580001000-add-file-refresh-actor-epoch';
 import { AddFileRefresh1792300000000 } from './migrations/1792300000000-add-file-refresh';
+import { AddEnterpriseClassifications1792580000000 } from './migrations/1792580000000-add-enterprise-classifications';
+import { AddSourceConditionSemantics1792570000000 } from './migrations/1792570000000-add-source-condition-semantics';
+import { AddDashboardLifecycle1792560000000 } from './migrations/1792560000000-add-dashboard-lifecycle';
+import { AddSourceDeleteReceipts1792550000000 } from './migrations/1792550000000-add-source-delete-receipts';
+import { AddMetricDeleteReceipts1792540000000 } from './migrations/1792540000000-add-metric-delete-receipts';
+import { AddDashboardDeleteReceipts1792530000000 } from './migrations/1792530000000-add-dashboard-delete-receipts';
+import { AddPersonalLibraryState1792520000000 } from './migrations/1792520000000-add-personal-library-state';
+import { AddExportJobs1792510000000 } from './migrations/1792510000000-add-export-jobs';
+import { AddNotificationAudience1792500000000 } from './migrations/1792500000000-add-notification-audience';
+import { AddGroupDeliveries1792490000000 } from './migrations/1792490000000-add-group-deliveries';
+import { AddEnterpriseGroups1792480000000 } from './migrations/1792480000000-add-enterprise-groups';
+import { AddDeliveryCopy1792470000000 } from './migrations/1792470000000-add-delivery-copy';
+import { AddDashboardDeliveries1792460000000 } from './migrations/1792460000000-add-dashboard-deliveries';
+import { AddNotificationState1792450000000 } from './migrations/1792450000000-add-notification-state';
+import { AddSourceConditions1792440000000 } from './migrations/1792440000000-add-source-conditions';
+import { AddAccountIntegrity1792430000000 } from './migrations/1792430000000-add-account-integrity';
+import { AddSourceAvailability1792420000000 } from './migrations/1792420000000-add-source-availability';
+import { AddEnterpriseResourceGrants1792410000000 } from './migrations/1792410000000-add-enterprise-resource-grants';
+import { EnterpriseModule } from './enterprise/enterprise.module';
+import { AddEnterpriseMembership1792400000000 } from './migrations/1792400000000-add-enterprise-membership';
+import { AddSourceCatalog1792300000000 } from './migrations/1792300000000-add-source-catalog';
 import { StudioModule } from './dashboard-studio/studio.module';
 import { AddDashboardStudio1792030000000 } from './migrations/1792030000000-add-dashboard-studio';
 import { AddAnalysisCreationReceipts1792030000000 } from './migrations/1792030000000-add-analysis-creation-receipts';
@@ -44,6 +66,7 @@ import { apiEnvFiles } from './config-env';
 
 @Module({
   imports: [
+    EnterpriseModule,
     StudioModule,
     AnalysisModule,
     BiModule,
@@ -71,10 +94,31 @@ import { apiEnvFiles } from './config-env';
       autoLoadEntities: true,
       migrations: [
         AddFileRefresh1792300000000,
+        AddFileRefreshActorEpoch1792580001000,
         AddFileCorrection1792300001000,
         AddSourceModelReceipt1792300002000,
         AddBiGovernance1792300003000,
         AddConditionReports1792300004000,
+        AddEnterpriseClassifications1792580000000,
+        AddSourceConditionSemantics1792570000000,
+        AddDashboardLifecycle1792560000000,
+        AddDashboardDeleteReceipts1792530000000,
+        AddMetricDeleteReceipts1792540000000,
+        AddSourceDeleteReceipts1792550000000,
+        AddPersonalLibraryState1792520000000,
+        AddExportJobs1792510000000,
+        AddNotificationAudience1792500000000,
+        AddGroupDeliveries1792490000000,
+        AddEnterpriseGroups1792480000000,
+        AddDeliveryCopy1792470000000,
+        AddDashboardDeliveries1792460000000,
+        AddNotificationState1792450000000,
+        AddSourceConditions1792440000000,
+        AddAccountIntegrity1792430000000,
+        AddSourceAvailability1792420000000,
+        AddEnterpriseResourceGrants1792410000000,
+        AddEnterpriseMembership1792400000000,
+        AddSourceCatalog1792300000000,
         AddDashboardStudio1792030000000,
         AddDashboardReusePermissions1792120000000,
         AddDashboardPublications1792040000000,

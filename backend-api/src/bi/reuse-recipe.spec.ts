@@ -1,3 +1,4 @@
+import { remapDashboard } from './dashboard-remap';
 import { BadRequestException } from '@nestjs/common';
 import { REUSE_RECIPE_MAX_BYTES, buildReuseRecipe, readReuseRecipe } from './reuse-recipe';
 
@@ -215,5 +216,87 @@ describe('UC-021 reuse recipe', () => {
   it('reflects an edited original when the recipe is captured again', () => {
     const stored = buildReuseRecipe({ ...analysis(), title: '수정된 원본' }, profile());
     expect(readReuseRecipe(stored).analysis.title).toBe('수정된 원본');
+  });
+  it('retains whole pinned meaning and private schema while recipient mapping columns remain minimal', () => {
+    const semantics = {
+      schemaVersion: 1,
+      catalogVersion: 2,
+      columns: [
+        { column: 'channel', businessType: 'category', dateFormat: '' },
+        { column: 'day', businessType: 'date', dateFormat: 'native' },
+      ],
+    };
+    const stored = buildReuseRecipe(
+      {
+        ...analysis(),
+        defaultConditions: {
+          sourceRevision: 'a'.repeat(64),
+          semantics,
+          definition: {
+            include: { kind: 'predicate', column: 'channel', operator: 'eq', values: ['A'] },
+            exclude: null,
+          },
+        },
+      },
+      profile(),
+    );
+    const encoded = JSON.parse(stored);
+    expect(encoded.analysis.databaseId).toBe(1);
+    expect(encoded.profile.columns.map(c => c.name)).toEqual(['amount', 'channel']);
+    expect(encoded.conditionSchema.map(c => c.name)).toEqual(['amount', 'channel', 'day']);
+    const decoded = readReuseRecipe(stored);
+    expect(decoded.analysis.conditionSemantics).toEqual(semantics);
+    expect(decoded.profile.conditionSchema).toHaveLength(3);
+    const target = {
+      sourceId: 9,
+      columns: [
+        { name: 'total', type: 'DOUBLE' },
+        { name: 'segment', type: 'VARCHAR' },
+        { name: 'date', type: 'DATE' },
+      ],
+    };
+    const targetMeaning = {
+      schemaVersion: 1 as const,
+      catalogVersion: 7,
+      columns: [
+        { column: 'date', businessType: 'date' as const, dateFormat: 'native' as const },
+        { column: 'segment', businessType: 'category' as const, dateFormat: '' as const },
+      ],
+    };
+    expect(() =>
+      remapDashboard(decoded.analysis, decoded.profile, target, {
+        amount: 'total',
+        channel: 'segment',
+      }),
+    ).toThrow(BadRequestException);
+    const mapped = remapDashboard(
+      decoded.analysis,
+      decoded.profile,
+      target,
+      { amount: 'total', channel: 'segment' },
+      targetMeaning,
+    );
+    expect(mapped.conditionSemantics).toEqual(targetMeaning);
+    expect(mapped.conditionDefinition.include).toMatchObject({ column: 'segment' });
+    expect(mapped.conditionSemantics.columns.some(c => c.column === 'day')).toBe(false);
+    delete encoded.conditionSchema;
+    expect(() => readReuseRecipe(JSON.stringify(encoded))).toThrow(BadRequestException);
+  });
+  it('does not reinterpret a native V1 recipe through current target declarations', () => {
+    const native = readReuseRecipe(buildReuseRecipe(analysis(), profile()));
+    const target = { ...profile(), sourceId: 9 };
+    const mapped = remapDashboard(
+      native.analysis,
+      native.profile,
+      target,
+      { amount: 'amount', channel: 'channel' },
+      {
+        schemaVersion: 1,
+        catalogVersion: 9,
+        columns: [{ column: 'amount', businessType: 'category', dateFormat: '' }],
+      },
+    );
+    expect(mapped.conditionSemantics).toBeUndefined();
+    expect(JSON.parse(buildReuseRecipe(analysis(), profile())).conditionSchema).toBeUndefined();
   });
 });

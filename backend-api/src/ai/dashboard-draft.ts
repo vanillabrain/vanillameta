@@ -1,4 +1,6 @@
+import type { ConditionSemantics } from '../bi/business-condition-semantics';
 import { BadRequestException } from '@nestjs/common';
+import { compileConditionDefinition, conditionColumns } from '../bi/source-condition-definition';
 import { dateRangeBounds, isoSecond, validateDateRange } from './dashboard-date-range';
 
 export const DASHBOARD_TYPES = ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_BAR', 'CHART_LINE'];
@@ -263,6 +265,9 @@ export function sourceQuery(
   dateRange?: any,
   temporalColumns: string[] = [],
   numericColumns: string[] = [],
+  conditionsDefinition?: unknown,
+  schema?: Array<{ name: string; type: string }>,
+  conditionSemantics?: ConditionSemantics,
 ) {
   validateSourceSql(sql);
   const bindings: any[] = [];
@@ -313,6 +318,16 @@ export function sourceQuery(
       bindings.push(range.start, range.end);
     } else conditions.push(instantCondition);
     bindings.push(isoSecond(start), isoSecond(end));
+  }
+  if (conditionsDefinition !== undefined) {
+    if (!schema) throw new BadRequestException('condition schema required');
+    const compiled = compileConditionDefinition(
+      conditionsDefinition,
+      conditionColumns(schema, conditionSemantics),
+      conditionSemantics,
+    );
+    conditions.push(`(${compiled.includeSql}) AND NOT (${compiled.excludeSql})`);
+    bindings.push(...compiled.bindings);
   }
   return {
     sql: `WITH source AS (SELECT * FROM uploaded_data${

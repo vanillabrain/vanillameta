@@ -25,8 +25,18 @@ describe('DatabaseService public connection responses', () => {
         }),
       ),
     };
+    const tx: any = {
+      connection: { options: { type: 'sqlite' } },
+      queryRunner: { isTransactionActive: true },
+      findOne: async () => ({ id: 7, active: true, authVersion: 0 }),
+      save: async (_entity, value) => {
+        stored = { ...value, id: 9 };
+        return { ...stored };
+      },
+    };
     service = new DatabaseService(
       {
+        manager: { connection: tx.connection, transaction: run => run(tx) },
         find: jest.fn(async () => [{ ...stored }]),
         findOne: jest.fn(async () => ({ ...stored })),
         save: jest.fn(async entity => {
@@ -55,18 +65,22 @@ describe('DatabaseService public connection responses', () => {
     async method => {
       const result =
         method === 'create'
-          ? await service.create({
-              name: 'private source',
-              engine: 'cockroachdb',
-              type: 'pg',
-              connectionConfig: {
-                user: 'user',
-                host: 'localhost',
-                port: 5432,
-                database: 'sample',
-                password: secret,
-              },
-            } as any)
+          ? await service.create(
+              {
+                name: 'private source',
+                engine: 'cockroachdb',
+                type: 'pg',
+                connectionConfig: {
+                  user: 'user',
+                  host: 'localhost',
+                  port: 5432,
+                  database: 'sample',
+                  password: secret,
+                },
+              } as any,
+              7,
+              0,
+            )
           : method === 'list'
           ? await service.findAll()
           : method === 'info'

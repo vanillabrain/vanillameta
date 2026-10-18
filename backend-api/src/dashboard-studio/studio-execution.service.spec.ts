@@ -1,3 +1,8 @@
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
+import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
+import { Widget } from '../widget/entities/widget.entity';
+import { Database } from '../database/entities/database.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import {
   BadRequestException,
@@ -12,6 +17,7 @@ import { StudioExecutionService } from './studio-execution.service';
 import { StudioExecution } from './entities/studio-execution.entity';
 import { StudioRun } from './entities/studio-run.entity';
 import { StudioRunService } from './studio-run.service';
+import { applyStudioOperation } from './studio-operations';
 import { StudioStepId } from './studio-execution-contract';
 describe('T7 durable executions', () => {
   let db: DataSource, service: StudioExecutionService, studio: any, ai: any, body: any;
@@ -21,7 +27,15 @@ describe('T7 durable executions', () => {
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: [StudioExecution, StudioRun],
+      entities: [
+        StudioExecution,
+        StudioRun,
+        Dashboard,
+        DashboardShare,
+        DashboardWidget,
+        Widget,
+        Database,
+      ],
       synchronize: true,
     }).initialize();
     const document = JSON.parse(
@@ -29,6 +43,15 @@ describe('T7 durable executions', () => {
     );
     document.dashboardId = 1;
     document.revision = 'a'.repeat(64);
+    await db.manager.save(Dashboard, { id: 1, title: 'Execution parent' });
+    await db.manager.save(Database, {
+      id: document.sourceId,
+      ownerId: 7,
+      name: 'Execution source',
+      engine: 'duckdb',
+      type: 'duckdb',
+      connectionConfig: '{}',
+    });
     body = {
       requestId: 't7',
       dashboardId: 1,
@@ -48,6 +71,7 @@ describe('T7 durable executions', () => {
         if (actor !== 7) throw new ForbiddenException();
         return {
           document: b.document,
+          conditionColumns: [{ name: 'amount', type: 'DOUBLE' }],
           preview: { widgets: [{ datas: [{ secretRow: 'ROW_SECRET' }] }] },
         };
       }),
@@ -91,6 +115,30 @@ describe('T7 durable executions', () => {
     await db.destroy();
     if (provider === undefined) delete process.env.AI_PROVIDER;
     else process.env.AI_PROVIDER = provider;
+  });
+  it('rejects creating an execution after its original Source was deleted, with no execution or LLM writes', async () => {
+    await db.manager.delete(Database, body.document.sourceId);
+    await expect(service.create(body, 7)).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.count(StudioExecution)).toBe(0);
+    expect(ai.callLlm).not.toHaveBeenCalled();
+  });
+  it('rejects actual retry after original Source deletion before running-state or LLM writes', async () => {
+    const result = await service.create(body, 7);
+    const row = await db.manager.findOneBy(StudioExecution, { runId: result.runId });
+    const state = JSON.parse(row.state);
+    row.status = 'failed';
+    state.steps[0].status = 'failed';
+    state.steps[0].retryable = true;
+    for (const step of state.steps.slice(1)) step.status = 'pending';
+    row.state = JSON.stringify(state);
+    await db.manager.save(StudioExecution, row);
+    await db.manager.delete(Database, body.document.sourceId);
+    const calls = ai.callLlm.mock.calls.length;
+    await expect(
+      service.retry(row.runId, { stepId: state.steps[0].stepId, request: body }, 7),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(await db.manager.findOneBy(StudioExecution, { runId: row.runId })).toEqual(row);
+    expect(ai.callLlm).toHaveBeenCalledTimes(calls);
   });
   const inlineCase = async () => {
     const parent: any = {
@@ -630,6 +678,7 @@ describe('T7 durable executions', () => {
       token: 'e'.repeat(64),
       version: 2,
       remixTemplate: 'PRIVATE_DEFINITION',
+      lifecycleRevision: 'd'.repeat(64),
     })),
     publish: jest.fn(),
     committed: jest.fn(async () => undefined),
@@ -745,7 +794,12 @@ describe('T7 durable executions', () => {
     const publications = remixAdapter();
     publications.requireRemix.mockImplementationOnce(async () => {
       controller.abort();
-      return { token: 'e'.repeat(64), version: 2, remixTemplate: '' };
+      return {
+        token: 'e'.repeat(64),
+        version: 2,
+        remixTemplate: '',
+        lifecycleRevision: 'd'.repeat(64),
+      };
     });
     const runner = new StudioExecutionService(
       db,
@@ -939,6 +993,76 @@ describe('T7 durable executions', () => {
     const completed = await service.create({ ...body, requestId: 'save2', prompt: '저장해줘' }, 7);
     expect((await service.cancel(completed.runId, 7)).status).toBe('succeeded');
     expect(await db.manager.count(StudioRun)).toBe(1);
+  });
+  it('UC052 never reports draft application succeeded before condition review', async () => {
+    ai.callLlm.mockResolvedValue(
+      JSON.stringify({
+        intent: 'edit',
+        answer: '조건 변경안을 검토하세요.',
+        operations: [
+          {
+            type: 'setConditions',
+            definition: {
+              include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [100] },
+              exclude: null,
+            },
+          },
+        ],
+      }),
+    );
+    const result = await service.create({ ...body, prompt: '금액 100 이상 조건을 제안해 줘' }, 7);
+    expect(result.steps.find(step => step.stepId === 'applyDraft')).toMatchObject({
+      status: 'unsupported',
+      errorCode: 'CONDITION_REVIEW_REQUIRED',
+    });
+    expect(result.result.proposedOperations[0].type).toBe('setConditions');
+    expect(result.answer).toContain('조건');
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(body.document.conditions).toBeUndefined();
+  });
+  it('UC052 never autosaves a condition proposal and preserves the checked result across GET/retry', async () => {
+    const definition = {
+      include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [100] },
+      exclude: null,
+    };
+    ai.callLlm.mockResolvedValue(
+      JSON.stringify({
+        intent: 'edit',
+        answer: '조건 변경안을 검토하세요.',
+        operations: [{ type: 'setConditions', definition }],
+      }),
+    );
+    const result = await service.create(
+      { ...body, prompt: '금액 100 이상 조건으로 바꾸고 저장해줘' },
+      7,
+    );
+    expect(result.status).toBe('unsupported');
+    expect(result.steps.find(s => s.stepId === 'applyDraft')).toMatchObject({
+      status: 'unsupported',
+      errorCode: 'CONDITION_REVIEW_REQUIRED',
+    });
+    expect(result.steps.find(s => s.stepId === 'saveDraft').status).toBe('pending');
+    expect(result.result.proposedOperations[0]).toEqual({
+      type: 'setConditions',
+      conditions: { sourceRevision: body.expectedSourceRevision, definition },
+    });
+    expect(studio.save).not.toHaveBeenCalled();
+    expect(await db.manager.count(StudioRun)).toBe(0);
+    const again = await service.get(result.runId, 7);
+    expect(again.result.proposedOperations).toEqual(result.result.proposedOperations);
+    expect(again.answer).toContain('조건');
+    await expect(service.retry(result.runId, { stepId: 'saveDraft' }, 7)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(studio.save).not.toHaveBeenCalled();
+    const applied = result.result.proposedOperations.reduce(applyStudioOperation, body.document);
+    const saved = await service.create(
+      { ...body, requestId: 'reviewed-save', document: applied, prompt: '저장해줘' },
+      7,
+    );
+    expect(saved.status).toBe('succeeded');
+    expect(studio.save).toHaveBeenCalledTimes(1);
+    expect(studio.save.mock.calls[0][1].document.conditions.definition).toEqual(definition);
   });
   it('does not save when combined edit request needs clarification or is unsupported', async () => {
     for (const intent of ['clarify', 'unsupported']) {
@@ -1290,6 +1414,7 @@ describe('T7 durable executions', () => {
       mapping: { amount: 'amount' },
       excludedBlockIds: [],
       expectedVersion: 2,
+      expectedLifecycleRevision: 'd'.repeat(64),
       expectedSourceRevision: 'b'.repeat(64),
     });
     const harness = async () => {

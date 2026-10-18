@@ -62,6 +62,7 @@ describe('business-date adapter through real DuckDB filtering', () => {
     ).filename;
     connection = new ConnectionService(
       {
+        manager: { connection: { options: { type: 'mysql' } } },
         findOne: async () => ({
           connectionConfig: JSON.stringify({ client: 'duckdb', connection: { filename } }),
         }),

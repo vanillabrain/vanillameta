@@ -19,8 +19,12 @@ export class DatasetController {
    * @param createDatasetDto
    */
   @Post()
-  create(@Body() createDatasetDto: CreateDatasetDto) {
-    return this.datasetService.create(createDatasetDto);
+  create(@Body() createDatasetDto: CreateDatasetDto, @Req() req) {
+    return this.datasetService.create(
+      createDatasetDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   /**
@@ -50,8 +54,13 @@ export class DatasetController {
    * @param updateDatasetDto
    */
   @Put(':id')
-  update(@Param('id') id: number, @Body() updateDatasetDto: UpdateDatasetDto) {
-    return this.datasetService.update(+id, updateDatasetDto);
+  update(@Param('id') id: number, @Body() updateDatasetDto: UpdateDatasetDto, @Req() req) {
+    return this.datasetService.update(
+      +id,
+      updateDatasetDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   /**

@@ -5,6 +5,7 @@ import { creationConfirmationKey, writeCreationConfirmation } from './studioCrea
 import { cleanup, fireEvent, render, screen, waitFor, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import StudioCreate from './StudioCreate';
+import { creationQuestionKey, writeCreationQuestion, readCreationQuestion } from './studioCreationQuestion';
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), navigate: vi.fn(), upload: vi.fn(), params: '' }));
 vi.mock('@/helpers/apiHelper', () => ({ get: mocks.get, post: mocks.post }));
 vi.mock('@/api/databaseService', () => ({ default: { uploadFile: mocks.upload } }));
@@ -152,6 +153,119 @@ describe('Studio create workflow', () => {
     );
     expect(mocks.post.mock.calls.map(call => call[0])).toEqual(['/studio/samples']);
   });
+
+  it('UC050 preserves metric selection and generated preview while filtering, but rechecks on explicit selection changes', async () => {
+    const originalGet = mocks.get.getMockImplementation();
+    if (!originalGet) throw new Error('missing fixture');
+    mocks.get.mockImplementation(async (...args: any[]) =>
+      args[0].startsWith('/bi/metrics')
+        ? {
+            data: {
+              status: 'SUCCESS',
+              data: [
+                {
+                  id: 9,
+                  label: '환불률',
+                  definitionVersion: 3,
+                  definition: {
+                    aggregation: 'RATIO_SUM',
+                    column: 'amount',
+                    denominatorColumn: 'amount',
+                    scale: 100,
+                    unit: '%',
+                  },
+                },
+              ],
+            },
+          }
+        : originalGet(...args),
+    );
+    await ready();
+    fireEvent.click(screen.getByRole('checkbox', { name: '환불률 · #9 · v3' }));
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    const request = mocks.post.mock.calls.find(call => call[0] === '/studio/proposals');
+    expect(request?.[1].selectedMetricIds).toEqual([9]);
+    mocks.post.mockClear();
+    mocks.get.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: '저장 지표 검색' }));
+    fireEvent.change(screen.getByLabelText('지표 이름·열·단위로 검색'), { target: { value: 'no-match' } });
+    expect(screen.getByText(/검색 결과 0개 · 선택 1개/)).toBeTruthy();
+    expect(screen.getByText('500')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Studio에 저장하고 열기' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(mocks.get).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('checkbox', { name: '환불률 · #9 · v3' }));
+    expect(screen.queryByText('500')).toBeNull();
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(
+      '총매출을 보여 줘',
+    );
+    fireEvent.change(screen.getByLabelText('저장된 데이터'), { target: { value: '5' } });
+    await screen.findByRole('checkbox', { name: '환불률 · #9 · v3' });
+    expect(screen.queryByLabelText('지표 이름·열·단위로 검색')).toBeNull();
+    expect(screen.getByRole('checkbox', { name: '환불률 · #9 · v3' }).getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('UC050 source search preserves the selected source, question, proposal and save readiness', async () => {
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    mocks.post.mockClear();
+    mocks.get.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: '데이터 검색' }));
+    fireEvent.change(screen.getByLabelText('업무 이름·원본 이름으로 검색'), { target: { value: 'no-matches' } });
+    expect(screen.getByText(/검색 결과 0개/)).toBeTruthy();
+    expect((screen.getByLabelText('저장된 데이터') as HTMLSelectElement).value).toBe('4');
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(
+      '총매출을 보여 줘',
+    );
+    expect(screen.getByText('500')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Studio에 저장하고 열기' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(mocks.get).not.toHaveBeenCalled();
+  });
+
+  it('UC050 preserves the question and generated preview during business description reads and errors', async () => {
+    const originalGet = mocks.get.getMockImplementation();
+    if (!originalGet) throw new Error('missing fixture');
+    mocks.get.mockImplementation(async (...args: any[]) => {
+      const response = await originalGet(...args);
+      if (args[0].endsWith('/profile')) response.data.data.dataVersion = 'a'.repeat(64);
+      return response;
+    });
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    mocks.post.mockClear();
+    mocks.post.mockResolvedValueOnce({
+      data: {
+        status: 'SUCCESS',
+        data: {
+          sourceId: 4,
+          sourceRevision: 'a'.repeat(64),
+          version: 1,
+          label: '주문 업무',
+          description: '',
+          schemaChanged: false,
+          columns: [{ column: 'amount', type: 'BIGINT', label: '결제액', description: '', unit: '원' }],
+        },
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '데이터 업무 설명 확인' }));
+    await screen.findByText('주문 업무');
+    const input = screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement;
+    expect(input.value).toBe('총매출을 보여 줘');
+    expect(screen.getByText('500')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Studio에 저장하고 열기' }) as HTMLButtonElement).disabled).toBe(false);
+    mocks.post.mockRejectedValueOnce({ response: { status: 503 } });
+    fireEvent.click(screen.getByRole('button', { name: '업무 설명 다시 조회' }));
+    await screen.findByText(/업무 설명을 확인하지 못했습니다/);
+    expect(input.value).toBe('총매출을 보여 줘');
+    expect(screen.getByText('500')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Studio에 저장하고 열기' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(mocks.post.mock.calls.map(call => call[0])).toEqual(['/bi/source-catalog/read', '/bi/source-catalog/read']);
+  });
+
   it('offers only supported commerce questions and fills the editable prompt without posting', async () => {
     const fallback = mocks.get.getMockImplementation();
     mocks.get.mockImplementation(async (url: string, ...args: any[]) =>
@@ -299,6 +413,8 @@ describe('Studio create workflow', () => {
       return { data: { dashboardId: 9 } };
     });
     await ready();
+    const questionKey = creationQuestionKey(await creationConfirmationKey());
+    await waitFor(() => expect(readCreationQuestion(questionKey)?.prompt).toBe('총매출을 보여 줘'));
     fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
     await screen.findByText('500');
     fireEvent.click(screen.getByRole('button', { name: 'Studio에 저장하고 열기' }));
@@ -320,6 +436,7 @@ describe('Studio create workflow', () => {
     expect((screen.getByRole('textbox', { name: '생성안 수정 요청' }) as HTMLTextAreaElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 확인' }));
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/dashboard/9/studio'));
+    expect(readCreationQuestion(questionKey)).toBeNull();
     const calls = mocks.post.mock.calls.filter(c => c[0] === '/studio/dashboards');
     expect(calls).toHaveLength(2);
     expect(calls[1][1]).toEqual(originalBody);
@@ -701,4 +818,286 @@ describe('Studio create workflow', () => {
       clarificationAnswers: { refundDenominator: 'amount' },
     });
   });
+});
+
+it('connects a newly prepared source without refetching the source index', async () => {
+  let listCalls = 0;
+  mocks.get.mockImplementation(async (url: string) => {
+    if (url === '/bi/sources') {
+      listCalls += 1;
+      if (listCalls > 1) throw new Error('index unavailable');
+      return { data: [{ id: 4, name: 'Orders 4', engine: 'duckdb' }] };
+    }
+    return { data: url.startsWith('/bi/metrics') ? [] : profile(6) };
+  });
+  mocks.post.mockResolvedValue({ data: { sourceId: 6 } });
+  render(<StudioCreate />);
+  await screen.findByRole('option', { name: 'Orders 4 · #4' });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '매출·환불 샘플' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '총매출을 보여 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: '매출·환불 샘플' }));
+  await screen.findByText('2행 · 1개 열 · 서버 DuckDB');
+  expect((screen.getByRole('combobox', { name: '저장된 데이터' }) as HTMLSelectElement).value).toBe('6');
+  expect((screen.getByRole('button', { name: '지표와 차트 제안' }) as HTMLButtonElement).disabled).toBe(false);
+  expect(listCalls).toBe(1);
+  expect(mocks.post).toHaveBeenCalledTimes(1);
+  expect(mocks.get.mock.calls.some(([url]) => url === '/bi/sources/6/profile')).toBe(true);
+});
+
+it('rechecks a prepared source after a profile failure without creating it again', async () => {
+  let profileCalls = 0;
+  mocks.get.mockImplementation(async (url: string) => {
+    if (url === '/bi/sources') return { data: [{ id: 4, name: 'Orders 4', engine: 'duckdb' }] };
+    if (url.startsWith('/bi/metrics')) return { data: [] };
+    profileCalls += 1;
+    if (profileCalls === 1) throw { response: { status: 503 } };
+    return { data: profile(6) };
+  });
+  mocks.post.mockResolvedValue({ data: { sourceId: 6 } });
+  render(<StudioCreate />);
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '매출·환불 샘플' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), { target: { value: '총매출을 보여 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: '매출·환불 샘플' }));
+  const retry = await screen.findByRole('button', { name: '소스 새로 확인' });
+  await waitFor(() => expect((retry as HTMLButtonElement).disabled).toBe(false));
+  expect((screen.getByRole('button', { name: '지표와 차트 제안' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByRole('option', { name: 'Orders 6' })).toBeNull();
+  fireEvent.click(retry);
+  await screen.findByText('2행 · 1개 열 · 서버 DuckDB');
+  expect((screen.getByRole('combobox', { name: '저장된 데이터' }) as HTMLSelectElement).value).toBe('6');
+  expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(
+    '총매출을 보여 줘',
+  );
+  expect(mocks.post).toHaveBeenCalledTimes(1);
+  expect(profileCalls).toBe(2);
+});
+
+it('UC048 offers explicit question recovery after source access and never posts automatically', async () => {
+  const key = creationQuestionKey(await creationConfirmationKey());
+  writeCreationQuestion(key, { sourceId: 4, prompt: 'recover this question' });
+  render(<StudioCreate />);
+  const restore = await screen.findByRole('button', { name: '새 생성 질문 복구' });
+  expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe('');
+  expect(mocks.post).not.toHaveBeenCalled();
+  fireEvent.click(restore);
+  await screen.findByText(/2행 · 1개 열 · 서버 DuckDB/);
+  await waitFor(() =>
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(
+      'recover this question',
+    ),
+  );
+  expect((screen.getByRole('combobox', { name: '저장된 데이터' }) as HTMLSelectElement).value).toBe('4');
+  expect(mocks.post).not.toHaveBeenCalled();
+  expect(readCreationQuestion(key)?.prompt).toBe('recover this question');
+});
+it('UC048 preserves inaccessible questions without disclosing or restoring them', async () => {
+  const key = creationQuestionKey(await creationConfirmationKey());
+  writeCreationQuestion(key, { sourceId: 99, prompt: 'private question' });
+  render(<StudioCreate />);
+  const restore = await screen.findByRole('button', { name: '새 생성 질문 복구' });
+  expect((restore as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByText('private question')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '보관 생성 질문 폐기' }));
+  expect(readCreationQuestion(key)).toBeNull();
+  expect(mocks.post).not.toHaveBeenCalled();
+});
+
+it('UC048 retains typed input through remount and requires explicit recovery', async () => {
+  await ready();
+  const key = creationQuestionKey(await creationConfirmationKey());
+  await waitFor(() => expect(readCreationQuestion(key)).toEqual({ sourceId: 4, prompt: '총매출을 보여 줘' }));
+  cleanup();
+  mocks.post.mockClear();
+  render(<StudioCreate />);
+  await screen.findByRole('button', { name: '새 생성 질문 복구' });
+  expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe('');
+  expect(mocks.post).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '새 생성 질문 복구' }));
+  await waitFor(() =>
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(
+      '총매출을 보여 줘',
+    ),
+  );
+  expect(mocks.post).not.toHaveBeenCalled();
+});
+it('UC048 leaves explicit source links and old questions untouched', async () => {
+  const key = creationQuestionKey(await creationConfirmationKey());
+  writeCreationQuestion(key, { sourceId: 4, prompt: 'old question' });
+  mocks.params = 'sourceId=5';
+  render(<StudioCreate />);
+  await screen.findByText('Orders 5', { selector: 'strong' });
+  expect(screen.queryByRole('button', { name: '새 생성 질문 복구' })).toBeNull();
+  expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe('');
+  expect(readCreationQuestion(key)?.prompt).toBe('old question');
+  expect(mocks.post).not.toHaveBeenCalled();
+});
+it('UC048 keeps a recovery record when source access fails at explicit restore', async () => {
+  const key = creationQuestionKey(await creationConfirmationKey());
+  writeCreationQuestion(key, { sourceId: 4, prompt: 'keep privately' });
+  const fallback = mocks.get.getMockImplementation();
+  mocks.get.mockImplementation(async (url: string, ...args: any[]) => {
+    if (url.endsWith('/profile')) throw { response: { status: 403 } };
+    return fallback(url, ...args);
+  });
+  render(<StudioCreate />);
+  fireEvent.click(await screen.findByRole('button', { name: '새 생성 질문 복구' }));
+  await screen.findByText('이 데이터 소스를 사용할 권한이 없습니다. 다른 소스를 선택해 주세요.');
+  expect(readCreationQuestion(key)?.prompt).toBe('keep privately');
+  expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe('');
+  expect(mocks.post).not.toHaveBeenCalled();
+});
+
+it('UC048 does not clear an unrelated question when a direct proposal is saved', async () => {
+  const key = creationQuestionKey(await creationConfirmationKey());
+  writeCreationQuestion(key, { sourceId: 5, prompt: 'another source question' });
+  mocks.params = 'sourceId=4&proposalId=parent';
+  const fallback = mocks.get.getMockImplementation();
+  mocks.get.mockImplementation(async (url: string, ...args: any[]) =>
+    url === '/studio/proposals/parent'
+      ? { data: { ...proposal(), requestPrompt: 'from direct link' } }
+      : fallback(url, ...args),
+  );
+  mocks.post.mockResolvedValue({ data: { dashboardId: 9 } });
+  render(<StudioCreate />);
+  await screen.findByText('500');
+  fireEvent.click(screen.getByRole('button', { name: 'Studio에 저장하고 열기' }));
+  await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/dashboard/9/studio'));
+  expect(readCreationQuestion(key)).toEqual({ sourceId: 5, prompt: 'another source question' });
+});
+
+it('UC048 A3 explicitly restores only the question against a different verified source', async () => {
+  const key = creationQuestionKey(await creationConfirmationKey());
+  const record = { sourceId: 99, prompt: '보관한 질문' };
+  writeCreationQuestion(key, record);
+  render(<StudioCreate />);
+  await screen.findByRole('button', { name: '새 생성 질문 복구' });
+  fireEvent.change(screen.getByRole('combobox', { name: '저장된 데이터' }), { target: { value: '5' } });
+  const restore = await screen.findByRole('button', { name: '선택한 데이터로 질문 복구' });
+  expect(readCreationQuestion(key)).toEqual(record);
+  expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe('');
+  const calls = mocks.get.mock.calls.filter(call => call[0] === '/bi/sources/5/profile').length;
+  fireEvent.click(restore);
+  await waitFor(() =>
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(record.prompt),
+  );
+  expect(mocks.get.mock.calls.filter(call => call[0] === '/bi/sources/5/profile')).toHaveLength(calls + 1);
+  await waitFor(() => expect(readCreationQuestion(key)).toEqual({ sourceId: 5, prompt: record.prompt }));
+  expect(mocks.post).not.toHaveBeenCalled();
+});
+
+it('UC048 A3 preserves the original record after replacement access fails and supports explicit retry', async () => {
+  const key = creationQuestionKey(await creationConfirmationKey());
+  const record = { sourceId: 99, prompt: '보존할 질문' };
+  writeCreationQuestion(key, record);
+  render(<StudioCreate />);
+  await screen.findByRole('button', { name: '새 생성 질문 복구' });
+  fireEvent.change(screen.getByRole('combobox', { name: '저장된 데이터' }), { target: { value: '5' } });
+  const restore = await screen.findByRole('button', { name: '선택한 데이터로 질문 복구' });
+  const fallback = mocks.get.getMockImplementation();
+  mocks.get.mockImplementation(async (url: string, ...args: any[]) => {
+    if (url === '/bi/sources/5/profile') throw { response: { status: 403 } };
+    return fallback(url, ...args);
+  });
+  fireEvent.click(restore);
+  await screen.findByText('이 데이터 소스를 사용할 권한이 없습니다. 다른 소스를 선택해 주세요.');
+  expect(readCreationQuestion(key)).toEqual(record);
+  expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe('');
+  expect(mocks.post).not.toHaveBeenCalled();
+  mocks.get.mockImplementation(fallback);
+  fireEvent.change(screen.getByRole('combobox', { name: '저장된 데이터' }), { target: { value: '4' } });
+  fireEvent.click(await screen.findByRole('button', { name: '선택한 데이터로 질문 복구' }));
+  await waitFor(() => expect(readCreationQuestion(key)).toEqual({ sourceId: 4, prompt: record.prompt }));
+});
+
+it.each([false, true])(
+  'UC048 A3 connects replacement recovery to new-source preview/save (response loss: %s)',
+  async responseLoss => {
+    const confirmationKey = await creationConfirmationKey();
+    if (!confirmationKey) throw Error('missing test scope');
+    const questionKey = creationQuestionKey(confirmationKey);
+    const prompt = '총매출을 새 데이터로 보여 줘';
+    writeCreationQuestion(questionKey, { sourceId: 99, prompt });
+    render(<StudioCreate />);
+    await screen.findByRole('button', { name: '새 생성 질문 복구' });
+    fireEvent.change(screen.getByRole('combobox', { name: '저장된 데이터' }), { target: { value: '5' } });
+    fireEvent.click(await screen.findByRole('button', { name: '선택한 데이터로 질문 복구' }));
+    await waitFor(() => expect(readCreationQuestion(questionKey)).toEqual({ sourceId: 5, prompt }));
+    cleanup();
+    render(<StudioCreate />);
+    fireEvent.click(await screen.findByRole('button', { name: '새 생성 질문 복구' }));
+    await waitFor(() =>
+      expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(prompt),
+    );
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(mocks.get.mock.calls.some(call => call[0] === '/bi/sources/99/profile')).toBe(false);
+    const next = proposal();
+    next.sourceId = 5;
+    next.sourceRevision = 'b'.repeat(64);
+    next.profile = profile(5);
+    next.preview.draft.databaseId = 5;
+    let saves = 0;
+    mocks.post.mockImplementation(async (url: string) => {
+      if (url === '/studio/proposals') return { data: next };
+      if (url === '/studio/dashboards') {
+        saves += 1;
+        if (responseLoss && saves === 1) throw { response: { status: 503 } };
+        return { data: { dashboardId: 90 } };
+      }
+      throw Error('unexpected write: ' + url);
+    });
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('500');
+    expect(mocks.post.mock.calls.filter(call => call[0] === '/studio/proposals').map(call => call[1])).toEqual([
+      { sourceId: 5, prompt },
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: 'Studio에 저장하고 열기' }));
+    if (responseLoss) {
+      await screen.findByText(/저장 완료 여부를 확인하지 못했습니다/);
+      const stored = JSON.parse(sessionStorage.getItem(confirmationKey) ?? 'null');
+      expect(stored.sourceId).toBe(5);
+      expect(stored.prompt).toBe(prompt);
+      expect(readCreationQuestion(questionKey)).toEqual({ sourceId: 5, prompt });
+      cleanup();
+      const writes = mocks.post.mock.calls.length;
+      render(<StudioCreate />);
+      await screen.findByRole('heading', { name: '저장 요청과 질문을 복구했습니다' });
+      expect(screen.queryByRole('button', { name: '새 생성 질문 복구' })).toBeNull();
+      expect(mocks.post).toHaveBeenCalledTimes(writes);
+      fireEvent.click(screen.getByRole('button', { name: '같은 저장 요청 확인' }));
+    }
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/dashboard/90/studio'));
+    const bodies = mocks.post.mock.calls.filter(call => call[0] === '/studio/dashboards').map(call => call[1]);
+    expect(bodies).toHaveLength(responseLoss ? 2 : 1);
+    expect(bodies[0]).toEqual({
+      requestId: expect.any(String),
+      proposalId: next.proposalId,
+      expectedSourceRevision: 'b'.repeat(64),
+    });
+    if (responseLoss) expect(bodies[1]).toEqual(bodies[0]);
+    expect(readCreationQuestion(questionKey)).toBeNull();
+    expect(sessionStorage.getItem(confirmationKey)).toBeNull();
+    expect(mocks.post.mock.calls.every(call => ['/studio/proposals', '/studio/dashboards'].includes(call[0]))).toBe(true);
+  },
+);
+
+it('UC048 A3 rejects an old-source proposal without losing the replacement question', async () => {
+  const key = creationQuestionKey(await creationConfirmationKey());
+  writeCreationQuestion(key, { sourceId: 99, prompt: '새 소스 질문 유지' });
+  render(<StudioCreate />);
+  await screen.findByRole('button', { name: '새 생성 질문 복구' });
+  fireEvent.change(screen.getByRole('combobox', { name: '저장된 데이터' }), { target: { value: '5' } });
+  fireEvent.click(await screen.findByRole('button', { name: '선택한 데이터로 질문 복구' }));
+  await waitFor(() => expect(readCreationQuestion(key)).toEqual({ sourceId: 5, prompt: '새 소스 질문 유지' }));
+  fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '지표와 차트 제안' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  expect(screen.queryByRole('button', { name: 'Studio에 저장하고 열기' })).toBeNull();
+  expect(screen.queryByText('500')).toBeNull();
+  expect(readCreationQuestion(key)).toEqual({ sourceId: 5, prompt: '새 소스 질문 유지' });
+  expect(mocks.post.mock.calls.map(call => call[0])).toEqual(['/studio/proposals']);
 });

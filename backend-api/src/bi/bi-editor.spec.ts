@@ -624,7 +624,7 @@ describe('BiService dashboard editor boundaries', () => {
       expect.objectContaining({ sourceId: 1, metricId: 13 }),
       actor,
     );
-    expect(access.assert).toHaveBeenCalledWith('metric', 13, actor);
+    expect(access.assert).toHaveBeenCalledWith('metric', 13, actor, 'read');
     expect(dashboards.save).not.toHaveBeenCalled();
   });
 

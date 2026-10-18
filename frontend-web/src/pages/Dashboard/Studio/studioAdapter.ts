@@ -1,3 +1,4 @@
+import type { MetricBasisDefinition } from './StudioMetricBasis';
 import { validDraft } from '../dashboardPreview';
 import {
   studioAssert,
@@ -8,6 +9,7 @@ import {
   validateStudioDocument,
   validateStudioFilters,
   validateStudioDateRange,
+  validateStudioConditions,
 } from './studioDocument';
 import {
   isTemporaryStudioId,
@@ -28,12 +30,18 @@ type LegacyWidget = {
   categoryField?: string;
 } & StudioDisplay;
 type LegacySize = { width: 6 | 12; height: 3 | 5 | 7 };
+export type SavedMetricBasis = {
+  sourceId: number;
+  metricId: number;
+  definitionVersion: string;
+  definition: MetricBasisDefinition;
+};
 export type StudioDefinitions = {
   dashboardId: number;
   sourceId: number;
   revision: string;
   explanation: string;
-  entries: Record<string, { widget: LegacyWidget; layoutSize?: LegacySize }>;
+  entries: Record<string, { widget: LegacyWidget; layoutSize?: LegacySize; metricBasis?: SavedMetricBasis }>;
 };
 type Semantics = { measureRefs: StudioMeasureRef[]; dimensionRefs: StudioDimensionRef[] };
 export type StudioImportResult = {
@@ -135,6 +143,9 @@ export function fromLegacyAnalysis(input: {
     sourceId: a.databaseId,
     ...(defaultFilters?.length ? { filters: defaultFilters } : {}),
     ...(a.defaultDateRange !== undefined ? { dateRange: validateStudioDateRange(a.defaultDateRange) } : {}),
+    ...(Object.prototype.hasOwnProperty.call(a, 'defaultConditions')
+      ? { conditions: validateStudioConditions(a.defaultConditions) }
+      : {}),
     blocks,
     layouts: { lg, md, xs },
   });
@@ -189,6 +200,9 @@ export function toLegacySave(document: StudioDocumentV1, definitions: StudioDefi
       title: d.title,
       explanation: definitions.explanation,
       ...(sizes.every(Boolean) ? { layoutSizes: studioClone(sizes) } : {}),
+      ...(d.filters ? { defaultFilters: studioClone(d.filters) } : {}),
+      ...(d.dateRange ? { defaultDateRange: studioClone(d.dateRange) } : {}),
+      ...(d.conditions ? { defaultConditions: studioClone(d.conditions) } : {}),
       widgets,
     },
     blockLayouts: studioClone(d.layouts),

@@ -69,6 +69,7 @@ describe('BiService structured file analysis', () => {
       findOne: jest.fn(async ({ where }) => sources.find(row => row.id === where.id)),
     };
     const db = {
+      options: { type: 'sqlite' },
       getRepository: jest.fn(entity => {
         if (entity === Database) return sourceRepo;
         if (entity === Metric) return metricRepo;
@@ -100,7 +101,12 @@ describe('BiService structured file analysis', () => {
   it('checks ownership on every request, including a populated profile cache', async () => {
     const profile = await service.profile(1, 10);
     queryDuckDB.mockClear();
-    expect(await service.profile(1, 10)).toBe(profile);
+    // UC051: the response now carries per-request access/ownership, so the cached snapshot is
+    // reused by value instead of being returned by identity.
+    const cached = await service.profile(1, 10);
+    expect(cached).toEqual(profile);
+    expect(cached.access).toEqual({ read: true, edit: true, publish: false, export: true });
+    expect(cached.owned).toBe(true);
     await expect(service.profile(1, 20)).rejects.toBeInstanceOf(ForbiddenException);
     sources[0].ownerId = 20;
     await expect(service.profile(1, 10)).rejects.toBeInstanceOf(ForbiddenException);

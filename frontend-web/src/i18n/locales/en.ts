@@ -307,6 +307,9 @@ export default {
     expired: 'Session expired.\nPlease sign in again.',
     failed: 'Failed to update profile.\nPlease try again.',
   },
+  organization: {
+    menu: 'Organization',
+  },
   dataRecommend: {
     create: 'Create dashboard',
     nameLabel: 'Dashboard name',

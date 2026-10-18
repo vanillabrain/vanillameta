@@ -1,16 +1,30 @@
+import { serializeMetadataWork } from '../common/metadata-work';
+import {
+  latestConditionSemantics,
+  resolveConditionSemantics,
+  assertLatestConditionSemantics,
+} from '../bi/business-condition-context';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { ConnectionService } from '../connection/connection.service';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { sourceWriteTransaction } from '../database/source-write-lock';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { SemanticRemixTemplate, conditionColumnNames } from './studio-remix-template';
 import { Database } from '../database/entities/database.entity';
 import { StudioRemixRequest } from './entities/studio-remix.entity';
 import { StudioService } from './studio.service';
 import { StudioCreationService } from './studio-creation.service';
 import { StudioPublicationService } from './studio-publication.service';
 import { studioDigest } from './studio-legacy';
-import { studioKeys } from './studio-document';
-import { StudioDateRange, StudioFilter } from './studio-contract';
+import {
+  compileConditionDefinition,
+  conditionColumns,
+  ConditionNode,
+} from '../bi/source-condition-definition';
+import { studioKeys, validateStudioConditions } from './studio-document';
+import { StudioConditions, StudioDateRange, StudioFilter } from './studio-contract';
 import {
   RemixField,
   RemixPreview,
@@ -19,6 +33,19 @@ import {
   RemixRequirements,
   RemixTemplate,
 } from './studio-remix-contract';
+export type RemixOriginResolver = ((
+  reference: string,
+  actor: number,
+  expectedVersion?: number,
+  manager?: EntityManager,
+) => Promise<{
+  version: number;
+  remixTemplate: string;
+  lifecycleRevision: string;
+  sourceId?: number;
+}>) & {
+  authorizeReceipt?: (reference: string, actor: number, manager?: EntityManager) => Promise<void>;
+};
 @Injectable()
 export class StudioRemixService {
   constructor(
@@ -30,12 +57,38 @@ export class StudioRemixService {
     private readonly connection: ConnectionService,
     private readonly access: SourceAccessService,
   ) {}
-  private requirements(token: string, version: number, t: RemixTemplate): RemixRequirements {
+  private requirements(
+    token: string,
+    version: number,
+    t: RemixTemplate,
+    lifecycleRevision: string,
+  ): RemixRequirements {
     return {
       token,
       version,
+      lifecycleRevision,
       title: t.title,
       filters: t.filters ?? [],
+      ...(t.conditions !== undefined
+        ? {
+            conditions: (() => {
+              const conditions = validateStudioConditions(t.conditions);
+              return {
+                ...conditions,
+                ...(conditions.semantics
+                  ? {
+                      semantics: {
+                        ...conditions.semantics,
+                        columns: conditions.semantics.columns.filter(column =>
+                          conditionColumnNames(conditions.definition).has(column.column),
+                        ),
+                      },
+                    }
+                  : {}),
+              };
+            })(),
+          }
+        : {}),
       ...(t.dateRange ? { dateRange: { ...t.dateRange } } : {}),
       requiredFields: t.requiredFields,
       blocks: t.blocks.map(({ id, title, kind, supported, reason }) => ({
@@ -47,16 +100,85 @@ export class StudioRemixService {
       })),
     };
   }
-  async template(token: string, actor: number) {
+  async template(
+    token: string,
+    actor: number,
+    origin: RemixOriginResolver = this.publications.requireRemix.bind(this.publications),
+  ) {
     this.access.actor(actor);
     return this.studio.serializeWrite(async () => {
-      const row = await this.publications.requireRemix(token, actor);
-      return this.requirements(token, row.version, JSON.parse(row.remixTemplate));
+      const row = await origin(token, actor);
+      await this.originSemantics(token, row, JSON.parse(row.remixTemplate));
+      return this.requirements(
+        token,
+        row.version,
+        JSON.parse(row.remixTemplate),
+        row.lifecycleRevision,
+      );
     });
   }
-  private validate(body: any, save: boolean): RemixRequest {
+  private async originSemantics(
+    token: string,
+    row: { sourceId?: number },
+    template: SemanticRemixTemplate,
+    manager = this.db.manager,
+  ) {
+    if (template.conditions === undefined) return;
+    const conditions = validateStudioConditions(template.conditions);
+    if (!conditions.semantics) return;
+    let sourceId = row.sourceId;
+    // Received references were already authorized by their resolver. Read only server metadata;
+    // never query the origin's private rows or expose its source/schema to the recipient.
+    if (sourceId === undefined) {
+      const received = /^[dg]-[1-9][0-9]*-[1-9][0-9]*-([1-9][0-9]*)-/.exec(token);
+      if (received) {
+        const dashboard = await manager.findOne(Dashboard, { where: { id: Number(received[1]) } });
+        try {
+          sourceId = JSON.parse(dashboard?.structuredDefinition).sourceId;
+        } catch {
+          /* fail closed below */
+        }
+      }
+    }
+    if (
+      !Number.isSafeInteger(sourceId) ||
+      sourceId <= 0 ||
+      !Array.isArray(template.conditionSchema)
+    )
+      throw new ConflictException('원본 조건의 업무 기준 이력을 확인해 주세요.');
+    const schema = template.conditionSchema;
+    if (
+      template.requiredFields.some(
+        field => !schema.some(column => column.name === field.name && column.type === field.type),
+      )
+    )
+      throw new ConflictException('원본 조건의 열 기준이 변경되었습니다.');
+    await resolveConditionSemantics(manager, sourceId, schema, conditions.semantics);
+  }
+
+  private async currentTargetSemantics(
+    sourceId: number,
+    profile: any,
+    mapped: { mappedConditions?: StudioConditions },
+    manager = this.db.manager,
+  ) {
+    if (mapped.mappedConditions?.semantics)
+      await assertLatestConditionSemantics(
+        manager,
+        sourceId,
+        profile.columns,
+        mapped.mappedConditions.semantics,
+      );
+  }
+
+  private checkLifecycle(row: { lifecycleRevision: string }, expected: string) {
+    if (row.lifecycleRevision !== expected)
+      throw new ConflictException('원본 상태가 변경되었습니다. 복제 조건을 다시 확인해 주세요.');
+  }
+  private validate(body: any, save: boolean, legacyConfirmation = false): RemixRequest {
     try {
       (studioKeys as (value: any, keys: string[]) => void)(body, [
+        ...(legacyConfirmation ? [] : ['expectedLifecycleRevision']),
         'targetSourceId',
         'mapping',
         'excludedBlockIds',
@@ -64,6 +186,9 @@ export class StudioRemixService {
         ...(save ? ['requestId', 'expectedSourceRevision'] : []),
       ]);
       if (
+        (!legacyConfirmation &&
+          (typeof body.expectedLifecycleRevision !== 'string' ||
+            !/^[a-f0-9]{64}$/.test(body.expectedLifecycleRevision))) ||
         !Number.isSafeInteger(body.targetSourceId) ||
         body.targetSourceId <= 0 ||
         !body.mapping ||
@@ -102,7 +227,7 @@ export class StudioRemixService {
       throw new BadRequestException('복제 요청과 기준 버전을 확인해 주세요.');
     }
   }
-  private map(t: RemixTemplate, body: RemixPreviewRequest, profile: any) {
+  private async map(t: RemixTemplate, body: RemixPreviewRequest, profile: any) {
     if (
       Object.keys(body.mapping).some(name => !t.requiredFields.some(f => f.name === name)) ||
       body.excludedBlockIds.some(id => !t.blocks.some(b => b.id === id))
@@ -154,6 +279,74 @@ export class StudioRemixService {
         scopeTargets.set(targetColumn, filter.column);
         filters.push({ column: targetColumn, values: [...filter.values] });
       } else unmappedFilters.push(filter.column);
+    }
+    let mappedConditions: StudioConditions | undefined;
+    const unmappedConditions: string[] = [];
+    if (t.conditions !== undefined) {
+      const stored = validateStudioConditions(t.conditions);
+      // Private recipe retains the full snapshot; recipients see only fields used by this recipe.
+      const originSemantics = stored.semantics
+        ? {
+            ...stored.semantics,
+            columns: stored.semantics.columns.filter(column =>
+              t.requiredFields.some(field => field.name === column.column),
+            ),
+          }
+        : undefined;
+      const used = conditionColumnNames(stored.definition);
+      const usesBusinessMeaning = stored.semantics?.columns.some(column => used.has(column.column));
+      const targetSemantics = usesBusinessMeaning
+        ? await latestConditionSemantics(this.db.manager, body.targetSourceId, profile.columns)
+        : undefined;
+      const definition = compileConditionDefinition(
+        stored.definition,
+        conditionColumns(t.requiredFields, originSemantics),
+        originSemantics,
+      ).definition;
+      const targets = new Map<string, string>();
+      const visit = (node: ConditionNode | null): ConditionNode | null => {
+        if (!node) return null;
+        if (node.kind === 'group') return { ...node, children: node.children.map(visit) };
+        const field = fields.find(f => f.sourceColumn === node.column);
+        if (field?.status !== 'mapped') {
+          if (!unmappedConditions.includes(node.column)) unmappedConditions.push(node.column);
+          return node;
+        }
+        if (usesBusinessMeaning) {
+          const from = stored.semantics.columns.find(column => column.column === node.column);
+          const to = targetSemantics?.columns.find(column => column.column === field.targetColumn);
+          if (
+            (from?.businessType ?? 'auto') !== (to?.businessType ?? 'auto') ||
+            (from?.dateFormat ?? '') !== (to?.dateFormat ?? '')
+          )
+            throw new BadRequestException(
+              '대상 소스의 업무 유형·날짜 형식이 조건과 다릅니다. 대상 업무 정의를 준비한 뒤 다시 미리보기해 주세요.',
+            );
+          if (!targetSemantics)
+            throw new BadRequestException(
+              '대상 소스의 업무 정의를 확인한 뒤 다시 미리보기해 주세요.',
+            );
+        }
+        const prior = targets.get(field.targetColumn);
+        if (prior && prior !== node.column)
+          throw new BadRequestException('서로 다른 조건 열을 같은 대상 열에 연결할 수 없습니다.');
+        targets.set(field.targetColumn, node.column);
+        return { ...node, column: field.targetColumn };
+      };
+      const mappedDefinition = {
+        include: visit(definition.include),
+        exclude: visit(definition.exclude),
+      };
+      if (!unmappedConditions.length)
+        mappedConditions = {
+          sourceRevision: stored.sourceRevision,
+          ...(targetSemantics ? { semantics: targetSemantics } : {}),
+          definition: compileConditionDefinition(
+            mappedDefinition,
+            conditionColumns(profile.columns, targetSemantics),
+            targetSemantics,
+          ).definition,
+        };
     }
     const unmappedBlocks = kept.flatMap(block => {
       const missingFields = fields
@@ -225,6 +418,8 @@ export class StudioRemixService {
       unmappedFilters,
       mappedDateRange,
       unmappedDateRange,
+      mappedConditions,
+      unmappedConditions,
     };
   }
   private safePreview(preview: any) {
@@ -261,21 +456,51 @@ export class StudioRemixService {
       })),
     };
   }
-  async preview(token: string, input: RemixPreviewRequest, actor: number): Promise<RemixPreview> {
+  async preview(
+    token: string,
+    input: RemixPreviewRequest,
+    actor: number,
+    origin: RemixOriginResolver = this.publications.requireRemix.bind(this.publications),
+  ): Promise<RemixPreview> {
     this.access.actor(actor);
     const body = this.validate(input, false);
-    return this.studio.serializeWrite(async () => {
-      const row = await this.publications.requireRemix(token, actor, body.expectedVersion);
+    const initial = await this.studio.serializeWrite(async () => {
+      const row = await origin(token, actor, body.expectedVersion);
+      this.checkLifecycle(row, body.expectedLifecycleRevision);
       await this.access.assert('database', body.targetSourceId, actor);
-      return this.connection.withDuckDBSnapshot(body.targetSourceId, async () => {
+      await this.originSemantics(token, row, JSON.parse(row.remixTemplate));
+      return {
+        row,
+        identity: await this.sourceIdentity(body.targetSourceId, actor, this.db.manager),
+      };
+    });
+    const row = initial.row;
+    return this.connection.withDuckDBSnapshot(body.targetSourceId, async () => {
+      const context: { profile?: any; mapped?: { mappedConditions?: StudioConditions } } = {};
+      try {
         const profile = await this.creation.profile(body.targetSourceId, actor);
+        context.profile = profile;
         await this.creation.ensureCurrentSource(body.targetSourceId, actor, this.db.manager);
         const t: RemixTemplate = JSON.parse(row.remixTemplate),
-          mapped = this.map(t, body, profile);
+          mapped = await this.map(t, body, profile);
+        context.mapped = mapped;
+        if (mapped.mappedConditions)
+          mapped.mappedConditions.sourceRevision = await this.connection.duckDBVersion(
+            body.targetSourceId,
+          );
+        if (mapped.mappedConditions)
+          await this.dashboards.assertConditionSemantics(
+            body.targetSourceId,
+            profile.columns,
+            mapped.mappedConditions,
+          );
         // Unmapped scope must never produce aggregates that look like the published scope applied.
         // A scope the target cannot apply must never produce aggregates that look scoped.
         const preview =
-          mapped.blocks.length && !mapped.unmappedFilters.length && !mapped.unmappedDateRange
+          mapped.blocks.length &&
+          !mapped.unmappedFilters.length &&
+          !mapped.unmappedDateRange &&
+          !mapped.unmappedConditions.length
             ? this.safePreview(
                 (
                   await this.dashboards.preview(
@@ -288,6 +513,7 @@ export class StudioRemixService {
                       ),
                       filters: mapped.filters,
                       ...(mapped.mappedDateRange ? { dateRange: mapped.mappedDateRange } : {}),
+                      ...(mapped.mappedConditions ? { conditions: mapped.mappedConditions } : {}),
                       includeTrends: true,
                     },
                     actor,
@@ -302,9 +528,21 @@ export class StudioRemixService {
           latest.schemaVersion !== profile.schemaVersion
         )
           throw new ConflictException('대상 데이터가 변경되었습니다. 매핑을 다시 확인해 주세요.');
-        await this.publications.requireRemix(token, actor, row.version);
+        await this.studio.serializeWrite(async () => {
+          this.checkLifecycle(
+            await origin(token, actor, row.version),
+            body.expectedLifecycleRevision,
+          );
+          if (
+            initial.identity !==
+            (await this.sourceIdentity(body.targetSourceId, actor, this.db.manager))
+          )
+            throw new ConflictException('대상 소스가 변경되었습니다.');
+          await this.originSemantics(token, row, t);
+          await this.currentTargetSemantics(body.targetSourceId, profile, mapped);
+        });
         return {
-          ...this.requirements(token, row.version, t),
+          ...this.requirements(token, row.version, t, row.lifecycleRevision),
           targetSourceId: body.targetSourceId,
           sourceRevision: profile.dataVersion,
           profile: {
@@ -321,6 +559,8 @@ export class StudioRemixService {
           },
           mapping: mapped.mapping,
           fields: mapped.fields,
+          ...(mapped.mappedConditions ? { mappedConditions: mapped.mappedConditions } : {}),
+          unmappedConditions: mapped.unmappedConditions,
           mappedFilters: mapped.filters,
           unmappedFilters: mapped.unmappedFilters,
           ...(mapped.mappedDateRange ? { mappedDateRange: mapped.mappedDateRange } : {}),
@@ -328,92 +568,183 @@ export class StudioRemixService {
           unmappedBlocks: mapped.unmappedBlocks,
           ...(preview ? { preview } : {}),
         };
-      });
+      } catch (error) {
+        await this.guardComputation(token, actor, body, origin, initial, context);
+        throw error;
+      }
+    });
+  }
+  private async guardComputation(
+    token: string,
+    actor: number,
+    body: RemixPreviewRequest,
+    origin: RemixOriginResolver,
+    initial: { row: { version: number; remixTemplate: string }; identity: string },
+    context: { profile?: any; mapped?: { mappedConditions?: StudioConditions } },
+  ) {
+    await serializeMetadataWork(this.db, async () => {
+      const current = await origin(token, actor, initial.row.version, this.db.manager);
+      this.checkLifecycle(current, body.expectedLifecycleRevision);
+      if (current.remixTemplate !== initial.row.remixTemplate)
+        throw new ConflictException('원본 조건이 변경되었습니다. 다시 미리보기해 주세요.');
+      await this.access.assert('database', body.targetSourceId, actor, 'owner', this.db.manager);
+      await this.originSemantics(token, current, JSON.parse(current.remixTemplate));
+      if (context.profile && context.mapped)
+        await this.currentTargetSemantics(body.targetSourceId, context.profile, context.mapped);
+      // Read current metadata independently of the calculation's pinned file before any
+      // computed error details (including invalid-date counts) can leave this request.
+      if (
+        initial.identity !==
+        (await this.sourceIdentity(body.targetSourceId, actor, this.db.manager))
+      )
+        throw new ConflictException('대상 소스가 변경되었습니다.');
     });
   }
   private async sourceIdentity(sourceId: number, actor: number, manager: EntityManager) {
-    await this.creation.ensureCurrentSource(sourceId, actor, manager);
-    const row = await manager.findOne(Database, { where: { id: sourceId } });
-    return studioDigest([
-      row.id,
-      row.ownerId,
-      row.engine,
-      row.connectionConfig,
-      row.createdAt,
-      row.updatedAt,
-    ]);
+    return serializeMetadataWork(this.db, async () => {
+      await this.creation.ensureCurrentSource(sourceId, actor, manager);
+      await this.access.assert('database', sourceId, actor, 'read', manager);
+      const row = await manager.findOne(Database, { where: { id: sourceId } });
+      return studioDigest([
+        row.id,
+        row.ownerId,
+        row.engine,
+        row.connectionConfig,
+        row.createdAt,
+        row.updatedAt,
+      ]);
+    });
   }
-  async remix(token: string, input: RemixRequest, actor: number) {
+  private async replay(
+    token: string,
+    actor: number,
+    body: RemixRequest,
+    payloadHash: string,
+    origin: RemixOriginResolver,
+    manager = this.db.manager,
+  ) {
+    const prior = await manager.findOne(StudioRemixRequest, {
+      where: { actorId: actor, requestId: body.requestId },
+    });
+    if (!prior) return undefined;
+    if (prior.payloadHash !== payloadHash)
+      throw new ConflictException('같은 요청 ID에 다른 복제 내용을 보낼 수 없습니다.');
+    if (origin.authorizeReceipt) await origin.authorizeReceipt(token, actor, manager);
+    else await origin(token, actor, undefined, manager);
+    const result = JSON.parse(prior.result);
+    await this.access.dashboard(result.dashboardId, actor, 'owner', manager);
+    return result;
+  }
+  async remix(
+    token: string,
+    input: RemixRequest,
+    actor: number,
+    origin: RemixOriginResolver = this.publications.requireRemix.bind(this.publications),
+  ) {
     this.access.actor(actor);
-    const body = this.validate(input, true),
+    const legacyConfirmation =
+      input && typeof input === 'object' && !('expectedLifecycleRevision' in input);
+    const body = this.validate(input, true, legacyConfirmation),
       payloadHash = studioDigest({ token, ...body });
-    return this.studio.serializeWrite(async () => {
-      await this.publications.requireRemix(token, actor, body.expectedVersion);
+    const initial = await this.studio.serializeWrite(async () => {
+      const result = await this.replay(token, actor, body, payloadHash, origin);
+      if (result) return { result };
+      await origin(token, actor);
+      if (legacyConfirmation)
+        throw new ConflictException('확정된 복제 기록이 없습니다. 복제 조건을 다시 확인해 주세요.');
+      const row = await origin(token, actor, body.expectedVersion);
+      this.checkLifecycle(row, body.expectedLifecycleRevision);
       await this.access.assert('database', body.targetSourceId, actor);
-      const prior = await this.db.manager.findOne(StudioRemixRequest, {
-        where: { actorId: actor, requestId: body.requestId },
-      });
-      if (prior) {
-        if (prior.payloadHash !== payloadHash)
-          throw new ConflictException('같은 요청 ID에 다른 복제 내용을 보낼 수 없습니다.');
-        const result = JSON.parse(prior.result);
-        await this.access.dashboard(result.dashboardId, actor);
-        return result;
-      }
-      return this.connection.withDuckDBSnapshot(body.targetSourceId, async () => {
+      const t: SemanticRemixTemplate = JSON.parse(row.remixTemplate);
+      await this.originSemantics(token, row, t);
+      return {
+        row,
+        t,
+        identity: await this.sourceIdentity(body.targetSourceId, actor, this.db.manager),
+      };
+    });
+    if ('result' in initial) return initial.result;
+    return this.connection.withDuckDBSnapshot(body.targetSourceId, async () => {
+      const context: { profile?: any; mapped?: { mappedConditions?: StudioConditions } } = {};
+      try {
+        const { row, t, identity } = initial;
         const profile = await this.creation.profile(body.targetSourceId, actor);
+        context.profile = profile;
         if (profile.dataVersion !== body.expectedSourceRevision)
           throw new ConflictException('대상 데이터가 변경되었습니다. 매핑을 다시 확인해 주세요.');
-        const identity = await this.sourceIdentity(body.targetSourceId, actor, this.db.manager);
-        return this.db.transaction(async manager => {
-          const row = await this.publications.requireRemix(
-            token,
-            actor,
-            body.expectedVersion,
-            manager,
-          );
-          if (identity !== (await this.sourceIdentity(body.targetSourceId, actor, manager)))
-            throw new ConflictException('대상 소스가 변경되었습니다.');
-          const t: RemixTemplate = JSON.parse(row.remixTemplate),
-            mapped = this.map(t, body, profile);
-          if (mapped.unmappedFilters.length)
-            throw new BadRequestException('게시 범위 필터 열을 대상 소스 열로 매핑해 주세요.');
-          if (mapped.unmappedDateRange)
-            throw new BadRequestException(
-              '게시 기간의 날짜 열을 대상 소스의 같은 형식 날짜 열로 매핑해 주세요.',
-            );
-          if (!mapped.kept.length || mapped.unmappedBlocks.length)
-            throw new BadRequestException(
-              '남길 블록의 모든 필수 열을 매핑하거나 해당 블록을 명시적으로 제외해 주세요.',
-            );
-          const result = await this.creation.persistRemix(
+        const mapped = await this.map(t, body, profile);
+        context.mapped = mapped;
+        if (mapped.mappedConditions) {
+          mapped.mappedConditions.sourceRevision = await this.connection.duckDBVersion(
             body.targetSourceId,
-            t,
-            mapped.blocks,
-            profile,
-            actor,
-            manager,
-            mapped.filters,
-            mapped.mappedDateRange,
           );
-          // Recheck after save/aggregate awaits, including legacy metadata writes outside Studio's queue.
-          await this.publications.requireRemix(token, actor, body.expectedVersion, manager);
-          const latest = await this.creation.profile(body.targetSourceId, actor);
-          if (
-            identity !== (await this.sourceIdentity(body.targetSourceId, actor, manager)) ||
-            latest.dataVersion !== body.expectedSourceRevision ||
-            latest.schemaVersion !== profile.schemaVersion
-          )
-            throw new ConflictException('저장 중 대상 데이터가 변경되었습니다.');
-          await manager.insert(StudioRemixRequest, {
-            actorId: actor,
-            requestId: body.requestId,
-            payloadHash,
-            result: JSON.stringify(result),
-          });
-          return result;
-        });
-      });
+          // Full-source validation must finish before prepareSave and outside metadata coordination.
+          await this.dashboards.assertConditionSemantics(
+            body.targetSourceId,
+            profile.columns,
+            mapped.mappedConditions,
+          );
+        }
+        if (mapped.unmappedConditions.length)
+          throw new BadRequestException(
+            '게시 포함·제외 조건의 모든 열을 대상 소스에 연결해 주세요.',
+          );
+        if (mapped.unmappedFilters.length)
+          throw new BadRequestException('게시 범위 필터 열을 대상 소스 열로 매핑해 주세요.');
+        if (mapped.unmappedDateRange)
+          throw new BadRequestException(
+            '게시 기간의 날짜 열을 대상 소스의 같은 형식 날짜 열로 매핑해 주세요.',
+          );
+        if (!mapped.kept.length || mapped.unmappedBlocks.length)
+          throw new BadRequestException(
+            '남길 블록의 모든 필수 열을 매핑하거나 해당 블록을 명시적으로 제외해 주세요.',
+          );
+        const preparation = await this.creation.prepareRemix(
+          body.targetSourceId,
+          t,
+          mapped.blocks,
+          profile,
+          actor,
+          mapped.filters,
+          mapped.mappedDateRange,
+          mapped.mappedConditions,
+        );
+        const latest = await this.creation.profile(body.targetSourceId, actor);
+        if (
+          latest.dataVersion !== body.expectedSourceRevision ||
+          latest.schemaVersion !== profile.schemaVersion
+        )
+          throw new ConflictException('저장 중 대상 데이터가 변경되었습니다.');
+        return await this.studio.serializeWrite(() =>
+          sourceWriteTransaction(this.db, async manager => {
+            const replayed = await this.replay(token, actor, body, payloadHash, origin, manager);
+            if (replayed) return replayed;
+            const check = async () => {
+              const current = await origin(token, actor, body.expectedVersion, manager);
+              this.checkLifecycle(current, body.expectedLifecycleRevision);
+              if (current.remixTemplate !== row.remixTemplate)
+                throw new ConflictException('원본 조건이 변경되었습니다. 다시 미리보기해 주세요.');
+              await this.originSemantics(token, current, t, manager);
+              await this.currentTargetSemantics(body.targetSourceId, profile, mapped, manager);
+              if (identity !== (await this.sourceIdentity(body.targetSourceId, actor, manager)))
+                throw new ConflictException('대상 소스가 변경되었습니다.');
+            };
+            await check();
+            const result = await this.creation.persistRemix(manager, preparation);
+            await check();
+            await manager.insert(StudioRemixRequest, {
+              actorId: actor,
+              requestId: body.requestId,
+              payloadHash,
+              result: JSON.stringify(result),
+            });
+            return result;
+          }),
+        );
+      } catch (error) {
+        await this.guardComputation(token, actor, body, origin, initial, context);
+        throw error;
+      }
     });
   }
   /**

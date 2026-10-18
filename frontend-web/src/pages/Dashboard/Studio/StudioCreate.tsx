@@ -2,9 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import IconLogo from '@/assets/images/logo.svg?react';
 import { Notice as Alert } from '@/components/ui/notice';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import StudioMetricPicker from './StudioMetricPicker';
 import { Spinner } from '@/components/ui/spinner';
-import { Label } from '@/components/ui/label';
 import { TextField } from '@/components/ui/text-field';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
@@ -32,6 +31,13 @@ import {
   writeCreationConfirmation,
   removeCreationConfirmation,
 } from './studioCreationRecovery';
+import {
+  CreationQuestion,
+  creationQuestionKey,
+  readCreationQuestion,
+  writeCreationQuestion,
+  removeCreationQuestion,
+} from './studioCreationQuestion';
 import './studio.css';
 export default function StudioCreate() {
   const navigate = useNavigate();
@@ -51,6 +57,14 @@ export default function StudioCreate() {
     [saveUncertain, setSaveUncertain] = useState(false);
   const [recovery, setRecovery] = useState<CreationConfirmation | null>(null);
   const confirmationKey = useRef<string | null>(null);
+  const questionKey = useRef<string | null>(null),
+    questionDirty = useRef(false);
+  const [questionRecovery, setQuestionRecovery] = useState<CreationQuestion | null>(null);
+  const [questionStorageError, setQuestionStorageError] = useState(false);
+  const markQuestionEdited = () => {
+    questionDirty.current = true;
+    setQuestionRecovery(null);
+  };
   const attempt = useRef<CreationConfirmation | null>(null);
   const [unavailableRecovery, setUnavailableRecovery] = useState(false);
   const [restoring, setRestoring] = useState(true);
@@ -142,12 +156,8 @@ export default function StudioCreate() {
     creation.current = null;
     attempt.current = null;
   };
-  const loadSources = async () => {
-    const rows = await fetchStudioSources();
-    if (mounted.current) setSources(rows);
-    return rows;
-  };
-  const choose = async (id: number) => {
+  const choose = async (id: number, remember = true) => {
+    if (remember && prompt.trim()) markQuestionEdited();
     invalidate();
     const generation = epoch.current;
     setSourceId(id);
@@ -162,10 +172,16 @@ export default function StudioCreate() {
       if (!mounted.current || generation !== epoch.current) return;
       const data = creationData(p);
       if (!data?.supported || data.sourceId !== id || !Array.isArray(data.columns)) throw new Error('unsupported');
+      // UC040: a verified new source does not depend on a second index read.
+      setSources(rows =>
+        rows.some(row => row.id === id) ? rows : [...rows, { id, name: data.name ?? '데이터 #' + id, engine: 'duckdb' }],
+      );
       setProfile(data);
       setMetrics(creationData(m));
+      return true;
     } catch (cause) {
       if (mounted.current && generation === epoch.current) setError(creationError(cause));
+      return false;
     } finally {
       if (mounted.current && generation === epoch.current) setBusy('');
     }
@@ -181,6 +197,7 @@ export default function StudioCreate() {
         const key = await creationConfirmationKey();
         if (!mounted.current || epoch.current !== initialEpoch) return;
         confirmationKey.current = key;
+        questionKey.current = creationQuestionKey(key);
         const stored = readCreationConfirmation(key);
         if (stored && rows.some(row => row.id === stored.sourceId && row.engine === 'duckdb')) {
           attempt.current = stored;
@@ -198,7 +215,7 @@ export default function StudioCreate() {
         }
         const initial = Number(params.get('sourceId'));
         if (initial > 0 && rows.some(row => row.id === initial && row.engine === 'duckdb')) {
-          await choose(initial);
+          await choose(initial, false);
           const parentId = params.get('proposalId');
           if (parentId && mounted.current) {
             const generation = epoch.current;
@@ -214,6 +231,8 @@ export default function StudioCreate() {
                 setError('생성안이 만료됐거나 불러올 수 없습니다. 이 소스로 새 생성 요청을 보내 주세요.');
             }
           }
+        } else if (!params.get('sourceId') && !params.get('proposalId')) {
+          setQuestionRecovery(readCreationQuestion(questionKey.current));
         }
       })
       .catch(() => {
@@ -232,6 +251,21 @@ export default function StudioCreate() {
       abort.current?.abort();
     };
   }, []);
+  useEffect(() => {
+    if (restoring || !questionDirty.current || recovery || unavailableRecovery || saveUncertain) return;
+    setQuestionStorageError(!writeCreationQuestion(questionKey.current, { sourceId, prompt }));
+  }, [prompt, sourceId, restoring, recovery, unavailableRecovery, saveUncertain]);
+  const restoreQuestion = async (useSelectedSource = false) => {
+    if (!questionRecovery || locked || prompt.trim()) return;
+    const record = questionRecovery;
+    // UC048 A3: replacing the source requires a separate explicit action and a fresh access check.
+    if (useSelectedSource && (!profile?.supported || profile.sourceId !== sourceId || sourceId === record.sourceId)) return;
+    const targetSource = useSelectedSource ? sourceId : record.sourceId;
+    if (targetSource !== null && !(await choose(targetSource, false))) return;
+    if (!mounted.current) return;
+    markQuestionEdited();
+    setPrompt(record.prompt);
+  };
   const prepareSource = async (
     task: () => Promise<number>,
     label: string,
@@ -245,8 +279,6 @@ export default function StudioCreate() {
     const generation = epoch.current;
     try {
       const id = await task();
-      if (!mounted.current || generation !== epoch.current) return;
-      await loadSources();
       if (!mounted.current || generation !== epoch.current) return;
       await choose(id);
     } catch (cause) {
@@ -389,6 +421,10 @@ export default function StudioCreate() {
       if (!Number.isSafeInteger(data?.dashboardId) || data.dashboardId <= 0) throw new Error('invalid create');
       if (mounted.current) {
         removeCreationConfirmation(key);
+        const savedQuestion = readCreationQuestion(questionKey.current);
+        if (questionDirty.current || (savedQuestion?.sourceId === sourceId && savedQuestion.prompt === prompt))
+          removeCreationQuestion(questionKey.current);
+        questionDirty.current = false;
         setSaveUncertain(false);
         navigate('/dashboard/' + data.dashboardId + '/studio');
       }
@@ -458,6 +494,61 @@ export default function StudioCreate() {
             </Button>
           </div>
         )}
+        {questionRecovery && !restoring && !recovery && !unavailableRecovery && (
+          <Alert severity="info" className="studio-create-alert">
+            <p>
+              이 탭에 보관한 새 생성 질문이 있습니다. 최대 24시간 보관하며, 복구해도 AI 요청이나 저장은 실행하지 않습니다.
+            </p>
+            {questionRecovery.sourceId !== null &&
+              !sources.some(row => row.id === questionRecovery.sourceId && row.engine === 'duckdb') && (
+                <p>보관 질문의 데이터에 접근할 수 없습니다. 권한을 확인하거나 이 기록만 폐기해 주세요.</p>
+              )}
+            <div className="studio-create-source-actions">
+              <Button
+                size="sm"
+                disabled={
+                  locked ||
+                  !!prompt.trim() ||
+                  (questionRecovery.sourceId !== null &&
+                    !sources.some(row => row.id === questionRecovery.sourceId && row.engine === 'duckdb'))
+                }
+                onClick={() => restoreQuestion()}
+              >
+                새 생성 질문 복구
+              </Button>
+              {profile?.supported && profile.sourceId === sourceId && sourceId !== questionRecovery.sourceId && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={locked || !!prompt.trim()}
+                  onClick={() => restoreQuestion(true)}
+                >
+                  선택한 데이터로 질문 복구
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={locked}
+                onClick={() => {
+                  if (removeCreationQuestion(questionKey.current)) setQuestionRecovery(null);
+                  else setQuestionStorageError(true);
+                }}
+              >
+                보관 생성 질문 폐기
+              </Button>
+            </div>
+            <p>
+              다른 데이터를 아래에서 선택한 뒤 질문만 복구할 수도 있습니다. 소스 구조는 다시 확인하며, 저장 지표 선택과 이전
+              제안·미리보기는 복구하지 않습니다.
+            </p>
+          </Alert>
+        )}
+        {questionStorageError && (
+          <Alert severity="info" className="studio-create-alert">
+            질문을 이 탭에 보관하지 못했습니다. 새로고침하면 입력이 사라질 수 있으며 현재 질문은 계속 사용할 수 있습니다.
+          </Alert>
+        )}
         {notice && (
           <Alert severity="info" className="studio-create-alert">
             {notice}
@@ -525,26 +616,18 @@ export default function StudioCreate() {
                 <h2 id="studio-request-heading">어떤 내용을 보고 싶으세요?</h2>
                 <p>총매출과 환불액, 날짜별 추세처럼 필요한 내용을 자연스럽게 적어 주세요.</p>
                 {metrics.length > 0 && (
-                  <fieldset className="studio-create-metrics">
-                    <legend>재사용할 저장 지표 · 선택 사항</legend>
-                    <div className="studio-create-metric-options">
-                      {metrics.map(metric => (
-                        <Label key={metric.id} className="flex items-start gap-2 py-2">
-                          <Checkbox
-                            disabled={locked}
-                            checked={selectedMetrics.includes(metric.id)}
-                            onCheckedChange={checked => {
-                              invalidate();
-                              setSelectedMetrics(current =>
-                                checked === true ? [...current, metric.id] : current.filter(id => id !== metric.id),
-                              );
-                            }}
-                          />
-                          <span>{metric.label + ' · v' + metric.definitionVersion}</span>
-                        </Label>
-                      ))}
-                    </div>
-                  </fieldset>
+                  <StudioMetricPicker
+                    key={sourceId}
+                    metrics={metrics}
+                    selected={selectedMetrics}
+                    busy={locked}
+                    onChange={(id, checked) => {
+                      invalidate();
+                      setSelectedMetrics(current =>
+                        checked ? Array.from(new Set([...current, id])) : current.filter(value => value !== id),
+                      );
+                    }}
+                  />
                 )}
                 {suggestions.length > 0 && (
                   <div className="studio-create-suggestions" role="group" aria-label="추천 질문">
@@ -557,6 +640,7 @@ export default function StudioCreate() {
                           disabled={locked || !!proposal}
                           onClick={() => {
                             invalidate();
+                            markQuestionEdited();
                             setPrompt(suggestion.prompt);
                             setError('');
                             setNotice('');
@@ -580,6 +664,7 @@ export default function StudioCreate() {
                   value={prompt}
                   onChange={event => {
                     invalidate();
+                    markQuestionEdited();
                     setPrompt(event.target.value);
                     setNotice('');
                   }}

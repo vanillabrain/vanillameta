@@ -1,5 +1,6 @@
 import {
   StudioBlockKind,
+  StudioConditions,
   StudioDateRange,
   StudioDisplay,
   StudioDocumentV1,
@@ -15,6 +16,7 @@ export type RemixBlock = {
 };
 export type RemixTemplate = {
   schemaVersion: 1;
+  conditions?: StudioConditions;
   title: string;
   filters?: StudioFilter[];
   dateRange?: StudioDateRange;
@@ -40,6 +42,7 @@ export type RemixTemplate = {
   layouts: StudioDocumentV1['layouts'];
 };
 export type RemixPreviewRequest = {
+  expectedLifecycleRevision: string;
   targetSourceId: number;
   mapping: Record<string, string>;
   excludedBlockIds?: string[];
@@ -51,6 +54,8 @@ export type RemixRequest = RemixPreviewRequest & {
   expectedSourceRevision: string;
 };
 export type RemixRequirements = {
+  lifecycleRevision: string;
+  conditions?: StudioConditions;
   token: string;
   version: number;
   title: string;
@@ -78,6 +83,8 @@ export type RemixPreview = RemixRequirements & {
   };
   mapping: Record<string, string>;
   fields: RemixField[];
+  mappedConditions?: StudioConditions;
+  unmappedConditions: string[];
   mappedFilters: StudioFilter[];
   unmappedFilters: string[];
   mappedDateRange?: StudioDateRange;

@@ -1,4 +1,5 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { User } from '../user/entities/user.entity';
+import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { knex } from 'knex';
 import { ConnectionService } from './connection.service';
 import { DatabaseService } from '../database/database.service';
@@ -11,7 +12,12 @@ jest.mock('knex', () => {
 });
 
 describe('connection identity, pools and stored-config cache regressions', () => {
-  const repository = { findOne: jest.fn(), update: jest.fn(), remove: jest.fn() };
+  const repository = {
+    manager: { connection: { options: { type: 'sqlite' } } },
+    findOne: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
+  };
   const gateway = { emitTo: jest.fn() };
   let connection: ConnectionService;
   let database: DatabaseService;
@@ -31,6 +37,16 @@ describe('connection identity, pools and stored-config cache regressions', () =>
     process.env.CONFIG_SECRET_KEY = 'unit-regression-key';
     delete process.env.QUERY_CACHE_TTL_MS;
     connection = new ConnectionService(repository as any, gateway as any);
+    const tx: any = {
+      connection: repository.manager.connection,
+      queryRunner: { isTransactionActive: true },
+      findOne: (entity, options) =>
+        entity === User
+          ? Promise.resolve({ id: 7, active: true, authVersion: 0 })
+          : repository.findOne(options),
+      update: (_entity, id, patch) => repository.update({ id }, patch),
+    };
+    (repository.manager as any).transaction = run => run(tx);
     database = new DatabaseService(repository as any, {} as any, {} as any, {} as any, connection);
   });
 
@@ -64,7 +80,7 @@ describe('connection identity, pools and stored-config cache regressions', () =>
     },
   );
 
-  it('controls missing connection and database detail/update/delete ids', async () => {
+  it('controls missing connection and database detail/update ids', async () => {
     repository.findOne.mockResolvedValue(null);
     await expect(connection.getKnex('1')).rejects.toBeInstanceOf(NotFoundException);
     await expect(connection.executeQuery({ id: 1, query: 'SELECT 1' })).rejects.toBeInstanceOf(
@@ -72,8 +88,8 @@ describe('connection identity, pools and stored-config cache regressions', () =>
     );
     await expect(database.findOne(1)).rejects.toBeInstanceOf(NotFoundException);
     await expect(database.findOneInfo(1)).rejects.toBeInstanceOf(NotFoundException);
-    expect((await database.update(1, {} as any)).status).toBe(ResponseStatus.ERROR);
-    expect((await database.remove(1)).status).toBe(ResponseStatus.ERROR);
+    await expect(database.update(1, {} as any, 7, 0)).rejects.toBeInstanceOf(ForbiddenException);
+    expect((database as any).remove).toBeUndefined();
     expect(repository.update).not.toHaveBeenCalled();
     expect(repository.remove).not.toHaveBeenCalled();
   });
@@ -86,13 +102,18 @@ describe('connection identity, pools and stored-config cache regressions', () =>
       await expect(database.update(id as any, {} as any)).rejects.toBeInstanceOf(
         BadRequestException,
       );
-      await expect(database.remove(id as any)).rejects.toBeInstanceOf(BadRequestException);
       expect(repository.findOne).not.toHaveBeenCalled();
     },
   );
 
   it('closes pool A after a successful source edit and executes through new pool B', async () => {
-    let stored = { id: 1, engine: 'sqlite3', connectionConfig: config('A') };
+    let stored = {
+      id: 1,
+      ownerId: 7,
+      catalogActive: true,
+      engine: 'pg',
+      connectionConfig: config('A'),
+    };
     repository.findOne.mockImplementation(async () => ({ ...stored }));
     repository.update.mockImplementation(async (_where, fields) => {
       stored = { ...stored, ...fields };
@@ -105,8 +126,14 @@ describe('connection identity, pools and stored-config cache regressions', () =>
       { value: 'A' },
     ]);
     expect(
-      (await database.update(1, { name: 'B', connectionConfig: { filename: 'B.db' } } as any))
-        .status,
+      (
+        await database.update(
+          1,
+          { name: 'B', connectionConfig: { host: 'B.invalid' } } as any,
+          7,
+          0,
+        )
+      ).status,
     ).toBe(ResponseStatus.SUCCESS);
     expect(a.destroy).toHaveBeenCalledTimes(1);
     expect(connection.hasKnex(1)).toBe(false);
@@ -114,7 +141,7 @@ describe('connection identity, pools and stored-config cache regressions', () =>
       { value: 'B' },
     ]);
     expect(knex).toHaveBeenLastCalledWith(
-      expect.objectContaining({ connection: { filename: 'B.db' } }),
+      expect.objectContaining({ connection: { host: 'B.invalid' } }),
     );
   });
 

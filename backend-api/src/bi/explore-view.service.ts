@@ -1,18 +1,21 @@
+import { resolveConditionSemantics } from './business-condition-context';
+import { lockMetricReferences } from '../metric/metric-write-lock';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PersonalView } from '../dashboard/entities/personal-view.entity';
 import { Database } from '../database/entities/database.entity';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
+import { metadataTransaction } from '../common/metadata-work';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { BiExploreService } from './bi-explore.service';
-import { validateExploreViewState } from './explore-view-state';
+import { parseExploreViewConditions, validateExploreViewState } from './explore-view-state';
+import { ConnectionService } from '../connection/connection.service';
 
 @Injectable()
 export class ExploreViewService {
@@ -20,16 +23,20 @@ export class ExploreViewService {
     @InjectRepository(PersonalView) private readonly views: Repository<PersonalView>,
     private readonly access: SourceAccessService,
     private readonly explore: BiExploreService,
+    private readonly connection: ConnectionService,
   ) {}
   private success(data: any) {
     return { status: 'SUCCESS', data };
   }
   private publicView(row: PersonalView) {
+    const state = JSON.parse(row.state);
+    if (state.conditions !== undefined)
+      state.conditions = parseExploreViewConditions(state.conditions);
     return {
       id: row.id,
       name: row.name,
       revision: row.revision,
-      state: JSON.parse(row.state),
+      state,
       createdAt: row.createdAt,
     };
   }
@@ -40,7 +47,7 @@ export class ExploreViewService {
   }
   async list(source: unknown, actor: number) {
     const sourceId = this.access.id(source);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const rows = await this.views.find({
       where: { sourceId, userId: actor },
       order: { id: 'DESC' },
@@ -50,7 +57,19 @@ export class ExploreViewService {
   }
   async create(source: unknown, actor: number, body: any) {
     const sourceId = this.access.id(source);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
+    if (body?.state?.conditions === undefined) return this.createSnapshot(sourceId, actor, body);
+    const snapshot = await this.connection.captureDuckDBSnapshot(sourceId);
+    return snapshot.run(() => this.createSnapshot(sourceId, actor, body));
+  }
+  private async assertConditionsFile(sourceId: number, expected: string) {
+    const current = await this.connection.captureDuckDBSnapshot(sourceId);
+    if ((await current.run(() => this.connection.duckDBVersion(sourceId))) !== expected)
+      this.conflict();
+  }
+  private async createSnapshot(source: unknown, actor: number, body: any) {
+    const sourceId = this.access.id(source);
+    await this.access.assert('database', sourceId, actor, 'read');
     if (
       !body ||
       typeof body !== 'object' ||
@@ -61,24 +80,33 @@ export class ExploreViewService {
       body.name.trim().length > 80
     )
       throw new BadRequestException('보기 이름은 1~80자로 입력해 주세요.');
+    const sourceBefore = await this.views.manager.findOne(Database, { where: { id: sourceId } });
     const catalog = await this.explore.catalog({ sourceId }, actor);
     if (!/^[a-f0-9]{64}$/.test(body.revision ?? '') || body.revision !== catalog.viewRevision)
       this.conflict();
     const state = validateExploreViewState(body.state, catalog);
+    if (state.conditions?.semantics)
+      await resolveConditionSemantics(
+        this.views.manager,
+        sourceId,
+        catalog.dimensions.map(d => ({ name: d.column, type: d.type })),
+        state.conditions.semantics,
+      );
     const row = await serializedViewWrite(this.views, async () => {
-      await this.access.assert('database', sourceId, actor);
-      return this.views.manager.transaction(async manager => {
-        const sourceRow = await manager.findOne(Database, {
-          where: { id: sourceId },
-          ...(manager.connection.options.type === 'mysql'
-            ? { lock: { mode: 'pessimistic_write' as const } }
-            : {}),
-        });
-        if (!sourceRow || sourceRow.ownerId !== actor)
-          throw new ForbiddenException('source ownership required');
-        const current = await this.explore.catalog({ sourceId }, actor);
-        if (current.viewRevision !== body.revision) this.conflict();
-        validateExploreViewState(state, current);
+      await this.access.assert('database', sourceId, actor, 'read');
+      return metadataTransaction(this.views.manager, async manager => {
+        const metrics = await lockMetricReferences(manager, sourceId, state.measureIds);
+        const sourceRow = await manager.findOne(Database, { where: { id: sourceId } });
+        if (!sourceBefore || sourceRow.connectionConfig !== sourceBefore.connectionConfig)
+          this.conflict();
+        await this.access.assert('database', sourceId, actor, 'read', manager);
+        if (state.conditions)
+          await this.assertConditionsFile(sourceId, state.conditions.sourceRevision);
+        for (const [id, metric] of metrics) {
+          const expected = catalog.measures.find(measure => measure.id === id);
+          if (!expected || JSON.stringify(expected.definition) !== metric.definition)
+            this.conflict();
+        }
         const repo = manager.getRepository(PersonalView);
         if ((await repo.count({ where: { sourceId, userId: actor } })) >= 20)
           throw new BadRequestException(
@@ -101,21 +129,48 @@ export class ExploreViewService {
   async load(source: unknown, view: unknown, actor: number) {
     const sourceId = this.access.id(source),
       viewId = this.access.id(view);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const row = await this.views.findOne({ where: { id: viewId, sourceId, userId: actor } });
     if (!row) throw new NotFoundException('탐색 저장 보기를 찾을 수 없습니다.');
-    const catalog = await this.explore.catalog({ sourceId }, actor);
-    if (row.revision !== catalog.viewRevision) this.conflict();
-    const state = validateExploreViewState(JSON.parse(row.state), catalog);
-    await this.access.assert('database', sourceId, actor);
-    return this.success({ ...this.publicView(row), state, resolvedDateRange: state.dateRange });
+    let stored;
+    try {
+      stored = JSON.parse(row.state);
+    } catch {
+      this.conflict();
+    }
+    const restore = async () => {
+      const catalog = await this.explore.catalog({ sourceId }, actor);
+      if (row.revision !== catalog.viewRevision) this.conflict();
+      let state;
+      try {
+        state = validateExploreViewState(stored, catalog);
+        if (state.conditions?.semantics)
+          await resolveConditionSemantics(
+            this.views.manager,
+            sourceId,
+            catalog.dimensions.map(d => ({ name: d.column, type: d.type })),
+            state.conditions.semantics,
+          );
+      } catch {
+        throw new ConflictException(
+          '저장 조건의 파일·열 기준이 변경되었습니다. 현재 분석을 유지하고 다시 확인해 주세요.',
+        );
+      }
+      await this.access.assert('database', sourceId, actor, 'read');
+      if (state.conditions)
+        await this.assertConditionsFile(sourceId, state.conditions.sourceRevision);
+      return this.success({ ...this.publicView(row), state, resolvedDateRange: state.dateRange });
+    };
+    if (stored.conditions === undefined) return restore();
+    const snapshot = await this.connection.captureDuckDBSnapshot(sourceId);
+    return snapshot.run(restore);
   }
   async remove(source: unknown, view: unknown, actor: number) {
     const sourceId = this.access.id(source),
       viewId = this.access.id(view);
-    await this.access.assert('database', sourceId, actor);
+    await this.access.assert('database', sourceId, actor, 'read');
     const result = await serializedViewWrite(this.views, async () => {
-      await this.access.assert('database', sourceId, actor);
+      await this.access.assert('database', sourceId, actor, 'read');
       return this.views.delete({ id: viewId, sourceId, userId: actor });
     });
     if (!result.affected) throw new NotFoundException('탐색 저장 보기를 찾을 수 없습니다.');

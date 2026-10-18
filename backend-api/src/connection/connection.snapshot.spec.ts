@@ -2,7 +2,7 @@ import { ConnectionService } from './connection.service';
 
 describe('ConnectionService DuckDB snapshots', () => {
   let current: Map<number, string>;
-  let repository: { findOne: jest.Mock };
+  let repository: { findOne: jest.Mock; manager: any };
   let worker: { query: jest.Mock };
   let service: ConnectionService;
 
@@ -12,6 +12,7 @@ describe('ConnectionService DuckDB snapshots', () => {
       [2, 'second.duckdb'],
     ]);
     repository = {
+      manager: { connection: { options: { type: 'mysql' } } },
       findOne: jest.fn(async ({ where: { id } }) => ({
         connectionConfig: JSON.stringify({
           client: 'duckdb',

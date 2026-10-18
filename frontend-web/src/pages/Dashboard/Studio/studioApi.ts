@@ -1,17 +1,29 @@
+import { readProfileColumns } from '../../Explore/conditionProfile';
+import type { Column } from '../../Explore/SourceConditions';
 // Studio server boundary. The /studio endpoints answer with the raw payload, not the legacy SUCCESS envelope.
 import { get, post } from '@/helpers/apiHelper';
 import { errorMessage, validDraft } from '../dashboardPreview';
 import { StudioDefinitions } from './studioAdapter';
 import {
   studioAssert,
+  studioConditionsKey,
+  studioKeys,
   studioFilterKey,
   studioDateRangeKey,
   studioFilterValueKey,
   studioPositive,
   studioText,
   validateStudioDocument,
+  validateConditionSemantics,
 } from './studioDocument';
-import { isStudioId, STUDIO_FILTER_LIMITS, StudioDocumentV1, StudioFilter, StudioFilterValue } from './studioTypes';
+import {
+  isStudioId,
+  STUDIO_FILTER_LIMITS,
+  StudioDocumentV1,
+  StudioFilter,
+  StudioFilterValue,
+  ConditionSemantics,
+} from './studioTypes';
 
 /** One aggregated preview row. Rows arrive under `datas`; a row without `datas` is never rendered. */
 export type StudioPreviewRow = {
@@ -45,6 +57,9 @@ export type StudioPreview = {
 };
 /** Load result for one dashboard: the editable document plus its definition catalog and preview. */
 export type StudioLoadResult = {
+  profileColumns?: Column[];
+  access?: { read: boolean; edit: boolean; publish: boolean; export: boolean };
+  owned?: boolean;
   dashboardId: number;
   /** Opaque data-source version from GET. Every save pins it; a change is reported as a conflict. */
   sourceRevision: string;
@@ -61,7 +76,13 @@ export type StudioPrepareRequest = {
   expectedSourceRevision: string;
   document: StudioDocumentV1;
 };
-export type StudioPrepareResult = { document: StudioDocumentV1; preview: StudioPreview };
+export type StudioPrepareResult = {
+  document: StudioDocumentV1;
+  preview: StudioPreview;
+  conditionColumns?: Column[];
+  conditionSemantics?: ConditionSemantics;
+  conditionSemanticsLatest?: boolean;
+};
 export type StudioSaveRequest = {
   requestId: string;
   expectedRevision?: string;
@@ -233,6 +254,24 @@ export const validateStudioDefinitions = (input: unknown): StudioDefinitions => 
   );
   for (const [key, rawEntry] of Object.entries(definitions.entries)) {
     studioText(key, 128);
+    if (rawEntry.metricBasis !== undefined) {
+      const basis = rawEntry.metricBasis;
+      studioKeys(basis, ['sourceId', 'metricId', 'definitionVersion', 'definition']);
+      studioPositive(basis.metricId);
+      studioAssert(
+        basis.sourceId === definitions.sourceId &&
+          typeof basis.definitionVersion === 'string' &&
+          /^[1-9][0-9]*$/.test(basis.definitionVersion) &&
+          basis.definitionVersion.length <= 128,
+        '저장 지표 기준을 확인해 주세요.',
+      );
+      studioKeys(basis.definition, ['aggregation', 'column', 'denominatorColumn', 'weightColumn', 'scale', 'unit']);
+      for (const [field, value] of Object.entries(basis.definition))
+        studioAssert(
+          field === 'scale' ? typeof value === 'number' && Number.isFinite(value) : typeof value === 'string',
+          '저장 지표 기준 필드가 올바르지 않습니다.',
+        );
+    }
     const widget = (rawEntry as { widget?: Record<string, any> } | undefined)?.widget;
     studioAssert(!!widget && typeof widget === 'object', '정의 위젯을 확인해 주세요.');
     studioAssert(
@@ -284,10 +323,40 @@ export async function prepareStudioDashboard(
     studioAssert(
       document.dashboardId === dashboardId &&
         studioFilterKey(document.filters) === studioFilterKey(requested) &&
-        studioDateRangeKey(document.dateRange) === studioDateRangeKey(request.document.dateRange),
+        studioDateRangeKey(document.dateRange) === studioDateRangeKey(request.document.dateRange) &&
+        studioConditionsKey(document.conditions) === studioConditionsKey(request.document.conditions),
       '요청한 날짜 범위·공통 필터와 다른 미리보기 결과입니다.',
     );
-    return { document, preview: validateStudioPreview(payload.preview) };
+    const conditionColumns =
+      payload.conditionColumns === undefined ? undefined : readProfileColumns(payload.conditionColumns);
+    const conditionSemantics =
+      payload.conditionSemantics === undefined ? undefined : validateConditionSemantics(payload.conditionSemantics);
+    if (payload.conditionSemanticsLatest !== undefined)
+      studioAssert(typeof payload.conditionSemanticsLatest === 'boolean', '업무 의미 기준을 확인해 주세요.');
+    if (payload.conditionSourceRevision !== undefined)
+      studioAssert(payload.conditionSourceRevision === request.expectedSourceRevision, '조건 파일 버전이 다릅니다.');
+    if (document.conditions && conditionColumns !== undefined) {
+      const contextKey = (semantics?: ConditionSemantics) =>
+        studioConditionsKey({
+          sourceRevision: request.expectedSourceRevision,
+          definition: { include: null, exclude: null },
+          ...(semantics ? { semantics } : {}),
+        });
+      studioAssert(
+        contextKey(conditionSemantics) === contextKey(document.conditions.semantics) &&
+          payload.conditionSemanticsLatest !== true,
+        '문서 조건의 업무 의미가 응답에서 변경됐습니다.',
+      );
+    }
+    return {
+      document,
+      preview: validateStudioPreview(payload.preview),
+      ...(conditionColumns === undefined ? {} : { conditionColumns }),
+      ...(conditionSemantics === undefined ? {} : { conditionSemantics }),
+      ...(payload.conditionSemanticsLatest === undefined
+        ? {}
+        : { conditionSemanticsLatest: payload.conditionSemanticsLatest }),
+    };
   } catch (error) {
     throw invalid(error, '미리보기 응답을 확인하지 못했습니다.');
   }
@@ -333,7 +402,33 @@ export async function fetchStudioDashboard(
       }
     }
     if (!preview && !previewError) previewError = '미리보기 결과를 받지 못했습니다. 편집과 저장은 계속할 수 있습니다.';
-    return { dashboardId, sourceRevision: payload.sourceRevision, document, definitions, preview, previewError };
+    if (payload.access !== undefined) {
+      studioAssert(
+        payload.access &&
+          typeof payload.access === 'object' &&
+          ['read', 'edit', 'publish', 'export'].every(key => typeof payload.access[key] === 'boolean') &&
+          payload.access.read === true,
+        '자원 권한 응답을 확인해 주세요.',
+      );
+    }
+    if (payload.owned !== undefined) studioAssert(typeof payload.owned === 'boolean', '소유권 응답을 확인해 주세요.');
+    let profileColumns: Column[] = [];
+    try {
+      if (payload.profileColumns !== undefined) profileColumns = readProfileColumns(payload.profileColumns);
+    } catch {
+      /* Advisory profile choices never replace the authorized document. */
+    }
+    return {
+      profileColumns,
+      dashboardId,
+      sourceRevision: payload.sourceRevision,
+      document,
+      definitions,
+      preview,
+      previewError,
+      ...(payload.access !== undefined ? { access: payload.access } : {}),
+      ...(payload.owned !== undefined ? { owned: payload.owned } : {}),
+    };
   } catch (error) {
     throw invalid(error, 'Studio 문서를 확인하지 못했습니다.');
   }
@@ -373,6 +468,10 @@ export async function saveStudioDashboard(
     studioAssert(!!payload && typeof payload === 'object' && !Array.isArray(payload), '저장 응답을 확인해 주세요.');
     const document = validateStudioDocument(payload.document);
     studioAssert(document.dashboardId === dashboardId, '저장된 문서가 요청한 대시보드와 다릅니다.');
+    studioAssert(
+      studioConditionsKey(document.conditions) === studioConditionsKey(request.document.conditions),
+      '저장 응답의 포함·제외 조건이 요청과 다릅니다.',
+    );
     studioAssert(
       typeof document.revision === 'string' && /^[a-f0-9]{64}$/.test(document.revision),
       '저장 응답의 revision을 확인해 주세요.',

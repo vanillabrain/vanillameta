@@ -1,3 +1,9 @@
+import { DashboardDeletionController } from './dashboard-deletion.controller';
+import { DashboardDeletionService } from './dashboard-deletion.service';
+import { DashboardDeleteReceipt } from './entities/dashboard-delete-receipt.entity';
+import { PersonalLibraryController } from './personal-library.controller';
+import { PersonalLibraryService } from './personal-library.service';
+import { PersonalLibraryState } from './entities/personal-library-state.entity';
 import { Module } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { DashboardController } from './dashboard.controller';
@@ -20,6 +26,8 @@ import { PersonalViewService } from './personal-view.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      DashboardDeleteReceipt,
+      PersonalLibraryState,
       PersonalView,
       Dashboard,
       DashboardWidget,
@@ -31,8 +39,10 @@ import { PersonalViewService } from './personal-view.service';
       RefreshToken,
     ]),
   ],
-  controllers: [DashboardController],
+  controllers: [DashboardDeletionController, PersonalLibraryController, DashboardController],
   providers: [
+    DashboardDeletionService,
+    PersonalLibraryService,
     DashboardService,
     DashboardWidgetService,
     UserService,

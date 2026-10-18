@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { useAlert } from 'react-alert';
 import { isCancelledError, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import SourceDeleteDialog, { SourceDeleteTarget } from './SourceDeleteDialog';
+import { personalLibrarySessionScope } from '@/api/personalLibraryService';
+import { STORAGE_ACCESS_TOKEN } from '@/helpers/authHelper';
 import DatabaseService from '@/api/databaseService';
 import DatasetService from '@/api/datasetService';
 import { STATUS } from '@/constant';
@@ -67,8 +70,21 @@ const AddLinkButton = ({ to, label, className }: { to: string; label: string; cl
 );
 
 const DataLayout = props => {
+  const [, refresh] = useState(0);
+  const scope = personalLibrarySessionScope();
+  useEffect(() => {
+    const changed = (event: StorageEvent) => {
+      if (event.key === null || event.key === STORAGE_ACCESS_TOKEN || event.key === 'vm:editor-draft-auth:v1')
+        refresh(value => value + 1);
+    };
+    window.addEventListener('storage', changed);
+    return () => window.removeEventListener('storage', changed);
+  }, []);
+  return <ScopedDataLayout key={scope ?? 'signed-out'} {...props} scope={scope} />;
+};
+const ScopedDataLayout = props => {
   const { t } = useTranslation();
-  const { isViewMode, setDataSet } = props;
+  const { isViewMode, setDataSet, scope } = props;
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const navigate = useNavigate();
@@ -80,9 +96,15 @@ const DataLayout = props => {
   const [gridData, setGridData] = useState<any[]>([]);
   const [gridColumns, setGridColumns] = useState<any[]>([]);
   const previewRequest = useRef(0);
+  const mounted = useRef(true);
+  const [deleteTarget, setDeleteTarget] = useState<SourceDeleteTarget | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const isCurrent = () => mounted.current && !!scope && personalLibrarySessionScope() === scope;
 
   useEffect(() => {
+    mounted.current = true;
     return () => {
+      mounted.current = false;
       previewRequest.current += 1;
     };
   }, []);
@@ -90,11 +112,20 @@ const DataLayout = props => {
   /**
    * 데이터베이스 목록조회
    */
-  const { data: databaseList = [], isFetching: isDatabaseListFetching } = useQuery({
-    queryKey: ['databases'],
-    queryFn: () => DatabaseService.selectDatabaseList().then(response => response.data.data),
+  const databaseListQuery = useQuery({
+    queryKey: ['databases', scope, 'dataLayout'],
+    enabled: !!scope,
+    queryFn: async ({ signal }) => {
+      const response = await DatabaseService.selectDatabaseList();
+      if (signal.aborted || !isCurrent()) throw new Error('session changed');
+      if (response.data?.status !== STATUS.SUCCESS || !Array.isArray(response.data.data)) throw new Error('invalid sources');
+      return response.data.data;
+    },
     retry: false,
+    refetchOnWindowFocus: false,
   });
+  const databaseList = databaseListQuery.isError ? [] : databaseListQuery.data ?? [];
+  const isDatabaseListFetching = databaseListQuery.isFetching;
 
   // 목록 로딩 후 첫 번째 데이터베이스 자동 선택
   useEffect(() => {
@@ -112,10 +143,11 @@ const DataLayout = props => {
     isError: isDatabaseInfoError,
     error: databaseInfoError,
   } = useQuery({
-    queryKey: ['database', selectedDatabase.id],
-    enabled: !!selectedDatabase.id,
-    queryFn: () =>
+    queryKey: ['database', selectedDatabase.id, scope],
+    enabled: !!scope && !!selectedDatabase.id && !databaseListQuery.isError,
+    queryFn: ({ signal }) =>
       DatabaseService.selectDatabase(selectedDatabase.id).then(response => {
+        if (signal.aborted || !isCurrent()) throw new Error('session changed');
         if (response.data.status !== STATUS.SUCCESS) {
           throw new Error(response.data.message || t('common.dbFetchFailed'));
         }
@@ -124,41 +156,35 @@ const DataLayout = props => {
     retry: false,
   });
   const datasetList: DataSetProps[] =
-    !isDatabaseInfoError && Array.isArray(databaseInfo?.datasets) ? databaseInfo.datasets : [];
-  const tableList: DataTableProps[] = !isDatabaseInfoError && Array.isArray(databaseInfo?.tables) ? databaseInfo.tables : [];
+    !databaseListQuery.isError && !isDatabaseInfoError && Array.isArray(databaseInfo?.datasets) ? databaseInfo.datasets : [];
+  const tableList: DataTableProps[] =
+    !databaseListQuery.isError && !isDatabaseInfoError && Array.isArray(databaseInfo?.tables) ? databaseInfo.tables : [];
 
   useEffect(() => {
-    if (!selectedDatabase.id || !isDatabaseInfoError) return;
+    if (!isCurrent() || !selectedDatabase.id || (!isDatabaseInfoError && !databaseListQuery.isError)) return;
+    previewRequest.current += 1;
     setGridData([]);
     setGridColumns([]);
     setSelectedDataset(null);
     if (!isCancelledRequest(databaseInfoError)) alert.error(t('common.dbFetchFailed'));
-  }, [selectedDatabase.id, isDatabaseInfoError, databaseInfoError]);
+  }, [selectedDatabase.id, isDatabaseInfoError, databaseInfoError, databaseListQuery.isError]);
 
   useEffect(() => {
     if (isDatabaseListFetching || isDatabaseInfoFetching) showLoading();
     else hideLoading();
   }, [isDatabaseListFetching, isDatabaseInfoFetching]);
 
-  const deleteDatabaseMutation = useMutation({
-    mutationFn: (databaseId: number) => DatabaseService.deleteDatabase(databaseId),
-    onSuccess: response => {
-      if (response.data.status === STATUS.SUCCESS) {
-        queryClient.invalidateQueries({ queryKey: ['databases'] });
-        snackbar.success(t('data.dbDeleted'));
-      }
-    },
-  });
-
   const deleteDatasetMutation = useMutation({
     mutationFn: (id: number) => DatasetService.deleteDataset(id),
     onSuccess: () => {
+      if (!isCurrent()) return;
       queryClient.invalidateQueries({ queryKey: ['database', selectedDatabase.id] });
       snackbar.success(t('data.dsDeleted'));
     },
   });
 
   const getData = selectedData => {
+    if (!isCurrent()) return;
     let param;
     switch (selectedData?.datasetType) {
       case 'DATASET':
@@ -178,7 +204,7 @@ const DataLayout = props => {
     showLoading();
     DatabaseService.selectData(param)
       .then(response => {
-        if (request !== previewRequest.current) return;
+        if (request !== previewRequest.current || !isCurrent()) return;
         if (response.data.status === STATUS.SUCCESS) {
           setGridData(response.data.data.datas);
           setGridColumns(createColumns(response.data.data.datas));
@@ -187,17 +213,19 @@ const DataLayout = props => {
         }
       })
       .catch(error => {
-        if (request !== previewRequest.current) return;
+        if (request !== previewRequest.current || !isCurrent()) return;
         setGridData([]);
         setGridColumns([]);
         if (!isCancelledRequest(error)) alert.error(t('common.dbFetchFailed'));
       })
       .finally(() => {
+        if (!isCurrent() || request !== previewRequest.current) return;
         hideLoading();
       });
   };
 
   const handleDatabaseClick = (item: DatabaseProps) => {
+    if (!isCurrent()) return;
     if (item.id === selectedDatabase.id) return;
     previewRequest.current += 1;
     setGridData([]);
@@ -207,22 +235,16 @@ const DataLayout = props => {
     setSelectedDatabase(item);
   };
 
-  const handleDatabaseRemove = item => {
-    console.log('handleDatabaseRemove', item);
-    alert.success(t('data.dbDeleteConfirm', { name: item.name }), {
-      title: t('data.dbDeleteTitle'),
-      closeCopy: t('data.cancel'),
-      actions: [
-        {
-          copy: t('data.delete'),
-          onClick: () => deleteDatabaseMutation.mutate(item.databaseId),
-        },
-      ],
-    });
+  const handleDatabaseRemove = (item: DatabaseProps) => {
+    if (!isCurrent()) return;
+    const id = Number(item.id);
+    if (!Number.isSafeInteger(id) || id <= 0) return;
+    setDeleteTarget({ id, title: item.name ?? `소스 #${id}` });
+    setDeleteOpen(true);
   };
 
   const handleDataSetClick = (item: DataTableProps | DataSetProps) => {
-    console.log('selected Data', item);
+    if (!isCurrent()) return;
     if (isViewMode) {
       setDataSet(item);
     } else {
@@ -233,8 +255,7 @@ const DataLayout = props => {
   };
 
   const handleModifyClick = (item: DataTableProps | DataSetProps) => {
-    console.log('selected Data', item);
-
+    if (!isCurrent()) return;
     if (item?.datasetType == 'DATASET') {
       navigate(`/data/set/modify/${item.id}`);
     } else {
@@ -254,14 +275,16 @@ const DataLayout = props => {
   };
 
   const handleDataSetRemove = item => {
-    console.log('handleDataSetRemove', item);
+    if (!isCurrent()) return;
     alert.success(t('data.dsDeleteConfirm', { title: item.title }), {
       title: t('data.dsDeleteTitle'),
       closeCopy: t('data.cancel'),
       actions: [
         {
           copy: t('data.delete'),
-          onClick: () => deleteDatasetMutation.mutate(item.id),
+          onClick: () => {
+            if (isCurrent()) deleteDatasetMutation.mutate(item.id);
+          },
         },
       ],
     });
@@ -284,6 +307,28 @@ const DataLayout = props => {
             </>
           )}
         </div>
+        {!isViewMode && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="mb-3 min-w-0 whitespace-normal text-sm"
+            disabled={!scope}
+            onClick={() => {
+              setDeleteTarget(null);
+              setDeleteOpen(true);
+            }}
+          >
+            소스 삭제·파일 정리 기록
+          </Button>
+        )}
+        {databaseListQuery.isError && (
+          <p role="alert">
+            소스 목록을 읽지 못했습니다.{' '}
+            <Button size="sm" variant="outline" onClick={() => void databaseListQuery.refetch()}>
+              목록 다시 읽기
+            </Button>
+          </p>
+        )}
         <DatabaseCardList
           data={databaseList}
           selectedData={selectedDatabase}
@@ -322,7 +367,7 @@ const DataLayout = props => {
             handleModifyClick={handleModifyClick}
           />
           <ModalPopup
-            open={open}
+            open={open && !databaseListQuery.isError && !isDatabaseInfoError}
             handleClose={handleClose}
             title={selectedDataset && (selectedDataset?.['tableName'] || selectedDataset?.['title'])}
           >
@@ -344,6 +389,25 @@ const DataLayout = props => {
           </ModalPopup>
         </div>
       </div>
+      <SourceDeleteDialog
+        target={deleteTarget}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onDeleted={receipt => {
+          if (!isCurrent()) return;
+          if (Number(selectedDatabase.id) === receipt.sourceId) {
+            previewRequest.current += 1;
+            setSelectedDatabase({ id: null, name: null });
+            setSelectedDataset(null);
+            setGridData([]);
+            setGridColumns([]);
+            setOpen(false);
+          }
+          void queryClient.invalidateQueries({ queryKey: ['databases'] });
+          void queryClient.invalidateQueries({ queryKey: ['database', receipt.sourceId] });
+          snackbar.success('소스 metadata 삭제를 확인했습니다. 관리 파일 정리 상태를 확인해 주세요.');
+        }}
+      />
     </div>
   );
 };

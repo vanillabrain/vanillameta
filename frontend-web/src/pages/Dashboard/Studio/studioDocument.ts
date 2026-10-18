@@ -4,6 +4,7 @@ import {
   STUDIO_COLUMNS,
   STUDIO_DATE_LIMITS,
   STUDIO_FILTER_LIMITS,
+  StudioConditions,
   StudioDateRange,
   StudioDocumentV1,
   StudioFilter,
@@ -166,11 +167,132 @@ export const studioDateRangeSummary = (dateRange: StudioDateRange | null | undef
  * Strict identity of the whole common scope. Both parts are validated, so a malformed scope throws
  * instead of silently collapsing two different scopes into one key.
  */
-export const studioScopeKey = (filters: StudioFilter[] | undefined, dateRange: StudioDateRange | null | undefined): string =>
+export const studioScopeKey = (
+  filters: StudioFilter[] | undefined,
+  dateRange: StudioDateRange | null | undefined,
+  conditions?: StudioConditions | null,
+): string =>
   JSON.stringify([
     studioFilterKey(validateStudioFilters(filters ?? [])),
     dateRange ? studioDateRangeKey(validateStudioDateRange(dateRange)) : '',
+    studioConditionsKey(conditions),
   ]);
+/** Shape validation only; the server proves the full declaration against append-only catalog history. */
+export function validateConditionSemantics(input: unknown): import('./studioTypes').ConditionSemantics {
+  studioKeys(input, ['schemaVersion', 'catalogVersion', 'columns']);
+  const value = input as import('./studioTypes').ConditionSemantics;
+  studioAssert(
+    value.schemaVersion === 1 &&
+      Number.isSafeInteger(value.catalogVersion) &&
+      value.catalogVersion > 0 &&
+      Array.isArray(value.columns) &&
+      value.columns.length <= 128 &&
+      new TextEncoder().encode(JSON.stringify(value)).length <= 32768,
+    '업무 의미 버전을 확인해 주세요.',
+  );
+  let previous: string | undefined;
+  const names = new Set<string>();
+  for (const column of value.columns) {
+    studioKeys(column, ['column', 'businessType', 'dateFormat']);
+    studioAssert(
+      typeof column.column === 'string' &&
+        !!column.column &&
+        !column.column.includes('\0') &&
+        !names.has(column.column.replace(/[A-Z]/g, letter => letter.toLowerCase())) &&
+        (previous === undefined || previous < column.column) &&
+        ['number', 'category', 'date'].includes(column.businessType) &&
+        (column.businessType === 'date'
+          ? ['native', 'YYYY-MM-DD', 'YYYY/MM/DD', 'YYYYMMDD'].includes(column.dateFormat)
+          : column.dateFormat === ''),
+      '업무 의미의 열·유형·날짜 형식을 확인해 주세요.',
+    );
+    names.add(column.column.replace(/[A-Z]/g, letter => letter.toLowerCase()));
+    previous = column.column;
+  }
+  return studioClone(value);
+}
+/** Shape-only validation. Whole-document prepare proves the immutable file hash and live schema. */
+export function validateStudioConditions(input: unknown): StudioConditions {
+  studioKeys(input, ['sourceRevision', 'definition', 'semantics']);
+  const value = input as StudioConditions;
+  studioAssert(
+    typeof value.sourceRevision === 'string' && /^[a-f0-9]{64}$/.test(value.sourceRevision),
+    '조건 파일 버전을 확인해 주세요.',
+  );
+  if (value.semantics !== undefined) validateConditionSemantics(value.semantics);
+  studioKeys(value.definition, ['include', 'exclude']);
+  let count = 0;
+  const visit = (node: any, depth: number) => {
+    if (node === null) return;
+    count += 1;
+    studioAssert(count <= 32 && record(node), '조건 노드를 확인해 주세요.');
+    if (node.kind === 'group') {
+      studioKeys(node, ['kind', 'operator', 'children']);
+      studioAssert(
+        depth < 4 &&
+          ['and', 'or'].includes(node.operator) &&
+          Array.isArray(node.children) &&
+          node.children.length >= 1 &&
+          node.children.length <= 8,
+        '조건 그룹을 확인해 주세요.',
+      );
+      Array.from(node.children).forEach(child => {
+        studioAssert(child !== null, '빈 조건입니다.');
+        visit(child, depth + 1);
+      });
+    } else {
+      const nullOp = ['isNull', 'isNotNull'].includes(node.operator);
+      studioKeys(node, nullOp ? ['kind', 'column', 'operator'] : ['kind', 'column', 'operator', 'values']);
+      studioAssert(
+        node.kind === 'predicate' &&
+          typeof node.column === 'string' &&
+          !!node.column &&
+          !node.column.includes('\0') &&
+          ['eq', 'ne', 'in', 'notIn', 'contains', 'gt', 'gte', 'lt', 'lte', 'between', 'isNull', 'isNotNull'].includes(
+            node.operator,
+          ),
+        '조건 열·연산자를 확인해 주세요.',
+      );
+      if (!nullOp) {
+        studioAssert(
+          Array.isArray(node.values) &&
+            node.values.length >= 1 &&
+            node.values.length <= 50 &&
+            (['in', 'notIn'].includes(node.operator) || node.values.length === (node.operator === 'between' ? 2 : 1)),
+          '조건 값 개수를 확인해 주세요.',
+        );
+        Array.from(node.values).forEach(v =>
+          studioAssert(
+            typeof v === 'boolean' ||
+              (typeof v === 'string' && v.length <= 2000) ||
+              (typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= Number.MAX_SAFE_INTEGER),
+            '조건 값을 확인해 주세요.',
+          ),
+        );
+      }
+    }
+  };
+  visit(value.definition.include, 0);
+  visit(value.definition.exclude, 0);
+  studioAssert(
+    new TextEncoder().encode(JSON.stringify(value.definition)).length <= 32768,
+    '조건 크기는 32KiB까지 가능합니다.',
+  );
+  return studioClone(value);
+}
+export const studioConditionsKey = (value?: StudioConditions | null): string => {
+  const canonical = (v: any): any =>
+    Array.isArray(v)
+      ? v.map(canonical)
+      : v && typeof v === 'object'
+      ? Object.fromEntries(
+          Object.keys(v)
+            .sort()
+            .map(k => [k, canonical(v[k])]),
+        )
+      : v;
+  return value ? JSON.stringify(canonical(validateStudioConditions(value))) : '';
+};
 /** Structural validation only: source ownership and live reference availability are a server concern. */
 export function validateStudioDocument(input: unknown): StudioDocumentV1 {
   studioKeys(input, [
@@ -181,6 +303,7 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
     'sourceId',
     'filters',
     'dateRange',
+    'conditions',
     'blocks',
     'layouts',
   ]);
@@ -189,6 +312,7 @@ export function validateStudioDocument(input: unknown): StudioDocumentV1 {
   studioPositive(d.sourceId);
   if (d.filters !== undefined) validateStudioFilters(d.filters);
   if (d.dateRange !== undefined) validateStudioDateRange(d.dateRange);
+  if (Object.prototype.hasOwnProperty.call(d, 'conditions')) validateStudioConditions(d.conditions);
   studioText(d.title, 300);
   if (d.dashboardId !== undefined) studioPositive(d.dashboardId);
   if (d.revision !== undefined)
