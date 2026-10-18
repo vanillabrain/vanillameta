@@ -5,10 +5,15 @@ import { afterEach, expect, it, vi } from 'vitest';
 import ArtifactLibrary from './ArtifactLibrary';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/components/BoardItem', () => ({
-  default: ({ data, studioHref, handleDeleteSelect }: any) => (
+  default: ({ data, studioHref, handleDeleteSelect, archiveAction }: any) => (
     <li data-testid="artifact-row">
       <a href={'/dashboard/' + data.id}>{data.title}</a>
       {studioHref && <a href={studioHref}>{data.title} Studio</a>}
+      {archiveAction && (
+        <button disabled={archiveAction.disabled} onClick={archiveAction.onClick}>
+          {data.title} {archiveAction.label}
+        </button>
+      )}
       <button onClick={() => handleDeleteSelect(data.id, data.title)}>{data.title} 삭제</button>
     </li>
   ),
@@ -70,4 +75,60 @@ it('filters analyses and ordinary dashboards without fabricating Studio links', 
   fireEvent.change(screen.getByLabelText('산출물 유형'), { target: { value: 'dashboard' } });
   expect(titles()).toEqual(['Beta 매출']);
   expect(screen.queryByRole('link', { name: /Studio/ })).toBeNull();
+});
+
+it('preserves search/type/sort across library views and exposes optional archive actions only when enabled', () => {
+  const onArchive = vi.fn();
+  const onViewChange = vi.fn();
+  const active = { ...items[0], library: { archived: false, version: 3 } };
+  const archived = { ...active, library: { archived: true, version: 4 } };
+  const props = { onDelete: vi.fn(), onArchive, onViewChange, canArchive: true };
+  const view = render(
+    <MemoryRouter>
+      <ArtifactLibrary {...props} items={[active]} view="active" />
+    </MemoryRouter>,
+  );
+  fireEvent.change(screen.getByLabelText('산출물 제목 검색'), { target: { value: 'Alpha' } });
+  fireEvent.change(screen.getByLabelText('산출물 유형'), { target: { value: 'analysis' } });
+  fireEvent.change(screen.getByLabelText('산출물 정렬'), { target: { value: 'title' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Alpha 매출 보관' }));
+  expect(onArchive).toHaveBeenCalledWith(active);
+  fireEvent.click(screen.getByRole('button', { name: '보관함' }));
+  expect(onViewChange).toHaveBeenCalledWith('archived');
+  view.rerender(
+    <MemoryRouter>
+      <ArtifactLibrary {...props} items={[archived]} view="archived" archiveDisabled />
+    </MemoryRouter>,
+  );
+  expect((screen.getByLabelText('산출물 제목 검색') as HTMLInputElement).value).toBe('Alpha');
+  expect((screen.getByLabelText('산출물 유형') as HTMLSelectElement).value).toBe('analysis');
+  expect((screen.getByLabelText('산출물 정렬') as HTMLSelectElement).value).toBe('title');
+  expect((screen.getByRole('button', { name: 'Alpha 매출 복원' }) as HTMLButtonElement).disabled).toBe(true);
+  view.rerender(
+    <MemoryRouter>
+      <ArtifactLibrary {...props} items={[archived]} view="archived" canArchive={false} />
+    </MemoryRouter>,
+  );
+  expect(screen.queryByRole('button', { name: 'Alpha 매출 복원' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Alpha 매출 Studio' })).toBeTruthy();
+});
+
+it('hides even provided stale rows on query failure while preserving filters and explicit reload', () => {
+  const onReload = vi.fn();
+  const props = { items, onDelete: vi.fn(), onViewChange: vi.fn(), onReload };
+  const view = render(
+    <MemoryRouter>
+      <ArtifactLibrary {...props} />
+    </MemoryRouter>,
+  );
+  fireEvent.change(screen.getByLabelText('산출물 제목 검색'), { target: { value: 'Alpha' } });
+  view.rerender(
+    <MemoryRouter>
+      <ArtifactLibrary {...props} listError />
+    </MemoryRouter>,
+  );
+  expect(screen.queryByTestId('artifact-row')).toBeNull();
+  expect((screen.getByLabelText('산출물 제목 검색') as HTMLInputElement).value).toBe('Alpha');
+  fireEvent.click(screen.getByRole('button', { name: '목록 다시 읽기' }));
+  expect(onReload).toHaveBeenCalledOnce();
 });

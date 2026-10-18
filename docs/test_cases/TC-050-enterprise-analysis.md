@@ -157,3 +157,5 @@
 [설계](../plans/UC-051-groups.md)·[증빙](../testing/dynamic-groups.md)은 E02/E03의 그룹/구성원 CAS·직접/그룹 권한 합산·현재 소속/활성/소스 독립·동일 JWT 회수·게시 소비자·원자 rollback·생성 영수증 재확인을 선택 검증한다. 그룹 전달/알림·영속 파일 소비자·실제 Ego/모바일/MySQL/운영·전체 수용은 별도이며 요건 상태를 승격하지 않는다.
 
 [출력 결과 알림 선택 검증](../testing/export-notifications.md)은 E07/E09/E10의 확정 사건·본인 조직/상태 보존 경계를 다룬다. 전체 TC050 또는 실제 새 UI/운영 수용 통과로 승계하지 않는다.
+
+E11의 개인 보관/복원은 [UC055 계획](../plans/UC-055-library-archive.md), 참조 중 삭제 보호는 [별도 후속 설계](../plans/UC-055-dependency-deletion.md)를 따른다. 개인 보관 상태 저장으로 조직 자산 비활성화·삭제 보호·전체 E11 통과를 대체하지 않는다.

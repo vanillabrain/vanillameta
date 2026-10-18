@@ -13,7 +13,7 @@
 ## Preconditions
 
 - 요청자가 같은 조직의 유효한 업무 계정이며 대상의 현재 권한을 확인할 수 있다.
-- 신규 목표 명세이며 구현·실제 실행 검증은 NOT_RUN이다.
+- 개인 보관/복원은 아래 구현 계획으로 진행하며 자산 삭제/비활성 영향과 전체 수용은 별도다.
 
 ## Main Success Scenario
 
@@ -56,3 +56,7 @@
 ## Source Evidence
 
 [VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)를 따른다. 신규 요구이며 구현/실행 검증은 미완료다.
+
+## Implementation boundaries
+
+[개인 보관/복원](../plans/UC-055-library-archive.md)은 본인의 현재 조직 허용 목록에만 상태를 적용하고 원본/공유/게시/타인 목록을 보존한다. 기존 조직 없는 계정의 탐색은 유지한다. [삭제 보호 후속](../plans/UC-055-dependency-deletion.md)은 현재 사용처/원자 삭제의 공백과 필요한 재검증을 명시한다. 설계·부분 구현·실제 화면/운영·전체 수용은 구별한다.

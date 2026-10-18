@@ -1,3 +1,4 @@
+import { AddPersonalLibraryState1792520000000 } from './migrations/1792520000000-add-personal-library-state';
 import { AddExportJobs1792510000000 } from './migrations/1792510000000-add-export-jobs';
 import { AddNotificationAudience1792500000000 } from './migrations/1792500000000-add-notification-audience';
 import { AddGroupDeliveries1792490000000 } from './migrations/1792490000000-add-group-deliveries';
@@ -80,6 +81,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddPersonalLibraryState1792520000000,
         AddExportJobs1792510000000,
         AddNotificationAudience1792500000000,
         AddGroupDeliveries1792490000000,

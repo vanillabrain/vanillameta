@@ -258,3 +258,7 @@ UC053 direct delivery의 `allowCopy` boolean은 기본 false인 별도 독립 �
 `enterprise_group`은 id PK·organizationId/nameKey unique·name/active/version이다. nameKey는 trim/NFKC/소문자로 정규화한다. `enterprise_group_member`는 groupId/userId PK·userId/groupId index다. `enterprise_group_grant`는 resourceKind/resourceId/groupId PK와 organizationId/ownerId/version·read/edit/publish/export(defaultfalse)를 보관한다. 현재 조직/활성/소유자/그룹/구성원 연결을 매 요청 확인하고 직접 권한과 합산한다. 팀 문자열 이관이나 물리 cascade/User FK는 추가하지 않는다.
 
 `enterprise_group_request`는 actorId/requestId UUID PK·organizationId/payloadHash/groupId다. 생성과 감사에 원자적으로 저장하며 동일 요청 replay는 현재 원래 그룹을 반환한다. 그룹은 삭제 대신 비활성화하고 구성원/정책/감사를 보존한다. 그룹 정책 감사의 subjectId는 그룹ID이며 개인 알림 대상 직원ID로 해석하지 않는다. [설계](plans/UC-051-groups.md)·[검증](testing/dynamic-groups.md)을 따른다.
+
+## UC055 개인 산출물 상태
+
+추가 마이그레이션 `1792520000000-add-personal-library-state`의 `personal_library_state`는 `(userId, organizationId, dashboardId)` 복합 기본키와 archived(boolean), version(integer), updatedAt(datetime)을 저장한다. 원본 Dashboard나 공유/게시 행과 별개인 본인 목록 선호다. 상태 없음은 false/version0이며 실제 조직의 현재 read 권한을 재검사해야 조회·변경할 수 있다. 조직 없는 계정은 상태를 만들지 않고 기존 허용 목록만 탐색한다. 현재 조직과 요청에서 확인한 조직이 다르면 새 상태를 쓰지 않는다. FK/cascade·자산 삭제 정책으로 확대하지 않으며 [계획](plans/UC-055-library-archive.md)과 [증빙](testing/personal-library-archive.md)을 따른다.

@@ -63,3 +63,36 @@ it('keeps ordinary rows free of Studio links and preserves independent rename an
     '/dashboard/modify?id=widget-42&title=Sample dashboard',
   );
 });
+
+it('supports an independent optional archive/restore action without changing links or legacy delete', () => {
+  const onClick = vi.fn();
+  const data = { id: 45, title: 'Analysis', updatedAt: '2026-10-15' };
+  const view = render(
+    <MemoryRouter>
+      <ul>
+        <BoardItem
+          data={data}
+          handleDeleteSelect={remove}
+          studioHref="/dashboard/45/studio"
+          archiveAction={{ label: '보관', onClick }}
+        />
+      </ul>
+    </MemoryRouter>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Analysis · 보관' }));
+  expect(onClick).toHaveBeenCalledOnce();
+  expect(screen.getByText('Analysis').closest('a')?.getAttribute('href')).toBe('/45');
+  expect(screen.getByRole('link', { name: 'Analysis · Studio 열기' })).toBeTruthy();
+  expect(document.querySelector('a button, a a')).toBeNull();
+  view.rerender(
+    <MemoryRouter>
+      <ul>
+        <BoardItem data={data} handleDeleteSelect={remove} archiveAction={{ label: '복원', onClick, disabled: true }} />
+      </ul>
+    </MemoryRouter>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Analysis · 복원' }));
+  expect(onClick).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole('button', { name: 'Analysis · 삭제' }));
+  expect(remove).toHaveBeenCalledWith(45, 'Analysis');
+});

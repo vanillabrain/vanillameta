@@ -2,8 +2,16 @@ import React, { useMemo, useState } from 'react';
 import BoardList from '@/components/BoardList';
 import { TextField } from '@/components/ui/text-field';
 import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
+import { LibraryView } from '@/api/personalLibraryService';
 
-type Artifact = { id: number | string; title?: string; updatedAt?: string; analysisDefinition?: string };
+type Artifact = {
+  id: number | string;
+  title?: string;
+  updatedAt?: string;
+  analysisDefinition?: string;
+  library?: { archived: boolean; version: number };
+};
 const normalized = (value: string) => value.normalize('NFKC').trim().toLocaleLowerCase();
 const time = (value?: string) => {
   const result = value ? Date.parse(value) : NaN;
@@ -14,9 +22,29 @@ const time = (value?: string) => {
 export default function ArtifactLibrary({
   items,
   onDelete,
+  view = 'active',
+  onViewChange,
+  onReload,
+  loading = false,
+  listError = false,
+  canArchive = false,
+  onArchive,
+  archiveDisabled = false,
+  archiveError = '',
+  busy = false,
 }: {
   items: Artifact[];
   onDelete: (id: any, title: any) => void;
+  view?: LibraryView;
+  onViewChange?: (view: LibraryView) => void;
+  onReload?: () => void;
+  loading?: boolean;
+  listError?: boolean;
+  canArchive?: boolean;
+  onArchive?: (item: any) => void;
+  archiveDisabled?: boolean;
+  archiveError?: string;
+  busy?: boolean;
 }) {
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState('all');
@@ -41,6 +69,50 @@ export default function ArtifactLibrary({
       <h2 id="artifact-library-heading" className="mb-3 text-sm font-semibold">
         내 시각화 산출물
       </h2>
+      {onViewChange && (
+        <div className="mb-3 flex min-w-0 flex-wrap gap-2" role="group" aria-label="산출물 보관 보기">
+          <Button
+            size="sm"
+            variant={view === 'active' ? 'default' : 'outline'}
+            aria-pressed={view === 'active'}
+            disabled={busy}
+            onClick={() => onViewChange('active')}
+          >
+            기본 목록
+          </Button>
+          <Button
+            size="sm"
+            variant={view === 'archived' ? 'default' : 'outline'}
+            aria-pressed={view === 'archived'}
+            disabled={busy}
+            onClick={() => onViewChange('archived')}
+          >
+            보관함
+          </Button>
+          {onReload && (
+            <Button size="sm" variant="outline" disabled={busy || loading} onClick={onReload}>
+              목록 다시 읽기
+            </Button>
+          )}
+        </div>
+      )}
+      {onViewChange && (
+        <p className="mb-3 break-words text-sm text-muted-foreground">
+          보관은 내 목록만 바꿉니다. 원본·공유·게시·다른 사람의 목록은 유지됩니다.
+        </p>
+      )}
+      {listError && <Notice severity="error">목록을 확인하지 못했습니다. 목록을 다시 읽어 주세요.</Notice>}
+      {archiveError && <Notice severity="error">{archiveError}</Notice>}
+      {loading && (
+        <p role="status" className="text-sm">
+          목록을 읽고 있습니다…
+        </p>
+      )}
+      {busy && (
+        <p role="status" className="text-sm">
+          보관·복원 처리 중…
+        </p>
+      )}
       <div className="grid min-w-0 grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_10rem_auto]">
         <TextField
           type="search"
@@ -71,18 +143,29 @@ export default function ArtifactLibrary({
       <p role="status" className="mt-3 text-xs text-muted-foreground">
         전체 {items.length}개 중 {results.length}개
       </p>
-      {results.length ? (
-        <BoardList
-          key={JSON.stringify([query, kind, sort, results.length])}
-          postList={results}
-          handleDeleteSelect={onDelete}
-          studioHrefForItem={item => (item.analysisDefinition ? `/dashboard/${item.id}/studio` : undefined)}
-        />
-      ) : (
-        <p className="mt-4 rounded-lg border border-border p-6 text-sm text-muted-foreground">
-          조건에 맞는 산출물이 없습니다. 검색어나 유형을 바꾸거나 검색 조건을 초기화해 주세요.
-        </p>
-      )}
+      {!loading &&
+        !listError &&
+        (results.length ? (
+          <BoardList
+            key={JSON.stringify([view, query, kind, sort, results.length])}
+            postList={results}
+            handleDeleteSelect={onDelete}
+            archiveActionForItem={
+              canArchive && onArchive
+                ? item => ({
+                    label: item.library?.archived ? '복원' : '보관',
+                    disabled: archiveDisabled || !item.library,
+                    onClick: () => onArchive(item),
+                  })
+                : undefined
+            }
+            studioHrefForItem={item => (item.analysisDefinition ? `/dashboard/${item.id}/studio` : undefined)}
+          />
+        ) : (
+          <p className="mt-4 rounded-lg border border-border p-6 text-sm text-muted-foreground">
+            조건에 맞는 산출물이 없습니다. 검색어나 유형을 바꾸거나 검색 조건을 초기화해 주세요.
+          </p>
+        ))}
     </section>
   );
 }

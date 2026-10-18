@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC055 개인 보관:** [계획](docs/plans/UC-055-library-archive.md)·[증빙](docs/testing/personal-library-archive.md)은 본인/현재 조직의 목록 보관·복원을 원본/공유/게시와 분리한다. 읽은 계정/조직·개인 버전·현재 read/JWT epoch를 검사하고 조직 없는 기존 탐색을 보존한다. [삭제 보호 후속](docs/plans/UC-055-dependency-deletion.md)·실제 UI/모바일/MySQL/운영·전체16개 수용은 별도다.
+
 - **UC054 출력 알림:** [계획](docs/plans/UC-054-export-notifications.md)·[증빙](docs/testing/export-notifications.md)은 확정 export 완료/실패/취소의 본인/현재 조직 투영과 기존 읽음/제거를 연결한다. 과거 사건이며 파일 접근권 증명이 아니고 알림 장애/제거는 파일을 바꾸지 않는다. 외부 발송·실제 Ego/모바일/MySQL/운영·전체16개 수용은 별도다.
 
 - **UC054 영속 집계 export:** [계획](docs/plans/UC-054-export-jobs.md)·[증빙](docs/testing/export-jobs.md)은 고정 조건/버전의 UUID 접수→CSV 만들기→조회/취소/파일을 연결한다. SQL 없는 접수 검증·현재 권한/JWT epoch·CAS/lease·원자 파일과 감사 경계를 따른다. 만료 중 실행은 완료하지 않으며 응답 유실은 동일 요청을 확인한다. 전체 비교 리포트·완료 알림·보관 정리·실제 Ego/모바일/MySQL/운영 및 전체16개 수용은 후속이다.
