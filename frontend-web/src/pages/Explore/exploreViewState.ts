@@ -1,3 +1,5 @@
+import type { StudioConditions } from '@/pages/Dashboard/Studio/studioTypes';
+import { exploreConditions } from './exploreBasis';
 import { validTimeZone } from '@/pages/Dashboard/Components/timeSelection';
 
 export type ExploreFilter =
@@ -8,6 +10,7 @@ export type ExploreDateRange = { column: string; start: string; end: string; tim
 export type PivotAxes = { rowDimensions: string[]; columnDimensions: string[] };
 export type ExploreViewState = {
   version: 1;
+  conditions?: StudioConditions;
   mode?: 'explore' | 'pivot';
   pivot?: PivotAxes;
   measureIds: number[];
@@ -22,6 +25,7 @@ export type ExploreViewState = {
   includeRows: boolean;
 };
 type ViewCatalog = {
+  sourceRevision?: string;
   measures: Array<{ id: number }>;
   dimensions: Array<{ column: string; numeric?: boolean }>;
   temporalColumns: Array<{ column: string }>;
@@ -45,6 +49,7 @@ export function parseExploreViewState(value: unknown, catalog?: ViewCatalog): Ex
   const state = value as ExploreViewState;
   object(state, [
     'version',
+    'conditions',
     'mode',
     'pivot',
     'measureIds',
@@ -138,6 +143,7 @@ export function parseExploreViewState(value: unknown, catalog?: ViewCatalog): Ex
         invalid();
     }
   }
+  if (state.conditions !== undefined) exploreConditions(state.conditions, catalog?.sourceRevision);
   if (state.mode !== undefined && !['explore', 'pivot'].includes(state.mode)) invalid();
   if (state.mode === 'pivot') {
     object(state.pivot, ['rowDimensions', 'columnDimensions']);

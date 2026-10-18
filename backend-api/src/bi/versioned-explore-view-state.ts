@@ -1,4 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
+import { StudioConditions } from '../dashboard-studio/studio-contract';
+import { parseExploreViewConditions } from './explore-view-state';
 import {
   DashboardDateRange,
   dateRangeBounds,
@@ -78,6 +80,7 @@ export type ExplorePivotV4 = ExplorePivot & {
 export type ExplorePivotV5 = ExplorePivotV4 & { tableMode: 'nest' | 'flat' };
 /** Fields every state version shares. */
 type ExploreViewStateBase = {
+  conditions?: StudioConditions;
   timeZone: string;
   measureIds: number[];
   dimensionColumns: string[];
@@ -128,6 +131,7 @@ const ROW_SORT_FIELDS_V4 = ['label', 'value', 'delta', 'percentChange'];
 const TABLE_MODES = ['nest', 'flat'];
 const TIME_AXIS_FIELDS = ['column', 'grain', 'timeZone'];
 const STATE_FIELDS = [
+  'conditions',
   'version',
   'timeZone',
   'measureIds',
@@ -475,6 +479,9 @@ export function validateExploreViewState(input: any): ExploreViewState {
     trendGrain: input.trendGrain,
     comparePrevious: input.comparePrevious,
     includeRows: input.includeRows,
+    ...(input.conditions === undefined
+      ? {}
+      : { conditions: parseExploreViewConditions(input.conditions) }),
   };
   if (version === 2) state.pivot = pivot(input.pivot);
   if (version === 3) state.pivot = pivotV3(input.pivot, ids);

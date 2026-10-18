@@ -266,6 +266,24 @@ describe('UC054 durable aggregate export with actual SQLite DuckDB JWT', () => {
     });
     expect(spy).not.toHaveBeenCalled();
   });
+  it.each(['explore', 'pivot'] as const)(
+    'validates nested/top-level %s metric pins before creating a job',
+    async mode => {
+      const bad = input(mode);
+      Object.assign(bad.payload.query, { expectedMeasureVersions: { '1': 2 } });
+      await expect(jobs.create(bad, 7)).rejects.toMatchObject({ status: 400 });
+      expect(await db.manager.count(ExportJob)).toBe(0);
+      const good = input(mode);
+      Object.assign(good.payload.query, { expectedMeasureVersions: { '1': 1 } });
+      const job = await jobs.create(good, 7);
+      expect(job.measureVersions).toEqual({ '1': 1 });
+      expect(
+        JSON.parse((await db.manager.findOneByOrFail(ExportJob, { id: job.id })).requestJson)
+          .payload.query.expectedMeasureVersions,
+      ).toEqual({ '1': 1 });
+    },
+  );
+
   it('rejects malformed fixed requests before job quota, audit or aggregate execution', async () => {
     const spy = jest.spyOn(explore, 'exportCsv');
     const cases = [

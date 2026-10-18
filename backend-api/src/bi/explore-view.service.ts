@@ -13,7 +13,8 @@ import { serializedViewWrite } from '../dashboard/view-write-queue';
 import { metadataTransaction } from '../common/metadata-work';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { BiExploreService } from './bi-explore.service';
-import { validateExploreViewState } from './explore-view-state';
+import { parseExploreViewConditions, validateExploreViewState } from './explore-view-state';
+import { ConnectionService } from '../connection/connection.service';
 
 @Injectable()
 export class ExploreViewService {
@@ -21,16 +22,20 @@ export class ExploreViewService {
     @InjectRepository(PersonalView) private readonly views: Repository<PersonalView>,
     private readonly access: SourceAccessService,
     private readonly explore: BiExploreService,
+    private readonly connection: ConnectionService,
   ) {}
   private success(data: any) {
     return { status: 'SUCCESS', data };
   }
   private publicView(row: PersonalView) {
+    const state = JSON.parse(row.state);
+    if (state.conditions !== undefined)
+      state.conditions = parseExploreViewConditions(state.conditions);
     return {
       id: row.id,
       name: row.name,
       revision: row.revision,
-      state: JSON.parse(row.state),
+      state,
       createdAt: row.createdAt,
     };
   }
@@ -50,6 +55,18 @@ export class ExploreViewService {
     return this.success(rows.map(row => this.publicView(row)));
   }
   async create(source: unknown, actor: number, body: any) {
+    const sourceId = this.access.id(source);
+    await this.access.assert('database', sourceId, actor, 'read');
+    if (body?.state?.conditions === undefined) return this.createSnapshot(sourceId, actor, body);
+    const snapshot = await this.connection.captureDuckDBSnapshot(sourceId);
+    return snapshot.run(() => this.createSnapshot(sourceId, actor, body));
+  }
+  private async assertConditionsFile(sourceId: number, expected: string) {
+    const current = await this.connection.captureDuckDBSnapshot(sourceId);
+    if ((await current.run(() => this.connection.duckDBVersion(sourceId))) !== expected)
+      this.conflict();
+  }
+  private async createSnapshot(source: unknown, actor: number, body: any) {
     const sourceId = this.access.id(source);
     await this.access.assert('database', sourceId, actor, 'read');
     if (
@@ -75,6 +92,8 @@ export class ExploreViewService {
         if (!sourceBefore || sourceRow.connectionConfig !== sourceBefore.connectionConfig)
           this.conflict();
         await this.access.assert('database', sourceId, actor, 'read', manager);
+        if (state.conditions)
+          await this.assertConditionsFile(sourceId, state.conditions.sourceRevision);
         for (const [id, metric] of metrics) {
           const expected = catalog.measures.find(measure => measure.id === id);
           if (!expected || JSON.stringify(expected.definition) !== metric.definition)
@@ -105,11 +124,31 @@ export class ExploreViewService {
     await this.access.assert('database', sourceId, actor, 'read');
     const row = await this.views.findOne({ where: { id: viewId, sourceId, userId: actor } });
     if (!row) throw new NotFoundException('탐색 저장 보기를 찾을 수 없습니다.');
-    const catalog = await this.explore.catalog({ sourceId }, actor);
-    if (row.revision !== catalog.viewRevision) this.conflict();
-    const state = validateExploreViewState(JSON.parse(row.state), catalog);
-    await this.access.assert('database', sourceId, actor, 'read');
-    return this.success({ ...this.publicView(row), state, resolvedDateRange: state.dateRange });
+    let stored;
+    try {
+      stored = JSON.parse(row.state);
+    } catch {
+      this.conflict();
+    }
+    const restore = async () => {
+      const catalog = await this.explore.catalog({ sourceId }, actor);
+      if (row.revision !== catalog.viewRevision) this.conflict();
+      let state;
+      try {
+        state = validateExploreViewState(stored, catalog);
+      } catch {
+        throw new ConflictException(
+          '저장 조건의 파일·열 기준이 변경되었습니다. 현재 분석을 유지하고 다시 확인해 주세요.',
+        );
+      }
+      await this.access.assert('database', sourceId, actor, 'read');
+      if (state.conditions)
+        await this.assertConditionsFile(sourceId, state.conditions.sourceRevision);
+      return this.success({ ...this.publicView(row), state, resolvedDateRange: state.dateRange });
+    };
+    if (stored.conditions === undefined) return restore();
+    const snapshot = await this.connection.captureDuckDBSnapshot(sourceId);
+    return snapshot.run(restore);
   }
   async remove(source: unknown, view: unknown, actor: number) {
     const sourceId = this.access.id(source),

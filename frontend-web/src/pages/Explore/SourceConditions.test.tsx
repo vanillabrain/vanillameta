@@ -1,7 +1,7 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, act } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import SourceConditions, { compile, Node } from './SourceConditions';
+import SourceConditions, { compile, Node, readPreview } from './SourceConditions';
 import { post } from '@/helpers/apiHelper';
 vi.mock('@/helpers/apiHelper', () => ({ post: vi.fn() }));
 afterEach(cleanup);
@@ -26,6 +26,12 @@ const response = (data: unknown) => ({
   statusText: 'OK',
   headers: {},
   config: {},
+});
+const analysisFileRevision = 'f'.repeat(64);
+const analysisPreview = (draft: any) => ({
+  draft,
+  population,
+  analysisConditions: { sourceRevision: analysisFileRevision, definition: draft.definition },
 });
 const population = { total: '100', matched: '80', excluded: '10', remaining: '70', matchedRatio: 0.8, remainingRatio: 0.7 };
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
@@ -598,4 +604,173 @@ it('UC052 read grant can explicitly profile current unsaved condition without sa
   change('포함 값 1', 'B');
   expect(screen.queryByText(/현재 범위 전체 2행/)).toBeNull();
   expect(post).toHaveBeenCalledTimes(2);
+});
+
+it('keeps local apply optional and never invokes it during read, preview or source save', async () => {
+  const onApply = vi.fn();
+  const first = render(<SourceConditions sourceId={3} />);
+  await open();
+  expect(screen.queryByRole('button', { name: '이 분석에 조건 적용' })).toBeNull();
+  first.unmount();
+  render(<SourceConditions sourceId={3} onApply={onApply} />);
+  await open();
+  expect((screen.getByRole('button', { name: '이 분석에 조건 적용' }) as HTMLButtonElement).disabled).toBe(true);
+  vi.mocked(post).mockImplementationOnce(async (_url, draft) => response(analysisPreview(draft)));
+  click('건수 미리보기');
+  await screen.findByText('최종 70건 · 전체 대비 70%');
+  expect(onApply).not.toHaveBeenCalled();
+  vi.mocked(post).mockResolvedValueOnce(response({ ...initial, version: 1 }));
+  click('확인한 조건 저장');
+  await screen.findByText('조건을 저장했습니다.');
+  expect(onApply).not.toHaveBeenCalled();
+  expect((screen.getByRole('button', { name: '이 분석에 조건 적용' }) as HTMLButtonElement).disabled).toBe(true);
+});
+it('retains legacy preview/save without enabling apply when analysisConditions is absent', async () => {
+  const onApply = vi.fn();
+  render(<SourceConditions sourceId={3} onApply={onApply} />);
+  await open();
+  vi.mocked(post).mockImplementationOnce(async (_url, draft) => response({ draft, population }));
+  click('건수 미리보기');
+  await screen.findByText('최종 70건 · 전체 대비 70%');
+  expect((screen.getByRole('button', { name: '이 분석에 조건 적용' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '확인한 조건 저장' }) as HTMLButtonElement).disabled).toBe(false);
+  click('이 분석에 조건 적용');
+  expect(onApply).not.toHaveBeenCalled();
+  vi.mocked(post).mockResolvedValueOnce(response({ ...initial, version: 1 }));
+  click('확인한 조건 저장');
+  await screen.findByText('조건을 저장했습니다.');
+});
+it.each([
+  null,
+  { sourceRevision: 'r1', definition: initial.definition },
+  {
+    sourceRevision: analysisFileRevision,
+    definition: { include: { kind: 'predicate', column: 'amount', operator: 'eq', values: [99] }, exclude: null },
+  },
+  { sourceRevision: analysisFileRevision, definition: initial.definition, sql: 'SELECT private' },
+])('rejects malformed or mismatched server analysisConditions (%j)', analysisConditions => {
+  const draft = { sourceId: 3, sourceRevision: 'r1', version: 0, definition: initial.definition };
+  expect(() => readPreview({ draft, population, analysisConditions } as any, draft)).toThrow();
+});
+it('allows a reader to apply only the validated native preview snapshot without a source save', async () => {
+  const onApply = vi.fn();
+  render(<SourceConditions sourceId={3} canEdit={false} onApply={onApply} />);
+  await open();
+  click('포함 조건 추가');
+  change('포함 값 1', '01.50');
+  vi.mocked(post).mockImplementationOnce(async (_url, draft) => response(analysisPreview(draft)));
+  click('건수 미리보기');
+  await screen.findByText('최종 70건 · 전체 대비 70%');
+  const calls = vi.mocked(post).mock.calls.length;
+  click('이 분석에 조건 적용');
+  expect(onApply).toHaveBeenCalledExactlyOnceWith({
+    sourceRevision: analysisFileRevision,
+    definition: { include: { kind: 'predicate', column: 'amount', operator: 'eq', values: [1.5] }, exclude: null },
+  });
+  expect(post).toHaveBeenCalledTimes(calls);
+  expect((screen.getByRole('button', { name: '확인한 조건 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByRole('button', { name: '이 분석에 조건 적용' }).dataset.size).toBe('default');
+  expect(screen.getByText(/소스 조건 미리보기는 전체 소스 · 전체 기간 · UTC 기준/)).toBeTruthy();
+  expect(screen.getByText(/현재 분석의 기간·필터·시간대 범위/)).toBeTruthy();
+});
+it('invalidates application immediately on edit even if the original value is restored', async () => {
+  const onApply = vi.fn();
+  render(<SourceConditions sourceId={3} onApply={onApply} />);
+  await open();
+  click('포함 조건 추가');
+  change('포함 값 1', '7');
+  vi.mocked(post).mockImplementationOnce(async (_url, draft) => response(analysisPreview(draft)));
+  click('건수 미리보기');
+  await screen.findByText('최종 70건 · 전체 대비 70%');
+  change('포함 값 1', '8');
+  change('포함 값 1', '7');
+  click('이 분석에 조건 적용');
+  expect(onApply).not.toHaveBeenCalled();
+  expect((screen.getByRole('button', { name: '이 분석에 조건 적용' }) as HTMLButtonElement).disabled).toBe(true);
+});
+it.each(['read', 'preview'])(
+  'invalidates the old snapshot as soon as a new %s starts, including failed responses',
+  async action => {
+    const onApply = vi.fn();
+    render(<SourceConditions sourceId={3} onApply={onApply} />);
+    await open();
+    vi.mocked(post).mockImplementationOnce(async (_url, draft) => response(analysisPreview(draft)));
+    click('건수 미리보기');
+    await screen.findByText('최종 70건 · 전체 대비 70%');
+    let reject!: (reason: any) => void;
+    vi.mocked(post).mockImplementationOnce(
+      () =>
+        new Promise((_resolve, fail) => {
+          reject = fail;
+        }),
+    );
+    click(action === 'read' ? '최신 조건 다시 읽기' : '건수 미리보기');
+    expect(screen.queryByText('최종 70건 · 전체 대비 70%')).toBeNull();
+    click('이 분석에 조건 적용');
+    expect(onApply).not.toHaveBeenCalled();
+    await act(async () => reject(new Error('offline')));
+    await screen.findByRole('alert');
+    expect((screen.getByRole('button', { name: '이 분석에 조건 적용' }) as HTMLButtonElement).disabled).toBe(true);
+  },
+);
+it('cannot restore an old preview after input changes while its response is late', async () => {
+  const onApply = vi.fn();
+  render(<SourceConditions sourceId={3} onApply={onApply} />);
+  await open();
+  click('포함 조건 추가');
+  change('포함 값 1', '7');
+  let resolve!: (value: any) => void;
+  let original: any;
+  vi.mocked(post).mockImplementationOnce((_url, draft) => {
+    original = draft;
+    return new Promise(done => {
+      resolve = done;
+    });
+  });
+  click('건수 미리보기');
+  // Model a queued input event; a retired request must not reinstate its earlier validated snapshot.
+  change('포함 값 1', '8');
+  await act(async () => resolve(response(analysisPreview(original))));
+  expect(screen.queryByText('최종 70건 · 전체 대비 70%')).toBeNull();
+  expect((screen.getByRole('button', { name: '이 분석에 조건 적용' }) as HTMLButtonElement).disabled).toBe(true);
+  click('이 분석에 조건 적용');
+  expect(onApply).not.toHaveBeenCalled();
+  expect((screen.getByLabelText('포함 값 1') as HTMLInputElement).value).toBe('8');
+});
+it('never applies a mismatched preview or a preview retired by a source switch', async () => {
+  const onApply = vi.fn();
+  const view = render(<SourceConditions sourceId={3} onApply={onApply} />);
+  await open();
+  vi.mocked(post).mockImplementationOnce(async (_url, draft: any) =>
+    response({ draft: { ...draft, sourceRevision: 'wrong' }, population }),
+  );
+  click('건수 미리보기');
+  await screen.findByRole('alert');
+  click('이 분석에 조건 적용');
+  expect(onApply).not.toHaveBeenCalled();
+  vi.mocked(post).mockImplementationOnce(async (_url, draft) => response(analysisPreview(draft)));
+  click('건수 미리보기');
+  await screen.findByText('최종 70건 · 전체 대비 70%');
+  view.rerender(<SourceConditions sourceId={4} onApply={onApply} />);
+  expect(screen.queryByRole('button', { name: '이 분석에 조건 적용' })).toBeNull();
+  expect(onApply).not.toHaveBeenCalled();
+});
+it('provides an independent definition clone so a consumer cannot mutate the validated save basis', async () => {
+  const onApply = vi.fn((snapshot: any) => {
+    snapshot.definition.include.values[0] = 999;
+  });
+  render(<SourceConditions sourceId={3} onApply={onApply} />);
+  await open();
+  click('포함 조건 추가');
+  change('포함 값 1', '7');
+  vi.mocked(post).mockImplementationOnce(async (_url, draft) => response(analysisPreview(draft)));
+  click('건수 미리보기');
+  await screen.findByText('최종 70건 · 전체 대비 70%');
+  const previewDraft = vi.mocked(post).mock.calls[1][1] as any;
+  click('이 분석에 조건 적용');
+  expect(previewDraft.definition.include.values).toEqual([7]);
+  vi.mocked(post).mockResolvedValueOnce(response({ ...initial, version: 1, definition: previewDraft.definition }));
+  click('확인한 조건 저장');
+  await screen.findByText('조건을 저장했습니다.');
+  expect(post).toHaveBeenLastCalledWith('/bi/source-conditions/save', previewDraft);
 });

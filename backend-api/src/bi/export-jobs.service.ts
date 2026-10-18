@@ -159,6 +159,12 @@ export class ExportJobsService {
     exact(frozen.measureVersions, q.measureIds.map(String));
     if (Object.values(frozen.measureVersions).some(v => !positive(v)))
       throw new BadRequestException('지표 버전을 확인해 주세요.');
+    if (
+      q.expectedMeasureVersions !== undefined &&
+      (Object.keys(q.expectedMeasureVersions).length !== q.measureIds.length ||
+        q.measureIds.some(id => q.expectedMeasureVersions[id] !== frozen.measureVersions[id]))
+    )
+      throw new BadRequestException('중첩 지표 버전과 작업의 고정 버전이 다릅니다.');
     return { value: frozen, json, digest: hash(json) };
   }
   private async lockReferences(m: EntityManager, sourceId: number, payload: any, versions: any) {

@@ -278,3 +278,7 @@ UC053 direct delivery의 `allowCopy` boolean은 기본 false인 별도 독립 �
 ### Dashboard lifecycle (UC055)
 
 Dashboard.assetActive(boolean defaulttrue), assetVersion(integer default0)는 조직 자산의 일반 이용 상태다. delYn/개인 보관 상태/소스 catalogActive/게시 version과 별도다. `dashboard_lifecycle_receipt`는 generated id, actorId/requestId unique, organizationId/dashboardId/payloadDigest/active/version/createdAt을 저장한다. 요청 재확인이 현재 상태를 덮지 않으며 FK/cascade로 기존 자원을 삭제하지 않는다. 상태 CAS·영수증·조직 감사 dashboard.activate/deactivate는 한 transaction이다. 감사 resourceId는 실제 dashboardId, version은 상태 버전이다. [계획](plans/UC-055-dashboard-lifecycle.md)·[실행 범위](testing/dashboard-asset-lifecycle.md)를 따른다.
+
+### Applied Explore condition and measure basis (UC052/054)
+
+[설계](plans/UC-052-explore-basis.md)의 적용 조건은 기존 PersonalView/ExploreView state JSON에 선택적으로 보관하는 StudioConditions(sourceRevision, definition)다. 별도 테이블·조건 metadata 저장/동기화는 없다. 기존 version1~5 보기와 조건 없는 상태를 유지하고 복구 시 현재 파일/schema를 검증한다. 조회의 measureVersions는 실제 사용한 지표 정의 version 집합이며 출력의 expectedMeasureVersions와 대조한다. sourceRevision과 지표 버전·source 조건 metadata version은 서로 대체하지 않는다.

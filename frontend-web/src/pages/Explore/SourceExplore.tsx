@@ -1,6 +1,6 @@
 import SourceCatalogEditor from './SourceCatalogEditor';
 import SourceConditions from './SourceConditions';
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { get, post } from '@/helpers/apiHelper';
@@ -31,6 +31,9 @@ import { pivotRequestKey } from './pivotCsv';
 import MetricTrend, { FormattedMetricTrendData } from '@/pages/Dashboard/Components/MetricTrend';
 import { formatMetric, metricNumericText, NumberNotation } from '@/utils/formatMetric';
 import type { MetricComparisonData } from '@/pages/Dashboard/Components/PeriodComparison';
+
+import type { StudioConditions } from '@/pages/Dashboard/Studio/studioTypes';
+import { exploreConditions, responseMeasureVersions } from './exploreBasis';
 
 const PAGE_SIZE = 20;
 const MAX_MEASURES = 6;
@@ -87,6 +90,7 @@ type LeaderboardRow = {
 type Leaderboard = { column: string; rows: LeaderboardRow[]; truncated?: boolean };
 type ExploreDetails = { rows: Record<string, unknown>[]; totalRows: number | string; page?: number; pageSize?: number };
 type QueryResult = {
+  measureVersions?: Record<string, number>;
   sourceRevision: string;
   kpis?: Kpi[];
   leaderboards?: Leaderboard[];
@@ -152,6 +156,8 @@ function FilterValueSelect({
   filters,
   dateRange,
   selected,
+  conditions,
+  blocked,
   onToggle,
   onConflict,
 }: {
@@ -162,6 +168,8 @@ function FilterValueSelect({
   filters: ExploreFilter[];
   dateRange?: ExploreDateRange;
   selected: FilterValue[];
+  conditions?: StudioConditions;
+  blocked: boolean;
   onToggle: (value: FilterValue) => void;
   onConflict: () => void;
 }) {
@@ -174,11 +182,24 @@ function FilterValueSelect({
     revision.current += 1;
     const token = revision.current;
     const abort = new AbortController();
+    if (blocked) {
+      setValues([]);
+      setBusy(false);
+      return () => abort.abort();
+    }
     setBusy(true);
     setError('');
     post(
       '/bi/explore/values',
-      { sourceId, sourceRevision, column, search, filters, ...(dateRange ? { dateRange } : {}) },
+      {
+        sourceId,
+        sourceRevision,
+        column,
+        search,
+        filters,
+        ...(conditions ? { conditions } : {}),
+        ...(dateRange ? { dateRange } : {}),
+      },
       { signal: abort.signal },
     )
       .then(response => unwrap<{ values?: FilterValue[]; truncated?: boolean; sourceRevision?: string }>(response))
@@ -202,7 +223,7 @@ function FilterValueSelect({
       revision.current += 1;
       abort.abort();
     };
-  }, [sourceId, sourceRevision, column, search, filters, dateRange, onConflict]);
+  }, [sourceId, sourceRevision, column, search, filters, dateRange, conditions, blocked, onConflict]);
   return (
     <div
       role="group"
@@ -338,6 +359,9 @@ function SourceExploreContent() {
   const [measureIds, setMeasureIds] = useState<number[]>([]);
   const [dimensions, setDimensions] = useState<string[]>([]);
   const [rankingMeasureId, setRankingMeasureId] = useState<number | null>(null);
+  const [conditions, setConditions] = useState<StudioConditions>();
+  const [conditionError, setConditionError] = useState('');
+  const [screenBasis, setScreenBasis] = useState<{ key: string; versions: Record<string, number> } | null>(null);
   const [filters, setFilters] = useState<ExploreFilter[]>([]);
   const [leaderboardSort, setLeaderboardSort] = useState<LeaderboardSort>(DEFAULT_SORT);
   const [filterMode, setFilterMode] = useState<'values' | 'range'>('values');
@@ -371,6 +395,8 @@ function SourceExploreContent() {
   const queryRevision = useRef(0);
   const queryAbort = useRef<AbortController | null>(null);
   const catalogRevision = useRef(0);
+  const requestedSource = useRef('');
+  const initializedSource = useRef('');
 
   useEffect(() => {
     const abort = new AbortController();
@@ -390,7 +416,53 @@ function SourceExploreContent() {
   const rangeBackwards = dateMode === 'custom' && !!startDate && !!endDate && startDate > endDate;
   const rangePaused = rangeIncomplete || rangeBackwards;
 
+  const conditionMismatch = !!conditions && !!catalog && conditions.sourceRevision !== catalog.sourceRevision;
+  const analysisKey = JSON.stringify([
+    sourceId,
+    catalog?.sourceRevision,
+    mode,
+    measureIds,
+    dimensions,
+    rankingMeasureId,
+    leaderboardSort,
+    filters,
+    dateRange,
+    grain,
+    comparePrevious,
+    conditions,
+    advancedAxes.rowColumns,
+    advancedAxes.columnColumns,
+    advancedAxes.rowHierarchy,
+    advancedAxes.rowSort,
+    advancedAxes.timeAxis,
+    advancedAxes.tableMode,
+    page,
+    includeRows,
+    queryReload,
+  ]);
+  const actualVersions = screenBasis?.key === analysisKey ? screenBasis.versions : undefined;
+  const handleAdvancedReady = useCallback(
+    (ready: boolean, versions?: Record<string, number>) => {
+      setAdvancedReady(ready);
+      setScreenBasis(ready && versions ? { key: analysisKey, versions } : null);
+    },
+    [analysisKey],
+  );
+  const applyConditions = (value: StudioConditions) => {
+    try {
+      const next = exploreConditions(value, catalog?.sourceRevision);
+      setConditions(next);
+      setConditionError('');
+      setPage(0);
+    } catch (error) {
+      setConditionError((error as Error).message);
+    }
+  };
+
   const resetAllState = () => {
+    setConditions(undefined);
+    setConditionError('');
+    setScreenBasis(null);
     setMode('explore');
     setPivotAxes({ rowDimensions: [], columnDimensions: [] });
     setAdvancedAxes({ rowColumns: [], columnColumns: [] });
@@ -430,6 +502,8 @@ function SourceExploreContent() {
       setCatalogForbidden(false);
       setCatalogBusy(false);
       resetAllState();
+      requestedSource.current = '';
+      initializedSource.current = '';
       return undefined;
     }
     catalogRevision.current += 1;
@@ -439,12 +513,18 @@ function SourceExploreContent() {
     setCatalogError('');
     setCatalogForbidden(false);
     setCatalogBusy(true);
-    resetAllState();
+    if (requestedSource.current !== sourceId) {
+      resetAllState();
+      initializedSource.current = '';
+      requestedSource.current = sourceId;
+    }
     post('/bi/explore/catalog', { sourceId: Number(sourceId) }, { signal: abort.signal })
       .then(unwrap<Catalog>)
       .then(data => {
         if (catalogRevision.current !== token) return;
         setCatalog(data);
+        if (initializedSource.current === sourceId) return;
+        initializedSource.current = sourceId;
         const pivotFields = data.dimensions.filter(d => !d.temporal);
         setPivotAxes({
           rowDimensions: [pivotFields.find(d => d.column === 'device_type')?.column ?? pivotFields[0]?.column].filter(
@@ -481,7 +561,7 @@ function SourceExploreContent() {
   }, [sourceId, catalogReload]);
 
   useEffect(() => {
-    if (mode !== 'explore' || !catalog || !sourceId || measureIds.length === 0 || rangePaused) {
+    if (mode !== 'explore' || !catalog || !sourceId || measureIds.length === 0 || rangePaused || conditionMismatch) {
       setResult(null);
       setQueryBusy(false);
       setQueryError('');
@@ -501,6 +581,7 @@ function SourceExploreContent() {
       sourceId: catalog.sourceId,
       sourceRevision: catalog.sourceRevision,
       measureIds,
+      ...(conditions ? { conditions } : {}),
       dimensionColumns: dimensions,
       rankingMeasureId: rankingMeasureId ?? measureIds[0],
       filters,
@@ -521,6 +602,8 @@ function SourceExploreContent() {
           return;
         }
         setResult(data);
+        const versions = responseMeasureVersions(data.measureVersions, measureIds);
+        setScreenBasis(versions ? { key: analysisKey, versions } : null);
       })
       .catch(err => {
         if (queryRevision.current !== token || isAborted(err)) return;
@@ -551,6 +634,8 @@ function SourceExploreContent() {
     page,
     includeRows,
     queryReload,
+    conditions,
+    conditionMismatch,
     rangePaused,
     mode,
   ]);
@@ -707,6 +792,7 @@ function SourceExploreContent() {
 
   const viewState: ExploreViewState = {
     version: 1,
+    ...(conditions ? { conditions } : {}),
     ...(mode === 'pivot' ? { mode, pivot: pivotAxes } : {}),
     measureIds,
     dimensionColumns: dimensions,
@@ -721,6 +807,8 @@ function SourceExploreContent() {
   };
   const applySavedView = (value: ExploreViewState) => {
     const next = parseExploreViewState(value, catalog);
+    setConditions(next.conditions);
+    setConditionError('');
     setMode(next.mode ?? 'explore');
     if (next.pivot) setPivotAxes(next.pivot);
     setMeasureIds(next.measureIds);
@@ -745,10 +833,7 @@ function SourceExploreContent() {
     setSettingsOpen(false);
   };
 
-  const versionsKnown = measureIds.every(id => {
-    const version = catalog?.measures.find(measure => measure.id === id)?.definitionVersion;
-    return Number.isSafeInteger(version) && Number(version) > 0;
-  });
+  const versionsKnown = !!actualVersions;
   // The advanced Pivot and the versioned saved views share one normalized order: a stale measure, a
   // change order without a compared period or a cell scope the axes no longer bound all fall back.
   const advancedSort = normalizePivotSort(advancedAxes.rowSort, {
@@ -783,6 +868,7 @@ function SourceExploreContent() {
   // schema below carries the advanced Pivot for the POST /bi/explore/views/* compatibility API.
   const versionedViewState: VersionedExploreViewState = {
     version: versionedVersion,
+    ...(conditions ? { conditions } : {}),
     ...(versionedVersion >= 2
       ? {
           pivot: {
@@ -816,6 +902,10 @@ function SourceExploreContent() {
     includeRows,
   };
   const restoreVersionedView = (state: VersionedExploreViewState) => {
+    const restoredConditions =
+      state.conditions === undefined ? undefined : exploreConditions(state.conditions, catalog?.sourceRevision);
+    setConditions(restoredConditions);
+    setConditionError('');
     queryRevision.current += 1;
     queryAbort.current?.abort();
     setResult(null);
@@ -861,6 +951,7 @@ function SourceExploreContent() {
     query: {
       sourceId: catalog?.sourceId,
       sourceRevision: catalog?.sourceRevision,
+      ...(conditions ? { conditions } : {}),
       measureIds,
       filters,
       ...(dateRange ? { dateRange } : {}),
@@ -923,7 +1014,33 @@ function SourceExploreContent() {
       {catalog && (
         <SourceCatalogEditor sourceId={catalog.sourceId} canEdit={catalog.access?.edit} canInspectUsage={catalog.owned} />
       )}
-      {catalog && <SourceConditions sourceId={catalog.sourceId} canEdit={catalog.access?.edit} />}
+      {conditionError && <Notice severity="error">{conditionError}</Notice>}
+      {conditions && (
+        <div
+          role="region"
+          aria-label="적용한 분석 조건"
+          className="flex flex-wrap items-center gap-2 rounded-md border p-3 text-sm"
+        >
+          <span>
+            분석 조건 적용 중 · 포함 {conditions.definition.include ? '있음' : '없음'} · 제외{' '}
+            {conditions.definition.exclude ? '있음' : '없음'}. 현재 기간·필터·시간대에 적용합니다.
+          </span>
+          <Button
+            onClick={() => {
+              setConditions(undefined);
+              setConditionError('');
+            }}
+          >
+            분석 조건 제거
+          </Button>
+          {conditionMismatch && (
+            <Notice severity="error">
+              적용 조건의 파일 버전이 다릅니다. 입력은 보존됩니다. 조건을 다시 검토하거나 명시적으로 제거해 주세요.
+            </Notice>
+          )}
+        </div>
+      )}
+      {catalog && <SourceConditions sourceId={catalog.sourceId} canEdit={catalog.access?.edit} onApply={applyConditions} />}
       {catalog && (
         <div className="mt-3 flex min-w-0 flex-wrap items-start gap-2">
           {/* Our restful V1 state cannot carry the advanced Pivot, so classic save/load hides there. */}
@@ -942,7 +1059,9 @@ function SourceExploreContent() {
                   sourceRevision={catalog.sourceRevision}
                   state={viewState}
                   disabledReason={
-                    rangePaused
+                    conditionMismatch
+                      ? '적용 조건의 파일 버전을 다시 검토해 주세요.'
+                      : rangePaused
                       ? '완성한 기간을 적용한 뒤 저장해 주세요.'
                       : !measureIds.length
                       ? '지표를 하나 이상 선택해 주세요.'
@@ -955,6 +1074,7 @@ function SourceExploreContent() {
                           ...pivotAxes,
                           filters,
                           dateRange,
+                          ...(conditions ? { conditions } : {}),
                         })
                         ? pivotReady.reason
                         : '현재 Pivot 조건을 조회한 뒤 저장해 주세요.'
@@ -978,15 +1098,12 @@ function SourceExploreContent() {
               <ExploreSavedViews
                 sourceId={catalog.sourceId}
                 sourceRevision={catalog.sourceRevision}
-                measureVersions={Object.fromEntries(
-                  catalog.measures
-                    .filter(measure => measureIds.includes(measure.id))
-                    .map(measure => [String(measure.id), Number(measure.definitionVersion)]),
-                )}
+                measureVersions={actualVersions ?? {}}
                 state={versionedViewState}
                 canSave={
                   (mode === 'advanced' ? advancedReady : !!result && !queryBusy) &&
                   !rangePaused &&
+                  !conditionMismatch &&
                   !revisionError &&
                   measureIds.length > 0 &&
                   versionsKnown
@@ -998,14 +1115,11 @@ function SourceExploreContent() {
               />
               <ExploreExport
                 key={`export-${catalog.sourceId}`}
-                measureVersions={Object.fromEntries(
-                  catalog.measures
-                    .filter(measure => measureIds.includes(measure.id))
-                    .map(measure => [String(measure.id), Number(measure.definitionVersion)]),
-                )}
+                measureVersions={actualVersions ?? {}}
                 allowed={catalog.access?.export}
                 payload={exportPayload}
                 disabled={
+                  conditionMismatch ||
                   rangePaused ||
                   !!revisionError ||
                   measureIds.length === 0 ||
@@ -1274,6 +1388,8 @@ function SourceExploreContent() {
                 search={filterSearch}
                 filters={filters}
                 dateRange={dateRange}
+                conditions={conditions}
+                blocked={conditionMismatch}
                 selected={filterSelection}
                 onToggle={toggleFilterValue}
                 onConflict={handleRevisionConflict}
@@ -1501,10 +1617,11 @@ function SourceExploreContent() {
           measureIds={measureIds}
           filters={filters}
           dateRange={dateRange}
+          conditions={conditions}
           axes={pivotAxes}
           onAxesChange={setPivotAxes}
           onReady={setPivotReady}
-          paused={rangePaused}
+          paused={rangePaused || conditionMismatch}
           onReloadCatalog={reloadCatalog}
           onFilter={next => {
             setFilters(next);
@@ -1535,8 +1652,8 @@ function SourceExploreContent() {
             if (queryKey(axes) !== queryKey(effectiveAdvancedAxes)) setAdvancedReady(false);
             setAdvancedAxes(axes);
           }}
-          onReady={setAdvancedReady}
-          blocked={rangePaused || measureIds.length === 0}
+          onReady={handleAdvancedReady}
+          blocked={rangePaused || conditionMismatch || measureIds.length === 0}
           onFilter={applyFilter}
           onReloadCatalog={reloadCatalog}
           onMeasureToggle={toggleMeasure}

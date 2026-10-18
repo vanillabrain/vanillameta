@@ -159,8 +159,12 @@ export class SourceConditionsService {
         compiled.bindings,
       );
       const population = conditionPopulation(rows.datas?.[0]);
+      const analysisConditions = {
+        sourceRevision: await this.connection.duckDBVersion(state.id),
+        definition: compiled.definition,
+      };
       await this.current(state.id, actor, draft.sourceRevision, 'read', draft.version);
-      return { draft, population };
+      return { draft, population, analysisConditions };
     });
     // A file replacement outside the pinned worker snapshot cannot make an old count current.
     await this.current(

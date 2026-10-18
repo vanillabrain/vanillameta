@@ -1,3 +1,4 @@
+import { responseMeasureVersions } from './exploreBasis';
 import React, { useEffect, useRef, useState } from 'react';
 import { post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,9 @@ export default function ExploreExport({ payload, disabled, allowed = true, measu
   const [error, setError] = useState('');
   const generation = useRef(0);
   const controller = useRef<AbortController | null>(null);
-  const key = JSON.stringify(payload);
+  const key = JSON.stringify([payload, measureVersions, allowed]);
+  const basis = responseMeasureVersions(measureVersions, (payload.query.measureIds ?? []) as number[]);
+  const blocked = disabled || !basis;
   useEffect(() => {
     generation.current += 1;
     controller.current?.abort();
@@ -32,7 +35,7 @@ export default function ExploreExport({ payload, disabled, allowed = true, measu
   }, [key, disabled]);
 
   const download = async () => {
-    if (busy || disabled || !allowed) return;
+    if (busy || blocked || !allowed) return;
     generation.current += 1;
     const token = generation.current;
     const abort = new AbortController();
@@ -41,12 +44,19 @@ export default function ExploreExport({ payload, disabled, allowed = true, measu
     setNotice('');
     setError('');
     try {
-      const response = await post('/bi/explore/export', payload, { signal: abort.signal });
+      const response = await post(
+        '/bi/explore/export',
+        { ...payload, query: { ...payload.query, expectedMeasureVersions: basis } },
+        { signal: abort.signal },
+      );
       if (token !== generation.current || abort.signal.aborted) return;
       const data = response?.data?.data;
       if (response?.data?.status !== 'SUCCESS') throw new Error('invalid export response');
       if (data?.sourceRevision !== payload.query.sourceRevision)
         throw Object.assign(new Error('source revision changed'), { response: { status: 409 } });
+      const returnedBasis = responseMeasureVersions(data?.measureVersions, payload.query.measureIds as number[]);
+      if (!returnedBasis || Object.keys(basis).some(id => returnedBasis[id] !== basis[id]))
+        throw Object.assign(new Error('metric basis changed'), { response: { status: 409 } });
       if (
         typeof data.csv !== 'string' ||
         !/^[a-zA-Z0-9_-]+\.csv$/.test(data.filename) ||
@@ -78,7 +88,7 @@ export default function ExploreExport({ payload, disabled, allowed = true, measu
       const message = typeof detail === 'string' ? detail : detail?.message ?? body?.message;
       setError(
         status === 409
-          ? '데이터 버전이 변경되었습니다. 카탈로그를 다시 불러온 뒤 내보내세요.'
+          ? '데이터 또는 지표 기준이 변경되었습니다. 현재 입력을 보존하고 다시 조회한 뒤 내보내세요.'
           : typeof message === 'string'
           ? message
           : 'CSV를 내보내지 못했습니다. 조건을 확인하고 다시 시도해 주세요.',
@@ -100,17 +110,17 @@ export default function ExploreExport({ payload, disabled, allowed = true, measu
             현재 지표·축·필터·기간·비교의 집계 결과를 CSV로 저장합니다. 지표별 행 형식이며 원본 전체 행은 포함하지 않습니다.
             탐색 차원 순위는 화면과 같은 상위 20개입니다. 최대 10,000행 / 2MB.
           </p>
-          <Button variant="outline" disabled={disabled || busy} onClick={download}>
+          <Button variant="outline" disabled={blocked || busy} onClick={download}>
             {busy ? 'CSV 준비 중…' : 'CSV 다운로드'}
           </Button>
-          {disabled && <p className="text-xs">유효한 결과를 불러온 뒤 내보내세요.</p>}
+          {blocked && <p className="text-xs">유효한 결과를 불러온 뒤 내보내세요.</p>}
         </div>
       )}
       {measureVersions && Array.isArray(payload.query.measureIds) && (
         <ExportJobs
           payload={payload}
           disabled={
-            disabled ||
+            blocked ||
             !payload.query.measureIds.every(
               id => Number.isSafeInteger(measureVersions[String(id)]) && measureVersions[String(id)] > 0,
             ) ||

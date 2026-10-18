@@ -67,6 +67,7 @@ const QUERY_FIELDS = [
   'sourceId',
   'sourceRevision',
   'measureIds',
+  'expectedMeasureVersions',
   'dimensionColumns',
   'rankingMeasureId',
   'leaderboardSort',
@@ -97,6 +98,7 @@ const PIVOT_FIELDS = [
   'sourceId',
   'sourceRevision',
   'measureIds',
+  'expectedMeasureVersions',
   'rowColumns',
   'columnColumns',
   'rowDimensions',
@@ -120,6 +122,87 @@ export class BiExploreService {
     private readonly dashboards: AiDashboardService,
     private readonly connection: ConnectionService,
   ) {}
+
+  // Private calculation evidence is tied to the exact response object, never supplied by a client.
+  private readonly resultBases = new WeakMap<object, { profile: any; measures: PivotMeasure[] }>();
+
+  private expectedVersions(value: unknown, ids: number[]): Record<string, number> | undefined {
+    if (value === undefined) return undefined;
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      Array.isArray(value) ||
+      Object.keys(value).length !== ids.length ||
+      Object.keys(value).some(key => !ids.map(String).includes(key)) ||
+      ids.some(id => !Number.isSafeInteger(value[id]) || value[id] <= 0)
+    )
+      throw new BadRequestException('invalid expectedMeasureVersions');
+    return { ...value } as Record<string, number>;
+  }
+
+  private assertDefinition(actual: any, expected: any) {
+    if (!actual || !expected || JSON.stringify(actual) !== JSON.stringify(expected))
+      throw new ConflictException('지표 기준이 변경되었습니다. 다시 조회해 주세요.');
+  }
+
+  private assertExpected(measures: PivotMeasure[], expected?: Record<string, number>) {
+    for (const measure of measures) {
+      const version = measure.definition?.definitionVersion;
+      if (
+        !Number.isSafeInteger(version) ||
+        version <= 0 ||
+        (expected && expected[measure.metricId] !== version)
+      )
+        throw new ConflictException('지표 버전이 변경되었습니다. 다시 조회해 주세요.');
+    }
+  }
+
+  private recordBasis<T extends object>(profile: any, measures: PivotMeasure[], result: T) {
+    const response = Object.assign(result, {
+      measureVersions: Object.fromEntries(
+        measures.map(m => [m.metricId, m.definition.definitionVersion]),
+      ),
+    });
+    this.resultBases.set(response, { profile, measures });
+    return response;
+  }
+
+  /** Re-capture committed configuration even when the caller retains an older outer pin. */
+  private async checkResult<T extends object>(result: T, actor: number): Promise<T> {
+    const basis = this.resultBases.get(result);
+    if (!basis) throw new ConflictException('조회 기준을 다시 확인해 주세요.');
+    const { profile, measures } = basis;
+    await this.bi.assertSourceAction(profile.sourceId, actor, 'read');
+    const fresh = await this.connection.captureDuckDBSnapshot(profile.sourceId);
+    return fresh.run(async () => {
+      const before = await this.bi.profile(profile.sourceId, actor);
+      if (!before.supported || before.dataVersion !== profile.dataVersion)
+        throw new ConflictException('소스 기준이 변경되었습니다. 다시 조회해 주세요.');
+      const catalog = await this.bi.metrics(profile.sourceId, actor);
+      for (const measure of measures) {
+        this.assertDefinition(
+          catalog.find(m => m.id === measure.metricId)?.definition,
+          measure.definition,
+        );
+        // prepare checks current metric rights as well as active/source membership.
+        const current = await this.bi.prepare(
+          {
+            sourceId: profile.sourceId,
+            metricId: measure.metricId,
+            chart: 'number',
+            title: measure.definition.label,
+          },
+          actor,
+        );
+        this.assertDefinition(current.definition, measure.definition);
+      }
+      const latest = await this.connection.captureDuckDBSnapshot(profile.sourceId);
+      const current = await latest.run(() => this.bi.profile(profile.sourceId, actor));
+      if (!current.supported || current.dataVersion !== profile.dataVersion)
+        throw new ConflictException('소스 기준이 변경되었습니다. 다시 조회해 주세요.');
+      return result;
+    });
+  }
 
   /** Strict request schema: an unknown field is a client bug, not a silent extra. */
   private fields(input: unknown, allowed: string[]) {
@@ -369,6 +452,7 @@ export class BiExploreService {
     const sourceId = positiveId(input.sourceId);
     const expected = this.revision(input.sourceRevision);
     const measureIds = this.measureIds(input.measureIds);
+    this.expectedVersions(input.expectedMeasureVersions, measureIds);
     for (const [name, min, max] of [
       ['rowDimensions', 1, 2],
       ['columnDimensions', 0, 1],
@@ -397,12 +481,15 @@ export class BiExploreService {
       const known = new Map(authorizedMetrics.map(m => [m.id, m]));
       const metrics = [];
       const expressions: string[] = [];
+      const measures: PivotMeasure[] = [];
       for (const id of measureIds) {
         if (!known.has(id)) throw new BadRequestException('unknown measure id');
         const prepared = await this.bi.prepare(
           { sourceId, metricId: id, chart: 'number', title: known.get(id).label },
           actor,
         );
+        this.assertDefinition(prepared.definition, known.get(id).definition);
+        measures.push({ metricId: id, definition: prepared.definition, expression: '' });
         const widget: {
           sql: string;
           prefix?: string;
@@ -421,6 +508,7 @@ export class BiExploreService {
         });
       }
 
+      this.assertExpected(measures, input.expectedMeasureVersions);
       const measureAliases = expressions.map((_expression, i) => `__vm_pivot_m${i}`);
       const aggregates = expressions
         .map((expression, i) => `${expression} AS ${quoteColumn(measureAliases[i])}`)
@@ -525,8 +613,7 @@ export class BiExploreService {
         for (const row of rows)
           row.cells.sort((a, b) => columnOrder.get(a.columnKey) - columnOrder.get(b.columnKey));
       }
-      if (scope) await this.bi.assertSourceAction(sourceId, actor, 'read');
-      return {
+      return this.recordBasis(profile, measures, {
         sourceRevision,
         metrics,
         rows,
@@ -541,7 +628,7 @@ export class BiExploreService {
           truncatedRows: rowGroups.length > PIVOT_ROW_LIMIT,
           truncatedColumns: columnGroups.length > PIVOT_COLUMN_LIMIT,
         },
-      };
+      });
     });
   }
 
@@ -562,6 +649,7 @@ export class BiExploreService {
     positiveId(input.sourceId);
     const expected = this.revision(input.sourceRevision);
     const measureIds = this.measureIds(input.measureIds);
+    this.expectedVersions(input.expectedMeasureVersions, measureIds);
     const { trendGrain, comparePrevious } = validatePeriodOptions(input);
     // rankingSort is the current name for the leaderboard order; leaderboardSort is the v1 alias.
     const sortField = input.rankingSort === undefined ? 'leaderboardSort' : 'rankingSort';
@@ -614,12 +702,13 @@ export class BiExploreService {
       rankingMeasureId,
     } = this.validateQueryRequest(body);
     if (input.conditions) await this.bi.assertSourceAction(input.sourceId, actor, 'read');
-    return this.connection.withDuckDBSnapshot(input.sourceId, () =>
+    const result = await this.connection.withDuckDBSnapshot(input.sourceId, () =>
       this.querySnapshot({
         actor,
         sourceId: input.sourceId,
         expected,
         measureIds,
+        expectedMeasureVersions: input.expectedMeasureVersions,
         rankingMeasureId,
         rankingSort,
         ...(input.leaderboardSort !== undefined ? { leaderboardSort: input.leaderboardSort } : {}),
@@ -634,6 +723,7 @@ export class BiExploreService {
         includeRows,
       }),
     );
+    return this.checkResult(result, actor);
   }
 
   private async querySnapshot(input: {
@@ -641,6 +731,7 @@ export class BiExploreService {
     sourceId: unknown;
     expected: string;
     measureIds: number[];
+    expectedMeasureVersions?: Record<string, number>;
     rankingMeasureId: number;
     rankingSort: RankingSort;
     /** Echoed only for a v1 client that still sends the original field name. */
@@ -683,6 +774,7 @@ export class BiExploreService {
       input.actor,
       known,
     );
+    this.assertExpected(measures, input.expectedMeasureVersions);
 
     const preview = await this.dashboards.preview(
       {
@@ -825,8 +917,7 @@ export class BiExploreService {
       };
     }
 
-    if (scope) await this.bi.assertSourceAction(profile.sourceId, input.actor, 'read');
-    return {
+    return this.recordBasis(profile, measures, {
       sourceRevision,
       kpis,
       leaderboards,
@@ -840,7 +931,7 @@ export class BiExploreService {
         comparePrevious: input.comparePrevious,
         rankingSort: input.rankingSort,
       },
-    };
+    });
   }
 
   private kpi(measure: any, widget: any, comparePrevious: boolean) {
@@ -1062,39 +1153,50 @@ export class BiExploreService {
    * never exported: an explore request that asks for includeRows is rejected, not truncated.
    */
   async exportCsv(body: any, actor: number) {
+    // Only the envelope and source identity precede authorization. A read-only actor must
+    // not reach detailed export-query validation or aggregate execution.
+    const envelope = this.fields(body, EXPORT_FIELDS);
+    if (envelope.mode !== 'explore' && envelope.mode !== 'pivot')
+      throw new BadRequestException('mode must be explore or pivot');
+    const sourceId = positiveId(envelope.query?.sourceId);
+    await this.bi.assertSourceAction(sourceId, actor, 'export');
     const { mode, query } = this.validateExportRequest(body);
     if (mode === 'explore') {
-      // UC051: export is its own right, distinct from read. It is checked before the query and
-      // again before the file response so a revocation during the read is denied.
-      await this.bi.assertSourceAction(query.sourceId, actor, 'export');
       const result = await this.query(query, actor);
       const { csv, rowCount, bytes } = toCsv(
         this.exploreEntries(result, query),
         this.exploreConditions(query),
       );
       await this.bi.assertSourceAction(query.sourceId, actor, 'export');
+      await this.checkResult(result, actor);
       return this.exportResponse(
         result.sourceRevision,
         `bi-explore-${query.sourceId}.csv`,
         csv,
         rowCount,
         bytes,
+        result.measureVersions,
       );
     }
-    await this.bi.assertSourceAction(query.sourceId, actor, 'export');
     const result: any = await this.pivot(query, actor);
-    const labels = await this.measureLabels(result.sourceId, actor);
+    const basis = this.resultBases.get(result);
+    if (!basis) throw new ConflictException('조회 기준을 다시 확인해 주세요.');
+    const labels = new Map<number, string>(
+      basis.measures.map(m => [m.metricId, m.definition.label] as [number, string]),
+    );
     const { csv, rowCount, bytes } = toCsv(
       this.pivotEntries(result, labels),
       this.pivotConditions(query),
     );
     await this.bi.assertSourceAction(query.sourceId, actor, 'export');
+    await this.checkResult(result, actor);
     return this.exportResponse(
       result.sourceRevision,
       `bi-pivot-${result.sourceId}.csv`,
       csv,
       rowCount,
       bytes,
+      result.measureVersions,
     );
   }
 
@@ -1104,9 +1206,11 @@ export class BiExploreService {
     csv: string,
     rowCount: number,
     bytes: number,
+    measureVersions: Record<string, number>,
   ) {
     return {
       sourceRevision,
+      measureVersions,
       filename,
       mimeType: EXPORT_MIME,
       csv,
@@ -1235,14 +1339,6 @@ export class BiExploreService {
     );
   }
 
-  /** Labels come from the same catalog the pivot already validated, after the revision check. */
-  private async measureLabels(sourceId: number, actor: number) {
-    const metrics = await this.bi.metrics(sourceId, actor);
-    return new Map<number, string>(
-      metrics.map((measure: any) => [measure.id, measure.label] as [number, string]),
-    );
-  }
-
   /** Canonical JSON of the applied request, emitted as leading condition rows in the CSV. */
   private exploreConditions(query: any): Record<string, unknown> {
     return {
@@ -1298,6 +1394,7 @@ export class BiExploreService {
     positiveId(input.sourceId);
     const expected = this.revision(input.sourceRevision);
     const measureIds = this.measureIds(input.measureIds);
+    this.expectedVersions(input.expectedMeasureVersions, measureIds);
     const { comparePrevious } = validatePeriodOptions(input);
     const filters = this.filters(input.filters);
     const dateRange = this.requestDateRange(input.dateRange, comparePrevious);
@@ -1356,7 +1453,7 @@ export class BiExploreService {
         )
       )
         throw new BadRequestException('rowDimensions와 rowColumns는 함께 사용할 수 없습니다.');
-      return this.pivotClassic(input, actor);
+      return this.checkResult(await this.pivotClassic(input, actor), actor);
     }
     const {
       expected,
@@ -1369,12 +1466,13 @@ export class BiExploreService {
       tableMode,
     } = this.validatePivotRequest(input);
     if (input.conditions) await this.bi.assertSourceAction(input.sourceId, actor, 'read');
-    return this.connection.withDuckDBSnapshot(input.sourceId, () =>
+    const result = await this.connection.withDuckDBSnapshot(input.sourceId, () =>
       this.pivotSnapshot({
         actor,
         sourceId: input.sourceId,
         expected,
         measureIds,
+        expectedMeasureVersions: input.expectedMeasureVersions,
         rowColumns: input.rowColumns,
         columnColumns: input.columnColumns,
         filters,
@@ -1387,6 +1485,7 @@ export class BiExploreService {
         tableMode,
       }),
     );
+    return this.checkResult(result, actor);
   }
 
   private async pivotSnapshot(input: {
@@ -1394,6 +1493,7 @@ export class BiExploreService {
     sourceId: unknown;
     expected: string;
     measureIds: number[];
+    expectedMeasureVersions?: Record<string, number>;
     rowColumns: unknown;
     columnColumns: unknown;
     filters: SourceFilter[];
@@ -1449,6 +1549,7 @@ export class BiExploreService {
       input.actor,
       known,
     );
+    this.assertExpected(measures, input.expectedMeasureVersions);
 
     // A compared period needs an explicit range, exactly like the aggregate query contract.
     const previous =
@@ -1704,8 +1805,7 @@ export class BiExploreService {
       }),
     );
 
-    if (scope) await this.bi.assertSourceAction(profile.sourceId, input.actor, 'read');
-    return {
+    return this.recordBasis(profile, measures, {
       sourceId: profile.sourceId,
       sourceRevision,
       rowColumns,
@@ -1746,7 +1846,7 @@ export class BiExploreService {
         },
       },
       limits: { rows: MAX_PIVOT_ROWS, columns: MAX_PIVOT_COLUMNS, cells: MAX_PIVOT_CELLS },
-    };
+    });
   }
 
   /** Up to two columns per axis; membership and within-axis duplicates reuse the dimension rules. */
@@ -2003,6 +2103,7 @@ export class BiExploreService {
         },
         actor,
       );
+      this.assertDefinition(prepared.definition, known.get(measureId).definition);
       const widget = prepared.draft.widgets[0];
       measures.push({
         metricId: measureId,

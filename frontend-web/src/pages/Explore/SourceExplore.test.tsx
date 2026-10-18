@@ -10,6 +10,13 @@ const api = vi.hoisted(() => ({
   search: 'sourceId=3',
   savedState: null as any,
   viewProps: null as any,
+  conditionProps: null as any,
+}));
+vi.mock('./SourceConditions', () => ({
+  default: (props: any) => {
+    api.conditionProps = props;
+    return <div />;
+  },
 }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 vi.mock('react-router-dom', () => ({
@@ -68,6 +75,7 @@ const catalog = {
   temporalColumns: [{ column: '__time', min: '2023-09-01', max: '2023-09-30' }],
 };
 const queryResult = (over: Record<string, unknown> = {}) => ({
+  measureVersions: { '1': 7, '2': 8, '3': 9 },
   sourceRevision: 'rev-3',
   kpis: [
     {
@@ -125,6 +133,7 @@ beforeEach(() => {
     if (url === '/bi/explore/query') {
       return success({
         ...queryResult(),
+        measureVersions: Object.fromEntries(body.measureIds.map((id: number) => [String(id), id + 6])),
         sourceRevision: body.sourceRevision,
         ...(body.includeRows
           ? {
@@ -712,6 +721,7 @@ const withViews = () => {
 };
 const pivotResult = (body: any) => ({
   sourceRevision: body.sourceRevision,
+  measureVersions: Object.fromEntries((body.measureIds ?? [1, 2]).map((id: number) => [String(id), id + 6])),
   rowColumns: body.rowColumns,
   columnColumns: body.columnColumns,
   rows: [[null], ['null'], ['Mobile/Tablet']],
@@ -755,6 +765,7 @@ const withPivot = () => {
 };
 const hierarchyResult = (body: any) => ({
   sourceRevision: body.sourceRevision,
+  measureVersions: Object.fromEntries((body.measureIds ?? [1, 2]).map((id: number) => [String(id), id + 6])),
   rowColumns: body.rowColumns,
   columnColumns: body.columnColumns,
   rows: [
@@ -891,6 +902,7 @@ const timedColumnGroups = (body: any): unknown[][] => {
 };
 const timedPivotResult = (body: any) => ({
   sourceRevision: body.sourceRevision,
+  measureVersions: Object.fromEntries((body.measureIds ?? [1, 2]).map((id: number) => [String(id), id + 6])),
   rowColumns: body.rowColumns,
   columnColumns: body.columnColumns,
   rows: [['2023-09-03'], ['2023-09-10'], ['2023-09-17']],
@@ -1017,7 +1029,7 @@ it('restores persisted versioned exploration conditions after remount and resets
       sourceId: 3,
       sourceRevision: 'rev-3',
       name: '복원한 보기',
-      measureVersions: { '1': 1, '2': 1 },
+      measureVersions: { '1': 7, '2': 8 },
       state: savedState,
     }),
   );
@@ -1107,14 +1119,12 @@ it('rejects an unsupported loaded state version without changing current conditi
   expect(lastQuery()).toEqual(before);
 });
 
-it('blocks saving a versioned view when a selected catalog measure has no definition version', async () => {
+it('blocks saving a versioned view when the actual query response has no measure versions', async () => {
   withViews();
   const original = currentPost();
   api.post.mockImplementation((url: string, ...args: any[]) =>
-    url === '/bi/explore/catalog'
-      ? Promise.resolve(
-          success({ ...catalog, measures: catalog.measures.map(measure => ({ ...measure, definitionVersion: undefined })) }),
-        )
+    url === '/bi/explore/query'
+      ? Promise.resolve(success(queryResult({ measureVersions: undefined })))
       : original(url, ...args),
   );
   await mount();
@@ -1536,4 +1546,210 @@ it('saves a restored v4 view with the time axis and the cell tuple intact', asyn
   await waitFor(() =>
     expect(api.post.mock.calls.find(([url]) => url === '/bi/explore/views/create')?.[1].state).toEqual(v4State),
   );
+});
+
+const conditionSnapshot = () => ({
+  sourceRevision: 'a'.repeat(64),
+  definition: {
+    include: { kind: 'predicate', column: 'device_type', operator: 'eq', values: ['App'] },
+    exclude: null,
+  },
+});
+const withConditionCatalog = () => {
+  const original = currentPost();
+  api.post.mockImplementation((url: string, body: any, ...rest: any[]) =>
+    url === '/bi/explore/catalog'
+      ? Promise.resolve(success({ ...catalog, sourceRevision: 'a'.repeat(64) }))
+      : original(url, body, ...rest),
+  );
+};
+it('explicitly applies the same immutable snapshot to query, values, classic/advanced Pivot, saved states and exports', async () => {
+  withPivot();
+  withConditionCatalog();
+  const original = currentPost();
+  api.post.mockImplementation((url: string, body: any, ...rest: any[]) =>
+    url === '/bi/explore/export' ? Promise.reject(new Error('stop after request')) : original(url, body, ...rest),
+  );
+  await mount();
+  const snapshot = conditionSnapshot();
+  act(() => api.conditionProps.onApply(snapshot));
+  await waitFor(() => expect(lastQuery().conditions).toEqual(snapshot));
+  snapshot.definition.include.values[0] = 'mutated';
+  expect(lastQuery().conditions).toEqual(conditionSnapshot());
+  expect(screen.getByRole('region', { name: '적용한 분석 조건' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: '저장 보기', exact: true }));
+  expect(api.viewProps.state.conditions).toEqual(conditionSnapshot());
+  // Existing value picker issues the same scoped request.
+  fireEvent.click(screen.getByRole('button', { name: /필터 추가/ }));
+  fireEvent.change(screen.getByLabelText('필터 열'), { target: { value: 'device_os' } });
+  await waitFor(() => expect(lastValues()?.conditions).toEqual(conditionSnapshot()));
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].conditions).toEqual(conditionSnapshot()));
+  fireEvent.click(screen.getByRole('button', { name: '고급 Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  expect(pivots().at(-1)?.[1].conditions).toEqual(conditionSnapshot());
+  fireEvent.click(screen.getByRole('button', { name: '내보내기 ▾' }));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: 'CSV 다운로드' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'CSV 다운로드' }));
+  await waitFor(() =>
+    expect(api.post.mock.calls.find(([url]) => url === '/bi/explore/export')?.[1].query).toMatchObject({
+      conditions: conditionSnapshot(),
+      expectedMeasureVersions: { '1': 7, '2': 8, '3': 9 },
+    }),
+  );
+  expect(api.post.mock.calls.some(([url]) => url === '/bi/source-conditions/save')).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: '분석 조건 제거' }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].conditions).toBeUndefined());
+});
+
+it('preserves conditions and draft period on catalog reload, blocks a changed file and allows explicit removal', async () => {
+  withConditionCatalog();
+  await mount();
+  act(() => api.conditionProps.onApply(conditionSnapshot()));
+  await waitFor(() => expect(lastQuery().conditions).toEqual(conditionSnapshot()));
+  fireEvent.click(screen.getByRole('button', { name: '사용자 지정', exact: true }));
+  fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '2023-09-10' } });
+  fireEvent.change(screen.getByLabelText('종료일'), { target: { value: '2023-09-11' } });
+  const original = currentPost();
+  let revision = 'a'.repeat(64);
+  api.post.mockImplementation((url: string, body: any, ...rest: any[]) => {
+    if (url === '/bi/explore/catalog') return Promise.resolve(success({ ...catalog, sourceRevision: revision }));
+    if (url === '/bi/explore/query') return Promise.reject(conflict());
+    return original(url, body, ...rest);
+  });
+  fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교', exact: true }));
+  await screen.findByRole('button', { name: '카탈로그 다시 불러오기' });
+  fireEvent.click(screen.getByRole('button', { name: '카탈로그 다시 불러오기' }));
+  await waitFor(() => expect(lastQuery().conditions).toEqual(conditionSnapshot()));
+  await screen.findByRole('button', { name: '카탈로그 다시 불러오기' });
+  expect((screen.getByLabelText('시작일') as HTMLInputElement).value).toBe('2023-09-10');
+  revision = 'b'.repeat(64);
+  fireEvent.click(screen.getByRole('button', { name: '카탈로그 다시 불러오기' }));
+  await screen.findByText(/적용 조건의 파일 버전이 다릅니다/);
+  const before = queries().length;
+  fireEvent.click(screen.getByRole('button', { name: 'Explore', exact: true }));
+  await act(async () => undefined);
+  expect(queries()).toHaveLength(before);
+  expect((screen.getByLabelText('시작일') as HTMLInputElement).value).toBe('2023-09-10');
+  fireEvent.click(screen.getByRole('button', { name: '분석 조건 제거' }));
+  await waitFor(() => expect(queries().length).toBeGreaterThan(before));
+  expect(lastQuery().conditions).toBeUndefined();
+});
+
+it('rejects a mismatched applied snapshot without dropping the current scoped draft', async () => {
+  withConditionCatalog();
+  await mount();
+  act(() => api.conditionProps.onApply(conditionSnapshot()));
+  await waitFor(() => expect(lastQuery().conditions).toEqual(conditionSnapshot()));
+  const before = queries().length;
+  act(() => api.conditionProps.onApply({ ...conditionSnapshot(), sourceRevision: 'b'.repeat(64) }));
+  await screen.findByText(/적용 조건의 파일 버전이 다릅니다/);
+  expect(queries()).toHaveLength(before);
+  expect(lastQuery().conditions).toEqual(conditionSnapshot());
+});
+
+it.each([1, 2, 3, 4, 5])('restores optional conditions from saved view v%i using the same file snapshot', async version => {
+  withViews();
+  withPivot();
+  withConditionCatalog();
+  const original = currentPost();
+  const state = {
+    ...savedState,
+    version,
+    conditions: conditionSnapshot(),
+    ...(version >= 2
+      ? {
+          pivot: {
+            enabled: true,
+            rowColumns: ['device_type'],
+            columnColumns: [],
+            ...(version >= 3 ? { rowHierarchy: false, rowSort: { by: 'label', direction: 'asc' }, expandedRows: [] } : {}),
+            ...(version >= 5 ? { tableMode: 'flat' } : {}),
+          },
+        }
+      : {}),
+  };
+  api.post.mockImplementation((url: string, body: any, ...rest: any[]) =>
+    url === '/bi/explore/views/load'
+      ? Promise.resolve(success({ ...savedView, sourceRevision: 'a'.repeat(64), state }))
+      : original(url, body, ...rest),
+  );
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '탐색 보기', exact: true }));
+  await screen.findByRole('option', { name: savedView.name });
+  fireEvent.change(screen.getByLabelText('저장한 탐색 보기'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  await waitFor(() =>
+    expect(version === 1 ? lastQuery().conditions : pivots().at(-1)?.[1].conditions).toEqual(conditionSnapshot()),
+  );
+  expect(screen.getByRole('region', { name: '적용한 분석 조건' })).toBeTruthy();
+});
+
+it('rejects a saved condition file mismatch before any current draft changes', async () => {
+  withViews();
+  withConditionCatalog();
+  const original = currentPost();
+  api.post.mockImplementation((url: string, body: any, ...rest: any[]) =>
+    url === '/bi/explore/views/load'
+      ? Promise.resolve(
+          success({
+            ...savedView,
+            sourceRevision: 'a'.repeat(64),
+            state: {
+              ...savedState,
+              conditions: { ...conditionSnapshot(), sourceRevision: 'b'.repeat(64) },
+            },
+          }),
+        )
+      : original(url, body, ...rest),
+  );
+  await mount();
+  act(() => api.conditionProps.onApply(conditionSnapshot()));
+  await waitFor(() => expect(lastQuery().conditions).toEqual(conditionSnapshot()));
+  const before = lastQuery();
+  fireEvent.click(screen.getByRole('button', { name: '탐색 보기', exact: true }));
+  await screen.findByRole('option', { name: savedView.name });
+  fireEvent.change(screen.getByLabelText('저장한 탐색 보기'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  await screen.findByText(/적용 조건의 파일 버전이 다릅니다/);
+  expect(lastQuery()).toEqual(before);
+});
+
+it('freezes actual Pivot basis and conditions in a durable request while later scoped edits preserve ambiguous confirmation', async () => {
+  withPivot();
+  withConditionCatalog();
+  const original = currentPost();
+  api.post.mockImplementation((url: string, body: any, ...rest: any[]) =>
+    url === '/bi/export-jobs' ? Promise.reject(new Error('transport lost')) : original(url, body, ...rest),
+  );
+  await mount();
+  act(() => api.conditionProps.onApply(conditionSnapshot()));
+  await waitFor(() => expect(lastQuery().conditions).toEqual(conditionSnapshot()));
+  fireEvent.click(screen.getByRole('button', { name: '고급 Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.click(screen.getByRole('button', { name: '파일 작업 펼치기' }));
+  const create = screen.getByRole('button', { name: '현재 조건으로 작업 접수' });
+  await waitFor(() => expect((create as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(create);
+  await screen.findByRole('button', { name: '같은 접수 재확인' });
+  const requests = () => api.post.mock.calls.filter(([url]) => url === '/bi/export-jobs');
+  const frozen = JSON.parse(JSON.stringify(requests()[0][1]));
+  expect(frozen).toMatchObject({
+    measureVersions: { '1': 7, '2': 8, '3': 9 },
+    payload: {
+      mode: 'pivot',
+      query: { conditions: conditionSnapshot() },
+    },
+  });
+  expect(frozen.payload.query.expectedMeasureVersions).toBeUndefined();
+  fireEvent.click(screen.getByRole('button', { name: '분석 조건 제거' }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].conditions).toBeUndefined());
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '같은 접수 재확인' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '같은 접수 재확인' }));
+  await waitFor(() => expect(requests()).toHaveLength(2));
+  expect(requests()[1][1]).toEqual(frozen);
 });

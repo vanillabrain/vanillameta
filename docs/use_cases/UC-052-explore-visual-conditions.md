@@ -68,3 +68,9 @@ AI와 직접 편집은 공통 검증 조건 정의를 사용한다. 임의 SQL�
 ## Full Distribution And Selected Sample
 
 [분포·표본 설계](../plans/UC-052-profile.md)는 Source 또는 Studio 현재 범위를 분모로 포함/제외 전후의 전체 값 빈도·상위20+나머지·NULL/범위를 조회한다. 선택 열1~6개의 최대20행 정렬 표본은 같은 최종 조건을 사용하고 무작위/대표표본으로 표시하지 않는다. 요청/응답의 현재 권한·파일/revision/version을 검사하며 원본/SQL·초안·질문/undo·저장을 바꾸지 않는다. 셀200문자 잘림·총256KiB·미지원 native 열을 명시하며 선택하지 않은 열은 표본으로 반환하지 않는다. [검증](../testing/condition-profile.md)은 E05의 전체/표본 분모·정답과 권한 회수/변경 중 거절 범위를 구분하고 실제 UI/운영 수용은 미실행으로 둔다.
+
+## Explore Applied Condition Snapshot
+
+[명시 적용 설계](../plans/UC-052-explore-basis.md)는 검증한 소스 조건 미리보기의 snapshot을 현재 Explore에 적용하고 조회/값 검색/Pivot/CSV·저장 보기로 이어가는 후속 단위다. 소스 저장은 별도이며 읽기 사용자도 본인 분석에 적용할 수 있다. metadata 조건 version이 아닌 파일 sourceRevision에 묶고 원본 변경은 재검토를 요구한다. 전체 기간 UTC의 소스 건수와 현재 분석 범위의 결과는 구별한다. 실제 실행 결과는 후속 증빙으로 판정하며 설계만으로 전체 수용 상태를 바꾸지 않는다.
+
+[동일 기준 실행 증빙](../testing/explore-reviewed-basis.md)은 BE397/FE237과 격리 headless 고유2개의 명시 조건 적용·보기 복구·현재/이전 기간·CSV·지표 변경 거절 범위를 기록한다. 실제 Ego/휴대폰/이번 MySQL/운영 및 전체16개/TC050 수용은 별도다.

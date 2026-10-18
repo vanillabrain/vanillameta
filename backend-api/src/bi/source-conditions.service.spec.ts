@@ -17,6 +17,7 @@ describe('UC052 saved source condition context', () => {
     include: { kind: 'predicate', column: 'amount', operator: 'gte', values: [10] },
     exclude: null,
   };
+  const fileRevision = 'f'.repeat(64);
   const request = () => ({ sourceId: 3, sourceRevision: revision, version: 0, definition });
   beforeEach(async () => {
     db = await new DataSource({
@@ -46,10 +47,10 @@ describe('UC052 saved source condition context', () => {
       type: 'FILE',
       connectionConfig: '{}',
     });
-    revision = sourceRevision(source, 'file-v1');
+    revision = sourceRevision(source, fileRevision);
     connection = {
       captureDuckDBSnapshot: jest.fn(async () => ({ run: async run => run() })),
-      duckDBVersion: jest.fn(async () => 'file-v1'),
+      duckDBVersion: jest.fn(async () => fileRevision),
       queryDuckDB: jest.fn(async (_id, sql) =>
         sql.startsWith('DESCRIBE')
           ? {
@@ -91,6 +92,8 @@ describe('UC052 saved source condition context', () => {
   it('previews bound conditions once with full-population ratios and no writes', async () => {
     const result = await service.preview(request(), 8);
     expect(result.draft).toEqual(request());
+    expect(result.analysisConditions).toEqual({ sourceRevision: fileRevision, definition });
+    expect(result.analysisConditions.sourceRevision).not.toBe(result.draft.sourceRevision);
     expect(result.population).toEqual({
       total: '10',
       matched: '4',
@@ -175,6 +178,29 @@ describe('UC052 saved source condition context', () => {
         return { datas: [{ total: '1', matched: '1', excluded: '0', remaining: '1' }] };
       });
     await expect(service.preview(request(), 7)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+  it('derives analysis conditions inside the captured file pin, retaining the metadata draft revision', async () => {
+    let insidePin = false;
+    connection.captureDuckDBSnapshot.mockImplementation(async () => ({
+      run: async operation => {
+        const previous = insidePin;
+        insidePin = true;
+        try {
+          return await operation();
+        } finally {
+          insidePin = previous;
+        }
+      },
+    }));
+    connection.duckDBVersion.mockImplementation(async () =>
+      insidePin ? fileRevision : 'a'.repeat(64),
+    );
+    const before = await db.manager.findOneBy(Database, { id: 3 });
+    const result = await service.preview(request(), 8);
+    expect(result.analysisConditions).toEqual({ sourceRevision: fileRevision, definition });
+    expect(result.draft.sourceRevision).toBe(revision);
+    expect(await db.manager.findOneBy(Database, { id: 3 })).toEqual(before);
+    expect(await db.manager.count(SourceConditionEntry)).toBe(0);
   });
   it('returns null ratios for empty full population', async () => {
     connection.queryDuckDB.mockImplementation(async (_id, sql) =>

@@ -34,6 +34,21 @@ describe('BiExploreService SQL-free export admission', () => {
     },
   );
 
+  it.each(['explore', 'pivot'])('accepts exact pinned metric versions for %s without I/O', mode => {
+    const payload = (mode === 'explore' ? explore : pivot)({ expectedMeasureVersions: { '2': 3 } });
+    expect(service.validateExportRequest(payload)).toEqual(payload);
+  });
+  it.each([null, [], {}, { '2': 0 }, { '2': 1.5 }, { '2': '1' }, { '02': 1 }, { '2': 1, '3': 1 }])(
+    'rejects malformed or non-exact pinned versions without I/O: %j',
+    expectedMeasureVersions => {
+      for (const payload of [
+        explore({ expectedMeasureVersions }),
+        pivot({ expectedMeasureVersions }),
+      ])
+        expect(() => service.validateExportRequest(payload)).toThrow(BadRequestException);
+    },
+  );
+
   it('accepts compared filters and the legacy explore sort alias', () => {
     const payload = explore({
       dimensionColumns: ['region'],
@@ -206,9 +221,16 @@ describe('BiExploreService SQL-free export admission', () => {
   });
 
   it('shares preflight with immediate export and ordinary query/pivot', async () => {
-    await expect(service.exportCsv(explore({ filters: {} }), 1)).rejects.toThrow(
+    const assertSourceAction = jest.fn().mockResolvedValue(undefined);
+    const authorized = new BiExploreService(
+      { assertSourceAction } as any,
+      dependency as any,
+      dependency as any,
+    );
+    await expect(authorized.exportCsv(explore({ filters: {} }), 1)).rejects.toThrow(
       BadRequestException,
     );
+    expect(assertSourceAction).toHaveBeenCalledWith(1, 1, 'export');
     await expect(service.query(explore({ dimensionColumns: ['a', 'a'] }).query, 1)).rejects.toThrow(
       BadRequestException,
     );

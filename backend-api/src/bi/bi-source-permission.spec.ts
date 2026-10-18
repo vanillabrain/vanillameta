@@ -8,7 +8,7 @@ import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-d
 import { SourceLifecycleService } from '../enterprise/source-lifecycle.service';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
@@ -311,6 +311,24 @@ describe('UC051 source grants across Explore, catalog and export', () => {
     await expect(
       explore.exportCsv({ mode: 'explore', query: { sourceId: 1 } }, GRANTEE),
     ).rejects.toBeInstanceOf(ForbiddenException);
+    const aggregateQuery = jest.spyOn(explore, 'query');
+    const aggregatePivot = jest.spyOn(explore, 'pivot');
+    try {
+      for (const mode of ['explore', 'pivot']) {
+        const malformed = { mode, query: { sourceId: 1 } };
+        await expect(explore.exportCsv(malformed, GRANTEE)).rejects.toBeInstanceOf(
+          ForbiddenException,
+        );
+        await expect(explore.exportCsv(malformed, OWNER)).rejects.toBeInstanceOf(
+          BadRequestException,
+        );
+      }
+      expect(aggregateQuery).not.toHaveBeenCalled();
+      expect(aggregatePivot).not.toHaveBeenCalled();
+    } finally {
+      aggregateQuery.mockRestore();
+      aggregatePivot.mockRestore();
+    }
     // Owner control: the same payload still exports for the source owner.
     const ownerExport: any = await explore.exportCsv({ mode: 'explore', query }, OWNER);
     expect(ownerExport.filename).toBe('bi-explore-1.csv');

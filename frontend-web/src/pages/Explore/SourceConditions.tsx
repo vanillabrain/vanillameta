@@ -1,6 +1,8 @@
 import ConditionProfilePanel from './ConditionProfilePanel';
 import { profileKey } from './conditionProfile';
 import React, { useEffect, useId, useRef, useState } from 'react';
+import type { StudioConditions } from '@/pages/Dashboard/Studio/studioTypes';
+import { validateStudioConditions } from '@/pages/Dashboard/Studio/studioDocument';
 import { post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
@@ -19,6 +21,7 @@ export type Draft = { sourceId: number; sourceRevision: string; version: number;
 export type Conditions = Draft & { schemaChanged: boolean; columns: Column[] };
 export type Preview = {
   draft: Draft;
+  analysisConditions?: StudioConditions;
   population: {
     total: string;
     matched: string;
@@ -192,6 +195,11 @@ export function readPreview(value: Preview, draft: Draft): Preview {
     )
   )
     throw new Error('invalid population');
+  if (value.analysisConditions !== undefined) {
+    const analysisConditions = validateStudioConditions(value.analysisConditions);
+    if (!sameValue(analysisConditions.definition, draft.definition)) throw new Error('invalid analysis conditions');
+    return { ...value, analysisConditions };
+  }
   return value;
 }
 
@@ -416,16 +424,24 @@ const unwrap = (response: any) => {
   if (response?.data?.status !== 'SUCCESS') throw new Error('invalid response');
   return response.data.data;
 };
-type Props = { sourceId: number; canEdit?: boolean };
-export default function SourceConditions({ sourceId, canEdit = true }: Props) {
-  return <Editor key={`${sourceId}:${canEdit}`} sourceId={sourceId} canEdit={canEdit} />;
+type Props = {
+  sourceId: number;
+  canEdit?: boolean;
+  /** Applies only the validated preview snapshot to the caller's local analysis, never source metadata. */
+  onApply?: (conditions: StudioConditions) => void;
+};
+export default function SourceConditions({ sourceId, canEdit = true, onApply }: Props) {
+  return <Editor key={`${sourceId}:${canEdit}`} sourceId={sourceId} canEdit={canEdit} onApply={onApply} />;
 }
-function Editor({ sourceId, canEdit }: Props) {
+function Editor({ sourceId, canEdit, onApply }: Props) {
   const panelId = useId();
   const serial = useRef(0);
+  const validatedPreview = useRef<Preview | null>(null);
+  const inFlight = useRef(false);
   useEffect(
     () => () => {
       serial.current += 1;
+      validatedPreview.current = null;
     },
     [],
   );
@@ -438,22 +454,28 @@ function Editor({ sourceId, canEdit }: Props) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [confirm, setConfirm] = useState(false);
+  const invalidatePreview = () => {
+    validatedPreview.current = null;
+    setPreview(null);
+  };
   const dirty = JSON.stringify(definition) !== baseline && !!data;
   const accept = (next: Conditions) => {
     setData(next);
     setDefinition(next.definition);
     setBaseline(JSON.stringify(next.definition));
-    setPreview(null);
+    invalidatePreview();
   };
   const request = async (action: 'read' | 'preview' | 'save') => {
-    if (busy || (action !== 'read' && !data) || (action === 'save' && (!canEdit || !preview))) return;
+    if (inFlight.current || (action !== 'read' && !data) || (action === 'save' && (!canEdit || !validatedPreview.current)))
+      return;
+    inFlight.current = true;
     serial.current += 1;
     const token = serial.current;
     setBusy(true);
     setError('');
     setNotice('');
     setConfirm(false);
-    if (action !== 'save') setPreview(null);
+    if (action !== 'save') invalidatePreview();
     try {
       let draft: Draft | undefined;
       if (action === 'preview' && data)
@@ -463,11 +485,14 @@ function Editor({ sourceId, canEdit }: Props) {
           version: data.version,
           definition: compile(definition, data.columns),
         };
-      if (action === 'save') draft = preview?.draft;
+      if (action === 'save') draft = validatedPreview.current?.draft;
       const result = unwrap(await post(`/bi/source-conditions/${action}`, draft ?? { sourceId }));
       if (serial.current !== token) return;
-      if (action === 'preview' && draft) setPreview(readPreview(result, draft));
-      else {
+      if (action === 'preview' && draft) {
+        const validated = readPreview(result, draft);
+        validatedPreview.current = validated;
+        setPreview(validated);
+      } else {
         const next = readConditions(result, sourceId);
         if (
           action === 'save' &&
@@ -482,7 +507,7 @@ function Editor({ sourceId, canEdit }: Props) {
       }
     } catch (failure) {
       if (serial.current !== token) return;
-      setPreview(null);
+      invalidatePreview();
       setError(
         failure?.response?.status === 409
           ? '다른 창 또는 데이터가 변경됐습니다. 입력을 보존했습니다. 최신 조건을 다시 읽어 확인하세요.'
@@ -497,15 +522,28 @@ function Editor({ sourceId, canEdit }: Props) {
             }`,
       );
     } finally {
-      if (serial.current === token) setBusy(false);
+      if (serial.current === token) {
+        inFlight.current = false;
+        setBusy(false);
+      }
     }
   };
   const edit = (next: Definition) => {
+    // Retire any earlier preview answer before React commits the edited form.
+    serial.current += 1;
+    inFlight.current = false;
+    setBusy(false);
     setDefinition(next);
-    setPreview(null);
+    invalidatePreview();
     setNotice('');
     setError('');
     setConfirm(false);
+  };
+  const apply = () => {
+    const validated = validatedPreview.current;
+    if (!onApply || inFlight.current || !validated?.analysisConditions) return;
+    const snapshot: StudioConditions = JSON.parse(JSON.stringify(validated.analysisConditions));
+    onApply(snapshot);
   };
   const ratio = (value: number | null) => (value === null ? '비율 없음' : `${Math.round(value * 10000) / 100}%`);
   return (
@@ -513,7 +551,7 @@ function Editor({ sourceId, canEdit }: Props) {
       <Button
         type="button"
         variant="ghost"
-        className="m-2 max-w-[calc(100%-1rem)]"
+        className="m-2 min-w-0 max-w-[calc(100%-1rem)] whitespace-normal break-words text-sm"
         aria-expanded={open}
         aria-controls={panelId}
         disabled={busy}
@@ -527,13 +565,25 @@ function Editor({ sourceId, canEdit }: Props) {
       {open && (
         <div id={panelId} className="min-w-0 space-y-3 border-t border-border p-3 text-sm">
           <p>
-            전체 소스 · 전체 기간 · UTC. 포함 조건 충족 행에서 제외 조건이 참인 행만 뺍니다. NULL은 명시적으로 선택하세요.
+            소스 조건 미리보기는 전체 소스 · 전체 기간 · UTC 기준입니다. 포함 조건 충족 행에서 제외 조건이 참인 행만 뺍니다.
+            NULL은 명시적으로 선택하세요.
           </p>
           <p className="text-xs text-muted-foreground">
             원본 열 유형만 사용합니다. 기존 분석·Studio·게시에는 자동 적용하지 않습니다. 최대 깊이 4 · 그룹 자식 8 · 총 노드
             32 · 목록 값 50.
           </p>
-          {!canEdit && <Notice severity="info">읽기 권한으로 조건 편집·미리보기만 가능합니다. 저장 권한이 없습니다.</Notice>}
+          {onApply && (
+            <p>
+              이 분석에 적용하면 현재 분석의 기간·필터·시간대 범위에 같은 조건을 사용합니다. 아래 전체 기간·UTC 미리보기
+              건수와 분석 범위의 건수는 다를 수 있습니다. 소스 조건 저장과 다른 분석은 변경하지 않습니다.
+            </p>
+          )}
+          {!canEdit && (
+            <Notice severity="info">
+              읽기 권한으로 조건 편집·미리보기{onApply ? '·이 분석에 적용' : ''}가 가능합니다. 소스 조건 저장 권한은
+              없습니다.
+            </Notice>
+          )}
           {busy && <p role="status">처리 중입니다…</p>}
           {error && <Notice severity="error">{error}</Notice>}
           {notice && <p role="status">{notice}</p>}
@@ -589,7 +639,7 @@ function Editor({ sourceId, canEdit }: Props) {
               />
             </>
           )}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2 [&>button]:min-w-0 [&>button]:max-w-full [&>button]:whitespace-normal [&>button]:break-words [&>button]:text-sm">
             {data && (
               <>
                 <Button type="button" variant="outline" disabled={busy} onClick={() => void request('preview')}>
@@ -598,6 +648,11 @@ function Editor({ sourceId, canEdit }: Props) {
                 <Button type="button" disabled={busy || !canEdit || !preview} onClick={() => void request('save')}>
                   확인한 조건 저장
                 </Button>
+                {onApply && (
+                  <Button type="button" disabled={busy || !preview?.analysisConditions} onClick={apply}>
+                    이 분석에 조건 적용
+                  </Button>
+                )}
               </>
             )}
             <Button
@@ -632,7 +687,11 @@ function Editor({ sourceId, canEdit }: Props) {
               <p>
                 최종 {preview.population.remaining}건 · 전체 대비 {ratio(preview.population.remainingRatio)}
               </p>
-              <p>이 미리보기의 조건만 저장합니다.</p>
+              <p>
+                {onApply
+                  ? '이 검증 미리보기의 조건만 이 분석에 적용하거나 소스 조건으로 저장합니다. 적용과 저장은 각각 명시적으로 실행합니다.'
+                  : '이 미리보기의 조건만 저장합니다.'}
+              </p>
             </section>
           )}
         </div>

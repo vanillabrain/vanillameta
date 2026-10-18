@@ -1,3 +1,4 @@
+import { responseMeasureVersions } from './exploreBasis';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { post } from '@/helpers/apiHelper';
 import {
@@ -21,6 +22,7 @@ export type PivotValue = {
 };
 export type PivotResult = {
   sourceRevision: string;
+  measureVersions?: Record<string, number>;
   rowColumns: string[];
   columnColumns: string[];
   rows: unknown[][];
@@ -148,7 +150,7 @@ export default function ExplorePivot({
   state: ExploreViewState;
   axes: PivotAxes;
   onAxesChange: (axes: PivotAxes) => void;
-  onReady: (ready: boolean) => void;
+  onReady: (ready: boolean, measureVersions?: Record<string, number>) => void;
   blocked: boolean;
   formatValue: (value: PivotValue) => string;
   formatComparison: (value: PivotValue) => string;
@@ -231,6 +233,7 @@ export default function ExplorePivot({
       ...(axes.rowSort !== undefined ? { rowSort: requestSort } : {}),
       ...(axes.timeAxis ? { timeAxis: axes.timeAxis } : {}),
       filters: state.filters,
+      ...(state.conditions ? { conditions: state.conditions } : {}),
       ...(state.dateRange ? { dateRange: state.dateRange } : {}),
       comparePrevious: state.comparePrevious,
       ...(flat ? { tableMode: 'flat' as const, rowHierarchy: false } : {}),
@@ -248,6 +251,7 @@ export default function ExplorePivot({
       flat,
       timeAxisKey,
       state.filters,
+      state.conditions,
       state.dateRange,
       state.comparePrevious,
     ],
@@ -272,7 +276,7 @@ export default function ExplorePivot({
         if (data.sourceRevision !== sourceRevision)
           throw Object.assign(new Error('source revision changed'), { response: { status: 409 } });
         setResult(data);
-        onReady(true);
+        onReady(true, responseMeasureVersions(data.measureVersions, payload.measureIds));
       })
       .catch(err => {
         if (token !== sequence.current || abort.signal.aborted) return;

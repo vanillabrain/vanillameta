@@ -184,7 +184,12 @@ describe('UC055 real reference writers versus MetricDeletionService', () => {
       },
     };
     if (kind === 'personal') {
-      const views = new ExploreViewService(db.getRepository(PersonalView), access, explorer);
+      const views = new ExploreViewService(
+        db.getRepository(PersonalView),
+        access,
+        explorer,
+        undefined,
+      );
       return () => views.create(1, 7, { name: 'Saved', state, revision: catalog.viewRevision });
     }
     if (kind === 'pivot') {

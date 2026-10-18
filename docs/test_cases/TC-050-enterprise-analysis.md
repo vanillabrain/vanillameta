@@ -167,3 +167,9 @@ E11/E12의 대시보드 사용처/삭제·원자 영수증은 [UC055 계획](../
 소스 삭제 보호는 [계획](../plans/UC-055-source-delete.md)·[증빙](../testing/source-deletion.md)의 고정10종 영향/기준 확인과 원자 metadata 삭제·별도 지속 파일 정리를 따른다. 현재 참조·하위 공유 파일은 차단하며 자동 연쇄 삭제0이다. 실제 MySQL/파일/자동 화면·Ego/실기기/운영을 구별하고 조직 비활성·전체 E11/E12/TC050 수용은 별도다.
 
 조직 대시보드 비활성화/복원은 [계획](../plans/UC-055-dashboard-lifecycle.md)·[증빙](../testing/dashboard-asset-lifecycle.md)을 따른다. 비활성 일반 이용과 제한된 현재 소유 admin 관리/회수를 구분하며 원본·관계·게시·독립 사본을 보존한다. 복원 전 준비 요청의 lifecycle 기준과 과거 영수증/현재 상태를 구별하고, 실행 결과와 전체 E03/E11/E12/E14 수용은 별도로 판정한다.
+
+## Explore reviewed basis follow-up
+
+[UC052/054 설계](../plans/UC-052-explore-basis.md)는 E05/E08/E14의 검토 조건 명시 적용→동일 비교·Pivot→보기 저장/reload→CSV 및 조회 후 지표 변경 거절을 연결한다. 실제 DuckDB 독립 정답과 격리 headless UI의 실행 결과를 별도 기록한다. 사용자 제어 Ego96/실휴대폰/운영·전체16개 사람 수용 및 위 전체 NOT_RUN 표를 이 단위로 승격하지 않는다.
+
+[동일 기준 실행 증빙](../testing/explore-reviewed-basis.md)은 BE397/FE237과 격리 headless 고유2개의 명시 조건 적용·보기 복구·현재/이전 기간·CSV·지표 변경 거절 범위를 기록한다. 실제 Ego/휴대폰/이번 MySQL/운영 및 전체16개/TC050 수용은 별도다.

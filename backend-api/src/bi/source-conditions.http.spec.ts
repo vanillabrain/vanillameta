@@ -149,7 +149,7 @@ describe('UC052 protected conditions HTTP and independent population oracle', ()
     const connection: any = {
       queryDuckDB: query,
       captureDuckDBSnapshot: async () => ({ run: async run => run() }),
-      duckDBVersion: async () => 'synthetic-file-v1',
+      duckDBVersion: async () => 'f'.repeat(64),
     };
     const access = new SourceAccessService(db, new EnterpriseResourcePolicyService(db));
     const module = await Test.createTestingModule({
@@ -185,6 +185,9 @@ describe('UC052 protected conditions HTTP and independent population oracle', ()
     );
     const remaining = included.filter(r => r.flag !== true);
     const preview = (await call('preview', 7, input).expect(201)).body.data;
+    expect(preview.analysisConditions).toEqual({ sourceRevision: 'f'.repeat(64), definition });
+    expect(preview.draft.sourceRevision).toBe(input.sourceRevision);
+    expect(preview.analysisConditions.sourceRevision).not.toBe(preview.draft.sourceRevision);
     expect(preview.population).toEqual({
       total: String(rows.length),
       matched: String(included.length),
