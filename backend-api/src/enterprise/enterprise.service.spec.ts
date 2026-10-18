@@ -80,6 +80,19 @@ describe('EnterpriseService organization and membership lifecycle', () => {
 
   const messageOf = (error: unknown) => String((error as { message?: string })?.message);
 
+  it('rejects a future expected version before claiming a newer database revision', async () => {
+    const manager = { update: jest.fn().mockResolvedValue({ affected: 1 }) };
+    const scoped = jest.spyOn(service as any, 'scope').mockResolvedValue({
+      organization: { id: 1, version: 1 },
+    });
+    try {
+      await expect((service as any).claim(manager, 1, 2)).rejects.toMatchObject({ status: 409 });
+      expect(manager.update).not.toHaveBeenCalled();
+    } finally {
+      scoped.mockRestore();
+    }
+  });
+
   beforeAll(async () => {
     db = await new DataSource({
       type: 'sqlite',
@@ -342,24 +355,44 @@ describe('EnterpriseService organization and membership lifecycle', () => {
   it('rejects a login name that matches more than one account', async () => {
     const created = await service.create(1, { name: 'Acme' });
     await seedAccounts(9);
-    await users.update(9, { userId: 'account-2' });
-    const code = await enroll(2);
-    const before = await state();
+    // Legacy pre-migration ambiguity remains rejected even though the current schema forbids creating it.
+    const runner = db.createQueryRunner();
+    const table = await runner.getTable('user');
+    const index = table.indices.find(index => index.name === 'UQ_user_userId');
+    if (!index) throw new Error('Expected the current identity uniqueness index.');
+    await runner.dropIndex(table, index);
+    try {
+      await users.update(9, { userId: 'account-2' });
+      const code = await enroll(2);
+      const before = await state();
 
-    await expect(
-      service.add(1, {
-        userId: 'account-2',
-        team: '',
-        role: 'member',
-        expectedVersion: 1,
-        enrollmentCode: code,
-      }),
-    ).rejects.toMatchObject({ status: 400, message: UNUSABLE_ENROLLMENT });
+      await expect(
+        service.add(1, {
+          userId: 'account-2',
+          team: '',
+          role: 'member',
+          expectedVersion: 1,
+          enrollmentCode: code,
+        }),
+      ).rejects.toMatchObject({ status: 400, message: UNUSABLE_ENROLLMENT });
 
-    expect(await state()).toEqual(before);
-    expect(await memberships.findOneBy({ userId: 2 })).toBeNull();
-    expect(await memberships.findOneBy({ userId: 9 })).toBeNull();
-    expect(await versionOf(created.organization.id)).toBe(1);
+      expect(await state()).toEqual(before);
+      expect(await memberships.findOneBy({ userId: 2 })).toBeNull();
+      expect(await memberships.findOneBy({ userId: 9 })).toBeNull();
+      expect(await versionOf(created.organization.id)).toBe(1);
+    } finally {
+      try {
+        await users.update(9, { userId: 'account-9' });
+        await runner.createIndex('user', index);
+        expect(
+          (await runner.getTable('user')).indices.some(
+            item => item.name === index.name && item.isUnique,
+          ),
+        ).toBe(true);
+      } finally {
+        await runner.release();
+      }
+    }
   });
 
   it('answers every unusable code with one identical error and no cross-org oracle', async () => {

@@ -56,16 +56,24 @@ describe('UC051 account and signup metadata coordination (real SQLite)', () => {
 
   it('does not let a held rollback absorb an acknowledged account change', async () => {
     const users = db.getRepository(User);
-    const originalSave = users.save.bind(users);
+    const originalTransaction = db.manager.transaction.bind(db.manager);
     const writeEntered = gate();
     const writeRelease = gate();
     const holdEntered = gate();
     const holdRelease = gate();
-    jest.spyOn(users as any, 'save').mockImplementation(async (row: any) => {
-      writeEntered.resolve();
-      await writeRelease.promise;
-      return originalSave(row);
-    });
+    (jest.spyOn(db.manager, 'transaction') as any).mockImplementation(run =>
+      originalTransaction(async manager => {
+        const update = manager.update.bind(manager);
+        (manager as any).update = async (entity, criteria, changes) => {
+          if (entity === User) {
+            writeEntered.resolve();
+            await writeRelease.promise;
+          }
+          return update(entity, criteria, changes);
+        };
+        return run(manager);
+      }),
+    );
 
     let updateSettled = false;
     const update = service

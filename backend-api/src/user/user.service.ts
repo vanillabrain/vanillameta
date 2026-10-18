@@ -3,12 +3,12 @@ import { EnterpriseMembership } from '../enterprise/entities/enterprise-membersh
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from '../auth/auth.service.js';
-import { Repository } from 'typeorm';
+import { EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { UserMapping } from './entities/user-mapping.entity.js';
-import { hashPassword } from '../utils/password.util';
-import { serializeMetadataWork } from '../common/metadata-work';
+import { hashPassword, verifyPassword } from '../utils/password.util';
+import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
 
 @Injectable()
 export class UserService {
@@ -32,37 +32,65 @@ export class UserService {
     });
   }
 
-  async updateUserInfo(userId: string, updateUserDto: UpdateUserDto) {
-    // NFR005/008: the password check and the account rewrite share one metadata scope, so a
-    // concurrent SQLite rollback cannot absorb an acknowledged change. checkAccess re-enters the
-    // same DataSource scope instead of waiting on itself.
-    return serializeMetadataWork(this.userRepository.manager.connection, async () => {
-      const findUser = await this.authService.checkAccess(userId, String(updateUserDto.password));
-      if (!findUser) {
-        throw new HttpException('not exist user', HttpStatus.CONFLICT);
-      } else {
-        findUser.email = String(updateUserDto.email);
-        findUser.password = hashPassword(String(updateUserDto.new_password));
-        await this.userRepository.save(findUser);
-        return 'success';
-      }
+  private async lockedAccount(manager: EntityManager, userId: string, password: string) {
+    const user = await manager.findOne(User, {
+      where: { userId },
+      ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ? { lock: { mode: 'pessimistic_write' as const } }
+        : {}),
     });
+    return user && user.active !== false && verifyPassword(password, user.password).ok
+      ? user
+      : null;
+  }
+
+  async updateUserInfo(userId: string, updateUserDto: UpdateUserDto) {
+    try {
+      return await metadataTransaction(this.userRepository.manager, async manager => {
+        const current = await this.lockedAccount(manager, userId, String(updateUserDto.password));
+        if (!current) throw new HttpException('not exist user', HttpStatus.CONFLICT);
+        // Update only the requested fields; a profile write cannot restore a stale active/epoch state.
+        await manager.update(User, current.id, {
+          email: String(updateUserDto.email),
+          password: hashPassword(String(updateUserDto.new_password)),
+        });
+        return 'success';
+      });
+    } catch (error) {
+      const code = error instanceof QueryFailedError && (error.driverError as any)?.code;
+      if (
+        code === 'ER_DUP_ENTRY' ||
+        (code === 'SQLITE_CONSTRAINT' && /UNIQUE/i.test((error as any).driverError.message))
+      )
+        throw new ConflictException('이미 사용 중인 이메일입니다.');
+      throw error;
+    }
   }
 
   async deleteUser(userId: string, password: string) {
-    return serializeMetadataWork(this.userRepository.manager.connection, async () => {
-      const findUser = await this.authService.checkAccess(userId, password);
-      if (!findUser) {
-        return 'Unauthorized';
-      } else {
-        if (
-          await this.userRepository.manager.findOneBy(EnterpriseMembership, { userId: findUser.id })
-        )
+    try {
+      return await metadataTransaction(this.userRepository.manager, async manager => {
+        const current = await this.lockedAccount(manager, userId, password);
+        if (!current) return 'Unauthorized';
+        if (await manager.findOneBy(EnterpriseMembership, { userId: current.id }))
           throw new ConflictException('조직 소속 계정은 조직 탈퇴 처리 후 삭제할 수 있습니다.');
-        await this.userRepository.delete(findUser.id);
+        await manager.delete(User, current.id);
         return 'success';
-      }
-    });
+      });
+    } catch (error) {
+      const code = error instanceof QueryFailedError && (error.driverError as any)?.code;
+      if (
+        [
+          'ER_ROW_IS_REFERENCED',
+          'ER_ROW_IS_REFERENCED_2',
+          'ER_LOCK_DEADLOCK',
+          'ER_LOCK_WAIT_TIMEOUT',
+        ].includes(code) ||
+        (code === 'SQLITE_CONSTRAINT' && /FOREIGN KEY/i.test((error as any).driverError.message))
+      )
+        throw new ConflictException('계정 연결이 변경되었습니다. 최신 소속을 확인해 주세요.');
+      throw error;
+    }
   }
 
   async reissuanceAccessToken(userId: string, authVersion = 0) {

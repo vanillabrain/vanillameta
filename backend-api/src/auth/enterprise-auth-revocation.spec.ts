@@ -1,3 +1,4 @@
+import { hashPassword } from '../utils/password.util';
 import { ExecutionContext } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'crypto';
@@ -87,16 +88,20 @@ describe('enterprise revocation: active flag and auth epoch on the account row',
       authVersion: 0,
     } as User);
     let persisted: string | undefined;
-    users.save.mockImplementation(async (row: User) => {
-      persisted = row.password;
-      return row;
+    users.update.mockImplementation(async (_where, changes) => {
+      persisted = changes.password;
+      return { affected: 1 };
     });
 
     const found = await service.validateUser('unitactor', 'unit-password');
 
     expect(found).toMatchObject({ id: 7, userId: 'unitactor', authVersion: 0 });
     expect(found?.password).toBeUndefined();
-    expect(users.save).toHaveBeenCalledTimes(1);
+    expect(users.save).not.toHaveBeenCalled();
+    expect(users.update).toHaveBeenCalledWith(
+      { id: 7, password: legacyHash('unit-password'), active: true, authVersion: 0 },
+      { password: expect.stringMatching(/^s2:/) },
+    );
     expect(persisted?.startsWith('s2:')).toBe(true);
   });
 
@@ -438,27 +443,33 @@ describe('UserController forwarding of the verified refresh epoch', () => {
 
 describe('UserService.deleteUser organization departure guard', () => {
   let users: {
-    manager: { findOneBy: jest.Mock; connection: { options: { type: string } } };
+    manager: any;
     delete: jest.Mock;
   };
-  let authService: { checkAccess: jest.Mock };
   let service: UserService;
 
   beforeEach(() => {
-    users = {
-      manager: { findOneBy: jest.fn(), connection: { options: { type: 'mysql' } } },
-      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    const manager: any = {
+      findOneBy: jest.fn(),
+      findOne: jest.fn().mockResolvedValue({
+        id: 7,
+        userId: 'unitactor',
+        password: hashPassword('unit-password'),
+        active: true,
+      }),
+      connection: { options: { type: 'mysql' } },
     };
-    authService = { checkAccess: jest.fn() };
+    manager.transaction = async run => run(manager);
+    manager.delete = (_entity, id) => users.delete(id);
+    users = { manager, delete: jest.fn().mockResolvedValue({ affected: 1 }) };
     service = new UserService(
       users as unknown as Repository<User>,
       {} as unknown as Repository<UserMapping>,
-      authService as unknown as AuthService,
+      {} as AuthService,
     );
   });
 
   it('blocks deleting an account that is still an organization member', async () => {
-    authService.checkAccess.mockResolvedValue({ id: 7, userId: 'unitactor' } as User);
     users.manager.findOneBy.mockResolvedValue({ userId: 7, organizationId: 3, role: 'admin' });
 
     await expect(service.deleteUser('unitactor', 'unit-password')).rejects.toMatchObject({
@@ -469,7 +480,6 @@ describe('UserService.deleteUser organization departure guard', () => {
   });
 
   it('deletes an account that is no longer an organization member', async () => {
-    authService.checkAccess.mockResolvedValue({ id: 7, userId: 'unitactor' } as User);
     users.manager.findOneBy.mockResolvedValue(null);
 
     await expect(service.deleteUser('unitactor', 'unit-password')).resolves.toBe('success');
@@ -478,8 +488,6 @@ describe('UserService.deleteUser organization departure guard', () => {
   });
 
   it('returns Unauthorized for a wrong password without any membership lookup or delete', async () => {
-    authService.checkAccess.mockResolvedValue(null);
-
     await expect(service.deleteUser('unitactor', 'unit-wrong-password')).resolves.toBe(
       'Unauthorized',
     );

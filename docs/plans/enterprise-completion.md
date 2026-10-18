@@ -43,3 +43,5 @@
 [계정·세션 쓰기](UC-051-account-session-writes.md)는 token/사용자 연결 transaction·현재 연결/actor·epoch 재검사와 계정/가입·샘플 metadata 경계를 보완한다. [검증](../testing/account-session-writes.md)에서 실제 rollback/부분 실패와 전체 회귀를 구분한다. 다른 일반 자산 경계와 공통 분류/조건·수신자·파일/export·보관 등 제품 요건은 계속 열린다.
 
 MySQL 계정 후속의 구체 잔여는 [계정·세션 계획](UC-051-account-session-writes.md#독립-검토의-잔여)의 가입 unique·membership FK/공통 잠금이다. SQLite 성공을 현재 없는 DB 제약의 증거로 대체하지 않는다.
+
+[계정 무결성 후속](UC-051-identity-integrity.md)에서 userId/email unique·membership User FK·편입/삭제 공통 User 잠금과 legacy rehash CAS를 연결했다. [실제 MySQL 검증](../testing/identity-integrity.md)은 로컬 격리8.4.11의 동시 가입·프로필/소속·비활성 보존을 확인한다. 과거 계정·세션 문서의 MySQL unique/FK 잔여는 이 단위 범위로 갱신하며 운영 적용/실제 기존 데이터·다른 보호 경로 전체/공통 분류·조건·수신자·출력·보관·전체 수용은 열린다.

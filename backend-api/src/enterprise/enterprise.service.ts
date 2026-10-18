@@ -48,8 +48,13 @@ export class EnterpriseService {
       throw new BadRequestException('조직 버전을 확인해 주세요.');
     return Number(value);
   }
-  private async user(actor: number, manager = this.db.manager) {
-    const user = await manager.findOne(User, { where: { id: this.id(actor) } });
+  private async user(actor: number, manager = this.db.manager, lock = false) {
+    const user = await manager.findOne(User, {
+      where: { id: this.id(actor) },
+      ...(lock && ['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ? { lock: { mode: 'pessimistic_write' as const } }
+        : {}),
+    });
     if (!user || user.active === false)
       throw new ForbiddenException('활성 계정만 사용할 수 있습니다.');
     return user;
@@ -119,12 +124,14 @@ export class EnterpriseService {
               'SQLITE_BUSY',
               'SQLITE_LOCKED',
               'ER_DUP_ENTRY',
+              'ER_NO_REFERENCED_ROW',
+              'ER_NO_REFERENCED_ROW_2',
               'ER_LOCK_DEADLOCK',
               'ER_LOCK_WAIT_TIMEOUT',
             ].includes((error.driverError as any)?.code)) ||
           (error instanceof QueryFailedError &&
             (error.driverError as any)?.code === 'SQLITE_CONSTRAINT' &&
-            /UNIQUE|PRIMARY KEY/i.test((error.driverError as any)?.message ?? ''))
+            /UNIQUE|PRIMARY KEY|FOREIGN KEY/i.test((error.driverError as any)?.message ?? ''))
         )
           throw new ConflictException('다른 변경이 먼저 반영됐습니다. 최신 목록을 확인해 주세요.');
         throw error;
@@ -152,7 +159,7 @@ export class EnterpriseService {
     const input = this.fields(body, ['name']);
     const name = this.text(input.name, 100, true);
     return this.mutation(async manager => {
-      await this.user(actor, manager);
+      await this.user(actor, manager, true);
       if (await manager.findOneBy(EnterpriseMembership, { userId: actor }))
         throw new ConflictException('이미 조직에 소속돼 있습니다.');
       const organization = await manager.save(EnterpriseOrganization, { name, version: 1 });
@@ -209,6 +216,8 @@ export class EnterpriseService {
   }
   private async claim(manager: EntityManager, actor: number, expected: number) {
     const { organization } = await this.scope(actor, manager, true);
+    if (organization.version !== expected)
+      throw new ConflictException('다른 변경이 먼저 반영됐습니다. 최신 목록을 확인해 주세요.');
     const result = await manager.update(
       EnterpriseOrganization,
       { id: organization.id, version: expected },
@@ -251,7 +260,15 @@ export class EnterpriseService {
       });
       if (consent.affected !== 1) throw invalidEnrollment();
       const matches = await manager.find(User, { where: { userId }, take: 2 });
-      const user = matches.length === 1 ? matches[0] : null;
+      const user =
+        matches.length === 1
+          ? await manager.findOne(User, {
+              where: { id: matches[0].id, userId },
+              ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+                ? { lock: { mode: 'pessimistic_write' as const } }
+                : {}),
+            })
+          : null;
       if (
         !user ||
         user.id !== enrollment.userId ||

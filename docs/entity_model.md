@@ -198,7 +198,13 @@ Dimension은 첫 범위에서 source+원본 column 기반 안정적 논리 ID·�
 | enterprise_audit_event  | id PK·organizationId index·actorId·action varchar40·resourceId·version·createdAt | 성공한 변경만·원문/비밀 값 없음         |
 | User 추가 컬럼          | active boolean defaulttrue·authVersion integer default0                          | 비활성/재활성 때 epoch 증가·jwtId 제거  |
 
-관계는 서비스에서 확인하는 논리ID이며 이 단위에 물리 FK/자동 삭제를 추가하지 않는다. 기존 로그인/토큰은 epoch0으로 호환하고 마이그레이션의 파괴적 down은 거절한다. 그룹/자원 권한·조직 이동/탈퇴는 이 스키마만으로 구현됐다고 보지 않는다.
+관계는 서비스에서 확인하는 논리ID이며 자동 삭제·연쇄 전파는 추가하지 않는다. 계정 유일성과 소속 무결성의 물리 제약은 아래 계정 유일성·소속 무결성 물리 모델을 따른다. 기존 로그인/토큰은 epoch0으로 호환하고 마이그레이션의 파괴적 down은 거절한다. 그룹/자원 권한·조직 이동/탈퇴는 이 스키마만으로 구현됐다고 보지 않는다.
+
+## UC051 계정 유일성·소속 무결성 물리 모델
+
+FR016/FR017의 첫 DB 제약이다. `user.userId`와 `user.email`에 명명된 unique index `UQ_user_userId`·`UQ_user_email`를 두고, `enterprise_membership.userId`→`user.id`에 `FK_enterprise_membership_user` RESTRICT 외래 키를 둔다. 관계는 자동 조회하지 않으며 API 응답 필드를 추가하지 않는다. `enterprise_membership.userId`는 계속 기본 키이고 관계는 같은 컬럼을 참조한다.
+
+추가 전용 `1792430000000-add-account-integrity` 마이그레이션은 모든 DDL 전에 중복 userId/email·NULL·소속 고아·참조 컬럼 타입/unsigned·user.id PK 여부·membership.userId PK 여부·membership.userId 컬럼 존재·같은 이름 인덱스/FK 정의·비 InnoDB 엔진을 검사한다. 비정상 데이터나 정의 불일치가 있으면 식별값 없이 종류/개수만 알리고 중단하며 사용자·소속·기존 인덱스·FK를 자동 삭제·병합·복구하지 않는다. user 테이블이 없는 신규 DB는 sync baseline에 맡기고, 컬럼이 불완전한 기존 user 테이블과 userId 없는 membership 테이블은 fail-closed한다. up은 반복 실행해도 안전하고 down은 검토된 백업 없이 거절한다. MySQL DDL은 비원자적이므로 운영에서는 writer 중지·백업·InnoDB 확인 후 적용하며 이번 검증에서는 운영 DB에 실행하지 않았다. 실제 SQLite 제약/마이그레이션과 MySQL 동시성 검증은 `.aiwf/evidence/UC051-identity-integrity`와 `docs/plans/UC-051-identity-integrity.md`를 따른다.
 
 ## UC051 자원별 권한 물리 모델
 

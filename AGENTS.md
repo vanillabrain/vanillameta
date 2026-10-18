@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **계정 DB 무결성:** [설계](docs/plans/UC-051-identity-integrity.md)·[증빙](docs/testing/identity-integrity.md)은 userId/email unique·Membership RESTRICT FK·동일 User 잠금·legacy rehash 부분 CAS를 적용한다. 실제 로컬 MySQL8.4.11의 가입/소속/비활성9개를 검증했다. 기존 이상 데이터는 식별값 없이 사전 중단하며 자동 삭제/병합하지 않는다. 운영 적용·다른 참조/보호 경로·실제 UI/전체16개 완료는 별도다.
+
 - **계정·세션 쓰기:** [설계](docs/plans/UC-051-account-session-writes.md)·[증빙](docs/testing/account-session-writes.md)은 현재 token/계정 연결의 원자 저장·actor/active/epoch 검사와 계정/가입·샘플 metadata 조정을 따른다. 이전 jwtId로 다른 연결을 덮지 않는다. 샘플 외부 파일/seed는 queue 밖이며 전체 샘플 작업/운영·실제 UI·추가16개 완료는 별도다.
 
 - **일반 metadata 후속:** [설계](docs/plans/UC-051-metadata-boundaries.md)·[증빙](docs/testing/metadata-boundaries.md)은 소스/지표 save/CAS·확정 정의/refresh 조회를 공통 큐에 연결한다. import/파일 작업·지표 SQL은 큐 밖이며 세션/계정 쓰기·다른 일반 CRUD/조회·Studio 집계 점유 범위·운영/전체 수용은 후속이다.
@@ -11,6 +13,8 @@
 - **UC050 소스 활성 상태:** [설계](docs/plans/UC-050-source-availability.md)·[증빙](docs/testing/source-availability.md)는 활성 소유 admin의 상태 CAS/감사와 일반 SourceAccess/정책·목록/공개 게시의 비활성 차단을 연결한다. 관리 경로는 비활성에도 재활성용으로 유지한다. 원본·grant·분석/게시 행은 보존하며 진행 중 SQL 취소/이미 전달한 데이터 회수·이용 범위/승인·전체 영향·Ego/전체 수용은 별도다.
 
 - **UC050 업무 변수 후속:** [설계](docs/plans/UC-050-variable-semantics.md)·[증빙](docs/testing/source-variable-semantics.md)는 업무 유형/날짜 형식/분류 문자열과 전체 문자열 날짜 검증을 기존 미리보기/버전 저장에 연결한다. 생략한 새 필드는 기존 선언을 보존하고 원본/SQL은 변경하지 않는다. Explore/Studio 공통 표시이며 조직 분류 ID·활성/공식 승인·조건/AI 실행 적용/실제 Ego·전체 요건 수용은 후속이다.
+
+- **UC051 계정 무결성 최신:** [설계](docs/plans/UC-051-identity-integrity.md)·[증빙](docs/testing/identity-integrity.md)의 userId/email unique·명명 membership FK·공통 User 잠금·부분 credential CAS를 실제 격리 MySQL8.4.11에서 검증했다. 미래 버전 요청은 읽은 조직 버전 불일치 시 쓰기 전409다. 최종 선택109(실제 MySQL9 포함)/type/lint/build·기존 core8 PASS이며 테스트 컨테이너/임시 credential은 정리했다. 기존 데이터 운영 진단/maintenance DDL·Ego/실기기·전체16개 수용은 미완료다.
 
 - **추가 요건 완료 목표:** 사용자가 FR014~025/NFR005~008 전체 완료를 goal로 지정했다. [완료 계획](docs/plans/enterprise-completion.md)의16개 요건/TC050을 기준으로 추적하며 하위 구현 수를 전체 완료율로 계산하지 않는다. [UC051 첫 단위](docs/plans/UC-051.md)는 격리 조직·본인 발급/조직에 묶인 일회용 직원 연결 코드·admin/member/팀/활성·DB epoch 인증 회수다. 첫 단위의 데이터 소유권은 유지하며 자원 grant 후속은 아래 계약을 따른다. 조직 소속 계정 일반 삭제는 탈퇴 처리 전409이며 실제 Ego/모바일·운영·전체 수용은 별도다.
 - **UC051 자원 권한 후속:** [설계](docs/plans/UC-051-resource-access.md)·[증빙](docs/testing/enterprise-resource-access.md)에 source/dashboard별 read/edit/publish/export·같은 조직의 활성 소유 admin 관리·CAS/회수/감사를 연결했다. 원 소유권과 실제 actor는 유지하고 대시보드에는 별도 source read도 필요하다. 수신자 새 산출물/소스 교체·삭제·임의 SQL은 소유권 경계를 유지한다. 게시자의 현재 publish와 원 소스 read를 공개 조회/재사용에서도 확인하고 열람 응답에서 익명 링크를 제거한다. 대시보드 export는 정책 기반이며 영속 파일 소비자·그룹·실제 Ego/모바일/운영/전체 수용은 미완료다.

@@ -113,3 +113,5 @@ flowchart LR
 [일반 metadata 경계](../plans/UC-051-metadata-boundaries.md)는 Database/Metric의 metadata save/CAS·정의 RMW와 refresh User/Token 확정 조회에 같은 조정기를 적용한다. 불변 파일 import/분석 SQL·등록 후 보조 작업은 구간 밖에 두고 기존 CAS/실패 cleanup을 유지한다. 계정/세션 쓰기·나머지 일반 경로의 원자성·전체 NFR/운영 보장은 별도 후속이다. [검증](../testing/metadata-boundaries.md)을 따른다.
 
 [계정·세션 저장](../plans/UC-051-account-session-writes.md)은 기존 User/RefreshToken에서 실제 manager transaction으로 token과 연결을 함께 commit하고 현재 계정의 actor/active/epoch를 재검사한다. 이전 jwtId 인자는 현재 연결보다 우선하지 않는다. 가입 저장과 비동기 샘플은 분리하고 물리 샘플 파일과 seed를 metadata queue 밖에서 처리한다. 신규 물리 모델 없이 [증빙](../testing/account-session-writes.md)의 선택 경계를 검증한다.
+
+[계정 DB 무결성](../plans/UC-051-identity-integrity.md)은 기존 User identity unique와 Membership→User RESTRICT FK를 추가하고 기존 이상 데이터에는 DDL 전에 중단한다. 편입/삭제는 동일 User 행을 잠그고 legacy rehash는 active/epoch/password 조건의 부분 CAS다. [MySQL8.4.11 실제 검증](../testing/identity-integrity.md)은 합성 격리 엔진의 동작 증거이며 운영 data migration·전체 자산 참조 정리/권한 수용은 아니다.

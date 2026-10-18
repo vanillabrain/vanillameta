@@ -68,3 +68,5 @@
 [일반 metadata 경계 후속](../testing/metadata-boundaries.md)은 source/metric 저장·확정 정의와 refresh 조회를 연결한다. 이미 인증된 작업 전체 취소나 세션 회전 쓰기 원자성을 보장하는 기능은 아니다.
 
 [계정·세션 경계](../plans/UC-051-account-session-writes.md)는 현재 계정 token 연결과 인증 epoch를 commit 시 확인한다. [증빙](../testing/account-session-writes.md)의 부분 실패/SQLite 선택 회귀를 운영/모든 세션 수용으로 확대하지 않는다.
+
+[계정 무결성 설계](../plans/UC-051-identity-integrity.md)·[실제 MySQL 증빙](../testing/identity-integrity.md)은 신규 unique/FK와 동일 계정 잠금·부분 CAS를 연결한다. 초기 MySQL 가입/소속 경합의 알려진 잔여는 이 범위에서 보완했다. Enrollment 만료 코드나 다른 자산의 모든 참조 정리까지 포함하지 않으며 운영 DB 적용은 별도다.

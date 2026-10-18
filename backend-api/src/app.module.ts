@@ -1,3 +1,4 @@
+import { AddAccountIntegrity1792430000000 } from './migrations/1792430000000-add-account-integrity';
 import { AddSourceAvailability1792420000000 } from './migrations/1792420000000-add-source-availability';
 import { AddEnterpriseResourceGrants1792410000000 } from './migrations/1792410000000-add-enterprise-resource-grants';
 import { EnterpriseModule } from './enterprise/enterprise.module';
@@ -71,6 +72,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddAccountIntegrity1792430000000,
         AddSourceAvailability1792420000000,
         AddEnterpriseResourceGrants1792410000000,
         AddEnterpriseMembership1792400000000,

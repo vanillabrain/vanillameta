@@ -127,8 +127,17 @@ export class AuthService {
 
       // 레거시 sha512 해시 사용자는 로그인 성공 시점에 scrypt로 재해싱
       if (needsRehash) {
-        user.password = hashPassword(pass);
-        await this.userRepository.save(user);
+        const upgraded = await this.userRepository.update(
+          {
+            id: user.id,
+            password: user.password,
+            active: true,
+            authVersion: user.authVersion ?? 0,
+          },
+          { password: hashPassword(pass) },
+        );
+        // A delayed legacy rehash cannot restore a revoked account or overwrite a changed credential.
+        if (upgraded.affected !== 1) return null;
       }
       delete user.password;
       return user;
@@ -206,8 +215,4 @@ export class AuthService {
       throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
     }
   } // Refresh 토큰이 유효한지 확인
-
-  async checkAccess(userId: string, password: string) {
-    return await this.validateUser(userId, password);
-  }
 }

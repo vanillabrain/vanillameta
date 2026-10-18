@@ -106,3 +106,7 @@
 ## UC051 계정·세션 쓰기 후속 — 2026-10-18
 
 [계정·세션 증빙](../testing/account-session-writes.md)은 E02/E03 기반의 session row/계정 연결 실패 rollback·활성/epoch 재검사·로그아웃 및 계정 변경의 SQLite 성공 유실 방지를 검증한다. 기존 모든 token/계정 소비자·운영/MySQL·E13 실제 UI·전체 TC050 NOT_RUN을 승격하지 않는다.
+
+## UC051 계정 DB 무결성·실제 MySQL — 2026-10-18
+
+[실제 엔진 증빙](../testing/identity-integrity.md)은 E02/E03의 동일 ID/email 가입 경쟁·편입/삭제 양순서·프로필 충돌 rollback과 늦은 legacy hash 갱신의 비활성/epoch 복원을 방지하는9개를 로컬 MySQL8.4.11에서 검증한다. SQLite 모델/마이그레이션·기존 회귀는 별도다. E02/E03 전체/운영·E13 화면/전체 TC050을 선택 DB 검증으로 승격하지 않는다.
