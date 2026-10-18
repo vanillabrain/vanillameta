@@ -212,6 +212,17 @@ FR016/FR017의 첫 DB 제약이다. `user.userId`와 `user.email`에 명명된 u
 
 기존 dashboard_publication에도 nullable publisherId/sourceId를 추가해 실제 게시자와 원래 소스의 현재 권한을 익명 읽기/재사용에서 확인한다. 기존 null 값만 단일 원래 소유자 기준으로 호환하며 이 두 값은 공개 snapshot/메타데이터에 출력하지 않는다.
 
+## UC054 영속 집계 export 작업
+
+현재 물리 모델은 추가 마이그레이션 `1792510000000-add-export-jobs`의 `export_job`과 `export_part`다. 목표 객체 목록의 ExportJob/ResultFile을 실제 저장 책임으로 구체화하며, 결과 파일은 filesystem 경로가 아닌 DB TEXT 조각으로 저장한다.
+
+| Entity        | Key / fields                                                                                                                                                                                                               | Constraints                                                                                       |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `export_job`  | id PK; ownerId, organizationId, sourceId, sourceOwnerId; requestId, digest, requestJson, basisJson; status, version, attemptToken, leaseUntil; createdAt, expiresAt; filename, hash, errorCode, rowCount, bytes, partCount | `(ownerId, requestId)` unique; actor/org/id 목록 index; owner당 미만료 100개; 24h 만료; 5m lease  |
+| `export_part` | `(jobId, part)` composite PK; `data` TEXT                                                                                                                                                                                  | CSV 조각 순서 보존; 조각당 UTF-8 36 KiB 이하, 최대 200조각; job FK/cascade는 모델에 선언하지 않음 |
+
+요청은 집계 조건과 소스 revision 및 선택 지표의 version/digest를 고정한다. 작업 생성은 aggregate SQL을 실행하지 않는다. 명시 실행은 status/version/attempt token CAS를 통과해야 하며 SQL은 metadata transaction/SQLite queue 밖에서 수행한다. 완료 metadata와 조각은 원자 저장한다. 실패 정리는 소유 attempt의 CAS 성공 후에만 파일 조각을 삭제한다. 파일 조회 때 현재 actor/조직/소유권/export 권한/auth epoch, 만료와 checksum을 확인한다. 상태 응답에는 attempt token, checksum, 부분 내용이 포함되지 않는다. 전체 저장 모델과 미확정 수용 범위는 [UC-054 계획](plans/UC-054-export-jobs.md)·[검증 증빙](testing/export-jobs.md)을 따른다.
+
 ## UC050 업무 변수 의미 확장
 
 기존 `source_catalog_entry.metadata.columns` JSON에 optional businessType(auto/number/category/date), dateFormat(빈 값/native/YYYY-MM-DD/YYYY/MM/DD/YYYYMMDD), classification(정규화한80자 문자열)을 추가한다. 별도 테이블/마이그레이션은 없다. 이전 이력의 생략은 auto/빈 값이며 기존 클라이언트 쓰기에서 생략한 필드는 해당 열의 현재 선언을 보존한다. 원본 열 type은 읽기 전용으로 별도 유지한다. 변경은 동일 append-only sourceId/version·actorId와 schemaRevision/sourceRevision을 사용한다. 조직 공통 분류 식별자/사전이나 쿼리 계산식 변경을 구현한 것으로 보지 않는다.

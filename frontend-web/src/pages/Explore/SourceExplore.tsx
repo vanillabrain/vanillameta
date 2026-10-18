@@ -997,6 +997,12 @@ function SourceExploreContent() {
                 onRestore={restoreVersionedView}
               />
               <ExploreExport
+                key={`export-${catalog.sourceId}`}
+                measureVersions={Object.fromEntries(
+                  catalog.measures
+                    .filter(measure => measureIds.includes(measure.id))
+                    .map(measure => [String(measure.id), Number(measure.definitionVersion)]),
+                )}
                 allowed={catalog.access?.export}
                 payload={exportPayload}
                 disabled={

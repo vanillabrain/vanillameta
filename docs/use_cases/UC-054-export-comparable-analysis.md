@@ -13,7 +13,7 @@
 ## Preconditions
 
 - 요청자가 같은 조직의 유효한 업무 계정이며 대상의 현재 권한을 확인할 수 있다.
-- 신규 목표 명세이며 구현·실제 실행 검증은 NOT_RUN이다.
+- 영속 집계 CSV 작업은 부분 구현이며 실제 화면·운영 및 전체 비교 리포트 수용은 미완료다.
 
 ## Main Success Scenario
 
@@ -56,4 +56,8 @@
 
 ## Source Evidence
 
-[VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)를 따른다. 신규 요구이며 구현/실행 검증은 미완료다.
+[VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)를 따른다. 전체 수용은 미완료다. [영속 집계 작업 계획](../plans/UC-054-export-jobs.md)과 [부분 구현 증빙](../testing/export-jobs.md)에 SQLite/DuckDB/JWT·컴포넌트 검증과 미실행 실제 화면/운영 경계를 구분한다.
+
+## Implemented Slice: Durable aggregate CSV
+
+Explore/고급 Pivot의 검토 조건과 소스/지표 버전을 고정해 멱등 접수→사용자의 CSV 만들기→상태 확인/취소→권한 보호 파일을 연결한다. SQL 없는 입력 검증과 현재 권한/인증 세대 재검사, CAS/실행 lease·원자 파일 저장은 위 구현 계획을 따른다. lease 복구 검사는 같은 SQLite connection에서 새 service 인스턴스를 만든 것이며 실제 프로세스 재시작 증거가 아니다. 이 부분 구현으로 전체 비교 리포트 시나리오·TC050 상태를 올리지 않는다.

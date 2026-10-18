@@ -1,3 +1,4 @@
+import { AddExportJobs1792510000000 } from './migrations/1792510000000-add-export-jobs';
 import { AddNotificationAudience1792500000000 } from './migrations/1792500000000-add-notification-audience';
 import { AddGroupDeliveries1792490000000 } from './migrations/1792490000000-add-group-deliveries';
 import { AddEnterpriseGroups1792480000000 } from './migrations/1792480000000-add-enterprise-groups';
@@ -79,6 +80,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddExportJobs1792510000000,
         AddNotificationAudience1792500000000,
         AddGroupDeliveries1792490000000,
         AddEnterpriseGroups1792480000000,

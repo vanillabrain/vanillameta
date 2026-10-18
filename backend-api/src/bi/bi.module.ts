@@ -1,3 +1,5 @@
+import { ExportJobsService } from './export-jobs.service';
+import { ExportJobsController } from './export-jobs.controller';
 import { SourceConditionsController } from './source-conditions.controller';
 import { SourceConditionsService } from './source-conditions.service';
 import { SourceConditionEntry } from './entities/source-condition-entry.entity';
@@ -49,6 +51,7 @@ import { BiService } from './bi.service';
     ]),
   ],
   controllers: [
+    ExportJobsController,
     SourceConditionsController,
     SourceCatalogController,
     BiController,
@@ -65,6 +68,7 @@ import { BiService } from './bi.service';
     PublishedPublicationController,
   ],
   providers: [
+    ExportJobsService,
     SourceConditionsService,
     SourceCatalogService,
     SourceCatalogUsageService,

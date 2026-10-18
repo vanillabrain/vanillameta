@@ -9,6 +9,7 @@ import {
   sourceQuery,
 } from '../ai/dashboard-draft';
 import { comparisonValues, previousDateRange, validatePeriodOptions } from '../ai/dashboard-period';
+import { dateRangeBounds, validateDateRange } from '../ai/dashboard-date-range';
 import { ConnectionService } from '../connection/connection.service';
 import { EXPORT_LIMITS, EXPORT_MIME, ExportAxis, ExportEntry, toCsv } from './bi-explore-export';
 import { PivotRowSort, compareTuples, sortPivotRows } from './bi-explore-sort';
@@ -149,7 +150,7 @@ export class BiExploreService {
     });
   }
 
-  private dimensions(value: unknown, columns: string[]) {
+  private dimensions(value: unknown, columns?: string[]) {
     if (value === undefined) return [];
     if (!Array.isArray(value) || value.length > MAX_DIMENSIONS)
       throw new BadRequestException('dimensionColumns allows at most 4 columns');
@@ -157,7 +158,8 @@ export class BiExploreService {
     return value.map(candidate => {
       if (typeof candidate !== 'string' || !candidate.trim() || candidate.length > 128)
         throw new BadRequestException('invalid dimension column');
-      if (!columns.includes(candidate)) throw new BadRequestException('unknown dimension column');
+      if (columns && !columns.includes(candidate))
+        throw new BadRequestException('unknown dimension column');
       if (seen.has(candidate)) throw new BadRequestException('duplicate dimension column');
       seen.add(candidate);
       return candidate;
@@ -543,27 +545,35 @@ export class BiExploreService {
     });
   }
 
-  async query(body: any, actor: number) {
+  private requestDateRange(value: unknown, comparePrevious: boolean) {
+    if (value === undefined) return undefined;
+    const range = validateDateRange(value);
+    dateRangeBounds(range);
+    if (comparePrevious) previousDateRange(range);
+    return range;
+  }
+
+  private validateQueryRequest(body: any) {
     const input: Record<string, any> = {
       ...this.fields(body, QUERY_FIELDS),
       conditions:
         body?.conditions === undefined ? undefined : validateStudioConditions(body.conditions),
     };
+    positiveId(input.sourceId);
     const expected = this.revision(input.sourceRevision);
     const measureIds = this.measureIds(input.measureIds);
     const { trendGrain, comparePrevious } = validatePeriodOptions(input);
     // rankingSort is the current name for the leaderboard order; leaderboardSort is the v1 alias.
     const sortField = input.rankingSort === undefined ? 'leaderboardSort' : 'rankingSort';
-    const rankingSort = this.rankingSort(
-      input.rankingSort ?? input.leaderboardSort,
-      sortField,
-      comparePrevious,
-    );
+    const rankingSort = this.rankingSort(input[sortField], sortField, comparePrevious);
+    if (input.rankingSort !== undefined && input.leaderboardSort !== undefined)
+      this.rankingSort(input.leaderboardSort, 'leaderboardSort', comparePrevious);
     const page = this.page(input.page);
     const pageSize = this.pageSize(input.pageSize);
     const includeRows = this.flag(input.includeRows, false, 'includeRows');
     const filters = this.filters(input.filters);
-    const dateRange = input.dateRange;
+    const dateRange = this.requestDateRange(input.dateRange, comparePrevious);
+    this.dimensions(input.dimensionColumns);
     if (comparePrevious && dateRange === undefined)
       throw new BadRequestException('이전 기간 비교에는 적용한 날짜 범위가 필요합니다.');
     if (
@@ -572,6 +582,37 @@ export class BiExploreService {
     )
       throw new BadRequestException('rankingMeasureId must be one of the selected measures');
     const rankingMeasureId = Number(input.rankingMeasureId);
+    return {
+      input,
+      expected,
+      measureIds,
+      trendGrain,
+      comparePrevious,
+      rankingSort,
+      page,
+      pageSize,
+      includeRows,
+      filters,
+      dateRange,
+      rankingMeasureId,
+    };
+  }
+
+  async query(body: any, actor: number) {
+    const {
+      input,
+      expected,
+      measureIds,
+      trendGrain,
+      comparePrevious,
+      rankingSort,
+      page,
+      pageSize,
+      includeRows,
+      filters,
+      dateRange,
+      rankingMeasureId,
+    } = this.validateQueryRequest(body);
     if (input.conditions) await this.bi.assertSourceAction(input.sourceId, actor, 'read');
     return this.connection.withDuckDBSnapshot(input.sourceId, () =>
       this.querySnapshot({
@@ -983,31 +1024,46 @@ export class BiExploreService {
     return { sql: parts.join('?'), bindings: [...query.bindings, pattern] };
   }
 
+  /** SQL-free admission validation; source permissions, schema and revisions remain live checks. */
+  validateExportRequest(body: unknown) {
+    const input = this.fields(body, EXPORT_FIELDS);
+    if (input.mode !== 'explore' && input.mode !== 'pivot')
+      throw new BadRequestException('mode must be explore or pivot');
+    const query =
+      input.query && typeof input.query === 'object' && !Array.isArray(input.query)
+        ? { ...input.query }
+        : input.query;
+    if (query?.conditions !== undefined) {
+      try {
+        query.conditions = validateStudioConditions(query.conditions);
+      } catch {
+        throw new BadRequestException('invalid conditions');
+      }
+    }
+    if (!query || typeof query !== 'object' || Array.isArray(query))
+      throw new BadRequestException('invalid query');
+    if (input.mode === 'explore') {
+      const validated = this.validateQueryRequest(query);
+      if (validated.includeRows)
+        throw new BadRequestException(
+          'CSV 내보내기에는 원본 행을 포함할 수 없습니다. includeRows를 끄고 다시 시도해 주세요.',
+        );
+    } else {
+      if ('rowDimensions' in query || 'columnDimensions' in query)
+        throw new BadRequestException('고급 Pivot 조건으로 CSV를 내보내 주세요.');
+      this.validatePivotRequest(this.fields(query, PIVOT_FIELDS));
+    }
+    return { mode: input.mode as 'explore' | 'pivot', query };
+  }
+
   /**
    * Bounded CSV export reuses the canonical aggregate/pivot path, so ownership, source revision
    * and every cap are enforced by query/pivot before a single byte is serialized. Model rows are
    * never exported: an explore request that asks for includeRows is rejected, not truncated.
    */
   async exportCsv(body: any, actor: number) {
-    const input = this.fields(body, EXPORT_FIELDS);
-    if (input.mode !== 'explore' && input.mode !== 'pivot')
-      throw new BadRequestException('mode must be explore or pivot');
-    const query =
-      input.query && typeof input.query === 'object' && !Array.isArray(input.query)
-        ? {
-            ...input.query,
-            ...(input.query.conditions !== undefined
-              ? { conditions: validateStudioConditions(input.query.conditions) }
-              : {}),
-          }
-        : input.query;
-    if (!query || typeof query !== 'object' || Array.isArray(query))
-      throw new BadRequestException('invalid query');
-    if (input.mode === 'explore') {
-      if (query.includeRows === true)
-        throw new BadRequestException(
-          'CSV 내보내기에는 원본 행을 포함할 수 없습니다. includeRows를 끄고 다시 시도해 주세요.',
-        );
+    const { mode, query } = this.validateExportRequest(body);
+    if (mode === 'explore') {
       // UC051: export is its own right, distinct from read. It is checked before the query and
       // again before the file response so a revocation during the read is denied.
       await this.bi.assertSourceAction(query.sourceId, actor, 'export');
@@ -1025,8 +1081,6 @@ export class BiExploreService {
         bytes,
       );
     }
-    if ('rowDimensions' in query || 'columnDimensions' in query)
-      throw new BadRequestException('고급 Pivot 조건으로 CSV를 내보내 주세요.');
     await this.bi.assertSourceAction(query.sourceId, actor, 'export');
     const result: any = await this.pivot(query, actor);
     const labels = await this.measureLabels(result.sourceId, actor);
@@ -1240,6 +1294,49 @@ export class BiExploreService {
     };
   }
 
+  private validatePivotRequest(input: Record<string, any>) {
+    positiveId(input.sourceId);
+    const expected = this.revision(input.sourceRevision);
+    const measureIds = this.measureIds(input.measureIds);
+    const { comparePrevious } = validatePeriodOptions(input);
+    const filters = this.filters(input.filters);
+    const dateRange = this.requestDateRange(input.dateRange, comparePrevious);
+    if (comparePrevious && dateRange === undefined)
+      throw new BadRequestException('이전 기간 비교에는 적용한 날짜 범위가 필요합니다.');
+    const rowHierarchy = this.flag(input.rowHierarchy, false, 'rowHierarchy');
+    const rowSort = this.rowSortOption(input.rowSort, measureIds, comparePrevious);
+    const tableMode = this.tableModeOption(input.tableMode);
+    // A flat table has no hierarchy and no column cell, so either is a contradictory request.
+    if (tableMode === 'flat' && rowHierarchy)
+      throw new BadRequestException('플랫 표에는 행 계층을 사용할 수 없습니다.');
+    if (tableMode === 'flat' && rowSort.columnTuple !== undefined)
+      throw new BadRequestException('플랫 표에는 열 셀 정렬을 사용할 수 없습니다.');
+    const rows = this.axis(input.rowColumns, undefined, '행');
+    const columns = this.axis(input.columnColumns, undefined, '열');
+    if (columns.some(column => rows.includes(column)))
+      throw new BadRequestException('같은 열을 행과 열 축에 함께 사용할 수 없습니다.');
+    if (rowSort.columnTuple !== undefined && rowSort.columnTuple.length !== columns.length)
+      throw new BadRequestException('invalid rowSort columnTuple');
+    // Reuse time-axis shape/zone/placement checks with request axes only. Actual temporal
+    // membership and native DATE semantics are independently checked in pivotSnapshot.
+    pivotBucket(
+      input.timeAxis,
+      [...rows, ...columns].map(name => ({ name, temporal: true })),
+      [...rows, ...columns],
+      dateRange,
+    );
+    return {
+      expected,
+      measureIds,
+      comparePrevious,
+      filters,
+      dateRange,
+      rowHierarchy,
+      rowSort,
+      tableMode,
+    };
+  }
+
   /** Bounded pivot: axis tuples plus canonical totals reaggregated outside the cell grid. */
   /**
    * Bounded pivot with hierarchy, scoped sorting, a time axis and a flat table mode. The classic
@@ -1261,21 +1358,16 @@ export class BiExploreService {
         throw new BadRequestException('rowDimensions와 rowColumns는 함께 사용할 수 없습니다.');
       return this.pivotClassic(input, actor);
     }
-    const expected = this.revision(input.sourceRevision);
-    const measureIds = this.measureIds(input.measureIds);
-    const { comparePrevious } = validatePeriodOptions(input);
-    const filters = this.filters(input.filters);
-    const dateRange = input.dateRange;
-    if (comparePrevious && dateRange === undefined)
-      throw new BadRequestException('이전 기간 비교에는 적용한 날짜 범위가 필요합니다.');
-    const rowHierarchy = this.flag(input.rowHierarchy, false, 'rowHierarchy');
-    const rowSort = this.rowSortOption(input.rowSort, measureIds, comparePrevious);
-    const tableMode = this.tableModeOption(input.tableMode);
-    // A flat table has no hierarchy and no column cell, so either is a contradictory request.
-    if (tableMode === 'flat' && rowHierarchy)
-      throw new BadRequestException('플랫 표에는 행 계층을 사용할 수 없습니다.');
-    if (tableMode === 'flat' && rowSort.columnTuple !== undefined)
-      throw new BadRequestException('플랫 표에는 열 셀 정렬을 사용할 수 없습니다.');
+    const {
+      expected,
+      measureIds,
+      comparePrevious,
+      filters,
+      dateRange,
+      rowHierarchy,
+      rowSort,
+      tableMode,
+    } = this.validatePivotRequest(input);
     if (input.conditions) await this.bi.assertSourceAction(input.sourceId, actor, 'read');
     return this.connection.withDuckDBSnapshot(input.sourceId, () =>
       this.pivotSnapshot({
@@ -1658,7 +1750,7 @@ export class BiExploreService {
   }
 
   /** Up to two columns per axis; membership and within-axis duplicates reuse the dimension rules. */
-  private axis(value: unknown, columns: string[], label: '행' | '열') {
+  private axis(value: unknown, columns: string[] | undefined, label: '행' | '열') {
     if (value === undefined) return [];
     if (!Array.isArray(value) || value.length > MAX_PIVOT_AXIS)
       throw new BadRequestException(`${label} 축은 최대 2개 열까지 지정할 수 있습니다.`);

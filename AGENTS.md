@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC054 영속 집계 export:** [계획](docs/plans/UC-054-export-jobs.md)·[증빙](docs/testing/export-jobs.md)은 고정 조건/버전의 UUID 접수→CSV 만들기→조회/취소/파일을 연결한다. SQL 없는 접수 검증·현재 권한/JWT epoch·CAS/lease·원자 파일과 감사 경계를 따른다. 만료 중 실행은 완료하지 않으며 응답 유실은 동일 요청을 확인한다. 전체 비교 리포트·완료 알림·보관 정리·실제 Ego/모바일/MySQL/운영 및 전체16개 수용은 후속이다.
+
 - **UC053 그룹 알림:** [설계](docs/plans/UC-053-group-notifications.md)·[증빙](docs/testing/group-notifications.md)는 사건 당시 audience와 그룹 subject를 분리해 공유/회수·명시 가입/제외/그룹 활성 사건을 본인 알림으로 연결한다. 현재 권한은 별도이며 원본/관계/사본을 바꾸지 않는다. 계정·조직 변경만의 자동 사건/export·실제 Ego/모바일/MySQL/운영·전체16개 수용은 후속이다.
 
 - **UC053 동적 그룹 공유:** [설계](docs/plans/UC-053-group-deliveries.md)·[증빙](docs/testing/group-deliveries.md)는 현재/향후 구성원의 조회 공유·받은함·명시 동의 독립 복제를 연결한다. 소스 read는 별도이고 개인 공유/권한/사본을 보존한다. 접어도 미확정 UUID 요청을 유지한다. 그룹 알림·reload 복구·실제 Ego/모바일/MySQL/운영·전체16개 수용은 후속이다.

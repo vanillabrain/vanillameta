@@ -2,14 +2,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
+import ExportJobs from './ExportJobs';
 
 type Props = {
   allowed?: boolean;
+  measureVersions?: Record<string, number>;
   payload: { mode: 'explore' | 'pivot'; query: Record<string, unknown> };
   disabled: boolean;
 };
 
-export default function ExploreExport({ payload, disabled, allowed = true }: Props) {
+export default function ExploreExport({ payload, disabled, allowed = true, measureVersions }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -103,6 +105,21 @@ export default function ExploreExport({ payload, disabled, allowed = true }: Pro
           </Button>
           {disabled && <p className="text-xs">유효한 결과를 불러온 뒤 내보내세요.</p>}
         </div>
+      )}
+      {measureVersions && Array.isArray(payload.query.measureIds) && (
+        <ExportJobs
+          payload={payload}
+          disabled={
+            disabled ||
+            !payload.query.measureIds.every(
+              id => Number.isSafeInteger(measureVersions[String(id)]) && measureVersions[String(id)] > 0,
+            ) ||
+            payload.query.measureIds.length < 1 ||
+            payload.query.measureIds.length > 6 ||
+            payload.query.includeRows === true
+          }
+          measureVersions={measureVersions}
+        />
       )}
       {notice && (
         <p role="status" className="text-xs">
