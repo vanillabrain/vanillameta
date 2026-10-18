@@ -222,7 +222,15 @@ export default function PublishedDashboard() {
               <a href={'/published/' + encodeURIComponent(token) + '/remix'}>내 데이터로 복제</a>
             </Button>
           )}
-          <Button variant="outline" onClick={load} disabled={loading}>
+          <Button
+            variant="outline"
+            aria-disabled={loading}
+            aria-busy={loading}
+            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+            onClick={() => {
+              if (!loading) void load();
+            }}
+          >
             다시 확인
           </Button>
         </div>

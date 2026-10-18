@@ -878,3 +878,7 @@ stage/commit/push/병합 종료는 수행하지 않았으므로 Git index의 UU�
 ## 2026-10-19 Studio Pivot 커밋·통합과 조회 복구
 
 [후속 증빙](studio-pivot.md#2026-10-19-실제-후속-결과--ego34): 전날48파일 SHA256 불변을 확인한 뒤 `d40454b0`으로 커밋했고 최신 원격3커밋과 충돌 없이 병합해 **`21220bba`까지 drumcap으로 develop-v2 push 완료**다. 과거 미커밋 표기는 해당 시점 기록이다. 원격 영향 선택 BE50 PASS/6 MySQL SKIP·FE24/type/root build PASS이며 이전 전체 검사는 반복하지 않았다. SP-06 실제 목록 GET 통신 실패→초안/버튼 보호→키보드 명시 재조회→목록 복구·390px 넘침0·자산 쓰기0/서버 문서 불변을 확인했다. native select 방향키는 trusted 이벤트에도 값 변경이 확인되지 않아 자동화 미검증 유지다. 모델 gpt-6-luna/VoiceOver BLOCKED·실기기/운영/전체 수용 상태는 유지한다.
+
+## 2026-10-19 Studio Pivot 게시 만료·키보드 재조회
+
+[SP-07/Ego35 증빙](studio-pivot.md#2026-10-19-sp-07-실제-결과--ego35): 명시 API로 설정한 샘플 게시26 version3이 실제 만료 시간에 자동 GET410/집계 제거·reload 차단으로 전환됐고, 소유자200/저장 문서·지표42개는 보존됐다. 만료 자체를 확인한 후 테스트 링크만 중지했다. Enter 재조회 후 BUTTON→BODY 포커스 손실을 수정해 focus-visible/버튼 유지·중복 읽기 차단을 확인했다. 관련11/type/lint/FE build PASS·390px 넘침0이며 기존 통과 범위 반복0이다. native 날짜 fill이 요청에 반영되지 않은 초기 시도는 성공으로 세지 않고 UI 입력부터의 전체 흐름은 미검증 유지다. gpt-6-luna/VoiceOver BLOCKED·실기기/운영/전체 수용은 별도다.

@@ -93,3 +93,32 @@ Ego34의390px·활성 native select에서 실제3개 보기/disabled false를 �
 대표390px의 오류/복구 화면을 직접 확인했다. 추가 HTTP 상태/지연 경합·다른 폭의 오류 상태·원래 남은 native 선택 키/실휴대폰/VoiceOver·운영은 이 조건의 선택 PASS로 승격하지 않는다.
 
 증빙: [2026-10-19 폴더](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-pivot-followup-20261019/), `picker-read-error-390.png`, `picker-read-recovered-390.png`, `read-recovery.json`, `read-recovery-db.json`. 이 후속은 문서/증빙만 추가하며 전체 제품 수용은 Open이다.
+
+## 2026-10-19 후속 계획 — SP-07 게시 만료
+
+P4의 남은 선택 조건이다. 비공개 샘플 복사본26(일반 차트5+집계 Pivot)의 저장본에 새 테스트 링크/가까운 미래 만료를 명시 설정한다. 만료 전 공개 snapshot GET200·5431.25USD/5.390840046029919% → 실제 서버 시간의 만료 후 익명 GET410·공개 화면의 집계 제거/안내 → 소유자 저장본 조회200/원본 정의·지표·배치 불변을 확인한다. 자동 시간 경계와 reload 뒤 차단을 구별하고390px 만료/포커스/넘침0을 캡처한다. 기존 저장·복제·재게시 전체를 반복하지 않으며 VoiceOver/실기기/운영은 미검증 유지다. 최초 실행 전 NOT_RUN.
+
+## 2026-10-19 SP-07 실제 결과 — Ego35
+
+**PASS_SELECTED: 명시 API 만료 설정·공개 자동 만료·reload/소유본 보존. native 날짜 입력부터의 전체 UI 흐름은 미검증.** 기준 `f58ab617` + 공개 재조회 버튼 포커스 수정이다. 기존 SP01~06·Rill 숫자/CSV·전체 core는 반복하지 않았다. VoiceOver BLOCKED·gpt-6-luna·실기기/운영/전체 수용 상태는 유지한다.
+
+### 만료값 설정 경계와 실제 시간
+
+처음 Ego의 `datetime-local` fill 후 표시된 값이 React 게시 요청에 반영되지 않았고 `expiresAt`가 빠진 version1/2가 생성됐다. 진단에서 DOM 입력값은 보였지만 다음 렌더/실제 요청은 빈값이었다. 따라서 **날짜 UI 입력 성공으로 판정하지 않는다.** 제품 소스는 onChange→현재 expiry→ISO 요청을 사용하지만 실제 사람 입력을 확인하지 않았으므로 도구 한계와 제품 오류를 단정하지 않는다. DOM 값/React 상태 강제 변경이나 다른 모델로 우회하지 않았다. 이 두 초기 게시본은 성공 증거가 아닌 입력 진단이다(`expiry-input-diagnostic.json`, `expiry-config-390.png`, `anonymous-before-private.json`).
+
+같은 샘플 복사본26/같은 링크를 기존 테스트 세션의 명시 API 요청으로 version3 재게시해 **`2026-10-18T16:58:21.433Z`(한국 2026-10-19 01:58:21.433)** 만료값이 실제 응답/DB에 일치함을 확인했다. 이는 UI 날짜 입력을 통과시킨 대체 증거가 아니라 분리한 서버/API 설정 변형이다. 인증값은 출력/커밋하지 않았다.
+
+- 16:57:37 GMT, 인증 헤더 없는 GET **200**, 매출5431.25/마진5.390840046029919% 정확값 일치.
+- 실제 시간의 만료 후 **16:58:21.497Z**에 이미 열린 공개390px 화면이 자동 GET410/차트·Pivot·합계 제거/만료 안내로 전환됐다. Network resource는200→410이며 강제 서버·브라우저 시계 변경이나 만료 전 수동 revoke는 없다.
+- 별도 익명 GET410을 확인할 때 DB `revokedAt`는 여전히null이어서 **만료 자체에 의한 차단**임을 구별했다. 새로고침 후에도 데이터 없이 차단 안내를 표시했다.
+- 소유자 저장본은 GET200/6블록/동일 정답이며 dashboard26·studio_state·42개 Metric 전체가 불변이다. 만료 판정 뒤 이번 테스트 링크만 revoke201로 정리했다. 공개 원본 데이터/새 소스·지표·복사본은 만들지 않았다.
+
+### 발견한 키보드 오류와 수정·재검증
+
+만료 화면의 ‘다시 확인’을 Enter로 실행하면 조회 중 native disabled 처리로 브라우저 포커스가 BUTTON→BODY로 사라지는 것을 실제 응답 완료 후 재현했다. 버튼을 포커스 가능한 상태로 두고 `aria-disabled`/`aria-busy`로 읽기 상태를 알리며 로딩 중 재실행은 거절하도록 좁게 수정했다. 자동 만료/권한 조회·snapshot 계산·저장 API는 변경하지 않았다.
+
+신규 회귀를 먼저 실행해 기존 disabled 동작에서1개 실패(red)를 확인했고, 수정 후 관련3파일 **11 PASS**(신규1/공개 블록4/경로6)·FE type/lint/build가 통과했다. 로딩 중 중복 클릭에 추가 읽기0·조회 후 포커스 유지를 확인한다. 실제390px Enter 재조회도 응답 전후 BUTTON/‘다시 확인’ 유지, `:focus-visible` true·집계 없음·가로 넘침0이다. native 날짜 UI는 이 수정으로 해결됐다고 보고하지 않는다.
+
+증빙: [만료 검증 폴더](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/studio-pivot-expiry-20261019/). 성공 기준은 `confirmed-setup.json`·`confirmed-anonymous-before-private.json`·`confirmed-before-expiry-390.png`, `browser-expired.json`·`automatic-expired-390.png`, `anonymous-after.json`·`owner-and-cleanup.json`이다. `refresh-focus-before-fix.json`과 `refresh-focus-after-fix.json`/`keyboard-retry-fixed-390.png`로 오류 전후를 구별했다. 초기 재조회 스크립트의 단순 alert 대기는 이전 alert를 관찰할 수 있어, 최종 검증은 새 resource 완료+busy false를 기다려 판정했다.
+
+검사 로그 `/tmp/vm-pivot-expiry-focus-{red,green}.log`, `/tmp/vm-pivot-expiry-{type,lint,build}.log`. 제품 변경은 FE 버튼 한 곳·회귀1개이며 BE/전체 단위/전체 E2E를 반복하지 않았다. 실제 사람의 native 날짜/방향키·다른 폭의 만료/모든 권한·동시 경합·운영은 후속이다.
