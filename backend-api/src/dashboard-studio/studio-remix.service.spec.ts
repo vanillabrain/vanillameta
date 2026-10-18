@@ -1,3 +1,4 @@
+import { EnterpriseNotificationAudience } from '../enterprise/entities/enterprise-notification-audience.entity';
 import { EnterpriseGroupDeliveryService } from '../enterprise/group-delivery.service';
 import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
 import {
@@ -116,6 +117,7 @@ describe('T9 immutable semantic remix with real DuckDB and atomic metadata', () 
         User,
         EnterpriseMembership,
         EnterpriseAuditEvent,
+        EnterpriseNotificationAudience,
         EnterpriseResourceGrant,
         EnterpriseGroup,
         EnterpriseGroupMember,

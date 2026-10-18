@@ -1,3 +1,4 @@
+import { groupMembershipNotifications, groupRecipients } from './group-notification';
 import { createHash } from 'crypto';
 import {
   BadRequestException,
@@ -233,6 +234,9 @@ export class EnterpriseGroupService {
         if (!member || !user)
           throw new ForbiddenException('같은 조직의 활성 직원만 새로 추가할 수 있습니다.');
       }
+      const beforeRecipients = group.active
+        ? await groupRecipients(manager, id, scope.organizationId)
+        : [];
       const changed = await manager.update(
         EnterpriseGroup,
         { id, organizationId: scope.organizationId, version },
@@ -254,6 +258,14 @@ export class EnterpriseGroupService {
         subjectId: null,
         version: version + 1,
       });
+      await groupMembershipNotifications(
+        manager,
+        id,
+        scope.organizationId,
+        actor,
+        beforeRecipients,
+        active ? await groupRecipients(manager, id, scope.organizationId) : [],
+      );
       return this.detail(id, actor, manager);
     });
   }

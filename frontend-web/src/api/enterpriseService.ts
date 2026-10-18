@@ -214,6 +214,7 @@ const enterpriseService = {
 export default enterpriseService;
 
 export type PersonalNotification = {
+  viaGroup?: boolean;
   eventType: 'permissions' | 'shared' | 'unshared';
   id: number;
   resourceKind: 'source' | 'dashboard';
@@ -227,6 +228,8 @@ const notificationShape = (entry: any): entry is PersonalNotification =>
   !!entry &&
   positiveInteger(entry.id) &&
   ['permissions', 'shared', 'unshared'].includes(entry.eventType) &&
+  (entry.viaGroup === undefined ||
+    (entry.viaGroup === true && entry.resourceKind === 'dashboard' && entry.eventType !== 'permissions')) &&
   (entry.resourceKind === 'source' || entry.resourceKind === 'dashboard') &&
   positiveInteger(entry.resourceId) &&
   positiveInteger(entry.version) &&

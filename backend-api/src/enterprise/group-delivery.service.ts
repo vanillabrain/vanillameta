@@ -1,3 +1,4 @@
+import { groupNotification, groupRecipients } from './group-notification';
 import {
   BadRequestException,
   ConflictException,
@@ -13,7 +14,6 @@ import { groupAdmin, groupKeys, groupWrite } from './group.service';
 import { EnterpriseGroup } from './entities/enterprise-group.entity';
 import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
 import { EnterpriseDeliveryReceipt } from './entities/enterprise-dashboard-delivery.entity';
-import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
 @Injectable()
 export class EnterpriseGroupDeliveryService {
   constructor(
@@ -127,14 +127,22 @@ export class EnterpriseGroupDeliveryService {
             active: input.active,
             allowCopy: input.allowCopy,
           });
-        await manager.insert(EnterpriseAuditEvent, {
-          organizationId: scope.organizationId,
-          actorId: actor,
-          resourceId: dashboardId,
-          subjectId: group.id,
-          version,
-          action: input.active ? 'dashboard.group-shared' : 'dashboard.group-unshared',
-        });
+        await groupNotification(
+          manager,
+          {
+            organizationId: scope.organizationId,
+            actorId: actor,
+            resourceId: dashboardId,
+            subjectId: group.id,
+            version,
+            action: input.active ? 'dashboard.group-shared' : 'dashboard.group-unshared',
+          },
+          group.active
+            ? (
+                await groupRecipients(manager, group.id, scope.organizationId)
+              ).filter(id => id !== actor)
+            : [],
+        );
       }
       const response = {
         requestId: input.requestId,

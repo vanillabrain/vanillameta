@@ -1,3 +1,4 @@
+import { AddNotificationAudience1792500000000 } from './migrations/1792500000000-add-notification-audience';
 import { AddGroupDeliveries1792490000000 } from './migrations/1792490000000-add-group-deliveries';
 import { AddEnterpriseGroups1792480000000 } from './migrations/1792480000000-add-enterprise-groups';
 import { AddDeliveryCopy1792470000000 } from './migrations/1792470000000-add-delivery-copy';
@@ -78,6 +79,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddNotificationAudience1792500000000,
         AddGroupDeliveries1792490000000,
         AddEnterpriseGroups1792480000000,
         AddDeliveryCopy1792470000000,

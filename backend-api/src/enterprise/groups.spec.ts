@@ -1,3 +1,4 @@
+import { EnterpriseNotificationAudience } from './entities/enterprise-notification-audience.entity';
 import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
 import { randomUUID } from 'crypto';
 import { DataSource } from 'typeorm';
@@ -40,6 +41,7 @@ const entities = [
   DashboardWidget,
   EnterpriseMembership,
   EnterpriseAuditEvent,
+  EnterpriseNotificationAudience,
   EnterpriseResourceGrant,
   EnterpriseDashboardDelivery,
   EnterpriseGroupDelivery,
@@ -84,6 +86,7 @@ describe('Dynamic organization groups and additive resource authorization', () =
       EnterpriseGroupDelivery,
       EnterpriseNotificationState,
       EnterpriseAuditEvent,
+      EnterpriseNotificationAudience,
       DashboardWidget,
       UserMapping,
       Dashboard,

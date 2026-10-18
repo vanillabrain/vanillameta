@@ -1,3 +1,4 @@
+import { EnterpriseNotificationAudience } from './entities/enterprise-notification-audience.entity';
 import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
 import {
   EnterpriseGroup,
@@ -83,6 +84,7 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
         EnterpriseOrganization,
         EnterpriseMembership,
         EnterpriseAuditEvent,
+        EnterpriseNotificationAudience,
         EnterpriseResourceGrant,
         EnterpriseGroup,
         EnterpriseGroupMember,

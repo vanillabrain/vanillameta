@@ -114,3 +114,33 @@ it('ignores an old mutation response after reopening and reading a fresh inbox',
   await act(async () => finish({ data: { id: 4, read: false, removed: true } }));
   expect(screen.getByText(/대시보드 #7/)).toBeTruthy();
 });
+
+it('labels group sharing and revocation as historical incidents without implying current permission', async () => {
+  api.get.mockResolvedValueOnce({
+    data: {
+      entries: [
+        { ...item(6), viaGroup: true, eventType: 'unshared' },
+        { ...item(5), viaGroup: true, eventType: 'shared' },
+      ],
+      nextBeforeId: null,
+    },
+  });
+  render(<Notifications organizationId={1} />);
+  open();
+  await screen.findByText(/대시보드 #7 그룹 공유 회수/);
+  expect(screen.getByText(/대시보드 #7 그룹 조회 공유/)).toBeTruthy();
+  expect(screen.getByText(/현재 접근 권한은 자료를 열 때 다시 확인/)).toBeTruthy();
+  expect(api.post).not.toHaveBeenCalled();
+  api.post.mockResolvedValueOnce({ data: { id: 6, read: true, removed: false } });
+  fireEvent.click(screen.getByRole('button', { name: '알림 6 읽음' }));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '알림 6 읽음' }) as HTMLButtonElement).disabled).toBe(true),
+  );
+});
+it('rejects malformed group context rather than rendering a source permission as a group share', async () => {
+  api.get.mockResolvedValueOnce({ data: { entries: [{ ...item(), viaGroup: true }], nextBeforeId: null } });
+  render(<Notifications organizationId={1} />);
+  open();
+  await screen.findByText(/알림을 확인하지 못했습니다/);
+  expect(screen.queryByText(/대시보드 #7/)).toBeNull();
+});

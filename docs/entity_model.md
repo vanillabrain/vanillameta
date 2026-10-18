@@ -240,6 +240,8 @@ UC053 direct delivery의 `allowCopy` boolean은 기본 false인 별도 독립 �
 
 그룹 전달 `enterprise_group_delivery`는 `(ownerId, organizationId, dashboardId, groupId)` 복합 PK와 `version`, `active`, `allowCopy`를 보관한다. 조직/활성 소유자·현재 활성 그룹/구성원·유일 소유권을 매 요청 확인하며 소스 read는 별도다. 그룹 전달도 위 ownerId+requestId 영수증을 재사용하되 digest domain으로 direct 전달과 구분한다. 감사 action은 `dashboard.group-shared`/`dashboard.group-unshared`, `subjectId`는 직원이 아닌 groupId이며 개인 알림 대상으로 해석하지 않는다. 그룹 private reference는 `g-` 형식으로 조직·소유자·대시보드·관계 version·groupId·group version·template fingerprint를 묶고 reference/preview/save에서 현재 권한을 다시 확인한다. [그룹 전달 계획](plans/UC-053-group-deliveries.md)·[범위 증빙](testing/group-deliveries.md)을 따른다.
 
+그룹 알림은 `enterprise_notification_audience`의 `(eventId, recipientId)` 복합 PK로 사건 당시 수신자를 고정하며 현재 grant를 복제하지 않는다. 그룹 공유/회수 action의 `subjectId`는 계속 groupId다. `dashboard.group-shared`/`group-unshared`와 명시적 구성원 추가·제외 또는 그룹 활성 복원·비활성의 `dashboard.group-joined`/`group-left`만 대상으로 하며, 이름 변경이나 조직/계정 활성 변경은 사건을 만들지 않는다. 기존 그룹 감사에는 수신자 snapshot을 소급 생성하지 않는다. [계획](plans/UC-053-group-notifications.md)·[증빙](testing/group-notifications.md)을 따른다.
+
 ## UC051 Dynamic Groups
 
 `enterprise_group`은 id PK·organizationId/nameKey unique·name/active/version이다. nameKey는 trim/NFKC/소문자로 정규화한다. `enterprise_group_member`는 groupId/userId PK·userId/groupId index다. `enterprise_group_grant`는 resourceKind/resourceId/groupId PK와 organizationId/ownerId/version·read/edit/publish/export(defaultfalse)를 보관한다. 현재 조직/활성/소유자/그룹/구성원 연결을 매 요청 확인하고 직접 권한과 합산한다. 팀 문자열 이관이나 물리 cascade/User FK는 추가하지 않는다.

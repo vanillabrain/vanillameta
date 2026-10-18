@@ -1,3 +1,5 @@
+import { EnterpriseGroupService } from './group.service';
+import { EnterpriseNotificationAudience } from './entities/enterprise-notification-audience.entity';
 import { EnterpriseGroupDeliveryService } from './group-delivery.service';
 import { AddGroupDeliveries1792490000000 } from '../migrations/1792490000000-add-group-deliveries';
 import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
@@ -40,6 +42,7 @@ const entities = [
   DashboardWidget,
   EnterpriseMembership,
   EnterpriseAuditEvent,
+  EnterpriseNotificationAudience,
   EnterpriseResourceGrant,
   EnterpriseGroup,
   EnterpriseGroupMember,
@@ -79,6 +82,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
       EnterpriseGroupDelivery,
       EnterpriseNotificationState,
       EnterpriseAuditEvent,
+      EnterpriseNotificationAudience,
       EnterpriseResourceGrant,
       EnterpriseGroup,
       EnterpriseGroupMember,
@@ -177,10 +181,102 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     expect((await grouped.set(20, 1, request)).replayed).toBe(true);
     await expect(access.dashboard(20, 3, 'read')).rejects.toMatchObject({ status: 403 });
     expect(
-      (await new EnterpriseNotificationService(db).list(3)).entries.every(
-        e => e.eventType === 'permissions',
-      ),
-    ).toBe(true);
+      (await new EnterpriseNotificationService(db).list(3)).entries.filter(e => e.viaGroup),
+    ).toEqual([expect.objectContaining({ eventType: 'unshared', viaGroup: true })]);
+  });
+  it('snapshots group audiences and emits explicit joins/leaves without granting historical access', async () => {
+    const grouped = await seedGroup(),
+      groups = new EnterpriseGroupService(db),
+      inbox = new EnterpriseNotificationService(db);
+    const request = groupShare(80, 0, true, true);
+    await grouped.set(20, 1, request);
+    const shared = (await inbox.list(2)).entries.find(e => e.viaGroup);
+    expect(shared).toMatchObject({ eventType: 'shared', viaGroup: true });
+    expect((await inbox.list(3)).entries.some(e => e.viaGroup)).toBe(false);
+    await inbox.mark(2, shared.id, 'remove');
+    const change = (
+      expectedVersion: number,
+      memberIds: number[],
+      active = true,
+      name = 'Synthetic group',
+    ) => groups.set(80, 1, { expectedVersion, name, active, memberIds });
+    await change(1, [2, 3]);
+    const joined = (await inbox.list(3)).entries.filter(e => e.viaGroup);
+    expect(joined).toHaveLength(1);
+    expect(joined[0].eventType).toBe('shared');
+    expect(joined[0].id).not.toBe(shared.id);
+    const count = await db.manager.count(EnterpriseNotificationAudience);
+    await change(2, [2, 3], true, 'Renamed group');
+    expect(await db.manager.count(EnterpriseNotificationAudience)).toBe(count);
+    await change(3, [3]);
+    const left = (await inbox.list(2)).entries.filter(e => e.viaGroup);
+    expect(left).toHaveLength(1);
+    expect(left[0].eventType).toBe('unshared');
+    await inbox.mark(2, left[0].id, 'read');
+    await expect(access.dashboard(20, 2, 'read')).rejects.toMatchObject({ status: 403 });
+    await change(4, [3], false);
+    expect((await inbox.list(3)).entries[0]).toMatchObject({
+      viaGroup: true,
+      eventType: 'unshared',
+    });
+    await change(5, [3], true);
+    expect((await inbox.list(3)).entries[0]).toMatchObject({ viaGroup: true, eventType: 'shared' });
+    const audits = await db.manager.count(EnterpriseAuditEvent),
+      audience = await db.manager.count(EnterpriseNotificationAudience);
+    await grouped.set(20, 1, request);
+    await expect(change(5, [2, 3])).rejects.toMatchObject({ status: 409 });
+    expect(await db.manager.count(EnterpriseAuditEvent)).toBe(audits);
+    expect(await db.manager.count(EnterpriseNotificationAudience)).toBe(audience);
+    const failure = jest.spyOn(db.manager, 'createQueryBuilder').mockImplementationOnce(() => {
+      throw new Error('projection failure');
+    });
+    try {
+      await expect(inbox.list(3)).rejects.toThrow('projection failure');
+    } finally {
+      failure.mockRestore();
+    }
+    await access.dashboard(20, 3, 'read');
+    expect((await service.received(3)).entries).toHaveLength(1);
+    await db.manager.update(EnterpriseMembership, { userId: 3 }, { organizationId: 2 });
+    expect((await inbox.list(3)).entries).toEqual([]);
+    await expect(inbox.mark(3, joined[0].id, 'read')).rejects.toMatchObject({ status: 403 });
+  });
+  it('rolls back the entire group mutation if immutable audience recording fails', async () => {
+    const grouped = await seedGroup(),
+      request = groupShare();
+    await db.query(
+      "CREATE TRIGGER reject_audience BEFORE INSERT ON enterprise_notification_audience BEGIN SELECT RAISE(ABORT,'audience failure'); END",
+    );
+    try {
+      await expect(grouped.set(20, 1, request)).rejects.toThrow('audience failure');
+    } finally {
+      await db.query('DROP TRIGGER reject_audience');
+    }
+    expect(await db.manager.count(EnterpriseGroupDelivery)).toBe(0);
+    expect(await db.manager.count(EnterpriseDeliveryReceipt)).toBe(0);
+    expect(
+      await db.manager.count(EnterpriseAuditEvent, { where: { action: 'dashboard.group-shared' } }),
+    ).toBe(0);
+    await grouped.set(20, 1, request);
+    const count = await db.manager.count(EnterpriseAuditEvent);
+    await db.query(
+      "CREATE TRIGGER reject_audience BEFORE INSERT ON enterprise_notification_audience BEGIN SELECT RAISE(ABORT,'audience failure'); END",
+    );
+    try {
+      await expect(
+        new EnterpriseGroupService(db).set(80, 1, {
+          expectedVersion: 1,
+          name: 'Synthetic group',
+          active: true,
+          memberIds: [2, 3],
+        }),
+      ).rejects.toThrow('audience failure');
+    } finally {
+      await db.query('DROP TRIGGER reject_audience');
+    }
+    expect((await db.manager.findOneBy(EnterpriseGroup, { id: 80 })).version).toBe(1);
+    expect(await db.manager.find(EnterpriseGroupMember)).toEqual([{ groupId: 80, userId: 2 }]);
+    expect(await db.manager.count(EnterpriseAuditEvent)).toBe(count);
   });
   it('keeps group sharing independent of source read, current owner/org/active and rolls back stale writes', async () => {
     const grouped = await seedGroup();

@@ -1,3 +1,5 @@
+import { AddNotificationAudience1792500000000 } from '../migrations/1792500000000-add-notification-audience';
+import { EnterpriseNotificationAudience } from './entities/enterprise-notification-audience.entity';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import request = require('supertest');
@@ -10,7 +12,13 @@ import { EnterpriseNotificationState } from './entities/enterprise-notification-
 import { EnterpriseNotificationService } from './notification.service';
 import { AddNotificationState1792450000000 } from '../migrations/1792450000000-add-notification-state';
 
-const entities = [User, EnterpriseMembership, EnterpriseAuditEvent, EnterpriseNotificationState];
+const entities = [
+  User,
+  EnterpriseMembership,
+  EnterpriseAuditEvent,
+  EnterpriseNotificationState,
+  EnterpriseNotificationAudience,
+];
 describe('Personal notification projection and monotonic state', () => {
   let db: DataSource;
   let service: EnterpriseNotificationService;
@@ -26,6 +34,7 @@ describe('Personal notification projection and monotonic state', () => {
   afterAll(async () => db?.destroy());
   beforeEach(async () => {
     for (const entity of [
+      EnterpriseNotificationAudience,
       EnterpriseNotificationState,
       EnterpriseAuditEvent,
       EnterpriseMembership,
@@ -88,6 +97,57 @@ describe('Personal notification projection and monotonic state', () => {
         version: 1,
       },
     ]);
+  });
+  it('never treats a group subject as a personal recipient, and requires an immutable same-org audience to list or mark', async () => {
+    await db.manager.insert(EnterpriseAuditEvent, {
+      id: 10,
+      organizationId: 1,
+      actorId: 1,
+      subjectId: 2,
+      resourceId: 20,
+      version: 1,
+      action: 'dashboard.group-shared',
+    });
+    expect((await service.list(2)).entries.some(e => e.viaGroup)).toBe(false);
+    await expect(service.mark(2, 10, 'read')).rejects.toMatchObject({ status: 403 });
+    await db.manager.insert(EnterpriseNotificationAudience, [
+      { eventId: 10, recipientId: 1 },
+      { eventId: 10, recipientId: 3 },
+    ]);
+    expect((await service.list(1)).entries[0]).toMatchObject({
+      id: 10,
+      eventType: 'shared',
+      viaGroup: true,
+    });
+    expect((await service.list(3)).entries).toEqual([]);
+    await expect(service.mark(3, 10, 'remove')).rejects.toMatchObject({ status: 403 });
+    await service.mark(1, 10, 'read');
+    await service.mark(1, 10, 'read');
+    await service.mark(1, 10, 'remove');
+    await service.mark(1, 10, 'read');
+    expect(
+      await db.manager.findOneBy(EnterpriseNotificationState, { eventId: 10, recipientId: 1 }),
+    ).toMatchObject({ read: true, removed: true });
+    expect((await service.list(1)).entries.some(e => e.id === 10)).toBe(false);
+    expect(await db.manager.count(EnterpriseNotificationAudience)).toBe(2);
+    expect(await db.manager.count(EnterpriseAuditEvent, { where: { id: 10 } })).toBe(1);
+  });
+  it('adds audience schema idempotently and preserves the event subject and previous state', async () => {
+    const runner = db.createQueryRunner(),
+      migration = new AddNotificationAudience1792500000000();
+    await runner.dropTable('enterprise_notification_audience');
+    await migration.up(runner);
+    await migration.up(runner);
+    await db.manager.insert(EnterpriseNotificationAudience, { eventId: 1, recipientId: 2 });
+    await expect(
+      db.manager.insert(EnterpriseNotificationAudience, { eventId: 1, recipientId: 2 }),
+    ).rejects.toThrow();
+    expect(
+      (await runner.getTable('enterprise_notification_audience')).primaryColumns.map(c => c.name),
+    ).toEqual(['eventId', 'recipientId']);
+    expect((await db.manager.findOneBy(EnterpriseAuditEvent, { id: 1 })).subjectId).toBe(2);
+    await expect(migration.down()).rejects.toThrow('backup');
+    await runner.release();
   });
   it('projects only own current-organization permission events without private data or read writes', async () => {
     expect(await service.list(2)).toEqual({
@@ -219,6 +279,40 @@ describe('Personal notification projection and monotonic state', () => {
       expect(await db.getRepository(EnterpriseNotificationState).find()).toEqual([
         { recipientId: 2, eventId: 1, read: true, removed: false },
       ]);
+      await db.manager.insert(EnterpriseAuditEvent, {
+        id: 10,
+        organizationId: 1,
+        actorId: 1,
+        subjectId: 2,
+        resourceId: 20,
+        version: 1,
+        action: 'dashboard.group-left',
+      });
+      await request(server)
+        .post('/enterprise/notifications/10/read')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+      await db.manager.insert(EnterpriseNotificationAudience, { eventId: 10, recipientId: 2 });
+      const groupList = await request(server)
+        .get('/enterprise/notifications')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      expect(groupList.body.entries[0]).toMatchObject({
+        id: 10,
+        eventType: 'unshared',
+        viaGroup: true,
+      });
+      expect(JSON.stringify(groupList.body)).not.toMatch(
+        /"(subjectId|actorId|groupId|recipientId|sourceId|sql|token)"\s*:/i,
+      );
+      await request(server)
+        .post('/enterprise/notifications/10/read')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(201);
+      await request(server)
+        .post('/enterprise/notifications/10/remove')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(201);
       await db.getRepository(User).update(2, { authVersion: 1 });
       await request(server)
         .get('/enterprise/notifications')

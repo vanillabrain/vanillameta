@@ -116,6 +116,7 @@ export default function Notifications({ organizationId }: { organizationId: numb
               <li key={entry.id} className="min-w-0 rounded-md border p-3">
                 <p className="break-words">
                   {entry.resourceKind === 'source' ? '소스' : '대시보드'} #{entry.resourceId}{' '}
+                  {entry.viaGroup === true ? '그룹 ' : ''}
                   {entry.eventType === 'shared' ? '조회 공유' : entry.eventType === 'unshared' ? '공유 회수' : '권한 변경'} ·
                   버전 {entry.version}
                 </p>
