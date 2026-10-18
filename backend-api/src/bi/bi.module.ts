@@ -1,3 +1,6 @@
+import { SourceConditionsController } from './source-conditions.controller';
+import { SourceConditionsService } from './source-conditions.service';
+import { SourceConditionEntry } from './entities/source-condition-entry.entity';
 import { SourceCatalogUsageService } from './source-catalog-usage.service';
 import { SourceCatalogController } from './source-catalog.controller';
 import { SourceCatalogService } from './source-catalog.service';
@@ -37,9 +40,16 @@ import { BiService } from './bi.service';
   imports: [
     AiModule,
     ConnectionModule,
-    TypeOrmModule.forFeature([PersonalView, Dashboard, DashboardPublication, SourceCatalogEntry]),
+    TypeOrmModule.forFeature([
+      PersonalView,
+      Dashboard,
+      DashboardPublication,
+      SourceCatalogEntry,
+      SourceConditionEntry,
+    ]),
   ],
   controllers: [
+    SourceConditionsController,
     SourceCatalogController,
     BiController,
     DashboardReuseController,
@@ -55,6 +65,7 @@ import { BiService } from './bi.service';
     PublishedPublicationController,
   ],
   providers: [
+    SourceConditionsService,
     SourceCatalogService,
     SourceCatalogUsageService,
     BiService,

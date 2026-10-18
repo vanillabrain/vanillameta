@@ -14,6 +14,8 @@
 
 - **UC050 업무 변수 후속:** [설계](docs/plans/UC-050-variable-semantics.md)·[증빙](docs/testing/source-variable-semantics.md)는 업무 유형/날짜 형식/분류 문자열과 전체 문자열 날짜 검증을 기존 미리보기/버전 저장에 연결한다. 생략한 새 필드는 기존 선언을 보존하고 원본/SQL은 변경하지 않는다. Explore/Studio 공통 표시이며 조직 분류 ID·활성/공식 승인·조건/AI 실행 적용/실제 Ego·전체 요건 수용은 후속이다.
 
+- **UC052 조건 최신:** [계획](docs/plans/UC-052.md)·[증빙](docs/testing/source-conditions.md)은 허용 소스의 중첩AND/OR·포함/제외·전체 모집단 건수/비율·버전 저장/재조회다. 권한/소스·조건 버전/연결은 확정 metadata lease에서 캡처하고 SQL은 밖에서 실행한다. 기존 Studio/AI/게시에는 자동 적용하지 않으며 해당 통합·분포/표본·출력·Ego/실기기·전체 수용은 미완료다.
+
 - **UC051 계정 무결성 최신:** [설계](docs/plans/UC-051-identity-integrity.md)·[증빙](docs/testing/identity-integrity.md)의 userId/email unique·명명 membership FK·공통 User 잠금·부분 credential CAS를 실제 격리 MySQL8.4.11에서 검증했다. 미래 버전 요청은 읽은 조직 버전 불일치 시 쓰기 전409다. 최종 선택109(실제 MySQL9 포함)/type/lint/build·기존 core8 PASS이며 테스트 컨테이너/임시 credential은 정리했다. 기존 데이터 운영 진단/maintenance DDL·Ego/실기기·전체16개 수용은 미완료다.
 
 - **추가 요건 완료 목표:** 사용자가 FR014~025/NFR005~008 전체 완료를 goal로 지정했다. [완료 계획](docs/plans/enterprise-completion.md)의16개 요건/TC050을 기준으로 추적하며 하위 구현 수를 전체 완료율로 계산하지 않는다. [UC051 첫 단위](docs/plans/UC-051.md)는 격리 조직·본인 발급/조직에 묶인 일회용 직원 연결 코드·admin/member/팀/활성·DB epoch 인증 회수다. 첫 단위의 데이터 소유권은 유지하며 자원 grant 후속은 아래 계약을 따른다. 조직 소속 계정 일반 삭제는 탈퇴 처리 전409이며 실제 Ego/모바일·운영·전체 수용은 별도다.

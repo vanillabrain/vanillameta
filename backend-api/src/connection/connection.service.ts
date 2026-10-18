@@ -1,3 +1,4 @@
+import { serializeMetadataWork } from '../common/metadata-work';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateDatabaseDto } from '../database/dto/create-database.dto';
 import { QueryExecuteDto } from '../database/dto/query-execute.dto';
@@ -140,6 +141,30 @@ export class ConnectionService {
     const one = await this.databaseRepository.findOne({ where: { id: databaseId } });
     if (!one) throw new NotFoundException('database not found');
     return JSON.parse(decryptConnectionConfig(one.connectionConfig));
+  }
+
+  /** UC052: capture committed configuration without retaining the metadata lease during SQL.
+   * Always read fresh metadata, even inside an older pinned snapshot. The returned capability
+   * stays internal; callers must authorize before capture and recheck before returning results.
+   */
+  async captureDuckDBSnapshot(id: number) {
+    const databaseId = this.validateId(id);
+    const config = await serializeMetadataWork(
+      this.databaseRepository.manager.connection,
+      async () => {
+        const source = await this.databaseRepository.findOne({ where: { id: databaseId } });
+        if (!source) throw new NotFoundException('database not found');
+        const value = JSON.parse(decryptConnectionConfig(source.connectionConfig));
+        if (value.client !== 'duckdb') throw new BadRequestException('not a DuckDB source');
+        return value;
+      },
+    );
+    const pinned = new Map(this.duckDBSnapshots.getStore());
+    pinned.set(databaseId, config);
+    return {
+      run: <T>(callback: () => Promise<T>): Promise<T> =>
+        this.duckDBSnapshots.run(pinned, callback),
+    };
   }
 
   /** Pin the selected immutable file for every query in this async operation. */

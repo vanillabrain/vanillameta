@@ -13,7 +13,7 @@
 ## Preconditions
 
 - 요청자가 같은 조직의 유효한 업무 계정이며 대상의 현재 권한을 확인할 수 있다.
-- 신규 목표 명세이며 구현·실제 실행 검증은 NOT_RUN이다.
+- 현재 소스별 조건 편집/미리보기/버전 저장은 [구현 계획](../plans/UC-052.md)의 첫 단위로 진행한다. Studio/AI/분포·출력·실제 화면/전체 수용은 별도다.
 
 ## Main Success Scenario
 
@@ -55,4 +55,4 @@ AI와 직접 편집은 공통 검증 조건 정의를 사용한다. 임의 SQL�
 
 ## Source Evidence
 
-[VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)를 따른다. 신규 요구이며 구현/실행 검증은 미완료다.
+[VM 목표 설계](../architecture/enterprise-analysis.md)·[TC050](../test_cases/TC-050-enterprise-analysis.md)·[구현 계획](../plans/UC-052.md)을 따른다. 전체 구현/실행 수용은 미완료다.

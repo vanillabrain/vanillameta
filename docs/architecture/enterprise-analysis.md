@@ -115,3 +115,5 @@ flowchart LR
 [계정·세션 저장](../plans/UC-051-account-session-writes.md)은 기존 User/RefreshToken에서 실제 manager transaction으로 token과 연결을 함께 commit하고 현재 계정의 actor/active/epoch를 재검사한다. 이전 jwtId 인자는 현재 연결보다 우선하지 않는다. 가입 저장과 비동기 샘플은 분리하고 물리 샘플 파일과 seed를 metadata queue 밖에서 처리한다. 신규 물리 모델 없이 [증빙](../testing/account-session-writes.md)의 선택 경계를 검증한다.
 
 [계정 DB 무결성](../plans/UC-051-identity-integrity.md)은 기존 User identity unique와 Membership→User RESTRICT FK를 추가하고 기존 이상 데이터에는 DDL 전에 중단한다. 편입/삭제는 동일 User 행을 잠그고 legacy rehash는 active/epoch/password 조건의 부분 CAS다. [MySQL8.4.11 실제 검증](../testing/identity-integrity.md)은 합성 격리 엔진의 동작 증거이며 운영 data migration·전체 자산 참조 정리/권한 수용은 아니다.
+
+UC052의 [소스 조건 계획](../plans/UC-052.md)은 포함/제외 트리의 공통 검증/바인딩 컴파일과 전체 모집단 집계 문맥을 도입한다. sourceRevision과 조건 version이 불일치하면 이전 수치를 현재 결과로 반환하지 않는다. 현재 소스별 공통 조건 저장은 기존 Studio/게시 결과에 자동 적용하지 않으며, 동일 계약의 Studio/AI/출력 통합은 이어서 검증한다.

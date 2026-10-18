@@ -110,3 +110,7 @@
 ## UC051 계정 DB 무결성·실제 MySQL — 2026-10-18
 
 [실제 엔진 증빙](../testing/identity-integrity.md)은 E02/E03의 동일 ID/email 가입 경쟁·편입/삭제 양순서·프로필 충돌 rollback과 늦은 legacy hash 갱신의 비활성/epoch 복원을 방지하는9개를 로컬 MySQL8.4.11에서 검증한다. SQLite 모델/마이그레이션·기존 회귀는 별도다. E02/E03 전체/운영·E13 화면/전체 TC050을 선택 DB 검증으로 승격하지 않는다.
+
+## UC052 소스 조건·모집단 선택 검증 — 2026-10-18
+
+[공통 조건 증빙](../testing/source-conditions.md)은 E04/E05의 유형별 중첩AND/OR·포함/제외·NULL·전체/충족/제외/최종 건수·비율·조건 버전 저장/재조회와 JWT/실제 권한/회수·독립 DuckDB 정답을 선택 검증한다. Studio/AI 차이 적용·분포/표본·기간/지표 버전/파일·E13 실제 Ego/모바일과 전체 TC050은 NOT_RUN을 유지한다.
