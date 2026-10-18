@@ -33,7 +33,10 @@ export default function StudioSemanticReview({ proposal }: { proposal: CreationP
                 {metric.column ? '(' + metric.column + ')' : ''}
               </p>
               <details className="min-w-0 text-xs text-muted-foreground">
-                <summary className="cursor-pointer rounded-sm py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                <summary
+                  aria-label={`${index + 1}번 ${item.title} 계산 기준 확인`}
+                  className="cursor-pointer rounded-sm py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                >
                   계산 기준 확인
                 </summary>
                 <StudioMetricBasis definition={metric} />

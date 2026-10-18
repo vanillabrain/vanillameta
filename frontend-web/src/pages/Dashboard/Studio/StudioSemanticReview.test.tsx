@@ -100,3 +100,11 @@ it('retains no-result messaging when only the proposal definition is present', (
   expect(screen.getByText('계산 결과가 없습니다.')).toBeTruthy();
   expect(screen.getByText('미지정')).toBeTruthy();
 });
+
+it('distinguishes disclosures for multiple blocks even when their titles match', () => {
+  const p = proposal({ aggregation: 'SUM', column: 'amount' });
+  p.semanticProposal.push({ ...p.semanticProposal[0] });
+  render(<StudioSemanticReview proposal={p} />);
+  expect(screen.getByLabelText('1번 매출 기준 계산 기준 확인')).toBeTruthy();
+  expect(screen.getByLabelText('2번 매출 기준 계산 기준 확인')).toBeTruthy();
+});
