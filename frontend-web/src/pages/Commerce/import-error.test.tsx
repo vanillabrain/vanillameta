@@ -404,6 +404,139 @@ it('keeps loading for the newest request when an older response arrives first', 
   expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
 });
 
+// These cases cover retry/filter overlap beyond the plain filter races above.
+const startReportRace = async () => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation(url =>
+    url === '/commerce/7/report'
+      ? Promise.resolve({
+          data: { data: { ...reportPayload, availableChannels: ['direct', 'partner'] } },
+        })
+      : projectAndReport(url),
+  );
+  render(<Commerce />);
+  await screen.findByText('o1');
+  const pending: { resolve: (value: unknown) => void; reject: (error: unknown) => void }[] = [];
+  mocks.get.mockImplementation((url: string) =>
+    url === '/commerce/7/report'
+      ? new Promise((resolve, reject) => pending.push({ resolve, reject }))
+      : projectAndReport(url),
+  );
+  return pending;
+};
+const raceFilters = (year: string, channel: string) => {
+  fireEvent.change(screen.getByLabelText('시작일 UTC'), { target: { value: `${year}-01-01` } });
+  fireEvent.change(screen.getByLabelText('종료일 UTC'), { target: { value: `${year}-12-31` } });
+  fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: channel } });
+  fireEvent.click(screen.getByRole('button', { name: '적용' }));
+};
+const raceResult = (orderId: string, year = '2025', channel = 'partner') => ({
+  data: {
+    data: {
+      ...reportPayload,
+      summary: { ...reportPayload.summary, paymentTotal: 777 },
+      orders: [{ ...reportPayload.orders[0], orderId }],
+      availableChannels: ['direct', 'partner'],
+      scope: { start: `${year}-01-01`, end: `${year}-12-31`, channel, timezone: 'UTC' },
+    },
+  },
+});
+const raceFailure = (message: string) => ({ response: { status: 503, data: { message } } });
+
+it.each(['success', 'error'] as const)(
+  'preserves the newest failure and baseline after an older %s, then retries the newest filters',
+  async outcome => {
+    const pending = await startReportRace();
+    raceFilters('2024', 'direct');
+    raceFilters('2025', 'partner');
+    expect(pending).toHaveLength(2);
+    await act(async () => pending[1].reject(raceFailure('LATEST-ERROR')));
+    const error = await screen.findByText(/LATEST-ERROR.*이전 결과/);
+    const retainedScope = screen.getByText(/표시 결과 범위:/).textContent;
+    await act(async () => {
+      if (outcome === 'success') pending[0].resolve(raceResult('STALE-ORDER', '2024', 'direct'));
+      else pending[0].reject(raceFailure('STALE-ERROR'));
+    });
+    expect(screen.getByText(/LATEST-ERROR.*이전 결과/)).toBe(error);
+    expect(screen.getByText('o1')).toBeTruthy();
+    expect(screen.queryByText(/STALE-/)).toBeNull();
+    expect(screen.queryByText(/777/)).toBeNull();
+    expect(screen.getByText(/표시 결과 범위:/).textContent).toBe(retainedScope);
+    expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '리포트 다시 불러오기' }));
+    expect(pending).toHaveLength(3);
+    expect(mocks.get).toHaveBeenLastCalledWith('/commerce/7/report', {
+      start: '2025-01-01',
+      end: '2025-12-31',
+      channel: 'partner',
+    });
+    expect(screen.getByText('리포트를 불러오는 중…')).toBeTruthy();
+    expect(screen.getByText('o1')).toBeTruthy();
+    expect(screen.queryByText(/LATEST-ERROR/)).toBeNull();
+    await act(async () => pending[2].resolve(raceResult('RECOVERED-ORDER')));
+    expect(await screen.findByText('RECOVERED-ORDER')).toBeTruthy();
+    expect(screen.getByText(/777/)).toBeTruthy();
+    expect(screen.queryByText('o1')).toBeNull();
+    expect(screen.getByText(/표시 결과 범위: 2025-01-01 ~ 2025-12-31.*partner/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '리포트 다시 불러오기' })).toBeNull();
+    expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
+  },
+);
+
+it.each([
+  ['success', 'before'],
+  ['error', 'before'],
+  ['success', 'after'],
+  ['error', 'after'],
+] as const)('ignores a superseded retry %s arriving %s the newest filter response', async (outcome, timing) => {
+  const pending = await startReportRace();
+  raceFilters('2024', 'direct');
+  await act(async () => pending[0].reject(raceFailure('INITIAL-ERROR')));
+  await screen.findByText(/INITIAL-ERROR/);
+  fireEvent.click(screen.getByRole('button', { name: '리포트 다시 불러오기' }));
+  expect(screen.queryByText(/INITIAL-ERROR/)).toBeNull();
+  raceFilters('2025', 'partner');
+  expect(pending).toHaveLength(3);
+  expect((screen.getByRole('button', { name: '적용' }) as HTMLButtonElement).disabled).toBe(false);
+  const retainedScope = screen.getByText(/표시 결과 범위:/).textContent;
+  const settleRetry = () =>
+    act(async () => {
+      if (outcome === 'success') pending[1].resolve(raceResult('STALE-ORDER', '2024', 'direct'));
+      else pending[1].reject(raceFailure('STALE-ERROR'));
+    });
+  if (timing === 'before') {
+    await settleRetry();
+    expect(screen.getByText('리포트를 불러오는 중…')).toBeTruthy();
+    expect(screen.getByText('o1')).toBeTruthy();
+    expect(screen.getByText(/표시 결과 범위:/).textContent).toBe(retainedScope);
+    expect(screen.queryByText(/777/)).toBeNull();
+    expect(screen.queryByRole('button', { name: '리포트 다시 불러오기' })).toBeNull();
+    await act(async () => pending[2].reject(raceFailure('LATEST-ERROR')));
+    await screen.findByText(/LATEST-ERROR.*이전 결과/);
+    expect(screen.getByText('o1')).toBeTruthy();
+    expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '리포트 다시 불러오기' }));
+    expect(pending).toHaveLength(4);
+    expect(mocks.get).toHaveBeenLastCalledWith('/commerce/7/report', {
+      start: '2025-01-01',
+      end: '2025-12-31',
+      channel: 'partner',
+    });
+    await act(async () => pending[3].resolve(raceResult('LATEST-ORDER')));
+  } else {
+    await act(async () => pending[2].resolve(raceResult('LATEST-ORDER')));
+    await screen.findByText('LATEST-ORDER');
+    await settleRetry();
+  }
+  expect(screen.getByText('LATEST-ORDER')).toBeTruthy();
+  expect(screen.getByText(/777/)).toBeTruthy();
+  expect(screen.getByText(/표시 결과 범위: 2025-01-01 ~ 2025-12-31.*partner/)).toBeTruthy();
+  expect(screen.queryByText(/STALE-|INITIAL-ERROR|LATEST-ERROR/)).toBeNull();
+  expect(screen.queryByText('o1')).toBeNull();
+  expect(screen.queryByText('리포트를 불러오는 중…')).toBeNull();
+  expect(screen.queryByRole('button', { name: '리포트 다시 불러오기' })).toBeNull();
+});
+
 it('uses KRW for KPI, table names and unit descriptions without dollar labels', async () => {
   mocks.params = { projectId: '7' };
   mocks.get.mockImplementation((url: string) =>
