@@ -7,6 +7,7 @@ vi.mock('@/helpers/apiHelper', () => api);
 const item = (id = 4) => ({
   id,
   resourceKind: 'dashboard',
+  eventType: 'permissions',
   resourceId: 7,
   version: 2,
   createdAt: '2026-10-18T12:34:56Z',

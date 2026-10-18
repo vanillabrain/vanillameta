@@ -1,3 +1,4 @@
+import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-dashboard-delivery.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { ForbiddenException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
@@ -80,6 +81,7 @@ describe('UC-051 dashboard resource access', () => {
         UserMapping,
         EnterpriseMembership,
         EnterpriseResourceGrant,
+        EnterpriseDashboardDelivery,
         StudioPublication,
         StudioPublicationRequest,
       ],

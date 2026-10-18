@@ -1,3 +1,4 @@
+import Deliveries from './Deliveries';
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
@@ -614,6 +615,13 @@ function ResourcePolicyPanel({ organizationId, selfRecipientId }: { organization
             올라갑니다.
           </p>
 
+          {selected.kind === 'dashboard' && (
+            <Deliveries
+              key={`${organizationId}:${selected.id}:${selfRecipientId}`}
+              dashboardId={selected.id}
+              selfId={selfRecipientId}
+            />
+          )}
           {selected.kind === 'source' && (
             // UC050: availability of this exact source. The control reads nothing until the admin opens it, and no
             // grant above changes with it.

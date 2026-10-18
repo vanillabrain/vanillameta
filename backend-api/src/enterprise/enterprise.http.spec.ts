@@ -1,3 +1,4 @@
+import { EnterpriseDashboardDelivery } from './entities/enterprise-dashboard-delivery.entity';
 import { SourceLifecycleService } from './source-lifecycle.service';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { Database } from '../database/entities/database.entity';
@@ -54,6 +55,7 @@ describe('Enterprise protected HTTP lifecycle', () => {
         EnterpriseAuditEvent,
         EnterpriseEnrollment,
         EnterpriseResourceGrant,
+        EnterpriseDashboardDelivery,
         Database,
         Dashboard,
         UserMapping,

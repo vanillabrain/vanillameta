@@ -1,3 +1,4 @@
+import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-dashboard-delivery.entity';
 jest.mock('../connection/connection.service', () => ({ ConnectionService: class {} }));
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import {
@@ -150,6 +151,7 @@ describe('UC-018 publication backend', () => {
         User,
         EnterpriseMembership,
         EnterpriseResourceGrant,
+        EnterpriseDashboardDelivery,
       ],
       synchronize: true,
     }).initialize();

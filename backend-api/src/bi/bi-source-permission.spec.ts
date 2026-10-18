@@ -1,3 +1,4 @@
+import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-dashboard-delivery.entity';
 import { SourceLifecycleService } from '../enterprise/source-lifecycle.service';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 
@@ -162,6 +163,7 @@ describe('UC051 source grants across Explore, catalog and export', () => {
         User,
         EnterpriseMembership,
         EnterpriseResourceGrant,
+        EnterpriseDashboardDelivery,
         EnterpriseAuditEvent,
       ],
       synchronize: true,

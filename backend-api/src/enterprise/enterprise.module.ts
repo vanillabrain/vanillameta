@@ -1,3 +1,5 @@
+import { EnterpriseDeliveryController } from './delivery.controller';
+import { EnterpriseDeliveryService } from './delivery.service';
 import { EnterpriseNotificationService } from './notification.service';
 import { EnterpriseNotificationController } from './notification.controller';
 import { SourceLifecycleService } from './source-lifecycle.service';
@@ -25,7 +27,14 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     EnterpriseController,
     EnterpriseResourceController,
     EnterpriseNotificationController,
+    EnterpriseDeliveryController,
   ],
-  providers: [EnterpriseNotificationService, SourceLifecycleService, EnterpriseService, JwtService],
+  providers: [
+    EnterpriseDeliveryService,
+    EnterpriseNotificationService,
+    SourceLifecycleService,
+    EnterpriseService,
+    JwtService,
+  ],
 })
 export class EnterpriseModule {}

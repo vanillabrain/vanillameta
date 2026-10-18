@@ -1,3 +1,4 @@
+import { EnterpriseDashboardDelivery } from './entities/enterprise-dashboard-delivery.entity';
 import { EnterpriseNotificationState } from './entities/enterprise-notification-state.entity';
 import { EnterpriseNotificationService } from './notification.service';
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
@@ -77,6 +78,7 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
         EnterpriseMembership,
         EnterpriseAuditEvent,
         EnterpriseResourceGrant,
+        EnterpriseDashboardDelivery,
         Database,
         Dashboard,
         Widget,

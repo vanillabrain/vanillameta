@@ -6,7 +6,12 @@ import { EnterpriseMembership } from './entities/enterprise-membership.entity';
 import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
 import { EnterpriseNotificationState } from './entities/enterprise-notification-state.entity';
 
-const ACTIONS = ['source.permissions', 'dashboard.permissions'];
+const ACTIONS = [
+  'source.permissions',
+  'dashboard.permissions',
+  'dashboard.shared',
+  'dashboard.unshared',
+];
 @Injectable()
 export class EnterpriseNotificationService {
   constructor(private readonly db: DataSource) {}
@@ -58,6 +63,12 @@ export class EnterpriseNotificationService {
         id: Number(row.id),
         resourceKind: row.action === 'source.permissions' ? 'source' : 'dashboard',
         resourceId: Number(row.resourceId),
+        eventType:
+          row.action === 'dashboard.shared'
+            ? 'shared'
+            : row.action === 'dashboard.unshared'
+            ? 'unshared'
+            : 'permissions',
         version: Number(row.version),
         createdAt: new Date(
           typeof row.createdAt === 'string' && !/[zZ]|[+-][0-9]{2}:[0-9]{2}$/.test(row.createdAt)

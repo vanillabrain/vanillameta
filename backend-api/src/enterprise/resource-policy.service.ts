@@ -1,3 +1,4 @@
+import { EnterpriseDashboardDelivery } from './entities/enterprise-dashboard-delivery.entity';
 import { serializeMetadataWork } from '../common/metadata-work';
 import { serializeEnterpriseWrite } from './enterprise-write';
 import {
@@ -115,8 +116,19 @@ export class EnterpriseResourcePolicyService {
       organizationId: membership.organizationId,
       ownerId: resource.ownerId,
     });
-    if (!grant || grant.read !== true) this.denied();
-    return { ...this.rights(grant), publish: kind === 'dashboard' && grant.publish === true };
+    if (grant?.read === true)
+      return { ...this.rights(grant), publish: kind === 'dashboard' && grant.publish === true };
+    const delivery =
+      kind === 'dashboard' &&
+      (await manager.findOneBy(EnterpriseDashboardDelivery, {
+        ownerId: resource.ownerId,
+        organizationId: membership.organizationId,
+        dashboardId: id,
+        recipientId: actor,
+        active: true,
+      }));
+    if (!delivery) this.denied();
+    return { read: true, edit: false, publish: false, export: false };
   }
   async assert(
     kind: ResourceKind,
@@ -193,7 +205,49 @@ export class EnterpriseResourcePolicyService {
       .select('grant.resourceId', 'id')
       .orderBy('grant.resourceId', 'ASC')
       .getRawMany();
-    return rows.map(row => Number(row.id));
+    const direct = rows.map(row => Number(row.id));
+    if (kind !== 'dashboard') return direct;
+    const delivered = await this.db
+      .getRepository(EnterpriseDashboardDelivery)
+      .createQueryBuilder('delivery')
+      .innerJoin(
+        User,
+        'recipient',
+        'recipient.id = delivery.recipientId AND recipient.active = :active',
+        { active: true },
+      )
+      .innerJoin(
+        EnterpriseMembership,
+        'member',
+        'member.userId = recipient.id AND member.organizationId = delivery.organizationId',
+      )
+      .innerJoin(User, 'owner', 'owner.id = delivery.ownerId AND owner.active = :active')
+      .innerJoin(
+        EnterpriseMembership,
+        'ownerMember',
+        'ownerMember.userId = owner.id AND ownerMember.organizationId = delivery.organizationId',
+      )
+      .innerJoin(
+        Dashboard,
+        'resource',
+        'resource.id = delivery.dashboardId AND resource.delYn <> :deleted',
+        { deleted: 'Y' },
+      )
+      .innerJoin(
+        UserMapping,
+        'mapping',
+        'mapping.dashboardId = resource.id AND mapping.userInfoId = delivery.ownerId',
+      )
+      .where('delivery.recipientId = :actor AND delivery.active = :active', { actor, active: true })
+      .andWhere(
+        '(SELECT COUNT(*) FROM user_mapping owning WHERE owning.dashboardId = resource.id) = 1',
+      )
+      .select('delivery.dashboardId', 'id')
+      .orderBy('delivery.dashboardId', 'ASC')
+      .getRawMany();
+    return Array.from(new Set([...direct, ...delivered.map(row => Number(row.id))])).sort(
+      (a, b) => a - b,
+    );
   }
   sourceIds(actor: number) {
     return serializeMetadataWork(this.db, async () => {

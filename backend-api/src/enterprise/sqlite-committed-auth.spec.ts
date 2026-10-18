@@ -1,3 +1,4 @@
+import { EnterpriseDashboardDelivery } from './entities/enterprise-dashboard-delivery.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -33,6 +34,7 @@ describe('NFR005 reads committed authentication and availability', () => {
         Database,
         EnterpriseMembership,
         EnterpriseResourceGrant,
+        EnterpriseDashboardDelivery,
         EnterpriseAuditEvent,
       ],
     }).initialize();

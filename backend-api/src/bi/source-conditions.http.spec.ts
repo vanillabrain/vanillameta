@@ -1,3 +1,4 @@
+import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-dashboard-delivery.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api';
 import { Test } from '@nestjs/testing';
@@ -80,6 +81,7 @@ describe('UC052 protected conditions HTTP and independent population oracle', ()
         User,
         EnterpriseMembership,
         EnterpriseResourceGrant,
+        EnterpriseDashboardDelivery,
         SourceConditionEntry,
       ],
     }).initialize();

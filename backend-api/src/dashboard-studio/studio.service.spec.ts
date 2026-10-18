@@ -1,3 +1,4 @@
+import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-dashboard-delivery.entity';
 import { serializeMetadataWork } from '../common/metadata-work';
 import { SourceLifecycleService } from '../enterprise/source-lifecycle.service';
 import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
@@ -97,6 +98,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
         EnterpriseMembership,
         EnterpriseAuditEvent,
         EnterpriseResourceGrant,
+        EnterpriseDashboardDelivery,
         StudioPublication,
         StudioPublicationRequest,
       ],

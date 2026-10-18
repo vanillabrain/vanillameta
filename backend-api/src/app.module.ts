@@ -1,3 +1,4 @@
+import { AddDashboardDeliveries1792460000000 } from './migrations/1792460000000-add-dashboard-deliveries';
 import { AddNotificationState1792450000000 } from './migrations/1792450000000-add-notification-state';
 import { AddSourceConditions1792440000000 } from './migrations/1792440000000-add-source-conditions';
 import { AddAccountIntegrity1792430000000 } from './migrations/1792430000000-add-account-integrity';
@@ -74,6 +75,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddDashboardDeliveries1792460000000,
         AddNotificationState1792450000000,
         AddSourceConditions1792440000000,
         AddAccountIntegrity1792430000000,

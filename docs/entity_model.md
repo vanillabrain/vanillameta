@@ -227,3 +227,9 @@ FR016/FR017의 첫 DB 제약이다. `user.userId`와 `user.email`에 명명된 u
 ## UC053 Personal Notification State
 
 기존 `EnterpriseAuditEvent`의 수신자/조직·권한 action을 알림 원장으로 사용한다. 별도 개인 표시 상태 `enterprise_notification_state`는 recipientId+eventId 복합 PK와 read/removed boolean(default false)이다. 논리적으로 User/AuditEvent와 연결하지만 물리 FK/cascade는 추가하지 않는다. 상태 변경 API는 본인 active 계정/현재 소속/원장 이벤트를 재검증한다. 상태 제거는 감사/권한/자원 삭제가 아니며 false→true 단방향 멱등 갱신이다. 감사 원장의 subjectId/organizationId/id 복합 인덱스로 본인 최신순 조회를 지원한다. 직원/그룹 전달 관계·export job은 이 테이블에 혼합하지 않으며 별도 후속 모델이다.
+
+## UC053 Dashboard Delivery and Receipt
+
+`enterprise_dashboard_delivery`는 ownerId+organizationId+dashboardId+recipientId 복합 PK와 active/version을 보관한다. 현재 소유권·양쪽 계정 활성/조직 binding을 확인할 때 read만 합성한다. 별도 직접 grant의 edit/publish/export를 공유 관계로 옮기지 않는다. 원본/사본의 소유권·정의도 변경하지 않는다. 수신자/조직/active 인덱스로 목록 허용 ID를 찾는다.
+
+`enterprise_delivery_receipt`는 ownerId+UUID requestId PK, organizationId·SHA256 digest·고정 응답 text다. 현재 소유 admin/조직을 재검증한 replay만 허용하고 다른 요청 내용/조직은409다. 영수증은 과거 저장 확인이며 현재 공유 상태가 아니다. 공유/감사/영수증은 한 transaction이다. 동적 그룹/독립 사본 전달의 후속 모델은 별도다.

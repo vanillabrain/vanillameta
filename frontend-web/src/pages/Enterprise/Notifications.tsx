@@ -102,7 +102,8 @@ export default function Notifications({ organizationId }: { organizationId: numb
       {open && (
         <div className="mt-3 min-w-0 space-y-3" aria-busy={busy}>
           <p className="text-xs text-muted-foreground">
-            권한 변경 기록입니다. 현재 접근 권한은 자료를 열 때 다시 확인합니다. 목록 제거는 자료나 권한을 삭제하지 않습니다.
+            권한 변경과 공유·회수 기록입니다. 현재 접근 권한은 자료를 열 때 다시 확인합니다. 목록 제거는 자료나 권한을
+            삭제하지 않습니다.
           </p>
           <Button variant="outline" size="sm" disabled={busy} onClick={() => void load()}>
             알림 다시 읽기
@@ -114,8 +115,9 @@ export default function Notifications({ organizationId }: { organizationId: numb
             {entries.map(entry => (
               <li key={entry.id} className="min-w-0 rounded-md border p-3">
                 <p className="break-words">
-                  {entry.resourceKind === 'source' ? '소스' : '대시보드'} #{entry.resourceId} 권한 변경 · 버전{' '}
-                  {entry.version}
+                  {entry.resourceKind === 'source' ? '소스' : '대시보드'} #{entry.resourceId}{' '}
+                  {entry.eventType === 'shared' ? '조회 공유' : entry.eventType === 'unshared' ? '공유 회수' : '권한 변경'} ·
+                  버전 {entry.version}
                 </p>
                 <p className="mt-1 break-words text-xs text-muted-foreground">
                   <time dateTime={entry.createdAt}>{new Date(entry.createdAt).toLocaleString()}</time> ·{' '}

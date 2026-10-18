@@ -95,6 +95,7 @@ describe('Personal notification projection and monotonic state', () => {
         {
           id: 1,
           resourceKind: 'source',
+          eventType: 'permissions',
           resourceId: 8,
           version: 1,
           createdAt: '2026-10-18T12:34:56.000Z',

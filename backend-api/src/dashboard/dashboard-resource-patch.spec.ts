@@ -1,3 +1,4 @@
+import { EnterpriseDashboardDelivery } from '../enterprise/entities/enterprise-dashboard-delivery.entity';
 import { ForbiddenException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Dashboard } from './entities/dashboard.entity';
@@ -79,6 +80,7 @@ describe('UC-051 delegated dashboard patch', () => {
         UserMapping,
         EnterpriseMembership,
         EnterpriseResourceGrant,
+        EnterpriseDashboardDelivery,
       ],
     }).initialize();
     await db.getRepository(User).save([

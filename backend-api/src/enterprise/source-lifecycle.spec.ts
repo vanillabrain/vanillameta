@@ -1,3 +1,4 @@
+import { EnterpriseDashboardDelivery } from './entities/enterprise-dashboard-delivery.entity';
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { DataSource, Repository, QueryFailedError } from 'typeorm';
 import { DatasetType } from '../common/enum/dataset-type.enum';
@@ -75,6 +76,7 @@ describe('SourceLifecycleService source availability contract', () => {
         EnterpriseMembership,
         EnterpriseAuditEvent,
         EnterpriseResourceGrant,
+        EnterpriseDashboardDelivery,
         Database,
         Dashboard,
         Widget,

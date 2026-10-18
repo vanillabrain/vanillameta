@@ -214,6 +214,7 @@ const enterpriseService = {
 export default enterpriseService;
 
 export type PersonalNotification = {
+  eventType: 'permissions' | 'shared' | 'unshared';
   id: number;
   resourceKind: 'source' | 'dashboard';
   resourceId: number;
@@ -225,6 +226,7 @@ export type NotificationPage = { entries: PersonalNotification[]; nextBeforeId: 
 const notificationShape = (entry: any): entry is PersonalNotification =>
   !!entry &&
   positiveInteger(entry.id) &&
+  ['permissions', 'shared', 'unshared'].includes(entry.eventType) &&
   (entry.resourceKind === 'source' || entry.resourceKind === 'dashboard') &&
   positiveInteger(entry.resourceId) &&
   positiveInteger(entry.version) &&
