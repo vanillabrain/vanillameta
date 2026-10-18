@@ -1,3 +1,4 @@
+import Notifications from './Notifications';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
@@ -480,6 +481,7 @@ export default function Enterprise() {
   return (
     <section aria-label="조직·직원" className="mx-auto w-full max-w-3xl min-w-0 px-4 py-6">
       <h1 className="text-xl font-bold text-foreground">조직·직원</h1>
+      {organization && <Notifications key={`${organization.id}:${membership?.userId}`} organizationId={organization.id} />}
 
       {membership === null && (
         <form onSubmit={handleCreate} className="mt-4 flex min-w-0 flex-col gap-3">

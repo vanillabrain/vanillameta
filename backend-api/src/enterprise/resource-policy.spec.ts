@@ -1,3 +1,5 @@
+import { EnterpriseNotificationState } from './entities/enterprise-notification-state.entity';
+import { EnterpriseNotificationService } from './notification.service';
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { DatasetType } from '../common/enum/dataset-type.enum';
@@ -68,6 +70,7 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
       database: ':memory:',
       synchronize: true,
       entities: [
+        EnterpriseNotificationState,
         User,
         UserMapping,
         EnterpriseOrganization,
@@ -102,6 +105,7 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
   });
 
   beforeEach(async () => {
+    await db.getRepository(EnterpriseNotificationState).clear();
     await links.clear();
     await widgets.clear();
     await datasets.clear();
@@ -146,6 +150,36 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
 
   const own = (dashboardId: number, userId: number) =>
     mappings.save({ dashboardId, userInfoId: userId });
+
+  it('projects committed grant changes and preserves grants while personal notifications are removed', async () => {
+    const notifications = new EnterpriseNotificationService(db);
+    await policy.set('source', 101, 1, {
+      recipientId: 2,
+      expectedVersion: 0,
+      rights: rights({ read: true, edit: true }),
+    });
+    const first = await notifications.list(2);
+    expect(first.entries).toHaveLength(1);
+    const priorGrant = await grants.find();
+    await notifications.mark(2, first.entries[0].id, 'read');
+    await notifications.mark(2, first.entries[0].id, 'remove');
+    expect(await grants.find()).toEqual(priorGrant);
+    await policy.assert('source', 101, 2, 'edit');
+    await expect(
+      policy.set('source', 101, 1, {
+        recipientId: 2,
+        expectedVersion: 0,
+        rights: rights({ read: true }),
+      }),
+    ).rejects.toThrow(ConflictException);
+    expect((await notifications.list(2)).entries).toEqual([]);
+    await policy.set('source', 101, 1, { recipientId: 2, expectedVersion: 1, rights: rights({}) });
+    const after = await notifications.list(2);
+    expect(after.entries).toHaveLength(1);
+    expect(after.entries[0]).toMatchObject({ resourceId: 101, version: 2, read: false });
+    await expect(policy.assert('source', 101, 2, 'read')).rejects.toThrow(ForbiddenException);
+    expect(await audits.count()).toBe(2);
+  });
 
   it('grants read/edit/export at version 1 and audits the acting admin against the recipient', async () => {
     await expect(

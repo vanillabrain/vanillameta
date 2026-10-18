@@ -13,7 +13,7 @@
 ## Preconditions
 
 - 요청자가 같은 조직의 유효한 업무 계정이며 대상의 현재 권한을 확인할 수 있다.
-- 신규 목표 명세이며 구현·실제 실행 검증은 NOT_RUN이다.
+- 수신자 전달은 목표 명세다. 권한 변경 본인 알림의 첫 구현은 [계획](../plans/UC-053-notifications.md)·[증빙](../testing/personal-notifications.md)을 따른다. 실제 Ego/모바일·전달 전체 실행은 NOT_RUN이다.
 
 ## Main Success Scenario
 

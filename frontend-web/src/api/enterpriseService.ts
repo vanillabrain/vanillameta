@@ -212,3 +212,56 @@ const enterpriseService = {
 };
 
 export default enterpriseService;
+
+export type PersonalNotification = {
+  id: number;
+  resourceKind: 'source' | 'dashboard';
+  resourceId: number;
+  version: number;
+  createdAt: string;
+  read: boolean;
+};
+export type NotificationPage = { entries: PersonalNotification[]; nextBeforeId: number | null };
+const notificationShape = (entry: any): entry is PersonalNotification =>
+  !!entry &&
+  positiveInteger(entry.id) &&
+  (entry.resourceKind === 'source' || entry.resourceKind === 'dashboard') &&
+  positiveInteger(entry.resourceId) &&
+  positiveInteger(entry.version) &&
+  typeof entry.createdAt === 'string' &&
+  Number.isFinite(Date.parse(entry.createdAt)) &&
+  typeof entry.read === 'boolean';
+export const fetchNotifications = (beforeId?: number): Promise<NotificationPage> =>
+  get('/enterprise/notifications', beforeId === undefined ? {} : { beforeId }).then(response =>
+    rawPayload<NotificationPage>(
+      response,
+      (data: any): data is NotificationPage =>
+        !!data &&
+        Array.isArray(data.entries) &&
+        data.entries.length <= 20 &&
+        data.entries.every(notificationShape) &&
+        (data.nextBeforeId === null ||
+          (positiveInteger(data.nextBeforeId) &&
+            data.entries.length > 0 &&
+            data.nextBeforeId === data.entries[data.entries.length - 1].id)) &&
+        data.entries.every(
+          (entry: PersonalNotification, index: number) =>
+            (beforeId === undefined || entry.id < beforeId) && (index === 0 || entry.id < data.entries[index - 1].id),
+        ),
+    ),
+  );
+export const markNotification = (
+  id: number,
+  action: 'read' | 'remove',
+): Promise<{ id: number; read: boolean; removed: boolean }> =>
+  post(`/enterprise/notifications/${id}/${action}`, {}).then(response =>
+    rawPayload(
+      response,
+      (data: any): data is { id: number; read: boolean; removed: boolean } =>
+        !!data &&
+        data.id === id &&
+        typeof data.read === 'boolean' &&
+        typeof data.removed === 'boolean' &&
+        (action === 'read' ? data.read === true : data.removed === true),
+    ),
+  );

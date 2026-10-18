@@ -223,3 +223,7 @@ FR016/FR017의 첫 DB 제약이다. `user.userId`와 `user.email`에 명명된 u
 ## UC052 소스 조건 버전
 
 `source_condition_entry`는 sourceId/version 복합 PK로 포함/제외 조건 정의를 append하고 actorId/sourceRevision/createdAt을 보존한다. 값이 포함된 정의는 현재 소스 read/edit 정책으로 보호하며 원본 행/SQL/연결 정보를 저장하지 않는다. 기존 파일·분석·게시를 자동 변경하지 않는다. 다른 조건 자산/Studio·AI/출력 연결과 이력 조회 UI는 후속이다.
+
+## UC053 Personal Notification State
+
+기존 `EnterpriseAuditEvent`의 수신자/조직·권한 action을 알림 원장으로 사용한다. 별도 개인 표시 상태 `enterprise_notification_state`는 recipientId+eventId 복합 PK와 read/removed boolean(default false)이다. 논리적으로 User/AuditEvent와 연결하지만 물리 FK/cascade는 추가하지 않는다. 상태 변경 API는 본인 active 계정/현재 소속/원장 이벤트를 재검증한다. 상태 제거는 감사/권한/자원 삭제가 아니며 false→true 단방향 멱등 갱신이다. 감사 원장의 subjectId/organizationId/id 복합 인덱스로 본인 최신순 조회를 지원한다. 직원/그룹 전달 관계·export job은 이 테이블에 혼합하지 않으며 별도 후속 모델이다.

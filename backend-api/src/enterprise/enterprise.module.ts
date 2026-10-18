@@ -1,3 +1,5 @@
+import { EnterpriseNotificationService } from './notification.service';
+import { EnterpriseNotificationController } from './notification.controller';
 import { SourceLifecycleService } from './source-lifecycle.service';
 import { EnterpriseResourceController } from './resource-policy.controller';
 import { EnterpriseEnrollment } from './entities/enterprise-enrollment.entity';
@@ -19,7 +21,11 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
       EnterpriseAuditEvent,
     ]),
   ],
-  controllers: [EnterpriseController, EnterpriseResourceController],
-  providers: [SourceLifecycleService, EnterpriseService, JwtService],
+  controllers: [
+    EnterpriseController,
+    EnterpriseResourceController,
+    EnterpriseNotificationController,
+  ],
+  providers: [EnterpriseNotificationService, SourceLifecycleService, EnterpriseService, JwtService],
 })
 export class EnterpriseModule {}

@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC053 본인 알림:** [설계](docs/plans/UC-053-notifications.md)·[증빙](docs/testing/personal-notifications.md)은 확정 권한 감사 이벤트의 본인/현재 조직 투영과 별도 읽음/목록 제거를 연결한다. 제거는 grant/감사/자원을 삭제하지 않으며 알림은 현재 접근권 증명이 아니다. 직원/그룹 전달·독립 사본·공유/export 알림·실제 Ego/모바일/MySQL/전체 FR021/022 수용은 후속이다.
+
 - **계정 DB 무결성:** [설계](docs/plans/UC-051-identity-integrity.md)·[증빙](docs/testing/identity-integrity.md)은 userId/email unique·Membership RESTRICT FK·동일 User 잠금·legacy rehash 부분 CAS를 적용한다. 실제 로컬 MySQL8.4.11의 가입/소속/비활성9개를 검증했다. 기존 이상 데이터는 식별값 없이 사전 중단하며 자동 삭제/병합하지 않는다. 운영 적용·다른 참조/보호 경로·실제 UI/전체16개 완료는 별도다.
 
 - **계정·세션 쓰기:** [설계](docs/plans/UC-051-account-session-writes.md)·[증빙](docs/testing/account-session-writes.md)은 현재 token/계정 연결의 원자 저장·actor/active/epoch 검사와 계정/가입·샘플 metadata 조정을 따른다. 이전 jwtId로 다른 연결을 덮지 않는다. 샘플 외부 파일/seed는 queue 밖이며 전체 샘플 작업/운영·실제 UI·추가16개 완료는 별도다.

@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, Index } from 'typeorm';
 @Entity('enterprise_audit_event')
+@Index('IDX_enterprise_audit_inbox', ['subjectId', 'organizationId', 'id'])
 export class EnterpriseAuditEvent {
   @PrimaryGeneratedColumn() id: number;
   @Index('IDX_enterprise_audit_org') @Column({ type: 'integer' }) organizationId: number;
