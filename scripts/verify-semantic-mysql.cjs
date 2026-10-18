@@ -13,9 +13,12 @@ const mysql = createRequire(path.join(backend, "package.json"))(
 );
 const staff = process.argv.includes("--staff");
 const departure = process.argv.includes("--departure");
-if (staff && departure)
+const handover = process.argv.includes("--handover");
+if ([staff, departure, handover].filter(Boolean).length > 1)
   throw new Error("Select only one owned validation lane");
-const lanes = departure
+const lanes = handover
+  ? ["handover"]
+  : departure
   ? ["departure"]
   : staff
   ? ["staff"]
@@ -214,7 +217,8 @@ const cleanup = () =>
         phase: "ready",
         engine: server.version,
         metadata: "MySQL",
-        aggregation: staff || departure ? "not_used" : "native DuckDB",
+        aggregation:
+          staff || departure || handover ? "not_used" : "native DuckDB",
         lanes,
       })
     );
@@ -232,7 +236,9 @@ const cleanup = () =>
           "--runInBand",
           "--verbose",
           "--runTestsByPath",
-          ...(departure
+          ...(handover
+            ? ["src/enterprise/handover-proposal.spec.ts"]
+            : departure
             ? ["src/enterprise/staff-departure-impact.spec.ts"]
             : staff
             ? ["src/enterprise/staff-transfer.spec.ts"]

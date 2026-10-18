@@ -77,7 +77,7 @@ it('shows only the account’s own organization context to a member, with no sta
 
   await screen.findByText('바닐라메타');
   expect(screen.getByText('member (구성원)')).toBeTruthy();
-  expect(screen.getByText(/구성원은 소속 정보만 확인할 수 있습니다/)).toBeTruthy();
+  expect(screen.getByText(/직원 관리에서는 본인 소속만 확인할 수 있습니다/)).toBeTruthy();
   expect(screen.queryByText('직원 목록')).toBeNull();
   expect(screen.queryByText('기존 계정 추가')).toBeNull();
   expect(screen.queryByRole('button', { name: '조직 연결 코드 발급' })).toBeNull();

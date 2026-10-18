@@ -1,3 +1,4 @@
+import HandoverProposal from './HandoverProposal';
 import StaffDepartureImpact from './StaffDepartureImpact';
 import StaffTransfer from './StaffTransfer';
 import Classifications from './Classifications';
@@ -649,10 +650,17 @@ export default function Enterprise() {
           )}
           {!isAdmin && (
             <Notice severity="info" role="status">
-              구성원은 소속 정보만 확인할 수 있습니다. 직원 목록과 팀·역할·활성 변경은 조직 admin만 할 수 있습니다.
+              직원 관리에서는 본인 소속만 확인할 수 있습니다. 직원 목록과 팀·역할·활성 변경은 조직 admin만 할 수 있습니다.
             </Notice>
           )}
         </div>
+      )}
+
+      {organization && membership && (
+        <HandoverProposal
+          key={`handover:${organization.id}:${membership.userId}:${organization.version}:${contextRevision}`}
+          context={context}
+        />
       )}
 
       {transferNotice && (

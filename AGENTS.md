@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC051 인계 의향:** [설계](docs/plans/UC-051-handover-proposal.md)·[증빙](docs/testing/handover-proposal.md)은 소유자의 활성 source/단독 dashboard 선택·정확한 제목 공개 동의→지정 직원 검토/수락·철회를 연결한다. 소유권/접근권 이전은 없고 철회/만료/양쪽 epoch 변경은 제목 공개를 중단한다. 같은 UUID의 현재 상태·과거 수락과 감사 ID 연결을 구분한다. MySQL62·SQLite100/9SKIP·FE49는 중복 배치이며 Ego103 생성/409/재검토/수락/reload/철회·390/768/1440·원본60표 보존을 확인했다. 실제 인계/탈퇴 확정·운영/실휴대폰/전체16개 수용은 별도다.
+
 - **UC051 퇴사·인계 전 확인:** [설계](docs/plans/UC-051-departure-impact.md)·[증빙](docs/testing/staff-departure-impact.md)은 같은 조직 admin의 읽기 전용11종 건수만 제공한다. 개인 전체 소유와 조직 저장 관계·Studio 게시 이력을 구분하고 내용 접근/소유권 변경/탈퇴 실행은 하지 않는다. MySQL21·SQLite선택43/4SKIP·FE73은 중복 포함 별도 배치다. Ego102 조회/통신 실패·재조회/reload·일반 직원 비노출·390/768/1440을 확인했으며 실제 인계/탈퇴 확정·운영/실휴대폰/전체16개 수용은 후속이다.
 
 - **UC051 직원 검색·조직 이동:** [계획](docs/plans/UC-051-staff-transfer.md)·[증빙](docs/testing/staff-transfer.md)은 현재 조직 검색과 본인→대상 admin 수락→원 조직 다른 admin 검토/이동을 연결한다. 고정 reviewBasis/양쪽 CAS·현재 epoch를 확인하고 직접/그룹/전달 권한·로그인을 회수하되 소유 ID·원본·독립 사본·게시 행은 보존한다. 소유자 현재 소속이 조직 문맥이며 새 조직 자동 공개/업무 이관은 없다. 게시 가용성은 현재 원 소스 권한에 따른다. [Ego101 실제 화면 후속](docs/testing/staff-transfer-ui.md)은 검색·발급/철회·수락·변경409 재검토/이동·재로그인/reload와390/768/1440을 확인했다. 초기 JSON null·오류 사유·거절/미확정 안내·검색 정렬을 보완했고 최신 MySQL25·BE25(3 SKIP)·FE36은 개별 범위로 합산하지 않는다. 탈퇴·전 경로/운영·실기기·사람/전체16개 수용은 별도다.

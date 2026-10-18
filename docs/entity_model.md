@@ -307,3 +307,9 @@ name은 NFKC/trim 후 UTF-16 길이1~80이며 nameKey는 lowercase UTF8 SHA256 h
 `enterprise_staff_transfer`는 userId PK, sourceOrganizationId/targetOrganizationId/authVersion integer, codeHash varchar64 unique, expiresAt datetime, nullable acceptedBy/acceptedEpoch/targetVersion integer, team varchar100 default empty, completed boolean defaultfalse다. code 원문은 최초 발급 응답에만 반환한다. 코드 hash·당사자·계정 epoch·수락자/epoch/팀·대상 조직 version의 고정 digest reviewBasis는 조회에서 계산하며 최종 요청과 대조한다. 새 동의 발급은 이전 코드를 대체하고 완료 행은 현재 소속의 증거가 아닌 본인 확인 기록이다. 다음 동의로 대체되어도 target admin의 `member.transfer.accepted`와 양쪽 조직의 `member.transferred` 감사는 남는다.
 
 migration `1792590000000-add-staff-transfer`는 새 테이블만 추가한다. 기존 테이블은 필수 type/length/null/default·PK/unique를 검사해 불일치 시 자동 재작성 없이 중단한다. FK/cascade·소유권/자료 재배치는 추가하지 않는다. [설계](plans/UC-051-staff-transfer.md)·[선택 검증](testing/staff-transfer.md)을 따른다.
+
+## UC051 업무 자료 인계 의향
+
+새 `enterprise_handover_proposal`은 실제 소유권 이전과 분리된 요청/의향 기록이다. [설계](plans/UC-051-handover-proposal.md)에 따라 UUID requestId PK, organizationId/ownerId/recipientId·발급 양쪽 epoch·조직 버전·CAS version, status·24h expiresAt·acceptedAt, 고정 manifestJson·내부 payloadHash·무작위 reviewBasis·생성/수락/철회의 정확한 감사 ID 연결을 저장한다. 같은 당사자/버전의 여러 UUID도 감사 사건이 구분된다. manifest는 선택 kind/id/title와 내부 metadata hash만 보관하며 연결 설정·SQL·질문·파일 경로는 저장/응답하지 않는다. 응답에는 내부 fingerprint/payloadHash를 포함하지 않는다.
+
+ownerId는 제안 소유자이고 기존 Database.ownerId/UserMapping의 소유권을 변경하는 열이 아니다. recipientId는 검토 수신자이며 자원 grant가 아니다. 수락/철회 감사와 의향 행만 원자 저장하며 자산·독립 사본·과거 게시/출력·영수증의 actor를 소급 변경하지 않는다. additive migration은 기존 행을 삭제/병합하지 않으며 운영 적용과 전체 인계/탈퇴 수용은 별도다.
