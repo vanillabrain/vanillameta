@@ -80,7 +80,12 @@ export class BiService {
     const granted = await this.access.readableSourceIds(actor);
     if (!includeCatalog) {
       const rows = await this.db.getRepository(Database).find({
-        where: granted.length ? [{ ownerId }, { id: In(granted) }] : { ownerId },
+        where: granted.length
+          ? [
+              { ownerId, catalogActive: true },
+              { id: In(granted), catalogActive: true },
+            ]
+          : { ownerId, catalogActive: true },
         select: { id: true, name: true, engine: true },
         order: { id: 'ASC' },
       });
@@ -113,6 +118,7 @@ export class BiService {
           : 'source.ownerId = :ownerId',
         granted.length ? { ownerId, granted } : { ownerId },
       )
+      .andWhere('source.catalogActive = :catalogActive', { catalogActive: true })
       .orderBy('source.id', 'ASC')
       .getRawMany();
     return rows.map(({ id, name, engine, catalogVersion, metadata }) => {

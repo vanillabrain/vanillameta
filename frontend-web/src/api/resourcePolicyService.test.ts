@@ -108,3 +108,11 @@ it('maps refusals onto the shared policy error kinds', () => {
   const invalid = new EnterpriseApiError('bad shape', 'invalid');
   expect(resourcePolicyError(invalid)).toBe(invalid);
 });
+
+it('keeps a valid 300-character source name discoverable for inactive-source recovery', async () => {
+  const label = 'x'.repeat(300);
+  api.get.mockResolvedValueOnce(raw({ entries: [{ kind: 'source', id: 3, label }], nextAfter: null }));
+  expect((await fetchResourcePolicyResources()).entries[0].label).toBe(label);
+  api.get.mockResolvedValueOnce(raw({ entries: [{ kind: 'source', id: 3, label: label + 'x' }], nextAfter: null }));
+  expect(await failureOf(fetchResourcePolicyResources())).toBeInstanceOf(EnterpriseApiError);
+});

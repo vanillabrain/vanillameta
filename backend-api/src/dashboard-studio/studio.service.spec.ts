@@ -1,3 +1,4 @@
+import { SourceLifecycleService } from '../enterprise/source-lifecycle.service';
 import { StudioPublication, StudioPublicationRequest } from './entities/studio-publication.entity';
 import { StudioPublicationService } from './studio-publication.service';
 import { User } from '../user/entities/user.entity';
@@ -849,6 +850,13 @@ describe('Studio real DuckDB and transactional metadata', () => {
       8,
     );
     expect((await publications.read(published.token)).version).toBe(1);
+    const lifecycle = new SourceLifecycleService(db, policy);
+    await lifecycle.set(1, 7, { expectedVersion: 0, active: false });
+    await expect(publications.read(published.token)).rejects.toMatchObject({ status: 403 });
+    await expect(delegatedStudio.get(id, 8)).rejects.toMatchObject({ status: 403 });
+    await lifecycle.set(1, 7, { expectedVersion: 1, active: true });
+    expect((await publications.read(published.token)).version).toBe(1);
+
     expect(
       await db.manager.findOneByOrFail(StudioPublication, { token: published.token }),
     ).toMatchObject({ actorId: 8, sourceId: 1 });

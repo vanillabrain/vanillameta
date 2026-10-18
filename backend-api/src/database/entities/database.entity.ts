@@ -14,6 +14,12 @@ export class Database extends BaseEntity {
   })
   ownerId: number | null;
 
+  @Column({ type: 'boolean', default: true })
+  catalogActive: boolean;
+
+  @Column({ type: 'integer', default: 0 })
+  catalogVersion: number;
+
   @Column({ length: 300, comment: '데이터베이스명' })
   name: string;
 

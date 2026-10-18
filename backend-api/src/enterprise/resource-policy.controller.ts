@@ -1,3 +1,4 @@
+import { SourceLifecycleService } from './source-lifecycle.service';
 import { SourceAccessService } from '../ownership/source-access.service';
 import {
   BadRequestException,
@@ -18,6 +19,7 @@ export class EnterpriseResourceController {
   constructor(
     private readonly policy: EnterpriseResourcePolicyService,
     private readonly resourceAccess: SourceAccessService,
+    private readonly lifecycle: SourceLifecycleService,
   ) {}
   private id(raw: string) {
     if (!/^[1-9][0-9]*$/.test(raw) || !Number.isSafeInteger(Number(raw)))
@@ -53,5 +55,15 @@ export class EnterpriseResourceController {
     return resourceKind === 'source'
       ? this.resourceAccess.sourceCapabilities(resourceId, actor).then(rights => ({ rights }))
       : this.resourceAccess.dashboardCapabilities(resourceId, actor).then(rights => ({ rights }));
+  }
+  @Get('source/:id/lifecycle') lifecycleRead(@Req() req: any, @Param('id') id: string) {
+    return this.lifecycle.read(this.id(id), req.user.accessKeyData.id);
+  }
+  @Post('source/:id/lifecycle') lifecycleSet(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.lifecycle.set(this.id(id), req.user.accessKeyData.id, body);
   }
 }

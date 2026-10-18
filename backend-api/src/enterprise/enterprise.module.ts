@@ -1,3 +1,4 @@
+import { SourceLifecycleService } from './source-lifecycle.service';
 import { EnterpriseResourceController } from './resource-policy.controller';
 import { EnterpriseEnrollment } from './entities/enterprise-enrollment.entity';
 import { Module } from '@nestjs/common';
@@ -19,6 +20,6 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     ]),
   ],
   controllers: [EnterpriseController, EnterpriseResourceController],
-  providers: [EnterpriseService, JwtService],
+  providers: [SourceLifecycleService, EnterpriseService, JwtService],
 })
 export class EnterpriseModule {}

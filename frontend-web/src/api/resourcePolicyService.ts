@@ -36,7 +36,7 @@ export type ResourcePolicyWrite = {
 
 /** The cursor is `kind:id`, paged in fixed kind/id order (dashboards before sources). */
 export const RESOURCE_CURSOR_PATTERN = /^(?:dashboard|source):[1-9][0-9]{0,18}$/;
-export const MAX_RESOURCE_LABEL_LENGTH = 200;
+export const MAX_RESOURCE_LABEL_LENGTH = 300;
 
 export const isResourceCursor = (value: unknown): value is string =>
   typeof value === 'string' && RESOURCE_CURSOR_PATTERN.test(value);

@@ -97,7 +97,8 @@ export class SourceAccessService {
       .getRepository(Database)
       .findOne({ where: { id: sourceId } });
     // NULL legacy owners are locked; an authenticated first reader never acquires them.
-    if (!source) throw new ForbiddenException('data access denied');
+    if (!source || source.catalogActive === false)
+      throw new ForbiddenException('비활성 소스는 사용할 수 없습니다.');
     if (source.ownerId === actor) {
       if (action !== 'owner' && this.policy)
         return this.policy.assert('source', source.id, actor, action, manager);

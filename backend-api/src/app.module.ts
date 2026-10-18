@@ -1,3 +1,4 @@
+import { AddSourceAvailability1792420000000 } from './migrations/1792420000000-add-source-availability';
 import { AddEnterpriseResourceGrants1792410000000 } from './migrations/1792410000000-add-enterprise-resource-grants';
 import { EnterpriseModule } from './enterprise/enterprise.module';
 import { AddEnterpriseMembership1792400000000 } from './migrations/1792400000000-add-enterprise-membership';
@@ -70,6 +71,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddSourceAvailability1792420000000,
         AddEnterpriseResourceGrants1792410000000,
         AddEnterpriseMembership1792400000000,
         AddSourceCatalog1792300000000,

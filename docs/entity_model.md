@@ -209,3 +209,7 @@ Dimension은 첫 범위에서 source+원본 column 기반 안정적 논리 ID·�
 ## UC050 업무 변수 의미 확장
 
 기존 `source_catalog_entry.metadata.columns` JSON에 optional businessType(auto/number/category/date), dateFormat(빈 값/native/YYYY-MM-DD/YYYY/MM/DD/YYYYMMDD), classification(정규화한80자 문자열)을 추가한다. 별도 테이블/마이그레이션은 없다. 이전 이력의 생략은 auto/빈 값이며 기존 클라이언트 쓰기에서 생략한 필드는 해당 열의 현재 선언을 보존한다. 원본 열 type은 읽기 전용으로 별도 유지한다. 변경은 동일 append-only sourceId/version·actorId와 schemaRevision/sourceRevision을 사용한다. 조직 공통 분류 식별자/사전이나 쿼리 계산식 변경을 구현한 것으로 보지 않는다.
+
+## UC050 소스 활성 상태
+
+기존 `database.catalogActive` boolean(defaulttrue)와 `catalogVersion` integer(default0)는 소스 사용 상태와 CAS 버전이다. 여기의 catalogVersion은 /bi/sources가 반환하는 동명 업무 설명 버전과 구분하며 상태 API에서는 version으로만 반환한다. 신규179242 마이그레이션은 기존 소유권/연결정보/행을 보존한다. 상태 관리에는 현재 활성 소유 admin만 접근하고 일반 read/edit와 분리한다. 권한·원본/분석/게시 행은 비활성화 시 삭제하지 않는다. 상태 변경은 enterprise_audit_event의 실제 actorId/resourceId/version과 source.activate/source.deactivate로 기록한다. source.updatedAt도 갱신되므로 오래된 데이터 버전 요청은 다시 확인해야 한다.

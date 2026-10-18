@@ -1,3 +1,4 @@
+import { SourceLifecycleService } from '../enterprise/source-lifecycle.service';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 
 import { ForbiddenException } from '@nestjs/common';
@@ -373,5 +374,44 @@ describe('UC051 source grants across Explore, catalog and export', () => {
     expect(saveDashboard).not.toHaveBeenCalled();
     await expect(bi.save(body, OWNER)).resolves.toEqual({ id: 42 });
     expect(saveDashboard).toHaveBeenCalledTimes(1);
+  });
+  it('blocks cached profile, catalog, query, CSV and creation on inactive source and restores unchanged data', async () => {
+    await grant({ read: true, edit: true, export: true });
+    const before = await bi.profile(1, GRANTEE);
+    const selected = await explore.catalog({ sourceId: 1 }, GRANTEE);
+    const lifecycle = new SourceLifecycleService(db, policy);
+    const grants = await db.getRepository(EnterpriseResourceGrant).find();
+    const sourceQueries = jest.spyOn((bi as any).connection, 'queryDuckDB');
+    sourceQueries.mockClear();
+    await lifecycle.set(1, OWNER, { expectedVersion: 0, active: false });
+    for (const actor of [OWNER, GRANTEE]) {
+      await expect(bi.profile(1, actor)).rejects.toMatchObject({ status: 403 });
+      await expect(catalog.read({ sourceId: 1 }, actor)).rejects.toMatchObject({ status: 403 });
+      await expect(explore.catalog({ sourceId: 1 }, actor)).rejects.toMatchObject({ status: 403 });
+      await expect(
+        explore.query(exploreQuery(selected.sourceRevision), actor),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(
+        explore.exportCsv({ mode: 'explore', query: exploreQuery(selected.sourceRevision) }, actor),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(
+        bi.save({ sourceId: 1, metricId: 1, title: 'blocked', chart: 'number' }, actor),
+      ).rejects.toMatchObject({ status: 403 });
+    }
+    expect(sourceQueries).not.toHaveBeenCalled();
+    expect((await bi.sources(GRANTEE)).map(s => s.id)).not.toContain(1);
+    expect((await bi.sources(GRANTEE, true)).map(s => s.id)).not.toContain(1);
+    expect(await lifecycle.read(1, OWNER)).toEqual({ sourceId: 1, active: false, version: 1 });
+    await lifecycle.set(1, OWNER, { expectedVersion: 1, active: true });
+    expect((await bi.profile(1, GRANTEE)).rowCount).toBe(before.rowCount);
+    expect(await db.getRepository(EnterpriseResourceGrant).find()).toEqual(grants);
+    expect(
+      (
+        await explore.query(
+          exploreQuery((await explore.catalog({ sourceId: 1 }, GRANTEE)).sourceRevision),
+          GRANTEE,
+        )
+      ).kpis[0],
+    ).toMatchObject({ id: 1, value: 311 });
   });
 });

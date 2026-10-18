@@ -23,6 +23,9 @@ export {
   ResourceAction,
   ResourceRights,
 } from './entities/enterprise-resource-grant.entity';
+/** Discovery labels are summaries; legacy SQLite strings may exceed entity varchar lengths. */
+const resourceLabel = (value: string) =>
+  value.length <= 300 ? value : value.slice(0, 299).replace(/[\uD800-\uDBFF]$/, '') + '…';
 const actions: ResourceAction[] = ['read', 'edit', 'publish', 'export'];
 @Injectable()
 export class EnterpriseResourcePolicyService {
@@ -61,10 +64,10 @@ export class EnterpriseResourcePolicyService {
     if (kind === 'source') {
       const source = await manager.findOne(Database, {
         where: { id },
-        select: { id: true, ownerId: true, name: true },
+        select: { id: true, ownerId: true, name: true, catalogActive: true },
       });
       if (!source || !Number.isSafeInteger(source.ownerId) || source.ownerId <= 0) this.denied();
-      return { ownerId: source.ownerId, label: source.name };
+      return { ownerId: source.ownerId, label: source.name, active: source.catalogActive };
     }
     const row = await manager.findOne(Dashboard, {
       where: { id },
@@ -82,6 +85,10 @@ export class EnterpriseResourcePolicyService {
     if (!membership || membership.role !== 'admin' || resource.ownerId !== actor) this.denied();
     return { membership, resource };
   }
+  /** UC050: management remains available while normal source access is disabled. */
+  async assertManagement(kind: ResourceKind, id: number, actor: number, manager = this.db.manager) {
+    await this.management(kind, id, actor, manager);
+  }
   private async currentRights(
     kind: ResourceKind,
     id: number,
@@ -93,6 +100,7 @@ export class EnterpriseResourcePolicyService {
     this.id(id);
     const resource = await this.resource(kind, id, manager);
     const membership = await this.member(actor, manager);
+    if (kind === 'source' && resource.active === false) this.denied();
     if (resource.ownerId === actor)
       return { read: true, edit: true, publish: kind === 'dashboard', export: true };
     const owner = await this.member(resource.ownerId, manager);
@@ -155,7 +163,8 @@ export class EnterpriseResourcePolicyService {
       query.innerJoin(
         Database,
         'resource',
-        'resource.id = grant.resourceId AND resource.ownerId = grant.ownerId',
+        'resource.id = grant.resourceId AND resource.ownerId = grant.ownerId AND resource.catalogActive = :resourceActive',
+        { resourceActive: true },
       );
     else
       query
@@ -211,7 +220,7 @@ export class EnterpriseResourcePolicyService {
       for (const d of dashboards) {
         try {
           await this.management('dashboard', d.id, actor, this.db.manager);
-          rows.push({ kind: 'dashboard', id: d.id, label: d.title });
+          rows.push({ kind: 'dashboard', id: d.id, label: resourceLabel(d.title) });
         } catch (error) {
           if (!(error instanceof ForbiddenException)) throw error;
         }
@@ -227,7 +236,9 @@ export class EnterpriseResourcePolicyService {
         .take(21)
         .select(['s.id', 's.name'])
         .getMany();
-      rows.push(...sources.map(s => ({ kind: 'source' as const, id: s.id, label: s.name })));
+      rows.push(
+        ...sources.map(s => ({ kind: 'source' as const, id: s.id, label: resourceLabel(s.name) })),
+      );
     }
     const entries = rows.slice(0, 20),
       last = entries[entries.length - 1];

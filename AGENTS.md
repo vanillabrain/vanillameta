@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC050 소스 활성 상태:** [설계](docs/plans/UC-050-source-availability.md)·[증빙](docs/testing/source-availability.md)는 활성 소유 admin의 상태 CAS/감사와 일반 SourceAccess/정책·목록/공개 게시의 비활성 차단을 연결한다. 관리 경로는 비활성에도 재활성용으로 유지한다. 원본·grant·분석/게시 행은 보존하며 진행 중 SQL 취소/이미 전달한 데이터 회수·이용 범위/승인·전체 영향·Ego/전체 수용은 별도다.
+
 - **UC050 업무 변수 후속:** [설계](docs/plans/UC-050-variable-semantics.md)·[증빙](docs/testing/source-variable-semantics.md)는 업무 유형/날짜 형식/분류 문자열과 전체 문자열 날짜 검증을 기존 미리보기/버전 저장에 연결한다. 생략한 새 필드는 기존 선언을 보존하고 원본/SQL은 변경하지 않는다. Explore/Studio 공통 표시이며 조직 분류 ID·활성/공식 승인·조건/AI 실행 적용/실제 Ego·전체 요건 수용은 후속이다.
 
 - **추가 요건 완료 목표:** 사용자가 FR014~025/NFR005~008 전체 완료를 goal로 지정했다. [완료 계획](docs/plans/enterprise-completion.md)의16개 요건/TC050을 기준으로 추적하며 하위 구현 수를 전체 완료율로 계산하지 않는다. [UC051 첫 단위](docs/plans/UC-051.md)는 격리 조직·본인 발급/조직에 묶인 일회용 직원 연결 코드·admin/member/팀/활성·DB epoch 인증 회수다. 첫 단위의 데이터 소유권은 유지하며 자원 grant 후속은 아래 계약을 따른다. 조직 소속 계정 일반 삭제는 탈퇴 처리 전409이며 실제 Ego/모바일·운영·전체 수용은 별도다.

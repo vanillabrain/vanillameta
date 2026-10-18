@@ -96,3 +96,7 @@
 ### Variable Semantics Follow-up
 
 [업무 변수 설계](../plans/UC-050-variable-semantics.md)는 원본 유형과 별도의 auto/수치/범주/날짜·날짜 형식·업무 분류를 기존 버전 저장에 연결한다. 문자열 날짜는 실제 전체 값의 형식/유효 날짜를 검증하며 원본 값은 반환하지 않는다. 이전 클라이언트 생략은 현재 의미를 보존하고 명시 auto/빈 값만 초기화한다. Explore와 Studio 조회가 같은 표현을 사용하지만 기존 SQL/AI 계산을 자동 변환하지 않는다. 조직 공통 분류 ID/승인·활성/실행 의미 적용·전체 FR015와 TC050 수용은 후속이다. [선택 증빙](../testing/source-variable-semantics.md)에서 자동 검사와 실제 UI를 구분한다.
+
+### Source Availability Follow-up
+
+[소스 상태 설계](../plans/UC-050-source-availability.md)는 활성 소유 admin의 별도 상태 관리와 다음 일반 보호 요청 차단을 분리한다. 비활성 소스의 원본/권한/분석/게시 행을 삭제하지 않고 중앙 SourceAccess/정책과 일반 소스 목록에서 적용한다. 관리 목록과 명시 재활성 경로는 남긴다. [선택 증빙](../testing/source-availability.md)에서 실제 DB/HTTP와 UI 미실행을 구분한다. 이용 범위/공식 승인·전체 사용처 영향 확인/공통 분류·전체 FR014는 후속이다.

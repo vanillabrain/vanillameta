@@ -627,7 +627,7 @@ export class StudioCreationService {
   }
   async ensureCurrentSource(sourceId: number, actor: number, manager: EntityManager) {
     const source = await manager.findOne(Database, { where: { id: sourceId } });
-    if (!source || source.ownerId !== actor)
+    if (!source || source.ownerId !== actor || source.catalogActive === false)
       throw new ForbiddenException('데이터 소스에 접근할 수 없습니다.');
     const config = JSON.parse(decryptConnectionConfig(source.connectionConfig));
     if (

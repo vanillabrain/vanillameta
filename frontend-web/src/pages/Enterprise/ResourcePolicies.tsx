@@ -14,6 +14,7 @@ import {
   resourcePolicyError,
   saveResourcePolicy,
 } from '@/api/resourcePolicyService';
+import SourceLifecycle from './SourceLifecycle';
 
 const KIND_LABEL: Record<ResourceKind, string> = { dashboard: '대시보드', source: '데이터 소스' };
 const RIGHT_LABEL: Record<keyof ResourceRights, string> = {
@@ -612,6 +613,12 @@ function ResourcePolicyPanel({ organizationId, selfRecipientId }: { organization
             저장된 수신자별 권한입니다. 변경은 요약을 확인하고 동의한 뒤에만 전송되며, 저장하면 그 수신자의 버전이
             올라갑니다.
           </p>
+
+          {selected.kind === 'source' && (
+            // UC050: availability of this exact source. The control reads nothing until the admin opens it, and no
+            // grant above changes with it.
+            <SourceLifecycle organizationId={organizationId} sourceId={selected.id} sourceLabel={selected.label} />
+          )}
 
           {policiesBusy && (
             <p role="status" className="text-sm text-muted-foreground">

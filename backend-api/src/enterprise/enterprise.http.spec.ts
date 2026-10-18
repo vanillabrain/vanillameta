@@ -1,3 +1,4 @@
+import { SourceLifecycleService } from './source-lifecycle.service';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { Database } from '../database/entities/database.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
@@ -70,6 +71,7 @@ describe('Enterprise protected HTTP lifecycle', () => {
       controllers: [EnterpriseController, EnterpriseResourceController],
       providers: [
         EnterpriseService,
+        SourceLifecycleService,
         EnterpriseResourcePolicyService,
         SourceAccessService,
         { provide: DataSource, useValue: db },
@@ -195,5 +197,25 @@ describe('Enterprise protected HTTP lifecycle', () => {
       { actorId: 1, subjectId: 2, resourceId: 7, version: 1 },
       { actorId: 1, subjectId: 2, resourceId: 7, version: 2 },
     ]);
+  });
+  it('deactivates and reactivates through explicit admin HTTP with CAS and no secret payload', async () => {
+    const uri = '/enterprise/resources/source/7';
+    const read = (await call('get', uri + '/lifecycle', 1).expect(200)).body;
+    expect(read).toEqual({ sourceId: 7, active: true, version: 0 });
+    await call('post', uri + '/lifecycle', 2, { expectedVersion: 0, active: false }, 2).expect(403);
+    await call('post', uri + '/lifecycle', 1, { expectedVersion: 0, active: false }).expect(201);
+    await call('get', uri + '/access', 1).expect(403);
+    expect((await call('get', uri + '/lifecycle', 1).expect(200)).body).toEqual({
+      sourceId: 7,
+      active: false,
+      version: 1,
+    });
+    await call('post', uri + '/lifecycle', 1, { expectedVersion: 0, active: true }).expect(409);
+    const current = (
+      await call('post', uri + '/lifecycle', 1, { expectedVersion: 1, active: true }).expect(201)
+    ).body;
+    expect(current).toEqual({ sourceId: 7, active: true, version: 2 });
+    expect(JSON.stringify(current)).not.toMatch(/connectionConfig|password|filename/);
+    await call('get', uri + '/access', 1).expect(200);
   });
 });

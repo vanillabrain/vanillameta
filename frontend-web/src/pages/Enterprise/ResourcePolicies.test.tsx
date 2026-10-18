@@ -426,3 +426,38 @@ it('cancels the in-flight grants read when the panel unmounts', async () => {
   view.unmount();
   expect(signals[0].aborted).toBe(true);
 });
+
+it('offers the source availability control only for a selected source, and reads it only when opened', async () => {
+  api.get.mockResolvedValueOnce(
+    raw(resourcePage([resource('source', 5, '주문 소스'), resource('dashboard', 12, '매출 대시보드')])),
+  );
+  api.get.mockResolvedValueOnce(raw(policyList('source', 5, [])));
+  api.get.mockResolvedValueOnce(raw(policyList('dashboard', 12, [])));
+  api.get.mockResolvedValueOnce(raw(policyList('source', 5, [])));
+  api.get.mockResolvedValueOnce(raw({ sourceId: 5, active: true, version: 2 }));
+  render(<ResourcePolicies organizationId={7} />);
+  openPanel();
+  await screen.findByText('주문 소스');
+
+  fireEvent.click(resourceButton('데이터 소스', '주문 소스', 5));
+  await screen.findByText('아직 이 자원에 부여된 권한이 없습니다.');
+  // Two reads so far: the owned resources and this source's grants. The lifecycle endpoint stays untouched.
+  expect(api.get).toHaveBeenCalledTimes(2);
+  const toggle = screen.getByRole('button', { name: '활성 상태 관리 열기' });
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+  fireEvent.click(resourceButton('대시보드', '매출 대시보드', 12));
+  await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3));
+  expect(api.get).toHaveBeenNthCalledWith(3, '/enterprise/resources/dashboard/12/policies', undefined, expect.anything());
+  expect(screen.queryByRole('button', { name: '활성 상태 관리 열기' })).toBeNull();
+
+  fireEvent.click(resourceButton('데이터 소스', '주문 소스', 5));
+  await waitFor(() => expect(api.get).toHaveBeenCalledTimes(4));
+  expect(api.get).toHaveBeenNthCalledWith(4, '/enterprise/resources/source/5/policies', undefined, expect.anything());
+
+  fireEvent.click(screen.getByRole('button', { name: '활성 상태 관리 열기' }));
+  await waitFor(() => expect(api.get).toHaveBeenCalledTimes(5));
+  expect(api.get).toHaveBeenNthCalledWith(5, '/enterprise/resources/source/5/lifecycle', undefined, expect.anything());
+  await screen.findByText(/버전 2/);
+  expect(api.post).not.toHaveBeenCalled();
+});

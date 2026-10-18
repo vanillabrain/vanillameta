@@ -68,7 +68,8 @@ export class SemanticCreationService {
     revision: string,
   ) {
     const row = await manager.findOne(Database, { where: { id: sourceId } });
-    if (!row || row.ownerId !== actor) throw new ForbiddenException('source ownership required');
+    if (!row || row.ownerId !== actor || row.catalogActive === false)
+      throw new ForbiddenException('source ownership required');
     if (row.engine !== 'duckdb') throw new ConflictException('SOURCE_CHANGED');
     const config = JSON.parse(decryptConnectionConfig(row.connectionConfig));
     if (config.client !== 'duckdb' || typeof config.connection?.filename !== 'string')
