@@ -114,3 +114,32 @@ gpt-6-luna·VoiceOver BLOCKED 유지. 이번 변경은 기준의 공통 표시�
 [저장본390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/saved-studio-390.png) · [저장본1440](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/saved-studio-1440.png) · [게시 설정390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/publish-settings-390.png) · [게시본390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/published-390.png) · [게시본1440](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/published-1440.png) · [게시 Pivot 키보드390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/published-pivot-keyboard-390.png)
 
 Ego48을 keep[]로 종료하고 이번 API4562/웹3462 프로세스만 종료했다. 기존 서버와 격리 DB/비공개 복사본33·게시V1은 보존한다. gpt-6-luna 설정 유지/새 모델 호출0, VoiceOver BLOCKED 유지다. 물리 휴대폰/운영/MySQL 새 실행·전체 권한/게시 장애 조합·실고객/16개 수용은 Open이며 이미 통과한 조건을 반복하지 않았다. Ego Lite 업데이트 알림은 확인했지만 설치/업그레이드는 실행하지 않았다.
+
+## 후속 계획 — UXB-09 게시 권한 재조회 후 초점 복구
+
+2026-10-20 · UXB08 기록 fcaabeec 커밋/push 이후. 기존 통과는 재사용한다. 게시 탭 focus/visibility 복귀의 실제 재조회가 데이터 DOM을 제거해 초점을 잃는 조건만 수정한다. 대기/실패 중 이전 데이터 숨김을 유지하고 같은 게시본의 권한 재확인 성공 뒤 분석 기준 상세·블록 컨트롤/Pivot 표의 초점을 복구한다. 재조회 중 사용자가 다른 곳으로 이동했으면 초점을 빼앗지 않으며 오류/다른 버전·다른 링크/늦은 응답에서는 과거 대상으로 복구하지 않는다.390px 실제 권한 요청 대기·성공과 Tab/Enter·가시 초점/넘침0, 전후 데이터/DB 쓰기0을 캡처한다. 새 저장/게시/생성·전체 숫자 회귀는 반복하지 않는다. 최초 NOT_RUN; gpt-6-luna·VoiceOver BLOCKED 유지.
+
+
+### UXB-09 실제 결과 — 2026-10-20 / Ego49
+
+**PASS_SELECTED: 탭 활성화 권한 재조회→같은 게시본의 가시 키보드 초점 복구.** UXB08 기록은 `fcaabeec`으로 drumcap/develop-v2 push를 먼저 완료했다. 기존 생성·저장·게시·숫자/복제 통과는 재실행하지 않았으며 새 검증은 권한 재조회에 따른 초점/숨김 경계만 선택했다.
+
+| 조건 | 결과 | 실제 근거 |
+|---|---|---|
+| UXB-09A 성공 후 복귀 | PASS_SELECTED | 실제 Ego 탭 전환의 trusted blur/hidden/focus/visible 이후 실제 API GET200을 확인했다.1800ms 지연 중 분석 기준/게시 블록 DOM 각각0개이며 기존 데이터를 표시하지 않았다. 응답 후 같은 V1의 기준 상세 summary에 가시 초점과 open 상태가 복원됐다. Space 닫기→Tab 시계열 표, 이 조작의 추가 요청0이다. |
+| UXB-09B 사용자 의도 | PASS_SELECTED | 지연 중 사용자가 `다시 확인`으로 옮긴 초점을 성공 응답 후에도 유지했다. Tab/다른 pointer의 복구 취소는 단위에서 확인했다. 모든 입력 장치/이동 조합까지 수용한 것은 아니다. |
+| UXB-09C 오류·늦은 응답 | PASS_SELECTED | 이 검증 탭의 게시 GET만 차단한 실제 네트워크 실패에서 분석 기준/블록0개·안내와 가시 `다시 확인` 초점을 확인했다. 차단 해제 후 Enter→200·기준 복구/재확인 초점 유지다.403/410/503, 다른 게시 버전·링크와 경합한 늦은 응답의 안전한 처리/비복구는 단위이며 이번에 실제 권한을 회수하거나 게시를 중지하지 않았다. |
+| UXB-09D 모바일·Pivot | PASS_SELECTED | 원 블록ID로 Pivot region 초점 복구와 Home/End를 확인했다. 최종390/768/1440에서 문서 넘침0, :focus-visible=true이며 표 top/bottom은340.62/530.12,399.97/589.47,380.28/569.78px로844px 화면 안이다.390px 캡처를 직접 확인했다. |
+| UXB-09E 저장 경계 | PASS_SELECTED | 관측 게시 요청13개는 성공12/네트워크 실패1이며 GET만이다(HMR/수정 재확인 포함, 완료율로 사용하지 않음). 준비 DB와 비교한8표 전체 행/행수 동일, 새 저장/게시/복제/AI 실행0이다. |
+
+#### 발견·수정·재검증
+
+- 기존 구현은 권한 재조회 때 `setData(null)`로 이전 데이터를 제거하며 상세/블록 DOM의 초점을 잃었다. 원 구현 대상 회귀는 최초6FAIL/2PASS였다. UI 대상의 종류·블록ID·컨트롤 서명·펼침 상태만 기록하고 같은 token/게시 버전의 현재 권한 조회가 성공한 뒤 복구한다. 오류/버전 변경/대상 불일치는 안전한 재확인 버튼을 사용하며 사용자 이동과 route 변경은 과거 복구를 취소한다. 기존 데이터 숨김·응답 generation 경계는 그대로다.
+- 실제 첫 Pivot 캡처에서 초점만 복구되고 권한 대기 중 문서 높이가 줄어 스크롤이 위로 돌아간 문제가 드러났다. `pivot-focus-offscreen-before-390.png`를 최초 실패로 보존했다. 관련 새 회귀1FAIL/12PASS를 확인한 뒤, 복구 대상이 viewport 밖일 때만 화면 안으로 이동하도록 보완했다. nearest 가장자리 배치의 테두리 잘림을 피하도록 해당 경우 center로 정렬해 최종3폭의 가시 초점을 재확인했다. 이미 화면 안의 컨트롤은 불필요하게 스크롤하지 않는다.
+- 최종 선택 FE **13PASS**, FE type·변경4파일 non-fixing lint(경고/오류0)·FE build PASS다. 빌드의 기존 Vite native config 미래 호환 안내는 유지한다. 잘못된 루트 vitest/Prettier 진입점 및 최초 CDP target 인자 실패는 실행 준비 오류로 구분하며 성공 검사에 포함하지 않는다. 현재 코드의 빌드/브라우저 확인을 최종 근거로 사용한다.
+
+증빙 root: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/`. `basis-focus.json`, `pivot-intent.json`, 최종 `pivot-visible.json`, `failure.json`/`recovered.json`, `requests-final.json`, `db-before.json`/`db-after.json`을 대조했다. DB after의 hash는 배열 직렬화 기준이며 before의 hash와 직접 비교하지 않고 준비 복사본의8표 전체 행 동등성을 별도로 확인했다. 인증정보·실제 비공개 게시 URL은 커밋하지 않는다.
+
+[재조회 대기390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/rechecking-390.png) · [상세 초점 복구390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/restored-basis-390.png) · [최초 Pivot 화면 밖390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/pivot-focus-offscreen-before-390.png) · [수정 후 Pivot390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/restored-pivot-390.png) · [사용자 선택390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/chosen-retry-focus-390.png) · [오류 안전 초점390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/failed-recheck-390.png)
+
+Ego49를 keep[]로 종료했다. 이번 격리 API4562/웹3462만 정리하고 기존 서버/DB/원본 파일·게시V1은 보존한다. gpt-6-luna 설정 유지/새 호출0·VoiceOver BLOCKED 유지다. 실휴대폰/VoiceOver·운영/MySQL 새 실행·모든 키보드/권한 조합·전체16개 수용은 Open이다. Ego Lite 업데이트 안내만 확인했으며 업그레이드는 실행하지 않았다.

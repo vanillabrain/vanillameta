@@ -11,6 +11,7 @@ import { fetchPublished, PublishedSnapshot, publicationError, publicationTime } 
 import { studioDateRangeSummary, studioFilterChipText } from './studioDocument';
 import { STUDIO_COLUMNS } from './studioTypes';
 import './studio.css';
+import { capturePublicationFocus, publicationFocusTarget, PublicationFocus } from './publicationFocus';
 
 export default function PublishedDashboard() {
   const { token = '' } = useParams();
@@ -18,11 +19,22 @@ export default function PublishedDashboard() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const generation = useRef(0);
+  const root = useRef<HTMLDivElement>(null);
+  const retry = useRef<HTMLButtonElement>(null);
+  const authority = useRef<{ token: string; version: number } | null>(null);
+  const pendingFocus = useRef<{ token: string; version: number; target: PublicationFocus; node: Element } | null>(null);
   const checkedExpiry = useRef<string | null>(null);
   const desktop = useMinWidth(1200);
   const tablet = useMinWidth(600);
   const breakpoint = desktop ? 'lg' : tablet ? 'md' : 'xs';
   const load = useCallback(async () => {
+    const active = document.activeElement;
+    const target = capturePublicationFocus(root.current, active);
+    if (target && active && authority.current?.token === token) {
+      pendingFocus.current = { ...authority.current, target, node: active };
+    } else if (active && active !== document.body) {
+      pendingFocus.current = null;
+    }
     generation.current += 1;
     const version = generation.current;
     // Never leave previously authorized data visible while a new authorization check is pending.
@@ -31,7 +43,10 @@ export default function PublishedDashboard() {
     setError('');
     try {
       const value = await fetchPublished(token);
-      if (generation.current === version) setData(value);
+      if (generation.current === version) {
+        authority.current = { token, version: value.version };
+        setData(value);
+      }
     } catch (cause) {
       if (generation.current === version) setError(publicationError(cause));
     } finally {
@@ -51,11 +66,46 @@ export default function PublishedDashboard() {
     window.addEventListener('pageshow', pageshow);
     return () => {
       generation.current += 1;
+      pendingFocus.current = null;
       window.removeEventListener('focus', visible);
       document.removeEventListener('visibilitychange', visible);
       window.removeEventListener('pageshow', pageshow);
     };
   }, [load]);
+  useEffect(() => {
+    const moved = (event: Event) => {
+      const pending = pendingFocus.current;
+      if (event.type === 'focusin' && event.target === document.body) return;
+      if (pending && event.target !== pending.node && !pending.node.contains(event.target as Node))
+        pendingFocus.current = null;
+    };
+    const tab = (event: KeyboardEvent) => {
+      if (event.key === 'Tab') pendingFocus.current = null;
+    };
+    document.addEventListener('focusin', moved);
+    document.addEventListener('pointerdown', moved);
+    document.addEventListener('keydown', tab);
+    return () => {
+      document.removeEventListener('focusin', moved);
+      document.removeEventListener('pointerdown', moved);
+      document.removeEventListener('keydown', tab);
+    };
+  }, []);
+  useEffect(() => {
+    const pending = pendingFocus.current;
+    if (loading || !pending || !document.hasFocus()) return;
+    pendingFocus.current = null;
+    if (pending.token !== token || (document.activeElement !== document.body && document.activeElement !== pending.node))
+      return;
+    const target = data?.version === pending.version ? publicationFocusTarget(root.current, pending.target) : null;
+    const restored = target ?? retry.current;
+    restored?.focus({ preventScroll: true });
+    // Hiding the old snapshot can collapse the document and reset its scroll.
+    // Restore visible keyboard context without moving a target already in view.
+    const rect = restored?.getBoundingClientRect();
+    if (rect && (rect.top < 0 || rect.bottom > window.innerHeight))
+      restored?.scrollIntoView({ block: 'center', inline: 'nearest' });
+  }, [loading, data, error, token]);
   useEffect(() => {
     if (!data?.expiresAt) return;
     const remaining = Date.parse(data.expiresAt) - Date.now();
@@ -87,7 +137,7 @@ export default function PublishedDashboard() {
       })
     : [];
   return (
-    <div className="vm-studio studio-published">
+    <div ref={root} className="vm-studio studio-published">
       <a className="studio-skip" href="#published-main">
         대시보드로 건너뛰기
       </a>
@@ -99,10 +149,13 @@ export default function PublishedDashboard() {
         <div className="studio-published-actions">
           {data?.allowRemix && (
             <Button asChild>
-              <a href={'/published/' + encodeURIComponent(token) + '/remix'}>내 데이터로 복제</a>
+              <a data-publication-link="" href={'/published/' + encodeURIComponent(token) + '/remix'}>
+                내 데이터로 복제
+              </a>
             </Button>
           )}
           <Button
+            ref={retry}
             variant="outline"
             aria-disabled={loading}
             aria-busy={loading}
@@ -193,6 +246,7 @@ export default function PublishedDashboard() {
                 const item = layout.find(candidate => candidate.id === block.id);
                 return (
                   <article
+                    data-publication-block={block.id}
                     className="studio-published-card"
                     key={block.id}
                     aria-label={block.title + ' 게시 블록'}

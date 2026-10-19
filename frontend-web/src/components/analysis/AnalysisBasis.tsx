@@ -21,6 +21,7 @@ export default function AnalysisBasis({ status, note, details = [], className, .
   ] as const;
   return (
     <section
+      data-analysis-basis=""
       aria-labelledby={heading}
       className={cn('@container/analysis-basis min-w-0 rounded-lg border bg-card text-card-foreground', className)}
     >
