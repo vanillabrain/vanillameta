@@ -1,3 +1,10 @@
+import {
+  reusePendingSaveKey,
+  readReusePendingSave,
+  writeReusePendingSave,
+  removeReusePendingSave,
+  ReusePendingSave,
+} from './reusePendingSave';
 import StudioReusePreview from './StudioReusePreview';
 import { validateStudioReusePreview, StudioReusePreviewV1 } from './studioReusePreviewContract';
 import React, { useEffect, useRef, useState } from 'react';
@@ -81,6 +88,12 @@ function Content() {
   const [unknown, setUnknown] = useState(false);
   const [busy, setBusy] = useState('원본을 불러오는 중…');
   const [error, setError] = useState('');
+  const [recovery, setRecovery] = useState<ReusePendingSave | null>(null);
+  const [recoveryRejected, setRecoveryRejected] = useState(false);
+  const [initializationFailed, setInitializationFailed] = useState(false);
+  const [initialization, setInitialization] = useState(0);
+  const recoveryKey = useRef<string | null>(null);
+  const pendingRecord = useRef<ReusePendingSave | null>(null);
   const sequence = useRef(0);
   const request = useRef<AbortController>();
   const pending = useRef(false);
@@ -122,6 +135,11 @@ function Content() {
   useEffect(() => {
     invalidate();
     setDraft(null);
+    setRecovery(null);
+    setRecoveryRejected(false);
+    setInitializationFailed(false);
+    recoveryKey.current = null;
+    pendingRecord.current = null;
     setProfile(null);
     setSourceId('');
     setTitle('');
@@ -132,9 +150,23 @@ function Content() {
     request.current = abort;
     pending.current = true;
     setBusy('원본을 불러오는 중…');
-    get(base, undefined, { signal: abort.signal })
-      .then(async response => {
+    const load = async () => {
+      if (studioReturn) {
+        const key = await reusePendingSaveKey(Number(dashboardId));
         if (token !== sequence.current) return;
+        recoveryKey.current = key;
+        const record = readReusePendingSave(key, Number(dashboardId));
+        if (record) {
+          pendingRecord.current = record;
+          setRecovery(record);
+          return;
+        }
+      }
+      return get(base, undefined, { signal: abort.signal });
+    };
+    load()
+      .then(async response => {
+        if (token !== sequence.current || !response) return;
         const value = responseData(response) as Draft;
         if (
           value.originalId !== (shared ? uuid : Number(dashboardId)) ||
@@ -155,7 +187,10 @@ function Content() {
         applyProfile(source, value.columns);
       })
       .catch(failure => {
-        if (token === sequence.current) setError(errorMessage(failure));
+        if (token === sequence.current) {
+          setError(errorMessage(failure));
+          setInitializationFailed(true);
+        }
       })
       .finally(() => {
         if (token === sequence.current) {
@@ -169,7 +204,7 @@ function Content() {
       request.current?.abort();
       pending.current = false;
     };
-  }, [base, dashboardId, shared, uuid]);
+  }, [base, dashboardId, shared, uuid, studioReturn, initialization]);
   const selectSource = async (value: string) => {
     if (lock) return;
     invalidate();
@@ -314,19 +349,71 @@ function Content() {
     request.current = abort;
     setBusy('복사본 저장 중…');
     setError('');
+    const durable = studioReturn && draft.studioMixed;
+    let sent = false;
     try {
+      if (durable) {
+        const key = await reusePendingSaveKey(Number(dashboardId));
+        if (token !== sequence.current) return;
+        if (!key || key !== recoveryKey.current) throw Error('로그인 범위가 변경되었습니다.');
+        const record = pendingRecord.current ?? {
+          version: 1,
+          updatedAt: Date.now(),
+          originalId: Number(dashboardId),
+          sourceId: profile.sourceId,
+          title,
+          columnMap: { ...columnMap },
+          blockIds: [...blockIds],
+          unitConfirmed,
+          request: { ...attempt },
+        };
+        if (record.request.ticket !== attempt.ticket || record.request.requestId !== attempt.requestId)
+          throw Error('보관된 요청과 현재 저장 요청이 다릅니다.');
+        writeReusePendingSave(key, record);
+        pendingRecord.current = record;
+      }
+      sent = true;
       const result = responseData(await post(base, attempt, { signal: abort.signal, timeout: 120000 }));
       if (token !== sequence.current) return;
       if (!Number.isSafeInteger(result?.id) || result.id <= 0 || result.id === draft.originalId)
         throw new Error('저장 응답을 확인할 수 없습니다.');
+      if (durable) {
+        const key = await reusePendingSaveKey(Number(dashboardId));
+        if (token !== sequence.current) return;
+        if (key !== recoveryKey.current) throw Error('로그인 범위가 변경되었습니다.');
+        removeReusePendingSave(key);
+        pendingRecord.current = null;
+      }
       navigate(`/dashboard/${result.id}${studioReturn ? '/studio' : ''}`);
     } catch (failure) {
       if (token !== sequence.current) return;
+      if (!sent) {
+        setError(
+          '저장 확인 기록을 보관할 수 없거나 로그인 범위가 바뀌었습니다. 요청을 보내지 않았습니다. 입력은 유지됩니다.',
+        );
+        return;
+      }
       const status = (failure as any)?.response?.status;
-      if (!status || status >= 500) {
+      if (durable && status !== 400 && status !== 409) {
+        setUnknown(true);
+        setError('저장 결과를 확인하지 못했습니다. 확인 기록은 유지됩니다. 같은 요청을 다시 확인해 주세요.');
+      } else if (!status || status >= 500) {
         setUnknown(true);
         setError('저장 결과를 확인하지 못했습니다. 초안은 유지됩니다. 같은 저장 요청을 다시 확인해 주세요.');
       } else {
+        if (durable) {
+          try {
+            const key = await reusePendingSaveKey(Number(dashboardId));
+            if (token !== sequence.current) return;
+            if (!key || key !== recoveryKey.current) throw Error('로그인 범위가 변경되었습니다.');
+            removeReusePendingSave(key);
+            pendingRecord.current = null;
+          } catch {
+            setUnknown(true);
+            setError('거절된 요청의 확인 기록을 정리하지 못했습니다. 같은 요청으로 다시 확인해 주세요.');
+            return;
+          }
+        }
         restorePreviewFocus.current = hadSaveFocus;
         setPreview(null);
         setAttempt(null);
@@ -340,6 +427,141 @@ function Content() {
       }
     }
   };
+  const confirmRecovered = async () => {
+    if (pending.current || !recovery) return;
+    pending.current = true;
+    const token = sequence.current;
+    setBusy('같은 저장 요청 확인 중…');
+    setError('');
+    setRecoveryRejected(false);
+    try {
+      const key = await reusePendingSaveKey(Number(dashboardId));
+      if (token !== sequence.current) return;
+      if (!key || key !== recoveryKey.current) throw Error('로그인 범위가 변경되었습니다. 기록은 유지됩니다.');
+      const stored = readReusePendingSave(key, Number(dashboardId));
+      if (JSON.stringify(stored) !== JSON.stringify(recovery))
+        throw Error('보관 기록이 변경되거나 만료됐습니다. 다시 불러와 주세요.');
+      const result = responseData(await post(base, recovery.request, { timeout: 120000 }));
+      if (token !== sequence.current) return;
+      if (!Number.isSafeInteger(result?.id) || result.id <= 0 || result.id === recovery.originalId)
+        throw Error('저장 결과를 확인하지 못했습니다.');
+      if ((await reusePendingSaveKey(Number(dashboardId))) !== key || token !== sequence.current)
+        throw Error('로그인 범위가 변경되었습니다.');
+      removeReusePendingSave(key);
+      pendingRecord.current = null;
+      navigate(`/dashboard/${result.id}/studio`);
+    } catch (cause) {
+      if (token === sequence.current) {
+        const status = (cause as any)?.response?.status;
+        setRecoveryRejected(status === 400 || status === 409);
+        setError(errorMessage(cause));
+      }
+    } finally {
+      if (token === sequence.current) {
+        pending.current = false;
+        setBusy('');
+      }
+    }
+  };
+  const restoreRecoveredInputs = async () => {
+    if (pending.current || !recovery || !recoveryRejected) return;
+    pending.current = true;
+    const token = sequence.current;
+    setBusy('연결 입력을 확인하는 중…');
+    setError('');
+    try {
+      const key = await reusePendingSaveKey(Number(dashboardId));
+      if (!key || key !== recoveryKey.current) throw Error('로그인 범위가 변경되었습니다.');
+      const current = responseData(await get(base)) as Draft;
+      if (token !== sequence.current) return;
+      if (
+        !current.studioMixed ||
+        current.originalId !== recovery.originalId ||
+        !current.sources.some(s => s.id === recovery.sourceId) ||
+        !recovery.blockIds.every(id => current.blocks?.some(b => b.id === id))
+      )
+        throw Error('원본 블록이나 대상 소스를 확인할 수 없습니다. 보관 기록은 유지됩니다.');
+      const target = responseData(await get(`/bi/sources/${recovery.sourceId}/profile`)) as Profile;
+      if (token !== sequence.current) return;
+      if (
+        !target?.supported ||
+        target.sourceId !== recovery.sourceId ||
+        !Array.isArray(target.columns) ||
+        !/^[a-f0-9]{64}$/.test(target.dataVersion)
+      )
+        throw Error('대상 소스를 다시 확인해 주세요.');
+      if ((await reusePendingSaveKey(Number(dashboardId))) !== key || token !== sequence.current)
+        throw Error('로그인 범위가 변경되었습니다.');
+      removeReusePendingSave(key);
+      restorePreviewFocus.current = true;
+      setDraft(current);
+      setProfile(target);
+      setSourceId(String(recovery.sourceId));
+      setTitle(recovery.title);
+      setColumnMap({ ...recovery.columnMap });
+      setBlockIds([...recovery.blockIds]);
+      setUnitConfirmed(recovery.unitConfirmed);
+      setPreview(null);
+      setAttempt(null);
+      setUnknown(false);
+      setRecovery(null);
+      pendingRecord.current = null;
+    } catch (cause) {
+      if (token === sequence.current) setError(errorMessage(cause));
+    } finally {
+      if (token === sequence.current) {
+        pending.current = false;
+        setBusy('');
+      }
+    }
+  };
+  if (recovery)
+    return (
+      <main className="mx-auto w-full max-w-2xl space-y-4 p-4 sm:p-6">
+        <h1 className="text-xl font-semibold">복사본 저장 결과 확인</h1>
+        <p className="break-words text-sm text-muted-foreground">{recovery.title}</p>
+        <Notice role="region" aria-label="보관된 복제 요청">
+          <p>이 탭에 결과를 확인하지 못한 복제 요청이 있습니다. 확인 전까지 새 복제를 시작하지 않습니다.</p>
+          <p className="mt-2">
+            같은 요청을 확인합니다. 이미 저장됐다면 기존 사본으로 이동하고, 미전달이었다면 저장을 완료합니다. 게시하지
+            않습니다.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            대상 소스 #{recovery.sourceId} · 연결 {Object.keys(recovery.columnMap).length}개 · 선택 블록{' '}
+            {recovery.blockIds.length}개
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              aria-disabled={!!busy || undefined}
+              aria-busy={!!busy || undefined}
+              onClick={() => void confirmRecovered()}
+            >
+              같은 저장 요청 확인
+            </Button>
+            {recoveryRejected && (
+              <Button variant="outline" disabled={!!busy} onClick={() => void restoreRecoveredInputs()}>
+                연결 입력으로 돌아가기
+              </Button>
+            )}
+          </div>
+          {recoveryRejected && (
+            <p className="mt-3 text-sm">
+              요청이 거절됐습니다. 연결 입력으로 돌아간 뒤 현재 기준의 새 미리보기를 확인하세요. 기존 사본은 삭제하지
+              않습니다.
+            </p>
+          )}
+          {busy && (
+            <p role="status" className="mt-3 text-sm">
+              {busy}
+            </p>
+          )}
+        </Notice>
+        {error && <Notice severity="error">{error}</Notice>}
+        <Button asChild variant="ghost">
+          <Link to="/dashboard">대시보드 목록</Link>
+        </Button>
+      </main>
+    );
   return (
     <main className="mx-auto box-border w-full min-w-0 max-w-[1600px] p-4 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -364,6 +586,11 @@ function Content() {
         <Notice severity="error" className="mb-3">
           {error}
         </Notice>
+      )}
+      {initializationFailed && (
+        <Button variant="outline" onClick={() => setInitialization(n => n + 1)}>
+          다시 불러오기
+        </Button>
       )}
       {draft && (
         <>
