@@ -131,6 +131,36 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     for (const recipientId of [2, 3])
       await policy.set('source', 10, 1, { recipientId, expectedVersion: 0, rights: rights(true) });
   });
+  const mysql = process.env.VM_SEMANTIC_MYSQL_CONFIG ? it : it.skip;
+  const rejectInsert = (name: string, table: string, message: string) =>
+    db.query(
+      db.options.type === 'mysql'
+        ? `CREATE TRIGGER ${name} BEFORE INSERT ON ${table} FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '${message}'`
+        : `CREATE TRIGGER ${name} BEFORE INSERT ON ${table} BEGIN SELECT RAISE(ABORT,'${message}'); END`,
+    );
+  const groupRecoverySnapshot = () =>
+    Promise.all(
+      [
+        EnterpriseGroupDelivery,
+        EnterpriseDashboardDelivery,
+        EnterpriseDeliveryReceipt,
+        EnterpriseAuditEvent,
+        EnterpriseNotificationAudience,
+        EnterpriseGroup,
+        EnterpriseGroupMember,
+        EnterpriseGroupGrant,
+        EnterpriseResourceGrant,
+        Dashboard,
+        Database,
+        UserMapping,
+      ].map(entity =>
+        db.getRepository(entity).find({
+          order: Object.fromEntries(
+            db.getMetadata(entity).primaryColumns.map(column => [column.propertyName, 'ASC']),
+          ),
+        }),
+      ),
+    );
   const groupShare = (
     groupId = 80,
     expectedVersion = 0,
@@ -246,9 +276,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
   it('rolls back the entire group mutation if immutable audience recording fails', async () => {
     const grouped = await seedGroup(),
       request = groupShare();
-    await db.query(
-      "CREATE TRIGGER reject_audience BEFORE INSERT ON enterprise_notification_audience BEGIN SELECT RAISE(ABORT,'audience failure'); END",
-    );
+    await rejectInsert('reject_audience', 'enterprise_notification_audience', 'audience failure');
     try {
       await expect(grouped.set(20, 1, request)).rejects.toThrow('audience failure');
     } finally {
@@ -261,9 +289,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     ).toBe(0);
     await grouped.set(20, 1, request);
     const count = await db.manager.count(EnterpriseAuditEvent);
-    await db.query(
-      "CREATE TRIGGER reject_audience BEFORE INSERT ON enterprise_notification_audience BEGIN SELECT RAISE(ABORT,'audience failure'); END",
-    );
+    await rejectInsert('reject_audience', 'enterprise_notification_audience', 'audience failure');
     try {
       await expect(
         new EnterpriseGroupService(db).set(80, 1, {
@@ -323,9 +349,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
   it('binds receipt to group domain and rolls back relation/audit on receipt failure', async () => {
     const grouped = await seedGroup(),
       body = groupShare();
-    await db.query(
-      "CREATE TRIGGER reject_group_receipt BEFORE INSERT ON enterprise_delivery_receipt BEGIN SELECT RAISE(ABORT, 'receipt failure'); END",
-    );
+    await rejectInsert('reject_group_receipt', 'enterprise_delivery_receipt', 'receipt failure');
     try {
       await expect(grouped.set(20, 1, body)).rejects.toThrow('receipt failure');
     } finally {
@@ -411,6 +435,116 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     await expect(migration.down()).rejects.toThrow('backup');
     await runner.release();
   });
+  it('replays the exact group receipt after revoke and group version change without reactivation', async () => {
+    const grouped = await seedGroup();
+    const body = groupShare(80, 0, true, true);
+    const initial = await grouped.set(20, 1, body);
+    const shared = await groupRecoverySnapshot();
+    expect(await grouped.set(20, 1, body)).toEqual({ ...initial, replayed: true });
+    expect(await groupRecoverySnapshot()).toEqual(shared);
+    await expect(grouped.set(20, 1, { ...body, allowCopy: false })).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(
+      service.set(20, 1, { ...input(), requestId: body.requestId }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(await groupRecoverySnapshot()).toEqual(shared);
+    await grouped.set(20, 1, groupShare(80, 1, false));
+    await db.manager.update(EnterpriseGroup, { id: 80 }, { version: 2 });
+    const revoked = await groupRecoverySnapshot();
+    // Existing receipts are historical: changed group CAS applies only to undelivered requests.
+    expect(await grouped.set(20, 1, body)).toEqual({ ...initial, replayed: true });
+    await expect(grouped.set(20, 1, groupShare(80, 2, true, true, 1))).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(await groupRecoverySnapshot()).toEqual(revoked);
+    expect((await grouped.list(20, 1)).entries).toEqual([
+      { groupId: 80, version: 2, active: false, allowCopy: false },
+    ]);
+    await expect(access.dashboard(20, 2, 'read')).rejects.toMatchObject({ status: 403 });
+  });
+  mysql.each(['fresh request', 'historical receipt replay'])(
+    'rejects a group guard-passed old-epoch %s after User wait before write or receipt replay',
+    async scenario => {
+      const grouped = await seedGroup();
+      const body = groupShare(80, 0, true, true);
+      if (scenario === 'historical receipt replay') {
+        await grouped.set(20, 1, body);
+        await grouped.set(20, 1, groupShare(80, 1, false));
+        await db.manager.update(EnterpriseGroup, { id: 80 }, { version: 2 });
+      }
+      const before = await groupRecoverySnapshot();
+      const previous = process.env.ACCESS_SECRET;
+      process.env.ACCESS_SECRET = 'synthetic-group-delivery-epoch';
+      const jwt = new JwtService();
+      const request = (epoch: number): any => ({
+        headers: {
+          authorization: `Bearer ${jwt.sign(
+            { accessKeyData: { id: 1, userId: 'synthetic-1', authVersion: epoch } },
+            { secret: process.env.ACCESS_SECRET },
+          )}`,
+        },
+      });
+      const guard = new JwtAuthGuard(jwt, db);
+      const req = request(0);
+      const fence = db.createQueryRunner();
+      await fence.connect();
+      let posting: Promise<any>;
+      try {
+        expect(
+          await guard.canActivate({ switchToHttp: () => ({ getRequest: () => req }) } as any),
+        ).toBe(true);
+        await fence.startTransaction('READ COMMITTED');
+        await fence.manager.findOne(User, {
+          where: { id: 1 },
+          lock: { mode: 'pessimistic_write' },
+        });
+        await fence.manager.update(User, 1, { authVersion: 1 });
+        posting = grouped.set(20, 1, body, 0).then(
+          value => ({ value }),
+          error => ({ error }),
+        );
+        let waiting = false;
+        for (let attempt = 0; attempt < 100; attempt++) {
+          const [row] = await db.query(
+            'SELECT COUNT(*) AS n FROM performance_schema.data_lock_waits',
+          );
+          if (Number(row.n) > 0) {
+            waiting = true;
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        expect(waiting).toBe(true);
+        await fence.commitTransaction();
+        expect((await posting).error).toMatchObject({ status: 403 });
+        expect(await groupRecoverySnapshot()).toEqual(before);
+        if (scenario === 'fresh request') {
+          expect(await db.manager.count(EnterpriseGroupDelivery)).toBe(0);
+          expect(await db.manager.count(EnterpriseDeliveryReceipt)).toBe(0);
+        } else
+          expect((await grouped.list(20, 1)).entries).toEqual([
+            { groupId: 80, version: 2, active: false, allowCopy: false },
+          ]);
+        const current = request(1);
+        expect(
+          await guard.canActivate({ switchToHttp: () => ({ getRequest: () => current }) } as any),
+        ).toBe(true);
+        const controller = new EnterpriseDeliveryController(service, grouped);
+        expect((await controller.groupSet(current, '20', body)).replayed).toBe(
+          scenario === 'historical receipt replay',
+        );
+        if (scenario === 'historical receipt replay')
+          expect(await groupRecoverySnapshot()).toEqual(before);
+      } finally {
+        if (fence.isTransactionActive) await fence.rollbackTransaction();
+        await posting;
+        await fence.release();
+        if (previous === undefined) delete process.env.ACCESS_SECRET;
+        else process.env.ACCESS_SECRET = previous;
+      }
+    },
+  );
   it('adds only read, appears in discovery and emits own share/revoke notifications without changing the source grant', async () => {
     const sourceBefore = await db.getRepository(EnterpriseResourceGrant).find();
     const originalBefore = await db.getRepository(Dashboard).find();
@@ -481,7 +615,6 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     await db.getRepository(User).update(1, { active: false });
     await expect(service.set(20, 1, body)).rejects.toMatchObject({ status: 403 });
   });
-  const mysql = process.env.VM_SEMANTIC_MYSQL_CONFIG ? it : it.skip;
   mysql.each(['fresh request', 'historical receipt replay'])(
     'rejects a guard-passed old-epoch %s after the User wait without delivery/audit/receipt writes',
     async scenario => {

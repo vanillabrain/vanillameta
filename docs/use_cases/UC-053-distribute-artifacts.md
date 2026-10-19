@@ -44,6 +44,16 @@
 3. 역사 영수증과 현재 관계를 구별하고, 최신 GET·403/409·통신 실패만으로 미확정 요청을 폐기하지 않는다. 명시 보관 해제는 서버 취소가 아니다.
 4. Use case ends.
 
+### A3: Uncertain group delivery after reload
+
+**Trigger:** 그룹 공유 결과가 미확정인 상태에서 새로고침한다 (step 3).
+**Flow:**
+
+1. 같은 사용자/조직/대시보드/session epoch의 정확한 저장 요청을 쓰기 없이 복구한다.
+2. 최신 그룹/관계를 읽고 원래 group version/CAS를 보존한 채 별도 동의로 같은 요청을 재시도한다.
+3. 403/409나 GET 성공만으로 요청을 폐기하지 않는다. 역사 결과와 현재 관계, 명시 보관 해제와 서버 취소를 구별한다.
+4. Use case ends.
+
 ## Postconditions
 
 ### Success Postconditions
@@ -67,6 +77,10 @@
 ### BR-053-03: Uncertain direct delivery recovery
 
 [복구 설계](../plans/UC-053-delivery-recovery.md)의 탭 저장소 한도·격리·명시 재시도와 현재 User epoch 검사를 따른다. 정확한 replay는 공유 회수 뒤에도 재활성화하지 않는다. 독립 사본 생성/그룹 요청의 reload 복구와 전체 수용은 별도다.
+
+### BR-053-04: Uncertain group delivery recovery
+
+[그룹 복구 설계](../plans/UC-053-group-delivery-recovery.md)의 엄격한 탭 저장·격리/한도·현재 조회/명시 재시도를 따른다. 원래 그룹 버전/관계 CAS를 자동 갱신하지 않고, 현재 User epoch를 잠금 뒤 영수증 분기 전에 재검사한다.
 
 ## Source Evidence
 

@@ -1,4 +1,5 @@
 import { groupNotification, groupRecipients } from './group-notification';
+import { lockSourceActor } from '../database/source-write-lock';
 import {
   BadRequestException,
   ConflictException,
@@ -40,7 +41,7 @@ export class EnterpriseGroupDeliveryService {
       };
     });
   }
-  async set(dashboardId: number, actor: number, body: any) {
+  async set(dashboardId: number, actor: number, body: any, epoch = 0) {
     groupKeys(body, [
       'requestId',
       'groupId',
@@ -79,6 +80,7 @@ export class EnterpriseGroupDeliveryService {
       .digest('hex');
     return groupWrite(this.db, async manager => {
       const scope = await groupAdmin(actor, manager, true);
+      await lockSourceActor(manager, actor, epoch);
       await this.policy.assertManagement('dashboard', dashboardId, actor, manager);
       const key = { ownerId: actor, requestId: input.requestId };
       const receipt = await manager.findOneBy(EnterpriseDeliveryReceipt, key);

@@ -11,17 +11,24 @@ const backend = path.join(root, "backend-api");
 const mysql = createRequire(path.join(backend, "package.json"))(
   "mysql2/promise"
 );
+const groupDeliveryRecovery = process.argv.includes(
+  "--group-delivery-recovery"
+);
 const deliveryRecovery = process.argv.includes("--delivery-recovery");
 const staff = process.argv.includes("--staff");
 const departure = process.argv.includes("--departure");
 const handover = process.argv.includes("--handover");
-if ([staff, departure, handover, deliveryRecovery].filter(Boolean).length > 1)
+if (
+  [staff, departure, handover, deliveryRecovery, groupDeliveryRecovery].filter(
+    Boolean
+  ).length > 1
+)
   throw new Error("Select only one owned validation lane");
 const lanes = handover
   ? ["handover"]
   : departure
   ? ["departure"]
-  : staff || deliveryRecovery
+  : staff || deliveryRecovery || groupDeliveryRecovery
   ? ["staff"]
   : ["studio", "runtime"];
 const owner = randomBytes(12).toString("hex");
@@ -220,11 +227,14 @@ const cleanup = () =>
         metadata: "MySQL",
         aggregation: handover
           ? "native DuckDB fixture only"
-          : staff || departure || deliveryRecovery
+          : staff || departure || deliveryRecovery || groupDeliveryRecovery
           ? "not_used"
           : "native DuckDB",
         lanes,
         ...(deliveryRecovery ? { validation: "delivery-recovery" } : {}),
+        ...(groupDeliveryRecovery
+          ? { validation: "group-delivery-recovery" }
+          : {}),
       })
     );
     if (process.argv.includes("--probe-interrupt")) {
@@ -241,7 +251,7 @@ const cleanup = () =>
           "--runInBand",
           "--verbose",
           "--runTestsByPath",
-          ...(deliveryRecovery
+          ...(deliveryRecovery || groupDeliveryRecovery
             ? ["src/enterprise/delivery.spec.ts"]
             : handover
             ? [
@@ -264,6 +274,19 @@ const cleanup = () =>
                 "src/dashboard-studio/studio-business-basis.spec.ts",
                 "src/bi/semantic-business-runtime.spec.ts",
               ]),
+          // Fixed group-delivery contract cases, including real MySQL failure triggers.
+          ...(groupDeliveryRecovery
+            ? [
+                "--testNamePattern",
+                [
+                  "replays the exact group receipt after revoke and group version change without reactivation",
+                  "keeps group sharing independent of source read, current owner/org/active and rolls back stale writes",
+                  "binds receipt to group domain and rolls back relation/audit on receipt failure",
+                  "rolls back the entire group mutation if immutable audience recording fails",
+                  "rejects a group guard-passed old-epoch",
+                ].join("|"),
+              ]
+            : []),
           // Fixed direct-delivery contract cases only: no SQLite-only trigger/legacy tests.
           ...(deliveryRecovery
             ? [

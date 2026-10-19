@@ -5,6 +5,26 @@ export type GroupDeliveryInput = Omit<GroupDelivery, 'version'> & {
   expectedVersion: number;
   expectedGroupVersion: number;
 };
+export const validGroupDeliveryInput = (v: any): v is GroupDeliveryInput =>
+  !!v &&
+  typeof v === 'object' &&
+  !Array.isArray(v) &&
+  Object.keys(v).length === 6 &&
+  ['requestId', 'groupId', 'expectedGroupVersion', 'expectedVersion', 'active', 'allowCopy'].every(k =>
+    Object.prototype.hasOwnProperty.call(v, k),
+  ) &&
+  typeof v.requestId === 'string' &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v.requestId) &&
+  Number.isSafeInteger(v.groupId) &&
+  v.groupId > 0 &&
+  Number.isSafeInteger(v.expectedGroupVersion) &&
+  v.expectedGroupVersion > 0 &&
+  Number.isSafeInteger(v.expectedVersion) &&
+  v.expectedVersion >= 0 &&
+  v.expectedVersion < 2147483647 &&
+  typeof v.active === 'boolean' &&
+  typeof v.allowCopy === 'boolean' &&
+  (v.active || !v.allowCopy);
 const valid = (row: any): row is GroupDelivery =>
   !!row &&
   Number.isSafeInteger(row.groupId) &&
@@ -29,6 +49,8 @@ export async function saveGroupDelivery(
   id: number,
   input: GroupDeliveryInput,
 ): Promise<{ entry: GroupDelivery; replayed: boolean }> {
+  if (!Number.isSafeInteger(id) || id <= 0 || !validGroupDeliveryInput(input))
+    throw new Error('그룹 공유 요청의 번호·대상·버전을 확인해 주세요.');
   const { data } = await post(`/enterprise/deliveries/dashboard/${id}/groups`, input);
   if (
     !data ||

@@ -38,7 +38,12 @@ export class EnterpriseDeliveryController {
     return this.groups.list(this.id(id), req.user.accessKeyData.id);
   }
   @Post(':id/groups') groupSet(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
-    return this.groups.set(this.id(id), req.user.accessKeyData.id, body);
+    return this.groups.set(
+      this.id(id),
+      req.user.accessKeyData.id,
+      body,
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
   @Get(':id') list(@Req() req: any, @Param('id') id: string) {
     return this.delivery.list(this.id(id), req.user.accessKeyData.id);

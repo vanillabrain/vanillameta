@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC053 그룹 공유 요청 복구:** [설계](docs/plans/UC-053-group-delivery-recovery.md)·[증빙](docs/testing/group-delivery-recovery.md)은 별도 scoped 탭 티켓에 원 UUID/그룹 버전/관계 CAS·복제 설정을 보존한다. reload/GET·403/409는 자동 쓰기/버전 변경 없이 보존하고 현재 관리 조회→별도 동의→동일 요청으로 확인한다. User 잠금 뒤 epoch를 영수증 전에 검사하며 역사 replay는 현재 관계를 바꾸지 않는다. MySQL6/22범위밖SKIP·SQLite24/4SKIP·BE4·FE51/부모16은 중복 범위다. Ego111 commit후응답유실/접기/reload/GET실패/replay·미전달그룹변경409/명시보관해제/최신회수·대표폭과 원본8표/5파일 보존을 확인했다. 독립 사본 생성 요청 복구·운영/실기기/전체16개 수용은 후속이다.
+
 - **UC053 직원 공유 요청 복구:** [설계](docs/plans/UC-053-delivery-recovery.md)·[증빙](docs/testing/delivery-recovery.md)은 직접 공유/회수의 정확 UUID·입력을 actor/org/dashboard/session epoch별 탭에24h/8KiB로 보존한다. reload/최신 GET은 쓰기0·티켓 보존이며 현재 관리 조회→별도 동의→동일 POST다. 역사 영수증은 현재 권한이 아니고 보관 해제는 서버 취소가 아니다. 직접 POST의 정렬 User 잠금 뒤 epoch를 영수증 전에 검사한다. MySQL7/18범위밖SKIP·SQLite23/2SKIP·BE후속4·FE57/부모16은 중복 범위다. Ego110 commit후응답유실/접기/reload/조회실패/동일replay·미전달회수 재시도·대표폭과 원본8표/5파일 보존을 확인했다. 그룹/독립 복제 요청 복구·운영/실기기/전체16개 수용은 후속이다.
 
 - **UC051 인계 후 조직 탈퇴:** [설계](docs/plans/UC-051-staff-departure.md)·[증빙](docs/testing/staff-departure.md)은 본인 명시 요청→다른 현재 admin의 잔여 9종 검토/별도 확정이다. 개인 소유·열린 작업·인계/이동·마지막 admin은 차단하며 User 활성/원본/역사를 보존하고 Membership·직접/그룹/전달 관계와 로그인 epoch를 회수한다. User 잠금 아래 빈 Dashboard 생성·Studio 실행 접수도 재검사한다. MySQL78/1SKIP·SQLite145/11SKIP·FE120/후속26은 중복 범위다. Ego109 실패/reload/동일 요청·잔여 차단/재검토·확정/재로그인·390/768/1440, 보존/권한 HTTP124검사를 확인했다. 법적 퇴사/계정 삭제·외부/공유 인계·운영/실기기·전체16개 수용은 별도다.

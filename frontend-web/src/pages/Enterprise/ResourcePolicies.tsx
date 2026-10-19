@@ -624,7 +624,12 @@ function ResourcePolicyPanel({ organizationId, selfRecipientId }: { organization
             resourceId={selected.id}
           />
           {selected.kind === 'dashboard' && (
-            <GroupDeliveries key={`groups:${organizationId}:${selected.id}:${selfRecipientId}`} dashboardId={selected.id} />
+            <GroupDeliveries
+              key={`groups:${organizationId}:${selected.id}:${selfRecipientId}`}
+              dashboardId={selected.id}
+              organizationId={organizationId}
+              selfId={selfRecipientId}
+            />
           )}
           {selected.kind === 'dashboard' && (
             <Deliveries
