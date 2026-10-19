@@ -244,6 +244,8 @@ const cleanup = () =>
                 "src/enterprise/handover-proposal.spec.ts",
                 "src/enterprise/handover-transfer.spec.ts",
                 "src/enterprise/source-handover.spec.ts",
+                "src/enterprise/bundle-handover.spec.ts",
+                "src/widget/bundle-delete-authorization.spec.ts",
               ]
             : departure
             ? ["src/enterprise/staff-departure-impact.spec.ts"]

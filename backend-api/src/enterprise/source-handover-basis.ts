@@ -21,7 +21,7 @@ import { SourceDeleteReceipt } from '../database/entities/source-delete-receipt.
 import { EnterpriseResourceGrant } from './entities/enterprise-resource-grant.entity';
 import { EnterpriseGroupGrant } from './entities/enterprise-group.entity';
 import { custodyMetadata, custodyRefresh, inspectHandoverCustody } from './handover-custody';
-import { transferHash } from './handover-transfer-basis';
+import { transferHash, VerifiedBundleGraph, verifiedBundleGraph } from './handover-transfer-basis';
 import { resolveDeletionFilename } from '../analysis/source-file-deletion';
 import { parseConnectionConfig } from '../utils/crypto.util';
 const positive = (v: any) => Number.isSafeInteger(v) && v > 0 && v < 2147483647;
@@ -121,9 +121,11 @@ export async function inspectSourceHandover(
   manager: EntityManager,
   manifest: any[],
   locked: boolean,
+  selectedBundle?: VerifiedBundleGraph,
 ) {
+  const bundle = verifiedBundleGraph(selectedBundle);
   const blockers = new Set<string>();
-  if (manifest.some(a => a.kind !== 'source')) blockers.add('mixed_assets');
+  if (!bundle && manifest.some(a => a.kind !== 'source')) blockers.add('mixed_assets');
   const selected = manifest.filter(a => a.kind === 'source').sort((a, b) => a.id - b.id);
   const ids = new Set(selected.map(a => a.id));
   const read = async (entity: any, options: any = {}) => {
@@ -153,19 +155,33 @@ export async function inspectSourceHandover(
     ])
       if (text)
         parse(text, v => {
-          if (related(v?.[key])) blockers.add('source_in_use');
+          if (related(v?.[key]) && !bundle?.allowsDashboard(board.id, v[key]))
+            blockers.add('source_in_use');
         });
     if (board.pivotDefinitions)
       parse(board.pivotDefinitions, v => {
         if (!Array.isArray(v)) throw new Error();
-        for (const p of v) if (related(p?.sourceId)) blockers.add('source_in_use');
+        for (const p of v)
+          if (related(p?.sourceId) && !bundle?.allowsDashboard(board.id, p.sourceId))
+            blockers.add('source_in_use');
       });
   }
   const studio = await read(StudioState, { order: { dashboardId: 'ASC' } });
   for (const state of studio)
     parse(state.document, v => {
-      if (related(v?.document?.sourceId)) blockers.add('source_in_use');
+      if (
+        related(v?.document?.sourceId) &&
+        !bundle?.allowsDashboard(state.dashboardId, v.document.sourceId)
+      )
+        blockers.add('source_in_use');
     });
+  const personalViews = await read(PersonalView, { order: { id: 'ASC' } });
+  for (const view of personalViews)
+    if (
+      ids.has(view.sourceId) ||
+      [...ids].some(id => bundle?.allowsDashboard(view.dashboardId, id))
+    )
+      blockers.add('source_in_use');
   const executions = await read(StudioExecution, { order: { runId: 'ASC' } });
   for (const execution of executions)
     if (!['succeeded', 'unsupported', 'cancelled'].includes(execution.status))
@@ -278,7 +294,17 @@ export async function inspectSourceHandover(
     ] as const) {
       const count = await manager.count(entity as any, { where: { [field]: source.id } });
       uses.push(count);
-      if (count) blockers.add('source_in_use');
+      if (count) {
+        if (entity !== Dataset || !bundle) blockers.add('source_in_use');
+        else {
+          const datasets = await read(Dataset, {
+            where: { databaseId: source.id },
+            order: { id: 'ASC' },
+          });
+          if (datasets.some(d => !bundle.allowsDataset(d.id, source.id)))
+            blockers.add('source_in_use');
+        }
+      }
     }
     const legacy = await read(DashboardPublication, {
       where: { sourceId: source.id },
@@ -381,6 +407,10 @@ export async function inspectSourceHandover(
     sources,
     rows,
     custodyHash: transferHash(proofs),
-    hash: transferHash({ details, boards, studio, executions, consumerMetadata }),
+    hash: transferHash(
+      bundle
+        ? { details, boards, studio, personalViews, executions, consumerMetadata }
+        : { details, boards, studio, executions, consumerMetadata },
+    ),
   };
 }

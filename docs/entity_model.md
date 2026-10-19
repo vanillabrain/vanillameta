@@ -329,3 +329,9 @@ ownerId는 제안 소유자이고 기존 Database.ownerId/UserMapping의 소유�
 [설계](plans/UC-051-source-handover.md)의 `enterprise_source_handover`는 기존 제목 의향/대시보드 이전과 별도인 source 최종 수락·실행 영수증이다. proposalId UUID PK·requestId UUID unique, organizationId/양쪽 actor·발급 epoch/조직 버전·CAS version, prepared/accepted/completed/cancelled, expiresAt/acceptedAt/completedAt, 고정 manifestJson(source ID/title·파일/지표 건수)·내부 basisHash/payloadHash/custodyHash·random reviewBasis·단계별 감사 ID를 보존한다. 내부 proof/경로/내용은 응답하지 않는다. additive migration은 기존 schema 불일치 때 중단하며 기록을 자동 삭제하지 않는다.
 
 실제 이전은 `Database.ownerId`·`catalogVersion+1`과 최종 영수증/감사를 원자 저장한다. source ID·connectionConfig·Metric ID/정의·카탈로그/조건 이력·파일/manifest bytes·과거 actor는 재작성하지 않는다. 서버 파일의 OS 소유자/위치는 그대로이며 새 사용자의 앱 관리권만 변경한다. 완료 기록은 현재 접근권의 증명이 아니고 계정/조직 현재 경계를 따른다. 외부 연결/혼합 대시보드/직원 퇴사·전체 수용은 별도다.
+
+## UC051 소스·대시보드 묶음 최종 인계
+
+[설계](plans/UC-051-bundle-handover.md)의 enterprise_bundle_handover는 원 의향 UUID에 묶인 별도 준비/양쪽 최종 동의·원자 실행 영수증이다. proposalId PK/requestId unique·양쪽 actor/epoch·조직/version·CAS version/status·expiresAt/acceptedAt/completedAt·내부 basis/payload/custody hash·random reviewBasis·단계별 감사 ID와 고정 sources/dashboards manifestJson을 저장한다. 내부 proof/파일 경로/정의는 공개하지 않는다. 기존 단독 영수증은 재해석하지 않으며 additive migration으로 관리한다.
+
+실행 시 Database owner/catalogVersion과 기존 UserMapping 소유 actor·Dashboard assetVersion·Studio legacyRevision만 한 transaction으로 갱신한다. 자산/블록/mapping ID·원본/문서 bytes/모든 폭 배치·Metric/카탈로그/조건 이력·독립 사본/과거 actor는 그대로다. 물리 파일 이전이나 퇴사/탈퇴 확정과 구별한다.

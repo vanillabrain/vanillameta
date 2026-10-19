@@ -54,13 +54,53 @@ export async function transferSourceIds(manager: EntityManager, ids: number[]) {
   return [...result].sort((a, b) => a - b);
 }
 
+const bundleGraphBrand = Symbol('verified-handover-bundle-graph');
+export type VerifiedBundleGraph = {
+  readonly [bundleGraphBrand]: true;
+  allowsDashboard(dashboardId: number, sourceId: number): boolean;
+  allowsDataset(datasetId: number, sourceId: number): boolean;
+};
+export function verifiedBundleGraph(value: VerifiedBundleGraph | undefined) {
+  if (value !== undefined && value[bundleGraphBrand] !== true)
+    throw new Error('Unverified bundle graph');
+  return value;
+}
+
 /** No source SQL execution, private file reads, or inference from free text. */
 export async function inspectTransfer(
   manager: EntityManager,
   manifest: any[],
   recipient: number,
   lockChildren = false,
+  allowSelectedSources?: { sourceIds: ReadonlySet<number>; currentOwner: number },
 ) {
+  const fencedWidgets = new Set<number>(),
+    fencedDatasets = new Set<number>();
+  let historicalLimited = false;
+  const retainedDatasets = () =>
+    allowSelectedSources?.sourceIds.size
+      ? manager
+          .createQueryBuilder(Dataset, 'dataset')
+          .where('dataset.databaseId IN (:...ids)', { ids: [...allowSelectedSources.sourceIds] })
+          .orderBy('dataset.id', 'ASC')
+          .take(2001)
+          .getMany()
+      : Promise.resolve([] as Dataset[]);
+  const retainedWidgets = () =>
+    allowSelectedSources?.sourceIds.size
+      ? manager
+          .createQueryBuilder(Widget, 'widget')
+          .innerJoin(
+            Dataset,
+            'dataset',
+            'dataset.id = widget.datasetId AND widget.datasetType = :kind',
+            { kind: 'DATASET' },
+          )
+          .where('dataset.databaseId IN (:...ids)', { ids: [...allowSelectedSources.sourceIds] })
+          .orderBy('widget.id', 'ASC')
+          .take(2001)
+          .getMany()
+      : Promise.resolve([] as Widget[]);
   // Parent order is already User/intent/final/Dashboard/Source. Fence canonical children
   // with current reads so raw DELETE/UPDATE cannot invalidate the graph before commit.
   // Read-only review deliberately never requests row locks.
@@ -73,7 +113,15 @@ export async function inspectTransfer(
       for (const link of links) widgetIds.add(link.widgetId);
     }
     const datasetIds = new Set<number>();
+    if (allowSelectedSources) {
+      const retained = await retainedDatasets(),
+        widgets = await retainedWidgets();
+      historicalLimited = retained.length > 2000 || widgets.length > 2000;
+      for (const row of retained.slice(0, 2000)) datasetIds.add(row.id);
+      for (const row of widgets.slice(0, 2000)) widgetIds.add(row.id);
+    }
     for (const id of [...widgetIds].sort((a, b) => a - b)) {
+      fencedWidgets.add(id);
       const widget = await manager.findOne(Widget, {
         where: { id },
         lock: { mode: 'pessimistic_write' },
@@ -81,12 +129,24 @@ export async function inspectTransfer(
       if (widget?.datasetType === 'DATASET' && positive(widget.datasetId))
         datasetIds.add(widget.datasetId);
     }
-    for (const id of [...datasetIds].sort((a, b) => a - b))
+    for (const id of [...datasetIds].sort((a, b) => a - b)) {
+      fencedDatasets.add(id);
       await manager.findOne(Dataset, { where: { id }, lock: { mode: 'pessimistic_write' } });
+    }
+    if (allowSelectedSources?.sourceIds.size)
+      await manager
+        .createQueryBuilder(Metric, 'metric')
+        .where('metric.databaseId IN (:...ids)', { ids: [...allowSelectedSources.sourceIds] })
+        .orderBy('metric.id', 'ASC')
+        .setLock('pessimistic_write')
+        .getMany();
   }
   const blockers = new Set<string>();
-  if (manifest.some(a => a.kind === 'source')) blockers.add('source_transfer_deferred');
+  if (!allowSelectedSources && manifest.some(a => a.kind === 'source'))
+    blockers.add('source_transfer_deferred');
   const boards = [];
+  const selectedEdges = new Map<number, Set<number>>();
+  const selectedDatasets = new Map<number, number>();
   for (const asset of manifest.filter(a => a.kind === 'dashboard').sort((a, b) => a.id - b.id)) {
     const dashboard = await manager.findOneBy(Dashboard, { id: asset.id });
     const mappings = await manager.find(UserMapping, {
@@ -96,11 +156,29 @@ export async function inspectTransfer(
     const studio = await manager.findOneBy(StudioState, { dashboardId: asset.id });
     const refs = await declaredHandoverSources(manager, asset.id);
     if (refs.unresolved) blockers.add('unsupported_definition');
+    if (allowSelectedSources) {
+      if (
+        !dashboard?.assetActive ||
+        dashboard.delYn !== 'N' ||
+        mappings.length !== 1 ||
+        mappings[0].userInfoId !== allowSelectedSources.currentOwner
+      )
+        blockers.add('unsupported_definition');
+      if (
+        !refs.sourceIds.size ||
+        [...refs.sourceIds].some(id => !allowSelectedSources.sourceIds.has(id))
+      )
+        blockers.add('connection_scope_required');
+      selectedEdges.set(asset.id, new Set(refs.sourceIds));
+    }
     const sources = [],
       metrics = [];
     for (const id of [...refs.sourceIds].sort((a, b) => a - b)) {
       const source = await manager.findOneBy(Database, { id });
-      if (!source || !source.catalogActive || source.ownerId !== recipient)
+      const expectedOwner = allowSelectedSources?.sourceIds.has(id)
+        ? allowSelectedSources.currentOwner
+        : recipient;
+      if (!source || !source.catalogActive || source.ownerId !== expectedOwner)
         blockers.add('recipient_source_ownership_required');
       sources.push(source);
       metrics.push(
@@ -317,6 +395,7 @@ export async function inspectTransfer(
           )
             blockers.add('unsupported_widget');
           widgetRows.push({ link, widget, dataset, component, widgetLinks, consumers });
+          if (dataset) selectedDatasets.set(dataset.id, dataset.databaseId);
         }
       }
     } catch {
@@ -344,5 +423,75 @@ export async function inspectTransfer(
       widgetRows,
     });
   }
-  return { blockers: [...blockers].sort(), boards, hash: transferHash(boards) };
+  if (
+    allowSelectedSources &&
+    [...allowSelectedSources.sourceIds].some(
+      id => ![...selectedEdges.values()].some(refs => refs.has(id)),
+    )
+  )
+    blockers.add('connection_scope_required');
+  const retained = [];
+  if (allowSelectedSources && !blockers.size) {
+    const datasets = await retainedDatasets(),
+      widgets = await retainedWidgets();
+    if (
+      historicalLimited ||
+      datasets.length > 2000 ||
+      widgets.length > 2000 ||
+      (lockChildren &&
+        ['mysql', 'mariadb'].includes(manager.connection.options.type) &&
+        (datasets.some(d => !fencedDatasets.has(d.id)) ||
+          widgets.some(w => !fencedWidgets.has(w.id))))
+    )
+      blockers.add('source_in_use');
+    else {
+      const canonical = boards.flatMap(board => board.widgetRows);
+      const currentIds = new Set(canonical.map(row => row.widget.id));
+      for (const widget of widgets) {
+        if (currentIds.has(widget.id)) continue;
+        const dataset = datasets.find(d => d.id === widget.datasetId);
+        const links = await manager.find(DashboardWidget, {
+          where: { widgetId: widget.id },
+          order: { id: 'ASC' },
+        });
+        const consumers = widgets.filter(w => w.datasetId === widget.datasetId);
+        const equivalent =
+          dataset &&
+          canonical.some(
+            row =>
+              row.dataset.databaseId === dataset.databaseId &&
+              row.dataset.title === dataset.title &&
+              row.dataset.query === dataset.query &&
+              row.widget.componentId === widget.componentId &&
+              row.widget.title === widget.title &&
+              row.widget.description === widget.description &&
+              row.widget.option === widget.option,
+          );
+        if (
+          !links.length &&
+          consumers.length === 1 &&
+          ['N', 'Y'].includes(widget.delYn) &&
+          equivalent
+        ) {
+          selectedDatasets.set(dataset.id, dataset.databaseId);
+          retained.push({ widget, dataset, links, consumers });
+        } else blockers.add('source_in_use');
+      }
+    }
+  }
+  const bundleGraph: VerifiedBundleGraph | undefined =
+    allowSelectedSources && !blockers.size
+      ? Object.freeze({
+          [bundleGraphBrand]: true as const,
+          allowsDashboard: (id: number, sourceId: number) =>
+            selectedEdges.get(id)?.has(sourceId) === true,
+          allowsDataset: (id: number, sourceId: number) => selectedDatasets.get(id) === sourceId,
+        })
+      : undefined;
+  return {
+    blockers: [...blockers].sort(),
+    boards,
+    hash: transferHash(allowSelectedSources ? { boards, retained } : boards),
+    bundleGraph,
+  };
 }

@@ -31,7 +31,7 @@ vi.mock('@/components/PageViewBox', () => ({
   ),
 }));
 vi.mock('@/widget/wrapper/WidgetWrapper', () => ({ default: () => null }));
-vi.mock('@/components/button/ShareButton', () => ({ default: () => null }));
+vi.mock('@/components/button/ShareButton', () => ({ default: () => <button>공유 상태</button> }));
 vi.mock('@/api/aiService', () => ({ default: { dashboardInsight: vi.fn() } }));
 vi.mock('react-grid-layout', () => ({
   Responsive: ({ children }: any) => <div>{children}</div>,
@@ -220,15 +220,133 @@ it('does not navigate a newly selected dashboard on an older target deletion rec
   expect(screen.queryByText('현재 경로 /dashboard')).toBeNull();
   expect(screen.getByText('Local dashboard 8')).toBeTruthy();
 });
-it('can request owner deletion metadata even when the ordinary source-backed detail read is refused', async () => {
+const permissionMessage = '현재 이 대시보드를 볼 권한이 없습니다. 소유권 또는 접근 권한이 변경되었을 수 있습니다.';
+it('keeps a former owner with content and impact403 blocked without stale data, actions or repeated requests', async () => {
+  api.get.mockRejectedValue({ response: { status: 403, data: { message: 'private server detail' } } });
+  show();
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', permissionMessage);
+  expect(api.error).not.toHaveBeenCalled();
+  expect(screen.queryByText('private server detail')).toBeNull();
+  expect(screen.queryByLabelText('편집기 질문')).toBeNull();
+  expect(screen.queryByRole('button', { name: '공유 상태' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'dashboard.delete' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'dashboard.refresh' })).toBeNull();
+  expect(screen.queryByRole('combobox', { name: 'dashboard.autoRefresh' })).toBeNull();
+  for (const name of ['dashboardModify.edit', '차트·배치 편집', '복제해서 재사용', 'Studio 편집', '게시 버전'])
+    expect(screen.queryByRole('link', { name })).toBeNull();
+  await act(async () => undefined);
+  expect(api.get.mock.calls.filter(([path]) => path === '/dashboard/7')).toHaveLength(1);
+  expect(api.get.mock.calls.filter(([path]) => path === '/dashboard/7/delete-impact')).toHaveLength(1);
+  expect(screen.queryByRole('button', { name: '삭제 영향 확인' })).toBeNull();
+  expect(api.del).not.toHaveBeenCalled();
+  expect(api.post).not.toHaveBeenCalled();
+  expect(screen.queryByText('현재 경로 /dashboard')).toBeNull();
+});
+it('keeps generic loading failures separate from 403 permission denial', async () => {
+  api.get.mockRejectedValue({ response: { status: 500 } });
+  show();
+  await waitFor(() => expect(api.error).toHaveBeenCalledWith('dashboard.loadFailed'));
+  expect(screen.queryByText(permissionMessage)).toBeNull();
+  expect(screen.getByRole('link', { name: 'Studio 편집' })).toBeTruthy();
+  expect(api.get).toHaveBeenCalledTimes(1);
+});
+it('clears previously loaded private content on 403 and prevents share-state reset from refetching indefinitely', async () => {
+  api.get.mockResolvedValueOnce(
+    envelope({
+      title: 'Previously private dashboard',
+      widgets: [],
+      layout: [],
+      updatedAt: '2026-10-18',
+      shareYn: 'Y',
+      endDate: null,
+    }),
+  );
+  api.get.mockRejectedValue({ response: { status: 403 } });
+  show();
+  await screen.findByText(permissionMessage);
+  expect(screen.queryByText('Previously private dashboard')).toBeNull();
+  expect(screen.queryByRole('button', { name: '공유 상태' })).toBeNull();
+  await act(async () => undefined);
+  expect(api.get.mock.calls.filter(([path]) => path === '/dashboard/7')).toHaveLength(2);
+  expect(api.get.mock.calls.filter(([path]) => path === '/dashboard/7/delete-impact')).toHaveLength(1);
+  expect(api.error).not.toHaveBeenCalled();
+});
+it('allows explicit navigation to another permitted dashboard after a 403 without redirecting or retrying the denied target', async () => {
+  api.get.mockRejectedValueOnce({ response: { status: 403 } });
+  show();
+  await screen.findByText(permissionMessage);
+  fireEvent.click(screen.getByText('다른 대상 이동'));
+  await screen.findByText('Local dashboard 8');
+  expect(screen.queryByText(permissionMessage)).toBeNull();
+  expect(screen.getByRole('link', { name: 'Studio 편집' })).toBeTruthy();
+  expect(api.get.mock.calls.filter(([path]) => path === '/dashboard/7')).toHaveLength(1);
+  expect(api.error).not.toHaveBeenCalled();
+});
+it('restores current-owner deletion management via protected impact200 while ordinary source-backed detail is403', async () => {
   api.get.mockImplementation(async path => {
     if (path.endsWith('/delete-impact')) return impact();
+    throw { response: { status: 403, data: { message: 'private source details' } } };
+  });
+  show();
+  await screen.findByRole('button', { name: '삭제 영향 확인' });
+  expect(screen.getByText(permissionMessage)).toBeTruthy();
+  expect(screen.queryByText('private source details')).toBeNull();
+  expect(screen.queryByLabelText('편집기 질문')).toBeNull();
+  expect(screen.queryByRole('button', { name: '공유 상태' })).toBeNull();
+  for (const name of ['dashboardModify.edit', '차트·배치 편집', '복제해서 재사용', 'Studio 편집', '게시 버전'])
+    expect(screen.queryByRole('link', { name })).toBeNull();
+  expect(api.get.mock.calls.filter(([path]) => path.endsWith('/delete-impact'))).toHaveLength(1);
+  expect(api.del).not.toHaveBeenCalled();
+  expect(api.error).not.toHaveBeenCalled();
+  click('삭제 영향 확인');
+  await ready();
+  expect(api.get.mock.calls.filter(([path]) => path.endsWith('/delete-impact'))).toHaveLength(2);
+  expect(api.get).toHaveBeenCalledWith('/dashboard/7/delete-impact', undefined, { signal: expect.anything() });
+  expect(screen.queryByText('Local dashboard 7')).toBeNull();
+  expect(api.del).not.toHaveBeenCalled();
+  click('대시보드 삭제');
+  await screen.findByText('현재 경로 /dashboard');
+  expect(api.del).toHaveBeenCalledTimes(1);
+  expect(api.del.mock.calls[0][1].data.expectedActorId).toBe(19);
+});
+it('keeps owner management available when impact200 has blocking dependencies, without granting deletion', async () => {
+  const blocked = impact(7, {
+    canDelete: false,
+    dependencies: deps().map(entry => (entry.kind === 'liveShare' ? { ...entry, count: 1 } : entry)),
+  });
+  api.get.mockImplementation(async path => {
+    if (path.endsWith('/delete-impact')) return blocked;
     throw { response: { status: 403 } };
   });
   show();
-  await waitFor(() => expect(api.error).toHaveBeenCalled());
-  click('dashboard.delete');
-  await ready();
-  expect(api.get).toHaveBeenCalledWith('/dashboard/7/delete-impact', undefined, { signal: expect.anything() });
+  await screen.findByRole('button', { name: '삭제 영향 확인' });
+  click('삭제 영향 확인');
+  await screen.findByText(/사용처 설정이 남아 있어 삭제할 수 없습니다/);
+  expect(screen.getByRole('button', { name: '대시보드 삭제' })).toHaveProperty('disabled', true);
+  expect(screen.queryByRole('button', { name: '공유 상태' })).toBeNull();
+  expect(api.del).not.toHaveBeenCalled();
+});
+it('does not restore management for malformed or failed impact responses', async () => {
+  api.get.mockImplementation(async path => {
+    if (path.endsWith('/delete-impact')) return impact(8);
+    throw { response: { status: 403 } };
+  });
+  show();
+  await screen.findByText(permissionMessage);
+  await act(async () => undefined);
+  expect(screen.queryByRole('button', { name: '삭제 영향 확인' })).toBeNull();
+  expect(screen.queryByLabelText('편집기 질문')).toBeNull();
+  expect(api.del).not.toHaveBeenCalled();
+});
+it('ignores a late owner-management proof after the dashboard target changes', async () => {
+  const pending = deferred();
+  api.get.mockRejectedValueOnce({ response: { status: 403 } }).mockReturnValueOnce(pending.promise);
+  show();
+  await screen.findByText(permissionMessage);
+  fireEvent.click(screen.getByText('다른 대상 이동'));
+  await screen.findByText('Local dashboard 8');
+  await act(async () => pending.resolve(impact()));
+  expect(screen.queryByRole('button', { name: '삭제 영향 확인' })).toBeNull();
+  expect(screen.getByText('Local dashboard 8')).toBeTruthy();
   expect(api.del).not.toHaveBeenCalled();
 });

@@ -520,6 +520,7 @@ it.each([42, 43])(
     await review();
     expect(screen.getByRole('button', { name: '최종 대시보드 인계 열기' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '최종 소스·파일 인계 열기' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '소스·대시보드 함께 인계 열기' })).toBeNull();
     click('최종 대시보드 인계 열기');
     expect(api.get).toHaveBeenCalledTimes(1);
     expect(api.post).not.toHaveBeenCalled();
@@ -561,6 +562,7 @@ it.each([42, 43])(
     open();
     await review();
     expect(screen.queryByRole('button', { name: '최종 대시보드 인계 열기' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '소스·대시보드 함께 인계 열기' })).toBeNull();
     click('최종 소스·파일 인계 열기');
     expect(api.get).toHaveBeenCalledTimes(1);
     expect(api.post).not.toHaveBeenCalled();
@@ -591,26 +593,60 @@ it('source review failure preserves parent input, selected candidates and fixed 
   expect(screen.getByRole('checkbox', { name: /소스 #11/ })).toHaveProperty('checked', true);
   expect(api.post).not.toHaveBeenCalled();
 });
-it.each([42, 43])('keeps both transfer panels for mixed and closed parent receipts for party %i', async actor => {
-  api.get.mockResolvedValueOnce({
-    data: proposal({
-      status: 'accepted',
-      version: 2,
-      acceptedAt: '2026-10-19T12:00:00Z',
-      assets: [asset(), asset(21, 'dashboard')],
-    }),
-  });
-  render(<HandoverProposal context={context(actor)} />);
+it.each([42, 43])(
+  'shows bundle only for mixed and all receipt panels for closed parent receipts for party %i',
+  async actor => {
+    api.get.mockResolvedValueOnce({
+      data: proposal({
+        status: 'accepted',
+        version: 2,
+        acceptedAt: '2026-10-19T12:00:00Z',
+        assets: [asset(), asset(21, 'dashboard')],
+      }),
+    });
+    render(<HandoverProposal context={context(actor)} />);
+    open();
+    await review();
+    expect(screen.getByRole('button', { name: '소스·대시보드 함께 인계 열기' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '최종 소스·파일 인계 열기' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '최종 대시보드 인계 열기' })).toBeNull();
+    click('소스·대시보드 함께 인계 열기');
+    expect(api.get).toHaveBeenCalledTimes(1);
+    api.get.mockResolvedValueOnce({ data: proposal({ status: 'cancelled', detailsAvailable: false, assets: [] }) });
+    await review();
+    click('소스·대시보드 함께 인계 열기');
+    click('최종 소스·파일 인계 열기');
+    click('최종 대시보드 인계 열기');
+    expect(screen.getByRole('button', { name: '소스 인계 상태 조회' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '최종 요청 상태 조회' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '묶음 인계 상태 조회' })).toBeTruthy();
+    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(api.post).not.toHaveBeenCalled();
+  },
+);
+it('bundle failure preserves original mixed list and candidates; re-reading folds and clears old bundle review', async () => {
+  render(<HandoverProposal context={context()} />);
   open();
+  click('본인 후보 불러오기');
+  fireEvent.click(await screen.findByRole('checkbox', { name: /소스 #11/ }));
+  const mixed = proposal({
+    status: 'accepted',
+    version: 2,
+    acceptedAt: '2026-10-19T12:00:00Z',
+    assets: [asset(), asset(21, 'dashboard')],
+  });
+  api.get.mockResolvedValueOnce({ data: mixed });
   await review();
-  expect(screen.getByRole('button', { name: '최종 소스·파일 인계 열기' })).toBeTruthy();
-  expect(screen.getByRole('button', { name: '최종 대시보드 인계 열기' })).toBeTruthy();
-  api.get.mockResolvedValueOnce({ data: proposal({ status: 'cancelled', detailsAvailable: false, assets: [] }) });
+  click('소스·대시보드 함께 인계 열기');
+  api.get.mockRejectedValueOnce({ response: { status: 409 } });
+  click('함께 이전할 조건 검토');
+  await waitFor(() => expect(screen.queryByText('묶음 인계 확인 중…')).toBeNull());
+  expect(screen.getByRole('list', { name: '검토한 고정 자료' }).textContent).toContain(asset(21, 'dashboard').title);
+  expect(screen.getByRole('checkbox', { name: /소스 #11/ })).toHaveProperty('checked', true);
+  expect(screen.getByLabelText('조회할 요청 번호')).toHaveProperty('value', uuid);
+  api.get.mockResolvedValueOnce({ data: mixed });
   await review();
-  click('최종 소스·파일 인계 열기');
-  click('최종 대시보드 인계 열기');
-  expect(screen.getByRole('button', { name: '소스 인계 상태 조회' })).toBeTruthy();
-  expect(screen.getByRole('button', { name: '최종 요청 상태 조회' })).toBeTruthy();
-  expect(api.get).toHaveBeenCalledTimes(2);
+  expect(screen.getByRole('button', { name: '소스·대시보드 함께 인계 열기' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '묶음 인계 상태 조회' })).toBeNull();
   expect(api.post).not.toHaveBeenCalled();
 });

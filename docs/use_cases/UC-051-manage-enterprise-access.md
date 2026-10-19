@@ -114,6 +114,18 @@
 5. 구 소유자는 같은 token으로 다음 보호 요청부터 거절된다. 수신자는 현재 소유권으로 소스를 사용하고 reload 후 같은 영수증을 확인한다. 응답 유실은 같은 UUID 조회/정확한 재시도로 확인한다.
 6. Use case ends.
 
+### A9: Transfer sources with their connected private dashboards
+
+**Trigger:** 소유자가 소스와 연결 대시보드를 함께 인계한다 (step 2).
+**Flow:**
+
+1. 소유자는 고정 혼합 의향의 전체 소스·대시보드와 제외/차단 범위를 검토한다.
+2. 소유자는 별도 명시 동의로 묶음 최종 요청을 준비하고 수신자가 같은 목록에 별도로 최종 수락한다.
+3. 소유자는 최신 상태와 별도 실행 동의를 확인하고 전체 관리권 이전을 실행한다.
+4. 시스템은 현재 권한/기준/파일/기한을 재검사해 소스와 대시보드를 원자 변경하거나 전부 보존한다.
+5. 양쪽은 과거 완료 영수증을 새로고침 후 명시 조회하고 구 소유자 회수/새 소유자 접근을 현재 권한으로 확인한다.
+6. Use case ends.
+
 ## Postconditions
 
 ### Success Postconditions
@@ -161,6 +173,10 @@
 ### BR-051-09: Source identity and file preservation
 
 [관리 파일 소스 인계](../plans/UC-051-source-handover.md)는 명시 최종 동의를 실제 파일 내용/저장 정의의 앱 관리권 이전과 연결한다. 최초 범위는 private source-only 관리 DuckDB1~20개이며 외부 credential·혼합 대시보드/직원 탈퇴는 후속이다. source ID/Metric/카탈로그·조건 정의·파일 위치/bytes/등록 manifest/과거 행위자는 보존하고 owner/catalogVersion만 원자 변경한다. 파일 관측을 배타 보관 증명으로 바꾸지 않으며 알려진 공유·손상/미확인 소비자·진행 작업을 차단한다. 잠금 대기 후 현재 소유/epoch·기준/기한을 재검사하고 정확한 완료 replay는 추가 이전하지 않는다. OS 파일 소유권/데이터 원격 회수와 동일시하지 않는다.
+
+### BR-051-10: Atomic source and connected dashboard bundle
+
+[묶음 인계 설계](../plans/UC-051-bundle-handover.md)는 동일 소유자의 관리 파일 소스와 그 소스만 쓰는 비공개 단독 대시보드를 기존 고정 의향에서 전부 함께 선택한다. 소스/대시보드 각각1개 이상·전체2~20개이며 미선택 연결은 자동 포함하지 않고 차단한다. 소스 단독의 사용처 예외는 검증된 선택 대시보드/Studio와 전용 canonical 자식에만 허용한다. 현재 양쪽 신원/epoch·소유/사용처/파일·최종 기한을 부모/자식 잠금 아래 재검사하고 source owner/catalogVersion·기존 mapping/assetVersion·Studio legacyRevision·영수증/감사를 한 transaction으로 이전한다. 문서/블록/배치·파일/지표 정의/과거 이력과 ID는 보존한다. 일부 실패는 전체 rollback, 정확 완료 replay는 쓰기0이며 기존 단독 API를 약화하지 않는다. 활성 공유/게시·외부 연결·퇴사/전체 수용은 별도다.
 
 ## Source Evidence
 

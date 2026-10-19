@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC051 소스·대시보드 묶음 인계:** [설계](docs/plans/UC-051-bundle-handover.md)·[증빙](docs/testing/bundle-handover.md)은 선택 관리 파일 소스와 연결 비공개 단독 대시보드 각각1개 이상/전체2~20개의 별도 준비→양쪽 최종 동의→전체 원자 이전이다. 미선택 연결/활성 공유/열린 작업은 차단한다. canonical·동등 미연결 자식만 검증/잠금/hash 예외이며 단독 API는 그대로다. User→Dashboard→Source→자식과 잠금 뒤 DELETE 현재 소유 재검사를 따른다. 파일/문서/블록·폭별 배치/ID/과거 정의는 보존하고 owner/catalogVersion·mapping/assetVersion·Studio legacyRevision만 갱신한다. MySQL313·SQLite45/8SKIP·FE176과 Ego108 대표 여정은 선택 범위/중복 배치다. 외부/활성 공유·퇴사/운영/실기기/전체16개 수용은 별도다.
+
 - **UC051 소스·파일 인계:** [설계](docs/plans/UC-051-source-handover.md)·[증빙](docs/testing/source-handover.md)은 source-only ready 등록 DuckDB1~20개의 별도 준비→수신자 최종 수락→소유자 명시 실행/영수증이다. 현재/역사 파일 신원·사용처/권한/갱신 차단과 User→Source 잠금을 따른다. 같은 ID/경로/bytes·Metric 정의/이력은 보존하고 owner/catalogVersion만 이전한다. 물리 복사/chown·외부 연결·실사용/혼합 자산·퇴사/운영/실기기/전체16개 수용은 별도다. 최신 실행 결과는 증빙을 따르며 중복 배치를 합산하지 않는다.
 
 - **UC051 최종 대시보드 인계:** [설계](docs/plans/UC-051-handover-transfer.md)·[증빙](docs/testing/handover-transfer.md)은 비공개 단독 대시보드1~20개의 별도 준비→수신자 최종 수락→소유자 명시 실행/영수증이다. 소스는 이미 수신자 소유여야 하며 source 혼합·공유/게시/재시도 작업·미지원 연결을 차단한다. mapping ID/블록·폭별 배치/Studio 문서 bytes/원본·역사는 보존하고 assetVersion/legacyRevision을 함께 갱신한다. 부모와 canonical 자식 잠금·구 소유자 재연결 차단/현재 읽기·정확한 replay를 따른다. MySQL215·SQLite211/8SKIP 및 후속57/7SKIP·FE112/후속59·25는 중복 범위다. 잠금 대기 뒤 최종 기한을 재검사하며 완료 replay는 별도다. Ego106 실패/reload/같은 UUID 재시도·양쪽 별도 동의/실행/완료 재조회·390/768/1440과 실제 문서/파일 보존을 확인했다. source/파일 실제 인계·퇴사/탈퇴·운영/실기기/전체16개 수용은 후속이다.

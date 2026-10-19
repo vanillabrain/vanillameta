@@ -1,3 +1,4 @@
+import HandoverBundleTransfer from './HandoverBundleTransfer';
 import HandoverSourceTransfer from './HandoverSourceTransfer';
 import HandoverFinalTransfer from './HandoverFinalTransfer';
 import HandoverDependencyReview from './HandoverDependencyReview';
@@ -431,7 +432,17 @@ export default function HandoverProposal({ context }: { context: EnterpriseConte
                     organizationVersion={organization.version}
                   />
                 )}
-              {(!review.detailsAvailable || review.assets.some(item => item.kind === 'source')) && (
+              {(!review.detailsAvailable ||
+                (review.assets.some(item => item.kind === 'source') &&
+                  review.assets.some(item => item.kind === 'dashboard'))) && (
+                <HandoverBundleTransfer
+                  key={`bundle-final:${generation.current}`}
+                  review={review}
+                  scope={scope}
+                  organizationVersion={organization.version}
+                />
+              )}
+              {(!review.detailsAvailable || review.assets.every(item => item.kind === 'source')) && (
                 <HandoverSourceTransfer
                   key={`source-final:${generation.current}`}
                   review={review}
@@ -439,7 +450,7 @@ export default function HandoverProposal({ context }: { context: EnterpriseConte
                   organizationVersion={organization.version}
                 />
               )}
-              {(!review.detailsAvailable || review.assets.some(item => item.kind === 'dashboard')) && (
+              {(!review.detailsAvailable || review.assets.every(item => item.kind === 'dashboard')) && (
                 <HandoverFinalTransfer
                   key={`final:${generation.current}`}
                   review={review}

@@ -225,3 +225,7 @@ E11/E12의 대시보드 사용처/삭제·원자 영수증은 [UC055 계획](../
 ### E02/E03 소스·파일 자체 최종 인계
 
 [설계](../plans/UC-051-source-handover.md)의 source-only 관리 DuckDB 목록·별도 내용 공개/관리권 동의→준비/수락/실행→reload·역사 영수증을 검사한다. fileModel/외부 연결/혼합·미등록/ready 불일치·symlink/hardlink·공유/불명확 소비자·진행 갱신/출력/연결 사용처·활성 권한은 차단한다. 양쪽 epoch/조직·CAS/기한/metadata/파일 변경과 철회는 전체 쓰기0/rollback이며 같은 완료 재시도는 감사/이전 추가0이다. 원본/manifest/버전 파일 bytes/hash/mtime와 Metric/정의/이력·source ID를 전후 대조하고, 구 소유자 같은 JWT의 다음 보호 요청403·수신자200 및 늦은 갱신/권한 writer 경합을 확인한다. Ego 실화면 양쪽 별도 최종 동의·미확정 준비/reload/같은 UUID 복구·390/768/1440과 로컬 Docker MySQL은 선택 범위이며 운영/실휴대폰/퇴사·전체16개 수용은 승격하지 않는다.
+
+## UC051 E02/E03 소스·대시보드 묶음 인계 후속
+
+[설계](../plans/UC-051-bundle-handover.md)·BR-051-10/A9: 일반 업로드 소스와 정상 저장된 연결 분석을 함께 선택→조건 검토→별도 준비→수신자 최종 수락→소유자 실행→새로고침을 확인한다. 미선택 연결/고아·공유 자식/외부·활성 권한/게시/열린 작업은 전체 차단하고 미선택 신원을 노출하지 않는다. 양쪽 epoch/기준 변경409·잠금 대기 후 기한·두 연결의 늦은 writer 거절·중간 실패 전체 rollback·정확 완료 replay 쓰기0을 확인한다. 같은 구 소유자 JWT의 source/dashboard/Studio/Widget/Dataset 보호 요청403·수신자200, source/Metric/config/파일/manifest·mapping ID/문서 bytes/모든 폭 배치 보존과 허용 버전만 변경함을 대조한다. 통신 실패→reload→동일 UUID 확인/재시도·390/768/1440 정렬/넘침0은 Ego 증빙과 구분 기록하며 운영/실기기·전체 수용은 별도다.
