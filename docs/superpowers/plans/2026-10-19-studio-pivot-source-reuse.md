@@ -174,3 +174,8 @@ Task1→2→3→4 순서는 계산과 저장 계약에 의존하고 Task5→6은
 ## 서로 다른 복제 요청 후속 — 2026-10-19
 
 [SPR-REQUEST-01](../../testing/studio-pivot-distinct-requests.md)은 독립 두 연결의 같은 캡처 계획·다른 requestId에서 실제 User 대기 트랜잭션2개→저장1/409한건·부분 자산0→명시 재미리보기/실패 requestId의 별도 저장을 확인했다. 선택1개/BE type·해당 lint PASS, 기존9개 반복0이다. 운영 ticket 분산·UI 클릭 수용은 아니며 추가 합성 경합보다 남은 실제 사용자 여정/업무 파일럿을 우선한다. 제품 diff가 없어 build/FE/core 증빙은 재사용했다.
+
+
+## 실제 사용자 오류 복구 후속 — 2026-10-19
+
+[SPR-UI-08/09](../../testing/studio-reuse-catalog-recovery-ui.md)은 대상 catalog 변경 후409·입력 보존·가시 포커스→명시 재미리보기/새 비공개28 저장/reload를 실제 Ego40에서 확인했다. native disabled 저장 버튼의 포커스 유실은 ref 기반의 명시 재시도 지점 복귀로 수정했다(다른 컨트롤로 이동한 포커스 보존). 관련4/FE type·lint·build/390·768·1440 선택 PASS이며 기존 BE/MySQL·전체 E2E는 반복하지 않았다. 실기기/VoiceOver/운영·모든 변형/전체 수용은 Open이다.

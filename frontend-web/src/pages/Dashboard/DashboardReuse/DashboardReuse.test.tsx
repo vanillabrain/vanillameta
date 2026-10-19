@@ -202,12 +202,15 @@ it('recovers an uncertain save with the same request id and locks edits', async 
   await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/90'));
   expect(api.post.mock.calls[2][1]).toEqual(body);
 });
-it('409 preserves inputs and requires another preview', async () => {
+it('409 preserves inputs and restores keyboard focus to another preview', async () => {
   await open();
   await makePreview();
   api.post.mockRejectedValueOnce({ response: { status: 409, data: { message: '원본이 변경되었습니다.' } } });
+  screen.getByRole('button', { name: '복사본 저장' }).focus();
   fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
   await screen.findByText('원본이 변경되었습니다.');
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: '전체 미리보기' })));
+  expect(api.post).toHaveBeenCalledTimes(2);
   expect(screen.queryByText(/미리보기:/)).toBeNull();
   expect((screen.getByLabelText('복사본 제목') as HTMLInputElement).value).toBe('원본 복사본');
   expect((screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement).disabled).toBe(false);
@@ -378,4 +381,25 @@ it('keeps the preview trigger focusable while rejecting duplicate pending reques
   await act(async () => reject({ code: 'ERR_NETWORK', message: 'Network Error', response: { status: 0 } }));
   await screen.findByRole('alert');
   expect(document.activeElement).toBe(trigger);
+});
+
+it('409 does not steal focus after the user moves to the original link', async () => {
+  await open();
+  await makePreview();
+  let reject: (error: any) => void;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      }),
+  );
+  const save = screen.getByRole('button', { name: '복사본 저장' });
+  save.focus();
+  fireEvent.click(save);
+  const originalLink = screen.getByRole('link', { name: '원본 보기' });
+  originalLink.focus();
+  await act(async () => reject({ response: { status: 409, data: { message: '원본이 변경되었습니다.' } } }));
+  await screen.findByText('원본이 변경되었습니다.');
+  expect(document.activeElement).toBe(originalLink);
+  expect(api.post).toHaveBeenCalledTimes(2);
 });

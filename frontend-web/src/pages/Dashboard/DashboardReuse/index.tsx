@@ -84,6 +84,16 @@ function Content() {
   const sequence = useRef(0);
   const request = useRef<AbortController>();
   const pending = useRef(false);
+  const previewButton = useRef<HTMLButtonElement>(null);
+  const saveButton = useRef<HTMLButtonElement>(null);
+  const restorePreviewFocus = useRef(false);
+  useEffect(() => {
+    if (busy || !restorePreviewFocus.current) return;
+    restorePreviewFocus.current = false;
+    // Do not interrupt a user who moved to another control while the request was pending.
+    if (document.activeElement === document.body || document.activeElement === saveButton.current)
+      previewButton.current?.focus();
+  }, [busy]);
   const lock = unknown || busy === '복사본 저장 중…';
   const invalidate = () => {
     sequence.current += 1;
@@ -297,6 +307,7 @@ function Content() {
   };
   const save = async () => {
     if (pending.current || !preview || !attempt) return;
+    const hadSaveFocus = document.activeElement === saveButton.current;
     pending.current = true;
     const token = sequence.current;
     const abort = new AbortController();
@@ -316,6 +327,7 @@ function Content() {
         setUnknown(true);
         setError('저장 결과를 확인하지 못했습니다. 초안은 유지됩니다. 같은 저장 요청을 다시 확인해 주세요.');
       } else {
+        restorePreviewFocus.current = hadSaveFocus;
         setPreview(null);
         setAttempt(null);
         setUnknown(false);
@@ -551,6 +563,7 @@ function Content() {
           </fieldset>
           <div className="my-4 flex flex-wrap items-center gap-2">
             <Button
+              ref={previewButton}
               variant="outline"
               disabled={!valid || lock}
               aria-disabled={!!busy || undefined}
@@ -559,7 +572,7 @@ function Content() {
             >
               전체 미리보기
             </Button>
-            <Button disabled={!preview || !attempt || !!busy || unknown} onClick={() => void save()}>
+            <Button ref={saveButton} disabled={!preview || !attempt || !!busy || unknown} onClick={() => void save()}>
               복사본 저장
             </Button>
             {unknown && (

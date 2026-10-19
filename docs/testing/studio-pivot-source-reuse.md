@@ -64,3 +64,8 @@ Ego **36**, API `127.0.0.1:4560`, 웹 `localhost:3460`, Node24.21.0. 격리 SQLi
 원시 인증값은 출력/커밋하지 않는다. 로컬 save ticket/비공개 게시 조회 응답은 공개 커밋에 포함하지 않았다. 진단용25~28·검증용29/30·비공개27/비공개 게시1은 로컬 증빙으로 보존한다. 임시 네트워크 차단은 finally에서 해제했다.
 
 **남은 경계:** 격리 MySQL 실제 실행·운영 다중 writer/부하·모든 업무 의미/일반 Pivot·수신자 remix·실제 휴대폰/멀티터치·native 전체 키보드·VoiceOver(BLOCKED 유지)·새36행 Rill 비교·전체 P5/TC005 및 기업16개 요건 수용은 Open이다. gpt-6-luna 설정은 유지했으며 이번 직접 복제 흐름에 제품 AI 호출은 없다.
+
+
+## 실제 기준 변경 오류 복구 후속 — 2026-10-19
+
+[SPR-UI-08/09](studio-reuse-catalog-recovery-ui.md)에서 실제 대상 지표 추가→저장409·입력/metadata 보존→명시 재미리보기→비공개28/source29 저장/reload를 확인했다. 포커스가 BODY로 빠지는 오류는 좁게 수정해 실제390px ‘전체 미리보기’ 가시 포커스/Tab 복귀로 재검증했다. 관련4/type/lint/FE build·세폭 overflow0이며 기존 정상 흐름/MySQL 조건을 반복 통과로 합산하지 않는다. 실기기/VoiceOver·다른 실패 변형/전체 수용은 별도다.
