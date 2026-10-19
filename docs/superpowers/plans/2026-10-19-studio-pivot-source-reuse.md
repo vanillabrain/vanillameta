@@ -164,3 +164,8 @@ Task1→2→3→4 순서는 계산과 저장 계약에 의존하고 Task5→6은
 ## 격리 MySQL 후속 — 2026-10-19
 
 [실제 MySQL 증빙](../../testing/studio-pivot-source-reuse-mysql.md)에서 기존 Colima 소켓을 명시해 MySQL8.4.11의 최초6개와 독립 두 연결 동일 요청1개를 확인했다. 위 최초 Docker/NOT_RUN 기록은 역사 상태이며 현재 해당7개는 PASS_SELECTED다. 빈 DB/UUID/소유자 확인과 test backend 제목을 보완했다. 실제 MetricDeletionService와의 직접 경합·모든 writer/운영·ticket 분산은 후속이므로 Task4의 광범위 gate를 전체 완료로 바꾸지 않는다. 기존 제품 UI·SQLite 통과 조건은 반복하지 않았다.
+
+
+## 실제 지표 삭제 경합 후속 — 2026-10-19
+
+[후속 MD](../../testing/studio-pivot-metric-delete-race.md)의 SPR-DELETE-01/02에서 실제 MetricDeletionService와 혼합 복제의 삭제 우선/복제 우선·User 잠금 대기·commit 후 재검사/원자성을 확인했다. 선택2개/BE type·변경 파일 lint PASS이며 테스트 타이머 정리 외 제품 변경은 없다. 복제 우선의 삭제 요청 기준은 테스트 내부 미commit 행으로 구성하므로 공개 impact/UI 수용과 구별한다. 다음은 다른 requestId 동시 복제이며 기존 동일 요청 재시도는 반복하지 않는다. 모든 writer/운영·전체 Task4 수용은 Open이다.

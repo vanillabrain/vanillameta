@@ -44,3 +44,8 @@
 ## 남은 범위
 
 이 후속은 기존의 **실제 MySQL 미실행**을 위7개 조건에 한해 해소한다. 실제 MetricDeletionService와 복제의 직접 경합·모든 metadata writer/운영 부하/마이그레이션·서로 다른 프로세스의 ticket 배포·다른 요청 ID의 저장 경합은 별도다. 같은 계획을 두 DataSource에 놓은 검증을 운영 ticket 분산 기능으로 보고하지 않는다. 실휴대폰·native 화살표만의 전체 선택·VoiceOver·Rill36행 신규 비교·전체 P5/TC005/기업16개 요건 수용은 Open이다.
+
+
+## 실제 삭제 서비스 경합 후속
+
+[삭제·복제 경합 증빙](studio-pivot-metric-delete-race.md)에서 삭제 우선/복제 우선의 실제 MySQL2개를 선택 검증했다. 위 미검증 기록은 당시 상태이며 현재 두 서버 경계 조건은 PASS_SELECTED다. 공개 UI의 impact/확인 전체 여정이나 모든 writer/운영 수용으로 확대하지 않는다.

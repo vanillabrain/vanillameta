@@ -1,3 +1,8 @@
+import { MetricDeletionService, metricDeletionRevision } from '../metric/metric-deletion.service';
+import { MetricDeleteReceipt } from '../metric/entities/metric-delete-receipt.entity';
+import { ExploreView } from './entities/explore-view.entity';
+import { ExportJob } from './entities/export-job.entity';
+import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
 import { lockMetricSources } from '../metric/metric-write-lock';
 import { randomUUID } from 'crypto';
 import { DashboardReuseService } from './dashboard-reuse.service';
@@ -133,6 +138,10 @@ describe(`Studio mixed source replacement on real DuckDB and ${
       synchronize: !mysql,
       entities: [
         AnalysisCreationReceipt,
+        MetricDeleteReceipt,
+        ExploreView,
+        ExportJob,
+        TableQuery,
         PersonalView,
         SourceCatalogEntry,
         Dashboard,
@@ -586,6 +595,231 @@ describe(`Studio mixed source replacement on real DuckDB and ${
         if (blocker.isTransactionActive) await blocker.rollbackTransaction();
         await Promise.all(pending);
         await blocker.release();
+        await peer.destroy();
+      }
+    },
+  );
+
+  const deferred = () => {
+    let resolve!: () => void;
+    const promise = new Promise<void>(done => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  };
+  const waitForGate = async (promise: Promise<void>, message: string) => {
+    let timer: NodeJS.Timeout;
+    try {
+      await Promise.race([
+        promise,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(message)), 5000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  const waitForUserFence = async (peer: DataSource) => {
+    let names: string[] = [];
+    for (let i = 0; i < 160; i++) {
+      const rows = await peer.query(
+        `SELECT l.OBJECT_NAME AS name FROM performance_schema.data_lock_waits w
+         JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID=w.REQUESTING_ENGINE_LOCK_ID
+         WHERE l.OBJECT_SCHEMA=?`,
+        [mysqlConfig.database],
+      );
+      names = rows.map(row => row.name);
+      if (names.includes('user')) break;
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    expect(names).toContain('user');
+  };
+  (process.env.VM_STUDIO_REUSE_MYSQL_CONFIG ? it : it.skip)(
+    'MySQL metric deletion first invalidates a waiting mixed copy without partial assets',
+    async () => {
+      const { service, request, saved } = await prepare();
+      const unused = await bi.createMetric(
+        {
+          sourceId: 2,
+          label: 'Unused target metric',
+          aggregation: 'SUM',
+          column: 'amount2',
+          unit: 'USD',
+          decimalPlaces: 2,
+          numberNotation: 'plain',
+        },
+        7,
+      );
+      const preview: any = await service.preview(id, request, 7, 'owned', 0);
+      const deletion = new MetricDeletionService(db);
+      const impact = (await deletion.impact(unused.id, 7)).data;
+      expect(impact.canDelete).toBe(true);
+      const before = JSON.parse(await assets());
+      const receiptsBefore = await db.manager.count(MetricDeleteReceipt);
+      const entered = deferred(),
+        release = deferred();
+      const original = db.createQueryRunner.bind(db);
+      const spy = jest.spyOn(db, 'createQueryRunner').mockImplementation((...args) => {
+        const runner = original(...args),
+          update = runner.manager.update.bind(runner.manager);
+        runner.manager.update = (async (entity, criteria, changes) => {
+          const result = await update(entity, criteria, changes);
+          if (entity === Metric && changes.useYn === 'N') {
+            entered.resolve();
+            await release.promise;
+          }
+          return result;
+        }) as any;
+        return runner;
+      });
+      const peer = await new DataSource({ ...db.options, synchronize: false } as any).initialize();
+      const pending: Promise<any>[] = [];
+      try {
+        pending.push(
+          deletion
+            .remove(unused.id, 7, {
+              requestId: randomUUID(),
+              expectedRevision: impact.revision,
+              expectedActorId: 7,
+              expectedOrganizationId: null,
+            })
+            .then(
+              value => ({ value }),
+              error => ({ error }),
+            ),
+        );
+        await waitForGate(entered.promise, 'delete gate not entered');
+        pending.push(
+          service.save(id, { ticket: preview.ticket, requestId: randomUUID() }, 7, 'owned', 0).then(
+            value => ({ value }),
+            error => ({ error }),
+          ),
+        );
+        await waitForUserFence(peer);
+        release.resolve();
+        const [removed, copied] = await Promise.all(pending);
+        expect(removed.error).toBeUndefined();
+        expect(removed.value.data.deleted).toBe(true);
+        expect(copied.value).toBeUndefined();
+        expect(copied.error?.getStatus()).toBe(409);
+        const after = JSON.parse(await assets());
+        expect(after.slice(1)).toEqual(before.slice(1));
+        expect(after[0]).toHaveLength(before[0].length);
+        expect(after[0].filter(row => row.id !== unused.id)).toEqual(
+          before[0].filter(row => row.id !== unused.id),
+        );
+        expect((await db.manager.findOneByOrFail(Metric, { id: unused.id })).useYn).toBe('N');
+        expect(await db.manager.count(MetricDeleteReceipt)).toBe(receiptsBefore + 1);
+        expect((await studio.get(id, 7)).document).toEqual(saved.document);
+        console.info('SPR-DELETE-01', {
+          waitingFence: 'user',
+          deletion: 'committed',
+          copyStatus: copied.error.getStatus(),
+          partialCopyAssets: 0,
+        });
+      } finally {
+        release.resolve();
+        await Promise.all(pending);
+        spy.mockRestore();
+        await peer.destroy();
+      }
+    },
+  );
+  (process.env.VM_STUDIO_REUSE_MYSQL_CONFIG ? it : it.skip)(
+    'MySQL mixed copy first protects its newly committed metric from waiting deletion',
+    async () => {
+      const { service, request, saved } = await prepare();
+      const preview: any = await service.preview(id, request, 7, 'owned', 0);
+      const receiptsBefore = await db.manager.count(MetricDeleteReceipt);
+      const entered = deferred(),
+        release = deferred();
+      let copiedMetric: Metric;
+      const original = db.createQueryRunner.bind(db);
+      const spy = jest.spyOn(db, 'createQueryRunner').mockImplementation((...args) => {
+        const runner = original(...args),
+          commit = runner.commitTransaction.bind(runner);
+        runner.commitTransaction = async () => {
+          copiedMetric = await runner.manager.findOneOrFail(Metric, {
+            where: { databaseId: 2, useYn: 'Y' },
+            order: { id: 'DESC' },
+          });
+          entered.resolve();
+          await release.promise;
+          await commit();
+        };
+        return runner;
+      });
+      const peer = await new DataSource({ ...db.options, synchronize: false } as any).initialize();
+      const deletion = new MetricDeletionService(peer),
+        pending: Promise<any>[] = [];
+      try {
+        pending.push(
+          service.save(id, { ticket: preview.ticket, requestId: randomUUID() }, 7, 'owned', 0).then(
+            value => ({ value }),
+            error => ({ error }),
+          ),
+        );
+        await waitForGate(entered.promise, 'copy gate not entered');
+        // Boundary request built from transaction metadata, not a public pre-commit impact response.
+        // Real remove(), SQL and authorization/dependency checks remain unchanged.
+        pending.push(
+          deletion
+            .remove(copiedMetric.id, 7, {
+              requestId: randomUUID(),
+              expectedRevision: metricDeletionRevision(copiedMetric),
+              expectedActorId: 7,
+              expectedOrganizationId: null,
+            })
+            .then(
+              value => ({ value }),
+              error => ({ error }),
+            ),
+        );
+        await waitForUserFence(peer);
+        release.resolve();
+        const [copied, removed] = await Promise.all(pending);
+        spy.mockRestore();
+        expect(copied.error).toBeUndefined();
+        expect(removed.value).toBeUndefined();
+        expect(removed.error?.getStatus()).toBe(409);
+        expect(removed.error?.message).toContain('사용처가 남아');
+        expect((await db.manager.findOneByOrFail(Metric, { id: copiedMetric.id })).useYn).toBe('Y');
+        expect(await db.manager.count(MetricDeleteReceipt)).toBe(receiptsBefore);
+        const impact = (await deletion.impact(copiedMetric.id, 7)).data;
+        expect(impact.canDelete).toBe(false);
+        expect(impact.dependencies.find(d => d.kind === 'studioDocuments').count).toBe(1);
+        expect((await studio.get(id, 7)).document).toEqual(saved.document);
+        const result = await studio.get(copied.value.id, 7);
+        expect(
+          result.document.blocks.find(b => b.kind === 'SEGMENT_PIVOT').measureRefs.map(r => r.id),
+        ).toContain(copiedMetric.id);
+        const prepared = await studio.prepare(
+          copied.value.id,
+          {
+            document: result.document,
+            expectedRevision: result.document.revision,
+            expectedSourceRevision: versions.get(2),
+          },
+          7,
+        );
+        expect(
+          Number(
+            prepared.preview.widgets.find(w => w.type === 'SEGMENT_PIVOT').pivot.kpis[0].value,
+          ),
+        ).toBe(1000);
+        console.info('SPR-DELETE-02', {
+          waitingFence: 'user',
+          copy: 'committed',
+          deletionStatus: removed.error.getStatus(),
+          studioReferences: 1,
+          pivot: 1000,
+          deletionReceiptsAdded: 0,
+        });
+      } finally {
+        release.resolve();
+        await Promise.all(pending);
+        spy.mockRestore();
         await peer.destroy();
       }
     },
