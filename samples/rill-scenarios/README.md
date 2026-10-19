@@ -10,7 +10,7 @@
 
 - 마진: `매출과 비용, 이익은 USD로 표시하고 총매출·총비용·이익·마진율과 company별 이익을 만들어 줘. 마진율은 profit 합계를 revenue 합계로 나누고 백분율로 표시해 줘.`
 - 전환: `방문·다운로드·가입 합계와 다운로드 전환율(downloads/visits), 가입 전환율(signups/downloads)을 백분율로 보여 주고 버전별 다운로드도 비교해 줘.`
-- 저장 후 지표 탐색(`/explore/source`)에서 같은 소스 → **집계 조건** → company → 총매출 ≥1000, 마진 <20 → 적용. 모든 조건은 AND다. 기간/원본 필터 후 대상별 집계로 판단하며, 통과한 대상의 원본 행으로 전체 KPI/추세/상세를 다시 계산한다. 조건 변경은 결과를 무효화하고 명시 적용 전 조회하지 않는다. 이 분석은 아직 Pivot·저장 보기·CSV에 연결되지 않았다.
+- 저장 후 지표 탐색(`/explore/source`)에서 같은 소스 → **집계 조건** → company → 총매출 ≥1000, 마진 <20 → 적용. 모든 조건은 AND다. 기간/원본 필터 후 대상별 집계로 판단하며, 통과한 대상의 원본 행으로 전체 KPI/추세/상세를 다시 계산한다. 조건 변경은 결과를 무효화하고 명시 적용 전 조회하지 않는다. 집계 조건의 개인 보기 저장/복원·component Pivot·표시 CSV와 Studio Pivot 블록 연결을 지원한다. 구체적인 선택 범위는 [집계 조건 후속](../../docs/testing/rill-scenarios.md#rxs02-저장pivot-후속-계약)을 따른다.
 
 ## Rill 대조
 
@@ -179,3 +179,8 @@ RXS01~24의 **MD에 정의한 선택 데모 범위**를 연결했다. 각 ID의 
 
 
 집계 Pivot의 **셀 또는 합계 숫자**를 누르면 그 범위의 **기여 원본**을 확인한다. 원래 집계 조건·공통 필터·저장 보기는 바꾸지 않는다. `RXS02 매출1000·마진20미만`의 Baro Tech×Compute를 열면 매출640.50USD/마진-12.79%, 원가만 발생한 두 행을 포함한3행이 나온다. 모바일 표는 안에서 가로 이동하고 Home/End, Escape는 선택 셀로 돌아간다. [G1~G3 검증/Rill 비교](../../docs/testing/rill-scenarios.md#rxs02-g1g3-결과--2026-10-18-ego31).
+
+
+## 다른 파일·36행 Pivot 비교
+
+[36행 실제 비교 기록](../../docs/testing/rill-pivot36-comparison.md)은 기존 margin18행을 두 번 붙이고 day→event_day, company→customer, component→service, revenue/cost/profit→sales_amount/expense_amount/earnings로 연결한 변형이다. 이번 검증 프로젝트는 localhost9019의 `vm_pivot36_explore`이며 VM 저장본27/source30과 비교했다. 전체29874.98USD/17.79%, customer별매출≥1000·마진<20%의두고객16행10862.50USD/5.39%가 정답이다. Rill에서는0.2를 마진 임계값으로 입력하고 Pivot 행Customer/열Service·Revenue·Margin Percent를 선택한다. 기존 VM 저장본의 조건은 Pivot 블록 범위다. 화면 전체 KPI에도 같은 집계 조건이 자동 적용된다고 설명하지 않는다. 이 변형을 제품 샘플 메뉴에 새로 추가하거나 고객 데이터로 부르지 않는다.
