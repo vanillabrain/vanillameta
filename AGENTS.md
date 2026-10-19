@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **TC050 전체 앱 MySQL 통합:** [계획](docs/plans/TC-050-integrated-mysql.md)·[증빙](docs/testing/enterprise-integrated-mysql.md)은 실제 Nest HTTP/MySQL8.4.11/native DuckDB·Ego114의 실제 Codex 질문/원본600 저장→직접 공유→본인 소스1200 사본→비교300/200/100/50%·CSV→보관/복원·API 새 PID/reload의 대표 여정이다. 신규 빈 DB dev synchronize이며 운영 migration이 아니다. 매핑 select의 legacy44px/모바일14px 덮어쓰기를 제거해36px/16px·390/768/1440 넘침0을 확인했다. 최신 잔여표는 완료된 인계/탈퇴·세 복구·출력 재시작을 미구현으로 올리지 않는다. 다음은 전 역할/회수 HTTP 행렬과 AI/정답 변형이며 운영/실기기/업무·전체16개/TC050 수용은 Open이다.
+
 - **UC054 출력 재시작:** [계획](docs/plans/UC-054-export-restart.md)·[증빙](docs/testing/export-restart.md)은 실제 MySQL 서비스 자식 SIGKILL/새 PID와 별도 SQLite 전체 HTTP/Ego113 재시작을 구분한다. history 저장 공통 큐로 샘플/로그인 경합 후 성공 응답 전 commit을 복원하고, 완료 CAS TTL·Source/Metric 잠금 후 현재 접근권 및 조회 실패 동작 차단을 보완했다. MySQL7·SQLite21·sample영향22·FE50은 별도 배치다. Ego queued/ready 두 번 재시작·동일 다운로드·중단 fixture 재실행·조회 실패 복구·390/768/1440을 확인했다. lease/TTL fixture 가속이며 전체 HTTP MySQL/운영/실기기/전체16개 수용은 별도다.
 
 - **UC053 받은 분석 복제 복구:** [설계](docs/plans/UC-053-received-copy-recovery.md)·[증빙](docs/testing/received-copy-recovery.md)은 실제 저장 시도의 private 기준/정확 입력을 actor/org/route/session별 탭에24h/128KiB로 보존한다. readonly result는 현재 본인 사본/소스 소유·epoch/활성을 검사해 원본 회수 후에도 완료 사본만 찾는다. missing은 취소 증명이 아니며 원 기준/소스 revision 재미리보기→별도 동의→동일 UUID 저장이다. preview 전후/오류·save 첫/최종 User fence를 검사하고 긴 계산은 잠금 밖이다. MySQL14·recovery30/기존조건23·FE78/공용11·execution 호출자 후속111은 중복/별도 배치다. 기존 execution 복제도 요청 epoch를 그대로 전달하며 DB 현재값으로 승격하지 않는다. Ego112 commit후응답유실/원본회수/reload/사본찾기·미전달/재미리보기/동일저장·명시보관해제·3폭과 기존8표행/8파일 보존을 확인했다. 일반 게시/모든 미전송 편집 복구·운영/실기기/전체16개 수용은 별도다.
