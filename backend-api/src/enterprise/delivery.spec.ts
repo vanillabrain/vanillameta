@@ -1,3 +1,4 @@
+import { semanticMetadata } from '../../test/util/semantic-mysql';
 import { EnterpriseGroupService } from './group.service';
 import { EnterpriseNotificationAudience } from './entities/enterprise-notification-audience.entity';
 import { EnterpriseGroupDeliveryService } from './group-delivery.service';
@@ -13,6 +14,7 @@ import { randomUUID } from 'crypto';
 import { DataSource } from 'typeorm';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import request = require('supertest');
 import { User } from '../user/entities/user.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
@@ -64,12 +66,12 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     policy: EnterpriseResourcePolicyService,
     access: SourceAccessService;
   beforeAll(async () => {
-    db = await new DataSource({
+    db = await semanticMetadata('staff', {
       type: 'sqlite',
       database: ':memory:',
       entities,
       synchronize: true,
-    }).initialize();
+    });
     policy = new EnterpriseResourcePolicyService(db);
     access = new SourceAccessService(db, policy);
     service = new EnterpriseDeliveryService(db, policy, access);
@@ -94,7 +96,7 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
       EnterpriseMembership,
       User,
     ])
-      await db.getRepository(entity).clear();
+      await db.getRepository(entity).createQueryBuilder().delete().execute();
     await db.getRepository(User).save(
       [1, 2, 3, 4].map(id => ({
         id,
@@ -479,10 +481,114 @@ describe('Dashboard recipient delivery independent from direct grants', () => {
     await db.getRepository(User).update(1, { active: false });
     await expect(service.set(20, 1, body)).rejects.toMatchObject({ status: 403 });
   });
+  const mysql = process.env.VM_SEMANTIC_MYSQL_CONFIG ? it : it.skip;
+  mysql.each(['fresh request', 'historical receipt replay'])(
+    'rejects a guard-passed old-epoch %s after the User wait without delivery/audit/receipt writes',
+    async scenario => {
+      const body = input();
+      if (scenario === 'historical receipt replay') {
+        await service.set(20, 1, body);
+        await service.set(20, 1, input([2], false, 1));
+      }
+      const snapshot = () =>
+        Promise.all(
+          [
+            EnterpriseDashboardDelivery,
+            EnterpriseAuditEvent,
+            EnterpriseDeliveryReceipt,
+            EnterpriseNotificationAudience,
+            Dashboard,
+            UserMapping,
+            EnterpriseResourceGrant,
+          ].map(entity => {
+            const order = Object.fromEntries(
+              db.getMetadata(entity).primaryColumns.map(column => [column.propertyName, 'ASC']),
+            );
+            return db.getRepository(entity).find({ order });
+          }),
+        );
+      const before = await snapshot();
+      const priorSecret = process.env.ACCESS_SECRET;
+      process.env.ACCESS_SECRET = 'synthetic-delivery-recovery-epoch';
+      const jwt = new JwtService();
+      const token = jwt.sign(
+        { accessKeyData: { id: 1, userId: 'synthetic-1', authVersion: 0 } },
+        { secret: process.env.ACCESS_SECRET },
+      );
+      const req: any = { headers: { authorization: `Bearer ${token}` } };
+      const fence = db.createQueryRunner();
+      await fence.connect();
+      let posting: Promise<any>;
+      try {
+        expect(
+          await new JwtAuthGuard(jwt, db).canActivate({
+            switchToHttp: () => ({ getRequest: () => req }),
+          } as any),
+        ).toBe(true);
+        await fence.startTransaction('READ COMMITTED');
+        await fence.manager.findOne(User, {
+          where: { id: 1 },
+          lock: { mode: 'pessimistic_write' },
+        });
+        await fence.manager.update(User, 1, { authVersion: 1 });
+        const controller = new EnterpriseDeliveryController(service, {} as any);
+        posting = service.set(20, 1, body, 0).then(
+          value => ({ value }),
+          error => ({ error }),
+        );
+        let waiting = false;
+        for (let attempt = 0; attempt < 100; attempt++) {
+          const [row] = await db.query(
+            'SELECT COUNT(*) AS n FROM performance_schema.data_lock_waits',
+          );
+          if (Number(row.n) > 0) {
+            waiting = true;
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        expect(waiting).toBe(true);
+        await fence.commitTransaction();
+        expect((await posting).error).toMatchObject({ status: 403 });
+        expect(await snapshot()).toEqual(before);
+        if (scenario === 'fresh request') {
+          expect(await db.manager.count(EnterpriseDashboardDelivery)).toBe(0);
+          expect(await db.manager.count(EnterpriseDeliveryReceipt)).toBe(0);
+        } else {
+          expect((await service.list(20, 1)).entries).toEqual([
+            { recipientId: 2, version: 2, active: false, allowCopy: false },
+          ]);
+        }
+        // A fresh current JWT must reach the service as epoch 1, rather than default to 0.
+        const currentToken = jwt.sign(
+          { accessKeyData: { id: 1, userId: 'synthetic-1', authVersion: 1 } },
+          { secret: process.env.ACCESS_SECRET },
+        );
+        const currentReq: any = { headers: { authorization: `Bearer ${currentToken}` } };
+        expect(
+          await new JwtAuthGuard(jwt, db).canActivate({
+            switchToHttp: () => ({ getRequest: () => currentReq }),
+          } as any),
+        ).toBe(true);
+        expect((await controller.set(currentReq, '20', body)).replayed).toBe(
+          scenario === 'historical receipt replay',
+        );
+        if (scenario === 'historical receipt replay') expect(await snapshot()).toEqual(before);
+      } finally {
+        if (fence.isTransactionActive) await fence.rollbackTransaction();
+        await posting;
+        await fence.release();
+        if (priorSecret === undefined) delete process.env.ACCESS_SECRET;
+        else process.env.ACCESS_SECRET = priorSecret;
+      }
+    },
+  );
   it('coalesces concurrent identical requests and refuses a receipt from the owner previous organization', async () => {
     const body = input([2, 3]);
     const results = await Promise.all([service.set(20, 1, body), service.set(20, 1, body)]);
-    expect(results.map(result => result.replayed)).toEqual([false, true]);
+    // Independent MySQL connections may acquire the User fence in either order.
+    expect(results.filter(result => !result.replayed)).toHaveLength(1);
+    expect(results.filter(result => result.replayed)).toHaveLength(1);
     expect(await db.getRepository(EnterpriseDeliveryReceipt).count()).toBe(1);
     expect(await db.getRepository(EnterpriseDashboardDelivery).count()).toBe(2);
     await db.getRepository(EnterpriseMembership).update(1, { organizationId: 2 });

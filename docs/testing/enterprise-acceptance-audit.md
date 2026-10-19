@@ -15,7 +15,7 @@
 | FR018 E04                 | 중첩 조건·명시 적용·undo/redo·저장/reload/게시/복제·실 Codex 단일 조건 ([조건](business-condition-semantics.md))                                                                                          | 복합 부정 표현 지원 범위. 자동 전파는 현재 명시 적용 계약이 아님                           | 중첩 AND/OR·실패·파일 교체의 연속 화면, 사용자 수용                                       |
 | FR019 E05                 | 전체 건수·빈도/상위20+나머지·선택 열 정렬 표본·독립 정답 ([분포](condition-profile.md))                                                                                                                   | 확인된 주요 구현 결손 없음. 정렬 표본을 무작위 대표표본으로 부르지 않음                    | 분포/표본 실제 화면·키보드·변경 중 거절·목표 데이터 규모 성능                             |
 | FR020 E04                 | 설명/조회0연산·조건 차이/전체 미리보기·명시 적용·검토 전 저장0·실 Codex 조건 ([AI 조건](ai-condition-proposals.md), [의미](business-condition-semantics.md))                                              | 복합 부정 의도 처리                                                                        | 실모델 설명/조회/변경 각각의 연속 여정, unknown/type/no-op/stale 시 질문·초안·저장본 불변 |
-| FR021 E06/E07             | 직접/그룹 공유·받은함·별도 복제 동의·본인 source 사본·멱등 영수증 ([복제](received-copy.md), [그룹](group-deliveries.md))                                                                                 | 일반 소유 member 공유 정책; 미확정 공유/복제 요청 reload 복구·결과 찾기 UX                 | 공유→복제→회수→사본 유지 실제 UI·MySQL 경합·전달 업무 수용                                |
+| FR021 E06/E07             | 직접/그룹 공유·받은함·별도 복제 동의·본인 source 사본·멱등 영수증 ([복제](received-copy.md), [그룹](group-deliveries.md))                                                                                 | 일반 소유 member 공유 정책; 그룹 공유/독립 복제 요청 reload 복구·결과 찾기 UX              | 공유→복제→회수→사본 유지 실제 UI·MySQL 경합·전달 업무 수용                                |
 | FR022 E07/E12             | 권한/공유/그룹 audience·출력 완료/실패/취소 알림·읽음/목록 제거 ([그룹 알림](group-notifications.md), [출력 알림](export-notifications.md))                                                               | TC050의 계정/조직 변경 자동 알림과 FR022의 사건 범위 일치 여부 결정. 해당 자동 사건 미구현 | 알림 장애 시 확정 공유/파일 보존·본인/현재 조직 격리 UI/MySQL·감사 수용                   |
 | FR023 E08/E09/E10/E14     | 고정 기준 UUID접수·CAS/lease·취소·원자 파일·만료/현재 권한·상태 복구 ([출력](export-jobs.md), [동일 기준](explore-reviewed-basis.md))                                                                     | 새 service 인스턴스 복구와 실제 프로세스 재시작을 구분                                     | 실제 서버 재시작·MySQL CAS/부분 실패·작업 오류 화면, 파일 업무/운영 수용                  |
 | FR024 E03/E11/E12         | 개인 보관·대시보드/지표/소스 삭제 보호·정리·조직 대시보드 비활성/복원 ([보관](personal-library-archive.md), [지표](metric-deletion.md), [소스](source-deletion.md), [상태](dashboard-asset-lifecycle.md)) | 조직 자체 비활성과 조직 대시보드 비활성을 혼용하지 않음; 모든 writer 보장 아님             | 보관/공유/삭제/정리 통합·Ego/운영·사람 수용. 이전 MySQL 결과는 해당 slice만 인정          |
@@ -34,7 +34,7 @@ TC050 E13은 추가16개 밖 NFR003에도 연결되지만 TC050 종료 기준에
 ## 다음 작업
 
 1. FR016 직원 검색·이동·지원 범위 인계·조직 탈퇴의 선택 검증 다음은 외부/활성 공유 인계 계약과 전 역할/업무 수용이다. Ego의 선택 관리 화면·대표 폭은 [후속](staff-transfer-ui.md)에서 확인했다. FR022/TC050 자동 사건·FR025 비교 기간 범위도 구체적인 수용 조건으로 고정한다. 미확정 정책을 자동 삭제/이관으로 구현하지 않는다.
-2. FR021/NFR008의 미확정 공유·독립 복제 요청을 reload 후 같은 요청으로 확인하는 여정을 보완한다.
+2. FR021/NFR008의 직접 공유 복구 다음은 그룹 공유·독립 복제 요청을 reload 후 같은 요청으로 확인하는 여정이다.
 3. TC050의 동일 조건 조회→기간 비교→파일 정답, 역할별 회수, 실제 export 프로세스 재시작을 MySQL에서 연결한다. 운영·실기기·업무 수용은 별도 gate로 남긴다.
 
 현재 MySQL 실행의 정확한 범위/소유 fixture 정리와 재현 명령은 [이번 증빙](semantic-business-mysql.md)을 따른다. 모든16개 행을 구현/선택 검증/전체 수용으로 나누어 관리한다.
@@ -60,3 +60,7 @@ TC050 E13은 추가16개 밖 NFR003에도 연결되지만 TC050 종료 기준에
 ## UC051 인계 후 조직 탈퇴 후속
 
 [설계](../plans/UC-051-staff-departure.md)·[증빙](staff-departure.md)은 본인 명시 요청과 다른 현재 admin의 잔여 검토/최종 동의를 분리한다. 소유 자료와 미해결 작업이 남으면 차단하며, 인계 이후 잔여 0건에서 Membership·직접/그룹/전달 관계와 로그인 epoch를 회수한다. 계정 활성·인계된 원본/파일/문서/과거 기록을 보존한다. MySQL78/1SKIP·SQLite145/11SKIP·FE120/후속26 및 Ego109 대표 여정은 선택/중복 범위이며 합산하지 않는다. 법적 퇴사·계정 삭제·외부/활성 공유 자산 인계·전체 역할/운영/실휴대폰/사람·전체16개 수용은 Open이다.
+
+## UC053 직접 직원 공유 요청 복구 후속
+
+[설계](../plans/UC-053-delivery-recovery.md)·[증빙](delivery-recovery.md)은 직접 공유/회수·복제 허용 설정의 frozen UUID/입력 탭 보존과 reload→현재 조회→별도 동의 동일 요청을 연결한다. 역사 결과와 현재 관계를 구별하고 User 잠금 뒤 epoch를 검사한다. MySQL7·SQLite23/2SKIP·BE4·FE57/부모16·Ego110은 선택/중복 범위다. 그룹 공유·독립 사본 생성 요청 복구와 일반 member 공유 정책·전체16개 수용은 Open이다.

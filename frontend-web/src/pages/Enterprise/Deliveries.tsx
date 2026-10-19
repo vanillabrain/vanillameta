@@ -2,20 +2,47 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { EnterpriseMember, fetchMembers } from '@/api/enterpriseService';
-import { DeliveryEntry, DeliveryInput, fetchDeliveries, saveDeliveries } from '@/api/deliveryService';
+import { DeliveryEntry, fetchDeliveries, saveDeliveries } from '@/api/deliveryService';
 
-export default function Deliveries({ dashboardId, selfId }: { dashboardId: number; selfId?: number }) {
+import { personalLibrarySessionScope } from '@/api/personalLibraryService';
+import {
+  clearDeliveryPending,
+  DeliveryPending,
+  deliveryPendingStorageKey,
+  readDeliveryPending,
+  saveDeliveryPending,
+} from '@/api/deliveryPendingStorage';
+type Props = { dashboardId: number; selfId?: number; organizationId: number };
+export default function Deliveries(props: Props) {
+  const [session, setSession] = useState(() => personalLibrarySessionScope());
+  useEffect(() => {
+    const check = () => setSession(personalLibrarySessionScope());
+    window.addEventListener('storage', check);
+    window.addEventListener('focus', check);
+    return () => {
+      window.removeEventListener('storage', check);
+      window.removeEventListener('focus', check);
+    };
+  }, []);
   const [open, setOpen] = useState(false);
   return (
     <section className="min-w-0 rounded-md border p-3" aria-label="수신자 조회 공유">
       <Button size="sm" variant="outline" aria-expanded={open} onClick={() => setOpen(value => !value)}>
         조회 공유 {open ? '접기' : '열기'}
       </Button>
-      {open && <DeliveryPanel key={dashboardId} dashboardId={dashboardId} selfId={selfId} />}
+      {open && <DeliveryPanel key={JSON.stringify([props, session])} {...props} session={session} />}
     </section>
   );
 }
-function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: number }) {
+function DeliveryPanel({ dashboardId, selfId, organizationId, session }: Props & { session: string | null }) {
+  const scope = { dashboardId, selfId: selfId || 0, organizationId, session };
+  const key = deliveryPendingStorageKey(scope);
+  const currentScope = () =>
+    key !== null && deliveryPendingStorageKey({ ...scope, session: personalLibrarySessionScope() }) === key;
+  const [restored] = useState(() => readDeliveryPending(scope));
+  const [storageError, setStorageError] = useState(restored.error);
+  const [retryAck, setRetryAck] = useState(false),
+    [discardAck, setDiscardAck] = useState(false);
   const [members, setMembers] = useState<EnterpriseMember[]>([]);
   const [next, setNext] = useState<number | null>(null);
   const [rosterVersion, setRosterVersion] = useState<number | null>(null);
@@ -29,7 +56,7 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [attempt, setAttempt] = useState<DeliveryInput | null>(null);
+  const [attempt, setAttempt] = useState<DeliveryPending | null>(restored.pending);
   const generation = useRef(0),
     pending = useRef(false);
   useEffect(
@@ -39,7 +66,7 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
     [],
   );
   const load = async () => {
-    if (pending.current) return;
+    if (pending.current || !currentScope()) return;
     generation.current += 1;
     const current = generation.current;
     pending.current = true;
@@ -50,44 +77,47 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
     setAck(false);
     setCopyMode('preserve');
     setCopyAck(false);
+    setRetryAck(false);
+    setDiscardAck(false);
     try {
       const [relations, page] = await Promise.all([fetchDeliveries(dashboardId), fetchMembers()]);
-      if (generation.current !== current) return;
+      if (generation.current !== current || !currentScope()) return;
       setRows(relations);
       setMembers(page.entries);
       setNext(page.nextAfterId);
       setRosterVersion(page.organizationVersion);
       setSelected([]);
-      setAttempt(null);
+      // A current relationship is not proof of this frozen request's outcome.
       setReady(true);
     } catch {
-      if (generation.current === current) setError('공유 관계와 직원 목록을 확인하지 못했습니다. 다시 읽어 주세요.');
+      if (generation.current === current && currentScope())
+        setError('공유 관계와 직원 목록을 확인하지 못했습니다. 다시 읽어 주세요.');
     } finally {
-      if (generation.current === current) {
+      if (generation.current === current && currentScope()) {
         pending.current = false;
         setBusy(false);
       }
     }
   };
   const more = async () => {
-    if (pending.current || next === null) return;
+    if (pending.current || next === null || !currentScope()) return;
     const current = generation.current;
     pending.current = true;
     setBusy(true);
     setError('');
     try {
       const page = await fetchMembers(next);
-      if (generation.current !== current) return;
+      if (generation.current !== current || !currentScope()) return;
       if (page.organizationVersion !== rosterVersion) throw new Error('changed roster');
       setMembers(previous => [...previous, ...page.entries]);
       setNext(page.nextAfterId);
     } catch {
-      if (generation.current === current) {
+      if (generation.current === current && currentScope()) {
         setReady(false);
         setError('직원 목록이 변경됐거나 조회에 실패했습니다. 최신 관계를 다시 읽어 주세요.');
       }
     } finally {
-      if (generation.current === current) {
+      if (generation.current === current && currentScope()) {
         pending.current = false;
         setBusy(false);
       }
@@ -96,16 +126,24 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
   const save = async () => {
     if (
       pending.current ||
-      (!attempt && (!ready || !ack || (active && copyMode === 'allow' && !copyAck) || !selected.length))
+      !currentScope() ||
+      storageError ||
+      !ready ||
+      (attempt ? !retryAck : !ack || (active && copyMode === 'allow' && !copyAck) || !selected.length)
     )
       return;
-    const current = generation.current;
-    pending.current = true;
-    setBusy(true);
-    setError('');
-    setNotice('');
-    try {
-      const request = attempt ?? {
+    // Verify existing storage before allocating a new request or replacing any ticket.
+    const existing = readDeliveryPending(scope);
+    if (existing.error || (existing.pending && JSON.stringify(existing.pending) !== JSON.stringify(attempt))) {
+      setStorageError(true);
+      return;
+    }
+    const ticket: DeliveryPending = attempt ?? {
+      savedAt: Date.now(),
+      selfId: scope.selfId,
+      organizationId,
+      dashboardId,
+      input: {
         requestId: crypto.randomUUID(),
         active,
         ...(active && copyMode !== 'preserve' ? { allowCopy: copyMode === 'allow' } : {}),
@@ -113,29 +151,63 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
           recipientId,
           expectedVersion: rows.find(row => row.recipientId === recipientId)?.version ?? 0,
         })),
-      };
-      setAttempt(request);
-
-      const result = await saveDeliveries(dashboardId, request);
-      if (generation.current !== current) return;
-      // Receipts prove a past operation. Always require a fresh relation read before another write.
-      setReady(false);
+      },
+    };
+    if (!saveDeliveryPending(scope, ticket)) {
+      setStorageError(true);
+      return;
+    }
+    setAttempt(ticket);
+    const current = generation.current;
+    pending.current = true;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    setReady(false);
+    setRetryAck(false);
+    setDiscardAck(false);
+    try {
+      const result = await saveDeliveries(dashboardId, ticket.input);
+      if (generation.current !== current || !currentScope()) return;
+      // A receipt proves the old operation only. Another write always needs a fresh authorized GET.
       setAck(false);
-      setAttempt(null);
+      if (clearDeliveryPending(scope)) setAttempt(null);
+      else setStorageError(true);
       setNotice(
         result.replayed
           ? '이전 요청의 저장을 확인했습니다. 최신 관계를 다시 읽어 주세요.'
           : '선택한 수신자의 공유를 저장했습니다. 최신 관계를 다시 읽어 주세요.',
       );
     } catch {
-      if (generation.current === current)
-        setError('공유 결과를 확인하지 못했습니다. 같은 요청으로 확인하거나 최신 관계를 다시 읽고 검토해 주세요.');
+      if (generation.current === current && currentScope())
+        setError(
+          '공유 결과를 확인하지 못했습니다. 최신 관계를 다시 읽은 뒤 같은 요청으로 확인하거나 보관 해제를 검토해 주세요.',
+        );
     } finally {
-      if (generation.current === current) {
+      if (generation.current === current && currentScope()) {
         pending.current = false;
         setBusy(false);
       }
     }
+  };
+  const discard = () => {
+    if (busy || !discardAck || !currentScope()) return;
+    if (!clearDeliveryPending(scope)) {
+      setStorageError(true);
+      return;
+    }
+    generation.current += 1;
+    setAttempt(null);
+    setStorageError(false);
+    setReady(false);
+    setRetryAck(false);
+    setDiscardAck(false);
+    setAck(false);
+    setSelected([]);
+    setRows([]);
+    setMembers([]);
+    setError('');
+    setNotice('이 탭의 보관만 해제했습니다. 서버 요청을 취소한 것이 아닙니다. 최신 관계를 다시 읽어 주세요.');
   };
   const toggle = (id: number) => {
     setSelected(previous =>
@@ -158,15 +230,60 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
       {busy && <p role="status">공유 처리 중…</p>}
       {error && <Notice severity="error">{error}</Notice>}
       {notice && <p role="status">{notice}</p>}
-      {!ready && attempt && (
-        <div className="space-y-2">
-          <p className="break-words">이전 공유 요청을 보존했습니다. 같은 요청으로 저장 결과를 확인할 수 있습니다.</p>
-          <Button size="sm" disabled={busy} onClick={() => void save()}>
+      {storageError && (
+        <Notice severity="error" role="alert">
+          공유 복구 기록을 안전하게 읽거나 저장하지 못했습니다. 새 공유 쓰기를 차단했습니다. 보관 해제는 서버 취소가
+          아닙니다.
+        </Notice>
+      )}
+      {attempt && (
+        <div className="space-y-2 rounded-md border p-3" aria-label="보존한 공유 요청">
+          <p>이전 공유 요청을 보존했습니다. 최신 관계 조회는 이 요청을 지우지 않습니다.</p>
+          <p className="break-all">요청 번호: {attempt.input.requestId}</p>
+          <p className="break-words">수신자 번호: {attempt.input.recipients.map(r => r.recipientId).join(', ')}</p>
+          <p>
+            변경: {attempt.input.active ? '조회 공유' : '공유 회수'} · 독립 복제:{' '}
+            {attempt.input.allowCopy === undefined
+              ? '기존 설정 유지 (신규 미허용)'
+              : attempt.input.allowCopy
+              ? '허용'
+              : '중지'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            같은 요청의 영수증은 과거 저장 결과이며 현재 공유 관계·권한을 증명하지 않습니다. 재시도 전에 최신 관계를 읽어
+            현재 관리 권한을 확인해 주세요.
+          </p>
+          <label className="flex min-h-8 items-start gap-2">
+            <input
+              type="checkbox"
+              checked={retryAck}
+              disabled={busy || !ready || storageError}
+              onChange={e => setRetryAck(e.target.checked)}
+            />
+            보존한 수신자 번호·변경·복제 설정을 확인했으며 같은 공유 요청을 다시 보냅니다.
+          </label>
+          <Button size="sm" disabled={busy || !ready || !retryAck || storageError} onClick={() => void save()}>
             같은 공유 요청 확인
           </Button>
         </div>
       )}
-      {ready && (
+      {(attempt || storageError) && (
+        <details className="space-y-2">
+          <summary className="cursor-pointer">이 탭의 요청 보관 해제</summary>
+          <p>
+            이미 서버에서 공유가 적용됐을 수 있습니다. 보관 해제는 서버 취소나 공유 회수가 아니며, 같은 요청으로 확인할
+            단서를 이 탭에서 지웁니다.
+          </p>
+          <label className="flex min-h-8 items-start gap-2">
+            <input type="checkbox" checked={discardAck} disabled={busy} onChange={e => setDiscardAck(e.target.checked)} />
+            서버 결과가 남을 수 있음을 이해하고 이 탭의 보관만 해제합니다.
+          </label>
+          <Button size="sm" variant="outline" disabled={busy || !discardAck} onClick={discard}>
+            요청 보관 해제
+          </Button>
+        </details>
+      )}
+      {ready && !attempt && (
         <>
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex min-h-8 items-center gap-2">
@@ -309,10 +426,10 @@ function DeliveryPanel({ dashboardId, selfId }: { dashboardId: number; selfId?: 
           </label>
           <Button
             size="sm"
-            disabled={busy || !ack || (!attempt && active && copyMode === 'allow' && !copyAck) || !selected.length}
+            disabled={busy || storageError || !ack || (active && copyMode === 'allow' && !copyAck) || !selected.length}
             onClick={() => void save()}
           >
-            {attempt ? '같은 공유 요청 확인' : '공유 변경 저장'}
+            공유 변경 저장
           </Button>
         </>
       )}

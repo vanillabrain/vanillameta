@@ -34,6 +34,16 @@
 1. 비허용 전달은 저장하지 않고 동일 요청은 기존 결과를 확인한다. 알림 실패는 본 저장과 구별한다.
 2. Use case ends.
 
+### A2: Uncertain direct delivery after reload
+
+**Trigger:** 직원 조회 공유/회수 응답을 확인하지 못한 상태에서 화면을 접거나 새로고침한다 (step 3).
+**Flow:**
+
+1. 같은 사용자·세션 epoch·조직·대시보드에 묶인 유효한 frozen 요청을 탭 저장소에서 복구하며 자동 쓰기는 하지 않는다.
+2. 현재 관계·관리 권한을 읽고 요청 번호/수신자 번호/변경 종류를 확인한 뒤 별도 동의로 정확한 동일 요청을 재시도한다.
+3. 역사 영수증과 현재 관계를 구별하고, 최신 GET·403/409·통신 실패만으로 미확정 요청을 폐기하지 않는다. 명시 보관 해제는 서버 취소가 아니다.
+4. Use case ends.
+
 ## Postconditions
 
 ### Success Postconditions
@@ -53,6 +63,10 @@
 ### BR-053-02: Preservation and evidence
 
 공유 중지는 이미 생성한 수신자 소유 사본을 삭제하지 않는다. 알림 읽음/삭제는 공유 권한/자원 삭제와 별개다.
+
+### BR-053-03: Uncertain direct delivery recovery
+
+[복구 설계](../plans/UC-053-delivery-recovery.md)의 탭 저장소 한도·격리·명시 재시도와 현재 User epoch 검사를 따른다. 정확한 replay는 공유 회수 뒤에도 재활성화하지 않는다. 독립 사본 생성/그룹 요청의 reload 복구와 전체 수용은 별도다.
 
 ## Source Evidence
 

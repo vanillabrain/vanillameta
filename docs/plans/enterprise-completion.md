@@ -131,3 +131,7 @@ MySQL 계정 후속의 구체 잔여는 [계정·세션 계획](UC-051-account-s
 ## UC051 인계 후 조직 탈퇴 후속
 
 [설계](UC-051-staff-departure.md)·[증빙](../testing/staff-departure.md)은 본인 명시 요청과 다른 현재 admin의 잔여 검토/최종 동의를 분리한다. 소유 자료와 미해결 작업이 남으면 차단하며, 인계 이후 잔여 0건에서 Membership·직접/그룹/전달 관계와 로그인 epoch를 회수한다. 계정 활성·인계된 원본/파일/문서/과거 기록을 보존한다. MySQL78/1SKIP·SQLite145/11SKIP·FE120/후속26 및 Ego109 대표 여정은 선택/중복 범위이며 합산하지 않는다. 법적 퇴사·계정 삭제·외부/활성 공유 자산 인계·전체 역할/운영/실휴대폰/사람·전체16개 수용은 Open이다.
+
+## UC053 직접 직원 공유 요청 복구 후속
+
+[설계](UC-053-delivery-recovery.md)·[증빙](../testing/delivery-recovery.md)은 직접 공유/회수·복제 허용 설정의 frozen UUID/입력 탭 보존과 reload→현재 조회→별도 동의 동일 요청을 연결한다. 역사 결과와 현재 관계를 구별하고 User 잠금 뒤 epoch를 검사한다. MySQL7·SQLite23/2SKIP·BE4·FE57/부모16·Ego110은 선택/중복 범위다. 그룹 공유·독립 사본 생성 요청 복구와 일반 member 공유 정책·전체16개 수용은 Open이다.

@@ -44,6 +44,11 @@ export class EnterpriseDeliveryController {
     return this.delivery.list(this.id(id), req.user.accessKeyData.id);
   }
   @Post(':id') set(@Req() req: any, @Param('id') id: string, @Body() body: unknown) {
-    return this.delivery.set(this.id(id), req.user.accessKeyData.id, body);
+    return this.delivery.set(
+      this.id(id),
+      req.user.accessKeyData.id,
+      body,
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 }

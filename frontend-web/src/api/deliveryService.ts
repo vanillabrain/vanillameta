@@ -6,6 +6,35 @@ export type DeliveryInput = {
   allowCopy?: boolean;
   recipients: Array<{ recipientId: number; expectedVersion: number }>;
 };
+const exactKeys = (v: unknown, keys: string[]) =>
+  !!v &&
+  typeof v === 'object' &&
+  !Array.isArray(v) &&
+  Object.keys(v).length === keys.length &&
+  keys.every(k => Object.prototype.hasOwnProperty.call(v, k));
+export const validDeliveryInput = (v: any): v is DeliveryInput =>
+  exactKeys(
+    v,
+    v?.allowCopy === undefined ? ['requestId', 'active', 'recipients'] : ['requestId', 'active', 'allowCopy', 'recipients'],
+  ) &&
+  typeof v.requestId === 'string' &&
+  /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(v.requestId) &&
+  typeof v.active === 'boolean' &&
+  (v.allowCopy === undefined || typeof v.allowCopy === 'boolean') &&
+  !(v.active === false && v.allowCopy === true) &&
+  Array.isArray(v.recipients) &&
+  v.recipients.length >= 1 &&
+  v.recipients.length <= 50 &&
+  v.recipients.every(
+    (r: any) =>
+      exactKeys(r, ['recipientId', 'expectedVersion']) &&
+      Number.isSafeInteger(r.recipientId) &&
+      r.recipientId > 0 &&
+      Number.isSafeInteger(r.expectedVersion) &&
+      r.expectedVersion >= 0 &&
+      r.expectedVersion < 2147483647,
+  ) &&
+  new Set(v.recipients.map((r: any) => r.recipientId)).size === v.recipients.length;
 const entriesShape = (rows: any): rows is DeliveryEntry[] =>
   Array.isArray(rows) &&
   rows.every(
@@ -28,6 +57,8 @@ export const saveDeliveries = async (
   id: number,
   input: DeliveryInput,
 ): Promise<{ entries: DeliveryEntry[]; replayed: boolean }> => {
+  if (!Number.isSafeInteger(id) || id <= 0 || !validDeliveryInput(input))
+    throw new Error('공유 요청의 번호·대상·버전을 확인해 주세요.');
   const { data } = await post(`/enterprise/deliveries/dashboard/${id}`, input);
   const expected = input.recipients.map(entry => entry.recipientId).sort((a, b) => a - b);
   if (

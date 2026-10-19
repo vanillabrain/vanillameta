@@ -631,6 +631,7 @@ function ResourcePolicyPanel({ organizationId, selfRecipientId }: { organization
               key={`${organizationId}:${selected.id}:${selfRecipientId}`}
               dashboardId={selected.id}
               selfId={selfRecipientId}
+              organizationId={organizationId}
             />
           )}
           {selected.kind === 'dashboard' && (
