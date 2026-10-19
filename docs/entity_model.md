@@ -335,3 +335,9 @@ ownerId는 제안 소유자이고 기존 Database.ownerId/UserMapping의 소유�
 [설계](plans/UC-051-bundle-handover.md)의 enterprise_bundle_handover는 원 의향 UUID에 묶인 별도 준비/양쪽 최종 동의·원자 실행 영수증이다. proposalId PK/requestId unique·양쪽 actor/epoch·조직/version·CAS version/status·expiresAt/acceptedAt/completedAt·내부 basis/payload/custody hash·random reviewBasis·단계별 감사 ID와 고정 sources/dashboards manifestJson을 저장한다. 내부 proof/파일 경로/정의는 공개하지 않는다. 기존 단독 영수증은 재해석하지 않으며 additive migration으로 관리한다.
 
 실행 시 Database owner/catalogVersion과 기존 UserMapping 소유 actor·Dashboard assetVersion·Studio legacyRevision만 한 transaction으로 갱신한다. 자산/블록/mapping ID·원본/문서 bytes/모든 폭 배치·Metric/카탈로그/조건 이력·독립 사본/과거 actor는 그대로다. 물리 파일 이전이나 퇴사/탈퇴 확정과 구별한다.
+
+## UC051 인계 후 조직 탈퇴 기록
+
+[설계](plans/UC-051-staff-departure.md)의 enterprise_staff_departure는 UUID requestId PK·본인 userId/organizationId/발급 epoch·조직 version·version/status·requestedAt/expiresAt/completedAt/cancelledAt·완료 admin/조직 version·내부 payloadHash/completePayloadHash·단계별 감사 ID를 보존한다. 내부 hash/epoch·잔여 자료의 신원/내용은 공개하지 않으며 기존 영수증을 덮지 않는다. additive migration1792620200000은 기존 불일치 schema를 재작성하지 않는다.
+
+완료는 User를 삭제/비활성화하지 않고 Membership만 제거한다. User authVersion+1/jwtId null·직접/그룹/전달 권한 off/관계 version·그룹 가입 해제·조직 version·완료/감사는 원자 변경한다. 소유권은 자동 이전하지 않으며 원본/독립 사본·문서/파일·과거 인계/출력/게시·actor·알림/보관 기록은 유지한다. 과거 조직 탈퇴는 현재 소속/접근권 증명이 아니며 본인은 재로그인 후 본인 기록만 조회한다.

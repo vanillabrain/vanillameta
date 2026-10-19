@@ -8,7 +8,12 @@ export class StudioExecutionController {
   @Post('executions')
   create(@Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
     return this.withSignal(req, res, signal =>
-      this.executions.create(body, req.user?.accessKeyData?.id, signal),
+      this.executions.create(
+        body,
+        req.user?.accessKeyData?.id,
+        signal,
+        req.user?.accessKeyData?.authVersion ?? 0,
+      ),
     );
   }
   @Get('runs')

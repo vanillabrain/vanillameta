@@ -1,3 +1,4 @@
+import { AddStaffDeparture1792620200000 } from './migrations/1792620200000-add-staff-departure';
 import { AddBundleHandover1792620100000 } from './migrations/1792620100000-add-bundle-handover';
 import { AddSourceHandover1792620000000 } from './migrations/1792620000000-add-source-handover';
 import { AddHandoverTransfer1792610000000 } from './migrations/1792610000000-add-handover-transfer';
@@ -102,6 +103,7 @@ import { apiEnvFiles } from './config-env';
         AddHandoverTransfer1792610000000,
         AddSourceHandover1792620000000,
         AddBundleHandover1792620100000,
+        AddStaffDeparture1792620200000,
         AddFileRefresh1792300000000,
         AddFileRefreshActorEpoch1792580001000,
         AddFileCorrection1792300001000,

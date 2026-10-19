@@ -248,7 +248,12 @@ const cleanup = () =>
                 "src/widget/bundle-delete-authorization.spec.ts",
               ]
             : departure
-            ? ["src/enterprise/staff-departure-impact.spec.ts"]
+            ? [
+                "src/enterprise/staff-departure-impact.spec.ts",
+                "src/enterprise/staff-departure.spec.ts",
+                "src/dashboard/dashboard-create-departure.spec.ts",
+                "src/dashboard-studio/studio-admission-departure.spec.ts",
+              ]
             : staff
             ? ["src/enterprise/staff-transfer.spec.ts"]
             : [

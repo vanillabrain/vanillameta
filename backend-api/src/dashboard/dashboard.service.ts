@@ -1,3 +1,4 @@
+import { lockSourceActor } from '../database/source-write-lock';
 import { lockWidgetAttachmentParents } from './widget-attachment-lock';
 import {
   BadRequestException,
@@ -124,16 +125,11 @@ export class DashboardService {
       : metadataTransaction(manager, run);
   }
 
-  async create(createDashboardDto: CreateDashboardDto, accessToken: number) {
+  async create(createDashboardDto: CreateDashboardDto, accessToken: number, epoch = 0) {
     this.rejectLifecycleFields(createDashboardDto);
-    const userData = await this.userRepository.findOne({
-      where: { id: accessToken },
-    });
-    if (!userData) {
-      return 'Bad Request';
-    }
     const widgetIds = await this.validateLayout(createDashboardDto.layout);
     return this.attachmentTransaction(async manager => {
+      await lockSourceActor(manager, accessToken, epoch);
       await lockWidgetAttachmentParents(manager, widgetIds, accessToken);
       for (const widgetId of widgetIds)
         await this.access.assert('widget', widgetId, accessToken, 'owner', manager);

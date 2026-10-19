@@ -126,6 +126,18 @@
 5. 양쪽은 과거 완료 영수증을 새로고침 후 명시 조회하고 구 소유자 회수/새 소유자 접근을 현재 권한으로 확인한다.
 6. Use case ends.
 
+### A10: Consented organization departure after handover
+
+**Trigger:** 인계를 마친 직원이 본인 계정을 보존하고 조직 소속만 종료한다 (step 2).
+**Flow:**
+
+1. 본인이 현재 조직/버전과 회수·보존 범위를 읽고 별도 체크로15분 탈퇴 요청을 만든다.
+2. 같은 조직의 다른 active admin이 요청 UUID와 최신 미인계 소유·열린 작업/게시/인계·관리자 조건의 건수만 검토한다.
+3. 모든 차단이 해소된 고정 기준에 별도 동의해 조직 탈퇴를 확정한다.
+4. 서버는 잠금 뒤 현재 신원/조직/잔여/기한을 재검사해 소속 제거·관계/로그인 회수·영수증/감사를 함께 저장하거나 전부 rollback한다.
+5. 본인은 새로 로그인해 조직 없는 상태와 본인 과거 영수증을 확인한다. 수신자 원본/계정·역사는 그대로다. 미확정 응답은 같은 UUID 상태 확인 후에만 명시 재시도한다.
+6. Use case ends.
+
 ## Postconditions
 
 ### Success Postconditions
@@ -177,6 +189,10 @@
 ### BR-051-10: Atomic source and connected dashboard bundle
 
 [묶음 인계 설계](../plans/UC-051-bundle-handover.md)는 동일 소유자의 관리 파일 소스와 그 소스만 쓰는 비공개 단독 대시보드를 기존 고정 의향에서 전부 함께 선택한다. 소스/대시보드 각각1개 이상·전체2~20개이며 미선택 연결은 자동 포함하지 않고 차단한다. 소스 단독의 사용처 예외는 검증된 선택 대시보드/Studio와 전용 canonical 자식에만 허용한다. 현재 양쪽 신원/epoch·소유/사용처/파일·최종 기한을 부모/자식 잠금 아래 재검사하고 source owner/catalogVersion·기존 mapping/assetVersion·Studio legacyRevision·영수증/감사를 한 transaction으로 이전한다. 문서/블록/배치·파일/지표 정의/과거 이력과 ID는 보존한다. 일부 실패는 전체 rollback, 정확 완료 replay는 쓰기0이며 기존 단독 API를 약화하지 않는다. 활성 공유/게시·외부 연결·퇴사/전체 수용은 별도다.
+
+### BR-051-11: Membership departure cannot delete assets or bypass current consent
+
+[조직 탈퇴 설계](../plans/UC-051-staff-departure.md)는 본인 동의와 다른 현재 admin의 최종 실행을 분리한다. 미인계 소유 Source/UserMapping·게시/작업/정리·최종 인계/조직 이동은 자동 삭제·이전하지 않고 차단한다. 마지막 active admin을 남기며 현재 양쪽 신원/epoch·조직/잔여/관계·기한을 잠금 뒤 검사한다. 소속 제거·회수/그룹 version·User authVersion+1/jwtId null·조직 version/감사·영수증만 원자 변경한다. User active/자격정보와 원본/파일·과거 actor·인계/작업/알림 기록은 보존한다. 본인 과거 영수증은 재로그인/조직 없음에도 본인만 읽을 수 있고 다른 사용자는 원 조직의 현재 admin만 읽는다. 완료 replay는 추가 회수/epoch 증가0이며 법적 퇴사·계정 삭제·전체 수용과 구별한다.
 
 ## Source Evidence
 

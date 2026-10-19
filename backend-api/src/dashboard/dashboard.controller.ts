@@ -21,7 +21,11 @@ export class DashboardController {
   @ApiBearerAuth('AccessKey')
   create(@Body() createDashboardDto: CreateDashboardDto, @Req() req) {
     const { accessKeyData } = req.user;
-    return this.dashboardService.create(createDashboardDto, accessKeyData.id);
+    return this.dashboardService.create(
+      createDashboardDto,
+      accessKeyData.id,
+      accessKeyData.authVersion ?? 0,
+    );
   }
 
   @Get()

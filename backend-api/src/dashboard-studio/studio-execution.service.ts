@@ -1,3 +1,4 @@
+import { lockSourceActor, sourceWriteTransaction } from '../database/source-write-lock';
 import { metadataTransaction } from '../common/metadata-work';
 import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
 import { lockMetricSources } from '../metric/metric-write-lock';
@@ -295,7 +296,7 @@ export class StudioExecutionService implements OnModuleInit {
     if (plan.publish) ids.push('publish');
     return ids;
   }
-  async create(body: any, actor: number, signal?: AbortSignal) {
+  async create(body: any, actor: number, signal?: AbortSignal, epoch = 0) {
     this.validate(body);
     this.checkDisconnected(signal);
     // UC-051: a new AI execution edits the dashboard, so the explicit edit action is required.
@@ -307,7 +308,8 @@ export class StudioExecutionService implements OnModuleInit {
     );
     this.checkDisconnected(signal);
     const hash = studioDigest(body);
-    const row = await metadataTransaction(this.db, async manager => {
+    const row = await sourceWriteTransaction(this.db, async manager => {
+      await lockSourceActor(manager, actor, epoch);
       await lockDashboardWrite(manager, body.dashboardId);
       await lockMetricSources(manager, [body.document.sourceId]);
       await this.studio.assertExecutionAccess(

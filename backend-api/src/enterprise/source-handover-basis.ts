@@ -29,7 +29,7 @@ const object = (v: any) => v && typeof v === 'object' && !Array.isArray(v);
 const root = () => path.resolve(process.env.FILE_UPLOAD_DIR || 'uploads');
 
 /** Bounded read-only admission inspection. No cleanup, arbitrary traversal, or input reads. */
-async function admissions(owner: number) {
+export async function sourceHandoverAdmissions(owner: number) {
   const result = [];
   const stamp = (stat: any) =>
     [stat.dev, stat.ino, stat.mode, stat.size, stat.mtimeNs, stat.ctimeNs].map(String).join(':');
@@ -355,7 +355,7 @@ export async function inspectSourceHandover(
       )
     )
       blockers.add('running_work');
-    const staged = await admissions(source.ownerId);
+    const staged = await sourceHandoverAdmissions(source.ownerId);
     if (
       staged.some(
         (a: any) =>

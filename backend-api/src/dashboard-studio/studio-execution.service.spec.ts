@@ -1,3 +1,4 @@
+import { User } from '../user/entities/user.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
@@ -28,6 +29,7 @@ describe('T7 durable executions', () => {
       type: 'sqlite',
       database: ':memory:',
       entities: [
+        User,
         StudioExecution,
         StudioRun,
         Dashboard,
@@ -38,6 +40,12 @@ describe('T7 durable executions', () => {
       ],
       synchronize: true,
     }).initialize();
+    await db.manager.insert(User, {
+      id: 7,
+      userId: 'execution-actor',
+      email: 'execution@example.invalid',
+      password: 'synthetic',
+    });
     const document = JSON.parse(
       readFileSync(resolve(__dirname, '../../../fixtures/studio/document-v1.json'), 'utf8'),
     );

@@ -1,3 +1,6 @@
+import { StaffDepartureService } from './staff-departure.service';
+import { StaffDepartureController } from './staff-departure.controller';
+import { EnterpriseStaffDeparture } from './entities/enterprise-staff-departure.entity';
 import { BundleHandoverService } from './bundle-handover.service';
 import { BundleHandoverController } from './bundle-handover.controller';
 import { EnterpriseBundleHandover } from './entities/enterprise-bundle-handover.entity';
@@ -50,6 +53,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
       EnterpriseHandoverTransfer,
       EnterpriseSourceHandover,
       EnterpriseBundleHandover,
+      EnterpriseStaffDeparture,
       EnterpriseStaffTransfer,
       EnterpriseClassification,
       EnterpriseClassificationRequest,
@@ -65,6 +69,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     HandoverTransferController,
     SourceHandoverController,
     BundleHandoverController,
+    StaffDepartureController,
     StaffDepartureImpactController,
     StaffTransferController,
     EnterpriseClassificationController,
@@ -80,6 +85,7 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     HandoverTransferService,
     SourceHandoverService,
     BundleHandoverService,
+    StaffDepartureService,
     StaffDepartureImpactService,
     StaffTransferService,
     EnterpriseClassificationService,
