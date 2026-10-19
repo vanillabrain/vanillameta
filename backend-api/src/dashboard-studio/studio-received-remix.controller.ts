@@ -21,13 +21,37 @@ export class StudioReceivedRemixController {
     @Body() body: RemixPreviewRequest,
     @Req() req,
   ) {
-    return this.remix.preview(reference, body, req.user?.accessKeyData?.id, this.received.resolve);
+    return this.remix.preview(
+      reference,
+      body,
+      req.user?.accessKeyData?.id,
+      this.received.resolve,
+      req.user?.accessKeyData?.authVersion ?? 0,
+    );
+  }
+  @Post(':reference/remix-result') result(
+    @Param('reference') reference: string,
+    @Body() body: RemixRequest,
+    @Req() req,
+  ) {
+    return this.remix.receivedResult(
+      reference,
+      body,
+      req.user?.accessKeyData?.id,
+      req.user?.accessKeyData?.authVersion ?? 0,
+    );
   }
   @Post(':reference/remix') save(
     @Param('reference') reference: string,
     @Body() body: RemixRequest,
     @Req() req,
   ) {
-    return this.remix.remix(reference, body, req.user?.accessKeyData?.id, this.received.resolve);
+    return this.remix.remix(
+      reference,
+      body,
+      req.user?.accessKeyData?.id,
+      this.received.resolve,
+      req.user?.accessKeyData?.authVersion ?? 0,
+    );
   }
 }

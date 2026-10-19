@@ -22,7 +22,9 @@ import { DataSource, EntityManager } from 'typeorm';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { ConnectionService } from '../connection/connection.service';
 import { SourceAccessService } from '../ownership/source-access.service';
-import { sourceWriteTransaction } from '../database/source-write-lock';
+import { lockSourceActor, sourceWriteTransaction } from '../database/source-write-lock';
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
+import { lockMetricSources } from '../metric/metric-write-lock';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { SemanticRemixTemplate, conditionColumnNames } from './studio-remix-template';
 import { Database } from '../database/entities/database.entity';
@@ -647,9 +649,11 @@ export class StudioRemixService {
     input: RemixPreviewRequest,
     actor: number,
     origin: RemixOriginResolver = this.publications.requireRemix.bind(this.publications),
+    epoch = 0,
   ): Promise<RemixPreview> {
     this.access.actor(actor);
     const body = this.validate(input, false);
+    await this.currentActor(actor, epoch);
     const initial = await this.studio.serializeWrite(async () => {
       const row = await origin(token, actor, body.expectedVersion);
       this.checkLifecycle(row, body.expectedLifecycleRevision);
@@ -744,6 +748,7 @@ export class StudioRemixService {
           await this.originSemantics(token, row, t);
           await this.currentTargetSemantics(body.targetSourceId, profile, mapped);
         });
+        await this.currentActor(actor, epoch);
         return {
           ...this.requirements(token, row.version, t, row.lifecycleRevision),
           targetSourceId: body.targetSourceId,
@@ -772,7 +777,12 @@ export class StudioRemixService {
           ...(preview ? { preview } : {}),
         };
       } catch (error) {
-        await this.guardComputation(token, actor, body, origin, initial, context);
+        await this.currentActor(actor, epoch);
+        try {
+          await this.guardComputation(token, actor, body, origin, initial, context);
+        } finally {
+          await this.currentActor(actor, epoch);
+        }
         throw error;
       }
     });
@@ -856,15 +866,21 @@ export class StudioRemixService {
     input: RemixRequest,
     actor: number,
     origin: RemixOriginResolver = this.publications.requireRemix.bind(this.publications),
+    epoch = 0,
   ) {
     this.access.actor(actor);
     const legacyConfirmation =
       input && typeof input === 'object' && !('expectedLifecycleRevision' in input);
     const body = this.validate(input, true, legacyConfirmation),
       payloadHash = studioDigest({ token, ...body });
+    const confirmed = await this.studio.serializeWrite(() =>
+      sourceWriteTransaction(this.db, async manager => {
+        await lockSourceActor(manager, actor, epoch);
+        return this.replay(token, actor, body, payloadHash, origin, manager);
+      }),
+    );
+    if (confirmed) return confirmed;
     const initial = await this.studio.serializeWrite(async () => {
-      const result = await this.replay(token, actor, body, payloadHash, origin);
-      if (result) return { result };
       await origin(token, actor);
       if (legacyConfirmation)
         throw new ConflictException('확정된 복제 기록이 없습니다. 복제 조건을 다시 확인해 주세요.');
@@ -882,7 +898,6 @@ export class StudioRemixService {
           : undefined,
       };
     });
-    if ('result' in initial) return initial.result;
     return this.connection.withDuckDBSnapshot(body.targetSourceId, async () => {
       const context: {
         profile?: any;
@@ -950,6 +965,7 @@ export class StudioRemixService {
           throw new ConflictException('저장 중 대상 데이터가 변경되었습니다.');
         return await this.studio.serializeWrite(() =>
           sourceWriteTransaction(this.db, async manager => {
+            await lockSourceActor(manager, actor, epoch);
             if (mapped.targetActorContext)
               await assertCatalogActor(manager, mapped.targetActorContext, true);
             const replayed = await this.replay(token, actor, body, payloadHash, origin, manager);
@@ -977,10 +993,79 @@ export class StudioRemixService {
           }),
         );
       } catch (error) {
-        await this.guardComputation(token, actor, body, origin, initial, context);
+        await this.currentActor(actor, epoch);
+        try {
+          await this.guardComputation(token, actor, body, origin, initial, context);
+        } finally {
+          await this.currentActor(actor, epoch);
+        }
         throw error;
       }
     });
+  }
+  private currentActor(actor: number, epoch: number) {
+    return this.studio.serializeWrite(() =>
+      sourceWriteTransaction(this.db, manager => lockSourceActor(manager, actor, epoch)),
+    );
+  }
+  private privateReference(token: unknown) {
+    const direct =
+      typeof token === 'string' &&
+      /^d-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([a-f0-9]{64})$/.exec(token);
+    const grouped =
+      typeof token === 'string' &&
+      /^g-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([1-9][0-9]*)-([a-f0-9]{64})$/.exec(
+        token,
+      );
+    const parsed = direct || grouped;
+    if (!parsed || parsed.slice(1, -1).some(v => !Number.isSafeInteger(Number(v))))
+      throw new BadRequestException('받은 자료 복제 기준을 확인해 주세요.');
+  }
+  /** Read-only confirmation of an exact committed private copy, independent of current origin sharing. */
+  async receivedResult(token: string, input: RemixRequest, actor: number, epoch = 0) {
+    this.privateReference(token);
+    const body = this.validate(input, true),
+      payloadHash = studioDigest({ token, ...body });
+    return this.studio.serializeWrite(() =>
+      sourceWriteTransaction(this.db, async manager => {
+        await lockSourceActor(manager, actor, epoch);
+        const row = await manager.findOne(StudioRemixRequest, {
+          where: { actorId: actor, requestId: body.requestId },
+        });
+        if (!row) {
+          await lockMetricSources(manager, [body.targetSourceId]);
+          await this.access.assert('database', body.targetSourceId, actor, 'owner', manager);
+          return { found: false as const };
+        }
+        if (row.payloadHash !== payloadHash)
+          throw new ConflictException('같은 요청 ID의 복제 내용이 다릅니다.');
+        let result: any;
+        try {
+          result = JSON.parse(row.result);
+        } catch {
+          throw new ConflictException('복제 완료 기록을 확인해 주세요.');
+        }
+        if (
+          !Number.isSafeInteger(result?.dashboardId) ||
+          result.dashboardId <= 0 ||
+          result?.document?.dashboardId !== result.dashboardId ||
+          result?.document?.sourceId !== body.targetSourceId ||
+          typeof result?.document?.revision !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(result.document.revision)
+        )
+          throw new ConflictException('복제 완료 기록을 확인해 주세요.');
+        await lockDashboardWrite(manager, result.dashboardId);
+        await lockMetricSources(manager, [body.targetSourceId]);
+        await this.access.dashboard(result.dashboardId, actor, 'owner', manager);
+        await this.access.assert('database', body.targetSourceId, actor, 'owner', manager);
+        return {
+          found: true as const,
+          dashboardId: result.dashboardId as number,
+          sourceId: body.targetSourceId,
+          revision: result.document.revision as string,
+        };
+      }),
+    );
   }
   /**
    * Execution recovery reads after pending transactions, so an uncommitted journal cannot escape.

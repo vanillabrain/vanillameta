@@ -54,6 +54,17 @@
 3. 403/409나 GET 성공만으로 요청을 폐기하지 않는다. 역사 결과와 현재 관계, 명시 보관 해제와 서버 취소를 구별한다.
 4. Use case ends.
 
+### A4: Uncertain received independent copy after reload
+
+**Trigger:** 받은 분석의 독립 사본 생성 저장 응답을 확인하지 못한 채 새로고침한다 (step 3).
+**Flow:**
+
+1. 같은 사용자/조직/원본 경로/session epoch에 묶인 정확한 저장 요청을 복구하며 새 사본을 자동 생성하지 않는다.
+2. 읽기 전용 결과 확인으로 현재 본인 소유 사본이 확정됐으면 사본 열기를 제공한다. 원본 공유가 나중에 회수돼도 원본 접근을 추가하지 않고 본인 사본만 확인한다.
+3. 결과 미관측이면 원래 reference/버전/매핑/제외/소스 기준으로 다시 미리보기하고 전체 결과와 별도 동의를 확인해 동일 UUID로 재시도한다. 미관측은 취소 증명이 아니다.
+4. 오류/기준 변경은 요청을 보존하고 자동 재바인딩하지 않는다. 명시 탭 보관 해제와 서버 취소/사본 삭제를 구별한다.
+5. Use case ends.
+
 ## Postconditions
 
 ### Success Postconditions
@@ -81,6 +92,10 @@
 ### BR-053-04: Uncertain group delivery recovery
 
 [그룹 복구 설계](../plans/UC-053-group-delivery-recovery.md)의 엄격한 탭 저장·격리/한도·현재 조회/명시 재시도를 따른다. 원래 그룹 버전/관계 CAS를 자동 갱신하지 않고, 현재 User epoch를 잠금 뒤 영수증 분기 전에 재검사한다.
+
+### BR-053-05: Received independent copy recovery
+
+[복제 복구 설계](../plans/UC-053-received-copy-recovery.md)의 scoped 탭 저장·현재 epoch·정확 digest·실제 사본/소스 소유 검사와 읽기 전용 결과 확인을 따른다. 영수증 revision은 저장 당시 기준이며 현재 사본 내용이 아니다. 일반 게시 링크/모든 미저장 편집 복구와 전체 수용은 별도다.
 
 ## Source Evidence
 

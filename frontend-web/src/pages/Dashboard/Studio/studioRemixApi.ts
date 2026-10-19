@@ -1,3 +1,4 @@
+import { validReceivedReference, validReceivedRemixInput } from './receivedRemixPendingStorage';
 import { BusinessBasis, assertOptionalBusinessBasis } from '@/api/businessBasis';
 import type { Node } from '../../Explore/SourceConditions';
 import { get, post } from '@/helpers/apiHelper';
@@ -323,4 +324,36 @@ export function remixError(error: any, received = false): string {
   if (status === 400)
     return '복제 정의와 필수 열·형식을 확인해 주세요. 다른 소스를 선택하거나 해당 블록을 명시적으로 제외할 수 있습니다.';
   return '연결 또는 복제 상태를 확인하지 못했습니다. 입력을 유지했으니 다시 시도해 주세요.';
+}
+
+export type ReceivedRemixResult =
+  | { found: false }
+  | { found: true; dashboardId: number; sourceId: number; revision: string };
+/** Read-only receipt lookup. Never resolves the original sharing reference or creates a copy. */
+export async function lookupReceivedRemixResult(
+  reference: string,
+  request: RemixSaveInput,
+  signal?: AbortSignal,
+): Promise<ReceivedRemixResult> {
+  studioAssert(validReceivedReference(reference) && validReceivedRemixInput(request), '보존한 복제 요청을 확인해 주세요.');
+  const { data } = await post('/studio/received/' + encodeURIComponent(reference) + '/remix-result', request, {
+    ...config,
+    signal,
+  });
+  studioAssert(!!data && typeof data === 'object' && !Array.isArray(data), '복제 결과 조회 응답을 확인하지 못했습니다.');
+  const keys = data.found === false ? ['found'] : ['found', 'dashboardId', 'sourceId', 'revision'];
+  studioAssert(
+    Object.keys(data).length === keys.length &&
+      keys.every(k => Object.prototype.hasOwnProperty.call(data, k)) &&
+      (data.found === false ||
+        (data.found === true &&
+          Number.isSafeInteger(data.dashboardId) &&
+          data.dashboardId > 0 &&
+          data.dashboardId !== Number(reference.split('-')[3]) &&
+          data.sourceId === request.targetSourceId &&
+          typeof data.revision === 'string' &&
+          /^[a-f0-9]{64}$/.test(data.revision))),
+    '복제 결과 조회 응답을 확인하지 못했습니다.',
+  );
+  return data;
 }

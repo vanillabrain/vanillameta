@@ -12,6 +12,7 @@ import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
+import { User } from '../user/entities/user.entity';
 import { Database } from '../database/entities/database.entity';
 import { Dataset } from '../dataset/entities/dataset.entity';
 import { Widget } from '../widget/entities/widget.entity';
@@ -118,6 +119,7 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
       database: ':memory:',
       synchronize: true,
       entities: [
+        User,
         SourceCatalogEntry,
         Dashboard,
         DashboardShare,
@@ -135,6 +137,17 @@ describe('UC052 lifecycle conditions: SQLite persistence and real DuckDB oracle'
         StudioRemixRequest,
       ],
     }).initialize();
+    await db.manager.insert(
+      User,
+      [7, 8].map(id => ({
+        id,
+        userId: `remix-condition-${id}`,
+        email: `remix-condition-${id}@example.invalid`,
+        password: 'synthetic-unused',
+        active: true,
+        authVersion: 0,
+      })),
+    );
     for (const sourceId of files.keys())
       await db.manager.save(Database, {
         id: sourceId,

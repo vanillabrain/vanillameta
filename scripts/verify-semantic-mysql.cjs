@@ -11,6 +11,7 @@ const backend = path.join(root, "backend-api");
 const mysql = createRequire(path.join(backend, "package.json"))(
   "mysql2/promise"
 );
+const receivedCopyRecovery = process.argv.includes("--received-copy-recovery");
 const groupDeliveryRecovery = process.argv.includes(
   "--group-delivery-recovery"
 );
@@ -19,12 +20,19 @@ const staff = process.argv.includes("--staff");
 const departure = process.argv.includes("--departure");
 const handover = process.argv.includes("--handover");
 if (
-  [staff, departure, handover, deliveryRecovery, groupDeliveryRecovery].filter(
-    Boolean
-  ).length > 1
+  [
+    staff,
+    departure,
+    handover,
+    deliveryRecovery,
+    groupDeliveryRecovery,
+    receivedCopyRecovery,
+  ].filter(Boolean).length > 1
 )
   throw new Error("Select only one owned validation lane");
-const lanes = handover
+const lanes = receivedCopyRecovery
+  ? ["studio"]
+  : handover
   ? ["handover"]
   : departure
   ? ["departure"]
@@ -231,6 +239,9 @@ const cleanup = () =>
           ? "not_used"
           : "native DuckDB",
         lanes,
+        ...(receivedCopyRecovery
+          ? { validation: "received-copy-recovery" }
+          : {}),
         ...(deliveryRecovery ? { validation: "delivery-recovery" } : {}),
         ...(groupDeliveryRecovery
           ? { validation: "group-delivery-recovery" }
@@ -251,7 +262,11 @@ const cleanup = () =>
           "--runInBand",
           "--verbose",
           "--runTestsByPath",
-          ...(deliveryRecovery || groupDeliveryRecovery
+          ...(receivedCopyRecovery
+            ? [
+                "src/dashboard-studio/studio-received-remix-recovery.mysql.spec.ts",
+              ]
+            : deliveryRecovery || groupDeliveryRecovery
             ? ["src/enterprise/delivery.spec.ts"]
             : handover
             ? [

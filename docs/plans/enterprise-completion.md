@@ -139,3 +139,7 @@ MySQL 계정 후속의 구체 잔여는 [계정·세션 계획](UC-051-account-s
 ## UC053 그룹 공유 요청 복구 후속
 
 [설계](UC-053-group-delivery-recovery.md)·[증빙](../testing/group-delivery-recovery.md)은 그룹 공유/회수·복제 허용 설정의 frozen 요청 탭 복구를 연결한다. 최신 그룹을 읽어도 원래 버전/CAS를 자동 바꾸지 않으며409·미확정 요청을 보존한다. 현재 epoch/관리 권한 뒤 역사 replay와 명시 보관 해제·최신 회수 저장을 구분한다. MySQL6/22범위밖SKIP·SQLite24/4SKIP·BE4·FE51/부모16·Ego111은 선택/중복 범위다. 독립 사본 생성 요청 복구·일반 member 공유 정책·운영/실기기/전체16개 수용은 Open이다.
+
+## UC053 받은 분석 독립 복제 요청 복구 후속
+
+[설계](UC-053-received-copy-recovery.md)·[증빙](../testing/received-copy-recovery.md)은 frozen 저장 요청 복구→읽기 전용 본인 사본 확인, 미관측→원 기준 전체 재미리보기/동일 요청 저장을 연결한다. 원본 공유 회수 후 본인 사본 보존과 정확 digest/현재 소유·epoch를 구별한다. MySQL14·recovery30/조건23·FE78/공용11·Ego112는 선택/중복 범위다. 일반 게시/소유 저장본 전면 초안 복구·일반 member 공유 정책·전 역할/운영/실기기·전체16개 수용은 Open이다.
