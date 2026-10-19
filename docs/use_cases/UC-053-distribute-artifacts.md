@@ -34,6 +34,37 @@
 1. 비허용 전달은 저장하지 않고 동일 요청은 기존 결과를 확인한다. 알림 실패는 본 저장과 구별한다.
 2. Use case ends.
 
+### A2: Uncertain direct delivery after reload
+
+**Trigger:** 직원 조회 공유/회수 응답을 확인하지 못한 상태에서 화면을 접거나 새로고침한다 (step 3).
+**Flow:**
+
+1. 같은 사용자·세션 epoch·조직·대시보드에 묶인 유효한 frozen 요청을 탭 저장소에서 복구하며 자동 쓰기는 하지 않는다.
+2. 현재 관계·관리 권한을 읽고 요청 번호/수신자 번호/변경 종류를 확인한 뒤 별도 동의로 정확한 동일 요청을 재시도한다.
+3. 역사 영수증과 현재 관계를 구별하고, 최신 GET·403/409·통신 실패만으로 미확정 요청을 폐기하지 않는다. 명시 보관 해제는 서버 취소가 아니다.
+4. Use case ends.
+
+### A3: Uncertain group delivery after reload
+
+**Trigger:** 그룹 공유 결과가 미확정인 상태에서 새로고침한다 (step 3).
+**Flow:**
+
+1. 같은 사용자/조직/대시보드/session epoch의 정확한 저장 요청을 쓰기 없이 복구한다.
+2. 최신 그룹/관계를 읽고 원래 group version/CAS를 보존한 채 별도 동의로 같은 요청을 재시도한다.
+3. 403/409나 GET 성공만으로 요청을 폐기하지 않는다. 역사 결과와 현재 관계, 명시 보관 해제와 서버 취소를 구별한다.
+4. Use case ends.
+
+### A4: Uncertain received independent copy after reload
+
+**Trigger:** 받은 분석의 독립 사본 생성 저장 응답을 확인하지 못한 채 새로고침한다 (step 3).
+**Flow:**
+
+1. 같은 사용자/조직/원본 경로/session epoch에 묶인 정확한 저장 요청을 복구하며 새 사본을 자동 생성하지 않는다.
+2. 읽기 전용 결과 확인으로 현재 본인 소유 사본이 확정됐으면 사본 열기를 제공한다. 원본 공유가 나중에 회수돼도 원본 접근을 추가하지 않고 본인 사본만 확인한다.
+3. 결과 미관측이면 원래 reference/버전/매핑/제외/소스 기준으로 다시 미리보기하고 전체 결과와 별도 동의를 확인해 동일 UUID로 재시도한다. 미관측은 취소 증명이 아니다.
+4. 오류/기준 변경은 요청을 보존하고 자동 재바인딩하지 않는다. 명시 탭 보관 해제와 서버 취소/사본 삭제를 구별한다.
+5. Use case ends.
+
 ## Postconditions
 
 ### Success Postconditions
@@ -53,6 +84,18 @@
 ### BR-053-02: Preservation and evidence
 
 공유 중지는 이미 생성한 수신자 소유 사본을 삭제하지 않는다. 알림 읽음/삭제는 공유 권한/자원 삭제와 별개다.
+
+### BR-053-03: Uncertain direct delivery recovery
+
+[복구 설계](../plans/UC-053-delivery-recovery.md)의 탭 저장소 한도·격리·명시 재시도와 현재 User epoch 검사를 따른다. 정확한 replay는 공유 회수 뒤에도 재활성화하지 않는다. 독립 사본 생성/그룹 요청의 reload 복구와 전체 수용은 별도다.
+
+### BR-053-04: Uncertain group delivery recovery
+
+[그룹 복구 설계](../plans/UC-053-group-delivery-recovery.md)의 엄격한 탭 저장·격리/한도·현재 조회/명시 재시도를 따른다. 원래 그룹 버전/관계 CAS를 자동 갱신하지 않고, 현재 User epoch를 잠금 뒤 영수증 분기 전에 재검사한다.
+
+### BR-053-05: Received independent copy recovery
+
+[복제 복구 설계](../plans/UC-053-received-copy-recovery.md)의 scoped 탭 저장·현재 epoch·정확 digest·실제 사본/소스 소유 검사와 읽기 전용 결과 확인을 따른다. 영수증 revision은 저장 당시 기준이며 현재 사본 내용이 아니다. 일반 게시 링크/모든 미저장 편집 복구와 전체 수용은 별도다.
 
 ## Source Evidence
 

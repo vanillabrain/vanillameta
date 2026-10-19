@@ -1,9 +1,12 @@
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
+import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { metadataTransaction } from '../common/metadata-work';
 import { lockMetricSources } from '../metric/metric-write-lock';
 import {
   lockSourceActor,
   assertSourceOwner,
   sourceWriteFields,
+  sourceWriteTransaction,
 } from '../database/source-write-lock';
 import { Database } from '../database/entities/database.entity';
 import { BadRequestException, ConflictException } from '@nestjs/common';
@@ -11,7 +14,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateDatasetDto } from './dto/create-dataset.dto';
 import { UpdateDatasetDto } from './dto/update-dataset.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Dataset } from './entities/dataset.entity';
 import { ConnectionService } from '../connection/connection.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
@@ -142,18 +145,49 @@ export class DatasetService {
     }
   }
 
-  async remove(id: number) {
-    const find_dataset = await this.datasetRepository.findOne({ where: { id: id } });
-
-    if (!find_dataset) {
-      return { status: ResponseStatus.ERROR, message: 'No exist dataset' };
-    } else {
-      await this.datasetRepository.delete(find_dataset.id);
-      await this.widgetRepository.delete({
-        datasetType: DatasetType.DATASET,
-        datasetId: find_dataset.id,
-      });
-    }
-    return `This action removes a #${id} dataset`;
+  async remove(id: number, actor?: number, epoch?: number) {
+    return sourceWriteTransaction(this.datasetRepository.manager, async manager => {
+      await lockSourceActor(manager, actor, epoch);
+      const dataset = await manager.findOne(Dataset, { where: { id } });
+      if (!dataset) return { status: ResponseStatus.ERROR, message: 'No exist dataset' };
+      const widgets = () =>
+        manager.find(Widget, {
+          where: { datasetType: DatasetType.DATASET, datasetId: id },
+          order: { id: 'ASC' },
+        });
+      const before = await widgets();
+      const ids = before.map(widget => widget.id);
+      const links = () =>
+        ids.length
+          ? manager.find(DashboardWidget, { where: { widgetId: In(ids) } })
+          : Promise.resolve([]);
+      const parents = new Set((await links()).map(link => link.dashboardId));
+      for (const parent of [...parents].sort((a, b) => a - b))
+        await lockDashboardWrite(manager, parent);
+      assertSourceOwner(
+        (await lockMetricSources(manager, [dataset.databaseId])).get(dataset.databaseId),
+        actor,
+      );
+      const lock = ['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ? { lock: { mode: 'pessimistic_write' as const } }
+        : {};
+      // Match bundle writers: sorted Widget children precede Dataset children.
+      for (const widget of before) {
+        const current = await manager.findOne(Widget, { where: { id: widget.id }, ...lock });
+        if (!current || current.datasetType !== DatasetType.DATASET || current.datasetId !== id)
+          throw new ConflictException('Dataset widgets changed.');
+      }
+      const current = await manager.findOne(Dataset, { where: { id }, ...lock });
+      if (
+        !current ||
+        current.databaseId !== dataset.databaseId ||
+        JSON.stringify((await widgets()).map(widget => widget.id)) !== JSON.stringify(ids) ||
+        (await links()).some(link => !parents.has(link.dashboardId))
+      )
+        throw new ConflictException('Dataset source changed.');
+      await manager.delete(Dataset, id);
+      if (ids.length) await manager.delete(Widget, ids);
+      return `This action removes a #${id} dataset`;
+    });
   }
 }

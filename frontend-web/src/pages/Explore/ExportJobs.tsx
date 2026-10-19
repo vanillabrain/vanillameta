@@ -60,6 +60,7 @@ function SourceExportJobs({ payload, measureVersions, disabled }: Props) {
   const accept = (next: ExportJob, expectedId?: number) => {
     if (expectedId !== undefined && next.id !== expectedId) throw new Error('invalid job identity');
     setJob(next);
+    setEntries(previous => previous.map(entry => (entry.id === next.id ? next : entry)));
     setMustRead(false);
   };
   const create = () => {
@@ -104,6 +105,8 @@ function SourceExportJobs({ payload, measureVersions, disabled }: Props) {
     void perform(async () => {
       if (pending) return;
       const token = generation.current;
+      // Failed or lost state reads must not leave stale restart/download actions enabled.
+      setMustRead(true);
       const next = await exportJobsService.read(target.id);
       if (token !== generation.current) return;
       accept(next, target.id);
@@ -154,14 +157,8 @@ function SourceExportJobs({ payload, measureVersions, disabled }: Props) {
             접수 당시 소스·지표 버전과 조건을 고정합니다. 과거 기준의 집계 CSV이며 현재 화면 변경은 기존 작업에 적용되지
             않습니다. 최대 10,000행 / 2MiB, 접수 후 24시간.
           </p>
-          <div className="flex min-w-0 flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className={buttonClass}
-              disabled={busy || (!pending && disabled)}
-              onClick={create}
-            >
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Button variant="outline" className={buttonClass} disabled={busy || (!pending && disabled)} onClick={create}>
               {pending ? '같은 접수 재확인' : '현재 조건으로 작업 접수'}
             </Button>
             <Button size="sm" variant="outline" className={buttonClass} disabled={locked} onClick={() => list()}>
@@ -207,13 +204,21 @@ function SourceExportJobs({ payload, measureVersions, disabled }: Props) {
                 </pre>
               </details>
               {job.errorCode && <p className="break-words">실행 오류: {job.errorCode} · 조건과 현재 권한을 확인하세요.</p>}
-              {mustRead && <p>실행·취소 결과를 다시 읽어 확인해 주세요.</p>}
-              <div className="flex min-w-0 flex-wrap gap-2">
+              {job.status === 'running' && (
+                <p>실행 상태는 선택 작업 다시 읽기로 확인하세요. 자동 조회·재실행하지 않습니다.</p>
+              )}
+              {job.status === 'interrupted' && (
+                <p>중단된 실행은 자동으로 다시 시작하지 않습니다. 고정 기준을 확인한 뒤 CSV 만들기로 다시 실행하세요.</p>
+              )}
+              {job.status === 'ready' && (
+                <p>이미 준비된 고정 파일입니다. 다시 실행하지 않고 고정 파일 받기로 다운로드할 수 있습니다.</p>
+              )}
+              {mustRead && <p>작업 상태를 다시 읽어 확인해 주세요.</p>}
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Button size="sm" variant="outline" className={buttonClass} disabled={locked} onClick={() => read(job)}>
                   선택 작업 다시 읽기
                 </Button>
                 <Button
-                  size="sm"
                   className={buttonClass}
                   disabled={locked || mustRead || !['queued', 'failed', 'interrupted'].includes(job.status)}
                   onClick={() => mutate('run')}
@@ -230,7 +235,6 @@ function SourceExportJobs({ payload, measureVersions, disabled }: Props) {
                   작업 취소
                 </Button>
                 <Button
-                  size="sm"
                   variant="outline"
                   className={buttonClass}
                   disabled={locked || mustRead || job.status !== 'ready'}

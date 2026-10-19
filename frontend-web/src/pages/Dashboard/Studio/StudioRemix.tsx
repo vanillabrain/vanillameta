@@ -87,7 +87,7 @@ export function StudioRemixFlow({
     activeActor = useRef(actorKey()),
     mounted = useRef(true),
     abort = useRef<AbortController | null>(null);
-  const received = token.startsWith('d-');
+  const received = /^(?:d|g)-/.test(token);
   const path = received ? '/received/' + token.split('-')[3] : '/published/' + encodeURIComponent(token);
   const initialize = useCallback(async () => {
     epoch.current += 1;

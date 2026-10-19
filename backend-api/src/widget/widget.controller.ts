@@ -68,7 +68,11 @@ export class WidgetController {
    * @param id
    */
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.widgetService.remove(+id);
+  remove(@Param('id') id: string, @Req() req) {
+    return this.widgetService.remove(
+      +id,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 }

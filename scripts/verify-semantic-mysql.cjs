@@ -11,13 +11,36 @@ const backend = path.join(root, "backend-api");
 const mysql = createRequire(path.join(backend, "package.json"))(
   "mysql2/promise"
 );
+const exportRestart = process.argv.includes("--export-restart");
+const receivedCopyRecovery = process.argv.includes("--received-copy-recovery");
+const groupDeliveryRecovery = process.argv.includes(
+  "--group-delivery-recovery"
+);
+const deliveryRecovery = process.argv.includes("--delivery-recovery");
 const staff = process.argv.includes("--staff");
 const departure = process.argv.includes("--departure");
-if (staff && departure)
+const handover = process.argv.includes("--handover");
+if (
+  [
+    staff,
+    departure,
+    handover,
+    deliveryRecovery,
+    groupDeliveryRecovery,
+    receivedCopyRecovery,
+    exportRestart,
+  ].filter(Boolean).length > 1
+)
   throw new Error("Select only one owned validation lane");
-const lanes = departure
+const lanes = exportRestart
+  ? ["runtime"]
+  : receivedCopyRecovery
+  ? ["studio"]
+  : handover
+  ? ["handover"]
+  : departure
   ? ["departure"]
-  : staff
+  : staff || deliveryRecovery || groupDeliveryRecovery
   ? ["staff"]
   : ["studio", "runtime"];
 const owner = randomBytes(12).toString("hex");
@@ -214,8 +237,20 @@ const cleanup = () =>
         phase: "ready",
         engine: server.version,
         metadata: "MySQL",
-        aggregation: staff || departure ? "not_used" : "native DuckDB",
+        aggregation: handover
+          ? "native DuckDB fixture only"
+          : staff || departure || deliveryRecovery || groupDeliveryRecovery
+          ? "not_used"
+          : "native DuckDB",
         lanes,
+        ...(exportRestart ? { validation: "export-restart" } : {}),
+        ...(receivedCopyRecovery
+          ? { validation: "received-copy-recovery" }
+          : {}),
+        ...(deliveryRecovery ? { validation: "delivery-recovery" } : {}),
+        ...(groupDeliveryRecovery
+          ? { validation: "group-delivery-recovery" }
+          : {}),
       })
     );
     if (process.argv.includes("--probe-interrupt")) {
@@ -232,14 +267,62 @@ const cleanup = () =>
           "--runInBand",
           "--verbose",
           "--runTestsByPath",
-          ...(departure
-            ? ["src/enterprise/staff-departure-impact.spec.ts"]
+          ...(exportRestart
+            ? ["src/bi/export-jobs-restart.mysql.spec.ts"]
+            : receivedCopyRecovery
+            ? [
+                "src/dashboard-studio/studio-received-remix-recovery.mysql.spec.ts",
+              ]
+            : deliveryRecovery || groupDeliveryRecovery
+            ? ["src/enterprise/delivery.spec.ts"]
+            : handover
+            ? [
+                "src/enterprise/handover-proposal.spec.ts",
+                "src/enterprise/handover-transfer.spec.ts",
+                "src/enterprise/source-handover.spec.ts",
+                "src/enterprise/bundle-handover.spec.ts",
+                "src/widget/bundle-delete-authorization.spec.ts",
+              ]
+            : departure
+            ? [
+                "src/enterprise/staff-departure-impact.spec.ts",
+                "src/enterprise/staff-departure.spec.ts",
+                "src/dashboard/dashboard-create-departure.spec.ts",
+                "src/dashboard-studio/studio-admission-departure.spec.ts",
+              ]
             : staff
             ? ["src/enterprise/staff-transfer.spec.ts"]
             : [
                 "src/dashboard-studio/studio-business-basis.spec.ts",
                 "src/bi/semantic-business-runtime.spec.ts",
               ]),
+          // Fixed group-delivery contract cases, including real MySQL failure triggers.
+          ...(groupDeliveryRecovery
+            ? [
+                "--testNamePattern",
+                [
+                  "replays the exact group receipt after revoke and group version change without reactivation",
+                  "keeps group sharing independent of source read, current owner/org/active and rolls back stale writes",
+                  "binds receipt to group domain and rolls back relation/audit on receipt failure",
+                  "rolls back the entire group mutation if immutable audience recording fails",
+                  "rejects a group guard-passed old-epoch",
+                ].join("|"),
+              ]
+            : []),
+          // Fixed direct-delivery contract cases only: no SQLite-only trigger/legacy tests.
+          ...(deliveryRecovery
+            ? [
+                "--testNamePattern",
+                [
+                  "replays an identical request after response loss and never resurrects it after later revocation",
+                  "coalesces concurrent identical requests and refuses a receipt from the owner previous organization",
+                  "rolls back the first recipient if a later recipient has a version conflict",
+                  "rolls back every relation, audit and receipt if one recipient lacks source access",
+                  "requires explicit copy consent, preserves omitted consent and clears it on revoke",
+                  "rejects a guard-passed old-epoch",
+                ].join("|"),
+              ]
+            : []),
         ],
         {
           cwd: backend,

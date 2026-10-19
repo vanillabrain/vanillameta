@@ -25,4 +25,18 @@ describe('WidgetController', () => {
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
+  it('passes the verified actor and JWT epoch to DELETE without dropping guards', async () => {
+    const remove = jest.fn().mockResolvedValue('deleted');
+    const actor = jest.fn(value => value);
+    const target = new WidgetController({ remove } as any, { actor } as any);
+    expect(await target.remove('21', { user: { accessKeyData: { id: 7, authVersion: 3 } } })).toBe(
+      'deleted',
+    );
+    expect(actor).toHaveBeenCalledWith(7);
+    expect(remove).toHaveBeenCalledWith(21, 7, 3);
+    expect(Reflect.getMetadata('__guards__', WidgetController).map(guard => guard.name)).toEqual([
+      'JwtAuthGuard',
+      'SourceOwnershipGuard',
+    ]);
+  });
 });

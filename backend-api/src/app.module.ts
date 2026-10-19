@@ -1,3 +1,8 @@
+import { AddStaffDeparture1792620200000 } from './migrations/1792620200000-add-staff-departure';
+import { AddBundleHandover1792620100000 } from './migrations/1792620100000-add-bundle-handover';
+import { AddSourceHandover1792620000000 } from './migrations/1792620000000-add-source-handover';
+import { AddHandoverTransfer1792610000000 } from './migrations/1792610000000-add-handover-transfer';
+import { AddHandoverProposal1792600000000 } from './migrations/1792600000000-add-handover-proposal';
 import { AddStaffTransfer1792590000000 } from './migrations/1792590000000-add-staff-transfer';
 import { AddConditionReports1792300004000 } from './migrations/1792300004000-add-condition-reports';
 import { AddFileCorrection1792300001000 } from './migrations/1792300001000-add-file-correction';
@@ -94,6 +99,11 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddHandoverProposal1792600000000,
+        AddHandoverTransfer1792610000000,
+        AddSourceHandover1792620000000,
+        AddBundleHandover1792620100000,
+        AddStaffDeparture1792620200000,
         AddFileRefresh1792300000000,
         AddFileRefreshActorEpoch1792580001000,
         AddFileCorrection1792300001000,

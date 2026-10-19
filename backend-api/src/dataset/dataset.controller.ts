@@ -68,7 +68,11 @@ export class DatasetController {
    * @param id
    */
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.datasetService.remove(+id);
+  remove(@Param('id') id: string, @Req() req) {
+    return this.datasetService.remove(
+      +id,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 }

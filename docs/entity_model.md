@@ -307,3 +307,37 @@ name은 NFKC/trim 후 UTF-16 길이1~80이며 nameKey는 lowercase UTF8 SHA256 h
 `enterprise_staff_transfer`는 userId PK, sourceOrganizationId/targetOrganizationId/authVersion integer, codeHash varchar64 unique, expiresAt datetime, nullable acceptedBy/acceptedEpoch/targetVersion integer, team varchar100 default empty, completed boolean defaultfalse다. code 원문은 최초 발급 응답에만 반환한다. 코드 hash·당사자·계정 epoch·수락자/epoch/팀·대상 조직 version의 고정 digest reviewBasis는 조회에서 계산하며 최종 요청과 대조한다. 새 동의 발급은 이전 코드를 대체하고 완료 행은 현재 소속의 증거가 아닌 본인 확인 기록이다. 다음 동의로 대체되어도 target admin의 `member.transfer.accepted`와 양쪽 조직의 `member.transferred` 감사는 남는다.
 
 migration `1792590000000-add-staff-transfer`는 새 테이블만 추가한다. 기존 테이블은 필수 type/length/null/default·PK/unique를 검사해 불일치 시 자동 재작성 없이 중단한다. FK/cascade·소유권/자료 재배치는 추가하지 않는다. [설계](plans/UC-051-staff-transfer.md)·[선택 검증](testing/staff-transfer.md)을 따른다.
+
+## UC051 업무 자료 인계 의향
+
+새 `enterprise_handover_proposal`은 실제 소유권 이전과 분리된 요청/의향 기록이다. [설계](plans/UC-051-handover-proposal.md)에 따라 UUID requestId PK, organizationId/ownerId/recipientId·발급 양쪽 epoch·조직 버전·CAS version, status·24h expiresAt·acceptedAt, 고정 manifestJson·내부 payloadHash·무작위 reviewBasis·생성/수락/철회의 정확한 감사 ID 연결을 저장한다. 같은 당사자/버전의 여러 UUID도 감사 사건이 구분된다. manifest는 선택 kind/id/title와 내부 metadata hash만 보관하며 연결 설정·SQL·질문·파일 경로는 저장/응답하지 않는다. 응답에는 내부 fingerprint/payloadHash를 포함하지 않는다.
+
+ownerId는 제안 소유자이고 기존 Database.ownerId/UserMapping의 소유권을 변경하는 열이 아니다. recipientId는 검토 수신자이며 자원 grant가 아니다. 수락/철회 감사와 의향 행만 원자 저장하며 자산·독립 사본·과거 게시/출력·영수증의 actor를 소급 변경하지 않는다. additive migration은 기존 행을 삭제/병합하지 않으며 운영 적용과 전체 인계/탈퇴 수용은 별도다.
+
+[인계 전 연결·보관 조건 검토](plans/UC-051-handover-review.md)는 기존 의향/자산/연결 행에서 계산하는 비영속 읽기 투영이다. schema·migration·감사·원본 파일은 추가/변경하지 않는다. checkedAt은 조회 snapshot의 시각이며 실행 기준이나 새 수락 기록이 아니다. 소유자에게 선택 자료의 명시 연결 건수/보관 검토 필요만 제공하고 미선택 소스의 신원·내용을 응답하지 않는다.
+
+[파일 보관 검토](plans/UC-051-handover-custody.md)는 기존 Source 설정/관리 파일 신원·Database/CommerceSource 소비자·FileRefresh의 비영속 읽기 투영이다. 새 소유권/파일 보관 책임 열·영수증·migration을 만들지 않는다. 신원/소비자/lease는 관측이며 파일 bytes 검증이나 실행 ticket이 아니고 내부 proof·경로·미선택 자료 신원은 응답하지 않는다.
+
+## UC051 비공개 대시보드 최종 인계
+
+[최종 이전 설계](plans/UC-051-handover-transfer.md)의 `enterprise_handover_transfer`는 제목 공개 의향과 별개인 최종 동의/실행 영수증이다. proposalId UUID PK·requestId UUID unique, 현재 조직/양쪽 actor·발급 epoch/조직 버전·CAS version, prepared/accepted/completed/cancelled 상태, 의향 만료 또는 준비15분 중 이른 expiresAt, acceptedAt/completedAt nullable, 고정 dashboard manifestJson·내부 basisHash/payloadHash·불투명 reviewBasis와 단계별 정확한 감사 ID를 저장한다. 최종 요청은 의향 하나당 하나이며 취소/만료 뒤 자동 재활성화하지 않는다. 내부 hash/미선택 자료/SQL·파일 경로는 응답하지 않는다.
+
+최종 실행은 같은 transaction에서 기존 `user_mapping.userInfoId`만 수신자로 변경하고 `dashboard.assetVersion`을 증가시킨다. `studio_state.legacyRevision`은 새 dashboardRevision에 묶되 document bytes는 보존한다. 새 대시보드·블록·파일 사본을 만들거나 과거 actor/관계/게시/독립 사본을 재작성하지 않는다. 완료 영수증은 현재 소유권/접근권 증명이 아니며 현재 활성 당사자/조직으로만 읽는다. additive migration의 기존 schema 검사·운영 적용 및 source/파일 인계·전체 수용은 별도다.
+
+## UC051 관리 파일 소스 최종 인계
+
+[설계](plans/UC-051-source-handover.md)의 `enterprise_source_handover`는 기존 제목 의향/대시보드 이전과 별도인 source 최종 수락·실행 영수증이다. proposalId UUID PK·requestId UUID unique, organizationId/양쪽 actor·발급 epoch/조직 버전·CAS version, prepared/accepted/completed/cancelled, expiresAt/acceptedAt/completedAt, 고정 manifestJson(source ID/title·파일/지표 건수)·내부 basisHash/payloadHash/custodyHash·random reviewBasis·단계별 감사 ID를 보존한다. 내부 proof/경로/내용은 응답하지 않는다. additive migration은 기존 schema 불일치 때 중단하며 기록을 자동 삭제하지 않는다.
+
+실제 이전은 `Database.ownerId`·`catalogVersion+1`과 최종 영수증/감사를 원자 저장한다. source ID·connectionConfig·Metric ID/정의·카탈로그/조건 이력·파일/manifest bytes·과거 actor는 재작성하지 않는다. 서버 파일의 OS 소유자/위치는 그대로이며 새 사용자의 앱 관리권만 변경한다. 완료 기록은 현재 접근권의 증명이 아니고 계정/조직 현재 경계를 따른다. 외부 연결/혼합 대시보드/직원 퇴사·전체 수용은 별도다.
+
+## UC051 소스·대시보드 묶음 최종 인계
+
+[설계](plans/UC-051-bundle-handover.md)의 enterprise_bundle_handover는 원 의향 UUID에 묶인 별도 준비/양쪽 최종 동의·원자 실행 영수증이다. proposalId PK/requestId unique·양쪽 actor/epoch·조직/version·CAS version/status·expiresAt/acceptedAt/completedAt·내부 basis/payload/custody hash·random reviewBasis·단계별 감사 ID와 고정 sources/dashboards manifestJson을 저장한다. 내부 proof/파일 경로/정의는 공개하지 않는다. 기존 단독 영수증은 재해석하지 않으며 additive migration으로 관리한다.
+
+실행 시 Database owner/catalogVersion과 기존 UserMapping 소유 actor·Dashboard assetVersion·Studio legacyRevision만 한 transaction으로 갱신한다. 자산/블록/mapping ID·원본/문서 bytes/모든 폭 배치·Metric/카탈로그/조건 이력·독립 사본/과거 actor는 그대로다. 물리 파일 이전이나 퇴사/탈퇴 확정과 구별한다.
+
+## UC051 인계 후 조직 탈퇴 기록
+
+[설계](plans/UC-051-staff-departure.md)의 enterprise_staff_departure는 UUID requestId PK·본인 userId/organizationId/발급 epoch·조직 version·version/status·requestedAt/expiresAt/completedAt/cancelledAt·완료 admin/조직 version·내부 payloadHash/completePayloadHash·단계별 감사 ID를 보존한다. 내부 hash/epoch·잔여 자료의 신원/내용은 공개하지 않으며 기존 영수증을 덮지 않는다. additive migration1792620200000은 기존 불일치 schema를 재작성하지 않는다.
+
+완료는 User를 삭제/비활성화하지 않고 Membership만 제거한다. User authVersion+1/jwtId null·직접/그룹/전달 권한 off/관계 version·그룹 가입 해제·조직 version·완료/감사는 원자 변경한다. 소유권은 자동 이전하지 않으며 원본/독립 사본·문서/파일·과거 인계/출력/게시·actor·알림/보관 기록은 유지한다. 과거 조직 탈퇴는 현재 소속/접근권 증명이 아니며 본인은 재로그인 후 본인 기록만 조회한다.

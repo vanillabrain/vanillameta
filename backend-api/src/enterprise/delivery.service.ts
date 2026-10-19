@@ -1,4 +1,5 @@
 import { currentGroupDeliveries } from './group-delivery-query';
+import { lockSourceActor } from '../database/source-write-lock';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import {
@@ -203,7 +204,7 @@ export class EnterpriseDeliveryService {
       };
     });
   }
-  async set(dashboardId: number, actor: number, body: unknown) {
+  async set(dashboardId: number, actor: number, body: unknown, epoch = 0) {
     const input = this.input(body);
     const digest = createHash('sha256')
       .update(JSON.stringify({ dashboardId, ...input }))
@@ -230,6 +231,8 @@ export class EnterpriseDeliveryService {
             });
           }
         }
+        // The JWT may have been revoked while this request waited for the sorted User fences.
+        await lockSourceActor(manager, actor, epoch);
         await this.policy.assertManagement('dashboard', dashboardId, actor, manager);
         const member = await manager.findOneByOrFail(EnterpriseMembership, { userId: actor });
         const receiptKey = { ownerId: actor, requestId: input.requestId };

@@ -77,7 +77,7 @@ it('shows only the account’s own organization context to a member, with no sta
 
   await screen.findByText('바닐라메타');
   expect(screen.getByText('member (구성원)')).toBeTruthy();
-  expect(screen.getByText(/구성원은 소속 정보만 확인할 수 있습니다/)).toBeTruthy();
+  expect(screen.getByText(/직원 관리에서는 본인 소속만 확인할 수 있습니다/)).toBeTruthy();
   expect(screen.queryByText('직원 목록')).toBeNull();
   expect(screen.queryByText('기존 계정 추가')).toBeNull();
   expect(screen.queryByRole('button', { name: '조직 연결 코드 발급' })).toBeNull();
@@ -336,4 +336,21 @@ it('drops a later page that belongs to a different organization version instead 
   await screen.findByText(/현재 0명 표시/);
   expect(screen.queryByText(`로그인 ID ${loginId(21)}`)).toBeNull();
   expect(screen.getByText(/현재 0명 표시/)).toBeTruthy();
+});
+
+it('keeps departure receipt lookup available without an organization and opening sends zero extra GETs', async () => {
+  serveContext({ organization: null, membership: null });
+  render(<Enterprise />);
+  fireEvent.click(await screen.findByRole('button', { name: '조직 탈퇴 펼치기' }));
+  expect(screen.getByLabelText('탈퇴 요청 번호')).toBeTruthy();
+  expect(api.get).toHaveBeenCalledTimes(1);
+  expect(api.post).not.toHaveBeenCalled();
+});
+it('ordinary member can open self departure consent without directory or mutation requests', async () => {
+  serveContext(context('member'));
+  render(<Enterprise />);
+  fireEvent.click(await screen.findByRole('button', { name: '조직 탈퇴 펼치기' }));
+  expect(screen.getByRole('checkbox', { name: /본인의 조직 탈퇴 요청/ })).toBeTruthy();
+  expect(api.get).toHaveBeenCalledTimes(1);
+  expect(api.post).not.toHaveBeenCalled();
 });

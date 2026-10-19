@@ -461,3 +461,102 @@ it.each(['transport', 'malformed', 'mismatch'])(
     expect(button('이전 작업 읽기').disabled).toBe(false);
   },
 );
+
+it('recovers persisted running -> interrupted only by explicit status read, reruns current CAS and keeps ready file without another run', async () => {
+  const first = setup();
+  api.post.mockImplementationOnce(async (_path, body) =>
+    reply(job({ requestId: body.requestId, status: 'running', version: 2 })),
+  );
+  await create();
+  first.unmount();
+  setup();
+  expect(api.get).not.toHaveBeenCalled();
+  expect(api.post).toHaveBeenCalledTimes(1);
+  api.get.mockResolvedValueOnce(reply({ entries: [job({ status: 'running', version: 2 })], nextBeforeId: null }));
+  click('이전 작업 읽기');
+  await screen.findByText('작업 #7 · 소스 3 · 실행 중');
+  api.get.mockResolvedValueOnce(reply(job({ status: 'running', version: 2 })));
+  click('작업 #7 · 소스 3 · 실행 중');
+  await screen.findByText(/자동 조회·재실행하지 않습니다/);
+  expect(button('CSV 만들기').disabled).toBe(true);
+  expect(api.post).toHaveBeenCalledTimes(1);
+  api.get.mockResolvedValueOnce(reply(job({ status: 'interrupted', version: 4 })));
+  click('선택 작업 다시 읽기');
+  await screen.findByText(/작업 #7 · 실행 중단 · 버전 4/);
+  expect(screen.getByText(/중단된 실행은 자동으로 다시 시작하지 않습니다/)).toBeTruthy();
+  expect(api.post).toHaveBeenCalledTimes(1);
+  api.post.mockResolvedValueOnce(reply(job({ status: 'running', version: 5 })));
+  click('CSV 만들기');
+  await screen.findByText(/작업 #7 · 실행 중 · 버전 5/);
+  expect(api.post).toHaveBeenLastCalledWith('/bi/export-jobs/7/run', { expectedVersion: 4 });
+  expect(button('CSV 만들기').disabled).toBe(true);
+  api.get.mockResolvedValueOnce(
+    reply(job({ status: 'ready', version: 6, filename: 'export-7.csv', rowCount: 1, bytes: file().bytes })),
+  );
+  click('선택 작업 다시 읽기');
+  await screen.findByText(/작업 #7 · 파일 준비됨 · 버전 6/);
+  expect(screen.getByRole('button', { name: '작업 #7 · 소스 3 · 파일 준비됨' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '작업 #7 · 소스 3 · 실행 중' })).toBeNull();
+  expect(api.get).toHaveBeenCalledTimes(4);
+  expect(screen.getByText(/이미 준비된 고정 파일/)).toBeTruthy();
+  expect(button('CSV 만들기').disabled).toBe(true);
+  api.get.mockResolvedValueOnce(reply(file()));
+  click('고정 파일 받기');
+  await waitFor(() => expect(blobs).toHaveLength(1));
+  expect(api.post).toHaveBeenCalledTimes(2);
+  expect(api.get).toHaveBeenLastCalledWith('/bi/export-jobs/7/file');
+});
+it('finds and downloads a previously ready file after remount without creating or rerunning a job', async () => {
+  const view = setup();
+  view.unmount();
+  setup();
+  api.get.mockResolvedValueOnce(reply({ entries: [job({ status: 'ready', version: 6 })], nextBeforeId: null }));
+  click('이전 작업 읽기');
+  await screen.findByText('작업 #7 · 소스 3 · 파일 준비됨');
+  api.get.mockResolvedValueOnce(reply(job({ status: 'ready', version: 6 })));
+  click('작업 #7 · 소스 3 · 파일 준비됨');
+  await screen.findByText(/이미 준비된 고정 파일/);
+  expect(button('고정 파일 받기').disabled).toBe(false);
+  expect(button('CSV 만들기').disabled).toBe(true);
+  api.get.mockResolvedValueOnce(reply(file()));
+  click('고정 파일 받기');
+  await waitFor(() => expect(blobs).toHaveLength(1));
+  expect(api.post).not.toHaveBeenCalled();
+  expect(blobs[0].size).toBe(file().bytes);
+});
+it.each([403, 409, 503])(
+  'failed latest state read HTTP%s preserves selected interrupted job but blocks stale restart until a successful read',
+  async status => {
+    setup();
+    api.post.mockImplementationOnce(async (_path, body) =>
+      reply(job({ requestId: body.requestId, status: 'interrupted', version: 4 })),
+    );
+    await create();
+    expect(button('CSV 만들기').disabled).toBe(false);
+    api.get.mockRejectedValueOnce(failure(status));
+    click('선택 작업 다시 읽기');
+    await screen.findByRole('alert');
+    expect(screen.getByText(/작업 #7 · 실행 중단 · 버전 4/)).toBeTruthy();
+    expect(button('CSV 만들기').disabled).toBe(true);
+    expect(button('작업 취소').disabled).toBe(true);
+    click('CSV 만들기');
+    expect(api.post).toHaveBeenCalledTimes(1);
+    api.get.mockResolvedValueOnce(reply(job({ status: 'interrupted', version: 6 })));
+    click('선택 작업 다시 읽기');
+    await screen.findByText(/작업 #7 · 실행 중단 · 버전 6/);
+    expect(button('CSV 만들기').disabled).toBe(false);
+    expect(api.post).toHaveBeenCalledTimes(1);
+  },
+);
+it('uses 36px primary actions, 32px reading tools and wrapping containers without adding form inputs', async () => {
+  setup();
+  await create();
+  for (const name of ['현재 조건으로 작업 접수', 'CSV 만들기', '고정 파일 받기'])
+    expect(button(name).dataset.size).toBe('default');
+  for (const name of ['파일 작업 접기', '이전 작업 읽기', '선택 작업 다시 읽기', '작업 취소'])
+    expect(button(name).dataset.size).toBe('sm');
+  expect(button('CSV 만들기').className).toContain('max-w-full');
+  expect(button('CSV 만들기').className).toContain('whitespace-normal');
+  expect(screen.queryByRole('textbox')).toBeNull();
+  expect(screen.queryByRole('combobox')).toBeNull();
+});

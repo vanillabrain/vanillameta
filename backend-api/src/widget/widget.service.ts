@@ -1,3 +1,5 @@
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
+import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { lockMetricSources } from '../metric/metric-write-lock';
 import {
   lockSourceActor,
@@ -221,17 +223,48 @@ export class WidgetService {
    * widget 삭제
    * @param id
    */
-  async remove(id: number) {
-    const find_widget = await this.widgetRepository.findOne({ where: { id: id } });
-
-    if (!find_widget) {
-      return { status: ResponseStatus.ERROR, message: 'No exist' };
-    } else {
-      // dataset이 아닐경우
-      if (find_widget.datasetType === DatasetType.TABLE)
-        await this.tableQueryService.remove(find_widget.datasetId);
-      await this.widgetRepository.delete(id);
+  async remove(id: number, actor?: number, epoch?: number) {
+    return sourceWriteTransaction(this.widgetRepository.manager, async manager => {
+      await lockSourceActor(manager, actor, epoch);
+      const widget = await manager.findOne(Widget, { where: { id } });
+      if (!widget) return { status: ResponseStatus.ERROR, message: 'No exist' };
+      if (![DatasetType.DATASET, DatasetType.TABLE].includes(widget.datasetType))
+        throw new ConflictException('Dataset unavailable.');
+      const target = widget.datasetType === DatasetType.DATASET ? Dataset : TableQuery;
+      const linked = await manager.findOne(target as typeof Dataset, {
+        where: { id: widget.datasetId },
+      });
+      if (!linked) throw new ConflictException('Dataset unavailable.');
+      const links = () => manager.find(DashboardWidget, { where: { widgetId: id } });
+      const parents = new Set((await links()).map(link => link.dashboardId));
+      for (const parent of [...parents].sort((a, b) => a - b))
+        await lockDashboardWrite(manager, parent);
+      // Never acquire a newly discovered Dashboard after the Source fence.
+      assertSourceOwner(
+        (await lockMetricSources(manager, [linked.databaseId])).get(linked.databaseId),
+        actor,
+      );
+      const lock = ['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ? { lock: { mode: 'pessimistic_write' as const } }
+        : {};
+      const current = await manager.findOne(Widget, { where: { id }, ...lock });
+      const currentLink = await manager.findOne(target as typeof Dataset, {
+        where: { id: widget.datasetId },
+        ...lock,
+      });
+      if (
+        !current ||
+        current.datasetId !== widget.datasetId ||
+        current.datasetType !== widget.datasetType ||
+        !currentLink ||
+        currentLink.databaseId !== linked.databaseId ||
+        (await links()).some(link => !parents.has(link.dashboardId))
+      )
+        throw new ConflictException('Widget source changed.');
+      if (widget.datasetType === DatasetType.TABLE)
+        await manager.delete(TableQuery, widget.datasetId);
+      await manager.delete(Widget, id);
       return { status: ResponseStatus.SUCCESS, message: `This action removes a #${id} widget` };
-    }
+    });
   }
 }

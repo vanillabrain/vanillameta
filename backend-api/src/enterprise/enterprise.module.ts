@@ -1,3 +1,18 @@
+import { StaffDepartureService } from './staff-departure.service';
+import { StaffDepartureController } from './staff-departure.controller';
+import { EnterpriseStaffDeparture } from './entities/enterprise-staff-departure.entity';
+import { BundleHandoverService } from './bundle-handover.service';
+import { BundleHandoverController } from './bundle-handover.controller';
+import { EnterpriseBundleHandover } from './entities/enterprise-bundle-handover.entity';
+import { SourceHandoverService } from './source-handover.service';
+import { SourceHandoverController } from './source-handover.controller';
+import { EnterpriseSourceHandover } from './entities/enterprise-source-handover.entity';
+import { HandoverTransferService } from './handover-transfer.service';
+import { HandoverTransferController } from './handover-transfer.controller';
+import { EnterpriseHandoverTransfer } from './entities/enterprise-handover-transfer.entity';
+import { HandoverProposalService } from './handover-proposal.service';
+import { HandoverProposalController } from './handover-proposal.controller';
+import { EnterpriseHandoverProposal } from './entities/enterprise-handover-proposal.entity';
 import { StaffDepartureImpactService } from './staff-departure-impact.service';
 import { StaffDepartureImpactController } from './staff-departure-impact.controller';
 import { StaffTransferService } from './staff-transfer.service';
@@ -34,6 +49,11 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      EnterpriseHandoverProposal,
+      EnterpriseHandoverTransfer,
+      EnterpriseSourceHandover,
+      EnterpriseBundleHandover,
+      EnterpriseStaffDeparture,
       EnterpriseStaffTransfer,
       EnterpriseClassification,
       EnterpriseClassificationRequest,
@@ -45,6 +65,11 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     ]),
   ],
   controllers: [
+    HandoverProposalController,
+    HandoverTransferController,
+    SourceHandoverController,
+    BundleHandoverController,
+    StaffDepartureController,
     StaffDepartureImpactController,
     StaffTransferController,
     EnterpriseClassificationController,
@@ -56,6 +81,11 @@ import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
     EnterpriseDeliveryController,
   ],
   providers: [
+    HandoverProposalService,
+    HandoverTransferService,
+    SourceHandoverService,
+    BundleHandoverService,
+    StaffDepartureService,
     StaffDepartureImpactService,
     StaffTransferService,
     EnterpriseClassificationService,

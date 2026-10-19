@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
 import { SquarePen } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
@@ -11,6 +12,8 @@ import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import DashboardService from '@/api/dashboardService';
+import { DashboardDeleteReceipt, fetchDashboardDeleteImpact } from '@/api/dashboardDeletionService';
+import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import AiService from '@/api/aiService';
 import { STATUS } from '@/constant';
 import PageViewBox from '../../../components/PageViewBox';
@@ -53,6 +56,10 @@ const DashboardView = () => {
   const [dashboardInfo, setDashboardInfo] = useState(defaultDashboardInfo); // dashboard 정보
   const [assistantOpen, setAssistantOpen] = useState(false);
   const dashboardRequest = useRef(0);
+  const blockedDashboardId = useRef<string | null>(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
+  const managementScope = personalLibrarySessionScope();
+  const [ownerManagement, setOwnerManagement] = useState<{ dashboardId: number; scope: string } | null>(null);
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
@@ -77,9 +84,11 @@ const DashboardView = () => {
    * AI 대시보드 인사이트 생성
    */
   const handleInsightClick = () => {
+    const request = dashboardRequest.current;
     setInsightLoading(true);
     AiService.dashboardInsight(dashboardId)
       .then(response => {
+        if (request !== dashboardRequest.current) return;
         if (response.data.status === STATUS.SUCCESS) {
           setInsight(response.data.data.insight);
         } else {
@@ -87,14 +96,20 @@ const DashboardView = () => {
         }
       })
       .catch(error => {
+        if (request !== dashboardRequest.current) return;
         alert.error(error.message);
       })
       .finally(() => {
+        if (request !== dashboardRequest.current) return;
         setInsightLoading(false);
       });
   };
 
   useEffect(() => {
+    blockedDashboardId.current = null;
+    setPermissionDenied(false);
+    setInsight(null);
+    setInsightLoading(false);
     setDashboardInfo(defaultDashboardInfo);
     setLayout([]);
     setShareLimitDate(null);
@@ -104,6 +119,25 @@ const DashboardView = () => {
   useEffect(() => {
     return getDashboardInfo(dashboardId);
   }, [dashboardId, isShareOn]);
+
+  // A refused content read does not prove ownership was lost. This protected endpoint
+  // authorizes current-owner management without exposing the source-backed dashboard.
+  useEffect(() => {
+    setOwnerManagement(null);
+    if (!permissionDenied || !managementScope || blockedDashboardId.current !== dashboardId) return;
+    const controller = new AbortController();
+    let current = true;
+    fetchDashboardDeleteImpact(Number(dashboardId), controller.signal)
+      .then(() => {
+        if (current && !controller.signal.aborted && personalLibrarySessionScope() === managementScope)
+          setOwnerManagement({ dashboardId: Number(dashboardId), scope: managementScope });
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+      controller.abort();
+    };
+  }, [permissionDenied, dashboardId, managementScope]);
 
   // dashboardInfo useEffect
   useEffect(() => {
@@ -118,6 +152,7 @@ const DashboardView = () => {
 
   // dashboard info 조회
   const getDashboardInfo = id => {
+    if (blockedDashboardId.current === id) return () => undefined;
     dashboardRequest.current += 1;
     const request = dashboardRequest.current;
     showLoading();
@@ -136,10 +171,21 @@ const DashboardView = () => {
           throw new Error(t('dashboard.loadFailed'));
         }
       })
-      .catch(() => {
+      .catch(error => {
         if (request !== dashboardRequest.current) return;
         setDashboardInfo(defaultDashboardInfo);
         setLayout([]);
+        if (error?.response?.status === 403) {
+          blockedDashboardId.current = id;
+          dashboardRequest.current += 1;
+          setPermissionDenied(true);
+          setRefreshIntervalSec(0);
+          setAssistantOpen(false);
+          setInsight(null);
+          setInsightLoading(false);
+          setDeleteOpen(false);
+          return;
+        }
         alert.error(t('dashboard.loadFailed'));
       })
       .finally(() => {
@@ -212,6 +258,41 @@ const DashboardView = () => {
     }
   };
 
+  const handleDeleted = (receipt: DashboardDeleteReceipt) => {
+    void queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+    if (receipt.dashboardId === Number(dashboardId)) navigate('/dashboard', { replace: true });
+    snackbar.success(t('dashboard.deleted'));
+  };
+
+  if (permissionDenied) {
+    return (
+      <PageTitleBox
+        upperTitle={t('dashboard.view')}
+        upperTitleLink="/dashboard"
+        title={t('dashboard.view')}
+        className="w-full min-w-0 flex-auto p-0 py-6"
+      >
+        <Seo title={t('dashboard.view')} />
+        <Notice severity="error">
+          현재 이 대시보드를 볼 권한이 없습니다. 소유권 또는 접근 권한이 변경되었을 수 있습니다.
+        </Notice>
+        {ownerManagement?.dashboardId === Number(dashboardId) && ownerManagement.scope === managementScope && (
+          <>
+            <Button variant="outline" className="mt-3" onClick={() => setDeleteOpen(true)}>
+              삭제 영향 확인
+            </Button>
+            <DashboardDeleteDialog
+              target={{ id: Number(dashboardId), title: '' }}
+              open={deleteOpen}
+              onOpenChange={setDeleteOpen}
+              onDeleted={handleDeleted}
+            />
+          </>
+        )}
+      </PageTitleBox>
+    );
+  }
+
   return (
     <PageTitleBox
       upperTitle={t('dashboard.view')}
@@ -225,11 +306,7 @@ const DashboardView = () => {
           target={{ id: Number(dashboardId), title: dashboardInfo.title }}
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
-          onDeleted={receipt => {
-            void queryClient.invalidateQueries({ queryKey: ['dashboards'] });
-            if (receipt.dashboardId === Number(dashboardId)) navigate('/dashboard', { replace: true });
-            snackbar.success(t('dashboard.deleted'));
-          }}
+          onDeleted={handleDeleted}
         />
         <div className={cn('min-w-0', assistantOpen ? 'w-full lg:w-[calc(100%-400px)]' : 'w-full')}>
           <PageViewBox

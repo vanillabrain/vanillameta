@@ -14,13 +14,25 @@ export class StudioRemixController {
     @Body() body: RemixPreviewRequest,
     @Req() req,
   ) {
-    return this.remixService.preview(token, body, req.user?.accessKeyData?.id);
+    return this.remixService.preview(
+      token,
+      body,
+      req.user?.accessKeyData?.id,
+      undefined,
+      req.user?.accessKeyData?.authVersion ?? 0,
+    );
   }
   @Post(':token/remix') remix(
     @Param('token') token: string,
     @Body() body: RemixRequest,
     @Req() req,
   ) {
-    return this.remixService.remix(token, body, req.user?.accessKeyData?.id);
+    return this.remixService.remix(
+      token,
+      body,
+      req.user?.accessKeyData?.id,
+      undefined,
+      req.user?.accessKeyData?.authVersion ?? 0,
+    );
   }
 }

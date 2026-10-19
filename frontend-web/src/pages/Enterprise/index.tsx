@@ -1,3 +1,5 @@
+import StaffDeparture from './StaffDeparture';
+import HandoverProposal from './HandoverProposal';
 import StaffDepartureImpact from './StaffDepartureImpact';
 import StaffTransfer from './StaffTransfer';
 import Classifications from './Classifications';
@@ -495,6 +497,10 @@ export default function Enterprise() {
   return (
     <section aria-label="조직·직원" className="mx-auto w-full max-w-3xl min-w-0 px-4 py-6">
       <h1 className="text-xl font-bold text-foreground">조직·직원</h1>
+      <StaffDeparture
+        key={`staff-departure:${organization?.id}:${membership?.userId}:${organization?.version}:${contextRevision}`}
+        context={context}
+      />
       {organization && <Notifications key={`${organization.id}:${membership?.userId}`} organizationId={organization.id} />}
       {organization && membership && <Classifications actorId={membership.userId} organizationId={organization.id} />}
       {organization && <ReceivedDashboards key={`received:${organization.id}:${membership?.userId}`} />}
@@ -649,10 +655,17 @@ export default function Enterprise() {
           )}
           {!isAdmin && (
             <Notice severity="info" role="status">
-              구성원은 소속 정보만 확인할 수 있습니다. 직원 목록과 팀·역할·활성 변경은 조직 admin만 할 수 있습니다.
+              직원 관리에서는 본인 소속만 확인할 수 있습니다. 직원 목록과 팀·역할·활성 변경은 조직 admin만 할 수 있습니다.
             </Notice>
           )}
         </div>
+      )}
+
+      {organization && membership && (
+        <HandoverProposal
+          key={`handover:${organization.id}:${membership.userId}:${organization.version}:${contextRevision}`}
+          context={context}
+        />
       )}
 
       {transferNotice && (
