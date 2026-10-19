@@ -141,6 +141,7 @@ export class StudioService {
       schemaVersion,
       sourceRevision,
       dataVersion,
+      sourceName: source.name,
       document,
       items: document.blocks.map(b =>
         isStudioPivot(b) ? {} : items[analysis.widgets.findIndex(w => w.blockId === b.id)],
@@ -617,6 +618,7 @@ export class StudioService {
     return {
       document: state.document,
       sourceRevision: state.sourceRevision,
+      sourceName: state.sourceName,
       definitions: state.definitions,
       profileColumns,
       preview,

@@ -1,3 +1,5 @@
+import AnalysisBasis, { analysisFilterBasis } from '@/components/analysis/AnalysisBasis';
+import { studioDateRangeSummary } from '../Studio/studioDocument';
 import {
   reusePendingSaveKey,
   readReusePendingSave,
@@ -6,7 +8,12 @@ import {
   ReusePendingSave,
 } from './reusePendingSave';
 import StudioReusePreview from './StudioReusePreview';
-import { validateStudioReusePreview, StudioReusePreviewV1 } from './studioReusePreviewContract';
+import {
+  validateStudioReusePreview,
+  StudioReusePreviewV1,
+  ReuseAnalysisBasis,
+  validateReuseAnalysisBasis,
+} from './studioReusePreviewContract';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
@@ -51,6 +58,7 @@ type Draft = {
 };
 type Profile = { sourceId: number; dataVersion: string; supported: boolean; columns: Column[] };
 type Preview = {
+  basis?: ReuseAnalysisBasis;
   ticket: string;
   originalId: number | string;
   sourceId: number;
@@ -328,6 +336,12 @@ function Content() {
         result.snapshot.widgets.some(widget => !Array.isArray(widget.datas))
       )
         throw new Error('미리보기를 확인할 수 없습니다.');
+      if (result.basis !== undefined) {
+        result.basis = validateReuseAnalysisBasis(result.basis);
+        if (result.basis.sourceId !== profile.sourceId) throw new Error('복제 대상 기준이 다릅니다.');
+      }
+      if (result.studioPreview?.basis && result.studioPreview.basis.sourceId !== profile.sourceId)
+        throw new Error('복제 대상 기준이 다릅니다.');
       const nextAttempt = { ticket: result.ticket, requestId: crypto.randomUUID() };
       setPreview(result);
       setAttempt(nextAttempt);
@@ -818,7 +832,30 @@ function Content() {
               {preview.studioPreview ? (
                 <StudioReusePreview preview={preview.studioPreview} />
               ) : (
-                <SnapshotView snapshot={preview.snapshot} context="reuse" />
+                <>
+                  <AnalysisBasis
+                    className="mb-4"
+                    status="복사본 미리보기 · 저장 전"
+                    data={
+                      preview.basis
+                        ? `${preview.basis.sourceName} · #${preview.basis.sourceId}`
+                        : '연결한 내 데이터 · 상세 기준 확인 필요'
+                    }
+                    period={
+                      preview.basis
+                        ? studioDateRangeSummary(preview.basis.dateRange) + (preview.basis.dateRange ? '' : ' · UTC')
+                        : '기간 상세 미제공 · 미리보기 범위 확인'
+                    }
+                    filters={
+                      preview.basis
+                        ? analysisFilterBasis(preview.basis.filters, !!preview.basis.conditionsApplied)
+                        : '필터 상세 미제공 · 미리보기 범위 확인'
+                    }
+                    metrics={preview.snapshot.widgets.map(widget => widget.title).join(' · ')}
+                    note="대상 데이터에서 다시 계산한 공통 기준입니다. 저장하면 새 비공개 사본을 만들며 원본과 게시본은 유지합니다."
+                  />
+                  <SnapshotView snapshot={preview.snapshot} context="reuse" />
+                </>
               )}
             </>
           )}

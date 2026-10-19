@@ -1,17 +1,25 @@
 import type { StudioBlockKind, StudioDisplay, StudioDocumentV1 } from '../Studio/studioTypes';
 import { STUDIO_BREAKPOINTS, STUDIO_COLUMNS } from '../Studio/studioTypes';
-import { studioKeys, studioOverlap } from '../Studio/studioDocument';
+import { studioKeys, studioOverlap, validateStudioFilters, validateStudioDateRange } from '../Studio/studioDocument';
 import { validateStudioPivotResult, StudioPivotResult } from '../Studio/studioPivot';
 export type StudioReusePreviewBlock = { blockId: string; title: string; description: string; display: StudioDisplay } & (
   | { kind: 'SEGMENT_PIVOT'; pivot: StudioPivotResult }
   | { kind: Exclude<StudioBlockKind, 'SEGMENT_PIVOT'>; widget: Record<string, any> }
 );
+export type ReuseAnalysisBasis = {
+  sourceId: number;
+  sourceName: string;
+  filters: StudioDocumentV1['filters'];
+  dateRange?: StudioDocumentV1['dateRange'];
+  conditionsApplied?: boolean;
+};
 export type StudioReusePreviewV1 = {
   schemaVersion: 1;
   kind: 'studio-reuse-preview';
   title: string;
   capturedAt: string;
   scope: string;
+  basis?: ReuseAnalysisBasis;
   blocks: StudioReusePreviewBlock[];
   layouts: StudioDocumentV1['layouts'];
   newMetricCount: number;
@@ -29,9 +37,21 @@ const numeric = (v: unknown) =>
   v === null ||
   (typeof v === 'number' && Number.isFinite(v)) ||
   (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)));
+export function validateReuseAnalysisBasis(input: unknown): ReuseAnalysisBasis {
+  const basis = input as ReuseAnalysisBasis;
+  studioKeys(basis, ['sourceId', 'sourceName', 'filters', 'dateRange', 'conditionsApplied']);
+  assert(Number.isSafeInteger(basis.sourceId) && basis.sourceId > 0 && text(basis.sourceName, 1000));
+  assert(basis.conditionsApplied === undefined || typeof basis.conditionsApplied === 'boolean');
+  return {
+    ...basis,
+    filters: validateStudioFilters(basis.filters),
+    ...(basis.dateRange !== undefined ? { dateRange: validateStudioDateRange(basis.dateRange) } : {}),
+  };
+}
 export function validateStudioReusePreview(input: unknown): StudioReusePreviewV1 {
   const v: any = input;
-  studioKeys(v, ['schemaVersion', 'kind', 'title', 'capturedAt', 'scope', 'blocks', 'layouts', 'newMetricCount']);
+  studioKeys(v, ['schemaVersion', 'kind', 'title', 'capturedAt', 'scope', 'blocks', 'layouts', 'newMetricCount', 'basis']);
+  if (v.basis !== undefined) v.basis = validateReuseAnalysisBasis(v.basis);
   assert(
     v.schemaVersion === 1 &&
       v.kind === 'studio-reuse-preview' &&

@@ -62,6 +62,7 @@ export type StudioPreview = {
 };
 /** Load result for one dashboard: the editable document plus its definition catalog and preview. */
 export type StudioLoadResult = {
+  sourceName?: string;
   profileColumns?: Column[];
   access?: { read: boolean; edit: boolean; publish: boolean; export: boolean };
   owned?: boolean;
@@ -519,6 +520,9 @@ export async function fetchStudioDashboard(
     }
     return {
       profileColumns,
+      ...(typeof payload.sourceName === 'string' && payload.sourceName.length <= 1000
+        ? { sourceName: payload.sourceName }
+        : {}),
       dashboardId,
       sourceRevision: payload.sourceRevision,
       document,

@@ -14,6 +14,7 @@ export type StudioDesignStage = 'start' | 'result' | 'settings' | 'publish';
 export type StudioDesignDocument = { title: string; source: string; period: string; blockTitle: string };
 /** Product route context: real save state and real source labels. The design preview leaves it undefined. */
 export type StudioProductContext = {
+  basis?: React.ReactNode;
   source: string;
   sourceMeta: string;
   period: string;
@@ -306,6 +307,7 @@ export default function StudioShell({
                   AI 열기
                 </Button>
               </div>
+              {product?.basis && <div className="min-w-0 px-4 pt-4 md:px-6">{product.basis}</div>}
               {product?.banner}
               {!product && status === 'error' && (
                 <Alert severity="error" className="studio-status-banner">

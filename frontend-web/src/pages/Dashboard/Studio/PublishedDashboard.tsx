@@ -1,3 +1,4 @@
+import AnalysisBasis, { analysisFilterBasis } from '@/components/analysis/AnalysisBasis';
 import { PublishedBlockView } from './PublishedBlockView';
 export { PublishedBlockView } from './PublishedBlockView';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -130,6 +131,35 @@ export default function PublishedDashboard() {
               </div>
               <span className="studio-published-badge">{data.visibility === 'link' ? '링크 공개' : '비공개'}</span>
             </div>
+            <AnalysisBasis
+              className="mb-4"
+              status={`게시본 · V${data.version} · 읽기 전용`}
+              data="게시 시점의 집계 데이터"
+              period={
+                snapshot.dateRange
+                  ? studioDateRangeSummary(snapshot.dateRange)
+                  : (snapshot.periodLabel || '전체 기간') + (snapshot.periodLabel?.includes('UTC') ? '' : ' · UTC')
+              }
+              filters={analysisFilterBasis(snapshot.filters, !!snapshot.conditionsApplied)}
+              metrics={
+                snapshot.blocks
+                  .map(
+                    block =>
+                      block.title +
+                      ([block.display.prefix, block.display.suffix].map(value => value?.trim()).filter(Boolean).length
+                        ? ' (' +
+                          [block.display.prefix, block.display.suffix]
+                            .map(value => value?.trim())
+                            .filter(Boolean)
+                            .join(' ') +
+                          ')'
+                        : ''),
+                  )
+                  .join(' · ') || '지표 없음'
+              }
+              details={[{ label: '집계 시각', value: publicationTime(data.asOf) }]}
+              note="게시 시점에 고정된 결과입니다. 현재 원본 데이터나 편집 중인 초안과 다를 수 있습니다. 블록별 추가 조건은 공개된 설명을 확인하세요."
+            />
             <div className="studio-published-asof">
               <span>{snapshot.periodLabel || '전체 기간'} · 게시 시점의 집계</span>
               <span>집계 시각 {publicationTime(data.asOf)}</span>

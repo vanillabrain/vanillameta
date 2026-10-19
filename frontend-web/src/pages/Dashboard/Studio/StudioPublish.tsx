@@ -1,3 +1,4 @@
+import AnalysisBasis, { AnalysisBasisValue } from '@/components/analysis/AnalysisBasis';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,6 +20,7 @@ import {
 } from './studioPublication';
 
 type Props = {
+  basis?: AnalysisBasisValue;
   open: boolean;
   onClose: () => void;
   dashboardId: number;
@@ -28,6 +30,7 @@ type Props = {
   remixUnsupportedReason?: string;
 };
 export default function StudioPublish({
+  basis,
   open,
   onClose,
   dashboardId,
@@ -206,6 +209,16 @@ export default function StudioPublish({
               {targetLabel}
             </p>
           )}
+          <AnalysisBasis
+            {...(basis ?? {
+              data: '저장한 대시보드 #' + dashboardId,
+              period: '저장본 기준 · 기간 확인 필요',
+              filters: '저장본 기준 · 필터 확인 필요',
+              metrics: '저장본에 고정된 계산',
+            })}
+            status="게시할 저장본 기준"
+            note="현재 게시본과 다를 수 있습니다. 기존 게시본은 아래 링크에서 확인하세요. 게시하면 이 저장본의 집계를 고정합니다."
+          />
           {dirty && (
             <Notice severity="warning">
               저장되지 않은 변경이 있습니다. 닫고 먼저 저장한 뒤 게시해 주세요. 기존 게시본은 유지됩니다.

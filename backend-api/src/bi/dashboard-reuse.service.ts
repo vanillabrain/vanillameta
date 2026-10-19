@@ -505,6 +505,15 @@ export class DashboardReuseService {
         expiresAt: new Date(Date.now() + TTL).toISOString(),
         originalId: reference ? String(id) : originalId,
         sourceId: targetId,
+        basis: {
+          sourceId: targetId,
+          sourceName: target.name,
+          filters: JSON.parse(JSON.stringify(remapped.defaultFilters ?? [])),
+          ...(remapped.defaultDateRange
+            ? { dateRange: JSON.parse(JSON.stringify(remapped.defaultDateRange)) }
+            : {}),
+          ...(conditions ? { conditionsApplied: true } : {}),
+        },
         snapshot: {
           schemaVersion: 1,
           title: draft.title,

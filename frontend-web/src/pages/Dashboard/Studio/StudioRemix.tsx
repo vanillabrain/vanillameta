@@ -1,3 +1,4 @@
+import AnalysisBasis, { analysisFilterBasis } from '@/components/analysis/AnalysisBasis';
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -524,6 +525,29 @@ export function StudioRemixFlow({
                         ? '저장된 기간을 이 미리보기에 적용하지 못했습니다. 전체 기간 결과로 단정하지 마세요.'
                         : '기간 전체'}
                     </p>
+                    <AnalysisBasis
+                      className="my-4"
+                      status="복사본 미리보기 · 저장 전"
+                      data={`${profile?.name || '내 데이터'} · #${sourceId}`}
+                      period={
+                        preview.mappedDateRange
+                          ? studioDateRangeSummary(preview.mappedDateRange)
+                          : requirements.dateRange
+                          ? '기간 연결 확인 필요'
+                          : '전체 기간 · UTC'
+                      }
+                      filters={
+                        preview.unmappedFilters?.length ||
+                        preview.unmappedConditions?.length ||
+                        (requirements.filters?.length && !preview.mappedFilters?.length)
+                          ? '조건 연결 확인 필요'
+                          : analysisFilterBasis(preview.mappedFilters, !!requirements.conditions)
+                      }
+                      metrics={remixPreviewBlocks(preview)
+                        .map(block => block.title)
+                        .join(' · ')}
+                      note="선택한 내 데이터에서 다시 계산한 결과입니다. 원본 게시 숫자를 복사하지 않으며 저장 후 비공개 사본이 됩니다."
+                    />
                     <div className="studio-remix-preview-grid">
                       {remixPreviewBlocks(preview).map(block => (
                         <article

@@ -248,7 +248,7 @@ export default function GettingStarted({ returning = false }: { returning?: bool
           )}
         </Notice>
       )}
-      <p className="mt-4 text-xs text-muted-foreground">데이터 연결 → 데이터 확인 → 지표·차트 → 대시보드 저장</p>
+      <p className="mt-4 text-xs text-muted-foreground">데이터 연결 → Explore 탐색 → Studio 편집 → 게시·복제</p>
     </section>
   );
 }

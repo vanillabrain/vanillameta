@@ -1,3 +1,4 @@
+import AnalysisBasis, { analysisFilterBasis } from '@/components/analysis/AnalysisBasis';
 import ReportExplore from './ReportExplore';
 import SourceCatalogEditor from './SourceCatalogEditor';
 import SourceConditions from './SourceConditions';
@@ -1048,6 +1049,56 @@ function SourceExploreContent() {
           지표 빌더
         </Button>
       </div>
+      <AnalysisBasis
+        className="mb-4"
+        status={
+          !catalog
+            ? '데이터 선택 전'
+            : rangePaused || conditionMismatch
+            ? '입력 기준 · 확인 필요'
+            : queryBusy
+            ? '선택 기준 · 조회 중'
+            : queryError || revisionError
+            ? '선택 기준 · 조회 실패'
+            : '현재 선택 기준'
+        }
+        data={catalog ? `${catalog.name} · #${catalog.sourceId}` : '데이터를 선택하세요'}
+        period={
+          rangePaused
+            ? '기간 입력 확인 필요'
+            : dateRange
+            ? `${dateRange.column} · ${timeZone} ${dateRange.start} ~ ${dateRange.end}`
+            : `전체 기간 · ${mode === 'advanced' ? effectiveAdvancedAxes.timeAxis?.timeZone ?? 'UTC' : 'UTC'}`
+        }
+        filters={analysisFilterBasis(filters, !!conditions)}
+        metrics={
+          catalog?.measures
+            .filter(measure => measureIds.includes(measure.id))
+            .map(measure => measure.label)
+            .join(' · ') || '지표를 선택하세요'
+        }
+        details={
+          catalog
+            ? [
+                {
+                  label: '지표 버전',
+                  value: catalog.measures
+                    .filter(measure => measureIds.includes(measure.id))
+                    .map(
+                      measure =>
+                        `${measure.label} · ${
+                          screenBasis?.key === analysisKey && screenBasis.versions[measure.id]
+                            ? '조회 결과 v' + screenBasis.versions[measure.id]
+                            : '결과 버전 확인 전'
+                        }`,
+                    )
+                    .join(' / '),
+                },
+              ]
+            : []
+        }
+        note="이 화면에서 선택한 기준입니다. Studio를 열거나 새 대시보드를 만들 때 이 조건을 자동 적용하지 않습니다."
+      />
       <Separator />
       {catalog && (
         <SourceCatalogEditor sourceId={catalog.sourceId} canEdit={catalog.access?.edit} canInspectUsage={catalog.owned} />

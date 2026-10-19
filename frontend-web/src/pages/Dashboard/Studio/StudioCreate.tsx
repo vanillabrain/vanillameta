@@ -1,3 +1,4 @@
+import AnalysisBasis from '@/components/analysis/AnalysisBasis';
 import { BusinessBasisResult, fetchBusinessBasis } from '@/api/businessBasis';
 import BusinessBasisDetails from '../../Explore/BusinessBasisDetails';
 import { editorDraftSessionEpoch } from '@/helpers/editorDraftStorage';
@@ -501,6 +502,28 @@ export default function StudioCreate() {
         </Button>
       </header>
       <main id="studio-create-main" className="studio-create-main">
+        <AnalysisBasis
+          className="mb-5"
+          status={proposal?.preview ? '생성안 · 저장 전' : profile ? '데이터 연결됨 · 생성 전' : '시작 · 데이터 선택 전'}
+          data={profile ? `${profile.name || '데이터 소스'} · #${profile.sourceId}` : '데이터를 선택하세요'}
+          period="전체 기간 · UTC"
+          filters="공통 필터 없음"
+          metrics={
+            proposal?.semanticProposal.length
+              ? proposal.semanticProposal
+                  .map(
+                    item =>
+                      `${item.metric.label || item.title}${item.metric.unit ? ' · ' + item.metric.unit : ''}${
+                        item.metric.id ? ' · v' + item.metric.definitionVersion : ' · 새 지표'
+                      }`,
+                  )
+                  .join(' / ')
+              : selectedMetrics.length
+              ? `저장 지표 ${selectedMetrics.length}개 선택 · 생성안 확인 전`
+              : '질문 후 제안 · 아직 확정되지 않음'
+          }
+          note="데이터를 연결하고 지표를 확인한 뒤 저장하세요. 다른 화면의 기간·필터를 자동으로 가져오지 않습니다."
+        />
         <div className="studio-create-intro">
           <span className="studio-eyebrow">데이터 → 지표 확인 → Studio</span>
           <h2>질문 하나에서 시작하는 대시보드</h2>

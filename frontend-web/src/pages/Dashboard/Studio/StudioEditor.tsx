@@ -1,3 +1,5 @@
+import AnalysisBasis from '@/components/analysis/AnalysisBasis';
+import { studioAnalysisBasis } from './studioAnalysisBasis';
 import StudioPivotPicker from './StudioPivotPicker';
 import StudioPivotConditions from './StudioPivotConditions';
 import StudioSavedCopy from './StudioSavedCopy';
@@ -1171,7 +1173,9 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
 
   const documentForShell: StudioDesignDocument = {
     title: state.present.title,
-    source: '데이터 소스 #' + state.present.sourceId,
+    source: initial.sourceName
+      ? `${initial.sourceName} · #${state.present.sourceId}`
+      : '데이터 소스 #' + state.present.sourceId,
     period: studioDateRangeSummary(state.present.dateRange),
     blockTitle: selected ? selected.title : '블록을 선택하세요',
   };
@@ -1333,7 +1337,19 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
   );
 
   const product: StudioProductContext = {
-    source: '데이터 소스 #' + state.present.sourceId,
+    basis: (
+      <AnalysisBasis
+        {...studioAnalysisBasis(
+          state.present,
+          initial.document.sourceId === state.present.sourceId ? initial.sourceName : undefined,
+        )}
+        status={state.saveState === 'clean' ? '저장본 · 현재 문서 기준' : '초안 · 저장 전'}
+        note="공통 기간·필터 기준입니다. Pivot 등 블록별 추가 조건은 각 블록에서 확인하세요. 결과 갱신 상태는 캔버스 안내를 따릅니다."
+      />
+    ),
+    source: initial.sourceName
+      ? `${initial.sourceName} · #${state.present.sourceId}`
+      : '데이터 소스 #' + state.present.sourceId,
     sourceMeta: '정의 ' + Object.keys(definitions.entries).length + '개 · Studio 문서',
     period: studioDateRangeSummary(state.present.dateRange),
     blockCount: state.present.blocks.length,
@@ -1757,6 +1773,14 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         key={creationPublication ? creationPublication.dashboardId + ':' + creationPublication.revision : 'editor'}
         targetLabel={
           creationPublication ? '새 대시보드 #' + creationPublication.dashboardId + ' · 생성안 저장 버전 기준' : undefined
+        }
+        basis={
+          creationPublication
+            ? undefined
+            : studioAnalysisBasis(
+                state.savedBaseline,
+                initial.document.sourceId === state.savedBaseline.sourceId ? initial.sourceName : undefined,
+              )
         }
         open={publishOpen}
         onClose={() => setPublishOpen(false)}

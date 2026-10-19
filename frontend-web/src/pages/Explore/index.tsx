@@ -1,3 +1,4 @@
+import AnalysisBasis from '@/components/analysis/AnalysisBasis';
 import { editorDraftSessionEpoch } from '@/helpers/editorDraftStorage';
 import {
   BusinessBasis,
@@ -372,6 +373,21 @@ export default function Explore() {
           </Button>
         </Notice>
       )}
+      <AnalysisBasis
+        className="mb-4"
+        status={preview ? '차트 미리보기 · 저장 전' : '지표·차트 설정 중'}
+        data={profile ? `${profile.name} · #${profile.sourceId}` : '데이터를 선택하세요'}
+        period="전체 기간 · UTC"
+        filters="공통 필터 없음"
+        metrics={
+          definition.label
+            ? `${definition.label} · ${definition.aggregation}${
+                definition.unit ? ' · ' + definition.unit : ' · 단위 미지정'
+              }`
+            : '지표를 선택하거나 정의하세요'
+        }
+        note="현재 빌더 입력 기준입니다. Explore의 기간·필터를 자동 적용하지 않으며, 계산 확인 후 저장하세요."
+      />
       <div className="flex flex-col gap-6">
         <Card className="min-w-0 p-4 md:p-6">
           <h2 className="mb-4 text-lg font-semibold">1. 데이터 확인</h2>

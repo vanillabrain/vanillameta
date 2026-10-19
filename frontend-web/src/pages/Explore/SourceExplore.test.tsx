@@ -257,6 +257,8 @@ it('serializes grain, compare toggle, custom dateRange and timeZone into the que
   expect(lastQuery().page).toBe(0);
   fireEvent.click(screen.getByRole('button', { name: '전체 기간' }));
   await waitFor(() => expect(lastQuery().dateRange).toBeUndefined());
+  expect(screen.getAllByText('전체 기간 · UTC').length).toBeGreaterThan(0);
+  expect(screen.queryByText('전체 기간 · Asia/Seoul')).toBeNull();
 });
 
 it('applies a distinct null filter from a leaderboard category', async () => {

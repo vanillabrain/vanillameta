@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { validateStudioReusePreview } from './studioReusePreviewContract';
+import { validateStudioReusePreview, validateReuseAnalysisBasis } from './studioReusePreviewContract';
 import { mixedReusePreview } from './studioReusePreview.fixture';
 it('accepts mixed display-only preview without source queries', () => {
   expect(validateStudioReusePreview(mixedReusePreview()).blocks).toHaveLength(2);
@@ -47,5 +47,23 @@ it('rejects malformed trend and missing chart result fields before rendering', (
     mutate(v.blocks[0].widget);
     v.blocks[0].kind = v.blocks[0].widget.type;
     expect(() => validateStudioReusePreview(v)).toThrow();
+  }
+});
+
+it('validates the target basis without accepting SQL, malformed typed filters or dates', () => {
+  const basis = {
+    sourceId: 30,
+    sourceName: '내 파일',
+    filters: [{ column: 'customer', values: ['1', 1, null] }],
+    dateRange: { column: 'event_day', start: '2025-01-06', end: '2025-01-10', timeZone: 'UTC' },
+  };
+  expect(validateReuseAnalysisBasis(basis)).toEqual(basis);
+  for (const value of [
+    { ...basis, sql: 'SELECT secret' },
+    { ...basis, sourceId: 0 },
+    { ...basis, filters: [{ column: 'customer', values: [{}] }] },
+    { ...basis, dateRange: { ...basis.dateRange, start: 'not-a-date' } },
+  ]) {
+    expect(() => validateReuseAnalysisBasis(value)).toThrow();
   }
 });

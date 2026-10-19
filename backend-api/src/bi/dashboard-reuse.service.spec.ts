@@ -275,6 +275,17 @@ describe('UC020 dashboard reuse SQLite atomic save', () => {
     return { draft, preview, ticket: preview.ticket };
   };
 
+  it('projects the confirmed target basis without changing saved dashboards', async () => {
+    const before = await rows(Dashboard);
+    const { preview } = await flow();
+    if (!('basis' in preview)) throw new Error('Expected chart preview basis');
+    expect(preview.basis.sourceId).toBe(targetId);
+    expect(preview.basis.sourceName).toBe((await profileOf(targetId, ACTOR)).name);
+    expect(Array.isArray(preview.basis.filters)).toBe(true);
+    expect(JSON.stringify(preview.basis)).not.toMatch(/"sql"|"connection"|"filename"/);
+    expect(await rows(Dashboard)).toEqual(before);
+  });
+
   beforeEach(async () => {
     duringSave = null;
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vm-reuse-'));

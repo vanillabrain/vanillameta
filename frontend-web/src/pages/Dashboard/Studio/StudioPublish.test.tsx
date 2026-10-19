@@ -321,3 +321,20 @@ it('keeps an already pending publication envelope intact when an unsupported rea
   await waitFor(() => expect(publishDashboard).toHaveBeenCalledTimes(2));
   expect(vi.mocked(publishDashboard).mock.calls[1][1]).toEqual(body);
 });
+
+it('shows the supplied saved basis even with dirty changes and never borrows another creation basis', async () => {
+  const view = render(
+    <StudioPublish
+      {...props}
+      dirty
+      basis={{ data: '저장 소스 #4', period: '저장 기간 UTC', filters: 'channel: "web"', metrics: '매출 · v2' }}
+    />,
+  );
+  await screen.findByRole('button', { name: '게시하기' });
+  expect(screen.getAllByText('저장 소스 #4').length).toBeGreaterThan(0);
+  expect(screen.getByText(/저장되지 않은 변경이 있습니다/)).toBeTruthy();
+  expect(publishDashboard).not.toHaveBeenCalled();
+  view.rerender(<StudioPublish {...props} dashboardId={99} />);
+  expect(screen.queryByText('저장 소스 #4')).toBeNull();
+  expect(screen.getAllByText('저장한 대시보드 #99').length).toBeGreaterThan(0);
+});

@@ -38,3 +38,9 @@ DialogContent의 desktop 최대 폭은 `sm:max-w-*`로 명시해 공식 기본�
 ## Studio 통일 — 2026-10-16
 
 Studio도 동일한 Button/TextField/Notice/Checkbox/ToggleGroup/Dialog/Sheet와 lucide를 사용한다. 별도 MUI ThemeProvider/테마/Emotion 의존성은 제거했다. `studio.css`는 공유 CSS 변수와 Studio 배치·스크롤을 담당하며 제어 높이·색·폰트를 전역 descendant 규칙으로 덮어쓰지 않는다. 모바일 Sheet는 단일 portal subtree를 유지하고 이전 focus scope가 해제된 다음 포커스를 복원한다. breakpoint에서 원래 trigger가 교체되면 같은 의미의 버튼을 찾아 복원한다. 선택 검증 범위·캡처·남은 접근성 조건은 [Studio shadcn MD](../testing/studio-shadcn.md)를 따른다.
+
+## 화면 간 분석 기준 — UX-002
+
+`components/analysis/AnalysisBasis.tsx`를 첫 생성·빌더·Explore·Studio·게시/복제의 읽기 전용 요약으로 재사용한다. 데이터 / 기간 / 필터 / 지표 기준 순서를 유지하고 현재 선택·초안·저장본·게시 시점·대상 재계산을 구분한다. 긴 값은 두 줄 요약과 native details의 전체 내용으로 제공한다. 본문/제목14px, 상세32px/모바일44px, 넓은 컨테이너4열/좁은 컨테이너2열이다. 화면 폭만으로 모달을4열로 바꾸지 않는다.
+
+계산·저장·권한을 수정하거나 다른 화면의 조건을 자동 적용하지 않는다. 공개 게시에는 기존 공개 집계 응답만 사용하고 원본/SQL/비공개 지표 정의를 추가하지 않는다. 데이터/지표 버전을 확인하지 못했으면 명시하고 최신 catalog 값을 저장 snapshot 대신 사용하지 않는다. [실제 화면/선택 검증](../testing/analysis-basis-ux.md)을 따른다.

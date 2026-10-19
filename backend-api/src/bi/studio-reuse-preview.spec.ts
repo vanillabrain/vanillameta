@@ -38,6 +38,13 @@ describe('read-only mixed reuse preview on actual target DuckDB', () => {
         expect(Number(pivot.pivot.kpis[1].value)).toBeCloseTo(5.390840046029919, 10);
         expect(result.blocks.map(b => b.blockId)).toEqual(['chart-a', 'pivot-a']);
         expect(result.newMetricCount).toBe(2);
+        expect(result.basis).toEqual({
+          sourceId: plan.target.sourceId,
+          sourceName: plan.target.name,
+          filters: plan.filters,
+          ...(plan.dateRange ? { dateRange: plan.dateRange } : {}),
+        });
+        expect(result.basis.filters).not.toBe(plan.filters);
         expect(checks.mock.calls.length).toBeGreaterThanOrEqual(2);
         expect(JSON.stringify(result)).not.toMatch(/"sql"|"definition"|"candidate:/);
       } finally {

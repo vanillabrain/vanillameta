@@ -19,3 +19,25 @@ it('renders_long_labels_without_source_lookup', () => {
   render(<StudioReusePreview preview={v} />);
   expect(screen.getByRole('heading', { name: v.blocks[1].title.trim() })).toBeTruthy();
 });
+
+it('does not describe a legacy opaque preview as unfiltered, and reads confirmed target scope', () => {
+  const v = mixedReusePreview();
+  const view = render(<StudioReusePreview preview={v} />);
+  expect(screen.getAllByText('필터 상세 미제공 · 미리보기 범위 확인').length).toBeGreaterThan(0);
+  view.rerender(
+    <StudioReusePreview
+      preview={{
+        ...v,
+        basis: {
+          sourceId: 30,
+          sourceName: '새 고객 파일',
+          filters: [{ column: 'customer', values: ['A'] }],
+          dateRange: { column: 'event_day', start: '2026-01-01', end: '2026-01-02', timeZone: 'UTC' },
+        },
+      }}
+    />,
+  );
+  expect(screen.queryByText('필터 상세 미제공 · 미리보기 범위 확인')).toBeNull();
+  expect(screen.getAllByText('customer: "A"').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('새 고객 파일 · #30').length).toBeGreaterThan(0);
+});

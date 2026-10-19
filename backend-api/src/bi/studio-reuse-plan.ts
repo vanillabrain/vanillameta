@@ -67,6 +67,12 @@ export type StudioReusePreviewV1 = {
   title: string;
   capturedAt: string;
   scope: string;
+  basis?: {
+    sourceId: number;
+    sourceName: string;
+    filters: StudioDocumentV1['filters'];
+    dateRange?: StudioDocumentV1['dateRange'];
+  };
   blocks: StudioReusePreviewBlock[];
   layouts: StudioDocumentV1['layouts'];
   newMetricCount: number;

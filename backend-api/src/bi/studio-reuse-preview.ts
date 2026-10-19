@@ -92,6 +92,12 @@ export async function previewStudioReuse(
     title: plan.title,
     capturedAt: new Date().toISOString(),
     scope: '연결한 파일 · 저장된 기간과 필터 · UTC',
+    basis: {
+      sourceId: plan.target.sourceId,
+      sourceName: plan.target.name,
+      filters: JSON.parse(JSON.stringify(plan.filters)),
+      ...(plan.dateRange ? { dateRange: JSON.parse(JSON.stringify(plan.dateRange)) } : {}),
+    },
     blocks,
     layouts: plan.layouts,
     newMetricCount: plan.graph.nodes.length,
