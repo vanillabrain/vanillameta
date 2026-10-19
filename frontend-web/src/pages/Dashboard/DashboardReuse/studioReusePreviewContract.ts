@@ -25,6 +25,10 @@ const assert = (ok: unknown) => {
 const text = (v: unknown, max = 1000) => typeof v === 'string' && v.length <= max;
 const scalar = (v: unknown) =>
   v === null || typeof v === 'boolean' || text(v, 10000) || (typeof v === 'number' && Number.isFinite(v));
+const numeric = (v: unknown) =>
+  v === null ||
+  (typeof v === 'number' && Number.isFinite(v)) ||
+  (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)));
 export function validateStudioReusePreview(input: unknown): StudioReusePreviewV1 {
   const v: any = input;
   studioKeys(v, ['schemaVersion', 'kind', 'title', 'capturedAt', 'scope', 'blocks', 'layouts', 'newMetricCount']);
@@ -76,7 +80,7 @@ export function validateStudioReusePreview(input: unknown): StudioReusePreviewV1
     if (b.kind === 'SEGMENT_PIVOT') validateStudioPivotResult(b.pivot, true);
     else {
       assert(['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_BAR', 'CHART_LINE'].includes(b.kind));
-      ordinary++;
+      ordinary += 1;
       const w = b.widget;
       studioKeys(w, [
         'type',
@@ -99,13 +103,38 @@ export function validateStudioReusePreview(input: unknown): StudioReusePreviewV1
           text(w.valueField, 255) &&
           (w.categoryField === undefined || text(w.categoryField, 255)) &&
           Array.isArray(w.fields) &&
+          w.fields.length > 0 &&
+          w.fields.length <= 100 &&
+          w.fields.every((f: any) => {
+            studioKeys(f, ['columnName', 'columnType']);
+            return text(f.columnName, 255) && f.columnName.length > 0 && text(f.columnType, 100);
+          }) &&
+          new Set(w.fields.map((f: any) => f.columnName)).size === w.fields.length &&
+          w.fields.some((f: any) => f.columnName === w.valueField) &&
+          (b.kind === 'BOARD_NUMERIC' || (w.categoryField && w.fields.some((f: any) => f.columnName === w.categoryField))) &&
           Array.isArray(w.datas) &&
           w.datas.length <= 500,
       );
       w.datas.forEach((r: any) => {
         assert(r && typeof r === 'object' && !Array.isArray(r));
         assert(Object.values(r).every(scalar));
+        assert(Object.prototype.hasOwnProperty.call(r, w.valueField) && numeric(r[w.valueField]));
+        if (b.kind !== 'BOARD_NUMERIC') assert(Object.prototype.hasOwnProperty.call(r, w.categoryField));
       });
+      if (w.trend !== undefined) {
+        studioKeys(w.trend, ['grain', 'timeZone', 'points']);
+        assert(
+          b.kind === 'BOARD_NUMERIC' &&
+            ['day', 'week', 'month'].includes(w.trend.grain) &&
+            (w.trend.timeZone === undefined || text(w.trend.timeZone, 100)) &&
+            Array.isArray(w.trend.points) &&
+            w.trend.points.length <= 240,
+        );
+        w.trend.points.forEach((point: any) => {
+          studioKeys(point, ['time', 'value']);
+          assert(text(point.time, 100) && Number.isFinite(Date.parse(point.time)) && numeric(point.value));
+        });
+      }
     }
   });
   assert(ordinary > 0);

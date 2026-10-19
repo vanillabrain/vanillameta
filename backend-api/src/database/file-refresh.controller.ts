@@ -12,7 +12,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Utf8FileInterceptor } from './multipart-options';
 import { diskStorage } from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -55,7 +55,7 @@ export class FileRefreshController {
   }
   @Post()
   @UseInterceptors(
-    FileInterceptor('file', {
+    Utf8FileInterceptor('file', {
       storage: diskStorage({
         destination: (_req, _file, cb) => {
           const root = path.resolve(process.env.FILE_UPLOAD_DIR || 'uploads', 'incoming');

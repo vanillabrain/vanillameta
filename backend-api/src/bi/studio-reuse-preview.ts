@@ -70,6 +70,14 @@ export async function previewStudioReuse(
           .filter(k => widget[k] !== undefined)
           .map(k => [k, widget[k]]),
       );
+      if (shown.trend) {
+        const t = shown.trend;
+        shown.trend = {
+          grain: t.grain,
+          ...(t.timeZone ? { timeZone: t.timeZone } : {}),
+          points: t.points,
+        };
+      }
       blocks.push({
         ...base,
         kind: b.original.kind as Exclude<typeof b.original.kind, 'SEGMENT_PIVOT'>,

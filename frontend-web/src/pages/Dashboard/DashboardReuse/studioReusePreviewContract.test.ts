@@ -28,3 +28,24 @@ it('all_breakpoint_layouts_reference_exact_block_set', () => {
     expect(() => validateStudioReusePreview(v)).toThrow();
   }
 });
+
+it('rejects malformed trend and missing chart result fields before rendering', () => {
+  for (const mutate of [
+    (w: any) => (w.trend = { grain: 'day', points: 42 }),
+    (w: any) => (w.trend = { grain: 'day', points: [null] }),
+    (w: any) => (w.trend = { grain: 'day', points: [{ time: 'bad', value: 1 }] }),
+    (w: any) => (w.trend = { grain: 'day', points: [{ time: '2026-01-01', value: {} }] }),
+    (w: any) => (w.datas = [{ other: 500 }]),
+    (w: any) => (w.fields = []),
+    (w: any) => (w.datas[0].value = 'not a number'),
+    (w: any) => {
+      w.type = 'CHART_BAR';
+      w.categoryField = 'category';
+    },
+  ]) {
+    const v = mixedReusePreview();
+    mutate(v.blocks[0].widget);
+    v.blocks[0].kind = v.blocks[0].widget.type;
+    expect(() => validateStudioReusePreview(v)).toThrow();
+  }
+});

@@ -43,7 +43,7 @@ describe('mixed saved Studio reuse plan', () => {
       o = capture(f);
     const p = prepareStudioReusePlan(o, f.target, {
       title: 'Chart copy',
-      columnMap: { revenue: 'sales' },
+      columnMap: { revenue: 'sales', day: 'event_day' },
       blockIds: ['chart-a'],
     });
     expect(p.blocks).toHaveLength(1);
@@ -53,6 +53,31 @@ describe('mixed saved Studio reuse plan', () => {
         title: 'Pivot only',
         columnMap: f.columnMap,
         blockIds: ['pivot-a'],
+      }),
+    ).toThrow();
+  });
+  it('chart_only_copies_require_and_preserve_implicit_numeric_trend_date', () => {
+    const f = studioReuseFixture(),
+      origin = capture(f);
+    expect(origin.entries[0].columns).toContain('day');
+    expect(() =>
+      prepareStudioReusePlan(origin, f.target, {
+        title: 'Chart copy',
+        columnMap: { revenue: 'sales' },
+        blockIds: ['chart-a'],
+      }),
+    ).toThrow();
+    f.target.columns.unshift({
+      name: 'unrelated_date',
+      type: 'TIMESTAMP',
+      temporal: true,
+      numeric: false,
+    });
+    expect(() =>
+      prepareStudioReusePlan(origin, f.target, {
+        title: 'Chart copy',
+        columnMap: f.columnMap,
+        blockIds: ['chart-a'],
       }),
     ).toThrow();
   });

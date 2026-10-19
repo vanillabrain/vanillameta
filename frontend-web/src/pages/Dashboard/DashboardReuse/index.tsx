@@ -10,7 +10,16 @@ import { Notice } from '@/components/ui/notice';
 import { TextField } from '@/components/ui/text-field';
 import SnapshotView, { Snapshot } from '../../Publication/SnapshotView';
 import { creationData } from '../Studio/studioCreation';
-import { errorMessage, responseData } from '../dashboardPreview';
+import { errorMessage as dashboardErrorMessage, responseData } from '../dashboardPreview';
+
+function errorMessage(failure: any) {
+  if (
+    (!failure?.response || failure.response.status === 0) &&
+    (failure?.code === 'ERR_NETWORK' || failure?.message === 'Network Error')
+  )
+    return '서버에 연결하지 못했습니다. 연결을 확인한 뒤 다시 미리보기해 주세요. 입력은 유지됩니다.';
+  return dashboardErrorMessage(failure);
+}
 
 type Column = { name: string; type: string; numeric: boolean; temporal: boolean };
 type Draft = {
@@ -541,7 +550,13 @@ function Content() {
             </div>
           </fieldset>
           <div className="my-4 flex flex-wrap items-center gap-2">
-            <Button variant="outline" disabled={!valid || !!busy || lock} onClick={() => void makePreview()}>
+            <Button
+              variant="outline"
+              disabled={!valid || lock}
+              aria-disabled={!!busy || undefined}
+              aria-busy={!!busy || undefined}
+              onClick={() => void makePreview()}
+            >
               전체 미리보기
             </Button>
             <Button disabled={!preview || !attempt || !!busy || unknown} onClick={() => void save()}>

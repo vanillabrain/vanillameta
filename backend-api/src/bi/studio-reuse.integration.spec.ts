@@ -14,7 +14,6 @@ import {
   StudioPublication,
   StudioPublicationRequest,
 } from '../dashboard-studio/entities/studio-publication.entity';
-import { StudioPublicationService } from '../dashboard-studio/studio-publication.service';
 import { User } from '../user/entities/user.entity';
 import { EnterpriseOrganization } from '../enterprise/entities/enterprise-organization.entity';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';

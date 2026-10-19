@@ -227,6 +227,12 @@ export function captureStudioReuseOrigin(input: {
       throw stale();
     const columns = reuseColumns({ ...analysis, widgets: [widget] }, profile).map(c => c.name);
     if (typeof block.defaultDateColumn === 'string') columns.push(block.defaultDateColumn);
+    if (
+      block.kind === 'BOARD_NUMERIC' &&
+      block.defaultDateColumn === undefined &&
+      catalog.temporalColumns[0]
+    )
+      columns.push(catalog.temporalColumns[0].column);
     return {
       block,
       widget,
@@ -294,7 +300,13 @@ export function prepareStudioReusePlan(
   if (required.some(n => !map[n])) throw fail();
   // Saved Explore recipes currently derive trend time from the first temporal column.
   // Reject a mapping that the persisted protocol cannot faithfully reproduce after reload.
-  if (selected.some(e => e.block.kind === 'SEGMENT_PIVOT')) {
+  if (
+    selected.some(
+      e =>
+        e.block.kind === 'SEGMENT_PIVOT' ||
+        (e.block.kind === 'BOARD_NUMERIC' && e.block.defaultDateColumn === undefined),
+    )
+  ) {
     const from = origin.catalog.temporalColumns[0]?.column;
     const to = target.columns.find(c => c.temporal)?.name;
     if ((from ? map[from] : undefined) !== to) throw fail();

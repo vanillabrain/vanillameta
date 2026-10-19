@@ -346,3 +346,36 @@ it('prepares a private demo source without automatic preview, AI or dashboard sa
   expect(api.post.mock.calls[0].slice(0, 2)).toEqual(['/studio/samples', { sample: 'margin-reuse' }]);
   expect((screen.getByRole('button', { name: '복사본 저장' }) as HTMLButtonElement).disabled).toBe(true);
 });
+it('explains a preview network failure and retains inputs for retry', async () => {
+  await open();
+  fireEvent.change(screen.getByLabelText('복사본 제목'), { target: { value: '보존한 제목' } });
+  api.post.mockRejectedValueOnce({ code: 'ERR_NETWORK', message: 'Network Error', response: { status: 0 } });
+  fireEvent.click(screen.getByRole('button', { name: '전체 미리보기' }));
+  expect((await screen.findByRole('alert')).textContent).toContain(
+    '서버에 연결하지 못했습니다. 연결을 확인한 뒤 다시 미리보기해 주세요. 입력은 유지됩니다.',
+  );
+  expect((screen.getByLabelText('복사본 제목') as HTMLInputElement).value).toBe('보존한 제목');
+  expect((screen.getByLabelText('데이터 소스') as HTMLSelectElement).value).toBe('1');
+  expect((screen.getByRole('button', { name: '복사본 저장' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('keeps the preview trigger focusable while rejecting duplicate pending requests', async () => {
+  await open();
+  let reject: (e: any) => void;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      }),
+  );
+  const trigger = screen.getByRole('button', { name: '전체 미리보기' }) as HTMLButtonElement;
+  trigger.focus();
+  fireEvent.click(trigger);
+  await waitFor(() => expect(trigger.getAttribute('aria-busy')).toBe('true'));
+  expect(trigger.disabled).toBe(false);
+  fireEvent.click(trigger);
+  expect(api.post).toHaveBeenCalledTimes(1);
+  await act(async () => reject({ code: 'ERR_NETWORK', message: 'Network Error', response: { status: 0 } }));
+  await screen.findByRole('alert');
+  expect(document.activeElement).toBe(trigger);
+});

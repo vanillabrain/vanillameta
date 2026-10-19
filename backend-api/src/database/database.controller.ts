@@ -27,7 +27,7 @@ import { ConnectionService } from '../connection/connection.service';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Utf8FileInterceptor } from './multipart-options';
 
 @UseGuards(JwtAuthGuard, SourceOwnershipGuard)
 @Controller('database')
@@ -93,7 +93,7 @@ export class DatabaseController {
    */
   @Post('upload')
   @UseInterceptors(
-    FileInterceptor('file', {
+    Utf8FileInterceptor('file', {
       storage: diskStorage({
         destination: (_request, _file, callback) => {
           const directory = path.resolve(process.env.FILE_UPLOAD_DIR || 'uploads', 'incoming');
@@ -124,7 +124,7 @@ export class DatabaseController {
 
   @Post(':id/file-replacement')
   @UseInterceptors(
-    FileInterceptor('file', {
+    Utf8FileInterceptor('file', {
       storage: diskStorage({
         destination: (_request, _file, callback) => {
           const directory = path.resolve(process.env.FILE_UPLOAD_DIR || 'uploads', 'incoming');

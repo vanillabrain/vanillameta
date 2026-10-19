@@ -17,7 +17,12 @@ export const mixedReusePreview = (): any => {
         title: 'Sales',
         description: '',
         display: {},
-        widget: { type: 'BOARD_NUMERIC', valueField: 'value', fields: ['value'], datas: [{ value: 500 }] },
+        widget: {
+          type: 'BOARD_NUMERIC',
+          valueField: 'value',
+          fields: [{ columnName: 'value', columnType: 'number' }],
+          datas: [{ value: 500 }],
+        },
       },
       { blockId: 'pivot1', kind: 'SEGMENT_PIVOT', title: 'Margin', description: '', display: {}, pivot },
     ],
