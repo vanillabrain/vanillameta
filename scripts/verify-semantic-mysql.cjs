@@ -11,6 +11,7 @@ const backend = path.join(root, "backend-api");
 const mysql = createRequire(path.join(backend, "package.json"))(
   "mysql2/promise"
 );
+const exportRestart = process.argv.includes("--export-restart");
 const receivedCopyRecovery = process.argv.includes("--received-copy-recovery");
 const groupDeliveryRecovery = process.argv.includes(
   "--group-delivery-recovery"
@@ -27,10 +28,13 @@ if (
     deliveryRecovery,
     groupDeliveryRecovery,
     receivedCopyRecovery,
+    exportRestart,
   ].filter(Boolean).length > 1
 )
   throw new Error("Select only one owned validation lane");
-const lanes = receivedCopyRecovery
+const lanes = exportRestart
+  ? ["runtime"]
+  : receivedCopyRecovery
   ? ["studio"]
   : handover
   ? ["handover"]
@@ -239,6 +243,7 @@ const cleanup = () =>
           ? "not_used"
           : "native DuckDB",
         lanes,
+        ...(exportRestart ? { validation: "export-restart" } : {}),
         ...(receivedCopyRecovery
           ? { validation: "received-copy-recovery" }
           : {}),
@@ -262,7 +267,9 @@ const cleanup = () =>
           "--runInBand",
           "--verbose",
           "--runTestsByPath",
-          ...(receivedCopyRecovery
+          ...(exportRestart
+            ? ["src/bi/export-jobs-restart.mysql.spec.ts"]
+            : receivedCopyRecovery
             ? [
                 "src/dashboard-studio/studio-received-remix-recovery.mysql.spec.ts",
               ]

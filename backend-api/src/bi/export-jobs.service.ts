@@ -435,6 +435,9 @@ export class ExportJobsService {
         // Aggregate SQL intentionally runs outside the metadata transaction and SQLite queue.
         const output = await this.explore.exportCsv(request.payload, actor);
         return await this.tx(async m => {
+          await this.owned(id, actor, m, true, expectedEpoch);
+          await this.lockReferences(m, job.sourceId, request.payload, request.measureVersions);
+          // UC054: hold the shared Source/Metric fences through publication, then reread access.
           const { job: current, scope: now } = await this.owned(id, actor, m, true, expectedEpoch);
           if (current.status !== 'running' || current.attemptToken !== token)
             return this.dto(current);
@@ -488,6 +491,7 @@ export class ExportJobsService {
               attemptToken: token,
               status: 'running',
               leaseUntil: MoreThan(new Date(Date.now())),
+              expiresAt: MoreThan(new Date(Date.now())),
             },
             {
               status: current.status,

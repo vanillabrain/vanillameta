@@ -60,7 +60,7 @@
 
 ## Implemented Slice: Durable aggregate CSV
 
-Explore/고급 Pivot의 검토 조건과 소스/지표 버전을 고정해 멱등 접수→사용자의 CSV 만들기→상태 확인/취소→권한 보호 파일을 연결한다. SQL 없는 입력 검증과 현재 권한/인증 세대 재검사, CAS/실행 lease·원자 파일 저장은 위 구현 계획을 따른다. lease 복구 검사는 같은 SQLite connection에서 새 service 인스턴스를 만든 것이며 실제 프로세스 재시작 증거가 아니다. 이 부분 구현으로 전체 비교 리포트 시나리오·TC050 상태를 올리지 않는다.
+Explore/고급 Pivot의 검토 조건과 소스/지표 버전을 고정해 멱등 접수→사용자의 CSV 만들기→상태 확인/취소→권한 보호 파일을 연결한다. SQL 없는 입력 검증과 현재 권한/인증 세대 재검사, CAS/실행 lease·원자 파일 저장은 위 구현 계획을 따른다. 종전 lease 복구 검사는 같은 SQLite connection의 서비스 재생성이다. 후속 [프로세스 재시작 계획](../plans/UC-054-export-restart.md)·[증빙](../testing/export-restart.md)은 실제 MySQL 서비스 자식 프로세스의 SIGKILL/새 PID와 별도 SQLite 전체 HTTP 서버 재시작을 구분한다. 이 부분 구현으로 전체 비교 리포트 시나리오·TC050 상태를 올리지 않는다.
 
 출력 완료/실패/취소의 과거 사건 알림은 [별도 계획](../plans/UC-054-export-notifications.md)·[증빙](../testing/export-notifications.md)을 따른다. 알림을 현재 파일 상태/유효성·권한으로 오인하지 않는다.
 
@@ -69,3 +69,9 @@ Explore/고급 Pivot의 검토 조건과 소스/지표 버전을 고정해 멱�
 [동일 기준 설계](../plans/UC-052-explore-basis.md)는 실제 조회에 사용한 지표 버전을 응답하고 화면의 명시 조건 snapshot과 함께 출력을 요청한다. 데이터 hash가 같아도 지표 변경은409로 거절해 재검토하며 완료 영속 파일의 과거 기준은 보존한다. 이전 기간 비교·시간대·분류·추이의 기존 계산을 재사용하고 새로운 전체 보고서 엔진을 필수로 추정하지 않는다. 전체 TC050 수용과 실제 실행 증빙은 분리한다.
 
 [동일 기준 실행 증빙](../testing/explore-reviewed-basis.md)은 BE397/FE237과 격리 headless 고유2개의 명시 조건 적용·보기 복구·현재/이전 기간·CSV·지표 변경 거절 범위를 기록한다. 실제 Ego/휴대폰/이번 MySQL/운영 및 전체16개/TC050 수용은 별도다.
+
+## BR-054-03: Committed restart recovery
+
+작업 접수 성공 응답 전에 metadata commit을 완료한다. 프로세스 교체 후 GET은 자동 집계·재실행·상태 쓰기를 하지 않는다. 살아 있는 임대는 유지하고 만료한 실행만 사용자의 명시 요청으로 재시도하며 최종 완료 CAS에서 임대와 작업 만료 시각을 모두 검사한다. 완료 저장은 Source/Metric 공통 잠금 뒤 현재 접근권·기준을 다시 검사하고 원자 파일/감사를 확정한다. 상태 재조회가 실패하면 마지막 표시·고정 조건은 유지하되 성공적으로 다시 읽기 전 실행·취소·다운로드를 막는다.
+
+실제 MySQL 서비스 프로세스 검증과 전체 로컬 HTTP 화면 검증은 [출력 재시작 증빙](../testing/export-restart.md)의 범위만 따른다. 5분 임대의 시험 fixture 가속은 운영 시간 경과/장애 수용을 대신하지 않는다.

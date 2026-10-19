@@ -1,3 +1,4 @@
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { createHash, randomUUID } from 'crypto';
@@ -114,6 +115,7 @@ describe('UC054 durable aggregate export with actual SQLite DuckDB JWT', () => {
       synchronize: true,
       entities: [
         Dashboard,
+        SourceCatalogEntry,
         User,
         EnterpriseMembership,
         EnterpriseAuditEvent,
@@ -423,6 +425,34 @@ describe('UC054 durable aggregate export with actual SQLite DuckDB JWT', () => {
       expect((await jobs.run(job.id, { expectedVersion: current.version }, 7)).status).toBe(
         'ready',
       );
+    } finally {
+      clock?.mockRestore();
+      insert.mockRestore();
+    }
+  });
+  it('rolls back chunks and ready audit when job TTL expires during persistence with a live lease', async () => {
+    const job = await jobs.create(input(), 7);
+    await db.manager.update(ExportJob, job.id, { expiresAt: new Date(Date.now() + 60000) });
+    const original = EntityManager.prototype.insert;
+    let clock: jest.SpyInstance | undefined;
+    const insert = jest
+      .spyOn(EntityManager.prototype, 'insert')
+      .mockImplementation(async function (entity, data) {
+        const result = await original.call(this, entity, data);
+        if (entity === ExportPart && !clock) {
+          const current = await this.findOneBy(ExportJob, { id: job.id });
+          expect(current.leaseUntil.getTime()).toBeGreaterThan(current.expiresAt.getTime());
+          clock = jest.spyOn(Date, 'now').mockReturnValue(current.expiresAt.getTime() + 1);
+        }
+        return result;
+      });
+    try {
+      expect((await jobs.run(job.id, { expectedVersion: 1 }, 7)).status).toBe('expired');
+      expect(await db.manager.count(ExportPart)).toBe(0);
+      expect(
+        await db.manager.count(EnterpriseAuditEvent, { where: { action: 'export.ready' } }),
+      ).toBe(0);
+      expect((await db.manager.findOneBy(ExportJob, { id: job.id })).status).not.toBe('ready');
     } finally {
       clock?.mockRestore();
       insert.mockRestore();

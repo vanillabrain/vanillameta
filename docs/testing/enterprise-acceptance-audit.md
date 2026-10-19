@@ -72,3 +72,7 @@ TC050 E13은 추가16개 밖 NFR003에도 연결되지만 TC050 종료 기준에
 ## UC053 받은 분석 독립 복제 요청 복구 후속
 
 [설계](../plans/UC-053-received-copy-recovery.md)·[증빙](received-copy-recovery.md)은 frozen 저장 요청 복구→읽기 전용 본인 사본 확인, 미관측→원 기준 전체 재미리보기/동일 요청 저장을 연결한다. 원본 공유 회수 후 본인 사본 보존과 정확 digest/현재 소유·epoch를 구별한다. MySQL14·recovery30/조건23·FE78/공용11·Ego112는 선택/중복 범위다. 일반 게시/소유 저장본 전면 초안 복구·일반 member 공유 정책·전 역할/운영/실기기·전체16개 수용은 Open이다.
+
+## 2026-10-19 UC054 출력 재시작 후속
+
+[출력 재시작 증빙](../testing/export-restart.md)은 MySQL 실제 서비스 자식 프로세스 SIGKILL/새 PID 검증7 PASS와 별도 SQLite 전체 API/Ego113의 queued/ready 재시작·동일 CSV·조회 실패 복구·390/768/1440을 확인했다. 성공 응답 전 commit, 최종 TTL/권한 회수 경합을 보완했다. 임대/TTL 시험 가속과 실제 전체 HTTP MySQL 미실행을 구분한다. 종전 새 서비스 인스턴스만의 재시작 한계는 이 범위에서 보완됐으며 전체 비교 정답/역할 행렬·운영/실휴대폰/사람·전체16개/TC050 수용은 계속 Open이다.

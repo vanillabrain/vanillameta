@@ -1,3 +1,4 @@
+import { serializeMetadataWork } from '../../common/metadata-work';
 import { Injectable, NestMiddleware, Logger, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { NestFactory } from '@nestjs/core';
@@ -25,7 +26,9 @@ export class shareUrlLoggerMiddleware implements NestMiddleware {
       created_at: new Date(),
     };
     this.logger.log(loginSaveObj);
-    await this.loginHisotryRepository.save(loginSaveObj);
+    await serializeMetadataWork(this.loginHisotryRepository.manager.connection, () =>
+      this.loginHisotryRepository.save(loginSaveObj),
+    );
     next();
 
     // await this.loginHisotryRepository.save(saveObj)
