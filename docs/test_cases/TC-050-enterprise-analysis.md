@@ -267,3 +267,7 @@ E11/E12의 대시보드 사용처/삭제·원자 영수증은 [UC055 계획](../
 초기 UI의 너무 긴 userId/password fixture는 수정했다. 최초 최종 deepEqual의 `queriedAt`은 조회 관측 필드로 구분해 읽기 전용 동일성 증명을 바로잡았으며, 이를 제품 데이터 변경으로 판단하거나 blind rerun으로 변경 요청을 반복하지 않았다. 이 보정과 최초 관측은 상세 증빙에 함께 보존할 범위다.
 
 이번 선택 실행은 익명 게시·운영 migration·실제 기기·사람 수용을 포함하지 않는다. I01~I07의 선택 PASS는 E01~E14 또는 FR014~025/NFR005~008 전체 수용을 승격하지 않으며, 전체 TC050의 Draft/NOT_RUN을 유지한다.
+
+## HTTP Access Matrix — Current Role Axes
+
+E02/E03/E09의 선택 검증은 [설계 M01~M08](../plans/TC-050-access-matrix.md)와 [HTTP/MySQL 실행 기록](../testing/enterprise-access-matrix.md)에 연결한다. 소유/비소유 admin, member 자원 권한 조합, 다른 조직, 익명, 비활성/이전 epoch와 직접·그룹·전달 회수를 구분한다. 실제 전체 Nest/MySQL에서 M01~M08의 선택 경로299 HTTP 요청·거절111건/13표 보존·독립 사본을 확인했다. 전체 E02/E03/E09 수용은 NOT_RUN이며 경로 inventory 전체/운영 수용으로 승격하지 않는다.

@@ -2,7 +2,9 @@
 
 ## 세션 시작 핵심 지침
 
-- **TC050 전체 앱 MySQL 통합:** [계획](docs/plans/TC-050-integrated-mysql.md)·[증빙](docs/testing/enterprise-integrated-mysql.md)은 실제 Nest HTTP/MySQL8.4.11/native DuckDB·Ego114의 실제 Codex 질문/원본600 저장→직접 공유→본인 소스1200 사본→비교300/200/100/50%·CSV→보관/복원·API 새 PID/reload의 대표 여정이다. 신규 빈 DB dev synchronize이며 운영 migration이 아니다. 매핑 select의 legacy44px/모바일14px 덮어쓰기를 제거해36px/16px·390/768/1440 넘침0을 확인했다. 최신 잔여표는 완료된 인계/탈퇴·세 복구·출력 재시작을 미구현으로 올리지 않는다. 다음은 전 역할/회수 HTTP 행렬과 AI/정답 변형이며 운영/실기기/업무·전체16개/TC050 수용은 Open이다.
+- **TC050 역할별 HTTP 권한·회수:** [설계](docs/plans/TC-050-access-matrix.md)·[증빙](docs/testing/enterprise-access-matrix.md)은 새 전체 Nest/MySQL8.4.11에서9개 계정 역할 축·직접/그룹 합집합·source/dashboard 독립·전달·출력·비활성/epoch를 검증했다. 최종 HTTP299건/40115·40396의 거절111건에서13개 제품 표 hash/count 불변과 실제 독립 복사본 보존을 확인했다. 제품 수정0·검증 실행기 추가이며 요청 수를 전체 완료율로 쓰지 않는다. dashboard export는 투영만/실제 파일은 source export이고 소비자 연결 공백은 남는다. legacy/별도 governance·진행 중 잠금 경합/모든 writer·운영/실기기/업무·전체16개 수용은 Open이다.
+
+- **TC050 전체 앱 MySQL 통합:** [계획](docs/plans/TC-050-integrated-mysql.md)·[증빙](docs/testing/enterprise-integrated-mysql.md)은 실제 Nest HTTP/MySQL8.4.11/native DuckDB·Ego114의 실제 Codex 질문/원본600 저장→직접 공유→본인 소스1200 사본→비교300/200/100/50%·CSV→보관/복원·API 새 PID/reload의 대표 여정이다. 신규 빈 DB dev synchronize이며 운영 migration이 아니다. 매핑 select의 legacy44px/모바일14px 덮어쓰기를 제거해36px/16px·390/768/1440 넘침0을 확인했다. 최신 잔여표는 완료된 인계/탈퇴·세 복구·출력 재시작을 미구현으로 올리지 않는다. 역할/회수 HTTP 선택 행렬은 위 후속으로 보완됐고 다음은 미실행 경로·AI/정답 변형이며 운영/실기기/업무·전체16개/TC050 수용은 Open이다.
 
 - **UC054 출력 재시작:** [계획](docs/plans/UC-054-export-restart.md)·[증빙](docs/testing/export-restart.md)은 실제 MySQL 서비스 자식 SIGKILL/새 PID와 별도 SQLite 전체 HTTP/Ego113 재시작을 구분한다. history 저장 공통 큐로 샘플/로그인 경합 후 성공 응답 전 commit을 복원하고, 완료 CAS TTL·Source/Metric 잠금 후 현재 접근권 및 조회 실패 동작 차단을 보완했다. MySQL7·SQLite21·sample영향22·FE50은 별도 배치다. Ego queued/ready 두 번 재시작·동일 다운로드·중단 fixture 재실행·조회 실패 복구·390/768/1440을 확인했다. lease/TTL fixture 가속이며 전체 HTTP MySQL/운영/실기기/전체16개 수용은 별도다.
 

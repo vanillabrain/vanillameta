@@ -138,6 +138,17 @@
 5. 본인은 새로 로그인해 조직 없는 상태와 본인 과거 영수증을 확인한다. 수신자 원본/계정·역사는 그대로다. 미확정 응답은 같은 UUID 상태 확인 후에만 명시 재시도한다.
 6. Use case ends.
 
+### A12: HTTP role matrix and current revocation
+
+**Trigger:** 동일 자원의 역할별 접근과 권한 회수 효과를 검증한다 (step 3 or 5).
+**Flow:**
+
+1. 서버는 현재 계정/조직/소유 관계와 직접·그룹 권한을 검사한다. admin 지위만으로 타인의 자료를 허용하지 않는다.
+2. 대시보드 action과 모든 연결 소스의 read를 각각 검사한다. 전달 read와 edit/publish/export를 구분한다.
+3. 한 허용 경로를 회수해도 다른 유효 경로가 남으면 합집합을 유지한다. 마지막 허용 회수 후 같은 토큰의 다음 보호 요청은 거절한다.
+4. 인증 무효와 자원 권한 거절, 목록 제외를 구분하고 새 변경/작업/파일 전달을 허용하지 않는다. 기존 원본·독립 사본·완료 파일·역사는 보존한다.
+5. Use case ends.
+
 ## Postconditions
 
 ### Success Postconditions
@@ -221,3 +232,7 @@
 [설계](../plans/UC-051-staff-transfer.md)·[검증](../testing/staff-transfer.md)은 FR016의 검색·명시 이동 및 관계 회수/자료 보존 단위다. 탈퇴·업무 소유권 이관·전체 보호 경로·운영 적용·실기기/업무 수용은 별도다.
 
 [실제 화면 후속](../testing/staff-transfer-ui.md)은 초기 상태/철회된 요청·수락 기준 변경의 구체적 복구 사유, 명시 거절과 통신 결과 미확정 분리, 실제 로그인 역할 전환과 이동/reload를 선택 검증했다. MySQL 앱 화면·실휴대폰/운영/사람 수용은 별도다.
+
+### BR-051-12: Current authority across HTTP consumers
+
+조직 admin/member와 자원별 read/edit/publish/export를 구별한다. 소유 admin의 관리와 비소유 admin의 접근은 같지 않다. dashboard action은 source read를 자동 제공하지 않는다. 직접·그룹 합집합과 전달 read를 현재 요청마다 검사하며 회수 후 과거 영수증/완료 파일을 현재 허용으로 승계하지 않는다. 검증 범위는 [HTTP 행렬 계획](../plans/TC-050-access-matrix.md), 실제 실행과 미실행은 [증빙](../testing/enterprise-access-matrix.md)을 따른다.
