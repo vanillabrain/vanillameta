@@ -67,3 +67,15 @@ it('validates the target basis without accepting SQL, malformed typed filters or
     expect(() => validateReuseAnalysisBasis(value)).toThrow();
   }
 });
+
+it.each(['hour', 'day', 'week', 'month'])('preserves supported numeric trend grain %s in mixed previews', grain => {
+  const value = mixedReusePreview();
+  value.blocks[0].widget.trend = { grain, points: [{ time: '2025-01-06T09:00:00Z', value: 2400 }] };
+  expect(validateStudioReusePreview(value).blocks[0]).toEqual(value.blocks[0]);
+});
+
+it.each(['minute', 'unknown'])('rejects unsupported numeric trend grain %s', grain => {
+  const value = mixedReusePreview();
+  value.blocks[0].widget.trend = { grain, points: [{ time: '2025-01-06T09:00:00Z', value: 2400 }] };
+  expect(() => validateStudioReusePreview(value)).toThrow();
+});

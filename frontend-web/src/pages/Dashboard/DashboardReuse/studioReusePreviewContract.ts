@@ -145,7 +145,7 @@ export function validateStudioReusePreview(input: unknown): StudioReusePreviewV1
         studioKeys(w.trend, ['grain', 'timeZone', 'points']);
         assert(
           b.kind === 'BOARD_NUMERIC' &&
-            ['day', 'week', 'month'].includes(w.trend.grain) &&
+            ['hour', 'day', 'week', 'month'].includes(w.trend.grain) &&
             (w.trend.timeZone === undefined || text(w.trend.timeZone, 100)) &&
             Array.isArray(w.trend.points) &&
             w.trend.points.length <= 240,

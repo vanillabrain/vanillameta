@@ -56,3 +56,25 @@
 gpt-6-luna·VoiceOver BLOCKED 유지. 이번 변경은 기준의 공통 표시이며 필터 자동 전파·계산/저장/권한 정책 변경이 아니다. 실휴대폰·운영 MySQL·전체 보안 역할 행렬·실고객/기업16개 수용은 NOT_RUN/Open으로 남긴다.
 
 검증 종료 후 Ego44와 이번 전용 API4562/웹3462를 정리하고 임시 생성 인증정보 파일을 삭제했다. 원래 API4560/웹3460은 유지했다. 격리 서버의 초기 CORS origin 누락은 실행 환경 설정 실패였으며, 명시한 로컬 origin으로 재기동해 정상 로그인 후 검증했다. 이 환경 보정을 제품 코드 수정으로 집계하지 않는다.
+
+## 후속 계획 — UXB-07 혼합 Pivot 복제의 실제 기준 표시
+
+2026-10-19 · UX 변경357e8736/원격 보존 병합ac7217e3. UXB01~06 통과는 재사용한다. 이전 기록에서 실제 혼합 Pivot 신규 공통 기준 화면은 미실행이므로, 전용 metadata 복사본에서 본인 source32의 일반 차트+저장 Pivot을 준비해 기존 소유 복제 미리보기를 연다. 서버가 확인한 대상 이름/기간/필터를 같은 순서로 표시하고 Pivot 블록별 집계 조건을 공통 필터로 오인하지 않는지 확인한다. 미리보기 통신 실패 때 이전 성공 기준/저장 버튼을 확정 상태로 남기지 않는지와 명시 재시도,390/768/1440·상세 Enter/Space/Tab·넘침0을 확인한다. 복사본 최종 생성·새 게시·실모델 호출/전체 숫자 회귀는 실행하지 않는다. 초기 상태 NOT_RUN; VoiceOver BLOCKED·gpt-6-luna 유지.
+
+### UXB-07 실제 결과 — Ego45 / PASS_SELECTED
+
+- **커밋·원격 보존:** UX 변경·기록은357e8736, 원격14개 후속 커밋 보존 병합은ac7217e3이며 drumcap으로 develop-v2 push를 확인했다. 충돌은 status.md 한 곳의 요약으로 양쪽 기록을 유지했다. 병합으로 겹친 StudioRemix11개·root API/FE build만 선택 실행했고 기존 전체 통과는 반복하지 않았다.
+- **격리 입력:** 이전 검증 metadata의 새 복사본 API4562/웹3462, 본인 테스트 계정9/source32/dashboard32를 사용했다. fixture 준비로만 일반3차트에 저장 segment Pivot1개를 더해4블록 저장본을 만들었다. 공통2025-01-06~10/company="Hanul Foods", Pivot의 별도 총매출≥0을 보존했다. 화면 제공 정상 USD 샘플 source33을 생성하고 day/company는 유지, revenue→sales_amount/profit→net_profit/plan→currency를 명시 연결했다. 마지막 매핑은 표시 계약 검사용 차원 변경이며 plan과currency의 업무 의미 동등성을 주장하지 않는다. 원래 API4560/웹3460/저장본은 변경하지 않았다.
+- **발견한 실제 결함:** 서버201의 올바른 혼합 응답에서 숫자 카드 trend.grain="hour"를 FE 계약이 day/week/month만 허용해 전체 미리보기를 거절했다. 최초 오류 캡처와 응답을 보존하고 새 시간 단위 회귀를 먼저 실패시켰다(1FAIL/5PASS/5미선택). 기존 서버 trend 계약의hour/day/week/month와 일치하도록 한 허용 목록만 수정했다. minute/unknown 거절·손상 값/임의 필드 검사는 유지한다. 동일 입력의 실제 미리보기에서 차트와 Pivot이 모두 표시됐다.
+- **숫자·기준 표시:** 대상 source33 이름/번호, 정확한 기간, typed Hanul 필터, 네 블록 이름이 서버 확정 basis와 일치했다. 별도 CSV Decimal 합산2행·4000.00USD/이익-1700.00USD/마진-42.500%가 카드·Pivot 셀/합계와 일치했다. 같은 업무 의미/Rill 전체 정답이나 기존 저장·게시 전체 회귀를 새로 실행한 것은 아니다.
+- **디자인·키보드:** 실제390/768/1440에서 패널358/720/1392px, 공통4항목 순서·같은 행 top 차이0·문서 넘침0이다.390 상세44px/Enter 열기·가시 초점/Space 닫기/Tab 다음 시계열 표로 이동, 조작 전후 API resource9→9를 확인했다. 최신 모바일 캡처390×844를 직접 확인했다. Ego 새 실행 라운드가1800px로 돌아간 최초 오류/복구 캡처는 모바일 증빙으로 사용하지 않고, 명시390px에서 해당 모바일 상태를 캡처했다. native select는 문서화된 selectOption이며 방향키만의 선택을 PASS로 바꾸지 않는다.
+- **통신 실패·복구:** 이 탭의 preview URL만 차단해 실제 네트워크 오류를 냈다. 이전 성공 미리보기/분석 기준0개·복사본 저장disabled, 제목·대상33·5개 매핑 보존,390px 넘침0이다. 차단 해제 후 Enter 명시 재시도로 같은 기준/숫자 복구를 확인했다. 준비 이후8개 metadata 표의 행수/내용 hash가 동일해 새 대시보드/지표/복제·게시 영수증 추가0이다. 최종 복사본 저장·게시·모델 호출은0이다.
+- **최종 선택 검사:** 변경 FE 계약/렌더2파일14PASS, FE type·변경 파일 non-fixing lint·FE build PASS. BE 제품 코드 변경0으로 앞선 병합 build를 재사용했다. 잘못된 루트 cwd의 npx 준비 시도는 네트워크 실패로 끝났으며 검사 성공에 포함하지 않는다. 올바른 frontend-web의 설치된 vitest만 최종 결과다. gpt-6-luna·VoiceOver BLOCKED·실휴대폰/운영/사람 수용Open을 유지한다.
+
+증빙 root: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-followup-20261019/`. `mixed-layout.json`, `keyboard.json`, `mobile-error-recovery.json`, `pivot-display.json`, `oracle.json`, `db-before.json`/`db-after.json`과 red/green/type/lint/build 로그를 대조했다.
+
+[최초 오류390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-followup-20261019/mixed-failure-390.png) · [수정 후390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-followup-20261019/mixed-recovered-390.png) · [1440](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-followup-20261019/mixed-basis-1440.png) · [Pivot390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-followup-20261019/mixed-pivot-390.png) · [키보드390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-followup-20261019/mixed-keyboard-390.png) · [통신 오류390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-followup-20261019/mixed-network-error-390.png)
+
+이 후속으로 UXB05의 혼합 Pivot **실제 새 기준 표시** 미실행은 보완했다. 새 복사본 최종 저장/reload·게시 후 새 표시까지의 연결, native 방향키·실휴대폰/VoiceOver·운영·실고객 수용은 이 후속 통과에 포함하지 않는다.
+
+검증 후 Ego45를 keep[]로 종료했고 이번 API4562/웹3462 프로세스만 종료했다. 격리 DB/합성 fixture와 외부 증빙은 보존하고 원래4560/3460은 유지했다.
