@@ -217,8 +217,11 @@ const cleanup = () =>
         phase: "ready",
         engine: server.version,
         metadata: "MySQL",
-        aggregation:
-          staff || departure || handover ? "not_used" : "native DuckDB",
+        aggregation: handover
+          ? "native DuckDB fixture only"
+          : staff || departure
+          ? "not_used"
+          : "native DuckDB",
         lanes,
       })
     );
@@ -240,6 +243,7 @@ const cleanup = () =>
             ? [
                 "src/enterprise/handover-proposal.spec.ts",
                 "src/enterprise/handover-transfer.spec.ts",
+                "src/enterprise/source-handover.spec.ts",
               ]
             : departure
             ? ["src/enterprise/staff-departure-impact.spec.ts"]

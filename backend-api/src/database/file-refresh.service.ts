@@ -12,8 +12,8 @@ import { createHash, randomUUID } from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { AnalysisUpload, DuckDBService } from '../analysis/duckdb.service';
-import { lockSourceActor } from './source-write-lock';
-import { metadataTransaction } from '../common/metadata-work';
+import { lockSourceActor, assertSourceOwner, sourceWriteTransaction } from './source-write-lock';
+import { lockMetricSources } from '../metric/metric-write-lock';
 import { ForbiddenException } from '@nestjs/common';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
 import { SourceAccessService } from '../ownership/source-access.service';
@@ -328,6 +328,7 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
           path.join(directory, 'admission.json'),
           JSON.stringify({
             actorId: actor,
+            sourceId: source.id,
             createdAt: Date.now(),
             storageDigest: this.storageDigest(),
           }),
@@ -337,8 +338,15 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
         else await fs.writeFile(staged, file.buffer);
         await fs.chmod(staged, 0o600);
         const job = await serializedViewWrite(this.repository(), () =>
-          this.db.transaction(async manager => {
+          sourceWriteTransaction(this.db, async manager => {
             await lockSourceActor(manager, actor, expectedEpoch);
+            const currentSource = (await lockMetricSources(manager, [source.id])).get(source.id);
+            assertSourceOwner(currentSource, actor);
+            if (
+              currentSource.engine !== 'duckdb' ||
+              createHash('sha256').update(currentSource.connectionConfig).digest('hex') !== expected
+            )
+              throw new ConflictException('파일 소유·기준이 변경됐습니다.');
             const prior = await manager.findOne(FileRefresh, {
               where: { actorId: actor, requestId },
             });
@@ -411,7 +419,6 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
       throw new ForbiddenException(
         '갱신을 접수한 인증 기준이 달라졌습니다. 최신 소스를 확인해 새 요청을 만들어 주세요.',
       );
-    await metadataTransaction(this.db, manager => lockSourceActor(manager, actor, expectedEpoch));
     if (!['queued', 'interrupted', 'failed'].includes(job.status))
       throw new ConflictException('이 작업은 다시 실행할 수 없습니다.');
     if (job.attempts >= 3)
@@ -432,10 +439,16 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
         '보관된 입력을 사용할 수 없습니다. 기존 성공 데이터는 유지됩니다. 파일을 다시 선택해 새 요청을 만들어 주세요.',
       );
     }
-    const updated = await this.patch(
-      { id: job.id, status: job.status },
-      { status: 'queued', error: null },
-    );
+    const updated = await sourceWriteTransaction(this.db, async manager => {
+      await lockSourceActor(manager, actor, expectedEpoch);
+      const currentSource = (await lockMetricSources(manager, [job.sourceId])).get(job.sourceId);
+      assertSourceOwner(currentSource, actor);
+      return manager.update(
+        FileRefresh,
+        { id: job.id, status: job.status },
+        { status: 'queued', error: null },
+      );
+    });
     if (updated.affected === 1) this.schedule(job.id);
     return this.get(sourceId, request, actor);
   }
@@ -536,8 +549,12 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
           job.actorId,
           async activate =>
             serializedViewWrite(this.repository(), () =>
-              this.db.transaction(async manager => {
+              sourceWriteTransaction(this.db, async manager => {
                 await lockSourceActor(manager, job.actorId, job.actorEpoch);
+                assertSourceOwner(
+                  (await lockMetricSources(manager, [job.sourceId])).get(job.sourceId),
+                  job.actorId,
+                );
                 const current = await manager.findOne(FileRefresh, {
                   where: { id, status: 'running', leaseToken: token, actorEpoch: job.actorEpoch },
                   ...(this.db.options.type !== 'sqlite'

@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **UC051 소스·파일 인계:** [설계](docs/plans/UC-051-source-handover.md)·[증빙](docs/testing/source-handover.md)은 source-only ready 등록 DuckDB1~20개의 별도 준비→수신자 최종 수락→소유자 명시 실행/영수증이다. 현재/역사 파일 신원·사용처/권한/갱신 차단과 User→Source 잠금을 따른다. 같은 ID/경로/bytes·Metric 정의/이력은 보존하고 owner/catalogVersion만 이전한다. 물리 복사/chown·외부 연결·실사용/혼합 자산·퇴사/운영/실기기/전체16개 수용은 별도다. 최신 실행 결과는 증빙을 따르며 중복 배치를 합산하지 않는다.
+
 - **UC051 최종 대시보드 인계:** [설계](docs/plans/UC-051-handover-transfer.md)·[증빙](docs/testing/handover-transfer.md)은 비공개 단독 대시보드1~20개의 별도 준비→수신자 최종 수락→소유자 명시 실행/영수증이다. 소스는 이미 수신자 소유여야 하며 source 혼합·공유/게시/재시도 작업·미지원 연결을 차단한다. mapping ID/블록·폭별 배치/Studio 문서 bytes/원본·역사는 보존하고 assetVersion/legacyRevision을 함께 갱신한다. 부모와 canonical 자식 잠금·구 소유자 재연결 차단/현재 읽기·정확한 replay를 따른다. MySQL215·SQLite211/8SKIP 및 후속57/7SKIP·FE112/후속59·25는 중복 범위다. 잠금 대기 뒤 최종 기한을 재검사하며 완료 replay는 별도다. Ego106 실패/reload/같은 UUID 재시도·양쪽 별도 동의/실행/완료 재조회·390/768/1440과 실제 문서/파일 보존을 확인했다. source/파일 실제 인계·퇴사/탈퇴·운영/실기기/전체16개 수용은 후속이다.
 
 - **UC051 인계 파일 관측:** [설계](docs/plans/UC-051-handover-custody.md)·[증빙](docs/testing/handover-file-custody.md)은 수락 요청 소유자만 관리 파일 신원·알려진 공유·미해제 갱신을 읽는다. ready/등록/실체와 bounded 비재귀 검사·파일 검사 후 권한/metadata 재검사를 따르며 양성 공유/hardlink는 다른 실패/순회 상한에도 유지한다. observed/미관측은 내용 정상·배타적 보관/실행 승인이 아니다. MySQL151·SQLite146/5SKIP·FE서비스61/표시45는 범위별 중복 배치다. Ego105 실패/재조회·파일 상태변경/reload·390/768/1440과 순수 GET66표/13파일 불변을 확인했다. 최종 인계 동의·원자 이전/영수증·퇴사/운영/실기기/전체16개 수용은 후속이다.

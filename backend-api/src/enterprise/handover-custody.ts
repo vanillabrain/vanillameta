@@ -42,7 +42,19 @@ export async function custodyMetadata(manager: EntityManager) {
           order: { id: 'ASC' },
           take: 2001 - databases.length,
         });
-  return { databases, commerce, limited: databases.length + commerce.length > 2000 };
+  const metadataDatabase = (manager.connection.options as { database?: unknown }).database;
+  const trustedMetadataFile =
+    manager.connection.options.type === 'sqlite' &&
+    typeof metadataDatabase === 'string' &&
+    metadataDatabase !== ':memory:'
+      ? path.resolve(metadataDatabase)
+      : null;
+  return {
+    databases,
+    commerce,
+    limited: databases.length + commerce.length > 2000,
+    trustedMetadataFile,
+  };
 }
 export async function custodyRefresh(manager: EntityManager, sourceId: number) {
   const rows = await manager.find(FileRefresh, {
@@ -169,7 +181,7 @@ async function capture(
 }
 
 /** lstat only, beneath a checked managed root and shape; never follows arbitrary consumer paths. */
-async function consumerPath(filename: string) {
+async function consumerPath(filename: string, trustedMetadataFile?: string | null) {
   if (
     typeof filename !== 'string' ||
     !filename ||
@@ -181,7 +193,42 @@ async function consumerPath(filename: string) {
   const duck = new RegExp(`^(${uuid})${path.sep === '/' ? '/' : '\\\\'}(.+)$`).exec(relative);
   const sqlite = new RegExp(`^(sample-${uuid}\\.db)(?:-wal|-shm|-journal)?$`).exec(relative);
   const kind = duck ? 'duckdb' : sqlite ? 'sqlite' : null;
-  if (!kind) throw new Error();
+  if (!kind) {
+    // The bootstrap seed explicitly references this server's metadata SQLite file.
+    // Exact server configuration only: no owner/id exemption or arbitrary outside path.
+    if (
+      !trustedMetadataFile ||
+      !['', '-wal', '-shm', '-journal'].some(
+        s => path.resolve(filename) === trustedMetadataFile + s,
+      )
+    )
+      throw new Error();
+    const target = path.resolve(filename);
+    let current = path.parse(target).root;
+    const parts = target.slice(current.length).split(path.sep).filter(Boolean);
+    let last: any;
+    for (let i = 0; i < parts.length; i++) {
+      current = path.join(current, parts[i]);
+      try {
+        last = await fs.lstat(current, { bigint: true });
+      } catch (e) {
+        if (e.code === 'ENOENT') return { filename: target, inode: null };
+        throw e;
+      }
+      if (last.isSymbolicLink()) {
+        if (
+          !(
+            i < parts.length - 1 &&
+            process.platform === 'darwin' &&
+            ['/var', '/tmp', '/etc'].includes(current) &&
+            (await fs.realpath(current)) === '/private' + current
+          )
+        )
+          throw new Error();
+      } else if (i < parts.length - 1 ? !last.isDirectory() : !last.isFile()) throw new Error();
+    }
+    return { filename: target, inode: inode(last) };
+  }
   const anchor = path.join(root(), duck ? path.join(duck[1], 'data.duckdb') : sqlite[1]);
   const canonical = await resolveDeletionFilename(root(), anchor, kind);
   const actual = path.join(canonical.root, relative);
@@ -213,7 +260,7 @@ async function consumers(
   const targets = new Set(files.flatMap(file => file.inodes));
   const compare = async (filename: string) => {
     try {
-      const candidate = await consumerPath(filename);
+      const candidate = await consumerPath(filename, metadata.trustedMetadataFile);
       if (candidate.inode && targets.has(candidate.inode)) present = true;
       for (const file of files) {
         if (file.kind === 'sqlite') {
@@ -260,6 +307,7 @@ export async function inspectHandoverCustody(
   source: Database,
   metadata: Awaited<ReturnType<typeof custodyMetadata>>,
   refresh: Awaited<ReturnType<typeof custodyRefresh>>,
+  internalProof = false,
 ) {
   const unresolved = {
     storage: 'unresolved',
@@ -319,5 +367,6 @@ export async function inspectHandoverCustody(
     filesChecked: files.length,
     consumers: shared,
     refresh,
+    ...(internalProof ? { custodySignature: digest(files.map(file => file.signature)) } : {}),
   };
 }

@@ -102,6 +102,18 @@
 5. 응답 유실/새로고침 후 같은 요청 상태를 조회한다. 정확한 재시도는 완료 영수증만 반환하며 다시 이전하지 않는다. 이전 소유자의 소유권 접근은 다음 보호 요청부터 거절한다.
 6. Use case ends.
 
+### A8: Managed source and file custody handover
+
+**Trigger:** 고정 의향의 소유자와 수신자가 관리 파일 소스의 실제 관리권 이전을 별도로 동의한다 (step 2).
+**Flow:**
+
+1. 소유자가 source-only 고정 목록의 현재 사용처·권한·작업·관리 파일 신원을 검토한다. 혼합/외부 연결/불명확·공유 파일/열린 작업은 차단하고 자동 정리하지 않는다.
+2. 소유자가 파일 데이터·Metric/업무 정의 관리권을 넘기는 효과에 동의해 최종 요청을 준비한다. 수신자가 같은 고정 목록과 효과를 읽고 별도로 최종 수락한다.
+3. 소유자가 최신 최종 상태를 조회하고 실행한다. 서버는 잠금 후 양쪽 현재 신원/조직·고정 metadata/파일·기한을 재검사한다.
+4. 모든 선택 Database의 owner/catalogVersion·완료 기록/감사를 함께 변경한다. 실패하면 전체 rollback하며 파일 bytes/경로·Metric ID/정의·과거 이력은 그대로다.
+5. 구 소유자는 같은 token으로 다음 보호 요청부터 거절된다. 수신자는 현재 소유권으로 소스를 사용하고 reload 후 같은 영수증을 확인한다. 응답 유실은 같은 UUID 조회/정확한 재시도로 확인한다.
+6. Use case ends.
+
 ## Postconditions
 
 ### Success Postconditions
@@ -145,6 +157,10 @@
 ### BR-051-08: Final consent and atomic ownership receipt
 
 [최종 인계 설계](../plans/UC-051-handover-transfer.md)는 단독 비공개 대시보드1~20개 전부의 이전만 지원한다. 선택 source는 부분 실행하지 않고 차단하며 source/파일 실제 이전·퇴사/탈퇴는 후속이다. 과거 의향/파일 관측은 최종 동의가 아니다. 현재 당사자/조직·epoch·정확한 소유 mapping·현재 공유/작업·고정 기준을 부모 잠금 아래 검사한다. 모든 mapping/버전·Studio legacyRevision·감사/영수증을 원자 저장하고 document bytes/배치를 보존한다. 과거 actor/권한/사본을 소급 변경하거나 활성 공유를 자동 정리하지 않는다. 완료 이후 영수증은 현재 자산 접근권이 아니며 의향 철회로 확정 이전을 되돌리지 않는다.
+
+### BR-051-09: Source identity and file preservation
+
+[관리 파일 소스 인계](../plans/UC-051-source-handover.md)는 명시 최종 동의를 실제 파일 내용/저장 정의의 앱 관리권 이전과 연결한다. 최초 범위는 private source-only 관리 DuckDB1~20개이며 외부 credential·혼합 대시보드/직원 탈퇴는 후속이다. source ID/Metric/카탈로그·조건 정의·파일 위치/bytes/등록 manifest/과거 행위자는 보존하고 owner/catalogVersion만 원자 변경한다. 파일 관측을 배타 보관 증명으로 바꾸지 않으며 알려진 공유·손상/미확인 소비자·진행 작업을 차단한다. 잠금 대기 후 현재 소유/epoch·기준/기한을 재검사하고 정확한 완료 replay는 추가 이전하지 않는다. OS 파일 소유권/데이터 원격 회수와 동일시하지 않는다.
 
 ## Source Evidence
 

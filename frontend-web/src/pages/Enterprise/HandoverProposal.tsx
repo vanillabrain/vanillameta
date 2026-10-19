@@ -1,3 +1,4 @@
+import HandoverSourceTransfer from './HandoverSourceTransfer';
 import HandoverFinalTransfer from './HandoverFinalTransfer';
 import HandoverDependencyReview from './HandoverDependencyReview';
 import React, { useEffect, useId, useRef, useState } from 'react';
@@ -430,12 +431,22 @@ export default function HandoverProposal({ context }: { context: EnterpriseConte
                     organizationVersion={organization.version}
                   />
                 )}
-              <HandoverFinalTransfer
-                key={`final:${generation.current}`}
-                review={review}
-                scope={scope}
-                organizationVersion={organization.version}
-              />
+              {(!review.detailsAvailable || review.assets.some(item => item.kind === 'source')) && (
+                <HandoverSourceTransfer
+                  key={`source-final:${generation.current}`}
+                  review={review}
+                  scope={scope}
+                  organizationVersion={organization.version}
+                />
+              )}
+              {(!review.detailsAvailable || review.assets.some(item => item.kind === 'dashboard')) && (
+                <HandoverFinalTransfer
+                  key={`final:${generation.current}`}
+                  review={review}
+                  scope={scope}
+                  organizationVersion={organization.version}
+                />
+              )}
               <label className="flex min-h-9 items-center gap-2 text-sm">
                 <input
                   type="checkbox"
