@@ -137,6 +137,8 @@ it('renders a public aggregate-only snapshot with no drill, CSV or API calls', (
     />,
   );
   expect(screen.queryByText(/저장 보기 조건 적용/)).toBeNull();
+  expect(screen.queryByRole('list', { name: '이 블록의 집계 조건' })).toBeNull();
+  expect(screen.queryByText('이 블록에 적용')).toBeNull();
   expect(screen.getByRole('table')).toBeTruthy();
   expect(screen.getAllByText('5,431.25 USD').length).toBeGreaterThan(0);
   expect(screen.queryByRole('button', { name: /기여 원본|CSV/ })).toBeNull();

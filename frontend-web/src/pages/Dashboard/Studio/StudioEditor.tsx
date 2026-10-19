@@ -1,4 +1,5 @@
 import StudioPivotPicker from './StudioPivotPicker';
+import StudioPivotConditions from './StudioPivotConditions';
 import StudioSavedCopy from './StudioSavedCopy';
 import SegmentPivot from '../../Explore/SegmentPivot';
 import { hasStudioPivot, studioCalculationKey, studioPivotKey, studioPivotMetricText } from './studioPivot';
@@ -1050,16 +1051,24 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         );
       return (
         <div className="studio-pivot-body">
-          <p className="text-xs leading-relaxed text-muted-foreground" role="note">
-            저장 보기 조건 적용 · 저장 필터 {block.pivot.state.filters.length}개 · 저장 기간{' '}
-            {block.pivot.state.dateRange
-              ? `${block.pivot.state.dateRange.start} ~ ${block.pivot.state.dateRange.end} · ${
-                  block.pivot.state.dateRange.timeZone ?? 'UTC'
-                }`
-              : '전체 기간'}
-            . 공통 필터/기간이 있으면 같은 열·기간을 대체합니다.
-          </p>
-          <SegmentPivot embedded result={row.pivot} metricText={studioPivotMetricText(formatMetric)} />
+          <StudioPivotConditions recipe={block.pivot} result={row.pivot} />
+          <SegmentPivot
+            embedded
+            compactHelp
+            result={row.pivot}
+            metricText={studioPivotMetricText(formatMetric)}
+            helpContext={
+              <p role="note">
+                저장 보기 조건 적용 · 저장 필터 {block.pivot.state.filters.length}개 · 저장 기간{' '}
+                {block.pivot.state.dateRange
+                  ? `${block.pivot.state.dateRange.start} ~ ${block.pivot.state.dateRange.end} · ${
+                      block.pivot.state.dateRange.timeZone ?? 'UTC'
+                    }`
+                  : '전체 기간'}
+                . 공통 필터/기간이 있으면 같은 열·기간을 대체합니다.
+              </p>
+            }
+          />
         </div>
       );
     }

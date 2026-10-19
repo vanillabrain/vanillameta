@@ -10,10 +10,14 @@ export default function SegmentPivot({
   metricText,
   embedded = false,
   onSelect,
+  compactHelp = false,
+  helpContext,
 }: {
   result: SegmentResult;
   embedded?: boolean;
   onSelect?: (selection: SegmentSelection, trigger: HTMLButtonElement) => void;
+  compactHelp?: boolean;
+  helpContext?: React.ReactNode;
   metricText: (metric: SegmentResult['kpis'][number], value: unknown) => string;
 }) {
   const pivot = result.pivot;
@@ -39,21 +43,40 @@ export default function SegmentPivot({
       values(entries)
     );
   const Container = embedded ? 'div' : Card;
+  const help = (
+    <div className="space-y-2 text-xs leading-relaxed text-muted-foreground">
+      {helpContext}
+      <p>
+        대상은 최대50개, 열은20개를 표시합니다. 행·열·전체 합계는 표시 상한 밖의 기여 행도 포함해 각각 다시 계산합니다.
+        비율은 셀의 합이 아닙니다.
+      </p>
+      {onSelect && <p>셀이나 합계를 선택하면 그 숫자에 기여한 원본 행을 확인합니다.</p>}
+      <p className={compactHelp ? '' : 'sm:hidden'}>
+        표에 초점을 두고 ← →로 이동하세요. Home/End는 처음/마지막 열로 이동합니다.
+      </p>
+    </div>
+  );
   return (
     <Container className={embedded ? 'flex min-w-0 flex-col gap-3' : 'min-w-0 gap-3 p-4'}>
       <h3 className="text-sm font-semibold">
         조건 대상 Pivot · {result.scope.dimensionColumn} × {pivot.column}
       </h3>
-      <p className="text-xs text-muted-foreground">
-        대상은 최대50개, 열은20개를 표시합니다. 행·열·전체 합계는 표시 상한 밖의 기여 행도 포함해 각각 다시 계산합니다.
-        비율은 셀의 합이 아닙니다.{pivot.truncatedColumns ? ' · 일부 열 생략' : ''}
-      </p>
-      {onSelect && (
-        <p className="text-xs text-muted-foreground">셀이나 합계를 선택하면 그 숫자에 기여한 원본 행을 확인합니다.</p>
+      {(result.groupsTruncated || pivot.truncatedColumns) && (
+        <p className="text-xs font-medium text-muted-foreground">
+          일부 {result.groupsTruncated && pivot.truncatedColumns ? '대상·열' : result.groupsTruncated ? '대상' : '열'} 생략 ·
+          전체 합계는 전체 범위에서 계산합니다.
+        </p>
       )}
-      <p className="text-xs text-muted-foreground sm:hidden">
-        표에 초점을 두고 ← →로 이동하세요. Home/End는 처음/마지막 열로 이동합니다.
-      </p>
+      {compactHelp ? (
+        <details className="min-w-0 text-sm">
+          <summary className="w-fit cursor-pointer rounded-sm py-1.5 text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+            집계·기간 안내
+          </summary>
+          <div className="pt-2">{help}</div>
+        </details>
+      ) : (
+        help
+      )}
       <div
         role="region"
         aria-label="집계 조건 Pivot 표"

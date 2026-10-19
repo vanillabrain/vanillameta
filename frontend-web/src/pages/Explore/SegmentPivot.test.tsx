@@ -56,3 +56,28 @@ it('uses real buttons for cell/row/column/grand drills and preserves null axis i
   fireEvent.click(buttons[3]);
   expect(choose.mock.calls[3][0]).toEqual({});
 });
+it('keeps the aggregate table and truncation warning outside collapsed help in compact blocks', () => {
+  const result: any = {
+    scope: { dimensionColumn: 'customer' },
+    kpis: [{ id: 1, label: 'Sales', value: 5 }],
+    groups: [{ category: 'A', values: [{ id: 1, value: 5 }] }],
+    groupsTruncated: true,
+    pivot: { column: 'service', columns: [], rows: [], columnLimit: 20, truncatedColumns: true },
+  };
+  const { container } = render(
+    <SegmentPivot
+      embedded
+      compactHelp
+      result={result}
+      metricText={(_, v) => String(v)}
+      helpContext={<p>저장 기간 전체 기간</p>}
+    />,
+  );
+  const details = container.querySelector('details');
+  expect(details).not.toBeNull();
+  expect(details.open).toBe(false);
+  expect(details.textContent).toContain('저장 기간 전체 기간');
+  expect(details.textContent).toContain('Home/End');
+  expect(screen.getByRole('table').closest('details')).toBeNull();
+  expect(screen.getByText(/일부 대상·열 생략/).closest('details')).toBeNull();
+});
