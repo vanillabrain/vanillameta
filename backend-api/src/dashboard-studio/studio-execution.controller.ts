@@ -36,7 +36,12 @@ export class StudioExecutionController {
   }
   @Post('runs/:id/remix')
   remix(@Param('id') id: string, @Body() body: any, @Req() req) {
-    return this.executions.remix(id, body, req.user?.accessKeyData?.id);
+    return this.executions.remix(
+      id,
+      body,
+      req.user?.accessKeyData?.id,
+      req.user?.accessKeyData?.authVersion ?? 0,
+    );
   }
   @Get('runs/:id/creation')
   creationProposal(@Param('id') id: string, @Req() req) {

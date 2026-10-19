@@ -570,7 +570,7 @@ export class StudioExecutionService implements OnModuleInit {
    * T14: explicit column mapping confirmation in the conversation. The publication token and
    * version stay bound to the owned remix run and one private clone is written per execution.
    */
-  async remix(runId: string, body: any, actor: number): Promise<any> {
+  async remix(runId: string, body: any, actor: number, epoch = 0): Promise<any> {
     const row = await this.owned(runId, actor),
       state = this.state(row),
       binding = this.remixBinding(row, state, body);
@@ -591,7 +591,7 @@ export class StudioExecutionService implements OnModuleInit {
         throw new ConflictException('복제 저장이 진행 중입니다. 같은 요청으로 다시 시도해 주세요.');
       return pending.promise;
     }
-    const promise = this.saveRemix(row, state, actor, binding).finally(() =>
+    const promise = this.saveRemix(row, state, actor, binding, epoch).finally(() =>
       this.remixes.delete(runId),
     );
     this.remixes.set(runId, { payloadHash: binding.payloadHash, promise });
@@ -698,6 +698,7 @@ export class StudioExecutionService implements OnModuleInit {
     state: StudioExecutionState,
     actor: number,
     binding: StudioRemixBinding,
+    epoch: number,
   ) {
     const prior = state.remixSave;
     if (prior && prior.payloadHash !== binding.payloadHash) {
@@ -722,7 +723,13 @@ export class StudioExecutionService implements OnModuleInit {
     );
     let result: any;
     try {
-      result = await this.remixService.remix(binding.token, binding.request, actor);
+      result = await this.remixService.remix(
+        binding.token,
+        binding.request,
+        actor,
+        undefined,
+        epoch,
+      );
     } catch (error) {
       await this.failedRemix(row, state, actor, binding, error);
       throw error;

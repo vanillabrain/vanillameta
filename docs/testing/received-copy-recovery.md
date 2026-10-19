@@ -20,6 +20,10 @@ Status: Selected verification passed; full acceptance Open
 - 신규 recovery를 최종 별도 재실행해 **30 PASS**를 확인했다. 기존 remix service/controller와 recovery 3 suites도 선택 배치에서 통과했다. 같은 배치의 conditions suite는 기존 fixture에 User metadata가 없어22개 실패했다. User entity/활성 actor seed만 보완해 conditions를 별도 재실행한 **23 PASS**를 확인했다. 초기 실패 로그를 보존했으며 전체 초기 배치를 통과로 표시하거나 여러 단계 수를 합산하지 않는다.
 - FE 저장소/API/복구·received wrapper **5 files 78 PASS**, 공용 StudioRemix **11 PASS**는 별도 배치다. BE/FE type·scoped lint·build와 변경 diff 검사가 통과했다. 별도 정적 검토와 사람 업무 수용은 구별한다.
 
+## push 전 호출자 호환성 후속
+
+최종 호출 경로 점검에서 기존 StudioExecution의 명시 복제 저장이 새 공통 서비스 인자를 생략해 현재 JWT epoch가0보다 큰 계정도0으로 요청하는 회귀를 발견했다. controller→execution remix→공통 remix까지 요청의 epoch를 그대로 전달하도록 보완했다. 현재 DB epoch로 옛 요청을 승격하지 않는다. 현재 nonzero epoch와 옛 epoch 전달 회귀를 포함한 execution service/controller·recovery **3 suites111 PASS**는 위30개와 겹치는 후속 배치다. type/scoped lint·최종 BE build도 통과했다. 이 후속은 실제 Ego 여정 이후의 내부 호출 인자 수정이며, 해당 실행 화면 자체나 execution claim/다른 역사 경로의 모든 인증 경합을 실제 화면으로 재검증한 것은 아니다.
+
 ## Fixture 준비의 한계
 
 한 owned QA runtime/가상 조직·직원/합성 CSV만 사용했다. 원본 amount 합계500, 수신자 별도 소스 합계900이다. 초기 SQL-only AI-save fixture는 구조화 지표 참조가 없어 복제 미지원 안내를 받았으며 제품 오류로 보지 않았다. 그 자료를 보존한 채 정상 `/bi/metrics`·`/studio/proposals`·`/studio/dashboards`로 저장 지표 참조 원본을 별도로 생성했다. 선택 저장 지표의 서버 생성 경로가 동작해 준비한 결정적 provider에 대한 modelCalls는0이었다. 실제 LLM 또는 provider 응답 검증으로 표현하지 않는다. 보존 기준은 이 준비 이후다.

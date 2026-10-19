@@ -1451,6 +1451,40 @@ describe('T7 durable executions', () => {
       const run = await runner.create({ ...body, prompt: '내 데이터로 복제해줘' }, 7);
       return { runner, run, remixer, journals };
     };
+
+    it('forwards a legitimate nonzero request epoch through the execution remix save call', async () => {
+      const { runner, run, remixer } = await harness();
+      await db.manager.update(User, 7, { authVersion: 9 });
+      await (runner.remix as any)(run.runId, confirmation(), 7, 9);
+      expect(remixer.remix).toHaveBeenCalledWith(
+        'e'.repeat(64),
+        expect.objectContaining({ targetSourceId: 22 }),
+        7,
+        undefined,
+        9,
+      );
+    });
+    it('does not upgrade an old request epoch to the current database epoch', async () => {
+      const { runner, run, remixer, journals } = await harness();
+      await db.manager.update(User, 7, { authVersion: 9 });
+      (remixer.remix as jest.Mock).mockImplementation(
+        async (_token, _request, _actor, _origin, epoch) => {
+          if (epoch !== 9) throw new ForbiddenException('Current actor required.');
+          throw new Error('Old request must not be upgraded');
+        },
+      );
+      await expect((runner.remix as any)(run.runId, confirmation(), 7, 4)).rejects.toMatchObject({
+        status: 403,
+      });
+      expect(remixer.remix).toHaveBeenCalledWith(
+        'e'.repeat(64),
+        expect.anything(),
+        7,
+        undefined,
+        4,
+      );
+      expect(journals.size).toBe(0);
+    });
     it('commits once for concurrent and refreshed-client confirmations, preserving original editor and model', async () => {
       const { runner, run, remixer } = await harness();
       const [first, second] = await Promise.all([

@@ -27,3 +27,7 @@ received 재미리보기도 계산 시작 전과 성공 응답·계산 오류 �
 ## 검증·종료
 
 저장소 한도/엄격 입력/손상/격리/쓰기 실패·UI remount/reload/늦은 응답·확정/미관측·실패/403/409·정확 재미리보기와 별도 저장·보관 해제를 확인한다. Docker MySQL의 정확 digest/다른 actor·소유/소스/epoch·조회 쓰기0·원자 사본/영수증·동시 동일 UUID·잠금 대기 경합을 선택 검증한다. Ego 한 공간에서 실제 저장 commit 후 응답 유실→reload→확정 사본 찾기/열기·미전달→결과 미관측→재미리보기→같은 요청 저장/reload·원본 보존·대표390/768/1440px를 확인한다. spec/수용 잔여/AGENTS 동기화·별도 검토·pin/check/packet 후 commit/push한다. 운영/실기기/전체16개 수용은 Open이다.
+
+## 호출자 호환성 후속
+
+공통 remix 서비스에 epoch를 추가할 때 기존 StudioExecution 명시 복제 저장도 controller의 현재 요청 epoch를 최종 호출까지 그대로 전달한다. DB 현재값으로 요청 epoch를 대체하지 않는다. 내부 호출자 nonzero/옛 epoch 전달을 회귀 검증하며 이 경로의 모든 claim/영수증 경합이나 실제 UI를 받은 분석 복구 증거로 승계하지 않는다.

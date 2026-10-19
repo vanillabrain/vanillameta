@@ -43,4 +43,16 @@ describe('T7 execution POST disconnect boundary', () => {
     expect(await controller.retry('id', {}, req, res)).toEqual({ status: 'succeeded' });
     expect(service.retry).toHaveBeenCalledWith('id', {}, 7, expect.any(AbortSignal));
   });
+  it.each([9, 4])(
+    'forwards the exact request epoch %s for explicit remix confirmation',
+    async epoch => {
+      const remix = jest.fn().mockResolvedValue({ status: 'succeeded' });
+      const controller = new StudioExecutionController({ remix } as any);
+      const body = { requestId: 'confirm' };
+      await controller.remix('run-id', body, {
+        user: { accessKeyData: { id: 7, authVersion: epoch } },
+      });
+      expect(remix).toHaveBeenCalledWith('run-id', body, 7, epoch);
+    },
+  );
 });
