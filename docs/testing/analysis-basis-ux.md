@@ -78,3 +78,39 @@ gpt-6-luna·VoiceOver BLOCKED 유지. 이번 변경은 기준의 공통 표시�
 이 후속으로 UXB05의 혼합 Pivot **실제 새 기준 표시** 미실행은 보완했다. 새 복사본 최종 저장/reload·게시 후 새 표시까지의 연결, native 방향키·실휴대폰/VoiceOver·운영·실고객 수용은 이 후속 통과에 포함하지 않는다.
 
 검증 후 Ego45를 keep[]로 종료했고 이번 API4562/웹3462 프로세스만 종료했다. 격리 DB/합성 fixture와 외부 증빙은 보존하고 원래4560/3460은 유지했다.
+
+## 후속 계획 — UXB-08 복사본 저장·재조회·게시의 기준 유지
+
+2026-10-20 · develop-v2 d2ee2362. UXB01~07 통과는 재사용한다. 같은 격리 fixture의 혼합4블록/source32→target33,2025-01-06~10 UTC/company="Hanul Foods", 명시한5열 연결을 전제 조건으로만 복원한다. 새 비공개 복사본 저장→새ID/원본 보존→Studio 재조회/reload→게시 설정의 저장 기준→비공개 게시→게시 화면/reload의 기간·필터·지표 제목/단위·Pivot 추가 조건 적용과4000USD/-42.5%를 확인한다. 게시 응답에 원본 소스 번호/SQL/지표 recipe를 추가 노출하지 않으며390/768/1440·Enter/Space/Tab/Escape·넘침/정렬을 기록한다. API/DB와 실제 화면을 함께 대조하고 복구가 필요하면 최초 실패와 수정 후 결과를 분리한다. 새 원본 생성/AI질문·이전 미리보기 장애 조합은 반복하지 않는다. 최초 NOT_RUN; gpt-6-luna·VoiceOver BLOCKED·실기기/운영/사람 수용Open 유지.
+
+### UXB-08 실제 결과 — 2026-10-20 / Ego48
+
+**PASS_SELECTED: 새 혼합 복사본 저장→Studio reload→게시 설정→비공개 V1→게시본 reload.** 제품 코드 d2ee2362 불변이며 UXB01~07의 통과를 재실행한 결과로 합산하지 않는다. 이전 preview 입력 복원은 이번 저장 구간에 들어가기 위한 전제 준비다.
+
+| 조건 | 결과 | 실제 근거 |
+|---|---|---|
+| UXB-08S 저장·재조회 | PASS_SELECTED | source32/dashboard32의 일반3차트+Pivot1개를 대상33으로 명시 연결했다.390px에서 `복사본 저장` Enter1회→201·새 비공개 dashboard33/Studio200, 새 블록ID와 지표63/64 v1을 확인했다. reload는 GET userinfo/Studio200만이며 새 POST0이다. |
+| UXB-08P 게시·재조회 | PASS_SELECTED | 게시 설정4항목이 저장본4항목과 정확히 같았다. 기본 비공개/복제 미허용을 유지하고 Enter 게시1회→V1. 같은 소유자의 새 탭·reload에서 기간/필터·네 제목/단위,4000.00USD/-42.50%와 Pivot 셀/합계가 유지됐다. 게시 reload는 GET1/쓰기0이다. 익명 링크 공개/재게시/중지/수신자 접근은 이번 조건이 아니다. |
+| UXB-08K 대표 화면·키보드 | PASS_SELECTED | 저장본·게시 설정·게시본390/768/1440의 문서 넘침0, 공통4항목 순서·동일 행 top 차이0·본문14px이다. 모바일 상세44px/Enter 열기·Space 닫기·Tab 가시 초점, 게시 모달 Escape→게시·공유 복귀/Tab 비공개 radio, Pivot 표 Home/End를 확인했다. 스크린리더·실휴대폰/전체 키보드 수용은 아니다. |
+| UXB-08B 원본·권한 경계 | PASS_SELECTED | 기존8개 metadata 표의 모든 기존 행이 동일하다. 대시보드/Studio 각+1·지표+2·생성 영수증+1·게시/게시 영수증 각+1, StudioRun/StudioRemix 추가0이다. 게시 snapshot에는 sourceId/databaseId/measureRefs/definition/recipe/SQL/연결정보가 없다. |
+
+#### 데이터·기준 대조
+
+- 새 격리 DB `/tmp/vm-uxb08-runtime/metadata.sqlite`에 이전 fixture를 복사했고 원래 서버·DB를 수정하지 않았다. 테스트 계정9의 세션이 만료돼 이 복사 DB의 합성 계정에만 새 임시 비밀번호를 설정하고 실제 로그인했다. 기존 비밀번호/과거 인증 로그를 탐색하지 않았으며 임시 인증정보 파일은 종료 후 삭제했다.
+- 공통 기간은 day/UTC2025-01-06~10, typed company="Hanul Foods"다. source33의5열 명시 연결과 plan→currency 차원 변경을 그대로 재사용했다. 다른 업무 의미의 차원 동등성을 새로 주장하지 않는다.
+- 원본 Pivot의 `총매출≥0`은 새 지표63으로 연결돼 저장 recipe에 보존됐다. 저장 후 두 KPI·hour 추세·day 추세·company×currency Pivot의 집계가 같다. 이전 공개 합성 CSV Decimal 정답2행/매출4000.00/이익-1700.00USD/마진-42.500%를 재사용했고 실제 저장/게시 응답과 화면이 일치했다. 원본/source32의2000USD/5%를 대상 결과와 혼동하지 않았다.
+- 데이터 이름·번호와63/64 v1 고정 참조는 소유 Studio/게시 준비에서 표시한다. 게시본은 기존 privacy 계약에 따라 **게시 시점 집계 데이터·제목/단위**만 표시하고 원 소스 번호/지표 recipe를 공개하지 않는다. 이 차이를 기준 손실이나 최신 Metric 조회로 대체하지 않는다. Pivot 상세 조건 정의도 공개하지 않으며 조건이 적용된 집계 결과를 확인했다.
+
+#### 관측·검증 범위
+
+첫 게시 탭의 키보드 실행에서는 창 활성화가 권한 재조회를 발생시켜 상세 DOM이 교체되고 초점이 body로 이동했다. 이 최초 관측은 `published-keyboard-initial.json`/진단 캡처에 보존했다. 창 활성화/권한 확인 완료 후 document.hasFocus=true·SUMMARY→Enter open=true/초점 유지·GET3→3, Space 닫기/Tab 시계열 표와 가시 초점을 확인했다. 최초 미완료 입력을 PASS로 집계하지 않는다. 창 복귀 재조회 중 초점 보존 전수·native select 화살표만의 조작은 이번 선택 수용에서 제외한다. 조회 중 과거 승인 데이터를 숨기는 정책을 제거하지 않았다.
+
+저장본→게시 설정의 basis4항목 완전 일치, 저장/게시의 filters/dateRange·제목 일치·서로 다른 블록ID, 기존 행 보존·public snapshot private key 비노출·대표 폭/표시 숫자를 실행 JSON9조건과 API/DB/실제 화면으로 대조했다. 새 제품 결함은 확인되지 않았으며 **제품 코드 수정0/새 단위·전체 core·빌드 반복0**이다. 이전 d2ee2362의 계약/렌더14PASS·type/lint/build를 재사용하며 이것을 이번 저장/게시의 새 단위 실행으로 보고하지 않는다. 초기 fixture 검사에서 studio_state의 document/sourceRevision wrapper와 일부 영수증 표의 id 열을 잘못 가정한 준비 스크립트 실패는 수정했으며 제품 결함으로 집계하지 않는다.
+
+#### 증빙·종료
+
+외부 root: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/`. `summary.json`의9조건 true, `copy-saved-basis.json`, `published-snapshot.json`, `actual-numbers.json`, `save-requests.json`, `publication-requests.json`, `db-after.json`, `saved-layout.json`/`publish-settings.json`/`published-layout.json`, 키보드 initial/diagnostic/final JSON을 대조했다. 대표 이미지를 직접 열어 읽힘·크기·정렬·줄바꿈·포커스를 확인했다.
+
+[저장본390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/saved-studio-390.png) · [저장본1440](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/saved-studio-1440.png) · [게시 설정390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/publish-settings-390.png) · [게시본390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/published-390.png) · [게시본1440](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/published-1440.png) · [게시 Pivot 키보드390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/analysis-basis-save-publish-20261020/published-pivot-keyboard-390.png)
+
+Ego48을 keep[]로 종료하고 이번 API4562/웹3462 프로세스만 종료했다. 기존 서버와 격리 DB/비공개 복사본33·게시V1은 보존한다. gpt-6-luna 설정 유지/새 모델 호출0, VoiceOver BLOCKED 유지다. 물리 휴대폰/운영/MySQL 새 실행·전체 권한/게시 장애 조합·실고객/16개 수용은 Open이며 이미 통과한 조건을 반복하지 않았다. Ego Lite 업데이트 알림은 확인했지만 설치/업그레이드는 실행하지 않았다.
