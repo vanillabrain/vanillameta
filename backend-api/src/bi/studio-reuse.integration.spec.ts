@@ -102,7 +102,9 @@ const draft = () => ({
     },
   ],
 });
-describe('Studio mixed source replacement on real DuckDB and SQLite', () => {
+describe(`Studio mixed source replacement on real DuckDB and ${
+  process.env.VM_STUDIO_REUSE_MYSQL_CONFIG ? 'MySQL' : 'SQLite'
+}`, () => {
   let db: DataSource,
     worker: DuckDBService,
     ai: AiDashboardService,
@@ -168,6 +170,11 @@ describe('Studio mixed source replacement on real DuckDB and SQLite', () => {
         identity.db !== mysqlConfig.database
       )
         throw new Error('Refusing unexpected Studio reuse MySQL server.');
+      const [tables] = await db.query(
+        'SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema = DATABASE()',
+      );
+      if (Number(tables.n) !== 0)
+        throw new Error('Studio reuse MySQL fixture must be a fresh empty owned database.');
       await db.synchronize();
     }
     await db.manager.save(User, {
@@ -502,6 +509,84 @@ describe('Studio mixed source replacement on real DuckDB and SQLite', () => {
         await runner.release();
         await peer.destroy();
         await db.manager.update(Database, 2, { catalogActive: true });
+      }
+    },
+  );
+  (process.env.VM_STUDIO_REUSE_MYSQL_CONFIG ? it : it.skip)(
+    'MySQL independent writers replay one receipt after the same actor lock wait',
+    async () => {
+      const { service, request } = await prepare();
+      const preview: any = await service.preview(id, request, 7, 'owned', 0);
+      const body = { ticket: preview.ticket, requestId: randomUUID() };
+      const before = {
+        dashboards: await db.manager.count(Dashboard),
+        metrics: await db.manager.count(Metric),
+        receipts: await db.manager.count(AnalysisCreationReceipt),
+        views: await db.manager.count(PersonalView),
+      };
+      const peer = await new DataSource({ ...db.options, synchronize: false } as any).initialize();
+      const peerAccess = new SourceAccessService(peer);
+      const peerAi = new AiDashboardService({} as any, connection, peer.getRepository(Dashboard));
+      const peerBi = new BiService(peer, peerAccess, connection, peerAi);
+      const other = new DashboardReuseService(
+        peer,
+        peerBi,
+        peerAi,
+        connection,
+        peerAccess,
+        undefined,
+        new BiExploreService(peerBi, peerAi, connection),
+      );
+      // Same captured server plan on two independent DataSources, not a claim of production ticket distribution.
+      (other as any).tickets.set(
+        body.ticket,
+        structuredClone((service as any).tickets.get(body.ticket)),
+      );
+      const blocker = peer.createQueryRunner();
+      await blocker.startTransaction();
+      const pending: Promise<any>[] = [];
+      try {
+        await blocker.manager.findOne(User, {
+          where: { id: 7 },
+          lock: { mode: 'pessimistic_write' },
+        });
+        pending.push(
+          service.save(id, body, 7, 'owned', 0).then(
+            value => ({ value }),
+            error => ({ error }),
+          ),
+        );
+        pending.push(
+          other.save(id, body, 7, 'owned', 0).then(
+            value => ({ value }),
+            error => ({ error }),
+          ),
+        );
+        let waiting = 0;
+        for (let i = 0; i < 160; i++) {
+          const [row] = await peer.query(
+            'SELECT COUNT(*) AS n FROM performance_schema.data_lock_waits',
+          );
+          waiting = Number(row.n);
+          if (waiting >= 2) break;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        expect(waiting).toBeGreaterThanOrEqual(2);
+        await blocker.commitTransaction();
+        const results = await Promise.all(pending);
+        expect(results.map(r => r.error?.message)).toEqual([undefined, undefined]);
+        expect(new Set(results.map(r => r.value.id)).size).toBe(1);
+        expect(results.map(r => r.value.replayed).sort()).toEqual([false, true]);
+        expect(await db.manager.count(Dashboard)).toBe(before.dashboards + 1);
+        expect(await db.manager.count(Metric)).toBe(before.metrics + 1);
+        expect(await db.manager.count(AnalysisCreationReceipt)).toBe(before.receipts + 1);
+        expect(await db.manager.count(PersonalView)).toBe(before.views);
+        expect((await studio.get(results[0].value.id, 7)).document.blocks).toHaveLength(3);
+      } finally {
+        if (blocker.isTransactionActive) await blocker.rollbackTransaction();
+        await Promise.all(pending);
+        await blocker.release();
+        await peer.destroy();
       }
     },
   );

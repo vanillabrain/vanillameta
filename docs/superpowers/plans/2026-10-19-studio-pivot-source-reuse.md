@@ -159,3 +159,8 @@ Task1→2→3→4 순서는 계산과 저장 계약에 의존하고 Task5→6은
 사용자 “확인했어 구현시작” 승인으로 Native 순차 구현·독립 읽기 검토1회를 실행했다. [SPR 증빙](../../testing/studio-pivot-source-reuse.md)이 실제 범위/수치/오류/차단의 기준이다. 구현은1b6554f0까지 로컬 커밋했다. Task4 SQLite/재시작 영수증은 통과했지만 MySQL 두 연결 gate는 NOT_RUN이다. Task7 게시는 새 검증 사본의 비공개 게시/소유200·익명403까지만 수행했다. 공개 링크를 생성하지 않았다. source mapping과 버튼36px/모바일16px·페이지 넘침0을 확인했으며 native 화살표 선택/실휴대폰/VoiceOver는 승격하지 않는다.
 
 계획 중 계약 모듈 basename 충돌은 studioReusePreviewContract.ts로 구별했고, 실제 schemaVersion을 원본 캡처에 전달한다. 이 차이는 실행 ledger에 기록했다. 원본/기존 지표·게시·개인 보기 행은 보존했다. push/merge는 이번 실행에 포함하지 않는다.
+
+
+## 격리 MySQL 후속 — 2026-10-19
+
+[실제 MySQL 증빙](../../testing/studio-pivot-source-reuse-mysql.md)에서 기존 Colima 소켓을 명시해 MySQL8.4.11의 최초6개와 독립 두 연결 동일 요청1개를 확인했다. 위 최초 Docker/NOT_RUN 기록은 역사 상태이며 현재 해당7개는 PASS_SELECTED다. 빈 DB/UUID/소유자 확인과 test backend 제목을 보완했다. 실제 MetricDeletionService와의 직접 경합·모든 writer/운영·ticket 분산은 후속이므로 Task4의 광범위 gate를 전체 완료로 바꾸지 않는다. 기존 제품 UI·SQLite 통과 조건은 반복하지 않았다.
