@@ -824,4 +824,175 @@ describe(`Studio mixed source replacement on real DuckDB and ${
       }
     },
   );
+  (process.env.VM_STUDIO_REUSE_MYSQL_CONFIG ? it : it.skip)(
+    'MySQL different request writers reject the stale copy and recover only after a fresh preview',
+    async () => {
+      const { service, request, saved } = await prepare();
+      const preview: any = await service.preview(id, request, 7, 'owned', 0);
+      const bodies = [0, 1].map(() => ({ ticket: preview.ticket, requestId: randomUUID() }));
+      expect(bodies[0].requestId).not.toBe(bodies[1].requestId);
+      const before = JSON.parse(await assets());
+      const peer = await new DataSource({ ...db.options, synchronize: false } as any).initialize();
+      const access = new SourceAccessService(peer);
+      const peerAi = new AiDashboardService({} as any, connection, peer.getRepository(Dashboard));
+      const peerBi = new BiService(peer, access, connection, peerAi);
+      const other = new DashboardReuseService(
+        peer,
+        peerBi,
+        peerAi,
+        connection,
+        access,
+        undefined,
+        new BiExploreService(peerBi, peerAi, connection),
+      );
+      // Two independent writers receive the same captured plan; ticket distribution is not implemented here.
+      (other as any).tickets.set(
+        preview.ticket,
+        structuredClone((service as any).tickets.get(preview.ticket)),
+      );
+      const services = [service, other];
+      const blocker = peer.createQueryRunner();
+      const pending: Promise<any>[] = [];
+      await blocker.startTransaction();
+      try {
+        await blocker.manager.findOne(User, {
+          where: { id: 7 },
+          lock: { mode: 'pessimistic_write' },
+        });
+        for (let i = 0; i < 2; i++) {
+          pending.push(
+            services[i].save(id, bodies[i], 7, 'owned', 0).then(
+              value => ({ value }),
+              error => ({ error }),
+            ),
+          );
+        }
+        let waits = 0;
+        for (let i = 0; i < 160; i++) {
+          const [row] = await peer.query(
+            `SELECT COUNT(DISTINCT w.REQUESTING_ENGINE_TRANSACTION_ID) AS n FROM performance_schema.data_lock_waits w
+             JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID=w.REQUESTING_ENGINE_LOCK_ID
+             WHERE l.OBJECT_SCHEMA=? AND l.OBJECT_NAME='user'`,
+            [mysqlConfig.database],
+          );
+          waits = Number(row.n);
+          if (waits >= 2) break;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        expect(waits).toBeGreaterThanOrEqual(2);
+        await blocker.commitTransaction();
+        const outcomes = await Promise.all(pending);
+        expect(outcomes.filter(o => o.value)).toHaveLength(1);
+        expect(outcomes.filter(o => o.error)).toHaveLength(1);
+        const winner = outcomes.findIndex(o => o.value),
+          loser = 1 - winner;
+        expect(outcomes[winner].value.replayed).toBe(false);
+        expect(outcomes[loser].error.getStatus()).toBe(409);
+        const after = JSON.parse(await assets());
+        const expectedAdded = [1, 1, 2, 2, 2, 1, 1, 0];
+        expect(after.map((rows, i) => rows.length - before[i].length)).toEqual(expectedAdded);
+        for (let i = 0; i < before.length; i++) {
+          expect(after[i].slice(0, before[i].length)).toEqual(before[i]);
+        }
+        const receipt = await db.manager.findOneByOrFail(AnalysisCreationReceipt, {
+          actorId: 7,
+          requestId: bodies[winner].requestId,
+        });
+        expect(receipt.dashboardId).toBe(outcomes[winner].value.id);
+        expect(
+          await db.manager.findOneBy(AnalysisCreationReceipt, {
+            actorId: 7,
+            requestId: bodies[loser].requestId,
+          }),
+        ).toBeNull();
+        const copied = await studio.get(receipt.dashboardId, 7);
+        const prepared = await studio.prepare(
+          receipt.dashboardId,
+          {
+            document: copied.document,
+            expectedRevision: copied.document.revision,
+            expectedSourceRevision: versions.get(2),
+          },
+          7,
+        );
+        expect(
+          Number(
+            prepared.preview.widgets.find(w => w.type === 'SEGMENT_PIVOT').pivot.kpis[0].value,
+          ),
+        ).toBe(1000);
+        // Retrying the rejected old ticket cannot silently create a second copy.
+        const stable = await assets();
+        await expect(services[loser].save(id, bodies[loser], 7, 'owned', 0)).rejects.toMatchObject({
+          status: 409,
+        });
+        expect(await assets()).toBe(stable);
+        // Explicit read-only re-preview is required; no automatic retry or changed-basis acceptance.
+        const fresh: any = await services[loser].preview(id, request, 7, 'owned', 0);
+        expect(fresh.ticket).not.toBe(preview.ticket);
+        expect(await assets()).toBe(stable);
+        const recovered = await services[loser].save(
+          id,
+          { ticket: fresh.ticket, requestId: bodies[loser].requestId },
+          7,
+          'owned',
+          0,
+        );
+        expect(recovered.replayed).toBe(false);
+        expect(recovered.id).not.toBe(receipt.dashboardId);
+        const recoveredReceipt = await db.manager.findOneByOrFail(AnalysisCreationReceipt, {
+          actorId: 7,
+          requestId: bodies[loser].requestId,
+        });
+        expect(recoveredReceipt.dashboardId).toBe(recovered.id);
+        const final = JSON.parse(await assets());
+        expect(final.map((rows, i) => rows.length - before[i].length)).toEqual(
+          expectedAdded.map(n => n * 2),
+        );
+        const second = await studio.get(recovered.id, 7);
+        expect(
+          second.document.blocks
+            .map(b => b.id)
+            .every(blockId => !copied.document.blocks.some(b => b.id === blockId)),
+        ).toBe(true);
+        const firstMetric = copied.document.blocks.find(b => b.kind === 'SEGMENT_PIVOT')
+          .measureRefs[0].id;
+        const secondMetric = second.document.blocks.find(b => b.kind === 'SEGMENT_PIVOT')
+          .measureRefs[0].id;
+        expect(secondMetric).not.toBe(firstMetric);
+        expect((await studio.get(id, 7)).document).toEqual(saved.document);
+        const secondPrepared = await studio.prepare(
+          recovered.id,
+          {
+            document: second.document,
+            expectedRevision: second.document.revision,
+            expectedSourceRevision: versions.get(2),
+          },
+          7,
+        );
+        expect(
+          Number(
+            secondPrepared.preview.widgets.find(w => w.type === 'SEGMENT_PIVOT').pivot.kpis[0]
+              .value,
+          ),
+        ).toBe(1000);
+        console.info('SPR-REQUEST-01', {
+          waitingUserTransactions: waits,
+          initialSuccesses: 1,
+          initialConflicts: 1,
+          initialCopyReceipts: 1,
+          staleRetryAdditionalAssets: 0,
+          explicitPreviewWrites: 0,
+          recoveredCopies: 2,
+          finalReceipts: 2,
+          firstPreparedPivot: 1000,
+          recoveredPivot: 1000,
+        });
+      } finally {
+        if (blocker.isTransactionActive) await blocker.rollbackTransaction();
+        await Promise.all(pending);
+        await blocker.release();
+        await peer.destroy();
+      }
+    },
+  );
 });

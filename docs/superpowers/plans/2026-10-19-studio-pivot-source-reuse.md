@@ -169,3 +169,8 @@ Task1→2→3→4 순서는 계산과 저장 계약에 의존하고 Task5→6은
 ## 실제 지표 삭제 경합 후속 — 2026-10-19
 
 [후속 MD](../../testing/studio-pivot-metric-delete-race.md)의 SPR-DELETE-01/02에서 실제 MetricDeletionService와 혼합 복제의 삭제 우선/복제 우선·User 잠금 대기·commit 후 재검사/원자성을 확인했다. 선택2개/BE type·변경 파일 lint PASS이며 테스트 타이머 정리 외 제품 변경은 없다. 복제 우선의 삭제 요청 기준은 테스트 내부 미commit 행으로 구성하므로 공개 impact/UI 수용과 구별한다. 다음은 다른 requestId 동시 복제이며 기존 동일 요청 재시도는 반복하지 않는다. 모든 writer/운영·전체 Task4 수용은 Open이다.
+
+
+## 서로 다른 복제 요청 후속 — 2026-10-19
+
+[SPR-REQUEST-01](../../testing/studio-pivot-distinct-requests.md)은 독립 두 연결의 같은 캡처 계획·다른 requestId에서 실제 User 대기 트랜잭션2개→저장1/409한건·부분 자산0→명시 재미리보기/실패 requestId의 별도 저장을 확인했다. 선택1개/BE type·해당 lint PASS, 기존9개 반복0이다. 운영 ticket 분산·UI 클릭 수용은 아니며 추가 합성 경합보다 남은 실제 사용자 여정/업무 파일럿을 우선한다. 제품 diff가 없어 build/FE/core 증빙은 재사용했다.
