@@ -98,6 +98,8 @@ export class SourceOwnershipGuard implements CanActivate {
         const dashboardId = this.access.id(body.dashboardId);
         await this.access.assert('database', body.draft?.databaseId, actor, 'read');
         await this.access.dashboard(dashboardId, actor, 'read');
+      } else if (handler === 'dashboardView') {
+        await this.access.dashboard(this.access.id(body.dashboardId), actor, 'read');
       } else if (['dashboardPreview', 'dashboardSave'].includes(handler)) {
         await this.access.assert(
           'database',
