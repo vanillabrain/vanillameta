@@ -1,0 +1,35 @@
+name: User Guide
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ["docs/user-manual/**", ".github/workflows/user-guide.yml"]
+  pull_request:
+    paths: ["docs/user-manual/**", ".github/workflows/user-guide.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs/user-manual
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: docs/user-manual/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: npm ci
+      - run: npm run build
+      - run: npm run check
+      - name: Check subpath deployment links
+        run: |
+          VM_DOCS_BASE=/guide/ npm run build -- --outDir /tmp/vm-guide-subpath
+          python3 scripts/check-build.py /tmp/vm-guide-subpath /guide/

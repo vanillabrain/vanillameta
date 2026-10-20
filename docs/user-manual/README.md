@@ -12,3 +12,26 @@
 2026-10-21 `develop`의 가이드 커밋 `1b5de868`에서 시작해 실제 화면 검증과 확인된 수정 사항을 반영했습니다. 최종 전달 커밋은 Git 이력을 따릅니다. 접속 주소와 계정은 운영자가 안내한 정보를 사용하세요. 화면 언어·권한·서버 설정에 따라 메뉴가 다를 수 있습니다.
 
 Ego에서 샘플·CSV 연결 → 실제 AI 생성·수정 → 저장·새로고침 → 비공개/링크 게시·공유 → 직원 수신자 열람을 실행했습니다. 390·768·1440px 대표 화면도 확인했습니다. 상세 범위·초기 실패·수정과 실기기/운영 등 미실행 항목은 [이번 실행 기록](../testing/user-guide-ego.md)에 남겼습니다. 초기 문서 소스 대조는 [가이드 대조 기록](../testing/user-guide-develop.md)을 참고하세요. 전체 기능이나 운영 환경의 사용자 수용 완료를 뜻하지 않습니다.
+
+## 상세 문서 사이트
+
+VitePress 기반 [기능별 상세 가이드](site/contents.md)를 제공합니다. 기존 빠른 시작과 실제 화면 모음은 같은 원문을 재사용합니다. 탐색·Pivot·AI 수정·복구·게시·조직 공유·재사용은 기능별로 읽을 수 있습니다.
+
+저장소 루트에서 Node 24 환경으로 실행합니다.
+
+```bash
+npm --prefix docs/user-manual ci
+npm run docs:dev -- --host 127.0.0.1 --port 4174
+```
+
+빌드 확인과 로컬 완성본 열기:
+
+```bash
+npm run docs:build
+npm --prefix docs/user-manual run check
+npm run docs:preview -- --host 127.0.0.1 --port 4174
+```
+
+기본 주소는 `http://127.0.0.1:4174/`입니다. 제품 서버와 별도로 동작합니다. 배포 시 `VM_DOCS_BASE=/guide/ npm run docs:build`처럼 하위 경로를 지정할 수 있습니다. 결과물은 `.vitepress/dist/`이며 이 작업은 외부 배포를 수행하지 않습니다. 소스 범위는 `site/`로 제한하여 내부 설계·검증 문서가 검색이나 HTML에 포함되지 않게 합니다.
+
+문서 사이트의 검색·탐색·반응형 실행 결과는 [사이트 검증 기록](../testing/user-guide-site.md)을 참고하세요.
