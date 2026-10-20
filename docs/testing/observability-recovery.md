@@ -38,6 +38,10 @@ node scripts/qa-main-legacy.cjs \
   --no-redis --observability
 ```
 
-인증된 감독기 `/stop`으로 이번 소유 앱·컨테이너·임시 자격증명을 정리한다. 원시 증빙은 Git 제외 `.aiwf/evidence/observability-recovery-20261021/`와 실행별 `TC050-main-legacy`에 둔다. 자격증명·암호문 본문·capability 링크는 공개 커밋에 포함하지 않는다.
+인증된 감독기 `/stop`의 HTTP 200과 `ownedContainerRemoved=true`/`temporaryCredentialsRemoved=true`를 확인해 이번 소유 앱·컨테이너·임시 자격증명을 정리했다. 원시 증빙은 Git 제외 `.aiwf/evidence/observability-recovery-20261021/`와 실행별 `TC050-main-legacy`에 둔다. 자격증명·암호문 본문·capability 링크는 공개 커밋에 포함하지 않는다.
 
 운영 migration/schema 변경, 실제 Redis 장애/클러스터, 외부 warehouse/모든 엔진, 이번 실제 LLM·새 브라우저 여정, 실휴대폰/운영 부하/업무 담당자 승인과 전체 16개 요건 수용은 이번 완료 범위가 아니다. 개발·검증 변경은 앞선 인수 수정과 함께 develop에 전달하며 최종 SHA는 Git 로그로 확인한다.
+
+## 원격 develop 동시 변경 통합
+
+수정 커밋 `08668325` 후 원격 `15ec57f8`의 Studio 후속 질문 보존 변경을 `dfa40ef7`에서 병합했다. 충돌은 `docs/testing/status.md`의 최신 기록만 양쪽 보존으로 해결했다. backend/관측 실행기는 이 병합에서 바뀌지 않았다. 통합 후 FE 6 files/94 tests·type/build PASS를 확인했으며 앞선 74개와 중복 합산하지 않는다. 원격의 CI 대상 develop 통일도 보존했다.

@@ -2,7 +2,7 @@
 
 ## 세션 시작 핵심 지침
 
-- **develop 인수·관측 복구:** [인수 결과](docs/testing/develop-acceptance-20261021.md)·[관측 후속](docs/testing/observability-recovery.md)은 통합 develop의 고유 E2E17개(16+재검사1)·권한297HTTP와 Ego122 생성/저장/비공개 게시를 구분한다. 후속은 Knex UID 시간 상관·암호화 진단/JSON 계획·Redis disabled/0건·optimizer 접속 정보 전달을 보완했으며 MySQL27HTTP/7검사·BE218/FE74를 확인했다. 운영/실기기/전체16개 수용은 별도다.
+- **develop 인수·관측 복구:** [인수 결과](docs/testing/develop-acceptance-20261021.md)·[관측 후속](docs/testing/observability-recovery.md)은 통합 develop의 고유 E2E17개(16+재검사1)·권한297HTTP와 Ego122 생성/저장/비공개 게시를 구분한다. 후속은 Knex UID 시간 상관·암호화 진단/JSON 계획·Redis disabled/0건·optimizer 접속 정보 전달을 보완했으며 MySQL27HTTP/7검사·BE218/FE74와 원격 통합 후FE94를 확인했다. 운영/실기기/전체16개 수용은 별도다.
 
 - **main 기능 보존 통합:** [계획](docs/plans/main-preserving-integration.md)·[증빙](docs/testing/main-preserving-integration.md)은 최신 Studio/권한과 main 캐시·작업·관측·언어 UI를 통합했다. 진단은 명시 운영자 allowlist, Redis 작업은 opt-in이다. legacy 공용 테이블은 추가 migration으로 분리하며 모호한 과거 행은 자동 이전하지 않는다. 미연결 모듈을 자동 활성화하거나 운영 migration·전체 수용 완료로 확대하지 않는다.
 
