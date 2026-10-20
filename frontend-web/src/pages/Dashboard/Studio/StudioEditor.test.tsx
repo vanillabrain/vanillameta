@@ -845,8 +845,14 @@ describe('Studio AI SDK selected block integration', () => {
     expect(screen.queryByRole('region', { name: 'AI 조건 변경안 검토' })).toBeNull();
     expect(api.post.mock.calls.some(c => String(c[0]).endsWith('/save'))).toBe(false);
     await waitFor(() => expect(api.post.mock.calls.some(c => c[1]?.document?.conditions)).toBe(true));
-    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+    const undo = screen.getByRole('button', { name: '되돌리기' });
+    undo.focus();
+    fireEvent.click(undo);
     await waitFor(() => expect(api.post.mock.calls.at(-1)?.[1]?.document?.conditions).toBeUndefined());
+    expect(screen.queryByText(/AI 조건 변경안을 초안에 적용했습니다/)).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '다시 실행' }));
+    fireEvent.click(screen.getByRole('button', { name: '다시 실행' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '되돌리기' }));
   });
   it('UC052 requires review even when the execution save step was refused, and can dismiss without changing the draft', async () => {
     api.post.mockImplementation(async (_url, body) => {

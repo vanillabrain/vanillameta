@@ -34,3 +34,48 @@ Ego TaskSpace96은 사용자 제어 중이며 반환이 확인되지 않았다. 
 기존 Chromium core8 PASS(22.4s)는 격리 임시 DB/테스트 서버에서 로그인·CSV 집계/저장·Explore/Pivot 복원·위젯/공유/보호 경로를 검증했다. 새 조건 UI의 Ego/모바일 여정을 실행한 증거는 아니다. 테스트 서버/DB는 실행기가 종료 후 정리했다. 추가 DB 모델은 없으며 기존 ConditionDefinition/StudioDocument/Execution 재사용이라 entity/glossary의 새 객체 추가는 없다. 최종 타입·린트·빌드/strict/pin/비공개 검사는 전달 로그로 구분한다.
 
 최종 BE/FE 타입·대상 lint·build는 각각 exit0이다. 공개 대상21개 파일의 formatter/diff check PASS·알려진 기업 식별 문자열/출처 지문 일치0건이다. AIWF strict는0 errors/기존 FR011·NFR002 상태 경고2건으로 exit1이며 승인/Verified 상태로 바꾸지 않았다. pin/check·packet은 로컬 내용 추적이며 사람 승인/수용이 아니다.
+
+## 설명→조회→변경 실제 대화 — 2026-10-21 / Ego54
+
+기준 develop-v2 `752c043f`. 기존 조건 compiler·거절 fixture·단일 업무 날짜의 실제 Codex 적용/저장 결과는 재사용한다. 새 실행은 실제 Ego의 같은 대화에서 설명/조회0연산→공통 조건 변경안 검토→명시 적용/undo를 확인한다. 저장/reload·게시 전체 여정을 반복하지 않는다. 새 격리 SQLite 복사본에서만 dashboard32의 Pivot 블록/폭별 배치를 준비 단계로 제외한다. Pivot+공통 행 AST 조건은 명시 미지원이며 제품 제한을 바꾸지 않는다. 기존 원본 DB는 수정하지 않는다.
+
+| ID | 행동·기대 | 상태 |
+|---|---|---|
+| AI-COND-UI-01 | 현재 기간/필터/포함·제외를 설명 요청. 실제 ask/operations0·문서/저장본 보존 | 최초 부재 문맥 누락 후 수정 PASS_SELECTED. UTC 2025-01-06~10 양끝 포함/company=Hanul Foods/추가 포함·제외 없음. ask·operations0. |
+| AI-COND-UI-02 | 같은 대화에서 총매출·전체 마진 조회. 검증된 preview/독립 정답 일치·ask/operations0 | 최초 단위 누락 후 수정 PASS_SELECTED. 2,000.00 USD·5.00%와 독립 CSV/Decimal 정답 일치·ask/operations0. |
+| AI-COND-UI-03 | 실제 schema의 명시 조건 변경 요청. 현재/제안 차이와 전체 블록 미리보기·적용 전 초안/저장본 불변·원질문 보존 | PASS_SELECTED. component=Compute 제안1개/조건 검토 대기·1,200 USD/25%/1점 추세의3블록 미리보기. 요청 문서 동일·이력0·질문 보존. |
+| AI-COND-UI-04 | 키보드 명시 적용→조건 반영/전체 숫자·undo 복구. 모바일/대표 폭·가시 초점·저장/게시0 | 최초 Undo 과거 안내·초점 손실 후 수정 PASS_SELECTED. 적용1,200/25→Undo2,000/5→Redo1,200/25→Undo2,000/5, 안내0·Redo/Undo 가시 초점·저장/게시 요청0. |
+
+모델 호출은 기존 Codex CLI `--model gpt-6-luna`/AI SDK 경로만 사용하고 대체 모델/원본 SQL 수동 주입으로 통과시키지 않는다. 실제 요청 모델명과 응답 결과를 구분한다. VoiceOver BLOCKED·실휴대폰/이번 MySQL/임의 자연어 전체/업무 수용은 별도다.
+
+### 준비와 독립 정답
+
+전용 Ego54/API4562·웹3462·Node24.21.0/native DuckDB와 `/tmp/vm-ai-conditions-runtime/metadata.sqlite` 복사본을 사용했다. source32의 VM 공개 합성 CSV18행 중 기존 기간/회사 범위는2행, 매출2000·이익100·마진5%이며 Compute 추가 조건은1행/1200·300·25%다. Python csv/Decimal로 계산했다. 고객 자료/Rill 공식 원본의 새 비교로 보고하지 않는다. source·지표61/62 v1·3개 일반 블록의 계산식/ID/모든 폭 배치는 그대로다.
+
+밤사이 세션 만료로 정상 로그인 화면에 도달했다. 격리 DB의 합성 소유자9에만 새 임시 비밀번호를 설정해 정상 로그인 UI로 진입했다. 과거 비밀번호 탐색/원본 계정 DB 변경0이며 임시 파일은 로그인 직후 삭제했다. 종료 시 격리 계정의 원래 암호 hash와 준비 전 Studio32 문서 bytes를 복구했다. 초기 잘못된 CSS selector·snapshot subtree root 대기는 관찰 도구 오류로 구별하며 제품 통과로 집계하지 않는다.
+
+### 실제 오류와 수정
+
+1. **설명 문맥 부재:** 적용 조건이 없는 문서에서 모델 입력의 conditions 필드가 생략되어 최초 답변이 ‘정보가 없어 확인할 수 없다’였다. null을 검증된 부재로 명시하고, 기간/필터와 구별해 설명하도록 보완했다. 중간 응답의 내부 JSON 표기도 일반 한국어로 바꿨다. 최종 답변은 기간·회사·추가 포함/제외 없음이며 블록은 수정하지 않았다.
+2. **조회 단위 부재:** 최초 답변 숫자2000/5는 맞지만 USD/%가 없었다. 검증한 preview의 prefix/suffix·정밀도/표기만 모델에 추가 투영했다. 값의 배율/통화 변환은 하지 않으며 SQL을 모델 문맥에 추가하지 않는다. 최종 답변2000.00 USD/5.00%를 확인했다.
+3. **Undo 상태 안내/키보드:** 적용→Undo에서 숫자/문서는 원복됐으나 ‘AI 조건 적용’ 안내가 남고 마지막 Undo의 disabled 전환으로 body에 초점이 빠졌다. 사용자 Undo/Redo 시 과거 임시 안내를 비우고, 해당 작업으로 현재 버튼이 비활성화될 때만 반대 활성 버튼으로 초점을 옮긴다. 다른 컨트롤에 있는 초점은 이동하지 않는다. 실제390px 마지막Undo→다시 실행, 마지막Redo→되돌리기와 가시 링을 확인했다.
+
+BE 새 문맥/단위 회귀는 각각1FAIL 후 수정했다. 첫 선택4PASS/21SKIP와 최종 단위·기간/필터 선택4PASS/22SKIP는 서로 겹치는 배치로 합산하지 않는다. BE 최종 type/lint/build exit0. FE 기존 조건 통합 사례에 stale 안내 제거·Undo/Redo 초점 검사를 추가해1FAIL→1PASS/54SKIP, 최종 FE type/lint/build exit0이다. 전체 BE/FE/core/기존 저장·게시 회귀는 반복하지 않았다. UI 코드 갱신으로 편집 이력이 초기화돼 조건 제안만1회 다시 요청하여 수정된 Undo를 재검증했고 설명/조회 정상 조건은 반복하지 않았다.
+
+### 모델·문서·화면 검증
+
+기존 AI SDK→Codex CLI 실제7호출은 요청 모델 모두 `gpt-6-luna`, 종료0이다. 설명3회(최초/부재 보완/일반 언어), 조회2회(최초/단위 보완), 조건2회(최초/이력 수정 재검사)로 나뉘며 성공 사례7개로 세지 않는다. 요청 모델명은 실행 인자로 확인했으며 upstream이 실제 사용한 모델의 별도 attestation은 없다. 모델 변경/로컬 LLM·수동 SQL 결과 대체·가짜 모델 응답 주입0이다. 계측 preload는 child_process의 Codex 명령 모델명·종료 상태만 기록하고 요청/응답을 수정하지 않는다.
+
+최종 설명→조회→조건 제안의 요청 document는 동일했다. ask2종의 operations는0이고 조건 제안은 setConditions 한 개다. 실제 execution의 CONDITION_REVIEW_REQUIRED는 검토 대기이며 자동 적용/저장이 아니다. 검토 중 기존 캔버스2000/5·저장본·질문을 유지하고 현재/제안 조건·3블록 전체 preview1200/25/1점 추세를 표시했다.768→390→1440 전환에서도 같은 검토/질문이 보존되고 문서 넘침0이었다. 준비한 Pivot 제외를 제품 지원 확장으로 집계하지 않는다.
+
+390px에서 Tab/Shift+Tab으로 적용/유지를 이동하고 Enter로 명시 적용했다. 적용 후 모달 컨테이너 초점에서도 Tab 조작이 가능했고 Escape는 AI 열기로 복귀했다. 수정 후 Undo/Redo는 Enter만으로 반대 활성 버튼에 초점을 보존했다. 마지막 Undo의 요청 document는 최초와 정확히 같고 저장 상태/이력0·2000USD/5%로 복구됐다. 마지막390/768/1440도 넘침0이며 실휴대폰/전체 키보드·VoiceOver 통과가 아니다.
+
+관측한 POST는 executions와preview뿐이고 save/게시0이다. 실행 이력/멱등 기록의 정상 쓰기와 산출물 쓰기0을 구별한다. 준비 후10개 선택 표(database/metric/dashboard/dashboard_widget/studio_state/studio_publication/studio_publication_request/studio_remix_request/source_condition_entry/source_catalog_entry)의 전체 행/count/hash가 종료 준비 전까지 불변이었다. 이후 준비용 Studio32 문서와 임시 암호만 명시 원복했다. 전체 DB/모든 writer 불변으로 확대하지 않는다.
+
+### 증빙·종료와 남은 범위
+
+증빙 root는 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-condition-conversation-20261021/`이다. `input.csv`/`oracle.json`, 최초/최종 설명·조회 JSON과 캡처, `condition-review.json`/`review-layout.json`, `apply-keyboard.json`/`history-final.json`/`traffic-final.json`, `db-before.json`/`db-after.json`, `codex-calls.jsonl`, red/green·type/lint/build 로그와 `cleanup.json`을 따른다.
+
+[모바일 검토](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-condition-conversation-20261021/review-390.png) · [단위 보완 조회](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-condition-conversation-20261021/query-after-1440.png) · [조건 적용390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-condition-conversation-20261021/applied-final-390.png) · [Undo 안내/가시 초점](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-condition-conversation-20261021/undo-focus-final-390.png).
+
+Ego54는 keep[] 종료, 최종 API51305/웹1053과 이전 이번 API PID는 종료했다. VoiceOver BLOCKED 유지/OS 권한 변경0, Ego 업데이트는 적용하지 않았다. 최초 미커밋4파일은752c043f로 drumcap commit/push 완료하며 이번 수정·검증 기록은 그 이후 diff다. **unknown/type/no-op/stale의 실제 모델·연속 화면 변형, 복합 부정 지원 계약, 이번 MySQL·목표 규모/운영·실휴대폰/전체 스크린리더·업무/전체FR020·16개 수용은 잔여**다. 기존 단일 날짜의 저장/reload PASS를 반복하거나 이번 실행으로 전체 수용을 올리지 않는다.
