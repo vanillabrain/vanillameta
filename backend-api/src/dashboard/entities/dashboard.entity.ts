@@ -1,9 +1,12 @@
 import { Optional } from '@nestjs/common';
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, Index, OneToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { YesNo } from '../../common/enum/yn.enum';
+import { DashboardShare } from './dashboard_share.entity';
 
 @Entity()
+@Index('IDX_DASHBOARD_UPDATED_AT', ['updatedAt'])
+@Index('IDX_DASHBOARD_UPDATED_AT_TITLE', ['updatedAt', 'title'])
 export class Dashboard extends BaseEntity {
   @Column({ type: 'boolean', default: true })
   assetActive: boolean;

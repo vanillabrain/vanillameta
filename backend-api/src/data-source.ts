@@ -22,6 +22,16 @@ const dataSourceOptions = {
   // CLI migrations must be the only schema writer, including when NODE_ENV is omitted.
   synchronize: false,
   logging: configNodeenv != 'prod',
+  ...(configNodeenv !== 'local' && {
+    extra: {
+      connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 5,
+      connectTimeout: 30000,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0,
+      waitForConnections: true,
+      queueLimit: 0,
+    },
+  }),
 } as DataSourceOptions;
 
 export default new DataSource(dataSourceOptions);

@@ -1,0 +1,16 @@
+Creating an optimized production build...
+Failed to compile.
+
+TS2322: Type 'Promise<AxiosResponse<any, any>>' is not assignable to type 'Promise<ApiResponse<Component[]>>'.
+  Type 'AxiosResponse<any, any>' is not assignable to type 'ApiResponse<Component[]>'.
+    Types of property 'status' are incompatible.
+      Type 'number' is not assignable to type '"SUCCESS" | "ERROR"'.
+    11 | export const URL_COMPONENT = '/component';
+    12 |
+  > 13 | const selectComponentList = (): Promise<ApiResponse<Component[]>> => get(URL_COMPONENT);
+       |                                                                      ^^^^^^^^^^^^^^^^^^
+    14 |
+    15 | const selectComponent = (id: string, data: any = null): Promise<ApiResponse<ComponentDetailResponse>> =>
+    16 |   get(URL_COMPONENT + '/' + id, data);
+
+

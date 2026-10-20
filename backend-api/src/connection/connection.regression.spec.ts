@@ -65,7 +65,9 @@ describe('connection identity, pools and stored-config cache regressions', () =>
     expect(repository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
     expect(knex).toHaveBeenCalledTimes(1);
     const dto = { id: '1', query: 'SELECT 1' } as any;
-    expect((await connection.executeQuery(dto)).datas).toEqual([{ value: 'A' }]);
+    expect((await connection.executeQuery(dto, undefined, { actor: 7, epoch: 0 })).datas).toEqual([
+      { value: 'A' },
+    ]);
     expect(dto.id).toBe('1');
   });
 
@@ -141,7 +143,7 @@ describe('connection identity, pools and stored-config cache regressions', () =>
       { value: 'B' },
     ]);
     expect(knex).toHaveBeenLastCalledWith(
-      expect.objectContaining({ connection: { host: 'B.invalid' } }),
+      expect.objectContaining({ connection: expect.objectContaining({ host: 'B.invalid' }) }),
     );
   });
 
@@ -165,8 +167,15 @@ describe('connection identity, pools and stored-config cache regressions', () =>
   it('does not reuse cached query results after the stored configuration changes', async () => {
     process.env.QUERY_CACHE_TTL_MS = '60000';
     let storedConfig = config('A');
+    (connection as any).sourceAccess = { assert: jest.fn().mockResolvedValue(undefined) };
+    (repository.manager as any).findOne = jest
+      .fn()
+      .mockResolvedValue({ id: 7, active: true, authVersion: 0 });
     repository.findOne.mockImplementation(async () => ({
       id: 812345,
+      ownerId: 7,
+      catalogActive: true,
+      catalogVersion: 0,
       connectionConfig: storedConfig,
     }));
     const run = jest
@@ -174,13 +183,21 @@ describe('connection identity, pools and stored-config cache regressions', () =>
       .mockResolvedValueOnce({ status: ResponseStatus.SUCCESS, datas: [{ value: 'A' }] })
       .mockResolvedValueOnce({ status: ResponseStatus.SUCCESS, datas: [{ value: 'B' }] });
     const dto = { id: '812345', query: 'SELECT 1 AS stored_config_regression' } as any;
-    expect((await connection.executeQuery(dto)).datas).toEqual([{ value: 'A' }]);
-    expect((await connection.executeQuery(dto)).datas).toEqual([{ value: 'A' }]);
+    expect((await connection.executeQuery(dto, undefined, { actor: 7, epoch: 0 })).datas).toEqual([
+      { value: 'A' },
+    ]);
+    expect((await connection.executeQuery(dto, undefined, { actor: 7, epoch: 0 })).datas).toEqual([
+      { value: 'A' },
+    ]);
     storedConfig = config('B');
-    expect((await connection.executeQuery(dto)).datas).toEqual([{ value: 'B' }]);
+    expect((await connection.executeQuery(dto, undefined, { actor: 7, epoch: 0 })).datas).toEqual([
+      { value: 'B' },
+    ]);
     expect(run).toHaveBeenCalledTimes(2);
     expect(run).toHaveBeenLastCalledWith({ ...dto, id: 812345 }, undefined);
     repository.findOne.mockResolvedValueOnce(null);
-    await expect(connection.executeQuery(dto)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      connection.executeQuery(dto, undefined, { actor: 7, epoch: 0 }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

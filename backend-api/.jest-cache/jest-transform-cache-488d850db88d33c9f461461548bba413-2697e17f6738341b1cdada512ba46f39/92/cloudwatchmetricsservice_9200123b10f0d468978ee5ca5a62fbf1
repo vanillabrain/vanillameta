@@ -1,0 +1,232 @@
+b758489857c14bb99ea8a76348068be8
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var CloudWatchMetricsService_1;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CloudWatchMetricsService = void 0;
+const common_1 = require("@nestjs/common");
+const AWS = __importStar(require("aws-sdk"));
+const config_1 = require("@nestjs/config");
+let CloudWatchMetricsService = CloudWatchMetricsService_1 = class CloudWatchMetricsService {
+    constructor(configService) {
+        this.configService = configService;
+        this.logger = new common_1.Logger(CloudWatchMetricsService_1.name);
+        this.metricsBuffer = [];
+        this.lastFlushTime = Date.now();
+        this.flushInterval = 60000; // 1분마다 플러시
+        this.maxBufferSize = 20; // 최대 20개 메트릭 버퍼링
+        this.enabled = this.configService.get('CLOUDWATCH_METRICS_ENABLED', true);
+        this.region = this.configService.get('AWS_REGION', 'ap-northeast-2');
+        this.cloudWatch = new AWS.CloudWatch({
+            region: this.region,
+            apiVersion: '2010-08-01',
+        });
+        // 주기적으로 버퍼 플러시
+        if (this.enabled) {
+            setInterval(() => {
+                this.flushMetrics().catch((error) => {
+                    this.logger.error('Failed to flush metrics', error);
+                });
+            }, this.flushInterval);
+        }
+    }
+    /**
+     * 메트릭 전송
+     */
+    async putMetric(namespace, metricName, value, unit = 'None', dimensions) {
+        if (!this.enabled) {
+            return;
+        }
+        const metric = {
+            MetricName: metricName,
+            Value: value,
+            Unit: unit,
+            Timestamp: new Date(),
+            Dimensions: dimensions
+                ? Object.entries(dimensions).map(([name, value]) => ({
+                    Name: name,
+                    Value: value,
+                }))
+                : undefined,
+        };
+        // 버퍼에 추가
+        this.metricsBuffer.push(metric);
+        // 버퍼가 가득 찼거나 일정 시간이 지났으면 플러시
+        if (this.metricsBuffer.length >= this.maxBufferSize ||
+            Date.now() - this.lastFlushTime > this.flushInterval) {
+            await this.flushMetrics();
+        }
+    }
+    /**
+     * 버퍼에 있는 메트릭 일괄 전송
+     */
+    async flushMetrics() {
+        if (this.metricsBuffer.length === 0) {
+            return;
+        }
+        const metricsToSend = [...this.metricsBuffer];
+        this.metricsBuffer = [];
+        this.lastFlushTime = Date.now();
+        // 네임스페이스별로 그룹화
+        const metricsByNamespace = new Map();
+        // 기본 네임스페이스 사용
+        const defaultNamespace = 'VanillaMeta';
+        metricsByNamespace.set(defaultNamespace, metricsToSend);
+        // 각 네임스페이스별로 전송
+        for (const [namespace, metrics] of metricsByNamespace) {
+            try {
+                const params = {
+                    Namespace: namespace,
+                    MetricData: metrics,
+                };
+                await this.cloudWatch.putMetricData(params).promise();
+                this.logger.debug(`Flushed ${metrics.length} metrics to CloudWatch`, {
+                    namespace,
+                    metricCount: metrics.length,
+                });
+            }
+            catch (error) {
+                this.logger.error('Failed to put metrics to CloudWatch', {
+                    namespace,
+                    error: error.message,
+                    metricCount: metrics.length,
+                });
+            }
+        }
+    }
+    /**
+     * 메트릭 통계 조회
+     */
+    async getMetricStatistics(namespace, metricName, period, statistics = ['Average', 'Sum', 'Maximum', 'Minimum']) {
+        var _a;
+        if (!this.enabled) {
+            return [];
+        }
+        const endTime = new Date();
+        const startTime = new Date(endTime.getTime() - period * 1000);
+        const params = {
+            Namespace: namespace,
+            MetricName: metricName,
+            StartTime: startTime,
+            EndTime: endTime,
+            Period: Math.min(period, 300),
+            Statistics: statistics,
+        };
+        try {
+            const result = await this.cloudWatch.getMetricStatistics(params).promise();
+            return (((_a = result.Datapoints) === null || _a === void 0 ? void 0 : _a.map((datapoint) => ({
+                timestamp: datapoint.Timestamp,
+                value: datapoint.Average || datapoint.Sum || datapoint.Maximum || datapoint.Minimum || 0,
+                unit: datapoint.Unit || 'None',
+            })).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())) || []);
+        }
+        catch (error) {
+            this.logger.error('Failed to get metric statistics', {
+                namespace,
+                metricName,
+                error: error.message,
+            });
+            return [];
+        }
+    }
+    /**
+     * 커스텀 알람 생성
+     */
+    async createAlarm(alarmName, namespace, metricName, threshold, comparisonOperator, evaluationPeriods = 2, period = 300) {
+        if (!this.enabled) {
+            return;
+        }
+        const params = {
+            AlarmName: alarmName,
+            ComparisonOperator: comparisonOperator,
+            EvaluationPeriods: evaluationPeriods,
+            MetricName: metricName,
+            Namespace: namespace,
+            Period: period,
+            Statistic: 'Average',
+            Threshold: threshold,
+            ActionsEnabled: true,
+            AlarmDescription: `Alarm for ${metricName} in ${namespace}`,
+            TreatMissingData: 'notBreaching',
+        };
+        try {
+            await this.cloudWatch.putMetricAlarm(params).promise();
+            this.logger.log(`Created alarm: ${alarmName}`);
+        }
+        catch (error) {
+            this.logger.error('Failed to create alarm', {
+                alarmName,
+                error: error.message,
+            });
+            throw error;
+        }
+    }
+    /**
+     * 대시보드 위젯 JSON 생성
+     */
+    generateDashboardWidget(title, namespace, metrics, region = this.region) {
+        return {
+            type: 'metric',
+            properties: {
+                metrics: metrics.map((metric) => [
+                    namespace,
+                    metric.name,
+                    { stat: metric.stat || 'Average', period: metric.period || 300 },
+                ]),
+                period: 300,
+                stat: 'Average',
+                region,
+                title,
+                yAxis: {
+                    left: {
+                        min: 0,
+                    },
+                },
+            },
+        };
+    }
+    /**
+     * 강제 메트릭 플러시 (애플리케이션 종료 시)
+     */
+    async onModuleDestroy() {
+        if (this.enabled && this.metricsBuffer.length > 0) {
+            await this.flushMetrics();
+        }
+    }
+};
+CloudWatchMetricsService = CloudWatchMetricsService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [config_1.ConfigService])
+], CloudWatchMetricsService);
+exports.CloudWatchMetricsService = CloudWatchMetricsService;

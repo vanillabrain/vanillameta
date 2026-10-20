@@ -1,0 +1,131 @@
+{
+  "alarms": [
+    {
+      "AlarmName": "VanillaMeta-SlowQuery-Critical-Count",
+      "AlarmDescription": "Critical 수준의 슬로우 쿼리가 5분 내 5개 이상 발생",
+      "MetricName": "SlowQueryBySeverity",
+      "Namespace": "VanillaMeta/prod/Database",
+      "Statistic": "Sum",
+      "Period": 300,
+      "EvaluationPeriods": 1,
+      "Threshold": 5,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "Dimensions": [
+        {
+          "Name": "Environment",
+          "Value": "prod"
+        },
+        {
+          "Name": "Severity",
+          "Value": "CRITICAL"
+        }
+      ],
+      "ActionsEnabled": true,
+      "AlarmActions": [],
+      "OKActions": [],
+      "TreatMissingData": "notBreaching"
+    },
+    {
+      "AlarmName": "VanillaMeta-SlowQuery-High-Frequency",
+      "AlarmDescription": "HIGH 이상 슬로우 쿼리가 5분 내 20개 이상 발생",
+      "MetricName": "SlowQueryCount",
+      "Namespace": "VanillaMeta/prod/Database",
+      "Statistic": "Sum",
+      "Period": 300,
+      "EvaluationPeriods": 1,
+      "Threshold": 20,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "Dimensions": [
+        {
+          "Name": "Environment",
+          "Value": "prod"
+        }
+      ],
+      "ActionsEnabled": true,
+      "AlarmActions": [],
+      "OKActions": [],
+      "TreatMissingData": "notBreaching"
+    },
+    {
+      "AlarmName": "VanillaMeta-SlowQuery-ExecutionTime-Extreme",
+      "AlarmDescription": "30초 이상 걸리는 쿼리 발생",
+      "MetricName": "SlowQueryExecutionTime",
+      "Namespace": "VanillaMeta/prod/Database",
+      "Statistic": "Maximum",
+      "Period": 300,
+      "EvaluationPeriods": 1,
+      "Threshold": 30000,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "Dimensions": [
+        {
+          "Name": "Environment",
+          "Value": "prod"
+        }
+      ],
+      "ActionsEnabled": true,
+      "AlarmActions": [],
+      "OKActions": [],
+      "TreatMissingData": "notBreaching"
+    },
+    {
+      "AlarmName": "VanillaMeta-SlowQuery-Sustained-Load",
+      "AlarmDescription": "15분 동안 평균 실행 시간이 5초 이상",
+      "MetricName": "SlowQueryExecutionTime",
+      "Namespace": "VanillaMeta/prod/Database",
+      "Statistic": "Average",
+      "Period": 300,
+      "EvaluationPeriods": 3,
+      "Threshold": 5000,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "Dimensions": [
+        {
+          "Name": "Environment",
+          "Value": "prod"
+        }
+      ],
+      "ActionsEnabled": true,
+      "AlarmActions": [],
+      "OKActions": [],
+      "TreatMissingData": "notBreaching"
+    },
+    {
+      "AlarmName": "VanillaMeta-Database-Performance-Degradation",
+      "AlarmDescription": "특정 데이터베이스의 평균 쿼리 시간이 10초 이상",
+      "MetricName": "SlowQueryExecutionTimeByDatabase",
+      "Namespace": "VanillaMeta/prod/Database",
+      "Statistic": "Average",
+      "Period": 300,
+      "EvaluationPeriods": 2,
+      "Threshold": 10000,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "ActionsEnabled": true,
+      "AlarmActions": [],
+      "OKActions": [],
+      "TreatMissingData": "notBreaching"
+    }
+  ],
+  "composite_alarms": [
+    {
+      "AlarmName": "VanillaMeta-Database-Critical-State",
+      "AlarmDescription": "데이터베이스가 심각한 성능 저하 상태",
+      "AlarmRule": "(ALARM('VanillaMeta-SlowQuery-Critical-Count') OR ALARM('VanillaMeta-SlowQuery-ExecutionTime-Extreme')) AND ALARM('VanillaMeta-SlowQuery-High-Frequency')",
+      "ActionsEnabled": true,
+      "AlarmActions": [],
+      "OKActions": []
+    }
+  ],
+  "notification_config": {
+    "sns_topics": {
+      "critical": "arn:aws:sns:us-east-1:123456789012:vanillameta-critical-alerts",
+      "warning": "arn:aws:sns:us-east-1:123456789012:vanillameta-warning-alerts"
+    },
+    "email_endpoints": [
+      "devops@vanillameta.com",
+      "oncall@vanillameta.com"
+    ],
+    "slack_webhooks": {
+      "critical": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+      "warning": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+    }
+  }
+}

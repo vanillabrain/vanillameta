@@ -65,7 +65,7 @@ export class DashboardWidgetService {
       .setParameter('ids', whereInWidgetList) // 왜 배열이 안들어가죠 ?
       .getRawMany();
 
-    result.map(el => {
+    result.forEach(el => {
       el.option = JSON.parse(el.option);
     });
 

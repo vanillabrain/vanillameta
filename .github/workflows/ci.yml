@@ -34,8 +34,8 @@ jobs:
         run: npm run build
 
       - name: Unit tests
-        # TODO: 나머지 spec suite는 DI mock이 없는 스캐폴딩 상태 — 정비 후 전체 jest로 전환
-        run: npm test -- --runInBand
+        # src 전체 회귀. native DuckDB 테스트를 두 worker로 분리하고 MySQL 전용 검증은 별도 opt-in한다.
+        run: npm test -- --maxWorkers=2
 
   frontend:
     runs-on: ubuntu-latest
@@ -60,7 +60,7 @@ jobs:
         run: npx eslint src e2e --ext .ts,.tsx
 
       - name: Unit tests
-        run: npx vitest run
+        run: npx vitest run --maxWorkers=2
 
       - name: Build
         run: |

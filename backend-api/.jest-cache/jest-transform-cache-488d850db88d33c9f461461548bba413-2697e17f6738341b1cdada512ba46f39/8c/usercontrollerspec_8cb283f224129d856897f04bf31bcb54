@@ -1,0 +1,54 @@
+56840286e4ff1b4837c3b3a2ac026239
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const typeorm_1 = require("@nestjs/typeorm");
+const user_controller_1 = require("./user.controller");
+const user_service_1 = require("./user.service");
+const user_entity_1 = require("./entities/user.entity");
+const user_mapping_entity_1 = require("./entities/user-mapping.entity");
+const auth_service_1 = require("../auth/auth.service");
+describe('UserController', () => {
+    let controller;
+    const mockUserRepository = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+        delete: jest.fn(),
+    };
+    const mockUserMappingRepository = {
+        save: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            getRawMany: jest.fn(),
+        }),
+    };
+    const mockAuthService = {
+        checkAccess: jest.fn(),
+        generateAccessToken: jest.fn(),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [user_controller_1.UserController],
+            providers: [
+                user_service_1.UserService,
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(user_entity_1.User),
+                    useValue: mockUserRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(user_mapping_entity_1.UserMapping),
+                    useValue: mockUserMappingRepository,
+                },
+                {
+                    provide: auth_service_1.AuthService,
+                    useValue: mockAuthService,
+                },
+            ],
+        }).compile();
+        controller = module.get(user_controller_1.UserController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});

@@ -1,0 +1,8 @@
+733d3e32d56576120dcc3ad579319786
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AuthPublic = exports.IS_PUBLIC_KEY = void 0;
+const common_1 = require("@nestjs/common");
+exports.IS_PUBLIC_KEY = 'isPublic';
+const AuthPublic = () => (0, common_1.SetMetadata)(exports.IS_PUBLIC_KEY, true);
+exports.AuthPublic = AuthPublic;

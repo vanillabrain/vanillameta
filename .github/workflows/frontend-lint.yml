@@ -1,0 +1,54 @@
+name: Frontend Lint Check
+
+on:
+  push:
+    branches: [main, develop, "develop-**"]
+    paths:
+      - "frontend-web/**"
+      - ".github/workflows/frontend-lint.yml"
+  pull_request:
+    branches: [main, develop, "develop-**"]
+    paths:
+      - "frontend-web/**"
+      - ".github/workflows/frontend-lint.yml"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend-web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run ESLint check
+        id: lint
+        run: npx eslint src e2e --ext .ts,.tsx
+
+      - name: Check TypeScript compilation
+        id: tsc
+        run: npx tsc --noEmit
+
+      - name: Report lint results
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const lintResult = '${{ steps.lint.outcome }}';
+            const tscResult = '${{ steps.tsc.outcome }}';
+
+            if (lintResult === 'failure' || tscResult === 'failure') {
+              core.setFailed('Lint or TypeScript check failed');
+            }

@@ -4,9 +4,20 @@ import { Database } from '../database/entities/database.entity';
 import { ConnectionService } from './connection.service';
 import { DatabaseService } from '../database/database.service';
 import { Dataset } from '../dataset/entities/dataset.entity';
+import { SqlValidationModule } from '../common/security/sql-validation.module';
+import { QueryAnalyzerModule } from '../common/monitoring/query-analyzer.module';
+import { MonitoringModule } from '../common/monitoring/monitoring.module';
+import { QueryCollector } from '../common/utils/query-collector';
+import { DatabaseOptimizersModule } from './database-optimizers';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Database, Dataset])],
+  imports: [
+    TypeOrmModule.forFeature([Database, Dataset]),
+    SqlValidationModule,
+    QueryAnalyzerModule,
+    MonitoringModule,
+    DatabaseOptimizersModule,
+  ],
   providers: [ConnectionService],
   exports: [ConnectionService],
 })

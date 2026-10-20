@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# pre-push hook to prevent pushing to main branch
+# This hook is called with the following parameters:
+# $1 -- Name of the remote to which the push is being done
+# $2 -- URL to which the push is being done
+
+protected_branch='main'
+current_branch=$(git symbolic-ref HEAD 2>/dev/null | cut -d"/" -f 3)
+
+# Check if we are on main branch
+if [ "$current_branch" = "$protected_branch" ]; then
+    echo "🚫 ERROR: Direct push from 'main' branch is not allowed!"
+    echo "📝 Please checkout to a feature branch and push from there."
+    echo ""
+    echo "You can create a new branch with:"
+    echo "  git checkout -b feature/your-feature-name"
+    echo ""
+    exit 1
+fi
+
+# Read stdin for push information
+while read local_ref local_sha remote_ref remote_sha
+do
+    # Extract the branch name from refs/heads/branch_name
+    remote_branch=$(echo "$remote_ref" | sed 's/refs\/heads\///')
+    
+    # Check if pushing to main branch
+    if [ "$remote_branch" = "$protected_branch" ]; then
+        echo "🚫 ERROR: Pushing to 'main' branch is not allowed!"
+        echo "📝 You are trying to push to the main branch."
+        echo ""
+        echo "Current branch: $current_branch"
+        echo "Target branch: $remote_branch"
+        echo ""
+        echo "Please use one of these alternatives:"
+        echo "  1. Push to your current branch: git push origin $current_branch"
+        echo "  2. Create a pull request from GitHub after pushing to your branch"
+        echo ""
+        exit 1
+    fi
+done
+
+exit 0

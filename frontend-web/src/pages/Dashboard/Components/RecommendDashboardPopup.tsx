@@ -9,55 +9,14 @@ import TemplateService from '@/api/templateService';
 import WidgetService from '@/api/widgetService';
 import { STATUS } from '@/constant';
 import CloseButton from '@/components/button/CloseButton';
-import TemplateIcon01 from '@/assets/images/template/template01.svg?react';
-import TemplateIcon02 from '@/assets/images/template/template02.svg?react';
-import TemplateIcon03 from '@/assets/images/template/template03.svg?react';
-import TemplateIcon04 from '@/assets/images/template/template04.svg?react';
-import TemplateIcon05 from '@/assets/images/template/template05.svg?react';
-import TemplateIcon06 from '@/assets/images/template/template06.svg?react';
-import TemplateIcon07 from '@/assets/images/template/template07.svg?react';
-import TemplateIcon08 from '@/assets/images/template/template08.svg?react';
-import TemplateIcon09 from '@/assets/images/template/template09.svg?react';
-import TemplateIcon10 from '@/assets/images/template/template10.svg?react';
+import LazyIcon from '@/components/LazyIcon';
 import CheckIcon from '@/assets/images/icon/ic-check.svg?react';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { cn } from '@/lib/utils';
 
 const getTemplateIcon = id => {
-  let icon = null;
-  switch (id) {
-    case 7:
-      icon = <TemplateIcon01 className="h-full w-full" />;
-      break;
-    case 8:
-      icon = <TemplateIcon02 className="h-full w-full" />;
-      break;
-    case 9:
-      icon = <TemplateIcon03 className="h-full w-full" />;
-      break;
-    case 10:
-      icon = <TemplateIcon04 className="h-full w-full" />;
-      break;
-    case 11:
-      icon = <TemplateIcon05 className="h-full w-full" />;
-      break;
-    case 12:
-      icon = <TemplateIcon06 className="h-full w-full" />;
-      break;
-    case 13:
-      icon = <TemplateIcon07 className="h-full w-full" />;
-      break;
-    case 14:
-      icon = <TemplateIcon08 className="h-full w-full" />;
-      break;
-    case 15:
-      icon = <TemplateIcon09 className="h-full w-full" />;
-      break;
-    case 16:
-      icon = <TemplateIcon10 className="h-full w-full" />;
-      break;
-  }
-  return icon;
+  if (!Number.isInteger(id) || id < 7 || id > 16) return null;
+  return <LazyIcon iconName={`template${String(id - 6).padStart(2, '0')}`} />;
 };
 
 const footerButtonClassName = 'text-sm leading-[1.14] font-semibold text-muted-foreground';

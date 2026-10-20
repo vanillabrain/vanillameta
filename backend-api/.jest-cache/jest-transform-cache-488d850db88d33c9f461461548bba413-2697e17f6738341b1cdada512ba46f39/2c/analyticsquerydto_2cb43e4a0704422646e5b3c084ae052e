@@ -1,0 +1,111 @@
+39771c547329e5e46552406f330700bb
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AnalyticsQueryDto = exports.AggregationType = exports.TimeRange = void 0;
+const class_validator_1 = require("class-validator");
+const swagger_1 = require("@nestjs/swagger");
+const class_transformer_1 = require("class-transformer");
+var TimeRange;
+(function (TimeRange) {
+    TimeRange["LAST_HOUR"] = "last_hour";
+    TimeRange["LAST_24_HOURS"] = "last_24_hours";
+    TimeRange["LAST_7_DAYS"] = "last_7_days";
+    TimeRange["LAST_30_DAYS"] = "last_30_days";
+    TimeRange["LAST_90_DAYS"] = "last_90_days";
+    TimeRange["CUSTOM"] = "custom";
+})(TimeRange = exports.TimeRange || (exports.TimeRange = {}));
+var AggregationType;
+(function (AggregationType) {
+    AggregationType["COUNT"] = "count";
+    AggregationType["SUM"] = "sum";
+    AggregationType["AVG"] = "avg";
+    AggregationType["MIN"] = "min";
+    AggregationType["MAX"] = "max";
+})(AggregationType = exports.AggregationType || (exports.AggregationType = {}));
+class AnalyticsQueryDto {
+    constructor() {
+        this.limit = 100;
+        this.offset = 0;
+    }
+}
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, enum: TimeRange }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(TimeRange),
+    __metadata("design:type", String)
+], AnalyticsQueryDto.prototype, "timeRange", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], AnalyticsQueryDto.prototype, "startDate", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], AnalyticsQueryDto.prototype, "endDate", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AnalyticsQueryDto.prototype, "userId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AnalyticsQueryDto.prototype, "sessionId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AnalyticsQueryDto.prototype, "category", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AnalyticsQueryDto.prototype, "action", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AnalyticsQueryDto.prototype, "groupBy", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, enum: AggregationType }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(AggregationType),
+    __metadata("design:type", String)
+], AnalyticsQueryDto.prototype, "aggregation", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, minimum: 1, maximum: 1000 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Max)(1000),
+    (0, class_transformer_1.Transform)(({ value }) => parseInt(value)),
+    __metadata("design:type", Number)
+], AnalyticsQueryDto.prototype, "limit", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, minimum: 0 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_transformer_1.Transform)(({ value }) => parseInt(value)),
+    __metadata("design:type", Number)
+], AnalyticsQueryDto.prototype, "offset", void 0);
+exports.AnalyticsQueryDto = AnalyticsQueryDto;

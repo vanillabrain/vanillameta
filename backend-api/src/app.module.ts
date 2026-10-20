@@ -44,25 +44,56 @@ import { AddBiDefinitions1791853000000 } from './migrations/1791853000000-add-bi
 import { SourceOwnershipModule } from './ownership/source-ownership.module';
 import { AddSourceOwner1791850000000 } from './migrations/1791850000000-add-source-owner';
 import { AnalysisModule } from './analysis/analysis.module';
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
+import { SeparateLegacyEventAndJobTables1792620300000 } from './migrations/1792620300000-separate-legacy-event-and-job-tables';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { AppController, HealthController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+// import { DatabaseModule } from './database/database.module';
+// import { DatasetModule } from './dataset/dataset.module';
+// import { WidgetModule } from './widget/widget.module';
+// import { DashboardModule } from './dashboard/dashboard.module';
+// import { TemplateModule } from './template/template.module';
+import { CommonModule } from './common/common.module';
+// import { ComponentModule } from './component/component.module';
+// import { ConnectionModule } from './connection/connection.module';
+import { UserModule } from './user/user.module';
+import { AuthModule } from './auth/auth.module';
+import { LoginModule } from './login/login.module';
+// import { ShareUrlModule } from './share-url/share-url.module';
+import { LoggerModule } from './common/logger/logger.module';
+// import { MonitoringModule } from './common/monitoring/monitoring.module';
+import { CorrelationIdMiddleware } from './middleware/correlation-id';
+import { TestCompressionController } from './test-compression.controller';
+import { TestFieldSelectionController } from './test-field-selection.controller';
+import { FieldSelectionModule } from './common/field-selection/field-selection.module';
+import { BatchModule } from './batch/batch.module';
+import { CacheModule } from './common/optimization/cache.module';
+import { PaginationModule } from './common/pagination/pagination.module';
+import { BackgroundJobModule } from './background-job/background-job.module';
+import { MemoryMonitorModule } from './common/monitoring/memory-monitor.module';
+import { MemoryMonitorMiddleware } from './common/monitoring/memory-monitor.middleware';
+import { ResponseTimeInterceptor } from './common/interceptors/response-time.interceptor';
+import { TypeOrmSlowQueryLogger } from './common/monitoring/typeorm-slow-query-logger';
+import { CustomLoggerService } from './common/logger/logger.service';
+import { SlowQueryMonitorService } from './common/monitoring/slow-query-monitor.service';
+import { QueryAnalyzerService } from './common/monitoring/query-analyzer.service';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
+import { EventsModule } from './events/events.module';
 import { DatabaseModule } from './database/database.module';
+import { InitializationModule } from './common/init/initialization.module';
 import { DatasetModule } from './dataset/dataset.module';
 import { WidgetModule } from './widget/widget.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TemplateModule } from './template/template.module';
-import { CommonModule } from './common/common.module';
 import { ComponentModule } from './component/component.module';
 import { ConnectionModule } from './connection/connection.module';
-import { UserModule } from './user/user.module';
-import { AuthModule } from './auth/auth.module';
-import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
+import { MonitoringModule } from './common/monitoring/monitoring.module';
 import { SeederService } from './database/seeds/seeder.service';
 import { AiModule } from './ai/ai.module';
 import { MetricModule } from './metric/metric.module';
@@ -72,6 +103,17 @@ import { apiEnvFiles } from './config-env';
 
 @Module({
   imports: [
+    LoggerModule,
+    MonitoringModule,
+    FieldSelectionModule,
+    BatchModule,
+    CacheModule,
+    PaginationModule,
+    BackgroundJobModule,
+    MemoryMonitorModule,
+    AnalyticsModule,
+    EventsModule,
+    InitializationModule,
     EnterpriseModule,
     StudioModule,
     AnalysisModule,
@@ -99,6 +141,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        SeparateLegacyEventAndJobTables1792620300000,
         AddHandoverProposal1792600000000,
         AddHandoverTransfer1792610000000,
         AddSourceHandover1792620000000,
@@ -146,6 +189,16 @@ import { apiEnvFiles } from './config-env';
       synchronize: process.env.NODE_ENV != 'prod',
       logging: process.env.NODE_ENV != 'prod',
       retryAttempts: 1,
+      ...(process.env.NODE_ENV !== 'local' && {
+        extra: {
+          connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 5,
+          connectTimeout: 30000,
+          enableKeepAlive: true,
+          keepAliveInitialDelay: 0,
+          waitForConnections: true,
+          queueLimit: 0,
+        },
+      }),
     }),
     DatabaseModule,
     DatasetModule,
@@ -164,8 +217,16 @@ import { apiEnvFiles } from './config-env';
     ProgressModule,
     CommerceModule,
   ],
-  controllers: [AppController],
+  controllers: [
+    AppController,
+    HealthController,
+    ...(process.env.NODE_ENV === 'prod' || process.env.NODE_ENV === 'production'
+      ? []
+      : [TestCompressionController, TestFieldSelectionController]),
+  ],
   providers: [
+    { provide: 'APP_INTERCEPTOR', useClass: ResponseTimeInterceptor },
+    { provide: 'APP_INTERCEPTOR', useClass: MetricsInterceptor },
     AppService,
     SeederService,
     {
@@ -174,4 +235,12 @@ import { apiEnvFiles } from './config-env';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Correlation ID 미들웨어를 모든 라우트에 적용
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+
+    // Memory Monitor 미들웨어를 모든 라우트에 적용
+    consumer.apply(MemoryMonitorMiddleware).forRoutes('*');
+  }
+}

@@ -1,0 +1,9 @@
+f67395c33b00fdc0d97f024999ba2f49
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DatasetType = void 0;
+var DatasetType;
+(function (DatasetType) {
+    DatasetType["DATASET"] = "DATASET";
+    DatasetType["TABLE"] = "TABLE";
+})(DatasetType = exports.DatasetType || (exports.DatasetType = {}));

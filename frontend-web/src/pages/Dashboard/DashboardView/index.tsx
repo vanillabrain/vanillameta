@@ -26,6 +26,7 @@ import shareService from '@/api/shareService';
 import { AuthContext } from '@/contexts/AuthContext';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
+import { trackDashboardEvent } from '@/utils/eventTracking';
 import { cn } from '@/lib/utils';
 import { readLayouts } from '../readLayouts';
 import DashboardAnalysis from '../Components/DashboardAnalysis';
@@ -167,6 +168,7 @@ const DashboardView = () => {
           Array.isArray(dashboard.widgets)
         ) {
           setDashboardInfo(dashboard);
+          trackDashboardEvent.viewed(String(id));
         } else {
           throw new Error(t('dashboard.loadFailed'));
         }
@@ -231,6 +233,7 @@ const DashboardView = () => {
           console.log('buttonOn', response);
           if (response.status === 201) {
             setIsShareOn(true);
+            trackDashboardEvent.shared(String(dashboardId), 'link');
           }
         })
         .catch(error => {

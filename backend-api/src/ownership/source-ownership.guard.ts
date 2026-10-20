@@ -35,7 +35,8 @@ export class SourceOwnershipGuard implements CanActivate {
       }
       if (['findAll', 'findTypeList', 'uploadFile'].includes(handler)) return true;
       if (handler === 'update') await this.access.assertWebConnection(body, param);
-      if (handler === 'executeQuery') await this.access.assert('database', body.id, actor);
+      if (['executeQuery', 'executeStreamingQuery'].includes(handler))
+        await this.access.assert('database', body.id, actor);
       else if (handler === 'findData') {
         const q = req.query;
         if (q.datasetId !== undefined)

@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **main 기능 보존 통합:** [계획](docs/plans/main-preserving-integration.md)·[증빙](docs/testing/main-preserving-integration.md)은 최신 Studio/권한과 main 캐시·작업·관측·언어 UI를 통합했다. 진단은 명시 운영자 allowlist, Redis 작업은 opt-in이다. legacy 공용 테이블은 추가 migration으로 분리하며 모호한 과거 행은 자동 이전하지 않는다. 미연결 모듈을 자동 활성화하거나 운영 migration·전체 수용 완료로 확대하지 않는다.
+
 - **TC050 역할별 HTTP 권한·회수:** [설계](docs/plans/TC-050-access-matrix.md)·[증빙](docs/testing/enterprise-access-matrix.md)은 새 전체 Nest/MySQL8.4.11에서9개 계정 역할 축·직접/그룹 합집합·source/dashboard 독립·전달·출력·비활성/epoch를 검증했다. 최종 HTTP299건/40115·40396의 거절111건에서13개 제품 표 hash/count 불변과 실제 독립 복사본 보존을 확인했다. 제품 수정0·검증 실행기 추가이며 요청 수를 전체 완료율로 쓰지 않는다. dashboard export는 투영만/실제 파일은 source export이고 소비자 연결 공백은 남는다. legacy/별도 governance·진행 중 잠금 경합/모든 writer·운영/실기기/업무·전체16개 수용은 Open이다.
 
 - **TC050 전체 앱 MySQL 통합:** [계획](docs/plans/TC-050-integrated-mysql.md)·[증빙](docs/testing/enterprise-integrated-mysql.md)은 실제 Nest HTTP/MySQL8.4.11/native DuckDB·Ego114의 실제 Codex 질문/원본600 저장→직접 공유→본인 소스1200 사본→비교300/200/100/50%·CSV→보관/복원·API 새 PID/reload의 대표 여정이다. 신규 빈 DB dev synchronize이며 운영 migration이 아니다. 매핑 select의 legacy44px/모바일14px 덮어쓰기를 제거해36px/16px·390/768/1440 넘침0을 확인했다. 최신 잔여표는 완료된 인계/탈퇴·세 복구·출력 재시작을 미구현으로 올리지 않는다. 역할/회수 HTTP 선택 행렬은 위 후속으로 보완됐고 다음은 미실행 경로·AI/정답 변형이며 운영/실기기/업무·전체16개/TC050 수용은 Open이다.
