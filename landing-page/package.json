@@ -20,7 +20,7 @@
     "eslint-config-airbnb": "^19.0.4",
     "vite": "^8.3.1",
     "@vitejs/plugin-react": "^6.1.1",
-    "typescript": "5.9.3",
+    "typescript": "7.0.2",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.10.1",
     "shadcn": "^4.21.5"
