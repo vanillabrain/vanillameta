@@ -196,7 +196,10 @@
 - react-alert 확인 다이얼로그: `DialogActions` 첫 버튼이 액션(확인/OK), 마지막이 Cancel — E2E에서 순서 주의
 - `waitForURL`은 `\/widget` 같은 부분 매칭이 `/widget/create`에도 걸리므로 `$` 앵커 사용
 
-## develop-v2 개발 검증
+## develop 개발 브랜치·검증
+
+- 사용자 지정(2026-10-21): 현재와 후속 VanillaMeta 개발은 `develop` 브랜치에서만 진행한다. `develop-v2`는 `develop`에 병합 후 폐기하며 다시 생성하거나 작업 대상으로 사용하지 않는다.
+- 작업 시작 시 현재 브랜치와 `origin/develop` 상태를 확인한다. GitHub 작업 계정은 아래 `drumcap` 지침을 유지한다.
 
 - 통합/출시 검증에서 루트 `npm run build`, `npm test`를 실행한다. 기능 개발 중에는 위 변경 범위 기준으로 선택한다. FE 타입은 `frontend-web`에서 `npx tsc --noEmit`.
 - 기준 패키지 관리자는 npm. `pnpm-lock.yaml`은 이번 통합에서 갱신하지 않았으므로 pnpm 설치·배포는 미검증.
