@@ -27,7 +27,11 @@ describe('publication boundary', () => {
       expect(() => validatePublication({ ...metadata, ...patch })).toThrow();
   });
   it('shows data-free permission and expiry guidance without server diagnostics', () => {
-    expect(publicationError({ response: { status: 403 }, message: 'sql password' })).toContain('권한');
+    const denied = publicationError({ response: { status: 403 }, message: 'sql password' });
+    expect(denied).toContain('권한');
+    expect(denied).toContain('연결 데이터');
+    expect(denied).not.toContain('소유자로 로그인해야');
+    expect(denied).not.toContain('sql');
     expect(publicationError({ response: { status: 410 }, message: 'sql password' })).toContain('만료');
     expect(publicationError({ response: { status: 410 }, message: 'sql password' })).not.toContain('sql');
   });

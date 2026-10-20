@@ -70,9 +70,7 @@ export default function ConditionProfilePanel({
         setError(
           cause?.response?.status === 409
             ? '조회 기준이 변경됐습니다. 입력은 유지했습니다. 최신 상태를 확인하고 다시 조회하세요.'
-            : cause instanceof Error
-            ? cause.message
-            : '분포·표본을 조회하지 못했습니다. 입력을 유지했습니다.',
+            : '분포·표본을 조회하지 못했습니다. 선택한 열과 입력은 유지했습니다. 연결과 데이터 상태를 확인한 뒤 다시 조회하세요.',
         );
     } finally {
       if (token === serial.current) setBusy(false);
@@ -130,7 +128,10 @@ export default function ConditionProfilePanel({
           <Button
             type="button"
             variant="outline"
-            disabled={disabled || busy || !selected.length}
+            disabled={disabled || !selected.length}
+            aria-disabled={disabled || busy || !selected.length}
+            aria-busy={busy}
+            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
             onClick={() => void request()}
           >
             분포·표본 조회
@@ -159,8 +160,14 @@ export default function ConditionProfilePanel({
                 >
                   <h3 className="break-words font-medium">{d.column} · 전체 값 빈도</h3>
                   <p className="text-xs text-muted-foreground">
-                    NULL 포함 {d.totalGroups}그룹 · 범위 {scalar(d.range.minimum, d.range.minimumTruncated)} ~{' '}
-                    {scalar(d.range.maximum, d.range.maximumTruncated)}
+                    {d.totalGroups === '0' ? (
+                      '현재 범위에 값 그룹이 없습니다.'
+                    ) : (
+                      <>
+                        NULL 포함 {d.totalGroups}그룹 · 범위 {scalar(d.range.minimum, d.range.minimumTruncated)} ~{' '}
+                        {scalar(d.range.maximum, d.range.maximumTruncated)}
+                      </>
+                    )}
                   </p>
                   <div
                     className="min-w-0 overflow-x-auto"
@@ -168,11 +175,11 @@ export default function ConditionProfilePanel({
                     role="region"
                     aria-label={`${d.column} 분포 표 가로 스크롤`}
                   >
-                    <table className="w-full text-left text-sm">
+                    <table className="w-full min-w-96 text-left text-sm">
                       <thead>
                         <tr>
-                          {['값', '전체', '포함', '제외', '최종'].map(s => (
-                            <th key={s} className="px-2 py-1 font-medium">
+                          {['값', '전체', '포함', '제외', '최종'].map((s, index) => (
+                            <th key={s} className={'px-2 py-1 whitespace-nowrap font-medium' + (index ? ' text-right' : '')}>
                               {s}
                             </th>
                           ))}
@@ -181,11 +188,11 @@ export default function ConditionProfilePanel({
                       <tbody>
                         {d.rows.map((row, i) => (
                           <tr key={i}>
-                            <td className="max-w-64 px-2 py-1 whitespace-pre-wrap [overflow-wrap:anywhere]">
+                            <td className="min-w-32 max-w-64 px-2 py-1 whitespace-pre-wrap [overflow-wrap:anywhere]">
                               {scalar(row.value, row.valueTruncated)}
                             </td>
                             {[row.total, row.matched, row.excluded, row.remaining].map((v, k) => (
-                              <td key={k} className="px-2 py-1 tabular-nums">
+                              <td key={k} className="px-2 py-1 text-right whitespace-nowrap tabular-nums">
                                 {v}
                               </td>
                             ))}
@@ -193,9 +200,9 @@ export default function ConditionProfilePanel({
                         ))}
                         {d.hasMore && (
                           <tr>
-                            <th className="px-2 py-1">나머지 그룹</th>
+                            <th className="px-2 py-1 whitespace-nowrap">나머지 그룹</th>
                             {[d.other.total, d.other.matched, d.other.excluded, d.other.remaining].map((v, k) => (
-                              <td key={k} className="px-2 py-1 tabular-nums">
+                              <td key={k} className="px-2 py-1 text-right whitespace-nowrap tabular-nums">
                                 {v}
                               </td>
                             ))}
@@ -226,6 +233,15 @@ export default function ConditionProfilePanel({
                     </tr>
                   </thead>
                   <tbody>
+                    {visible.sample.rows.length === 0 && (
+                      <tr>
+                        <td colSpan={visible.sample.columns.length} className="px-2 py-3 text-muted-foreground">
+                          {visible.population.total === '0'
+                            ? '현재 범위에 데이터가 없습니다. 원본 데이터·기간·필터를 확인하세요.'
+                            : '조건을 만족하는 행이 없습니다. 포함·제외 조건을 확인하세요.'}
+                        </td>
+                      </tr>
+                    )}
                     {visible.sample.rows.map((row, i) => (
                       <tr key={i}>
                         {row.values.map((v, k) => (
