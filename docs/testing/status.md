@@ -1,5 +1,7 @@
 # 최신 요약 — 2026-10-20
 
+**2026-10-20 FR019 정밀값·경합 화면 후속:** [Ego53](condition-profile.md#정밀값조회-중-변경-화면-후속--2026-10-20--ego53)은 실제 Parquet BIGINT/DECIMAL/DATE·Unicode200자 잘림을 독립 정답과 대조했다. 모바일 표본 숫자/날짜 줄바꿈을 수정해 긴 행688→228px·3폭넘침0/키보드 내부 스크롤을 확인했다. 격리 서버 시험 게이트의 파일 포인터 변경409/활성 회수403→명시201 복구·선택4개/거절시데이터0·원복 후7표불변, FE type/lint/build PASS다. Source 선택 경합이며 Studio 동일 경합 화면·목표 규모/이번MySQL/실기기/전체수용은 잔여다. 이전8파일9b2382e7 drumcap push·이번 변경 미커밋, gpt-6-luna 호출0/VoiceOver BLOCKED 유지.
+
 **2026-10-20 FR019 경계 화면 후속:** [Ego52 상위20/NULL/0행](condition-profile.md#경계-화면-결과--2026-10-20--ego52)은 합성46행/26그룹의상위20합40+나머지6·NULL우선/중복/표본20/46을 CSV 정답과 대조했다. 조건 미일치46→0/0%와 기간 모집단0/비율없음을 구별하고, 오해를 주던NULL 범위/빈 표 안내만 수정했다. 새선택2PASS/기존8재사용·type/lint/build·Studio3폭넘침0/키보드·준비 후10표불변이다. 잘림/정밀값·조회중 변경 화면/목표규모·운영/실기기/전체수용은 잔여, gpt-6-luna 호출0/VoiceOver BLOCKED·미커밋 유지.
 
 **2026-10-20 FR019 실제 화면 후속:** [분포·정렬 표본 Ego51](condition-profile.md#실제-브라우저-후속--2026-10-20--ego51)은 같은 합성 CSV의 Source18행/Studio기간·회사2행과 전체 빈도·정렬 표본, 선택만 요청0/재선택 옛 결과0을 확인했다. 원문 오류·native disabled 초점 손실·모바일 표 머리글 줄바꿈을 수정해 실제 실패/Enter 재시도·Source3폭/Studio390 넘침0·8단위/type/lint/build PASS·9표전체행 불변이다.20그룹/NULL/0행 등 실제 화면 변형·목표 규모/실기기/운영/전체 수용은 잔여이며 gpt-6-luna 호출0/VoiceOver BLOCKED 유지. 이번 수정/기록은 미커밋이다.

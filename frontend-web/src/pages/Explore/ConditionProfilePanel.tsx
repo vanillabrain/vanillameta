@@ -79,6 +79,7 @@ export default function ConditionProfilePanel({
   const percent = (ratio: number | null) => (ratio === null ? '비율 없음' : `${Math.round(ratio * 10000) / 100}%`);
   const scalar = (v: string | null, truncated = false) =>
     v === null ? '값 없음 (NULL)' : v + (truncated ? '… (잘림)' : '');
+  const columnKind = (name: string) => columns.find(column => column.name === name)?.kind;
   return (
     <section aria-label="분포·표본 탐색" className="my-3 min-w-0 rounded-lg border border-border">
       <Button
@@ -226,7 +227,13 @@ export default function ConditionProfilePanel({
                   <thead>
                     <tr>
                       {visible.sample.columns.map(c => (
-                        <th key={c.name} className="px-2 py-1 [overflow-wrap:anywhere]">
+                        <th
+                          key={c.name}
+                          className={
+                            'min-w-32 px-2 py-1 [overflow-wrap:anywhere]' +
+                            (columnKind(c.name) === 'number' ? ' text-right' : '')
+                          }
+                        >
                           {c.name}
                         </th>
                       ))}
@@ -245,8 +252,24 @@ export default function ConditionProfilePanel({
                     {visible.sample.rows.map((row, i) => (
                       <tr key={i}>
                         {row.values.map((v, k) => (
-                          <td key={k} className="max-w-64 px-2 py-1 align-top whitespace-pre-wrap [overflow-wrap:anywhere]">
-                            {scalar(v, row.truncated[k])}
+                          <td
+                            key={k}
+                            className={
+                              'px-2 py-1 align-top' +
+                              (columnKind(visible.sample.columns[k].name) === 'number' ? ' text-right tabular-nums' : '')
+                            }
+                          >
+                            <span
+                              className={
+                                ['number', 'date', 'timestamp', 'boolean'].includes(
+                                  columnKind(visible.sample.columns[k].name) || '',
+                                )
+                                  ? 'whitespace-nowrap'
+                                  : 'block w-64 max-w-64 whitespace-pre-wrap [overflow-wrap:anywhere]'
+                              }
+                            >
+                              {scalar(v, row.truncated[k])}
+                            </span>
                           </td>
                         ))}
                       </tr>

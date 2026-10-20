@@ -114,3 +114,34 @@ Ego51을 keep[]로 종료하고 이번 API4562 PID65130/웹3462 PID65609만 종�
 [26그룹390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/condition-profile-edge-20261020/category-groups-390.png) · [NULL/중복 표본390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/condition-profile-edge-20261020/null-sample-390.png) · [조건 미일치 최초390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/condition-profile-edge-20261020/source-zero-final-390.png) · [조건 미일치 수정390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/condition-profile-edge-20261020/source-zero-after-390.png) · [0모집단 최초390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/condition-profile-edge-20261020/studio-zero-before-390.png) · [0모집단 수정390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/condition-profile-edge-20261020/studio-zero-after-390.png) · [1440](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/condition-profile-edge-20261020/studio-zero-after-1440.png)
 
 20그룹 초과/NULL/0행·0분모의 **선택 실제 화면 변형**은 보완했다. 잘림/정밀 native 값과 집계 중 파일/권한 변경의 실제 화면, 목표 규모·이번 MySQL·실휴대폰/전체 스크린리더·업무/전체FR019·16개 수용은 여전히 남는다. gpt-6-luna 유지/호출0·VoiceOver BLOCKED 유지다. Ego52를 keep[]로 종료하고 이번 API PID57958/웹PID58354만 종료했다. 기존 데이터/파일을 초기화하지 않았으며 이번 수정·기록은 앞선 변경과 함께 미커밋으로 남겼다. Ego Lite 업데이트는 안내만 확인하고 적용하지 않았다.
+
+## 정밀값·조회 중 변경 화면 후속 — 2026-10-20 / Ego53
+
+기준 develop-v2 `9b2382e7`. PROFILE-UI-01~08의 통과는 재사용한다. 새 합성 Parquet의 native BIGINT `9007199254740993`/`9007199254740994`, DECIMAL(30,4) `12345678901234567890.1234`/`-1.0001`, DATE와 200 Unicode code point를 넘는 문자열을 사용한다. CSV 자동 DOUBLE 추론을 정밀값 보존의 증거로 사용하지 않는다. 업로드는 입력 준비이며 업로드 기능 재검증으로 집계하지 않는다.
+
+| ID | 미검증 조건·기대 | 실제 결과 |
+|---|---|---|
+| PROFILE-UI-09 | 실제 Source HTTP/화면의 BIGINT·DECIMAL·DATE 문자열이 독립 입력 정답과 일치하며 미선택 열은 profile 응답에 없음 | PASS_SELECTED. 실제201의2행/4열과 Python 정수 문자열·Decimal·날짜 정답 일치. 미선택 secret 열/marker 응답0. |
+| PROFILE-UI-10 | Unicode 문자열 200 code point 잘림/명시 표시, 390/768/1440 문서 넘침0·표 내부 스크롤·키보드 가시 초점 | 최초 모바일 숫자 줄바꿈 후 수정 PASS_SELECTED. 한글/이모지200 code point와 잘림 flag/표시 일치. 숫자 우측 정렬/숫자·날짜 nowrap·3폭넘침0,390 ArrowRight 내부 이동/가시 초점. |
+| PROFILE-UI-11 | profile 작업 도중 선택 파일 기준을 격리 fixture에서 변경하면 최종409·이전 데이터0·선택 보존, 최신 기준 명시 조회로 복구 | PASS_SELECTED. 실제409/표본0/선택4개, 최신 조건 읽기→명시Enter201/정답2행. 파일 내용이 같은 새 경로로 교체한 기준 변경 시험이며 in-place 파일 변조 탐지가 아님. |
+| PROFILE-UI-12 | profile 작업 도중 소스 권한/활성 회수 시 최종403·데이터0·선택 보존, fixture 원복 후 명시 조회로 복구 | PASS_SELECTED. 실제 비활성403/표본·분포0/선택4개·조회 버튼 자연 초점/390넘침0. 원복 뒤 Enter201·동일 정답 복구. 일반 grant/계정/조직 회수 전체 변형은 미실행. |
+
+### 입력·최초 실패와 수정
+
+Node24.21.0·실제 Nest/native DuckDB worker, 별도 `/tmp/vm-profile-precision-runtime/metadata.sqlite` 복사본/API4562·웹3462·기존 합성 계정 세션과 새 준비 소스35를 사용했다. 고객 자료/새 계정/암호 탐색0이다. 입력 Parquet는 native BIGINT/DECIMAL/DATE를 명시했으며 Python 입력 문자열/Decimal로 독립 정답을 만들었다. 초기 fixture SQL의 예약어 별칭 오류2회는 제품 실패/통과로 집계하지 않는다.
+
+최초390px 표본은 숫자·날짜까지 임의 줄바꿈되고 긴 설명 때문에 행 높이688px이었다. 표본 셀의 native 숫자/날짜/boolean을 한 줄로 유지하고 숫자 헤더/셀을 우측 정렬했다. 문자열은 기존256px 토큰 안에서 줄바꿈하며 표 안에서 가로 이동한다. 수정 후 동일 긴 행228px,390/768/1440 문서 넘침0·표본 표 내용780/780/1300px, 컨테이너306/684/1300px이다.390에서 ArrowRight로 내부 scrollLeft>0·실제 solid 초점을 확인했다. 긴 값 오른쪽 캡처는 DOM scrollLeft를 조정한 관찰이며 End 키의 가로 이동 통과로 집계하지 않는다.
+
+변경된 표본 표시만 실제 조회로 재확인했다. 관련 FE type/변경 파일 non-fixing lint/FE build PASS이며 기존 단위·BE·core·AI 검사는 표시만 바뀌어 재사용했다. 최초 도구의 잘못된 tsc/prettier 경로는 실행0으로 구별하며 올바른 저장소 실행 파일로 최종 확인했다. 초기 정확 텍스트 selector 대기 timeout은 실제201 이후 관찰자 오류였고, 화면과 응답을 확인한 뒤 중복 조회 없이 증빙했다.
+
+### 조회 중 변경·보존
+
+서버 프로세스에만 `/tmp/.../profile-gate.cjs` preload를 적용했다. 실제 소스/권한/schema 캡처·prepare 완료 후 첫 profile aggregate SQL을 실행하기 직전에 멈추고, 별도 SQLite 연결로 **새 소스35만** 파일 포인터 변경/비활성화 후 게이트를 해제했다. 이후 실제 worker 계산과 서비스 최종 current 검사에서409/403을 반환했다. 응답 자체를 가짜 오류로 바꾸지 않았으며 제품 코드/운영 설정은 변경하지 않았다. 이는 선택한 경합 지점의 재현이며 운영 부하·모든 중단 지점 검증이 아니다.
+
+두 거절에 결과가 없고 선택4개가 유지됐다.409는 최신 조건 명시 읽기 후 재조회,403은 원래 활성 상태로 복구 후 원래 조회 버튼의 Enter로201/동일 정답을 확인했다.409 캡처에서는 버튼 focus를 명시 설정했으므로 자연 초점 보존 증거로 사용하지 않는다.403은 추가 focus 없이 자연 초점/가시성을 관측했다. 원래 source35 행은 encrypted config/활성/버전/updatedAt까지 정확히 복구했고, 준비 후7개 선택 표(database/metric/dashboard/dashboard_widget/source_catalog_entry/source_condition_entry/studio_execution)의 전체 행/hash/count가 불변이다. 전체 DB 모든 표·운영 writer 불변 증거로 확대하지 않는다.
+
+### 증빙·종료와 잔여
+
+증빙은 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/condition-profile-precision-20261020/`의 `input.json`, `oracle.json`, `precision-response.json`, `precision-layout.json`, `file-race.json`/`file-recovered.json`, `access-race.json`/`access-recovered.json`, `db-before.json`/`db-after.json`, type/lint/build 로그와 대표 캡처다. 시험 훅/fixture 실행기는 저장소 밖 runtime 폴더에만 있다. 원래 파일은 수정하지 않고 시험용 대체 복사 파일만 정리했다. 재현용 신규 소스35/Parquet와 등록 DuckDB는 격리 fixture에 보존했다.
+
+Ego53은 keep[] 종료, 이번 API57553/웹29306은 종료했다. 기존 PASS는 재실행하지 않았다. 이번 Source 화면의 정밀값/잘림·파일 기준/활성 변경 조건을 보완했으며 **Studio 경로의 동일 경합 화면·목표 규모/이번 MySQL·실휴대폰/전체 스크린리더·업무/전체FR019·16개 수용은 별도**다. gpt-6-luna 유지/AI 호출0·VoiceOver BLOCKED 유지다. Ego Lite 업데이트 안내만 확인하고 적용하지 않았다. 이전 미커밋8파일은9b2382e7로 drumcap push했으며 이번 표본 디자인 수정/기록은 그 이후 diff다.
