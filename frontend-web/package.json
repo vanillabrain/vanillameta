@@ -109,7 +109,7 @@
     "serverless-finch": "^4.0.3",
     "serverless-frontend-plugin": "^2.0.2",
     "typescript": "5.9.3",
-    "vite": "^8.3.1",
+    "vite": "^8.3.4",
     "vite-plugin-svgr": "^5.2.0",
     "vitest": "^5.0.2",
     "shadcn": "^4.21.5"
