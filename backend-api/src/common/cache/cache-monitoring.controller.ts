@@ -74,7 +74,10 @@ export class CacheMonitoringController {
             keyCount: { type: 'number' },
             memoryUsage: { type: 'number' },
             evictions: { type: 'number' },
-            connectionStatus: { type: 'string', enum: ['connected', 'disconnected', 'error'] },
+            connectionStatus: {
+              type: 'string',
+              enum: ['connected', 'disconnected', 'error', 'disabled'],
+            },
             latency: {
               type: 'object',
               properties: {

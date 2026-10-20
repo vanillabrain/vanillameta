@@ -46,6 +46,23 @@ describe('SlowQueryMonitorService', () => {
     expect(service).toBeDefined();
   });
 
+  it('stores a structured EXPLAIN plan as JSON text without mutating the analysis', async () => {
+    const plan = [{ table: 'synthetic', rows: 1 }];
+    await service.logSlowQuery({ query: 'SELECT 1', executionTime: 1500, explainPlan: plan });
+    const stored = mockRepository.save.mock.calls[0][0];
+    expect(typeof stored.explainPlan).toBe('string');
+    expect(JSON.parse(stored.explainPlan)).toEqual(plan);
+    expect(plan).toEqual([{ table: 'synthetic', rows: 1 }]);
+  });
+
+  it.each([NaN, Infinity, -1, 1761000000000])(
+    'does not persist invalid millisecond duration %s',
+    async executionTime => {
+      await service.logSlowQuery({ query: 'SELECT 1', executionTime });
+      expect(mockRepository.save).not.toHaveBeenCalled();
+    },
+  );
+
   it('honors the disabled CloudWatch flag without disabling slow-query storage', async () => {
     const previous = process.env.CLOUDWATCH_METRICS_ENABLED;
     process.env.CLOUDWATCH_METRICS_ENABLED = 'false';

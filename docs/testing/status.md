@@ -1,5 +1,9 @@
 # 최신 요약 — 2026-10-21
 
+**2026-10-21 관측 오류 복구:** [원인·수정·MySQL 재검증](observability-recovery.md). Knex 시간 상관/INT 검증·암호화 진단/계획 저장·Redis disabled/무트래픽 경고와 optimizer 접속 정보 전달을 보완했다. 선택 BE218·FE74, 새 MySQL8.4.11의27HTTP/7검사·실제1,592/1,598ms와 JSON 계획·cron 로그를 확인했다. 앞선 인수 수정과 함께 develop 전달 대상이며 운영/전체16개 업무 수용은 별도다.
+
+**2026-10-21 develop 인수 시나리오:** [결과·발견 결함](develop-acceptance-20261021.md). main/v2 통합 develop에서 격리 MySQL의 고유 E2E17개(최종 배치16+경합 보완 재실행1)·권한297HTTP/12검사·Ego122 실제 AI 생성/저장/reload/비공개 게시·대표 폭을 확인했다. 시드 로더·위젯 선택·빈 대시보드 MySQL 조회를 보완했다. 관측 오류는 미해결이며 운영/실기기/전체16개 업무 수용은 Open이다. 관측 오류의 후속 수정은 위 복구 기록을 따른다.
+
 **2026-10-21 AI 조건 연속 대화:** [Ego54](ai-condition-proposals.md#설명조회변경-실제-대화--2026-10-21--ego54)는 실제 Codex/gpt-6-luna 요청의 설명/조회0연산→Compute 조건 검토→키보드 명시 적용/Undo를 확인했다. 조건 부재 문맥·조회 단위 누락·Undo 과거 안내/초점 손실을 수정해2000USD/5%→1200/25→원복·3폭넘침0/검토 보존·저장/게시0·10선택표불변이다. 실제 CLI7회는 실패/재검사 포함이며 모델 사용 attestation과 구별한다. 최종BE선택4·FE선택1/type/lint/build PASS(이전 배치 합산0). 이전4파일752c043f drumcap push·이번 수정 미커밋, VoiceOver BLOCKED·unknown/type/no-op/stale 실제 모델 변형/운영/실기기/전체수용 잔여다.
 
 **2026-10-20 FR019 정밀값·경합 화면 후속:** [Ego53](condition-profile.md#정밀값조회-중-변경-화면-후속--2026-10-20--ego53)은 실제 Parquet BIGINT/DECIMAL/DATE·Unicode200자 잘림을 독립 정답과 대조했다. 모바일 표본 숫자/날짜 줄바꿈을 수정해 긴 행688→228px·3폭넘침0/키보드 내부 스크롤을 확인했다. 격리 서버 시험 게이트의 파일 포인터 변경409/활성 회수403→명시201 복구·선택4개/거절시데이터0·원복 후7표불변, FE type/lint/build PASS다. Source 선택 경합이며 Studio 동일 경합 화면·목표 규모/이번MySQL/실기기/전체수용은 잔여다. 이전8파일9b2382e7 drumcap push·이번 변경 미커밋, gpt-6-luna 호출0/VoiceOver BLOCKED 유지.

@@ -179,7 +179,22 @@ export class ConnectionService {
 
       // 옵티마이저를 통한 추가 최적화
       if (optimizer) {
-        optimizedOptions = optimizer.getOptimizedConnectionConfig(optimizedOptions);
+        const optimized = optimizer.getOptimizedConnectionConfig(
+          optimizedOptions.connection,
+          environment,
+        );
+        optimizedOptions = {
+          ...optimizedOptions,
+          ...optimized,
+          pool: {
+            ...optimizedOptions.pool,
+            ...optimized.pool,
+            max: Math.min(
+              optimizedOptions.pool.max,
+              optimized.pool?.max ?? optimizedOptions.pool.max,
+            ),
+          },
+        };
 
         this.logger?.info('Applied optimizer-specific configurations', 'ConnectionService', {
           databaseId: id,

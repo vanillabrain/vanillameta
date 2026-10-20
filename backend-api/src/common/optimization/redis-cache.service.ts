@@ -85,15 +85,25 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
     return this.connected ? this.redis : undefined;
   }
 
+  isEnabled(): boolean {
+    return this.config.enabled;
+  }
+
   /**
    * Redis 설정 초기화
    */
   private initializeConfig(): void {
     // 로컬 환경에서는 Redis를 기본적으로 비활성화
     const isLocal = this.configService.get('NODE_ENV') === 'local';
-    const redisEnabled = isLocal
-      ? this.configService.get('REDIS_CACHE_ENABLED', 'false') === 'true'
-      : this.configService.get('REDIS_CACHE_ENABLED', 'true') === 'true';
+    const configured = !!(
+      this.configService.get('REDIS_URL') ||
+      this.configService.get('REDIS_HOST') ||
+      this.configService.get('REDIS_PORT') ||
+      this.configService.get('REDIS_CLUSTER_ENABLED') === 'true'
+    );
+    const redisEnabled =
+      this.configService.get('REDIS_CACHE_ENABLED', !isLocal && configured ? 'true' : 'false') ===
+      'true';
 
     this.config = {
       enabled: redisEnabled,
@@ -146,15 +156,21 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
         });
       } else {
         // 단일 Redis 인스턴스
-        this.redis = new Redis({
-          host: this.config.host,
-          port: this.config.port,
-          password: this.config.password,
-          db: this.config.db,
+        const options = {
           keyPrefix: this.config.keyPrefix,
           maxRetriesPerRequest: 3,
           lazyConnect: true,
-        });
+        };
+        const url = this.configService.get<string>('REDIS_URL');
+        this.redis = url
+          ? new Redis(url, options)
+          : new Redis({
+              ...options,
+              host: this.config.host,
+              port: this.config.port,
+              password: this.config.password,
+              db: this.config.db,
+            });
       }
 
       // 연결 이벤트 핸들러

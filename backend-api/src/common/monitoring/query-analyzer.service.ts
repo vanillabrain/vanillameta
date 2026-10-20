@@ -6,6 +6,7 @@ import { Database } from '../../database/entities/database.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SqlValidationService } from '../security/sql-validation.service';
+import { parseConnectionConfig } from '../../utils/crypto.util';
 
 export interface QueryAnalysis {
   query: string;
@@ -95,8 +96,9 @@ export class QueryAnalyzerService {
         await runner.release();
       }
     } catch (error) {
-      this.logger.error(`Query analysis failed: ${error.message}`, error.stack);
-      analysis.warnings = [`Analysis failed: ${error.message}`];
+      // Driver/parser messages may contain connection credentials or ciphertext.
+      this.logger.error('Query analysis failed');
+      analysis.warnings = ['Analysis failed: diagnostic connection or execution unavailable'];
       return analysis;
     }
   }
@@ -110,7 +112,13 @@ export class QueryAnalyzerService {
       throw new Error(`Database ${databaseId} not found`);
     }
 
-    const config = JSON.parse(database.connectionConfig);
+    if (!['pg', 'mysql2', 'mssql', 'oracledb'].includes(database.engine)) {
+      return {
+        query: query.substring(0, 200),
+        warnings: [`Query analysis not supported for ${database.engine}`],
+      };
+    }
+    const config = parseConnectionConfig(database.connectionConfig);
     const knexInstance = knex(config);
 
     try {

@@ -12,6 +12,29 @@ jest.mock('knex', () => {
 });
 
 describe('connection identity, pools and stored-config cache regressions', () => {
+  it('passes the actual endpoint and environment to the optimizer without nesting the whole Knex config', () => {
+    const endpoint = { host: '127.0.0.1', port: 34567, user: 'synthetic', database: 'owned' };
+    const optimizer = {
+      getOptimizedConnectionConfig: jest
+        .fn()
+        .mockImplementation(connection => ({ client: 'mysql2', connection })),
+      getDatabaseType: () => 'mysql',
+    };
+    (connection as any).databaseOptimizerFactory = {
+      getOptimizer: () => optimizer,
+      isSupported: () => true,
+      getOptimizationStats: () => ({}),
+    };
+    (knex as unknown as jest.Mock).mockReturnValue(pool('isolated'));
+    connection.addKnex(991, { client: 'mysql2', connection: endpoint });
+    expect(optimizer.getOptimizedConnectionConfig).toHaveBeenCalledWith(
+      expect.objectContaining(endpoint),
+      process.env.NODE_ENV || 'dev',
+    );
+    expect(knex).toHaveBeenCalledWith(
+      expect.objectContaining({ connection: expect.objectContaining(endpoint) }),
+    );
+  });
   const repository = {
     manager: { connection: { options: { type: 'sqlite' } } },
     findOne: jest.fn(),

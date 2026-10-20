@@ -5,6 +5,7 @@ import { getRepositoryToken, getConnectionToken } from '@nestjs/typeorm';
 import { Connection, QueryRunner, DataSource, Repository } from 'typeorm';
 import { Database } from '../../database/entities/database.entity';
 import { SqlValidationService } from '../security/sql-validation.service';
+import { encryptConnectionConfig } from '../../utils/crypto.util';
 
 // Knex 모듈 모킹
 jest.mock('knex', () => ({
@@ -190,6 +191,61 @@ describe('QueryAnalyzerService', () => {
         destroy: jest.fn(),
       };
       (knex as unknown as jest.Mock).mockReturnValue(mockKnex);
+    });
+
+    it('does not include malformed stored settings in diagnostic errors', async () => {
+      const error = jest
+        .spyOn((service as any).logger, 'error')
+        .mockImplementation(() => undefined);
+      (knex as unknown as jest.Mock).mockClear();
+      (mockDatabaseRepository.findOne as jest.Mock).mockResolvedValue({
+        id: 2,
+        engine: 'mysql2',
+        connectionConfig: 'private-connection-fragment',
+      });
+      try {
+        const result = await service.analyzeQuery('SELECT 1', 2);
+        expect(JSON.stringify(result.warnings)).not.toContain('private-connection-fragment');
+        expect(error).toHaveBeenCalledWith('Query analysis failed');
+        expect(knex).not.toHaveBeenCalled();
+      } finally {
+        error.mockRestore();
+      }
+    });
+
+    it('decrypts stored connection settings before constructing the diagnostic connection', async () => {
+      const old = process.env.CONFIG_SECRET_KEY;
+      process.env.CONFIG_SECRET_KEY = 'synthetic-observability-key';
+      try {
+        const config = {
+          client: 'mysql2',
+          connection: { host: '127.0.0.1', password: 'synthetic-password' },
+        };
+        (mockDatabaseRepository.findOne as jest.Mock).mockResolvedValue({
+          id: 2,
+          engine: 'mysql2',
+          connectionConfig: encryptConnectionConfig(JSON.stringify(config)),
+        });
+        mockKnex.raw.mockResolvedValue([[]]);
+        await service.analyzeQuery('SELECT 1', 2);
+        expect(knex).toHaveBeenCalledWith(config);
+        expect(mockKnex.destroy).toHaveBeenCalled();
+      } finally {
+        if (old === undefined) delete process.env.CONFIG_SECRET_KEY;
+        else process.env.CONFIG_SECRET_KEY = old;
+      }
+    });
+
+    it('reports unsupported native engines without parsing settings or opening Knex', async () => {
+      (knex as unknown as jest.Mock).mockClear();
+      (mockDatabaseRepository.findOne as jest.Mock).mockResolvedValue({
+        id: 2,
+        engine: 'duckdb',
+        connectionConfig: 'enc:v1:not-knex',
+      });
+      const result = await service.analyzeQuery('SELECT 1', 2);
+      expect(result.warnings).toEqual(['Query analysis not supported for duckdb']);
+      expect(knex).not.toHaveBeenCalled();
     });
 
     it('should analyze PostgreSQL query', async () => {

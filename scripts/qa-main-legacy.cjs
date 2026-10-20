@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Main legacy integration: execute ONLY against a newly provisioned owned QA runtime.
-// Usage: node scripts/qa-main-legacy.cjs /absolute/runtime.json [--no-redis]
+// Usage: node scripts/qa-main-legacy.cjs /absolute/runtime.json [--no-redis] [--observability]
 // Launch that runtime with QA_LEGACY_OPERATIONS_USER_IDS=1 and, for Redis mode,
 // QA_REDIS_PORT=<owned loopback Redis port>. This script never builds/starts services.
 const assert = require("node:assert/strict");
@@ -18,7 +18,11 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function parseArgs(args) {
   const positional = args.filter((value) => !value.startsWith("--"));
   assert(
-    args.every((value) => !value.startsWith("--") || value === "--no-redis"),
+    args.every(
+      (value) =>
+        !value.startsWith("--") ||
+        ["--no-redis", "--observability"].includes(value)
+    ),
     "Unknown option"
   );
   assert.equal(
@@ -29,6 +33,7 @@ function parseArgs(args) {
   return {
     runtimePath: path.resolve(positional[0]),
     noRedis: args.includes("--no-redis"),
+    observability: args.includes("--observability"),
   };
 }
 function unwrap(value) {
@@ -116,12 +121,12 @@ async function main(args) {
       timeout: 30000,
       stdio: ["ignore", "pipe", "pipe"],
     }).trim();
-  const poll = async (name, read, done, timeout = 45000) => {
+  const poll = async (name, read, done, timeout = 45000, interval = 100) => {
     const end = Date.now() + timeout;
     while (Date.now() < end) {
       const value = await read();
       if (done(value)) return value;
-      await delay(100);
+      await delay(interval);
     }
     throw new Error("Timed out: " + name);
   };
@@ -743,6 +748,115 @@ async function main(args) {
       );
       check(
         "Active-worker actor epoch revocation: old token 401, no result, renewed token cannot upgrade admitted epoch"
+      );
+    }
+    if (options.observability) {
+      assert(
+        options.noRedis,
+        "Observability lane requires explicit no-Redis mode"
+      );
+      const current = await call(
+        "operator",
+        "/cache/monitoring/metrics/current?engine=dashboard"
+      );
+      assert.equal(current.data.l2.connectionStatus, "disabled");
+      const source = await call("operator", "/database", {
+        name: "Owned observability MySQL",
+        engine: "mysql2",
+        type: "mysql2",
+        connectionConfig: {
+          host: config.host,
+          port: config.port,
+          user: config.username,
+          password: config.password,
+          database: config.database,
+        },
+      });
+      const sourceId = source.id;
+      assert(Number.isSafeInteger(sourceId));
+      const [[stored]] = await db.query(
+        "SELECT connectionConfig FROM `database` WHERE id = ?",
+        [sourceId]
+      );
+      assert(stored.connectionConfig.startsWith("enc:v1:"));
+      secrets.push(stored.connectionConfig);
+      const sql = "SELECT COUNT(*) AS n FROM qa_observability_probe";
+      await db.query(
+        "CREATE TABLE qa_observability_probe (id INT PRIMARY KEY)"
+      );
+      await db.query("INSERT INTO qa_observability_probe VALUES (1)");
+      const plan = await call("operator", "/query-analyzer/analyze", {
+        query: sql,
+        databaseId: sourceId,
+      });
+      assert(
+        plan.explainPlan && !plan.warnings?.some((w) => /failed/i.test(w))
+      );
+      check(
+        "Actual encrypted MySQL source: diagnostic EXPLAIN succeeds without exposing credentials"
+      );
+      const locker = await backendRequire("mysql2/promise").createConnection({
+        host: config.host,
+        port: config.port,
+        user: config.username,
+        password: config.password,
+        database: config.database,
+      });
+      try {
+        await locker.query("LOCK TABLES qa_observability_probe WRITE");
+        const pending = call("operator", "/database/execute", {
+          id: sourceId,
+          query: sql,
+        });
+        await delay(1600);
+        await locker.query("UNLOCK TABLES");
+        const result = await pending;
+        assert.equal(result.status, "SUCCESS");
+        assert.equal(Number(result.datas[0].n), 1);
+      } finally {
+        await locker.query("UNLOCK TABLES").catch(() => undefined);
+        await locker.end();
+      }
+      const rows = await poll(
+        "Real slow-query persistence",
+        async () =>
+          (
+            await db.query(
+              "SELECT executionTime FROM slow_query_logs WHERE databaseId = ?",
+              [sourceId]
+            )
+          )[0],
+        (rows) => rows.length > 0
+      );
+      assert(
+        rows.every(
+          (row) =>
+            Number.isInteger(row.executionTime) &&
+            row.executionTime >= 1000 &&
+            row.executionTime < 15000
+        )
+      );
+      check(
+        "Real MySQL lock wait: exact result preserved and bounded millisecond slow-query observations committed"
+      );
+      await poll(
+        "Scheduled cache observations",
+        () => call("operator", "/cache/monitoring/metrics/history/dashboard"),
+        (r) => r.data.count > 0,
+        90000,
+        5000
+      );
+      const log = fs.readFileSync(
+        path.join(runtime.evidence, "backend-4250.log"),
+        "utf8"
+      );
+      assert(
+        !/Out of range value for column 'executionTime'|Query analysis failed|Redis 연결이 끊어졌습니다|Redis 연결 끊김:/.test(
+          log
+        )
+      );
+      check(
+        "Scheduled disabled-Redis collection: no false disconnection, ciphertext parse or duration overflow errors"
       );
     }
     fixture();

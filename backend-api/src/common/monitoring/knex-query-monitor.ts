@@ -6,6 +6,7 @@ import { SlowQueryMonitorService } from './slow-query-monitor.service';
 import { QueryAnalyzerService } from './query-analyzer.service';
 
 export interface KnexQueryEvent {
+  __knexQueryUid?: string;
   __queryStartTime?: number;
   sql: string;
   bindings?: any[];
@@ -28,9 +29,28 @@ export class KnexQueryMonitor {
    * Knex 인스턴스에 쿼리 모니터링 연결
    */
   attachToKnex(knex: Knex, databaseId?: number, databaseEngine?: string): void {
+    // Knex emits distinct object copies for start/response/error events.
+    const starts = new Map<string, number>();
+    const finish = (query: KnexQueryEvent): number | undefined => {
+      const started = query.__knexQueryUid
+        ? starts.get(query.__knexQueryUid)
+        : query.__queryStartTime;
+      if (query.__knexQueryUid) starts.delete(query.__knexQueryUid);
+      delete query.__queryStartTime;
+      if (started === undefined) return undefined;
+      const duration = Date.now() - started;
+      return Number.isFinite(duration) && duration >= 0 && duration <= 2147483647
+        ? duration
+        : undefined;
+    };
     // 쿼리 시작 이벤트
     knex.on('query', (query: KnexQueryEvent) => {
       query.__queryStartTime = Date.now();
+      if (query.__knexQueryUid) {
+        // Bound abandoned events without retaining query text or parameters.
+        if (starts.size >= 10000) starts.delete(starts.keys().next().value);
+        starts.set(query.__knexQueryUid, query.__queryStartTime);
+      }
 
       this.customLogger.debug('Knex query started', 'KnexQueryMonitor', {
         sql: this.sanitizeQuery(query.sql),
@@ -42,7 +62,7 @@ export class KnexQueryMonitor {
 
     // 쿼리 완료 이벤트
     knex.on('query-response', async (response: any, query: KnexQueryEvent) => {
-      const duration = Date.now() - (query.__queryStartTime || 0);
+      const duration = finish(query);
 
       this.customLogger.info('Knex query completed', 'KnexQueryMonitor', {
         sql: this.sanitizeQuery(query.sql),
@@ -56,7 +76,7 @@ export class KnexQueryMonitor {
       // 슬로우 쿼리 임계값 체크 (기본 1초)
       const slowQueryThreshold = parseInt(process.env.SLOW_QUERY_THRESHOLD || '1000');
 
-      if (duration > slowQueryThreshold) {
+      if (duration !== undefined && duration > slowQueryThreshold) {
         this.customLogger.warn('Slow Knex query detected', 'KnexQueryMonitor', {
           sql: this.sanitizeQuery(query.sql),
           bindings: this.sanitizeBindings(query.bindings),
@@ -94,7 +114,7 @@ export class KnexQueryMonitor {
 
     // 쿼리 에러 이벤트
     knex.on('query-error', (error: Error, query: KnexQueryEvent) => {
-      const duration = Date.now() - (query.__queryStartTime || 0);
+      const duration = finish(query);
 
       this.customLogger.error('Knex query error', error.stack, 'KnexQueryMonitor', {
         sql: this.sanitizeQuery(query.sql),

@@ -31,7 +31,7 @@ export interface CacheMetrics {
     keyCount: number;
     memoryUsage: number;
     evictions: number;
-    connectionStatus: 'connected' | 'disconnected' | 'error';
+    connectionStatus: 'connected' | 'disconnected' | 'error' | 'disabled';
     latency: {
       avg: number;
       p50: number;
@@ -199,7 +199,7 @@ export class CacheMonitoringService {
     const redisInfo = await this.getRedisInfo();
 
     // 전체 통계 계산
-    const totalRequests = tracking.requests || 1; // 0으로 나누기 방지
+    const totalRequests = tracking.requests;
     const hitRate = totalRequests > 0 ? tracking.hits / totalRequests : 0;
     const avgResponseTime = totalRequests > 0 ? tracking.totalLatency / totalRequests : 0;
 
@@ -224,7 +224,11 @@ export class CacheMonitoringService {
         keyCount: l2Stats.keyCount || 0,
         memoryUsage: redisInfo.memoryUsage || 0,
         evictions: l2Stats.evictions || 0,
-        connectionStatus: redisInfo.connected ? 'connected' : 'disconnected',
+        connectionStatus: !this.redisCache.isEnabled()
+          ? 'disabled'
+          : redisInfo.connected
+          ? 'connected'
+          : 'disconnected',
         latency: redisInfo.latency,
       },
       overall: {
@@ -373,7 +377,7 @@ export class CacheMonitoringService {
     const alerts: CacheMonitoringEvent[] = [];
 
     // 히트율 체크
-    if (metrics.overall.hitRate < thresholds.minHitRate) {
+    if (metrics.overall.totalRequests > 0 && metrics.overall.hitRate < thresholds.minHitRate) {
       alerts.push({
         type: 'performance',
         severity: 'warning',
@@ -402,7 +406,10 @@ export class CacheMonitoringService {
     }
 
     // 지연 시간 체크
-    if (metrics.l2.latency.avg > thresholds.maxLatency) {
+    if (
+      metrics.l2.connectionStatus !== 'disabled' &&
+      metrics.l2.latency.avg > thresholds.maxLatency
+    ) {
       alerts.push({
         type: 'performance',
         severity: 'warning',
@@ -414,7 +421,7 @@ export class CacheMonitoringService {
     }
 
     // Redis 연결 체크
-    if (metrics.l2.connectionStatus !== 'connected') {
+    if (metrics.l2.connectionStatus !== 'disabled' && metrics.l2.connectionStatus !== 'connected') {
       alerts.push({
         type: 'health',
         severity: 'critical',
@@ -489,13 +496,22 @@ export class CacheMonitoringService {
         const issues: string[] = [];
 
         // 문제 확인
-        if (metrics.overall.hitRate < this.DEFAULT_THRESHOLDS.minHitRate) {
+        if (
+          metrics.overall.totalRequests > 0 &&
+          metrics.overall.hitRate < this.DEFAULT_THRESHOLDS.minHitRate
+        ) {
           issues.push('낮은 히트율');
         }
-        if (metrics.l2.connectionStatus !== 'connected') {
+        if (
+          metrics.l2.connectionStatus !== 'disabled' &&
+          metrics.l2.connectionStatus !== 'connected'
+        ) {
           issues.push('Redis 연결 문제');
         }
-        if (metrics.l2.latency.avg > this.DEFAULT_THRESHOLDS.maxLatency) {
+        if (
+          metrics.l2.connectionStatus !== 'disabled' &&
+          metrics.l2.latency.avg > this.DEFAULT_THRESHOLDS.maxLatency
+        ) {
           issues.push('높은 지연 시간');
         }
 

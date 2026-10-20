@@ -209,10 +209,14 @@ export class CacheAlertService {
   private getMetricValue(metric: string, metrics: any): number | null {
     switch (metric) {
       case 'hitRate':
+        if (metrics.overall?.totalRequests === 0) return null;
         return metrics.overall?.hitRate ?? null;
       case 'latency':
+        if (metrics.l2?.connectionStatus === 'disabled') return null;
         return metrics.l2?.latency?.avg ?? null;
       case 'connectionStatus':
+        if (!metrics.l2?.connectionStatus || metrics.l2.connectionStatus === 'disabled')
+          return null;
         return metrics.l2?.connectionStatus === 'connected' ? 1 : 0;
       case 'memoryUsage':
         const usage = metrics.l1?.memoryUsage || 0;
@@ -228,6 +232,7 @@ export class CacheAlertService {
    */
   private findApplicableRules(event: CacheMonitoringEvent): AlertRule[] {
     return this.DEFAULT_RULES.filter(rule => {
+      if (event.metrics) return this.evaluateRule(rule, event.metrics);
       // 심각도가 일치하거나 더 높은 경우
       const severityLevels = { info: 0, warning: 1, error: 2, critical: 3 };
       return severityLevels[event.severity] >= severityLevels[rule.severity];

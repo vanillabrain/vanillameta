@@ -95,8 +95,7 @@ export class MySQLOptimizer extends BaseDatabaseOptimizer {
             'SET SESSION innodb_lock_wait_timeout=10',
             // 쿼리 타임아웃 설정 (환경 변수 또는 기본값 사용)
             `SET SESSION max_execution_time=${timeouts.queryTimeout}`, // MySQL 5.7+
-            // 쿼리 캐시 활용 (MySQL 5.7 이하)
-            "SET SESSION query_cache_type='ON'",
+            // Server query_cache_type was removed in MySQL 8; app caches are independent.
             // 정렬 최적화
             'SET SESSION sort_buffer_size=2097152', // 2MB
             // 조인 최적화

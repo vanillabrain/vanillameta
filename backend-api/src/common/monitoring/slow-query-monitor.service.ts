@@ -94,6 +94,15 @@ export class SlowQueryMonitorService {
       parameters?: any[];
     } = {},
   ): Promise<void> {
+    // The storage contract is signed INT milliseconds, never a wall-clock epoch.
+    if (
+      !Number.isFinite(analysis.executionTime) ||
+      analysis.executionTime < 0 ||
+      analysis.executionTime > 2147483647
+    ) {
+      this.logger.warn('Skipped slow-query observation with invalid duration');
+      return;
+    }
     if (
       !this.config.enabled ||
       !analysis.executionTime ||
@@ -113,7 +122,7 @@ export class SlowQueryMonitorService {
       slowQueryLog.queryHash = queryHash;
       slowQueryLog.query = analysis.query;
       slowQueryLog.parameters = metadata.parameters ? JSON.stringify(metadata.parameters) : null;
-      slowQueryLog.executionTime = analysis.executionTime;
+      slowQueryLog.executionTime = Math.round(analysis.executionTime);
       slowQueryLog.databaseId = metadata.databaseId;
       slowQueryLog.databaseEngine = metadata.databaseEngine;
       slowQueryLog.rowsExamined = analysis.rowsExamined;
@@ -127,7 +136,12 @@ export class SlowQueryMonitorService {
       slowQueryLog.optimizationSuggestions = analysis.optimizationSuggestions
         ? JSON.stringify(analysis.optimizationSuggestions)
         : null;
-      slowQueryLog.explainPlan = analysis.explainPlan;
+      slowQueryLog.explainPlan =
+        analysis.explainPlan == null
+          ? null
+          : typeof analysis.explainPlan === 'string'
+          ? analysis.explainPlan
+          : JSON.stringify(analysis.explainPlan);
       slowQueryLog.userId = metadata.userId;
       slowQueryLog.requestPath = metadata.requestPath;
       slowQueryLog.httpMethod = metadata.httpMethod;

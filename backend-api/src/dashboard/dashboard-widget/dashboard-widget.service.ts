@@ -45,6 +45,8 @@ export class DashboardWidgetService {
 
       where: { dashboardId: dashboardId },
     });
+    // MySQL rejects IN (); an empty dashboard has a valid empty widget list.
+    if (widgetList.length === 0) return [];
     const whereInWidgetList = [];
     widgetList.map(item => {
       whereInWidgetList.push(item.widgetId);
