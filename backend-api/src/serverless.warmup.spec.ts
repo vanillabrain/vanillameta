@@ -1,3 +1,12 @@
+// Warmup must return before bootstrapping any product modules or invoking an LLM.
+jest.mock('./app.module', () => ({ AppModule: class AppModule {} }));
+jest.mock('ai', () => ({
+  generateText: jest.fn(async () => {
+    throw new Error('Unexpected LLM execution in warmup test');
+  }),
+}));
+import { generateText } from 'ai';
+import { NestFactory } from '@nestjs/core';
 import { handler } from './serverless';
 import { Context } from 'aws-lambda';
 
@@ -13,10 +22,15 @@ describe('Serverless Warmup (T02_S04)', () => {
     } as Context;
 
     // 콘솔 로그 모킹
-    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    jest
+      .spyOn(NestFactory, 'create')
+      .mockRejectedValue(new Error('Warmup must not bootstrap the app'));
   });
 
   afterEach(() => {
+    expect(NestFactory.create).not.toHaveBeenCalled();
+    expect(generateText).not.toHaveBeenCalled();
     jest.restoreAllMocks();
   });
 
@@ -31,13 +45,11 @@ describe('Serverless Warmup (T02_S04)', () => {
       const result = await handler(warmupEvent, mockContext, {} as any);
 
       // Then: 웜업 응답 확인
-      expect(result).toEqual({
-        statusCode: 200,
-        body: JSON.stringify({
-          message: 'Lambda function warmed up successfully',
-          requestId: 'test-request-id',
-          timestamp: expect.any(String),
-        }),
+      expect(result.statusCode).toBe(200);
+      expect(JSON.parse(result.body)).toEqual({
+        message: 'Lambda function warmed up successfully',
+        requestId: 'test-request-id',
+        timestamp: expect.any(String),
       });
 
       // 웜업 로그 확인
@@ -114,7 +126,8 @@ describe('Serverless Warmup (T02_S04)', () => {
   describe('콜백 설정', () => {
     it('callbackWaitsForEmptyEventLoop가 false로 설정되어야 함', async () => {
       // Given: 임의 이벤트
-      const event = {};
+      const event = { source: 'serverless-plugin-warmup' };
+      mockContext.callbackWaitsForEmptyEventLoop = true;
 
       // When: 핸들러 실행 시작
       const handlerPromise = handler(event, mockContext, {} as any);
@@ -122,8 +135,7 @@ describe('Serverless Warmup (T02_S04)', () => {
       // Then: 콜백 설정 확인
       expect(mockContext.callbackWaitsForEmptyEventLoop).toBe(false);
 
-      // 핸들러 완료를 위해 웜업 이벤트로 변경
-      await handler({ source: 'serverless-plugin-warmup' }, mockContext, {} as any);
+      await handlerPromise;
     });
   });
 });

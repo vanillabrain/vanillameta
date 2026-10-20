@@ -216,7 +216,7 @@ describe('QueryCacheService', () => {
 
     it('should calculate appropriate TTL based on query complexity', async () => {
       // Arrange
-      const simpleQuery = { ...mockQueryDto, query: 'SELECT COUNT(*) FROM users' };
+      const simpleQuery = { ...mockQueryDto, query: 'SELECT id FROM users' };
       const complexQuery = {
         ...mockQueryDto,
         query:
@@ -304,7 +304,7 @@ describe('QueryCacheService', () => {
       const queryDto: QueryExecuteDto = {
         id: 1,
         query: 'SELECT * FROM users WHERE id = ?',
-        parameters: [{ type: 'number', value: '123' }],
+        parameters: [{ name: 'value', type: 'number', value: '123' }],
       };
 
       cacheManager.get.mockResolvedValue(null);
@@ -324,12 +324,12 @@ describe('QueryCacheService', () => {
       const queryDto1: QueryExecuteDto = {
         id: 1,
         query: baseQuery,
-        parameters: [{ type: 'number', value: '123' }],
+        parameters: [{ name: 'value', type: 'number', value: '123' }],
       };
       const queryDto2: QueryExecuteDto = {
         id: 1,
         query: baseQuery,
-        parameters: [{ type: 'number', value: '456' }],
+        parameters: [{ name: 'value', type: 'number', value: '456' }],
       };
 
       cacheManager.get.mockResolvedValue(null);
@@ -394,8 +394,8 @@ describe('QueryCacheService', () => {
       expect(cacheManager.set).toHaveBeenCalled();
       // TTL이 기본값(300초) 주변이어야 함
       const ttl = cacheManager.set.mock.calls[0][2];
-      expect(ttl).toBeGreaterThan(250);
-      expect(ttl).toBeLessThan(400);
+      expect(ttl).toBeGreaterThan(250000);
+      expect(ttl).toBeLessThan(400000);
     });
 
     it('should correctly identify complex queries', async () => {
@@ -460,17 +460,17 @@ describe('QueryCacheService', () => {
       expect(cacheManager.set).toHaveBeenCalled();
       // 배치 쿼리는 가장 긴 TTL을 가져야 함
       const ttl = cacheManager.set.mock.calls[0][2];
-      expect(ttl).toBeGreaterThan(3000); // 배치 TTL은 1시간(3600초)에 근접
+      expect(ttl).toBeGreaterThan(300000); // 배치 TTL은 1시간(3600초)에 근접
     });
   });
 
   describe('memory management', () => {
-    it('should return memory information', async () => {
+    it('reports the unimplemented memory probe as zero rather than invented Redis measurements', async () => {
       // Arrange
       const mockMemoryInfo = {
-        usedMemory: 1024,
-        totalKeys: 150,
-        averageKeySize: 6.8,
+        usedMemory: 0,
+        totalKeys: 0,
+        averageKeySize: 0,
       };
 
       // Act

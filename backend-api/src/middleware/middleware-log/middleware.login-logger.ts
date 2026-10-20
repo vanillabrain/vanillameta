@@ -1,4 +1,6 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { safeRouteTemplate } from '../../common/utils/safe-route-template';
+import { serializeMetadataWork } from '../../common/metadata-work';
+import { Injectable, NestMiddleware, Optional } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LoginHistory } from '../entities/login-history.entity';
@@ -11,7 +13,7 @@ export class loginLoggerMiddleware implements NestMiddleware {
   constructor(
     @InjectRepository(LoginHistory)
     private readonly loginHistoryRepository: Repository<LoginHistory>,
-    private readonly logger: CustomLoggerService,
+    @Optional() private readonly logger?: CustomLoggerService,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction) {
@@ -22,18 +24,18 @@ export class loginLoggerMiddleware implements NestMiddleware {
 
         const loginSaveObj = {
           userId: userId,
-          path: req?.path,
+          path: safeRouteTemplate(req),
           login_Type: req?.headers['user-agent'],
           login_succYn: YesNo.YES,
           created_at: new Date(),
         };
 
         // 구조화된 로깅
-        this.logger.logBusiness(
+        this.logger?.logBusiness(
           'user_login',
           {
             action: 'login_attempt',
-            path: req.path,
+            path: safeRouteTemplate(req),
             userAgent: req.headers['user-agent'],
             correlationId: correlationId,
             ip: req.ip || req.connection?.remoteAddress,
@@ -42,14 +44,16 @@ export class loginLoggerMiddleware implements NestMiddleware {
           'LoginLogger',
         );
 
-        await this.loginHistoryRepository.save(loginSaveObj);
+        await serializeMetadataWork(this.loginHistoryRepository.manager.connection, () =>
+          this.loginHistoryRepository.save(loginSaveObj),
+        );
         return next();
       }
 
       // TODO: 로그아웃 로깅 기능 추가 예정
       // if (req.url === '/signout') {
       //   const userId = req.body?.userId;
-      //   this.logger.logBusiness('user_logout', {
+      //   this.logger?.logBusiness('user_logout', {
       //     action: 'logout',
       //     correlationId: req['correlationId']
       //   }, userId, 'LoginLogger');
@@ -57,8 +61,8 @@ export class loginLoggerMiddleware implements NestMiddleware {
 
       next();
     } catch (error) {
-      this.logger.error('Error in login logger middleware', error.stack, 'LoginLogger', {
-        path: req.path,
+      this.logger?.error('Error in login logger middleware', error.stack, 'LoginLogger', {
+        path: safeRouteTemplate(req),
         correlationId: req['correlationId'],
       });
       next(error);

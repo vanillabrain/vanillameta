@@ -1,3 +1,4 @@
+import { safeRouteTemplate } from '../common/utils/safe-route-template';
 import {
   ExceptionFilter,
   Catch,
@@ -65,7 +66,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         }
 
         // 에러 코드가 있으면 사용
-        if (responseObj.error) {
+        if (responseObj.error && errorCode !== 'VALIDATION_ERROR') {
           errorCode = responseObj.error.toUpperCase().replace(/\s+/g, '_');
         }
       }
@@ -127,7 +128,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     // 에러 로그 기록
     this.logger.error(
-      `[${correlationId}] ${request.method} ${request.url} - ${status} ${errorCode}: ${message}`,
+      `[${correlationId}] ${request.method} ${safeRouteTemplate(
+        request,
+      )} - ${status} ${errorCode}: ${message}`,
       exception instanceof Error ? exception.stack : 'No stack trace available',
     );
 
@@ -139,7 +142,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message,
       correlationId,
       timestamp: new Date().toISOString(),
-      path: request.url,
+      path: safeRouteTemplate(request),
       method: request.method,
     };
 

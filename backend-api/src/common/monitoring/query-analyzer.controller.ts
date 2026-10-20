@@ -1,6 +1,6 @@
 import { Controller, Post, Body, UseGuards, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../../auth/guards/legacy-operations.guard';
 import {
   QueryAnalyzerService,
   QueryAnalysis,
@@ -19,7 +19,7 @@ export class AnalyzeQueriesDto {
 
 @ApiTags('query-analyzer')
 @Controller('query-analyzer')
-@UseGuards(JwtAuthGuard)
+@UseGuards(LegacyOperationsGuard)
 @ApiBearerAuth()
 export class QueryAnalyzerController {
   constructor(private readonly queryAnalyzerService: QueryAnalyzerService) {}

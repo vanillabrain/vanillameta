@@ -1,136 +1,58 @@
 import React from 'react';
-import { Hidden, Stack, SxProps, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface PageTitleBoxProps {
   title: string;
   upperTitle?: string;
   upperTitleLink?: string;
-  sx?: SxProps;
+  className?: string;
   button?: React.ReactNode;
   fixed?: boolean;
   children: React.ReactNode;
 }
 
 function PageTitleBox(props: PageTitleBoxProps) {
-  const { title, upperTitle, upperTitleLink, button, sx, fixed, children } = props;
+  const { title, upperTitle, upperTitleLink, button, className, fixed, children } = props;
   const navigate = useNavigate();
 
-  const defaultBoxSx = {
-    flex: '1 1 auto',
-    paddingLeft: '25px',
-    paddingRight: '25px',
-    width: '100vw',
-    height: '100%',
-  };
-
-  const fixedSx = fixed && { position: 'fixed', zIndex: 1000 };
-
-  Object.assign(defaultBoxSx, sx);
-
   return (
-    <Stack direction="column" sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
-      <Stack
-        sx={{
-          width: '100%',
-        }}
-      >
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{
-            width: '100%',
-            height: { xs: 40, sm: 56 },
-            paddingLeft: '24px',
-            paddingRight: '24px',
-            borderBottom: '1px solid #e3e7ea',
-            backgroundColor: '#f5f6f8',
-            ...fixedSx,
-          }}
+    <div className="flex min-h-0 w-full flex-1 flex-col">
+      <div className={cn('flex w-full shrink-0', fixed && 'sticky top-[108px] z-30 sm:top-16')}>
+        <div
+          className={cn(
+            'flex w-full flex-wrap items-center justify-between gap-4 border-b border-border bg-background px-4 py-5 sm:px-6 sm:py-6',
+          )}
         >
-          <Stack direction="row" gap={{ xs: '6px', sm: '10px' }} alignItems="center">
+          <div className="flex min-w-0 flex-row flex-wrap items-center gap-1.5 sm:gap-2.5">
             {upperTitle && (
               <>
-                <Typography
-                  component={RouterLink}
-                  to={upperTitleLink}
-                  sx={{
-                    height: '19px',
-                    flexGrow: 0,
-                    fontFamily: 'Pretendard',
-                    fontSize: { xs: '14px', sm: '16px' },
-                    fontWeight: '500',
-                    fontStretch: 'normal',
-                    fontStyle: 'normal',
-                    lineHeight: 'normal',
-                    letterSpacing: 'normal',
-                    textAlign: 'left',
-                    textDecoration: 'none',
-                    color: '#4a4a4a',
-                  }}
-                >
+                <RouterLink to={upperTitleLink} className="shrink-0 text-sm font-medium text-muted-foreground no-underline">
                   {upperTitle}
-                </Typography>
-                <span
-                  style={{
-                    height: '19px',
-                    flexGrow: 0,
-                    fontFamily: 'Pretendard',
-                    fontSize: 'inherit',
-                    fontWeight: '500',
-                    fontStretch: 'normal',
-                    fontStyle: 'normal',
-                    lineHeight: 'normal',
-                    letterSpacing: 'normal',
-                    textAlign: 'left',
-                    color: '#767676',
-                  }}
-                >
-                  /
-                </span>
+                </RouterLink>
+                <span className="shrink-0 text-sm text-muted-foreground">/</span>
               </>
             )}
-            <Typography
-              component="button"
+            <Button
+              type="button"
+              variant="ghost"
               onClick={event => {
                 event.preventDefault();
                 navigate(0);
               }}
-              sx={{
-                height: '19px',
-                flexGrow: 0,
-                border: 0,
-                padding: 0,
-                cursor: 'pointer',
-                fontFamily: 'Pretendard',
-                fontSize: { xs: '14px', sm: '16px' },
-                fontWeight: '600',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: 'normal',
-                letterSpacing: 'normal',
-                textAlign: 'left',
-                textDecoration: 'none',
-                color: '#141414',
-                backgroundColor: 'transparent',
-              }}
+              className="h-auto min-w-0 justify-start rounded-none p-0 text-left text-xl leading-8 font-semibold tracking-tight whitespace-normal text-foreground hover:bg-transparent sm:text-2xl"
             >
               {title}
-            </Typography>
-          </Stack>
-          <Hidden smDown>{button}</Hidden>
-        </Stack>
-      </Stack>
-      <Stack
-        direction="column"
-        sx={{ justifyContent: 'flex-start', flex: '1 1 auto', width: '100%', height: 'calc(100% - 56px)' }}
-      >
-        <Stack direction="column" sx={defaultBoxSx}>
-          {children}
-        </Stack>
-      </Stack>
-    </Stack>
+            </Button>
+          </div>
+          <div className="flex max-w-full flex-wrap items-center gap-2">{button}</div>
+        </div>
+      </div>
+      <div className="flex min-h-0 w-full flex-1 flex-col justify-start">
+        <div className={cn('flex min-h-0 w-full min-w-0 flex-1 flex-col px-4 py-6 sm:px-6', className)}>{children}</div>
+      </div>
+    </div>
   );
 }
 

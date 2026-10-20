@@ -1,84 +1,104 @@
-import React from 'react';
-import { Box, FormControl, FormLabel, MenuItem, Select, Stack } from '@mui/material';
+import React, { useId } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Field, FieldContent, FieldLabel } from '@/components/ui/field';
+import { cn } from '@/lib/utils';
+
+/** Radix select items always carry a string value; keep the empty choice addressable. */
+export const SELECT_NONE_VALUE = '__none__';
 
 function SelectForm(props) {
+  const { t } = useTranslation();
   const {
+    id,
+    labelId: providedLabelId,
     label,
     optionList,
     endButton,
     value,
     labelField = 'label',
     valueField = 'value',
-    required,
+    required = false,
     disabledDefaultValue,
-    ...rest
+    name,
+    onChange,
+    inputProps,
+    className,
+    disabled,
+    placeholder,
   } = props;
+  const generatedId = useId();
+  const generatedLabelId = useId();
+  const controlId = id ?? generatedId;
+  const labelId = providedLabelId ?? generatedLabelId;
+  const explicitAriaLabel = inputProps?.['aria-label'] ?? props['aria-label'];
 
   const getDropList = (list: any[] | { value: any[]; label: any[] }) => {
     let dropDownList;
     if (list === undefined) {
-      return;
+      return [];
     }
     if (Array.isArray(list)) {
       if (list.length > 0 && list[0] instanceof Object) {
         dropDownList = [...list];
       } else {
         // value와 label이 같을 경우 배열
-        const arr = list.map(item => ({ [valueField]: item, [labelField]: item }));
-        dropDownList = arr;
+        dropDownList = list.map(item => ({ [valueField]: item, [labelField]: item }));
       }
     } else {
       // value와 label이 다를 경우 객체
-      const value = list[valueField]; // ['sum', 'avg']
-      const label = list[labelField]; // ['합계', '평균']
-      const arr = value.map((item, index) => ({ value: item, label: label[index] }));
-      dropDownList = arr;
+      const listValues = list[valueField]; // ['sum', 'avg']
+      const listLabels = list[labelField]; // ['합계', '평균']
+      dropDownList = listValues.map((item, index) => ({ [valueField]: item, [labelField]: listLabels[index] }));
     }
     if (!disabledDefaultValue) {
-      dropDownList.unshift({ [valueField]: '', [labelField]: '선택 안함' });
+      dropDownList.unshift({ [valueField]: '', [labelField]: t('common.selectNone') });
     }
     return dropDownList;
   };
 
+  const dropList = getDropList(optionList);
+  const itemValue = item => (String(item[valueField]) === '' ? SELECT_NONE_VALUE : String(item[valueField]));
+  const selectedValue = value === undefined || value === null || value === '' ? SELECT_NONE_VALUE : String(value);
+
+  const handleValueChange = next => {
+    if (!onChange) {
+      return;
+    }
+    // Restore the original option value so numeric and boolean contracts survive the string-only Radix API.
+    const matched = next === SELECT_NONE_VALUE ? undefined : dropList.find(item => itemValue(item) === next);
+    onChange({ target: { name, value: matched ? matched[valueField] : '' } });
+  };
+
   return (
-    <FormControl
-      required={required}
-      fullWidth
-      sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-    >
+    <Field orientation="horizontal" className={cn('items-center gap-2', className)}>
       {label && (
-        <FormLabel
-          htmlFor="userInputSelect"
-          sx={{
-            width: '35%',
-            pr: 2,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            textTransform: 'capitalize',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <FieldLabel id={labelId} htmlFor={controlId} className="w-[35%] flex-none truncate pr-2 capitalize">
           {label}
-        </FormLabel>
+          {required && <span aria-hidden="true"> *</span>}
+        </FieldLabel>
       )}
-      <Stack flexDirection="row" justifyContent="space-between" alignItems="center" sx={{ width: label ? '65%' : '100%' }}>
-        <Select
-          fullWidth
-          displayEmpty
-          size="small"
-          sx={endButton ? { width: 'calc(100% - 38px)', flexShrink: 1 } : { width: '100%' }}
-          value={value ?? ''}
-          {...rest}
-        >
-          {getDropList(optionList).map(item => (
-            <MenuItem key={item[valueField]} value={item[valueField] ?? ''}>
-              {item[labelField]}
-            </MenuItem>
-          ))}
+      <FieldContent className={cn('flex flex-none flex-row items-center justify-between', label ? 'w-[65%]' : 'w-full')}>
+        <Select value={selectedValue} onValueChange={handleValueChange} disabled={disabled} required={required}>
+          <SelectTrigger
+            id={controlId}
+            aria-label={explicitAriaLabel}
+            aria-labelledby={explicitAriaLabel ? undefined : label ? labelId : providedLabelId}
+            className={cn('min-w-0 bg-background', endButton ? 'w-[calc(100%-38px)] shrink' : 'w-full')}
+          >
+            <SelectValue placeholder={placeholder} />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            {dropList.map(item => (
+              <SelectItem key={itemValue(item)} value={itemValue(item)}>
+                {item[labelField]}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-        {!!endButton ? <Box sx={{ width: '38px', ml: 1 }}>{endButton}</Box> : ''}
-      </Stack>
-    </FormControl>
+        {!!endButton ? <div className="ml-1 w-[38px]">{endButton}</div> : null}
+      </FieldContent>
+    </Field>
   );
 }
 

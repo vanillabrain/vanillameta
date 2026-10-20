@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
@@ -10,6 +10,11 @@ import { DashboardService } from '../../dashboard/dashboard.service';
 import { DashboardCacheService } from '../../dashboard/dashboard-cache.service';
 import { CustomLoggerService } from '../logger/logger.service';
 import { DatasetType } from '../enum/dataset-type.enum';
+import { DashboardWidget } from '../../dashboard/dashboard-widget/entities/dashboard-widget.entity';
+import { UserMapping } from '../../user/entities/user-mapping.entity';
+import { User } from '../../user/entities/user.entity';
+import { Database } from '../../database/entities/database.entity';
+import { SourceAccessService } from '../../ownership/source-access.service';
 
 /**
  * 캐시 워밍업 스케줄러
@@ -31,6 +36,7 @@ export class CacheWarmupScheduler {
     private readonly dashboardService: DashboardService,
     private readonly dashboardCacheService: DashboardCacheService,
     private readonly customLogger: CustomLoggerService,
+    private readonly access: SourceAccessService,
   ) {}
 
   /**
@@ -60,15 +66,13 @@ export class CacheWarmupScheduler {
       const batchSize = 5;
       for (let i = 0; i < popularDatasets.length; i += batchSize) {
         const batch = popularDatasets.slice(i, i + batchSize);
-        
+
         await Promise.allSettled(
-          batch.map(async (dataset) => {
+          batch.map(async dataset => {
             try {
-              await this.datasetService.executeCachedQuery(dataset.id, {
-                forceRefresh: true,
-                customTtl: 7200, // 2시간 TTL
-              });
-              
+              const owner = await this.getDatasetOwner(dataset.id);
+              await this.warmupDataset(dataset.id, 7200, owner);
+
               this.customLogger.debug(
                 `Warmed up dataset ${dataset.id}: ${dataset.title}`,
                 'CacheWarmupScheduler',
@@ -112,21 +116,20 @@ export class CacheWarmupScheduler {
 
       for (const dashboard of realtimeDashboards) {
         try {
+          const owner = await this.getDashboardOwner(dashboard.id);
+          await this.access.dashboard(dashboard.id, owner, 'owner');
           // 대시보드의 위젯에서 사용하는 데이터셋 조회
           const datasetIds = await this.getWidgetDatasets(dashboard.id);
-          
+
           if (datasetIds.length === 0) {
             continue;
           }
 
           // 데이터셋 캐시 갱신
           await Promise.allSettled(
-            datasetIds.map(async (datasetId) => {
+            datasetIds.map(async datasetId => {
               try {
-                await this.datasetService.executeCachedQuery(datasetId, {
-                  forceRefresh: true,
-                  customTtl: 300, // 5분 TTL (실시간 데이터)
-                });
+                await this.warmupDataset(datasetId, 300, owner);
               } catch (error) {
                 this.logger.error(
                   `Failed to refresh dataset ${datasetId} for dashboard ${dashboard.id}:`,
@@ -169,7 +172,7 @@ export class CacheWarmupScheduler {
 
       // 30일 이상 사용되지 않은 데이터셋 조회
       const unusedDatasets = await this.getUnusedDatasets(30);
-      
+
       for (const dataset of unusedDatasets) {
         try {
           await this.datasetService.invalidateDatasetCache(dataset.id);
@@ -212,12 +215,13 @@ export class CacheWarmupScheduler {
       const batchSize = 3;
       for (let i = 0; i < popularDashboards.length; i += batchSize) {
         const batch = popularDashboards.slice(i, i + batchSize);
-        
+
         await Promise.allSettled(
-          batch.map(async (dashboard) => {
+          batch.map(async dashboard => {
             try {
-              await this.warmupDashboard(dashboard.id);
-              
+              const owner = await this.getDashboardOwner(dashboard.id);
+              await this.warmupDashboard(dashboard.id, owner);
+
               this.customLogger.debug(
                 `Warmed up dashboard ${dashboard.id}: ${dashboard.title}`,
                 'CacheWarmupScheduler',
@@ -301,17 +305,17 @@ export class CacheWarmupScheduler {
    * 대시보드의 위젯에서 사용하는 데이터셋 ID 조회
    */
   private async getWidgetDatasets(dashboardId: number): Promise<number[]> {
-    const widgets = await this.widgetRepository.find({
-      where: {
-        dashboardId,
-        datasetType: DatasetType.DATASET,
-      },
-      select: ['datasetId'],
-    });
+    const widgets = await this.widgetRepository
+      .createQueryBuilder('widget')
+      .innerJoin(DashboardWidget, 'link', 'link.widgetId = widget.id')
+      .where('link.dashboardId = :dashboardId', { dashboardId })
+      .andWhere('widget.datasetType = :datasetType', { datasetType: DatasetType.DATASET })
+      .select(['widget.datasetId'])
+      .getMany();
 
     // 중복 제거
     const uniqueDatasetIds = [...new Set(widgets.map(w => w.datasetId).filter(id => id !== null))];
-    
+
     return uniqueDatasetIds;
   }
 
@@ -342,17 +346,16 @@ export class CacheWarmupScheduler {
   /**
    * 특정 데이터셋 수동 워밍업
    */
-  async warmupDataset(datasetId: number, ttl?: number): Promise<void> {
+  async warmupDataset(datasetId: number, ttl: number | undefined, actor: number): Promise<void> {
     try {
+      await this.assertActiveActor(actor);
+      await this.access.assert('dataset', datasetId, actor, 'owner');
       await this.datasetService.executeCachedQuery(datasetId, {
         forceRefresh: true,
         customTtl: ttl || 3600,
       });
 
-      this.customLogger.log(
-        `Dataset ${datasetId} warmed up successfully`,
-        'CacheWarmupScheduler',
-      );
+      this.customLogger.log(`Dataset ${datasetId} warmed up successfully`, 'CacheWarmupScheduler');
     } catch (error) {
       this.logger.error(`Failed to warm up dataset ${datasetId}:`, error);
       throw error;
@@ -362,20 +365,22 @@ export class CacheWarmupScheduler {
   /**
    * 대시보드 수동 워밍업
    */
-  async warmupDashboard(dashboardId: number): Promise<void> {
+  async warmupDashboard(dashboardId: number, actor: number): Promise<void> {
     try {
+      await this.assertActiveActor(actor);
+      await this.access.dashboard(dashboardId, actor, 'owner');
       // 대시보드 메타데이터 캐싱
-      const dashboardResult = await this.dashboardService.findOne(dashboardId);
-      
+      const dashboardResult = await this.dashboardService.findOne(dashboardId, actor);
+
       if (dashboardResult.status !== 'SUCCESS' || !dashboardResult.data) {
         throw new Error(`Dashboard ${dashboardId} not found`);
       }
-      
+
       // 위젯에서 사용하는 데이터셋 워밍업
       const datasetIds = await this.getWidgetDatasets(dashboardId);
-      
+
       await Promise.allSettled(
-        datasetIds.map(datasetId => this.warmupDataset(datasetId)),
+        datasetIds.map(datasetId => this.warmupDataset(datasetId, undefined, actor)),
       );
 
       this.customLogger.log(
@@ -386,5 +391,33 @@ export class CacheWarmupScheduler {
       this.logger.error(`Failed to warm up dashboard ${dashboardId}:`, error);
       throw error;
     }
+  }
+
+  private async assertActiveActor(actor: number): Promise<void> {
+    this.access.actor(actor);
+    const user = await this.datasetRepository.manager.findOne(User, {
+      where: { id: actor, active: true },
+    });
+    if (!user) throw new ForbiddenException('inactive cache warmup owner');
+  }
+
+  private async getDatasetOwner(datasetId: number): Promise<number> {
+    const dataset = await this.datasetRepository.findOne({ where: { id: datasetId } });
+    const source =
+      dataset &&
+      (await this.datasetRepository.manager.findOne(Database, {
+        where: { id: dataset.databaseId },
+      }));
+    return this.access.actor(source?.ownerId);
+  }
+
+  private async getDashboardOwner(dashboardId: number): Promise<number> {
+    const owners = await this.dashboardRepository.manager.find(UserMapping, {
+      where: { dashboardId },
+    });
+    if (owners.length !== 1) throw new ForbiddenException('ambiguous cache warmup owner');
+    const actor = this.access.actor(owners[0].userInfoId);
+    await this.assertActiveActor(actor);
+    return actor;
   }
 }

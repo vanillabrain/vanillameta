@@ -1,3 +1,5 @@
+import { safeRouteTemplate } from '../../common/utils/safe-route-template';
+import { serializeMetadataWork } from '../../common/metadata-work';
 import { Injectable, NestMiddleware, Logger, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { NestFactory } from '@nestjs/core';
@@ -19,13 +21,15 @@ export class shareUrlLoggerMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
     const loginSaveObj = {
       userId: req.body.userId,
-      path: req.path,
+      path: safeRouteTemplate(req),
       login_type: req.headers['user-agent'],
       login_succ_tn: YesNo.YES,
       created_at: new Date(),
     };
     this.logger.log(loginSaveObj);
-    await this.loginHisotryRepository.save(loginSaveObj);
+    await serializeMetadataWork(this.loginHisotryRepository.manager.connection, () =>
+      this.loginHisotryRepository.save(loginSaveObj),
+    );
     next();
 
     // await this.loginHisotryRepository.save(saveObj)

@@ -1,3 +1,4 @@
+import { AuthModule } from '../../auth/auth.module';
 import { Module, Global, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -25,11 +26,14 @@ import { Widget } from '../../widget/entities/widget.entity';
 import { Dashboard } from '../../dashboard/entities/dashboard.entity';
 import { DatasetModule } from '../../dataset/dataset.module';
 import { DashboardModule } from '../../dashboard/dashboard.module';
+import { SourceOwnershipModule } from '../../ownership/source-ownership.module';
 
 @Global()
 @Module({
   imports: [
+    AuthModule,
     ConfigModule,
+    SourceOwnershipModule,
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
     TypeOrmModule.forFeature([Dataset, Widget, Dashboard]),

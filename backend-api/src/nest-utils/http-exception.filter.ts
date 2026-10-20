@@ -21,6 +21,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       response.setHeader('X-Correlation-ID', correlationId);
     }
 
+    if (status >= 500 && process.env.SENTRY_DSN) {
+      void import('@sentry/nestjs').then(Sentry => Sentry.captureException(exception));
+    }
     // let msg = '';
     if (typeof err !== 'string' && err.error === 'Bad Request') {
       return response.status(status).json({

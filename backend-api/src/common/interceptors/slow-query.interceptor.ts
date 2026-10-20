@@ -1,3 +1,4 @@
+import { safeRouteTemplate } from '../utils/safe-route-template';
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
@@ -65,7 +66,7 @@ export class SlowQueryInterceptor implements NestInterceptor {
 
     return {
       userId,
-      requestPath: request.path,
+      requestPath: safeRouteTemplate(request),
       httpMethod: request.method,
       clientIp,
       userAgent: userAgent.substring(0, 500), // 길이 제한

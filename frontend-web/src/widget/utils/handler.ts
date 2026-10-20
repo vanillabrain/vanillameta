@@ -76,6 +76,9 @@ export const handleRemoveClick = (event, index, option, setOption, prop = 'serie
     return;
   }
 
+  // The removed control leaves the DOM. Keep keyboard focus in this settings section.
+  event.currentTarget?.closest('li')?.querySelector('button[data-add-item]')?.focus();
+
   setOption(prevState => {
     const obj = { ...prevState };
     obj[prop].splice(index, 1);

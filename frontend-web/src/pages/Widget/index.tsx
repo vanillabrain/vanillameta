@@ -1,104 +1,79 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { Link as RouterLink, Outlet, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
+import { useTranslation } from 'react-i18next';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus } from 'lucide-react';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import WidgetService from '@/api/widgetService';
 import { LoadingContext } from '@/contexts/LoadingContext';
-import AddIcon from '@mui/icons-material/Add';
-import { Box, Button, Stack, useMediaQuery, useTheme } from '@mui/material';
-import { styled } from '@mui/system';
-import { STATUS } from '@/constant';
+import { MAX_WIDTH, STATUS } from '@/constant';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
-
-const title = '위젯';
+import { Button } from '@/components/ui/button';
 
 const Widget = () => {
+  const { t } = useTranslation();
+  const title = t('common.widget');
   const { widgetId } = useParams();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
+  const queryClient = useQueryClient();
 
-  const [widgetList, setWidgetList] = useState([]);
-  const [noData, setNoData] = useState(false);
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
-
-  const GTSpan = styled('span')({
-    fontFamily: 'Pretendard',
-    fontSize: matches ? '13px' : '10px',
-    fontWeight: '500',
-    fontStretch: 'normal',
-    fontStyle: 'normal',
-    lineHeight: '1.23',
-    letterSpacing: 'normal',
-    textAlign: 'left',
-    color: '#767676',
+  const {
+    data: widgetList = [],
+    isFetching,
+    isError,
+  } = useQuery({
+    queryKey: ['widgets'],
+    queryFn: () =>
+      WidgetService.selectWidgetList().then(response => {
+        if (response.data.status !== STATUS.SUCCESS) {
+          throw new Error('widget list fetch failed');
+        }
+        return response.data.data;
+      }),
+    retry: false,
   });
+  const noData = widgetList.length === 0;
 
   useEffect(() => {
-    getWidgetList();
-  }, []);
+    if (isFetching) showLoading();
+    else hideLoading();
+  }, [isFetching]);
 
-  /**
-   * 위젯 목록 조회
-   */
-  const getWidgetList = () => {
-    showLoading();
-    WidgetService.selectWidgetList()
-      .then(response => {
-        console.log('위젯 응답 전체:', response);
-        console.log('위젯 응답 데이터:', response.data);
-        console.log('response.status:', response.status);
+  useEffect(() => {
+    if (isError) alert.error(t('widget.loadFailed'));
+  }, [isError]);
 
-        // API 헬퍼가 response.data를 반환하므로, response 자체가 백엔드의 응답 데이터
-        if (response.status == STATUS.SUCCESS) {
-          setWidgetList(response.data);
-          setNoData(response.data.length == 0);
-        } else {
-          console.log('위젯 상태 체크 실패로 인한 오류');
-          alert.error('위젯 조회에 실패했습니다.\n다시 시도해 주세요.');
-        }
-      })
-      .catch(error => {
-        console.log('위젯 조회 오류:', error);
-        alert.error('위젯 조회에 실패했습니다.\n다시 시도해 주세요.');
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => WidgetService.deleteWidget(id),
+    onSuccess: response => {
+      if (response.status === 200) {
+        queryClient.invalidateQueries({ queryKey: ['widgets'] });
+        snackbar.success(t('widget.deleted'));
+      } else {
+        alert.error(t('widget.deleteFailed'));
+      }
+    },
+  });
 
   const removeWidget = (id, title) => {
     alert.success(
-      <Box sx={{ span: { fontWeight: 600 } }}>
-        <span>{title}</span>
+      <>
+        <span className="font-semibold">{title}</span>
         <br />
-        위젯을 삭제하시겠습니까?
-      </Box>,
+        {t('widget.deleteConfirm')}
+      </>,
       {
-        title: '위젯 삭제',
-        closeCopy: '취소',
+        title: t('widget.deleteTitle'),
+        closeCopy: t('data.cancel'),
         actions: [
           {
-            copy: '삭제',
-            onClick: () => {
-              showLoading();
-              WidgetService.deleteWidget(id)
-                .then(response => {
-                  // API 헬퍼가 response.data를 반환하므로 status 확인
-                  if (response.status === STATUS.SUCCESS) {
-                    getWidgetList();
-                    snackbar.success('위젯이 삭제되었습니다.');
-                  } else {
-                    alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
-            },
+            copy: t('data.delete'),
+            onClick: () => deleteMutation.mutate(id),
           },
         ],
       },
@@ -108,67 +83,34 @@ const Widget = () => {
   // 목록이 없을때 보여줄 화면
   const getEmptyView = () => {
     return (
-      <>
-        <Stack
-          flexDirection="row"
-          justifyContent="space-between"
-          sx={{ paddingLeft: '20px', paddingRight: { xs: '20px', sm: '217px' }, marginBottom: '11px', marginTop: '36px' }}
-        >
-          <GTSpan>이름</GTSpan>
-          <GTSpan>수정일</GTSpan>
-        </Stack>
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flexGrow: '0',
-            py: '18px',
-            margin: '0 0 0 0',
-            borderRadius: '6px',
-            border: 'solid 1px #ddd',
-            backgroundColor: '#fff',
-          }}
-        >
-          <span
-            style={{
-              flexGrow: 0,
-              fontFamily: 'Pretendard',
-              fontSize: matches ? '16px' : '14px',
-              fontWeight: 600,
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 1.43,
-              letterSpacing: 'normal',
-              textAlign: 'center',
-              color: '#333333',
-            }}
-          >
-            생성한 위젯이 없습니다.
-            {matches ? ' ' : <br />}
-            위젯을 생성 후 확인해 보세요.
+      <div className="mx-auto w-full" style={{ maxWidth: MAX_WIDTH }}>
+        <div className="mb-3 mt-6 flex w-full flex-row justify-between px-4 pr-4 sm:px-5 sm:pr-44">
+          <span className="text-xs leading-5 font-medium text-muted-foreground">{t('list.name')}</span>
+          <span className="text-xs leading-5 font-medium text-muted-foreground">{t('list.modifiedAt')}</span>
+        </div>
+        <div className="flex w-full items-center justify-center rounded-lg border border-border bg-card px-4 py-10">
+          <span className="text-center text-sm font-medium text-muted-foreground">
+            {t('list.noWidget')}
+            <br className="sm:hidden" /> {t('list.createWidgetHint')}
           </span>
-        </Box>
-      </>
+        </div>
+      </div>
     );
   };
 
   return (
-    <Stack sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
+    <div className="flex h-full w-full flex-auto flex-col">
       <Seo title={title} />
 
       {!widgetId ? (
         <PageTitleBox
           title={title}
           button={
-            <Button
-              variant="contained"
-              component={RouterLink}
-              to="create"
-              sx={{ height: '32px', backgroundColor: '#043f84' }}
-              startIcon={<AddIcon />}
-            >
-              위젯 생성
+            <Button asChild>
+              <RouterLink to="create">
+                <Plus className="size-4" />
+                {t('widget.create')}
+              </RouterLink>
             </Button>
           }
         >
@@ -183,7 +125,7 @@ const Widget = () => {
       ) : (
         <Outlet />
       )}
-    </Stack>
+    </div>
   );
 };
 

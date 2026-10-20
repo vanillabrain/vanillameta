@@ -24,9 +24,9 @@ type Config = {
 };
 
 export function register(config?: Config) {
-  if ('serviceWorker' in navigator) {
+  if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     // The URL constructor is available in all browsers that support SW.
-    const publicUrl = new URL(process.env.PUBLIC_URL, window.location.href);
+    const publicUrl = new URL(import.meta.env.BASE_URL, window.location.href);
     if (publicUrl.origin !== window.location.origin) {
       // Our service worker won't work if PUBLIC_URL is on a different origin
       // from what our page is served on. This might happen if a CDN is used to
@@ -34,8 +34,8 @@ export function register(config?: Config) {
       return;
     }
 
-    window.addEventListener('load', () => {
-      const swUrl = `${process.env.PUBLIC_URL}/service-worker.js`;
+    const registerOnLoad = () => {
+      const swUrl = new URL('service-worker.js', publicUrl).href;
 
       if (isLocalhost) {
         // This is running on localhost. Let's check if a service worker still exists or not.
@@ -52,7 +52,9 @@ export function register(config?: Config) {
         // Is not localhost. Just register service worker
         registerValidSW(swUrl, config);
       }
-    });
+    };
+    if (document.readyState === 'complete') registerOnLoad();
+    else window.addEventListener('load', registerOnLoad, { once: true });
   }
 }
 
@@ -111,9 +113,7 @@ function checkValidServiceWorker(swUrl: string, config?: Config) {
       if (response.status === 404 || (contentType != null && contentType.indexOf('javascript') === -1)) {
         // No service worker found. Probably a different app. Reload the page.
         navigator.serviceWorker.ready.then(registration => {
-          registration.unregister().then(() => {
-            window.location.reload();
-          });
+          void registration.unregister();
         });
       } else {
         // Service worker found. Proceed as normal.

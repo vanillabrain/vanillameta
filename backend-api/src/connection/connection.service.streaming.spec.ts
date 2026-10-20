@@ -1,3 +1,5 @@
+import { DuckDBService } from '../analysis/duckdb.service';
+import { ProgressGateway } from '../progress/progress.gateway';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConnectionService } from './connection.service';
 import { Repository } from 'typeorm';
@@ -22,6 +24,8 @@ describe('ConnectionService - Streaming Query', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConnectionService,
+        { provide: DuckDBService, useValue: { query: jest.fn() } },
+        { provide: ProgressGateway, useValue: { emitTo: jest.fn() } },
         {
           provide: getRepositoryToken(Database),
           useValue: {
@@ -144,13 +148,9 @@ describe('ConnectionService - Streaming Query', () => {
           id: 1,
           query: 'DROP TABLE users',
         }),
-      ).rejects.toThrow('SQL validation failed');
-
-      expect(logger.warn).toHaveBeenCalledWith(
-        'SQL validation failed for streaming query',
-        'ConnectionService',
-        expect.any(Object),
-      );
+      ).rejects.toThrow('only read-only queries are allowed');
+      expect(sqlValidationService.validateQuery).not.toHaveBeenCalled();
+      expect(databaseRepository.findOne).not.toHaveBeenCalled();
     });
 
     it('should process chunks correctly for different database types', async () => {
@@ -161,128 +161,131 @@ describe('ConnectionService - Streaming Query', () => {
       ];
 
       for (const db of databases) {
-        // @ts-ignore - private 메서드 테스트
-        const options = service.getStreamOptionsForDatabase(db.client);
+        const options = (service as any).getStreamOptionsForDatabase(db.client);
         expect(options.highWaterMark).toBe(db.expectedChunkSize);
         expect(options.objectMode).toBe(true);
       }
     });
 
     it('should collect NDJSON formatted output', done => {
-      // SQL 검증 성공 설정
-      sqlValidationService.validateQuery.mockReturnValue({
-        isValid: true,
-        errors: [],
-        warnings: [],
-        riskLevel: 'LOW',
-        sanitizedQuery: 'SELECT * FROM test',
-      });
+      void (async () => {
+        // SQL 검증 성공 설정
+        sqlValidationService.validateQuery.mockReturnValue({
+          isValid: true,
+          errors: [],
+          warnings: [],
+          riskLevel: 'LOW',
+          sanitizedQuery: 'SELECT * FROM test',
+        });
 
-      // Mock 스트림 생성
-      const mockStream = new Readable({
-        objectMode: true,
-        read() {
-          this.push({ id: 1, value: 'test1' });
-          this.push({ id: 2, value: 'test2' });
-          this.push(null);
-        },
-      });
-
-      const mockKnex = {
-        raw: jest.fn().mockReturnValue({
-          stream: jest.fn().mockReturnValue(mockStream),
-        }),
-        client: {
-          config: {
-            client: 'sqlite3',
+        // Mock 스트림 생성
+        const mockStream = new Readable({
+          objectMode: true,
+          read() {
+            this.push({ id: 1, value: 'test1' });
+            this.push({ id: 2, value: 'test2' });
+            this.push(null);
           },
-        },
-      };
+        });
 
-      jest.spyOn(service, 'getKnex').mockResolvedValue(mockKnex as any);
+        const mockKnex = {
+          raw: jest.fn().mockReturnValue({
+            stream: jest.fn().mockReturnValue(mockStream),
+          }),
+          client: {
+            config: {
+              client: 'sqlite3',
+            },
+          },
+        };
 
-      const result = await service.executeStreamingQuery({
-        id: 1,
-        query: 'SELECT * FROM test',
-      });
+        jest.spyOn(service, 'getKnex').mockResolvedValue(mockKnex as any);
 
-      const chunks: string[] = [];
-      result.stream.on('data', chunk => {
-        chunks.push(chunk.toString());
-      });
+        const result = await service.executeStreamingQuery({
+          id: 1,
+          query: 'SELECT * FROM test',
+        });
 
-      result.stream.on('end', () => {
-        const fullOutput = chunks.join('');
-        const lines = fullOutput.split('\n').filter(line => line.trim());
+        const chunks: string[] = [];
+        result.stream.on('data', chunk => {
+          chunks.push(chunk.toString());
+        });
 
-        // 첫 번째 라인: 필드 정보
-        const fields = JSON.parse(lines[0]);
-        expect(fields.type).toBe('fields');
-        expect(fields.data).toHaveLength(2); // id, value
+        result.stream.on('end', () => {
+          const fullOutput = chunks.join('');
+          const lines = fullOutput.split('\n').filter(line => line.trim());
 
-        // 데이터 라인들
-        const data1 = JSON.parse(lines[1]);
-        expect(data1.type).toBe('data');
-        expect(data1.data).toEqual({ id: 1, value: 'test1' });
+          // 첫 번째 라인: 필드 정보
+          const fields = JSON.parse(lines[0]);
+          expect(fields.type).toBe('fields');
+          expect(fields.data).toHaveLength(2); // id, value
 
-        const data2 = JSON.parse(lines[2]);
-        expect(data2.type).toBe('data');
-        expect(data2.data).toEqual({ id: 2, value: 'test2' });
+          // 데이터 라인들
+          const data1 = JSON.parse(lines[1]);
+          expect(data1.type).toBe('data');
+          expect(data1.data).toEqual({ id: 1, value: 'test1' });
 
-        // 완료 라인
-        const complete = JSON.parse(lines[lines.length - 1]);
-        expect(complete.type).toBe('complete');
-        expect(complete.rowCount).toBe(2);
+          const data2 = JSON.parse(lines[2]);
+          expect(data2.type).toBe('data');
+          expect(data2.data).toEqual({ id: 2, value: 'test2' });
 
-        done();
-      });
+          // 완료 라인
+          const complete = JSON.parse(lines[lines.length - 1]);
+          expect(complete.type).toBe('complete');
+          expect(complete.rowCount).toBe(2);
+
+          done();
+        });
+      })().catch(done);
     });
 
     it('should handle stream errors gracefully', done => {
-      // SQL 검증 성공 설정
-      sqlValidationService.validateQuery.mockReturnValue({
-        isValid: true,
-        errors: [],
-        warnings: [],
-        riskLevel: 'LOW',
-        sanitizedQuery: 'SELECT * FROM users',
-      });
+      void (async () => {
+        // SQL 검증 성공 설정
+        sqlValidationService.validateQuery.mockReturnValue({
+          isValid: true,
+          errors: [],
+          warnings: [],
+          riskLevel: 'LOW',
+          sanitizedQuery: 'SELECT * FROM users',
+        });
 
-      // 에러를 발생시키는 스트림
-      const mockStream = new Readable({
-        objectMode: true,
-        read() {
-          this.emit('error', new Error('Database connection lost'));
-        },
-      });
-
-      const mockKnex = {
-        raw: jest.fn().mockReturnValue({
-          stream: jest.fn().mockReturnValue(mockStream),
-        }),
-        client: {
-          config: {
-            client: 'mysql2',
+        // 에러를 발생시키는 스트림
+        const mockStream = new Readable({
+          objectMode: true,
+          read() {
+            this.emit('error', new Error('Database connection lost'));
           },
-        },
-      };
+        });
 
-      jest.spyOn(service, 'getKnex').mockResolvedValue(mockKnex as any);
+        const mockKnex = {
+          raw: jest.fn().mockReturnValue({
+            stream: jest.fn().mockReturnValue(mockStream),
+          }),
+          client: {
+            config: {
+              client: 'mysql2',
+            },
+          },
+        };
 
-      const result = await service.executeStreamingQuery({
-        id: 1,
-        query: 'SELECT * FROM test',
-      });
+        jest.spyOn(service, 'getKnex').mockResolvedValue(mockKnex as any);
 
-      result.stream.on('data', chunk => {
-        const data = chunk.toString();
-        const parsed = JSON.parse(data.trim());
+        const result = await service.executeStreamingQuery({
+          id: 1,
+          query: 'SELECT * FROM test',
+        });
 
-        if (parsed.type === 'error') {
-          expect(parsed.error).toContain('Database connection lost');
-          done();
-        }
-      });
+        result.stream.on('data', chunk => {
+          const data = chunk.toString();
+          const parsed = JSON.parse(data.trim());
+
+          if (parsed.type === 'error') {
+            expect(parsed.error).toContain('Database connection lost');
+            done();
+          }
+        });
+      })().catch(done);
     });
 
     it('should log progress for large datasets', async () => {

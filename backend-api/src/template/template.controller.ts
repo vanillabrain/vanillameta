@@ -1,3 +1,5 @@
+import { ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
 import {
   Body,
   Controller,
@@ -7,17 +9,8 @@ import {
   Param,
   Post,
   Put,
-  Res,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-  ApiBody,
-} from '@nestjs/swagger';
 import { TemplateService } from './template.service';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
@@ -26,9 +19,7 @@ import { UpdateTemplateItemDto } from './dto/update-template-item.dto';
 import { TemplateInfoDto } from './dto/template-info.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
-@ApiTags('템플릿')
-@ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SourceOwnershipGuard)
 @Controller('template')
 export class TemplateController {
   constructor(private readonly templateService: TemplateService) {}
@@ -67,27 +58,8 @@ export class TemplateController {
   }
 
   @Get(':id')
-  @ApiOperation({
-    summary: '템플릿 상세 조회',
-    description: '특정 템플릿의 상세 정보를 조회합니다. 레이아웃과 위젯 배치 정보를 포함합니다.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: '템플릿 ID',
-    type: Number,
-    example: 1,
-  })
-  @ApiResponse({
-    status: 200,
-    description: '템플릿 정보가 반환되었습니다.',
-    type: CreateTemplateDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: '템플릿을 찾을 수 없습니다.',
-  })
-  async findOne(@Res() res, @Param('id') id: number) {
-    return await this.templateService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    return await this.templateService.findOne(+id);
   }
 
   @Put(':id')

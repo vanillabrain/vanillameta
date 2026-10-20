@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Card, Hidden } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useAlert } from 'react-alert';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetService from '@/api/widgetService';
 import { WidgetInfo } from '@/api/type';
@@ -9,14 +10,15 @@ import ReloadButton from '@/components/button/ReloadButton';
 import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import PageViewBox from '@/components/PageViewBox';
-import { useAlert } from 'react-alert';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
 import { STATUS } from '@/constant';
+import { Card } from '@/components/ui/card';
 
 const WidgetView = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
@@ -41,44 +43,45 @@ const WidgetView = () => {
     componentDescription: '',
   };
   const [widgetOption, setWidgetOption] = useState<WidgetInfo>(defaultWidgetInfo);
+  const [loadError, setLoadError] = useState(false);
 
   const { widgetId } = useParams();
 
   useEffect(() => {
-    getWidgetInfo();
-  }, []);
+    return getWidgetInfo();
+  }, [widgetId]);
 
   /**
    * 위젯 조회
    */
   const getWidgetInfo = () => {
+    let active = true;
+    setWidgetOption(defaultWidgetInfo);
+    setLoadError(false);
     showLoading();
     WidgetService.selectWidget(widgetId)
       .then(response => {
-        console.log('selectWidget response:', response);
-        const responseData = response.data;
-        const widget: any = responseData.widget || responseData;
-        const widgetInfo: WidgetInfo = {
-          id: widget.id?.toString() || '',
-          title: widget.title || '',
-          componentId: widget.componentId?.toString() || '',
-          createdAt: widget.createdAt || '',
-          datasetId: widget.datasetId?.toString() || '',
-          datasetType: widget.datasetType || '',
-          delYn: widget.delYn || 'N',
-          description: widget.description || '',
-          option: widget.option || '',
-          updatedAt: widget.updatedAt || '',
-          widgetViewId: widget.id?.toString() || '',
-          icon: widget.icon || null,
-          componentTitle: widget.title || '',
-          componentDescription: widget.description || '',
-        };
-        setWidgetOption(widgetInfo);
+        if (!active) return;
+        const widget = response.data.data;
+        if (response.data.status === STATUS.SUCCESS && widget && typeof widget === 'object' && Number(widget.id) > 0) {
+          setWidgetOption(widget);
+        } else {
+          setWidgetOption(defaultWidgetInfo);
+          setLoadError(true);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setWidgetOption(defaultWidgetInfo);
+          setLoadError(true);
+        }
       })
       .finally(() => {
         hideLoading();
       });
+    return () => {
+      active = false;
+    };
   };
 
   // refrech 버튼 클릭
@@ -88,27 +91,30 @@ const WidgetView = () => {
 
   const removeWidget = () => {
     alert.success(
-      <Box sx={{ span: { fontWeight: 600 } }}>
-        <span>{widgetOption.title}</span>
+      <>
+        <span className="font-semibold">{widgetOption.title}</span>
         <br />
-        위젯을 삭제하시겠습니까?
-      </Box>,
+        {t('widget.deleteConfirm')}
+      </>,
       {
-        title: '위젯 삭제',
-        closeCopy: '취소',
+        title: t('widget.deleteTitle'),
+        closeCopy: t('data.cancel'),
         actions: [
           {
-            copy: '삭제',
+            copy: t('data.delete'),
             onClick: () => {
               showLoading();
               WidgetService.deleteWidget(widgetId)
                 .then(response => {
-                  if (response.status === STATUS.SUCCESS) {
+                  if (response.data.status === STATUS.SUCCESS) {
                     navigate('/widget', { replace: true });
-                    snackbar.success('위젯이 삭제되었습니다.');
+                    snackbar.success(t('widget.deleted'));
                   } else {
-                    alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(t('widget.deleteFailed'));
                   }
+                })
+                .catch(() => {
+                  alert.error(t('widget.deleteFailed'));
                 })
                 .finally(() => {
                   hideLoading();
@@ -122,10 +128,10 @@ const WidgetView = () => {
 
   return (
     <PageTitleBox
-      upperTitle="위젯"
+      upperTitle={t('widget.title')}
       upperTitleLink="/widget"
-      title="위젯 조회"
-      sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
+      title={t('widget.view')}
+      className="w-full flex-auto p-0"
     >
       <Seo title={widgetOption.title} />
       <PageViewBox
@@ -133,10 +139,9 @@ const WidgetView = () => {
         title={widgetOption.componentTitle}
         date={dateData(widgetOption.updatedAt)}
         button={
-          <Hidden smDown>
+          <div className="hidden sm:contents">
             <ReloadButton
-              size="medium"
-              sx={{ marginRight: '36px', padding: 0 }}
+              className="mr-9 p-0"
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -144,8 +149,7 @@ const WidgetView = () => {
               }}
             />
             <ModifyButton
-              size="medium"
-              sx={{ marginRight: '36px', padding: 0 }}
+              className="mr-9 p-0"
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -153,31 +157,24 @@ const WidgetView = () => {
               }}
             />
             <DeleteButton
-              size="medium"
-              sx={{ padding: 0 }}
+              className="p-0"
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
                 removeWidget();
               }}
             />
-          </Hidden>
+          </div>
         }
       >
-        <Card
-          sx={{
-            width: { xs: 'calc(100% - 40px)', sm: '60%' },
-            height: '50vw',
-            minHeight: '300px',
-            maxHeight: '700px',
-            margin: { xs: '20px auto', sm: '54px auto' },
-            borderRadius: '8px',
-            boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
-            border: 'solid 1px #e2e2e2',
-            backgroundColor: '#fff',
-          }}
-        >
-          <WidgetWrapper widgetOption={widgetOption} dataSetId={widgetOption.datasetId} />
+        <Card className="mx-auto my-6 h-[50vw] max-h-[700px] min-h-[300px] w-full max-w-4xl overflow-hidden rounded-lg border border-border bg-background shadow-none ring-0 sm:my-8">
+          {loadError ? (
+            <p role="alert" className="p-6 text-center">
+              {t('share.widgetFetchFailed')}
+            </p>
+          ) : widgetOption.id ? (
+            <WidgetWrapper widgetOption={widgetOption} dataSetId={widgetOption.datasetId} />
+          ) : null}
         </Card>
       </PageViewBox>
     </PageTitleBox>

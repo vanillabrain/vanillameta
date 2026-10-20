@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Divider, List, Stack, styled, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { Separator } from '@/components/ui/separator';
 import { WIDGET_TYPE } from '@/constant';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
@@ -28,32 +29,8 @@ import FunnelChartSetting from '@/widget/settings/FunnelChartSetting';
 import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
-const StyledList = styled(List)({
-  padding: 0,
-
-  '& .MuiListItemText-root': {
-    width: '100%',
-  },
-  '& .MuiListItemText-primary': {
-    textAlign: 'left',
-    fontWeight: 'bold',
-    fontSize: '14px',
-  },
-  '& .MuiListItem-root': {
-    display: 'flex',
-    flexDirection: ' column',
-    rowGap: 8,
-    width: '100%',
-    padding: '30px 0 30px',
-    fontSize: '14px',
-
-    hr: {
-      height: '4px',
-    },
-  },
-});
-
 const WidgetSetting = props => {
+  const { t } = useTranslation();
   const {
     title,
     setTitle,
@@ -216,7 +193,7 @@ const WidgetSetting = props => {
               {...chartSettingProps}
               // option={widgetOption.numericOption}
             />
-            <Divider />
+            <Separator />
             <LineChartSetting
               {...chartSettingProps}
               // option={widgetOption.chartOption}
@@ -228,7 +205,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
-            <Divider />
+            <Separator />
             <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -237,7 +214,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
-            <Divider />
+            <Separator />
             <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -246,7 +223,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
-            <Divider />
+            <Separator />
             <LineChartSetting {...chartSettingProps} axis="y" />
           </React.Fragment>
         );
@@ -255,7 +232,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
-            <Divider />
+            <Separator />
             <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -264,7 +241,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
-            <Divider />
+            <Separator />
             <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -273,7 +250,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
-            <Divider />
+            <Separator />
             <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -282,7 +259,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
-            <Divider />
+            <Separator />
             <LineChartSetting {...chartSettingProps} axis="y" />
           </React.Fragment>
         );
@@ -291,7 +268,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
-            <Divider />
+            <Separator />
             <DonutChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -300,14 +277,14 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
-            <Divider />
+            <Separator />
             <DonutChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
 
       default:
-        module = '컴포넌트가 선택되지 않았다!';
+        module = t('common.componentNotSelected');
         break;
     }
 
@@ -316,46 +293,26 @@ const WidgetSetting = props => {
   };
 
   return (
-    <Stack
-      justifyContent="space-between"
-      sx={{
-        width: '40%',
-        maxWidth: '440px',
-        minWidth: '340px',
-        height: '100%',
-        px: '24px',
-        py: '30px',
-        overflowY: 'auto !important',
-        backgroundColor: '#fff',
-      }}
-    >
-      <Stack>
-        <Typography
-          component="span"
-          sx={{
-            fontWeight: 'bold',
-            color: '#767676',
-            mb: '16px',
-          }}
-        >
+    <div className="flex w-full flex-col justify-between overflow-y-visible bg-background px-6 py-[30px] md:h-full md:w-2/5 md:max-w-[440px] md:min-w-[340px] md:shrink md:overflow-y-auto">
+      <div>
+        <p className="mb-4 font-bold text-muted-foreground">
           {widgetTypeName}
-          <Typography component="span">{`(${widgetTypeDescription})`}</Typography>
-        </Typography>
+          <span>{`(${widgetTypeDescription})`}</span>
+        </p>
         <WidgetTitleForm value={title} onChange={event => setTitle(event.target.value)} />
-        <Divider sx={{ mt: '30px' }} />
+        <Separator className="mt-[30px]" />
 
-        <StyledList>{module}</StyledList>
-      </Stack>
+        <ul className="m-0 w-full list-none p-0">{module}</ul>
+      </div>
       <ConfirmButton
-        sx={{ minHeight: '44px', mt: '30px', fontWeight: 'bold', backgroundColor: '#043f84' }}
-        confirmLabel="저장"
+        className="mt-[30px] min-h-11 bg-primary font-bold"
+        confirmLabel={t('common.save')}
         confirmProps={{
           form: 'widgetAttribute',
           type: 'submit',
-          variant: 'contained',
         }}
       />
-    </Stack>
+    </div>
   );
 };
 

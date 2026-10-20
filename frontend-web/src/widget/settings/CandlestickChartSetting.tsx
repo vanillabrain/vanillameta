@@ -1,32 +1,34 @@
 import React from 'react';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST } from '@/constant';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
 
 const CandlestickChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec } = props;
   const candlestickLabel = ['open', 'close', 'lowest', 'highest'];
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           required={true}
           id="xField"
           name="xField"
-          label="x축"
+          label={t('settings.xAxis')}
           optionList={spec.map(item => item.columnName)}
           labelField="columnName"
           valueField="columnType"
           value={option.xField}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText primary="시리즈 설정" />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
             <SelectForm
@@ -53,23 +55,23 @@ const CandlestickChartSetting = props => {
             <SelectForm
               id={`aggregation${index + 1}`}
               name={`aggregation${index + 1}`}
-              label="집계 방식"
-              optionList={AGGREGATION_LIST}
+              label={t('settings.aggregation')}
+              optionList={AGGREGATION_LIST(t)}
               value={item.aggregation}
               onChange={event => handleSeriesChange(event, setOption)}
               disabledDefaultValue
             />
-            <Divider />
+            <Separator />
           </React.Fragment>
         ))}
         <SelectForm
           name="mark"
-          label="마크 포인트"
-          optionList={DISPLAY_LIST}
+          label={t('settings.markPoint')}
+          optionList={DISPLAY_LIST(t)}
           value={option.mark}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

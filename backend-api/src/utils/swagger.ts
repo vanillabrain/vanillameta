@@ -97,7 +97,9 @@ export function setupSwagger(app: INestApplication): void {
 
   document.paths = filterDocumentsPathsByTags(document);
   // document.paths = filterDocumentsDtoPathsByTags(document);
-  fs.writeFileSync('./swagger-spec.json', JSON.stringify(document, null, 2));
+  if (process.env.SWAGGER_SPEC_PATH) {
+    fs.writeFileSync(process.env.SWAGGER_SPEC_PATH, JSON.stringify(document));
+  }
   SwaggerModule.setup('api-docs', app, document, {
     swaggerOptions: {
       defaultModelsExpandDepth: -1,

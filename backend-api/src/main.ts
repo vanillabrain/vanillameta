@@ -3,8 +3,10 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import { config } from 'dotenv';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
+import { RequestLoggingInterceptor } from './nest-utils/request-logging.interceptor';
 import { setupSwagger } from './utils/swagger';
 import { CustomLoggerService } from './common/logger/logger.service';
 import { LoggingMiddleware } from './middleware/logging.middleware';
@@ -38,8 +40,17 @@ function configureMemoryOptimization() {
 async function bootstrap() {
   // 메모리 최적화 설정 적용
   configureMemoryOptimization();
+  if (process.env.SENTRY_DSN) {
+    const Sentry = await import('@sentry/nestjs');
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      environment: process.env.NODE_ENV || 'development',
+      tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || 0),
+    });
+  }
 
   const expressApp = express();
+  expressApp.use(helmet({ contentSecurityPolicy: false }));
 
   // Express 메모리 최적화 설정
   expressApp.set('trust proxy', 1);
@@ -70,20 +81,9 @@ async function bootstrap() {
   nestApp.setGlobalPrefix('v1');
   nestApp.use(cookieParser());
   nestApp.useGlobalFilters(new HttpExceptionFilter());
+  nestApp.useGlobalInterceptors(new RequestLoggingInterceptor());
   setupSwagger(nestApp);
-
-  // Global interceptors for CloudWatch metrics
-  const cloudWatchMetrics = nestApp.get(CloudWatchMetricsService);
-  const businessMetrics = nestApp.get(BusinessMetricsService);
-  // ResponseTimeInterceptor는 module providers에서 DI로 처리됨
-
-  const logger = nestApp.get(CustomLoggerService);
-  logger.log('Application starting', 'Bootstrap', {
-    environment: process.env.NODE_ENV,
-    port: 4000,
-  });
-
-  await nestApp.listen(4000);
+  await nestApp.listen(parseInt(process.env.PORT) || 4000, process.env.HOST);
 }
 
 bootstrap();

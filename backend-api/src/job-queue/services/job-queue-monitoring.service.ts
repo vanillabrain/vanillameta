@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -35,8 +35,9 @@ export interface JobPerformanceMetrics {
 }
 
 @Injectable()
-export class JobQueueMonitoringService {
+export class JobQueueMonitoringService implements OnModuleDestroy {
   private readonly logger = new Logger(JobQueueMonitoringService.name);
+  private metricsTimer?: ReturnType<typeof setInterval>;
 
   // 실시간 메트릭 캐시
   private realtimeMetrics = {
@@ -70,6 +71,13 @@ export class JobQueueMonitoringService {
     this.initializeMonitoring();
   }
 
+  onModuleDestroy(): void {
+    if (this.metricsTimer) {
+      clearInterval(this.metricsTimer);
+      this.metricsTimer = undefined;
+    }
+  }
+
   /**
    * 모니터링 초기화
    */
@@ -84,13 +92,15 @@ export class JobQueueMonitoringService {
    * 실시간 메트릭 업데이트 시작
    */
   private startRealtimeMetricsUpdate(): void {
-    setInterval(async () => {
+    if (this.metricsTimer) return;
+    this.metricsTimer = setInterval(async () => {
       try {
         await this.updateRealtimeMetrics();
       } catch (error) {
         this.logger.error('Failed to update realtime metrics', error);
       }
     }, 30000); // 30초마다 업데이트
+    this.metricsTimer.unref?.();
   }
 
   /**

@@ -142,7 +142,7 @@ describe('AnalyticsService', () => {
       };
 
       let capturedValues;
-      mockRepository.values.mockImplementation((values) => {
+      mockRepository.values.mockImplementation(values => {
         capturedValues = values;
         return mockRepository;
       });
@@ -170,7 +170,7 @@ describe('AnalyticsService', () => {
       const context = {};
 
       let capturedValues;
-      mockRepository.values.mockImplementation((values) => {
+      mockRepository.values.mockImplementation(values => {
         capturedValues = values;
         return mockRepository;
       });
@@ -203,8 +203,12 @@ describe('AnalyticsService', () => {
 
       expect(mockRepository.createQueryBuilder).toHaveBeenCalledWith('event');
       expect(mockRepository.where).toHaveBeenCalledWith('event.userId = :userId', { userId });
-      expect(mockRepository.andWhere).toHaveBeenCalledWith('event.createdAt >= :startDate', { startDate });
-      expect(mockRepository.andWhere).toHaveBeenCalledWith('event.createdAt <= :endDate', { endDate });
+      expect(mockRepository.andWhere).toHaveBeenCalledWith('event.createdAt >= :startDate', {
+        startDate,
+      });
+      expect(mockRepository.andWhere).toHaveBeenCalledWith('event.createdAt <= :endDate', {
+        endDate,
+      });
       expect(result).toEqual(mockEvents);
     });
   });

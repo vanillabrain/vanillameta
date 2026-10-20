@@ -1,16 +1,17 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { vi, afterEach } from 'vitest';
+afterEach(cleanup);
+import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import LazyImage from './index';
 
 // react-intersection-observer 모킹
-const mockInView = jest.fn();
-const mockUseInView = jest.fn();
+const mockInView = vi.fn();
+const mockUseInView = vi.fn();
 
-jest.mock('react-intersection-observer', () => ({
+vi.mock('react-intersection-observer', () => ({
   useInView: (options?: any) => {
     mockUseInView(options);
     return {
-      ref: jest.fn(),
+      ref: vi.fn(),
       inView: mockInView(),
     };
   },
@@ -23,7 +24,7 @@ describe('LazyImage 컴포넌트', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockInView.mockReturnValue(false); // 기본값: 뷰포트 밖
   });
 
@@ -31,7 +32,7 @@ describe('LazyImage 컴포넌트', () => {
     const { container } = render(<LazyImage {...defaultProps} />);
 
     // 컨테이너가 렌더링되어야 함
-    expect(container.firstChild).toBeInTheDocument();
+    expect(document.contains(container.firstChild)).toBe(true);
   });
 
   it('뷰포트에 진입하면 이미지를 로드해야 함', async () => {
@@ -41,13 +42,13 @@ describe('LazyImage 컴포넌트', () => {
 
     // 이미지가 렌더링되어야 함
     const image = screen.getByAltText('테스트 이미지');
-    expect(image).toBeInTheDocument();
-    expect(image).toHaveAttribute('src', defaultProps.src);
+    expect(document.contains(image)).toBe(true);
+    expect(image.getAttribute('src')).toBe(defaultProps.src);
   });
 
   it('이미지 로드 완료 시 onLoad 콜백이 호출되어야 함', async () => {
     mockInView.mockReturnValue(true);
-    const onLoadMock = jest.fn();
+    const onLoadMock = vi.fn();
 
     render(<LazyImage {...defaultProps} onLoad={onLoadMock} />);
 
@@ -64,7 +65,7 @@ describe('LazyImage 컴포넌트', () => {
   it('이미지 로드 실패 시 fallback 이미지를 표시해야 함', async () => {
     mockInView.mockReturnValue(true);
     const fallbackSrc = 'https://example.com/fallback.jpg';
-    const onErrorMock = jest.fn();
+    const onErrorMock = vi.fn();
 
     render(<LazyImage {...defaultProps} fallbackSrc={fallbackSrc} onError={onErrorMock} />);
 
@@ -75,7 +76,7 @@ describe('LazyImage 컴포넌트', () => {
 
     await waitFor(() => {
       expect(onErrorMock).toHaveBeenCalledTimes(1);
-      expect(image).toHaveAttribute('src', fallbackSrc);
+      expect(image.getAttribute('src')).toBe(fallbackSrc);
     });
   });
 
@@ -85,8 +86,8 @@ describe('LazyImage 컴포넌트', () => {
     render(<LazyImage {...defaultProps} placeholder={placeholderSrc} />);
 
     const placeholder = screen.getByAltText('테스트 이미지 placeholder');
-    expect(placeholder).toBeInTheDocument();
-    expect(placeholder).toHaveAttribute('src', placeholderSrc);
+    expect(document.contains(placeholder)).toBe(true);
+    expect(placeholder.getAttribute('src')).toBe(placeholderSrc);
   });
 
   it('커스텀 스타일이 적용되어야 함', () => {
@@ -99,7 +100,7 @@ describe('LazyImage 컴포넌트', () => {
     );
 
     const imageContainer = container.firstChild;
-    expect(imageContainer).toBeInTheDocument();
+    expect(document.contains(imageContainer)).toBe(true);
     // MUI sx prop을 사용하므로 직접 스타일 확인은 어려움
     // 대신 prop이 전달되는지만 확인
   });
@@ -110,7 +111,7 @@ describe('LazyImage 컴포넌트', () => {
     render(<LazyImage {...defaultProps} objectFit="cover" />);
 
     const image = screen.getByAltText('테스트 이미지');
-    expect(image).toHaveStyle({ objectFit: 'cover' });
+    expect(getComputedStyle(image).objectFit).toBe('cover');
   });
 
   it('className이 컨테이너에 적용되어야 함', () => {
@@ -119,7 +120,7 @@ describe('LazyImage 컴포넌트', () => {
     const { container } = render(<LazyImage {...defaultProps} className={className} />);
 
     const imageContainer = container.firstChild;
-    expect(imageContainer).toHaveClass(className);
+    expect((imageContainer as Element).classList.contains(className)).toBe(true);
   });
 
   it('threshold와 rootMargin이 설정되어야 함', () => {

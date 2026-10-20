@@ -1,3 +1,4 @@
+import { safeRouteTemplate } from '../utils/safe-route-template';
 import {
   Injectable,
   NestInterceptor,
@@ -24,7 +25,7 @@ export class MetricsInterceptor implements NestInterceptor {
 
     const startTime = Date.now();
     const method = request.method;
-    const path = request.route?.path || request.path;
+    const path = safeRouteTemplate(request);
     const userId = (request as any).user?.id;
 
     // Lambda 콜드 스타트 확인

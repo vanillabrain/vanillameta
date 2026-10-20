@@ -1,8 +1,49 @@
 {
-  "devDependencies": {
-    "husky": "^9.1.7"
-  },
+  "name": "vanillameta",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VanillaMeta - open source BI & data visualization platform",
   "scripts": {
+    "install:all": "npm --prefix backend-api install --legacy-peer-deps && npm --prefix frontend-web install --legacy-peer-deps",
+    "dev": "concurrently -n \"API,WEB\" -c \"blue,green\" \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm --prefix backend-api run start:dev",
+    "dev:web": "npm --prefix frontend-web run start:dev",
+    "dev:local": "concurrently -n \"API,WEB\" -c \"blue,green\" \"npm run local:api\" \"npm run local:web\"",
+    "local:api": "npm --prefix backend-api run start:local",
+    "local:web": "npm --prefix frontend-web run start:local",
+    "dev:backend": "npm --prefix backend-api run start:local",
+    "dev:frontend": "npm --prefix frontend-web run start:local",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "npm --prefix backend-api run build",
+    "build:web": "npm --prefix frontend-web run build",
+    "lint": "npm run lint:api && npm run lint:web",
+    "lint:api": "npm --prefix backend-api run lint",
+    "lint:web": "npm --prefix frontend-web run lint",
+    "test": "npm run test:api -- --runInBand && npm run test:web",
+    "test:api": "npm --prefix backend-api run test --",
+    "test:web": "npm --prefix frontend-web run test",
+    "seed": "npm --prefix backend-api run seed",
     "prepare": "husky"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "2.8.8",
+    "turbo": "^2.1.0"
+  },
+  "lint-staged": {
+    "backend-api/**/*.ts": "prettier --write",
+    "frontend-web/**/*.{ts,tsx,js,jsx}": "prettier --write",
+    "*.{json,md,yml,yaml}": "prettier --write"
+  },
+  "engines": {
+    "node": ">=24.11.0 <25",
+    "pnpm": ">=8.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sqlite3"
+    ]
   }
 }

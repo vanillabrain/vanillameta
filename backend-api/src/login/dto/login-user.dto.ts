@@ -1,6 +1,7 @@
-import { OmitType, PartialType, ApiProperty } from '@nestjs/swagger';
-import { CreateUserDto } from '../../user/dto/create-user.dto';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsString, IsNotEmpty } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { OmitType, PartialType } from '@nestjs/swagger';
+import { CreateUserDto } from '../../user/dto/create-user.dto.js';
 
 export class LoginUserDto {
   @IsString()

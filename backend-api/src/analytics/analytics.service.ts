@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { AnalyticsEvent } from './entities/analytics-event.entity';
 import { EventDataDto } from './dto/create-event.dto';
 import { CustomLoggerService } from '../common/logger/logger.service';
-const UAParser = require('ua-parser-js');
+import { UAParser } from 'ua-parser-js';
 
 interface EventContext {
   userId?: string;

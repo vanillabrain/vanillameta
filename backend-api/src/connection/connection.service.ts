@@ -1,4 +1,15 @@
-import { Injectable, BadRequestException, ForbiddenException, Inject } from '@nestjs/common';
+import { User } from '../user/entities/user.entity';
+import { SourceAccessService } from '../ownership/source-access.service';
+import { serializeMetadataWork } from '../common/metadata-work';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Optional,
+  ForbiddenException,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { CreateDatabaseDto } from '../database/dto/create-database.dto';
 import { QueryExecuteDto } from '../database/dto/query-execute.dto';
 import { Knex, knex } from 'knex';
@@ -21,22 +32,88 @@ import { getDatabaseSpecificConfig } from './database-specific.config';
 import { KnexQueryMonitor } from '../common/monitoring/knex-query-monitor';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
+import { createHash } from 'crypto';
+import { decryptConnectionConfig } from '../utils/crypto.util';
+import { assertReadOnlyQuery } from '../utils/query-guard.util';
+import { Redis } from 'ioredis';
+import { DuckDBService } from '../analysis/duckdb.service';
+import { ProgressGateway } from '../progress/progress.gateway';
+import { AsyncLocalStorage } from 'async_hooks';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires -- knex-bigquery는 타입 선언이 없음
 const { BigQueryClient } = require('knex-bigquery');
 
 export const knexConnections = new Map<number, Knex>();
 
+/**
+ * 쿼리 결과 캐시 백엔드. REDIS_URL 설정 시 Redis(PX TTL), 아니면 인메모리 Map.
+ * 분산 배포에서 인스턴스 간 캐시 공유가 필요하면 REDIS_URL을 사용한다.
+ */
+interface QueryCache {
+  get(key: string): Promise<any | undefined>;
+  set(key: string, value: any, ttlMs: number): Promise<void>;
+}
+
+class MemoryQueryCache implements QueryCache {
+  private store = new Map<string, { value: any; expiresAt: number }>();
+  async get(key: string) {
+    const hit = this.store.get(key);
+    if (!hit) return undefined;
+    if (hit.expiresAt <= Date.now()) {
+      this.store.delete(key);
+      return undefined;
+    }
+    return hit.value;
+  }
+  async set(key: string, value: any, ttlMs: number) {
+    this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
+  }
+}
+
+class RedisQueryCache implements QueryCache {
+  private client: Redis;
+  constructor(url: string) {
+    this.client = new Redis(url, { maxRetriesPerRequest: 1 });
+    this.client.on('error', e => console.warn('[query-cache] redis error:', e.message));
+  }
+  async get(key: string) {
+    try {
+      const raw = await this.client.get(`vm:q:${key}`);
+      return raw ? JSON.parse(raw) : undefined;
+    } catch {
+      return undefined; // Redis 장애 시 캐시 미사용으로 degrade
+    }
+  }
+  async set(key: string, value: any, ttlMs: number) {
+    try {
+      await this.client.set(`vm:q:${key}`, JSON.stringify(value), 'PX', ttlMs);
+    } catch {
+      /* 캐시 기록 실패는 무시 */
+    }
+  }
+}
+
+const queryCache: QueryCache = process.env.REDIS_URL
+  ? new RedisQueryCache(process.env.REDIS_URL)
+  : new MemoryQueryCache();
+
 @Injectable()
 export class ConnectionService {
+  private readonly request?: Request;
+  private readonly duckDBSnapshots = new AsyncLocalStorage<Map<number, Record<string, any>>>();
+
   constructor(
     @InjectRepository(Database) private databaseRepository: Repository<Database>,
-    private readonly logger: CustomLoggerService,
-    private readonly sqlValidationService: SqlValidationService,
-    private readonly queryAnalyzerService: QueryAnalyzerService,
-    private readonly queryCollector: QueryCollector,
-    private readonly slowQueryMonitorService: SlowQueryMonitorService,
-    private readonly databaseOptimizerFactory: DatabaseOptimizerFactory,
-    private readonly knexQueryMonitor: KnexQueryMonitor,
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly progressGateway: ProgressGateway,
+    private readonly duckdbService?: DuckDBService,
+    @Optional() private readonly logger?: CustomLoggerService,
+    @Optional() private readonly sqlValidationService?: SqlValidationService,
+    @Optional() private readonly queryAnalyzerService?: QueryAnalyzerService,
+    @Optional() private readonly queryCollector: QueryCollector = new QueryCollector(),
+    @Optional() private readonly slowQueryMonitorService?: SlowQueryMonitorService,
+    @Optional() private readonly databaseOptimizerFactory?: DatabaseOptimizerFactory,
+    @Optional() private readonly knexQueryMonitor?: KnexQueryMonitor,
+    @Optional() private readonly sourceAccess?: SourceAccessService,
   ) {}
 
   /**
@@ -51,7 +128,7 @@ export class ConnectionService {
 
       // 데이터베이스별 특화 설정 적용
       const dbSpecificConfig = getDatabaseSpecificConfig(databaseType);
-      const optimizer = this.databaseOptimizerFactory.getOptimizer(databaseType);
+      const optimizer = this.databaseOptimizerFactory?.getOptimizer(databaseType);
 
       // 기본 최적화된 설정 + DB별 특화 설정 결합
       let optimizedOptions: Knex.Config = {
@@ -86,12 +163,12 @@ export class ConnectionService {
           },
           // 연결 설정 병합
           connection: {
-            ...((options.connection as any) || {}),
             ...((dbSpecificConfig.connectionConfig.connection as any) || {}),
+            ...((options.connection as any) || {}),
           },
         };
 
-        this.logger.info('Applied database-specific optimizations', 'ConnectionService', {
+        this.logger?.info('Applied database-specific optimizations', 'ConnectionService', {
           databaseId: id,
           databaseType,
           batchSize: dbSpecificConfig.performanceSettings.batchSize,
@@ -104,13 +181,13 @@ export class ConnectionService {
       if (optimizer) {
         optimizedOptions = optimizer.getOptimizedConnectionConfig(optimizedOptions);
 
-        this.logger.info('Applied optimizer-specific configurations', 'ConnectionService', {
+        this.logger?.info('Applied optimizer-specific configurations', 'ConnectionService', {
           databaseId: id,
           optimizerType: optimizer.getDatabaseType(),
         });
       }
 
-      this.logger.info(
+      this.logger?.info(
         'Creating Knex connection with database-specific optimizations',
         'ConnectionService',
         {
@@ -118,7 +195,7 @@ export class ConnectionService {
           databaseType,
           environment,
           client: options.client,
-          optimized: this.databaseOptimizerFactory.isSupported(databaseType),
+          optimized: this.databaseOptimizerFactory?.isSupported(databaseType),
           poolSettings: optimizedOptions.pool,
           hasOptimizer: !!optimizer,
           hasDbSpecificConfig: !!dbSpecificConfig,
@@ -129,11 +206,11 @@ export class ConnectionService {
       knexConnections.set(id, knexInstance);
 
       // Knex 쿼리 모니터링 연결
-      this.knexQueryMonitor.attachToKnex(knexInstance, id, databaseType);
+      this.knexQueryMonitor?.attachToKnex(knexInstance, id, databaseType);
 
       // 최적화 통계 로깅
-      const stats = this.databaseOptimizerFactory.getOptimizationStats();
-      this.logger.debug('Database optimization stats', 'ConnectionService', stats);
+      const stats = this.databaseOptimizerFactory?.getOptimizationStats();
+      this.logger?.debug('Database optimization stats', 'ConnectionService', stats);
     }
   }
 
@@ -142,26 +219,9 @@ export class ConnectionService {
    * @param id
    */
   async removeKnex(id: number) {
-    const knexInstance = knexConnections.get(id);
-    if (knexInstance) {
-      try {
-        // 연결 풀 정리
-        await knexInstance.destroy();
-        this.logger.info('Knex connection pool destroyed', 'ConnectionService', {
-          databaseId: id,
-        });
-      } catch (error) {
-        this.logger.error(
-          'Failed to destroy Knex connection pool',
-          error.stack,
-          'ConnectionService',
-          {
-            databaseId: id,
-          },
-        );
-      }
-      knexConnections.delete(id);
-    }
+    const old = knexConnections.get(id);
+    knexConnections.delete(id);
+    if (old) await old.destroy();
   }
 
   /**
@@ -176,15 +236,10 @@ export class ConnectionService {
    * Knex 객체 가져오기 - 만약 없으면 가져오기
    * @param id
    */
-  async getKnex(id: number): Promise<Knex> {
+  async getKnex(id: number | string): Promise<Knex> {
+    id = this.validateId(id);
+    const knexConfig = await this.getConnectionConfig(id);
     if (!this.hasKnex(id)) {
-      const one = await this.databaseRepository.findOne({ where: { id: id } });
-      try {
-        (one as any).connectionConfig = JSON.parse(one.connectionConfig);
-      } catch (error) {
-        (one as any).connectionConfig = {};
-      }
-      const knexConfig = one.connectionConfig;
       if (knexConfig['client'] == 'bigquery') {
         knexConfig['client'] = BigQueryClient;
       } else if (knexConfig['client'] == 'snowflake') {
@@ -196,13 +251,327 @@ export class ConnectionService {
   }
 
   /**
+   * 데이터베이스 연결 설정 복호화 조회
+   */
+  private async getConnectionConfig(id: number | string) {
+    const databaseId = this.validateId(id);
+    const snapshot = this.duckDBSnapshots.getStore()?.get(databaseId);
+    if (snapshot) return snapshot;
+    const one = await this.databaseRepository.findOne({ where: { id: databaseId } });
+    if (!one) throw new NotFoundException('database not found');
+    return JSON.parse(decryptConnectionConfig(one.connectionConfig));
+  }
+
+  /** UC052: capture committed configuration without retaining the metadata lease during SQL.
+   * Always read fresh metadata, even inside an older pinned snapshot. The returned capability
+   * stays internal; callers must authorize before capture and recheck before returning results.
+   */
+  async captureDuckDBSnapshot(id: number) {
+    const databaseId = this.validateId(id);
+    const config = await serializeMetadataWork(
+      this.databaseRepository.manager.connection,
+      async () => {
+        const source = await this.databaseRepository.findOne({ where: { id: databaseId } });
+        if (!source) throw new NotFoundException('database not found');
+        const value = JSON.parse(decryptConnectionConfig(source.connectionConfig));
+        if (value.client !== 'duckdb') throw new BadRequestException('not a DuckDB source');
+        return value;
+      },
+    );
+    const pinned = new Map(this.duckDBSnapshots.getStore());
+    pinned.set(databaseId, config);
+    return {
+      run: <T>(callback: () => Promise<T>): Promise<T> =>
+        this.duckDBSnapshots.run(pinned, callback),
+    };
+  }
+
+  /** Pin the selected immutable file for every query in this async operation. */
+  async withDuckDBSnapshot<T>(id: number, callback: () => T | Promise<T>): Promise<T> {
+    const databaseId = this.validateId(id);
+    const snapshots = this.duckDBSnapshots.getStore();
+    if (snapshots?.has(databaseId)) return callback();
+    // A preview must not pin a connection change that another SQLite transaction rolls back.
+    const capture = await this.captureDuckDBSnapshot(databaseId);
+    return capture.run(async () => callback());
+  }
+
+  /** Opaque revision of the selected file; respects any active snapshot. */
+  async duckDBVersion(id: number): Promise<string> {
+    const config = await this.getConnectionConfig(id);
+    if (config.client !== 'duckdb') throw new BadRequestException('not a DuckDB source');
+    return createHash('sha256').update(config.connection.filename).digest('hex');
+  }
+
+  async isDuckDB(id: number) {
+    return (await this.getConnectionConfig(id)).client === 'duckdb';
+  }
+
+  async queryDuckDB(id: number, sql: string, bindings: any[] = []) {
+    const config = await this.getConnectionConfig(id);
+    if (config.client !== 'duckdb') throw new BadRequestException('not a DuckDB source');
+    return this.duckdbService.query(config.connection.filename, sql, bindings);
+  }
+
+  private validateId(id: unknown): number {
+    const normalized =
+      typeof id === 'number' ? id : typeof id === 'string' && /^\d+$/.test(id) ? Number(id) : NaN;
+    if (!Number.isSafeInteger(normalized) || normalized <= 0) {
+      throw new BadRequestException('invalid database id');
+    }
+    return normalized;
+  }
+
+  /**
+   * ClickHouse는 네이티브 드라이버 대신 HTTP 인터페이스(포트 8123)로 실행한다.
+   * connectionConfig: { client: 'clickhouse', connection: { host, port, user, password, database, secure? } }
+   */
+  private async executeClickHouse(connectionConfig: any, query: string) {
+    const conn = connectionConfig.connection;
+    const protocol = conn.secure ? 'https' : 'http';
+    const url = `${protocol}://${conn.host}:${conn.port || 8123}/?database=${encodeURIComponent(
+      conn.database || 'default',
+    )}`;
+
+    const controller = new AbortController();
+    const timeoutMs = parseInt(process.env.QUERY_TIMEOUT_MS) || 60000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-ClickHouse-User': conn.user || 'default',
+          'X-ClickHouse-Key': conn.password || '',
+        },
+        body: `${query}\nFORMAT JSON`,
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        return { status: ResponseStatus.ERROR, message: body.slice(0, 500), datas: [], fields: [] };
+      }
+      const json = await response.json();
+      const datas = json.data ?? [];
+      const fields = (json.meta ?? []).map((m: any) => ({
+        columnName: m.name,
+        columnType: FieldTypeUtil.FieldType(datas.slice(0, 100).map((r: any) => r[m.name])),
+      }));
+      return { status: ResponseStatus.SUCCESS, message: 'success', datas, fields };
+    } catch (e) {
+      console.log(e);
+      return {
+        status: ResponseStatus.ERROR,
+        message: e.message || 'clickhouse query failed',
+        datas: [],
+        fields: [],
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
+   * Trino는 네이티브 드라이버 대신 HTTP 인터페이스(포트 8080)로 실행한다.
+   * POST /v1/statement 후 nextUri를 따라가며 결과를 누적한다.
+   * connectionConfig: { client: 'trino', connection: { host, port, user, password, database(catalog), schema?, secure? } }
+   */
+  private async executeTrino(connectionConfig: any, query: string) {
+    const conn = connectionConfig.connection;
+    const protocol = conn.secure ? 'https' : 'http';
+    const baseUrl = `${protocol}://${conn.host}:${conn.port || 8080}`;
+    const headers: Record<string, string> = {
+      'X-Trino-User': conn.user || 'trino',
+    };
+    if (conn.database) headers['X-Trino-Catalog'] = conn.database;
+    if (conn.schema) headers['X-Trino-Schema'] = conn.schema;
+    if (conn.password) {
+      headers['Authorization'] =
+        'Basic ' + Buffer.from(`${conn.user || 'trino'}:${conn.password}`).toString('base64');
+    }
+
+    const timeoutMs = parseInt(process.env.QUERY_TIMEOUT_MS) || 60000;
+    const deadline = Date.now() + timeoutMs;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const datas: any[] = [];
+    const fields = [];
+    try {
+      let nextUri: string | null = `${baseUrl}/v1/statement`;
+      let method = 'POST';
+      let body: string | undefined = query;
+      let columns: any[] = null;
+      for (let i = 0; nextUri && i < 200; i++) {
+        if (Date.now() > deadline) throw new Error('trino query timeout');
+        const response = await fetch(nextUri, {
+          method,
+          headers,
+          body,
+          signal: controller.signal,
+        });
+        const json = await response.json();
+        if (!response.ok || json.error) {
+          return {
+            status: ResponseStatus.ERROR,
+            message: (json.error?.message || json.message || 'trino query failed').slice(0, 500),
+            datas: [],
+            fields: [],
+          };
+        }
+        if (json.columns && !columns) columns = json.columns;
+        if (json.data) datas.push(...json.data);
+        nextUri = json.nextUri || null;
+        method = 'GET';
+        body = undefined;
+      }
+      if (!columns) {
+        return { status: ResponseStatus.SUCCESS, message: 'success', datas: [], fields: [] };
+      }
+      // trino data는 컬럼 순서의 배열 — 객체 행으로 변환
+      const names = columns.map((c: any) => c.name);
+      const rows = datas.map(r => Object.fromEntries(names.map((n, i) => [n, r[i]])));
+      for (const name of names) {
+        fields.push({
+          columnName: name,
+          columnType: FieldTypeUtil.FieldType(rows.slice(0, 100).map(r => r[name])),
+        });
+      }
+      return { status: ResponseStatus.SUCCESS, message: 'success', datas: rows, fields };
+    } catch (e) {
+      console.log(e);
+      return {
+        status: ResponseStatus.ERROR,
+        message: e.message || 'trino query failed',
+        datas: [],
+        fields: [],
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
+   * Databricks SQL은 Statement Execution API(HTTPS 443)로 실행한다.
+   * POST /api/2.0/sql/statements → status.state가 SUCCEEDED일 때까지 result GET 폴링.
+   * connectionConfig: { client: 'databricks', connection: { host, token|password, warehouseId|database, catalog?, schema? } }
+   */
+  private async executeDatabricks(connectionConfig: any, query: string) {
+    const conn = connectionConfig.connection;
+    const host = (conn.host || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const token = conn.token || conn.password;
+    const warehouseId = conn.warehouseId || conn.database;
+    if (!host || !token || !warehouseId) {
+      return {
+        status: ResponseStatus.ERROR,
+        message: 'host, token, warehouseId는 필수입니다.',
+        datas: [],
+        fields: [],
+      };
+    }
+    const baseUrl = `https://${host}`;
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+
+    const timeoutMs = parseInt(process.env.QUERY_TIMEOUT_MS) || 60000;
+    const deadline = Date.now() + timeoutMs;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const createRes = await fetch(`${baseUrl}/api/2.0/sql/statements`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          statement: query,
+          warehouse_id: warehouseId,
+          catalog: conn.catalog,
+          schema: conn.schema,
+          wait_timeout: '30s',
+          disposition: 'INLINE',
+          format: 'JSON_ARRAY',
+        }),
+        signal: controller.signal,
+      });
+      let json = await createRes.json();
+      const statementId = json.statement_id;
+
+      // PENDING/RUNNING이면 폴링
+      for (let i = 0; i < 120 && statementId; i++) {
+        const state = json.status?.state;
+        if (
+          state === 'SUCCEEDED' ||
+          state === 'FAILED' ||
+          state === 'CANCELED' ||
+          state === 'CLOSED'
+        )
+          break;
+        if (Date.now() > deadline) throw new Error('databricks query timeout');
+        await new Promise(r => setTimeout(r, 1000));
+        const pollRes = await fetch(`${baseUrl}/api/2.0/sql/statements/${statementId}`, {
+          headers,
+          signal: controller.signal,
+        });
+        json = await pollRes.json();
+      }
+
+      if (json.status?.state !== 'SUCCEEDED') {
+        const msg =
+          json.status?.error?.message || json.message || `query ${json.status?.state || 'failed'}`;
+        return {
+          status: ResponseStatus.ERROR,
+          message: String(msg).slice(0, 500),
+          datas: [],
+          fields: [],
+        };
+      }
+
+      // INLINE JSON_ARRAY: result.data_array + manifest.schema.columns
+      const columns = json.manifest?.schema?.columns ?? [];
+      const rawData = json.result?.data_array ?? [];
+      const names = columns.map((c: any) => c.name);
+      const datas = rawData.map(r => Object.fromEntries(names.map((n, i) => [n, r[i]])));
+      const fields = names.map(name => ({
+        columnName: name,
+        columnType: FieldTypeUtil.FieldType(datas.slice(0, 100).map(r => r[name])),
+      }));
+      return { status: ResponseStatus.SUCCESS, message: 'success', datas, fields };
+    } catch (e) {
+      console.log(e);
+      return {
+        status: ResponseStatus.ERROR,
+        message: e.message || 'databricks query failed',
+        datas: [],
+        fields: [],
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
    * 데이터베이스 연결 테스트
    * @param createDatabaseDto
    */
-  async testConnection(
-    createDatabaseDto: CreateDatabaseDto,
-  ): Promise<{ status: ResponseStatus; message?: string; data?: { message: string } }> {
-    let engine: string | any = createDatabaseDto.engine;
+  async testConnection(createDatabaseDto: CreateDatabaseDto) {
+    if (['clickhouse', 'trino', 'databricks'].includes(createDatabaseDto.engine)) {
+      const executors = {
+        clickhouse: this.executeClickHouse,
+        trino: this.executeTrino,
+        databricks: this.executeDatabricks,
+      };
+      const executor = executors[createDatabaseDto.engine];
+      const result = await executor.call(
+        this,
+        { connection: createDatabaseDto.connectionConfig },
+        'SELECT 1',
+      );
+      if (result.status === ResponseStatus.SUCCESS) {
+        return { status: ResponseStatus.SUCCESS, data: { message: 'success' } };
+      }
+      return { status: ResponseStatus.ERROR, message: result.message };
+    }
+
+    let engine: any = createDatabaseDto.engine;
     switch (createDatabaseDto.engine) {
       case 'bigquery':
         engine = BigQueryClient;
@@ -236,7 +605,7 @@ export class ConnectionService {
 
     // 데이터베이스별 최적화된 연결 설정 적용
     const environment = process.env.NODE_ENV || 'dev';
-    const optimizedConfig = this.databaseOptimizerFactory.getOptimizedConnectionConfig(
+    const optimizedConfig = this.databaseOptimizerFactory?.getOptimizedConnectionConfig(
       createDatabaseDto.engine,
       parsedConnectionConfig,
       environment,
@@ -248,7 +617,7 @@ export class ConnectionService {
       useNullAsDefault: true,
       // 테스트 연결을 위한 최소한의 풀 설정 (최적화된 설정 기반)
       pool: {
-        ...optimizedConfig.pool,
+        ...optimizedConfig?.pool,
         min: 0,
         max: 1, // 테스트용이므로 1개만
         createTimeoutMillis: 10000, // 10초 - 테스트용이므로 짧게
@@ -258,7 +627,7 @@ export class ConnectionService {
       },
       acquireConnectionTimeout: 10000,
       // 다른 최적화 설정들 적용 (타임아웃 제외)
-      debug: optimizedConfig.debug,
+      debug: optimizedConfig?.debug,
     };
 
     // createDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
@@ -270,7 +639,7 @@ export class ConnectionService {
     try {
       _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {
-      this.logger.error('Failed to create Knex connection', e.stack, 'ConnectionService', {
+      this.logger?.error('Failed to create Knex connection', e.stack, 'ConnectionService', {
         engine: createDatabaseDto.engine,
         connectionConfig:
           typeof createDatabaseDto.connectionConfig === 'string'
@@ -286,7 +655,7 @@ export class ConnectionService {
       await _knex.raw(testQuery);
       returnObj = { status: ResponseStatus.SUCCESS, data: { message: 'success' } };
     } catch (e) {
-      this.logger.error('Database connection test failed', e.stack, 'ConnectionService', {
+      this.logger?.error('Database connection test failed', e.stack, 'ConnectionService', {
         engine: createDatabaseDto.engine,
         testQuery: testQuery,
         sqlMessage: e.sqlMessage,
@@ -315,133 +684,160 @@ export class ConnectionService {
   }
 
   /**
-   * 쿼리 실행
+   * 쿼리 실행. QUERY_CACHE_TTL_MS>0 이면 동일 (db, 쿼리) 결과를 TTL 캐시
    * @param queryExecuteDto
    * @param userId 사용자 ID (보안 로깅용)
    */
-  async executeQuery(queryExecuteDto: QueryExecuteDto, userId?: string) {
-    // 1. SQL 보안 검증
-    const validationResult = this.sqlValidationService.validateQuery(
-      queryExecuteDto.query,
-      {
-        allowDDL: false,
-        allowDML: false,
-        allowMultipleStatements: false,
-        maxQueryLength: 10000,
-        maxResultLimit: queryExecuteDto.limit || 1000,
-      },
-      userId,
-    );
+  /** Only an explicit verified request context can opt into shared result caching. */
+  async executeQuery(
+    queryExecuteDto: QueryExecuteDto,
+    clientId?: string,
+    authorization?: { actor: number; epoch: number },
+  ) {
+    queryExecuteDto = { ...queryExecuteDto, id: this.validateId(queryExecuteDto.id) };
+    const cacheTtl = parseInt(process.env.QUERY_CACHE_TTL_MS) || 0;
+    if (cacheTtl <= 0 || queryExecuteDto.parameters?.length || !authorization || !this.sourceAccess)
+      return this.runQuery(queryExecuteDto, clientId);
 
-    if (!validationResult.isValid) {
-      const errorMessage = this.sqlValidationService.formatValidationError(validationResult);
-      this.logger.warn('SQL validation failed', 'ConnectionService', {
-        userId,
-        query: queryExecuteDto.query.substring(0, 200),
-        errors: validationResult.errors,
-        warnings: validationResult.warnings,
-        riskLevel: validationResult.riskLevel,
+    assertReadOnlyQuery(queryExecuteDto.query);
+    const currentBasis = () =>
+      serializeMetadataWork(this.databaseRepository.manager.connection, async () => {
+        const { actor, epoch } = authorization;
+        if (!Number.isSafeInteger(actor) || actor <= 0 || !Number.isSafeInteger(epoch) || epoch < 0)
+          throw new UnauthorizedException('Current actor required.');
+        const user = await this.databaseRepository.manager.findOne(User, { where: { id: actor } });
+        if (!user || user.active !== true || user.authVersion !== epoch)
+          throw new UnauthorizedException('Current actor required.');
+        await this.sourceAccess.assert('database', queryExecuteDto.id, actor, 'owner');
+        const stored = await this.databaseRepository.findOne({ where: { id: queryExecuteDto.id } });
+        if (!stored) throw new NotFoundException('database not found');
+        if (stored.ownerId !== actor || stored.catalogActive === false)
+          throw new ForbiddenException('Source ownership required.');
+        return createHash('sha256')
+          .update(
+            JSON.stringify([
+              actor,
+              epoch,
+              stored.id,
+              stored.ownerId,
+              stored.catalogVersion,
+              stored.connectionConfig,
+            ]),
+          )
+          .digest('hex');
       });
-
-      throw new ForbiddenException(`SQL validation failed: ${errorMessage}`);
+    const basis = await currentBasis();
+    const cacheKey = `${queryExecuteDto.id}:${basis}:${createHash('sha256')
+      .update(queryExecuteDto.query)
+      .digest('hex')}`;
+    const hit = await queryCache.get(cacheKey);
+    if (hit !== undefined) {
+      if ((await currentBasis()) !== basis) throw new ConflictException('Source changed.');
+      return hit;
     }
+    const result = await this.runQuery(queryExecuteDto, clientId);
+    if ((await currentBasis()) !== basis) throw new ConflictException('Source changed.');
+    if (result.status === ResponseStatus.SUCCESS) await queryCache.set(cacheKey, result, cacheTtl);
+    return result;
+  }
 
-    // 2. 보안 감사 로그
-    this.logger.info('SQL query execution approved', 'ConnectionService', {
-      userId,
-      databaseId: queryExecuteDto.id,
-      queryLength: queryExecuteDto.query.length,
-      riskLevel: validationResult.riskLevel,
-      warningsCount: validationResult.warnings.length,
-    });
+  private async runQuery(queryExecuteDto: QueryExecuteDto, clientId?: string) {
+    assertReadOnlyQuery(queryExecuteDto.query);
+    const startedAt = Date.now();
+    const emit = (phase: string, extra: Record<string, unknown> = {}) =>
+      this.progressGateway.emitTo(clientId, 'query:progress', {
+        phase,
+        elapsedMs: Date.now() - startedAt,
+        ...extra,
+      });
+    emit('running');
+    // 장기 실행 쿼리용 진행 틱 (2s 간격)
+    const ticker = clientId ? setInterval(() => emit('running'), 2000) : null;
+    try {
+      const result = await this.runQueryInner(queryExecuteDto);
+      emit(result.status === ResponseStatus.SUCCESS ? 'success' : 'error', {
+        rows: result?.datas?.length ?? 0,
+      });
+      return result;
+    } catch (e) {
+      emit('error', { message: e?.message });
+      throw e;
+    } finally {
+      if (ticker) clearInterval(ticker);
+    }
+  }
+
+  private async runQueryInner(queryExecuteDto: QueryExecuteDto) {
+    // HTTP 인터페이스 엔진(knex 미지원) 분기
+    const connectionConfig = await this.getConnectionConfig(queryExecuteDto.id);
+    if (connectionConfig?.client === 'duckdb') {
+      try {
+        const result = await this.duckdbService.query(
+          connectionConfig.connection.filename,
+          queryExecuteDto.query,
+        );
+        return { status: ResponseStatus.SUCCESS, message: 'success', ...result };
+      } catch (error) {
+        return { status: ResponseStatus.ERROR, message: error.message, datas: [], fields: [] };
+      }
+    }
+    if (connectionConfig?.client === 'clickhouse') {
+      return this.executeClickHouse(connectionConfig, queryExecuteDto.query);
+    }
+    if (connectionConfig?.client === 'trino') {
+      return this.executeTrino(connectionConfig, queryExecuteDto.query);
+    }
+    if (connectionConfig?.client === 'databricks') {
+      return this.executeDatabricks(connectionConfig, queryExecuteDto.query);
+    }
 
     const knex = await this.getKnex(queryExecuteDto.id);
 
     // 데이터베이스별 최적화 적용
     const databaseType = knex.client.config.client;
-    const optimizer = this.databaseOptimizerFactory.getOptimizer(databaseType);
+    const optimizer = this.databaseOptimizerFactory?.getOptimizer(databaseType);
     const dbSpecificConfig = getDatabaseSpecificConfig(databaseType);
 
     let datas = [];
     const fields = [];
     const resultObj = { status: null, message: null, datas: [], fields: [] };
     const startTime = Date.now();
+    const sanitizedQuery = queryExecuteDto.query;
 
     try {
-      // 3. 정리된 쿼리 사용 (LIMIT 자동 추가 등)
-      let sanitizedQuery = validationResult.sanitizedQuery;
-
-      // 4. DB별 쿼리 최적화 적용
-      if (optimizer) {
-        try {
-          // Raw 쿼리를 QueryBuilder로 변환하여 최적화 적용
-          const queryBuilder = knex.queryBuilder().select(knex.raw(sanitizedQuery));
-          const optimizedQueryBuilder = optimizer.optimizeQuery(queryBuilder);
-          sanitizedQuery = optimizedQueryBuilder.toString();
-
-          this.logger.debug('Applied database-specific query optimization', 'ConnectionService', {
-            databaseId: queryExecuteDto.id,
-            databaseType: optimizer.getDatabaseType(),
-            originalQuery: validationResult.sanitizedQuery.substring(0, 100),
-            optimizedQuery: sanitizedQuery.substring(0, 100),
-          });
-        } catch (optimizationError) {
-          // 최적화 실패 시 원본 쿼리 사용
-          this.logger.warn('Query optimization failed, using original query', 'ConnectionService', {
-            databaseId: queryExecuteDto.id,
-            error: optimizationError.message,
-          });
-          sanitizedQuery = validationResult.sanitizedQuery;
+      const timeoutMs = parseInt(process.env.QUERY_TIMEOUT_MS) || 60000;
+      const bindings = queryExecuteDto.parameters?.map(param => {
+        if (param.type === 'number') {
+          const value = Number(param.value);
+          if (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER)
+            throw new BadRequestException(`Invalid numeric parameter: ${param.name}`);
+          return value;
         }
+        if (param.type === 'date') {
+          const value = new Date(param.value);
+          if (
+            !Number.isFinite(value.getTime()) ||
+            value.getFullYear() < 1900 ||
+            value.getFullYear() > 2100
+          )
+            throw new BadRequestException(`Invalid date parameter: ${param.name}`);
+          return value;
+        }
+        if (param.type === 'boolean') return param.value === 'true' || param.value === '1';
+        if (typeof param.value === 'string' && param.value.length > 1000)
+          throw new BadRequestException(`Parameter too long: ${param.name}`);
+        return param.value;
+      });
+      let rawQuery = bindings?.length
+        ? knex.raw(queryExecuteDto.query, bindings)
+        : knex.raw(queryExecuteDto.query);
+      try {
+        // 일부 드라이버(sqlite, bigquery 등)는 timeout 미지원
+        rawQuery = rawQuery.timeout(timeoutMs) as any;
+      } catch {
+        // timeout 미지원 드라이버는 그대로 실행
       }
-
-      // 5. 쿼리 실행 계획 분석 (비동기로 처리하여 성능 영향 최소화)
-      this.analyzeQueryAsync(sanitizedQuery, queryExecuteDto.id);
-
-      // 5. 매개변수가 있는 경우 파라미터화된 쿼리 실행
-      let queryRes;
-      if (queryExecuteDto.parameters && queryExecuteDto.parameters.length > 0) {
-        const paramValues = queryExecuteDto.parameters.map(param => {
-          // 타입에 따른 변환 및 유효성 검사
-          switch (param.type) {
-            case 'number':
-              const numValue = Number(param.value);
-              if (isNaN(numValue)) {
-                throw new BadRequestException(`잘못된 숫자 형식: ${param.name}`);
-              }
-              // 숫자 범위 검증 (SQL 인젝션 방지)
-              if (Math.abs(numValue) > Number.MAX_SAFE_INTEGER) {
-                throw new BadRequestException(`숫자 범위 초과: ${param.name}`);
-              }
-              return numValue;
-
-            case 'date':
-              const dateValue = new Date(param.value);
-              if (isNaN(dateValue.getTime())) {
-                throw new BadRequestException(`잘못된 날짜 형식: ${param.name}`);
-              }
-              // 날짜 범위 검증 (1900-2100)
-              const year = dateValue.getFullYear();
-              if (year < 1900 || year > 2100) {
-                throw new BadRequestException(`날짜 범위 초과: ${param.name}`);
-              }
-              return dateValue;
-
-            case 'boolean':
-              return param.value === 'true' || param.value === '1';
-
-            default:
-              // 문자열 길이 제한 (SQL 인젝션 방지)
-              if (typeof param.value === 'string' && param.value.length > 1000) {
-                throw new BadRequestException(`문자열 길이 초과: ${param.name}`);
-              }
-              return param.value;
-          }
-        });
-        queryRes = await knex.raw(sanitizedQuery, paramValues);
-      } else {
-        queryRes = await knex.raw(sanitizedQuery);
-      }
+      const queryRes = await rawQuery;
       // bigquery, snowflake
       if (typeof knex.client.config.client === 'function') {
         switch (knex.client.config.client.name) {
@@ -563,7 +959,7 @@ export class ConnectionService {
         sanitizedQuery,
         executionTime,
         queryExecuteDto,
-        userId,
+        undefined,
         datas.length,
       );
     } catch (e) {
@@ -597,7 +993,7 @@ export class ConnectionService {
         }
       }
 
-      this.logger.error('Query execution failed', e.stack, 'ConnectionService', {
+      this.logger?.error('Query execution failed', e.stack, 'ConnectionService', {
         databaseId: queryExecuteDto.id,
         query: queryExecuteDto.query?.substring(0, 200) + '...', // 긴 쿼리는 일부만 로깅
         sqlMessage: e.sqlMessage,
@@ -632,7 +1028,7 @@ export class ConnectionService {
       // 슬로우 쿼리 임계값 확인 (1초 이상)
       if (executionTime >= 1000) {
         // 쿼리 분석 실행
-        const analysis = await this.queryAnalyzerService.analyzeQuery(query, queryExecuteDto.id);
+        const analysis = await this.queryAnalyzerService?.analyzeQuery(query, queryExecuteDto.id);
         analysis.executionTime = executionTime;
         analysis.rowsReturned = rowCount;
 
@@ -658,7 +1054,7 @@ export class ConnectionService {
         });
 
         // 기존 로깅도 유지
-        this.logger.warn('Slow query detected', 'ConnectionService', {
+        this.logger?.warn('Slow query detected', 'ConnectionService', {
           databaseId: queryExecuteDto.id,
           executionTime,
           query: query.substring(0, 200),
@@ -668,7 +1064,7 @@ export class ConnectionService {
         });
       }
     } catch (error) {
-      this.logger.error('Failed to record slow query metrics', error.stack, 'ConnectionService', {
+      this.logger?.error('Failed to record slow query metrics', error.stack, 'ConnectionService', {
         databaseId: queryExecuteDto.id,
         executionTime,
         error: error.message,
@@ -816,10 +1212,10 @@ export class ConnectionService {
       // 비동기로 쿼리 분석 실행 (응답 지연 방지)
       setImmediate(async () => {
         try {
-          const analysis = await this.queryAnalyzerService.analyzeQuery(query, databaseId);
+          const analysis = await this.queryAnalyzerService?.analyzeQuery(query, databaseId);
 
           if (analysis.optimizationSuggestions && analysis.optimizationSuggestions.length > 0) {
-            this.logger.info('Query optimization opportunities found', 'ConnectionService', {
+            this.logger?.info('Query optimization opportunities found', 'ConnectionService', {
               databaseId,
               query: query.substring(0, 100),
               suggestions: analysis.optimizationSuggestions,
@@ -828,12 +1224,15 @@ export class ConnectionService {
             });
           }
         } catch (error) {
-          this.logger.debug(`Query analysis failed: ${error.message}`, 'ConnectionService');
+          this.logger?.debug(`Query analysis failed: ${error.message}`, 'ConnectionService');
         }
       });
     } catch (error) {
       // 분석 실패는 무시 (메인 쿼리 실행에 영향 없음)
-      this.logger.debug(`Failed to initiate query analysis: ${error.message}`, 'ConnectionService');
+      this.logger?.debug(
+        `Failed to initiate query analysis: ${error.message}`,
+        'ConnectionService',
+      );
     }
   }
 
@@ -854,6 +1253,7 @@ export class ConnectionService {
     error?: string;
   }> {
     // 1. SQL 보안 검증
+    assertReadOnlyQuery(queryExecuteDto.query);
     const validationResult = this.sqlValidationService.validateQuery(
       queryExecuteDto.query,
       {
@@ -868,7 +1268,7 @@ export class ConnectionService {
 
     if (!validationResult.isValid) {
       const errorMessage = this.sqlValidationService.formatValidationError(validationResult);
-      this.logger.warn('SQL validation failed for streaming query', 'ConnectionService', {
+      this.logger?.warn('SQL validation failed for streaming query', 'ConnectionService', {
         userId,
         query: queryExecuteDto.query.substring(0, 200),
         errors: validationResult.errors,
@@ -880,7 +1280,7 @@ export class ConnectionService {
     }
 
     // 2. 보안 감사 로그
-    this.logger.info('Streaming SQL query execution approved', 'ConnectionService', {
+    this.logger?.info('Streaming SQL query execution approved', 'ConnectionService', {
       userId,
       databaseId: queryExecuteDto.id,
       queryLength: queryExecuteDto.query.length,
@@ -952,7 +1352,7 @@ export class ConnectionService {
 
             // 진행상황 로깅 (매 10000행마다)
             if (rowCount % 10000 === 0) {
-              this.logger.info('Streaming query progress', 'ConnectionService', {
+              this.logger?.info('Streaming query progress', 'ConnectionService', {
                 databaseId: queryExecuteDto.id,
                 rowsProcessed: rowCount,
                 elapsedTime: Date.now() - startTime,
@@ -972,7 +1372,7 @@ export class ConnectionService {
         .pipe(transformStream)
         .on('error', error => {
           errorOccurred = true;
-          this.logger.error('Stream transformation error', error.stack, 'ConnectionService', {
+          this.logger?.error('Stream transformation error', error.stack, 'ConnectionService', {
             databaseId: queryExecuteDto.id,
             rowsProcessed: rowCount,
             error: error.message,
@@ -987,7 +1387,7 @@ export class ConnectionService {
           );
           outputStream.end();
         })
-        .on('end', async () => {
+        .on('finish', async () => {
           if (!errorOccurred) {
             const executionTime = Date.now() - startTime;
 
@@ -1019,7 +1419,7 @@ export class ConnectionService {
               rowCount,
             );
 
-            this.logger.info('Streaming query completed', 'ConnectionService', {
+            this.logger?.info('Streaming query completed', 'ConnectionService', {
               databaseId: queryExecuteDto.id,
               rowCount,
               executionTime,
@@ -1038,7 +1438,7 @@ export class ConnectionService {
         const errorMessage =
           timeoutMessage || error.sqlMessage || error.message || 'Query execution error';
 
-        this.logger.error('Query stream error', error.stack, 'ConnectionService', {
+        this.logger?.error('Query stream error', error.stack, 'ConnectionService', {
           databaseId: queryExecuteDto.id,
           error: error.message,
           sqlMessage: error.sqlMessage,
@@ -1067,7 +1467,7 @@ export class ConnectionService {
       const errorMessage =
         timeoutMessage || error.message || 'Failed to initialize streaming query';
 
-      this.logger.error('Failed to initialize streaming query', error.stack, 'ConnectionService', {
+      this.logger?.error('Failed to initialize streaming query', error.stack, 'ConnectionService', {
         databaseId: queryExecuteDto.id,
         query: queryExecuteDto.query?.substring(0, 200),
         error: error.message,
@@ -1279,7 +1679,7 @@ export class ConnectionService {
         data: { connectionTest: 'passed' },
       };
     } catch (error) {
-      this.logger.error('Database connection test failed', error.stack, 'ConnectionService', {
+      this.logger?.error('Database connection test failed', error.stack, 'ConnectionService', {
         engine: createDatabaseDto.engine,
         error: error.message,
       });

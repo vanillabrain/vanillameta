@@ -1,23 +1,26 @@
 import React, { useContext } from 'react';
-import { Button } from '@mui/material';
-import authService from '@/api/authService';
-import { LoadingContext } from '@/contexts/LoadingContext';
+import { useTranslation } from 'react-i18next';
 import { useAlert } from 'react-alert';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import authService from '@/api/authService';
+import { LoadingContext } from '@/contexts/LoadingContext';
 import { removeToken } from '@/helpers/authHelper';
+import { cn } from '@/lib/utils';
 
 const Logout = props => {
-  const { sx } = props;
+  const { className, ...rest } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
+  const { t } = useTranslation();
 
   const handleLogout = () => {
-    alert.success('로그아웃 하시겠습니까?', {
-      closeCopy: '취소',
+    alert.success(t('user.logoutConfirm'), {
+      closeCopy: t('dataRecommend.cancel'),
       actions: [
         {
-          copy: '확인',
+          copy: t('user.confirm'),
           onClick: () => {
             showLoading();
             authService
@@ -35,7 +38,7 @@ const Logout = props => {
                   removeToken();
                   navigate('/login');
                 } else {
-                  alert.error('로그아웃에 실패했습니다.\n다시 시도해 주세요.');
+                  alert.error(t('user.logoutFailed'));
                 }
               })
               .finally(() => {
@@ -49,26 +52,13 @@ const Logout = props => {
 
   return (
     <Button
+      type="button"
+      variant="ghost"
       onClick={handleLogout}
-      disableRipple
-      disableFocusRipple
-      disableTouchRipple
-      sx={{
-        minWidth: 0,
-        minHeight: 0,
-        m: 0,
-        p: 0,
-        fontSize: 'inherit',
-        fontWeight: 'inherit',
-        color: 'inherit',
-        whiteSpace: 'nowrap',
-        '&:hover': {
-          backgroundColor: 'inherit',
-        },
-        ...sx,
-      }}
+      className={cn('px-2 font-normal text-inherit whitespace-nowrap hover:bg-transparent hover:text-inherit', className)}
+      {...rest}
     >
-      로그아웃
+      {t('user.logout')}
     </Button>
   );
 };

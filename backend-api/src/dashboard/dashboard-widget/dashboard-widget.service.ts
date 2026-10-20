@@ -1,9 +1,11 @@
+import { lockDashboardWrite } from '../dashboard-write-lock';
+import { metadataTransaction } from '../../common/metadata-work';
 import { Injectable } from '@nestjs/common';
 import { CreateDashboardWidgetDto } from './dto/create-dashboard-widget.dto';
 import { UpdateDashboardWidgetDto } from './dto/update-dashboard-widget.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DashboardWidget } from './entities/dashboard-widget.entity';
-import { In, Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Widget } from '../../widget/entities/widget.entity';
 import { Component } from '../../component/entities/component.entity';
 
@@ -22,31 +24,45 @@ export class DashboardWidgetService {
    * 대시보드에 해당하는 widget 목록 저장
    * @param createDashboardWidgetDto
    */
-  async create(createDashboardWidgetDto: CreateDashboardWidgetDto) {
+  async create(createDashboardWidgetDto: CreateDashboardWidgetDto, manager?: EntityManager) {
     const { dashboardId, widgetIds } = createDashboardWidgetDto;
-
-    const saveList = [];
-    widgetIds.map(item => {
-      saveList.push({ dashboardId, widgetId: item });
-    });
-
-    return await this.dashboardWidgetRepository.save(saveList);
+    const run = async (tx: EntityManager) => {
+      await lockDashboardWrite(tx, dashboardId);
+      return tx
+        .getRepository(DashboardWidget)
+        .save(widgetIds.map(widgetId => ({ dashboardId, widgetId })));
+    };
+    return manager
+      ? run(manager)
+      : metadataTransaction(this.dashboardWidgetRepository.manager, run);
   }
 
   async findWidgets(dashboardId: number) {
-    // N+1 쿼리 방지: 한 번의 Join 쿼리로 위젯과 컴포넌트 정보를 함께 조회
-    const result = await this.widgetRepository
-      .createQueryBuilder('widget')
-      .innerJoin(Component, 'component', 'component.id = widget.componentId')
-      .innerJoin(DashboardWidget, 'dw', 'dw.widgetId = widget.id')
-      .select([
-        'widget.*',
-        'component.type as componentType',
-        'component.icon as icon',
-        'component.title as componentTitle',
-        'component.description as componentDescription',
-      ])
-      .where('dw.dashboardId = :dashboardId', { dashboardId })
+    const widgetList = await this.dashboardWidgetRepository.find({
+      select: {
+        widgetId: true,
+      },
+
+      where: { dashboardId: dashboardId },
+    });
+    const whereInWidgetList = [];
+    widgetList.map(item => {
+      whereInWidgetList.push(item.widgetId);
+    });
+
+    const widgetInfo = await this.widgetRepository
+      .createQueryBuilder()
+      .subQuery()
+      .select(['widget.*'])
+      .from(Widget, 'widget')
+      .where('id in (:...ids)')
+      .getQuery();
+
+    const result = await this.componentRepository
+      .createQueryBuilder('component')
+      .select(['widgetInfo.*', 'component.type as componentType'])
+      .innerJoin(widgetInfo, 'widgetInfo', 'widgetInfo.componentId = component.id')
+      .setParameter('ids', whereInWidgetList) // 왜 배열이 안들어가죠 ?
       .getRawMany();
 
     result.forEach(el => {
@@ -56,16 +72,23 @@ export class DashboardWidgetService {
     return result;
   }
 
-  async update(dashboardId: number, updateDashboardWidgetDto: UpdateDashboardWidgetDto) {
-    // 전체 지우고, 다시 insert
-    await this.dashboardWidgetRepository.delete({ dashboardId });
-
-    const saveList = [];
-    updateDashboardWidgetDto.widgetIds.map(item => {
-      saveList.push({ dashboardId, widgetId: item });
-    });
-
-    await this.dashboardWidgetRepository.save(saveList);
+  /** UC-051: the caller may pass its transaction manager so links commit with the dashboard row. */
+  async update(
+    dashboardId: number,
+    updateDashboardWidgetDto: UpdateDashboardWidgetDto,
+    manager?: EntityManager,
+  ) {
+    const run = async (tx: EntityManager) => {
+      await lockDashboardWrite(tx, dashboardId);
+      const repository = tx.getRepository(DashboardWidget);
+      await repository.delete({ dashboardId });
+      await repository.save(
+        updateDashboardWidgetDto.widgetIds.map(widgetId => ({ dashboardId, widgetId })),
+      );
+    };
+    return manager
+      ? run(manager)
+      : metadataTransaction(this.dashboardWidgetRepository.manager, run);
   }
 
   async remove(dashboardId: number) {

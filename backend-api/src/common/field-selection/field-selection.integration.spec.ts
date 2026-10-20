@@ -1,70 +1,95 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { Controller, Get, INestApplication, UseInterceptors } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from '../../app.module';
+import { FieldSelection, PredefinedFields } from './field-selection.decorator';
+import { FieldSelectionInterceptor } from './field-selection.interceptor';
+import { FieldSelectionService } from './field-selection.service';
 
-describe('Field Selection Integration (e2e)', () => {
+// Test the field-selection HTTP contract without booting unrelated AI, database or auth modules.
+// These fixtures are not evidence that production routes authorize access correctly.
+@Controller('selection-fixture')
+@UseInterceptors(FieldSelectionInterceptor)
+class FieldSelectionFixtureController {
+  @Get('dashboard')
+  @FieldSelection({ allowedFields: ['id', 'title', 'description'] })
+  dashboard() {
+    return { id: 1, title: 'Dashboard', description: 'Summary' };
+  }
+
+  @Get('user')
+  @FieldSelection({ allowedFields: ['id', 'email'], excludeFields: ['password', 'jwtId'] })
+  user() {
+    return { id: 2, email: 'example@example.test', password: 'private', jwtId: 99 };
+  }
+
+  @Get('widget')
+  @PredefinedFields('widgetWithConfig')
+  widget() {
+    return { id: 3, title: 'Widget', componentId: 1, datasetId: 4, internal: 'hidden' };
+  }
+
+  @Get('dataset')
+  @PredefinedFields('datasetMeta')
+  dataset() {
+    return { id: 4, title: 'Dataset', databaseId: 5, query: 'private SQL' };
+  }
+
+  @Get('database')
+  @FieldSelection({ allowedFields: ['id', 'name'], excludeFields: ['connectionConfig'] })
+  database() {
+    return { id: 5, name: 'Source', connectionConfig: 'private configuration' };
+  }
+}
+
+describe('Field selection isolated HTTP integration', () => {
   let app: INestApplication;
-
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+    const module = await Test.createTestingModule({
+      controllers: [FieldSelectionFixtureController],
+      providers: [FieldSelectionService, FieldSelectionInterceptor],
     }).compile();
-
-    app = moduleFixture.createNestApplication();
+    app = module.createNestApplication();
     await app.init();
+    await app.listen(0, '127.0.0.1');
   });
-
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
-  describe('Dashboard API with Field Selection', () => {
-    it('should return only selected fields when fields query parameter is provided', async () => {
-      // This test requires authentication to work properly
-      // It's a placeholder to demonstrate the expected behavior
-
-      // Expected: GET /dashboard?fields=id,title,description
-      // Should only return those three fields in the response
-      expect(true).toBe(true);
-    });
-
-    it('should return all allowed fields when no fields parameter is provided', async () => {
-      // Expected: GET /dashboard
-      // Should return all fields except those in excludeFields
-      expect(true).toBe(true);
-    });
+  it('returns requested allowed dashboard fields', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/selection-fixture/dashboard?fields=id,title')
+      .expect(200);
+    expect(response.body).toEqual({ id: 1, title: 'Dashboard' });
   });
-
-  describe('User API with Field Selection', () => {
-    it('should exclude sensitive fields like password and jwtId', async () => {
-      // Expected: GET /user/userinfo?fields=id,email,password
-      // Should not include password even if requested
-      expect(true).toBe(true);
-    });
+  it('preserves the preprojected response when no fields are requested', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/selection-fixture/dashboard')
+      .expect(200);
+    expect(response.body).toEqual({ id: 1, title: 'Dashboard', description: 'Summary' });
   });
-
-  describe('Widget API with Field Selection', () => {
-    it('should work with predefined field sets', async () => {
-      // Expected: GET /widget/1
-      // Should return fields defined in widgetWithConfig predefined set
-      expect(true).toBe(true);
-    });
+  it('omits explicitly requested password and JWT fields', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/selection-fixture/user?fields=id,email,password,jwtId')
+      .expect(200);
+    expect(response.body).toEqual({ id: 2, email: 'example@example.test' });
   });
-
-  describe('Dataset API with Field Selection', () => {
-    it('should work with predefined field sets', async () => {
-      // Expected: GET /dataset
-      // Should return fields defined in datasetMeta predefined set
-      expect(true).toBe(true);
-    });
+  it('honors predefined widget fields', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/selection-fixture/widget?fields=id,datasetId,internal')
+      .expect(200);
+    expect(response.body).toEqual({ id: 3, datasetId: 4 });
   });
-
-  describe('Database API with Field Selection', () => {
-    it('should exclude connectionConfig sensitive field', async () => {
-      // Expected: GET /database/1?fields=id,name,connectionConfig
-      // Should not include connectionConfig even if requested
-      expect(true).toBe(true);
-    });
+  it('honors predefined dataset metadata fields', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/selection-fixture/dataset?fields=id,databaseId,query')
+      .expect(200);
+    expect(response.body).toEqual({ id: 4, databaseId: 5 });
+  });
+  it('omits explicitly requested source connection configuration', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/selection-fixture/database?fields=id,name,connectionConfig')
+      .expect(200);
+    expect(response.body).toEqual({ id: 5, name: 'Source' });
   });
 });

@@ -1,3 +1,5 @@
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../auth/guards/legacy-operations.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventsController } from './events.controller';
 import { EventsService } from './events.service';
@@ -33,6 +35,7 @@ describe('EventsController', () => {
     },
     user: {
       userId: 'test-user-id',
+      accessKeyData: { id: 7, userId: 'test-user-id', authVersion: 3 },
     },
   };
 
@@ -45,7 +48,12 @@ describe('EventsController', () => {
           useValue: mockEventsService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(LegacyOperationsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<EventsController>(EventsController);
     service = module.get<EventsService>(EventsService);

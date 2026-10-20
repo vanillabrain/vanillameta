@@ -1,0 +1,7 @@
+type: explore
+metrics_view: margin_schema_metrics
+display_name: VM explicit schema recovery
+dimensions: '*'
+measures: '*'
+time_ranges:
+  - inf

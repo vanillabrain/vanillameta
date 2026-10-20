@@ -1,26 +1,8 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Header,
-  Param,
-  Post,
-  Put,
-  Query,
-  Res,
-  UseGuards,
-  UseInterceptors,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-  ApiQuery,
-  ApiExcludeEndpoint,
-} from '@nestjs/swagger';
+import { Header, Query, Res, UseInterceptors } from '@nestjs/common';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { SourceAccessService } from '../ownership/source-access.service';
+import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
+import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Req } from '@nestjs/common';
 import { DatasetService } from './dataset.service';
 import { CreateDatasetDto } from './dto/create-dataset.dto';
 import { UpdateDatasetDto } from './dto/update-dataset.dto';
@@ -33,30 +15,21 @@ import { Response } from 'express';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { Pagination, PaginationInterceptor } from '../common/pagination';
 
-@ApiTags('데이터')
-@ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SourceOwnershipGuard)
 @Controller('dataset')
 export class DatasetController {
-  constructor(private readonly datasetService: DatasetService) {}
+  constructor(
+    private readonly datasetService: DatasetService,
+    private readonly access: SourceAccessService,
+  ) {}
 
   @Post()
-  @ApiOperation({
-    summary: '데이터셋 생성',
-    description:
-      '새로운 데이터셋을 생성합니다. 데이터셋은 데이터베이스 연결과 SQL 쿼리로 구성됩니다.',
-  })
-  @ApiResponse({
-    status: 201,
-    description: '데이터셋이 성공적으로 생성되었습니다.',
-    type: CreateDatasetDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: '잘못된 SQL 쿼리 또는 데이터베이스 연결 오류',
-  })
-  create(@Body() createDatasetDto: CreateDatasetDto) {
-    return this.datasetService.create(createDatasetDto);
+  create(@Body() createDatasetDto: CreateDatasetDto, @Req() req) {
+    return this.datasetService.create(
+      createDatasetDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   /**
@@ -65,26 +38,12 @@ export class DatasetController {
   @UseInterceptors(PaginationInterceptor)
   @PredefinedFields('datasetMeta')
   @Get()
-  @ApiOperation({
-    summary: '데이터셋 목록 조회',
-    description: '생성된 모든 데이터셋 목록을 조회합니다.',
-  })
-  @ApiQuery({
-    name: 'fields',
-    required: false,
-    description: '반환할 필드 선택 (쉼표로 구분)',
-    example: 'id,title,databaseId,createdAt',
-  })
-  @ApiResponse({
-    status: 200,
-    description: '데이터셋 목록이 반환되었습니다.',
-    type: [CreateDatasetDto],
-  })
-  findAll(
-    @Pagination({ preferCursor: true, defaultLimit: 20 }) pagination: any,
-    @Query('fields') fields?: string,
-  ) {
-    return this.datasetService.findAll(pagination);
+  async findAll(@Req() req) {
+    return this.access.filterResults(
+      'dataset',
+      this.access.actor(req.user.accessKeyData.id),
+      await this.datasetService.findAll(),
+    );
   }
 
   @FieldSelection({
@@ -122,58 +81,22 @@ export class DatasetController {
   }
 
   @Put(':id')
-  @ApiOperation({
-    summary: '데이터셋 수정',
-    description: '기존 데이터셋의 정보를 수정합니다. SQL 쿼리 변경 시 유효성 검사가 수행됩니다.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: '데이터셋 ID',
-    type: Number,
-    example: 1,
-  })
-  @ApiResponse({
-    status: 200,
-    description: '데이터셋이 성공적으로 수정되었습니다.',
-    type: UpdateDatasetDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: '잘못된 SQL 쿼리 또는 요청 데이터',
-  })
-  @ApiResponse({
-    status: 404,
-    description: '데이터셋을 찾을 수 없습니다.',
-  })
-  update(@Param('id') id: number, @Body() updateDatasetDto: UpdateDatasetDto) {
-    return this.datasetService.update(+id, updateDatasetDto);
+  update(@Param('id') id: number, @Body() updateDatasetDto: UpdateDatasetDto, @Req() req) {
+    return this.datasetService.update(
+      +id,
+      updateDatasetDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   @Delete(':id')
-  @ApiOperation({
-    summary: '데이터셋 삭제',
-    description: '데이터셋을 삭제합니다. 위젯에서 사용 중인 데이터셋은 삭제되지 않습니다.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: '데이터셋 ID',
-    type: Number,
-    example: 1,
-  })
-  @ApiResponse({
-    status: 200,
-    description: '데이터셋이 성공적으로 삭제되었습니다.',
-  })
-  @ApiResponse({
-    status: 404,
-    description: '데이터셋을 찾을 수 없습니다.',
-  })
-  @ApiResponse({
-    status: 409,
-    description: '사용 중인 데이터셋은 삭제할 수 없습니다.',
-  })
-  remove(@Param('id') id: string) {
-    return this.datasetService.remove(+id);
+  remove(@Param('id') id: string, @Req() req) {
+    return this.datasetService.remove(
+      +id,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   @Get(':id/cached')
@@ -235,12 +158,20 @@ export class DatasetController {
     @Query('forceRefresh') forceRefresh?: boolean,
     @Query('ttl') ttl?: number,
     @Query('useStreamingFallback') useStreamingFallback?: boolean,
+    @Req() req?: any,
   ) {
-    return this.datasetService.executeCachedQuery(+id, {
-      forceRefresh: forceRefresh === true,
-      customTtl: ttl ? parseInt(ttl.toString()) : undefined,
-      useStreamingFallback: useStreamingFallback === true,
-    });
+    return this.datasetService.executeCachedQuery(
+      +id,
+      {
+        forceRefresh: forceRefresh === true,
+        customTtl: ttl ? parseInt(ttl.toString()) : undefined,
+        useStreamingFallback: useStreamingFallback === true,
+      },
+      {
+        actor: this.access.actor(req.user.accessKeyData.id),
+        epoch: req.user.accessKeyData.authVersion ?? 0,
+      },
+    );
   }
 
   @Delete(':id/cache')

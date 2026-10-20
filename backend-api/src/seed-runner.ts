@@ -7,15 +7,15 @@ import * as crypto from 'crypto';
 
 async function runSeed() {
   console.log('🌱 Starting seed process...');
-  
+
   const app = await NestFactory.createApplicationContext(AppModule);
-  
+
   try {
     const dataSource = app.get(DataSource);
-    
+
     // 기본 관리자 사용자 생성
     const userRepo = dataSource.getRepository(User);
-    
+
     // admin 사용자 확인 및 생성
     let adminUser = await userRepo.findOne({ where: { email: 'admin@example.com' } });
     if (!adminUser) {
@@ -29,10 +29,10 @@ async function runSeed() {
     } else {
       console.log('ℹ️ Admin user already exists');
     }
-    
+
     // 데모 데이터 생성
     await seedDemoData(dataSource);
-    
+
     console.log('🎉 Seed completed successfully!');
   } catch (error) {
     console.error('❌ Seed failed:', error);

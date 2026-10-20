@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsObject, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsObject, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { JobType } from '../entities/background-job.entity';
 
@@ -19,17 +19,17 @@ export class CreateBackgroundJobDto {
   description?: string;
 
   @ApiPropertyOptional({ description: '데이터셋 ID' })
-  @IsUUID()
+  @Matches(/^[1-9]\d*$/)
   @IsOptional()
   datasetId?: string;
 
   @ApiPropertyOptional({ description: '위젯 ID' })
-  @IsUUID()
+  @Matches(/^[1-9]\d*$/)
   @IsOptional()
   widgetId?: string;
 
   @ApiPropertyOptional({ description: '데이터베이스 ID' })
-  @IsUUID()
+  @Matches(/^[1-9]\d*$/)
   @IsOptional()
   databaseId?: string;
 

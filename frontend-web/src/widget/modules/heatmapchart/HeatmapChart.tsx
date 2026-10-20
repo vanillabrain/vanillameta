@@ -1,3 +1,4 @@
+import { chartTheme } from '@/components/charts/chartTheme';
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChartWithMultipleKeys } from '@/widget/modules/utils/chartUtil';
@@ -33,17 +34,18 @@ const HeatmapChart = props => {
 
   const createComponentOption = () => {
     let newOption = {};
+    const valueField = typeof option.series === 'string' && option.series ? option.series : option.field;
 
     let aggrData = [];
     let newSeries = [];
     const xAxisData = [];
     const yAxisData = [];
 
-    if (option.xField && option.yField && option.series) {
+    if (option.xField && option.yField && typeof valueField === 'string' && valueField) {
       aggrData = getAggregationDataForChartWithMultipleKeys(
         dataSet,
         [option.xField, option.yField],
-        option.series,
+        valueField,
         option.aggregation,
       );
       // console.log('aggrData', aggrData);
@@ -72,14 +74,14 @@ const HeatmapChart = props => {
         result.push(yItems[item[option.yField]]);
 
         // 3번째 요소
-        result.push(item[option.series] || '-');
+        result.push(item[valueField] ?? '-');
         return result;
       });
     }
 
     let minValue, maxValue;
     if (aggrData.length) {
-      const arr = aggrData.map(item => Number(item[option.series]));
+      const arr = aggrData.map(item => Number(item[valueField]));
       minValue = Math.min(...arr);
       maxValue = Math.max(...arr);
 
@@ -122,6 +124,7 @@ const HeatmapChart = props => {
 
   return (
     <ReactECharts
+      theme={chartTheme}
       option={componentOption}
       style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}
       lazyUpdate={true}

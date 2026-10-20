@@ -1,3 +1,4 @@
+import { safeRouteTemplate } from '../utils/safe-route-template';
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
@@ -15,11 +16,12 @@ export class ResponseTimeInterceptor implements NestInterceptor {
     const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
 
-    const { method, url, path } = request;
+    const { method } = request;
+    const path = safeRouteTemplate(request);
     const startTime = Date.now();
 
     // 요청 시작 로깅
-    this.logger.debug(`[${method}] ${url} - Request started`);
+    this.logger.debug(`[${method}] ${path} - Request started`);
 
     return next.handle().pipe(
       tap({
@@ -28,7 +30,7 @@ export class ResponseTimeInterceptor implements NestInterceptor {
           const statusCode = response.statusCode;
 
           // 응답 시간 로깅
-          this.logger.debug(`[${method}] ${url} - Response: ${statusCode} (${responseTime}ms)`);
+          this.logger.debug(`[${method}] ${path} - Response: ${statusCode} (${responseTime}ms)`);
 
           // 메트릭 기록
           this.recordMetrics(path, method, statusCode, responseTime).catch(error => {
@@ -40,7 +42,7 @@ export class ResponseTimeInterceptor implements NestInterceptor {
           const statusCode = error.status || 500;
 
           // 에러 로깅
-          this.logger.error(`[${method}] ${url} - Error: ${statusCode} (${responseTime}ms)`, {
+          this.logger.error(`[${method}] ${path} - Error: ${statusCode} (${responseTime}ms)`, {
             error: error.message,
             stack: error.stack,
           });
@@ -60,18 +62,6 @@ export class ResponseTimeInterceptor implements NestInterceptor {
     statusCode: number,
     responseTime: number,
   ): Promise<void> {
-    // 정규화된 엔드포인트 경로 생성 (파라미터 제거)
-    const normalizedEndpoint = this.normalizeEndpoint(endpoint);
-
-    // API 사용량 메트릭 기록
-    await this.businessMetrics.recordApiUsage(normalizedEndpoint, method, statusCode, responseTime);
-  }
-
-  private normalizeEndpoint(endpoint: string): string {
-    // URL 파라미터를 일반화
-    return endpoint
-      .replace(/\/\d+/g, '/:id') // 숫자 ID를 :id로 변경
-      .replace(/\/[a-f0-9-]{36}/g, '/:uuid') // UUID를 :uuid로 변경
-      .replace(/\?.*$/, ''); // 쿼리 파라미터 제거
+    await this.businessMetrics.recordApiUsage(endpoint, method, statusCode, responseTime);
   }
 }

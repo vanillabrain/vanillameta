@@ -8,8 +8,8 @@ export enum ResultStorageType {
   REDIS = 'redis',
 }
 
-@Entity('job_results')
-@Index('idx_job_result_job_id', ['backgroundJobId'])
+@Entity('background_job_results')
+@Index('idx_background_result_job_id', ['backgroundJobId'])
 export class JobResult extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

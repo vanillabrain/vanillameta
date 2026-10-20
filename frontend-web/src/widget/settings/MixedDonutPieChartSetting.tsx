@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Divider, InputAdornment, ListItem, ListItemText } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, PIE_LABEL_LIST } from '@/constant';
@@ -9,6 +10,7 @@ import ColorFieldReForm from '@/components/form/ColorFieldReForm';
 import { AddButton } from '@/components/button/AddIconButton';
 
 const MixedDonutPieChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec, dataSet } = props;
 
   const [colorNum, setColorNum] = useState(12);
@@ -73,13 +75,13 @@ const MixedDonutPieChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary="도넛형 차트 시리즈 설정" />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.donutSeries')}</span>
         <SelectForm
           required={true}
           id="name"
           name="name"
-          label="이름"
+          label={t('settings.name')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.map(item => item.columnName)}
@@ -88,18 +90,18 @@ const MixedDonutPieChartSetting = props => {
         />
         <SelectForm
           name="label"
-          label="레이블 타입"
-          optionList={PIE_LABEL_LIST}
+          label={t('settings.labelType')}
+          optionList={PIE_LABEL_LIST(t)}
           value={option.series.label}
           onChange={event => handleSeriesChange(event, setOption, 'series', 'label')}
           // onChange={handleSeriesChange}
         />
-        <Divider />
+        <Separator />
         <SelectForm
           required={true}
           id="field"
           name="field"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -109,20 +111,20 @@ const MixedDonutPieChartSetting = props => {
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.series.aggregation}
           onChange={event => handleSeriesChange(event, setOption, 'series', 'aggregation')}
           disabledDefaultValue
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary="원형 차트 시리즈 설정" />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.pieSeries')}</span>
         <SelectForm
           required={true}
           id="name"
           name="name"
-          label="이름"
+          label={t('settings.name')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.map(item => item.columnName)}
@@ -131,18 +133,18 @@ const MixedDonutPieChartSetting = props => {
         />
         <SelectForm
           name="label"
-          label="레이블 타입"
-          optionList={PIE_LABEL_LIST}
+          label={t('settings.labelType')}
+          optionList={PIE_LABEL_LIST(t)}
           value={option.series.label}
           onChange={event => handleSeriesChange(event, setOption, 'pie', 'label')}
           // onChange={handleSeriesChange}
         />
-        <Divider />
+        <Separator />
         <SelectForm
           required={true}
           id="field"
           name="field"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -152,70 +154,63 @@ const MixedDonutPieChartSetting = props => {
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.pie.aggregation}
           onChange={event => handleSeriesChange(event, setOption, 'pie', 'aggregation')}
           disabledDefaultValue
         />
-      </ListItem>
+      </li>
 
-      <ListItem divider>
-        <ListItemText primary="도넛형 차트 모양 설정" />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.donutShape')}</span>
         <TextFieldForm
           id="radius1"
           name="radius1"
-          label="내부 원 크기"
+          label={t('settings.innerRadius')}
           type="number"
           value={option.series.radius[0].slice(0, -1)}
           onChange={event => handleRadiusChange(event, 'series')}
-          endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          endAdornment={<span className="text-sm text-muted-foreground">%</span>}
         />
         <TextFieldForm
           id="radius2"
           name="radius2"
-          label="외부 원 크기"
+          label={t('settings.outerRadius')}
           type="number"
           value={option.series.radius[1].slice(0, -1)}
           onChange={event => handleRadiusChange(event, 'series')}
-          endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          endAdornment={<span className="text-sm text-muted-foreground">%</span>}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary="원형 차트 모양 설정" />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.pieShape')}</span>
         <TextFieldForm
           id="radius"
           name="radius"
-          label="크기"
+          label={t('settings.size')}
           type="number"
           value={option.pie.radius.slice(0, -1)}
           onChange={event => handleRadiusChange(event, 'pie')}
-          endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          endAdornment={<span className="text-sm text-muted-foreground">%</span>}
         />
-      </ListItem>
+      </li>
 
-      <ListItem divider>
-        <ListItemText>범례 설정</ListItemText>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
+          label={t('settings.position')}
+          optionList={LEGEND_LIST(t)}
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
 
-      <ListItem>
-        <ListItemText primary="색상 설정" />
-        <AddButton
-          onClick={handleAddColorClick}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
-        />
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.colorSetting')}</span>
+        <AddButton onClick={handleAddColorClick} className="absolute right-0 top-[30px]" />
         {option.series.field &&
           option.pie.field &&
           option.color
@@ -223,12 +218,13 @@ const MixedDonutPieChartSetting = props => {
             .map((item, index) => (
               <ColorFieldReForm
                 key={index}
+                index={index}
                 color={item}
                 onChange={event => handleColorChange(event, index)}
                 setOption={setOption}
               />
             ))}
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

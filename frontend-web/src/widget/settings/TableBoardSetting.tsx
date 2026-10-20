@@ -1,5 +1,6 @@
 import React from 'react';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import { ALIGN_LIST, TABLE_ALIGN } from '@/constant';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
@@ -8,6 +9,7 @@ import TextFieldForm from '@/components/form/TextFieldForm';
 import RadioForm from '@/components/form/RadioForm';
 
 const TableBoardSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec } = props;
 
   const defaultSeries = {
@@ -19,15 +21,11 @@ const TableBoardSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem>
-        <ListItemText primary="테이블 컬럼" />
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.tableColumn')}</span>
         <AddButton
           onClick={event => handleAddClick(event, option, setOption, defaultSeries, 'columns')}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
+          className="absolute right-0 top-[30px]"
         />
         {option.columns.map((item, index) => (
           <React.Fragment key={index}>
@@ -43,17 +41,18 @@ const TableBoardSetting = props => {
               onChange={event => handleSeriesChange(event, setOption, 'columns')}
             />
             <TextFieldForm
-              label="컬럼 제목"
+              label={t('settings.columnTitle')}
               name={`header${index + 1}`}
               value={item.header}
               onChange={event => handleSeriesChange(event, setOption, 'columns')}
             />
             <RadioForm
-              label="컬럼 병합"
+              id={`rowSpan${index + 1}`}
+              label={`${t('settings.columnMerge')} ${index + 1}`}
               name={`rowSpan${index + 1}`}
               option={[
-                { label: '병합', value: true },
-                { label: '분리', value: false },
+                { label: t('settings.merge'), value: true },
+                { label: t('settings.split'), value: false },
               ]}
               value={item.rowSpan}
               onChange={event => handleSeriesChange(event, setOption, 'columns')}
@@ -61,7 +60,7 @@ const TableBoardSetting = props => {
             <SelectForm
               id={`align${index + 1}`}
               name={`align${index + 1}`}
-              label="정렬"
+              label={t('settings.sort')}
               optionList={ALIGN_LIST}
               value={item.align}
               onChange={event => handleSeriesChange(event, setOption, 'columns')}
@@ -76,10 +75,10 @@ const TableBoardSetting = props => {
                 )
               }
             />
-            <Divider />
+            <Separator />
           </React.Fragment>
         ))}
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

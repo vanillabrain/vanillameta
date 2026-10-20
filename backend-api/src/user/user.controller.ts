@@ -130,7 +130,10 @@ export class UserController {
   @ApiUnauthorizedResponse({ description: '리프레시 토큰이 유효하지 않습니다.' })
   async reissuanceAccessToken(@Req() req, @Res() res) {
     const { userId } = req.user.refreshKeyData;
-    const accessToken = await this.userService.reissuanceAccessToken(userId);
+    const accessToken = await this.userService.reissuanceAccessToken(
+      userId,
+      req.user.refreshKeyData.authVersion ?? 0,
+    );
     return res.status(201).json({ accessToken: accessToken, message: 'success' });
   }
 

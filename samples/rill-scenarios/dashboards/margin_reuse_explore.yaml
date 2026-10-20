@@ -1,0 +1,7 @@
+type: explore
+metrics_view: margin_reuse_metrics
+display_name: VM remapped file comparison
+dimensions: '*'
+measures: '*'
+time_ranges:
+  - inf

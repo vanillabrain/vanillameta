@@ -96,7 +96,7 @@ export class OracleOptimizer extends BaseDatabaseOptimizer {
       pool: {
         ...poolConfig,
         // Oracle 특정 풀 설정
-        afterCreate: async (conn: any, done: Function) => {
+        afterCreate: async (conn: any, done: (error: unknown, connection: any) => void) => {
           try {
             // 세션 최적화 설정
             const optimizations = [

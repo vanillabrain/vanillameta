@@ -1,7 +1,45 @@
-import React, { useContext, useEffect } from 'react';
-import { Avatar, Box, Divider, Stack, SxProps, Typography, useMediaQuery, useTheme } from '@mui/material';
-import { MAX_WIDTH } from '@/constant';
+import React, { useContext, useEffect, useState } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 import { LayoutContext } from '@/contexts/LayoutContext';
+import { cn } from '@/lib/utils';
+
+const SM_BREAKPOINT = 600;
+
+/** Mirrors the Tailwind sm breakpoint so layout branches stay in one tree per viewport. */
+export const useMinWidth = (minWidth: number) => {
+  const query = '(min-width: ' + minWidth + 'px)';
+  const getMatches = () => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return true;
+    }
+    return window.matchMedia(query).matches;
+  };
+  const [matches, setMatches] = useState(getMatches);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+    const list = window.matchMedia(query);
+    setMatches(list.matches);
+    const onChange = event => setMatches(event.matches);
+    if (list.addEventListener) {
+      list.addEventListener('change', onChange);
+    } else {
+      list.addListener(onChange);
+    }
+    return () => {
+      if (list.removeEventListener) {
+        list.removeEventListener('change', onChange);
+      } else {
+        list.removeListener(onChange);
+      }
+    };
+  }, [query]);
+
+  return matches;
+};
 
 interface PageViewBoxProps {
   iconName?: string;
@@ -9,220 +47,107 @@ interface PageViewBoxProps {
   titleElement?: React.ReactNode;
   date?: string;
   button?: React.ReactNode;
-  sx?: SxProps;
+  className?: string;
   children?: React.ReactNode;
+  preserveChildren?: boolean;
 }
 
+const IconAvatar = ({ iconName, title, className = '' }) => {
+  const fallbackText = String(title ?? iconName ?? '')
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+  return (
+    <Avatar className={cn('size-[30px] rounded-none bg-transparent after:hidden', className)}>
+      <AvatarImage src={'/static/images/' + iconName} alt="" className="rounded-none object-contain" />
+      <AvatarFallback className="rounded-none bg-muted text-sm font-semibold text-muted-foreground">
+        {fallbackText || '•'}
+      </AvatarFallback>
+    </Avatar>
+  );
+};
+
 function PageViewBox(props: PageViewBoxProps) {
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
+  const matches = useMinWidth(SM_BREAKPOINT);
+  if (props.preserveChildren) return <DesktopViewBox {...props} responsive />;
   return matches ? <DesktopViewBox {...props} /> : <MobileViewBox {...props} />;
 }
 export default PageViewBox;
 
 const MobileViewBox = props => {
-  const { iconName, title, titleElement, date, button, sx } = props;
+  const { iconName, title, titleElement, date, button, className } = props;
   const { changeFooterBg } = useContext(LayoutContext);
 
   useEffect(() => {
-    changeFooterBg('#f9f9fa');
+    if (changeFooterBg) {
+      changeFooterBg('#f9f9fa');
+    }
     return () => {
-      changeFooterBg(null);
+      if (changeFooterBg) {
+        changeFooterBg(null);
+      }
     };
-  }, []);
+  }, [changeFooterBg]);
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flex: '1 1 auto',
-        width: '100%',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}
-    >
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{
-          width: '100%',
-          minHeight: '66px',
-          px: '20px',
-          backgroundColor: '#ffffff',
-          ...sx,
-        }}
-      >
-        <Stack direction="row" alignItems="center">
-          {iconName && (
-            <Avatar
-              src={`/static/images/${iconName}`}
-              sx={{
-                width: '30px',
-                height: '30px',
-                marginRight: '12px',
-                borderRadius: 0,
-                objectFit: 'contain',
-                backgroundColor: 'transparent',
-              }}
-            />
-          )}
-          <Stack direction="column" gap="4px" sx={{ mt: '18px', mb: '10px' }}>
+    <div data-slot="page-view-mobile" className={cn('flex w-full flex-1 flex-col items-center', className)}>
+      <div className="flex min-h-[66px] w-full flex-wrap items-center justify-between gap-2 bg-card px-4 py-5">
+        <div className="flex w-full min-w-0 flex-row items-center">
+          {iconName && <IconAvatar iconName={iconName} title={title} className="mr-3" />}
+          <div className="flex min-w-0 flex-col gap-2">
             {titleElement ? (
               titleElement
             ) : (
-              <Typography
-                sx={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: '3',
-                  WebkitBoxOrient: 'vertical',
-                  maxHeight: '60px',
-                  pr: '12px',
-                  fontSize: '16px',
-                  fontWeight: 600,
-                  lineHeight: 1.3,
-                  color: '#333',
-                  textOverflow: 'ellipsis',
-                  overflow: 'hidden',
-                  wordWrap: 'break-word',
-                }}
-              >
+              <span className="line-clamp-3 max-h-[60px] overflow-hidden pr-3 text-base leading-[1.3] font-semibold break-words text-[#333]">
                 {title}
-              </Typography>
+              </span>
             )}
-            {date && (
-              <Typography sx={{ fontSize: '10px', fontWeight: 500, lineHeight: 1.6, color: '#333' }}>
-                수정일: {date}
-              </Typography>
-            )}
-          </Stack>{' '}
-        </Stack>
-
+            {date && <span className="text-xs leading-5 font-medium text-[#333]">수정일: {date}</span>}
+          </div>
+        </div>
         {button}
-      </Stack>
-      <Box
-        sx={{
-          width: '100%',
-          minWidth: '100%',
-          height: '100%',
-          flex: '1 1 auto',
-          backgroundColor: '#f9f9fa',
-        }}
-      >
-        <Divider sx={{ width: '100%', height: '1px' }} />
+      </div>
+      <div className="h-full w-full min-w-full flex-1 bg-muted">
+        <Separator className="h-px w-full" />
         {props.children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 
 const DesktopViewBox = props => {
-  const { iconName, title, titleElement, date, button, sx } = props;
+  const { iconName, title, titleElement, date, button, className, responsive } = props;
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        px: '20px',
-      }}
+    <div
+      data-slot="page-view-desktop"
+      className={cn('flex w-full min-w-0 flex-col items-center', responsive ? 'px-0 sm:px-6' : 'px-4 sm:px-6', className)}
     >
-      <Box
-        sx={{
-          width: '100%',
-          maxWidth: MAX_WIDTH,
-          height: '100%',
-          borderRadius: '6px',
-          border: 'solid 1px #ddd',
-          backgroundColor: '#f9f9fa',
-          ...sx,
-        }}
+      <div
+        className={cn(
+          'h-full w-full max-w-[1392px] bg-muted',
+          responsive ? 'rounded-none sm:rounded-md sm:border sm:border-border' : 'rounded-md border border-border',
+        )}
       >
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ width: '100%', height: '57px', px: '20px', backgroundColor: '#ffffff', borderRadius: '6px 6px 0px 0px' }}
-        >
-          {/* title */}
-          <Stack
-            direction="row"
-            alignItems="center"
-            sx={{
-              width: '100%',
-              maxWidth: { sm: `calc(100% - ${button ? 390 : 100}px)`, md: `calc(100% - ${button ? 360 : 100}px)` },
-            }}
-          >
-            {iconName && (
-              <Avatar
-                src={`/static/images/${iconName}`}
-                sx={{
-                  width: '30px',
-                  height: '30px',
-                  borderRadius: 0,
-                  objectFit: 'contain',
-                  backgroundColor: 'transparent',
-                  mr: '18px',
-                }}
-              />
-            )}
+        <div className="flex w-full flex-wrap items-center justify-between gap-4 rounded-t-md bg-card px-4 py-5 sm:px-6">
+          <div className="flex min-w-0 flex-1 basis-56 flex-row items-center">
+            {iconName && <IconAvatar iconName={iconName} title={title} className="mr-[18px]" />}
             {titleElement ? (
               titleElement
             ) : (
-              <Typography
-                variant="subtitle1"
-                component="span"
-                sx={{
-                  flexGrow: 0,
-                  display: 'block',
-                  width: '100%',
-                  maxWidth: MAX_WIDTH,
-                  height: '16px',
-                  fontWeight: 500,
-                  fontSize: { xs: '16px', sm: '18px' },
-                  lineHeight: 0.89,
-                  letterSpacing: '-0.18px',
-                  color: '#141414',
-                  textOverflow: 'ellipsis',
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <span className="block w-full max-w-[1392px] truncate text-lg leading-7 font-semibold tracking-tight text-foreground">
                 {title}
-              </Typography>
+              </span>
             )}
-          </Stack>
-
-          {/* date, button */}
-          <Stack direction="row" justifyContent="flex-end" alignItems="center" flexShrink="0">
-            <Box
-              component="span"
-              sx={{
-                marginRight: button ? { sm: '26px', md: '36px' } : {},
-                height: '16px',
-                fontFamily: 'Pretendard',
-                fontSize: '14px',
-                fontWeight: '500',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: '1.14',
-                letterSpacing: 'normal',
-                textAlign: 'left',
-                color: '#333333',
-              }}
-            >
-              {date}
-            </Box>
-            <Stack direction="row" justifyContent="flex-end" alignItems="center">
-              {button}
-            </Stack>
-          </Stack>
-        </Stack>
-        <Divider sx={{ width: '100%', height: '1px' }} />
+          </div>
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-3">
+            <span className="text-xs leading-5 whitespace-nowrap text-muted-foreground">{date}</span>
+            <div className="flex min-w-0 flex-row flex-wrap items-center justify-end gap-2">{button}</div>
+          </div>
+        </div>
+        <Separator className="h-px w-full" />
         {props.children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };

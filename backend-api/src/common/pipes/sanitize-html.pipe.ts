@@ -6,7 +6,7 @@ export class SanitizeHtmlPipe implements PipeTransform {
     // HTML 특수 문자를 이스케이프하는 함수
     const escapeHtml = (unsafe: string): string => {
       if (typeof unsafe !== 'string') return unsafe;
-      
+
       return unsafe
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')

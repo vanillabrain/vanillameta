@@ -1,33 +1,28 @@
 import React, { useContext } from 'react';
-import { Box, Stack } from '@mui/material';
-import Footer from '@/layouts/Footer';
 import { Outlet } from 'react-router-dom';
+import Footer from '@/layouts/Footer';
 import { LandingLogo } from '@/layouts/Header/Logo';
 import { MAX_WIDTH } from '@/constant';
 import { LayoutContext } from '@/contexts/LayoutContext';
+import { cn } from '@/lib/utils';
 
 const PublicLayout = props => {
   const { children } = props;
   const { fixed, footerBg } = useContext(LayoutContext);
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        height: '100%',
-        flex: '1 1 auto',
-        overflow: fixed ? 'hidden' : 'visible',
-        backgroundColor: footerBg ? footerBg : '#fff',
-      }}
+    <div
+      className={cn('h-full w-full flex-1', fixed ? 'overflow-hidden' : 'overflow-visible')}
+      style={{ backgroundColor: footerBg ? footerBg : '#fff' }}
     >
-      <Stack sx={{ width: '100%', maxWidth: MAX_WIDTH, mx: 'auto', backgroundColor: '#fff' }}>
-        <Stack sx={{ height: 65, justifyContent: 'center', pl: '20px' }}>
+      <div className="mx-auto flex w-full flex-col bg-background" style={{ maxWidth: MAX_WIDTH }}>
+        <div className="flex h-[65px] flex-col justify-center pl-5">
           <LandingLogo />
-        </Stack>
+        </div>
         {children || <Outlet />}
-      </Stack>
+      </div>
       <Footer />
-    </Box>
+    </div>
   );
 };
 

@@ -1,18 +1,9 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import {
-  Avatar,
-  Button,
-  Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Typography,
-} from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import WidgetService from '@/api/widgetService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
@@ -20,6 +11,7 @@ import CloseButton from '@/components/button/CloseButton';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
 function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSelect = null }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(widgetOpen);
   const [selectedIds, setSelectedIds] = useState([]);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
@@ -44,7 +36,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
       });
   };
 
-  const descriptionElementRef = useRef<HTMLElement>(null);
+  const scrollRegionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setOpen(widgetOpen);
@@ -52,10 +44,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
 
   useEffect(() => {
     if (open) {
-      const { current: descriptionElement } = descriptionElementRef;
-      if (descriptionElement !== null) {
-        descriptionElement.focus();
-      }
+      scrollRegionRef.current?.focus();
 
       setSelectedIds([]);
       setLoadedWidgetData([]);
@@ -101,171 +90,108 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
       }
       setOpen(false);
     } else {
-      alert.info('위젯을 선택해주세요.');
+      alert.info(t('common.selectWidgetAlert'));
     }
   };
 
   return (
-    <>
-      <Dialog open={open} onClose={handleClose} fullWidth={true} sx={{ minWidth: '400px' }}>
-        <DialogTitle
-          id="scroll-dialog-title"
-          sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}
-        >
-          <span
-            style={{
-              height: '24px',
-              fontFamily: 'Pretendard',
-              fontSize: '20px',
-              fontWeight: '600',
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 'normal',
-              letterSpacing: 'normal',
-              textAlign: 'left',
-              color: '#141414',
-            }}
-          >
-            {label}
-          </span>
+    <Dialog
+      open={open}
+      onOpenChange={next => {
+        if (!next) handleClose();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="flex max-h-[90dvh] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[560px]"
+        aria-labelledby="scroll-dialog-title"
+      >
+        <div className="flex w-full shrink-0 items-start justify-between pt-[13px] pl-[21px]">
+          <div className="min-w-0">
+            <DialogTitle id="scroll-dialog-title" className="text-xl leading-normal font-semibold text-foreground">
+              {label}
+            </DialogTitle>
+            <DialogDescription className="pt-1.5 text-sm leading-normal text-muted-foreground">
+              {t('common.addWidgetGuide')}{' '}
+              <span className="font-bold text-[#0f5ab2]">{t('common.selectedCount', { count: selectedIds.length })}</span>
+            </DialogDescription>
+          </div>
           <CloseButton
-            sx={{
-              position: 'absolute',
-              right: '0px',
-              top: '0px',
-              mr: '12px',
-              mt: '12px',
-              cursor: 'pointer',
-            }}
-            size="medium"
+            className="mt-3 mr-3 cursor-pointer"
             onClick={event => {
               event.preventDefault();
               event.stopPropagation();
               handleClose();
             }}
           />
-          <Typography
-            variant="body2"
-            sx={{
-              height: '17px',
-              flexGrow: 0,
-              fontFamily: 'Pretendard',
-              fontSize: '14px',
-              fontWeight: 'normal',
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 'normal',
-              letterSpacing: 'normal',
-              textAlign: 'left',
-              color: '#767676',
-              paddingTop: '6px',
-            }}
-          >
-            추가할 위젯을 선택해주세요. (<span style={{ color: '#0f5ab2', fontWeight: 'bold' }}>{selectedIds.length}</span>개
-            선택)
-          </Typography>
-        </DialogTitle>
+        </div>
 
-        <DialogContent dividers id="scroll-dialog-description" ref={descriptionElementRef} tabIndex={-1} sx={{ p: 0 }}>
-          <List
-            sx={{
-              width: '100%',
-              height: '400px',
-            }}
-          >
+        <div
+          ref={scrollRegionRef}
+          id="scroll-dialog-description"
+          tabIndex={-1}
+          className="mt-3 h-[400px] min-h-0 w-full shrink overflow-y-auto border-t border-b border-border outline-none"
+        >
+          <ul className="w-full">
             {loadedWidgetData.map((item, index) => (
-              <ListItemButton
-                key={index}
-                selected={isItemSelection(item)}
-                sx={{ width: '100%', paddingX: '20px', height: '50px' }}
-                onClick={() => handleClick(item)}
-              >
-                <Checkbox checked={isItemSelection(item)} />
-                <ListItemIcon
-                  sx={{
-                    minWidth: '24px',
-                    marginLeft: '16px',
+              <li key={index}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isItemSelection(item)}
+                  className="flex h-[50px] w-full cursor-pointer items-center px-5 hover:bg-muted aria-pressed:bg-muted"
+                  onClick={() => handleClick(item)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleClick(item);
+                    }
                   }}
                 >
-                  <Avatar
-                    src={`/static/images/${item.icon}`}
-                    sx={{
-                      width: 'auto',
-                      height: '30px',
-                      borderRadius: 0,
-                      objectFit: 'contain',
-                      backgroundColor: 'transparent',
-                    }}
+                  <Checkbox
+                    checked={isItemSelection(item)}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    className="pointer-events-none"
                   />
-                </ListItemIcon>
-                <ListItemText
-                  primaryTypographyProps={{
-                    sx: {
-                      overflow: 'hidden',
-                      whiteSpace: 'nowrap',
-                      textOverflow: 'ellipsis',
-                    },
-                  }}
-                  sx={{
-                    // maxWidth: '470px',
-                    marginLeft: '16px',
-                    fontFamily: 'Pretendard',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    fontStretch: 'normal',
-                    fontStyle: 'normal',
-                    lineHeight: 1.14,
-                    letterSpacing: 'normal',
-                    textAlign: 'left',
-                    color: '#333333',
-                  }}
-                  primary={item.title}
-                />
-              </ListItemButton>
+                  <span className="ml-4 inline-flex min-w-6 items-center">
+                    <Avatar aria-hidden="true" className="h-[30px] w-auto rounded-none bg-transparent">
+                      <AvatarImage
+                        src={`/static/images/${item.icon}`}
+                        alt=""
+                        className="h-[30px] w-auto rounded-none object-contain"
+                      />
+                      <AvatarFallback className="h-[30px] w-[30px] rounded-none bg-muted text-xs font-medium text-muted-foreground">
+                        {String(item.title ?? '').slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </span>
+                  <span className="ml-4 truncate text-sm leading-[1.14] font-medium text-foreground">{item.title}</span>
+                </div>
+              </li>
             ))}
-          </List>
-        </DialogContent>
+          </ul>
+        </div>
 
-        <DialogActions sx={{ height: '63px' }}>
+        <div className="flex h-[63px] shrink-0 items-center justify-end pr-5">
           <Button
+            variant="ghost"
             onClick={handleClose}
-            color="inherit"
-            sx={{
-              flexGrow: 0,
-              fontFamily: 'Pretendard',
-              fontSize: '14px',
-              fontWeight: 600,
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 1.14,
-              letterSpacing: 'normal',
-              textAlign: 'left',
-              color: '#767676',
-            }}
+            className="text-sm leading-[1.14] font-semibold text-muted-foreground"
           >
-            취소
+            {t('common.cancel')}
           </Button>
-          <span style={{ width: '4px' }} />
+          <span className="w-1" />
           <Button
+            variant="ghost"
             onClick={() => handleSelect()}
-            sx={{
-              flexGrow: 0,
-              fontFamily: 'Pretendard',
-              fontSize: '14px',
-              fontWeight: 600,
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 1.14,
-              letterSpacing: 'normal',
-              textAlign: 'left',
-              color: '#0057bd',
-            }}
+            className="text-sm leading-[1.14] font-semibold text-[#0057bd]"
           >
-            위젯 추가
+            {t('common.addWidget')}
           </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

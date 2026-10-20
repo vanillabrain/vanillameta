@@ -5,7 +5,7 @@ import { DatabaseSpecificOptimizationService } from './database-specific-optimiz
 import { QueryCacheService } from './query-cache.service';
 import { IndexRecommendationService } from './index-recommendation.service';
 import { EnhancedConnectionPoolService } from './enhanced-connection-pool.service';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../../auth/guards/legacy-operations.guard';
 
 export class OptimizeQueryDto {
   query: string;
@@ -29,7 +29,7 @@ export class IndexAnalysisDto {
 
 @ApiTags('Database Optimization')
 @Controller('optimization')
-@UseGuards(JwtAuthGuard)
+@UseGuards(LegacyOperationsGuard)
 export class OptimizationController {
   constructor(
     private readonly queryOptimizerService: EnhancedQueryOptimizerService,

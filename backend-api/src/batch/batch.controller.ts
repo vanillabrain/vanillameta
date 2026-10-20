@@ -12,6 +12,7 @@ import { BatchService } from './batch.service';
 import { CreateBatchJobDto } from './dto/create-batch-job.dto';
 import { BatchJobResponseDto, BatchChunkResponseDto } from './dto/batch-job-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { legacyJobActor } from '../background-job/legacy-job-access';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 
@@ -33,7 +34,10 @@ export class BatchController {
     @Body() createBatchJobDto: CreateBatchJobDto,
     @GetUser() user: any,
   ): Promise<BatchJobResponseDto> {
-    const batchJob = await this.batchService.createBatchJob(createBatchJobDto, user.sub);
+    const batchJob = await this.batchService.createBatchJob(
+      createBatchJobDto,
+      legacyJobActor(user),
+    );
 
     return new BatchJobResponseDto({
       ...batchJob,
@@ -50,7 +54,7 @@ export class BatchController {
     type: [BatchJobResponseDto],
   })
   async findAllBatchJobs(@GetUser() user: any): Promise<BatchJobResponseDto[]> {
-    const batchJobs = await this.batchService.findAll(user.sub);
+    const batchJobs = await this.batchService.findAll(legacyJobActor(user));
 
     return batchJobs.map(
       job =>
@@ -70,8 +74,11 @@ export class BatchController {
     description: '배치 작업 상세 정보',
     type: BatchJobResponseDto,
   })
-  async findOneBatchJob(@Param('id', ParseIntPipe) id: number): Promise<BatchJobResponseDto> {
-    const batchJob = await this.batchService.findOne(id);
+  async findOneBatchJob(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: any,
+  ): Promise<BatchJobResponseDto> {
+    const batchJob = await this.batchService.findOne(id, legacyJobActor(user));
 
     return new BatchJobResponseDto({
       ...batchJob,
@@ -88,8 +95,11 @@ export class BatchController {
     description: '배치 청크 목록',
     type: [BatchChunkResponseDto],
   })
-  async findBatchChunks(@Param('id', ParseIntPipe) id: number): Promise<BatchChunkResponseDto[]> {
-    const batchJob = await this.batchService.findOne(id);
+  async findBatchChunks(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: any,
+  ): Promise<BatchChunkResponseDto[]> {
+    const batchJob = await this.batchService.findOne(id, legacyJobActor(user));
 
     return batchJob.chunks.map(
       chunk =>
@@ -113,7 +123,7 @@ export class BatchController {
     @Param('id', ParseIntPipe) id: number,
     @GetUser() user: any,
   ): Promise<BatchJobResponseDto> {
-    const batchJob = await this.batchService.restartBatchJob(id, user.sub);
+    const batchJob = await this.batchService.restartBatchJob(id, legacyJobActor(user));
 
     return new BatchJobResponseDto({
       ...batchJob,
@@ -134,7 +144,7 @@ export class BatchController {
     @Param('id', ParseIntPipe) id: number,
     @GetUser() user: any,
   ): Promise<BatchJobResponseDto> {
-    const batchJob = await this.batchService.cancelBatchJob(id, user.sub);
+    const batchJob = await this.batchService.cancelBatchJob(id, legacyJobActor(user));
 
     return new BatchJobResponseDto({
       ...batchJob,

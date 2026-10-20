@@ -1,8 +1,8 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import DataLayout from './DataLayout';
 import PageTitleBox from '@/components/PageTitleBox';
 import Seo from '@/seo/Seo';
-import { useTranslation } from 'react-i18next';
 
 /**
  * 데이터 관리 페이지
@@ -10,10 +10,11 @@ import { useTranslation } from 'react-i18next';
  */
 
 const Data = () => {
-  const { t } = useTranslation('navigation');
+  const { t } = useTranslation();
+  const title = t('common.data');
   return (
-    <PageTitleBox title={t('data')} sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}>
-      <Seo title={t('data')} />
+    <PageTitleBox title={title} className="w-full p-0">
+      <Seo title={title} />
       <DataLayout />
     </PageTitleBox>
   );

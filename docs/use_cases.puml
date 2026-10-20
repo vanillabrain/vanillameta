@@ -1,0 +1,109 @@
+@startuml
+left to right direction
+actor "운영 담당자" as operator
+actor "조직/데이터 관리자" as enterpriseAdmin
+rectangle "VanillaMeta" {
+ usecase "UC-017\nEditor Request Recovery" as UC017
+ usecase "UC-016\nBatch Block Edit" as UC016
+ usecase "UC-015\nPrompt Block Target" as UC015
+ usecase "UC-014\nExplicit Prompt Save" as UC014
+ usecase "UC-013\nAuto Block Intent" as UC013
+ usecase "UC-012\nSemantic Creation" as UC012
+ usecase "UC-011\nAI Block Layout" as UC011
+ usecase "UC-007\nBlock Edit History" as UC007
+ usecase "UC-008\nAI Working Draft" as UC008
+ usecase "UC-009\nResponsive Block Layout" as UC009
+ usecase "UC-010\nPointer Block Layout" as UC010
+ usecase "UC-006\nPreserve Block Layout" as UC006
+ usecase "UC-005\nPrompt To Dashboard" as UC005
+ usecase "UC-004\nBatch Metric Update" as UC004
+ usecase "UC-001\nReview And Save Analysis" as UC001
+ usecase "UC-003\nUpdate Metric Calculation" as UC003
+ usecase "UC-002\nReuse Saved Metric" as UC002
+}
+operator --> UC015
+operator --> UC014
+operator --> UC013
+operator --> UC012
+operator --> UC011
+operator --> UC007
+operator --> UC008
+operator --> UC009
+operator --> UC010
+operator --> UC006
+operator --> UC005
+actor "공유 수신자" as recipient
+recipient --> UC005
+operator --> UC004
+operator --> UC003
+operator --> UC002
+operator --> UC001
+operator --> UC016
+operator --> UC017
+usecase "UC-018 게시 snapshot" as UC018
+operator --> UC018
+recipient --> UC018
+usecase "UC-019 질문 저장 게시" as UC019
+operator --> UC019
+usecase "UC-020 Duplicate dashboard with source mapping" as UC020
+operator --> UC020
+usecase "UC-021 공유·게시본 재사용" as UC021
+operator --> UC021
+usecase "UC-022 복사본 AI 편집·게시" as UC022
+operator --> UC022
+usecase "UC-023 생성 질문 저장·게시 준비" as UC023
+operator --> UC023
+usecase "UC-024 Reuse Selected Blocks" as UC024
+operator --> UC024
+recipient --> UC024
+usecase "UC-025 브라우저 초안 복구" as UC025
+operator --> UC025
+usecase "UC-026 다른 탭 변경 후 초안 복구" as UC026
+operator --> UC026
+usecase "UC-027 조회 실패·재충돌 복구" as UC027
+operator --> UC027
+usecase "UC-028 다른 탭 토큰 갱신 후 초안 복구" as UC028
+operator --> UC028
+usecase "UC-030 갱신 장애·탭 종료 복구" as UC030
+usecase "UC-029 다중 탭 동시 갱신 복구" as UC029
+operator --> UC029
+operator --> UC030
+usecase "UC-031 Studio 생성 저장 확인" as UC031
+operator --> UC031
+usecase "UC-032 Studio 저장 확인 reload 복구" as UC032
+operator --> UC032
+usecase "UC-033 대화 안 계산 기준 확인" as UC033
+  usecase "UC-034\nRecover Missing Fields in Conversation" as UC034
+usecase "UC-035 대화 안 생성안 수정" as UC035
+usecase "UC-036 생성안 대화 입력 연결" as UC036
+operator --> UC033
+operator --> UC034
+operator --> UC035
+operator --> UC036
+usecase "UC-037 저장 생성안 게시 연결" as UC037
+operator --> UC037
+usecase "UC-038 게시 충돌 후 최신본 확인" as UC038
+operator --> UC038
+usecase "UC-039 최신 저장본 조회 재시도" as UC039
+operator --> UC039
+usecase "UC-046 Studio 보관 초안과 최신본 병합" as UC046
+operator --> UC046
+usecase "UC-047 Studio 저장 응답 유실 후 확인" as UC047
+operator --> UC047
+usecase "UC-048 새 생성 질문 복구" as UC048
+operator --> UC048
+usecase "UC-049 내 시각화 산출물 찾기" as UC049
+operator --> UC049
+usecase "UC-050 Manage Analysis Catalog" as UC050
+enterpriseAdmin --> UC050
+usecase "UC-051 Manage Enterprise Access" as UC051
+enterpriseAdmin --> UC051
+usecase "UC-052 Explore Visual Conditions" as UC052
+operator --> UC052
+usecase "UC-053 Distribute Artifacts" as UC053
+operator --> UC053
+usecase "UC-054 Export Comparable Analysis" as UC054
+operator --> UC054
+usecase "UC-055 Archive Artifact Dependencies" as UC055
+operator --> UC055
+@enduml

@@ -293,7 +293,7 @@ describe('QueryCacheService', () => {
       expect(result2.data[0].id).toBe(2);
     });
 
-    it('should normalize query whitespace for consistent hashing', async () => {
+    it('preserves SQL case and whitespace instead of merging distinct inputs', async () => {
       const query1 = 'SELECT * FROM users';
       const query2 = 'SELECT  *  FROM  users';
       const query3 = 'select * from users';
@@ -303,8 +303,8 @@ describe('QueryCacheService', () => {
       const result2 = await service.get('pg', query2);
       const result3 = await service.get('pg', query3);
 
-      expect(result2).toBeDefined();
-      expect(result3).toBeDefined();
+      expect(result2).toBeNull();
+      expect(result3).toBeNull();
     });
   });
 

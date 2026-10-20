@@ -220,7 +220,12 @@ export class SlowQueryMonitorService {
       maxExecutionTime?: number;
       resolved?: boolean;
     } = {},
-  ): Promise<{ data: SlowQueryLog[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: Omit<SlowQueryLog, 'parameters' | 'explainPlan'>[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const query = this.slowQueryLogRepository.createQueryBuilder('sql');
 
     // 필터링
@@ -259,7 +264,7 @@ export class SlowQueryMonitorService {
     const [data, total] = await query.getManyAndCount();
 
     return {
-      data,
+      data: data.map(({ parameters, explainPlan, ...diagnostics }) => diagnostics),
       total,
       page,
       limit,
@@ -498,7 +503,11 @@ export class SlowQueryMonitorService {
     databaseEngine?: string,
     databaseId?: number,
   ): Promise<void> {
-    if (!this.config.enabled) return;
+    if (
+      !this.config.enabled ||
+      process.env.CLOUDWATCH_METRICS_ENABLED?.trim().toLowerCase() === 'false'
+    )
+      return;
 
     try {
       const namespace = `VanillaMeta/${process.env.NODE_ENV || 'dev'}/Database`;

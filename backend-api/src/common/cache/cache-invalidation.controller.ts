@@ -9,6 +9,7 @@ import {
   HttpException,
   HttpStatus,
   Query,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,7 +20,8 @@ import {
   ApiBody,
   ApiQuery,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../../auth/guards/legacy-operations.guard';
+import { SourceAccessService } from '../../ownership/source-access.service';
 import { CacheInvalidationService, InvalidationPolicy } from './cache-invalidation.service';
 
 /**
@@ -27,10 +29,13 @@ import { CacheInvalidationService, InvalidationPolicy } from './cache-invalidati
  */
 @ApiTags('캐시 무효화')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(LegacyOperationsGuard)
 @Controller('cache/invalidate')
 export class CacheInvalidationController {
-  constructor(private readonly cacheInvalidationService: CacheInvalidationService) {}
+  constructor(
+    private readonly cacheInvalidationService: CacheInvalidationService,
+    private readonly access: SourceAccessService,
+  ) {}
 
   /**
    * 데이터셋 캐시 무효화
@@ -38,7 +43,8 @@ export class CacheInvalidationController {
   @Delete('dataset/:id')
   @ApiOperation({
     summary: '데이터셋 캐시 무효화',
-    description: '특정 데이터셋의 캐시를 무효화합니다. cascade 옵션으로 연관된 대시보드 캐시도 무효화할 수 있습니다.',
+    description:
+      '특정 데이터셋의 캐시를 무효화합니다. cascade 옵션으로 연관된 대시보드 캐시도 무효화할 수 있습니다.',
   })
   @ApiParam({
     name: 'id',
@@ -81,11 +87,15 @@ export class CacheInvalidationController {
   })
   async invalidateDataset(
     @Param('id') id: string,
+    @Req() req,
     @Query('cascade') cascade?: boolean,
     @Query('async') async?: boolean,
   ) {
+    const actor = this.access.actor(req.user.accessKeyData.id);
+    await this.access.assert('dataset', this.access.id(id), actor, 'owner');
     try {
       const policy: InvalidationPolicy = {
+        actor,
         immediate: !async,
         cascade: cascade === true,
         async: async === true,
@@ -120,7 +130,8 @@ export class CacheInvalidationController {
   @Delete('dashboard/:id')
   @ApiOperation({
     summary: '대시보드 캐시 무효화',
-    description: '특정 대시보드의 캐시를 무효화합니다. cascade 옵션으로 위젯과 데이터셋 캐시도 무효화할 수 있습니다.',
+    description:
+      '특정 대시보드의 캐시를 무효화합니다. cascade 옵션으로 위젯과 데이터셋 캐시도 무효화할 수 있습니다.',
   })
   @ApiParam({
     name: 'id',
@@ -141,10 +152,14 @@ export class CacheInvalidationController {
   })
   async invalidateDashboard(
     @Param('id') id: string,
+    @Req() req,
     @Query('cascade') cascade?: boolean,
   ) {
+    const actor = this.access.actor(req.user.accessKeyData.id);
+    await this.access.assert('dashboard', this.access.id(id), actor, 'owner');
     try {
       const policy: InvalidationPolicy = {
+        actor,
         immediate: true,
         cascade: cascade === true,
         async: false,
@@ -179,7 +194,8 @@ export class CacheInvalidationController {
   @Delete('database/:id')
   @ApiOperation({
     summary: '데이터베이스별 캐시 무효화',
-    description: '특정 데이터베이스의 모든 캐시를 무효화합니다. 대량의 캐시가 삭제될 수 있으므로 주의가 필요합니다.',
+    description:
+      '특정 데이터베이스의 모든 캐시를 무효화합니다. 대량의 캐시가 삭제될 수 있으므로 주의가 필요합니다.',
   })
   @ApiParam({
     name: 'id',
@@ -207,11 +223,15 @@ export class CacheInvalidationController {
   })
   async invalidateDatabase(
     @Param('id') id: string,
+    @Req() req,
     @Query('cascade') cascade?: boolean,
     @Query('batchSize') batchSize?: string,
   ) {
+    const actor = this.access.actor(req.user.accessKeyData.id);
+    await this.access.assert('database', this.access.id(id), actor, 'owner');
     try {
       const policy: InvalidationPolicy = {
+        actor,
         immediate: false,
         cascade: cascade === true,
         async: true,
@@ -290,7 +310,8 @@ export class CacheInvalidationController {
   @Post('pattern')
   @ApiOperation({
     summary: '패턴 기반 캐시 무효화',
-    description: '특정 패턴과 일치하는 모든 캐시를 무효화합니다. 와일드카드(*)를 사용할 수 있습니다.',
+    description:
+      '특정 패턴과 일치하는 모든 캐시를 무효화합니다. 와일드카드(*)를 사용할 수 있습니다.',
   })
   @ApiBody({
     schema: {
@@ -329,9 +350,7 @@ export class CacheInvalidationController {
       },
     },
   })
-  async invalidateByPattern(
-    @Body() body: { pattern: string; engine?: string },
-  ) {
+  async invalidateByPattern(@Body() body: { pattern: string; engine?: string }) {
     try {
       const count = await this.cacheInvalidationService.invalidateByPattern(
         body.pattern,
@@ -509,21 +528,22 @@ export class CacheInvalidationController {
   })
   async invalidateWidget(
     @Param('widgetId') widgetId: string,
+    @Req() req,
     @Param('dashboardId') dashboardId: string,
     @Query('cascade') cascade?: boolean,
   ) {
+    const actor = this.access.actor(req.user.accessKeyData.id);
+    await this.access.assert('widget', this.access.id(widgetId), actor, 'owner');
+    await this.access.dashboard(this.access.id(dashboardId), actor, 'owner');
     try {
       const policy: InvalidationPolicy = {
+        actor,
         immediate: true,
         cascade: cascade === true,
         async: false,
       };
 
-      await this.cacheInvalidationService.invalidateWidget(
-        +widgetId,
-        +dashboardId,
-        policy,
-      );
+      await this.cacheInvalidationService.invalidateWidget(+widgetId, +dashboardId, policy);
 
       return {
         status: 'success',

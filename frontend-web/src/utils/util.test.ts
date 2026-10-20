@@ -117,10 +117,10 @@ describe('유틸리티 함수 테스트', () => {
       expect(columns.map(col => col.name)).toEqual(['id', 'name', 'age']);
     });
 
-    it('빈 배열은 에러를 발생시켜야 함', () => {
+    it('빈 배열은 빈 컬럼 목록을 반환해야 함', () => {
       const data = [];
 
-      expect(() => createColumns(data)).toThrow();
+      expect(createColumns(data)).toEqual([]);
     });
 
     it('컬럼의 기본 속성이 올바르게 설정되어야 함', () => {

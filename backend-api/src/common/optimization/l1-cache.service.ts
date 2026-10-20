@@ -23,7 +23,7 @@ export interface L1CacheStats {
 export class L1CacheService {
   private caches: Map<string, LRUCache<string, any>> = new Map();
   private stats: Map<string, L1CacheStats> = new Map();
-  
+
   private readonly DEFAULT_CONFIG = {
     max: 1000,
     ttl: 600000, // 10분
@@ -40,7 +40,7 @@ export class L1CacheService {
    */
   private initializeEngines() {
     const engines = ['dashboard', 'dataset', 'widget'];
-    
+
     engines.forEach(engine => {
       const cache = new LRUCache<string, any>({
         ...this.DEFAULT_CONFIG,
@@ -48,7 +48,7 @@ export class L1CacheService {
           this.incrementEvictions(engine);
         },
       });
-      
+
       this.caches.set(engine, cache);
       this.stats.set(engine, {
         hits: 0,
@@ -73,7 +73,7 @@ export class L1CacheService {
     }
 
     const value = cache.get(key);
-    
+
     if (value !== undefined) {
       this.incrementHits(engine);
       return value;
@@ -95,7 +95,7 @@ export class L1CacheService {
 
     const options = ttl ? { ttl: ttl * 1000 } : undefined;
     cache.set(key, value, options);
-    
+
     this.updateStats(engine);
   }
 
@@ -136,14 +136,14 @@ export class L1CacheService {
 
     let deletedCount = 0;
     const regex = new RegExp(pattern.replace('*', '.*'));
-    
+
     for (const key of cache.keys()) {
       if (regex.test(key)) {
         cache.delete(key);
         deletedCount++;
       }
     }
-    
+
     this.updateStats(engine);
     return deletedCount;
   }
@@ -154,7 +154,7 @@ export class L1CacheService {
   async getStats(engine: string): Promise<L1CacheStats> {
     const stats = this.stats.get(engine);
     const cache = this.caches.get(engine);
-    
+
     if (!stats || !cache) {
       return {
         hits: 0,
@@ -169,7 +169,7 @@ export class L1CacheService {
 
     // 메모리 사용량 추정 (대략적인 계산)
     const memoryUsage = this.estimateMemoryUsage(cache);
-    
+
     return {
       ...stats,
       size: cache.size,
@@ -214,7 +214,7 @@ export class L1CacheService {
   private updateStats(engine: string) {
     const stats = this.stats.get(engine);
     const cache = this.caches.get(engine);
-    
+
     if (stats && cache) {
       stats.size = cache.size;
       stats.hitRate = this.calculateHitRate(stats);
@@ -248,11 +248,11 @@ export class L1CacheService {
    */
   private estimateMemoryUsage(cache: LRUCache<string, any>): number {
     let totalSize = 0;
-    
+
     for (const [key, value] of cache.entries()) {
       // 키 크기
       totalSize += key.length * 2; // UTF-16
-      
+
       // 값 크기 (JSON 문자열로 변환하여 추정)
       try {
         const valueStr = JSON.stringify(value);
@@ -262,7 +262,7 @@ export class L1CacheService {
         totalSize += 1024;
       }
     }
-    
+
     return totalSize;
   }
 
@@ -271,11 +271,11 @@ export class L1CacheService {
    */
   async getAllStats(): Promise<Record<string, L1CacheStats>> {
     const allStats: Record<string, L1CacheStats> = {};
-    
+
     for (const [engine, _] of this.caches) {
       allStats[engine] = await this.getStats(engine);
     }
-    
+
     return allStats;
   }
 
@@ -293,23 +293,23 @@ export class L1CacheService {
   }> {
     const engines = [];
     let healthy = true;
-    
+
     for (const [engine, cache] of this.caches) {
       const stats = await this.getStats(engine);
-      
+
       engines.push({
         name: engine,
         size: cache.size,
         maxSize: this.DEFAULT_CONFIG.max,
         hitRate: stats.hitRate,
       });
-      
+
       // 메모리 사용률이 90% 이상이면 unhealthy
       if (cache.size / this.DEFAULT_CONFIG.max > 0.9) {
         healthy = false;
       }
     }
-    
+
     return { healthy, engines };
   }
 }

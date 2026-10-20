@@ -11,6 +11,9 @@ import { CustomLoggerService as LoggerService } from '../common/logger/logger.se
 import { CreateBatchJobDto } from './dto/create-batch-job.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
+import { SourceAccessService } from '../ownership/source-access.service';
+const actor = { id: 7, userId: 'test-user', authVersion: 3 };
+
 describe('BatchService', () => {
   let service: BatchService;
   let batchJobRepository: Repository<BatchJob>;
@@ -53,12 +56,14 @@ describe('BatchService', () => {
 
   const mockDataSource = {
     transaction: jest.fn(),
+    getRepository: () => ({ findOne: async () => ({ ...actor, active: true }) }),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BatchService,
+        { provide: SourceAccessService, useValue: { assert: jest.fn() } },
         {
           provide: getRepositoryToken(BatchJob),
           useValue: mockBatchJobRepository,
@@ -91,6 +96,8 @@ describe('BatchService', () => {
     }).compile();
 
     service = module.get<BatchService>(BatchService);
+    // Scope/revocation are tested with real SourceAccess in legacy-job-security.spec.ts.
+    jest.spyOn(service as any, 'assertJob').mockResolvedValue(undefined);
     batchJobRepository = module.get<Repository<BatchJob>>(getRepositoryToken(BatchJob));
     batchChunkRepository = module.get<Repository<BatchChunk>>(getRepositoryToken(BatchChunk));
     datasetService = module.get<DatasetService>(DatasetService);
@@ -123,7 +130,7 @@ describe('BatchService', () => {
       mockBatchJobRepository.create.mockReturnValue(mockBatchJob);
       mockBatchJobRepository.save.mockResolvedValue(mockBatchJob);
 
-      const result = await service.createBatchJob(createDto, userId);
+      const result = await service.createBatchJob(createDto, actor);
 
       expect(result).toEqual(mockBatchJob);
       expect(mockBatchJobRepository.create).toHaveBeenCalledWith({
@@ -132,7 +139,7 @@ describe('BatchService', () => {
         datasetId: 1,
         widgetId: undefined,
         config: undefined,
-        metadata: undefined,
+        metadata: { actor },
         createdBy: userId,
         status: BatchJobStatus.PENDING,
       });
@@ -144,9 +151,7 @@ describe('BatchService', () => {
         chunkSize: 1000,
       };
 
-      await expect(service.createBatchJob(createDto, 'test-user')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.createBatchJob(createDto, actor)).rejects.toThrow(BadRequestException);
     });
 
     it('위젯 데이터 타입에서 widgetId가 없으면 에러를 발생시켜야 함', async () => {
@@ -155,9 +160,7 @@ describe('BatchService', () => {
         chunkSize: 1000,
       };
 
-      await expect(service.createBatchJob(createDto, 'test-user')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.createBatchJob(createDto, actor)).rejects.toThrow(BadRequestException);
     });
 
     it('기본 청크 크기는 1000이어야 함', async () => {
@@ -175,7 +178,7 @@ describe('BatchService', () => {
       mockBatchJobRepository.create.mockReturnValue(mockBatchJob);
       mockBatchJobRepository.save.mockResolvedValue(mockBatchJob);
 
-      const result = await service.createBatchJob(createDto, 'test-user');
+      const result = await service.createBatchJob(createDto, actor);
 
       expect(result.chunkSize).toBe(1000);
     });
@@ -192,11 +195,11 @@ describe('BatchService', () => {
 
       mockBatchJobRepository.findOne.mockResolvedValue(mockBatchJob);
 
-      const result = await service.findOne(1);
+      const result = await service.findOne(1, actor);
 
       expect(result).toEqual(mockBatchJob);
       expect(mockBatchJobRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 1 },
+        where: { id: 1, createdBy: actor.userId },
         relations: ['chunks'],
       });
     });
@@ -204,7 +207,7 @@ describe('BatchService', () => {
     it('존재하지 않는 배치 작업 조회 시 NotFoundException을 발생시켜야 함', async () => {
       mockBatchJobRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(999, actor)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -218,7 +221,7 @@ describe('BatchService', () => {
 
       mockBatchJobRepository.find.mockResolvedValue(mockBatchJobs);
 
-      const result = await service.findAll(userId);
+      const result = await service.findAll(actor);
 
       expect(result).toEqual(mockBatchJobs);
       expect(mockBatchJobRepository.find).toHaveBeenCalledWith({
@@ -243,7 +246,7 @@ describe('BatchService', () => {
       mockBatchChunkRepository.update.mockResolvedValue({});
       mockBatchJobRepository.update.mockResolvedValue({});
 
-      const result = await service.restartBatchJob(1, userId);
+      const result = await service.restartBatchJob(1, actor);
 
       expect(mockBatchChunkRepository.update).toHaveBeenCalledWith(
         {
@@ -268,7 +271,7 @@ describe('BatchService', () => {
 
       mockBatchJobRepository.findOne.mockResolvedValue(mockBatchJob);
 
-      await expect(service.restartBatchJob(1, 'test-user')).rejects.toThrow(BadRequestException);
+      await expect(service.restartBatchJob(1, actor)).rejects.toThrow(BadRequestException);
     });
 
     it('처리 중이 아닌 작업만 재시작할 수 있어야 함', async () => {
@@ -280,7 +283,7 @@ describe('BatchService', () => {
 
       mockBatchJobRepository.findOne.mockResolvedValue(mockBatchJob);
 
-      await expect(service.restartBatchJob(1, 'test-user')).rejects.toThrow(BadRequestException);
+      await expect(service.restartBatchJob(1, actor)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -298,13 +301,16 @@ describe('BatchService', () => {
       mockBatchChunkRepository.update.mockResolvedValue({});
       mockBatchJobRepository.update.mockResolvedValue({});
 
-      const result = await service.cancelBatchJob(1, userId);
+      const result = await service.cancelBatchJob(1, actor);
 
       expect(mockBatchChunkRepository.update).toHaveBeenCalled();
-      expect(mockBatchJobRepository.update).toHaveBeenCalledWith(1, {
-        status: BatchJobStatus.CANCELLED,
-        completedAt: expect.any(Date),
-      });
+      expect(mockBatchJobRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 1 }),
+        {
+          status: BatchJobStatus.CANCELLED,
+          completedAt: expect.any(Date),
+        },
+      );
     });
 
     it('완료된 작업은 취소할 수 없어야 함', async () => {
@@ -316,7 +322,7 @@ describe('BatchService', () => {
 
       mockBatchJobRepository.findOne.mockResolvedValue(mockBatchJob);
 
-      await expect(service.cancelBatchJob(1, 'test-user')).rejects.toThrow(BadRequestException);
+      await expect(service.cancelBatchJob(1, actor)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -344,7 +350,7 @@ describe('BatchService', () => {
       mockBatchJobRepository.create.mockReturnValue(mockBatchJob);
       mockBatchJobRepository.save.mockResolvedValue(mockBatchJob);
 
-      await service.createBatchJob(createDto, 'test-user');
+      await service.createBatchJob(createDto, actor);
 
       // initializeBatchJob이 비동기로 실행되므로 직접 테스트하기 어려움
       // 대신 청크 생성 로직의 수학적 정확성을 검증

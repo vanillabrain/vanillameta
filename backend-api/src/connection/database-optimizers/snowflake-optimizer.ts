@@ -103,7 +103,7 @@ export class SnowflakeOptimizer extends BaseDatabaseOptimizer {
         createTimeoutMillis: 60000, // 1분
         idleTimeoutMillis: 300000, // 5분 (세션 유지)
         // Snowflake 세션 최적화
-        afterCreate: async (conn: any, done: Function) => {
+        afterCreate: async (conn: any, done: (error: unknown, connection: any) => void) => {
           try {
             // 세션 최적화 설정
             const optimizations = [

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
 import { ConfigService } from '@nestjs/config';
 import * as os from 'os';
@@ -17,7 +17,8 @@ export interface SystemMetrics {
 }
 
 @Injectable()
-export class IntegratedMetricsService {
+export class IntegratedMetricsService implements OnModuleDestroy {
+  private readonly collectionTimers: ReturnType<typeof setInterval>[] = [];
   private readonly logger = new Logger(IntegratedMetricsService.name);
   private readonly environment: string;
   private readonly namespace: string;
@@ -25,6 +26,10 @@ export class IntegratedMetricsService {
   private errorCount = 0;
   private totalResponseTime = 0;
   private lastResetTime = Date.now();
+
+  onModuleDestroy(): void {
+    for (const timer of this.collectionTimers.splice(0)) clearInterval(timer);
+  }
 
   constructor(
     private readonly cloudWatchMetrics: CloudWatchMetricsService,
@@ -235,7 +240,7 @@ export class IntegratedMetricsService {
    */
   private startMetricsCollection(): void {
     // 1분마다 시스템 메트릭 수집
-    setInterval(async () => {
+    const systemTimer = setInterval(async () => {
       try {
         await this.collectSystemMetrics();
       } catch (error) {
@@ -244,13 +249,15 @@ export class IntegratedMetricsService {
     }, 60000);
 
     // 5분마다 요약 메트릭 수집
-    setInterval(async () => {
+    const summaryTimer = setInterval(async () => {
       try {
         await this.collectSummaryMetrics();
       } catch (error) {
         this.logger.error('Failed to collect summary metrics', error);
       }
     }, 300000);
+    this.collectionTimers.push(systemTimer, summaryTimer);
+    for (const timer of this.collectionTimers) timer.unref?.();
   }
 
   /**

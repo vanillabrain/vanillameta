@@ -1,13 +1,13 @@
 import { Controller, Get, UseGuards, Query, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../../auth/guards/legacy-operations.guard';
 import { BusinessMetricsService } from './business-metrics.service';
 import { MemoryMonitorService } from './memory-monitor.service';
 import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
 
 @ApiTags('monitoring')
 @Controller('monitoring/metrics')
-@UseGuards(JwtAuthGuard)
+@UseGuards(LegacyOperationsGuard)
 @ApiBearerAuth()
 export class MetricsController {
   constructor(

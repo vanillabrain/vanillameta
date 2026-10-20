@@ -1,3 +1,4 @@
+import { safeRouteTemplate } from '../common/utils/safe-route-template';
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { CustomLoggerService } from '../common/logger/logger.service';
@@ -46,7 +47,7 @@ export class CompressionLoggingMiddleware implements NestMiddleware {
 
           logger.log('Response compression applied', 'CompressionMiddleware', {
             method: req.method,
-            path: req.path,
+            path: safeRouteTemplate(req),
             contentType: res.getHeader('content-type') as string,
             encoding: contentEncoding,
             uncompressedSize,
@@ -58,7 +59,7 @@ export class CompressionLoggingMiddleware implements NestMiddleware {
           // 1KB 이상인데 압축되지 않은 경우 디버그 로그
           logger.debug('Response not compressed', 'CompressionMiddleware', {
             method: req.method,
-            path: req.path,
+            path: safeRouteTemplate(req),
             contentType: res.getHeader('content-type') as string,
             size: uncompressedSize,
             reason: 'Check content-type or client Accept-Encoding header',

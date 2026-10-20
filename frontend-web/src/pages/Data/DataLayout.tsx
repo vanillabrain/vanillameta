@@ -1,19 +1,26 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { Stack, Typography } from '@mui/material';
-import DatabaseService from '@/api/databaseService';
-import { STATUS } from '@/constant';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAlert } from 'react-alert';
+import { isCancelledError, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import SourceDeleteDialog, { SourceDeleteTarget } from './SourceDeleteDialog';
+import { personalLibrarySessionScope } from '@/api/personalLibraryService';
+import { STORAGE_ACCESS_TOKEN } from '@/helpers/authHelper';
+import DatabaseService from '@/api/databaseService';
+import DatasetService from '@/api/datasetService';
+import { STATUS } from '@/constant';
 import { DatabaseCardList } from '@/components/list/DatabaseCardList';
 import { DatasetCardList } from '@/components/list/DatasetCardList';
-import DatasetService from '@/api/datasetService';
-import AddButton from '@/components/button/AddButton';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { Loading } from '@/components/loading';
 import ModalPopup from '@/components/ModalPopup';
 import { createColumns } from '@/utils/util';
 import DataGrid, { DataGridWrapper } from '@/components/datagrid';
+import { cn } from '@/lib/utils';
+import IconAdd from '@/assets/images/icon/ic-add.svg?react';
 
 // import { cancelAllRequests } from '@/helpers/apiHelper';
 
@@ -32,7 +39,7 @@ export interface DataSetProps {
   id: number;
   databaseId: number;
   datasetType: 'DATASET';
-  title?: string;
+  title: string;
   query: string;
   createdAt: string;
   updatedAt: string;
@@ -45,88 +52,139 @@ export interface DataTableProps {
   datasetType: 'TABLE';
 }
 
+const isCancelledRequest = error =>
+  isCancelledError(error) ||
+  error?.code === 'ERR_CANCELED' ||
+  error?.name === 'AbortError' ||
+  error?.name === 'CanceledError';
+
+const sectionTitleClassName = 'text-base font-semibold text-foreground';
+
+/** 카드 목록 헤더의 등록 이동 버튼(기존 AddButton과 같은 아이콘 버튼 규격). */
+const AddLinkButton = ({ to, label, className }: { to: string; label: string; className?: string }) => (
+  <Button asChild size="icon-xs" aria-label={label} className={cn('min-w-0', className)}>
+    <RouterLink to={to}>
+      <IconAdd />
+    </RouterLink>
+  </Button>
+);
+
 const DataLayout = props => {
-  const { isViewMode, setDataSet } = props;
-  const [databaseList, setDatabaseList] = useState<DatabaseProps[] | []>([]);
-  const [datasetList, setDatasetList] = useState<DataSetProps[] | []>([]);
-  const [tableList, setTableList] = useState<DataTableProps[] | []>([]);
+  const [, refresh] = useState(0);
+  const scope = personalLibrarySessionScope();
+  useEffect(() => {
+    const changed = (event: StorageEvent) => {
+      if (event.key === null || event.key === STORAGE_ACCESS_TOKEN || event.key === 'vm:editor-draft-auth:v1')
+        refresh(value => value + 1);
+    };
+    window.addEventListener('storage', changed);
+    return () => window.removeEventListener('storage', changed);
+  }, []);
+  return <ScopedDataLayout key={scope ?? 'signed-out'} {...props} scope={scope} />;
+};
+const ScopedDataLayout = props => {
+  const { t } = useTranslation();
+  const { isViewMode, setDataSet, scope } = props;
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const navigate = useNavigate();
   const { loading, showLoading, hideLoading } = useContext(LoadingContext);
+  const queryClient = useQueryClient();
   const [selectedDatabase, setSelectedDatabase] = useState<DatabaseProps>({ id: null, name: null });
   const [selectedDataset, setSelectedDataset] = useState<DataSetProps | DataTableProps | null>(null);
   const [open, setOpen] = useState(false);
   const [gridData, setGridData] = useState<any[]>([]);
   const [gridColumns, setGridColumns] = useState<any[]>([]);
+  const previewRequest = useRef(0);
+  const mounted = useRef(true);
+  const [deleteTarget, setDeleteTarget] = useState<SourceDeleteTarget | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const isCurrent = () => mounted.current && !!scope && personalLibrarySessionScope() === scope;
 
   useEffect(() => {
-    getDatabaseList();
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      previewRequest.current += 1;
+    };
   }, []);
-
-  useEffect(() => {
-    if (selectedDatabase.id) {
-      getDatabaseInfo(selectedDatabase.id);
-    }
-  }, [selectedDatabase.id]);
 
   /**
    * 데이터베이스 목록조회
    */
-  const getDatabaseList = () => {
-    showLoading();
-    DatabaseService.selectDatabaseList()
-      .then(response => {
-        const resData = response.data || [];
-        setDatabaseList(resData);
-        if (resData.length > 0) {
-          const [firstItem] = resData;
-          setSelectedDatabase(firstItem);
-        }
-      })
-      .catch(error => {
-        console.error('Database list error:', error);
-        setDatabaseList([]);
-        snackbar.error('데이터베이스 목록을 불러오는데 실패했습니다.');
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  const databaseListQuery = useQuery({
+    queryKey: ['databases', scope, 'dataLayout'],
+    enabled: !!scope,
+    queryFn: async ({ signal }) => {
+      const response = await DatabaseService.selectDatabaseList();
+      if (signal.aborted || !isCurrent()) throw new Error('session changed');
+      if (response.data?.status !== STATUS.SUCCESS || !Array.isArray(response.data.data)) throw new Error('invalid sources');
+      return response.data.data;
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const databaseList = databaseListQuery.isError ? [] : databaseListQuery.data ?? [];
+  const isDatabaseListFetching = databaseListQuery.isFetching;
 
-  const getDatabaseInfo = databaseId => {
-    showLoading();
-    console.log('Getting database info for databaseId:', databaseId);
-    DatabaseService.selectDatabase(databaseId)
-      .then(response => {
-        console.log('selectDatabase response:', response);
-        if (response.status === STATUS.SUCCESS && response.data) {
-          // 백엔드 응답 구조에 맞게 데이터 추출
-          const { datasets = [], tables = [] } = response.data;
-          setDatasetList(datasets);
-          setTableList(tables);
-        } else {
-          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
-          setDatasetList([]);
-          setTableList([]);
+  // 목록 로딩 후 첫 번째 데이터베이스 자동 선택
+  useEffect(() => {
+    if (!selectedDatabase.id && databaseList.length > 0) {
+      setSelectedDatabase(databaseList[0]);
+    }
+  }, [databaseList]);
+
+  /**
+   * 선택된 데이터베이스의 dataset/table 목록조회
+   */
+  const {
+    data: databaseInfo,
+    isFetching: isDatabaseInfoFetching,
+    isError: isDatabaseInfoError,
+    error: databaseInfoError,
+  } = useQuery({
+    queryKey: ['database', selectedDatabase.id, scope],
+    enabled: !!scope && !!selectedDatabase.id && !databaseListQuery.isError,
+    queryFn: ({ signal }) =>
+      DatabaseService.selectDatabase(selectedDatabase.id).then(response => {
+        if (signal.aborted || !isCurrent()) throw new Error('session changed');
+        if (response.data.status !== STATUS.SUCCESS) {
+          throw new Error(response.data.message || t('common.dbFetchFailed'));
         }
-      })
-      .catch(error => {
-        console.error('Database select error:', error);
-        if (error.response?.status === 403) {
-          snackbar.error('데이터베이스 접근 권한이 없습니다. 다시 로그인해주세요.');
-        } else {
-          snackbar.error(error.message || '데이터베이스 조회에 실패했습니다.');
-        }
-        setDatasetList([]);
-        setTableList([]);
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+        return response.data.data;
+      }),
+    retry: false,
+  });
+  const datasetList: DataSetProps[] =
+    !databaseListQuery.isError && !isDatabaseInfoError && Array.isArray(databaseInfo?.datasets) ? databaseInfo.datasets : [];
+  const tableList: DataTableProps[] =
+    !databaseListQuery.isError && !isDatabaseInfoError && Array.isArray(databaseInfo?.tables) ? databaseInfo.tables : [];
+
+  useEffect(() => {
+    if (!isCurrent() || !selectedDatabase.id || (!isDatabaseInfoError && !databaseListQuery.isError)) return;
+    previewRequest.current += 1;
+    setGridData([]);
+    setGridColumns([]);
+    setSelectedDataset(null);
+    if (!isCancelledRequest(databaseInfoError)) alert.error(t('common.dbFetchFailed'));
+  }, [selectedDatabase.id, isDatabaseInfoError, databaseInfoError, databaseListQuery.isError]);
+
+  useEffect(() => {
+    if (isDatabaseListFetching || isDatabaseInfoFetching) showLoading();
+    else hideLoading();
+  }, [isDatabaseListFetching, isDatabaseInfoFetching]);
+
+  const deleteDatasetMutation = useMutation({
+    mutationFn: (id: number) => DatasetService.deleteDataset(id),
+    onSuccess: () => {
+      if (!isCurrent()) return;
+      queryClient.invalidateQueries({ queryKey: ['database', selectedDatabase.id] });
+      snackbar.success(t('data.dsDeleted'));
+    },
+  });
 
   const getData = selectedData => {
+    if (!isCurrent()) return;
     let param;
     switch (selectedData?.datasetType) {
       case 'DATASET':
@@ -139,55 +197,54 @@ const DataLayout = props => {
       default:
         return;
     }
+    previewRequest.current += 1;
+    const request = previewRequest.current;
+    setGridData([]);
+    setGridColumns([]);
     showLoading();
     DatabaseService.selectData(param)
       .then(response => {
-        console.log('selectData response:', response);
-        if (response.status === STATUS.SUCCESS) {
-          // result 안에 rows가 있는 경우와 datas가 직접 있는 경우 모두 처리
-          const resultData = response.data?.result || response.data;
-          const rows = (resultData as any)?.rows || (resultData as any)?.datas || [];
-          setGridData(rows);
-          setGridColumns(createColumns(rows));
+        if (request !== previewRequest.current || !isCurrent()) return;
+        if (response.data.status === STATUS.SUCCESS) {
+          setGridData(response.data.data.datas);
+          setGridColumns(createColumns(response.data.data.datas));
+        } else {
+          throw new Error(response.data.message || t('common.dbFetchFailed'));
         }
       })
       .catch(error => {
-        console.log('error', error);
+        if (request !== previewRequest.current || !isCurrent()) return;
         setGridData([]);
         setGridColumns([]);
+        if (!isCancelledRequest(error)) alert.error(t('common.dbFetchFailed'));
       })
       .finally(() => {
+        if (!isCurrent() || request !== previewRequest.current) return;
         hideLoading();
       });
   };
 
   const handleDatabaseClick = (item: DatabaseProps) => {
+    if (!isCurrent()) return;
+    if (item.id === selectedDatabase.id) return;
+    previewRequest.current += 1;
+    setGridData([]);
+    setGridColumns([]);
+    setSelectedDataset(null);
+    setOpen(false);
     setSelectedDatabase(item);
   };
 
-  const handleDatabaseRemove = item => {
-    console.log('handleDatabaseRemove', item);
-    alert.success(`${item.name}\n데이터베이스를 삭제하시겠습니까?`, {
-      title: '데이터베이스 삭제',
-      closeCopy: '취소',
-      actions: [
-        {
-          copy: '삭제',
-          onClick: () => {
-            DatabaseService.deleteDatabase(item.databaseId).then(response => {
-              if (response.status === STATUS.SUCCESS) {
-                getDatabaseList();
-                snackbar.success('데이터베이스가 삭제되었습니다.');
-              }
-            });
-          },
-        },
-      ],
-    });
+  const handleDatabaseRemove = (item: DatabaseProps) => {
+    if (!isCurrent()) return;
+    const id = Number(item.id);
+    if (!Number.isSafeInteger(id) || id <= 0) return;
+    setDeleteTarget({ id, title: item.name ?? `소스 #${id}` });
+    setDeleteOpen(true);
   };
 
   const handleDataSetClick = (item: DataTableProps | DataSetProps) => {
-    console.log('selected Data', item);
+    if (!isCurrent()) return;
     if (isViewMode) {
       setDataSet(item);
     } else {
@@ -198,8 +255,7 @@ const DataLayout = props => {
   };
 
   const handleModifyClick = (item: DataTableProps | DataSetProps) => {
-    console.log('selected Data', item);
-
+    if (!isCurrent()) return;
     if (item?.datasetType == 'DATASET') {
       navigate(`/data/set/modify/${item.id}`);
     } else {
@@ -208,6 +264,7 @@ const DataLayout = props => {
   };
 
   const handleClose = () => {
+    previewRequest.current += 1;
     setOpen(false);
     setGridData([]);
     setGridColumns([]);
@@ -218,18 +275,15 @@ const DataLayout = props => {
   };
 
   const handleDataSetRemove = item => {
-    console.log('handleDataSetRemove', item);
-    alert.success(`${item.title}\n데이터셋을 삭제하시겠습니까?`, {
-      title: '데이터베이스 삭제',
-      closeCopy: '취소',
+    if (!isCurrent()) return;
+    alert.success(t('data.dsDeleteConfirm', { title: item.title }), {
+      title: t('data.dsDeleteTitle'),
+      closeCopy: t('data.cancel'),
       actions: [
         {
-          copy: '삭제',
+          copy: t('data.delete'),
           onClick: () => {
-            DatasetService.deleteDataset(item.id).then(() => {
-              getDatabaseInfo(item.id);
-              snackbar.success('데이터셋이 삭제되었습니다.');
-            });
+            if (isCurrent()) deleteDatasetMutation.mutate(item.id);
           },
         },
       ],
@@ -237,18 +291,44 @@ const DataLayout = props => {
   };
 
   return (
-    <Stack direction={{ xs: 'column', sm: 'row' }} flex="1 1 auto" sx={{ width: '100%' }}>
-      <Stack
-        direction="column"
-        flex="1 1 auto"
-        sx={{ width: { xs: '100%', md: '404px' }, height: '100%', px: '24px', pt: '30px' }}
-      >
-        <Stack direction="row">
-          <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
-            데이터 소스
-          </Typography>
-          {isViewMode ? <></> : <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />}
-        </Stack>
+    <div className="flex min-h-0 w-full flex-1 flex-col sm:flex-row">
+      <div className="flex w-full flex-col px-4 py-6 sm:w-[404px] sm:flex-none sm:border-r sm:border-border sm:px-6">
+        <div className="mb-4 flex flex-row flex-wrap items-center gap-3">
+          <span className={sectionTitleClassName}>{t('data.source')}</span>
+          {isViewMode ? null : (
+            <>
+              <AddLinkButton to="source/create" label={t('data.addSource')} />
+              <Button asChild size="sm" variant="outline" className="min-w-0">
+                <RouterLink to="file">{t('data.fileAnalysis')}</RouterLink>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="min-w-0">
+                <RouterLink to="metric">{t('data.metric')}</RouterLink>
+              </Button>
+            </>
+          )}
+        </div>
+        {!isViewMode && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="mb-3 min-w-0 whitespace-normal text-sm"
+            disabled={!scope}
+            onClick={() => {
+              setDeleteTarget(null);
+              setDeleteOpen(true);
+            }}
+          >
+            소스 삭제·파일 정리 기록
+          </Button>
+        )}
+        {databaseListQuery.isError && (
+          <p role="alert">
+            소스 목록을 읽지 못했습니다.{' '}
+            <Button size="sm" variant="outline" onClick={() => void databaseListQuery.refetch()}>
+              목록 다시 읽기
+            </Button>
+          </p>
+        )}
         <DatabaseCardList
           data={databaseList}
           selectedData={selectedDatabase}
@@ -256,23 +336,14 @@ const DataLayout = props => {
           handleDataClick={handleDatabaseClick}
           handleDataRemove={handleDatabaseRemove}
         />
-      </Stack>
+      </div>
 
-      <Stack
-        direction="column"
-        sx={{ flex: '1 1 auto', width: { xs: '100%', md: 'calc(100% - 404px)' }, backgroundColor: '#f5f6f8' }}
-      >
-        <Stack direction="column" sx={{ width: '100%', px: '24px', pt: '30px' }}>
-          <Stack direction="row">
-            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
-              데이터 셋
-            </Typography>
-            {isViewMode ? (
-              <></>
-            ) : (
-              <AddButton component={RouterLink} to={`set/create/${selectedDatabase.id}`} sx={{ ml: '14px' }} />
-            )}
-          </Stack>
+      <div className="flex min-h-0 w-full flex-1 flex-col bg-muted sm:w-[calc(100%-404px)]">
+        <div className="flex w-full flex-col px-4 pt-6 pb-2 sm:px-6">
+          <div className="mb-4 flex flex-row flex-wrap items-center gap-3">
+            <span className={sectionTitleClassName}>{t('data.dataset')}</span>
+            {isViewMode ? null : <AddLinkButton to={`set/create/${selectedDatabase.id}`} label={t('data.addDataset')} />}
+          </div>
           <DatasetCardList
             isViewMode={isViewMode}
             data={datasetList}
@@ -281,13 +352,11 @@ const DataLayout = props => {
             handleDataRemove={handleDataSetRemove}
             handleModifyClick={handleModifyClick}
           />
-        </Stack>
-        <Stack direction="column" sx={{ flex: '1 1 auto', width: '100%', minHeight: '50%', px: '24px', pt: '30px' }}>
-          <Stack direction="row">
-            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
-              테이블 목록
-            </Typography>
-          </Stack>
+        </div>
+        <div className="flex min-h-0 w-full flex-1 flex-col px-4 pt-4 pb-6 sm:px-6">
+          <div className="mb-4 flex flex-row flex-wrap items-center gap-3">
+            <span className={sectionTitleClassName}>{t('data.tableList')}</span>
+          </div>
           <DatasetCardList
             isTableView
             isViewMode={isViewMode}
@@ -298,12 +367,12 @@ const DataLayout = props => {
             handleModifyClick={handleModifyClick}
           />
           <ModalPopup
-            open={open}
+            open={open && !databaseListQuery.isError && !isDatabaseInfoError}
             handleClose={handleClose}
             title={selectedDataset && (selectedDataset?.['tableName'] || selectedDataset?.['title'])}
           >
             {loading ? (
-              <Loading in={loading} style={{ position: 'static', backgroundColor: 'transparent' }} />
+              <Loading in={loading} className="static bg-transparent" />
             ) : (
               <DataGridWrapper>
                 <DataGrid
@@ -318,9 +387,28 @@ const DataLayout = props => {
               </DataGridWrapper>
             )}
           </ModalPopup>
-        </Stack>
-      </Stack>
-    </Stack>
+        </div>
+      </div>
+      <SourceDeleteDialog
+        target={deleteTarget}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onDeleted={receipt => {
+          if (!isCurrent()) return;
+          if (Number(selectedDatabase.id) === receipt.sourceId) {
+            previewRequest.current += 1;
+            setSelectedDatabase({ id: null, name: null });
+            setSelectedDataset(null);
+            setGridData([]);
+            setGridColumns([]);
+            setOpen(false);
+          }
+          void queryClient.invalidateQueries({ queryKey: ['databases'] });
+          void queryClient.invalidateQueries({ queryKey: ['database', receipt.sourceId] });
+          snackbar.success('소스 metadata 삭제를 확인했습니다. 관리 파일 정리 상태를 확인해 주세요.');
+        }}
+      />
+    </div>
   );
 };
 

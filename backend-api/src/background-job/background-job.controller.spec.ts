@@ -1,3 +1,6 @@
+import request from 'supertest';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../auth/guards/legacy-operations.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BackgroundJobController } from './background-job.controller';
 import { BackgroundJobService } from './background-job.service';
@@ -18,6 +21,7 @@ describe('BackgroundJobController', () => {
   };
 
   const mockUser = {
+    accessKeyData: { id: 7, userId: 'user123', authVersion: 3 },
     userId: 'user123',
     userEmail: 'test@example.com',
   };
@@ -31,7 +35,12 @@ describe('BackgroundJobController', () => {
           useValue: mockBackgroundJobService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(LegacyOperationsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<BackgroundJobController>(BackgroundJobController);
     service = module.get<BackgroundJobService>(BackgroundJobService);
@@ -39,6 +48,40 @@ describe('BackgroundJobController', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('serves /v1/background-jobs and rejects the duplicate v1 path', async () => {
+    const fixture = await Test.createTestingModule({
+      controllers: [BackgroundJobController],
+      providers: [{ provide: BackgroundJobService, useValue: mockBackgroundJobService }],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
+    const app = fixture.createNestApplication();
+    app.setGlobalPrefix('v1');
+    app.use((req: any, _res: any, next: () => void) => {
+      req.user = mockUser;
+      next();
+    });
+    mockBackgroundJobService.getJobsByUser.mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+    });
+    try {
+      await app.listen(0, '127.0.0.1');
+      await request(app.getHttpServer()).get('/v1/background-jobs').expect(200);
+      await request(app.getHttpServer()).get('/v1/v1/background-jobs').expect(404);
+      expect(mockBackgroundJobService.getJobsByUser).toHaveBeenCalledWith(
+        mockUser.accessKeyData,
+        1,
+        20,
+      );
+    } finally {
+      await app.close();
+    }
   });
 
   describe('createJob', () => {
@@ -68,7 +111,7 @@ describe('BackgroundJobController', () => {
 
       expect(result).toBe(expectedResponse);
       expect(mockBackgroundJobService.createJob).toHaveBeenCalledWith(
-        mockUser.userId,
+        mockUser.accessKeyData,
         createJobDto,
       );
     });
@@ -103,7 +146,11 @@ describe('BackgroundJobController', () => {
       const result = await controller.getJobs(mockUser, 1, 20);
 
       expect(result).toBe(expectedResponse);
-      expect(mockBackgroundJobService.getJobsByUser).toHaveBeenCalledWith(mockUser.userId, 1, 20);
+      expect(mockBackgroundJobService.getJobsByUser).toHaveBeenCalledWith(
+        mockUser.accessKeyData,
+        1,
+        20,
+      );
     });
   });
 
@@ -126,7 +173,10 @@ describe('BackgroundJobController', () => {
       const result = await controller.getJob(mockUser, jobId);
 
       expect(result).toBe(expectedResponse);
-      expect(mockBackgroundJobService.getJobById).toHaveBeenCalledWith(jobId, mockUser.userId);
+      expect(mockBackgroundJobService.getJobById).toHaveBeenCalledWith(
+        jobId,
+        mockUser.accessKeyData,
+      );
     });
   });
 
@@ -147,7 +197,10 @@ describe('BackgroundJobController', () => {
       const result = await controller.getJobResult(mockUser, jobId);
 
       expect(result).toBe(expectedResponse);
-      expect(mockBackgroundJobService.getJobResult).toHaveBeenCalledWith(jobId, mockUser.userId);
+      expect(mockBackgroundJobService.getJobResult).toHaveBeenCalledWith(
+        jobId,
+        mockUser.accessKeyData,
+      );
     });
   });
 
@@ -172,7 +225,7 @@ describe('BackgroundJobController', () => {
       expect(result).toBe(expectedData);
       expect(mockBackgroundJobService.getJobResultData).toHaveBeenCalledWith(
         jobId,
-        mockUser.userId,
+        mockUser.accessKeyData,
       );
     });
   });
@@ -185,7 +238,10 @@ describe('BackgroundJobController', () => {
 
       await controller.cancelJob(mockUser, jobId);
 
-      expect(mockBackgroundJobService.cancelJob).toHaveBeenCalledWith(jobId, mockUser.userId);
+      expect(mockBackgroundJobService.cancelJob).toHaveBeenCalledWith(
+        jobId,
+        mockUser.accessKeyData,
+      );
     });
   });
 });

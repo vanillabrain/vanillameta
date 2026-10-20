@@ -15,15 +15,10 @@ export class TypeOrmQueryLogger implements TypeOrmLogger {
    */
   logQuery(query: string, parameters?: any[], queryRunner?: QueryRunner): void {
     const executionTime = queryRunner?.data?.executionTime;
-    
+
     // 쿼리 수집
     if (this.queryCollector) {
-      this.queryCollector.collect(
-        query,
-        'TypeORM',
-        parameters,
-        executionTime,
-      );
+      this.queryCollector.collect(query, 'TypeORM', parameters, executionTime);
     }
 
     // 개발 환경에서만 로깅
@@ -46,7 +41,7 @@ export class TypeOrmQueryLogger implements TypeOrmLogger {
     queryRunner?: QueryRunner,
   ): void {
     const executionTime = queryRunner?.data?.executionTime;
-    
+
     this.logger.error({
       message: 'Query failed',
       error: error instanceof Error ? error.message : error,
@@ -57,24 +52,14 @@ export class TypeOrmQueryLogger implements TypeOrmLogger {
 
     // 실패한 쿼리도 수집
     if (this.queryCollector) {
-      this.queryCollector.collect(
-        query,
-        'TypeORM-Error',
-        parameters,
-        executionTime,
-      );
+      this.queryCollector.collect(query, 'TypeORM-Error', parameters, executionTime);
     }
   }
 
   /**
    * 느린 쿼리 로깅
    */
-  logQuerySlow(
-    time: number,
-    query: string,
-    parameters?: any[],
-    queryRunner?: QueryRunner,
-  ): void {
+  logQuerySlow(time: number, query: string, parameters?: any[], queryRunner?: QueryRunner): void {
     this.logger.warn({
       message: 'Slow query detected',
       query: query.substring(0, 200),
@@ -84,12 +69,7 @@ export class TypeOrmQueryLogger implements TypeOrmLogger {
 
     // 느린 쿼리 수집
     if (this.queryCollector) {
-      this.queryCollector.collect(
-        query,
-        'TypeORM-Slow',
-        parameters,
-        time,
-      );
+      this.queryCollector.collect(query, 'TypeORM-Slow', parameters, time);
     }
   }
 

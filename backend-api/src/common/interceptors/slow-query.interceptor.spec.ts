@@ -20,6 +20,7 @@ describe('SlowQueryInterceptor', () => {
 
   const mockRequest: RequestWithQuery = {
     path: '/api/data/query',
+    route: { path: '/api/data/query' },
     method: 'POST',
     get: jest.fn(),
     socket: { remoteAddress: '192.168.1.1' },

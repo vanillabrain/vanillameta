@@ -1,3 +1,4 @@
+import { chartTheme } from '@/components/charts/chartTheme';
 import React, { useEffect, useState } from 'react';
 import { getAggregationDataForChart, getLegendOption } from '@/widget/modules/utils/chartUtil';
 import ReactECharts from 'echarts-for-react';
@@ -88,6 +89,7 @@ function Line3DChart(props) {
 
   return (
     <ReactECharts
+      theme={chartTheme}
       option={componentOption}
       style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}
       lazyUpdate={true}

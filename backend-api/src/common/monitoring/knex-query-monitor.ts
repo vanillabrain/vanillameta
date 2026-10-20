@@ -1,3 +1,4 @@
+import { UNMATCHED_ROUTE } from '../utils/safe-route-template';
 import { Injectable, Logger } from '@nestjs/common';
 import { Knex } from 'knex';
 import { CustomLoggerService } from '../logger/logger.service';
@@ -180,8 +181,8 @@ export class KnexQueryMonitor {
    * 현재 요청 경로 추출
    */
   private getCurrentRequestPath(): string | undefined {
-    // TODO: 요청 컨텍스트에서 경로 추출
-    return undefined;
+    // No request context is available; never infer a route from a raw URL.
+    return UNMATCHED_ROUTE;
   }
 
   /**

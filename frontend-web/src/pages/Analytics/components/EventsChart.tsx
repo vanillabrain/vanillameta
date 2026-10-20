@@ -29,7 +29,7 @@ const EventsChart: React.FC<Props> = ({ events, timeRange }) => {
       (a: any, b: any) => new Date(a.time).getTime() - new Date(b.time).getTime(),
     );
 
-    const categories = [...new Set(events.map(e => e.category))];
+    const categories = Array.from(new Set(events.map(e => e.category)));
     const series = categories.map(category => ({
       name: category,
       type: 'line',

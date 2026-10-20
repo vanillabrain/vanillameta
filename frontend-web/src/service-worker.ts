@@ -9,10 +9,11 @@
 // service worker, and the Workbox build step will be skipped.
 
 import { clientsClaim } from 'workbox-core';
+import { publicStaticResource, shellNavigation } from './utils/serviceWorkerPolicy';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from 'workbox-strategies';
+import { StaleWhileRevalidate, CacheFirst } from 'workbox-strategies';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 declare const self: ServiceWorkerGlobalScope;
@@ -48,18 +49,18 @@ registerRoute(
       return false;
     }
 
-    // Return true to signal that we want to use the handler.
-    return true;
+    return shellNavigation(url, self.location.origin);
   },
-  createHandlerBoundToURL(process.env.PUBLIC_URL + '/index.html'),
+  createHandlerBoundToURL(import.meta.env.BASE_URL + 'index.html'),
 );
 
 // Cache strategy for static resources (CSS, JS, images)
 registerRoute(
   // Cache CSS, JS files
-  ({ request }) => request.destination === 'style' || request.destination === 'script',
+  ({ request, url }) =>
+    publicStaticResource(url, self.location.origin) && (request.destination === 'style' || request.destination === 'script'),
   new StaleWhileRevalidate({
-    cacheName: 'static-resources',
+    cacheName: 'vm-static-resources-v1',
     plugins: [
       new CacheableResponsePlugin({
         statuses: [0, 200],
@@ -74,9 +75,9 @@ registerRoute(
 
 // Cache images
 registerRoute(
-  ({ request }) => request.destination === 'image',
+  ({ request, url }) => publicStaticResource(url, self.location.origin) && request.destination === 'image',
   new CacheFirst({
-    cacheName: 'images',
+    cacheName: 'vm-images-v1',
     plugins: [
       new CacheableResponsePlugin({
         statuses: [0, 200],
@@ -91,9 +92,11 @@ registerRoute(
 
 // Cache fonts
 registerRoute(
-  ({ url }) => url.pathname.includes('/fonts/') || url.pathname.endsWith('.woff2') || url.pathname.endsWith('.woff'),
+  ({ url }) =>
+    publicStaticResource(url, self.location.origin) &&
+    (url.pathname.includes('/fonts/') || url.pathname.endsWith('.woff2') || url.pathname.endsWith('.woff')),
   new CacheFirst({
-    cacheName: 'fonts',
+    cacheName: 'vm-fonts-v1',
     plugins: [
       new CacheableResponsePlugin({
         statuses: [0, 200],
@@ -108,9 +111,12 @@ registerRoute(
 
 // Cache chart library resources (ECharts)
 registerRoute(
-  ({ url }) => url.pathname.includes('echarts') || url.pathname.includes('chart'),
+  ({ request, url }) =>
+    publicStaticResource(url, self.location.origin) &&
+    request.destination === 'script' &&
+    (url.pathname.includes('echarts') || url.pathname.includes('chart')),
   new CacheFirst({
-    cacheName: 'chart-libraries',
+    cacheName: 'vm-chart-libraries-v1',
     plugins: [
       new CacheableResponsePlugin({
         statuses: [0, 200],
@@ -123,49 +129,7 @@ registerRoute(
   }),
 );
 
-// Cache API GET requests (with Network First strategy)
-registerRoute(
-  ({ url, request }) => {
-    // Only cache GET requests
-    if (request.method !== 'GET') return false;
-
-    // Check if it's an API request
-    const apiPaths = ['/v1/', '/api/'];
-    return apiPaths.some(path => url.pathname.includes(path));
-  },
-  new NetworkFirst({
-    cacheName: 'api-cache',
-    plugins: [
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-      new ExpirationPlugin({
-        maxEntries: 50,
-        maxAgeSeconds: 5 * 60, // 5 minutes
-      }),
-    ],
-  }),
-);
-
-// Cache dashboard and widget data with StaleWhileRevalidate
-registerRoute(
-  ({ url }) => {
-    const cacheablePaths = ['dashboard', 'widget', 'dataset', 'template'];
-    return cacheablePaths.some(path => url.pathname.includes(path));
-  },
-  new StaleWhileRevalidate({
-    cacheName: 'data-cache',
-    plugins: [
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-      new ExpirationPlugin({
-        maxEntries: 100,
-        maxAgeSeconds: 10 * 60, // 10 minutes
-      }),
-    ],
-  }),
-);
+// Authenticated API and dashboard responses must always use the current server authorization.
 
 // This allows the web app to trigger skipWaiting via
 // registration.waiting.postMessage({type: 'SKIP_WAITING'})
@@ -177,13 +141,13 @@ self.addEventListener('message', event => {
 
 // Clean up old caches
 self.addEventListener('activate', event => {
-  const cacheWhitelist = ['static-resources', 'images', 'fonts', 'chart-libraries', 'api-cache', 'data-cache'];
+  const cacheWhitelist = ['vm-static-resources-v1', 'vm-images-v1', 'vm-fonts-v1', 'vm-chart-libraries-v1'];
 
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          if (!cacheWhitelist.includes(cacheName) && !cacheName.includes('workbox-precache')) {
+          if (cacheName.startsWith('vm-') && !cacheWhitelist.includes(cacheName)) {
             return caches.delete(cacheName);
           }
         }),
@@ -192,13 +156,4 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Offline fallback
-self.addEventListener('fetch', event => {
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match('/index.html');
-      }),
-    );
-  }
-});
+// Navigation fallback is handled once by the Workbox shell route above.

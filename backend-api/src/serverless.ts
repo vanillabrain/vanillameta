@@ -10,7 +10,8 @@ import { AppModule } from './app.module';
 
 import express from 'express';
 import cookieParser from 'cookie-parser';
-const compression = require('compression');
+import compression from 'compression';
+import helmet from 'helmet';
 import { ValidationPipe } from '@nestjs/common';
 import { CustomLoggerService } from './common/logger/logger.service';
 import { LoggingMiddleware } from './middleware/logging.middleware';
@@ -53,10 +54,11 @@ async function bootstrapServer(): Promise<Server> {
       }),
     );
 
+    expressApp.use(helmet({ contentSecurityPolicy: false }));
     const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
       logger: new CustomLoggerService(),
       cors: {
-        origin: process.env.CORS_ORIGIN.split(',').map(x => x.trim()),
+        origin: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(x => x.trim()),
         preflightContinue: false,
         credentials: true,
         optionsSuccessStatus: 200,

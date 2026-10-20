@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { QueueJob, JobStatus, JobType } from '../entities/queue-job.entity';
@@ -30,8 +30,10 @@ export interface ResourceAllocation {
 }
 
 @Injectable()
-export class JobResourceManagerService {
+export class JobResourceManagerService implements OnModuleDestroy {
   private readonly logger = new Logger(JobResourceManagerService.name);
+  private monitoringTimer?: ReturnType<typeof setInterval>;
+  private readonly reservationTimers = new Set<ReturnType<typeof setTimeout>>();
 
   // 리소스 풀들
   private resourcePools = new Map<string, ResourcePool>();
@@ -85,6 +87,15 @@ export class JobResourceManagerService {
   ) {
     this.initializeResourcePools();
     this.startResourceMonitoring();
+  }
+
+  onModuleDestroy(): void {
+    if (this.monitoringTimer) {
+      clearInterval(this.monitoringTimer);
+      this.monitoringTimer = undefined;
+    }
+    for (const timer of this.reservationTimers) clearTimeout(timer);
+    this.reservationTimers.clear();
   }
 
   /**
@@ -143,7 +154,8 @@ export class JobResourceManagerService {
    * 리소스 모니터링 시작
    */
   private startResourceMonitoring(): void {
-    setInterval(async () => {
+    if (this.monitoringTimer) return;
+    this.monitoringTimer = setInterval(async () => {
       try {
         await this.updateResourceUsage();
         await this.releaseExpiredAllocations();
@@ -152,6 +164,7 @@ export class JobResourceManagerService {
         this.logger.error('Failed to monitor resources', error);
       }
     }, 30000); // 30초마다 모니터링
+    this.monitoringTimer.unref?.();
   }
 
   /**
@@ -270,9 +283,12 @@ export class JobResourceManagerService {
       this.updateResourcePools(requirements, 'reserve');
 
       // 예약 해제 스케줄링
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        this.reservationTimers.delete(timer);
         this.updateResourcePools(requirements, 'unreserve');
       }, duration);
+      this.reservationTimers.add(timer);
+      timer.unref?.();
 
       this.logger.debug(`Resources reserved for job ${jobId} for ${duration}ms`);
       return true;

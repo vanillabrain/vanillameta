@@ -1,9 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
 import TextFieldForm from '@/components/form/TextFieldForm';
-import { InputAdornment } from '@mui/material';
 
 function DonutChartSetting(props) {
+  const { t } = useTranslation();
   const { option, setOption, spec, dataSet } = props;
 
   const innerRadius = option.series.radius[0];
@@ -27,26 +28,26 @@ function DonutChartSetting(props) {
       spec={spec}
       dataSet={dataSet}
       listItem={{
-        title: '차트 모양 설정',
+        title: t('settings.chartShape'),
         children: (
           <React.Fragment>
             <TextFieldForm
               id="radius1"
               name="radius1"
-              label="내부 원 크기"
+              label={t('settings.innerRadius')}
               type="number"
               value={innerRadius.slice(0, -1)}
               onChange={handleChange}
-              endAdornment={<InputAdornment position="end">%</InputAdornment>}
+              endAdornment={<span className="text-sm text-muted-foreground">%</span>}
             />
             <TextFieldForm
               id="radius2"
               name="radius2"
-              label="외부 원 크기"
+              label={t('settings.outerRadius')}
               type="number"
               value={outerRadius.slice(0, -1)}
               onChange={handleChange}
-              endAdornment={<InputAdornment position="end">%</InputAdornment>}
+              endAdornment={<span className="text-sm text-muted-foreground">%</span>}
             />
           </React.Fragment>
         ),

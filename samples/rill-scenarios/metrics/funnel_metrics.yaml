@@ -1,0 +1,27 @@
+type: metrics_view
+version: 1
+model: funnel
+timeseries: date
+smallest_time_grain: day
+dimensions:
+  - name: version
+    column: version
+  - name: country
+    column: country
+  - name: device
+    column: device
+  - name: new_existing
+    column: new_existing
+measures:
+  - name: visits
+    expression: SUM(visits)
+  - name: downloads
+    expression: SUM(downloads)
+  - name: signups
+    expression: SUM(signups)
+  - name: download_rate
+    expression: SUM(downloads)/NULLIF(SUM(visits),0)
+    format_preset: percentage
+  - name: signup_rate
+    expression: SUM(signups)/NULLIF(SUM(downloads),0)
+    format_preset: percentage

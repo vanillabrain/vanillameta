@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { legacyJobActor } from './legacy-job-access';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { BackgroundJobService } from './background-job.service';
 import { CreateBackgroundJobDto } from './dto/create-background-job.dto';
@@ -22,7 +23,7 @@ import {
 import { JobResultResponseDto } from './dto/job-result-response.dto';
 
 @ApiTags('Background Jobs')
-@Controller('v1/background-jobs')
+@Controller('background-jobs')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class BackgroundJobController {
@@ -39,7 +40,7 @@ export class BackgroundJobController {
     @GetUser() user: any,
     @Body() createJobDto: CreateBackgroundJobDto,
   ): Promise<BackgroundJobResponseDto> {
-    return this.backgroundJobService.createJob(user.userId, createJobDto);
+    return this.backgroundJobService.createJob(legacyJobActor(user), createJobDto);
   }
 
   @Get()
@@ -56,7 +57,11 @@ export class BackgroundJobController {
     @Query('page') page = 1,
     @Query('pageSize') pageSize = 20,
   ): Promise<BackgroundJobListResponseDto> {
-    return this.backgroundJobService.getJobsByUser(user.userId, Number(page), Number(pageSize));
+    return this.backgroundJobService.getJobsByUser(
+      legacyJobActor(user),
+      Number(page),
+      Number(pageSize),
+    );
   }
 
   @Get(':jobId')
@@ -74,7 +79,7 @@ export class BackgroundJobController {
     @GetUser() user: any,
     @Param('jobId') jobId: string,
   ): Promise<BackgroundJobResponseDto> {
-    return this.backgroundJobService.getJobById(jobId, user.userId);
+    return this.backgroundJobService.getJobById(jobId, legacyJobActor(user));
   }
 
   @Get(':jobId/result')
@@ -92,7 +97,7 @@ export class BackgroundJobController {
     @GetUser() user: any,
     @Param('jobId') jobId: string,
   ): Promise<JobResultResponseDto> {
-    return this.backgroundJobService.getJobResult(jobId, user.userId);
+    return this.backgroundJobService.getJobResult(jobId, legacyJobActor(user));
   }
 
   @Get(':jobId/result/data')
@@ -106,7 +111,7 @@ export class BackgroundJobController {
     description: '작업 또는 결과를 찾을 수 없음',
   })
   async getJobResultData(@GetUser() user: any, @Param('jobId') jobId: string): Promise<any> {
-    return this.backgroundJobService.getJobResultData(jobId, user.userId);
+    return this.backgroundJobService.getJobResultData(jobId, legacyJobActor(user));
   }
 
   @Delete(':jobId')
@@ -125,6 +130,6 @@ export class BackgroundJobController {
     description: '작업을 취소할 수 없는 상태',
   })
   async cancelJob(@GetUser() user: any, @Param('jobId') jobId: string): Promise<void> {
-    await this.backgroundJobService.cancelJob(jobId, user.userId);
+    await this.backgroundJobService.cancelJob(jobId, legacyJobActor(user));
   }
 }

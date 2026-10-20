@@ -1,52 +1,34 @@
-import React, { useState } from 'react';
-import { FormControl, IconButton, OutlinedInput, Popover, Stack } from '@mui/material';
-import { SketchPicker } from 'react-color';
-import PaintButton from '@/components/button/PaintButton';
+import React, { useEffect, useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import ColorPickerForm from './ColorPickerForm';
 
 const ColorFieldReForm = props => {
-  const { name, color, onChange } = props;
-
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleCompleteChange = selectColor => {
-    setAnchorEl(null);
-    const event = { target: { name: name, value: selectColor.hex } };
-    onChange(event);
-  };
-
-  const open = Boolean(anchorEl);
-  const popoverId = open ? '색상 선택 팝업' : undefined;
-
+  const { name, color, onChange, index = 0, className } = props;
+  const { t } = useTranslation();
+  const controlId = useId();
+  const [inputColor, setInputColor] = useState(color);
+  useEffect(() => setInputColor(color), [color]);
+  const label = t('common.colorValue') + ' ' + (index + 1);
   return (
-    <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <Stack flexDirection="row" sx={{ width: '100%' }} justifyContent="space-between" alignItems="center">
-        <IconButton aria-label="색상 선택" sx={{ mr: 1 }} onClick={handleClick}>
-          <PaintButton color={color} />
-        </IconButton>
-        <Popover
-          id={popoverId}
-          open={open}
-          anchorEl={anchorEl}
-          onClose={handleClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'left',
+    <div className={cn('flex w-full flex-col', className)}>
+      <div className="flex w-full min-w-0 flex-row items-center gap-2">
+        <ColorPickerForm label={label + ' ' + t('common.colorPicker')} name={name} color={inputColor} onChange={onChange} />
+        <Input
+          id={controlId}
+          name={name}
+          value={inputColor}
+          type="text"
+          aria-label={label}
+          className="h-8 min-w-0 bg-background"
+          onChange={event => setInputColor(event.target.value)}
+          onBlur={event => {
+            if (event.target.value !== color) onChange(event);
           }}
-        >
-          <SketchPicker color={color} onChangeComplete={handleCompleteChange} disableAlpha />
-        </Popover>
-        <OutlinedInput value={color} type="text" margin="dense" fullWidth onChange={onChange} />
-      </Stack>
-    </FormControl>
+        />
+      </div>
+    </div>
   );
 };
-
 export default ColorFieldReForm;

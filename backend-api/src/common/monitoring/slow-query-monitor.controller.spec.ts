@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { LegacyOperationsGuard } from '../../auth/guards/legacy-operations.guard';
 import { SlowQueryMonitorController } from './slow-query-monitor.controller';
 import { SlowQueryMonitorService } from './slow-query-monitor.service';
 
@@ -24,7 +25,11 @@ describe('SlowQueryMonitorController', () => {
           useValue: mockSlowQueryMonitorService,
         },
       ],
-    }).compile();
+    })
+      // Direct method tests isolate delegation; HTTP authorization has separate coverage.
+      .overrideGuard(LegacyOperationsGuard)
+      .useValue({ canActivate: jest.fn().mockReturnValue(true) })
+      .compile();
 
     controller = module.get<SlowQueryMonitorController>(SlowQueryMonitorController);
     service = module.get<SlowQueryMonitorService>(SlowQueryMonitorService);

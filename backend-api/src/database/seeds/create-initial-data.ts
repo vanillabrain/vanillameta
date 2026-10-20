@@ -720,6 +720,7 @@ export default class CreateInitialData implements Seeder {
           useYn: YesNo.YES,
         },
       ])
+      .orIgnore()
       .execute();
 
     await dataSource
@@ -857,7 +858,38 @@ export default class CreateInitialData implements Seeder {
           createdAt: '2022-11-07 11:36:16.689282',
           updatedAt: '2022-11-08 10:08:32.831030',
         },
+        {
+          id: 14,
+          engine: 'clickhouse',
+          type: 'clickhouse',
+          title: 'ClickHouse',
+          seq: 14,
+          useYn: YesNo.YES,
+          createdAt: '2022-11-07 11:36:16.689282',
+          updatedAt: '2022-11-08 10:08:32.831030',
+        },
+        {
+          id: 15,
+          engine: 'trino',
+          type: 'trino',
+          title: 'Trino',
+          seq: 15,
+          useYn: YesNo.YES,
+          createdAt: '2022-11-07 11:36:16.689282',
+          updatedAt: '2022-11-08 10:08:32.831030',
+        },
+        {
+          id: 16,
+          engine: 'databricks',
+          type: 'databricks',
+          title: 'Databricks',
+          seq: 16,
+          useYn: YesNo.YES,
+          createdAt: '2022-11-07 11:36:16.689282',
+          updatedAt: '2022-11-08 10:08:32.831030',
+        },
       ])
+      .orIgnore()
       .execute();
 
     await dataSource
@@ -951,6 +983,7 @@ export default class CreateInitialData implements Seeder {
           useYn: YesNo.YES,
         },
       ])
+      .orIgnore()
       .execute();
 
     await dataSource
@@ -1511,6 +1544,7 @@ export default class CreateInitialData implements Seeder {
           recommendType: '',
         },
       ])
+      .orIgnore()
       .execute();
 
     await dataSource
@@ -1526,6 +1560,7 @@ export default class CreateInitialData implements Seeder {
           userId: 'guest',
         },
       ])
+      .orIgnore()
       .execute();
   }
 }

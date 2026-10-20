@@ -30,7 +30,7 @@ describe('CompressionService', () => {
     it('should compress large data with GZIP for medium size', async () => {
       // 생성할 데이터: 1KB < size < 10KB
       const mediumData = {
-        items: Array.from({ length: 100 }, (_, i) => ({
+        items: Array.from({ length: 10 }, (_, i) => ({
           id: i,
           name: `Item ${i}`,
           description: `This is a description for item ${i} with some additional text to increase size`,
@@ -38,6 +38,9 @@ describe('CompressionService', () => {
         })),
       };
 
+      const size = Buffer.byteLength(JSON.stringify(mediumData), 'utf8');
+      expect(size).toBeGreaterThan(1024);
+      expect(size).toBeLessThanOrEqual(10 * 1024);
       const compressed = await service.compress(mediumData);
       const stats = service.calculateCompressionStats(compressed);
 
@@ -80,9 +83,9 @@ describe('CompressionService', () => {
     it('should not compress if compression ratio is poor', async () => {
       // 랜덤 데이터는 압축이 잘 안됨
       const randomData = {
-        data: Array.from({ length: 200 }, () => 
-          Math.random().toString(36).substring(2, 15)
-        ).join(''),
+        data: Array.from({ length: 200 }, () => Math.random().toString(36).substring(2, 15)).join(
+          '',
+        ),
       };
 
       const compressed = await service.compress(randomData);
@@ -155,8 +158,14 @@ describe('CompressionService', () => {
     it('should compress multiple items in batch', async () => {
       const items = [
         { key: 'item1', data: { content: 'Small content' } },
-        { key: 'item2', data: { content: Array.from({ length: 100 }, () => 'Large content').join(' ') } },
-        { key: 'item3', data: { content: Array.from({ length: 500 }, () => 'Very large content').join(' ') } },
+        {
+          key: 'item2',
+          data: { content: Array.from({ length: 100 }, () => 'Large content').join(' ') },
+        },
+        {
+          key: 'item3',
+          data: { content: Array.from({ length: 500 }, () => 'Very large content').join(' ') },
+        },
       ];
 
       const results = await service.compressBatch(items);
@@ -168,7 +177,7 @@ describe('CompressionService', () => {
 
       // 작은 데이터는 압축 안함
       expect(results[0].stats?.type).toBe('NONE');
-      
+
       // 큰 데이터는 압축됨
       expect(['GZIP', 'BROTLI']).toContain(results[1].stats?.type);
       expect(['GZIP', 'BROTLI']).toContain(results[2].stats?.type);
@@ -182,13 +191,13 @@ describe('CompressionService', () => {
 
       // CompressionService의 compress 메서드를 spy
       const compressSpy = jest.spyOn(service, 'compress');
-      
+
       const results = await service.compressBatch(items);
 
       expect(results).toHaveLength(2);
       expect(results[0].key).toBe('valid');
       expect(results[1].key).toBe('invalid');
-      
+
       // 실패한 아이템도 결과에 포함되어야 함
       expect(results[1].stats).toBeNull();
     });
@@ -197,7 +206,8 @@ describe('CompressionService', () => {
   describe('helper methods', () => {
     it('should check if data is compressible', () => {
       const smallData = { tiny: 'data' };
-      const largeData = { large: Array.from({ length: 100 }, () => 'data').join(' ') };
+      const largeData = { large: Array.from({ length: 300 }, () => 'data').join(' ') };
+      expect(Buffer.byteLength(JSON.stringify(largeData), 'utf8')).toBeGreaterThanOrEqual(1024);
 
       expect(service.isCompressible(smallData)).toBe(false);
       expect(service.isCompressible(largeData)).toBe(true);
@@ -265,13 +275,13 @@ describe('CompressionService', () => {
         id: i,
         value: Math.random(),
       }));
-      
+
       const compressed = await service.compress({ data: largeArray });
       const stats = service.calculateCompressionStats(compressed);
-      
+
       expect(stats).toBeTruthy();
       expect(stats.compressionRatio).toBeLessThan(0.5); // 배열 데이터는 잘 압축됨
-      
+
       const decompressed = await service.decompress(compressed);
       expect(decompressed.data).toEqual(largeArray);
     });

@@ -1,516 +1,192 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { JobResourceManagerService } from './job-resource-manager.service';
+import { QueueJob, JobType } from '../entities/queue-job.entity';
 import { Repository } from 'typeorm';
-import {
-  JobResourceManagerService,
-  ResourcePool,
-  ResourceRequirement,
-  ResourceAllocation,
-} from './job-resource-manager.service';
-import { QueueJob, JobStatus, JobType, JobPriority } from '../entities/queue-job.entity';
 
-describe('JobResourceManagerService', () => {
+describe('JobResourceManagerService supported allocation contract', () => {
   let service: JobResourceManagerService;
-  let jobRepository: jest.Mocked<Repository<QueueJob>>;
-
-  const mockJob: QueueJob = {
-    id: 'job-123',
-    jobType: JobType.QUERY_EXECUTION,
-    status: JobStatus.PENDING,
-    priority: JobPriority.NORMAL,
-    userId: 'user-123',
-    jobData: JSON.stringify({ query: 'SELECT * FROM users' }),
-    result: null,
-    errorMessage: null,
-    errorStack: null,
-    retryCount: 0,
-    maxRetries: 3,
-    progress: 0,
-    scheduledAt: null,
-    startedAt: null,
-    completedAt: null,
-    executionTimeMs: null,
-    estimatedTimeMs: 30000,
-    workerId: null,
-    metadata: JSON.stringify({ size: 'medium', dataSize: 1024000 }),
-    correlationId: null,
-    requiresNotification: false,
-    notificationEmail: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isCompleted: false,
-    isFailed: false,
-    isRunning: false,
-    canRetry: true,
-    jobDataParsed: { query: 'SELECT * FROM users' },
-    resultParsed: null,
-    metadataParsed: { size: 'medium', dataSize: 1024000 },
-  };
-
-  beforeEach(async () => {
-    const mockJobRepository = {
-      count: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        JobResourceManagerService,
-        {
-          provide: getRepositoryToken(QueueJob),
-          useValue: mockJobRepository,
-        },
-      ],
-    }).compile();
-
-    service = module.get<JobResourceManagerService>(JobResourceManagerService);
-    jobRepository = module.get(getRepositoryToken(QueueJob));
-
-    jest.clearAllMocks();
+  let interval: jest.SpyInstance;
+  let repo: jest.Mocked<Pick<Repository<QueueJob>, 'count'>>;
+  const now = new Date('2026-10-20T00:00:00Z');
+  const job = (overrides: Partial<QueueJob> = {}) =>
+    Object.assign(
+      new QueueJob(),
+      {
+        id: 'job',
+        jobType: JobType.QUERY_EXECUTION,
+        retryCount: 0,
+        estimatedTimeMs: 300000,
+        metadata: null,
+      },
+      overrides,
+    );
+  const flush = () =>
+    new Promise<void>(resolve => jest.requireActual('timers').setImmediate(resolve));
+  beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['performance'] });
+    interval = jest.spyOn(global, 'setInterval');
+    jest.setSystemTime(now);
+    repo = { count: jest.fn().mockResolvedValue(0) };
+    service = new JobResourceManagerService(repo as unknown as Repository<QueueJob>);
   });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  afterEach(() => {
+    service?.onModuleDestroy();
+    jest.clearAllTimers();
+    jest.restoreAllMocks();
+    jest.useRealTimers();
   });
-
-  describe('allocateResources', () => {
-    it('should allocate resources for standard job', async () => {
-      // Arrange
-      const job = { ...mockJob, jobType: JobType.QUERY_EXECUTION };
-
-      // Act
-      const result = await service.allocateResources(job);
-
-      // Assert
-      expect(result.success).toBe(true);
-      expect(result.allocation).toBeDefined();
-      expect(result.allocation?.jobId).toBe(job.id);
-      expect(result.allocation?.allocatedResources).toMatchObject({
-        cpu: expect.any(Number),
-        memory: expect.any(Number),
-        database: expect.any(Number),
-        network: expect.any(Number),
+  it('initializes the existing four pools with zero use and bounded capacity', () => {
+    const usage = service.getResourceUsage();
+    expect(usage.totalAllocations).toBe(0);
+    expect(Object.fromEntries(usage.pools.map(p => [p.id, p.maxCapacity]))).toEqual({
+      cpu: 4,
+      memory: 3000,
+      database: 20,
+      network: 1000,
+    });
+    for (const p of usage.pools)
+      expect(p).toMatchObject({
+        currentUsage: 0,
+        reservedCapacity: 0,
+        availableCapacity: p.maxCapacity,
+        queuedJobs: [],
       });
+  });
+  it('allocates the documented query requirements and release time', async () => {
+    expect(await service.allocateResources(job())).toEqual({
+      success: true,
+      allocation: {
+        jobId: 'job',
+        allocatedResources: { cpu: 0.2, memory: 128, database: 1, network: 10, duration: 300000 },
+        allocatedAt: now,
+        estimatedReleaseAt: new Date(now.getTime() + 300000),
+      },
     });
-
-    it('should fail allocation when resources are insufficient', async () => {
-      // Arrange
-      const bigJob = {
-        ...mockJob,
-        jobType: JobType.DATA_MIGRATION,
-        metadata: JSON.stringify({ dataSize: 10 * 1024 * 1024 * 1024 }), // 10GB
-        metadataParsed: { dataSize: 10 * 1024 * 1024 * 1024 },
-      };
-
-      // Pre-allocate resources to cause shortage
-      await service.allocateResources({ ...mockJob, id: 'job-1' });
-      await service.allocateResources({ ...mockJob, id: 'job-2' });
-      await service.allocateResources({ ...mockJob, id: 'job-3' });
-
-      // Act
-      const result = await service.allocateResources(bigJob);
-
-      // Assert
-      expect(result.success).toBe(false);
-      expect(result.reason).toContain('Insufficient');
-      expect(result.waitTime).toBeGreaterThan(0);
-    });
-
-    it('should calculate correct resource requirements for different job types', async () => {
-      // Arrange
-      const queryJob = { ...mockJob, jobType: JobType.QUERY_EXECUTION };
-      const bulkExportJob = { ...mockJob, jobType: JobType.BULK_DATA_EXPORT };
-      const migrationJob = { ...mockJob, jobType: JobType.DATA_MIGRATION };
-
-      // Act
-      const queryResult = await service.allocateResources(queryJob);
-      const bulkExportResult = await service.allocateResources(bulkExportJob);
-      const migrationResult = await service.allocateResources(migrationJob);
-
-      // Assert
-      expect(queryResult.success).toBe(true);
-      expect(bulkExportResult.success).toBe(true);
-      expect(migrationResult.success).toBe(true);
-
-      // Migration jobs should require more resources than query jobs
-      expect(migrationResult.allocation?.allocatedResources.cpu).toBeGreaterThan(
-        queryResult.allocation?.allocatedResources.cpu || 0,
-      );
-      expect(migrationResult.allocation?.allocatedResources.memory).toBeGreaterThan(
-        queryResult.allocation?.allocatedResources.memory || 0,
-      );
-    });
-
-    it('should adjust resource requirements based on job metadata', async () => {
-      // Arrange
-      const smallJob = {
-        ...mockJob,
-        metadata: JSON.stringify({ dataSize: 1024 }), // 1KB
-        metadataParsed: { dataSize: 1024 },
-      };
-      const largeJob = {
-        ...mockJob,
-        metadata: JSON.stringify({ dataSize: 10 * 1024 * 1024 }), // 10MB
-        metadataParsed: { dataSize: 10 * 1024 * 1024 },
-      };
-
-      // Act
-      const smallResult = await service.allocateResources(smallJob);
-      const largeResult = await service.allocateResources(largeJob);
-
-      // Assert
-      expect(smallResult.success).toBe(true);
-      expect(largeResult.success).toBe(true);
-      expect(largeResult.allocation?.allocatedResources.memory).toBeGreaterThan(
-        smallResult.allocation?.allocatedResources.memory || 0,
-      );
-    });
-
-    it('should give priority to retry jobs', async () => {
-      // Arrange
-      const normalJob = { ...mockJob, retryCount: 0 };
-      const retryJob = { ...mockJob, retryCount: 2 };
-
-      // Act
-      const normalResult = await service.allocateResources(normalJob);
-      const retryResult = await service.allocateResources(retryJob);
-
-      // Assert
-      expect(normalResult.success).toBe(true);
-      expect(retryResult.success).toBe(true);
-      // Retry jobs should get slightly more resources
-      expect(retryResult.allocation?.allocatedResources.cpu).toBeGreaterThan(
-        normalResult.allocation?.allocatedResources.cpu || 0,
-      );
+    expect(service.getResourceUsage().totalAllocations).toBe(1);
+    expect(service.getResourceUsage().utilizationRates.cpu).toBe(5);
+  });
+  it.each([
+    [JobType.BULK_DATA_EXPORT, 0.5, 512, 2, 100],
+    [JobType.DASHBOARD_GENERATION, 0.3, 256, 3, 50],
+    [JobType.DATA_MIGRATION, 0.8, 1024, 4, 200],
+    [JobType.CACHE_WARMUP, 0.4, 256, 2, 30],
+    [JobType.REPORT_GENERATION, 0.6, 512, 2, 80],
+  ])('uses actual per-type requirements for %s', async (type, cpu, memory, database, network) => {
+    const result = await service.allocateResources(job({ jobType: type }));
+    expect(result).toMatchObject({
+      success: true,
+      allocation: { allocatedResources: { cpu, memory, database, network } },
     });
   });
-
-  describe('releaseResources', () => {
-    it('should release allocated resources', async () => {
-      // Arrange
-      const job = { ...mockJob };
-      const allocationResult = await service.allocateResources(job);
-      expect(allocationResult.success).toBe(true);
-
-      const initialUsage = service.getResourceUsage();
-
-      // Act
-      await service.releaseResources(job.id);
-
-      // Assert
-      const finalUsage = service.getResourceUsage();
-      expect(finalUsage.totalAllocations).toBeLessThan(initialUsage.totalAllocations);
+  it('derives adjustments from real parsed metadata, runtime and retry values', async () => {
+    const result = await service.allocateResources(
+      job({
+        metadata: JSON.stringify({ dataSize: 100 * 1024 * 1024 }),
+        estimatedTimeMs: 600000,
+        retryCount: 1,
+      }),
+    );
+    expect(result.allocation.allocatedResources.cpu).toBeCloseTo(0.36);
+    expect(result.allocation.allocatedResources.memory).toBe(240);
+  });
+  it('refuses exhausted resources without partially adding an allocation', async () => {
+    for (let i = 0; i < 5; i++)
+      expect(
+        (await service.allocateResources(job({ id: String(i), jobType: JobType.BULK_DATA_EXPORT })))
+          .success,
+      ).toBe(true);
+    const result = await service.allocateResources(
+      job({ id: 'overflow', jobType: JobType.BULK_DATA_EXPORT }),
+    );
+    expect(result).toMatchObject({
+      success: false,
+      reason: expect.stringContaining('Insufficient memory'),
+      waitTime: 300000,
     });
-
-    it('should handle release of non-existent allocation', async () => {
-      // Act & Assert
-      await expect(service.releaseResources('non-existent-job')).resolves.not.toThrow();
+    expect(service.getResourceUsage().totalAllocations).toBe(5);
+  });
+  it('releases every allocated resource and tolerates repeated/unknown releases', async () => {
+    await service.allocateResources(job());
+    await service.releaseResources('job');
+    await service.releaseResources('job');
+    await service.releaseResources('unknown');
+    const usage = service.getResourceUsage();
+    expect(usage.totalAllocations).toBe(0);
+    for (const p of usage.pools) expect(p.currentUsage).toBe(0);
+  });
+  it('reserves capacity, refuses oversubscription and unreserves at its timer', async () => {
+    expect(await service.reserveResources('reserved', { cpu: 3, memory: 2000 }, 1000)).toBe(true);
+    expect(await service.reserveResources('overflow', { cpu: 2 }, 1000)).toBe(false);
+    expect(service.getResourceUsage().pools.find(p => p.id === 'cpu')).toMatchObject({
+      reservedCapacity: 3,
+      availableCapacity: 1,
+      currentUsage: 0,
+    });
+    jest.advanceTimersByTime(1000);
+    expect(service.getResourceUsage().pools.find(p => p.id === 'cpu')).toMatchObject({
+      reservedCapacity: 0,
+      availableCapacity: 4,
     });
   });
-
-  describe('getResourceUsage', () => {
-    it('should return current resource usage', () => {
-      // Act
-      const usage = service.getResourceUsage();
-
-      // Assert
-      expect(usage).toHaveProperty('pools');
-      expect(usage).toHaveProperty('allocations');
-      expect(usage).toHaveProperty('totalAllocations');
-      expect(usage).toHaveProperty('utilizationRates');
-
-      expect(Array.isArray(usage.pools)).toBe(true);
-      expect(Array.isArray(usage.allocations)).toBe(true);
-      expect(typeof usage.totalAllocations).toBe('number');
-      expect(typeof usage.utilizationRates).toBe('object');
-
-      // Should have standard resource pools
-      const poolIds = usage.pools.map(pool => pool.id);
-      expect(poolIds).toContain('cpu');
-      expect(poolIds).toContain('memory');
-      expect(poolIds).toContain('database');
-      expect(poolIds).toContain('network');
+  it('reports actual low-utilization recommendations and high-utilization bottlenecks', async () => {
+    expect(service.getOptimizationRecommendations()).toMatchObject({
+      potentialSavings: { cpu: 3.2, memory: 2400, database: 16, network: 800 },
+      bottlenecks: [],
     });
-
-    it('should calculate utilization rates correctly', async () => {
-      // Arrange - Allocate some resources
-      await service.allocateResources({ ...mockJob, id: 'job-1' });
-      await service.allocateResources({ ...mockJob, id: 'job-2' });
-
-      // Act
-      const usage = service.getResourceUsage();
-
-      // Assert
-      Object.values(usage.utilizationRates).forEach(rate => {
-        expect(rate).toBeGreaterThanOrEqual(0);
-        expect(rate).toBeLessThanOrEqual(100);
-      });
-    });
+    for (let i = 0; i < 5; i++)
+      await service.allocateResources(job({ id: String(i), jobType: JobType.BULK_DATA_EXPORT }));
+    await service.allocateResources(job({ id: 'extra', jobType: JobType.DASHBOARD_GENERATION }));
+    expect(service.getOptimizationRecommendations().bottlenecks).toContainEqual(
+      expect.stringContaining('Memory Pool'),
+    );
   });
-
-  describe('reserveResources', () => {
-    it('should reserve resources for future use', async () => {
-      // Arrange
-      const requirements: ResourceRequirement = {
-        cpu: 0.5,
-        memory: 256,
-        database: 2,
-        network: 50,
-      };
-      const duration = 10000; // 10 seconds
-
-      // Act
-      const result = await service.reserveResources('future-job-123', requirements, duration);
-
-      // Assert
-      expect(result).toBe(true);
-
-      // Check that resources are marked as reserved
-      const usage = service.getResourceUsage();
-      const cpuPool = usage.pools.find(pool => pool.id === 'cpu');
-      expect(cpuPool?.reservedCapacity).toBeGreaterThan(0);
-    });
-
-    it('should fail reservation when insufficient capacity', async () => {
-      // Arrange - Try to reserve more than available
-      const hugeRequirements: ResourceRequirement = {
-        cpu: 10, // More than max capacity
-        memory: 5000,
-        database: 100,
-        network: 2000,
-      };
-
-      // Act
-      const result = await service.reserveResources('big-job', hugeRequirements, 5000);
-
-      // Assert
-      expect(result).toBe(false);
-    });
-
-    it('should automatically release reservations after duration', async done => {
-      // Arrange
-      const requirements: ResourceRequirement = {
-        cpu: 0.3,
-        memory: 128,
-      };
-      const duration = 100; // 100ms
-
-      // Act
-      const result = await service.reserveResources('temp-job', requirements, duration);
-      expect(result).toBe(true);
-
-      const initialUsage = service.getResourceUsage();
-      const cpuPool = initialUsage.pools.find(pool => pool.id === 'cpu');
-      expect(cpuPool?.reservedCapacity).toBeGreaterThan(0);
-
-      // Assert - Check after duration
-      setTimeout(() => {
-        const finalUsage = service.getResourceUsage();
-        const finalCpuPool = finalUsage.pools.find(pool => pool.id === 'cpu');
-        expect(finalCpuPool?.reservedCapacity).toBeLessThan(cpuPool?.reservedCapacity || 0);
-        done();
-      }, 150);
-    });
+  it('identifies allocation age without mutating internal private maps', async () => {
+    await service.allocateResources(job());
+    jest.setSystemTime(new Date(now.getTime() + 1800001));
+    expect(service.getOptimizationRecommendations().recommendations).toContainEqual(
+      expect.stringContaining('1개의 장시간 실행 작업'),
+    );
   });
-
-  describe('getOptimizationRecommendations', () => {
-    it('should provide optimization recommendations', () => {
-      // Act
-      const recommendations = service.getOptimizationRecommendations();
-
-      // Assert
-      expect(recommendations).toHaveProperty('recommendations');
-      expect(recommendations).toHaveProperty('potentialSavings');
-      expect(recommendations).toHaveProperty('bottlenecks');
-
-      expect(Array.isArray(recommendations.recommendations)).toBe(true);
-      expect(Array.isArray(recommendations.bottlenecks)).toBe(true);
-      expect(typeof recommendations.potentialSavings).toBe('object');
-    });
-
-    it('should detect bottlenecks with high utilization', async () => {
-      // Arrange - Create high utilization scenario
-      for (let i = 0; i < 10; i++) {
-        await service.allocateResources({ ...mockJob, id: `job-${i}` });
-      }
-
-      // Act
-      const recommendations = service.getOptimizationRecommendations();
-
-      // Assert
-      expect(recommendations.bottlenecks.length).toBeGreaterThan(0);
-      expect(recommendations.recommendations).toContain(
-        expect.stringContaining('용량 증설을 고려하세요'),
-      );
-    });
-
-    it('should suggest capacity reduction for underutilized resources', () => {
-      // Arrange - No allocations (underutilized)
-
-      // Act
-      const recommendations = service.getOptimizationRecommendations();
-
-      // Assert
-      expect(recommendations.recommendations).toContain(
-        expect.stringContaining('용량을 줄여 비용을 절약할 수 있습니다'),
-      );
-    });
-
-    it('should identify long-running allocations', async () => {
-      // Arrange - Create a long-running allocation
-      const job = { ...mockJob, estimatedTimeMs: 60000 }; // 1 minute estimate
-      await service.allocateResources(job);
-
-      // Simulate time passage by manually setting allocation time
-      const usage = service.getResourceUsage();
-      if (usage.allocations.length > 0) {
-        const allocation = usage.allocations[0];
-        // Mock that this allocation has been running for 35 minutes
-        allocation.allocatedAt = new Date(Date.now() - 35 * 60 * 1000);
-      }
-
-      // Act
-      const recommendations = service.getOptimizationRecommendations();
-
-      // Assert
-      expect(recommendations.recommendations).toContain(
-        expect.stringContaining('장시간 실행 작업이 리소스를 점유하고 있습니다'),
-      );
-    });
+  it('updates estimated CPU from repository counts only on the monitoring interval', async () => {
+    repo.count.mockResolvedValue(2);
+    jest.advanceTimersByTime(30000);
+    await flush();
+    const pool = service.getResourceUsage().pools.find(p => p.id === 'cpu');
+    expect(pool.currentUsage).toBeCloseTo(0.6);
+    expect(repo.count).toHaveBeenCalledTimes(1);
   });
-
-  describe('resource monitoring', () => {
-    it('should update resource usage periodically', async () => {
-      // Arrange
-      jobRepository.count.mockResolvedValue(3); // 3 running jobs
-
-      // Act - Trigger manual update
-      await service['updateResourceUsage']();
-
-      // Assert
-      const usage = service.getResourceUsage();
-      const cpuPool = usage.pools.find(pool => pool.id === 'cpu');
-      expect(cpuPool?.currentUsage).toBeGreaterThan(0);
-    });
-
-    it('should release expired allocations', async () => {
-      // Arrange - Create allocation with very short duration
-      const job = { ...mockJob, estimatedTimeMs: 1 }; // 1ms estimate
-      await service.allocateResources(job);
-
-      const initialUsage = service.getResourceUsage();
-      expect(initialUsage.totalAllocations).toBe(1);
-
-      // Wait for expiration
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Act - Trigger cleanup
-      await service['releaseExpiredAllocations']();
-
-      // Assert
-      const finalUsage = service.getResourceUsage();
-      expect(finalUsage.totalAllocations).toBe(0);
-    });
+  it('releases expired allocations from the actual monitoring callback', async () => {
+    await service.allocateResources(job({ estimatedTimeMs: 1000 }));
+    jest.advanceTimersByTime(30000);
+    await flush();
+    expect(service.getResourceUsage().totalAllocations).toBe(0);
+    expect(service.getResourceUsage().pools.find(p => p.id === 'memory').currentUsage).toBe(0);
   });
-
-  describe('error handling', () => {
-    it('should handle allocation errors gracefully', async () => {
-      // Arrange - Create a malformed job
-      const malformedJob = { ...mockJob, jobType: null } as any;
-
-      // Act & Assert
-      const result = await service.allocateResources(malformedJob);
-      expect(result.success).toBe(false);
-      expect(result.reason).toContain('error');
-    });
-
-    it('should handle database errors in monitoring', async () => {
-      // Arrange
-      const error = new Error('Database connection failed');
-      jobRepository.count.mockRejectedValue(error);
-
-      // Act & Assert
-      await expect(service['updateResourceUsage']()).resolves.not.toThrow();
-    });
-
-    it('should handle resource release errors', async () => {
-      // Act & Assert
-      await expect(service.releaseResources('invalid-job-id')).resolves.not.toThrow();
-    });
+  it('contains periodic repository errors and preserves bounded pools', async () => {
+    repo.count.mockRejectedValue(new Error('offline'));
+    jest.advanceTimersByTime(30000);
+    await flush();
+    expect(service.getResourceUsage().totalAllocations).toBe(0);
+    for (const p of service.getResourceUsage().pools)
+      expect(p.availableCapacity).toBeGreaterThanOrEqual(0);
   });
-
-  describe('resource pool management', () => {
-    it('should initialize resource pools correctly', () => {
-      // Act
-      const usage = service.getResourceUsage();
-
-      // Assert
-      expect(usage.pools).toHaveLength(4); // cpu, memory, database, network
-
-      usage.pools.forEach(pool => {
-        expect(pool).toHaveProperty('id');
-        expect(pool).toHaveProperty('name');
-        expect(pool).toHaveProperty('type');
-        expect(pool).toHaveProperty('maxCapacity');
-        expect(pool).toHaveProperty('currentUsage');
-        expect(pool).toHaveProperty('reservedCapacity');
-        expect(pool).toHaveProperty('availableCapacity');
-        expect(pool).toHaveProperty('queuedJobs');
-
-        expect(pool.maxCapacity).toBeGreaterThan(0);
-        expect(pool.currentUsage).toBeGreaterThanOrEqual(0);
-        expect(pool.reservedCapacity).toBeGreaterThanOrEqual(0);
-        expect(pool.availableCapacity).toBeGreaterThanOrEqual(0);
-        expect(Array.isArray(pool.queuedJobs)).toBe(true);
-      });
-    });
-
-    it('should maintain pool invariants', async () => {
-      // Arrange - Allocate some resources
-      await service.allocateResources({ ...mockJob, id: 'test-job' });
-
-      // Act
-      const usage = service.getResourceUsage();
-
-      // Assert - Verify pool invariants
-      usage.pools.forEach(pool => {
-        expect(pool.currentUsage + pool.reservedCapacity + pool.availableCapacity).toBeCloseTo(
-          pool.maxCapacity,
-          2,
-        );
-        expect(pool.currentUsage).toBeLessThanOrEqual(pool.maxCapacity);
-        expect(pool.reservedCapacity).toBeLessThanOrEqual(pool.maxCapacity);
-        expect(pool.availableCapacity).toBeLessThanOrEqual(pool.maxCapacity);
-      });
-    });
+  it('returns allocation failure rather than throwing for invalid parsed metadata', async () => {
+    const result = await service.allocateResources(job({ metadata: 'null' }));
+    expect(result).toEqual({ success: false, reason: 'Resource allocation error' });
+    expect(service.getResourceUsage().totalAllocations).toBe(0);
   });
-
-  describe('Lambda environment optimization', () => {
-    it('should configure pools for Lambda constraints', () => {
-      // Act
-      const usage = service.getResourceUsage();
-
-      // Assert - Verify Lambda-appropriate limits
-      const cpuPool = usage.pools.find(pool => pool.id === 'cpu');
-      const memoryPool = usage.pools.find(pool => pool.id === 'memory');
-
-      expect(cpuPool?.maxCapacity).toBeLessThanOrEqual(4.0); // Lambda max CPU
-      expect(memoryPool?.maxCapacity).toBeLessThanOrEqual(3000); // Lambda max memory (MB)
-    });
-
-    it('should optimize resource allocation for serverless', async () => {
-      // Arrange
-      const job = { ...mockJob, jobType: JobType.QUERY_EXECUTION };
-
-      // Act
-      const result = await service.allocateResources(job);
-
-      // Assert
-      expect(result.success).toBe(true);
-
-      // Verify allocations are reasonable for Lambda
-      const allocation = result.allocation;
-      expect(allocation?.allocatedResources.cpu).toBeLessThanOrEqual(1.0);
-      expect(allocation?.allocatedResources.memory).toBeLessThanOrEqual(1000);
-    });
+  it('unrefs monitoring and reservation timers and cancels callbacks on teardown', async () => {
+    expect(interval.mock.results[0].value.hasRef()).toBe(false);
+    const timeout = jest.spyOn(global, 'setTimeout');
+    expect(await service.reserveResources('reserved', { cpu: 1 }, 60000)).toBe(true);
+    expect(timeout.mock.results[0].value.hasRef()).toBe(false);
+    expect(jest.getTimerCount()).toBe(2);
+    const before = JSON.stringify(service.getResourceUsage());
+    service.onModuleDestroy();
+    service.onModuleDestroy();
+    expect(jest.getTimerCount()).toBe(0);
+    jest.advanceTimersByTime(120000);
+    await flush();
+    expect(repo.count).not.toHaveBeenCalled();
+    expect(JSON.stringify(service.getResourceUsage())).toBe(before);
   });
 });

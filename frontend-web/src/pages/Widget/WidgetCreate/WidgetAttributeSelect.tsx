@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Stack } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { useAlert } from 'react-alert';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import WidgetSetting from '@/widget/wrapper/WidgetSetting';
@@ -10,18 +10,49 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import grid from '@/assets/images/grid.svg';
 import { SnackbarContext } from '@/contexts/AlertContext';
 
-const WidgetAttributeSelect = props => {
-  const { widgetOption, saveWidgetInfo, dataset, isModifyMode = false, widgetTypeName, widgetTypeDescription } = props;
+interface WidgetAttributeSelectProps {
+  widgetOption: any;
+  saveWidgetInfo: (option: any, title: string) => Promise<boolean>;
+  dataset?: any;
+  dataSetId?: string;
+  isModifyMode?: boolean;
+  widgetTypeName?: string;
+  widgetTypeDescription?: string;
+  initialDraft?: { option: any; title: string };
+  onDraftChange?: (draft: { option: any; title: string }) => void;
+}
+
+const cloneOption = option => {
+  if (!option) return null;
+  try {
+    return typeof option === 'string' ? JSON.parse(option) : JSON.parse(JSON.stringify(option));
+  } catch {
+    return null;
+  }
+};
+
+const WidgetAttributeSelect = (props: WidgetAttributeSelectProps) => {
+  const { t } = useTranslation();
+  const {
+    widgetOption,
+    saveWidgetInfo,
+    dataset,
+    isModifyMode = false,
+    widgetTypeName,
+    widgetTypeDescription,
+    initialDraft,
+    onDraftChange,
+  } = props;
 
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const { fixLayout } = useContext(LayoutContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
-  const [option, setOption] = useState(null);
+  const [option, setOption] = useState(() => cloneOption(initialDraft?.option ?? widgetOption?.option));
   const [data, setData] = useState(null);
   const [spec, setSpec] = useState(null);
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(initialDraft?.title ?? widgetOption?.title ?? '');
 
   useEffect(() => {
     fixLayout(true);
@@ -31,53 +62,67 @@ const WidgetAttributeSelect = props => {
   }, []);
 
   useEffect(() => {
-    if (dataset || widgetOption) {
-      getData();
-    }
-  }, [dataset, widgetOption]);
-
-  useEffect(() => {
-    if (widgetOption.title) {
-      setTitle(widgetOption.title);
-    }
-    setOption(JSON.parse(JSON.stringify(widgetOption.option)));
-  }, [widgetOption]);
-
-  const getData = () => {
-    const param = isModifyMode
-      ? { ...widgetOption }
-      : dataset.datasetType === 'TABLE'
-      ? { ...dataset }
-      : { ...dataset, datasetId: dataset.id };
-    console.log('getData param', param);
+    setData(null);
+    setSpec(null);
+    const source = isModifyMode ? widgetOption : dataset;
+    const positiveId = id => Number.isFinite(Number(id)) && Number(id) > 0;
+    const validSource =
+      source?.datasetType === 'TABLE'
+        ? positiveId(source.databaseId) && !!source.tableName
+        : source?.datasetType === 'DATASET' && positiveId(isModifyMode ? source.datasetId : source.id);
+    if (!validSource || (isModifyMode && !positiveId(widgetOption?.id))) return;
+    const param = isModifyMode || source.datasetType === 'TABLE' ? { ...source } : { ...source, datasetId: source.id };
+    let active = true;
     showLoading();
     DatabaseService.selectData(param)
       .then(response => {
-        console.log('selectData response:', response);
-        if (response.status === STATUS.SUCCESS) {
-          // response는 ApiResponse<QueryExecuteResponse> 구조
-          setData(response.data?.result?.rows || []);
-          setSpec(response.data?.result?.columns || []);
+        if (!active) return;
+        if (response.data.status === STATUS.SUCCESS) {
+          setData(response.data.data.datas);
+          setSpec(response.data.data.fields);
+        } else {
+          alert.error(response.data.message || t('common.dbFetchFailed'));
+        }
+      })
+      .catch(error => {
+        if (active && error.code !== 'ERR_CANCELED' && error.name !== 'AbortError') {
+          alert.error(error.response?.data?.message || t('common.dbFetchFailed'));
         }
       })
       .finally(() => {
         hideLoading();
       });
-  };
+    return () => {
+      active = false;
+    };
+  }, [dataset, widgetOption, isModifyMode]);
+
+  useEffect(() => {
+    setTitle(initialDraft?.title ?? widgetOption?.title ?? '');
+    setOption(cloneOption(initialDraft?.option ?? widgetOption?.option));
+  }, [widgetOption]);
+
+  useEffect(() => {
+    onDraftChange?.({ option, title });
+  }, [option, title]);
 
   const handleSubmit = event => {
     event.preventDefault();
+    if (!option) return;
 
     // confirm sample
-    alert.success('위젯을 저장하시겠습니까?', {
-      title: '위젯 저장',
-      closeCopy: '취소',
+    alert.success(t('widgetCreate.saveConfirm'), {
+      title: t('widgetCreate.saveTitle'),
+      closeCopy: t('data.cancel'),
       actions: [
         {
-          copy: '저장',
-          onClick: () => {
-            saveWidgetInfo(option, title);
-            snackbar.success('위젯이 저장되었습니다.');
+          copy: t('widget.save'),
+          onClick: async () => {
+            try {
+              if ((await saveWidgetInfo(option, title)) === true) snackbar.success(t('widgetCreate.saved'));
+            } catch (error) {
+              alert.error(error.response?.data?.message || error.message || t('common.genericError'));
+            }
           },
         },
       ],
@@ -85,49 +130,35 @@ const WidgetAttributeSelect = props => {
   };
 
   return (
-    <Stack
-      direction="row"
-      justifyContent="space-between"
-      sx={{
-        width: '100%',
-        height: isModifyMode ? 'calc(100vh - 170px)' : 'calc(100vh - 245px)', // 170px
-        overflow: 'hidden',
-        backgroundColor: '#f5f6f8',
-        backgroundImage: `url(${grid})`,
-        backgroundRepeat: 'repeat',
-      }}
-      onSubmit={handleSubmit}
+    <form
       id="widgetAttribute"
-      component="form"
+      onSubmit={handleSubmit}
+      className="flex min-h-0 w-full min-w-0 flex-1 flex-col justify-between overflow-x-hidden overflow-y-auto bg-muted md:flex-row md:overflow-y-hidden"
+      style={{ backgroundImage: `url(${grid})`, backgroundRepeat: 'repeat' }}
     >
-      <Box
-        sx={{
-          width: '60%',
-          height: '50vw',
-          minHeight: '300px',
-          maxHeight: '100%',
-          margin: '54px auto',
-          border: '1px solid #e2e2e2',
-          borderRadius: '8px',
-          boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
-          backgroundColor: '#fff',
-          overflow: 'hidden',
-        }}
-      >
-        <WidgetViewer title={title} widgetType={widgetOption.componentType} widgetOption={option} dataSet={data} />
-      </Box>
-      <WidgetSetting
-        widgetTypeName={widgetTypeName}
-        widgetTypeDescription={widgetTypeDescription}
-        title={title}
-        setTitle={setTitle}
-        widgetType={widgetOption.componentType}
-        widgetOption={option}
-        setWidgetOption={setOption}
-        dataSet={data}
-        spec={spec}
-      />
-    </Stack>
+      {!option ? (
+        <p className="mx-auto my-[54px]">
+          {isModifyMode && widgetOption?.id ? t('share.widgetFetchFailed') : t('share.loading')}
+        </p>
+      ) : (
+        <>
+          <div className="mx-auto my-4 h-[300px] max-h-none min-h-[300px] w-[calc(100%-32px)] shrink-0 overflow-hidden rounded-lg border border-border bg-background shadow-sm sm:h-[50vw] md:my-6 md:h-[calc(100%-var(--spacing)*12)] md:min-h-0 md:w-3/5 md:shrink">
+            <WidgetViewer title={title} widgetType={widgetOption.componentType} widgetOption={option} dataSet={data} />
+          </div>
+          <WidgetSetting
+            widgetTypeName={widgetTypeName}
+            widgetTypeDescription={widgetTypeDescription}
+            title={title}
+            setTitle={setTitle}
+            widgetType={widgetOption.componentType}
+            widgetOption={option}
+            setWidgetOption={setOption}
+            dataSet={data}
+            spec={spec}
+          />
+        </>
+      )}
+    </form>
   );
 };
 

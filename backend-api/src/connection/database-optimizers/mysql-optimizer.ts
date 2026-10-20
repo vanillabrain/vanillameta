@@ -86,7 +86,7 @@ export class MySQLOptimizer extends BaseDatabaseOptimizer {
       pool: {
         ...poolConfig,
         // MySQL 특정 풀 설정
-        afterCreate: (conn: any, done: Function) => {
+        afterCreate: (conn: any, done: (error: unknown, connection: any) => void) => {
           // 연결 생성 후 최적화 설정 적용
           const optimizationQueries = [
             // 세션 변수 최적화

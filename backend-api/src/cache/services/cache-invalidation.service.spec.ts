@@ -15,7 +15,7 @@ describe('CacheInvalidationService', () => {
   };
 
   beforeAll(() => {
-    jest.useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['performance'] });
   });
 
   afterAll(() => {
@@ -298,15 +298,23 @@ describe('CacheInvalidationService', () => {
     it('should correctly match wildcard patterns', async () => {
       // Arrange
       const testCases = [
-        { pattern: '*:users:*', keys: ['query_cache:db_1:users:123', 'query_cache:db_1:products:123'], expectedCount: 1 },
-        { pattern: 'query_cache:*', keys: ['query_cache:db_1:users:123', 'other:db_1:users:123'], expectedCount: 1 },
+        {
+          pattern: '*:users:*',
+          keys: ['query_cache:db_1:users:123', 'query_cache:db_1:products:123'],
+          expectedCount: 1,
+        },
+        {
+          pattern: 'query_cache:*',
+          keys: ['query_cache:db_1:users:123', 'other:db_1:users:123'],
+          expectedCount: 1,
+        },
         { pattern: 'exact_match', keys: ['exact_match', 'not_exact'], expectedCount: 1 },
       ];
 
       // Act & Assert
       for (const { pattern, keys, expectedCount } of testCases) {
         jest.spyOn(service as any, 'getAllCacheKeys').mockResolvedValue(keys);
-        
+
         const result = await service.invalidateByPattern(pattern);
         expect(result).toHaveLength(expectedCount);
       }

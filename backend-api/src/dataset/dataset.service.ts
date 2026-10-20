@@ -1,10 +1,30 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { createHash } from 'crypto';
+import { User } from '../user/entities/user.entity';
+import { SourceAccessService } from '../ownership/source-access.service';
+import {
+  ForbiddenException,
+  UnauthorizedException,
+  NotFoundException,
+  HttpException,
+} from '@nestjs/common';
+import { lockDashboardWrite } from '../dashboard/dashboard-write-lock';
+import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
+import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
+import { lockMetricSources } from '../metric/metric-write-lock';
+import {
+  lockSourceActor,
+  assertSourceOwner,
+  sourceWriteFields,
+  sourceWriteTransaction,
+} from '../database/source-write-lock';
+import { Database } from '../database/entities/database.entity';
+import { BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { CreateDatasetDto } from './dto/create-dataset.dto';
 import { UpdateDatasetDto } from './dto/update-dataset.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Dataset } from './entities/dataset.entity';
-import { Database } from '../database/entities/database.entity';
 import { ConnectionService } from '../connection/connection.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { Widget } from '../widget/entities/widget.entity';
@@ -29,20 +49,35 @@ export class DatasetService {
     private datasetRepository: Repository<Dataset>,
     @InjectRepository(Widget)
     private widgetRepository: Repository<Widget>,
-    @InjectRepository(Database)
-    private databaseRepository: Repository<Database>,
     private readonly connectionService: ConnectionService,
-    private readonly hybridCache: HybridCacheService,
-    private readonly customLogger: CustomLoggerService,
-    private readonly businessMetrics: BusinessMetricsService,
-    private readonly paginationService: PaginationService,
+    @Optional() @InjectRepository(Database) private databaseRepository?: Repository<Database>,
+    @Optional() private readonly hybridCache?: HybridCacheService,
+    @Optional() private readonly customLogger?: CustomLoggerService,
+    @Optional() private readonly businessMetrics?: BusinessMetricsService,
+    @Optional() private readonly paginationService?: PaginationService,
+    @Optional() private readonly sourceAccess?: SourceAccessService,
   ) {}
 
   /**
    * 데이터셋 추가
    * @param createDatasetDto
    */
-  async create(createDataset: CreateDatasetDto) {
+  async create(createDataset: CreateDatasetDto, actor?: number, epoch?: number) {
+    createDataset = sourceWriteFields(createDataset, ['title', 'databaseId', 'query']);
+    // The existing Source Select submits decimal strings. Normalize at the request boundary;
+    // parent-lock helpers continue to require canonical positive numeric IDs.
+    const rawSourceId: unknown = createDataset.databaseId;
+    const sourceId =
+      typeof rawSourceId === 'string' && /^[1-9]\d*$/.test(rawSourceId)
+        ? Number(rawSourceId)
+        : rawSourceId;
+    if (typeof sourceId !== 'number' || !Number.isSafeInteger(sourceId) || sourceId <= 0)
+      throw new BadRequestException('invalid database id');
+    createDataset = { ...createDataset, databaseId: sourceId };
+    const basis = await this.datasetRepository.manager.findOne(Database, {
+      where: { id: createDataset.databaseId },
+    });
+    assertSourceOwner(basis, actor);
     // 쿼리를 돌려보고 문제가 있으면 저장 불가 안내
     const queryResult = await this.connectionService.executeQuery({
       id: createDataset.databaseId,
@@ -55,7 +90,16 @@ export class DatasetService {
     // 쿼리에 문제가 없으면 저장
     return {
       status: ResponseStatus.SUCCESS,
-      data: await this.datasetRepository.save(createDataset),
+      data: await metadataTransaction(this.datasetRepository.manager, async manager => {
+        await lockSourceActor(manager, actor, epoch);
+        const source = (await lockMetricSources(manager, [createDataset.databaseId])).get(
+          createDataset.databaseId,
+        );
+        assertSourceOwner(source, actor);
+        if (JSON.stringify(source) !== JSON.stringify(basis))
+          throw new ConflictException('Source changed.');
+        return manager.save(Dataset, createDataset);
+      }),
     };
   }
 
@@ -111,11 +155,16 @@ export class DatasetService {
     return returnObj;
   }
 
-  async update(id: number, updateDataset: UpdateDatasetDto) {
+  async update(id: number, updateDataset: UpdateDatasetDto, actor?: number, epoch?: number) {
+    updateDataset = sourceWriteFields(updateDataset, ['title', 'query']);
     const find_dataset = await this.datasetRepository.findOne({ where: { id: id } });
     if (!find_dataset) {
       return { status: ResponseStatus.ERROR, message: 'No exist dataset' };
     } else {
+      const basis = await this.datasetRepository.manager.findOne(Database, {
+        where: { id: find_dataset.databaseId },
+      });
+      assertSourceOwner(basis, actor);
       // 변경할 쿼리 날려보고, 문제 없으면 저장
       const queryResult = await this.connectionService.executeQuery({
         id: find_dataset.databaseId,
@@ -131,25 +180,73 @@ export class DatasetService {
           find_dataset.query = updateDataset.query;
         }
 
-        const saveResult = await this.datasetRepository.save(find_dataset);
+        const saveResult = await metadataTransaction(
+          this.datasetRepository.manager,
+          async manager => {
+            await lockSourceActor(manager, actor, epoch);
+            const source = (await lockMetricSources(manager, [find_dataset.databaseId])).get(
+              find_dataset.databaseId,
+            );
+            assertSourceOwner(source, actor);
+            if (JSON.stringify(source) !== JSON.stringify(basis))
+              throw new ConflictException('Source changed.');
+            const current = await manager.findOne(Dataset, { where: { id } });
+            if (!current || current.databaseId !== find_dataset.databaseId)
+              throw new ConflictException('Dataset source changed.');
+            if (updateDataset.title) current.title = updateDataset.title;
+            if (updateDataset.query) current.query = updateDataset.query;
+            return manager.save(Dataset, current);
+          },
+        );
         return { status: ResponseStatus.SUCCESS, data: saveResult };
       }
     }
   }
 
-  async remove(id: number) {
-    const find_dataset = await this.datasetRepository.findOne({ where: { id: id } });
-
-    if (!find_dataset) {
-      return 'Not exist dataset';
-    } else {
-      await this.datasetRepository.delete(find_dataset.id);
-      await this.widgetRepository.delete({
-        datasetType: DatasetType.DATASET,
-        datasetId: find_dataset.id,
-      });
-    }
-    return `This action removes a #${id} dataset`;
+  async remove(id: number, actor?: number, epoch?: number) {
+    return sourceWriteTransaction(this.datasetRepository.manager, async manager => {
+      await lockSourceActor(manager, actor, epoch);
+      const dataset = await manager.findOne(Dataset, { where: { id } });
+      if (!dataset) return { status: ResponseStatus.ERROR, message: 'No exist dataset' };
+      const widgets = () =>
+        manager.find(Widget, {
+          where: { datasetType: DatasetType.DATASET, datasetId: id },
+          order: { id: 'ASC' },
+        });
+      const before = await widgets();
+      const ids = before.map(widget => widget.id);
+      const links = () =>
+        ids.length
+          ? manager.find(DashboardWidget, { where: { widgetId: In(ids) } })
+          : Promise.resolve([]);
+      const parents = new Set((await links()).map(link => link.dashboardId));
+      for (const parent of [...parents].sort((a, b) => a - b))
+        await lockDashboardWrite(manager, parent);
+      assertSourceOwner(
+        (await lockMetricSources(manager, [dataset.databaseId])).get(dataset.databaseId),
+        actor,
+      );
+      const lock = ['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ? { lock: { mode: 'pessimistic_write' as const } }
+        : {};
+      // Match bundle writers: sorted Widget children precede Dataset children.
+      for (const widget of before) {
+        const current = await manager.findOne(Widget, { where: { id: widget.id }, ...lock });
+        if (!current || current.datasetType !== DatasetType.DATASET || current.datasetId !== id)
+          throw new ConflictException('Dataset widgets changed.');
+      }
+      const current = await manager.findOne(Dataset, { where: { id }, ...lock });
+      if (
+        !current ||
+        current.databaseId !== dataset.databaseId ||
+        JSON.stringify((await widgets()).map(widget => widget.id)) !== JSON.stringify(ids) ||
+        (await links()).some(link => !parents.has(link.dashboardId))
+      )
+        throw new ConflictException('Dataset source changed.');
+      await manager.delete(Dataset, id);
+      if (ids.length) await manager.delete(Widget, ids);
+      return `This action removes a #${id} dataset`;
+    });
   }
 
   /**
@@ -195,6 +292,49 @@ export class DatasetService {
    * @param options 캐시 옵션
    * @returns 쿼리 결과와 캐시 메타데이터
    */
+  private async cachedQueryBasis(id: number, authorization?: { actor: number; epoch: number }) {
+    return serializeMetadataWork(this.datasetRepository.manager.connection, async () => {
+      const manager = this.datasetRepository.manager;
+      if (authorization) {
+        const { actor, epoch } = authorization;
+        if (!Number.isSafeInteger(actor) || actor <= 0 || !Number.isSafeInteger(epoch) || epoch < 0)
+          throw new UnauthorizedException('Current actor required.');
+        const user = await manager.findOne(User, { where: { id: actor } });
+        if (!user || user.active !== true || user.authVersion !== epoch)
+          throw new UnauthorizedException('Current actor required.');
+        if (!this.sourceAccess) throw new ForbiddenException('Source ownership required.');
+        await this.sourceAccess.assert('dataset', id, actor, 'owner', manager);
+      }
+      const dataset = await this.datasetRepository.findOne({ where: { id } });
+      if (!dataset) throw new NotFoundException('Dataset not found.');
+      const source = await manager.findOne(Database, { where: { id: dataset.databaseId } });
+      if (
+        !source ||
+        source.catalogActive === false ||
+        (authorization && source.ownerId !== authorization.actor)
+      )
+        throw new ForbiddenException('Source ownership required.');
+      const revisionContext = createHash('sha256')
+        .update(
+          JSON.stringify([
+            authorization?.actor,
+            authorization?.epoch,
+            dataset.id,
+            dataset.databaseId,
+            dataset.query,
+            source.id,
+            source.ownerId,
+            source.catalogVersion,
+            source.engine,
+            source.type,
+            source.connectionConfig,
+          ]),
+        )
+        .digest('hex');
+      return { dataset, source, revisionContext };
+    });
+  }
+
   async executeCachedQuery(
     id: number,
     options?: {
@@ -202,6 +342,7 @@ export class DatasetService {
       customTtl?: number;
       useStreamingFallback?: boolean;
     },
+    authorization?: { actor: number; epoch: number },
   ): Promise<{
     status: ResponseStatus;
     data?: any;
@@ -216,32 +357,30 @@ export class DatasetService {
     const startTime = Date.now();
     const { forceRefresh = false, customTtl, useStreamingFallback = false } = options || {};
 
+    let initialRevision: string;
+    const assertFresh = async () => {
+      const current = await this.cachedQueryBasis(id, authorization);
+      if (current.revisionContext !== initialRevision)
+        throw new ConflictException('Source or dataset changed.');
+    };
     try {
-      // 데이터셋 조회
-      const dataset = await this.datasetRepository.findOne({ where: { id } });
-      if (!dataset) {
-        return {
-          status: ResponseStatus.ERROR,
-          message: `Dataset with id ${id} not found`,
-        };
-      }
-
-      // 데이터베이스 연결 정보 조회
-      const dbConnection = await this.databaseRepository.findOne({ where: { id: dataset.databaseId } });
-      if (!dbConnection) {
-        return {
-          status: ResponseStatus.ERROR,
-          message: 'Database connection not found',
-        };
-      }
-
+      const basis = await this.cachedQueryBasis(id, authorization);
+      const { dataset, source: dbConnection, revisionContext } = basis;
+      initialRevision = revisionContext;
       const engine = dbConnection.type || 'unknown';
       const databaseId = dataset.databaseId.toString();
 
       // 강제 새로고침이 아닐 때 캐시 확인
-      if (!forceRefresh) {
-        const cachedResult = await this.hybridCache.get(engine, databaseId, dataset.query);
+      if (!forceRefresh && authorization) {
+        const cachedResult = await this.hybridCache.get(
+          engine,
+          databaseId,
+          dataset.query,
+          undefined,
+          revisionContext,
+        );
 
+        await assertFresh();
         if (cachedResult) {
           this.customLogger.debug('Cached query result returned', 'DatasetService', {
             datasetId: id,
@@ -263,11 +402,13 @@ export class DatasetService {
       }
 
       // 캐시 미스 시 데이터베이스에서 쿼리 실행
+      await assertFresh();
       const queryStartTime = Date.now();
       const queryResult = await this.connectionService.executeQuery({
         id: dataset.databaseId,
         query: dataset.query,
       });
+      await assertFresh();
       const queryDuration = Date.now() - queryStartTime;
 
       // 쿼리 성능 메트릭 기록
@@ -300,8 +441,9 @@ export class DatasetService {
         queryResult.datas,
         queryResult.fields || [],
         undefined,
-        { ttl: customTtl },
+        { ttl: customTtl, revisionContext },
       );
+      await assertFresh();
 
       this.customLogger.log('Query executed and cached', 'DatasetService', {
         datasetId: id,
@@ -321,11 +463,13 @@ export class DatasetService {
         },
       };
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       this.logger.error('Cached query execution failed:', error);
 
       // 스트리밍 폴백 옵션이 활성화된 경우
       if (useStreamingFallback) {
         try {
+          await assertFresh();
           this.logger.log('Attempting streaming fallback...');
           const streamResult = await this.executeStreamingQuery(id);
 
@@ -340,6 +484,7 @@ export class DatasetService {
             },
           };
         } catch (streamError) {
+          if (streamError instanceof HttpException) throw streamError;
           this.logger.error('Streaming fallback also failed:', streamError);
         }
       }
@@ -368,7 +513,9 @@ export class DatasetService {
       }
 
       // 해당 데이터셋의 쿼리 기반 캐시 무효화
-      const dbConnection = await this.databaseRepository.findOne({ where: { id: dataset.databaseId } });
+      const dbConnection = await this.databaseRepository.findOne({
+        where: { id: dataset.databaseId },
+      });
       if (dbConnection) {
         const engine = dbConnection.type || 'unknown';
         await this.hybridCache.invalidateByQuery(engine, dataset.query);

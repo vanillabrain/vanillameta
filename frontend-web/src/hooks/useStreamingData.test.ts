@@ -1,13 +1,18 @@
+import { vi, afterEach, type Mock } from 'vitest';
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 import { renderHook, act } from '@testing-library/react';
 import { useStreamingData } from './useStreamingData';
 import DatasetService from '@/api/datasetService';
 
 // Mock DatasetService
-jest.mock('@/api/datasetService');
+vi.mock('@/api/datasetService');
 
 describe('useStreamingData', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('초기 상태가 올바르게 설정되어야 함', () => {
@@ -21,8 +26,8 @@ describe('useStreamingData', () => {
   });
 
   it('스트리밍 시작 시 상태가 업데이트되어야 함', async () => {
-    const mockStreamDataset = jest.fn().mockImplementation(() => Promise.resolve());
-    (DatasetService.streamDataset as jest.Mock).mockImplementation(mockStreamDataset);
+    const mockStreamDataset = vi.fn().mockImplementation(() => Promise.resolve());
+    (DatasetService.streamDataset as Mock).mockImplementation(mockStreamDataset);
 
     const { result } = renderHook(() => useStreamingData());
 
@@ -36,15 +41,17 @@ describe('useStreamingData', () => {
     expect(mockStreamDataset).toHaveBeenCalledWith('test-dataset-id', expect.any(Object));
   });
 
-  it.skip('데이터 청크를 받으면 버퍼링 후 배치 업데이트해야 함', async () => {
-    jest.useFakeTimers();
+  it('데이터 청크를 받으면 버퍼링 후 배치 업데이트해야 함', async () => {
+    vi.useFakeTimers();
 
     let onDataCallback: any;
-    const mockStreamDataset = jest.fn().mockImplementation((_id, options) => {
+    const mockStreamDataset = vi.fn().mockImplementation((_id, options) => {
       onDataCallback = options.onData;
-      return new Promise(() => {}); // Promise that never resolves
+      return new Promise(() => {
+        /* Intentionally keep the stream open. */
+      }); // Promise that never resolves
     });
-    (DatasetService.streamDataset as jest.Mock).mockImplementation(mockStreamDataset);
+    (DatasetService.streamDataset as Mock).mockImplementation(mockStreamDataset);
 
     const { result } = renderHook(() => useStreamingData());
 
@@ -68,7 +75,7 @@ describe('useStreamingData', () => {
 
     // 100ms 후 배치 업데이트 실행
     await act(async () => {
-      jest.runAllTimers();
+      vi.runAllTimers();
     });
 
     expect(result.current.data).toHaveLength(2);
@@ -77,18 +84,20 @@ describe('useStreamingData', () => {
       { id: 2, value: 'test2' },
     ]);
 
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
-  it.skip('최대 데이터 크기를 초과하면 오래된 데이터를 제거해야 함', async () => {
-    jest.useFakeTimers();
+  it('최대 데이터 크기를 초과하면 오래된 데이터를 제거해야 함', async () => {
+    vi.useFakeTimers();
 
     let onDataCallback: any;
-    const mockStreamDataset = jest.fn().mockImplementation((_id, options) => {
+    const mockStreamDataset = vi.fn().mockImplementation((_id, options) => {
       onDataCallback = options.onData;
-      return new Promise(() => {}); // Promise that never resolves
+      return new Promise(() => {
+        /* Intentionally keep the stream open. */
+      }); // Promise that never resolves
     });
-    (DatasetService.streamDataset as jest.Mock).mockImplementation(mockStreamDataset);
+    (DatasetService.streamDataset as Mock).mockImplementation(mockStreamDataset);
 
     const { result } = renderHook(() => useStreamingData({ maxDataSize: 2 }));
 
@@ -108,23 +117,23 @@ describe('useStreamingData', () => {
     });
 
     await act(async () => {
-      jest.runAllTimers();
+      vi.runAllTimers();
     });
 
     // 최대 크기 2이므로 최신 2개만 유지
     expect(result.current.data).toHaveLength(2);
     expect(result.current.data).toEqual([{ id: 2 }, { id: 3 }]);
 
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('진행률 업데이트를 처리해야 함', async () => {
     let onProgressCallback: any;
-    const mockStreamDataset = jest.fn().mockImplementation((_id, options) => {
+    const mockStreamDataset = vi.fn().mockImplementation((_id, options) => {
       onProgressCallback = options.onProgress;
       return Promise.resolve();
     });
-    (DatasetService.streamDataset as jest.Mock).mockImplementation(mockStreamDataset);
+    (DatasetService.streamDataset as Mock).mockImplementation(mockStreamDataset);
 
     const { result } = renderHook(() => useStreamingData());
 
@@ -144,11 +153,14 @@ describe('useStreamingData', () => {
   });
 
   it('스트리밍 중단 시 상태가 올바르게 정리되어야 함', async () => {
-    const abortMock = jest.fn();
-    global.AbortController = jest.fn().mockImplementation(() => ({
-      abort: abortMock,
-      signal: {},
-    })) as any;
+    const abortMock = vi.fn();
+    vi.stubGlobal(
+      'AbortController',
+      class {
+        abort = abortMock;
+        signal = {};
+      },
+    );
 
     const { result } = renderHook(() => useStreamingData());
 
@@ -167,11 +179,11 @@ describe('useStreamingData', () => {
 
   it('에러 발생 시 에러 상태가 설정되어야 함', async () => {
     let onErrorCallback: any;
-    const mockStreamDataset = jest.fn().mockImplementation((_id, options) => {
+    const mockStreamDataset = vi.fn().mockImplementation((_id, options) => {
       onErrorCallback = options.onError;
       return Promise.resolve();
     });
-    (DatasetService.streamDataset as jest.Mock).mockImplementation(mockStreamDataset);
+    (DatasetService.streamDataset as Mock).mockImplementation(mockStreamDataset);
 
     const { result } = renderHook(() => useStreamingData());
 

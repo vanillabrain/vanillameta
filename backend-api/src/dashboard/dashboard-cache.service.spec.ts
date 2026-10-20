@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DashboardCacheService } from './dashboard-cache.service';
-import { HybridCacheService } from '../common/optimization/hybrid-cache.service';
+import { HybridCacheService, HybridCacheStats } from '../common/optimization/hybrid-cache.service';
 import { CustomLoggerService } from '../common/logger/logger.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Dashboard } from './entities/dashboard.entity';
@@ -145,6 +145,7 @@ describe('DashboardCacheService', () => {
   describe('getCachedDashboard', () => {
     it('should return cached dashboard when found', async () => {
       const cachedData = {
+        fields: [],
         data: {
           dashboard: mockDashboard,
           widgets: mockWidgets,
@@ -152,7 +153,7 @@ describe('DashboardCacheService', () => {
           cachedAt: Date.now(),
           ttl: 3600,
         },
-      };
+      } satisfies NonNullable<Awaited<ReturnType<HybridCacheService['get']>>>;
 
       hybridCacheService.get.mockResolvedValueOnce(cachedData);
 
@@ -207,7 +208,7 @@ describe('DashboardCacheService', () => {
         'User dashboard list cached',
         'DashboardCacheService',
         expect.objectContaining({
-          userId: 123,
+          userId: '123',
           dashboardCount: 1,
           ttl: 300,
         }),
@@ -218,7 +219,7 @@ describe('DashboardCacheService', () => {
   describe('getCachedUserDashboardList', () => {
     it('should return cached user dashboard list', async () => {
       const dashboards = [mockDashboard];
-      hybridCacheService.get.mockResolvedValueOnce({ data: dashboards });
+      hybridCacheService.get.mockResolvedValueOnce({ data: dashboards, fields: [] });
 
       const result = await service.getCachedUserDashboardList(123);
 
@@ -254,10 +255,7 @@ describe('DashboardCacheService', () => {
       await service.invalidateDashboard(1);
 
       expect(hybridCacheService.invalidateByQuery).toHaveBeenCalledTimes(2);
-      expect(hybridCacheService.invalidateByQuery).toHaveBeenCalledWith(
-        'dashboard',
-        'dashboard:1',
-      );
+      expect(hybridCacheService.invalidateByQuery).toHaveBeenCalledWith('dashboard', 'dashboard:1');
       expect(hybridCacheService.invalidateByQuery).toHaveBeenCalledWith(
         'dashboard',
         'dashboard_widgets:1',
@@ -286,10 +284,7 @@ describe('DashboardCacheService', () => {
       await service.invalidateAllDashboardCaches(1, 123);
 
       // Should invalidate dashboard cache
-      expect(hybridCacheService.invalidateByQuery).toHaveBeenCalledWith(
-        'dashboard',
-        'dashboard:1',
-      );
+      expect(hybridCacheService.invalidateByQuery).toHaveBeenCalledWith('dashboard', 'dashboard:1');
 
       // Should invalidate widget cache
       expect(hybridCacheService.invalidateByQuery).toHaveBeenCalledWith(
@@ -314,10 +309,37 @@ describe('DashboardCacheService', () => {
 
   describe('getCacheStats', () => {
     it('should return cache statistics', async () => {
-      const mockStats = {
+      const mockStats: HybridCacheStats = {
         engine: 'dashboard',
-        l1Cache: { hitRate: 0.85 },
-        l2Cache: { hitRate: 0.75 },
+        l1Cache: {
+          engine: 'dashboard',
+          totalEntries: 2,
+          totalSize: 200,
+          hitRate: 0.85,
+          missRate: 0.15,
+          evictions: 0,
+          memoryUsage: { used: 200, max: 1000, percentage: 20 },
+          topQueries: [],
+        },
+        l2Cache: {
+          engine: 'dashboard',
+          totalEntries: 4,
+          totalSize: 400,
+          hitRate: 0.75,
+          missRate: 0.25,
+          averageResponseTime: 2,
+          memoryUsage: { used: 400, max: 1000, percentage: 40 },
+          topQueries: [],
+        },
+        hybridMetrics: {
+          l1HitRate: 0.85,
+          l2HitRate: 0.75,
+          overallHitRate: 0.9625,
+          l1Size: 200,
+          l2Size: 400,
+          promotionCount: 1,
+          demotionCount: 0,
+        },
       };
 
       hybridCacheService.getHybridStats.mockResolvedValueOnce(mockStats);

@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import * as v8 from 'v8';
+import { totalmem } from 'os';
 import { Transform, Readable, Writable } from 'stream';
 import { CustomLoggerService } from '../logger/logger.service';
 
@@ -16,7 +17,7 @@ interface StreamProcessingOptions {
   objectMode?: boolean;
 }
 
-interface MemoryStats {
+export interface MemoryStats {
   heapUsed: number;
   heapTotal: number;
   external: number;
@@ -26,7 +27,9 @@ interface MemoryStats {
 }
 
 @Injectable()
-export class MemoryMonitorService {
+export class MemoryMonitorService implements OnModuleDestroy {
+  private readonly monitoringTimers = new Set<ReturnType<typeof setInterval>>();
+  private readonly resumeTimers = new Set<ReturnType<typeof setTimeout>>();
   private readonly logger = new Logger(MemoryMonitorService.name);
   private memorySnapshots: Map<string, any> = new Map();
   private readonly MAX_SNAPSHOTS = 5;
@@ -35,6 +38,13 @@ export class MemoryMonitorService {
   private readonly streamRegistry = new WeakMap<Readable, StreamMetadata>();
   private readonly activeStreams = new Set<Readable>();
   private activeStreamCount = 0;
+
+  onModuleDestroy(): void {
+    for (const timer of this.monitoringTimers) clearInterval(timer);
+    this.monitoringTimers.clear();
+    for (const timer of this.resumeTimers) clearTimeout(timer);
+    this.resumeTimers.clear();
+  }
 
   constructor(private readonly customLogger: CustomLoggerService) {
     // 메모리 누수 감지를 위한 주기적 체크
@@ -83,7 +93,7 @@ export class MemoryMonitorService {
    */
   createArrayStream<T>(array: T[], chunkSize = 1000, options?: StreamProcessingOptions): Readable {
     let index = 0;
-    const self = this; // MemoryMonitorService 인스턴스 참조
+    const isMemoryPressure = () => this.isMemoryPressure();
 
     const stream = new Readable({
       objectMode: true,
@@ -99,7 +109,7 @@ export class MemoryMonitorService {
           index += chunkSize;
 
           // 메모리 압박 시 일시 중지
-          if (self.isMemoryPressure()) {
+          if (isMemoryPressure()) {
             setImmediate(() => this.read());
             return false;
           }
@@ -202,27 +212,35 @@ export class MemoryMonitorService {
         this.customLogger.warn('Pipeline paused due to memory pressure', 'MemoryMonitor');
 
         // 1초 후 재개
-        setTimeout(() => {
+        const resumeTimer = setTimeout(() => {
+          this.resumeTimers.delete(resumeTimer);
           source.resume();
           transforms.forEach(t => t.resume());
         }, 1000);
+        this.resumeTimers.add(resumeTimer);
+        resumeTimer.unref?.();
       }
 
       // 파이프라인 완료 시 모니터링 중지
       if (destination.writableEnded) {
         clearInterval(checkInterval);
+        this.monitoringTimers.delete(checkInterval);
       }
     }, 500); // 500ms마다 체크
+    this.monitoringTimers.add(checkInterval);
+    checkInterval.unref?.();
   }
 
   /**
    * 메모리 누수 감지
    */
   private startMemoryLeakDetection(): void {
-    setInterval(() => {
+    const timer = setInterval(() => {
       const snapshot = this.takeMemorySnapshot();
       this.analyzeMemoryGrowth(snapshot);
     }, 300000); // 5분마다 실행
+    this.monitoringTimers.add(timer);
+    timer.unref?.();
   }
 
   /**
@@ -503,7 +521,7 @@ export class MemoryMonitorService {
     if (lambdaMemory) {
       return parseInt(lambdaMemory, 10) * 1024 * 1024;
     }
-    return require('os').totalmem() * 0.75;
+    return totalmem() * 0.75;
   }
 }
 

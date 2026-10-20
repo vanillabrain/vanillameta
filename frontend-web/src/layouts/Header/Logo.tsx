@@ -1,27 +1,29 @@
 import React from 'react';
-import { Box, Link } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { ReactComponent as IconLogo } from '@/assets/images/logo.svg';
+import IconLogo from '@/assets/images/logo.svg?react';
+import { cn } from '@/lib/utils';
 
-export const LandingLogo = props => {
-  const { sx, ...rest } = props;
+interface LogoProps {
+  className?: string;
+}
+
+export const LandingLogo = ({ className, ...rest }: LogoProps & React.HTMLAttributes<HTMLDivElement>) => {
   return (
-    <Box sx={{ width: 105, height: 50, ...sx }} {...rest}>
-      <Link href="https://vanillameta.net" target="_blank">
-        <IconLogo style={{ width: '100%', height: '100%' }} />
-      </Link>
-    </Box>
+    <div className={cn('h-12 w-28', className)} {...rest}>
+      <a href="https://vanillameta.net" target="_blank" rel="noreferrer">
+        <IconLogo className="h-full w-full" />
+      </a>
+    </div>
   );
 };
 
-const Logo = props => {
-  const { sx, ...rest } = props;
+const Logo = ({ className, ...rest }: LogoProps & React.HTMLAttributes<HTMLDivElement>) => {
   return (
-    <Box sx={{ width: 105, height: 50, ...sx }} {...rest}>
-      <RouterLink to="/">
-        <IconLogo style={{ width: '100%', height: '100%' }} />
+    <div className={cn('h-12 w-28', className)} {...rest}>
+      <RouterLink to="/" aria-label="VanillaMeta">
+        <IconLogo className="h-full w-full" />
       </RouterLink>
-    </Box>
+    </div>
   );
 };
 

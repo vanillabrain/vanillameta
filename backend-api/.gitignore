@@ -2,6 +2,7 @@
 sqlite.db
 config.serverless.yml
 .env.dev
+.env.local
 .env.prod
 .ormconfig.json
 vanillameta
@@ -45,3 +46,6 @@ lerna-debug.log*
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+# 업로드된 파일 데이터소스
+uploads/
+.scratch/

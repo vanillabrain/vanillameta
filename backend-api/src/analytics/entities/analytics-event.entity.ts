@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity('analytics_events')
+@Entity('analytics_collected_events')
 @Index(['userId', 'createdAt'])
 @Index(['category', 'action', 'createdAt'])
 @Index(['sessionId', 'createdAt'])

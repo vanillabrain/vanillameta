@@ -15,7 +15,7 @@ const BUFFER_SIZE = 20; // 배치 전송할 데이터 개수
 const FLUSH_INTERVAL = 30000; // 30초마다 전송
 
 // 프로덕션 환경인지 확인
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = import.meta.env.PROD;
 
 // 성능 데이터를 외부 서비스로 전송하는 함수
 const sendToAnalytics = async (metrics: PerformanceData[]) => {
@@ -36,8 +36,8 @@ const sendToAnalytics = async (metrics: PerformanceData[]) => {
     }
 
     // 커스텀 분석 엔드포인트로 전송 (옵션)
-    if (process.env.REACT_APP_ANALYTICS_ENDPOINT && isProduction) {
-      await fetch(process.env.REACT_APP_ANALYTICS_ENDPOINT, {
+    if (import.meta.env.REACT_APP_ANALYTICS_ENDPOINT && isProduction) {
+      await fetch(import.meta.env.REACT_APP_ANALYTICS_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

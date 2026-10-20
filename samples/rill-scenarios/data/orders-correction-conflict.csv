@@ -1,0 +1,3 @@
+order_id,ordered_at,updated_at,channel,currency,revenue,refund_amount,net_amount
+ORD-002,2025-01-02T09:00:00Z,2025-01-03T00:00:00Z,app,USD,200.00,99.00,101.00
+ORD-002,2025-01-02T09:00:00Z,2025-01-06T00:00:00Z,app,USD,200.00,50.00,150.00

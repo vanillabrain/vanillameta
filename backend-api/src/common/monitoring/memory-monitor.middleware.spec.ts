@@ -1,7 +1,13 @@
+jest.mock('v8', () => ({
+  ...jest.requireActual('v8'),
+  writeHeapSnapshot: jest.fn(filename => filename),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { MemoryMonitorMiddleware } from './memory-monitor.middleware';
 import { CustomLoggerService } from '../logger/logger.service';
 import { Request, Response } from 'express';
+import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
 
 describe('MemoryMonitorMiddleware', () => {
   let middleware: MemoryMonitorMiddleware;
@@ -9,8 +15,10 @@ describe('MemoryMonitorMiddleware', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
   let mockNext: jest.Mock;
+  let finishResponse: () => void;
 
   beforeEach(async () => {
+    jest.useFakeTimers({ doNotFake: ['performance'] });
     // Mock logger
     mockLogger = {
       debug: jest.fn(),
@@ -23,15 +31,16 @@ describe('MemoryMonitorMiddleware', () => {
     mockRequest = {
       method: 'GET',
       path: '/test',
+      route: { path: '/test' },
     };
 
     // Mock response
     mockResponse = {
       on: jest.fn((event, callback) => {
         if (event === 'finish') {
-          // 즉시 finish 이벤트 발생
-          setTimeout(callback, 10);
+          finishResponse = callback;
         }
+        return mockResponse as Response;
       }),
     };
 
@@ -41,6 +50,10 @@ describe('MemoryMonitorMiddleware', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MemoryMonitorMiddleware,
+        {
+          provide: CloudWatchMetricsService,
+          useValue: { putMetric: jest.fn().mockResolvedValue(undefined) },
+        },
         {
           provide: CustomLoggerService,
           useValue: mockLogger,
@@ -61,58 +74,47 @@ describe('MemoryMonitorMiddleware', () => {
     expect(mockNext).toHaveBeenCalled();
   });
 
-  it('응답 완료 시 메모리 사용량을 로깅해야 함', done => {
+  it('응답 완료 시 메모리 사용량을 로깅해야 함', () => {
     middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
+    expect(mockLogger.debug).not.toHaveBeenCalled();
 
-    // finish 이벤트 대기
-    setTimeout(() => {
-      expect(mockLogger.debug).toHaveBeenCalledWith(
-        'Request memory usage',
-        'MemoryMonitor',
-        expect.objectContaining({
-          method: 'GET',
-          path: '/test',
-          initialMemory: expect.any(String),
-          finalMemory: expect.any(String),
-          memoryDelta: expect.any(String),
-          percentUsed: expect.any(String),
-          executionTime: expect.any(String),
-        }),
-      );
-      done();
-    }, 20);
+    finishResponse();
+
+    expect(mockLogger.debug).toHaveBeenCalledWith(
+      'Request memory usage',
+      'MemoryMonitor',
+      expect.objectContaining({
+        method: 'GET',
+        path: '/test',
+        initialMemory: expect.any(String),
+        finalMemory: expect.any(String),
+        memoryDelta: expect.any(String),
+        percentUsed: expect.any(String),
+        executionTime: expect.any(Number),
+      }),
+    );
   });
 
-  it('큰 메모리 할당 시 경고를 발생시켜야 함', done => {
-    // 대용량 메모리 할당 시뮬레이션
-    const largeArray = new Array(10 * 1024 * 1024).fill(0); // ~80MB
+  it('큰 메모리 할당 시 경고를 발생시켜야 함', () => {
+    const initial = middleware.getMemoryStats();
+    jest
+      .spyOn(middleware as any, 'getMemoryMetrics')
+      .mockReturnValueOnce({ ...initial, heapUsed: 100 * 1024 * 1024, percentUsed: 10 })
+      .mockReturnValueOnce({ ...initial, heapUsed: 151 * 1024 * 1024, percentUsed: 12 });
 
     middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
+    expect(mockLogger.warn).not.toHaveBeenCalled();
+    finishResponse();
 
-    setTimeout(() => {
-      // 메모리 증가 감지 확인
-      const warnCalls = (mockLogger.warn as jest.Mock).mock.calls;
-      const hasMemoryWarning = warnCalls.some(
-        call => call[0] === 'Large memory allocation detected',
-      );
-
-      // 큰 메모리 할당은 환경에 따라 다를 수 있으므로 선택적 체크
-      if (hasMemoryWarning) {
-        expect(mockLogger.warn).toHaveBeenCalledWith(
-          'Large memory allocation detected',
-          'MemoryMonitor',
-          expect.objectContaining({
-            path: '/test',
-            memoryIncrease: expect.any(String),
-            currentUsage: expect.any(String),
-          }),
-        );
-      }
-
-      // 메모리 해제
-      largeArray.length = 0;
-      done();
-    }, 20);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'Large memory allocation detected',
+      'MemoryMonitor',
+      expect.objectContaining({
+        path: '/test',
+        memoryIncrease: '51 MB',
+        currentUsage: '12.0%',
+      }),
+    );
   });
 
   it('메모리 통계를 반환해야 함', () => {
@@ -156,6 +158,7 @@ describe('MemoryMonitorMiddleware', () => {
     global.gc = jest.fn();
 
     try {
+      jest.advanceTimersByTime(5000);
       checkThreshold(mockMetrics);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -195,12 +198,14 @@ describe('MemoryMonitorMiddleware', () => {
     global.gc = jest.fn();
 
     try {
+      jest.advanceTimersByTime(5000);
       expect(() => checkThreshold(mockMetrics)).toThrow(
         '서버 메모리가 부족합니다. 잠시 후 다시 시도해주세요.',
       );
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Critical memory threshold reached',
+        'Critical memory threshold reached: 91.0%',
+        null,
         'MemoryMonitor',
         expect.objectContaining({
           percentUsed: '91.0%',
@@ -223,6 +228,9 @@ describe('MemoryMonitorMiddleware', () => {
   });
 
   afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+    jest.restoreAllMocks();
     jest.clearAllMocks();
   });
 });

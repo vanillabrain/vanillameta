@@ -1,14 +1,20 @@
+import { useTranslation } from 'react-i18next';
 import { useContext, useEffect } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getToken, removeToken } from '@/helpers/authHelper';
 import { useAlert } from 'react-alert';
 
 export const ProtectedRoute = ({ children }) => {
+  const { t } = useTranslation();
   const { getUserState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  const loginPath = location.pathname.startsWith('/reuse/')
+    ? `/login?returnTo=${encodeURIComponent(location.pathname)}`
+    : '/login';
   const alert = useAlert();
   const token = getToken();
 
@@ -20,21 +26,21 @@ export const ProtectedRoute = ({ children }) => {
           // refresh token 만료
           console.log(error);
           if (error.response.status === 401) {
-            alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.', {
+            alert.error(t('profile.expired'), {
               onClose: () => {
                 removeToken();
-                navigate('/login', { replace: true });
+                navigate(loginPath, { replace: true });
               },
             });
           } else {
-            alert.error('문제가 발생했습니다.\n잠시 후에 다시 시도해 주세요.');
+            alert.error(t('common.genericError'));
           }
         })
         .finally(() => {
           hideLoading();
         });
     } else {
-      navigate('/login', { replace: true });
+      navigate(loginPath, { replace: true });
     }
   }, [token]);
 

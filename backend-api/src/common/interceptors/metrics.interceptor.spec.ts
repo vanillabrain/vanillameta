@@ -1,3 +1,4 @@
+import { UNMATCHED_ROUTE } from '../utils/safe-route-template';
 import { Test, TestingModule } from '@nestjs/testing';
 import { MetricsInterceptor } from './metrics.interceptor';
 import { IntegratedMetricsService } from '../monitoring/integrated-metrics.service';
@@ -29,7 +30,7 @@ describe('MetricsInterceptor', () => {
 
   const mockCallHandler = {
     handle: jest.fn(),
-  } as CallHandler;
+  } as jest.Mocked<CallHandler>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -61,9 +62,9 @@ describe('MetricsInterceptor', () => {
       const result$ = interceptor.intercept(mockExecutionContext, mockCallHandler);
 
       // Subscribe to trigger the interceptor
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         result$.subscribe({
-          next: (value) => {
+          next: value => {
             expect(value).toEqual({ data: 'test' });
             resolve(undefined);
           },
@@ -71,7 +72,7 @@ describe('MetricsInterceptor', () => {
       });
 
       // Wait for async operations
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(metricsService.recordApiRequest).toHaveBeenCalledWith(
         'GET',
@@ -99,7 +100,7 @@ describe('MetricsInterceptor', () => {
       ).rejects.toThrow(error);
 
       // Wait for async operations
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(metricsService.recordApiRequest).toHaveBeenCalledWith(
         'GET',
@@ -127,7 +128,7 @@ describe('MetricsInterceptor', () => {
       ).rejects.toThrow(error);
 
       // Wait for async operations
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(metricsService.recordApiRequest).toHaveBeenCalledWith(
         'GET',
@@ -141,20 +142,20 @@ describe('MetricsInterceptor', () => {
     it('should track cold starts', async () => {
       // First request should be cold start
       expect((global as any).lambdaWarmUp).toBeUndefined();
-      
+
       mockCallHandler.handle.mockReturnValue(of({ data: 'test' }));
       process.env.AWS_LAMBDA_FUNCTION_NAME = 'test-function';
 
       const result$ = interceptor.intercept(mockExecutionContext, mockCallHandler);
 
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         result$.subscribe({
           next: () => resolve(undefined),
         });
       });
 
       // Wait for async operations
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(metricsService.recordLambdaMetrics).toHaveBeenCalledWith(
         true, // cold start
@@ -166,17 +167,17 @@ describe('MetricsInterceptor', () => {
 
       // Second request should not be cold start
       jest.clearAllMocks();
-      
+
       const result2$ = interceptor.intercept(mockExecutionContext, mockCallHandler);
 
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         result2$.subscribe({
           next: () => resolve(undefined),
         });
       });
 
       // Wait for async operations
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(metricsService.recordLambdaMetrics).toHaveBeenCalledWith(
         false, // not cold start
@@ -206,14 +207,14 @@ describe('MetricsInterceptor', () => {
 
       const result$ = interceptor.intercept(contextWithoutUser, mockCallHandler);
 
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         result$.subscribe({
           next: () => resolve(undefined),
         });
       });
 
       // Wait for async operations
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(metricsService.recordApiRequest).toHaveBeenCalledWith(
         'GET',
@@ -242,18 +243,18 @@ describe('MetricsInterceptor', () => {
 
       const result$ = interceptor.intercept(contextWithoutRoute, mockCallHandler);
 
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         result$.subscribe({
           next: () => resolve(undefined),
         });
       });
 
       // Wait for async operations
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       expect(metricsService.recordApiRequest).toHaveBeenCalledWith(
         'GET',
-        '/api/test',
+        UNMATCHED_ROUTE,
         200,
         expect.any(Number),
         undefined,

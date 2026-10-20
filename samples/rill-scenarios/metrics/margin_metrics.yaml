@@ -1,0 +1,38 @@
+type: metrics_view
+version: 1
+model: margin
+timeseries: day
+smallest_time_grain: day
+dimensions:
+  - name: day
+    column: day
+  - name: company
+    column: company
+  - name: location
+    column: location
+  - name: environment
+    column: environment
+  - name: component
+    column: component
+measures:
+  - name: revenue
+    expression: SUM(revenue)
+    format_preset: currency_usd
+  - name: cost
+    expression: SUM(cost)
+    format_preset: currency_usd
+  - name: profit
+    expression: SUM(profit)
+    format_preset: currency_usd
+  - name: margin_percent
+    expression: SUM(profit)/NULLIF(SUM(revenue),0)
+    format_preset: percentage
+  - name: calculated_profit
+    expression: SUM(revenue) - SUM(cost)
+    format_preset: currency_usd
+  - name: calculated_margin
+    expression: (SUM(revenue) - SUM(cost))/NULLIF(SUM(revenue),0)
+    format_preset: percentage
+  - name: cost_ratio
+    expression: SUM(cost)/NULLIF(SUM(revenue),0)
+    format_preset: percentage

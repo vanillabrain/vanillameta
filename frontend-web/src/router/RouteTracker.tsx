@@ -7,7 +7,10 @@ export const RouteTracker = () => {
 
   useEffect(() => {
     // 페이지 네비게이션 추적
-    trackNavigation.pageView(location.pathname);
+    const page = location.pathname
+      .replace(/\/(share|embed|published|reuse)\/[^/]+(?:\/[^/]+)?/g, '/$1/:reference')
+      .replace(/\/\d+(?=\/|$)/g, '/:id');
+    trackNavigation.pageView(page);
   }, [location.pathname]);
 
   return null;

@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, DataSource } from 'typeorm';
+import { Repository, In, Not, DataSource } from 'typeorm';
 import { BatchJob, BatchJobStatus, BatchJobType } from './entities/batch-job.entity';
 import { BatchChunk, BatchChunkStatus } from './entities/batch-chunk.entity';
 import { CreateBatchJobDto } from './dto/create-batch-job.dto';
@@ -8,6 +13,12 @@ import { DatasetService } from '../dataset/dataset.service';
 import { WidgetService } from '../widget/widget.service';
 import { ConnectionService } from '../connection/connection.service';
 import { CustomLoggerService as LoggerService } from '../common/logger/logger.service';
+import { SourceAccessService } from '../ownership/source-access.service';
+import {
+  LegacyJobActor,
+  assertLegacyActor,
+  assertLegacySource,
+} from '../background-job/legacy-job-access';
 import { Knex } from 'knex';
 
 @Injectable()
@@ -22,12 +33,16 @@ export class BatchService {
     private connectionService: ConnectionService,
     private logger: LoggerService,
     private dataSource: DataSource,
+    private access: SourceAccessService,
   ) {}
 
   /**
    * 배치 작업 생성
    */
-  async createBatchJob(createBatchJobDto: CreateBatchJobDto, userId: string): Promise<BatchJob> {
+  async createBatchJob(
+    createBatchJobDto: CreateBatchJobDto,
+    actor: LegacyJobActor,
+  ): Promise<BatchJob> {
     const { type, chunkSize = 1000, datasetId, widgetId, config, metadata } = createBatchJobDto;
 
     // 유효성 검증
@@ -45,11 +60,12 @@ export class BatchService {
       datasetId,
       widgetId,
       config,
-      metadata,
-      createdBy: userId,
+      metadata: { ...metadata, actor },
+      createdBy: actor.userId,
       status: BatchJobStatus.PENDING,
     });
 
+    await this.assertJob(batchJob, actor);
     await this.batchJobRepository.save(batchJob);
 
     // 비동기로 청크 생성 및 처리 시작
@@ -57,6 +73,7 @@ export class BatchService {
       this.logger.error(`Failed to initialize batch job ${batchJob.id}`, error);
     });
 
+    await this.assertJob(batchJob, actor);
     return batchJob;
   }
 
@@ -65,9 +82,11 @@ export class BatchService {
    */
   private async initializeBatchJob(batchJob: BatchJob): Promise<void> {
     try {
+      await this.assertRunnable(batchJob);
       // 전체 레코드 수 조회
       const totalRecords = await this.getTotalRecordCount(batchJob);
 
+      await this.assertRunnable(batchJob);
       if (totalRecords === 0) {
         await this.updateBatchJobStatus(batchJob.id, BatchJobStatus.COMPLETED, {
           totalRecords: 0,
@@ -124,12 +143,27 @@ export class BatchService {
   private async getTotalRecordCount(batchJob: BatchJob): Promise<number> {
     try {
       if (batchJob.type === BatchJobType.DATASET_QUERY) {
+        await this.assertRunnable(batchJob);
         const dataset = await this.datasetService.findOne(batchJob.datasetId);
+        await assertLegacySource(
+          this.access,
+          'database',
+          dataset.databaseId,
+          batchJob.metadata.actor,
+        );
         const knex = await this.connectionService.getKnex(dataset.databaseId);
 
         // COUNT 쿼리 실행
         const countQuery = this.buildCountQuery(knex, dataset.query);
+        await this.assertRunnable(batchJob);
         const result = await countQuery;
+        await assertLegacySource(
+          this.access,
+          'database',
+          dataset.databaseId,
+          batchJob.metadata.actor,
+        );
+        await this.assertRunnable(batchJob);
 
         return result[0]?.count || 0;
       }
@@ -157,6 +191,9 @@ export class BatchService {
     const CONCURRENT_CHUNKS = 3; // 동시 처리 청크 수
 
     while (true) {
+      const current = await this.batchJobRepository.findOne({ where: { id: batchJobId } });
+      if (!current || current.status === BatchJobStatus.CANCELLED) return;
+      await this.assertRunnable(current);
       // 대기 중인 청크 조회
       const pendingChunks = await this.batchChunkRepository.find({
         where: {
@@ -197,9 +234,11 @@ export class BatchService {
         throw new Error('Batch job not found');
       }
 
+      await this.assertRunnable(batchJob);
       // 실제 데이터 처리
       const processedCount = await this.processChunkData(batchJob, chunk);
 
+      await this.assertRunnable(batchJob);
       // 청크 완료 처리
       await this.updateChunkStatus(chunk.id, BatchChunkStatus.COMPLETED, {
         processedCount,
@@ -218,7 +257,14 @@ export class BatchService {
    */
   private async processChunkData(batchJob: BatchJob, chunk: BatchChunk): Promise<number> {
     if (batchJob.type === BatchJobType.DATASET_QUERY) {
+      await this.assertRunnable(batchJob);
       const dataset = await this.datasetService.findOne(batchJob.datasetId);
+      await assertLegacySource(
+        this.access,
+        'database',
+        dataset.databaseId,
+        batchJob.metadata.actor,
+      );
       const knex = await this.connectionService.getKnex(dataset.databaseId);
 
       // LIMIT/OFFSET을 사용한 청크 쿼리
@@ -229,7 +275,15 @@ export class BatchService {
         chunk.endOffset - chunk.startOffset,
       );
 
+      await this.assertRunnable(batchJob);
       const results = await chunkQuery;
+      await assertLegacySource(
+        this.access,
+        'database',
+        dataset.databaseId,
+        batchJob.metadata.actor,
+      );
+      await this.assertRunnable(batchJob);
 
       // 여기서 실제 데이터 처리 로직 구현
       // 예: 파일 저장, 변환, 집계 등
@@ -317,7 +371,8 @@ export class BatchService {
       where: { id: batchJobId },
     });
 
-    if (!batchJob) return;
+    if (!batchJob || batchJob.status === BatchJobStatus.CANCELLED) return;
+    await this.assertRunnable(batchJob);
 
     const remainingChunks = await this.batchChunkRepository.count({
       where: {
@@ -342,9 +397,10 @@ export class BatchService {
   /**
    * 배치 작업 조회
    */
-  async findOne(id: number): Promise<BatchJob> {
+  async findOne(id: number, actor: LegacyJobActor): Promise<BatchJob> {
+    await assertLegacyActor(this.dataSource, actor);
     const batchJob = await this.batchJobRepository.findOne({
-      where: { id },
+      where: { id, createdBy: actor.userId },
       relations: ['chunks'],
     });
 
@@ -352,27 +408,31 @@ export class BatchService {
       throw new NotFoundException(`Batch job ${id} not found`);
     }
 
+    await this.assertJob(batchJob, actor);
     return batchJob;
   }
 
   /**
    * 배치 작업 목록 조회
    */
-  async findAll(userId: string): Promise<BatchJob[]> {
-    return this.batchJobRepository.find({
-      where: { createdBy: userId },
+  async findAll(actor: LegacyJobActor): Promise<BatchJob[]> {
+    await assertLegacyActor(this.dataSource, actor);
+    const jobs = await this.batchJobRepository.find({
+      where: { createdBy: actor.userId },
       order: { createdAt: 'DESC' },
       take: 50,
     });
+    for (const job of jobs) await this.assertJob(job, actor);
+    return jobs;
   }
 
   /**
    * 배치 작업 재시작
    */
-  async restartBatchJob(id: number, userId: string): Promise<BatchJob> {
-    const batchJob = await this.findOne(id);
+  async restartBatchJob(id: number, actor: LegacyJobActor): Promise<BatchJob> {
+    const batchJob = await this.findOne(id, actor);
 
-    if (batchJob.createdBy !== userId) {
+    if (batchJob.createdBy !== actor.userId) {
       throw new BadRequestException('Unauthorized to restart this batch job');
     }
 
@@ -395,26 +455,31 @@ export class BatchService {
     );
 
     // 배치 작업 상태 업데이트
-    await this.updateBatchJobStatus(id, BatchJobStatus.PROCESSING, {
-      errorMessage: null,
-      startedAt: new Date(),
-    });
+    await this.assertJob(batchJob, actor);
+    await this.batchJobRepository.update(
+      { id, createdBy: actor.userId, status: batchJob.status },
+      {
+        status: BatchJobStatus.PROCESSING,
+        errorMessage: null,
+        startedAt: new Date(),
+      },
+    );
 
     // 처리 재시작
     this.processBatchChunks(id).catch(error => {
       this.logger.error(`Failed to restart batch job ${id}`, error);
     });
 
-    return this.findOne(id);
+    return this.findOne(id, actor);
   }
 
   /**
    * 배치 작업 취소
    */
-  async cancelBatchJob(id: number, userId: string): Promise<BatchJob> {
-    const batchJob = await this.findOne(id);
+  async cancelBatchJob(id: number, actor: LegacyJobActor): Promise<BatchJob> {
+    const batchJob = await this.findOne(id, actor);
 
-    if (batchJob.createdBy !== userId) {
+    if (batchJob.createdBy !== actor.userId) {
       throw new BadRequestException('Unauthorized to cancel this batch job');
     }
 
@@ -422,6 +487,8 @@ export class BatchService {
       throw new BadRequestException('Only processing jobs can be cancelled');
     }
 
+    await this.assertJob(batchJob, actor);
+    await this.updateBatchJobStatus(id, BatchJobStatus.CANCELLED, { completedAt: new Date() });
     // 대기 중인 청크들을 취소 상태로 변경
     await this.batchChunkRepository.update(
       {
@@ -434,11 +501,42 @@ export class BatchService {
       },
     );
 
-    await this.updateBatchJobStatus(id, BatchJobStatus.CANCELLED, {
-      completedAt: new Date(),
-    });
+    return this.findOne(id, actor);
+  }
 
-    return this.findOne(id);
+  private async assertJob(job: BatchJob, actor: LegacyJobActor): Promise<void> {
+    await assertLegacyActor(this.dataSource, actor);
+    if (job.createdBy !== actor.userId) throw new ForbiddenException('Personal job required');
+    const admitted = job.metadata?.actor as LegacyJobActor;
+    await assertLegacyActor(this.dataSource, admitted);
+    if (
+      admitted.id !== actor.id ||
+      admitted.userId !== actor.userId ||
+      admitted.authVersion !== actor.authVersion
+    )
+      throw new ForbiddenException('Job actor changed');
+    if (!job.datasetId && !job.widgetId) throw new BadRequestException('Job source required');
+    if (job.datasetId) await assertLegacySource(this.access, 'dataset', job.datasetId, actor);
+    if (job.widgetId) await assertLegacySource(this.access, 'widget', job.widgetId, actor);
+    await assertLegacyActor(this.dataSource, actor);
+  }
+
+  private async assertRunnable(job: BatchJob): Promise<void> {
+    const current = await this.batchJobRepository.findOne({ where: { id: job.id } });
+    if (
+      !current ||
+      current.status === BatchJobStatus.CANCELLED ||
+      current.status === BatchJobStatus.COMPLETED
+    )
+      throw new ForbiddenException('Job unavailable');
+    await this.assertJob(current, current.metadata?.actor as LegacyJobActor);
+    // The executing object must still name the exact admitted sources and epoch.
+    if (
+      job.datasetId !== current.datasetId ||
+      job.widgetId !== current.widgetId ||
+      JSON.stringify(job.metadata?.actor) !== JSON.stringify(current.metadata?.actor)
+    )
+      throw new ForbiddenException('Job changed');
   }
 
   /**
@@ -449,10 +547,13 @@ export class BatchService {
     status: BatchJobStatus,
     updates: Partial<BatchJob> = {},
   ): Promise<void> {
-    await this.batchJobRepository.update(id, {
-      status,
-      ...updates,
-    });
+    await this.batchJobRepository.update(
+      { id, status: Not(BatchJobStatus.CANCELLED) },
+      {
+        status,
+        ...updates,
+      },
+    );
   }
 
   /**

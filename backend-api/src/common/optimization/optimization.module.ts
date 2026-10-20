@@ -1,3 +1,5 @@
+import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from '../../auth/auth.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DatabaseSpecificOptimizationService } from './database-specific-optimization.service';
@@ -21,7 +23,13 @@ import { MonitoringModule } from '../monitoring/monitoring.module';
  * - 통합 쿼리 최적화
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Database]), CommonModule, MonitoringModule],
+  imports: [
+    ConfigModule,
+    AuthModule,
+    TypeOrmModule.forFeature([Database]),
+    CommonModule,
+    MonitoringModule,
+  ],
   providers: [
     DatabaseSpecificOptimizationService,
     QueryCacheService,

@@ -7,6 +7,19 @@ export class Database extends BaseEntity {
   @PrimaryGeneratedColumn({ comment: '데이터베이스 ID' })
   id: number;
 
+  @Column({
+    type: 'int',
+    nullable: true,
+    comment: 'Server-owned source; NULL legacy requires explicit migration',
+  })
+  ownerId: number | null;
+
+  @Column({ type: 'boolean', default: true })
+  catalogActive: boolean;
+
+  @Column({ type: 'integer', default: 0 })
+  catalogVersion: number;
+
   @Column({ length: 300, comment: '데이터베이스명' })
   name: string;
 

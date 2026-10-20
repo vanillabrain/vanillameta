@@ -1,11 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { OnModuleDestroy, Injectable } from '@nestjs/common';
 import { BusinessMetricsService } from '../monitoring/business-metrics.service';
 import { QueryCollector, QueryInfo } from '../utils/query-collector';
 
 @Injectable()
-export class QueryPerformanceMetricsInterceptor {
+export class QueryPerformanceMetricsInterceptor implements OnModuleDestroy {
+  private reportingInterval?: ReturnType<typeof setInterval>;
   private lastReportTime = Date.now();
   private readonly reportInterval = 60000; // 1분마다 리포트
+
+  onModuleDestroy(): void {
+    if (this.reportingInterval) {
+      clearInterval(this.reportingInterval);
+      this.reportingInterval = undefined;
+    }
+  }
 
   constructor(
     private readonly businessMetrics: BusinessMetricsService,
@@ -16,11 +24,12 @@ export class QueryPerformanceMetricsInterceptor {
   }
 
   private startPeriodicReporting(): void {
-    setInterval(() => {
+    this.reportingInterval = setInterval(() => {
       this.reportQueryMetrics().catch(error => {
         console.error('Failed to report query metrics:', error);
       });
     }, this.reportInterval);
+    this.reportingInterval.unref?.();
   }
 
   private async reportQueryMetrics(): Promise<void> {

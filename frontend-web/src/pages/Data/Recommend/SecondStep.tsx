@@ -1,54 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { Stack, Typography, Box, Card, CardActionArea, IconButton, styled } from '@mui/material';
-import { ArrowBack, ArrowForward } from '@mui/icons-material';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import SwiperCore, { Navigation } from 'swiper';
 import 'swiper/css';
 import 'swiper/css/navigation';
-
-const StyledSwiperWrapper = styled(Box)({
-  position: 'absolute',
-  display: 'flex',
-  alignItems: 'flex-end',
-  left: 0,
-  right: 0,
-  bottom: -50,
-  zIndex: 2000,
-  width: '40%',
-  minWidth: 300,
-  maxWidth: 700,
-  height: '35%',
-  minHeight: 100,
-  maxHeight: 180,
-  margin: 'auto',
-});
-
-const StyledSwiper = styled(Swiper)({
-  width: 'calc(100% - 60px)',
-  height: '100%',
-});
-
-const StyledSwiperNavigation = styled(Box)({
-  display: 'flex',
-  flexDirection: 'row-reverse',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  position: 'absolute',
-  top: '50%',
-  bottom: '50%',
-  left: 0,
-  right: 0,
-  zIndex: 4000,
-  width: '100%',
-  height: 0,
-
-  '& .MuiIconButton-root': {
-    display: 'flex',
-    alignItems: 'center',
-    height: 100,
-    borderRadius: 0,
-  },
-});
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 function SecondStep(props) {
   const slideData = ['Slide 1', 'Slide 2', 'Slide 3', 'Slide 4', 'Slide 5'];
@@ -79,54 +37,46 @@ function SecondStep(props) {
   };
 
   return (
-    <Stack p={4} pb={0} mb={5} spacing={3}>
-      <Typography variant="h6" component="p">
-        Layout1
-      </Typography>
-      <Box
-        sx={{
-          position: 'relative',
-          width: '100%',
-          height: '46.875vw',
-          maxHeight: 'calc(70vh - 200px)',
-          m: 'auto',
-          borderRadius: 1,
-          backgroundColor: '#eee',
-        }}
-      >
+    <div className="mb-10 flex flex-col gap-6 p-4 pb-0">
+      <p className="text-lg font-medium">Layout1</p>
+      <div className="relative isolate m-auto h-[46.875vw] max-h-[calc(70vh-200px)] w-full rounded-[4px] bg-[#eee]">
         {slideData[activeSlide]}
 
-        <StyledSwiperWrapper>
-          <StyledSwiperNavigation>
-            <IconButton ref={navigationNextRef}>
-              <ArrowForward />
-            </IconButton>
-            <IconButton ref={navigationPrevRef}>
-              <ArrowBack />
-            </IconButton>
-          </StyledSwiperNavigation>
+        <div className="absolute inset-x-0 bottom-[-50px] z-10 mx-auto flex h-[35%] max-h-[180px] min-h-[100px] w-[40%] min-w-[300px] max-w-[700px] items-end">
+          <div className="absolute inset-x-0 top-1/2 bottom-1/2 z-20 flex h-0 w-full flex-row-reverse items-center justify-between">
+            <Button ref={navigationNextRef} variant="ghost" className="flex h-[100px] items-center rounded-none">
+              <ArrowRight />
+            </Button>
+            <Button ref={navigationPrevRef} variant="ghost" className="flex h-[100px] items-center rounded-none">
+              <ArrowLeft />
+            </Button>
+          </div>
 
-          <StyledSwiper {...swiperParams}>
+          <Swiper className="h-full w-[calc(100%-60px)]" {...swiperParams}>
             {slideData.map((item, index) => (
               <SwiperSlide key={item}>
                 <Card
-                  elevation={3}
-                  sx={{
-                    height: 'calc(100% - 16px)',
-                    m: 1,
-                    outline: activeSlide === index && '3px solid #000',
-                  }}
+                  className={cn(
+                    'm-1 h-[calc(100%-16px)] py-0 shadow-md',
+                    activeSlide === index && 'outline-3 outline-black',
+                  )}
                 >
-                  <CardActionArea name={item} sx={{ height: '100%', textAlign: 'center' }} onClick={handleClick}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    name={item}
+                    className="h-full w-full rounded-none text-center"
+                    onClick={handleClick}
+                  >
                     {item}
-                  </CardActionArea>
+                  </Button>
                 </Card>
               </SwiperSlide>
             ))}
-          </StyledSwiper>
-        </StyledSwiperWrapper>
-      </Box>
-    </Stack>
+          </Swiper>
+        </div>
+      </div>
+    </div>
   );
 }
 

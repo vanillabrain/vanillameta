@@ -168,11 +168,11 @@ class EnhancedAnalyticsService {
 
   private loadConfig(): AnalyticsConfig {
     return {
-      enabled: process.env.NODE_ENV === 'production' || process.env.REACT_APP_ANALYTICS_ENABLED === 'true',
+      enabled: import.meta.env.PROD || import.meta.env.REACT_APP_ANALYTICS_ENABLED === 'true',
       providers: {
-        googleAnalytics: !!process.env.REACT_APP_GA_MEASUREMENT_ID,
-        cloudWatch: process.env.REACT_APP_CLOUDWATCH_ENABLED === 'true',
-        customEndpoint: process.env.REACT_APP_ANALYTICS_ENDPOINT,
+        googleAnalytics: !!import.meta.env.REACT_APP_GA_MEASUREMENT_ID,
+        cloudWatch: import.meta.env.REACT_APP_CLOUDWATCH_ENABLED === 'true',
+        customEndpoint: import.meta.env.REACT_APP_ANALYTICS_ENDPOINT,
       },
       privacy: {
         anonymizeIp: true,
@@ -182,11 +182,11 @@ class EnhancedAnalyticsService {
       },
       sampling: {
         enabled: true,
-        rate: parseFloat(process.env.REACT_APP_ANALYTICS_SAMPLING_RATE || '1.0'),
+        rate: parseFloat(import.meta.env.REACT_APP_ANALYTICS_SAMPLING_RATE || '1.0'),
       },
       batchSize: 10,
       flushInterval: 30000, // 30초
-      debug: process.env.NODE_ENV === 'development',
+      debug: import.meta.env.DEV,
     };
   }
 

@@ -40,7 +40,7 @@ export class OracleOptimizer implements IDatabaseOptimizer {
           "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS'",
           "ALTER SESSION SET NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF'",
           "ALTER SESSION SET TIME_ZONE = 'Asia/Seoul'",
-          "ALTER SESSION SET OPTIMIZER_MODE = ALL_ROWS",
+          'ALTER SESSION SET OPTIMIZER_MODE = ALL_ROWS',
         ],
       },
       pool: {
@@ -53,12 +53,12 @@ export class OracleOptimizer implements IDatabaseOptimizer {
         createRetryIntervalMillis: 100,
         propagateCreateError: false,
         // Oracle 연결 풀 이벤트 처리
-        afterCreate: async (conn: any, done: Function) => {
+        afterCreate: async (conn: any, done: (error: Error | null, connection: any) => void) => {
           try {
             // Oracle 세션 최적화 설정
-            await conn.execute("ALTER SESSION SET OPTIMIZER_USE_SQL_PLAN_BASELINES = TRUE");
-            await conn.execute("ALTER SESSION SET OPTIMIZER_CAPTURE_SQL_PLAN_BASELINES = TRUE");
-            await conn.execute("ALTER SESSION SET CURSOR_SHARING = EXACT");
+            await conn.execute('ALTER SESSION SET OPTIMIZER_USE_SQL_PLAN_BASELINES = TRUE');
+            await conn.execute('ALTER SESSION SET OPTIMIZER_CAPTURE_SQL_PLAN_BASELINES = TRUE');
+            await conn.execute('ALTER SESSION SET CURSOR_SHARING = EXACT');
             done(null, conn);
           } catch (err) {
             console.warn(`Oracle session setup warning: ${err.message}`);
@@ -91,7 +91,7 @@ export class OracleOptimizer implements IDatabaseOptimizer {
     // Oracle 힌트 추가
     const hints = this.getOptimalHints(queryBuilder);
     if (hints.length > 0) {
-      queryBuilder = queryBuilder.hint(hints.join(' '));
+      queryBuilder = queryBuilder.hintComment(hints.join(' '));
     }
 
     // ROWNUM 최적화 (Oracle 12c 이전 버전 고려)
@@ -190,13 +190,15 @@ export class OracleOptimizer implements IDatabaseOptimizer {
     };
 
     const errorCode = this.extractOracleErrorCode(error.message || '');
-    return oracleErrors[errorCode] || {
-      code: 'UNKNOWN_ERROR',
-      message: error.message || '알 수 없는 Oracle 오류가 발생했습니다.',
-      severity: 'medium',
-      retryable: false,
-      suggestions: ['쿼리를 확인해주세요.', 'Oracle 오류 코드를 확인해주세요.'],
-    };
+    return (
+      oracleErrors[errorCode] || {
+        code: 'UNKNOWN_ERROR',
+        message: error.message || '알 수 없는 Oracle 오류가 발생했습니다.',
+        severity: 'medium',
+        retryable: false,
+        suggestions: ['쿼리를 확인해주세요.', 'Oracle 오류 코드를 확인해주세요.'],
+      }
+    );
   }
 
   /**
@@ -220,7 +222,8 @@ export class OracleOptimizer implements IDatabaseOptimizer {
         category: 'query',
         priority: 'high',
         description: 'MERGE 문을 사용하여 UPSERT를 구현하세요.',
-        implementation: 'MERGE INTO target USING source ON (condition) WHEN MATCHED THEN UPDATE WHEN NOT MATCHED THEN INSERT;',
+        implementation:
+          'MERGE INTO target USING source ON (condition) WHEN MATCHED THEN UPDATE WHEN NOT MATCHED THEN INSERT;',
       },
       {
         category: 'configuration',
@@ -238,7 +241,8 @@ export class OracleOptimizer implements IDatabaseOptimizer {
         category: 'configuration',
         priority: 'medium',
         description: '적절한 SGA와 PGA 크기를 설정하세요.',
-        implementation: 'ALTER SYSTEM SET SGA_TARGET = 2G; ALTER SYSTEM SET PGA_AGGREGATE_TARGET = 512M;',
+        implementation:
+          'ALTER SYSTEM SET SGA_TARGET = 2G; ALTER SYSTEM SET PGA_AGGREGATE_TARGET = 512M;',
       },
     ];
   }
@@ -252,7 +256,7 @@ export class OracleOptimizer implements IDatabaseOptimizer {
     }
 
     const { host, port, serviceName, sid } = connectionConfig;
-    
+
     if (serviceName) {
       return `${host}:${port}/${serviceName}`;
     } else if (sid) {
@@ -322,7 +326,7 @@ export class OracleOptimizer implements IDatabaseOptimizer {
    */
   private optimizePartitionPruning(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
     // 파티션 키를 이용한 WHERE 절 최적화
-    return queryBuilder.hint('/*+ PARTITION */');
+    return queryBuilder.hintComment('/*+ PARTITION */');
   }
 
   /**
@@ -349,16 +353,16 @@ export class OracleOptimizer implements IDatabaseOptimizer {
     targetTable: string,
     sourceData: any[],
     matchColumns: string[],
-    updateColumns: string[]
+    updateColumns: string[],
   ): Promise<void> {
     if (sourceData.length === 0) return;
 
     const allColumns = Object.keys(sourceData[0]);
     const insertColumns = allColumns.filter(col => !matchColumns.includes(col));
-    
+
     // 임시 테이블 생성 및 데이터 삽입
     const tempTable = `temp_${targetTable}_${Date.now()}`;
-    
+
     try {
       // 임시 테이블 생성
       await knex.schema.createTable(tempTable, table => {
@@ -371,15 +375,13 @@ export class OracleOptimizer implements IDatabaseOptimizer {
       await knex(tempTable).insert(sourceData);
 
       // MERGE 실행
-      const matchCondition = matchColumns
-        .map(col => `target.${col} = source.${col}`)
-        .join(' AND ');
-      
-      const updateClause = updateColumns
-        .map(col => `target.${col} = source.${col}`)
-        .join(', ');
-      
-      const insertClause = `(${allColumns.join(', ')}) VALUES (${allColumns.map(col => `source.${col}`).join(', ')})`;
+      const matchCondition = matchColumns.map(col => `target.${col} = source.${col}`).join(' AND ');
+
+      const updateClause = updateColumns.map(col => `target.${col} = source.${col}`).join(', ');
+
+      const insertClause = `(${allColumns.join(', ')}) VALUES (${allColumns
+        .map(col => `source.${col}`)
+        .join(', ')})`;
 
       const mergeQuery = `
         MERGE INTO ${targetTable} target
@@ -401,16 +403,12 @@ export class OracleOptimizer implements IDatabaseOptimizer {
   /**
    * Oracle 배열 DML (FORALL)
    */
-  async bulkInsert(
-    knex: Knex,
-    tableName: string,
-    data: any[]
-  ): Promise<void> {
+  async bulkInsert(knex: Knex, tableName: string, data: any[]): Promise<void> {
     const chunkSize = this.getBatchSize();
-    
+
     for (let i = 0; i < data.length; i += chunkSize) {
       const chunk = data.slice(i, i + chunkSize);
-      
+
       // Oracle의 배열 DML 활용
       await knex(tableName).insert(chunk);
     }
@@ -422,12 +420,12 @@ export class OracleOptimizer implements IDatabaseOptimizer {
   async getExecutionPlan(knex: Knex, query: string): Promise<any> {
     // EXPLAIN PLAN 실행
     await knex.raw(`EXPLAIN PLAN FOR ${query}`);
-    
+
     // 실행 계획 조회
     const result = await knex.raw(`
       SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', NULL, 'ALL'))
     `);
-    
+
     return result;
   }
 

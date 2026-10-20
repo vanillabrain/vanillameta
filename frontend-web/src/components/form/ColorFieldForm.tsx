@@ -1,101 +1,61 @@
-import React, { useState } from 'react';
-import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Stack } from '@mui/material';
-import { SketchPicker } from 'react-color';
-import PaintButton from '@/components/button/PaintButton';
+import React, { useId, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import ColorPickerForm from './ColorPickerForm';
 
 const ColorFieldForm = props => {
-  const { id, label, value, colorList, setOption, index, endButton, ...rest } = props;
-
-  const color = colorList ? colorList[index] : '#eee';
+  const { t } = useTranslation();
+  const { id, label, value = '#eee', colorList, setOption, index = 0, endButton, inputProps, className, ...rest } = props;
+  const generatedId = useId();
+  const [inputColor, setInputColor] = useState(value);
+  useEffect(() => setInputColor(value), [value]);
+  const controlId = id || generatedId;
   const labelItem = Array.isArray(label) ? label[index] : label;
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
+  const accessibleName = labelItem || t('common.colorValue') + ' ' + (index + 1);
   const handleChange = event => {
-    setOption(prevState => {
-      const _tempOption = { ...prevState };
-      if (_tempOption.color) {
-        _tempOption.color.splice(index, 1, event.target.value);
-        return _tempOption;
-      }
-      _tempOption.series.color.splice(index, 1, event.target.value);
-      return _tempOption;
-    });
+    const color = event.target.value;
+    setOption(previous =>
+      previous.color
+        ? {
+            ...previous,
+            color: previous.color.map((item, position) => (position === index ? color : item)),
+          }
+        : {
+            ...previous,
+            series: {
+              ...previous.series,
+              color: previous.series.color.map((item, position) => (position === index ? color : item)),
+            },
+          },
+    );
   };
-
-  const handleCompleteChange = selectColor => {
-    setAnchorEl(null);
-    setOption(prevState => {
-      const _tempOption = { ...prevState };
-      if (_tempOption.color) {
-        _tempOption.color.splice(index, 1, selectColor.hex);
-        return _tempOption;
-      }
-      _tempOption.series.color.splice(index, 1, selectColor.hex);
-      return _tempOption;
-    });
-  };
-
-  const open = Boolean(anchorEl);
-  const popoverId = open ? '색상 선택 팝업' : undefined;
-
   return (
-    <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className={cn('flex w-full flex-row items-center justify-between gap-2', className)}>
       {labelItem && (
-        <FormLabel
-          htmlFor={id}
-          sx={{ width: '35%', pr: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-        >
+        <Label htmlFor={controlId} className="w-[35%] truncate pr-2">
           {labelItem}
-        </FormLabel>
+        </Label>
       )}
-      <Stack
-        flexDirection="row"
-        sx={{ width: labelItem ? '65%' : '100%' }}
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <IconButton aria-label="색상 선택" sx={{ mr: 1 }} onClick={handleClick}>
-          <PaintButton color={value} />
-        </IconButton>
-        <Popover
-          id={popoverId}
-          open={open}
-          anchorEl={anchorEl}
-          onClose={handleClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'left',
-          }}
-        >
-          <SketchPicker color={color} onChangeComplete={handleCompleteChange} disableAlpha />
-        </Popover>
-        <OutlinedInput
-          id={id}
-          value={value}
-          type="text"
-          margin="dense"
-          fullWidth
-          sx={endButton ? { width: 'calc(100% - 38px)', flexShrink: 0 } : { width: '100%' }}
-          onChange={handleChange}
+      <div className={cn('flex min-w-0 flex-row items-center gap-2', labelItem ? 'w-[65%]' : 'w-full')}>
+        <ColorPickerForm label={accessibleName + ' ' + t('common.colorPicker')} color={inputColor} onChange={handleChange} />
+        <Input
           {...rest}
+          {...inputProps}
+          id={controlId}
+          value={inputColor}
+          type="text"
+          aria-label={accessibleName}
+          className="h-8 min-w-0 bg-background"
+          onChange={event => setInputColor(event.target.value)}
+          onBlur={event => {
+            if (event.target.value !== value) handleChange(event);
+          }}
         />
-      </Stack>
-    </FormControl>
+        {endButton}
+      </div>
+    </div>
   );
 };
-
-ColorFieldForm.defaultProps = {
-  value: '#eee',
-  id: '',
-  index: 0,
-};
-
 export default ColorFieldForm;

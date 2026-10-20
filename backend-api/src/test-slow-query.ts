@@ -5,13 +5,13 @@ import { getConnection } from 'typeorm';
 
 /**
  * 슬로우 쿼리 모니터링 테스트 스크립트
- * 
+ *
  * 사용법:
  * yarn ts-node src/test-slow-query.ts
  */
 async function testSlowQueryMonitoring() {
   const app = await NestFactory.createApplicationContext(AppModule);
-  
+
   try {
     console.log('🚀 슬로우 쿼리 모니터링 테스트 시작...\n');
 
@@ -84,7 +84,6 @@ async function testSlowQueryMonitoring() {
     console.log('   - CloudWatch Logs에서 "Slow query detected" 검색');
     console.log('   - API: GET /monitoring/slow-queries/stats');
     console.log('   - API: GET /monitoring/slow-queries');
-
   } catch (error) {
     console.error('❌ 테스트 중 오류 발생:', error);
   } finally {
@@ -95,7 +94,7 @@ async function testSlowQueryMonitoring() {
 // 스크립트 실행
 testSlowQueryMonitoring()
   .then(() => process.exit(0))
-  .catch((error) => {
+  .catch(error => {
     console.error('Fatal error:', error);
     process.exit(1);
   });

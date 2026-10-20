@@ -1,15 +1,15 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { vi, afterEach } from 'vitest';
+afterEach(cleanup);
+import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import LanguageSwitcher from './LanguageSwitcher';
 
 // react-i18next 모킹
-const mockChangeLanguage = jest.fn();
-const mockI18n = {
-  changeLanguage: mockChangeLanguage,
-  language: 'ko',
-};
+const { mockChangeLanguage, mockI18n } = vi.hoisted(() => {
+  const mockChangeLanguage = vi.fn();
+  return { mockChangeLanguage, mockI18n: { changeLanguage: mockChangeLanguage, language: 'ko' } };
+});
 
-jest.mock('react-i18next', () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     i18n: mockI18n,
     t: (key: string) => key,
@@ -18,7 +18,7 @@ jest.mock('react-i18next', () => ({
 
 describe('LanguageSwitcher 컴포넌트', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockI18n.language = 'ko';
   });
 
@@ -26,11 +26,11 @@ describe('LanguageSwitcher 컴포넌트', () => {
     render(<LanguageSwitcher />);
 
     const button = screen.getByRole('button');
-    expect(button).toBeInTheDocument();
+    expect(document.contains(button)).toBe(true);
 
     // LanguageIcon이 있는지 확인
     const icon = button.querySelector('svg');
-    expect(icon).toBeInTheDocument();
+    expect(document.contains(icon)).toBe(true);
   });
 
   it('버튼 클릭 시 메뉴가 열려야 함', async () => {
@@ -40,8 +40,8 @@ describe('LanguageSwitcher 컴포넌트', () => {
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect(screen.getByText('한국어')).toBeInTheDocument();
-      expect(screen.getByText('English')).toBeInTheDocument();
+      expect(document.contains(screen.getByText('한국어'))).toBe(true);
+      expect(document.contains(screen.getByText('English'))).toBe(true);
     });
   });
 
@@ -53,7 +53,7 @@ describe('LanguageSwitcher 컴포넌트', () => {
 
     await waitFor(() => {
       const koreanMenuItem = screen.getByRole('menuitem', { name: /한국어/ });
-      expect(koreanMenuItem).toHaveClass('Mui-selected');
+      expect((koreanMenuItem as Element).classList.contains('Mui-selected')).toBe(true);
     });
   });
 
@@ -65,7 +65,7 @@ describe('LanguageSwitcher 컴포넌트', () => {
 
     await waitFor(() => {
       const englishMenuItem = screen.getByText('English');
-      expect(englishMenuItem).toBeInTheDocument();
+      expect(document.contains(englishMenuItem)).toBe(true);
     });
 
     const englishMenuItem = screen.getByText('English');
@@ -81,14 +81,14 @@ describe('LanguageSwitcher 컴포넌트', () => {
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect(screen.getByText('English')).toBeInTheDocument();
+      expect(document.contains(screen.getByText('English'))).toBe(true);
     });
 
     const englishMenuItem = screen.getByText('English');
     fireEvent.click(englishMenuItem);
 
     await waitFor(() => {
-      expect(screen.queryByText('English')).not.toBeInTheDocument();
+      expect(document.contains(screen.queryByText('English'))).toBe(false);
     });
   });
 
@@ -99,8 +99,8 @@ describe('LanguageSwitcher 컴포넌트', () => {
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect(screen.getByText('🇰🇷')).toBeInTheDocument();
-      expect(screen.getByText('🇺🇸')).toBeInTheDocument();
+      expect(document.contains(screen.getByText('🇰🇷'))).toBe(true);
+      expect(document.contains(screen.getByText('🇺🇸'))).toBe(true);
     });
   });
 
@@ -114,7 +114,7 @@ describe('LanguageSwitcher 컴포넌트', () => {
 
     await waitFor(() => {
       const englishMenuItem = screen.getByRole('menuitem', { name: /English/ });
-      expect(englishMenuItem).toHaveClass('Mui-selected');
+      expect((englishMenuItem as Element).classList.contains('Mui-selected')).toBe(true);
     });
   });
 
@@ -125,7 +125,7 @@ describe('LanguageSwitcher 컴포넌트', () => {
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect(screen.getByText('한국어')).toBeInTheDocument();
+      expect(document.contains(screen.getByText('한국어'))).toBe(true);
     });
 
     // Material-UI Menu의 backdrop 클릭으로 메뉴 닫기
@@ -135,7 +135,7 @@ describe('LanguageSwitcher 컴포넌트', () => {
     }
 
     await waitFor(() => {
-      expect(screen.queryByText('한국어')).not.toBeInTheDocument();
+      expect(document.contains(screen.queryByText('한국어'))).toBe(false);
     });
   });
 
@@ -149,7 +149,7 @@ describe('LanguageSwitcher 컴포넌트', () => {
 
     await waitFor(() => {
       const koreanMenuItem = screen.getByRole('menuitem', { name: /한국어/ });
-      expect(koreanMenuItem).toHaveClass('Mui-selected');
+      expect((koreanMenuItem as Element).classList.contains('Mui-selected')).toBe(true);
     });
   });
 
@@ -163,10 +163,8 @@ describe('LanguageSwitcher 컴포넌트', () => {
       const menuItems = screen.getAllByRole('menuitem');
       menuItems.forEach(item => {
         const box = item.querySelector('[class*="MuiBox-root"]');
-        expect(box).toHaveStyle({
-          display: 'flex',
-          alignItems: 'center',
-        });
+        expect(getComputedStyle(box).display).toBe('flex');
+        expect(getComputedStyle(box).alignItems).toBe('center');
       });
     });
   });

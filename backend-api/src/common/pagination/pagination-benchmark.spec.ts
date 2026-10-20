@@ -185,7 +185,8 @@ describe('Pagination Performance Benchmark', () => {
       const cursorStartTime = process.hrtime.bigint();
       const cursorPromises = Array.from({ length: concurrentRequests }, (_, i) =>
         service.paginateCursor(mockQueryBuilder, {
-          nextCursor: i > 0 ? CursorUtils.encodeCursor({ id: i * 10, sortValue: i * 10 }) : undefined,
+          nextCursor:
+            i > 0 ? CursorUtils.encodeCursor({ id: i * 10, sortValue: i * 10 }) : undefined,
           limit: 10,
         }),
       );

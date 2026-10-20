@@ -1,5 +1,6 @@
 import React from 'react';
-import { Divider, InputAdornment, ListItem, ListItemText } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
@@ -8,6 +9,7 @@ import TextFieldForm from '@/components/form/TextFieldForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 
 const PolarBarChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec } = props;
 
   // 컴포넌트 별 default series
@@ -33,13 +35,13 @@ const PolarBarChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           required={true}
           id="axisField"
           name="axisField"
-          label="축"
+          label={t('settings.axis')}
           optionList={spec.map(item => item.columnName)}
           labelField="columnName"
           valueField="columnType"
@@ -48,21 +50,17 @@ const PolarBarChartSetting = props => {
         />
         <SelectForm
           name="label"
-          label="넘버 레이블"
-          optionList={DISPLAY_LIST}
+          label={t('settings.numberLabel')}
+          optionList={DISPLAY_LIST(t)}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary="시리즈 설정" />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <AddButton
           onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
+          className="absolute right-0 top-[30px]"
         />
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
@@ -81,8 +79,8 @@ const PolarBarChartSetting = props => {
             <SelectForm
               id={`aggregation${index + 1}`}
               name={`aggregation${index + 1}`}
-              label="집계 방식"
-              optionList={AGGREGATION_LIST}
+              label={t('settings.aggregation')}
+              optionList={AGGREGATION_LIST(t)}
               value={item.aggregation}
               onChange={event => handleSeriesChange(event, setOption)}
               disabledDefaultValue
@@ -94,50 +92,50 @@ const PolarBarChartSetting = props => {
                 )
               }
             />
-            <Divider />
+            <Separator />
           </React.Fragment>
         ))}
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary="차트 모양 설정" />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.chartShape')}</span>
         <TextFieldForm
           id="radius1"
           name="radius1"
-          label="내부 원 크기"
+          label={t('settings.innerRadius')}
           type="number"
           value={innerRadius.slice(0, -1)}
           onChange={handleRadiusChange}
-          endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          endAdornment={<span className="text-sm text-muted-foreground">%</span>}
         />
         <TextFieldForm
           id="radius2"
           name="radius2"
-          label="외부 원 크기"
+          label={t('settings.outerRadius')}
           type="number"
           value={outerRadius.slice(0, -1)}
           onChange={handleRadiusChange}
-          endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          endAdornment={<span className="text-sm text-muted-foreground">%</span>}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText>범례 설정</ListItemText>
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
+          label={t('settings.position')}
+          optionList={LEGEND_LIST(t)}
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
         <SelectForm
           id="legendAggregation"
           name="legendAggregation"
-          label="집계 방식 표시"
-          optionList={DISPLAY_LIST}
+          label={t('settings.aggregationDisplay')}
+          optionList={DISPLAY_LIST(t)}
           value={option.legendAggregation}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

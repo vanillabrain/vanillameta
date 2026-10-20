@@ -87,10 +87,10 @@ export class EnhancedConnectionPoolService implements OnModuleDestroy {
           // 연결 검증 쿼리 설정
           ...this.getConnectionValidationConfig(engine),
           // 연결 생성/파괴 이벤트 핸들러
-          afterCreate: (conn: any, done: Function) => {
+          afterCreate: (conn: any, done: (error: Error | null, connection: any) => void) => {
             this.onConnectionCreate(databaseId, engine, conn, done);
           },
-          beforeDestroy: (conn: any, done: Function) => {
+          beforeDestroy: (conn: any, done: (error?: Error) => void) => {
             this.onConnectionDestroy(databaseId, conn, done);
           },
         },
@@ -310,7 +310,12 @@ export class EnhancedConnectionPoolService implements OnModuleDestroy {
   /**
    * 연결 생성 시 호출되는 콜백
    */
-  private onConnectionCreate(databaseId: number, engine: string, conn: any, done: Function): void {
+  private onConnectionCreate(
+    databaseId: number,
+    engine: string,
+    conn: any,
+    done: (error: Error | null, connection: any) => void,
+  ): void {
     // 연결별 최적화 설정 적용
     try {
       switch (engine) {
@@ -348,7 +353,7 @@ export class EnhancedConnectionPoolService implements OnModuleDestroy {
   /**
    * 연결 파괴 시 호출되는 콜백
    */
-  private onConnectionDestroy(databaseId: number, conn: any, done: Function): void {
+  private onConnectionDestroy(databaseId: number, conn: any, done: (error?: Error) => void): void {
     // 연결 정리 작업
     try {
       this.customLogger.debug('Connection being destroyed', 'EnhancedConnectionPoolService', {

@@ -1,42 +1,48 @@
 import React from 'react';
-import { Box, Button, Stack } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export const ConfirmButton = props => {
-  const { confirmLabel, confirmProps, sx } = props;
+  const { confirmLabel, confirmProps = {}, className } = props;
+  const { className: confirmClassName, variant = 'default', ...rest } = confirmProps;
   return (
-    <Button variant="contained" sx={{ minWidth: '55px', minHeight: '32px', ...sx }} {...confirmProps}>
+    <Button type="button" variant={variant} className={cn('min-w-[55px]', confirmClassName, className)} {...rest}>
       {confirmLabel}
     </Button>
   );
 };
 
 export const CancelButton = props => {
-  const { cancelLabel, cancelProps } = props;
+  const { cancelLabel, cancelProps = {}, className } = props;
+  const { className: cancelClassName, variant = 'outline', ...rest } = cancelProps;
   return (
-    <Button variant="outlined" sx={{ minWidth: '55px', minHeight: '32px' }} {...cancelProps}>
+    <Button type="button" variant={variant} className={cn('min-w-[55px]', cancelClassName, className)} {...rest}>
       {cancelLabel}
     </Button>
   );
 };
 
 const ConfirmCancelButton = props => {
-  const { secondButton, firstButton, confirmLabel, cancelLabel, confirmProps, cancelProps } = props;
+  const { t } = useTranslation();
+  const {
+    secondButton,
+    firstButton,
+    confirmLabel = t('common.save'),
+    cancelLabel = t('common.cancel'),
+    confirmProps,
+    cancelProps,
+    className,
+  } = props;
 
   return (
-    <Stack direction="row-reverse" flexWrap="wrap" component="ul" spacing={{ xs: 1, md: 2 }} p={0}>
-      <Box component="li" sx={{ listStyle: 'none' }}>
+    <ul className={cn('flex flex-row-reverse flex-wrap gap-2 p-0', className)}>
+      <li className="list-none">
         {secondButton ?? <ConfirmButton confirmLabel={confirmLabel} confirmProps={confirmProps} />}
-      </Box>
-      <Box component="li" sx={{ listStyle: 'none' }}>
-        {firstButton ?? <CancelButton cancelLabel={cancelLabel} cancelProps={cancelProps} />}
-      </Box>
-    </Stack>
+      </li>
+      <li className="list-none">{firstButton ?? <CancelButton cancelLabel={cancelLabel} cancelProps={cancelProps} />}</li>
+    </ul>
   );
-};
-
-ConfirmCancelButton.defaultProps = {
-  confirmLabel: '저장',
-  cancelLabel: '취소',
 };
 
 export default ConfirmCancelButton;

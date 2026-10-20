@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
+import { DynamicModule, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -14,44 +15,61 @@ import { ConnectionModule } from '../connection/connection.module';
 import { LoggerModule } from '../common/logger/logger.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
-@Module({
-  imports: [
-    TypeOrmModule.forFeature([BackgroundJob, JobResult]),
-    BullModule.registerQueueAsync({
-      name: 'query-execution',
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => {
-        const nodeEnv = configService.get<string>('NODE_ENV') || 'local';
+/**
+ * Redis is opt-in: set REDIS_URL, REDIS_HOST or REDIS_PORT in the server environment/.env.
+ * With none configured, history APIs remain available and admission returns 503.
+ * QA_REDIS_PORT must be mapped to REDIS_PORT by the launcher, never inferred here.
+ */
+@Module({})
+class BackgroundJobRuntimeModule {}
 
-        // Lambda 환경에서는 SQS 사용을 권장하지만, 현재는 Bull 사용
-        return {
-          redis: {
-            host: configService.get<string>('REDIS_HOST') || 'localhost',
-            port: configService.get<number>('REDIS_PORT') || 6379,
-            password: configService.get<string>('REDIS_PASSWORD'),
-            db: configService.get<number>('REDIS_DB') || 0,
-          },
-          defaultJobOptions: {
-            removeOnComplete: false, // 완료된 작업 보존
-            removeOnFail: false, // 실패한 작업 보존
-            attempts: 3, // 최대 재시도 횟수
-            backoff: {
-              type: 'exponential',
-              delay: 2000, // 2초부터 시작
+export async function backgroundJobRuntime(): Promise<DynamicModule> {
+  await ConfigModule.envVariablesLoaded;
+  const enabled = !!(process.env.REDIS_URL || process.env.REDIS_HOST || process.env.REDIS_PORT);
+  const queue = enabled
+    ? [
+        BullModule.registerQueueAsync({
+          name: 'query-execution',
+          imports: [ConfigModule],
+          useFactory: async (config: ConfigService) => ({
+            redis: config.get<string>('REDIS_URL') || {
+              host: config.get<string>('REDIS_HOST') || '127.0.0.1',
+              port: Number(config.get<string>('REDIS_PORT') || 6379),
+              password: config.get<string>('REDIS_PASSWORD'),
+              db: Number(config.get<string>('REDIS_DB') || 0),
             },
-          },
-        };
-      },
-      inject: [ConfigService],
-    }),
-    DatasetModule,
-    DatabaseModule,
-    ConnectionModule,
-    LoggerModule,
-    ScheduleModule.forRoot(),
-  ],
-  controllers: [BackgroundJobController],
-  providers: [BackgroundJobService, QueryJobProcessor, BackgroundJobScheduler],
-  exports: [BackgroundJobService],
-})
+            defaultJobOptions: {
+              removeOnComplete: false,
+              removeOnFail: false,
+              attempts: 3,
+              backoff: { type: 'exponential', delay: 2000 },
+            },
+          }),
+          inject: [ConfigService],
+        }),
+      ]
+    : [];
+  return {
+    module: BackgroundJobRuntimeModule,
+    imports: [
+      AuthModule,
+      TypeOrmModule.forFeature([BackgroundJob, JobResult]),
+      ...queue,
+      DatasetModule,
+      DatabaseModule,
+      ConnectionModule,
+      LoggerModule,
+      ScheduleModule.forRoot(),
+    ],
+    controllers: [BackgroundJobController],
+    providers: [
+      BackgroundJobService,
+      BackgroundJobScheduler,
+      ...(enabled ? [QueryJobProcessor] : []),
+    ],
+    exports: [BackgroundJobService],
+  };
+}
+
+@Module({ imports: [backgroundJobRuntime()], exports: [BackgroundJobRuntimeModule] })
 export class BackgroundJobModule {}

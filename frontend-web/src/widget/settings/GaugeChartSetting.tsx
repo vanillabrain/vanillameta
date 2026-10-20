@@ -1,5 +1,5 @@
 import React from 'react';
-import { ListItem, ListItemText } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
@@ -7,17 +7,18 @@ import TextFieldForm from '@/components/form/TextFieldForm';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
 
 const GaugeChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec } = props;
 
   return (
     <React.Fragment>
-      <ListItem>
-        <ListItemText primary="시리즈 설정" />
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <SelectForm
           required={true}
           id="field"
           name="field"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -36,15 +37,15 @@ const GaugeChartSetting = props => {
         <TextFieldForm
           id="fieldLabel"
           name="fieldLabel"
-          label="레이블"
+          label={t('settings.label')}
           value={option.fieldLabel ? option.fieldLabel : ''}
           onChange={event => handleChange(event, setOption)}
         />
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.aggregation}
           onChange={event => handleChange(event, setOption)}
           disabledDefaultValue
@@ -52,11 +53,11 @@ const GaugeChartSetting = props => {
         <TextFieldForm
           id="suffix"
           name="suffix"
-          label="단위"
+          label={t('settings.unit')}
           value={option.suffix}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

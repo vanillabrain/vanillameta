@@ -10,7 +10,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../auth/guards/legacy-operations.guard';
+import { legacyJobActor } from '../background-job/legacy-job-access';
 import { AuthPublic } from '../auth/decorators/auth-public.decorator';
 import { EventsService } from './events.service';
 import { TrackEventDto } from './dto/track-event.dto';
@@ -47,37 +48,37 @@ export class EventsController {
   }
 
   @Get('analytics/summary')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(LegacyOperationsGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '분석 요약 데이터 조회' })
   @ApiResponse({ status: 200, description: '분석 요약 데이터' })
   async getAnalyticsSummary(@Query() query: AnalyticsQueryDto, @Req() req: any) {
-    const userId = req.user?.userId;
+    const userId = legacyJobActor(req.user).userId;
     return this.eventsService.getAnalyticsSummary(query, userId);
   }
 
   @Get('analytics/events')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(LegacyOperationsGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '이벤트 목록 조회' })
   @ApiResponse({ status: 200, description: '이벤트 목록' })
   async getEvents(@Query() query: AnalyticsQueryDto, @Req() req: any) {
-    const userId = req.user?.userId;
+    const userId = legacyJobActor(req.user).userId;
     return this.eventsService.getEvents(query, userId);
   }
 
   @Get('analytics/metrics')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(LegacyOperationsGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '성능 메트릭 조회' })
   @ApiResponse({ status: 200, description: '성능 메트릭 데이터' })
   async getMetrics(@Query() query: AnalyticsQueryDto, @Req() req: any) {
-    const userId = req.user?.userId;
+    const userId = legacyJobActor(req.user).userId;
     return this.eventsService.getMetrics(query, userId);
   }
 
   @Get('analytics/funnel')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(LegacyOperationsGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '퍼널 분석 데이터 조회' })
   @ApiResponse({ status: 200, description: '퍼널 분석 데이터' })
@@ -86,28 +87,28 @@ export class EventsController {
     @Query() query: AnalyticsQueryDto,
     @Req() req: any,
   ) {
-    const userId = req.user?.userId;
+    const userId = legacyJobActor(req.user).userId;
     const stepArray = steps ? steps.split(',') : [];
     return this.eventsService.getFunnelAnalysis(stepArray, query, userId);
   }
 
   @Get('analytics/retention')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(LegacyOperationsGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '리텐션 분석 데이터 조회' })
   @ApiResponse({ status: 200, description: '리텐션 분석 데이터' })
   async getRetentionAnalysis(@Query() query: AnalyticsQueryDto, @Req() req: any) {
-    const userId = req.user?.userId;
+    const userId = legacyJobActor(req.user).userId;
     return this.eventsService.getRetentionAnalysis(query, userId);
   }
 
   @Get('analytics/user-flow')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(LegacyOperationsGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '사용자 플로우 분석' })
   @ApiResponse({ status: 200, description: '사용자 플로우 데이터' })
   async getUserFlow(@Query() query: AnalyticsQueryDto, @Req() req: any) {
-    const userId = req.user?.userId;
+    const userId = legacyJobActor(req.user).userId;
     return this.eventsService.getUserFlow(query, userId);
   }
 

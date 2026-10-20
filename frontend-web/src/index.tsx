@@ -1,42 +1,60 @@
+import { register as registerServiceWorker } from './serviceWorkerRegistration';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import theme from './theme/theme';
 import { ThemeProvider } from '@mui/material/styles';
+import legacyTheme from '@/theme/theme';
+import { PerformanceProvider } from '@/contexts/PerformanceContext';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { BrowserRouter } from 'react-router-dom';
 import { LayoutProvider } from '@/contexts/LayoutContext';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AlertProvider } from '@/contexts/AlertContext';
-import { PerformanceProvider } from '@/contexts/PerformanceContext';
 import { HelmetProvider } from 'react-helmet-async';
-import * as serviceWorkerRegistration from './serviceWorkerRegistration';
-import reportWebVitals from './reportWebVitals';
-import { initializeEventTracking } from './utils/eventTracking';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import '@/i18n';
 import './index.css';
-import './i18n'; // i18n 초기화
+import { initializeEventTracking } from '@/utils/eventTracking';
+import reportWebVitals from './reportWebVitals';
 
-// 이벤트 추적 시스템 초기화
 initializeEventTracking();
+reportWebVitals(() => undefined);
+
+const queryClient = new QueryClient();
+
+if (import.meta.env.REACT_APP_SENTRY_DSN) {
+  void import('@sentry/react').then(Sentry => {
+    Sentry.init({
+      dsn: import.meta.env.REACT_APP_SENTRY_DSN,
+      environment: import.meta.env.MODE,
+      tracesSampleRate: Number(import.meta.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE || 0),
+    });
+  });
+}
 
 const rootElement = document.getElementById('root');
 const app = (
   <HelmetProvider>
-    <PerformanceProvider>
+    <QueryClientProvider client={queryClient}>
       <LayoutProvider>
         <LoadingProvider>
           <BrowserRouter>
             <AuthProvider>
-              <ThemeProvider theme={theme}>
+              <TooltipProvider>
                 <AlertProvider>
-                  <App />
+                  <ThemeProvider theme={legacyTheme}>
+                    <PerformanceProvider>
+                      <App />
+                    </PerformanceProvider>
+                  </ThemeProvider>
                 </AlertProvider>
-              </ThemeProvider>
+              </TooltipProvider>
             </AuthProvider>
           </BrowserRouter>
         </LoadingProvider>
       </LayoutProvider>
-    </PerformanceProvider>
+    </QueryClientProvider>
   </HelmetProvider>
 );
 
@@ -46,17 +64,4 @@ if (rootElement.hasChildNodes()) {
   ReactDOM.createRoot(rootElement).render(app);
 }
 
-// Register service worker for offline support and caching
-serviceWorkerRegistration.register({
-  onUpdate: registration => {
-    // When a new version is available, you can show a notification to the user
-    console.log('New version available! Please refresh the page.');
-    // You can trigger an update notification here
-  },
-  onSuccess: registration => {
-    console.log('Service Worker registered successfully!');
-  },
-});
-
-// Start measuring web vitals
-reportWebVitals();
+registerServiceWorker();

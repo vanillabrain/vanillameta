@@ -25,9 +25,9 @@ import { CacheController } from './cache.controller';
       provide: 'CACHE_MANAGER',
       useValue: {
         get: async () => null,
-        set: async () => {},
-        del: async () => {},
-        reset: async () => {},
+        set: async () => undefined,
+        del: async () => undefined,
+        reset: async () => undefined,
         wrap: async (key, fn) => fn(),
         keys: async () => [],
         ttl: async () => 0,

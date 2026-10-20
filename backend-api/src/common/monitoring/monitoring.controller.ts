@@ -1,11 +1,11 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../../auth/guards/legacy-operations.guard';
 import { ConnectionPoolMonitorService } from './connection-pool-monitor.service';
 
 @ApiTags('모니터링')
 @Controller('monitoring')
-@UseGuards(JwtAuthGuard)
+@UseGuards(LegacyOperationsGuard)
 @ApiBearerAuth()
 export class MonitoringController {
   constructor(private readonly connectionPoolMonitor: ConnectionPoolMonitorService) {}

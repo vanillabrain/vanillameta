@@ -1,8 +1,11 @@
 import React from 'react';
-import { TextField } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { TextField } from '@/components/ui/text-field';
+import { cn } from '@/lib/utils';
 
 function WidgetTitleForm(props) {
-  const { value, onChange, ...rest } = props;
+  const { t } = useTranslation();
+  const { value, onChange, className, ...rest } = props;
 
   const validateTitle = title => {
     if (title === undefined) {
@@ -15,13 +18,12 @@ function WidgetTitleForm(props) {
     <TextField
       id="title"
       name="title"
-      label="위젯 이름"
-      placeholder="위젯의 이름을 입력해 주세요"
+      label={t('common.widgetName')}
+      placeholder={t('common.widgetNameGuide')}
       required={validateTitle(value)}
-      fullWidth
       value={value}
       onChange={onChange}
-      sx={{ mt: { xs: 5, md: 0 } }}
+      className={cn('mt-10 md:mt-0', className)}
       {...rest}
     />
   );

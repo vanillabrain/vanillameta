@@ -1,9 +1,10 @@
+import { safeRouteTemplate } from '../utils/safe-route-template';
 import { Injectable, LoggerService, LogLevel } from '@nestjs/common';
 import * as winston from 'winston';
 import { CorrelationIdService } from '../../middleware/correlation-id/correlation-id.service';
 
 export interface LogContext {
-  userId?: string;
+  userId?: string | number;
   correlationId?: string;
   requestPath?: string;
   method?: string;
@@ -169,7 +170,7 @@ export class CustomLoggerService implements LoggerService {
   logRequest(req: any, res?: any, executionTime?: number): void {
     const metadata: LogContext = {
       method: req.method,
-      requestPath: req.path,
+      requestPath: safeRouteTemplate(req),
       userAgent: req.get('user-agent'),
       ip: req.ip || req.connection?.remoteAddress,
       correlationId: req.correlationId,
@@ -185,7 +186,7 @@ export class CustomLoggerService implements LoggerService {
       metadata.responseSize = res.get('content-length');
     }
 
-    this.log(`${req.method} ${req.path}`, 'HTTP', metadata);
+    this.log(`${req.method} ${safeRouteTemplate(req)}`, 'HTTP', metadata);
   }
 
   /**

@@ -1,0 +1,3 @@
+compiler: rillv1
+display_name: VM synthetic demo comparison
+olap_connector: duckdb

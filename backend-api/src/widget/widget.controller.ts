@@ -1,4 +1,7 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Query } from '@nestjs/common';
+import { Query } from '@nestjs/common';
+import { SourceAccessService } from '../ownership/source-access.service';
+import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
+import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Req } from '@nestjs/common';
 import { WidgetService } from './widget.service';
 import { CreateWidgetDto } from './dto/create-widget.dto';
 import { UpdateWidgetDto } from './dto/update-widget.dto';
@@ -20,30 +23,25 @@ import {
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
 
-@ApiTags('위젯')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth('AccessToken')
+@UseGuards(JwtAuthGuard, SourceOwnershipGuard)
 @Controller('widget')
 export class WidgetController {
-  constructor(private readonly widgetService: WidgetService) {}
+  constructor(
+    private readonly widgetService: WidgetService,
+    private readonly access: SourceAccessService,
+  ) {}
 
   /**
    * 위젯 생성
    * @param createWidgetDto
    */
   @Post()
-  @ApiOperation({
-    summary: '위젯 생성',
-    description: '새로운 차트 위젯을 생성합니다. 데이터셋과 차트 컴포넌트를 지정해야 합니다.',
-  })
-  @ApiCreatedResponse({
-    description: '위젯이 성공적으로 생성되었습니다.',
-    type: CreateWidgetDto,
-  })
-  @ApiBadRequestResponse({ description: '잘못된 요청 데이터' })
-  @ApiUnauthorizedResponse({ description: '인증 실패' })
-  create(@Body() createWidgetDto: CreateWidgetDto) {
-    return this.widgetService.create(createWidgetDto);
+  create(@Body() createWidgetDto: CreateWidgetDto, @Req() req) {
+    return this.widgetService.create(
+      createWidgetDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   /**
@@ -64,38 +62,12 @@ export class WidgetController {
     excludeFields: ['delYn'],
   })
   @Get()
-  @ApiOperation({
-    summary: '위젯 목록 조회',
-    description: '모든 위젯의 목록을 조회합니다.',
-  })
-  @ApiQuery({
-    name: 'fields',
-    required: false,
-    description: '반환할 필드 선택 (쉼표로 구분)',
-    example: 'id,title,description,componentId',
-  })
-  @ApiOkResponse({
-    description: '위젯 목록이 성공적으로 반환되었습니다.',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'number' },
-          title: { type: 'string' },
-          description: { type: 'string' },
-          componentId: { type: 'number' },
-          datasetType: { type: 'string' },
-          datasetId: { type: 'number' },
-          createdAt: { type: 'string', format: 'date-time' },
-          updatedAt: { type: 'string', format: 'date-time' },
-        },
-      },
-    },
-  })
-  @ApiUnauthorizedResponse({ description: '인증 실패' })
-  findAll(@Query('fields') fields?: string) {
-    return this.widgetService.findAll();
+  async findAll(@Req() req) {
+    return this.access.filterResults(
+      'widget',
+      this.access.actor(req.user.accessKeyData.id),
+      await this.widgetService.findAll(),
+    );
   }
 
   /**
@@ -133,23 +105,13 @@ export class WidgetController {
    * @param updateWidgetDto
    */
   @Put(':id')
-  @ApiOperation({
-    summary: '위젯 수정',
-    description: '기존 위젯의 정보를 수정합니다.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: '위젯 ID',
-    type: 'number',
-  })
-  @ApiOkResponse({
-    description: '위젯이 성공적으로 수정되었습니다.',
-  })
-  @ApiNotFoundResponse({ description: '위젯을 찾을 수 없습니다.' })
-  @ApiBadRequestResponse({ description: '잘못된 요청 데이터' })
-  @ApiUnauthorizedResponse({ description: '인증 실패' })
-  update(@Param('id') id: string, @Body() updateWidgetDto: UpdateWidgetDto) {
-    return this.widgetService.update(+id, updateWidgetDto);
+  update(@Param('id') id: string, @Body() updateWidgetDto: UpdateWidgetDto, @Req() req) {
+    return this.widgetService.update(
+      +id,
+      updateWidgetDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   /**
@@ -157,21 +119,11 @@ export class WidgetController {
    * @param id
    */
   @Delete(':id')
-  @ApiOperation({
-    summary: '위젯 삭제',
-    description: '위젯을 영구적으로 삭제합니다.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: '위젯 ID',
-    type: 'number',
-  })
-  @ApiOkResponse({
-    description: '위젯이 성공적으로 삭제되었습니다.',
-  })
-  @ApiNotFoundResponse({ description: '위젯을 찾을 수 없습니다.' })
-  @ApiUnauthorizedResponse({ description: '인증 실패' })
-  remove(@Param('id') id: string) {
-    return this.widgetService.remove(+id);
+  remove(@Param('id') id: string, @Req() req) {
+    return this.widgetService.remove(
+      +id,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 }

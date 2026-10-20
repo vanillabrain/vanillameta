@@ -1,59 +1,57 @@
+import { SourceAccessService } from '../ownership/source-access.service';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { DatasetController } from './dataset.controller';
 import { DatasetService } from './dataset.service';
-import { Dataset } from './entities/dataset.entity';
-import { Widget } from '../widget/entities/widget.entity';
-import { ConnectionService } from '../connection/connection.service';
 
 describe('DatasetController', () => {
   let controller: DatasetController;
-
-  const mockDatasetRepository = {
-    findOne: jest.fn(),
-    save: jest.fn(),
-    find: jest.fn(),
-    delete: jest.fn(),
-    createQueryBuilder: jest.fn().mockReturnValue({
-      where: jest.fn().mockReturnThis(),
-      getMany: jest.fn(),
-    }),
-  };
-
-  const mockWidgetRepository = {
-    findOne: jest.fn(),
-    find: jest.fn(),
-  };
-
-  const mockConnectionService = {
-    execute: jest.fn(),
-    testConnection: jest.fn(),
-  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DatasetController],
       providers: [
-        DatasetService,
-        {
-          provide: getRepositoryToken(Dataset),
-          useValue: mockDatasetRepository,
-        },
-        {
-          provide: getRepositoryToken(Widget),
-          useValue: mockWidgetRepository,
-        },
-        {
-          provide: ConnectionService,
-          useValue: mockConnectionService,
-        },
+        { provide: SourceAccessService, useValue: {} },
+        { provide: DatasetService, useValue: {} },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<DatasetController>(DatasetController);
   });
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+  it('passes the verified actor and JWT epoch to DELETE without dropping guards', async () => {
+    const remove = jest.fn().mockResolvedValue('deleted');
+    const actor = jest.fn(value => value);
+    const target = new DatasetController({ remove } as any, { actor } as any);
+    expect(await target.remove('21', { user: { accessKeyData: { id: 7, authVersion: 3 } } })).toBe(
+      'deleted',
+    );
+    expect(actor).toHaveBeenCalledWith(7);
+    expect(remove).toHaveBeenCalledWith(21, 7, 3);
+    expect(Reflect.getMetadata('__guards__', DatasetController).map(guard => guard.name)).toEqual([
+      'JwtAuthGuard',
+      'SourceOwnershipGuard',
+    ]);
+  });
+  it('passes current request actor/epoch separately from Hybrid cache options', async () => {
+    const executeCachedQuery = jest.fn().mockResolvedValue({ status: 'SUCCESS' });
+    const target = new DatasetController(
+      { executeCachedQuery } as any,
+      { actor: value => value } as any,
+    );
+    await target.executeCachedQuery('21', false, 90, true, {
+      user: { accessKeyData: { id: 7, authVersion: 3 } },
+    });
+    expect(executeCachedQuery).toHaveBeenCalledWith(
+      21,
+      { forceRefresh: false, customTtl: 90, useStreamingFallback: true },
+      { actor: 7, epoch: 3 },
+    );
   });
 });

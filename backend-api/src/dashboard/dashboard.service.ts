@@ -1,9 +1,22 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { lockSourceActor } from '../database/source-write-lock';
+import { lockWidgetAttachmentParents } from './widget-attachment-lock';
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
+import { SourceAccessService } from '../ownership/source-access.service';
+import { Widget } from '../widget/entities/widget.entity';
 import { Dashboard } from './entities/dashboard.entity';
+import { DashboardWidget } from './dashboard-widget/entities/dashboard-widget.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
 import { DashboardCacheService } from './dashboard-cache.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
@@ -16,6 +29,7 @@ import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { CustomLoggerService } from '../common/logger/logger.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { metadataTransaction } from '../common/metadata-work';
 
 @Injectable()
 export class DashboardService {
@@ -29,243 +43,320 @@ export class DashboardService {
     @InjectRepository(UserMapping)
     private userMappingRepository: Repository<UserMapping>,
     private readonly dashboardWidgetService: DashboardWidgetService,
-    private readonly dashboardCacheService: DashboardCacheService,
     private readonly userService: UserService,
     private readonly authService: AuthService,
-    private readonly logger: CustomLoggerService,
-    private readonly eventEmitter: EventEmitter2,
+    @InjectRepository(Widget) private readonly widgetRepository: Repository<Widget>,
+    private readonly access: SourceAccessService,
+    @Optional() private readonly dashboardCacheService?: DashboardCacheService,
+    @Optional() private readonly logger?: CustomLoggerService,
+    @Optional() private readonly eventEmitter?: EventEmitter2,
   ) {}
 
-  async create(createDashboardDto: CreateDashboardDto, accessToken: number) {
-    const userData = await this.userRepository.findOne({
-      where: { id: accessToken },
-    });
-    if (!userData) {
-      return 'Bad Request';
+  async assertOwner(dashboardId: number, userId: number, manager?: EntityManager): Promise<void> {
+    if (!Number.isInteger(dashboardId) || dashboardId <= 0) {
+      throw new BadRequestException('invalid dashboard id');
     }
-    const widgetIds = [];
-    createDashboardDto.layout.map(item => {
-      widgetIds.push(item.i);
-    });
-    const share_id = await this.dashboardShareRepository.save({
-      uuid: uuidv4(), // uuid의 버전 uuidv1의 결우 mac의 정보등을 담고있음.
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    this.logger.debug('Dashboard share created', 'DashboardService', {
-      shareId: share_id.id,
-      shareUuid: share_id.uuid,
-      userId: accessToken.toString(),
-    });
-    const saveObj = {
-      title: createDashboardDto.title,
-      layout: JSON.stringify(createDashboardDto.layout),
-      delYn: YesNo.NO,
-      shareId: share_id.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const newDashboard = await this.dashboardRepository.save(saveObj);
-
-    await this.userMappingRepository.save({
-      dashboardId: newDashboard.id,
-      userInfoId: accessToken,
-      createdAt: new Date(),
-    });
-
-    // const newDashboard = await this.dashboardRepository.save(saveObj);
-
-    // user테이블에 대시보드id저장
-    const { id } = userData;
-    // const test = await this.dashboardRepository
-    //   .createQueryBuilder()
-    //   .insert()
-    //   .into(Dashboard, ['title', 'layout'])
-    //   .values(saveObj)
-    //   .orUpdate(['title', 'layout'], ['id'])
-    //   .execute();
-    // console.log('test', test.generatedMaps[0].id);
-    // 기존 코드
-
-    // await this.userService.saveDashboard(newDashboard.id, id);
-
-    const saveObjDW = {
-      dashboardId: newDashboard.id,
-      widgetIds: widgetIds,
-    };
-    // layout이 이미 배열인 경우와 문자열인 경우를 모두 처리
-    if (typeof newDashboard.layout === 'string') {
-      newDashboard.layout = JSON.parse(newDashboard.layout);
+    const dashboard = await (manager
+      ? manager.getRepository(Dashboard)
+      : this.dashboardRepository
+    ).findOne({ where: { id: dashboardId } });
+    if (!dashboard || dashboard.delYn === YesNo.YES || dashboard.assetActive === false) {
+      throw new NotFoundException('dashboard not found');
     }
-    await this.dashboardWidgetService.create(saveObjDW);
-    
-    // 사용자 대시보드 목록 캐시 무효화
-    await this.dashboardCacheService.invalidateUserDashboardList(accessToken);
-    
-    // 새 대시보드 이벤트 발생
-    this.eventEmitter.emit('dashboard.created', {
-      dashboardId: newDashboard.id,
+    if (!Number.isInteger(userId) || userId <= 0)
+      throw new ForbiddenException('not dashboard owner');
+    const mapping = await (manager
+      ? manager.getRepository(UserMapping)
+      : this.userMappingRepository
+    ).findOne({
+      where: { dashboardId, userInfoId: userId },
+    });
+    if (!mapping) throw new ForbiddenException('not dashboard owner');
+  }
+
+  async assertRevocationOwner(id: number, actor: number, manager?: EntityManager): Promise<void> {
+    await this.access.dashboardRevocation(id, actor, 'owner', manager);
+    // Keep the original mapping-only owner semantics for active legacy share-off.
+    const row = await (manager ?? this.dashboardRepository.manager).findOne(Dashboard, {
+      where: { id },
+    });
+    if (row.assetActive !== false) await this.assertOwner(id, actor, manager);
+  }
+
+  private rejectLifecycleFields(body: unknown) {
+    if (
+      body &&
+      typeof body === 'object' &&
+      ['assetActive', 'assetVersion'].some(key => key in body)
+    )
+      throw new BadRequestException('Use the dashboard lifecycle action to change asset state.');
+  }
+
+  private async validateLayout(layout: unknown): Promise<number[]> {
+    if (!Array.isArray(layout)) throw new BadRequestException('layout must be an array');
+    const ids: number[] = [];
+    for (const item of layout) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        throw new BadRequestException('invalid layout item');
+      }
+      const id = typeof item.i === 'number' || typeof item.i === 'string' ? Number(item.i) : NaN;
+      if (
+        !Number.isSafeInteger(id) ||
+        id <= 0 ||
+        !Number.isFinite(item.x) ||
+        item.x < 0 ||
+        !Number.isFinite(item.y) ||
+        item.y < 0 ||
+        !Number.isFinite(item.w) ||
+        item.w <= 0 ||
+        !Number.isFinite(item.h) ||
+        item.h <= 0 ||
+        ids.includes(id)
+      ) {
+        throw new BadRequestException('invalid layout item');
+      }
+      ids.push(id);
+    }
+    if (ids.length) {
+      const widgets = await this.widgetRepository.find({ where: { id: In(ids) } });
+      const existing = new Set(widgets.map(widget => widget.id));
+      if (ids.some(id => !existing.has(id))) throw new BadRequestException('widget not found');
+    }
+    return ids;
+  }
+
+  private attachmentTransaction<T>(run: (manager: EntityManager) => Promise<T>) {
+    const manager = this.dashboardRepository.manager;
+    return ['mysql', 'mariadb'].includes(manager.connection.options.type)
+      ? metadataTransaction(manager, 'READ COMMITTED', run)
+      : metadataTransaction(manager, run);
+  }
+
+  async create(createDashboardDto: CreateDashboardDto, accessToken: number, epoch = 0) {
+    this.rejectLifecycleFields(createDashboardDto);
+    const widgetIds = await this.validateLayout(createDashboardDto.layout);
+    const result = await this.attachmentTransaction(async manager => {
+      await lockSourceActor(manager, accessToken, epoch);
+      await lockWidgetAttachmentParents(manager, widgetIds, accessToken);
+      for (const widgetId of widgetIds)
+        await this.access.assert('widget', widgetId, accessToken, 'owner', manager);
+      const share = await manager.save(DashboardShare, { uuid: uuidv4(), shareYn: YesNo.NO });
+      const dashboard = await manager.save(Dashboard, {
+        assetActive: true,
+        assetVersion: 0,
+        title: createDashboardDto.title,
+        layout: JSON.stringify(createDashboardDto.layout),
+        delYn: YesNo.NO,
+        shareId: share.id,
+      });
+      await manager.save(UserMapping, { dashboardId: dashboard.id, userInfoId: accessToken });
+      await this.dashboardWidgetService.create({ dashboardId: dashboard.id, widgetIds }, manager);
+      return {
+        status: ResponseStatus.SUCCESS,
+        data: { ...dashboard, layout: JSON.parse(dashboard.layout) },
+      };
+    });
+    await this.dashboardCacheService?.invalidateUserDashboardList(accessToken);
+    this.eventEmitter?.emit('dashboard.created', {
+      dashboardId: result.data.id,
       userId: accessToken,
       timestamp: Date.now(),
     });
-    
-    return { status: ResponseStatus.SUCCESS, data: newDashboard };
+    return result;
   }
 
-  async findAll(userId: number) {
+  /**
+   * UC-051: owned dashboards stay first-class; an explicit read grant only adds that dashboard.
+   * `readableIds` is already the actor's authorized union from SourceAccessService.
+   */
+  async findAll(userId: number, readableIds: number[] = []) {
     const findUser = await this.userService.findDashboardId(userId);
-    if (!findUser || findUser.length === 0) {
-      // 빈 배열 반환 (대시보드가 없는 정상적인 상황)
-      return { status: ResponseStatus.SUCCESS, data: [] };
+    if (!findUser && !readableIds.length) {
+      return 'not exist user';
     }
-    console.log(findUser);
-    const findId = findUser.map(el => el['dashboardId']);
-
-    // null 값 필터링
-    const validIds = findId.filter(id => id !== null && id !== undefined);
-    if (validIds.length === 0) {
-      // 대시보드가 없는 경우 빈 배열 반환
-      return { status: ResponseStatus.SUCCESS, data: [] };
+    const findId = [...new Set([...(findUser ?? []).map(el => el['dashboardId']), ...readableIds])];
+    if (findId === null) {
+      throw new HttpException('not found', HttpStatus.NOT_FOUND);
     }
-
-    console.log(validIds);
-
-    // N+1 쿼리 문제 해결: In 조건으로 한 번에 조회
-    const find_all = await this.dashboardRepository
-      .createQueryBuilder('dashboard')
-      .where('dashboard.id IN (:...ids)', { ids: validIds })
-      .orderBy('dashboard.updatedAt', 'DESC')
-      .addOrderBy('dashboard.title', 'ASC')
-      .getMany();
-
-    if (find_all && find_all.length > 0) {
-      find_all.forEach(el => {
-        console.log('adf,', el);
-        el.layout = JSON.parse(el.layout);
+    const find_all = [];
+    for (let i = 0; findId.length > i; i++) {
+      const dashboard = await this.dashboardRepository.findOne({
+        where: { id: findId[i] },
+        order: {
+          updatedAt: 'desc',
+          title: 'asc',
+        },
       });
+      if (dashboard && dashboard.delYn !== YesNo.YES && dashboard.assetActive !== false)
+        find_all.push(dashboard);
     }
-    return { status: ResponseStatus.SUCCESS, data: find_all || [] };
+    find_all.forEach(el => {
+      el.layout = JSON.parse(el.layout);
+      if (!(findUser ?? []).some(mapping => mapping['dashboardId'] === el.id)) delete el.shareId;
+    });
+    return { status: ResponseStatus.SUCCESS, data: find_all };
   }
   // 기존 dashboard all
 
-  async findOne(id: number) {
-    // N+1 쿼리 문제 해결: relations 옵션으로 관련 데이터를 한 번에 조회
-    const find_dashboard = await this.dashboardRepository.findOne({
-      where: { id: id },
-      relations: ['dashboardShare'],
+  /** UC-051: an explicit read action is authorized by the caller through SourceAccessService. */
+  async findOne(id: number, userId: number, action: 'owner' | 'read' = 'owner') {
+    if (action === 'owner') await this.assertOwner(id, userId);
+    const result = await this.assembleDashboard(id);
+    if (action === 'owner') return result;
+    // UC-051: never hand the owner's live share uuid/token (an anonymous capability) to a
+    // granted reader or editor, including an owner calling through the explicit read path.
+    const mapping = await this.userMappingRepository.findOne({
+      where: { dashboardId: id, userInfoId: userId },
     });
-    if (!find_dashboard) {
+    return mapping ? result : this.redactAnonymousCapabilities(result);
+  }
+
+  /** Anonymous link capabilities stay with the dashboard owner, never with a delegated viewer. */
+  private redactAnonymousCapabilities(result: any) {
+    if (!result || result.status !== ResponseStatus.SUCCESS || !result.data) return result;
+    const data = { ...result.data };
+    for (const field of ['shareId', 'uuid', 'shareToken', 'shareYn', 'endDate', 'allowReuse'])
+      delete data[field];
+    return { ...result, data };
+  }
+
+  async findShared(id: number) {
+    const result = await this.assembleDashboard(id);
+    if (result.status !== ResponseStatus.SUCCESS) return result;
+    // The existing live renderer needs only its narrowly scoped share token, never saved SQL/metric links.
+    const data = result.data;
+    return {
+      status: result.status,
+      data: Object.fromEntries(
+        [
+          'id',
+          'uuid',
+          'title',
+          'layout',
+          'widgets',
+          'updatedAt',
+          'createdAt',
+          'shareYn',
+          'endDate',
+          'shareToken',
+          'allowReuse',
+        ]
+          .filter(key => data[key] !== undefined)
+          .map(key => [key, data[key]]),
+      ),
+    };
+  }
+
+  private async assembleDashboard(id: number) {
+    const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
+    if (
+      !find_dashboard ||
+      find_dashboard.delYn === YesNo.YES ||
+      find_dashboard.assetActive === false
+    ) {
       return { status: ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
     }
 
     const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
-    console.log('widgetList', widgetList);
-    try {
-      (find_dashboard as any).layout = JSON.parse(find_dashboard.layout);
-    } catch (error) {
-      (find_dashboard as any).layout = [];
-    }
-
-    const return_obj = {
-      ...find_dashboard,
-      uuid: find_dashboard.dashboardShare?.uuid,
-      widgets: widgetList,
-    };
-    delete return_obj.dashboardShare;
-
-    console.log(return_obj);
-    
-    // 대시보드를 캐시에 저장
-    await this.dashboardCacheService.cacheDashboard(
-      find_dashboard,
-      widgetList,
-      find_dashboard.dashboardShare,
-    );
-    
+    find_dashboard.layout = JSON.parse(find_dashboard.layout);
+    const find_share_id = await this.dashboardShareRepository.findOne({
+      where: { id: find_dashboard.shareId },
+    });
+    const return_obj = Object.assign({}, find_share_id, find_dashboard, { widgets: widgetList });
+    await this.dashboardCacheService?.cacheDashboard(find_dashboard, widgetList, find_share_id);
     return {
       status: ResponseStatus.SUCCESS,
       data: return_obj,
     };
   }
 
-  async update(id: number, updateDashboardDto: UpdateDashboardDto) {
-    const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
-
-    if (!find_dashboard) {
-      return 'Not exist dashboard';
-    } else {
-      const widgetIds = [];
-
-      if (updateDashboardDto.title) {
-        find_dashboard.title = updateDashboardDto.title;
-      }
-      if (updateDashboardDto.layout) {
-        updateDashboardDto.layout.map(item => {
-          widgetIds.push(item.i);
-        });
-        find_dashboard.layout = JSON.stringify(updateDashboardDto.layout);
-      }
-
-      const saveObjDW = {
-        dashboardId: id,
-        widgetIds: widgetIds,
-      };
-      // 업데이트할 데이터
-      await this.dashboardWidgetService.update(id, saveObjDW);
-      const updatedDashboard = await this.dashboardRepository.save(find_dashboard);
-
-      // layout이 이미 배열인 경우와 문자열인 경우를 모두 처리
-      if (typeof updatedDashboard.layout === 'string') {
-        updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
-      }
-      
-      // 업데이트된 대시보드 캐시 무효화
-      await this.dashboardCacheService.invalidateDashboard(id);
-      
-      // 대시보드 업데이트 이벤트 발생
-      this.eventEmitter.emit('dashboard.updated', {
-        dashboardId: id,
-        timestamp: Date.now(),
-      });
-      
-      return { status: ResponseStatus.SUCCESS, data: updatedDashboard };
-    }
+  /**
+   * UC-051: the legacy raw patch stays owner-only for its default call. An explicit edit grant is
+   * additionally rechecked inside one transaction so a revoke between the caller check and this
+   * write is rejected, and a grantee may only keep widget ids already linked to this dashboard.
+   */
+  async update(
+    id: number,
+    updateDashboardDto: UpdateDashboardDto,
+    actor?: number,
+    action: 'owner' | 'edit' = 'owner',
+  ) {
+    this.rejectLifecycleFields(updateDashboardDto);
+    const widgetIds =
+      updateDashboardDto.layout !== undefined
+        ? await this.validateLayout(updateDashboardDto.layout)
+        : undefined;
+    const result = await this.attachmentTransaction(async manager => {
+      const dashboard = await lockWidgetAttachmentParents(manager, widgetIds ?? [], actor, id);
+      if (actor !== undefined)
+        await this.authorizeGrantedEdit(id, actor, action, widgetIds, manager);
+      return this.applyUpdate(id, updateDashboardDto, manager, dashboard);
+    });
+    await this.dashboardCacheService?.invalidateDashboard(id);
+    this.eventEmitter?.emit('dashboard.updated', { dashboardId: id, timestamp: Date.now() });
+    return result;
   }
 
-  async remove(id: number) {
-    const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
-    if (!find_dashboard) {
-      return { status: ResponseStatus.ERROR, message: 'No exist dashboard' };
-    } else {
-      await this.dashboardRepository.delete(id);
-      await this.dashboardWidgetService.remove(id);
-      const find_dashboardId = await this.userMappingRepository.findOne({
+  /**
+   * A grantee must not inject a new widget reference (and therefore another source) into a
+   * dashboard it does not own; the owning actor keeps the legacy linking behavior.
+   */
+  private async authorizeGrantedEdit(
+    id: number,
+    actor: number,
+    action: 'owner' | 'edit',
+    widgetIds: number[] | undefined,
+    manager: EntityManager,
+  ) {
+    await this.access.dashboard(id, actor, action, manager);
+    if (action === 'owner' || widgetIds === undefined) return;
+    const mapping = await manager.findOne(UserMapping, {
+      where: { dashboardId: id, userInfoId: actor },
+    });
+    if (mapping) return;
+    const linked = await manager.find(DashboardWidget, { where: { dashboardId: id } });
+    const allowed = new Set(linked.map(link => link.widgetId));
+    if (widgetIds.some(widgetId => !allowed.has(widgetId)))
+      throw new ForbiddenException('이미 연결된 위젯만 배치할 수 있습니다.');
+  }
+
+  private async applyUpdate(
+    id: number,
+    updateDashboardDto: UpdateDashboardDto,
+    manager: EntityManager,
+    find_dashboard: Dashboard,
+  ) {
+    const hasLayout = updateDashboardDto.layout !== undefined;
+    let widgetIds = hasLayout ? await this.validateLayout(updateDashboardDto.layout) : [];
+    // UC-006: grid order is presentation, not analysis widget identity/order.
+    if (hasLayout && find_dashboard.analysisDefinition) {
+      const links = manager;
+      const original = await links.find(DashboardWidget, {
         where: { dashboardId: id },
+        order: { id: 'ASC' },
       });
-      // 캐시 무효화를 위해 userInfoId 저장
-      const userInfoId = find_dashboardId?.userInfoId;
-      
-      await this.userMappingRepository.delete(find_dashboardId.id);
-      await this.dashboardShareRepository.delete(find_dashboard.shareId);
-      
-      // 삭제된 대시보드 캐시 무효화
-      await this.dashboardCacheService.invalidateDashboard(id);
-      
-      // 사용자 대시보드 목록 캐시도 무효화
-      if (userInfoId) {
-        await this.dashboardCacheService.invalidateUserDashboardList(userInfoId);
-      }
-      
-      // 대시보드 삭제 이벤트 발생
-      this.eventEmitter.emit('dashboard.deleted', {
-        dashboardId: id,
-        timestamp: Date.now(),
-      });
-      
-      return {
-        status: ResponseStatus.SUCCESS,
-        data: { message: `This action removes a #${id} dashboard` },
-      };
+      if (
+        original.length === widgetIds.length &&
+        original.every(m => widgetIds.includes(m.widgetId))
+      )
+        widgetIds = original.map(m => m.widgetId);
     }
+
+    const changes: Partial<Dashboard> = {};
+    if (updateDashboardDto.title) changes.title = updateDashboardDto.title;
+    if (hasLayout) changes.layout = JSON.stringify(updateDashboardDto.layout);
+
+    const saveObjDW = {
+      dashboardId: id,
+      widgetIds: widgetIds,
+    };
+    // 업데이트할 데이터
+    if (hasLayout) await this.dashboardWidgetService.update(id, saveObjDW, manager);
+    // Persist presentation only; a concurrently activated policy must remain sticky.
+    if (Object.keys(changes).length) await manager.update(Dashboard, id, changes);
+    const updatedDashboard = await manager.findOne(Dashboard, { where: { id } });
+
+    updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
+    return { status: ResponseStatus.SUCCESS, data: updatedDashboard };
   }
 }

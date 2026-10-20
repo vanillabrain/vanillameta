@@ -127,22 +127,22 @@ export class DatabaseOptimizerFactory {
    */
   private normalizeDatabaseType(databaseType: string): string {
     if (!databaseType) return '';
-    
+
     const type = databaseType.toLowerCase().trim();
-    
+
     // 타입 매핑
     const typeMapping: { [key: string]: string } = {
-      'mysql2': 'mysql',
-      'mariadb': 'mysql',
-      'postgres': 'postgresql',
-      'pg': 'postgresql',
-      'cockroach': 'cockroachdb',
-      'oracledb': 'oracle',
-      'ora': 'oracle',
-      'mssql': 'sqlserver',
-      'sqlserver': 'sqlserver',
-      'sqlite': 'sqlite3',
-      'sqlite3': 'sqlite3',
+      mysql2: 'mysql',
+      mariadb: 'mysql',
+      postgres: 'postgresql',
+      pg: 'postgresql',
+      cockroach: 'cockroachdb',
+      oracledb: 'oracle',
+      ora: 'oracle',
+      mssql: 'sqlserver',
+      sqlserver: 'sqlserver',
+      sqlite: 'sqlite3',
+      sqlite3: 'sqlite3',
     };
 
     return typeMapping[type] || type;
@@ -156,7 +156,7 @@ export class DatabaseOptimizerFactory {
    */
   getOptimizedConnectionConfig(databaseType: string, baseConfig: any): any {
     const optimizer = this.getOptimizer(databaseType);
-    
+
     if (optimizer) {
       return optimizer.getOptimizedConnectionConfig(baseConfig);
     }
@@ -187,7 +187,7 @@ export class DatabaseOptimizerFactory {
    */
   mapError(databaseType: string, error: any) {
     const optimizer = this.getOptimizer(databaseType);
-    
+
     if (optimizer) {
       return optimizer.mapError(error);
     }

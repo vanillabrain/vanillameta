@@ -2,11 +2,19 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConnectionPoolMonitorService } from './connection-pool-monitor.service';
 import { DataSource } from 'typeorm';
 import { CustomLoggerService } from '../logger/logger.service';
+import { IntegratedMetricsService } from './integrated-metrics.service';
 
 describe('ConnectionPoolMonitorService', () => {
   let service: ConnectionPoolMonitorService;
   let mockDataSource: Partial<DataSource>;
   let mockLogger: Partial<CustomLoggerService>;
+
+  const originalEnv = process.env.NODE_ENV;
+
+  afterEach(() => {
+    if (originalEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalEnv;
+  });
 
   beforeEach(async () => {
     mockDataSource = {
@@ -29,6 +37,10 @@ describe('ConnectionPoolMonitorService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConnectionPoolMonitorService,
+        {
+          provide: IntegratedMetricsService,
+          useValue: { recordConnectionPoolMetrics: jest.fn().mockResolvedValue(undefined) },
+        },
         {
           provide: DataSource,
           useValue: mockDataSource,

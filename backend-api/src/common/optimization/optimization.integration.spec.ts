@@ -9,6 +9,20 @@ import { EnhancedQueryOptimizerService } from './enhanced-query-optimizer.servic
 import { OptimizationController } from './optimization.controller';
 import { Database } from '../../database/entities/database.entity';
 import { CustomLoggerService } from '../logger/logger.service';
+import { QueryAnalyzerService } from '../monitoring/query-analyzer.service';
+import { knex } from 'knex';
+
+// Match both Knex import forms; no external database connections in this suite.
+jest.mock('knex', () => {
+  const createKnex = jest.fn(() => ({
+    raw: jest.fn().mockResolvedValue({ rows: [] }),
+    destroy: jest.fn().mockResolvedValue(undefined),
+    client: {
+      pool: new (jest.requireActual('events').EventEmitter)(),
+    },
+  }));
+  return Object.assign(createKnex, { knex: createKnex });
+});
 
 describe('Optimization Integration Tests', () => {
   let module: TestingModule;
@@ -18,8 +32,11 @@ describe('Optimization Integration Tests', () => {
   let connectionPoolService: EnhancedConnectionPoolService;
   let queryOptimizerService: EnhancedQueryOptimizerService;
   let controller: OptimizationController;
+  let previousAccessSecret: string | undefined;
 
   beforeAll(async () => {
+    previousAccessSecret = process.env.ACCESS_SECRET;
+    process.env.ACCESS_SECRET = 'optimization-integration-test-secret';
     module = await Test.createTestingModule({
       imports: [
         // 테스트용 인메모리 데이터베이스 설정
@@ -59,8 +76,13 @@ describe('Optimization Integration Tests', () => {
   });
 
   afterAll(async () => {
-    if (module) {
-      await module.close();
+    try {
+      if (module) {
+        await module.close();
+      }
+    } finally {
+      if (previousAccessSecret === undefined) delete process.env.ACCESS_SECRET;
+      else process.env.ACCESS_SECRET = previousAccessSecret;
     }
   });
 
@@ -96,10 +118,13 @@ describe('Optimization Integration Tests', () => {
       const mysqlResult = dbOptimizationService.optimizeQuery(query, 'mysql2');
 
       expect(pgResult.optimizedQuery).toContain('IndexScan');
-      expect(mysqlResult.optimizedQuery).toBeDefined();
-
-      // PostgreSQL과 MySQL의 최적화가 다르게 적용되는지 확인
-      expect(pgResult.appliedOptimizations).not.toEqual(mysqlResult.appliedOptimizations);
+      expect(pgResult.optimizedQuery).toBe(
+        'SELECT /*+ IndexScan */ * FROM users ORDER BY created_at LIMIT 100',
+      );
+      // Both engines name the matching rule identically, but only PG rewrites this LIMIT.
+      expect(mysqlResult.optimizedQuery).toBe(query);
+      expect(pgResult.appliedOptimizations).toEqual(['limit-optimization']);
+      expect(mysqlResult.appliedOptimizations).toEqual(['limit-optimization']);
     });
 
     it('should provide different pool configs for production vs development', () => {
@@ -197,6 +222,24 @@ describe('Optimization Integration Tests', () => {
 
       expect(knexInstance).toBeDefined();
       expect(connectionPoolService.hasConnection(databaseId)).toBe(true);
+      expect(knex).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          client: 'pg',
+          connection: expect.objectContaining({
+            ...baseConfig.connection,
+            keepAlive: true,
+            statement_timeout: 30000,
+            query_timeout: 30000,
+          }),
+          pool: expect.objectContaining({
+            min: 0,
+            max: expect.any(Number),
+            afterCreate: expect.any(Function),
+            beforeDestroy: expect.any(Function),
+          }),
+          acquireConnectionTimeout: 30000,
+        }),
+      );
     });
 
     it('should track pool metrics', async () => {
@@ -212,10 +255,12 @@ describe('Optimization Integration Tests', () => {
         },
       };
 
-      await connectionPoolService.createOptimizedPool(databaseId, engine, baseConfig);
+      const pool = await connectionPoolService.createOptimizedPool(databaseId, engine, baseConfig);
+      (pool.client as any).pool.emit('createFail', 'failed-create', new Error('Connection failed'));
 
       const status = connectionPoolService.getPoolStatus(databaseId);
       expect(status).toBeDefined();
+      expect(status.metrics.performance.connectionFailures).toBe(1);
 
       if (status) {
         expect(status.metrics.databaseId).toBe(databaseId);
@@ -434,7 +479,7 @@ describe('Optimization Integration Tests', () => {
   });
 
   describe('Error Handling Integration', () => {
-    it('should handle database connection errors gracefully', async () => {
+    it('should return the original query when the analyzer fails', async () => {
       const invalidDatabase: Database = Object.assign(new Database(), {
         id: 999,
         name: 'invalid_db',
@@ -452,15 +497,23 @@ describe('Optimization Integration Tests', () => {
         destroy: jest.fn(),
       } as any;
 
-      const result = await queryOptimizerService.optimizeQuery(
-        mockKnexInstance,
-        invalidDatabase,
-        'SELECT 1',
-      );
-
-      expect(result).toBeDefined();
-      expect(result.optimizedQuery).toBe('SELECT 1'); // 원본 쿼리 반환
-      expect(result.recommendations).toContain('Optimization failed: Optimization failed');
+      // The optimizer calls QueryAnalyzerService, not the supplied Knex raw(),
+      // for this stage. Inject the failure at that real boundary.
+      const analyze = jest
+        .spyOn(module.get(QueryAnalyzerService), 'analyzeQuery')
+        .mockRejectedValueOnce(new Error('Connection failed'));
+      try {
+        const result = await queryOptimizerService.optimizeQuery(
+          mockKnexInstance,
+          invalidDatabase,
+          'SELECT 1',
+        );
+        expect(analyze).toHaveBeenCalledWith('SELECT 1', invalidDatabase.id);
+        expect(result.optimizedQuery).toBe('SELECT 1');
+        expect(result.recommendations).toEqual(['Optimization failed: Connection failed']);
+      } finally {
+        analyze.mockRestore();
+      }
     });
 
     it('should handle cache service errors gracefully', async () => {
@@ -476,15 +529,17 @@ describe('Optimization Integration Tests', () => {
   });
 
   describe('Performance Integration', () => {
-    it('should demonstrate performance improvement through optimization', async () => {
-      const engine = 'pg';
-      const slowQuery = 'SELECT * FROM large_table ORDER BY created_at DESC';
+    it('should rewrite only a query matching an enabled optimization rule', () => {
+      const query = 'SELECT * FROM large_table ORDER BY created_at DESC';
+      const unchanged = dbOptimizationService.optimizeQuery(query, 'pg');
+      expect(unchanged.appliedOptimizations).toEqual([]);
+      expect(unchanged.optimizedQuery).toBe(query);
 
-      // 기본 쿼리 분석
-      const basicResult = dbOptimizationService.optimizeQuery(slowQuery, engine);
-
-      expect(basicResult.appliedOptimizations.length).toBeGreaterThan(0);
-      expect(basicResult.optimizedQuery).not.toBe(slowQuery);
+      const limited = dbOptimizationService.optimizeQuery(`${query} LIMIT 100`, 'pg');
+      expect(limited.appliedOptimizations).toEqual(['limit-optimization']);
+      expect(limited.optimizedQuery).toBe(
+        'SELECT /*+ IndexScan */ * FROM large_table ORDER BY created_at DESC LIMIT 100',
+      );
     });
 
     it('should show cache performance benefits', async () => {

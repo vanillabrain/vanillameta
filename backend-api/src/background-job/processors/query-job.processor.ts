@@ -1,8 +1,8 @@
 import { Process, Processor } from '@nestjs/bull';
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Job } from 'bull';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { BackgroundJob, JobStatus } from '../entities/background-job.entity';
 import { JobResult, ResultStorageType } from '../entities/job-result.entity';
 import { DatasetService } from '../../dataset/dataset.service';
@@ -10,7 +10,7 @@ import { DatabaseService } from '../../database/database.service';
 import { ConnectionService } from '../../connection/connection.service';
 import { CustomLoggerService as LoggerService } from '../../common/logger/logger.service';
 import * as lzString from 'lz-string';
-import { v4 as uuidv4 } from 'uuid';
+import { BackgroundJobService } from '../background-job.service';
 
 const MAX_DB_RESULT_SIZE = 1024 * 1024; // 1MB
 
@@ -35,14 +35,28 @@ export class QueryJobProcessor {
     private databaseService: DatabaseService,
     private connectionService: ConnectionService,
     private logger: LoggerService,
+    private jobs: BackgroundJobService,
   ) {}
 
   @Process()
   async handleQueryExecution(job: Job<QueryJobData>) {
-    const { backgroundJobId, userId, query, databaseId, parameters } = job.data;
+    const { backgroundJobId } = job.data;
+    let query: string;
+    let databaseId: string;
+    const check = async () => {
+      const saved = await this.backgroundJobRepository.findOne({ where: { id: backgroundJobId } });
+      if (!saved || saved.status === JobStatus.CANCELLED || saved.status === JobStatus.COMPLETED)
+        throw new ForbiddenException('Job unavailable');
+      const metadata = JSON.parse(saved.metadata);
+      await this.jobs.assertJob(saved, metadata.actor);
+      query = metadata.query;
+      databaseId = metadata.databaseId;
+    };
     const startTime = Date.now();
 
+    let storedResult: JobResult | undefined;
     try {
+      await check();
       // 작업 상태를 처리 중으로 업데이트
       await this.updateJobStatus(backgroundJobId, JobStatus.PROCESSING, {
         startedAt: new Date(),
@@ -66,25 +80,32 @@ export class QueryJobProcessor {
       await updateProgress(30);
       this.logger.log(`Executing query for job ${backgroundJobId}`);
 
+      await check();
       const queryResult = await this.connectionService.executeQuery({
         id: Number(databaseId),
         query,
       });
 
+      await check();
       await updateProgress(70);
 
       // 3. 결과 처리 및 저장
       const processedResult = await this.processAndStoreResult(backgroundJobId, queryResult, job);
+      storedResult = processedResult;
 
+      await check();
       await updateProgress(90);
+      await check();
 
       // 4. 작업 완료 처리
       const processingTimeMs = Date.now() - startTime;
-      await this.updateJobStatus(backgroundJobId, JobStatus.COMPLETED, {
+      const completed = await this.updateJobStatus(backgroundJobId, JobStatus.COMPLETED, {
         completedAt: new Date(),
         processingTimeMs,
         progress: 100,
       });
+
+      if (completed?.affected === 0) throw new ForbiddenException('Job completion superseded');
 
       this.logger.log(`Job ${backgroundJobId} completed successfully in ${processingTimeMs}ms`);
 
@@ -95,6 +116,7 @@ export class QueryJobProcessor {
         processingTimeMs,
       };
     } catch (error) {
+      if (storedResult) await this.jobResultRepository.remove(storedResult);
       this.logger.error(`Job ${backgroundJobId} failed`, error.stack);
 
       // 작업 실패 처리
@@ -110,11 +132,14 @@ export class QueryJobProcessor {
   }
 
   private async updateJobStatus(jobId: string, status: JobStatus, updates: Partial<BackgroundJob>) {
-    await this.backgroundJobRepository.update(jobId, {
-      status,
-      ...updates,
-      updatedAt: new Date(),
-    });
+    return this.backgroundJobRepository.update(
+      { id: jobId, status: Not(In([JobStatus.CANCELLED, JobStatus.COMPLETED])) },
+      {
+        status,
+        ...updates,
+        updatedAt: new Date(),
+      },
+    );
   }
 
   private async processAndStoreResult(

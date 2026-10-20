@@ -1,0 +1,5 @@
+type: explore
+display_name: VM Git file activity
+metrics_view: git_changes_metrics
+dimensions: '*'
+measures: '*'

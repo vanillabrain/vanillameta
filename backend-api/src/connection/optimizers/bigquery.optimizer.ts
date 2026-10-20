@@ -132,40 +132,44 @@ export class BigQueryOptimizer implements IDatabaseOptimizer {
    */
   mapError(error: any): DatabaseError {
     const bigqueryErrors: { [key: string]: DatabaseError } = {
-      'INVALID_QUERY': {
+      INVALID_QUERY: {
         code: 'INVALID_QUERY',
         message: 'BigQuery 쿼리 문법이 올바르지 않습니다.',
         severity: 'medium',
         retryable: false,
         suggestions: ['표준 SQL 문법을 사용해주세요.', '컬럼명과 테이블명을 확인해주세요.'],
       },
-      'ACCESS_DENIED': {
+      ACCESS_DENIED: {
         code: 'ACCESS_DENIED',
         message: 'BigQuery 테이블 접근 권한이 없습니다.',
         severity: 'high',
         retryable: false,
         suggestions: ['IAM 권한을 확인해주세요.', '프로젝트 ID를 확인해주세요.'],
       },
-      'QUOTA_EXCEEDED': {
+      QUOTA_EXCEEDED: {
         code: 'QUOTA_EXCEEDED',
         message: 'BigQuery 할당량을 초과했습니다.',
         severity: 'high',
         retryable: true,
         suggestions: ['잠시 후 다시 시도해주세요.', '쿼리를 최적화하여 비용을 줄여주세요.'],
       },
-      'TABLE_NOT_FOUND': {
+      TABLE_NOT_FOUND: {
         code: 'TABLE_NOT_FOUND',
         message: 'BigQuery 테이블을 찾을 수 없습니다.',
         severity: 'high',
         retryable: false,
         suggestions: ['테이블명과 데이터셋명을 확인해주세요.', '프로젝트 ID를 확인해주세요.'],
       },
-      'BYTES_BILLED_LIMIT_EXCEEDED': {
+      BYTES_BILLED_LIMIT_EXCEEDED: {
         code: 'BILLING_LIMIT_EXCEEDED',
         message: '쿼리 비용 제한을 초과했습니다.',
         severity: 'high',
         retryable: false,
-        suggestions: ['쿼리를 최적화해주세요.', '파티션 필터를 추가해주세요.', 'SELECT * 대신 필요한 컬럼만 선택해주세요.'],
+        suggestions: [
+          '쿼리를 최적화해주세요.',
+          '파티션 필터를 추가해주세요.',
+          'SELECT * 대신 필요한 컬럼만 선택해주세요.',
+        ],
       },
     };
 
@@ -176,16 +180,19 @@ export class BigQueryOptimizer implements IDatabaseOptimizer {
     if (errorMessage.includes('Invalid query')) errorType = 'INVALID_QUERY';
     else if (errorMessage.includes('Access Denied')) errorType = 'ACCESS_DENIED';
     else if (errorMessage.includes('Quota exceeded')) errorType = 'QUOTA_EXCEEDED';
-    else if (errorMessage.includes('Table') && errorMessage.includes('not found')) errorType = 'TABLE_NOT_FOUND';
+    else if (errorMessage.includes('Table') && errorMessage.includes('not found'))
+      errorType = 'TABLE_NOT_FOUND';
     else if (errorMessage.includes('bytes billed')) errorType = 'BYTES_BILLED_LIMIT_EXCEEDED';
 
-    return bigqueryErrors[errorType] || {
-      code: 'UNKNOWN_ERROR',
-      message: error.message || '알 수 없는 BigQuery 오류가 발생했습니다.',
-      severity: 'medium',
-      retryable: false,
-      suggestions: ['쿼리를 확인해주세요.', 'BigQuery 콘솔에서 상세 오류를 확인해주세요.'],
-    };
+    return (
+      bigqueryErrors[errorType] || {
+        code: 'UNKNOWN_ERROR',
+        message: error.message || '알 수 없는 BigQuery 오류가 발생했습니다.',
+        severity: 'medium',
+        retryable: false,
+        suggestions: ['쿼리를 확인해주세요.', 'BigQuery 콘솔에서 상세 오류를 확인해주세요.'],
+      }
+    );
   }
 
   /**
@@ -249,7 +256,9 @@ export class BigQueryOptimizer implements IDatabaseOptimizer {
    */
   private hasDateColumn(queryBuilder: Knex.QueryBuilder): boolean {
     const sql = queryBuilder.toString();
-    return sql.includes('_PARTITIONTIME') || sql.includes('created_at') || sql.includes('updated_at');
+    return (
+      sql.includes('_PARTITIONTIME') || sql.includes('created_at') || sql.includes('updated_at')
+    );
   }
 
   /**
@@ -260,13 +269,12 @@ export class BigQueryOptimizer implements IDatabaseOptimizer {
     if (!queryBuilder.toString().includes('_PARTITIONTIME')) {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      queryBuilder = queryBuilder.whereRaw(
-        '_PARTITIONTIME >= ?',
-        [thirtyDaysAgo.toISOString().split('T')[0]]
-      );
+
+      queryBuilder = queryBuilder.whereRaw('_PARTITIONTIME >= ?', [
+        thirtyDaysAgo.toISOString().split('T')[0],
+      ]);
     }
-    
+
     return queryBuilder;
   }
 
@@ -283,7 +291,9 @@ export class BigQueryOptimizer implements IDatabaseOptimizer {
    */
   private limitSelectColumns(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
     // 경고 로그만 출력하고 실제 제한은 하지 않음
-    console.warn('BigQuery Warning: SELECT * may result in high costs. Consider selecting specific columns.');
+    console.warn(
+      'BigQuery Warning: SELECT * may result in high costs. Consider selecting specific columns.',
+    );
     return queryBuilder;
   }
 
@@ -302,12 +312,10 @@ export class BigQueryOptimizer implements IDatabaseOptimizer {
     knex: Knex,
     dataset: string,
     tableName: string,
-    partitionColumn: string = 'created_at',
-    clusterColumns: string[] = []
+    partitionColumn = 'created_at',
+    clusterColumns: string[] = [],
   ): Promise<void> {
-    const clusterBy = clusterColumns.length > 0 
-      ? `CLUSTER BY ${clusterColumns.join(', ')}` 
-      : '';
+    const clusterBy = clusterColumns.length > 0 ? `CLUSTER BY ${clusterColumns.join(', ')}` : '';
 
     const query = `
       CREATE TABLE IF NOT EXISTS \`${dataset}.${tableName}\`
@@ -327,7 +335,7 @@ export class BigQueryOptimizer implements IDatabaseOptimizer {
     knex: Knex,
     tableName: string,
     data: any[],
-    options: { insertId?: string; ignoreUnknownValues?: boolean } = {}
+    options: { insertId?: string; ignoreUnknownValues?: boolean } = {},
   ): Promise<void> {
     const insertOptions = {
       insertId: options.insertId,
@@ -345,7 +353,7 @@ export class BigQueryOptimizer implements IDatabaseOptimizer {
   async executeWithCostControl(
     knex: Knex,
     query: string,
-    maxCostBytes: number = 1000000000 // 1GB
+    maxCostBytes = 1000000000, // 1GB
   ): Promise<any> {
     return knex.raw(query).options({
       maximumBytesBilled: maxCostBytes.toString(),
@@ -363,7 +371,7 @@ export class BigQueryOptimizer implements IDatabaseOptimizer {
     dataset: string,
     tableName: string,
     sourceUri: string,
-    format: 'CSV' | 'JSON' | 'AVRO' | 'PARQUET' = 'CSV'
+    format: 'CSV' | 'JSON' | 'AVRO' | 'PARQUET' = 'CSV',
   ): Promise<void> {
     const loadOptions = {
       sourceFormat: format,
@@ -376,7 +384,7 @@ export class BigQueryOptimizer implements IDatabaseOptimizer {
     await knex.raw(
       `LOAD DATA INTO \`${dataset}.${tableName}\` FROM FILES (FORMAT = '${format}', URIS = ['${sourceUri}'])`,
       [],
-      loadOptions
+      loadOptions,
     );
   }
 }

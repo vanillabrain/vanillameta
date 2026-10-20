@@ -1,3 +1,5 @@
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../auth/guards/legacy-operations.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BatchController } from './batch.controller';
 import { BatchService } from './batch.service';
@@ -18,6 +20,7 @@ describe('BatchController', () => {
   };
 
   const mockUser = {
+    accessKeyData: { id: 7, userId: 'test-user-id', authVersion: 3 },
     sub: 'test-user-id',
     email: 'test@example.com',
   };
@@ -31,7 +34,12 @@ describe('BatchController', () => {
           useValue: mockBatchService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(LegacyOperationsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<BatchController>(BatchController);
     service = module.get<BatchService>(BatchService);
@@ -78,7 +86,10 @@ describe('BatchController', () => {
       expect(result).toBeInstanceOf(BatchJobResponseDto);
       expect(result.id).toBe(1);
       expect(result.type).toBe(BatchJobType.DATASET_QUERY);
-      expect(mockBatchService.createBatchJob).toHaveBeenCalledWith(createDto, mockUser.sub);
+      expect(mockBatchService.createBatchJob).toHaveBeenCalledWith(
+        createDto,
+        mockUser.accessKeyData,
+      );
     });
   });
 
@@ -121,7 +132,7 @@ describe('BatchController', () => {
       expect(result[0]).toBeInstanceOf(BatchJobResponseDto);
       expect(result[0].progress).toBe(100);
       expect(result[1].progress).toBe(50);
-      expect(mockBatchService.findAll).toHaveBeenCalledWith(mockUser.sub);
+      expect(mockBatchService.findAll).toHaveBeenCalledWith(mockUser.accessKeyData);
     });
   });
 
@@ -144,7 +155,7 @@ describe('BatchController', () => {
 
       mockBatchService.findOne.mockResolvedValue(mockBatchJob);
 
-      const result = await controller.findOneBatchJob(1);
+      const result = await controller.findOneBatchJob(1, mockUser);
 
       expect(result).toBeInstanceOf(BatchJobResponseDto);
       expect(result.id).toBe(1);
@@ -195,7 +206,7 @@ describe('BatchController', () => {
 
       mockBatchService.findOne.mockResolvedValue(mockBatchJob);
 
-      const result = await controller.findBatchChunks(1);
+      const result = await controller.findBatchChunks(1, mockUser);
 
       expect(result).toHaveLength(2);
       expect(result[0].progress).toBe(100);
@@ -229,7 +240,7 @@ describe('BatchController', () => {
       expect(result).toBeInstanceOf(BatchJobResponseDto);
       expect(result.status).toBe(BatchJobStatus.PROCESSING);
       expect(result.processedRecords).toBe(0);
-      expect(mockBatchService.restartBatchJob).toHaveBeenCalledWith(1, mockUser.sub);
+      expect(mockBatchService.restartBatchJob).toHaveBeenCalledWith(1, mockUser.accessKeyData);
     });
   });
 
@@ -256,7 +267,7 @@ describe('BatchController', () => {
       expect(result).toBeInstanceOf(BatchJobResponseDto);
       expect(result.status).toBe(BatchJobStatus.CANCELLED);
       expect(result.progress).toBe(60);
-      expect(mockBatchService.cancelBatchJob).toHaveBeenCalledWith(1, mockUser.sub);
+      expect(mockBatchService.cancelBatchJob).toHaveBeenCalledWith(1, mockUser.accessKeyData);
     });
   });
 });

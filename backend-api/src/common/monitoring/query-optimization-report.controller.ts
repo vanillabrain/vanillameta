@@ -1,6 +1,6 @@
 import { Controller, Get, UseGuards, Query as QueryParam, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../../auth/guards/legacy-operations.guard';
 import { QueryAnalyzerService, QueryOptimizationReport } from './query-analyzer.service';
 import { QueryCollector } from '../utils/query-collector';
 import { QueryOptimizationService } from './query-optimization.service';
@@ -22,7 +22,7 @@ interface AnalysisReportDto {
 
 @ApiTags('monitoring')
 @Controller('monitoring/query-optimization')
-@UseGuards(JwtAuthGuard)
+@UseGuards(LegacyOperationsGuard)
 @ApiBearerAuth()
 export class QueryOptimizationReportController {
   constructor(

@@ -2,6 +2,8 @@ import { Controller, Get, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../auth/guards/legacy-operations.guard';
+import { legacyJobActor } from '../background-job/legacy-job-access';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 
 @ApiTags('Analytics Dashboard')
@@ -23,13 +25,14 @@ export class AnalyticsDashboardController {
     @Query('endDate') endDate?: string,
   ) {
     return this.analyticsService.getUserEvents(
-      user.userId,
+      legacyJobActor(user).userId,
       startDate ? new Date(startDate) : undefined,
       endDate ? new Date(endDate) : undefined,
     );
   }
 
   @Get('stats')
+  @UseGuards(LegacyOperationsGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '이벤트 통계 조회' })
   @ApiQuery({ name: 'startDate', required: true, type: String })
@@ -40,6 +43,7 @@ export class AnalyticsDashboardController {
   }
 
   @Get('popular-features')
+  @UseGuards(LegacyOperationsGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '인기 기능 조회' })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -49,6 +53,7 @@ export class AnalyticsDashboardController {
   }
 
   @Get('error-rate')
+  @UseGuards(LegacyOperationsGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '에러율 조회' })
   @ApiQuery({ name: 'startDate', required: true, type: String })
@@ -59,6 +64,7 @@ export class AnalyticsDashboardController {
   }
 
   @Get('performance-metrics')
+  @UseGuards(LegacyOperationsGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '성능 메트릭 조회' })
   @ApiQuery({ name: 'startDate', required: true, type: String })
@@ -72,6 +78,7 @@ export class AnalyticsDashboardController {
   }
 
   @Get('user-journey')
+  @UseGuards(LegacyOperationsGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '사용자 여정 조회' })
   @ApiQuery({ name: 'sessionId', required: true, type: String })

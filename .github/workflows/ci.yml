@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, develop-v2]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend-api/package-lock.json
+
+      # 네이티브 모듈(odbc, oracledb 등) 빌드를 건너뛰고 설치
+      - run: npm ci --legacy-peer-deps --ignore-scripts
+
+      # SQLite 기반 단위 테스트에 필요한 네이티브 바인딩만 설치
+      - name: Prepare SQLite test driver
+        run: npm rebuild sqlite3
+
+      - name: Lint
+        run: npx eslint src --ext .ts
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        # src 전체 회귀. native DuckDB 테스트를 두 worker로 분리하고 MySQL 전용 검증은 별도 opt-in한다.
+        run: npm test -- --maxWorkers=2
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend-web/package-lock.json
+
+      - run: npm ci --legacy-peer-deps
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint src e2e --ext .ts,.tsx
+
+      - name: Unit tests
+        run: npx vitest run --maxWorkers=2
+
+      - name: Build
+        run: |
+          cp .env.example .env
+          npm run build
+        env:
+          CI: false

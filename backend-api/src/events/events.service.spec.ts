@@ -74,9 +74,11 @@ describe('EventsService', () => {
     service = module.get<EventsService>(EventsService);
     analyticsEventRepo = module.get<Repository<AnalyticsEvent>>(getRepositoryToken(AnalyticsEvent));
     eventSessionRepo = module.get<Repository<EventSession>>(getRepositoryToken(EventSession));
-    performanceMetricRepo = module.get<Repository<PerformanceMetric>>(getRepositoryToken(PerformanceMetric));
+    performanceMetricRepo = module.get<Repository<PerformanceMetric>>(
+      getRepositoryToken(PerformanceMetric),
+    );
     logger = module.get<CustomLoggerService>(CustomLoggerService);
-    
+
     // NestJS Logger mock 설정
     nestLogger = {
       log: jest.fn(),
@@ -138,14 +140,16 @@ describe('EventsService', () => {
 
     it('IP를 올바르게 익명화해야 함', async () => {
       const trackEventDto: TrackEventDto = {
-        events: [{
-          action: 'test',
-          category: 'test',
-          properties: {},
-        }],
+        events: [
+          {
+            action: 'test',
+            category: 'test',
+            properties: {},
+          },
+        ],
       };
 
-      mockAnalyticsEventRepository.create.mockImplementation((data) => data);
+      mockAnalyticsEventRepository.create.mockImplementation(data => data);
       mockAnalyticsEventRepository.save.mockResolvedValue([]);
 
       await service.trackEvents(trackEventDto, '192.168.1.100', 'Mozilla/5.0');

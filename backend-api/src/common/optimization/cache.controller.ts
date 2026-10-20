@@ -9,11 +9,14 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { HybridCacheService } from './hybrid-cache.service';
 import { DatasetService } from '../../dataset/dataset.service';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../../auth/guards/legacy-operations.guard';
+import { SourceAccessService } from '../../ownership/source-access.service';
+import { CacheWarmupScheduler } from '../scheduler/cache-warmup.scheduler';
 import { ResponseStatus } from '../enum/response-status.enum';
 
 export class CacheStatsResponseDto {
@@ -43,11 +46,13 @@ export class CacheWarmupRequestDto {
 
 @ApiTags('Cache Management')
 @Controller('cache')
-@UseGuards(JwtAuthGuard)
+@UseGuards(LegacyOperationsGuard)
 export class CacheController {
   constructor(
     private readonly hybridCache: HybridCacheService,
     private readonly datasetService: DatasetService,
+    private readonly access: SourceAccessService,
+    private readonly cacheWarmup: CacheWarmupScheduler,
   ) {}
 
   /**
@@ -229,7 +234,13 @@ export class CacheController {
     status: 200,
     description: '데이터베이스별 캐시 무효화 성공',
   })
-  async invalidateDatabaseCache(@Param('databaseId') databaseId: string) {
+  async invalidateDatabaseCache(@Param('databaseId') databaseId: string, @Req() req) {
+    await this.access.assert(
+      'database',
+      this.access.id(databaseId),
+      req.user.accessKeyData.id,
+      'owner',
+    );
     try {
       await this.datasetService.invalidateDatabaseCache(parseInt(databaseId));
 
@@ -264,7 +275,13 @@ export class CacheController {
     status: 200,
     description: '데이터셋별 캐시 무효화 성공',
   })
-  async invalidateDatasetCache(@Param('datasetId') datasetId: string) {
+  async invalidateDatasetCache(@Param('datasetId') datasetId: string, @Req() req) {
+    await this.access.assert(
+      'dataset',
+      this.access.id(datasetId),
+      req.user.accessKeyData.id,
+      'owner',
+    );
     try {
       await this.datasetService.invalidateDatasetCache(parseInt(datasetId));
 
@@ -295,7 +312,15 @@ export class CacheController {
     status: 200,
     description: '패턴 기반 캐시 무효화 성공',
   })
-  async invalidateCacheByPattern(@Body() request: CacheInvalidationRequestDto) {
+  async invalidateCacheByPattern(@Body() request: CacheInvalidationRequestDto, @Req() req) {
+    if (request.databaseId) {
+      await this.access.assert(
+        'database',
+        this.access.id(request.databaseId),
+        req.user.accessKeyData.id,
+        'owner',
+      );
+    }
     try {
       const { engine, databaseId, pattern } = request;
 
@@ -354,7 +379,7 @@ export class CacheController {
     status: 200,
     description: '캐시 워밍업 성공',
   })
-  async warmupCache(@Body() request: CacheWarmupRequestDto) {
+  async warmupCache(@Body() request: CacheWarmupRequestDto, @Req() req) {
     try {
       const { datasetIds } = request;
 
@@ -366,10 +391,15 @@ export class CacheController {
         };
       }
 
-      // 비동기로 워밍업 실행 (응답은 즉시 반환)
-      this.datasetService.warmupDatasetCache(datasetIds).catch(error => {
-        console.error('Cache warmup failed:', error);
-      });
+      const actor = this.access.actor(req.user.accessKeyData.id);
+      for (const id of datasetIds)
+        await this.access.assert('dataset', this.access.id(id), actor, 'owner');
+      // Recheck each current owner immediately before the queued query runs.
+      Promise.all(datasetIds.map(id => this.cacheWarmup.warmupDataset(id, undefined, actor))).catch(
+        error => {
+          console.error('Cache warmup failed:', error);
+        },
+      );
 
       return {
         status: ResponseStatus.SUCCESS,

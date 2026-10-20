@@ -2,8 +2,9 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/commo
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { createHash } from 'crypto';
+import { serialize } from 'v8';
 import { CustomLoggerService } from '../logger/logger.service';
-import { CompressionService } from './compression.service';
+import { CompressionService, CompressionType } from './compression.service';
 
 export interface RedisCacheEntry {
   data: any;
@@ -79,16 +80,21 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
     await this.disconnect();
   }
 
+  /** Reuse the lifecycle-owned connection for monitoring; never create a second client. */
+  getClient(): Redis | undefined {
+    return this.connected ? this.redis : undefined;
+  }
+
   /**
    * Redis 설정 초기화
    */
   private initializeConfig(): void {
     // 로컬 환경에서는 Redis를 기본적으로 비활성화
     const isLocal = this.configService.get('NODE_ENV') === 'local';
-    const redisEnabled = isLocal 
+    const redisEnabled = isLocal
       ? this.configService.get('REDIS_CACHE_ENABLED', 'false') === 'true'
       : this.configService.get('REDIS_CACHE_ENABLED', 'true') === 'true';
-      
+
     this.config = {
       enabled: redisEnabled,
       host: this.configService.get('REDIS_HOST', 'localhost'),
@@ -201,28 +207,12 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * 쿼리 해시 생성 (정규화 포함)
+   * 원문 SQL과 타입을 보존한 파라미터로 쿼리 해시 생성
    */
   private generateQueryHash(databaseId: string, query: string, parameters?: any[]): string {
-    // 쿼리 정규화
-    const normalizedQuery = this.normalizeQuery(query);
-    const paramString = parameters ? JSON.stringify(parameters) : '';
-    const input = `${databaseId}:${normalizedQuery}:${paramString}`;
-
-    return createHash('sha256').update(input).digest('hex');
-  }
-
-  /**
-   * 쿼리 정규화
-   */
-  private normalizeQuery(query: string): string {
-    return query
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, ' ') // 다중 공백을 단일 공백으로
-      .replace(/--.*$/gm, '') // 주석 제거
-      .replace(/\/\*[\s\S]*?\*\//g, '') // 블록 주석 제거
-      .trim();
+    return createHash('sha256')
+      .update(serialize([databaseId, query, parameters]))
+      .digest('hex');
   }
 
   /**
@@ -240,11 +230,13 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       // CompressionService가 자동으로 크기와 압축 효율을 확인함
       const compressed = await this.compressionService.compress(data);
       const stats = this.compressionService.calculateCompressionStats(compressed);
-      
-      return { 
-        data: compressed, 
-        compressed: stats ? stats.compressionRatio < 0.9 : false 
-      };
+
+      // compress() always returns an envelope, including NONE. The flag describes
+      // the bytes stored here, not the compression ratio of that envelope.
+      if (stats?.type === 'GZIP' || stats?.type === 'BROTLI') {
+        return { data: compressed, compressed: true };
+      }
+      return { data: JSON.stringify(data), compressed: false };
     } catch (error) {
       this.logger.error('Compression failed, using uncompressed data:', error);
       return { data: JSON.stringify(data), compressed: false };
@@ -255,21 +247,46 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
    * 데이터 압축 해제
    */
   private async decompressData(data: string, compressed: boolean): Promise<any> {
-    try {
-      if (!compressed) {
-        return JSON.parse(data);
-      }
-      
-      return await this.compressionService.decompress(data);
-    } catch (error) {
-      this.logger.error('Decompression failed:', error);
-      // 압축되지 않은 데이터로 시도
-      try {
-        return JSON.parse(data);
-      } catch {
-        throw error;
-      }
+    const stored = JSON.parse(data);
+    // Historical raw payloads can carry either flag; never decode row contents.
+    if (this.isQueryPayload(stored)) return stored;
+
+    // Historical NONE envelopes were marked false by the ratio-based writer.
+    // Recognize their format independently of the flag, with no raw fallback on
+    // a malformed envelope (CompressionService itself has a permissive fallback).
+    if (
+      !stored ||
+      ![CompressionType.NONE, CompressionType.GZIP, CompressionType.BROTLI].includes(stored.type) ||
+      typeof stored.data !== 'string' ||
+      !Number.isSafeInteger(stored.originalSize) ||
+      stored.originalSize <= 0 ||
+      !Number.isSafeInteger(stored.compressedSize) ||
+      stored.compressedSize <= 0
+    ) {
+      throw new Error(compressed ? 'Invalid compressed cache payload' : 'Invalid cache payload');
     }
+    const encoded = Buffer.from(stored.data, 'base64');
+    if (encoded.toString('base64') !== stored.data || encoded.length !== stored.compressedSize) {
+      throw new Error('Invalid cache envelope encoding');
+    }
+    const decoded = await this.compressionService.decompress(data);
+    if (
+      !this.isQueryPayload(decoded) ||
+      Buffer.byteLength(JSON.stringify(decoded), 'utf8') !== stored.originalSize
+    ) {
+      throw new Error('Invalid decoded cache payload');
+    }
+    return decoded;
+  }
+
+  private isQueryPayload(value: any): value is { data: any; fields: any[] } {
+    return (
+      value !== null &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.prototype.hasOwnProperty.call(value, 'data') &&
+      Array.isArray(value.fields)
+    );
   }
 
   /**

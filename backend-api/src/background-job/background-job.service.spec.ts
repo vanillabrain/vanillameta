@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { getQueueToken } from '@nestjs/bull';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Queue } from 'bull';
 import { BackgroundJobService } from './background-job.service';
 import { BackgroundJob, JobStatus, JobType } from './entities/background-job.entity';
@@ -10,6 +10,9 @@ import { CustomLoggerService } from '../common/logger/logger.service';
 type LoggerService = CustomLoggerService;
 import { CreateBackgroundJobDto } from './dto/create-background-job.dto';
 import { NotFoundException } from '@nestjs/common';
+
+import { SourceAccessService } from '../ownership/source-access.service';
+const actor = { id: 7, userId: 'user123', authVersion: 3 };
 
 describe('BackgroundJobService', () => {
   let service: BackgroundJobService;
@@ -49,6 +52,13 @@ describe('BackgroundJobService', () => {
       providers: [
         BackgroundJobService,
         {
+          provide: DataSource,
+          useValue: {
+            getRepository: () => ({ findOne: async () => ({ ...actor, active: true }) }),
+          },
+        },
+        { provide: SourceAccessService, useValue: { assert: jest.fn(), sourceId: async () => 1 } },
+        {
           provide: getRepositoryToken(BackgroundJob),
           useValue: mockBackgroundJobRepository,
         },
@@ -68,6 +78,8 @@ describe('BackgroundJobService', () => {
     }).compile();
 
     service = module.get<BackgroundJobService>(BackgroundJobService);
+    // Authorization is exercised with real SourceAccess in legacy-job-security.spec.ts.
+    jest.spyOn(service, 'assertJob').mockResolvedValue(undefined);
     backgroundJobRepository = module.get<Repository<BackgroundJob>>(
       getRepositoryToken(BackgroundJob),
     );
@@ -88,7 +100,7 @@ describe('BackgroundJobService', () => {
         title: 'Test Query Job',
         description: 'Test description',
         datasetId: 'dataset123',
-        databaseId: 'database123',
+        databaseId: '1',
         query: 'SELECT * FROM users',
       };
 
@@ -118,7 +130,7 @@ describe('BackgroundJobService', () => {
         queueJobId: queueJob.id,
       });
 
-      const result = await service.createJob(userId, createJobDto);
+      const result = await service.createJob(actor, createJobDto);
 
       expect(result).toMatchObject({
         id: savedJob.id,
@@ -162,7 +174,7 @@ describe('BackgroundJobService', () => {
 
       mockBackgroundJobRepository.findOne.mockResolvedValueOnce(job);
 
-      const result = await service.getJobById(jobId, userId);
+      const result = await service.getJobById(jobId, actor);
 
       expect(result).toMatchObject({
         id: job.id,
@@ -181,7 +193,7 @@ describe('BackgroundJobService', () => {
     it('should throw NotFoundException if job not found', async () => {
       mockBackgroundJobRepository.findOne.mockResolvedValueOnce(null);
 
-      await expect(service.getJobById('notfound', 'user123')).rejects.toThrow(NotFoundException);
+      await expect(service.getJobById('notfound', actor)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -207,7 +219,7 @@ describe('BackgroundJobService', () => {
         status: JobStatus.CANCELLED,
       });
 
-      await service.cancelJob(jobId, userId);
+      await service.cancelJob(jobId, actor);
 
       expect(queueJob.remove).toHaveBeenCalled();
       expect(mockBackgroundJobRepository.save).toHaveBeenCalledWith(
@@ -226,7 +238,7 @@ describe('BackgroundJobService', () => {
 
       mockBackgroundJobRepository.findOne.mockResolvedValueOnce(job);
 
-      await expect(service.cancelJob('job123', 'user123')).rejects.toThrow(
+      await expect(service.cancelJob('job123', actor)).rejects.toThrow(
         'Cannot cancel job in completed status',
       );
     });

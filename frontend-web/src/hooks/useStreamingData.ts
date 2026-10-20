@@ -35,9 +35,11 @@ export const useStreamingData = (options?: UseStreamingDataOptions) => {
   // 데이터 버퍼 플러시 및 상태 업데이트
   const flushDataBuffer = useCallback(() => {
     if (dataBufferRef.current.length > 0) {
+      const buffered = dataBufferRef.current;
+      dataBufferRef.current = [];
       setState(prev => ({
         ...prev,
-        data: [...prev.data, ...dataBufferRef.current].slice(
+        data: [...prev.data, ...buffered].slice(
           -(options?.maxDataSize || 100000), // 최대 10만 행 유지
         ),
       }));

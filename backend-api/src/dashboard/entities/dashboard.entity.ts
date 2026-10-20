@@ -8,11 +8,26 @@ import { DashboardShare } from './dashboard_share.entity';
 @Index('IDX_DASHBOARD_UPDATED_AT', ['updatedAt'])
 @Index('IDX_DASHBOARD_UPDATED_AT_TITLE', ['updatedAt', 'title'])
 export class Dashboard extends BaseEntity {
+  @Column({ type: 'boolean', default: true })
+  assetActive: boolean;
+
+  @Column({ type: 'integer', default: 0 })
+  assetVersion: number;
+
   @PrimaryGeneratedColumn({ comment: '대시보드 ID' })
   id: number;
 
   @Column({ length: 300, comment: '대시보드명' })
   title: string;
+
+  @Column({ type: 'text', nullable: true })
+  analysisDefinition: string;
+
+  @Column({ type: 'text', nullable: true })
+  structuredDefinition: string;
+
+  @Column({ type: 'text', nullable: true })
+  pivotDefinitions: string | null;
 
   @Optional()
   @Column({ nullable: true, comment: '템플릿 ID' })
@@ -33,7 +48,7 @@ export class Dashboard extends BaseEntity {
   @Column({ length: 1, default: YesNo.NO, comment: '삭제여부' })
   delYn: string;
 
-  @OneToOne(() => DashboardShare)
-  @JoinColumn({ name: 'shareId' })
-  dashboardShare: DashboardShare;
+  /** Organization reader policies never grant an anonymous/live sharing bypass. */
+  @Column({ type: 'boolean', default: false })
+  governed: boolean;
 }

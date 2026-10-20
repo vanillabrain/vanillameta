@@ -27,7 +27,8 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
   private async recordMemoryUsage(): Promise<void> {
     try {
       const memoryUsage = process.memoryUsage();
-      const maxMemory = parseInt(process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE || '1024', 10) * 1024 * 1024;
+      const maxMemory =
+        parseInt(process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE || '1024', 10) * 1024 * 1024;
 
       // 메모리 사용률 기록
       await this.businessMetrics.recordMemoryUsage(memoryUsage.heapUsed, maxMemory);
@@ -56,14 +57,14 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
   private async detectAndRecordColdStart(): Promise<void> {
     // Lambda 환경 변수로 콜드스타트 감지
     const isColdStart = !global['__lambda_warm__'];
-    
+
     if (isColdStart && process.env.AWS_LAMBDA_FUNCTION_NAME) {
       const startTime = parseInt(process.env.LAMBDA_INIT_START_TIME || '0', 10);
       const currentTime = Date.now();
-      
+
       if (startTime > 0) {
         const coldStartDuration = currentTime - startTime;
-        
+
         this.logger.log('Lambda cold start detected', {
           duration: coldStartDuration + 'ms',
           functionName: process.env.AWS_LAMBDA_FUNCTION_NAME,
@@ -71,7 +72,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
 
         await this.businessMetrics.recordLambdaColdStart(coldStartDuration);
       }
-      
+
       // 웜 상태로 표시
       global['__lambda_warm__'] = true;
     }

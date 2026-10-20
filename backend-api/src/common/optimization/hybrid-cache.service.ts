@@ -45,12 +45,14 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
     databaseId: string,
     query: string,
     parameters?: any[],
+    revisionContext?: string,
   ): Promise<{ data: any; fields: any[] } | null> {
     const startTime = Date.now();
+    const sourceIdentity = JSON.stringify([databaseId, revisionContext]);
 
     try {
       // L1 캐시 (메모리) 먼저 확인
-      const l1Result = await this.l1Cache.get(engine, query, parameters);
+      const l1Result = await this.l1Cache.get(engine, query, parameters, sourceIdentity);
 
       if (l1Result) {
         this.customLogger.debug('L1 cache hit', 'HybridCacheService', {
@@ -61,11 +63,18 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
       }
 
       // L1 미스 시 L2 캐시 (Redis) 확인
-      const l2Result = await this.l2Cache.get(engine, databaseId, query, parameters);
+      const l2Result = await this.l2Cache.get(engine, sourceIdentity, query, parameters);
 
       if (l2Result) {
         // L2 히트 시 L1으로 승격 (자주 사용되는 데이터)
-        await this.promoteToL1(engine, query, l2Result.data, l2Result.fields, parameters);
+        await this.promoteToL1(
+          engine,
+          query,
+          l2Result.data,
+          l2Result.fields,
+          parameters,
+          sourceIdentity,
+        );
 
         this.customLogger.debug('L2 cache hit, promoted to L1', 'HybridCacheService', {
           engine,
@@ -103,9 +112,11 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
       l1Only?: boolean;
       l2Only?: boolean;
       ttl?: number;
+      revisionContext?: string;
     },
   ): Promise<void> {
-    const { l1Only = false, l2Only = false, ttl } = options || {};
+    const { l1Only = false, l2Only = false, ttl, revisionContext } = options || {};
+    const sourceIdentity = JSON.stringify([databaseId, revisionContext]);
 
     try {
       // 기본적으로 두 캐시 모두에 저장
@@ -113,12 +124,14 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       if (!l2Only) {
         // L1 캐시에 저장
-        promises.push(this.l1Cache.set(engine, query, data, fields, parameters));
+        promises.push(this.l1Cache.set(engine, query, data, fields, parameters, sourceIdentity));
       }
 
       if (!l1Only && this.l2Cache.isConnected()) {
         // L2 캐시에 저장 (Redis 연결된 경우에만)
-        promises.push(this.l2Cache.set(engine, databaseId, query, data, fields, parameters, ttl));
+        promises.push(
+          this.l2Cache.set(engine, sourceIdentity, query, data, fields, parameters, ttl),
+        );
       }
 
       await Promise.allSettled(promises);
@@ -143,9 +156,10 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
     data: any,
     fields: any[],
     parameters?: any[],
+    sourceIdentity?: string,
   ): Promise<void> {
     try {
-      await this.l1Cache.set(engine, query, data, fields, parameters);
+      await this.l1Cache.set(engine, query, data, fields, parameters, sourceIdentity);
     } catch (error) {
       this.logger.error('Failed to promote data to L1:', error);
     }

@@ -22,7 +22,7 @@ export class DashboardCacheService {
   private readonly DEFAULT_TTL = 3600; // 1시간
   private readonly USER_DASHBOARD_LIST_TTL = 300; // 5분
   private readonly SHARED_DASHBOARD_TTL = 7200; // 2시간
-  
+
   // 캐시 키 프리픽스
   private readonly CACHE_KEY_PREFIX = {
     DASHBOARD: 'dashboard',
@@ -118,11 +118,7 @@ export class DashboardCacheService {
     const cacheKey = this.generateDashboardKey(dashboardId);
 
     try {
-      const cached = await this.hybridCache.get(
-        'dashboard',
-        dashboardId.toString(),
-        cacheKey,
-      );
+      const cached = await this.hybridCache.get('dashboard', dashboardId.toString(), cacheKey);
 
       if (cached) {
         this.customLogger.debug('Dashboard cache hit', 'DashboardCacheService', {
@@ -162,7 +158,7 @@ export class DashboardCacheService {
       );
 
       this.customLogger.debug('User dashboard list cached', 'DashboardCacheService', {
-        userId,
+        userId: String(userId),
         dashboardCount: dashboards.length,
         ttl: ttl || this.USER_DASHBOARD_LIST_TTL,
       });
@@ -178,15 +174,11 @@ export class DashboardCacheService {
     const cacheKey = this.generateUserListKey(userId);
 
     try {
-      const cached = await this.hybridCache.get(
-        'dashboard',
-        `user_${userId}`,
-        cacheKey,
-      );
+      const cached = await this.hybridCache.get('dashboard', `user_${userId}`, cacheKey);
 
       if (cached) {
         this.customLogger.debug('User dashboard list cache hit', 'DashboardCacheService', {
-          userId,
+          userId: String(userId),
           dashboardCount: cached.data.length,
         });
 
@@ -238,11 +230,7 @@ export class DashboardCacheService {
     const cacheKey = this.generateSharedKey(shareId);
 
     try {
-      const cached = await this.hybridCache.get(
-        'dashboard',
-        `share_${shareId}`,
-        cacheKey,
-      );
+      const cached = await this.hybridCache.get('dashboard', `share_${shareId}`, cacheKey);
 
       if (cached) {
         this.customLogger.debug('Shared dashboard cache hit', 'DashboardCacheService', {
@@ -262,11 +250,7 @@ export class DashboardCacheService {
   /**
    * 대시보드 위젯 목록 캐싱
    */
-  async cacheDashboardWidgets(
-    dashboardId: number,
-    widgets: any[],
-    ttl?: number,
-  ): Promise<void> {
+  async cacheDashboardWidgets(dashboardId: number, widgets: any[], ttl?: number): Promise<void> {
     const cacheKey = this.generateWidgetListKey(dashboardId);
 
     try {
@@ -297,11 +281,7 @@ export class DashboardCacheService {
     const cacheKey = this.generateWidgetListKey(dashboardId);
 
     try {
-      const cached = await this.hybridCache.get(
-        'dashboard',
-        `widgets_${dashboardId}`,
-        cacheKey,
-      );
+      const cached = await this.hybridCache.get('dashboard', `widgets_${dashboardId}`, cacheKey);
 
       if (cached) {
         this.customLogger.debug('Dashboard widgets cache hit', 'DashboardCacheService', {
@@ -330,11 +310,7 @@ export class DashboardCacheService {
       ];
 
       // 각 키에 대해 무효화
-      await Promise.all(
-        keys.map(key => 
-          this.hybridCache.invalidateByQuery('dashboard', key)
-        ),
-      );
+      await Promise.all(keys.map(key => this.hybridCache.invalidateByQuery('dashboard', key)));
 
       this.customLogger.log('Dashboard cache invalidated', 'DashboardCacheService', {
         dashboardId,
@@ -359,7 +335,7 @@ export class DashboardCacheService {
       await this.hybridCache.invalidateByQuery('dashboard', cacheKey);
 
       this.customLogger.log('User dashboard list cache invalidated', 'DashboardCacheService', {
-        userId,
+        userId: String(userId),
       });
     } catch (error) {
       this.logger.error(`Failed to invalidate user dashboard list for user ${userId}:`, error);
@@ -397,7 +373,7 @@ export class DashboardCacheService {
 
       this.customLogger.log('All dashboard caches invalidated', 'DashboardCacheService', {
         dashboardId,
-        userId,
+        userId: String(userId),
       });
     } catch (error) {
       this.logger.error('Failed to invalidate all dashboard caches:', error);

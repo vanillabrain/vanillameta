@@ -114,7 +114,7 @@ export class PostgreSQLOptimizer extends BaseDatabaseOptimizer {
         // PostgreSQL은 많은 연결을 잘 처리함
         max: isLocal ? 5 : isProduction ? 20 : 10,
         // 연결 생성 후 초기화
-        afterCreate: async (conn: any, done: Function) => {
+        afterCreate: async (conn: any, done: (error: unknown, connection: any) => void) => {
           try {
             // PostgreSQL 세션 최적화 설정
             const optimizationQueries = [

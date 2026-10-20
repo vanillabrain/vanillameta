@@ -1,17 +1,21 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
-import { ReactComponent as Logo } from '@/assets/images/logo.svg';
+import Logo from '@/assets/images/logo.svg?react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
+import { useTranslation } from 'react-i18next';
 import { Copyright } from '@/layouts/Footer';
 import authService from '@/api/authService';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { checkEmail, checkId, checkPwd } from '@/utils/util';
 import Seo from '@/seo/Seo';
 import { getToken } from '@/helpers/authHelper';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { TextField } from '@/components/ui/text-field';
 
 const SignUp = () => {
+  const { t } = useTranslation();
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
@@ -47,18 +51,18 @@ const SignUp = () => {
         .then(response => {
           // console.log(response);
           if (response.status === 201) {
-            alert.success(`${event.target.userId.value}님\n회원가입이 완료되었습니다.`);
+            alert.success(t('signup.welcome', { name: event.target.userId.value }));
             navigate('/login');
           }
         })
         .catch(error => {
           console.log(error);
-          if (error.response.status === 409 && error.response.data.message === 'conflict userId') {
-            snackbar.error('이미 가입된 ID입니다.');
-          } else if (error.response.status === 409 && error.response.data.message === 'conflict email') {
-            snackbar.error('이미 가입된 E-mail입니다.');
+          if (error.response.status === 409 && error.response.data.data === 'conflict userId') {
+            snackbar.error(t('signup.dupId'));
+          } else if (error.response.status === 409 && error.response.data.data === 'conflict email') {
+            snackbar.error(t('signup.dupEmail'));
           } else {
-            alert.error('회원가입에 실패했습니다.\n다시 시도해 주세요.');
+            alert.error(t('signup.failed'));
           }
         })
         .finally(() => {
@@ -72,27 +76,27 @@ const SignUp = () => {
     const { userId, userPwd, userConfirmPwd, userEmail } = userInfo;
     // console.log('userId:', userId, 'userPwd:', userPwd, 'userConfirmPwd:', userConfirmPwd, 'userEmail:', userEmail);
     if (!userId || !userPwd || !userConfirmPwd || !userEmail) {
-      snackbar.error('입력란을 모두 작성해 주세요.');
+      snackbar.error(t('login.fillAll'));
       return;
     } else {
       if (userId.length < 5 || userId.length >= 20) {
-        snackbar.error('ID는 5글자에서 20글자 이내로 작성해 주세요.');
+        snackbar.error(t('login.idLength'));
         return;
       }
       if (!checkId.test(userId)) {
-        snackbar.error('ID는 공백 없는 영문, 숫자만 가능합니다.');
+        snackbar.error(t('login.idFormat'));
         return;
       }
       if (!checkPwd.test(userPwd)) {
-        snackbar.error('비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.');
+        snackbar.error(t('login.pwdFormat'));
         return;
       }
       if (userPwd !== userConfirmPwd) {
-        snackbar.error('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
+        snackbar.error(t('signup.pwdMismatch'));
         return;
       }
       if (!checkEmail.test(userEmail)) {
-        snackbar.error('E-mail의 형식이 맞는지 확인해 주세요.');
+        snackbar.error(t('signup.emailFormat'));
         return;
       }
       isValid = true;
@@ -109,44 +113,20 @@ const SignUp = () => {
 
   if (!token) {
     return (
-      <Box
-        component="main"
-        sx={{
-          position: 'relative',
-          zIndex: 0,
-          width: '100%',
-          height: '100%',
-          minWidth: '100vw',
-          backgroundColor: '#f5f6f8',
-        }}
-      >
-        <Seo title="회원가입" />
-        <Box
-          sx={{
-            pt: '90px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
+      <main className="relative min-h-full w-full bg-muted px-4 pb-8">
+        <Seo title={t('signup.title')} />
+        <div className="mx-auto flex max-w-md flex-col items-center pt-10 sm:pt-14">
           <RouterLink to="/">
-            <Logo width="223px" height="43px" />
+            <Logo width="223px" height="43px" aria-label="VanillaMeta" />
           </RouterLink>
-          <Paper
-            elevation={0}
-            sx={{ width: '560px', mt: '32px', px: '100px', pt: '60px', pb: '80px', border: 'solid 1px #e2e2e2' }}
-          >
-            <Stack component="form" onSubmit={handleSignup} noValidate sx={{ width: '360px' }} spacing="20px">
-              <Typography sx={{ mb: '36px', fontSize: '24px', fontWeight: 600, lineHeight: 1.33, color: '#141414' }}>
-                <Box component="span" sx={{ color: '#0f5ab2' }}>
-                  회원가입
-                </Box>
-                후<br /> 편리하게 이용하세요.
-              </Typography>
+          <Card className="mt-8 w-full gap-0 rounded-xl border border-border p-6 shadow-sm ring-0 sm:p-8">
+            <form onSubmit={handleSignup} noValidate className="flex w-full flex-col gap-5">
+              <p className="mb-2 text-xl leading-8 sm:text-2xl font-semibold text-foreground">
+                <span className="text-primary">{t('signup.taglineA')}</span>
+                {t('signup.taglineB')}
+              </p>
               <TextField
-                margin="normal"
                 required
-                fullWidth
                 label="User ID"
                 name="userId"
                 type="text"
@@ -154,81 +134,44 @@ const SignUp = () => {
                 onChange={handleChange}
               />
               <TextField
-                margin="normal"
                 required
-                fullWidth
                 name="userPwd"
                 value={userInfo.userPwd}
                 onChange={handleChange}
                 label="Password"
                 type="password"
-                sx={{ height: '36px' }}
               />
               <TextField
-                margin="normal"
                 required
-                fullWidth
                 name="userConfirmPwd"
                 value={userInfo.userConfirmPwd}
                 onChange={handleChange}
                 label="Confirm Password"
                 type="password"
-                sx={{ height: '36px' }}
               />
               <TextField
-                margin="normal"
                 required
-                fullWidth
                 name="userEmail"
                 value={userInfo.userEmail}
                 onChange={handleChange}
                 label="E-mail"
                 type="email"
-                sx={{ height: '36px' }}
               />
-              <Button type="submit" size="large" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
-                가입하기
+              <Button type="submit" size="lg" className="mt-2 w-full">
+                {t('signup.submit')}
               </Button>
-            </Stack>
-            <Typography
-              component="div"
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '12px',
-                mt: '50px',
-                fontSize: '14px',
-                textAlign: 'center',
-                color: '#4a4a4a',
-              }}
-            >
-              <Box
-                component={RouterLink}
-                to="/login"
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: '12px',
-                  color: 'inherit',
-
-                  '&:after': {
-                    content: `""`,
-                    width: '1px',
-                    height: '10px',
-                    backgroundColor: '#cccfd8',
-                  },
-                }}
-              >
-                로그인
-              </Box>
-              <Box>아이디/비번찾기</Box>
-            </Typography>
-          </Paper>
-        </Box>
-        <Copyright sx={{ mt: '40px' }} />
-      </Box>
+            </form>
+            <div className="mt-6 flex items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+              <RouterLink to="/login" className="text-sm text-inherit hover:underline">
+                {t('login.title')}
+              </RouterLink>
+              <span aria-hidden="true" className="h-2.5 w-px bg-border" />
+              <span>{t('login.findAccount')}</span>
+            </div>
+          </Card>
+        </div>
+        <Copyright className="mt-8" />
+      </main>
     );
   }
 };

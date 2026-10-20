@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { IconButton, ListItem, ListItemText, SvgIcon } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, PIE_LABEL_LIST } from '@/constant';
 import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
 import { AddButton } from '@/components/button/AddIconButton';
-import { ReactComponent as SingleColorIcon } from '@/assets/images/icon/ic-color.svg';
-import { ReactComponent as GradientColorIcon } from '@/assets/images/icon/ic-gradient.svg';
+import { Button } from '@/components/ui/button';
+import SingleColorIcon from '@/assets/images/icon/ic-color.svg?react';
+import GradientColorIcon from '@/assets/images/icon/ic-gradient.svg?react';
 
 const FunnelChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec, dataSet } = props;
   const [colorNum, setColorNum] = useState(12);
 
@@ -68,13 +70,13 @@ const FunnelChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           required={true}
           id="name"
           name="name"
-          label="이름"
+          label={t('settings.name')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.map(item => item.columnName)}
@@ -83,19 +85,19 @@ const FunnelChartSetting = props => {
         />
         <SelectForm
           name="label"
-          label="레이블 타입"
-          optionList={PIE_LABEL_LIST}
+          label={t('settings.labelType')}
+          optionList={PIE_LABEL_LIST(t)}
           value={option.series.label}
           onChange={handleSeriesChange}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary="시리즈 설정" />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <SelectForm
           required={true}
           id="field"
           name="field"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -105,52 +107,41 @@ const FunnelChartSetting = props => {
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.series.aggregation}
           onChange={handleSeriesChange}
           disabledDefaultValue
         />
-      </ListItem>
+      </li>
 
-      <ListItem divider>
-        <ListItemText>범례 설정</ListItemText>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
+          label={t('settings.position')}
+          optionList={LEGEND_LIST(t)}
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText primary="색상 설정" />
-        <AddButton
-          onClick={handleAddColorClick}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
-        />
-        <IconButton
-          size="small"
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 34,
-            width: 28,
-            height: 28,
-          }}
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.colorSetting')}</span>
+        <AddButton onClick={handleAddColorClick} className="absolute right-0 top-[30px]" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="absolute top-[30px] right-[34px]"
           onClick={handleColorChangeClick}
         >
-          <SvgIcon
-            component={option.singleColor ? SingleColorIcon : GradientColorIcon}
-            inheritViewBox
-            sx={{ width: 16, height: 16 }}
-          />
-        </IconButton>
+          {option.singleColor ? (
+            <SingleColorIcon aria-hidden="true" className="size-4" />
+          ) : (
+            <GradientColorIcon aria-hidden="true" className="size-4" />
+          )}
+        </Button>
         {option.series.field &&
           option.series.color
             .filter((item, index) => index < colorNum)
@@ -166,7 +157,7 @@ const FunnelChartSetting = props => {
                 />
               </React.Fragment>
             ))}
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

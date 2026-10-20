@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import {
   getApiUrl,
   getAppMode,
@@ -17,9 +18,9 @@ describe('환경 변수 헬퍼 함수 테스트', () => {
 
   beforeEach(() => {
     // 환경 변수 초기화
-    jest.resetModules();
+    vi.resetModules();
     process.env = { ...originalEnv };
-    console.log = jest.fn();
+    console.log = vi.fn();
   });
 
   afterEach(() => {

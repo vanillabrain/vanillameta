@@ -40,7 +40,7 @@ export const initializeGA = (measurementId: string) => {
 export const trackPageView = (url: string) => {
   // Google Analytics
   if (window.gtag) {
-    window.gtag('config', process.env.REACT_APP_GA_MEASUREMENT_ID!, {
+    window.gtag('config', import.meta.env.REACT_APP_GA_MEASUREMENT_ID!, {
       page_path: url,
     });
   }
@@ -108,7 +108,7 @@ export const trackException = (description: string, fatal = false) => {
 // 커스텀 차원 설정
 export const setCustomDimension = (dimensionName: string, value: string) => {
   if (window.gtag) {
-    window.gtag('config', process.env.REACT_APP_GA_MEASUREMENT_ID!, {
+    window.gtag('config', import.meta.env.REACT_APP_GA_MEASUREMENT_ID!, {
       custom_map: {
         [dimensionName]: value,
       },

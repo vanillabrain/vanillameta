@@ -1,3 +1,5 @@
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../auth/guards/legacy-operations.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsService } from './analytics.service';
@@ -20,7 +22,12 @@ describe('AnalyticsController', () => {
           useValue: mockAnalyticsService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(LegacyOperationsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AnalyticsController>(AnalyticsController);
     service = module.get<AnalyticsService>(AnalyticsService);
@@ -48,28 +55,22 @@ describe('AnalyticsController', () => {
         ],
       };
 
-      const req = { user: { userId: 'user123' }, ip: '127.0.0.1' };
+      const req = {
+        user: { userId: 'user123', accessKeyData: { id: 7, userId: 'user123', authVersion: 3 } },
+        ip: '127.0.0.1',
+      };
       const correlationId = 'correlation-123';
       const userAgent = 'Mozilla/5.0';
       const forwardedFor = '192.168.1.1';
 
-      await controller.collectEvents(
-        createEventDto,
+      await controller.collectEvents(createEventDto, correlationId, userAgent, forwardedFor, req);
+
+      expect(service.collectEvents).toHaveBeenCalledWith(createEventDto.events, {
+        userId: 'user123',
         correlationId,
         userAgent,
-        forwardedFor,
-        req,
-      );
-
-      expect(service.collectEvents).toHaveBeenCalledWith(
-        createEventDto.events,
-        {
-          userId: 'user123',
-          correlationId,
-          userAgent,
-          ipAddress: '192.168.1.1',
-        },
-      );
+        ipAddress: '192.168.1.1',
+      });
     });
 
     it('should collect events without user authentication', async () => {
@@ -87,23 +88,14 @@ describe('AnalyticsController', () => {
       const userAgent = 'Mozilla/5.0';
       const forwardedFor = undefined;
 
-      await controller.collectEvents(
-        createEventDto,
+      await controller.collectEvents(createEventDto, correlationId, userAgent, forwardedFor, req);
+
+      expect(service.collectEvents).toHaveBeenCalledWith(createEventDto.events, {
+        userId: null,
         correlationId,
         userAgent,
-        forwardedFor,
-        req,
-      );
-
-      expect(service.collectEvents).toHaveBeenCalledWith(
-        createEventDto.events,
-        {
-          userId: null,
-          correlationId,
-          userAgent,
-          ipAddress: '127.0.0.1',
-        },
-      );
+        ipAddress: '127.0.0.1',
+      });
     });
   });
 
@@ -124,20 +116,20 @@ describe('AnalyticsController', () => {
         ],
       };
 
-      const user = { userId: 'user123' };
+      const user = {
+        userId: 'user123',
+        accessKeyData: { id: 7, userId: 'user123', authVersion: 3 },
+      };
       const correlationId = 'correlation-456';
 
       await controller.collectBatchEvents(createEventDto, user, correlationId);
 
-      expect(service.collectEvents).toHaveBeenCalledWith(
-        createEventDto.events,
-        {
-          userId: 'user123',
-          correlationId,
-          userAgent: 'Server-Side',
-          ipAddress: 'Internal',
-        },
-      );
+      expect(service.collectEvents).toHaveBeenCalledWith(createEventDto.events, {
+        userId: 'user123',
+        correlationId,
+        userAgent: 'Server-Side',
+        ipAddress: 'Internal',
+      });
     });
   });
 });

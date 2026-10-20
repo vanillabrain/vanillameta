@@ -37,6 +37,7 @@ describe('CompressionLoggingMiddleware', () => {
     mockRequest = {
       method: 'GET',
       path: '/api/test',
+      route: { path: '/api/test' },
     };
 
     // Mock response

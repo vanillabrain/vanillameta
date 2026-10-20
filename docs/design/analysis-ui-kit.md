@@ -1,0 +1,46 @@
+# 분석 화면 UI Kit
+
+UI-001 전환 기준: 모든 공통 제어 UI는 공식 shadcn Radix 컴포넌트와 Tailwind를 사용한다. 원본은 `frontend-web/src/components/analysis/AnalysisUi.tsx`, `frontend-web/src/components/ui/`, 공유 토큰은 `frontend-web/src/styles/tokens.css`이며 `src/index.css`에서 가져온다. 이전 MUI UI Kit는 e8f657fd 이전 이력에 있으며, 당시 화면 PASS를 새 구현의 검증 결과로 재사용하지 않는다.
+
+## 공통 기준
+
+| 요소      | 구현                                                          | 기준                                            |
+| --------- | ------------------------------------------------------------- | ----------------------------------------------- |
+| 일반 액션 | shadcn Button                                                 | default36px/lg40px, sm32px 도구줄; variant 사용 |
+| 분석 선택 | AnalysisChoice → shadcn Toggle outline/32px                   | aria-pressed·data-state와 의미 토큰 선택 상태   |
+| 입력      | TextField → Field/FieldLabel/Input 또는 Textarea/NativeSelect | 36px 입력, 고유 id/label 및 aria-describedby    |
+| 공지/오류 | Notice → Alert/AlertDescription                               | 오류 destructive, role=alert, 본문 유지         |
+| 보기 그룹 | analysisModeGroupClassName                                    | 테두리, 내부 여백, gap와 그룹 이름              |
+| 패널      | analysisPanelClassName                                        | border/bg-card 의미 토큰,16~24px 여백           |
+| 표        | shadcn Table 및 analysisTableCellClassName                    | 숫자 tabular-nums, 14px/10px・12px 셀 밀도      |
+| 모달      | Dialog/AlertDialog                                            | Title/Description, 실제 portal와 focus 관리     |
+
+AnalysisUiProvider는 `data-analysis-ui`가 있는 Tailwind 컨테이너다. 부모 descendant selector로 자식 버튼의 높이를 강제하지 않는다. 일반 버튼/필드의 variant/size를 선택하며 화면마다 색/폰트 예외를 쌓지 않는다. Portal도 전역 CSS 변수 토큰을 사용한다. 앱 분기는 sm600/md900/lg1200을 유지하고 JavaScript matchMedia도 같은 값을 사용한다. 랜딩은 마케팅 레이아웃의 md768/lg1024를 별도로 유지한다. 일반 버튼과 데이터 행의 높이를 일괄 강제하지 않는다. 화면 바깥 여백16/24px, 패널 안쪽20~24px, 요소 간격8/12/16/24px를 우선 사용한다. 페이지 제목24px, 섹션 제목16~18px, 본문14px, 보조문구12px로 구분한다.
+
+선택 UI는 shadcn Toggle을 사용하고 선택 상태를 `data-state`/`aria-pressed`와 의미 토큰(`border-primary`/`bg-accent`/`text-accent-foreground`)으로만 표현한다. Button에 수동 pressed 클래스를 덧씌우거나 원시 색상값을 쓰지 않는다. 선택지2~7개의 그룹은 ToggleGroup 계열 네이티브 컴포넌트를 사용하고, 콜백으로 선택 상태를 직접 보관하는 AnalysisChoice는 단독·다중 선택 컨트롤로 유지한다. `ANALYSIS_UI`의 accent/selected/border/muted/surface 값은 차트·배치 canvas용 원시 geometry·색이며 정적 UI 클래스에는 사용하지 않는다.
+
+## 보존할 동작
+
+기간/타임존/필터/숫자 정밀도/단위, CSV와 저장 보기, 선택 분석/지표 snapshot의 원자 저장, 기존 블록 ID/폭별 좌표/복제/undo-redo는 디자인 변경과 분리한다. 긴 축/이름의 wrap, 표 내부 가로 스크롤, 오류/빈 결과/로딩 문구와 키보드 포커스를 유지한다. 실제 계산 geometry나 chart 수치/사용자 색은 동적 style을 사용할 수 있으며 정적 UI 디자인은 Tailwind를 사용한다.
+
+## Rill 비교와 검증
+
+Rill은 Explore/Pivot의 밀도와 탐색 UX 기준이다. Rill의 정보 배치를 참고하되, 앱 본문은14px·도구 버튼은shadcn sm32px로 일관되게 표시한다. 대화/블록/게시 화면은 제품 여정에 맞추며 Rill로 제한하지 않는다.
+
+새 구현의 실제 기능/디자인 PASS는 UI-001 검증 증빙에서 판정한다. 기존 MUI 시점의 1440/390 화면, 숫자/API와 이전 테스트 결과를 새 화면 PASS로 주장하지 않는다. 동일 데이터/기간/필터의 수치와 렌더링을 분리하고 390/768/1440 대표 폭, 긴 이름/빈 결과/오류/포커스 상태를 Ego 실제 화면으로 확인한다.
+
+- 실행 계획: [UI-001](../plans/UI-001-shadcn-tailwind.md)
+- 공통 검증 기준: [workflow](../testing/workflow.md)
+- 이전 적용 여부 감사: [baseline audit](shadcn-tailwind-audit.md)
+
+DialogContent의 desktop 최대 폭은 `sm:max-w-*`로 명시해 공식 기본값과 같은 breakpoint에서 덮어쓴다. 긴 미리보기는 header/body/footer를 나누고 가운데 body만 `min-h-0`과 스크롤을 갖게 한다. 직접 트리거가 없는 모달은 닫힘 시 원래 실행 버튼으로 포커스를 복구한다.
+
+## Studio 통일 — 2026-10-16
+
+Studio도 동일한 Button/TextField/Notice/Checkbox/ToggleGroup/Dialog/Sheet와 lucide를 사용한다. 별도 MUI ThemeProvider/테마/Emotion 의존성은 제거했다. `studio.css`는 공유 CSS 변수와 Studio 배치·스크롤을 담당하며 제어 높이·색·폰트를 전역 descendant 규칙으로 덮어쓰지 않는다. 모바일 Sheet는 단일 portal subtree를 유지하고 이전 focus scope가 해제된 다음 포커스를 복원한다. breakpoint에서 원래 trigger가 교체되면 같은 의미의 버튼을 찾아 복원한다. 선택 검증 범위·캡처·남은 접근성 조건은 [Studio shadcn MD](../testing/studio-shadcn.md)를 따른다.
+
+## 화면 간 분석 기준 — UX-002
+
+`components/analysis/AnalysisBasis.tsx`를 첫 생성·빌더·Explore·Studio·게시/복제의 읽기 전용 요약으로 재사용한다. 데이터 / 기간 / 필터 / 지표 기준 순서를 유지하고 현재 선택·초안·저장본·게시 시점·대상 재계산을 구분한다. 긴 값은 두 줄 요약과 native details의 전체 내용으로 제공한다. 본문/제목14px, 상세32px/모바일44px, 넓은 컨테이너4열/좁은 컨테이너2열이다. 화면 폭만으로 모달을4열로 바꾸지 않는다.
+
+계산·저장·권한을 수정하거나 다른 화면의 조건을 자동 적용하지 않는다. 공개 게시에는 기존 공개 집계 응답만 사용하고 원본/SQL/비공개 지표 정의를 추가하지 않는다. 데이터/지표 버전을 확인하지 못했으면 명시하고 최신 catalog 값을 저장 snapshot 대신 사용하지 않는다. [실제 화면/선택 검증](../testing/analysis-basis-ux.md)을 따른다.

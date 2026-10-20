@@ -52,19 +52,22 @@ export class CompressionService {
       }
 
       // 데이터 크기에 따라 압축 알고리즘 선택
-      const compressionResult = originalSize > 10 * 1024 // 10KB 이상
-        ? await this.compressBrotli(json, originalSize)
-        : await this.compressGzip(json, originalSize);
+      const compressionResult =
+        originalSize > 10 * 1024 // 10KB 이상
+          ? await this.compressBrotli(json, originalSize)
+          : await this.compressGzip(json, originalSize);
 
       // 압축률 확인
       const compressionRatio = compressionResult.compressedSize / originalSize;
-      
+
       if (!forceCompression && compressionRatio > this.MIN_COMPRESSION_RATIO) {
         // 압축 효과가 미미하면 원본 사용
         this.logger.debug(
-          `Compression ratio ${compressionRatio.toFixed(2)} is below threshold, using original data`,
+          `Compression ratio ${compressionRatio.toFixed(
+            2,
+          )} is below threshold, using original data`,
         );
-        
+
         return JSON.stringify({
           type: CompressionType.NONE,
           data: Buffer.from(json).toString('base64'),
@@ -75,7 +78,9 @@ export class CompressionService {
 
       this.logger.debug(
         `Compressed data from ${originalSize} to ${compressionResult.compressedSize} bytes ` +
-        `(${((1 - compressionRatio) * 100).toFixed(1)}% reduction) using ${CompressionType[compressionResult.type]}`,
+          `(${((1 - compressionRatio) * 100).toFixed(1)}% reduction) using ${
+            CompressionType[compressionResult.type]
+          }`,
       );
 
       return JSON.stringify(compressionResult);
@@ -99,9 +104,10 @@ export class CompressionService {
         return JSON.parse(json);
       }
 
-      const decompressed = compressed.type === CompressionType.BROTLI
-        ? await this.decompressBrotli(compressed.data)
-        : await this.decompressGzip(compressed.data);
+      const decompressed =
+        compressed.type === CompressionType.BROTLI
+          ? await this.decompressBrotli(compressed.data)
+          : await this.decompressGzip(compressed.data);
 
       return JSON.parse(decompressed);
     } catch (error) {
@@ -180,7 +186,7 @@ export class CompressionService {
   } | null {
     try {
       const compressed: CompressedData = JSON.parse(compressedStr);
-      
+
       if (!compressed.originalSize || !compressed.compressedSize) {
         return null;
       }
@@ -208,11 +214,11 @@ export class CompressionService {
     forceCompression = false,
   ): Promise<Array<{ key: string; compressed: string; stats?: any }>> {
     const results = await Promise.all(
-      items.map(async (item) => {
+      items.map(async item => {
         try {
           const compressed = await this.compress(item.data, forceCompression);
           const stats = this.calculateCompressionStats(compressed);
-          
+
           return {
             key: item.key,
             compressed,
@@ -220,7 +226,7 @@ export class CompressionService {
           };
         } catch (error) {
           this.logger.error(`Failed to compress item ${item.key}:`, error);
-          
+
           // 압축 실패 시 원본 반환
           return {
             key: item.key,
@@ -234,13 +240,13 @@ export class CompressionService {
     // 압축 통계 로깅
     const totalOriginal = results.reduce((sum, r) => sum + (r.stats?.originalSize || 0), 0);
     const totalCompressed = results.reduce((sum, r) => sum + (r.stats?.compressedSize || 0), 0);
-    
+
     if (totalOriginal > 0) {
       const overallRatio = totalCompressed / totalOriginal;
       this.logger.log(
         `Batch compression completed: ${items.length} items, ` +
-        `${totalOriginal} → ${totalCompressed} bytes ` +
-        `(${((1 - overallRatio) * 100).toFixed(1)}% reduction)`,
+          `${totalOriginal} → ${totalCompressed} bytes ` +
+          `(${((1 - overallRatio) * 100).toFixed(1)}% reduction)`,
       );
     }
 
@@ -254,7 +260,7 @@ export class CompressionService {
     try {
       const json = JSON.stringify(data);
       const size = Buffer.byteLength(json, 'utf8');
-      
+
       return size >= this.MIN_COMPRESSION_SIZE;
     } catch {
       return false;

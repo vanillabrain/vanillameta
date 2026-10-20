@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ListItem, ListItemText } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
@@ -8,6 +8,7 @@ import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/
 import { AddButton } from '@/components/button/AddIconButton';
 
 const PieChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, listItem, spec, dataSet } = props;
   const [colorNum, setColorNum] = useState(12);
 
@@ -43,13 +44,13 @@ const PieChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold uppercase">{t('settings.category')}</span>
         <SelectForm
           required={true}
           id="name"
           name="name"
-          label="이름"
+          label={t('settings.name')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.map(item => item.columnName)}
@@ -58,19 +59,19 @@ const PieChartSetting = props => {
         />
         <SelectForm
           name="label"
-          label="레이블 타입"
-          optionList={PIE_LABEL_LIST}
+          label={t('settings.labelType')}
+          optionList={PIE_LABEL_LIST(t)}
           value={option.series.label}
           onChange={handleSeriesChange}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary="시리즈 설정" />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <SelectForm
           required={true}
           id="field"
           name="field"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -80,43 +81,36 @@ const PieChartSetting = props => {
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.series.aggregation}
           onChange={handleSeriesChange}
           disabledDefaultValue
         />
-      </ListItem>
+      </li>
 
       {/* 추가되는 아이템 */}
       {!!listItem && (
-        <ListItem divider>
-          <ListItemText primary={listItem.title} />
+        <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+          <span className="w-full text-left text-sm font-bold">{listItem.title}</span>
           {listItem.children}
-        </ListItem>
+        </li>
       )}
 
-      <ListItem divider>
-        <ListItemText>범례 설정</ListItemText>
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
+          label={t('settings.position')}
+          optionList={LEGEND_LIST(t)}
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText primary="색상 설정" />
-        <AddButton
-          onClick={handleAddColorClick}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
-        />
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.colorSetting')}</span>
+        <AddButton onClick={handleAddColorClick} className="absolute right-0 top-[30px]" />
         {option.series.field &&
           option.series.color
             .filter((item, index) => index < colorNum)
@@ -132,7 +126,7 @@ const PieChartSetting = props => {
                 />
               </React.Fragment>
             ))}
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

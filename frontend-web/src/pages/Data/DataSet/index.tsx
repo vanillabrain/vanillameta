@@ -1,81 +1,97 @@
-import React, { useContext, useEffect, useLayoutEffect, useState, lazy, Suspense } from 'react';
-import { MenuItem, Select, Stack, TextField } from '@mui/material';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useAlert } from 'react-alert';
+import { useTranslation } from 'react-i18next';
+import AceEditor from 'react-ace';
+import 'ace-builds/src-noconflict/mode-mysql';
+import 'ace-builds/src-noconflict/theme-tomorrow';
+import 'ace-builds/src-noconflict/snippets/mysql';
+import LangTools from 'ace-builds/src-min-noconflict/ext-language_tools';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+
 import PageTitleBox from '@/components/PageTitleBox';
 import SubmitButton from '@/components/button/SubmitButton';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
-// AceEditor 레이지 로딩
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error - AceEditor의 타입 정의가 동적 import와 호환되지 않음
-const AceEditor = lazy(() =>
-  import('react-ace').then(async ace => {
-    // 필요한 모듈들도 함께 로드
-    await Promise.all([
-      import('ace-builds/src-noconflict/mode-mysql'),
-      import('ace-builds/src-noconflict/theme-tomorrow'),
-      import('ace-builds/src-noconflict/snippets/mysql'),
-      import('ace-builds/src-min-noconflict/ext-language_tools'),
-    ]);
-    return ace;
-  }),
-);
-
-// LangTools import for autocomplete
-let LangTools: any;
-import('ace-builds/src-min-noconflict/ext-language_tools').then(module => {
-  LangTools = (window as any).ace.require('ace/ext/language_tools');
-});
 import DataGrid from '@/components/datagrid';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TextField } from '@/components/ui/text-field';
 import DatabaseService from '@/api/databaseService';
 import DatasetService from '@/api/datasetService';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import AiService from '@/api/aiService';
 import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { createColumns } from '@/utils/util';
-import type { Dataset } from '@/types';
+
+/** Radix select items only carry string values; keep the empty choice addressable. */
+const NO_SOURCE_VALUE = '__none__';
 
 const DataSet = () => {
+  const { t } = useTranslation();
   const { setId, sourceId } = useParams();
   const { pathname, state } = useLocation();
   const navigate = useNavigate();
 
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
-  const [isModifyMode, setIsModifyMode] = useState(false);
+  const isModifyMode = pathname.indexOf('modify') > 0 && !!setId;
   const [testCompleted, setTestCompleted] = useState(false);
   const [datasetInfo, setDatasetInfo] = useState({ databaseId: sourceId, title: '', query: '' });
 
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [databaseId, setDatabaseId] = useState(null);
-  const [databaseList, setDatabaseList] = useState([]);
   const [tableList, setTableList] = useState([]);
+  const runButton = useRef<HTMLButtonElement>(null);
+  const queryInput = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    queryInput.current?.setAttribute('aria-label', t('dataset.sqlQuery'));
+  }, [t]);
+
+  const { data: databaseList = [] } = useQuery({
+    queryKey: ['databases'],
+    queryFn: () =>
+      DatabaseService.selectDatabaseList().then(response => {
+        const list = response.data.data;
+        list.map(item => (item.icon = getDatabaseIcon(item.engine)));
+        return list;
+      }),
+  });
+
+  const { data: savedDataset } = useQuery({
+    queryKey: ['dataset', setId],
+    queryFn: () => DatasetService.selectDataset(setId).then(response => response.data.data),
+    enabled: isModifyMode,
+  });
+
+  const { data: databaseTables } = useQuery({
+    queryKey: ['database', databaseId],
+    queryFn: () => DatabaseService.selectDatabase(databaseId).then(response => response.data.data.tables),
+    enabled: !!databaseId,
+  });
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
 
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
 
-  useLayoutEffect(() => {
-    console.log('modify', pathname.indexOf('modify'));
-    console.log('setId:', setId, 'sourceId:', sourceId);
-    getDatabaseTypeList();
-
-    if (pathname.indexOf('modify') > 0 && setId) {
-      // 데이터셋 수정일 경우
-      setIsModifyMode(true);
-      getDatasetInfo();
-    } else if (sourceId && state) {
+  useEffect(() => {
+    if (sourceId && state) {
       const { tableName } = state as any;
-      setDatasetInfo(prevState => ({ ...prevState, title: tableName, query: `SELECT * FROM ${tableName}` }));
-      console.log('state:', state);
-      console.log('datasetInfo:', datasetInfo);
+      setDatasetInfo(prevState => ({ ...prevState, title: tableName, query: `SELECT * FROM ${tableName} LIMIT 500` }));
     }
   }, []);
 
   useEffect(() => {
-    if (databaseId) getDatabaseInfo();
-  }, [databaseId]);
+    if (savedDataset) setDatasetInfo(savedDataset);
+  }, [savedDataset]);
+
+  useEffect(() => {
+    setTableList(databaseTables ?? []);
+  }, [databaseTables]);
 
   useEffect(() => {
     addCompleter();
@@ -104,9 +120,7 @@ const DataSet = () => {
         );
       },
     };
-    if (LangTools) {
-      LangTools.addCompleter(rhymeCompleter);
-    }
+    LangTools.addCompleter(rhymeCompleter);
   };
 
   const onChange = newValue => {
@@ -125,26 +139,6 @@ const DataSet = () => {
     setDatasetInfo(prevState => ({ ...prevState, databaseId: event.target.value }));
   };
 
-  /**
-   * 데이터베이스 타입 목록 조회
-   */
-  const getDatabaseTypeList = () => {
-    showLoading();
-    DatabaseService.selectDatabaseList()
-      .then(response => {
-        console.log('selectDatabaseTypeList', response.data);
-        console.log('selectDatabaseList response:', response);
-        if (response.status === STATUS.SUCCESS) {
-          const list = response.data;
-          list.map(item => (item.icon = getDatabaseIcon(item.engine)));
-          setDatabaseList(list);
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
-
   const getDatabaseId = () => {
     if (databaseList.length > 0) {
       if (!isModifyMode) {
@@ -155,80 +149,29 @@ const DataSet = () => {
     }
   };
 
-  const getDatabaseInfo = () => {
-    showLoading();
-    DatabaseService.selectDatabase(databaseId)
-      .then(response => {
-        console.log('selectDatabase response:', response);
-        if (response.status === 'SUCCESS') {
-          setTableList(response.data.tables || []);
-          console.log('tableList ', response.data.tables);
-        } else {
-          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
-          setTableList([]);
-        }
-      })
-      .catch(error => {
-        snackbar.error(error.message);
-        setTableList([]);
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
-
-  /**
-   * 수정일 경우 데이터셋 정보 조회
-   */
-  const getDatasetInfo = () => {
-    showLoading();
-    DatasetService.selectDataset(setId)
-      .then(response => {
-        console.log('selectDataset response:', response);
-        if (response.status === 'SUCCESS') {
-          const datasetData = response.data.dataset || response.data;
-          const dataset = datasetData as Dataset;
-          console.log('selectDataset', dataset.id, dataset.databaseId);
-          setDatasetInfo({
-            databaseId: String(dataset.databaseId),
-            title: dataset.title || '',
-            query: dataset.query || '',
-          });
-        } else {
-          alert.error(response.message || '데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
-
   /**
    * 쿼리 실행
    */
   const excuteQuery = () => {
     showLoading();
     const param = {
-      databaseId: Number(databaseId),
+      id: databaseId,
       query: datasetInfo.query,
     };
     console.log('param', param);
     DatabaseService.executeQuery(param)
       .then(response => {
         console.log(response.data);
-        console.log('executeQuery response:', response);
-        if (response.status === 'SUCCESS') {
+        if (response.data.status === 'SUCCESS') {
           setTestCompleted(true);
-          const resultData = response.data?.result || response.data;
-          const rows = (resultData as any)?.rows || (resultData as any)?.datas || [];
-          setData(rows);
-          setColumns(createColumns(rows));
+          setData(response.data.datas);
+          setColumns(createColumns(response.data.datas));
           snackbar.success('Success!');
         } else {
           setTestCompleted(false);
           setData([]);
           setColumns([]);
-          snackbar.error(response.message || 'Query execution failed');
+          snackbar.error(`${response.data.message}`);
         }
       })
       .catch(error => {
@@ -246,46 +189,36 @@ const DataSet = () => {
     event.preventDefault();
     console.log('저장', datasetInfo);
 
-    alert.success(`데이터셋을 ${isModifyMode ? '수정' : '생성'}하시겠습니까?`, {
-      closeCopy: '취소',
+    alert.success(t('dataset.createConfirm', { mode: isModifyMode ? t('dataset.modify') : t('dataset.create') }), {
+      closeCopy: t('data.cancel'),
       actions: [
         {
-          copy: '확인',
+          copy: t('data.confirm'),
           onClick: () => {
             showLoading();
             if (isModifyMode) {
-              DatasetService.updateDataset(setId, {
-                databaseId: Number(datasetInfo.databaseId),
-                title: datasetInfo.title,
-                query: datasetInfo.query,
-              })
+              DatasetService.updateDataset(setId, datasetInfo)
                 .then(response => {
                   console.log(response.data);
-                  console.log('updateDataset response:', response);
-                  if (response.status === STATUS.SUCCESS) {
+                  if (response.data.status === STATUS.SUCCESS) {
                     navigate('/data');
-                    snackbar.success('데이터셋이 수정되었습니다.');
+                    snackbar.success(t('dataset.modified'));
                   } else {
-                    alert.error(response.message || '데이터셋 수정에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(t('dataset.modifyFailed'));
                   }
                 })
                 .finally(() => {
                   hideLoading();
                 });
             } else {
-              DatasetService.createDataset({
-                databaseId: Number(datasetInfo.databaseId),
-                title: datasetInfo.title,
-                query: datasetInfo.query,
-              })
+              DatasetService.createDataset(datasetInfo)
                 .then(response => {
                   console.log(response.data);
-                  console.log('createDataset response:', response);
-                  if (response.status === STATUS.SUCCESS) {
+                  if (response.data.status === STATUS.SUCCESS) {
                     navigate('/data');
-                    snackbar.success('데이터셋이 생성되었습니다.');
+                    snackbar.success(t('dataset.created'));
                   } else {
-                    alert.error(response.message || '데이터셋 생성에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(t('dataset.createFailed'));
                   }
                 })
                 .finally(() => {
@@ -298,126 +231,177 @@ const DataSet = () => {
     });
   };
 
+  /**
+   * AI 자연어 → SQL 생성
+   */
+  const generateSqlWithAi = () => {
+    if (!aiPrompt.trim()) {
+      alert.error(t('dataset.queryRequired'));
+      return;
+    }
+    if (!databaseId) {
+      alert.error(t('dataset.selectSource'));
+      return;
+    }
+    setAiLoading(true);
+    AiService.generateSql({ databaseId, prompt: aiPrompt })
+      .then(response => {
+        if (response.data.status === STATUS.SUCCESS) {
+          setDatasetInfo(prevState => ({ ...prevState, query: response.data.data.sql }));
+          setTestCompleted(false);
+          snackbar.success(t('dataset.aiGenerated'));
+        } else {
+          alert.error(response.data.message || t('dataset.aiFailed'));
+        }
+      })
+      .catch(error => {
+        alert.error(error.message);
+      })
+      .finally(() => {
+        setAiLoading(false);
+      });
+  };
+
   const handleCancel = () => {
     console.log('취소');
     navigate('/data');
   };
 
+  // Radix Select는 문자열 값만 다루므로 선택된 옵션의 원래 값(id)을 되돌려 숫자 계약을 유지한다.
+  const databaseOptions = databaseList.length
+    ? databaseList.map(item => ({ value: item.id, label: item.name }))
+    : [{ value: '', label: t('dataset.noSource') }];
+  const optionValue = option =>
+    option.value === '' || option.value === undefined || option.value === null ? NO_SOURCE_VALUE : String(option.value);
+  const selectedSourceValue =
+    databaseId === '' || databaseId === undefined || databaseId === null ? NO_SOURCE_VALUE : String(databaseId);
+  const handleSourceValueChange = next => {
+    const matched = databaseOptions.find(option => optionValue(option) === next);
+    onChangeDatabaseId({ target: { value: next === NO_SOURCE_VALUE ? '' : matched ? matched.value : '' } });
+  };
+
   return (
     <PageTitleBox
-      upperTitle="데이터"
+      upperTitle={t('nav.data')}
       upperTitleLink="/data"
-      title={`데이터셋 ${isModifyMode ? '수정' : '생성'}`}
-      sx={{ p: 0 }}
+      title={isModifyMode ? t('dataset.titleModify') : t('dataset.titleCreate')}
+      className="p-0"
       button={
-        <Stack>
+        <div className="flex flex-col">
           <ConfirmCancelButton
-            cancelLabel="이전"
+            cancelLabel={t('dataSource.prev')}
             cancelProps={{
               onClick: handleCancel,
             }}
-            confirmLabel="저장"
+            confirmLabel={t('dataSource.save')}
             confirmProps={{
               disabled: !testCompleted,
               form: 'datasetForm',
               type: 'submit',
-              variant: 'contained',
+              variant: 'default',
             }}
           />
-        </Stack>
+        </div>
       }
     >
-      <Stack
-        id="datasetForm"
-        component="form"
-        flexDirection="column"
-        spacing="20px"
-        sx={{ p: '30px 25px 40px 25px' }}
-        onSubmit={saveDataset}
-      >
+      <form id="datasetForm" className="flex flex-col gap-6 px-4 py-6 sm:px-6" onSubmit={saveDataset}>
         <Select
-          id="databaseId"
-          sx={{ maxWidth: '500px' }}
-          displayEmpty
+          value={selectedSourceValue}
+          onValueChange={handleSourceValueChange}
           disabled={isModifyMode || !databaseList.length}
-          size="small"
-          value={databaseId ?? ''}
-          // renderValue={selected => {
-          //   if (selected.length === 0) {
-          //     return <Typography sx={{ color: '#929292', fontStyle: 'italic' }}>데이터베이스를 선택해 주세요.</Typography>;
-          //   } else {
-          //     const item = databaseList?.find(({ id: value }) => value === selected);
-          //     return item?.name;
-          //   }
-          // }}
-          onChange={onChangeDatabaseId}
         >
-          {databaseList.length ? (
-            databaseList.map(item => (
-              <MenuItem key={item.id} value={item.id ?? ''}>
-                {item.name}
-              </MenuItem>
-            ))
-          ) : (
-            <MenuItem value="">불러올 데이터 소스가 없습니다.</MenuItem>
-          )}
+          <SelectTrigger id="databaseId" aria-label={t('data.source')} className="w-full max-w-lg bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            {databaseOptions.map(option => (
+              <SelectItem key={optionValue(option)} value={optionValue(option)}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
 
         <TextField
           id="userSetName"
-          label="데이터셋 이름"
-          placeholder="데이터셋의 이름을 입력해 주세요"
+          className="max-w-lg"
+          label={t('dataset.name')}
+          placeholder={t('dataset.namePlaceholder')}
           value={datasetInfo?.title}
           onChange={onChangeTitle}
           required
         />
-        <Suspense
-          fallback={
-            <div
-              style={{
-                width: '100%',
-                height: '200px',
-                border: 'solid 1px #ddd',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              에디터 로딩중...
-            </div>
-          }
-        >
-          <AceEditor
-            placeholder="Please enter a query."
-            style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}
-            mode="mysql"
-            theme="tomorrow"
-            name="codeInput"
-            onChange={onChange}
-            fontSize={14}
-            showPrintMargin={true}
-            showGutter={true}
-            highlightActiveLine={true}
-            value={datasetInfo.query}
-            setOptions={{
-              enableBasicAutocompletion: true,
-              enableLiveAutocompletion: true,
-              enableSnippets: true,
-              showLineNumbers: true,
-              tabSize: 2,
+        <div className="flex min-w-0 flex-col items-stretch gap-3 rounded-lg border border-border bg-muted p-4 sm:flex-row sm:items-center">
+          <span className="shrink-0 text-sm font-semibold whitespace-nowrap">{t('dataset.aiGen')}</span>
+          <TextField
+            inputProps={{ 'aria-label': t('dataset.aiGen'), className: 'bg-white' }}
+            placeholder={t('dataset.aiPlaceholder')}
+            value={aiPrompt}
+            onChange={event => setAiPrompt(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                generateSqlWithAi();
+              }
             }}
+            disabled={aiLoading}
           />
-        </Suspense>
-        <SubmitButton
-          label="Run"
-          type="button"
-          size="large"
-          sx={{ width: '374px', fontSize: '13px' }}
-          onClick={excuteQuery}
-        />
-      </Stack>
+          <SubmitButton
+            label={aiLoading ? t('dataset.aiBtnLoading') : t('dataset.aiBtn')}
+            type="button"
+            className="w-full shrink-0 sm:w-32"
+            onClick={generateSqlWithAi}
+            disabled={aiLoading}
+          />
+        </div>
+        <div
+          onKeyDownCapture={event => {
+            if (event.key === 'Escape' && (event.target as HTMLElement).classList.contains('ace_text-input')) {
+              event.preventDefault();
+              event.stopPropagation();
+              runButton.current?.focus();
+            }
+          }}
+        >
+          <div className="overflow-hidden rounded-lg border border-border">
+            <AceEditor
+              placeholder="Please enter a query."
+              width="100%"
+              height="200px"
+              mode="mysql"
+              theme="tomorrow"
+              name="codeInput"
+              onLoad={editor => {
+                const input = editor.container.querySelector<HTMLTextAreaElement>('.ace_text-input');
+                queryInput.current = input;
+                input?.setAttribute('aria-label', t('dataset.sqlQuery'));
+                input?.setAttribute('aria-describedby', 'sql-keyboard-help');
+              }}
+              onChange={onChange}
+              fontSize={14}
+              showPrintMargin={true}
+              showGutter={true}
+              highlightActiveLine={true}
+              value={datasetInfo.query}
+              setOptions={{
+                enableBasicAutocompletion: true,
+                enableLiveAutocompletion: true,
+                enableSnippets: true,
+                showLineNumbers: true,
+                tabSize: 2,
+              }}
+            />
+          </div>
+          <span id="sql-keyboard-help" className="mt-1 block text-xs text-muted-foreground">
+            {t('dataset.sqlKeyboardHelp')}
+          </span>
+        </div>
+        <Button ref={runButton} type="button" className="w-full sm:w-40" onClick={excuteQuery}>
+          Run
+        </Button>
+      </form>
       {data.length ? (
-        <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
+        <div className="border-t border-border bg-muted px-4 py-6 sm:px-6">
           <DataGrid
             minBodyHeight={300}
             bodyHeight={500}
@@ -427,7 +411,7 @@ const DataSet = () => {
               resizable: true,
             }}
           />
-        </Stack>
+        </div>
       ) : (
         ''
       )}

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 import { Dashboard } from '../entities/dashboard.entity';
 import { UserMapping } from '../../user/entities/user-mapping.entity';
 import { DashboardShare } from '../entities/dashboard_share.entity';
@@ -127,7 +128,7 @@ export class OptimizedDashboardQueries {
       .insert()
       .into(DashboardShare)
       .values({
-        uuid: require('uuid').v4(),
+        uuid: uuidv4(),
         createdAt: new Date(),
         updatedAt: new Date(),
       })

@@ -1,8 +1,9 @@
+import { vi } from 'vitest';
 // Mock module before imports
-jest.mock('@/helpers/apiHelper', () => ({
+vi.mock('@/helpers/apiHelper', () => ({
   __esModule: true,
   default: {
-    post: jest.fn().mockResolvedValue({}),
+    post: vi.fn().mockResolvedValue({}),
   },
 }));
 
@@ -12,17 +13,17 @@ import apiHelper from '@/helpers/apiHelper';
 
 // Mock localStorage and sessionStorage
 const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
 };
 
 const sessionStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
 };
 
 Object.defineProperty(window, 'localStorage', {
@@ -42,14 +43,12 @@ Object.defineProperty(window.navigator, 'onLine', {
 });
 
 // Mock crypto.randomUUID
-global.crypto = {
-  randomUUID: jest.fn(() => 'test-uuid-1234'),
-} as any;
+vi.stubGlobal('crypto', { randomUUID: vi.fn(() => 'test-uuid-1234') });
 
 describe('EventTracker', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
 
     // Reset localStorage/sessionStorage mock return values
     localStorageMock.getItem.mockImplementation(key => {
@@ -61,14 +60,14 @@ describe('EventTracker', () => {
     sessionStorageMock.getItem.mockReturnValue(null);
 
     // Clear any pending timers
-    jest.clearAllTimers();
+    vi.clearAllTimers();
 
     // Reset EventTracker state
     (eventTracker as any).__resetForTesting();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('세션 관리', () => {
@@ -81,7 +80,7 @@ describe('EventTracker', () => {
     });
 
     it('기존 세션 ID를 재사용해야 함', () => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       sessionStorageMock.getItem.mockImplementation(key => {
         if (key === 'vanillameta_session_id') {
           return 'existing-session-id';
@@ -110,7 +109,7 @@ describe('EventTracker', () => {
       eventTracker.setPrivacySettings({ consentGiven: false });
       eventTracker.track(EventAction.DASHBOARD_CREATED, EventCategory.DASHBOARD, { dashboardId: 'test-123' });
 
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
       expect(apiHelper.post).not.toHaveBeenCalled();
     });
 
@@ -122,7 +121,7 @@ describe('EventTracker', () => {
       expect(apiHelper.post).not.toHaveBeenCalled();
 
       // 플러시 인터벌 후 전송됨
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
       expect(apiHelper.post).toHaveBeenCalled();
     });
   });
@@ -185,7 +184,7 @@ describe('EventTracker', () => {
         dashboardCount: 5,
       });
 
-      jest.advanceTimersByTime(30000); // 플러시 인터벌
+      vi.advanceTimersByTime(30000); // 플러시 인터벌
 
       expect(apiHelper.post).toHaveBeenCalledWith(
         '/v1/events/track',
@@ -216,7 +215,7 @@ describe('EventTracker', () => {
         category: 'page_performance',
       });
 
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
 
       expect(apiHelper.post).toHaveBeenCalledWith(
         '/v1/events/metrics',
@@ -236,7 +235,7 @@ describe('EventTracker', () => {
       const startTime = Date.now() - 1500; // 1.5초 전
       eventTracker.trackTiming('api_call', startTime, 'api_performance');
 
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
 
       expect(apiHelper.post).toHaveBeenCalledWith(
         '/v1/events/metrics',
@@ -274,7 +273,7 @@ describe('EventTracker', () => {
       (eventTracker as any).saveQueueToStorage();
 
       // 오프라인이므로 API 호출되지 않음
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
       expect(apiHelper.post).not.toHaveBeenCalled();
 
       // 로컬 스토리지에 저장되었는지 확인
@@ -359,7 +358,7 @@ describe('EventTracker', () => {
 
       eventTracker.track(EventAction.DASHBOARD_CREATED, EventCategory.DASHBOARD);
 
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
 
       expect(apiHelper.post).toHaveBeenCalledWith(
         '/v1/events/track',
@@ -381,7 +380,7 @@ describe('EventTracker', () => {
 
       eventTracker.track(EventAction.DASHBOARD_CREATED, EventCategory.DASHBOARD);
 
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
 
       expect(apiHelper.post).toHaveBeenCalledWith(
         '/v1/events/track',

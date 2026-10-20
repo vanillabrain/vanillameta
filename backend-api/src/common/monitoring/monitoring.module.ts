@@ -1,3 +1,5 @@
+import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from '../../auth/auth.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -31,6 +33,8 @@ import { IntegratedMetricsService } from './integrated-metrics.service';
 
 @Module({
   imports: [
+    ConfigModule,
+    AuthModule,
     ScheduleModule.forRoot(),
     LoggerModule,
     QueryAnalyzerModule,

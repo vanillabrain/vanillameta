@@ -1,465 +1,284 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+jest.mock('../../connection/connection.service', () => ({ ConnectionService: class {} }));
+jest.mock('../../database/database.service', () => ({ DatabaseService: class {} }));
 import { JobProcessorService } from './job-processor.service';
-import { QueueJob, JobStatus, JobType, JobPriority } from '../entities/queue-job.entity';
-import { JobResult } from '../entities/job-result.entity';
+import { JobStatusTrackerService } from './job-status-tracker.service';
 import { ConnectionService } from '../../connection/connection.service';
 import { DatabaseService } from '../../database/database.service';
-import { BatchProcessingService } from '../../batch-processing/batch-processing.service';
+import { QueueJob, JobType, JobStatus } from '../entities/queue-job.entity';
+import { JobResult, ResultType } from '../entities/job-result.entity';
+import { Repository } from 'typeorm';
 
-describe('JobProcessorService', () => {
+describe('JobProcessorService supported execution contract', () => {
   let service: JobProcessorService;
-  let jobRepository: jest.Mocked<Repository<QueueJob>>;
-  let jobResultRepository: jest.Mocked<Repository<JobResult>>;
-  let connectionService: jest.Mocked<ConnectionService>;
-  let databaseService: jest.Mocked<DatabaseService>;
-  let batchProcessingService: jest.Mocked<BatchProcessingService>;
-
-  const mockJob: QueueJob = {
-    id: 'job-123',
-    jobType: JobType.QUERY_EXECUTION,
-    status: JobStatus.PENDING,
-    priority: JobPriority.NORMAL,
-    userId: 'user-123',
-    jobData: JSON.stringify({
-      query: 'SELECT * FROM users',
-      databaseId: 1,
-      limit: 100,
-    }),
-    result: null,
-    errorMessage: null,
-    errorStack: null,
-    retryCount: 0,
-    maxRetries: 3,
-    progress: 0,
-    scheduledAt: null,
-    startedAt: null,
-    completedAt: null,
-    executionTimeMs: null,
-    estimatedTimeMs: 30000,
-    workerId: null,
-    metadata: null,
-    correlationId: null,
-    requiresNotification: false,
-    notificationEmail: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isCompleted: false,
-    isFailed: false,
-    isRunning: false,
-    canRetry: true,
-    jobDataParsed: {
-      query: 'SELECT * FROM users',
-      databaseId: 1,
-      limit: 100,
-    },
-    resultParsed: null,
-    metadataParsed: {},
-  };
-
-  const mockQueryResult = {
-    status: 'SUCCESS',
-    message: null,
-    datas: [
-      { id: 1, name: 'User 1', email: 'user1@example.com' },
-      { id: 2, name: 'User 2', email: 'user2@example.com' },
-    ],
-    fields: [
-      { columnName: 'id', columnType: 'number' },
-      { columnName: 'name', columnType: 'string' },
-      { columnName: 'email', columnType: 'string' },
-    ],
-  };
-
-  beforeEach(async () => {
-    const mockJobRepository = {
-      save: jest.fn(),
-      findOne: jest.fn(),
-      update: jest.fn(),
+  let jobs: jest.Mocked<Pick<Repository<QueueJob>, 'update'>>;
+  let results: jest.Mocked<Pick<Repository<JobResult>, 'save'>>;
+  let tracker: jest.Mocked<Pick<JobStatusTrackerService, 'recordStatusChange'>>;
+  let connection: { executeQuery: jest.Mock };
+  const now = new Date('2026-10-20T00:00:00Z');
+  const job = (
+    type = JobType.QUERY_EXECUTION,
+    data: object = { databaseId: 1, query: 'SELECT 1', parameters: [1] },
+  ) =>
+    Object.assign(new QueueJob(), {
+      id: 'job',
+      jobType: type,
+      userId: 'synthetic-user',
+      jobData: JSON.stringify(data),
+    });
+  const flush = () =>
+    new Promise<void>(resolve => jest.requireActual('timers').setImmediate(resolve));
+  const saved = () => results.save.mock.calls[0][0] as JobResult;
+  beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['performance'] });
+    jest.setSystemTime(now);
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    jobs = { update: jest.fn().mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] }) };
+    results = { save: jest.fn() };
+    tracker = { recordStatusChange: jest.fn().mockResolvedValue(undefined) };
+    connection = {
+      executeQuery: jest
+        .fn()
+        .mockResolvedValue({ datas: [{ value: 1 }, { value: 2 }], fields: ['value'] }),
     };
-
-    const mockJobResultRepository = {
-      save: jest.fn(),
-      create: jest.fn(),
-    };
-
-    const mockConnectionService = {
-      getConnectionConfig: jest.fn(),
-      testConnection: jest.fn(),
-      executeQuery: jest.fn(),
-    };
-
-    const mockDatabaseService = {
-      executeQuery: jest.fn(),
-      getTableSchema: jest.fn(),
-      getTableColumns: jest.fn(),
-    };
-
-    const mockBatchProcessingService = {
-      processBatchQuery: jest.fn(),
-      exportDataInBatches: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        JobProcessorService,
-        {
-          provide: getRepositoryToken(QueueJob),
-          useValue: mockJobRepository,
-        },
-        {
-          provide: getRepositoryToken(JobResult),
-          useValue: mockJobResultRepository,
-        },
-        {
-          provide: ConnectionService,
-          useValue: mockConnectionService,
-        },
-        {
-          provide: DatabaseService,
-          useValue: mockDatabaseService,
-        },
-        {
-          provide: BatchProcessingService,
-          useValue: mockBatchProcessingService,
-        },
+    service = new JobProcessorService(
+      jobs as unknown as Repository<QueueJob>,
+      results as unknown as Repository<JobResult>,
+      tracker as unknown as JobStatusTrackerService,
+      connection as unknown as ConnectionService,
+      {} as DatabaseService,
+    );
+  });
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+  it('executes a query through its dependency, stores a real result entity and completes the job', async () => {
+    await service.processJob(job());
+    expect(connection.executeQuery).toHaveBeenCalledWith(
+      { id: 1, query: 'SELECT 1', parameters: [1] },
+      'synthetic-user',
+    );
+    expect(jobs.update).toHaveBeenNthCalledWith(
+      1,
+      'job',
+      expect.objectContaining({
+        status: JobStatus.RUNNING,
+        startedAt: now,
+        workerId: expect.any(String),
+      }),
+    );
+    expect(saved()).toBeInstanceOf(JobResult);
+    expect(saved()).toMatchObject({ jobId: 'job', resultType: ResultType.QUERY_RESULT });
+    expect(saved().resultDataParsed).toMatchObject({
+      rowCount: 2,
+      queryResult: { datas: [{ value: 1 }, { value: 2 }] },
+    });
+    expect(jobs.update).toHaveBeenLastCalledWith(
+      'job',
+      expect.objectContaining({
+        status: JobStatus.COMPLETED,
+        progress: 100,
+        executionTimeMs: 0,
+        completedAt: now,
+      }),
+    );
+    expect(tracker.recordStatusChange).toHaveBeenLastCalledWith(
+      'job',
+      JobStatus.COMPLETED,
+      null,
+      'Job completed',
+      expect.objectContaining({ progress: 100 }),
+    );
+    expect(jest.getTimerCount()).toBe(0);
+  });
+  it('rejects missing query parameters, records failure and never queries or saves a result', async () => {
+    await expect(service.processJob(job(JobType.QUERY_EXECUTION, {}))).rejects.toThrow(
+      'Missing required parameters',
+    );
+    expect(connection.executeQuery).not.toHaveBeenCalled();
+    expect(results.save).not.toHaveBeenCalled();
+    expect(jobs.update).toHaveBeenLastCalledWith(
+      'job',
+      expect.objectContaining({
+        status: JobStatus.FAILED,
+        errorMessage: 'Missing required parameters: query, databaseId',
+      }),
+    );
+    expect(tracker.recordStatusChange).toHaveBeenLastCalledWith(
+      'job',
+      JobStatus.FAILED,
+      JobStatus.RUNNING,
+      'Job execution failed',
+      expect.objectContaining({ errorType: 'Error' }),
+    );
+  });
+  it('records and rethrows execution errors', async () => {
+    connection.executeQuery.mockRejectedValue(new Error('query offline'));
+    await expect(service.processJob(job())).rejects.toThrow('query offline');
+    expect(results.save).not.toHaveBeenCalled();
+    expect(jobs.update).toHaveBeenLastCalledWith(
+      'job',
+      expect.objectContaining({ status: JobStatus.FAILED, errorMessage: 'query offline' }),
+    );
+  });
+  it('records an initial RUNNING write failure without executing the processor', async () => {
+    jobs.update.mockRejectedValueOnce(new Error('write offline'));
+    await expect(service.processJob(job())).rejects.toThrow('write offline');
+    expect(connection.executeQuery).not.toHaveBeenCalled();
+    expect(jobs.update).toHaveBeenLastCalledWith(
+      'job',
+      expect.objectContaining({ status: JobStatus.FAILED }),
+    );
+  });
+  it('retains the existing best-effort result-storage behavior', async () => {
+    results.save.mockRejectedValue(new Error('result store offline'));
+    await expect(service.processJob(job())).resolves.toBeUndefined();
+    expect(jobs.update).toHaveBeenLastCalledWith(
+      'job',
+      expect.objectContaining({ status: JobStatus.COMPLETED }),
+    );
+  });
+  it('stores bulk export metadata using the existing placeholder URL without performing an upload', async () => {
+    await service.processJob(
+      job(JobType.BULK_DATA_EXPORT, { databaseId: 1, query: 'SELECT 1', format: 'xlsx' }),
+    );
+    expect(connection.executeQuery).toHaveBeenCalledTimes(1);
+    expect(saved()).toMatchObject({
+      resultType: ResultType.FILE_DOWNLOAD,
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      expiresAt: new Date(now.getTime() + 86400000),
+    });
+    expect(saved().downloadUrl).toMatch(/^https:\/\/s3\.example\.com\/exports\/export_job_/);
+    expect(saved().resultDataParsed.rowCount).toBe(2);
+  });
+  it('generates stored dashboard data by querying each requested widget', async () => {
+    await service.processJob(
+      job(JobType.DASHBOARD_GENERATION, {
+        dashboardId: 10,
+        widgets: [
+          { widgetId: 'a', databaseId: 1, query: 'SELECT 1', chartType: 'number' },
+          { widgetId: 'b', databaseId: 2, query: 'SELECT 2', chartType: 'column' },
+        ],
+      }),
+    );
+    expect(connection.executeQuery).toHaveBeenCalledTimes(2);
+    expect(saved().resultType).toBe(ResultType.DASHBOARD_DATA);
+    expect(saved().resultDataParsed.dashboardData).toMatchObject({
+      dashboardId: 10,
+      totalWidgets: 2,
+      widgets: [
+        expect.objectContaining({ widgetId: 'a', data: [{ value: 1 }, { value: 2 }] }),
+        expect.objectContaining({ widgetId: 'b' }),
       ],
-    }).compile();
-
-    service = module.get<JobProcessorService>(JobProcessorService);
-    jobRepository = module.get(getRepositoryToken(QueueJob));
-    jobResultRepository = module.get(getRepositoryToken(JobResult));
-    connectionService = module.get(ConnectionService);
-    databaseService = module.get(DatabaseService);
-    batchProcessingService = module.get(BatchProcessingService);
-
-    jest.clearAllMocks();
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
-  describe('processJob', () => {
-    beforeEach(() => {
-      jobRepository.save.mockResolvedValue(mockJob);
-      jobResultRepository.create.mockReturnValue({} as any);
-      jobResultRepository.save.mockResolvedValue({} as any);
-    });
-
-    it('should process QUERY_EXECUTION job successfully', async () => {
-      // Arrange
-      const job = { ...mockJob, jobType: JobType.QUERY_EXECUTION };
-
-      connectionService.executeQuery.mockResolvedValue(mockQueryResult);
-
-      // Act
-      await service.processJob(job);
-
-      // Assert
-      expect(connectionService.executeQuery).toHaveBeenCalledWith(
-        {
-          id: 1,
-          query: 'SELECT * FROM users',
-          parameters: [],
-        },
-        'user123'
-      );
-      expect(jobRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: JobStatus.COMPLETED,
-          progress: 100,
-          executionTimeMs: expect.any(Number),
-        }),
-      );
-    });
-
-    it('should process BULK_DATA_EXPORT job successfully', async () => {
-      // Arrange
-      const exportJob = {
-        ...mockJob,
-        jobType: JobType.BULK_DATA_EXPORT,
-        jobData: JSON.stringify({
-          query: 'SELECT * FROM large_table',
-          databaseId: 1,
-          format: 'csv',
-          chunkSize: 1000,
-        }),
-      };
-
-      connectionService.getConnectionConfig.mockResolvedValue({
-        type: 'mysql',
-        host: 'localhost',
-      } as any);
-
-      batchProcessingService.exportDataInBatches.mockResolvedValue({
-        totalRows: 5000,
-        exportedRows: 5000,
-        filePath: '/tmp/export_123.csv',
-        fileSize: 1024000,
-      });
-
-      // Act
-      await service.processJob(exportJob);
-
-      // Assert
-      expect(batchProcessingService.exportDataInBatches).toHaveBeenCalledWith(
-        expect.any(Object), // connection config
-        'SELECT * FROM large_table',
-        expect.objectContaining({
-          format: 'csv',
-          chunkSize: 1000,
-        }),
-      );
-      expect(jobRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: JobStatus.COMPLETED,
-          progress: 100,
-        }),
-      );
-    });
-
-    it('should process DASHBOARD_GENERATION job successfully', async () => {
-      // Arrange
-      const dashboardJob = {
-        ...mockJob,
-        jobType: JobType.DASHBOARD_GENERATION,
-        jobData: JSON.stringify({
-          dashboardId: 'dash-123',
-          widgetQueries: [
-            { widgetId: 'widget-1', query: 'SELECT COUNT(*) FROM users' },
-            { widgetId: 'widget-2', query: 'SELECT AVG(age) FROM users' },
-          ],
-          databaseId: 1,
-        }),
-      };
-
-      connectionService.getConnectionConfig.mockResolvedValue({
-        type: 'postgresql',
-        host: 'localhost',
-      } as any);
-
-      connectionService.executeQuery
-        .mockResolvedValueOnce({ data: [{ count: 100 }], total: 1 })
-        .mockResolvedValueOnce({ data: [{ avg: 25.5 }], total: 1 });
-
-      // Act
-      await service.processJob(dashboardJob);
-
-      // Assert
-      expect(connectionService.executeQuery).toHaveBeenCalledTimes(2);
-      expect(jobRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: JobStatus.COMPLETED,
-          progress: 100,
-        }),
-      );
-    });
-
-    it('should handle job processing errors', async () => {
-      // Arrange
-      const job = { ...mockJob };
-      const error = new Error('Database connection failed');
-
-      connectionService.getConnectionConfig.mockRejectedValue(error);
-
-      // Act
-      await service.processJob(job);
-
-      // Assert
-      expect(jobRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: JobStatus.FAILED,
-          errorMessage: 'Database connection failed',
-          errorStack: expect.any(String),
-        }),
-      );
-    });
-
-    it('should update job progress during processing', async () => {
-      // Arrange
-      const job = { ...mockJob, jobType: JobType.DATA_MIGRATION };
-
-      connectionService.getConnectionConfig.mockResolvedValue({
-        type: 'mysql',
-        host: 'localhost',
-      } as any);
-
-      // Mock progress updates
-      let progressCallback: (progress: number) => void;
-      connectionService.executeQuery.mockImplementation(async (queryDto) => {
-        // Simulate query execution
-        return mockQueryResult;
-      });
-
-      // Act
-      await service.processJob(job);
-
-      // Assert - Progress updates should be called
-      await new Promise(resolve => setTimeout(resolve, 50));
-      expect(jobRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          progress: expect.any(Number),
-        }),
-      );
-    });
-
-    it('should handle timeout during job processing', async () => {
-      // Arrange
-      const job = { ...mockJob, estimatedTimeMs: 1000 }; // 1 second timeout
-
-      connectionService.getConnectionConfig.mockResolvedValue({
-        type: 'mysql',
-        host: 'localhost',
-      } as any);
-
-      // Mock a long-running query
-      connectionService.executeQuery.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve(mockQueryResult), 2000)),
-      );
-
-      // Act
-      await service.processJob(job);
-
-      // Assert
-      expect(jobRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: JobStatus.FAILED,
-          errorMessage: expect.stringContaining('timeout'),
-        }),
-      );
-    });
-
-    it('should validate job data before processing', async () => {
-      // Arrange
-      const invalidJob = {
-        ...mockJob,
-        jobData: JSON.stringify({
-          /* missing required fields */
-        }),
-      };
-
-      // Act
-      await service.processJob(invalidJob);
-
-      // Assert
-      expect(jobRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: JobStatus.FAILED,
-          errorMessage: expect.stringContaining('Invalid job data'),
-        }),
-      );
     });
   });
-
-  describe('processor registration', () => {
-    it('should register all job type processors', () => {
-      // Act
-      const processorTypes = service.getRegisteredProcessorTypes();
-
-      // Assert
-      expect(processorTypes).toContain(JobType.QUERY_EXECUTION);
-      expect(processorTypes).toContain(JobType.BULK_DATA_EXPORT);
-      expect(processorTypes).toContain(JobType.DASHBOARD_GENERATION);
-      expect(processorTypes).toContain(JobType.DATA_MIGRATION);
-      expect(processorTypes).toContain(JobType.CACHE_WARMUP);
-      expect(processorTypes).toContain(JobType.REPORT_GENERATION);
-    });
-
-    it('should throw error for unsupported job type', async () => {
-      // Arrange
-      const unsupportedJob = {
-        ...mockJob,
-        jobType: 'UNSUPPORTED_TYPE' as JobType,
-      };
-
-      // Act & Assert
-      await expect(service.processJob(unsupportedJob)).rejects.toThrow(
-        'No processor found for job type: UNSUPPORTED_TYPE',
-      );
-    });
-  });
-
-  describe('result storage', () => {
-    beforeEach(() => {
-      connectionService.getConnectionConfig.mockResolvedValue({
-        type: 'mysql',
-        host: 'localhost',
-      } as any);
-      connectionService.executeQuery.mockResolvedValue(mockQueryResult);
-      jobRepository.save.mockResolvedValue(mockJob);
-    });
-
-    it('should store job result for successful execution', async () => {
-      // Arrange
-      const job = { ...mockJob };
-      const mockJobResult = {
-        id: 'result-123',
-        jobId: job.id,
-        resultData: JSON.stringify(mockQueryResult),
-      };
-
-      jobResultRepository.create.mockReturnValue(mockJobResult as any);
-      jobResultRepository.save.mockResolvedValue(mockJobResult as any);
-
-      // Act
-      await service.processJob(job);
-
-      // Assert
-      expect(jobResultRepository.create).toHaveBeenCalledWith({
-        jobId: job.id,
-        resultData: JSON.stringify(mockQueryResult),
-        metadata: expect.any(String),
-        createdAt: expect.any(Date),
-      });
-      expect(jobResultRepository.save).toHaveBeenCalled();
-    });
-
-    it('should not store result for failed job', async () => {
-      // Arrange
-      const job = { ...mockJob };
-      connectionService.executeQuery.mockRejectedValue(new Error('Query failed'));
-
-      // Act
-      await service.processJob(job);
-
-      // Assert
-      expect(jobResultRepository.create).not.toHaveBeenCalled();
-      expect(jobResultRepository.save).not.toHaveBeenCalled();
+  it('migrates source rows through bounded target query batches', async () => {
+    connection.executeQuery
+      .mockResolvedValueOnce({ datas: [{ n: 1 }, { n: 2 }, { n: 3 }] })
+      .mockResolvedValue({ datas: [] });
+    await service.processJob(
+      job(JobType.DATA_MIGRATION, {
+        sourceDatabaseId: 1,
+        sourceQuery: 'SELECT n',
+        targetDatabaseId: 2,
+        targetQuery: 'INSERT n',
+        batchSize: 2,
+      }),
+    );
+    expect(connection.executeQuery).toHaveBeenNthCalledWith(
+      2,
+      { id: 2, query: 'INSERT n', parameters: [{ n: 1 }, { n: 2 }] },
+      'synthetic-user',
+    );
+    expect(connection.executeQuery).toHaveBeenNthCalledWith(
+      3,
+      { id: 2, query: 'INSERT n', parameters: [{ n: 3 }] },
+      'synthetic-user',
+    );
+    expect(saved().resultDataParsed.migrationResult).toMatchObject({
+      totalRows: 3,
+      migratedRows: 3,
+      batchSize: 2,
     });
   });
-
-  describe('performance metrics', () => {
-    it('should calculate and store execution metrics', async () => {
-      // Arrange
-      const job = { ...mockJob };
-
-      connectionService.getConnectionConfig.mockResolvedValue({
-        type: 'mysql',
-        host: 'localhost',
-      } as any);
-      connectionService.executeQuery.mockResolvedValue(mockQueryResult);
-
-      const startTime = Date.now();
-
-      // Act
-      await service.processJob(job);
-
-      // Assert
-      const endTime = Date.now();
-      expect(jobRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          executionTimeMs: expect.any(Number),
-          startedAt: expect.any(Date),
-          completedAt: expect.any(Date),
+  it('reports a failed migration target write rather than completing', async () => {
+    connection.executeQuery
+      .mockResolvedValueOnce({ datas: [{ n: 1 }] })
+      .mockRejectedValueOnce(new Error('target offline'));
+    await expect(
+      service.processJob(
+        job(JobType.DATA_MIGRATION, {
+          sourceDatabaseId: 1,
+          sourceQuery: 'SELECT n',
+          targetDatabaseId: 2,
+          targetQuery: 'INSERT n',
         }),
-      );
-
-      // Verify execution time is reasonable
-      const savedJob = jobRepository.save.mock.calls[jobRepository.save.mock.calls.length - 1][0];
-      expect(savedJob.executionTimeMs).toBeGreaterThan(0);
-      expect(savedJob.executionTimeMs).toBeLessThan(endTime - startTime + 100); // Allow some tolerance
+      ),
+    ).rejects.toThrow('target offline');
+    expect(results.save).not.toHaveBeenCalled();
+  });
+  it('continues cache warmup after individual query failures and preserves per-query outcomes', async () => {
+    connection.executeQuery
+      .mockRejectedValueOnce(new Error('cache query offline'))
+      .mockResolvedValueOnce({ datas: [] });
+    await service.processJob(
+      job(JobType.CACHE_WARMUP, {
+        queries: [
+          { databaseId: 1, query: 'bad' },
+          { databaseId: 1, query: 'good' },
+        ],
+      }),
+    );
+    expect(saved().resultDataParsed.warmupResult).toMatchObject({
+      totalQueries: 2,
+      successfulQueries: 1,
+      failedQueries: 1,
+      queries: [
+        expect.objectContaining({ status: 'failed', error: 'cache query offline' }),
+        expect.objectContaining({ status: 'success' }),
+      ],
     });
+    expect(jobs.update).toHaveBeenLastCalledWith(
+      'job',
+      expect.objectContaining({ status: JobStatus.COMPLETED }),
+    );
+  });
+  it('generates report section data with the existing report result type', async () => {
+    await service.processJob(
+      job(JobType.REPORT_GENERATION, {
+        reportType: 'summary',
+        sections: [{ sectionId: 's', title: 'Synthetic', databaseId: 1, query: 'SELECT 1' }],
+      }),
+    );
+    expect(saved().resultType).toBe(ResultType.REPORT_URL);
+    expect(saved().resultDataParsed.reportData).toEqual([
+      expect.objectContaining({
+        sectionId: 's',
+        title: 'Synthetic',
+        data: [{ value: 1 }, { value: 2 }],
+      }),
+    ]);
+    expect(saved().resultDataParsed.reportUrl).toBe('https://reports.example.com/reports/job.pdf');
+  });
+  it('updates progress while an actual processor dependency is pending and clears the success timer', async () => {
+    let finish: (value: unknown) => void;
+    connection.executeQuery.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        }),
+    );
+    const running = service.processJob(job());
+    await flush();
+    jest.advanceTimersByTime(5000);
+    await flush();
+    expect(jobs.update).toHaveBeenCalledWith('job', {
+      progress: 5,
+      updatedAt: new Date(now.getTime() + 5000),
+    });
+    finish({ datas: [] });
+    await running;
+    expect(jest.getTimerCount()).toBe(0);
   });
 });

@@ -1,4 +1,6 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { safeRouteTemplate } from '../../common/utils/safe-route-template';
+import { serializeMetadataWork } from '../../common/metadata-work';
+import { Injectable, NestMiddleware, Optional } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LoginHistory } from '../entities/login-history.entity';
@@ -16,7 +18,7 @@ export class userLoggerMiddleware implements NestMiddleware {
   constructor(
     @InjectRepository(LoginHistory)
     private readonly loginHistoryRepository: Repository<LoginHistory>,
-    private readonly logger: CustomLoggerService,
+    @Optional() private readonly logger?: CustomLoggerService,
   ) {}
 
   async use(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -26,18 +28,18 @@ export class userLoggerMiddleware implements NestMiddleware {
 
       const loginSaveObj = {
         userId: userId,
-        path: req.path,
+        path: safeRouteTemplate(req),
         login_type: req.headers['user-agent'],
         login_succyn: YesNo.YES,
         created_at: new Date(),
       };
 
       // 구조화된 로깅
-      this.logger.logBusiness(
+      this.logger?.logBusiness(
         'user_activity',
         {
           action: 'page_access',
-          path: req.path,
+          path: safeRouteTemplate(req),
           userAgent: req.headers['user-agent'],
           correlationId: correlationId,
         },
@@ -45,12 +47,14 @@ export class userLoggerMiddleware implements NestMiddleware {
         'UserLogger',
       );
 
-      await this.loginHistoryRepository.save(loginSaveObj);
+      await serializeMetadataWork(this.loginHistoryRepository.manager.connection, () =>
+        this.loginHistoryRepository.save(loginSaveObj),
+      );
 
       next();
     } catch (error) {
-      this.logger.error('Error in user logger middleware', error.stack, 'UserLogger', {
-        path: req.path,
+      this.logger?.error('Error in user logger middleware', error.stack, 'UserLogger', {
+        path: safeRouteTemplate(req),
         userId: req.user?.userId || req.body?.userId,
         correlationId: req['correlationId'],
       });

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Job } from 'bull';
+import { BackgroundJobService } from '../background-job.service';
 import { QueryJobProcessor } from './query-job.processor';
 import { BackgroundJob, JobStatus } from '../entities/background-job.entity';
 import { JobResult, ResultStorageType } from '../entities/job-result.entity';
@@ -22,6 +23,16 @@ describe('QueryJobProcessor', () => {
 
   const mockBackgroundJobRepository = {
     update: jest.fn(),
+    findOne: jest.fn(async () => ({
+      id: 'job123',
+      userId: 'user123',
+      status: JobStatus.PENDING,
+      metadata: JSON.stringify({
+        actor: { id: 7, userId: 'user123', authVersion: 3 },
+        query: 'SELECT * FROM users',
+        databaseId: '1',
+      }),
+    })),
   };
 
   const mockJobResultRepository = {
@@ -48,6 +59,7 @@ describe('QueryJobProcessor', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QueryJobProcessor,
+        { provide: BackgroundJobService, useValue: { assertJob: jest.fn() } },
         {
           provide: getRepositoryToken(BackgroundJob),
           useValue: mockBackgroundJobRepository,
@@ -138,7 +150,7 @@ describe('QueryJobProcessor', () => {
 
       // Verify status updates
       expect(mockBackgroundJobRepository.update).toHaveBeenCalledWith(
-        'job123',
+        expect.objectContaining({ id: 'job123' }),
         expect.objectContaining({
           status: JobStatus.PROCESSING,
           startedAt: expect.any(Date),
@@ -147,7 +159,7 @@ describe('QueryJobProcessor', () => {
       );
 
       expect(mockBackgroundJobRepository.update).toHaveBeenLastCalledWith(
-        'job123',
+        expect.objectContaining({ id: 'job123' }),
         expect.objectContaining({
           status: JobStatus.COMPLETED,
           completedAt: expect.any(Date),
@@ -171,7 +183,7 @@ describe('QueryJobProcessor', () => {
       await expect(processor.handleQueryExecution(mockJob as Job)).rejects.toThrow(error);
 
       expect(mockBackgroundJobRepository.update).toHaveBeenLastCalledWith(
-        'job123',
+        expect.objectContaining({ id: 'job123' }),
         expect.objectContaining({
           status: JobStatus.FAILED,
           errorMessage: error.message,
@@ -181,7 +193,7 @@ describe('QueryJobProcessor', () => {
     });
 
     it('should compress large results before storing', async () => {
-      const largeData = Array(1000).fill({ id: 1, data: 'x'.repeat(1000) });
+      const largeData = Array(2000).fill({ id: 1, data: 'x'.repeat(1000) });
       const queryResult = {
         data: largeData,
         columns: [{ name: 'id', type: 'integer' }],
@@ -207,7 +219,7 @@ describe('QueryJobProcessor', () => {
       mockDatabaseService.findOne.mockResolvedValueOnce(null);
 
       await expect(processor.handleQueryExecution(mockJob as Job)).rejects.toThrow(
-        'Database not found: database123',
+        'Database not found: 1',
       );
     });
   });

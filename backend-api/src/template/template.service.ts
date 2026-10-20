@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -27,11 +27,38 @@ export class TemplateService {
     private readonly componentRepository: Repository<Component>,
   ) {}
 
+  private validateId(id: number) {
+    if (!Number.isInteger(id) || id <= 0) throw new BadRequestException('invalid template id');
+  }
+
+  private validateLayout(layout: unknown) {
+    if (
+      !Array.isArray(layout) ||
+      !layout.every(
+        item =>
+          item &&
+          typeof item === 'object' &&
+          !Array.isArray(item) &&
+          Number.isFinite(item.x) &&
+          item.x >= 0 &&
+          Number.isFinite(item.y) &&
+          item.y >= 0 &&
+          Number.isFinite(item.w) &&
+          item.w > 0 &&
+          Number.isFinite(item.h) &&
+          item.h > 0,
+      )
+    ) {
+      throw new BadRequestException('layout must be an array of objects');
+    }
+  }
+
   /**
    * 템플릿 추가
    * @param createTemplate
    */
   async create(createTemplate: CreateTemplateDto) {
+    this.validateLayout(createTemplate.layout);
     const insertTemplate = await this.templateRepository.save({
       title: createTemplate.title,
       description: createTemplate.description,
@@ -78,6 +105,7 @@ export class TemplateService {
    * @param id
    */
   async findOne(id: number) {
+    this.validateId(id);
     let returnObj: TemplateInfoDto;
 
     // 템플릿 기본 정보 조회
@@ -93,7 +121,8 @@ export class TemplateService {
       },
     });
 
-    if (templateInfo && templateInfo.id) {
+    if (!templateInfo) throw new NotFoundException('template not found');
+    if (templateInfo.id) {
       returnObj = new TemplateInfoDto(templateInfo);
       // 템플릿 상세 아이템 조회(layout 조회 및 가공)
       const layoutList = await this.templateItemRepository.find({
@@ -119,6 +148,10 @@ export class TemplateService {
    * @param updateTemplate
    */
   async update(id: number, updateTemplate: UpdateTemplateDto) {
+    this.validateId(id);
+    this.validateLayout(updateTemplate.layout);
+    const existing = await this.templateRepository.findOne({ where: { id, useYn: YesNo.YES } });
+    if (!existing) throw new NotFoundException('template not found');
     const updateItem = await this.templateRepository.update(
       {
         id: id,
@@ -200,6 +233,8 @@ export class TemplateService {
    * @param widgets
    */
   async findRecommendTemplates(widgets: number[]) {
+    if (!Array.isArray(widgets)) throw new BadRequestException('widgets must be an array');
+    if (!widgets.length) return { status: ResponseStatus.SUCCESS, data: [] };
     const widgetInfo = this.widgetRepository
       .createQueryBuilder()
       .subQuery()
@@ -235,6 +270,9 @@ export class TemplateService {
    * @param templateId
    */
   async getTemplateDashboardLayout(widgets: number[], templateId: number) {
+    templateId = +templateId;
+    this.validateId(templateId);
+    if (!Array.isArray(widgets)) throw new BadRequestException('widgets must be an array');
     const widgetInfo = this.widgetRepository
       .createQueryBuilder()
       .subQuery()
@@ -265,6 +303,7 @@ export class TemplateService {
       },
     });
 
+    if (!template) throw new NotFoundException('template not found');
     if (template.id) {
       templateInfo = new TemplateInfoDto(template);
       // 템플릿 상세 아이템 조회(layout 조회 및 가공)

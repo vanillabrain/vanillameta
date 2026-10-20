@@ -1,3 +1,4 @@
+import { chartTheme } from '@/components/charts/chartTheme';
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
@@ -33,11 +34,12 @@ const PolarBarChart = props => {
   const createComponentOption = () => {
     console.log('createComponentOption', option);
     let newOption = {};
+    const categoryField = option.axisField || option.xField;
 
     const newSeries = [];
     let aggrData = [];
     option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option.axisField, item.field, item.aggregation);
+      aggrData = getAggregationDataForChart(dataSet, categoryField, item.field, item.aggregation);
       console.log('aggrData : ', aggrData);
       if (item.field) {
         const series = {
@@ -56,11 +58,11 @@ const PolarBarChart = props => {
       }
     });
 
-    if (aggrData && option.axisField) {
+    if (aggrData && categoryField) {
       const op = {
         radiusAxis: {
           type: 'category',
-          data: option.andleField ? aggrData.map(item => item[option.andleField]) : '',
+          data: aggrData.map(item => item[option.andleField || option.angleField || categoryField]),
         },
         series: newSeries,
         polar: {
@@ -80,6 +82,7 @@ const PolarBarChart = props => {
 
   return (
     <ReactECharts
+      theme={chartTheme}
       option={componentOption}
       style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}
       lazyUpdate={true}

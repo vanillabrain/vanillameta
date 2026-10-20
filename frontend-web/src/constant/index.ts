@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 export const ROUTE_URL = 'https://vanillameta-dev.vanillabrain.com';
 
 export const WIDGET_TYPE = {
@@ -69,22 +70,22 @@ export const TABLE_ALIGN = {
   RIGHT: 'right',
 };
 
-export const AGGREGATION_LIST = [
-  { label: '갯수', value: WIDGET_AGGREGATION.CNT },
-  { label: '합계', value: WIDGET_AGGREGATION.SUM },
-  { label: '평균', value: WIDGET_AGGREGATION.AVG },
-  { label: '최대', value: WIDGET_AGGREGATION.MAX },
-  { label: '최소', value: WIDGET_AGGREGATION.MIN },
+export const AGGREGATION_LIST = (t: TFunction) => [
+  { label: t('settings.cnt'), value: WIDGET_AGGREGATION.CNT },
+  { label: t('settings.sum'), value: WIDGET_AGGREGATION.SUM },
+  { label: t('settings.avg'), value: WIDGET_AGGREGATION.AVG },
+  { label: t('settings.max'), value: WIDGET_AGGREGATION.MAX },
+  { label: t('settings.min'), value: WIDGET_AGGREGATION.MIN },
 ];
 
-export const DISPLAY_LIST = [{ label: '표시', value: true }];
+export const DISPLAY_LIST = (t: TFunction) => [{ label: t('settings.show'), value: true }];
 
-export const HIDDEN_LIST = [{ label: '숨기기', value: true }];
+export const HIDDEN_LIST = (t: TFunction) => [{ label: t('settings.hide'), value: true }];
 
-export const PIE_LABEL_LIST = [
-  { label: '이름', value: '{b}' },
-  { label: '값', value: '{c}' },
-  { label: '퍼센트', value: '{d}' + ' %' },
+export const PIE_LABEL_LIST = (t: TFunction) => [
+  { label: t('settings.name'), value: '{b}' },
+  { label: t('settings.value'), value: '{c}' },
+  { label: t('settings.percent'), value: '{d}' + ' %' },
 ];
 
 export const ALIGN_LIST = [
@@ -99,11 +100,11 @@ export const COLUMN_TYPE = {
   DATE: 'date',
 };
 
-export const LEGEND_LIST = [
-  { label: '위쪽', value: 'top' },
-  { label: '왼쪽', value: 'left' },
-  { label: '오른쪽', value: 'right' },
-  { label: '아래쪽', value: 'bottom' },
+export const LEGEND_LIST = (t: TFunction) => [
+  { label: t('settings.top'), value: 'top' },
+  { label: t('settings.left'), value: 'left' },
+  { label: t('settings.right'), value: 'right' },
+  { label: t('settings.bottom'), value: 'bottom' },
 ];
 
 export const STATUS = {

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { Separator } from '@/components/ui/separator';
 import SelectForm from '@/components/form/SelectForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
@@ -8,6 +9,7 @@ import TextFieldForm from '@/components/form/TextFieldForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 
 const Scatter3DChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec } = props;
 
   // 컴포넌트 별 default series
@@ -22,15 +24,11 @@ const Scatter3DChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
-        <ListItemText primary="시리즈 설정" />
+      <li className="relative flex w-full flex-col gap-2 border-b border-border py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.series')}</span>
         <AddButton
           onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
+          className="absolute right-0 top-[30px]"
         />
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
@@ -46,7 +44,7 @@ const Scatter3DChartSetting = props => {
               required={true}
               id={`xField${index + 1}`}
               name={`xField${index + 1}`}
-              label="X 필드"
+              label={t('settings.xField')}
               labelField="columnName"
               valueField="columnType"
               optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -57,7 +55,7 @@ const Scatter3DChartSetting = props => {
               required={true}
               id={`yField${index + 1}`}
               name={`yField${index + 1}`}
-              label="Y 필드"
+              label={t('settings.yField')}
               labelField="columnName"
               valueField="columnType"
               optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -68,7 +66,7 @@ const Scatter3DChartSetting = props => {
               required={true}
               id={`zField${index + 1}`}
               name={`zField${index + 1}`}
-              label="Z 필드"
+              label={t('settings.zField')}
               labelField="columnName"
               valueField="columnType"
               optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -78,7 +76,7 @@ const Scatter3DChartSetting = props => {
             <TextFieldForm
               id={`symbolSize${index + 1}`}
               name={`symbolSize${index + 1}`}
-              label="사이즈"
+              label={t('settings.size')}
               type="number"
               value={item.symbolSize}
               onChange={event => handleSeriesChange(event, setOption)}
@@ -90,28 +88,28 @@ const Scatter3DChartSetting = props => {
                 )
               }
             />
-            <Divider />
+            <Separator />
           </React.Fragment>
         ))}
         <SelectForm
           name="label"
-          label="넘버 레이블"
-          optionList={DISPLAY_LIST}
+          label={t('settings.numberLabel')}
+          optionList={DISPLAY_LIST(t)}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText>범례 설정</ListItemText>
+      </li>
+      <li className="relative flex w-full flex-col gap-2 py-[30px] text-sm">
+        <span className="w-full text-left text-sm font-bold">{t('settings.legend')}</span>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
+          label={t('settings.position')}
+          optionList={LEGEND_LIST(t)}
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
+      </li>
     </React.Fragment>
   );
 };

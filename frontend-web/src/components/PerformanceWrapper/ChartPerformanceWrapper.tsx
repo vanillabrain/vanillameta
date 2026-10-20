@@ -98,6 +98,8 @@ export const ChartPerformanceWrapper: React.FC<ChartPerformanceWrapperComponentP
 
     markStart(`chart-wrapper-${chartType}`, metadata);
 
+    if (typeof IntersectionObserver === 'undefined') return;
+
     // Intersection Observer로 차트가 뷰포트에 나타났을 때 측정
     const observer = new IntersectionObserver(
       entries => {

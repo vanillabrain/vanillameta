@@ -1,139 +1,127 @@
-import React, { useState } from 'react';
-import { Box, Button, IconButton, Menu, MenuItem, SvgIcon, useMediaQuery, useTheme } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
+import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import IconPlus from '@/assets/images/icon/btn-plus.svg';
 
-const menuWidth = 200;
-
-const AddIconButton = ({ link = '', ...props }) => {
+const AddIconButton = ({ link = '', className = '', ...props }) => {
   return (
-    <Button disableElevation component={RouterLink} to={link} color="primary" sx={{ minWidth: { xs: 0 } }} {...props}>
-      <AddIcon sx={{ width: 28, height: 28, m: 0 }} />
+    <Button asChild size="icon" className={cn('shrink-0', className)} {...props}>
+      <RouterLink to={link}>
+        <Plus aria-hidden="true" />
+      </RouterLink>
     </Button>
   );
 };
 
 export default AddIconButton;
 
-export const AddMenuButton = ({ menuList, label }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
-
-  const handleClick = event => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('md'));
-
+export const AddMenuButton = ({ menuList = [], label, className = '' }) => {
   return (
-    <>
-      <Button
-        id="styled-menu"
-        aria-controls={open ? 'styled-menu' : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? 'true' : undefined}
-        onClick={handleClick}
-        startIcon={matches ? <AddIcon /> : false}
-        variant="outlined"
-        sx={{ minWidth: { xs: 0 } }}
-      >
-        {matches ? label : <AddIcon />}
-      </Button>
-      <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" aria-label={label} className={cn('min-w-0', className)}>
+          <Plus className="size-4 md:hidden" aria-hidden="true" />
+          <span className="hidden md:inline">{label}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[200px]">
         {menuList.map(item => (
-          <MenuItem
-            key={item.name}
-            component={RouterLink}
-            to={item.link}
-            onClick={handleClose}
-            disableRipple
-            sx={{ width: menuWidth }}
-          >
-            {item.name}
-          </MenuItem>
+          <DropdownMenuItem key={item.name} asChild>
+            <RouterLink to={item.link} className="w-[200px] cursor-pointer">
+              {item.name}
+            </RouterLink>
+          </DropdownMenuItem>
         ))}
-      </Menu>
-    </>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
-AddMenuButton.defaultProps = {
-  menuList: {
-    name: '',
-    link: '',
-  },
-};
+
+interface AddMenuIconButtonProps {
+  menuList?: { name: string }[];
+  handleSelect?: ((item: any) => void) | null;
+  iconUrl?: string;
+  sizeOption?: { width?: string; height?: string; p?: string; padding?: string };
+  className?: string;
+}
 
 export const AddMenuIconButton = ({
-  menuList,
+  menuList = [],
   handleSelect = null,
   iconUrl = IconPlus,
   sizeOption = { width: '36px', height: '36px', p: '7.5px' },
-}) => {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
-
-  const handleClick = event => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = item => {
-    if (handleSelect) {
-      handleSelect(item);
-    }
-
-    setAnchorEl(null);
-  };
+  className = '',
+}: AddMenuIconButtonProps) => {
+  const { t } = useTranslation();
 
   return (
-    <>
-      <Button
-        id="styled-menu"
-        aria-controls={open ? 'styled-menu' : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? 'true' : undefined}
-        onClick={handleClick}
-        color="primary"
-        sx={{ minWidth: 0, padding: 0, flex: '1 1 auto' }}
-      >
-        <Box component="img" src={iconUrl} sx={sizeOption} alt="추가메뉴" />
-      </Button>
-      <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          aria-label={t('common.addMenu')}
+          className={cn('min-w-0 flex-1 p-0', className)}
+        >
+          <img
+            src={iconUrl}
+            alt={t('common.addMenu')}
+            className="object-contain"
+            style={{
+              width: sizeOption.width,
+              height: sizeOption.height,
+              padding: sizeOption.padding ?? sizeOption.p,
+            }}
+          />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[200px]">
         {menuList.map(item => (
-          <MenuItem key={item.name} onClick={() => handleClose(item)} disableRipple sx={{ width: menuWidth }}>
+          <DropdownMenuItem
+            key={item.name}
+            className="w-[200px]"
+            onSelect={() => {
+              if (handleSelect) {
+                handleSelect(item);
+              }
+            }}
+          >
             {item.name}
-          </MenuItem>
+          </DropdownMenuItem>
         ))}
-      </Menu>
-    </>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
-};
-AddMenuIconButton.defaultProps = {
-  menuList: {
-    name: '',
-  },
 };
 
 export const SmallButton = props => {
-  const { icon, ...rest } = props;
+  const { icon, className, ...rest } = props;
 
   return (
-    <IconButton size="small" sx={{ width: '38px', height: '38px', flex: 'none' }} {...rest}>
-      <SvgIcon fontSize="small">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="#141414">
-          {icon}
-        </svg>
-      </SvgIcon>
-    </IconButton>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className={cn('size-[38px] flex-none p-0 text-foreground', className)}
+      {...rest}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="currentColor" className="size-4">
+        {icon}
+      </svg>
+    </Button>
   );
 };
 
 export const AddButton = props => {
+  const { t } = useTranslation();
   return (
     <SmallButton
+      aria-label={t('common.addItem')}
+      data-add-item
       icon={
         <path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z" />
       }
@@ -143,8 +131,10 @@ export const AddButton = props => {
 };
 
 export const RemoveButton = props => {
+  const { t } = useTranslation();
   return (
     <SmallButton
+      aria-label={t('common.removeItem')}
       icon={
         <path d="M432 256c0 17.7-14.3 32-32 32L48 288c-17.7 0-32-14.3-32-32s14.3-32 32-32l352 0c17.7 0 32 14.3 32 32z" />
       }
@@ -153,56 +143,30 @@ export const RemoveButton = props => {
   );
 };
 
-export const MenuButton = ({ menuList, handleSelect = null, icon, title, sizeOption = { width: 22, height: 22 } }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
-
-  const handleClick = event => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = item => {
-    if (handleSelect) {
-      handleSelect(item);
-    }
-
-    setAnchorEl(null);
-  };
-
+export const MenuButton = ({ menuList = [], handleSelect = null, icon, title, className = '' }) => {
   return (
-    <>
-      <Button
-        id="styled-menu"
-        variant="contained"
-        startIcon={icon}
-        onClick={handleClick}
-        color="primary"
-        sx={{
-          borderRadius: '8px',
-          backgroundColor: '#043f84',
-          height: '32px',
-          display: 'flex',
-          flexDirection: 'row',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '8px 14px',
-          objectFit: 'contain',
-          border: 'solid 1px #0f5ab2',
-        }}
-      >
-        {title}
-      </Button>
-      <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" className={cn('flex-row items-center justify-center gap-2 rounded-lg px-4', className)}>
+          {icon}
+          {title}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[200px]">
         {menuList.map(item => (
-          <MenuItem key={item.name} onClick={() => handleClose(item)} disableRipple sx={{ width: menuWidth }}>
+          <DropdownMenuItem
+            key={item.name}
+            className="w-[200px]"
+            onSelect={() => {
+              if (handleSelect) {
+                handleSelect(item);
+              }
+            }}
+          >
             {item.name}
-          </MenuItem>
+          </DropdownMenuItem>
         ))}
-      </Menu>
-    </>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
-};
-MenuButton.defaultProps = {
-  menuList: {
-    name: '',
-  },
 };

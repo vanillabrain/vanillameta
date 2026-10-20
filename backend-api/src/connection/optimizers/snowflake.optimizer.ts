@@ -49,7 +49,7 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
         createRetryIntervalMillis: 1000,
         propagateCreateError: false,
         // Snowflake 연결 풀 이벤트 처리
-        afterCreate: async (conn: any, done: Function) => {
+        afterCreate: async (conn: any, done: (error: unknown, connection: any) => void) => {
           try {
             // Snowflake 세션 설정
             await conn.execute('ALTER SESSION SET TIMEZONE = "Asia/Seoul"');
@@ -85,7 +85,9 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
   optimizeQuery(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
     // Snowflake 쿼리 태그 설정 (모니터링용)
     queryBuilder = queryBuilder.options({
-      queryTag: `app:vanillameta,env:${process.env.NODE_ENV},type:${this.getQueryType(queryBuilder)}`,
+      queryTag: `app:vanillameta,env:${process.env.NODE_ENV},type:${this.getQueryType(
+        queryBuilder,
+      )}`,
     });
 
     // 웨어하우스 크기 최적화
@@ -152,14 +154,20 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
         message: 'Snowflake 인증에 실패했습니다.',
         severity: 'high',
         retryable: false,
-        suggestions: ['사용자 이름과 비밀번호를 확인해주세요.', 'Snowflake 계정이 활성화되어 있는지 확인해주세요.'],
+        suggestions: [
+          '사용자 이름과 비밀번호를 확인해주세요.',
+          'Snowflake 계정이 활성화되어 있는지 확인해주세요.',
+        ],
       },
       '002003': {
         code: 'DATABASE_NOT_FOUND',
         message: 'Snowflake 데이터베이스를 찾을 수 없습니다.',
         severity: 'high',
         retryable: false,
-        suggestions: ['데이터베이스 이름을 확인해주세요.', 'USE DATABASE 권한이 있는지 확인해주세요.'],
+        suggestions: [
+          '데이터베이스 이름을 확인해주세요.',
+          'USE DATABASE 권한이 있는지 확인해주세요.',
+        ],
       },
       '002023': {
         code: 'WAREHOUSE_NOT_FOUND',
@@ -173,7 +181,10 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
         message: 'Snowflake 웨어하우스가 일시정지되었습니다.',
         severity: 'medium',
         retryable: true,
-        suggestions: ['웨어하우스가 자동으로 재시작됩니다.', '웨어하우스를 수동으로 시작할 수 있습니다.'],
+        suggestions: [
+          '웨어하우스가 자동으로 재시작됩니다.',
+          '웨어하우스를 수동으로 시작할 수 있습니다.',
+        ],
       },
       '1003': {
         code: 'QUERY_TIMEOUT',
@@ -192,13 +203,15 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
     };
 
     const errorCode = error.code?.toString();
-    return snowflakeErrors[errorCode] || {
-      code: 'UNKNOWN_ERROR',
-      message: error.message || '알 수 없는 Snowflake 오류가 발생했습니다.',
-      severity: 'medium',
-      retryable: false,
-      suggestions: ['쿼리를 확인해주세요.', 'Snowflake 콘솔에서 상세 오류를 확인해주세요.'],
-    };
+    return (
+      snowflakeErrors[errorCode] || {
+        code: 'UNKNOWN_ERROR',
+        message: error.message || '알 수 없는 Snowflake 오류가 발생했습니다.',
+        severity: 'medium',
+        retryable: false,
+        suggestions: ['쿼리를 확인해주세요.', 'Snowflake 콘솔에서 상세 오류를 확인해주세요.'],
+      }
+    );
   }
 
   /**
@@ -306,11 +319,11 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
   async executeWithWarehouse(
     knex: Knex,
     query: string,
-    warehouseSize: 'XSMALL' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'XLARGE' = 'SMALL'
+    warehouseSize: 'XSMALL' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'XLARGE' = 'SMALL',
   ): Promise<any> {
     // 웨어하우스 전환
     await knex.raw(`USE WAREHOUSE ${warehouseSize}_WH`);
-    
+
     try {
       const result = await knex.raw(query);
       return result;
@@ -329,13 +342,13 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
     sourceTable: string,
     matchCondition: string,
     updateColumns: string[],
-    insertColumns: string[]
+    insertColumns: string[],
   ): Promise<void> {
-    const updateClause = updateColumns
-      .map(col => `${col} = source.${col}`)
-      .join(', ');
-    
-    const insertClause = `(${insertColumns.join(', ')}) VALUES (${insertColumns.map(col => `source.${col}`).join(', ')})`;
+    const updateClause = updateColumns.map(col => `${col} = source.${col}`).join(', ');
+
+    const insertClause = `(${insertColumns.join(', ')}) VALUES (${insertColumns
+      .map(col => `source.${col}`)
+      .join(', ')})`;
 
     const mergeQuery = `
       MERGE INTO ${targetTable} AS target
@@ -362,7 +375,7 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
       compression?: 'GZIP' | 'AUTO';
       fieldDelimiter?: string;
       skipHeader?: number;
-    }
+    },
   ): Promise<void> {
     const formatOptions = Object.entries(fileFormat)
       .map(([key, value]) => `${key.toUpperCase()} = ${value}`)
@@ -385,7 +398,7 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
     const query = `
       SELECT SYSTEM$CLUSTERING_INFORMATION('${tableName}') AS clustering_info
     `;
-    
+
     const result = await knex.raw(query);
     return JSON.parse(result[0]?.clustering_info || '{}');
   }
@@ -399,7 +412,7 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
       FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY())
       WHERE QUERY_ID = '${queryId}'
     `;
-    
+
     return knex.raw(query);
   }
 
@@ -410,7 +423,7 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
     knex: Knex,
     warehouseName: string,
     startDate: string,
-    endDate: string
+    endDate: string,
   ): Promise<any> {
     const query = `
       SELECT *
@@ -420,7 +433,7 @@ export class SnowflakeOptimizer implements IDatabaseOptimizer {
         AND START_TIME <= '${endDate}'
       ORDER BY START_TIME DESC
     `;
-    
+
     return knex.raw(query);
   }
 }

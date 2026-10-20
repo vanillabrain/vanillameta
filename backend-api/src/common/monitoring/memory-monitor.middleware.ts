@@ -1,4 +1,5 @@
-import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
+import { safeRouteTemplate } from '../utils/safe-route-template';
+import { OnModuleDestroy, Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import * as v8 from 'v8';
 import { performance } from 'perf_hooks';
@@ -28,13 +29,21 @@ interface MemoryMetrics {
 }
 
 @Injectable()
-export class MemoryMonitorMiddleware implements NestMiddleware {
+export class MemoryMonitorMiddleware implements NestMiddleware, OnModuleDestroy {
+  private monitoringInterval?: ReturnType<typeof setInterval>;
   private readonly logger = new Logger(MemoryMonitorMiddleware.name);
   private readonly MAX_MEMORY_MB = 3072; // Lambda 최대 메모리 (3GB)
   private readonly WARNING_THRESHOLD = 0.8; // 80% 경고 임계치
   private readonly CRITICAL_THRESHOLD = 0.9; // 90% 중단 임계치
   private lastGcTime = Date.now();
   private readonly GC_INTERVAL = 60000; // 1분마다 강제 GC
+
+  onModuleDestroy(): void {
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = undefined;
+    }
+  }
 
   constructor(
     private readonly customLogger: CustomLoggerService,
@@ -61,7 +70,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
       // 메모리 사용량 로깅
       this.customLogger.debug('Request memory usage', 'MemoryMonitor', {
         method: req.method,
-        path: req.path,
+        path: safeRouteTemplate(req),
         initialMemory: this.formatBytes(initialMemory.heapUsed),
         finalMemory: this.formatBytes(finalMemory.heapUsed),
         memoryDelta: this.formatBytes(memoryDelta),
@@ -73,14 +82,14 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
       if (memoryDelta > 50 * 1024 * 1024) {
         // 50MB 이상 증가
         this.customLogger.warn('Large memory allocation detected', 'MemoryMonitor', {
-          path: req.path,
+          path: safeRouteTemplate(req),
           memoryIncrease: this.formatBytes(memoryDelta),
           currentUsage: `${finalMemory.percentUsed.toFixed(1)}%`,
         });
       }
 
       // CloudWatch로 메트릭 전송 (비동기)
-      this.sendMetricsToCloudWatch(finalMemory, req.path).catch(err => {
+      this.sendMetricsToCloudWatch(finalMemory, safeRouteTemplate(req)).catch(err => {
         this.logger.error('Failed to send metrics to CloudWatch:', err);
       });
     });
@@ -231,7 +240,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
    * 주기적 메모리 모니터링
    */
   private startPeriodicMonitoring(): void {
-    setInterval(() => {
+    this.monitoringInterval = setInterval(() => {
       const metrics = this.getMemoryMetrics();
 
       // 메모리 상태 로깅
@@ -259,6 +268,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
         this.logger.error('Failed to send periodic metrics:', err);
       });
     }, 30000); // 30초마다 체크
+    this.monitoringInterval.unref?.();
   }
 
   /**

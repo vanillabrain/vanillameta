@@ -9,9 +9,9 @@ export const ApiSuccessResponse = (description: string): ApiResponseOptions => (
     properties: {
       success: { type: 'boolean', example: true },
       message: { type: 'string', example: 'success' },
-      data: { type: 'object' }
-    }
-  }
+      data: { type: 'object' },
+    },
+  },
 });
 
 // 페이지네이션 응답
@@ -26,16 +26,16 @@ export const ApiPaginatedResponse = (itemType: any): ApiResponseOptions => ({
         properties: {
           items: {
             type: 'array',
-            items: { $ref: `#/components/schemas/${itemType.name}` }
+            items: { $ref: `#/components/schemas/${itemType.name}` },
           },
           total: { type: 'number', example: 100 },
           page: { type: 'number', example: 1 },
           pageSize: { type: 'number', example: 20 },
-          totalPages: { type: 'number', example: 5 }
-        }
-      }
-    }
-  }
+          totalPages: { type: 'number', example: 5 },
+        },
+      },
+    },
+  },
 });
 
 // 공통 에러 응답 스키마
@@ -47,12 +47,12 @@ export const ErrorResponseSchema = {
       properties: {
         code: { type: 'string', example: 'INVALID_REQUEST' },
         message: { type: 'string', example: '잘못된 요청입니다.' },
-        details: { type: 'object' }
-      }
+        details: { type: 'object' },
+      },
     },
     timestamp: { type: 'string', format: 'date-time', example: new Date().toISOString() },
-    path: { type: 'string', example: '/v1/users/123' }
-  }
+    path: { type: 'string', example: '/v1/users/123' },
+  },
 };
 
 // 공통 에러 응답 데코레이터
@@ -61,29 +61,29 @@ export const ApiErrorResponses = () => {
     const responses = {
       [HttpStatus.BAD_REQUEST]: {
         description: '잘못된 요청',
-        schema: ErrorResponseSchema
+        schema: ErrorResponseSchema,
       },
       [HttpStatus.UNAUTHORIZED]: {
         description: '인증 실패',
-        schema: ErrorResponseSchema
+        schema: ErrorResponseSchema,
       },
       [HttpStatus.FORBIDDEN]: {
         description: '권한 없음',
-        schema: ErrorResponseSchema
+        schema: ErrorResponseSchema,
       },
       [HttpStatus.NOT_FOUND]: {
         description: '리소스를 찾을 수 없음',
-        schema: ErrorResponseSchema
+        schema: ErrorResponseSchema,
       },
       [HttpStatus.INTERNAL_SERVER_ERROR]: {
         description: '서버 오류',
-        schema: ErrorResponseSchema
-      }
+        schema: ErrorResponseSchema,
+      },
     };
 
     // 기존 메타데이터에 추가
     Reflect.defineMetadata('swagger/apiResponse', responses, target, propertyKey);
-    
+
     return descriptor;
   };
 };

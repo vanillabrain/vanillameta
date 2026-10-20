@@ -1,3 +1,4 @@
+import { safeRouteTemplate } from '../utils/safe-route-template';
 import { Injectable, Logger } from '@nestjs/common';
 import { QueryRunner, Logger as TypeOrmLogger } from 'typeorm';
 import { CustomLoggerService } from '../logger/logger.service';
@@ -226,7 +227,7 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
    * 현재 요청 경로 추출
    */
   private getCurrentRequestPath(queryRunner?: QueryRunner): string | undefined {
-    return queryRunner?.data?.requestPath;
+    return safeRouteTemplate(queryRunner?.data?.request);
   }
 
   /**

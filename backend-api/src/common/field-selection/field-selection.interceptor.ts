@@ -1,3 +1,4 @@
+import { safeRouteTemplate } from '../utils/safe-route-template';
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
@@ -71,7 +72,7 @@ export class FieldSelectionInterceptor implements NestInterceptor {
             this.logger.debug(`Field selection applied`, {
               ...summary,
               processingTimeMs: processingTime,
-              endpoint: `${request.method} ${request.path}`,
+              endpoint: `${request.method} ${safeRouteTemplate(request)}`,
             });
           }
 

@@ -1,46 +1,23 @@
-import { del, get, post, put } from '@/helpers/apiHelper';
-import {
-  ApiResponse,
-  CreateDatabaseRequest,
-  UpdateDatabaseRequest,
-  TestConnectionRequest,
-  QueryExecuteRequest,
-  DatabaseDetailResponse,
-  ConnectionTestResponse,
-  QueryExecuteResponse,
-  Database,
-  DatabaseType,
-} from '@/types';
+import { submitSourceDeletion } from '@/api/sourceDeletionService';
+import { get, post, postForm, put } from '@/helpers/apiHelper';
 
 export const URL_DATABASE = '/database';
 
-const selectDatabaseList = (): Promise<ApiResponse<Database[]>> => get<ApiResponse<Database[]>>(URL_DATABASE);
-
-const selectDatabaseInfo = (id: string, data = null): Promise<ApiResponse<Database>> =>
-  get<ApiResponse<Database>>(URL_DATABASE + '/info/' + id, data);
-
-const selectDatabase = (id: string, data = null): Promise<ApiResponse<DatabaseDetailResponse>> =>
-  get<ApiResponse<DatabaseDetailResponse>>(URL_DATABASE + '/' + id, data);
-
-const testConnection = (data: TestConnectionRequest): Promise<ApiResponse<ConnectionTestResponse>> =>
-  post<ApiResponse<ConnectionTestResponse>>(URL_DATABASE + '/test', data);
-
-const executeQuery = (data: QueryExecuteRequest): Promise<ApiResponse<QueryExecuteResponse>> =>
-  post<ApiResponse<QueryExecuteResponse>>(URL_DATABASE + '/execute', data);
-
-const selectDatabaseTypeList = (): Promise<ApiResponse<DatabaseType[]>> =>
-  get<ApiResponse<DatabaseType[]>>(URL_DATABASE + '/type');
-
-const createDatabase = (data: CreateDatabaseRequest): Promise<ApiResponse<Database>> =>
-  post<ApiResponse<Database>>(URL_DATABASE, data);
-
-const updateDatabase = (id: string, data: UpdateDatabaseRequest): Promise<ApiResponse<Database>> =>
-  put<ApiResponse<Database>>(URL_DATABASE + '/' + id, data);
-
-const deleteDatabase = (id: string): Promise<ApiResponse<null>> => del<ApiResponse<null>>(URL_DATABASE + '/' + id);
-
-const selectData = (data: QueryExecuteRequest): Promise<ApiResponse<QueryExecuteResponse>> =>
-  get<ApiResponse<QueryExecuteResponse>>(URL_DATABASE + '/data', data);
+const selectDatabaseList = (): Promise<any> => get(URL_DATABASE);
+const selectDatabaseInfo = (id: string | number, data = null): Promise<any> => get(URL_DATABASE + '/info/' + id, data);
+const selectDatabase = (id: string | number, data = null): Promise<any> => get(URL_DATABASE + '/' + id, data);
+const testConnection = (data: unknown): Promise<any> => post(URL_DATABASE + '/test', data);
+const executeQuery = (data: unknown): Promise<any> => post(URL_DATABASE + '/execute', data);
+const selectDatabaseTypeList = (): Promise<any> => get(URL_DATABASE + '/type');
+const createDatabase = (data: unknown): Promise<any> => post(URL_DATABASE, data);
+const updateDatabase = (id: string | number, data: unknown): Promise<any> => put(URL_DATABASE + '/' + id, data);
+const deleteDatabase = submitSourceDeletion;
+const selectData = (data: unknown): Promise<any> => get(URL_DATABASE + '/data', data);
+const uploadFile = (file: File): Promise<any> => {
+  const form = new FormData();
+  form.append('file', file);
+  return postForm(URL_DATABASE + '/upload', form, { timeout: 360000 });
+};
 
 const DatabaseService = {
   selectDatabaseList,
@@ -53,6 +30,7 @@ const DatabaseService = {
   testConnection,
   executeQuery,
   selectData,
+  uploadFile,
 };
 
 export default DatabaseService;

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import * as AWS from 'aws-sdk';
 import { ConfigService } from '@nestjs/config';
 
@@ -9,7 +9,8 @@ export interface MetricDataPoint {
 }
 
 @Injectable()
-export class CloudWatchMetricsService {
+export class CloudWatchMetricsService implements OnModuleDestroy {
+  private flushTimer?: ReturnType<typeof setInterval>;
   private readonly logger = new Logger(CloudWatchMetricsService.name);
   private readonly cloudWatch: AWS.CloudWatch;
   private readonly enabled: boolean;
@@ -20,7 +21,9 @@ export class CloudWatchMetricsService {
   private readonly maxBufferSize = 20; // 최대 20개 메트릭 버퍼링
 
   constructor(private readonly configService: ConfigService) {
-    this.enabled = this.configService.get<boolean>('CLOUDWATCH_METRICS_ENABLED', true);
+    const enabled = this.configService.get<boolean | string>('CLOUDWATCH_METRICS_ENABLED', true);
+    this.enabled =
+      enabled === true || (typeof enabled === 'string' && enabled.trim().toLowerCase() === 'true');
     this.region = this.configService.get<string>('AWS_REGION', 'ap-northeast-2');
 
     this.cloudWatch = new AWS.CloudWatch({
@@ -30,11 +33,12 @@ export class CloudWatchMetricsService {
 
     // 주기적으로 버퍼 플러시
     if (this.enabled) {
-      setInterval(() => {
+      this.flushTimer = setInterval(() => {
         this.flushMetrics().catch(error => {
           this.logger.error('Failed to flush metrics', error);
         });
       }, this.flushInterval);
+      this.flushTimer.unref?.();
     }
   }
 
@@ -241,6 +245,10 @@ export class CloudWatchMetricsService {
    * 강제 메트릭 플러시 (애플리케이션 종료 시)
    */
   async onModuleDestroy(): Promise<void> {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = undefined;
+    }
     if (this.enabled && this.metricsBuffer.length > 0) {
       await this.flushMetrics();
     }

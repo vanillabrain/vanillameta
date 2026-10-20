@@ -18,7 +18,7 @@ import {
   ApiQuery,
   ApiParam,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../../auth/guards/legacy-operations.guard';
 import { SlowQueryMonitorService, SlowQueryMonitorConfig } from './slow-query-monitor.service';
 
 class SlowQueryFiltersDto {
@@ -52,7 +52,7 @@ class UpdateConfigDto {
 
 @ApiTags('슬로우 쿼리 모니터링')
 @Controller('monitoring/slow-queries')
-@UseGuards(JwtAuthGuard)
+@UseGuards(LegacyOperationsGuard)
 @ApiBearerAuth()
 export class SlowQueryMonitorController {
   constructor(private readonly slowQueryMonitorService: SlowQueryMonitorService) {}

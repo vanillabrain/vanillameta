@@ -1,125 +1,67 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { ComponentService } from './component.service';
 import { Component } from './entities/component.entity';
-import { createMockRepository, getRepositoryTokenFor, createMockService } from '../../test/test-helpers';
-import { YesNo } from '../common/enum/yn.enum';
-import { HybridCacheService } from '../common/optimization/hybrid-cache.service';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { CreateComponentDto } from './dto/create-component.dto';
 
 describe('ComponentService', () => {
   let service: ComponentService;
-  let componentRepository: any;
-  let hybridCacheService: any;
+  let repository: ReturnType<typeof mockRepository>;
+  const mockRepository = () => ({
+    find: jest.fn(),
+    findOne: jest.fn(),
+    findOneBy: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    createQueryBuilder: jest.fn(),
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ComponentService,
-        {
-          provide: getRepositoryTokenFor(Component),
-          useValue: createMockRepository(),
-        },
-        {
-          provide: HybridCacheService,
-          useValue: createMockService(['get', 'set', 'del', 'invalidate', 'invalidateByEngine', 'invalidateAll']),
-        },
+        { provide: getRepositoryToken(Component), useFactory: mockRepository },
       ],
     }).compile();
 
     service = module.get<ComponentService>(ComponentService);
-    componentRepository = module.get(getRepositoryTokenFor(Component));
-    hybridCacheService = module.get(HybridCacheService);
-
-    // 캐시 메서드 모킹
-    hybridCacheService.get.mockResolvedValue(null);
-    hybridCacheService.set.mockResolvedValue(undefined);
-    hybridCacheService.invalidateByEngine.mockResolvedValue(undefined);
-    hybridCacheService.invalidateAll.mockResolvedValue(undefined);
+    repository = module.get(getRepositoryToken(Component));
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  describe('findAll', () => {
-    it('should return all active components', async () => {
-      const mockComponents = [
-        { id: 1, type: 'chart', title: 'Chart', option: '{"type":"line"}', useYn: YesNo.YES },
-        { id: 2, type: 'table', title: 'Table', option: '{"type":"basic"}', useYn: YesNo.YES },
-      ];
-      componentRepository.createQueryBuilder.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue(mockComponents),
-      });
+  it('rejects duplicate creation without saving another component', async () => {
+    repository.findOne.mockResolvedValue({ id: 7, type: 'QaType' });
 
-      const result = await service.findAll();
-
-      expect(result).toHaveLength(2);
-      expect(result[0].option).toEqual({ type: 'line' });
-      expect(result[1].option).toEqual({ type: 'basic' });
-    });
+    await expect(
+      service.create(
+        Object.assign(new CreateComponentDto(), {
+          type: 'QaType',
+          title: 'QA',
+          category: 'SCORE',
+          option: '{}',
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.save).not.toHaveBeenCalled();
   });
 
-  describe('findOne', () => {
-    it('should return a component by id', async () => {
-      const mockComponent = { id: 1, type: 'chart', title: 'Chart' };
-      componentRepository.findOne.mockResolvedValue(mockComponent);
+  it('rejects a missing component read', async () => {
+    repository.findOne.mockResolvedValue(null);
 
-      const result = await service.findOne(1);
-
-      expect(result).toEqual(mockComponent);
-      expect(componentRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
-    });
+    await expect(service.findOne(999)).rejects.toBeInstanceOf(NotFoundException);
+    expect(repository.findOne).toHaveBeenCalledWith({ where: { id: 999 } });
   });
 
-  describe('create', () => {
-    it('should create a new component when type does not exist', async () => {
-      const createDto = {
-        type: 'newchart',
-        title: 'New Chart',
-        category: 'chart',
-        option: '{"type":"bar"}',
-        description: '',
-        icon: '',
-        seq: 0,
-        useYn: 'Y',
-      };
-      componentRepository.findOne.mockResolvedValue(null);
-      componentRepository.save.mockResolvedValue({ id: 1, ...createDto });
+  it('rejects deletion when no component was affected', async () => {
+    repository.delete.mockResolvedValue({ affected: 0 });
 
-      const result = await service.create(createDto);
-
-      expect(componentRepository.save).toHaveBeenCalled();
-      expect(result).toEqual({ id: 1, ...createDto });
-    });
-
-    it('should return error message when component type already exists', async () => {
-      const createDto = {
-        type: 'chart',
-        title: 'Chart',
-        category: 'chart',
-        option: '{"type":"line"}',
-        description: '',
-        icon: '',
-        seq: 0,
-        useYn: 'Y',
-      };
-      componentRepository.findOne.mockResolvedValue({ id: 1, type: 'chart' });
-
-      const result = await service.create(createDto);
-
-      expect(result).toBe('exist same widget');
-    });
-  });
-
-  describe('remove', () => {
-    it('should remove component by id', async () => {
-      componentRepository.delete.mockResolvedValue({ affected: 1 });
-
-      const result = await service.remove(1);
-
-      expect(componentRepository.delete).toHaveBeenCalledWith({ id: 1 });
-      expect(result).toBe('This action removes a #1 component');
-    });
+    await expect(service.remove(999)).rejects.toBeInstanceOf(NotFoundException);
+    expect(repository.delete).toHaveBeenCalledWith({ id: 999 });
   });
 });

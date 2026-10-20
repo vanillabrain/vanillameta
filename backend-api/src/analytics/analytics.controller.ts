@@ -13,6 +13,7 @@ import { AnalyticsService } from './analytics.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthPublic } from '../auth/decorators/auth-public.decorator';
+import { legacyJobActor } from '../background-job/legacy-job-access';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 
 @ApiTags('Analytics')
@@ -33,7 +34,7 @@ export class AnalyticsController {
     @Headers('x-forwarded-for') forwardedFor: string,
     @Request() req: any,
   ): Promise<void> {
-    const userId = req.user?.userId || null;
+    const userId = req.user?.accessKeyData?.userId || null;
     const ipAddress = forwardedFor?.split(',')[0]?.trim() || req.ip;
 
     await this.analyticsService.collectEvents(createEventDto.events, {
@@ -56,7 +57,7 @@ export class AnalyticsController {
     @Headers('x-correlation-id') correlationId: string,
   ): Promise<void> {
     await this.analyticsService.collectEvents(createEventDto.events, {
-      userId: user.userId,
+      userId: legacyJobActor(user).userId,
       correlationId,
       userAgent: 'Server-Side',
       ipAddress: 'Internal',

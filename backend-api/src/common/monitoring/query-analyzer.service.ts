@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/typeorm';
 import { Connection, QueryRunner } from 'typeorm';
 import { Knex, knex } from 'knex';
 import { Database } from '../../database/entities/database.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { SqlValidationService } from '../security/sql-validation.service';
 
 export interface QueryAnalysis {
   query: string;
@@ -39,6 +40,7 @@ export class QueryAnalyzerService {
   constructor(
     @InjectConnection() private connection: Connection,
     @InjectRepository(Database) private databaseRepository: Repository<Database>,
+    private readonly sqlValidation: SqlValidationService,
   ) {}
 
   /**
@@ -50,6 +52,7 @@ export class QueryAnalyzerService {
     parameters?: any[],
     executionTime?: number,
   ): Promise<QueryAnalysis> {
+    this.assertReadOnlySelect(query);
     // databaseEngineOrId가 숫자인 경우 databaseId로, 문자열인 경우 engine으로 처리
     const databaseId = typeof databaseEngineOrId === 'number' ? databaseEngineOrId : undefined;
     const databaseEngine = typeof databaseEngineOrId === 'string' ? databaseEngineOrId : undefined;
@@ -476,6 +479,7 @@ export class QueryAnalyzerService {
     params: any[] = [],
     databaseId?: number,
   ): Promise<QueryAnalysis> {
+    this.assertReadOnlySelect(query);
     const startTime = Date.now();
     const analysis: QueryAnalysis = {
       query: query.substring(0, 200) + (query.length > 200 ? '...' : ''),
@@ -520,6 +524,27 @@ export class QueryAnalyzerService {
       });
 
       return analysis;
+    }
+  }
+
+  private assertReadOnlySelect(query: string): void {
+    if (
+      typeof query !== 'string' ||
+      !/^\s*SELECT\b/i.test(query) ||
+      /;|\bINTO\b|\bFOR\s+UPDATE\b|\bLOCK\b/i.test(query)
+    ) {
+      throw new BadRequestException('Only a single read-only SELECT is allowed for diagnostics');
+    }
+    const result = this.sqlValidation.validateQuery(query, {
+      allowDDL: false,
+      allowDML: false,
+      allowMultipleStatements: false,
+    });
+    if (
+      !result.isValid ||
+      result.warnings.some(warning => warning.startsWith('Potentially dangerous function:'))
+    ) {
+      throw new BadRequestException('Unsafe diagnostic SELECT');
     }
   }
 }

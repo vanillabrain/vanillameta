@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { JobQueueService } from './job-queue.service';
 import { QueueJob, JobStatus, JobType, JobPriority } from './entities/queue-job.entity';
 import { JobResult } from './entities/job-result.entity';
@@ -15,47 +15,49 @@ import { UpdateJobStatusDto } from './dto/job-status.dto';
 describe('JobQueueService', () => {
   let service: JobQueueService;
   let jobRepository: jest.Mocked<Repository<QueueJob>>;
-  let jobResultRepository: jest.Mocked<Repository<JobResult>>;
   let jobSchedulerService: jest.Mocked<JobSchedulerService>;
   let jobStatusTrackerService: jest.Mocked<JobStatusTrackerService>;
   let jobRetryService: jest.Mocked<JobRetryService>;
   let jobNotificationService: jest.Mocked<JobNotificationService>;
 
-  const mockJob: QueueJob = {
-    id: 'job-123',
-    jobType: JobType.QUERY_EXECUTION,
-    status: JobStatus.PENDING,
-    priority: JobPriority.NORMAL,
-    userId: 'user-123',
-    jobData: JSON.stringify({ query: 'SELECT * FROM users' }),
-    result: null,
-    errorMessage: null,
-    errorStack: null,
-    retryCount: 0,
-    maxRetries: 3,
-    progress: 0,
-    scheduledAt: null,
-    startedAt: null,
-    completedAt: null,
-    executionTimeMs: null,
-    estimatedTimeMs: 30000,
-    workerId: null,
-    metadata: null,
-    correlationId: null,
-    requiresNotification: false,
-    notificationEmail: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isCompleted: false,
-    isFailed: false,
-    isRunning: false,
-    canRetry: true,
-    jobDataParsed: { query: 'SELECT * FROM users' },
-    resultParsed: null,
-    metadataParsed: {},
-  };
+  const createJob = (overrides: Partial<QueueJob> = {}): QueueJob =>
+    Object.assign(
+      new QueueJob(),
+      {
+        id: 'job-123',
+        jobType: JobType.QUERY_EXECUTION,
+        status: JobStatus.PENDING,
+        priority: JobPriority.NORMAL,
+        userId: 'user-123',
+        jobData: JSON.stringify({ query: 'SELECT * FROM users' }),
+        result: null,
+        errorMessage: null,
+        errorStack: null,
+        retryCount: 0,
+        maxRetries: 3,
+        progress: 0,
+        scheduledAt: null,
+        startedAt: null,
+        completedAt: null,
+        executionTimeMs: null,
+        estimatedTimeMs: 30000,
+        workerId: null,
+        metadata: null,
+        correlationId: null,
+        requiresNotification: false,
+        notificationEmail: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      overrides,
+    );
+
+  let mockJob: QueueJob;
+  const queryBuilder = () =>
+    new SelectQueryBuilder<QueueJob>(new DataSource({ type: 'sqlite', database: ':memory:' }));
 
   beforeEach(async () => {
+    mockJob = createJob();
     const mockJobRepository = {
       save: jest.fn(),
       findOne: jest.fn(),
@@ -121,7 +123,6 @@ describe('JobQueueService', () => {
 
     service = module.get<JobQueueService>(JobQueueService);
     jobRepository = module.get(getRepositoryToken(QueueJob));
-    jobResultRepository = module.get(getRepositoryToken(JobResult));
     jobSchedulerService = module.get(JobSchedulerService);
     jobStatusTrackerService = module.get(JobStatusTrackerService);
     jobRetryService = module.get(JobRetryService);
@@ -144,7 +145,7 @@ describe('JobQueueService', () => {
         maxRetries: 3,
       };
 
-      const savedJob = { ...mockJob };
+      const savedJob = createJob();
       jobRepository.save.mockResolvedValue(savedJob);
       jobSchedulerService.scheduleJob.mockResolvedValue(undefined);
       jobStatusTrackerService.recordStatusChange.mockResolvedValue(undefined);
@@ -175,7 +176,7 @@ describe('JobQueueService', () => {
         scheduledAt: futureDate.toISOString(),
       };
 
-      const savedJob = { ...mockJob, scheduledAt: futureDate };
+      const savedJob = Object.assign(new QueueJob(), mockJob, { scheduledAt: futureDate });
       jobRepository.save.mockResolvedValue(savedJob);
 
       // Act
@@ -210,13 +211,12 @@ describe('JobQueueService', () => {
         workerId: 'worker-123',
       };
 
-      const existingJob = { ...mockJob };
-      const updatedJob = {
-        ...mockJob,
+      const existingJob = createJob();
+      const updatedJob = createJob({
         status: JobStatus.RUNNING,
         progress: 50,
         workerId: 'worker-123',
-      };
+      });
 
       jobRepository.findOne.mockResolvedValue(existingJob);
       jobRepository.save.mockResolvedValue(updatedJob);
@@ -244,19 +244,21 @@ describe('JobQueueService', () => {
         progress: 100,
       };
 
-      const runningJob = {
-        ...mockJob,
+      const runningJob = createJob({
         status: JobStatus.RUNNING,
         startedAt: new Date(Date.now() - 30000), // Started 30 seconds ago
-      };
+      });
 
       jobRepository.findOne.mockResolvedValue(runningJob);
-      jobRepository.save.mockResolvedValue({ ...runningJob, status: JobStatus.COMPLETED });
+      jobRepository.save.mockResolvedValue(
+        Object.assign(new QueueJob(), runningJob, { status: JobStatus.COMPLETED }),
+      );
 
       // Act
       const result = await service.updateJobStatus('job-123', updateDto);
 
       // Assert
+      expect(result.status).toBe(JobStatus.COMPLETED);
       expect(jobRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           status: JobStatus.COMPLETED,
@@ -273,9 +275,15 @@ describe('JobQueueService', () => {
         errorMessage: 'Database connection failed',
       };
 
-      const runningJob = { ...mockJob, status: JobStatus.RUNNING, retryCount: 0, maxRetries: 3 };
+      const runningJob = Object.assign(new QueueJob(), mockJob, {
+        status: JobStatus.RUNNING,
+        retryCount: 0,
+        maxRetries: 3,
+      });
       jobRepository.findOne.mockResolvedValue(runningJob);
-      jobRepository.save.mockResolvedValue({ ...runningJob, status: JobStatus.FAILED });
+      jobRepository.save.mockResolvedValue(
+        Object.assign(new QueueJob(), runningJob, { status: JobStatus.FAILED }),
+      );
       jobRetryService.scheduleRetry.mockResolvedValue(undefined);
 
       // Act
@@ -293,9 +301,11 @@ describe('JobQueueService', () => {
         status: JobStatus.COMPLETED,
       };
 
-      const job = { ...mockJob, requiresNotification: true };
+      const job = createJob({ status: JobStatus.RUNNING, requiresNotification: true });
       jobRepository.findOne.mockResolvedValue(job);
-      jobRepository.save.mockResolvedValue({ ...job, status: JobStatus.COMPLETED });
+      jobRepository.save.mockResolvedValue(
+        Object.assign(new QueueJob(), job, { status: JobStatus.COMPLETED }),
+      );
       jobNotificationService.sendJobCompletionNotification.mockResolvedValue(undefined);
 
       // Act
@@ -311,7 +321,7 @@ describe('JobQueueService', () => {
         status: JobStatus.RUNNING,
       };
 
-      const completedJob = { ...mockJob, status: JobStatus.COMPLETED };
+      const completedJob = Object.assign(new QueueJob(), mockJob, { status: JobStatus.COMPLETED });
       jobRepository.findOne.mockResolvedValue(completedJob);
 
       // Act & Assert
@@ -330,14 +340,14 @@ describe('JobQueueService', () => {
         status: JobStatus.PENDING,
       };
 
-      const mockQueryBuilder = {
+      const mockQueryBuilder = Object.assign(queryBuilder(), {
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         getCount: jest.fn().mockResolvedValue(5),
         getMany: jest.fn().mockResolvedValue([mockJob]),
-      };
+      });
 
       jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -356,14 +366,14 @@ describe('JobQueueService', () => {
       // Arrange
       const queryDto: JobQueryDto = {};
 
-      const mockQueryBuilder = {
+      const mockQueryBuilder = Object.assign(queryBuilder(), {
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         getCount: jest.fn().mockResolvedValue(0),
         getMany: jest.fn().mockResolvedValue([]),
-      };
+      });
 
       jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -405,9 +415,11 @@ describe('JobQueueService', () => {
   describe('cancelJob', () => {
     it('should cancel pending job', async () => {
       // Arrange
-      const pendingJob = { ...mockJob, status: JobStatus.PENDING };
+      const pendingJob = Object.assign(new QueueJob(), mockJob, { status: JobStatus.PENDING });
       jobRepository.findOne.mockResolvedValue(pendingJob);
-      jobRepository.save.mockResolvedValue({ ...pendingJob, status: JobStatus.CANCELLED });
+      jobRepository.save.mockResolvedValue(
+        Object.assign(new QueueJob(), pendingJob, { status: JobStatus.CANCELLED }),
+      );
       jobSchedulerService.removeJob.mockResolvedValue(undefined);
 
       // Act
@@ -419,7 +431,7 @@ describe('JobQueueService', () => {
 
     it('should not cancel completed job', async () => {
       // Arrange
-      const completedJob = { ...mockJob, status: JobStatus.COMPLETED };
+      const completedJob = Object.assign(new QueueJob(), mockJob, { status: JobStatus.COMPLETED });
       jobRepository.findOne.mockResolvedValue(completedJob);
 
       // Act & Assert
@@ -432,17 +444,18 @@ describe('JobQueueService', () => {
   describe('getNextJob', () => {
     it('should return next pending job', async () => {
       // Arrange
-      const mockQueryBuilder = {
+      const mockQueryBuilder = Object.assign(queryBuilder(), {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         addOrderBy: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(mockJob),
-      };
+      });
 
       jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
-      jobRepository.save.mockResolvedValue({ ...mockJob, status: JobStatus.RUNNING });
+      jobRepository.findOne.mockResolvedValue(mockJob);
+      jobRepository.save.mockResolvedValue(createJob({ status: JobStatus.RUNNING }));
 
       // Act
       const result = await service.getNextJob('worker-123');
@@ -456,14 +469,14 @@ describe('JobQueueService', () => {
 
     it('should return null if no jobs available', async () => {
       // Arrange
-      const mockQueryBuilder = {
+      const mockQueryBuilder = Object.assign(queryBuilder(), {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         addOrderBy: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(null),
-      };
+      });
 
       jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -478,7 +491,11 @@ describe('JobQueueService', () => {
   describe('retryJob', () => {
     it('should retry failed job', async () => {
       // Arrange
-      const failedJob = { ...mockJob, status: JobStatus.FAILED, retryCount: 1, maxRetries: 3 };
+      const failedJob = Object.assign(new QueueJob(), mockJob, {
+        status: JobStatus.FAILED,
+        retryCount: 1,
+        maxRetries: 3,
+      });
       jobRepository.findOne.mockResolvedValue(failedJob);
       jobRetryService.retryJob.mockResolvedValue(undefined);
 
@@ -491,13 +508,11 @@ describe('JobQueueService', () => {
 
     it('should not retry job that cannot be retried', async () => {
       // Arrange
-      const jobAtMaxRetries = {
-        ...mockJob,
+      const jobAtMaxRetries = createJob({
         status: JobStatus.FAILED,
         retryCount: 3,
         maxRetries: 3,
-        canRetry: false,
-      };
+      });
       jobRepository.findOne.mockResolvedValue(jobAtMaxRetries);
 
       // Act & Assert

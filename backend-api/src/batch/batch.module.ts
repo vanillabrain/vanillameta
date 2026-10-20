@@ -1,3 +1,4 @@
+import { AuthModule } from '../auth/auth.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BatchService } from './batch.service';
@@ -11,6 +12,7 @@ import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
+    AuthModule,
     TypeOrmModule.forFeature([BatchJob, BatchChunk]),
     DatasetModule,
     WidgetModule,

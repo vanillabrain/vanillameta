@@ -4,6 +4,7 @@ import { QueryCacheService } from './services/query-cache.service';
 import { CacheStatisticsService } from './services/cache-statistics.service';
 import { CacheInvalidationService } from './services/cache-invalidation.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 describe('CacheController', () => {
   let controller: CacheController;
@@ -76,7 +77,12 @@ describe('CacheController', () => {
           useValue: mockInvalidationService,
         },
       ],
-    }).compile();
+    })
+      // These tests call controller methods directly; they do not exercise HTTP authentication.
+      // Fail closed if an HTTP path is accidentally introduced into this unit fixture.
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: jest.fn(() => false) })
+      .compile();
 
     controller = module.get<CacheController>(CacheController);
     cacheService = module.get(QueryCacheService);
@@ -88,6 +94,7 @@ describe('CacheController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+    expect(Reflect.getMetadata('__guards__', CacheController)).toContain(JwtAuthGuard);
   });
 
   describe('getCacheStatistics', () => {

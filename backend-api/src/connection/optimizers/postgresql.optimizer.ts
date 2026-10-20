@@ -43,7 +43,7 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
         createRetryIntervalMillis: 100,
         propagateCreateError: false,
         // PostgreSQL 연결 풀 이벤트 처리
-        afterCreate: async (conn: any, done: Function) => {
+        afterCreate: async (conn: any, done: (error: Error | null, connection: any) => void) => {
           try {
             // PostgreSQL 세션 설정
             await conn.query('SET timezone TO "Asia/Seoul"');
@@ -158,7 +158,10 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
         message: '데이터베이스를 찾을 수 없습니다.',
         severity: 'high',
         retryable: false,
-        suggestions: ['데이터베이스 이름을 확인해주세요.', 'PostgreSQL 서버에 데이터베이스가 존재하는지 확인해주세요.'],
+        suggestions: [
+          '데이터베이스 이름을 확인해주세요.',
+          'PostgreSQL 서버에 데이터베이스가 존재하는지 확인해주세요.',
+        ],
       },
       '40P01': {
         code: 'DEADLOCK_DETECTED',
@@ -191,13 +194,15 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
     };
 
     const errorCode = error.code;
-    return postgresErrors[errorCode] || {
-      code: 'UNKNOWN_ERROR',
-      message: error.message || '알 수 없는 오류가 발생했습니다.',
-      severity: 'medium',
-      retryable: false,
-      suggestions: ['쿼리를 확인해주세요.', '데이터베이스 연결을 확인해주세요.'],
-    };
+    return (
+      postgresErrors[errorCode] || {
+        code: 'UNKNOWN_ERROR',
+        message: error.message || '알 수 없는 오류가 발생했습니다.',
+        severity: 'medium',
+        retryable: false,
+        suggestions: ['쿼리를 확인해주세요.', '데이터베이스 연결을 확인해주세요.'],
+      }
+    );
   }
 
   /**
@@ -209,13 +214,15 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
         category: 'indexing',
         priority: 'high',
         description: 'JSON 컬럼에 GIN 인덱스를 생성하세요.',
-        implementation: 'CREATE INDEX CONCURRENTLY idx_json_data ON table_name USING GIN (json_column);',
+        implementation:
+          'CREATE INDEX CONCURRENTLY idx_json_data ON table_name USING GIN (json_column);',
       },
       {
         category: 'indexing',
         priority: 'high',
         description: '배열 컬럼에 GIN 인덱스를 생성하세요.',
-        implementation: 'CREATE INDEX CONCURRENTLY idx_array_data ON table_name USING GIN (array_column);',
+        implementation:
+          'CREATE INDEX CONCURRENTLY idx_array_data ON table_name USING GIN (array_column);',
       },
       {
         category: 'query',
@@ -259,7 +266,7 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
     // ROW_NUMBER()를 활용한 페이지네이션 최적화
     return queryBuilder.select(
       '*',
-      queryBuilder.client.raw('ROW_NUMBER() OVER (ORDER BY created_at DESC) as row_num')
+      queryBuilder.client.raw('ROW_NUMBER() OVER (ORDER BY created_at DESC) as row_num'),
     );
   }
 
@@ -276,7 +283,7 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
    */
   private optimizeJsonQuery(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
     // JSONB 연산자 최적화 힌트 추가
-    return queryBuilder.hint('/*+ USE_NL(t1 t2) */');
+    return queryBuilder.hintComment('/*+ USE_NL(t1 t2) */');
   }
 
   /**
@@ -292,7 +299,7 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
    */
   private optimizeArrayQuery(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
     // GIN 인덱스 사용 힌트
-    return queryBuilder.hint('/*+ GIN_INDEX */');
+    return queryBuilder.hintComment('/*+ GIN_INDEX */');
   }
 
   /**
@@ -343,12 +350,12 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
     tableName: string,
     jsonColumn: string,
     jsonPath: string,
-    value: any
+    value: any,
   ): Promise<any[]> {
     return knex(tableName)
       .select('*')
       .whereRaw(`${jsonColumn}->>'${jsonPath}' = ?`, [value])
-      .orderBy(knex.raw(`${jsonColumn}->>'created_at'`));
+      .orderByRaw(`${jsonColumn}->>'created_at'`);
   }
 
   /**
@@ -358,53 +365,39 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
     knex: Knex,
     tableName: string,
     arrayColumn: string,
-    values: string[]
+    values: string[],
   ): Promise<any[]> {
-    return knex(tableName)
-      .whereRaw(`${arrayColumn} && ARRAY[?]::varchar[]`, [values]);
+    return knex(tableName).whereRaw(`${arrayColumn} && ARRAY[?]::varchar[]`, [values]);
   }
 
   /**
    * PostgreSQL UPSERT 구현
    */
-  async upsert(
-    knex: Knex,
-    tableName: string,
-    data: any,
-    conflictColumns: string[]
-  ): Promise<void> {
+  async upsert(knex: Knex, tableName: string, data: any, conflictColumns: string[]): Promise<void> {
     const columns = Object.keys(data);
     const updateColumns = columns.filter(col => !conflictColumns.includes(col));
-    
-    const updateClause = updateColumns
-      .map(col => `${col} = EXCLUDED.${col}`)
-      .join(', ');
 
-    await knex(tableName)
-      .insert(data)
-      .onConflict(conflictColumns)
-      .merge(updateColumns);
+    const updateClause = updateColumns.map(col => `${col} = EXCLUDED.${col}`).join(', ');
+
+    await knex(tableName).insert(data).onConflict(conflictColumns).merge(updateColumns);
   }
 
   /**
    * PostgreSQL 배치 COPY 연산
    */
-  async copyFromArray(
-    knex: Knex,
-    tableName: string,
-    data: any[]
-  ): Promise<void> {
+  async copyFromArray(knex: Knex, tableName: string, data: any[]): Promise<void> {
     if (data.length === 0) return;
 
     const columns = Object.keys(data[0]);
-    const csvData = data.map(row => 
-      columns.map(col => row[col] || '').join('\t')
-    ).join('\n');
+    const csvData = data.map(row => columns.map(col => row[col] || '').join('\t')).join('\n');
 
     // COPY 명령 사용 (대용량 데이터에 최적)
-    await knex.raw(`
+    await knex.raw(
+      `
       COPY ${tableName} (${columns.join(', ')}) 
       FROM STDIN WITH (FORMAT csv, DELIMITER E'\\t', NULL '')
-    `, [csvData]);
+    `,
+      [csvData],
+    );
   }
 }

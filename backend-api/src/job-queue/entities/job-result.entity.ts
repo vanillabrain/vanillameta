@@ -18,7 +18,7 @@ export enum ResultType {
   ERROR_REPORT = 'error_report',
 }
 
-@Entity('job_results')
+@Entity('queued_job_results')
 @Index(['jobId'])
 @Index(['resultType'])
 @Index(['createdAt'])

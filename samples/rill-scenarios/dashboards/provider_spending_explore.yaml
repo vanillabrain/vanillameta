@@ -1,0 +1,5 @@
+type: explore
+display_name: VM synthetic provider spending
+metrics_view: provider_spending_metrics
+dimensions: '*'
+measures: '*'

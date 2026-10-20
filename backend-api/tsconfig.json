@@ -1,33 +1,22 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "declaration": false,
+    "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "target": "es2017",
-    "sourceMap": false,
+    "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
-    "incremental": false,
+    "incremental": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
-    "noImplicitAny": false,
-    "strictPropertyInitialization": false,
-    "strictNullChecks": false,
-    "strict": false,
-    "noImplicitReturns": false,
-    "noFallthroughCasesInSwitch": false
+    "typeRoots": ["./node_modules/@types"],
+    "strictPropertyInitialization": false
   },
-  "include": [
-    "src/app.module.ts",
-    "src/app.controller.ts", 
-    "src/app.service.ts",
-    "src/main.ts",
-    "src/entities/**/*.ts",
-    "src/common/logger/**/*.ts",
-    "src/middleware/correlation-id/**/*.ts"
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

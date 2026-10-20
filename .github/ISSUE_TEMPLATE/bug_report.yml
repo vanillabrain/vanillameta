@@ -1,0 +1,38 @@
+name: Bug report
+description: Report something that isn't working
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. docker compose up
+        2. sign in as guest
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Data source connection
+        - Widget / chart
+        - Dashboard / sharing / embed
+        - File upload / analysis
+        - Login / auth
+        - Docker / install
+        - Other
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      placeholder: OS, browser, docker version, backend logs (relevant lines)

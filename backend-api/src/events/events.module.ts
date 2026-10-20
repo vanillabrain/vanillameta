@@ -1,3 +1,5 @@
+import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from '../auth/auth.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventsController } from './events.controller';
@@ -9,6 +11,8 @@ import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
+    ConfigModule,
+    AuthModule,
     TypeOrmModule.forFeature([AnalyticsEvent, EventSession, PerformanceMetric]),
     CommonModule,
   ],

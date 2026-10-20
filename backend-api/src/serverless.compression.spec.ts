@@ -1,10 +1,45 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, INestApplication, Post, Res } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from './app.module';
+import { generateText } from 'ai';
+import { gzipSync } from 'zlib';
 import express from 'express';
-const compression = require('compression');
+import compression from 'compression';
 import { ExpressAdapter } from '@nestjs/platform-express';
+
+// Exercise the middleware against real HTTP responses without importing product DB/LLM modules.
+jest.mock('ai', () => ({
+  generateText: jest.fn(async () => {
+    throw new Error('Unexpected LLM execution in compression test');
+  }),
+}));
+
+@Controller('test')
+class CompressionFixtureController {
+  @Post(['large-data', 'small-data', 'json-compression', 'performance'])
+  @HttpCode(200)
+  echo(@Body() body: unknown) {
+    return body;
+  }
+
+  @Get('text-compression')
+  text(@Res() response: any) {
+    return response.type('text/plain').send('Compression fixture text. '.repeat(1000));
+  }
+
+  @Get('image')
+  image(@Res() response: any) {
+    return response.type('image/png').send(Buffer.alloc(2048, 137));
+  }
+
+  @Get('already-compressed')
+  compressed(@Res() response: any) {
+    return response
+      .type('application/json')
+      .set('Content-Encoding', 'gzip')
+      .send(gzipSync(JSON.stringify({ message: 'already encoded'.repeat(200) })));
+  }
+}
 
 describe('API Response Compression (T03_S04)', () => {
   let app: INestApplication;
@@ -12,11 +47,12 @@ describe('API Response Compression (T03_S04)', () => {
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      controllers: [CompressionFixtureController],
     }).compile();
 
     // Express 앱 생성 및 compression 미들웨어 적용
     const expressApp = express();
+    expressApp.use(express.json({ limit: '1mb' }));
     expressApp.use(
       compression({
         filter: (req, res) => {
@@ -34,12 +70,13 @@ describe('API Response Compression (T03_S04)', () => {
     );
 
     app = moduleFixture.createNestApplication(new ExpressAdapter(expressApp));
-    await app.init();
+    await app.listen(0, '127.0.0.1');
     httpServer = app.getHttpServer();
   });
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
+    expect(generateText).not.toHaveBeenCalled();
   });
 
   describe('압축 기능 테스트', () => {
@@ -66,7 +103,7 @@ describe('API Response Compression (T03_S04)', () => {
       const response = await request(httpServer)
         .post('/test/large-data')
         .send(largeData)
-        .set('Accept-Encoding', 'gzip, deflate, br')
+        .set('Accept-Encoding', 'gzip')
         .expect(200);
 
       // 압축 헤더 확인
@@ -107,9 +144,8 @@ describe('API Response Compression (T03_S04)', () => {
         .expect(200);
 
       // 이미 압축된 응답은 추가 압축하지 않음
-      if (response.headers['content-encoding']) {
-        expect(['gzip', 'deflate', 'br']).toContain(response.headers['content-encoding']);
-      }
+      expect(response.headers['content-encoding']).toBe('gzip');
+      expect(response.body).toEqual({ message: 'already encoded'.repeat(200) });
     });
   });
 
@@ -145,11 +181,8 @@ describe('API Response Compression (T03_S04)', () => {
         .set('Accept-Encoding', 'gzip')
         .expect(200);
 
-      // 텍스트 응답이 충분히 크다면 압축되어야 함
-      const contentLength = parseInt(response.headers['content-length'] || '0');
-      if (contentLength > 1024) {
-        expect(response.headers['content-encoding']).toBe('gzip');
-      }
+      expect(response.headers['content-encoding']).toBe('gzip');
+      expect(response.text).toBe('Compression fixture text. '.repeat(1000));
     });
 
     it('이미지 응답은 압축되지 않아야 함', async () => {
@@ -202,7 +235,13 @@ describe('API Response Compression (T03_S04)', () => {
       console.log(`비압축 응답 시간: ${uncompressedTime}ms`);
 
       // 압축으로 인한 추가 시간이 합리적이어야 함 (2배 이내)
-      expect(compressedTime).toBeLessThan(uncompressedTime * 2);
+      expect(compressedResponse.headers['content-encoding']).toBe('gzip');
+      expect(uncompressedResponse.headers['content-encoding']).toBeUndefined();
+      expect(compressedResponse.body).toEqual(testData);
+      expect(uncompressedResponse.body).toEqual(testData);
+      // A fixed bound avoids a timing ratio against a near-zero local baseline.
+      expect(compressedTime).toBeLessThan(5000);
+      expect(uncompressedTime).toBeLessThan(5000);
     });
   });
 });

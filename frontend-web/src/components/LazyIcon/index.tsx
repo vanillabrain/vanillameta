@@ -1,6 +1,11 @@
 import React, { lazy, Suspense, useMemo } from 'react';
 import { Box, Skeleton } from '@mui/material';
 
+const icons = import.meta.glob<{ default: React.ComponentType<{ style?: React.CSSProperties }> }>(
+  '/src/assets/images/**/*.svg',
+  { query: '?react' },
+);
+
 interface LazyIconProps {
   iconName: string;
   style?: React.CSSProperties;
@@ -22,35 +27,15 @@ interface LazyIconProps {
  * @param height - 아이콘 높이
  */
 const LazyIcon: React.FC<LazyIconProps> = ({ iconName, style, fallback, width = '100%', height = '100%' }) => {
-  // 아이콘 이름에 따라 동적으로 import하는 함수
+  // Vite's SVG plugin exports the React component as the default of ?react.
   const IconComponent = useMemo(() => {
-    try {
-      if (iconName.startsWith('template')) {
-        // 템플릿 아이콘들
-        return lazy(() =>
-          import(`@/assets/images/template/${iconName}.svg`).then(module => ({
-            default: module.ReactComponent,
-          })),
-        );
-      } else if (iconName.startsWith('ic-') || iconName.includes('icon')) {
-        // 일반 아이콘들
-        return lazy(() =>
-          import(`@/assets/images/icon/${iconName}.svg`).then(module => ({
-            default: module.ReactComponent,
-          })),
-        );
-      } else {
-        // 기타 이미지들
-        return lazy(() =>
-          import(`@/assets/images/${iconName}.svg`).then(module => ({
-            default: module.ReactComponent,
-          })),
-        );
-      }
-    } catch (error) {
-      console.warn(`Failed to load icon: ${iconName}`, error);
-      return null;
-    }
+    const folder = iconName.startsWith('template')
+      ? 'template/'
+      : iconName.startsWith('ic-') || iconName.includes('icon')
+      ? 'icon/'
+      : '';
+    const loader = icons[`/src/assets/images/${folder}${iconName}.svg`];
+    return loader ? lazy(loader) : null;
   }, [iconName]);
 
   const defaultFallback = (

@@ -1,25 +1,26 @@
 import React from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import TitleBox from '@/components/TitleBox';
 import SmallCardList from '@/components/SmallCardList';
 
 function FirstStep(props) {
+  const { t } = useTranslation();
   const { data } = props;
 
   return (
-    <Stack p={4} pb={0} spacing={3}>
-      <Typography mb={2}>대시보드 생성에 사용할 데이터를 선택하세요.</Typography>
-      <Box>
-        <TitleBox title={'데이터 셋'}>
+    <div className="flex flex-col gap-6 p-4 pb-0">
+      <p className="mb-4">{t('dataRecommend2.guideData')}</p>
+      <div>
+        <TitleBox title={t('dataRecommend2.dataset')}>
           <SmallCardList data={data.dataSet} />
         </TitleBox>
-      </Box>
-      <Box>
-        <TitleBox title={'데이터 목록'}>
+      </div>
+      <div>
+        <TitleBox title={t('dataRecommend2.dataList')}>
           <SmallCardList data={data.dataList} />
         </TitleBox>
-      </Box>
-    </Stack>
+      </div>
+    </div>
   );
 }
 

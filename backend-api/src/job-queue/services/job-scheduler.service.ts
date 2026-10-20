@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -15,13 +15,16 @@ interface SchedulerConfig {
 }
 
 @Injectable()
-export class JobSchedulerService {
+export class JobSchedulerService implements OnModuleDestroy {
   private readonly logger = new Logger(JobSchedulerService.name);
 
   // 메모리 기반 스케줄링 큐 (간단한 우선순위 큐)
   private scheduledJobs = new Map<string, QueueJob>();
   private priorityQueue: QueueJob[] = [];
   private isProcessing = false;
+  private destroyed = false;
+  private processingTimer?: ReturnType<typeof setInterval>;
+  private readonly delayedTimers = new Set<ReturnType<typeof setTimeout>>();
 
   // 설정값들
   private readonly config: SchedulerConfig = {
@@ -44,6 +47,16 @@ export class JobSchedulerService {
     this.initializeScheduler();
   }
 
+  onModuleDestroy(): void {
+    this.destroyed = true;
+    if (this.processingTimer) {
+      clearInterval(this.processingTimer);
+      this.processingTimer = undefined;
+    }
+    for (const timer of this.delayedTimers) clearTimeout(timer);
+    this.delayedTimers.clear();
+  }
+
   /**
    * 스케줄러 초기화
    */
@@ -51,6 +64,7 @@ export class JobSchedulerService {
     try {
       // 기존 PENDING/RETRY 상태의 작업들을 메모리에 로드
       await this.loadPendingJobs();
+      if (this.destroyed) return;
 
       // 주기적 스케줄링 시작
       this.startJobProcessing();
@@ -111,6 +125,7 @@ export class JobSchedulerService {
    * 우선순위 큐에 작업 추가
    */
   private addToQueue(job: QueueJob): void {
+    if (this.destroyed) return;
     // 중복 방지
     if (this.scheduledJobs.has(job.id)) {
       return;
@@ -165,23 +180,28 @@ export class JobSchedulerService {
   private scheduleDelayedJob(job: QueueJob): void {
     const delay = job.scheduledAt.getTime() - Date.now();
 
-    setTimeout(() => {
-      if (this.scheduledJobs.has(job.id)) {
+    const timer = setTimeout(() => {
+      this.delayedTimers.delete(timer);
+      if (!this.destroyed && this.scheduledJobs.has(job.id)) {
         this.insertByPriority(job);
         this.logger.debug(`Delayed job activated: ${job.id}`);
       }
     }, delay);
+    this.delayedTimers.add(timer);
+    timer.unref?.();
   }
 
   /**
    * 주기적 작업 처리 시작
    */
   private startJobProcessing(): void {
-    setInterval(async () => {
+    if (this.destroyed || this.processingTimer) return;
+    this.processingTimer = setInterval(async () => {
       if (!this.isProcessing && this.priorityQueue.length > 0) {
         await this.processJobs();
       }
     }, this.config.jobProcessingInterval);
+    this.processingTimer.unref?.();
   }
 
   /**

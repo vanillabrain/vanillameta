@@ -1,0 +1,7 @@
+type: explore
+metrics_view: margin_refresh_metrics
+display_name: VM refreshed file comparison
+dimensions: '*'
+measures: '*'
+time_ranges:
+  - inf

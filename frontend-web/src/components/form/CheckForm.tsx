@@ -1,21 +1,24 @@
 import React from 'react';
-import { FormControlLabel, Checkbox, FormLabel, FormControl, Stack } from '@mui/material';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldContent, FieldLabel } from '@/components/ui/field';
+import { cn } from '@/lib/utils';
 
 function CheckForm(props) {
-  const { id, label, ...rest } = props;
+  const { id, label, className, ...rest } = props;
 
   return (
-    <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <FormLabel htmlFor={id} sx={{ width: '40%' }}>
+    <Field orientation="horizontal" className={cn('items-center gap-2', className)}>
+      <FieldLabel htmlFor={id} className="w-[40%] flex-none truncate">
         {label}
-      </FormLabel>
-      <Stack flexDirection="row" justifyContent="space-between" sx={{ width: '60%' }}>
-        <FormControlLabel id="userInputCheck" control={<Checkbox />} label={label} {...rest} />
-      </Stack>
-    </FormControl>
+      </FieldLabel>
+      <FieldContent className="flex w-[60%] flex-none flex-row items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Checkbox id={id} {...rest} />
+          <span className="text-sm">{label}</span>
+        </div>
+      </FieldContent>
+    </Field>
   );
 }
 
 export default CheckForm;
-
-CheckForm.defaultProps = {};

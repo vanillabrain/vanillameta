@@ -1,6 +1,26 @@
+import { chartTheme } from '@/components/charts/chartTheme';
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { getAggregationDataForChart } from '@/widget/modules/utils/chartUtil';
+import { getAggregationDataForChart, getAggregationDataForChartWithMultipleKeys } from '@/widget/modules/utils/chartUtil';
+
+type HierarchyNode = { name: string; value: number; children?: HierarchyNode[] };
+
+const createHierarchy = (rows, names: string[], field: string): HierarchyNode[] => {
+  const groups = new Map<string, typeof rows>();
+  rows.forEach(row => {
+    const category = row[names[0]];
+    const name = category == null || category === '' ? '(empty)' : String(category);
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(row);
+  });
+  return Array.from(groups, ([name, group]) => {
+    if (names.length === 1) {
+      return { name, value: group.reduce((sum, row) => sum + row[field], 0) };
+    }
+    const children = createHierarchy(group, names.slice(1), field);
+    return { name, value: children.reduce((sum, child) => sum + child.value, 0), children };
+  });
+};
 
 const TreemapChart = props => {
   const { option, dataSet, seriesOp } = props;
@@ -41,19 +61,18 @@ const TreemapChart = props => {
     const newSeries = [];
     let aggrData = [];
 
-    if (option.series.name && option.series.field) {
-      aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
-      // console.log(aggrData);
+    if (option.series.name && option.series.field && (!Array.isArray(option.series.name) || option.series.name.length > 0)) {
+      const names = option.series.name;
+      const hierarchy = Array.isArray(names);
+      aggrData = hierarchy
+        ? getAggregationDataForChartWithMultipleKeys(dataSet, names, option.series.field, option.series.aggregation)
+        : getAggregationDataForChart(dataSet, names, option.series.field, option.series.aggregation);
 
       const series = {
-        name: option.series.name,
-        data: aggrData.map((item, index) => ({
-          value: item[option.series.field],
-          name: item[option.series.name],
-          // itemStyle: {
-          //   color: option.series.color[index],
-          // },
-        })),
+        name: hierarchy ? names.join(' / ') : names,
+        data: hierarchy
+          ? createHierarchy(aggrData, names, option.series.field)
+          : aggrData.map(item => ({ value: item[option.series.field], name: item[names] })),
         label: {
           show: option.label,
         },
@@ -92,6 +111,7 @@ const TreemapChart = props => {
 
   return (
     <ReactECharts
+      theme={chartTheme}
       option={componentOption}
       style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}
       lazyUpdate={true}

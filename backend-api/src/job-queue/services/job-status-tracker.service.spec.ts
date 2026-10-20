@@ -1,495 +1,263 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { JobStatusTrackerService } from './job-status-tracker.service';
-import { QueueJob, JobStatus, JobType, JobPriority } from '../entities/queue-job.entity';
+import { QueueJob, JobStatus } from '../entities/queue-job.entity';
 import { JobStatusHistory } from '../entities/job-status-history.entity';
+import { Between, DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 
-describe('JobStatusTrackerService', () => {
+describe('JobStatusTrackerService supported contract', () => {
   let service: JobStatusTrackerService;
-  let jobRepository: jest.Mocked<Repository<QueueJob>>;
-  let jobStatusHistoryRepository: jest.Mocked<Repository<JobStatusHistory>>;
-
-  const mockJob: QueueJob = {
-    id: 'job-123',
-    jobType: JobType.QUERY_EXECUTION,
-    status: JobStatus.PENDING,
-    priority: JobPriority.NORMAL,
-    userId: 'user-123',
-    jobData: JSON.stringify({ query: 'SELECT * FROM users' }),
-    result: null,
-    errorMessage: null,
-    errorStack: null,
-    retryCount: 0,
-    maxRetries: 3,
-    progress: 0,
-    scheduledAt: null,
-    startedAt: null,
-    completedAt: null,
-    executionTimeMs: null,
-    estimatedTimeMs: 30000,
-    workerId: null,
-    metadata: null,
-    correlationId: null,
-    requiresNotification: false,
-    notificationEmail: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isCompleted: false,
-    isFailed: false,
-    isRunning: false,
-    canRetry: true,
-    jobDataParsed: { query: 'SELECT * FROM users' },
-    resultParsed: null,
-    metadataParsed: {},
-  };
-
-  const mockStatusHistory: JobStatusHistory = {
-    id: 'history-123',
-    jobId: 'job-123',
-    previousStatus: JobStatus.PENDING,
-    newStatus: JobStatus.RUNNING,
-    changedBy: 'worker-123',
-    reason: 'Job started processing',
-    metadata: JSON.stringify({ workerId: 'worker-123' }),
-    timestamp: new Date(),
-    job: mockJob,
-    metadataParsed: { workerId: 'worker-123' },
-  };
-
-  beforeEach(async () => {
-    const mockJobRepository = {
-      findOne: jest.fn(),
-      find: jest.fn(),
-    };
-
-    const mockJobStatusHistoryRepository = {
-      save: jest.fn(),
-      create: jest.fn(),
-      find: jest.fn(),
-      createQueryBuilder: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        JobStatusTrackerService,
-        {
-          provide: getRepositoryToken(QueueJob),
-          useValue: mockJobRepository,
-        },
-        {
-          provide: getRepositoryToken(JobStatusHistory),
-          useValue: mockJobStatusHistoryRepository,
-        },
-      ],
-    }).compile();
-
-    service = module.get<JobStatusTrackerService>(JobStatusTrackerService);
-    jobRepository = module.get(getRepositoryToken(QueueJob));
-    jobStatusHistoryRepository = module.get(getRepositoryToken(JobStatusHistory));
-
-    jest.clearAllMocks();
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
-  describe('recordStatusChange', () => {
-    it('should record status change successfully', async () => {
-      // Arrange
-      const previousStatus = JobStatus.PENDING;
-      const newStatus = JobStatus.RUNNING;
-      const changedBy = 'worker-123';
-      const reason = 'Job started processing';
-      const metadata = { workerId: 'worker-123', startTime: new Date() };
-
-      const createdHistory = { ...mockStatusHistory };
-      jobStatusHistoryRepository.create.mockReturnValue(createdHistory);
-      jobStatusHistoryRepository.save.mockResolvedValue(createdHistory);
-
-      // Act
-      await service.recordStatusChange(
-        mockJob.id,
-        previousStatus,
-        newStatus,
-        changedBy,
-        reason,
-        metadata,
-      );
-
-      // Assert
-      expect(jobStatusHistoryRepository.create).toHaveBeenCalledWith({
-        jobId: mockJob.id,
-        previousStatus,
-        newStatus,
-        changedBy,
-        reason,
-        metadata: JSON.stringify(metadata),
-        timestamp: expect.any(Date),
-      });
-      expect(jobStatusHistoryRepository.save).toHaveBeenCalledWith(createdHistory);
-    });
-
-    it('should handle metadata as undefined', async () => {
-      // Arrange
-      const previousStatus = JobStatus.PENDING;
-      const newStatus = JobStatus.RUNNING;
-      const changedBy = 'worker-123';
-
-      jobStatusHistoryRepository.create.mockReturnValue(mockStatusHistory);
-      jobStatusHistoryRepository.save.mockResolvedValue(mockStatusHistory);
-
-      // Act
-      await service.recordStatusChange(mockJob.id, previousStatus, newStatus, changedBy);
-
-      // Assert
-      expect(jobStatusHistoryRepository.create).toHaveBeenCalledWith({
-        jobId: mockJob.id,
-        previousStatus,
-        newStatus,
-        changedBy,
-        reason: undefined,
-        metadata: null,
-        timestamp: expect.any(Date),
-      });
-    });
-
-    it('should handle database save errors', async () => {
-      // Arrange
-      const error = new Error('Database save failed');
-      jobStatusHistoryRepository.create.mockReturnValue(mockStatusHistory);
-      jobStatusHistoryRepository.save.mockRejectedValue(error);
-
-      // Act & Assert
-      await expect(
-        service.recordStatusChange(mockJob.id, JobStatus.PENDING, JobStatus.RUNNING, 'worker-123'),
-      ).rejects.toThrow('Database save failed');
-    });
-  });
-
-  describe('getJobStatusHistory', () => {
-    it('should return paginated status history', async () => {
-      // Arrange
-      const jobId = 'job-123';
-      const limit = 10;
-      const mockHistory = [
-        { ...mockStatusHistory, id: 'history-1' },
-        { ...mockStatusHistory, id: 'history-2' },
-        { ...mockStatusHistory, id: 'history-3' },
-      ];
-
-      jobStatusHistoryRepository.find.mockResolvedValue(mockHistory);
-
-      // Act
-      const result = await service.getJobStatusHistory(jobId, limit);
-
-      // Assert
-      expect(jobStatusHistoryRepository.find).toHaveBeenCalledWith({
-        where: { jobId },
-        order: { timestamp: 'DESC' },
-        take: limit,
-      });
-      expect(result).toEqual(mockHistory);
-    });
-
-    it('should handle empty history', async () => {
-      // Arrange
-      const jobId = 'job-123';
-      jobStatusHistoryRepository.find.mockResolvedValue([]);
-
-      // Act
-      const result = await service.getJobStatusHistory(jobId);
-
-      // Assert
-      expect(result).toEqual([]);
-    });
-
-    it('should apply default limit when not specified', async () => {
-      // Arrange
-      const jobId = 'job-123';
-      jobStatusHistoryRepository.find.mockResolvedValue([]);
-
-      // Act
-      await service.getJobStatusHistory(jobId);
-
-      // Assert
-      expect(jobStatusHistoryRepository.find).toHaveBeenCalledWith({
-        where: { jobId },
-        order: { timestamp: 'DESC' },
-        take: 50, // default limit
-      });
-    });
-  });
-
-  describe('getStatusStatistics', () => {
-    it('should return status statistics for time range', async () => {
-      // Arrange
-      const hours = 24;
-      const mockQueryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
+  let history: jest.Mocked<
+    Pick<Repository<JobStatusHistory>, 'save' | 'find' | 'createQueryBuilder'>
+  >;
+  let jobs: jest.Mocked<
+    Pick<Repository<QueueJob>, 'findOne' | 'find' | 'update' | 'createQueryBuilder'>
+  >;
+  let query: SelectQueryBuilder<JobStatusHistory> & { getMany: jest.Mock; execute: jest.Mock };
+  let counts: SelectQueryBuilder<QueueJob> & { getRawMany: jest.Mock };
+  const now = new Date('2026-10-20T01:00:00Z');
+  const change = (overrides: Partial<JobStatusHistory> = {}) =>
+    Object.assign(
+      new JobStatusHistory(),
+      {
+        id: 'change',
+        jobId: 'job',
+        status: JobStatus.COMPLETED,
+        previousStatus: JobStatus.RUNNING,
+        executionTimeMs: 1000,
+        createdAt: now,
+      },
+      overrides,
+    );
+  beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['performance'] });
+    jest.setSystemTime(now);
+    query = Object.assign(
+      new SelectQueryBuilder<JobStatusHistory>(
+        new DataSource({ type: 'sqlite', database: ':memory:' }),
+      ),
+      {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
-          { newStatus: JobStatus.COMPLETED, count: '15' },
-          { newStatus: JobStatus.FAILED, count: '3' },
-          { newStatus: JobStatus.RUNNING, count: '5' },
-        ]),
-      };
-
-      jobStatusHistoryRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
-
-      // Act
-      const result = await service.getStatusStatistics(hours);
-
-      // Assert
-      expect(mockQueryBuilder.select).toHaveBeenCalledWith('history.newStatus', 'newStatus');
-      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith('COUNT(*)', 'count');
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith('history.timestamp >= :fromDate', {
-        fromDate: expect.any(Date),
-      });
-      expect(mockQueryBuilder.groupBy).toHaveBeenCalledWith('history.newStatus');
-
-      expect(result).toEqual({
-        [JobStatus.COMPLETED]: 15,
-        [JobStatus.FAILED]: 3,
-        [JobStatus.RUNNING]: 5,
-      });
-    });
-
-    it('should handle empty statistics', async () => {
-      // Arrange
-      const mockQueryBuilder = {
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+        delete: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 3 }),
+      },
+    );
+    counts = Object.assign(
+      new SelectQueryBuilder<QueueJob>(new DataSource({ type: 'sqlite', database: ':memory:' })),
+      {
         select: jest.fn().mockReturnThis(),
         addSelect: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
         groupBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue([]),
-      };
-
-      jobStatusHistoryRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
-
-      // Act
-      const result = await service.getStatusStatistics(24);
-
-      // Assert
-      expect(result).toEqual({});
-    });
+      },
+    );
+    history = {
+      save: jest.fn(),
+      find: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(query),
+    };
+    jobs = {
+      findOne: jest.fn(),
+      find: jest.fn(),
+      update: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(counts),
+    };
+    service = new JobStatusTrackerService(
+      history as unknown as Repository<JobStatusHistory>,
+      jobs as unknown as Repository<QueueJob>,
+    );
   });
-
-  describe('getJobTransitionHistory', () => {
-    it('should return job transition timeline', async () => {
-      // Arrange
-      const jobId = 'job-123';
-      const mockTransitions = [
-        {
-          ...mockStatusHistory,
-          previousStatus: JobStatus.PENDING,
-          newStatus: JobStatus.RUNNING,
-          timestamp: new Date('2024-01-01T10:00:00Z'),
-        },
-        {
-          ...mockStatusHistory,
-          previousStatus: JobStatus.RUNNING,
-          newStatus: JobStatus.COMPLETED,
-          timestamp: new Date('2024-01-01T10:05:00Z'),
-        },
-      ];
-
-      jobStatusHistoryRepository.find.mockResolvedValue(mockTransitions);
-
-      // Act
-      const result = await service.getJobTransitionHistory(jobId);
-
-      // Assert
-      expect(jobStatusHistoryRepository.find).toHaveBeenCalledWith({
-        where: { jobId },
-        order: { timestamp: 'ASC' },
-      });
-      expect(result).toEqual(mockTransitions);
-    });
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
   });
-
-  describe('getFailureAnalysis', () => {
-    it('should analyze failure patterns', async () => {
-      // Arrange
-      const days = 7;
-      const mockQueryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        innerJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
-          {
-            reason: 'Database connection failed',
-            count: '5',
-            jobType: JobType.QUERY_EXECUTION,
-          },
-          {
-            reason: 'Query timeout',
-            count: '3',
-            jobType: JobType.BULK_DATA_EXPORT,
-          },
-        ]),
-      };
-
-      jobStatusHistoryRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
-
-      // Act
-      const result = await service.getFailureAnalysis(days);
-
-      // Assert
-      expect(mockQueryBuilder.select).toHaveBeenCalledWith('history.reason', 'reason');
-      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith('COUNT(*)', 'count');
-      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith('job.jobType', 'jobType');
-      expect(mockQueryBuilder.innerJoin).toHaveBeenCalledWith('history.job', 'job');
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith('history.newStatus = :status', {
+  it('persists a real history entity and then exposes its event with details and actor separated', async () => {
+    await service.recordStatusChange(
+      'job',
+      JobStatus.RUNNING,
+      JobStatus.PENDING,
+      'Picked up',
+      { workerId: 'worker' },
+      'actor',
+      25,
+    );
+    expect(history.save).toHaveBeenCalledWith(expect.any(JobStatusHistory));
+    const saved = history.save.mock.calls[0][0];
+    expect(saved).toMatchObject({
+      jobId: 'job',
+      status: JobStatus.RUNNING,
+      previousStatus: JobStatus.PENDING,
+      details: '{"workerId":"worker"}',
+      changedBy: 'actor',
+      progress: 25,
+      createdAt: now,
+    });
+    expect(service.getRecentStatusEvents()).toEqual([
+      {
+        jobId: 'job',
+        status: JobStatus.RUNNING,
+        previousStatus: JobStatus.PENDING,
+        reason: 'Picked up',
+        details: { workerId: 'worker' },
+        changedBy: 'actor',
+        timestamp: now,
+      },
+    ]);
+  });
+  it('propagates persistence failure without adding a successful memory event', async () => {
+    history.save.mockRejectedValue(new Error('offline'));
+    await expect(service.recordStatusChange('job', JobStatus.RUNNING)).rejects.toThrow('offline');
+    expect(service.getRecentStatusEvents()).toEqual([]);
+  });
+  it('returns newest-first bounded and per-job memory events', async () => {
+    await service.recordStatusChange('a', JobStatus.PENDING);
+    await service.recordStatusChange('b', JobStatus.RUNNING);
+    await service.recordStatusChange('a', JobStatus.COMPLETED);
+    expect(service.getRecentStatusEvents(2).map(e => e.jobId)).toEqual(['a', 'b']);
+    expect(service.getJobStatusEvents('a', 1).map(e => e.status)).toEqual([JobStatus.COMPLETED]);
+  });
+  it('bounds its retained event stream at 1000 events', async () => {
+    for (let i = 0; i < 1002; i++) await service.recordStatusChange(String(i), JobStatus.PENDING);
+    const events = service.getRecentStatusEvents(2000);
+    expect(events).toHaveLength(1000);
+    expect(events[0].jobId).toBe('1001');
+    expect(events.at(-1).jobId).toBe('2');
+  });
+  it('reads bounded history from the repository and propagates failures', async () => {
+    history.find.mockResolvedValue([change()]);
+    expect(await service.getJobStatusHistory('job', 10)).toEqual([change()]);
+    expect(history.find).toHaveBeenCalledWith({
+      where: { jobId: 'job' },
+      order: { createdAt: 'DESC' },
+      take: 10,
+    });
+    history.find.mockRejectedValue(new Error('offline'));
+    await expect(service.getJobStatusHistory('job')).rejects.toThrow('offline');
+  });
+  it('records changed progress using the current argument order before updating the job', async () => {
+    jobs.findOne.mockResolvedValue(
+      Object.assign(new QueueJob(), { id: 'job', status: JobStatus.RUNNING, progress: 20 }),
+    );
+    await service.trackJobProgress('job', 50, { workerId: 'w' }, 'actor');
+    expect(history.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: JobStatus.RUNNING,
+        previousStatus: JobStatus.RUNNING,
+        changedBy: 'actor',
+        progress: 50,
+        details: JSON.stringify({ workerId: 'w', progressChange: { from: 20, to: 50 } }),
+      }),
+    );
+    expect(jobs.update).toHaveBeenCalledWith('job', { progress: 50, updatedAt: now });
+  });
+  it('does not record unchanged progress', async () => {
+    jobs.findOne.mockResolvedValue(Object.assign(new QueueJob(), { progress: 20 }));
+    await service.trackJobProgress('job', 20);
+    expect(history.save).not.toHaveBeenCalled();
+    expect(jobs.update).not.toHaveBeenCalled();
+  });
+  it('rejects progress for missing jobs and propagates update failures', async () => {
+    jobs.findOne.mockResolvedValue(null);
+    await expect(service.trackJobProgress('missing', 10)).rejects.toThrow('Job not found');
+    jobs.findOne.mockResolvedValue(
+      Object.assign(new QueueJob(), { status: JobStatus.RUNNING, progress: 0 }),
+    );
+    jobs.update.mockRejectedValue(new Error('offline'));
+    await expect(service.trackJobProgress('job', 10)).rejects.toThrow('offline');
+  });
+  it('calculates status totals, hourly timeline and transition averages from real history rows', async () => {
+    query.getMany.mockResolvedValue([
+      change({ executionTimeMs: 1000 }),
+      change({ executionTimeMs: 3000 }),
+      change({
         status: JobStatus.FAILED,
-      });
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('history.timestamp >= :fromDate', {
-        fromDate: expect.any(Date),
-      });
-
-      expect(result).toEqual([
-        {
-          reason: 'Database connection failed',
-          count: 5,
-          jobType: JobType.QUERY_EXECUTION,
-        },
-        {
-          reason: 'Query timeout',
-          count: 3,
-          jobType: JobType.BULK_DATA_EXPORT,
-        },
-      ]);
+        previousStatus: JobStatus.RUNNING,
+        executionTimeMs: 5000,
+      }),
+    ]);
+    const start = new Date(now.getTime() - 3600000);
+    const result = await service.getStatusChangeStatistics(start, now, ['job']);
+    expect(result.totalChanges).toBe(3);
+    expect(result.statusBreakdown[JobStatus.COMPLETED]).toBe(2);
+    expect(result.timelineData).toHaveLength(1);
+    expect(result.timelineData[0].hour).toBe('2026-10-20T01:00:00Z');
+    expect(result.averageProgressTime).toEqual({
+      'running->completed': 2000,
+      'running->failed': 5000,
+    });
+    expect(query.andWhere).toHaveBeenCalledWith('history.jobId IN (:...jobIds)', {
+      jobIds: ['job'],
     });
   });
-
-  describe('getStatusChangeFrequency', () => {
-    it('should calculate status change frequency', async () => {
-      // Arrange
-      const jobId = 'job-123';
-      const mockHistory = [
-        {
-          ...mockStatusHistory,
-          previousStatus: JobStatus.PENDING,
-          newStatus: JobStatus.RUNNING,
-          timestamp: new Date('2024-01-01T10:00:00Z'),
-        },
-        {
-          ...mockStatusHistory,
-          previousStatus: JobStatus.RUNNING,
-          newStatus: JobStatus.FAILED,
-          timestamp: new Date('2024-01-01T10:03:00Z'),
-        },
-        {
-          ...mockStatusHistory,
-          previousStatus: JobStatus.FAILED,
-          newStatus: JobStatus.RETRY,
-          timestamp: new Date('2024-01-01T10:05:00Z'),
-        },
-        {
-          ...mockStatusHistory,
-          previousStatus: JobStatus.RETRY,
-          newStatus: JobStatus.RUNNING,
-          timestamp: new Date('2024-01-01T10:07:00Z'),
-        },
-        {
-          ...mockStatusHistory,
-          previousStatus: JobStatus.RUNNING,
-          newStatus: JobStatus.COMPLETED,
-          timestamp: new Date('2024-01-01T10:12:00Z'),
-        },
-      ];
-
-      jobStatusHistoryRepository.find.mockResolvedValue(mockHistory);
-
-      // Act
-      const result = await service.getStatusChangeFrequency(jobId);
-
-      // Assert
-      expect(result).toEqual({
-        totalChanges: 5,
-        averageTimeBetweenChanges: expect.any(Number),
-        transitions: {
-          [`${JobStatus.PENDING}->${JobStatus.RUNNING}`]: 1,
-          [`${JobStatus.RUNNING}->${JobStatus.FAILED}`]: 1,
-          [`${JobStatus.FAILED}->${JobStatus.RETRY}`]: 1,
-          [`${JobStatus.RETRY}->${JobStatus.RUNNING}`]: 1,
-          [`${JobStatus.RUNNING}->${JobStatus.COMPLETED}`]: 1,
-        },
-        timeline: mockHistory,
-      });
+  it('returns zero samples and propagates history-statistics query failure', async () => {
+    expect(await service.getStatusChangeStatistics(now, now)).toMatchObject({
+      totalChanges: 0,
+      timelineData: [],
+      averageProgressTime: {},
     });
-
-    it('should handle single status change', async () => {
-      // Arrange
-      const jobId = 'job-123';
-      const singleHistory = [mockStatusHistory];
-
-      jobStatusHistoryRepository.find.mockResolvedValue(singleHistory);
-
-      // Act
-      const result = await service.getStatusChangeFrequency(jobId);
-
-      // Assert
-      expect(result.totalChanges).toBe(1);
-      expect(result.averageTimeBetweenChanges).toBe(0);
-    });
+    query.getMany.mockRejectedValue(new Error('offline'));
+    await expect(service.getStatusChangeStatistics(now, now)).rejects.toThrow('offline');
   });
-
-  describe('error handling', () => {
-    it('should handle repository errors gracefully', async () => {
-      // Arrange
-      const error = new Error('Database connection failed');
-      jobStatusHistoryRepository.find.mockRejectedValue(error);
-
-      // Act & Assert
-      await expect(service.getJobStatusHistory('job-123')).rejects.toThrow(
-        'Database connection failed',
-      );
+  it('converts grouped database counts and fills missing statuses with zero', async () => {
+    counts.getRawMany.mockResolvedValue([
+      { status: JobStatus.PENDING, count: '3' },
+      { status: JobStatus.FAILED, count: '2' },
+    ]);
+    expect(await service.getJobCountsByStatus()).toEqual({
+      pending: 3,
+      running: 0,
+      completed: 0,
+      failed: 2,
+      cancelled: 0,
+      retry: 0,
     });
-
-    it('should handle query builder errors', async () => {
-      // Arrange
-      const error = new Error('Query execution failed');
-      const mockQueryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockRejectedValue(error),
-      };
-
-      jobStatusHistoryRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
-
-      // Act & Assert
-      await expect(service.getStatusStatistics(24)).rejects.toThrow('Query execution failed');
-    });
+    counts.getRawMany.mockRejectedValue(new Error('offline'));
+    await expect(service.getJobCountsByStatus()).rejects.toThrow('offline');
   });
-
-  describe('performance', () => {
-    it('should limit history results to prevent memory issues', async () => {
-      // Arrange
-      const jobId = 'job-123';
-      const largeLimit = 10000;
-
-      // Act
-      await service.getJobStatusHistory(jobId, largeLimit);
-
-      // Assert
-      expect(jobStatusHistoryRepository.find).toHaveBeenCalledWith({
-        where: { jobId },
-        order: { timestamp: 'DESC' },
-        take: 1000, // Should be capped at maximum limit
-      });
+  it('uses the existing Between threshold and returns long-running entities unchanged', async () => {
+    const long = Object.assign(new QueueJob(), { id: 'long', status: JobStatus.RUNNING });
+    jobs.find.mockResolvedValue([long]);
+    expect(await service.getLongRunningJobs(30)).toEqual([long]);
+    expect(jobs.find).toHaveBeenCalledWith({
+      where: {
+        status: JobStatus.RUNNING,
+        startedAt: Between(new Date(0), new Date(now.getTime() - 1800000)),
+      },
+      order: { startedAt: 'ASC' },
     });
+    jobs.find.mockRejectedValue(new Error('offline'));
+    await expect(service.getLongRunningJobs()).rejects.toThrow('offline');
+  });
+  it('analyzes transition durations with supported slow-transition recommendations', async () => {
+    query.getMany.mockResolvedValue([
+      change({ executionTimeMs: 400000 }),
+      change({ executionTimeMs: 600000 }),
+    ]);
+    expect(await service.analyzeStatusTransitionTimes(['job'])).toEqual({
+      transitions: [
+        {
+          fromStatus: JobStatus.RUNNING,
+          toStatus: JobStatus.COMPLETED,
+          averageTimeMs: 500000,
+          minTimeMs: 400000,
+          maxTimeMs: 600000,
+          count: 2,
+        },
+      ],
+      recommendations: [expect.stringContaining('500초')],
+    });
+    query.getMany.mockRejectedValue(new Error('offline'));
+    await expect(service.analyzeStatusTransitionTimes()).rejects.toThrow('offline');
+  });
+  it('deletes only history before the requested retention cutoff and reports affected rows', async () => {
+    expect(await service.cleanupOldStatusHistory(10)).toBe(3);
+    expect(query.where).toHaveBeenCalledWith('createdAt < :cutoffDate', {
+      cutoffDate: new Date(now.getTime() - 10 * 86400000),
+    });
+    query.execute.mockResolvedValue({ affected: undefined });
+    expect(await service.cleanupOldStatusHistory()).toBe(0);
+    query.execute.mockRejectedValue(new Error('offline'));
+    await expect(service.cleanupOldStatusHistory()).rejects.toThrow('offline');
   });
 });

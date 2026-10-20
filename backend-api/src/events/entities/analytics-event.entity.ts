@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { EventSession } from './event-session.entity';
 
-@Entity('analytics_events')
+@Entity('client_analytics_events')
 @Index(['userId', 'createdAt'])
 @Index(['action', 'category'])
 @Index(['sessionId'])

@@ -1,0 +1,7 @@
+type: explore
+metrics_view: orders_correction_base_metrics
+display_name: VM correction base
+dimensions: '*'
+measures: '*'
+time_ranges:
+  - inf

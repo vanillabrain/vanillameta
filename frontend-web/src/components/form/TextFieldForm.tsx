@@ -1,8 +1,27 @@
-import React, { useState } from 'react';
-import { Box, FormControl, FormLabel, OutlinedInput, Stack } from '@mui/material';
+import React, { useId, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Field, FieldContent, FieldLabel } from '@/components/ui/field';
+import { cn } from '@/lib/utils';
 
 function TextFieldForm(props) {
-  const { id, label, type, name, value, endButton, required, onChange, ...rest } = props;
+  const {
+    id,
+    label,
+    type = 'text',
+    name,
+    value,
+    endButton,
+    required,
+    onChange,
+    inputProps,
+    className,
+    multiline,
+    rows,
+    ...rest
+  } = props;
+  const generatedId = useId();
+  const controlId = id ?? generatedId;
 
   const [text, setText] = useState(value);
   const handleChange = event => {
@@ -11,30 +30,40 @@ function TextFieldForm(props) {
   };
 
   return (
-    <FormControl
-      fullWidth
-      required={required}
-      sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-    >
-      <FormLabel htmlFor={id} sx={{ width: '35%' }}>
+    <Field orientation="horizontal" className={cn('items-center gap-2', className)}>
+      <FieldLabel htmlFor={controlId} className="w-[35%] flex-none truncate">
         {label}
-      </FormLabel>
-      <Stack flexDirection="row" justifyContent="space-between" alignItems="center" sx={{ width: '65%' }}>
-        <OutlinedInput
-          id={id}
-          type={type}
-          name={name}
-          value={text}
-          margin="dense"
-          onChange={handleChange}
-          fullWidth
-          sx={endButton ? { width: 'calc(100% - 38px)', flexShrink: 1 } : { width: '100%' }}
-          {...rest}
-        />
-        {/*<FormHelperText>{helperText}</FormHelperText>*/}
-        {!!endButton ? <Box sx={{ width: '38px', ml: 1 }}>{endButton}</Box> : ''}
-      </Stack>
-    </FormControl>
+        {required && <span aria-hidden="true"> *</span>}
+      </FieldLabel>
+      <FieldContent className="flex min-w-0 flex-1 flex-row items-center justify-between">
+        {multiline ? (
+          <Textarea
+            id={controlId}
+            name={name}
+            value={text}
+            required={required}
+            rows={typeof rows === 'number' ? rows : 3}
+            onChange={handleChange}
+            className={cn('h-auto bg-background', endButton ? 'w-[calc(100%-38px)] shrink' : 'w-full')}
+            {...inputProps}
+            {...rest}
+          />
+        ) : (
+          <Input
+            id={controlId}
+            type={type}
+            name={name}
+            value={text}
+            required={required}
+            onChange={handleChange}
+            className={cn('h-8 bg-background', endButton ? 'w-[calc(100%-38px)] shrink' : 'w-full')}
+            {...inputProps}
+            {...rest}
+          />
+        )}
+        {!!endButton ? <div className="ml-1 w-[38px]">{endButton}</div> : null}
+      </FieldContent>
+    </Field>
   );
 }
 

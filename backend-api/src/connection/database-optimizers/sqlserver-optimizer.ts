@@ -121,7 +121,7 @@ export class SqlServerOptimizer extends BaseDatabaseOptimizer {
       pool: {
         ...poolConfig,
         // SQL Server 특정 풀 설정
-        afterCreate: async (conn: any, done: Function) => {
+        afterCreate: async (conn: any, done: (error: unknown, connection: any) => void) => {
           try {
             // 세션 최적화 설정
             const optimizations = [

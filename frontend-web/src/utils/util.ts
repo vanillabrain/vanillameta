@@ -34,17 +34,8 @@ export const dateData = data => {
  * @param data
  */
 export const createColumns = data => {
-  let target = null;
-  if (data instanceof Array && data.length > 0) {
-    target = data[0];
-  } else if (data instanceof Object && !(data instanceof Array)) {
-    target = data;
-  }
-
-  if (!target) {
-    throw new Error('Cannot create columns from empty data');
-  }
-
+  const target = Array.isArray(data) ? data[0] : data;
+  if (target == null || typeof target !== 'object') return [];
   return Object.keys(target).map(key => {
     return { name: key, header: key, minWidth: 200, sortable: true };
   });

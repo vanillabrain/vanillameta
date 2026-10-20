@@ -1,4 +1,4 @@
-import { Module, Scope } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Database } from '../database/entities/database.entity';
 import { ConnectionService } from './connection.service';
@@ -18,14 +18,7 @@ import { DatabaseOptimizersModule } from './database-optimizers';
     MonitoringModule,
     DatabaseOptimizersModule,
   ],
-  providers: [
-    {
-      provide: ConnectionService,
-      useClass: ConnectionService,
-      scope: Scope.REQUEST,
-    },
-    QueryCollector,
-  ],
+  providers: [ConnectionService],
   exports: [ConnectionService],
 })
 export class ConnectionModule {}

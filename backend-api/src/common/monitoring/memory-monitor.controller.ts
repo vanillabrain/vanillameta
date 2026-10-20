@@ -1,6 +1,6 @@
 import { Controller, Get, Post, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from '../../auth/guards/legacy-operations.guard';
 import { MemoryMonitorService } from './memory-monitor.service';
 import { MemoryMonitorMiddleware } from './memory-monitor.middleware';
 import * as fs from 'fs';
@@ -9,7 +9,7 @@ import { promisify } from 'util';
 const readFile = promisify(fs.readFile);
 
 @ApiTags('System Monitoring')
-@UseGuards(JwtAuthGuard)
+@UseGuards(LegacyOperationsGuard)
 @ApiBearerAuth()
 @Controller('system/memory')
 export class MemoryMonitorController {

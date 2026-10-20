@@ -1,10 +1,6 @@
-<<<<<<< HEAD
-import { MigrationInterface, QueryRunner, TableIndex } from 'typeorm';
-=======
-// Temporarily disabled for local development
+// Historical index migration remains disabled; preserve its original implementation below.
 /*
-import { MigrationInterface, QueryRunner, Index } from 'typeorm';
->>>>>>> task/T001
+import { MigrationInterface, QueryRunner, TableIndex } from 'typeorm';
 
 export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {

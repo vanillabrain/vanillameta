@@ -1,8 +1,10 @@
 import React from 'react';
-import { Stack, TextField } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { TextField } from '@/components/ui/text-field';
 import SubmitButton from '@/components/button/SubmitButton';
 
 const DatabaseForm = props => {
+  const { t } = useTranslation();
   const { testConnect, formData, setFormData } = props;
   const handleSubmit = data => {
     data.preventDefault();
@@ -26,41 +28,34 @@ const DatabaseForm = props => {
   };
 
   return (
-    <Stack component="form" sx={{ maxWidth: '800px', width: '100%', mx: 'auto', mt: 3 }} onSubmit={handleSubmit}>
-      <Stack sx={{ display: 'flex', justifyContent: 'space-between' }} spacing="20px">
-        <TextField label="이름" name="name" value={formData?.name || ''} required fullWidth onChange={handleNameChange} />
+    <form
+      className="mx-auto w-full max-w-[560px] rounded-lg border border-border bg-background p-5 sm:p-6"
+      onSubmit={handleSubmit}
+    >
+      <div className="flex flex-col gap-4">
         <TextField
-          label="Host"
-          name="host"
-          value={formData?.default?.host || ''}
+          label={t('settings.name')}
+          name="name"
+          value={formData?.name || ''}
           required
-          fullWidth
-          onChange={handleChange}
+          onChange={handleNameChange}
         />
+        <TextField label="Host" name="host" value={formData?.default?.host || ''} required onChange={handleChange} />
         <TextField
           label="Port"
           name="port"
           type="number"
           value={formData?.default?.port || ''}
           required
-          fullWidth
           onChange={handleChange}
         />
-        <TextField
-          label="User"
-          name="user"
-          value={formData?.default?.user || ''}
-          required
-          fullWidth
-          onChange={handleChange}
-        />
+        <TextField label="User" name="user" value={formData?.default?.user || ''} required onChange={handleChange} />
         <TextField
           label="Password"
           name="password"
           type="password"
           value={formData?.default?.password || ''}
           required
-          fullWidth
           onChange={handleChange}
         />
         <TextField
@@ -68,12 +63,11 @@ const DatabaseForm = props => {
           name="database"
           value={formData?.default?.database || ''}
           required
-          fullWidth
           onChange={handleChange}
         />
-        <SubmitButton label="TEST CONNECT" type="submit" sx={{ height: '50px', fontSize: '13px' }} />
-      </Stack>
-    </Stack>
+        <SubmitButton label="TEST CONNECT" type="submit" />
+      </div>
+    </form>
   );
 };
 

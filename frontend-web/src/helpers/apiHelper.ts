@@ -1,41 +1,17 @@
-import axios, { InternalAxiosRequestConfig } from 'axios';
+import { editorDraftSessionEpoch, retainEditorDraftSession } from '@/helpers/editorDraftStorage';
+import axios from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
-import { trackError } from '@/utils/eventTracking';
-import { trackEvent } from '@/utils/analytics';
-
-// axios 요청 설정에 metadata 추가를 위한 인터페이스 확장
-interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
-  metadata?: {
-    startTime: number;
-    correlationId: string;
-  };
-}
-
-// Correlation ID 생성 함수
-const generateCorrelationId = (): string => {
-  // UUID v4 생성 (crypto.randomUUID가 있으면 사용, 없으면 Math.random 기반 생성)
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-
-  // 폴백: Math.random 기반 UUID v4 생성
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-};
+import { getSocketId } from '@/helpers/socket';
 
 // apply base url for axios
-import { getApiUrl } from '@/helpers/envHelper';
-
-const API_URL = getApiUrl();
+const API_URL = import.meta.env.REACT_APP_API_URL;
 
 const instance = axios.create({
   baseURL: API_URL,
   timeout: 10000,
+  withCredentials: true,
   // withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -44,43 +20,55 @@ let pendingRequests = {};
 let isLoginUser = true;
 // console.log('pendingRequests', pendingRequests);
 
-// 요청에 대한 unique key 생성 (현재 사용하지 않음)
-// const generateReqKey = config => {
-//   const { method, url, params, data } = config;
-//   return [method, url, JSON.stringify(params), JSON.stringify(data)].join('&');
-// };
+// 요청에 대한 unique key 생성
+const generateReqKey = config => {
+  const { method, url, params, data } = config;
+  return [method, url, JSON.stringify(params), JSON.stringify(data)].join('&');
+};
 
-// 진행중인 요청 저장 (현재 사용하지 않음)
-// const addPendingRequest = config => {
-//   const requestKey = generateReqKey(config);
-//   config.cancelToken =
-//     config.cancelToken ||
-//     new axios.CancelToken(cancel => {
-//       if (!pendingRequests[requestKey]) {
-//         pendingRequests[requestKey] = [];
-//       }
-//       pendingRequests[requestKey].push(cancel);
-//     });
-// };
+// 진행중인 요청 저장
+const addPendingRequest = config => {
+  const requestKey = generateReqKey(config);
+  config.cancelToken =
+    config.cancelToken ||
+    new axios.CancelToken(cancel => {
+      if (!pendingRequests[requestKey]) {
+        pendingRequests[requestKey] = [];
+      }
+      pendingRequests[requestKey].push(cancel);
+    });
+};
 
-// 저장된 요청 취소 (현재 사용하지 않음)
-// const removePendingRequest = config => {
-//   const requestKey = generateReqKey(config);
-//   if (pendingRequests[requestKey]) {
-//     pendingRequests[requestKey].forEach(cancel => {
-//       cancel('Request canceled due to new request.');
-//     });
-//     delete pendingRequests[requestKey];
-//   }
-// };
+// 저장된 요청 취소
+const removePendingRequest = config => {
+  const requestKey = generateReqKey(config);
+  if (pendingRequests[requestKey]) {
+    pendingRequests[requestKey].forEach(cancel => {
+      cancel('Request canceled due to new request.');
+    });
+    delete pendingRequests[requestKey];
+  }
+};
 
 // 토큰 정보 요청 header에 삽입
 const addAuthToHeaders = config => {
   const token = getToken();
   const shareToken = getShareToken();
 
-  if (token) {
+  const sharedWidgetRead =
+    shareToken &&
+    /^(?:\/share\/|\/embed\/)/.test(window.location.pathname) &&
+    config.method === 'get' &&
+    config.url.split('?')[0] === '/database/data';
+  if (sharedWidgetRead) {
+    isLoginUser = false;
+    config.headers['Authorization-url'] = `Bearer ${shareToken}`;
+    delete config.headers.Authorization;
+  } else if (token) {
+    isLoginUser = true;
     config.headers.Authorization = `Bearer ${token}`;
+    config._authEpoch = editorDraftSessionEpoch();
+    delete config.headers['Authorization-url'];
   } else if (shareToken && config.url.includes('/database')) {
     // token 없는 외부 사용자가 share url에 필요한 db api 호출을 할 때만 auth로 shareToken 보내기
     isLoginUser = false;
@@ -89,35 +77,29 @@ const addAuthToHeaders = config => {
   return config;
 };
 
-// Correlation ID를 요청 헤더에 추가
-const addCorrelationIdToHeaders = config => {
-  // 이미 correlation ID가 설정되어 있지 않은 경우에만 새로 생성
-  if (!config.headers['X-Correlation-ID'] && !config.headers['x-correlation-id']) {
-    config.headers['X-Correlation-ID'] = generateCorrelationId();
-  }
-  return config;
+// Keep main's correlation and timing metadata on each request (concurrent identical URLs stay independent).
+const recordApiPerformance = (config, status: number) => {
+  if (!config?.metadata || /^\/(?:v1\/)?events(?:\/|$)/.test(config.url || '')) return;
+  // Analytics remains governed by the existing persisted consent; never include private URLs or payloads.
+  if (localStorage.getItem('vanillameta_analytics_consent') !== 'true') return;
+  const duration = performance.now() - config.metadata.startTime;
+  void import('@/utils/analytics')
+    .then(({ trackTiming }) => {
+      trackTiming('api_response_time', duration, 'api_performance', `${config.method?.toUpperCase()} ${status}`);
+    })
+    .catch(() => undefined);
 };
-
-// API 성능 측정을 위한 시작 시간 기록
-const apiPerformanceMap = new Map<string, number>();
 
 // 요청 인터셉터
 instance.interceptors.request.use(async config => {
-  let newConfig = addAuthToHeaders(config);
-  newConfig = addCorrelationIdToHeaders(newConfig);
+  const newConfig = addAuthToHeaders(config);
+  newConfig.headers['X-Correlation-ID'] ||=
+    globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  newConfig.metadata = { startTime: performance.now(), correlationId: newConfig.headers['X-Correlation-ID'] };
+  const socketId = getSocketId();
+  if (socketId) newConfig.headers['x-socket-id'] = socketId;
   // removePendingRequest(newConfig); // 같은 요청이 갔을 경우 기존 요청 취소
   // addPendingRequest(newConfig);
-
-  // API 성능 측정 시작
-  const requestKey = `${config.method}-${config.url}`;
-  apiPerformanceMap.set(requestKey, performance.now());
-
-  // 요청 메타데이터 추가
-  (config as CustomAxiosRequestConfig).metadata = {
-    startTime: performance.now(),
-    correlationId: config.headers['X-Correlation-ID'] as string,
-  };
-
   return newConfig;
 });
 
@@ -131,145 +113,40 @@ export function cancelAllRequests() {
   pendingRequests = {};
 }
 
-let isAlreadyFetchingAccessToken = false;
-const subscribers: ((token: string) => void)[] = [];
+let refreshPromise: Promise<string> | null = null;
+
+const responseMessage = data => {
+  const candidate = typeof data === 'string' ? data : data?.message ?? data?.data;
+  if (typeof candidate === 'string') return candidate;
+  if (typeof candidate?.message === 'string') return candidate.message;
+  return undefined;
+};
 
 // 응답 인터셉터
 instance.interceptors.response.use(
   response => {
+    recordApiPerformance(response.config, response.status);
     // removePendingRequest(response.config); // 완료된 요청 삭제
-
-    // API 성능 측정 종료
-    const requestKey = `${response.config.method}-${response.config.url}`;
-    const startTime = apiPerformanceMap.get(requestKey);
-    if (startTime) {
-      const duration = performance.now() - startTime;
-      apiPerformanceMap.delete(requestKey);
-
-      // 성능 데이터 로깅
-      const perfData = {
-        method: response.config.method?.toUpperCase(),
-        url: response.config.url,
-        duration: duration.toFixed(2),
-        status: response.status,
-        correlationId: (response.config as CustomAxiosRequestConfig).metadata?.correlationId,
-      };
-
-      // 개발 환경에서는 콘솔에 출력
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`⚡ API Performance: ${perfData.method} ${perfData.url} - ${perfData.duration}ms`);
-      }
-
-      // 느린 API 요청 경고 (1초 이상)
-      if (duration > 1000) {
-        console.warn(`⚠️ Slow API detected: ${perfData.method} ${perfData.url} took ${perfData.duration}ms`);
-      }
-
-      // 프로덕션에서는 분석 도구로 전송
-      if (window.gtag && process.env.NODE_ENV === 'production') {
-        window.gtag('event', 'api_performance', {
-          method: perfData.method,
-          endpoint: perfData.url,
-          value: Math.round(duration),
-          event_category: 'performance',
-          api_status: perfData.status,
-        });
-      }
-
-      // 이벤트 추적 시스템으로도 전송
-      trackEvent(
-        'api_call',
-        'api_performance',
-        `${perfData.method}_${perfData.url}`,
-        Math.round(duration)
-      );
-    }
-
-    // 디버깅을 위해 correlation ID 로깅 (개발 환경에서만)
-    if (process.env.NODE_ENV === 'development') {
-      const correlationId = response.headers['x-correlation-id'] || response.headers['X-Correlation-ID'];
-      if (correlationId) {
-        console.log(
-          `[API Response] ${response.config.method?.toUpperCase()} ${
-            response.config.url
-          } - Correlation ID: ${correlationId}`,
-        );
-      }
-    }
-
     return response;
   },
   async error => {
     const { response: errorResponse } = error;
-
-    // 에러 응답에서도 API 성능 측정
-    if (error.config) {
-      const requestKey = `${error.config.method}-${error.config.url}`;
-      const startTime = apiPerformanceMap.get(requestKey);
-      if (startTime) {
-        const duration = performance.now() - startTime;
-        apiPerformanceMap.delete(requestKey);
-
-        const perfData = {
-          method: error.config.method?.toUpperCase(),
-          url: error.config.url,
-          duration: duration.toFixed(2),
-          status: errorResponse?.status || 'Network Error',
-          correlationId: error.config.metadata?.correlationId,
-          error: true,
-        };
-
-        // 에러 성능 로깅
-        if (process.env.NODE_ENV === 'development') {
-          console.error(
-            `❌ API Error Performance: ${perfData.method} ${perfData.url} - ${perfData.duration}ms (Status: ${perfData.status})`,
-          );
-        }
-
-        // 프로덕션에서 에러 성능 추적
-        if (window.gtag && process.env.NODE_ENV === 'production') {
-          window.gtag('event', 'api_error_performance', {
-            method: perfData.method,
-            endpoint: perfData.url,
-            value: Math.round(duration),
-            event_category: 'performance',
-            error_status: perfData.status,
-          });
-        }
-
-        // 이벤트 추적 시스템으로 에러 전송
-        trackError('api', `${perfData.method} ${perfData.url} - Status: ${perfData.status}`, {
-          method: perfData.method,
-          url: perfData.url,
-          status: perfData.status,
-          duration: duration,
-          correlationId: perfData.correlationId,
-          errorMessage: errorResponse?.data?.message || error.message,
-        });
-      }
-    }
-
-    // 에러 응답에서도 correlation ID 로깅 (개발 환경에서만)
-    if (process.env.NODE_ENV === 'development' && errorResponse) {
-      const correlationId =
-        errorResponse.headers?.['x-correlation-id'] ||
-        errorResponse.headers?.['X-Correlation-ID'] ||
-        errorResponse.data?.correlationId;
-      if (correlationId) {
-        console.error(
-          `[API Error] ${errorResponse.config?.method?.toUpperCase()} ${
-            errorResponse.config?.url
-          } - Correlation ID: ${correlationId}, Status: ${errorResponse.status}`,
-        );
-      }
-    }
-
-    if (errorResponse?.status === 401 && errorResponse?.data?.message === 'accessTokenExpired' && isLoginUser) {
+    recordApiPerformance(error.config, errorResponse?.status || 0);
+    const message = responseMessage(errorResponse?.data);
+    const requestConfig = error.config ?? errorResponse?.config;
+    if (
+      errorResponse?.status === 401 &&
+      message === 'accessTokenExpired' &&
+      isLoginUser &&
+      requestConfig &&
+      !requestConfig._retry &&
+      requestConfig.url !== '/user/get-access-token'
+    ) {
       // 로그인 사용자의 token 만료 후 첫 요청
-      await resetTokenAndReattemptRequest(errorResponse);
+      requestConfig._retry = true;
+      return await resetTokenAndReattemptRequest({ ...errorResponse, config: requestConfig });
     }
-    error.message =
-      (errorResponse && errorResponse?.data && errorResponse?.data?.message) || error?.message || error.toString();
+    error.message = message || error?.message || error.toString();
     return Promise.reject(error);
   },
 );
@@ -280,77 +157,93 @@ async function resetTokenAndReattemptRequest(errorResponse) {
   // access token을 받은 이후 onAccessTokenFetched가 호출될 때
   // access token을 넘겨 다시 axios로 요청하고
   // 결과값을 처음 요청했던 promise의 resolve로 settle시킨다.
-  try {
-    const retryOriginalRequest = new Promise((resolve, reject) => {
-      subscribers.push(async accessToken => {
-        try {
-          errorResponse.config.headers.Authorization = accessToken;
-          resolve(instance(errorResponse.config));
-        } catch (err) {
-          reject(err);
-        }
-      });
-    });
-
-    // refresh token을 이용해서 access token 요청
-    if (!isAlreadyFetchingAccessToken) {
-      isAlreadyFetchingAccessToken = true; // 문닫기 (한 번만 요청)
-
+  // refresh token을 이용해서 access token 요청
+  const requestEpoch = errorResponse.config._authEpoch;
+  if (editorDraftSessionEpoch() !== requestEpoch) throw new Error('Authentication changed. Retry the request.');
+  if (!refreshPromise) {
+    const previousToken = String(errorResponse.config.headers?.Authorization ?? '').replace(/^Bearer /, '');
+    const previousEpoch = requestEpoch;
+    const unchanged = () => getToken() === previousToken && editorDraftSessionEpoch() === previousEpoch;
+    const winner = () => {
+      const current = getToken();
+      return previousEpoch !== null && editorDraftSessionEpoch() === previousEpoch && current && current !== previousToken
+        ? current
+        : null;
+    };
+    let refreshStarted = false;
+    const renew = async () => {
+      const current = winner();
+      if (current) return current;
+      if (!unchanged()) throw new Error('Authentication changed while refreshing. Retry the request.');
+      refreshStarted = true;
       const { data } = await authService.refreshAccessToken();
-      // 새로운 토큰 저장
-      console.log('data', data);
-      const newAccessToken = data.accessToken;
-      setToken(newAccessToken);
-
-      isAlreadyFetchingAccessToken = false; // 문열기 (초기화)
-      onAccessTokenFetched(data.accessToken);
-    }
-    return retryOriginalRequest; // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve
-  } catch (error) {
-    console.log('error', error);
-    if (error.response.status === 401) {
-      // refresh token 만료
-      removeToken();
-    }
-    return Promise.reject(error);
+      const newAccessToken = data?.accessToken;
+      if (typeof newAccessToken !== 'string' || !newAccessToken.trim()) throw new Error('invalid refresh response');
+      if (!unchanged()) throw new Error('Authentication changed while refreshing. Retry the request.');
+      await retainEditorDraftSession(previousToken, newAccessToken, previousEpoch);
+      if (!unchanged()) throw new Error('Authentication changed while refreshing. Retry the request.');
+      setToken(newAccessToken, true);
+      return newAccessToken;
+    };
+    refreshPromise = (async () => {
+      if (typeof navigator === 'undefined' || !navigator.locks?.request) return renew();
+      // UC-029: coordinate only the auth renewal, never dashboard writes, across same-origin tabs.
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), 10000);
+      try {
+        return await navigator.locks.request('vm:auth-refresh:v1', { signal: abort.signal }, () => {
+          clearTimeout(timer);
+          return renew();
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+    })()
+      .catch(error => {
+        const current = winner();
+        if (current) return current;
+        // Lock acquisition failure must not destroy a valid session or its unsaved drafts.
+        // UC-030: transport/server failures leave the session and draft retryable.
+        const refreshStatus = error?.response?.status;
+        if (refreshStarted && (refreshStatus === 401 || refreshStatus === 403) && unchanged()) {
+          removeToken();
+          window.location.assign('/login');
+        }
+        throw error;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
   }
+  const accessToken = await refreshPromise;
+  if (editorDraftSessionEpoch() !== requestEpoch) throw new Error('Authentication changed. Retry the request.');
+  errorResponse.config.headers = errorResponse.config.headers || {};
+  errorResponse.config.headers.Authorization = `Bearer ${accessToken}`;
+  return instance(errorResponse.config); // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve
 }
 
-function onAccessTokenFetched(accessToken) {
-  subscribers.forEach(callback => callback(accessToken));
-  subscribers.length = 0;
+export async function get(url, data?, config = {}): Promise<any> {
+  return instance.get(url, { params: { ...data }, ...config });
 }
 
-export async function get<T = any>(url: string, data?: any, config = {}): Promise<T> {
-  const response = await instance.get(url, { params: { ...data }, ...config });
-  return response.data;
+export async function postForm(url, data: FormData, config = {}): Promise<any> {
+  return instance.post(url, data, { ...config, headers: { 'Content-Type': undefined } });
 }
 
-export async function post<T = any>(url: string, data?: any, config = {}): Promise<T> {
-  const response = await instance.post(url, { ...data }, { ...config });
-  return response.data;
+export async function post(url, data?, config = {}): Promise<any> {
+  return instance.post(url, { ...data }, { ...config });
 }
 
-export async function put<T = any>(url: string, data?: any, config = {}): Promise<T> {
-  const response = await instance.put(url, { ...data }, { ...config });
-  return response.data;
+export async function put(url, data?, config = {}): Promise<any> {
+  return instance.put(url, { ...data }, { ...config });
 }
 
-export async function del<T = any>(url: string, config = {}): Promise<T> {
-  const response = await instance.delete(url, { ...config });
-  return response.data;
+export async function del(url, config = {}): Promise<any> {
+  return instance.delete(url, { ...config });
 }
 
-export async function patch<T = any>(url: string, data?: any, config = {}): Promise<T> {
-  const response = await instance.patch(url, { ...data }, { ...config });
-  return response.data;
-}
-
-// 타입 선언
-declare global {
-  interface Window {
-    gtag: (...args: any[]) => void;
-  }
+export async function patch(url, data?, config = {}): Promise<any> {
+  return instance.patch(url, { ...data }, { ...config });
 }
 
 export default instance;

@@ -240,7 +240,7 @@ export class EventsService {
           queryBuilder.andWhere(
             `event.userId IN (
               SELECT DISTINCT e2.userId 
-              FROM analytics_events e2 
+              FROM client_analytics_events e2
               WHERE e2.action IN (:...previousSteps)
               AND e2.createdAt BETWEEN :start AND :end
               GROUP BY e2.userId

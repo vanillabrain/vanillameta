@@ -5,6 +5,7 @@ import {
 } from './database-specific-optimization.service';
 import { CustomLoggerService } from '../logger/logger.service';
 import * as crypto from 'crypto';
+import { serialize } from 'v8';
 import { LRUCache } from 'lru-cache';
 
 export interface CacheEntry {
@@ -300,12 +301,10 @@ export class QueryCacheService implements OnModuleDestroy {
   /**
    * 쿼리 해시 생성
    */
-  private generateQueryHash(query: string, parameters?: any[]): string {
-    const normalizedQuery = query.trim().toLowerCase().replace(/\s+/g, ' ');
-    const paramString = parameters ? JSON.stringify(parameters) : '';
+  private generateQueryHash(query: string, parameters?: any[], sourceIdentity?: string): string {
     return crypto
       .createHash('sha256')
-      .update(normalizedQuery + paramString)
+      .update(serialize([sourceIdentity, query, parameters]))
       .digest('hex');
   }
 
@@ -316,13 +315,14 @@ export class QueryCacheService implements OnModuleDestroy {
     engine: string,
     query: string,
     parameters?: any[],
+    sourceIdentity?: string,
   ): Promise<{ data: any; fields: any[] } | null> {
     this.initializeCacheForEngine(engine);
 
     const cache = this.caches.get(engine);
     if (!cache) return null;
 
-    const queryHash = this.generateQueryHash(query, parameters);
+    const queryHash = this.generateQueryHash(query, parameters, sourceIdentity);
     const entry = cache.get(queryHash);
 
     if (entry) {
@@ -365,6 +365,7 @@ export class QueryCacheService implements OnModuleDestroy {
     data: any,
     fields: any[],
     parameters?: any[],
+    sourceIdentity?: string,
   ): Promise<void> {
     this.initializeCacheForEngine(engine);
 
@@ -387,7 +388,7 @@ export class QueryCacheService implements OnModuleDestroy {
       return;
     }
 
-    const queryHash = this.generateQueryHash(query, parameters);
+    const queryHash = this.generateQueryHash(query, parameters, sourceIdentity);
     const entry: CacheEntry = {
       data,
       fields,

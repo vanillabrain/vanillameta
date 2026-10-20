@@ -1,0 +1,24 @@
+{
+  "id": "ae-commerce-demo-v1",
+  "source": "https://www.analyticsengineering.com/datasets/ecommerce-sales",
+  "license": "CC BY 4.0",
+  "synthetic": true,
+  "selection": "First32 normal orders plus orders referenced by first8 normal refunds; all related rows retained; original values unchanged",
+  "rows": {
+    "orders": 37,
+    "payments": 40,
+    "refunds": 8,
+    "customers": 37
+  },
+  "oracle": {
+    "sales": "20994.61",
+    "refund": "4457.60",
+    "net": "16537.01"
+  },
+  "sha256": {
+    "orders": "03ff7b1d43aca247a6d61a863179eec807c55569497f3e0ee87a97314ccabeea",
+    "payments": "71c9e78ce657fe7a58a0e89bf6fbcc19d8e4e50bf54084c62affd53a6d489c91",
+    "refunds": "63a1b5562d014f2e72ae6244b18032a838cf4aff1be9a1aadf590f59a70cae2a",
+    "customers": "262bc5d2fab780875cc8fac94ac9eaaa0eeb87c8a0ee8042fc870bf0cfedb82f"
+  }
+}

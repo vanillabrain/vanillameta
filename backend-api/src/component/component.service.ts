@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { CreateComponentDto } from './dto/create-component.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Component } from './entities/component.entity';
@@ -15,7 +15,7 @@ export class ComponentService {
   constructor(
     @InjectRepository(Component)
     private componentRepository: Repository<Component>,
-    private readonly cacheService: HybridCacheService,
+    @Optional() private readonly cacheService?: HybridCacheService,
   ) {}
 
   async multipleCreate(createComponents: CreateComponentDto[]) {
@@ -31,7 +31,7 @@ export class ComponentService {
       where: { type: createComponent.type },
     });
     if (find_component) {
-      return 'exist same widget';
+      throw new ConflictException('exist same widget');
     } else {
       const saveObj: CreateComponentDto = new CreateComponentDto();
       saveObj.type = createComponent.type;
@@ -47,7 +47,7 @@ export class ComponentService {
       const result = await this.componentRepository.save(saveObj);
 
       // 캐시 무효화
-      await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
+      await this.cacheService?.invalidateByEngine(this.CACHE_KEY_PREFIX);
 
       return result;
     }
@@ -55,7 +55,7 @@ export class ComponentService {
 
   async findAll() {
     const cacheKey = 'findAll';
-    const cachedResult = await this.cacheService.get(this.CACHE_KEY_PREFIX, 'static', cacheKey);
+    const cachedResult = await this.cacheService?.get(this.CACHE_KEY_PREFIX, 'static', cacheKey);
 
     if (cachedResult) {
       return cachedResult.data;
@@ -81,7 +81,7 @@ export class ComponentService {
     });
 
     // 캐시에 저장
-    await this.cacheService.set(this.CACHE_KEY_PREFIX, 'static', cacheKey, components, [], [], {
+    await this.cacheService?.set(this.CACHE_KEY_PREFIX, 'static', cacheKey, components, [], [], {
       ttl: this.CACHE_TTL,
     });
 
@@ -90,40 +90,37 @@ export class ComponentService {
 
   async findOne(id: number) {
     const find_component_one = await this.componentRepository.findOne({ where: { id: id } });
+    if (!find_component_one) throw new NotFoundException('No exist type');
     return find_component_one;
   }
 
   async update(id: number, updateComponent: UpdateComponentDto) {
     const find_component = await this.componentRepository.findOne({ where: { id: id } });
-    if (!find_component) {
-      return 'No exist type';
-    } else {
-      const updateObj: UpdateComponentDto = new UpdateComponentDto();
-
-      updateObj.type = updateComponent.type;
-      updateObj.title = updateComponent.title;
-      updateObj.category = updateComponent.category;
-      updateObj.description = updateComponent.description;
-      updateObj.option = JSON.stringify(updateComponent.option);
-      updateObj.icon = updateComponent.icon;
-      updateObj.seq = updateComponent.seq;
-      updateObj.useYn = updateComponent.useYn;
-
-      await this.componentRepository.save(updateObj);
-
-      // 캐시 무효화
-      await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
-
-      return 'Success update';
+    if (!find_component) throw new NotFoundException('No exist type');
+    if (updateComponent.type !== undefined && updateComponent.type !== find_component.type) {
+      const duplicate = await this.componentRepository.findOne({
+        where: { type: updateComponent.type },
+      });
+      if (duplicate && duplicate.id !== id) throw new ConflictException('exist same widget');
     }
+    const fields = ['type', 'title', 'category', 'description', 'icon', 'seq', 'useYn'] as const;
+    fields.forEach(field => {
+      if (updateComponent[field] !== undefined) {
+        Object.assign(find_component, { [field]: updateComponent[field] });
+      }
+    });
+    if (updateComponent.option !== undefined) {
+      find_component.option = JSON.stringify(updateComponent.option);
+    }
+    await this.componentRepository.save(find_component);
+    await this.cacheService?.invalidateByEngine(this.CACHE_KEY_PREFIX);
+    return 'Success update';
   }
 
   async remove(id: number) {
-    await this.componentRepository.delete({ id });
-
-    // 캐시 무효화 - component 관련 모든 캐시 무효화
-    await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
-
+    const result = await this.componentRepository.delete({ id });
+    if (result.affected === 0) throw new NotFoundException('No exist type');
+    await this.cacheService?.invalidateByEngine(this.CACHE_KEY_PREFIX);
     return `This action removes a #${id} component`;
   }
 }

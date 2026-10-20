@@ -9,9 +9,14 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from 'src/auth/auth.service';
 import { loginLoggerMiddleware } from 'src/middleware/middleware-log/middleware.login-logger';
 import { LoginHistory } from 'src/middleware/entities/login-history.entity';
+import { SampleModule } from '../sample/sample.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, RefreshToken, UserMapping, LoginHistory]), JwtModule],
+  imports: [
+    TypeOrmModule.forFeature([User, RefreshToken, UserMapping, LoginHistory]),
+    JwtModule,
+    SampleModule,
+  ],
   controllers: [LoginController],
   providers: [LoginService, AuthService],
 })

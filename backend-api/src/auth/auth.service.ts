@@ -3,8 +3,11 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
-import { RefreshToken } from './entities/refresh_token.entity';
+import { RefreshToken } from './entites/refresh_token.entity';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { hashPassword, verifyPassword } from '../utils/password.util';
+import { serializeMetadataWork, metadataTransaction } from '../common/metadata-work';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +23,7 @@ export class AuthService {
       userId: payload.userId,
       email: payload.email,
       id: payload.id,
+      authVersion: payload.authVersion ?? 0,
     };
 
     // 디버깅용 로그
@@ -38,64 +42,131 @@ export class AuthService {
     return accessToken;
   }
 
-  async generateUrlAccessToken(payload: JwtPayload): Promise<string> {
-    const accessKeyData: JwtPayload = {
-      userId: payload.userId,
-      email: payload.email,
-      id: payload.id,
-    };
+  async generateUrlAccessToken(payload: { dashboardId: number; uuid: string }) {
     const accessToken = await this.jwtService.sign(
-      { accessKeyData },
+      { shareKeyData: { dashboardId: payload.dashboardId, uuid: payload.uuid } },
       {
-        // secret: process.env.URL_ACCESS_SECRET,
-        secret: 'test1234',
+        secret: process.env.URL_ACCESS_SECRET || process.env.ACCESS_SECRET,
+        jwtid: randomBytes(12).toString('hex'),
       },
     );
     return accessToken;
   }
 
-  async generateRefreshToken(payload: JwtPayload): Promise<string> {
-    const refreshKeyData: JwtPayload = {
+  async readUrlAccessToken(token: string): Promise<any | null> {
+    try {
+      return await this.jwtService.verify(token, {
+        secret: process.env.URL_ACCESS_SECRET || process.env.ACCESS_SECRET,
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async generateRefreshToken(payload: any) {
+    const refreshKeyData = {
       userId: payload.userId,
       email: payload.email,
       id: payload.id,
+      authVersion: payload.authVersion ?? 0,
     };
     const refreshToken = await this.jwtService.sign(
       { refreshKeyData },
-      { secret: process.env.REFRESH_SECRET, expiresIn: '43200s' },
+      {
+        secret: process.env.REFRESH_SECRET,
+        expiresIn: '43200s',
+        jwtid: randomBytes(12).toString('hex'),
+      },
     );
     return refreshToken;
   }
 
-  async setRefreshKey(refreshToken: string, jwt_id: number) {
-    const findToken = await this.refreshTokenRepository.findOne({ where: { id: jwt_id } });
+  async setRefreshKey(refreshToken: string, _previousJwtId: number, userId: number) {
+    const denied = () =>
+      new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
+    if (!Number.isSafeInteger(userId) || userId <= 0) throw denied();
     const token = refreshToken.replace('Bearer ', '');
-    if (!findToken) {
-      return await this.refreshTokenRepository.save({
-        refreshToken: token,
-      });
-    } else {
-      findToken.refreshToken = token;
-      await this.refreshTokenRepository.save(findToken);
+    let actor: any;
+    try {
+      actor = this.jwtService.verify(token, { secret: process.env.REFRESH_SECRET })?.refreshKeyData;
+      if (
+        actor?.id !== userId ||
+        typeof actor?.userId !== 'string' ||
+        !actor.userId ||
+        !Number.isSafeInteger(actor.authVersion ?? 0) ||
+        (actor.authVersion ?? 0) < 0
+      )
+        throw denied();
+    } catch {
+      throw denied();
     }
-    // 로그인시 갱신된 refreshToken 저장
+    // The current account linkage is authoritative; a stale login hint cannot select another row.
+    return metadataTransaction(this.userRepository.manager, async manager => {
+      const user = await manager.findOne(User, {
+        where: { id: userId, userId: actor.userId },
+        ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+          ? { lock: { mode: 'pessimistic_write' as const } }
+          : {}),
+      });
+      if (!user || user.active === false || (user.authVersion ?? 0) !== (actor.authVersion ?? 0))
+        throw denied();
+      const prior =
+        Number.isSafeInteger(user.jwtId) && user.jwtId > 0
+          ? await manager.findOne(RefreshToken, { where: { id: user.jwtId } })
+          : null;
+      const saved = await manager.save(RefreshToken, { ...(prior || {}), refreshToken: token });
+      const updated = await manager.update(User, userId, { jwtId: saved.id });
+      // Configured mysql2 keeps FOUND_ROWS enabled; a matched unchanged link still reports 1.
+      if (updated.affected !== 1) throw denied();
+      return saved;
+    });
   }
 
   async validateUser(userId: string, pass: string) {
-    const user = await this.userRepository.findOne({ where: { userId: userId } });
-    if (user && user.password === pass) {
+    return serializeMetadataWork(this.userRepository.manager.connection, async () => {
+      const user = await this.userRepository.findOne({ where: { userId: userId } });
+      if (!user || user.active === false) return null;
+
+      const { ok, needsRehash } = verifyPassword(pass, user.password);
+      if (!ok) return null;
+
+      // 레거시 sha512 해시 사용자는 로그인 성공 시점에 scrypt로 재해싱
+      if (needsRehash) {
+        const upgraded = await this.userRepository.update(
+          {
+            id: user.id,
+            password: user.password,
+            active: true,
+            authVersion: user.authVersion ?? 0,
+          },
+          { password: hashPassword(pass) },
+        );
+        // A delayed legacy rehash cannot restore a revoked account or overwrite a changed credential.
+        if (upgraded.affected !== 1) return null;
+      }
       delete user.password;
       return user;
-    }
-    return undefined;
+
+      // 회원이 존재하는지 확인
+    });
   }
 
-  async deleteRefreshToken(userId: number) {
-    const refreshTokenInfo = await this.refreshTokenRepository.findOne({
-      where: { id: userId },
-    });
-    refreshTokenInfo.refreshToken = '';
-    await this.refreshTokenRepository.save(refreshTokenInfo);
+  async deleteRefreshToken(sessionId: number, verifiedToken?: string) {
+    if (
+      !Number.isSafeInteger(sessionId) ||
+      sessionId <= 0 ||
+      typeof verifiedToken !== 'string' ||
+      !verifiedToken
+    ) {
+      throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
+    }
+    // A late logout must not revoke a newer credential stored in the same linked row.
+    await serializeMetadataWork(this.refreshTokenRepository.manager.connection, () =>
+      this.refreshTokenRepository.update(
+        { id: sessionId, refreshToken: verifiedToken },
+        { refreshToken: '' },
+      ),
+    );
   }
 
   async verifyAccessToken(token: string) {
@@ -111,16 +182,42 @@ export class AuthService {
 
   async verifyRefreshToken(token: string) {
     try {
-      const Token = token.replace('Bearer ', '').split('=')[1];
       const secretKey = process.env.REFRESH_SECRET;
-      const findUser = await this.jwtService.verify(Token, { secret: secretKey });
-      return findUser;
+      const decoded = await this.jwtService.verify(token, { secret: secretKey });
+      const actor = decoded?.refreshKeyData;
+      if (
+        !Number.isSafeInteger(actor?.id) ||
+        actor.id <= 0 ||
+        typeof actor.userId !== 'string' ||
+        !actor.userId
+      ) {
+        throw new Error('invalid refresh actor');
+      }
+      const jwtId = await serializeMetadataWork(
+        this.userRepository.manager.connection,
+        async () => {
+          const user = await this.userRepository.findOne({
+            where: { id: actor.id, userId: actor.userId },
+          });
+          if (
+            !user ||
+            user.active === false ||
+            !Number.isSafeInteger(actor.authVersion ?? 0) ||
+            (actor.authVersion ?? 0) !== (user.authVersion ?? 0) ||
+            !Number.isSafeInteger(user.jwtId) ||
+            user.jwtId <= 0
+          ) {
+            throw new Error('missing refresh session');
+          }
+          const stored = await this.refreshTokenRepository.findOne({ where: { id: user.jwtId } });
+          if (!stored || stored.refreshToken !== token) throw new Error('revoked refresh session');
+          return user.jwtId;
+        },
+      );
+      decoded.refreshKeyData.jwtId = jwtId;
+      return decoded;
     } catch (err) {
       throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
     }
   } // Refresh 토큰이 유효한지 확인
-
-  async checkAccess(userId: string, password: string) {
-    return await this.validateUser(userId, password);
-  }
 }

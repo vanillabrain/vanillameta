@@ -1,0 +1,19 @@
+day,company,plan,location,environment,component,sku,pipeline,currency,revenue,cost,profit
+2025-01-06T09:00:00,Hanul Foods,Enterprise,Seoul,production,Compute,C-100,ingest-a,USD,1200.00,900.00,300.00
+2025-01-07T09:00:00,Hanul Foods,Enterprise,Seoul,production,Storage,S-200,ingest-a,USD,800.00,1000.00,-200.00
+2025-01-08T09:00:00,Baro Tech,Growth,Busan,staging,Compute,C-100,ingest-b,USD,0.00,150.00,-150.00
+2025-01-09T09:00:00,Baro Tech,Growth,Busan,production,Compute,C-300,ingest-b,USD,640.50,512.40,128.10
+2025-01-10T09:00:00,Cheonji Retail,Enterprise,Incheon,production,Query,Q-100,analytics,USD,2100.00,1575.00,525.00
+2025-01-11T09:00:00,Cheonji Retail,Enterprise,Incheon,production,Storage,S-200,analytics,USD,310.25,279.20,31.05
+2025-01-12T09:00:00,Danbi Labs,Starter,Daegu,development,Compute,C-100,ingest-c,USD,99.99,79.99,20.00
+2025-01-12T09:00:00,Danbi Labs,Starter,Daegu,staging,Compute,C-400,ingest-c,USD,150.00,150.00,0.00
+2025-01-13T09:00:00,Hanul Foods,Enterprise,Seoul,production,Compute,C-100,ingest-a,USD,1320.00,990.00,330.00
+2025-01-14T09:00:00,Hanul Foods,Enterprise,Seoul,production,Compute,C-300,ingest-a,USD,940.00,1128.00,-188.00
+2025-01-15T09:00:00,Baro Tech,Growth,Busan,production,Storage,S-200,ingest-b,USD,530.75,398.06,132.69
+2025-01-15T09:00:00,Baro Tech,Growth,Busan,development,Compute,C-100,ingest-b,USD,0.00,60.00,-60.00
+2025-01-16T09:00:00,Cheonji Retail,Enterprise,Incheon,production,Query,Q-100,analytics,USD,2450.00,1715.00,735.00
+2025-01-17T09:00:00,Cheonji Retail,Enterprise,Incheon,production,Query,Q-200,analytics,USD,1890.40,1417.80,472.60
+2025-01-17T09:00:00,Danbi Labs,Starter,Daegu,development,Compute,C-400,ingest-c,USD,210.10,189.09,21.01
+2025-01-18T09:00:00,"Samil Trading, Inc.",Enterprise,Seoul,production,Storage,S-200,ingest-d,USD,1600.00,1200.00,400.00
+2025-01-18T09:00:00,"Samil Trading, Inc.",Enterprise,Seoul,production,Storage,S-300,ingest-d,USD,275.50,220.40,55.10
+2025-01-19T09:00:00,"Danbi ""Prime"" Labs",Starter,Daegu,staging,Compute,C-100,ingest-c,USD,420.00,315.00,105.00

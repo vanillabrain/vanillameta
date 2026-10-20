@@ -1,0 +1,7 @@
+type: explore
+metrics_view: margin_metrics
+display_name: VM margin comparison
+dimensions: '*'
+measures: '*'
+time_ranges:
+  - inf

@@ -1,16 +1,40 @@
 import {
+  FieldSelection,
+  PredefinedFields,
+} from '../common/field-selection/field-selection.decorator';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { Response } from 'express';
+import { Header, Res } from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
+  ApiHeader,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiProduces,
+  ApiQuery,
+} from '@nestjs/swagger';
+import { SourceAccessService } from '../ownership/source-access.service';
+import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
+import { diskStorage } from 'multer';
+import * as fs from 'fs';
+import * as path from 'path';
+import { randomUUID } from 'crypto';
+import { AnalysisUpload } from '../analysis/duckdb.service';
+import {
   Body,
+  Headers,
   Controller,
-  Delete,
   Get,
   Param,
-  Patch,
   Post,
   Put,
   Query,
+  Req,
+  UploadedFile,
   UseGuards,
-  Res,
-  Header,
+  UseInterceptors,
 } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { CreateDatabaseDto } from './dto/create-database.dto';
@@ -19,35 +43,16 @@ import { QueryExecuteDto } from './dto/query-execute.dto';
 import { ConnectionService } from '../connection/connection.service';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiCreatedResponse,
-  ApiOkResponse,
-  ApiNotFoundResponse,
-  ApiUnauthorizedResponse,
-  ApiBadRequestResponse,
-  ApiHeader,
-  ApiProduces,
-} from '@nestjs/swagger';
-import {
-  FieldSelection,
-  PredefinedFields,
-} from '../common/field-selection/field-selection.decorator';
-import { Response } from 'express';
-import { GetUser } from '../auth/decorators/get-user.decorator';
+import { ApiTags } from '@nestjs/swagger';
+import { Utf8FileInterceptor } from './multipart-options';
 
-@ApiTags('데이터베이스')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth('AccessToken')
+@UseGuards(JwtAuthGuard, SourceOwnershipGuard)
 @Controller('database')
 export class DatabaseController {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly connectionService: ConnectionService,
+    private readonly access: SourceAccessService,
   ) {}
 
   /**
@@ -96,8 +101,15 @@ export class DatabaseController {
     @Query('databaseId') databaseId: number,
     @Query('datasetId') datasetId?: number,
     @Query('tableName') tableName?: string,
+    @Headers('x-socket-id') socketId?: string,
   ) {
-    const res = await this.databaseService.findData(datasetType, databaseId, datasetId, tableName);
+    const res = await this.databaseService.findData(
+      datasetType,
+      databaseId,
+      datasetId,
+      tableName,
+      socketId,
+    );
     return res;
   }
 
@@ -123,17 +135,90 @@ export class DatabaseController {
    * @param createDatabaseDto
    */
   @Post()
-  @ApiOperation({
-    summary: '데이터베이스 연결 생성',
-    description: '새로운 데이터베이스 연결을 생성합니다.',
-  })
-  @ApiCreatedResponse({
-    description: '데이터베이스 연결이 성공적으로 생성되었습니다.',
-    type: CreateDatabaseDto,
-  })
-  @ApiBadRequestResponse({ description: '잘못된 요청 데이터' })
-  create(@Body() createDatabaseDto: CreateDatabaseDto) {
-    return this.databaseService.create(createDatabaseDto);
+  create(@Body() createDatabaseDto: CreateDatabaseDto, @Req() req) {
+    return this.databaseService.create(
+      createDatabaseDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
+  }
+
+  /**
+   * 파일 업로드 → 서버 워커에서 DuckDB 데이터소스 생성
+   * @param file
+   */
+  @Post('upload')
+  @UseInterceptors(
+    Utf8FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_request, _file, callback) => {
+          const directory = path.resolve(process.env.FILE_UPLOAD_DIR || 'uploads', 'incoming');
+          fs.mkdir(directory, { recursive: true, mode: 0o700 }, error =>
+            callback(error, directory),
+          );
+        },
+        filename: (_request, _file, callback) => callback(null, randomUUID()),
+      }),
+      limits: {
+        fileSize: Number(process.env.FILE_UPLOAD_MAX_BYTES) || 512 * 1024 * 1024,
+        files: 1,
+      },
+    }),
+  )
+  uploadFile(@UploadedFile() file: AnalysisUpload, @Req() req) {
+    return this.databaseService.uploadFile(
+      file,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
+  }
+
+  @Get(':id/file-versions')
+  fileVersions(@Param('id') id: string, @Req() req) {
+    return this.databaseService.fileVersions(+id, this.access.actor(req.user.accessKeyData.id));
+  }
+
+  @Post(':id/file-replacement')
+  @UseInterceptors(
+    Utf8FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_request, _file, callback) => {
+          const directory = path.resolve(process.env.FILE_UPLOAD_DIR || 'uploads', 'incoming');
+          fs.mkdir(directory, { recursive: true, mode: 0o700 }, error =>
+            callback(error, directory),
+          );
+        },
+        filename: (_request, _file, callback) => callback(null, randomUUID()),
+      }),
+      limits: {
+        fileSize: Number(process.env.FILE_UPLOAD_MAX_BYTES) || 512 * 1024 * 1024,
+        files: 1,
+      },
+    }),
+  )
+  replaceFile(
+    @Param('id') id: string,
+    @UploadedFile() file: AnalysisUpload,
+    @Body('expectedRevision') expectedRevision: string,
+    @Req() req,
+  ) {
+    return this.databaseService.replaceFile(
+      +id,
+      file,
+      expectedRevision,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
+  }
+
+  @Post(':id/file-restore')
+  restoreFile(@Param('id') id: string, @Body() body: any, @Req() req) {
+    return this.databaseService.restoreFile(
+      +id,
+      body,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   /**
@@ -164,20 +249,15 @@ export class DatabaseController {
    * @param queryExecuteDto
    */
   @Post('execute')
-  @ApiOperation({
-    summary: 'SQL 쿼리 실행',
-    description: '지정된 데이터베이스에서 SQL 쿼리를 실행합니다.',
-  })
-  @ApiOkResponse({
-    description: '쿼리 실행 결과',
-    schema: {
-      type: 'array',
-      items: { type: 'object' },
-    },
-  })
-  @ApiBadRequestResponse({ description: '잘못된 SQL 쿼리' })
-  executeQuery(@Body() queryExecuteDto: QueryExecuteDto) {
-    return this.connectionService.executeQuery(queryExecuteDto);
+  executeQuery(
+    @Body() queryExecuteDto: QueryExecuteDto,
+    @Headers('x-socket-id') socketId: string | undefined,
+    @Req() req,
+  ) {
+    return this.connectionService.executeQuery(queryExecuteDto, socketId, {
+      actor: this.access.actor(req.user.accessKeyData.id),
+      epoch: req.user.accessKeyData.authVersion ?? 0,
+    });
   }
 
   /**
@@ -185,30 +265,9 @@ export class DatabaseController {
    */
   @PredefinedFields('connectionBasic')
   @Get()
-  @ApiOperation({
-    summary: '데이터베이스 목록 조회',
-    description: '등록된 모든 데이터베이스 연결의 목록을 조회합니다.',
-  })
-  @ApiQuery({ name: 'fields', required: false, description: '반환할 필드 선택' })
-  @ApiOkResponse({
-    description: '데이터베이스 목록',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'number' },
-          name: { type: 'string' },
-          type: { type: 'string' },
-          engine: { type: 'string' },
-          createdAt: { type: 'string', format: 'date-time' },
-        },
-      },
-    },
-  })
-  async findAll(@Query('fields') fields?: string) {
+  async findAll(@Req() req) {
     const res = await this.databaseService.findAll();
-    return res;
+    return this.access.filterResults('database', req.user.accessKeyData.id, res);
   }
 
   /**
@@ -250,28 +309,13 @@ export class DatabaseController {
    * @param updateDatabaseDto
    */
   @Put(':id')
-  @ApiOperation({
-    summary: '데이터베이스 연결 수정',
-    description: '데이터베이스 연결 정보를 수정합니다.',
-  })
-  @ApiParam({ name: 'id', type: 'number', description: '데이터베이스 ID' })
-  @ApiOkResponse({ description: '데이터베이스 연결이 성공적으로 수정되었습니다.' })
-  @ApiNotFoundResponse({ description: '데이터베이스를 찾을 수 없습니다.' })
-  @ApiBadRequestResponse({ description: '잘못된 요청 데이터' })
-  update(@Param('id') id: string, @Body() updateDatabaseDto: UpdateDatabaseDto) {
-    return this.databaseService.update(+id, updateDatabaseDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({
-    summary: '데이터베이스 연결 삭제',
-    description: '데이터베이스 연결을 삭제합니다.',
-  })
-  @ApiParam({ name: 'id', type: 'number', description: '데이터베이스 ID' })
-  @ApiOkResponse({ description: '데이터베이스 연결이 성공적으로 삭제되었습니다.' })
-  @ApiNotFoundResponse({ description: '데이터베이스를 찾을 수 없습니다.' })
-  remove(@Param('id') id: string) {
-    return this.databaseService.remove(+id);
+  update(@Param('id') id: string, @Body() updateDatabaseDto: UpdateDatabaseDto, @Req() req) {
+    return this.databaseService.update(
+      +id,
+      updateDatabaseDto,
+      this.access.actor(req.user.accessKeyData.id),
+      req.user.accessKeyData.authVersion ?? 0,
+    );
   }
 
   /**

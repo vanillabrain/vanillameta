@@ -1,0 +1,7 @@
+type: explore
+metrics_view: orders_correction_final_metrics
+display_name: VM correction final
+dimensions: '*'
+measures: '*'
+time_ranges:
+  - inf

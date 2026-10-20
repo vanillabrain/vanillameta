@@ -1,9 +1,12 @@
+import { chartTheme } from '@/components/charts/chartTheme';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getCenter, getLegendOption } from '@/widget/modules/utils/chartUtil';
 import { AGGREGATION_LIST } from '@/constant';
 
 const RadarChart = props => {
+  const { t } = useTranslation();
   const { option, dataSet, seriesOp, defaultOp, createOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
@@ -35,13 +38,14 @@ const RadarChart = props => {
 
   const createComponentOption = () => {
     let newOption = {};
+    const categoryField = option.field || option.xField;
 
     // series option에서 가져오기
     const newSeriesData = [];
     let aggrData = [];
 
     option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option.field, item.field, item.aggregation);
+      aggrData = getAggregationDataForChart(dataSet, categoryField, item.field, item.aggregation);
 
       if (item.field) {
         const seriesData = {
@@ -49,7 +53,7 @@ const RadarChart = props => {
           name:
             (item?.fieldLabel ? item.fieldLabel : item.field) +
             (option?.legendAggregation
-              ? ` (${AGGREGATION_LIST.find(element => element.value === item.aggregation).label})`
+              ? ` (${AGGREGATION_LIST(t).find(element => element.value === item.aggregation).label})`
               : ''),
           itemStyle: {
             color: item.color,
@@ -63,7 +67,7 @@ const RadarChart = props => {
     if (aggrData) {
       const op = {
         radar: {
-          indicator: !!option.field ? aggrData.map(item => ({ name: item[option.field] })) : '',
+          indicator: !!categoryField ? aggrData.map(item => ({ name: item[categoryField] })) : '',
           center: getCenter(option.legendPosition),
         },
         series: [
@@ -85,6 +89,7 @@ const RadarChart = props => {
 
   return (
     <ReactECharts
+      theme={chartTheme}
       option={componentOption}
       style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}
       lazyUpdate={true}

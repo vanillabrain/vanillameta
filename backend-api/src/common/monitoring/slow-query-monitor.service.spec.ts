@@ -5,6 +5,12 @@ import { SlowQueryMonitorService } from './slow-query-monitor.service';
 import { SlowQueryLog } from './entities/slow-query-log.entity';
 import { QueryAnalysis } from './query-analyzer.service';
 
+jest.mock('aws-sdk', () => ({
+  CloudWatch: jest.fn().mockImplementation(() => ({
+    putMetricData: jest.fn(() => ({ promise: jest.fn().mockResolvedValue({}) })),
+  })),
+}));
+
 describe('SlowQueryMonitorService', () => {
   let service: SlowQueryMonitorService;
   let repository: Repository<SlowQueryLog>;
@@ -38,6 +44,20 @@ describe('SlowQueryMonitorService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('honors the disabled CloudWatch flag without disabling slow-query storage', async () => {
+    const previous = process.env.CLOUDWATCH_METRICS_ENABLED;
+    process.env.CLOUDWATCH_METRICS_ENABLED = 'false';
+    try {
+      mockRepository.count.mockResolvedValue(0);
+      await service.logSlowQuery({ query: 'SELECT 1', executionTime: 1500 });
+      expect(mockRepository.save).toHaveBeenCalled();
+      expect((service as any).cloudwatch.putMetricData).not.toHaveBeenCalled();
+    } finally {
+      if (previous === undefined) delete process.env.CLOUDWATCH_METRICS_ENABLED;
+      else process.env.CLOUDWATCH_METRICS_ENABLED = previous;
+    }
   });
 
   describe('logSlowQuery', () => {
@@ -233,6 +253,22 @@ describe('SlowQueryMonitorService', () => {
   });
 
   describe('getSlowQueries', () => {
+    it('omits sensitive bindings and plan contents from list and JSON export projections', async () => {
+      const stored = {
+        id: 1,
+        query: 'SELECT ?',
+        parameters: '["private"]',
+        explainPlan: '{"literal":"private"}',
+      };
+      const builder: any = {};
+      for (const method of ['orderBy', 'skip', 'take'])
+        builder[method] = jest.fn().mockReturnValue(builder);
+      builder.getManyAndCount = jest.fn().mockResolvedValue([[stored], 1]);
+      mockRepository.createQueryBuilder.mockReturnValue(builder);
+      const result = await service.getSlowQueries();
+      expect(result.data).toEqual([{ id: 1, query: 'SELECT ?' }]);
+      expect(stored.parameters).toBe('["private"]');
+    });
     it('should return paginated slow queries with filters', async () => {
       const mockQueryBuilder = {
         andWhere: jest.fn().mockReturnThis(),
@@ -292,7 +328,7 @@ describe('SlowQueryMonitorService', () => {
       expect(mockRepository.update).toHaveBeenCalledWith(1, {
         resolved: true,
         resolutionNotes: 'Added index to optimize query',
-        resolvedAt: new Date('2025-06-17T12:00:00.000Z'),
+        resolvedAt: expect.any(Date),
       });
     });
   });

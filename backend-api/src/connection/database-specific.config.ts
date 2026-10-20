@@ -61,7 +61,6 @@ const calculateMaxConnections = (baseMax: number): number => {
 export const getMySQLConfig = (): DatabaseSpecificConfig => ({
   connectionConfig: {
     client: 'mysql2',
-    // @ts-ignore - MySQL specific connection properties
     connection: {
       supportBigNumbers: true,
       bigNumberStrings: true,
@@ -80,7 +79,7 @@ export const getMySQLConfig = (): DatabaseSpecificConfig => ({
       reapIntervalMillis: 1000,
       createRetryIntervalMillis: 100,
       propagateCreateError: false,
-      afterCreate: (conn: any, done: Function) => {
+      afterCreate: (conn: any, done: (error: unknown, connection: any) => void) => {
         const queries = [
           'SET SESSION sql_mode="TRADITIONAL"',
           'SET SESSION time_zone="+09:00"',
@@ -143,7 +142,7 @@ export const getPostgreSQLConfig = (): DatabaseSpecificConfig => ({
       reapIntervalMillis: 1000,
       createRetryIntervalMillis: 100,
       propagateCreateError: false,
-      afterCreate: async (conn: any, done: Function) => {
+      afterCreate: async (conn: any, done: (error: unknown, connection: any) => void) => {
         try {
           await conn.query('SET timezone TO "Asia/Seoul"');
           await conn.query('SET statement_timeout TO 30000');
@@ -228,7 +227,6 @@ export const getBigQueryConfig = (): DatabaseSpecificConfig => ({
  * Snowflake 특화 설정
  */
 export const getSnowflakeConfig = (): DatabaseSpecificConfig => ({
-  // @ts-ignore - Snowflake specific connection properties
   connectionConfig: {
     client: require('../knex-dialects/snowflake'),
     connection: {
@@ -283,7 +281,6 @@ export const getSnowflakeConfig = (): DatabaseSpecificConfig => ({
 export const getOracleConfig = (): DatabaseSpecificConfig => ({
   connectionConfig: {
     client: 'oracledb',
-    // @ts-ignore - Oracle specific connection properties
     connection: {
       connectTimeout: 30000,
     },

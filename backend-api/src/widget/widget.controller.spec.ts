@@ -1,82 +1,42 @@
+import { SourceAccessService } from '../ownership/source-access.service';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { WidgetController } from './widget.controller';
 import { WidgetService } from './widget.service';
-import { Widget } from './entities/widget.entity';
-import { Component } from '../component/entities/component.entity';
-import { TableQueryService } from './table-query/table-query.service';
-import { CustomLoggerService } from '../common/logger/logger.service';
-import { PaginationService } from '../common/services/pagination.service';
 
 describe('WidgetController', () => {
   let controller: WidgetController;
-
-  const mockWidgetRepository = {
-    find: jest.fn(),
-    findOne: jest.fn(),
-    save: jest.fn(),
-    delete: jest.fn(),
-    createQueryBuilder: jest.fn().mockReturnValue({
-      leftJoinAndSelect: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      getMany: jest.fn(),
-    }),
-  };
-
-  const mockComponentRepository = {
-    find: jest.fn(),
-    findOne: jest.fn(),
-  };
-
-  const mockTableQueryService = {
-    findWidgetDataById: jest.fn(),
-  };
-
-  const mockCustomLoggerService = {
-    log: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-    info: jest.fn(),
-  };
-
-  const mockPaginationService = {
-    paginate: jest.fn(),
-    getPaginationMeta: jest.fn(),
-  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [WidgetController],
       providers: [
-        WidgetService,
-        {
-          provide: getRepositoryToken(Widget),
-          useValue: mockWidgetRepository,
-        },
-        {
-          provide: getRepositoryToken(Component),
-          useValue: mockComponentRepository,
-        },
-        {
-          provide: TableQueryService,
-          useValue: mockTableQueryService,
-        },
-        {
-          provide: CustomLoggerService,
-          useValue: mockCustomLoggerService,
-        },
-        {
-          provide: PaginationService,
-          useValue: mockPaginationService,
-        },
+        { provide: SourceAccessService, useValue: {} },
+        { provide: WidgetService, useValue: {} },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<WidgetController>(WidgetController);
   });
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+  it('passes the verified actor and JWT epoch to DELETE without dropping guards', async () => {
+    const remove = jest.fn().mockResolvedValue('deleted');
+    const actor = jest.fn(value => value);
+    const target = new WidgetController({ remove } as any, { actor } as any);
+    expect(await target.remove('21', { user: { accessKeyData: { id: 7, authVersion: 3 } } })).toBe(
+      'deleted',
+    );
+    expect(actor).toHaveBeenCalledWith(7);
+    expect(remove).toHaveBeenCalledWith(21, 7, 3);
+    expect(Reflect.getMetadata('__guards__', WidgetController).map(guard => guard.name)).toEqual([
+      'JwtAuthGuard',
+      'SourceOwnershipGuard',
+    ]);
   });
 });

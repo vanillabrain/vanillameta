@@ -1,8 +1,10 @@
+import { knex } from 'knex';
 import { Test, TestingModule } from '@nestjs/testing';
 import { QueryAnalyzerService, QueryAnalysis } from './query-analyzer.service';
 import { getRepositoryToken, getConnectionToken } from '@nestjs/typeorm';
 import { Connection, QueryRunner, DataSource, Repository } from 'typeorm';
 import { Database } from '../../database/entities/database.entity';
+import { SqlValidationService } from '../security/sql-validation.service';
 
 // Knex 모듈 모킹
 jest.mock('knex', () => ({
@@ -38,6 +40,14 @@ describe('QueryAnalyzerService', () => {
       providers: [
         QueryAnalyzerService,
         {
+          provide: SqlValidationService,
+          useValue: new SqlValidationService({
+            log: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
+          } as any),
+        },
+        {
           provide: getConnectionToken(),
           useValue: mockConnection,
         },
@@ -57,6 +67,19 @@ describe('QueryAnalyzerService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it.each([
+    'DELETE FROM user',
+    'SELECT 1; DELETE FROM user',
+    "SELECT * INTO OUTFILE '/tmp/leak' FROM user",
+    "SELECT nextval('sequence')",
+    'WITH deleted AS (DELETE FROM user RETURNING *) SELECT * FROM deleted',
+  ])('rejects non-read-only diagnostics before any metadata execution: %s', async query => {
+    await expect(service.measureQueryPerformance(query)).rejects.toThrow();
+    await expect(service.analyzeQuery(query)).rejects.toThrow();
+    expect(mockConnection.createQueryRunner).not.toHaveBeenCalled();
+    expect(mockQueryRunner.query).not.toHaveBeenCalled();
   });
 
   describe('analyzeQuery', () => {
@@ -144,22 +167,16 @@ describe('QueryAnalyzerService', () => {
       expect(result.optimizationSuggestions).toContainEqual(
         expect.stringContaining('temporary table'),
       );
-      expect(result.optimizationSuggestions).toContainEqual(
-        expect.stringContaining('filesort'),
-      );
+      expect(result.optimizationSuggestions).toContainEqual(expect.stringContaining('filesort'));
     });
 
     it('should handle query analysis errors gracefully', async () => {
       const testQuery = 'SELECT * FROM non_existent_table';
-      (mockQueryRunner.query as jest.Mock).mockRejectedValueOnce(
-        new Error('Table does not exist'),
-      );
+      (mockQueryRunner.query as jest.Mock).mockRejectedValueOnce(new Error('Table does not exist'));
 
       const result = await service.analyzeQuery(testQuery);
 
-      expect(result.warnings).toContainEqual(
-        expect.stringContaining('Analysis failed'),
-      );
+      expect(result.warnings).toContainEqual(expect.stringContaining('Analysis failed'));
       expect(mockQueryRunner.release).toHaveBeenCalled();
     });
   });
@@ -172,8 +189,7 @@ describe('QueryAnalyzerService', () => {
         raw: jest.fn(),
         destroy: jest.fn(),
       };
-      const { knex } = require('knex');
-      knex.mockReturnValue(mockKnex);
+      (knex as unknown as jest.Mock).mockReturnValue(mockKnex);
     });
 
     it('should analyze PostgreSQL query', async () => {
@@ -191,7 +207,7 @@ describe('QueryAnalyzerService', () => {
           {
             'QUERY PLAN': [
               {
-                'Plan': {
+                Plan: {
                   'Node Type': 'Seq Scan',
                   'Total Cost': 100,
                   'Actual Rows': 50,
@@ -262,7 +278,8 @@ describe('QueryAnalyzerService', () => {
       ];
 
       // Mock analyze results
-      jest.spyOn(service, 'analyzeQuery')
+      jest
+        .spyOn(service, 'analyzeQuery')
         .mockResolvedValueOnce({
           query: queries[0],
           scanType: 'const',
@@ -299,11 +316,11 @@ describe('QueryAnalyzerService', () => {
   describe('measureQueryPerformance', () => {
     it('should measure query execution time', async () => {
       const testQuery = 'SELECT COUNT(*) FROM users';
-      
+
       // Mock Date.now() to simulate time passing
       let currentTime = 1000;
       jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
-      
+
       (mockQueryRunner.query as jest.Mock).mockImplementation(() => {
         // Simulate query delay by advancing time
         currentTime += 100;
@@ -320,11 +337,11 @@ describe('QueryAnalyzerService', () => {
     it('should log slow queries', async () => {
       const testQuery = 'SELECT * FROM large_table';
       const loggerWarnSpy = jest.spyOn(service['logger'], 'warn');
-      
+
       // Mock Date.now() to simulate time passing
       let currentTime = 1000;
       jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
-      
+
       (mockQueryRunner.query as jest.Mock).mockImplementation(() => {
         // Simulate slow query by advancing time significantly
         currentTime += 1100;

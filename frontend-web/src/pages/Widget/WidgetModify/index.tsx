@@ -1,24 +1,30 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import PageTitleBox from '@/components/PageTitleBox';
 import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import WidgetAttributeSelect from '@/pages/Widget/WidgetCreate/WidgetAttributeSelect';
 import widgetService from '@/api/widgetService';
+import { useQuery } from '@tanstack/react-query';
 import { WidgetInfo } from '@/api/type';
 import { LayoutContext } from '@/contexts/LayoutContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { useAlert } from 'react-alert';
+import { STATUS } from '@/constant';
 
 interface CustomizedState {
   from: string;
 }
 
 const WidgetModify = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const widgetId = searchParams.get('id');
   const navigate = useNavigate();
   const location = useLocation();
   const { fixLayout } = useContext(LayoutContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
+  const alert = useAlert();
 
   const defaultWidgetInfo: WidgetInfo = {
     componentId: '',
@@ -39,8 +45,20 @@ const WidgetModify = () => {
 
   const [widgetInfo, setWidgetInfo] = useState<WidgetInfo>(defaultWidgetInfo);
 
+  const { data: savedWidget, isError } = useQuery({
+    queryKey: ['widget', widgetId],
+    queryFn: () =>
+      widgetService.selectWidget(widgetId).then(response => {
+        if (response.data.status !== STATUS.SUCCESS || !response.data.data?.id) {
+          throw new Error(response.data.message || t('widget.loadFailed'));
+        }
+        return response.data.data;
+      }),
+    enabled: !!widgetId,
+    retry: false,
+  });
+
   useEffect(() => {
-    getWidgetInfo();
     fixLayout(true);
     return () => {
       fixLayout(false);
@@ -50,68 +68,46 @@ const WidgetModify = () => {
   /**
    * 위젯 조회
    */
-  const getWidgetInfo = () => {
-    showLoading();
-    widgetService
-      .selectWidget(widgetId)
-      .then(response => {
-        console.log('selectWidget response:', response);
-        const responseData = response.data;
-        const widget: any = responseData.widget || responseData;
-        const widgetInfo: WidgetInfo = {
-          id: widget.id?.toString() || '',
-          title: widget.title || '',
-          componentId: widget.componentId?.toString() || '',
-          createdAt: widget.createdAt || '',
-          datasetId: widget.datasetId?.toString() || '',
-          datasetType: widget.datasetType || '',
-          delYn: widget.delYn || 'N',
-          description: widget.description || '',
-          option: widget.option || '',
-          updatedAt: widget.updatedAt || '',
-          widgetViewId: widget.id?.toString() || '',
-          icon: widget.icon || null,
-          componentTitle: widget.title || '',
-          componentDescription: widget.description || '',
-        };
-        setWidgetInfo(widgetInfo);
-        // console.log(widgetInfo, 'widgetInfo');
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  useEffect(() => {
+    setWidgetInfo(savedWidget && !isError ? savedWidget : defaultWidgetInfo);
+    if (isError) alert.error(t('widget.loadFailed'));
+  }, [savedWidget, isError, widgetId]);
 
-  const saveWidgetInfo = (option, title) => {
+  const saveWidgetInfo = async (option, title): Promise<boolean> => {
     const param = {
       title: title,
       option: option,
     };
     console.log(option, 'option');
     showLoading();
-    widgetService
-      .updateWidget(widgetInfo.id, param)
-      .then(() => {
+    try {
+      const response = await widgetService.updateWidget(widgetInfo.id, param);
+      if (response.data.status === STATUS.SUCCESS) {
         navigate((location.state as CustomizedState)?.from || '/widget');
-      })
-      .finally(() => {
-        hideLoading();
-      });
+        return true;
+      }
+      alert.error(response.data.message || t('common.genericError'));
+      return false;
+    } catch (error) {
+      alert.error(error.response?.data?.message || error.message || t('common.genericError'));
+      return false;
+    } finally {
+      hideLoading();
+    }
   };
 
   return (
     <PageTitleBox
-      upperTitle="위젯"
+      upperTitle={t('widget.title')}
       upperTitleLink="/widget"
-      title="위젯 편집"
-      sx={{ padding: 0 }}
+      title={t('widget.editTitle')}
+      className="p-0"
       button={
         <ConfirmButton
-          confirmLabel="저장"
+          confirmLabel={t('widget.save')}
           confirmProps={{
             form: 'widgetAttribute',
             type: 'submit',
-            variant: 'contained',
           }}
         />
       }
