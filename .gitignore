@@ -299,3 +299,8 @@ frontend-web/e2e/fixtures/generated/
 *.iml
 # package-lock.json은 각 프로젝트 디렉토리에만 있어야 함
 /package-lock.json
+
+# Generated user documentation site
+docs/user-manual/.vitepress/cache/
+docs/user-manual/.vitepress/dist/
+docs/user-manual/.vitepress/public/

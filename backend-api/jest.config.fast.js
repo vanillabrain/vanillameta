@@ -14,10 +14,12 @@ module.exports = {
     '!**/security/**',
   ],
   transform: {
+    '/node_modules/@nestjs/typeorm/.+\\.js$': '<rootDir>/test/typeorm-esm-transformer.cjs',
     '^.+\\.(t|j)s$': ['ts-jest', {
       isolatedModules: true, // 타입 체크 비활성화로 속도 향상
     }],
   },
+  transformIgnorePatterns: ['/node_modules/(?!@nestjs/typeorm/)'],
   moduleFileExtensions: ['js', 'json', 'ts'],
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',

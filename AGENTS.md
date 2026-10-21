@@ -2,6 +2,10 @@
 
 ## 세션 시작 핵심 지침
 
+- **상세 사용자 문서:** VitePress [전체 목차](docs/user-manual/site/contents.md)·[실행 안내](docs/user-manual/README.md#상세-문서-사이트). `npm run docs:dev/build/preview`, 독립 의존성은 `docs/user-manual`이다. 사이트 소스는 `site/`만 사용하며 내부 설계·검증 문서를 검색/HTML에 넣지 않는다. 빠른 시작·캡처 모음은 원문 include를 유지하고 실제 제품 실행과 코드 대조·문서 사이트 검증을 구분한다.
+
+- **사용자 가이드 실제 검증:** [가이드](docs/user-manual/README.md)·[Ego123 증빙](docs/testing/user-guide-ego.md)은 합성 데이터 연결→실제 AI 생성/수정→저장/게시/익명 링크·직원 열람과 대표 모바일을 확인한다. 조회 화면은 저장 revision만 보내는 `/ai/dashboard-view`를 사용하며 edit preview로 되돌리지 않는다. 소스 read는 직원 전달 전에 필요하다. 실기기/운영/전체 수용은 별도다.
+
 - **develop 인수·관측 복구:** [인수 결과](docs/testing/develop-acceptance-20261021.md)·[관측 후속](docs/testing/observability-recovery.md)은 통합 develop의 고유 E2E17개(16+재검사1)·권한297HTTP와 Ego122 생성/저장/비공개 게시를 구분한다. 후속은 Knex UID 시간 상관·암호화 진단/JSON 계획·Redis disabled/0건·optimizer 접속 정보 전달을 보완했으며 MySQL27HTTP/7검사·BE218/FE74와 원격 통합 후FE94를 확인했다. 운영/실기기/전체16개 수용은 별도다.
 
 - **main 기능 보존 통합:** [계획](docs/plans/main-preserving-integration.md)·[증빙](docs/testing/main-preserving-integration.md)은 최신 Studio/권한과 main 캐시·작업·관측·언어 UI를 통합했다. 진단은 명시 운영자 allowlist, Redis 작업은 opt-in이다. legacy 공용 테이블은 추가 migration으로 분리하며 모호한 과거 행은 자동 이전하지 않는다. 미연결 모듈을 자동 활성화하거나 운영 migration·전체 수용 완료로 확대하지 않는다.

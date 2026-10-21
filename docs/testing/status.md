@@ -1,5 +1,12 @@
 # 최신 요약 — 2026-10-21
 
+
+**2026-10-21 의존성 PR19개:** [분석·수정](dependency-pr-review-20261021.md)은 최신 develop 공통 BE3실패의 RSS fixture/배경 예외·준비 후 생성 경합을 수정했다. 실제 TypeORM12 ESM/Jest·Swiper14 Navigation 오류를 보완하고 실제 SQLite 초기화/종료·Ego56 컴포넌트390/1440/키보드를 확인했다. landing CI 공백을 보완했고 TypeScript7/다른 major의 별도 검증 경계를 기록했다. PR 자동 병합/승인/댓글0·실모델 반복0·VoiceOver BLOCKED 유지.
+
+- [상세 사용자 가이드 사이트](user-guide-site.md): VitePress 20페이지·한국어 검색·Ego 반응형·기본/하위 경로 링크 검사. 제품 재인수·외부 배포와 별도.
+
+- 2026-10-21: [사용자 가이드 Ego 실제 검증](user-guide-ego.md) — 합성 소스·실AI 생성/수정·저장/게시/익명/직원 열람·대표 모바일, 조회 소비자 read API와 기본 차트 누락 안내 보완. 운영·실기기·전체 수용과 구분.
+
 **2026-10-21 관측 오류 복구:** [원인·수정·MySQL 재검증](observability-recovery.md). Knex 시간 상관/INT 검증·암호화 진단/계획 저장·Redis disabled/무트래픽 경고와 optimizer 접속 정보 전달을 보완했다. 선택 BE218·FE74/원격 통합 후94, 새 MySQL8.4.11의27HTTP/7검사·실제1,592/1,598ms와 JSON 계획·cron 로그를 확인했다. 앞선 인수 수정과 함께 develop 전달 대상이며 운영/전체16개 업무 수용은 별도다.
 
 **2026-10-21 develop 인수 시나리오:** [결과·발견 결함](develop-acceptance-20261021.md). main/v2 통합 develop에서 격리 MySQL의 고유 E2E17개(최종 배치16+경합 보완 재실행1)·권한297HTTP/12검사·Ego122 실제 AI 생성/저장/reload/비공개 게시·대표 폭을 확인했다. 시드 로더·위젯 선택·빈 대시보드 MySQL 조회를 보완했다. 관측 오류는 미해결이며 운영/실기기/전체16개 업무 수용은 Open이다. 관측 오류의 후속 수정은 위 복구 기록을 따른다.
