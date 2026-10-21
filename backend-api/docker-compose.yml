@@ -1,213 +1,103 @@
-##
-##version: '3.3'
-##
-##services:
-##  db:
-##    build:
-##      context: .
-##      dockerfile: Dockerfile.dev
-##    image: mysql:5.7
-##    #    volumes:
-##    #      - ./mysql-init-files/:/docker-entrypoint-initdb.d/
-##    restart: always
-##    container_name: mmc
-##    environment:
-##      - MYSQL_ALLOW_EMPTY_PASSWORD="true"
-##      - MYSQL_DATABASE= ${DB_NAME}
-##      - MYSQL_USER= ${DB_USERNAME}
-##      - MYSQL_PASSWORD= ${DB_PASSWORD}
-##    env_file:
-##      - .env
-##    ports:
-##      - '3306:3306'
-##    expose:
-##      - '3306'
-##    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-##             --default_authentication_plugin=mysql_native_password
-##    volumes:
-##      - "./mysql-init-files/:/docker-entrypoint-initdb.d/"
-##      - mysql:/var/lib/mysql
-##      - ./db/conf.d:/etc/mysql/conf.d
-#
-##version: "3.5"
-##services:
-##  main:
-##    build:
-##      context: ./
-##      dockerfile: ./Dockerfile.dev
-##    ports:
-##      - "4000:4000"
-##    networks:
-##      - vanillameta
-##    depends_on:
-##      - mysql
-##    links:
-##      - "mysql"
-###      - "pg"
-##    env_file:
-##      - .env
-##    tty: true
-##    environment:
-##      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-##    restart: always
-##
-##  mysql:
-##    container_name: vanillameta_mysql
-##    image: mysql:5.7
-##    ports:
-##      -  "3306:3306"
-##    networks:
-##      - vanillameta
-##    environment:
-##      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-##      MYSQL_CHARSET: utf8mb4
-##      MYSQL_DATABASE: ${DB_NAME}
-##      MYSQL_USER: ${DB_USERNAME}
-##      MYSQL_PASSWORD: ${DB_PASSWORD}
-##      TZ: Asia/Seoul
-##    restart: always
-##
-##    command:
-##          --default-authentication-plugin=mysql_native_password
-###         --init-file /docker-entrypoint-initdb.d/dump_data.sql
-##    volumes:
-##      - ./mysql:/var/lib/mysql/
-##      - ./db/conf.d:/etc/mysql/conf.d
-##      - ./mysql-init-files/dump_data:/docker-entrypoint-initdb.d/dump_data
-#
-#
-#version: "3.7"
-#services:
-#  main:
-#    build:
-#      context: ./
-#      dockerfile: ./Dockerfile.dev
-#    image: mysql
-#    ports:
-#      - "4000:4000"
-#    networks:
-#      - vanillameta
-#    depends_on:
-#      - mysql
-#    links:
-#      - "mysql"
-#    env_file:
-#      - .env
-#    tty: true
-#    environment:
-#      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-#    restart: always
-#
-#  mysql:
-#    container_name: vanillameta_mysql
-#    image: mysql
-#    ports:
-#      -  "3306:3306"
-#    networks:
-#        - vanillameta
-#
-#    environment:
-#      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-#      MYSQL_CHARSET: utf8mb4
-#      MYSQL_DATABASE: ${DB_NAME}
-#      MYSQL_USER: ${DB_USERNAME}
-#      MYSQL_PASSWORD: ${DB_PASSWORD}
-#      TZ: Asia/Seoul
-#    restart: always
-#    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-#             --default_authentication_plugin=mysql_native_password
-#
-#    volumes:
-#        - mysql:/var/lib/mysql
-#        - ./db/conf.d:/etc/mysql/conf.d
-#        - ./mysql-init-files/dump_data:/docker-entrypoint-initdb.d
-#
-#  #  mariadb:
-#  #    container_name: vanillameta_mariadb
-#  #    extra_hosts:
-#  #      - "host.docker.internal:host-gateway"
-#  #    image: mariadb
-#  #    ports:
-#  #      -  "3308:3308"
-#  #    networks:
-#  #      - vanillameta
-#  #    environment:
-#  #      MYSQL_ROOT_PASSWORD: 'strongpassword'
-#  #      MYSQL_CHARSET: utf8mb4
-#  #      MYSQL_DATABASE: ${DB_NAME}
-#  #      MYSQL_USER: ${DB_USERNAME}
-#  #      MYSQL_PASSWORD: ${DB_PASSWORD}
-#  #      TZ: Asia/Seoul
-#  #    restart: always
-#  #    volumes:
-#  #      - ./db:/var/lib/maria
-#
-##  pg:
-##    container_name: vanillameta_pg
-##    image: postgres
-##    ports:
-##      -  "5432:5432"
-##    networks:
-##      - vanillameta
-##    environment:
-##      POSTGRES_ROOT_PASSWORD: 'strongpassword'
-##      POSTGRES_CHARSET: utf8mb4
-##      POSTGRES_DATABASE: ${DB_NAME}
-##      POSTGRES_USER: ${DB_USERNAME}
-##      POSTGRES_PASSWORD: ${DB_PASSWORD}
-##      POSTGRES_HOST_AUTH_METHOD: "trust"
-##      TZ: Asia/Seoul
-##    restart: always
-##    #    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-##    volumes:
-##      - mysql:/var/lib/mysql
-##      - ./db/conf.d:/etc/porstgressql/data
-#
-#
-##  oracledb:
-##    container_name: vanillameta_oracle
-##    image: oracleinanutshell/oracle-xe-11g
-##    ports:
-##      - "1521:1521"
-##    networks:
-##      - vanillameta
-##    environment:
-##      ORACLE_CHARSET: utf8mb4
-##      ORACLE_DATABASE: ${DB_NAME}
-##      ORACLE_USER: ${DB_USERNAME}
-##      ORACLE_PASSWORD: ${DB_PASSWORD}
-##      TZ: Asia/Seoul
-##    restart: always
-##      #    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-##    volumes:
-##      - mysql:/var/lib/mysql
-##      - ./db/conf.d:/etc/porstgressql/data
-#
-#
-##
-##  mssql:
-##    container_name: vanillameta_mssql
-##    image: mcr.microsoft.com/mssql/server:2019-latest
-##    user: frog
-##    ports:
-##      -  "1433:1433"
-##    networks:
-##      - vanillameta
-##    environment:
-##      ACCEPT_EULA: "Y"
-##      MSSQL_SA_PASSWORD: 'Qkslffk@123123'
-##
-##
-##
-##    restart: always
-##
-##    volumes:
-##      - ./sqlvolume:/home/frog
-##
-#
-##
-#volumes:
-#  mysql:
-#networks:
-#  vanillameta:
-#
+version: '3.8'
+
+services:
+  # Redis 서비스
+  redis:
+    image: redis:7-alpine
+    container_name: vanillameta_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - vanillameta
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # MySQL 데이터베이스
+  mysql:
+    image: mysql:8.0
+    container_name: vanillameta_mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - vanillameta
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-vanillameta}
+      MYSQL_USER: ${DB_USERNAME:-vanillameta}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-vanillameta123}
+      TZ: Asia/Seoul
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/conf.d:/etc/mysql/conf.d
+      - ./mysql-init-files:/docker-entrypoint-initdb.d:ro
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+      --max_connections=1000
+      --max_allowed_packet=64M
+      --innodb_buffer_pool_size=256M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # NestJS API 서버
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vanillameta_api
+    ports:
+      - "3000:3000"
+    networks:
+      - vanillameta
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DB_TYPE: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: ${DB_USERNAME:-vanillameta}
+      DB_PASSWORD: ${DB_PASSWORD:-vanillameta123}
+      DB_NAME: ${DB_NAME:-vanillameta}
+      DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-5}
+      KNEX_POOL_MAX: ${KNEX_POOL_MAX:-3}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ACCESS_SECRET: ${ACCESS_SECRET:-default_access_secret}
+      REFRESH_SECRET: ${REFRESH_SECRET:-default_refresh_secret}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-default_jwt_secret}
+      URL_ACCESS_SECRET: ${URL_ACCESS_SECRET:-default_url_secret}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
+    volumes:
+      - ./sqlite_data:/app/sqlite_data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  vanillameta:
+    driver: bridge

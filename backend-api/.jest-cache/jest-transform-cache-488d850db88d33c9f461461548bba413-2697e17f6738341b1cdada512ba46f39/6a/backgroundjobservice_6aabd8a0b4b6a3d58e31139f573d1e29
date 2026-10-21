@@ -1,0 +1,243 @@
+65f9e1843234ee460fd06bdbdffb739b
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BackgroundJobService = void 0;
+const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const bull_1 = require("@nestjs/bull");
+const background_job_entity_1 = require("./entities/background-job.entity");
+const job_result_entity_1 = require("./entities/job-result.entity");
+const logger_service_1 = require("../common/logger/logger.service");
+const lzString = __importStar(require("lz-string"));
+let BackgroundJobService = class BackgroundJobService {
+    constructor(backgroundJobRepository, jobResultRepository, queryQueue, logger) {
+        this.backgroundJobRepository = backgroundJobRepository;
+        this.jobResultRepository = jobResultRepository;
+        this.queryQueue = queryQueue;
+        this.logger = logger;
+    }
+    async createJob(userId, createJobDto) {
+        var _a;
+        // 백그라운드 작업 엔티티 생성
+        const backgroundJob = new background_job_entity_1.BackgroundJob();
+        backgroundJob.userId = userId;
+        backgroundJob.jobType = createJobDto.jobType;
+        backgroundJob.title = createJobDto.title;
+        backgroundJob.description = createJobDto.description;
+        backgroundJob.status = background_job_entity_1.JobStatus.PENDING;
+        backgroundJob.metadata = JSON.stringify(Object.assign({ datasetId: createJobDto.datasetId, widgetId: createJobDto.widgetId, databaseId: createJobDto.databaseId, query: createJobDto.query }, createJobDto.metadata));
+        const savedJob = await this.backgroundJobRepository.save(backgroundJob);
+        // Bull 큐에 작업 추가
+        const queueJob = await this.queryQueue.add({
+            backgroundJobId: savedJob.id,
+            userId,
+            query: createJobDto.query,
+            databaseId: createJobDto.databaseId,
+            datasetId: createJobDto.datasetId,
+            parameters: (_a = createJobDto.metadata) === null || _a === void 0 ? void 0 : _a.parameters,
+        });
+        // Queue Job ID 저장
+        savedJob.queueJobId = String(queueJob.id);
+        await this.backgroundJobRepository.save(savedJob);
+        this.logger.log(`Created background job ${savedJob.id} for user ${userId}`);
+        return this.toResponseDto(savedJob);
+    }
+    async getJobById(jobId, userId) {
+        const job = await this.backgroundJobRepository.findOne({
+            where: { id: jobId, userId },
+            relations: ['jobResult'],
+        });
+        if (!job) {
+            throw new common_1.NotFoundException(`Job ${jobId} not found`);
+        }
+        return this.toResponseDto(job);
+    }
+    async getJobsByUser(userId, page = 1, pageSize = 20) {
+        const [items, total] = await this.backgroundJobRepository.findAndCount({
+            where: { userId },
+            order: { createdAt: 'DESC' },
+            skip: (page - 1) * pageSize,
+            take: pageSize,
+            relations: ['jobResult'],
+        });
+        return {
+            items: items.map(job => this.toResponseDto(job)),
+            total,
+            page,
+            pageSize,
+        };
+    }
+    async getJobResult(jobId, userId) {
+        // 작업 확인
+        const job = await this.backgroundJobRepository.findOne({
+            where: { id: jobId, userId },
+        });
+        if (!job) {
+            throw new common_1.NotFoundException(`Job ${jobId} not found`);
+        }
+        // 결과 조회
+        const result = await this.jobResultRepository.findOne({
+            where: { backgroundJobId: jobId },
+        });
+        if (!result) {
+            throw new common_1.NotFoundException(`Result for job ${jobId} not found`);
+        }
+        return this.toResultResponseDto(result);
+    }
+    async getJobResultData(jobId, userId) {
+        const result = await this.getJobResult(jobId, userId);
+        // 저장 타입에 따라 데이터 반환
+        if (result.storageType === job_result_entity_1.ResultStorageType.DATABASE) {
+            if (result.isCompressed && result.compressionType === 'lz-string') {
+                // 압축된 데이터 해제
+                const decompressed = lzString.decompressFromUTF16(result.resultData);
+                return JSON.parse(decompressed);
+            }
+            return result.resultData;
+        }
+        else if (result.storageType === job_result_entity_1.ResultStorageType.REDIS) {
+            // Redis에서 데이터 조회 (추후 구현)
+            throw new Error('Redis storage not implemented yet');
+        }
+        else if (result.storageType === job_result_entity_1.ResultStorageType.S3) {
+            // S3 다운로드 URL 반환 (추후 구현)
+            throw new Error('S3 storage not implemented yet');
+        }
+        throw new Error(`Unknown storage type: ${result.storageType}`);
+    }
+    async cancelJob(jobId, userId) {
+        const job = await this.backgroundJobRepository.findOne({
+            where: { id: jobId, userId },
+        });
+        if (!job) {
+            throw new common_1.NotFoundException(`Job ${jobId} not found`);
+        }
+        if (job.status !== background_job_entity_1.JobStatus.PENDING && job.status !== background_job_entity_1.JobStatus.PROCESSING) {
+            throw new Error(`Cannot cancel job in ${job.status} status`);
+        }
+        // Bull 큐에서 작업 취소
+        if (job.queueJobId) {
+            const queueJob = await this.queryQueue.getJob(job.queueJobId);
+            if (queueJob) {
+                await queueJob.remove();
+            }
+        }
+        // 상태 업데이트
+        job.status = background_job_entity_1.JobStatus.CANCELLED;
+        job.completedAt = new Date();
+        await this.backgroundJobRepository.save(job);
+        this.logger.log(`Cancelled job ${jobId}`);
+    }
+    async cleanupExpiredResults() {
+        // 만료된 결과 정리 (스케줄러에서 호출)
+        const expiredResults = await this.jobResultRepository
+            .createQueryBuilder('result')
+            .where('result.expiresAt < :now', { now: new Date() })
+            .getMany();
+        for (const result of expiredResults) {
+            // 외부 저장소 정리 (S3, Redis)
+            if (result.storageType === job_result_entity_1.ResultStorageType.REDIS) {
+                // Redis 키 삭제 (추후 구현)
+            }
+            else if (result.storageType === job_result_entity_1.ResultStorageType.S3) {
+                // S3 객체 삭제 (추후 구현)
+            }
+            await this.jobResultRepository.remove(result);
+        }
+        this.logger.log(`Cleaned up ${expiredResults.length} expired job results`);
+        return expiredResults.length;
+    }
+    toResponseDto(job) {
+        var _a, _b;
+        return {
+            id: job.id,
+            jobType: job.jobType,
+            status: job.status,
+            title: job.title,
+            description: job.description,
+            progress: job.progress,
+            errorMessage: job.errorMessage,
+            attemptCount: job.attemptCount,
+            startedAt: job.startedAt,
+            completedAt: job.completedAt,
+            processingTimeMs: job.processingTimeMs ? Number(job.processingTimeMs) : undefined,
+            createdAt: job.createdAt,
+            updatedAt: job.updatedAt,
+            hasResult: !!job.jobResult,
+            resultSizeBytes: ((_a = job.jobResult) === null || _a === void 0 ? void 0 : _a.resultSizeBytes)
+                ? Number(job.jobResult.resultSizeBytes)
+                : undefined,
+            rowCount: (_b = job.jobResult) === null || _b === void 0 ? void 0 : _b.rowCount,
+        };
+    }
+    toResultResponseDto(result) {
+        return {
+            id: result.id,
+            backgroundJobId: result.backgroundJobId,
+            storageType: result.storageType,
+            resultData: result.storageType === job_result_entity_1.ResultStorageType.DATABASE && !result.isCompressed
+                ? result.resultData
+                : undefined,
+            storageLocation: result.storageLocation,
+            downloadUrl: result.storageType === job_result_entity_1.ResultStorageType.S3
+                ? this.generateDownloadUrl(result.storageLocation)
+                : undefined,
+            resultSizeBytes: Number(result.resultSizeBytes),
+            rowCount: result.rowCount,
+            resultMetadata: result.resultMetadata ? JSON.parse(result.resultMetadata) : null,
+            expiresAt: result.expiresAt,
+            isCompressed: result.isCompressed,
+            compressionType: result.compressionType,
+            createdAt: result.createdAt,
+        };
+    }
+    generateDownloadUrl(s3Location) {
+        // S3 pre-signed URL 생성 (추후 구현)
+        return `https://download.example.com/${s3Location}`;
+    }
+};
+BackgroundJobService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(background_job_entity_1.BackgroundJob)),
+    __param(1, (0, typeorm_1.InjectRepository)(job_result_entity_1.JobResult)),
+    __param(2, (0, bull_1.InjectQueue)('query-execution')),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository, Object, logger_service_1.CustomLoggerService])
+], BackgroundJobService);
+exports.BackgroundJobService = BackgroundJobService;

@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # Redis 서비스 (로컬 개발용 - SQLite 사용 시)
+  redis:
+    image: redis:7-alpine
+    container_name: vanillameta_redis_local
+    ports:
+      - "6379:6379"
+    networks:
+      - vanillameta_local
+    volumes:
+      - redis_local_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # NestJS API 서버 (로컬 SQLite 모드)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: vanillameta_api_local
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # 디버그 포트
+    networks:
+      - vanillameta_local
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: local
+      DB_TYPE: sqlite
+      DB_DATABASE: ./sqlite.db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ACCESS_SECRET: ${ACCESS_SECRET:-local_access_secret}
+      REFRESH_SECRET: ${REFRESH_SECRET:-local_refresh_secret}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local_jwt_secret}
+      URL_ACCESS_SECRET: ${URL_ACCESS_SECRET:-local_url_secret}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
+    volumes:
+      - ./src:/app/src:delegated
+      - ./test:/app/test:delegated
+      - ./sqlite_data:/app/sqlite_data
+      - ./sqlite.db:/app/sqlite.db
+      - /app/node_modules  # node_modules를 호스트와 분리
+    command: yarn start:local
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  redis_local_data:
+    driver: local
+
+networks:
+  vanillameta_local:
+    driver: bridge

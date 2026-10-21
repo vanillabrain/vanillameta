@@ -1,5 +1,7 @@
 jest.mock('./ai.service', () => ({ AiService: class {} }));
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { UserMapping } from '../user/entities/user-mapping.entity';
 import { AiDashboardService } from './ai-dashboard.service';
 import { ConnectionService } from '../connection/connection.service';
 import { DuckDBService } from '../analysis/duckdb.service';
@@ -7,6 +9,19 @@ import { ResponseStatus } from '../common/enum/response-status.enum';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+
+const ownedDashboardRepository = () => ({
+  manager: {
+    findOne: jest.fn(async (entity: any, options: any) => {
+      if (entity === UserMapping)
+        return options?.where?.dashboardId === 42 && options?.where?.userInfoId === 7
+          ? { dashboardId: 42, userInfoId: 7 }
+          : null;
+      if (entity === Dashboard) return { id: 42, delYn: 'N' };
+      return null;
+    }),
+  },
+});
 
 const draft = () => ({
   databaseId: 1,
@@ -59,7 +74,7 @@ describe('dashboard details request and ownership contract', () => {
         };
       }),
     };
-    service = new AiDashboardService({} as any, connection, {} as any);
+    service = new AiDashboardService({} as any, connection, ownedDashboardRepository() as any);
     analysis = jest.spyOn(service, 'analysis').mockResolvedValue(success(draft()));
   });
   it('checks stored dashboard through analysis with the actor and preserves exact count strings and defaults', async () => {
@@ -233,7 +248,7 @@ describe('dashboard details: actual DuckDB source rows', () => {
       })),
     };
     connection = new ConnectionService(repository as any, {} as any, worker);
-    service = new AiDashboardService({} as any, connection, {} as any);
+    service = new AiDashboardService({} as any, connection, ownedDashboardRepository() as any);
     stored = draft();
     jest.spyOn(service, 'analysis').mockResolvedValue(success(stored));
     query = jest.spyOn(worker, 'query');

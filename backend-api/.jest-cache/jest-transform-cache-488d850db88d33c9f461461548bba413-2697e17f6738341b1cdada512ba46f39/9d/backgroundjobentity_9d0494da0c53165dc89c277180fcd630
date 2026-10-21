@@ -1,0 +1,125 @@
+ec3104dca4ab899a88dea59f1dc9e809
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BackgroundJob = exports.JobType = exports.JobStatus = void 0;
+const typeorm_1 = require("typeorm");
+const base_entity_1 = require("../../common/entities/base.entity");
+const user_entity_1 = require("../../user/entities/user.entity");
+const dataset_entity_1 = require("../../dataset/entities/dataset.entity");
+const widget_entity_1 = require("../../widget/entities/widget.entity");
+const job_result_entity_1 = require("./job-result.entity");
+var JobStatus;
+(function (JobStatus) {
+    JobStatus["PENDING"] = "pending";
+    JobStatus["PROCESSING"] = "processing";
+    JobStatus["COMPLETED"] = "completed";
+    JobStatus["FAILED"] = "failed";
+    JobStatus["CANCELLED"] = "cancelled";
+})(JobStatus = exports.JobStatus || (exports.JobStatus = {}));
+var JobType;
+(function (JobType) {
+    JobType["QUERY_EXECUTION"] = "query_execution";
+    JobType["REPORT_GENERATION"] = "report_generation";
+    JobType["DATA_EXPORT"] = "data_export";
+})(JobType = exports.JobType || (exports.JobType = {}));
+let BackgroundJob = class BackgroundJob extends base_entity_1.BaseEntity {
+};
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid'),
+    __metadata("design:type", String)
+], BackgroundJob.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'varchar',
+        length: 50,
+        default: JobType.QUERY_EXECUTION,
+    }),
+    __metadata("design:type", String)
+], BackgroundJob.prototype, "jobType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'varchar',
+        length: 50,
+        default: JobStatus.PENDING,
+    }),
+    __metadata("design:type", String)
+], BackgroundJob.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 255 }),
+    __metadata("design:type", String)
+], BackgroundJob.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], BackgroundJob.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text' }),
+    __metadata("design:type", String)
+], BackgroundJob.prototype, "metadata", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], BackgroundJob.prototype, "progress", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], BackgroundJob.prototype, "errorMessage", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], BackgroundJob.prototype, "attemptCount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'datetime', nullable: true }),
+    __metadata("design:type", Date)
+], BackgroundJob.prototype, "startedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'datetime', nullable: true }),
+    __metadata("design:type", Date)
+], BackgroundJob.prototype, "completedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bigint', nullable: true }),
+    __metadata("design:type", Number)
+], BackgroundJob.prototype, "processingTimeMs", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 100, nullable: true }),
+    __metadata("design:type", String)
+], BackgroundJob.prototype, "queueJobId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 255 }),
+    __metadata("design:type", String)
+], BackgroundJob.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'userId', referencedColumnName: 'userId' }),
+    __metadata("design:type", user_entity_1.User)
+], BackgroundJob.prototype, "user", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => dataset_entity_1.Dataset, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'datasetId' }),
+    __metadata("design:type", dataset_entity_1.Dataset)
+], BackgroundJob.prototype, "dataset", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => widget_entity_1.Widget, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'widgetId' }),
+    __metadata("design:type", widget_entity_1.Widget)
+], BackgroundJob.prototype, "widget", void 0);
+__decorate([
+    (0, typeorm_1.OneToOne)(() => job_result_entity_1.JobResult, jobResult => jobResult.backgroundJob, { nullable: true }),
+    __metadata("design:type", job_result_entity_1.JobResult)
+], BackgroundJob.prototype, "jobResult", void 0);
+BackgroundJob = __decorate([
+    (0, typeorm_1.Entity)('background_jobs'),
+    (0, typeorm_1.Index)('idx_background_job_status', ['status']),
+    (0, typeorm_1.Index)('idx_background_job_user', ['userId']),
+    (0, typeorm_1.Index)('idx_background_job_created', ['createdAt'])
+], BackgroundJob);
+exports.BackgroundJob = BackgroundJob;

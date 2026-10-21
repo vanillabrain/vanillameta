@@ -1,0 +1,58 @@
+f0a89f2f9ddaff0e72db3abed2f7b20d
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Widget = void 0;
+const typeorm_1 = require("typeorm");
+const base_entity_1 = require("../../common/entities/base.entity");
+const dataset_type_enum_1 = require("../../common/enum/dataset-type.enum");
+const yn_enum_1 = require("../../common/enum/yn.enum");
+let Widget = class Widget extends base_entity_1.BaseEntity {
+};
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)({ comment: '위젯 ID' }),
+    __metadata("design:type", Number)
+], Widget.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 300, nullable: true, comment: '위젯명' }),
+    __metadata("design:type", String)
+], Widget.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 1000, nullable: true, comment: '설명' }),
+    __metadata("design:type", String)
+], Widget.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ comment: '컴포넌트 ID' }),
+    __metadata("design:type", Number)
+], Widget.prototype, "componentId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 255, comment: '데이터셋 구분(데이터셋, 위젯 뷰)', default: dataset_type_enum_1.DatasetType.TABLE }),
+    __metadata("design:type", String)
+], Widget.prototype, "datasetType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ comment: '데이터셋 ID' }),
+    __metadata("design:type", Number)
+], Widget.prototype, "datasetId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', comment: '위젯 속성' }),
+    __metadata("design:type", String)
+], Widget.prototype, "option", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 1, default: yn_enum_1.YesNo.NO, comment: '삭제여부' }),
+    __metadata("design:type", String)
+], Widget.prototype, "delYn", void 0);
+Widget = __decorate([
+    (0, typeorm_1.Entity)(),
+    (0, typeorm_1.Index)('IDX_WIDGET_COMPONENT_ID', ['componentId']),
+    (0, typeorm_1.Index)('IDX_WIDGET_DATASET_TYPE_ID', ['datasetType', 'datasetId']),
+    (0, typeorm_1.Index)('IDX_WIDGET_UPDATED_AT', ['updatedAt'])
+], Widget);
+exports.Widget = Widget;

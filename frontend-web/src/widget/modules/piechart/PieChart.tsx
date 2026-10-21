@@ -1,12 +1,10 @@
 import { chartTheme } from '@/components/charts/chartTheme';
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
 const PieChart = props => {
   const { option, dataSet, seriesOp } = props;
-
-  const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
     // toolbox: {
@@ -30,20 +28,14 @@ const PieChart = props => {
     },
   };
 
-  useEffect(() => {
-    if (option && dataSet) {
-      const newOption = createComponentOption();
-      setComponentOption(newOption);
-    }
-  }, [option, dataSet]);
-
   /**
    *
    * 위젯옵션과 데이터로
    * 컴포넌트에 맞는 형태로 생성
    */
 
-  const createComponentOption = () => {
+  const componentOption = useMemo(() => {
+    if (!option || !dataSet) return {};
     let newOption = {};
 
     const newSeries = [];
@@ -83,7 +75,7 @@ const PieChart = props => {
       newOption = { ...defaultComponentOption, ...op };
     }
     return newOption;
-  };
+  }, [option, dataSet, seriesOp]);
 
   return (
     <ReactECharts
@@ -96,4 +88,4 @@ const PieChart = props => {
   );
 };
 
-export default PieChart;
+export default React.memo(PieChart);

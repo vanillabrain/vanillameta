@@ -78,6 +78,15 @@ export class AiController {
     );
   }
 
+  @Post('dashboard-view')
+  dashboardView(@Body() body: any, @Req() req) {
+    return this.dashboards.viewSaved(
+      body,
+      req.user.accessKeyData.id,
+      req.user.accessKeyData.authVersion ?? 0,
+    );
+  }
+
   @Post('dashboard-preview')
   dashboardPreview(@Body() body: any, @Req() req) {
     return this.dashboards.preview(

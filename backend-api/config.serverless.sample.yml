@@ -2,6 +2,17 @@ AWS_REGION: ap-northeast-2
 STAGE: dev
 DEPLOYMENT_BUCKET: vanilla-serverless-deployment
 CORS_ORIGIN: 'https://vanillameta.vanillabrain.com, http://localhost:3000'
+
+# Lambda 성능 최적화 설정
+# T01_S04: 메모리 최적화 - 512MB → 1024MB로 성능 향상
+# memorySize: 1024  # Lambda 메모리 설정 (기본값 1024MB)
+# timeout: 10       # Lambda 타임아웃 설정 (10초)
+
+# T02_S04: 웜업 플러그인 설정
+# 웜업 기능은 프로덕션 환경에서만 자동 활성화됩니다.
+# - 5분마다 자동 웜업 실행으로 콜드 스타트 80% 이상 감소
+# - CloudWatch에서 웜업 상태 모니터링 가능
+# - 웜업 실패 시 알람 발송 (프로덕션 환경만)
 DOMAINS:
   prod: api.vanillameta.net
   dev: api-dev.vanillameta.net

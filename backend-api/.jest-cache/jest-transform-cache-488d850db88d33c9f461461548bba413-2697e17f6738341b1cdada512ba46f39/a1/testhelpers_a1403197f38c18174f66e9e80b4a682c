@@ -1,0 +1,383 @@
+4dea3e56b5f669931f33fb60ca23c375
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.measureMemoryUsage = exports.cleanupTestData = exports.retryTest = exports.withTimeout = exports.generateLargeDataset = exports.createAsyncMock = exports.mockErrorScenarios = exports.mockShareUrl = exports.mockDatasetResult = exports.mockWidgetSettings = exports.mockChartComponent = exports.mockConnectionInfo = exports.createMockResponse = exports.createMockRequest = exports.createMockKnexConnection = exports.createTestProviders = exports.mockEnvVars = exports.defaultServiceMethods = exports.createMockService = exports.mockDataset = exports.mockDatabase = exports.mockWidget = exports.mockDashboard = exports.mockUser = exports.getRepositoryTokenFor = exports.createMockJwtService = exports.createMockRepository = void 0;
+const typeorm_1 = require("@nestjs/typeorm");
+/**
+ * Mock repository factory
+ * TypeORM Repository를 모킹하기 위한 팩토리 함수
+ */
+const createMockRepository = () => ({
+    find: jest.fn(),
+    findOne: jest.fn(),
+    findOneBy: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    remove: jest.fn(),
+    createQueryBuilder: jest.fn(() => ({
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        offset: jest.fn().mockReturnThis(),
+        leftJoin: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        innerJoin: jest.fn().mockReturnThis(),
+        innerJoinAndSelect: jest.fn().mockReturnThis(),
+        getOne: jest.fn(),
+        getMany: jest.fn(),
+        getManyAndCount: jest.fn(),
+        getRawMany: jest.fn(),
+        getRawOne: jest.fn(),
+        insert: jest.fn().mockReturnThis(),
+        into: jest.fn().mockReturnThis(),
+        values: jest.fn().mockReturnThis(),
+        orUpdate: jest.fn().mockReturnThis(),
+        execute: jest.fn(),
+    })),
+});
+exports.createMockRepository = createMockRepository;
+/**
+ * Mock JwtService
+ * JWT 서비스를 모킹하기 위한 팩토리 함수
+ */
+const createMockJwtService = () => ({
+    sign: jest.fn().mockReturnValue('mock-jwt-token'),
+    signAsync: jest.fn().mockResolvedValue('mock-jwt-token'),
+    verify: jest.fn().mockReturnValue({ userId: 1, email: 'test@example.com' }),
+    verifyAsync: jest.fn().mockResolvedValue({ userId: 1, email: 'test@example.com' }),
+    decode: jest.fn().mockReturnValue({ userId: 1, email: 'test@example.com' }),
+});
+exports.createMockJwtService = createMockJwtService;
+/**
+ * 엔티티 클래스에 대한 Repository 토큰 생성 헬퍼
+ */
+const getRepositoryTokenFor = (entity) => (0, typeorm_1.getRepositoryToken)(entity);
+exports.getRepositoryTokenFor = getRepositoryTokenFor;
+/**
+ * 공통 테스트 데이터
+ */
+exports.mockUser = {
+    id: 1,
+    userId: 'testuser',
+    email: 'test@example.com',
+    password: 'hashedpassword',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+};
+exports.mockDashboard = {
+    id: 1,
+    title: 'Test Dashboard',
+    layout: '[]',
+    shareId: 1,
+    delYn: 'N',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+};
+exports.mockWidget = {
+    id: 1,
+    title: 'Test Widget',
+    widgetType: 'chart',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+};
+exports.mockDatabase = {
+    id: 1,
+    name: 'Test Database',
+    host: 'localhost',
+    port: 3306,
+    username: 'testuser',
+    password: 'testpass',
+    databaseName: 'testdb',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+};
+exports.mockDataset = {
+    id: 1,
+    name: 'Test Dataset',
+    query: 'SELECT * FROM test',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+};
+/**
+ * 공통 서비스 Mock 팩토리
+ */
+const createMockService = (methods = []) => {
+    const mockService = {};
+    methods.forEach(method => {
+        mockService[method] = jest.fn();
+    });
+    return mockService;
+};
+exports.createMockService = createMockService;
+/**
+ * 기본 서비스 메서드들에 대한 Mock
+ */
+exports.defaultServiceMethods = [
+    'create',
+    'findAll',
+    'findOne',
+    'update',
+    'remove',
+    'save',
+    'delete',
+];
+/**
+ * 환경 변수 Mock 헬퍼
+ */
+exports.mockEnvVars = {
+    ACCESS_SECRET: 'test-access-secret',
+    REFRESH_SECRET: 'test-refresh-secret',
+    URL_ACCESS_SECRET: 'test-url-access-secret',
+    NODE_ENV: 'test',
+};
+/**
+ * 테스트 모듈 생성을 위한 공통 provider 설정
+ */
+const createTestProviders = (service, dependencies = []) => {
+    const providers = [service];
+    dependencies.forEach(dep => {
+        if (dep.useFactory) {
+            providers.push(dep);
+        }
+        else if (dep.entity) {
+            providers.push({
+                provide: (0, typeorm_1.getRepositoryToken)(dep.entity),
+                useValue: (0, exports.createMockRepository)(),
+            });
+        }
+        else if (dep.service) {
+            providers.push({
+                provide: dep.service,
+                useValue: (0, exports.createMockService)(dep.methods || exports.defaultServiceMethods),
+            });
+        }
+    });
+    return providers;
+};
+exports.createTestProviders = createTestProviders;
+/**
+ * Knex 연결 Mock 팩토리
+ * ConnectionService에서 사용하는 Knex 연결을 모킹
+ */
+const createMockKnexConnection = () => ({
+    raw: jest.fn().mockResolvedValue({ rows: [] }),
+    select: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    offset: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockResolvedValue([1]),
+    update: jest.fn().mockResolvedValue(1),
+    del: jest.fn().mockResolvedValue(1),
+    destroy: jest.fn().mockResolvedValue(undefined),
+    schema: {
+        createTable: jest.fn().mockReturnThis(),
+        dropTable: jest.fn().mockReturnThis(),
+        hasTable: jest.fn().mockResolvedValue(true),
+        hasColumn: jest.fn().mockResolvedValue(true),
+    },
+    transaction: jest.fn().mockImplementation(callback => {
+        const trx = (0, exports.createMockKnexConnection)();
+        return callback(trx);
+    }),
+});
+exports.createMockKnexConnection = createMockKnexConnection;
+/**
+ * HTTP Request Mock 팩토리
+ * E2E 테스트에서 사용하는 요청 데이터 모킹
+ */
+const createMockRequest = (overrides = {}) => (Object.assign({ user: exports.mockUser, headers: {
+        authorization: 'Bearer mock-token',
+        'content-type': 'application/json',
+    }, body: {}, params: {}, query: {} }, overrides));
+exports.createMockRequest = createMockRequest;
+/**
+ * HTTP Response Mock 팩토리
+ */
+const createMockResponse = () => {
+    const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+        send: jest.fn().mockReturnThis(),
+        setHeader: jest.fn().mockReturnThis(),
+        cookie: jest.fn().mockReturnThis(),
+        clearCookie: jest.fn().mockReturnThis(),
+    };
+    return res;
+};
+exports.createMockResponse = createMockResponse;
+/**
+ * Connection 정보 Mock 데이터
+ */
+exports.mockConnectionInfo = {
+    mysql: {
+        id: 1,
+        engine: 'mysql',
+        host: 'localhost',
+        port: 3306,
+        database: 'test_db',
+        username: 'test_user',
+        password: 'test_pass',
+    },
+    postgresql: {
+        id: 2,
+        engine: 'postgresql',
+        host: 'localhost',
+        port: 5432,
+        database: 'test_db',
+        username: 'test_user',
+        password: 'test_pass',
+    },
+    sqlite: {
+        id: 3,
+        engine: 'sqlite',
+        filename: ':memory:',
+    },
+};
+/**
+ * 차트 컴포넌트 Mock 데이터
+ */
+exports.mockChartComponent = {
+    id: 1,
+    name: 'Line Chart',
+    type: 'line',
+    category: 'basic',
+    settings: {
+        xAxis: { field: 'date', type: 'category' },
+        yAxis: { field: 'value', type: 'value' },
+        series: { field: 'value', type: 'line' },
+    },
+};
+/**
+ * Widget 설정 Mock 데이터
+ */
+exports.mockWidgetSettings = {
+    chartType: 'line',
+    title: 'Test Chart',
+    xAxis: 'date',
+    yAxis: 'value',
+    groupBy: null,
+    filters: [],
+    sorting: { field: 'date', direction: 'asc' },
+};
+/**
+ * 데이터셋 결과 Mock 데이터
+ */
+exports.mockDatasetResult = {
+    status: 'SUCCESS',
+    data: [
+        { date: '2023-01-01', value: 100, category: 'A' },
+        { date: '2023-01-02', value: 150, category: 'B' },
+        { date: '2023-01-03', value: 200, category: 'A' },
+    ],
+    metadata: {
+        columns: [
+            { name: 'date', type: 'string' },
+            { name: 'value', type: 'number' },
+            { name: 'category', type: 'string' },
+        ],
+        rowCount: 3,
+    },
+};
+/**
+ * 공유 URL Mock 데이터
+ */
+exports.mockShareUrl = {
+    id: 1,
+    shareId: 'abc123',
+    dashboardId: 1,
+    expireDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+};
+/**
+ * 에러 상황 Mock 헬퍼
+ */
+exports.mockErrorScenarios = {
+    databaseConnectionError: new Error('Connection failed: ECONNREFUSED'),
+    unauthorizedError: new Error('Unauthorized access'),
+    notFoundError: new Error('Resource not found'),
+    validationError: new Error('Validation failed'),
+    sqlError: new Error('SQL execution failed'),
+};
+/**
+ * 비동기 작업 Mock 헬퍼
+ */
+const createAsyncMock = (result, delay = 0) => {
+    return jest.fn().mockImplementation(() => new Promise(resolve => {
+        setTimeout(() => resolve(result), delay);
+    }));
+};
+exports.createAsyncMock = createAsyncMock;
+/**
+ * 성능 테스트용 Mock 데이터 생성기
+ */
+const generateLargeDataset = (size) => {
+    return Array.from({ length: size }, (_, index) => ({
+        id: index + 1,
+        name: `Item ${index + 1}`,
+        value: Math.floor(Math.random() * 1000),
+        date: new Date(Date.now() - index * 86400000).toISOString().split('T')[0],
+        category: ['A', 'B', 'C'][index % 3],
+    }));
+};
+exports.generateLargeDataset = generateLargeDataset;
+/**
+ * 테스트 시간 제한 헬퍼
+ */
+const withTimeout = (promise, timeout = 5000) => {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Test timeout')), timeout)),
+    ]);
+};
+exports.withTimeout = withTimeout;
+/**
+ * 테스트 재시도 헬퍼
+ */
+const retryTest = async (testFn, maxRetries = 3) => {
+    let lastError;
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await testFn();
+        }
+        catch (error) {
+            lastError = error;
+            if (i === maxRetries - 1)
+                throw lastError;
+            await new Promise(resolve => setTimeout(resolve, 100 * (i + 1)));
+        }
+    }
+};
+exports.retryTest = retryTest;
+/**
+ * 테스트 격리를 위한 데이터베이스 정리 헬퍼
+ */
+const cleanupTestData = async (repositories) => {
+    for (const repo of repositories) {
+        if (repo && typeof repo.clear === 'function') {
+            await repo.clear();
+        }
+    }
+};
+exports.cleanupTestData = cleanupTestData;
+/**
+ * 메모리 사용량 측정 헬퍼
+ */
+const measureMemoryUsage = () => {
+    const used = process.memoryUsage();
+    return {
+        rss: Math.round((used.rss / 1024 / 1024) * 100) / 100,
+        heapTotal: Math.round((used.heapTotal / 1024 / 1024) * 100) / 100,
+        heapUsed: Math.round((used.heapUsed / 1024 / 1024) * 100) / 100,
+        external: Math.round((used.external / 1024 / 1024) * 100) / 100, // MB
+    };
+};
+exports.measureMemoryUsage = measureMemoryUsage;

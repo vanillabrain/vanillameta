@@ -1,0 +1,42 @@
+{
+  "title": "Database",
+  "connection": {
+    "title": "Database Connection",
+    "new": "New Connection",
+    "test": "Test Connection",
+    "save": "Save Connection",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "testing": "Testing connection..."
+  },
+  "form": {
+    "name": "Connection Name",
+    "type": "Database Type",
+    "host": "Host",
+    "port": "Port",
+    "database": "Database Name",
+    "username": "Username",
+    "password": "Password",
+    "ssl": "Use SSL",
+    "advanced": "Advanced Settings"
+  },
+  "types": {
+    "mysql": "MySQL",
+    "postgresql": "PostgreSQL",
+    "oracle": "Oracle",
+    "mssql": "SQL Server",
+    "sqlite": "SQLite",
+    "bigquery": "BigQuery",
+    "snowflake": "Snowflake",
+    "redshift": "Amazon Redshift",
+    "cockroachdb": "CockroachDB",
+    "mariadb": "MariaDB"
+  },
+  "messages": {
+    "testSuccess": "Connection test successful.",
+    "testFailed": "Connection test failed.",
+    "saved": "Database connection saved successfully.",
+    "deleted": "Database connection deleted successfully.",
+    "alreadyExists": "Connection with the same name already exists."
+  }
+}

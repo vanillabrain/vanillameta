@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 현재 브랜치 확인
+branch="$(git rev-parse --abbrev-ref HEAD)"
+
+# main 브랜치에서 push 방지
+if [ "$branch" = "main" ]; then
+  echo "❌ main 브랜치에 직접 push할 수 없습니다!"
+  echo "✅ PR(Pull Request)을 통해 코드를 병합해주세요:"
+  echo "   1. 작업 브랜치에서 push: git push origin $branch"
+  echo "   2. GitHub에서 PR 생성"
+  echo "   3. 코드 리뷰 후 merge"
+  exit 1
+fi
+
+# 원격 main 브랜치로의 push도 방지
+while read local_ref local_sha remote_ref remote_sha
+do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "❌ main 브랜치로 직접 push할 수 없습니다!"
+    echo "✅ PR(Pull Request)을 통해 코드를 병합해주세요."
+    exit 1
+  fi
+done
+
+echo "✅ 브랜치 '$branch'에서 push를 진행합니다..."

@@ -1,0 +1,48 @@
+{
+  "title": "Dashboard",
+  "list": {
+    "title": "Dashboard List",
+    "empty": "No dashboards found.",
+    "createFirst": "Create your first dashboard!"
+  },
+  "create": {
+    "title": "Create New Dashboard",
+    "name": "Dashboard Name",
+    "description": "Description",
+    "template": "Select Template",
+    "blank": "Blank Dashboard",
+    "fromTemplate": "Start from Template"
+  },
+  "edit": {
+    "title": "Edit Dashboard",
+    "addWidget": "Add Widget",
+    "layout": "Layout",
+    "settings": "Settings",
+    "preview": "Preview"
+  },
+  "share": {
+    "title": "Share Dashboard",
+    "public": "Public",
+    "private": "Private",
+    "link": "Share Link",
+    "copyLink": "Copy Link",
+    "permissions": "Permissions",
+    "viewOnly": "View Only",
+    "canEdit": "Can Edit"
+  },
+  "actions": {
+    "duplicate": "Duplicate",
+    "export": "Export",
+    "delete": "Delete",
+    "share": "Share",
+    "settings": "Settings"
+  },
+  "messages": {
+    "created": "Dashboard created successfully.",
+    "updated": "Dashboard updated successfully.",
+    "deleted": "Dashboard deleted successfully.",
+    "duplicated": "Dashboard duplicated successfully.",
+    "shared": "Dashboard shared successfully.",
+    "linkCopied": "Link copied to clipboard."
+  }
+}

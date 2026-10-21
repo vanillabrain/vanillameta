@@ -1,0 +1,506 @@
+---
+description: Use when interacting with the database, including writing queries, managing connections, or optimizing performance. This guide covers everything from Knex.js query patterns and transaction management to security practices like preventing SQL injection and handling multi-database connections.
+globs: 
+alwaysApply: false
+---
+# VanillaMeta Database & Connection Patterns
+
+## 🗄️ CRITICAL DATABASE RULES
+
+### Multi-Database Connection Strategy
+
+#### Connection Service Pattern (MUST FOLLOW)
+Based on [backend-api/src/connection](mdc:backend-api/src/connection):
+
+```typescript
+// Example: connection.service.ts
+@Injectable()
+export class ConnectionService {
+  private readonly logger = new Logger(ConnectionService.name);
+  private connections = new Map<string, any>();
+
+  async createConnection(connectionInfo: ConnectionDto): Promise<any> {
+    try {
+      const connection = this.buildKnexConnection(connectionInfo);
+      
+      // Test connection
+      await connection.raw('SELECT 1');
+      
+      // Cache connection
+      this.connections.set(connectionInfo.id, connection);
+      
+      return connection;
+    } catch (error) {
+      this.logger.error(`Connection failed: ${error.message}`);
+      throw new BadRequestException('Database connection failed');
+    }
+  }
+
+  private buildKnexConnection(info: ConnectionDto) {
+    switch (info.type) {
+      case 'mysql':
+        return knex({
+          client: 'mysql2',
+          connection: this.buildMysqlConfig(info),
+          pool: { min: 0, max: 10 },
+        });
+      case 'postgresql':
+        return knex({
+          client: 'pg',
+          connection: this.buildPostgresConfig(info),
+          pool: { min: 0, max: 10 },
+        });
+      case 'snowflake':
+        return knex({
+          client: require('./knex-dialects/snowflake'),
+          connection: this.buildSnowflakeConfig(info),
+        });
+      default:
+        throw new BadRequestException(`Unsupported database type: ${info.type}`);
+    }
+  }
+}
+```
+
+#### Database Dialect Pattern (MUST IMPLEMENT)
+For custom database types in [backend-api/src/connection/knex-dialects](mdc:backend-api/src/connection/knex-dialects):
+
+```typescript
+// Example: knex-dialects/custom-db/index.js
+const Client = require('knex/lib/client');
+
+class CustomDbClient extends Client {
+  constructor(config) {
+    super(config);
+    this.driverName = 'custom-db';
+  }
+
+  _driver() {
+    return require('custom-db-driver');
+  }
+
+  wrapIdentifier(value, origImpl) {
+    // Custom identifier wrapping logic
+    return origImpl(value);
+  }
+
+  queryCompiler() {
+    return new CustomQueryCompiler(this, ...arguments);
+  }
+
+  schemaCompiler() {
+    return new CustomSchemaCompiler(this, ...arguments);
+  }
+}
+
+module.exports = CustomDbClient;
+```
+
+### Database Optimization Patterns
+
+#### Connection Pooling (MUST CONFIGURE)
+```typescript
+// Example: optimized connection configuration
+const connectionConfig = {
+  client: 'mysql2',
+  connection: {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  },
+  pool: {
+    min: 2,
+    max: 10,
+    createTimeoutMillis: 3000,
+    acquireTimeoutMillis: 30000,
+    idleTimeoutMillis: 30000,
+    reapIntervalMillis: 1000,
+    createRetryIntervalMillis: 100,
+  },
+  acquireConnectionTimeout: 60000,
+};
+```
+
+#### Query Optimization (MUST IMPLEMENT)
+```typescript
+// Example: optimized query patterns
+@Injectable()
+export class OptimizedQueryService {
+  async getDataWithPagination(
+    connection: any,
+    query: PaginatedQueryDto,
+  ): Promise<PaginatedResult> {
+    const countQuery = connection('table').count('* as total');
+    const dataQuery = connection('table')
+      .select('*')
+      .limit(query.limit)
+      .offset((query.page - 1) * query.limit)
+      .orderBy('created_at', 'desc');
+
+    const [countResult, data] = await Promise.all([
+      countQuery,
+      dataQuery,
+    ]);
+
+    return {
+      data,
+      total: countResult[0].total,
+      page: query.page,
+      limit: query.limit,
+    };
+  }
+
+  async executeWithRetry(
+    connection: any,
+    queryFn: () => Promise<any>,
+    maxRetries: number = 3,
+  ): Promise<any> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await queryFn();
+      } catch (error) {
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        
+        this.logger.warn(`Query attempt ${attempt} failed, retrying...`);
+        await this.delay(1000 * attempt); // Exponential backoff
+      }
+    }
+  }
+}
+```
+
+## 🔍 QUERY PATTERNS
+
+### Safe Query Building (MUST USE)
+```typescript
+// Example: parameterized queries
+@Injectable()
+export class SafeQueryService {
+  async buildSafeQuery(
+    connection: any,
+    filters: QueryFilters,
+  ): Promise<any> {
+    let query = connection('table').select('*');
+
+    // Safe parameter binding
+    if (filters.status) {
+      query = query.where('status', '=', filters.status);
+    }
+
+    if (filters.dateRange) {
+      query = query.whereBetween('created_at', [
+        filters.dateRange.start,
+        filters.dateRange.end,
+      ]);
+    }
+
+    if (filters.search) {
+      query = query.where(function() {
+        this.where('title', 'like', `%${filters.search}%`)
+            .orWhere('description', 'like', `%${filters.search}%`);
+      });
+    }
+
+    return query;
+  }
+
+  // NEVER DO: String concatenation for queries
+  // async unsafeQuery(connection: any, userInput: string) {
+  //   return connection.raw(`SELECT * FROM table WHERE name = '${userInput}'`);
+  // }
+}
+```
+
+### Complex Join Patterns (SHOULD USE)
+```typescript
+// Example: optimized joins
+async getComplexData(connection: any, filters: ComplexFilters) {
+  return connection('main_table as m')
+    .select([
+      'm.id',
+      'm.title',
+      'u.name as user_name',
+      'c.name as category_name',
+    ])
+    .leftJoin('users as u', 'm.user_id', 'u.id')
+    .leftJoin('categories as c', 'm.category_id', 'c.id')
+    .where('m.status', 'active')
+    .whereIn('m.category_id', filters.categoryIds)
+    .orderBy('m.created_at', 'desc')
+    .limit(filters.limit);
+}
+```
+
+## 📊 ANALYTICS QUERY PATTERNS
+
+### Time-Series Data (MUST OPTIMIZE)
+```typescript
+// Example: time-series aggregation
+async getTimeSeriesData(
+  connection: any,
+  timeRange: TimeRangeDto,
+): Promise<TimeSeriesResult[]> {
+  const timeFormat = this.getTimeFormat(timeRange.granularity);
+  
+  return connection('analytics_events')
+    .select([
+      connection.raw(`DATE_FORMAT(created_at, '${timeFormat}') as time_bucket`),
+      connection.raw('COUNT(*) as count'),
+      connection.raw('SUM(value) as total_value'),
+      connection.raw('AVG(value) as avg_value'),
+    ])
+    .whereBetween('created_at', [timeRange.start, timeRange.end])
+    .groupBy('time_bucket')
+    .orderBy('time_bucket');
+}
+
+private getTimeFormat(granularity: string): string {
+  switch (granularity) {
+    case 'hour': return '%Y-%m-%d %H:00:00';
+    case 'day': return '%Y-%m-%d';
+    case 'month': return '%Y-%m';
+    case 'year': return '%Y';
+    default: return '%Y-%m-%d';
+  }
+}
+```
+
+### Dashboard Aggregations (MUST CACHE)
+```typescript
+// Example: cached dashboard queries
+@Injectable()
+export class DashboardQueryService {
+  @Cacheable('dashboard-metrics', 300) // 5 minutes cache
+  async getDashboardMetrics(
+    connection: any,
+    dashboardId: string,
+  ): Promise<DashboardMetrics> {
+    const queries = {
+      totalUsers: connection('users').count('* as count'),
+      activeUsers: connection('users')
+        .where('last_active', '>', new Date(Date.now() - 24 * 60 * 60 * 1000))
+        .count('* as count'),
+      totalRevenue: connection('orders')
+        .sum('amount as total')
+        .where('status', 'completed'),
+      recentOrders: connection('orders')
+        .select('*')
+        .orderBy('created_at', 'desc')
+        .limit(10),
+    };
+
+    const results = await Promise.all(Object.values(queries));
+    
+    return {
+      totalUsers: results[0][0].count,
+      activeUsers: results[1][0].count,
+      totalRevenue: results[2][0].total || 0,
+      recentOrders: results[3],
+    };
+  }
+}
+```
+
+## 🔒 DATABASE SECURITY PATTERNS
+
+### Connection Security (MUST IMPLEMENT)
+```typescript
+// Example: secure connection handling
+@Injectable()
+export class SecureConnectionService {
+  async validateConnection(connectionDto: ConnectionDto): Promise<boolean> {
+    // Validate connection parameters
+    if (!this.isValidHost(connectionDto.host)) {
+      throw new BadRequestException('Invalid host format');
+    }
+
+    if (!this.isValidPort(connectionDto.port)) {
+      throw new BadRequestException('Invalid port number');
+    }
+
+    // Test connection with timeout
+    const connection = this.createTemporaryConnection(connectionDto);
+    
+    try {
+      await Promise.race([
+        connection.raw('SELECT 1'),
+        this.timeout(5000), // 5 second timeout
+      ]);
+      
+      return true;
+    } catch (error) {
+      this.logger.error('Connection validation failed', error);
+      return false;
+    } finally {
+      await connection.destroy();
+    }
+  }
+
+  private isValidHost(host: string): boolean {
+    // Implement host validation logic
+    const hostRegex = /^[a-zA-Z0-9.-]+$/;
+    return hostRegex.test(host) && !host.includes('..');
+  }
+
+  private isValidPort(port: number): boolean {
+    return port > 0 && port <= 65535;
+  }
+}
+```
+
+### Query Sanitization (MUST USE)
+```typescript
+// Example: input sanitization
+@Injectable()
+export class QuerySanitizer {
+  sanitizeTableName(tableName: string): string {
+    // Only allow alphanumeric and underscore
+    if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
+      throw new BadRequestException('Invalid table name');
+    }
+    return tableName;
+  }
+
+  sanitizeColumnName(columnName: string): string {
+    // Only allow alphanumeric, underscore, and dot
+    if (!/^[a-zA-Z0-9_.]+$/.test(columnName)) {
+      throw new BadRequestException('Invalid column name');
+    }
+    return columnName;
+  }
+
+  buildDynamicQuery(
+    connection: any,
+    tableName: string,
+    columns: string[],
+    filters: Record<string, any>,
+  ) {
+    const safeTableName = this.sanitizeTableName(tableName);
+    const safeColumns = columns.map(col => this.sanitizeColumnName(col));
+    
+    let query = connection(safeTableName).select(safeColumns);
+    
+    // Safe filter application
+    Object.entries(filters).forEach(([key, value]) => {
+      const safeKey = this.sanitizeColumnName(key);
+      query = query.where(safeKey, '=', value);
+    });
+    
+    return query;
+  }
+}
+```
+
+## 🔄 TRANSACTION PATTERNS
+
+### Transaction Management (MUST USE)
+```typescript
+// Example: transaction handling
+@Injectable()
+export class TransactionService {
+  async executeInTransaction<T>(
+    connection: any,
+    operation: (trx: any) => Promise<T>,
+  ): Promise<T> {
+    const trx = await connection.transaction();
+    
+    try {
+      const result = await operation(trx);
+      await trx.commit();
+      return result;
+    } catch (error) {
+      await trx.rollback();
+      this.logger.error('Transaction rolled back', error);
+      throw error;
+    }
+  }
+
+  async createDashboardWithWidgets(
+    connection: any,
+    dashboardData: CreateDashboardDto,
+    widgets: CreateWidgetDto[],
+  ): Promise<Dashboard> {
+    return this.executeInTransaction(connection, async (trx) => {
+      // Create dashboard
+      const [dashboardId] = await trx('dashboards')
+        .insert(dashboardData)
+        .returning('id');
+
+      // Create widgets
+      const widgetPromises = widgets.map(widget =>
+        trx('widgets').insert({
+          ...widget,
+          dashboard_id: dashboardId,
+        })
+      );
+
+      await Promise.all(widgetPromises);
+
+      // Return complete dashboard
+      return trx('dashboards')
+        .where('id', dashboardId)
+        .first();
+    });
+  }
+}
+```
+
+## 🚫 CRITICAL PROHIBITIONS
+
+### NEVER DO These Database Operations
+```typescript
+// ❌ NEVER: Raw string concatenation
+// const query = `SELECT * FROM ${tableName} WHERE id = ${userId}`;
+
+// ❌ NEVER: Unvalidated dynamic queries
+// const columns = userInput.split(',');
+// connection.select(columns).from(tableName);
+
+// ❌ NEVER: Long-running transactions without timeout
+// const trx = await connection.transaction();
+// // ... long operations without timeout
+
+// ❌ NEVER: Storing sensitive data in plain text
+// await connection('users').insert({
+//   password: plainTextPassword,
+//   api_key: plainTextApiKey,
+// });
+
+// ❌ NEVER: Ignoring connection limits
+// for (let i = 0; i < 1000; i++) {
+//   const connection = knex(config); // Creates too many connections
+// }
+```
+
+### ALWAYS DO These Database Operations
+```typescript
+// ✅ ALWAYS: Use parameterized queries
+const query = connection('table').where('id', '=', userId);
+
+// ✅ ALWAYS: Validate input before queries
+const safeTableName = this.validateTableName(tableName);
+
+// ✅ ALWAYS: Use transactions for multi-step operations
+await this.executeInTransaction(connection, async (trx) => {
+  // Multi-step operations
+});
+
+// ✅ ALWAYS: Hash sensitive data
+await connection('users').insert({
+  password: await bcrypt.hash(password, 10),
+  api_key: this.generateSecureApiKey(),
+});
+
+// ✅ ALWAYS: Reuse connections with proper pooling
+const connection = this.connectionService.getConnection(connectionId);
+```
+
+---
+
+**Remember**: Database security and performance are critical. Always validate inputs, use parameterized queries, and implement proper connection management as shown in the existing [backend-api/src/connection](mdc:backend-api/src/connection) patterns.
+
+agent_request_description: Use when interacting with the database, including writing queries, managing connections, or optimizing performance. This guide covers everything from Knex.js query patterns and transaction management to security practices like preventing SQL injection and handling multi-database connections.

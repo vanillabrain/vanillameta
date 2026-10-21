@@ -1,0 +1,332 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VanillaMeta User Analytics Dashboard - 사용자 행동 분석 대시보드'
+
+Parameters:
+  ServiceName:
+    Type: String
+    Default: vanillameta
+    Description: 서비스명
+  
+  Environment:
+    Type: String
+    Default: prod
+    Description: 환경 (dev, prod)
+
+Resources:
+  AnalyticsDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${ServiceName}-${Environment}-user-analytics'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "VanillaMeta/Business", "DailyActiveUsers", { "stat": "Average", "label": "DAU" } ],
+                  [ ".", "HourlyActiveUsers", { "stat": "Average", "label": "HAU" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "활성 사용자 추이",
+                "period": 3600,
+                "yAxis": {
+                  "left": {
+                    "min": 0
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "VanillaMeta/Analytics", "UserEvents", { "stat": "Sum" } ],
+                  [ { "expression": "RATE(m1)", "label": "Events/Min", "id": "e1" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "사용자 이벤트 발생량",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "VanillaMeta/Analytics", "UserEvents", "Category", "Dashboard", { "stat": "Sum" } ],
+                  [ "...", "Widget", { "stat": "Sum" } ],
+                  [ "...", "Data", { "stat": "Sum" } ],
+                  [ "...", "User", { "stat": "Sum" } ]
+                ],
+                "view": "pie",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "이벤트 카테고리별 분포",
+                "period": 86400,
+                "setPeriodToTimeRange": true
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "VanillaMeta/Business", "DashboardCreated", { "stat": "Sum" } ],
+                  [ ".", "WidgetCreated", { "stat": "Sum" } ],
+                  [ ".", "QueryExecutions", { "stat": "Sum" } ]
+                ],
+                "view": "bar",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "주요 활동 지표",
+                "period": 3600,
+                "yAxis": {
+                  "left": {
+                    "min": 0
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "VanillaMeta/Performance", "page_load_time", { "stat": "Average" } ],
+                  [ ".", "chart_render_time", { "stat": "Average" } ],
+                  [ ".", "query_execution_time", { "stat": "Average" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "성능 메트릭",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "시간 (ms)",
+                    "min": 0
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "VanillaMeta/Business", "WidgetUsage", "ChartType", "line", { "stat": "Sum" } ],
+                  [ "...", "bar", { "stat": "Sum" } ],
+                  [ "...", "pie", { "stat": "Sum" } ],
+                  [ "...", "scatter", { "stat": "Sum" } ],
+                  [ "...", "heatmap", { "stat": "Sum" } ],
+                  [ "...", "gauge", { "stat": "Sum" } ]
+                ],
+                "view": "bar",
+                "stacked": true,
+                "region": "${AWS::Region}",
+                "title": "차트 타입별 사용량",
+                "period": 86400,
+                "setPeriodToTimeRange": true
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "VanillaMeta/Business", "DatabaseConnections", "DatabaseType", "PostgreSQL", { "stat": "Sum" } ],
+                  [ "...", "MySQL", { "stat": "Sum" } ],
+                  [ "...", "Oracle", { "stat": "Sum" } ],
+                  [ "...", "SQLServer", { "stat": "Sum" } ],
+                  [ "...", "BigQuery", { "stat": "Sum" } ],
+                  [ "...", "Snowflake", { "stat": "Sum" } ]
+                ],
+                "view": "bar",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "데이터베이스별 연결 수",
+                "period": 86400
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 18,
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ { "expression": "SEARCH(' {VanillaMeta/Business} MetricName=\"QueryExecutions\" ', 'Sum', 3600)", "id": "e1" } ]
+                ],
+                "view": "table",
+                "region": "${AWS::Region}",
+                "title": "쿼리 실행 상세 통계",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "VanillaMeta/Analytics", "ActiveUsers", "Type", "Realtime", { "stat": "Maximum" } ]
+                ],
+                "view": "singleValue",
+                "region": "${AWS::Region}",
+                "title": "현재 활성 사용자",
+                "period": 300,
+                "singleValueFullPrecision": true
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ { "expression": "SUM(SEARCH(' {VanillaMeta/Analytics} MetricName=\"UserEvents\" ', 'Sum', 86400))", "label": "일일 총 이벤트", "id": "e1" } ],
+                  [ { "expression": "AVG(SEARCH(' {VanillaMeta/Performance} ', 'Average', 86400))", "label": "평균 응답시간 (ms)", "id": "e2" } ]
+                ],
+                "view": "singleValue",
+                "region": "${AWS::Region}",
+                "title": "일일 요약 지표",
+                "period": 86400,
+                "singleValueFullPrecision": false
+              }
+            }
+          ]
+        }
+
+  # 사용자 여정 분석 대시보드
+  UserJourneyDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${ServiceName}-${Environment}-user-journey'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "VanillaMeta/Analytics", "UserEvents", "Action", "user_registered", { "stat": "Sum", "label": "신규 가입" } ],
+                  [ "...", "onboarding_started", { "stat": "Sum", "label": "온보딩 시작" } ],
+                  [ "...", "onboarding_completed", { "stat": "Sum", "label": "온보딩 완료" } ],
+                  [ "...", "dashboard_created", { "stat": "Sum", "label": "첫 대시보드 생성" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "신규 사용자 여정 퍼널",
+                "period": 3600,
+                "annotations": {
+                  "horizontal": [
+                    {
+                      "label": "목표 전환율 80%",
+                      "value": 0.8
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ { "expression": "(m2/m1)*100", "label": "온보딩 시작률 (%)", "id": "e1" } ],
+                  [ { "expression": "(m3/m2)*100", "label": "온보딩 완료율 (%)", "id": "e2" } ],
+                  [ { "expression": "(m4/m3)*100", "label": "대시보드 생성률 (%)", "id": "e3" } ],
+                  [ "VanillaMeta/Analytics", "UserEvents", "Action", "user_registered", { "stat": "Sum", "id": "m1", "visible": false } ],
+                  [ "...", "onboarding_started", { "stat": "Sum", "id": "m2", "visible": false } ],
+                  [ "...", "onboarding_completed", { "stat": "Sum", "id": "m3", "visible": false } ],
+                  [ "...", "dashboard_created", { "stat": "Sum", "id": "m4", "visible": false } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "전환율 추이",
+                "period": 86400,
+                "yAxis": {
+                  "left": {
+                    "min": 0,
+                    "max": 100
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "VanillaMeta/Analytics", "UserEvents", "Action", "dashboard_viewed", { "stat": "Sum" } ],
+                  [ "...", "widget_interacted", { "stat": "Sum" } ],
+                  [ "...", "data_exported", { "stat": "Sum" } ],
+                  [ "...", "dashboard_shared", { "stat": "Sum" } ]
+                ],
+                "view": "bar",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "사용자 참여도 지표",
+                "period": 3600
+              }
+            }
+          ]
+        }
+
+Outputs:
+  AnalyticsDashboardURL:
+    Description: User Analytics Dashboard URL
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ServiceName}-${Environment}-user-analytics'
+    Export:
+      Name: !Sub '${ServiceName}-${Environment}-analytics-dashboard-url'
+
+  UserJourneyDashboardURL:
+    Description: User Journey Dashboard URL
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ServiceName}-${Environment}-user-journey'
+    Export:
+      Name: !Sub '${ServiceName}-${Environment}-user-journey-dashboard-url'

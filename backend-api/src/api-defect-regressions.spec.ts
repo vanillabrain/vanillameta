@@ -1,3 +1,6 @@
+import { Dataset } from './dataset/entities/dataset.entity';
+import { Database } from './database/entities/database.entity';
+import { DashboardWidget } from './dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DatasetService } from './dataset/dataset.service';
 import { ComponentService } from './component/component.service';
@@ -31,16 +34,35 @@ const layoutItem = { i: 1, x: 0, y: 0, w: 4, h: 3 };
 
 describe('dataset and component persistence regressions', () => {
   it('represents a missing dataset delete as ERROR without writes', async () => {
-    const datasets = repository();
-    const widgets = repository();
-    datasets.findOne.mockResolvedValue(null);
-    const service = new DatasetService(datasets as any, widgets as any, {} as any);
-    expect(await service.remove(99)).toEqual({
-      status: ResponseStatus.ERROR,
-      message: 'No exist dataset',
-    });
-    expect(datasets.delete).not.toHaveBeenCalled();
-    expect(widgets.delete).not.toHaveBeenCalled();
+    const db = await new DataSource({
+      type: 'sqlite',
+      database: ':memory:',
+      synchronize: true,
+      entities: [User, Dataset, Database, Widget],
+    }).initialize();
+    try {
+      await db.manager.insert(User, {
+        id: 7,
+        userId: 'missing-delete',
+        email: 'missing-delete@example.invalid',
+        password: 'unused',
+        active: true,
+        authVersion: 0,
+      });
+      const datasets = db.getRepository(Dataset),
+        widgets = db.getRepository(Widget);
+      const removeDataset = jest.spyOn(datasets, 'delete'),
+        removeWidget = jest.spyOn(widgets, 'delete');
+      const service = new DatasetService(datasets, widgets, {} as any);
+      expect(await service.remove(99, 7, 0)).toEqual({
+        status: ResponseStatus.ERROR,
+        message: 'No exist dataset',
+      });
+      expect(removeDataset).not.toHaveBeenCalled();
+      expect(removeWidget).not.toHaveBeenCalled();
+    } finally {
+      await db.destroy();
+    }
   });
 
   it('saves the original component id and preserves omitted fields without inserting a DTO', async () => {
@@ -190,6 +212,7 @@ describe('dashboard layout, membership and private-owner regressions', () => {
         Widget,
         EnterpriseMembership,
         DashboardDeleteReceipt,
+        DashboardWidget,
       ],
     }).initialize();
     await db.manager.insert(
@@ -211,6 +234,7 @@ describe('dashboard layout, membership and private-owner regressions', () => {
       delYn: 'N',
     });
     await db.manager.insert(UserMapping, { dashboardId: 17, userInfoId: 7 });
+    await db.manager.insert(DashboardWidget, { dashboardId: 17, widgetId: 1 });
     await db.manager.insert(Widget, {
       id: 1,
       title: 'Value',
