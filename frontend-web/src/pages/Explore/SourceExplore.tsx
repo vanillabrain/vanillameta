@@ -1277,7 +1277,7 @@ function SourceExploreContent() {
           />
           <AnalysisChoice label="사용자 지정" selected={dateMode === 'custom'} onClick={() => setDateMode('custom')} />
           {dateMode === 'custom' && (
-            <div className="col-span-full flex flex-wrap items-center gap-2">
+            <div className="col-span-full flex flex-wrap items-end gap-2">
               <TextField
                 type="date"
                 label="시작일"

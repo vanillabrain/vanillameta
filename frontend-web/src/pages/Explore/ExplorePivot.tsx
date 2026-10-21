@@ -618,7 +618,7 @@ export default function ExplorePivot({
             {flat ? '차원별 레코드' : '행·열 교차 집계'}
           </p>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-end gap-2">
           <AnalysisChoice
             label={`행 계층 ${axes.rowHierarchy ? '켜짐' : '꺼짐'}`}
             selected={!!axes.rowHierarchy}
@@ -632,7 +632,7 @@ export default function ExplorePivot({
             onClick={toggleTimeAxis}
           />
           {timeAxis && (
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-end gap-2">
               <TextField
                 select
                 label="시간 축 열"
@@ -675,7 +675,7 @@ export default function ExplorePivot({
             </div>
           )}
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-end gap-2">
           <TextField
             select
             label="행 정렬 기준"

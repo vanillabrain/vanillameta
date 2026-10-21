@@ -919,3 +919,5 @@ stage/commit/push/병합 종료는 수행하지 않았으므로 Git index의 UU�
 ## 2026-10-19 Studio Pivot 게시 만료·키보드 재조회
 
 [SP-07/Ego35 증빙](studio-pivot.md#2026-10-19-sp-07-실제-결과--ego35): 명시 API로 설정한 샘플 게시26 version3이 실제 만료 시간에 자동 GET410/집계 제거·reload 차단으로 전환됐고, 소유자200/저장 문서·지표42개는 보존됐다. 만료 자체를 확인한 후 테스트 링크만 중지했다. Enter 재조회 후 BUTTON→BODY 포커스 손실을 수정해 focus-visible/버튼 유지·중복 읽기 차단을 확인했다. 관련11/type/lint/FE build PASS·390px 넘침0이며 기존 통과 범위 반복0이다. native 날짜 fill이 요청에 반영되지 않은 초기 시도는 성공으로 세지 않고 UI 입력부터의 전체 흐름은 미검증 유지다. gpt-6-luna/VoiceOver BLOCKED·실기기/운영/전체 수용은 별도다.
+
+- 2026-10-21: [Explore·Pivot 온라인 가이드 실제 검증](user-guide-explore-pivot.md) — 공개 합성 소스의 지표 준비·기간/필터·기본/고급 Pivot·시간 축/정렬·보기 저장/reload와390/768/1440px 확인. 날짜·정렬 컨트롤 하단 정렬과 캡처6개 보완. 전체 운영/실기기 수용과 구분한다.
