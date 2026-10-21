@@ -1,0 +1,63 @@
+be35c8a9fc4d2e31fa4185df46706f49
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Component = void 0;
+const typeorm_1 = require("typeorm");
+const base_entity_1 = require("../../common/entities/base.entity");
+const yn_enum_1 = require("../../common/enum/yn.enum");
+const widget_entity_1 = require("../../widget/entities/widget.entity");
+let Component = class Component extends base_entity_1.BaseEntity {
+};
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)({ comment: '컴포넌트 ID' }),
+    __metadata("design:type", Number)
+], Component.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ unique: true, length: 45, comment: '타입 코드' }),
+    __metadata("design:type", String)
+], Component.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 100, comment: '타입명' }),
+    __metadata("design:type", String)
+], Component.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 300, nullable: true, comment: '설명' }),
+    __metadata("design:type", String)
+], Component.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 45, nullable: true, comment: '분류' }),
+    __metadata("design:type", String)
+], Component.prototype, "category", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', comment: '컴포넌트 속성' }),
+    __metadata("design:type", String)
+], Component.prototype, "option", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 45, nullable: true, comment: '컴포넌트 아이콘 경로' }),
+    __metadata("design:type", String)
+], Component.prototype, "icon", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ comment: '순서', nullable: true }),
+    __metadata("design:type", Number)
+], Component.prototype, "seq", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 1, comment: '사용여부', default: yn_enum_1.YesNo.YES }),
+    __metadata("design:type", String)
+], Component.prototype, "useYn", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(type => widget_entity_1.Widget, widget => widget.componentId),
+    __metadata("design:type", Array)
+], Component.prototype, "widgets", void 0);
+Component = __decorate([
+    (0, typeorm_1.Entity)()
+], Component);
+exports.Component = Component;

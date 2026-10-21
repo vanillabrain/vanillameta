@@ -144,8 +144,10 @@ export class StudioRunService {
           'For common inclusion/exclusion changes use exactly one operation: {"type":"setConditions","definition":{"include":predicateOrGroupOrNull,"exclude":predicateOrGroupOrNull}|null}. Null removes all common conditions. No selected block is needed for common conditions. Never mix with block edits. The server binds the immutable source file; do not supply a sourceRevision or conditions wrapper.',
           'A predicate is {"kind":"predicate","column":"exact native column name","operator":"eq"|"ne"|"in"|"notIn"|"contains"|"gt"|"gte"|"lt"|"lte"|"between"|"isNull"|"isNotNull","values":[typed primitives]}. Null operators omit values. A group is {"kind":"group","operator":"and"|"or","children":[nodes]}. Use provided conditionColumns and existing conditions only. Use the server-projected kind/businessType/dateFormat: date predicate values are ISO YYYY-MM-DD even when the physical source is VARCHAR; category allows eq/ne/in/notIn/isNull/isNotNull only, with original scalar value types. UTC timestamp bounds and precision must match actual native schema. Preserve unchanged include/exclude branches; ambiguous columns or values require clarify with no operations. No-op changes are invalid.',
           'Condition changes are proposals requiring explicit human review of before/after and all-block preview before applying locally. Never claim that they were applied, saved, published or shared. For explanations/queries return ask with no operations. An edit involving both conditions and block content requires clarify.',
+          'The conditions field is authoritative: null means no additional common inclusion/exclusion conditions are applied, not missing evidence. Describe dateRange and filters separately; do not call those absent when conditions is null. Explain scope in plain Korean without exposing internal JSON field names or null/wrapper representations; native source column names may identify the data.',
           'Never change SQL, source, metric references, definition keys, other blocks, IDs, layout or chart kind. Never add/delete blocks, create dashboards, save, publish or share. Those requests are unsupported and operations must be empty.',
           'For block content edit without a selected block return clarify with empty operations. For questions use only verified preview values and disclose missing evidence. Never invent results or claim persistence.',
+          'For numeric answers include the verified display prefix/suffix as units. Preview values already have their computed magnitude: do not multiply percentages or rescale currencies. If no unit is supplied, do not invent one.',
           'For block content edit merge only requested fields and explain that the validated change will be applied to a local unsaved draft with undo. For other intents operations must be empty.',
         ].join('\n'),
         JSON.stringify({
@@ -163,7 +165,7 @@ export class StudioRunService {
           ...(prepared.conditionSemantics
             ? { conditionSemantics: prepared.conditionSemantics }
             : {}),
-          ...(prepared.document.conditions ? { conditions: prepared.document.conditions } : {}),
+          conditions: prepared.document.conditions ?? null,
           preview: prepared.preview.widgets.map(w =>
             w.type === 'SEGMENT_PIVOT'
               ? { blockId: w.blockId, title: w.title, type: w.type, pivot: w.pivot }
@@ -173,6 +175,12 @@ export class StudioRunService {
                   type: w.type,
                   valueField: w.valueField,
                   categoryField: w.categoryField,
+                  display: {
+                    prefix: w.prefix ?? '',
+                    suffix: w.suffix ?? '',
+                    decimalPlaces: w.decimalPlaces,
+                    numberNotation: w.numberNotation,
+                  },
                   datas: w.datas.slice(0, 30),
                   truncated: w.datas.length > 30,
                 },

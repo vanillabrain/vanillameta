@@ -160,8 +160,6 @@ describe('saved FORMULA metrics over real DuckDB and the SQLite metric repositor
     connection = new ConnectionService(sources, {} as any, worker);
     bi = new BiService(db, new SourceAccessService(db), connection, { save: jest.fn() } as any);
     segment = new BiSegmentService(bi, connection);
-    profile = await bi.profile(1, actor);
-    sourceRevision = await connection.duckDBVersion(1);
   });
 
   afterAll(async () => {
@@ -199,6 +197,10 @@ describe('saved FORMULA metrics over real DuckDB and the SQLite metric repositor
       4,
       storedDefinition('건수', '*', 1, { aggregation: 'COUNT', unit: 'count', decimalPlaces: 0 }),
     );
+    // Restoring source metadata updates updatedAt, which is part of the profile revision.
+    // Capture each case's current baseline after the preceding case has finished cleanup.
+    profile = await bi.profile(1, actor);
+    sourceRevision = await connection.duckDBVersion(1);
   });
 
   it('previews the margin formula at the current source revision without writing', async () => {
@@ -256,9 +258,11 @@ describe('saved FORMULA metrics over real DuckDB and the SQLite metric repositor
     async change => {
       const before = await metricCount();
       const source = await db.manager.findOneByOrFail(Database, { id: 1 });
+      let prepared = false;
       const prepare = bi.prepareFormula.bind(bi);
       const spy = jest.spyOn(bi, 'prepareFormula').mockImplementationOnce(async (...args) => {
         const result = await prepare(...args);
+        prepared = true;
         if (change === 'epoch') await db.manager.update(User, actor, { authVersion: 4 });
         if (change === 'inactive-actor') await db.manager.update(User, actor, { active: false });
         if (change === 'source-file')
@@ -287,6 +291,7 @@ describe('saved FORMULA metrics over real DuckDB and the SQLite metric repositor
               ? 403
               : 409,
         });
+        expect(prepared).toBe(true);
         expect(await metricCount()).toBe(before);
       } finally {
         spy.mockRestore();

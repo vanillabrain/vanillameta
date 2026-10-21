@@ -1,0 +1,9 @@
+2b08d676be8ee510fce298d4c167feff
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.UpdateComponentDto = void 0;
+const swagger_1 = require("@nestjs/swagger");
+const create_component_dto_1 = require("./create-component.dto");
+class UpdateComponentDto extends (0, swagger_1.PartialType)(create_component_dto_1.CreateComponentDto) {
+}
+exports.UpdateComponentDto = UpdateComponentDto;

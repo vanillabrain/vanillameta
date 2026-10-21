@@ -3,10 +3,17 @@ import { Controller, Get, Post, Body, Param, UseGuards, Req } from '@nestjs/comm
 import { ShareUrlService } from './share-url.service';
 import { ShareUrlOnDto } from './dto/create-share-url.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 
+@ApiTags('공유')
 @Controller('share-url')
-@ApiTags('url공유화 API')
 export class ShareUrlController {
   constructor(
     private readonly shareUrlService: ShareUrlService,
@@ -36,7 +43,50 @@ export class ShareUrlController {
   }
 
   @Get('share-dashboard/:uuid')
-  @ApiOperation({ summary: '공유 url 접속' })
+  @ApiOperation({
+    summary: '공유 대시보드 조회',
+    description: '공유 URL을 통해 대시보드를 조회합니다. 인증 없이 접근 가능합니다.',
+  })
+  @ApiParam({
+    name: 'uuid',
+    description: '공유 URL UUID',
+    type: String,
+    example: 'abc123-def456-ghi789',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '공유 대시보드 정보가 반환되었습니다.',
+    schema: {
+      type: 'object',
+      properties: {
+        dashboard: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            title: { type: 'string' },
+            description: { type: 'string' },
+            widgets: { type: 'array', items: { type: 'object' } },
+          },
+        },
+        shareInfo: {
+          type: 'object',
+          properties: {
+            expiresAt: { type: 'string' },
+            viewCount: { type: 'number' },
+            isPublic: { type: 'boolean' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: '공유 URL을 찾을 수 없거나 만료되었습니다.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: '비공개 대시보드이거나 접근이 차단되었습니다.',
+  })
   async shareDashboardInfo(@Param() param) {
     const { uuid } = param;
     const result = await this.shareUrlService.shareDashboardInfo(uuid);

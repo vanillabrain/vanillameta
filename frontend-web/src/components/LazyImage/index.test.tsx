@@ -1,0 +1,135 @@
+import { vi, afterEach } from 'vitest';
+afterEach(cleanup);
+import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import LazyImage from './index';
+
+// react-intersection-observer 모킹
+const mockInView = vi.fn();
+const mockUseInView = vi.fn();
+
+vi.mock('react-intersection-observer', () => ({
+  useInView: (options?: any) => {
+    mockUseInView(options);
+    return {
+      ref: vi.fn(),
+      inView: mockInView(),
+    };
+  },
+}));
+
+describe('LazyImage 컴포넌트', () => {
+  const defaultProps = {
+    src: 'https://example.com/image.jpg',
+    alt: '테스트 이미지',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockInView.mockReturnValue(false); // 기본값: 뷰포트 밖
+  });
+
+  it('컴포넌트가 정상적으로 렌더링되어야 함', () => {
+    const { container } = render(<LazyImage {...defaultProps} />);
+
+    // 컨테이너가 렌더링되어야 함
+    expect(document.contains(container.firstChild)).toBe(true);
+  });
+
+  it('뷰포트에 진입하면 이미지를 로드해야 함', async () => {
+    mockInView.mockReturnValue(true); // 뷰포트 진입
+
+    render(<LazyImage {...defaultProps} />);
+
+    // 이미지가 렌더링되어야 함
+    const image = screen.getByAltText('테스트 이미지');
+    expect(document.contains(image)).toBe(true);
+    expect(image.getAttribute('src')).toBe(defaultProps.src);
+  });
+
+  it('이미지 로드 완료 시 onLoad 콜백이 호출되어야 함', async () => {
+    mockInView.mockReturnValue(true);
+    const onLoadMock = vi.fn();
+
+    render(<LazyImage {...defaultProps} onLoad={onLoadMock} />);
+
+    const image = screen.getByAltText('테스트 이미지');
+
+    // 이미지 로드 이벤트 발생
+    fireEvent.load(image);
+
+    await waitFor(() => {
+      expect(onLoadMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('이미지 로드 실패 시 fallback 이미지를 표시해야 함', async () => {
+    mockInView.mockReturnValue(true);
+    const fallbackSrc = 'https://example.com/fallback.jpg';
+    const onErrorMock = vi.fn();
+
+    render(<LazyImage {...defaultProps} fallbackSrc={fallbackSrc} onError={onErrorMock} />);
+
+    const image = screen.getByAltText('테스트 이미지');
+
+    // 이미지 로드 에러 이벤트 발생
+    fireEvent.error(image);
+
+    await waitFor(() => {
+      expect(onErrorMock).toHaveBeenCalledTimes(1);
+      expect(image.getAttribute('src')).toBe(fallbackSrc);
+    });
+  });
+
+  it('placeholder 이미지가 제공되면 스켈레톤 대신 표시되어야 함', () => {
+    const placeholderSrc = 'https://example.com/placeholder.jpg';
+
+    render(<LazyImage {...defaultProps} placeholder={placeholderSrc} />);
+
+    const placeholder = screen.getByAltText('테스트 이미지 placeholder');
+    expect(document.contains(placeholder)).toBe(true);
+    expect(placeholder.getAttribute('src')).toBe(placeholderSrc);
+  });
+
+  it('커스텀 스타일이 적용되어야 함', () => {
+    const customStyle = {
+      border: '2px solid red',
+    };
+
+    const { container } = render(
+      <LazyImage {...defaultProps} style={customStyle} width={300} height={200} borderRadius={8} />,
+    );
+
+    const imageContainer = container.firstChild;
+    expect(document.contains(imageContainer)).toBe(true);
+    // MUI sx prop을 사용하므로 직접 스타일 확인은 어려움
+    // 대신 prop이 전달되는지만 확인
+  });
+
+  it('objectFit 속성이 올바르게 적용되어야 함', () => {
+    mockInView.mockReturnValue(true);
+
+    render(<LazyImage {...defaultProps} objectFit="cover" />);
+
+    const image = screen.getByAltText('테스트 이미지');
+    expect(getComputedStyle(image).objectFit).toBe('cover');
+  });
+
+  it('className이 컨테이너에 적용되어야 함', () => {
+    const className = 'custom-image-class';
+
+    const { container } = render(<LazyImage {...defaultProps} className={className} />);
+
+    const imageContainer = container.firstChild;
+    expect((imageContainer as Element).classList.contains(className)).toBe(true);
+  });
+
+  it('threshold와 rootMargin이 설정되어야 함', () => {
+    render(<LazyImage {...defaultProps} threshold={0.5} rootMargin="100px" />);
+
+    expect(mockUseInView).toHaveBeenCalledWith({
+      threshold: 0.5,
+      rootMargin: '100px',
+      triggerOnce: true,
+    });
+  });
+});

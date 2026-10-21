@@ -1,0 +1,141 @@
+bc6f707669ab4b94c96938d535228e77
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SlowQueryLog = void 0;
+const typeorm_1 = require("typeorm");
+const base_entity_1 = require("../../entities/base.entity");
+let SlowQueryLog = class SlowQueryLog extends base_entity_1.BaseEntity {
+};
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)(),
+    __metadata("design:type", Number)
+], SlowQueryLog.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 32, comment: '쿼리 해시값 (중복 방지용)' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "queryHash", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', comment: '실행된 SQL 쿼리' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "query", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true, comment: '쿼리 파라미터 (JSON)' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "parameters", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', comment: '실행 시간 (ms)' }),
+    __metadata("design:type", Number)
+], SlowQueryLog.prototype, "executionTime", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true, comment: '데이터베이스 ID' }),
+    __metadata("design:type", Number)
+], SlowQueryLog.prototype, "databaseId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true, comment: '데이터베이스 엔진' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "databaseEngine", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bigint', nullable: true, comment: '검사된 행 수' }),
+    __metadata("design:type", Number)
+], SlowQueryLog.prototype, "rowsExamined", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bigint', nullable: true, comment: '반환된 행 수' }),
+    __metadata("design:type", Number)
+], SlowQueryLog.prototype, "rowsReturned", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false, comment: '인덱스 사용 여부' }),
+    __metadata("design:type", Boolean)
+], SlowQueryLog.prototype, "indexUsed", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true, comment: '스캔 타입' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "scanType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false, comment: '임시 테이블 사용 여부' }),
+    __metadata("design:type", Boolean)
+], SlowQueryLog.prototype, "temporaryTable", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false, comment: '파일 정렬 사용 여부' }),
+    __metadata("design:type", Boolean)
+], SlowQueryLog.prototype, "filesort", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, nullable: true, comment: '쿼리 비용' }),
+    __metadata("design:type", Number)
+], SlowQueryLog.prototype, "cost", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true, comment: '경고 메시지 (JSON)' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "warnings", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true, comment: '최적화 제안 (JSON)' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "optimizationSuggestions", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true, comment: '실행 계획 (JSON)' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "explainPlan", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 100, nullable: true, comment: '사용자 ID' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true, comment: '요청 경로' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "requestPath", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 20, nullable: true, comment: 'HTTP 메소드' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "httpMethod", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 45, nullable: true, comment: '클라이언트 IP' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "clientIp", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 500, nullable: true, comment: 'User Agent' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "userAgent", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 36, nullable: true, comment: '요청 ID (추적용)' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "requestId", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ comment: '감지 시간' }),
+    __metadata("design:type", Date)
+], SlowQueryLog.prototype, "detectedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'varchar',
+        length: 20,
+        default: 'MEDIUM',
+        comment: '심각도 (LOW, MEDIUM, HIGH, CRITICAL)',
+    }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "severity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false, comment: '처리 완료 여부' }),
+    __metadata("design:type", Boolean)
+], SlowQueryLog.prototype, "resolved", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true, comment: '처리 메모' }),
+    __metadata("design:type", String)
+], SlowQueryLog.prototype, "resolutionNotes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'datetime', nullable: true, comment: '처리 완료 시간' }),
+    __metadata("design:type", Date)
+], SlowQueryLog.prototype, "resolvedAt", void 0);
+SlowQueryLog = __decorate([
+    (0, typeorm_1.Entity)('slow_query_logs'),
+    (0, typeorm_1.Index)(['executionTime', 'createdAt']),
+    (0, typeorm_1.Index)(['databaseId', 'createdAt']),
+    (0, typeorm_1.Index)(['queryHash'])
+], SlowQueryLog);
+exports.SlowQueryLog = SlowQueryLog;

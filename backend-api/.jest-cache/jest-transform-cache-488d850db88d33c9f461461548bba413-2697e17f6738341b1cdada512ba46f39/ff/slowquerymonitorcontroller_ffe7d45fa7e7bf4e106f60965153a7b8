@@ -1,0 +1,302 @@
+6c79dab313cb869df7f9671115728832
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SlowQueryMonitorController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const jwt_auth_guard_1 = require("../../auth/guards/jwt-auth.guard");
+const slow_query_monitor_service_1 = require("./slow-query-monitor.service");
+class SlowQueryFiltersDto {
+}
+class ResolveSlowQueryDto {
+}
+class UpdateConfigDto {
+}
+let SlowQueryMonitorController = class SlowQueryMonitorController {
+    constructor(slowQueryMonitorService) {
+        this.slowQueryMonitorService = slowQueryMonitorService;
+    }
+    async getSlowQueryStats(periodHours) {
+        return this.slowQueryMonitorService.getSlowQueryStats(periodHours);
+    }
+    async getSlowQueries(page, limit, filters) {
+        const _a = filters || {}, { page: pageParam, limit: limitParam } = _a, filterParams = __rest(_a, ["page", "limit"]);
+        return this.slowQueryMonitorService.getSlowQueries(page || pageParam || 1, limit || limitParam || 50, filterParams);
+    }
+    async resolveSlowQuery(id, body) {
+        await this.slowQueryMonitorService.resolveSlowQuery(id, body.resolutionNotes);
+        return { message: '슬로우 쿼리가 해결 처리되었습니다.' };
+    }
+    async getConfig() {
+        return this.slowQueryMonitorService.getConfig();
+    }
+    async updateConfig(configUpdate) {
+        this.slowQueryMonitorService.updateConfig(configUpdate);
+        return { message: '설정이 업데이트되었습니다.' };
+    }
+    async cleanupOldLogs() {
+        await this.slowQueryMonitorService.cleanupOldLogs();
+        return { message: '오래된 로그 정리가 완료되었습니다.' };
+    }
+    async exportSlowQueries(format = 'json', filters) {
+        const { data } = await this.slowQueryMonitorService.getSlowQueries(1, 10000, // 대량 내보내기
+        filters);
+        if (format === 'csv') {
+            // CSV 형식으로 변환
+            const headers = [
+                'ID',
+                'Query Hash',
+                'Execution Time (ms)',
+                'Database Engine',
+                'Severity',
+                'Detected At',
+                'Resolved',
+            ];
+            const csvRows = data.map(log => [
+                log.id,
+                log.queryHash,
+                log.executionTime,
+                log.databaseEngine || 'N/A',
+                log.severity,
+                log.detectedAt.toISOString(),
+                log.resolved ? 'Yes' : 'No',
+            ]);
+            const csvContent = [headers, ...csvRows]
+                .map(row => row.map(field => `"${field}"`).join(','))
+                .join('\n');
+            return {
+                format: 'csv',
+                data: csvContent,
+                filename: `slow_queries_${new Date().toISOString().split('T')[0]}.csv`,
+            };
+        }
+        return {
+            format: 'json',
+            data,
+            filename: `slow_queries_${new Date().toISOString().split('T')[0]}.json`,
+        };
+    }
+};
+__decorate([
+    (0, common_1.Get)('stats'),
+    (0, swagger_1.ApiOperation)({ summary: '슬로우 쿼리 통계 조회' }),
+    (0, swagger_1.ApiQuery)({ name: 'periodHours', description: '조회 기간 (시간)', required: false, type: Number }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '슬로우 쿼리 통계',
+        schema: {
+            example: {
+                totalSlowQueries: 150,
+                avgExecutionTime: 2500.5,
+                maxExecutionTime: 15000,
+                mostFrequentQueries: [
+                    {
+                        queryHash: 'abc123',
+                        query: 'SELECT * FROM users WHERE...',
+                        count: 25,
+                        avgExecutionTime: 3200,
+                    },
+                ],
+                performanceByDatabase: [
+                    {
+                        databaseId: 1,
+                        databaseEngine: 'mysql2',
+                        count: 80,
+                        avgExecutionTime: 2100,
+                    },
+                ],
+                severityDistribution: {
+                    low: 100,
+                    medium: 35,
+                    high: 12,
+                    critical: 3,
+                },
+                trendsLast24Hours: [
+                    {
+                        hour: '2024-01-01 10:00:00',
+                        count: 8,
+                        avgExecutionTime: 2300,
+                    },
+                ],
+            },
+        },
+    }),
+    __param(0, (0, common_1.Query)('periodHours')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
+], SlowQueryMonitorController.prototype, "getSlowQueryStats", null);
+__decorate([
+    (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({ summary: '슬로우 쿼리 목록 조회' }),
+    (0, swagger_1.ApiQuery)({ name: 'page', description: '페이지 번호', required: false, type: Number }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', description: '페이지 크기', required: false, type: Number }),
+    (0, swagger_1.ApiQuery)({ name: 'startDate', description: '시작 날짜', required: false, type: Date }),
+    (0, swagger_1.ApiQuery)({ name: 'endDate', description: '종료 날짜', required: false, type: Date }),
+    (0, swagger_1.ApiQuery)({ name: 'databaseId', description: '데이터베이스 ID', required: false, type: Number }),
+    (0, swagger_1.ApiQuery)({
+        name: 'severity',
+        description: '심각도',
+        required: false,
+        enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+    }),
+    (0, swagger_1.ApiQuery)({
+        name: 'minExecutionTime',
+        description: '최소 실행 시간 (ms)',
+        required: false,
+        type: Number,
+    }),
+    (0, swagger_1.ApiQuery)({
+        name: 'maxExecutionTime',
+        description: '최대 실행 시간 (ms)',
+        required: false,
+        type: Number,
+    }),
+    (0, swagger_1.ApiQuery)({ name: 'resolved', description: '해결 여부', required: false, type: Boolean }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '슬로우 쿼리 목록',
+        schema: {
+            example: {
+                data: [
+                    {
+                        id: 1,
+                        queryHash: 'abc123',
+                        query: 'SELECT * FROM users WHERE email = ?',
+                        executionTime: 2500,
+                        databaseEngine: 'mysql2',
+                        severity: 'MEDIUM',
+                        detectedAt: '2024-01-01T10:30:00.000Z',
+                        resolved: false,
+                    },
+                ],
+                total: 150,
+                page: 1,
+                limit: 50,
+            },
+        },
+    }),
+    __param(0, (0, common_1.Query)('page')),
+    __param(1, (0, common_1.Query)('limit')),
+    __param(2, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Number, SlowQueryFiltersDto]),
+    __metadata("design:returntype", Promise)
+], SlowQueryMonitorController.prototype, "getSlowQueries", null);
+__decorate([
+    (0, common_1.Put)(':id/resolve'),
+    (0, swagger_1.ApiOperation)({ summary: '슬로우 쿼리 해결 처리' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: '슬로우 쿼리 로그 ID', type: Number }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '해결 처리 완료',
+    }),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, ResolveSlowQueryDto]),
+    __metadata("design:returntype", Promise)
+], SlowQueryMonitorController.prototype, "resolveSlowQuery", null);
+__decorate([
+    (0, common_1.Get)('config'),
+    (0, swagger_1.ApiOperation)({ summary: '슬로우 쿼리 모니터링 설정 조회' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '현재 설정',
+        schema: {
+            example: {
+                enabled: true,
+                threshold: 1000,
+                maxLogEntries: 10000,
+                cleanupIntervalDays: 30,
+                alertThresholds: {
+                    low: 1000,
+                    medium: 3000,
+                    high: 10000,
+                    critical: 30000,
+                },
+            },
+        },
+    }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], SlowQueryMonitorController.prototype, "getConfig", null);
+__decorate([
+    (0, common_1.Put)('config'),
+    (0, swagger_1.ApiOperation)({ summary: '슬로우 쿼리 모니터링 설정 업데이트' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '설정 업데이트 완료',
+    }),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [UpdateConfigDto]),
+    __metadata("design:returntype", Promise)
+], SlowQueryMonitorController.prototype, "updateConfig", null);
+__decorate([
+    (0, common_1.Post)('cleanup'),
+    (0, swagger_1.ApiOperation)({ summary: '오래된 슬로우 쿼리 로그 정리' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '정리 작업 완료',
+    }),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], SlowQueryMonitorController.prototype, "cleanupOldLogs", null);
+__decorate([
+    (0, common_1.Get)('export'),
+    (0, swagger_1.ApiOperation)({ summary: '슬로우 쿼리 데이터 내보내기' }),
+    (0, swagger_1.ApiQuery)({
+        name: 'format',
+        description: '내보내기 형식',
+        required: false,
+        enum: ['json', 'csv'],
+    }),
+    (0, swagger_1.ApiQuery)({ name: 'startDate', description: '시작 날짜', required: false, type: Date }),
+    (0, swagger_1.ApiQuery)({ name: 'endDate', description: '종료 날짜', required: false, type: Date }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '내보내기 데이터',
+    }),
+    __param(0, (0, common_1.Query)('format')),
+    __param(1, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, SlowQueryFiltersDto]),
+    __metadata("design:returntype", Promise)
+], SlowQueryMonitorController.prototype, "exportSlowQueries", null);
+SlowQueryMonitorController = __decorate([
+    (0, swagger_1.ApiTags)('슬로우 쿼리 모니터링'),
+    (0, common_1.Controller)('monitoring/slow-queries'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __metadata("design:paramtypes", [slow_query_monitor_service_1.SlowQueryMonitorService])
+], SlowQueryMonitorController);
+exports.SlowQueryMonitorController = SlowQueryMonitorController;

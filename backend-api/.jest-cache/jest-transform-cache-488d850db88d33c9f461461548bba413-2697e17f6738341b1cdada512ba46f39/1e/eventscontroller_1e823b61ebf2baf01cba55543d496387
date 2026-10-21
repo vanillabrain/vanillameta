@@ -1,0 +1,181 @@
+5aa0b6c72cb41612cdeb582187265212
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.EventsController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const auth_public_decorator_1 = require("../auth/decorators/auth-public.decorator");
+const events_service_1 = require("./events.service");
+const track_event_dto_1 = require("./dto/track-event.dto");
+const track_metric_dto_1 = require("./dto/track-metric.dto");
+const analytics_query_dto_1 = require("./dto/analytics-query.dto");
+let EventsController = class EventsController {
+    constructor(eventsService) {
+        this.eventsService = eventsService;
+    }
+    async trackEvents(trackEventDto, req) {
+        const clientIp = this.getClientIp(req);
+        const userAgent = req.headers['user-agent'] || '';
+        await this.eventsService.trackEvents(trackEventDto, clientIp, userAgent);
+    }
+    async trackMetrics(trackMetricDto, req) {
+        const userAgent = req.headers['user-agent'] || '';
+        await this.eventsService.trackMetrics(trackMetricDto, userAgent);
+    }
+    async getAnalyticsSummary(query, req) {
+        var _a;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        return this.eventsService.getAnalyticsSummary(query, userId);
+    }
+    async getEvents(query, req) {
+        var _a;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        return this.eventsService.getEvents(query, userId);
+    }
+    async getMetrics(query, req) {
+        var _a;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        return this.eventsService.getMetrics(query, userId);
+    }
+    async getFunnelAnalysis(steps, query, req) {
+        var _a;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        const stepArray = steps ? steps.split(',') : [];
+        return this.eventsService.getFunnelAnalysis(stepArray, query, userId);
+    }
+    async getRetentionAnalysis(query, req) {
+        var _a;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        return this.eventsService.getRetentionAnalysis(query, userId);
+    }
+    async getUserFlow(query, req) {
+        var _a;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        return this.eventsService.getUserFlow(query, userId);
+    }
+    getClientIp(req) {
+        // IP 추출 (프록시 고려)
+        const forwarded = req.headers['x-forwarded-for'];
+        const ip = forwarded
+            ? forwarded.split(',')[0].trim()
+            : req.connection.remoteAddress || req.socket.remoteAddress || '';
+        return ip;
+    }
+};
+__decorate([
+    (0, common_1.Post)('track'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
+    (0, auth_public_decorator_1.AuthPublic)() // 프론트엔드에서 인증 없이도 이벤트 전송 가능
+    ,
+    (0, swagger_1.ApiOperation)({ summary: '이벤트 추적' }),
+    (0, swagger_1.ApiResponse)({ status: 204, description: '이벤트가 성공적으로 기록됨' }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [track_event_dto_1.TrackEventDto, Object]),
+    __metadata("design:returntype", Promise)
+], EventsController.prototype, "trackEvents", null);
+__decorate([
+    (0, common_1.Post)('metrics'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
+    (0, auth_public_decorator_1.AuthPublic)(),
+    (0, swagger_1.ApiOperation)({ summary: '성능 메트릭 추적' }),
+    (0, swagger_1.ApiResponse)({ status: 204, description: '메트릭이 성공적으로 기록됨' }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [track_metric_dto_1.TrackMetricDto, Object]),
+    __metadata("design:returntype", Promise)
+], EventsController.prototype, "trackMetrics", null);
+__decorate([
+    (0, common_1.Get)('analytics/summary'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: '분석 요약 데이터 조회' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: '분석 요약 데이터' }),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [analytics_query_dto_1.AnalyticsQueryDto, Object]),
+    __metadata("design:returntype", Promise)
+], EventsController.prototype, "getAnalyticsSummary", null);
+__decorate([
+    (0, common_1.Get)('analytics/events'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: '이벤트 목록 조회' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: '이벤트 목록' }),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [analytics_query_dto_1.AnalyticsQueryDto, Object]),
+    __metadata("design:returntype", Promise)
+], EventsController.prototype, "getEvents", null);
+__decorate([
+    (0, common_1.Get)('analytics/metrics'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: '성능 메트릭 조회' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: '성능 메트릭 데이터' }),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [analytics_query_dto_1.AnalyticsQueryDto, Object]),
+    __metadata("design:returntype", Promise)
+], EventsController.prototype, "getMetrics", null);
+__decorate([
+    (0, common_1.Get)('analytics/funnel'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: '퍼널 분석 데이터 조회' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: '퍼널 분석 데이터' }),
+    __param(0, (0, common_1.Query)('steps')),
+    __param(1, (0, common_1.Query)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, analytics_query_dto_1.AnalyticsQueryDto, Object]),
+    __metadata("design:returntype", Promise)
+], EventsController.prototype, "getFunnelAnalysis", null);
+__decorate([
+    (0, common_1.Get)('analytics/retention'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: '리텐션 분석 데이터 조회' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: '리텐션 분석 데이터' }),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [analytics_query_dto_1.AnalyticsQueryDto, Object]),
+    __metadata("design:returntype", Promise)
+], EventsController.prototype, "getRetentionAnalysis", null);
+__decorate([
+    (0, common_1.Get)('analytics/user-flow'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: '사용자 플로우 분석' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: '사용자 플로우 데이터' }),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [analytics_query_dto_1.AnalyticsQueryDto, Object]),
+    __metadata("design:returntype", Promise)
+], EventsController.prototype, "getUserFlow", null);
+EventsController = __decorate([
+    (0, swagger_1.ApiTags)('Events'),
+    (0, common_1.Controller)('v1/events'),
+    __metadata("design:paramtypes", [events_service_1.EventsService])
+], EventsController);
+exports.EventsController = EventsController;

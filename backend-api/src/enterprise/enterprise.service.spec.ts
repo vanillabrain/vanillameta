@@ -355,17 +355,29 @@ describe('EnterpriseService organization and membership lifecycle', () => {
   it('rejects a login name that matches more than one account', async () => {
     const created = await service.create(1, { name: 'Acme' });
     await seedAccounts(9);
-    // Legacy pre-migration ambiguity remains rejected even though the current schema forbids creating it.
-    const runner = db.createQueryRunner();
-    const table = await runner.getTable('user');
-    const index = table.indices.find(index => index.name === 'UQ_user_userId');
-    if (!index) throw new Error('Expected the current identity uniqueness index.');
-    await runner.dropIndex(table, index);
+    const code = await enroll(2);
+    const before = await state();
+    // Simulate a pre-migration lookup result without removing any current identity constraints.
+    const legacyRows = [
+      await users.findOneByOrFail({ id: 2 }),
+      { ...(await users.findOneByOrFail({ id: 9 })), userId: 'account-2' },
+    ];
+    const lookup = jest.fn(async (entity, options) => {
+      expect(entity).toBe(User);
+      expect(options).toEqual({ where: { userId: 'account-2' }, take: 2 });
+      return legacyRows;
+    });
+    const transaction = db.transaction.bind(db);
+    const injected = jest.spyOn(db, 'transaction').mockImplementationOnce((async run =>
+      transaction(async manager => {
+        const find = jest.spyOn(manager, 'find').mockImplementation(lookup);
+        try {
+          return await run(manager);
+        } finally {
+          find.mockRestore();
+        }
+      })) as any);
     try {
-      await users.update(9, { userId: 'account-2' });
-      const code = await enroll(2);
-      const before = await state();
-
       await expect(
         service.add(1, {
           userId: 'account-2',
@@ -376,22 +388,19 @@ describe('EnterpriseService organization and membership lifecycle', () => {
         }),
       ).rejects.toMatchObject({ status: 400, message: UNUSABLE_ENROLLMENT });
 
+      expect(lookup).toHaveBeenCalledTimes(1);
       expect(await state()).toEqual(before);
       expect(await memberships.findOneBy({ userId: 2 })).toBeNull();
       expect(await memberships.findOneBy({ userId: 9 })).toBeNull();
       expect(await versionOf(created.organization.id)).toBe(1);
+      expect(await enrollments.findOneBy({ userId: 2 })).not.toBeNull();
+      // The real database still rejects duplicate login names after the simulated legacy lookup.
+      await expect(users.update(9, { userId: 'account-2' })).rejects.toMatchObject({
+        driverError: { code: 'SQLITE_CONSTRAINT' },
+      });
+      expect((await users.findOneByOrFail({ id: 9 })).userId).toBe('account-9');
     } finally {
-      try {
-        await users.update(9, { userId: 'account-9' });
-        await runner.createIndex('user', index);
-        expect(
-          (await runner.getTable('user')).indices.some(
-            item => item.name === index.name && item.isUnique,
-          ),
-        ).toBe(true);
-      } finally {
-        await runner.release();
-      }
+      injected.mockRestore();
     }
   });
 

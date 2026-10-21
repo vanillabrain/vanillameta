@@ -1,5 +1,23 @@
 import { del, get, patch, post } from '@/helpers/apiHelper';
 
+// 백엔드 응답 타입에 맞춤 (userId 사용)
+export interface SignInRequest {
+  userId: string;
+  password: string;
+}
+
+export interface SignUpRequest {
+  email: string;
+  password: string;
+  confirmPassword?: string;
+}
+
+export interface UpdateUserRequest {
+  email?: string;
+  currentPassword?: string;
+  newPassword?: string;
+}
+
 export const URL_LOGIN = '/login';
 export const URL_SIGN_IN = '/signin';
 export const URL_SIGN_UP = '/signup';

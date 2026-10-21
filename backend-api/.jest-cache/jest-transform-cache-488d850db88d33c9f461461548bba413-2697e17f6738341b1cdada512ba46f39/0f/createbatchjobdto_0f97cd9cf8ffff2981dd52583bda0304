@@ -1,0 +1,86 @@
+c7abcf3a4ab5ea692ed9ce0f44aea95d
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CreateBatchJobDto = void 0;
+const class_validator_1 = require("class-validator");
+const batch_job_entity_1 = require("../entities/batch-job.entity");
+const swagger_1 = require("@nestjs/swagger");
+class CreateBatchJobDto {
+    constructor() {
+        this.chunkSize = 1000;
+    }
+}
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '배치 작업 유형',
+        enum: batch_job_entity_1.BatchJobType,
+        example: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+    }),
+    (0, class_validator_1.IsEnum)(batch_job_entity_1.BatchJobType),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateBatchJobDto.prototype, "type", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '청크 크기 (100-10000)',
+        example: 1000,
+        minimum: 100,
+        maximum: 10000,
+    }),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(100),
+    (0, class_validator_1.Max)(10000),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateBatchJobDto.prototype, "chunkSize", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '데이터셋 ID (DATASET_QUERY 타입인 경우)',
+        required: false,
+    }),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateBatchJobDto.prototype, "datasetId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '위젯 ID (WIDGET_DATA 타입인 경우)',
+        required: false,
+    }),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateBatchJobDto.prototype, "widgetId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '작업 설정',
+        required: false,
+        example: {
+            query: 'SELECT * FROM users',
+            databaseId: 1,
+            filters: {},
+        },
+    }),
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateBatchJobDto.prototype, "config", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '작업 메타데이터',
+        required: false,
+    }),
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateBatchJobDto.prototype, "metadata", void 0);
+exports.CreateBatchJobDto = CreateBatchJobDto;

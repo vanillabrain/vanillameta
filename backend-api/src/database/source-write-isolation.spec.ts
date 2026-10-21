@@ -49,6 +49,10 @@ describe('Source write current-read isolation selection', () => {
       visit(source);
       return names;
     };
+    // Current Studio admission captures basis before parent waits and uses the same current-read fence.
+    expect(calls('../dashboard-studio/studio-execution.service.ts', 'create')).toContain(
+      'sourceWriteTransaction',
+    );
     expect(calls('../bi/publication.service.ts', 'publish')).toContain('sourceWriteTransaction');
     expect(calls('../bi/publication.service.ts', 'revoke')).toContain('metadataTransaction');
     expect(calls('../bi/source-catalog.service.ts', 'save')).toContain('sourceWriteTransaction');
@@ -58,7 +62,6 @@ describe('Source write current-read isolation selection', () => {
     for (const [file, method] of [
       ['../bi/source-conditions.service.ts', 'save'],
       ['../dashboard-studio/studio.service.ts', 'publicationSnapshot'],
-      ['../dashboard-studio/studio-execution.service.ts', 'create'],
     ]) {
       expect(calls(file, method)).toContain('metadataTransaction');
       expect(calls(file, method)).not.toContain('sourceWriteTransaction');

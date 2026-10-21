@@ -1,3 +1,10 @@
+import { FieldSelection } from '../common/field-selection/field-selection.decorator';
+import {
+  ApiBadRequestResponse,
+  ApiCreatedResponse,
+  ApiOperation,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
 import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Req } from '@nestjs/common';
@@ -18,7 +25,16 @@ export class DashboardController {
   ) {}
 
   @Post()
-  @ApiBearerAuth('AccessKey')
+  @ApiOperation({
+    summary: '대시보드 생성',
+    description: '새로운 대시보드를 생성합니다.',
+  })
+  @ApiCreatedResponse({
+    description: '대시보드가 성공적으로 생성되었습니다.',
+    type: CreateDashboardDto,
+  })
+  @ApiBadRequestResponse({ description: '잘못된 요청 데이터' })
+  @ApiUnauthorizedResponse({ description: '인증 실패' })
   create(@Body() createDashboardDto: CreateDashboardDto, @Req() req) {
     const { accessKeyData } = req.user;
     return this.dashboardService.create(
@@ -28,6 +44,23 @@ export class DashboardController {
     );
   }
 
+  @FieldSelection({
+    allowedFields: [
+      'id',
+      'title',
+      'description',
+      'createdAt',
+      'updatedAt',
+      'widgets.id',
+      'widgets.name',
+      'widgets.type',
+      'widgets.order',
+      'widgets.config.title',
+      'widgets.config.chartType',
+      'widgets.config.layout',
+    ],
+    excludeFields: ['widgets.config.queries', 'widgets.data'],
+  })
   @Get()
   @ApiBearerAuth('AccessKey')
   async findAll(@Req() req) {
@@ -43,6 +76,28 @@ export class DashboardController {
     );
   }
 
+  @FieldSelection({
+    allowedFields: [
+      'id',
+      'title',
+      'description',
+      'createdAt',
+      'updatedAt',
+      'widgets.id',
+      'widgets.name',
+      'widgets.type',
+      'widgets.order',
+      'widgets.config.title',
+      'widgets.config.chartType',
+      'widgets.config.layout',
+      'widgets.config.xAxis',
+      'widgets.config.yAxis',
+      'widgets.config.groupBy',
+      'widgets.dataset.id',
+      'widgets.dataset.name',
+    ],
+    excludeFields: ['widgets.config.queries', 'widgets.data', 'widgets.rawData'],
+  })
   @Get(':id')
   @ApiBearerAuth('AccessKey')
   async findOne(@Param('id') id: string, @Req() req) {

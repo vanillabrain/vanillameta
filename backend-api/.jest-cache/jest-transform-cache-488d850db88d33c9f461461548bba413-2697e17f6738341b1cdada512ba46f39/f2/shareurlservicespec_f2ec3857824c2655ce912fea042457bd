@@ -1,0 +1,96 @@
+49df3ded3297ebd8e7b9e2acf7ebf35c
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const share_url_service_1 = require("./share-url.service");
+const user_entity_1 = require("../user/entities/user.entity");
+const dashboard_entity_1 = require("../dashboard/entities/dashboard.entity");
+const dashboard_share_entity_1 = require("../dashboard/entities/dashboard_share.entity");
+const auth_service_1 = require("../auth/auth.service");
+const dashboard_service_1 = require("../dashboard/dashboard.service");
+const test_helpers_1 = require("../../test/test-helpers");
+describe('ShareUrlService', () => {
+    let service;
+    let userRepository;
+    let dashboardRepository;
+    let dashboardShareRepository;
+    let authService;
+    let dashboardService;
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            providers: [
+                share_url_service_1.ShareUrlService,
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(user_entity_1.User),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(dashboard_entity_1.Dashboard),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(dashboard_share_entity_1.DashboardShare),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: auth_service_1.AuthService,
+                    useValue: (0, test_helpers_1.createMockService)(['generateUrlAccessToken', 'verifyAccessToken']),
+                },
+                {
+                    provide: dashboard_service_1.DashboardService,
+                    useValue: (0, test_helpers_1.createMockService)(['findOne', 'findAll']),
+                },
+            ],
+        }).compile();
+        service = module.get(share_url_service_1.ShareUrlService);
+        userRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(user_entity_1.User));
+        dashboardRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(dashboard_entity_1.Dashboard));
+        dashboardShareRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(dashboard_share_entity_1.DashboardShare));
+        authService = module.get(auth_service_1.AuthService);
+        dashboardService = module.get(dashboard_service_1.DashboardService);
+    });
+    it('should be defined', () => {
+        expect(service).toBeDefined();
+    });
+    describe('checkShareUrlOn', () => {
+        it('should enable share url when user exists', async () => {
+            const shareUrlOnDto = {
+                userId: 'testuser',
+                endDate: '12/31/2024',
+            };
+            const mockUser = { id: 1, userId: 'testuser' };
+            const mockToken = 'generated-share-token';
+            userRepository.findOne.mockResolvedValue(mockUser);
+            authService.generateUrlAccessToken.mockResolvedValue(mockToken);
+            dashboardRepository.findOne.mockResolvedValue({
+                id: 1,
+                title: 'Test Dashboard',
+                shareId: 1,
+                dashboardShare: {
+                    id: 1,
+                    shareToken: '',
+                    shareYn: 'N',
+                    endDate: null,
+                    uuid: 'test-uuid',
+                },
+            });
+            dashboardShareRepository.save.mockResolvedValue({ id: 1, uuid: 'test-uuid', shareYn: 'Y' });
+            const result = await service.checkShareUrlOn('testuser', 1, shareUrlOnDto);
+            expect(userRepository.findOne).toHaveBeenCalledWith({ where: { userId: 'testuser' } });
+            expect(authService.generateUrlAccessToken).toHaveBeenCalledWith({
+                userId: 'testuser',
+                email: undefined,
+                id: 1,
+            });
+        });
+        it('should return error when user does not exist', async () => {
+            const shareUrlOnDto = {
+                userId: 'nonexistent',
+                endDate: '12/31/2024',
+            };
+            userRepository.findOne.mockResolvedValue(null);
+            const result = await service.checkShareUrlOn('nonexistent', 1, shareUrlOnDto);
+            expect(result).toBe('not exist user');
+        });
+    });
+});

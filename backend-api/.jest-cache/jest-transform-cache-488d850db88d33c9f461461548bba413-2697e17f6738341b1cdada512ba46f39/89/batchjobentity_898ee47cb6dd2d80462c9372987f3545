@@ -1,0 +1,201 @@
+124eb020ec0a3322d7c2019cd854d727
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BatchJob = exports.BatchJobType = exports.BatchJobStatus = void 0;
+const typeorm_1 = require("typeorm");
+const base_entity_1 = require("../../common/entities/base.entity");
+const batch_chunk_entity_1 = require("./batch-chunk.entity");
+const dataset_entity_1 = require("../../dataset/entities/dataset.entity");
+const widget_entity_1 = require("../../widget/entities/widget.entity");
+var BatchJobStatus;
+(function (BatchJobStatus) {
+    BatchJobStatus["PENDING"] = "pending";
+    BatchJobStatus["PROCESSING"] = "processing";
+    BatchJobStatus["COMPLETED"] = "completed";
+    BatchJobStatus["FAILED"] = "failed";
+    BatchJobStatus["CANCELLED"] = "cancelled";
+})(BatchJobStatus = exports.BatchJobStatus || (exports.BatchJobStatus = {}));
+var BatchJobType;
+(function (BatchJobType) {
+    BatchJobType["DATASET_QUERY"] = "dataset_query";
+    BatchJobType["WIDGET_DATA"] = "widget_data";
+    BatchJobType["EXPORT_DATA"] = "export_data";
+})(BatchJobType = exports.BatchJobType || (exports.BatchJobType = {}));
+let BatchJob = class BatchJob extends base_entity_1.BaseEntity {
+    // 진행률 계산
+    get progress() {
+        if (this.totalRecords === 0)
+            return 0;
+        return Math.round((this.processedRecords / this.totalRecords) * 100);
+    }
+    // 예상 남은 시간 계산
+    get estimatedTimeRemaining() {
+        if (!this.startedAt || this.processedRecords === 0)
+            return null;
+        const elapsedMs = Date.now() - this.startedAt.getTime();
+        const recordsPerMs = this.processedRecords / elapsedMs;
+        const remainingRecords = this.totalRecords - this.processedRecords;
+        return Math.round(remainingRecords / recordsPerMs);
+    }
+};
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)(),
+    __metadata("design:type", Number)
+], BatchJob.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'varchar',
+        length: 50,
+        comment: '배치 작업 유형',
+    }),
+    __metadata("design:type", String)
+], BatchJob.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'varchar',
+        length: 50,
+        default: BatchJobStatus.PENDING,
+        comment: '배치 작업 상태',
+    }),
+    __metadata("design:type", String)
+], BatchJob.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'int',
+        default: 0,
+        comment: '전체 레코드 수',
+    }),
+    __metadata("design:type", Number)
+], BatchJob.prototype, "totalRecords", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'int',
+        default: 0,
+        comment: '처리된 레코드 수',
+    }),
+    __metadata("design:type", Number)
+], BatchJob.prototype, "processedRecords", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'int',
+        default: 1000,
+        comment: '청크 크기',
+    }),
+    __metadata("design:type", Number)
+], BatchJob.prototype, "chunkSize", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'int',
+        default: 0,
+        comment: '전체 청크 수',
+    }),
+    __metadata("design:type", Number)
+], BatchJob.prototype, "totalChunks", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'int',
+        default: 0,
+        comment: '완료된 청크 수',
+    }),
+    __metadata("design:type", Number)
+], BatchJob.prototype, "completedChunks", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'int',
+        default: 0,
+        comment: '실패한 청크 수',
+    }),
+    __metadata("design:type", Number)
+], BatchJob.prototype, "failedChunks", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'text',
+        nullable: true,
+        comment: '작업 메타데이터',
+    }),
+    __metadata("design:type", Object)
+], BatchJob.prototype, "metadata", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'text',
+        nullable: true,
+        comment: '작업 설정',
+    }),
+    __metadata("design:type", Object)
+], BatchJob.prototype, "config", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'text',
+        nullable: true,
+        comment: '에러 메시지',
+    }),
+    __metadata("design:type", String)
+], BatchJob.prototype, "errorMessage", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'datetime',
+        nullable: true,
+        comment: '시작 시간',
+    }),
+    __metadata("design:type", Date)
+], BatchJob.prototype, "startedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'datetime',
+        nullable: true,
+        comment: '완료 시간',
+    }),
+    __metadata("design:type", Date)
+], BatchJob.prototype, "completedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true,
+        comment: '데이터셋 ID',
+    }),
+    __metadata("design:type", Number)
+], BatchJob.prototype, "datasetId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        nullable: true,
+        comment: '위젯 ID',
+    }),
+    __metadata("design:type", Number)
+], BatchJob.prototype, "widgetId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        comment: '생성자 ID',
+    }),
+    __metadata("design:type", String)
+], BatchJob.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => dataset_entity_1.Dataset, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'datasetId' }),
+    __metadata("design:type", dataset_entity_1.Dataset)
+], BatchJob.prototype, "dataset", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => widget_entity_1.Widget, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'widgetId' }),
+    __metadata("design:type", widget_entity_1.Widget)
+], BatchJob.prototype, "widget", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => batch_chunk_entity_1.BatchChunk, chunk => chunk.batchJob, {
+        cascade: true,
+    }),
+    __metadata("design:type", Array)
+], BatchJob.prototype, "chunks", void 0);
+BatchJob = __decorate([
+    (0, typeorm_1.Entity)('batch_jobs'),
+    (0, typeorm_1.Index)(['status', 'createdAt']),
+    (0, typeorm_1.Index)(['datasetId', 'status']),
+    (0, typeorm_1.Index)(['widgetId', 'status'])
+], BatchJob);
+exports.BatchJob = BatchJob;

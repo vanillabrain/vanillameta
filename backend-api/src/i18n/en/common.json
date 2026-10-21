@@ -1,0 +1,28 @@
+{
+  "success": {
+    "created": "Successfully created.",
+    "updated": "Successfully updated.",
+    "deleted": "Successfully deleted.",
+    "saved": "Successfully saved.",
+    "completed": "Successfully completed."
+  },
+  "error": {
+    "not_found": "Data not found.",
+    "unauthorized": "Unauthorized request.",
+    "forbidden": "Access denied.",
+    "bad_request": "Bad request.",
+    "internal_server": "Internal server error.",
+    "duplicate": "Data already exists.",
+    "validation_failed": "Validation failed.",
+    "connection_failed": "Connection failed.",
+    "timeout": "Request timeout."
+  },
+  "validation": {
+    "required": "{field} is required.",
+    "min_length": "{field} must be at least {min} characters.",
+    "max_length": "{field} must be no more than {max} characters.",
+    "email": "Invalid email format.",
+    "number": "Only numbers are allowed.",
+    "pattern": "Invalid format."
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "project": {
+    "name": "VanillaMeta",
+    "description": "기업용 비즈니스 인텔리전스(BI) 웹 애플리케이션",
+    "version": "0.0.1",
+    "type": "fullstack-web-application",
+    "status": "active-development",
+    "target_audience": "기업 고객 (스타트업부터 대기업까지)",
+    "created_date": "2025-01-06",
+    "moonklabs_initialized": "2025-01-06",
+    "last_updated": "2025-06-20",
+    "tech_stack": {
+      "frontend": ["React 18", "TypeScript", "Material-UI", "ECharts"],
+      "backend": ["NestJS", "TypeScript", "AWS Lambda", "TypeORM", "Knex.js"],
+      "database": ["MySQL", "Multiple SQL Databases Support"],
+      "infrastructure": ["AWS", "Serverless Framework"]
+    }
+  },
+  "current_milestone": {
+    "id": "M01",
+    "name": "MVP 안정화 및 핵심 기능 강화",
+    "status": "active",
+    "start_date": "2025-01-06",
+    "estimated_duration": "4-6주",
+    "focus_areas": [
+      "기존 기능의 안정성 개선",
+      "성능 최적화"
+    ],
+    "path": "02_REQUIREMENTS/MVP_안정화_및_핵심_기능_강화"
+  },
+  "milestones": [
+    {
+      "id": "M01",
+      "name": "MVP 안정화 및 핵심 기능 강화",
+      "status": "active",
+      "path": "02_REQUIREMENTS/MVP_안정화_및_핵심_기능_강화"
+    },
+    {
+      "id": "M02",
+      "name": "성능 최적화 및 확장성 개선",
+      "status": "planned",
+      "path": "02_REQUIREMENTS/M02_성능_최적화_및_확장성_개선",
+      "created_date": "2025-06-20",
+      "focus_areas": [
+        "Lambda 콜드 스타트 최적화",
+        "데이터베이스 쿼리 성능 개선",
+        "프론트엔드 번들 크기 최적화",
+        "동시 사용자 처리 능력 10배 향상"
+      ]
+    },
+    {
+      "id": "M03",
+      "name": "DuckDB 및 Modern ORM 전환",
+      "status": "planned",
+      "path": "02_REQUIREMENTS/M03_DuckDB_및_Modern_ORM_전환",
+      "created_date": "2025-06-21",
+      "focus_areas": [
+        "SQLite를 DuckDB로 전환",
+        "TypeORM을 Drizzle ORM으로 교체",
+        "OLAP 성능 10배 향상",
+        "Raw query 실행 최적화",
+        "Docker 및 Lambda EFS 환경 구성"
+      ]
+    }
+  ],
+  "team": {
+    "size": "TBD",
+    "roles": ["풀스택 개발자", "DevOps"]
+  },
+  "project_structure": {
+    "backend_path": "/backend-api",
+    "frontend_path": "/frontend-web",
+    "docs_path": "/docs",
+    "moonklabs_path": "/.moonklabs"
+  },
+  "key_features": [
+    "코드 없는 차트 위젯 제작",
+    "50개 이상의 차트 지원",
+    "사용자 맞춤형 대시보드",
+    "다양한 SQL 데이터베이스 지원",
+    "고급 SQL 쿼리 편집기"
+  ],
+  "development_guidelines": {
+    "branch_strategy": "develop-refactor-[feature] → develop-refactor → main",
+    "testing": "Jest, 80% coverage target",
+    "code_quality": "ESLint, Prettier",
+    "deployment": "Serverless Framework to AWS"
+  },
+  "metrics": {
+    "target_availability": "99%",
+    "target_response_time": "500ms",
+    "target_error_rate": "< 0.1%"
+  },
+  "documentation": {
+    "architecture": "01_PROJECT_DOCS/ARCHITECTURE.md",
+    "technical_decisions": "01_PROJECT_DOCS/TECHNICAL_DECISIONS.md",
+    "deployment_guide": "01_PROJECT_DOCS/DEPLOYMENT_GUIDE.md",
+    "api_documentation": "01_PROJECT_DOCS/API_DOCUMENTATION.md",
+    "security_guidelines": "01_PROJECT_DOCS/SECURITY_GUIDELINES.md",
+    "performance_optimization": "01_PROJECT_DOCS/PERFORMANCE_OPTIMIZATION.md"
+  }
+}

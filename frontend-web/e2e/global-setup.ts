@@ -142,6 +142,11 @@ export default async function globalSetup() {
   const compRes = await api.get('component', { headers: auth });
   const components = await compRes.json().catch(() => []);
   if (!Array.isArray(components) || components.length === 0) {
+    if (process.env.E2E_EXTERNAL_SERVER === '1') {
+      throw new Error(
+        '[e2e] 외부 서버의 차트 컴포넌트가 비어 있습니다. 해당 서버 DB에 시드를 준비하세요. 기본 로컬 DB에는 시드하지 않습니다.',
+      );
+    }
     console.log('[e2e setup] component 시드가 없음 → backend-api npm run seed 실행');
     execFileSync('npm', ['run', 'seed'], {
       cwd: BACKEND_DIR,
