@@ -35,3 +35,7 @@ npm run docs:preview -- --host 127.0.0.1 --port 4174
 기본 주소는 `http://127.0.0.1:4174/`입니다. 제품 서버와 별도로 동작합니다. 배포 시 `VM_DOCS_BASE=/guide/ npm run docs:build`처럼 하위 경로를 지정할 수 있습니다. 결과물은 `.vitepress/dist/`이며 이 작업은 외부 배포를 수행하지 않습니다. 소스 범위는 `site/`로 제한하여 내부 설계·검증 문서가 검색이나 HTML에 포함되지 않게 합니다.
 
 문서 사이트의 검색·탐색·반응형 실행 결과는 [사이트 검증 기록](../testing/user-guide-site.md)을 참고하세요.
+
+## 온라인 배포
+
+Cloudflare Pages와 GitHub Actions 배포를 지원합니다. 계정·Secret·프로젝트 설정, `docs` 도메인 연결은 [운영 배포 안내](../operations/user-guide-cloudflare.md)를 따릅니다. 배포 활성화 전에는 기존 빌드·검사만 수행합니다.
