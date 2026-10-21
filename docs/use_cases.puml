@@ -106,4 +106,6 @@ usecase "UC-054 Export Comparable Analysis" as UC054
 operator --> UC054
 usecase "UC-055 Archive Artifact Dependencies" as UC055
 operator --> UC055
+usecase "UC-056 Create Artifact Through MCP" as UC056
+operator --> UC056
 @enduml

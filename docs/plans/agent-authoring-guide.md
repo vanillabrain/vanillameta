@@ -1,5 +1,7 @@
 # 에이전트 기반 Artifact 제작 가이드 보완
 
+후속: [UC056 MCP 구현](../plans/UC-056-mcp-authoring.md)과 [실행 증빙](../testing/mcp-artifact-authoring.md)이 아래 당시 미구현 판정을 로컬 stdio 범위에서 보완한다. 원격 HTTP/Claude 실행 등은 별도다.
+
 2026-10-21 · 기준 develop `863e5500` · 문서 보완과 후속 제품 공백 분석
 
 ## 사용자 목표와 현재 차이

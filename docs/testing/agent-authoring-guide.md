@@ -1,5 +1,7 @@
 # 에이전트 제작 안내 대조·검증
 
+후속: [UC056 MCP 구현](../plans/UC-056-mcp-authoring.md)과 [실행 증빙](../testing/mcp-artifact-authoring.md)이 아래 당시 미구현 판정을 로컬 stdio 범위에서 보완한다. 원격 HTTP/Claude 실행 등은 별도다.
+
 2026-10-21 · 기준 develop `863e5500` · [계획](../plans/agent-authoring-guide.md)
 
 ## 코드 대조

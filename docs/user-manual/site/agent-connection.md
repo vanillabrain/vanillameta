@@ -11,7 +11,7 @@ VanillaMeta의 질문을 실제 AI가 처리하도록 준비하는 **서버 운�
 사용자 ← 숫자·차트 미리보기 ← 서버의 검증·계산
 ```
 
-여기서는 **서버가 Codex를 호출**합니다. 개인 PC의 Claude Code나 Codex에 VanillaMeta MCP를 등록하는 경로와는 다릅니다. 외부 에이전트에서 직접 접속하려면 [MCP 지원 상태](./mcp.md)를 먼저 확인하세요.
+여기서는 **서버가 Codex를 호출**합니다. 개인 PC의 Claude Code나 Codex에 VanillaMeta MCP를 등록하는 경로와는 다릅니다. 외부 에이전트에서 직접 접속하려면 별도의 [로컬 MCP 연결 절차](./mcp.md)를 따르세요. MCP가 요청을 보내더라도 이 서버 AI 실행 환경은 필요합니다.
 
 ## 1. API가 실행되는 곳에서 CLI 확인
 

@@ -16,7 +16,7 @@ const groups = [
     items: [
       ["Codex 실행 엔진 연결", "agent-connection"],
       ["프롬프트로 Artifact 만들기", "agent-artifacts"],
-      ["MCP·외부 에이전트 지원", "mcp"],
+      ["MCP 연결·직접 제작", "mcp"],
     ],
   },
   {

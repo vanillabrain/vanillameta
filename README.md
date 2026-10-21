@@ -89,12 +89,15 @@ Honest support matrix — 🔷 connectors share the standard knex/driver path bu
 | <img src="design/feature-03.png" width="400"/> | <img src="design/feature-04.png" width="400"/> |
 | **No-code widget builder**                     | **Template recommendations**                   |
 
+## MCP for coding agents
+
+The local stdio [MCP server](mcp-server/README.md) connects authenticated coding agents to source/metric discovery, structured AI previews and explicitly approved private artifact saves. Returns Studio links; no arbitrary SQL or automatic publishing. [Setup and prompt walkthrough](https://docs.vanillameta.net/mcp). Codex host verified; Claude Code configuration is documented separately from runtime verification.
+
 ## Roadmap
 
 - Dashboard templates & scheduled reports
 - Excel / Google Sheets connectors
 - Scoped embed tokens & tenant-aware workspaces
-- MCP server for AI agents
 
 ## License
 
