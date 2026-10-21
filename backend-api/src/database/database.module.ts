@@ -9,14 +9,18 @@ import { DatabaseService } from './database.service';
 import { DatabaseController } from './database.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Database } from './entities/database.entity';
-import { ConnectionService } from '../connection/connection.service';
+import { ConnectionModule } from '../connection/connection.module';
 import { Dataset } from '../dataset/entities/dataset.entity';
 import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
 import { DatabaseType } from './entities/database_type.entity';
 import { JwtService } from '@nestjs/jwt';
+import { SqlValidationModule } from '../common/security/sql-validation.module';
+// import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
+    ConnectionModule,
+    SqlValidationModule,
     TypeOrmModule.forFeature([
       Database,
       Dataset,
@@ -32,8 +36,8 @@ import { JwtService } from '@nestjs/jwt';
     FileRefreshService,
     FileRefreshOwnerGuard,
     DatabaseService,
-    ConnectionService,
     JwtService,
   ],
+  exports: [DatabaseService],
 })
 export class DatabaseModule {}

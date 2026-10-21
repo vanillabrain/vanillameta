@@ -15,8 +15,11 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toContain('Hello Vanilla Meta World');
+    it('returns the preserved main API descriptor', () => {
+      expect(appController.getHello()).toMatchObject({
+        message: 'Welcome to VanillaMeta API',
+        version: '1.0.0',
+      });
     });
   });
 });

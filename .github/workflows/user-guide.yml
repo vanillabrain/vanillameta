@@ -1,0 +1,98 @@
+name: User Guide
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop]
+    paths: ["docs/user-manual/**", ".github/workflows/user-guide.yml"]
+  pull_request:
+    paths: ["docs/user-manual/**", ".github/workflows/user-guide.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs/user-manual
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: docs/user-manual/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: npm ci
+      - run: npm run build
+      - run: npm run check
+      - name: Check subpath deployment links
+        run: |
+          VM_DOCS_BASE=/guide/ npm run build -- --outDir /tmp/vm-guide-subpath
+          python3 scripts/check-build.py /tmp/vm-guide-subpath /guide/
+      - name: Keep validated site for deployment
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/develop'
+        uses: actions/upload-artifact@v4
+        with:
+          name: user-guide-site
+          path: docs/user-manual/.vitepress/dist
+          if-no-files-found: error
+          retention-days: 3
+          include-hidden-files: true
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/develop' && vars.DOCS_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: docs-production
+      url: ${{ steps.cloudflare.outputs.deployment-url }}
+    concurrency:
+      group: user-guide-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Check deployment configuration
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+        shell: bash
+        run: |
+          test -n "$CF_ACCOUNT_ID" || { echo "::error::Missing CLOUDFLARE_ACCOUNT_ID secret"; exit 1; }
+          test -n "$CF_API_TOKEN" || { echo "::error::Missing CLOUDFLARE_API_TOKEN secret"; exit 1; }
+          [[ "$CF_PROJECT" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || { echo "::error::Invalid CLOUDFLARE_PAGES_PROJECT variable"; exit 1; }
+      - uses: actions/download-artifact@v4
+        with:
+          name: user-guide-site
+          path: docs/user-manual/.vitepress/dist
+      - name: Deploy validated site to Cloudflare Pages
+        id: cloudflare
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.151.3"
+          packageManager: npm
+          workingDirectory: docs/user-manual
+          command: pages deploy .vitepress/dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch=develop
+      - name: Check published routes
+        env:
+          DOCS_URL: ${{ steps.cloudflare.outputs.deployment-url }}
+        shell: bash
+        run: |
+          test -n "$DOCS_URL" || { echo "::error::Deployment URL was not returned"; exit 1; }
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 --retry-all-errors "${DOCS_URL%/}/" --output /tmp/docs-home.html
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 --retry-all-errors "${DOCS_URL%/}/scope" --output /tmp/docs-scope.html
+          grep -q 'VanillaMeta' /tmp/docs-home.html
+          grep -q '지원 범위와 문서 기준' /tmp/docs-scope.html

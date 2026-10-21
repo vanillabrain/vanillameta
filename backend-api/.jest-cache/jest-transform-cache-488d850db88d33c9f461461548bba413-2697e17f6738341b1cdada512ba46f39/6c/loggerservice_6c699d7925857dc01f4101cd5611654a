@@ -1,0 +1,208 @@
+08f672da2ac97c9fec2b1baef82a8ccf
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CustomLoggerService = void 0;
+const common_1 = require("@nestjs/common");
+const winston = __importStar(require("winston"));
+const correlation_id_service_1 = require("../../middleware/correlation-id/correlation-id.service");
+let CustomLoggerService = class CustomLoggerService {
+    constructor() {
+        const logLevel = this.getLogLevel();
+        // JSON formatter for structured logging
+        const jsonFormat = winston.format.combine(winston.format.timestamp({
+            format: 'YYYY-MM-DD HH:mm:ss.SSS',
+        }), winston.format.errors({ stack: true }), winston.format.json(), winston.format.printf(info => {
+            const log = {
+                timestamp: info.timestamp,
+                level: info.level.toUpperCase(),
+                message: info.message,
+                context: info.context || 'Application',
+            };
+            // Add metadata if present
+            if (info.metadata && typeof info.metadata === 'object') {
+                Object.assign(log, info.metadata);
+            }
+            // Add error details if present
+            if (info.stack) {
+                log.stack = info.stack;
+            }
+            return JSON.stringify(log);
+        }));
+        this.winston = winston.createLogger({
+            level: logLevel,
+            format: jsonFormat,
+            transports: [
+                new winston.transports.Console({
+                    handleExceptions: true,
+                    handleRejections: true,
+                }),
+            ],
+            exitOnError: false,
+        });
+    }
+    /**
+     * 환경별 로그 레벨 결정
+     */
+    getLogLevel() {
+        const env = process.env.NODE_ENV || 'local';
+        const logLevel = process.env.LOG_LEVEL;
+        if (logLevel) {
+            return logLevel.toLowerCase();
+        }
+        // 환경별 기본 로그 레벨
+        switch (env) {
+            case 'prod':
+                return 'warn';
+            case 'dev':
+                return 'info';
+            case 'local':
+            default:
+                return 'debug';
+        }
+    }
+    /**
+     * 로그 메타데이터 생성
+     */
+    createMetadata(context, metadata) {
+        const baseMetadata = {
+            environment: process.env.NODE_ENV || 'local',
+            service: 'vanillameta-backend',
+            version: process.env.APP_VERSION || '1.0.0',
+        };
+        // 자동으로 현재 요청의 correlation ID 포함
+        const correlationId = correlation_id_service_1.CorrelationIdService.getCorrelationId();
+        if (correlationId) {
+            baseMetadata['correlationId'] = correlationId;
+        }
+        if (context) {
+            baseMetadata['context'] = context;
+        }
+        if (metadata) {
+            Object.assign(baseMetadata, metadata);
+        }
+        return { metadata: baseMetadata };
+    }
+    /**
+     * 순환 참조 방지를 위한 객체 안전 변환
+     */
+    safeStringify(obj) {
+        if (typeof obj !== 'object' || obj === null) {
+            return obj;
+        }
+        try {
+            return JSON.parse(JSON.stringify(obj));
+        }
+        catch (error) {
+            return '[Circular Reference or Invalid Object]';
+        }
+    }
+    log(message, context, metadata) {
+        const safeMessage = typeof message === 'object' ? this.safeStringify(message) : message;
+        this.winston.info(safeMessage, this.createMetadata(context, metadata));
+    }
+    info(message, context, metadata) {
+        const safeMessage = typeof message === 'object' ? this.safeStringify(message) : message;
+        this.winston.info(safeMessage, this.createMetadata(context, metadata));
+    }
+    error(message, stack, context, metadata) {
+        const safeMessage = typeof message === 'object' ? this.safeStringify(message) : message;
+        const logData = this.createMetadata(context, metadata);
+        if (stack) {
+            logData.stack = stack;
+        }
+        this.winston.error(safeMessage, logData);
+    }
+    warn(message, context, metadata) {
+        const safeMessage = typeof message === 'object' ? this.safeStringify(message) : message;
+        this.winston.warn(safeMessage, this.createMetadata(context, metadata));
+    }
+    debug(message, context, metadata) {
+        const safeMessage = typeof message === 'object' ? this.safeStringify(message) : message;
+        this.winston.debug(safeMessage, this.createMetadata(context, metadata));
+    }
+    verbose(message, context, metadata) {
+        const safeMessage = typeof message === 'object' ? this.safeStringify(message) : message;
+        this.winston.verbose(safeMessage, this.createMetadata(context, metadata));
+    }
+    /**
+     * HTTP 요청 로깅을 위한 특별한 메서드
+     */
+    logRequest(req, res, executionTime) {
+        var _a, _b, _c;
+        const metadata = {
+            method: req.method,
+            requestPath: req.path,
+            userAgent: req.get('user-agent'),
+            ip: req.ip || ((_a = req.connection) === null || _a === void 0 ? void 0 : _a.remoteAddress),
+            correlationId: req.correlationId,
+            userId: ((_b = req.user) === null || _b === void 0 ? void 0 : _b.userId) || ((_c = req.body) === null || _c === void 0 ? void 0 : _c.userId),
+        };
+        if (executionTime) {
+            metadata.executionTime = executionTime;
+        }
+        if (res) {
+            metadata.statusCode = res.statusCode;
+            metadata.responseSize = res.get('content-length');
+        }
+        this.log(`${req.method} ${req.path}`, 'HTTP', metadata);
+    }
+    /**
+     * 데이터베이스 쿼리 로깅
+     */
+    logQuery(query, params, executionTime, context) {
+        const metadata = {
+            query: query.length > 1000 ? query.substring(0, 1000) + '...' : query,
+            queryParams: params ? this.safeStringify(params) : undefined,
+            executionTime,
+        };
+        this.debug('Database Query Executed', context || 'Database', metadata);
+    }
+    /**
+     * 비즈니스 로직 관련 로깅
+     */
+    logBusiness(event, data, userId, context) {
+        const metadata = {
+            event,
+            userId,
+            businessData: data ? this.safeStringify(data) : undefined,
+        };
+        this.log(`Business Event: ${event}`, context || 'Business', metadata);
+    }
+};
+CustomLoggerService = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [])
+], CustomLoggerService);
+exports.CustomLoggerService = CustomLoggerService;

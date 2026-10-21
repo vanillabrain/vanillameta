@@ -242,9 +242,24 @@ describe('UC012 B SQLite atomic creation', () => {
       database: path.join(dir, 'metadata.db'),
       entities,
     }).initialize();
+    const other = make(second);
+    let ready = 0;
+    let release: () => void;
+    const prepared = new Promise<void>(resolve => (release = resolve));
+    // Both requests must finish preparation before either can commit the same new metric.
+    for (const ai of [dashboards, other.ai]) {
+      const prepare = ai.prepareSave.bind(ai);
+      jest.spyOn(ai, 'prepareSave').mockImplementation(async (...args) => {
+        const result = await prepare(...args);
+        ready += 1;
+        if (ready === 2) release();
+        await prepared;
+        return result;
+      });
+    }
     const results = await Promise.allSettled([
       service.save(body, 10),
-      make(second).service.save({ ...body, requestId: randomUUID() }, 10),
+      other.service.save({ ...body, requestId: randomUUID() }, 10),
     ]);
     expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
     const failed: any = results.find(r => r.status === 'rejected');
@@ -266,6 +281,24 @@ describe('UC012 B SQLite atomic creation', () => {
     );
     expect(saved.id).toBeGreaterThan(1);
     expect(await db.getRepository(Metric).count()).toBe(1);
+  });
+  it('requires a fresh plan when another writer commits after preparation', async () => {
+    second = await new DataSource({
+      type: 'sqlite',
+      database: path.join(dir, 'metadata.db'),
+      entities,
+    }).initialize();
+    const other = make(second).service;
+    const prepare = dashboards.prepareSave.bind(dashboards);
+    jest.spyOn(dashboards, 'prepareSave').mockImplementation(async (...args) => {
+      const result = await prepare(...args);
+      await other.save({ ...body, requestId: randomUUID() }, 10);
+      return result;
+    });
+    await expect(service.save(body, 10)).rejects.toThrow('PLAN_CHANGED');
+    expect(await db.getRepository(Metric).count()).toBe(1);
+    expect(await db.getRepository(Dashboard).count()).toBe(1);
+    expect(await db.getRepository(AnalysisCreationReceipt).count()).toBe(1);
   });
   it('preserves display variants while creating one calculation identity', async () => {
     const p: any = proposal();

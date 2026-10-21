@@ -1,0 +1,55 @@
+{
+  "title": "Widget",
+  "create": {
+    "title": "Create New Widget",
+    "selectDataset": "Select Dataset",
+    "selectChart": "Select Chart Type",
+    "configure": "Configure Widget"
+  },
+  "edit": {
+    "title": "Edit Widget",
+    "name": "Widget Name",
+    "description": "Description"
+  },
+  "chartTypes": {
+    "line": "Line Chart",
+    "bar": "Bar Chart",
+    "column": "Column Chart",
+    "pie": "Pie Chart",
+    "donut": "Donut Chart",
+    "area": "Area Chart",
+    "scatter": "Scatter Plot",
+    "bubble": "Bubble Chart",
+    "heatmap": "Heatmap",
+    "treemap": "Treemap",
+    "gauge": "Gauge Chart",
+    "radar": "Radar Chart",
+    "funnel": "Funnel Chart",
+    "sankey": "Sankey Diagram",
+    "candlestick": "Candlestick Chart",
+    "table": "Table",
+    "numericBoard": "Numeric Board"
+  },
+  "settings": {
+    "title": "Chart Settings",
+    "general": "General",
+    "data": "Data",
+    "style": "Style",
+    "advanced": "Advanced",
+    "xAxis": "X Axis",
+    "yAxis": "Y Axis",
+    "legend": "Legend",
+    "tooltip": "Tooltip",
+    "colors": "Colors"
+  },
+  "messages": {
+    "created": "Widget created successfully.",
+    "updated": "Widget updated successfully.",
+    "deleted": "Widget deleted successfully.",
+    "noData": "No data to display."
+  },
+  "list": {
+    "empty": "No widgets created yet.",
+    "createFirst": "Create a widget to get started."
+  }
+}

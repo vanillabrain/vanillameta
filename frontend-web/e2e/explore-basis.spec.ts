@@ -25,7 +25,7 @@ function csvContent(csv: string) {
     if (char === '"') {
       if (quoted && text[i + 1] === '"') {
         cell += '"';
-        i++;
+        i += 1;
       } else quoted = !quoted;
     } else if (!quoted && (char === ',' || char === '\n')) {
       row.push(cell.replace(/\r$/, ''));
@@ -139,7 +139,7 @@ test('검토 조건 명시 적용 → 비교·Pivot·CSV → 보기 reload → �
     expect(stored.ok()).toBe(true);
     let sourceWrites = 0;
     page.on('request', request => {
-      if (request.url().endsWith('/bi/source-conditions/save')) sourceWrites++;
+      if (request.url().endsWith('/bi/source-conditions/save')) sourceWrites += 1;
     });
     await page.goto(`/explore/source?sourceId=${sourceId}`);
     await page.getByRole('button', { name: '조건과 분석 범위', exact: true }).click();

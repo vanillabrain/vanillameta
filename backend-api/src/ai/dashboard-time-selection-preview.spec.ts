@@ -1,10 +1,25 @@
 jest.mock('./ai.service', () => ({ AiService: class {} }));
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { UserMapping } from '../user/entities/user-mapping.entity';
 import { AiDashboardService } from './ai-dashboard.service';
 import { ConnectionService } from '../connection/connection.service';
 import { DuckDBService } from '../analysis/duckdb.service';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+
+const ownedDashboardRepository = () => ({
+  manager: {
+    findOne: jest.fn(async (entity: any, options: any) => {
+      if (entity === UserMapping)
+        return options?.where?.dashboardId === 42 && options?.where?.userInfoId === 7
+          ? { dashboardId: 42, userInfoId: 7 }
+          : null;
+      if (entity === Dashboard) return { id: 42, delYn: 'N' };
+      return null;
+    }),
+  },
+});
 
 describe('time selection: actual UTC DuckDB preview and details', () => {
   let worker: DuckDBService;
@@ -76,9 +91,7 @@ describe('time selection: actual UTC DuckDB preview and details', () => {
       })),
     };
     connection = new ConnectionService(repository as any, {} as any, worker);
-    service = new AiDashboardService({} as any, connection, {
-      manager: { findOne: jest.fn(async () => null) },
-    } as any);
+    service = new AiDashboardService({} as any, connection, ownedDashboardRepository() as any);
     jest
       .spyOn(service, 'analysis')
       .mockImplementation(async () => ({ status: 'SUCCESS', data: draft() } as any));

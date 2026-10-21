@@ -19,6 +19,12 @@ VanillaMeta is an open-source business intelligence web application for building
 
 If you need a dashboard engine you can drop into your own product or internal tools without license friction, VanillaMeta is built for that job.
 
+## User guide
+
+데이터 연결부터 AI 분석 생성·수정·저장·게시·공유까지는 [사용자 가이드](docs/user-manual/README.md)를 참고하세요. 처음이라면 [샘플로 시작하기](docs/user-manual/빠른_시작_가이드.md)를 따라 할 수 있습니다.
+
+검색·기능별 상세 목차를 갖춘 VitePress 문서는 `npm --prefix docs/user-manual ci` 후 `npm run docs:dev`로 실행합니다. [전체 목차](docs/user-manual/site/contents.md)와 [실행 방법](docs/user-manual/README.md#상세-문서-사이트)을 참고하세요.
+
 ## Quickstart
 
 Local development and CI use **Node.js 24 LTS** (`nvm use`, or install Node 24.11+). The dashboard Assistant uses AI SDK 7 (`@ai-sdk/react` 4) and the existing Codex CLI connection to `gpt-6-luna`. Configuration and supported runtime limits are in [the Assistant verification guide](docs/testing/dashboard-assistant.md). Legacy Lambda deployment files are outside the persistent DuckDB worker deployment path.
@@ -120,4 +126,5 @@ docker compose up
 - 시맨틱 메트릭, WebSocket 쿼리 진행, Redis 캐시(선택)
 
 자세한 개발 가이드는 [AGENTS.md](AGENTS.md)를 참고하세요.
+
 </details>

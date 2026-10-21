@@ -1,0 +1,532 @@
+b504e98c25444ba4bc06f8bff20a3a52
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CacheController = void 0;
+const common_1 = require("@nestjs/common");
+const query_cache_service_1 = require("./services/query-cache.service");
+const cache_statistics_service_1 = require("./services/cache-statistics.service");
+const cache_invalidation_service_1 = require("./services/cache-invalidation.service");
+const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const get_user_decorator_1 = require("../auth/decorators/get-user.decorator");
+const response_status_enum_1 = require("../common/enum/response-status.enum");
+let CacheController = class CacheController {
+    constructor(cacheService, statisticsService, invalidationService) {
+        this.cacheService = cacheService;
+        this.statisticsService = statisticsService;
+        this.invalidationService = invalidationService;
+    }
+    /**
+     * 전체 캐시 통계 조회
+     */
+    async getCacheStatistics(periodHours = 24) {
+        try {
+            const statistics = await this.statisticsService.getCacheStatistics(Number(periodHours));
+            const memoryInfo = this.statisticsService.getMemoryInfo();
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    statistics,
+                    memoryInfo,
+                    periodHours: Number(periodHours),
+                },
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to get cache statistics: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 데이터베이스별 캐시 통계 조회
+     */
+    async getDatabaseCacheStatistics(databaseId, periodHours = 24) {
+        try {
+            const statistics = await this.statisticsService.getDatabaseCacheStatistics(Number(databaseId), Number(periodHours));
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    statistics,
+                    databaseId: Number(databaseId),
+                    periodHours: Number(periodHours),
+                },
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to get database cache statistics: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 사용자별 캐시 통계 조회
+     */
+    async getUserCacheStatistics(user, periodHours = 24) {
+        try {
+            const statistics = await this.statisticsService.getUserCacheStatistics(user.userId, Number(periodHours));
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    statistics,
+                    userId: user.userId,
+                    periodHours: Number(periodHours),
+                },
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to get user cache statistics: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 캐시 성능 트렌드 조회
+     */
+    async getCachePerformanceTrend(periodHours = 24) {
+        try {
+            const trend = await this.statisticsService.getCachePerformanceTrend(Number(periodHours));
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: trend,
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to get cache performance trend: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 패턴으로 캐시 무효화
+     */
+    async invalidateByPattern(body, user) {
+        try {
+            const invalidatedKeys = await this.invalidationService.invalidateByPattern(body.pattern, body.reason || `Manual invalidation by user ${user.userId}`);
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    invalidatedKeys,
+                    invalidatedCount: invalidatedKeys.length,
+                    pattern: body.pattern,
+                    executedBy: user.userId,
+                },
+                message: `Successfully invalidated ${invalidatedKeys.length} cache entries`,
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to invalidate cache: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 데이터베이스 캐시 무효화
+     */
+    async invalidateDatabaseCache(databaseId, body, user) {
+        try {
+            const invalidatedKeys = await this.invalidationService.invalidateDatabaseCache(Number(databaseId), body.reason || `Database cache invalidation by user ${user.userId}`);
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    invalidatedKeys,
+                    invalidatedCount: invalidatedKeys.length,
+                    databaseId: Number(databaseId),
+                    executedBy: user.userId,
+                },
+                message: `Successfully invalidated ${invalidatedKeys.length} cache entries for database ${databaseId}`,
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to invalidate database cache: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 사용자 캐시 무효화
+     */
+    async invalidateUserCache(body, user) {
+        try {
+            const targetUserId = body.userId || user.userId;
+            const invalidatedKeys = await this.invalidationService.invalidateUserCache(targetUserId, body.reason || `User cache invalidation by user ${user.userId}`);
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    invalidatedKeys,
+                    invalidatedCount: invalidatedKeys.length,
+                    targetUserId,
+                    executedBy: user.userId,
+                },
+                message: `Successfully invalidated ${invalidatedKeys.length} cache entries for user ${targetUserId}`,
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to invalidate user cache: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 테이블 변경 기반 캐시 무효화
+     */
+    async invalidateByTableChange(body, user) {
+        try {
+            const invalidatedKeys = await this.invalidationService.invalidateByTableChange(body.tableName, body.changeType);
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    invalidatedKeys,
+                    invalidatedCount: invalidatedKeys.length,
+                    tableName: body.tableName,
+                    changeType: body.changeType,
+                    executedBy: user.userId,
+                },
+                message: `Successfully invalidated ${invalidatedKeys.length} cache entries for table ${body.tableName}`,
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to invalidate cache by table change: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 무효화 규칙 추가
+     */
+    async addInvalidationRule(body, user) {
+        try {
+            const ruleId = await this.invalidationService.addInvalidationRule(Object.assign(Object.assign({}, body), { description: `${body.description} (Created by ${user.userId})` }));
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    ruleId,
+                    rule: body,
+                    createdBy: user.userId,
+                },
+                message: 'Invalidation rule created successfully',
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to create invalidation rule: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 무효화 규칙 목록 조회
+     */
+    async getInvalidationRules() {
+        try {
+            const rules = this.invalidationService.getInvalidationRules();
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    rules,
+                    totalRules: rules.length,
+                },
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to get invalidation rules: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 무효화 규칙 삭제
+     */
+    async removeInvalidationRule(ruleId, user) {
+        try {
+            await this.invalidationService.removeInvalidationRule(ruleId);
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    ruleId,
+                    deletedBy: user.userId,
+                },
+                message: 'Invalidation rule deleted successfully',
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to delete invalidation rule: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 무효화 히스토리 조회
+     */
+    async getInvalidationHistory(limit = 100) {
+        try {
+            const history = this.invalidationService.getInvalidationHistory(Number(limit));
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    history,
+                    totalEvents: history.length,
+                    limit: Number(limit),
+                },
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to get invalidation history: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 무효화 통계 조회
+     */
+    async getInvalidationStatistics() {
+        try {
+            const statistics = this.invalidationService.getInvalidationStatistics();
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: statistics,
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to get invalidation statistics: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 전체 캐시 상태 대시보드
+     */
+    async getCacheDashboard(periodHours = 24) {
+        try {
+            const [statistics, memoryInfo, trend, invalidationStats, recentInvalidations] = await Promise.all([
+                this.statisticsService.getCacheStatistics(Number(periodHours)),
+                this.statisticsService.getMemoryInfo(),
+                this.statisticsService.getCachePerformanceTrend(Number(periodHours)),
+                this.invalidationService.getInvalidationStatistics(),
+                this.invalidationService.getInvalidationHistory(10),
+            ]);
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    overview: {
+                        hitRate: statistics.hitRate,
+                        totalRequests: statistics.totalHits + statistics.totalMisses,
+                        cacheEfficiency: statistics.cacheEfficiency,
+                        memoryUsage: memoryInfo.estimatedMemoryKB,
+                    },
+                    statistics,
+                    memoryInfo,
+                    trend,
+                    invalidationStats,
+                    recentInvalidations,
+                    periodHours: Number(periodHours),
+                },
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Failed to get cache dashboard: ${error.message}`,
+            };
+        }
+    }
+    /**
+     * 캐시 시스템 헬스체크
+     */
+    async healthCheck() {
+        try {
+            const memoryInfo = this.statisticsService.getMemoryInfo();
+            const statistics = await this.statisticsService.getCacheStatistics(1); // 1시간
+            const invalidationStats = this.invalidationService.getInvalidationStatistics();
+            // 헬스 상태 판단
+            let status = 'healthy';
+            const issues = [];
+            if (statistics.hitRate < 30) {
+                status = 'degraded';
+                issues.push('Low cache hit rate');
+            }
+            if (memoryInfo.estimatedMemoryKB > 50000) {
+                // 50MB
+                status = 'degraded';
+                issues.push('High memory usage');
+            }
+            if (invalidationStats.averageInvalidationTime > 5000) {
+                // 5초
+                status = status === 'healthy' ? 'degraded' : 'unhealthy';
+                issues.push('Slow invalidation performance');
+            }
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: {
+                    healthStatus: status,
+                    issues,
+                    details: {
+                        hitRate: statistics.hitRate,
+                        memoryUsageKB: memoryInfo.estimatedMemoryKB,
+                        totalCacheEvents: statistics.totalHits + statistics.totalMisses,
+                        invalidationRules: invalidationStats.totalRules,
+                        averageInvalidationTime: invalidationStats.averageInvalidationTime,
+                    },
+                    timestamp: new Date(),
+                },
+            };
+        }
+        catch (error) {
+            return {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: `Cache health check failed: ${error.message}`,
+                data: {
+                    healthStatus: 'unhealthy',
+                    issues: ['Health check system failure'],
+                    timestamp: new Date(),
+                },
+            };
+        }
+    }
+};
+__decorate([
+    (0, common_1.Get)('statistics'),
+    __param(0, (0, common_1.Query)('periodHours')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "getCacheStatistics", null);
+__decorate([
+    (0, common_1.Get)('statistics/database/:databaseId'),
+    __param(0, (0, common_1.Param)('databaseId')),
+    __param(1, (0, common_1.Query)('periodHours')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "getDatabaseCacheStatistics", null);
+__decorate([
+    (0, common_1.Get)('statistics/user'),
+    __param(0, (0, get_user_decorator_1.GetUser)()),
+    __param(1, (0, common_1.Query)('periodHours')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "getUserCacheStatistics", null);
+__decorate([
+    (0, common_1.Get)('trend'),
+    __param(0, (0, common_1.Query)('periodHours')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "getCachePerformanceTrend", null);
+__decorate([
+    (0, common_1.Post)('invalidate/pattern'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, get_user_decorator_1.GetUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "invalidateByPattern", null);
+__decorate([
+    (0, common_1.Post)('invalidate/database/:databaseId'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Param)('databaseId')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, get_user_decorator_1.GetUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object, Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "invalidateDatabaseCache", null);
+__decorate([
+    (0, common_1.Post)('invalidate/user'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, get_user_decorator_1.GetUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "invalidateUserCache", null);
+__decorate([
+    (0, common_1.Post)('invalidate/table'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, get_user_decorator_1.GetUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "invalidateByTableChange", null);
+__decorate([
+    (0, common_1.Post)('invalidation-rules'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, get_user_decorator_1.GetUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "addInvalidationRule", null);
+__decorate([
+    (0, common_1.Get)('invalidation-rules'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "getInvalidationRules", null);
+__decorate([
+    (0, common_1.Delete)('invalidation-rules/:ruleId'),
+    __param(0, (0, common_1.Param)('ruleId')),
+    __param(1, (0, get_user_decorator_1.GetUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "removeInvalidationRule", null);
+__decorate([
+    (0, common_1.Get)('invalidation-history'),
+    __param(0, (0, common_1.Query)('limit')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "getInvalidationHistory", null);
+__decorate([
+    (0, common_1.Get)('invalidation-statistics'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "getInvalidationStatistics", null);
+__decorate([
+    (0, common_1.Get)('dashboard'),
+    __param(0, (0, common_1.Query)('periodHours')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "getCacheDashboard", null);
+__decorate([
+    (0, common_1.Get)('health'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], CacheController.prototype, "healthCheck", null);
+CacheController = __decorate([
+    (0, common_1.Controller)('api/v1/cache'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __metadata("design:paramtypes", [query_cache_service_1.QueryCacheService,
+        cache_statistics_service_1.CacheStatisticsService,
+        cache_invalidation_service_1.CacheInvalidationService])
+], CacheController);
+exports.CacheController = CacheController;
