@@ -3578,70 +3578,70 @@
   resolved "https://registry.npmjs.org/@sec-ant/readable-stream/-/readable-stream-0.4.1.tgz"
   integrity sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==
 
-"@sentry/browser-utils@11.0.0":
-  version "11.0.0"
-  resolved "https://registry.npmjs.org/@sentry/browser-utils/-/browser-utils-11.0.0.tgz"
-  integrity sha512-ZvGyfDoVeSuaAF78vSeYOFcibUCpQfYlUVpqE+B0RANzoSCBg3JimRa+cDYB/rq36PjRwINk4u2viK2JdO320w==
+"@sentry/browser-utils@11.8.0":
+  version "11.8.0"
+  resolved "https://registry.yarnpkg.com/@sentry/browser-utils/-/browser-utils-11.8.0.tgz#9613ffdfc1e8dccb2c59413d67e0ca6d532a84a7"
+  integrity sha512-tTqJmnfuJaQy9LyInCWJtJ0L+VnOq+L9+lTMkQH+pptXBAuHfdJyEl2IhGqO4QmsfKyZpHa2GVd3HKpEQsVYeg==
   dependencies:
-    "@sentry/conventions" "^0.23.0"
-    "@sentry/core" "11.0.0"
-    web-vitals "^6.1.1"
+    "@sentry/conventions" "^0.27.0"
+    "@sentry/core" "11.8.0"
+    web-vitals "^6.2.3"
 
-"@sentry/browser@11.0.0":
-  version "11.0.0"
-  resolved "https://registry.npmjs.org/@sentry/browser/-/browser-11.0.0.tgz"
-  integrity sha512-a09jUpx4OBebmY0XLYXLhfvkCIken8xoncjmOmbPIa3ibUHI6ZJVyh3jAzMu56LY9xfJRV5bOfp92yf41Yr6dQ==
+"@sentry/browser@11.8.0":
+  version "11.8.0"
+  resolved "https://registry.yarnpkg.com/@sentry/browser/-/browser-11.8.0.tgz#9ee97ff507f4b0c65e777743c21865d690702d42"
+  integrity sha512-uBC1k2ESZErHv+RfG6p9siHrtxv+QErDxL/jvEBZnoMV6OcWdZyWTGKcqrW7EjwlBiWkgVve1W7z8tNDDuVQxw==
   dependencies:
-    "@sentry/browser-utils" "11.0.0"
-    "@sentry/conventions" "^0.23.0"
-    "@sentry/core" "11.0.0"
-    "@sentry/feedback" "11.0.0"
-    "@sentry/replay" "11.0.0"
-    "@sentry/replay-canvas" "11.0.0"
+    "@sentry/browser-utils" "11.8.0"
+    "@sentry/conventions" "^0.27.0"
+    "@sentry/core" "11.8.0"
+    "@sentry/feedback" "11.8.0"
+    "@sentry/replay" "11.8.0"
+    "@sentry/replay-canvas" "11.8.0"
 
-"@sentry/conventions@^0.23.0":
-  version "0.23.0"
-  resolved "https://registry.npmjs.org/@sentry/conventions/-/conventions-0.23.0.tgz"
-  integrity sha512-+Euyo7CNVecoOusgUnq27oV97oshifgceKfnGnuKfXrPUVWA/cisvii3E1rlvy2yBrKvl9K1gCEo1Jqog5zjEQ==
+"@sentry/conventions@^0.27.0":
+  version "0.27.0"
+  resolved "https://registry.yarnpkg.com/@sentry/conventions/-/conventions-0.27.0.tgz#10a6a112d58347dfcf70d85d7a01e86f45a0ba2c"
+  integrity sha512-Mrqd/o7n/z7qWSYfQQA7x4fFTA0IqOG6JNsbBpnC97khPwZk7n6DPtOO7YgaYplSl8R8QLRbBz9Xv2lVhToSAg==
 
-"@sentry/core@11.0.0":
-  version "11.0.0"
-  resolved "https://registry.npmjs.org/@sentry/core/-/core-11.0.0.tgz"
-  integrity sha512-Sdmg21POKmNwZDz8pH/2FtilWeryh3yxhRxbfA1ph8SnX2DkXoqX6G+uXyjCSYagW2pefVklmSNeWHmUlSqioA==
+"@sentry/core@11.8.0":
+  version "11.8.0"
+  resolved "https://registry.yarnpkg.com/@sentry/core/-/core-11.8.0.tgz#4a6b9aa172a3d13a421a246cc64533499db13f5a"
+  integrity sha512-4MVTthk6C/1oQFjbVIfygHyNkx2YGbwNLml0kJji0vjJXy6ZNls9zdIp0FTBTi4e3189IcSc5OXD4qcJdmEeKA==
   dependencies:
-    "@sentry/conventions" "^0.23.0"
+    "@sentry/conventions" "^0.27.0"
 
-"@sentry/feedback@11.0.0":
-  version "11.0.0"
-  resolved "https://registry.npmjs.org/@sentry/feedback/-/feedback-11.0.0.tgz"
-  integrity sha512-ZdUE6qSfMH4zturLHxg8idfI8cA+JdfrisqUQ6hE6MKaIAAZysNIPvvFysE2WQDjFbj3puS1iZm0jg0ym7kA5g==
+"@sentry/feedback@11.8.0":
+  version "11.8.0"
+  resolved "https://registry.yarnpkg.com/@sentry/feedback/-/feedback-11.8.0.tgz#23159f5c32e79e97c9921afea5dec5cec8fd0317"
+  integrity sha512-t8MSpbPoOcPOkywcv0Hwh97A82jWFZju5NU/a6pHmn2pKFktgCgnHKNHvlYp8QUaDNYijYpLv58NIM5Dg7by7A==
   dependencies:
-    "@sentry/core" "11.0.0"
+    "@sentry/core" "11.8.0"
 
-"@sentry/react@^11.0.0":
-  version "11.0.0"
-  resolved "https://registry.npmjs.org/@sentry/react/-/react-11.0.0.tgz"
-  integrity sha512-YMF4t9659byD3rYZ9zjE5vdL3NUVFBEQfHzbMJf4kow7h7eyDdQi8GN4K1qsOFBim5C/7/ry0dkP1r4p7qtEWA==
+"@sentry/react@^11.8.0":
+  version "11.8.0"
+  resolved "https://registry.yarnpkg.com/@sentry/react/-/react-11.8.0.tgz#3d0696955cfd633f4a0db803c91ba6faac033eba"
+  integrity sha512-8+RCBT4kZ954QpkKvHsQpBkFI3Tg0KShZLFRV4WVzocaRJL+iQA9Y2FV1bxQ12meC9BawaTbI8eX/uUIFDjwMA==
   dependencies:
-    "@sentry/browser" "11.0.0"
-    "@sentry/conventions" "^0.23.0"
-    "@sentry/core" "11.0.0"
+    "@sentry/browser" "11.8.0"
+    "@sentry/conventions" "^0.27.0"
+    "@sentry/core" "11.8.0"
 
-"@sentry/replay-canvas@11.0.0":
-  version "11.0.0"
-  resolved "https://registry.npmjs.org/@sentry/replay-canvas/-/replay-canvas-11.0.0.tgz"
-  integrity sha512-cWAx4Fc+T36w4SwN0Ee35xVLrx+nt2kk2An3gKPqgRU0HwxA1w14fKAxcXfKlJcy/K7nnNMgerznvWKgBObenw==
+"@sentry/replay-canvas@11.8.0":
+  version "11.8.0"
+  resolved "https://registry.yarnpkg.com/@sentry/replay-canvas/-/replay-canvas-11.8.0.tgz#bc9ee8d2f4d2500cf79fcabcfaaa3db715d26805"
+  integrity sha512-/MiivHLdDv3ot5uJmWcPhIOubec54hPd4U/c2OE5oNyhM3zrd/S6b2FEfwke/V120QGEdZcuzGatwNJ2jNSkgQ==
   dependencies:
-    "@sentry/core" "11.0.0"
-    "@sentry/replay" "11.0.0"
+    "@sentry/core" "11.8.0"
+    "@sentry/replay" "11.8.0"
 
-"@sentry/replay@11.0.0":
-  version "11.0.0"
-  resolved "https://registry.npmjs.org/@sentry/replay/-/replay-11.0.0.tgz"
-  integrity sha512-4/36Iw288SaWEwLjhpLRjCjL2UmSNEyU0TvLrAlzRAoYdksneEe7iQTSe7WD257buSgop0m+lauGRHQf7fD9qg==
+"@sentry/replay@11.8.0":
+  version "11.8.0"
+  resolved "https://registry.yarnpkg.com/@sentry/replay/-/replay-11.8.0.tgz#87757079ac4fa96cd63b87ff80521759c1366816"
+  integrity sha512-0jXMLd9XCBEZ5tu0VJa1uj1HYCpsjuNjbEBhF5pUw4FHyIH5hz01WuI20SH2Ct0pP1mykTzJLPGjZ8sUiAmMnQ==
   dependencies:
-    "@sentry/browser-utils" "11.0.0"
-    "@sentry/core" "11.0.0"
+    "@sentry/browser-utils" "11.8.0"
+    "@sentry/core" "11.8.0"
 
 "@serverless/dashboard-plugin@^7.0.1":
   version "7.0.1"
@@ -13766,10 +13766,10 @@ web-vitals@^5.3.0:
   resolved "https://registry.npmjs.org/web-vitals/-/web-vitals-5.3.0.tgz"
   integrity sha512-q6LWsLatGYZp5VGBIOvbTj6JBV2nOmC8KvWztXBmwJcfFAzhwKwbOxhUH306XY3CcaZDUlSmSuNPBsCn0bFu+g==
 
-web-vitals@^6.1.1:
-  version "6.2.2"
-  resolved "https://registry.npmjs.org/web-vitals/-/web-vitals-6.2.2.tgz"
-  integrity sha512-oto5x6dLEgrRqfcWed+pZEUb2q6ikbFmqF54CRDhI/QGbn+qxC49b4C4OkbH+kb9C3a8shpFD3SgR9kRcs80ZQ==
+web-vitals@^6.2.3:
+  version "6.2.3"
+  resolved "https://registry.yarnpkg.com/web-vitals/-/web-vitals-6.2.3.tgz#8581188b2a46875d04b9536ab06b352e3a0468b8"
+  integrity sha512-Dmy+vdO1UPMqXiAtZSNayhl4f794Bxfd94W4HIj2HlYtczEQfEOon969memlcpcHrTuOKLa5baFjX7WbgmOq+A==
 
 webidl-conversions@^3.0.0:
   version "3.0.1"

@@ -22,7 +22,7 @@
     "@mui/styled-engine-sc": "^5.8.0",
     "@mui/x-data-grid": "^6.0.0",
     "@mui/x-date-pickers": "^5.0.9",
-    "@sentry/react": "^11.0.0",
+    "@sentry/react": "^11.8.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.104.0",
     "@testing-library/jest-dom": "^5.16.4",
