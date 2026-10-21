@@ -6,7 +6,7 @@ import { User } from '../user/entities/user.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { AuthService } from '../auth/auth.service';
 import { JwtModule } from '@nestjs/jwt';
-import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
+import { RefreshToken } from 'src/auth/entities/refresh_token.entity';
 import { LoginHistory } from 'src/middleware/entities/login-history.entity';
 import { shareUrlLoggerMiddleware } from 'src/middleware/middleware-log/middleware.share-url-logger';
 import { DashboardService } from 'src/dashboard/dashboard.service';

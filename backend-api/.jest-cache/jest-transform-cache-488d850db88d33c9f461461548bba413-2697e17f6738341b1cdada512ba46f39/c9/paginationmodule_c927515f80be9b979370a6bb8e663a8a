@@ -1,0 +1,36 @@
+0fae038c200e123f91c2dcf467c572ae
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PaginationModule = void 0;
+const common_1 = require("@nestjs/common");
+const pagination_service_1 = require("./pagination.service");
+/**
+ * 페이지네이션 모듈
+ *
+ * 커서 기반 및 오프셋 기반 페이지네이션을 위한 공통 모듈입니다.
+ *
+ * @example
+ * ```typescript
+ * @Module({
+ *   imports: [PaginationModule],
+ *   // ...
+ * })
+ * export class AppModule {}
+ * ```
+ */
+let PaginationModule = class PaginationModule {
+};
+PaginationModule = __decorate([
+    (0, common_1.Global)(),
+    (0, common_1.Module)({
+        providers: [pagination_service_1.PaginationService],
+        exports: [pagination_service_1.PaginationService],
+    })
+], PaginationModule);
+exports.PaginationModule = PaginationModule;

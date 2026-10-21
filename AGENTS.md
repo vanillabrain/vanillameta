@@ -2,6 +2,14 @@
 
 ## 세션 시작 핵심 지침
 
+- **상세 사용자 문서:** VitePress [전체 목차](docs/user-manual/site/contents.md)·[실행 안내](docs/user-manual/README.md#상세-문서-사이트). `npm run docs:dev/build/preview`, 독립 의존성은 `docs/user-manual`이다. 사이트 소스는 `site/`만 사용하며 내부 설계·검증 문서를 검색/HTML에 넣지 않는다. 빠른 시작·캡처 모음은 원문 include를 유지하고 실제 제품 실행과 코드 대조·문서 사이트 검증을 구분한다.
+
+- **사용자 가이드 실제 검증:** [가이드](docs/user-manual/README.md)·[Ego123 증빙](docs/testing/user-guide-ego.md)은 합성 데이터 연결→실제 AI 생성/수정→저장/게시/익명 링크·직원 열람과 대표 모바일을 확인한다. 조회 화면은 저장 revision만 보내는 `/ai/dashboard-view`를 사용하며 edit preview로 되돌리지 않는다. 소스 read는 직원 전달 전에 필요하다. 실기기/운영/전체 수용은 별도다.
+
+- **develop 인수·관측 복구:** [인수 결과](docs/testing/develop-acceptance-20261021.md)·[관측 후속](docs/testing/observability-recovery.md)은 통합 develop의 고유 E2E17개(16+재검사1)·권한297HTTP와 Ego122 생성/저장/비공개 게시를 구분한다. 후속은 Knex UID 시간 상관·암호화 진단/JSON 계획·Redis disabled/0건·optimizer 접속 정보 전달을 보완했으며 MySQL27HTTP/7검사·BE218/FE74와 원격 통합 후FE94를 확인했다. 운영/실기기/전체16개 수용은 별도다.
+
+- **main 기능 보존 통합:** [계획](docs/plans/main-preserving-integration.md)·[증빙](docs/testing/main-preserving-integration.md)은 최신 Studio/권한과 main 캐시·작업·관측·언어 UI를 통합했다. 진단은 명시 운영자 allowlist, Redis 작업은 opt-in이다. legacy 공용 테이블은 추가 migration으로 분리하며 모호한 과거 행은 자동 이전하지 않는다. 미연결 모듈을 자동 활성화하거나 운영 migration·전체 수용 완료로 확대하지 않는다.
+
 - **TC050 역할별 HTTP 권한·회수:** [설계](docs/plans/TC-050-access-matrix.md)·[증빙](docs/testing/enterprise-access-matrix.md)은 새 전체 Nest/MySQL8.4.11에서9개 계정 역할 축·직접/그룹 합집합·source/dashboard 독립·전달·출력·비활성/epoch를 검증했다. 최종 HTTP299건/40115·40396의 거절111건에서13개 제품 표 hash/count 불변과 실제 독립 복사본 보존을 확인했다. 제품 수정0·검증 실행기 추가이며 요청 수를 전체 완료율로 쓰지 않는다. dashboard export는 투영만/실제 파일은 source export이고 소비자 연결 공백은 남는다. legacy/별도 governance·진행 중 잠금 경합/모든 writer·운영/실기기/업무·전체16개 수용은 Open이다.
 
 - **TC050 전체 앱 MySQL 통합:** [계획](docs/plans/TC-050-integrated-mysql.md)·[증빙](docs/testing/enterprise-integrated-mysql.md)은 실제 Nest HTTP/MySQL8.4.11/native DuckDB·Ego114의 실제 Codex 질문/원본600 저장→직접 공유→본인 소스1200 사본→비교300/200/100/50%·CSV→보관/복원·API 새 PID/reload의 대표 여정이다. 신규 빈 DB dev synchronize이며 운영 migration이 아니다. 매핑 select의 legacy44px/모바일14px 덮어쓰기를 제거해36px/16px·390/768/1440 넘침0을 확인했다. 최신 잔여표는 완료된 인계/탈퇴·세 복구·출력 재시작을 미구현으로 올리지 않는다. 역할/회수 HTTP 선택 행렬은 위 후속으로 보완됐고 다음은 미실행 경로·AI/정답 변형이며 운영/실기기/업무·전체16개/TC050 수용은 Open이다.

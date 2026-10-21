@@ -141,3 +141,22 @@ it.each([null, 'day'])(
     expect(() => validateCreationProposal(raw, 4)).toThrow();
   },
 );
+
+// A fresh MySQL without the chart seed must not ask users to rewrite valid data.
+it.each([{ message: 'chart component unavailable' }, { data: { message: 'chart component unavailable' } }])(
+  'explains missing chart setup while keeping the saved request recoverable',
+  data => {
+    const message = creationError({ response: { status: 400, data } });
+    expect(message).toContain('기본 차트');
+    expect(message).toContain('관리자');
+    expect(message).toContain('같은 저장 요청 확인');
+    expect(message).not.toContain('필수 열');
+  },
+);
+it('does not display arbitrary server details as chart setup advice', () => {
+  const message = creationError({
+    response: { status: 400, data: { message: 'chart component unavailable: private-path' } },
+  });
+  expect(message).not.toContain('private-path');
+  expect(message).toContain('필수 열');
+});

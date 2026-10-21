@@ -1,9 +1,11 @@
+import { installCatalogActorFixture } from '../../test/util/catalog-actor-fixture';
 jest.mock('../connection/connection.service', () => ({ ConnectionService: class {} }));
 jest.mock('../ai/ai-dashboard.service', () => ({ AiDashboardService: class {} }));
 
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { Metric } from '../metric/entities/metric.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { BiService } from './bi.service';
 
 describe('BiService dashboard editor boundaries', () => {
@@ -66,9 +68,9 @@ describe('BiService dashboard editor boundaries', () => {
       supported: true,
       dataVersion: 'source-version',
       columns: [
-        { name: 'amount', numeric: true, temporal: false },
-        { name: 'category', numeric: false, temporal: false },
-        { name: 'day', numeric: false, temporal: true },
+        { name: 'amount', type: 'DOUBLE', numeric: true, temporal: false },
+        { name: 'category', type: 'VARCHAR', numeric: false, temporal: false },
+        { name: 'day', type: 'DATE', numeric: false, temporal: true },
       ],
     };
     metricRows = [
@@ -119,12 +121,14 @@ describe('BiService dashboard editor boundaries', () => {
     };
     dashboard = { id: dashboardId, structuredDefinition: null, layout: '[]' };
     db = {
+      options: { type: 'sqlite' },
       getRepository: jest.fn(entity => {
         if (entity === Dashboard) return { findOne: jest.fn(async () => dashboard) };
         if (entity === Metric)
           return {
             findOne: jest.fn(async ({ where }) => metricRows.find(m => m.id === where.id)),
           };
+        if (entity === SourceCatalogEntry) return { findOne: async () => null };
         throw new Error('unexpected repository');
       }),
     };
@@ -137,7 +141,13 @@ describe('BiService dashboard editor boundaries', () => {
       preview: jest.fn().mockResolvedValue({ data: { widgets: [{ rows: [{ value: 150 }] }] } }),
       save: jest.fn().mockResolvedValue({ data: { id: dashboardId, revision: 'b'.repeat(64) } }),
     };
-    service = new BiService(db, access, {} as any, dashboards);
+    installCatalogActorFixture(db, actor);
+    service = new BiService(
+      db,
+      access,
+      { withDuckDBSnapshot: (_sourceId, run) => run() } as any,
+      dashboards,
+    );
     jest.spyOn(service, 'profile').mockImplementation(async () => profile);
     jest.spyOn(service, 'metrics').mockImplementation(async () => availableMetrics);
   });
@@ -623,6 +633,7 @@ describe('BiService dashboard editor boundaries', () => {
     expect(prepare).toHaveBeenCalledWith(
       expect.objectContaining({ sourceId: 1, metricId: 13 }),
       actor,
+      undefined,
     );
     expect(access.assert).toHaveBeenCalledWith('metric', 13, actor, 'read');
     expect(dashboards.save).not.toHaveBeenCalled();

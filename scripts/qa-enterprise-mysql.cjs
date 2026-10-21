@@ -478,6 +478,17 @@ setInterval(()=>{}, 1000);
   });
 }
 async function main() {
+  if (
+    process.env.QA_REDIS_PORT &&
+    (!/^[1-9]\d*$/.test(process.env.QA_REDIS_PORT) ||
+      Number(process.env.QA_REDIS_PORT) > 65535)
+  )
+    throw new Error("Invalid explicit QA Redis port");
+  if (
+    process.env.QA_LEGACY_OPERATIONS_USER_IDS &&
+    !/^[1-9]\d*(,[1-9]\d*)*$/.test(process.env.QA_LEGACY_OPERATIONS_USER_IDS)
+  )
+    throw new Error("Invalid explicit QA operator ids");
   if (process.argv.includes("--probe-child-drain")) {
     await probeChildDrain();
     await cleanup();
@@ -600,7 +611,19 @@ async function main() {
     AI_PROVIDER: "codex",
     AI_API_KEY: "",
     AI_MODEL: "gpt-6-luna",
-    REDIS_URL: "",
+    // Optional merge QA services are explicit loopback endpoints, never inherited credentials.
+    REDIS_URL: process.env.QA_REDIS_PORT
+      ? `redis://127.0.0.1:${process.env.QA_REDIS_PORT}`
+      : "",
+    ...(process.env.QA_REDIS_PORT
+      ? {
+          REDIS_HOST: "127.0.0.1",
+          REDIS_PORT: process.env.QA_REDIS_PORT,
+          REDIS_CACHE_ENABLED: "true",
+        }
+      : {}),
+    CLOUDWATCH_METRICS_ENABLED: "false",
+    LEGACY_OPERATIONS_USER_IDS: process.env.QA_LEGACY_OPERATIONS_USER_IDS || "",
     SENTRY_DSN: "",
     QUERY_CACHE_TTL_MS: "0",
     QUERY_ALLOW_WRITE: "false",

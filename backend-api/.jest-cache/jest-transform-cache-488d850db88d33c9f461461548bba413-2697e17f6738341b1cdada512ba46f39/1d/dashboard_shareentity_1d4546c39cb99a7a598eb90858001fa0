@@ -1,0 +1,44 @@
+3196d1a1f36b97e276c54e8bead3c17f
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DashboardShare = void 0;
+const common_1 = require("@nestjs/common");
+const typeorm_1 = require("typeorm");
+const base_entity_1 = require("../../common/entities/base.entity");
+let DashboardShare = class DashboardShare extends base_entity_1.BaseEntity {
+};
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)({ comment: '대시보드 ID' }),
+    __metadata("design:type", Number)
+], DashboardShare.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ comment: '랜덤 유저Id' }),
+    __metadata("design:type", String)
+], DashboardShare.prototype, "uuid", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, length: 300, comment: '공유url 토큰' }),
+    __metadata("design:type", String)
+], DashboardShare.prototype, "shareToken", void 0);
+__decorate([
+    (0, common_1.Optional)(),
+    (0, typeorm_1.Column)({ default: 'N', nullable: false, comment: '공유사용 여브' }),
+    __metadata("design:type", String)
+], DashboardShare.prototype, "shareYn", void 0);
+__decorate([
+    (0, common_1.Optional)(),
+    (0, typeorm_1.Column)({ nullable: true, comment: '유효기한 날짜' }),
+    __metadata("design:type", Date)
+], DashboardShare.prototype, "endDate", void 0);
+DashboardShare = __decorate([
+    (0, typeorm_1.Entity)()
+], DashboardShare);
+exports.DashboardShare = DashboardShare;

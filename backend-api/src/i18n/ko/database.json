@@ -1,0 +1,27 @@
+{
+  "connection": {
+    "success": "데이터베이스 연결에 성공했습니다.",
+    "failed": "데이터베이스 연결에 실패했습니다.",
+    "test_success": "연결 테스트에 성공했습니다.",
+    "test_failed": "연결 테스트에 실패했습니다.",
+    "already_exists": "동일한 연결이 이미 존재합니다."
+  },
+  "query": {
+    "success": "쿼리 실행에 성공했습니다.",
+    "failed": "쿼리 실행에 실패했습니다.",
+    "syntax_error": "SQL 구문 오류가 있습니다.",
+    "permission_denied": "해당 작업에 대한 권한이 없습니다."
+  },
+  "types": {
+    "mysql": "MySQL",
+    "postgresql": "PostgreSQL",
+    "oracle": "Oracle",
+    "mssql": "SQL Server",
+    "sqlite": "SQLite",
+    "bigquery": "BigQuery",
+    "snowflake": "Snowflake",
+    "redshift": "Amazon Redshift",
+    "cockroachdb": "CockroachDB",
+    "mariadb": "MariaDB"
+  }
+}

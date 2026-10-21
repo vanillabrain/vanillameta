@@ -385,11 +385,11 @@ const preview = {
   dimensions: [{ column: 'device', values: ['Mobile'] }],
   temporalColumns: [{ column: 'day' }],
 };
-const previewCalls = () => api.post.mock.calls.filter(([url]) => url === '/ai/dashboard-preview');
+const previewCalls = () => api.post.mock.calls.filter(([url]) => url === '/ai/dashboard-view');
 async function analysis(data = preview, definition: any = draft) {
   api.get.mockImplementation(async (url: string) => success(url.endsWith('/pivots') ? [] : definition));
   api.post.mockImplementation(async (url, body) =>
-    success(url === '/ai/dashboard-preview' ? data : detailData(body.page, body.pageSize, body.sourceRevision)),
+    success(url === '/ai/dashboard-view' ? data : detailData(body.page, body.pageSize, body.sourceRevision)),
   );
   const view = render(
     <DashboardAnalysis dashboardId={26} onSaved={vi.fn()}>
@@ -970,7 +970,7 @@ async function contributorAnalysis(data: any = contributorPreview) {
   );
   api.post.mockImplementation(async (url, body) =>
     success(
-      url === '/ai/dashboard-preview'
+      url === '/ai/dashboard-view'
         ? data
         : body.contribution
         ? contributionData(body.contribution, body.page, body.pageSize, data.widgets[body.contribution.widgetIndex].title)
@@ -1165,7 +1165,7 @@ it('contributor detail 409 refresh fetches the canonical definition before previ
   await idle();
   expect(previewCalls()).toHaveLength(before + 1);
   expect(previewCalls().at(-1)[1]).toMatchObject({
-    draft: nextDraft,
+    expectedRevision: nextDraft.revision,
     dateRange: range,
     filters: [{ column: 'channel', values: [null] }],
   });
@@ -1188,7 +1188,7 @@ it('contributor detail failed canonical refresh does not query an old definition
   api.get.mockResolvedValueOnce(success(nextDraft));
   fireEvent.click(button('대시보드 정의 다시 조회'));
   await idle();
-  expect(previewCalls().at(-1)[1].draft).toEqual(nextDraft);
+  expect(previewCalls().at(-1)[1].expectedRevision).toEqual(nextDraft.revision);
   expect(screen.queryByRole('alert')).toBeNull();
 });
 
@@ -1420,7 +1420,7 @@ it('trend point contributor 409 reloads canonical definition then fresh source p
   const freshPreview = { ...trendPreview, sourceRevision: 'fresh-source' };
   api.post.mockImplementation(async (url, body) =>
     success(
-      url === '/ai/dashboard-preview'
+      url === '/ai/dashboard-view'
         ? freshPreview
         : { ...contributionData(body.contribution), sourceRevision: body.sourceRevision },
     ),
@@ -1428,7 +1428,7 @@ it('trend point contributor 409 reloads canonical definition then fresh source p
   await act(async () => canonical.resolve(success(nextDraft)));
   await idle();
   expect(previewCalls().at(-1)[1]).toMatchObject({
-    draft: nextDraft,
+    expectedRevision: nextDraft.revision,
     dateRange: range,
     filters: [{ column: 'channel', values: [null] }],
   });
@@ -1840,7 +1840,7 @@ it('previous contributor 409 canonical refresh preserves comparison and current 
   const refreshed = { ...previousNumericPreview, sourceRevision: 'fresh-source' };
   api.post.mockImplementation(async (url, body) =>
     success(
-      url === '/ai/dashboard-preview'
+      url === '/ai/dashboard-view'
         ? refreshed
         : {
             ...contributionData(body.contribution),
@@ -1851,7 +1851,7 @@ it('previous contributor 409 canonical refresh preserves comparison and current 
   fireEvent.click(button('대시보드 데이터 새로 조회'));
   await idle();
   expect(previewCalls().at(-1)[1]).toMatchObject({
-    draft: nextDraft,
+    expectedRevision: nextDraft.revision,
     dateRange: range,
     comparePrevious: true,
     filters: [{ column: 'channel', values: [null] }],

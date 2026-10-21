@@ -1,0 +1,60 @@
+14ff3430d3eae7551bc51a1c037a3489
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CreateEventDto = exports.EventDataDto = void 0;
+const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+const swagger_1 = require("@nestjs/swagger");
+class EventDataDto {
+}
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '이벤트 카테고리' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], EventDataDto.prototype, "category", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '이벤트 액션' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], EventDataDto.prototype, "action", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '이벤트 라벨', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], EventDataDto.prototype, "label", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '이벤트 값', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], EventDataDto.prototype, "value", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '이벤트 메타데이터', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsObject)(),
+    __metadata("design:type", Object)
+], EventDataDto.prototype, "metadata", void 0);
+exports.EventDataDto = EventDataDto;
+class CreateEventDto {
+}
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '이벤트 배열',
+        type: [EventDataDto]
+    }),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => EventDataDto),
+    __metadata("design:type", Array)
+], CreateEventDto.prototype, "events", void 0);
+exports.CreateEventDto = CreateEventDto;

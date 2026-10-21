@@ -1,3 +1,7 @@
+import { DataSource, getMetadataArgsStorage } from 'typeorm';
+import { Database } from '../database/entities/database.entity';
+import { User } from '../user/entities/user.entity';
+import { SourceAccessService } from '../ownership/source-access.service';
 import { ConnectionService } from './connection.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 
@@ -172,5 +176,147 @@ describe('ConnectionService HTTP engines', () => {
       } as any);
       expect(databricks.status).toBe(ResponseStatus.SUCCESS);
     });
+  });
+});
+
+describe('preserved main query hooks on the current core', () => {
+  it('binds main parameters without rewriting SQL and does not cross-cache parameter values', async () => {
+    const prior = process.env.QUERY_CACHE_TTL_MS;
+    process.env.QUERY_CACHE_TTL_MS = '60000';
+    const raw = jest.fn().mockResolvedValue([[{ amount: 2 }], []]);
+    const collector = { collect: jest.fn() };
+    const service = new ConnectionService(
+      {} as any,
+      { emitTo: jest.fn() } as any,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      collector as any,
+    );
+    jest
+      .spyOn(service as any, 'getConnectionConfig')
+      .mockResolvedValue({ client: 'mysql2' } as any);
+    jest.spyOn(service, 'getKnex').mockResolvedValue({
+      client: { config: { client: 'mysql2' } },
+      raw,
+    } as any);
+    try {
+      for (const value of ['2', '3']) {
+        const result = await service.executeQuery({
+          id: 7,
+          query: 'SELECT ? AS amount',
+          parameters: [{ name: 'amount', type: 'number', value }],
+        });
+        expect(result.status).toBe(ResponseStatus.SUCCESS);
+      }
+      expect(raw.mock.calls).toEqual([
+        ['SELECT ? AS amount', [2]],
+        ['SELECT ? AS amount', [3]],
+      ]);
+      expect(collector.collect).toHaveBeenCalledTimes(2);
+    } finally {
+      if (prior === undefined) delete process.env.QUERY_CACHE_TTL_MS;
+      else process.env.QUERY_CACHE_TTL_MS = prior;
+    }
+  });
+
+  it('keeps entity compatibility paths bound to the current canonical constructors', async () => {
+    const canonicalToken = await import('../auth/entites/refresh_token.entity');
+    const mainToken = await import('../auth/entities/refresh_token.entity');
+    const canonicalTable = await import('../widget/tabel-query/entity/table-query.entity');
+    const mainTable = await import('../widget/table-query/entity/table-query.entity');
+    expect(mainToken.RefreshToken).toBe(canonicalToken.RefreshToken);
+    expect(mainTable.TableQuery).toBe(canonicalTable.TableQuery);
+    expect(
+      getMetadataArgsStorage().indices.some(
+        index =>
+          index.target === canonicalTable.TableQuery &&
+          index.name === 'IDX_TABLE_QUERY_DATABASE_ID',
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('current authority before an actual shared query-cache hit', () => {
+  let db: DataSource, service: ConnectionService;
+  let run: jest.SpyInstance;
+  const prior = process.env.QUERY_CACHE_TTL_MS;
+  let sequence = 0;
+  let input: { id: number; query: string };
+
+  beforeEach(async () => {
+    process.env.QUERY_CACHE_TTL_MS = '60000';
+    input = { id: 951, query: `SELECT amount FROM cache_authority_fixture_${++sequence}` };
+    db = await new DataSource({
+      type: 'sqlite',
+      database: ':memory:',
+      synchronize: true,
+      entities: [Database, User],
+    }).initialize();
+    await db.manager.insert(
+      User,
+      [7, 8].map(id => ({
+        id,
+        userId: `cache-owner-${id}`,
+        email: `cache-${id}@example.invalid`,
+        password: 'unused',
+        active: true,
+        authVersion: 0,
+      })),
+    );
+    await db.manager.insert(Database, {
+      id: 951,
+      name: 'Cache authority',
+      engine: 'duckdb',
+      type: 'duckdb',
+      ownerId: 7,
+      catalogActive: true,
+      catalogVersion: 0,
+      connectionConfig: JSON.stringify({ client: 'duckdb', fileVersions: [{ id: 'initial' }] }),
+    });
+    service = new ConnectionService(db.getRepository(Database), { emitTo: jest.fn() } as any);
+    Object.assign(service as any, { sourceAccess: new SourceAccessService(db) });
+    run = jest
+      .spyOn(service as any, 'runQuery')
+      .mockResolvedValue({ status: ResponseStatus.SUCCESS, datas: [{ amount: 600 }] });
+  });
+  afterEach(async () => {
+    await db?.destroy();
+    if (prior === undefined) delete process.env.QUERY_CACHE_TTL_MS;
+    else process.env.QUERY_CACHE_TTL_MS = prior;
+  });
+  it('rejects the former owner and stale JWT after a populated hit, while the new owner recomputes', async () => {
+    await service.executeQuery(input, undefined, { actor: 7, epoch: 0 });
+    await service.executeQuery(input, undefined, { actor: 7, epoch: 0 });
+    expect(run).toHaveBeenCalledTimes(1);
+    await db.manager.update(Database, 951, { ownerId: 8, catalogVersion: 1 });
+    await expect(
+      service.executeQuery(input, undefined, { actor: 7, epoch: 0 }),
+    ).rejects.toMatchObject({ status: 403 });
+    await service.executeQuery(input, undefined, { actor: 8, epoch: 0 });
+    expect(run).toHaveBeenCalledTimes(2);
+    await db.manager.update(User, 8, { authVersion: 1 });
+    await expect(
+      service.executeQuery(input, undefined, { actor: 8, epoch: 0 }),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+  it('invalidates the key when the registered file version changes and blocks inactive sources', async () => {
+    await service.executeQuery(input, undefined, { actor: 7, epoch: 0 });
+    await db.manager.update(Database, 951, {
+      connectionConfig: JSON.stringify({ client: 'duckdb', fileVersions: [{ id: 'replacement' }] }),
+    });
+    await service.executeQuery(input, undefined, { actor: 7, epoch: 0 });
+    expect(run).toHaveBeenCalledTimes(2);
+    await db.manager.update(Database, 951, { catalogActive: false });
+    await expect(
+      service.executeQuery(input, undefined, { actor: 7, epoch: 0 }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+  it('does not use a shared cache when no verified actor context was explicitly supplied', async () => {
+    await service.executeQuery(input);
+    await service.executeQuery(input);
+    expect(run).toHaveBeenCalledTimes(2);
   });
 });

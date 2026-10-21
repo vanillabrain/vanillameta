@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
@@ -17,14 +18,17 @@ import { Widget } from '../widget/entities/widget.entity';
 import { Dashboard } from './entities/dashboard.entity';
 import { DashboardWidget } from './dashboard-widget/entities/dashboard-widget.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
+import { DashboardCacheService } from './dashboard-cache.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
-import { User } from '../user/entities/user.entity.js';
+import { User } from '../user/entities/user.entity';
 import { YesNo } from 'src/common/enum/yn.enum';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { CustomLoggerService } from '../common/logger/logger.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { metadataTransaction } from '../common/metadata-work';
 
 @Injectable()
@@ -43,6 +47,9 @@ export class DashboardService {
     private readonly authService: AuthService,
     @InjectRepository(Widget) private readonly widgetRepository: Repository<Widget>,
     private readonly access: SourceAccessService,
+    @Optional() private readonly dashboardCacheService?: DashboardCacheService,
+    @Optional() private readonly logger?: CustomLoggerService,
+    @Optional() private readonly eventEmitter?: EventEmitter2,
   ) {}
 
   async assertOwner(dashboardId: number, userId: number, manager?: EntityManager): Promise<void> {
@@ -128,7 +135,7 @@ export class DashboardService {
   async create(createDashboardDto: CreateDashboardDto, accessToken: number, epoch = 0) {
     this.rejectLifecycleFields(createDashboardDto);
     const widgetIds = await this.validateLayout(createDashboardDto.layout);
-    return this.attachmentTransaction(async manager => {
+    const result = await this.attachmentTransaction(async manager => {
       await lockSourceActor(manager, accessToken, epoch);
       await lockWidgetAttachmentParents(manager, widgetIds, accessToken);
       for (const widgetId of widgetIds)
@@ -149,6 +156,13 @@ export class DashboardService {
         data: { ...dashboard, layout: JSON.parse(dashboard.layout) },
       };
     });
+    await this.dashboardCacheService?.invalidateUserDashboardList(accessToken);
+    this.eventEmitter?.emit('dashboard.created', {
+      dashboardId: result.data.id,
+      userId: accessToken,
+      timestamp: Date.now(),
+    });
+    return result;
   }
 
   /**
@@ -249,6 +263,7 @@ export class DashboardService {
       where: { id: find_dashboard.shareId },
     });
     const return_obj = Object.assign({}, find_share_id, find_dashboard, { widgets: widgetList });
+    await this.dashboardCacheService?.cacheDashboard(find_dashboard, widgetList, find_share_id);
     return {
       status: ResponseStatus.SUCCESS,
       data: return_obj,
@@ -271,12 +286,15 @@ export class DashboardService {
       updateDashboardDto.layout !== undefined
         ? await this.validateLayout(updateDashboardDto.layout)
         : undefined;
-    return this.attachmentTransaction(async manager => {
+    const result = await this.attachmentTransaction(async manager => {
       const dashboard = await lockWidgetAttachmentParents(manager, widgetIds ?? [], actor, id);
       if (actor !== undefined)
         await this.authorizeGrantedEdit(id, actor, action, widgetIds, manager);
       return this.applyUpdate(id, updateDashboardDto, manager, dashboard);
     });
+    await this.dashboardCacheService?.invalidateDashboard(id);
+    this.eventEmitter?.emit('dashboard.updated', { dashboardId: id, timestamp: Date.now() });
+    return result;
   }
 
   /**

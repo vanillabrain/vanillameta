@@ -1,0 +1,84 @@
+9a5664dcb3992460bc5a08427aa95dd7
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DashboardWidgetService = void 0;
+const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const dashboard_widget_entity_1 = require("./entities/dashboard-widget.entity");
+const typeorm_2 = require("typeorm");
+const widget_entity_1 = require("../../widget/entities/widget.entity");
+const component_entity_1 = require("../../component/entities/component.entity");
+let DashboardWidgetService = class DashboardWidgetService {
+    constructor(dashboardWidgetRepository, widgetRepository, componentRepository) {
+        this.dashboardWidgetRepository = dashboardWidgetRepository;
+        this.widgetRepository = widgetRepository;
+        this.componentRepository = componentRepository;
+    }
+    /**
+     * 대시보드에 해당하는 widget 목록 저장
+     * @param createDashboardWidgetDto
+     */
+    async create(createDashboardWidgetDto) {
+        const { dashboardId, widgetIds } = createDashboardWidgetDto;
+        const saveList = [];
+        widgetIds.map(item => {
+            saveList.push({ dashboardId, widgetId: item });
+        });
+        return await this.dashboardWidgetRepository.save(saveList);
+    }
+    async findWidgets(dashboardId) {
+        // N+1 쿼리 방지: 한 번의 Join 쿼리로 위젯과 컴포넌트 정보를 함께 조회
+        const result = await this.widgetRepository
+            .createQueryBuilder('widget')
+            .innerJoin(component_entity_1.Component, 'component', 'component.id = widget.componentId')
+            .innerJoin(dashboard_widget_entity_1.DashboardWidget, 'dw', 'dw.widgetId = widget.id')
+            .select([
+            'widget.*',
+            'component.type as componentType',
+            'component.icon as icon',
+            'component.title as componentTitle',
+            'component.description as componentDescription',
+        ])
+            .where('dw.dashboardId = :dashboardId', { dashboardId })
+            .getRawMany();
+        result.forEach(el => {
+            el.option = JSON.parse(el.option);
+        });
+        return result;
+    }
+    async update(dashboardId, updateDashboardWidgetDto) {
+        // 전체 지우고, 다시 insert
+        await this.dashboardWidgetRepository.delete({ dashboardId });
+        const saveList = [];
+        updateDashboardWidgetDto.widgetIds.map(item => {
+            saveList.push({ dashboardId, widgetId: item });
+        });
+        await this.dashboardWidgetRepository.save(saveList);
+    }
+    async remove(dashboardId) {
+        await this.dashboardWidgetRepository.delete({ dashboardId });
+        return `This action removes a #${dashboardId} dashboardWidget`;
+    }
+};
+DashboardWidgetService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(dashboard_widget_entity_1.DashboardWidget)),
+    __param(1, (0, typeorm_1.InjectRepository)(widget_entity_1.Widget)),
+    __param(2, (0, typeorm_1.InjectRepository)(component_entity_1.Component)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository])
+], DashboardWidgetService);
+exports.DashboardWidgetService = DashboardWidgetService;

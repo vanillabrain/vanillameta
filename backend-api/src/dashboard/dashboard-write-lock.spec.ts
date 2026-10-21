@@ -214,6 +214,8 @@ describe('shared Dashboard write parent fence', () => {
     it.each([undefined, 7])(
       'updates an existing parent atomically for legacy/explicit actor %s',
       async actor => {
+        if (actor === undefined)
+          await db.manager.insert(DashboardWidget, { dashboardId: 1, widgetId: 1 });
         const result = await dashboards.update(
           1,
           { title: 'Changed', layout: [{ i: '1', x: 0, y: 0, w: 12, h: 2 }] } as any,
@@ -226,6 +228,17 @@ describe('shared Dashboard write parent fence', () => {
         ]);
       },
     );
+    it('rejects new widget attachment without an explicit current actor and preserves rows', async () => {
+      const before = await db.manager.findOneBy(Dashboard, { id: 1 });
+      await expect(
+        dashboards.update(1, {
+          title: 'Must fail',
+          layout: [{ i: '1', x: 0, y: 0, w: 4, h: 3 }],
+        } as any),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(await db.manager.count(DashboardWidget)).toBe(0);
+      expect(await db.manager.findOneBy(Dashboard, { id: 1 })).toEqual(before);
+    });
     it('preserves analysis widget order when presentation order changes', async () => {
       await db.manager.insert(Widget, {
         id: 2,

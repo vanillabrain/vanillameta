@@ -1,0 +1,491 @@
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { CustomLoggerService } from '../logger/logger.service';
+
+export interface SqlValidationResult {
+  isValid: boolean;
+  sanitizedQuery: string;
+  errors: string[];
+  warnings: string[];
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+}
+
+export interface SqlValidationOptions {
+  allowDDL?: boolean; // Data Definition Language (CREATE, ALTER, DROP)
+  allowDML?: boolean; // Data Manipulation Language (INSERT, UPDATE, DELETE)
+  allowMultipleStatements?: boolean;
+  maxQueryLength?: number;
+  maxResultLimit?: number;
+}
+
+@Injectable()
+export class SqlValidationService {
+  private readonly DEFAULT_OPTIONS: SqlValidationOptions = {
+    allowDDL: false,
+    allowDML: false,
+    allowMultipleStatements: false,
+    maxQueryLength: 10000,
+    maxResultLimit: 10000,
+  };
+
+  // 금지된 SQL 키워드 (대소문자 구분 없음)
+  private readonly FORBIDDEN_KEYWORDS = [
+    // DDL Commands
+    'CREATE',
+    'ALTER',
+    'DROP',
+    'TRUNCATE',
+    'RENAME',
+
+    // DML Commands (기본적으로 금지)
+    'INSERT',
+    'UPDATE',
+    'DELETE',
+    'REPLACE',
+    'MERGE',
+
+    // DCL Commands
+    'GRANT',
+    'REVOKE',
+
+    // System Commands
+    'EXEC',
+    'EXECUTE',
+    'SP_',
+    'XP_',
+    'OPENROWSET',
+    'OPENDATASOURCE',
+
+    // File Operations
+    'BULK',
+    'LOAD_FILE',
+    'INTO OUTFILE',
+    'INTO DUMPFILE',
+    'LOAD DATA',
+
+    // Information Schema Access
+    'INFORMATION_SCHEMA',
+    'SYS.',
+    'MYSQL.',
+    'PG_',
+
+    // Union-based injection patterns
+    'WAITFOR',
+    'DELAY',
+    'BENCHMARK',
+    'SLEEP',
+
+    // Administrative Functions
+    'SHUTDOWN',
+    'RESTORE',
+    'BACKUP',
+    'DBCC',
+  ];
+
+  // 위험한 문자 패턴
+  private readonly DANGEROUS_PATTERNS = [
+    // SQL 주석 (더 정확한 패턴)
+    /--\s*[^\r\n]*/g, // SQL 한줄 주석 (공백 후 내용 있는 것만)
+    /\/\*[\s\S]*?\*\//g, // SQL 블록 주석
+
+    // Union-based injection
+    /\bunion\s+(all\s+)?select\b/gi,
+
+    // Boolean-based injection
+    /\bor\s+['"]*1['"]*\s*=\s*['"]*1['"]*\b/gi,
+    /\band\s+['"]*1['"]*\s*=\s*['"]*1['"]*\b/gi,
+    /\bor\s+true\b/gi,
+    /\band\s+false\b/gi,
+
+    // Time-based injection
+    /\bwaitfor\s+delay\b/gi,
+    /\bbenchmark\s*\(/gi,
+    /\bsleep\s*\(/gi,
+
+    // File operations
+    /\binto\s+(out|dump)file\b/gi,
+    /\bload_file\s*\(/gi,
+
+    // System functions (더 구체적)
+    /\b(user|version|database)\s*\(\s*\)/gi,
+
+    // 연속된 특수문자 (난독화 시도)
+    /[;'"\\]{3,}/g,
+
+    // Hex encoding attempts
+    /\b0x[0-9a-f]{2,}/gi,
+
+    // Multiple statements (더 정확한 패턴)
+    /;\s*[a-zA-Z][a-zA-Z_]*\s/g,
+  ];
+
+  // 허용된 SQL 함수들
+  private readonly ALLOWED_FUNCTIONS = [
+    'COUNT',
+    'SUM',
+    'AVG',
+    'MIN',
+    'MAX',
+    'UPPER',
+    'LOWER',
+    'TRIM',
+    'LENGTH',
+    'SUBSTR',
+    'SUBSTRING',
+    'DATE',
+    'YEAR',
+    'MONTH',
+    'DAY',
+    'NOW',
+    'CURRENT_DATE',
+    'CURRENT_TIME',
+    'ROUND',
+    'FLOOR',
+    'CEIL',
+    'ABS',
+    'CONCAT',
+    'COALESCE',
+    'NULLIF',
+    'CASE',
+    'CAST',
+    'CONVERT',
+  ];
+
+  constructor(private readonly logger: CustomLoggerService) {}
+
+  /**
+   * SQL 쿼리 검증
+   */
+  validateQuery(
+    query: string,
+    options: SqlValidationOptions = {},
+    userId?: string,
+  ): SqlValidationResult {
+    const opts = { ...this.DEFAULT_OPTIONS, ...options };
+    const result: SqlValidationResult = {
+      isValid: true,
+      sanitizedQuery: query || '',
+      errors: [],
+      warnings: [],
+      riskLevel: 'LOW',
+    };
+
+    try {
+      // Null/undefined 입력 처리
+      if (!query) {
+        result.isValid = false;
+        result.errors.push('Query cannot be null or undefined');
+        result.riskLevel = 'HIGH';
+        return result;
+      }
+
+      result.sanitizedQuery = query;
+
+      // 1. 기본 검증
+      this.validateBasicStructure(query, opts, result);
+
+      // 2. 키워드 검증
+      this.validateKeywords(query, opts, result);
+
+      // 3. 패턴 검증
+      this.validatePatterns(query, result);
+
+      // 4. 함수 검증
+      this.validateFunctions(query, result);
+
+      // 5. 쿼리 구조 검증
+      this.validateQueryStructure(query, opts, result);
+
+      // 6. 위험도 평가
+      this.assessRiskLevel(result);
+
+      // 7. 보안 로깅
+      this.logValidation(query, result, userId);
+    } catch (error) {
+      result.isValid = false;
+      result.errors.push(`Validation error: ${error.message}`);
+      result.riskLevel = 'CRITICAL';
+
+      this.logger.error('SQL validation failed', error.stack, 'SqlValidationService', {
+        query: query ? query.substring(0, 200) : 'null/undefined',
+        userId,
+        error: error.message,
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * 기본 구조 검증
+   */
+  private validateBasicStructure(
+    query: string,
+    options: SqlValidationOptions,
+    result: SqlValidationResult,
+  ): void {
+    // 쿼리 길이 검증
+    if (query.length > options.maxQueryLength) {
+      result.errors.push(`Query length exceeds maximum (${options.maxQueryLength} characters)`);
+      result.riskLevel = 'HIGH';
+    }
+
+    // 빈 쿼리 검증
+    if (!query.trim()) {
+      result.errors.push('Empty query not allowed');
+      return;
+    }
+
+    // SELECT로 시작하는지 확인 (기본 정책)
+    const trimmedQuery = query.trim().toUpperCase();
+    if (!trimmedQuery.startsWith('SELECT') && !trimmedQuery.startsWith('WITH')) {
+      result.errors.push('Only SELECT and WITH queries are allowed');
+      result.riskLevel = 'CRITICAL';
+    }
+
+    // 다중 구문 검증
+    if (!options.allowMultipleStatements && this.hasMultipleStatements(query)) {
+      result.errors.push('Multiple SQL statements not allowed');
+      result.riskLevel = 'HIGH';
+    }
+  }
+
+  /**
+   * 키워드 검증
+   */
+  private validateKeywords(
+    query: string,
+    options: SqlValidationOptions,
+    result: SqlValidationResult,
+  ): void {
+    const upperQuery = query.toUpperCase();
+
+    for (const keyword of this.FORBIDDEN_KEYWORDS) {
+      // DDL 허용 옵션이 켜져있으면 DDL 키워드는 건너뛰기
+      if (options.allowDDL && ['CREATE', 'ALTER', 'DROP', 'TRUNCATE', 'RENAME'].includes(keyword)) {
+        continue;
+      }
+
+      // DML 허용 옵션이 켜져있으면 DML 키워드는 건너뛰기
+      if (
+        options.allowDML &&
+        ['INSERT', 'UPDATE', 'DELETE', 'REPLACE', 'MERGE'].includes(keyword)
+      ) {
+        continue;
+      }
+
+      // 단어 경계를 고려한 키워드 검사
+      const keywordRegex = new RegExp(`\\b${keyword}\\b`, 'i');
+      if (keywordRegex.test(query)) {
+        result.errors.push(`Forbidden keyword detected: ${keyword}`);
+        result.riskLevel = 'CRITICAL';
+      }
+    }
+  }
+
+  /**
+   * 위험한 패턴 검증
+   */
+  private validatePatterns(query: string, result: SqlValidationResult): void {
+    for (const pattern of this.DANGEROUS_PATTERNS) {
+      const matches = query.match(pattern);
+      if (matches) {
+        // 특정 패턴은 에러로 처리
+        if (
+          pattern.source.includes('union') ||
+          pattern.source.includes('waitfor') ||
+          pattern.source.includes('outfile') ||
+          pattern.source.includes('sleep') ||
+          pattern.source.includes('benchmark')
+        ) {
+          result.errors.push(`High-risk pattern detected: ${matches[0].substring(0, 50)}`);
+          result.riskLevel = 'CRITICAL';
+        } else if (pattern.source.includes('--') || pattern.source.includes('/\\*')) {
+          // SQL 주석은 경고로 처리
+          result.warnings.push(`SQL comment detected: ${matches[0].substring(0, 50)}`);
+          result.riskLevel = result.riskLevel === 'LOW' ? 'MEDIUM' : result.riskLevel;
+        } else {
+          result.warnings.push(`Suspicious pattern detected: ${matches[0].substring(0, 50)}`);
+          result.riskLevel = result.riskLevel === 'LOW' ? 'MEDIUM' : result.riskLevel;
+        }
+      }
+    }
+  }
+
+  /**
+   * 함수 검증
+   */
+  private validateFunctions(query: string, result: SqlValidationResult): void {
+    // 함수 호출 패턴 추출
+    const functionPattern = /\b([A-Z_]+)\s*\(/gi;
+    const matches = query.match(functionPattern);
+
+    if (matches) {
+      for (const match of matches) {
+        const functionName = match.replace(/\s*\($/, '').toUpperCase();
+
+        if (!this.ALLOWED_FUNCTIONS.includes(functionName)) {
+          result.warnings.push(`Potentially dangerous function: ${functionName}`);
+          result.riskLevel = result.riskLevel === 'LOW' ? 'MEDIUM' : result.riskLevel;
+        }
+      }
+    }
+  }
+
+  /**
+   * 쿼리 구조 검증
+   */
+  private validateQueryStructure(
+    query: string,
+    options: SqlValidationOptions,
+    result: SqlValidationResult,
+  ): void {
+    // LIMIT 절 확인
+    if (options.maxResultLimit && !this.hasLimitClause(query)) {
+      result.warnings.push(
+        `Query should include LIMIT clause (max ${options.maxResultLimit} rows)`,
+      );
+
+      // 자동으로 LIMIT 추가
+      result.sanitizedQuery = this.addLimitClause(query, options.maxResultLimit);
+    }
+
+    // 중첩 쿼리 깊이 확인
+    const nestingLevel = this.calculateNestingLevel(query);
+    if (nestingLevel > 2) {
+      // 3개 이상의 중첩된 SELECT (즉, 총 4개 이상의 SELECT)
+      result.warnings.push(`Deep nesting detected (${nestingLevel} levels)`);
+      result.riskLevel = result.riskLevel === 'LOW' ? 'MEDIUM' : result.riskLevel;
+    }
+  }
+
+  /**
+   * 위험도 평가
+   */
+  private assessRiskLevel(result: SqlValidationResult): void {
+    if (result.errors.length > 0) {
+      result.isValid = false;
+      // 이미 CRITICAL로 설정된 경우가 아니면 HIGH로 설정
+      if (result.riskLevel !== 'CRITICAL') {
+        result.riskLevel = 'HIGH';
+      }
+    } else if (result.warnings.length > 3) {
+      // 많은 경고가 있으면 현재 위험도와 관계없이 HIGH로 설정 (CRITICAL이 아닌 한)
+      if (result.riskLevel !== 'CRITICAL') {
+        result.riskLevel = 'HIGH';
+      }
+    } else if (result.warnings.length > 1) {
+      // 일부 경고가 있으면 현재 위험도가 LOW인 경우에만 MEDIUM으로 업그레이드
+      if (result.riskLevel === 'LOW') {
+        result.riskLevel = 'MEDIUM';
+      }
+    }
+    // warnings가 1개 이하인 경우 LOW 유지 (LIMIT 경고는 보통 무해함)
+  }
+
+  /**
+   * 보안 로깅
+   */
+  private logValidation(query: string, result: SqlValidationResult, userId?: string): void {
+    const logData = {
+      userId,
+      queryLength: query.length,
+      riskLevel: result.riskLevel,
+      errorsCount: result.errors.length,
+      warningsCount: result.warnings.length,
+      isValid: result.isValid,
+      queryPreview: query.substring(0, 100),
+    };
+
+    if (result.riskLevel === 'HIGH' || result.riskLevel === 'CRITICAL') {
+      this.logger.warn('High-risk SQL query detected', 'SqlValidationService', {
+        ...logData,
+        errors: result.errors,
+        warnings: result.warnings,
+      });
+    } else if (result.warnings.length > 0) {
+      this.logger.log(
+        'SQL query validation completed with warnings',
+        'SqlValidationService',
+        logData,
+      );
+    } else {
+      this.logger.debug('SQL query validation passed', 'SqlValidationService', logData);
+    }
+  }
+
+  /**
+   * 다중 구문 검사
+   */
+  private hasMultipleStatements(query: string): boolean {
+    // 문자열 리터럴 제거 후 세미콜론 검사
+    const withoutStrings = query.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '');
+    const statements = withoutStrings.split(';').filter(s => s.trim().length > 0);
+    return statements.length > 1;
+  }
+
+  /**
+   * LIMIT 절 존재 확인
+   */
+  private hasLimitClause(query: string): boolean {
+    return /\bLIMIT\s+\d+/i.test(query);
+  }
+
+  /**
+   * LIMIT 절 자동 추가
+   */
+  private addLimitClause(query: string, limit: number): string {
+    // 이미 LIMIT이 있는 경우 그대로 반환
+    if (this.hasLimitClause(query)) {
+      return query;
+    }
+
+    // ORDER BY가 있는 경우 그 뒤에, 없으면 맨 끝에 LIMIT 추가
+    const orderByMatch = query.match(/\bORDER\s+BY\s+[^;]+/i);
+    if (orderByMatch) {
+      return query.replace(/(\bORDER\s+BY\s+[^;]+)/i, `$1 LIMIT ${limit}`);
+    } else {
+      return `${query.replace(/;?\s*$/, '')} LIMIT ${limit}`;
+    }
+  }
+
+  /**
+   * 중첩 쿼리 깊이 계산
+   */
+  private calculateNestingLevel(query: string): number {
+    // SELECT 키워드 개수로 중첩 레벨 추정
+    const selectMatches = query.match(/\bSELECT\b/gi);
+    if (!selectMatches) return 0;
+
+    // 단순히 SELECT 개수로 판단 (1개는 기본, 2개 이상이면 중첩)
+    return selectMatches.length - 1;
+  }
+
+  /**
+   * 쿼리 정리 (주석 제거 등)
+   */
+  sanitizeQuery(query: string): string {
+    return (
+      query
+        // SQL 주석 제거
+        .replace(/--[\s\S]*$/gm, '')
+        .replace(/\/\*[\s\S]*?\*\//gm, '')
+        // 불필요한 공백 정리
+        .replace(/\s+/g, ' ')
+        .trim()
+    );
+  }
+
+  /**
+   * 에러 메시지 생성
+   */
+  formatValidationError(result: SqlValidationResult): string {
+    if (result.isValid) {
+      return '';
+    }
+
+    const errors = result.errors.join('; ');
+    const warnings = result.warnings.length > 0 ? ` Warnings: ${result.warnings.join('; ')}` : '';
+
+    return `SQL validation failed: ${errors}${warnings}`;
+  }
+}

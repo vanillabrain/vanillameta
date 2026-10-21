@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import SwiperCore, { Navigation } from 'swiper';
+import { Navigation } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,6 @@ function SecondStep(props) {
     });
   };
 
-  SwiperCore.use([Navigation]);
   const navigationNextRef = useRef(null);
   const navigationPrevRef = useRef(null);
 
@@ -30,10 +29,9 @@ function SecondStep(props) {
     onBeforeInit: swiper => {
       swiper.params.navigation.prevEl = navigationPrevRef.current;
       swiper.params.navigation.nextEl = navigationNextRef.current;
-      swiper.navigation.update();
     },
     slidesPerView: 3,
-    loop: true,
+    rewind: true,
   };
 
   return (
@@ -44,15 +42,25 @@ function SecondStep(props) {
 
         <div className="absolute inset-x-0 bottom-[-50px] z-10 mx-auto flex h-[35%] max-h-[180px] min-h-[100px] w-[40%] min-w-[300px] max-w-[700px] items-end">
           <div className="absolute inset-x-0 top-1/2 bottom-1/2 z-20 flex h-0 w-full flex-row-reverse items-center justify-between">
-            <Button ref={navigationNextRef} variant="ghost" className="flex h-[100px] items-center rounded-none">
+            <Button
+              ref={navigationNextRef}
+              aria-label="다음 슬라이드"
+              variant="ghost"
+              className="flex h-[100px] items-center rounded-none"
+            >
               <ArrowRight />
             </Button>
-            <Button ref={navigationPrevRef} variant="ghost" className="flex h-[100px] items-center rounded-none">
+            <Button
+              ref={navigationPrevRef}
+              aria-label="이전 슬라이드"
+              variant="ghost"
+              className="flex h-[100px] items-center rounded-none"
+            >
               <ArrowLeft />
             </Button>
           </div>
 
-          <Swiper className="h-full w-[calc(100%-60px)]" {...swiperParams}>
+          <Swiper modules={[Navigation]} className="h-full w-[calc(100%-60px)]" {...swiperParams}>
             {slideData.map((item, index) => (
               <SwiperSlide key={item}>
                 <Card
