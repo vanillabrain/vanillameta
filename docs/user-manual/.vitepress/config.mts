@@ -34,6 +34,7 @@ const groups = [
     items: [
       ["게시·링크 공유", "publish"],
       ["조직 공유와 권한", "organization"],
+      ["조직 공유·재사용 샘플", "team-reuse-walkthrough"],
       ["복제와 재사용", "reuse"],
       ["CSV 출력과 보관", "export-library"],
     ],
