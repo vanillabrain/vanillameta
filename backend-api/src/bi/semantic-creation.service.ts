@@ -370,6 +370,17 @@ export class SemanticCreationService {
             });
           });
         } catch (error) {
+          // Another connection may finish this exact request after the initial replay read,
+          // while preparation observes the newly created metric and reports a stale plan.
+          if (error instanceof ConflictException && error.message === 'PLAN_CHANGED') {
+            const completed = await serializeMetadataWork(this.db, async () => {
+              await assertCatalogActor(this.db.manager, authority);
+              const prior = await this.replay(this.db.manager, actor, requestId, payloadDigest);
+              if (prior) await this.bi.assertSourceAction(body.proposal.sourceId, actor, 'read');
+              return prior;
+            });
+            if (completed) return completed;
+          }
           const retryable =
             /SQLITE_BUSY|SQLITE_LOCKED|SQLITE_CONSTRAINT|ER_DUP_ENTRY|ER_LOCK_DEADLOCK|ER_LOCK_WAIT_TIMEOUT/.test(
               String(error?.code ?? error?.driverError?.code),

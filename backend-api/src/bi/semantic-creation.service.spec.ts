@@ -216,6 +216,37 @@ describe('UC012 B SQLite atomic creation', () => {
     expect(await db.getRepository(AnalysisCreationReceipt).count()).toBe(1);
     expect(await db.getRepository(Metric).count()).toBe(1);
   });
+  it('replays a same-key commit made after the initial receipt read but before catalog preparation', async () => {
+    second = await new DataSource({
+      type: 'sqlite',
+      database: path.join(dir, 'metadata.db'),
+      entities,
+    }).initialize();
+    const other = make(second);
+    let entered: () => void;
+    let release: () => void;
+    const preparing = new Promise<void>(resolve => (entered = resolve));
+    const committed = new Promise<void>(resolve => (release = resolve));
+    other.bi.profile.mockImplementationOnce(async () => {
+      entered();
+      await committed;
+      return profile;
+    });
+    const pending = other.service.save(body, 10);
+    await preparing;
+    try {
+      const saved = await service.save(body, 10);
+      release();
+      await expect(pending).resolves.toEqual({ id: saved.id, replayed: true });
+      expect(other.bi.assertSourceAction).toHaveBeenCalledWith(1, 10, 'read');
+      expect(await db.getRepository(Dashboard).count()).toBe(1);
+      expect(await db.getRepository(AnalysisCreationReceipt).count()).toBe(1);
+      expect(await db.getRepository(Metric).count()).toBe(1);
+    } finally {
+      release();
+      await pending.catch(() => undefined);
+    }
+  });
   it('allows an independent source writer during SQL preparation then rejects its changed pointer before persistence', async () => {
     second = await new DataSource({
       type: 'sqlite',
