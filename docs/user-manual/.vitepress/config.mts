@@ -12,6 +12,14 @@ const groups = [
     ],
   },
   {
+    text: "에이전트와 Artifact",
+    items: [
+      ["Codex 실행 엔진 연결", "agent-connection"],
+      ["프롬프트로 Artifact 만들기", "agent-artifacts"],
+      ["MCP·외부 에이전트 지원", "mcp"],
+    ],
+  },
+  {
     text: "데이터와 분석",
     items: [
       ["데이터 연결", "data"],

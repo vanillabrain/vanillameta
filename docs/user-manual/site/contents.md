@@ -10,6 +10,12 @@
 - [기본 개념](./concepts.md): 소스, 지표, 차원, 블록, 저장본과 게시본
 - [화면과 이동](./navigation.md): Studio·Explore·데이터·조직 화면의 역할
 
+## 에이전트와 Artifact
+
+- [Codex 실행 엔진 연결](./agent-connection.md): 서버 계정·CLI·로그인·환경설정·확인·오류 해결
+- [프롬프트로 Artifact 만들기](./agent-artifacts.md): 요청 정리 → 생성·미리보기 → 수정·저장 → 게시·재사용
+- [MCP·외부 에이전트 지원](./mcp.md): 현재 제공 범위와 직접 연결의 준비 기준
+
 ## 데이터와 분석
 
 - [데이터 연결](./data.md): 샘플·CSV·JSON·Parquet·외부 DB

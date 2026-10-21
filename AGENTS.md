@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **에이전트 제작 문서(2026-10-21):** 사용자가 외부 코딩 에이전트의 프롬프트→시각화·Artifact 제작을 핵심 진입으로 지정했다. [보완 계획](docs/plans/agent-authoring-guide.md)에 따라 서버→Codex 실행과 외부 에이전트→VM MCP를 구분한다. 전자는 구현, 후자는 현재 README 로드맵/미구현이며 가상 URL·패키지·설정 예제로 지원 완료를 만들지 않는다. 다음 제품 단위는 동일 권한·미리보기·명시 저장→Studio 링크의 외부 진입이다. MK AI 별도 계약은 그대로 제외한다.
+
 - **가이드 운영 배포:** https://docs.vanillameta.net/ · Cloudflare Pages `vanillameta-docs`/production `develop`, Actions 자동 배포 활성. [운영 안내](docs/operations/user-guide-cloudflare.md)·[온라인 검증](docs/testing/docs-production.md)을 따른다. 토큰은 GitHub Secret만 사용하고 문서·로그에 기록하지 않는다.
 
 - **상세 사용자 문서:** VitePress [전체 목차](docs/user-manual/site/contents.md)·[실행 안내](docs/user-manual/README.md#상세-문서-사이트). `npm run docs:dev/build/preview`, 독립 의존성은 `docs/user-manual`이다. 사이트 소스는 `site/`만 사용하며 내부 설계·검증 문서를 검색/HTML에 넣지 않는다. 빠른 시작·캡처 모음은 원문 include를 유지하고 실제 제품 실행과 코드 대조·문서 사이트 검증을 구분한다.

@@ -33,7 +33,7 @@ Explore·고급 Pivot·저장 지표 조합·CSV 작업·초안/충돌 복구·�
 | 직원 공유   | 대시보드 공유와 소스 읽기 별도                       |
 | 기존 위젯   | AI Studio와 차트·공유 방식이 다를 수 있음            |
 
-MK AI는 별도 프로젝트이며 이 문서는 별도 연동 계약·API·MCP를 제공한다고 설명하지 않습니다.
+[서버의 Codex CLI 실행](./agent-connection.md)은 현재 구현되어 있습니다. [외부 에이전트용 VanillaMeta MCP 서버](./mcp.md)는 현재 미제공이며, 앱 내부 HTTP API를 MCP나 안정된 외부 연동 계약으로 안내하지 않습니다. [Artifact 제작 가이드](./agent-artifacts.md)의 외부 요청 정리는 수동 전달 예시이며 MCP 직접 생성 검증이 아닙니다. MK AI는 별도 프로젝트입니다.
 
 ## 문서 도구
 
