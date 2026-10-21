@@ -293,7 +293,7 @@ const preview = {
   temporalColumns: [{ column: 'created_at' }],
   sourceRevision: 'b'.repeat(64),
 };
-const previewCalls = () => api.post.mock.calls.filter(([url]) => url === '/ai/dashboard-preview');
+const previewCalls = () => api.post.mock.calls.filter(([url]) => url === '/ai/dashboard-view');
 const choose = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 // 실제 구현의 집계 단위·최근 기간 컨트롤은 Radix Select이므로 트리거를 열고 옵션을 골라야 한다.
 const grainLabels = { auto: '자동', day: '일별', week: '주별', month: '월별' } as const;
@@ -306,7 +306,7 @@ async function analysis() {
     url.startsWith('/ai/dashboard-analysis') ? success(draft) : url.endsWith('/views') ? success([row()]) : success(row()),
   );
   api.post.mockImplementation(async (url: string, body: any) =>
-    url === '/ai/dashboard-preview' ? success(preview) : success({ ...row(2, body.state), name: body.name }),
+    url === '/ai/dashboard-view' ? success(preview) : success({ ...row(2, body.state), name: body.name }),
   );
   const view = render(
     <DashboardAnalysis dashboardId={3} revision={1} onSaved={vi.fn()}>
@@ -402,7 +402,7 @@ it('atomically loads filters, resolved dates and notation, preserves the definit
   await idle();
   expect(previewCalls()).toHaveLength(2);
   expect(previewCalls()[1][1]).toEqual({
-    draft,
+    expectedRevision: draft.revision,
     dashboardId: 3,
     includeTrends: true,
     trendGrain: 'auto',
@@ -414,7 +414,7 @@ it('atomically loads filters, resolved dates and notation, preserves the definit
   expect((screen.getByLabelText('종료일 (UTC)') as HTMLInputElement).value).toBe(range.end);
   expect(localStorage.getItem('dashboard-number-notation:3')).toBe('compact');
   expect(screen.getByTestId('widget').textContent).toContain('compact');
-  expect(api.post.mock.calls.every(([url]) => url === '/ai/dashboard-preview')).toBe(true);
+  expect(api.post.mock.calls.every(([url]) => url === '/ai/dashboard-view')).toBe(true);
 });
 
 it('keeps one saved-view region across filter, date, pending and error state changes beside Assistant', async () => {

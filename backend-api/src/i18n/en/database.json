@@ -1,0 +1,27 @@
+{
+  "connection": {
+    "success": "Database connection successful.",
+    "failed": "Database connection failed.",
+    "test_success": "Connection test successful.",
+    "test_failed": "Connection test failed.",
+    "already_exists": "Connection already exists."
+  },
+  "query": {
+    "success": "Query executed successfully.",
+    "failed": "Query execution failed.",
+    "syntax_error": "SQL syntax error.",
+    "permission_denied": "Permission denied for this operation."
+  },
+  "types": {
+    "mysql": "MySQL",
+    "postgresql": "PostgreSQL",
+    "oracle": "Oracle",
+    "mssql": "SQL Server",
+    "sqlite": "SQLite",
+    "bigquery": "BigQuery",
+    "snowflake": "Snowflake",
+    "redshift": "Amazon Redshift",
+    "cockroachdb": "CockroachDB",
+    "mariadb": "MariaDB"
+  }
+}

@@ -143,3 +143,32 @@ Ego48을 keep[]로 종료하고 이번 API4562/웹3462 프로세스만 종료했
 [재조회 대기390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/rechecking-390.png) · [상세 초점 복구390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/restored-basis-390.png) · [최초 Pivot 화면 밖390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/pivot-focus-offscreen-before-390.png) · [수정 후 Pivot390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/restored-pivot-390.png) · [사용자 선택390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/chosen-retry-focus-390.png) · [오류 안전 초점390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-focus-20261020/failed-recheck-390.png)
 
 Ego49를 keep[]로 종료했다. 이번 격리 API4562/웹3462만 정리하고 기존 서버/DB/원본 파일·게시V1은 보존한다. gpt-6-luna 설정 유지/새 호출0·VoiceOver BLOCKED 유지다. 실휴대폰/VoiceOver·운영/MySQL 새 실행·모든 키보드/권한 조합·전체16개 수용은 Open이다. Ego Lite 업데이트 안내만 확인했으며 업그레이드는 실행하지 않았다.
+
+
+## 후속 계획 — UXB-10 게시 버전·실제 소스 이용 차단 후 초점
+
+2026-10-20 · b0239e8b. UXB01~09 통과는 재사용한다. UXB09에서 단위로만 확인한 다른 게시 버전/403의 실제 HTTP·화면 구간을 선택한다. 새 격리 metadata 복사본의 기존 합성 dashboard33/source33만 대상으로, 탭이 숨겨진 동안 fixture 게시 버전을V1→V2로 바꾸면 재조회 후 과거 상세 펼침/대상을 재사용하지 않고 새 V2·안전한 재확인 초점을 보이는지 확인한다. 이어 source33 catalogActive를 fixture로 비활성화해 서버가 실제403을 반환할 때 기존 데이터 DOM0·안내·가시 초점, 재활성 뒤 명시 Enter 재확인만으로 복구되는지 확인한다. 이는 재게시/상태 변경 API 자체의 재검증이 아니며 새 게시/공유/계정 생성·모델 호출0이다. 모바일390px을 캡처하고 fixture를 원복한 뒤 선택9표 전체 행을 비교한다. 최초 NOT_RUN; gpt-6-luna·VoiceOver BLOCKED 유지.
+
+
+### UXB-10 실제 결과 — 2026-10-20 / Ego50
+
+**PASS_SELECTED: 다른 게시 버전·소스 이용 차단의 실제 HTTP/모바일 초점.** UXB09의 같은 버전 성공/네트워크 장애·Pivot 통과는 재사용했다. 이번 범위는 이전에 단위로만 확인한 두 구간이며 저장·재게시 API/숫자 정답·전체 권한 회귀를 다시 실행한 것이 아니다.
+
+| 조건 | 결과 | 실제 근거 |
+|---|---|---|
+| UXB-10V 다른 버전 | PASS_SELECTED | V1 기준 상세에 Enter로 초점을 두고 연 뒤 실제 탭을 숨겼다. 격리 DB fixture만V2/새 제목으로 바꾸고 돌아오자 trusted focus/visible→실제 GET200 V2·no-store였다. 대기 중 기준/블록 DOM0, 완료 후 새 제목/게시본V2·기존 상세open=false·가시 `다시 확인` 초점·390px 넘침0이다. 실제 재게시 동작 자체는 기존 통과를 재사용한다. |
+| UXB-10A 실제 소스 차단 | PASS_SELECTED | source33 catalogActive=false fixture의 실제 Nest GET403·no-store/private·snapshot 없음에서 이전 기준/블록 DOM0·재확인 가시 초점을 확인했다. 원 소유자 계정9의 유효 로그인 상태였으며 로그인 실패로 가장한 응답 주입이 아니다. |
+| UXB-10R 안내·명시 복구 | PASS_SELECTED | 403을 무조건 비공개 로그인 문제로 설명하던 문구를 수정했다.390/1440px 안내14px·넘침0, 안내 bottom217/131px로 화면 안이며 버튼과 겹치지 않는다. 소스 재활성 fixture만 적용한 직후 UI는 여전히 오류/데이터 없음이며, Enter1회→GET200 V2·기준 복귀/재확인 초점 유지·추가 요청1개다. |
+| UXB-10B 보존 | PASS_SELECTED | 계측 이후4GET(200둘/403둘, 수정 HMR의 재조회 포함)·POST0이다. fixture 변경은 버전/제목·source 활성 상태뿐이며 종료 후 원래 값으로 복원했다. source를 포함한9표의 전체 행/동일 직렬화 hash·행수가 준비 기준과 완전히 일치한다. 원래 서버/DB·원본 파일/저장본·게시 영수증을 변경하지 않았다. |
+
+#### 발견한 결함과 수정
+
+실제 소스 비활성403인데 `이 게시물에 접근할 권한이 없습니다. 비공개 게시물은 소유자로 로그인해야 합니다.`라고 안내했다. 원인은 `publicationError`가401/403을 같은 로그인 안내로 처리한 것이다. 소스/계정/자원 정책의 여러403 사유를 로그인 문제로 단정하지 않도록,403만 **게시물 또는 연결 데이터의 이용 가능 여부·로그인 상태/접근권 확인·소유자 문의**로 바꿨다. 원본 오류 본문·SQL/비밀을 표시하지 않으며401/410/그 밖의 처리·권한 판정/데이터 숨김·초점 알고리즘은 변경하지 않았다.
+
+기존 오류 안내 검사에 연결 데이터/로그인 강요 없음·진단 비노출 조건을 추가해 최초1FAIL/5SKIP를 확인했다. 수정 후 같은 선택1PASS/5SKIP이며 두 파일 non-fixing lint PASS다. 최초 lint의 줄바꿈1오류는 로컬 Prettier로 정리한 뒤 lint를 다시 확인했다. 문자열 안내 변경뿐이므로 b0239e8b의 FE type/build·13개 초점 검사와 이전 저장/게시/Rill 숫자·모델 통과를 재사용하며 새 실행으로 합산하지 않는다. 기능 PASS와390/1440의 안내·가시 초점 디자인 PASS를 분리해 확인했다.
+
+증빙 root: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-authority-20261020/`. `version.json`, `source-denied-before.json`/`source-denied-after.json`, `recovery.json`, `requests-final.json`, `db-before.json`/`db-after.json`, `summary.json`·red/green/lint 로그를 대조했다. 비공개 URL/인증정보·원본 DB 행은 커밋하지 않는다.
+
+[버전 변경390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-authority-20261020/version-changed-390.png) · [최초403 안내390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-authority-20261020/source-denied-before-390.png) · [수정 후403 안내390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-authority-20261020/source-denied-after-390.png) · [수정 후1440](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-authority-20261020/source-denied-after-1440.png) · [Enter 복구390](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/publication-authority-20261020/source-recovered-390.png)
+
+Ego50을 keep[]로 종료하고 이번 API4562 PID77081/웹3462 PID77511만 종료했다. 격리 DB의 fixture 원복 후9표 동일성을 확인했다. gpt-6-luna 설정·새 모델 호출0/VoiceOver BLOCKED를 유지한다. 실제 권한 관리 API의 회수/재부여·MySQL/운영·실휴대폰·모든 키보드·전체16개/사람 수용은 이번 선택 통과에 포함하지 않는다. Ego Lite 업데이트 안내만 확인했으며 업그레이드는 실행하지 않았다. 이번 수정·기록은 develop-v2의 미커밋 diff다.

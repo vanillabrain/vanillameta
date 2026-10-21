@@ -1,0 +1,527 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VanillaMeta CloudWatch Alarms Configuration - 시스템 모니터링 및 알람 설정'
+
+Parameters:
+  ServiceName:
+    Type: String
+    Default: vanillameta
+    Description: 서비스명
+  
+  Environment:
+    Type: String
+    Default: prod
+    Description: 환경 (dev, prod)
+    AllowedValues:
+      - dev
+      - prod
+  
+  AlarmEmail:
+    Type: String
+    Default: ''
+    Description: 알람 수신 이메일 주소
+  
+  SlackWebhookUrl:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Slack Webhook URL (옵션)
+  
+  LambdaFunctionName:
+    Type: String
+    Default: vanillameta-backend-api-prod-serverlessExpressLambdaFunction
+    Description: 모니터링할 Lambda 함수명
+  
+  ApiGatewayName:
+    Type: String
+    Default: vanillameta-backend-api-prod
+    Description: API Gateway 이름
+
+  RDSInstanceId:
+    Type: String
+    Default: ''
+    Description: RDS 인스턴스 ID
+
+Resources:
+  # SNS 토픽 생성
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ServiceName}-${Environment}-alarms'
+      DisplayName: !Sub '${ServiceName} ${Environment} Alarms'
+      Tags:
+        - Key: Service
+          Value: !Ref ServiceName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # 이메일 구독
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasEmailEndpoint
+    Properties:
+      Protocol: email
+      TopicArn: !Ref AlarmTopic
+      Endpoint: !Ref AlarmEmail
+
+  # Slack 통합을 위한 Lambda 함수 역할
+  SlackNotificationRole:
+    Type: AWS::IAM::Role
+    Condition: HasSlackWebhook
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SlackNotificationPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*'
+
+  # Slack 알림 Lambda 함수
+  SlackNotificationFunction:
+    Type: AWS::Lambda::Function
+    Condition: HasSlackWebhook
+    Properties:
+      FunctionName: !Sub '${ServiceName}-${Environment}-slack-notifier'
+      Runtime: nodejs18.x
+      Handler: index.handler
+      Role: !GetAtt SlackNotificationRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          SLACK_WEBHOOK_URL: !Ref SlackWebhookUrl
+          SERVICE_NAME: !Ref ServiceName
+          ENVIRONMENT: !Ref Environment
+      Code:
+        ZipFile: |
+          const https = require('https');
+          const url = require('url');
+          
+          exports.handler = async (event) => {
+              const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+              const serviceName = process.env.SERVICE_NAME;
+              const environment = process.env.ENVIRONMENT;
+              
+              const message = JSON.parse(event.Records[0].Sns.Message);
+              const alarmName = message.AlarmName;
+              const newState = message.NewStateValue;
+              const reason = message.NewStateReason;
+              const timestamp = new Date(message.StateChangeTime).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+              
+              // 알람 상태에 따른 색상 설정
+              const color = newState === 'ALARM' ? '#ff0000' : 
+                           newState === 'OK' ? '#00ff00' : '#ffaa00';
+              
+              // 알람 우선순위 결정
+              const priority = alarmName.includes('Critical') ? '🚨 Critical' :
+                              alarmName.includes('Error') ? '❗ High' : '⚠️ Medium';
+              
+              const slackMessage = {
+                  attachments: [{
+                      color: color,
+                      title: `${priority} - ${serviceName} ${environment.toUpperCase()} 알람`,
+                      fields: [
+                          {
+                              title: '알람명',
+                              value: alarmName,
+                              short: true
+                          },
+                          {
+                              title: '상태',
+                              value: newState,
+                              short: true
+                          },
+                          {
+                              title: '시간',
+                              value: timestamp,
+                              short: true
+                          },
+                          {
+                              title: '원인',
+                              value: reason,
+                              short: false
+                          }
+                      ],
+                      footer: 'VanillaMeta CloudWatch',
+                      ts: Math.floor(Date.now() / 1000)
+                  }]
+              };
+              
+              const options = {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json',
+                  }
+              };
+              
+              return new Promise((resolve, reject) => {
+                  const webhookParsed = url.parse(webhookUrl);
+                  options.hostname = webhookParsed.hostname;
+                  options.path = webhookParsed.path;
+                  
+                  const req = https.request(options, (res) => {
+                      resolve({ statusCode: res.statusCode });
+                  });
+                  
+                  req.on('error', (e) => {
+                      reject(e);
+                  });
+                  
+                  req.write(JSON.stringify(slackMessage));
+                  req.end();
+              });
+          };
+
+  # Slack Lambda 권한
+  SlackNotificationPermission:
+    Type: AWS::Lambda::Permission
+    Condition: HasSlackWebhook
+    Properties:
+      FunctionName: !Ref SlackNotificationFunction
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref AlarmTopic
+
+  # Slack 구독
+  SlackSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasSlackWebhook
+    Properties:
+      Protocol: lambda
+      TopicArn: !Ref AlarmTopic
+      Endpoint: !GetAtt SlackNotificationFunction.Arn
+
+  # Lambda 에러율 알람 (Critical)
+  LambdaErrorAlarmCritical:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-Lambda-Error-Rate-Critical'
+      AlarmDescription: 'Lambda 함수 에러율이 5%를 초과했습니다'
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref LambdaFunctionName
+      Statistic: Sum
+      Period: 300  # 5분
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic
+
+  # Lambda 에러율 알람 (Warning)
+  LambdaErrorAlarmWarning:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-Lambda-Error-Rate-Warning'
+      AlarmDescription: 'Lambda 함수 에러율이 2%를 초과했습니다'
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref LambdaFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # Lambda 메모리 사용량 알람
+  LambdaMemoryAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-Lambda-Memory-Usage'
+      AlarmDescription: 'Lambda 메모리 사용량이 80%를 초과했습니다'
+      MetricName: MemoryUtilization
+      Namespace: VanillaMeta/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref LambdaFunctionName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic
+
+  # API Gateway 응답시간 알람
+  APILatencyAlarmCritical:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-API-Latency-Critical'
+      AlarmDescription: 'API 응답시간이 3초를 초과했습니다'
+      MetricName: Latency
+      Namespace: AWS/ApiGateway
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref ApiGatewayName
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 3000  # 3초
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic
+
+  # API Gateway 4xx 에러 알람
+  API4xxErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-API-4xx-Errors'
+      AlarmDescription: 'API 4xx 에러가 5분간 10건 이상 발생했습니다'
+      MetricName: 4XXError
+      Namespace: AWS/ApiGateway
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref ApiGatewayName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # API Gateway 5xx 에러 알람
+  API5xxErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-API-5xx-Errors-Critical'
+      AlarmDescription: 'API 5xx 에러가 5분간 5건 이상 발생했습니다'
+      MetricName: 5XXError
+      Namespace: AWS/ApiGateway
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref ApiGatewayName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic
+
+  # RDS CPU 사용률 알람
+  RDSCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasRDSInstance
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-RDS-CPU-Usage'
+      AlarmDescription: 'RDS CPU 사용률이 70%를 초과했습니다'
+      MetricName: CPUUtilization
+      Namespace: AWS/RDS
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref RDSInstanceId
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 70
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic
+
+  # RDS 연결 수 알람
+  RDSConnectionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasRDSInstance
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-RDS-Connection-Count'
+      AlarmDescription: 'RDS 연결 수가 임계값을 초과했습니다'
+      MetricName: DatabaseConnections
+      Namespace: AWS/RDS
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref RDSInstanceId
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # RDS 디스크 공간 알람
+  RDSFreeStorageSpaceAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasRDSInstance
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-RDS-Free-Storage-Space'
+      AlarmDescription: 'RDS 여유 스토리지가 10GB 미만입니다'
+      MetricName: FreeStorageSpace
+      Namespace: AWS/RDS
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref RDSInstanceId
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10737418240  # 10GB in bytes
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # Lambda 동시 실행 수 알람
+  LambdaConcurrentExecutionsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-Lambda-Concurrent-Executions'
+      AlarmDescription: 'Lambda 동시 실행 수가 높습니다'
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref LambdaFunctionName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 900
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # Lambda 스로틀링 알람
+  LambdaThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-Lambda-Throttles'
+      AlarmDescription: 'Lambda 함수가 스로틀링되고 있습니다'
+      MetricName: Throttles
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref LambdaFunctionName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # Lambda 콜드 스타트 알람
+  LambdaColdStartAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-Lambda-Cold-Start-Rate'
+      AlarmDescription: 'Lambda 콜드 스타트 비율이 높습니다'
+      Metrics:
+        - Id: cold_start_rate
+          Expression: "cold_starts / total_invocations * 100"
+        - Id: cold_starts
+          MetricStat:
+            Metric:
+              MetricName: LambdaColdStarts
+              Namespace: VanillaMeta/Lambda
+              Dimensions:
+                - Name: Function
+                  Value: backend-api
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: total_invocations
+          MetricStat:
+            Metric:
+              MetricName: LambdaInvocations
+              Namespace: VanillaMeta/Lambda
+              Dimensions:
+                - Name: Function
+                  Value: backend-api
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+      EvaluationPeriods: 2
+      Threshold: 20  # 20% 이상
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # 비즈니스 메트릭 - 일일 활성 사용자 감소 알람
+  DAUDecreaseAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-DAU-Decrease'
+      AlarmDescription: '일일 활성 사용자가 전일 대비 20% 이상 감소했습니다'
+      Metrics:
+        - Id: dau_change_rate
+          Expression: "(yesterday_dau - today_dau) / yesterday_dau * 100"
+        - Id: today_dau
+          MetricStat:
+            Metric:
+              MetricName: DailyActiveUsers
+              Namespace: VanillaMeta/Business
+            Period: 86400  # 1일
+            Stat: Average
+          ReturnData: false
+        - Id: yesterday_dau
+          MetricStat:
+            Metric:
+              MetricName: DailyActiveUsers
+              Namespace: VanillaMeta/Business
+            Period: 86400
+            Stat: Average
+            Unit: Count
+          ReturnData: false
+      EvaluationPeriods: 1
+      Threshold: 20
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+
+Conditions:
+  HasEmailEndpoint: !Not [!Equals [!Ref AlarmEmail, '']]
+  HasSlackWebhook: !Not [!Equals [!Ref SlackWebhookUrl, '']]
+  HasRDSInstance: !Not [!Equals [!Ref RDSInstanceId, '']]
+
+Outputs:
+  AlarmTopicArn:
+    Description: SNS Topic ARN for alarms
+    Value: !Ref AlarmTopic
+    Export:
+      Name: !Sub '${ServiceName}-${Environment}-alarm-topic-arn'
+  
+  SlackNotificationFunctionArn:
+    Condition: HasSlackWebhook
+    Description: Slack notification Lambda function ARN
+    Value: !GetAtt SlackNotificationFunction.Arn
+    Export:
+      Name: !Sub '${ServiceName}-${Environment}-slack-notifier-arn'

@@ -308,9 +308,9 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
     const run = () => {
       submittedPreview.current = { context, filters: previewFilterKey };
       post(
-        '/ai/dashboard-preview',
+        '/ai/dashboard-view',
         {
-          draft,
+          expectedRevision: draft.revision,
           dashboardId: Number(dashboardId),
           includeTrends: true,
           trendGrain,
@@ -1422,7 +1422,9 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
       ) : conditions ? (
         <Notice severity="info">포함·제외 조건의 미리보기 결과를 확인하는 중입니다. 원본 범위로 대체하지 않습니다.</Notice>
       ) : (
-        children
+        // The saved analysis is authoritative. Mounting legacy widgets here would issue owner-only
+        // raw data requests before this read-scoped aggregation finishes (or after it fails).
+        <Skeleton className="h-32 w-full" aria-label="분석 결과 확인 중" />
       )}
       {conditions && (
         <Notice severity="info" role="note">

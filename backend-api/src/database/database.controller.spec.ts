@@ -46,4 +46,17 @@ describe('DatabaseController', () => {
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
+  it('passes the verified request context explicitly to the query cache', () => {
+    const executeQuery = jest.fn().mockReturnValue({ status: 'SUCCESS' });
+    const target = new DatabaseController(
+      {} as any,
+      { executeQuery } as any,
+      { actor: value => value } as any,
+    );
+    const input = { id: 11, query: 'SELECT 1' };
+    target.executeQuery(input, 'progress-only', {
+      user: { accessKeyData: { id: 7, authVersion: 3 } },
+    });
+    expect(executeQuery).toHaveBeenCalledWith(input, 'progress-only', { actor: 7, epoch: 3 });
+  });
 });

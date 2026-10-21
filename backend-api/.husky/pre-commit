@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 현재 브랜치 확인
+branch="$(git rev-parse --abbrev-ref HEAD)"
+
+# main 브랜치에서 commit 방지
+if [ "$branch" = "main" ]; then
+  echo "❌ main 브랜치에 직접 commit할 수 없습니다!"
+  echo "✅ 새로운 브랜치를 생성해서 작업해주세요:"
+  echo "   git checkout -b develop-refactor-<feature-name>"
+  exit 1
+fi
+
+# develop-refactor로 시작하지 않는 브랜치에서 경고
+if [[ ! "$branch" =~ ^develop-refactor-.* ]]; then
+  echo "⚠️  경고: 브랜치 이름이 'develop-refactor-'로 시작하지 않습니다."
+  echo "   권장 브랜치 이름: develop-refactor-<feature-name>"
+fi
+
+echo "✅ 브랜치 '$branch'에서 commit을 진행합니다..."

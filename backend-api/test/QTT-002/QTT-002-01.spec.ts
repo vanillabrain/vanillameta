@@ -3,15 +3,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { getTestMysqlModule } from '../util/get-test-mysql.module';
 import { Database } from '../../src/database/entities/database.entity';
 import { ConfigModule } from '@nestjs/config';
-import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
+import { TableQuery } from '../../src/widget/table-query/entity/table-query.entity';
 import { WidgetService } from '../../src/widget/widget.service';
 import * as widgetTestoption from './widgetTestOption.json';
 import { Widget } from '../../src/widget/entities/widget.entity';
 import { Component } from '../../src/component/entities/component.entity';
-import { TableQueryService } from '../../src/widget/tabel-query/table-query.service';
+import { TableQueryService } from '../../src/widget/table-query/table-query.service';
 import { Connection, DataSource } from 'typeorm';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
 import { DatasetType } from '../../src/common/enum/dataset-type.enum';
+import { mockSqlValidationService } from '../util/test-providers';
+import { CustomLoggerService } from '../../src/common/logger/logger.service';
+import { PaginationService } from '../../src/common/pagination/pagination.service';
 
 describe('QTT-002 : 위젯 생성', () => {
   let widgetService: WidgetService;
@@ -29,7 +32,23 @@ describe('QTT-002 : 위젯 생성', () => {
         getTestMysqlModule(),
         TypeOrmModule.forFeature([Widget, Component, TableQuery, Database]),
       ],
-      providers: [WidgetService, TableQueryService, Widget],
+      providers: [
+        WidgetService,
+        TableQueryService,
+        Widget,
+        PaginationService,
+        mockSqlValidationService,
+        {
+          provide: CustomLoggerService,
+          useValue: {
+            log: jest.fn(),
+            error: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+            verbose: jest.fn(),
+          },
+        },
+      ],
     }).compile();
     widgetService = module.get<WidgetService>(WidgetService);
     tableQueryService = module.get<TableQueryService>(TableQueryService);
@@ -46,6 +65,9 @@ describe('QTT-002 : 위젯 생성', () => {
 
     const tableData = testData.filter(item => item.datasetType === DatasetType.TABLE);
 
+    // Mock makeSelectAllQuery to avoid database dependency
+    jest.spyOn(tableQueryService, 'makeSelectAllQuery').mockResolvedValue('SELECT * FROM test_table');
+
     for (const item of tableData) {
       const selectQuery = await tableQueryService.makeSelectAllQuery(
         Number(item.databaseId),
@@ -54,7 +76,8 @@ describe('QTT-002 : 위젯 생성', () => {
       tableQueryList.push({ id: item.datasetId, databaseId: item.databaseId, query: selectQuery });
     }
 
-    await connection.query('truncate table table_query');
+    // Use DELETE for SQLite compatibility (TRUNCATE not supported)
+    await connection.query('DELETE FROM table_query');
 
     const tableQueryResult = await connection
       .createQueryBuilder()
@@ -74,7 +97,8 @@ describe('QTT-002 : 위젯 생성', () => {
       .values(testData)
       .execute();
 
-    return expect(widgetResult.raw.affectedRows).toEqual(100);
+    // SQLite doesn't have affectedRows, check identifiers instead
+    return expect(widgetResult.identifiers.length).toEqual(100);
   });
 
   it('QTT-002-02: widget 목록 확인', async () => {

@@ -1,4 +1,29 @@
-# 최신 요약 — 2026-10-20
+# 최신 요약 — 2026-10-21
+
+
+**2026-10-21 의존성 PR19개:** [분석·수정](dependency-pr-review-20261021.md)은 최신 develop 공통 BE3실패의 RSS fixture/배경 예외·준비 후 생성 경합을 수정했다. 실제 TypeORM12 ESM/Jest·Swiper14 Navigation 오류를 보완하고 실제 SQLite 초기화/종료·Ego56 컴포넌트390/1440/키보드를 확인했다. landing CI 공백을 보완했고 TypeScript7/다른 major의 별도 검증 경계를 기록했다. PR 자동 병합/승인/댓글0·실모델 반복0·VoiceOver BLOCKED 유지.
+
+- [상세 사용자 가이드 사이트](user-guide-site.md): VitePress 20페이지·한국어 검색·Ego 반응형·기본/하위 경로 링크 검사. 제품 재인수·외부 배포와 별도.
+
+- 2026-10-21: [사용자 가이드 Ego 실제 검증](user-guide-ego.md) — 합성 소스·실AI 생성/수정·저장/게시/익명/직원 열람·대표 모바일, 조회 소비자 read API와 기본 차트 누락 안내 보완. 운영·실기기·전체 수용과 구분.
+
+**2026-10-21 관측 오류 복구:** [원인·수정·MySQL 재검증](observability-recovery.md). Knex 시간 상관/INT 검증·암호화 진단/계획 저장·Redis disabled/무트래픽 경고와 optimizer 접속 정보 전달을 보완했다. 선택 BE218·FE74/원격 통합 후94, 새 MySQL8.4.11의27HTTP/7검사·실제1,592/1,598ms와 JSON 계획·cron 로그를 확인했다. 앞선 인수 수정과 함께 develop 전달 대상이며 운영/전체16개 업무 수용은 별도다.
+
+**2026-10-21 develop 인수 시나리오:** [결과·발견 결함](develop-acceptance-20261021.md). main/v2 통합 develop에서 격리 MySQL의 고유 E2E17개(최종 배치16+경합 보완 재실행1)·권한297HTTP/12검사·Ego122 실제 AI 생성/저장/reload/비공개 게시·대표 폭을 확인했다. 시드 로더·위젯 선택·빈 대시보드 MySQL 조회를 보완했다. 관측 오류는 미해결이며 운영/실기기/전체16개 업무 수용은 Open이다. 관측 오류의 후속 수정은 위 복구 기록을 따른다.
+
+- **개발 브랜치 통합(2026-10-21):** 사용자 지정으로 후속 개발 기준을 `develop`으로 통일한다. 최신 `origin/develop`을 포함한 `develop-v2` 이력과 아래 Ego55 미커밋5파일을 보존 병합·커밋한다. 아래의 과거 브랜치명/미커밋 표기는 실행 당시 기록이며 현재 작업 지침은 AGENTS.md를 따른다. 제품 코드가 같은 fast-forward 통합이므로 기존 선택 검사/빌드·실제 화면 증빙을 재사용한다.
+
+**2026-10-21 AI 조건 오류·stale:** [Ego55](ai-condition-proposals.md#오류늦은-응답-후속--2026-10-21--ego55)는 실제 gpt-6-luna 요청6회로 없는 열/부적합 값/중복 해제·응답 대기 중 편집/검토 후 편집5개 선택 조건을 확인했다. clarify 질문 유실을 수정·재검증했고 두 거절은 MODEL_FAILED/적용0·두 stale는 새 초안 보존/적용 차단이다.3폭넘침0·키보드/입력 보존·10선택표불변·저장/게시0, FE선택4/type/lint/build PASS다. 이전8파일81cfae8c drumcap push·이번 수정/기록 미커밋. 상세 모델 거절 분기 단정0·다른 stale/복합 부정/운영/실기기/전체수용 잔여·VoiceOver BLOCKED 유지.
+
+**2026-10-21 AI 조건 연속 대화:** [Ego54](ai-condition-proposals.md#설명조회변경-실제-대화--2026-10-21--ego54)는 실제 Codex/gpt-6-luna 요청의 설명/조회0연산→Compute 조건 검토→키보드 명시 적용/Undo를 확인했다. 조건 부재 문맥·조회 단위 누락·Undo 과거 안내/초점 손실을 수정해2000USD/5%→1200/25→원복·3폭넘침0/검토 보존·저장/게시0·10선택표불변이다. 실제 CLI7회는 실패/재검사 포함이며 모델 사용 attestation과 구별한다. 최종BE선택4·FE선택1/type/lint/build PASS(이전 배치 합산0). 이전4파일752c043f drumcap push·이번 수정 미커밋, VoiceOver BLOCKED·unknown/type/no-op/stale 실제 모델 변형/운영/실기기/전체수용 잔여다.
+
+**2026-10-20 FR019 정밀값·경합 화면 후속:** [Ego53](condition-profile.md#정밀값조회-중-변경-화면-후속--2026-10-20--ego53)은 실제 Parquet BIGINT/DECIMAL/DATE·Unicode200자 잘림을 독립 정답과 대조했다. 모바일 표본 숫자/날짜 줄바꿈을 수정해 긴 행688→228px·3폭넘침0/키보드 내부 스크롤을 확인했다. 격리 서버 시험 게이트의 파일 포인터 변경409/활성 회수403→명시201 복구·선택4개/거절시데이터0·원복 후7표불변, FE type/lint/build PASS다. Source 선택 경합이며 Studio 동일 경합 화면·목표 규모/이번MySQL/실기기/전체수용은 잔여다. 이전8파일9b2382e7 drumcap push·이번 변경 미커밋, gpt-6-luna 호출0/VoiceOver BLOCKED 유지.
+
+**2026-10-20 FR019 경계 화면 후속:** [Ego52 상위20/NULL/0행](condition-profile.md#경계-화면-결과--2026-10-20--ego52)은 합성46행/26그룹의상위20합40+나머지6·NULL우선/중복/표본20/46을 CSV 정답과 대조했다. 조건 미일치46→0/0%와 기간 모집단0/비율없음을 구별하고, 오해를 주던NULL 범위/빈 표 안내만 수정했다. 새선택2PASS/기존8재사용·type/lint/build·Studio3폭넘침0/키보드·준비 후10표불변이다. 잘림/정밀값·조회중 변경 화면/목표규모·운영/실기기/전체수용은 잔여, gpt-6-luna 호출0/VoiceOver BLOCKED·미커밋 유지.
+
+**2026-10-20 FR019 실제 화면 후속:** [분포·정렬 표본 Ego51](condition-profile.md#실제-브라우저-후속--2026-10-20--ego51)은 같은 합성 CSV의 Source18행/Studio기간·회사2행과 전체 빈도·정렬 표본, 선택만 요청0/재선택 옛 결과0을 확인했다. 원문 오류·native disabled 초점 손실·모바일 표 머리글 줄바꿈을 수정해 실제 실패/Enter 재시도·Source3폭/Studio390 넘침0·8단위/type/lint/build PASS·9표전체행 불변이다.20그룹/NULL/0행 등 실제 화면 변형·목표 규모/실기기/운영/전체 수용은 잔여이며 gpt-6-luna 호출0/VoiceOver BLOCKED 유지. 이번 수정/기록은 미커밋이다.
+
+**2026-10-20 UXB-10 후속:** [게시 버전·실제 소스 차단](analysis-basis-ux.md#uxb-10-실제-결과--2026-10-20--ego50)은 V1→V2 재조회/과거 상세 비복원·가시 재확인 초점과 실제 소스 비활성403/no-store/데이터DOM0→재활성 뒤 Enter200을 확인했다.403을 로그인 문제로 단정하던 안내만 수정해390/1440 넘침0·선택오류검사1PASS/5SKIP·lint PASS, fixture 원복 후9표 전체행/hash 동일이다. 기존 통과·type/build는 재사용했고 gpt-6-luna 호출0/VoiceOver BLOCKED·운영/실기기/전체 수용Open을 유지한다. 이번 수정/기록은 미커밋이다.
 
 **2026-10-20 UXB-09 후속:** [게시 권한 재조회·초점 복구](analysis-basis-ux.md#uxb-09-실제-결과--2026-10-20--ego49)는 실제 탭 활성화의 지연/실패 중 과거 데이터 DOM0·성공 후 상세/Pivot 가시 초점·사용자 이동 보존을 확인했다. 화면 밖 Pivot 복구를 수정해390/768/1440 넘침0·선택FE13/type/lint/build PASS·8표 전체행 불변이다. 기존 통과는 재사용했고 gpt-6-luna 호출0/VoiceOver BLOCKED·실기기/운영/전체 수용Open을 유지한다.
 

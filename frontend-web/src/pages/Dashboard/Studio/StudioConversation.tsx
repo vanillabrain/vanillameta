@@ -197,9 +197,15 @@ export default function StudioConversation({
         receive.current(payload.execution, payload.result);
         const request = requests.current.get(payload.execution.requestId);
         const conditionProposal = payload.result?.proposedOperations.some(operation => operation.type === 'setConditions');
-        // Keep the submitted question on failure/cancel or while reviewing common-scope changes.
+        const needsFollowUp = payload.result?.intent === 'clarify' || payload.result?.intent === 'unsupported';
+        // Keep questions that still need clarification or explicit condition review.
         // A late successful response must not clear a newer question.
-        if (payload.execution.status === 'succeeded' && !conditionProposal && request?.prompt === inputRef.current.trim())
+        if (
+          payload.execution.status === 'succeeded' &&
+          !conditionProposal &&
+          !needsFollowUp &&
+          request?.prompt === inputRef.current.trim()
+        )
           setInput('');
       }
     },

@@ -1,3 +1,4 @@
+import { serviceWorkerBuild } from './plugins/service-worker';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
@@ -23,6 +24,7 @@ function installOrganizationHeaders(server: ViteDevServer | PreviewServer) {
 }
 export default defineConfig({
   plugins: [
+    serviceWorkerBuild(),
     organizationFrames,
     tailwindcss(),
     react(),

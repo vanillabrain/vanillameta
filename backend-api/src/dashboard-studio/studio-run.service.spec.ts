@@ -54,6 +54,58 @@ describe('Studio AI scoped runs', () => {
       prompt: '선택 제목을 New title로 바꿔',
     };
   });
+  it('provides an authoritative empty condition scope for read-only explanations without mutating the document', async () => {
+    const before = JSON.stringify(document);
+    ai.callLlm.mockResolvedValue(
+      JSON.stringify({ intent: 'ask', answer: '추가 포함·제외 조건은 없습니다.', operations: [] }),
+    );
+    const result = await service.run(
+      { ...body, selectedBlockId: undefined, prompt: '현재 분석의 포함·제외 조건을 설명해 줘.' },
+      7,
+    );
+    const context = JSON.parse(ai.callLlm.mock.calls[0][1]);
+    expect(context).toHaveProperty('conditions', null);
+    expect(context.filters).toEqual(document.filters ?? []);
+    expect(result.intent).toBe('ask');
+    expect(result.proposedOperations).toEqual([]);
+    expect(JSON.stringify(document)).toBe(before);
+  });
+  it('projects verified numeric units to read-only answers without forwarding SQL or changing values', async () => {
+    const before = JSON.stringify(document);
+    studio.prepare.mockImplementation(async (_id, b) => ({
+      document: b.document,
+      preview: {
+        widgets: [
+          {
+            blockId: document.blocks[0].id,
+            title: '총매출',
+            type: 'BOARD_NUMERIC',
+            valueField: 'value',
+            datas: [{ value: 2000 }],
+            prefix: '',
+            suffix: ' USD',
+            decimalPlaces: 2,
+            numberNotation: 'full',
+            sql: 'server-only SQL',
+          },
+        ],
+      },
+    }));
+    ai.callLlm.mockResolvedValue(
+      JSON.stringify({ intent: 'ask', answer: '총매출은 2,000 USD입니다.', operations: [] }),
+    );
+    await service.run({ ...body, selectedBlockId: undefined, prompt: '현재 총매출은 얼마야?' }, 7);
+    const context = JSON.parse(ai.callLlm.mock.calls[0][1]);
+    expect(context.preview[0].display).toEqual({
+      prefix: '',
+      suffix: ' USD',
+      decimalPlaces: 2,
+      numberNotation: 'full',
+    });
+    expect(context.preview[0].datas).toEqual([{ value: 2000 }]);
+    expect(context.preview[0]).not.toHaveProperty('sql');
+    expect(JSON.stringify(document)).toBe(before);
+  });
   it('UC052 preserves pinned nested conditions during AI content edits and rejects scope changes', async () => {
     document.conditions = {
       sourceRevision: body.expectedSourceRevision,

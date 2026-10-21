@@ -1,0 +1,403 @@
+d989188e9fc31e55f5a1575aa665fbcb
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BatchService = void 0;
+const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const batch_job_entity_1 = require("./entities/batch-job.entity");
+const batch_chunk_entity_1 = require("./entities/batch-chunk.entity");
+const dataset_service_1 = require("../dataset/dataset.service");
+const widget_service_1 = require("../widget/widget.service");
+const connection_service_1 = require("../connection/connection.service");
+const logger_service_1 = require("../common/logger/logger.service");
+let BatchService = class BatchService {
+    constructor(batchJobRepository, batchChunkRepository, datasetService, widgetService, connectionService, logger, dataSource) {
+        this.batchJobRepository = batchJobRepository;
+        this.batchChunkRepository = batchChunkRepository;
+        this.datasetService = datasetService;
+        this.widgetService = widgetService;
+        this.connectionService = connectionService;
+        this.logger = logger;
+        this.dataSource = dataSource;
+    }
+    /**
+     * 배치 작업 생성
+     */
+    async createBatchJob(createBatchJobDto, userId) {
+        const { type, chunkSize = 1000, datasetId, widgetId, config, metadata } = createBatchJobDto;
+        // 유효성 검증
+        if (type === batch_job_entity_1.BatchJobType.DATASET_QUERY && !datasetId) {
+            throw new common_1.BadRequestException('datasetId is required for DATASET_QUERY type');
+        }
+        if (type === batch_job_entity_1.BatchJobType.WIDGET_DATA && !widgetId) {
+            throw new common_1.BadRequestException('widgetId is required for WIDGET_DATA type');
+        }
+        // 배치 작업 생성
+        const batchJob = this.batchJobRepository.create({
+            type,
+            chunkSize,
+            datasetId,
+            widgetId,
+            config,
+            metadata,
+            createdBy: userId,
+            status: batch_job_entity_1.BatchJobStatus.PENDING,
+        });
+        await this.batchJobRepository.save(batchJob);
+        // 비동기로 청크 생성 및 처리 시작
+        this.initializeBatchJob(batchJob).catch(error => {
+            this.logger.error(`Failed to initialize batch job ${batchJob.id}`, error);
+        });
+        return batchJob;
+    }
+    /**
+     * 배치 작업 초기화 및 청크 생성
+     */
+    async initializeBatchJob(batchJob) {
+        try {
+            // 전체 레코드 수 조회
+            const totalRecords = await this.getTotalRecordCount(batchJob);
+            if (totalRecords === 0) {
+                await this.updateBatchJobStatus(batchJob.id, batch_job_entity_1.BatchJobStatus.COMPLETED, {
+                    totalRecords: 0,
+                    completedAt: new Date(),
+                });
+                return;
+            }
+            // 청크 생성
+            const totalChunks = Math.ceil(totalRecords / batchJob.chunkSize);
+            const chunks = [];
+            for (let i = 0; i < totalChunks; i++) {
+                const startOffset = i * batchJob.chunkSize;
+                const endOffset = Math.min((i + 1) * batchJob.chunkSize, totalRecords);
+                chunks.push({
+                    batchJobId: batchJob.id,
+                    sequence: i,
+                    startOffset,
+                    endOffset,
+                    recordCount: endOffset - startOffset,
+                    status: batch_chunk_entity_1.BatchChunkStatus.PENDING,
+                    metadata: {},
+                });
+            }
+            // 청크 저장
+            await this.batchChunkRepository.save(chunks);
+            // 배치 작업 상태 업데이트
+            await this.updateBatchJobStatus(batchJob.id, batch_job_entity_1.BatchJobStatus.PROCESSING, {
+                totalRecords,
+                totalChunks,
+                startedAt: new Date(),
+            });
+            // 청크 처리 시작
+            this.processBatchChunks(batchJob.id).catch(error => {
+                this.logger.error(`Failed to process batch chunks for job ${batchJob.id}`, error);
+            });
+        }
+        catch (error) {
+            await this.updateBatchJobStatus(batchJob.id, batch_job_entity_1.BatchJobStatus.FAILED, {
+                errorMessage: error.message,
+                completedAt: new Date(),
+            });
+            throw error;
+        }
+    }
+    /**
+     * 전체 레코드 수 조회
+     */
+    async getTotalRecordCount(batchJob) {
+        var _a;
+        try {
+            if (batchJob.type === batch_job_entity_1.BatchJobType.DATASET_QUERY) {
+                const dataset = await this.datasetService.findOne(batchJob.datasetId);
+                const knex = await this.connectionService.getKnex(dataset.databaseId);
+                // COUNT 쿼리 실행
+                const countQuery = this.buildCountQuery(knex, dataset.query);
+                const result = await countQuery;
+                return ((_a = result[0]) === null || _a === void 0 ? void 0 : _a.count) || 0;
+            }
+            // 다른 타입의 경우 구현 필요
+            return 0;
+        }
+        catch (error) {
+            this.logger.error('Failed to get total record count', error);
+            throw error;
+        }
+    }
+    /**
+     * COUNT 쿼리 생성
+     */
+    buildCountQuery(knex, originalQuery) {
+        // 간단한 구현 - 실제로는 더 복잡한 쿼리 파싱 필요
+        return knex.raw(`SELECT COUNT(*) as count FROM (${originalQuery}) as subquery`);
+    }
+    /**
+     * 배치 청크 처리
+     */
+    async processBatchChunks(batchJobId) {
+        const CONCURRENT_CHUNKS = 3; // 동시 처리 청크 수
+        while (true) {
+            // 대기 중인 청크 조회
+            const pendingChunks = await this.batchChunkRepository.find({
+                where: {
+                    batchJobId,
+                    status: (0, typeorm_2.In)([batch_chunk_entity_1.BatchChunkStatus.PENDING, batch_chunk_entity_1.BatchChunkStatus.RETRYING]),
+                },
+                order: { sequence: 'ASC' },
+                take: CONCURRENT_CHUNKS,
+            });
+            if (pendingChunks.length === 0) {
+                // 모든 청크 처리 완료 확인
+                await this.checkBatchJobCompletion(batchJobId);
+                break;
+            }
+            // 병렬 처리
+            await Promise.all(pendingChunks.map(chunk => this.processChunk(chunk)));
+        }
+    }
+    /**
+     * 개별 청크 처리
+     */
+    async processChunk(chunk) {
+        try {
+            // 청크 상태를 처리 중으로 변경
+            await this.updateChunkStatus(chunk.id, batch_chunk_entity_1.BatchChunkStatus.PROCESSING, {
+                startedAt: new Date(),
+            });
+            const batchJob = await this.batchJobRepository.findOne({
+                where: { id: chunk.batchJobId },
+                relations: ['dataset'],
+            });
+            if (!batchJob) {
+                throw new Error('Batch job not found');
+            }
+            // 실제 데이터 처리
+            const processedCount = await this.processChunkData(batchJob, chunk);
+            // 청크 완료 처리
+            await this.updateChunkStatus(chunk.id, batch_chunk_entity_1.BatchChunkStatus.COMPLETED, {
+                processedCount,
+                completedAt: new Date(),
+            });
+            // 배치 작업 진행 상황 업데이트
+            await this.updateBatchJobProgress(batchJob.id, processedCount);
+        }
+        catch (error) {
+            await this.handleChunkError(chunk, error);
+        }
+    }
+    /**
+     * 청크 데이터 처리
+     */
+    async processChunkData(batchJob, chunk) {
+        if (batchJob.type === batch_job_entity_1.BatchJobType.DATASET_QUERY) {
+            const dataset = await this.datasetService.findOne(batchJob.datasetId);
+            const knex = await this.connectionService.getKnex(dataset.databaseId);
+            // LIMIT/OFFSET을 사용한 청크 쿼리
+            const chunkQuery = this.buildChunkQuery(knex, dataset.query, chunk.startOffset, chunk.endOffset - chunk.startOffset);
+            const results = await chunkQuery;
+            // 여기서 실제 데이터 처리 로직 구현
+            // 예: 파일 저장, 변환, 집계 등
+            return results.length;
+        }
+        return 0;
+    }
+    /**
+     * 청크 쿼리 생성
+     */
+    buildChunkQuery(knex, originalQuery, offset, limit) {
+        // 간단한 구현 - 실제로는 더 복잡한 쿼리 파싱 필요
+        return knex.raw(`${originalQuery} LIMIT ${limit} OFFSET ${offset}`);
+    }
+    /**
+     * 청크 에러 처리
+     */
+    async handleChunkError(chunk, error) {
+        const canRetry = chunk.retryCount < chunk.maxRetries;
+        if (canRetry) {
+            // 재시도 스케줄링 (exponential backoff)
+            const delayMs = Math.pow(2, chunk.retryCount) * 1000;
+            const nextRetryAt = new Date(Date.now() + delayMs);
+            await this.updateChunkStatus(chunk.id, batch_chunk_entity_1.BatchChunkStatus.RETRYING, {
+                retryCount: chunk.retryCount + 1,
+                errorMessage: error.message,
+                errorDetails: error,
+                nextRetryAt,
+            });
+        }
+        else {
+            await this.updateChunkStatus(chunk.id, batch_chunk_entity_1.BatchChunkStatus.FAILED, {
+                errorMessage: error.message,
+                errorDetails: error,
+                completedAt: new Date(),
+            });
+        }
+    }
+    /**
+     * 배치 작업 진행 상황 업데이트
+     */
+    async updateBatchJobProgress(batchJobId, processedCount) {
+        await this.dataSource.transaction(async (manager) => {
+            // 처리된 레코드 수 증가
+            await manager.increment(batch_job_entity_1.BatchJob, { id: batchJobId }, 'processedRecords', processedCount);
+            // 완료된 청크 수 계산
+            const completedChunks = await manager.count(batch_chunk_entity_1.BatchChunk, {
+                where: {
+                    batchJobId,
+                    status: batch_chunk_entity_1.BatchChunkStatus.COMPLETED,
+                },
+            });
+            const failedChunks = await manager.count(batch_chunk_entity_1.BatchChunk, {
+                where: {
+                    batchJobId,
+                    status: batch_chunk_entity_1.BatchChunkStatus.FAILED,
+                },
+            });
+            await manager.update(batch_job_entity_1.BatchJob, batchJobId, {
+                completedChunks,
+                failedChunks,
+            });
+        });
+    }
+    /**
+     * 배치 작업 완료 확인
+     */
+    async checkBatchJobCompletion(batchJobId) {
+        const batchJob = await this.batchJobRepository.findOne({
+            where: { id: batchJobId },
+        });
+        if (!batchJob)
+            return;
+        const remainingChunks = await this.batchChunkRepository.count({
+            where: {
+                batchJobId,
+                status: (0, typeorm_2.In)([
+                    batch_chunk_entity_1.BatchChunkStatus.PENDING,
+                    batch_chunk_entity_1.BatchChunkStatus.PROCESSING,
+                    batch_chunk_entity_1.BatchChunkStatus.RETRYING,
+                ]),
+            },
+        });
+        if (remainingChunks === 0) {
+            const status = batchJob.failedChunks > 0 ? batch_job_entity_1.BatchJobStatus.FAILED : batch_job_entity_1.BatchJobStatus.COMPLETED;
+            await this.updateBatchJobStatus(batchJobId, status, {
+                completedAt: new Date(),
+            });
+        }
+    }
+    /**
+     * 배치 작업 조회
+     */
+    async findOne(id) {
+        const batchJob = await this.batchJobRepository.findOne({
+            where: { id },
+            relations: ['chunks'],
+        });
+        if (!batchJob) {
+            throw new common_1.NotFoundException(`Batch job ${id} not found`);
+        }
+        return batchJob;
+    }
+    /**
+     * 배치 작업 목록 조회
+     */
+    async findAll(userId) {
+        return this.batchJobRepository.find({
+            where: { createdBy: userId },
+            order: { createdAt: 'DESC' },
+            take: 50,
+        });
+    }
+    /**
+     * 배치 작업 재시작
+     */
+    async restartBatchJob(id, userId) {
+        const batchJob = await this.findOne(id);
+        if (batchJob.createdBy !== userId) {
+            throw new common_1.BadRequestException('Unauthorized to restart this batch job');
+        }
+        if (![batch_job_entity_1.BatchJobStatus.FAILED, batch_job_entity_1.BatchJobStatus.CANCELLED].includes(batchJob.status)) {
+            throw new common_1.BadRequestException('Only failed or cancelled jobs can be restarted');
+        }
+        // 실패한 청크들을 대기 상태로 변경
+        await this.batchChunkRepository.update({
+            batchJobId: id,
+            status: batch_chunk_entity_1.BatchChunkStatus.FAILED,
+        }, {
+            status: batch_chunk_entity_1.BatchChunkStatus.PENDING,
+            retryCount: 0,
+            errorMessage: null,
+            errorDetails: null,
+        });
+        // 배치 작업 상태 업데이트
+        await this.updateBatchJobStatus(id, batch_job_entity_1.BatchJobStatus.PROCESSING, {
+            errorMessage: null,
+            startedAt: new Date(),
+        });
+        // 처리 재시작
+        this.processBatchChunks(id).catch(error => {
+            this.logger.error(`Failed to restart batch job ${id}`, error);
+        });
+        return this.findOne(id);
+    }
+    /**
+     * 배치 작업 취소
+     */
+    async cancelBatchJob(id, userId) {
+        const batchJob = await this.findOne(id);
+        if (batchJob.createdBy !== userId) {
+            throw new common_1.BadRequestException('Unauthorized to cancel this batch job');
+        }
+        if (batchJob.status !== batch_job_entity_1.BatchJobStatus.PROCESSING) {
+            throw new common_1.BadRequestException('Only processing jobs can be cancelled');
+        }
+        // 대기 중인 청크들을 취소 상태로 변경
+        await this.batchChunkRepository.update({
+            batchJobId: id,
+            status: (0, typeorm_2.In)([batch_chunk_entity_1.BatchChunkStatus.PENDING, batch_chunk_entity_1.BatchChunkStatus.RETRYING]),
+        }, {
+            status: batch_chunk_entity_1.BatchChunkStatus.FAILED,
+            errorMessage: 'Cancelled by user',
+        });
+        await this.updateBatchJobStatus(id, batch_job_entity_1.BatchJobStatus.CANCELLED, {
+            completedAt: new Date(),
+        });
+        return this.findOne(id);
+    }
+    /**
+     * 배치 작업 상태 업데이트
+     */
+    async updateBatchJobStatus(id, status, updates = {}) {
+        await this.batchJobRepository.update(id, Object.assign({ status }, updates));
+    }
+    /**
+     * 청크 상태 업데이트
+     */
+    async updateChunkStatus(id, status, updates = {}) {
+        await this.batchChunkRepository.update(id, Object.assign({ status }, updates));
+    }
+};
+BatchService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(batch_job_entity_1.BatchJob)),
+    __param(1, (0, typeorm_1.InjectRepository)(batch_chunk_entity_1.BatchChunk)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        dataset_service_1.DatasetService,
+        widget_service_1.WidgetService,
+        connection_service_1.ConnectionService,
+        logger_service_1.CustomLoggerService,
+        typeorm_2.DataSource])
+], BatchService);
+exports.BatchService = BatchService;

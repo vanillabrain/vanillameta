@@ -49,8 +49,9 @@ const noCache = { headers: { 'Cache-Control': 'no-cache' }, timeout: 180000 };
 export function publicationError(error: any): string {
   const status = error?.response?.status;
   if (status === 410) return '게시가 중지되었거나 링크가 만료되었습니다. 소유자에게 새 링크를 요청해 주세요.';
-  if (status === 401 || status === 403)
-    return '이 게시물에 접근할 권한이 없습니다. 비공개 게시물은 소유자로 로그인해야 합니다.';
+  if (status === 401) return '이 게시물에 접근할 권한이 없습니다. 비공개 게시물은 소유자로 로그인해야 합니다.';
+  if (status === 403)
+    return '이 게시물 또는 연결 데이터를 이용할 수 없습니다. 로그인 상태와 접근 권한을 확인한 뒤 다시 시도하거나 소유자에게 문의해 주세요.';
   if (status === 404) return '게시 링크를 찾을 수 없습니다. 주소를 확인해 주세요.';
   if (status === 409) return '저장 내용이 변경되었습니다. 최신 내용을 불러온 뒤 다시 게시해 주세요.';
   if (status === 400) return '게시 설정과 저장된 차트 정의를 확인해 주세요. 기존 게시본은 유지됩니다.';

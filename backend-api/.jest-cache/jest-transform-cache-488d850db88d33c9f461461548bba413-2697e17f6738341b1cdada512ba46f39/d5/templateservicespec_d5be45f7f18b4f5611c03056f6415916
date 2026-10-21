@@ -1,0 +1,113 @@
+4615831c5750aebaa5588b8dc211633a
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const template_service_1 = require("./template.service");
+const template_entity_1 = require("./entities/template.entity");
+const template_item_entity_1 = require("./entities/template-item.entity");
+const widget_entity_1 = require("../widget/entities/widget.entity");
+const component_entity_1 = require("../component/entities/component.entity");
+const test_helpers_1 = require("../../test/test-helpers");
+const yn_enum_1 = require("../common/enum/yn.enum");
+const response_status_enum_1 = require("../common/enum/response-status.enum");
+describe('TemplateService', () => {
+    let service;
+    let templateRepository;
+    let templateItemRepository;
+    let widgetRepository;
+    let componentRepository;
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            providers: [
+                template_service_1.TemplateService,
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(template_entity_1.Template),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(template_item_entity_1.TemplateItem),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(widget_entity_1.Widget),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(component_entity_1.Component),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+            ],
+        }).compile();
+        service = module.get(template_service_1.TemplateService);
+        templateRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(template_entity_1.Template));
+        templateItemRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(template_item_entity_1.TemplateItem));
+        widgetRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(widget_entity_1.Widget));
+        componentRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(component_entity_1.Component));
+    });
+    it('should be defined', () => {
+        expect(service).toBeDefined();
+    });
+    describe('findAll', () => {
+        it('should return all active templates', async () => {
+            const mockTemplates = [
+                { id: 1, title: 'Template 1', useYn: yn_enum_1.YesNo.YES },
+                { id: 2, title: 'Template 2', useYn: yn_enum_1.YesNo.YES },
+            ];
+            templateRepository.find.mockResolvedValue(mockTemplates);
+            const result = await service.findAll();
+            expect(result.status).toBe(response_status_enum_1.ResponseStatus.SUCCESS);
+            expect(result.data).toEqual(mockTemplates);
+            expect(templateRepository.find).toHaveBeenCalledWith({
+                select: { id: true, title: true, description: true },
+                where: { useYn: yn_enum_1.YesNo.YES },
+            });
+        });
+    });
+    describe('findOne', () => {
+        it('should return template with items', async () => {
+            const mockTemplate = { id: 1, title: 'Template 1' };
+            const mockItems = [
+                { id: 1, templateId: 1, widgetId: 1 },
+                { id: 2, templateId: 1, widgetId: 2 },
+            ];
+            templateRepository.findOne.mockResolvedValue(mockTemplate);
+            templateItemRepository.find.mockResolvedValue(mockItems);
+            const result = await service.findOne(1);
+            expect(templateRepository.findOne).toHaveBeenCalledWith({
+                select: { id: true, title: true, description: true },
+                where: { id: 1, useYn: yn_enum_1.YesNo.YES },
+            });
+            expect(templateItemRepository.find).toHaveBeenCalledWith({ where: { templateId: 1 } });
+            expect(result.status).toBe(response_status_enum_1.ResponseStatus.SUCCESS);
+        });
+        it('should return error when template not found', async () => {
+            templateRepository.findOne.mockResolvedValue(null);
+            const result = await service.findOne(999);
+            expect(result.status).toBe(response_status_enum_1.ResponseStatus.ERROR);
+            expect(result.message).toContain('템플릿이 존재하지 않습니다');
+        });
+    });
+    describe('create', () => {
+        it('should create a new template', async () => {
+            const createDto = {
+                title: 'New Template',
+                description: 'Test description',
+                layout: [],
+            };
+            const savedTemplate = Object.assign({ id: 1 }, createDto);
+            templateRepository.save.mockResolvedValue(savedTemplate);
+            const result = await service.create(createDto);
+            expect(templateRepository.save).toHaveBeenCalled();
+            expect(result.status).toBe(response_status_enum_1.ResponseStatus.SUCCESS);
+            expect(result.data).toEqual(savedTemplate);
+        });
+    });
+    describe('remove', () => {
+        it('should remove template and its items', async () => {
+            templateRepository.update.mockResolvedValue({ affected: 1 });
+            const result = await service.remove(1);
+            expect(templateRepository.update).toHaveBeenCalledWith({ id: 1 }, { useYn: yn_enum_1.YesNo.NO });
+            expect(result.status).toBe(response_status_enum_1.ResponseStatus.SUCCESS);
+        });
+    });
+});

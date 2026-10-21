@@ -1,0 +1,218 @@
+8e828fd5c6e05466d0e7b180bde0cb3f
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const typeorm_1 = require("@nestjs/typeorm");
+const bull_1 = require("@nestjs/bull");
+const background_job_service_1 = require("./background-job.service");
+const background_job_entity_1 = require("./entities/background-job.entity");
+const job_result_entity_1 = require("./entities/job-result.entity");
+const logger_service_1 = require("../common/logger/logger.service");
+const common_1 = require("@nestjs/common");
+describe('BackgroundJobService', () => {
+    let service;
+    let backgroundJobRepository;
+    let jobResultRepository;
+    let queryQueue;
+    let logger;
+    const mockBackgroundJobRepository = {
+        save: jest.fn(),
+        findOne: jest.fn(),
+        findAndCount: jest.fn(),
+        update: jest.fn(),
+        createQueryBuilder: jest.fn(),
+    };
+    const mockJobResultRepository = {
+        save: jest.fn(),
+        findOne: jest.fn(),
+        remove: jest.fn(),
+        createQueryBuilder: jest.fn(),
+    };
+    const mockQueryQueue = {
+        add: jest.fn(),
+        getJob: jest.fn(),
+    };
+    const mockLogger = {
+        log: jest.fn(),
+        error: jest.fn(),
+        warn: jest.fn(),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            providers: [
+                background_job_service_1.BackgroundJobService,
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(background_job_entity_1.BackgroundJob),
+                    useValue: mockBackgroundJobRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(job_result_entity_1.JobResult),
+                    useValue: mockJobResultRepository,
+                },
+                {
+                    provide: (0, bull_1.getQueueToken)('query-execution'),
+                    useValue: mockQueryQueue,
+                },
+                {
+                    provide: logger_service_1.CustomLoggerService,
+                    useValue: mockLogger,
+                },
+            ],
+        }).compile();
+        service = module.get(background_job_service_1.BackgroundJobService);
+        backgroundJobRepository = module.get((0, typeorm_1.getRepositoryToken)(background_job_entity_1.BackgroundJob));
+        jobResultRepository = module.get((0, typeorm_1.getRepositoryToken)(job_result_entity_1.JobResult));
+        queryQueue = module.get((0, bull_1.getQueueToken)('query-execution'));
+        logger = module.get(logger_service_1.CustomLoggerService);
+    });
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+    describe('createJob', () => {
+        it('should create a background job and add it to the queue', async () => {
+            const userId = 'user123';
+            const createJobDto = {
+                jobType: background_job_entity_1.JobType.QUERY_EXECUTION,
+                title: 'Test Query Job',
+                description: 'Test description',
+                datasetId: 'dataset123',
+                databaseId: 'database123',
+                query: 'SELECT * FROM users',
+            };
+            const savedJob = {
+                id: 'job123',
+                userId,
+                jobType: createJobDto.jobType,
+                title: createJobDto.title,
+                description: createJobDto.description,
+                status: background_job_entity_1.JobStatus.PENDING,
+                progress: 0,
+                metadata: {
+                    datasetId: createJobDto.datasetId,
+                    databaseId: createJobDto.databaseId,
+                    query: createJobDto.query,
+                },
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+            const queueJob = { id: 'queue123' };
+            mockBackgroundJobRepository.save.mockResolvedValueOnce(savedJob);
+            mockQueryQueue.add.mockResolvedValueOnce(queueJob);
+            mockBackgroundJobRepository.save.mockResolvedValueOnce(Object.assign(Object.assign({}, savedJob), { queueJobId: queueJob.id }));
+            const result = await service.createJob(userId, createJobDto);
+            expect(result).toMatchObject({
+                id: savedJob.id,
+                jobType: savedJob.jobType,
+                status: savedJob.status,
+                title: savedJob.title,
+                progress: 0,
+            });
+            expect(mockBackgroundJobRepository.save).toHaveBeenCalledTimes(2);
+            expect(mockQueryQueue.add).toHaveBeenCalledWith({
+                backgroundJobId: savedJob.id,
+                userId,
+                query: createJobDto.query,
+                databaseId: createJobDto.databaseId,
+                datasetId: createJobDto.datasetId,
+                parameters: undefined,
+            });
+        });
+    });
+    describe('getJobById', () => {
+        it('should return a job by id', async () => {
+            const jobId = 'job123';
+            const userId = 'user123';
+            const job = {
+                id: jobId,
+                userId,
+                jobType: background_job_entity_1.JobType.QUERY_EXECUTION,
+                status: background_job_entity_1.JobStatus.COMPLETED,
+                title: 'Test Job',
+                progress: 100,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                jobResult: {
+                    id: 'result123',
+                    resultSizeBytes: 1000,
+                    rowCount: 10,
+                },
+            };
+            mockBackgroundJobRepository.findOne.mockResolvedValueOnce(job);
+            const result = await service.getJobById(jobId, userId);
+            expect(result).toMatchObject({
+                id: job.id,
+                status: job.status,
+                hasResult: true,
+                resultSizeBytes: 1000,
+                rowCount: 10,
+            });
+            expect(mockBackgroundJobRepository.findOne).toHaveBeenCalledWith({
+                where: { id: jobId, userId },
+                relations: ['jobResult'],
+            });
+        });
+        it('should throw NotFoundException if job not found', async () => {
+            mockBackgroundJobRepository.findOne.mockResolvedValueOnce(null);
+            await expect(service.getJobById('notfound', 'user123')).rejects.toThrow(common_1.NotFoundException);
+        });
+    });
+    describe('cancelJob', () => {
+        it('should cancel a pending job', async () => {
+            const jobId = 'job123';
+            const userId = 'user123';
+            const job = {
+                id: jobId,
+                userId,
+                status: background_job_entity_1.JobStatus.PENDING,
+                queueJobId: 'queue123',
+            };
+            const queueJob = {
+                remove: jest.fn(),
+            };
+            mockBackgroundJobRepository.findOne.mockResolvedValueOnce(job);
+            mockQueryQueue.getJob.mockResolvedValueOnce(queueJob);
+            mockBackgroundJobRepository.save.mockResolvedValueOnce(Object.assign(Object.assign({}, job), { status: background_job_entity_1.JobStatus.CANCELLED }));
+            await service.cancelJob(jobId, userId);
+            expect(queueJob.remove).toHaveBeenCalled();
+            expect(mockBackgroundJobRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+                status: background_job_entity_1.JobStatus.CANCELLED,
+            }));
+        });
+        it('should throw error if job cannot be cancelled', async () => {
+            const job = {
+                id: 'job123',
+                userId: 'user123',
+                status: background_job_entity_1.JobStatus.COMPLETED,
+            };
+            mockBackgroundJobRepository.findOne.mockResolvedValueOnce(job);
+            await expect(service.cancelJob('job123', 'user123')).rejects.toThrow('Cannot cancel job in completed status');
+        });
+    });
+    describe('cleanupExpiredResults', () => {
+        it('should remove expired job results', async () => {
+            const expiredResults = [
+                {
+                    id: 'result1',
+                    storageType: job_result_entity_1.ResultStorageType.DATABASE,
+                    expiresAt: new Date('2023-01-01'),
+                },
+                {
+                    id: 'result2',
+                    storageType: job_result_entity_1.ResultStorageType.DATABASE,
+                    expiresAt: new Date('2023-01-02'),
+                },
+            ];
+            const queryBuilder = {
+                where: jest.fn().mockReturnThis(),
+                getMany: jest.fn().mockResolvedValueOnce(expiredResults),
+            };
+            mockJobResultRepository.createQueryBuilder.mockReturnValueOnce(queryBuilder);
+            mockJobResultRepository.remove.mockResolvedValue(undefined);
+            const count = await service.cleanupExpiredResults();
+            expect(count).toBe(2);
+            expect(mockJobResultRepository.remove).toHaveBeenCalledTimes(2);
+            expect(mockJobResultRepository.remove).toHaveBeenCalledWith(expiredResults[0]);
+            expect(mockJobResultRepository.remove).toHaveBeenCalledWith(expiredResults[1]);
+        });
+    });
+});

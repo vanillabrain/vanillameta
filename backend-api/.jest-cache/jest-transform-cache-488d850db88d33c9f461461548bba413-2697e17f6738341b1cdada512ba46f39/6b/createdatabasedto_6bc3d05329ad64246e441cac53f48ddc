@@ -1,0 +1,89 @@
+61643d47118ac752126e8565b9fb8b92
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CreateDatabaseDto = void 0;
+const class_validator_1 = require("class-validator");
+const swagger_1 = require("@nestjs/swagger");
+class CreateDatabaseDto {
+}
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '데이터베이스 연결 이름',
+        example: '프로덕션 MySQL DB',
+        minLength: 1,
+        maxLength: 100
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateDatabaseDto.prototype, "name", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '데이터베이스 설명',
+        example: '메인 서비스용 프로덕션 데이터베이스',
+        required: false
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateDatabaseDto.prototype, "description", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '데이터베이스 연결 설정 (JSON 형식)',
+        example: JSON.stringify({
+            host: 'localhost',
+            port: 3306,
+            username: 'root',
+            password: 'password',
+            database: 'mydb'
+        }),
+        type: 'string',
+        format: 'json'
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateDatabaseDto.prototype, "connectionConfig", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '데이터베이스 엔진',
+        example: 'mysql',
+        enum: ['mysql', 'postgresql', 'mariadb', 'oracle', 'mssql', 'sqlite', 'bigquery', 'snowflake', 'redshift'],
+        required: false
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateDatabaseDto.prototype, "engine", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '데이터베이스 타입',
+        example: 'mysql',
+        enum: ['mysql', 'postgresql', 'mariadb', 'oracle', 'mssql', 'sqlite', 'bigquery', 'snowflake', 'redshift'],
+        required: false
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateDatabaseDto.prototype, "type", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '타임존 설정',
+        example: 'Asia/Seoul',
+        default: 'Asia/Seoul',
+        required: false
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateDatabaseDto.prototype, "timezone", void 0);
+exports.CreateDatabaseDto = CreateDatabaseDto;
