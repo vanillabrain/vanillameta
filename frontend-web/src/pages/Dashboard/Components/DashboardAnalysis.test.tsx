@@ -604,7 +604,7 @@ it('applies KST calendar dates to preview and saved state', async () => {
   fireEvent.click(screen.getByRole('button', { name: '적용', exact: true }));
   await waitFor(() =>
     expect(api.post).toHaveBeenLastCalledWith(
-      '/ai/dashboard-preview',
+      '/ai/dashboard-view',
       expect.objectContaining({
         dateRange: { column: 'created_at', start: '2026-01-01', end: '2026-01-02', timeZone: 'Asia/Seoul' },
       }),
@@ -858,4 +858,50 @@ it('UC052 loads legacy defaultConditions into every preview and fails closed on 
   await idle();
   expect(api.post).not.toHaveBeenCalled();
   expect(screen.queryByText('Fallback')).toBeNull();
+});
+
+it('loads saved analysis through the read endpoint without sending SQL or editable drafts', async () => {
+  const revision = 'a'.repeat(64);
+  api.get.mockResolvedValue(response({ databaseId: 3, widgets: [{ sql: 'saved SQL' }], revision }));
+  api.post.mockResolvedValue(response(preview(10)));
+  render(
+    <DashboardAnalysis dashboardId={3} onSaved={vi.fn()}>
+      Fallback
+    </DashboardAnalysis>,
+  );
+  await screen.findByText('10');
+  const [url, body] = api.post.mock.calls[0];
+  expect(url).toBe('/ai/dashboard-view');
+  expect(body.expectedRevision).toBe(revision);
+  expect(body.dashboardId).toBe(3);
+  expect(body).not.toHaveProperty('draft');
+  expect(JSON.stringify(body)).not.toContain('saved SQL');
+});
+
+it('does not mount legacy data fetchers while a saved analysis result is pending', async () => {
+  const legacyQuery = vi.fn();
+  function LegacyFetcher() {
+    React.useEffect(() => {
+      legacyQuery();
+    }, []);
+    return <span>Legacy data fetch</span>;
+  }
+  let resolve: (value: any) => void;
+  api.get.mockResolvedValue(response({ databaseId: 3, widgets: [], revision: 'a'.repeat(64) }));
+  api.post.mockImplementation(
+    () =>
+      new Promise(done => {
+        resolve = done;
+      }),
+  );
+  render(
+    <DashboardAnalysis dashboardId={3} onSaved={vi.fn()}>
+      <LegacyFetcher />
+    </DashboardAnalysis>,
+  );
+  await waitFor(() => expect(api.post).toHaveBeenCalled());
+  expect(legacyQuery).not.toHaveBeenCalled();
+  await act(async () => resolve(response(preview(10))));
+  await screen.findByText('10');
+  expect(legacyQuery).not.toHaveBeenCalled();
 });

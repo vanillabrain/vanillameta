@@ -1,0 +1,57 @@
+:root {
+  --vp-font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Noto Sans KR", sans-serif;
+  --vp-c-brand-1: #1b5dba;
+  --vp-c-brand-2: #286fce;
+  --vp-c-brand-3: #1b5dba;
+  --vp-c-brand-soft: rgba(27, 93, 186, 0.1);
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+}
+.dark {
+  --vp-c-brand-1: #8bbcff;
+  --vp-c-brand-2: #afd0ff;
+  --vp-c-brand-3: #286fce;
+}
+.vp-doc {
+  overflow-wrap: anywhere;
+}
+.vp-doc p,
+.vp-doc li {
+  line-height: 1.85;
+}
+.vp-doc img {
+  height: auto;
+  max-width: 100%;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  margin: 20px 0;
+}
+.vp-doc th,
+.vp-doc td {
+  font-size: 14px;
+}
+.vp-doc blockquote {
+  padding: 10px 16px;
+  background: var(--vp-c-bg-soft);
+  border-radius: 0 6px 6px 0;
+}
+.VPHome .VPHero .text {
+  font-size: clamp(30px, 4vw, 52px);
+  line-height: 1.2;
+}
+@media (max-width: 639px) {
+  .vp-doc h1 {
+    font-size: 27px;
+    line-height: 1.4;
+  }
+  .vp-doc h2 {
+    font-size: 22px;
+    line-height: 1.5;
+  }
+  .vp-doc table {
+    max-width: 100%;
+  }
+  .VPLocalSearchBox input {
+    font-size: 16px;
+  }
+}

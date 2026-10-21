@@ -284,8 +284,14 @@ export class SemanticCreationService {
                   row = created.get(measure.identity);
                   if (!row) {
                     const name = 'bi_v2_' + measure.identity;
-                    if (await manager.findOne(Metric, { where: { name } }))
+                    const collision = await manager.findOne(Metric, { where: { name } });
+                    if (collision) {
+                      // A concurrent writer can commit an equivalent active metric after preparation.
+                      // Require a new preview instead of treating this stale create plan as a bad name.
+                      if (semanticCatalog([collision], profile)[0]?.identity === measure.identity)
+                        throw new ConflictException('PLAN_CHANGED');
                       throw new ConflictException('METRIC_NAME_CONFLICT');
+                    }
                     const definition = {
                       schemaVersion: 1,
                       definitionVersion: 1,

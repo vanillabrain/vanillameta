@@ -4,8 +4,10 @@ module.exports = {
   rootDir: '.',
   testMatch: ['**/*.spec.ts'],
   transform: {
+    '/node_modules/@nestjs/typeorm/.+\\.js$': '<rootDir>/test/typeorm-esm-transformer.cjs',
     '^.+\\.(t|j)s$': 'ts-jest',
   },
+  transformIgnorePatterns: ['/node_modules/(?!@nestjs/typeorm/)'],
   moduleFileExtensions: ['js', 'json', 'ts'],
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',

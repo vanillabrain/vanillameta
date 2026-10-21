@@ -19,6 +19,8 @@ describe('MemoryMonitorMiddleware', () => {
 
   beforeEach(async () => {
     jest.useFakeTimers({ doNotFake: ['performance'] });
+    const usage = process.memoryUsage();
+    jest.spyOn(process, 'memoryUsage').mockReturnValue({ ...usage, rss: 256 * 1024 * 1024 });
     // Mock logger
     mockLogger = {
       debug: jest.fn(),
@@ -225,6 +227,23 @@ describe('MemoryMonitorMiddleware', () => {
     expect(mockLogger.info).toHaveBeenCalledWith('Heap snapshot created', 'MemoryMonitor', {
       filename,
     });
+  });
+
+  it('keeps periodic pressure reporting alive while rejecting requests at critical memory', () => {
+    const usage = process.memoryUsage();
+    jest.spyOn(process, 'memoryUsage').mockReturnValue({ ...usage, rss: 3 * 1024 * 1024 * 1024 });
+    expect(() => jest.advanceTimersByTime(30000)).not.toThrow();
+    expect((middleware as any).cloudWatchMetrics.putMetric).toHaveBeenCalled();
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      expect.stringContaining('Critical memory threshold reached'),
+      null,
+      'MemoryMonitor',
+      expect.any(Object),
+    );
+    expect(() =>
+      middleware.use(mockRequest as Request, mockResponse as Response, mockNext),
+    ).toThrow('서버 메모리가 부족합니다');
+    expect(mockNext).not.toHaveBeenCalled();
   });
 
   afterEach(() => {
