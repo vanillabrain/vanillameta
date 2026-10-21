@@ -103,7 +103,7 @@
     "knex-schema-inspector": "^2.0.4",
     "lru-cache": "^11.1.0",
     "lz-string": "^1.5.0",
-    "mathjs": "^11.3.3",
+    "mathjs": "^15.2.0",
     "multer": "^2.4.0",
     "mustache": "^4.2.0",
     "mysql2": "^2.3.3",
