@@ -6,7 +6,7 @@ Cloudflare Pages Direct Upload + GitHub Actions로 정적 가이드를 배포한
 
 워크플로우는 `.github/workflows/user-guide.yml`이다. main/develop 변경과 PR에서 빌드·링크 검사하고, **develop만 운영 배포**한다. 운영 브랜치를 바꿀 때는 업로드/배포 조건·명령의 branch와 Pages production branch를 함께 바꾼다.
 
-현재 Secret·계정·도메인은 미등록이며 배포는 비활성이다. 구성 파일·로컬 검증과 실제 업로드·DNS·TLS 성공을 구분한다.
+사용자가 지정한 운영 도메인은 `docs.vanillameta.net`이다. 현재 Pages 프로젝트·Secret·도메인 연결은 확인되지 않았으며 배포는 비활성이다. 구성 파일·로컬 검증과 실제 업로드·DNS·TLS 성공을 구분한다.
 
 ## 1. Pages 프로젝트 준비
 
@@ -49,13 +49,13 @@ Production branch가 다르면 업로드가 운영 대신 preview 배포가 될 
 
 ## 4. docs 도메인 연결
 
-정확한 주소를 정한 뒤 **Pages 프로젝트 → Custom domains → Set up a domain**에서 먼저 등록한다. 예: `docs.example.com`.
+정확한 주소를 정한 뒤 **Pages 프로젝트 → Custom domains → Set up a domain**에서 먼저 등록한다. 운영 주소: `docs.vanillameta.net`.
 
 Cloudflare DNS라면 안내된 자동 레코드를 확인한다. Route 53 등 외부 DNS를 유지할 경우 안내된 실제 Pages 호스트로 CNAME을 등록한다.
 
-| 종류  | 이름 | 대상                                     |
-| ----- | ---- | ---------------------------------------- |
-| CNAME | docs | 실제 프로젝트의 `프로젝트이름.pages.dev` |
+| 종류  | 이름 | 대상                                                  |
+| ----- | ---- | ----------------------------------------------------- |
+| CNAME | docs | 생성한 실제 Pages 프로젝트의 `프로젝트이름.pages.dev` |
 
 CNAME만 만들고 Pages Custom domains 등록을 생략하지 않는다. 기존 docs 레코드가 있다면 사용 중인 서비스를 확인하고 덮어쓰지 않는다. 서브도메인은 네임서버 전체를 Cloudflare로 이전할 필요가 없다.
 
@@ -87,3 +87,13 @@ Pages의 이전 정상 배포로 rollback하고 직접 경로·도메인을 확�
 ## 이번 구성 검증
 
 2026-10-21 develop 기준으로 actionlint 1.7.12(배포 YAML 문법·표현식, shellcheck 별도 미실행), 문서 production build, HTML 21개·내부 참조 843건 검사를 통과했다. GitHub repository 변수·Secret 이름 조회는 모두 빈 목록이었다. 계정·토큰·프로젝트·도메인·DNS가 준비되지 않아 실제 Cloudflare 업로드·HTTPS/온라인 화면 검증은 미실행이다. 배포 완료로 표시하지 않는다.
+
+## 도메인 연결 준비 확인 — 2026-10-21
+
+- 지정 주소: `docs.vanillameta.net`.
+- 공개 NS 조회: `vanillameta.net`은 Cloudflare 네임서버를 사용한다. 새 네임서버 이전은 필요하지 않다.
+- A·AAAA 조회와 권한 서버 CNAME 조회: `docs.vanillameta.net`은 NXDOMAIN이었다. 현재 공개 레코드는 확인되지 않았다. 실제 등록 직전에도 다시 조회한다.
+- Ego의 Cloudflare 대시보드는 로그인 화면이었다. 로그인된 계정의 zone 권한·기존 Pages 프로젝트·DNS 설정은 아직 확인하지 않았다.
+- 다음: 사용자 직접 로그인 → 대상 계정/zone 확인 → 기존 프로젝트 확인 또는 신규 준비 → Secret 설정 → 검증된 빌드 게시 → Custom domain 등록 → DNS/TLS 및 온라인 화면 검증.
+
+DNS·프로젝트·인증서 변경은 아직 수행하지 않았다. 공개 NS만으로 어느 계정이 관리하는지 또는 현재 계정에 편집권이 있는지는 판단하지 않는다.
