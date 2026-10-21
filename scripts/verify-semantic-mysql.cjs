@@ -264,6 +264,8 @@ const cleanup = () =>
         process.execPath,
         [
           path.join(backend, "node_modules/jest/bin/jest.js"),
+          "--config",
+          path.join(backend, "package.json"),
           "--runInBand",
           "--verbose",
           "--runTestsByPath",
