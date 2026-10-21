@@ -54,6 +54,10 @@ async function nestModule(services: ReturnType<typeof providers>['services']) {
 }
 
 describe('observability timer lifecycle', () => {
+  beforeEach(() => {
+    const usage = process.memoryUsage();
+    jest.spyOn(process, 'memoryUsage').mockReturnValue({ ...usage, rss: 256 * 1024 * 1024 });
+  });
   afterEach(() => {
     jest.restoreAllMocks();
     jest.useRealTimers();

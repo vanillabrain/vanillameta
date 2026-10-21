@@ -1,5 +1,8 @@
 # 최신 요약 — 2026-10-21
 
+
+**2026-10-21 의존성 PR19개:** [분석·수정](dependency-pr-review-20261021.md)은 최신 develop 공통 BE3실패의 RSS fixture/배경 예외·준비 후 생성 경합을 수정했다. 실제 TypeORM12 ESM/Jest·Swiper14 Navigation 오류를 보완하고 실제 SQLite 초기화/종료·Ego56 컴포넌트390/1440/키보드를 확인했다. landing CI 공백을 보완했고 TypeScript7/다른 major의 별도 검증 경계를 기록했다. PR 자동 병합/승인/댓글0·실모델 반복0·VoiceOver BLOCKED 유지.
+
 - [상세 사용자 가이드 사이트](user-guide-site.md): VitePress 20페이지·한국어 검색·Ego 반응형·기본/하위 경로 링크 검사. 제품 재인수·외부 배포와 별도.
 
 - 2026-10-21: [사용자 가이드 Ego 실제 검증](user-guide-ego.md) — 합성 소스·실AI 생성/수정·저장/게시/익명/직원 열람·대표 모바일, 조회 소비자 read API와 기본 차트 누락 안내 보완. 운영·실기기·전체 수용과 구분.

@@ -131,7 +131,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware, OnModuleDestroy 
   /**
    * 메모리 임계치 확인 및 대응
    */
-  private checkMemoryThreshold(metrics: MemoryMetrics): void {
+  private checkMemoryThreshold(metrics: MemoryMetrics, rejectRequest = true): void {
     const percentUsed = metrics.percentUsed / 100;
 
     if (percentUsed >= this.CRITICAL_THRESHOLD) {
@@ -150,7 +150,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware, OnModuleDestroy 
       // 강제 가비지 컬렉션 시도
       this.forceGarbageCollection();
 
-      throw new Error('서버 메모리가 부족합니다. 잠시 후 다시 시도해주세요.');
+      if (rejectRequest) throw new Error('서버 메모리가 부족합니다. 잠시 후 다시 시도해주세요.');
     } else if (percentUsed >= this.WARNING_THRESHOLD) {
       // 경고 임계치 도달
       this.customLogger.warn('Memory usage warning threshold reached', 'MemoryMonitor', {
@@ -256,7 +256,9 @@ export class MemoryMonitorMiddleware implements NestMiddleware, OnModuleDestroy 
       });
 
       // 임계치 확인
-      this.checkMemoryThreshold(metrics);
+      // Report critical pressure without throwing from a background timer. The
+      // request path keeps the default rejection and CloudWatch reporting continues.
+      this.checkMemoryThreshold(metrics, false);
 
       // 주기적 GC (메모리 사용률이 60% 이상일 때)
       if (metrics.percentUsed > 60 && Date.now() - this.lastGcTime > this.GC_INTERVAL) {
