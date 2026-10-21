@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { ProtectedRoute } from '@/router/ProtectedRoute';
 import Layout from '@/layouts/Layout';
+import { RouteTracker } from './RouteTracker';
 import PublicLayout from '@/layouts/PublicLayout';
 
 // 라우트별 코드 스플리팅: 페이지는 lazy chunk로 분리되어 초기 번들 축소
@@ -47,6 +48,7 @@ const StudioDesignPreview = import.meta.env.DEV
 function Router() {
   return (
     <Suspense fallback={null}>
+      <RouteTracker />
       <Routes>
         {import.meta.env.DEV && <Route path="/_design/studio" element={<StudioDesignPreview />} />}
         <Route

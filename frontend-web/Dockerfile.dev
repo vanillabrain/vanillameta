@@ -1,0 +1,25 @@
+# 개발 환경용 Dockerfile
+FROM node:18-alpine
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# package.json과 관련 파일들 복사
+COPY package*.json ./
+COPY yarn.lock ./
+
+# 의존성 설치
+RUN yarn install --frozen-lockfile
+
+# 소스 코드는 볼륨으로 마운트됨
+
+# 환경 변수 설정
+ENV NODE_ENV=development
+ENV REACT_APP_API_URL=http://localhost/api/v1
+ENV REACT_APP_MODE=local
+
+# 포트 노출 (React 개발 서버)
+EXPOSE 3000
+
+# 개발 서버 실행
+CMD ["yarn", "start"]

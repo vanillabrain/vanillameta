@@ -1,0 +1,128 @@
+7305800c7343a4baf2a53d176285875f
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.IsValidTableName = exports.IsSafeQuery = exports.IsValidTableNameConstraint = exports.IsSafeQueryConstraint = void 0;
+const class_validator_1 = require("class-validator");
+let IsSafeQueryConstraint = class IsSafeQueryConstraint {
+    validate(query, args) {
+        if (!query || typeof query !== 'string') {
+            return false;
+        }
+        const trimmedQuery = query.trim().toUpperCase();
+        // 기본 안전성 검사
+        if (!trimmedQuery.startsWith('SELECT') && !trimmedQuery.startsWith('WITH')) {
+            return false;
+        }
+        // 금지된 키워드 검사 (기본적인 것들만)
+        const forbiddenKeywords = [
+            'DROP',
+            'DELETE',
+            'INSERT',
+            'UPDATE',
+            'CREATE',
+            'ALTER',
+            'EXEC',
+            'EXECUTE',
+        ];
+        for (const keyword of forbiddenKeywords) {
+            const keywordRegex = new RegExp(`\\b${keyword}\\b`, 'i');
+            if (keywordRegex.test(query)) {
+                return false;
+            }
+        }
+        // 위험한 패턴 검사
+        const dangerousPatterns = [
+            /--[\s\S]*$/gm,
+            /\/\*[\s\S]*?\*\//gm,
+            /\bunion\s+select\b/gi,
+            /\binto\s+outfile\b/gi,
+            /[;'"\\]{2,}/g, // 연속된 특수문자
+        ];
+        for (const pattern of dangerousPatterns) {
+            if (pattern.test(query)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    defaultMessage(args) {
+        return 'Query contains potentially dangerous SQL patterns or forbidden keywords';
+    }
+};
+IsSafeQueryConstraint = __decorate([
+    (0, class_validator_1.ValidatorConstraint)({ async: false })
+], IsSafeQueryConstraint);
+exports.IsSafeQueryConstraint = IsSafeQueryConstraint;
+let IsValidTableNameConstraint = class IsValidTableNameConstraint {
+    validate(tableName, args) {
+        if (!tableName || typeof tableName !== 'string') {
+            return false;
+        }
+        // 테이블명은 영문자, 숫자, 언더스코어만 허용
+        const tableNameRegex = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+        if (!tableNameRegex.test(tableName)) {
+            return false;
+        }
+        // 길이 제한 (최대 64자)
+        if (tableName.length > 64) {
+            return false;
+        }
+        // SQL 키워드와 겹치는 이름 금지
+        const sqlKeywords = [
+            'SELECT',
+            'FROM',
+            'WHERE',
+            'ORDER',
+            'GROUP',
+            'HAVING',
+            'UNION',
+            'JOIN',
+            'INNER',
+            'LEFT',
+            'RIGHT',
+            'FULL',
+            'CROSS',
+        ];
+        if (sqlKeywords.includes(tableName.toUpperCase())) {
+            return false;
+        }
+        return true;
+    }
+    defaultMessage(args) {
+        return 'Table name must contain only letters, numbers, and underscores, and cannot be a SQL keyword';
+    }
+};
+IsValidTableNameConstraint = __decorate([
+    (0, class_validator_1.ValidatorConstraint)({ async: false })
+], IsValidTableNameConstraint);
+exports.IsValidTableNameConstraint = IsValidTableNameConstraint;
+function IsSafeQuery(validationOptions) {
+    return function (object, propertyName) {
+        (0, class_validator_1.registerDecorator)({
+            target: object.constructor,
+            propertyName: propertyName,
+            options: validationOptions,
+            constraints: [],
+            validator: IsSafeQueryConstraint,
+        });
+    };
+}
+exports.IsSafeQuery = IsSafeQuery;
+function IsValidTableName(validationOptions) {
+    return function (object, propertyName) {
+        (0, class_validator_1.registerDecorator)({
+            target: object.constructor,
+            propertyName: propertyName,
+            options: validationOptions,
+            constraints: [],
+            validator: IsValidTableNameConstraint,
+        });
+    };
+}
+exports.IsValidTableName = IsValidTableName;

@@ -1,0 +1,38 @@
+17c1ddfcdc5642ee028189c8275fbcbf
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Dataset = void 0;
+const typeorm_1 = require("typeorm");
+const base_entity_1 = require("../../common/entities/base.entity");
+let Dataset = class Dataset extends base_entity_1.BaseEntity {
+};
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)({ comment: '데이터셋 ID' }),
+    __metadata("design:type", Number)
+], Dataset.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 255, type: 'varchar', comment: '데이터셋명', nullable: true }),
+    __metadata("design:type", String)
+], Dataset.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ comment: '데이터베이스 ID' }),
+    __metadata("design:type", Number)
+], Dataset.prototype, "databaseId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', comment: '조회 sql' }),
+    __metadata("design:type", String)
+], Dataset.prototype, "query", void 0);
+Dataset = __decorate([
+    (0, typeorm_1.Entity)(),
+    (0, typeorm_1.Index)('IDX_DATASET_DATABASE_ID', ['databaseId'])
+], Dataset);
+exports.Dataset = Dataset;

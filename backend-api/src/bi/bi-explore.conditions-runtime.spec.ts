@@ -1,3 +1,5 @@
+import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { createHash } from 'crypto';
 import * as fs from 'fs';
@@ -12,6 +14,7 @@ import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { Database } from '../database/entities/database.entity';
 import { Metric } from '../metric/entities/metric.entity';
 import { BiService } from './bi.service';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { BiExploreService } from './bi-explore.service';
 
 describe('UC052 Explore Pivot and private CSV actual DuckDB condition oracle', () => {
@@ -74,9 +77,17 @@ describe('UC052 Explore Pivot and private CSV actual DuckDB condition oracle', (
       type: 'sqlite',
       database: ':memory:',
       synchronize: true,
-      entities: [Database, Metric, Dashboard],
+      entities: [Database, Metric, Dashboard, User, EnterpriseMembership, SourceCatalogEntry],
     });
     await db.initialize();
+    await db.manager.insert(User, {
+      id: 7,
+      userId: 'explore-oracle',
+      email: 'explore-oracle@example.invalid',
+      password: 'unused',
+      active: true,
+      authVersion: 0,
+    });
     await db.manager.save(Database, {
       id: 1,
       ownerId: 7,

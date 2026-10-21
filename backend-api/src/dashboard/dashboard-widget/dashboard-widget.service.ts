@@ -45,6 +45,8 @@ export class DashboardWidgetService {
 
       where: { dashboardId: dashboardId },
     });
+    // MySQL rejects IN (); an empty dashboard has a valid empty widget list.
+    if (widgetList.length === 0) return [];
     const whereInWidgetList = [];
     widgetList.map(item => {
       whereInWidgetList.push(item.widgetId);
@@ -65,7 +67,7 @@ export class DashboardWidgetService {
       .setParameter('ids', whereInWidgetList) // 왜 배열이 안들어가죠 ?
       .getRawMany();
 
-    result.map(el => {
+    result.forEach(el => {
       el.option = JSON.parse(el.option);
     });
 

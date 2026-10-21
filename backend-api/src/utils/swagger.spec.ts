@@ -46,7 +46,13 @@ describe('setupSwagger', () => {
       'api-docs',
       dummyApp,
       expect.objectContaining({ paths: fixturePaths }),
-      { swaggerOptions: { defaultModelsExpandDepth: -1 } },
+      expect.objectContaining({
+        swaggerOptions: expect.objectContaining({
+          defaultModelsExpandDepth: -1,
+          persistAuthorization: true,
+        }),
+        customSiteTitle: 'VanillaMeta API Documentation',
+      }),
     );
   };
 
@@ -67,9 +73,16 @@ describe('setupSwagger', () => {
   it('writes the filtered document to SWAGGER_SPEC_PATH when set', () => {
     process.env.SWAGGER_SPEC_PATH = '/tmp/vanillameta-swagger-fixture.json';
     setupSwagger(dummyApp);
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
-      '/tmp/vanillameta-swagger-fixture.json',
-      JSON.stringify(filteredDoc()),
+    const [file, serialized] = (fs.writeFileSync as jest.Mock).mock.calls[0];
+    expect(file).toBe('/tmp/vanillameta-swagger-fixture.json');
+    expect(JSON.parse(serialized)).toEqual(
+      expect.objectContaining({
+        ...filteredDoc(),
+        security: [{ AccessToken: [] }],
+        components: expect.objectContaining({
+          responses: expect.objectContaining({ UnauthorizedError: expect.any(Object) }),
+        }),
+      }),
     );
     expectSetupCalled();
   });

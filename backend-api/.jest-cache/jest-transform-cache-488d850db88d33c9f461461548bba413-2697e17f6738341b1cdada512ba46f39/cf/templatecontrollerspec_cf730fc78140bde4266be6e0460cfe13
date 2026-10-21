@@ -1,0 +1,61 @@
+44f2fac51a2a5f6aef65c6d9f9919e1c
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const typeorm_1 = require("@nestjs/typeorm");
+const template_controller_1 = require("./template.controller");
+const template_service_1 = require("./template.service");
+const template_entity_1 = require("./entities/template.entity");
+const template_item_entity_1 = require("./entities/template-item.entity");
+const widget_entity_1 = require("../widget/entities/widget.entity");
+const component_entity_1 = require("../component/entities/component.entity");
+describe('TemplateController', () => {
+    let controller;
+    const mockTemplateRepository = {
+        find: jest.fn(),
+        findOne: jest.fn(),
+        save: jest.fn(),
+        delete: jest.fn(),
+    };
+    const mockTemplateItemRepository = {
+        find: jest.fn(),
+        save: jest.fn(),
+        delete: jest.fn(),
+    };
+    const mockWidgetRepository = {
+        find: jest.fn(),
+        findOne: jest.fn(),
+    };
+    const mockComponentRepository = {
+        find: jest.fn(),
+        findOne: jest.fn(),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [template_controller_1.TemplateController],
+            providers: [
+                template_service_1.TemplateService,
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(template_entity_1.Template),
+                    useValue: mockTemplateRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(template_item_entity_1.TemplateItem),
+                    useValue: mockTemplateItemRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(widget_entity_1.Widget),
+                    useValue: mockWidgetRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(component_entity_1.Component),
+                    useValue: mockComponentRepository,
+                },
+            ],
+        }).compile();
+        controller = module.get(template_controller_1.TemplateController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});

@@ -97,11 +97,18 @@ test('Dashboard lifecycle: 영향 확인 → 응답 유실 → reload·동일 �
         contentType: 'application/json',
         body: JSON.stringify({ message: 'Synthetic response loss' }),
       });
-      await page.unroute(`**/v1${path}`);
     });
+    const lostResponse = page.waitForResponse(
+      response =>
+        new URL(response.url()).pathname === `/v1${path}` &&
+        response.request().method() === 'POST' &&
+        response.status() === 503,
+    );
     await panel.getByLabel('저장할 대시보드 상태').selectOption('inactive');
     await panel.getByRole('checkbox', { name: /영향/ }).check();
     await panel.getByRole('button', { name: '대시보드 상태 저장', exact: true }).click();
+    await lostResponse;
+    await page.unroute(`**/v1${path}`);
     await expect.poll(() => mutationRequests.length).toBe(1);
     await expect(panel.getByRole('button', { name: '같은 요청으로 상태 변경 결과 확인', exact: true })).toBeVisible();
     expect((await current()).active).toBe(false);
@@ -124,7 +131,6 @@ test('Dashboard lifecycle: 영향 확인 → 응답 유실 → reload·동일 �
           },
         }),
       });
-      await page.unroute(`**/v1${path}`);
     });
     const contention = page.waitForResponse(
       response =>
@@ -134,6 +140,7 @@ test('Dashboard lifecycle: 영향 확인 → 응답 유실 → reload·동일 �
     );
     await panel.getByRole('button', { name: '같은 요청으로 상태 변경 결과 확인', exact: true }).click();
     await contention;
+    await page.unroute(`**/v1${path}`);
     await expect(panel.getByRole('button', { name: '같은 요청으로 상태 변경 결과 확인', exact: true })).toBeEnabled();
     await expect(panel.getByRole('button', { name: '대시보드 상태 저장', exact: true })).toBeDisabled();
     expect(mutationRequests).toHaveLength(2);

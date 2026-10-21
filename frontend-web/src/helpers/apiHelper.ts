@@ -77,9 +77,25 @@ const addAuthToHeaders = config => {
   return config;
 };
 
+// Keep main's correlation and timing metadata on each request (concurrent identical URLs stay independent).
+const recordApiPerformance = (config, status: number) => {
+  if (!config?.metadata || /^\/(?:v1\/)?events(?:\/|$)/.test(config.url || '')) return;
+  // Analytics remains governed by the existing persisted consent; never include private URLs or payloads.
+  if (localStorage.getItem('vanillameta_analytics_consent') !== 'true') return;
+  const duration = performance.now() - config.metadata.startTime;
+  void import('@/utils/analytics')
+    .then(({ trackTiming }) => {
+      trackTiming('api_response_time', duration, 'api_performance', `${config.method?.toUpperCase()} ${status}`);
+    })
+    .catch(() => undefined);
+};
+
 // 요청 인터셉터
 instance.interceptors.request.use(async config => {
   const newConfig = addAuthToHeaders(config);
+  newConfig.headers['X-Correlation-ID'] ||=
+    globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  newConfig.metadata = { startTime: performance.now(), correlationId: newConfig.headers['X-Correlation-ID'] };
   const socketId = getSocketId();
   if (socketId) newConfig.headers['x-socket-id'] = socketId;
   // removePendingRequest(newConfig); // 같은 요청이 갔을 경우 기존 요청 취소
@@ -109,11 +125,13 @@ const responseMessage = data => {
 // 응답 인터셉터
 instance.interceptors.response.use(
   response => {
+    recordApiPerformance(response.config, response.status);
     // removePendingRequest(response.config); // 완료된 요청 삭제
     return response;
   },
   async error => {
     const { response: errorResponse } = error;
+    recordApiPerformance(error.config, errorResponse?.status || 0);
     const message = responseMessage(errorResponse?.data);
     const requestConfig = error.config ?? errorResponse?.config;
     if (
@@ -204,27 +222,27 @@ async function resetTokenAndReattemptRequest(errorResponse) {
   return instance(errorResponse.config); // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve
 }
 
-export async function get(url, data?, config = {}) {
+export async function get(url, data?, config = {}): Promise<any> {
   return instance.get(url, { params: { ...data }, ...config });
 }
 
-export async function postForm(url, data: FormData, config = {}) {
+export async function postForm(url, data: FormData, config = {}): Promise<any> {
   return instance.post(url, data, { ...config, headers: { 'Content-Type': undefined } });
 }
 
-export async function post(url, data?, config = {}) {
+export async function post(url, data?, config = {}): Promise<any> {
   return instance.post(url, { ...data }, { ...config });
 }
 
-export async function put(url, data?, config = {}) {
+export async function put(url, data?, config = {}): Promise<any> {
   return instance.put(url, { ...data }, { ...config });
 }
 
-export async function del(url, config = {}) {
+export async function del(url, config = {}): Promise<any> {
   return instance.delete(url, { ...config });
 }
 
-export async function patch(url, data?, config = {}) {
+export async function patch(url, data?, config = {}): Promise<any> {
   return instance.patch(url, { ...data }, { ...config });
 }
 

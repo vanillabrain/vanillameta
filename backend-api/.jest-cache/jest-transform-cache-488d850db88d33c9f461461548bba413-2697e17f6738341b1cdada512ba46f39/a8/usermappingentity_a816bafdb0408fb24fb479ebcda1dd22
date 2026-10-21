@@ -1,0 +1,41 @@
+9be9f55e13d2945c2de661bfc5b97f48
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.UserMapping = void 0;
+const swagger_1 = require("@nestjs/swagger");
+const class_validator_1 = require("class-validator");
+const typeorm_1 = require("typeorm");
+const base_entity_1 = require("../../common/entities/base.entity");
+let UserMapping = class UserMapping extends base_entity_1.BaseEntity {
+};
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)(),
+    (0, swagger_1.ApiProperty)({ description: 'id' }),
+    __metadata("design:type", Number)
+], UserMapping.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, typeorm_1.Column)(),
+    (0, swagger_1.ApiProperty)({ description: '대시보드id' }),
+    __metadata("design:type", Number)
+], UserMapping.prototype, "dashboardId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    (0, swagger_1.ApiProperty)({ description: '유저id' }),
+    __metadata("design:type", Number)
+], UserMapping.prototype, "userInfoId", void 0);
+UserMapping = __decorate([
+    (0, typeorm_1.Entity)(),
+    (0, typeorm_1.Index)('IDX_USER_MAPPING_USER_INFO_ID', ['userInfoId']),
+    (0, typeorm_1.Index)('IDX_USER_MAPPING_DASHBOARD_ID', ['dashboardId'])
+], UserMapping);
+exports.UserMapping = UserMapping;

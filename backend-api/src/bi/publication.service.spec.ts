@@ -239,7 +239,9 @@ describe('UC-018 publication backend', () => {
     const first = await service.publish(DASHBOARD, ACTOR, await publishBody(preview, 0));
     const pending = await ownerPreview();
     await db.getRepository(Dashboard).update(DASHBOARD, { governed: true });
-    await expect(service.publicResult(first.publication.uuid)).rejects.toMatchObject({ status: 404 });
+    await expect(service.publicResult(first.publication.uuid)).rejects.toMatchObject({
+      status: 404,
+    });
     await expect(
       service.publish(DASHBOARD, ACTOR, await publishBody(pending, first.version)),
     ).rejects.toMatchObject({ status: 403 });

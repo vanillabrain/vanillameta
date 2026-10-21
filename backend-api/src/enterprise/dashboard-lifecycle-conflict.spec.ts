@@ -81,7 +81,10 @@ describe('Dashboard lifecycle definitive versus retryable conflicts', () => {
     const json = jest.fn(),
       status = jest.fn(() => ({ json }));
     new HttpExceptionFilter().catch(error, {
-      switchToHttp: () => ({ getResponse: () => ({ status }) }),
+      switchToHttp: () => ({
+        getRequest: () => ({}),
+        getResponse: () => ({ status, setHeader: jest.fn() }),
+      }),
     } as any);
     expect(status).toHaveBeenCalledWith(409);
     expect(json).toHaveBeenCalledWith({ success: false, code: 409, data: response });

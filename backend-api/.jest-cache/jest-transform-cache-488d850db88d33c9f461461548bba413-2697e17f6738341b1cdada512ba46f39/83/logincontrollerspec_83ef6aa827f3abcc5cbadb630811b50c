@@ -1,0 +1,51 @@
+6cdfb8d3c01abec4668438e1b247c1ba
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const typeorm_1 = require("@nestjs/typeorm");
+const login_controller_1 = require("./login.controller");
+const login_service_1 = require("./login.service");
+const auth_service_1 = require("../auth/auth.service");
+const user_entity_1 = require("../user/entities/user.entity");
+const refresh_token_entity_1 = require("../auth/entities/refresh_token.entity");
+describe('LoginController', () => {
+    let controller;
+    const mockAuthService = {
+        login: jest.fn(),
+        generateAccessToken: jest.fn(),
+        generateRefreshToken: jest.fn(),
+    };
+    const mockUserRepository = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+    };
+    const mockRefreshTokenRepository = {
+        save: jest.fn(),
+        findOne: jest.fn(),
+        delete: jest.fn(),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [login_controller_1.LoginController],
+            providers: [
+                login_service_1.LoginService,
+                {
+                    provide: auth_service_1.AuthService,
+                    useValue: mockAuthService,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(user_entity_1.User),
+                    useValue: mockUserRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(refresh_token_entity_1.RefreshToken),
+                    useValue: mockRefreshTokenRepository,
+                },
+            ],
+        }).compile();
+        controller = module.get(login_controller_1.LoginController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});
