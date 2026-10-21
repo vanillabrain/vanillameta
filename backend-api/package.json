@@ -136,7 +136,7 @@
   },
   "optionalDependencies": {
     "odbc": "^2.4.6",
-    "oracledb": "^5.5.0"
+    "oracledb": "^26.0.0"
   },
   "overrides": {
     "buffer-equal-constant-time": "$buffer-equal-constant-time"
