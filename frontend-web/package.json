@@ -144,7 +144,7 @@
     "shadcn": "^4.21.5",
     "ts-jest": "^29.0.3",
     "typescript": "5.9.3",
-    "vite": "^8.3.1",
+    "vite": "^8.3.4",
     "vite-plugin-svgr": "^5.2.0",
     "vite-tsconfig-paths": "^4.2.0",
     "vitest": "^5.0.2",
