@@ -54,9 +54,9 @@ BE type/lint/build·FE type/대상 lint/build·기존 landing5.9.3 타입/빌드
 
 ## develop 병합 후속
 
-사용자 지시에 따라 drumcap으로 develop에 통합했다. 최초19개 중 **14개 병합**, 이미 적용된 **453·457은 Dependabot이 자동 종료**, **448·458(TypeScript7)과452(Oracle26)는 보류**다. 닫힌 PR을 다시 병합하거나 중복 적용하지 않았다.
+사용자 지시에 따라 drumcap으로 develop에 통합했다. 최초19개 중 **14개 변경 통합(PR13개 MERGED·459는 로컬 병합 뒤 Dependabot의 새 head가 반영 확인으로 CLOSED)**, 기존 적용 **453·457도 자동 종료**, **448·458(TypeScript7)과452(Oracle26)는 보류**다. 닫힌 PR을 다시 병합하거나 중복 적용하지 않았다.
 
-병합 대상은445·446·450·451·454·455·456·459·460·461·462·463·464·465다. checkout/setup-node의 인접 workflow 충돌은 둘 다7로 유지했다. MySQL/mathjs·AWS/ESLint/Passport·landing cn/아이콘·Observer/Router lock 충돌은 앞서 통합한 버전을 되돌리지 않고 해결했다. 원격에 추가된 사용자 가이드 배포 이력도 병합해 보존했다. 강제 push/CI 보호 우회 옵션은 사용하지 않았다.
+통합 대상은445·446·450·451·454·455·456·459·460·461·462·463·464·465다. checkout/setup-node의 인접 workflow 충돌은 둘 다7로 유지했다. MySQL/mathjs·AWS/ESLint/Passport·landing cn/아이콘·Observer/Router lock 충돌은 앞서 통합한 버전을 되돌리지 않고 해결했다. 원격에 추가된 사용자 가이드 배포 이력도 병합해 보존했다. 강제 push/CI 보호 우회 옵션은 사용하지 않았다.
 
 ### 병합 중 발견한 오류
 
