@@ -49,3 +49,10 @@
 ## 남는 범위
 
 모든 지표/시간대/데이터 조합, 비율 합계의 전체 oracle, 조건 탐색·분포/표본 전 여정, 기본 Pivot 저장과 Studio 추가/게시, 실제 CSV 다운로드, 실휴대폰 터치, 운영 부하·운영 migration/기업 수용은 이번 검증 범위 밖이다. 기본 Pivot의 저장 도구는 코드와 실제 노출을 대조한 안내이며 이번에 대시보드 재사용까지 실행했다고 주장하지 않는다.
+
+## 온라인 배포 확인
+
+- 최초 기능·문서 커밋 `5a1eef18`의 [User Guide Actions39550656324](https://github.com/vanillabrain/vanillameta/actions/runs/39550656324)가 push로 자동 실행되어 build22초/deploy32초 성공했다. root/하위 경로 검증과 실제 게시 경로 smoke를 포함한다.
+- Ego에서 HTTPS `docs.vanillameta.net/explore`의4,810.40 예제와 `/pivot`의 주간 매출 Pivot 안내·새 캡처6개 로드·390px 페이지 넘침0을 확인했다.
+- 문서 모바일 실제 표시에서 괄호 뒤 조사와 붙은 Markdown 강제 강조 기호가 그대로 드러난 한 문장을 교정했다. 최종 배포 SHA/실행은 후속 Git/Actions 기록으로 구별한다.
+- Actions의 기존 Node20 action 강제24 실행/checkout 후처리 git128 경고는 남아 있으나 두 job의 최종 판정과 게시 경로 검사는 success다. 이 작업에서 전체 CI 경고를 해결했다고 주장하지 않는다.
