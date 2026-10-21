@@ -57,7 +57,8 @@ it.each(['expired', 'future', 'extra', 'request-extra', 'malformed', 'oversized'
   'rejects %s data and never restores a request',
   async kind => {
     const key = await reusePendingSaveKey(12),
-      v: any = value();
+      v: any = value(),
+      now = v.updatedAt;
     if (kind === 'expired') v.updatedAt -= 86400000;
     if (kind === 'future') v.updatedAt += 60001;
     if (kind === 'extra') v.preview = { sql: 'not allowed' };
@@ -65,7 +66,7 @@ it.each(['expired', 'future', 'extra', 'request-extra', 'malformed', 'oversized'
     if (kind === 'wrong-original') v.originalId = 13;
     if (kind === 'unsafe-map') v.columnMap = JSON.parse('{"__proto__":"sales"}');
     sessionStorage.setItem(key, kind === 'malformed' ? '{' : kind === 'oversized' ? 'x'.repeat(9000) : JSON.stringify(v));
-    expect(readReusePendingSave(key, 12)).toBeNull();
+    expect(readReusePendingSave(key, 12, now)).toBeNull();
     expect(sessionStorage.getItem(key)).toBeNull();
   },
 );
