@@ -6,7 +6,7 @@ Cloudflare Pages Direct Upload + GitHub Actions로 정적 가이드를 배포한
 
 워크플로우는 `.github/workflows/user-guide.yml`이다. main/develop 변경과 PR에서 빌드·링크 검사하고, **develop만 운영 배포**한다. 운영 브랜치를 바꿀 때는 업로드/배포 조건·명령의 branch와 Pages production branch를 함께 바꾼다.
 
-사용자가 지정한 운영 도메인은 `docs.vanillameta.net`이다. 현재 Pages 프로젝트·Secret·도메인 연결은 확인되지 않았으며 배포는 비활성이다. 구성 파일·로컬 검증과 실제 업로드·DNS·TLS 성공을 구분한다.
+사용자가 지정한 운영 도메인은 `docs.vanillameta.net`이다. Pages 프로젝트 `vanillameta-docs`, GitHub Secret, 운영 브랜치 `develop`과 자동 배포를 설정했다. 도메인은 활성/SSL 사용 상태이며 실제 배포·온라인 검증은 [운영 검증 기록](../testing/docs-production.md)을 따른다. 구성 파일·로컬 검증과 실제 업로드·DNS·TLS 성공을 구분한다.
 
 ## 1. Pages 프로젝트 준비
 
@@ -84,11 +84,11 @@ Pages의 이전 정상 배포로 rollback하고 직접 경로·도메인을 확�
 - [정적 경로](https://developers.cloudflare.com/pages/configuration/serving-pages/)
 - [Wrangler Action](https://github.com/cloudflare/wrangler-action)
 
-## 이번 구성 검증
+## 초기 구성 검증 (배포 전 기록)
 
 2026-10-21 develop 기준으로 actionlint 1.7.12(배포 YAML 문법·표현식, shellcheck 별도 미실행), 문서 production build, HTML 21개·내부 참조 843건 검사를 통과했다. GitHub repository 변수·Secret 이름 조회는 모두 빈 목록이었다. 계정·토큰·프로젝트·도메인·DNS가 준비되지 않아 실제 Cloudflare 업로드·HTTPS/온라인 화면 검증은 미실행이다. 배포 완료로 표시하지 않는다.
 
-## 도메인 연결 준비 확인 — 2026-10-21
+## 초기 도메인 연결 준비 확인 — 2026-10-21 (완료 전 기록)
 
 - 지정 주소: `docs.vanillameta.net`.
 - 공개 NS 조회: `vanillameta.net`은 Cloudflare 네임서버를 사용한다. 새 네임서버 이전은 필요하지 않다.
@@ -97,3 +97,14 @@ Pages의 이전 정상 배포로 rollback하고 직접 경로·도메인을 확�
 - 다음: 사용자 직접 로그인 → 대상 계정/zone 확인 → 기존 프로젝트 확인 또는 신규 준비 → Secret 설정 → 검증된 빌드 게시 → Custom domain 등록 → DNS/TLS 및 온라인 화면 검증.
 
 DNS·프로젝트·인증서 변경은 아직 수행하지 않았다. 공개 NS만으로 어느 계정이 관리하는지 또는 현재 계정에 편집권이 있는지는 판단하지 않는다.
+
+## 운영 연결 완료 — 2026-10-21
+
+- 사용자 가이드: https://docs.vanillameta.net/
+- Pages 프로젝트: `vanillameta-docs`, 운영 브랜치: `develop`.
+- CNAME: `docs` → `vanillameta-docs.pages.dev`, Cloudflare 콘솔 상태 활성/SSL 사용됨.
+- GitHub repository의 두 Secret과 프로젝트·활성화 변수를 등록했다. 토큰은 `vanillabrain` 계정의 Pages 편집만 허용하며 DNS 편집 권한은 없다. 비밀 값은 로그·문서·파일에 남기지 않았다.
+- Actions의 build·deploy 및 기본 게시 URL 확인이 성공했다. 이후 workflow는 커스텀 docs 주소의 홈·scope도 검사한다.
+- 이 설정은 가이드 정적 배포만 다루며 제품 서버·DB·다른 DNS 레코드는 변경하지 않았다.
+
+향후 정상 문서 수정은 develop 푸시 후 자동 배포된다. Secret 만료·회수 시 새 토큰을 같은 Secret 이름에 등록한다. 비활성화 변수를 false로 바꾸는 것과 이미 공개한 사이트를 내리는 것은 구별한다.
