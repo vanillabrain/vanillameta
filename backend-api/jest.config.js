@@ -1,3 +1,4 @@
+require('./scripts/typescript-api-compat.cjs');
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
@@ -5,7 +6,7 @@ module.exports = {
   testMatch: ['**/*.spec.ts'],
   transform: {
     '/node_modules/@nestjs/typeorm/.+\\.js$': '<rootDir>/test/typeorm-esm-transformer.cjs',
-    '^.+\\.(t|j)s$': 'ts-jest',
+    '^.+\\.(t|j)s$': '<rootDir>/test/ts-jest-transformer.cjs',
   },
   transformIgnorePatterns: ['/node_modules/(?!@nestjs/typeorm/)'],
   moduleFileExtensions: ['js', 'json', 'ts'],
@@ -42,6 +43,7 @@ module.exports = {
   // 글로벌 설정
   globals: {
     'ts-jest': {
+      compiler: 'typescript-api',
       tsconfig: {
         allowJs: true,
         esModuleInterop: true,
@@ -50,12 +52,7 @@ module.exports = {
     },
   },
   // 무시할 패턴
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '/dist/',
-    '/coverage/',
-    '/test/fixtures/',
-  ],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/coverage/', '/test/fixtures/'],
   // 커버리지 임계값
   coverageThreshold: {
     global: {

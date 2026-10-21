@@ -1,3 +1,4 @@
+require('./scripts/typescript-api-compat.cjs');
 // 빠른 테스트 실행을 위한 Jest 설정
 module.exports = {
   preset: 'ts-jest',
@@ -15,9 +16,12 @@ module.exports = {
   ],
   transform: {
     '/node_modules/@nestjs/typeorm/.+\\.js$': '<rootDir>/test/typeorm-esm-transformer.cjs',
-    '^.+\\.(t|j)s$': ['ts-jest', {
-      isolatedModules: true, // 타입 체크 비활성화로 속도 향상
-    }],
+    '^.+\\.(t|j)s$': [
+      'ts-jest',
+      {
+        isolatedModules: true, // 타입 체크 비활성화로 속도 향상
+      },
+    ],
   },
   transformIgnorePatterns: ['/node_modules/(?!@nestjs/typeorm/)'],
   moduleFileExtensions: ['js', 'json', 'ts'],
@@ -53,6 +57,7 @@ module.exports = {
   // 글로벌 설정
   globals: {
     'ts-jest': {
+      compiler: 'typescript-api',
       tsconfig: {
         allowJs: true,
         esModuleInterop: true,

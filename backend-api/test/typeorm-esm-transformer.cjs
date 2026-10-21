@@ -1,6 +1,6 @@
 // Jest 28 executes tests as CommonJS. Transform only the ESM-only TypeORM adapter;
 // application TypeScript keeps its existing ts-jest type checking.
-const ts = require('typescript');
+const ts = require('typescript-api');
 const { createHash } = require('crypto');
 const { readFileSync } = require('fs');
 module.exports = {

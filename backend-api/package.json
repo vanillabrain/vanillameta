@@ -7,32 +7,32 @@
   "license": "UNLICENSED",
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "nest build",
+    "build": "tsc --noEmit && node --require ./scripts/typescript-api-compat.cjs ./node_modules/@nestjs/cli/bin/nest.js build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start --watch",
-    "start:dev": "cross-env NODE_ENV=dev nest start --watch",
-    "start:local": "cross-env NODE_ENV=local nest start --watch",
-    "start:debug": "nest start --debug --watch",
+    "start": "node --require ./scripts/typescript-api-compat.cjs ./node_modules/@nestjs/cli/bin/nest.js start --watch",
+    "start:dev": "cross-env NODE_ENV=dev node --require ./scripts/typescript-api-compat.cjs ./node_modules/@nestjs/cli/bin/nest.js start --watch",
+    "start:local": "cross-env NODE_ENV=local node --require ./scripts/typescript-api-compat.cjs ./node_modules/@nestjs/cli/bin/nest.js start --watch",
+    "start:debug": "node --require ./scripts/typescript-api-compat.cjs ./node_modules/@nestjs/cli/bin/nest.js start --debug --watch",
     "start:prod": "cross-env NODE_ENV=prod node dist/src/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest --config package.json",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:debug": "node --inspect-brk --require ./scripts/typescript-api-compat.cjs -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:fast": "jest --config jest.config.fast.js",
     "test:unit": "jest --testPathPattern='controller\\.spec\\.ts$|service\\.spec\\.ts$' --testTimeout=30000",
     "test:integration": "jest --testPathPattern='integration\\.spec\\.ts$'",
     "deploy": "serverless deploy --stage prod",
-    "seed": "cross-env NODE_ENV=local ts-node -r tsconfig-paths/register src/database/run-seed.ts",
+    "seed": "cross-env NODE_ENV=local node --require ./scripts/typescript-api-compat.cjs -r ts-node/register -r tsconfig-paths/register src/database/run-seed.ts",
     "deploy:dev": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod",
     "yolo": "./scripts/yolo-mode.sh",
     "quick": "./scripts/quick-check.sh",
-    "test:baseline": "yarn test:unit && echo '✅ 모든 베이스라인 테스트 통과!'",
+    "test:baseline": "yarn test:unit && echo '\u2705 \ubaa8\ub4e0 \ubca0\uc774\uc2a4\ub77c\uc778 \ud14c\uc2a4\ud2b8 \ud1b5\uacfc!'",
     "monitor:lambda": "node scripts/monitor-lambda-performance.js",
     "monitor:performance": "node scripts/monitor-lambda-performance.js",
-    "test:slow-query": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register src/test-slow-query.ts",
+    "test:slow-query": "cross-env NODE_ENV=dev node --require ./scripts/typescript-api-compat.cjs -r ts-node/register -r tsconfig-paths/register src/test-slow-query.ts",
     "deploy:dashboard:dev": "./scripts/deploy-cloudwatch-dashboard.sh dev",
     "deploy:dashboard:prod": "./scripts/deploy-cloudwatch-dashboard.sh prod",
     "test:performance": "jest --testPathPattern='performance.*\\.spec\\.ts$' --testTimeout=60000",
@@ -44,10 +44,11 @@
     "k6:stress": "k6 run test/performance/k6/stress-test.js",
     "k6:cloud": "k6 cloud test/performance/k6/load-test.js",
     "performance:all": "yarn test:performance && yarn artillery:run && yarn k6:load",
-    "migration:run": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
-    "migration:revert": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
-    "migration:generate": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
-    "test:legacy": "jest --config jest.config.js"
+    "migration:run": "node --require ./scripts/typescript-api-compat.cjs -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
+    "migration:revert": "node --require ./scripts/typescript-api-compat.cjs -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
+    "migration:generate": "node --require ./scripts/typescript-api-compat.cjs -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
+    "test:legacy": "jest --config jest.config.js",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/provider": "^4.0.26",
@@ -177,7 +178,8 @@
     "ts-node": "^10.0.0",
     "tsconfig-paths": "4.1.0",
     "typeorm-extension": "^2.8.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-api": "npm:typescript@5.9.3"
   },
   "jest": {
     "moduleFileExtensions": [
@@ -195,7 +197,7 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "/node_modules/@nestjs/typeorm/.+\\.js$": "<rootDir>/test/typeorm-esm-transformer.cjs",
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": "<rootDir>/test/ts-jest-transformer.cjs"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
@@ -208,7 +210,12 @@
     ],
     "transformIgnorePatterns": [
       "/node_modules/(?!@nestjs/typeorm/)"
-    ]
+    ],
+    "globals": {
+      "ts-jest": {
+        "compiler": "typescript-api"
+      }
+    }
   },
   "engines": {
     "node": ">=24.11.0 <25"

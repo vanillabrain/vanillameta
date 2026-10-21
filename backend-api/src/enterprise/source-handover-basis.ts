@@ -292,7 +292,9 @@ export async function inspectSourceHandover(
       [PersonalView, 'sourceId'],
       [ExploreView, 'sourceId'],
     ] as const) {
-      const count = await manager.count(entity as any, { where: { [field]: source.id } });
+      const count = await manager.count<{ databaseId?: number; sourceId?: number }>(entity, {
+        where: { [field]: source.id },
+      });
       uses.push(count);
       if (count) {
         if (entity !== Dataset || !bundle) blockers.add('source_in_use');

@@ -569,7 +569,12 @@ export class DuckDBService implements OnModuleDestroy {
       const worker = existsSync(compiled)
         ? new Worker(compiled)
         : new Worker(path.join(__dirname, 'duckdb.worker.ts'), {
-            execArgv: ['-r', require.resolve('ts-node/register/transpile-only')],
+            execArgv: [
+              '-r',
+              path.join(__dirname, '../../scripts/typescript-api-compat.cjs'),
+              '-r',
+              require.resolve('ts-node/register/transpile-only'),
+            ],
           });
       this.worker = worker;
       worker.on('message', async message => {
