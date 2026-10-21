@@ -14,10 +14,9 @@
     "isolatedModules": true,
     "strict": false,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
-      "@/components/ui/*": ["../frontend-web/src/components/ui/*"],
-      "@/lib/utils": ["../frontend-web/src/lib/utils"]
+      "@/components/ui/*": ["./../frontend-web/src/components/ui/*"],
+      "@/lib/utils": ["./../frontend-web/src/lib/utils"]
     }
   },
   "include": ["src", "vite.config.ts"]
