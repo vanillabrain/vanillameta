@@ -89,6 +89,7 @@ jobs:
       - name: Check published routes
         env:
           DOCS_URL: ${{ steps.cloudflare.outputs.deployment-url }}
+          CUSTOM_DOCS_URL: https://docs.vanillameta.net
         shell: bash
         run: |
           test -n "$DOCS_URL" || { echo "::error::Deployment URL was not returned"; exit 1; }
@@ -96,3 +97,7 @@ jobs:
           curl --fail --silent --show-error --retry 3 --retry-delay 3 --retry-all-errors "${DOCS_URL%/}/scope" --output /tmp/docs-scope.html
           grep -q 'VanillaMeta' /tmp/docs-home.html
           grep -q '지원 범위와 문서 기준' /tmp/docs-scope.html
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 --retry-all-errors "$CUSTOM_DOCS_URL/" --output /tmp/docs-custom-home.html
+          curl --fail --silent --show-error --retry 3 --retry-delay 3 --retry-all-errors "$CUSTOM_DOCS_URL/scope" --output /tmp/docs-custom-scope.html
+          grep -q 'VanillaMeta' /tmp/docs-custom-home.html
+          grep -q '지원 범위와 문서 기준' /tmp/docs-custom-scope.html

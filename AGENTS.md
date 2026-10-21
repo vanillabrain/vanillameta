@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **가이드 운영 배포:** https://docs.vanillameta.net/ · Cloudflare Pages `vanillameta-docs`/production `develop`, Actions 자동 배포 활성. [운영 안내](docs/operations/user-guide-cloudflare.md)·[온라인 검증](docs/testing/docs-production.md)을 따른다. 토큰은 GitHub Secret만 사용하고 문서·로그에 기록하지 않는다.
+
 - **상세 사용자 문서:** VitePress [전체 목차](docs/user-manual/site/contents.md)·[실행 안내](docs/user-manual/README.md#상세-문서-사이트). `npm run docs:dev/build/preview`, 독립 의존성은 `docs/user-manual`이다. 사이트 소스는 `site/`만 사용하며 내부 설계·검증 문서를 검색/HTML에 넣지 않는다. 빠른 시작·캡처 모음은 원문 include를 유지하고 실제 제품 실행과 코드 대조·문서 사이트 검증을 구분한다.
 
 - **사용자 가이드 실제 검증:** [가이드](docs/user-manual/README.md)·[Ego123 증빙](docs/testing/user-guide-ego.md)은 합성 데이터 연결→실제 AI 생성/수정→저장/게시/익명 링크·직원 열람과 대표 모바일을 확인한다. 조회 화면은 저장 revision만 보내는 `/ai/dashboard-view`를 사용하며 edit preview로 되돌리지 않는다. 소스 read는 직원 전달 전에 필요하다. 실기기/운영/전체 수용은 별도다.
