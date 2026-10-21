@@ -1,3 +1,4 @@
+import { installCatalogActorFixture } from '../../test/util/catalog-actor-fixture';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
@@ -11,6 +12,7 @@ import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { ConnectionService } from '../connection/connection.service';
 import { Database } from '../database/entities/database.entity';
 import { Metric } from '../metric/entities/metric.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { BiExploreService } from './bi-explore.service';
 import { sortPivotRows } from './bi-explore-sort';
@@ -245,22 +247,24 @@ describe('BiExploreService pivot over real DuckDB', () => {
         metrics.find(candidate => candidate.id === where.id),
       ),
     };
-    const db = {
+    const db: any = {
       options: { type: 'sqlite' },
       getRepository: jest.fn((entity: any) => {
         if (entity === Database) return databaseRepo;
         if (entity === Metric) return metricRepo;
+        if (entity === SourceCatalogEntry) return { findOne: async () => null };
         throw new Error('unexpected repository');
       }),
     };
     Object.assign(databaseRepo, { manager: { connection: db } });
     const connection = new ConnectionService(databaseRepo, {} as any, worker);
+    installCatalogActorFixture(db, actor);
     const bi = new BiService(db as any, new SourceAccessService(db as any), connection, {
       save: jest.fn(),
     } as any);
     service = new BiExploreService(
       bi,
-      new AiDashboardService({} as any, connection, {} as any),
+      new AiDashboardService({} as any, connection, { manager: db.manager } as any),
       connection,
     );
   });

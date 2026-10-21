@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import DataGrid, { DataGridWrapper } from '@/components/datagrid';
-import _ from 'lodash';
+import { throttle } from 'lodash-es';
 
 const TableBoard = props => {
   const { option, dataSet } = props;
@@ -31,7 +31,7 @@ const TableBoard = props => {
     };
   }, []);
 
-  const throttleResize = _.throttle(entries => {
+  const throttleResize = throttle(entries => {
     entries?.forEach(entry => {
       setResizeObserver(entry.contentRect);
     });

@@ -169,6 +169,20 @@ describe('source ownership boundary', () => {
         ),
       ).rejects.toThrow();
   });
+  it('guards the saved view as dashboard read without trusting a submitted source', async () => {
+    const read = jest.spyOn(access, 'dashboard').mockResolvedValue(undefined);
+    await expect(
+      guard.canActivate(request('AiController', 'dashboardView', { body: { dashboardId: 51 } })),
+    ).resolves.toBe(true);
+    expect(read).toHaveBeenCalledWith(51, 8, 'read');
+  });
+  it('rejects a saved view without a valid dashboard ID', async () => {
+    await expect(
+      guard.canActivate(
+        request('AiController', 'dashboardView', { body: { draft: { databaseId: 1 } } }),
+      ),
+    ).rejects.toThrow();
+  });
   it('checks actual datasets and AI draft sources', async () => {
     await expect(
       guard.canActivate(

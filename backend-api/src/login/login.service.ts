@@ -55,7 +55,7 @@ export class LoginService {
     const { userId, password } = loginDto;
     const findUser = await this.authService.validateUser(userId, password); // 요저의 존재여부 확인
     if (!findUser) {
-      throw new UnauthorizedException(`Unauthorized`);
+      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     }
     return findUser;
   }

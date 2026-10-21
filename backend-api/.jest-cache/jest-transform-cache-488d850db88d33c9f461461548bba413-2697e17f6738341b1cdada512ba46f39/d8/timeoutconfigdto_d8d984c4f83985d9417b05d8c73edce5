@@ -1,0 +1,134 @@
+48fb9cd5521c2ed587d66b05d93b52e8
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TimeoutUpdateDto = exports.AdaptiveTimeoutConfigDto = exports.TimeoutConfigDto = exports.DatabaseEngine = exports.QueryComplexity = void 0;
+const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+var QueryComplexity;
+(function (QueryComplexity) {
+    QueryComplexity["SIMPLE"] = "simple";
+    QueryComplexity["MEDIUM"] = "medium";
+    QueryComplexity["COMPLEX"] = "complex";
+    QueryComplexity["BATCH"] = "batch";
+})(QueryComplexity = exports.QueryComplexity || (exports.QueryComplexity = {}));
+var DatabaseEngine;
+(function (DatabaseEngine) {
+    DatabaseEngine["MYSQL"] = "mysql2";
+    DatabaseEngine["POSTGRESQL"] = "pg";
+    DatabaseEngine["SQLITE"] = "sqlite3";
+    DatabaseEngine["MSSQL"] = "mssql";
+    DatabaseEngine["ORACLE"] = "oracledb";
+    DatabaseEngine["BIGQUERY"] = "bigquery";
+    DatabaseEngine["SNOWFLAKE"] = "snowflake";
+    DatabaseEngine["COCKROACHDB"] = "cockroachdb";
+})(DatabaseEngine = exports.DatabaseEngine || (exports.DatabaseEngine = {}));
+class TimeoutConfigDto {
+    constructor() {
+        this.isDefault = false;
+    }
+}
+__decorate([
+    (0, class_validator_1.IsEnum)(DatabaseEngine),
+    __metadata("design:type", String)
+], TimeoutConfigDto.prototype, "engine", void 0);
+__decorate([
+    (0, class_validator_1.IsEnum)(QueryComplexity),
+    __metadata("design:type", String)
+], TimeoutConfigDto.prototype, "complexity", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(1000),
+    (0, class_validator_1.Max)(300000),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], TimeoutConfigDto.prototype, "timeoutMs", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TimeoutConfigDto.prototype, "description", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], TimeoutConfigDto.prototype, "isDefault", void 0);
+exports.TimeoutConfigDto = TimeoutConfigDto;
+class AdaptiveTimeoutConfigDto {
+    constructor() {
+        this.enableAdaptive = true;
+    }
+}
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], AdaptiveTimeoutConfigDto.prototype, "databaseId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AdaptiveTimeoutConfigDto.prototype, "query", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(1000),
+    (0, class_validator_1.Max)(300000),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], AdaptiveTimeoutConfigDto.prototype, "requestedTimeoutMs", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], AdaptiveTimeoutConfigDto.prototype, "enableAdaptive", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], AdaptiveTimeoutConfigDto.prototype, "historicalExecutionTimes", void 0);
+exports.AdaptiveTimeoutConfigDto = AdaptiveTimeoutConfigDto;
+class TimeoutUpdateDto {
+}
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(1000),
+    (0, class_validator_1.Max)(300000),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], TimeoutUpdateDto.prototype, "defaultTimeoutMs", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(1000),
+    (0, class_validator_1.Max)(600000),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], TimeoutUpdateDto.prototype, "batchTimeoutMs", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(1.1),
+    (0, class_validator_1.Max)(5.0),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], TimeoutUpdateDto.prototype, "complexityMultiplier", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], TimeoutUpdateDto.prototype, "enableAdaptiveTimeout", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], TimeoutUpdateDto.prototype, "enableTimeoutMonitoring", void 0);
+exports.TimeoutUpdateDto = TimeoutUpdateDto;

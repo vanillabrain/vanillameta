@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
 import { RefreshToken } from './entites/refresh_token.entity';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { hashPassword, verifyPassword } from '../utils/password.util';
 import { serializeMetadataWork, metadataTransaction } from '../common/metadata-work';
 import { randomBytes } from 'crypto';
@@ -17,13 +18,20 @@ export class AuthService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
   ) {}
 
-  async generateAccessToken(payload: any) {
-    const accessKeyData = {
+  async generateAccessToken(payload: JwtPayload): Promise<string> {
+    const accessKeyData: JwtPayload = {
       userId: payload.userId,
       email: payload.email,
       id: payload.id,
       authVersion: payload.authVersion ?? 0,
     };
+
+    // 디버깅용 로그
+    console.log('Environment variables:', {
+      ACCESS_SECRET: process.env.ACCESS_SECRET ? 'EXISTS' : 'MISSING',
+      NODE_ENV: process.env.NODE_ENV,
+    });
+
     const accessToken = await this.jwtService.sign(
       { accessKeyData },
       {
@@ -32,7 +40,6 @@ export class AuthService {
       },
     );
     return accessToken;
-    // accesstoken이 없을때
   }
 
   async generateUrlAccessToken(payload: { dashboardId: number; uuid: string }) {
@@ -44,7 +51,6 @@ export class AuthService {
       },
     );
     return accessToken;
-    // accesstoken이 없을때
   }
 
   async readUrlAccessToken(token: string): Promise<any | null> {
@@ -73,7 +79,6 @@ export class AuthService {
       },
     );
     return refreshToken;
-    // accesstoken이 없을때
   }
 
   async setRefreshKey(refreshToken: string, _previousJwtId: number, userId: number) {

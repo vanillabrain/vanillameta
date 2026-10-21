@@ -1,3 +1,4 @@
+import { safeRouteTemplate } from '../common/utils/safe-route-template';
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 
@@ -22,7 +23,7 @@ export class RequestLoggingInterceptor implements NestInterceptor {
         level: 'info',
         msg: 'request',
         method: req.method,
-        url: req.originalUrl,
+        url: safeRouteTemplate(req),
         status: statusCode,
         durationMs,
         userId,

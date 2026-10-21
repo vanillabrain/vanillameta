@@ -1,0 +1,145 @@
+f16234a2a39a49e8db4fb5dd2f3a5968
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BatchController = void 0;
+const common_1 = require("@nestjs/common");
+const batch_service_1 = require("./batch.service");
+const create_batch_job_dto_1 = require("./dto/create-batch-job.dto");
+const batch_job_response_dto_1 = require("./dto/batch-job-response.dto");
+const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const get_user_decorator_1 = require("../auth/decorators/get-user.decorator");
+const swagger_1 = require("@nestjs/swagger");
+let BatchController = class BatchController {
+    constructor(batchService) {
+        this.batchService = batchService;
+    }
+    async createBatchJob(createBatchJobDto, user) {
+        const batchJob = await this.batchService.createBatchJob(createBatchJobDto, user.sub);
+        return new batch_job_response_dto_1.BatchJobResponseDto(Object.assign(Object.assign({}, batchJob), { progress: batchJob.progress, estimatedTimeRemaining: batchJob.estimatedTimeRemaining }));
+    }
+    async findAllBatchJobs(user) {
+        const batchJobs = await this.batchService.findAll(user.sub);
+        return batchJobs.map(job => new batch_job_response_dto_1.BatchJobResponseDto(Object.assign(Object.assign({}, job), { progress: job.progress, estimatedTimeRemaining: job.estimatedTimeRemaining })));
+    }
+    async findOneBatchJob(id) {
+        const batchJob = await this.batchService.findOne(id);
+        return new batch_job_response_dto_1.BatchJobResponseDto(Object.assign(Object.assign({}, batchJob), { progress: batchJob.progress, estimatedTimeRemaining: batchJob.estimatedTimeRemaining }));
+    }
+    async findBatchChunks(id) {
+        const batchJob = await this.batchService.findOne(id);
+        return batchJob.chunks.map(chunk => new batch_job_response_dto_1.BatchChunkResponseDto(Object.assign(Object.assign({}, chunk), { progress: chunk.progress, processingTime: chunk.processingTime })));
+    }
+    async restartBatchJob(id, user) {
+        const batchJob = await this.batchService.restartBatchJob(id, user.sub);
+        return new batch_job_response_dto_1.BatchJobResponseDto(Object.assign(Object.assign({}, batchJob), { progress: batchJob.progress, estimatedTimeRemaining: batchJob.estimatedTimeRemaining }));
+    }
+    async cancelBatchJob(id, user) {
+        const batchJob = await this.batchService.cancelBatchJob(id, user.sub);
+        return new batch_job_response_dto_1.BatchJobResponseDto(Object.assign(Object.assign({}, batchJob), { progress: batchJob.progress, estimatedTimeRemaining: batchJob.estimatedTimeRemaining }));
+    }
+};
+__decorate([
+    (0, common_1.Post)('jobs'),
+    (0, swagger_1.ApiOperation)({ summary: '배치 작업 생성' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.CREATED,
+        description: '배치 작업이 생성되었습니다.',
+        type: batch_job_response_dto_1.BatchJobResponseDto,
+    }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, get_user_decorator_1.GetUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [create_batch_job_dto_1.CreateBatchJobDto, Object]),
+    __metadata("design:returntype", Promise)
+], BatchController.prototype, "createBatchJob", null);
+__decorate([
+    (0, common_1.Get)('jobs'),
+    (0, swagger_1.ApiOperation)({ summary: '배치 작업 목록 조회' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.OK,
+        description: '배치 작업 목록',
+        type: [batch_job_response_dto_1.BatchJobResponseDto],
+    }),
+    __param(0, (0, get_user_decorator_1.GetUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], BatchController.prototype, "findAllBatchJobs", null);
+__decorate([
+    (0, common_1.Get)('jobs/:id'),
+    (0, swagger_1.ApiOperation)({ summary: '배치 작업 상세 조회' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: '배치 작업 ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.OK,
+        description: '배치 작업 상세 정보',
+        type: batch_job_response_dto_1.BatchJobResponseDto,
+    }),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
+], BatchController.prototype, "findOneBatchJob", null);
+__decorate([
+    (0, common_1.Get)('jobs/:id/chunks'),
+    (0, swagger_1.ApiOperation)({ summary: '배치 작업의 청크 목록 조회' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: '배치 작업 ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.OK,
+        description: '배치 청크 목록',
+        type: [batch_job_response_dto_1.BatchChunkResponseDto],
+    }),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
+], BatchController.prototype, "findBatchChunks", null);
+__decorate([
+    (0, common_1.Post)('jobs/:id/restart'),
+    (0, swagger_1.ApiOperation)({ summary: '배치 작업 재시작' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: '배치 작업 ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.OK,
+        description: '배치 작업이 재시작되었습니다.',
+        type: batch_job_response_dto_1.BatchJobResponseDto,
+    }),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, get_user_decorator_1.GetUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:returntype", Promise)
+], BatchController.prototype, "restartBatchJob", null);
+__decorate([
+    (0, common_1.Post)('jobs/:id/cancel'),
+    (0, swagger_1.ApiOperation)({ summary: '배치 작업 취소' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: '배치 작업 ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.OK,
+        description: '배치 작업이 취소되었습니다.',
+        type: batch_job_response_dto_1.BatchJobResponseDto,
+    }),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, get_user_decorator_1.GetUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:returntype", Promise)
+], BatchController.prototype, "cancelBatchJob", null);
+BatchController = __decorate([
+    (0, swagger_1.ApiTags)('batch'),
+    (0, common_1.Controller)('batch'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    __metadata("design:paramtypes", [batch_service_1.BatchService])
+], BatchController);
+exports.BatchController = BatchController;

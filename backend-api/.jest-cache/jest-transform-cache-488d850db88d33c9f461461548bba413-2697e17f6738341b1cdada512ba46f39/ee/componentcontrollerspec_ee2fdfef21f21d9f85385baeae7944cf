@@ -1,0 +1,38 @@
+46b617c8a472500214b6648d3c56b0d2
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const typeorm_1 = require("@nestjs/typeorm");
+const component_controller_1 = require("./component.controller");
+const component_service_1 = require("./component.service");
+const component_entity_1 = require("./entities/component.entity");
+describe('ComponentController', () => {
+    let controller;
+    const mockComponentRepository = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+        find: jest.fn(),
+        delete: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            getRawMany: jest.fn(),
+        }),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [component_controller_1.ComponentController],
+            providers: [
+                component_service_1.ComponentService,
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(component_entity_1.Component),
+                    useValue: mockComponentRepository,
+                },
+            ],
+        }).compile();
+        controller = module.get(component_controller_1.ComponentController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});

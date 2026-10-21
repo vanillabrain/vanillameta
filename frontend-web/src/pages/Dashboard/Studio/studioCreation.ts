@@ -179,6 +179,8 @@ export const creationError = (cause: unknown, context: 'file' | 'generation' = '
     return '파일을 읽지 못했습니다. CSV·JSON·Parquet 형식과 파일 손상 여부를 확인한 뒤 다시 선택해 주세요.';
   const body = (cause as any)?.response?.data;
   const detail = body?.data ?? body;
+  if (status === 400 && detail?.message === 'chart component unavailable')
+    return '서버의 기본 차트 설정이 준비되지 않았습니다. 관리자에게 초기 설정을 확인해 달라고 요청해 주세요. 설정 후 같은 저장 요청 확인으로 다시 시도할 수 있습니다.';
   if (status === 400 && ['STUDIO_COMMERCE_UNIT_MISMATCH', 'STUDIO_UNIT_MISMATCH'].includes(detail?.code)) {
     const currency = detail.currency === 'KRW' ? 'KRW(소수 0자리)' : detail.currency === 'USD' ? 'USD' : '소스 통화';
     return (

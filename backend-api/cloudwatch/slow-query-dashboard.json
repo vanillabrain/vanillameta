@@ -1,0 +1,142 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "VanillaMeta/dev/Database", "SlowQueryCount", { "stat": "Sum", "period": 300 } ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "슬로우 쿼리 발생 횟수",
+        "period": 300
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "VanillaMeta/dev/Database", "SlowQueryExecutionTime", { "stat": "Average", "period": 300 } ],
+          [ "...", { "stat": "Maximum", "period": 300 } ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "슬로우 쿼리 실행 시간 (ms)",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "VanillaMeta/dev/Database", "SlowQueryBySeverity", { "stat": "Sum", "period": 300 }, { "id": "m1" } ],
+          [ "...", { "stat": "Sum", "period": 300 }, { "id": "m2" } ],
+          [ "...", { "stat": "Sum", "period": 300 }, { "id": "m3" } ],
+          [ "...", { "stat": "Sum", "period": 300 }, { "id": "m4" } ]
+        ],
+        "view": "pie",
+        "region": "us-east-1",
+        "title": "심각도별 슬로우 쿼리 분포",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "VanillaMeta/dev/Database", "SlowQueryByDatabase", "DatabaseEngine", "mysql2", { "stat": "Sum", "period": 300 } ],
+          [ "...", "pg", { "stat": "Sum", "period": 300 } ],
+          [ "...", "mssql", { "stat": "Sum", "period": 300 } ],
+          [ "...", "oracledb", { "stat": "Sum", "period": 300 } ]
+        ],
+        "view": "bar",
+        "stacked": true,
+        "region": "us-east-1",
+        "title": "데이터베이스 엔진별 슬로우 쿼리",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "log",
+      "x": 0,
+      "y": 12,
+      "width": 24,
+      "height": 6,
+      "properties": {
+        "query": "SOURCE '/aws/lambda/vanillameta-backend-api-dev'\n| fields @timestamp, @message\n| filter @message like /Slow query detected/\n| stats count() by bin(5m)",
+        "region": "us-east-1",
+        "title": "슬로우 쿼리 로그 (5분 단위)",
+        "queryType": "Logs"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ { "expression": "SEARCH(' {VanillaMeta/dev/Database, Severity} MetricName=\"SlowQueryBySeverity\" Severity=\"CRITICAL\" ', 'Sum', 300)", "id": "e1", "label": "Critical", "color": "#d62728" } ],
+          [ { "expression": "SEARCH(' {VanillaMeta/dev/Database, Severity} MetricName=\"SlowQueryBySeverity\" Severity=\"HIGH\" ', 'Sum', 300)", "id": "e2", "label": "High", "color": "#ff7f0e" } ],
+          [ { "expression": "SEARCH(' {VanillaMeta/dev/Database, Severity} MetricName=\"SlowQueryBySeverity\" Severity=\"MEDIUM\" ', 'Sum', 300)", "id": "e3", "label": "Medium", "color": "#ffbb78" } ],
+          [ { "expression": "SEARCH(' {VanillaMeta/dev/Database, Severity} MetricName=\"SlowQueryBySeverity\" Severity=\"LOW\" ', 'Sum', 300)", "id": "e4", "label": "Low", "color": "#2ca02c" } ]
+        ],
+        "view": "timeSeries",
+        "stacked": true,
+        "region": "us-east-1",
+        "title": "시간대별 심각도 트렌드",
+        "period": 300
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "VanillaMeta/dev/Database", "SlowQueryExecutionTimeByDatabase", "DatabaseEngine", "mysql2", { "stat": "Average" } ],
+          [ "...", "pg", { "stat": "Average" } ],
+          [ "...", "mssql", { "stat": "Average" } ],
+          [ "...", "oracledb", { "stat": "Average" } ]
+        ],
+        "view": "number",
+        "region": "us-east-1",
+        "title": "데이터베이스별 평균 실행 시간",
+        "period": 300,
+        "stat": "Average"
+      }
+    }
+  ]
+}

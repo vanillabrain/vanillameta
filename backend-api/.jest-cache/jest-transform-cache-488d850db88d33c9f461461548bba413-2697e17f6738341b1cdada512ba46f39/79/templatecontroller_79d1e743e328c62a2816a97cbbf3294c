@@ -1,0 +1,310 @@
+2f571411cd24e0a4cc5f315fb01d7030
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TemplateController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const template_service_1 = require("./template.service");
+const create_template_dto_1 = require("./dto/create-template.dto");
+const update_template_dto_1 = require("./dto/update-template.dto");
+const jwt_auth_guard_1 = require("src/auth/guards/jwt-auth.guard");
+let TemplateController = class TemplateController {
+    constructor(templateService) {
+        this.templateService = templateService;
+    }
+    create(createTemplateDto) {
+        return this.templateService.create(createTemplateDto);
+    }
+    findAll() {
+        return this.templateService.findAll();
+    }
+    async findOne(res, id) {
+        return await this.templateService.findOne(id);
+    }
+    update(id, updateTemplateDto) {
+        return this.templateService.update(+id, updateTemplateDto);
+    }
+    remove(id) {
+        return this.templateService.remove(+id);
+    }
+    findRecommendAll(body) {
+        return this.templateService.findRecommendTemplates(body.widgets);
+    }
+    getTemplateDashboardLayout(data) {
+        return this.templateService.getTemplateDashboardLayout(data.widgets, data.templateId);
+    }
+};
+__decorate([
+    (0, common_1.Post)(),
+    (0, swagger_1.ApiOperation)({
+        summary: '템플릿 생성',
+        description: '새로운 대시보드 템플릿을 생성합니다. 템플릿은 위젯 배치와 레이아웃 정보를 포함합니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 201,
+        description: '템플릿이 성공적으로 생성되었습니다.',
+        type: create_template_dto_1.CreateTemplateDto,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 400,
+        description: '잘못된 요청 데이터입니다.',
+    }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [create_template_dto_1.CreateTemplateDto]),
+    __metadata("design:returntype", void 0)
+], TemplateController.prototype, "create", null);
+__decorate([
+    (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({
+        summary: '템플릿 목록 조회',
+        description: '사용 가능한 모든 대시보드 템플릿 목록을 조회합니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '템플릿 목록이 반환되었습니다.',
+        type: [create_template_dto_1.CreateTemplateDto],
+    }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], TemplateController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '템플릿 상세 조회',
+        description: '특정 템플릿의 상세 정보를 조회합니다. 레이아웃과 위젯 배치 정보를 포함합니다.',
+    }),
+    (0, swagger_1.ApiParam)({
+        name: 'id',
+        description: '템플릿 ID',
+        type: Number,
+        example: 1,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '템플릿 정보가 반환되었습니다.',
+        type: create_template_dto_1.CreateTemplateDto,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 404,
+        description: '템플릿을 찾을 수 없습니다.',
+    }),
+    __param(0, (0, common_1.Res)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", Promise)
+], TemplateController.prototype, "findOne", null);
+__decorate([
+    (0, common_1.Put)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '템플릿 수정',
+        description: '기존 템플릿의 정보를 수정합니다. 템플릿 이름, 설명, 레이아웃 등을 변경할 수 있습니다.',
+    }),
+    (0, swagger_1.ApiParam)({
+        name: 'id',
+        description: '템플릿 ID',
+        type: Number,
+        example: 1,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '템플릿이 성공적으로 수정되었습니다.',
+        type: update_template_dto_1.UpdateTemplateDto,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 404,
+        description: '템플릿을 찾을 수 없습니다.',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, update_template_dto_1.UpdateTemplateDto]),
+    __metadata("design:returntype", void 0)
+], TemplateController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '템플릿 삭제',
+        description: '템플릿을 삭제합니다. 실제 삭제가 아닌 사용여부를 N으로 변경합니다 (논리적 삭제).',
+    }),
+    (0, swagger_1.ApiParam)({
+        name: 'id',
+        description: '템플릿 ID',
+        type: Number,
+        example: 1,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '템플릿이 성공적으로 삭제되었습니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 404,
+        description: '템플릿을 찾을 수 없습니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 409,
+        description: '사용 중인 템플릿은 삭제할 수 없습니다.',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TemplateController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)('/recommend'),
+    (0, swagger_1.ApiOperation)({
+        summary: '템플릿 추천 목록 조회',
+        description: '제공된 위젯 목록을 기반으로 적합한 템플릿을 추천합니다. AI 기반 매칭 알고리즘을 사용합니다.',
+    }),
+    (0, swagger_1.ApiBody)({
+        description: '위젯 목록',
+        schema: {
+            type: 'object',
+            properties: {
+                widgets: {
+                    type: 'array',
+                    description: '분석할 위젯 ID 목록',
+                    items: { type: 'number' },
+                    example: [1, 2, 3, 4],
+                },
+            },
+            required: ['widgets'],
+        },
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '추천 템플릿 목록이 반환되었습니다.',
+        schema: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: { type: 'number', description: '템플릿 ID' },
+                    name: { type: 'string', description: '템플릿 이름' },
+                    description: { type: 'string', description: '템플릿 설명' },
+                    matchScore: { type: 'number', description: '매칭 점수 (0-100)', example: 85.5 },
+                    matchingWidgets: {
+                        type: 'array',
+                        description: '매칭된 위젯 ID 목록',
+                        items: { type: 'number' },
+                    },
+                },
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 400,
+        description: '잘못된 위젯 목록입니다.',
+    }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TemplateController.prototype, "findRecommendAll", null);
+__decorate([
+    (0, common_1.Post)('/dashboard'),
+    (0, swagger_1.ApiOperation)({
+        summary: '템플릿 기반 대시보드 레이아웃 생성',
+        description: '선택된 템플릿과 위젯 목록을 기반으로 최적화된 대시보드 레이아웃을 생성합니다. 위젯 위치와 크기가 자동으로 계산됩니다.',
+    }),
+    (0, swagger_1.ApiBody)({
+        description: '템플릿 ID와 위젯 목록',
+        schema: {
+            type: 'object',
+            properties: {
+                templateId: {
+                    type: 'number',
+                    description: '사용할 템플릿 ID',
+                    example: 1,
+                },
+                widgets: {
+                    type: 'array',
+                    description: '배치할 위젯 목록',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'number', description: '위젯 ID' },
+                            type: { type: 'string', description: '위젯 타입' },
+                            priority: { type: 'number', description: '우선순위 (옵션)' },
+                        },
+                    },
+                    example: [
+                        { id: 1, type: 'line' },
+                        { id: 2, type: 'bar' },
+                        { id: 3, type: 'pie' },
+                    ],
+                },
+            },
+            required: ['templateId', 'widgets'],
+        },
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '대시보드 레이아웃이 생성되었습니다.',
+        schema: {
+            type: 'object',
+            properties: {
+                layout: {
+                    type: 'array',
+                    description: 'React Grid Layout 형식의 레이아웃 배열',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            i: { type: 'string', description: '위젯 ID' },
+                            x: { type: 'number', description: 'X 좌표' },
+                            y: { type: 'number', description: 'Y 좌표' },
+                            w: { type: 'number', description: '너비' },
+                            h: { type: 'number', description: '높이' },
+                            minW: { type: 'number', description: '최소 너비' },
+                            minH: { type: 'number', description: '최소 높이' },
+                        },
+                    },
+                },
+                templateInfo: {
+                    type: 'object',
+                    description: '사용된 템플릿 정보',
+                    properties: {
+                        id: { type: 'number' },
+                        name: { type: 'string' },
+                        cols: { type: 'number', description: '그리드 열 수' },
+                        rowHeight: { type: 'number', description: '행 높이' },
+                    },
+                },
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 400,
+        description: '잘못된 템플릿 ID 또는 위젯 목록입니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 404,
+        description: '템플릿을 찾을 수 없습니다.',
+    }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TemplateController.prototype, "getTemplateDashboardLayout", null);
+TemplateController = __decorate([
+    (0, swagger_1.ApiTags)('템플릿'),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Controller)('template'),
+    __metadata("design:paramtypes", [template_service_1.TemplateService])
+], TemplateController);
+exports.TemplateController = TemplateController;

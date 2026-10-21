@@ -136,9 +136,10 @@ export class TemplateService {
         layout.push(itemInfo);
       });
       returnObj.layout = layout;
+      return { status: ResponseStatus.SUCCESS, data: returnObj };
+    } else {
+      return { status: ResponseStatus.ERROR, message: `${id} 템플릿이 존재하지 않습니다.` };
     }
-
-    return { status: ResponseStatus.SUCCESS, data: returnObj };
   }
 
   /**

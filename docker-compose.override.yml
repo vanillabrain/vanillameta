@@ -1,0 +1,58 @@
+version: '3.8'
+
+# 개발 환경용 오버라이드 설정
+services:
+  # Redis 개발 설정
+  redis:
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --loglevel debug
+
+  # 백엔드 개발 설정
+  backend:
+    build:
+      context: ./backend-api
+      dockerfile: Dockerfile.dev
+    volumes:
+      # 소스 코드 마운트 (핫 리로드)
+      - ./backend-api/src:/app/src
+      - ./backend-api/test:/app/test
+      - ./backend-api/package.json:/app/package.json
+      - ./backend-api/tsconfig.json:/app/tsconfig.json
+      - ./backend-api/nest-cli.json:/app/nest-cli.json
+      # node_modules는 제외
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DEBUG=*
+    command: ["yarn", "start:dev"]
+
+  # 프론트엔드 개발 설정
+  frontend:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3000"
+    volumes:
+      # 소스 코드 마운트 (핫 리로드)
+      - ./frontend-web/src:/app/src
+      - ./frontend-web/public:/app/public
+      - ./frontend-web/package.json:/app/package.json
+      - ./frontend-web/tsconfig.json:/app/tsconfig.json
+      - ./frontend-web/craco.config.js:/app/craco.config.js
+      # node_modules는 제외
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+    command: ["yarn", "start"]
+
+  # Nginx 개발 설정
+  nginx:
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - nginx_logs:/var/log/nginx
+      # 개발 환경에서는 에러 페이지 커스터마이징
+      - ./nginx/error-pages:/usr/share/nginx/html:ro

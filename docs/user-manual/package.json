@@ -1,0 +1,23 @@
+{
+  "name": "vanillameta-user-guide",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "predev": "node scripts/prepare-assets.mjs",
+    "prebuild": "node scripts/prepare-assets.mjs",
+    "check": "python3 scripts/check-build.py"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  },
+  "engines": {
+    "node": ">=24.11.0 <25"
+  },
+  "overrides": {
+    "vite": "6.4.4"
+  }
+}
