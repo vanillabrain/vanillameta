@@ -1595,8 +1595,14 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
           canUndo: canEdit && !!state.past.length,
           canRedo: canEdit && !!state.future.length,
           count: state.past.length,
-          onUndo: () => dispatch({ type: 'undo' }),
-          onRedo: () => dispatch({ type: 'redo' }),
+          onUndo: () => {
+            setMessage('');
+            dispatch({ type: 'undo' });
+          },
+          onRedo: () => {
+            setMessage('');
+            dispatch({ type: 'redo' });
+          },
         }}
         product={product}
         conversation={

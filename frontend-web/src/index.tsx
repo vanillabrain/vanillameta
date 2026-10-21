@@ -1,6 +1,10 @@
+import { register as registerServiceWorker } from './serviceWorkerRegistration';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { ThemeProvider } from '@mui/material/styles';
+import legacyTheme from '@/theme/theme';
+import { PerformanceProvider } from '@/contexts/PerformanceContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { BrowserRouter } from 'react-router-dom';
 import { LayoutProvider } from '@/contexts/LayoutContext';
@@ -11,6 +15,11 @@ import { HelmetProvider } from 'react-helmet-async';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@/i18n';
 import './index.css';
+import { initializeEventTracking } from '@/utils/eventTracking';
+import reportWebVitals from './reportWebVitals';
+
+initializeEventTracking();
+reportWebVitals(() => undefined);
 
 const queryClient = new QueryClient();
 
@@ -34,7 +43,11 @@ const app = (
             <AuthProvider>
               <TooltipProvider>
                 <AlertProvider>
-                  <App />
+                  <ThemeProvider theme={legacyTheme}>
+                    <PerformanceProvider>
+                      <App />
+                    </PerformanceProvider>
+                  </ThemeProvider>
                 </AlertProvider>
               </TooltipProvider>
             </AuthProvider>
@@ -50,3 +63,5 @@ if (rootElement.hasChildNodes()) {
 } else {
   ReactDOM.createRoot(rootElement).render(app);
 }
+
+registerServiceWorker();

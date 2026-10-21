@@ -1,0 +1,63 @@
+c98fc3656772fc56209ec43082ad983b
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const typeorm_1 = require("@nestjs/typeorm");
+const share_url_controller_1 = require("./share-url.controller");
+const share_url_service_1 = require("./share-url.service");
+const user_entity_1 = require("../user/entities/user.entity");
+const dashboard_entity_1 = require("../dashboard/entities/dashboard.entity");
+const dashboard_share_entity_1 = require("../dashboard/entities/dashboard_share.entity");
+const auth_service_1 = require("../auth/auth.service");
+const dashboard_service_1 = require("../dashboard/dashboard.service");
+describe('ShareUrlController', () => {
+    let controller;
+    const mockUserRepository = {
+        findOne: jest.fn(),
+    };
+    const mockDashboardRepository = {
+        findOne: jest.fn(),
+    };
+    const mockDashboardShareRepository = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+    };
+    const mockAuthService = {
+        generateUrlAccessToken: jest.fn(),
+    };
+    const mockDashboardService = {
+        findOne: jest.fn(),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [share_url_controller_1.ShareUrlController],
+            providers: [
+                share_url_service_1.ShareUrlService,
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(user_entity_1.User),
+                    useValue: mockUserRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(dashboard_entity_1.Dashboard),
+                    useValue: mockDashboardRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(dashboard_share_entity_1.DashboardShare),
+                    useValue: mockDashboardShareRepository,
+                },
+                {
+                    provide: auth_service_1.AuthService,
+                    useValue: mockAuthService,
+                },
+                {
+                    provide: dashboard_service_1.DashboardService,
+                    useValue: mockDashboardService,
+                },
+            ],
+        }).compile();
+        controller = module.get(share_url_controller_1.ShareUrlController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});

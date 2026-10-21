@@ -1,0 +1,86 @@
+{
+  "app": {
+    "name": "VanillaMeta",
+    "title": "VanillaMeta - Business Intelligence Platform",
+    "description": "The easiest way to create data visualizations without code"
+  },
+  "actions": {
+    "create": "Create",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "refresh": "Refresh",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "add": "Add",
+    "remove": "Remove",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close",
+    "select": "Select",
+    "selectAll": "Select All",
+    "clear": "Clear",
+    "apply": "Apply"
+  },
+  "status": {
+    "loading": "Loading...",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Information",
+    "active": "Active",
+    "inactive": "Inactive",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
+  },
+  "messages": {
+    "confirmDelete": "Are you sure you want to delete?",
+    "deleteSuccess": "Successfully deleted.",
+    "saveSuccess": "Successfully saved.",
+    "createSuccess": "Successfully created.",
+    "updateSuccess": "Successfully updated.",
+    "error": "An error occurred.",
+    "noData": "No data available.",
+    "required": "This field is required.",
+    "invalidFormat": "Invalid format."
+  },
+  "navigation": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "data": "Data",
+    "database": "Database",
+    "dataset": "Dataset",
+    "widget": "Widget",
+    "settings": "Settings",
+    "help": "Help",
+    "profile": "Profile",
+    "logout": "Logout"
+  },
+  "table": {
+    "no": "No",
+    "name": "Name",
+    "description": "Description",
+    "createdAt": "Created At",
+    "updatedAt": "Updated At",
+    "createdBy": "Created By",
+    "updatedBy": "Updated By",
+    "actions": "Actions",
+    "total": "Total",
+    "selected": "Selected"
+  },
+  "validation": {
+    "required": "{{field}} is required.",
+    "minLength": "{{field}} must be at least {{min}} characters.",
+    "maxLength": "{{field}} must be no more than {{max}} characters.",
+    "email": "Invalid email format.",
+    "number": "Only numbers are allowed.",
+    "pattern": "Invalid format."
+  }
+}

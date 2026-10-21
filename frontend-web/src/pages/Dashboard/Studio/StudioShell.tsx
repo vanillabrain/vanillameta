@@ -1,5 +1,5 @@
 import { NativeSelect } from '@/components/ui/native-select';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Notice as Alert } from '@/components/ui/notice';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
@@ -61,6 +61,19 @@ export default function StudioShell({
 }: Props) {
   const start = !product && stage === 'start';
   const compact = !useMinWidth(900);
+  const undoButton = useRef<HTMLButtonElement>(null);
+  const redoButton = useRef<HTMLButtonElement>(null);
+  const historyAction = useRef<'undo' | 'redo' | null>(null);
+  useEffect(() => {
+    const action = historyAction.current;
+    historyAction.current = null;
+    if (!action) return;
+    const origin = action === 'undo' ? undoButton.current : redoButton.current;
+    // A native button loses focus when the last available history step disables it.
+    if (document.activeElement !== origin && document.activeElement !== document.body) return;
+    if (action === 'undo' && !history.canUndo && history.canRedo) redoButton.current?.focus();
+    if (action === 'redo' && !history.canRedo && history.canUndo) undoButton.current?.focus();
+  }, [history.canUndo, history.canRedo]);
   const panelContent = (
     <aside className="studio-panel" aria-label="Studio 보조 패널">
       <div className="studio-panel-tabs" role="group" aria-label="패널 선택">
@@ -172,10 +185,28 @@ export default function StudioShell({
         </div>
         <div className="studio-header-actions">
           <span className="studio-draft">{product ? product.save.status : '시안 · 저장되지 않음'}</span>
-          <Button variant="outline" size="sm" disabled={!history.canUndo} onClick={history.onUndo}>
+          <Button
+            ref={undoButton}
+            variant="outline"
+            size="sm"
+            disabled={!history.canUndo}
+            onClick={() => {
+              historyAction.current = 'undo';
+              history.onUndo();
+            }}
+          >
             되돌리기
           </Button>
-          <Button variant="outline" size="sm" disabled={!history.canRedo} onClick={history.onRedo}>
+          <Button
+            ref={redoButton}
+            variant="outline"
+            size="sm"
+            disabled={!history.canRedo}
+            onClick={() => {
+              historyAction.current = 'redo';
+              history.onRedo();
+            }}
+          >
             다시 실행
           </Button>
           <span

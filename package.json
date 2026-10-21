@@ -23,7 +23,10 @@
     "test:api": "npm --prefix backend-api run test --",
     "test:web": "npm --prefix frontend-web run test",
     "seed": "npm --prefix backend-api run seed",
-    "prepare": "husky"
+    "prepare": "husky",
+    "docs:dev": "npm --prefix docs/user-manual run dev --",
+    "docs:build": "npm --prefix docs/user-manual run build --",
+    "docs:preview": "npm --prefix docs/user-manual run preview --"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

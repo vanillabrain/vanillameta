@@ -229,4 +229,49 @@ describe('DashboardService actual transaction fixture', () => {
       service.update(42, { layout: [{ i: '20', x: 0, y: 0, w: 6, h: 3 }] } as any, 7),
     ).rejects.toMatchObject({ status: 403 });
   });
+  it('runs main cache/event hooks after ownership and mappings commit', async () => {
+    const invalidate = jest.fn(async () => {
+      expect(db.createQueryRunner().isTransactionActive).toBe(false);
+      expect(await db.manager.count(DashboardShare)).toBe(1);
+    });
+    const emit = jest.fn();
+    Object.assign(service as any, {
+      dashboardCacheService: { invalidateUserDashboardList: invalidate },
+      eventEmitter: { emit },
+    });
+    const result = await service.create({ title: 'Committed', layout: [] } as any, 7);
+    expect(invalidate).toHaveBeenCalledWith(7);
+    expect(emit).toHaveBeenCalledWith(
+      'dashboard.created',
+      expect.objectContaining({ dashboardId: result.data.id, userId: 7 }),
+    );
+  });
+
+  it('does not invalidate main caches or emit created events for rolled-back core writes', async () => {
+    const invalidate = jest.fn(),
+      emit = jest.fn();
+    Object.assign(service as any, {
+      dashboardCacheService: { invalidateUserDashboardList: invalidate },
+      eventEmitter: { emit },
+    });
+    jest.spyOn(links, 'create').mockRejectedValueOnce(new Error('synthetic link failure'));
+    await expect(service.create({ title: 'Rollback', layout: [] } as any, 7)).rejects.toThrow(
+      'synthetic link failure',
+    );
+    expect(await db.manager.count(DashboardShare)).toBe(0);
+    expect(await db.manager.countBy(Dashboard, { title: 'Rollback' })).toBe(0);
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
+  });
+  it('warms the main dashboard cache only through an authorized current owner read', async () => {
+    const cacheDashboard = jest.fn().mockResolvedValue(undefined);
+    Object.assign(service as any, { dashboardCacheService: { cacheDashboard } });
+    await expect(service.findOne(42, 8)).rejects.toMatchObject({ status: 403 });
+    expect(cacheDashboard).not.toHaveBeenCalled();
+    await service.findOne(42, 7);
+    const [dashboard, widgets, share] = cacheDashboard.mock.calls[0];
+    expect(dashboard.id).toBe(42);
+    expect(Array.isArray(widgets)).toBe(true);
+    expect(share).toBeNull();
+  });
 });

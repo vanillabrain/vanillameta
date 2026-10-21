@@ -1338,6 +1338,49 @@ export class AiDashboardService {
       message: 'AI 결과를 검증하지 못했습니다. 요청을 구체적으로 작성해 다시 시도해 주세요.',
     };
   }
+  /** Read-only consumer: accept display scope, never a client-authored query or source. */
+  async viewSaved(body: any, actor: number, authVersion: number) {
+    const allowed = [
+      'dashboardId',
+      'expectedRevision',
+      'includeTrends',
+      'trendGrain',
+      'comparePrevious',
+      'filters',
+      'dateRange',
+      'conditions',
+    ];
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Array.isArray(body) ||
+      Object.keys(body).some(key => !allowed.includes(key)) ||
+      !Number.isSafeInteger(body.dashboardId) ||
+      body.dashboardId <= 0 ||
+      typeof body.expectedRevision !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(body.expectedRevision)
+    )
+      throw new BadRequestException('저장된 분석의 조회 기준을 확인해 주세요.');
+    const { dashboardId, expectedRevision, ...options } = body;
+    const readSaved = async () => {
+      const { data } = await this.analysis(dashboardId, actor, true, 'read');
+      if (data.revision !== expectedRevision)
+        throw new ConflictException('저장 내용이 변경되었습니다. 대시보드를 다시 불러와 주세요.');
+      return data;
+    };
+    const draft = await readSaved();
+    const authority = await catalogActorContext(this.dashboards.manager, actor, authVersion);
+    const result = await this.preview(
+      { ...options, dashboardId, draft },
+      actor,
+      'read',
+      authVersion,
+    );
+    await readSaved();
+    await assertCatalogActor(this.dashboards.manager, authority);
+    return result;
+  }
+
   /** UC-051: an existing dashboard preview needs the explicit edit action; callers may pass read/publish. */
   async preview(
     body: any,

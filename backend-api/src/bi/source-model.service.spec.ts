@@ -13,6 +13,8 @@ import { DuckDBService } from '../analysis/duckdb.service';
 import { DatabaseService } from '../database/database.service';
 import { Database } from '../database/entities/database.entity';
 import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
 import { Metric } from '../metric/entities/metric.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { BiService } from './bi.service';
@@ -51,7 +53,14 @@ describe('owned source lookup preview and atomic snapshot receipts', () => {
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: [Database, User, Metric, SourceModelReceipt],
+      entities: [
+        Database,
+        User,
+        Metric,
+        SourceModelReceipt,
+        EnterpriseMembership,
+        SourceCatalogEntry,
+      ],
       synchronize: true,
     }).initialize();
     await db.manager.save(User, {

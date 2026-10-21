@@ -1,3 +1,4 @@
+import { trackDashboardEvent, trackWidgetEvent } from '@/utils/eventTracking';
 import React, { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -298,6 +299,7 @@ function DashboardModify() {
                 DashboardService.updateDashboard(dashboardId, dashboardInfo)
                   .then(response => {
                     if (response.data.status === 'SUCCESS') {
+                      trackDashboardEvent.edited(String(dashboardId), ['title', 'layout', 'widgets']);
                       navigate('/dashboard/' + dashboardId, { replace: true });
                       snackbar.success(t('dashboardModify.modified'));
                     } else {
@@ -323,6 +325,16 @@ function DashboardModify() {
                 DashboardService.createDashboard(dashboardInfo)
                   .then(response => {
                     if (response.data.status === 'SUCCESS') {
+                      const id = response.data.data?.id;
+                      if (id != null) {
+                        trackDashboardEvent.created(
+                          String(id),
+                          searchParams.get('createType') === 'recommend' ? 'recommend' : 'blank',
+                        );
+                        widgets.forEach(widget =>
+                          trackWidgetEvent.created(String(widget.id), String(widget.componentType), String(id)),
+                        );
+                      }
                       navigate('/dashboard');
                       snackbar.success(t('dashboardModify.created'));
                     } else {

@@ -55,6 +55,8 @@ const WidgetViewer = props => {
     selectedTimeRange,
     onContributionSelect,
     contributionDisabled,
+    isLoading = false,
+    isStreaming = false,
   } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
@@ -78,6 +80,8 @@ const WidgetViewer = props => {
     selectedTimeRange,
     onContributionSelect,
     contributionDisabled,
+    isLoading,
+    isStreaming,
   ]);
 
   const renderWidget = () => {
@@ -95,8 +99,10 @@ const WidgetViewer = props => {
       selectedTimeRange,
       onContributionSelect,
       contributionDisabled,
+      isLoading,
+      isStreaming,
     };
-    showLoading();
+    if (!isStreaming) showLoading();
     switch (widgetType) {
       case WIDGET_TYPE.BOARD_NUMERIC:
         module = <NumericBoard {...chartProps} />;

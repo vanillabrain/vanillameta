@@ -428,3 +428,40 @@ it.each(['게시하지 말아 줘', '게시 준비해 줘 그리고 제목 바�
     expect((screen.getByLabelText('AI에게 요청할 내용') as HTMLTextAreaElement).value).toBe(question);
   },
 );
+
+it.each(['clarify', 'unsupported', 'ask'] as const)(
+  'UC052 keeps a question requiring follow-up while clearing a completed answer: %s',
+  async intent => {
+    let execution: any;
+    api.post.mockImplementation(async (_url, body) => {
+      execution = {
+        ...partial(),
+        requestId: body.requestId,
+        status: 'succeeded',
+        saveResult: undefined,
+        steps: [{ stepId: 'applyDraft', status: 'succeeded', retryable: false }],
+      };
+      return { data: execution };
+    });
+    render(<StudioConversation {...defaultProps} context={context} />);
+    const question = '존재하지 않는 열의 조건을 확인해 줘';
+    fireEvent.change(screen.getByLabelText('AI에게 요청할 내용'), { target: { value: question } });
+    await chat.options.transport.sendMessages({ messages: [{ role: 'user', parts: [{ type: 'text', text: question }] }] });
+    await act(async () => {
+      chat.options.onFinish({
+        message: {
+          metadata: {
+            result: { execution, result: { intent, answer: '사용할 열을 확인해 주세요.', proposedOperations: [] } },
+          },
+        },
+        isAbort: false,
+        isError: false,
+      });
+    });
+    expect((screen.getByLabelText('AI에게 요청할 내용') as HTMLTextAreaElement).value).toBe(
+      intent === 'ask' ? '' : question,
+    );
+    expect(defaultProps.onApply).not.toHaveBeenCalled();
+    expect(defaultProps.onSaved).not.toHaveBeenCalled();
+  },
+);

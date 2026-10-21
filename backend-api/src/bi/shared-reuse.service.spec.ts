@@ -339,15 +339,13 @@ describe('UC021 shared dashboard reuse SQLite graph', () => {
   it('closes old share/publication recipes and already issued preview tickets after organization policy', async () => {
     await origins.grant(originalId, OWNER, { allowReuse: true });
     const analysis = (await dashboards.analysis(originalId, OWNER, true)).data;
-    await db
-      .getRepository(DashboardPublication)
-      .update(
-        { dashboardId: originalId },
-        {
-          active: true,
-          reuseDefinition: buildReuseRecipe(analysis, await profileOf(originalSourceId, OWNER)),
-        },
-      );
+    await db.getRepository(DashboardPublication).update(
+      { dashboardId: originalId },
+      {
+        active: true,
+        reuseDefinition: buildReuseRecipe(analysis, await profileOf(originalSourceId, OWNER)),
+      },
+    );
     const shared = await flow('share');
     const published = await flow('publication');
     const before = await counts();

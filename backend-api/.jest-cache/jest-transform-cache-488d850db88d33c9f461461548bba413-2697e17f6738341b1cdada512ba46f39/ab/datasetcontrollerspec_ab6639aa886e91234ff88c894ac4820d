@@ -1,0 +1,55 @@
+1a1ce2e3993466436c0acc7312c823b2
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const typeorm_1 = require("@nestjs/typeorm");
+const dataset_controller_1 = require("./dataset.controller");
+const dataset_service_1 = require("./dataset.service");
+const dataset_entity_1 = require("./entities/dataset.entity");
+const widget_entity_1 = require("../widget/entities/widget.entity");
+const connection_service_1 = require("../connection/connection.service");
+describe('DatasetController', () => {
+    let controller;
+    const mockDatasetRepository = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+        find: jest.fn(),
+        delete: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnThis(),
+            getMany: jest.fn(),
+        }),
+    };
+    const mockWidgetRepository = {
+        findOne: jest.fn(),
+        find: jest.fn(),
+    };
+    const mockConnectionService = {
+        execute: jest.fn(),
+        testConnection: jest.fn(),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [dataset_controller_1.DatasetController],
+            providers: [
+                dataset_service_1.DatasetService,
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(dataset_entity_1.Dataset),
+                    useValue: mockDatasetRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(widget_entity_1.Widget),
+                    useValue: mockWidgetRepository,
+                },
+                {
+                    provide: connection_service_1.ConnectionService,
+                    useValue: mockConnectionService,
+                },
+            ],
+        }).compile();
+        controller = module.get(dataset_controller_1.DatasetController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});

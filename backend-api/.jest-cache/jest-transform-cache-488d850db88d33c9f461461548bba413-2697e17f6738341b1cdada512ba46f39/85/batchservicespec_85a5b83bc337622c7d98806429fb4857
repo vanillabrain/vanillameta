@@ -1,0 +1,323 @@
+57d951e14b2ff53fe59d06240c636626
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const batch_service_1 = require("./batch.service");
+const typeorm_1 = require("typeorm");
+const typeorm_2 = require("@nestjs/typeorm");
+const batch_job_entity_1 = require("./entities/batch-job.entity");
+const batch_chunk_entity_1 = require("./entities/batch-chunk.entity");
+const dataset_service_1 = require("../dataset/dataset.service");
+const widget_service_1 = require("../widget/widget.service");
+const connection_service_1 = require("../connection/connection.service");
+const logger_service_1 = require("../common/logger/logger.service");
+const common_1 = require("@nestjs/common");
+describe('BatchService', () => {
+    let service;
+    let batchJobRepository;
+    let batchChunkRepository;
+    let datasetService;
+    let connectionService;
+    let dataSource;
+    const mockBatchJobRepository = {
+        create: jest.fn(),
+        save: jest.fn(),
+        findOne: jest.fn(),
+        find: jest.fn(),
+        update: jest.fn(),
+    };
+    const mockBatchChunkRepository = {
+        save: jest.fn(),
+        find: jest.fn(),
+        count: jest.fn(),
+        update: jest.fn(),
+    };
+    const mockDatasetService = {
+        findOne: jest.fn(),
+    };
+    const mockWidgetService = {};
+    const mockConnectionService = {
+        getKnex: jest.fn(),
+    };
+    const mockLoggerService = {
+        log: jest.fn(),
+        error: jest.fn(),
+        warn: jest.fn(),
+        debug: jest.fn(),
+    };
+    const mockDataSource = {
+        transaction: jest.fn(),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            providers: [
+                batch_service_1.BatchService,
+                {
+                    provide: (0, typeorm_2.getRepositoryToken)(batch_job_entity_1.BatchJob),
+                    useValue: mockBatchJobRepository,
+                },
+                {
+                    provide: (0, typeorm_2.getRepositoryToken)(batch_chunk_entity_1.BatchChunk),
+                    useValue: mockBatchChunkRepository,
+                },
+                {
+                    provide: dataset_service_1.DatasetService,
+                    useValue: mockDatasetService,
+                },
+                {
+                    provide: widget_service_1.WidgetService,
+                    useValue: mockWidgetService,
+                },
+                {
+                    provide: connection_service_1.ConnectionService,
+                    useValue: mockConnectionService,
+                },
+                {
+                    provide: logger_service_1.CustomLoggerService,
+                    useValue: mockLoggerService,
+                },
+                {
+                    provide: typeorm_1.DataSource,
+                    useValue: mockDataSource,
+                },
+            ],
+        }).compile();
+        service = module.get(batch_service_1.BatchService);
+        batchJobRepository = module.get((0, typeorm_2.getRepositoryToken)(batch_job_entity_1.BatchJob));
+        batchChunkRepository = module.get((0, typeorm_2.getRepositoryToken)(batch_chunk_entity_1.BatchChunk));
+        datasetService = module.get(dataset_service_1.DatasetService);
+        connectionService = module.get(connection_service_1.ConnectionService);
+        dataSource = module.get(typeorm_1.DataSource);
+    });
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+    describe('createBatchJob', () => {
+        it('데이터셋 쿼리 타입의 배치 작업을 생성해야 함', async () => {
+            const createDto = {
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                datasetId: 1,
+                chunkSize: 1000,
+            };
+            const userId = 'test-user';
+            const mockBatchJob = {
+                id: 1,
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                status: batch_job_entity_1.BatchJobStatus.PENDING,
+                chunkSize: 1000,
+                datasetId: 1,
+                createdBy: userId,
+            };
+            mockBatchJobRepository.create.mockReturnValue(mockBatchJob);
+            mockBatchJobRepository.save.mockResolvedValue(mockBatchJob);
+            const result = await service.createBatchJob(createDto, userId);
+            expect(result).toEqual(mockBatchJob);
+            expect(mockBatchJobRepository.create).toHaveBeenCalledWith({
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                chunkSize: 1000,
+                datasetId: 1,
+                widgetId: undefined,
+                config: undefined,
+                metadata: undefined,
+                createdBy: userId,
+                status: batch_job_entity_1.BatchJobStatus.PENDING,
+            });
+        });
+        it('데이터셋 쿼리 타입에서 datasetId가 없으면 에러를 발생시켜야 함', async () => {
+            const createDto = {
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                chunkSize: 1000,
+            };
+            await expect(service.createBatchJob(createDto, 'test-user')).rejects.toThrow(common_1.BadRequestException);
+        });
+        it('위젯 데이터 타입에서 widgetId가 없으면 에러를 발생시켜야 함', async () => {
+            const createDto = {
+                type: batch_job_entity_1.BatchJobType.WIDGET_DATA,
+                chunkSize: 1000,
+            };
+            await expect(service.createBatchJob(createDto, 'test-user')).rejects.toThrow(common_1.BadRequestException);
+        });
+        it('기본 청크 크기는 1000이어야 함', async () => {
+            const createDto = {
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                datasetId: 1,
+            };
+            const mockBatchJob = {
+                id: 1,
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                chunkSize: 1000,
+            };
+            mockBatchJobRepository.create.mockReturnValue(mockBatchJob);
+            mockBatchJobRepository.save.mockResolvedValue(mockBatchJob);
+            const result = await service.createBatchJob(createDto, 'test-user');
+            expect(result.chunkSize).toBe(1000);
+        });
+    });
+    describe('findOne', () => {
+        it('존재하는 배치 작업을 반환해야 함', async () => {
+            const mockBatchJob = {
+                id: 1,
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                status: batch_job_entity_1.BatchJobStatus.PROCESSING,
+                chunks: [],
+            };
+            mockBatchJobRepository.findOne.mockResolvedValue(mockBatchJob);
+            const result = await service.findOne(1);
+            expect(result).toEqual(mockBatchJob);
+            expect(mockBatchJobRepository.findOne).toHaveBeenCalledWith({
+                where: { id: 1 },
+                relations: ['chunks'],
+            });
+        });
+        it('존재하지 않는 배치 작업 조회 시 NotFoundException을 발생시켜야 함', async () => {
+            mockBatchJobRepository.findOne.mockResolvedValue(null);
+            await expect(service.findOne(999)).rejects.toThrow(common_1.NotFoundException);
+        });
+    });
+    describe('findAll', () => {
+        it('사용자의 모든 배치 작업을 반환해야 함', async () => {
+            const userId = 'test-user';
+            const mockBatchJobs = [
+                { id: 1, createdBy: userId },
+                { id: 2, createdBy: userId },
+            ];
+            mockBatchJobRepository.find.mockResolvedValue(mockBatchJobs);
+            const result = await service.findAll(userId);
+            expect(result).toEqual(mockBatchJobs);
+            expect(mockBatchJobRepository.find).toHaveBeenCalledWith({
+                where: { createdBy: userId },
+                order: { createdAt: 'DESC' },
+                take: 50,
+            });
+        });
+    });
+    describe('restartBatchJob', () => {
+        it('실패한 배치 작업을 재시작해야 함', async () => {
+            const userId = 'test-user';
+            const mockBatchJob = {
+                id: 1,
+                status: batch_job_entity_1.BatchJobStatus.FAILED,
+                createdBy: userId,
+                chunks: [],
+            };
+            mockBatchJobRepository.findOne.mockResolvedValue(mockBatchJob);
+            mockBatchChunkRepository.update.mockResolvedValue({});
+            mockBatchJobRepository.update.mockResolvedValue({});
+            const result = await service.restartBatchJob(1, userId);
+            expect(mockBatchChunkRepository.update).toHaveBeenCalledWith({
+                batchJobId: 1,
+                status: batch_chunk_entity_1.BatchChunkStatus.FAILED,
+            }, {
+                status: batch_chunk_entity_1.BatchChunkStatus.PENDING,
+                retryCount: 0,
+                errorMessage: null,
+                errorDetails: null,
+            });
+        });
+        it('다른 사용자의 배치 작업은 재시작할 수 없어야 함', async () => {
+            const mockBatchJob = {
+                id: 1,
+                status: batch_job_entity_1.BatchJobStatus.FAILED,
+                createdBy: 'other-user',
+            };
+            mockBatchJobRepository.findOne.mockResolvedValue(mockBatchJob);
+            await expect(service.restartBatchJob(1, 'test-user')).rejects.toThrow(common_1.BadRequestException);
+        });
+        it('처리 중이 아닌 작업만 재시작할 수 있어야 함', async () => {
+            const mockBatchJob = {
+                id: 1,
+                status: batch_job_entity_1.BatchJobStatus.PROCESSING,
+                createdBy: 'test-user',
+            };
+            mockBatchJobRepository.findOne.mockResolvedValue(mockBatchJob);
+            await expect(service.restartBatchJob(1, 'test-user')).rejects.toThrow(common_1.BadRequestException);
+        });
+    });
+    describe('cancelBatchJob', () => {
+        it('처리 중인 배치 작업을 취소해야 함', async () => {
+            const userId = 'test-user';
+            const mockBatchJob = {
+                id: 1,
+                status: batch_job_entity_1.BatchJobStatus.PROCESSING,
+                createdBy: userId,
+                chunks: [],
+            };
+            mockBatchJobRepository.findOne.mockResolvedValue(mockBatchJob);
+            mockBatchChunkRepository.update.mockResolvedValue({});
+            mockBatchJobRepository.update.mockResolvedValue({});
+            const result = await service.cancelBatchJob(1, userId);
+            expect(mockBatchChunkRepository.update).toHaveBeenCalled();
+            expect(mockBatchJobRepository.update).toHaveBeenCalledWith(1, {
+                status: batch_job_entity_1.BatchJobStatus.CANCELLED,
+                completedAt: expect.any(Date),
+            });
+        });
+        it('완료된 작업은 취소할 수 없어야 함', async () => {
+            const mockBatchJob = {
+                id: 1,
+                status: batch_job_entity_1.BatchJobStatus.COMPLETED,
+                createdBy: 'test-user',
+            };
+            mockBatchJobRepository.findOne.mockResolvedValue(mockBatchJob);
+            await expect(service.cancelBatchJob(1, 'test-user')).rejects.toThrow(common_1.BadRequestException);
+        });
+    });
+    describe('청크 처리 로직', () => {
+        it('청크가 올바른 크기로 분할되어야 함', async () => {
+            const totalRecords = 10000;
+            const chunkSize = 1000;
+            const expectedChunks = 10;
+            // 실제 구현에서는 private 메서드이므로,
+            // createBatchJob를 통해 간접적으로 테스트
+            const createDto = {
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                datasetId: 1,
+                chunkSize: chunkSize,
+            };
+            const mockBatchJob = {
+                id: 1,
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                chunkSize: chunkSize,
+                datasetId: 1,
+            };
+            mockBatchJobRepository.create.mockReturnValue(mockBatchJob);
+            mockBatchJobRepository.save.mockResolvedValue(mockBatchJob);
+            await service.createBatchJob(createDto, 'test-user');
+            // initializeBatchJob이 비동기로 실행되므로 직접 테스트하기 어려움
+            // 대신 청크 생성 로직의 수학적 정확성을 검증
+            expect(Math.ceil(totalRecords / chunkSize)).toBe(expectedChunks);
+        });
+    });
+    describe('진행률 계산', () => {
+        it('배치 작업의 진행률이 올바르게 계산되어야 함', () => {
+            const batchJob = new batch_job_entity_1.BatchJob();
+            batchJob.totalRecords = 1000;
+            batchJob.processedRecords = 750;
+            expect(batchJob.progress).toBe(75);
+        });
+        it('레코드가 없을 때 진행률은 0이어야 함', () => {
+            const batchJob = new batch_job_entity_1.BatchJob();
+            batchJob.totalRecords = 0;
+            batchJob.processedRecords = 0;
+            expect(batchJob.progress).toBe(0);
+        });
+    });
+    describe('예상 남은 시간 계산', () => {
+        it('예상 남은 시간이 올바르게 계산되어야 함', () => {
+            const batchJob = new batch_job_entity_1.BatchJob();
+            batchJob.totalRecords = 1000;
+            batchJob.processedRecords = 500;
+            batchJob.startedAt = new Date(Date.now() - 5000); // 5초 전 시작
+            const estimatedTime = batchJob.estimatedTimeRemaining;
+            // 500개를 5초에 처리했으므로, 남은 500개도 약 5초 소요 예상
+            expect(estimatedTime).toBeGreaterThan(4000);
+            expect(estimatedTime).toBeLessThan(6000);
+        });
+        it('시작하지 않은 작업의 예상 시간은 null이어야 함', () => {
+            const batchJob = new batch_job_entity_1.BatchJob();
+            batchJob.totalRecords = 1000;
+            batchJob.processedRecords = 0;
+            expect(batchJob.estimatedTimeRemaining).toBeNull();
+        });
+    });
+});

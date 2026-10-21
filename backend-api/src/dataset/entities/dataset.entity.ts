@@ -1,7 +1,16 @@
-import { Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinTable,
+  ManyToMany,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Index,
+} from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 
 @Entity()
+@Index('IDX_DATASET_DATABASE_ID', ['databaseId'])
 export class Dataset extends BaseEntity {
   @PrimaryGeneratedColumn({ comment: '데이터셋 ID' })
   id: number;

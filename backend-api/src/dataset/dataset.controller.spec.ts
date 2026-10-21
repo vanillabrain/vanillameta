@@ -39,4 +39,19 @@ describe('DatasetController', () => {
       'SourceOwnershipGuard',
     ]);
   });
+  it('passes current request actor/epoch separately from Hybrid cache options', async () => {
+    const executeCachedQuery = jest.fn().mockResolvedValue({ status: 'SUCCESS' });
+    const target = new DatasetController(
+      { executeCachedQuery } as any,
+      { actor: value => value } as any,
+    );
+    await target.executeCachedQuery('21', false, 90, true, {
+      user: { accessKeyData: { id: 7, authVersion: 3 } },
+    });
+    expect(executeCachedQuery).toHaveBeenCalledWith(
+      21,
+      { forceRefresh: false, customTtl: 90, useStreamingFallback: true },
+      { actor: 7, epoch: 3 },
+    );
+  });
 });

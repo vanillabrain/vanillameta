@@ -4,11 +4,12 @@ import { getTestMysqlModule } from '../util/get-test-mysql.module';
 import { Database } from '../../src/database/entities/database.entity';
 import { ConfigModule } from '@nestjs/config';
 import { Dataset } from '@google-cloud/bigquery';
-import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
+import { TableQuery } from '../../src/widget/table-query/entity/table-query.entity';
 import { DatabaseType } from '../../src/database/entities/database_type.entity';
 import { ConnectionService } from '../../src/connection/connection.service';
 import * as TestConnectionInfo from '../../test-connect-info.json';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
+import { mockCustomLoggerService, mockSqlValidationService } from '../util/test-providers';
 
 describe('QTT-001: 외부 API 연동', () => {
   let connectService: ConnectionService;
@@ -23,7 +24,7 @@ describe('QTT-001: 외부 API 연동', () => {
         getTestMysqlModule(),
         TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType]),
       ],
-      providers: [ConnectionService],
+      providers: [ConnectionService, mockCustomLoggerService, mockSqlValidationService],
     }).compile();
 
     connectService = module.get<ConnectionService>(ConnectionService);

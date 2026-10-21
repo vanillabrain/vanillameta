@@ -1,0 +1,27 @@
+{
+  "dashboard": {
+    "created": "Dashboard created successfully.",
+    "updated": "Dashboard updated successfully.",
+    "deleted": "Dashboard deleted successfully.",
+    "not_found": "Dashboard not found.",
+    "duplicate_name": "Dashboard with the same name already exists."
+  },
+  "widget": {
+    "created": "Widget created successfully.",
+    "updated": "Widget updated successfully.",
+    "deleted": "Widget deleted successfully.",
+    "not_found": "Widget not found.",
+    "invalid_chart_type": "Invalid chart type."
+  },
+  "share": {
+    "enabled": "Dashboard sharing enabled.",
+    "disabled": "Dashboard sharing disabled.",
+    "link_generated": "Share link generated successfully.",
+    "invalid_link": "Invalid share link."
+  },
+  "template": {
+    "created": "Template created successfully.",
+    "applied": "Template applied successfully.",
+    "not_found": "Template not found."
+  }
+}
