@@ -1,9 +1,22 @@
 {
-  "moduleFileExtensions": ["js", "json", "ts"],
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "/node_modules/@nestjs/typeorm/.+\\.js$": "<rootDir>/typeorm-esm-transformer.cjs",
+    "^.+\\.(t|j)s$": "<rootDir>/ts-jest-transformer.cjs"
+  },
+  "transformIgnorePatterns": [
+    "/node_modules/(?!@nestjs/typeorm/)"
+  ],
+  "globals": {
+    "ts-jest": {
+      "compiler": "typescript-api"
+    }
   }
 }

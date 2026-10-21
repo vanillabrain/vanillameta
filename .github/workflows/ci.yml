@@ -27,6 +27,9 @@ jobs:
       - name: Prepare SQLite test driver
         run: npm rebuild sqlite3
 
+      - name: Validate native compiler and classic tool API separation
+        run: npm run test:toolchain
+
       - name: Lint
         run: npx eslint src --ext .ts
 

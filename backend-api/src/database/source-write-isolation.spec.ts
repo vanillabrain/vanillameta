@@ -1,6 +1,6 @@
 import { DataSource, EntityManager } from 'typeorm';
 import { sourceWriteTransaction } from './source-write-lock';
-import * as ts from 'typescript';
+import * as ts from 'typescript-api';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
