@@ -1,5 +1,6 @@
 # 최신 요약 — 2026-10-21
 
+- **2026-10-21 남은3개 의존성 PR:** 사용자 TS7 보류 해제 후452→448→458 순서로 통합. 실제 Oracle Thin/Thick·TS7 native 검사/명시 JS API 경계6개·브라우저 핵심9개와 초기 HTTP 재검사는 [최종 기록](dependency-pr-final-20261021.md)을 따른다.
 - **2026-10-21 의존성 PR 통합:** develop/drumcap으로14개 변경 통합(PR13개 병합·459 반영 확인 종료)·기존 반영2개 자동 종료·TS7 두 건/Oracle 한 건 보류. MySQL64·Router 핵심3·통합 CI 성공과 범위는 [후속 기록](dependency-pr-review-20261021.md#develop-병합-후속)을 따른다.
 - [사용자 가이드 운영 배포](docs-production.md): docs.vanillameta.net Pages·DNS·HTTPS 활성, Actions 배포·검색·대표 모바일 실제 검증.
 
