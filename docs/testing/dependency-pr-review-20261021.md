@@ -1,6 +1,6 @@
 # 의존성 PR 검토 — 2026-10-21
 
-검토 대상은 `vanillabrain/vanillameta`의 열린 Dependabot PR19개다. 기준 브랜치는 사용자 지정 `develop`이며 검토 중 원격 추가 이력을 fast-forward로 보존해 `3f35fe99` 기준으로 수정했다. 19개 모두 MERGEABLE이었으나 이는 호환성/CI 통과 판정이 아니다. 개별 PR diff·실패 실행 로그·공식 npm 버전 metadata와 실제 대상 패키지를 대조했다. PR 병합/승인/댓글은 실행하지 않는다.
+검토 대상은 `vanillabrain/vanillameta`의 열린 Dependabot PR19개다. 기준 브랜치는 사용자 지정 `develop`이며 검토 중 원격 추가 이력을 fast-forward로 보존해 `3f35fe99` 기준으로 수정했다. 19개 모두 MERGEABLE이었으나 이는 호환성/CI 통과 판정이 아니다. 개별 PR diff·실패 실행 로그·공식 npm 버전 metadata와 실제 대상 패키지를 대조했다. 이 첫 검토에서는 PR 병합/승인/댓글을 실행하지 않았다. 아래 병합 후속은 사용자의 별도 병합 지시에 따른다.
 
 ## 공통 원인과 수정
 
@@ -51,3 +51,37 @@ Swiper14의 실제 SecondStep 컴포넌트를 임시 Vite harness/Ego56에서 �
 BE type/lint/build·FE type/대상 lint/build·기존 landing5.9.3 타입/빌드 PASS다. CI에 landing 설치/타입/빌드를 추가해 해당 PR들이 BE/FE 통과만으로 누락되지 않도록 했다. npm lock과 npm이 갱신한 yarn lock의 대상 버전 diff를 함께 보존하되 검증 설치는 npm 기준이다. 불필요한 전체 UI/실모델 검증은 반복하지 않았으며 gpt-6-luna 설정·VoiceOver BLOCKED는 변경하지 않았다.
 
 로컬 증빙은 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pr-review-20261021/`을 따른다. CI·registry 원문은 별도 실행 폴더에서 수집하고 공개 문서에는 필요한 요약/공식 링크만 남겼다. [모바일](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pr-review-20261021/swiper-390.png) · [데스크톱](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pr-review-20261021/swiper-1440.png).
+
+## develop 병합 후속
+
+사용자 지시에 따라 drumcap으로 develop에 통합했다. 최초19개 중 **14개 병합**, 이미 적용된 **453·457은 Dependabot이 자동 종료**, **448·458(TypeScript7)과452(Oracle26)는 보류**다. 닫힌 PR을 다시 병합하거나 중복 적용하지 않았다.
+
+병합 대상은445·446·450·451·454·455·456·459·460·461·462·463·464·465다. checkout/setup-node의 인접 workflow 충돌은 둘 다7로 유지했다. MySQL/mathjs·AWS/ESLint/Passport·landing cn/아이콘·Observer/Router lock 충돌은 앞서 통합한 버전을 되돌리지 않고 해결했다. 원격에 추가된 사용자 가이드 배포 이력도 병합해 보존했다. 강제 push/CI 보호 우회 옵션은 사용하지 않았다.
+
+### 병합 중 발견한 오류
+
+- 같은 생성 요청이 별도 SQLite 연결에서 initial receipt read 뒤 완료되면, 뒤늦은 준비가 새 지표를 보고 PLAN_CHANGED를 반환했다. 해당 오류 때 현재 actor/epoch·원 요청 digest·결과 소유/소스 read를 다시 검사하고 **정확히 같은 완료 영수증만** 반환한다. 다른 요청의 오래된 생성안은 계속 거절한다. 순서를 고정한 새 회귀는 수정 전 FAIL→수정 후 PASS이며 관련18개가 통과했다.
+- 복구 기록의 ‘미래60초+1ms’ 검사가 실제 시계 진행에 따라 통과/실패했다. 검증 함수에 동일한 기준 시각을 전달해 경계를 고정했다. 제품 허용 시간/만료 정책은 바꾸지 않았다. 해당12개가 통과했다.
+- 격리 MySQL 실행기가 Jest 설정 중복으로 기동하지 못해 package.json 설정을 명시했다. 재실행에서 **MySQL8.4.11/mysql2 3.24.6/native DuckDB의64개**가 통과했고 임시 컨테이너/인증 파일을 정리했다. 운영 migration/모든 DB 검증이 아니다.
+- Vite·Observer·Hooks PR에 빠진 Yarn 대상 항목을 보강했다. npm의 전체 정렬/오래된 항목 정리를 그대로 커밋하지 않고 필요한 새 선택 항목만 추가했다. 공식 Yarn lock 파서로 대상107개 의존성 연결과 Vite의15개 플랫폼 binding을 확인했다. 실제 설치·빌드 검증은 npm 기준이며 Yarn 설치 전체 통과로 확대하지 않는다.
+
+### 호환성·실행 범위
+
+mathjs15는 소수 합계·문자열 평균·큰 값·소수 여섯 자리·음수 최댓값/최솟값·JSON 숫자 변환의7개를 확인했다. Lambda 세 PR은 각각의 정확한 package/lock을 임시 폴더에서 설치하고 AWS2.1693 S3 구성, Nest9/Passport11 로컬 인증 허용·401 거절, ESLint8/Prettier 설정10 로드를 확인했다. 실제 AWS 배포·기존 Node14 Lambda 운영 검증으로 확대하지 않는다.
+
+Router7/Observer11/Sentry11.8/Vite8.3.4를 함께 설치해 FE 타입·린트·빌드와 landing cn0.5/아이콘1.59 타입·빌드를 확인했다. [통합 CI39538540154](https://github.com/vanillabrain/vanillameta/actions/runs/39538540154)는 코드3b97f422에서 backend/frontend 모두 SUCCESS이며 landing 검사도 포함한다. 이 CI의 npm 입력/제품 코드는 후속 Yarn 항목·증빙 문서 수정과 구분한다.
+
+CI 중 다른 PR에서 DuckDB worker의20초 검사 제한 후 후속 queue timeout도 관찰했다. 해당11개는 동일 제품 코드의 격리 재실행 및 최종 통합 CI에서 통과했다. 제품 timeout/취소 경계를 완화하거나 이 실패를 무시하도록 변경하지 않았다. 대규모 운영 부하 전체 수용으로 표시하지 않는다.
+
+### 브라우저 증빙
+
+기존 Router 영향 경로만 선택했다. 격리 QA 첫 실행은 component seed 미준비로 NOT_RUN이었다. **이번 실행의 임시 DB 경로만** 지정해 기존 seed를 준비한 뒤 잘못된 비밀번호→로그인→로그아웃, 보호 경로, 미인증 알 수 없는 경로 **3개가6.5초에 PASS**했다. 이미 통과한 차트/AI 전체 흐름은 반복하지 않았다.
+
+Ego57의 실제 로그인390/1440px에서 User ID→Tab→Password 초점과 가로 넘침0을 확인했다. 실제 LazyImage를 쓰는 임시 harness에서는 화면 밖 src 없음→앵커 Enter→실제 이미지 로드(naturalWidth105),390px 넘침0을 확인했다. harness는 전체 제품 화면이 아니며 검증 후 소스 파일과 작업 공간을 정리했다.
+
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pr-merge-20261021/`의 `router-login-390.png`, `router-login-1440.png`, `observer11-390.png`, `playwright-002.log`. gpt-6-luna 설정·VoiceOver BLOCKED를 유지했고 실제 AI 모델 검증을 새로 실행하지 않았다.
+
+### 남은 PR
+
+- **448·458:** 사용자 지정 TypeScript7 보류. 기존5.9.3 유지. compiler/test 도구의 별도 이전 계획 전까지 병합하지 않는다.
+- **452:** Oracle26의 일반 타입/백엔드 CI 성공만으로 실제 접속 호환을 판정하지 않는다. 기존5.5를 유지하고 Oracle의 thin/thick·클라이언트·실제 인증/조회/트랜잭션을 격리 환경에서 확인한 뒤 결정한다. 사용자 Oracle 인증정보 탐색이나 운영 DB 접속은 하지 않았다.

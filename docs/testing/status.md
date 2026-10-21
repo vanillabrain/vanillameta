@@ -1,5 +1,6 @@
 # 최신 요약 — 2026-10-21
 
+- **2026-10-21 의존성 PR 통합:** develop/drumcap으로14개 병합·이미 반영2개 자동 종료·TS7 두 건/Oracle 한 건 보류. MySQL64·Router 핵심3·통합 CI 성공과 범위는 [후속 기록](dependency-pr-review-20261021.md#develop-병합-후속)을 따른다.
 - [사용자 가이드 운영 배포](docs-production.md): docs.vanillameta.net Pages·DNS·HTTPS 활성, Actions 배포·검색·대표 모바일 실제 검증.
 
 **2026-10-21 의존성 PR19개:** [분석·수정](dependency-pr-review-20261021.md)은 최신 develop 공통 BE3실패의 RSS fixture/배경 예외·준비 후 생성 경합을 수정했다. 실제 TypeORM12 ESM/Jest·Swiper14 Navigation 오류를 보완하고 실제 SQLite 초기화/종료·Ego56 컴포넌트390/1440/키보드를 확인했다. landing CI 공백을 보완했고 TypeScript7/다른 major의 별도 검증 경계를 기록했다. PR 자동 병합/승인/댓글0·실모델 반복0·VoiceOver BLOCKED 유지.
