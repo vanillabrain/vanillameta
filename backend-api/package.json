@@ -106,7 +106,7 @@
     "mathjs": "^15.2.0",
     "multer": "^2.4.0",
     "mustache": "^4.2.0",
-    "mysql2": "^2.3.3",
+    "mysql2": "^3.24.6",
     "nest-winston": "^1.7.0",
     "nestjs-i18n": "^10.8.5",
     "parquetjs-lite": "^0.8.7",
