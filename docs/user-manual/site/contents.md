@@ -4,6 +4,8 @@
 
 ## 시작하기
 
+- [화면으로 따라 하는 매출 분석 샘플](./sample-walkthrough.md): 실제 캡처로 따라 하는 AI 대시보드·고객 매출 비교·주간 Pivot
+
 - [빠른 시작](./quickstart.md): 샘플 → 질문 → 미리보기 → 저장 → 수정 → 게시
 - [기본 개념](./concepts.md): 소스, 지표, 차원, 블록, 저장본과 게시본
 - [화면과 이동](./navigation.md): Studio·Explore·데이터·조직 화면의 역할

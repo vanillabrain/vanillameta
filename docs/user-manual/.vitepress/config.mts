@@ -6,6 +6,7 @@ const groups = [
     text: "시작하기",
     items: [
       ["빠른 시작", "quickstart"],
+      ["화면으로 따라 하는 샘플", "sample-walkthrough"],
       ["기본 개념", "concepts"],
       ["화면과 이동", "navigation"],
     ],
