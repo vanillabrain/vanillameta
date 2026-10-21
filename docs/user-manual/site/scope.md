@@ -35,12 +35,6 @@ Explore·고급 Pivot·저장 지표 조합·CSV 작업·초안/충돌 복구·�
 
 MK AI는 별도 프로젝트이며 이 문서는 별도 연동 계약·API·MCP를 제공한다고 설명하지 않습니다.
 
-## Rill에서 참고한 점
-
-[Rill Explore 안내](https://docs.rilldata.com/guide/dashboards/explore)의 화면 읽기 → 시간 범위 → 지표·차원 → 필터 → 비교 탐색과, 기능별 문서를 나누는 구성을 참고했습니다. 문장은 VanillaMeta 화면에 맞춰 새로 작성했고 제품 캡처는 자체 실행 화면입니다.
-
-Rill의 전체 기능·백엔드·알림·커넥터 지원을 VanillaMeta가 동일하게 제공한다는 뜻은 아닙니다. 용어가 같아도 지원 범위와 권한·저장 방식은 해당 VanillaMeta 절차를 따르세요.
-
 ## 문서 도구
 
 이 문서 사이트는 [VitePress](https://vitepress.dev/guide/what-is-vitepress)로 만들며 Markdown·반응형 탐색·[브라우저 내 검색](https://vitepress.dev/reference/default-theme-search)을 사용합니다. 검색용 외부 서비스 계정은 필요하지 않습니다. 문서 사이트의 검색은 제품 데이터에 질문하는 AI 기능과 별개입니다.

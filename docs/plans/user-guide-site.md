@@ -1,6 +1,6 @@
 # 사용자 가이드 사이트 설계
 
-2026-10-21 · develop `b406b9e3` 기준. 사용자 요청: Rill을 참고한 상세 가이드를 문서 도구로 제공한다. 기존 가이드 실제 화면 검증의 후속이며 제품 기능을 추가하거나 외부에 배포하는 작업은 아니다.
+2026-10-21 · develop `b406b9e3` 기준. 사용자 요청: 상세 사용자 가이드를 문서 도구로 제공한다. 기존 가이드 실제 화면 검증의 후속이며 제품 기능을 추가하거나 외부에 배포하는 작업은 아니다.
 
 ## 도구 결정
 
@@ -11,9 +11,9 @@
 
 공식 참고: [VitePress 소개](https://vitepress.dev/guide/what-is-vitepress), [검색](https://vitepress.dev/reference/default-theme-search), [Docusaurus 소개](https://docusaurus.io/docs). VitePress 2 문서는 alpha 표시이므로 npm에서 확인한 안정 1.6.4를 정확 버전으로 고정한다. 검색은 외부 서비스 계정이 필요 없는 local 방식이다. 기본 전이 Vite 5 의존성의 audit 3건(고위험 1 포함)을 확인하여 독립 패키지에 Vite 6.4.4 override를 고정했다. 재설치 audit 0건이며 빌드·개발/미리보기 호환성을 별도 확인한다. VitePress의 공식 기본 의존 범위를 넘는 override이므로 도구 업그레이드 때 유지 필요성을 재검토한다.
 
-## Rill을 참고하는 범위
+## 사용자 학습 흐름
 
-[Rill Explore 안내](https://docs.rilldata.com/guide/dashboards/explore)의 빠른 시작·화면 읽기·지표/차원·시간·필터·비교·기능별 심화 구조를 참고한다. Rill 문장·이미지를 복제하거나 기능 동등성을 주장하지 않는다. VanillaMeta 고유 질문→미리보기→저장→게시·재사용을 중심으로 재구성한다.
+빠른 시작·화면 읽기·지표/차원·시간·필터·비교·기능별 심화 순서로 안내한다. VanillaMeta의 질문→미리보기→저장→게시·재사용 흐름을 중심으로 구성하며 실제 지원 범위를 구분한다.
 
 ## 문서·제품 영향
 
