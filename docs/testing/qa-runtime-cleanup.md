@@ -51,3 +51,7 @@ QA_API_PORT=4251 QA_WEB_PORT=3251 QA_CONTROL_PORT=4451 node scripts/qa-enterpris
 ```
 
 새 런타임의 private runtime.json에서 자신의 control URL/token을 사용한다. token/config 내용은 문서·로그·명령 인자로 출력하지 않는다. 해당 실행의 인증된 restart/stop 이후 cleanup 이벤트와 컨테이너·파일 부재를 대조한다. 이미 실행 중인 프로세스의 코드가 자동 갱신된다고 가정하지 않는다.
+
+## 새 CI에서 발견한 시각 경합 후속
+
+수정 커밋8a800bcb의 QA Runtime39824697709는 success였으나 전체 CI39824697629의 FE 단위 테스트가 `studioCreationRecovery`의 future 항목에서 실패했다(203파일/3301 PASS·1 FAIL). 원래 테스트는 Date.now()+60001로 레코드를 만든 뒤 실제 시계로 다시 읽어,1ms 이상 지연되면 제품의60초 clock-skew 허용 범위 안으로 들어갔다. 제품 판정 오류로 바꾸거나 허용 범위를 늘리지 않았다. 레코드/조회에 동일 captured now를 사용하고 미래60000/60001ms·만료TTL-1/TTL의 정확 경계4개를 추가했다. 최초 원본 로컬 재실행 통과만으로 CI 실패를 무시하지 않고 결정적인 시각 입력으로 고쳤다. 최종 후속 SHA의 CI 결과는 별도로 확인한다.

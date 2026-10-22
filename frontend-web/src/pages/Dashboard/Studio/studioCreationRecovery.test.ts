@@ -54,7 +54,8 @@ it.each(['expired', 'future', 'extra', 'request-extra', 'malformed', 'oversized'
   'rejects %s records without replay',
   async kind => {
     const key = await creationConfirmationKey();
-    const value: any = fixture();
+    const now = Date.now();
+    const value: any = { ...fixture(), updatedAt: now };
     if (kind === 'expired') value.updatedAt -= CONFIRMATION_TTL;
     if (kind === 'future') value.updatedAt += 60001;
     if (kind === 'extra') value.preview = { sql: 'never restore' };
@@ -63,7 +64,7 @@ it.each(['expired', 'future', 'extra', 'request-extra', 'malformed', 'oversized'
       key,
       kind === 'malformed' ? '{' : kind === 'oversized' ? 'x'.repeat(9000) : JSON.stringify(value),
     );
-    expect(readCreationConfirmation(key)).toBeNull();
+    expect(readCreationConfirmation(key, now)).toBeNull();
     expect(sessionStorage.getItem(key)).toBeNull();
   },
 );
@@ -73,4 +74,18 @@ it('reports storage failure before a caller can send the write', async () => {
     throw new Error('quota');
   });
   expect(() => writeCreationConfirmation(key, fixture())).toThrow('quota');
+});
+
+it.each([
+  ['future limit', 60000, true],
+  ['beyond future limit', 60001, false],
+  ['before expiry', -CONFIRMATION_TTL + 1, true],
+  ['at expiry', -CONFIRMATION_TTL, false],
+] as const)('checks %s against the same captured clock', async (_label, offset, accepted) => {
+  const key = await creationConfirmationKey();
+  const now = 1700000000000;
+  const value = { ...fixture(), updatedAt: now + offset };
+  sessionStorage.setItem(key, JSON.stringify(value));
+  expect(readCreationConfirmation(key, now)).toEqual(accepted ? value : null);
+  expect(sessionStorage.getItem(key)).toBe(accepted ? JSON.stringify(value) : null);
 });
