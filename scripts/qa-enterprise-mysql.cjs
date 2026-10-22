@@ -10,6 +10,28 @@ const http = require("node:http");
 const { createRequire } = require("node:module");
 const { pathToFileURL } = require("node:url");
 const root = path.resolve(__dirname, "..");
+// Separate ports let a new owned run verify recovery without disturbing a retained run.
+const ports = Object.fromEntries(
+  [
+    ["api", 4250],
+    ["web", 3250],
+    ["control", 4450],
+  ].map(([key, fallback]) => {
+    const value =
+      process.env["QA_" + key.toUpperCase() + "_PORT"] ?? String(fallback);
+    if (!/^[1-9]\d*$/.test(value) || Number(value) > 65535)
+      throw new Error("Invalid QA " + key + " port");
+    return [key, Number(value)];
+  })
+);
+if (new Set(Object.values(ports)).size !== 3)
+  throw new Error("QA ports must be distinct");
+const apiUrl = "http://127.0.0.1:" + ports.api + "/v1";
+const webUrl = "http://127.0.0.1:" + ports.web;
+const controlUrl = "http://127.0.0.1:" + ports.control;
+const backendKey = "backend-" + ports.api,
+  frontendKey = "frontend-" + ports.web;
+
 const backend = path.join(root, "backend-api");
 const frontend = path.join(root, "frontend-web");
 const mysql = createRequire(path.join(backend, "package.json"))(
@@ -57,7 +79,8 @@ let containerId,
 const configPath = path.join(runRoot, "database-config.json");
 const runtimeDirectory = path.join(
   root,
-  ".aiwf/evidence/TC050-integrated-mysql/runtime"
+  ".aiwf/evidence/TC050-integrated-mysql",
+  ports.control === 4450 ? "runtime" : "runtime-" + ports.control
 );
 fs.mkdirSync(runtimeDirectory, { recursive: true, mode: 0o700 });
 fs.chmodSync(runtimeDirectory, 0o700);
@@ -106,124 +129,14 @@ function capture(stream, log) {
     if (pending) log.write(redact(pending));
   });
 }
-// Test-only observer is loaded before the real API imports child_process.spawn.
-// No command, args, environment values or provider output are transmitted.
-const observedBackends = new WeakMap();
-function observerSource(nonce) {
-  return `
-const cp = require('node:child_process');
-const original = cp.spawn;
-const nonce = ${JSON.stringify(nonce)};
-const groups = new Set();
-let draining = false, request;
-const send = value => { if (process.connected) process.send({qaObserver: nonce, ...value}); };
-function exists(pid) {
-  try { process.kill(-pid, 0); return true; }
-  catch (e) { if (e.code === 'ESRCH') return false; throw e; }
-}
-function inspect() {
-  try {
-    for (const pid of groups) if (!exists(pid)) { groups.delete(pid); send({kind:'absent',pid}); }
-    if (draining && request && groups.size === 0) {
-      send({kind:'drained', request}); request = undefined;
-    }
-  } catch { send({kind:'unverifiable'}); }
-}
-cp.spawn = function(command, args, options) {
-  if (draining) throw new Error('QA_CHILD_ADMISSION_DRAINING');
-  const child = original.apply(this, arguments);
-  const settings = Array.isArray(args) ? options : args;
-  if (settings?.detached && Number.isSafeInteger(child.pid)) {
-    groups.add(child.pid); send({kind:'spawn',pid:child.pid});
-  }
-  return child;
-};
-require('node:module').syncBuiltinESMExports();
-process.on('message', message => {
-  if (message?.qaObserver !== nonce || message.op !== 'drain') return;
-  draining = true; request = message.request; inspect();
-});
-process.on('disconnect', () => { draining = true; });
-setInterval(inspect, 25).unref();
-send({kind:'ready'});
-`;
-}
-function observeBackend(child, nonce) {
-  const state = {
-    ready: false,
-    groups: new Set(),
-    drained: false,
-    failed: false,
-    pending: undefined,
-  };
-  observedBackends.set(child, state);
-  child.on("message", (message) => {
-    if (message?.qaObserver !== nonce) return;
-    if (message.kind === "ready") state.ready = true;
-    else if (
-      message.kind === "spawn" &&
-      Number.isSafeInteger(message.pid) &&
-      message.pid > 1
-    )
-      state.groups.add(message.pid);
-    else if (message.kind === "absent") state.groups.delete(message.pid);
-    else if (message.kind === "unverifiable") state.failed = true;
-    else if (
-      message.kind === "drained" &&
-      state.pending?.request === message.request
-    ) {
-      if (state.failed || state.groups.size)
-        state.pending.reject(new Error("Owned child groups not proven absent"));
-      else {
-        state.drained = true;
-        state.pending.resolve();
-      }
-    }
-  });
-  child.on("exit", () => {
-    if (!state.drained)
-      state.pending?.reject(
-        new Error("API exited before owned-child drain confirmation")
-      );
-  });
-  state.nonce = nonce;
-}
-async function drainBackend(child, timeout = 180000) {
-  const state = observedBackends.get(child);
-  if (!state || state.drained) return;
-  if (!alive(child) || !state.ready || state.failed)
-    throw new Error("Cannot prove API child ownership; resources retained");
-  await new Promise((resolve, reject) => {
-    const request = secret();
-    const timer = setTimeout(
-      () =>
-        reject(
-          new Error(
-            "Owned child drain exceeded bounded wait; resources retained"
-          )
-        ),
-      timeout
-    );
-    state.pending = {
-      request,
-      resolve: () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      reject: (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    };
-    child.send({ qaObserver: state.nonce, op: "drain", request }, (error) => {
-      if (error)
-        state.pending.reject(
-          new Error("Owned child IPC unavailable; resources retained")
-        );
-    });
-  });
-  state.pending = undefined;
-}
+const {
+  observerSource,
+  createBackendObserver,
+} = require("./lib/qa-child-drain.cjs");
+const backendObserver = createBackendObserver({ alive, requestId: secret });
+const observedBackends = backendObserver.states;
+const observeBackend = backendObserver.observe;
+const drainBackend = backendObserver.drain;
 function launch(key, args, cwd, env) {
   checkActive();
   const log = fs.createWriteStream(path.join(evidence, key + ".log"), {
@@ -386,22 +299,22 @@ const cleanup = () =>
   }));
 async function restart() {
   await checkDatabase();
-  const oldPid = processes.get("backend-4250").pid;
-  await stopProcess("backend-4250");
-  await assertFree(4250);
+  const oldPid = processes.get(backendKey).pid;
+  await stopProcess(backendKey);
+  await assertFree(ports.api);
   launch(
-    "backend-4250",
+    backendKey,
     [path.join(backend, "dist/src/main.js")],
     runRoot,
     backendEnv
   );
-  await waitReady("http://127.0.0.1:4250/v1/", "backend-4250");
+  await waitReady(apiUrl + "/", backendKey);
   await checkDatabase();
   saveRuntime("ready");
   event({
     phase: "restarted",
     oldPid,
-    newPid: processes.get("backend-4250").pid,
+    newPid: processes.get(backendKey).pid,
   });
 }
 async function probeChildDrain() {
@@ -501,7 +414,7 @@ async function main() {
     throw new Error(
       "Existing runtime metadata requires owned stop before reuse"
     );
-  for (const port of [4250, 3250, 4450]) await assertFree(port);
+  for (const port of Object.values(ports)) await assertFree(port);
   for (const file of ["dist/src/main.js", "dist/src/analysis/duckdb.worker.js"])
     if (!fs.existsSync(path.join(backend, file)))
       throw new Error(
@@ -595,14 +508,14 @@ async function main() {
     ...baseEnv,
     NODE_ENV: "dev",
     HOST: "127.0.0.1",
-    PORT: "4250",
+    PORT: String(ports.api),
     DB_HOST: config.host,
     DB_PORT: String(port),
     DB_USERNAME: config.username,
     DB_PASSWORD: password,
     DB_NAME: database,
     FILE_UPLOAD_DIR: path.join(runRoot, "uploads"),
-    CORS_ORIGIN: "http://127.0.0.1:3250",
+    CORS_ORIGIN: webUrl,
     ACCESS_SECRET: makeSecret(),
     REFRESH_SECRET: makeSecret(),
     URL_ACCESS_SECRET: makeSecret(),
@@ -632,7 +545,7 @@ async function main() {
   };
   await checkDatabase(); // Before synchronize=true can run, verify exact new owned schema.
   launch(
-    "backend-4250",
+    backendKey,
     [path.join(backend, "dist/src/main.js")],
     runRoot,
     backendEnv
@@ -647,23 +560,23 @@ async function main() {
     frontend
   )},configFile:${JSON.stringify(
     path.join(frontend, "vite.config.ts")
-  )},envDir:${JSON.stringify(
-    runRoot
-  )},server:{host:'127.0.0.1',port:3250,strictPort:true}});await s.listen();}).catch(()=>process.exit(1));`;
-  launch("frontend-3250", ["--input-type=module", "-e", launcher], runRoot, {
+  )},envDir:${JSON.stringify(runRoot)},server:{host:'127.0.0.1',port:${
+    ports.web
+  },strictPort:true}});await s.listen();}).catch(()=>process.exit(1));`;
+  launch(frontendKey, ["--input-type=module", "-e", launcher], runRoot, {
     ...baseEnv,
     NODE_ENV: "development",
-    REACT_APP_API_URL: "http://127.0.0.1:4250/v1",
+    REACT_APP_API_URL: apiUrl,
   });
   await Promise.all([
-    waitReady("http://127.0.0.1:4250/v1/", "backend-4250"),
-    waitReady("http://127.0.0.1:3250/", "frontend-3250"),
+    waitReady(apiUrl + "/", backendKey),
+    waitReady(webUrl + "/", frontendKey),
   ]);
   await checkDatabase();
   metadata = {
-    api: "http://127.0.0.1:4250/v1",
-    frontend: "http://127.0.0.1:3250",
-    control: "http://127.0.0.1:4450",
+    api: apiUrl,
+    frontend: webUrl,
+    control: controlUrl,
     controlToken,
     runRoot,
     evidence,
@@ -694,6 +607,16 @@ async function main() {
         JSON.stringify({
           status: ready ? "ready" : "unavailable",
           processes: metadata.processes,
+          childOwnership: [...processes.values()]
+            .map((c) => observedBackends.get(c))
+            .filter(Boolean)
+            .map((s) => ({
+              ready: s.ready,
+              failed: s.failed,
+              drained: s.drained,
+              groups: s.groups.size,
+              checkErrors: [...s.checkErrors.values()],
+            })),
         })
       );
     }
@@ -722,7 +645,7 @@ async function main() {
   });
   await new Promise((resolve, reject) => {
     control.once("error", reject);
-    control.listen(4450, "127.0.0.1", resolve);
+    control.listen(ports.control, "127.0.0.1", resolve);
   });
   saveRuntime("ready");
   event({

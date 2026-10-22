@@ -1,0 +1,30 @@
+name: QA Runtime
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      [
+        "scripts/qa-enterprise-mysql.cjs",
+        "scripts/lib/qa-child-drain.cjs",
+        "scripts/test/qa-child-drain.test.cjs",
+        ".github/workflows/qa-runtime.yml",
+      ]
+  pull_request:
+    paths:
+      [
+        "scripts/qa-enterprise-mysql.cjs",
+        "scripts/lib/qa-child-drain.cjs",
+        "scripts/test/qa-child-drain.test.cjs",
+        ".github/workflows/qa-runtime.yml",
+      ]
+permissions:
+  contents: read
+jobs:
+  ownership-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: node --test scripts/test/qa-child-drain.test.cjs
