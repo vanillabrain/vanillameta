@@ -57,3 +57,32 @@ UC056/TC056의 scoped strict/no-baseline lint는 각각 오류0/경고0/정보0�
 ## 정리
 
 작업 전용 supervisor 종료200, ownedContainerRemoved/temporaryCredentialsRemoved=true·persistentVolumesCreated=0을 확인했다. 별도로 생성한 개인 계정 JSON과 환경 파일4개도 제거했다. 사용자 기존 서버·전역 MCP 설정·로그인은 그대로 유지했다.
+
+## 2026-10-23 후속: 실제 Claude Code 호스트
+
+위 최초 실행의 ‘Claude 미실행’ 한계는 이 후속 범위에서 대체한다. [후속 계획](../plans/UC-056-claude-host.md)·`verify-claude-host.js`를 따른다. 제품 MCP/API 수정은 필요하지 않았고 재현 검증기와 가이드를 보완했다.
+
+- 전용 MySQL8.4.11/Nest/DuckDB/Vite, 새 합성 소스3/기본 SDK 저장본1. 기본 SDK12호출 및 Node24 단위17 PASS를 각각 확인했다.
+- Claude Code2.1.308, 사용자의 기존 로그인과 기본 모델 유지. 실제 반환 modelUsage=`claude-sonnet-5-5`. 실행별 `--strict-mcp-config`만 적용했고 전역 MCP/모델/인증 설정을 바꾸지 않았다.
+- 첫 호스트 단계 list→describe→propose→get_proposal의 실제 tool_use/tool_result와 permission_denials=0을 확인했다. 숫자600/시계열100·200·300/두 블록, sourceRevision·proposalId·saveRequestId를 반환했다. DB dashboard COUNT 불변이며 별도 인증 API 재조회로 같은 제안과 실제 집계 값을 검증한 뒤 다음 단계로 진행했다.
+- 두 번째 별도 입력은 사용자가 허용한 합성 검증 저장을 명시했다. save→get_artifact의 실제 도구 성공, permission_denials=0, DB COUNT 정확히1증가와 최종 새 dashboard3을 확인했다(초기 검증 저장본2와 구분). 독립 API 재조회에서 소스3/두 블록/동일 집계를 확인했다. 하네스의 검토·승인 입력이며 고객의 업무 수용 승인은 아니다.
+- 첫 단계 허용은 조회·제안·제안 재조회4도구, 두 번째는 저장·저장본 조회2도구다. 기본 파일/명령 도구는 비활성화하고 `dontAsk`/`permission-prompts none`을 사용했다. 승인 우회 옵션은 사용하지 않았다.
+- Ego134에서 호스트 반환 Studio 링크를 열고 새로고침했다. 저장됨/600 USD/날짜별3점/두 블록을 캡처31·32로 확인했다. 1440/768/390px의 scrollWidth1425/753/390으로 가로 넘침0, 저장/게시 버튼 높이36px·폰트14px이었다. 실제 캡처에서도 겹침·잘림이 없었다. 실휴대폰은 미실행이다.
+
+### 초기 실패를 성공과 구분
+
+샌드박스 `auth status`는 키체인 제한으로 미로그인을 표시했지만 허용된 환경에서는 로그인 상태였다. 최초 자식 실행은 최소 환경에서 USER/LOGNAME 등 macOS 계정 문맥이 빠져 MCP connected 후 모델 인증 오류로 종료했다. 비밀을 읽거나 복사하지 않고 계정 환경을 보존해 해결했다. 이후 한 시도는 Claude가 제안을 재조회했으나 검증기의 허용 목록에 get_proposal이 없어 거절됐다. 다음 시도는 알려진 소스ID로 직접 describe하여 필수 목록 조회 검증에서 실패했다. 각각 저장 호출0이며 로그를 보존했다. 도구 권한을 포괄 해제하지 않고 허용된 제안 재조회와 명시 목록 조회를 검증 절차에 추가했다. 최종 실행만 위 성공 여정으로 계산한다.
+
+### 재현과 범위
+
+전용 supervisor를 실행한 뒤 `verify-runtime.js`가 출력한 owned evidence 경로를 `verify-claude-host.js`에 전달한다. 두 단계 모두 실제 AI 비용/비공개 테스트 자료 생성을 수반한다. 실패 결과가 불명확하면 로그와 DB를 확인하고 새 저장 요청으로 자동 재실행하지 않는다. 원시 로그/환경 파일은 Git 제외 `.aiwf/evidence/UC056/1792682700405`에 있으며 공개 문서는 합성 캡처와 결과만 포함한다. 원격HTTP/OAuth/게시·공유/실휴대폰/전체 역할·운영 수용은 이 후속으로 완료되지 않는다.
+
+### 검증기 독립 리뷰 보완
+
+독립 code-reviewer의 초기 지적4개를 반영했다. 저장 도구 입력을 승인한 proposal/revision/UUID/confirmSave와 완전히 비교하고, 실제 tool_result의 저장ID를 후속 조회 입력·반환값·최종 JSON·독립 API readback과 결합했다. 실행별 disableAllHooks=true를 적용하고 hook 실행 이벤트가 없음을 검사했다. SUM(amount) 정의·USD/0자리·DATE 차원·정확한 날짜/값·기간 조건 없는 SQL과 저장 지표 참조를 대조한다. DATE 자료의 UTC 표시는 실제 Studio 전체 기간·UTC로 별도 확인했다. SIGINT/SIGTERM은 활성 자식 그룹을 종료하고 close를 기다리며 후속 단계를 차단한다. 별도 가짜 Claude 호스트 SIGTERM 검증에서 자식 회수/성공 오표시0·실제 AI 호출0을 확인했다. 강화된 실제 Claude 재실행은 최종 dashboard3/6도구·훅 실행0·권한 거절0·저장0→1로 통과했고 Ego134 캡처31/32도 최종3번 저장본으로 교체했다. 첫2번 저장 성공을 중복 통과 건수로 합산하지 않는다.
+
+### 최종 문서·잔여 정리 상태
+
+후속 독립 재검토는 지적0/APPROVE였다. VitePress 루트·/guide/ 빌드26페이지/1290참조 오류0, Ego134의 문서 세 폭에서 가로 넘침0·강조 문법 노출0·신규 이미지2개 로딩을 확인했다. 자동 배포 결과는 최종 push SHA에 대응한다.
+
+전용 supervisor의 종료 요청은500/`Cannot prove API child ownership; resources retained`로 보류됐다. 검증 앱 프로세스는 해당 supervisor의 자식임을 확인했으나 관측기의 drain 증명이 없으므로 강제 종료/컨테이너·런타임 폴더 삭제로 우회하지 않았다. 이 후속의 정리 완료로 보고하지 않으며 전용 자원·런타임 소유 증빙은 보존한다. 사용자 기존 서버/전역 MCP/로그인은 변경하지 않았다.

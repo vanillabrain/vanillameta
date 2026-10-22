@@ -91,7 +91,7 @@ Honest support matrix — 🔷 connectors share the standard knex/driver path bu
 
 ## MCP for coding agents
 
-The local stdio [MCP server](mcp-server/README.md) connects authenticated coding agents to source/metric discovery, structured AI previews and explicitly approved private artifact saves. Returns Studio links; no arbitrary SQL or automatic publishing. [Setup and prompt walkthrough](https://docs.vanillameta.net/mcp). Codex host verified; Claude Code configuration is documented separately from runtime verification.
+The local stdio [MCP server](mcp-server/README.md) connects authenticated coding agents to source/metric discovery, structured AI previews and explicitly approved private artifact saves. Returns Studio links; no arbitrary SQL or automatic publishing. [Setup and prompt walkthrough](https://docs.vanillameta.net/mcp). Codex and Claude Code hosts verified with synthetic local data, separate preview/save approval and Studio reload.
 
 ## Roadmap
 

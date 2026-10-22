@@ -70,9 +70,18 @@ codex mcp add vanillameta -- \
 
 Node를 직접 실행하는 구성을 사용합니다. `npm start`를 MCP 실행 명령으로 쓰면 npm의 안내 문구가 MCP 통신용 stdout에 섞일 수 있습니다. 또 `docs.vanillameta.net/mcp`는 이 설명서 페이지이며 연결용 HTTP MCP 주소가 아닙니다.
 
-### Claude Code 등록 예시
+### Claude Code 연결과 승인 저장
 
-Claude Code의 [공식 stdio 등록 형식](https://code.claude.com/docs/en/mcp)에 맞춘 예시입니다. 이번 실제 호스트 검증은 Codex CLI로 수행했으며 Claude Code 실행까지 확인한 결과로 확대하지 않습니다.
+먼저 Claude Code 자체의 로그인을 확인합니다. VanillaMeta 로그인 파일과 Claude 로그인은 서로 다릅니다.
+
+```sh
+claude --version
+claude auth status
+```
+
+Claude가 미로그인이라면 `claude auth login`으로 로그인하세요. macOS에서는 샌드박스의 키체인 접근 제한 때문에 상태 조회와 실제 실행 결과가 다를 수 있습니다. MCP가 연결되어도 모델 인증이 실패하면 질문을 처리할 수 없습니다.
+
+Claude Code의 [공식 stdio 등록 형식](https://code.claude.com/docs/en/mcp)에 따라 다음을 등록합니다.
 
 ```sh
 claude mcp add --transport stdio vanillameta -- \
@@ -81,7 +90,39 @@ claude mcp add --transport stdio vanillameta -- \
   /absolute/path/to/vanillameta/mcp-server/src/index.js
 ```
 
-호스트의 MCP 서버/도구 승인 절차를 따릅니다. 도구 연결과 실제 생성·저장은 각각 확인해야 합니다. 비대화형 실행의 승인 정책이 `never`이면 제안·저장 도구가 거절될 수 있습니다. 승인 없이 무조건 실행하도록 전역 정책을 낮추지 말고, 대화형 승인을 사용하거나 조직에서 허용한 실행별 승인 검토를 사용하세요.
+새 Claude Code 대화를 열고 `/mcp`에서 `vanillameta` 연결을 확인합니다. 이어서 아래 5단계 프롬프트로 소스 조회와 미리보기를 요청하고, 계산을 검토한 뒤 6단계의 **별도 저장 요청**을 보냅니다. 미리보기만 요청한 대화에서는 저장 도구를 승인하지 마세요. 저장 후 반환된 Studio 링크를 열고 새로고침하여 두 블록이 유지되는지 확인합니다.
+
+생성 시간이 긴 환경에서는 Claude Code 실행 시 `MCP_TOOL_TIMEOUT=200000`(밀리초)을 설정할 수 있습니다. 예: `MCP_TOOL_TIMEOUT=200000 claude`. Codex의 `tool_timeout_sec=200`과 단위가 다릅니다.
+
+<details>
+<summary>등록을 저장하지 않고 실행별 설정으로 시험하기</summary>
+
+다음 내용을 개인 `vm-mcp.json` 파일에 저장하고 경로를 바꿉니다. 토큰은 이 JSON 대신 앞서 만든 소유자 전용 환경 파일에 둡니다.
+
+```json
+{
+  "mcpServers": {
+    "vanillameta": {
+      "type": "stdio",
+      "command": "/absolute/path/to/node",
+      "args": [
+        "--env-file=/absolute/path/to/mcp.env",
+        "/absolute/path/to/vanillameta/mcp-server/src/index.js"
+      ]
+    }
+  }
+}
+```
+
+```sh
+MCP_TOOL_TIMEOUT=200000 claude --strict-mcp-config --mcp-config /absolute/path/to/vm-mcp.json
+```
+
+이 실행에는 지정한 MCP만 연결됩니다. 기존 전역 등록을 덮어쓰지 않습니다. 비대화형 자동화에서는 조회·제안·제안 재조회와 저장을 단계별로 분리하고 필요한 도구만 허용하세요. 검증기는 첫 단계에 `vm_get_proposal`까지 허용해 실제 재조회를 확인합니다.
+
+</details>
+
+호스트의 MCP 서버/도구 승인 절차를 따릅니다. 도구 연결과 실제 생성·저장은 각각 확인해야 합니다. Codex의 `never` 또는 Claude Code의 `dontAsk` 같은 비대화형 정책에서는 허용하지 않은 도구가 거절될 수 있습니다. 승인 없이 무조건 실행하도록 전역 정책을 낮추지 말고, 대화형 승인을 사용하거나 조직에서 허용한 실행별 승인 검토를 사용하세요.
 
 ## 5. 프롬프트로 미리보기 만들기
 
@@ -128,6 +169,19 @@ amount 합계를 매출 숫자와 day별 시계열 두 블록으로 제안해줘
 
 </details>
 
+### Claude Code로 저장한 실제 결과
+
+Claude Code가 만든 미리보기를 검토한 뒤 별도 저장 요청으로 저장한 결과입니다. 합계600 USD와 날짜별100·200·300이 Studio 새로고침 뒤에도 유지됩니다.
+
+![Claude Code MCP에서 승인 저장한 숫자와 시계열을 Studio에서 새로고침한 화면](../images/31-claude-mcp-studio.png)
+
+<details>
+<summary>Claude Code 저장본의 모바일 화면</summary>
+
+<img src="../images/32-claude-mcp-mobile.png" width="390" alt="Claude Code가 MCP로 저장한 합계600 USD와 시계열의 모바일 화면" />
+
+</details>
+
 추가 AI 수정·배치 편집·게시·조직 공유·재사용은 기존 [Artifact 제작 가이드](./agent-artifacts.md)에서 이어갑니다. 이번 MCP 도구는 기존 저장본 수정·게시·공유를 직접 실행하지 않습니다.
 
 ## 오류와 재시도
@@ -146,5 +200,5 @@ MCP는 자동으로 재로그인하거나 권한·버전을 바꾸지 않습니�
 프로필의 원본 표본·접속 설정·파일 경로와 실행 SQL은 MCP 결과에서 제외합니다. 집계 미리보기는 모든 블록을 포함하되 블록당 최대240행이며, 초과하면 `totalRows`와 `truncated`로 표시합니다. 잘린 집계 행을 전체 결과로 오해하지 마세요.
 
 ::: info 실제 검증 범위
-2026-10-21 공식 MCP SDK 클라이언트와 실제 Codex CLI 0.162.1에서 로컬 stdio → Nest/Docker MySQL/DuckDB → 실제 AI 제안·미리보기 → 별도 저장 → 재조회·Studio 새로고침을 확인했습니다. 합성 매출600/시계열3점, 동일 요청의 중복 생성 방지, 타인 접근403·잘못된 token401·입력 충돌409를 확인했습니다. 390/768/1440px에서 저장본 크기·정렬을 확인했습니다. Claude Code·원격 HTTP/OAuth·실휴대폰·모든 조직 역할의 전체 수용은 별도입니다.
+2026-10-21 공식 MCP SDK 클라이언트와 실제 Codex CLI 0.162.1에서 로컬 stdio → Nest/Docker MySQL/DuckDB → 실제 AI 제안·미리보기 → 별도 저장 → 재조회·Studio 새로고침을 확인했습니다. 합성 매출600/시계열3점, 동일 요청의 중복 생성 방지, 타인 접근403·잘못된 token401·입력 충돌409를 확인했습니다. 390/768/1440px에서 저장본 크기·정렬을 확인했습니다. 2026-10-23에는 Claude Code 2.1.308(실제 기본 모델 `claude-sonnet-5-5`)에서도 같은 합성 데이터로 MCP 6도구 호출 → 미리보기 → 별도 승인 저장 → 재조회와 Studio 새로고침을 확인했습니다. 미리보기 단계의 저장0건과 승인 저장 후 새 대시보드1건을 DB에서 대조했습니다. 원격 HTTP/OAuth·실휴대폰·모든 조직 역할의 전체 수용은 별도입니다.
 :::

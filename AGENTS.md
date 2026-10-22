@@ -2,7 +2,7 @@
 
 ## 세션 시작 핵심 지침
 
-- **UC056 MCP 제작:** [계획](docs/plans/UC-056-mcp-authoring.md)·[가이드](docs/user-manual/site/mcp.md)·[증빙](docs/testing/mcp-artifact-authoring.md)을 따른다. `mcp-server/`는 기존 JWT API를 사용하는 로컬 stdio SDK v2 어댑터6도구이며 소스·지표→생성/집계 미리보기→별도 승인 비공개 저장→Studio 링크를 연결한다. 서버→Codex 실행과 외부 에이전트→VM MCP는 다른 방향이다. 원격 HTTP/OAuth·게시/공유·MK AI 계약은 제외하며 SDK/실Codex/브라우저 검증과 Claude 미실행을 구분한다.
+- **UC056 MCP 제작:** [계획](docs/plans/UC-056-mcp-authoring.md)·[가이드](docs/user-manual/site/mcp.md)·[증빙](docs/testing/mcp-artifact-authoring.md)을 따른다. `mcp-server/`는 기존 JWT API를 사용하는 로컬 stdio SDK v2 어댑터6도구이며 소스·지표→생성/집계 미리보기→별도 승인 비공개 저장→Studio 링크를 연결한다. 서버→Codex 실행과 외부 에이전트→VM MCP는 다른 방향이다. 원격 HTTP/OAuth·게시/공유·MK AI 계약은 제외하며 SDK/실Codex·Claude Code2.1.308(기본 claude-sonnet-5-5)/Ego134 검증을 구분한다. [Claude 후속](docs/plans/UC-056-claude-host.md)은 실행별 MCP·분리 승인·DB 저장0→1·Studio reload이며 전역 인증/모델은 변경하지 않는다.
 
 - **가이드 운영 배포:** https://docs.vanillameta.net/ · Cloudflare Pages `vanillameta-docs`/production `develop`, Actions 자동 배포 활성. [운영 안내](docs/operations/user-guide-cloudflare.md)·[온라인 검증](docs/testing/docs-production.md)을 따른다. 토큰은 GitHub Secret만 사용하고 문서·로그에 기록하지 않는다.
 
