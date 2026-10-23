@@ -57,7 +57,7 @@
 
 | 레지스트리 로그인 경로(`RELEASE_REGISTRY=localhost:5000`, 임시 토큰, 사용자 `github-actions[bot]`) | 임시 `DOCKER_CONFIG`로 로그인하고 compose 플러그인을 계속 찾았으며(심볼릭 링크) `{"released":"t2",...}` 성공. VM의 실제 `~/.docker/config.json` 불변, 임시 디렉터리 잔존 0. 레지스트리 사용자만 있고 토큰이 없으면 `registry user given but no token on stdin`으로 거부 |
 | 전환 도중 중단(SIGTERM), 레지스트리 사용자 없이 | 지속적으로 healthy가 되지 않는 이미지(`t4`)로 릴리스 중 `IMAGE_TAG=t4` 상태에서 프로세스에 SIGTERM → `interrupted: restoring t2`, 이후 `IMAGE_TAG=t2`, api·web healthy, 공개 200 (종료 코드 143). 이 시험은 운영자 `DOCKER_CONFIG`를 쓴 경우라 임시 설정 삭제 순서 버그(리뷰 B1)는 드러나지 않았다 |
-| 전환 도중 중단(SIGTERM), **레지스트리 사용자 있이**(임시 설정 사용) | `rm -rf` 순서를 복구 뒤로 옮긴 코드로 `IMAGE_TAG=t4` 상태에서 SIGTERM → `interrupted: restoring t1` → `IMAGE_TAG=t1`, api·web healthy, 공개 200, 임시 디렉터리 잔존 0. 이 VM의 compose는 시스템 플러그인 경로(`/usr/libexec/docker/cli-plugins`)에도 있어 순서 버그가 실제로 증상을 냈을지는 이 환경에서 재현할 수 없다(순서 수정은 코드 검토에 근거) |
+| 전환 도중 중단(SIGTERM), **레지스트리 사용자가 있을 때**(임시 설정 사용) | `rm -rf` 순서를 복구 뒤로 옮긴 코드로 `IMAGE_TAG=t4` 상태에서 SIGTERM → `interrupted: restoring t1` → `IMAGE_TAG=t1`, api·web healthy, 공개 200, 임시 디렉터리 잔존 0. 이 VM의 compose는 시스템 플러그인 경로(`/usr/libexec/docker/cli-plugins`)에도 있어 순서 버그가 실제로 증상을 냈을지는 이 환경에서 재현할 수 없다(순서 수정은 코드 검토에 근거) |
 | 읽는 쪽이 닫힘(`./release.sh 2>&1 \| head -1`) | 릴리스는 끝까지 진행돼 `IMAGE_TAG=t1`, api·web healthy. 단계 기록은 VM의 `release.log`에 남음(stdout JSON은 닫힌 파이프로 유실). 실제 SSH 연결 끊김·Actions 취소는 시험하지 않았다 |
 | 레지스트리 토큰 저장 확인(`config.json`에 `auth`가 있어야 함) | 로컬 레지스트리 로그인에서 통과. 자격 증명 도우미가 있는 호스트에서 거부되는 경로는 시험하지 않았다 |
 | 기동 직후 죽는 이미지(`t3`) 재검증 | 변경된 코드로도 `rolled back to t2`, 종료 코드 1, 공개 200 |
@@ -65,5 +65,5 @@
 
 **관찰**: 중단된 릴리스의 자식 프로세스(`docker compose`)가 잠금 파일 기술자를 상속해 끝날 때까지 새 릴리스를 `another release is running`으로 막는다. 의도한 직렬화로 보이지만 중단 직후 곧바로 재시도하면 잠시 거부될 수 있다.
 
-**한계 (미실행)**: `DEPLOY_*`가 환경 시크릿이고 환경이 `develop`/`v*`만 허용하는지(GitHub 설정)는 확인할 수 없다. 실제 GitHub Actions 실행(GHCR 푸시, `GITHUB_TOKEN`으로 `docker login`, 환경 승인, SSH 포스 커맨드, 호스트 키 고정, 공개 URL 스모크)은 한 번도 하지 않았다. `amd64` 빌드, `gha` 캐시 동작, 워크플로 권한 범위, 실제 `authorized_keys`의 `restrict,command=` 강제 실행과 stdin 토큰 전달, 레지스트리 로그인 경로는 실제 GHCR 로그인은 검증하지 못했다(로컬 레지스트리로 대체). `release.sh`의 롤백은 이미지만 되돌리며 이미 실행된 마이그레이션은 되돌리지 않는다. 사전 백업은 api를 잠시 멈춘다.
+**한계 (미실행)**: `DEPLOY_*`가 환경 시크릿이고 환경이 `develop`/`v*`만 허용하는지(GitHub 설정)는 확인할 수 없다. 실제 GitHub Actions 실행(GHCR 푸시, `GITHUB_TOKEN`으로 `docker login`, 환경 승인, SSH 포스 커맨드, 호스트 키 고정, 공개 URL 스모크)은 한 번도 하지 않았다. `amd64` 빌드, `gha` 캐시 동작, 워크플로 권한 범위, 실제 `authorized_keys`의 `restrict,command=` 강제 실행과 stdin 토큰 전달은 검증하지 못했다. 레지스트리 로그인은 로컬 레지스트리로 대체했으며 실제 GHCR 로그인은 검증하지 못했다. `release.sh`의 롤백은 이미지만 되돌리며 이미 실행된 마이그레이션은 되돌리지 않는다. 사전 백업은 api를 잠시 멈춘다.
 
