@@ -14,6 +14,9 @@ import { ResponseTimeInterceptor } from './common/interceptors/response-time.int
 import { CloudWatchMetricsService } from './common/monitoring/cloudwatch-metrics.service';
 import { BusinessMetricsService } from './common/monitoring/business-metrics.service';
 import * as v8 from 'v8';
+import { DataSource } from 'typeorm';
+import { assertProductionConfig } from './config/production-guard';
+import { User } from './user/entities/user.entity';
 
 // 환경 변수 로드
 config({ path: '.env.local' });
@@ -40,6 +43,8 @@ function configureMemoryOptimization() {
 async function bootstrap() {
   // 메모리 최적화 설정 적용
   configureMemoryOptimization();
+  // 안전하지 않은 운영 설정이면 DB 연결 전에 중단한다.
+  assertProductionConfig(process.env);
   if (process.env.SENTRY_DSN) {
     const Sentry = await import('@sentry/nestjs');
     Sentry.init({
@@ -52,8 +57,8 @@ async function bootstrap() {
   const expressApp = express();
   expressApp.use(helmet({ contentSecurityPolicy: false }));
 
-  // Express 메모리 최적화 설정
-  expressApp.set('trust proxy', 1);
+  // Express 메모리 최적화 설정. 신뢰할 프록시 홉 수는 배포 구성(Caddy→nginx→API 등)에 맞춘다.
+  expressApp.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
   expressApp.disable('x-powered-by');
 
   const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
@@ -78,11 +83,21 @@ async function bootstrap() {
     ),
   );
 
+  if (process.env.NODE_ENV === 'prod') {
+    // 시드된 데모 계정이 남아 있으면 운영 부팅을 거부한다.
+    const guestUserExists = await nestApp
+      .get(DataSource)
+      .getRepository(User)
+      .exist({ where: { userId: 'guest' } });
+    assertProductionConfig(process.env, { guestUserExists });
+  }
+
   nestApp.setGlobalPrefix('v1');
   nestApp.use(cookieParser());
   nestApp.useGlobalFilters(new HttpExceptionFilter());
   nestApp.useGlobalInterceptors(new RequestLoggingInterceptor());
-  setupSwagger(nestApp);
+  // 운영에서는 API 문서를 명시적으로 켠 경우에만 노출한다.
+  if (process.env.NODE_ENV !== 'prod' || process.env.SWAGGER_ENABLED === 'true') setupSwagger(nestApp);
   await nestApp.listen(parseInt(process.env.PORT) || 4000, process.env.HOST);
 }
 

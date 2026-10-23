@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **외부 초대 베타(2026-10-23, 최우선):** [전략](docs/strategy/external-beta.md)·[계획](docs/plans/external-beta-launch.md)이 아래의 "사내 Artifact 우선"·"고객 파일럿" 우선순위를 대체한다. 단일 VM+Docker Compose, AI SDK 제공자 레지스트리, 초대 가입·쿼터, 선언형 스펙 확장이 범위이며 Lambda(`serverless.yml`) 경로는 폐기 대상이다. 일부 상태가 프로세스 메모리에 있어 단일 인스턴스만 지원한다. 운영 부팅은 `production-guard`가 위험한 설정을 거부한다.
+
 - **검증 런타임 종료:** [원인·검증](docs/testing/qa-runtime-cleanup.md)·[계획](docs/plans/TC-050-runtime-cleanup.md)을 따른다. 그룹 조회 EPERM은 소멸이 아니며 그룹 유지/재조회와 IPC fatal을 구분한다. 그룹0·전송완료·현재 drain 증명 후만 정리한다. 별도 QA_API/WEB/CONTROL_PORT는 별도 runtime 포인터를 사용한다. 수정본의 MySQL restart/stop·정리 성공과 구버전 supervisor11506의 미복구/보존을 구분하며 임의 PID 종료·prune·실패 플래그 초기화로 우회하지 않는다.
 
 - **UC056 MCP 제작:** [계획](docs/plans/UC-056-mcp-authoring.md)·[가이드](docs/user-manual/site/mcp.md)·[증빙](docs/testing/mcp-artifact-authoring.md)을 따른다. `mcp-server/`는 기존 JWT API를 사용하는 로컬 stdio SDK v2 어댑터6도구이며 소스·지표→생성/집계 미리보기→별도 승인 비공개 저장→Studio 링크를 연결한다. 서버→Codex 실행과 외부 에이전트→VM MCP는 다른 방향이다. 원격 HTTP/OAuth·게시/공유·MK AI 계약은 제외하며 SDK/실Codex·Claude Code2.1.308(기본 claude-sonnet-5-5)/Ego134 검증을 구분한다. [Claude 후속](docs/plans/UC-056-claude-host.md)은 실행별 MCP·분리 승인·DB 저장0→1·Studio reload이며 전역 인증/모델은 변경하지 않는다.
