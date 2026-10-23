@@ -100,7 +100,9 @@ async function bootstrap(dataSource: DataSource): Promise<MigrateProdResult> {
   await dataSource.synchronize();
   await new CreateInitialData().seedReferenceData(dataSource);
   // One transaction: a crash must not leave a partial history that the next run would mistake for
-  // an upgradable database (it only inserts rows, so this is safe on MySQL).
+  // an upgradable database (it only inserts rows, so this is safe on MySQL). TypeORM rejects this
+  // mode for a migration that sets its own `transaction`; that would fail here, after
+  // synchronize(), and the next run would refuse the schema. Do not give migrations that option.
   await dataSource.runMigrations({ fake: true, transaction: 'all' });
   // `fake` runs report no executed migrations, so count what was recorded instead.
   const [{ count }] = await dataSource.query('SELECT COUNT(*) AS count FROM migrations');
@@ -118,7 +120,8 @@ async function main(): Promise<void> {
   try {
     console.log(JSON.stringify(await migrateProd(dataSource)));
   } finally {
-    await dataSource.destroy();
+    // migrateProd destroys the data source itself when it cannot prove its lock was released.
+    if (dataSource.isInitialized) await dataSource.destroy();
   }
 }
 
