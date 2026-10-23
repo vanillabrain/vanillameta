@@ -1,6 +1,6 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
@@ -13,18 +13,22 @@ const { alertApi, snackbarApi, service } = vi.hoisted(() => ({
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('react-alert', () => ({ useAlert: (context?: unknown) => (context ? snackbarApi : alertApi) }));
 vi.mock('@/api/authService', () => ({ default: service }));
-vi.mock('@/helpers/authHelper', () => ({ getToken: () => null }));
+const { token } = vi.hoisted(() => ({ token: { value: null as string | null } }));
+vi.mock('@/helpers/authHelper', () => ({ getToken: () => token.value }));
 vi.mock('@/assets/images/logo.svg?react', () => ({ default: () => <svg /> }));
 vi.mock('@/layouts/Footer', () => ({ Copyright: () => null }));
 vi.mock('@/seo/Seo', () => ({ default: () => null }));
 
 import SignUp from './index';
 
+const Where = () => <output data-testid="where">{useLocation().pathname + useLocation().search}</output>;
+
 const show = (url = '/signup') =>
   render(
     <LoadingContext.Provider value={{ showLoading: vi.fn(), hideLoading: vi.fn() } as never}>
       <MemoryRouter initialEntries={[url]}>
         <SignUp />
+        <Where />
       </MemoryRouter>
     </LoadingContext.Provider>,
   );
@@ -44,6 +48,7 @@ const fillAccount = () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  token.value = null;
   service.signup.mockResolvedValue({ status: 201 });
 });
 afterEach(cleanup);
@@ -115,4 +120,20 @@ it('reports a refused invitation with its own message', async () => {
   fireEvent.change(screen.getByLabelText(label('signup.inviteCode')), { target: { name: 'inviteCode', value: 'vm-used' } });
   fireEvent.click(screen.getByRole('button', { name: 'signup.submit' }));
   await waitFor(() => expect(alertApi.error).toHaveBeenCalledWith('signup.inviteInvalid'));
+});
+
+it('removes only the invite parameter from the address bar once it has been read', async () => {
+  mode('invite');
+  show('/signup?invite=vm-abc&utm=mail');
+  await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/signup?utm=mail'));
+  expect(((await screen.findByLabelText(label('signup.inviteCode'))) as HTMLInputElement).value).toBe('vm-abc');
+});
+
+it('does not undo the dashboard redirect of a signed-in visitor by scrubbing the address', async () => {
+  token.value = 'signed-in';
+  mode('invite');
+  show('/signup?invite=vm-abc');
+  await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/dashboard'));
+  await new Promise(resolve => setTimeout(resolve, 50));
+  expect(screen.getByTestId('where').textContent).toBe('/dashboard');
 });
