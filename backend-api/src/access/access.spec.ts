@@ -133,6 +133,19 @@ describe('invite-gated signup (real SQLite)', () => {
     expect(await db.getRepository(User).count()).toBe(1);
   });
 
+  it('reveals nothing about existing accounts to a request without a valid code', async () => {
+    const first = await invite();
+    await login.signup(dto(1, first.code));
+    // An existing email/userId with a bogus code must look exactly like an unknown identity with one.
+    const known = await login.signup({ ...dto(1), inviteCode: 'vm-bogus' }).catch(error => error);
+    const unknown = await login.signup({ ...dto(7), inviteCode: 'vm-bogus' }).catch(error => error);
+    for (const failure of [known, unknown]) {
+      expect(failure.getStatus()).toBe(403);
+      expect(errorCode(failure).error).toBe('INVITE_INVALID');
+    }
+    expect(known.getResponse()).toEqual(unknown.getResponse());
+  });
+
   it('lets exactly one of several racing signups take the last seat', async () => {
     const { code } = await invite({ maxUses: 1 });
     const results = await Promise.allSettled([1, 2, 3, 4, 5].map(n => login.signup(dto(n, code))));
@@ -257,6 +270,7 @@ describe('invite-gated signup (real SQLite)', () => {
       expect(await run('waitlist', 'reject', String(entry.id))).toEqual([
         { id: entry.id, status: 'rejected' },
       ]);
+      await expect(run('waitlist', 'list', '--status', 'pendng')).rejects.toThrow('status must be');
       await expect(run('invite', 'create', '--max-uses', '0')).rejects.toThrow('positive integer');
       await expect(run('invite', 'create', '--days')).rejects.toThrow('needs a value');
       await expect(run('bogus')).rejects.toThrow('usage');

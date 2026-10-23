@@ -8,7 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from 'src/auth/auth.service';
 import { User } from 'src/user/entities/user.entity';
-import { QueryFailedError, Repository } from 'typeorm';
+import { EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
@@ -73,23 +73,28 @@ export class LoginService {
     const created = await serializeMetadataWork(
       this.userRepository.manager.connection,
       async () => {
-        const existing = await this.findIdentityConflict(email, userId);
-        if (existing) throw identityConflict(existing);
-
+        const account = () => ({
+          email: email,
+          password: hashPassword(password),
+          userId: userId,
+          jwtId: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
         try {
-          const account = () => ({
-            email: email,
-            password: hashPassword(password),
-            userId: userId,
-            jwtId: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
-          if (!invited) return await this.userRepository.save(account());
-          // The invitation seat and the account are one unit: a signup that fails (a lost unique race,
-          // a database error) gives the seat back instead of burning it.
+          if (!invited) {
+            const existing = await this.findIdentityConflict(email, userId);
+            if (existing) throw identityConflict(existing);
+            return await this.userRepository.save(account());
+          }
+          // Invite mode: the invitation is checked BEFORE anything about existing accounts is revealed,
+          // so a probe without a valid code learns nothing about who is registered. The seat and the
+          // account are one unit: a conflict, a lost unique race or a database error rolls the
+          // transaction back and gives the seat back instead of burning it.
           return await metadataTransaction(this.userRepository.manager, async manager => {
             const inviteId = await this.access.redeem(manager, inviteCode as string);
+            const existing = await this.findIdentityConflict(email, userId, manager);
+            if (existing) throw identityConflict(existing);
             const saved = await manager.getRepository(User).save(account());
             await this.access.recordRedemption(manager, inviteId, saved.id);
             return saved;
@@ -124,9 +129,14 @@ export class LoginService {
   }
 
   /** Identity columns are read in the same order the precheck reports them: email first. */
-  private async findIdentityConflict(email: string, userId: string): Promise<IdentityField | null> {
-    if (await this.userRepository.findOne({ where: { email } })) return 'email';
-    if (await this.userRepository.findOne({ where: { userId } })) return 'userId';
+  private async findIdentityConflict(
+    email: string,
+    userId: string,
+    manager?: EntityManager,
+  ): Promise<IdentityField | null> {
+    const users = manager ? manager.getRepository(User) : this.userRepository;
+    if (await users.findOne({ where: { email } })) return 'email';
+    if (await users.findOne({ where: { userId } })) return 'userId';
     return null;
   }
 }

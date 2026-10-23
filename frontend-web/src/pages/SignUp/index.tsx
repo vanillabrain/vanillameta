@@ -21,7 +21,7 @@ const SignUp = () => {
   const navigate = useNavigate();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   // null until the API has answered; a failed request keeps the invitation field so signup stays usable.
   const [mode, setMode] = useState<SignupMode | null>(null);
   const [userInfo, setUserInfo] = useState({
@@ -44,6 +44,11 @@ const SignUp = () => {
   }, []);
 
   useEffect(() => {
+    // The code is kept in state; do not leave it in the address bar and browser history.
+    if (searchParams.has('invite')) setSearchParams({}, { replace: true });
+  }, []);
+
+  useEffect(() => {
     let current = true;
     authService
       .getSignupMode()
@@ -56,7 +61,7 @@ const SignUp = () => {
 
   const handleWaitlist = event => {
     event.preventDefault();
-    if (!checkEmail.test(waitlistEmail)) {
+    if (!checkEmail.test(waitlistEmail.trim())) {
       snackbar.error(t('signup.emailFormat'));
       return;
     }
@@ -216,7 +221,9 @@ const SignUp = () => {
               >
                 <p className="text-sm font-medium text-foreground">{t('signup.waitlistTitle')}</p>
                 {waitlistDone ? (
-                  <p className="text-sm text-muted-foreground">{t('signup.waitlistDone')}</p>
+                  <p role="status" className="text-sm text-muted-foreground">
+                    {t('signup.waitlistDone')}
+                  </p>
                 ) : (
                   <>
                     <TextField

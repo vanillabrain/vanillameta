@@ -161,7 +161,7 @@ export default {
     waitlistEmail: 'Email for the waiting list',
     waitlistTitle: 'No invite code? Join the waiting list.',
     waitlistSubmit: 'Join waiting list',
-    waitlistDone: 'You are on the list. We will email you when an invitation is ready.',
+    waitlistDone: 'You are on the list. We will contact you when an invitation is ready.',
   },
   list: {
     name: 'Name',

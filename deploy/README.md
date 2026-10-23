@@ -30,7 +30,7 @@ sudo ./egress-guard.sh apply                              # + vanillameta-egress
 docker compose --env-file .env.prod -f docker-compose.prod.yml ps -a   # migrate는 exited(0), 나머지는 healthy
 ```
 
-`migrate`가 빈 DB를 만들고(엔티티 + 참조 데이터 + 마이그레이션 53건 기록) 이후에는 대기 중인 마이그레이션만 실행한다. 테이블은 있는데 기록이 없는 스키마는 거부하고 비정상 종료하며, 이 경우 `api`는 시작하지 않는다. 운영 가드(`production-guard.ts`)는 약한 시크릿·`CORS_ORIGIN` 누락·`AI_PROVIDER=codex`·`guest` 계정·`QUERY_ALLOW_WRITE=true`면 `api` 부팅을 거부한다.
+`migrate`가 빈 DB를 만들고(엔티티 + 참조 데이터 + 마이그레이션 전부 기록) 이후에는 대기 중인 마이그레이션만 실행한다. 테이블은 있는데 기록이 없는 스키마는 거부하고 비정상 종료하며, 이 경우 `api`는 시작하지 않는다. 운영 가드(`production-guard.ts`)는 약한 시크릿·`CORS_ORIGIN` 누락·`AI_PROVIDER=codex`·`guest` 계정·`QUERY_ALLOW_WRITE=true`면 `api` 부팅을 거부한다.
 
 ## 가입 방식과 초대 코드
 

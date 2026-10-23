@@ -76,6 +76,8 @@ export async function runAccessCommand(
   }
   if (area === 'waitlist' && action === 'list') {
     const status = values.status;
+    if (status && !['pending', 'approved', 'rejected'].includes(status))
+      throw new Error('status must be pending, approved or rejected');
     for (const entry of await waitlist.find({
       where: status ? { status: status as never } : {},
       order: { id: 'ASC' },
