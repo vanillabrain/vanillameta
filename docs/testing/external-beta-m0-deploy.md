@@ -20,6 +20,7 @@
 | `egress-guard.sh apply` | 적용·멱등(점프 규칙 1개)·`remove`로 완전 제거. api→공용 200 유지, api→mysql 유지. `10.255.255.1`·`169.254.169.254`·`192.168.77.7`·`172.20.5.5` 접속 시도가 모두 시간 초과이고 DROP 규칙의 패킷 카운터가 증가(10/8·169.254/16·172.16/12·192.168/16 각 7), 공용 RETURN 6. 호스트 IP 직접 접속은 적용 전 응답, 적용 후 시간 초과 |
 | `egress-guard.sh` DNS 허용 규칙(리뷰 반영) | 업스트림 리졸버 대상 53/udp·tcp RETURN 규칙이 DROP 앞에 생성되고(2개) 198.18/15·224/4·240/4 DROP이 추가됐다. 적용 후 api에서 이름 해석과 공용 HTTPS 모두 성공. 이 VM의 DNS는 컨테이너 네임스페이스가 아니라 호스트에서 전달돼 해당 규칙의 패킷 카운터는 0이었다. 즉 **클라우드 VM(AWS/GCP 리졸버가 사설/링크로컬 대역)에서의 영향은 검증하지 못했다** |
 | `backup.sh`(암호화 필수·스트리밍·api 컨테이너 정지) | 암호 파일이 없으면 거부. api **컨테이너만** `docker stop/start`(compose `stop api`는 이 compose v5.1.4에서는 web·caddy를 멈추지 않았지만 버전에 따라 다를 수 있어 컨테이너를 직접 다룬다). 백업 직후 `ps -a`: api running/healthy, web healthy, mysql healthy, caddy running, migrate exited(재실행 없음). `.tar.enc`(권한 600)만 남고 평문 `.tar`·`.partial`·`.work` 없음. 동시 실행은 `flock`으로 거부 |
+| `backup.sh` 자가 복구·플래그(최종 리뷰 반영) | api가 멈춘 채(이전 실행이 죽은 상황)이고 `.work.leftover`·`*.partial` 잔여물이 있을 때 `BACKUP_QUIESCE=TRUE`로 실행 → 백업 성공, api가 running/healthy로 복귀, 잔여물 0. `BACKUP_QUIESCE=off`는 `quiesced:false`. 종료 코드는 `tail` 파이프 때문에 확인하지 못했다(건강 대기 시간 초과 시 종료 코드 6 경로는 시험하지 않았다) |
 | `restore-drill.sh`(모든 컬럼 해시, TCP ping) | `{"restored":true,"tables":83,"migrations":53,"users":0,"duckdbFiles":1}`. 50만 행 테이블(약 9MB)의 `.duckdb`를 `bit_xor(hash(COLUMNS(*)))`로 전부 읽었다 |
 | 훈련의 부정 경로 | 잘못된 암호 → `bad decrypt`로 실패. 손상된 archive → `tar` 오류로 실패. 유효하지 않은 `.duckdb`(40KB 난수)가 든 백업 → `DRILL FAILED`. 정상 파일의 가운데 8KB를 난수로 덮은 백업(약 9MB 파일의 4MB 지점) → `Corrupt database file: computed checksum ... does not match stored checksum`으로 `DRILL FAILED`(헤더가 아니라 데이터 블록 손상도 잡는다). 첫 실행은 `.duckdb` 파일이 컨테이너 사용자에게 읽히지 않아 `DRILL FAILED`를 내고 스크립트가 권한을 고치도록 수정 |
 | `docker stop api` | 0초, 종료 코드 143. `init: true`는 신호를 전달하지만 API에 SIGTERM 핸들러(`enableShutdownHooks`)가 없어 처리 중인 요청·업로드가 끊긴다(알려진 한계. `stop_grace_period: 30s`는 현재 효과 없음) |
@@ -33,6 +34,7 @@
 
 - 실제 운영 VM, 실제 DNS와 Let's Encrypt 발급(검증은 `localhost`의 Caddy 내부 CA), amd64 이미지. 이 VM은 arm64다.
 - `egress-guard.sh`의 systemd 유닛(재부팅 후 재적용)은 설치·재부팅하지 않았다. Docker 격리 때문에 다른 브릿지의 컨테이너로의 접속은 규칙 없이도 막혀 있어, 규칙의 효과는 패킷 카운터와 호스트 IP 접속 차이로 확인했다.
+- api 건강 대기 시간 초과 경로(종료 코드 6), Parquet의 VARIANT/GEOMETRY 열이 든 `.duckdb`의 해시 스캔은 시험하지 않았다.
 - `backup.sh`의 S3/R2 업로드(`aws` CLI)와 cron 등록은 실행하지 않았다. `BACKUP_QUIESCE=false`면 백업이 DuckDB 파일이 쓰이는 중에 복사될 수 있다(기본값 true는 api를 멈춘다).
 - 파일 가운데가 손상된 `.duckdb`는 훈련이 잡는다(위). 다만 **실제로 쓰는 도중 복사된** 파일은 만들어 보지 않았다. 백업은 api를 멈춘 상태에서 복사하며 `BACKUP_QUIESCE=false`면 그 위험이 돌아온다.
 - 백업 암호화는 `openssl enc -aes-256-cbc -pbkdf2 -iter 600000`(무결성 인증이 없다. 내부 `SHA256SUMS`는 우발적 손상만 잡는다). `age`/`gpg` 전환은 후속이다.

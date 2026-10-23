@@ -24,7 +24,8 @@ PASSPHRASE_FILE="${BACKUP_PASSPHRASE_FILE:-$(envval BACKUP_PASSPHRASE_FILE)}"
 S3_URI="${BACKUP_S3_URI:-$(envval BACKUP_S3_URI)}"
 S3_ENDPOINT="${BACKUP_S3_ENDPOINT:-$(envval BACKUP_S3_ENDPOINT)}"
 QUIESCE="${BACKUP_QUIESCE:-$(envval BACKUP_QUIESCE)}"; QUIESCE="${QUIESCE:-true}"
-case "$QUIESCE" in true|1|yes) QUIESCE=true ;; *) QUIESCE=false ;; esac
+# Only an explicit "false" turns the safety default off; any other spelling keeps it on.
+case "$(echo "$QUIESCE" | tr '[:upper:]' '[:lower:]')" in false|0|no|off) QUIESCE=false ;; *) QUIESCE=true ;; esac
 
 [ -n "$PASSPHRASE_FILE" ] && [ -r "$PASSPHRASE_FILE" ] && [ -s "$PASSPHRASE_FILE" ] \
   || { echo "BACKUP_PASSPHRASE_FILE must point to a readable, non-empty file" >&2; exit 2; }
@@ -45,7 +46,7 @@ work=$(mktemp -d "$BACKUP_DIR/.work.XXXXXX")
 api_stopped=false
 # Act on the container, not the compose service: `compose stop api` can also stop web and caddy, which
 # depend on it and would not come back (they are stopped on purpose, so restart policies skip them).
-api_cid=$("${COMPOSE[@]}" ps -q api)
+api_cid=$("${COMPOSE[@]}" ps -aq api)
 start_api() {
   docker start "$api_cid" >/dev/null
   for _ in $(seq 1 45); do
@@ -53,6 +54,7 @@ start_api() {
     sleep 2
   done
   echo "warning: api did not become healthy within 90s" >&2
+  return 1
 }
 cleanup() {
   rm -rf "$work"
@@ -74,7 +76,8 @@ uploads_volume=$(docker volume ls -q --filter label=com.docker.compose.project=v
 [ -n "$uploads_volume" ] || { echo "uploads volume not found" >&2; exit 4; }
 docker run --rm -v "$uploads_volume":/data:ro alpine:3.20 tar -C /data -cf - . | gzip > "$work/uploads.tar.gz"
 
-if [ "$api_stopped" = true ]; then start_api; api_stopped=false; fi
+api_unhealthy=false
+if [ "$api_stopped" = true ]; then start_api || api_unhealthy=true; api_stopped=false; fi
 
 # A truncated stream must fail here, not at restore time.
 gzip -t "$work/db.sql.gz" "$work/uploads.tar.gz"
@@ -92,6 +95,7 @@ if [ -n "$S3_URI" ]; then
   aws s3 cp "$archive" "$S3_URI/$(basename "$archive")" ${S3_ENDPOINT:+--endpoint-url "$S3_ENDPOINT"} --only-show-errors
 fi
 
-find "$BACKUP_DIR" -maxdepth 1 \( -name 'vanillameta-*.tar.enc' -o -name '.work.*' \) -mtime +"$RETENTION_DAYS" -exec rm -rf {} +
+find "$BACKUP_DIR" -maxdepth 1 -name 'vanillameta-*.tar.enc' -mtime +"$RETENTION_DAYS" -delete
 size=$(wc -c < "$archive" | tr -d ' ')
 echo "{\"backup\":\"$archive\",\"bytes\":$size,\"quiesced\":$QUIESCE,\"offsite\":$([ -n "$S3_URI" ] && echo true || echo false)}"
+[ "$api_unhealthy" = false ] || { echo "backup written, but the api did not become healthy" >&2; exit 6; }
