@@ -39,6 +39,7 @@ import { Redis } from 'ioredis';
 import { DuckDBService } from '../analysis/duckdb.service';
 import { ProgressGateway } from '../progress/progress.gateway';
 import { AsyncLocalStorage } from 'async_hooks';
+import { assertNotLocalFileEngine, assertSourceEngineAllowed } from './source-type-policy';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires -- knex-bigquery는 타입 선언이 없음
 const { BigQueryClient } = require('knex-bigquery');
@@ -274,7 +275,10 @@ export class ConnectionService {
     if (snapshot) return snapshot;
     const one = await this.databaseRepository.findOne({ where: { id: databaseId } });
     if (!one) throw new NotFoundException('database not found');
-    return JSON.parse(decryptConnectionConfig(one.connectionConfig));
+    // Sources saved before a restriction was set must not open sockets either.
+    const config = JSON.parse(decryptConnectionConfig(one.connectionConfig));
+    assertSourceEngineAllowed(config?.client ?? one.engine);
+    return config;
   }
 
   /** UC052: capture committed configuration without retaining the metadata lease during SQL.
@@ -568,6 +572,8 @@ export class ConnectionService {
    * @param createDatabaseDto
    */
   async testConnection(createDatabaseDto: CreateDatabaseDto) {
+    assertSourceEngineAllowed(createDatabaseDto.engine);
+    assertNotLocalFileEngine(createDatabaseDto.engine);
     if (['clickhouse', 'trino', 'databricks'].includes(createDatabaseDto.engine)) {
       const executors = {
         clickhouse: this.executeClickHouse,
@@ -1616,6 +1622,8 @@ export class ConnectionService {
    * @param createDatabaseDto
    */
   async testDatabase(createDatabaseDto: CreateDatabaseDto) {
+    assertSourceEngineAllowed(createDatabaseDto.engine);
+    assertNotLocalFileEngine(createDatabaseDto.engine);
     try {
       // ConnectionConfig 파싱
       let parsedConnectionConfig: any = createDatabaseDto.connectionConfig;

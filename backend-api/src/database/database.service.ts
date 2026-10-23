@@ -30,6 +30,7 @@ import { createHash } from 'crypto';
 import { AnalysisUpload, DuckDBService } from '../analysis/duckdb.service';
 import { diffFileSchema } from './file-schema-diff';
 import { FileCorrection } from '../analysis/file-correction';
+import { assertSourceEngineAllowed } from '../connection/source-type-policy';
 
 const UPLOAD_TABLE = 'uploaded_data';
 /** Internal hook: a durable receipt can commit atomically with the source pointer. */
@@ -647,6 +648,7 @@ export class DatabaseService {
     ]);
   }
   private webConfig(engine: string, config: unknown) {
+    assertSourceEngineAllowed(engine);
     if (['duckdb', 'sqlite', 'sqlite3', 'better-sqlite3'].includes(String(engine).toLowerCase()))
       throw new ForbiddenException('File sources require managed upload.');
     sourceWriteFields(config, [
