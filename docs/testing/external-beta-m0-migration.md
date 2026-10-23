@@ -25,12 +25,18 @@
 | 두 번째 실행 | `{"mode":"migrated","ranMigrations":0}` |
 | 마이그레이션이 만드는 테이블 | 엔티티 스키마에 모두 존재 (`background_job_results`, `queued_job_results`, `client_analytics_events` 등). 비교에서 걸린 3개 이름은 `legacy-table-separation.mysql.spec.ts` 픽스처에서만 나온다 |
 | 중단된 첫 실행 흉내(`migrations` 기록 삭제, 83 테이블 유지) | `Schema "vm_real" has 83 tables but no recorded migrations ... Refusing to migrate it`, 테이블 수 불변 |
-| `migrate-prod.mysql.spec.ts` + `production-guard.spec.ts` | 2 suites, 26 tests PASS (MySQL 스펙 6개: 빈 DB 초기화·재실행, 대기 중 마이그레이션만 실행, 기록 없는 스키마 거부, 빈 `migrations` 테이블 거부, 동시 2회 실행에서 정확히 1회만 초기화, 잠금 보유 시 실패. `VM_MIGRATE_PROD_MYSQL_PORT`/`..._PASSWORD`를 지정한 옵트인) |
-| `npm run build`, eslint(변경 파일), `tsc --noEmit` | PASS |
+| `migrate-prod.mysql.spec.ts` + `production-guard.spec.ts` | 2 suites, 28 tests PASS (MySQL 스펙 7개: 빈 DB 초기화·재실행, 대기 중 마이그레이션만 실행, 기록 없는 스키마 거부, 빈 `migrations` 테이블 거부, 이력 기록 중 실패 시 부분 기록 0건, 동시 2회 실행에서 정확히 1회만 초기화, 잠금 보유 시 실패. `VM_MIGRATE_PROD_MYSQL_PORT`/`..._PASSWORD`를 지정한 옵트인) |
+| `fake` 이력 기록을 단일 트랜잭션으로 바꾼 뒤 실제 53건 재실행 | 첫 실행 `{"mode":"bootstrapped","recordedMigrations":53}`, 재실행 `{"mode":"migrated","ranMigrations":0}` |
+| `npm run build`, eslint(변경 파일: 에러 0, 기존 경고 3), `tsc --noEmit` | PASS |
+| audit(워크트리, Node 26, `npm ci --legacy-peer-deps`) 6335d475 | jest 4 suites 34 tests PASS, build PASS, eslint 에러 0. MySQL 스펙은 옵트인이라 SKIPPED (위 MySQL 실행은 별도) |
 
 ## 부팅 가드 보강 (architect 검토 반영)
 
-`NODE_ENV=production`(예: `backend-api/docker-compose.yml:70`)은 `app.module.ts`가 `!= 'prod'`로 판단해 `synchronize`를 켜고 swagger를 노출한다. 가드는 이 별칭을 항상 거부하고, 원격 `DB_HOST`에서 `NODE_ENV`가 미설정이거나 `local/dev/prod/test`가 아니면 거부한다. 운영에서 `.env.local`이 있으면(`main.ts`가 무조건 로드한다) 거부한다. 이미지에 파일이 들어가지 않게 하는 `.dockerignore` 확인은 이미지 단계에 남아 있다.
+`NODE_ENV=production`(예: `backend-api/docker-compose.yml:70`)은 `app.module.ts`가 `!= 'prod'`로 판단해 `synchronize`를 켜고 swagger를 노출한다. 가드는 이 별칭을 항상 거부하고, 원격 `DB_HOST`에서 `NODE_ENV`가 미설정이거나 `local/dev/prod/test`가 아니면 거부한다. 운영에서 `.env.local`이 있으면(`main.ts`가 무조건 로드한다) 거부한다. 개발용 `NODE_ENV=development`(`docker-compose.dev.yml`, `docker-compose.multi-db.yml`, `.env.docker`)는 허용 목록에 있어 그대로 부팅한다. `Prod`·`PRODUCTION`처럼 대소문자만 다른 표기는 로컬 DB에서도 거부한다.
+
+마이그레이션 이력 기록(`fake`)은 단일 트랜잭션(`transaction: 'all'`)으로 실행한다. 도중에 중단돼 1~52건만 남으면 다음 실행이 이를 "업그레이드 가능한 DB"로 오인해 나머지를 실제로 실행하기 때문이다. 연결 풀이 2 미만이면 잠금 연결 때문에 `synchronize()`가 영원히 기다리므로 거부한다.
+
+**`.env.local`은 현재 git에 추적되고 있다**(`backend-api/.env.local`, 시크릿 키 이름 포함. 값은 확인하지 않았다). `backend-api/Dockerfile`이 `COPY . .`를 하므로 그대로면 이미지에 들어가 가드가 운영 부팅을 거부한다. `backend-api/.dockerignore`에 `.env.local`을 추가해 이미지에서 제외했다. 파일을 추적에서 빼거나(`git rm --cached`) 값을 회전할지는 팀 개발 환경에 영향이 있어 결정하지 않았다.
 
 ## 환경 주의
 

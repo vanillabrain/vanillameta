@@ -94,8 +94,15 @@ describe('environment aliases', () => {
   });
 
   it('keeps recognised non-prod environments working against remote databases', () => {
-    for (const nodeEnv of ['dev', 'local', 'test'])
+    for (const nodeEnv of ['dev', 'development', 'local', 'test'])
       expect(productionConfigProblems({ NODE_ENV: nodeEnv, DB_HOST: 'db.internal' })).toEqual([]);
+  });
+
+  it('rejects other spellings of prod, even against a local database', () => {
+    for (const nodeEnv of ['Prod', 'PRODUCTION', ' prod '])
+      expect(
+        productionConfigProblems({ NODE_ENV: nodeEnv, DB_HOST: '127.0.0.1' }).join('\n'),
+      ).toContain('use NODE_ENV=prod');
   });
 
   it('refuses a shipped .env.local in prod', () => {

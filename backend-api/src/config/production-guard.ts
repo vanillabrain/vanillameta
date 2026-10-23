@@ -8,7 +8,7 @@ const REQUIRED_SECRETS = [
 const MIN_SECRET_LENGTH = 32;
 const DEV_ONLY_PREFIX = 'dev-only-';
 
-const KNOWN_ENVIRONMENTS = ['local', 'dev', 'prod', 'test'];
+const KNOWN_ENVIRONMENTS = ['local', 'dev', 'development', 'prod', 'test'];
 const LOCAL_DB_HOSTS = ['localhost', '127.0.0.1', '::1'];
 
 export interface ProductionRuntimeFacts {
@@ -27,7 +27,9 @@ function environmentProblems(env: NodeJS.ProcessEnv): string[] {
   if (nodeEnv === 'prod') return [];
   const remoteDatabase = Boolean(env.DB_HOST) && !LOCAL_DB_HOSTS.includes(env.DB_HOST as string);
   const unknown = !KNOWN_ENVIRONMENTS.includes(nodeEnv ?? '');
-  if (nodeEnv === 'production' || (unknown && remoteDatabase))
+  // Any spelling of prod other than exactly "prod" (Prod, PRODUCTION, ...) would keep synchronize on.
+  const prodAlias = ['prod', 'production'].includes((nodeEnv ?? '').trim().toLowerCase());
+  if (prodAlias || (unknown && remoteDatabase))
     return [
       `NODE_ENV=${nodeEnv ?? '(unset)'} is not a recognised environment; ` +
         'use NODE_ENV=prod so that schema synchronization stays off',

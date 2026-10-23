@@ -29,6 +29,12 @@ export async function migrateProd(
   dataSource: DataSource,
   options: MigrateProdOptions = {},
 ): Promise<MigrateProdResult> {
+  // The lock holds one pooled connection while synchronize() needs another.
+  const poolSize = Number(
+    (dataSource.options as { extra?: { connectionLimit?: number } }).extra?.connectionLimit ?? 10,
+  );
+  if (poolSize < 2) throw new Error('migrate-prod needs DB_CONNECTION_LIMIT of at least 2');
+
   const runner = dataSource.createQueryRunner();
   let lockName: string | undefined;
   try {
@@ -59,8 +65,15 @@ export async function migrateProd(
     const ran = await dataSource.runMigrations({ transaction: 'each' });
     return { mode: 'migrated', ranMigrations: ran.length };
   } finally {
-    if (lockName) await runner.query('SELECT RELEASE_LOCK(?)', [lockName]).catch(() => undefined);
-    await runner.release();
+    let unlocked = true;
+    if (lockName)
+      unlocked = await runner.query('SELECT RELEASE_LOCK(?)', [lockName]).then(
+        () => true,
+        () => false,
+      );
+    // A connection that may still hold the lock is destroyed instead of returned to the pool.
+    await runner.release().catch(() => undefined);
+    if (!unlocked) await dataSource.destroy().catch(() => undefined);
   }
 }
 
@@ -86,7 +99,9 @@ async function recordedMigrationCount(
 async function bootstrap(dataSource: DataSource): Promise<MigrateProdResult> {
   await dataSource.synchronize();
   await new CreateInitialData().seedReferenceData(dataSource);
-  await dataSource.runMigrations({ fake: true, transaction: 'none' });
+  // One transaction: a crash must not leave a partial history that the next run would mistake for
+  // an upgradable database (it only inserts rows, so this is safe on MySQL).
+  await dataSource.runMigrations({ fake: true, transaction: 'all' });
   // `fake` runs report no executed migrations, so count what was recorded instead.
   const [{ count }] = await dataSource.query('SELECT COUNT(*) AS count FROM migrations');
   return { mode: 'bootstrapped', recordedMigrations: Number(count) };

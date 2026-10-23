@@ -147,6 +147,29 @@ suite('migrateProd on an empty and an existing MySQL schema', () => {
     }
   });
 
+  it('leaves no partial migration history when recording fails midway', async () => {
+    // The second record cannot be stored (name longer than the column), as if the process died.
+    class Unrecordable1999000000003 implements MigrationInterface {
+      name = 'U'.repeat(300) + '1999000000003';
+      async up() {
+        // never executed: the migration is only recorded
+      }
+      async down() {
+        // never executed
+      }
+    }
+    const schema = await newSchema();
+    const db = await connect(schema, [AddMarkerOne1999000000001, Unrecordable1999000000003]);
+    try {
+      await expect(migrateProd(db)).rejects.toThrow();
+      const [{ count }] = await db.query('SELECT COUNT(*) AS count FROM migrations');
+      expect(Number(count)).toBe(0);
+      await expect(migrateProd(db)).rejects.toThrow(/no recorded migrations/);
+    } finally {
+      await db.destroy();
+    }
+  });
+
   it('lets exactly one of two concurrent runs initialise the schema', async () => {
     const schema = await newSchema();
     const a = await connect(schema, BOTH);

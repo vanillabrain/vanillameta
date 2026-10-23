@@ -122,3 +122,6 @@ dist
 # 로컬 런타임 데이터 — 이미지에 포함하면 안 됨
 sqlite.db
 uploads/
+
+# A local environment file must never ship in an image (the prod boot guard rejects .env.local)
+.env.local
