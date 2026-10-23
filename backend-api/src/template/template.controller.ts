@@ -18,12 +18,15 @@ import { CreateTemplateItemDto } from './dto/create-template-item.dto';
 import { UpdateTemplateItemDto } from './dto/update-template-item.dto';
 import { TemplateInfoDto } from './dto/template-info.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from 'src/auth/guards/legacy-operations.guard';
 
 @UseGuards(JwtAuthGuard, SourceOwnershipGuard)
+// Templates are a shared catalog without an owner: only the recommend/dashboard routes (which assert the caller's own widgets) are for regular users; the catalog CRUD is an operator task.
 @Controller('template')
 export class TemplateController {
   constructor(private readonly templateService: TemplateService) {}
 
+  @UseGuards(LegacyOperationsGuard)
   @Post()
   @ApiOperation({
     summary: '템플릿 생성',
@@ -43,6 +46,7 @@ export class TemplateController {
     return this.templateService.create(createTemplateDto);
   }
 
+  @UseGuards(LegacyOperationsGuard)
   @Get()
   @ApiOperation({
     summary: '템플릿 목록 조회',
@@ -57,11 +61,13 @@ export class TemplateController {
     return this.templateService.findAll();
   }
 
+  @UseGuards(LegacyOperationsGuard)
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return await this.templateService.findOne(+id);
   }
 
+  @UseGuards(LegacyOperationsGuard)
   @Put(':id')
   @ApiOperation({
     summary: '템플릿 수정',
@@ -87,6 +93,7 @@ export class TemplateController {
     return this.templateService.update(+id, updateTemplateDto);
   }
 
+  @UseGuards(LegacyOperationsGuard)
   @Delete(':id')
   @ApiOperation({
     summary: '템플릿 삭제',

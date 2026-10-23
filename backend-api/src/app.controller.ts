@@ -1,6 +1,9 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AppService } from './app.service';
+
+/** Production is exactly NODE_ENV=prod; the boot guard refuses every other spelling of it. */
+const isProduction = () => process.env.NODE_ENV === 'prod';
 
 @ApiTags('시스템')
 @Controller()
@@ -20,11 +23,16 @@ export class AppController {
         docs: '/api/v1/docs',
         health: '/api/v1/health',
       },
-      demo: {
-        username: 'guest',
-        password: 'Admin!@12',
-        note: '데모 계정으로 로그인하여 VanillaMeta를 체험해보세요!',
-      },
+      // The demo account only exists in local development; never advertise it in production.
+      ...(isProduction()
+        ? {}
+        : {
+            demo: {
+              username: 'guest',
+              password: 'Admin!@12',
+              note: '데모 계정으로 로그인하여 VanillaMeta를 체험해보세요!',
+            },
+          }),
     };
   }
 
@@ -57,6 +65,8 @@ export class AppController {
     description: 'IP 주소를 가져오는 중 오류가 발생했습니다.',
   })
   async getIp(): Promise<string> {
+    // An anonymous endpoint that calls a third party on demand: development diagnostics only.
+    if (isProduction()) throw new NotFoundException();
     return await this.appService.getIp();
   }
 
@@ -87,6 +97,7 @@ export class AppController {
     },
   })
   postHello(@Body() body) {
+    if (isProduction()) throw new NotFoundException();
     return body;
   }
 
@@ -103,6 +114,7 @@ export class AppController {
 
   @Post('/seed')
   async createSeedData() {
+    if (isProduction()) throw new NotFoundException();
     return {
       message: 'Seed data endpoint ready',
       timestamp: new Date().toISOString(),

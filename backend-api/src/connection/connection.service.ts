@@ -311,7 +311,12 @@ export class ConnectionService {
     const snapshots = this.duckDBSnapshots.getStore();
     if (snapshots?.has(databaseId)) return callback();
     // A preview must not pin a connection change that another SQLite transaction rolls back.
-    const capture = await this.captureDuckDBSnapshot(databaseId);
+    // Callers authorize after the capture, so a source that does not exist must look exactly like one the
+    // caller may not use (SourceAccessService answers 403 for both); otherwise 404 vs 403 reveals which ids exist.
+    const capture = await this.captureDuckDBSnapshot(databaseId).catch(error => {
+      if (error instanceof NotFoundException) throw new ForbiddenException('data access denied');
+      throw error;
+    });
     return capture.run(async () => callback());
   }
 

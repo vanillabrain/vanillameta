@@ -187,8 +187,10 @@ export class WidgetService {
   }
 
   async findOne(id: number) {
+    // subQuery(): without it the builder keeps its own FROM next to from(Widget), so `id` is ambiguous.
     const widgetInfo = this.widgetRepository
       .createQueryBuilder()
+      .subQuery()
       .select(['widget.*'])
       .from(Widget, 'widget')
       .where('id=:id')

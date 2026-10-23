@@ -51,7 +51,8 @@ export class EventsService {
           category: event.category,
           label: event.label,
           value: event.value,
-          userId: event.properties?.userId,
+          // This endpoint is unauthenticated, so a user id in the payload is only a claim. Never store it.
+          userId: null,
           sessionId: event.properties?.sessionId || sessionInfo?.sessionId,
           correlationId: event.properties?.correlationId,
           properties: this.sanitizeProperties(event.properties),

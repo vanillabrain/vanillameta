@@ -24,6 +24,13 @@ describe('ConnectionService DuckDB snapshots', () => {
     service = new ConnectionService(repository as any, {} as any, worker as any);
   });
 
+  it('answers a snapshot of a missing source like a source the caller may not use', async () => {
+    repository.findOne.mockResolvedValueOnce(null);
+    await expect(service.withDuckDBSnapshot(99, async () => 'never')).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
   it('preserves the file and revision in nested snapshots of the same source', async () => {
     const initial = await service.duckDBVersion(1);
     const result = await service.withDuckDBSnapshot(1, async () => {

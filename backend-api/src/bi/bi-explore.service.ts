@@ -422,6 +422,8 @@ export class BiExploreService {
 
   async catalog(body: any, actor: number) {
     const input = this.fields(body, CATALOG_FIELDS);
+    // Authorize before pinning a snapshot of the file, so a foreign source never gets as far as the capture.
+    await this.bi.assertSourceAction(input.sourceId, actor, 'read');
     return this.connection.withDuckDBSnapshot(input.sourceId, () =>
       this.catalogSnapshot(input, actor),
     );

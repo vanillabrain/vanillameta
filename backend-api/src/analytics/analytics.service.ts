@@ -61,7 +61,9 @@ export class AnalyticsService {
       action: event.action,
       label: event.label,
       value: event.value,
-      userId: context.userId || metadata.userId,
+      // Only the verified JWT identity counts: the anonymous endpoint must not let a caller file events
+      // under someone else's name (they would show up in that user's own event feed).
+      userId: context.userId || null,
       sessionId: metadata.sessionId || 'unknown',
       correlationId: context.correlationId,
       metadata: this.sanitizeMetadata(metadata),

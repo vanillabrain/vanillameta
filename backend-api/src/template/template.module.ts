@@ -7,9 +7,10 @@ import { TemplateItem } from './entities/template-item.entity';
 import { Widget } from '../widget/entities/widget.entity';
 import { Component } from '../component/entities/component.entity';
 import { JwtService } from '@nestjs/jwt';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Template, TemplateItem, Widget, Component])],
+  imports: [AuthModule, TypeOrmModule.forFeature([Template, TemplateItem, Widget, Component])],
   controllers: [TemplateController],
   providers: [TemplateService, JwtService],
 })

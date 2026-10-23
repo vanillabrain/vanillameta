@@ -47,6 +47,18 @@ $C run --rm migrate node dist/src/access/access-cli.js waitlist approve <id> --d
 
 초대 링크는 `https://<도메인>/signup?invite=<코드>`로 코드를 미리 채운다. 이메일 발송은 아직 없으므로 코드는 운영자가 직접 전달한다.
 
+## 격리 증명 재실행
+
+릴리스마다 두 사용자 시험을 다시 돌려 사용자 간 접근이 막혀 있는지 확인한다(결과 해석: [docs/testing/external-beta-m1-isolation.md](../docs/testing/external-beta-m1-isolation.md)). **운영 데이터가 있는 스택에서 돌리지 말고** 같은 이미지로 띄운 임시 스택에서 돌린다. 계정과 데이터를 만들고 삭제를 시도한다.
+
+```bash
+C="docker compose --env-file .env.prod -f docker-compose.prod.yml"
+IA=$($C run --rm migrate node dist/src/access/access-cli.js invite create --label iso-a | sed -n 's/.*"code":"\([^"]*\)".*/\1/p')
+IB=$($C run --rm migrate node dist/src/access/access-cli.js invite create --label iso-b | sed -n 's/.*"code":"\([^"]*\)".*/\1/p')
+docker run --rm --network vanillameta-app -e BASE_URL=http://web/v1 -e INVITE_A="$IA" -e INVITE_B="$IB" \
+  -v "$PWD/../backend-api/scripts:/probe:ro" <api 이미지> node /probe/isolation-probe.mjs      # PASS면 종료 코드 0
+```
+
 ## 업데이트와 되돌리기
 
 기본 경로는 아래 "배포 워크플로"다. 손으로 할 때는 VM에서 `SSH_ORIGINAL_COMMAND="release <tag>" ./release.sh`(또는 `./release.sh release <tag>`)를 실행한다. `release.sh`는 (1) 직전 태그를 기억하고 (2) 사전 백업을 만들고(실패하면 중단) (3) 이미지를 받고 (4) `up -d`로 `migrate`를 먼저 돌린 뒤 api·web이 healthy가 될 때까지 기다려 `/v1/health`를 확인하고 (5) 실패하면 **직전 태그로 되돌린다**. 되돌림은 이미지만 되돌린다. 이미 적용된 마이그레이션은 되돌리지 않으므로, 스키마를 호환되지 않게 바꾼 릴리스는 사전 백업으로 복원해야 한다.

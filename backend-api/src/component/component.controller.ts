@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { LegacyOperationsGuard } from 'src/auth/guards/legacy-operations.guard';
 import { ComponentService } from './component.service';
 import { CreateComponentDto } from './dto/create-component.dto';
 import { UpdateComponentDto } from './dto/update-component.dto';
@@ -8,10 +9,12 @@ import { UpdateComponentDto } from './dto/update-component.dto';
 @ApiTags('컴포넌트')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
+// The chart catalog is shared by every user: reading is open to signed-in users, changing it is an operator task.
 @Controller('component')
 export class ComponentController {
   constructor(private readonly componentService: ComponentService) {}
 
+  @UseGuards(LegacyOperationsGuard)
   @Post('/seed')
   @ApiOperation({
     summary: '차트 컴포넌트 일괄 등록',
@@ -30,6 +33,7 @@ export class ComponentController {
     return this.componentService.multipleCreate(createComponents);
   }
 
+  @UseGuards(LegacyOperationsGuard)
   @Post()
   @ApiOperation({
     summary: '차트 컴포넌트 생성',
@@ -90,6 +94,7 @@ export class ComponentController {
     return this.componentService.findOne(+id);
   }
 
+  @UseGuards(LegacyOperationsGuard)
   @Patch(':id')
   @ApiOperation({
     summary: '차트 컴포넌트 수정',
@@ -114,6 +119,7 @@ export class ComponentController {
     return this.componentService.update(+id, body);
   }
 
+  @UseGuards(LegacyOperationsGuard)
   @Delete(':id')
   @ApiOperation({
     summary: '차트 컴포넌트 삭제',

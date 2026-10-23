@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | M-1 | 전략 전환 기록, 약관·개인정보·삭제 경로 | 출시 게이트 |
 | M0 | 운영 기준선: 부팅 가드, 기준선 마이그레이션, SSRF 차단, 이미지, `deploy/`, 배포 워크플로, 백업 | 출시 게이트 |
-| M1 | 초대 가입(구현·부분 검증: [증빙](../testing/external-beta-m1-access.md)), 쿼터·원장, 사용자별 throttle, 데이터 격리 증명, 공개 링크 노출 통제 | 출시 게이트 |
+| M1 | 초대 가입(구현·부분 검증: [증빙](../testing/external-beta-m1-access.md)), 쿼터·원장, 사용자별 throttle, 데이터 격리 증명(구현·부분 검증: [증빙](../testing/external-beta-m1-isolation.md)), 공개 링크 노출 통제 | 출시 게이트 |
 | M2 | AI SDK 레지스트리, 게이트웨이(쿼터·원장·비용 차단기), SSE 스트리밍 | 출시 게이트 |
 | M3 | 공유 zod 스펙, 블록 확장(pie/area/scatter/table/markdown/filter) | 출시 후 |
 | M4 | 채팅 편집 연산(add/remove/replace/changeKind/changeQuery) | 출시 후 |
