@@ -48,4 +48,5 @@ VM 호스트, 도메인·DNS(예: `app.vanillameta.net`), 시크릿, LLM API 키
 - M0: 빈 MySQL 마이그레이션 diff, 가드 거부 사례, 실제 VM compose 기동, 복원 훈련.
 - M1: 사용자 A/B 격리(source, 업로드, 게시 관리, 실행 결과), 쿼터 경계, 초대 E2E.
 - M2: `MockLanguageModelV3` 단위, 실제 LLM 1개 제공자 전체 여정, 실제 브라우저 스트리밍·취소(390/768/1440).
+- 화면: 운영 구성 스택에서 전 화면을 열어 캡처하고 복제 여정까지 확인했다([증빙](../testing/external-beta-ui-screens.md)). Studio AI 생성 불가(M2), 막힌 DB 유형의 무음 실패, 공개 링크 두 종류·만료 기본값은 출시 전에 해결할 항목이다.
 - 미실행은 통과로 보고하지 않는다.
