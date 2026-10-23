@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Proves a backup is restorable WITHOUT touching the running stack: restores the dump into a throwaway
-# MySQL container, then opens every uploaded .duckdb file read-only. Exits non-zero on any failure.
+# MySQL container, then opens every uploaded .duckdb file read-only and scans every table in it.
+# Exits non-zero on any failure.
 # Usage: restore-drill.sh <archive> [api-image]     (BACKUP_PASSPHRASE_FILE for .enc archives)
 set -euo pipefail
 umask 077
@@ -14,7 +15,7 @@ fail() { echo "DRILL FAILED: $*" >&2; exit 1; }
 
 case "$archive" in
   *.enc) [ -n "${BACKUP_PASSPHRASE_FILE:-}" ] || fail "BACKUP_PASSPHRASE_FILE is required for $archive"
-         openssl enc -d -aes-256-cbc -pbkdf2 -pass "file:$BACKUP_PASSPHRASE_FILE" -in "$archive" -out "$work/backup.tar" ;;
+         openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass "file:$BACKUP_PASSPHRASE_FILE" -in "$archive" -out "$work/backup.tar" ;;
   *) cp "$archive" "$work/backup.tar" ;;
 esac
 tar -C "$work" -xf "$work/backup.tar"
@@ -27,10 +28,10 @@ pass=$(openssl rand -hex 12)
 docker run -d --name "$name" --label owner=vanillameta-restore-drill \
   -e MYSQL_ROOT_PASSWORD="$pass" -e MYSQL_DATABASE=restored mysql:8.4 >/dev/null
 for _ in $(seq 1 60); do
-  docker exec -e MYSQL_PWD="$pass" "$name" mysqladmin ping -uroot --silent >/dev/null 2>&1 && break
+  docker exec -e MYSQL_PWD="$pass" "$name" mysqladmin ping -h127.0.0.1 --protocol=tcp -uroot --silent >/dev/null 2>&1 && break
   sleep 2
 done
-docker exec -e MYSQL_PWD="$pass" "$name" mysqladmin ping -uroot --silent >/dev/null 2>&1 || fail "mysql did not start"
+docker exec -e MYSQL_PWD="$pass" "$name" mysqladmin ping -h127.0.0.1 --protocol=tcp -uroot --silent >/dev/null 2>&1 || fail "mysql did not start"
 gunzip -c "$work/db.sql.gz" | docker exec -i -e MYSQL_PWD="$pass" "$name" mysql -uroot restored || fail "dump did not load"
 
 q() { docker exec -e MYSQL_PWD="$pass" "$name" mysql -uroot -N -B restored -e "$1"; }
@@ -52,7 +53,9 @@ if [ "$files" -gt 0 ]; then
         try {
           const db = await DuckDBInstance.create(f, { access_mode: "READ_ONLY" });
           const c = await db.connect();
-          await c.runAndReadAll("SELECT count(*) FROM information_schema.tables");
+          // Counting every table reads its data blocks, which a catalog query would not touch.
+          const tables = (await c.runAndReadAll("SELECT table_name FROM information_schema.tables WHERE table_schema = \x27main\x27")).getRows();
+          for (const [name] of tables) await c.runAndReadAll("SELECT count(*) FROM \"" + String(name).replace(/"/g, "\"\"") + "\"");
         } catch (e) { bad++; console.error("cannot open", f, String(e.message).slice(0, 120)); }
       }
       process.exit(bad ? 1 : 0);

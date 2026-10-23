@@ -4,7 +4,7 @@
 
 ## 산출물
 
-`deploy/docker-compose.prod.yml`(caddy, web, api, migrate, mysql), `Caddyfile`, `.env.prod.example`, `egress-guard.sh` + `vanillameta-egress-guard.service`, `backup.sh`, `restore-drill.sh`, `README.md`. 코드 변경: `analytics.controller.ts`·`events.controller.ts`가 클라이언트 `X-Forwarded-For` 대신 `req.ip`(= `TRUST_PROXY_HOPS` 반영)를 쓴다. `nginx.prod.conf`는 Docker DNS(`127.0.0.11`)로 API 주소를 주기적으로 다시 해석한다.
+`deploy/docker-compose.prod.yml`(caddy, web, api, migrate, mysql; 로그 회전 10MB×5, mysql 버퍼 풀 512M·상한 1.2GB, api 상한 4GB), `Caddyfile`, `.env.prod.example`, `egress-guard.sh` + `vanillameta-egress-guard.service`, `backup.sh`, `restore-drill.sh`, `README.md`. 코드 변경: `analytics.controller.ts`·`events.controller.ts`가 클라이언트 `X-Forwarded-For` 대신 `req.ip`(= `TRUST_PROXY_HOPS` 반영)를 쓴다. `nginx.prod.conf`는 Docker DNS(`127.0.0.11`)로 API 주소를 주기적으로 다시 해석한다.
 
 ## 실행 결과 (colima 전용 Linux VM 8GiB, arm64, 컴포즈 v5.1.4, 사용 후 스택·볼륨·시크릿 삭제)
 
@@ -15,13 +15,14 @@
 | `https://localhost`(Caddy 내부 CA) | `/v1/health` 200(HTTP/2), SPA `/` 200, `http://`는 308로 https 리디렉션 |
 | 게시 포트 | caddy의 80/443만. web·api·mysql은 EXPOSE뿐 |
 | 네트워크 격리 | mysql에서 `1.1.1.1:443` 접속 → `Network is unreachable`. api에서 공용 `https://example.com` → 200 |
-| 위조 `X-Forwarded-For: 6.6.6.6`을 붙인 공개 이벤트 요청 | 저장된 `ipAddress`는 `172.19.0.0`(edge 게이트웨이 `172.19.0.1`의 익명화). 위조 값은 무시됨(홉 수 2) |
+| 위조 `X-Forwarded-For: 6.6.6.6`을 붙인 공개 이벤트 요청(`POST /v1/analytics/events`) | 저장된 `ipAddress`는 `172.19.0.0`(edge 게이트웨이 `172.19.0.1`의 익명화). 위조 값은 저장되지 않았다. Caddy가 클라이언트의 `X-Forwarded-For`를 직접 버리므로 이 시험은 홉 수 1(Caddy 주소가 저장됐을 것)을 배제할 뿐 홉 수 2를 증명하지 않는다. `events.controller.ts`의 `req.ip` 변경은 단위 테스트로만 확인했다(`/v1/v1/events/track` 경로는 아래 문제로 이 시험에 쓰지 못했다) |
 | API 컨테이너 IP가 바뀌는 재생성(`172.18.0.3`→`172.18.0.6`) 뒤 `web` 재시작 없이 | 캐디 경유 `/v1/health` 200 |
 | `egress-guard.sh apply` | 적용·멱등(점프 규칙 1개)·`remove`로 완전 제거. api→공용 200 유지, api→mysql 유지. `10.255.255.1`·`169.254.169.254`·`192.168.77.7`·`172.20.5.5` 접속 시도가 모두 시간 초과이고 DROP 규칙의 패킷 카운터가 증가(10/8·169.254/16·172.16/12·192.168/16 각 7), 공용 RETURN 6. 호스트 IP 직접 접속은 적용 전 응답, 적용 후 시간 초과 |
-| `backup.sh`(암호화) | `.tar.enc` 30,752 bytes, JSON 결과 출력 |
-| `restore-drill.sh` | `{"restored":true,"tables":83,"migrations":53,"users":0,"duckdbFiles":1}`. 업로드한 `.duckdb`를 읽기 전용으로 열었다 |
-| 훈련의 부정 경로 | 잘못된 암호 → `bad decrypt`로 실패. 손상된 archive → `tar` 오류로 실패. 첫 실행은 `.duckdb` 파일이 컨테이너 사용자에게 읽히지 않아 `DRILL FAILED`를 내고 스크립트가 권한을 고치도록 수정 |
-| `docker stop api` | 0초, 종료 코드 143(`init: true`가 SIGTERM을 전달) |
+| `egress-guard.sh` DNS 허용 규칙(리뷰 반영) | 업스트림 리졸버 대상 53/udp·tcp RETURN 규칙이 DROP 앞에 생성되고(2개) 198.18/15·224/4·240/4 DROP이 추가됐다. 적용 후 api에서 이름 해석과 공용 HTTPS 모두 성공. 이 VM의 DNS는 컨테이너 네임스페이스가 아니라 호스트에서 전달돼 해당 규칙의 패킷 카운터는 0이었다. 즉 **클라우드 VM(AWS/GCP 리졸버가 사설/링크로컬 대역)에서의 영향은 검증하지 못했다** |
+| `backup.sh`(리뷰 반영: 암호화 필수·스트리밍·api 정지) | 암호 파일이 없으면 `BACKUP_PASSPHRASE_FILE must point to...`로 거부. 실행 시 api를 멈췄다 다시 올리고 `.tar.enc`(30,752 bytes, 권한 600)만 남았다(평문 `.tar`·`.partial`·`.work` 없음). 동시 실행은 `another backup is running`으로 거부(`flock`) |
+| `restore-drill.sh`(모든 테이블 읽기, TCP ping) | `{"restored":true,"tables":83,"migrations":53,"users":0,"duckdbFiles":1}`. 10만 행 테이블의 `.duckdb`를 전부 읽었다 |
+| 훈련의 부정 경로 | 잘못된 암호 → `bad decrypt`로 실패. 손상된 archive → `tar` 오류로 실패. 유효하지 않은 `.duckdb`(40KB 난수)가 든 백업 → `DRILL FAILED: some .duckdb files do not open`. 첫 실행은 `.duckdb` 파일이 컨테이너 사용자에게 읽히지 않아 `DRILL FAILED`를 내고 스크립트가 권한을 고치도록 수정 |
+| `docker stop api` | 0초, 종료 코드 143. `init: true`는 신호를 전달하지만 API에 SIGTERM 핸들러(`enableShutdownHooks`)가 없어 처리 중인 요청·업로드가 끊긴다(알려진 한계. `stop_grace_period: 30s`는 현재 효과 없음) |
 
 ## 발견한 문제와 처리
 
@@ -33,7 +34,9 @@
 - 실제 운영 VM, 실제 DNS와 Let's Encrypt 발급(검증은 `localhost`의 Caddy 내부 CA), amd64 이미지. 이 VM은 arm64다.
 - `egress-guard.sh`의 systemd 유닛(재부팅 후 재적용)은 설치·재부팅하지 않았다. Docker 격리 때문에 다른 브릿지의 컨테이너로의 접속은 규칙 없이도 막혀 있어, 규칙의 효과는 패킷 카운터와 호스트 IP 접속 차이로 확인했다.
 - `backup.sh`의 S3/R2 업로드(`aws` CLI)와 cron 등록은 실행하지 않았다. 백업은 DuckDB 파일이 쓰이는 중에 복사될 수 있다. 이번 훈련은 쓰기가 없는 파일 1개였다.
-- 부정 경로로 "열리지 않는 `.duckdb`"(손상 파일)를 넣어 훈련이 실패하는지는 확인하지 않았다(권한 문제로 실패하는 경로만 확인).
+- 헤더가 깨진 `.duckdb`는 훈련이 잡지만, 쓰기 도중 **중간이 찢어진** 파일은 시험하지 않았다. 대신 백업이 api를 멈춘 상태에서 복사한다(`BACKUP_QUIESCE=false`면 이 위험이 돌아온다).
+- 백업 암호화는 `openssl enc -aes-256-cbc -pbkdf2 -iter 600000`(무결성 인증이 없다. 내부 `SHA256SUMS`는 우발적 손상만 잡는다). `age`/`gpg` 전환은 후속이다.
+- 키 보관: `.env.prod`와 백업 암호를 VM 밖에 두는 절차는 문서화만 했고 별도 보관소는 정해지지 않았다.
 - 로그인·쿠키(운영은 `secure` 쿠키), 스트리밍, 업로드 상한, WebSocket 업그레이드를 이 스택을 통해 실행하지 않았다.
 - 고아 `uploads/*` 정리와 디스크 경보(백업 디스크 한정 경고 외)는 구현하지 않았다.
 - Node 24 이미지 안의 실행이지만 로컬 jest·빌드 결과는 Node 26이다.

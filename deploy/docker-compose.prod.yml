@@ -7,6 +7,12 @@
 
 name: vanillameta
 
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 x-api-env: &api-env
   NODE_ENV: prod
   TRUST_PROXY_HOPS: "2"
@@ -28,6 +34,7 @@ services:
   caddy:
     image: caddy:2.8-alpine
     restart: unless-stopped
+    logging: *logging
     ports:
       - "80:80"
       - "443:443"
@@ -46,6 +53,7 @@ services:
   web:
     image: ${WEB_IMAGE:-ghcr.io/vanillabrain/vanillameta-web}:${IMAGE_TAG:?set IMAGE_TAG}
     restart: unless-stopped
+    logging: *logging
     environment:
       API_UPSTREAM: api:4000
     depends_on:
@@ -56,6 +64,7 @@ services:
   api:
     image: ${API_IMAGE:-ghcr.io/vanillabrain/vanillameta-api}:${IMAGE_TAG:?set IMAGE_TAG}
     restart: unless-stopped
+    logging: *logging
     init: true
     stop_grace_period: 30s
     environment:
@@ -70,7 +79,7 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-    mem_limit: 3500m
+    mem_limit: 4g
     networks:
       app: {}
       egress: {}
@@ -79,6 +88,7 @@ services:
   migrate:
     image: ${API_IMAGE:-ghcr.io/vanillabrain/vanillameta-api}:${IMAGE_TAG:?set IMAGE_TAG}
     restart: "no"
+    logging: *logging
     init: true
     command: ["node", "dist/src/database/migrate-prod.js"]
     environment: *api-env
@@ -90,6 +100,7 @@ services:
   mysql:
     image: mysql:8.4
     restart: unless-stopped
+    logging: *logging
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-vanillameta}
@@ -99,10 +110,12 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --max-connections=100
+      - --innodb-buffer-pool-size=512M
+    mem_limit: 1200m
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h 127.0.0.1 --protocol=tcp -uroot --silent"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -116,7 +129,7 @@ volumes:
   caddy-config:
 
 networks:
-  # Front door: only caddy is on it with web. Not internal, caddy must reach Let's Encrypt.
+  # Front door: only caddy is on it. Not internal, caddy publishes the ports and must reach Let's Encrypt.
   edge:
     name: vanillameta-edge
   # Service-to-service traffic. `internal` cuts it off from the outside, so mysql, migrate and web
