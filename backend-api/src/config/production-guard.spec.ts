@@ -1,4 +1,8 @@
-import { assertProductionConfig, productionConfigProblems } from './production-guard';
+import {
+  assertProductionConfig,
+  parseTrustProxyHops,
+  productionConfigProblems,
+} from './production-guard';
 
 const SECRET = 'x'.repeat(40);
 const validEnv = (): NodeJS.ProcessEnv => ({
@@ -36,7 +40,7 @@ describe('production guard', () => {
   );
 
   it('requires an explicit CORS origin without wildcards', () => {
-    for (const value of [undefined, '', '*', 'https://a.example, *']) {
+    for (const value of [undefined, '', ' ', '*', 'https://a.example, *']) {
       const env = validEnv();
       if (value === undefined) delete env.CORS_ORIGIN;
       else env.CORS_ORIGIN = value;
@@ -65,5 +69,17 @@ describe('production guard', () => {
   it('refuses to boot when the seeded guest account exists', () => {
     expect(() => assertProductionConfig(validEnv(), { guestUserExists: true })).toThrow(/guest/);
     expect(() => assertProductionConfig(validEnv(), { guestUserExists: false })).not.toThrow();
+  });
+});
+
+describe('parseTrustProxyHops', () => {
+  it('defaults to one hop and accepts non-negative integers', () => {
+    expect(parseTrustProxyHops(undefined)).toBe(1);
+    expect(parseTrustProxyHops('2')).toBe(2);
+    expect(parseTrustProxyHops(' 0 ')).toBe(0);
+  });
+
+  it.each(['', 'abc', '-1', '1.5'])('rejects %p', value => {
+    expect(() => parseTrustProxyHops(value)).toThrow(/TRUST_PROXY_HOPS/);
   });
 });

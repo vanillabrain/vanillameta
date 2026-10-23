@@ -15,7 +15,7 @@ import { CloudWatchMetricsService } from './common/monitoring/cloudwatch-metrics
 import { BusinessMetricsService } from './common/monitoring/business-metrics.service';
 import * as v8 from 'v8';
 import { DataSource } from 'typeorm';
-import { assertProductionConfig } from './config/production-guard';
+import { assertProductionConfig, parseTrustProxyHops } from './config/production-guard';
 import { User } from './user/entities/user.entity';
 
 // 환경 변수 로드
@@ -43,7 +43,7 @@ function configureMemoryOptimization() {
 async function bootstrap() {
   // 메모리 최적화 설정 적용
   configureMemoryOptimization();
-  // 안전하지 않은 운영 설정이면 DB 연결 전에 중단한다.
+  // 환경변수 검사: 안전하지 않은 운영 설정이면 DB 연결 전에 중단한다. (guest 계정 검사는 DB 연결 후 아래에서 한다.)
   assertProductionConfig(process.env);
   if (process.env.SENTRY_DSN) {
     const Sentry = await import('@sentry/nestjs');
@@ -58,7 +58,7 @@ async function bootstrap() {
   expressApp.use(helmet({ contentSecurityPolicy: false }));
 
   // Express 메모리 최적화 설정. 신뢰할 프록시 홉 수는 배포 구성(Caddy→nginx→API 등)에 맞춘다.
-  expressApp.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
+  expressApp.set('trust proxy', parseTrustProxyHops(process.env.TRUST_PROXY_HOPS));
   expressApp.disable('x-powered-by');
 
   const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {

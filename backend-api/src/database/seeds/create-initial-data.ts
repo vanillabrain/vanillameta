@@ -8,7 +8,8 @@ import { User } from '../../user/entities/user.entity';
 import { YesNo } from '../../common/enum/yn.enum';
 
 export default class CreateInitialData implements Seeder {
-  public async run(dataSource: DataSource): Promise<any> {
+  /** 운영에도 필요한 참조 데이터(컴포넌트·DB 유형·템플릿). 데모 계정은 포함하지 않는다. */
+  public async seedReferenceData(dataSource: DataSource): Promise<void> {
     await dataSource
       .createQueryBuilder()
       .insert()
@@ -1546,6 +1547,10 @@ export default class CreateInitialData implements Seeder {
       ])
       .orIgnore()
       .execute();
+  }
+
+  public async run(dataSource: DataSource): Promise<any> {
+    await this.seedReferenceData(dataSource);
 
     await dataSource
       .createQueryBuilder()

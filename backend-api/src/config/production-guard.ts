@@ -52,3 +52,10 @@ export function assertProductionConfig(
   if (problems.length)
     throw new Error(`Unsafe production configuration:\n- ${problems.join('\n- ')}`);
 }
+
+/** Number of trusted reverse-proxy hops. Fails fast on anything but a non-negative integer. */
+export function parseTrustProxyHops(value: string | undefined, fallback = 1): number {
+  if (value === undefined) return fallback;
+  if (!/^\d+$/.test(value.trim())) throw new Error('TRUST_PROXY_HOPS must be a non-negative integer');
+  return Number(value.trim());
+}
