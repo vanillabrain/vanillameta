@@ -9,9 +9,13 @@ set -euo pipefail
 umask 077
 cd "$(dirname "$0")"
 
+# A dropped SSH session or a cancelled job must not kill a release half way through.
+trap '' PIPE HUP
+
 ENV_FILE="${ENV_FILE:-.env.prod}"
+REGISTRY="${RELEASE_REGISTRY:-ghcr.io}"
 COMPOSE=(docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml)
-log() { echo "[release] $*" >&2; }
+log() { echo "[release] $*" >&2 || true; }
 die() { log "ERROR: $*"; exit 1; }
 
 args="${SSH_ORIGINAL_COMMAND:-$*}"
@@ -26,14 +30,22 @@ fi
 exec 9>.release.lock
 flock -n 9 || die "another release is running"
 
+# The workflow's registry token expires when its job ends, so it is kept in a throwaway client config
+# and never replaces credentials the operator saved with `docker login` for manual releases.
+login_dir=""
 if [ -n "${ghcr_user:-}" ]; then
   IFS= read -r -t 15 token || true
   [ -n "${token:-}" ] || die "registry user given but no token on stdin"
-  printf '%s\n' "$token" | docker login ghcr.io -u "$ghcr_user" --password-stdin >/dev/null
+  login_dir=$(mktemp -d)
+  trap 'rm -rf "$login_dir"' EXIT
+  real_cfg="${DOCKER_CONFIG:-$HOME/.docker}"
+  [ -d "$real_cfg/cli-plugins" ] && ln -s "$real_cfg/cli-plugins" "$login_dir/cli-plugins"
+  export DOCKER_CONFIG="$login_dir"
+  printf '%s\n' "$token" | docker login "$REGISTRY" -u "$ghcr_user" --password-stdin >/dev/null
   unset token
 fi
 
-previous=$(grep -E '^IMAGE_TAG=' "$ENV_FILE" | tail -1 | cut -d= -f2- || true)
+previous=$(grep -E '^IMAGE_TAG=' "$ENV_FILE" | tail -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' || true)
 set_tag() {
   local t=$1 tmp
   tmp=$(mktemp ".env.prod.XXXXXX")
@@ -59,21 +71,39 @@ smoke() { "${COMPOSE[@]}" exec -T web wget -qO- http://127.0.0.1/v1/health | gre
 roll() { "${COMPOSE[@]}" up -d --remove-orphans && wait_healthy && smoke; }
 
 # A release can migrate the schema forward, so keep a restorable copy first. A failed backup stops the
-# release. Set RELEASE_BACKUP=never in the environment of the sshd forced command to skip (first deploy).
-if [ -n "$previous" ] && [ "${RELEASE_BACKUP:-auto}" != never ] && [ -x ./backup.sh ]; then
+# release. The first release (no previous tag) has nothing to back up.
+if [ -n "$previous" ] && [ -x ./backup.sh ]; then
   log "backing up before the release"
   ENV_FILE="$ENV_FILE" ./backup.sh >&2 || die "pre-release backup failed; nothing was changed"
 fi
+
+# From here until the release is settled, an unexpected exit (a signal, a failing command) puts the
+# previous tag back and restarts it, instead of leaving .env.prod pointing at an unverified tag.
+state=switching
+# shellcheck disable=SC2329  # invoked through the EXIT trap below
+recover() {
+  local code=$?
+  rm -rf "${login_dir:-}"
+  if [ "$state" = switching ] && [ -n "$previous" ]; then
+    log "interrupted: restoring $previous"
+    set_tag "$previous" || true
+    "${COMPOSE[@]}" up -d --remove-orphans >&2 || true
+  fi
+  return "$code"
+}
+trap recover EXIT
 
 log "pulling $tag"
 set_tag "$tag"
 if ! "${COMPOSE[@]}" pull api web >&2; then
   set_tag "$previous"
+  state=settled
   die "pull failed; still on ${previous:-nothing}"
 fi
 
 log "starting $tag (previous: ${previous:-none})"
 if roll >&2; then
+  state=settled
   docker image prune -f >/dev/null 2>&1 || true
   echo "{\"released\":\"$tag\",\"previous\":\"${previous:-}\"}"
   exit 0
@@ -84,7 +114,9 @@ log "release $tag did not become healthy"
 if [ -n "$previous" ]; then
   log "rolling back to $previous"
   set_tag "$previous"
+  state=settled
   if roll >&2; then die "rolled back to $previous; $tag was NOT released"; fi
   die "rollback to $previous also failed; the stack needs a manual look"
 fi
+state=settled
 die "first release failed; there is nothing to roll back to"

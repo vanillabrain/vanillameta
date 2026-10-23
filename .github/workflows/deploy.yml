@@ -2,7 +2,9 @@ name: Deploy
 
 # Builds the API and web images, pushes them to GHCR and rolls the single production VM to them.
 # Runs only when someone starts it (workflow_dispatch) or pushes a v* tag; never on a plain push.
-# Repository secrets / variables it needs are listed in deploy/README.md ("배포 워크플로").
+# The DEPLOY_* secrets MUST be environment secrets of `production-beta` (not repository secrets) so that the
+# environment's reviewers and branch/tag rules are what stands between a workflow edit and the VM.
+# What to register is listed in deploy/README.md ("배포 워크플로").
 
 on:
   workflow_dispatch:
@@ -25,6 +27,8 @@ permissions:
 jobs:
   images:
     name: Build and push ${{ matrix.image }}
+    # Same refs as the deploy job: do not publish release-looking images from arbitrary branches.
+    if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
@@ -32,7 +36,6 @@ jobs:
       packages: write
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
-      owner: ${{ steps.meta.outputs.owner }}
     strategy:
       fail-fast: true
       matrix:
@@ -70,7 +73,7 @@ jobs:
           push: true
           tags: ghcr.io/${{ steps.meta.outputs.owner }}/vanillameta-${{ matrix.image }}:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=min,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
           build-args: |
             ${{ matrix.image == 'web' && format('REACT_APP_SENTRY_DSN={0}', vars.SENTRY_DSN_WEB) || '' }}
 
@@ -115,6 +118,7 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           install -m 700 -d ~/.ssh
+          trap 'rm -f ~/.ssh/deploy_key' EXIT
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
@@ -122,7 +126,6 @@ jobs:
           printf '%s\n' "$REGISTRY_TOKEN" | ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20 \
             -p "${DEPLOY_PORT:-22}" "$DEPLOY_USER@$DEPLOY_HOST" "release $TAG $GITHUB_ACTOR"
-          rm -f ~/.ssh/deploy_key
 
       - name: Smoke test the public URL
         run: |

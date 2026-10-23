@@ -42,14 +42,20 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml ps -a   # migrate
 
 **GitHub에 등록할 값** (값은 직접 등록한다. 저장소에 쓰지 않는다)
 
+`DEPLOY_*` 값은 반드시 **`production-beta` 환경 시크릿**으로 등록한다(저장소 시크릿 금지). 저장소 시크릿이면 쓰기 권한이 있는 사람이 워크플로를 고친 브랜치에서 환경 없이 키를 읽을 수 있어 필수 검토자가 아무것도 막지 못한다.
+
 | 종류 | 이름 | 내용 |
 | --- | --- | --- |
-| secret | `DEPLOY_SSH_KEY` | 배포 전용 ed25519 개인키(`ssh-keygen -t ed25519 -f deploy_key -N ""`). 다른 용도로 쓰지 않는다 |
-| secret | `DEPLOY_HOST`, `DEPLOY_USER` | VM 주소와 배포 계정 |
-| secret | `DEPLOY_KNOWN_HOSTS` | VM의 호스트 키 줄. 신뢰할 수 있는 경로에서 `ssh-keyscan -t ed25519 <호스트>`로 얻고 지문을 VM에서 `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`로 대조한다 |
+| environment secret | `DEPLOY_SSH_KEY` | 배포 전용 ed25519 개인키(`ssh-keygen -t ed25519 -f deploy_key -N ""`). 다른 용도로 쓰지 않는다 |
+| environment secret | `DEPLOY_HOST`, `DEPLOY_USER` | VM 주소와 배포 계정 |
+| environment secret | `DEPLOY_KNOWN_HOSTS` | VM의 호스트 키 줄. 신뢰할 수 있는 경로에서 `ssh-keyscan -t ed25519 <호스트>`로 얻고 지문을 VM에서 `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`로 대조한다 |
 | variable | `APP_URL` | 예: `https://app.example.com` (배포 뒤 스모크 테스트와 환경 링크) |
 | variable | `DEPLOY_PORT`(선택), `SENTRY_DSN_WEB`(선택) | SSH 포트, 프런트엔드 Sentry DSN(빌드 인자) |
-| environment | `production-beta` | Settings → Environments에서 필수 검토자와 허용 브랜치(`develop`, `v*`)를 지정해 배포를 사람이 승인하게 한다 |
+
+**환경과 태그 규칙** (Settings)
+- Environments → `production-beta`: 필수 검토자를 지정하고 **허용 브랜치/태그를 `develop`과 `v*`로 제한**한다.
+- Rulesets → 태그 규칙: `v*` 태그는 관리자만 만들 수 있게 한다. 아니면 쓰기 권한이 있는 누구나 `v-아무거나` 태그로 워크플로를 시작할 수 있고 검토자만 남는다.
+- 이미지 푸시에는 `GITHUB_TOKEN`의 `packages: write`가 쓰이며 `images` 작업도 `develop`/`v*`에서만 돈다. 이미 수동으로 올린 같은 이름의 패키지가 있으면 패키지 설정 → Actions access에 이 저장소를 추가해야 푸시가 된다.
 
 **VM 쪽 준비** (한 번)
 
@@ -63,9 +69,12 @@ sudo chmod 600 /home/deploy/.ssh/authorized_keys
 sudo chown -R deploy: /opt/vanillameta
 ```
 
-- 워크플로가 레지스트리 토큰(`GITHUB_TOKEN`, 작업이 끝나면 만료)을 SSH 표준 입력으로 보내 VM이 `docker login ghcr.io`를 한 뒤 이미지를 받는다. 장기 PAT은 VM에 두지 않는다. 패키지는 첫 푸시 뒤 이 저장소와 연결돼 있어야 읽힌다(패키지 설정 → Actions access).
+- 워크플로가 레지스트리 토큰(`GITHUB_TOKEN`, 작업이 끝나면 만료)을 SSH 표준 입력으로 보낸다. `release.sh`는 그 토큰을 **임시 도커 설정 디렉터리**에서만 쓰고 끝나면 지운다. VM의 `~/.docker/config.json`은 건드리지 않으므로 장기 토큰이 VM에 남지 않고, 직접 해 둔 `docker login`도 덮어쓰이지 않는다.
 - 첫 배포(`.env.prod`의 `IMAGE_TAG`가 비어 있을 때)는 사전 백업이 없다. 워크플로 전에 위 "첫 배포" 절차로 스택을 한 번 올리는 것을 권한다.
-- 사설 저장소 이미지를 직접 받고 싶다면 `docker login ghcr.io`를 VM에서 한 번 해 둔다.
+- Actions가 안 될 때 손으로 릴리스(또는 롤백)하려면 VM의 배포 계정으로 `docker login ghcr.io`를 읽기 권한 PAT로 한 번 해 둔다. 워크플로 경로와 독립이다.
+- **워크플로는 VM의 `docker-compose.prod.yml`·`Caddyfile`·`release.sh`를 갱신하지 않는다.** 이미지 계약이 바뀌는 릴리스(새 환경변수, compose 변경)는 먼저 `/opt/vanillameta`의 체크아웃을 `git pull`로 갱신하고 `.env.prod`를 맞춘 뒤 배포한다.
+- `deploy` 계정은 `docker` 그룹이라 사실상 root와 같다. 키를 `restrict,command=`로 제한했으니 그 키로는 `release.sh`만 실행되지만, 스크립트와 `authorized_keys`가 그 계정 소유이면 `release.sh`의 버그나 탈취가 곧 VM 장악이 된다. 가능하면 `release.sh`와 `authorized_keys`는 root 소유(644)로 두는 구성을 검토한다(이 경우 `.env.prod`·`.release.lock` 위치를 분리해야 한다. 아직 하지 않았다).
+- `release.sh`는 SSH 연결이 끊기거나 작업이 취소돼도 이미지 전환 도중이었다면 직전 태그로 되돌리려 시도한다(`state=switching` 복구 트랩).
 
 ## 백업과 복원 훈련
 

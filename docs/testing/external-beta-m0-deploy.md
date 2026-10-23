@@ -55,5 +55,12 @@
 | 기동 직후 죽는 api 이미지(`t3`) | `did not become healthy` → `rolling back to t2` → `rolled back to t2; t3 was NOT released`, 종료 코드 1. 이후 api·web `t2` healthy, `https://localhost/v1/health` 200 |
 | 동시에 두 번 실행 | `another release is running` |
 
-**한계 (미실행)**: 실제 GitHub Actions 실행(GHCR 푸시, `GITHUB_TOKEN`으로 `docker login`, 환경 승인, SSH 포스 커맨드, 호스트 키 고정, 공개 URL 스모크)은 한 번도 하지 않았다. `amd64` 빌드, `gha` 캐시 동작, 워크플로 권한 범위, 실제 `authorized_keys`의 `restrict,command=` 강제 실행과 stdin 토큰 전달, 레지스트리 로그인 경로는 로컬 레지스트리로 대체해 검증하지 못했다. `release.sh`의 롤백은 이미지만 되돌리며 이미 실행된 마이그레이션은 되돌리지 않는다. 사전 백업은 api를 잠시 멈춘다.
+| 레지스트리 로그인 경로(`RELEASE_REGISTRY=localhost:5000`, 임시 토큰, 사용자 `github-actions[bot]`) | 임시 `DOCKER_CONFIG`로 로그인하고 compose 플러그인을 계속 찾았으며(심볼릭 링크) `{"released":"t2",...}` 성공. VM의 실제 `~/.docker/config.json` 불변, 임시 디렉터리 잔존 0. 레지스트리 사용자만 있고 토큰이 없으면 `registry user given but no token on stdin`으로 거부 |
+| 전환 도중 중단(SIGTERM) | 지속적으로 healthy가 되지 않는 이미지(`t4`)로 릴리스 중 `IMAGE_TAG=t4` 상태에서 프로세스에 SIGTERM → `interrupted: restoring t2`, 이후 `IMAGE_TAG=t2`, api·web healthy, `https://localhost/v1/health` 200 (스크립트 종료 코드 143) |
+| 기동 직후 죽는 이미지(`t3`) 재검증 | 변경된 코드로도 `rolled back to t2`, 종료 코드 1, 공개 200 |
+| `actionlint`, `shellcheck`(`backup.sh`·`restore-drill.sh`·`egress-guard.sh`·`release.sh`) 재실행 | 둘 다 지적 없음(`SC2016` 지시자, `SC2329` 지시자 포함) |
+
+**관찰**: 중단된 릴리스의 자식 프로세스(`docker compose`)가 잠금 파일 기술자를 상속해 끝날 때까지 새 릴리스를 `another release is running`으로 막는다. 의도한 직렬화로 보이지만 중단 직후 곧바로 재시도하면 잠시 거부될 수 있다.
+
+**한계 (미실행)**: `DEPLOY_*`가 환경 시크릿이고 환경이 `develop`/`v*`만 허용하는지(GitHub 설정)는 확인할 수 없다. 실제 GitHub Actions 실행(GHCR 푸시, `GITHUB_TOKEN`으로 `docker login`, 환경 승인, SSH 포스 커맨드, 호스트 키 고정, 공개 URL 스모크)은 한 번도 하지 않았다. `amd64` 빌드, `gha` 캐시 동작, 워크플로 권한 범위, 실제 `authorized_keys`의 `restrict,command=` 강제 실행과 stdin 토큰 전달, 레지스트리 로그인 경로는 로컬 레지스트리로 대체해 검증하지 못했다. `release.sh`의 롤백은 이미지만 되돌리며 이미 실행된 마이그레이션은 되돌리지 않는다. 사전 백업은 api를 잠시 멈춘다.
 
