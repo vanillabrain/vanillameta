@@ -341,7 +341,6 @@ export class DatasetController {
     },
   })
   @Header('Content-Type', 'application/x-ndjson')
-  @Header('Transfer-Encoding', 'chunked')
   @Header('Cache-Control', 'no-cache')
   async streamQuery(@Param('id') id: string, @GetUser() user: any, @Res() res: Response) {
     try {

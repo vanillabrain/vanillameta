@@ -1262,6 +1262,43 @@ export class ConnectionService {
     }
   }
 
+  private streamDuckDBResult(
+    queryExecuteDto: QueryExecuteDto,
+    filename: string,
+    userId: string | undefined,
+    chunkSize: number,
+  ): Readable {
+    const out = new PassThrough();
+    const startTime = Date.now();
+    void (async () => {
+      try {
+        const result = await this.duckdbService.query(filename, queryExecuteDto.query);
+        const rows: any[] = result?.datas ?? [];
+        out.write(JSON.stringify({ type: 'fields', data: result?.fields ?? [] }) + '\n');
+        for (let i = 0; i < rows.length; i += chunkSize)
+          out.write(JSON.stringify({ type: 'data', data: rows.slice(i, i + chunkSize) }) + '\n');
+        out.end(
+          JSON.stringify({
+            type: 'complete',
+            rowCount: rows.length,
+            executionTime: Date.now() - startTime,
+          }) + '\n',
+        );
+      } catch (error) {
+        this.logger?.warn('DuckDB streaming query failed', 'ConnectionService', {
+          databaseId: queryExecuteDto.id,
+          userId,
+          error: error?.message,
+        });
+        out.end(
+          JSON.stringify({ type: 'error', error: error?.message || 'Query execution error' }) +
+            '\n',
+        );
+      }
+    })();
+    return out;
+  }
+
   /**
    * 스트리밍 쿼리 실행
    * @param queryExecuteDto 쿼리 실행 DTO
@@ -1313,6 +1350,20 @@ export class ConnectionService {
       riskLevel: validationResult.riskLevel,
       chunkSize,
     });
+
+    // DuckDB sources (uploaded files) have no knex client. Their result is already bounded by
+    // ANALYSIS_MAX_RESULT_ROWS (a larger result is an error, never a silent cut), so it is sent in
+    // the same NDJSON frames from the finished result.
+    const sourceConfig = await this.getConnectionConfig(queryExecuteDto.id);
+    if (sourceConfig?.client === 'duckdb')
+      return {
+        stream: this.streamDuckDBResult(
+          queryExecuteDto,
+          sourceConfig.connection.filename,
+          userId,
+          chunkSize,
+        ),
+      };
 
     const knexInstance = await this.getKnex(queryExecuteDto.id);
     const startTime = Date.now();

@@ -19,6 +19,8 @@ describe('ConnectionService - Streaming Query', () => {
   let databaseRepository: jest.Mocked<Repository<Database>>;
   let logger: jest.Mocked<CustomLoggerService>;
   let sqlValidationService: jest.Mocked<SqlValidationService>;
+  let duckdb: { query: jest.Mock };
+  let configSpy: jest.SpyInstance;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -85,6 +87,60 @@ describe('ConnectionService - Streaming Query', () => {
     databaseRepository = module.get(getRepositoryToken(Database));
     logger = module.get(CustomLoggerService);
     sqlValidationService = module.get(SqlValidationService);
+    duckdb = module.get(DuckDBService);
+    // The knex path is exercised with getKnex mocked; the source itself is a plain SQL engine.
+    configSpy = jest
+      .spyOn(service as any, 'getConnectionConfig')
+      .mockResolvedValue({ client: 'mysql2' });
+  });
+
+  describe('executeStreamingQuery on a DuckDB (uploaded file) source', () => {
+    const lines = async (stream: Readable) => {
+      let text = '';
+      for await (const chunk of stream) text += chunk.toString();
+      return text
+        .split('\n')
+        .filter(Boolean)
+        .map(line => JSON.parse(line));
+    };
+    beforeEach(() => {
+      configSpy.mockResolvedValue({ client: 'duckdb', connection: { filename: '/data/a.duckdb' } });
+      sqlValidationService.validateQuery.mockReturnValue({
+        isValid: true,
+        errors: [],
+        warnings: [],
+        riskLevel: 'LOW',
+        sanitizedQuery: 'SELECT * FROM t',
+      } as any);
+    });
+
+    it('sends fields, the rows in chunks, then complete, without opening a knex client', async () => {
+      const knex = jest.spyOn(service, 'getKnex');
+      duckdb.query.mockResolvedValue({
+        datas: [{ id: 1 }, { id: 2 }, { id: 3 }],
+        fields: [{ name: 'id' }],
+      });
+      const { stream } = await service.executeStreamingQuery(
+        { id: 1, query: 'SELECT * FROM t' },
+        'u',
+        2,
+      );
+      const frames = await lines(stream);
+      expect(duckdb.query).toHaveBeenCalledWith('/data/a.duckdb', 'SELECT * FROM t');
+      expect(knex).not.toHaveBeenCalled();
+      expect(frames.map(frame => frame.type)).toEqual(['fields', 'data', 'data', 'complete']);
+      expect(frames[1].data).toEqual([{ id: 1 }, { id: 2 }]);
+      expect(frames[2].data).toEqual([{ id: 3 }]);
+      expect(frames[3]).toMatchObject({ type: 'complete', rowCount: 3 });
+    });
+
+    it('reports a failing or oversized query as an error frame, not as a clean end', async () => {
+      duckdb.query.mockRejectedValue(new Error('query result exceeds 10000 rows'));
+      const { stream } = await service.executeStreamingQuery({ id: 1, query: 'SELECT * FROM t' });
+      expect(await lines(stream)).toEqual([
+        { type: 'error', error: 'query result exceeds 10000 rows' },
+      ]);
+    });
   });
 
   describe('executeStreamingQuery', () => {

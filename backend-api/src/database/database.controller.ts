@@ -343,7 +343,6 @@ export class DatabaseController {
     },
   })
   @Header('Content-Type', 'application/x-ndjson')
-  @Header('Transfer-Encoding', 'chunked')
   @Header('Cache-Control', 'no-cache')
   async executeStreamingQuery(
     @Body() queryExecuteDto: QueryExecuteDto,
