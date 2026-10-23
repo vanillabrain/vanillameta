@@ -1,0 +1,40 @@
+# Production image. Dev and CI flows keep using Dockerfile / Dockerfile.dev.
+# The container runs as a non-root user, holds no Oracle client (network database sources are closed
+# in the beta, see docs/testing/external-beta-m0-ssrf.md) and ships production dependencies only.
+
+FROM node:24-bookworm-slim AS build
+# sqlite3 falls back to a source build when no prebuilt binary matches.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+# package.json points at ./patches, so it has to be present before the install.
+COPY package.json package-lock.json ./
+COPY patches ./patches
+# --legacy-peer-deps: @nestjsplus/knex still declares a peer on @nestjs/common@^6. The optional
+# odbc / oracledb drivers cannot build here and are not needed; npm tolerates their failure.
+RUN npm ci --legacy-peer-deps
+COPY . .
+# `npm run build` also type-checks the specs, one of which imports ../frontend-web (outside this build
+# context); tsconfig.build.json already leaves specs out of the emitted build. CI type-checks the specs.
+# The TypeScript 7 compile of this project needs more than Node's default heap on small builders.
+ARG BUILD_HEAP_MB=3072
+RUN NODE_OPTIONS=--max-old-space-size=$BUILD_HEAP_MB node --require ./scripts/typescript-api-compat.cjs ./node_modules/@nestjs/cli/bin/nest.js build
+RUN npm prune --omit=dev --legacy-peer-deps
+
+FROM node:24-bookworm-slim
+ENV NODE_ENV=prod \
+    PORT=4000 \
+    FILE_UPLOAD_DIR=/data/uploads \
+    CLOUDWATCH_METRICS_ENABLED=false
+WORKDIR /app
+COPY --from=build --chown=node:node /app/package.json ./
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/dist ./dist
+RUN mkdir -p /data/uploads && chown -R node:node /data
+USER node
+EXPOSE 4000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||4000)+'/v1/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+# One-off schema step: node dist/src/database/migrate-prod.js (npm run migration:run:prod)
+CMD ["node", "dist/src/main"]

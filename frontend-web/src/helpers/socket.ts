@@ -10,7 +10,8 @@ let socket: Socket | null = null;
 export function connectSocket(): Socket {
   if (!socket) {
     const apiUrl = import.meta.env.REACT_APP_API_URL as string | undefined;
-    const origin = apiUrl ? new URL(apiUrl).origin : window.location.origin;
+    // A relative API URL ("/v1") is how the production image reaches the API through the same origin.
+    const origin = apiUrl ? new URL(apiUrl, window.location.origin).origin : window.location.origin;
     socket = io(`${origin}/query-progress`, { transports: ['websocket', 'polling'] });
   }
   return socket;
