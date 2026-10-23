@@ -25,6 +25,7 @@ class AddMarkerTwo1999000000002 implements MigrationInterface {
     await runner.query('DROP TABLE migrate_prod_marker_two');
   }
 }
+const BOTH = [AddMarkerOne1999000000001, AddMarkerTwo1999000000002];
 
 suite('migrateProd on an empty and an existing MySQL schema', () => {
   jest.setTimeout(120000);
@@ -40,19 +41,30 @@ suite('migrateProd on an empty and an existing MySQL schema', () => {
     database,
   });
 
-  async function openSchema(migrations: Array<new () => MigrationInterface>) {
-    const schema = 'vm_migrate_prod_' + randomBytes(8).toString('hex');
-    schemas.push(schema);
-    await admin.query(`CREATE DATABASE \`${schema}\``);
+  async function connect(schema: string, migrations: Array<new () => MigrationInterface>) {
     const dataSource = new DataSource({
       ...connection(schema),
       entities: [__dirname + '/../**/*.entity.ts'],
       migrations,
       synchronize: false,
     });
-    await dataSource.initialize();
-    return dataSource;
+    return dataSource.initialize();
   }
+
+  async function newSchema() {
+    const schema = 'vm_migrate_prod_' + randomBytes(8).toString('hex');
+    schemas.push(schema);
+    await admin.query(`CREATE DATABASE \`${schema}\``);
+    return schema;
+  }
+
+  const tablesOf = async (schema: string) =>
+    (
+      await admin.query(
+        'SELECT table_name AS name FROM information_schema.tables WHERE table_schema = ?',
+        [schema],
+      )
+    ).map((row: { name: string }) => row.name);
 
   beforeAll(async () => {
     admin = await new DataSource(connection()).initialize();
@@ -64,7 +76,7 @@ suite('migrateProd on an empty and an existing MySQL schema', () => {
   });
 
   it('initialises an empty database once: schema, reference data, no demo user, migrations recorded', async () => {
-    const db = await openSchema([AddMarkerOne1999000000001, AddMarkerTwo1999000000002]);
+    const db = await connect(await newSchema(), BOTH);
     try {
       expect(await migrateProd(db)).toEqual({ mode: 'bootstrapped', recordedMigrations: 2 });
 
@@ -84,21 +96,15 @@ suite('migrateProd on an empty and an existing MySQL schema', () => {
   });
 
   it('only runs pending migrations on a database that already has tables', async () => {
-    const first = await openSchema([AddMarkerOne1999000000001]);
-    const schema = schemas[schemas.length - 1];
+    const schema = await newSchema();
+    const first = await connect(schema, [AddMarkerOne1999000000001]);
     try {
       await migrateProd(first);
     } finally {
       await first.destroy();
     }
 
-    const second = new DataSource({
-      ...connection(schema),
-      entities: [__dirname + '/../**/*.entity.ts'],
-      migrations: [AddMarkerOne1999000000001, AddMarkerTwo1999000000002],
-      synchronize: false,
-    });
-    await second.initialize();
+    const second = await connect(schema, BOTH);
     try {
       expect(await migrateProd(second)).toEqual({ mode: 'migrated', ranMigrations: 1 });
       expect(await second.query("SHOW TABLES LIKE 'migrate_prod_marker_two'")).toHaveLength(1);
@@ -110,6 +116,64 @@ suite('migrateProd on an empty and an existing MySQL schema', () => {
       expect(Number(after)).toBe(Number(components) - 1);
     } finally {
       await second.destroy();
+    }
+  });
+
+  it('refuses a schema that has tables but no migration history, and changes nothing', async () => {
+    const schema = await newSchema();
+    await admin.query(`CREATE TABLE \`${schema}\`.foreign_app_table (id INT PRIMARY KEY)`);
+    const db = await connect(schema, BOTH);
+    try {
+      await expect(migrateProd(db)).rejects.toThrow(/no recorded migrations/);
+      expect(await tablesOf(schema)).toEqual(['foreign_app_table']);
+    } finally {
+      await db.destroy();
+    }
+  });
+
+  it('refuses a half-initialised schema whose migrations table is empty', async () => {
+    const schema = await newSchema();
+    const db = await connect(schema, BOTH);
+    try {
+      await db.synchronize(); // what a first run leaves behind when it crashes before recording
+      await db.query(
+        'CREATE TABLE migrations (id INT AUTO_INCREMENT PRIMARY KEY, timestamp BIGINT NOT NULL, name VARCHAR(255) NOT NULL)',
+      );
+      await expect(migrateProd(db)).rejects.toThrow(/no recorded migrations/);
+      const [{ components }] = await db.query('SELECT COUNT(*) AS components FROM component');
+      expect(Number(components)).toBe(0); // reference data was never seeded and is not guessed at
+    } finally {
+      await db.destroy();
+    }
+  });
+
+  it('lets exactly one of two concurrent runs initialise the schema', async () => {
+    const schema = await newSchema();
+    const a = await connect(schema, BOTH);
+    const b = await connect(schema, BOTH);
+    try {
+      const results = await Promise.all([migrateProd(a), migrateProd(b)]);
+      expect(results.map(result => result.mode).sort()).toEqual(['bootstrapped', 'migrated']);
+      const [{ count }] = await a.query('SELECT COUNT(*) AS count FROM migrations');
+      expect(Number(count)).toBe(2);
+    } finally {
+      await a.destroy();
+      await b.destroy();
+    }
+  });
+
+  it('fails instead of waiting forever when another run holds the lock', async () => {
+    const schema = await newSchema();
+    const holder = admin.createQueryRunner();
+    const db = await connect(schema, BOTH);
+    try {
+      await holder.query('SELECT GET_LOCK(?, 1)', [`vanillameta_migrate_prod:${schema}`]);
+      await expect(migrateProd(db, { lockTimeoutSeconds: 1 })).rejects.toThrow(/holds the lock/);
+      expect(await tablesOf(schema)).toEqual([]);
+    } finally {
+      await holder.query('SELECT RELEASE_LOCK(?)', [`vanillameta_migrate_prod:${schema}`]);
+      await holder.release();
+      await db.destroy();
     }
   });
 });

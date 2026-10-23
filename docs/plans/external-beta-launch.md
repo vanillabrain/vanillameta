@@ -17,10 +17,10 @@
 
 ## M0 세부
 
-1. **부팅 가드** — `backend-api/src/config/production-guard.ts`. `NODE_ENV=prod`에서 dev-only/짧은/누락 시크릿 5종, 와일드카드·누락 CORS, `AI_PROVIDER=codex`, 시드 `guest` 계정이 있으면 DB 연결 후라도 부팅을 거부한다. 값은 메시지에 싣지 않는다. 운영에서 swagger는 `SWAGGER_ENABLED=true`일 때만 연다. 신뢰 프록시 홉 수는 `TRUST_PROXY_HOPS`.
-2. **기준선 마이그레이션** — 빈 MySQL을 마이그레이션만으로 구성할 수 없다(첫 마이그레이션이 `synchronize`로만 생기는 `databaseType`에 INSERT). 엔티티에서 기준선 마이그레이션과 필수 참조 데이터 마이그레이션을 만들고, 빈 MySQL `migration:run` 결과를 `synchronize` 스키마와 diff해 증명한다. 운영 이미지는 컴파일된 `dist/src/data-source.js`로 `migration:run:prod`를 실행한다.
+1. **부팅 가드** — `backend-api/src/config/production-guard.ts`. `NODE_ENV=prod`에서 dev-only/짧은/누락 시크릿 5종, 와일드카드·누락 CORS, `AI_PROVIDER=codex`, `.env.local` 파일, 시드 `guest` 계정이 있으면 부팅을 거부한다(guest 검사는 DB 연결 후). `app.module.ts`가 정확히 `prod`일 때만 `synchronize`를 끄므로 `NODE_ENV=production` 별칭과, 원격 DB에서의 미설정·알 수 없는 값도 거부한다. 값은 메시지에 싣지 않는다. 운영에서 swagger는 `SWAGGER_ENABLED=true`일 때만 연다. 신뢰 프록시 홉 수는 `TRUST_PROXY_HOPS`.
+2. **빈 DB 부트스트랩** — 빈 MySQL을 마이그레이션만으로 구성할 수 없다(첫 마이그레이션이 `synchronize`로만 생기는 `databaseType`에 INSERT). 기준선 마이그레이션을 새로 생성하는 대신 `backend-api/src/database/migrate-prod.ts`가 빈 DB를 엔티티로 한 번 초기화하고 참조 데이터를 넣은 뒤 기존 마이그레이션 전부를 "적용됨"으로 기록한다(증빙: [external-beta-m0-migration.md](../testing/external-beta-m0-migration.md)). MySQL 이름 잠금으로 동시 실행을 막고, 테이블은 있는데 마이그레이션 기록이 없는 스키마(중단된 첫 실행·다른 앱의 DB)는 자동 진행하지 않고 거부한다. 컬럼·인덱스·FK까지의 전수 diff는 Open이다. 운영 이미지는 컴파일된 `dist/src/database/migrate-prod.js`를 `npm run migration:run:prod`로 실행한다.
 3. **소스 유형 제한** — `ALLOWED_SOURCE_TYPES=file,sample`. 컨테이너에서 사설 IP 송신을 차단한다. Oracle Instant Client를 이미지에서 제거한다.
-4. **이미지** — 백엔드 multi-stage `npm ci --omit=dev`, 프론트엔드 상대경로 `/api` 빌드.
+4. **이미지** — 백엔드 multi-stage `npm ci --omit=dev`, 프론트엔드 상대경로 `/api` 빌드. 현재 `npm ci`는 `@nestjsplus/knex`↔`@nestjs/common` peer 충돌(ERESOLVE)로 실패하고 `--legacy-peer-deps`가 필요하다(이 변경 이전부터). 이미지 빌드 전에 이 충돌을 정리하거나 플래그를 고정한다. `backend-api/docker-compose.yml`은 `NODE_ENV: production`을 쓰므로 운영 compose는 `prod`로 새로 만든다. 이미지에 `.env.local`이 들어가지 않게 `.dockerignore`를 확인한다.
 5. **`deploy/`** — `docker-compose.prod.yml`(proxy, web, api, migrate, mysql, backup), `.env.prod.example`, `backup.sh`와 복원 훈련(`.duckdb` 열림 확인 포함).
 6. **`.github/workflows/deploy.yml`** — GHCR 이미지 → SSH 배포 → `/health` 스모크.
 7. **문서** — AGENTS.md에 Lambda 폐기와 단일 인스턴스 전제를 기록한다.

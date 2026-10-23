@@ -8,9 +8,31 @@ const REQUIRED_SECRETS = [
 const MIN_SECRET_LENGTH = 32;
 const DEV_ONLY_PREFIX = 'dev-only-';
 
+const KNOWN_ENVIRONMENTS = ['local', 'dev', 'prod', 'test'];
+const LOCAL_DB_HOSTS = ['localhost', '127.0.0.1', '::1'];
+
 export interface ProductionRuntimeFacts {
   /** True when the seeded demo account (userId `guest`) exists in the metadata database. */
   guestUserExists?: boolean;
+  /** True when a `.env.local` file is present; main.ts loads it and it would fill missing values. */
+  localEnvFileExists?: boolean;
+}
+
+/**
+ * app.module.ts only turns schema synchronization off for exactly NODE_ENV=prod, so an alias such
+ * as "production" (or an unset value) against a remote database would let TypeORM rewrite it.
+ */
+function environmentProblems(env: NodeJS.ProcessEnv): string[] {
+  const nodeEnv = env.NODE_ENV;
+  if (nodeEnv === 'prod') return [];
+  const remoteDatabase = Boolean(env.DB_HOST) && !LOCAL_DB_HOSTS.includes(env.DB_HOST as string);
+  const unknown = !KNOWN_ENVIRONMENTS.includes(nodeEnv ?? '');
+  if (nodeEnv === 'production' || (unknown && remoteDatabase))
+    return [
+      `NODE_ENV=${nodeEnv ?? '(unset)'} is not a recognised environment; ` +
+        'use NODE_ENV=prod so that schema synchronization stays off',
+    ];
+  return [];
 }
 
 /** Problems that make a production boot unsafe. Names only; secret values are never echoed. */
@@ -18,7 +40,7 @@ export function productionConfigProblems(
   env: NodeJS.ProcessEnv,
   facts: ProductionRuntimeFacts = {},
 ): string[] {
-  if (env.NODE_ENV !== 'prod') return [];
+  if (env.NODE_ENV !== 'prod') return environmentProblems(env);
   const problems: string[] = [];
 
   for (const name of REQUIRED_SECRETS) {
@@ -39,7 +61,11 @@ export function productionConfigProblems(
   if (env.AI_PROVIDER === 'codex')
     problems.push('AI_PROVIDER=codex is a local development provider and is not allowed in prod');
 
-  if (facts.guestUserExists) problems.push('the seeded demo account "guest" exists in the database');
+  if (facts.localEnvFileExists)
+    problems.push('a .env.local file is present; production must not ship local settings');
+
+  if (facts.guestUserExists)
+    problems.push('the seeded demo account "guest" exists in the database');
 
   return problems;
 }
@@ -56,6 +82,7 @@ export function assertProductionConfig(
 /** Number of trusted reverse-proxy hops. Fails fast on anything but a non-negative integer. */
 export function parseTrustProxyHops(value: string | undefined, fallback = 1): number {
   if (value === undefined) return fallback;
-  if (!/^\d+$/.test(value.trim())) throw new Error('TRUST_PROXY_HOPS must be a non-negative integer');
+  if (!/^\d+$/.test(value.trim()))
+    throw new Error('TRUST_PROXY_HOPS must be a non-negative integer');
   return Number(value.trim());
 }

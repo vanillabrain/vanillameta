@@ -27,17 +27,20 @@ describe('production guard', () => {
     expect(() => assertProductionConfig(validEnv())).not.toThrow();
   });
 
-  it.each(['ACCESS_SECRET', 'REFRESH_SECRET', 'JWT_ACCESS_SECRET', 'URL_ACCESS_SECRET', 'CONFIG_SECRET_KEY'])(
-    'rejects a missing, dev-only or short %s',
-    name => {
-      for (const value of [undefined, 'dev-only-' + 'y'.repeat(40), 'short']) {
-        const env = validEnv();
-        if (value === undefined) delete env[name];
-        else env[name] = value;
-        expect(productionConfigProblems(env).join('\n')).toContain(name);
-      }
-    },
-  );
+  it.each([
+    'ACCESS_SECRET',
+    'REFRESH_SECRET',
+    'JWT_ACCESS_SECRET',
+    'URL_ACCESS_SECRET',
+    'CONFIG_SECRET_KEY',
+  ])('rejects a missing, dev-only or short %s', name => {
+    for (const value of [undefined, 'dev-only-' + 'y'.repeat(40), 'short']) {
+      const env = validEnv();
+      if (value === undefined) delete env[name];
+      else env[name] = value;
+      expect(productionConfigProblems(env).join('\n')).toContain(name);
+    }
+  });
 
   it('requires an explicit CORS origin without wildcards', () => {
     for (const value of [undefined, '', ' ', '*', 'https://a.example, *']) {
@@ -69,6 +72,37 @@ describe('production guard', () => {
   it('refuses to boot when the seeded guest account exists', () => {
     expect(() => assertProductionConfig(validEnv(), { guestUserExists: true })).toThrow(/guest/);
     expect(() => assertProductionConfig(validEnv(), { guestUserExists: false })).not.toThrow();
+  });
+});
+
+describe('environment aliases', () => {
+  it('rejects NODE_ENV=production because only exactly "prod" disables synchronization', () => {
+    const env = { ...validEnv(), NODE_ENV: 'production' };
+    expect(productionConfigProblems(env).join('\n')).toContain('NODE_ENV=production');
+    expect(() => assertProductionConfig({ NODE_ENV: 'production', DB_HOST: '127.0.0.1' })).toThrow(
+      /use NODE_ENV=prod/,
+    );
+  });
+
+  it('rejects an unset or unknown NODE_ENV only when the database is remote', () => {
+    expect(productionConfigProblems({ DB_HOST: 'mysql' }).join('\n')).toContain('(unset)');
+    expect(productionConfigProblems({ NODE_ENV: 'staging', DB_HOST: 'db.internal' })).toHaveLength(
+      1,
+    );
+    expect(productionConfigProblems({ NODE_ENV: 'staging', DB_HOST: 'localhost' })).toEqual([]);
+    expect(productionConfigProblems({ NODE_ENV: 'staging' })).toEqual([]);
+  });
+
+  it('keeps recognised non-prod environments working against remote databases', () => {
+    for (const nodeEnv of ['dev', 'local', 'test'])
+      expect(productionConfigProblems({ NODE_ENV: nodeEnv, DB_HOST: 'db.internal' })).toEqual([]);
+  });
+
+  it('refuses a shipped .env.local in prod', () => {
+    expect(() => assertProductionConfig(validEnv(), { localEnvFileExists: true })).toThrow(
+      /\.env\.local/,
+    );
+    expect(() => assertProductionConfig(validEnv(), { localEnvFileExists: false })).not.toThrow();
   });
 });
 

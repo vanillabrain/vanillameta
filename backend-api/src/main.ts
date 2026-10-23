@@ -14,6 +14,7 @@ import { ResponseTimeInterceptor } from './common/interceptors/response-time.int
 import { CloudWatchMetricsService } from './common/monitoring/cloudwatch-metrics.service';
 import { BusinessMetricsService } from './common/monitoring/business-metrics.service';
 import * as v8 from 'v8';
+import { existsSync } from 'fs';
 import { DataSource } from 'typeorm';
 import { assertProductionConfig, parseTrustProxyHops } from './config/production-guard';
 import { User } from './user/entities/user.entity';
@@ -44,7 +45,8 @@ async function bootstrap() {
   // 메모리 최적화 설정 적용
   configureMemoryOptimization();
   // 환경변수 검사: 안전하지 않은 운영 설정이면 DB 연결 전에 중단한다. (guest 계정 검사는 DB 연결 후 아래에서 한다.)
-  assertProductionConfig(process.env);
+  const localEnvFileExists = existsSync('.env.local');
+  assertProductionConfig(process.env, { localEnvFileExists });
   if (process.env.SENTRY_DSN) {
     const Sentry = await import('@sentry/nestjs');
     Sentry.init({
@@ -88,8 +90,8 @@ async function bootstrap() {
     const guestUserExists = await nestApp
       .get(DataSource)
       .getRepository(User)
-      .exist({ where: { userId: 'guest' } });
-    assertProductionConfig(process.env, { guestUserExists });
+      .exists({ where: { userId: 'guest' } });
+    assertProductionConfig(process.env, { localEnvFileExists, guestUserExists });
   }
 
   nestApp.setGlobalPrefix('v1');
@@ -97,7 +99,8 @@ async function bootstrap() {
   nestApp.useGlobalFilters(new HttpExceptionFilter());
   nestApp.useGlobalInterceptors(new RequestLoggingInterceptor());
   // 운영에서는 API 문서를 명시적으로 켠 경우에만 노출한다.
-  if (process.env.NODE_ENV !== 'prod' || process.env.SWAGGER_ENABLED === 'true') setupSwagger(nestApp);
+  if (process.env.NODE_ENV !== 'prod' || process.env.SWAGGER_ENABLED === 'true')
+    setupSwagger(nestApp);
   await nestApp.listen(parseInt(process.env.PORT) || 4000, process.env.HOST);
 }
 
