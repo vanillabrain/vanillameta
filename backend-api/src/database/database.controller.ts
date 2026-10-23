@@ -7,7 +7,6 @@ import { Response } from 'express';
 import { Header, Res } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
-  ApiHeader,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -330,7 +329,6 @@ export class DatabaseController {
     description: '대용량 데이터를 위한 스트리밍 방식으로 SQL 쿼리를 실행합니다.',
   })
   @ApiProduces('application/x-ndjson')
-  @ApiHeader({ name: 'Transfer-Encoding', description: 'chunked' })
   @ApiOkResponse({
     description: '스트리밍 데이터',
     content: {

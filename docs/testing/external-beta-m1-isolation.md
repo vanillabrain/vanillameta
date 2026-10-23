@@ -43,6 +43,7 @@ A의 대시보드는 기존(legacy) 대시보드다. `/studio/dashboards/*` 경�
 - **시험하지 않은 경로**: 커머스, 백그라운드·배치 작업, 기업(조직) 기능 전체, 익명 공유·게시 링크의 토큰 경로, 리믹스·받은 항목, 내보내기 작업, 초대 가입 외의 계정 생성 경로(없음을 코드로만 확인), WebSocket. 이들은 정적 감사로만 보았다.
 - **`captureDuckDBSnapshot`의 근본 원인은 그대로**: 호출자가 먼저 권한을 확인해야 한다는 계약인데 약 40곳이 그렇게 하지 않는다. 이번에는 `catalog`의 순서를 고치고 스냅샷 단계의 NotFound를 403으로 통일했을 뿐이다. 복호화·설정 읽기가 권한 확인보다 먼저인 호출자와 아래의 소스 종류 신호가 남아 있다. 정상 소유자가 방금 지운 소스를 부르면 404 대신 403 `data access denied`를 받는 작은 동작 변화가 있다.
 - **익명 토큰 경로**: `JwtAuthGuard` 자체가 계정 없이 공유 링크 토큰(`Authorization-url`)으로 `GET /database/data`·`/v1/database/data`를 통과시킨다. 공유 대시보드의 데이터셋으로 제한되고 소유권 검사가 이어지지만, 계정 없는 접근 경로이며 이 시험은 보지 않았다. `GET /studio/publications/:token`(비인증 읽기)도 마찬가지다. 둘 다 별도의 "공개 링크 노출" 게이트에서 다룬다.
+- **경로 목록 시험의 범위**: 컨트롤러 라우트만 본다. `SWAGGER_ENABLED=true`로 켜면 `/api-docs`가 익명으로 열리므로 운영 환경 변수에서 켜지 않는다.
 - **분석 이벤트**: 익명 엔드포인트는 이제 `userId`를 저장하지 않으므로 `GET /analytics/dashboard/user-events`는 `events/batch` 이벤트만 보인다(의도한 변화). 호출자가 주장한 `userId`는 `metadata`/`properties` JSON 안에는 그대로 남는다.
 - **기존 QA 계약 시험**: `frontend-web/qa/api-contracts.spec.ts`의 TEMPLATE-01, COMPONENT-01/02는 일반 사용자의 카탈로그 쓰기를 기대했으므로 "일반 사용자는 403"을 기대하도록 바꿨다(실행하지 못했다: 이 QA 스택을 이번에 올리지 않았다). `backend-api/test/*.e2e-spec.ts`·`QTT-*`와 k6/artillery 스크립트도 이 경로를 쓰지만 `npm test` 범위 밖이라 갱신하지 않았고, 운영자 계정이 필요하다.
 - **소스 종류 신호**: 남의 소스가 DuckDB가 아니면(예: 가입 시 만들어지는 샘플 SQLite) 일부 BI 경로가 403이 아니라 400 `not a DuckDB source`를 줄 수 있어 id의 소스 종류가 드러난다. 데이터 노출은 아니다.

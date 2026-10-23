@@ -1295,7 +1295,7 @@ export class ConnectionService {
             '\n',
         );
       }
-    })();
+    })().catch(() => undefined);
     return out;
   }
 

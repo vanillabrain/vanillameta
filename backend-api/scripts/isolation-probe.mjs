@@ -135,6 +135,9 @@ const BID = actorId(B.token);
 const receipt = async path => unwrap(await call(A.token, 'GET', path));
 const dbReceipt = await receipt(`/database/${db}/delete-impact`);
 const dashReceipt = dash ? await receipt(`/dashboard/${dash}/delete-impact`) : undefined;
+// B replays these with its own identity; without a receipt the DELETE would not test the replay.
+if (!dbReceipt?.revision || !dashReceipt?.revision)
+  throw new Error('A could not fetch its delete-impact receipts; the replay probes cannot run');
 const deleteBody = r => ({
   requestId: randomUUID(),
   expectedRevision: r.revision,
@@ -250,14 +253,12 @@ for (const [method, path, body] of probes) {
       `B ${where} -> ${asB.status} but a non-existent id -> ${asBogus.status} (existence signal)`,
     );
   if (anon.status !== 401) findings.push(`anonymous ${where} -> ${anon.status} (expected 401)`);
-  // A's answer shows the route works for an owner: not 401/403/404, and not the same as B's. An owner
-  // 5xx is reported (the route is broken for owners here, so B's refusal is not shown to be about
-  // ownership) but is not an isolation failure.
+  // A's answer shows the route works for an owner: not 401/403/404/5xx, and not the same as B's. A
+  // route the owner cannot use proves nothing about ownership, so it fails the run instead of quietly
+  // shrinking the number of controlled routes.
   const control = !asA
     ? 'none (changes data)'
-    : asA.status >= 500
-    ? 'none (owner gets 5xx)'
-    : [401, 403, 404].includes(asA.status) || asA.status === asB.status
+    : asA.status >= 500 || [401, 403, 404].includes(asA.status) || asA.status === asB.status
     ? 'FAILED'
     : 'yes';
   if (control === 'FAILED')
@@ -345,19 +346,10 @@ console.table(listRows);
 console.log('\nControls');
 console.table(controlRows);
 const controlled = rows.filter(row => row.control === 'yes').length;
-const ownerErrors = rows
-  .filter(row => row.control === 'none (owner gets 5xx)')
-  .map(row => row.route);
-if (ownerErrors.length)
-  console.log(
-    `\nNOTE: the owner itself gets a 5xx on these, so B's refusal there is not shown to be about ownership: ${ownerErrors.join(
-      ', ',
-    )}`,
-  );
 console.log(
   `\n${rows.length} routes probed as B; ${controlled} have an owner control, ${
     rows.length - controlled
-  } have none (they change data or the owner gets a 5xx).`,
+  } have none (they change data).`,
 );
 console.log(
   findings.length
