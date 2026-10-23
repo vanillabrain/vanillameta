@@ -4,7 +4,7 @@
 
 ## 산출물
 
-- `backend-api/Dockerfile.prod`: 멀티 스테이지. 빌드 단계에서 `npm ci --legacy-peer-deps`(`@nestjsplus/knex` peer 충돌 때문) → `nest build` → `npm prune --omit=dev`. 런타임은 `node:24-bookworm-slim`, `USER node`, `NODE_ENV=prod`, `FILE_UPLOAD_DIR=/data/uploads`, `CLOUDWATCH_METRICS_ENABLED=false`, `/v1/health` 헬스체크. Oracle Instant Client·`unixodbc`는 넣지 않는다(네트워크 소스가 닫혀 있다).
+- `backend-api/Dockerfile.prod`: 멀티 스테이지. 빌드 단계에서 `npm ci --legacy-peer-deps`(`@nestjsplus/knex` peer 충돌 때문) → `nest build` → `npm prune --omit=dev`. 런타임은 `node:24-bookworm-slim`, `USER node`, `NODE_ENV=prod`, `FILE_UPLOAD_DIR=/data/uploads`, `CLOUDWATCH_METRICS_ENABLED=false`, `FILE_UPLOAD_MAX_BYTES=104857600`, `/v1/health` 헬스체크. `Dockerfile.prod.dockerignore`(BuildKit 전용)는 빌드 스테이지에서 `.env*`를 제외한다. Oracle Instant Client·`unixodbc`는 넣지 않는다(네트워크 소스가 닫혀 있다).
 - `frontend-web/Dockerfile.prod` + `nginx.prod.conf`: SPA를 `REACT_APP_API_URL=/v1`(상대 경로)로 빌드해 어느 도메인에서도 같은 이미지를 쓴다. nginx가 `/v1/`과 `/socket.io/`를 `API_UPSTREAM`(기본 `api:4000`)으로 프록시한다. `/v1/`은 `proxy_buffering off`(NDJSON·이후 SSE), 업로드 상한 110MB, `/healthz`. 빌드 인자 `REACT_APP_MODE=prod`(로그인 화면의 가입 링크 숨김), `REACT_APP_SENTRY_DSN`(`index.tsx`가 이미 지원).
 - `frontend-web/src/helpers/socket.ts`: 상대 API URL에서 `new URL('/v1')`이 예외를 내던 것을 `new URL(apiUrl, window.location.origin)`로 수정(`socket.test.ts` 3 tests).
 - 기존 `Dockerfile`·`Dockerfile.dev`와 dev compose는 건드리지 않았다.
