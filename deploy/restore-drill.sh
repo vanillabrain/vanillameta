@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Proves a backup is restorable WITHOUT touching the running stack: restores the dump into a throwaway
-# MySQL container, then opens every uploaded .duckdb file read-only and scans every table in it.
+# MySQL container, then opens every uploaded .duckdb file read-only and hashes every column of every table.
 # Exits non-zero on any failure.
 # Usage: restore-drill.sh <archive> [api-image]     (BACKUP_PASSPHRASE_FILE for .enc archives)
 set -euo pipefail
@@ -53,9 +53,11 @@ if [ "$files" -gt 0 ]; then
         try {
           const db = await DuckDBInstance.create(f, { access_mode: "READ_ONLY" });
           const c = await db.connect();
-          // Counting every table reads its data blocks, which a catalog query would not touch.
-          const tables = (await c.runAndReadAll("SELECT table_name FROM information_schema.tables WHERE table_schema = \x27main\x27")).getRows();
-          for (const [name] of tables) await c.runAndReadAll("SELECT count(*) FROM \"" + String(name).replace(/"/g, "\"\"") + "\"");
+          // Hashing every column forces each table\x27s data blocks to be read and checksummed; a bare
+          // count(*) is answered from row-group metadata and would not notice a torn block.
+          const tables = (await c.runAndReadAll("SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = \x27BASE TABLE\x27 AND table_catalog = current_database() AND table_schema NOT IN (\x27information_schema\x27, \x27pg_catalog\x27)")).getRows();
+          const q = (id) => "\"" + String(id).replace(/"/g, "\"\"") + "\"";
+          for (const [schema, name] of tables) await c.runAndReadAll("SELECT bit_xor(hash(COLUMNS(*))) FROM " + q(schema) + "." + q(name));
         } catch (e) { bad++; console.error("cannot open", f, String(e.message).slice(0, 120)); }
       }
       process.exit(bad ? 1 : 0);

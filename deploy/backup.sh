@@ -3,7 +3,9 @@
 # Run from cron on the VM, e.g.:  17 3 * * *  /opt/vanillameta/deploy/backup.sh
 #
 # - The archive is ALWAYS encrypted (BACKUP_PASSPHRASE_FILE is required): it holds user accounts, password
-#   hashes, encrypted source configs and every uploaded dataset. No plaintext archive touches the disk.
+#   hashes, encrypted source configs and every uploaded dataset. No plaintext ARCHIVE is written; the staging
+#   files (db.sql.gz, uploads.tar.gz) are plaintext in a 0700 directory and removed on exit, and leftovers
+#   of a killed run are removed at the start of the next one.
 # - By default the api is stopped for the duration of the dump and the copy (BACKUP_QUIESCE=true): DuckDB
 #   files are single-writer and a copy taken while they are written can be torn. Downtime is the time the
 #   dump and the copy take. Set BACKUP_QUIESCE=false to skip it and rely on restore-drill.sh instead.
@@ -22,6 +24,7 @@ PASSPHRASE_FILE="${BACKUP_PASSPHRASE_FILE:-$(envval BACKUP_PASSPHRASE_FILE)}"
 S3_URI="${BACKUP_S3_URI:-$(envval BACKUP_S3_URI)}"
 S3_ENDPOINT="${BACKUP_S3_ENDPOINT:-$(envval BACKUP_S3_ENDPOINT)}"
 QUIESCE="${BACKUP_QUIESCE:-$(envval BACKUP_QUIESCE)}"; QUIESCE="${QUIESCE:-true}"
+case "$QUIESCE" in true|1|yes) QUIESCE=true ;; *) QUIESCE=false ;; esac
 
 [ -n "$PASSPHRASE_FILE" ] && [ -r "$PASSPHRASE_FILE" ] && [ -s "$PASSPHRASE_FILE" ] \
   || { echo "BACKUP_PASSPHRASE_FILE must point to a readable, non-empty file" >&2; exit 2; }
@@ -30,6 +33,8 @@ COMPOSE=(docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml)
 mkdir -p "$BACKUP_DIR"
 exec 9>"$BACKUP_DIR/.backup.lock"
 flock -n 9 || { echo "another backup is running" >&2; exit 5; }
+# The lock guarantees no other run: anything left behind is from a run that was killed.
+rm -rf "$BACKUP_DIR"/.work.* "$BACKUP_DIR"/*.partial
 
 used=$(df -P "$BACKUP_DIR" | awk 'NR==2 {gsub("%","",$5); print $5}')
 [ "$used" -lt 90 ] || { echo "disk is ${used}% full: refusing to back up" >&2; exit 3; }
@@ -38,14 +43,26 @@ used=$(df -P "$BACKUP_DIR" | awk 'NR==2 {gsub("%","",$5); print $5}')
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 work=$(mktemp -d "$BACKUP_DIR/.work.XXXXXX")
 api_stopped=false
+# Act on the container, not the compose service: `compose stop api` can also stop web and caddy, which
+# depend on it and would not come back (they are stopped on purpose, so restart policies skip them).
+api_cid=$("${COMPOSE[@]}" ps -q api)
+start_api() {
+  docker start "$api_cid" >/dev/null
+  for _ in $(seq 1 45); do
+    [ "$(docker inspect -f '{{.State.Health.Status}}' "$api_cid" 2>/dev/null)" = healthy ] && return 0
+    sleep 2
+  done
+  echo "warning: api did not become healthy within 90s" >&2
+}
 cleanup() {
   rm -rf "$work"
-  if [ "$api_stopped" = true ]; then "${COMPOSE[@]}" start api >/dev/null 2>&1 || echo "FAILED to restart api" >&2; fi
+  if [ "$api_stopped" = true ]; then start_api || echo "FAILED to restart api" >&2; fi
 }
 trap cleanup EXIT
 
 if [ "$QUIESCE" = true ]; then
-  "${COMPOSE[@]}" stop api >/dev/null
+  [ -n "$api_cid" ] || { echo "api container not found" >&2; exit 4; }
+  docker stop -t 30 "$api_cid" >/dev/null
   api_stopped=true
 fi
 
@@ -57,7 +74,7 @@ uploads_volume=$(docker volume ls -q --filter label=com.docker.compose.project=v
 [ -n "$uploads_volume" ] || { echo "uploads volume not found" >&2; exit 4; }
 docker run --rm -v "$uploads_volume":/data:ro alpine:3.20 tar -C /data -cf - . | gzip > "$work/uploads.tar.gz"
 
-if [ "$api_stopped" = true ]; then "${COMPOSE[@]}" start api >/dev/null; api_stopped=false; fi
+if [ "$api_stopped" = true ]; then start_api; api_stopped=false; fi
 
 # A truncated stream must fail here, not at restore time.
 gzip -t "$work/db.sql.gz" "$work/uploads.tar.gz"

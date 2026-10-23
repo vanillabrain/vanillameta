@@ -21,6 +21,8 @@
 ```bash
 cd /opt/vanillameta/deploy
 cp .env.prod.example .env.prod && chmod 600 .env.prod   # 모든 값을 채운다(시크릿은 openssl rand -hex 32)
+sudo install -d -m 700 /etc/vanillameta && openssl rand -base64 48 | sudo tee /etc/vanillameta/backup.pass >/dev/null && sudo chmod 600 /etc/vanillameta/backup.pass
+                                                          # 백업 암호 파일. 없으면 매일 밤 backup.sh가 종료 코드 2로 실패한다. 이 암호는 VM 밖에도 보관한다
 docker compose --env-file .env.prod -f docker-compose.prod.yml pull
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 sudo ./egress-guard.sh apply                              # + vanillameta-egress-guard.service 설치(재부팅 후 재적용)
@@ -42,9 +44,9 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml ps -a   # migrate
 BACKUP_PASSPHRASE_FILE=... ./restore-drill.sh /var/backups/vanillameta/vanillameta-<시각>.tar.enc <api 이미지>
 ```
 
-- 아카이브는 **항상 암호화**한다(`BACKUP_PASSPHRASE_FILE` 필수). 사용자 계정·비밀번호 해시·암호화된 소스 설정·업로드 데이터가 모두 들어 있다. 평문 아카이브는 디스크에 쓰지 않는다.
-- 기본값으로 덤프와 복사 동안 api를 멈춘다(DuckDB는 단일 쓰기 프로세스라 쓰는 중에 복사하면 깨질 수 있다). 중지 시간은 덤프와 복사 시간이다. `BACKUP_QUIESCE=false`로 끌 수 있지만 그러면 복원 훈련으로만 신뢰한다. 배포·업데이트와 겹치지 않게 한다(`flock`으로 백업끼리는 겹치지 않는다).
-- 복원 훈련은 운영 스택을 건드리지 않고 임시 MySQL에 덤프를 올린 뒤 모든 `.duckdb` 파일을 읽기 전용으로 열어 **모든 테이블을 읽는다**. 출시 전에 한 번, 이후 정기적으로 실행한다.
+- 아카이브는 **항상 암호화**한다(`BACKUP_PASSPHRASE_FILE` 필수). 사용자 계정·비밀번호 해시·암호화된 소스 설정·업로드 데이터가 모두 들어 있다. 평문 **아카이브**는 쓰지 않는다. 작업용 임시 파일(`db.sql.gz`, `uploads.tar.gz`)은 0700 디렉터리에 평문으로 있다가 종료 시 지워지고, 강제 종료로 남은 것은 다음 실행 시작 때 지운다.
+- 기본값으로 덤프와 복사 동안 api 컨테이너만 멈춘다(compose 서비스 단위 `stop`은 의존하는 web·caddy까지 멈출 수 있어 컨테이너를 직접 다룬다)(DuckDB는 단일 쓰기 프로세스라 쓰는 중에 복사하면 깨질 수 있다). 중지 시간은 덤프와 복사 시간이다. `BACKUP_QUIESCE=false`로 끌 수 있지만 그러면 복원 훈련으로만 신뢰한다. 배포·업데이트와 겹치지 않게 한다(`flock`으로 백업끼리는 겹치지 않는다).
+- 복원 훈련은 운영 스택을 건드리지 않고 임시 MySQL에 덤프를 올린 뒤 모든 `.duckdb` 파일을 읽기 전용으로 열어 **모든 테이블의 모든 컬럼을 해시한다**(`count(*)`는 메타데이터로 답해 찢어진 블록을 못 잡는다). 출시 전에 한 번, 이후 정기적으로 실행한다.
 
 ## 키 보관 (복구 가능성의 전제)
 

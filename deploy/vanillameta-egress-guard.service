@@ -1,9 +1,11 @@
-# Reapplies the egress filter after every boot and docker restart.
+# Reapplies the egress filter after every boot and docker restart. The DNS resolvers are read when the
+# rules are applied: after a DHCP resolver change run `systemctl restart vanillameta-egress-guard`.
 # Install: cp this file and egress-guard.sh to /etc/systemd/system and /opt/vanillameta/deploy, then
 #   systemctl daemon-reload && systemctl enable --now vanillameta-egress-guard
 [Unit]
 Description=VanillaMeta api egress filter
-After=docker.service
+Wants=network-online.target
+After=docker.service network-online.target systemd-resolved.service
 Requires=docker.service
 PartOf=docker.service
 
