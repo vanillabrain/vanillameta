@@ -491,15 +491,17 @@ test('[SHARE-06] revoked share token cannot keep reading or mutate workspace', a
   expect([401, 403]).toContain(response.status());
 });
 
-test('[TEMPLATE-01] template CRUD returns bounded responses and correct layout', async () => {
+test('[TEMPLATE-01] the shared template catalog is read-only for a regular user', async () => {
+  // Templates belong to nobody, so writing them is an operator action (LegacyOperationsGuard).
   const layout = [{ x: 0, y: 0, w: 6, h: 4, category: 'SCORE' }];
-  const saved = await ok(await call(owner, 'POST', '/template', { title: unique(), description: 'QA template', layout }));
-  const detail = await ok(await call(owner, 'GET', `/template/${saved.id}`));
-  expect(detail.layout).toHaveLength(1);
-  await ok(await call(owner, 'PUT', `/template/${saved.id}`, { title: 'QA updated template', description: 'QA', layout }));
-  expect((await ok(await call(owner, 'GET', `/template/${saved.id}`))).title).toBe('QA updated template');
-  await ok(await call(owner, 'DELETE', `/template/${saved.id}`));
-  expect((await ok(await call(owner, 'GET', '/template'))).map((row: any) => row.id)).not.toContain(saved.id);
+  const title = unique();
+  expect((await call(owner, 'POST', '/template', { title, description: 'QA template', layout })).status()).toBe(403);
+  expect((await call(owner, 'GET', '/template')).status()).toBe(403);
+  expect((await call(owner, 'GET', '/template/1')).status()).toBe(403);
+  expect(
+    (await call(owner, 'PUT', '/template/1', { title: 'QA updated template', description: 'QA', layout })).status(),
+  ).toBe(403);
+  expect((await call(owner, 'DELETE', '/template/1')).status()).toBe(403);
 });
 
 test('[TEMPLATE-02] recommendations and dashboard layout map selected widget once', async () => {
@@ -596,35 +598,25 @@ test('[RELIABILITY-03] rate-limit process emits 429 then recovers', async ({ req
     .toBe(200);
 });
 
-test('[COMPONENT-01] component update preserves its original ID and delete removes it', async () => {
+test('[COMPONENT-01] the shared chart catalog is read-only for a regular user', async () => {
+  // Chart components belong to nobody, so writing them is an operator action (LegacyOperationsGuard).
   const type = unique('QA_TYPE');
-  const created = await body(
-    await call(owner, 'POST', '/component', { type, title: 'QA component', category: 'SCORE', option: {} }),
-  );
-  expect(created.id).toBeGreaterThan(0);
-  expect(
-    (
-      await call(owner, 'PATCH', `/component/${created.id}`, {
-        type,
-        title: 'QA updated component',
-        category: 'SCORE',
-        option: {},
-      })
-    ).ok(),
-  ).toBe(true);
-  expect((await body(await call(owner, 'GET', `/component/${created.id}`))).title).toBe('QA updated component');
-  expect((await call(owner, 'DELETE', `/component/${created.id}`)).ok()).toBe(true);
+  const payload = { type, title: 'QA component', category: 'SCORE', option: {} };
+  expect((await call(owner, 'POST', '/component', payload)).status()).toBe(403);
+  expect((await call(owner, 'PATCH', '/component/1', payload)).status()).toBe(403);
+  expect((await call(owner, 'DELETE', '/component/1')).status()).toBe(403);
   const list = await body(await call(owner, 'GET', '/component'));
+  expect(list.length).toBeGreaterThan(0);
   expect(list.filter((row: any) => row.componentType === type)).toHaveLength(0);
 });
 
-test('[COMPONENT-02] duplicate component type does not insert another record', async () => {
+test('[COMPONENT-02] a refused component create does not insert a record', async () => {
   const type = unique('QA_TYPE');
   const payload = { type, title: 'QA duplicate component', category: 'SCORE', option: {} };
-  await call(owner, 'POST', '/component', payload);
   const before = await body(await call(owner, 'GET', '/component'));
-  await call(owner, 'POST', '/component', payload);
+  expect((await call(owner, 'POST', '/component', payload)).status()).toBe(403);
+  expect((await call(owner, 'POST', '/component', payload)).status()).toBe(403);
   const after = await body(await call(owner, 'GET', '/component'));
-  expect(after.filter((row: any) => row.componentType === type)).toHaveLength(1);
+  expect(after.filter((row: any) => row.componentType === type)).toHaveLength(0);
   expect(after.length).toBe(before.length);
 });

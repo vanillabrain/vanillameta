@@ -49,14 +49,22 @@ $C run --rm migrate node dist/src/access/access-cli.js waitlist approve <id> --d
 
 ## 격리 증명 재실행
 
-릴리스마다 두 사용자 시험을 다시 돌려 사용자 간 접근이 막혀 있는지 확인한다(결과 해석: [docs/testing/external-beta-m1-isolation.md](../docs/testing/external-beta-m1-isolation.md)). **운영 데이터가 있는 스택에서 돌리지 말고** 같은 이미지로 띄운 임시 스택에서 돌린다. 계정과 데이터를 만들고 삭제를 시도한다.
+릴리스 후보를 정하기 전에 **개발 머신(저장소 체크아웃과 Docker가 있는 곳)**에서 두 사용자 시험을 돌려 사용자 간 접근이 막혀 있는지 확인한다(결과 해석: [docs/testing/external-beta-m1-isolation.md](../docs/testing/external-beta-m1-isolation.md)). **운영 VM에서는 돌리지 않는다.** 이 스택은 프로젝트 이름과 네트워크·볼륨 이름이 고정(`vanillameta`, `vanillameta-app` ...)이라 운영 스택과 같은 이름을 쓰고, 계정과 데이터를 만들고 삭제를 시도하기 때문이다. 운영 VM에는 저장소도 없다. 시험이 끝나면 스택과 볼륨, 임시 `.env.prod`를 지운다.
 
 ```bash
+cd deploy
+# 일회용 값으로 .env.prod를 만든다 (이미지는 이 머신에서 빌드한 것을 쓴다)
+{ echo APP_DOMAIN=localhost ACME_EMAIL=ops@example.test IMAGE_TAG=verify API_IMAGE=<api 이미지> WEB_IMAGE=<web 이미지>
+  for k in MYSQL_ROOT_PASSWORD MYSQL_PASSWORD; do echo $k=$(openssl rand -hex 16); done
+  for k in ACCESS_SECRET REFRESH_SECRET JWT_ACCESS_SECRET URL_ACCESS_SECRET CONFIG_SECRET_KEY; do echo $k=$(openssl rand -hex 32); done
+} | tr ' ' '\n' | grep . > .env.prod && chmod 600 .env.prod
 C="docker compose --env-file .env.prod -f docker-compose.prod.yml"
-IA=$($C run --rm migrate node dist/src/access/access-cli.js invite create --label iso-a | sed -n 's/.*"code":"\([^"]*\)".*/\1/p')
-IB=$($C run --rm migrate node dist/src/access/access-cli.js invite create --label iso-b | sed -n 's/.*"code":"\([^"]*\)".*/\1/p')
+$C up -d      # healthy가 될 때까지 기다린다
+IA=$($C run --rm migrate node dist/src/access/access-cli.js invite create --label iso-a | sed -n 's/.*"code":"\([^"]*\)".*/\1/p' | tail -1)
+IB=$($C run --rm migrate node dist/src/access/access-cli.js invite create --label iso-b | sed -n 's/.*"code":"\([^"]*\)".*/\1/p' | tail -1)
 docker run --rm --network vanillameta-app -e BASE_URL=http://web/v1 -e INVITE_A="$IA" -e INVITE_B="$IB" \
   -v "$PWD/../backend-api/scripts:/probe:ro" <api 이미지> node /probe/isolation-probe.mjs      # PASS면 종료 코드 0
+$C down -v --remove-orphans; rm -f .env.prod
 ```
 
 ## 업데이트와 되돌리기

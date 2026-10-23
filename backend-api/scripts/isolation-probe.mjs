@@ -2,9 +2,15 @@
 // Black-box proof that one signed-in user cannot reach another user's data over HTTP.
 //
 // A signs up (invite codes), uploads a file, builds a dataset / widget / dashboard and publishes nothing;
-// B then calls every route that takes one of A's ids, and also lists everything B may see. Nothing B does
-// may return 2xx, B's lists must not contain A's rows, and a request with no token must be refused.
-// A's own requests are the positive controls (so a refusal is not just "the route is broken").
+// B then calls every route that takes one of A's ids, and also lists everything B may see.
+//   * B's answer must be 403, or a 404 that a non-existent id also gets (never 2xx, never A's marker);
+//   * it must equal what B gets for a non-existent id (a different answer would reveal that the id exists);
+//   * an anonymous call must be 401;
+//   * B's lists must be 200 and must not contain A's rows (B's token is proven valid by those 200s);
+//   * where A can safely repeat the call on its own ids, A must get something other than a refusal, so B's
+//     refusal is shown to come from ownership and not from a route that refuses everyone. Calls that
+//     would change A's data (PUT / DELETE / publish ...) have no such control and are reported as such.
+// Any step that cannot be set up (widget, dashboard) fails the run instead of silently dropping routes.
 //
 //   BASE_URL=http://web/v1 INVITE_A=vm-... INVITE_B=vm-... node isolation-probe.mjs
 // It is meant for a throwaway stack. It creates accounts and data; it never touches existing users.
@@ -107,13 +113,17 @@ if (wd) {
   });
   dash = unwrap(dashResponse)?.id;
 }
-if (wd && !dash)
-  console.log(
-    `dashboard creation failed: ${dashResponse.status} ${dashResponse.text.slice(0, 300)}`,
-  );
 const ids = { db, ds, wd, dash };
 console.log(`A resources: ${JSON.stringify(ids)}  (marker ${MARK})`);
-if (!db || !ds) throw new Error('A needs at least a source and a dataset to run the proof');
+if (!db || !ds || !wd || !dash)
+  throw new Error(
+    `A could not build every resource (${JSON.stringify(
+      ids,
+    )}); the routes that need them cannot be probed` +
+      (dashResponse
+        ? `; dashboard answered ${dashResponse.status} ${dashResponse.text.slice(0, 300)}`
+        : ''),
+  );
 
 // ---- the routes B (and an anonymous caller) must not be able to use against A's ids ----------------------
 const q = 'SELECT * FROM uploaded_data';
@@ -159,7 +169,12 @@ const probes = [
   ['GET', '/bi/sources/{db}/profile'],
   ['GET', '/bi/metrics?sourceId={db}'],
   ['POST', '/bi/explore/catalog', { sourceId: '{db}' }],
-  ['POST', '/bi/explore/query', { sourceId: '{db}' }],
+  // Well-formed enough to pass request validation, so the answer comes from the ownership check.
+  [
+    'POST',
+    '/bi/explore/query',
+    { sourceId: '{db}', sourceRevision: HEX, measureIds: [1], rankingMeasureId: 1 },
+  ],
   ['GET', '/bi/dashboards/{dash}/publication'],
   ['POST', '/bi/dashboards/{dash}/publication', {}],
   ['GET', '/studio/dashboards/{dash}'],
@@ -187,11 +202,18 @@ const probes = [
   ['DELETE', '/dashboard/{dash}', dashReceipt && deleteBody(dashReceipt)],
   ['DELETE', '/dataset/{ds}'],
   ['DELETE', '/database/{db}', dbReceipt && deleteBody(dbReceipt)],
-].filter(
-  ([, path, body]) =>
-    !(JSON.stringify([path, body]).includes('{wd}') && !wd) &&
-    !(JSON.stringify([path, body]).includes('{dash}') && !dash),
-);
+];
+
+// Calls A may repeat on its own ids without changing or spending anything. Everything else has no control.
+const SAFE_FOR_A = ([method, path]) =>
+  (method === 'GET' ||
+    [
+      '/database/execute',
+      '/database/execute/stream',
+      '/bi/explore/catalog',
+      '/bi/explore/query',
+    ].includes(path)) &&
+  !path.startsWith('/ai/');
 
 const fill = (value, map) =>
   JSON.parse(
@@ -200,7 +222,6 @@ const fill = (value, map) =>
       .replace(/\{(\w+)\}/g, (_, k) => map[k]),
   );
 const BOGUS = { db: 987654321, ds: 987654321, wd: 987654321, dash: 987654321 };
-const DENIED = new Set([400, 401, 403, 404, 409, 422]);
 
 const findings = [];
 const rows = [];
@@ -215,48 +236,69 @@ for (const [method, path, body] of probes) {
     body === undefined ? undefined : fill(body, BOGUS),
   );
   const anon = await call(null, method, realPath, realBody);
+  const asA = SAFE_FOR_A([method, path])
+    ? await call(A.token, method, realPath, realBody)
+    : undefined;
+  const where = `${method} ${realPath}`;
   const leaked = asB.text.includes(MARK);
   if (asB.status < 300 || leaked)
-    findings.push(`B ${method} ${realPath} -> ${asB.status}${leaked ? ' (A marker in body)' : ''}`);
-  else if (!DENIED.has(asB.status))
-    findings.push(`B ${method} ${realPath} -> ${asB.status} (unexpected status)`);
-  if (anon.status !== 401)
-    findings.push(`anonymous ${method} ${realPath} -> ${anon.status} (expected 401)`);
-  const conclusive = !(asB.status === 400 && asBogus.status === 400);
+    findings.push(`B ${where} -> ${asB.status}${leaked ? ' (A marker in body)' : ''}`);
+  else if (asB.status !== 403 && !(asB.status === 404 && asBogus.status === 404))
+    findings.push(`B ${where} -> ${asB.status} (not an ownership refusal)`);
+  if (asB.status !== asBogus.status)
+    findings.push(
+      `B ${where} -> ${asB.status} but a non-existent id -> ${asBogus.status} (existence signal)`,
+    );
+  if (anon.status !== 401) findings.push(`anonymous ${where} -> ${anon.status} (expected 401)`);
+  // A's answer shows the route works for an owner: not 401/403/404, and not the same as B's. An owner
+  // 5xx is reported (the route is broken for owners here, so B's refusal is not shown to be about
+  // ownership) but is not an isolation failure.
+  const control = !asA
+    ? 'none (changes data)'
+    : asA.status >= 500
+    ? 'none (owner gets 5xx)'
+    : [401, 403, 404].includes(asA.status) || asA.status === asB.status
+    ? 'FAILED'
+    : 'yes';
+  if (control === 'FAILED')
+    findings.push(`no usable control: A ${where} -> ${asA.status}, B -> ${asB.status}`);
   rows.push({
     route: `${method} ${path}`.slice(0, 70),
-    conclusive: conclusive ? 'yes' : '400 first',
     B: asB.status,
     'B bogus id': asBogus.status,
     anonymous: anon.status,
-    'same as bogus': asB.status === asBogus.status ? 'yes' : 'NO',
+    'A (control)': asA ? asA.status : '-',
+    control,
   });
 }
 
 // ---- B must not see A in any list ---------------------------------------------------------------------
+// 'owns' lists must show A its own row; the others only prove B gets a 200 (valid token) without A's data.
 const lists = [
-  '/database',
-  '/dataset',
-  '/widget',
-  '/dashboard',
-  '/metric',
-  '/bi/sources',
-  '/dashboard/library',
-  '/studio/runs',
+  ['/database', true],
+  ['/dataset', true],
+  ['/widget', true],
+  ['/dashboard', true],
+  ['/metric', false],
+  ['/bi/sources', false],
+  ['/dashboard/library', false],
 ];
 const listRows = [];
-for (const path of lists) {
+for (const [path, owns] of lists) {
   const asB = await call(B.token, 'GET', path);
   const asA = await call(A.token, 'GET', path);
   const aSees = asA.text.includes(MARK);
   const bSees = asB.text.includes(MARK);
-  if (asB.status < 300 && bSees) findings.push(`B list GET ${path} contains A's data`);
+  if (bSees) findings.push(`B list GET ${path} contains A's data`);
+  if (asB.status !== 200) findings.push(`B list GET ${path} -> ${asB.status} (expected 200)`);
+  if (asA.status !== 200) findings.push(`A list GET ${path} -> ${asA.status} (expected 200)`);
+  if (owns && !aSees) findings.push(`A list GET ${path} does not show A's own row`);
   listRows.push({
     list: `GET ${path}`,
     B: asB.status,
     'B sees A': bSees ? 'LEAK' : 'no',
     A: asA.status,
-    'A sees own': aSees ? 'yes' : 'n/a',
+    'A sees own': owns ? (aSees ? 'yes' : 'NO') : 'not expected',
   });
 }
 
@@ -264,8 +306,8 @@ for (const path of lists) {
 const controls = [
   ['GET', '/database/info/{db}'],
   ['GET', '/dataset/{ds}'],
-  ...(wd ? [['GET', '/widget/{wd}']] : []),
-  ...(dash ? [['GET', '/dashboard/{dash}']] : []),
+  ['GET', '/widget/{wd}'],
+  ['GET', '/dashboard/{dash}'],
   ['POST', '/database/execute', { id: '{db}', query: q }],
 ];
 const controlRows = [];
@@ -288,8 +330,8 @@ for (const [method, path, body] of controls) {
 for (const path of [
   `/database/info/${db}`,
   `/dataset/${ds}`,
-  ...(wd ? [`/widget/${wd}`] : []),
-  ...(dash ? [`/dashboard/${dash}`] : []),
+  `/widget/${wd}`,
+  `/dashboard/${dash}`,
 ]) {
   const intact = await call(A.token, 'GET', path);
   if (intact.status >= 300 || !intact.text.includes(MARK))
@@ -302,20 +344,21 @@ console.log('\nLists');
 console.table(listRows);
 console.log('\nControls');
 console.table(controlRows);
-const inconclusive = rows.filter(row => row.conclusive !== 'yes').map(row => row.route);
-if (inconclusive.length)
+const controlled = rows.filter(row => row.control === 'yes').length;
+const ownerErrors = rows
+  .filter(row => row.control === 'none (owner gets 5xx)')
+  .map(row => row.route);
+if (ownerErrors.length)
   console.log(
-    `\nNOTE: validation rejected these with 400 before any ownership check, so they prove nothing about isolation: ${inconclusive.join(
+    `\nNOTE: the owner itself gets a 5xx on these, so B's refusal there is not shown to be about ownership: ${ownerErrors.join(
       ', ',
     )}`,
   );
-const differing = rows.filter(row => row['same as bogus'] === 'NO').map(row => row.route);
-if (differing.length)
-  console.log(
-    `\nNOTE: these routes answer differently for a real foreign id than for a non-existent one (existence signal): ${differing.join(
-      ', ',
-    )}`,
-  );
+console.log(
+  `\n${rows.length} routes probed as B; ${controlled} have an owner control, ${
+    rows.length - controlled
+  } have none (they change data or the owner gets a 5xx).`,
+);
 console.log(
   findings.length
     ? `\nFAIL (${findings.length})\n- ${findings.join('\n- ')}`
