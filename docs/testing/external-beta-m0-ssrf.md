@@ -12,7 +12,9 @@
 
 - `NODE_ENV=prod`에서 `ALLOWED_SOURCE_TYPES`가 비어 있으면 `file,sample`만 허용한다. 다른 환경은 변수를 지정하지 않으면 제한이 없다(기존 개발 흐름 유지).
 - 항목은 `file`(duckdb), `sample`(sqlite·sqlite3·better-sqlite3), 엔진 이름(예: `pg`), `*`(제한 해제)다. 엔진은 대소문자·공백을 무시한다.
-- 적용 지점: `DatabaseService.webConfig`(생성·수정), `ConnectionService.testConnection`·`testDatabase`(연결 테스트는 로컬 파일 엔진도 거부: 사용자가 서버 경로를 `filename`으로 줄 수 있다), `getConnectionConfig`. 마지막은 knex 생성과 ClickHouse·Trino·Databricks 실행이 모두 거치는 곳이라, 제한 이전에 저장된 네트워크 소스도 쿼리·소켓 열기 전에 막는다.
+- 적용 지점: `DatabaseService.webConfig`(생성·수정), `ConnectionService.testConnection`·`testDatabase`(연결 테스트는 로컬 파일 엔진도 거부: 사용자가 서버 경로를 `filename`으로 줄 수 있다), `getConnectionConfig`, `QueryAnalyzerService.analyzeExternalQuery`(운영자 전용 `LegacyOperationsGuard` 뒤지만 `getConnectionConfig`를 거치지 않고 직접 `knex()`를 만들어 같은 검사를 추가). `getConnectionConfig`는 사용자 경로의 knex 생성과 ClickHouse·Trino·Databricks 실행이 모두 거치는 곳이라, 제한 이전에 저장된 네트워크 소스도 쿼리·소켓 열기 전에 막는다.
+
+로컬 파일 엔진은 소켓을 열지 않으므로 항상 허용한다. `file`·`sample` 항목은 의도 표기일 뿐 동작을 바꾸지 않는다. `NODE_ENV=production` 별칭도 prod로 취급한다. 운영 부팅 가드는 `QUERY_ALLOW_WRITE=true`(읽기 전용 쿼리 가드 해제)도 거부한다.
 
 ## 검증 (로컬, Node 26)
 
@@ -27,6 +29,10 @@
 | eslint(변경 파일 에러 0, 기존 경고 5), `tsc --noEmit` | PASS |
 
 ## 한계
+
+- **엔진을 `ALLOWED_SOURCE_TYPES`에 올리면 SSRF 노출이 되돌아온다**: `fetch`의 리디렉션 추적, Trino 서버가 주는 `nextUri` 추적, BigQuery `keyFilename`(서버 경로)이 그대로 남는다. 엔진을 열기 전에 사설 주소 송신 차단을 먼저 한다.
+- 프런트엔드가 운영에서도 네트워크 DB 유형을 보여 주므로 선택하면 403이 난다(UX. `findAllDatabaseTypes`에서 거르는 일은 남아 있다).
+- 제한 이전의 네트워크 소스가 남은 DB에서는 `isDuckDB` 등 호출 지점 55곳이 403을 받을 수 있다. 새 베타 DB에는 그런 행이 없다.
 
 - 이 제한은 애플리케이션 계층이다. 사설 IP 송신 차단은 `deploy/` compose와 호스트 방화벽에서 따로 구현하고 증빙해야 한다(미실행).
 - `AI_API_BASE_URL`·웹훅 URL은 사용자 입력이 아니라 환경 변수이므로 이 단위에 포함하지 않았다.

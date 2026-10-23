@@ -57,6 +57,12 @@ describe('production guard', () => {
     expect(productionConfigProblems(env).join('\n')).toContain('AI_PROVIDER');
   });
 
+  it('rejects disabling the read-only query guard', () => {
+    const env = validEnv();
+    env.QUERY_ALLOW_WRITE = 'true';
+    expect(productionConfigProblems(env).join('\n')).toContain('QUERY_ALLOW_WRITE');
+  });
+
   it('reports every problem at once and never echoes secret values', () => {
     const env = validEnv();
     env.ACCESS_SECRET = 'dev-only-leaked-value';

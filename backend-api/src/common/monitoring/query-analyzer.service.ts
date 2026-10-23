@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { assertSourceEngineAllowed } from '../../connection/source-type-policy';
 import { InjectConnection } from '@nestjs/typeorm';
 import { Connection, QueryRunner } from 'typeorm';
 import { Knex, knex } from 'knex';
@@ -119,6 +120,7 @@ export class QueryAnalyzerService {
       };
     }
     const config = parseConnectionConfig(database.connectionConfig);
+    assertSourceEngineAllowed(config?.client ?? database.engine);
     const knexInstance = knex(config);
 
     try {

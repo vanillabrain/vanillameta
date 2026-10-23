@@ -21,6 +21,10 @@ describe('source type policy', () => {
     expect(isSourceEngineAllowed('sqlite3', prod)).toBe(true);
   });
 
+  it('treats the production alias like prod', () => {
+    expect(isSourceEngineAllowed('mysql2', env({ NODE_ENV: 'PRODUCTION' }))).toBe(false);
+  });
+
   it('ignores case and surrounding whitespace in the engine', () => {
     expect(isSourceEngineAllowed(' MySQL2 ', env({ NODE_ENV: 'prod' }))).toBe(false);
     expect(isSourceEngineAllowed(undefined, env({ NODE_ENV: 'prod' }))).toBe(false);

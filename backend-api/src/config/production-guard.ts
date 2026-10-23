@@ -63,6 +63,9 @@ export function productionConfigProblems(
   if (env.AI_PROVIDER === 'codex')
     problems.push('AI_PROVIDER=codex is a local development provider and is not allowed in prod');
 
+  if (env.QUERY_ALLOW_WRITE === 'true')
+    problems.push('QUERY_ALLOW_WRITE=true disables the read-only query guard');
+
   if (facts.localEnvFileExists)
     problems.push('a .env.local file is present; production must not ship local settings');
 

@@ -15,10 +15,14 @@ const DEFAULT_PROD_SOURCE_TYPES = 'file,sample';
  * shared VM reaches the internal network and the cloud metadata service. `prod` therefore defaults
  * to uploads and the sample only; other environments stay open unless `ALLOWED_SOURCE_TYPES` is set.
  * Entries are `file`, `sample`, or an engine name such as `mysql2`; `*` lifts the restriction.
+ * Local-file engines never open a socket and are always allowed, so `file` and `sample` only document
+ * intent. Listing a network engine reopens redirect, Trino `nextUri` and `keyFilename` exposure;
+ * block private-address egress at the network first.
  */
 export function allowedSourceEngines(env: NodeJS.ProcessEnv = process.env): Set<string> | null {
   const configured = env.ALLOWED_SOURCE_TYPES?.trim();
-  if (!configured && env.NODE_ENV !== 'prod') return null;
+  const production = ['prod', 'production'].includes((env.NODE_ENV ?? '').trim().toLowerCase());
+  if (!configured && !production) return null;
   const entries = (configured || DEFAULT_PROD_SOURCE_TYPES)
     .split(',')
     .map(entry => entry.trim().toLowerCase())
