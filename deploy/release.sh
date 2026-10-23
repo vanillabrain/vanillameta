@@ -31,6 +31,7 @@ fi
 
 exec 9>.release.lock
 flock -n 9 || die "another release is running"
+log "$(date -Is) release $tag start (pid $$)"
 
 # The workflow's registry token expires when its job ends, so it is kept in a throwaway client config
 # and never replaces credentials the operator saved with `docker login` for manual releases.
@@ -47,7 +48,7 @@ if [ -n "${ghcr_user:-}" ]; then
   unset token
   # A credential helper (pass, secretservice) on this host would keep the token outside login_dir.
   grep -q '"auth"' "$login_dir/config.json" 2>/dev/null \
-    || { docker logout "$REGISTRY" >/dev/null 2>&1 || true; die "registry token was not stored in the throwaway config (credential helper in use?)"; }
+    || { docker logout "$REGISTRY" >/dev/null 2>&1 || log "WARNING: docker logout failed; remove the token from the credential helper by hand"; die "registry token was not stored in the throwaway config (credential helper in use?)"; }
 fi
 
 previous=$(grep -E '^IMAGE_TAG=' "$ENV_FILE" | tail -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' || true)
@@ -91,7 +92,7 @@ recover() {
   if [ "$state" = switching ] && [ -n "$previous" ]; then
     log "interrupted: restoring $previous"
     set_tag "$previous" || true
-    # Still needs the throwaway DOCKER_CONFIG (compose plugin symlink, registry login), so remove it last.
+    # Still needs the throwaway DOCKER_CONFIG (the compose plugin symlink), so remove it last.
     "${COMPOSE[@]}" up -d --remove-orphans >&2 || true
   fi
   rm -rf "${login_dir:-}"
@@ -111,7 +112,10 @@ log "starting $tag (previous: ${previous:-none})"
 if roll >&2; then
   state=settled
   docker image prune -f >/dev/null 2>&1 || true
-  echo "{\"released\":\"$tag\",\"previous\":\"${previous:-}\"}"
+  # Recorded in release.log too: stdout is lost when nobody is reading the SSH session. A closed stdout
+  # must not turn a settled release into a failure.
+  log "released $tag (previous: ${previous:-none})"
+  echo "{\"released\":\"$tag\",\"previous\":\"${previous:-}\"}" || true
   exit 0
 fi
 
