@@ -74,7 +74,7 @@ sudo chown -R deploy: /opt/vanillameta
 - Actions가 안 될 때 손으로 릴리스(또는 롤백)하려면 VM의 배포 계정으로 `docker login ghcr.io`를 읽기 권한 PAT로 한 번 해 둔다. 워크플로 경로와 독립이다.
 - **워크플로는 VM의 `docker-compose.prod.yml`·`Caddyfile`·`release.sh`를 갱신하지 않는다.** 이미지 계약이 바뀌는 릴리스(새 환경변수, compose 변경)는 먼저 `/opt/vanillameta`의 체크아웃을 `git pull`로 갱신하고 `.env.prod`를 맞춘 뒤 배포한다.
 - `deploy` 계정은 `docker` 그룹이라 사실상 root와 같다. 키를 `restrict,command=`로 제한했으니 그 키로는 `release.sh`만 실행되지만, 스크립트와 `authorized_keys`가 그 계정 소유이면 `release.sh`의 버그나 탈취가 곧 VM 장악이 된다. 가능하면 `release.sh`와 `authorized_keys`는 root 소유(644)로 두는 구성을 검토한다(이 경우 `.env.prod`·`.release.lock`·`release.log` 위치를 분리해야 한다. 아직 하지 않았다).
-- `release.sh`는 `set -e` 실패나 `kill`로 중단되고 이미지 전환 도중이었다면 직전 태그로 되돌리려 시도한다(복구 트랩). **SSH 연결이 끊기거나 Actions 작업이 취소돼도 스크립트는 멈추지 않을 것으로 본다**(강제 명령에는 PTY가 없어 sshd가 신호를 보내지 않고 스크립트는 HUP/PIPE를 무시한다. 읽는 쪽이 닫힌 경우만 시험했고 실제 SSH 끊김은 시험하지 않았다). 이때 Actions는 실패로 보이지만 VM은 새 태그를 올렸거나 되돌린 상태일 수 있으므로, 결과는 VM의 `deploy/release.log`(시작 시각과 `released <tag>` 또는 `ERROR` 줄이 남는다. 회전하지 않으므로 logrotate를 건다. GNU coreutils의 `tee -p`가 필요하다)와 `docker compose ps`로 확인한다. 연결이 끊긴 상태에서 compose가 올바르게 동작하는지는 시험하지 않았다.
+- `release.sh`는 `set -e` 실패나 `kill`로 중단되고 이미지 전환 도중이었다면 직전 태그로 되돌리려 시도한다(복구 트랩). **SSH 연결이 끊기거나 Actions 작업이 취소돼도 스크립트는 멈추지 않을 것으로 본다**(강제 명령에는 PTY가 없어 sshd가 신호를 보내지 않고 스크립트는 HUP/PIPE를 무시한다. 읽는 쪽이 닫힌 경우만 시험했고 실제 SSH 끊김은 시험하지 않았다). 이때 Actions는 실패로 보이지만 VM은 새 태그를 올렸거나 되돌린 상태일 수 있으므로, 결과는 VM의 `deploy/release.log`(시작 줄과 `released <tag>`, `ERROR`, `interrupted: restoring <tag>` 중 하나가 남는다. 강제 종료(SIGKILL)나 이미지 정리 중 종료는 결과 줄이 없을 수 있어 `docker compose ps`도 본다. 회전하지 않으므로 logrotate를 건다. GNU coreutils의 `tee -p`가 필요하다)와 `docker compose ps`로 확인한다. 연결이 끊긴 상태에서 compose가 올바르게 동작하는지는 시험하지 않았다.
 
 ## 백업과 복원 훈련
 
