@@ -14,7 +14,7 @@
 - 항목은 `file`(duckdb), `sample`(sqlite·sqlite3·better-sqlite3), 엔진 이름(예: `pg`), `*`(제한 해제)다. 엔진은 대소문자·공백을 무시한다.
 - 적용 지점: `DatabaseService.webConfig`(생성·수정), `ConnectionService.testConnection`·`testDatabase`(연결 테스트는 로컬 파일 엔진도 거부: 사용자가 서버 경로를 `filename`으로 줄 수 있다), `getConnectionConfig`, `QueryAnalyzerService.analyzeExternalQuery`(운영자 전용 `LegacyOperationsGuard` 뒤지만 `getConnectionConfig`를 거치지 않고 직접 `knex()`를 만들어 같은 검사를 추가). `getConnectionConfig`는 사용자 경로의 knex 생성과 ClickHouse·Trino·Databricks 실행이 모두 거치는 곳이라, 제한 이전에 저장된 네트워크 소스도 쿼리·소켓 열기 전에 막는다.
 
-로컬 파일 엔진은 소켓을 열지 않으므로 항상 허용한다. `file`·`sample` 항목은 의도 표기일 뿐 동작을 바꾸지 않는다. `NODE_ENV=production` 별칭도 prod로 취급한다. 운영 부팅 가드는 `QUERY_ALLOW_WRITE=true`(읽기 전용 쿼리 가드 해제)도 거부한다.
+로컬 파일 엔진은 소켓을 열지 않으므로 항상 허용한다. `file`·`sample` 항목은 의도 표기일 뿐 동작을 바꾸지 않는다. 소스 유형 정책은 `NODE_ENV=production` 별칭도 prod로 취급한다(부팅 가드는 이 별칭 자체를 거부하고, 다른 코드는 정확히 `prod`만 비교한다). 운영 부팅 가드는 `QUERY_ALLOW_WRITE=true`(읽기 전용 쿼리 가드 해제)도 거부한다.
 
 ## 검증 (로컬, Node 26)
 
