@@ -349,7 +349,7 @@ const controlled = rows.filter(row => row.control === 'yes').length;
 console.log(
   `\n${rows.length} routes probed as B; ${controlled} have an owner control, ${
     rows.length - controlled
-  } have none (they change data).`,
+  } have none (they change data or call AI).`,
 );
 console.log(
   findings.length
