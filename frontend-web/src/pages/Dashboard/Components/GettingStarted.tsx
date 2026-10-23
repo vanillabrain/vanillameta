@@ -4,6 +4,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { useNavigate } from 'react-router-dom';
 import { post } from '@/helpers/apiHelper';
+import DatabaseService from '@/api/databaseService';
+
+// Engines that read a local file and never open a socket.
+const FILE_ENGINES = ['duckdb', 'sqlite', 'sqlite3', 'better-sqlite3'];
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HELP_ACTION_PATTERN = /^[a-z][a-z-]{0,31}$/;
@@ -67,6 +71,28 @@ export default function GettingStarted({ returning = false }: { returning?: bool
   const helpPending = useRef(false);
   const activeHelpId = useRef<string | null>(null);
   const explainButton = useRef<HTMLButtonElement | null>(null);
+  const [databaseConnectable, setDatabaseConnectable] = useState(true);
+
+  // Shown until the server says every connectable type is a local-file engine (the beta default),
+  // so the card never points at a connection form that only answers 403.
+  useEffect(() => {
+    let current = true;
+    Promise.resolve()
+      .then(() => DatabaseService.selectDatabaseTypeList())
+      .then(response => {
+        const types = response?.data?.data;
+        if (
+          current &&
+          Array.isArray(types) &&
+          types.every(type => FILE_ENGINES.includes(String(type?.engine).toLowerCase()))
+        )
+          setDatabaseConnectable(false);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, []);
 
   useEffect(() => {
     mounted.current = true;
@@ -197,19 +223,21 @@ export default function GettingStarted({ returning = false }: { returning?: bool
             </Button>
           </CardContent>
         </Card>
-        <Card className="min-w-0 flex-1">
-          <CardHeader className="gap-2">
-            <h3 className="text-base leading-snug font-semibold">데이터베이스 연결</h3>
-            <p className="text-sm text-muted-foreground">
-              기존 연결 설정과 연결 테스트를 이용합니다. 종류별로 서버·드라이버 설정이 필요합니다.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" onClick={() => navigate('/data')}>
-              데이터 연결 관리
-            </Button>
-          </CardContent>
-        </Card>
+        {databaseConnectable && (
+          <Card className="min-w-0 flex-1">
+            <CardHeader className="gap-2">
+              <h3 className="text-base leading-snug font-semibold">데이터베이스 연결</h3>
+              <p className="text-sm text-muted-foreground">
+                기존 연결 설정과 연결 테스트를 이용합니다. 종류별로 서버·드라이버 설정이 필요합니다.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" onClick={() => navigate('/data')}>
+                데이터 연결 관리
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
       {error && (
         <Notice severity="error" className="mt-4 [overflow-wrap:anywhere]">

@@ -163,6 +163,10 @@ function DataSource() {
           snackbar.error(t('dataSource.connectFail'));
         }
       })
+      .catch(error => {
+        setIsConnected(false);
+        snackbar.error(t(error?.response?.status === 403 ? 'dataSource.typeUnavailable' : 'dataSource.connectFail'));
+      })
       .finally(() => {
         hideLoading();
       });

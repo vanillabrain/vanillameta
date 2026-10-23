@@ -151,7 +151,7 @@ export default {
     pwdMismatch: '비밀번호와 비밀번호 확인이 일치하지 않습니다.',
     emailFormat: 'E-mail의 형식이 맞는지 확인해 주세요.',
     taglineA: '회원가입',
-    taglineB: '후 편리하게 이용하세요.',
+    taglineB: ' 후 편리하게 이용하세요.',
     submit: '가입하기',
     inviteCode: '초대 코드',
     inviteRequired: '초대 코드를 입력해 주세요.',
@@ -206,6 +206,7 @@ export default {
 
     connectOk: '데이터베이스 연결에 성공했습니다.',
     connectFail: '데이터베이스에 연결할 수 없습니다. 데이터베이스 정보를 확인해주세요',
+    typeUnavailable: '이 환경에서는 이 데이터 소스 유형을 사용할 수 없습니다. 파일을 업로드해 연결해 주세요.',
     saveConfirm: '데이터베이스를 {{mode}}하시겠습니까?',
     modified: '데이터베이스가 수정되었습니다.',
     created: '데이터베이스가 생성되었습니다.',

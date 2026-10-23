@@ -2,13 +2,15 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import GettingStarted from './GettingStarted';
-const mocks = vi.hoisted(() => ({ navigate: vi.fn(), post: vi.fn() }));
+const mocks = vi.hoisted(() => ({ navigate: vi.fn(), post: vi.fn(), get: vi.fn() }));
 vi.mock('react-router-dom', () => ({ useNavigate: () => mocks.navigate }));
-vi.mock('@/helpers/apiHelper', () => ({ post: mocks.post }));
+vi.mock('@/helpers/apiHelper', () => ({ post: mocks.post, get: mocks.get }));
 afterEach(cleanup);
 beforeEach(() => {
   mocks.navigate.mockReset();
   mocks.post.mockReset();
+  mocks.get.mockReset();
+  mocks.get.mockResolvedValue({ data: { data: [{ type: 'mysql', engine: 'mysql2' }] } });
 });
 
 const REQUEST_ID = '3f1a2b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
@@ -40,6 +42,23 @@ it('connects both file workflows without invoking AI or installing a sample', ()
   fireEvent.click(screen.getByRole('button', { name: '일반 CSV·JSON·Parquet 분석' }));
   expect(mocks.navigate).toHaveBeenLastCalledWith('/data/file');
   expect(mocks.post).not.toHaveBeenCalled();
+});
+it('offers the database card while a network engine can be connected', async () => {
+  render(<GettingStarted />);
+  await waitFor(() => expect(mocks.get).toHaveBeenCalled());
+  expect(screen.getByRole('button', { name: '데이터 연결 관리' })).toBeTruthy();
+});
+it('drops the database card when only local-file engines remain connectable', async () => {
+  mocks.get.mockResolvedValue({ data: { data: [{ type: 'sqlite', engine: 'sqlite3' }] } });
+  render(<GettingStarted />);
+  await waitFor(() => expect(screen.queryByRole('button', { name: '데이터 연결 관리' })).toBeNull());
+  expect(screen.getByRole('button', { name: '일반 CSV·JSON·Parquet 분석' })).toBeTruthy();
+});
+it('keeps the database card when the type list cannot be read', async () => {
+  mocks.get.mockRejectedValue(new Error('offline'));
+  render(<GettingStarted />);
+  await waitFor(() => expect(mocks.get).toHaveBeenCalled());
+  expect(screen.getByRole('button', { name: '데이터 연결 관리' })).toBeTruthy();
 });
 it('keeps an actionable error and retries the exact sample operation', async () => {
   mocks.post

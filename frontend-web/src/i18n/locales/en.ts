@@ -206,6 +206,7 @@ export default {
 
     connectOk: 'Connected to database.',
     connectFail: 'Cannot connect. Please check the database info.',
+    typeUnavailable: 'This data source type is not available in this environment. Upload a file to connect instead.',
     saveConfirm: '{{mode}} this database?',
     modified: 'Database modified.',
     created: 'Database created.',

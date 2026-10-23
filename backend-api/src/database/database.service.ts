@@ -30,7 +30,7 @@ import { createHash } from 'crypto';
 import { AnalysisUpload, DuckDBService } from '../analysis/duckdb.service';
 import { diffFileSchema } from './file-schema-diff';
 import { FileCorrection } from '../analysis/file-correction';
-import { assertSourceEngineAllowed } from '../connection/source-type-policy';
+import { assertSourceEngineAllowed, isSourceEngineAllowed } from '../connection/source-type-policy';
 
 const UPLOAD_TABLE = 'uploaded_data';
 /** Internal hook: a durable receipt can commit atomically with the source pointer. */
@@ -75,10 +75,15 @@ export class DatabaseService {
 
   /**
    * database type 목록 조회
+   * Engines this environment refuses (see source-type-policy) are left out, so the picker never
+   * offers a type whose connection test and save are rejected with 403.
    */
   async findTypeList() {
     const result = await this.databaseTypeRepository.find({ where: { useYn: YesNo.YES } });
-    return { status: ResponseStatus.SUCCESS, data: result };
+    return {
+      status: ResponseStatus.SUCCESS,
+      data: result.filter(type => isSourceEngineAllowed(type.engine)),
+    };
   }
 
   /**
