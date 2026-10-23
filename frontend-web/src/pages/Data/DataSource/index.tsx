@@ -314,6 +314,16 @@ function DataSource() {
         </Notice>
       ) : savedDatabase && ['duckdb', 'sqlite3'].includes(savedDatabase.engine) ? (
         <div className="p-4 sm:p-6">{fileSourceGuide()}</div>
+      ) : isModifyMode &&
+        savedDatabase &&
+        typeList.length > 0 &&
+        !typeList.some(item => item.type === savedDatabase.type) ? (
+        <Notice severity="info" className="m-4 flex flex-wrap items-center gap-3">
+          <span className="break-words">{t('dataSource.typeUnavailable')}</span>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/data')}>
+            {t('data.cancel')}
+          </Button>
+        </Notice>
       ) : (
         <div className="w-full">
           <div className="px-4 py-6 sm:px-6">

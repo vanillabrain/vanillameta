@@ -1,37 +1,46 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import DataSource from './index';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
 const mocks = vi.hoisted(() => ({
   types: vi.fn(),
+  info: vi.fn(),
   test: vi.fn(),
   error: vi.fn(),
   success: vi.fn(),
 }));
 vi.mock('@/api/databaseService', () => ({
-  default: { selectDatabaseTypeList: mocks.types, testConnection: mocks.test },
+  default: { selectDatabaseTypeList: mocks.types, selectDatabaseInfo: mocks.info, testConnection: mocks.test },
 }));
 vi.mock('react-alert', () => ({ useAlert: () => ({ error: mocks.error, success: mocks.success }) }));
+
+const MYSQL = { id: 1, type: 'mysql', engine: 'mysql2', title: 'MySQL' };
+const SQLITE = { id: 2, type: 'sqlite', engine: 'sqlite3', title: 'SQLite' };
 
 afterEach(cleanup);
 beforeEach(() => {
   mocks.types.mockReset();
+  mocks.info.mockReset();
   mocks.test.mockReset();
   mocks.error.mockReset();
   mocks.success.mockReset();
-  mocks.types.mockResolvedValue({ data: { data: [{ type: 'mysql', engine: 'mysql2', label: 'MySQL' }] } });
+  mocks.types.mockResolvedValue({ data: { data: [MYSQL] } });
 });
 
-const renderPage = () =>
+// react-i18next has no instance in tests, so t() returns the key: the assertions name the key shown.
+const renderPage = (entry = '/data/source/create') =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <LoadingContext.Provider value={{ showLoading: vi.fn(), hideLoading: vi.fn() } as any}>
-        <MemoryRouter>
-          <DataSource />
+        <MemoryRouter initialEntries={[entry]}>
+          <Routes>
+            <Route path="/data/source/create" element={<DataSource />} />
+            <Route path="/data/source/modify/:sourceId" element={<DataSource />} />
+          </Routes>
         </MemoryRouter>
       </LoadingContext.Provider>
     </QueryClientProvider>,
@@ -57,7 +66,7 @@ it('tells the user a type this environment refuses is unavailable', async () => 
   mocks.test.mockRejectedValue({ response: { status: 403 } });
   await submitMysql();
   await waitFor(() => expect(mocks.error).toHaveBeenCalledTimes(1));
-  expect(mocks.error.mock.calls[0][0]).toContain('사용할 수 없습니다');
+  expect(mocks.error).toHaveBeenCalledWith('dataSource.typeUnavailable');
   expect(mocks.success).not.toHaveBeenCalled();
 });
 
@@ -65,5 +74,15 @@ it('shows the generic connection failure for other request errors', async () => 
   mocks.test.mockRejectedValue(new Error('network down'));
   await submitMysql();
   await waitFor(() => expect(mocks.error).toHaveBeenCalledTimes(1));
-  expect(mocks.error.mock.calls[0][0]).toContain('연결할 수 없습니다');
+  expect(mocks.error).toHaveBeenCalledWith('dataSource.connectFail');
+});
+
+it('explains why a saved source whose type the environment no longer lists cannot be edited', async () => {
+  mocks.types.mockResolvedValue({ data: { data: [SQLITE] } });
+  mocks.info.mockResolvedValue({
+    data: { data: { databaseInfo: { name: 'old', type: 'mysql', engine: 'mysql2', connectionConfig: {} } } },
+  });
+  renderPage('/data/source/modify/5');
+  expect(await screen.findByText('dataSource.typeUnavailable')).toBeTruthy();
+  expect(screen.queryByText('dataSource.selectType')).toBeNull();
 });

@@ -43,9 +43,16 @@ it('connects both file workflows without invoking AI or installing a sample', ()
   expect(mocks.navigate).toHaveBeenLastCalledWith('/data/file');
   expect(mocks.post).not.toHaveBeenCalled();
 });
+// The card starts visible, so "still visible" only means something once the type response was handled.
+const typeListHandled = async () => {
+  await waitFor(() => expect(mocks.get).toHaveBeenCalled());
+  await act(async () => {
+    await mocks.get.mock.results[0].value.catch(() => undefined);
+  });
+};
 it('offers the database card while a network engine can be connected', async () => {
   render(<GettingStarted />);
-  await waitFor(() => expect(mocks.get).toHaveBeenCalled());
+  await typeListHandled();
   expect(screen.getByRole('button', { name: '데이터 연결 관리' })).toBeTruthy();
 });
 it('drops the database card when only local-file engines remain connectable', async () => {
@@ -57,7 +64,7 @@ it('drops the database card when only local-file engines remain connectable', as
 it('keeps the database card when the type list cannot be read', async () => {
   mocks.get.mockRejectedValue(new Error('offline'));
   render(<GettingStarted />);
-  await waitFor(() => expect(mocks.get).toHaveBeenCalled());
+  await typeListHandled();
   expect(screen.getByRole('button', { name: '데이터 연결 관리' })).toBeTruthy();
 });
 it('keeps an actionable error and retries the exact sample operation', async () => {
