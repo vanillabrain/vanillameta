@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { assertSourceEngineAllowed } from '../../connection/source-type-policy';
 import { InjectConnection } from '@nestjs/typeorm';
 import { Connection, QueryRunner } from 'typeorm';
@@ -97,6 +97,7 @@ export class QueryAnalyzerService {
         await runner.release();
       }
     } catch (error) {
+      if (error instanceof ForbiddenException) throw error;
       // Driver/parser messages may contain connection credentials or ciphertext.
       this.logger.error('Query analysis failed');
       analysis.warnings = ['Analysis failed: diagnostic connection or execution unavailable'];

@@ -248,6 +248,24 @@ describe('QueryAnalyzerService', () => {
       expect(knex).not.toHaveBeenCalled();
     });
 
+    it('refuses a network engine in production without opening a connection', async () => {
+      const previous = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'prod';
+      try {
+        (mockDatabaseRepository.findOne as jest.Mock).mockResolvedValueOnce({
+          id: 3,
+          engine: 'mysql2',
+          connectionConfig: JSON.stringify({ host: '169.254.169.254' }),
+        });
+        await expect(service.analyzeQuery('SELECT 1', 3)).rejects.toThrow(
+          'not available in this environment',
+        );
+        expect(knex).not.toHaveBeenCalled();
+      } finally {
+        process.env.NODE_ENV = previous;
+      }
+    });
+
     it('should analyze PostgreSQL query', async () => {
       const testQuery = 'SELECT * FROM products WHERE price > 100';
       const database = {

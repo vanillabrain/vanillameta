@@ -20,7 +20,9 @@
 
 | 검사 | 결과 |
 | --- | --- |
-| `src/connection` 전체 + `database.service.spec.ts` (신규 `source-type-policy.spec.ts` 6, `source-type-restriction.spec.ts` 14) | 9 suites, 92 tests PASS |
+| `src/connection`·`src/config`·`src/common/monitoring` 전체 (신규 `source-type-policy.spec.ts` 7, `source-type-restriction.spec.ts` 14, `production-guard.spec.ts`에 `QUERY_ALLOW_WRITE` 1, `query-analyzer.service.spec.ts`에 prod 거부 1) | `src/connection`·`src/config`·`src/common/monitoring` 20 suites 209 tests PASS(analyzer 스펙 추가 전). 분석기 스펙 추가 후 `query-analyzer`·`src/connection`·`src/config` 11 suites 122 tests PASS |
+| prod에서 쿼리 분석기가 mysql2 소스를 받으면 | `ForbiddenException`, `knex` 미호출 |
+| `NODE_ENV=PRODUCTION`, `QUERY_ALLOW_WRITE=true` | 정책이 prod로 취급, 가드가 거부 |
 | prod 기본값에서 mysql2·pg·mssql·oracledb·clickhouse·trino·databricks 연결 테스트 | 403, `fetch` 미호출 |
 | prod에서 네트워크 소스 생성, duckdb·sqlite·sqlite3 `filename` 연결 테스트 | 403 |
 | 제한 이전에 저장된 clickhouse 소스의 `getKnex`·쿼리 실행 | 403, `fetch` 미호출 |
@@ -32,8 +34,7 @@
 
 - **엔진을 `ALLOWED_SOURCE_TYPES`에 올리면 SSRF 노출이 되돌아온다**: `fetch`의 리디렉션 추적, Trino 서버가 주는 `nextUri` 추적, BigQuery `keyFilename`(서버 경로)이 그대로 남는다. 엔진을 열기 전에 사설 주소 송신 차단을 먼저 한다.
 - 프런트엔드가 운영에서도 네트워크 DB 유형을 보여 주므로 선택하면 403이 난다(UX. `findAllDatabaseTypes`에서 거르는 일은 남아 있다).
-- 제한 이전의 네트워크 소스가 남은 DB에서는 `isDuckDB` 등 호출 지점 55곳이 403을 받을 수 있다. 새 베타 DB에는 그런 행이 없다.
-
+- 제한 이전의 네트워크 소스가 남은 DB에서는 `isDuckDB` 등 `getConnectionConfig`를 거치는 호출 지점이 403을 받을 수 있다. 새 베타 DB에는 그런 행이 없다.
 - 이 제한은 애플리케이션 계층이다. 사설 IP 송신 차단은 `deploy/` compose와 호스트 방화벽에서 따로 구현하고 증빙해야 한다(미실행).
 - `AI_API_BASE_URL`·웹훅 URL은 사용자 입력이 아니라 환경 변수이므로 이 단위에 포함하지 않았다.
 - 실제 운영 VM에서 확인한 것이 아니다.
