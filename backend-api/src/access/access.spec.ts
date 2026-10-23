@@ -160,7 +160,7 @@ describe('invite-gated signup (real SQLite)', () => {
     const second = await invite();
     await expect(
       login.signup({ ...dto(2, second.code), email: 'user1@example.test' }),
-    ).rejects.toBeInstanceOf(HttpException);
+    ).rejects.toMatchObject({ status: 409 });
     expect(await seats()).toEqual([1, 0]);
   });
 
@@ -213,6 +213,13 @@ describe('invite-gated signup (real SQLite)', () => {
       await expect(access.joinWaitlist(db.manager, 'not-an-email')).rejects.toMatchObject({
         status: 400,
       });
+    });
+
+    it('rejects a non-string body value with 400 instead of failing with a 500', async () => {
+      for (const hostile of [undefined, null, 123, ['a@b.co'], { toString: 1 }])
+        await expect(access.joinWaitlist(db.manager, hostile as never)).rejects.toMatchObject({
+          status: 400,
+        });
     });
   });
 

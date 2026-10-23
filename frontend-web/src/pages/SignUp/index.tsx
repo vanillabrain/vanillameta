@@ -44,8 +44,12 @@ const SignUp = () => {
   }, []);
 
   useEffect(() => {
-    // The code is kept in state; do not leave it in the address bar and browser history.
-    if (searchParams.has('invite')) setSearchParams({}, { replace: true });
+    // The code is kept in state; do not leave it in the address bar and browser history. A signed-in user
+    // is being redirected to the dashboard, so leave the URL alone then.
+    if (token || !searchParams.has('invite')) return;
+    const rest = new URLSearchParams(searchParams);
+    rest.delete('invite');
+    setSearchParams(rest, { replace: true });
   }, []);
 
   useEffect(() => {

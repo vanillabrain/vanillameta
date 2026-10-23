@@ -115,9 +115,13 @@ export class AccessService {
 
   /** Public and idempotent: the same address twice, or an unknown one, looks identical to the caller. */
   async joinWaitlist(manager: EntityManager, email: string): Promise<void> {
-    const normalized = String(email ?? '')
-      .trim()
-      .toLowerCase();
+    // Only a real string is accepted: String() on a hostile object can throw and turn into a 500.
+    if (typeof email !== 'string')
+      throw new BadRequestException({
+        error: 'EMAIL_INVALID',
+        message: '이메일 형식을 확인해 주세요.',
+      });
+    const normalized = email.trim().toLowerCase();
     if (!EMAIL_PATTERN.test(normalized) || normalized.length > 255)
       throw new BadRequestException({
         error: 'EMAIL_INVALID',
