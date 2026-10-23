@@ -34,7 +34,38 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml ps -a   # migrate
 
 ## 업데이트와 되돌리기
 
-`.env.prod`의 `IMAGE_TAG`를 바꾸고 `up -d`를 다시 실행한다(`migrate`가 먼저 돈다). 되돌리기는 이전 태그로 `up -d`다. 이미 적용된 마이그레이션은 되돌리지 않으므로, 스키마가 바뀐 릴리스 전에는 `backup.sh`를 먼저 돌린다.
+기본 경로는 아래 "배포 워크플로"다. 손으로 할 때는 VM에서 `SSH_ORIGINAL_COMMAND="release <tag>" ./release.sh`(또는 `./release.sh release <tag>`)를 실행한다. `release.sh`는 (1) 직전 태그를 기억하고 (2) 사전 백업을 만들고(실패하면 중단) (3) 이미지를 받고 (4) `up -d`로 `migrate`를 먼저 돌린 뒤 api·web이 healthy가 될 때까지 기다려 `/v1/health`를 확인하고 (5) 실패하면 **직전 태그로 되돌린다**. 되돌림은 이미지만 되돌린다. 이미 적용된 마이그레이션은 되돌리지 않으므로, 스키마를 호환되지 않게 바꾼 릴리스는 사전 백업으로 복원해야 한다.
+
+## 배포 워크플로 (`.github/workflows/deploy.yml`)
+
+`workflow_dispatch` 또는 `v*` 태그 푸시로만 시작한다(일반 푸시로는 배포하지 않는다). `images` 작업이 `backend-api/Dockerfile.prod`, `frontend-web/Dockerfile.prod`를 `linux/amd64`로 빌드해 `ghcr.io/<owner>/vanillameta-{api,web}:<tag>`로 푸시하고(태그 푸시면 그 태그, 아니면 `sha-<12자리>`), `deploy` 작업이 VM에 SSH로 `release.sh`를 실행한 뒤 공개 URL을 확인한다. `deploy` 작업은 `develop` 브랜치나 `v*` 태그에서만 돈다.
+
+**GitHub에 등록할 값** (값은 직접 등록한다. 저장소에 쓰지 않는다)
+
+| 종류 | 이름 | 내용 |
+| --- | --- | --- |
+| secret | `DEPLOY_SSH_KEY` | 배포 전용 ed25519 개인키(`ssh-keygen -t ed25519 -f deploy_key -N ""`). 다른 용도로 쓰지 않는다 |
+| secret | `DEPLOY_HOST`, `DEPLOY_USER` | VM 주소와 배포 계정 |
+| secret | `DEPLOY_KNOWN_HOSTS` | VM의 호스트 키 줄. 신뢰할 수 있는 경로에서 `ssh-keyscan -t ed25519 <호스트>`로 얻고 지문을 VM에서 `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`로 대조한다 |
+| variable | `APP_URL` | 예: `https://app.example.com` (배포 뒤 스모크 테스트와 환경 링크) |
+| variable | `DEPLOY_PORT`(선택), `SENTRY_DSN_WEB`(선택) | SSH 포트, 프런트엔드 Sentry DSN(빌드 인자) |
+| environment | `production-beta` | Settings → Environments에서 필수 검토자와 허용 브랜치(`develop`, `v*`)를 지정해 배포를 사람이 승인하게 한다 |
+
+**VM 쪽 준비** (한 번)
+
+```bash
+sudo useradd -m -s /bin/bash deploy && sudo usermod -aG docker deploy   # docker 그룹 = 사실상 root. 키를 아래처럼 제한한다
+sudo -u deploy install -d -m 700 /home/deploy/.ssh
+# 배포 키는 release.sh만 실행할 수 있다(셸·포트 포워딩·에이전트 모두 불가):
+echo 'restrict,command="/opt/vanillameta/deploy/release.sh" ssh-ed25519 AAAA... github-deploy' \
+  | sudo -u deploy tee /home/deploy/.ssh/authorized_keys
+sudo chmod 600 /home/deploy/.ssh/authorized_keys
+sudo chown -R deploy: /opt/vanillameta
+```
+
+- 워크플로가 레지스트리 토큰(`GITHUB_TOKEN`, 작업이 끝나면 만료)을 SSH 표준 입력으로 보내 VM이 `docker login ghcr.io`를 한 뒤 이미지를 받는다. 장기 PAT은 VM에 두지 않는다. 패키지는 첫 푸시 뒤 이 저장소와 연결돼 있어야 읽힌다(패키지 설정 → Actions access).
+- 첫 배포(`.env.prod`의 `IMAGE_TAG`가 비어 있을 때)는 사전 백업이 없다. 워크플로 전에 위 "첫 배포" 절차로 스택을 한 번 올리는 것을 권한다.
+- 사설 저장소 이미지를 직접 받고 싶다면 `docker login ghcr.io`를 VM에서 한 번 해 둔다.
 
 ## 백업과 복원 훈련
 
@@ -62,4 +93,4 @@ BACKUP_PASSPHRASE_FILE=... ./restore-drill.sh /var/backups/vanillameta/vanillame
 
 ## 아직 이 디렉터리가 하지 않는 것
 
-고아 `uploads/*` 정리, 다중 인스턴스, 메트릭 대시보드, GHCR 빌드와 SSH 배포 워크플로(다음 단위, 아직 없다. 지금은 이미지를 직접 빌드·푸시해 `IMAGE_TAG`로 지정한다).
+고아 `uploads/*` 정리, 다중 인스턴스, 메트릭 대시보드, 실제 GitHub에서 워크플로를 한 번도 실행하지 않았다는 점(증빙 문서 참고).

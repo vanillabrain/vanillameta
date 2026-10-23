@@ -42,3 +42,18 @@
 - 로그인·쿠키(운영은 `secure` 쿠키), 스트리밍, 업로드 상한, WebSocket 업그레이드를 이 스택을 통해 실행하지 않았다.
 - 고아 `uploads/*` 정리와 디스크 경보(백업 디스크 한정 경고 외)는 구현하지 않았다.
 - Node 24 이미지 안의 실행이지만 로컬 jest·빌드 결과는 Node 26이다.
+
+## 배포 워크플로 · `release.sh` (2026-10-23, 같은 VM)
+
+| 검사 | 결과 |
+| --- | --- |
+| `actionlint`(rhysd/actionlint 컨테이너) `deploy.yml` | 통과(처음엔 미사용 변수 `i` 경고 1건 → 수정). 액션은 커밋 SHA로 고정(`checkout` v7.0.1, `setup-buildx` v4.4.1, `login` v4.6.0, `build-push` v7.4.0) |
+| `shellcheck`(koalaman/shellcheck) `backup.sh`, `restore-drill.sh`, `egress-guard.sh`, `release.sh` | `backup.sh`의 SC2016 정보 1건(컨테이너 안에서 확장되는 변수라 의도된 것, 주석으로 명시). 그 외 지적 없음 |
+| 로컬 레지스트리(`registry:2`)를 쓴 `release.sh` | 잘못된 입력(`release ../etc`, `release t2 bad;user`, `deploy t2`, 태그 없음) 모두 거부 |
+| `release t2`(t1에서) | 사전 백업 1건 생성 → pull → `up -d` → api·web healthy → `{"released":"t2","previous":"t1"}`, `IMAGE_TAG=t2` |
+| 존재하지 않는 태그 / 일부 이미지만 있는 태그 | `pull failed; still on t2`, 종료 코드 1, `IMAGE_TAG`와 실행 중인 스택 불변 |
+| 기동 직후 죽는 api 이미지(`t3`) | `did not become healthy` → `rolling back to t2` → `rolled back to t2; t3 was NOT released`, 종료 코드 1. 이후 api·web `t2` healthy, `https://localhost/v1/health` 200 |
+| 동시에 두 번 실행 | `another release is running` |
+
+**한계 (미실행)**: 실제 GitHub Actions 실행(GHCR 푸시, `GITHUB_TOKEN`으로 `docker login`, 환경 승인, SSH 포스 커맨드, 호스트 키 고정, 공개 URL 스모크)은 한 번도 하지 않았다. `amd64` 빌드, `gha` 캐시 동작, 워크플로 권한 범위, 실제 `authorized_keys`의 `restrict,command=` 강제 실행과 stdin 토큰 전달, 레지스트리 로그인 경로는 로컬 레지스트리로 대체해 검증하지 못했다. `release.sh`의 롤백은 이미지만 되돌리며 이미 실행된 마이그레이션은 되돌리지 않는다. 사전 백업은 api를 잠시 멈춘다.
+

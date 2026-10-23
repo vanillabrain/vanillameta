@@ -1,0 +1,146 @@
+name: Deploy
+
+# Builds the API and web images, pushes them to GHCR and rolls the single production VM to them.
+# Runs only when someone starts it (workflow_dispatch) or pushes a v* tag; never on a plain push.
+# Repository secrets / variables it needs are listed in deploy/README.md ("배포 워크플로").
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Roll the VM to the new images after building (false = build and push only)"
+        type: boolean
+        default: true
+  push:
+    tags: ["v*"]
+
+# Never two deployments at once, and never cancel one that is half done.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    name: Build and push ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      owner: ${{ steps.meta.outputs.owner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - image: api
+            context: backend-api
+          - image: web
+            context: frontend-web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Work out image names and the release tag
+        id: meta
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then tag="$GITHUB_REF_NAME"; else tag="sha-${GITHUB_SHA::12}"; fi
+          echo "owner=$owner" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile.prod
+          # The production VM is assumed to be amd64. Add linux/arm64 here (and QEMU) if it is not.
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ steps.meta.outputs.owner }}/vanillameta-${{ matrix.image }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=min,scope=${{ matrix.image }}
+          build-args: |
+            ${{ matrix.image == 'web' && format('REACT_APP_SENTRY_DSN={0}', vars.SENTRY_DSN_WEB) || '' }}
+
+  deploy:
+    name: Roll the VM
+    needs: images
+    # A manual run can pick any branch, so only the integration branch and release tags may deploy.
+    if: >-
+      (github.event_name == 'push' || inputs.deploy) &&
+      (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Gate it with required reviewers in Settings > Environments > production-beta.
+    environment:
+      name: production-beta
+      url: ${{ vars.APP_URL }}
+    permissions:
+      contents: read
+      packages: read
+    env:
+      TAG: ${{ needs.images.outputs.tag }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+      APP_URL: ${{ vars.APP_URL }}
+    steps:
+      - name: Check the deployment is configured
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          missing=""
+          for name in DEPLOY_HOST DEPLOY_USER APP_URL; do [ -n "${!name}" ] || missing="$missing $name"; done
+          [ -n "$KEY" ] || missing="$missing DEPLOY_SSH_KEY"
+          [ -n "$HOSTS" ] || missing="$missing DEPLOY_KNOWN_HOSTS"
+          if [ -n "$missing" ]; then echo "::error::Missing secrets/variables:$missing (see deploy/README.md)"; exit 1; fi
+
+      - name: Roll the VM (forced command, host key pinned)
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # The registry token goes over stdin, never on a command line.
+          printf '%s\n' "$REGISTRY_TOKEN" | ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20 \
+            -p "${DEPLOY_PORT:-22}" "$DEPLOY_USER@$DEPLOY_HOST" "release $TAG $GITHUB_ACTOR"
+          rm -f ~/.ssh/deploy_key
+
+      - name: Smoke test the public URL
+        run: |
+          base="${APP_URL%/}"
+          for _ in $(seq 1 12); do
+            if curl -fsS --max-time 10 "$base/v1/health" | grep -q '"status":"ok"' && curl -fsS --max-time 10 -o /dev/null "$base/"; then
+              echo "$base is serving $TAG"; exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::$base did not answer healthy after the release"; exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deploy"
+            echo "- tag: \`$TAG\`"
+            echo "- url: $APP_URL"
+            echo "- result: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"

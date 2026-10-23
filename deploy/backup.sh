@@ -68,6 +68,7 @@ if [ "$QUIESCE" = true ]; then
   api_stopped=true
 fi
 
+# shellcheck disable=SC2016  # the variables are meant to expand inside the container, not here
 "${COMPOSE[@]}" exec -T mysql sh -c \
   'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -uroot --single-transaction --routines --triggers --no-tablespaces "$MYSQL_DATABASE"' \
   | gzip > "$work/db.sql.gz"

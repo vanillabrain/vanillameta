@@ -27,7 +27,7 @@
    - nginx는 시작 시 `api` 주소를 한 번 해석한다. `resolver 127.0.0.11` + 변수 `proxy_pass`로 재해석하거나 배포 때 `web`을 항상 재시작한다.
    - API 컨테이너는 `init: true`를 쓴다(PID 1 신호 처리와 SIGKILL 방지). 메모리는 `main.ts`가 힙 2560MB를 강제하므로 VM에 약 3GB 이상이 필요하다.
    - 사설 IP 송신 차단, 영속 볼륨 `/data/uploads`, 헬스 기반 `depends_on`.
-6. **`.github/workflows/deploy.yml`** — GHCR 이미지 → SSH 배포 → `/health` 스모크.
+6. **`.github/workflows/deploy.yml`(구현, 로컬 검증만: [증빙](../testing/external-beta-m0-deploy.md), [런북](../../deploy/README.md))** — GHCR 이미지 → 포스 커맨드 SSH(`release.sh`: 사전 백업, 헬스 확인, 실패 시 이미지 롤백) → 공개 URL 스모크. 실제 GitHub 실행은 미실행이며 시크릿(`DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KNOWN_HOSTS`)과 변수(`APP_URL`)는 사용자가 등록한다.
 7. **문서** — AGENTS.md에 Lambda 폐기와 단일 인스턴스 전제를 기록한다.
 
 ## 공유·포크(리믹스) 유스케이스
