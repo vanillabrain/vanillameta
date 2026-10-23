@@ -184,6 +184,9 @@
 - **Backend**: `cd backend-api && npm run start:local` → http://localhost:4000 (SQLite `sqlite.db`, API prefix `/v1`)
 - **Frontend**: `cd frontend-web && npm start` → http://localhost:3000
 - **DB 시드**: `cd backend-api && npm run seed` — 멱등(`orIgnore`), component/databaseType/template/user 초기 데이터 삽입
+- **시드 기본 로그인**: `guest` / `Admin!@12` (최초 로그인 후 프로필에서 변경)
+- **백엔드 배포**: `cd backend-api && npm run deploy:dev|deploy:prod` (Serverless Framework → AWS Lambda, 설정은 `backend-api/serverless.yml`)
+- **모노레포**: `backend-api/`, `frontend-web/`, `backend-api-libs-lambda-layer/`, `landing-page/`가 각각 독립 `package.json`/`package-lock.json`을 가진다. 의존성은 모듈별로 설치하고, 루트 `package.json`은 통합 `build`/`test` 스크립트만 둔다.
 
 ## 테스트
 
@@ -209,6 +212,7 @@
 - 비밀번호 정책: 대소문자+숫자+특수문자 8자 이상 (클라이언트에서 먼저 검증)
 - react-alert 확인 다이얼로그: `DialogActions` 첫 버튼이 액션(확인/OK), 마지막이 Cancel — E2E에서 순서 주의
 - `waitForURL`은 `\/widget` 같은 부분 매칭이 `/widget/create`에도 걸리므로 `$` 앵커 사용
+- 지침 파일 구조: `CLAUDE.md`는 AGENTS.md를 가리키는 얇은 포인터이며 Claude Code 전용 서브에이전트 라우팅(`search`/`grep`/`audit`/`architect`, `.claude/scripts/jev.sh`)만 둔다. 저장소 공통 명령·함정·검증 지침은 AGENTS.md에만 추가하고 CLAUDE.md에 복제하지 않는다.
 
 ## develop 개발 브랜치·검증
 
