@@ -2,3 +2,6 @@
 .env.prod
 # The template is tracked (a global ignore of .env.* would otherwise hide it)
 !.env.prod.example
+# Written by release.sh on the VM
+release.log
+.release.lock

@@ -9,8 +9,10 @@ set -euo pipefail
 umask 077
 cd "$(dirname "$0")"
 
-# A dropped SSH session or a cancelled job must not kill a release half way through.
+# A dropped SSH session or a cancelled job must not kill a release half way through, and a release with
+# nobody reading still leaves a record on the VM (tee -p ignores a closed pipe).
 trap '' PIPE HUP
+exec 2> >(tee -p -a release.log >&2)
 
 ENV_FILE="${ENV_FILE:-.env.prod}"
 REGISTRY="${RELEASE_REGISTRY:-ghcr.io}"
@@ -43,6 +45,9 @@ if [ -n "${ghcr_user:-}" ]; then
   export DOCKER_CONFIG="$login_dir"
   printf '%s\n' "$token" | docker login "$REGISTRY" -u "$ghcr_user" --password-stdin >/dev/null
   unset token
+  # A credential helper (pass, secretservice) on this host would keep the token outside login_dir.
+  grep -q '"auth"' "$login_dir/config.json" 2>/dev/null \
+    || { docker logout "$REGISTRY" >/dev/null 2>&1 || true; die "registry token was not stored in the throwaway config (credential helper in use?)"; }
 fi
 
 previous=$(grep -E '^IMAGE_TAG=' "$ENV_FILE" | tail -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' || true)
@@ -83,12 +88,13 @@ state=switching
 # shellcheck disable=SC2329  # invoked through the EXIT trap below
 recover() {
   local code=$?
-  rm -rf "${login_dir:-}"
   if [ "$state" = switching ] && [ -n "$previous" ]; then
     log "interrupted: restoring $previous"
     set_tag "$previous" || true
+    # Still needs the throwaway DOCKER_CONFIG (compose plugin symlink, registry login), so remove it last.
     "${COMPOSE[@]}" up -d --remove-orphans >&2 || true
   fi
+  rm -rf "${login_dir:-}"
   return "$code"
 }
 trap recover EXIT

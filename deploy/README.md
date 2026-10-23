@@ -55,7 +55,7 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml ps -a   # migrate
 **환경과 태그 규칙** (Settings)
 - Environments → `production-beta`: 필수 검토자를 지정하고 **허용 브랜치/태그를 `develop`과 `v*`로 제한**한다.
 - Rulesets → 태그 규칙: `v*` 태그는 관리자만 만들 수 있게 한다. 아니면 쓰기 권한이 있는 누구나 `v-아무거나` 태그로 워크플로를 시작할 수 있고 검토자만 남는다.
-- 이미지 푸시에는 `GITHUB_TOKEN`의 `packages: write`가 쓰이며 `images` 작업도 `develop`/`v*`에서만 돈다. 이미 수동으로 올린 같은 이름의 패키지가 있으면 패키지 설정 → Actions access에 이 저장소를 추가해야 푸시가 된다.
+- 이미지 푸시에는 `GITHUB_TOKEN`의 `packages: write`가 쓰인다. `images` 작업의 `develop`/`v*` 조건은 워크플로를 고치지 않은 실행에만 적용되는 편의이며 보안 경계가 아니다(이 작업은 환경이 없다). VM 접근만 환경이 지킨다. 이미 수동으로 올린 같은 이름의 패키지가 있으면 패키지 설정 → Actions access에 이 저장소를 추가해야 푸시가 된다.
 
 **VM 쪽 준비** (한 번)
 
@@ -69,12 +69,12 @@ sudo chmod 600 /home/deploy/.ssh/authorized_keys
 sudo chown -R deploy: /opt/vanillameta
 ```
 
-- 워크플로가 레지스트리 토큰(`GITHUB_TOKEN`, 작업이 끝나면 만료)을 SSH 표준 입력으로 보낸다. `release.sh`는 그 토큰을 **임시 도커 설정 디렉터리**에서만 쓰고 끝나면 지운다. VM의 `~/.docker/config.json`은 건드리지 않으므로 장기 토큰이 VM에 남지 않고, 직접 해 둔 `docker login`도 덮어쓰이지 않는다.
+- 워크플로가 레지스트리 토큰(`GITHUB_TOKEN`, 작업이 끝나면 만료)을 SSH 표준 입력으로 보낸다. `release.sh`는 그 토큰을 **임시 도커 설정 디렉터리**에서만 쓰고 끝나면 지운다. VM의 `~/.docker/config.json`은 건드리지 않으므로 장기 토큰이 VM에 남지 않고, 직접 해 둔 `docker login`도 덮어쓰이지 않는다. 호스트에 도커 자격 증명 도우미(`pass`, `secretservice`)가 있어 토큰이 임시 설정 밖에 저장되려 하면 `release.sh`가 로그아웃하고 거부한다.
 - 첫 배포(`.env.prod`의 `IMAGE_TAG`가 비어 있을 때)는 사전 백업이 없다. 워크플로 전에 위 "첫 배포" 절차로 스택을 한 번 올리는 것을 권한다.
 - Actions가 안 될 때 손으로 릴리스(또는 롤백)하려면 VM의 배포 계정으로 `docker login ghcr.io`를 읽기 권한 PAT로 한 번 해 둔다. 워크플로 경로와 독립이다.
 - **워크플로는 VM의 `docker-compose.prod.yml`·`Caddyfile`·`release.sh`를 갱신하지 않는다.** 이미지 계약이 바뀌는 릴리스(새 환경변수, compose 변경)는 먼저 `/opt/vanillameta`의 체크아웃을 `git pull`로 갱신하고 `.env.prod`를 맞춘 뒤 배포한다.
 - `deploy` 계정은 `docker` 그룹이라 사실상 root와 같다. 키를 `restrict,command=`로 제한했으니 그 키로는 `release.sh`만 실행되지만, 스크립트와 `authorized_keys`가 그 계정 소유이면 `release.sh`의 버그나 탈취가 곧 VM 장악이 된다. 가능하면 `release.sh`와 `authorized_keys`는 root 소유(644)로 두는 구성을 검토한다(이 경우 `.env.prod`·`.release.lock` 위치를 분리해야 한다. 아직 하지 않았다).
-- `release.sh`는 SSH 연결이 끊기거나 작업이 취소돼도 이미지 전환 도중이었다면 직전 태그로 되돌리려 시도한다(`state=switching` 복구 트랩).
+- `release.sh`는 `set -e` 실패나 `kill`로 중단되고 이미지 전환 도중이었다면 직전 태그로 되돌리려 시도한다(복구 트랩). **SSH 연결이 끊기거나 Actions 작업이 취소돼도 스크립트는 멈추지 않는다**(강제 명령에는 PTY가 없어 sshd가 신호를 보내지 않고 HUP/PIPE는 무시한다). 이때 Actions는 실패로 보이지만 VM은 새 태그를 올렸거나 되돌린 상태일 수 있으므로, 결과는 VM의 `deploy/release.log`와 `docker compose ps`로 확인한다. 연결이 끊긴 상태에서 compose가 올바르게 동작하는지는 시험하지 않았다.
 
 ## 백업과 복원 훈련
 
