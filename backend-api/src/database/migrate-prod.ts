@@ -121,7 +121,8 @@ async function main(): Promise<void> {
     console.log(JSON.stringify(await migrateProd(dataSource)));
   } finally {
     // migrateProd destroys the data source itself when it cannot prove its lock was released.
-    if (dataSource.isInitialized) await dataSource.destroy();
+    if (dataSource.isInitialized)
+      await dataSource.destroy().catch(error => console.error('destroy failed', error));
   }
 }
 
