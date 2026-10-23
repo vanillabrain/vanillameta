@@ -31,11 +31,11 @@ export class AnalyticsController {
     @Body() createEventDto: CreateEventDto,
     @Headers('x-correlation-id') correlationId: string,
     @Headers('user-agent') userAgent: string,
-    @Headers('x-forwarded-for') forwardedFor: string,
     @Request() req: any,
   ): Promise<void> {
     const userId = req.user?.accessKeyData?.userId || null;
-    const ipAddress = forwardedFor?.split(',')[0]?.trim() || req.ip;
+    // req.ip honours TRUST_PROXY_HOPS; the raw X-Forwarded-For header is client-controlled.
+    const ipAddress = req.ip;
 
     await this.analyticsService.collectEvents(createEventDto.events, {
       userId,

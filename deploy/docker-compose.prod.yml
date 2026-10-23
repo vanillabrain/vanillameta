@@ -1,0 +1,132 @@
+# Single-VM production stack for the invite beta. Run from this directory:
+#   cp .env.prod.example .env.prod   # fill every value
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+# Topology: client -> caddy (TLS) -> web (nginx) -> api -> mysql. Only caddy publishes ports.
+# The API sees two proxies in front of it, hence TRUST_PROXY_HOPS=2. Single instance only: several
+# in-memory states (publication tickets, run idempotency) are not shared across processes.
+
+name: vanillameta
+
+x-api-env: &api-env
+  NODE_ENV: prod
+  TRUST_PROXY_HOPS: "2"
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  DB_NAME: ${MYSQL_DATABASE:-vanillameta}
+  DB_USERNAME: ${MYSQL_USER:-vanillameta}
+  DB_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD}
+  DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-10}
+  ACCESS_SECRET: ${ACCESS_SECRET:?set ACCESS_SECRET}
+  REFRESH_SECRET: ${REFRESH_SECRET:?set REFRESH_SECRET}
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET}
+  URL_ACCESS_SECRET: ${URL_ACCESS_SECRET:?set URL_ACCESS_SECRET}
+  CONFIG_SECRET_KEY: ${CONFIG_SECRET_KEY:?set CONFIG_SECRET_KEY}
+  CORS_ORIGIN: https://${APP_DOMAIN:?set APP_DOMAIN}
+  ALLOWED_SOURCE_TYPES: ${ALLOWED_SOURCE_TYPES:-file,sample}
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    networks: [edge, app]
+
+  web:
+    image: ${WEB_IMAGE:-ghcr.io/vanillabrain/vanillameta-web}:${IMAGE_TAG:?set IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      API_UPSTREAM: api:4000
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [app]
+
+  api:
+    image: ${API_IMAGE:-ghcr.io/vanillabrain/vanillameta-api}:${IMAGE_TAG:?set IMAGE_TAG}
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    environment:
+      <<: *api-env
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_API_BASE_URL: ${AI_API_BASE_URL:-https://api.openai.com/v1}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    mem_limit: 3500m
+    networks:
+      app: {}
+      egress: {}
+
+  # One-off schema step. It exits non-zero (and api never starts) on a half-built or foreign schema.
+  migrate:
+    image: ${API_IMAGE:-ghcr.io/vanillabrain/vanillameta-api}:${IMAGE_TAG:?set IMAGE_TAG}
+    restart: "no"
+    init: true
+    command: ["node", "dist/src/database/migrate-prod.js"]
+    environment: *api-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks: [app]
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-vanillameta}
+      MYSQL_USER: ${MYSQL_USER:-vanillameta}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-connections=100
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [app]
+
+volumes:
+  mysql-data:
+  uploads:
+  caddy-data:
+  caddy-config:
+
+networks:
+  # Front door: only caddy is on it with web. Not internal, caddy must reach Let's Encrypt.
+  edge:
+    name: vanillameta-edge
+  # Service-to-service traffic. `internal` cuts it off from the outside, so mysql, migrate and web
+  # cannot open outbound connections.
+  app:
+    name: vanillameta-app
+    internal: true
+  # Outbound path for the api only (LLM provider). Fixed subnet so egress-guard.sh can filter it.
+  egress:
+    name: vanillameta-egress
+    ipam:
+      config:
+        - subnet: 172.29.40.0/24

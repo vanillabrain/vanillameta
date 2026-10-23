@@ -1,0 +1,17 @@
+# Reapplies the egress filter after every boot and docker restart.
+# Install: cp this file and egress-guard.sh to /etc/systemd/system and /opt/vanillameta/deploy, then
+#   systemctl daemon-reload && systemctl enable --now vanillameta-egress-guard
+[Unit]
+Description=VanillaMeta api egress filter
+After=docker.service
+Requires=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/vanillameta/deploy/egress-guard.sh apply
+ExecStop=/opt/vanillameta/deploy/egress-guard.sh remove
+
+[Install]
+WantedBy=multi-user.target

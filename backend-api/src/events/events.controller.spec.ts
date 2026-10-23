@@ -27,6 +27,7 @@ describe('EventsController', () => {
     headers: {
       'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     },
+    ip: '192.168.1.1',
     connection: {
       remoteAddress: '192.168.1.1',
     },
@@ -100,7 +101,7 @@ describe('EventsController', () => {
       );
     });
 
-    it('IP 주소를 올바르게 추출해야 함', async () => {
+    it('클라이언트가 보낸 X-Forwarded-For는 무시하고 req.ip를 써야 함', async () => {
       const requestWithForwardedIp = {
         ...mockRequest,
         headers: {
@@ -117,7 +118,7 @@ describe('EventsController', () => {
 
       expect(service.trackEvents).toHaveBeenCalledWith(
         trackEventDto,
-        '10.0.0.1',
+        '192.168.1.1',
         expect.any(String),
       );
     });

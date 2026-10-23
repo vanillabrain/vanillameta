@@ -61,15 +61,14 @@ describe('AnalyticsController', () => {
       };
       const correlationId = 'correlation-123';
       const userAgent = 'Mozilla/5.0';
-      const forwardedFor = '192.168.1.1';
 
-      await controller.collectEvents(createEventDto, correlationId, userAgent, forwardedFor, req);
+      await controller.collectEvents(createEventDto, correlationId, userAgent, req);
 
       expect(service.collectEvents).toHaveBeenCalledWith(createEventDto.events, {
         userId: 'user123',
         correlationId,
         userAgent,
-        ipAddress: '192.168.1.1',
+        ipAddress: '127.0.0.1',
       });
     });
 
@@ -86,9 +85,8 @@ describe('AnalyticsController', () => {
       const req = { ip: '127.0.0.1' };
       const correlationId = 'correlation-123';
       const userAgent = 'Mozilla/5.0';
-      const forwardedFor = undefined;
 
-      await controller.collectEvents(createEventDto, correlationId, userAgent, forwardedFor, req);
+      await controller.collectEvents(createEventDto, correlationId, userAgent, req);
 
       expect(service.collectEvents).toHaveBeenCalledWith(createEventDto.events, {
         userId: null,

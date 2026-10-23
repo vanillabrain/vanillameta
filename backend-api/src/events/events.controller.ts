@@ -113,12 +113,7 @@ export class EventsController {
   }
 
   private getClientIp(req: Request): string {
-    // IP 추출 (프록시 고려)
-    const forwarded = req.headers['x-forwarded-for'] as string;
-    const ip = forwarded
-      ? forwarded.split(',')[0].trim()
-      : req.connection.remoteAddress || req.socket.remoteAddress || '';
-
-    return ip;
+    // req.ip honours TRUST_PROXY_HOPS; the raw X-Forwarded-For header is client-controlled.
+    return req.ip || req.socket?.remoteAddress || '';
   }
 }

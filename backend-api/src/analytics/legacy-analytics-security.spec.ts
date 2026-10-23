@@ -46,9 +46,9 @@ describe('legacy telemetry authorization routes', () => {
   it('keeps public collection available and normalizes optional verified identity', async () => {
     const collectEvents = jest.fn();
     const controller = new AnalyticsController({ collectEvents } as any);
-    await controller.collectEvents({ events: [] }, '', '', '', { ip: '127.0.0.1' });
+    await controller.collectEvents({ events: [] }, '', '', { ip: '127.0.0.1' });
     expect(collectEvents).toHaveBeenLastCalledWith([], expect.objectContaining({ userId: null }));
-    await controller.collectEvents({ events: [] }, '', '', '', {
+    await controller.collectEvents({ events: [] }, '', '', {
       user: { accessKeyData: { id: 7, userId: 'alice' } },
     });
     expect(collectEvents).toHaveBeenLastCalledWith(
