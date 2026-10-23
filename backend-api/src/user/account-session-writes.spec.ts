@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth/auth.service';
 import { LoginService } from '../login/login.service';
+import { AccessService } from '../access/access.service';
 import { UserService } from './user.service';
 import { User } from './entities/user.entity';
 import { UserMapping } from './entities/user-mapping.entity';
@@ -191,6 +192,7 @@ describe('UC051 account and signup metadata coordination (real SQLite)', () => {
         db.getRepository(User),
         db.getRepository(RefreshToken),
         sample,
+        new AccessService(),
       );
 
     it('commits the account before launching sample provisioning outside the signup lease', async () => {

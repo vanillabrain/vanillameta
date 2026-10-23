@@ -8,6 +8,7 @@ const REQUIRED_SECRETS = [
 const MIN_SECRET_LENGTH = 32;
 const DEV_ONLY_PREFIX = 'dev-only-';
 
+const SIGNUP_MODES = ['open', 'invite', 'closed'];
 const KNOWN_ENVIRONMENTS = ['local', 'dev', 'development', 'prod', 'test'];
 const LOCAL_DB_HOSTS = ['localhost', '127.0.0.1', '::1'];
 
@@ -65,6 +66,10 @@ export function productionConfigProblems(
 
   if (env.QUERY_ALLOW_WRITE === 'true')
     problems.push('QUERY_ALLOW_WRITE=true disables the read-only query guard');
+
+  const signup = env.SIGNUP_MODE?.trim().toLowerCase();
+  if (signup && !SIGNUP_MODES.includes(signup))
+    problems.push(`SIGNUP_MODE must be one of ${SIGNUP_MODES.join(', ')}`);
 
   if (facts.localEnvFileExists)
     problems.push('a .env.local file is present; production must not ship local settings');

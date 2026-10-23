@@ -1,3 +1,4 @@
+import { AccessService } from '../access/access.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { LoginService } from './login.service';
@@ -28,6 +29,7 @@ describe('LoginService', () => {
         { provide: getRepositoryToken(RefreshToken), useFactory: mockRepository },
         { provide: AuthService, useValue: {} },
         { provide: SampleService, useValue: { provisionForUser: jest.fn() } },
+        { provide: AccessService, useValue: {} },
       ],
     }).compile();
 

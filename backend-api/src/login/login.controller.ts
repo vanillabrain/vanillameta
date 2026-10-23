@@ -14,6 +14,7 @@ import {
   Query,
   HttpStatus,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { LoginService } from './login.service';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from '../login/dto/login-user.dto';
@@ -40,6 +41,8 @@ export class LoginController {
   ) {}
 
   @UsePipes(ValidationPipe)
+  // Per client address; main.ts sets the trusted proxy hop count so this is the real client.
+  @Throttle(20, 60)
   @Post('signin')
   @ApiOperation({
     summary: '사용자 로그인',
@@ -87,6 +90,7 @@ export class LoginController {
 
   // validationPipe = 들어오는 모든 클라이언트 페이로드에 대한 유효성 검사 규칙을 적용
   @UsePipes(ValidationPipe)
+  @Throttle(10, 60)
   @Post('signup')
   @ApiOperation({
     summary: '회원가입',

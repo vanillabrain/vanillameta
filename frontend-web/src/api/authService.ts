@@ -9,6 +9,7 @@ export interface SignInRequest {
 export interface SignUpRequest {
   email: string;
   password: string;
+  inviteCode?: string;
   confirmPassword?: string;
 }
 
@@ -23,6 +24,9 @@ export const URL_SIGN_IN = '/signin';
 export const URL_SIGN_UP = '/signup';
 export const URL_SIGN_OUT = '/signout';
 
+export const URL_ACCESS_SIGNUP_MODE = '/access/signup-mode';
+export const URL_ACCESS_WAITLIST = '/access/waitlist';
+
 export const URL_USER = '/user';
 export const URL_USER_INFO = '/userinfo';
 export const URL_CHANGE_USERINFO = '/change-info';
@@ -32,6 +36,8 @@ export const URL_ACCESS_TOKEN = '/get-access-token';
 const signin = (data: unknown): Promise<any> => post(URL_LOGIN + URL_SIGN_IN, data);
 const signout = (): Promise<any> => post(URL_LOGIN + URL_SIGN_OUT);
 const signup = (data: unknown): Promise<any> => post(URL_LOGIN + URL_SIGN_UP, data);
+const getSignupMode = (): Promise<any> => get(URL_ACCESS_SIGNUP_MODE);
+const joinWaitlist = (email: string): Promise<any> => post(URL_ACCESS_WAITLIST, { email });
 const updateUser = (data: unknown): Promise<any> => patch(URL_USER + URL_CHANGE_USERINFO, data);
 const deleteUser = (data: unknown): Promise<any> => del(URL_USER + URL_DELETE_ACCOUNT, { data });
 const getUserInfo = (): Promise<any> => get(URL_USER + URL_USER_INFO);
@@ -41,6 +47,8 @@ const authService = {
   signin,
   signout,
   signup,
+  getSignupMode,
+  joinWaitlist,
   updateUser,
   deleteUser,
   getUserInfo,

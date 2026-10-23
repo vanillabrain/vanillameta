@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import Logo from '@/assets/images/logo.svg?react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import { getToken } from '@/helpers/authHelper';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TextField } from '@/components/ui/text-field';
+import { parseSignupMode, signupErrorKey, SignupMode } from './signupErrors';
 
 const SignUp = () => {
   const { t } = useTranslation();
@@ -20,12 +21,18 @@ const SignUp = () => {
   const navigate = useNavigate();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
+  const [searchParams] = useSearchParams();
+  // null until the API has answered; a failed request keeps the invitation field so signup stays usable.
+  const [mode, setMode] = useState<SignupMode | null>(null);
   const [userInfo, setUserInfo] = useState({
     userId: '',
     userPwd: '',
     userConfirmPwd: '',
     userEmail: '',
+    inviteCode: searchParams.get('invite') ?? '',
   });
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistDone, setWaitlistDone] = useState(false);
   const token = getToken();
   let isValid;
 
@@ -36,6 +43,31 @@ const SignUp = () => {
     }
   }, []);
 
+  useEffect(() => {
+    let current = true;
+    authService
+      .getSignupMode()
+      .then(response => current && setMode(parseSignupMode(response)))
+      .catch(() => current && setMode('invite'));
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  const handleWaitlist = event => {
+    event.preventDefault();
+    if (!checkEmail.test(waitlistEmail)) {
+      snackbar.error(t('signup.emailFormat'));
+      return;
+    }
+    authService
+      .joinWaitlist(waitlistEmail.trim())
+      .then(() => setWaitlistDone(true))
+      .catch(error => {
+        snackbar.error(t(error?.response?.status === 429 ? 'signup.tooMany' : 'signup.failed'));
+      });
+  };
+
   const handleSignup = event => {
     event.preventDefault();
     showLoading();
@@ -45,6 +77,7 @@ const SignUp = () => {
         userId: userInfo.userId,
         password: userInfo.userPwd,
         email: userInfo.userEmail,
+        ...(mode === 'invite' ? { inviteCode: userInfo.inviteCode.trim() } : {}),
       };
       authService
         .signup(data)
@@ -56,14 +89,9 @@ const SignUp = () => {
           }
         })
         .catch(error => {
-          console.log(error);
-          if (error.response.status === 409 && error.response.data.data === 'conflict userId') {
-            snackbar.error(t('signup.dupId'));
-          } else if (error.response.status === 409 && error.response.data.data === 'conflict email') {
-            snackbar.error(t('signup.dupEmail'));
-          } else {
-            alert.error(t('signup.failed'));
-          }
+          const key = signupErrorKey(error);
+          if (key === 'signup.dupId' || key === 'signup.dupEmail') snackbar.error(t(key));
+          else alert.error(t(key ?? 'signup.failed'));
         })
         .finally(() => {
           hideLoading();
@@ -99,6 +127,10 @@ const SignUp = () => {
         snackbar.error(t('signup.emailFormat'));
         return;
       }
+      if (mode === 'invite' && !userInfo.inviteCode.trim()) {
+        snackbar.error(t('signup.inviteRequired'));
+        return;
+      }
       isValid = true;
     }
   };
@@ -120,47 +152,87 @@ const SignUp = () => {
             <Logo width="223px" height="43px" aria-label="VanillaMeta" />
           </RouterLink>
           <Card className="mt-8 w-full gap-0 rounded-xl border border-border p-6 shadow-sm ring-0 sm:p-8">
-            <form onSubmit={handleSignup} noValidate className="flex w-full flex-col gap-5">
-              <p className="mb-2 text-xl leading-8 sm:text-2xl font-semibold text-foreground">
-                <span className="text-primary">{t('signup.taglineA')}</span>
-                {t('signup.taglineB')}
-              </p>
-              <TextField
-                required
-                label="User ID"
-                name="userId"
-                type="text"
-                value={userInfo.userId}
-                onChange={handleChange}
-              />
-              <TextField
-                required
-                name="userPwd"
-                value={userInfo.userPwd}
-                onChange={handleChange}
-                label="Password"
-                type="password"
-              />
-              <TextField
-                required
-                name="userConfirmPwd"
-                value={userInfo.userConfirmPwd}
-                onChange={handleChange}
-                label="Confirm Password"
-                type="password"
-              />
-              <TextField
-                required
-                name="userEmail"
-                value={userInfo.userEmail}
-                onChange={handleChange}
-                label="E-mail"
-                type="email"
-              />
-              <Button type="submit" size="lg" className="mt-2 w-full">
-                {t('signup.submit')}
-              </Button>
-            </form>
+            {mode === 'closed' ? (
+              <p className="text-base leading-7 text-foreground">{t('signup.closed')}</p>
+            ) : (
+              <form onSubmit={handleSignup} noValidate className="flex w-full flex-col gap-5">
+                <p className="mb-2 text-xl leading-8 sm:text-2xl font-semibold text-foreground">
+                  <span className="text-primary">{t('signup.taglineA')}</span>
+                  {t('signup.taglineB')}
+                </p>
+                {mode === 'invite' && (
+                  <TextField
+                    required
+                    label={t('signup.inviteCode')}
+                    name="inviteCode"
+                    type="text"
+                    autoComplete="off"
+                    value={userInfo.inviteCode}
+                    onChange={handleChange}
+                  />
+                )}
+                <TextField
+                  required
+                  label="User ID"
+                  name="userId"
+                  type="text"
+                  value={userInfo.userId}
+                  onChange={handleChange}
+                />
+                <TextField
+                  required
+                  name="userPwd"
+                  value={userInfo.userPwd}
+                  onChange={handleChange}
+                  label="Password"
+                  type="password"
+                />
+                <TextField
+                  required
+                  name="userConfirmPwd"
+                  value={userInfo.userConfirmPwd}
+                  onChange={handleChange}
+                  label="Confirm Password"
+                  type="password"
+                />
+                <TextField
+                  required
+                  name="userEmail"
+                  value={userInfo.userEmail}
+                  onChange={handleChange}
+                  label="E-mail"
+                  type="email"
+                />
+                <Button type="submit" size="lg" className="mt-2 w-full" disabled={mode === null}>
+                  {t('signup.submit')}
+                </Button>
+              </form>
+            )}
+            {(mode === 'invite' || mode === 'closed') && (
+              <form
+                onSubmit={handleWaitlist}
+                noValidate
+                className="mt-6 flex w-full flex-col gap-3 border-t border-border pt-6"
+              >
+                <p className="text-sm font-medium text-foreground">{t('signup.waitlistTitle')}</p>
+                {waitlistDone ? (
+                  <p className="text-sm text-muted-foreground">{t('signup.waitlistDone')}</p>
+                ) : (
+                  <>
+                    <TextField
+                      label={t('signup.waitlistEmail')}
+                      name="waitlistEmail"
+                      type="email"
+                      value={waitlistEmail}
+                      onChange={event => setWaitlistEmail(event.target.value)}
+                    />
+                    <Button type="submit" variant="outline" className="w-full">
+                      {t('signup.waitlistSubmit')}
+                    </Button>
+                  </>
+                )}
+              </form>
+            )}
             <div className="mt-6 flex items-center justify-center gap-3 text-center text-sm text-muted-foreground">
               <RouterLink to="/login" className="text-sm text-inherit hover:underline">
                 {t('login.title')}

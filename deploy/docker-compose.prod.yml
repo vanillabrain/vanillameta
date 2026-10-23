@@ -29,6 +29,7 @@ x-api-env: &api-env
   CONFIG_SECRET_KEY: ${CONFIG_SECRET_KEY:?set CONFIG_SECRET_KEY}
   CORS_ORIGIN: https://${APP_DOMAIN:?set APP_DOMAIN}
   ALLOWED_SOURCE_TYPES: ${ALLOWED_SOURCE_TYPES:-file,sample}
+  SIGNUP_MODE: ${SIGNUP_MODE:-invite}
 
 services:
   caddy:

@@ -6,6 +6,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { SampleService } from './sample.service';
 import { LoginService } from '../login/login.service';
+import { AccessService } from '../access/access.service';
 import { AuthService } from '../auth/auth.service';
 import { RefreshToken } from '../auth/entites/refresh_token.entity';
 import { User } from '../user/entities/user.entity';
@@ -113,6 +114,7 @@ describe('Signup sample and request history preserve committed metadata across r
         db.getRepository(User),
         db.getRepository(RefreshToken),
         sample,
+        new AccessService(),
       );
       const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
       const fileEntered = gate(),

@@ -138,15 +138,18 @@ const Login = () => {
               Login
             </Button>
           </form>
-          {APP_MODE != 'prod' && (
-            <div className="mt-6 flex flex-row items-center justify-center gap-3 text-center text-sm text-muted-foreground">
-              <RouterLink to="/signup" className="text-sm text-inherit underline hover:underline">
-                {t('login.signup')}
-              </RouterLink>
-              <span aria-hidden="true" className="h-2.5 w-px bg-border" />
-              <span>{t('login.findAccount')}</span>
-            </div>
-          )}
+          <div className="mt-6 flex flex-row items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+            {/* The signup page itself decides whether an invite code is needed or signup is closed. */}
+            <RouterLink to="/signup" className="text-sm text-inherit underline hover:underline">
+              {t('login.signup')}
+            </RouterLink>
+            {APP_MODE != 'prod' && (
+              <>
+                <span aria-hidden="true" className="h-2.5 w-px bg-border" />
+                <span>{t('login.findAccount')}</span>
+              </>
+            )}
+          </div>
         </div>
         <Copyright className="relative z-10 mt-8" />
         <img

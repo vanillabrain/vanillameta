@@ -63,6 +63,16 @@ describe('production guard', () => {
     expect(productionConfigProblems(env).join('\n')).toContain('QUERY_ALLOW_WRITE');
   });
 
+  it('rejects an unknown signup mode but accepts the three real ones', () => {
+    const env = validEnv();
+    env.SIGNUP_MODE = 'everyone';
+    expect(productionConfigProblems(env).join('\n')).toContain('SIGNUP_MODE');
+    for (const mode of ['open', 'invite', 'closed', ' Invite ']) {
+      env.SIGNUP_MODE = mode;
+      expect(productionConfigProblems(env)).toEqual([]);
+    }
+  });
+
   it('reports every problem at once and never echoes secret values', () => {
     const env = validEnv();
     env.ACCESS_SECRET = 'dev-only-leaked-value';

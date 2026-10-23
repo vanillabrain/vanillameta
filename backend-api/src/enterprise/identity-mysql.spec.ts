@@ -8,6 +8,7 @@ import { RefreshToken } from '../auth/entites/refresh_token.entity';
 import { AuthService } from '../auth/auth.service';
 import { UserService } from '../user/user.service';
 import { LoginService } from '../login/login.service';
+import { AccessService } from '../access/access.service';
 import { EnterpriseService } from './enterprise.service';
 import { EnterpriseMembership } from './entities/enterprise-membership.entity';
 import { EnterpriseOrganization } from './entities/enterprise-organization.entity';
@@ -69,9 +70,13 @@ suite('UC051 isolated local MySQL identity integrity', () => {
     );
     users = new UserService(db.getRepository(User), db.getRepository(UserMapping), auth);
     enterprise = new EnterpriseService(db);
-    login = new LoginService(auth, db.getRepository(User), db.getRepository(RefreshToken), {
-      provisionForUser: async () => undefined,
-    } as any);
+    login = new LoginService(
+      auth,
+      db.getRepository(User),
+      db.getRepository(RefreshToken),
+      { provisionForUser: async () => undefined } as any,
+      new AccessService(),
+    );
   });
   beforeEach(async () => {
     await db.synchronize(true);

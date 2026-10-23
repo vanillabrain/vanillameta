@@ -14,7 +14,8 @@ import { LoginUserDto } from './dto/login-user.dto';
 import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
 import { SampleService } from '../sample/sample.service';
 import { hashPassword } from '../utils/password.util';
-import { serializeMetadataWork } from '../common/metadata-work';
+import { metadataTransaction, serializeMetadataWork } from '../common/metadata-work';
+import { AccessService } from '../access/access.service';
 
 type IdentityField = 'email' | 'userId';
 
@@ -49,6 +50,7 @@ export class LoginService {
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     @InjectRepository(RefreshToken) private readonly refreshRepository: Repository<RefreshToken>,
     private readonly sampleService: SampleService,
+    private readonly access: AccessService,
   ) {}
 
   async signin(loginDto: LoginUserDto) {
@@ -61,7 +63,10 @@ export class LoginService {
   }
 
   async signup(createLoginDto: CreateLoginDto) {
-    const { email, password, userId } = createLoginDto;
+    const { email, password, userId, inviteCode } = createLoginDto;
+    // Refuse before touching the database when signup is closed or no invitation was given.
+    this.access.assertSignupAllowed(inviteCode);
+    const invited = this.access.signupMode() === 'invite';
     // NFR005/008 (SQLite): on the single shared connection the duplicate lookup and the insert
     // share one metadata scope, so concurrent signups cannot both pass the read and insert.
     // Migrated unique indexes settle cross-connection races on every configured metadata engine.
@@ -72,7 +77,7 @@ export class LoginService {
         if (existing) throw identityConflict(existing);
 
         try {
-          const saved = await this.userRepository.save({
+          const account = () => ({
             email: email,
             password: hashPassword(password),
             userId: userId,
@@ -80,7 +85,15 @@ export class LoginService {
             createdAt: new Date(),
             updatedAt: new Date(),
           });
-          return saved;
+          if (!invited) return await this.userRepository.save(account());
+          // The invitation seat and the account are one unit: a signup that fails (a lost unique race,
+          // a database error) gives the seat back instead of burning it.
+          return await metadataTransaction(this.userRepository.manager, async manager => {
+            const inviteId = await this.access.redeem(manager, inviteCode as string);
+            const saved = await manager.getRepository(User).save(account());
+            await this.access.recordRedemption(manager, inviteId, saved.id);
+            return saved;
+          });
         } catch (error) {
           // The prechecks are advisory: a concurrent signup can still commit between the reads
           // and this insert. The unique index is the last word, so a duplicate-entry failure is

@@ -4,6 +4,7 @@ import { RefreshToken } from '../auth/entites/refresh_token.entity';
 import { User } from '../user/entities/user.entity';
 import { hashPassword } from '../utils/password.util';
 import { LoginService } from './login.service';
+import { AccessService } from '../access/access.service';
 
 const SECRET_PARAMETER = 'synthetic-secret-parameter';
 const CONFLICT_EMAIL = 'conflict email';
@@ -41,7 +42,13 @@ describe('LoginService.signup identity conflicts (real SQLite constraints)', () 
   let sample: { provisionForUser: jest.Mock };
 
   const loginFor = () =>
-    new LoginService({} as any, users, db.getRepository(RefreshToken), sample as any);
+    new LoginService(
+      {} as any,
+      users,
+      db.getRepository(RefreshToken),
+      sample as any,
+      new AccessService(),
+    );
 
   const seed = (props: Partial<User>) =>
     users.insert({
@@ -217,7 +224,7 @@ describe('LoginService.signup identity conflicts (MySQL duplicate-entry race)', 
   };
 
   const serviceFor = (repository: any, sample: any) =>
-    new LoginService({} as any, repository, {} as any, sample);
+    new LoginService({} as any, repository, {} as any, sample, new AccessService());
 
   it('maps an email duplicate-entry failure to the email conflict without leaking SQL or parameters', async () => {
     const repository = racingRepository({ email: dto.email });

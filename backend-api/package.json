@@ -45,6 +45,7 @@
     "k6:cloud": "k6 cloud test/performance/k6/load-test.js",
     "performance:all": "yarn test:performance && yarn artillery:run && yarn k6:load",
     "migration:run": "node --require ./scripts/typescript-api-compat.cjs -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
+    "access:cli": "node dist/src/access/access-cli.js",
     "migration:run:prod": "cross-env NODE_ENV=prod node dist/src/database/migrate-prod.js",
     "migration:revert": "node --require ./scripts/typescript-api-compat.cjs -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
     "migration:generate": "node --require ./scripts/typescript-api-compat.cjs -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",

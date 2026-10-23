@@ -32,6 +32,21 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml ps -a   # migrate
 
 `migrate`가 빈 DB를 만들고(엔티티 + 참조 데이터 + 마이그레이션 53건 기록) 이후에는 대기 중인 마이그레이션만 실행한다. 테이블은 있는데 기록이 없는 스키마는 거부하고 비정상 종료하며, 이 경우 `api`는 시작하지 않는다. 운영 가드(`production-guard.ts`)는 약한 시크릿·`CORS_ORIGIN` 누락·`AI_PROVIDER=codex`·`guest` 계정·`QUERY_ALLOW_WRITE=true`면 `api` 부팅을 거부한다.
 
+## 가입 방식과 초대 코드
+
+운영 기본값은 `SIGNUP_MODE=invite`다(`closed`, `open`도 가능하고 알 수 없는 값은 부팅 가드가 거부한다). 초대 코드가 없으면 가입이 403(`INVITE_REQUIRED`)이며 가입·로그인·대기자 등록에는 클라이언트 주소별 요청 한도가 있다(가입 10/분, 로그인 20/분, 대기자 5/분. 프록시 홉 수가 맞아야 실제 클라이언트 기준이 된다). 코드는 만들 때 한 번만 보이고 DB에는 해시만 저장된다. 관리 화면은 아직 없고 컨테이너 안의 CLI로 운영한다.
+
+```bash
+C="docker compose --env-file .env.prod -f docker-compose.prod.yml"
+$C run --rm migrate node dist/src/access/access-cli.js invite create --label "첫 관리자" --days 14   # 첫 계정용
+$C run --rm migrate node dist/src/access/access-cli.js invite list                                     # 사용 현황(코드는 나오지 않는다)
+$C run --rm migrate node dist/src/access/access-cli.js invite revoke <id>
+$C run --rm migrate node dist/src/access/access-cli.js waitlist list --status pending
+$C run --rm migrate node dist/src/access/access-cli.js waitlist approve <id> --days 14             # 1회용 코드를 발급해 출력한다
+```
+
+초대 링크는 `https://<도메인>/signup?invite=<코드>`로 코드를 미리 채운다. 이메일 발송은 아직 없으므로 코드는 운영자가 직접 전달한다.
+
 ## 업데이트와 되돌리기
 
 기본 경로는 아래 "배포 워크플로"다. 손으로 할 때는 VM에서 `SSH_ORIGINAL_COMMAND="release <tag>" ./release.sh`(또는 `./release.sh release <tag>`)를 실행한다. `release.sh`는 (1) 직전 태그를 기억하고 (2) 사전 백업을 만들고(실패하면 중단) (3) 이미지를 받고 (4) `up -d`로 `migrate`를 먼저 돌린 뒤 api·web이 healthy가 될 때까지 기다려 `/v1/health`를 확인하고 (5) 실패하면 **직전 태그로 되돌린다**. 되돌림은 이미지만 되돌린다. 이미 적용된 마이그레이션은 되돌리지 않으므로, 스키마를 호환되지 않게 바꾼 릴리스는 사전 백업으로 복원해야 한다.
