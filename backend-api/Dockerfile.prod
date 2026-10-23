@@ -26,7 +26,8 @@ FROM node:24-bookworm-slim
 ENV NODE_ENV=prod \
     PORT=4000 \
     FILE_UPLOAD_DIR=/data/uploads \
-    CLOUDWATCH_METRICS_ENABLED=false
+    CLOUDWATCH_METRICS_ENABLED=false \
+    FILE_UPLOAD_MAX_BYTES=104857600
 WORKDIR /app
 COPY --from=build --chown=node:node /app/package.json ./
 COPY --from=build --chown=node:node /app/node_modules ./node_modules

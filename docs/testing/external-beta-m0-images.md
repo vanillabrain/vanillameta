@@ -20,7 +20,9 @@
 | `POST /v1/login`(없는 경로), `/v1/api-docs` | 404 (운영에서 swagger 닫힘), 보호 API는 401 |
 | 웹 이미지 빌드·기동 | healthy. `/healthz`·`/v1/health`(프록시)·`/organizations/*`(CSP `frame-ancestors 'self'`)·SPA 경로 모두 200, `/socket.io/` 폴링 핸드셰이크 성공 |
 | 번들 | `baseURL:"/v1"`, `localhost:4000` 0건 |
-| `npx vitest run src/helpers/socket.test.ts` | 3 tests PASS (수정 전 코드로 실패하는지는 확인하지 않았다) |
+| `socket.test.ts` | 3 tests PASS. `audit`이 `new URL(apiUrl)`로 되돌리면 상대 경로 케이스가 `Invalid URL`로 실패함을 확인. `frontend-web` 전체 205 files 3309 tests PASS, `tsc`·eslint 통과 |
+| 웹 이미지 `nginx:1.28-alpine`(1.28.3), `nginx -t` | 통과. `/index.html`·SPA 폴백은 `Cache-Control: no-cache`, `/organizations/*`은 `no-store` + `Referrer-Policy` |
+| 백엔드 이미지 ENV | `FILE_UPLOAD_MAX_BYTES=104857600`(nginx 110MB보다 작게), `CLOUDWATCH_METRICS_ENABLED=false` |
 
 ## 발견한 문제와 처리
 
@@ -29,7 +31,11 @@
 - 운영에서 `CloudWatchMetricsService`가 기본 활성이라 AWS 자격 증명이 없는 VM에서 주기적으로 ERROR를 남긴다. 이미지 기본값을 `CLOUDWATCH_METRICS_ENABLED=false`로 했다.
 - `dist/src/i18n`이 빌드 결과에 없다(`i18n.module.ts`가 `__dirname/../../i18n`을 가리킨다). 컨테이너는 정상 기동·응답하고 `I18nContext` 사용은 제거된 상태라 영향이 없다고 보지만, 번역 기능을 되살리면 `nest-cli.json` assets에 추가해야 한다.
 
-## 한계
+## 한계 (미실행·미검증)
+
+- **설정만 있고 실행하지 않은 것**: `proxy_buffering off`로 NDJSON이 즉시 흐르는지, 업로드 한도(nginx 110MB / API 100MiB)에서 413이 어떻게 보이는지, WebSocket **업그레이드**(클라이언트는 websocket을 먼저 시도한다. 확인한 것은 폴링 핸드셰이크뿐). 
+- **로그인 흐름**: 프록시를 거친 로그인은 실행하지 않았다. 운영 쿠키는 `secure`라 HTTP인 이 검증 환경에서는 불가능하다. HTTPS 프록시가 붙은 `deploy/` 환경에서 확인한다.
+- `backend-api/Dockerfile.prod.dockerignore`(BuildKit 전용)는 이 VM에 buildx가 없어 적용 여부를 확인하지 못했다. 빌드 스테이지에 `.env.dev`·`.env.docker`·`.env.ci`가 복사될 수 있고(최종 이미지에는 없음), CI에서 BuildKit으로 확인한다.
 
 - 이미지는 arm64로 빌드했다. 운영 VM의 아키텍처가 amd64면 CI(buildx)에서 따로 빌드·검증해야 한다(`sqlite3`·`@duckdb/node-bindings` 플랫폼 바이너리 포함). 미실행.
 - Node 24 이미지에서의 검증이지만 로컬 jest·build 결과는 Node 26이다.

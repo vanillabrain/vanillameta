@@ -16,7 +16,7 @@ ENV REACT_APP_API_URL=$REACT_APP_API_URL \
     REACT_APP_SENTRY_TRACES_SAMPLE_RATE=$REACT_APP_SENTRY_TRACES_SAMPLE_RATE
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.28-alpine
 COPY --from=build /app/build /usr/share/nginx/html
 # The API host is resolved when nginx starts; the template is rendered from the API_UPSTREAM variable.
 COPY nginx.prod.conf /etc/nginx/templates/default.conf.template
