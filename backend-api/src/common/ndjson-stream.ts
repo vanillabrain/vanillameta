@@ -106,10 +106,10 @@ export function serveRun<T>(
   res.setHeader?.('Cache-Control', 'no-cache, no-transform');
   res.setHeader?.('X-Accel-Buffering', 'no');
   write({ type: 'start' });
-  const timer = setInterval(
-    () => write({ type: 'heartbeat' }),
-    options.heartbeatMs ?? HEARTBEAT_MS,
-  );
+  // A stalled connection must not make the buffer grow: heartbeats wait while earlier lines are unread.
+  const timer = setInterval(() => {
+    if (out.writableLength < 16 * 1024) write({ type: 'heartbeat' });
+  }, options.heartbeatMs ?? HEARTBEAT_MS);
   timer.unref?.();
   const unwatch = options.watch?.(write);
   void (async () => {

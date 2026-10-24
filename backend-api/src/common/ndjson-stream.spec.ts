@@ -163,6 +163,35 @@ describe('serveRun with Accept: application/x-ndjson', () => {
     }
   });
 
+  it('holds heartbeats back while the client is not reading, so a stalled connection cannot grow the buffer', async () => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+    try {
+      let release!: () => void;
+      const out = serveRun(
+        request('application/x-ndjson'),
+        response(),
+        () => new Promise<string>(resolve => (release = () => resolve('ok'))),
+        {
+          heartbeatMs: 1000,
+          watch: emit => (emit({ type: 'step', blob: 'x'.repeat(20 * 1024) }), () => undefined),
+        },
+      ) as StreamableFile;
+      const stream = out.getStream();
+      const before = stream.readableLength;
+      jest.advanceTimersByTime(5000);
+      // The 20 KiB step line is still unread, so no heartbeat was added on top of it.
+      expect(stream.readableLength).toBe(before);
+      release();
+      await Promise.resolve();
+      await Promise.resolve();
+      const events = await lines(out);
+      expect(events.filter(e => e.type === 'heartbeat')).toHaveLength(0);
+      expect(events[events.length - 1]).toEqual({ type: 'result', data: 'ok' });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('cancels the run when the client goes away and writes nothing to the dead stream', async () => {
     const req = request('application/x-ndjson');
     const res = response();
