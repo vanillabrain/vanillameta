@@ -12,7 +12,7 @@ import { assertReadOnlyQuery, assertSafeIdentifier } from '../utils/query-guard.
 import { RecommendChartDto } from './dto/recommend-chart.dto';
 import { YesNo } from '../common/enum/yn.enum';
 import { AiCaller, LlmGateway } from './llm-gateway.service';
-import { isAiRefusal } from './ai-caller';
+import { failureCode, isAiRefusal } from './ai-caller';
 import { aiStatus, isAiConfigured } from './providers/ai-config';
 
 const MAX_SCHEMA_TABLES = 25;
@@ -139,8 +139,8 @@ export class AiService {
     try {
       ({ schemaText, dialect } = await this.getSchemaContext(+databaseId));
     } catch (e) {
-      // Only the name: a JSON.parse error quotes the first characters of the model's answer.
-      console.error(`AI call failed: ${e?.name ?? 'Error'}`);
+      // A metadata lookup, no model output involved: the real error is what an operator needs.
+      console.error(`schema lookup failed: ${e?.name}: ${e?.message}`);
       return { status: ResponseStatus.ERROR, message: '데이터베이스 스키마 조회에 실패했습니다.' };
     }
 
@@ -163,7 +163,14 @@ export class AiService {
         .replace(/^```(?:sql)?\s*/i, '')
         .replace(/\s*```$/, '')
         .replace(/;\s*$/, '');
-      assertReadOnlyQuery(sql); // 생성 SQL도 동일 가드 적용
+      try {
+        assertReadOnlyQuery(sql); // 생성 SQL도 동일 가드 적용
+      } catch (unsafe) {
+        return {
+          status: ResponseStatus.ERROR,
+          message: `생성된 쿼리가 안전하지 않습니다: ${(unsafe as Error).message}`,
+        };
+      }
       return { status: ResponseStatus.SUCCESS, data: { sql, ai: this.providerMetadata() } };
     } catch (e) {
       if (isAiRefusal(e)) throw e;
@@ -173,14 +180,9 @@ export class AiService {
           message: 'AI 기능이 설정되지 않았습니다. 운영자에게 문의해 주세요.',
         };
       }
-      // Only the name: a JSON.parse error quotes the first characters of the model's answer.
-      console.error(`AI call failed: ${e?.name ?? 'Error'}`);
-      return {
-        status: ResponseStatus.ERROR,
-        message: e?.message?.startsWith('LLM_')
-          ? 'AI 쿼리 생성 중 오류가 발생했습니다.'
-          : `생성된 쿼리가 안전하지 않습니다: ${e.message}`,
-      };
+      // The gateway's code, never raw error text: internal messages are not for the user either.
+      console.error(`AI call failed: ${failureCode(e)}`);
+      return { status: ResponseStatus.ERROR, message: 'AI 쿼리 생성 중 오류가 발생했습니다.' };
     }
   }
 
@@ -253,8 +255,7 @@ export class AiService {
       };
     } catch (e) {
       if (isAiRefusal(e)) throw e;
-      // Only the name: a JSON.parse error quotes the first characters of the model's answer.
-      console.error(`AI call failed: ${e?.name ?? 'Error'}`);
+      console.error(`AI call failed: ${failureCode(e)}`);
       return { status: ResponseStatus.ERROR, message: 'AI 차트 추천 중 오류가 발생했습니다.' };
     }
   }
@@ -343,8 +344,7 @@ export class AiService {
       };
     } catch (e) {
       if (isAiRefusal(e)) throw e;
-      // Only the name: a JSON.parse error quotes the first characters of the model's answer.
-      console.error(`AI call failed: ${e?.name ?? 'Error'}`);
+      console.error(`AI call failed: ${failureCode(e)}`);
       return { status: ResponseStatus.ERROR, message: 'AI 인사이트 생성 중 오류가 발생했습니다.' };
     }
   }

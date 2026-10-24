@@ -87,3 +87,16 @@ export const aiNotConfigured = () =>
     error: 'AI_NOT_CONFIGURED',
     message: 'AI 기능이 설정되지 않았습니다. 운영자에게 문의해 주세요.',
   });
+
+/**
+ * What a log line may say about a failed model call: the gateway's own codes (`LLM_TIMEOUT`,
+ * `LLM_API_ERROR_401`, `AI_NOT_CONFIGURED` …) are fixed strings, so they are safe to log and are what tells a
+ * revoked key from a timeout from a ledger outage. Anything else is reduced to its class name: the message of
+ * a `JSON.parse` error quotes the start of the model's answer.
+ */
+export const failureCode = (error: unknown): string => {
+  const message = (error as Error)?.message;
+  return typeof message === 'string' && /^(LLM|AI)_[A-Z0-9_]+$/.test(message)
+    ? message
+    : (error as Error)?.name ?? 'Error';
+};

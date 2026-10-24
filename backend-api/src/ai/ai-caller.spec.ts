@@ -1,5 +1,12 @@
 import { BadRequestException, HttpException } from '@nestjs/common';
-import { aiBlockingCode, callerOf, isAiRefusal, llmFailure, requestEpoch } from './ai-caller';
+import {
+  aiBlockingCode,
+  callerOf,
+  failureCode,
+  isAiRefusal,
+  llmFailure,
+  requestEpoch,
+} from './ai-caller';
 
 describe('who a model call is for', () => {
   it('takes the user and the epoch from the verified token, never a default for a token that has one', () => {
@@ -53,5 +60,36 @@ describe('llmFailure', () => {
     expect(llmFailure(new Error('LLM_API_ERROR_UNKNOWN'))?.status).toBe(502);
     expect(llmFailure(new Error('boom'))).toBeUndefined();
     expect(llmFailure('LLM_TIMEOUT')).toBeUndefined();
+  });
+});
+
+describe('failureCode', () => {
+  it('keeps the gateway’s fixed codes, which tell a revoked key from a timeout from a ledger outage', () => {
+    for (const code of [
+      'LLM_TIMEOUT',
+      'LLM_API_ERROR_401',
+      'LLM_OUTPUT_TRUNCATED',
+      'AI_NOT_CONFIGURED',
+    ])
+      expect(failureCode(new Error(code))).toBe(code);
+  });
+
+  it('reduces anything else to its class name, never its text', () => {
+    const parse = (() => {
+      try {
+        JSON.parse('Here is the SELECT you asked for');
+      } catch (error) {
+        return error;
+      }
+    })();
+    expect(String((parse as Error).message)).toContain('Here is');
+    expect(failureCode(parse)).toBe('SyntaxError');
+    expect(failureCode(new Error('connect ECONNREFUSED 10.0.0.5 password=hunter2'))).toBe('Error');
+    expect(failureCode(new TypeError('x'))).toBe('TypeError');
+    expect(failureCode(undefined)).toBe('Error');
+  });
+
+  it('does not accept a code-looking prefix followed by other text', () => {
+    expect(failureCode(new Error('LLM_API_ERROR_401 for key sk-123'))).toBe('Error');
   });
 });

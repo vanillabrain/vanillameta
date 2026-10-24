@@ -264,6 +264,34 @@ describe('AiService', () => {
     expect(res.status).toBe(ResponseStatus.ERROR);
   });
 
+  it('logs which gateway failure it was and nothing of the model’s answer, and tells the user only a fixed sentence', async () => {
+    process.env.AI_API_KEY = 'test-key';
+    const logged = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      gateway.generate.mockRejectedValueOnce(new Error('LLM_API_ERROR_401'));
+      const failed = await service.textToSql(1, 'select users', caller);
+      expect(failed.message).toBe('AI 쿼리 생성 중 오류가 발생했습니다.');
+      expect(logged).toHaveBeenLastCalledWith('AI call failed: LLM_API_ERROR_401');
+      // An internal error (a ledger outage, a bad caller) is not echoed to the user either.
+      gateway.generate.mockRejectedValueOnce(new Error('ER_LOCK_DEADLOCK at ai_usage_ledger'));
+      const internal = await service.textToSql(1, 'select users', caller);
+      expect(internal.message).toBe('AI 쿼리 생성 중 오류가 발생했습니다.');
+      expect(internal.message).not.toContain('ER_LOCK');
+      expect(logged).toHaveBeenLastCalledWith('AI call failed: Error');
+      // A model answer that is not JSON: the SyntaxError message quotes it, the log must not.
+      gateway.generate.mockResolvedValueOnce('Here is the chart you asked for: BAR');
+      const chart = await service.recommendChart(
+        { databaseId: 1, datasetType: 'TABLE' as any, tableName: 'sales' },
+        caller,
+      );
+      expect(chart.status).toBe(ResponseStatus.ERROR);
+      expect(logged).toHaveBeenLastCalledWith('AI call failed: SyntaxError');
+      expect(JSON.stringify(logged.mock.calls)).not.toContain('Here is');
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
   it('recommendChart는 등록된 component의 type만 반환한다', async () => {
     process.env.AI_API_KEY = 'test-key';
     gateway.generate.mockResolvedValueOnce('{"type":"LINE_CHART","reason":"시계열 데이터"}');
