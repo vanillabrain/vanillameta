@@ -131,7 +131,7 @@ describe('UC051 Studio execution admission departure fence', () => {
   afterAll(async () => {
     if (db?.isInitialized) await db.destroy();
   });
-  const admit = (epoch?: number, signal?: AbortSignal) => service.create(body, 7, signal, epoch);
+  const admit = (epoch = 0, signal?: AbortSignal) => service.create(body, 7, signal, epoch);
   const owns = async (manager = db.manager) =>
     (await manager.countBy(Database, { ownerId: 7 })) +
     (await manager.countBy(UserMapping, { userInfoId: 7 }));

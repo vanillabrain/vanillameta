@@ -76,6 +76,7 @@ describe('UC023 creation lifecycle without writes', () => {
     };
     ai = { callLlm: jest.fn().mockResolvedValue(JSON.stringify(proposal)) };
     dashboards = {
+      assertAiCalls: jest.fn().mockResolvedValue(undefined),
       classifyBlockIntent: jest.fn().mockResolvedValue({
         intent: 'save',
         saveRequested: true,

@@ -89,6 +89,12 @@ describe('LlmGateway (real SQLite ledger, mocked model call)', () => {
   const caller = () => ({ userId: user, epoch: 0, feature: 'studio-creation' });
   const ask = (extra: Record<string, unknown> = {}) =>
     gateway.generate({ system: 'sys', prompt: 'hello', caller: caller(), ...extra });
+  /** Resolves once the model has been called `n` times, i.e. every earlier call has reserved its slot. */
+  const calls = async (n: number) => {
+    for (let i = 0; i < 400 && generate.mock.calls.length < n; i++)
+      await new Promise(resolve => setTimeout(resolve, 10));
+    expect(generate.mock.calls.length).toBe(n);
+  };
   const rows = () => db.getRepository(AiUsageLedger).find({ order: { id: 'ASC' } });
   const answer = (text: string, usage: unknown = { inputTokens: 120, outputTokens: 30 }) =>
     generate.mockResolvedValue({ text, usage });
@@ -161,7 +167,7 @@ describe('LlmGateway (real SQLite ledger, mocked model call)', () => {
     const releases: Array<(value: unknown) => void> = [];
     generate.mockImplementation(() => new Promise(resolve => releases.push(resolve)));
     const pending = [ask(), ask(), ask()];
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await calls(3);
     await expect(ask()).rejects.toMatchObject({
       status: 429,
       response: expect.objectContaining({ reason: 'monthly_tokens' }),
@@ -275,9 +281,9 @@ describe('LlmGateway (real SQLite ledger, mocked model call)', () => {
     const releases: Array<(value: unknown) => void> = [];
     generate.mockImplementation(() => new Promise(resolve => releases.push(resolve)));
     const first = ask();
-    await new Promise(resolve => setTimeout(resolve, 30));
+    await calls(1);
     const second = ask();
-    await new Promise(resolve => setTimeout(resolve, 30));
+    await calls(2);
     // Two reservations of ~2051 are in flight: the ceiling is passed before either has finished.
     await expect(ask()).rejects.toMatchObject({ response: { error: 'AI_BUDGET_EXHAUSTED' } });
     for (const release of releases)

@@ -1,3 +1,4 @@
+import { HttpException } from '@nestjs/common';
 import type { AiCaller } from './llm-gateway.service';
 
 /**
@@ -12,3 +13,17 @@ export const callerOf = (req: any, feature: string): AiCaller => ({
   epoch: requestEpoch(req),
   feature,
 });
+
+/**
+ * The gateway refused the call (the user's quota, the server-wide budget) or the AI is not set up. These
+ * are answers for the user, not model failures: a call site that turns errors into a generic message
+ * must let them through unchanged.
+ */
+export function isAiRefusal(error: unknown): error is HttpException {
+  if (!(error instanceof HttpException)) return false;
+  const body = error.getResponse();
+  const code = typeof body === 'object' && body ? (body as { error?: unknown }).error : undefined;
+  return (
+    code === 'AI_QUOTA_EXCEEDED' || code === 'AI_BUDGET_EXHAUSTED' || code === 'AI_INPUT_TOO_LARGE'
+  );
+}

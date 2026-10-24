@@ -1,4 +1,5 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { isAiRefusal } from './ai-caller';
 
 /**
  * UC-016: bounded batch block edits. This module stays pure so the strict
@@ -94,5 +95,6 @@ export function parseBatchActions(value: unknown, question: string): BatchBlockA
  */
 export function isBatchControlError(error: unknown): boolean {
   if (error instanceof ConflictException || error instanceof ForbiddenException) return true;
+  if (isAiRefusal(error)) return true;
   return error instanceof Error && error.message === 'LLM_REQUEST_ABORTED';
 }

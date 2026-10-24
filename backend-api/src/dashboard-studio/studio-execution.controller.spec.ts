@@ -41,7 +41,7 @@ describe('T7 execution POST disconnect boundary', () => {
     };
     const controller = new StudioExecutionController(service as any);
     expect(await controller.retry('id', {}, req, res)).toEqual({ status: 'succeeded' });
-    expect(service.retry).toHaveBeenCalledWith('id', {}, 7, expect.any(AbortSignal));
+    expect(service.retry).toHaveBeenCalledWith('id', {}, 7, expect.any(AbortSignal), 0);
   });
   it.each([9, 4])(
     'forwards the exact request epoch %s for explicit remix confirmation',

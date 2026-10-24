@@ -137,6 +137,7 @@ describe('BiService dashboard editor boundaries', () => {
       generate: jest.fn(),
       proposeBlockLayout: jest.fn(),
       classifyBlockIntent: jest.fn(),
+      assertAiCalls: jest.fn().mockResolvedValue(undefined),
       analysis: jest.fn(async () => ({ data: analysis })),
       preview: jest.fn().mockResolvedValue({ data: { widgets: [{ rows: [{ value: 150 }] }] } }),
       save: jest.fn().mockResolvedValue({ data: { id: dashboardId, revision: 'b'.repeat(64) } }),
@@ -524,6 +525,7 @@ describe('BiService dashboard editor boundaries', () => {
       }),
       actor,
       undefined,
+      0,
     );
     expect(result.item).toMatchObject({ key: existing.key, kind: 'draft', definition, height: 7 });
     expect(result.editMode).toBe('content');
@@ -652,6 +654,7 @@ describe('BiService dashboard editor boundaries', () => {
       expect.objectContaining({ sourceId: 1, metricId: 13 }),
       actor,
       undefined,
+      0,
     );
     expect(access.assert).toHaveBeenCalledWith('metric', 13, actor, 'read');
     expect(dashboards.save).not.toHaveBeenCalled();
@@ -834,6 +837,7 @@ describe('BiService dashboard editor boundaries', () => {
       }),
       actor,
       undefined,
+      0,
     );
     expect(result.editMode).toBe('content');
     expect(result.saveRequested).toBe(true);
@@ -1053,6 +1057,7 @@ describe('BiService dashboard editor boundaries', () => {
       expect.objectContaining({ prompt: '제목 바꾸고 저장해 줘' }),
       actor,
       undefined,
+      0,
     );
     expect(dashboards.save).not.toHaveBeenCalled();
   });
@@ -1098,6 +1103,7 @@ describe('BiService dashboard editor boundaries', () => {
       }),
       actor,
       undefined,
+      0,
     );
     expect(result.targetKey).toBe('block-2');
     expect(result.item).toMatchObject({ key: 'block-2', kind: 'draft', title: 'AI 비용' });
@@ -1243,6 +1249,7 @@ describe('BiService dashboard editor boundaries', () => {
       expect.objectContaining({ selectedWidget: 1 }),
       actor,
       undefined,
+      0,
     );
     expect(result.targetKey).toBe('block-2');
     expect(result.item).toMatchObject({ key: 'block-2', kind: 'draft' });
@@ -1301,6 +1308,7 @@ describe('BiService dashboard editor boundaries', () => {
       expect.objectContaining({ selectedWidget: 0 }),
       actor,
       undefined,
+      0,
     );
     expect(result.targetKey).toBe('block-1');
     expect(result.item).toMatchObject({ key: 'block-1' });
@@ -1378,6 +1386,7 @@ describe('BiService dashboard editor boundaries', () => {
       expect.objectContaining({ selectedWidget: 1, prompt: '소수 자릿수를 1자리로 바꿔 줘' }),
       actor,
       undefined,
+      0,
     );
     expect(dashboards.proposeBlockLayout).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1726,6 +1735,7 @@ describe('BiService dashboard editor boundaries', () => {
       expect.objectContaining({ prompt: '제목을 바꿔 줘' }),
       actor,
       undefined,
+      0,
     );
     expect(dashboards.save).not.toHaveBeenCalled();
   });

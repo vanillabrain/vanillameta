@@ -170,7 +170,7 @@ describe('dashboard assistant', () => {
     const controller = new AiController(ai, service);
     const body = request();
     controller.dashboardAssistant(body, { user: { accessKeyData: { id: 7 } } });
-    expect(handler).toHaveBeenCalledWith(body, 7);
+    expect(handler).toHaveBeenCalledWith(body, 7, undefined, 0);
     expect(Reflect.getMetadata('path', controller.dashboardAssistant)).toBe('dashboard-assistant');
   });
   it('requires ownership before validation, source reads or model calls', async () => {
@@ -284,7 +284,7 @@ describe('dashboard assistant', () => {
     expect(result.data.context.widgets[1].datas[0].device).toContain('[truncated]');
   });
   it('uses actual environment provider metadata', async () => {
-    process.env.AI_PROVIDER = 'api';
+    process.env.AI_PROVIDER = 'openai';
     process.env.AI_MODEL = 'configured-model';
     const result: any = await service.assistant(request(), 7, undefined, 0);
     expect('data' in result && result.data.ai).toEqual({
