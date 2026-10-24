@@ -136,14 +136,18 @@
 - **api 재생성**: 변형(예산·키 없음·제한) 시험마다 api를 다시 만들어 메모리의 제안이 사라지고 컨테이너 로그도 사라졌다. S1~S10 컨테이너 로그는 남아 있지 않고, 위 결과는 시나리오 스크립트가 기록한 JSON에서 가져왔다.
 - **초안 세션 잠금**: 갱신 경로 밖에서 토큰을 바꾸면 편집기가 "Draft session token changed"로 잠겼다. 시험 도구가 만든 상황으로 보이며 실제 발생 경로는 확인하지 못했다.
 
-### 이 문서의 테스트 수(한 번의 실행, 커밋 `f214b678`, Node 26.12.1)
+### 이 문서의 테스트 수(`audit` 에이전트가 격리 worktree에서 실행, Node 26.12.1)
 
 | 항목 | 결과 |
 | --- | --- |
-| 백엔드 jest | 339 스위트 통과·13 건너뜀, **5,880 테스트 통과**·188 건너뜀(총 6,068), 실패 0(`studio-remix` 깜빡임 미발생). `tsc` 통과, eslint 오류 0 |
-| 프런트엔드 vitest | 215 파일, **3,418 테스트 통과**, 실패 0. `tsc`·eslint 오류 0 |
-| 반복 | `studioAiErrors` 10회 20/20, `StudioCreate`+`StudioConversation.activity`+`studioConversation` 10회 80/80 |
-| 변형 검사 | 429 분기 제거 → 3개 실패, `SERVER_WORDED`에서 `RATE_LIMITED` 제거 → 2개 실패(둘 다 이름 있는 테스트) |
+| 백엔드 jest(커밋 `3d995bea`) | 339 스위트 통과·13 건너뜀, **5,889 테스트 통과**·188 건너뜀(총 6,077), 실패 0(`studio-remix` 깜빡임 미발생). `tsc` 통과, `eslint --quiet` 오류 0. 모델 실패 로그와 관련한 세 스펙(`studio-run`·`studio-creation`·`studio-execution`)은 5회 모두 219/219 |
+| 프런트엔드 vitest(커밋 `f214b678`, 이후 프런트엔드 변경 없음) | 215 파일, **3,418 테스트 통과**, 실패 0. `tsc`·eslint 오류 0 |
+| 프런트엔드 반복 | `studioAiErrors` 10회 20/20, `StudioCreate`+`StudioConversation.activity`+`studioConversation` 10회 80/80 |
+| 프런트엔드 변형 검사 | 429 분기 제거 → 3개 실패, `SERVER_WORDED`에서 `RATE_LIMITED` 제거 → 2개 실패(둘 다 이름 있는 테스트) |
+| 백엔드 변형 검사(`3d995bea`) | M1 생성 서비스의 로그 삭제 → 5개 실패, M2 실행 서비스(`studio-run`)의 로그 삭제 → 3개 실패, M3 `createProposal` 단계에 로그를 다시 넣어 이중 기록 → 1개 실패("leaves the creation step to the creation service…"), M4 일반 503에 `cause` 추가 → 1개 실패. 변형 없이는 모두 통과 |
+| 이 문서의 숫자 출처 | 위 개수는 `audit`가 보고한 값이며 실행 로그는 저장소 밖(`/private/tmp/claude-501/`)에 있다 |
+
+모델 실패 로그 변경의 경위: 처음 `151fcd46`은 실행 서비스에서 로그를 남겨, `createProposal` 단계에서는 이중 기록이고 `proposeSemantics` 단계에서는 `studio-run`이 이미 모든 오류를 일반 503으로 감싼 뒤라 코드가 아닌 래퍼 클래스 이름이 남았다(감사에서 테스트 1개 실패, 검토에서 이중 기록 지적). `23530447`과 `3d995bea`에서 로그를 코드가 아직 남아 있는 곳(생성 서비스, 실행 서비스가 쓰는 `studio-run`의 `propose`)으로 옮기고, 알 수 없는 오류에는 `cause`를 붙이지 않게 했다(오류 보고 도구가 `cause`를 따라간다).
 
 ### 실행하지 않은 것(통과로 쓰지 않는다)
 
