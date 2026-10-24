@@ -231,6 +231,48 @@ describe('postNdjson', () => {
     expect(error.name).toBe('AbortError');
   });
 
+  it('keeps a long run alive for as long as heartbeats keep coming, however long it lasts in total', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const beats = 6; // 6 x 600 ms = 3.6 s of run, with a 1 s idle limit: only a re-armed watchdog survives
+      const fetchImpl = vi.fn(async (_url: string, init: RequestInit) => {
+        const signal = init.signal as AbortSignal;
+        let sent = 0;
+        return {
+          status: 201,
+          ok: true,
+          headers: { get: () => NDJSON },
+          body: {
+            getReader: () => ({
+              read: () =>
+                new Promise((resolve, reject) => {
+                  const timer = setTimeout(() => {
+                    sent += 1;
+                    resolve({
+                      done: false,
+                      value: encoder.encode(
+                        sent <= beats ? line({ type: 'heartbeat' }) : line({ type: 'result', data: 'finished' }),
+                      ),
+                    });
+                  }, 600);
+                  signal.addEventListener('abort', () => {
+                    clearTimeout(timer);
+                    reject(new Error('aborted'));
+                  });
+                }),
+              cancel: async () => undefined,
+            }),
+          },
+        };
+      });
+      const pending = postNdjson('/x', {}, { fetchImpl: fetchImpl as any, idleMs: 1000 }).catch(e => e);
+      await vi.advanceTimersByTimeAsync(6000);
+      expect(await pending).toBe('finished');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('gives up on a server that went silent', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     try {
