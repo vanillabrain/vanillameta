@@ -20,7 +20,7 @@ export class StreamApiError extends Error {
 }
 
 const IDLE_MS = 30_000; // the server sends a heartbeat every 5 s
-const MAX_LINE = 4 * 1024 * 1024; // a result carries the whole run, so this is generous
+const MAX_LINE = 4 * 1024 * 1024; // characters of one line; a result carries the whole run, so generous
 
 const isNdjson = (response: Response) =>
   (response.headers.get('content-type') ?? '').toLowerCase().includes('application/x-ndjson');
@@ -104,7 +104,8 @@ export async function postNdjson(url: string, body: unknown, options: PostNdjson
       const detail = await readJson(response);
       // The guard answers with a string payload: {success:false, code:401, data:'accessTokenExpired'}.
       const expired = responseMessage(detail) === 'accessTokenExpired';
-      if (!expired) throw new StreamApiError('HTTP 401', { status: 401, data: detail });
+      // A request that sent no token is never renewed (axios does the same): it is simply a 401.
+      if (!expired || !context.token) throw new StreamApiError('HTTP 401', { status: 401, data: detail });
       // The same renewal the axios interceptor runs; one retry, with the renewed token.
       const token = await renewAccessTokenForFetch(context);
       touch(); // the renewal may have waited for the cross-tab lock
@@ -135,16 +136,18 @@ export async function postNdjson(url: string, body: unknown, options: PostNdjson
       touch();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      if (buffer.length > MAX_LINE) throw new StreamApiError('The stream carried a line that is too long.');
-      let newline: number;
-      while ((newline = buffer.indexOf('\n')) >= 0) {
-        const outcome = handle(buffer.slice(0, newline));
-        buffer = buffer.slice(newline + 1);
+      // One split per chunk (not one slice per line): a chunk can carry many lines.
+      const parts = buffer.split('\n');
+      buffer = parts.pop() ?? '';
+      for (const part of parts) {
+        const outcome = handle(part);
         if (outcome.done) {
           void reader.cancel().catch(() => undefined);
           return outcome.value;
         }
       }
+      // What is left has no newline yet: it is one unfinished line, and that is what the cap bounds.
+      if (buffer.length > MAX_LINE) throw new StreamApiError('The stream carried a line that is too long.');
     }
     buffer += decoder.decode();
     const last = handle(buffer);

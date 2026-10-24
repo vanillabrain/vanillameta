@@ -179,6 +179,29 @@ describe('postNdjson', () => {
     expect(error.message).toContain('too long');
   });
 
+  it('accepts more than the cap in total when it is made of complete lines', async () => {
+    const heartbeat = line({ type: 'heartbeat' });
+    const many = heartbeat.repeat(Math.ceil((5 * 1024 * 1024) / heartbeat.length));
+    expect(many.length).toBeGreaterThan(4 * 1024 * 1024);
+    const chunk = many + line({ type: 'result', data: 'after many lines' });
+    expect(await postNdjson('/x', {}, { fetchImpl: (async () => streamResponse([chunk])) as any })).toBe('after many lines');
+  });
+
+  it('does not try to renew a 401 for a request that sent no token, and reports it as a 401', async () => {
+    vi.resetModules();
+    vi.doMock('@/helpers/apiHelper', () => ({
+      fetchAuthContext: () => ({ baseURL: '/v1', token: null, epoch: null }),
+      renewAccessTokenForFetch: (...args: unknown[]) => renew(...args),
+      responseMessage: (data: any) => (typeof data?.data === 'string' ? data.data : undefined),
+    }));
+    const { postNdjson: fresh } = await import('./ndjsonClient');
+    const expired = async () => jsonResponse(401, { success: false, code: 401, data: 'accessTokenExpired' });
+    const error: any = await fresh('/x', {}, { fetchImpl: expired as any }).catch(e => e);
+    expect(error.response.status).toBe(401);
+    expect(renew).not.toHaveBeenCalled();
+    vi.doUnmock('@/helpers/apiHelper');
+  });
+
   it('reports a stream that ends without an outcome as an unknown result, with no response', async () => {
     const fetchImpl = async () => streamResponse([line({ type: 'start' }), line({ type: 'heartbeat' })]);
     const error: any = await postNdjson('/x', {}, { fetchImpl: fetchImpl as any }).catch(e => e);
