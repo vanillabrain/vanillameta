@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AI_BLOCK_MESSAGES, aiBlockMessage, executionSummary, retryStep, validateExecution } from './studioExecution';
 import { creationError } from './studioCreation';
-import { aiRefusalMessage } from './studioAiMessages';
+import { aiRefusalMessage, RATE_LIMITED_MESSAGE } from './studioAiMessages';
 import { errorMessage } from '../dashboardPreview';
 
 const blockedRun = (errorCode: string, retryable = false) =>
@@ -76,6 +76,7 @@ describe('creation errors from the AI', () => {
   it('ignores a refusal message that is empty or too long and falls back to a fixed sentence', () => {
     expect(creationError(body(429, 'AI_QUOTA_EXCEEDED', ''))).toBe(AI_BLOCK_MESSAGES.AI_QUOTA_EXCEEDED);
     expect(creationError(body(429, 'AI_QUOTA_EXCEEDED', 'x'.repeat(400)))).toBe(AI_BLOCK_MESSAGES.AI_QUOTA_EXCEEDED);
+    expect(creationError(body(429, 'RATE_LIMITED', 'x'.repeat(400)))).toBe(RATE_LIMITED_MESSAGE);
     expect(creationError(body(503, 'AI_NOT_CONFIGURED', undefined as any))).toBe(AI_BLOCK_MESSAGES.AI_NOT_CONFIGURED);
   });
 
@@ -86,14 +87,20 @@ describe('creation errors from the AI', () => {
   });
 
   it('shows the request-limit sentence, not the file-format advice, when the generate click is throttled', () => {
-    const message = creationError(body(429, 'RATE_LIMITED', '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'));
-    expect(message).toBe('요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.');
+    const message = creationError(body(429, 'RATE_LIMITED', '잠시 뒤에 다시 눌러 주세요.'));
+    expect(message).toBe('잠시 뒤에 다시 눌러 주세요.');
     expect(message).not.toContain('파일 형식');
-    expect(creationError({ response: { status: 429 } })).not.toContain('파일 형식');
+    expect(creationError({ response: { status: 429 } })).toBe(RATE_LIMITED_MESSAGE);
+  });
+
+  it('words a throttled upload and a bare 429 the same way, whatever the context', () => {
+    expect(creationError({ response: { status: 429 } }, 'file')).toBe(RATE_LIMITED_MESSAGE);
+    expect(creationError(body(429, 'RATE_LIMITED', undefined as any), 'file')).toBe(RATE_LIMITED_MESSAGE);
+    expect(creationError({ response: { status: 429, data: 'Too Many Requests' } })).toBe(RATE_LIMITED_MESSAGE);
   });
 
   it('does not take another error code for an AI refusal', () => {
-    expect(creationError(body(429, 'SOMETHING_ELSE', 'private detail'))).not.toContain('private detail');
+    expect(creationError(body(429, 'SOMETHING_ELSE', 'private detail'))).toBe(RATE_LIMITED_MESSAGE);
   });
 });
 
@@ -121,11 +128,9 @@ describe('aiRefusalMessage', () => {
   });
 
   it('words the per-user request limit (429 RATE_LIMITED) too, with the server’s sentence or ours', () => {
-    expect(aiRefusalMessage(failure('RATE_LIMITED', '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'))).toBe(
-      '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.',
-    );
-    expect(aiRefusalMessage(failure('RATE_LIMITED'))).toBe('요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.');
-    expect(aiRefusalMessage(failure('RATE_LIMITED', 'x'.repeat(400)))).not.toContain('xxxx');
+    expect(aiRefusalMessage(failure('RATE_LIMITED', '서버가 쓴 문장'))).toBe('서버가 쓴 문장');
+    expect(aiRefusalMessage(failure('RATE_LIMITED'))).toBe(RATE_LIMITED_MESSAGE);
+    expect(aiRefusalMessage(failure('RATE_LIMITED', 'x'.repeat(400)))).toBe(RATE_LIMITED_MESSAGE);
   });
 
   it('reads a stream’s error event the same way, and ignores everything else', () => {

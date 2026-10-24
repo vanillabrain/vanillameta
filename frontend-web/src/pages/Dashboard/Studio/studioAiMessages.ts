@@ -10,8 +10,8 @@ export const AI_BLOCK_MESSAGES: Record<string, string> = {
   AI_INPUT_TOO_LARGE: 'AI에 보낼 내용이 너무 큽니다. 초안은 그대로입니다. 범위를 줄여 다시 시도해 주세요.',
 };
 
-/** Gateway failures the server words itself and that no retry of the same request will fix quickly. */
-// RATE_LIMITED is the per-user request limit (UserThrottleGuard), answered before any model call.
+/** Failures the server words itself: gateway failures a retry will not fix quickly, and the per-user request limit. */
+// RATE_LIMITED is UserThrottleGuard's limit, sent by the AI, upload and read routes alike; it clears within a minute.
 const SERVER_WORDED = ['LLM_TIMEOUT', 'LLM_UNAVAILABLE', 'LLM_OUTPUT_TRUNCATED', 'RATE_LIMITED'];
 export const RATE_LIMITED_MESSAGE = '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
 const AI_TROUBLE = 'AI 연결 또는 처리 상태를 확인하지 못했습니다. 기존 입력을 유지했습니다. 잠시 후 다시 시도해 주세요.';
