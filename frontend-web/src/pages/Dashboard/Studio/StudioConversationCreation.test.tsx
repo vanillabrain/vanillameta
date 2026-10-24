@@ -288,3 +288,51 @@ it('UC035 keeps refinement collapsed, preserves an uncertain question and locks 
   expect(clarify.mock.calls[0][1]).toMatchObject({ targetBlockIndex: 0, prompt: '제목만 합계로 바꿔 줘' });
   expect(save).not.toHaveBeenCalled();
 });
+
+const refusal = (status: number, error: string, message: string) =>
+  Object.assign(new Error('Request failed with status code ' + status), {
+    response: { status, data: { success: false, code: status, data: { error, message } } },
+  });
+
+it('shows the server’s quota sentence for a refused answer and offers no "same answer again" retry', async () => {
+  api.read.mockResolvedValue({
+    ...proposal,
+    proposalId: 'p1',
+    sourceRevision: 'a'.repeat(64),
+    preview: undefined,
+    clarifications: [
+      {
+        id: 'refundDenominator',
+        question: '분모?',
+        choices: [
+          { value: 'orders', label: '주문 건수' },
+          { value: 'amount', label: '매출 금액' },
+        ],
+      },
+    ],
+  });
+  const clarify = vi.fn().mockRejectedValue(refusal(429, 'AI_QUOTA_EXCEEDED', '이 계정의 AI 사용 한도에 도달했습니다.'));
+  render(<StudioConversationCreation run={run} onClarify={clarify} disabled={false} />);
+  fireEvent.change(await screen.findByRole('combobox', { name: '환불률 분모' }), { target: { value: 'amount' } });
+  fireEvent.click(screen.getByRole('button', { name: '답변하고 미리보기' }));
+  expect(await screen.findByText(/AI 사용 한도에 도달했습니다/)).toBeDefined();
+  // Nothing ran, so this is not an uncertain result: the choice stays editable and no retry-the-same prompt.
+  expect(screen.queryByRole('button', { name: '같은 답변으로 다시 확인' })).toBeNull();
+  expect((screen.getByRole('combobox', { name: '환불률 분모' }) as HTMLSelectElement).disabled).toBe(false);
+  expect(screen.queryByText(/생성안이 만료되었거나/)).toBeNull();
+});
+
+it('does not lock saving behind "the same edit again" when the refinement is refused for the budget', async () => {
+  api.read.mockResolvedValue({ ...proposal, proposalId: 'p1', sourceRevision: 'a'.repeat(64) });
+  const clarify = vi
+    .fn()
+    .mockRejectedValue(refusal(503, 'AI_BUDGET_EXHAUSTED', '이번 달 서비스 전체의 AI 사용량이 한도에 도달했습니다.'));
+  render(<StudioConversationCreation run={run} onClarify={clarify} onSave={vi.fn()} disabled={false} />);
+  fireEvent.click(await screen.findByText('이 생성안 수정'));
+  fireEvent.change(screen.getByLabelText('생성안에 다시 질문'), { target: { value: '제목만 합계로 바꿔 줘' } });
+  fireEvent.click(screen.getByRole('button', { name: '수정안 전체 미리보기' }));
+  expect(await screen.findByText(/서비스 전체의 AI 사용량이 한도에 도달했습니다/)).toBeDefined();
+  expect(screen.queryByRole('button', { name: '같은 수정 요청으로 다시 확인' })).toBeNull();
+  expect((screen.getByLabelText('생성안에 다시 질문') as HTMLTextAreaElement).disabled).toBe(false);
+  expect((screen.getByRole('button', { name: '제안 확인 후 비공개 저장' }) as HTMLButtonElement).disabled).toBe(false);
+});

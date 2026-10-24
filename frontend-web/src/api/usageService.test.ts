@@ -25,6 +25,9 @@ describe('AI usage', () => {
     expect(usageChipText(usage)).toBe('AI 호출 3/30');
     expect(isAtLimit(usage)).toBe(false);
     expect(isAtLimit(validateAiUsage(reply(quotaWindow(30, 30)))!)).toBe(true);
+    // The monthly tokens refuse as well, whatever the daily count says.
+    expect(isAtLimit(validateAiUsage(reply(quotaWindow(3, 30), quotaWindow(500000, 500000)))!)).toBe(true);
+    expect(isAtLimit(validateAiUsage(reply(quotaWindow(3, 30), quotaWindow(0, 0)))!)).toBe(true);
   });
 
   it('states remaining calls, the reset time and that one action can make several calls', () => {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { AI_BLOCK_MESSAGES, aiBlockMessage, executionSummary, retryStep, validateExecution } from './studioExecution';
 import { creationError } from './studioCreation';
+import { aiRefusalMessage } from './studioAiMessages';
+import { errorMessage } from '../dashboardPreview';
 
 const blockedRun = (errorCode: string, retryable = false) =>
   validateExecution(
@@ -85,5 +87,60 @@ describe('creation errors from the AI', () => {
 
   it('does not take another error code for an AI refusal', () => {
     expect(creationError(body(429, 'SOMETHING_ELSE', 'private detail'))).not.toContain('private detail');
+  });
+});
+
+describe('aiRefusalMessage', () => {
+  const failure = (error: string, message?: string, status = 429) => ({
+    response: {
+      status,
+      data: { success: false, code: status, data: { error, ...(message === undefined ? {} : { message }) } },
+    },
+  });
+
+  it('uses the server’s sentence, or ours for the same code, for every refusal code', () => {
+    for (const code of Object.keys(AI_BLOCK_MESSAGES)) {
+      expect(aiRefusalMessage(failure(code, '서버 문구'))).toBe('서버 문구');
+      expect(aiRefusalMessage(failure(code))).toBe(AI_BLOCK_MESSAGES[code]);
+      expect(aiRefusalMessage(failure(code, 'x'.repeat(301)))).toBe(AI_BLOCK_MESSAGES[code]);
+    }
+  });
+
+  it('also covers the gateway failures the server words itself', () => {
+    expect(aiRefusalMessage(failure('LLM_TIMEOUT', 'AI 응답이 늦어 중단했습니다.', 504))).toBe(
+      'AI 응답이 늦어 중단했습니다.',
+    );
+    expect(aiRefusalMessage(failure('LLM_UNAVAILABLE', undefined, 502))).toContain('AI 연결');
+  });
+
+  it('reads a stream’s error event the same way, and ignores everything else', () => {
+    const fromStream = {
+      message: 'x',
+      response: { status: 429, data: { success: false, code: 429, data: { error: 'AI_QUOTA_EXCEEDED', message: '한도' } } },
+    };
+    expect(aiRefusalMessage(fromStream)).toBe('한도');
+    expect(aiRefusalMessage(failure('RATE_LIMITED', '너무 많은 요청'))).toBeUndefined();
+    expect(aiRefusalMessage(failure('toString', 'inherited key'))).toBeUndefined();
+    expect(aiRefusalMessage(undefined)).toBeUndefined();
+    expect(aiRefusalMessage(new Error('x'))).toBeUndefined();
+  });
+
+  it('never promises a reset time, since one code covers the daily calls and the monthly tokens', () => {
+    expect(AI_BLOCK_MESSAGES.AI_QUOTA_EXCEEDED).not.toMatch(/매일|오늘|초기화됩니다/);
+  });
+});
+
+describe('errorMessage', () => {
+  it('shows the server’s Korean sentence for a refusal body instead of axios’s English', () => {
+    const cause = {
+      message: 'Request failed with status code 429',
+      response: {
+        status: 429,
+        data: { success: false, code: 429, data: { error: 'RATE_LIMITED', message: '요청이 너무 많습니다.' } },
+      },
+    };
+    expect(errorMessage(cause)).toBe('요청이 너무 많습니다.');
+    expect(errorMessage({ message: 'Network Error' })).toBe('Network Error');
+    expect(errorMessage({ response: { data: { data: 'accessTokenExpired' } } })).toBe('accessTokenExpired');
   });
 });

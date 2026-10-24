@@ -7,6 +7,7 @@ import { CreationProposal, fetchStudioSources, StudioSource } from './studioCrea
 import { CreationClarificationRequest, StudioExecution, getExecutionCreation } from './studioExecution';
 import StudioConversationRefinement from './StudioConversationRefinement';
 import StudioSemanticReview from './StudioSemanticReview';
+import { aiRefusalMessage } from './studioAiMessages';
 
 /** A new dashboard never replaces the editor that initiated the conversation. */
 export default function StudioConversationCreation({
@@ -119,6 +120,12 @@ export default function StudioConversationCreation({
       await onClarify(run, answerRequest.current, controller.signal);
     } catch (cause) {
       if (!live.current) return;
+      const refusal = aiRefusalMessage(cause);
+      if (refusal) {
+        setAnswerUncertain(false);
+        setError(refusal);
+        return;
+      }
       const status = Number((cause as any)?.response?.status);
       const unknown = !status || status >= 500;
       setAnswerUncertain(unknown);

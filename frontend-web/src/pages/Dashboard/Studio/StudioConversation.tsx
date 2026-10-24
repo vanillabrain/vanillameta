@@ -32,6 +32,7 @@ import {
   validateStudioRun,
 } from './studioRunTransport';
 import { useAiLabel, useAiNote } from '@/hooks/useAiStatus';
+import { aiRefusalMessage } from './studioAiMessages';
 type Props = {
   draft?: { text: string; onChange: (text: string) => void };
   context: StudioRunContext;
@@ -403,6 +404,13 @@ export default function StudioConversation({
       setNotice(answer);
     } catch (cause) {
       if (!mounted.current || dashboardId !== current.current.dashboardId) return;
+      const refusal = aiRefusalMessage(cause);
+      if (refusal) {
+        // A refusal is a clear answer: nothing ran, so the same request may be sent again later.
+        setCreationUncertain(false);
+        setCreationError(refusal);
+        return;
+      }
       const status = Number((cause as any)?.response?.status),
         unknown = !status || status >= 500;
       setCreationUncertain(unknown);

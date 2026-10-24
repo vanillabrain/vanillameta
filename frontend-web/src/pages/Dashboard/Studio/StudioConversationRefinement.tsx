@@ -5,6 +5,7 @@ import { Notice } from '@/components/ui/notice';
 import { CreationProposal } from './studioCreation';
 import { CreationClarificationRequest, StudioExecution } from './studioExecution';
 import { studioRequestId } from './studioApi';
+import { aiRefusalMessage } from './studioAiMessages';
 
 /** UC035: a bound preview edit never applies operations to the initiating editor. */
 export default function StudioConversationRefinement({
@@ -58,6 +59,14 @@ export default function StudioConversationRefinement({
       }
     } catch (cause) {
       if (!live.current) return;
+      const refusal = aiRefusalMessage(cause);
+      if (refusal) {
+        // Nothing ran: no "same request again" lock, which a spent budget could never satisfy.
+        setUncertain(false);
+        onLock(false);
+        setError(refusal);
+        return;
+      }
       const status = Number((cause as any)?.response?.status),
         unknown = !status || status >= 500;
       setUncertain(unknown);

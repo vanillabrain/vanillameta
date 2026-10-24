@@ -13,7 +13,7 @@ import { notifyAiUsageChanged, trackAiCall } from '@/api/usageService';
 
 const usage = (used: number, limit = 30) => ({
   daily: { used, limit, resetsAt: '2026-10-25T00:00:00.000Z' },
-  monthlyTokens: { used: 0, limit: 0, resetsAt: '2026-11-01T00:00:00.000Z' },
+  monthlyTokens: { used: 0, limit: 500000, resetsAt: '2026-11-01T00:00:00.000Z' },
 });
 const setHidden = (hidden: boolean) => Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
 const flush = () => act(async () => undefined);

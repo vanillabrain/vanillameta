@@ -7,6 +7,7 @@ import IconLogo from '@/assets/images/logo.svg?react';
 import { Notice as Alert } from '@/components/ui/notice';
 import { Button } from '@/components/ui/button';
 import StudioMetricPicker from './StudioMetricPicker';
+import AiUsageChip from './AiUsageChip';
 import { Spinner } from '@/components/ui/spinner';
 import { TextField } from '@/components/ui/text-field';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -500,6 +501,7 @@ export default function StudioCreate() {
           <span className="studio-eyebrow">DASHBOARD STUDIO</span>
           <h1>내 데이터로 시작하기</h1>
         </div>
+        <AiUsageChip />
         <Button variant="outline" asChild>
           <Link to="/dashboard">대시보드 목록</Link>
         </Button>

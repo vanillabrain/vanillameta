@@ -50,6 +50,10 @@ export const responseData = (response: any) => {
 };
 export const errorMessage = (error: any) => {
   const payload = error?.response?.data;
-  const message = payload?.message || (typeof payload?.data === 'string' ? payload.data : undefined);
+  const message =
+    payload?.message ||
+    (typeof payload?.data === 'string' ? payload.data : undefined) ||
+    // The server's {success:false, data:{error, message}} body for a refusal (quota, throttle, …).
+    (typeof payload?.data?.message === 'string' ? payload.data.message : undefined);
   return (Array.isArray(message) ? message.join('\n') : message) || error?.message || 'Request failed.';
 };

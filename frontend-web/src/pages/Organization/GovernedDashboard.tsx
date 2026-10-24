@@ -38,10 +38,11 @@ export default function GovernedDashboard() {
   const orgId = Number(params.orgId),
     dashboardId = Number(params.dashboardId);
   const root = `/${orgId}/dashboards/${dashboardId}/view`;
-  const aiLabel = useAiLabel();
   const [catalog, setCatalog] = useState<ViewCatalog | null>(null),
     [data, setData] = useState<ViewResult | null>(null),
     [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
+  // Asked only when this view offers the assistant (it is off unless the operator turned it on).
+  const aiLabel = useAiLabel(!!catalog?.capabilities.ai);
   const [filters, setFilters] = useState<ViewFilter[]>([]),
     [column, setColumn] = useState(''),
     [values, setValues] = useState<unknown[]>([]),

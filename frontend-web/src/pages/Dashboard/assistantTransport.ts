@@ -9,7 +9,7 @@ export const messageText = (message: UIMessage) =>
     .map(part => (part.type === 'text' ? part.text : ''))
     .join('\n');
 
-/** Keep existing authenticated APIs and Codex's complete-response contract; no simulated token streaming. */
+/** Keep existing authenticated APIs and their complete-response contract; no simulated token streaming. */
 export function assistantTransport(context: () => any): ChatTransport<AssistantMessage> {
   return {
     async sendMessages({ messages, body, abortSignal }) {
