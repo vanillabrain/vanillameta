@@ -49,6 +49,7 @@ const renderPage = (entry = '/data/source/create') =>
 const submitMysql = async () => {
   renderPage();
   fireEvent.click(await screen.findByText('MySQL'));
+  const form = document.querySelector('form') as HTMLFormElement;
   for (const [name, value] of [
     ['name', 'beta'],
     ['host', 'db'],
@@ -57,7 +58,11 @@ const submitMysql = async () => {
     ['password', 'p'],
     ['database', 'd'],
   ]) {
-    fireEvent.change(document.querySelector(`input[name="${name}"]`)!, { target: { name, value } });
+    const input = form.elements.namedItem(name) as HTMLInputElement;
+    fireEvent.change(input, { target: { name, value } });
+    // DatabaseForm reads `event.target.<field>.value`; browsers expose a form's controls by name
+    // (even shadowing `form.name`), jsdom does not, so mirror that here.
+    Object.defineProperty(form, name, { value: input, configurable: true });
   }
   fireEvent.click(screen.getByRole('button', { name: 'TEST CONNECT' }));
 };
