@@ -36,7 +36,7 @@ export class StudioExecutionController {
       res,
       signal =>
         this.executions.retry(id, body, req.user?.accessKeyData?.id, signal, requestEpoch(req)),
-      { watch: emit => this.executions.watch(`run:${id}`, emit) },
+      { watch: emit => this.executions.watch(`run:${req.user?.accessKeyData?.id}:${id}`, emit) },
     );
   }
   @Post('runs/:id/cancel')
@@ -75,7 +75,7 @@ export class StudioExecutionController {
           signal,
           requestEpoch(req),
         ),
-      { watch: emit => this.executions.watch(`run:${id}`, emit) },
+      { watch: emit => this.executions.watch(`run:${req.user?.accessKeyData?.id}:${id}`, emit) },
     );
   }
   @UserThrottle('ai')
@@ -97,7 +97,7 @@ export class StudioExecutionController {
           signal,
           requestEpoch(req),
         ),
-      { watch: emit => this.executions.watch(`run:${id}`, emit) },
+      { watch: emit => this.executions.watch(`run:${req.user?.accessKeyData?.id}:${id}`, emit) },
     );
   }
   @Post('runs/:id/creation')

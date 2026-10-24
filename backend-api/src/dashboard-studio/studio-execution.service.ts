@@ -300,9 +300,10 @@ export class StudioExecutionService implements OnModuleInit {
     return ids;
   }
   /**
-   * Progress events of a run, for a client that asked for a stream. A key is `run:<runId>` (retry,
+   * Progress events of a run, for a client that asked for a stream. A key is `run:<actor>:<runId>` (retry,
    * creation message/clarify) or `req:<actor>:<requestId>` for a create, whose run does not exist yet.
-   * Returns the unsubscribe.
+   * Both carry the actor and a run only publishes under its own actor's keys, so a user who knows another
+   * user's run id can register a watcher but never receives its events. Returns the unsubscribe.
    */
   watch(key: string, listener: (event: StreamEvent) => void) {
     const set = this.watchers.get(key) ?? new Set();
@@ -315,7 +316,7 @@ export class StudioExecutionService implements OnModuleInit {
   }
   /** One `step` event per persisted transition: ids, statuses and error codes, never content. */
   private publish(row: StudioExecution, state: StudioExecutionState) {
-    const keys = [`run:${row.runId}`, `req:${row.actorId}:${row.requestId}`];
+    const keys = [`run:${row.actorId}:${row.runId}`, `req:${row.actorId}:${row.requestId}`];
     if (!keys.some(key => this.watchers.has(key))) return;
     const event: StreamEvent = {
       type: 'step',

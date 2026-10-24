@@ -78,16 +78,16 @@ describe('execution POSTs as an NDJSON stream', () => {
 
   it.each([
     ['create', (c: any, r: any, w: any) => c.create({ requestId: 'req-1' }, r, w), 'req:7:req-1'],
-    ['retry', (c: any, r: any, w: any) => c.retry('run-9', {}, r, w), 'run:run-9'],
+    ['retry', (c: any, r: any, w: any) => c.retry('run-9', {}, r, w), 'run:7:run-9'],
     [
       'creationMessage',
       (c: any, r: any, w: any) => c.creationMessage('run-9', {}, r, w),
-      'run:run-9',
+      'run:7:run-9',
     ],
     [
       'clarifyCreation',
       (c: any, r: any, w: any) => c.clarifyCreation('run-9', {}, r, w),
-      'run:run-9',
+      'run:7:run-9',
     ],
   ])('%s streams the persisted steps and then the result, watching %#', async (name, call, key) => {
     let listener: (event: any) => void = () => undefined;

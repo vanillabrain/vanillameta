@@ -934,12 +934,21 @@ describe('T7 durable executions', () => {
   it('also reaches a watcher of the run id (retry, creation messages) and stops after unsubscribe', async () => {
     const first = await service.create(body, 7, undefined, 0);
     const byRun: any[] = [];
-    const off = service.watch(`run:${first.runId}`, event => byRun.push(event));
+    const off = service.watch(`run:7:${first.runId}`, event => byRun.push(event));
     await service.retry(first.runId, { stepId: 'preview' }, 7, undefined, 0).catch(() => undefined);
     const seen = byRun.length;
     off();
     await service.retry(first.runId, { stepId: 'preview' }, 7, undefined, 0).catch(() => undefined);
     expect(byRun.length).toBe(seen);
+  });
+
+  it('never delivers a run’s events to another user’s watcher, even one that knows the run id', async () => {
+    const first = await service.create(body, 7, undefined, 0);
+    const stolen: any[] = [];
+    service.watch(`run:8:${first.runId}`, event => stolen.push(event));
+    service.watch(`req:8:${body.requestId}`, event => stolen.push(event));
+    await service.retry(first.runId, { stepId: 'preview' }, 7, undefined, 0).catch(() => undefined);
+    expect(stolen).toEqual([]);
   });
 
   it('keeps running when a watcher throws', async () => {
