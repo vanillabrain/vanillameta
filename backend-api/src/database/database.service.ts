@@ -1,4 +1,9 @@
-import { lockSourceActor, assertSourceOwner, sourceWriteFields } from './source-write-lock';
+import {
+  lockSourceActor,
+  assertSourceOwner,
+  sourceWriteFields,
+  sourceWriteTransaction,
+} from './source-write-lock';
 import { lockMetricSources } from '../metric/metric-write-lock';
 import { serializeMetadataWork, metadataTransaction } from '../common/metadata-work';
 import {
@@ -31,6 +36,7 @@ import { AnalysisUpload, DuckDBService } from '../analysis/duckdb.service';
 import { diffFileSchema } from './file-schema-diff';
 import { FileCorrection } from '../analysis/file-correction';
 import { assertSourceEngineAllowed, isSourceEngineAllowed } from '../connection/source-type-policy';
+import { UserStorageService } from './user-storage.service';
 
 const UPLOAD_TABLE = 'uploaded_data';
 /** Internal hook: a durable receipt can commit atomically with the source pointer. */
@@ -49,6 +55,7 @@ export class DatabaseService {
     @InjectRepository(TableQuery) private tableQueryRepository: Repository<TableQuery>,
     private readonly connectionService: ConnectionService,
     private readonly duckdbService?: DuckDBService,
+    private readonly storage?: UserStorageService,
   ) {}
 
   private validateId(id: unknown): number {
@@ -119,8 +126,28 @@ export class DatabaseService {
     });
   }
 
+  private async incomingBytes(file: AnalysisUpload): Promise<number> {
+    if (Number.isSafeInteger(file?.size)) return file.size;
+    if (file?.buffer) return file.buffer.length;
+    if (file?.path) return (await fs.stat(file.path)).size;
+    return 0;
+  }
+
+  /**
+   * Refuses with 403 UPLOAD_QUOTA_EXCEEDED when the user's stored files plus these bytes (and, for a
+   * new source, the source count) would pass the per-user limits. Also called by file refresh before
+   * it stages an input. Without an owner or a storage service (unit tests) nothing is checked.
+   */
+  async assertUploadWithinLimits(ownerId: number | undefined, bytes: number, newSource = false) {
+    if (!this.storage || !Number.isSafeInteger(ownerId)) return;
+    await this.storage.assertWithin(this.databaseRepository.manager, ownerId, { bytes, newSource });
+  }
+
   /** Preserve raw files and import analytical data in the worker, leaving metadata in TypeORM. */
   async uploadFile(file: AnalysisUpload, ownerId?: number, expectedEpoch?: number) {
+    // Cheap early refusal, before the file is converted. The check under the actor lock below is the
+    // one that cannot be raced.
+    await this.assertUploadWithinLimits(ownerId, await this.incomingBytes(file), true);
     const imported = await this.duckdbService.importFile(file);
     const baseName = path.basename(file.originalname, path.extname(file.originalname));
     const database = new Database();
@@ -148,8 +175,14 @@ export class DatabaseService {
           ],
         }),
       );
-      saved = await metadataTransaction(this.databaseRepository.manager, async manager => {
+      saved = await sourceWriteTransaction(this.databaseRepository.manager, async manager => {
         await lockSourceActor(manager, ownerId, expectedEpoch);
+        // Same-user uploads queue on the actor lock, so this sees every earlier one. The imported
+        // directory is on disk but not in a row yet, so its bytes are added by hand.
+        await this.storage?.assertWithin(manager, ownerId, {
+          bytes: await this.duckdbService.directoryBytes(path.dirname(imported.filename)),
+          newSource: true,
+        });
         return manager.save(Database, database);
       });
     } catch (error) {
@@ -343,6 +376,9 @@ export class DatabaseService {
     let committed = false;
     try {
       const state = await this.fileState(id, ownerId);
+      // A refresh passes a commit callback and was checked when its input was staged; counting it
+      // again here would count the staged copy and the new version as two files.
+      if (!commit) await this.assertUploadWithinLimits(ownerId, await this.incomingBytes(file));
       if (state.config.fileModel)
         throw new BadRequestException(
           '연결 모델은 고정 스냅샷입니다. 원본 품질을 다시 확인해 새 연결 소스로 만들어 주세요.',

@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import request = require('supertest');
@@ -132,6 +133,19 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
     ).rejects.toMatchObject({ status: 403 });
     expect(await db.manager.count(FileRefresh)).toBe(0);
     expect((await state()).revision).toBe(revision);
+  });
+  it('refuses a refresh the per-user storage limit rejects, before anything is staged', async () => {
+    const refuse = jest
+      .spyOn(files, 'assertUploadWithinLimits')
+      .mockRejectedValue(new ForbiddenException({ error: 'UPLOAD_QUOTA_EXCEEDED' }));
+    await expect(
+      service.start(id, file(), revision, randomUUID(), 1, undefined, AUTH_EPOCH),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(refuse).toHaveBeenCalledWith(1, file().buffer.length);
+    expect(await db.manager.count(FileRefresh)).toBe(0);
+    await expect(fs.readdir(path.join(root, 'refresh-input'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
   });
   it('does not infer a missing legacy job epoch from the current user', async () => {
     jest.spyOn(service as any, 'schedule').mockImplementation(() => undefined);

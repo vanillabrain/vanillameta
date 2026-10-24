@@ -1,5 +1,6 @@
 import { publicationConfigProblems } from '../dashboard-studio/studio-publication-expiry';
 import { userThrottleConfigProblems } from '../common/throttle/user-throttle.guard';
+import { uploadLimitProblems } from '../database/upload-limits';
 import { quotaConfigProblems } from '../usage/quota-config';
 
 const REQUIRED_SECRETS = [
@@ -79,6 +80,7 @@ export function productionConfigProblems(
     ...quotaConfigProblems(env),
     ...publicationConfigProblems(env),
     ...userThrottleConfigProblems(env),
+    ...uploadLimitProblems(env),
   );
 
   if (facts.localEnvFileExists)

@@ -319,6 +319,8 @@ export class FileRefreshService implements OnModuleDestroy, OnApplicationBootstr
         throw new ServiceUnavailableException(
           '보관 중인 갱신 입력이 3개입니다. 기존 작업을 확인하거나 취소한 뒤 다시 시도해 주세요.',
         );
+      // Staged inputs are counted in the user's stored bytes, so this must come before the copy.
+      await this.files.assertUploadWithinLimits?.(actor, size);
       const id = randomUUID(),
         directory = this.directory(id);
       await fs.mkdir(directory, { recursive: true, mode: 0o700 });

@@ -87,7 +87,8 @@ export class DuckDBService implements OnModuleDestroy {
     await fs.rename(temporary, path.join(directory, 'import.json'));
   }
 
-  private async directoryBytes(directory: string): Promise<number> {
+  /** Bytes under a directory, 0 when it is missing. Used for storage limits as well as import checks. */
+  async directoryBytes(directory: string): Promise<number> {
     let bytes = 0;
     try {
       for (const entry of await fs.readdir(directory, { withFileTypes: true })) {

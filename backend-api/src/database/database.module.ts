@@ -2,6 +2,7 @@ import { FileRefresh } from './entities/file-refresh.entity';
 import { FileRefreshService } from './file-refresh.service';
 import { FileRefreshController, FileRefreshOwnerGuard } from './file-refresh.controller';
 import { SourceDeletionService } from './source-deletion.service';
+import { UserStorageService } from './user-storage.service';
 import { SourceDeletionController } from './source-deletion.controller';
 import { SourceDeleteReceipt } from './entities/source-delete-receipt.entity';
 import { Module } from '@nestjs/common';
@@ -36,6 +37,7 @@ import { SqlValidationModule } from '../common/security/sql-validation.module';
     FileRefreshService,
     FileRefreshOwnerGuard,
     DatabaseService,
+    UserStorageService,
     JwtService,
   ],
   exports: [DatabaseService],
