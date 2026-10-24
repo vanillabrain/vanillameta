@@ -12,6 +12,8 @@ import { studioKeys } from './studio-document';
 import { StudioOperation } from './studio-contract';
 import { compileConditionDefinition, conditionColumns } from '../bi/source-condition-definition';
 import { studioDigest } from './studio-legacy';
+import { aiNotConfigured } from '../ai/ai-caller';
+import { isAiConfigured } from '../ai/providers/ai-config';
 
 @Injectable()
 export class StudioRunService {
@@ -81,7 +83,6 @@ export class StudioRunService {
     const abort = () => controller.abort();
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) abort();
-    const timer = setTimeout(abort, 175000);
     try {
       const proposal = await this.propose(body, prepared, controller.signal, actor, epoch);
       const checked = await this.studio.prepare(
@@ -108,17 +109,16 @@ export class StudioRunService {
       };
     } catch (error) {
       if (controller.signal.aborted)
+        throw new ServiceUnavailableException('AI 요청을 취소했습니다.');
+      if (error?.message === 'LLM_TIMEOUT')
         throw new ServiceUnavailableException(
-          signal?.aborted
-            ? 'AI 요청을 취소했습니다.'
-            : 'AI 응답 시간이 초과되었습니다. 기존 내용을 유지했습니다.',
+          'AI 응답 시간이 초과되었습니다. 기존 내용을 유지했습니다.',
         );
       if (error?.getStatus) throw error;
       throw new ServiceUnavailableException(
         'AI 연결 또는 응답을 확인하지 못했습니다. 기존 내용을 유지했습니다. 잠시 후 다시 시도해 주세요.',
       );
     } finally {
-      clearTimeout(timer);
       signal?.removeEventListener('abort', abort);
     }
   }
@@ -130,15 +130,11 @@ export class StudioRunService {
     actor: number,
     epoch: number,
   ) {
-    if (process.env.AI_PROVIDER !== 'codex')
-      throw new ServiceUnavailableException(
-        'Studio AI는 Codex gpt-6-luna 연결이 필요합니다. 다른 모델로 대체하지 않습니다.',
-      );
+    if (!isAiConfigured()) throw aiNotConfigured();
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) abort();
-    const timer = setTimeout(abort, 175000);
     try {
       if (prepared.conditionSemantics)
         await this.studio.validateConditionProposalContext(prepared, actor);
@@ -272,17 +268,16 @@ export class StudioRunService {
       return { intent: response.intent, operations, document: next, answer: response.answer };
     } catch (error) {
       if (controller.signal.aborted)
+        throw new ServiceUnavailableException('AI 요청을 취소했습니다.');
+      if (error?.message === 'LLM_TIMEOUT')
         throw new ServiceUnavailableException(
-          signal?.aborted
-            ? 'AI 요청을 취소했습니다.'
-            : 'AI 응답 시간이 초과되었습니다. 기존 내용을 유지했습니다.',
+          'AI 응답 시간이 초과되었습니다. 기존 내용을 유지했습니다.',
         );
       if (error?.getStatus) throw error;
       throw new ServiceUnavailableException(
         'AI 연결 또는 응답을 확인하지 못했습니다. 기존 내용을 유지했습니다. 잠시 후 다시 시도해 주세요.',
       );
     } finally {
-      clearTimeout(timer);
       signal?.removeEventListener('abort', abort);
     }
   }

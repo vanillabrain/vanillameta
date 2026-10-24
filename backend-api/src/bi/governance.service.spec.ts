@@ -68,8 +68,10 @@ describe('organization canonical queries over real SQLite metadata and DuckDB', 
     suffix: ' USD',
   });
   const beforeProvider = process.env.AI_PROVIDER;
+  const beforeAssistant = process.env.GOVERNANCE_AI_ENABLED;
   beforeEach(async () => {
     process.env.AI_PROVIDER = 'codex';
+    process.env.GOVERNANCE_AI_ENABLED = 'true';
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
@@ -203,6 +205,8 @@ describe('organization canonical queries over real SQLite metadata and DuckDB', 
     await db?.destroy();
     if (beforeProvider === undefined) delete process.env.AI_PROVIDER;
     else process.env.AI_PROVIDER = beforeProvider;
+    if (beforeAssistant === undefined) delete process.env.GOVERNANCE_AI_ENABLED;
+    else process.env.GOVERNANCE_AI_ENABLED = beforeAssistant;
   });
   const value = (r: any) => r.blocks.find(b => b.id === 'sales').datas[0].value;
   it('resolves JWT actor membership and keeps A/B totals, values, details, metadata and CSV isolated without a shared cache', async () => {
@@ -262,6 +266,24 @@ describe('organization canonical queries over real SQLite metadata and DuckDB', 
       service.query(org.id, 1, { viewRevision: a.viewRevision, column: 'cost' }, 2, 'values'),
     ).rejects.toMatchObject({ status: 400 });
     expect(connection.queryDuckDB).not.toHaveBeenCalled();
+  });
+  it('keeps the assistant off, and says so in the catalog, until the operator turns it on', async () => {
+    const on: any = await service.catalog(org.id, 1, 2);
+    expect(on.capabilities.ai).toBe(true);
+    delete process.env.GOVERNANCE_AI_ENABLED;
+    const off: any = await service.catalog(org.id, 1, 2);
+    expect(off.capabilities.ai).toBe(false);
+    await expect(
+      service.assistant(
+        org.id,
+        1,
+        { viewRevision: off.viewRevision, question: '매출 보여줘' },
+        2,
+        undefined,
+        0,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('keeps policy and mandatory values out of the AI context and denies forbidden AI before provider calls', async () => {
     const a: any = await service.catalog(org.id, 1, 2),

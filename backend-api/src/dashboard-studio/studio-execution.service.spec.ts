@@ -1,3 +1,4 @@
+import { HttpException } from '@nestjs/common';
 import { User } from '../user/entities/user.entity';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
@@ -890,6 +891,28 @@ describe('T7 durable executions', () => {
     const stored = JSON.stringify(await db.manager.find(StudioExecution));
     for (const secret of [body.prompt, 'ROW_SECRET', 'PROVIDER_SECRET', 'SQL token SECRET'])
       expect(stored).not.toContain(secret);
+  });
+  it.each([
+    [
+      new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429),
+      'AI_QUOTA_EXCEEDED',
+      false,
+    ],
+    [
+      new HttpException({ error: 'AI_BUDGET_EXHAUSTED', message: 'budget' }, 503),
+      'AI_BUDGET_EXHAUSTED',
+      false,
+    ],
+    [new Error('LLM_API_ERROR_500'), 'MODEL_FAILED', true],
+  ])('records a model failure as %#: code %s, retryable %s', async (error, code, retryable) => {
+    ai.callLlm.mockRejectedValueOnce(error);
+    const run = await service.create(body, 7, undefined, 0);
+    expect(run.status).toBe('failed');
+    expect(run.steps.find(s => s.stepId === 'proposeSemantics')).toMatchObject({
+      status: 'failed',
+      errorCode: code,
+      retryable,
+    });
   });
   it('replays durable ID with zero writes and rejects different hash/document/manual version', async () => {
     const first = await service.create(body, 7, undefined, 0);

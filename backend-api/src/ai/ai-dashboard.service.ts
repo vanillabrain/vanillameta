@@ -47,7 +47,7 @@ import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { AiService } from './ai.service';
 import { isAiRefusal } from './ai-caller';
 import { AiCaller } from './llm-gateway.service';
-import { aiProviderConfig } from './providers/ai-config';
+import { aiStatus } from './providers/ai-config';
 import { ConnectionService } from '../connection/connection.service';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { ResourceAction } from '../enterprise/resource-policy.service';
@@ -536,10 +536,10 @@ export class AiDashboardService {
     };
     const context = await this.previewContext(body, current, userId);
     if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
-    const config = aiProviderConfig();
+    const status = aiStatus();
     const ai = {
-      provider: config?.provider === 'codex' ? 'codex' : 'api',
-      requestedModel: config?.model ?? '',
+      provider: status.provider === 'codex' ? 'codex' : 'api',
+      requestedModel: status.model ?? '',
     };
     try {
       const answer = await this.ai.callLlm(
@@ -563,6 +563,7 @@ export class AiDashboardService {
       if (typeof answer !== 'string' || !answer.trim()) throw new Error('AI_EMPTY_RESPONSE');
       return this.success({ answer: answer.trim(), context, ai });
     } catch (error) {
+      if (isAiRefusal(error)) throw error;
       return {
         status: ResponseStatus.ERROR,
         message:

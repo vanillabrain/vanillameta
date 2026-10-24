@@ -1,3 +1,4 @@
+import { HttpException } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 
@@ -150,6 +151,31 @@ describe('AiService', () => {
     });
     expect(result.status).toBe(ResponseStatus.ERROR);
     expect(result.message).toBe('AI 쿼리 생성 중 오류가 발생했습니다.');
+  });
+
+  it('lets the gateway’s quota refusal through all three endpoints instead of a generic error', async () => {
+    process.env.AI_API_KEY = 'test-key';
+    const refusal = new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429);
+    gateway.generate.mockRejectedValue(refusal);
+    await expect(service.textToSql(1, '사용자 조회', caller)).rejects.toBe(refusal);
+    await expect(
+      service.recommendChart(
+        { databaseId: 1, datasetType: 'TABLE' as any, tableName: 'sales' },
+        caller,
+      ),
+    ).rejects.toBe(refusal);
+    await expect(service.dashboardInsight(1, 7, 0)).rejects.toBe(refusal);
+  });
+
+  it('tells screens which provider and model is really configured, without throwing on a bad setting', async () => {
+    process.env.AI_API_KEY = 'test-key';
+    process.env.AI_MODEL = 'gpt-x';
+    expect((service as any).providerMetadata()).toEqual({
+      provider: 'api',
+      requestedModel: 'gpt-x',
+    });
+    process.env.AI_PROVIDER = 'nonsense';
+    expect((service as any).providerMetadata()).toEqual({ provider: 'api', requestedModel: '' });
   });
 
   it('uses the DuckDB schema and dialect without invoking Knex', async () => {

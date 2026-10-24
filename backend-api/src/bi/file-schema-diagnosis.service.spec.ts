@@ -166,7 +166,8 @@ it('returns a static provider failure and never falls back to another model', as
     status: 503,
   });
   expect(a.ai.callLlm).toHaveBeenCalledTimes(1);
-  process.env.AI_PROVIDER = 'api';
+  delete process.env.AI_PROVIDER;
+  delete process.env.AI_API_KEY;
   const b = setup();
   await expect(b.service.diagnose(1, 'job', body, 7, undefined, 0)).rejects.toMatchObject({
     status: 503,

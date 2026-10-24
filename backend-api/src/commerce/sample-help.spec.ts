@@ -91,7 +91,8 @@ describe('opt-in sample error help', () => {
 
   it('keeps manual retry usable when AI is unavailable and never uses the API fallback', async () => {
     const { diagnostic } = await fail();
-    process.env.AI_PROVIDER = 'api';
+    delete process.env.AI_PROVIDER;
+    delete process.env.AI_API_KEY;
     await expect(
       service.sampleHelp(7, { requestId: diagnostic.requestId }, undefined, 0),
     ).rejects.toThrow('AI 도움을 사용할 수 없습니다.');

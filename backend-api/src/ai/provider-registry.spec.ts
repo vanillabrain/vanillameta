@@ -10,6 +10,8 @@ import {
   OPENAI_BASE_URL,
   aiConfigProblems,
   aiProviderConfig,
+  aiStatus,
+  governanceAssistantEnabled,
   isAiConfigured,
   resolveLanguageModel,
 } from './providers/provider-registry';
@@ -213,5 +215,28 @@ describe('the ceiling in the boot check', () => {
           env({ AI_PROVIDER: 'openai', AI_API_KEY: 'k', AI_GLOBAL_MONTHLY_TOKENS: value }),
         ),
       ).toEqual(['AI_GLOBAL_MONTHLY_TOKENS must be a positive integer']);
+  });
+});
+
+describe('what a screen may be told about the AI', () => {
+  it('reports the configured provider and model, never a secret', () => {
+    expect(aiStatus({ AI_API_KEY: 'k', AI_MODEL: 'gpt-x' } as any)).toEqual({
+      configured: true,
+      provider: 'openai',
+      model: 'gpt-x',
+    });
+    expect(JSON.stringify(aiStatus({ AI_API_KEY: 'sk-secret' } as any))).not.toContain('sk-secret');
+  });
+
+  it('says not configured for no setup and for a broken one, without throwing', () => {
+    const none = { configured: false, provider: null, model: null };
+    expect(aiStatus({} as any)).toEqual(none);
+    expect(aiStatus({ AI_PROVIDER: 'api', AI_API_KEY: 'k' } as any)).toEqual(none);
+  });
+
+  it('keeps the governed-dashboard assistant off unless the operator says true', () => {
+    expect(governanceAssistantEnabled({} as any)).toBe(false);
+    expect(governanceAssistantEnabled({ GOVERNANCE_AI_ENABLED: 'yes' } as any)).toBe(false);
+    expect(governanceAssistantEnabled({ GOVERNANCE_AI_ENABLED: 'true' } as any)).toBe(true);
   });
 });

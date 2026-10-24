@@ -83,6 +83,32 @@ export function isAiConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
   }
 }
 
+/**
+ * The governed-dashboard assistant sends an organization's labels and column names to the model provider.
+ * An organization administrator may have allowed AI while assuming a different processor, so for the
+ * external beta it is off until the operator turns it on (`GOVERNANCE_AI_ENABLED=true`).
+ */
+export const governanceAssistantEnabled = (env: NodeJS.ProcessEnv = process.env): boolean =>
+  env.GOVERNANCE_AI_ENABLED?.trim().toLowerCase() === 'true';
+
+/** What a screen may be told about the AI: whether it works and which model it asks. Never a secret. */
+export interface AiStatus {
+  configured: boolean;
+  provider: AiProviderName | null;
+  model: string | null;
+}
+
+export function aiStatus(env: NodeJS.ProcessEnv = process.env): AiStatus {
+  try {
+    const config = aiProviderConfig(env);
+    return config
+      ? { configured: true, provider: config.provider, model: config.model }
+      : { configured: false, provider: null, model: null };
+  } catch {
+    return { configured: false, provider: null, model: null };
+  }
+}
+
 /** Problems with the AI settings, as messages for the production boot check. */
 export function aiConfigProblems(env: NodeJS.ProcessEnv): string[] {
   try {

@@ -6,7 +6,9 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AiDashboardService } from './ai-dashboard.service';
 import { AiService } from './ai.service';
 import { callerOf, requestEpoch as epoch } from './ai-caller';
+import { ResponseStatus } from '../common/enum/response-status.enum';
 import { RecommendChartDto } from './dto/recommend-chart.dto';
+import { aiStatus } from './providers/ai-config';
 import { TextToSqlDto } from './dto/text-to-sql.dto';
 
 @UseGuards(JwtAuthGuard, UserThrottleGuard, SourceOwnershipGuard)
@@ -34,6 +36,12 @@ export class AiController {
       req.off('aborted', aborted);
       res.off('close', closed);
     }
+  }
+
+  /** Whether the AI works and which model it asks, so screens say what is really called. No secrets. */
+  @Get('status')
+  status() {
+    return { status: ResponseStatus.SUCCESS, data: aiStatus() };
   }
 
   @Get('dashboard-metrics/:id')

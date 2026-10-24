@@ -12,7 +12,8 @@ import { assertReadOnlyQuery, assertSafeIdentifier } from '../utils/query-guard.
 import { RecommendChartDto } from './dto/recommend-chart.dto';
 import { YesNo } from '../common/enum/yn.enum';
 import { AiCaller, LlmGateway } from './llm-gateway.service';
-import { aiProviderConfig, isAiConfigured } from './providers/ai-config';
+import { isAiRefusal } from './ai-caller';
+import { aiStatus, isAiConfigured } from './providers/ai-config';
 
 const MAX_SCHEMA_TABLES = 25;
 const MAX_PROMPT_LENGTH = 2000;
@@ -45,11 +46,11 @@ export class AiService {
   }
 
   private providerMetadata() {
-    const config = aiProviderConfig();
+    const status = aiStatus();
     return {
-      provider: config?.provider === 'codex' ? 'codex' : 'api',
+      provider: status.provider === 'codex' ? 'codex' : 'api',
       // Requested model only: the provider's answer does not attest to the model actually used.
-      requestedModel: config?.model ?? '',
+      requestedModel: status.model ?? '',
     };
   }
 
@@ -165,6 +166,7 @@ export class AiService {
       assertReadOnlyQuery(sql); // 생성 SQL도 동일 가드 적용
       return { status: ResponseStatus.SUCCESS, data: { sql, ai: this.providerMetadata() } };
     } catch (e) {
+      if (isAiRefusal(e)) throw e;
       if (e.message === 'AI_NOT_CONFIGURED') {
         return {
           status: ResponseStatus.ERROR,
@@ -251,6 +253,7 @@ export class AiService {
         data: { component, reason: parsed.reason || '', ai: this.providerMetadata() },
       };
     } catch (e) {
+      if (isAiRefusal(e)) throw e;
       console.error(e);
       return { status: ResponseStatus.ERROR, message: 'AI 차트 추천 중 오류가 발생했습니다.' };
     }
@@ -340,6 +343,7 @@ export class AiService {
         data: { insight: insight.trim(), ai: this.providerMetadata() },
       };
     } catch (e) {
+      if (isAiRefusal(e)) throw e;
       console.error(e);
       return { status: ResponseStatus.ERROR, message: 'AI 인사이트 생성 중 오류가 발생했습니다.' };
     }

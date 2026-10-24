@@ -14,7 +14,8 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { DuckDBService } from '../analysis/duckdb.service';
 import { AiService } from '../ai/ai.service';
-import { CODEX_MODEL } from '../ai/coding-agent';
+import { aiNotConfigured, isAiRefusal } from '../ai/ai-caller';
+import { aiStatus, isAiConfigured } from '../ai/providers/ai-config';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { CommerceRun } from './entities/commerce-run.entity';
 import { CommerceSource } from './entities/commerce-source.entity';
@@ -156,8 +157,8 @@ export class CommerceService {
     if (signal?.aborted) throw new ServiceUnavailableException('오류 도움 요청이 중단됐습니다.');
     if (failure.explanation) return result();
     if (failure.pending) throw new ConflictException('오류 설명을 준비하고 있습니다.');
-    // This path never falls back to the API provider or a different model.
-    if (process.env.AI_PROVIDER !== 'codex')
+    // This path never falls back to a different model than the configured one.
+    if (!isAiConfigured())
       throw new ServiceUnavailableException(
         'AI 도움을 사용할 수 없습니다. 샘플 재시도와 파일 연결은 계속 사용할 수 있습니다.',
       );
@@ -204,7 +205,7 @@ export class CommerceService {
       failure.explanation = parsed.explanation.trim();
       return result();
     } catch (error) {
-      if (error instanceof ConflictException) throw error;
+      if (error instanceof ConflictException || isAiRefusal(error)) throw error;
       throw new ServiceUnavailableException(
         'AI 설명을 준비하지 못했습니다. 샘플 재시도와 파일 연결은 계속 사용할 수 있습니다.',
       );
@@ -765,10 +766,7 @@ export class CommerceService {
   ) {
     if (typeof body?.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 1000)
       throw new BadRequestException('prompt must be 1–1000 characters');
-    if (process.env.AI_PROVIDER !== 'codex')
-      throw new ServiceUnavailableException(
-        'Commerce AI presentation requires the configured Codex gpt-6-luna provider',
-      );
+    if (!isAiConfigured()) throw aiNotConfigured();
     const current = body.currentPresentation ?? {};
     if (!current || typeof current !== 'object' || Array.isArray(current))
       throw new BadRequestException('currentPresentation must be an object');
@@ -811,17 +809,27 @@ export class CommerceService {
           'Distinct refunded orders divided by successful-payment orders in the ordered_at cohort; refund membership is lifetime within the published bundle.',
       },
     };
-    const raw = await this.ai.callLlm(
-      system,
-      JSON.stringify({
-        instruction: body.prompt,
-        existing: currentPresentation,
-        report: aiReport,
-      }),
-      true,
-      undefined,
-      { userId: ownerId, epoch, feature: 'commerce-ai-draft' },
-    );
+    let raw: string;
+    try {
+      raw = await this.ai.callLlm(
+        system,
+        JSON.stringify({
+          instruction: body.prompt,
+          existing: currentPresentation,
+          report: aiReport,
+        }),
+        true,
+        undefined,
+        { userId: ownerId, epoch, feature: 'commerce-ai-draft' },
+      );
+    } catch (error) {
+      if (isAiRefusal(error)) throw error;
+      throw new ServiceUnavailableException(
+        (error as Error)?.message === 'LLM_TIMEOUT'
+          ? 'AI response timed out'
+          : 'AI could not prepare the draft',
+      );
+    }
     let draft: any;
     try {
       draft = JSON.parse(raw);
@@ -830,7 +838,10 @@ export class CommerceService {
     }
     if (['title', 'explanation', 'chartTitle'].some(key => typeof draft?.[key] !== 'string'))
       throw new ServiceUnavailableException('AI returned an invalid draft shape');
-    return { status: ResponseStatus.SUCCESS, data: { draft, requestedModel: CODEX_MODEL } };
+    return {
+      status: ResponseStatus.SUCCESS,
+      data: { draft, requestedModel: aiStatus().model ?? '' },
+    };
   }
 
   async savePresentation(ownerId: number, sourceId: number, presentation: any) {

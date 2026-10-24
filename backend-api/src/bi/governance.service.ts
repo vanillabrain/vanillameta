@@ -38,6 +38,8 @@ import {
   governedPlan,
   validateGovernedRecipe,
 } from './governed-query';
+import { aiNotConfigured, isAiRefusal } from '../ai/ai-caller';
+import { governanceAssistantEnabled, isAiConfigured } from '../ai/providers/ai-config';
 
 const denied = () => new ForbiddenException('이 조직 분석을 사용할 권한이 없습니다.');
 const label = (value: unknown, max = 100) => {
@@ -665,7 +667,11 @@ export class GovernanceService {
         kind: b.kind,
         display: b.display,
       })),
-      capabilities: { ai: scope.policy.allowAi, export: scope.policy.allowExport, edit: false },
+      capabilities: {
+        ai: scope.policy.allowAi && governanceAssistantEnabled() && isAiConfigured(),
+        export: scope.policy.allowExport,
+        edit: false,
+      },
     }));
   }
   private request(scope: Scope, input: any, mode: 'query' | 'rows' | 'values') {
@@ -769,12 +775,13 @@ export class GovernanceService {
     governedKeys(body, ['viewRevision', 'question', 'filters']);
     const question = label(body.question, 1000);
     return this.authorized(orgId, dashboardId, actor, 'assistant', async scope => {
-      if (!scope.policy.allowAi || process.env.AI_PROVIDER !== 'codex') throw denied();
+      if (!scope.policy.allowAi || !governanceAssistantEnabled()) throw denied();
+      if (!isAiConfigured()) throw aiNotConfigured();
       if (body.viewRevision !== scope.revision)
         throw new ConflictException('접근 범위를 다시 확인해 주세요.');
       const filters = governedFilters(body.filters, scope.recipe.query.columns);
-      const controller = new AbortController(),
-        timer = setTimeout(() => controller.abort(), 175000);
+      // The gateway times the call out on its own clock; this only carries the caller's abort.
+      const controller = new AbortController();
       const cancel = () => controller.abort();
       signal?.addEventListener('abort', cancel, { once: true });
       if (signal?.aborted) cancel();
@@ -801,12 +808,12 @@ export class GovernanceService {
         );
         if (controller.signal.aborted) throw new Error('cancelled');
         plan = JSON.parse(raw);
-      } catch {
+      } catch (error) {
+        if (isAiRefusal(error)) throw error;
         throw new ServiceUnavailableException(
           'AI 조회 조건을 준비하지 못했습니다. 기존 질문을 유지하고 다시 시도해 주세요.',
         );
       } finally {
-        clearTimeout(timer);
         signal?.removeEventListener('abort', cancel);
       }
       governedKeys(plan, ['blockIds', 'filters']);

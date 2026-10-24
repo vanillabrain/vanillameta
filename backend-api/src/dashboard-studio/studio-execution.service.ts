@@ -41,6 +41,7 @@ type StudioRemixBinding = {
 };
 
 import { creationMessageAction } from './studio-creation-message';
+import { aiBlockingCode } from '../ai/ai-caller';
 
 @Injectable()
 export class StudioExecutionService implements OnModuleInit {
@@ -1410,10 +1411,15 @@ export class StudioExecutionService implements OnModuleInit {
           step.resultRef = this.saveId(row);
           continue;
         }
+        const modelStep = step.stepId === 'proposeSemantics' || step.stepId === 'createProposal';
+        // A quota, budget or setup problem is not fixed by trying again, and says which it is.
+        const blocked = modelStep ? aiBlockingCode(error) : undefined;
         step.status = signal.aborted ? 'cancelled' : 'failed';
-        step.retryable = !signal.aborted;
+        step.retryable = !signal.aborted && !blocked;
         step.errorCode = signal.aborted
           ? 'RUN_CANCELLED'
+          : blocked
+          ? blocked
           : step.stepId === 'proposeSemantics' || step.stepId === 'createProposal'
           ? 'MODEL_FAILED'
           : step.stepId === 'preview'

@@ -8,6 +8,8 @@ import { AiService } from '../ai/ai.service';
 import { studioKeys } from '../dashboard-studio/studio-document';
 import { BiService } from './bi.service';
 import { FileSchemaImpactService } from './file-schema-impact.service';
+import { aiNotConfigured, isAiRefusal } from '../ai/ai-caller';
+import { isAiConfigured } from '../ai/providers/ai-config';
 
 const checkedKeys = (value: unknown, allowed: string[]) => {
   try {
@@ -89,10 +91,9 @@ export class FileSchemaDiagnosisService {
       required.some(name => !original.columns.some(c => c.name === name))
     )
       throw new BadRequestException('진단할 저장 지표의 열을 확인해 주세요.');
-    if (process.env.AI_PROVIDER !== 'codex')
-      throw new ServiceUnavailableException('오류 진단은 Codex gpt-6-luna 연결이 필요합니다.');
-    const abort = new AbortController(),
-      timer = setTimeout(() => abort.abort(), 175000);
+    if (!isAiConfigured()) throw aiNotConfigured();
+    // The gateway times the call out on its own clock; this only carries the caller's abort.
+    const abort = new AbortController();
     const cancel = () => abort.abort();
     signal?.addEventListener('abort', cancel, { once: true });
     if (signal?.aborted) cancel();
@@ -123,12 +124,12 @@ export class FileSchemaDiagnosisService {
       );
       if (abort.signal.aborted) throw new Error('cancelled');
       response = JSON.parse(raw);
-    } catch {
+    } catch (error) {
+      if (isAiRefusal(error)) throw error;
       throw new ServiceUnavailableException(
         'AI 진단을 준비하지 못했습니다. 질문과 기존 성공본을 유지했습니다. 다시 시도해 주세요.',
       );
     } finally {
-      clearTimeout(timer);
       signal?.removeEventListener('abort', cancel);
     }
     checkedKeys(response, ['explanation', 'mappings', 'missingColumns']);

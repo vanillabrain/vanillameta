@@ -1,5 +1,5 @@
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, HttpException } from '@nestjs/common';
 import { StudioRunService } from './studio-run.service';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -356,28 +356,19 @@ describe('Studio AI scoped runs', () => {
       intent: 'ask',
     });
   });
-  it('times out without returning a proposal', async () => {
-    jest.useFakeTimers({ doNotFake: ['performance'] });
-    try {
-      ai.callLlm.mockImplementation(
-        (_s, _u, _j, signal) =>
-          new Promise((_resolve, reject) =>
-            signal.addEventListener('abort', () => reject(new Error('timeout')), { once: true }),
-          ),
-      );
-      const pending = service.run(body, 7, undefined, 0);
-      const check = expect(pending).rejects.toThrow('시간');
-      await Promise.resolve();
-      await Promise.resolve();
-      jest.advanceTimersByTime(175001);
-      await check;
-    } finally {
-      jest.useRealTimers();
-    }
+  it('reports the gateway’s timeout without returning a proposal', async () => {
+    ai.callLlm.mockRejectedValue(new Error('LLM_TIMEOUT'));
+    await expect(service.run(body, 7, undefined, 0)).rejects.toThrow('시간');
   });
-  it('never falls back to another provider when Codex is not configured', async () => {
-    process.env.AI_PROVIDER = 'api';
-    await expect(service.run(body, 7, undefined, 0)).rejects.toThrow('gpt-6-luna');
+  it('lets a quota refusal through unchanged instead of calling it a connection problem', async () => {
+    const refusal = new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429);
+    ai.callLlm.mockRejectedValue(refusal);
+    await expect(service.run(body, 7, undefined, 0)).rejects.toBe(refusal);
+  });
+  it('refuses, without a model call, when no model is configured', async () => {
+    delete process.env.AI_PROVIDER;
+    delete process.env.AI_API_KEY;
+    await expect(service.run(body, 7, undefined, 0)).rejects.toThrow('설정되지 않았습니다');
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('preserves the T5 safe 503 contract if post-model preview fails', async () => {
