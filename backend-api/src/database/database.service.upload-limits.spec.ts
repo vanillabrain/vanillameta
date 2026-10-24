@@ -177,6 +177,25 @@ describe('uploadFile against the per-user limits (real SQLite, real DuckDB impor
     ).not.toBe(row.connectionConfig);
   });
 
+  it('refuses a replacement whose converted size passes the limit though the raw file does not, and discards it', async () => {
+    const { data } = await upload('a.csv');
+    const row = await db.getRepository(Database).findOneByOrFail({ id: data.id });
+    const revision = createHash('sha256').update(row.connectionConfig).digest('hex');
+    const used = (await new UserStorageService(db, duckdb).usage(db.manager, user)).bytes;
+    // The CSV is a few dozen bytes, so the early check passes; the DuckDB file it becomes is far larger.
+    process.env.UPLOAD_MAX_BYTES_PER_USER = String(used + 5000);
+    const convert = jest.spyOn(duckdb, 'importFile');
+    expect(
+      await refusal(service.replaceFile(data.id, csv('a.csv', 9), revision, user, 0)),
+    ).toMatchObject({ reason: 'bytes' });
+    expect(convert).toHaveBeenCalledTimes(1);
+    convert.mockRestore();
+    expect(leftovers()).toHaveLength(1);
+    expect(
+      (await db.getRepository(Database).findOneByOrFail({ id: data.id })).connectionConfig,
+    ).toBe(row.connectionConfig);
+  });
+
   it('does not check anything without a storage service or an owner (unit-test construction)', async () => {
     const bare = new DatabaseService(
       db.getRepository(Database),
