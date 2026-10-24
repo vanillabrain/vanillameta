@@ -177,16 +177,14 @@ describe('owned source lookup preview and atomic snapshot receipts', () => {
   it('refuses a save that would pass the per-user upload limits, creating nothing and removing its candidate', async () => {
     const p = await service.preview(spec, 1),
       body = input(p);
-    const refuse = jest
-      .fn()
-      .mockRejectedValue(
-        new ForbiddenException({
-          error: 'UPLOAD_QUOTA_EXCEEDED',
-          reason: 'sources',
-          limit: 2,
-          used: 2,
-        }),
-      );
+    const refuse = jest.fn().mockRejectedValue(
+      new ForbiddenException({
+        error: 'UPLOAD_QUOTA_EXCEEDED',
+        reason: 'sources',
+        limit: 2,
+        used: 2,
+      }),
+    );
     const limited = new SourceModelService(db, bi, new SourceAccessService(db), worker, {
       assertWithin: refuse,
     } as any);

@@ -29,7 +29,7 @@ export const providerNames = (text: string): string[] => {
     .filter((match): match is RegExpExecArray => match !== null)
     .sort((a, b) => a.index - b.index);
   const block = forms[0]?.[1];
-  return block ? block.match(/\b[A-Z][A-Za-z0-9]+\b/g) ?? [] : [];
+  return block ? block.match(/\b[A-Z][A-Za-z0-9]*\b/g) ?? [] : [];
 };
 const providers = (file: string): string[] => providerNames(fs.readFileSync(file, 'utf8'));
 
@@ -75,13 +75,14 @@ describe('module wiring', () => {
   it.each(Object.entries(NEEDS))(
     'every module providing %s also provides %s',
     (service, needed) => {
-      const missing = all
-        .filter(m => m.listed.has(service))
-        .flatMap(m =>
-          needed
-            .filter(dep => !m.listed.has(dep))
-            .map(dep => `${path.basename(m.file)} lacks ${dep}`),
-        );
+      const providing = all.filter(m => m.listed.has(service));
+      // An empty reader would make this pass for the wrong reason.
+      expect(providing.length).toBeGreaterThan(0);
+      const missing = providing.flatMap(m =>
+        needed
+          .filter(dep => !m.listed.has(dep))
+          .map(dep => `${path.basename(m.file)} lacks ${dep}`),
+      );
       expect(missing).toEqual([]);
     },
   );
