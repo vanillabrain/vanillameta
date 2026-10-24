@@ -46,7 +46,7 @@ describe('POST /studio/proposals', () => {
     ]);
   });
 
-  it('streams a failure as an error event and cancels with the connection', async () => {
+  it('cancels the proposal when the connection closes mid-stream', async () => {
     const r = res();
     let signal!: AbortSignal;
     const creation: any = {

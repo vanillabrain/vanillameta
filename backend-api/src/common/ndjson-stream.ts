@@ -132,14 +132,18 @@ export function serveRun<T>(
     let outcome = 'result';
     try {
       unwatch = options.watch?.(write);
-      write({ type: 'result', data: await run(controller.signal) });
+      const data = await run(controller.signal);
+      // A run can resolve (with a cancelled state) after the client left: nobody received this.
+      if (controller.signal.aborted) outcome = 'cancelled';
+      write({ type: 'result', data });
     } catch (error) {
       const event = errorEvent(error, correlationId);
       status = Number(event.status);
       outcome = 'error';
       write(event);
       // What the exception filter does for a 5xx on the JSON path, which a stream never reaches.
-      if (status >= 500 && process.env.SENTRY_DSN)
+      // A cancel by the client is not a server fault, even when the service words it as a 503.
+      if (status >= 500 && !controller.signal.aborted && process.env.SENTRY_DSN)
         void import('@sentry/nestjs')
           .then(sentry => sentry.captureException(error))
           .catch(() => undefined);
@@ -163,7 +167,7 @@ export function serveRun<T>(
         }),
       );
     }
-  })();
+  })().catch(error => logger.error(`stream bookkeeping failed: ${(error as Error)?.message}`));
   return new StreamableFile(out, { type: `${NDJSON}; charset=utf-8` }).setErrorLogger(error => {
     // A client that closes the connection is how a request is cancelled, not an error.
     if ((error as NodeJS.ErrnoException).code !== 'ERR_STREAM_PREMATURE_CLOSE')

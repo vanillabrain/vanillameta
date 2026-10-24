@@ -102,6 +102,20 @@ describe('serveRun with Accept: application/x-ndjson', () => {
     expect(typeof entries[0].durationMs).toBe('number');
   });
 
+  it('logs a run that resolves after the client left as cancelled, not as a delivered result', async () => {
+    const req = request('application/x-ndjson');
+    const res = response();
+    const out = serveRun(req, res, async signal => {
+      res.emit('close');
+      expect(signal.aborted).toBe(true);
+      return { status: 'cancelled' };
+    });
+    await lines(out as StreamableFile).catch(() => undefined);
+    await new Promise(resolve => setImmediate(resolve));
+    const entry = JSON.parse(log.mock.calls[0][0] as string);
+    expect(entry).toMatchObject({ outcome: 'cancelled', disconnected: true });
+  });
+
   it('puts the request’s correlation id on the error event', async () => {
     const req = Object.assign(request('application/x-ndjson'), { correlationId: 'corr-1' });
     const out = serveRun(req, response(), async () => {
