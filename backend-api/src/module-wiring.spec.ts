@@ -21,12 +21,30 @@ const modules = (directory: string): string[] =>
         : [],
     );
 
-const providers = (file: string): string[] => {
-  const block = /providers:\s*\[([\s\S]*?)\n\s*\]/.exec(fs.readFileSync(file, 'utf8'));
-  return block ? block[1].match(/\b[A-Z][A-Za-z0-9]+\b/g) ?? [] : [];
+/** Names in a `providers: [...]` array, written on one line or over several. */
+export const providerNames = (text: string): string[] => {
+  const single = /providers:\s*\[([^\]\n]*)\]/.exec(text);
+  const multi = /providers:\s*\[\s*\n([\s\S]*?)\n\s*\]/.exec(text);
+  const block = (single ?? multi)?.[1];
+  return block ? block.match(/\b[A-Z][A-Za-z0-9]+\b/g) ?? [] : [];
 };
+const providers = (file: string): string[] => providerNames(fs.readFileSync(file, 'utf8'));
 
 describe('module wiring', () => {
+  it('reads providers written on one line or over several, and nothing else', () => {
+    expect(providerNames('@Module({ providers: [A, B, DatabaseService], exports: [C] })')).toEqual([
+      'A',
+      'B',
+      'DatabaseService',
+    ]);
+    expect(
+      providerNames(
+        '@Module({\n  imports: [X],\n  providers: [\n    A,\n    DatabaseService,\n  ],\n  exports: [Y],\n})',
+      ),
+    ).toEqual(['A', 'DatabaseService']);
+    expect(providerNames('@Module({ imports: [DatabaseModule] })')).toEqual([]);
+  });
+
   const all = modules(__dirname).map(file => ({ file, listed: new Set(providers(file)) }));
 
   it('finds the modules that provide the services this guards', () => {

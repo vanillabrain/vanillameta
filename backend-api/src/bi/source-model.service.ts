@@ -221,6 +221,15 @@ export class SourceModelService {
         throw new ConflictException('확인한 연결 미리보기가 달라졌습니다. 다시 확인해 주세요.');
       if (output.quality.unmatchedFactRows && !body.keepUnmatched)
         throw new BadRequestException('미매칭 행을 원본 그대로 유지할지 명시적으로 확인해 주세요.');
+      // A model is a full snapshot on disk like an upload, so it counts against the same limits. Checked
+      // here, not inside the SERIALIZABLE transaction below: on MySQL that would turn the read of the
+      // user's sources into locks on an unindexed table for as long as the directories are walked. The
+      // price is that two saves racing can both pass by one. A refusal leaves its candidate to the
+      // cleanup in the finally.
+      await this.storage?.assertWithin(this.db.manager, actor, {
+        bytes: await this.worker.directoryBytes(path.dirname(output.filename)),
+        newSource: true,
+      });
       const transaction = () =>
         serializedViewWrite(this.db.getRepository(Database), () =>
           this.db.transaction('SERIALIZABLE', async manager => {
@@ -240,12 +249,6 @@ export class SourceModelService {
                 id === spec.factSourceId ? spec.factRevision : spec.lookupRevision,
                 true,
               );
-            // A model is a full snapshot on disk like an upload, so it counts against the same limits.
-            // A refusal leaves its candidate to the cleanup in the finally below.
-            await this.storage?.assertWithin(manager, actor, {
-              bytes: await this.worker.directoryBytes(path.dirname(output.filename)),
-              newSource: true,
-            });
             const config = {
               client: 'duckdb',
               connection: { filename: output.filename },

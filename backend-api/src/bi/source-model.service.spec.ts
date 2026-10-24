@@ -4,6 +4,7 @@ jest.mock('../utils/crypto.util', () => ({
 }));
 jest.mock('../connection/connection.service', () => ({ ConnectionService: class {} }));
 jest.mock('../ai/ai-dashboard.service', () => ({ AiDashboardService: class {} }));
+import { ForbiddenException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { createHash, randomUUID } from 'crypto';
 import * as fs from 'fs/promises';
@@ -172,6 +173,36 @@ describe('owned source lookup preview and atomic snapshot receipts', () => {
       ),
     ).rejects.toThrow('고정 스냅샷');
     expect(await counts()).toEqual({ sources: 3, receipts: 1 });
+  });
+  it('refuses a save that would pass the per-user upload limits, creating nothing and removing its candidate', async () => {
+    const p = await service.preview(spec, 1),
+      body = input(p);
+    const refuse = jest
+      .fn()
+      .mockRejectedValue(
+        new ForbiddenException({
+          error: 'UPLOAD_QUOTA_EXCEEDED',
+          reason: 'sources',
+          limit: 2,
+          used: 2,
+        }),
+      );
+    const limited = new SourceModelService(db, bi, new SourceAccessService(db), worker, {
+      assertWithin: refuse,
+    } as any);
+    const directories = (await fs.readdir(root)).sort(),
+      before = await counts();
+    await expect(limited.save(body, 1)).rejects.toMatchObject({ status: 403 });
+    expect(refuse).toHaveBeenCalledWith(
+      expect.anything(),
+      1,
+      expect.objectContaining({ newSource: true, bytes: expect.any(Number) }),
+    );
+    expect(refuse.mock.calls[0][2].bytes).toBeGreaterThan(0);
+    expect(await counts()).toEqual(before);
+    expect((await fs.readdir(root)).sort()).toEqual(directories);
+    // The same request goes through once the limit allows it.
+    expect(await service.save(body, 1)).toMatchObject({ replayed: false });
   });
   it('replays after a service restart without rematerializing and rejects changed request payload', async () => {
     const body = input(await service.preview(spec, 1)),
