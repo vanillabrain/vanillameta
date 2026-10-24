@@ -249,7 +249,8 @@ describe('AiService', () => {
       feature: 'test',
     });
     expect(res.status).toBe(ResponseStatus.ERROR);
-    expect(res.message).toContain('안전하지 않습니다');
+    // This wording carries the read-only guard's own fixed message and nothing else.
+    expect(res.message).toBe('생성된 쿼리가 안전하지 않습니다: only read-only queries are allowed');
   });
 
   it('LLM API가 에러를 반환하면 ERROR를 반환한다', async () => {
