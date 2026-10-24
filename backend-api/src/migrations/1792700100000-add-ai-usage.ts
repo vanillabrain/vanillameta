@@ -52,7 +52,8 @@ export class AddAiUsage1792700100000 implements MigrationInterface {
             { name: 'userId', type: 'integer', isPrimary: true },
             { name: 'dailyCalls', type: 'integer', isNullable: true },
             { name: 'monthlyTokens', type: 'integer', isNullable: true },
-            timestamp('updatedAt'),
+            // @UpdateDateColumn is ON UPDATE CURRENT_TIMESTAMP(6) on MySQL.
+            { ...timestamp('updatedAt'), ...(isMysql ? { onUpdate: 'CURRENT_TIMESTAMP(6)' } : {}) },
           ],
         }),
       );

@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { AddAiUsage1792700100000 } from '../migrations/1792700100000-add-ai-usage';
@@ -172,7 +173,9 @@ suite('AI quota on MySQL', () => {
   it('refuses a stale epoch under the same lock', async () => {
     const { db, user } = await database();
     try {
-      await expect(new AiQuotaService(db).reserve(user, 9, 'f', 'r1')).rejects.toThrow();
+      await expect(new AiQuotaService(db).reserve(user, 9, 'f', 'r1')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
       expect(await db.getRepository(AiUsageLedger).count()).toBe(0);
     } finally {
       await db.destroy();

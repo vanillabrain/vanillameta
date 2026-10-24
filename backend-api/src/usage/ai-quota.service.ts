@@ -111,10 +111,11 @@ export class AiQuotaService {
   }
 
   /**
-   * Takes one call slot, or refuses with 429 `AI_QUOTA_EXCEEDED`. The user row is locked first, inside a
-   * READ COMMITTED transaction, so the count below sees every row the previous holder committed: under
-   * MySQL's default REPEATABLE READ a plain read taken before the lock would not, and two calls could
-   * both pass the last slot. The refusal is decided inside and thrown after the commit, otherwise the
+   * Takes one call slot, or refuses with 429 `AI_QUOTA_EXCEEDED`. The user row is locked first, and
+   * nothing is read before that lock: InnoDB takes the REPEATABLE READ snapshot at the first plain read,
+   * so a read ahead of the lock would not see rows the previous lock holder committed and two calls could
+   * both pass the last slot. The transaction is READ COMMITTED (as for every actor-locked write) so later
+   * reads are current as well. The refusal is decided inside and thrown after the commit, otherwise the
    * `quota_denied` row would roll back with it.
    *
    * `epoch` is the user's `authVersion` from the verified token, as for every write that locks an actor.
