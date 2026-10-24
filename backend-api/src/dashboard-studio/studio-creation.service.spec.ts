@@ -1631,9 +1631,9 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       const error: any = await refine(p, 1).catch(e => e);
       expect(error.getStatus()).toBe(status);
       expect(error.getResponse()).toMatchObject({ error: code, message: expect.any(String) });
-      // The operator can tell which failure it was (a revoked key is not an outage), and the original error
-      // travels as the cause.
-      expect(log).toHaveBeenCalledWith(`AI call failed: ${message}`);
+      // The operator can tell which failure it was (a revoked key is not an outage), and the gateway's own
+      // failure travels as the cause (its message is a fixed code).
+      expect(log.mock.calls).toEqual([[`AI call failed: ${message}`]]);
       expect(error.cause).toBeInstanceOf(Error);
       log.mockRestore();
       // Whatever the model did, the saved parent proposal is untouched.
@@ -1646,9 +1646,10 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     llm.callLlm.mockRejectedValueOnce(new Error('connect ECONNREFUSED 10.0.0.5 password=hunter2'));
     const error: any = await refine(p, 1).catch(e => e);
     expect(error.getStatus()).toBe(503);
-    expect(log).toHaveBeenCalledWith('AI call failed: Error');
-    expect(JSON.stringify(log.mock.calls)).not.toContain('hunter2');
+    expect(log.mock.calls).toEqual([['AI call failed: Error']]);
     expect(JSON.stringify(error.getResponse())).not.toContain('hunter2');
+    // Not even as a cause: error reports follow causes.
+    expect(error.cause).toBeUndefined();
     log.mockRestore();
   });
   it('REFINE-04 rejects expired, foreign, mismatched-source and invalid target before AI', async () => {

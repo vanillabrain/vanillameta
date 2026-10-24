@@ -617,12 +617,9 @@ export class StudioCreationService {
           failure.status,
           { cause: error },
         );
-      throw new ServiceUnavailableException(
-        'AI 생성안을 준비하지 못했습니다. 다시 시도해 주세요.',
-        {
-          cause: error,
-        },
-      );
+      // No cause here: an unknown error's text can quote the model's answer or a provider's reply, and a
+      // cause is followed into error reports.
+      throw new ServiceUnavailableException('AI 생성안을 준비하지 못했습니다. 다시 시도해 주세요.');
     } finally {
       signal?.removeEventListener('abort', abort);
     }

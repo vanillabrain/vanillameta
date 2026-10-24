@@ -914,18 +914,72 @@ describe('T7 durable executions', () => {
       retryable,
     });
   });
-  it('logs the code of a model failure that a retry might fix, and nothing for a refusal', async () => {
-    const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    ai.callLlm.mockRejectedValueOnce(new Error('LLM_API_ERROR_401'));
-    await service.create(body, 7, undefined, 0);
-    expect(log).toHaveBeenCalledWith('AI call failed: LLM_API_ERROR_401');
-    log.mockClear();
-    ai.callLlm.mockRejectedValueOnce(
-      new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429),
-    );
-    await service.create({ ...body, requestId: `${body.requestId}-quota` }, 7, undefined, 0);
-    expect(log).not.toHaveBeenCalled();
-    log.mockRestore();
+  describe('the log of a model failure', () => {
+    let log: jest.SpyInstance;
+    beforeEach(() => {
+      log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+    afterEach(() => log.mockRestore());
+
+    it('names the failure code once for a model step a retry might fix', async () => {
+      ai.callLlm.mockRejectedValueOnce(new Error('LLM_API_ERROR_401'));
+      await service.create(body, 7, undefined, 0);
+      expect(log.mock.calls).toEqual([['AI call failed: LLM_API_ERROR_401']]);
+    });
+    it('writes nothing for a refusal, and the step still says which refusal it was', async () => {
+      ai.callLlm.mockRejectedValueOnce(
+        new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429),
+      );
+      const run = await service.create(body, 7, undefined, 0);
+      expect(run.steps.find(s => s.stepId === 'proposeSemantics')).toMatchObject({
+        status: 'failed',
+        errorCode: 'AI_QUOTA_EXCEEDED',
+      });
+      expect(log).not.toHaveBeenCalled();
+    });
+    it('writes nothing for a run the client stopped', async () => {
+      const stop = new AbortController();
+      ai.callLlm.mockImplementationOnce(async () => {
+        stop.abort();
+        throw new Error('LLM_REQUEST_ABORTED');
+      });
+      const run = await service.create(body, 7, stop.signal, 0);
+      expect(run.status).toBe('cancelled');
+      expect(log).not.toHaveBeenCalled();
+    });
+    it('leaves the creation step to the creation service, which already logged the code', async () => {
+      const proposal = { proposalId: 'p', sourceId: body.document.sourceId };
+      const creation = {
+        propose: jest.fn(async () => {
+          throw new HttpException(
+            { error: 'LLM_UNAVAILABLE', message: '연결하지 못했습니다.' },
+            502,
+          );
+        }),
+        proposal: jest.fn(async () => proposal),
+        receipt: jest.fn(async () => undefined),
+      };
+      const runner = new StudioExecutionService(
+        db,
+        studio,
+        new StudioRunService(studio, ai),
+        undefined,
+        undefined,
+        creation as any,
+      );
+      const run = await runner.create(
+        { ...body, prompt: '새 대시보드를 만들어줘 요청 수와 차원을 제안해줘' },
+        7,
+        undefined,
+        0,
+      );
+      expect(run.steps.find(s => s.stepId === 'createProposal')).toMatchObject({
+        status: 'failed',
+        errorCode: 'MODEL_FAILED',
+      });
+      expect(creation.propose).toHaveBeenCalledTimes(1);
+      expect(log).not.toHaveBeenCalled();
+    });
   });
   it('publishes each persisted step transition to a watcher of the request, without any content', async () => {
     const events: any[] = [];
