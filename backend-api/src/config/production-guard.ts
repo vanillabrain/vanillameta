@@ -1,5 +1,6 @@
 import { publicationConfigProblems } from '../dashboard-studio/studio-publication-expiry';
 import { userThrottleConfigProblems } from '../common/throttle/user-throttle.guard';
+import { aiConfigProblems } from '../ai/providers/ai-config';
 import { uploadLimitProblems } from '../database/upload-limits';
 import { quotaConfigProblems } from '../usage/quota-config';
 
@@ -81,6 +82,7 @@ export function productionConfigProblems(
     ...publicationConfigProblems(env),
     ...userThrottleConfigProblems(env),
     ...uploadLimitProblems(env),
+    ...aiConfigProblems(env),
   );
 
   if (facts.localEnvFileExists)

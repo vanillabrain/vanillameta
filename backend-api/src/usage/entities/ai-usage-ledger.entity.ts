@@ -44,4 +44,9 @@ export class AiUsageLedger {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  // Last, so the column order of a migrated table (where it is appended) matches a freshly created one.
+  /** True when the tokens are an estimate: a reservation not yet settled, or a provider that reported none. */
+  @Column({ type: 'boolean', default: false })
+  usageEstimated: boolean;
 }

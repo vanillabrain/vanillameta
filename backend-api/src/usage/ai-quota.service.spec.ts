@@ -245,6 +245,45 @@ describe('AiQuotaService (real SQLite)', () => {
     expect((await quota.openReservations(b)).map(row => row.requestId)).toEqual(['r1']);
   });
 
+  it('counts a reservation’s estimate toward the month at once and replaces it with the real tokens', async () => {
+    await quota.reserve(a, 0, 'f', 'r1', DAY_ONE, { inputTokens: 300, outputTokens: 400 });
+    expect((await quota.summary(a, DAY_ONE)).monthlyTokens.used).toBe(700);
+    expect((await rows(a))[0]).toMatchObject({ status: 'reserved', usageEstimated: true });
+    await quota.record(a, 'r1', { status: 'ok', inputTokens: 50, outputTokens: 20 });
+    expect((await quota.summary(a, DAY_ONE)).monthlyTokens.used).toBe(70);
+    expect((await rows(a))[0]).toMatchObject({ status: 'ok', usageEstimated: false });
+    await quota.reserve(a, 0, 'f', 'r2', DAY_ONE);
+    await quota.record(a, 'r2', { status: 'ok', inputTokens: 1, usageEstimated: true });
+    expect((await rows(a))[1].usageEstimated).toBe(true);
+  });
+
+  it('totals the month across users, for the server-wide ceiling', async () => {
+    await take(a, 'r1');
+    await quota.record(a, 'r1', { status: 'ok', inputTokens: 100, outputTokens: 50 });
+    await take(b, 'r1');
+    await quota.record(b, 'r1', { status: 'error', inputTokens: 25 });
+    await quota.reserve(b, 0, 'f', 'old', new Date('2026-09-30T23:00:00Z'), {
+      inputTokens: 9999,
+      outputTokens: 0,
+    });
+    expect(await quota.monthlyTokensTotal(DAY_ONE)).toBe(175);
+  });
+
+  it('settles only the calls reserved before a point in time, as errors, keeping their estimate', async () => {
+    await quota.reserve(a, 0, 'f', 'orphan', new Date('2026-10-24T09:00:00Z'), {
+      inputTokens: 5,
+      outputTokens: 6,
+    });
+    await quota.reserve(a, 0, 'f', 'fresh', new Date('2026-10-24T10:30:00Z'));
+    await quota.reserve(a, 0, 'f', 'done', new Date('2026-10-24T08:00:00Z'));
+    await quota.record(a, 'done', { status: 'ok' });
+    expect(await quota.settleOrphans(new Date('2026-10-24T10:00:00Z'))).toBe(1);
+    const byId = Object.fromEntries((await rows(a)).map(row => [row.requestId, row]));
+    expect(byId.orphan).toMatchObject({ status: 'error', inputTokens: 5, outputTokens: 6 });
+    expect(byId.fresh.status).toBe('reserved');
+    expect(byId.done.status).toBe('ok');
+  });
+
   it('lists the heaviest users of the month with their calls today', async () => {
     await take(a, 'r1');
     await quota.record(a, 'r1', { status: 'ok', inputTokens: 100 });

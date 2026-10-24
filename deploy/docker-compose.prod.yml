@@ -80,8 +80,12 @@ services:
       <<: *api-env
       AI_PROVIDER: ${AI_PROVIDER:-openai}
       AI_API_KEY: ${AI_API_KEY:-}
-      AI_API_BASE_URL: ${AI_API_BASE_URL:-https://api.openai.com/v1}
-      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      AI_API_BASE_URL: ${AI_API_BASE_URL:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_REASONING_EFFORT: ${AI_REASONING_EFFORT:-}
+      AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-}
+      AI_MAX_INPUT_TOKENS: ${AI_MAX_INPUT_TOKENS:-}
+      AI_GLOBAL_MONTHLY_TOKENS: ${AI_GLOBAL_MONTHLY_TOKENS:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - uploads:/data/uploads

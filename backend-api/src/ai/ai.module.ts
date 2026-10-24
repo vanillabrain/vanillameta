@@ -17,10 +17,13 @@ import { AiController } from './ai.controller';
 import { AiDashboardService } from './ai-dashboard.service';
 import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { AiService } from './ai.service';
+import { LlmGateway } from './llm-gateway.service';
+import { UsageModule } from '../usage/usage.module';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 
 @Module({
   imports: [
+    UsageModule,
     TypeOrmModule.forFeature([
       Database,
       Dataset,
@@ -38,12 +41,13 @@ import { UserMapping } from '../user/entities/user-mapping.entity';
   providers: [
     AiDashboardService,
     AiService,
+    LlmGateway,
     ConnectionService,
     DatabaseService,
     UserStorageService,
     DashboardWidgetService,
     JwtService,
   ],
-  exports: [AiService, AiDashboardService],
+  exports: [AiService, AiDashboardService, LlmGateway],
 })
 export class AiModule {}

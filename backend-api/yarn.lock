@@ -2,30 +2,54 @@
 # yarn lockfile v1
 
 
-"@ai-sdk/gateway@4.0.110":
-  version "4.0.110"
-  resolved "https://registry.npmjs.org/@ai-sdk/gateway/-/gateway-4.0.110.tgz"
-  integrity sha512-5IwnOR6v7KC+D9eddUqsCobXl/FbLUVb2LaQc/uyuQdpP3/n9s0YLc9zl4/W3IS/R2pjHrqUfCzEAeOu7bFLoQ==
+"@ai-sdk/anthropic@^4.0.87":
+  version "4.0.87"
+  resolved "https://registry.npmjs.org/@ai-sdk/anthropic/-/anthropic-4.0.87.tgz"
+  integrity sha512-x55N7G47mh9p38C2a6qMAzmUxlgKDCXoE9ohRaF4D3hcOGQrYIOZZ/9Iv4Uf9/OxlNDog9Yz4YPX2GL1+otGlg==
   dependencies:
-    "@ai-sdk/provider" "4.0.26"
-    "@ai-sdk/provider-utils" "5.0.58"
+    "@ai-sdk/provider" "4.0.33"
+    "@ai-sdk/provider-utils" "5.0.67"
+
+"@ai-sdk/gateway@4.0.125":
+  version "4.0.125"
+  resolved "https://registry.npmjs.org/@ai-sdk/gateway/-/gateway-4.0.125.tgz"
+  integrity sha512-9raNdkENebDxVl4piGntpQgOBHB62K1rC87KceV8kkGOc/g7s6lwbxN7C6QTqXYJaM+h1Lnm64MDgnHAmzUApg==
+  dependencies:
+    "@ai-sdk/provider" "4.0.33"
+    "@ai-sdk/provider-utils" "5.0.67"
     "@vercel/oidc" "3.2.0"
 
-"@ai-sdk/provider-utils@5.0.58":
-  version "5.0.58"
-  resolved "https://registry.npmjs.org/@ai-sdk/provider-utils/-/provider-utils-5.0.58.tgz"
-  integrity sha512-iXSwKR/7LpHzAlyrUl+bTinwzmZ3Nmup1viwPisM5Gn5cogRdIG4rV9w1ZDuKFcrXyu/AeVs42E1CX/0aNwrfQ==
+"@ai-sdk/openai-compatible@^3.0.77":
+  version "3.0.77"
+  resolved "https://registry.npmjs.org/@ai-sdk/openai-compatible/-/openai-compatible-3.0.77.tgz"
+  integrity sha512-RzFe7uaMo6Yww9SdeGwHjNiERQvT79unzMlvQva7QEpjUDjzWE/OK04wTLFBRlJrxYMOSSLjUCJKGJGU9os9zQ==
   dependencies:
-    "@ai-sdk/provider" "4.0.26"
+    "@ai-sdk/provider" "4.0.33"
+    "@ai-sdk/provider-utils" "5.0.67"
+
+"@ai-sdk/openai@^4.0.101":
+  version "4.0.101"
+  resolved "https://registry.npmjs.org/@ai-sdk/openai/-/openai-4.0.101.tgz"
+  integrity sha512-GZ57KdfEfdHcM+Kkf1KsXq8T2KM2uG6BwPvWzL25F5uKjozpflol6hjxveKEf9v9YtbaKYi+t1PeaQ1g0jOThw==
+  dependencies:
+    "@ai-sdk/provider" "4.0.33"
+    "@ai-sdk/provider-utils" "5.0.67"
+
+"@ai-sdk/provider-utils@5.0.67":
+  version "5.0.67"
+  resolved "https://registry.npmjs.org/@ai-sdk/provider-utils/-/provider-utils-5.0.67.tgz"
+  integrity sha512-EUzV6GXutGcesWKOY8tRKgijfuv1LUBpqAquMh5k0n74NCjDbca5d5ZG12qhVtM2X5UwM4B2ZMP2XpnAwZlA8Q==
+  dependencies:
+    "@ai-sdk/provider" "4.0.33"
     "@standard-schema/spec" "^1.1.0"
     "@workflow/serde" "4.1.0"
     eventsource-parser "^3.0.8"
     undici "^7.29.0"
 
-"@ai-sdk/provider@^4.0.26", "@ai-sdk/provider@4.0.26":
-  version "4.0.26"
-  resolved "https://registry.npmjs.org/@ai-sdk/provider/-/provider-4.0.26.tgz"
-  integrity sha512-BZ443uBEq6HuMA+Z4b7Hpm65GpZSo7pWqnYqpf/7tAO3C48JbtvAhOE2JnODFj+jodsZzfRHkAyQb64xuD2tZQ==
+"@ai-sdk/provider@^4.0.26", "@ai-sdk/provider@4.0.33":
+  version "4.0.33"
+  resolved "https://registry.npmjs.org/@ai-sdk/provider/-/provider-4.0.33.tgz"
+  integrity sha512-C6ylMuAXjgqKJllp6ODIJwUltK/tm3ZmIj4V2fqENP3Y8gif2DyeJSsTcDwFrXppgEKcrBisi/BWx2tYeoeCAw==
   dependencies:
     json-schema "^0.4.0"
 
@@ -4070,6 +4094,11 @@
     "@typescript-eslint/types" "5.62.0"
     eslint-visitor-keys "^3.3.0"
 
+"@typescript/typescript-darwin-arm64@7.0.2":
+  version "7.0.2"
+  resolved "https://registry.npmjs.org/@typescript/typescript-darwin-arm64/-/typescript-darwin-arm64-7.0.2.tgz"
+  integrity sha512-gowzar9MwS/aRWp6f3a4KUqzRjAZjOsmGNCM6LcTgXum+dBfgsBVMN+AgvOCCbguXyick6LJhpBszxMebJ8syA==
+
 "@typespec/ts-http-runtime@^0.3.0", "@typespec/ts-http-runtime@^0.3.4", "@typespec/ts-http-runtime@^0.3.8":
   version "0.3.9"
   resolved "https://registry.npmjs.org/@typespec/ts-http-runtime/-/ts-http-runtime-0.3.9.tgz"
@@ -4345,14 +4374,14 @@ aggregate-error@^3.0.0:
     clean-stack "^2.0.0"
     indent-string "^4.0.0"
 
-ai@^7.0.137:
-  version "7.0.137"
-  resolved "https://registry.npmjs.org/ai/-/ai-7.0.137.tgz"
-  integrity sha512-JxrPkSQknxIN/gYqS3UQksExS6eWI23QMPBrKMGXeeFHhru6xFtF4MuMq17WaHD+lXPh0lne6H0BM2Z2VMW9EQ==
+ai@^7.0.152:
+  version "7.0.152"
+  resolved "https://registry.npmjs.org/ai/-/ai-7.0.152.tgz"
+  integrity sha512-cxQaE/17qhgqJcLCespbnyaN3c4IkGuNUtBXKSX1yTvlSsQ7ERV2ygFADMG7d+IWCUuvi7R8DrqAy9DGj0cgkg==
   dependencies:
-    "@ai-sdk/gateway" "4.0.110"
-    "@ai-sdk/provider" "4.0.26"
-    "@ai-sdk/provider-utils" "5.0.58"
+    "@ai-sdk/gateway" "4.0.125"
+    "@ai-sdk/provider" "4.0.33"
+    "@ai-sdk/provider-utils" "5.0.67"
 
 ajv-formats@^2.1.1, ajv-formats@2.1.1:
   version "2.1.1"
@@ -11912,7 +11941,7 @@ ora@^5.4.1, ora@5.4.1:
 
 oracledb@^26.0.0:
   version "26.0.0"
-  resolved "https://registry.yarnpkg.com/oracledb/-/oracledb-26.0.0.tgz#6341564f7e7dc74d623e77052c0fd3e5bf3dc6a4"
+  resolved "https://registry.npmjs.org/oracledb/-/oracledb-26.0.0.tgz"
   integrity sha512-ywUqFidj/mPjRjfpOQdzcXT98lhiJzavPCbyPF9JYivcgrpHx7ENj4ZGQDclrpGXeozUBLc5BNXV7yj5qTMxDw==
 
 os-browserify@~0.3.0:
@@ -15183,10 +15212,31 @@ typeorm@^0.3.9:
   resolved "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz"
   integrity sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==
 
-typescript@^5.9.3:
-  version "5.9.3"
-  resolved "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz"
-  integrity sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==
+typescript@^7.0.2:
+  version "7.0.2"
+  resolved "https://registry.npmjs.org/typescript/-/typescript-7.0.2.tgz"
+  integrity sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==
+  optionalDependencies:
+    "@typescript/typescript-aix-ppc64" "7.0.2"
+    "@typescript/typescript-darwin-arm64" "7.0.2"
+    "@typescript/typescript-darwin-x64" "7.0.2"
+    "@typescript/typescript-freebsd-arm64" "7.0.2"
+    "@typescript/typescript-freebsd-x64" "7.0.2"
+    "@typescript/typescript-linux-arm" "7.0.2"
+    "@typescript/typescript-linux-arm64" "7.0.2"
+    "@typescript/typescript-linux-loong64" "7.0.2"
+    "@typescript/typescript-linux-mips64el" "7.0.2"
+    "@typescript/typescript-linux-ppc64" "7.0.2"
+    "@typescript/typescript-linux-riscv64" "7.0.2"
+    "@typescript/typescript-linux-s390x" "7.0.2"
+    "@typescript/typescript-linux-x64" "7.0.2"
+    "@typescript/typescript-netbsd-arm64" "7.0.2"
+    "@typescript/typescript-netbsd-x64" "7.0.2"
+    "@typescript/typescript-openbsd-arm64" "7.0.2"
+    "@typescript/typescript-openbsd-x64" "7.0.2"
+    "@typescript/typescript-sunos-x64" "7.0.2"
+    "@typescript/typescript-win32-arm64" "7.0.2"
+    "@typescript/typescript-win32-x64" "7.0.2"
 
 typescript@5.7.2:
   version "5.7.2"
@@ -15259,9 +15309,9 @@ undeclared-identifiers@^1.1.2:
     xtend "^4.0.1"
 
 undici@^7.29.0:
-  version "7.30.0"
-  resolved "https://registry.npmjs.org/undici/-/undici-7.30.0.tgz"
-  integrity sha512-dkrQXeHSaoamnItlYbmzG0wFYrM0ZwDxCIg0A7aKjTyyhh9svRzCNFEzV+Vm05/yehjCzjDZ31KXfGEjYSztDQ==
+  version "7.30.1"
+  resolved "https://registry.npmjs.org/undici/-/undici-7.30.1.tgz"
+  integrity sha512-03KrMbjIFDWQR5RNPrSw3bd1r12JpyFQl9/yxjUbJtqkjmllqC5lFjZh6ujeuJCKr8EOQvRW872Oy/az+nLYxg==
 
 uni-global@^1.0.0:
   version "1.0.0"
@@ -15920,129 +15970,3 @@ zod@^3.25.76:
   version "3.25.76"
   resolved "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz"
   integrity sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==
-
-"typescript@^7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/typescript/-/typescript-7.0.2.tgz"
-  integrity "sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA=="
-  optionalDependencies:
-    "@typescript/typescript-aix-ppc64" "7.0.2"
-    "@typescript/typescript-darwin-arm64" "7.0.2"
-    "@typescript/typescript-darwin-x64" "7.0.2"
-    "@typescript/typescript-freebsd-arm64" "7.0.2"
-    "@typescript/typescript-freebsd-x64" "7.0.2"
-    "@typescript/typescript-linux-arm" "7.0.2"
-    "@typescript/typescript-linux-arm64" "7.0.2"
-    "@typescript/typescript-linux-loong64" "7.0.2"
-    "@typescript/typescript-linux-mips64el" "7.0.2"
-    "@typescript/typescript-linux-ppc64" "7.0.2"
-    "@typescript/typescript-linux-riscv64" "7.0.2"
-    "@typescript/typescript-linux-s390x" "7.0.2"
-    "@typescript/typescript-linux-x64" "7.0.2"
-    "@typescript/typescript-netbsd-arm64" "7.0.2"
-    "@typescript/typescript-netbsd-x64" "7.0.2"
-    "@typescript/typescript-openbsd-arm64" "7.0.2"
-    "@typescript/typescript-openbsd-x64" "7.0.2"
-    "@typescript/typescript-sunos-x64" "7.0.2"
-    "@typescript/typescript-win32-arm64" "7.0.2"
-    "@typescript/typescript-win32-x64" "7.0.2"
-
-"@typescript/typescript-aix-ppc64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-aix-ppc64/-/typescript-aix-ppc64-7.0.2.tgz"
-  integrity "sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ=="
-
-"@typescript/typescript-darwin-arm64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-darwin-arm64/-/typescript-darwin-arm64-7.0.2.tgz"
-  integrity "sha512-gowzar9MwS/aRWp6f3a4KUqzRjAZjOsmGNCM6LcTgXum+dBfgsBVMN+AgvOCCbguXyick6LJhpBszxMebJ8syA=="
-
-"@typescript/typescript-darwin-x64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-darwin-x64/-/typescript-darwin-x64-7.0.2.tgz"
-  integrity "sha512-SZ9xZInqApNlNGc9s0W1VSsktYSOe9cFqNOIqmN1Gs8SmkjKZYFt017G4VwPxASInODuAdbTW7sXiFUf893RgA=="
-
-"@typescript/typescript-freebsd-arm64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-freebsd-arm64/-/typescript-freebsd-arm64-7.0.2.tgz"
-  integrity "sha512-W5NH4y/J0plIIS5b2xvTEkU7JFxyqdMAOgf+Ilhl0vHQXKO5dZoxd+C/jEtq56c4F3wk71RB4BMRQ2XdI+bwYQ=="
-
-"@typescript/typescript-freebsd-x64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-freebsd-x64/-/typescript-freebsd-x64-7.0.2.tgz"
-  integrity "sha512-UMGDx5sTpzNw3WiPebH7l90IWfJggEd+egHt/q6p7/Cm3zqoV7VxkGXt+3DxPIw8CcmvAB0j3sVVfbhX+M4Tpw=="
-
-"@typescript/typescript-linux-arm@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-linux-arm/-/typescript-linux-arm-7.0.2.tgz"
-  integrity "sha512-gffT3xPz9sR7j/YJExkyPntrI0P2EP9XbOyWzth2/Gs0RstK+90RBcO0ncXoXy/beYll1SXw846Nf2zdnEz0QQ=="
-
-"@typescript/typescript-linux-arm64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-linux-arm64/-/typescript-linux-arm64-7.0.2.tgz"
-  integrity "sha512-Qh4eU4/y3yDjnfjjyPYihMj5/ODIlmt+Bzu17OI+fiSRDW57QmU5SiN63exPRNJPKUzcc1INa1NXdrJ+MqHjUQ=="
-
-"@typescript/typescript-linux-loong64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-linux-loong64/-/typescript-linux-loong64-7.0.2.tgz"
-  integrity "sha512-uEHck9i8hoAzXPiYRib1O7miOnz23SxIeVl6F4LXox+qov1K35jHcEW6VHKvZI+pyvl7fZEP4MCU5LYvIq1GuQ=="
-
-"@typescript/typescript-linux-mips64el@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-linux-mips64el/-/typescript-linux-mips64el-7.0.2.tgz"
-  integrity "sha512-R4KvAMnE43W5Qeqb0Ly56O3mWMWIAgsMyz36DCaycd5nbg/9kzm0liw3JocfRqyJY0KPmzFjbswozXyW0DnIYA=="
-
-"@typescript/typescript-linux-ppc64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-linux-ppc64/-/typescript-linux-ppc64-7.0.2.tgz"
-  integrity "sha512-DORx5b3sd/4S7eayxm4FQv+A7CrkUIGRaHiwI8oiHTAI1fAPWhF4J0vAlkC8biAlHSVVwxMQ3tjZ2/DVbnQiiA=="
-
-"@typescript/typescript-linux-riscv64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-linux-riscv64/-/typescript-linux-riscv64-7.0.2.tgz"
-  integrity "sha512-wf0jqEDOjrPRnKwYRyyJDRo11KMbvMFrU+q4zqKyChODBzvlkbhNQfKvLxQCcwTpdDaXSHZTVuh0JoCrKCUMHQ=="
-
-"@typescript/typescript-linux-s390x@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-linux-s390x/-/typescript-linux-s390x-7.0.2.tgz"
-  integrity "sha512-IkwJc3L7yhytWd/ewjyxNDfOmswCm9GWMJT/ue/dU4aZNbwZeYAetq42VyLmsmSjvoX7z74X6ZaYCtzAr0EuGw=="
-
-"@typescript/typescript-linux-x64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-linux-x64/-/typescript-linux-x64-7.0.2.tgz"
-  integrity "sha512-EYdf2cNg7rgCWJnxCdJ+F3V39O8ihb37eHAu1LK8oAFizgTQbPOK7zHHXbPt8rX24COqODXeI3sIf0fCXG7H/A=="
-
-"@typescript/typescript-netbsd-arm64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-netbsd-arm64/-/typescript-netbsd-arm64-7.0.2.tgz"
-  integrity "sha512-+polYF4MF04aPpO5FTkHran9yUQDSXqy5GiSDKpsll5jy3l3+g9QLhpf39T+ePtefhXLOGrLl0QIjkQP6VnelA=="
-
-"@typescript/typescript-netbsd-x64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-netbsd-x64/-/typescript-netbsd-x64-7.0.2.tgz"
-  integrity "sha512-8YIT0EHM/3dq10ZOVF/A7pc/YSMtbcecct4rWtexrnSCHOPcpC2KTLXfTCR6vDpnSiY12heNb1GiN/wu+T/FyA=="
-
-"@typescript/typescript-openbsd-arm64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-openbsd-arm64/-/typescript-openbsd-arm64-7.0.2.tgz"
-  integrity "sha512-APT8+ClYnuYm1u9+kgGXoMj2VzWzcymwh2gNSQVySHfkRDGOTVkoWLjCmOQSaO+PoqQ57B0flRp9SA+7GnnkzQ=="
-
-"@typescript/typescript-openbsd-x64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-openbsd-x64/-/typescript-openbsd-x64-7.0.2.tgz"
-  integrity "sha512-yX7s+Q0Dln0Dt9tEzZsAjXXR/+ytBM7AlglaqyeMPxQszJ1JhlJdZ6jLA+IzldHtflX81em7lDao1xXu+aRRkg=="
-
-"@typescript/typescript-sunos-x64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-sunos-x64/-/typescript-sunos-x64-7.0.2.tgz"
-  integrity "sha512-dLJDGaLZ1D4HPQn62u1n8mBDkJREwMsAkCdkwd4Ieqw+x3TUyTsqY0YiBCtE6H6OzzgGk3iuZ3vFWRS+E8/d1g=="
-
-"@typescript/typescript-win32-arm64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-win32-arm64/-/typescript-win32-arm64-7.0.2.tgz"
-  integrity "sha512-Gyl1Vy6OsWesLzmq+EP0Fb7b4Nid5232AvcA2SFcdYreldpNtYFFofPjnt62y9hQy7VTaZp65ICJjuAQRaVcIQ=="
-
-"@typescript/typescript-win32-x64@7.0.2":
-  version "7.0.2"
-  resolved "https://registry.npmjs.org/@typescript/typescript-win32-x64/-/typescript-win32-x64-7.0.2.tgz"
-  integrity "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="

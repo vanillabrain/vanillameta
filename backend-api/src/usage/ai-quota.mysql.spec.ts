@@ -2,6 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { AddAiUsage1792700100000 } from '../migrations/1792700100000-add-ai-usage';
+import { AddAiUsageEstimated1792700200000 } from '../migrations/1792700200000-add-ai-usage-estimated';
 import { User } from '../user/entities/user.entity';
 import { AiQuotaService } from './ai-quota.service';
 import { AiUsageLedger } from './entities/ai-usage-ledger.entity';
@@ -77,7 +78,7 @@ suite('AI quota on MySQL', () => {
     const runner = await new DataSource({
       ...options(migrated),
       entities: ENTITIES,
-      migrations: [AddAiUsage1792700100000],
+      migrations: [AddAiUsage1792700100000, AddAiUsageEstimated1792700200000],
       synchronize: false,
     }).initialize();
     await runner.runMigrations();

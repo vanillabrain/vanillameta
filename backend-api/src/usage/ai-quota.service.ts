@@ -24,6 +24,8 @@ export interface Settlement {
   latencyMs?: number;
   provider?: string;
   model?: string;
+  /** The tokens are an estimate (the provider reported no usage), not what the provider billed. */
+  usageEstimated?: boolean;
 }
 
 export interface UsageSummary {
@@ -135,6 +137,7 @@ export class AiQuotaService {
     feature: string,
     requestId: string,
     now: Date = new Date(),
+    estimate?: { inputTokens: number; outputTokens: number },
   ): Promise<Reservation> {
     if (!REQUEST_ID.test(requestId))
       throw new RangeError('requestId must be 1-64 URL-safe characters');
@@ -169,9 +172,18 @@ export class AiQuotaService {
           });
         return { replayed: false, denial };
       }
-      if (existing)
-        await ledger.update(existing.id, { status: 'reserved', feature, createdAt: now });
-      else await ledger.insert({ userId, feature, requestId, status: 'reserved', createdAt: now });
+      // An estimate in the reserved row counts toward the month right away, so calls still in flight
+      // cannot all slip under the token limit; `record` replaces it with the real numbers.
+      const reserved = {
+        status: 'reserved' as const,
+        feature,
+        createdAt: now,
+        inputTokens: nonNegativeInteger(estimate?.inputTokens, 'estimate.inputTokens'),
+        outputTokens: nonNegativeInteger(estimate?.outputTokens, 'estimate.outputTokens'),
+        usageEstimated: Boolean(estimate),
+      };
+      if (existing) await ledger.update(existing.id, reserved);
+      else await ledger.insert({ userId, requestId, ...reserved });
       return { replayed: false, denial: null as Denial | null };
     });
     if (decision.denial)
@@ -213,6 +225,7 @@ export class AiQuotaService {
             : nonNegativeInteger(settlement.latencyMs, 'latencyMs'),
         provider: (settlement.provider ?? '').slice(0, 32),
         model: (settlement.model ?? '').slice(0, 128),
+        usageEstimated: Boolean(settlement.usageEstimated),
       })
       .where('userId = :userId AND requestId = :requestId AND status = :reserved', {
         userId,
@@ -221,6 +234,38 @@ export class AiQuotaService {
       })
       .execute();
     return result.affected === 1;
+  }
+
+  /** Tokens counted this month across every user, for the global spend ceiling. */
+  async monthlyTokensTotal(now: Date = new Date()): Promise<number> {
+    const windows = quotaWindows(now);
+    const row = await this.db
+      .getRepository(AiUsageLedger)
+      .createQueryBuilder('l')
+      .select('COALESCE(SUM(l.inputTokens + l.outputTokens), 0)', 'total')
+      .where('l.status IN (:...counted)', { counted: COUNTED })
+      .andWhere('l.createdAt >= :from AND l.createdAt < :to', {
+        from: windows.monthStart,
+        to: windows.monthEnd,
+      })
+      .getRawOne<{ total: string | number }>();
+    return Number(row?.total ?? 0);
+  }
+
+  /**
+   * Settles every call still `reserved` that was reserved before `before`. After a restart those are
+   * orphans (one instance runs at a time): their estimate stays as the charge and the row stops
+   * counting as in flight.
+   */
+  async settleOrphans(before: Date): Promise<number> {
+    const result = await this.db
+      .getRepository(AiUsageLedger)
+      .createQueryBuilder()
+      .update(AiUsageLedger)
+      .set({ status: 'error' })
+      .where('status = :reserved AND createdAt < :before', { reserved: 'reserved', before })
+      .execute();
+    return result.affected ?? 0;
   }
 
   async summary(userId: number, now: Date = new Date()): Promise<UsageSummary> {
