@@ -43,14 +43,18 @@ export const FEATURE_MARKERS = [
   { feature: 'dashboard-insight', marker: 'You are a BI analyst.' },
 ];
 
-const NUMERIC_TYPE = /^(U?BIGINT|U?INTEGER|U?SMALLINT|U?TINYINT|HUGEINT|FLOAT|DOUBLE|DECIMAL|INT|REAL|NUMERIC)/i;
+const NUMERIC_TYPE =
+  /^(U?BIGINT|U?INTEGER|U?SMALLINT|U?TINYINT|HUGEINT|FLOAT|DOUBLE|DECIMAL|INT|REAL|NUMERIC)/i;
 const TEMPORAL_TYPE = /^(DATE|TIMESTAMP)/i;
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 const MONEY_NAME = /amount|revenue|sales|price|cost|profit|payment|refund/i;
-const MEASURE_NAME = /amount|revenue|sales|price|total|value|cost|profit|payment|qty|quantity|volume/i;
-const CATEGORY_NAME = /channel|category|region|segment|status|type|product|country|name|grade|group/i;
+const MEASURE_NAME =
+  /amount|revenue|sales|price|total|value|cost|profit|payment|qty|quantity|volume/i;
+const CATEGORY_NAME =
+  /channel|category|region|segment|status|type|product|country|name|grade|group/i;
 const EDIT_WORDS = /제목|바꿔|변경|수정|이름/;
-const UNSUPPORTED_WORDS = /삭제|지워|추가|만들|생성|저장|게시|공유|publish|share|delete|create|save/i;
+const UNSUPPORTED_WORDS =
+  /삭제|지워|추가|만들|생성|저장|게시|공유|publish|share|delete|create|save/i;
 const TITLE_PATTERNS = [
   /제목\s*(?:을|를|은|는)?\s*["“']?([^"”'\n]{1,100}?)["”']?\s*(?:으로|로)\s*(?:바꿔|변경|수정)/,
   /["“']([^"”'\n]{1,100})["”']\s*(?:으로|로)\s*(?:바꿔|변경|수정)/,
@@ -74,7 +78,9 @@ const parseObject = text => {
 
 const unique = values => [...new Set(values)];
 const isNumericColumn = column =>
-  typeof column?.numeric === 'boolean' ? column.numeric : NUMERIC_TYPE.test(String(column?.type ?? ''));
+  typeof column?.numeric === 'boolean'
+    ? column.numeric
+    : NUMERIC_TYPE.test(String(column?.type ?? ''));
 const isTemporalColumn = column =>
   column?.temporal === true || TEMPORAL_TYPE.test(String(column?.type ?? ''));
 
@@ -231,9 +237,15 @@ export function studioCreationAnswer(userText) {
     const denominator = input.refundDenominator;
     const pair =
       denominator === 'orders'
-        ? [numericColumn('refunded_orders') ?? numericColumn('refund_orders'), numericColumn('paid_orders')]
+        ? [
+            numericColumn('refunded_orders') ?? numericColumn('refund_orders'),
+            numericColumn('paid_orders'),
+          ]
         : denominator === 'amount'
-        ? [numericColumn('refund_amount'), numericColumn('revenue') ?? numericColumn('amount') ?? numericColumn('payment_amount')]
+        ? [
+            numericColumn('refund_amount'),
+            numericColumn('revenue') ?? numericColumn('amount') ?? numericColumn('payment_amount'),
+          ]
         : [];
     if (!pair[0] || !pair[1]) return cannotBuild('환불률의 분모와 필요한 열을 확인할 수 없습니다.');
     refundBlocks.push({
@@ -269,7 +281,14 @@ export function studioCreationAnswer(userText) {
   defaults.push({
     title: '건수',
     kind: 'BOARD_NUMERIC',
-    metric: { label: '건수', aggregation: 'COUNT', column: '*', unit: '건', decimalPlaces: 0, numberNotation: 'plain' },
+    metric: {
+      label: '건수',
+      aggregation: 'COUNT',
+      column: '*',
+      unit: '건',
+      decimalPlaces: 0,
+      numberNotation: 'plain',
+    },
     presentation: 'visual',
   });
   if (primary && temporal) {
@@ -334,7 +353,9 @@ export function chartAnswer(userText) {
   if (!types.length) return JSON.stringify({ error: 'mock-provider: no chart types in prompt' });
   const fields = text.match(/^Fields: (.*)$/m)?.[1] ?? '';
   const hasDate = /\((DATE|TIMESTAMP)/i.test(fields);
-  const hasNumeric = /\((U?BIGINT|U?INTEGER|DOUBLE|FLOAT|DECIMAL|INT|HUGEINT|REAL|NUMERIC)/i.test(fields);
+  const hasNumeric = /\((U?BIGINT|U?INTEGER|DOUBLE|FLOAT|DECIMAL|INT|HUGEINT|REAL|NUMERIC)/i.test(
+    fields,
+  );
   const wanted = hasDate ? /LINE/i : hasNumeric ? /BAR|COLUMN/i : null;
   const type = (wanted && types.find(item => wanted.test(item))) || types[0];
   const reason = hasDate
@@ -355,14 +376,18 @@ export function insightAnswer(userText) {
   }));
   const bullets = widgets
     .slice(0, 4)
-    .map(widget => `- "${widget.title}" (${widget.type}) 위젯은 샘플 데이터 기준으로 요약했습니다.`);
+    .map(
+      widget => `- "${widget.title}" (${widget.type}) 위젯은 샘플 데이터 기준으로 요약했습니다.`,
+    );
   const pads = [
     '- 샘플에 없는 기간이나 원인은 추측하지 않았습니다.',
     '- 제공된 샘플 범위 밖의 추세는 판단하지 않았습니다.',
     '- 이 문구는 계약 검증용 목업 응답이며 모델 품질 평가가 아닙니다.',
   ];
   bullets.push(...pads.slice(0, Math.max(0, 3 - bullets.length)));
-  return `${bullets.join('\n')}\n총평: "${dashboard}"는 위젯 샘플 기준으로만 확인되었으며 세부 해석은 실제 데이터로 검증해야 합니다.`;
+  return `${bullets.join(
+    '\n',
+  )}\n총평: "${dashboard}"는 위젯 샘플 기준으로만 확인되었으며 세부 해석은 실제 데이터로 검증해야 합니다.`;
 }
 
 /** The normal answer for one request: the feature it was recognised as, and the assistant content. */
@@ -380,7 +405,10 @@ export function answerFor(system, user) {
     case 'dashboard-insight':
       return { feature, content: insightAnswer(user) };
     default:
-      return { feature: 'unknown', content: JSON.stringify({ error: 'mock-provider: unrecognised feature' }) };
+      return {
+        feature: 'unknown',
+        content: JSON.stringify({ error: 'mock-provider: unrecognised feature' }),
+      };
   }
 }
 
@@ -411,7 +439,10 @@ const errorBody = (message, type = 'mock_error', code = null) => ({
 
 function sendJson(res, status, payload) {
   if (res.headersSent || res.destroyed) return;
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+  });
   res.end(JSON.stringify(payload));
 }
 
@@ -466,20 +497,53 @@ function snapshot(state) {
 
 async function handleControl(req, res, state) {
   const body = parseObject(await readBody(req, 64 * 1024));
-  if (!body) return sendJson(res, 400, errorBody('control body must be a JSON object', 'invalid_request_error'));
+  if (!body)
+    return sendJson(
+      res,
+      400,
+      errorBody('control body must be a JSON object', 'invalid_request_error'),
+    );
   // Validate everything first so that a bad field changes nothing.
   if (body.mode !== undefined && !MODES.includes(body.mode))
-    return sendJson(res, 400, errorBody(`mode must be one of ${MODES.join(', ')}`, 'invalid_request_error'));
+    return sendJson(
+      res,
+      400,
+      errorBody(`mode must be one of ${MODES.join(', ')}`, 'invalid_request_error'),
+    );
   if (body.delayMs !== undefined && !isInt(body.delayMs, 0, 600000))
-    return sendJson(res, 400, errorBody('delayMs must be an integer 0..600000', 'invalid_request_error'));
+    return sendJson(
+      res,
+      400,
+      errorBody('delayMs must be an integer 0..600000', 'invalid_request_error'),
+    );
   if (body.stallMs !== undefined && !isInt(body.stallMs, 0, 600000))
-    return sendJson(res, 400, errorBody('stallMs must be an integer 0..600000', 'invalid_request_error'));
+    return sendJson(
+      res,
+      400,
+      errorBody('stallMs must be an integer 0..600000', 'invalid_request_error'),
+    );
   if (body.status !== undefined && !isInt(body.status, 400, 599))
-    return sendJson(res, 400, errorBody('status must be an HTTP error status 400..599', 'invalid_request_error'));
-  if (body.usageTokens !== undefined && body.usageTokens !== null && !isInt(body.usageTokens, 0, 1e9))
-    return sendJson(res, 400, errorBody('usageTokens must be null or a non-negative integer', 'invalid_request_error'));
+    return sendJson(
+      res,
+      400,
+      errorBody('status must be an HTTP error status 400..599', 'invalid_request_error'),
+    );
+  if (
+    body.usageTokens !== undefined &&
+    body.usageTokens !== null &&
+    !isInt(body.usageTokens, 0, 1e9)
+  )
+    return sendJson(
+      res,
+      400,
+      errorBody('usageTokens must be null or a non-negative integer', 'invalid_request_error'),
+    );
   if (body.slowCalls !== undefined && !isInt(body.slowCalls, 0, 1000))
-    return sendJson(res, 400, errorBody('slowCalls must be an integer 0..1000', 'invalid_request_error'));
+    return sendJson(
+      res,
+      400,
+      errorBody('slowCalls must be an integer 0..1000', 'invalid_request_error'),
+    );
 
   if (body.mode !== undefined) {
     state.mode = body.mode;
@@ -540,7 +604,11 @@ async function handleCompletion(req, res, state) {
   record.feature = answer.feature;
   record.model = typeof parsed.model === 'string' ? parsed.model : null;
   record.jsonMode = parsed.response_format?.type === 'json_object';
-  record.messageSizes = { system: system.length, user: user.length, messages: parsed.messages.length };
+  record.messageSizes = {
+    system: system.length,
+    user: user.length,
+    messages: parsed.messages.length,
+  };
 
   const mode = state.mode;
   let content = answer.content;
@@ -549,7 +617,14 @@ async function handleCompletion(req, res, state) {
   let withUsage = true;
   let delay = 0;
   if (mode === 'http-error') {
-    return reply(state.status, errorBody('mock provider unavailable (http-error mode)', 'server_error', String(state.status)));
+    return reply(
+      state.status,
+      errorBody(
+        'mock provider unavailable (http-error mode)',
+        'server_error',
+        String(state.status),
+      ),
+    );
   }
   if (mode === 'bad-json') content = 'mock-provider: this is not JSON {';
   if (mode === 'truncated') {
@@ -573,7 +648,10 @@ async function handleCompletion(req, res, state) {
     if (res.destroyed || res.writableFinished) return;
   }
   if (status !== 200)
-    return reply(status, errorBody('mock provider timed out (stall-silent mode)', 'timeout_error', String(status)));
+    return reply(
+      status,
+      errorBody('mock provider timed out (stall-silent mode)', 'timeout_error', String(status)),
+    );
 
   const payload = {
     id: `chatcmpl-mock-${record.id}`,
