@@ -4,7 +4,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StudioSampleService } from './studio-sample.service';
 import { StudioCreationService } from './studio-creation.service';
 @UseGuards(JwtAuthGuard, UserThrottleGuard)
-@UserThrottle('ai')
 @Controller('studio')
 export class StudioCreationController {
   constructor(
@@ -14,7 +13,9 @@ export class StudioCreationController {
   @Post('samples') sample(@Body() body: any, @Req() req) {
     return this.samples.sample(body, req.user?.accessKeyData?.id);
   }
-  @Post('proposals') async propose(@Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
+  @UserThrottle('ai')
+  @Post('proposals')
+  async propose(@Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
     const controller = new AbortController();
     const abort = () => controller.abort();
     const close = () => {

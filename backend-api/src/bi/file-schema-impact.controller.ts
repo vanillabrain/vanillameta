@@ -4,14 +4,15 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FileSchemaImpactService } from './file-schema-impact.service';
 import { FileSchemaDiagnosisService } from './file-schema-diagnosis.service';
 @UseGuards(JwtAuthGuard, UserThrottleGuard)
-@UserThrottle('ai')
 @Controller('bi/sources/:id/file-refreshes/:requestId/impact')
 export class FileSchemaImpactController {
   constructor(
     private readonly impacts: FileSchemaImpactService,
     private readonly diagnosis: FileSchemaDiagnosisService,
   ) {}
-  @Post('diagnosis') async diagnose(
+  @UserThrottle('ai')
+  @Post('diagnosis')
+  async diagnose(
     @Param('id') id: string,
     @Param('requestId') requestId: string,
     @Body() body: any,

@@ -5,7 +5,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SemanticProposalService } from './semantic-proposal.service';
 
 @UseGuards(JwtAuthGuard, UserThrottleGuard)
-@UserThrottle('ai')
 @Controller('bi/analysis-proposals')
 export class SemanticProposalController {
   constructor(
@@ -13,6 +12,7 @@ export class SemanticProposalController {
     private readonly creation: SemanticCreationService,
   ) {}
   @Header('Cache-Control', 'no-store')
+  @UserThrottle('ai')
   @Post()
   async propose(@Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
     const controller = new AbortController();
@@ -51,6 +51,7 @@ export class SemanticProposalController {
     };
   }
   @Header('Cache-Control', 'no-store')
+  @UserThrottle('ai')
   @Post('question')
   async question(@Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
     const controller = new AbortController();

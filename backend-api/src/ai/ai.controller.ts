@@ -9,7 +9,6 @@ import { RecommendChartDto } from './dto/recommend-chart.dto';
 import { TextToSqlDto } from './dto/text-to-sql.dto';
 
 @UseGuards(JwtAuthGuard, UserThrottleGuard, SourceOwnershipGuard)
-@UserThrottle('ai')
 @Controller('ai')
 @ApiTags('ai')
 export class AiController {
@@ -62,6 +61,7 @@ export class AiController {
     return this.dashboards.metricChangeSave(body, req.user.accessKeyData.id);
   }
 
+  @UserThrottle('ai')
   @Post('dashboard-draft')
   dashboardDraft(@Body() body: any, @Req() req, @Res({ passthrough: true }) res?) {
     return this.cancellable(req, res, signal =>
@@ -71,6 +71,7 @@ export class AiController {
     );
   }
 
+  @UserThrottle('ai')
   @Post('dashboard-assistant')
   dashboardAssistant(@Body() body: any, @Req() req, @Res({ passthrough: true }) res?) {
     return this.cancellable(req, res, signal =>
@@ -131,6 +132,7 @@ export class AiController {
   /**
    * 자연어 → SQL 생성 (데이터셋 SQL 에디터 AI 어시스턴트)
    */
+  @UserThrottle('ai')
   @Post('text-to-sql')
   textToSql(@Body() textToSqlDto: TextToSqlDto) {
     return this.aiService.textToSql(+textToSqlDto.databaseId, textToSqlDto.prompt);
@@ -139,6 +141,7 @@ export class AiController {
   /**
    * 데이터셋 스키마/샘플 기반 차트 타입 추천
    */
+  @UserThrottle('ai')
   @Post('recommend-chart')
   recommendChart(@Body() recommendChartDto: RecommendChartDto) {
     return this.aiService.recommendChart(recommendChartDto);
@@ -147,6 +150,7 @@ export class AiController {
   /**
    * 대시보드 위젯 데이터 기반 AI 인사이트 요약
    */
+  @UserThrottle('ai')
   @Post('dashboard-insight/:id')
   dashboardInsight(@Param('id') id: string, @Req() req) {
     return this.aiService.dashboardInsight(+id, req.user.accessKeyData.id);

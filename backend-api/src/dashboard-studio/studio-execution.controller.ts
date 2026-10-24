@@ -3,10 +3,10 @@ import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StudioExecutionService } from './studio-execution.service';
 @UseGuards(JwtAuthGuard, UserThrottleGuard)
-@UserThrottle('ai')
 @Controller('studio')
 export class StudioExecutionController {
   constructor(private readonly executions: StudioExecutionService) {}
+  @UserThrottle('ai')
   @Post('executions')
   create(@Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
     return this.withSignal(req, res, signal =>
@@ -26,6 +26,7 @@ export class StudioExecutionController {
   get(@Param('id') id: string, @Req() req) {
     return this.executions.get(id, req.user?.accessKeyData?.id);
   }
+  @UserThrottle('ai')
   @Post('runs/:id/retry')
   retry(@Param('id') id: string, @Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
     return this.withSignal(req, res, signal =>
@@ -49,6 +50,7 @@ export class StudioExecutionController {
   creationProposal(@Param('id') id: string, @Req() req) {
     return this.executions.creationProposal(id, req.user?.accessKeyData?.id);
   }
+  @UserThrottle('ai')
   @Post('runs/:id/creation/message')
   creationMessage(
     @Param('id') id: string,
@@ -60,6 +62,7 @@ export class StudioExecutionController {
       this.executions.creationMessage(id, body, req.user?.accessKeyData?.id, signal),
     );
   }
+  @UserThrottle('ai')
   @Post('runs/:id/creation/clarify')
   clarifyCreation(
     @Param('id') id: string,
