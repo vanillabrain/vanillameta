@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const renew = vi.fn();
+// The same reader the axios interceptor uses: it accepts a string payload as well as {message}.
 vi.mock('@/helpers/apiHelper', () => ({
   fetchAuthContext: () => ({ baseURL: '/v1', token: 'old-token', epoch: 3 }),
   renewAccessTokenForFetch: (...args: unknown[]) => renew(...args),
+  responseMessage: (data: any) => {
+    const candidate = typeof data === 'string' ? data : data?.message ?? data?.data;
+    if (typeof candidate === 'string') return candidate;
+    return typeof candidate?.message === 'string' ? candidate.message : undefined;
+  },
 }));
 
 import { postNdjson, StreamApiError, StreamEvent } from './ndjsonClient';
@@ -134,7 +140,7 @@ describe('postNdjson', () => {
     renew.mockResolvedValue('new-token');
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce(jsonResponse(401, { success: false, code: 401, data: { message: 'accessTokenExpired' } }))
+      .mockResolvedValueOnce(jsonResponse(401, { success: false, code: 401, data: 'accessTokenExpired' }))
       .mockResolvedValueOnce(streamResponse([line({ type: 'result', data: 'after refresh' })]));
     expect(await postNdjson('/x', { a: 1 }, { fetchImpl: fetchImpl as any })).toBe('after refresh');
     expect(renew).toHaveBeenCalledWith({ baseURL: '/v1', token: 'old-token', epoch: 3 });
@@ -143,19 +149,34 @@ describe('postNdjson', () => {
   });
 
   it('does not retry a 401 that is not an expired token, or loop on a second one', async () => {
-    const other = vi.fn(async () => jsonResponse(401, { success: false, code: 401, data: { message: 'invalid' } }));
+    const other = vi.fn(async () => jsonResponse(401, { success: false, code: 401, data: 'invalid' }));
     const error: any = await postNdjson('/x', {}, { fetchImpl: other as any }).catch(e => e);
     expect(error.response.status).toBe(401);
     expect(renew).not.toHaveBeenCalled();
 
     renew.mockResolvedValue('new-token');
-    const expired = vi.fn(async () =>
-      jsonResponse(401, { success: false, code: 401, data: { message: 'accessTokenExpired' } }),
-    );
+    const expired = vi.fn(async () => jsonResponse(401, { success: false, code: 401, data: 'accessTokenExpired' }));
     const again: any = await postNdjson('/x', {}, { fetchImpl: expired as any }).catch(e => e);
     expect(again.response.status).toBe(401);
     expect(expired).toHaveBeenCalledTimes(2);
     expect(renew).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes the connection when a line cannot be read, so the server cancels the model call', async () => {
+    let sent!: AbortSignal;
+    const fetchImpl = vi.fn(async (_url: string, init: RequestInit) => {
+      sent = init.signal as AbortSignal;
+      return streamResponse(['not json\n']);
+    });
+    await postNdjson('/x', {}, { fetchImpl: fetchImpl as any }).catch(() => undefined);
+    expect(sent.aborted).toBe(true);
+  });
+
+  it('refuses a line that never ends instead of buffering it without limit', async () => {
+    const huge = 'x'.repeat(5 * 1024 * 1024);
+    const error: any = await postNdjson('/x', {}, { fetchImpl: (async () => streamResponse([huge])) as any }).catch(e => e);
+    expect(error).toBeInstanceOf(StreamApiError);
+    expect(error.message).toContain('too long');
   });
 
   it('reports a stream that ends without an outcome as an unknown result, with no response', async () => {

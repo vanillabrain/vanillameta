@@ -135,6 +135,7 @@ export function studioAssistantTransport(
                   onEvent: event => {
                     if (event.type === 'step')
                       activity.onProgress?.({
+                        dashboardId: body.dashboardId,
                         requestId: body.requestId,
                         runId: event.runId,
                         status: event.status,

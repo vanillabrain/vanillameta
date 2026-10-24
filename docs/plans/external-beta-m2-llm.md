@@ -103,6 +103,13 @@ M2-2b는 Codex 전용 거절 6곳을 "AI가 설정돼 있는가"(`isAiConfigured
 - **중지 버튼**: 요청을 `AbortController`로 끊으면 서버가 모델 호출을 취소한다. `POST /studio/runs/:id/cancel`은 재접속한 사용자를 위한 경로다.
 - **알려진 한계**: 지표(`ResponseTimeInterceptor`·`MetricsInterceptor`)는 스트림을 "201, 몇 ms"로 센다. 실제 종료 상태와 시간은 `msg:"stream"` 로그 줄(`status`·`outcome`·`durationMs`·`disconnected`)에만 있다. 사용자당 동시에 열 수 있는 스트림 수에는 상한이 없다(요청 제한은 분당 20개의 시작만 센다): 단일 인스턴스 베타에서는 받아들이고 M2-5에서 관찰한다.
 
+### M2-4 구현: 프런트엔드에서 하지 않은 것과 이유
+
+- **스트림으로 읽는 것은 `POST /studio/executions` 하나다**(`frontend-web/src/api/ndjsonClient.ts`의 `postNdjson`). 영속 단계 전이(`step` 이벤트)가 있는 경로가 이것뿐이다. `creation/message`·`creation/clarify`·`proposals`는 프로토콜상 `start`·`heartbeat`·`result`만 내므로 스트림으로 읽어도 화면에 더해지는 정보가 없어 기존 axios 호출을 유지한다. `runs/:id/retry`는 `step`을 내지만 지금 화면은 재시도 중 단계를 따로 그리지 않아 axios를 유지한다(다음에 재시도 진행 표시가 필요해지면 `postNdjson`으로 바꾼다).
+- **`start` 줄은 화면에 쓰지 않는다.** 보내는 즉시 "요청 처리 중" 표시가 이미 뜨고, 첫 영속 단계가 오면 단계 목록이 나온다. "첫 진행 표시 약 2초"는 서버 쪽 `start` 줄이 7 ms에 도착함(`docs/testing/external-beta-m2-llm.md`)으로 확인했고, 화면에서의 체감은 M2-5의 브라우저 실행에서 잰다.
+- **프런트엔드 `ai` 패키지는 `^7.0.137` 그대로다.** 캐럿 범위가 7.0.152를 허용하고, 프런트엔드는 `ai`의 타입(`ChatTransport`)만 쓰므로 호출 동작이 달라지지 않는다. 락파일을 바꾸는 설치는 이번 단계에 넣지 않았다.
+- **401 갱신**은 axios 인터셉터와 같은 잠금·에포크 검사를 쓴다(`renewAccessToken`을 공유). 서버는 만료를 `data:'accessTokenExpired'`라는 **문자열 본문**으로 보내므로 클라이언트도 인터셉터의 `responseMessage`로 읽는다(처음 구현은 `data.message`만 봐서 갱신이 동작하지 않았고, 테스트 고정값이 실제 본문 모양이 아니어서 가려졌다).
+
 ## 단위와 순서
 
 | 단위 | 내용 |

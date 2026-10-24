@@ -144,6 +144,7 @@ export type StudioExecution = {
 };
 /** What a `step` line of the stream says about a run: ids and statuses only, never content. */
 export type ExecutionProgress = {
+  dashboardId: number;
   requestId: string;
   runId: string;
   status: string;
@@ -157,6 +158,8 @@ const known = (table: object, key: unknown): key is string =>
  * sends that this page does not know is dropped rather than shown.
  */
 export function progressRun(progress: ExecutionProgress, dashboardId: number): StudioExecution | null {
+  // A step of a request made for another dashboard (the editor moved on) is not shown here.
+  if (progress?.dashboardId !== dashboardId) return null;
   if (typeof progress?.runId !== 'string' || !/^[-a-zA-Z0-9_]{1,128}$/.test(progress.runId)) return null;
   if (typeof progress.requestId !== 'string' || progress.requestId.length > 128 || !Array.isArray(progress.steps))
     return null;

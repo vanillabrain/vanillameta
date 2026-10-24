@@ -48,7 +48,7 @@ const finalRun = {
 };
 
 describe('progressRun', () => {
-  const base = { requestId: 'q1', runId: 'run-1', status: 'running' };
+  const base = { dashboardId: 3, requestId: 'q1', runId: 'run-1', status: 'running' };
 
   it('is the run as the stream knows it: ids and statuses, no results', () => {
     const run = progressRun(
@@ -113,6 +113,10 @@ describe('progressRun', () => {
     expect(progressRun(progress as any, 3)).toBeNull();
   });
 
+  it('does not show a step of a request made for another dashboard', () => {
+    expect(progressRun({ ...base, dashboardId: 9, steps: [{ stepId: 'preview', status: 'running' }] }, 3)).toBeNull();
+  });
+
   it('shows at most twelve steps', () => {
     const steps = Array.from({ length: 40 }, () => ({ stepId: 'preview', status: 'running' }));
     expect(progressRun({ ...base, steps }, 3)!.steps).toHaveLength(12);
@@ -151,6 +155,7 @@ describe('the Studio transport streams the execution', () => {
       // Only step lines are progress; start and heartbeat are not.
       expect(onProgress).toHaveBeenCalledTimes(1);
       expect(onProgress).toHaveBeenCalledWith({
+        dashboardId: 3,
         requestId: onRequest.mock.calls[0][0].requestId,
         runId: 'run-1',
         status: 'running',

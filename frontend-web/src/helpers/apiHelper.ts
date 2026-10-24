@@ -115,7 +115,7 @@ export function cancelAllRequests() {
 
 let refreshPromise: Promise<string> | null = null;
 
-const responseMessage = data => {
+export const responseMessage = data => {
   const candidate = typeof data === 'string' ? data : data?.message ?? data?.data;
   if (typeof candidate === 'string') return candidate;
   if (typeof candidate?.message === 'string') return candidate.message;
@@ -270,6 +270,8 @@ export function fetchAuthContext() {
  */
 export async function renewAccessTokenForFetch(sent: { token: string | null; epoch: unknown }): Promise<string> {
   if (!isLoginUser) throw new Error('Not a login session.');
+  // axios only records the epoch when it sent a token, so a request without one is never renewed.
+  if (!sent.token) throw new Error('The request carried no token.');
   return renewAccessToken({ headers: { Authorization: `Bearer ${sent.token ?? ''}` }, _authEpoch: sent.epoch });
 }
 

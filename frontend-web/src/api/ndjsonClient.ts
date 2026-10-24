@@ -1,4 +1,4 @@
-import { fetchAuthContext, renewAccessTokenForFetch } from '@/helpers/apiHelper';
+import { fetchAuthContext, renewAccessTokenForFetch, responseMessage } from '@/helpers/apiHelper';
 
 /** One line of the server's stream (docs/plans/external-beta-m2-llm.md, "M2-3 구현: 스트림 프로토콜"). */
 export type StreamStep = { stepId: string; status: string; retryable?: boolean; errorCode?: string };
@@ -20,6 +20,7 @@ export class StreamApiError extends Error {
 }
 
 const IDLE_MS = 30_000; // the server sends a heartbeat every 5 s
+const MAX_LINE = 4 * 1024 * 1024; // a result carries the whole run, so this is generous
 
 const isNdjson = (response: Response) =>
   (response.headers.get('content-type') ?? '').toLowerCase().includes('application/x-ndjson');
@@ -101,11 +102,13 @@ export async function postNdjson(url: string, body: unknown, options: PostNdjson
     let response = await send(context.token);
     if (response.status === 401 && !isNdjson(response)) {
       const detail = await readJson(response);
-      const expired =
-        detailOf(detail)?.message === 'accessTokenExpired' || (detail as any)?.message === 'accessTokenExpired';
+      // The guard answers with a string payload: {success:false, code:401, data:'accessTokenExpired'}.
+      const expired = responseMessage(detail) === 'accessTokenExpired';
       if (!expired) throw new StreamApiError('HTTP 401', { status: 401, data: detail });
       // The same renewal the axios interceptor runs; one retry, with the renewed token.
-      response = await send(await renewAccessTokenForFetch(context));
+      const token = await renewAccessTokenForFetch(context);
+      touch(); // the renewal may have waited for the cross-tab lock
+      response = await send(token);
     }
     if (!response.ok || !isNdjson(response)) throw await httpError(response);
     if (!response.body) throw new StreamApiError('The server sent no stream.');
@@ -132,6 +135,7 @@ export async function postNdjson(url: string, body: unknown, options: PostNdjson
       touch();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
+      if (buffer.length > MAX_LINE) throw new StreamApiError('The stream carried a line that is too long.');
       let newline: number;
       while ((newline = buffer.indexOf('\n')) >= 0) {
         const outcome = handle(buffer.slice(0, newline));
@@ -154,5 +158,8 @@ export async function postNdjson(url: string, body: unknown, options: PostNdjson
   } finally {
     clearTimeout(idleTimer);
     options.signal?.removeEventListener('abort', abort);
+    // Closing the connection is how the server learns to cancel the model call: never leave one open
+    // behind a parse failure. After a completed body this does nothing.
+    link.abort();
   }
 }
