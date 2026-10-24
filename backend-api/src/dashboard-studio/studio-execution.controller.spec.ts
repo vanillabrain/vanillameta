@@ -79,16 +79,6 @@ describe('execution POSTs as an NDJSON stream', () => {
   it.each([
     ['create', (c: any, r: any, w: any) => c.create({ requestId: 'req-1' }, r, w), 'req:7:req-1'],
     ['retry', (c: any, r: any, w: any) => c.retry('run-9', {}, r, w), 'run:7:run-9'],
-    [
-      'creationMessage',
-      (c: any, r: any, w: any) => c.creationMessage('run-9', {}, r, w),
-      'run:7:run-9',
-    ],
-    [
-      'clarifyCreation',
-      (c: any, r: any, w: any) => c.clarifyCreation('run-9', {}, r, w),
-      'run:7:run-9',
-    ],
   ])('%s streams the persisted steps and then the result, watching %#', async (name, call, key) => {
     let listener: (event: any) => void = () => undefined;
     const unwatch = jest.fn();
@@ -111,6 +101,23 @@ describe('execution POSTs as an NDJSON stream', () => {
     expect(watch).toHaveBeenCalledWith(key, expect.any(Function));
     expect(unwatch).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    ['creationMessage', (c: any, r: any, w: any) => c.creationMessage('run-9', {}, r, w)],
+    ['clarifyCreation', (c: any, r: any, w: any) => c.clarifyCreation('run-9', {}, r, w)],
+  ])(
+    '%s has no persisted steps to report: it streams only start and the result',
+    async (name, call) => {
+      // No `watch` on the service: the route must not subscribe to events nothing publishes.
+      const service: any = { [name]: jest.fn(async () => ({ status: 'succeeded' })) };
+      const out = call(new StudioExecutionController(service), streamReq(), res());
+      expect(out).toBeInstanceOf(StreamableFile);
+      expect(await read(out)).toEqual([
+        { type: 'start' },
+        { type: 'result', data: { status: 'succeeded' } },
+      ]);
+    },
+  );
 
   it('still answers a plain JSON request with the bare result', async () => {
     const req = Object.assign(new EventEmitter(), {

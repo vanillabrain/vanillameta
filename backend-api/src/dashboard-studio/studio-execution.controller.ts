@@ -64,18 +64,14 @@ export class StudioExecutionController {
     @Req() req,
     @Res({ passthrough: true }) res,
   ) {
-    return serveRun(
-      req,
-      res,
-      signal =>
-        this.executions.creationMessage(
-          id,
-          body,
-          req.user?.accessKeyData?.id,
-          signal,
-          requestEpoch(req),
-        ),
-      { watch: emit => this.executions.watch(`run:${req.user?.accessKeyData?.id}:${id}`, emit) },
+    return serveRun(req, res, signal =>
+      this.executions.creationMessage(
+        id,
+        body,
+        req.user?.accessKeyData?.id,
+        signal,
+        requestEpoch(req),
+      ),
     );
   }
   @UserThrottle('ai')
@@ -86,18 +82,14 @@ export class StudioExecutionController {
     @Req() req,
     @Res({ passthrough: true }) res,
   ) {
-    return serveRun(
-      req,
-      res,
-      signal =>
-        this.executions.clarifyCreation(
-          id,
-          body,
-          req.user?.accessKeyData?.id,
-          signal,
-          requestEpoch(req),
-        ),
-      { watch: emit => this.executions.watch(`run:${req.user?.accessKeyData?.id}:${id}`, emit) },
+    return serveRun(req, res, signal =>
+      this.executions.clarifyCreation(
+        id,
+        body,
+        req.user?.accessKeyData?.id,
+        signal,
+        requestEpoch(req),
+      ),
     );
   }
   @Post('runs/:id/creation')

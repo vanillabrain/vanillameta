@@ -88,6 +88,21 @@ M2-2b는 Codex 전용 거절 6곳을 "AI가 설정돼 있는가"(`isAiConfigured
 
 원본 행이 나가는 기능은 베타에서 (a) 상한을 낮춰 유지, (b) 값 마스킹, (c) 비활성 중 하나를 정해야 한다. 이는 코드가 아니라 사용자(제품·법무) 결정이며, M-1 약관·개인정보 문구의 입력이다. 결정 전까지 코드는 현재 동작(위 표)을 유지한다. 화면의 "Codex · gpt-6-luna" 문구 6곳은 `GET /ai/status`로 바꾸며 이는 M2-4(프런트엔드)에서 한다.
 
+### M2-3 구현: 스트림 프로토콜 (M2-4 프런트엔드가 의존하는 사실)
+
+요청에 `Accept: application/x-ndjson`을 보내면 `POST /studio/executions`, `runs/:id/retry`, `runs/:id/creation/message`, `runs/:id/creation/clarify`, `POST /studio/proposals`가 줄 단위 JSON으로 답한다. 헤더가 없으면 지금까지와 같은 JSON이다.
+
+- **이벤트 순서**: `start` → (`step`·`heartbeat`)* → 정확히 하나의 `result` 또는 `error`. 약 2초 안의 첫 진행 표시는 `start`가 맡는다(하트비트가 아니다).
+- **`step`**: `{type, runId, status, steps:[{stepId, status, retryable, errorCode?}]}`. 영속된 단계 전이마다 나오며 내용(프롬프트·행·SQL)은 없다. **`executions` 생성과 `runs/:id/retry`만 낸다.** `creation/message`·`creation/clarify`와 `proposals`는 영속 단계 전이가 없어 `start`·`heartbeat`·`result`만 낸다.
+- **`heartbeat`**: 5초마다. 클라이언트가 읽지 않고 쌓인 줄이 16 KiB를 넘으면 건너뛴다.
+- **`result`**: `{type, data}`. `data`는 JSON 경로가 돌려주는 본문과 같다.
+- **`error`**: 평평한 모양 `{type, status, error, message, reason?, limit?, used?, needed?, resetsAt?, correlationId?}`. JSON 경로의 `{success:false, code, data:{error,message}}`와 모양이 다르므로 클라이언트가 둘을 정규화해야 한다. 예상 못 한 오류는 `status:500, error:'INTERNAL_ERROR'`와 고정 문구만 나간다.
+- **HTTP 상태**: 스트림이 시작되면 항상 201이다. 실행 안에서 난 400·409·429는 **HTTP 201 위의 `error` 이벤트**로 온다. 스트림이 시작되기 전의 거절(JWT 401, 사용자 요청 제한 429, 본문 검증)은 평범한 JSON이다. 따라서 클라이언트는 줄을 읽기 전에 상태와 `Content-Type`을 확인해야 하며, 401 토큰 갱신도 여기에 건다.
+- **재개 없음**: 연결이 끊기면 실행이 취소된다(원장 `cancelled`). `GET /studio/runs/:id`는 `cancelled`·`retryable:false`를 보이며 이어가려면 새 요청이다.
+- **같은 `requestId` 재전송**: 이미 진행 중이면 곧바로 `result`가 오지만 `data.status`가 최종이 아닐 수 있다. 클라이언트는 `data.status`를 확인하고 아니면 `GET /studio/runs/:id`로 이어간다.
+- **중지 버튼**: 요청을 `AbortController`로 끊으면 서버가 모델 호출을 취소한다. `POST /studio/runs/:id/cancel`은 재접속한 사용자를 위한 경로다.
+- **알려진 한계**: 지표(`ResponseTimeInterceptor`·`MetricsInterceptor`)는 스트림을 "201, 몇 ms"로 센다. 실제 종료 상태와 시간은 `msg:"stream"` 로그 줄(`status`·`outcome`·`durationMs`·`disconnected`)에만 있다. 사용자당 동시에 열 수 있는 스트림 수에는 상한이 없다(요청 제한은 분당 20개의 시작만 센다): 단일 인스턴스 베타에서는 받아들이고 M2-5에서 관찰한다.
+
 ## 단위와 순서
 
 | 단위 | 내용 |
