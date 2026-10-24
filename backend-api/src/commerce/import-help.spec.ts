@@ -87,7 +87,7 @@ describe('opt-in import error help', () => {
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
 
-  it('keeps manual retry usable when AI is unavailable and never uses the API fallback', async () => {
+  it('keeps manual retry usable when no AI is configured', async () => {
     const { diagnostic } = await fail();
     delete process.env.AI_PROVIDER;
     delete process.env.AI_API_KEY;

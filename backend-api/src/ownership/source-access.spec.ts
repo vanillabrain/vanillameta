@@ -38,6 +38,29 @@ describe('source ownership boundary', () => {
       ).rejects.toThrow(ForbiddenException);
     }
   });
+  it('lets a signed-in user read the AI status and still refuses an unknown AI handler and a share token', async () => {
+    await expect(
+      guard.canActivate(
+        request('AiController', 'status', {
+          method: 'GET',
+          user: { accessKeyData: { id: 7 } },
+        }),
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      guard.canActivate(
+        request('AiController', 'somethingElse', { user: { accessKeyData: { id: 7 } } }),
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    await expect(
+      guard.canActivate(
+        request('AiController', 'status', {
+          method: 'GET',
+          user: { shareKeyData: { dashboardId: 51 } },
+        }),
+      ),
+    ).rejects.toThrow(ForbiddenException);
+  });
   it.each([
     'metricChangePreview',
     'metricChangeSave',

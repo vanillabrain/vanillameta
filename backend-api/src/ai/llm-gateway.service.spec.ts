@@ -163,7 +163,28 @@ describe('LlmGateway (real SQLite ledger, mocked model call)', () => {
     process.env.AI_REASONING_EFFORT = 'high';
     answer('{}');
     await ask({ jsonMode: true });
-    expect(generate.mock.calls[0][0].maxOutputTokens).toBeGreaterThan(4096);
+    expect(generate.mock.calls[0][0].maxOutputTokens).toBe(4096 + 12288);
+  });
+
+  it.each([
+    [{ userId: 1, epoch: undefined }],
+    [{ userId: undefined, epoch: 0 }],
+    [{ userId: 1, epoch: 1.5 }],
+  ])(
+    'refuses a call without a real user and epoch before any slot or model call (%#)',
+    async broken => {
+      await expect(ask({ caller: { ...broken, feature: 'test' } as any })).rejects.toThrow(
+        'AI_CALLER_INVALID',
+      );
+      expect(generate).not.toHaveBeenCalled();
+      expect(await rows()).toHaveLength(0);
+    },
+  );
+
+  it('reports the Codex adapter’s own timeout as the same LLM_TIMEOUT, recorded as an error', async () => {
+    generate.mockRejectedValue(new Error('LLM_CODEX_TIMEOUT'));
+    await expect(ask()).rejects.toThrow('LLM_TIMEOUT');
+    expect((await rows())[0]).toMatchObject({ status: 'error' });
   });
 
   it('takes no slot for a caller that has already given up', async () => {

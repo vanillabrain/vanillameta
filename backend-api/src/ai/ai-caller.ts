@@ -25,8 +25,48 @@ const httpErrorCode = (error: unknown): unknown => {
  * refusal (quota, budget, input too large) or a missing AI setup. A run records it as the step's error.
  */
 export function aiBlockingCode(error: unknown): string | undefined {
+  if (isAiRefusal(error)) return httpErrorCode(error) as string;
   const code = httpErrorCode(error);
-  return isAiRefusal(error) || code === 'AI_NOT_CONFIGURED' ? (code as string) : undefined;
+  if (code === 'AI_NOT_CONFIGURED' || (error as Error)?.message === 'AI_NOT_CONFIGURED')
+    return 'AI_NOT_CONFIGURED';
+  return undefined;
+}
+
+/**
+ * How the gateway's own failures, which are plain errors with a code as the message, look to a client.
+ * A call site that has no answer of its own for them lets them go up, and the exception filter uses this
+ * instead of turning them into a 500.
+ */
+export function llmFailure(
+  error: unknown,
+): { status: number; errorCode: string; message: string } | undefined {
+  const message = (error as Error)?.message;
+  if (typeof message !== 'string') return undefined;
+  if (message === 'AI_NOT_CONFIGURED')
+    return {
+      status: 503,
+      errorCode: 'AI_NOT_CONFIGURED',
+      message: 'AI 기능이 설정되지 않았습니다. 운영자에게 문의해 주세요.',
+    };
+  if (message === 'LLM_TIMEOUT')
+    return {
+      status: 504,
+      errorCode: 'LLM_TIMEOUT',
+      message: 'AI 응답이 늦어 중단했습니다. 다시 시도해 주세요.',
+    };
+  if (message === 'LLM_OUTPUT_TRUNCATED')
+    return {
+      status: 502,
+      errorCode: 'LLM_OUTPUT_TRUNCATED',
+      message: 'AI 답변이 길어 중간에 끊겼습니다. 요청 범위를 줄여 다시 시도해 주세요.',
+    };
+  if (/^LLM_API_ERROR_/.test(message))
+    return {
+      status: 502,
+      errorCode: 'LLM_UNAVAILABLE',
+      message: 'AI 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+    };
+  return undefined;
 }
 
 /**

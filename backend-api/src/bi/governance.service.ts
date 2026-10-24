@@ -38,7 +38,7 @@ import {
   governedPlan,
   validateGovernedRecipe,
 } from './governed-query';
-import { aiNotConfigured, isAiRefusal } from '../ai/ai-caller';
+import { aiBlockingCode, aiNotConfigured, isAiRefusal } from '../ai/ai-caller';
 import { governanceAssistantEnabled, isAiConfigured } from '../ai/providers/ai-config';
 
 const denied = () => new ForbiddenException('이 조직 분석을 사용할 권한이 없습니다.');
@@ -644,7 +644,9 @@ export class GovernanceService {
       if (
         error instanceof ForbiddenException ||
         error instanceof BadRequestException ||
-        error instanceof ConflictException
+        error instanceof ConflictException ||
+        // The user's quota, the server budget or a missing AI setup: an answer, not a failed analysis.
+        aiBlockingCode(error)
       )
         throw error;
       throw new ServiceUnavailableException(
@@ -775,7 +777,13 @@ export class GovernanceService {
     governedKeys(body, ['viewRevision', 'question', 'filters']);
     const question = label(body.question, 1000);
     return this.authorized(orgId, dashboardId, actor, 'assistant', async scope => {
-      if (!scope.policy.allowAi || !governanceAssistantEnabled()) throw denied();
+      if (!scope.policy.allowAi) throw denied();
+      // An operator switch, not a permission: say so rather than recording a denied access.
+      if (!governanceAssistantEnabled())
+        throw new ServiceUnavailableException({
+          error: 'AI_NOT_CONFIGURED',
+          message: '조직 분석 AI 도우미는 아직 사용할 수 없습니다.',
+        });
       if (!isAiConfigured()) throw aiNotConfigured();
       if (body.viewRevision !== scope.revision)
         throw new ConflictException('접근 범위를 다시 확인해 주세요.');

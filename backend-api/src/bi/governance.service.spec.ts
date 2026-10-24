@@ -1,3 +1,4 @@
+import { HttpException } from '@nestjs/common';
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 jest.mock('../ai/ai-dashboard.service', () => ({ AiDashboardService: class {} }));
 jest.mock('../utils/crypto.util', () => ({
@@ -282,9 +283,29 @@ describe('organization canonical queries over real SQLite metadata and DuckDB', 
         undefined,
         0,
       ),
-    ).rejects.toMatchObject({ status: 403 });
+    ).rejects.toMatchObject({ status: 503 });
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
+  it.each([
+    [new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429), 429],
+    [new HttpException({ error: 'AI_BUDGET_EXHAUSTED', message: 'budget' }, 503), 503],
+  ])(
+    'lets a gateway refusal reach the user, not "analysis failed" (%#)',
+    async (refusal, status) => {
+      const a: any = await service.catalog(org.id, 1, 2);
+      ai.callLlm.mockRejectedValueOnce(refusal);
+      await expect(
+        service.assistant(
+          org.id,
+          1,
+          { viewRevision: a.viewRevision, question: '매출 보여줘' },
+          2,
+          undefined,
+          0,
+        ),
+      ).rejects.toMatchObject({ status, response: { error: expect.stringMatching(/^AI_/) } });
+    },
+  );
   it('keeps policy and mandatory values out of the AI context and denies forbidden AI before provider calls', async () => {
     const a: any = await service.catalog(org.id, 1, 2),
       b: any = await service.catalog(org.id, 1, 3);

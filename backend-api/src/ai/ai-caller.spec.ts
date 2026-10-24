@@ -1,5 +1,5 @@
 import { BadRequestException, HttpException } from '@nestjs/common';
-import { callerOf, isAiRefusal, requestEpoch } from './ai-caller';
+import { aiBlockingCode, callerOf, isAiRefusal, llmFailure, requestEpoch } from './ai-caller';
 
 describe('who a model call is for', () => {
   it('takes the user and the epoch from the verified token, never a default for a token that has one', () => {
@@ -27,5 +27,31 @@ describe('isAiRefusal', () => {
     expect(isAiRefusal(new BadRequestException('AI_QUOTA_EXCEEDED'))).toBe(false);
     expect(isAiRefusal(new HttpException({ error: 'OTHER' }, 429))).toBe(false);
     expect(isAiRefusal(undefined)).toBe(false);
+  });
+});
+
+describe('aiBlockingCode', () => {
+  it('names the errors a retry cannot fix, and only those', () => {
+    expect(aiBlockingCode(new HttpException({ error: 'AI_QUOTA_EXCEEDED' }, 429))).toBe(
+      'AI_QUOTA_EXCEEDED',
+    );
+    expect(aiBlockingCode(new HttpException({ error: 'AI_BUDGET_EXHAUSTED' }, 503))).toBe(
+      'AI_BUDGET_EXHAUSTED',
+    );
+    expect(aiBlockingCode(new Error('AI_NOT_CONFIGURED'))).toBe('AI_NOT_CONFIGURED');
+    expect(aiBlockingCode(new HttpException({ error: 'AI_NOT_CONFIGURED' }, 503))).toBe(
+      'AI_NOT_CONFIGURED',
+    );
+    expect(aiBlockingCode(new Error('LLM_TIMEOUT'))).toBeUndefined();
+    expect(aiBlockingCode(new Error('LLM_API_ERROR_500'))).toBeUndefined();
+  });
+});
+
+describe('llmFailure', () => {
+  it('maps the gateway’s codes and ignores everything else', () => {
+    expect(llmFailure(new Error('LLM_TIMEOUT'))?.status).toBe(504);
+    expect(llmFailure(new Error('LLM_API_ERROR_UNKNOWN'))?.status).toBe(502);
+    expect(llmFailure(new Error('boom'))).toBeUndefined();
+    expect(llmFailure('LLM_TIMEOUT')).toBeUndefined();
   });
 });

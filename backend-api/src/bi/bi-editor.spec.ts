@@ -1412,19 +1412,29 @@ describe('BiService dashboard editor boundaries', () => {
   it('asks for the calls a batch can make (two per content block, one per layout block) before the first', async () => {
     threeBlocks();
     const items = (await service.editor(dashboardId, actor)).items;
-    dashboards.classifyBlockIntent.mockResolvedValueOnce(batchPlan());
-    dashboards.generate.mockResolvedValueOnce({
-      status: 'SUCCESS',
-      data: { ...analysis, widgets: analysis.widgets },
-    });
-    dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 0, y: 6, w: 6, h: 3 });
-    await service.editorAi(dashboardId, batchBody(items), actor, undefined, 0);
-    expect(dashboards.assertAiCalls).toHaveBeenCalledWith(
-      { userId: actor, epoch: 0, feature: 'bi-editor' },
-      3,
+    dashboards.classifyBlockIntent.mockResolvedValueOnce(
+      batchPlan(
+        batchActions([
+          { editMode: 'content', targetPrompt: '2번 차트', editPrompt: '소수 자릿수를 1자리로' },
+          { editMode: 'content', targetPrompt: '3번 차트', editPrompt: '제목을 바꿔 줘' },
+          { editMode: 'layout', targetPrompt: '1번 차트', editPrompt: '아래로 한 칸' },
+        ]),
+      ),
     );
-    const asked = dashboards.assertAiCalls.mock.invocationCallOrder[0];
-    expect(asked).toBeLessThan(dashboards.generate.mock.invocationCallOrder[0]);
+    // What the staged edits turn out to be does not matter here, only what was asked up front.
+    await service
+      .editorAi(dashboardId, batchBody(items), actor, undefined, 0)
+      .catch(() => undefined);
+    const caller = { userId: actor, epoch: 0, feature: 'bi-editor' };
+    // First the auto edit's three, then the batch's 2 + 2 + 1.
+    expect(dashboards.assertAiCalls).toHaveBeenNthCalledWith(1, caller, 3);
+    expect(dashboards.assertAiCalls).toHaveBeenNthCalledWith(2, caller, 5);
+    const asked = dashboards.assertAiCalls.mock.invocationCallOrder[1];
+    for (const order of [
+      ...dashboards.generate.mock.invocationCallOrder,
+      ...dashboards.proposeBlockLayout.mock.invocationCallOrder,
+    ])
+      expect(asked).toBeLessThan(order);
   });
 
   it('refuses an auto edit up front when the day cannot cover its three possible calls', async () => {

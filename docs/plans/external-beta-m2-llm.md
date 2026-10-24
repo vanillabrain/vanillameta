@@ -66,6 +66,8 @@ Studio 생성과 대화가 스트림을 읽어 단계를 표시한다(약 2초 �
 - **JSON이 아닌 답은 `LLM_INVALID_JSON`이 아니라 원문으로 돌려준다.** 호출 지점마다 교정 재시도·400 매핑이 있어 게이트웨이가 던지면 건너뛴다. 단 출력 한도에서 잘린 JSON(`finishReason: length`)은 같은 한도로 다시 잘리므로 `LLM_OUTPUT_TRUNCATED`를 던진다.
 - **`AiDashboardService.generate`와 배치 편집은 게이트웨이의 거절(429·503·입력 과대)을 그대로 던진다**(`isAiRefusal`). 나머지 삼키는 호출 지점은 M2-2b에서 같은 방식으로 바꾼다.
 - **일괄·자동 편집은 호출 전에 남은 칸을 확인한다**: 일괄 = 내용 블록 2회 + 배치 블록 1회, 자동 = 3회(분류 + 최대 2회).
+- **게이트웨이의 자체 실패(`AI_NOT_CONFIGURED`·`LLM_TIMEOUT`·`LLM_OUTPUT_TRUNCATED`·`LLM_API_ERROR_*`)는 `AllExceptionsFilter`가 500이 아닌 503·504·502로 바꾼다**(`llmFailure`). 답이 없는 호출 지점이 모두 같은 처리를 받는다. 호출자 `userId`·`epoch`가 정수가 아니면 게이트웨이가 `AI_CALLER_INVALID`로 거절한다(프로젝트가 `strict`가 아니라 컴파일러가 못 잡는다).
+- **M2-4로 넘기는 것**: Studio 실행은 거절을 HTTP 200의 실패 단계(`errorCode`)로만 돌려주므로 `resetsAt`·`needed` 같은 본문이 화면에 닿지 않고, 한도 실패는 재설정 후에도 재시도되지 않아(새 실행 필요) "실패한 단계부터 다시" 문구가 맞지 않는다. 화면 문구를 `errorCode`별로 나누고 `GET /me/usage`를 보인다.
 - 추론 모델은 출력 토큰으로 먼저 생각하므로 `AI_REASONING_EFFORT`가 있으면 출력 상한에 12,288을 더한다.
 
 ### M2-2b 구현: 무엇이 서버 밖으로 나가는가와 사용자가 정할 것

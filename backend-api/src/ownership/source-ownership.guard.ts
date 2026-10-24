@@ -131,7 +131,9 @@ export class SourceOwnershipGuard implements CanActivate {
           );
       } else if (['dashboardAnalysis', 'dashboardInsight'].includes(handler))
         await this.access.dashboard(param, actor, 'read');
-      else throw new ForbiddenException('unsupported AI data access');
+      else if (handler === 'status') {
+        // Which model the server asks, nothing of anyone's data: a signed-in user may read it.
+      } else throw new ForbiddenException('unsupported AI data access');
     } else if (group === 'DashboardController') {
       if (handler !== 'create' && handler !== 'findAll')
         await this.access.dashboard(

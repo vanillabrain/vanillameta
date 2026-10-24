@@ -159,7 +159,7 @@ it('does not accept different types or protected lookup amounts', async () => {
     });
   }
 });
-it('returns a static provider failure and never falls back to another model', async () => {
+it('returns a static provider failure, and refuses without a model call when none is configured', async () => {
   const a = setup();
   a.ai.callLlm.mockRejectedValueOnce(new Error('/private/secret'));
   await expect(a.service.diagnose(1, 'job', body, 7, undefined, 0)).rejects.toMatchObject({

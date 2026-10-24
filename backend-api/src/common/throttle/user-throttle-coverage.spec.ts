@@ -52,6 +52,7 @@ const THROTTLED: [string, any, string, Preset][] = [
 
 // Polled, re-queried or autosaved by the UI, and none of them calls the model: never throttled here.
 const LEFT_ALONE: [string, any, string][] = [
+  ['ai status (read by screens)', AiController, 'status'],
   ['studio runs list (polled every 2s)', StudioExecutionController, 'list'],
   ['studio run get (polled)', StudioExecutionController, 'get'],
   ['studio run cancel', StudioExecutionController, 'cancel'],

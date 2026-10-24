@@ -41,6 +41,7 @@ describe('dashboard assistant', () => {
   let manager: any;
   const provider = process.env.AI_PROVIDER;
   const model = process.env.AI_MODEL;
+  const apiKey = process.env.AI_API_KEY;
   beforeEach(() => {
     process.env.AI_PROVIDER = 'codex';
     ai = {
@@ -103,6 +104,8 @@ describe('dashboard assistant', () => {
     service = new AiDashboardService(ai, connection, { manager } as any);
   });
   afterAll(() => {
+    if (apiKey === undefined) delete process.env.AI_API_KEY;
+    else process.env.AI_API_KEY = apiKey;
     if (provider === undefined) delete process.env.AI_PROVIDER;
     else process.env.AI_PROVIDER = provider;
     if (model === undefined) delete process.env.AI_MODEL;

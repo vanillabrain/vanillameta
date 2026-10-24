@@ -159,9 +159,10 @@ export class CommerceService {
     if (failure.pending) throw new ConflictException('오류 설명을 준비하고 있습니다.');
     // This path never falls back to a different model than the configured one.
     if (!isAiConfigured())
-      throw new ServiceUnavailableException(
-        'AI 도움을 사용할 수 없습니다. 샘플 재시도와 파일 연결은 계속 사용할 수 있습니다.',
-      );
+      throw new ServiceUnavailableException({
+        error: 'AI_NOT_CONFIGURED',
+        message: 'AI 도움을 사용할 수 없습니다. 샘플 재시도와 파일 연결은 계속 사용할 수 있습니다.',
+      });
     failure.pending = true;
     try {
       const raw = await this.ai.callLlm(

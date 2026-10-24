@@ -125,6 +125,10 @@ export class LlmGateway implements OnModuleInit {
     const config = aiProviderConfig();
     if (!config) throw new Error('AI_NOT_CONFIGURED');
     const { caller, system, prompt } = request;
+    // The compiler cannot tell a missing epoch from a number here (the project is not `strict`), and the
+    // actor lock fails open for a caller that skips it.
+    if (!Number.isSafeInteger(caller?.userId) || !Number.isSafeInteger(caller?.epoch))
+      throw new Error('AI_CALLER_INVALID');
     const jsonMode = Boolean(request.jsonMode);
     const estimatedInput = estimateTokens(system) + estimateTokens(prompt);
     const maxInput = positive(process.env.AI_MAX_INPUT_TOKENS, DEFAULT_MAX_INPUT_TOKENS);
@@ -215,7 +219,9 @@ export class LlmGateway implements OnModuleInit {
       } else if (request.abortSignal?.aborted) {
         status = 'cancelled';
         throw error;
-      } else if (timedOut) throw new Error('LLM_TIMEOUT');
+      } else if (timedOut || (error as Error)?.message === 'LLM_CODEX_TIMEOUT')
+        // The local Codex adapter keeps a clock of its own; to a caller both are the same timeout.
+        throw new Error('LLM_TIMEOUT');
       else if (APICallError.isInstance(error))
         throw new Error(`LLM_API_ERROR_${error.statusCode ?? 'UNKNOWN'}`);
       else throw error;
