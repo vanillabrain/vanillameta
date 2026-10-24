@@ -4,6 +4,15 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import FileSchemaDiagnosis from './FileSchemaDiagnosis';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
+// These tests count and order their own reads; the model label and the usage chip read on their own.
+vi.mock('@/api/aiStatus', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/api/aiStatus')>()),
+  loadAiStatus: async () => null,
+}));
+vi.mock('@/api/usageService', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/api/usageService')>()),
+  fetchAiUsage: async () => null,
+}));
 const rev = 'a'.repeat(64),
   next = 'b'.repeat(64),
   job = '11111111-1111-4111-8111-111111111111';

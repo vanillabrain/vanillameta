@@ -9,6 +9,15 @@ const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 const route = vi.hoisted(() => ({ dashboardId: '3' }));
 const questions = vi.hoisted(() => ({ key: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
+// These tests count and order their own reads; the model label and the usage chip read on their own.
+vi.mock('@/api/aiStatus', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/api/aiStatus')>()),
+  loadAiStatus: async () => null,
+}));
+vi.mock('@/api/usageService', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/api/usageService')>()),
+  fetchAiUsage: async () => null,
+}));
 // The execution request is a stream in the app; here the mocked `post` answers it with the same body.
 vi.mock('@/api/ndjsonClient', () => ({
   postNdjson: async (url: string, body: unknown) => (await api.post(url, body)).data,
