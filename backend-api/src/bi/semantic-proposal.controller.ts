@@ -1,9 +1,11 @@
+import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttle.guard';
 import { SemanticCreationService } from './semantic-creation.service';
 import { Body, Controller, Header, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SemanticProposalService } from './semantic-proposal.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, UserThrottleGuard)
+@UserThrottle('ai')
 @Controller('bi/analysis-proposals')
 export class SemanticProposalController {
   constructor(

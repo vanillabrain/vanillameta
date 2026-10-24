@@ -1,8 +1,10 @@
+import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttle.guard';
 import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StudioSampleService } from './studio-sample.service';
 import { StudioCreationService } from './studio-creation.service';
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, UserThrottleGuard)
+@UserThrottle('ai')
 @Controller('studio')
 export class StudioCreationController {
   constructor(

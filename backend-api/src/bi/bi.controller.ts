@@ -1,3 +1,4 @@
+import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttle.guard';
 import {
   BadRequestException,
   Body,
@@ -13,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BiService } from './bi.service';
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, UserThrottleGuard)
 @Controller('bi')
 export class BiController {
   constructor(private readonly bi: BiService) {}
@@ -69,7 +70,9 @@ export class BiController {
   ) {
     return this.success(await this.bi.editorPreview(id, body, this.actor(req)));
   }
-  @Post('dashboards/:id/editor/ai') async editorAi(
+  @UserThrottle('ai')
+  @Post('dashboards/:id/editor/ai')
+  async editorAi(
     @Param('id') id: string,
     @Body() body: any,
     @Req() req,

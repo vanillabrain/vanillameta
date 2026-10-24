@@ -1,3 +1,4 @@
+import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttle.guard';
 import {
   FieldSelection,
   PredefinedFields,
@@ -45,7 +46,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { Utf8FileInterceptor } from './multipart-options';
 
-@UseGuards(JwtAuthGuard, SourceOwnershipGuard)
+@UseGuards(JwtAuthGuard, UserThrottleGuard, SourceOwnershipGuard)
 @Controller('database')
 export class DatabaseController {
   constructor(
@@ -146,6 +147,7 @@ export class DatabaseController {
    * 파일 업로드 → 서버 워커에서 DuckDB 데이터소스 생성
    * @param file
    */
+  @UserThrottle('upload')
   @Post('upload')
   @UseInterceptors(
     Utf8FileInterceptor('file', {
@@ -177,6 +179,7 @@ export class DatabaseController {
     return this.databaseService.fileVersions(+id, this.access.actor(req.user.accessKeyData.id));
   }
 
+  @UserThrottle('upload')
   @Post(':id/file-replacement')
   @UseInterceptors(
     Utf8FileInterceptor('file', {

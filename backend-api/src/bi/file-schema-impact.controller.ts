@@ -1,8 +1,10 @@
+import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttle.guard';
 import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FileSchemaImpactService } from './file-schema-impact.service';
 import { FileSchemaDiagnosisService } from './file-schema-diagnosis.service';
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, UserThrottleGuard)
+@UserThrottle('ai')
 @Controller('bi/sources/:id/file-refreshes/:requestId/impact')
 export class FileSchemaImpactController {
   constructor(

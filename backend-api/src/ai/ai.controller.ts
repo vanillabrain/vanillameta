@@ -1,3 +1,4 @@
+import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttle.guard';
 import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
 import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -7,7 +8,8 @@ import { AiService } from './ai.service';
 import { RecommendChartDto } from './dto/recommend-chart.dto';
 import { TextToSqlDto } from './dto/text-to-sql.dto';
 
-@UseGuards(JwtAuthGuard, SourceOwnershipGuard)
+@UseGuards(JwtAuthGuard, UserThrottleGuard, SourceOwnershipGuard)
+@UserThrottle('ai')
 @Controller('ai')
 @ApiTags('ai')
 export class AiController {

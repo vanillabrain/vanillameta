@@ -1,3 +1,4 @@
+import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttle.guard';
 import {
   Body,
   CanActivate,
@@ -36,7 +37,7 @@ export class FileRefreshOwnerGuard implements CanActivate {
     return true;
   }
 }
-@UseGuards(JwtAuthGuard, FileRefreshOwnerGuard)
+@UseGuards(JwtAuthGuard, UserThrottleGuard, FileRefreshOwnerGuard)
 @Controller('database/:id/file-refreshes')
 export class FileRefreshController {
   constructor(private readonly refreshes: FileRefreshService) {}
@@ -53,6 +54,7 @@ export class FileRefreshController {
   ) {
     return { status: 'SUCCESS', data: await this.refreshes.get(id, requestId, this.actor(req)) };
   }
+  @UserThrottle('upload')
   @Post()
   @UseInterceptors(
     Utf8FileInterceptor('file', {

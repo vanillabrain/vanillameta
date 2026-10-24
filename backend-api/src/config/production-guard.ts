@@ -1,4 +1,5 @@
 import { publicationConfigProblems } from '../dashboard-studio/studio-publication-expiry';
+import { userThrottleConfigProblems } from '../common/throttle/user-throttle.guard';
 import { quotaConfigProblems } from '../usage/quota-config';
 
 const REQUIRED_SECRETS = [
@@ -74,7 +75,11 @@ export function productionConfigProblems(
   if (signup && !SIGNUP_MODES.includes(signup))
     problems.push(`SIGNUP_MODE must be one of ${SIGNUP_MODES.join(', ')}`);
 
-  problems.push(...quotaConfigProblems(env), ...publicationConfigProblems(env));
+  problems.push(
+    ...quotaConfigProblems(env),
+    ...publicationConfigProblems(env),
+    ...userThrottleConfigProblems(env),
+  );
 
   if (facts.localEnvFileExists)
     problems.push('a .env.local file is present; production must not ship local settings');

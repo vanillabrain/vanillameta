@@ -1,3 +1,4 @@
+import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttle.guard';
 import {
   BadRequestException,
   Body,
@@ -23,7 +24,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CommerceStudioService } from './commerce-studio.service';
 import { CommerceService } from './commerce.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, UserThrottleGuard)
 @Controller('commerce')
 export class CommerceController {
   constructor(
@@ -42,6 +43,7 @@ export class CommerceController {
     return this.commerce.openSample(this.actor(req));
   }
 
+  @UserThrottle('ai')
   @Post('sample-help')
   async sampleHelp(@Body() body: any, @Req() req: any, @Res({ passthrough: true }) res) {
     const abort = new AbortController();
@@ -60,6 +62,7 @@ export class CommerceController {
     }
   }
 
+  @UserThrottle('ai')
   @Post('import-help')
   async importHelp(@Body() body: any, @Req() req: any, @Res({ passthrough: true }) res) {
     const abort = new AbortController();
@@ -93,6 +96,7 @@ export class CommerceController {
     return this.commerce.listSources(this.actor(req));
   }
 
+  @UserThrottle('upload')
   @Post('sources/:id/import')
   @UseInterceptors(
     FileFieldsInterceptor(
@@ -131,6 +135,7 @@ export class CommerceController {
     return this.commerce.listProjects(this.actor(req));
   }
 
+  @UserThrottle('upload')
   @Post('import')
   @UseInterceptors(
     FileFieldsInterceptor(
@@ -187,6 +192,7 @@ export class CommerceController {
     return this.commerce.frontendReport(this.actor(req), id, start ?? from, end ?? to, channel);
   }
 
+  @UserThrottle('ai')
   @Post(':id/ai')
   aiDraft(
     @Param('id', ParseIntPipe) id: number,

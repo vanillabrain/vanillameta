@@ -1,3 +1,4 @@
+import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttle.guard';
 import {
   Body,
   CallHandler,
@@ -22,7 +23,7 @@ class NoStore implements NestInterceptor {
     return next.handle();
   }
 }
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, UserThrottleGuard)
 @UseInterceptors(NoStore)
 @Controller('bi/organizations')
 export class GovernanceController {
@@ -142,7 +143,9 @@ export class GovernanceController {
       await this.governance.exportCsv(Number(id), Number(dashboard), body, this.actor(req)),
     );
   }
-  @Post(':orgId/dashboards/:dashboardId/view/assistant') async assistant(
+  @UserThrottle('ai')
+  @Post(':orgId/dashboards/:dashboardId/view/assistant')
+  async assistant(
     @Param('orgId') id: string,
     @Param('dashboardId') dashboard: string,
     @Body() body: any,
