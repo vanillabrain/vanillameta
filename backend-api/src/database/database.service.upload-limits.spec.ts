@@ -101,9 +101,25 @@ describe('uploadFile against the per-user limits (real SQLite, real DuckDB impor
 
   it('refuses before converting when the file alone is over the byte limit', async () => {
     process.env.UPLOAD_MAX_BYTES_PER_USER = '10';
+    const convert = jest.spyOn(duckdb, 'importFile');
     expect(await refusal(upload())).toMatchObject({ reason: 'bytes', limit: 10 });
+    expect(convert).not.toHaveBeenCalled();
+    convert.mockRestore();
     expect(leftovers()).toEqual([]);
     expect(await db.getRepository(Database).count()).toBe(0);
+  });
+
+  it('deletes the temporary file multer wrote when the early check refuses it', async () => {
+    process.env.UPLOAD_MAX_SOURCES_PER_USER = '1';
+    await upload('a.csv');
+    const incoming = path.join(root, 'incoming');
+    fs.mkdirSync(incoming, { recursive: true });
+    const temporary = path.join(incoming, 'upload-1');
+    fs.writeFileSync(temporary, 'a,b\n1,x\n');
+    await refusal(
+      service.uploadFile({ originalname: 'b.csv', path: temporary, size: 10 }, user, 0),
+    );
+    expect(fs.existsSync(temporary)).toBe(false);
   });
 
   it('refuses under the actor lock when the converted import does not fit, and removes it', async () => {
@@ -142,6 +158,8 @@ describe('uploadFile against the per-user limits (real SQLite, real DuckDB impor
     ).toMatchObject({
       reason: 'bytes',
     });
+    // The refused candidate is gone: only the first import's directory remains.
+    expect(leftovers()).toHaveLength(1);
     // A refresh passes a commit callback and was checked when its input was staged.
     const commit = (activate: (manager: any) => Promise<any>) =>
       db.transaction(manager => activate(manager));

@@ -7,6 +7,7 @@ import { DashboardWidgetService } from '../dashboard/dashboard-widget/dashboard-
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { DatabaseService } from '../database/database.service';
+import { UserStorageService } from '../database/user-storage.service';
 import { DatabaseType } from '../database/entities/database_type.entity';
 import { Database } from '../database/entities/database.entity';
 import { Dataset } from '../dataset/entities/dataset.entity';
@@ -39,6 +40,7 @@ import { UserMapping } from '../user/entities/user-mapping.entity';
     AiService,
     ConnectionService,
     DatabaseService,
+    UserStorageService,
     DashboardWidgetService,
     JwtService,
   ],

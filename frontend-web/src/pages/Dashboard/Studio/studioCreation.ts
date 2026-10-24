@@ -2,6 +2,7 @@ import isEqual from 'lodash/isEqual';
 import { BusinessBasis, assertOptionalBusinessBasis, assertDefaultDateColumn } from '@/api/businessBasis';
 import { get, post } from '@/helpers/apiHelper';
 import { studioAssert } from './studioDocument';
+import { uploadQuotaMessage } from './studioUploadQuota';
 import { StudioPreview, validateStudioPreview } from './studioApi';
 export type StudioSource = { id: number; name: string; engine: string; catalogLabel?: string; catalogVersion?: number };
 export type SourceColumn = {
@@ -173,6 +174,8 @@ export const fetchStudioSources = async (): Promise<StudioSource[]> => {
 export const creationError = (cause: unknown, context: 'file' | 'generation' = 'generation') => {
   const status = Number((cause as any)?.response?.status);
   if (status === 401) return '로그인이 만료되었습니다. 다시 로그인해 주세요.';
+  const quota = uploadQuotaMessage(cause);
+  if (quota) return quota;
   if (status === 403) return '이 데이터 소스를 사용할 권한이 없습니다. 다른 소스를 선택해 주세요.';
   if (status === 409) return '데이터 또는 지표 기준이 변경되었습니다. 소스를 새로 확인하고 다시 생성해 주세요.';
   if (status === 400 && context === 'file')

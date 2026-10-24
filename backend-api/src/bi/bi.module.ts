@@ -60,6 +60,7 @@ import { BiSegmentService } from './bi-segment.service';
 import { BiSeriesController } from './bi-series.controller';
 import { BiSeriesService } from './bi-series.service';
 import { BiService } from './bi.service';
+import { UserStorageService } from '../database/user-storage.service';
 @Module({
   imports: [
     AiModule,
@@ -107,6 +108,7 @@ import { BiService } from './bi.service';
     ConditionReportService,
     GovernanceService,
     SourceModelService,
+    UserStorageService,
     FileSchemaImpactService,
     FileSchemaDiagnosisService,
     ExportJobsService,

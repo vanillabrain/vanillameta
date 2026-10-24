@@ -11,6 +11,7 @@ import * as path from 'path';
 import { DuckDBService } from '../analysis/duckdb.service';
 import { fileLookupDefinition } from '../analysis/file-lookup';
 import { Database } from '../database/entities/database.entity';
+import { UserStorageService } from '../database/user-storage.service';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { decryptConnectionConfig, encryptConnectionConfig } from '../utils/crypto.util';
 import { serializedViewWrite } from '../dashboard/view-write-queue';
@@ -27,6 +28,7 @@ export class SourceModelService {
     private readonly bi: BiService,
     private readonly access: SourceAccessService,
     private readonly worker: DuckDBService,
+    private readonly storage?: UserStorageService,
   ) {}
   private spec(value: any) {
     if (
@@ -238,6 +240,12 @@ export class SourceModelService {
                 id === spec.factSourceId ? spec.factRevision : spec.lookupRevision,
                 true,
               );
+            // A model is a full snapshot on disk like an upload, so it counts against the same limits.
+            // A refusal leaves its candidate to the cleanup in the finally below.
+            await this.storage?.assertWithin(manager, actor, {
+              bytes: await this.worker.directoryBytes(path.dirname(output.filename)),
+              newSource: true,
+            });
             const config = {
               client: 'duckdb',
               connection: { filename: output.filename },

@@ -10,6 +10,7 @@ import {
   validateStudioFilters,
 } from './studioDocument';
 import { SourceProfile } from './studioCreation';
+import { uploadQuotaMessage } from './studioUploadQuota';
 import { PublishedBlock } from './studioPublication';
 import {
   STUDIO_DATE_LIMITS,
@@ -311,6 +312,8 @@ export async function saveRemix(
 }
 export function remixError(error: any, received = false): string {
   const status = error?.response?.status;
+  const quota = uploadQuotaMessage(error);
+  if (quota) return quota;
   if (received && status === 403) return '복제 허용이 중지됐거나 받은 분석·대상 데이터에 접근할 권한이 없습니다.';
   if (received && status === 409)
     return '공유 원본이나 복제 허용 버전이 변경되었습니다. 원본을 새로 확인하고 매핑을 검토해 주세요.';

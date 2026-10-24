@@ -147,7 +147,13 @@ export class DatabaseService {
   async uploadFile(file: AnalysisUpload, ownerId?: number, expectedEpoch?: number) {
     // Cheap early refusal, before the file is converted. The check under the actor lock below is the
     // one that cannot be raced.
-    await this.assertUploadWithinLimits(ownerId, await this.incomingBytes(file), true);
+    try {
+      await this.assertUploadWithinLimits(ownerId, await this.incomingBytes(file), true);
+    } catch (error) {
+      // Multer already wrote the upload to disk; importFile would have removed it, so do it here.
+      if (file?.path) await fs.rm(file.path, { force: true });
+      throw error;
+    }
     const imported = await this.duckdbService.importFile(file);
     const baseName = path.basename(file.originalname, path.extname(file.originalname));
     const database = new Database();
@@ -179,10 +185,11 @@ export class DatabaseService {
         await lockSourceActor(manager, ownerId, expectedEpoch);
         // Same-user uploads queue on the actor lock, so this sees every earlier one. The imported
         // directory is on disk but not in a row yet, so its bytes are added by hand.
-        await this.storage?.assertWithin(manager, ownerId, {
-          bytes: await this.duckdbService.directoryBytes(path.dirname(imported.filename)),
-          newSource: true,
-        });
+        if (Number.isSafeInteger(ownerId))
+          await this.storage?.assertWithin(manager, ownerId, {
+            bytes: await this.duckdbService.directoryBytes(path.dirname(imported.filename)),
+            newSource: true,
+          });
         return manager.save(Database, database);
       });
     } catch (error) {
@@ -376,9 +383,6 @@ export class DatabaseService {
     let committed = false;
     try {
       const state = await this.fileState(id, ownerId);
-      // A refresh passes a commit callback and was checked when its input was staged; counting it
-      // again here would count the staged copy and the new version as two files.
-      if (!commit) await this.assertUploadWithinLimits(ownerId, await this.incomingBytes(file));
       if (state.config.fileModel)
         throw new BadRequestException(
           '연결 모델은 고정 스냅샷입니다. 원본 품질을 다시 확인해 새 연결 소스로 만들어 주세요.',
@@ -398,7 +402,18 @@ export class DatabaseService {
         throw new BadRequestException(
           '최대 5개 파일 버전을 보관합니다. 추가 갱신은 보존 정책 정리 후 진행해 주세요.',
         );
+      // A refresh passes a commit callback and was checked when its input was staged; counting it
+      // again here would count the staged copy and the new version as two files. Checked after the
+      // cheap rejections above so a stale revision or an unchanged file keeps its own answer.
+      if (!commit) await this.assertUploadWithinLimits(ownerId, await this.incomingBytes(file));
       imported = await this.duckdbService.importFile(file);
+      // The converted import (source file plus DuckDB file) is what the version really costs. This
+      // check is not under the actor lock: concurrent replacements by one user can overshoot by one.
+      if (!commit)
+        await this.assertUploadWithinLimits(
+          ownerId,
+          await this.duckdbService.directoryBytes(path.dirname(imported.filename)),
+        );
       const columns = async (filename: string) =>
         (await this.duckdbService.query(filename, 'DESCRIBE uploaded_data')).datas.map(c => ({
           name: c.column_name,

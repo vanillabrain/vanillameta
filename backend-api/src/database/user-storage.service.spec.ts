@@ -205,8 +205,8 @@ describe('UserStorageService (real SQLite, real files)', () => {
 });
 
 describe('upload limit settings', () => {
-  it('defaults to 20 sources and 1 GiB and accepts overrides', () => {
-    expect(uploadLimits({})).toEqual({ maxSources: 20, maxBytes: 1024 ** 3 });
+  it('defaults to 20 sources and 5 GiB and accepts overrides', () => {
+    expect(uploadLimits({})).toEqual({ maxSources: 20, maxBytes: 5 * 1024 ** 3 });
     expect(
       uploadLimits({
         UPLOAD_MAX_SOURCES_PER_USER: '3',
@@ -235,8 +235,22 @@ describe('upload limit settings', () => {
       CORS_ORIGIN: 'https://app.example.test',
     } as any;
     expect(productionConfigProblems({ ...base, UPLOAD_MAX_BYTES_PER_USER: '0' })).toHaveLength(1);
-    expect(productionConfigProblems({ ...base, UPLOAD_MAX_BYTES_PER_USER: '500000000' })).toEqual(
+    expect(productionConfigProblems({ ...base, UPLOAD_MAX_BYTES_PER_USER: '5000000000' })).toEqual(
       [],
     );
+  });
+
+  it('refuses a per-user byte cap below what one import may take, so a lone upload always fits', () => {
+    expect(uploadLimitProblems({})).toEqual([]);
+    expect(uploadLimitProblems({ UPLOAD_MAX_BYTES_PER_USER: '1000000000' } as any)).toEqual([
+      expect.stringContaining('must be at least ANALYSIS_MAX_STORAGE_BYTES (2147483648)'),
+    ]);
+    // The comparison follows the configured analysis ceiling.
+    expect(
+      uploadLimitProblems({
+        UPLOAD_MAX_BYTES_PER_USER: '1000000000',
+        ANALYSIS_MAX_STORAGE_BYTES: '500000000',
+      } as any),
+    ).toEqual([]);
   });
 });

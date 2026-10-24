@@ -7,7 +7,8 @@ export interface UploadLimits {
 
 /** Placeholders until the product owner confirms the beta limits; both can be set per environment. */
 export const DEFAULT_MAX_SOURCES_PER_USER = 20;
-export const DEFAULT_MAX_BYTES_PER_USER = 1024 ** 3;
+// Above the 2 GiB one import may take (ANALYSIS_MAX_STORAGE_BYTES), so a single legal upload fits.
+export const DEFAULT_MAX_BYTES_PER_USER = 5 * 1024 ** 3;
 
 function positive(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
   const raw = env[name]?.trim();
@@ -28,8 +29,16 @@ export function uploadLimits(env: NodeJS.ProcessEnv = process.env): UploadLimits
 /** Problems with the upload limit settings, as messages for the production boot check. */
 export function uploadLimitProblems(env: NodeJS.ProcessEnv): string[] {
   try {
-    uploadLimits(env);
-    return [];
+    const { maxBytes } = uploadLimits(env);
+    // One import may legitimately take this much; a smaller per-user cap would refuse a lone upload.
+    const analysis = Number(env.ANALYSIS_MAX_STORAGE_BYTES);
+    const oneImport = Number.isSafeInteger(analysis) && analysis > 0 ? analysis : 2 * 1024 ** 3;
+    return maxBytes < oneImport
+      ? [
+          `UPLOAD_MAX_BYTES_PER_USER (${maxBytes}) must be at least ANALYSIS_MAX_STORAGE_BYTES (${oneImport}), ` +
+            'or a single allowed upload could be refused',
+        ]
+      : [];
   } catch (error) {
     return [(error as Error).message];
   }
