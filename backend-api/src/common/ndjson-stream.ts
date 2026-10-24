@@ -108,7 +108,7 @@ export function serveRun<T>(
   write({ type: 'start' });
   // A stalled connection must not make the buffer grow: heartbeats wait while earlier lines are unread.
   const timer = setInterval(() => {
-    if (out.writableLength < 16 * 1024) write({ type: 'heartbeat' });
+    if (out.readableLength + out.writableLength < 16 * 1024) write({ type: 'heartbeat' });
   }, options.heartbeatMs ?? HEARTBEAT_MS);
   timer.unref?.();
   const unwatch = options.watch?.(write);
