@@ -11,14 +11,22 @@ import {
 
 class Controller {
   @UserThrottle('upload')
-  upload() {}
+  upload() {
+    return undefined;
+  }
   @UserThrottle('ai')
-  ask() {}
-  plain() {}
+  ask() {
+    return undefined;
+  }
+  plain() {
+    return undefined;
+  }
 }
 @UserThrottle('ai')
 class WholeClass {
-  one() {}
+  one() {
+    return undefined;
+  }
 }
 
 const context = (

@@ -271,6 +271,8 @@ describe('UC051 atomic source and connected Studio dashboard bundle', () => {
     return { widget, dataset: older };
   };
   beforeAll(async () => {
+    // One synthetic user uploads far more than the real per-minute limit allows.
+    process.env.USER_THROTTLE_UPLOAD_PER_MIN = '100000';
     process.env.ACCESS_SECRET = 'synthetic-bundle-secret';
     db = await semanticMetadata('handover', {
       type: 'sqlite',
@@ -306,6 +308,7 @@ describe('UC051 atomic source and connected Studio dashboard bundle', () => {
   afterAll(async () => {
     await app?.close();
     await db?.destroy();
+    delete process.env.USER_THROTTLE_UPLOAD_PER_MIN;
     if (oldSecret === undefined) delete process.env.ACCESS_SECRET;
     else process.env.ACCESS_SECRET = oldSecret;
     if (oldRoot === undefined) delete process.env.FILE_UPLOAD_DIR;

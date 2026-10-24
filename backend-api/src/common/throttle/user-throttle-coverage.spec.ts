@@ -1,3 +1,4 @@
+jest.mock('ai', () => ({ generateText: jest.fn(), streamText: jest.fn(), tool: jest.fn() }));
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AiController } from '../../ai/ai.controller';
 import { BiController } from '../../bi/bi.controller';

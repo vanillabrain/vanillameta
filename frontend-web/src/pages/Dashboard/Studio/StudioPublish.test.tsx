@@ -40,6 +40,7 @@ describe('publication expiry', () => {
   it('refuses an expiry more than 30 days away without sending the request', async () => {
     render(<StudioPublish {...props} />);
     const publish = await screen.findByRole('button', { name: '게시하기' });
+    await waitFor(() => expect((publish as HTMLButtonElement).disabled).toBe(false));
     fireEvent.change(screen.getByLabelText('링크 만료 시각 (내 시간대)'), {
       target: { value: localInput(31) },
     });
@@ -50,6 +51,7 @@ describe('publication expiry', () => {
   it('sends an expiry inside the limit, and none when the field is blank (the server picks 30 days)', async () => {
     render(<StudioPublish {...props} />);
     const publish = await screen.findByRole('button', { name: '게시하기' });
+    await waitFor(() => expect((publish as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(publish);
     await waitFor(() => expect(publishDashboard).toHaveBeenCalledTimes(1));
     expect(vi.mocked(publishDashboard).mock.calls[0][1]).not.toHaveProperty('expiresAt');
@@ -57,6 +59,7 @@ describe('publication expiry', () => {
   it('sends the chosen expiry when it is within 30 days', async () => {
     render(<StudioPublish {...props} />);
     const publish = await screen.findByRole('button', { name: '게시하기' });
+    await waitFor(() => expect((publish as HTMLButtonElement).disabled).toBe(false));
     fireEvent.change(screen.getByLabelText('링크 만료 시각 (내 시간대)'), {
       target: { value: localInput(10) },
     });
