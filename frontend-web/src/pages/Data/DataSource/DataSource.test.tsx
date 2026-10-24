@@ -86,3 +86,14 @@ it('explains why a saved source whose type the environment no longer lists canno
   expect(await screen.findByText('dataSource.typeUnavailable')).toBeTruthy();
   expect(screen.queryByText('dataSource.selectType')).toBeNull();
 });
+
+// The form is chosen by the saved `type`, so a listed row with the same engine does not make it editable.
+it('still explains it when another listed type shares the saved source engine', async () => {
+  mocks.types.mockResolvedValue({ data: { data: [MYSQL] } });
+  mocks.info.mockResolvedValue({
+    data: { data: { databaseInfo: { name: 'old', type: 'maria', engine: 'mysql2', connectionConfig: {} } } },
+  });
+  renderPage('/data/source/modify/6');
+  expect(await screen.findByText('dataSource.typeUnavailable')).toBeTruthy();
+  expect(screen.queryByText('dataSource.selectType')).toBeNull();
+});

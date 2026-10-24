@@ -317,7 +317,7 @@ function DataSource() {
       ) : isModifyMode &&
         savedDatabase &&
         typeList.length > 0 &&
-        !typeList.some(item => item.engine === savedDatabase.engine) ? (
+        !typeList.some(item => item.type === savedDatabase.type) ? (
         <Notice severity="info" className="m-4 flex flex-wrap items-center gap-3">
           <span className="break-words">{t('dataSource.typeUnavailable')}</span>
           <Button variant="ghost" size="sm" onClick={() => navigate('/data')}>
