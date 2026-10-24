@@ -9,7 +9,7 @@
 | M-1 | 전략 전환 기록, 약관·개인정보·삭제 경로 | 출시 게이트 |
 | M0 | 운영 기준선: 부팅 가드, 기준선 마이그레이션, SSRF 차단, 이미지, `deploy/`, 배포 워크플로, 백업 | 출시 게이트 |
 | M1 | 초대 가입(구현·부분 검증: [증빙](../testing/external-beta-m1-access.md)), 쿼터·원장·사용자별 throttle·업로드 상한·공개 링크 만료(구현·테스트 검증, 호출 연결은 M2: [계획](external-beta-m1-quota.md), [증빙](../testing/external-beta-m1-quota.md)), 데이터 격리 증명(구현·부분 검증: [증빙](../testing/external-beta-m1-isolation.md)) | 출시 게이트 |
-| M2 | AI SDK 레지스트리, 게이트웨이(쿼터·원장·비용 차단기), NDJSON 스트리밍 | 출시 게이트 |
+| M2 | AI SDK 레지스트리, 게이트웨이(쿼터·원장·비용 차단기), NDJSON 스트리밍(구현·배선 검증은 모의 제공자로 끝남, **실제 모델은 미검증**: [계획](external-beta-m2-llm.md), [증빙](../testing/external-beta-m2-llm.md)) | 출시 게이트 |
 | M3 | 공유 zod 스펙, 블록 확장(pie/area/scatter/table/markdown/filter) | 출시 후 |
 | M4 | 채팅 편집 연산(add/remove/replace/changeKind/changeQuery) | 출시 후 |
 | M5 | 익명 iframe 임베드, 공유 시스템 일원화 | 출시 후 |
@@ -48,5 +48,5 @@ VM 호스트, 도메인·DNS(예: `app.vanillameta.net`), 시크릿, LLM API 키
 - M0: 빈 MySQL 마이그레이션 diff, 가드 거부 사례, 실제 VM compose 기동, 복원 훈련.
 - M1: 사용자 A/B 격리(source, 업로드, 게시 관리, 실행 결과), 쿼터 경계, 초대 E2E.
 - M2: 게이트웨이 단위 테스트(SDK는 `jest.mock`; `MockLanguageModel`은 쓰지 못했다: `docs/plans/external-beta-m2-llm.md` 정정 참조), 실제 LLM 1개 제공자 전체 여정, 실제 브라우저 스트리밍·취소(390/768/1440).
-- 화면: 운영 구성 스택에서 전 화면을 열어 캡처하고 복제 여정까지 확인했다([증빙](../testing/external-beta-ui-screens.md)). Studio AI 생성 불가(M2), 막힌 DB 유형의 무음 실패, 공개 링크 두 종류·만료 기본값은 출시 전에 해결할 항목이다.
+- 화면: 운영 구성 스택에서 전 화면을 열어 캡처하고 복제 여정까지 확인했다([증빙](../testing/external-beta-ui-screens.md)). 실제 모델로 끝까지 실행한 Studio AI 생성 증빙 없음(M2의 남은 게이트: 제공자·모델·키·예산 결정 필요), 막힌 DB 유형의 무음 실패, 공개 링크 두 종류·만료 기본값은 출시 전에 해결할 항목이다.
 - 미실행은 통과로 보고하지 않는다.

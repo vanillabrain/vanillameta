@@ -914,6 +914,19 @@ describe('T7 durable executions', () => {
       retryable,
     });
   });
+  it('logs the code of a model failure that a retry might fix, and nothing for a refusal', async () => {
+    const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    ai.callLlm.mockRejectedValueOnce(new Error('LLM_API_ERROR_401'));
+    await service.create(body, 7, undefined, 0);
+    expect(log).toHaveBeenCalledWith('AI call failed: LLM_API_ERROR_401');
+    log.mockClear();
+    ai.callLlm.mockRejectedValueOnce(
+      new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429),
+    );
+    await service.create({ ...body, requestId: `${body.requestId}-quota` }, 7, undefined, 0);
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
   it('publishes each persisted step transition to a watcher of the request, without any content', async () => {
     const events: any[] = [];
     service.watch(`req:7:${body.requestId}`, event => events.push(event));

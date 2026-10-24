@@ -59,7 +59,7 @@ import {
 import { importStudio, studioDigest } from './studio-legacy';
 import { studioDemoData } from './studio-demo-data';
 import { pinMetricFormula } from '../bi/metric-formula';
-import { aiNotConfigured, isAiRefusal, llmFailure } from '../ai/ai-caller';
+import { aiNotConfigured, failureCode, isAiRefusal, llmFailure } from '../ai/ai-caller';
 import { isAiConfigured } from '../ai/providers/ai-config';
 
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -607,13 +607,22 @@ export class StudioCreationService {
       if (isAiRefusal(error)) throw error;
       // The gateway's own failures keep their status and code (timeout 504, cut-off answer or provider error
       // 502, no setup 503), exactly as on the paths that let them reach the exception filter.
+      // The answer to the user is generic on purpose; the code of what failed (a revoked key and a provider
+      // outage look the same to them) goes to the log, never the raw error text.
+      if (!controller.signal.aborted) console.error(`AI call failed: ${failureCode(error)}`);
       const failure = llmFailure(error);
       if (failure)
         throw new HttpException(
           { error: failure.errorCode, message: failure.message },
           failure.status,
+          { cause: error },
         );
-      throw new ServiceUnavailableException('AI 생성안을 준비하지 못했습니다. 다시 시도해 주세요.');
+      throw new ServiceUnavailableException(
+        'AI 생성안을 준비하지 못했습니다. 다시 시도해 주세요.',
+        {
+          cause: error,
+        },
+      );
     } finally {
       signal?.removeEventListener('abort', abort);
     }

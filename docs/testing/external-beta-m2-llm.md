@@ -60,7 +60,7 @@
 | 송신 차단 | `deploy/egress-guard.sh apply` 적용 후 api에서 확인: 모의 서버 200, 공개 https 200, `10.255.255.1`·`169.254.169.254` 시간 초과, mysql 도달. 확인 후 해제(`status`: not applied). 모의 서버는 사설 대역이라 `egress` 네트워크의 172.29.40.50:4310에 둔다 |
 | 이미지 | **`Dockerfile.prod`로 만든 것은 api 기반 이미지 `verify`(커밋 `65d9d5f0`) 하나뿐이다.** api `verify2`는 그 위에 호스트에서 빌드한 `dist`(Node 26, `nest build`)를 얹은 층이라 이전 `dist`의 삭제된 파일이 남을 수 있다. web은 VM 안 빌드가 디스크 부족(ENOSPC)으로 실패해, 호스트에서 `vite build`(`REACT_APP_API_URL=/v1`) 후 `Dockerfile.prod` 마지막 단계와 같은 nginx 이미지에 담았다(`COPY build`만 다름) |
 | 실행한 커밋 | api: `65d9d5f0`(1단계) → `52bb0d78`(1b·2단계, 버그 수정 `f0dfb520` 포함) → 이후 변경 없음. web: `verify`=`65d9d5f0` 프런트엔드, `verify2`=`99c4971c`, `verify3`=`f214b678`. **이 스택의 api는 `305696f1`·`cd51c740`(Codex 검사 대소문자, 실패 코드 로그) 이전 코드다.** 이후 변경은 단위 테스트로만 확인했다 |
-| 환경 변수(이름만) | `AI_PROVIDER=openai`(모의 서버 `AI_API_BASE_URL`), `AI_MODEL=mock-model`, `AI_GLOBAL_MONTHLY_TOKENS=5000000`, `AI_TIMEOUT_MS=8000`, `QUOTA_DAILY_CALLS=30`, `USER_THROTTLE_AI_PER_MIN=20`(제한 시험에서는 3), `SIGNUP_MODE=invite`. `LOG_LEVEL`은 기본(warn) |
+| 환경 변수(이름만) | `AI_PROVIDER=openai`(모의 서버 `AI_API_BASE_URL`), `AI_MODEL=mock-model`, `AI_GLOBAL_MONTHLY_TOKENS=5000000`, `AI_TIMEOUT_MS=8000`, `QUOTA_DAILY_CALLS=30`(**시나리오마다 사용자별 일일·월간 한도를 `access-cli quota set`으로 바꿨다**: 18, 52, 60, 200, 300 등. 아래 수치의 한도는 그 시점 값이다), `USER_THROTTLE_AI_PER_MIN=20`(제한 시험에서는 3), `SIGNUP_MODE=invite`. `LOG_LEVEL`은 기본(warn) |
 | 사용자 | 초대 코드로 가입한 일회용 사용자 A·B, 각자 CSV(6행) 업로드. 브라우저는 A만 사용 |
 
 모의 서버 모드: **실행함** — normal, delay(3·4·5·6·8 s), stall-silent, http-error, bad-json, truncated, no-usage. **실행하지 않음** — `slow-then-ok`.
@@ -74,7 +74,7 @@
 | S3 | 실행 요청(지연 3 s) | 통과. 첫 줄 3~5 ms, `result` 3.3 s, 원장 `ok` 1,318 입력·20 출력(실사용량). nginx가 버퍼링하지 않음 |
 | S3b | 하트비트(지연 11 s, 시간 제한 8 s) | 통과. **하트비트 5,008 ms에 한 번**(서버 기본 5초), 8.2 s에 시간 제한으로 실패 |
 | S4 | 수정 요청 | 통과(324~353 ms), `updateBlock` 제목 패치 |
-| S5 | 중지(지연 6 s, 1.5 s에 클라이언트 중단) | 통과. 원장 `cancelled`가 1.76~1.79 s에 기록, 모의 서버 `aborted:true`, 실행 `RUN_CANCELLED`·재시도 불가 |
+| S5 | 중지(지연 6 s, 1.5 s에 클라이언트 중단) | 통과. 원장 `cancelled`가 1.76 s에 기록(한 번의 조회 값 1,764 ms), 모의 서버 `aborted:true`, 실행 `RUN_CANCELLED`·재시도 불가 |
 | S6 | 시간 제한(stall-silent, 8 s) | 실행: 통과(MODEL_FAILED, 재시도 가능). 제안: **처음에는 503(계획은 504)** → 버그 2, 수정 뒤 504 `LLM_TIMEOUT` |
 | S7 | http-error / bad-json / truncated | 원장: http-error `error`, bad-json·truncated `ok`(설계: SDK가 거절한 JSON도 호출 자체는 성공으로 기록). 제안 응답: **처음에는 모두 일반 503** → 수정 뒤 http-error 502 `LLM_UNAVAILABLE`, truncated 502 `LLM_OUTPUT_TRUNCATED`, bad-json은 일반 503 |
 | S8 | `usage` 없는 응답 | 통과. 원장 `ok` 1,318/20, `usageEstimated` 표시 |
@@ -83,7 +83,7 @@
 | S11 | 전역 예산(`AI_GLOBAL_MONTHLY_TOKENS=1`) | 통과. 503 `AI_BUDGET_EXHAUSTED`, 원장 행·쿼터 변화 없음 |
 | S12 | 사용자 제한(분당 3) | 통과. 1~3번 201, 4번째 429 `RATE_LIMITED`(4 ms, `retryAfterSeconds` 60) |
 | S13 | AI 미설정(빈 키) | 통과. api 정상 기동, `/ai/status` `configured:false`, 제안 503 `AI_NOT_CONFIGURED`, 실행 `retryable:false` |
-| S14 | 인증 | 통과(`/me/usage` 제외, 버그 1). 토큰 없음·위조 만료 토큰 401(본문 `data:"accessTokenExpired"`), 갱신 쿠키로 `POST /user/get-access-token` 201, 갱신 토큰 동작. 접근 토큰 수명이 코드에 고정(21,600 s)이라 5초 토큰은 같은 비밀 키로 위조해 시험했다 |
+| S14 | 인증 | 통과(`/me/usage` 제외, 버그 1). 토큰 없음·위조 만료 토큰 401(본문 `data:"accessTokenExpired"`), 갱신 쿠키로 `POST /user/get-access-token` 201, 갱신 토큰 동작(첫 시도는 오래된 쿠키로 401 `"Unathorization"`이었고 — 제품에 이미 있는 철자 오류 — 쿠키를 다시 받아 재실행한 결과가 201이다). 접근 토큰 수명이 코드에 고정(21,600 s)이라 5초 토큰은 같은 비밀 키로 위조해 시험했다 |
 | S15 | 동시 스트림 10개(지연 4 s) | 통과(표본 1회). 모두 201 성공 4.6~5.4 s, 모의 서버 호출 10. `docker stats` +2 s: CPU 0.02 %, 147 MiB / 4 GiB, 프로세스 13. **최대치는 재지 않았다** |
 
 ### 발견해서 고친 버그 3개(`f0dfb520`, 재확인 `52bb0d78`)
@@ -96,12 +96,12 @@
 
 | # | 결과 |
 | --- | --- |
-| B1 | 통과. 생성 화면 모델 표시 "OpenAI 호환 · mock-model 요청", 칩 "AI 호출 31/200". 390·768·1440에서 가로 넘침 없음 |
+| B1 | 통과. 생성 화면 모델 표시 "OpenAI 호환 · mock-model 요청", 칩 "AI 호출 51/200"(보존된 캡처 기준. 처음 보고서의 31은 캡처와 맞지 않아 쓰지 않는다). 390·768·1440에서 가로 넘침 없음 |
 | B2 | 통과(진행 표시 시각은 **재지 못함**). 생성(지연 5 s) → 미리보기 → 저장(대시보드 5). 생성 중 `/studio/runs` 요청 0 |
 | B3 | 통과(첫 단계 시각 **재지 못함**: 표본 추출 실패). 편집·질문 실행 6.4 s, 스트림 중 폴링 0, 칩 33→36. 블록을 고르지 않은 질문은 안내 문구를 주지만 실행 카드는 "완료"로 남는다(UX 관찰) |
 | B4 | 통과. 1.5 s 중지 → "중지됨", 붉은 경고·재시도 버튼 없음, 원장 `cancelled`, 모의 서버 `aborted:true` |
 | B5 | 통과. 만료 토큰: 401 한 번 → 갱신 201 → 재시도 200, 원장 행 정확히 한 개 추가 |
-| B6 | (a)(b) 통과: 실행 카드 "실패"·재설정 시각 약속 없음·재시도 버튼 없음, 칩 "AI 호출 40/40 · 오늘 한도 도달", 생성 화면 문구. **(c) 대화 창의 생성 메시지 경로는 차단됨(경로를 찾지 못함)** |
+| B6 | (a)(b) 통과: 실행 카드 "실패"·재설정 시각 약속 없음·재시도 버튼 없음, 칩 "AI 호출 52/52 · 오늘 한도 도달"(보존된 캡처 기준. 시험 중 사용자별 한도를 CLI로 현재 사용량에 맞춰 바꿨다), 생성 화면 문구. **(c) 대화 창의 생성 메시지 경로는 차단됨(경로를 찾지 못함)** |
 | B7 | 통과. 칩 "… · 이달 한도 도달", 생성 화면 월간 문구, `quota_denied` 기록 |
 | B8 | 통과. 전역 예산 문구, 원장 행 없음, 입력창 잠기지 않음 |
 | B9 | 통과. "AI가 아직 연결되지 않았습니다", 칩 없음, 생성 화면에 미설정 문구 |
@@ -119,8 +119,12 @@
 | G3 | 부분. 유휴 90 s에 폴링 1회(60 s 주기와 일치). 추가 호출은 도구가 일으킨 `visibilitychange`·blur/focus 직후였고 앱 결함으로 보지 않는다. **원인을 완전히 가르지는 못했다** |
 | G4 | 390에서 `전송` 58×44, `실행 중지` 86×44, `중지` 58×44, 넘침 없음. **"AI 열기"는 처음 36 px → `55f2cfd3`의 CSS로 수정, `verify3`에서 95×44 확인.** "다시 시도" 버튼의 높이는 **재지 못함**(실패 카드가 있는 390 화면이 필요) |
 | G5 | **처음 실패·원인 미확정**: 생성 화면 4번째 클릭이 "처리하지 못했습니다. 연결 상태와 파일 형식을 확인…"(파일 형식 안내)을 보였다. 그 실행의 제한 설정이 실제로는 분당 20이었고(`env.throttle`이 기본 설정과 같았다) api 로그에 429가 한 건도 없어서, **서버가 429를 보낸 상황을 브라우저에서 본 것이 아니다.** 4번째 클릭이 api에 닿지 않았는데 일반 문구가 나온 이유는 **밝히지 못했다.** 코드를 읽어 얻은 사실만 있다: `creationError`에 429 분기가 없고 `aiRefusalMessage`가 `RATE_LIMITED`를 몰랐다. 이를 고친 것이 `55f2cfd3`(테스트 보강 `f214b678`). **재확인**(web `verify3`=`f214b678`, api 분당 3, 서비스 워커 캐시를 지운 뒤 번들 `index-BYbgzRd_.js` 확인): 1~3번 "계산 결과가 준비됐습니다…", **4번 "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."**, "파일 형식" 없음, "429" 문구 없음. 즉 진짜 429 아래서 수정 후 문구는 확인했고, **수정 전에 진짜 429가 일반 문구로 보였다는 것은 브라우저에서 관찰하지 않았다.** 이 재확인의 화면 캡처는 경고가 보이는 영역 밖이라 저장소에 넣지 않았다 |
+| G7 | **768 스트리밍·중지**(web `verify3`=`f214b678`, 지연 6 s): 가로 넘침 없음(768/768), 보내고 **159 ms**에 중지 버튼, 160 ms에 단계 목록("데이터 확인 실행 중 · AI 제안 대기 · 계산 검증 대기 · 초안 준비 대기"), 262 ms에 "데이터 확인 완료·AI 제안 실행 중". 중지 뒤 카드 "요청 20 · 중지됨"·단계 "중지됨", 재시도 버튼 없음. 이것이 브라우저에서 잰 **첫 진행 표시(0.2~0.3 s)**다. 모의 서버는 로컬이라 실제 모델의 첫 토큰 지연은 반영하지 않는다. 캡처: [스트리밍](images/external-beta-m2-llm/m25-streaming-768.png)·[중지됨](images/external-beta-m2-llm/m25-stopped-768.png) |
 
-화면 캡처: `docs/testing/images/external-beta-m2-llm/`의 `m25-*.png` 8장(스트리밍 1440/390, 중지됨, 실패, 일일 한도 거절 390, 월간 한도 칩, 완료 390, 게시된 대시보드).
+화면 캡처(`docs/testing/images/external-beta-m2-llm/`):
+[스트리밍 1440](images/external-beta-m2-llm/m25-streaming-1440.png)(G1) · [스트리밍 390](images/external-beta-m2-llm/m25-streaming-390.png)(G4) · [스트리밍 768](images/external-beta-m2-llm/m25-streaming-768.png)(G7) · [중지됨 1440](images/external-beta-m2-llm/m25-stopped-1440.png)(G2) · [중지됨 768](images/external-beta-m2-llm/m25-stopped-768.png)(G7) · [실패 카드](images/external-beta-m2-llm/m25-failed-1440.png)(B11) · [일일 한도 거절 390](images/external-beta-m2-llm/m25-quota-refusal-390.png)(B6) · [월간 한도 칩](images/external-beta-m2-llm/m25-monthly-limit-chip-1440.png)(B7) · [완료 390](images/external-beta-m2-llm/m25-completed-390.png)(B12) · [게시된 대시보드](images/external-beta-m2-llm/m25-published-1440.png)(B13).
+
+**증빙의 종류**: S1–S15와 G5·G7은 스크립트 출력(JSON·로그)이 남아 있다. B4·B5·B8–B11·B13과 G2·G3은 **대화형 세션에서 관찰한 값이며 보존된 산출물이 없다**(위 캡처 외). B5의 401→201→200 순서는 api 로그에 남아 있지 않다. 이 표의 숫자는 그 한계 안에서 읽어야 한다.
 
 ### 원장 요약(시나리오별)
 
@@ -144,9 +148,10 @@
 ### 실행하지 않은 것(통과로 쓰지 않는다)
 
 - **실제 모델**, **Anthropic·OpenAI 공식 어댑터**(실제 요청 0건), 추론(reasoning) 강도 옵션. 이 실행의 SDK 경로는 openai-compatible 하나다.
-- **Caddy를 지나는 경로**(M0에서 따로 측정, 이 스택에는 없음), amd64(전부 aarch64), 모바일 백그라운드(뷰포트 에뮬레이션으로 시험 불가), Node 24에서의 단위 테스트(Node 26만).
+- **Caddy를 지나는 경로**(NDJSON은 위 M2-3 표의 Caddy 측정, 이 스택에는 없음), amd64(전부 aarch64), 모바일 백그라운드(뷰포트 에뮬레이션으로 시험 불가), Node 24에서의 단위 테스트(Node 26만).
 - 모의 모드 `slow-then-ok`, 스트림 동시 수의 **최대치**(S15는 단일 표본).
-- **B6(c)**: 대화 창의 생성 메시지 경로에서의 거절 문구, **단계 라벨 타임라인**(B2·B3·G1), "다시 시도" 버튼의 390 높이, 붉은 경고 색의 눈으로 확인.
+- **B6(c)**: 대화 창의 생성 메시지 경로에서의 거절 문구, 390에서의 **단계 라벨 타임라인**(768에서는 G7로 잼), "다시 시도" 버튼의 390 높이, 붉은 경고 색의 눈으로 확인.
+- **768에서의 생성·거절·실패 화면**: 768은 B1(생성 화면 배치, 이전 빌드)과 G7(편집기 스트리밍·중지)만 실행했다.
 - 이 스택의 api는 `305696f1`·`cd51c740` 이전이다(위 표).
 - 새 버전 안내, 사용자당 동시 스트림·제안 상한, 쿼터가 `error`·`cancelled`를 세는 정책, `JwtAuthGuard`의 인프라 실패→401 근본 수정, 접근 토큰 수명 설정화는 계획서의 "M2-5에서 발견했고 이번 범위 밖으로 남긴 것"에 있다.
 

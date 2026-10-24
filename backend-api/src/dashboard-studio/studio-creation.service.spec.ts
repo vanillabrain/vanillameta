@@ -1626,14 +1626,31 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     'answers the gateway failure %s with %s and its code, not a generic 503',
     async (message, status, code) => {
       const p = await propose();
+      const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
       llm.callLlm.mockRejectedValueOnce(new Error(message));
       const error: any = await refine(p, 1).catch(e => e);
       expect(error.getStatus()).toBe(status);
       expect(error.getResponse()).toMatchObject({ error: code, message: expect.any(String) });
+      // The operator can tell which failure it was (a revoked key is not an outage), and the original error
+      // travels as the cause.
+      expect(log).toHaveBeenCalledWith(`AI call failed: ${message}`);
+      expect(error.cause).toBeInstanceOf(Error);
+      log.mockRestore();
       // Whatever the model did, the saved parent proposal is untouched.
       expect(await service.proposal(p.proposalId, 1, 7)).toEqual(JSON.parse(JSON.stringify(p)));
     },
   );
+  it('logs only the class of an unknown model failure, never its text, and still answers 503', async () => {
+    const p = await propose();
+    const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    llm.callLlm.mockRejectedValueOnce(new Error('connect ECONNREFUSED 10.0.0.5 password=hunter2'));
+    const error: any = await refine(p, 1).catch(e => e);
+    expect(error.getStatus()).toBe(503);
+    expect(log).toHaveBeenCalledWith('AI call failed: Error');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('hunter2');
+    expect(JSON.stringify(error.getResponse())).not.toContain('hunter2');
+    log.mockRestore();
+  });
   it('REFINE-04 rejects expired, foreign, mismatched-source and invalid target before AI', async () => {
     const p = await propose();
     const calls = llm.callLlm.mock.calls.length;
