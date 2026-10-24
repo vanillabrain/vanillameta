@@ -34,7 +34,7 @@ describe('publication expiry', () => {
   it('tells the owner a blank expiry means 30 days and that 30 days is the longest', async () => {
     render(<StudioPublish {...props} />);
     await screen.findByRole('button', { name: '게시하기' });
-    expect(screen.getByText(/비워 두면 게시 시점부터 30일 뒤에 만료됩니다/)).toBeTruthy();
+    expect(screen.getByText(/비워 두면 게시 시점부터 기본 기간\(최대 30일\) 뒤에 만료됩니다/)).toBeTruthy();
     expect(screen.getByText(/최대 30일까지 지정할 수 있고/)).toBeTruthy();
   });
   it('refuses an expiry more than 30 days away without sending the request', async () => {
@@ -69,7 +69,7 @@ describe('publication expiry', () => {
       .mockReset()
       .mockResolvedValue({ ...metadata, visibility: 'link' });
     render(<StudioPublish {...props} />);
-    expect(await screen.findByText(/설정하지 않음 · 재게시하면 30일 만료가 적용됩니다/)).toBeTruthy();
+    expect(await screen.findByText(/설정하지 않음 · 재게시하면 만료가 적용됩니다/)).toBeTruthy();
   });
 });
 describe('snapshot publication controls', () => {

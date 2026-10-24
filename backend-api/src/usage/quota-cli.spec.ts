@@ -82,6 +82,9 @@ describe('access-cli quota commands (real SQLite)', () => {
     await expect(run('quota', 'set', String(user), '--daily', '-1')).rejects.toThrow(
       'daily must be a non-negative integer',
     );
+    await expect(run('quota', 'set', String(user), '--monthly', '2147483648')).rejects.toThrow(
+      'monthly must be at most 2147483647',
+    );
     await expect(run('quota', 'bogus', String(user))).rejects.toThrow('usage:');
   });
 });

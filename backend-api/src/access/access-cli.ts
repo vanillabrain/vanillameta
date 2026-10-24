@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { AiQuotaService } from '../usage/ai-quota.service';
+import { AiQuotaService, MAX_OVERRIDE } from '../usage/ai-quota.service';
 import { AccessService } from './access.service';
 import { InviteCode } from './entities/invite-code.entity';
 import { WaitlistEntry } from './entities/waitlist-entry.entity';
@@ -41,6 +41,7 @@ function nonNegativeInteger(raw: string | undefined, name: string): number | und
   if (raw === undefined) return undefined;
   if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)))
     throw new Error(`${name} must be a non-negative integer`);
+  if (Number(raw) > MAX_OVERRIDE) throw new Error(`${name} must be at most ${MAX_OVERRIDE}`);
   return Number(raw);
 }
 

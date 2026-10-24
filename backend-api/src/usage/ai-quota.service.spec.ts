@@ -225,6 +225,12 @@ describe('AiQuotaService (real SQLite)', () => {
       RangeError,
     );
     await expect(quota.setOverride(a, { dailyCalls: -1 })).rejects.toThrow(RangeError);
+    await expect(quota.setOverride(a, { monthlyTokens: 2_147_483_648 })).rejects.toThrow(
+      'at most 2147483647',
+    );
+    expect((await quota.setOverride(a, { monthlyTokens: 2_147_483_647 })).monthlyTokens).toBe(
+      2_147_483_647,
+    );
   });
 
   it('keeps users apart and summarises with the limits in force', async () => {

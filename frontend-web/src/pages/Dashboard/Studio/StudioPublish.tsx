@@ -273,7 +273,7 @@ export default function StudioPublish({
                 {current.expiresAt
                   ? publicationTime(current.expiresAt)
                   : current.visibility === 'link'
-                  ? `설정하지 않음 · 재게시하면 ${PUBLICATION_MAX_DAYS}일 만료가 적용됩니다`
+                  ? `설정하지 않음 · 재게시하면 만료가 적용됩니다(최대 ${PUBLICATION_MAX_DAYS}일)`
                   : '설정하지 않음'}
               </p>
               <div className="studio-publish-link">
@@ -339,7 +339,7 @@ export default function StudioPublish({
               label="링크 만료 시각 (내 시간대)"
               value={expiry}
               onChange={e => setExpiry(e.target.value)}
-              helperText={`비워 두면 게시 시점부터 ${PUBLICATION_MAX_DAYS}일 뒤에 만료됩니다. 최대 ${PUBLICATION_MAX_DAYS}일까지 지정할 수 있고, 재게시하면 만료가 다시 정해집니다. 만료 여부는 서버에서 확인합니다.`}
+              helperText={`비워 두면 게시 시점부터 기본 기간(최대 ${PUBLICATION_MAX_DAYS}일) 뒤에 만료됩니다. 최대 ${PUBLICATION_MAX_DAYS}일까지 지정할 수 있고, 재게시하면 만료가 다시 정해집니다. 만료 여부는 서버에서 확인합니다.`}
             />
           </fieldset>
           <p className="studio-publish-note">

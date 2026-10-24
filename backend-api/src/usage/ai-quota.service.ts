@@ -38,11 +38,20 @@ type Denial = {
   resetsAt: Date;
 };
 
+/** The `user_quota` columns are 32-bit INT, so an override beyond this is an error, not a wrap-around. */
+export const MAX_OVERRIDE = 2_147_483_647;
+
 const nonNegativeInteger = (value: unknown, name: string): number => {
   if (value === undefined) return 0;
   if (!Number.isSafeInteger(value) || (value as number) < 0)
     throw new RangeError(`${name} must be a non-negative integer`);
   return value as number;
+};
+
+const overrideValue = (value: unknown, name: string): number => {
+  const checked = nonNegativeInteger(value, name);
+  if (checked > MAX_OVERRIDE) throw new RangeError(`${name} must be at most ${MAX_OVERRIDE}`);
+  return checked;
 };
 
 /**
@@ -265,9 +274,9 @@ export class AiQuotaService {
     const current =
       (await repository.findOne({ where: { userId } })) ?? repository.create({ userId });
     if (values.dailyCalls !== undefined)
-      current.dailyCalls = nonNegativeInteger(values.dailyCalls, 'dailyCalls');
+      current.dailyCalls = overrideValue(values.dailyCalls, 'dailyCalls');
     if (values.monthlyTokens !== undefined)
-      current.monthlyTokens = nonNegativeInteger(values.monthlyTokens, 'monthlyTokens');
+      current.monthlyTokens = overrideValue(values.monthlyTokens, 'monthlyTokens');
     current.dailyCalls ??= null;
     current.monthlyTokens ??= null;
     return repository.save(current);
