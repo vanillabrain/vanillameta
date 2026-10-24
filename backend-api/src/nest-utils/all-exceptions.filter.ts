@@ -13,7 +13,6 @@ import { QueryFailedError, EntityNotFoundError, TypeORMError } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { BusinessException } from '../common/exceptions/business.exception';
 import { I18nService } from 'nestjs-i18n';
-import { llmFailure } from '../ai/ai-caller';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -100,10 +99,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
         lang: request.headers['accept-language'] || 'ko',
       });
       errorCode = 'DATABASE_ERROR';
-    }
-    // The AI gateway's own failures (timeout, no setup, cut-off answer, provider error)
-    else if (llmFailure(exception)) {
-      ({ status, errorCode, message } = llmFailure(exception)!);
     }
     // 일반 에러 처리
     else if (exception instanceof Error) {

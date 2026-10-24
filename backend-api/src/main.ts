@@ -1,10 +1,11 @@
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import { config } from 'dotenv';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { ApiExceptionFilter } from './nest-utils/api-exception.filter';
 import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
 import { RequestLoggingInterceptor } from './nest-utils/request-logging.interceptor';
 import { setupSwagger } from './utils/swagger';
@@ -96,7 +97,9 @@ async function bootstrap() {
 
   nestApp.setGlobalPrefix('v1');
   nestApp.use(cookieParser());
-  nestApp.useGlobalFilters(new HttpExceptionFilter());
+  nestApp.useGlobalFilters(
+    new ApiExceptionFilter(nestApp.get(HttpAdapterHost).httpAdapter, new HttpExceptionFilter()),
+  );
   nestApp.useGlobalInterceptors(new RequestLoggingInterceptor());
   // 운영에서는 API 문서를 명시적으로 켠 경우에만 노출한다.
   if (process.env.NODE_ENV !== 'prod' || process.env.SWAGGER_ENABLED === 'true')

@@ -357,21 +357,4 @@ describe('AllExceptionsFilter', () => {
       expect(logMessage).toContain('INTERNAL_ERROR');
     });
   });
-  describe('AI gateway failures', () => {
-    it.each([
-      ['AI_NOT_CONFIGURED', 503, 'AI_NOT_CONFIGURED'],
-      ['LLM_TIMEOUT', 504, 'LLM_TIMEOUT'],
-      ['LLM_OUTPUT_TRUNCATED', 502, 'LLM_OUTPUT_TRUNCATED'],
-      ['LLM_API_ERROR_429', 502, 'LLM_UNAVAILABLE'],
-    ])('answers %s with %s instead of a 500', async (code, status, errorCode) => {
-      await filter.catch(new Error(code), mockArgumentsHost);
-      expect(mockResponse.status).toHaveBeenCalledWith(status);
-      expect(mockResponse.json.mock.calls[0][0]).toMatchObject({ code: status, errorCode });
-    });
-
-    it('leaves other plain errors as a 500', async () => {
-      await filter.catch(new Error('LLM_SOMETHING_NEW'), mockArgumentsHost);
-      expect(mockResponse.status).toHaveBeenCalledWith(500);
-    });
-  });
 });

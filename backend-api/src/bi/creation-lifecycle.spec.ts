@@ -128,7 +128,7 @@ describe('UC023 creation lifecycle without writes', () => {
     });
   });
   it('continues save-only with the existing compiled proposal/digest and no generation call', async () => {
-    const result = await (service as any).question(body(), 10);
+    const result = await (service as any).question(body(), 10, undefined, 0);
     expect(result).toMatchObject({
       proposal,
       previewDigest: body().previewDigest,
@@ -138,18 +138,20 @@ describe('UC023 creation lifecycle without writes', () => {
     expect(dashboards.classifyBlockIntent).toHaveBeenCalledWith(body().prompt, undefined, {
       userId: 10,
       epoch: 0,
-      feature: 'semantic-proposal',
+      feature: 'semantic-question',
     });
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('denies a foreign source before intent classification', async () => {
     bi.profile.mockRejectedValueOnce(new ForbiddenException());
-    await expect((service as any).question(body(), 99)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect((service as any).question(body(), 99, undefined, 0)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
     expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
   });
   it('blocks an old digest before any provider call', async () => {
     await expect(
-      (service as any).question({ ...body(), previewDigest: 'f'.repeat(64) }, 10),
+      (service as any).question({ ...body(), previewDigest: 'f'.repeat(64) }, 10, undefined, 0),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
   });
@@ -158,7 +160,9 @@ describe('UC023 creation lifecycle without writes', () => {
       bi.profile.mockResolvedValue({ ...profile, dataVersion: 'v2' });
       return { intent: 'save', saveRequested: true, editPrompt: null };
     });
-    await expect((service as any).question(body(), 10)).rejects.toBeInstanceOf(ConflictException);
+    await expect((service as any).question(body(), 10, undefined, 0)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('asks instead of saving unsupported edit+save or ambiguous/negative requests', async () => {
@@ -167,7 +171,7 @@ describe('UC023 creation lifecycle without writes', () => {
       { intent: 'clarify', saveRequested: false, editPrompt: null },
     ]) {
       dashboards.classifyBlockIntent.mockResolvedValueOnce(plan);
-      const result = await (service as any).question(body(), 10);
+      const result = await (service as any).question(body(), 10, undefined, 0);
       expect(result.clarification).toEqual(expect.any(String));
       expect(result.saveRequested).toBeUndefined();
     }
@@ -180,14 +184,19 @@ describe('UC023 creation lifecycle without writes', () => {
       editPrompt: '합계',
     });
     expect(
-      await (service as any).question({ ...body(), prompt: '합계만 다시 보여줘' }, 10),
+      await (service as any).question(
+        { ...body(), prompt: '합계만 다시 보여줘' },
+        10,
+        undefined,
+        0,
+      ),
     ).toMatchObject({ proposal });
     expect(ai.callLlm).toHaveBeenCalledTimes(1);
   });
   it('honors cancellation before classification and after a late classification result', async () => {
     const abort = new AbortController();
     abort.abort();
-    await expect((service as any).question(body(), 10, abort.signal)).rejects.toThrow(
+    await expect((service as any).question(body(), 10, abort.signal, 0)).rejects.toThrow(
       'LLM_REQUEST_ABORTED',
     );
     expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
@@ -196,7 +205,7 @@ describe('UC023 creation lifecycle without writes', () => {
       during.abort();
       return { intent: 'save', saveRequested: true, editPrompt: null };
     });
-    await expect((service as any).question(body(), 10, during.signal)).rejects.toThrow(
+    await expect((service as any).question(body(), 10, during.signal, 0)).rejects.toThrow(
       'LLM_REQUEST_ABORTED',
     );
     expect(ai.callLlm).not.toHaveBeenCalled();

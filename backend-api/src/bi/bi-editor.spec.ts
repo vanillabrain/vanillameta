@@ -1421,10 +1421,16 @@ describe('BiService dashboard editor boundaries', () => {
         ]),
       ),
     );
-    // What the staged edits turn out to be does not matter here, only what was asked up front.
-    await service
-      .editorAi(dashboardId, batchBody(items), actor, undefined, 0)
-      .catch(() => undefined);
+    await service.editorAi(
+      dashboardId,
+      batchBody(items, {
+        prompt:
+          '2번 차트의 소수 자릿수를 바꾸고 3번 차트의 제목을 바꾸고 1번 차트를 아래로 한 칸 옮겨 줘',
+      }),
+      actor,
+      undefined,
+      0,
+    );
     const caller = { userId: actor, epoch: 0, feature: 'bi-editor' };
     // First the auto edit's three, then the batch's 2 + 2 + 1.
     expect(dashboards.assertAiCalls).toHaveBeenNthCalledWith(1, caller, 3);

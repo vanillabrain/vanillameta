@@ -46,7 +46,7 @@ import { BatchBlockAction, isBatchPlanShape, parseBatchActions } from './batch-b
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { AiService } from './ai.service';
 import { isAiRefusal } from './ai-caller';
-import { AiCaller } from './llm-gateway.service';
+import type { AiCaller } from './llm-gateway.service';
 import { aiStatus } from './providers/ai-config';
 import { ConnectionService } from '../connection/connection.service';
 import { SourceAccessService } from '../ownership/source-access.service';

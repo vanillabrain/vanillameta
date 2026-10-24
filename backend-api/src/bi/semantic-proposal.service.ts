@@ -265,7 +265,7 @@ export class SemanticProposalService {
     return { ...compiled, ...intent };
   }
   /** UC023: classify a follow-up against the frozen preview before any save is authorized. */
-  async question(body: any, actor: number, signal?: AbortSignal, authVersion?: number) {
+  async question(body: any, actor: number, signal: AbortSignal | undefined, authVersion: number) {
     shape(body, ['proposal', 'previewDigest', 'prompt']);
     if (
       typeof body.prompt !== 'string' ||
