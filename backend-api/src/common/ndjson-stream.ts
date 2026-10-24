@@ -137,21 +137,31 @@ export function serveRun<T>(
       if (controller.signal.aborted) outcome = 'cancelled';
       write({ type: 'result', data });
     } catch (error) {
-      const event = errorEvent(error, correlationId);
-      status = Number(event.status);
-      outcome = 'error';
-      write(event);
-      // What the exception filter does for a 5xx on the JSON path, which a stream never reaches.
-      // A cancel by the client is not a server fault, even when the service words it as a 503.
-      if (status >= 500 && !controller.signal.aborted && process.env.SENTRY_DSN)
-        void import('@sentry/nestjs')
-          .then(sentry => sentry.captureException(error))
-          .catch(() => undefined);
+      if (controller.signal.aborted) {
+        // The client left and the run ended by throwing (services word an abort in many ways). Nobody
+        // receives an event, and it is neither a server fault nor worth an error line with a stack.
+        status = 499;
+        outcome = 'cancelled';
+      } else {
+        const event = errorEvent(error, correlationId);
+        status = Number(event.status);
+        outcome = 'error';
+        write(event);
+        // What the exception filter does for a 5xx on the JSON path, which a stream never reaches.
+        if (status >= 500 && process.env.SENTRY_DSN)
+          void import('@sentry/nestjs')
+            .then(sentry => sentry.captureException(error))
+            .catch(() => undefined);
+      }
     } finally {
       clearInterval(timer);
-      unwatch?.();
       detach();
       out.end();
+      try {
+        unwatch?.();
+      } catch {
+        // The stream is already closed; a failing unsubscribe must not keep it from ending.
+      }
       // The request logger sees only the handler returning the stream (a 201 after a few ms): record how
       // the stream really ended.
       logger.log(
@@ -167,7 +177,12 @@ export function serveRun<T>(
         }),
       );
     }
-  })().catch(error => logger.error(`stream bookkeeping failed: ${(error as Error)?.message}`));
+  })().catch(error =>
+    logger.error(
+      `stream bookkeeping failed: ${(error as Error)?.message}`,
+      (error as Error)?.stack,
+    ),
+  );
   return new StreamableFile(out, { type: `${NDJSON}; charset=utf-8` }).setErrorLogger(error => {
     // A client that closes the connection is how a request is cancelled, not an error.
     if ((error as NodeJS.ErrnoException).code !== 'ERR_STREAM_PREMATURE_CLOSE')

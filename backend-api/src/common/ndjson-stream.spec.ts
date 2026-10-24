@@ -116,6 +116,38 @@ describe('serveRun with Accept: application/x-ndjson', () => {
     expect(entry).toMatchObject({ outcome: 'cancelled', disconnected: true });
   });
 
+  it('logs a run that throws after the client left as cancelled, with no error line and no event', async () => {
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const req = request('application/x-ndjson');
+    const res = response();
+    const out = serveRun(req, res, async () => {
+      res.emit('close');
+      throw new Error('LLM_REQUEST_ABORTED');
+    });
+    const events = await lines(out as StreamableFile);
+    expect(events.map(e => e.type)).toEqual(['start']);
+    expect(JSON.parse(log.mock.calls[0][0] as string)).toMatchObject({
+      status: 499,
+      outcome: 'cancelled',
+      disconnected: true,
+    });
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('ends the stream and releases listeners even when unsubscribing throws', async () => {
+    const req = request('application/x-ndjson');
+    const res = response();
+    const out = serveRun(req, res, async () => 1, {
+      watch: () => () => {
+        throw new Error('unwatch failed');
+      },
+    });
+    const events = await lines(out as StreamableFile);
+    expect(events[events.length - 1]).toEqual({ type: 'result', data: 1 });
+    expect(req.listenerCount('aborted')).toBe(0);
+    expect(res.listenerCount('close')).toBe(0);
+  });
+
   it('puts the request’s correlation id on the error event', async () => {
     const req = Object.assign(request('application/x-ndjson'), { correlationId: 'corr-1' });
     const out = serveRun(req, response(), async () => {
