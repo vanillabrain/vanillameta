@@ -23,9 +23,12 @@ const modules = (directory: string): string[] =>
 
 /** Names in a `providers: [...]` array, written on one line or over several. */
 export const providerNames = (text: string): string[] => {
-  const single = /providers:\s*\[([^\]\n]*)\]/.exec(text);
-  const multi = /providers:\s*\[\s*\n([\s\S]*?)\n\s*\]/.exec(text);
-  const block = (single ?? multi)?.[1];
+  // Whichever form starts first in the file: a one-line array, or one whose `]` is on a later line.
+  const forms = [/providers:\s*\[([^\]\n]*)\]/, /providers:\s*\[([\s\S]*?)\n\s*\]/]
+    .map(pattern => pattern.exec(text))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .sort((a, b) => a.index - b.index);
+  const block = forms[0]?.[1];
   return block ? block.match(/\b[A-Z][A-Za-z0-9]+\b/g) ?? [] : [];
 };
 const providers = (file: string): string[] => providerNames(fs.readFileSync(file, 'utf8'));
@@ -46,6 +49,22 @@ describe('module wiring', () => {
   });
 
   const all = modules(__dirname).map(file => ({ file, listed: new Set(providers(file)) }));
+
+  it('reads a provider list whose names start on the first line', () => {
+    expect(providerNames('@Module({ providers: [A,\n  DatabaseService,\n  ] })')).toEqual([
+      'A',
+      'DatabaseService',
+    ]);
+  });
+
+  it('can read every module that declares providers', () => {
+    const unread = modules(__dirname).filter(
+      file =>
+        /providers:\s*\[/.test(fs.readFileSync(file, 'utf8')) &&
+        !providerNames(fs.readFileSync(file, 'utf8')).length,
+    );
+    expect(unread.map(file => path.basename(file))).toEqual([]);
+  });
 
   it('finds the modules that provide the services this guards', () => {
     const names = all.filter(m => m.listed.has('DatabaseService')).map(m => path.basename(m.file));

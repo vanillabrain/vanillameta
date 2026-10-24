@@ -149,9 +149,11 @@ describe('UserThrottleGuard', () => {
 });
 
 describe('user throttle settings', () => {
-  it('defaults to 20 AI and 5 upload requests a minute and accepts overrides', () => {
+  it('defaults to 20 AI, 5 upload and 30 read requests a minute and accepts overrides', () => {
     expect(userThrottleLimit('ai', {})).toBe(20);
     expect(userThrottleLimit('upload', {})).toBe(5);
+    expect(userThrottleLimit('read', {})).toBe(30);
+    expect(userThrottleLimit('read', { USER_THROTTLE_READ_PER_MIN: '9' } as any)).toBe(9);
     expect(userThrottleLimit('ai', { USER_THROTTLE_AI_PER_MIN: ' 7 ' } as any)).toBe(7);
   });
 

@@ -15,13 +15,14 @@ import { Reflector } from '@nestjs/core';
  */
 export const USER_THROTTLE_KEY = 'vanillameta:user-throttle';
 
-export type UserThrottlePreset = 'ai' | 'upload';
+export type UserThrottlePreset = 'ai' | 'upload' | 'read';
 
 const WINDOW_MS = 60_000;
-const DEFAULT_PER_MINUTE: Record<UserThrottlePreset, number> = { ai: 20, upload: 5 };
+const DEFAULT_PER_MINUTE: Record<UserThrottlePreset, number> = { ai: 20, upload: 5, read: 30 };
 const ENV_NAME: Record<UserThrottlePreset, string> = {
   ai: 'USER_THROTTLE_AI_PER_MIN',
   upload: 'USER_THROTTLE_UPLOAD_PER_MIN',
+  read: 'USER_THROTTLE_READ_PER_MIN',
 };
 
 /** Requests per minute for one user and one route. Fails fast on a malformed setting. */
@@ -38,7 +39,7 @@ export function userThrottleLimit(
 
 /** Problems with the throttle settings, as messages for the production boot check. */
 export function userThrottleConfigProblems(env: NodeJS.ProcessEnv): string[] {
-  return (['ai', 'upload'] as const).flatMap(preset => {
+  return (['ai', 'upload', 'read'] as const).flatMap(preset => {
     try {
       userThrottleLimit(preset, env);
       return [];

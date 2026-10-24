@@ -11,9 +11,10 @@ import { StudioExecutionController } from '../../dashboard-studio/studio-executi
 import { StudioRunController } from '../../dashboard-studio/studio-run.controller';
 import { DatabaseController } from '../../database/database.controller';
 import { FileRefreshController } from '../../database/file-refresh.controller';
+import { UsageController } from '../../usage/usage.controller';
 import { USER_THROTTLE_KEY, UserThrottleGuard } from './user-throttle.guard';
 
-type Preset = 'ai' | 'upload';
+type Preset = 'ai' | 'upload' | 'read';
 const preset = (target: any, handler?: string): Preset | undefined =>
   Reflect.getMetadata(USER_THROTTLE_KEY, handler ? target.prototype[handler] : target);
 const guards = (target: any): unknown[] => Reflect.getMetadata('__guards__', target) ?? [];
@@ -46,6 +47,7 @@ const THROTTLED: [string, any, string, Preset][] = [
   ['database upload', DatabaseController, 'uploadFile', 'upload'],
   ['database file-replacement', DatabaseController, 'replaceFile', 'upload'],
   ['file-refresh start', FileRefreshController, 'start', 'upload'],
+  ['me usage (walks the user directories)', UsageController, 'usage', 'read'],
 ];
 
 // Polled, re-queried or autosaved by the UI, and none of them calls the model: never throttled here.
@@ -82,6 +84,7 @@ const CONTROLLERS = [
   StudioCreationController,
   StudioExecutionController,
   StudioRunController,
+  UsageController,
 ];
 
 describe('per-user throttle coverage', () => {
