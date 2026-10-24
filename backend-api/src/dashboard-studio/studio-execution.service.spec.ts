@@ -914,6 +914,42 @@ describe('T7 durable executions', () => {
       retryable,
     });
   });
+  it('publishes each persisted step transition to a watcher of the request, without any content', async () => {
+    const events: any[] = [];
+    service.watch(`req:7:${body.requestId}`, event => events.push(event));
+    const run = await service.create(body, 7, undefined, 0);
+    expect(events.length).toBeGreaterThan(2);
+    expect(events.every(event => event.type === 'step' && event.runId === run.runId)).toBe(true);
+    // It starts with every step pending and ends where the run ended.
+    expect(events[0].steps.every(step => step.status === 'pending')).toBe(true);
+    const last = events[events.length - 1];
+    expect(last.status).toBe(run.status);
+    expect(last.steps.map(step => step.stepId)).toEqual(run.steps.map(step => step.stepId));
+    expect(last.steps.map(step => step.status)).toEqual(run.steps.map(step => step.status));
+    const wire = JSON.stringify(events);
+    for (const secret of [body.prompt, 'ROW_SECRET', 'PROVIDER_SECRET'])
+      expect(wire).not.toContain(secret);
+  });
+
+  it('also reaches a watcher of the run id (retry, creation messages) and stops after unsubscribe', async () => {
+    const first = await service.create(body, 7, undefined, 0);
+    const byRun: any[] = [];
+    const off = service.watch(`run:${first.runId}`, event => byRun.push(event));
+    await service.retry(first.runId, { stepId: 'preview' }, 7, undefined, 0).catch(() => undefined);
+    const seen = byRun.length;
+    off();
+    await service.retry(first.runId, { stepId: 'preview' }, 7, undefined, 0).catch(() => undefined);
+    expect(byRun.length).toBe(seen);
+  });
+
+  it('keeps running when a watcher throws', async () => {
+    service.watch(`req:7:${body.requestId}`, () => {
+      throw new Error('broken connection');
+    });
+    const run = await service.create(body, 7, undefined, 0);
+    expect(['succeeded', 'failed', 'partial']).toContain(run.status);
+    expect(run.steps.length).toBeGreaterThan(0);
+  });
   it('replays durable ID with zero writes and rejects different hash/document/manual version', async () => {
     const first = await service.create(body, 7, undefined, 0);
     const write = jest.spyOn(db.manager, 'save');

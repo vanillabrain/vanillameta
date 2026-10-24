@@ -1,5 +1,6 @@
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
 import { EventEmitter } from 'events';
+import { StreamableFile } from '@nestjs/common';
 import { StudioExecutionController } from './studio-execution.controller';
 describe('T7 execution POST disconnect boundary', () => {
   it.each(['aborted', 'close'])('forwards %s as AbortSignal and removes listeners', async event => {
@@ -55,4 +56,98 @@ describe('T7 execution POST disconnect boundary', () => {
       expect(remix).toHaveBeenCalledWith('run-id', body, 7, epoch);
     },
   );
+});
+
+describe('execution POSTs as an NDJSON stream', () => {
+  const streamReq = () =>
+    Object.assign(new EventEmitter(), {
+      user: { accessKeyData: { id: 7, authVersion: 3 } },
+      headers: { accept: 'application/x-ndjson' },
+      aborted: false,
+    });
+  const res = () =>
+    Object.assign(new EventEmitter(), { writableFinished: false, setHeader: jest.fn() });
+  const read = async (file: StreamableFile) => {
+    let text = '';
+    for await (const chunk of file.getStream()) text += chunk.toString();
+    return text
+      .split('\n')
+      .filter(Boolean)
+      .map(line => JSON.parse(line));
+  };
+
+  it.each([
+    ['create', (c: any, r: any, w: any) => c.create({ requestId: 'req-1' }, r, w), 'req:7:req-1'],
+    ['retry', (c: any, r: any, w: any) => c.retry('run-9', {}, r, w), 'run:run-9'],
+    [
+      'creationMessage',
+      (c: any, r: any, w: any) => c.creationMessage('run-9', {}, r, w),
+      'run:run-9',
+    ],
+    [
+      'clarifyCreation',
+      (c: any, r: any, w: any) => c.clarifyCreation('run-9', {}, r, w),
+      'run:run-9',
+    ],
+  ])('%s streams the persisted steps and then the result, watching %#', async (name, call, key) => {
+    let listener: (event: any) => void = () => undefined;
+    const unwatch = jest.fn();
+    const watch = jest.fn((_key: string, fn: any) => {
+      listener = fn;
+      return unwatch;
+    });
+    const finish = async () => {
+      listener({ type: 'step', runId: 'run-9', status: 'running', steps: [] });
+      return { status: 'succeeded' };
+    };
+    const service: any = { watch, [name]: jest.fn(finish) };
+    const out = call(new StudioExecutionController(service), streamReq(), res());
+    expect(out).toBeInstanceOf(StreamableFile);
+    expect(await read(out)).toEqual([
+      { type: 'start' },
+      { type: 'step', runId: 'run-9', status: 'running', steps: [] },
+      { type: 'result', data: { status: 'succeeded' } },
+    ]);
+    expect(watch).toHaveBeenCalledWith(key, expect.any(Function));
+    expect(unwatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('still answers a plain JSON request with the bare result', async () => {
+    const req = Object.assign(new EventEmitter(), {
+      user: { accessKeyData: { id: 7 } },
+      headers: { accept: 'application/json' },
+      aborted: false,
+    });
+    const service: any = {
+      watch: jest.fn(),
+      create: jest.fn(async () => ({ status: 'succeeded' })),
+    };
+    const out = new StudioExecutionController(service).create({ requestId: 'r' }, req, res());
+    await expect(out).resolves.toEqual({ status: 'succeeded' });
+    expect(service.watch).not.toHaveBeenCalled();
+  });
+
+  it('closing the connection mid-stream aborts the run it started', async () => {
+    const r = res();
+    let signal!: AbortSignal;
+    const service: any = {
+      watch: jest.fn(() => () => undefined),
+      create: jest.fn(
+        (_b, _a, s: AbortSignal) =>
+          (signal = s) &&
+          new Promise((_resolve, reject) =>
+            s.addEventListener('abort', () => reject(new Error('LLM_REQUEST_ABORTED'))),
+          ),
+      ),
+    };
+    const out = new StudioExecutionController(service).create(
+      { requestId: 'r' },
+      streamReq(),
+      r,
+    ) as StreamableFile;
+    r.emit('close');
+    await new Promise(resolve => setImmediate(resolve));
+    expect(signal.aborted).toBe(true);
+    out.getStream().destroy();
+  });
 });

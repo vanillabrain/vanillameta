@@ -42,6 +42,7 @@ type StudioRemixBinding = {
 
 import { creationMessageAction } from './studio-creation-message';
 import { aiBlockingCode } from '../ai/ai-caller';
+import type { StreamEvent } from '../common/ndjson-stream';
 
 @Injectable()
 export class StudioExecutionService implements OnModuleInit {
@@ -50,6 +51,7 @@ export class StudioExecutionService implements OnModuleInit {
   private contexts = new Map<string, { body: StudioExecutionRequest; expires: number }>();
   private clarifications = new Map<string, { payloadHash: string; promise: Promise<any> }>();
   private remixes = new Map<string, { payloadHash: string; promise: Promise<any> }>();
+  private watchers = new Map<string, Set<(event: StreamEvent) => void>>();
   constructor(
     private readonly db: DataSource,
     private readonly studio: StudioService,
@@ -297,6 +299,44 @@ export class StudioExecutionService implements OnModuleInit {
     if (plan.publish) ids.push('publish');
     return ids;
   }
+  /**
+   * Progress events of a run, for a client that asked for a stream. A key is `run:<runId>` (retry,
+   * creation message/clarify) or `req:<actor>:<requestId>` for a create, whose run does not exist yet.
+   * Returns the unsubscribe.
+   */
+  watch(key: string, listener: (event: StreamEvent) => void) {
+    const set = this.watchers.get(key) ?? new Set();
+    set.add(listener);
+    this.watchers.set(key, set);
+    return () => {
+      set.delete(listener);
+      if (!set.size && this.watchers.get(key) === set) this.watchers.delete(key);
+    };
+  }
+  /** One `step` event per persisted transition: ids, statuses and error codes, never content. */
+  private publish(row: StudioExecution, state: StudioExecutionState) {
+    const keys = [`run:${row.runId}`, `req:${row.actorId}:${row.requestId}`];
+    if (!keys.some(key => this.watchers.has(key))) return;
+    const event: StreamEvent = {
+      type: 'step',
+      runId: row.runId,
+      status: row.status,
+      steps: state.steps.map(step => ({
+        stepId: step.stepId,
+        status: step.status,
+        retryable: step.retryable,
+        ...(step.errorCode ? { errorCode: step.errorCode } : {}),
+      })),
+    };
+    for (const key of keys)
+      for (const listener of [...(this.watchers.get(key) ?? [])]) {
+        try {
+          listener(event);
+        } catch {
+          // A broken client connection must not fail the run.
+        }
+      }
+  }
   async create(body: any, actor: number, signal: AbortSignal | undefined, epoch: number) {
     this.validate(body);
     this.checkDisconnected(signal);
@@ -357,6 +397,7 @@ export class StudioExecutionService implements OnModuleInit {
       return { row: entity, fresh: true };
     });
     if (!row.fresh) return this.get(row.row.runId, actor);
+    this.publish(row.row, this.state(row.row));
     this.remember(row.row.runId, body);
     return this.launch(row.row, body, signal, epoch);
   }
@@ -1143,8 +1184,13 @@ export class StudioExecutionService implements OnModuleInit {
     };
     await this.persist(row, state);
   }
-  private persist(row: StudioExecution, state: StudioExecutionState) {
+  private async persist(row: StudioExecution, state: StudioExecutionState) {
     row.state = JSON.stringify(state);
+    const saved = await this.persistRow(row, state);
+    this.publish(row, state);
+    return saved;
+  }
+  private persistRow(row: StudioExecution, state: StudioExecutionState) {
     return metadataTransaction(this.db, async manager => {
       if (!['succeeded', 'unsupported', 'cancelled'].includes(row.status)) {
         await lockDashboardWrite(manager, row.dashboardId);

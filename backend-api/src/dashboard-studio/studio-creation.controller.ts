@@ -3,6 +3,7 @@ import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StudioSampleService } from './studio-sample.service';
 import { StudioCreationService } from './studio-creation.service';
+import { serveRun } from '../common/ndjson-stream';
 @UseGuards(JwtAuthGuard, UserThrottleGuard)
 @Controller('studio')
 export class StudioCreationController {
@@ -15,26 +16,15 @@ export class StudioCreationController {
   }
   @UserThrottle('ai')
   @Post('proposals')
-  async propose(@Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    const close = () => {
-      if (!res.writableFinished) abort();
-    };
-    req.once('aborted', abort);
-    res.once('close', close);
-    if (req.aborted) abort();
-    try {
-      return await this.creation.propose(
+  propose(@Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
+    return serveRun(req, res, signal =>
+      this.creation.propose(
         body,
         req.user?.accessKeyData?.id,
-        controller.signal,
+        signal,
         req.user?.accessKeyData?.authVersion ?? 0,
-      );
-    } finally {
-      req.off('aborted', abort);
-      res.off('close', close);
-    }
+      ),
+    );
   }
   @Get('proposals/:id') proposal(
     @Param('id') id: string,

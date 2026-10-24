@@ -3,6 +3,7 @@ import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StudioExecutionService } from './studio-execution.service';
 import { requestEpoch } from '../ai/ai-caller';
+import { serveRun } from '../common/ndjson-stream';
 @UseGuards(JwtAuthGuard, UserThrottleGuard)
 @Controller('studio')
 export class StudioExecutionController {
@@ -10,13 +11,13 @@ export class StudioExecutionController {
   @UserThrottle('ai')
   @Post('executions')
   create(@Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
-    return this.withSignal(req, res, signal =>
-      this.executions.create(
-        body,
-        req.user?.accessKeyData?.id,
-        signal,
-        req.user?.accessKeyData?.authVersion ?? 0,
-      ),
+    const actor = req.user?.accessKeyData?.id;
+    return serveRun(
+      req,
+      res,
+      signal =>
+        this.executions.create(body, actor, signal, req.user?.accessKeyData?.authVersion ?? 0),
+      { watch: emit => this.executions.watch(`req:${actor}:${body?.requestId}`, emit) },
     );
   }
   @Get('runs')
@@ -30,8 +31,12 @@ export class StudioExecutionController {
   @UserThrottle('ai')
   @Post('runs/:id/retry')
   retry(@Param('id') id: string, @Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
-    return this.withSignal(req, res, signal =>
-      this.executions.retry(id, body, req.user?.accessKeyData?.id, signal, requestEpoch(req)),
+    return serveRun(
+      req,
+      res,
+      signal =>
+        this.executions.retry(id, body, req.user?.accessKeyData?.id, signal, requestEpoch(req)),
+      { watch: emit => this.executions.watch(`run:${id}`, emit) },
     );
   }
   @Post('runs/:id/cancel')
@@ -59,14 +64,18 @@ export class StudioExecutionController {
     @Req() req,
     @Res({ passthrough: true }) res,
   ) {
-    return this.withSignal(req, res, signal =>
-      this.executions.creationMessage(
-        id,
-        body,
-        req.user?.accessKeyData?.id,
-        signal,
-        requestEpoch(req),
-      ),
+    return serveRun(
+      req,
+      res,
+      signal =>
+        this.executions.creationMessage(
+          id,
+          body,
+          req.user?.accessKeyData?.id,
+          signal,
+          requestEpoch(req),
+        ),
+      { watch: emit => this.executions.watch(`run:${id}`, emit) },
     );
   }
   @UserThrottle('ai')
@@ -77,34 +86,22 @@ export class StudioExecutionController {
     @Req() req,
     @Res({ passthrough: true }) res,
   ) {
-    return this.withSignal(req, res, signal =>
-      this.executions.clarifyCreation(
-        id,
-        body,
-        req.user?.accessKeyData?.id,
-        signal,
-        requestEpoch(req),
-      ),
+    return serveRun(
+      req,
+      res,
+      signal =>
+        this.executions.clarifyCreation(
+          id,
+          body,
+          req.user?.accessKeyData?.id,
+          signal,
+          requestEpoch(req),
+        ),
+      { watch: emit => this.executions.watch(`run:${id}`, emit) },
     );
   }
   @Post('runs/:id/creation')
   saveCreation(@Param('id') id: string, @Body() body: any, @Req() req) {
     return this.executions.saveCreation(id, body, req.user?.accessKeyData?.id);
-  }
-  private async withSignal(req, res, run: (signal: AbortSignal) => Promise<any>) {
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    const close = () => {
-      if (!res.writableFinished) abort();
-    };
-    req.once('aborted', abort);
-    res.once('close', close);
-    if (req.aborted) abort();
-    try {
-      return await run(controller.signal);
-    } finally {
-      req.off('aborted', abort);
-      res.off('close', close);
-    }
   }
 }
