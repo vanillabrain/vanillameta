@@ -201,7 +201,12 @@ describe('UC050 Studio business basis with real DuckDB and metadata persistence'
     else process.env.AI_PROVIDER = provider;
   });
   const propose = (extra = {}) =>
-    service.propose({ sourceId: 1, prompt: '매출과 코드별 매출, 날짜별 매출', ...extra }, 7);
+    service.propose(
+      { sourceId: 1, prompt: '매출과 코드별 매출, 날짜별 매출', ...extra },
+      7,
+      undefined,
+      0,
+    );
   const save = (p: any, requestId = 'create-' + p.proposalId) =>
     service.create(
       { proposalId: p.proposalId, expectedSourceRevision: p.sourceRevision, requestId },

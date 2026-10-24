@@ -45,6 +45,7 @@ import {
 import { BatchBlockAction, isBatchPlanShape, parseBatchActions } from './batch-block-edit';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { AiService } from './ai.service';
+import { isAiRefusal } from './ai-caller';
 import { AiCaller } from './llm-gateway.service';
 import { aiProviderConfig } from './providers/ai-config';
 import { ConnectionService } from '../connection/connection.service';
@@ -1229,6 +1230,8 @@ export class AiDashboardService {
         });
         if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       } catch (error) {
+        // A refusal is an answer for the user (429/503), not a failed generation to hide.
+        if (isAiRefusal(error)) throw error;
         return {
           status: ResponseStatus.ERROR,
           message:

@@ -197,7 +197,12 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     else process.env.AI_PROVIDER = provider;
   });
   const propose = (extra = {}) =>
-    service.propose({ sourceId: 1, prompt: 'Show revenue and channels', ...extra }, 7);
+    service.propose(
+      { sourceId: 1, prompt: 'Show revenue and channels', ...extra },
+      7,
+      undefined,
+      0,
+    );
   const save = (p: any, requestId = 'create-' + p.proposalId) =>
     service.create(
       { proposalId: p.proposalId, expectedSourceRevision: p.sourceRevision, requestId },
@@ -1075,7 +1080,7 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       return JSON.stringify(semantics());
     });
     await expect(
-      service.propose({ sourceId: 1, prompt: 'revenue' }, 7, pending.signal),
+      service.propose({ sourceId: 1, prompt: 'revenue' }, 7, pending.signal, 0),
     ).rejects.toThrow();
     expect((service as any).proposals.size).toBe(count);
   });
@@ -1276,6 +1281,8 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
             clarificationAnswers: { refundDenominator: 'amount' },
           },
           7,
+          undefined,
+          0,
         );
         expect(p.preview.widgets.map(w => Number(w.datas[0].value))).toEqual([
           20994.61,
@@ -1441,6 +1448,8 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
         ...extra,
       },
       actor,
+      undefined,
+      0,
     );
   it('UC035 keeps a confirmed refund denominator during title-only refinement', async () => {
     const block = {
@@ -1603,6 +1612,7 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
         { sourceId: 1, prompt: 'change', parentProposalId: p.proposalId, targetBlockIndex: 1 },
         7,
         controller.signal,
+        0,
       ),
     ).rejects.toThrow('취소');
     expect(await service.proposal(p.proposalId, 1, 7)).toEqual(JSON.parse(JSON.stringify(p)));

@@ -1,3 +1,4 @@
+import { HttpException } from '@nestjs/common';
 import { Database } from '../database/entities/database.entity';
 import { Metric } from '../metric/entities/metric.entity';
 jest.mock('./ai.service', () => ({ AiService: class {} }));
@@ -430,6 +431,20 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     expect(failure.status).toBe('ERROR');
     expect('message' in failure && failure.message).toContain('AI 결과를 검증하지 못했습니다');
     expect(ai.callLlm).toHaveBeenCalledTimes(2);
+  });
+  it('lets the gateway’s quota and budget refusals through instead of calling it a failed generation', async () => {
+    for (const [error, status] of [
+      ['AI_QUOTA_EXCEEDED', 429],
+      ['AI_BUDGET_EXHAUSTED', 503],
+    ] as const) {
+      ai.callLlm.mockRejectedValueOnce(new HttpException({ error }, status));
+      await expect(
+        service.generate({ databaseId: 1, prompt: 'Revenue' }, 7, undefined, 0),
+      ).rejects.toMatchObject({ status });
+    }
+    ai.callLlm.mockRejectedValueOnce(new Error('LLM_API_ERROR_500'));
+    const failure = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7, undefined, 0);
+    expect(failure.status).toBe('ERROR');
   });
   it.each(['count(*)', 'sum(has_bid_floor_cnt)'])(
     'repairs %s used as request totals before running SQL',

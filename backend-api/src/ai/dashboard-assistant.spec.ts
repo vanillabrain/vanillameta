@@ -285,6 +285,7 @@ describe('dashboard assistant', () => {
   });
   it('uses actual environment provider metadata', async () => {
     process.env.AI_PROVIDER = 'openai';
+    process.env.AI_API_KEY = 'test-key';
     process.env.AI_MODEL = 'configured-model';
     const result: any = await service.assistant(request(), 7, undefined, 0);
     expect('data' in result && result.data.ai).toEqual({

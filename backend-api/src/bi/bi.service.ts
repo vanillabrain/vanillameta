@@ -1113,6 +1113,8 @@ export class BiService {
     if (requestedMode === 'auto') {
       if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
         throw new BadRequestException('편집할 화면 폭을 확인해 주세요.');
+      // Classifying, then at most one layout call or a draft with one correction.
+      await this.dashboards.assertAiCalls({ userId: actor, epoch, feature: 'bi-editor' }, 3);
       const plan = await this.dashboards.classifyBlockIntent(body.prompt, signal, {
         userId: actor,
         epoch,
@@ -1334,11 +1336,12 @@ export class BiService {
         prompt: action.editPrompt,
       });
     }
-    // One batch makes at least one model call per block. Refuse before the first when the day's calls
-    // cannot cover them, instead of dying half-spent.
+    // A layout block makes one model call, a content block up to two (the draft is retried once with a
+    // correction). Refuse before the first when the day's calls cannot cover them, instead of dying
+    // half-spent.
     await this.dashboards.assertAiCalls(
       { userId: actor, epoch, feature: 'bi-editor' },
-      targets.length,
+      targets.reduce((calls, target) => calls + (target.editMode === 'layout' ? 1 : 2), 0),
     );
     let current = compiled;
     const changes: { targetKey: string; editMode: 'content' | 'layout'; item: any }[] = [];

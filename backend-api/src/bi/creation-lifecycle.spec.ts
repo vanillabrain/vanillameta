@@ -99,6 +99,8 @@ describe('UC023 creation lifecycle without writes', () => {
         prompt: '합계를 만들고 저장하고 게시 미리보기로 이어 줘. 링크 공개는 아직 하지 마.',
       },
       10,
+      undefined,
+      0,
     );
     expect(result).toMatchObject({ saveRequested: true, publicationRequested: true, proposal });
     expect(result).toHaveProperty('draft.widgets.0.sql', expect.stringContaining('SUM("amount")'));
@@ -111,15 +113,17 @@ describe('UC023 creation lifecycle without writes', () => {
     { saveRequested: true, publicationRequested: null },
   ])('rejects invalid optional execution flags %#', async flags => {
     ai.callLlm.mockResolvedValueOnce(JSON.stringify({ ...proposal, ...flags }));
-    await expect(service.propose({ sourceId: 7, prompt: '질문' }, 10)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.propose({ sourceId: 7, prompt: '질문' }, 10, undefined, 0),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
   it('returns a bounded clarification rather than a fabricated source error or a save', async () => {
     ai.callLlm.mockResolvedValueOnce(
       JSON.stringify({ clarification: '전환율의 분자와 분모는 어떤 열인가요?' }),
     );
-    await expect(service.propose({ sourceId: 7, prompt: '전환율을 보여줘' }, 10)).resolves.toEqual({
+    await expect(
+      service.propose({ sourceId: 7, prompt: '전환율을 보여줘' }, 10, undefined, 0),
+    ).resolves.toEqual({
       clarification: '전환율의 분자와 분모는 어떤 열인가요?',
     });
   });
@@ -131,7 +135,11 @@ describe('UC023 creation lifecycle without writes', () => {
       saveRequested: true,
       publicationRequested: true,
     });
-    expect(dashboards.classifyBlockIntent).toHaveBeenCalledWith(body().prompt, undefined);
+    expect(dashboards.classifyBlockIntent).toHaveBeenCalledWith(body().prompt, undefined, {
+      userId: 10,
+      epoch: 0,
+      feature: 'semantic-proposal',
+    });
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('denies a foreign source before intent classification', async () => {

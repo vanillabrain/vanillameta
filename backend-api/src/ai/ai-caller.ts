@@ -15,9 +15,9 @@ export const callerOf = (req: any, feature: string): AiCaller => ({
 });
 
 /**
- * The gateway refused the call (the user's quota, the server-wide budget) or the AI is not set up. These
- * are answers for the user, not model failures: a call site that turns errors into a generic message
- * must let them through unchanged.
+ * The gateway refused the call: the user's quota, the server-wide budget, or an input too large to send.
+ * These are answers for the user, not model failures: a call site that turns errors into a generic
+ * message must let them through unchanged. (`AI_NOT_CONFIGURED` is a plain `Error`, not matched here.)
  */
 export function isAiRefusal(error: unknown): error is HttpException {
   if (!(error instanceof HttpException)) return false;

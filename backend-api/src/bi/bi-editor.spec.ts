@@ -2,7 +2,12 @@ import { installCatalogActorFixture } from '../../test/util/catalog-actor-fixtur
 jest.mock('../connection/connection.service', () => ({ ConnectionService: class {} }));
 jest.mock('../ai/ai-dashboard.service', () => ({ AiDashboardService: class {} }));
 
-import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+} from '@nestjs/common';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { Metric } from '../metric/entities/metric.entity';
 import { SourceCatalogEntry } from './entities/source-catalog-entry.entity';
@@ -654,7 +659,6 @@ describe('BiService dashboard editor boundaries', () => {
       expect.objectContaining({ sourceId: 1, metricId: 13 }),
       actor,
       undefined,
-      0,
     );
     expect(access.assert).toHaveBeenCalledWith('metric', 13, actor, 'read');
     expect(dashboards.save).not.toHaveBeenCalled();
@@ -725,6 +729,7 @@ describe('BiService dashboard editor boundaries', () => {
     expect(dashboards.proposeBlockLayout).toHaveBeenCalledWith(
       expect.objectContaining({ prompt: '오른쪽 한 칸' }),
       undefined,
+      { userId: actor, epoch: 0, feature: 'bi-editor' },
     );
     expect(dashboards.generate).not.toHaveBeenCalled();
     expect(dashboards.save).not.toHaveBeenCalled();
@@ -1172,6 +1177,7 @@ describe('BiService dashboard editor boundaries', () => {
     expect(dashboards.proposeBlockLayout).toHaveBeenCalledWith(
       expect.objectContaining({ selectedKey: 'block-2', prompt: '오른쪽 한 칸', mode: 'desktop' }),
       undefined,
+      { userId: actor, epoch: 0, feature: 'bi-editor' },
     );
     expect(result.targetKey).toBe('block-2');
     expect(result.item).toMatchObject({
@@ -1395,11 +1401,56 @@ describe('BiService dashboard editor boundaries', () => {
         prompt: '아래로 한 칸 옮겨 줘',
       }),
       undefined,
+      { userId: actor, epoch: 0, feature: 'bi-editor' },
     );
     expect(dashboards.generate).toHaveBeenCalledTimes(1);
     expect(dashboards.preview).toHaveBeenCalledTimes(1);
     expect(result.preview).toMatchObject({ responsiveLayouts: expect.any(Object) });
     expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it('asks for the calls a batch can make (two per content block, one per layout block) before the first', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce(batchPlan());
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: { ...analysis, widgets: analysis.widgets },
+    });
+    dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 0, y: 6, w: 6, h: 3 });
+    await service.editorAi(dashboardId, batchBody(items), actor, undefined, 0);
+    expect(dashboards.assertAiCalls).toHaveBeenCalledWith(
+      { userId: actor, epoch: 0, feature: 'bi-editor' },
+      3,
+    );
+    const asked = dashboards.assertAiCalls.mock.invocationCallOrder[0];
+    expect(asked).toBeLessThan(dashboards.generate.mock.invocationCallOrder[0]);
+  });
+
+  it('refuses an auto edit up front when the day cannot cover its three possible calls', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    const refusal = new HttpException({ error: 'AI_QUOTA_EXCEEDED' }, 429);
+    dashboards.assertAiCalls.mockRejectedValueOnce(refusal);
+    await expect(service.editorAi(dashboardId, batchBody(items), actor, undefined, 0)).rejects.toBe(
+      refusal,
+    );
+    expect(dashboards.assertAiCalls).toHaveBeenCalledWith(
+      { userId: actor, epoch: 0, feature: 'bi-editor' },
+      3,
+    );
+    expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
+  });
+
+  it('lets a quota refusal in the middle of a batch through instead of blaming the block', async () => {
+    threeBlocks();
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.classifyBlockIntent.mockResolvedValueOnce(batchPlan());
+    const refusal = new HttpException({ error: 'AI_QUOTA_EXCEEDED' }, 429);
+    dashboards.generate.mockRejectedValueOnce(refusal);
+    await expect(service.editorAi(dashboardId, batchBody(items), actor, undefined, 0)).rejects.toBe(
+      refusal,
+    );
   });
 
   it('UC-016 allows an explicitly requested title change while preserving the other target', async () => {

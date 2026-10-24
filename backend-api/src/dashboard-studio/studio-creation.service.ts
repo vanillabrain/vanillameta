@@ -340,8 +340,8 @@ export class StudioCreationService {
   async propose(
     body: any,
     actor: number,
-    signal?: AbortSignal,
-    authVersion?: number,
+    signal: AbortSignal | undefined,
+    authVersion: number,
   ): Promise<any> {
     const { contextBusinessBasis, contextActor, ...proposed } = await this.proposeOnce(
       body,
@@ -596,7 +596,7 @@ export class StudioCreationService {
         }),
         true,
         controller.signal,
-        { userId: actor, epoch: authVersion ?? 0, feature: 'studio-creation' },
+        { userId: actor, epoch: authVersion, feature: 'studio-creation' },
       );
       if (controller.signal.aborted) throw new Error('timeout');
       response = JSON.parse(raw);

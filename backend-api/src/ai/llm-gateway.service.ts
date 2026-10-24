@@ -10,7 +10,7 @@ import {
 import { APICallError, LanguageModel, NoObjectGeneratedError, Output, generateText } from 'ai';
 import { randomUUID } from 'crypto';
 import { AiQuotaService } from '../usage/ai-quota.service';
-import { estimateTokens, normalizeJsonOrRaw } from './llm-json';
+import { estimateTokens, isJson, normalizeJsonOrRaw } from './llm-json';
 import { AiProviderConfig, aiProviderConfig, globalMonthlyTokens } from './providers/ai-config';
 import { resolveLanguageModel } from './providers/provider-registry';
 
@@ -37,6 +37,8 @@ const MAX_TIMEOUT_MS = 180_000;
 const DEFAULT_MAX_INPUT_TOKENS = 60_000;
 const JSON_OUTPUT_TOKENS = 4096;
 const TEXT_OUTPUT_TOKENS = 2048;
+/** Reasoning models spend output tokens on thinking first; without room the visible answer is cut off. */
+const REASONING_OUTPUT_TOKENS = 12_288;
 const BUDGET_CACHE_MS = 30_000;
 
 const positive = (raw: string | undefined, fallback: number, cap = Infinity) => {
@@ -131,8 +133,12 @@ export class LlmGateway implements OnModuleInit {
         error: 'AI_INPUT_TOO_LARGE',
         message: 'AI에 보낼 내용이 너무 큽니다. 범위를 줄여 다시 시도해 주세요.',
       });
-    const maxOutputTokens = jsonMode ? JSON_OUTPUT_TOKENS : TEXT_OUTPUT_TOKENS;
+    const maxOutputTokens =
+      (jsonMode ? JSON_OUTPUT_TOKENS : TEXT_OUTPUT_TOKENS) +
+      (config.reasoningEffort ? REASONING_OUTPUT_TOKENS : 0);
 
+    // A caller that has already given up must not take a slot.
+    if (request.abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     await this.assertBudget();
     const callId = `ai_${randomUUID().replace(/-/g, '')}`;
     // Nothing that can throw sits between the reservation and the `try` that settles it.
@@ -157,6 +163,7 @@ export class LlmGateway implements OnModuleInit {
     let outputTokens = 0;
     let estimated = true;
     let text = '';
+    let truncated = false;
     const settleUsage = (usage?: { inputTokens?: number; outputTokens?: number }) => {
       if (usage && (usage.inputTokens !== undefined || usage.outputTokens !== undefined)) {
         inputTokens = usage.inputTokens ?? 0;
@@ -193,6 +200,7 @@ export class LlmGateway implements OnModuleInit {
           : {}),
       } as Parameters<typeof generateText>[0]);
       text = result.text;
+      truncated = result.finishReason === 'length';
       status = 'ok';
       settleUsage(result.usage);
     } catch (error) {
@@ -202,6 +210,7 @@ export class LlmGateway implements OnModuleInit {
         // were spent, so it is `ok`; the text goes through the same normalization as every provider's.
         status = 'ok';
         text = error.text ?? '';
+        truncated = error.finishReason === 'length';
         settleUsage(error.usage);
       } else if (request.abortSignal?.aborted) {
         status = 'cancelled';
@@ -231,6 +240,11 @@ export class LlmGateway implements OnModuleInit {
     // A JSON answer comes back as the bare JSON text when it can be read as one. When it cannot, the text
     // is returned as it is: every call site already has its own answer to unparseable output (a 400, or a
     // corrective retry), and an exception here would skip it.
-    return jsonMode ? normalizeJsonOrRaw(text) : text;
+    if (!jsonMode) return text;
+    const normalized = normalizeJsonOrRaw(text);
+    // Cut off at the output limit: another attempt with the same limit is cut off again, so say so
+    // instead of handing back half a JSON value for a correction round that cannot succeed.
+    if (truncated && !isJson(normalized)) throw new Error('LLM_OUTPUT_TRUNCATED');
+    return normalized;
   }
 }

@@ -145,6 +145,35 @@ describe('LlmGateway (real SQLite ledger, mocked model call)', () => {
     });
   });
 
+  it('says so when a JSON answer is cut off at the output limit, instead of returning half a value', async () => {
+    generate.mockResolvedValue({
+      text: '{"widgets":[{"title":"a"',
+      finishReason: 'length',
+      usage: { inputTokens: 10, outputTokens: 4096 },
+    });
+    await expect(ask({ jsonMode: true })).rejects.toThrow('LLM_OUTPUT_TRUNCATED');
+    // The call happened and its tokens were spent.
+    expect((await rows())[0]).toMatchObject({ status: 'ok', outputTokens: 4096 });
+    // A text answer cut off is still text.
+    generate.mockResolvedValue({ text: 'half a sent', finishReason: 'length', usage: {} });
+    expect(await ask()).toBe('half a sent');
+  });
+
+  it('leaves room for the thinking of a reasoning model', async () => {
+    process.env.AI_REASONING_EFFORT = 'high';
+    answer('{}');
+    await ask({ jsonMode: true });
+    expect(generate.mock.calls[0][0].maxOutputTokens).toBeGreaterThan(4096);
+  });
+
+  it('takes no slot for a caller that has already given up', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(ask({ abortSignal: controller.signal })).rejects.toThrow('LLM_REQUEST_ABORTED');
+    expect(generate).not.toHaveBeenCalled();
+    expect(await rows()).toHaveLength(0);
+  });
+
   it('is not configured without a key: no model call, no ledger row', async () => {
     delete process.env.AI_API_KEY;
     await expect(ask()).rejects.toThrow('AI_NOT_CONFIGURED');

@@ -94,7 +94,7 @@ describe('semantic proposal service read boundaries', () => {
     await db.destroy();
   });
   it('only exposes schema and valid catalog to the provider, then revalidates', async () => {
-    const result = await service.propose({ sourceId: 7, prompt: '합계 보여줘' }, 10);
+    const result = await service.propose({ sourceId: 7, prompt: '합계 보여줘' }, 10, undefined, 0);
     const context = JSON.parse(ai.callLlm.mock.calls[0][1]);
     expect(context).toEqual({
       sourceId: 7,
@@ -109,30 +109,30 @@ describe('semantic proposal service read boundaries', () => {
   });
   it('authorizes before provider calls', async () => {
     bi.profile.mockRejectedValue(new ForbiddenException());
-    await expect(service.propose({ sourceId: 7, prompt: '합계' }, 10)).rejects.toThrow(
-      ForbiddenException,
-    );
+    await expect(
+      service.propose({ sourceId: 7, prompt: '합계' }, 10, undefined, 0),
+    ).rejects.toThrow(ForbiddenException);
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('rejects source changed while model was running', async () => {
     bi.profile
       .mockResolvedValueOnce(profile)
       .mockResolvedValueOnce({ ...profile, dataVersion: 'v2' });
-    await expect(service.propose({ sourceId: 7, prompt: '합계' }, 10)).rejects.toThrow(
-      ConflictException,
-    );
+    await expect(
+      service.propose({ sourceId: 7, prompt: '합계' }, 10, undefined, 0),
+    ).rejects.toThrow(ConflictException);
   });
   it('rejects model switching to another owned source', async () => {
     ai.callLlm.mockResolvedValue(JSON.stringify({ ...proposal(), sourceId: 8 }));
-    await expect(service.propose({ sourceId: 7, prompt: '합계' }, 10)).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(
+      service.propose({ sourceId: 7, prompt: '합계' }, 10, undefined, 0),
+    ).rejects.toThrow(BadRequestException);
   });
   it('honors abort before and after the provider', async () => {
     const controller = new AbortController();
     controller.abort();
     await expect(
-      service.propose({ sourceId: 7, prompt: '합계' }, 10, controller.signal),
+      service.propose({ sourceId: 7, prompt: '합계' }, 10, controller.signal, 0),
     ).rejects.toThrow('LLM_REQUEST_ABORTED');
     expect(ai.callLlm).not.toHaveBeenCalled();
     const second = new AbortController();
@@ -141,7 +141,7 @@ describe('semantic proposal service read boundaries', () => {
       return JSON.stringify(proposal());
     });
     await expect(
-      service.propose({ sourceId: 7, prompt: '합계' }, 10, second.signal),
+      service.propose({ sourceId: 7, prompt: '합계' }, 10, second.signal, 0),
     ).rejects.toThrow('LLM_REQUEST_ABORTED');
   });
   it('previews server SQL within source snapshot and includes numeric trends', async () => {

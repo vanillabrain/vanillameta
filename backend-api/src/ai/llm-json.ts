@@ -37,3 +37,13 @@ export function normalizeJsonOrRaw(raw: string): string {
 
 /** Rough token count (characters / 4) for a missing `usage` or a pre-call reservation. */
 export const estimateTokens = (text: string): number => Math.ceil((text ?? '').length / 4);
+
+/** True when the text is one complete JSON value. */
+export function isJson(text: string): boolean {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
