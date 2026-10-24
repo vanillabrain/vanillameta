@@ -4,7 +4,7 @@ import { get, post } from '@/helpers/apiHelper';
 import { studioAssert } from './studioDocument';
 import { uploadQuotaMessage } from './studioUploadQuota';
 import { StudioPreview, validateStudioPreview } from './studioApi';
-import { aiRefusalMessage } from './studioAiMessages';
+import { aiRefusalMessage, RATE_LIMITED_MESSAGE } from './studioAiMessages';
 import { trackAiCall } from '@/api/usageService';
 export type StudioSource = { id: number; name: string; engine: string; catalogLabel?: string; catalogVersion?: number };
 export type SourceColumn = {
@@ -181,6 +181,8 @@ export const creationError = (cause: unknown, context: 'file' | 'generation' = '
   // The server words refusals (quota, budget, no setup, input too large) and gateway failures itself.
   const refusal = aiRefusalMessage(cause);
   if (refusal) return refusal;
+  // A 429 with no readable body is still the request limit, not a file problem.
+  if (status === 429) return RATE_LIMITED_MESSAGE;
   if (status === 403) return '이 데이터 소스를 사용할 권한이 없습니다. 다른 소스를 선택해 주세요.';
   if (status === 409) return '데이터 또는 지표 기준이 변경되었습니다. 소스를 새로 확인하고 다시 생성해 주세요.';
   if (status === 400 && context === 'file')

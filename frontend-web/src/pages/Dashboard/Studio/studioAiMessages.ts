@@ -11,7 +11,9 @@ export const AI_BLOCK_MESSAGES: Record<string, string> = {
 };
 
 /** Gateway failures the server words itself and that no retry of the same request will fix quickly. */
-const SERVER_WORDED = ['LLM_TIMEOUT', 'LLM_UNAVAILABLE', 'LLM_OUTPUT_TRUNCATED'];
+// RATE_LIMITED is the per-user request limit (UserThrottleGuard), answered before any model call.
+const SERVER_WORDED = ['LLM_TIMEOUT', 'LLM_UNAVAILABLE', 'LLM_OUTPUT_TRUNCATED', 'RATE_LIMITED'];
+export const RATE_LIMITED_MESSAGE = '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
 const AI_TROUBLE = 'AI 연결 또는 처리 상태를 확인하지 못했습니다. 기존 입력을 유지했습니다. 잠시 후 다시 시도해 주세요.';
 const has = (table: object, key: unknown): key is string =>
   typeof key === 'string' && Object.prototype.hasOwnProperty.call(table, key);
@@ -29,5 +31,6 @@ export function aiRefusalMessage(cause: unknown): string | undefined {
   if (!has(AI_BLOCK_MESSAGES, code) && !(typeof code === 'string' && SERVER_WORDED.includes(code))) return undefined;
   const message = detail.message;
   if (typeof message === 'string' && message.trim() && message.length <= 300) return message;
-  return has(AI_BLOCK_MESSAGES, code) ? AI_BLOCK_MESSAGES[code] : AI_TROUBLE;
+  if (has(AI_BLOCK_MESSAGES, code)) return AI_BLOCK_MESSAGES[code];
+  return code === 'RATE_LIMITED' ? RATE_LIMITED_MESSAGE : AI_TROUBLE;
 }

@@ -85,6 +85,13 @@ describe('creation errors from the AI', () => {
     expect(message).toContain('기존 입력을 유지');
   });
 
+  it('shows the request-limit sentence, not the file-format advice, when the generate click is throttled', () => {
+    const message = creationError(body(429, 'RATE_LIMITED', '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'));
+    expect(message).toBe('요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.');
+    expect(message).not.toContain('파일 형식');
+    expect(creationError({ response: { status: 429 } })).not.toContain('파일 형식');
+  });
+
   it('does not take another error code for an AI refusal', () => {
     expect(creationError(body(429, 'SOMETHING_ELSE', 'private detail'))).not.toContain('private detail');
   });
@@ -113,13 +120,21 @@ describe('aiRefusalMessage', () => {
     expect(aiRefusalMessage(failure('LLM_UNAVAILABLE', undefined, 502))).toContain('AI 연결');
   });
 
+  it('words the per-user request limit (429 RATE_LIMITED) too, with the server’s sentence or ours', () => {
+    expect(aiRefusalMessage(failure('RATE_LIMITED', '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'))).toBe(
+      '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.',
+    );
+    expect(aiRefusalMessage(failure('RATE_LIMITED'))).toBe('요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.');
+    expect(aiRefusalMessage(failure('RATE_LIMITED', 'x'.repeat(400)))).not.toContain('xxxx');
+  });
+
   it('reads a stream’s error event the same way, and ignores everything else', () => {
     const fromStream = {
       message: 'x',
       response: { status: 429, data: { success: false, code: 429, data: { error: 'AI_QUOTA_EXCEEDED', message: '한도' } } },
     };
     expect(aiRefusalMessage(fromStream)).toBe('한도');
-    expect(aiRefusalMessage(failure('RATE_LIMITED', '너무 많은 요청'))).toBeUndefined();
+    expect(aiRefusalMessage(failure('SOMETHING_ELSE', '다른 오류'))).toBeUndefined();
     expect(aiRefusalMessage(failure('toString', 'inherited key'))).toBeUndefined();
     expect(aiRefusalMessage(undefined)).toBeUndefined();
     expect(aiRefusalMessage(new Error('x'))).toBeUndefined();
