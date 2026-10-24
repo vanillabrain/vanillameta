@@ -55,6 +55,15 @@ export const usageChipTitle = (usage: AiUsage, timeZone?: string): string => {
 
 export const isAtLimit = (usage: AiUsage) => usage.daily.used >= usage.daily.limit;
 
+/** Runs a request that may spend AI calls, then tells the chip to read its numbers again. */
+export async function trackAiCall<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } finally {
+    notifyAiUsageChanged();
+  }
+}
+
 // Anything that just spent a call tells the chip to read again.
 const bus = new EventTarget();
 export const notifyAiUsageChanged = () => bus.dispatchEvent(new Event('changed'));

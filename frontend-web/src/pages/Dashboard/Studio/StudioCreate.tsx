@@ -43,7 +43,7 @@ import {
   removeCreationQuestion,
 } from './studioCreationQuestion';
 import './studio.css';
-import { useAiLabel } from '@/hooks/useAiStatus';
+import { useAiLabel, useAiNote } from '@/hooks/useAiStatus';
 export default function StudioCreate() {
   const session = useRef(editorDraftSessionEpoch());
   const currentSession = () => editorDraftSessionEpoch() === session.current;
@@ -56,6 +56,7 @@ export default function StudioCreate() {
   const [metrics, setMetrics] = useState<any[]>([]),
     [selectedMetrics, setSelectedMetrics] = useState<number[]>([]);
   const aiLabel = useAiLabel();
+  const aiNote = useAiNote();
   const [prompt, setPrompt] = useState(''),
     [busy, setBusy] = useState(''),
     [error, setError] = useState(''),
@@ -723,7 +724,9 @@ export default function StudioCreate() {
                   placeholder={promptExample}
                 />
                 <div className="studio-create-request-actions">
-                  <span>{aiLabel} 요청</span>
+                  <span>
+                    {aiLabel} 요청{aiNote}
+                  </span>
                   <Button variant="default" disabled={locked || !profile || !prompt.trim()} onClick={() => generate()}>
                     지표와 차트 제안
                   </Button>

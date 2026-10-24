@@ -1,5 +1,6 @@
 import type { ChatTransport } from 'ai';
 import { post } from '@/helpers/apiHelper';
+import { trackAiCall } from '@/api/usageService';
 import { AssistantMessage, assistantResultStream, messageText } from '../assistantTransport';
 import { validateStudioPreview, StudioPreview, StudioApiError, toStudioApiError, studioRequestId } from './studioApi';
 import { studioAssert, studioKeys, studioConditionsKey, validateStudioConditions } from './studioDocument';
@@ -114,10 +115,12 @@ export function studioAssistantTransport(
       let response: any;
       try {
         activity?.onRequest(body);
-        response = await post(activity ? '/studio/executions' : '/studio/runs', body, {
-          timeout: 180000,
-          signal: abortSignal,
-        });
+        response = await trackAiCall(() =>
+          post(activity ? '/studio/executions' : '/studio/runs', body, {
+            timeout: 180000,
+            signal: abortSignal,
+          }),
+        );
       } catch (error) {
         throw toStudioApiError(error);
       }

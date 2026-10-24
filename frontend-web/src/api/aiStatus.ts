@@ -20,13 +20,20 @@ export function validateAiStatus(input: unknown): AiStatus | null {
   return { configured: true, provider: text(value.provider), model: text(value.model) };
 }
 
-/** "OpenAI · gpt-4o-mini", "AI 미설정", or just "AI" while it is not known. */
+/**
+ * The noun for the model inside a sentence: "OpenAI · gpt-4o-mini", or plain "AI" while it is not known or
+ * not set up (a sentence such as "<label>에 열 이름만 전달합니다" must not name a recipient that does not
+ * exist; `aiStatusNote` says the AI is not connected).
+ */
 export function aiStatusLabel(status: AiStatus | null | undefined): string {
-  if (!status) return 'AI';
-  if (!status.configured) return 'AI 미설정';
+  if (!status || !status.configured) return 'AI';
   const provider = status.provider ? PROVIDER_NAMES[status.provider] ?? status.provider : 'AI';
   return status.model ? `${provider} · ${status.model}` : provider;
 }
+
+/** Said next to a request button when the server says no model is set up; empty otherwise. */
+export const aiStatusNote = (status: AiStatus | null | undefined): string =>
+  status && !status.configured ? ' · AI가 아직 연결되지 않았습니다' : '';
 
 let cached: Promise<AiStatus | null> | undefined;
 
@@ -41,7 +48,8 @@ export function loadAiStatus(force = false): Promise<AiStatus | null> {
           return null;
         });
     } catch {
-      // The request could not even be made: the label stays the plain "AI".
+      // `get` throwing before it returns a promise only happens where apiHelper is mocked without it (other
+      // components' tests); in the app a failed read arrives through the promise above. Either way: unknown.
       cached = undefined;
       return Promise.resolve(null);
     }

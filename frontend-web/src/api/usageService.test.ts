@@ -13,8 +13,8 @@ import {
   validateAiUsage,
 } from './usageService';
 
-const window = (used: number, limit: number) => ({ used, limit, resetsAt: '2026-10-25T00:00:00.000Z' });
-const reply = (daily = window(3, 30), monthlyTokens = window(1200, 500000)) => ({
+const quotaWindow = (used: number, limit: number) => ({ used, limit, resetsAt: '2026-10-25T00:00:00.000Z' });
+const reply = (daily = quotaWindow(3, 30), monthlyTokens = quotaWindow(1200, 500000)) => ({
   status: 'SUCCESS',
   data: { ai: { daily, monthlyTokens }, storage: {} },
 });
@@ -24,11 +24,11 @@ describe('AI usage', () => {
     const usage = validateAiUsage(reply())!;
     expect(usageChipText(usage)).toBe('AI 호출 3/30');
     expect(isAtLimit(usage)).toBe(false);
-    expect(isAtLimit(validateAiUsage(reply(window(30, 30)))!)).toBe(true);
+    expect(isAtLimit(validateAiUsage(reply(quotaWindow(30, 30)))!)).toBe(true);
   });
 
   it('states remaining calls, the reset time and that one action can make several calls', () => {
-    const usage = validateAiUsage(reply(window(28, 30)))!;
+    const usage = validateAiUsage(reply(quotaWindow(28, 30)))!;
     const title = usageChipTitle(usage, 'Asia/Seoul');
     expect(title).toContain('오늘 남은 AI 호출 2회');
     expect(title).toContain('9:00'); // 00:00 UTC is 09:00 in Seoul
@@ -37,7 +37,7 @@ describe('AI usage', () => {
   });
 
   it('never shows a negative remainder', () => {
-    expect(usageChipTitle(validateAiUsage(reply(window(35, 30)))!)).toContain('남은 AI 호출 0회');
+    expect(usageChipTitle(validateAiUsage(reply(quotaWindow(35, 30)))!)).toContain('남은 AI 호출 0회');
   });
 
   it.each([
@@ -45,7 +45,7 @@ describe('AI usage', () => {
     null,
     {},
     { data: { ai: {} } },
-    { data: { ai: { daily: window(1, 2) } } },
+    { data: { ai: { daily: quotaWindow(1, 2) } } },
     reply({ used: -1 } as any),
   ])('treats %j as unknown, not as zero use', input => {
     expect(validateAiUsage(input)).toBeNull();

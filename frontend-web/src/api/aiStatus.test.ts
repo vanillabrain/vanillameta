@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const get = vi.fn();
 vi.mock('@/helpers/apiHelper', () => ({ get: (...args: unknown[]) => get(...args) }));
 
-import { aiStatusLabel, loadAiStatus, resetAiStatusCache, validateAiStatus } from './aiStatus';
+import { aiStatusLabel, aiStatusNote, loadAiStatus, resetAiStatusCache, validateAiStatus } from './aiStatus';
 
 describe('AI status', () => {
   beforeEach(() => {
@@ -21,7 +21,11 @@ describe('AI status', () => {
   });
 
   it('says not configured only when the server said so, and plain AI while it is unknown', () => {
-    expect(aiStatusLabel({ configured: false, provider: null, model: null })).toBe('AI 미설정');
+    // A sentence names the recipient of data: it must not say a model that does not exist.
+    expect(aiStatusLabel({ configured: false, provider: null, model: null })).toBe('AI');
+    expect(aiStatusNote({ configured: false, provider: null, model: null })).toContain('연결되지 않았습니다');
+    expect(aiStatusNote({ configured: true, provider: 'openai', model: 'm' })).toBe('');
+    expect(aiStatusNote(null)).toBe('');
     expect(aiStatusLabel(null)).toBe('AI');
     expect(aiStatusLabel(undefined)).toBe('AI');
   });

@@ -72,8 +72,9 @@ describe('creation errors from the AI', () => {
   });
 
   it('ignores a refusal message that is empty or too long and falls back to a fixed sentence', () => {
-    expect(creationError(body(429, 'AI_QUOTA_EXCEEDED', ''))).not.toBe('');
-    expect(creationError(body(429, 'AI_QUOTA_EXCEEDED', 'x'.repeat(400)))).not.toContain('xxxx');
+    expect(creationError(body(429, 'AI_QUOTA_EXCEEDED', ''))).toBe(AI_BLOCK_MESSAGES.AI_QUOTA_EXCEEDED);
+    expect(creationError(body(429, 'AI_QUOTA_EXCEEDED', 'x'.repeat(400)))).toBe(AI_BLOCK_MESSAGES.AI_QUOTA_EXCEEDED);
+    expect(creationError(body(503, 'AI_NOT_CONFIGURED', undefined as any))).toBe(AI_BLOCK_MESSAGES.AI_NOT_CONFIGURED);
   });
 
   it.each([502, 503, 504])('treats a %s as an AI connection problem and keeps the input', status => {

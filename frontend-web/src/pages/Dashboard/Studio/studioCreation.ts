@@ -4,6 +4,8 @@ import { get, post } from '@/helpers/apiHelper';
 import { studioAssert } from './studioDocument';
 import { uploadQuotaMessage } from './studioUploadQuota';
 import { StudioPreview, validateStudioPreview } from './studioApi';
+import { AI_BLOCK_MESSAGES } from './studioAiMessages';
+import { trackAiCall } from '@/api/usageService';
 export type StudioSource = { id: number; name: string; engine: string; catalogLabel?: string; catalogVersion?: number };
 export type SourceColumn = {
   label?: string;
@@ -178,14 +180,13 @@ export const creationError = (cause: unknown, context: 'file' | 'generation' = '
   if (quota) return quota;
   const refusal = (cause as any)?.response?.data;
   const refusalDetail = refusal?.data ?? refusal;
-  // The server words these (quota, budget, no setup, input too large) itself; show its sentence.
-  if (
-    ['AI_QUOTA_EXCEEDED', 'AI_BUDGET_EXHAUSTED', 'AI_NOT_CONFIGURED', 'AI_INPUT_TOO_LARGE'].includes(refusalDetail?.error) &&
-    typeof refusalDetail.message === 'string' &&
-    refusalDetail.message.trim() &&
-    refusalDetail.message.length <= 300
-  )
-    return refusalDetail.message;
+  const refusalCode: string | undefined = AI_BLOCK_MESSAGES[refusalDetail?.error] ? refusalDetail.error : undefined;
+  // The server words these (quota, budget, no setup, input too large) itself; show its sentence, or ours
+  // for the same code when its message is missing or unreasonable.
+  if (refusalCode) {
+    const message = refusalDetail.message;
+    return typeof message === 'string' && message.trim() && message.length <= 300 ? message : AI_BLOCK_MESSAGES[refusalCode];
+  }
   if (status === 403) return '이 데이터 소스를 사용할 권한이 없습니다. 다른 소스를 선택해 주세요.';
   if (status === 409) return '데이터 또는 지표 기준이 변경되었습니다. 소스를 새로 확인하고 다시 생성해 주세요.';
   if (status === 400 && context === 'file')
@@ -208,7 +209,7 @@ export const creationError = (cause: unknown, context: 'file' | 'generation' = '
   return '처리하지 못했습니다. 연결 상태와 파일 형식을 확인한 뒤 다시 시도해 주세요. 입력은 유지됩니다.';
 };
 export async function proposeStudio(body: any, signal: AbortSignal): Promise<CreationProposal> {
-  const response = await post('/studio/proposals', body, { timeout: 180000, signal });
+  const response = await trackAiCall(() => post('/studio/proposals', body, { timeout: 180000, signal }));
   if (signal.aborted) throw new Error('cancelled');
   return validateCreationProposal(creationData(response), body.sourceId);
 }

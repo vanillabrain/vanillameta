@@ -1,10 +1,13 @@
 import { CreationProposal, validateCreationProposal } from './studioCreation';
+import { AI_BLOCK_MESSAGES } from './studioAiMessages';
+export { AI_BLOCK_MESSAGES };
 import type { RemixSaveInput } from './studioRemixApi';
 import { get, post } from '@/helpers/apiHelper';
 import { studioAssert, studioKeys, validateStudioDocument } from './studioDocument';
 import { toStudioApiError, StudioSaveResult } from './studioApi';
 import type { StudioRunContext, StudioRunResult } from './studioRunTransport';
 import { Publication, validatePublication } from './studioPublication';
+import { trackAiCall } from '@/api/usageService';
 export const STEP_LABELS = {
   inspectSource: '데이터 확인',
   createProposal: '새 지표·차원과 계산 제안',
@@ -250,15 +253,6 @@ export const remixHandoff = (run: StudioExecution) =>
     : undefined;
 export const retryStep = (run: StudioExecution) =>
   run.steps.find(s => s.retryable && ['failed', 'interrupted', 'cancelled'].includes(s.status));
-/** A model step the server refused or could not start. Trying the same step again will not help. */
-export const AI_BLOCK_MESSAGES: Record<string, string> = {
-  AI_QUOTA_EXCEEDED:
-    '오늘 사용할 수 있는 AI 호출을 모두 썼습니다. 한도는 매일 초기화됩니다. 아무것도 저장하거나 공유하지 않았고 초안은 그대로입니다. 초기화된 뒤 새 요청으로 시작해 주세요.',
-  AI_BUDGET_EXHAUSTED:
-    '이번 달 서비스 전체의 AI 사용량이 한도에 도달해 지금은 AI를 쓸 수 없습니다. 아무것도 저장하거나 공유하지 않았고 초안은 그대로입니다. 다음 달에 다시 사용할 수 있습니다.',
-  AI_NOT_CONFIGURED: 'AI 기능이 아직 연결되지 않았습니다. 초안은 그대로입니다. 운영자에게 문의해 주세요.',
-  AI_INPUT_TOO_LARGE: 'AI에 보낼 내용이 너무 큽니다. 초안은 그대로입니다. 범위를 줄여 다시 시도해 주세요.',
-};
 export const aiBlockMessage = (run: StudioExecution): string | undefined => {
   const step = run.steps.find(s => s.errorCode && AI_BLOCK_MESSAGES[s.errorCode]);
   return step?.errorCode ? AI_BLOCK_MESSAGES[step.errorCode] : undefined;
@@ -316,7 +310,12 @@ export async function executionAction(
 ): Promise<StudioExecution> {
   try {
     const url = '/studio/runs/' + encodeURIComponent(run.runId);
-    const { data } = action === 'get' ? await get(url) : await post(url + '/' + action, body ?? {}, { timeout: 180000 });
+    const { data } =
+      action === 'get'
+        ? await get(url)
+        : action === 'retry'
+        ? await trackAiCall(() => post(url + '/' + action, body ?? {}, { timeout: 180000 }))
+        : await post(url + '/' + action, body ?? {}, { timeout: 180000 });
     return validateExecution(data, run.dashboardId);
   } catch (error) {
     throw toStudioApiError(error);
@@ -437,10 +436,12 @@ export async function clarifyExecutionCreation(
   request: CreationClarificationRequest,
   signal?: AbortSignal,
 ): Promise<StudioExecution> {
-  const { data } = await post('/studio/runs/' + encodeURIComponent(run.runId) + '/creation/clarify', request, {
-    timeout: 180000,
-    signal,
-  });
+  const { data } = await trackAiCall(() =>
+    post('/studio/runs/' + encodeURIComponent(run.runId) + '/creation/clarify', request, {
+      timeout: 180000,
+      signal,
+    }),
+  );
   const completed = validateExecution(data, run.dashboardId);
   studioAssert(
     completed.runId === run.runId &&
@@ -465,10 +466,12 @@ export async function messageExecutionCreation(
   request: CreationMessageRequest,
   signal?: AbortSignal,
 ): Promise<StudioExecution> {
-  const { data } = await post('/studio/runs/' + encodeURIComponent(run.runId) + '/creation/message', request, {
-    timeout: 180000,
-    signal,
-  });
+  const { data } = await trackAiCall(() =>
+    post('/studio/runs/' + encodeURIComponent(run.runId) + '/creation/message', request, {
+      timeout: 180000,
+      signal,
+    }),
+  );
   const result = validateExecution(data, run.dashboardId);
   studioAssert(
     result.runId === run.runId &&
