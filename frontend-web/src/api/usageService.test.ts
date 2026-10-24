@@ -6,6 +6,7 @@ vi.mock('@/helpers/apiHelper', () => ({ get: (...args: unknown[]) => get(...args
 import {
   fetchAiUsage,
   isAtLimit,
+  limitReached,
   notifyAiUsageChanged,
   onAiUsageChanged,
   usageChipText,
@@ -28,6 +29,11 @@ describe('AI usage', () => {
     // The monthly tokens refuse as well, whatever the daily count says.
     expect(isAtLimit(validateAiUsage(reply(quotaWindow(3, 30), quotaWindow(500000, 500000)))!)).toBe(true);
     expect(isAtLimit(validateAiUsage(reply(quotaWindow(3, 30), quotaWindow(0, 0)))!)).toBe(true);
+    expect(limitReached(validateAiUsage(reply(quotaWindow(30, 30)))!)).toBe('오늘');
+    expect(limitReached(validateAiUsage(reply(quotaWindow(3, 30), quotaWindow(500000, 500000)))!)).toBe('이달');
+    // Both used up: say the month, which lasts longer.
+    expect(limitReached(validateAiUsage(reply(quotaWindow(30, 30), quotaWindow(500000, 500000)))!)).toBe('이달');
+    expect(limitReached(validateAiUsage(reply())!)).toBeNull();
   });
 
   it('states remaining calls, the reset time and that one action can make several calls', () => {

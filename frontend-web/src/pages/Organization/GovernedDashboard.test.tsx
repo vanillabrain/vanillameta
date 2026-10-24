@@ -9,6 +9,11 @@ vi.mock('@/helpers/authHelper', () => ({ getToken: () => identity.token, STORAGE
 vi.mock('@/helpers/editorDraftStorage', () => ({ editorDraftSessionEpoch: () => identity.epoch }));
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
+// The view asks which model it uses; that read must not take a response queued for the view's own data.
+vi.mock('@/api/aiStatus', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/api/aiStatus')>()),
+  loadAiStatus: async () => null,
+}));
 vi.mock('./ConditionReports', () => ({ default: () => null }));
 vi.mock('@/pages/Dashboard/Studio/PublishedDashboard', () => ({
   PublishedBlockView: ({ block }: any) => (

@@ -50,9 +50,9 @@ export const usageChipTitle = (usage: AiUsage, timeZone?: string): string => {
   return `오늘 남은 AI 호출 ${left}회 · ${reset}에 초기화${month}. 한 번의 작업이 여러 번 호출할 수 있습니다.`;
 };
 
-/** Which limit is used up, in words for the chip: today's calls first, else this month's tokens. */
+/** Which limit is used up, for the chip. When both are, the month: it is the one that lasts longer. */
 export const limitReached = (usage: AiUsage): '오늘' | '이달' | null =>
-  usage.daily.used >= usage.daily.limit ? '오늘' : usage.monthlyTokens.used >= usage.monthlyTokens.limit ? '이달' : null;
+  usage.monthlyTokens.used >= usage.monthlyTokens.limit ? '이달' : usage.daily.used >= usage.daily.limit ? '오늘' : null;
 
 /** The daily calls or the monthly tokens are used up (the server refuses at either; a limit of 0 refuses all). */
 export const isAtLimit = (usage: AiUsage) => limitReached(usage) !== null;
