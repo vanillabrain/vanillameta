@@ -40,6 +40,15 @@ describe('ApiExceptionFilter', () => {
     },
   );
 
+  it('keeps the original error for the operator: logged with its message, attached as the cause', () => {
+    const { filter, httpFilter } = setup();
+    const log = jest.spyOn((filter as any).log, 'error').mockImplementation(() => undefined);
+    const original = new Error('LLM_API_ERROR_401');
+    filter.catch(original, host);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('LLM_API_ERROR_401'), original.stack);
+    expect(httpFilter.catch.mock.calls[0][0].cause).toBe(original);
+  });
+
   it('leaves any other error to Nest’s default handling', () => {
     const { filter, httpFilter, base } = setup();
     const exception = new Error('LLM_SOMETHING_NEW');

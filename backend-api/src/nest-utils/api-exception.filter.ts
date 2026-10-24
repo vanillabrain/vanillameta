@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, HttpException } from '@nestjs/common';
+import { ArgumentsHost, Catch, HttpException, Logger } from '@nestjs/common';
 import { AbstractHttpAdapter, BaseExceptionFilter } from '@nestjs/core';
 import { llmFailure } from '../ai/ai-caller';
 
@@ -10,6 +10,8 @@ import { llmFailure } from '../ai/ai-caller';
  */
 @Catch()
 export class ApiExceptionFilter extends BaseExceptionFilter {
+  private readonly log = new Logger(ApiExceptionFilter.name);
+
   constructor(
     httpAdapter: AbstractHttpAdapter,
     private readonly httpFilter: { catch(exception: HttpException, host: ArgumentsHost): unknown },
@@ -20,11 +22,20 @@ export class ApiExceptionFilter extends BaseExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     if (exception instanceof HttpException) return this.httpFilter.catch(exception, host);
     const failure = llmFailure(exception);
-    if (failure)
+    if (failure) {
+      // The client gets a fixed message; the operator needs the real code (a 401 from the provider is
+      // a bad key) and the original stack, which the rewritten exception would otherwise hide.
+      this.log.error(
+        `${failure.errorCode}: ${(exception as Error).message}`,
+        (exception as Error).stack,
+      );
       return this.httpFilter.catch(
-        new HttpException({ error: failure.errorCode, message: failure.message }, failure.status),
+        new HttpException({ error: failure.errorCode, message: failure.message }, failure.status, {
+          cause: exception,
+        }),
         host,
       );
+    }
     return super.catch(exception, host);
   }
 }

@@ -1421,16 +1421,21 @@ describe('BiService dashboard editor boundaries', () => {
         ]),
       ),
     );
-    await service.editorAi(
-      dashboardId,
-      batchBody(items, {
-        prompt:
-          '2번 차트의 소수 자릿수를 바꾸고 3번 차트의 제목을 바꾸고 1번 차트를 아래로 한 칸 옮겨 줘',
-      }),
-      actor,
-      undefined,
-      0,
-    );
+    // The mocks return nothing, so the staged edits fail after the pre-check. That is not what this
+    // test is about (the UC-016 test above runs a whole batch); if the pre-check were never reached,
+    // the assertions below would fail.
+    await service
+      .editorAi(
+        dashboardId,
+        batchBody(items, {
+          prompt:
+            '2번 차트의 소수 자릿수를 바꾸고 3번 차트의 제목을 바꾸고 1번 차트를 아래로 한 칸 옮겨 줘',
+        }),
+        actor,
+        undefined,
+        0,
+      )
+      .catch(() => undefined);
     const caller = { userId: actor, epoch: 0, feature: 'bi-editor' };
     // First the auto edit's three, then the batch's 2 + 2 + 1.
     expect(dashboards.assertAiCalls).toHaveBeenNthCalledWith(1, caller, 3);
