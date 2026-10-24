@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
-import { AiUsage, fetchAiUsage, isAtLimit, onAiUsageChanged, usageChipText, usageChipTitle } from '@/api/usageService';
+import {
+  AiUsage,
+  fetchAiUsage,
+  isAtLimit,
+  limitReached,
+  onAiUsageChanged,
+  usageChipText,
+  usageChipTitle,
+} from '@/api/usageService';
+import { useAiStatus } from '@/hooks/useAiStatus';
 
 const REFRESH_MS = 60_000;
 
@@ -10,6 +19,7 @@ const REFRESH_MS = 60_000;
  */
 export default function AiUsageChip() {
   const [usage, setUsage] = useState<AiUsage | null>(null);
+  const ai = useAiStatus();
   useEffect(() => {
     let alive = true;
     const read = () => {
@@ -29,11 +39,12 @@ export default function AiUsageChip() {
       document.removeEventListener('visibilitychange', read);
     };
   }, []);
-  if (!usage) return null;
+  // No model is connected: a call counter for something that cannot be used is noise.
+  if (!usage || ai?.configured === false) return null;
   return (
     <span className={`studio-usage${isAtLimit(usage) ? ' studio-usage-limit' : ''}`} title={usageChipTitle(usage)}>
       {usageChipText(usage)}
-      {isAtLimit(usage) ? ' · 한도 도달' : ''}
+      {limitReached(usage) ? ` · ${limitReached(usage)} 한도 도달` : ''}
     </span>
   );
 }

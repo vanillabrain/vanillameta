@@ -378,6 +378,39 @@ it('UC036 sends the main composer to the latest creation, preserves uncertain in
   expect(defaultProps.onApply).not.toHaveBeenCalled();
   expect(defaultProps.onSaved).not.toHaveBeenCalled();
 });
+it('shows the server’s quota sentence for a refused creation message and sends what the user types next, not the refused question', async () => {
+  const run = creationRun();
+  api.get.mockImplementation(async (url: string) => ({ data: url === '/studio/runs' ? [run] : {} }));
+  const refusal = Object.assign(new Error('Request failed with status code 429'), {
+    response: {
+      status: 429,
+      data: {
+        success: false,
+        code: 429,
+        data: { error: 'AI_QUOTA_EXCEEDED', message: '이 계정의 AI 사용 한도에 도달했습니다.' },
+      },
+    },
+  });
+  api.post
+    .mockRejectedValueOnce(refusal)
+    .mockResolvedValueOnce({ data: { ...run, creationResult: { ...run.creationResult, proposalId: 'edited' } } });
+  render(<StudioConversation {...defaultProps} context={context} />);
+  await screen.findByText(/대상: 저장 전 생성안/);
+  fireEvent.change(screen.getByLabelText('AI에게 요청할 내용'), { target: { value: '첫째-질문-알파' } });
+  fireEvent.click(screen.getByRole('button', { name: '전송' }));
+  expect(await screen.findByText(/AI 사용 한도에 도달했습니다/)).toBeDefined();
+  // Nothing ran: no "same request again" prompt, the composer is free, and the old text is still there.
+  expect(screen.queryByRole('button', { name: '같은 생성안 요청 다시 확인' })).toBeNull();
+  const box = screen.getByLabelText('AI에게 요청할 내용') as HTMLTextAreaElement;
+  expect(box.disabled).toBe(false);
+  expect(box.value).toBe('첫째-질문-알파');
+  fireEvent.change(box, { target: { value: '둘째-질문-베타' } });
+  fireEvent.click(screen.getByRole('button', { name: '전송' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+  const second = JSON.stringify(api.post.mock.calls[1][1]);
+  expect(second).toContain('둘째-질문-베타');
+  expect(second).not.toContain('첫째-질문-알파');
+});
 it('UC036 exits creation context explicitly without sending a request or losing typed input', async () => {
   const run = creationRun();
   api.get.mockImplementation(async (url: string) => ({ data: url === '/studio/runs' ? [run] : {} }));

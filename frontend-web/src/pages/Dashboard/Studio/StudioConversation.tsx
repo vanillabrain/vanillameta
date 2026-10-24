@@ -406,7 +406,9 @@ export default function StudioConversation({
       if (!mounted.current || dashboardId !== current.current.dashboardId) return;
       const refusal = aiRefusalMessage(cause);
       if (refusal) {
-        // A refusal is a clear answer: nothing ran, so the same request may be sent again later.
+        // A refusal is a clear answer: nothing ran, so the attempt ends here. Keeping it would send the
+        // OLD question on the next submit and ignore what the user edited meanwhile.
+        creationAttempt.current = null;
         setCreationUncertain(false);
         setCreationError(refusal);
         return;

@@ -8,6 +8,14 @@ vi.mock('@/api/usageService', async () => {
   return { ...actual, fetchAiUsage: (...args: unknown[]) => fetchAiUsage(...args) };
 });
 
+const status = vi.hoisted(() => ({
+  value: null as null | { configured: boolean; provider: string | null; model: string | null },
+}));
+vi.mock('@/api/aiStatus', async () => {
+  const actual = await vi.importActual<typeof import('@/api/aiStatus')>('@/api/aiStatus');
+  return { ...actual, loadAiStatus: async () => status.value };
+});
+
 import AiUsageChip from './AiUsageChip';
 import { notifyAiUsageChanged, trackAiCall } from '@/api/usageService';
 
@@ -22,6 +30,7 @@ describe('AiUsageChip', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
     fetchAiUsage.mockReset();
+    status.value = null;
     setHidden(false);
   });
   afterEach(() => {
@@ -53,7 +62,25 @@ describe('AiUsageChip', () => {
     await act(async () => {
       notifyAiUsageChanged();
     });
-    expect(screen.getByText(/AI 호출 30\/30 · 한도 도달/)).toBeTruthy();
+    expect(screen.getByText(/AI 호출 30\/30 · 오늘 한도 도달/)).toBeTruthy();
+  });
+
+  it('says which limit was reached when only the month’s tokens are used up', async () => {
+    fetchAiUsage.mockResolvedValue({
+      daily: { used: 3, limit: 30, resetsAt: '2026-10-25T00:00:00.000Z' },
+      monthlyTokens: { used: 500000, limit: 500000, resetsAt: '2026-11-01T00:00:00.000Z' },
+    });
+    render(<AiUsageChip />);
+    await flush();
+    expect(screen.getByText(/AI 호출 3\/30 · 이달 한도 도달/)).toBeTruthy();
+  });
+
+  it('shows nothing when the server says no model is connected', async () => {
+    status.value = { configured: false, provider: null, model: null };
+    fetchAiUsage.mockResolvedValue(usage(0));
+    const { container } = render(<AiUsageChip />);
+    await flush();
+    expect(container.textContent).toBe('');
   });
 
   it('polls once a minute while the tab is visible and not at all while it is hidden', async () => {

@@ -9,6 +9,15 @@ import StudioCreate from './StudioCreate';
 import { creationQuestionKey, writeCreationQuestion, readCreationQuestion } from './studioCreationQuestion';
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), navigate: vi.fn(), upload: vi.fn(), params: '' }));
 vi.mock('@/helpers/apiHelper', () => ({ get: mocks.get, post: mocks.post }));
+// This spec counts and orders its own reads; the usage chip and the model label read on their own.
+vi.mock('@/api/aiStatus', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/api/aiStatus')>()),
+  loadAiStatus: async () => null,
+}));
+vi.mock('@/api/usageService', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/api/usageService')>()),
+  fetchAiUsage: async () => null,
+}));
 vi.mock('@/api/databaseService', () => ({ default: { uploadFile: mocks.upload } }));
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mocks.navigate,
