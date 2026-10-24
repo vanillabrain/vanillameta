@@ -88,7 +88,9 @@ export function aiConfigProblems(env: NodeJS.ProcessEnv): string[] {
   try {
     const config = aiProviderConfig(env);
     // AI that is on without a ceiling on total spend is refused; a stack with no key needs none.
-    if (config && !clean(env.AI_GLOBAL_MONTHLY_TOKENS))
+    // A malformed ceiling must stop the boot, not make every AI call fail later.
+    const ceiling = globalMonthlyTokens(env);
+    if (config && ceiling === null)
       return [
         'AI_GLOBAL_MONTHLY_TOKENS must be set when AI is configured (the monthly spend ceiling)',
       ];
@@ -96,4 +98,13 @@ export function aiConfigProblems(env: NodeJS.ProcessEnv): string[] {
   } catch (error) {
     return [(error as Error).message];
   }
+}
+
+/** The spend ceiling for the whole server this month (tokens), or `null` when none is set. */
+export function globalMonthlyTokens(env: NodeJS.ProcessEnv = process.env): number | null {
+  const raw = env.AI_GLOBAL_MONTHLY_TOKENS?.trim();
+  if (!raw) return null;
+  if (!/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw)))
+    throw new Error('AI_GLOBAL_MONTHLY_TOKENS must be a positive integer');
+  return Number(raw);
 }

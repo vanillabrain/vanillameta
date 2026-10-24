@@ -157,12 +157,10 @@ describe('resolveLanguageModel', () => {
   const sentinel = (kind: string) => ({ kind });
   beforeEach(() => {
     (createAnthropic as jest.Mock).mockReset().mockReturnValue(() => sentinel('anthropic'));
-    (createOpenAI as jest.Mock)
-      .mockReset()
-      .mockReturnValue({
-        chat: () => sentinel('openai-chat'),
-        responses: () => sentinel('responses'),
-      });
+    (createOpenAI as jest.Mock).mockReset().mockReturnValue({
+      chat: () => sentinel('openai-chat'),
+      responses: () => sentinel('responses'),
+    });
     (createOpenAICompatible as jest.Mock)
       .mockReset()
       .mockReturnValue({ chatModel: () => sentinel('compatible-chat') });
@@ -172,7 +170,11 @@ describe('resolveLanguageModel', () => {
     expect(resolveLanguageModel({ provider: 'openai', model: 'm', apiKey: 'k' })).toEqual({
       kind: 'openai-chat',
     });
-    expect(createOpenAI).toHaveBeenCalledWith({ apiKey: 'k' });
+    // The base URL is always passed: the SDK would otherwise read OPENAI_BASE_URL from the environment.
+    expect(createOpenAI).toHaveBeenCalledWith({
+      apiKey: 'k',
+      baseURL: 'https://api.openai.com/v1',
+    });
   });
 
   it('builds a compatible provider with usage reporting for any other base URL', () => {
@@ -196,6 +198,20 @@ describe('resolveLanguageModel', () => {
         kind: 'anthropic',
       },
     );
-    expect(createAnthropic).toHaveBeenCalledWith({ apiKey: 'k', baseURL: undefined });
+    expect(createAnthropic).toHaveBeenCalledWith({
+      apiKey: 'k',
+      baseURL: 'https://api.anthropic.com/v1',
+    });
+  });
+});
+
+describe('the ceiling in the boot check', () => {
+  it('rejects a malformed AI_GLOBAL_MONTHLY_TOKENS instead of failing every call later', () => {
+    for (const value of ['1e6', '100k', '0', '-5'])
+      expect(
+        aiConfigProblems(
+          env({ AI_PROVIDER: 'openai', AI_API_KEY: 'k', AI_GLOBAL_MONTHLY_TOKENS: value }),
+        ),
+      ).toEqual(['AI_GLOBAL_MONTHLY_TOKENS must be a positive integer']);
   });
 });

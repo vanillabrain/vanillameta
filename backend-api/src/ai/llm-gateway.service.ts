@@ -5,11 +5,11 @@ import {
   OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { APICallError, LanguageModel, Output, generateText } from 'ai';
+import { APICallError, LanguageModel, NoObjectGeneratedError, Output, generateText } from 'ai';
 import { randomUUID } from 'crypto';
 import { AiQuotaService } from '../usage/ai-quota.service';
 import { estimateTokens, normalizeJsonText } from './llm-json';
-import { AiProviderConfig, aiProviderConfig } from './providers/ai-config';
+import { AiProviderConfig, aiProviderConfig, globalMonthlyTokens } from './providers/ai-config';
 import { resolveLanguageModel } from './providers/provider-registry';
 
 /** Who a model call is for. `epoch` is the `authVersion` of the verified token, never looked up here. */
@@ -45,15 +45,6 @@ const positive = (raw: string | undefined, fallback: number, cap = Infinity) => 
 /** `AI_TIMEOUT_MS` (default 120 s, at most 180 s) for one model call. */
 export const llmTimeoutMs = (env: NodeJS.ProcessEnv = process.env) =>
   positive(env.AI_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
-
-/** The spend ceiling for the whole server this month, or `null` when none is set. */
-export function globalMonthlyTokens(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = env.AI_GLOBAL_MONTHLY_TOKENS?.trim();
-  if (!raw) return null;
-  if (!/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw)))
-    throw new Error('AI_GLOBAL_MONTHLY_TOKENS must be a positive integer');
-  return Number(raw);
-}
 
 /**
  * The only way the server asks a model anything. Every call, whatever the provider:
@@ -127,6 +118,10 @@ export class LlmGateway implements OnModuleInit {
       outputTokens: maxOutputTokens,
     });
 
+    // Charge the estimate to the cached server-wide total now, so calls that start within the cache
+    // window count each other; the settlement below swaps it for what was really used.
+    const reservedTokens = estimatedInput + maxOutputTokens;
+    if (this.budget) this.budget.total += reservedTokens;
     const startedAt = Date.now();
     const timeout = new AbortController();
     let timedOut = false;
@@ -139,6 +134,16 @@ export class LlmGateway implements OnModuleInit {
     let outputTokens = 0;
     let estimated = true;
     let text = '';
+    const settleUsage = (usage?: { inputTokens?: number; outputTokens?: number }) => {
+      if (usage && (usage.inputTokens !== undefined || usage.outputTokens !== undefined)) {
+        inputTokens = usage.inputTokens ?? 0;
+        outputTokens = usage.outputTokens ?? 0;
+        estimated = false;
+      } else {
+        // The provider reported nothing: an estimate keeps the monthly limits meaningful.
+        outputTokens = estimateTokens(text);
+      }
+    };
     try {
       const signal = request.abortSignal
         ? AbortSignal.any([timeout.signal, request.abortSignal])
@@ -166,24 +171,22 @@ export class LlmGateway implements OnModuleInit {
       } as Parameters<typeof generateText>[0]);
       text = result.text;
       status = 'ok';
-      const usage = result.usage;
-      if (usage && (usage.inputTokens !== undefined || usage.outputTokens !== undefined)) {
-        inputTokens = usage.inputTokens ?? 0;
-        outputTokens = usage.outputTokens ?? 0;
-        estimated = false;
-      } else {
-        // The provider reported nothing: an estimate keeps the monthly limits meaningful.
-        outputTokens = estimateTokens(text);
-      }
+      settleUsage(result.usage);
     } catch (error) {
-      if (request.abortSignal?.aborted) {
+      if (NoObjectGeneratedError.isInstance(error)) {
+        // With a JSON response format the SDK parses the answer itself and throws when it is not clean
+        // JSON (fenced, prose around it, cut off at the output limit). The call succeeded and its tokens
+        // were spent, so it is `ok`; the text goes through the same normalization as every provider's.
+        status = 'ok';
+        text = error.text ?? '';
+        settleUsage(error.usage);
+      } else if (request.abortSignal?.aborted) {
         status = 'cancelled';
         throw error;
-      }
-      if (timedOut) throw new Error('LLM_TIMEOUT');
-      if (APICallError.isInstance(error))
+      } else if (timedOut) throw new Error('LLM_TIMEOUT');
+      else if (APICallError.isInstance(error))
         throw new Error(`LLM_API_ERROR_${error.statusCode ?? 'UNKNOWN'}`);
-      throw error;
+      else throw error;
     } finally {
       clearTimeout(timer);
       // A ledger failure must not replace the answer, or hide the error, the caller is about to get.
@@ -200,7 +203,7 @@ export class LlmGateway implements OnModuleInit {
         .catch(error =>
           this.logger.error(`AI ledger settlement failed: ${(error as Error).message}`),
         );
-      if (this.budget) this.budget.total += inputTokens + outputTokens;
+      if (this.budget) this.budget.total += inputTokens + outputTokens - reservedTokens;
     }
     return jsonMode ? normalizeJsonText(text) : text;
   }

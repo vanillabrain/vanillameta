@@ -6,17 +6,25 @@ jest.mock('ai', () => {
       return error instanceof APICallError;
     }
   }
+  class NoObjectGeneratedError extends Error {
+    text?: string;
+    usage?: unknown;
+    static isInstance(error: unknown) {
+      return error instanceof NoObjectGeneratedError;
+    }
+  }
   return {
     generateText: jest.fn(),
     Output: { json: jest.fn(() => ({ kind: 'json' })) },
     APICallError,
+    NoObjectGeneratedError,
   };
 });
 jest.mock('@ai-sdk/anthropic', () => ({ createAnthropic: jest.fn() }));
 jest.mock('@ai-sdk/openai', () => ({ createOpenAI: jest.fn() }));
 jest.mock('@ai-sdk/openai-compatible', () => ({ createOpenAICompatible: jest.fn() }));
 import { BadRequestException, HttpException, ServiceUnavailableException } from '@nestjs/common';
-import { APICallError, Output, generateText } from 'ai';
+import { APICallError, NoObjectGeneratedError, Output, generateText } from 'ai';
 import { DataSource } from 'typeorm';
 import { AiQuotaService } from '../usage/ai-quota.service';
 import { AiUsageLedger } from '../usage/entities/ai-usage-ledger.entity';
@@ -236,6 +244,48 @@ describe('LlmGateway (real SQLite ledger, mocked model call)', () => {
     await expect(ask({ jsonMode: true })).rejects.toThrow('LLM_INVALID_JSON');
     const statuses = (await rows()).map(row => row.status);
     expect(statuses).toEqual(['ok', 'ok']);
+  });
+
+  it('treats a JSON-format answer the SDK rejects as a successful call: it keeps the tokens and salvages the JSON', async () => {
+    const rejected = (text: string) =>
+      Object.assign(new (NoObjectGeneratedError as any)('no object'), {
+        text,
+        usage: { inputTokens: 100, outputTokens: 900 },
+      });
+    generate.mockRejectedValueOnce(rejected('Sure:\n```json\n{"a": 2}\n```'));
+    expect(await ask({ jsonMode: true })).toBe('{"a": 2}');
+    generate.mockRejectedValueOnce(rejected('no json here, sorry'));
+    await expect(ask({ jsonMode: true })).rejects.toThrow('LLM_INVALID_JSON');
+    expect(
+      (await rows()).map(row => [
+        row.status,
+        row.inputTokens,
+        row.outputTokens,
+        row.usageEstimated,
+      ]),
+    ).toEqual([
+      ['ok', 100, 900, false],
+      ['ok', 100, 900, false],
+    ]);
+  });
+
+  it('charges a call’s estimate to the server-wide ceiling when it starts, then swaps in the real tokens', async () => {
+    process.env.AI_GLOBAL_MONTHLY_TOKENS = '3000';
+    const releases: Array<(value: unknown) => void> = [];
+    generate.mockImplementation(() => new Promise(resolve => releases.push(resolve)));
+    const first = ask();
+    await new Promise(resolve => setTimeout(resolve, 30));
+    const second = ask();
+    await new Promise(resolve => setTimeout(resolve, 30));
+    // Two reservations of ~2051 are in flight: the ceiling is passed before either has finished.
+    await expect(ask()).rejects.toMatchObject({ response: { error: 'AI_BUDGET_EXHAUSTED' } });
+    for (const release of releases)
+      release({ text: 'ok', usage: { inputTokens: 5, outputTokens: 5 } });
+    await Promise.all([first, second]);
+    // Their real use (10 tokens each) replaced the estimates, so the next call is allowed again.
+    generate.mockReset();
+    answer('fine');
+    expect(await ask()).toBe('fine');
   });
 
   it('asks for a JSON response format only from providers that have one', async () => {
