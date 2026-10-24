@@ -26,6 +26,52 @@ beforeEach(() => {
   vi.mocked(publishDashboard).mockResolvedValue(metadata);
 });
 afterEach(cleanup);
+const localInput = (offsetDays: number) => {
+  const at = new Date(Date.now() + offsetDays * 86_400_000);
+  return new Date(at.getTime() - at.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
+describe('publication expiry', () => {
+  it('tells the owner a blank expiry means 30 days and that 30 days is the longest', async () => {
+    render(<StudioPublish {...props} />);
+    await screen.findByRole('button', { name: '게시하기' });
+    expect(screen.getByText(/비워 두면 게시 시점부터 30일 뒤에 만료됩니다/)).toBeTruthy();
+    expect(screen.getByText(/최대 30일까지 지정할 수 있고/)).toBeTruthy();
+  });
+  it('refuses an expiry more than 30 days away without sending the request', async () => {
+    render(<StudioPublish {...props} />);
+    const publish = await screen.findByRole('button', { name: '게시하기' });
+    fireEvent.change(screen.getByLabelText('링크 만료 시각 (내 시간대)'), {
+      target: { value: localInput(31) },
+    });
+    fireEvent.click(publish);
+    expect(await screen.findByText(/최대 30일 뒤까지 선택해 주세요/)).toBeTruthy();
+    expect(publishDashboard).not.toHaveBeenCalled();
+  });
+  it('sends an expiry inside the limit, and none when the field is blank (the server picks 30 days)', async () => {
+    render(<StudioPublish {...props} />);
+    const publish = await screen.findByRole('button', { name: '게시하기' });
+    fireEvent.click(publish);
+    await waitFor(() => expect(publishDashboard).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(publishDashboard).mock.calls[0][1]).not.toHaveProperty('expiresAt');
+  });
+  it('sends the chosen expiry when it is within 30 days', async () => {
+    render(<StudioPublish {...props} />);
+    const publish = await screen.findByRole('button', { name: '게시하기' });
+    fireEvent.change(screen.getByLabelText('링크 만료 시각 (내 시간대)'), {
+      target: { value: localInput(10) },
+    });
+    fireEvent.click(publish);
+    await waitFor(() => expect(publishDashboard).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(publishDashboard).mock.calls[0][1]).toHaveProperty('expiresAt');
+  });
+  it('warns that republishing a link without an expiry gives it one', async () => {
+    vi.mocked(fetchOwnerPublication)
+      .mockReset()
+      .mockResolvedValue({ ...metadata, visibility: 'link' });
+    render(<StudioPublish {...props} />);
+    expect(await screen.findByText(/설정하지 않음 · 재게시하면 30일 만료가 적용됩니다/)).toBeTruthy();
+  });
+});
 describe('snapshot publication controls', () => {
   it('uses a named, described portal and restores keyboard focus to the opener after Escape', async () => {
     function Host() {

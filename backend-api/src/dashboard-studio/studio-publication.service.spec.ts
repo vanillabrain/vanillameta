@@ -430,6 +430,34 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
       status: 409,
     });
   });
+  it('gives a link without an expiry 30 days, leaves a private publication alone and caps explicit expiries at 30 days', async () => {
+    const day = 86_400_000;
+    const link = await publish('default-expiry-' + id);
+    const days = (Date.parse(link.expiresAt) - Date.now()) / day;
+    expect(days).toBeGreaterThan(29.99);
+    expect(days).toBeLessThanOrEqual(30);
+    expect((await publish('private-' + id, { visibility: 'private' })).expiresAt).toBeNull();
+    // What the browser fills in ("now + 30 days") is accepted despite the moment it takes to arrive.
+    const thirty = await publish('thirty-' + id, {
+      expiresAt: new Date(Date.now() + 30 * day).toISOString(),
+    });
+    expect(thirty.expiresAt).toBeTruthy();
+    await expect(
+      publish('too-long-' + id, { expiresAt: new Date(Date.now() + 31 * day).toISOString() }),
+    ).rejects.toMatchObject({ status: 400 });
+    // A refused request wrote nothing: the active publication is still the one from 'thirty-'.
+    expect((await publications.ownerMetadata(id, 7))?.expiresAt).toBe(thirty.expiresAt);
+  });
+  it('replays a request without an expiry a day later: the default is not part of the request hash', async () => {
+    const first = await publish('replay-default-' + id);
+    const now = Date.now();
+    const spy = jest.spyOn(Date, 'now').mockReturnValue(now + 86_400_000);
+    try {
+      expect(await publish('replay-default-' + id)).toEqual(first);
+    } finally {
+      spy.mockRestore();
+    }
+  });
   it('deduplicates concurrent response-loss retries across service restart and never reactivates a revoked token', async () => {
     const results = await Promise.all([publish('concurrent-' + id), publish('concurrent-' + id)]);
     expect(results[0]).toEqual(results[1]);

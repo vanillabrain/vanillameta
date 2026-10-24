@@ -19,6 +19,9 @@ import {
   revokePublication,
 } from './studioPublication';
 
+/** Matches the server ceiling for any publication expiry. */
+const PUBLICATION_MAX_DAYS = 30;
+
 type Props = {
   basis?: AnalysisBasisValue;
   open: boolean;
@@ -94,6 +97,10 @@ export default function StudioPublish({
     if (!pending.current) {
       if (expiry && (!Number.isFinite(Date.parse(expiry)) || Date.parse(expiry) <= Date.now())) {
         setError('만료 시각은 현재보다 이후로 선택해 주세요.');
+        return;
+      }
+      if (expiry && Date.parse(expiry) > Date.now() + PUBLICATION_MAX_DAYS * 86_400_000) {
+        setError(`만료 시각은 게시 시점부터 최대 ${PUBLICATION_MAX_DAYS}일 뒤까지 선택해 주세요.`);
         return;
       }
       pending.current = {
@@ -261,7 +268,14 @@ export default function StudioPublish({
                 <span>{current.visibility === 'link' ? '링크가 있는 모든 사람' : '비공개 · 소유자만'}</span>
               </div>
               <p>집계 시각 {publicationTime(current.asOf)}</p>
-              <p>만료 {current.expiresAt ? publicationTime(current.expiresAt) : '설정하지 않음'}</p>
+              <p>
+                만료{' '}
+                {current.expiresAt
+                  ? publicationTime(current.expiresAt)
+                  : current.visibility === 'link'
+                  ? `설정하지 않음 · 재게시하면 ${PUBLICATION_MAX_DAYS}일 만료가 적용됩니다`
+                  : '설정하지 않음'}
+              </p>
               <div className="studio-publish-link">
                 <TextField
                   inputRef={linkInput}
@@ -325,7 +339,7 @@ export default function StudioPublish({
               label="링크 만료 시각 (내 시간대)"
               value={expiry}
               onChange={e => setExpiry(e.target.value)}
-              helperText="비워 두면 자동 만료되지 않습니다. 만료 여부는 서버에서 확인합니다."
+              helperText={`비워 두면 게시 시점부터 ${PUBLICATION_MAX_DAYS}일 뒤에 만료됩니다. 최대 ${PUBLICATION_MAX_DAYS}일까지 지정할 수 있고, 재게시하면 만료가 다시 정해집니다. 만료 여부는 서버에서 확인합니다.`}
             />
           </fieldset>
           <p className="studio-publish-note">

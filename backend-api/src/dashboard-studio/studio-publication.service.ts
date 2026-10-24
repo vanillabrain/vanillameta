@@ -20,6 +20,11 @@ import { StudioPublication, StudioPublicationRequest } from './entities/studio-p
 import { StudioService } from './studio.service';
 import { studioDigest } from './studio-legacy';
 import {
+  PUBLICATION_MAX_DAYS,
+  defaultPublicationExpiry,
+  latestPublicationExpiry,
+} from './studio-publication-expiry';
+import {
   studioKeys,
   validateStudioConditions,
   validateStudioDateRange,
@@ -150,6 +155,11 @@ export class StudioPublicationService {
       }
       if (body.expiresAt !== undefined && Date.parse(body.expiresAt) <= Date.now())
         throw new BadRequestException('만료 시간은 현재보다 뒤로 지정해 주세요.');
+      // Checked here, after the receipt lookup, so replaying an earlier request never trips it later.
+      if (body.expiresAt !== undefined && Date.parse(body.expiresAt) > latestPublicationExpiry())
+        throw new BadRequestException(
+          `만료 시간은 게시 시점부터 최대 ${PUBLICATION_MAX_DAYS}일까지 지정할 수 있습니다.`,
+        );
       const check = () => {
         if (signal?.aborted) throw new BadRequestException('게시 요청을 취소했습니다.');
       };
@@ -226,7 +236,13 @@ export class StudioPublicationService {
             version: (old?.version ?? 0) + 1,
             visibility: body.visibility,
             allowRemix: body.allowRemix,
-            expiresAt: body.expiresAt ? new Date(body.expiresAt).toISOString() : null,
+            // The default is applied here and never written into `body`, which feeds payloadHash:
+            // a retry of the same request a day later must still match its receipt.
+            expiresAt: body.expiresAt
+              ? new Date(body.expiresAt).toISOString()
+              : body.visibility === 'link'
+              ? defaultPublicationExpiry().toISOString()
+              : null,
             revokedAt: null,
             asOf: new Date().toISOString(),
             dataVersion,
