@@ -13,7 +13,13 @@ export type StreamEvent = { type: string; [key: string]: unknown };
 export const wantsNdjson = (req: any): boolean =>
   String(req?.headers?.accept ?? '')
     .split(',')
-    .some(part => part.trim().toLowerCase().startsWith(NDJSON));
+    .some(part => {
+      const [type, ...params] = part.split(';');
+      if (type.trim().toLowerCase() !== NDJSON) return false;
+      // `;q=0` means "not acceptable".
+      const q = params.map(p => /^\s*q\s*=\s*([\d.]+)\s*$/i.exec(p)?.[1]).find(Boolean);
+      return q === undefined || Number(q) > 0;
+    });
 
 // What of an error body a client may see: the fields screens use to explain a refusal, nothing else.
 const SHOWN = ['reason', 'limit', 'used', 'needed', 'resetsAt'] as const;
