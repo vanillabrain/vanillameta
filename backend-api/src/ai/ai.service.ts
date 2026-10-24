@@ -130,8 +130,7 @@ export class AiService {
     if (!this.isConfigured()) {
       return {
         status: ResponseStatus.ERROR,
-        message:
-          'AI 기능이 설정되지 않았습니다. AI_API_KEY 또는 AI_PROVIDER=codex(설치된 CLI와 ChatGPT 로그인 필요)를 설정해 주세요.',
+        message: 'AI 기능이 설정되지 않았습니다. 운영자에게 문의해 주세요.',
       };
     }
 
@@ -140,7 +139,8 @@ export class AiService {
     try {
       ({ schemaText, dialect } = await this.getSchemaContext(+databaseId));
     } catch (e) {
-      console.error(e);
+      // Only the name: a JSON.parse error quotes the first characters of the model's answer.
+      console.error(`AI call failed: ${e?.name ?? 'Error'}`);
       return { status: ResponseStatus.ERROR, message: '데이터베이스 스키마 조회에 실패했습니다.' };
     }
 
@@ -170,11 +170,11 @@ export class AiService {
       if (e.message === 'AI_NOT_CONFIGURED') {
         return {
           status: ResponseStatus.ERROR,
-          message:
-            'AI 기능이 설정되지 않았습니다. AI_API_KEY 또는 AI_PROVIDER=codex(설치된 CLI와 ChatGPT 로그인 필요)를 설정해 주세요.',
+          message: 'AI 기능이 설정되지 않았습니다. 운영자에게 문의해 주세요.',
         };
       }
-      console.error(e);
+      // Only the name: a JSON.parse error quotes the first characters of the model's answer.
+      console.error(`AI call failed: ${e?.name ?? 'Error'}`);
       return {
         status: ResponseStatus.ERROR,
         message: e?.message?.startsWith('LLM_')
@@ -192,8 +192,7 @@ export class AiService {
     if (!this.isConfigured()) {
       return {
         status: ResponseStatus.ERROR,
-        message:
-          'AI 기능이 설정되지 않았습니다. AI_API_KEY 또는 AI_PROVIDER=codex(설치된 CLI와 ChatGPT 로그인 필요)를 설정해 주세요.',
+        message: 'AI 기능이 설정되지 않았습니다. 운영자에게 문의해 주세요.',
       };
     }
 
@@ -254,7 +253,8 @@ export class AiService {
       };
     } catch (e) {
       if (isAiRefusal(e)) throw e;
-      console.error(e);
+      // Only the name: a JSON.parse error quotes the first characters of the model's answer.
+      console.error(`AI call failed: ${e?.name ?? 'Error'}`);
       return { status: ResponseStatus.ERROR, message: 'AI 차트 추천 중 오류가 발생했습니다.' };
     }
   }
@@ -277,8 +277,7 @@ export class AiService {
     if (!this.isConfigured()) {
       return {
         status: ResponseStatus.ERROR,
-        message:
-          'AI 기능이 설정되지 않았습니다. AI_API_KEY 또는 AI_PROVIDER=codex(설치된 CLI와 ChatGPT 로그인 필요)를 설정해 주세요.',
+        message: 'AI 기능이 설정되지 않았습니다. 운영자에게 문의해 주세요.',
       };
     }
 
@@ -344,7 +343,8 @@ export class AiService {
       };
     } catch (e) {
       if (isAiRefusal(e)) throw e;
-      console.error(e);
+      // Only the name: a JSON.parse error quotes the first characters of the model's answer.
+      console.error(`AI call failed: ${e?.name ?? 'Error'}`);
       return { status: ResponseStatus.ERROR, message: 'AI 인사이트 생성 중 오류가 발생했습니다.' };
     }
   }

@@ -128,3 +128,10 @@ applies the operation with the real Studio document validator, runs the creation
 text-to-sql answer through `assertReadOnlyQuery`). The spec loader rewrites the file's import and export
 lines to CommonJS with a regex, so the file must keep to plain `import`/`export` statements of node
 builtins; a new construct makes the spec fail to load rather than pass silently.
+
+## Warning
+
+This is a **test fixture**, not part of the product. It is not copied into the api image and no compose file starts
+it. `/__control` and `/__calls` have no authentication, and `MOCK_HOST=0.0.0.0` exposes them to everything on the
+network the container joins. Run it only on a throwaway test stack, stop it when the run ends, and never start it
+on a production VM.

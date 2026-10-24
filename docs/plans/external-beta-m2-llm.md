@@ -16,14 +16,14 @@
 
 - `AI_PROVIDER` = `anthropic` | `openai` | `openai-compatible` | `codex`(개발 전용, 운영 가드가 거부), `AI_MODEL`, `AI_API_KEY`, `AI_API_BASE_URL`, `AI_REASONING_EFFORT`. **설정이 틀리면 실패하고 다른 모델로 대체하지 않는다.**
 - **`@ai-sdk/openai`의 `openai(model)`은 Responses API를 부른다.** 지금 동작(`/chat/completions`, `temperature 0`)을 유지하려고 `openai`는 `openai.chat(model)`을 쓴다. `AI_API_BASE_URL`이 OpenAI 기본이 아니면 `@ai-sdk/openai-compatible`을 쓴다.
-- **버전**: 설치된 `ai` 7.0.137을 최신 7.0.152로 올리고(백엔드·프런트엔드 모두), `@ai-sdk/anthropic` 4.0.87·`@ai-sdk/openai` 4.0.101·`@ai-sdk/openai-compatible` 3.0.77을 추가해 `@ai-sdk/provider`·`provider-utils` 복사본이 하나가 되게 한다(`npm ls`로 확인). 정확한 버전은 설치 시점에 npm에서 확인한다. 테스트의 제공자 목은 V4(`MockLanguageModelV4`), Codex 어댑터는 V3다.
+- **버전**: 설치된 `ai` 7.0.137을 최신 7.0.152로 올리고(백엔드·프런트엔드 모두), `@ai-sdk/anthropic` 4.0.87·`@ai-sdk/openai` 4.0.101·`@ai-sdk/openai-compatible` 3.0.77을 추가해 `@ai-sdk/provider`·`provider-utils` 복사본이 하나가 되게 한다(`npm ls`로 확인). 정확한 버전은 설치 시점에 npm에서 확인한다. Codex 어댑터는 V3다. (테스트의 제공자 목에 대해: 아래 '검증과 한계'의 정정을 본다.)
 - **JSON 모드**: Anthropic에는 `json_object`가 없다. 게이트웨이가 `jsonMode`일 때 모든 제공자에서 출력을 정규화한다(공백 제거, 코드 펜스 하나 제거, 파싱 확인, 실패하면 `LLM_INVALID_JSON`). `responseFormat: {type:'json'}`은 openai·openai-compatible에만 보낸다. 지금 `JSON.parse(raw)`를 직접 하는 호출 지점은 정규화된 문자열을 그대로 받는다.
 - **요청 설정**: 모든 호출에 `maxOutputTokens`(JSON 4096, 텍스트 2048). `AI_REASONING_EFFORT`는 openai의 `providerOptions.openai.reasoningEffort`, openai-compatible의 `reasoning_effort`(지금과 같음)로 보내고, anthropic에서는 부팅 가드가 거부한다(조용히 무시하지 않는다).
 - **사용량이 비어 오는 경우**(Codex는 `undefined`, 일부 호환 서버는 `usage` 생략): 입력 글자 수 / 4 + 출력 글자 수 / 4로 추정하고 원장에 추정치임을 표시한다. 0 토큰이 월간 쿼터와 비용 차단기를 무력하게 만들지 않게 한다.
 
 ### 2. 게이트웨이 `backend-api/src/ai/llm-gateway.service.ts`
 
-- **쿼터 단위는 모델 호출 한 번이다.** 사용자의 한 동작이 여러 번 부르는 경우가 있다(대시보드 초안의 교정 루프 최대 2회, 의미 제안의 분류+제안, BI 편집기의 일괄 수정은 6블록에 약 13회까지). 원장의 `record`가 예약 한 줄을 한 번 정산하는 M1 계약과 비용 면에서 맞는 단위다. 이에 따라 (a) 사용량 칩 문구는 "AI 호출"이다, (b) 호출 횟수를 아는 다회 호출 동작(BI 일괄 수정, 자동 편집, 의미 제안 질문)은 첫 호출 전에 `summary`로 남은 칸이 충분한지 확인해 중간에 끊기지 않게 한다, (c) 일일 기본 30회는 이를 감안해 제품이 확정한다.
+- **쿼터 단위는 모델 호출 한 번이다.** 사용자의 한 동작이 여러 번 부르는 경우가 있다(대시보드 초안의 교정 루프 최대 2회, 의미 제안의 분류+제안, BI 편집기의 일괄 수정은 6블록에 약 13회까지). 원장의 `record`가 예약 한 줄을 한 번 정산하는 M1 계약과 비용 면에서 맞는 단위다. 이에 따라 (a) 사용량 칩 문구는 "AI 호출"이다, (b) 호출 횟수를 아는 다회 호출 동작(BI 일괄 수정, 자동 편집, 의미 제안 질문)은 첫 호출 전에 `summary`로 남은 칸이 충분한지 확인해 중간에 끊기지 않게 한다, (c) 일일 기본 30회는 이를 감안해 제품이 확정한다. (구현의 사전 확인 `assertCallsAvailable`은 **일일 호출 수만** 보고 월간 토큰·전역 예산은 보지 않으며 원자적이지 않다. 병렬 일괄 편집 둘이 함께 통과해 하나가 중간에 멈출 수 있어, '중간에 끊기지 않게'는 최선 노력이다.)
 - **원장 요청 id는 게이트웨이가 호출마다 만든다**(`ai_<uuid>`). `reserve`는 64자 이하만 받는데 Studio 요청 id는 128자까지 가고, 실패한 모델 단계를 같은 실행에서 재시도하면 `REQUEST_ID_REUSED` 409를 받는다. 호출 지점은 이미 자기 단위로 멱등이므로(`studio-run`의 재생 맵, 실행 기록의 행) 원장 단위 재생이 필요하지 않다. 재시도는 새 칸을 쓴다. 따라서 `caller`에 `requestId`는 없다.
 - **`reserve`는 모델 호출 직전에, 그 사이에 던질 수 있는 `await` 없이** 하고 `record`는 `finally`에서 한다. `record`가 던지면 기록하고 성공한 결과를 바꾸지 않는다.
 - **상태 매핑**(타이머는 호출자의 중단과 분리한다): 사용자 중단 → `cancelled`, `AI_TIMEOUT_MS`(기본 120초, 상한 180초) 초과 → `error`이고 `LLM_TIMEOUT`을 던진다, 제공자 오류 → `error`, 호출은 성공했는데 JSON 파싱·검증에 실패 → `ok`(토큰은 썼다). `maxRetries: 0`.
@@ -125,7 +125,7 @@ M2-2b는 Codex 전용 거절 6곳을 "AI가 설정돼 있는가"(`isAiConfigured
 | 단위 | 내용 |
 | --- | --- |
 | M2-1 | 레지스트리, 게이트웨이(쿼터·원장·타임아웃 분리·비용 차단기·예약 추정치·부팅 정리·JSON 정규화·사용량 추정), `callLlm` 어댑터, 의존성 추가·`ai` 업그레이드, 부팅 가드, 단위 테스트(V4 목) |
-| M2-2a | `caller`·`epoch` 필수화와 모든 호출 지점·컨트롤러·스펙 수정, 실행 행에 epoch 저장 |
+| M2-2a | `caller`·`epoch` 필수화와 모든 호출 지점·컨트롤러·스펙 수정(epoch는 실행 행이 아니라 메모리로 운반한다: 'M2-2a 구현에서 계획과 달라진 점') |
 | M2-2b | Codex 전용 거절 제거(`allowAi` 유지, 거버넌스 도우미는 베타에서 끔), 오류 재던지기와 실행 `errorCode`, `GET /ai/status`, commerce 상수, 서버 밖으로 나가는 값 표와 결정 올리기 |
 | M2-3 | 지속 실행·제안의 NDJSON 스트리밍, 취소 시 `cancelled`, 하트비트, Caddy 제외 |
 | M2-4 | 프런트엔드 스트리밍·중지·사용량 칩·401 갱신 |
@@ -135,7 +135,7 @@ M2-2b는 Codex 전용 거절 6곳을 "AI가 설정돼 있는가"(`isAiConfigured
 
 ## 검증과 한계
 
-- 단위 테스트는 `MockLanguageModelV4`와 SQLite·MySQL 원장으로 한다: 쿼터 경계, 거절 시 모델이 호출되지 않음, 오류·취소·타임아웃의 원장 상태, 비용 차단기가 쿼터 행을 쓰지 않음, 부팅 정리, 설정 오류, 호출 지점별 429·503 재던지기, `callLlm`이 트랜잭션 밖에서 불림.
+- **정정(구현 후): 단위 테스트는 `MockLanguageModelV4`를 쓰지 않았다.** `ai`와 `@ai-sdk/*`가 ESM 전용이라 Jest가 읽지 못해(`jest.mock`) 게이트웨이·레지스트리 스펙은 `ai` 패키지 전체와 세 어댑터 팩토리를 가짜로 바꾼다. 따라서 단위 테스트는 게이트웨이의 로직(쿼터, 원장 상태, 타임아웃, 정규화, 예산)을 증명하지만 **실제 SDK 경로**(`createAnthropic`·`createOpenAI().chat`·`createOpenAICompatible`, 실제 `Output.json()`, `NoObjectGeneratedError`의 모양, 사용량 필드, 추론 `providerOptions`)는 증명하지 못한다. 실제 SDK를 지난 것은 M2-5 운영 구성 스택의 openai-compatible 모의 서버 실행 하나뿐이고, **Anthropic·OpenAI 공식 어댑터는 실제 요청을 한 번도 보내지 않았다.** 처음 계획은 다음과 같았다: 단위 테스트는 `MockLanguageModelV4`와 SQLite·MySQL 원장으로 한다: 쿼터 경계, 거절 시 모델이 호출되지 않음, 오류·취소·타임아웃의 원장 상태, 비용 차단기가 쿼터 행을 쓰지 않음, 부팅 정리, 설정 오류, 호출 지점별 429·503 재던지기, `callLlm`이 트랜잭션 밖에서 불림.
 - M2-5의 전체 실행은 **로컬 모의 서버**(응답에 `usage`를 포함)로 한다. 운영 구성의 `egress-guard.sh`는 사설 대역을 막으므로 모의 서버는 `egress` 네트워크에 둔다. 배선(쿼터 차감, 원장, 스트리밍, 취소, 화면)은 증명하지만 **실제 모델의 생성 품질은 증명하지 않는다.**
 - **출시 게이트의 실제 LLM 1개 제공자 전체 실행은 사용자 입력이 필요하다**: 제공자·모델 선택, API 키(키는 채팅에 쓰지 않고 운영 VM의 `.env.prod`와 개발 머신의 추적되지 않는 설정에만 둔다), 월간 예산 숫자, 거버넌스 도우미와 원본 행 전송 기능의 베타 결정. 키가 준비되면 같은 흐름을 실제 제공자로 한 번 더 실행해 증빙한다. 그때까지 M2는 "배선 검증 완료, 실제 모델 미검증"으로 보고한다.
 - 법무(M-1)는 이 단계의 범위 밖이며 사용자 입력이 필요하다: 제공자의 무보존·학습 미사용 조건 확인과 약관·개인정보 문구.

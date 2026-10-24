@@ -216,7 +216,9 @@ describe('AiService', () => {
       feature: 'test',
     });
     expect(res.status).toBe(ResponseStatus.ERROR);
-    expect(res.message).toContain('AI_API_KEY');
+    // End users are told whom to ask, not which environment variable the operator forgot.
+    expect(res.message).toContain('운영자에게 문의');
+    expect(res.message).not.toContain('AI_API_KEY');
   });
 
   it('LLM 응답에서 markdown fence를 제거하고 SQL을 반환한다', async () => {

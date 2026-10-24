@@ -67,7 +67,8 @@ export function productionConfigProblems(
   if (!origins.length) problems.push('CORS_ORIGIN is not set');
   else if (origins.includes('*')) problems.push('CORS_ORIGIN must not contain a wildcard');
 
-  if (env.AI_PROVIDER === 'codex')
+  // The registry trims and lowercases AI_PROVIDER, so the guard must read it the same way.
+  if (env.AI_PROVIDER?.trim().toLowerCase() === 'codex')
     problems.push('AI_PROVIDER=codex is a local development provider and is not allowed in prod');
 
   if (env.QUERY_ALLOW_WRITE === 'true')

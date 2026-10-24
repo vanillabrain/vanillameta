@@ -55,6 +55,10 @@ describe('production guard', () => {
     const env = validEnv();
     env.AI_PROVIDER = 'codex';
     expect(productionConfigProblems(env).join('\n')).toContain('AI_PROVIDER');
+    for (const spelling of ['Codex', ' CODEX ', 'codex\n'] as const) {
+      env.AI_PROVIDER = spelling;
+      expect(productionConfigProblems(env).join('\n')).toContain('AI_PROVIDER=codex');
+    }
   });
 
   it('rejects disabling the read-only query guard', () => {
