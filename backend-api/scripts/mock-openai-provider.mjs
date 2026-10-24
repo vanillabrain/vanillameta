@@ -151,11 +151,15 @@ export function studioRunAnswer(userText) {
       operations: [],
     };
   const total = values.reduce((sum, value) => sum + value, 0);
-  const decimals = Number.isSafeInteger(widget.decimalPlaces) ? widget.decimalPlaces : 0;
-  const formatted = `${widget.prefix ?? ''}${total.toLocaleString('en-US', {
+  // The backend sends the unit and rounding under `display` (studio-run.service.ts); older callers sent them
+  // at the top level of the preview entry.
+  const display = widget.display ?? widget;
+  const decimalPlaces = display.decimalPlaces ?? widget.decimalPlaces;
+  const decimals = Number.isSafeInteger(decimalPlaces) ? decimalPlaces : 0;
+  const formatted = `${display.prefix ?? widget.prefix ?? ''}${total.toLocaleString('en-US', {
     maximumFractionDigits: decimals,
     minimumFractionDigits: 0,
-  })}${widget.suffix ?? ''}`;
+  })}${display.suffix ?? widget.suffix ?? ''}`;
   return {
     intent: 'ask',
     answer:
