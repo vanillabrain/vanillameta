@@ -9,6 +9,7 @@ import './studio.css';
 import StudioPanelSurface from './StudioPanelSurface';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import IconLogo from '@/assets/images/logo.svg?react';
+import AiUsageChip from './AiUsageChip';
 
 export type StudioDesignStage = 'start' | 'result' | 'settings' | 'publish';
 export type StudioDesignDocument = { title: string; source: string; period: string; blockTitle: string };
@@ -185,6 +186,7 @@ export default function StudioShell({
         </div>
         <div className="studio-header-actions">
           <span className="studio-draft">{product ? product.save.status : '시안 · 저장되지 않음'}</span>
+          {product && <AiUsageChip />}
           <Button
             ref={undoButton}
             variant="outline"

@@ -23,6 +23,7 @@ import {
 import '@/pages/Dashboard/Studio/studio.css';
 import ConditionReports from './ConditionReports';
 import { fixedFilters, frameFilters, readFrameState, trustedFrameParent } from './portalState';
+import { useAiLabel } from '@/hooks/useAiStatus';
 
 export default function GovernedDashboard() {
   const params = useParams(),
@@ -37,6 +38,7 @@ export default function GovernedDashboard() {
   const orgId = Number(params.orgId),
     dashboardId = Number(params.dashboardId);
   const root = `/${orgId}/dashboards/${dashboardId}/view`;
+  const aiLabel = useAiLabel();
   const [catalog, setCatalog] = useState<ViewCatalog | null>(null),
     [data, setData] = useState<ViewResult | null>(null),
     [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
@@ -249,9 +251,7 @@ export default function GovernedDashboard() {
       <main className="min-w-0" aria-busy={!!busy}>
         {busy && (
           <p role="status">
-            {busy === 'assistant'
-              ? '허용된 범위에서 gpt-6-luna가 조회 조건을 준비합니다…'
-              : '접근 권한과 결과를 확인합니다…'}
+            {busy === 'assistant' ? '허용된 범위에서 AI가 조회 조건을 준비합니다…' : '접근 권한과 결과를 확인합니다…'}
           </p>
         )}
         {error && <Notice severity="error">{error}</Notice>}
@@ -387,7 +387,7 @@ export default function GovernedDashboard() {
                 {catalog.capabilities.ai ? (
                   <>
                     <p className="text-xs leading-relaxed text-muted-foreground">
-                      Codex · gpt-6-luna · 입력한 질문과 허용된 지표·열 정보만 전달합니다. 원본 행은 자동 전송하지 않습니다.
+                      {aiLabel} · 입력한 질문과 허용된 지표·열 정보만 전달합니다. 원본 행은 자동 전송하지 않습니다.
                     </p>
                     <TextField
                       label="허용된 분석에 질문"

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { Notice } from '@/components/ui/notice';
 import { CreationClarification, CreationProposal, creationError, proposeStudio } from './studioCreation';
+import { useAiLabel } from '@/hooks/useAiStatus';
 
 /** Refines a server-owned immutable proposal; only its explicit save may write metadata. */
 export default function StudioProposalRefinement({
@@ -17,6 +18,7 @@ export default function StudioProposalRefinement({
   onProposal: (value: CreationProposal) => void;
   onBusy: (value: boolean) => void;
 }) {
+  const aiLabel = useAiLabel();
   const [target, setTarget] = useState('0'),
     [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false),
@@ -149,7 +151,7 @@ export default function StudioProposalRefinement({
       {error && <Notice severity="error">{error}</Notice>}
       {notice && <p role="status">{notice}</p>}
       <div className="studio-create-request-actions">
-        <span>{busy ? 'AI가 수정 내용을 계산하고 있습니다…' : 'Codex · gpt-6-luna · 전체 결과 재계산'}</span>
+        <span>{busy ? 'AI가 수정 내용을 계산하고 있습니다…' : `${aiLabel} · 전체 결과 재계산`}</span>
         {busy ? (
           <Button variant="outline" onClick={cancel}>
             수정 중지

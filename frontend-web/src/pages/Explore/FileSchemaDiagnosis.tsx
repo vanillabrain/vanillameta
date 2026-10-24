@@ -3,6 +3,7 @@ import { get, post } from '@/helpers/apiHelper';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { Notice } from '@/components/ui/notice';
+import { useAiLabel } from '@/hooks/useAiStatus';
 
 type Source = { id: number; name: string; engine: string };
 type Diagnosis = {
@@ -38,6 +39,7 @@ export default function FileSchemaDiagnosis({
   sourceRevision: string;
   dependencyRevision: string;
 }) {
+  const aiLabel = useAiLabel();
   const [sources, setSources] = useState<Source[]>([]),
     [target, setTarget] = useState('');
   const [profile, setProfile] = useState<{ sourceId: number; dataVersion: string } | null>(null);
@@ -174,8 +176,7 @@ export default function FileSchemaDiagnosis({
         </Button>
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Codex · gpt-6-luna에 열 이름·타입·저장 의존성만 전달합니다. 원본 값·경로는 전송하지 않습니다. 제안은 자동 적용되지
-        않습니다.
+        {aiLabel}에 열 이름·타입·저장 의존성만 전달합니다. 원본 값·경로는 전송하지 않습니다. 제안은 자동 적용되지 않습니다.
       </p>
       <TextField label="진단할 대체 데이터" select value={target} disabled={!!busy} onChange={e => select(e.target.value)}>
         <option value="">새 파일로 올린 소스를 선택하세요</option>

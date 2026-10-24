@@ -250,6 +250,19 @@ export const remixHandoff = (run: StudioExecution) =>
     : undefined;
 export const retryStep = (run: StudioExecution) =>
   run.steps.find(s => s.retryable && ['failed', 'interrupted', 'cancelled'].includes(s.status));
+/** A model step the server refused or could not start. Trying the same step again will not help. */
+export const AI_BLOCK_MESSAGES: Record<string, string> = {
+  AI_QUOTA_EXCEEDED:
+    '오늘 사용할 수 있는 AI 호출을 모두 썼습니다. 한도는 매일 초기화됩니다. 아무것도 저장하거나 공유하지 않았고 초안은 그대로입니다. 초기화된 뒤 새 요청으로 시작해 주세요.',
+  AI_BUDGET_EXHAUSTED:
+    '이번 달 서비스 전체의 AI 사용량이 한도에 도달해 지금은 AI를 쓸 수 없습니다. 아무것도 저장하거나 공유하지 않았고 초안은 그대로입니다. 다음 달에 다시 사용할 수 있습니다.',
+  AI_NOT_CONFIGURED: 'AI 기능이 아직 연결되지 않았습니다. 초안은 그대로입니다. 운영자에게 문의해 주세요.',
+  AI_INPUT_TOO_LARGE: 'AI에 보낼 내용이 너무 큽니다. 초안은 그대로입니다. 범위를 줄여 다시 시도해 주세요.',
+};
+export const aiBlockMessage = (run: StudioExecution): string | undefined => {
+  const step = run.steps.find(s => s.errorCode && AI_BLOCK_MESSAGES[s.errorCode]);
+  return step?.errorCode ? AI_BLOCK_MESSAGES[step.errorCode] : undefined;
+};
 export const executionSummary = (run: StudioExecution) => {
   if (run.creationSaveResult) return '비공개 생성 완료 · 별도 대시보드로 저장했습니다. 현재 편집은 유지했습니다.';
   if (run.creationResult) return '새 대시보드 제안 완료 · 지표·차원과 미리보기를 확인한 뒤 비공개로 저장하세요.';
@@ -277,6 +290,8 @@ export const executionSummary = (run: StudioExecution) => {
       : '저장 완료 · 이후 단계는 끝나지 않았습니다. 저장 결과는 유지됩니다.';
   if (run.steps.some(step => step.errorCode === 'CONDITION_REVIEW_REQUIRED'))
     return '조건 변경안 검토 대기 · 명시 적용 후 저장하세요. 아직 초안에 적용하거나 저장하지 않았습니다.';
+  const blocked = aiBlockMessage(run);
+  if (blocked) return blocked;
   if (run.status === 'unsupported') return '지원 예정 기능입니다. 저장하거나 공유하지 않았습니다.';
   if (run.status === 'interrupted') return '서버 실행이 중단됐습니다. 완료 단계는 유지되며 자동 재실행하지 않습니다.';
   if (run.status === 'cancelled') return '실행을 중지했습니다. 단계별 저장 여부를 확인하세요.';

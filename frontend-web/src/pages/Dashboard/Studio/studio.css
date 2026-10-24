@@ -16,6 +16,8 @@
 .studio-heading h1 { font-size:17px; font-weight:650; line-height:1.5; overflow-wrap:anywhere; }
 .studio-header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
 .studio-draft { font-size:12px; color:var(--studio-muted); margin-right:8px; }
+.studio-usage { font-size:12px; color:var(--studio-muted); border:1px solid var(--studio-border); border-radius:999px; padding:2px 10px; margin-right:8px; white-space:nowrap; }
+.studio-usage-limit { color:#b42318; border-color:#b42318; }
 .studio-scenarios { display:flex; align-items:center; gap:4px; padding:8px 24px; border-bottom:1px solid var(--studio-border); background:var(--card); flex-wrap:wrap; }
 .studio-scenarios > span { font-size:12px; color:var(--studio-muted); margin-right:10px; }
 .studio-workspace { display:grid; grid-template-columns:minmax(0,1fr); }

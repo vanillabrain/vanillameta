@@ -176,6 +176,16 @@ export const creationError = (cause: unknown, context: 'file' | 'generation' = '
   if (status === 401) return '로그인이 만료되었습니다. 다시 로그인해 주세요.';
   const quota = uploadQuotaMessage(cause);
   if (quota) return quota;
+  const refusal = (cause as any)?.response?.data;
+  const refusalDetail = refusal?.data ?? refusal;
+  // The server words these (quota, budget, no setup, input too large) itself; show its sentence.
+  if (
+    ['AI_QUOTA_EXCEEDED', 'AI_BUDGET_EXHAUSTED', 'AI_NOT_CONFIGURED', 'AI_INPUT_TOO_LARGE'].includes(refusalDetail?.error) &&
+    typeof refusalDetail.message === 'string' &&
+    refusalDetail.message.trim() &&
+    refusalDetail.message.length <= 300
+  )
+    return refusalDetail.message;
   if (status === 403) return '이 데이터 소스를 사용할 권한이 없습니다. 다른 소스를 선택해 주세요.';
   if (status === 409) return '데이터 또는 지표 기준이 변경되었습니다. 소스를 새로 확인하고 다시 생성해 주세요.';
   if (status === 400 && context === 'file')
@@ -193,7 +203,7 @@ export const creationError = (cause: unknown, context: 'file' | 'generation' = '
     );
   }
   if (status === 400) return '필수 열과 지표 정의를 확인해 주세요. 요청을 구체적으로 적어 다시 시도할 수 있습니다.';
-  if (status === 503)
+  if (status === 502 || status === 503 || status === 504)
     return 'AI 연결 또는 처리 상태를 확인하지 못했습니다. 기존 입력을 유지했습니다. 잠시 후 다시 시도해 주세요.';
   return '처리하지 못했습니다. 연결 상태와 파일 형식을 확인한 뒤 다시 시도해 주세요. 입력은 유지됩니다.';
 };

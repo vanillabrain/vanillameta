@@ -30,6 +30,7 @@ import {
   studioAssistantTransport,
   validateStudioRun,
 } from './studioRunTransport';
+import { useAiLabel } from '@/hooks/useAiStatus';
 type Props = {
   draft?: { text: string; onChange: (text: string) => void };
   context: StudioRunContext;
@@ -57,6 +58,7 @@ export default function StudioConversation({
   apply.current = onApply;
   const lockedRef = useRef(locked);
   lockedRef.current = locked;
+  const aiLabel = useAiLabel();
   const [localInput, setLocalInput] = useState('');
   const input = draft?.text ?? localInput;
   const inputRef = useRef(input);
@@ -448,7 +450,7 @@ export default function StudioConversation({
           {!creationContext && grain && grain !== 'auto' && (
             <span>{({ day: '일간', week: '주간', month: '월간' } as const)[grain]} 집계 · UTC</span>
           )}
-          <span>Codex · gpt-6-luna 요청</span>
+          <span>{aiLabel} 요청</span>
         </div>
         {conditionReview && (
           <StudioConditionReview
