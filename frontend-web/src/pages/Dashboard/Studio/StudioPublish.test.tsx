@@ -31,7 +31,7 @@ const localInput = (offsetDays: number) => {
   return new Date(at.getTime() - at.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 };
 describe('publication expiry', () => {
-  it('tells the owner a blank expiry means 30 days and that 30 days is the longest', async () => {
+  it('tells the owner a blank expiry takes the default period and that 30 days is the longest', async () => {
     render(<StudioPublish {...props} />);
     await screen.findByRole('button', { name: '게시하기' });
     expect(screen.getByText(/비워 두면 게시 시점부터 기본 기간\(최대 30일\) 뒤에 만료됩니다/)).toBeTruthy();
