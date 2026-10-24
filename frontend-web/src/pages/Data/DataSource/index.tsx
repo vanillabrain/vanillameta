@@ -312,12 +312,12 @@ function DataSource() {
             {t('data.cancel')}
           </Button>
         </Notice>
-      ) : savedDatabase && ['duckdb', 'sqlite3'].includes(savedDatabase.engine) ? (
+      ) : savedDatabase && ['duckdb', 'sqlite', 'sqlite3', 'better-sqlite3'].includes(savedDatabase.engine) ? (
         <div className="p-4 sm:p-6">{fileSourceGuide()}</div>
       ) : isModifyMode &&
         savedDatabase &&
         typeList.length > 0 &&
-        !typeList.some(item => item.type === savedDatabase.type) ? (
+        !typeList.some(item => item.engine === savedDatabase.engine) ? (
         <Notice severity="info" className="m-4 flex flex-wrap items-center gap-3">
           <span className="break-words">{t('dataSource.typeUnavailable')}</span>
           <Button variant="ghost" size="sm" onClick={() => navigate('/data')}>
