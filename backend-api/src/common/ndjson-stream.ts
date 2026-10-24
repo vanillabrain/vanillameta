@@ -130,11 +130,15 @@ export function serveRun<T>(
   void (async () => {
     let status = 200;
     let outcome = 'result';
+    let thrown: string | undefined;
     try {
       unwatch = options.watch?.(write);
       const data = await run(controller.signal);
       // A run can resolve (with a cancelled state) after the client left: nobody received this.
-      if (controller.signal.aborted) outcome = 'cancelled';
+      if (controller.signal.aborted) {
+        outcome = 'cancelled';
+        status = 499;
+      }
       write({ type: 'result', data });
     } catch (error) {
       if (controller.signal.aborted) {
@@ -142,6 +146,8 @@ export function serveRun<T>(
         // receives an event, and it is neither a server fault nor worth an error line with a stack.
         status = 499;
         outcome = 'cancelled';
+        // Kept (message only, no stack) so a real fault after a disconnect can still be found.
+        thrown = (error as Error)?.message ?? String(error);
       } else {
         const event = errorEvent(error, correlationId);
         status = Number(event.status);
@@ -159,8 +165,9 @@ export function serveRun<T>(
       out.end();
       try {
         unwatch?.();
-      } catch {
+      } catch (error) {
         // The stream is already closed; a failing unsubscribe must not keep it from ending.
+        logger.warn(`stream unsubscribe failed: ${(error as Error)?.message}`);
       }
       // The request logger sees only the handler returning the stream (a 201 after a few ms): record how
       // the stream really ended.
@@ -172,6 +179,7 @@ export function serveRun<T>(
           status,
           outcome,
           disconnected: controller.signal.aborted,
+          ...(thrown ? { error: thrown } : {}),
           durationMs: Date.now() - startedAt,
           ...(correlationId ? { correlationId } : {}),
         }),

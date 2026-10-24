@@ -113,7 +113,8 @@ describe('serveRun with Accept: application/x-ndjson', () => {
     await lines(out as StreamableFile).catch(() => undefined);
     await new Promise(resolve => setImmediate(resolve));
     const entry = JSON.parse(log.mock.calls[0][0] as string);
-    expect(entry).toMatchObject({ outcome: 'cancelled', disconnected: true });
+    expect(entry).toMatchObject({ status: 499, outcome: 'cancelled', disconnected: true });
+    expect(entry.error).toBeUndefined();
   });
 
   it('logs a run that throws after the client left as cancelled, with no error line and no event', async () => {
@@ -130,6 +131,7 @@ describe('serveRun with Accept: application/x-ndjson', () => {
       status: 499,
       outcome: 'cancelled',
       disconnected: true,
+      error: 'LLM_REQUEST_ABORTED',
     });
     expect(error).not.toHaveBeenCalled();
   });
