@@ -142,6 +142,41 @@ export type StudioExecution = {
   clientEditVersion?: number;
   selectedBlockId?: string | null;
 };
+/** What a `step` line of the stream says about a run: ids and statuses only, never content. */
+export type ExecutionProgress = {
+  requestId: string;
+  runId: string;
+  status: string;
+  steps: Array<{ stepId: string; status: string; retryable?: boolean; errorCode?: string }>;
+};
+const known = (table: object, key: unknown): key is string =>
+  typeof key === 'string' && Object.prototype.hasOwnProperty.call(table, key);
+/**
+ * The run as far as the stream has told, to show steps while the model works. It carries no results; the
+ * complete run from the stream's `result` (or the list the page reads) replaces it. Anything the server
+ * sends that this page does not know is dropped rather than shown.
+ */
+export function progressRun(progress: ExecutionProgress, dashboardId: number): StudioExecution | null {
+  if (typeof progress?.runId !== 'string' || !/^[-a-zA-Z0-9_]{1,128}$/.test(progress.runId)) return null;
+  if (typeof progress.requestId !== 'string' || progress.requestId.length > 128 || !Array.isArray(progress.steps))
+    return null;
+  const steps: ExecutionStep[] = [];
+  for (const step of progress.steps.slice(0, 12))
+    if (known(STEP_LABELS, step?.stepId) && known(STATUS_LABELS, step.status))
+      steps.push({
+        stepId: step.stepId as ExecutionStep['stepId'],
+        status: step.status as ExecutionStatus,
+        retryable: step.retryable === true,
+        ...(typeof step.errorCode === 'string' && step.errorCode.length <= 64 ? { errorCode: step.errorCode } : {}),
+      });
+  return {
+    runId: progress.runId,
+    requestId: progress.requestId,
+    dashboardId,
+    status: known(STATUS_LABELS, progress.status) ? (progress.status as ExecutionStatus) : 'running',
+    steps,
+  };
+}
 export function validateExecution(input: unknown, dashboardId: number): StudioExecution {
   const value = input as StudioExecution;
   studioAssert(

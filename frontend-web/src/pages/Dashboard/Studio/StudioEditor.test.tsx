@@ -9,6 +9,10 @@ const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 const route = vi.hoisted(() => ({ dashboardId: '3' }));
 const questions = vi.hoisted(() => ({ key: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
+// The execution request is a stream in the app; here the mocked `post` answers it with the same body.
+vi.mock('@/api/ndjsonClient', () => ({
+  postNdjson: async (url: string, body: unknown) => (await api.post(url, body)).data,
+}));
 vi.mock('./studioQuestionDraft', async importOriginal => ({
   ...(await importOriginal<typeof import('./studioQuestionDraft')>()),
   studioQuestionKey: questions.key,

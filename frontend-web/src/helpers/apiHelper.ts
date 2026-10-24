@@ -158,10 +158,22 @@ async function resetTokenAndReattemptRequest(errorResponse) {
   // access token을 넘겨 다시 axios로 요청하고
   // 결과값을 처음 요청했던 promise의 resolve로 settle시킨다.
   // refresh token을 이용해서 access token 요청
-  const requestEpoch = errorResponse.config._authEpoch;
+  const accessToken = await renewAccessToken(errorResponse.config);
+  errorResponse.config.headers = errorResponse.config.headers || {};
+  errorResponse.config.headers.Authorization = `Bearer ${accessToken}`;
+  return instance(errorResponse.config); // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve
+}
+
+/**
+ * The shared, cross-tab-locked access token renewal for a request that was sent with `config`
+ * (its Authorization header and `_authEpoch`). Resolves with the token to retry with; rejects when the
+ * session changed meanwhile, so a retry never runs under another identity.
+ */
+async function renewAccessToken(config) {
+  const requestEpoch = config._authEpoch;
   if (editorDraftSessionEpoch() !== requestEpoch) throw new Error('Authentication changed. Retry the request.');
   if (!refreshPromise) {
-    const previousToken = String(errorResponse.config.headers?.Authorization ?? '').replace(/^Bearer /, '');
+    const previousToken = String(config.headers?.Authorization ?? '').replace(/^Bearer /, '');
     const previousEpoch = requestEpoch;
     const unchanged = () => getToken() === previousToken && editorDraftSessionEpoch() === previousEpoch;
     const winner = () => {
@@ -217,9 +229,7 @@ async function resetTokenAndReattemptRequest(errorResponse) {
   }
   const accessToken = await refreshPromise;
   if (editorDraftSessionEpoch() !== requestEpoch) throw new Error('Authentication changed. Retry the request.');
-  errorResponse.config.headers = errorResponse.config.headers || {};
-  errorResponse.config.headers.Authorization = `Bearer ${accessToken}`;
-  return instance(errorResponse.config); // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve
+  return accessToken;
 }
 
 export async function get(url, data?, config = {}): Promise<any> {
@@ -244,6 +254,23 @@ export async function del(url, config = {}): Promise<any> {
 
 export async function patch(url, data?, config = {}): Promise<any> {
   return instance.patch(url, { ...data }, { ...config });
+}
+
+/**
+ * What a request made with `fetch` (an NDJSON stream; the interceptors above never see it) needs to look
+ * like one made with axios: the base URL, the session's token, and the epoch the token belongs to.
+ */
+export function fetchAuthContext() {
+  return { baseURL: String(API_URL ?? ''), token: getToken(), epoch: editorDraftSessionEpoch() };
+}
+
+/**
+ * The same renewal the axios interceptor does after a 401 `accessTokenExpired`, for a `fetch` request that
+ * was sent with `sent` (from `fetchAuthContext`). Resolves with the token to retry with.
+ */
+export async function renewAccessTokenForFetch(sent: { token: string | null; epoch: unknown }): Promise<string> {
+  if (!isLoginUser) throw new Error('Not a login session.');
+  return renewAccessToken({ headers: { Authorization: `Bearer ${sent.token ?? ''}` }, _authEpoch: sent.epoch });
 }
 
 export default instance;

@@ -13,6 +13,14 @@ const chat = vi.hoisted(() => ({
   setMessages: vi.fn(),
 }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
+// The execution request is a stream in the app; here the mocked `post` answers it with the same body.
+const stream = vi.hoisted(() => ({ onEvent: undefined as undefined | ((event: unknown) => void) }));
+vi.mock('@/api/ndjsonClient', () => ({
+  postNdjson: async (url: string, body: unknown, options?: { onEvent?: (event: unknown) => void }) => {
+    stream.onEvent = options?.onEvent;
+    return (await api.post(url, body)).data;
+  },
+}));
 vi.mock('@ai-sdk/react', () => ({
   useChat: (options: any) => {
     chat.options = options;
@@ -465,3 +473,64 @@ it.each(['clarify', 'unsupported', 'ask'] as const)(
     expect(defaultProps.onSaved).not.toHaveBeenCalled();
   },
 );
+
+it('does not poll the run list while its request streams, and polls again once the stream ended', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+  try {
+    const running = {
+      ...partial(),
+      status: 'running',
+      saveResult: undefined,
+      steps: [
+        { stepId: 'inspectSource', status: 'succeeded', retryable: false },
+        { stepId: 'proposeSemantics', status: 'running', retryable: false },
+      ],
+    };
+    api.get.mockImplementation(async (url: string) => ({ data: url === '/studio/runs' ? [running] : {} }));
+    let finish!: (reply: unknown) => void;
+    api.post.mockImplementation(() => new Promise(resolve => (finish = resolve)));
+    render(<StudioConversation {...defaultProps} context={context} />);
+    await act(async () => undefined);
+    const polls = () => api.get.mock.calls.filter(call => call[0] === '/studio/runs').length;
+
+    // An unfinished run is polled every two seconds.
+    const idle = polls();
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(polls()).toBe(idle + 1);
+
+    // A request starts: the server now pushes the steps, so the list is left alone.
+    let sending!: Promise<unknown>;
+    await act(async () => {
+      sending = chat.options.transport.sendMessages({
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'Edit' }] }],
+      });
+    });
+    await act(async () => {
+      stream.onEvent?.({
+        type: 'step',
+        runId: 'run-live',
+        status: 'running',
+        steps: [{ stepId: 'inspectSource', status: 'running' }],
+      });
+    });
+    const during = polls();
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(polls()).toBe(during);
+
+    // The result arrives: no stream is left, so polling resumes for the run that is still unfinished.
+    await act(async () => {
+      finish({ data: { ...partial(), runId: 'run-live', requestId: 'q-live', status: 'failed', saveResult: undefined } });
+      await sending;
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(polls()).toBeGreaterThan(during);
+  } finally {
+    vi.useRealTimers();
+  }
+});

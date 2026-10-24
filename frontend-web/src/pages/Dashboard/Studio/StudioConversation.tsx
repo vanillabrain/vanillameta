@@ -16,6 +16,7 @@ import {
   retryStep,
   executionSummary,
   canResumeExecution,
+  progressRun,
 } from './studioExecution';
 import { studioRequestId, StudioSaveResult } from './studioApi';
 import { studioFilterSummary, studioDateRangeSummary } from './studioDocument';
@@ -73,6 +74,8 @@ export default function StudioConversation({
   );
   const [runs, setRuns] = useState<StudioExecution[]>([]);
   const [activityError, setActivityError] = useState('');
+  // True from sending a request until it ends: the server pushes step changes, so nothing polls meanwhile.
+  const [streaming, setStreaming] = useState(false);
   const [acting, setActing] = useState(false);
   const [ignoredCreation, setIgnoredCreation] = useState<string | null>(null);
   const [creationUncertain, setCreationUncertain] = useState(false);
@@ -181,6 +184,7 @@ export default function StudioConversation({
     () =>
       studioAssistantTransport(() => current.current, {
         onRequest: request => {
+          setStreaming(true);
           setConditionReview(null);
           requests.current.set(request.requestId, request);
           presentationContexts.current.set(request.requestId, request);
@@ -188,6 +192,13 @@ export default function StudioConversation({
           setActivityError('');
         },
         onExecution: updateRun,
+        onProgress: progress => {
+          const live = progressRun(progress, current.current.dashboardId);
+          if (live && mounted.current) updateRun(live);
+        },
+        onSettled: () => {
+          if (mounted.current) setStreaming(false);
+        },
       }),
     [updateRun],
   );
@@ -219,10 +230,10 @@ export default function StudioConversation({
   }, [refresh]);
   const unfinished = runs.some(run => ['running', 'pending'].includes(run.status));
   useEffect(() => {
-    if (!busy && !unfinished) return undefined;
+    if (streaming || (!busy && !unfinished)) return undefined;
     const timer = setInterval(refresh, 2000);
     return () => clearInterval(timer);
-  }, [busy, unfinished, refresh]);
+  }, [busy, unfinished, streaming, refresh]);
   const retry = async (run: StudioExecution) => {
     const step = retryStep(run);
     if (!step || acting || busy || lockedRef.current) return;

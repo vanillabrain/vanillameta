@@ -130,7 +130,7 @@ it('reports an invalid model operation as validation failure rather than connect
 });
 
 it('surfaces a durable preview failure as activity without applying or rerunning the completed model step', async () => {
-  const api = await import('@/helpers/apiHelper');
+  const api = await import('@/api/ndjsonClient');
   const onRequest = vi.fn(),
     onExecution = vi.fn();
   const execution = {
@@ -143,7 +143,7 @@ it('surfaces a durable preview failure as activity without applying or rerunning
       { stepId: 'preview', status: 'failed', retryable: true },
     ],
   };
-  const spy = vi.spyOn(api, 'post').mockResolvedValue({ data: execution } as any);
+  const spy = vi.spyOn(api, 'postNdjson').mockResolvedValue(execution as any);
   try {
     const stream = await studioAssistantTransport(() => context, { onRequest, onExecution }).sendMessages({
       messages: [{ role: 'user', parts: [{ type: 'text', text: 'Edit' }] }],
@@ -189,10 +189,10 @@ const savedExecution = () => ({
   ],
 });
 it('streams the durable saved-and-published receipt instead of hiding publication behind an old model result', async () => {
-  const api = await import('@/helpers/apiHelper');
+  const api = await import('@/api/ndjsonClient');
   const execution = savedExecution();
   const onExecution = vi.fn();
-  const spy = vi.spyOn(api, 'post').mockResolvedValue({ data: execution } as any);
+  const spy = vi.spyOn(api, 'postNdjson').mockResolvedValue(execution as any);
   try {
     const stream = await studioAssistantTransport(() => context, { onRequest: vi.fn(), onExecution }).sendMessages({
       messages: [{ role: 'user', parts: [{ type: 'text', text: '저장하고 링크로 공유해줘' }] }],
@@ -210,13 +210,11 @@ it('streams the durable saved-and-published receipt instead of hiding publicatio
   }
 });
 it('does not present malformed publication metadata as a successful shared link', async () => {
-  const api = await import('@/helpers/apiHelper');
+  const api = await import('@/api/ndjsonClient');
   const onExecution = vi.fn();
-  const spy = vi.spyOn(api, 'post').mockResolvedValue({
-    data: {
-      ...savedExecution(),
-      publicationResult: { ...publication, token: 'javascript:alert(1)' },
-    },
+  const spy = vi.spyOn(api, 'postNdjson').mockResolvedValue({
+    ...savedExecution(),
+    publicationResult: { ...publication, token: 'javascript:alert(1)' },
   } as any);
   try {
     await expect(

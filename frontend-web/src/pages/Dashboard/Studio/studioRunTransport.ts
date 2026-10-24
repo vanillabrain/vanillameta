@@ -1,12 +1,19 @@
 import type { ChatTransport } from 'ai';
 import { post } from '@/helpers/apiHelper';
 import { trackAiCall } from '@/api/usageService';
+import { postNdjson } from '@/api/ndjsonClient';
 import { AssistantMessage, assistantResultStream, messageText } from '../assistantTransport';
 import { validateStudioPreview, StudioPreview, StudioApiError, toStudioApiError, studioRequestId } from './studioApi';
 import { studioAssert, studioKeys, studioConditionsKey, validateStudioConditions } from './studioDocument';
 import { applyStudioOperation } from './studioReducer';
 import { StudioDocumentV1, StudioOperation } from './studioTypes';
-import { validateExecution, executionSummary, StudioExecution, ExecutionRequest } from './studioExecution';
+import {
+  validateExecution,
+  executionSummary,
+  StudioExecution,
+  ExecutionRequest,
+  ExecutionProgress,
+} from './studioExecution';
 export type StudioRunContext = {
   dashboardId: number;
   document: StudioDocumentV1;
@@ -105,6 +112,10 @@ export function studioAssistantTransport(
   activity?: {
     onRequest: (request: ExecutionRequest) => void;
     onExecution: (run: StudioExecution) => void;
+    /** A persisted step transition, while the server is still working (the request is streamed). */
+    onProgress?: (progress: ExecutionProgress) => void;
+    /** The request ended, however it ended: there is no stream left to wait for. */
+    onSettled?: () => void;
   },
 ): ChatTransport<AssistantMessage> {
   return {
@@ -115,14 +126,29 @@ export function studioAssistantTransport(
       let response: any;
       try {
         activity?.onRequest(body);
-        response = await trackAiCall(() =>
-          post(activity ? '/studio/executions' : '/studio/runs', body, {
-            timeout: 180000,
-            signal: abortSignal,
-          }),
-        );
+        response = activity
+          ? {
+              // The server streams the run; its `result` is the body the plain request used to return.
+              data: await trackAiCall(() =>
+                postNdjson('/studio/executions', body, {
+                  signal: abortSignal,
+                  onEvent: event => {
+                    if (event.type === 'step')
+                      activity.onProgress?.({
+                        requestId: body.requestId,
+                        runId: event.runId,
+                        status: event.status,
+                        steps: event.steps,
+                      });
+                  },
+                }),
+              ),
+            }
+          : await trackAiCall(() => post('/studio/runs', body, { timeout: 180000, signal: abortSignal }));
       } catch (error) {
         throw toStudioApiError(error);
+      } finally {
+        activity?.onSettled?.();
       }
       if (abortSignal?.aborted) throw new Error('AI 요청을 취소했습니다.');
       if (activity) {
