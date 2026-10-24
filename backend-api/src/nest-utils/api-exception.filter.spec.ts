@@ -9,6 +9,7 @@ describe('ApiExceptionFilter', () => {
   const setup = () => {
     const httpFilter = { catch: jest.fn() };
     const filter = new ApiExceptionFilter({} as any, httpFilter);
+    jest.spyOn((filter as any).log, 'error').mockImplementation(() => undefined);
     const base = jest.spyOn(Object.getPrototypeOf(ApiExceptionFilter.prototype), 'catch');
     base.mockImplementation(() => undefined);
     return { filter, httpFilter, base };
