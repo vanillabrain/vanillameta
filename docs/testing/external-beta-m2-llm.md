@@ -28,7 +28,7 @@
 | 전체 jest(Node 26) | 338 스위트 통과·13 건너뜀, **5,852 테스트 통과**·188 건너뜀, 실패 0 |
 | 반복 실행(10회×5개 스펙, 50회) | 전부 통과(`ndjson-stream.spec` 30/30, `ndjson-stream.http.spec` 6/6, `studio-execution.service.spec` 82/82, `studio-execution.controller.spec` 11/11, `studio-creation.controller.spec` 3/3). 깜빡임 없음 |
 | 변형 검사(a)–(j) 10개 | **전부 이름 있는 테스트가 잡음**: 연결 종료 시 중단 배선 제거, `start`를 결과 뒤로 이동, 구독자 예외 격리 제거, `create`의 구독 키 변경, 오류 본문 허용 목록 제거, JSON 경로 모양 변경, 게시 키에서 사용자 제거(다른 사용자 이벤트 격리), 하트비트 역압 제거, 연결 종료 후 예외의 취소 처리 제거, 구독 해제 예외 시 스트림이 열려 있음 |
-| 실제 프로세스 시간 측정(컴파일된 `serveRun`, `curl -N`) | 요청 후 **7 ms**에 `start`, 1초 간격 하트비트, 실행이 풀린 시점(2.0 s)에 `result` |
+| 실제 프로세스 시간 측정(컴파일된 `serveRun`, `curl -N`) | 요청 후 **7 ms**에 `start`, 하트비트(이 측정은 `heartbeatMs`를 1초로 지정했다. **서버 기본값은 5초**이며 M2-5에서 실제 값을 잰다), 실행이 풀린 시점(2.0 s)에 `result` |
 | Caddy 통과 측정(2.8.4, 2.11.7, 저장소의 `encode zstd gzip` + `flush_interval -1`) | NDJSON은 **압축되지 않고 버퍼링되지 않음**: `start` +10~45 ms, 하트비트 1초 간격(±0.06 s), `result` 4.0 s. 같은 설정에서 12 KB JSON은 zstd로 압축(507 B)되어 `encode` 블록이 활성임을 확인. `Cache-Control: no-transform` 유무와 무관. 측정하지 않은 것: `no-transform`이 있는 압축 가능 유형의 스트림 |
 
 알려진 한계(`docs/plans/external-beta-m2-llm.md`의 M2-3 절): 지표 인터셉터는 스트림을 "201, 몇 ms"로 센다(실제 종료는 `msg:"stream"` 로그 줄에만 있음). 사용자당 동시에 열 수 있는 스트림 수에는 상한이 없다.
