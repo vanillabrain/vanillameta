@@ -246,6 +246,8 @@
 .studio-execution-running { color:var(--studio-accent); }
 .studio-execution-hint { padding:10px; background:var(--muted); border-radius:6px; }
 @media(max-width:899px) { .studio-execution-card summary { min-height:44px; } }
+/* Mobile tap targets in the AI panel (send, stop, retry, cancel run): the design note asks for 44px; they measured 36px. */
+@media(max-width:899px) { .studio-live-ai [data-slot="button"] { min-height:44px; } }
 @media(max-width:899px) { .studio-panel-drawer .studio-panel-tabs [data-slot="button"] { min-width:44px; } }
 /* The desktop shell above the panel is 108px; reserve a 16px lower inset.
    Only the assistant scrolls inside this rail, so the composer never covers execution cards. */
