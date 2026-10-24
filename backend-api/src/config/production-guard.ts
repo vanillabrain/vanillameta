@@ -1,3 +1,5 @@
+import { quotaConfigProblems } from '../usage/quota-config';
+
 const REQUIRED_SECRETS = [
   'ACCESS_SECRET',
   'REFRESH_SECRET',
@@ -70,6 +72,8 @@ export function productionConfigProblems(
   const signup = env.SIGNUP_MODE?.trim().toLowerCase();
   if (signup && !SIGNUP_MODES.includes(signup))
     problems.push(`SIGNUP_MODE must be one of ${SIGNUP_MODES.join(', ')}`);
+
+  problems.push(...quotaConfigProblems(env));
 
   if (facts.localEnvFileExists)
     problems.push('a .env.local file is present; production must not ship local settings');

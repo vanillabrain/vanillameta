@@ -64,6 +64,7 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { LoginModule } from './login/login.module';
 import { AccessModule } from './access/access.module';
+import { UsageModule } from './usage/usage.module';
 // import { ShareUrlModule } from './share-url/share-url.module';
 import { LoggerModule } from './common/logger/logger.module';
 // import { MonitoringModule } from './common/monitoring/monitoring.module';
@@ -213,6 +214,7 @@ import { apiEnvFiles } from './config-env';
     AuthModule,
     LoginModule,
     AccessModule,
+    UsageModule,
     ShareUrlModule,
     AiModule,
     MetricModule,

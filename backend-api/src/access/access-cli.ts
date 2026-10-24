@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { AiQuotaService } from '../usage/ai-quota.service';
 import { AccessService } from './access.service';
 import { InviteCode } from './entities/invite-code.entity';
 import { WaitlistEntry } from './entities/waitlist-entry.entity';
@@ -9,7 +10,11 @@ const USAGE = `usage:
   access-cli invite revoke <id>
   access-cli waitlist list [--status pending|approved|rejected]
   access-cli waitlist approve <id> [--days N]
-  access-cli waitlist reject <id>`;
+  access-cli waitlist reject <id>
+  access-cli quota show <userId>
+  access-cli quota set <userId> [--daily N] [--monthly N]
+  access-cli quota clear <userId>
+  access-cli quota top [--limit N]`;
 
 function flags(args: string[]): { positional: string[]; values: Record<string, string> } {
   const positional: string[] = [];
@@ -29,6 +34,13 @@ function flags(args: string[]): { positional: string[]; values: Record<string, s
 function positiveInteger(raw: string | undefined, name: string): number | undefined {
   if (raw === undefined) return undefined;
   if (!/^[1-9]\d*$/.test(raw)) throw new Error(`${name} must be a positive integer`);
+  return Number(raw);
+}
+
+function nonNegativeInteger(raw: string | undefined, name: string): number | undefined {
+  if (raw === undefined) return undefined;
+  if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)))
+    throw new Error(`${name} must be a non-negative integer`);
   return Number(raw);
 }
 
@@ -114,6 +126,36 @@ export async function runAccessCommand(
         expiresAt: invite.expiresAt,
       });
     });
+  }
+  if (area === 'quota') {
+    const quota = new AiQuotaService(db);
+    if (action === 'top') {
+      for (const row of await quota.top(positiveInteger(values.limit, 'limit') ?? 20)) write(row);
+      return;
+    }
+    const userId = positiveInteger(positional[0], 'userId');
+    if (!userId) throw new Error(`quota ${action ?? ''} needs a userId`);
+    if (action === 'show') {
+      const open = await quota.openReservations(userId);
+      return write({
+        userId,
+        ...(await quota.summary(userId)),
+        openReservations: open.map(row => ({
+          requestId: row.requestId,
+          feature: row.feature,
+          since: row.createdAt,
+        })),
+      });
+    }
+    if (action === 'set') {
+      const dailyCalls = nonNegativeInteger(values.daily, 'daily');
+      const monthlyTokens = nonNegativeInteger(values.monthly, 'monthly');
+      if (dailyCalls === undefined && monthlyTokens === undefined)
+        throw new Error('quota set needs --daily and/or --monthly');
+      const saved = await quota.setOverride(userId, { dailyCalls, monthlyTokens });
+      return write({ userId, dailyCalls: saved.dailyCalls, monthlyTokens: saved.monthlyTokens });
+    }
+    if (action === 'clear') return write({ userId, cleared: await quota.clearOverride(userId) });
   }
   throw new Error(USAGE);
 }
