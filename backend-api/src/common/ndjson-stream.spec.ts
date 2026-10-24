@@ -249,8 +249,10 @@ describe('serveRun with Accept: application/x-ndjson', () => {
   });
 
   it('sends heartbeats while the model is slow and stops them afterwards', async () => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
     try {
+      jest.useFakeTimers({
+        doNotFake: ['performance', 'nextTick', 'setImmediate', 'queueMicrotask'],
+      });
       let release!: () => void;
       const out = serveRun(
         request('application/x-ndjson'),
@@ -272,8 +274,10 @@ describe('serveRun with Accept: application/x-ndjson', () => {
   });
 
   it('holds heartbeats back while the client is not reading, so a stalled connection cannot grow the buffer', async () => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
     try {
+      jest.useFakeTimers({
+        doNotFake: ['performance', 'nextTick', 'setImmediate', 'queueMicrotask'],
+      });
       let release!: () => void;
       const out = serveRun(
         request('application/x-ndjson'),
