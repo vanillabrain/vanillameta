@@ -1,43 +1,81 @@
 # M2: AI 제공자 레지스트리·게이트웨이·스트리밍
 
-[외부 베타 계획](external-beta-launch.md)의 M2다. 목표는 운영 구성에서 Studio AI가 실제로 동작하게 하고, 모든 모델 호출이 쿼터·원장·비용 차단기를 지나게 하는 것이다. 2026-10-24 코드 조사 기준이다.
+[외부 베타 계획](external-beta-launch.md)의 M2다. 목표는 운영 구성에서 Studio AI가 실제로 동작하게 하고, 모든 모델 호출이 쿼터·원장·비용 차단기를 지나게 하는 것이다. 2026-10-24 코드 조사 기준이며 같은 날 architect 검토의 차단 항목 9개를 반영해 확정했다.
 
 ## 지금 상태 (조사 결과)
 
-- **모든 모델 호출이 `AiService.callLlm(system, user, jsonMode, abortSignal)` 한 곳으로 모인다.** Codex는 `codexSdkModel`(`generateText` 경유), 그 외는 `fetch(.../chat/completions)` 직접 호출이다. 스트리밍 없음, 토큰 사용량을 읽지 않음, 사용자 식별 없음, 쿼터·원장 호출 없음(`AiQuotaService`는 아무도 부르지 않는다).
-- **Studio 생성·실행은 `AI_PROVIDER=codex`가 아니면 거절**한다(`studio-creation.service.ts:525`, `studio-run.service.ts:121`; 거버넌스·파일 스키마 진단·commerce도 같은 조건). 운영 가드는 `AI_PROVIDER=codex`를 거부하므로 운영에서는 Studio AI가 불가능하다. 화면 검증에서 확인한 출시 차단 항목이다.
-- 타임아웃이 제각각이다: API 호출 기본 30초, Codex 기본 120초, Studio·거버넌스·파일 스키마는 175초 하드코딩(`AI_TIMEOUT_MS`와 무관).
-- 프런트엔드 `studioRunTransport`는 `POST`가 끝나길 기다린 뒤 전체 답을 한 번에 흘려보내는 가짜 스트림이고, `StudioConversation`은 2초마다 실행 목록을 폴링한다.
-- `ai` 7.0.137은 설치돼 있고(백엔드·프런트엔드), `@ai-sdk/anthropic`·`@ai-sdk/openai`·`@ai-sdk/openai-compatible`은 없다. nginx 운영 설정은 이미 `/v1/`에 `proxy_buffering off`, `proxy_read_timeout 300s`다.
+- **모든 모델 호출이 `AiService.callLlm(system, user, jsonMode, abortSignal)` 한 곳으로 모인다.** Codex는 `codexSdkModel`(`generateText` 경유), 그 외는 `fetch(.../chat/completions)` 직접 호출이다. 스트리밍 없음, 토큰 사용량을 읽지 않음, 사용자 식별 없음, 쿼터·원장 호출 없음.
+- **Studio 생성·실행은 `AI_PROVIDER=codex`가 아니면 거절**한다(`studio-creation.service.ts:525`, `studio-run.service.ts:121`; 거버넌스·파일 스키마 진단·commerce도 같은 조건). 운영 가드는 codex를 거부하므로 운영에서는 Studio AI가 불가능하다(화면 검증 F1).
+- 타임아웃이 제각각이다: API 호출 기본 30초, Codex 기본 120초, Studio·거버넌스·파일 스키마는 175초 하드코딩.
+- 프런트엔드 대화는 항상 `POST /studio/executions`(지속 실행 기록)를 쓰고 `studioRunTransport`는 응답을 기다린 뒤 한 번에 흘려보내는 가짜 스트림이며, `StudioConversation`은 2초마다 실행 목록을 폴링한다. `POST /studio/runs`는 프런트엔드·MCP 어디서도 부르지 않는다.
+- `ai` 7.0.137, `@ai-sdk/provider` 4.0.26이 설치돼 있고 `@ai-sdk/anthropic`·`openai`·`openai-compatible`은 없다. nginx는 이미 `/v1/`에 `proxy_buffering off`, `proxy_read_timeout 300s`다. Caddy는 `encode zstd gzip`을 쓴다.
 
 ## 결정
 
-1. **제공자 레지스트리** `backend-api/src/ai/providers/provider-registry.ts`. `AI_PROVIDER` = `anthropic` | `openai` | `openai-compatible` | `codex`(개발 전용, 운영 가드가 거부), `AI_MODEL`, `AI_API_KEY`, `AI_API_BASE_URL`. 패키지 `@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/openai-compatible`을 백엔드에 추가한다. **설정이 틀리면 실패하고 다른 모델로 대체하지 않는다**(기존 규칙). 기존 운영 기본(`AI_PROVIDER=openai` + `AI_API_BASE_URL`)은 계속 동작한다(`openai`는 기본 URL, 다른 URL이면 `openai-compatible`로 안내하는 부팅 오류가 아니라 그대로 그 URL을 쓴다).
-2. **게이트웨이** `backend-api/src/ai/llm-gateway.service.ts`. 모든 호출이 한 곳에서 다음을 한다.
-   - `AiQuotaService.reserve(userId, epoch, feature, requestId)`를 모델 호출 **전에** 부른다(429 `AI_QUOTA_EXCEEDED`). 호출 뒤 `record`로 실제 토큰·지연·제공자·모델을 적는다. 오류는 `error`, 취소는 `cancelled`로 남긴다(원장에 항상 한 줄).
-   - `AI_TIMEOUT_MS`(기본 120초, 상한 180초)와 호출자가 넘긴 `abortSignal`을 합친다. `maxRetries: 0`.
-   - **전역 월간 비용 차단기**: 이번 달 전체 토큰 합이 `AI_GLOBAL_MONTHLY_TOKENS`를 넘으면 모든 호출을 503 `AI_BUDGET_EXHAUSTED`로 막는다(사용자별 쿼터만으로는 전체 비용이 묶이지 않는다). 값이 없으면 부팅 가드가 운영에서 거부한다. 합계는 `ai_usage_ledger`의 `createdAt` 인덱스로 읽고 30초간 캐시한다.
-   - `generate()`(전체 응답)와 `stream()`(`streamText`). 제공자가 스트리밍을 지원하지 않으면(Codex) `stream()`은 `generate()`로 한 번에 낸다.
-3. **`callLlm`은 게이트웨이의 어댑터가 되고 호출자 정보를 필수로 받는다**: `callLlm(system, user, jsonMode, abortSignal, caller)`, `caller = { userId, epoch?, feature, requestId? }`. 필수로 해서 컴파일러가 빠진 호출 지점을 모두 찾게 한다. 암묵 컨텍스트(AsyncLocalStorage)는 쓰지 않는다: 컨텍스트가 끊기면 운영에서 기능이 사라지고, 호출 지점은 이미 사용자를 알고 있다(`textToSql`·`recommendChart`만 컨트롤러가 사용자를 넘기도록 바꾼다). `epoch`가 없으면 게이트웨이가 현재 `authVersion`을 읽어 쓴다. 요청은 이미 `JwtAuthGuard`가 검증했으므로 같은 검사를 다시 하는 것이 아니라 잠금에 필요한 값을 채우는 것이다.
-4. **Codex 전용 조건을 모두 없앤다**: Studio 생성·실행, 거버넌스, 파일 스키마 진단, commerce의 `AI_PROVIDER !== 'codex'` 거절을 "AI가 설정돼 있는가"(`isConfigured`)로 바꾼다. 화면의 "Codex · gpt-6-luna 요청" 문구는 서버가 알려 주는 실제 제공자·모델로 바꾼다(`GET /ai/status` 같은 읽기 전용, 비밀 값 없음).
-5. **스트리밍(SSE)**: `POST /studio/proposals/stream`, `POST /studio/runs/stream`. 이벤트는 `step`(스키마 읽기, 초안, SQL 검증, 미리보기), 최종 `result`(현재 JSON 응답과 같은 모양), `error`. 연결이 끊기면 abort하고 원장에 `cancelled`를 남긴다. 토큰 단위 부분 블록은 이번 범위가 아니다(모델 출력이 JSON 하나라 부분 파싱의 이득이 작다). 비스트림 엔드포인트는 MCP·테스트용으로 유지한다.
-6. **프런트엔드**: Studio 생성과 대화가 스트림을 읽어 단계를 표시하고(약 2초 안에 첫 진행 표시), 중지 버튼, 실행 목록 2초 폴링을 스트림 중에는 끈다. 사용량 칩(`GET /me/usage`)을 Studio 머리글에 낸다.
+### 1. 제공자 레지스트리 `backend-api/src/ai/providers/provider-registry.ts`
+
+- `AI_PROVIDER` = `anthropic` | `openai` | `openai-compatible` | `codex`(개발 전용, 운영 가드가 거부), `AI_MODEL`, `AI_API_KEY`, `AI_API_BASE_URL`, `AI_REASONING_EFFORT`. **설정이 틀리면 실패하고 다른 모델로 대체하지 않는다.**
+- **`@ai-sdk/openai`의 `openai(model)`은 Responses API를 부른다.** 지금 동작(`/chat/completions`, `temperature 0`)을 유지하려고 `openai`는 `openai.chat(model)`을 쓴다. `AI_API_BASE_URL`이 OpenAI 기본이 아니면 `@ai-sdk/openai-compatible`을 쓴다.
+- **버전**: 설치된 `ai` 7.0.137을 최신 7.0.152로 올리고(백엔드·프런트엔드 모두), `@ai-sdk/anthropic` 4.0.87·`@ai-sdk/openai` 4.0.101·`@ai-sdk/openai-compatible` 3.0.77을 추가해 `@ai-sdk/provider`·`provider-utils` 복사본이 하나가 되게 한다(`npm ls`로 확인). 정확한 버전은 설치 시점에 npm에서 확인한다. 테스트의 제공자 목은 V4(`MockLanguageModelV4`), Codex 어댑터는 V3다.
+- **JSON 모드**: Anthropic에는 `json_object`가 없다. 게이트웨이가 `jsonMode`일 때 모든 제공자에서 출력을 정규화한다(공백 제거, 코드 펜스 하나 제거, 파싱 확인, 실패하면 `LLM_INVALID_JSON`). `responseFormat: {type:'json'}`은 openai·openai-compatible에만 보낸다. 지금 `JSON.parse(raw)`를 직접 하는 호출 지점은 정규화된 문자열을 그대로 받는다.
+- **요청 설정**: 모든 호출에 `maxOutputTokens`(JSON 4096, 텍스트 2048). `AI_REASONING_EFFORT`는 openai의 `providerOptions.openai.reasoningEffort`, openai-compatible의 `reasoning_effort`(지금과 같음)로 보내고, anthropic에서는 부팅 가드가 거부한다(조용히 무시하지 않는다).
+- **사용량이 비어 오는 경우**(Codex는 `undefined`, 일부 호환 서버는 `usage` 생략): 입력 글자 수 / 4 + 출력 글자 수 / 4로 추정하고 원장에 추정치임을 표시한다. 0 토큰이 월간 쿼터와 비용 차단기를 무력하게 만들지 않게 한다.
+
+### 2. 게이트웨이 `backend-api/src/ai/llm-gateway.service.ts`
+
+- **쿼터 단위는 모델 호출 한 번이다.** 사용자의 한 동작이 여러 번 부르는 경우가 있다(대시보드 초안의 교정 루프 최대 2회, 의미 제안의 분류+제안, BI 편집기의 일괄 수정은 6블록에 약 13회까지). 원장의 `record`가 예약 한 줄을 한 번 정산하는 M1 계약과 비용 면에서 맞는 단위다. 이에 따라 (a) 사용량 칩 문구는 "AI 호출"이다, (b) 호출 횟수를 아는 다회 호출 동작(BI 일괄 수정, 자동 편집, 의미 제안 질문)은 첫 호출 전에 `summary`로 남은 칸이 충분한지 확인해 중간에 끊기지 않게 한다, (c) 일일 기본 30회는 이를 감안해 제품이 확정한다.
+- **원장 요청 id는 게이트웨이가 호출마다 만든다**(`ai_<uuid>`). `reserve`는 64자 이하만 받는데 Studio 요청 id는 128자까지 가고, 실패한 모델 단계를 같은 실행에서 재시도하면 `REQUEST_ID_REUSED` 409를 받는다. 호출 지점은 이미 자기 단위로 멱등이므로(`studio-run`의 재생 맵, 실행 기록의 행) 원장 단위 재생이 필요하지 않다. 재시도는 새 칸을 쓴다. 따라서 `caller`에 `requestId`는 없다.
+- **`reserve`는 모델 호출 직전에, 그 사이에 던질 수 있는 `await` 없이** 하고 `record`는 `finally`에서 한다. `record`가 던지면 기록하고 성공한 결과를 바꾸지 않는다.
+- **상태 매핑**(타이머는 호출자의 중단과 분리한다): 사용자 중단 → `cancelled`, `AI_TIMEOUT_MS`(기본 120초, 상한 180초) 초과 → `error`이고 `LLM_TIMEOUT`을 던진다, 제공자 오류 → `error`, 호출은 성공했는데 JSON 파싱·검증에 실패 → `ok`(토큰은 썼다). `maxRetries: 0`.
+- **부팅 정리**: 인스턴스가 하나이므로 부팅 시점에 남은 `reserved` 행은 모두 고아다. `onModuleInit`에서 부팅 이전의 `reserved`를 `error`로 정산한다.
+- **트랜잭션 안에서 부르지 않는다**: `reserve`가 자기 트랜잭션에서 `lockSourceActor`를 잡으므로 `callLlm`은 기존 `sourceWriteTransaction` 안에서 불리면 안 된다(SQLite는 연결이 하나라 교착). 현재 호출 지점은 모두 트랜잭션 밖이고, 이를 테스트로 고정한다.
+- **전역 월간 비용 차단기**: 이번 달(UTC) 전체 토큰 합이 `AI_GLOBAL_MONTHLY_TOKENS`를 넘으면 503 `AI_BUDGET_EXHAUSTED`. **`reserve` 전에** 확인해 사용자 칸이나 `quota_denied` 행을 쓰지 않는다. 합계는 `createdAt` 인덱스로 읽고 30초 캐시한다. 진행 중인 호출은 끝난다(제공자 청구는 회수할 수 없다). 초과 폭은 대략 (30초치 처리량 + 진행 중 호출 수 × 가장 큰 호출)이며 단일 인스턴스에서는 받아들인다. 선택지로 예약 행에 추정치(입력 글자 / 4 + `maxOutputTokens`)를 먼저 넣고 `record`에서 실제 값으로 바꿔 사용자·전역 초과를 모두 줄일 수 있고, M2-1에서 구현한다. `AI_GLOBAL_MONTHLY_TOKENS`는 **AI가 설정된 운영에서만** 필수다(키 없이 화면만 보는 스택이 부팅하지 못하게 하지 않는다).
+- 입력 상한: 생성 요청에 크기 제한이 없으므로 `inputTokens` 추정으로 호출당 입력 상한을 둔다(초과 시 400).
+- 로그에 프롬프트·응답 내용을 남기지 않는다(원장에도 없다). 오류 본문은 500자로 자른다.
+
+### 3. `callLlm`은 게이트웨이의 어댑터가 되고 호출자 정보를 필수로 받는다
+
+`callLlm(system, user, jsonMode, abortSignal, caller)`, `caller = { userId, epoch, feature }`. 필수 매개변수로 해서 컴파일러가 빠진 곳을 모두 찾게 한다. 암묵 컨텍스트(AsyncLocalStorage)는 쓰지 않는다. **`epoch`도 필수다**: 현재 `authVersion`을 읽어 채우면 `lockSourceActor`의 epoch 검사가 무의미해지고 M1이 "JWT의 `authVersion`을 넘긴다"고 적은 계약과 모순된다. 컨트롤러는 이미 `req.user.accessKeyData.authVersion`을 가진다.
+
+호출 지점(모두 호출 시점의 사용자를 안다): `AiService.textToSql`·`recommendChart`·`dashboardInsight`(컨트롤러가 사용자를 넘기도록 변경), `AiDashboardService.generate`·`assistant`·`classifyBlockIntent`·`proposeBlockLayout`(`BiService.editorAi`·`SemanticProposalService.question`에서 호출), `StudioCreationService.propose`, `StudioRunService.propose`(지금 `actor?`가 선택), `StudioExecutionService`의 `create`·`retry`·`creationMessage`·`clarifyCreation`(epoch를 실행 행에 저장해 `launch`/`execute`까지 운반, 스키마 변경 필요), `CommerceService.errorHelp`·`aiDraft`, `SemanticProposalService.propose`·`question`, `GovernanceService.assistant`, `FileSchemaDiagnosisService.diagnose`. cron·MCP(JWT HTTP API 경유)·파일 새로고침 백그라운드에서 `callLlm`을 부르는 곳은 없다. 스펙 21개가 `callLlm`을 목으로 대체한다.
+
+**오류를 삼키지 않는다**: 대부분의 호출 지점이 모든 오류를 일반 메시지로 바꾼다(`studio-creation.service.ts:602`, 거버넌스, 파일 스키마, `ai.service.ts`, `ai-dashboard.service.ts`, `studio-execution.service.ts:1379`의 `MODEL_FAILED retryable: true`). 게이트웨이의 `HttpException`(429 `AI_QUOTA_EXCEEDED`, 503 `AI_BUDGET_EXHAUSTED`, `LLM_TIMEOUT`, 설정 없음)은 모든 지점에서 다시 던진다. 실행 기록은 `errorCode: 'AI_QUOTA_EXCEEDED' | 'AI_BUDGET_EXHAUSTED'`와 `retryable: false`로 기록한다. 지점별로 테스트 하나씩 둔다. "AI가 설정되지 않음"과 일시 오류를 구분한다(F1).
+
+### 4. Codex 전용 조건을 없앤다, 남길 것은 남긴다
+
+- Studio 생성·실행, 파일 스키마 진단, commerce의 `AI_PROVIDER !== 'codex'` 거절을 "AI가 설정돼 있는가"로 바꾼다. 175초 하드코딩 타이머는 없애거나 `LLM_TIMEOUT`으로 매핑한다.
+- **`governance.service.ts:771`은 두 조건이다. `!scope.policy.allowAi`는 그대로 남기고 `AI_PROVIDER` 쪽만 바꾼다.** 조직 관리자는 다른 처리자를 전제로 AI를 허용했을 수 있으므로 **외부 베타에서 거버넌스 도우미는 꺼 둔다**(제공자를 명시해 `allowAi`를 다시 확인하기 전까지).
+- **무엇이 서버 밖으로 나가는가**(M-1 법무의 입력, 기능별): 이름·타입·고정 사실·집계만 보내는 곳은 commerce `errorHelp`(서버 문구), 거버넌스(제목·열), 파일 스키마 진단(열·타입)이다. **값이 나가는 곳**: `bi.profile`의 열별 MIN/MAX(실제 문자열 값, Studio 생성·의미 제안으로 흘러감), `recommendChart`의 원본 5행, `dashboardInsight`의 위젯당 3행, `studio-run`의 위젯당 미리보기 30행, commerce `aiDraft`의 `reasons`(고객 자유 문구일 수 있음). 원본 행을 보내는 기능은 베타에서 상한·마스킹·비활성 중 하나를 정해야 하며 이는 M2-2b에서 사용자 결정으로 올린다.
+- 화면의 "Codex · gpt-6-luna 요청" 문구는 서버가 알려 주는 실제 제공자·모델로 바꾼다: `GET /ai/status`(`JwtAuthGuard`, 제공자·모델 이름만, 비밀 값 없음). commerce의 `requestedModel: CODEX_MODEL` 상수도 실제 값으로 바꾼다. commerce `aiDraft`는 중단 신호와 타임아웃이 없으므로 게이트웨이로 옮기며 해결된다.
+
+### 5. 스트리밍은 기존 지속 실행을 스트리밍한다
+
+- 새 `/studio/runs/stream`을 만들지 않는다. 프런트엔드가 쓰는 `POST /studio/executions`(와 `runs/:id/retry`, `creation/message`, `creation/clarify`)를 **스트리밍으로도** 응답한다: 요청에 `Accept: application/x-ndjson`이 있으면 한 줄당 한 이벤트(`persist()`로 기록된 단계 전이마다 `step`, 마지막에 오늘의 `get()` 응답과 같은 `result`, 실패는 `error`). 없으면 지금처럼 JSON. 이미 영속된 단계를 그대로 내보내므로 새 실행 모델을 만들지 않는다. `GET /studio/runs/:id`가 재접속 경로이고 취소는 `POST /studio/runs/:id/cancel`이다(이미 중단하고 기다린다). `POST /studio/proposals`(메모리 상태, 지속 아님)도 같은 방식으로 스트리밍한다.
+- **전송은 NDJSON**이다. Nest의 `@Sse`는 GET 전용이고 EventSource는 POST를 못 한다. 기존 NDJSON 클라이언트(`frontend-web/src/api/datasetService.ts`)가 있으나 자체 Authorization 헤더를 쓰고 axios의 토큰 갱신 인터셉터를 우회하므로 401 갱신을 명시적으로 처리한다. 헤더를 보낸 뒤의 오류(중간의 `reserve`가 던지는 429)는 상태 코드를 바꿀 수 없으므로 `error` 이벤트를 `{status, error, message, resetsAt?}`로 정의한다. 모델 대기 중 하트비트를 보낸다.
+- 연결이 끊기면 지금처럼 실행을 중단한다(`withSignal`): 이 동작을 유지하고, 중단은 원장에 `cancelled`로 남는다. 스트림 중에는 2초 폴링을 끈다.
+- **Caddy**: `encode zstd gzip`이 `text/*`에 걸리므로 `application/x-ndjson`을 제외하거나 Caddy를 거친 첫 바이트 시간을 측정한다(M2-5의 스택에는 Caddy가 없으므로 별도 확인).
+- 토큰 단위 부분 블록은 이번 범위가 아니다(출력이 JSON 하나라 부분 파싱의 이득이 작다). 제공자가 스트리밍을 지원하지 않는 경우(Codex)는 단계 이벤트만 나가고 모델 호출은 한 번에 끝난다.
+
+### 6. 프런트엔드
+
+Studio 생성과 대화가 스트림을 읽어 단계를 표시한다(약 2초 안에 첫 진행 표시), 중지 버튼, 스트림 중 폴링 끄기, 사용량 칩(`GET /me/usage`, 문구는 "AI 호출")을 Studio 머리글에 낸다. 한도에 도달하면 안내하고, 429·503 오류 이벤트는 서버 메시지를 그대로 보인다.
 
 ## 단위와 순서
 
 | 단위 | 내용 |
 | --- | --- |
-| M2-1 | 레지스트리, 게이트웨이(쿼터·원장·타임아웃·비용 차단기), `callLlm` 어댑터, 의존성 추가, 부팅 가드, 단위 테스트(`MockLanguageModelV3`) |
-| M2-2 | 모든 호출 지점에 `caller` 전달, Codex 전용 거절 제거, 실제 제공자·모델 표시 |
-| M2-3 | SSE 엔드포인트 2개, 취소 시 `cancelled` 기록 |
-| M2-4 | 프런트엔드 스트리밍·중지·사용량 칩 |
+| M2-1 | 레지스트리, 게이트웨이(쿼터·원장·타임아웃 분리·비용 차단기·예약 추정치·부팅 정리·JSON 정규화·사용량 추정), `callLlm` 어댑터, 의존성 추가·`ai` 업그레이드, 부팅 가드, 단위 테스트(V4 목) |
+| M2-2a | `caller`·`epoch` 필수화와 모든 호출 지점·컨트롤러·스펙 수정, 실행 행에 epoch 저장 |
+| M2-2b | Codex 전용 거절 제거(`allowAi` 유지, 거버넌스 도우미는 베타에서 끔), 오류 재던지기와 실행 `errorCode`, `GET /ai/status`, commerce 상수, 서버 밖으로 나가는 값 표와 결정 올리기 |
+| M2-3 | 지속 실행·제안의 NDJSON 스트리밍, 취소 시 `cancelled`, 하트비트, Caddy 제외 |
+| M2-4 | 프런트엔드 스트리밍·중지·사용량 칩·401 갱신 |
 | M2-5 | 운영 구성 스택에서 **모의 OpenAI 호환 서버**로 생성→수정→저장→게시 전체 실행과 화면 확인(390/768/1440) |
 
 각 단위는 독립 커밋이고 `audit`로 테스트를, `architect`로 검토를 받는다.
 
 ## 검증과 한계
 
-- 단위 테스트는 `MockLanguageModelV3`와 SQLite·MySQL 원장으로 한다. 쿼터 경계, 거절 시 모델이 호출되지 않음, 오류·취소의 원장 기록, 비용 차단기, 타임아웃, 설정 오류.
-- M2-5의 전체 실행은 **로컬 모의 서버**로 한다. 이는 배선(쿼터 차감, 원장, 스트리밍, 취소, 화면)을 증명하지만 **실제 모델의 생성 품질은 증명하지 않는다.**
-- **출시 게이트의 실제 LLM 1개 제공자 전체 실행은 사용자 입력이 필요하다**: 제공자와 모델 선택, API 키(키는 채팅에 쓰지 않고 운영 VM의 `.env.prod`와 개발 머신의 추적되지 않는 설정에만 둔다), 월간 예산 숫자. 키가 준비되면 같은 흐름을 실제 제공자로 한 번 더 실행해 증빙한다. 그때까지 M2는 "배선 검증 완료, 실제 모델 미검증"으로 보고한다.
-- 법무(M-1): 프롬프트·스키마·표본 행이 제공자로 전송되므로 제공자의 무보존·학습 미사용 조건 확인과 약관·개인정보 문구가 출시 전에 필요하다(이 단계의 범위 밖, 사용자 입력 필요).
+- 단위 테스트는 `MockLanguageModelV4`와 SQLite·MySQL 원장으로 한다: 쿼터 경계, 거절 시 모델이 호출되지 않음, 오류·취소·타임아웃의 원장 상태, 비용 차단기가 쿼터 행을 쓰지 않음, 부팅 정리, 설정 오류, 호출 지점별 429·503 재던지기, `callLlm`이 트랜잭션 밖에서 불림.
+- M2-5의 전체 실행은 **로컬 모의 서버**(응답에 `usage`를 포함)로 한다. 운영 구성의 `egress-guard.sh`는 사설 대역을 막으므로 모의 서버는 `egress` 네트워크에 둔다. 배선(쿼터 차감, 원장, 스트리밍, 취소, 화면)은 증명하지만 **실제 모델의 생성 품질은 증명하지 않는다.**
+- **출시 게이트의 실제 LLM 1개 제공자 전체 실행은 사용자 입력이 필요하다**: 제공자·모델 선택, API 키(키는 채팅에 쓰지 않고 운영 VM의 `.env.prod`와 개발 머신의 추적되지 않는 설정에만 둔다), 월간 예산 숫자, 거버넌스 도우미와 원본 행 전송 기능의 베타 결정. 키가 준비되면 같은 흐름을 실제 제공자로 한 번 더 실행해 증빙한다. 그때까지 M2는 "배선 검증 완료, 실제 모델 미검증"으로 보고한다.
+- 법무(M-1)는 이 단계의 범위 밖이며 사용자 입력이 필요하다: 제공자의 무보존·학습 미사용 조건 확인과 약관·개인정보 문구.
