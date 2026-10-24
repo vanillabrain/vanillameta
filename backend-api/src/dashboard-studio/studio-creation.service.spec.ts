@@ -1617,6 +1617,23 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     ).rejects.toThrow('취소');
     expect(await service.proposal(p.proposalId, 1, 7)).toEqual(JSON.parse(JSON.stringify(p)));
   });
+  it.each([
+    ['LLM_TIMEOUT', 504, 'LLM_TIMEOUT'],
+    ['LLM_OUTPUT_TRUNCATED', 502, 'LLM_OUTPUT_TRUNCATED'],
+    ['LLM_API_ERROR_500', 502, 'LLM_UNAVAILABLE'],
+    ['AI_NOT_CONFIGURED', 503, 'AI_NOT_CONFIGURED'],
+  ])(
+    'answers the gateway failure %s with %s and its code, not a generic 503',
+    async (message, status, code) => {
+      const p = await propose();
+      llm.callLlm.mockRejectedValueOnce(new Error(message));
+      const error: any = await refine(p, 1).catch(e => e);
+      expect(error.getStatus()).toBe(status);
+      expect(error.getResponse()).toMatchObject({ error: code, message: expect.any(String) });
+      // Whatever the model did, the saved parent proposal is untouched.
+      expect(await service.proposal(p.proposalId, 1, 7)).toEqual(JSON.parse(JSON.stringify(p)));
+    },
+  );
   it('REFINE-04 rejects expired, foreign, mismatched-source and invalid target before AI', async () => {
     const p = await propose();
     const calls = llm.callLlm.mock.calls.length;

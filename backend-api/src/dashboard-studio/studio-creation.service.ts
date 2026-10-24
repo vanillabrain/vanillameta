@@ -19,6 +19,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -58,7 +59,7 @@ import {
 import { importStudio, studioDigest } from './studio-legacy';
 import { studioDemoData } from './studio-demo-data';
 import { pinMetricFormula } from '../bi/metric-formula';
-import { aiNotConfigured, isAiRefusal } from '../ai/ai-caller';
+import { aiNotConfigured, isAiRefusal, llmFailure } from '../ai/ai-caller';
 import { isAiConfigured } from '../ai/providers/ai-config';
 
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -604,11 +605,15 @@ export class StudioCreationService {
     } catch (error) {
       await guardBasis();
       if (isAiRefusal(error)) throw error;
-      throw new ServiceUnavailableException(
-        (error as Error)?.message === 'LLM_TIMEOUT'
-          ? 'AI 응답이 늦어 중단했습니다. 다시 시도해 주세요.'
-          : 'AI 생성안을 준비하지 못했습니다. 다시 시도해 주세요.',
-      );
+      // The gateway's own failures keep their status and code (timeout 504, cut-off answer or provider error
+      // 502, no setup 503), exactly as on the paths that let them reach the exception filter.
+      const failure = llmFailure(error);
+      if (failure)
+        throw new HttpException(
+          { error: failure.errorCode, message: failure.message },
+          failure.status,
+        );
+      throw new ServiceUnavailableException('AI 생성안을 준비하지 못했습니다. 다시 시도해 주세요.');
     } finally {
       signal?.removeEventListener('abort', abort);
     }

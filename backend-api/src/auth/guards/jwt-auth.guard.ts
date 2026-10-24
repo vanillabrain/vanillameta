@@ -1,5 +1,5 @@
 import { serializeMetadataWork } from '../../common/metadata-work';
-import { ExecutionContext, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { ExecutionContext, HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from '@nestjs/passport';
 import { DataSource, In } from 'typeorm';
@@ -12,6 +12,7 @@ import { YesNo } from '../../common/enum/yn.enum';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
+  private readonly logger = new Logger(JwtAuthGuard.name);
   constructor(private jwtService: JwtService, private readonly dataSource: DataSource) {
     super();
   }
@@ -101,7 +102,17 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
           )
             throw new Error('revoked actor');
           return verify;
-        } catch {
+        } catch (error) {
+          // Every failure answers 'accessTokenExpired' (the client renews on it), so a failure that is not
+          // about the token (a missing JwtService in a module, a database error) must at least be visible.
+          const name = (error as Error)?.name;
+          const expected =
+            ['TokenExpiredError', 'JsonWebTokenError', 'NotBeforeError'].includes(name) ||
+            ['revoked actor', 'invalid actor'].includes((error as Error)?.message);
+          if (!expected)
+            this.logger.warn(
+              `access token check failed unexpectedly: ${name}: ${(error as Error)?.message}`,
+            );
           throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
         }
       }

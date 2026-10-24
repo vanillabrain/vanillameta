@@ -84,8 +84,10 @@ describe('serveRun without the stream header', () => {
 
 describe('serveRun with Accept: application/x-ndjson', () => {
   let log: jest.SpyInstance;
+  let warn: jest.SpyInstance;
   beforeEach(() => {
     log = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
   });
   afterEach(() => jest.restoreAllMocks());
 
@@ -96,10 +98,14 @@ describe('serveRun with Accept: application/x-ndjson', () => {
       throw new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429);
     });
     await lines(refused as StreamableFile);
-    const entries = log.mock.calls.map(call => JSON.parse(call[0] as string));
-    expect(entries[0]).toMatchObject({ msg: 'stream', status: 200, outcome: 'result' });
-    expect(entries[1]).toMatchObject({ msg: 'stream', status: 429, outcome: 'error' });
-    expect(typeof entries[0].durationMs).toBe('number');
+    // A normal end is info; a failed stream is warn, so the production default log level shows it.
+    const normal = JSON.parse(log.mock.calls[0][0] as string);
+    const failed = JSON.parse(warn.mock.calls[0][0] as string);
+    expect(normal).toMatchObject({ msg: 'stream', status: 200, outcome: 'result' });
+    expect(failed).toMatchObject({ msg: 'stream', status: 429, outcome: 'error' });
+    expect(typeof normal.durationMs).toBe('number');
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('logs a run that resolves after the client left as cancelled, not as a delivered result', async () => {
@@ -112,7 +118,8 @@ describe('serveRun with Accept: application/x-ndjson', () => {
     });
     await lines(out as StreamableFile).catch(() => undefined);
     await new Promise(resolve => setImmediate(resolve));
-    const entry = JSON.parse(log.mock.calls[0][0] as string);
+    const entry = JSON.parse(warn.mock.calls[0][0] as string);
+    expect(log).not.toHaveBeenCalled();
     expect(entry).toMatchObject({ status: 499, outcome: 'cancelled', disconnected: true });
     expect(entry.error).toBeUndefined();
   });
@@ -127,7 +134,7 @@ describe('serveRun with Accept: application/x-ndjson', () => {
     });
     const events = await lines(out as StreamableFile);
     expect(events.map(e => e.type)).toEqual(['start']);
-    expect(JSON.parse(log.mock.calls[0][0] as string)).toMatchObject({
+    expect(JSON.parse(warn.mock.calls[0][0] as string)).toMatchObject({
       status: 499,
       outcome: 'cancelled',
       disconnected: true,

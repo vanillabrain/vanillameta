@@ -101,7 +101,7 @@ M2-2b는 Codex 전용 거절 6곳을 "AI가 설정돼 있는가"(`isAiConfigured
 - **재개 없음**: 연결이 끊기면 실행이 취소된다(원장 `cancelled`). `GET /studio/runs/:id`는 `cancelled`·`retryable:false`를 보이며 이어가려면 새 요청이다.
 - **같은 `requestId` 재전송**: 이미 진행 중이면 곧바로 `result`가 오지만 `data.status`가 최종이 아닐 수 있다. 클라이언트는 `data.status`를 확인하고 아니면 `GET /studio/runs/:id`로 이어간다.
 - **중지 버튼**: 요청을 `AbortController`로 끊으면 서버가 모델 호출을 취소한다. `POST /studio/runs/:id/cancel`은 재접속한 사용자를 위한 경로다.
-- **알려진 한계**: 지표(`ResponseTimeInterceptor`·`MetricsInterceptor`)는 스트림을 "201, 몇 ms"로 센다. 실제 종료 상태와 시간은 `msg:"stream"` 로그 줄(`status`·`outcome`·`durationMs`·`disconnected`)에만 있다. 사용자당 동시에 열 수 있는 스트림 수에는 상한이 없다(요청 제한은 분당 20개의 시작만 센다): 단일 인스턴스 베타에서는 받아들이고 M2-5에서 관찰한다.
+- **알려진 한계**: 지표(`ResponseTimeInterceptor`·`MetricsInterceptor`)는 스트림을 "201, 몇 ms"로 센다. 실제 종료 상태와 시간은 `msg:"stream"` 로그 줄(`status`·`outcome`·`durationMs`·`disconnected`)에만 있다. 정상 종료는 info, 실패·중단(`outcome` ≠ `result`)은 **warn**이라 운영 기본 로그 레벨(warn)에서도 남는다(M2-5 실행에서 info로 두었다가 운영 설정에서 줄이 안 보이는 것을 발견해 바꿨다). 사용자당 동시에 열 수 있는 스트림 수에는 상한이 없다(요청 제한은 분당 20개의 시작만 센다): 단일 인스턴스 베타에서는 받아들이고 M2-5에서 관찰한다.
 
 ### M2-4 구현: 프런트엔드에서 하지 않은 것과 이유
 

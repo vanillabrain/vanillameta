@@ -86,4 +86,61 @@ describe('module wiring', () => {
       expect(missing).toEqual([]);
     },
   );
+
+  // JwtAuthGuard injects JwtService. A module that mounts a controller behind it without JwtService (or a
+  // module that exports it) answers every request 401 'accessTokenExpired', which the client takes for an
+  // expired session and answers with a token refresh. The usage endpoint shipped like that.
+  describe('JwtAuthGuard', () => {
+    // Controllers whose modules AppModule never imports (dead code today): not served, so not checked.
+    const NOT_MOUNTED = [
+      'job-queue.module.ts',
+      'cache.module.ts',
+      'query-timeout.module.ts',
+      'batch-processing.module.ts',
+    ];
+
+    /** The files of the controllers a module lists, resolved from its relative imports. */
+    const controllerFiles = (file: string): string[] => {
+      const text = fs.readFileSync(file, 'utf8');
+      const listed =
+        /controllers:\s*\[([^\]]*)\]/.exec(text)?.[1].match(/\b[A-Z][A-Za-z0-9]*\b/g) ?? [];
+      return listed.flatMap(name => {
+        const from = new RegExp(
+          `import\\s*\\{[^}]*\\b${name}\\b[^}]*\\}\\s*from\\s*'(\\.[^']+)'`,
+        ).exec(text)?.[1];
+        const resolved = from ? path.resolve(path.dirname(file), from) + '.ts' : '';
+        return resolved && fs.existsSync(resolved) ? [resolved] : [];
+      });
+    };
+    const guarded = modules(__dirname)
+      .filter(file => !NOT_MOUNTED.includes(path.basename(file)))
+      .filter(file =>
+        controllerFiles(file).some(c => fs.readFileSync(c, 'utf8').includes('JwtAuthGuard')),
+      );
+
+    it('finds the modules that serve guarded controllers', () => {
+      const names = guarded.map(file => path.basename(file));
+      expect(names).toEqual(
+        expect.arrayContaining(['usage.module.ts', 'ai.module.ts', 'bi.module.ts']),
+      );
+    });
+
+    it('notices the shape the usage module had: a comment naming JwtService, no import', () => {
+      const old = `@Module({\n  // JwtAuthGuard injects JwtService\n  imports: [TypeOrmModule.forFeature([A])],\n})`;
+      const code = old.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+      expect(/\bJwtService\b|\bJwtModule\b|\bAuthModule\b/.test(code)).toBe(false);
+    });
+
+    it('every such module provides JwtService or imports a module that does', () => {
+      const lacking = guarded.filter(file => {
+        // Code only: a comment that names JwtService must not satisfy the rule.
+        const code = fs
+          .readFileSync(file, 'utf8')
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/\/\/.*$/gm, '');
+        return !/\bJwtService\b|\bJwtModule\b|\bAuthModule\b/.test(code);
+      });
+      expect(lacking.map(file => path.relative(__dirname, file))).toEqual([]);
+    });
+  });
 });

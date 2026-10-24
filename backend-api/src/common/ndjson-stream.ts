@@ -171,19 +171,21 @@ export function serveRun<T>(
       }
       // The request logger sees only the handler returning the stream (a 201 after a few ms): record how
       // the stream really ended.
-      logger.log(
-        JSON.stringify({
-          msg: 'stream',
-          method: req?.method,
-          url: safeRouteTemplate(req),
-          status,
-          outcome,
-          disconnected: controller.signal.aborted,
-          ...(thrown ? { error: thrown } : {}),
-          durationMs: Date.now() - startedAt,
-          ...(correlationId ? { correlationId } : {}),
-        }),
-      );
+      // A normal end is info. A stream that failed or was cut off is what an operator looks for, and the
+      // production default log level (warn) must still show it.
+      const record = JSON.stringify({
+        msg: 'stream',
+        method: req?.method,
+        url: safeRouteTemplate(req),
+        status,
+        outcome,
+        disconnected: controller.signal.aborted,
+        ...(thrown ? { error: thrown } : {}),
+        durationMs: Date.now() - startedAt,
+        ...(correlationId ? { correlationId } : {}),
+      });
+      if (outcome === 'result') logger.log(record);
+      else logger.warn(record);
     }
   })().catch(error =>
     logger.error(
