@@ -3,6 +3,7 @@ import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FileSchemaImpactService } from './file-schema-impact.service';
 import { FileSchemaDiagnosisService } from './file-schema-diagnosis.service';
+import { requestEpoch } from '../ai/ai-caller';
 @UseGuards(JwtAuthGuard, UserThrottleGuard)
 @Controller('bi/sources/:id/file-refreshes/:requestId/impact')
 export class FileSchemaImpactController {
@@ -36,6 +37,7 @@ export class FileSchemaImpactController {
           body,
           req.user.accessKeyData.id,
           controller.signal,
+          requestEpoch(req),
         ),
       };
     } finally {

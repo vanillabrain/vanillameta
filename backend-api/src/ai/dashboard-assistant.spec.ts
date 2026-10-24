@@ -110,11 +110,11 @@ describe('dashboard assistant', () => {
   });
   it('rejects assistant and revision requests for a different dashboard source before reading it', async () => {
     const other = { ...draft(), databaseId: 99 };
-    await expect(service.assistant({ ...request(), currentDraft: other }, 1)).rejects.toThrow(
-      'dashboard source mismatch',
-    );
     await expect(
-      service.generate({ ...request(), databaseId: 99, currentDraft: other }, 1),
+      service.assistant({ ...request(), currentDraft: other }, 1, undefined, 0),
+    ).rejects.toThrow('dashboard source mismatch');
+    await expect(
+      service.generate({ ...request(), databaseId: 99, currentDraft: other }, 1, undefined, 0),
     ).rejects.toThrow('dashboard source mismatch');
     expect(connection.queryDuckDB).not.toHaveBeenCalled();
     expect(ai.callLlm).not.toHaveBeenCalled();
@@ -129,7 +129,7 @@ describe('dashboard assistant', () => {
         ],
       },
     } as any);
-    const result: any = await service.assistant(request(), 7);
+    const result: any = await service.assistant(request(), 7, undefined, 0);
     expect(result.data.context.arithmetic[0].includedRowsTotal).toBe('9007199254740995');
     expect(result.data.context.arithmetic[0].comparisons[0].difference).toBe('0');
     const evidence = JSON.parse(ai.callLlm.mock.calls[0][1]);
@@ -150,7 +150,8 @@ describe('dashboard assistant', () => {
       },
     } as any);
     expect(
-      ((await service.assistant(request(), 7)) as any).data.context.arithmetic[0].comparisons,
+      ((await service.assistant(request(), 7, undefined, 0)) as any).data.context.arithmetic[0]
+        .comparisons,
     ).toEqual([]);
     jest.spyOn(service, 'preview').mockResolvedValue({
       data: {
@@ -158,7 +159,8 @@ describe('dashboard assistant', () => {
       },
     } as any);
     expect(
-      ((await service.assistant(request(), 7)) as any).data.context.arithmetic[0].includedRowsTotal,
+      ((await service.assistant(request(), 7, undefined, 0)) as any).data.context.arithmetic[0]
+        .includedRowsTotal,
     ).toBeNull();
   });
   it('routes authenticated user IDs to assistant', () => {
@@ -173,12 +175,12 @@ describe('dashboard assistant', () => {
   });
   it('requires ownership before validation, source reads or model calls', async () => {
     manager.findOne.mockResolvedValue(null);
-    await expect(service.assistant({ dashboardId: 3 }, 99)).rejects.toThrow('owner');
+    await expect(service.assistant({ dashboardId: 3 }, 99, undefined, 0)).rejects.toThrow('owner');
     expect(connection.isDuckDB).not.toHaveBeenCalled();
     expect(ai.callLlm).not.toHaveBeenCalled();
-    await expect(service.assistant({ ...request(), dashboardId: undefined }, 7)).rejects.toThrow(
-      'invalid id',
-    );
+    await expect(
+      service.assistant({ ...request(), dashboardId: undefined }, 7, undefined, 0),
+    ).rejects.toThrow('invalid id');
   });
   it.each([
     { prompt: '' },
@@ -193,7 +195,9 @@ describe('dashboard assistant', () => {
     { selectedWidget: 0.5 },
     { currentDraft: {} },
   ])('rejects invalid bounded input %#', async override => {
-    await expect(service.assistant({ ...request(), ...override }, 7)).rejects.toThrow();
+    await expect(
+      service.assistant({ ...request(), ...override }, 7, undefined, 0),
+    ).rejects.toThrow();
     expect(ai.callLlm).not.toHaveBeenCalled();
     expect(connection.queryDuckDB).not.toHaveBeenCalled();
   });
@@ -202,7 +206,9 @@ describe('dashboard assistant', () => {
     { filters: Array(6).fill({ column: 'device', value: 'phone' }) },
     { dateRange: { column: 'event_time', start: '2026-02-30', end: '2026-03-01' } },
   ])('rejects invalid filter/date scope %# before LLM', async override => {
-    await expect(service.assistant({ ...request(), ...override }, 7)).rejects.toThrow();
+    await expect(
+      service.assistant({ ...request(), ...override }, 7, undefined, 0),
+    ).rejects.toThrow();
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('uses exact server values, bound filters, dates and trend queries without writes', async () => {
@@ -218,6 +224,8 @@ describe('dashboard assistant', () => {
         widgets: [{ datas: [{ value: 999999 }] }],
       },
       7,
+      undefined,
+      0,
     );
     if (!('data' in result)) throw new Error('missing data');
     expect(result.data.ai).toEqual({ provider: 'codex', requestedModel: 'gpt-6-luna' });
@@ -259,7 +267,7 @@ describe('dashboard assistant', () => {
         queries: [],
       },
     } as any);
-    const result: any = await service.assistant(request(), 7);
+    const result: any = await service.assistant(request(), 7, undefined, 0);
     if (!('data' in result)) throw new Error('missing data');
     expect(preview).toHaveBeenCalledWith(expect.objectContaining({ includeTrends: true }), 7);
     expect(result.data.context.widgets[0].datas[0].value).toBe(123456789.012345);
@@ -278,7 +286,7 @@ describe('dashboard assistant', () => {
   it('uses actual environment provider metadata', async () => {
     process.env.AI_PROVIDER = 'api';
     process.env.AI_MODEL = 'configured-model';
-    const result: any = await service.assistant(request(), 7);
+    const result: any = await service.assistant(request(), 7, undefined, 0);
     expect('data' in result && result.data.ai).toEqual({
       provider: 'api',
       requestedModel: 'configured-model',
@@ -288,17 +296,17 @@ describe('dashboard assistant', () => {
     'reports %s without fallback',
     async error => {
       ai.callLlm.mockRejectedValue(new Error(error));
-      expect((await service.assistant(request(), 7)).status).toBe('ERROR');
+      expect((await service.assistant(request(), 7, undefined, 0)).status).toBe('ERROR');
       expect(ai.callLlm).toHaveBeenCalledTimes(1);
     },
   );
   it('rejects empty LLM responses', async () => {
     ai.callLlm.mockResolvedValue(' ');
-    expect((await service.assistant(request(), 7)).status).toBe('ERROR');
+    expect((await service.assistant(request(), 7, undefined, 0)).status).toBe('ERROR');
   });
   it('does not invoke LLM when preview fails', async () => {
     connection.queryDuckDB.mockRejectedValue(new Error('query failed'));
-    await expect(service.assistant(request(), 7)).rejects.toThrow('query failed');
+    await expect(service.assistant(request(), 7, undefined, 0)).rejects.toThrow('query failed');
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('extends generate with server context, bounded history and formatting guidance', async () => {
@@ -312,6 +320,8 @@ describe('dashboard assistant', () => {
         history: [{ role: 'assistant', text: 'previous answer' }],
       },
       7,
+      undefined,
+      0,
     );
     expect(ai.callLlm.mock.calls[0][1]).toContain('Server preview context:');
     expect(ai.callLlm.mock.calls[0][1]).toContain('previous answer');
@@ -320,6 +330,8 @@ describe('dashboard assistant', () => {
       service.generate(
         { databaseId: 1, prompt: 'x', history: Array(11).fill({ role: 'user', text: 'x' }) },
         7,
+        undefined,
+        0,
       ),
     ).rejects.toThrow('history');
   });

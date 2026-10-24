@@ -2,6 +2,7 @@ import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttl
 import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StudioExecutionService } from './studio-execution.service';
+import { requestEpoch } from '../ai/ai-caller';
 @UseGuards(JwtAuthGuard, UserThrottleGuard)
 @Controller('studio')
 export class StudioExecutionController {
@@ -30,7 +31,7 @@ export class StudioExecutionController {
   @Post('runs/:id/retry')
   retry(@Param('id') id: string, @Body() body: any, @Req() req, @Res({ passthrough: true }) res) {
     return this.withSignal(req, res, signal =>
-      this.executions.retry(id, body, req.user?.accessKeyData?.id, signal),
+      this.executions.retry(id, body, req.user?.accessKeyData?.id, signal, requestEpoch(req)),
     );
   }
   @Post('runs/:id/cancel')
@@ -59,7 +60,13 @@ export class StudioExecutionController {
     @Res({ passthrough: true }) res,
   ) {
     return this.withSignal(req, res, signal =>
-      this.executions.creationMessage(id, body, req.user?.accessKeyData?.id, signal),
+      this.executions.creationMessage(
+        id,
+        body,
+        req.user?.accessKeyData?.id,
+        signal,
+        requestEpoch(req),
+      ),
     );
   }
   @UserThrottle('ai')
@@ -71,7 +78,13 @@ export class StudioExecutionController {
     @Res({ passthrough: true }) res,
   ) {
     return this.withSignal(req, res, signal =>
-      this.executions.clarifyCreation(id, body, req.user?.accessKeyData?.id, signal),
+      this.executions.clarifyCreation(
+        id,
+        body,
+        req.user?.accessKeyData?.id,
+        signal,
+        requestEpoch(req),
+      ),
     );
   }
   @Post('runs/:id/creation')

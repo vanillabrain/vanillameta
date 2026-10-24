@@ -1078,7 +1078,8 @@ export class BiService {
     id: unknown,
     body: any,
     actor: number,
-    signal?: AbortSignal,
+    signal: AbortSignal | undefined,
+    epoch: number,
   ): Promise<EditorAiResponse> {
     // UC-014: ownership, revision and the whole-draft compile always run before any provider call.
     const compiled = await this.compileEditor(id, body, actor);
@@ -1112,7 +1113,11 @@ export class BiService {
     if (requestedMode === 'auto') {
       if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
         throw new BadRequestException('편집할 화면 폭을 확인해 주세요.');
-      const plan = await this.dashboards.classifyBlockIntent(body.prompt, signal);
+      const plan = await this.dashboards.classifyBlockIntent(body.prompt, signal, {
+        userId: actor,
+        epoch,
+        feature: 'bi-editor',
+      });
       if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       if (plan.intent === 'clarify') return { editMode: 'clarify' as const, saveRequested: false };
       if (plan.intent === 'save') {
@@ -1129,7 +1134,8 @@ export class BiService {
         };
       }
       // UC-016: a bounded batch resolves every target before one sequential staged generation.
-      if (plan.intent === 'batch') return this.batchBlocks(id, body, actor, signal, compiled, plan);
+      if (plan.intent === 'batch')
+        return this.batchBlocks(id, body, actor, epoch, signal, compiled, plan);
       // UC-015: the original question selects the target; the previous selection is context only.
       const resolution = resolveBlockTarget({
         prompt: body.prompt,
@@ -1167,6 +1173,7 @@ export class BiService {
           prompt,
         },
         signal,
+        { userId: actor, epoch, feature: 'bi-editor' },
       );
       if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       const item = {
@@ -1203,6 +1210,7 @@ export class BiService {
       },
       actor,
       signal,
+      epoch,
     );
     if (result.status !== 'SUCCESS' || !('data' in result))
       throw new BadRequestException(
@@ -1285,6 +1293,7 @@ export class BiService {
     id: unknown,
     body: any,
     actor: number,
+    epoch: number,
     signal: AbortSignal | undefined,
     compiled: { dashboardId: number; draft: any; layouts: any },
     plan: BatchEditPlan,
@@ -1325,6 +1334,12 @@ export class BiService {
         prompt: action.editPrompt,
       });
     }
+    // One batch makes at least one model call per block. Refuse before the first when the day's calls
+    // cannot cover them, instead of dying half-spent.
+    await this.dashboards.assertAiCalls(
+      { userId: actor, epoch, feature: 'bi-editor' },
+      targets.length,
+    );
     let current = compiled;
     const changes: { targetKey: string; editMode: 'content' | 'layout'; item: any }[] = [];
     for (const target of targets) {
@@ -1342,6 +1357,7 @@ export class BiService {
               prompt: target.prompt,
             },
             signal,
+            { userId: actor, epoch, feature: 'bi-editor' },
           );
           if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
           items[target.index] = {
@@ -1359,6 +1375,7 @@ export class BiService {
             },
             actor,
             signal,
+            epoch,
           );
           if (result.status !== 'SUCCESS' || !('data' in result))
             throw new Error('BATCH_GENERATION_UNAVAILABLE');

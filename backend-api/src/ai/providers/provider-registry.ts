@@ -15,11 +15,12 @@ export function resolveLanguageModel(config: AiProviderConfig, jsonMode = false)
     case 'codex':
       return codexSdkModel(jsonMode);
     case 'anthropic':
-      return; // The SDKs read ANTHROPIC_BASE_URL / OPENAI_BASE_URL from the environment when none is given, which
+      // The SDKs read ANTHROPIC_BASE_URL / OPENAI_BASE_URL from the environment when none is given, which
       // could send the operator's key to a host nobody configured here: always pass one.
-      createAnthropic({ apiKey: config.apiKey, baseURL: config.baseUrl ?? ANTHROPIC_BASE_URL })(
-        config.model,
-      );
+      return createAnthropic({
+        apiKey: config.apiKey,
+        baseURL: config.baseUrl ?? ANTHROPIC_BASE_URL,
+      })(config.model);
     case 'openai-compatible':
       return createOpenAICompatible({
         name: 'openai-compatible',

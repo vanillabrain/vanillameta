@@ -596,6 +596,7 @@ export class StudioCreationService {
         }),
         true,
         controller.signal,
+        { userId: actor, epoch: authVersion ?? 0, feature: 'studio-creation' },
       );
       if (controller.signal.aborted) throw new Error('timeout');
       response = JSON.parse(raw);

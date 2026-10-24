@@ -222,6 +222,8 @@ describe('period comparison and grain: actual DuckDB preview', () => {
       service.generate(
         { databaseId: 1, prompt: 'Change the chart', trendGrain: 'week', comparePrevious: true },
         7,
+        undefined,
+        0,
       ),
     ).rejects.toThrow('currentDraft required');
   });

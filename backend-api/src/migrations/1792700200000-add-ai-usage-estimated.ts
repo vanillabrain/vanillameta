@@ -6,7 +6,7 @@ export class AddAiUsageEstimated1792700200000 implements MigrationInterface {
     if (!(await runner.hasColumn('ai_usage_ledger', 'usageEstimated')))
       await runner.addColumn(
         'ai_usage_ledger',
-        new TableColumn({ name: 'usageEstimated', type: 'boolean', default: false }),
+        new TableColumn({ name: 'usageEstimated', type: 'tinyint', default: 0 }),
       );
   }
 

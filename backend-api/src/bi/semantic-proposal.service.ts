@@ -207,6 +207,7 @@ export class SemanticProposalService {
       }),
       true,
       signal,
+      { userId: actor, epoch: authVersion ?? 0, feature: 'semantic-proposal' },
     );
     if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     await this.guard(context, actor);
@@ -276,7 +277,10 @@ export class SemanticProposalService {
       throw new BadRequestException('질문과 미리보기를 확인해 주세요.');
     const before = await this.compile(body.proposal, actor, signal, authVersion);
     if (before.previewDigest !== body.previewDigest) throw new ConflictException('PLAN_CHANGED');
-    const plan = await this.dashboards.classifyBlockIntent(body.prompt.trim(), signal);
+    const caller = { userId: actor, epoch: authVersion ?? 0, feature: 'semantic-question' };
+    // A question is a classification plus, for a change request, one proposal: two model calls.
+    await this.dashboards.assertAiCalls(caller, 2);
+    const plan = await this.dashboards.classifyBlockIntent(body.prompt.trim(), signal, caller);
     if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     if (plan.intent === 'save' && plan.saveRequested === true) {
       const current = await this.compile(body.proposal, actor, signal, authVersion);

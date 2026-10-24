@@ -2,6 +2,7 @@ import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttl
 import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StudioRunService } from './studio-run.service';
+import { requestEpoch } from '../ai/ai-caller';
 @UseGuards(JwtAuthGuard, UserThrottleGuard)
 @Controller('studio/runs')
 export class StudioRunController {
@@ -18,7 +19,12 @@ export class StudioRunController {
     res.once('close', close);
     if (req.aborted) abort();
     try {
-      return await this.runs.run(body, req.user?.accessKeyData?.id, controller.signal);
+      return await this.runs.run(
+        body,
+        req.user?.accessKeyData?.id,
+        controller.signal,
+        requestEpoch(req),
+      );
     } finally {
       req.off('aborted', abort);
       res.off('close', close);

@@ -5,6 +5,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AiDashboardService } from './ai-dashboard.service';
 import { AiService } from './ai.service';
+import { callerOf, requestEpoch as epoch } from './ai-caller';
 import { RecommendChartDto } from './dto/recommend-chart.dto';
 import { TextToSqlDto } from './dto/text-to-sql.dto';
 
@@ -66,8 +67,8 @@ export class AiController {
   dashboardDraft(@Body() body: any, @Req() req, @Res({ passthrough: true }) res?) {
     return this.cancellable(req, res, signal =>
       signal
-        ? this.dashboards.generate(body, req.user.accessKeyData.id, signal)
-        : this.dashboards.generate(body, req.user.accessKeyData.id),
+        ? this.dashboards.generate(body, req.user.accessKeyData.id, signal, epoch(req))
+        : this.dashboards.generate(body, req.user.accessKeyData.id, undefined, epoch(req)),
     );
   }
 
@@ -76,8 +77,8 @@ export class AiController {
   dashboardAssistant(@Body() body: any, @Req() req, @Res({ passthrough: true }) res?) {
     return this.cancellable(req, res, signal =>
       signal
-        ? this.dashboards.assistant(body, req.user.accessKeyData.id, signal)
-        : this.dashboards.assistant(body, req.user.accessKeyData.id),
+        ? this.dashboards.assistant(body, req.user.accessKeyData.id, signal, epoch(req))
+        : this.dashboards.assistant(body, req.user.accessKeyData.id, undefined, epoch(req)),
     );
   }
 
@@ -134,8 +135,12 @@ export class AiController {
    */
   @UserThrottle('ai')
   @Post('text-to-sql')
-  textToSql(@Body() textToSqlDto: TextToSqlDto) {
-    return this.aiService.textToSql(+textToSqlDto.databaseId, textToSqlDto.prompt);
+  textToSql(@Body() textToSqlDto: TextToSqlDto, @Req() req) {
+    return this.aiService.textToSql(
+      +textToSqlDto.databaseId,
+      textToSqlDto.prompt,
+      callerOf(req, 'text-to-sql'),
+    );
   }
 
   /**
@@ -143,8 +148,8 @@ export class AiController {
    */
   @UserThrottle('ai')
   @Post('recommend-chart')
-  recommendChart(@Body() recommendChartDto: RecommendChartDto) {
-    return this.aiService.recommendChart(recommendChartDto);
+  recommendChart(@Body() recommendChartDto: RecommendChartDto, @Req() req) {
+    return this.aiService.recommendChart(recommendChartDto, callerOf(req, 'recommend-chart'));
   }
 
   /**
@@ -153,6 +158,6 @@ export class AiController {
   @UserThrottle('ai')
   @Post('dashboard-insight/:id')
   dashboardInsight(@Param('id') id: string, @Req() req) {
-    return this.aiService.dashboardInsight(+id, req.user.accessKeyData.id);
+    return this.aiService.dashboardInsight(+id, req.user.accessKeyData.id, epoch(req));
   }
 }

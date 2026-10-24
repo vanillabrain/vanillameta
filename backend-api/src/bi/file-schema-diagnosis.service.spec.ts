@@ -67,7 +67,7 @@ afterAll(() => {
 });
 it('projects only column metadata and returns advice without writing or claiming repair', async () => {
   const { service, ai } = setup();
-  const result = await service.diagnose(1, 'job', body, 7);
+  const result = await service.diagnose(1, 'job', body, 7, undefined, 0);
   expect(result).toMatchObject({
     sourceId: 1,
     targetSourceId: 2,
@@ -102,7 +102,9 @@ it.each([
   { ...answer(), missingColumns: ['cost'] },
 ])('rejects missing coverage/duplicate/invented/executable proposal %#', async response => {
   const { service } = setup(response);
-  await expect(service.diagnose(1, 'job', body, 7)).rejects.toMatchObject({ status: 400 });
+  await expect(service.diagnose(1, 'job', body, 7, undefined, 0)).rejects.toMatchObject({
+    status: 400,
+  });
 });
 it('keeps unresolved columns explicit instead of dropping their blocks', async () => {
   const { service } = setup({
@@ -110,12 +112,14 @@ it('keeps unresolved columns explicit instead of dropping their blocks', async (
     mappings: [{ from: 'day', to: 'day' }],
     missingColumns: ['cost'],
   });
-  expect((await service.diagnose(1, 'job', body, 7)).missingColumns).toEqual(['cost']);
+  expect((await service.diagnose(1, 'job', body, 7, undefined, 0)).missingColumns).toEqual([
+    'cost',
+  ]);
 });
 it('rejects stale input before model and a target revision change after model', async () => {
   const a = setup();
   await expect(
-    a.service.diagnose(1, 'job', { ...body, expectedTargetRevision: rev }, 7),
+    a.service.diagnose(1, 'job', { ...body, expectedTargetRevision: rev }, 7, undefined, 0),
   ).rejects.toMatchObject({ status: 409 });
   expect(a.ai.callLlm).not.toHaveBeenCalled();
   const b = setup();
@@ -123,16 +127,22 @@ it('rejects stale input before model and a target revision change after model', 
     .mockResolvedValueOnce(original)
     .mockResolvedValueOnce(target)
     .mockResolvedValueOnce({ ...target, dataVersion: rev });
-  await expect(b.service.diagnose(1, 'job', body, 7)).rejects.toMatchObject({ status: 409 });
+  await expect(b.service.diagnose(1, 'job', body, 7, undefined, 0)).rejects.toMatchObject({
+    status: 409,
+  });
 });
 it('rejects inaccessible sources and incomplete dependencies without calling model', async () => {
   const a = setup();
   a.bi.profile.mockRejectedValueOnce({ status: 403 });
-  await expect(a.service.diagnose(1, 'job', body, 7)).rejects.toMatchObject({ status: 403 });
+  await expect(a.service.diagnose(1, 'job', body, 7, undefined, 0)).rejects.toMatchObject({
+    status: 403,
+  });
   expect(a.ai.callLlm).not.toHaveBeenCalled();
   const b = setup();
   b.impacts.inspect.mockResolvedValueOnce({ ...impact, truncated: true });
-  await expect(b.service.diagnose(1, 'job', body, 7)).rejects.toMatchObject({ status: 400 });
+  await expect(b.service.diagnose(1, 'job', body, 7, undefined, 0)).rejects.toMatchObject({
+    status: 400,
+  });
   expect(b.ai.callLlm).not.toHaveBeenCalled();
 });
 it('does not accept different types or protected lookup amounts', async () => {
@@ -144,24 +154,32 @@ it('does not accept different types or protected lookup amounts', async () => {
     a.bi.profile.mockImplementation(id =>
       Promise.resolve(id === 1 ? original : { ...target, columns: [target.columns[0], column] }),
     );
-    await expect(a.service.diagnose(1, 'job', body, 7)).rejects.toMatchObject({ status: 400 });
+    await expect(a.service.diagnose(1, 'job', body, 7, undefined, 0)).rejects.toMatchObject({
+      status: 400,
+    });
   }
 });
 it('returns a static provider failure and never falls back to another model', async () => {
   const a = setup();
   a.ai.callLlm.mockRejectedValueOnce(new Error('/private/secret'));
-  await expect(a.service.diagnose(1, 'job', body, 7)).rejects.toMatchObject({ status: 503 });
+  await expect(a.service.diagnose(1, 'job', body, 7, undefined, 0)).rejects.toMatchObject({
+    status: 503,
+  });
   expect(a.ai.callLlm).toHaveBeenCalledTimes(1);
   process.env.AI_PROVIDER = 'api';
   const b = setup();
-  await expect(b.service.diagnose(1, 'job', body, 7)).rejects.toMatchObject({ status: 503 });
+  await expect(b.service.diagnose(1, 'job', body, 7, undefined, 0)).rejects.toMatchObject({
+    status: 503,
+  });
   expect(b.ai.callLlm).not.toHaveBeenCalled();
 });
 
 it('rejects changed dependency membership at the same file revisions before and after model', async () => {
   const a = setup();
   a.impacts.inspect.mockResolvedValueOnce({ ...impact, dependencyRevision: 'd'.repeat(64) });
-  await expect(a.service.diagnose(1, 'job', body, 7)).rejects.toMatchObject({ status: 409 });
+  await expect(a.service.diagnose(1, 'job', body, 7, undefined, 0)).rejects.toMatchObject({
+    status: 409,
+  });
   expect(a.ai.callLlm).not.toHaveBeenCalled();
   const b = setup();
   b.impacts.inspect.mockResolvedValueOnce(impact).mockResolvedValueOnce({
@@ -169,5 +187,7 @@ it('rejects changed dependency membership at the same file revisions before and 
     dependencyRevision: 'd'.repeat(64),
     metrics: [...impact.metrics, { columns: ['revenue'], affectedColumns: [], status: 'review' }],
   });
-  await expect(b.service.diagnose(1, 'job', body, 7)).rejects.toMatchObject({ status: 409 });
+  await expect(b.service.diagnose(1, 'job', body, 7, undefined, 0)).rejects.toMatchObject({
+    status: 409,
+  });
 });

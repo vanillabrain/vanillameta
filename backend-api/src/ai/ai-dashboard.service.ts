@@ -45,7 +45,8 @@ import {
 import { BatchBlockAction, isBatchPlanShape, parseBatchActions } from './batch-block-edit';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { AiService } from './ai.service';
-import { CODEX_MODEL } from './coding-agent';
+import { AiCaller } from './llm-gateway.service';
+import { aiProviderConfig } from './providers/ai-config';
 import { ConnectionService } from '../connection/connection.service';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { ResourceAction } from '../enterprise/resource-policy.service';
@@ -520,7 +521,7 @@ export class AiDashboardService {
       arithmetic,
     };
   }
-  async assistant(body: any, userId: number, abortSignal?: AbortSignal) {
+  async assistant(body: any, userId: number, abortSignal: AbortSignal | undefined, epoch: number) {
     // Mandatory authorization precedes validation, source reads, and model invocation.
     await this.owner(body?.dashboardId, userId, 'edit');
     const current = validateDraft(body?.currentDraft);
@@ -534,10 +535,10 @@ export class AiDashboardService {
     };
     const context = await this.previewContext(body, current, userId);
     if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+    const config = aiProviderConfig();
     const ai = {
-      provider: process.env.AI_PROVIDER === 'codex' ? 'codex' : 'api',
-      requestedModel:
-        process.env.AI_PROVIDER === 'codex' ? CODEX_MODEL : process.env.AI_MODEL || 'gpt-4o-mini',
+      provider: config?.provider === 'codex' ? 'codex' : 'api',
+      requestedModel: config?.model ?? '',
     };
     try {
       const answer = await this.ai.callLlm(
@@ -555,6 +556,7 @@ export class AiDashboardService {
         JSON.stringify({ context, history, prompt: body.prompt }),
         false,
         abortSignal,
+        { userId, epoch, feature: 'dashboard-assistant' },
       );
       if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       if (typeof answer !== 'string' || !answer.trim()) throw new Error('AI_EMPTY_RESPONSE');
@@ -943,10 +945,15 @@ export class AiDashboardService {
     });
     return this.success({ ...saved[0], updatedAnalyses: saved.map(r => r.id) });
   }
+  /** Refuses with 429 when the caller's remaining calls today cannot cover a multi-call action. */
+  assertAiCalls(caller: AiCaller, calls: number) {
+    return this.ai.assertCallsAvailable(caller, calls);
+  }
   /** UC-014: classify the question only; this never authorizes writes or selects a target. */
   async classifyBlockIntent(
     prompt: string,
-    signal?: AbortSignal,
+    signal: AbortSignal | undefined,
+    caller: AiCaller,
   ): Promise<
     | ({ intent: 'save'; saveRequested: boolean; editPrompt: null } & PublicationRequest)
     | { intent: 'clarify'; saveRequested: boolean; editPrompt: null }
@@ -993,6 +1000,7 @@ export class AiDashboardService {
       JSON.stringify({ prompt }),
       true,
       signal,
+      { ...caller, feature: 'block-intent' },
     );
     if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     try {
@@ -1068,7 +1076,8 @@ export class AiDashboardService {
       blocks: { key: string; title: string; rect: BlockRect }[];
       prompt: string;
     },
-    signal?: AbortSignal,
+    signal: AbortSignal | undefined,
+    caller: AiCaller,
   ): Promise<BlockRect> {
     if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     const selected = context.blocks.find(block => block.key === context.selectedKey);
@@ -1094,6 +1103,7 @@ export class AiDashboardService {
       }),
       true,
       signal,
+      { ...caller, feature: 'block-layout' },
     );
     if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     let rect: BlockRect;
@@ -1113,7 +1123,7 @@ export class AiDashboardService {
     }
     return rect;
   }
-  async generate(body: any, userId: number, abortSignal?: AbortSignal) {
+  async generate(body: any, userId: number, abortSignal: AbortSignal | undefined, epoch: number) {
     if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId, 'edit');
     const id = positiveId(body?.databaseId);
     const current = body.currentDraft === undefined ? undefined : validateDraft(body.currentDraft);
@@ -1212,7 +1222,11 @@ export class AiDashboardService {
       if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       let raw: string;
       try {
-        raw = await this.ai.callLlm(systemPrompt, request + correction, true, abortSignal);
+        raw = await this.ai.callLlm(systemPrompt, request + correction, true, abortSignal, {
+          userId,
+          epoch,
+          feature: 'dashboard-draft',
+        });
         if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       } catch (error) {
         return {

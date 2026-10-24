@@ -275,6 +275,8 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     const response = await service.assistant(
       { dashboardId: id, currentDraft: draft(), prompt: 'Explain range', filters },
       7,
+      undefined,
+      0,
     );
     expect(response.status).toBe('SUCCESS');
     const sent = JSON.parse(ai.callLlm.mock.calls[0][1]);
@@ -402,12 +404,12 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     });
   });
   it('validates LLM JSON using actual fields', async () => {
-    const generated = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7);
+    const generated = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7, undefined, 0);
     expect('data' in generated && generated.data).toMatchObject(draft());
     const bad = draft();
     bad.widgets[0].valueField = 'missing';
     ai.callLlm.mockResolvedValueOnce(JSON.stringify(bad));
-    const repaired = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7);
+    const repaired = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7, undefined, 0);
     expect('data' in repaired && repaired.data).toMatchObject(draft());
     expect(ai.callLlm.mock.calls[ai.callLlm.mock.calls.length - 1][1]).toContain(
       'valueField must be numeric',
@@ -418,13 +420,13 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     invalid.widgets[0].sql = 'SELECT sum(amount) AS value FROM uploaded_data';
     ai.callLlm.mockClear();
     ai.callLlm.mockResolvedValueOnce(JSON.stringify(invalid));
-    const repaired = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7);
+    const repaired = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7, undefined, 0);
     expect('data' in repaired && repaired.data).toMatchObject(draft());
     expect(ai.callLlm).toHaveBeenCalledTimes(2);
     expect(ai.callLlm.mock.calls[1][1]).toContain('only SELECT from source is allowed');
     ai.callLlm.mockClear();
     ai.callLlm.mockResolvedValueOnce('invalid json').mockResolvedValueOnce(JSON.stringify(invalid));
-    const failure = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7);
+    const failure = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7, undefined, 0);
     expect(failure.status).toBe('ERROR');
     expect('message' in failure && failure.message).toContain('AI 결과를 검증하지 못했습니다');
     expect(ai.callLlm).toHaveBeenCalledTimes(2);
@@ -441,7 +443,12 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       ai.callLlm.mockClear();
       connection.queryDuckDB.mockClear();
       ai.callLlm.mockResolvedValueOnce(JSON.stringify(invalid));
-      const repaired = await service.generate({ databaseId: 1, prompt: 'Total requests' }, 7);
+      const repaired = await service.generate(
+        { databaseId: 1, prompt: 'Total requests' },
+        7,
+        undefined,
+        0,
+      );
       expect('data' in repaired && repaired.data).toMatchObject(draft());
       expect(ai.callLlm).toHaveBeenCalledTimes(2);
       expect(ai.callLlm.mock.calls[1][1]).toContain('SUM(bid_request_cnt)');
@@ -650,7 +657,7 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     connection.queryDuckDB.mockClear();
     const id = (await db.manager.find(Dashboard))[0].id;
     await expect(
-      service.generate({ databaseId: 1, prompt: 'Revenue', dashboardId: id }, 99),
+      service.generate({ databaseId: 1, prompt: 'Revenue', dashboardId: id }, 99, undefined, 0),
     ).rejects.toThrow('owner');
     await expect(service.preview({ draft: draft(), dashboardId: id }, 99)).rejects.toThrow('owner');
     await expect(service.save({ draft: draft(), dashboardId: id }, 99)).rejects.toThrow('owner');
@@ -714,6 +721,8 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
           dateRange: { column: 'event_time', start: '2026-01-01', end: '2026-01-03' },
         },
         7,
+        undefined,
+        0,
       );
       expect(response.status).toBe('SUCCESS');
       const sent = JSON.parse(ai.callLlm.mock.calls[0][1]);
@@ -771,6 +780,8 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
           prompt: '1번 지표를 두 배로 변경',
         },
         7,
+        undefined,
+        0,
       );
       expect(ai.callLlm).toHaveBeenCalledTimes(2);
       expect(ai.callLlm.mock.calls[1][1]).toContain('selected block is unchanged');
@@ -799,6 +810,8 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
         prompt: '1번 제목만 복구 완료로 변경',
       },
       7,
+      undefined,
+      0,
     );
     expect(result.status).toBe('SUCCESS');
     if (!('data' in result)) throw new Error('Expected recovery');
@@ -843,6 +856,8 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
           prompt,
         },
         7,
+        undefined,
+        0,
       );
       expect(result.status).toBe('SUCCESS');
       if (!('data' in result)) throw new Error('Expected generated draft');

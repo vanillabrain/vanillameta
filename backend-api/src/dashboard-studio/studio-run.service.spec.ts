@@ -62,6 +62,8 @@ describe('Studio AI scoped runs', () => {
     const result = await service.run(
       { ...body, selectedBlockId: undefined, prompt: '현재 분석의 포함·제외 조건을 설명해 줘.' },
       7,
+      undefined,
+      0,
     );
     const context = JSON.parse(ai.callLlm.mock.calls[0][1]);
     expect(context).toHaveProperty('conditions', null);
@@ -94,7 +96,12 @@ describe('Studio AI scoped runs', () => {
     ai.callLlm.mockResolvedValue(
       JSON.stringify({ intent: 'ask', answer: '총매출은 2,000 USD입니다.', operations: [] }),
     );
-    await service.run({ ...body, selectedBlockId: undefined, prompt: '현재 총매출은 얼마야?' }, 7);
+    await service.run(
+      { ...body, selectedBlockId: undefined, prompt: '현재 총매출은 얼마야?' },
+      7,
+      undefined,
+      0,
+    );
     const context = JSON.parse(ai.callLlm.mock.calls[0][1]);
     expect(context.preview[0].display).toEqual({
       prefix: '',
@@ -114,7 +121,7 @@ describe('Studio AI scoped runs', () => {
         exclude: null,
       },
     };
-    await service.run(body, 7);
+    await service.run(body, 7, undefined, 0);
     expect(JSON.parse(ai.callLlm.mock.calls[0][1]).conditions).toEqual(document.conditions);
     expect(studio.prepare.mock.calls[1][1].document.conditions).toEqual(document.conditions);
     ai.callLlm.mockResolvedValue(
@@ -125,7 +132,7 @@ describe('Studio AI scoped runs', () => {
       }),
     );
     await expect(
-      service.run({ ...body, requestId: 'condition-ai-denied' }, 7),
+      service.run({ ...body, requestId: 'condition-ai-denied' }, 7, undefined, 0),
     ).rejects.toMatchObject({ status: 400 });
     expect(body.document.conditions).toEqual(document.conditions);
   });
@@ -145,6 +152,8 @@ describe('Studio AI scoped runs', () => {
     const result = await service.run(
       { ...body, selectedBlockId: undefined, prompt: '금액 100 이상만 포함하는 조건을 제안해 줘' },
       7,
+      undefined,
+      0,
     );
     expect(result.proposedOperations).toEqual([
       {
@@ -176,7 +185,7 @@ describe('Studio AI scoped runs', () => {
         operations: [{ type: 'setConditions', definition: null }],
       }),
     );
-    const result = await service.run(body, 7);
+    const result = await service.run(body, 7, undefined, 0);
     expect(result.proposedOperations).toEqual([{ type: 'setConditions', conditions: null }]);
     expect(studio.prepare.mock.calls[1][1].document.conditions).toBeUndefined();
     expect(studio.prepare.mock.calls[1][1].document.blocks).toEqual(document.blocks);
@@ -216,7 +225,7 @@ describe('Studio AI scoped runs', () => {
           operations: [{ type: 'setConditions', definition }],
         }),
       );
-      await expect(service.run(body, 7)).rejects.toMatchObject({ status: 400 });
+      await expect(service.run(body, 7, undefined, 0)).rejects.toMatchObject({ status: 400 });
       expect(studio.prepare).toHaveBeenCalledTimes(1);
       expect(document.conditions).toBeUndefined();
     },
@@ -234,19 +243,21 @@ describe('Studio AI scoped runs', () => {
         operations: [{ type: 'setConditions', definition }],
       }),
     );
-    await expect(service.run(body, 7)).rejects.toMatchObject({ status: 400 });
+    await expect(service.run(body, 7, undefined, 0)).rejects.toMatchObject({ status: 400 });
     delete document.conditions;
     studio.prepare.mockImplementation(async (_id, b) => ({
       document: b.document,
       preview: { widgets: [] },
     }));
-    await expect(service.run({ ...body, requestId: 'no-schema' }, 7)).rejects.toMatchObject({
+    await expect(
+      service.run({ ...body, requestId: 'no-schema' }, 7, undefined, 0),
+    ).rejects.toMatchObject({
       status: 400,
     });
   });
   it('supplies actual categorical scope to AI and preserves it in selected edits', async () => {
     document.filters = [{ column: 'category', values: ['Site'] }];
-    const result = await service.run(body, 7);
+    const result = await service.run(body, 7, undefined, 0);
     const context = JSON.parse(ai.callLlm.mock.calls[0][1]);
     expect(context.filters).toEqual(document.filters);
     expect(result.proposedOperations).toHaveLength(1);
@@ -254,7 +265,7 @@ describe('Studio AI scoped runs', () => {
   });
   it('supplies the actual period and date range to AI and preserves it in selected edits', async () => {
     document.dateRange = { column: 'event_time', start: '2026-01-01', end: '2026-01-01' };
-    const result = await service.run(body, 7);
+    const result = await service.run(body, 7, undefined, 0);
     const context = JSON.parse(ai.callLlm.mock.calls[0][1]);
     expect(context.period).toBe('selected UTC dates (inclusive)');
     expect(context.dateRange).toEqual(document.dateRange);
@@ -267,19 +278,21 @@ describe('Studio AI scoped runs', () => {
       precision: 'timestamp',
       timeZone: 'Asia/Seoul',
     };
-    await service.run({ ...body, requestId: 'req2' }, 7);
+    await service.run({ ...body, requestId: 'req2' }, 7, undefined, 0);
     const scoped = JSON.parse(ai.callLlm.mock.calls[1][1]);
     expect(scoped.period).toBe('selected UTC timestamps [start, end)');
     expect(scoped.dateRange).toEqual(document.dateRange);
   });
   it('returns validated selected operations without persisting and replays one request', async () => {
-    const first = await service.run(body, 7);
+    const first = await service.run(body, 7, undefined, 0);
     expect(first.proposedOperations).toHaveLength(1);
     expect(first.baseRevision).toBe(body.expectedRevision);
     expect(first.clientEditVersion).toBe(3);
-    expect(await service.run(body, 7)).toEqual(first);
+    expect(await service.run(body, 7, undefined, 0)).toEqual(first);
     expect(ai.callLlm).toHaveBeenCalledTimes(1);
-    await expect(service.run({ ...body, prompt: 'different' }, 7)).rejects.toMatchObject({
+    await expect(
+      service.run({ ...body, prompt: 'different' }, 7, undefined, 0),
+    ).rejects.toMatchObject({
       status: 409,
     });
   });
@@ -292,23 +305,23 @@ describe('Studio AI scoped runs', () => {
     ai.callLlm.mockResolvedValue(
       JSON.stringify({ intent: 'edit', answer: 'Done', operations: [operation] }),
     );
-    await expect(service.run(body, 7)).rejects.toThrow();
+    await expect(service.run(body, 7, undefined, 0)).rejects.toThrow();
   });
   it('authorizes before invoking AI', async () => {
     studio.prepare.mockRejectedValue(new Error('Forbidden'));
-    await expect(service.run(body, 7)).rejects.toThrow('Forbidden');
+    await expect(service.run(body, 7, undefined, 0)).rejects.toThrow('Forbidden');
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('rejects stale versions after the model response', async () => {
     studio.prepare
       .mockImplementationOnce(async () => ({ document, preview: { widgets: [] } }))
       .mockRejectedValueOnce(new ConflictException('Changed'));
-    await expect(service.run(body, 7)).rejects.toMatchObject({ status: 409 });
+    await expect(service.run(body, 7, undefined, 0)).rejects.toMatchObject({ status: 409 });
   });
   it('cancels before and after an awaited response', async () => {
     const c = new AbortController();
     c.abort();
-    await expect(service.run(body, 7, c.signal)).rejects.toThrow();
+    await expect(service.run(body, 7, c.signal, 0)).rejects.toThrow();
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('returns question and unsupported replies without operations', async () => {
@@ -319,7 +332,7 @@ describe('Studio AI scoped runs', () => {
         operations: [],
       }),
     );
-    const result = await service.run(body, 7);
+    const result = await service.run(body, 7, undefined, 0);
     expect(result.proposedOperations).toEqual([]);
   });
   it('aborts a running model and releases the failed request for retry', async () => {
@@ -330,14 +343,16 @@ describe('Studio AI scoped runs', () => {
           signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true }),
         ),
     );
-    const pending = service.run(body, 7, c.signal);
+    const pending = service.run(body, 7, c.signal, 0);
     await new Promise(resolve => setImmediate(resolve));
     c.abort();
     await expect(pending).rejects.toThrow('취소');
     ai.callLlm.mockResolvedValue(
       JSON.stringify({ intent: 'ask', answer: '다시 연결했습니다.', operations: [] }),
     );
-    await expect(service.run({ ...body, requestId: 'retry' }, 7)).resolves.toMatchObject({
+    await expect(
+      service.run({ ...body, requestId: 'retry' }, 7, undefined, 0),
+    ).resolves.toMatchObject({
       intent: 'ask',
     });
   });
@@ -350,7 +365,7 @@ describe('Studio AI scoped runs', () => {
             signal.addEventListener('abort', () => reject(new Error('timeout')), { once: true }),
           ),
       );
-      const pending = service.run(body, 7);
+      const pending = service.run(body, 7, undefined, 0);
       const check = expect(pending).rejects.toThrow('시간');
       await Promise.resolve();
       await Promise.resolve();
@@ -362,13 +377,13 @@ describe('Studio AI scoped runs', () => {
   });
   it('never falls back to another provider when Codex is not configured', async () => {
     process.env.AI_PROVIDER = 'api';
-    await expect(service.run(body, 7)).rejects.toThrow('gpt-6-luna');
+    await expect(service.run(body, 7, undefined, 0)).rejects.toThrow('gpt-6-luna');
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('preserves the T5 safe 503 contract if post-model preview fails', async () => {
     studio.prepare
       .mockImplementationOnce(async () => ({ document, preview: { widgets: [] } }))
       .mockRejectedValueOnce(new Error('private SQL backend detail'));
-    await expect(service.run(body, 7)).rejects.toMatchObject({ status: 503 });
+    await expect(service.run(body, 7, undefined, 0)).rejects.toMatchObject({ status: 503 });
   });
 });

@@ -126,12 +126,12 @@ describe('T7 durable executions', () => {
   });
   it('rejects creating an execution after its original Source was deleted, with no execution or LLM writes', async () => {
     await db.manager.delete(Database, body.document.sourceId);
-    await expect(service.create(body, 7)).rejects.toMatchObject({ status: 403 });
+    await expect(service.create(body, 7, undefined, 0)).rejects.toMatchObject({ status: 403 });
     expect(await db.manager.count(StudioExecution)).toBe(0);
     expect(ai.callLlm).not.toHaveBeenCalled();
   });
   it('rejects actual retry after original Source deletion before running-state or LLM writes', async () => {
-    const result = await service.create(body, 7);
+    const result = await service.create(body, 7, undefined, 0);
     const row = await db.manager.findOneBy(StudioExecution, { runId: result.runId });
     const state = JSON.parse(row.state);
     row.status = 'failed';
@@ -143,7 +143,7 @@ describe('T7 durable executions', () => {
     await db.manager.delete(Database, body.document.sourceId);
     const calls = ai.callLlm.mock.calls.length;
     await expect(
-      service.retry(row.runId, { stepId: state.steps[0].stepId, request: body }, 7),
+      service.retry(row.runId, { stepId: state.steps[0].stepId, request: body }, 7, undefined, 0),
     ).rejects.toMatchObject({ status: 403 });
     expect(await db.manager.findOneBy(StudioExecution, { runId: row.runId })).toEqual(row);
     expect(ai.callLlm).toHaveBeenCalledTimes(calls);
@@ -185,7 +185,7 @@ describe('T7 durable executions', () => {
       undefined,
       creation as any,
     );
-    const run = await runner.create({ ...body, prompt: parent.requestPrompt }, 7);
+    const run = await runner.create({ ...body, prompt: parent.requestPrompt }, 7, undefined, 0);
     const answer = {
       requestId: 'answer-1',
       proposalId: parent.proposalId,
@@ -208,7 +208,7 @@ describe('T7 durable executions', () => {
       prompt: '첫 번째 블록의 제목만 Revenue total로 바꿔 줘',
     };
     creation.propose.mockResolvedValueOnce({ ...next, parentProposalId: parent.proposalId });
-    const result = await runner.creationMessage(run.runId, message, 7);
+    const result = await runner.creationMessage(run.runId, message, 7, undefined, 0);
     expect(result.creationResult.proposalId).toBe(next.proposalId);
     expect(creation.propose.mock.calls[1][0]).toMatchObject({
       parentProposalId: parent.proposalId,
@@ -216,11 +216,11 @@ describe('T7 durable executions', () => {
       prompt: message.prompt,
     });
     creation.proposal.mockRejectedValue(new BadRequestException('cache lost'));
-    expect((await runner.creationMessage(run.runId, message, 7)).creationResult).toEqual(
-      result.creationResult,
-    );
+    expect(
+      (await runner.creationMessage(run.runId, message, 7, undefined, 0)).creationResult,
+    ).toEqual(result.creationResult);
     await expect(
-      runner.creationMessage(run.runId, { ...message, prompt: '2번 블록 변경' }, 7),
+      runner.creationMessage(run.runId, { ...message, prompt: '2번 블록 변경' }, 7, undefined, 0),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(creation.propose).toHaveBeenCalledTimes(2);
     expect(creation.create).not.toHaveBeenCalled();
@@ -246,7 +246,7 @@ describe('T7 durable executions', () => {
       expectedSourceRevision: parent.sourceRevision,
       prompt: '첫 번째 블록 제목 변경',
     };
-    const pending = runner.creationMessage(run.runId, message, 7);
+    const pending = runner.creationMessage(run.runId, message, 7, undefined, 0);
     while (creation.propose.mock.calls.length < 2)
       await new Promise(resolve => setImmediate(resolve));
     await db.manager.save(StudioRun, {
@@ -273,19 +273,27 @@ describe('T7 durable executions', () => {
       expectedSourceRevision: parent.sourceRevision,
       prompt: '저장하지마',
     };
-    await expect(runner.creationMessage(run.runId, message, 7)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
     await expect(
-      runner.creationMessage(run.runId, { ...message, prompt: '블록 수정' }, 7),
+      runner.creationMessage(run.runId, message, 7, undefined, 0),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
-      runner.creationMessage(run.runId, { ...message, prompt: '이 생성안을 저장해 줘' }, 8),
+      runner.creationMessage(run.runId, { ...message, prompt: '블록 수정' }, 7, undefined, 0),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      runner.creationMessage(
+        run.runId,
+        { ...message, prompt: '이 생성안을 저장해 줘' },
+        8,
+        undefined,
+        0,
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
     const saved = await runner.creationMessage(
       run.runId,
       { ...message, prompt: '이 생성안을 저장해 줘' },
       7,
+      undefined,
+      0,
     );
     expect(saved.creationSaveResult.dashboardId).toBe(25);
     expect(studio.save).not.toHaveBeenCalled();
@@ -302,7 +310,7 @@ describe('T7 durable executions', () => {
       targetBlockIndex: 0,
     };
     creation.propose.mockResolvedValueOnce({ ...next, parentProposalId: parent.proposalId });
-    const result = await runner.clarifyCreation(run.runId, request, 7);
+    const result = await runner.clarifyCreation(run.runId, request, 7, undefined, 0);
     expect(result.creationResult.proposalId).toBe(next.proposalId);
     expect(creation.propose.mock.calls[1][0]).toEqual({
       sourceId: parent.sourceId,
@@ -311,7 +319,7 @@ describe('T7 durable executions', () => {
       parentProposalId: parent.proposalId,
       targetBlockIndex: 0,
     });
-    await runner.clarifyCreation(run.runId, request, 7);
+    await runner.clarifyCreation(run.runId, request, 7, undefined, 0);
     expect(creation.propose).toHaveBeenCalledTimes(2);
     expect(studio.save).not.toHaveBeenCalled();
     expect(creation.create).not.toHaveBeenCalled();
@@ -325,9 +333,9 @@ describe('T7 durable executions', () => {
       prompt: 'add revenue',
       targetBlockIndex: 'append',
     };
-    await expect(runner.clarifyCreation(run.runId, request, 7)).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      runner.clarifyCreation(run.runId, request, 7, undefined, 0),
+    ).rejects.toBeInstanceOf(ConflictException);
     Object.assign(parent, { preview: { widgets: [] }, clarifications: [] });
     for (const patch of [
       { prompt: '' },
@@ -336,7 +344,7 @@ describe('T7 durable executions', () => {
       { refundDenominator: 'orders' },
     ])
       await expect(
-        runner.clarifyCreation(run.runId, { ...request, ...patch }, 7),
+        runner.clarifyCreation(run.runId, { ...request, ...patch }, 7, undefined, 0),
       ).rejects.toBeInstanceOf(BadRequestException);
     creation.propose.mockResolvedValueOnce({
       ...next,
@@ -344,14 +352,14 @@ describe('T7 durable executions', () => {
       parentProposalId: parent.proposalId,
       clarifications: [{ id: 'missingColumns' }],
     });
-    await expect(runner.clarifyCreation(run.runId, request, 7)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      runner.clarifyCreation(run.runId, request, 7, undefined, 0),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect((await runner.get(run.runId, 7)).creationResult.proposalId).toBe(parent.proposalId);
     creation.propose.mockResolvedValueOnce({ ...next, parentProposalId: parent.proposalId });
-    expect((await runner.clarifyCreation(run.runId, request, 7)).creationResult.proposalId).toBe(
-      next.proposalId,
-    );
+    expect(
+      (await runner.clarifyCreation(run.runId, request, 7, undefined, 0)).creationResult.proposalId,
+    ).toBe(next.proposalId);
   });
   it('UC034 changes only a missing-field proposal source, preserves the server prompt and prior denominator, and replays without AI', async () => {
     const { runner, creation, run, answer, parent, next } = await inlineCase();
@@ -368,7 +376,7 @@ describe('T7 durable executions', () => {
     creation.proposal.mockImplementation(async id =>
       id === parent.proposalId ? parent : replacement,
     );
-    const updated = await runner.clarifyCreation(run.runId, request, 7);
+    const updated = await runner.clarifyCreation(run.runId, request, 7, undefined, 0);
     expect(updated.creationResult).toEqual({
       proposalId: replacement.proposalId,
       sourceId: 12,
@@ -379,9 +387,9 @@ describe('T7 durable executions', () => {
       prompt: parent.requestPrompt,
       clarificationAnswers: { refundDenominator: 'amount' },
     });
-    expect((await runner.clarifyCreation(run.runId, request, 7)).creationResult).toEqual(
-      updated.creationResult,
-    );
+    expect(
+      (await runner.clarifyCreation(run.runId, request, 7, undefined, 0)).creationResult,
+    ).toEqual(updated.creationResult);
     expect(creation.propose).toHaveBeenCalledTimes(2);
     expect(studio.save).not.toHaveBeenCalled();
     expect(creation.create).not.toHaveBeenCalled();
@@ -401,9 +409,9 @@ describe('T7 durable executions', () => {
       expectedSourceRevision: parent.sourceRevision,
       targetSourceId: 12,
     };
-    await expect(runner.clarifyCreation(run.runId, request, 7)).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      runner.clarifyCreation(run.runId, request, 7, undefined, 0),
+    ).rejects.toBeInstanceOf(ConflictException);
     parent.clarifications = [{ id: 'missingColumns', choices: [] }] as any;
     for (const invalid of [
       { targetSourceId: 0 },
@@ -411,18 +419,18 @@ describe('T7 durable executions', () => {
       { refundDenominator: 'amount' },
     ])
       await expect(
-        runner.clarifyCreation(run.runId, { ...request, ...invalid }, 7),
+        runner.clarifyCreation(run.runId, { ...request, ...invalid }, 7, undefined, 0),
       ).rejects.toBeInstanceOf(BadRequestException);
     creation.propose.mockRejectedValueOnce(new ForbiddenException('target denied'));
-    await expect(runner.clarifyCreation(run.runId, request, 7)).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      runner.clarifyCreation(run.runId, request, 7, undefined, 0),
+    ).rejects.toBeInstanceOf(ForbiddenException);
     expect((await runner.get(run.runId, 7)).creationResult.proposalId).toBe(parent.proposalId);
     expect(creation.create).not.toHaveBeenCalled();
   });
   it('UC033 binds the answer to the server question, updates only its proposal, and saves the latest result', async () => {
     const { runner, creation, run, answer, next } = await inlineCase();
-    const updated = await runner.clarifyCreation(run.runId, answer, 7);
+    const updated = await runner.clarifyCreation(run.runId, answer, 7, undefined, 0);
     expect(updated.creationResult.proposalId).toBe(next.proposalId);
     expect(creation.propose.mock.calls[1][0]).toEqual({
       sourceId: next.sourceId,
@@ -442,7 +450,8 @@ describe('T7 durable executions', () => {
     );
     expect(saved.creationSaveResult.dashboardId).toBe(25);
     expect(
-      (await runner.clarifyCreation(run.runId, answer, 7)).creationSaveResult.dashboardId,
+      (await runner.clarifyCreation(run.runId, answer, 7, undefined, 0)).creationSaveResult
+        .dashboardId,
     ).toBe(25);
     expect(creation.propose).toHaveBeenCalledTimes(2);
   });
@@ -455,47 +464,57 @@ describe('T7 durable executions', () => {
           resolve = r;
         }),
     );
-    const first = runner.clarifyCreation(run.runId, answer, 7);
+    const first = runner.clarifyCreation(run.runId, answer, 7, undefined, 0);
     while (creation.propose.mock.calls.length < 2) await new Promise(r => setImmediate(r));
-    const second = runner.clarifyCreation(run.runId, answer, 7);
+    const second = runner.clarifyCreation(run.runId, answer, 7, undefined, 0);
     await expect(
       runner.clarifyCreation(
         run.runId,
         { ...answer, requestId: 'other', refundDenominator: 'orders' },
         7,
+        undefined,
+        0,
       ),
     ).rejects.toBeInstanceOf(ConflictException);
     resolve(next);
     expect((await first).creationResult).toEqual((await second).creationResult);
     expect(creation.propose).toHaveBeenCalledTimes(2);
     await expect(
-      runner.clarifyCreation(run.runId, { ...answer, refundDenominator: 'orders' }, 7),
+      runner.clarifyCreation(
+        run.runId,
+        { ...answer, refundDenominator: 'orders' },
+        7,
+        undefined,
+        0,
+      ),
     ).rejects.toBeInstanceOf(ConflictException);
   });
   it('UC033 preserves a failed answer for retry and refuses foreign, stale or invalid answers before AI', async () => {
     const { runner, creation, run, answer } = await inlineCase();
-    await expect(runner.clarifyCreation(run.runId, answer, 8)).rejects.toBeInstanceOf(
+    await expect(runner.clarifyCreation(run.runId, answer, 8, undefined, 0)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
     await expect(
-      runner.clarifyCreation(run.runId, { ...answer, proposalId: 'foreign' }, 7),
+      runner.clarifyCreation(run.runId, { ...answer, proposalId: 'foreign' }, 7, undefined, 0),
     ).rejects.toBeInstanceOf(ConflictException);
     await expect(
-      runner.clarifyCreation(run.runId, { ...answer, refundDenominator: 'guess' }, 7),
+      runner.clarifyCreation(run.runId, { ...answer, refundDenominator: 'guess' }, 7, undefined, 0),
     ).rejects.toBeInstanceOf(BadRequestException);
     creation.propose.mockRejectedValueOnce(new ServiceUnavailableException('temporary'));
-    await expect(runner.clarifyCreation(run.runId, answer, 7)).rejects.toBeInstanceOf(
+    await expect(runner.clarifyCreation(run.runId, answer, 7, undefined, 0)).rejects.toBeInstanceOf(
       ServiceUnavailableException,
     );
     expect((await runner.get(run.runId, 7)).creationResult.proposalId).toBe(answer.proposalId);
-    expect((await runner.clarifyCreation(run.runId, answer, 7)).creationResult.proposalId).toBe(
-      'meaning-next',
-    );
+    expect(
+      (await runner.clarifyCreation(run.runId, answer, 7, undefined, 0)).creationResult.proposalId,
+    ).toBe('meaning-next');
   });
   it('UC033 rejects an expired parent and a late response after the run binding changed', async () => {
     const { runner, creation, run, answer, next } = await inlineCase();
     creation.proposal.mockRejectedValueOnce(new BadRequestException('expired'));
-    await expect(runner.clarifyCreation(run.runId, answer, 7)).rejects.toThrow('expired');
+    await expect(runner.clarifyCreation(run.runId, answer, 7, undefined, 0)).rejects.toThrow(
+      'expired',
+    );
     let resolve: (x: any) => void;
     creation.propose.mockImplementationOnce(
       () =>
@@ -503,7 +522,7 @@ describe('T7 durable executions', () => {
           resolve = r;
         }),
     );
-    const first = runner.clarifyCreation(run.runId, answer, 7);
+    const first = runner.clarifyCreation(run.runId, answer, 7, undefined, 0);
     while (creation.propose.mock.calls.length < 2) await new Promise(r => setImmediate(r));
     const row = await db.manager.findOneBy(StudioExecution, { runId: run.runId });
     const state = JSON.parse(row.state);
@@ -519,10 +538,10 @@ describe('T7 durable executions', () => {
     const controller = new AbortController();
     controller.abort();
     await expect(
-      runner.clarifyCreation(run.runId, answer, 7, controller.signal),
+      runner.clarifyCreation(run.runId, answer, 7, controller.signal, 0),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(creation.propose).toHaveBeenCalledTimes(1);
-    await runner.clarifyCreation(run.runId, answer, 7);
+    await runner.clarifyCreation(run.runId, answer, 7, undefined, 0);
     const restarted = new StudioExecutionService(
       db,
       studio,
@@ -532,9 +551,10 @@ describe('T7 durable executions', () => {
       creation as any,
     );
     creation.proposal.mockRejectedValue(new BadRequestException('expired'));
-    expect((await restarted.clarifyCreation(run.runId, answer, 7)).creationResult.proposalId).toBe(
-      'meaning-next',
-    );
+    expect(
+      (await restarted.clarifyCreation(run.runId, answer, 7, undefined, 0)).creationResult
+        .proposalId,
+    ).toBe('meaning-next');
     expect(creation.propose).toHaveBeenCalledTimes(2);
     const row = await db.manager.findOneBy(StudioExecution, { runId: run.runId });
     expect(row.state).not.toContain('환불률 새 대시보드');
@@ -575,6 +595,8 @@ describe('T7 durable executions', () => {
     const generated = await runner.create(
       { ...body, prompt: '새 대시보드를 만들어줘 요청 수와 차원을 제안해줘' },
       7,
+      undefined,
+      0,
     );
     expect(generated.status).toBe('succeeded');
     expect(generated.steps.map(s => s.stepId)).toEqual(['inspectSource', 'createProposal']);
@@ -669,7 +691,7 @@ describe('T7 durable executions', () => {
       undefined,
       creation as any,
     );
-    const run = await runner.create({ ...body, prompt: '새 대시보드 생성' }, 7);
+    const run = await runner.create({ ...body, prompt: '새 대시보드 생성' }, 7, undefined, 0);
     await expect(
       runner.saveCreation(
         run.runId,
@@ -703,7 +725,7 @@ describe('T7 durable executions', () => {
       new StudioRunService(studio, ai),
       publications as any,
     );
-    const result = await runner.create({ ...body, prompt }, 7);
+    const result = await runner.create({ ...body, prompt }, 7, undefined, 0);
     expect(result.status).toBe('succeeded');
     expect(result.remixResult).toEqual({ token: 'e'.repeat(64), version: 2 });
     expect(result.steps.map(s => s.stepId)).toEqual(['inspectSource', 'remix']);
@@ -721,7 +743,7 @@ describe('T7 durable executions', () => {
     );
     expect((await restarted.get(result.runId, 7)).remixResult).toEqual(result.remixResult);
     expect((await restarted.list(1, 7))[0].remixResult).toEqual(result.remixResult);
-    expect((await restarted.create({ ...body, prompt }, 7)).runId).toBe(result.runId);
+    expect((await restarted.create({ ...body, prompt }, 7, undefined, 0)).runId).toBe(result.runId);
     expect(publications.requireRemix).toHaveBeenCalledTimes(1);
   });
   it.each(['/published/', 'http://127.0.0.1:3229/published/'])(
@@ -737,6 +759,8 @@ describe('T7 durable executions', () => {
       const result = await runner.create(
         { ...body, prompt: '내 데이터로 복제해줘 ' + prefix + 'e'.repeat(64) },
         7,
+        undefined,
+        0,
       );
       expect(result.status).toBe('succeeded');
       expect(result.remixResult?.version).toBe(2);
@@ -757,7 +781,7 @@ describe('T7 durable executions', () => {
       new StudioRunService(studio, ai),
       publications as any,
     );
-    const result = await runner.create({ ...body, prompt }, 7);
+    const result = await runner.create({ ...body, prompt }, 7, undefined, 0);
     expect(result.status).toBe('unsupported');
     expect(result.remixResult).toBeUndefined();
     expect(publications.requireRemix).not.toHaveBeenCalled();
@@ -775,7 +799,7 @@ describe('T7 durable executions', () => {
       new StudioRunService(studio, ai),
       publications as any,
     );
-    const first = await runner.create({ ...body, prompt: '내 데이터로 복제해줘' }, 7);
+    const first = await runner.create({ ...body, prompt: '내 데이터로 복제해줘' }, 7, undefined, 0);
     expect(first.status).toBe('failed');
     const restarted = new StudioExecutionService(
       db,
@@ -783,10 +807,10 @@ describe('T7 durable executions', () => {
       new StudioRunService(studio, ai),
       publications as any,
     );
-    const denied = await restarted.retry(first.runId, { stepId: 'remix' }, 7);
+    const denied = await restarted.retry(first.runId, { stepId: 'remix' }, 7, undefined, 0);
     expect(denied.status).toBe('failed');
     expect(denied.remixResult).toBeUndefined();
-    const recovered = await restarted.retry(first.runId, { stepId: 'remix' }, 7);
+    const recovered = await restarted.retry(first.runId, { stepId: 'remix' }, 7, undefined, 0);
     expect(recovered.status).toBe('succeeded');
     expect(recovered.runId).toBe(first.runId);
     expect(recovered.remixResult).toEqual({ token: 'e'.repeat(64), version: 2 });
@@ -819,6 +843,7 @@ describe('T7 durable executions', () => {
       { ...body, prompt: '내 데이터로 복제해줘' },
       7,
       controller.signal,
+      0,
     );
     expect(result.status).toBe('cancelled');
     expect(result.remixResult).toBeUndefined();
@@ -835,7 +860,12 @@ describe('T7 durable executions', () => {
         new StudioRunService(studio, ai),
         publications as any,
       );
-      const result = await runner.create({ ...body, prompt: '내 데이터로 복제해줘' }, 7);
+      const result = await runner.create(
+        { ...body, prompt: '내 데이터로 복제해줘' },
+        7,
+        undefined,
+        0,
+      );
       expect(result.status).toBe('failed');
       expect(result.remixResult).toBeUndefined();
       expect(result.steps.find(s => s.stepId === 'remix').errorCode).toBe('REMIX_UNAVAILABLE');
@@ -849,32 +879,34 @@ describe('T7 durable executions', () => {
         preview: { widgets: [] },
       }))
       .mockRejectedValueOnce(new Error('SQL token SECRET'));
-    const first = await service.create(body, 7);
+    const first = await service.create(body, 7, undefined, 0);
     expect(first.status).toBe('failed');
     expect(first.steps.find(s => s.stepId === 'proposeSemantics').status).toBe('succeeded');
     const restarted = new StudioExecutionService(db, studio, new StudioRunService(studio, ai));
-    expect((await restarted.retry(first.runId, { stepId: 'preview' }, 7)).status).toBe('succeeded');
+    expect(
+      (await restarted.retry(first.runId, { stepId: 'preview' }, 7, undefined, 0)).status,
+    ).toBe('succeeded');
     expect(ai.callLlm).toHaveBeenCalledTimes(1);
     const stored = JSON.stringify(await db.manager.find(StudioExecution));
     for (const secret of [body.prompt, 'ROW_SECRET', 'PROVIDER_SECRET', 'SQL token SECRET'])
       expect(stored).not.toContain(secret);
   });
   it('replays durable ID with zero writes and rejects different hash/document/manual version', async () => {
-    const first = await service.create(body, 7);
+    const first = await service.create(body, 7, undefined, 0);
     const write = jest.spyOn(db.manager, 'save');
-    expect((await service.create(body, 7)).runId).toBe(first.runId);
+    expect((await service.create(body, 7, undefined, 0)).runId).toBe(first.runId);
     expect(write).not.toHaveBeenCalled();
     for (const change of [
       { prompt: 'other' },
       { clientEditVersion: 4 },
       { document: { ...body.document, title: 'manual' } },
     ])
-      await expect(service.create({ ...body, ...change }, 7)).rejects.toMatchObject({
+      await expect(service.create({ ...body, ...change }, 7, undefined, 0)).rejects.toMatchObject({
         status: 409,
       });
   });
   it('returns owned context/list and checks revoked original/current source permissions', async () => {
-    const first = await service.create(body, 7);
+    const first = await service.create(body, 7, undefined, 0);
     expect(await service.list(1, 7)).toEqual([
       expect.objectContaining({
         requestId: 't7',
@@ -889,7 +921,7 @@ describe('T7 durable executions', () => {
   });
   it('marks startup running work interrupted with no autorun; requires matching original request', async () => {
     ai.callLlm.mockRejectedValue(new Error('provider stderr SECRET'));
-    const first = await service.create(body, 7);
+    const first = await service.create(body, 7, undefined, 0);
     await db.manager.update(StudioExecution, { runId: first.runId }, { status: 'running' });
     const restarted = new StudioExecutionService(db, studio, new StudioRunService(studio, ai));
     await restarted.onModuleInit();
@@ -903,42 +935,62 @@ describe('T7 durable executions', () => {
         first.runId,
         { stepId: 'proposeSemantics', request: { ...body, clientEditVersion: 4 } },
         7,
+        undefined,
+        0,
       ),
     ).rejects.toMatchObject({ status: 409 });
     ai.callLlm.mockResolvedValue(JSON.stringify({ intent: 'ask', answer: 'ok', operations: [] }));
     expect(
-      (await restarted.retry(first.runId, { stepId: 'proposeSemantics', request: body }, 7)).status,
+      (
+        await restarted.retry(
+          first.runId,
+          { stepId: 'proposeSemantics', request: body },
+          7,
+          undefined,
+          0,
+        )
+      ).status,
     ).toBe('succeeded');
   });
   it('saves exact current draft without model, recovers committed journal and never duplicates save', async () => {
     body.prompt = '저장해줘';
-    const first = await service.create(body, 7);
+    const first = await service.create(body, 7, undefined, 0);
     expect(first.saveResult.document.revision).toBe('c'.repeat(64));
     expect(ai.callLlm).not.toHaveBeenCalled();
     await db.manager.update(StudioExecution, { runId: first.runId }, { status: 'running' });
     const restarted = new StudioExecutionService(db, studio, new StudioRunService(studio, ai));
     await restarted.onModuleInit();
     expect((await restarted.get(first.runId, 7)).saveResult).toEqual(first.saveResult);
-    expect((await restarted.create(body, 7)).status).toBe('succeeded');
+    expect((await restarted.create(body, 7, undefined, 0)).status).toBe('succeeded');
     expect(await db.manager.count(StudioRun)).toBe(1);
   });
   it('keeps stale 409 and does not save negative save or invoke edit model for unsupported publish/remix', async () => {
     studio.prepare.mockRejectedValueOnce(new ConflictException());
-    await expect(service.create(body, 7)).rejects.toMatchObject({ status: 409 });
+    await expect(service.create(body, 7, undefined, 0)).rejects.toMatchObject({ status: 409 });
     let n = 0;
     for (const prompt of ['게시해줘', '공유해줘', '복제해줘']) {
-      const r = await service.create({ ...body, requestId: 'unsupported' + n++, prompt }, 7);
+      const r = await service.create(
+        { ...body, requestId: 'unsupported' + n++, prompt },
+        7,
+        undefined,
+        0,
+      );
       expect(r.steps.some(s => s.status === 'unsupported')).toBe(true);
     }
     expect(ai.callLlm).not.toHaveBeenCalled();
-    await service.create({ ...body, requestId: 'negative', prompt: '제목 바꾸고 저장하지마' }, 7);
+    await service.create(
+      { ...body, requestId: 'negative', prompt: '제목 바꾸고 저장하지마' },
+      7,
+      undefined,
+      0,
+    );
     expect(studio.save).not.toHaveBeenCalled();
   });
   it.each([
     '선택한 블록의 제목만 커머스 환불률로 바꾸고 저장해 줘. 계산식과 배치는 유지하고 게시하지 마.',
     '선택한 제목을 바꾸고 저장해 줘! 게시하지 마.',
   ])('saves an explicit sentence before trailing preservation constraints: %s', async prompt => {
-    const result = await service.create({ ...body, prompt }, 7);
+    const result = await service.create({ ...body, prompt }, 7, undefined, 0);
     expect(result.status).toBe('succeeded');
     expect(studio.save).toHaveBeenCalledTimes(1);
     expect(result.steps.map(s => s.stepId)).toContain('saveDraft');
@@ -948,7 +1000,7 @@ describe('T7 durable executions', () => {
     '선택한 제목을 "그리고 저장해 줘."로 바꿔. 게시하지 마.',
     '선택한 제목을 바꾸고 저장해 줘. 하지만 저장하지 마.',
   ])('does not infer save consent from a quoted example or negative save: %s', async prompt => {
-    await service.create({ ...body, prompt }, 7);
+    await service.create({ ...body, prompt }, 7, undefined, 0);
     expect(studio.save).not.toHaveBeenCalled();
   });
   it.each([
@@ -960,7 +1012,7 @@ describe('T7 durable executions', () => {
     "Rename the selected block; don't share.",
     'Rename the selected block without publishing.',
   ])('T10 applies edits with negative publication intent without saving: %s', async prompt => {
-    const result = await service.create({ ...body, prompt }, 7);
+    const result = await service.create({ ...body, prompt }, 7, undefined, 0);
     expect(result.status).toBe('succeeded');
     expect(ai.callLlm).toHaveBeenCalledTimes(1);
     expect(studio.save).not.toHaveBeenCalled();
@@ -976,7 +1028,7 @@ describe('T7 durable executions', () => {
     '공유하지 말고 publish 해줘',
     'Do not share but publish this dashboard',
   ])('T10 never authorizes publication when a positive clause remains: %s', async prompt => {
-    const result = await service.create({ ...body, prompt }, 7);
+    const result = await service.create({ ...body, prompt }, 7, undefined, 0);
     expect(result.status).toBe('unsupported');
     expect(ai.callLlm).not.toHaveBeenCalled();
     expect(studio.save).not.toHaveBeenCalled();
@@ -990,7 +1042,7 @@ describe('T7 durable executions', () => {
       await gate;
       return { document: b.document, preview: { widgets: [] } };
     });
-    const pending = service.create({ ...body, prompt: '저장해줘' }, 7);
+    const pending = service.create({ ...body, prompt: '저장해줘' }, 7, undefined, 0);
     while (!studio.prepare.mock.calls.length) await new Promise(r => setImmediate(r));
     const [row] = await service.list(1, 7);
     const cancelled = service.cancel(row.runId, 7);
@@ -998,7 +1050,12 @@ describe('T7 durable executions', () => {
     await cancelled;
     expect((await pending).status).toBe('cancelled');
     expect(await db.manager.count(StudioRun)).toBe(0);
-    const completed = await service.create({ ...body, requestId: 'save2', prompt: '저장해줘' }, 7);
+    const completed = await service.create(
+      { ...body, requestId: 'save2', prompt: '저장해줘' },
+      7,
+      undefined,
+      0,
+    );
     expect((await service.cancel(completed.runId, 7)).status).toBe('succeeded');
     expect(await db.manager.count(StudioRun)).toBe(1);
   });
@@ -1018,7 +1075,12 @@ describe('T7 durable executions', () => {
         ],
       }),
     );
-    const result = await service.create({ ...body, prompt: '금액 100 이상 조건을 제안해 줘' }, 7);
+    const result = await service.create(
+      { ...body, prompt: '금액 100 이상 조건을 제안해 줘' },
+      7,
+      undefined,
+      0,
+    );
     expect(result.steps.find(step => step.stepId === 'applyDraft')).toMatchObject({
       status: 'unsupported',
       errorCode: 'CONDITION_REVIEW_REQUIRED',
@@ -1043,6 +1105,8 @@ describe('T7 durable executions', () => {
     const result = await service.create(
       { ...body, prompt: '금액 100 이상 조건으로 바꾸고 저장해줘' },
       7,
+      undefined,
+      0,
     );
     expect(result.status).toBe('unsupported');
     expect(result.steps.find(s => s.stepId === 'applyDraft')).toMatchObject({
@@ -1059,7 +1123,9 @@ describe('T7 durable executions', () => {
     const again = await service.get(result.runId, 7);
     expect(again.result.proposedOperations).toEqual(result.result.proposedOperations);
     expect(again.answer).toContain('조건');
-    await expect(service.retry(result.runId, { stepId: 'saveDraft' }, 7)).rejects.toMatchObject({
+    await expect(
+      service.retry(result.runId, { stepId: 'saveDraft' }, 7, undefined, 0),
+    ).rejects.toMatchObject({
       status: 409,
     });
     expect(studio.save).not.toHaveBeenCalled();
@@ -1067,6 +1133,8 @@ describe('T7 durable executions', () => {
     const saved = await service.create(
       { ...body, requestId: 'reviewed-save', document: applied, prompt: '저장해줘' },
       7,
+      undefined,
+      0,
     );
     expect(saved.status).toBe('succeeded');
     expect(studio.save).toHaveBeenCalledTimes(1);
@@ -1078,6 +1146,8 @@ describe('T7 durable executions', () => {
       const result = await service.create(
         { ...body, requestId: intent, prompt: '제목 바꾸고 저장해줘' },
         7,
+        undefined,
+        0,
       );
       expect(studio.save).not.toHaveBeenCalled();
       expect(result.steps.some(s => s.status === 'unsupported')).toBe(true);
@@ -1101,10 +1171,10 @@ describe('T7 durable executions', () => {
       }
     }
     const runner = new PartialRunner(db, studio, new StudioRunService(studio, ai));
-    const first = await runner.create({ ...body, prompt: '저장해줘' }, 7);
+    const first = await runner.create({ ...body, prompt: '저장해줘' }, 7, undefined, 0);
     expect(first.status).toBe('partial');
     expect(first.saveResult).toBeDefined();
-    const next = await runner.retry(first.runId, { stepId: 'publish' }, 7);
+    const next = await runner.retry(first.runId, { stepId: 'publish' }, 7, undefined, 0);
     expect(next.status).toBe('unsupported');
     expect(next.steps.find(s => s.stepId === 'saveDraft').status).toBe('succeeded');
     expect(next.steps.find(s => s.stepId === 'publish').status).toBe('unsupported');
@@ -1114,7 +1184,7 @@ describe('T7 durable executions', () => {
   it('returns the validated numerical answer live and in immediate GET but never in durable history', async () => {
     const answer = '확인한 전체 요청 수는 1,234입니다.';
     ai.callLlm.mockResolvedValue(JSON.stringify({ intent: 'ask', answer, operations: [] }));
-    const first = await service.create(body, 7);
+    const first = await service.create(body, 7, undefined, 0);
     expect(first.result.answer).toBe(answer);
     expect((await service.get(first.runId, 7)).result.answer).toBe(answer);
     expect(JSON.stringify(await db.manager.find(StudioExecution))).not.toContain(answer);
@@ -1131,7 +1201,7 @@ describe('T7 durable executions', () => {
       return { document: b.document, preview: { widgets: [] } };
     });
     const controller = new AbortController();
-    const pending = service.create({ ...body, prompt: '저장해줘' }, 7, controller.signal);
+    const pending = service.create({ ...body, prompt: '저장해줘' }, 7, controller.signal, 0);
     while (!studio.prepare.mock.calls.length) await new Promise(r => setImmediate(r));
     controller.abort();
     release();
@@ -1144,7 +1214,7 @@ describe('T7 durable executions', () => {
     studio.assertExecutionAccess.mockImplementationOnce(async () => {
       controller.abort();
     });
-    await expect(service.create(body, 7, controller.signal)).rejects.toThrow('취소');
+    await expect(service.create(body, 7, controller.signal, 0)).rejects.toThrow('취소');
     expect(await db.manager.count(StudioExecution)).toBe(0);
     expect(ai.callLlm).not.toHaveBeenCalled();
     const late = new AbortController();
@@ -1158,6 +1228,7 @@ describe('T7 durable executions', () => {
       { ...body, requestId: 'late', prompt: '저장해줘' },
       7,
       late.signal,
+      0,
     );
     expect(committed.status).toBe('succeeded');
     expect(committed.saveResult).toBeDefined();
@@ -1168,7 +1239,7 @@ describe('T7 durable executions', () => {
       if (request.expectedRevision !== body.expectedRevision) throw new ConflictException();
       return { document: request.document, preview: { widgets: [] } };
     });
-    const result = await service.create(body, 7);
+    const result = await service.create(body, 7, undefined, 0);
     expect(result.status).toBe('succeeded');
     expect(result.result.baseRevision).toBe(body.expectedRevision);
     expect((await service.get(result.runId, 7)).result).toBeDefined();
@@ -1180,13 +1251,20 @@ describe('T7 durable executions', () => {
           document: { ...body.document, revision: 'f'.repeat(64) },
         },
         7,
+        undefined,
+        0,
       ),
     ).rejects.toMatchObject({ status: 400 });
   });
   it('exposes only a stable 64-character base document hash with revision omitted', async () => {
-    const first = await service.create(body, 7);
+    const first = await service.create(body, 7, undefined, 0);
     delete body.document.revision;
-    const second = await service.create({ ...body, requestId: 'without-revision' }, 7);
+    const second = await service.create(
+      { ...body, requestId: 'without-revision' },
+      7,
+      undefined,
+      0,
+    );
     expect(first.baseDocumentHash).toMatch(/^[a-f0-9]{64}$/);
     expect(second.baseDocumentHash).toBe(first.baseDocumentHash);
     const summaries = await service.list(1, 7);
@@ -1228,7 +1306,7 @@ describe('T7 durable executions', () => {
       publications as any,
     );
     const request = { ...body, prompt: '저장하고 링크로 공유해줘' };
-    const result = await runner.create(request, 7);
+    const result = await runner.create(request, 7, undefined, 0);
     expect(result.status).toBe('succeeded');
     expect(result.steps.map(s => [s.stepId, s.status])).toEqual([
       ['inspectSource', 'succeeded'],
@@ -1249,7 +1327,9 @@ describe('T7 durable executions', () => {
     expect(result.publicationResult.token).toBe('e'.repeat(64));
     expect((await runner.list(1, 7))[0].publicationResult).toEqual(result.publicationResult);
     expect(ai.callLlm).not.toHaveBeenCalled();
-    expect((await runner.create(request, 7)).publicationResult).toEqual(result.publicationResult);
+    expect((await runner.create(request, 7, undefined, 0)).publicationResult).toEqual(
+      result.publicationResult,
+    );
     expect(publications.publish).toHaveBeenCalledTimes(1);
     expect(studio.save).toHaveBeenCalledTimes(1);
   });
@@ -1262,7 +1342,12 @@ describe('T7 durable executions', () => {
       new StudioRunService(studio, ai),
       publications as any,
     );
-    const first = await runner.create({ ...body, prompt: '저장하고 링크로 공유해줘' }, 7);
+    const first = await runner.create(
+      { ...body, prompt: '저장하고 링크로 공유해줘' },
+      7,
+      undefined,
+      0,
+    );
     expect(first.status).toBe('partial');
     expect(first.saveResult).toBeDefined();
     expect(first.publicationResult).toBeUndefined();
@@ -1277,7 +1362,7 @@ describe('T7 durable executions', () => {
       new StudioRunService(studio, ai),
       publications as any,
     );
-    const next = await restarted.retry(first.runId, { stepId: 'publish' }, 7);
+    const next = await restarted.retry(first.runId, { stepId: 'publish' }, 7, undefined, 0);
     expect(next.status).toBe('succeeded');
     expect(next.publicationResult).toBeDefined();
     expect(publications.ownerMetadata).toHaveBeenCalledTimes(1);
@@ -1305,13 +1390,20 @@ describe('T7 durable executions', () => {
       new StudioRunService(studio, ai),
       publications as any,
     );
-    const first = await runner.create({ ...body, prompt: '저장하고 링크로 공유해줘' }, 7);
+    const first = await runner.create(
+      { ...body, prompt: '저장하고 링크로 공유해줘' },
+      7,
+      undefined,
+      0,
+    );
     const row = await db.manager.findOneBy(StudioExecution, { runId: first.runId });
     const state = JSON.parse(row.state);
     delete state.publicationBasis;
     row.state = JSON.stringify(state);
     await db.manager.save(StudioExecution, row);
-    await expect(runner.retry(first.runId, { stepId: 'publish' }, 7)).rejects.toMatchObject({
+    await expect(
+      runner.retry(first.runId, { stepId: 'publish' }, 7, undefined, 0),
+    ).rejects.toMatchObject({
       status: 409,
     });
     expect(publications.publish).toHaveBeenCalledTimes(1);
@@ -1331,7 +1423,12 @@ describe('T7 durable executions', () => {
       new StudioRunService(studio, ai),
       publications as any,
     );
-    const first = await runner.create({ ...body, prompt: '저장하고 링크로 공유해줘' }, 7);
+    const first = await runner.create(
+      { ...body, prompt: '저장하고 링크로 공유해줘' },
+      7,
+      undefined,
+      0,
+    );
     expect(first.status).toBe('succeeded');
     expect(first.publicationResult).toBeDefined();
     await db.manager.update(StudioExecution, { runId: first.runId }, { status: 'running' });
@@ -1349,7 +1446,12 @@ describe('T7 durable executions', () => {
       '저장하고 링크로 공유하지마',
       'do not save and share link',
     ].entries()) {
-      const result = await restarted.create({ ...body, requestId: 'ambiguous' + i, prompt }, 7);
+      const result = await restarted.create(
+        { ...body, requestId: 'ambiguous' + i, prompt },
+        7,
+        undefined,
+        0,
+      );
       expect(result.status).toBe('unsupported');
     }
     expect(publications.publish).toHaveBeenCalledTimes(1);
@@ -1366,7 +1468,12 @@ describe('T7 durable executions', () => {
         new StudioRunService(studio, ai),
         publications as any,
       );
-      const first = await runner.create({ ...body, prompt: '저장하고 링크로 공유해줘' }, 7);
+      const first = await runner.create(
+        { ...body, prompt: '저장하고 링크로 공유해줘' },
+        7,
+        undefined,
+        0,
+      );
       if (status === 'interrupted') {
         const row = await db.manager.findOne(StudioExecution, { where: { runId: first.runId } });
         const state = JSON.parse(row.state);
@@ -1384,7 +1491,9 @@ describe('T7 durable executions', () => {
         status: 'cancelled',
         retryable: false,
       });
-      await expect(runner.retry(first.runId, { stepId: 'publish' }, 7)).rejects.toMatchObject({
+      await expect(
+        runner.retry(first.runId, { stepId: 'publish' }, 7, undefined, 0),
+      ).rejects.toMatchObject({
         status: 409,
       });
       expect(publications.publish).toHaveBeenCalledTimes(1);
@@ -1399,7 +1508,12 @@ describe('T7 durable executions', () => {
       new StudioRunService(studio, ai),
       publications as any,
     );
-    const first = await runner.create({ ...body, prompt: '저장하고 링크로 공유해줘' }, 7);
+    const first = await runner.create(
+      { ...body, prompt: '저장하고 링크로 공유해줘' },
+      7,
+      undefined,
+      0,
+    );
     const row = await db.manager.findOne(StudioExecution, { where: { runId: first.runId } });
     const state = JSON.parse(row.state);
     state.steps.find(s => s.stepId === 'publish').status = 'running';
@@ -1448,7 +1562,7 @@ describe('T7 durable executions', () => {
         remixAdapter() as any,
         remixer as any,
       );
-      const run = await runner.create({ ...body, prompt: '내 데이터로 복제해줘' }, 7);
+      const run = await runner.create({ ...body, prompt: '내 데이터로 복제해줘' }, 7, undefined, 0);
       return { runner, run, remixer, journals };
     };
 

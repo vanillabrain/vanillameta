@@ -133,7 +133,7 @@ describe('LlmGateway (real SQLite ledger, mocked model call)', () => {
     await ask();
     expect((await rows())[0]).toMatchObject({
       status: 'ok',
-      inputTokens: 2,
+      inputTokens: 3, // ceil(len('sys') / 4) + ceil(len('hello') / 4)
       outputTokens: 10,
       usageEstimated: true,
     });
@@ -158,8 +158,8 @@ describe('LlmGateway (real SQLite ledger, mocked model call)', () => {
   it('counts an in-flight call toward the month at once, so concurrent calls cannot all slip under it', async () => {
     process.env.QUOTA_MONTHLY_TOKENS = '5000';
     // Each reservation is ~2050 tokens (input estimate + the 2048-token output ceiling).
-    let release: (value: unknown) => void = () => undefined;
-    generate.mockImplementation(() => new Promise(resolve => (release = resolve)));
+    const releases: Array<(value: unknown) => void> = [];
+    generate.mockImplementation(() => new Promise(resolve => releases.push(resolve)));
     const pending = [ask(), ask(), ask()];
     await new Promise(resolve => setTimeout(resolve, 50));
     await expect(ask()).rejects.toMatchObject({
@@ -167,7 +167,8 @@ describe('LlmGateway (real SQLite ledger, mocked model call)', () => {
       response: expect.objectContaining({ reason: 'monthly_tokens' }),
     });
     expect(generate).toHaveBeenCalledTimes(3);
-    release({ text: 'done', usage: { inputTokens: 5, outputTokens: 5 } });
+    for (const release of releases)
+      release({ text: 'done', usage: { inputTokens: 5, outputTokens: 5 } });
     await Promise.allSettled(pending);
   });
 
@@ -236,12 +237,12 @@ describe('LlmGateway (real SQLite ledger, mocked model call)', () => {
     expect(llmTimeoutMs({ AI_TIMEOUT_MS: 'nope' } as any)).toBe(120_000);
   });
 
-  it('returns JSON from a fenced answer, keeps the tokens spent when the JSON is invalid', async () => {
+  it('returns JSON from a fenced answer, and the text as it is when it is not JSON (the call site decides), with the tokens kept', async () => {
     answer('```json\n{"a": 1}\n```');
     expect(await ask({ jsonMode: true })).toBe('{"a": 1}');
     expect(generate.mock.calls[0][0].maxOutputTokens).toBe(4096);
-    answer('not json at all');
-    await expect(ask({ jsonMode: true })).rejects.toThrow('LLM_INVALID_JSON');
+    answer('  not json at all  ');
+    expect(await ask({ jsonMode: true })).toBe('not json at all');
     const statuses = (await rows()).map(row => row.status);
     expect(statuses).toEqual(['ok', 'ok']);
   });
@@ -255,7 +256,7 @@ describe('LlmGateway (real SQLite ledger, mocked model call)', () => {
     generate.mockRejectedValueOnce(rejected('Sure:\n```json\n{"a": 2}\n```'));
     expect(await ask({ jsonMode: true })).toBe('{"a": 2}');
     generate.mockRejectedValueOnce(rejected('no json here, sorry'));
-    await expect(ask({ jsonMode: true })).rejects.toThrow('LLM_INVALID_JSON');
+    expect(await ask({ jsonMode: true })).toBe('no json here, sorry');
     expect(
       (await rows()).map(row => [
         row.status,

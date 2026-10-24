@@ -31,7 +31,8 @@ export class FileSchemaDiagnosisService {
     requestId: string,
     body: any,
     actor: number,
-    signal?: AbortSignal,
+    signal: AbortSignal | undefined,
+    epoch: number,
   ) {
     checkedKeys(body, [
       'question',
@@ -118,6 +119,7 @@ export class FileSchemaDiagnosisService {
         }),
         true,
         abort.signal,
+        { userId: actor, epoch, feature: 'file-schema-diagnosis' },
       );
       if (abort.signal.aborted) throw new Error('cancelled');
       response = JSON.parse(raw);

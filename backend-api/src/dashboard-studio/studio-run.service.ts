@@ -18,7 +18,7 @@ export class StudioRunService {
   // Bounded, short-lived request replay only. No prompt/SQL/row history is persisted.
   private requests = new Map<string, { hash: string; expires: number; promise: Promise<any> }>();
   constructor(private readonly studio: StudioService, private readonly ai: AiService) {}
-  async run(body: any, actor: number, signal?: AbortSignal) {
+  async run(body: any, actor: number, signal: AbortSignal | undefined, epoch: number) {
     if (signal?.aborted) throw new BadRequestException('AI 요청을 취소했습니다.');
     // Authorization and version checks precede replay and all model calls.
     if (!Number.isSafeInteger(body?.dashboardId) || body.dashboardId <= 0)
@@ -62,7 +62,7 @@ export class StudioRunService {
     }
     if (this.requests.size >= 64)
       throw new ServiceUnavailableException('AI 요청이 많습니다. 잠시 후 다시 시도해 주세요.');
-    const promise = this.execute(body, actor, prepared, signal);
+    const promise = this.execute(body, actor, prepared, signal, epoch);
     this.requests.set(key, { hash, expires: Date.now() + 600000, promise });
     // Failed calls may be explicitly retried. Successful calls replay for ten minutes in this process only.
     promise.catch(() => {
@@ -70,14 +70,20 @@ export class StudioRunService {
     });
     return promise;
   }
-  private async execute(body: any, actor: number, prepared: any, signal?: AbortSignal) {
+  private async execute(
+    body: any,
+    actor: number,
+    prepared: any,
+    signal: AbortSignal | undefined,
+    epoch: number,
+  ) {
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) abort();
     const timer = setTimeout(abort, 175000);
     try {
-      const proposal = await this.propose(body, prepared, controller.signal, actor);
+      const proposal = await this.propose(body, prepared, controller.signal, actor, epoch);
       const checked = await this.studio.prepare(
         body.dashboardId,
         { ...body, document: proposal.document },
@@ -117,7 +123,13 @@ export class StudioRunService {
     }
   }
 
-  async propose(body: any, prepared: any, signal?: AbortSignal, actor?: number) {
+  async propose(
+    body: any,
+    prepared: any,
+    signal: AbortSignal | undefined,
+    actor: number,
+    epoch: number,
+  ) {
     if (process.env.AI_PROVIDER !== 'codex')
       throw new ServiceUnavailableException(
         'Studio AI는 Codex gpt-6-luna 연결이 필요합니다. 다른 모델로 대체하지 않습니다.',
@@ -188,6 +200,7 @@ export class StudioRunService {
         }),
         true,
         controller.signal,
+        { userId: actor, epoch, feature: 'studio-run' },
       );
       if (controller.signal.aborted) throw new Error('AI_ABORTED');
       let response: any,

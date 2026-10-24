@@ -429,6 +429,8 @@ describe('BiService dashboard editor boundaries', () => {
       const result =
         operation === 'editor'
           ? service.editor(dashboardId, 20)
+          : operation === 'editorAi'
+          ? service.editorAi(dashboardId, body(), 20, undefined, 0)
           : service[operation](dashboardId, body(), 20);
       await expect(result).rejects.toBeInstanceOf(ForbiddenException);
       expect(access.assert).toHaveBeenCalledWith('dashboard', dashboardId, 20);
@@ -453,6 +455,8 @@ describe('BiService dashboard editor boundaries', () => {
         layoutMode: 'desktop',
       }),
       actor,
+      undefined,
+      0,
     );
     expect(result.item).toEqual({
       ...existing,
@@ -478,12 +482,14 @@ describe('BiService dashboard editor boundaries', () => {
       layoutMode: 'desktop',
     });
     dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 1, y: 0, w: 6, h: 3 });
-    await expect(service.editorAi(dashboardId, request, actor)).rejects.toThrow(/겹/);
+    await expect(service.editorAi(dashboardId, request, actor, undefined, 0)).rejects.toThrow(/겹/);
     dashboards.proposeBlockLayout.mockImplementationOnce(async () => {
       analysis.revision = 'b'.repeat(64);
       return { x: 0, y: 4, w: 6, h: 3 };
     });
-    await expect(service.editorAi(dashboardId, request, actor)).rejects.toThrow(ConflictException);
+    await expect(service.editorAi(dashboardId, request, actor, undefined, 0)).rejects.toThrow(
+      ConflictException,
+    );
     expect(dashboards.preview).not.toHaveBeenCalled();
     expect(dashboards.save).not.toHaveBeenCalled();
   });
@@ -504,7 +510,7 @@ describe('BiService dashboard editor boundaries', () => {
       selectedKey: existing.key,
       prompt: '평균으로 변경',
     });
-    const result = await service.editorAi(dashboardId, request, actor);
+    const result = await service.editorAi(dashboardId, request, actor, undefined, 0);
     expect(dashboards.generate).toHaveBeenCalledWith(
       expect.objectContaining({
         databaseId: 1,
@@ -546,6 +552,8 @@ describe('BiService dashboard editor boundaries', () => {
       dashboardId,
       body({ items, selectedKey: items[0].key, prompt: '제목 변경' }),
       actor,
+      undefined,
+      0,
     );
     expect(dashboards.preview.mock.calls[0][0].draft.widgets[1]).toEqual(analysis.widgets[1]);
   });
@@ -592,7 +600,13 @@ describe('BiService dashboard editor boundaries', () => {
   it('rejects a missing target and stale AI revision before invoking the model', async () => {
     const items = (await service.editor(dashboardId, actor)).items;
     await expect(
-      service.editorAi(dashboardId, body({ items, selectedKey: 'foreign', prompt: '변경' }), actor),
+      service.editorAi(
+        dashboardId,
+        body({ items, selectedKey: 'foreign', prompt: '변경' }),
+        actor,
+        undefined,
+        0,
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
       service.editorAi(
@@ -604,6 +618,8 @@ describe('BiService dashboard editor boundaries', () => {
           expectedRevision: 'b'.repeat(64),
         }),
         actor,
+        undefined,
+        0,
       ),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(dashboards.generate).not.toHaveBeenCalled();
@@ -619,6 +635,8 @@ describe('BiService dashboard editor boundaries', () => {
         dashboardId,
         body({ items, selectedKey: items[0].key, prompt: '제목 변경' }),
         actor,
+        undefined,
+        0,
       ),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(dashboards.preview).not.toHaveBeenCalled();
@@ -684,7 +702,7 @@ describe('BiService dashboard editor boundaries', () => {
       saveRequested: false,
       editPrompt: null,
     });
-    await expect(service.editorAi(dashboardId, request, actor)).resolves.toEqual({
+    await expect(service.editorAi(dashboardId, request, actor, undefined, 0)).resolves.toEqual({
       editMode: 'clarify',
       saveRequested: false,
     });
@@ -697,7 +715,7 @@ describe('BiService dashboard editor boundaries', () => {
       editPrompt: '오른쪽 한 칸',
     });
     dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 1, y: 0, w: 6, h: 3 });
-    const result = await service.editorAi(dashboardId, request, actor);
+    const result = await service.editorAi(dashboardId, request, actor, undefined, 0);
     expect(result.editMode).toBe('layout');
     expect(result.saveRequested).toBe(true);
     expect(result.item.layouts.desktop).toEqual({ x: 1, y: 0, w: 6, h: 3 });
@@ -708,7 +726,13 @@ describe('BiService dashboard editor boundaries', () => {
     expect(dashboards.generate).not.toHaveBeenCalled();
     expect(dashboards.save).not.toHaveBeenCalled();
     await expect(
-      service.editorAi(dashboardId, { ...request, expectedRevision: 'b'.repeat(64) }, actor),
+      service.editorAi(
+        dashboardId,
+        { ...request, expectedRevision: 'b'.repeat(64) },
+        actor,
+        undefined,
+        0,
+      ),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(dashboards.classifyBlockIntent).toHaveBeenCalledTimes(2);
   });
@@ -723,7 +747,7 @@ describe('BiService dashboard editor boundaries', () => {
       layoutMode: 'desktop',
     });
     access.assert.mockRejectedValueOnce(new ForbiddenException());
-    await expect(service.editorAi(dashboardId, request, 20)).rejects.toBeInstanceOf(
+    await expect(service.editorAi(dashboardId, request, 20, undefined, 0)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
     expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
@@ -732,7 +756,7 @@ describe('BiService dashboard editor boundaries', () => {
       abort.abort();
       return { intent: 'layout', saveRequested: false, editPrompt: '오른쪽 한 칸' };
     });
-    await expect(service.editorAi(dashboardId, request, actor, abort.signal)).rejects.toThrow(
+    await expect(service.editorAi(dashboardId, request, actor, abort.signal, 0)).rejects.toThrow(
       'LLM_REQUEST_ABORTED',
     );
     expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
@@ -754,7 +778,7 @@ describe('BiService dashboard editor boundaries', () => {
       saveRequested: true,
       editPrompt: null,
     });
-    const result = await service.editorAi(dashboardId, request, actor);
+    const result = await service.editorAi(dashboardId, request, actor, undefined, 0);
     expect(result).toEqual({
       editMode: 'save',
       saveRequested: true,
@@ -798,6 +822,8 @@ describe('BiService dashboard editor boundaries', () => {
         layoutMode: 'desktop',
       }),
       actor,
+      undefined,
+      0,
     );
     expect(dashboards.generate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -834,6 +860,8 @@ describe('BiService dashboard editor boundaries', () => {
           layoutMode: 'desktop',
         }),
         actor,
+        undefined,
+        0,
       ),
     ).resolves.toEqual({ editMode: 'clarify', saveRequested: false });
     expect(dashboards.preview).not.toHaveBeenCalled();
@@ -857,7 +885,7 @@ describe('BiService dashboard editor boundaries', () => {
       saveRequested: false,
       editPrompt: '제목 바꿔 줘',
     });
-    await expect(service.editorAi(dashboardId, request, actor)).resolves.toEqual({
+    await expect(service.editorAi(dashboardId, request, actor, undefined, 0)).resolves.toEqual({
       editMode: 'clarify',
       saveRequested: false,
       targetCandidates: candidates,
@@ -867,7 +895,7 @@ describe('BiService dashboard editor boundaries', () => {
       saveRequested: true,
       editPrompt: '아래로 한 칸',
     });
-    await expect(service.editorAi(dashboardId, request, actor)).resolves.toEqual({
+    await expect(service.editorAi(dashboardId, request, actor, undefined, 0)).resolves.toEqual({
       editMode: 'clarify',
       saveRequested: false,
       targetCandidates: candidates,
@@ -894,6 +922,8 @@ describe('BiService dashboard editor boundaries', () => {
             layoutMode: 'desktop',
           }),
           actor,
+          undefined,
+          0,
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
@@ -914,6 +944,8 @@ describe('BiService dashboard editor boundaries', () => {
           expectedRevision: 'b'.repeat(64),
         }),
         actor,
+        undefined,
+        0,
       ),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
@@ -934,6 +966,8 @@ describe('BiService dashboard editor boundaries', () => {
         dashboardId,
         body({ items: [existing], prompt: '저장해 줘', editMode: 'auto', layoutMode: 'desktop' }),
         actor,
+        undefined,
+        0,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(dashboards.generate).not.toHaveBeenCalled();
@@ -952,6 +986,8 @@ describe('BiService dashboard editor boundaries', () => {
           layoutMode: 'desktop',
         }),
         actor,
+        undefined,
+        0,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
@@ -990,6 +1026,7 @@ describe('BiService dashboard editor boundaries', () => {
           }),
           actor,
           abort.signal,
+          0,
         ),
       ).rejects.toThrow('LLM_REQUEST_ABORTED');
       expect(dashboards.save).not.toHaveBeenCalled();
@@ -1006,6 +1043,8 @@ describe('BiService dashboard editor boundaries', () => {
       dashboardId,
       body({ items: [existing], selectedKey: existing.key, prompt: '제목 바꾸고 저장해 줘' }),
       actor,
+      undefined,
+      0,
     );
     expect(result.editMode).toBe('content');
     expect(result.saveRequested).toBe(false);
@@ -1048,6 +1087,8 @@ describe('BiService dashboard editor boundaries', () => {
         layoutMode: 'desktop',
       }),
       actor,
+      undefined,
+      0,
     );
     expect(dashboards.generate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1085,6 +1126,8 @@ describe('BiService dashboard editor boundaries', () => {
         layoutMode: 'desktop',
       }),
       actor,
+      undefined,
+      0,
     );
     expect(result).toEqual({
       editMode: 'clarify',
@@ -1117,6 +1160,8 @@ describe('BiService dashboard editor boundaries', () => {
         layoutMode: 'desktop',
       }),
       actor,
+      undefined,
+      0,
     );
     expect(dashboards.proposeBlockLayout).toHaveBeenCalledWith(
       expect.objectContaining({ selectedKey: 'block-2', prompt: '오른쪽 한 칸', mode: 'desktop' }),
@@ -1152,6 +1197,8 @@ describe('BiService dashboard editor boundaries', () => {
         layoutMode: 'desktop',
       }),
       actor,
+      undefined,
+      0,
     );
     expect(result).toEqual({
       editMode: 'clarify',
@@ -1189,6 +1236,8 @@ describe('BiService dashboard editor boundaries', () => {
         layoutMode: 'desktop',
       }),
       actor,
+      undefined,
+      0,
     );
     expect(dashboards.generate).toHaveBeenCalledWith(
       expect.objectContaining({ selectedWidget: 1 }),
@@ -1216,6 +1265,8 @@ describe('BiService dashboard editor boundaries', () => {
             layoutMode: 'desktop',
           }),
           actor,
+          undefined,
+          0,
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
@@ -1242,6 +1293,8 @@ describe('BiService dashboard editor boundaries', () => {
         prompt: '제목을 바꿔 줘',
       }),
       actor,
+      undefined,
+      0,
     );
     expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
     expect(dashboards.generate).toHaveBeenCalledWith(
@@ -1304,7 +1357,7 @@ describe('BiService dashboard editor boundaries', () => {
       },
     });
     dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 0, y: 6, w: 6, h: 3 });
-    const result = await service.editorAi(dashboardId, batchBody(items), actor);
+    const result = await service.editorAi(dashboardId, batchBody(items), actor, undefined, 0);
     expect(result.editMode).toBe('batch');
     expect(result.saveRequested).toBe(true);
     expect(result).not.toHaveProperty('item');
@@ -1365,7 +1418,7 @@ describe('BiService dashboard editor boundaries', () => {
       },
     });
     dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 0, y: 6, w: 6, h: 3 });
-    const result = await service.editorAi(dashboardId, batchBody(items), actor);
+    const result = await service.editorAi(dashboardId, batchBody(items), actor, undefined, 0);
     expect(result.changes[0].item.title).toBe('AI 비용');
     expect(result.changes[0].item.definition.title).toBe('AI 비용');
     expect(result.changes[1].item.title).toBe(items[2].title);
@@ -1410,7 +1463,7 @@ describe('BiService dashboard editor boundaries', () => {
       const items = (await service.editor(dashboardId, actor)).items;
       dashboards.classifyBlockIntent.mockResolvedValueOnce(batchPlan(actions));
       const error = await failed(
-        service.editorAi(dashboardId, batchBody(items, { prompt }), actor),
+        service.editorAi(dashboardId, batchBody(items, { prompt }), actor, undefined, 0),
       );
       expect(error.getResponse()).toMatchObject({
         batchFailure: { stage, ...(position === undefined ? {} : { position }) },
@@ -1464,7 +1517,7 @@ describe('BiService dashboard editor boundaries', () => {
           ],
         },
       });
-    const result = await service.editorAi(dashboardId, batchBody(items), actor);
+    const result = await service.editorAi(dashboardId, batchBody(items), actor, undefined, 0);
     expect(result.changes.map((change: any) => change.targetKey)).toEqual(['block-2', 'block-3']);
     expect(result.changes[0].item).toMatchObject({
       key: 'block-2',
@@ -1496,7 +1549,9 @@ describe('BiService dashboard editor boundaries', () => {
     dashboards.proposeBlockLayout.mockRejectedValueOnce(
       new BadRequestException('배치 변경을 해석하지 못했습니다.'),
     );
-    const error = await failed(service.editorAi(dashboardId, batchBody(items), actor));
+    const error = await failed(
+      service.editorAi(dashboardId, batchBody(items), actor, undefined, 0),
+    );
     expect(error.getResponse()).toMatchObject({
       batchFailure: { stage: 'change', position: 3 },
       message: expect.stringContaining('변경을 적용하지 못했습니다'),
@@ -1542,7 +1597,9 @@ describe('BiService dashboard editor boundaries', () => {
         },
       });
     dashboards.preview.mockRejectedValueOnce(new Error('duckdb failure: SELECT * FROM source'));
-    const error = await failed(service.editorAi(dashboardId, batchBody(items), actor));
+    const error = await failed(
+      service.editorAi(dashboardId, batchBody(items), actor, undefined, 0),
+    );
     expect(error.getResponse()).toMatchObject({
       batchFailure: { stage: 'preview' },
       message: expect.stringContaining('전체 미리보기에 실패했습니다'),
@@ -1572,9 +1629,9 @@ describe('BiService dashboard editor boundaries', () => {
         ],
       },
     });
-    await expect(service.editorAi(dashboardId, batchBody(items), actor)).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.editorAi(dashboardId, batchBody(items), actor, undefined, 0),
+    ).rejects.toBeInstanceOf(ConflictException);
     expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
     expect(dashboards.preview).not.toHaveBeenCalled();
     expect(dashboards.save).not.toHaveBeenCalled();
@@ -1600,7 +1657,7 @@ describe('BiService dashboard editor boundaries', () => {
       };
     });
     await expect(
-      service.editorAi(dashboardId, batchBody(items), actor, abort.signal),
+      service.editorAi(dashboardId, batchBody(items), actor, abort.signal, 0),
     ).rejects.toThrow('LLM_REQUEST_ABORTED');
     expect(dashboards.proposeBlockLayout).not.toHaveBeenCalled();
     expect(dashboards.preview).not.toHaveBeenCalled();
@@ -1624,7 +1681,7 @@ describe('BiService dashboard editor boundaries', () => {
       editPrompt: null,
       publicationRequested: true,
     });
-    await expect(service.editorAi(dashboardId, request, actor)).resolves.toEqual({
+    await expect(service.editorAi(dashboardId, request, actor, undefined, 0)).resolves.toEqual({
       editMode: 'save',
       saveRequested: true,
       publicationRequested: true,
@@ -1659,6 +1716,8 @@ describe('BiService dashboard editor boundaries', () => {
         layoutMode: 'desktop',
       }),
       actor,
+      undefined,
+      0,
     );
     expect(result.editMode).toBe('content');
     expect(result.saveRequested).toBe(true);
@@ -1687,7 +1746,7 @@ describe('BiService dashboard editor boundaries', () => {
       publicationRequested: true,
     });
     dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 1, y: 0, w: 6, h: 3 });
-    const result = await service.editorAi(dashboardId, request, actor);
+    const result = await service.editorAi(dashboardId, request, actor, undefined, 0);
     expect(result.editMode).toBe('layout');
     expect(result.saveRequested).toBe(true);
     expect(result.publicationRequested).toBe(true);
@@ -1713,7 +1772,7 @@ describe('BiService dashboard editor boundaries', () => {
       },
     });
     dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 0, y: 6, w: 6, h: 3 });
-    const result = await service.editorAi(dashboardId, batchBody(items), actor);
+    const result = await service.editorAi(dashboardId, batchBody(items), actor, undefined, 0);
     expect(result.editMode).toBe('batch');
     expect(result.saveRequested).toBe(true);
     expect(result.publicationRequested).toBe(true);
@@ -1739,6 +1798,8 @@ describe('BiService dashboard editor boundaries', () => {
         layoutMode: 'desktop',
       }),
       actor,
+      undefined,
+      0,
     );
     expect(dashboards.classifyBlockIntent).not.toHaveBeenCalled();
     expect(manual).not.toHaveProperty('publicationRequested');
@@ -1762,6 +1823,8 @@ describe('BiService dashboard editor boundaries', () => {
         layoutMode: 'desktop',
       }),
       actor,
+      undefined,
+      0,
     );
     expect(legacy.publicationRequested).toBeUndefined();
     expect(legacy).not.toHaveProperty('publicationRequested');
@@ -1783,6 +1846,8 @@ describe('BiService dashboard editor boundaries', () => {
           layoutMode: 'desktop',
         }),
         actor,
+        undefined,
+        0,
       ),
     ).resolves.toEqual({ editMode: 'clarify', saveRequested: false });
     expect(dashboards.preview.mock.calls.length).toBe(previewsBeforeClarify);
@@ -1808,7 +1873,7 @@ describe('BiService dashboard editor boundaries', () => {
         publicationRequested: true,
       };
     });
-    await expect(service.editorAi(dashboardId, request, actor, during.signal)).rejects.toThrow(
+    await expect(service.editorAi(dashboardId, request, actor, during.signal, 0)).rejects.toThrow(
       'LLM_REQUEST_ABORTED',
     );
     expect(dashboards.generate).not.toHaveBeenCalled();
@@ -1828,7 +1893,7 @@ describe('BiService dashboard editor boundaries', () => {
         data: { ...analysis, widgets: [{ ...analysis.widgets[0], title: '바뀐 제목' }] },
       };
     });
-    await expect(service.editorAi(dashboardId, request, actor, after.signal)).rejects.toThrow(
+    await expect(service.editorAi(dashboardId, request, actor, after.signal, 0)).rejects.toThrow(
       'LLM_REQUEST_ABORTED',
     );
     expect(dashboards.save).not.toHaveBeenCalled();

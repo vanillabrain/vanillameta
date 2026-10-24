@@ -267,14 +267,28 @@ describe('organization canonical queries over real SQLite metadata and DuckDB', 
     const a: any = await service.catalog(org.id, 1, 2),
       b: any = await service.catalog(org.id, 1, 3);
     await expect(
-      service.assistant(org.id, 1, { viewRevision: b.viewRevision, question: '매출 보여줘' }, 3),
+      service.assistant(
+        org.id,
+        1,
+        { viewRevision: b.viewRevision, question: '매출 보여줘' },
+        3,
+        undefined,
+        0,
+      ),
     ).rejects.toMatchObject({ status: 403 });
     expect(ai.callLlm).not.toHaveBeenCalled();
     const refused = [];
     for (const question of ['cost를 보여줘', 'invented_column를 보여줘']) {
       ai.callLlm.mockResolvedValueOnce(JSON.stringify({ blockIds: [], filters: [] }));
       try {
-        await service.assistant(org.id, 1, { viewRevision: a.viewRevision, question }, 2);
+        await service.assistant(
+          org.id,
+          1,
+          { viewRevision: a.viewRevision, question },
+          2,
+          undefined,
+          0,
+        );
         throw new Error('not rejected');
       } catch (error) {
         expect(error.status).toBe(400);
@@ -289,6 +303,8 @@ describe('organization canonical queries over real SQLite metadata and DuckDB', 
           1,
           { viewRevision: a.viewRevision, question: '매출 보여줘' },
           2,
+          undefined,
+          0,
         ),
       ),
     ).toBe(250);
@@ -356,6 +372,8 @@ describe('organization canonical queries over real SQLite metadata and DuckDB', 
       1,
       { viewRevision: a.viewRevision, question: '매출' },
       2,
+      undefined,
+      0,
     );
     await entered;
     await service.revokePolicy(org.id, policyA.id, { expectedVersion: 1 }, 1);
@@ -377,12 +395,21 @@ describe('organization canonical queries over real SQLite metadata and DuckDB', 
         filters: [{ column: 'revenue', values: [100] }],
       },
       2,
+      undefined,
+      0,
     );
     expect(value(result)).toBe(100);
     ai.callLlm.mockResolvedValueOnce(JSON.stringify({ blockIds: ['cost'], filters: [] }));
     connection.queryDuckDB.mockClear();
     await expect(
-      service.assistant(org.id, 1, { viewRevision: a.viewRevision, question: '다른 지표' }, 2),
+      service.assistant(
+        org.id,
+        1,
+        { viewRevision: a.viewRevision, question: '다른 지표' },
+        2,
+        undefined,
+        0,
+      ),
     ).rejects.toMatchObject({ status: 400 });
     expect(connection.queryDuckDB).not.toHaveBeenCalled();
   });

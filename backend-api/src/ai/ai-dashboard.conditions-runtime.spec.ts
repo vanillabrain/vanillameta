@@ -278,7 +278,12 @@ describe('UC052 scoped runtime actual DuckDB and isolated SQLite', () => {
     };
     const assistant = new AiDashboardService(ai as any, connection, db.getRepository(Dashboard));
     const current = (await service.analysis(id, 7)).data;
-    await assistant.assistant({ dashboardId: id, currentDraft: current, prompt: 'Explain' }, 7);
+    await assistant.assistant(
+      { dashboardId: id, currentDraft: current, prompt: 'Explain' },
+      7,
+      undefined,
+      0,
+    );
     expect(JSON.parse(ai.callLlm.mock.calls[0][1]).context.widgets[0].datas).toEqual([
       { value: 30 },
     ]);

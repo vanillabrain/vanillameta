@@ -364,7 +364,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
         clientEditVersion: 1,
         prompt: '금액 300 이상을 제외하는 포함/제외 조건을 제안해 줘',
       };
-      const result = await runs.run(input, 7);
+      const result = await runs.run(input, 7, undefined, 0);
       expect(result.preview.widgets[0].datas).toEqual([{ value: 200 }]);
       expect(result.preview.widgets[1].datas).toEqual([{ category: 'Mobile', value: 200 }]);
       expect(initial.document.conditions).toBeUndefined();
@@ -405,6 +405,8 @@ describe('Studio real DuckDB and transactional metadata', () => {
             expectedRevision: restored.document.revision,
           },
           7,
+          undefined,
+          0,
         ),
       ).rejects.toMatchObject({ status: 400 });
       expect((await studio.get(id, 7)).document).toEqual(restored.document);
@@ -1473,6 +1475,8 @@ describe('Studio real DuckDB and transactional metadata', () => {
           prompt: '2026년 1월 1일의 업무 날짜 조건으로 검토해 줘',
         },
         7,
+        undefined,
+        0,
       );
       const context = JSON.parse(model.callLlm.mock.calls[0][1]);
       expect(context.conditionColumns.find(c => c.name === 'event_time')).toMatchObject({

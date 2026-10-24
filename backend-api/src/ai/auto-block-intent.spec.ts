@@ -52,7 +52,13 @@ describe('UC-014 strict intent and save boundary', () => {
     'accepts strict %s with the exact 3 keys and a prompt-only input',
     async (_name, raw, expected) => {
       const { service, callLlm } = setup(raw);
-      await expect(service.classifyBlockIntent('소수 1자리')).resolves.toEqual(expected);
+      await expect(
+        service.classifyBlockIntent('소수 1자리', undefined, {
+          userId: 1,
+          epoch: 0,
+          feature: 'test',
+        }),
+      ).resolves.toEqual(expected);
       expect(JSON.parse(callLlm.mock.calls[0][1])).toEqual({ prompt: '소수 1자리' });
       expect(callLlm).toHaveBeenCalledTimes(1);
       expect(callLlm.mock.calls[0][2]).toBe(true);
@@ -89,7 +95,9 @@ describe('UC-014 strict intent and save boundary', () => {
     ['clarify carrying an editPrompt', plan('clarify', false, '내용 변경')],
   ])('rejects %s without falling back to another model', async (_name, raw) => {
     const { service, callLlm } = setup(raw);
-    await expect(service.classifyBlockIntent('아래로')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.classifyBlockIntent('아래로', undefined, { userId: 1, epoch: 0, feature: 'test' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(callLlm).toHaveBeenCalledTimes(1);
   });
 
@@ -97,18 +105,18 @@ describe('UC-014 strict intent and save boundary', () => {
     const { service, callLlm } = setup(plan('content', false, '제목 변경'));
     const before = new AbortController();
     before.abort();
-    await expect(service.classifyBlockIntent('질문', before.signal)).rejects.toThrow(
-      'LLM_REQUEST_ABORTED',
-    );
+    await expect(
+      service.classifyBlockIntent('질문', before.signal, { userId: 1, epoch: 0, feature: 'test' }),
+    ).rejects.toThrow('LLM_REQUEST_ABORTED');
     expect(callLlm).not.toHaveBeenCalled();
     const during = new AbortController();
     callLlm.mockImplementationOnce(async () => {
       during.abort();
       return plan('content', false, '제목 변경');
     });
-    await expect(service.classifyBlockIntent('질문', during.signal)).rejects.toThrow(
-      'LLM_REQUEST_ABORTED',
-    );
+    await expect(
+      service.classifyBlockIntent('질문', during.signal, { userId: 1, epoch: 0, feature: 'test' }),
+    ).rejects.toThrow('LLM_REQUEST_ABORTED');
   });
 
   const batch = (saveRequested: unknown, actions: unknown) =>
@@ -126,7 +134,13 @@ describe('UC-014 strict intent and save boundary', () => {
       action('layout', '3번 차트', '아래로 한 칸 옮겨 줘'),
     ]);
     const { service, callLlm } = setup(raw);
-    await expect(service.classifyBlockIntent(mixedQuestion)).resolves.toEqual({
+    await expect(
+      service.classifyBlockIntent(mixedQuestion, undefined, {
+        userId: 1,
+        epoch: 0,
+        feature: 'test',
+      }),
+    ).resolves.toEqual({
       intent: 'batch',
       saveRequested: true,
       actions: [
@@ -165,7 +179,11 @@ describe('UC-014 strict intent and save boundary', () => {
     ],
   ])('accepts %s and keeps the original language', async (_name, raw, question, length) => {
     const { service } = setup(raw);
-    const plan = await service.classifyBlockIntent(question);
+    const plan = await service.classifyBlockIntent(question, undefined, {
+      userId: 1,
+      epoch: 0,
+      feature: 'test',
+    });
     expect(plan).toMatchObject({ intent: 'batch', saveRequested: false });
     expect((plan as { actions: unknown[] }).actions).toHaveLength(length);
   });
@@ -261,7 +279,9 @@ describe('UC-014 strict intent and save boundary', () => {
     ],
   ])('rejects %s without falling back to another model', async (_name, question, raw) => {
     const { service, callLlm } = setup(raw);
-    await expect(service.classifyBlockIntent(question)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.classifyBlockIntent(question, undefined, { userId: 1, epoch: 0, feature: 'test' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(callLlm).toHaveBeenCalledTimes(1);
   });
 });
@@ -322,7 +342,9 @@ describe('UC-019 optional publication request flag', () => {
     ],
   ])('accepts %s that also asked for publication', async (_name, raw, expected) => {
     const { service, callLlm } = setup(raw);
-    await expect(service.classifyBlockIntent(question)).resolves.toEqual(expected);
+    await expect(
+      service.classifyBlockIntent(question, undefined, { userId: 1, epoch: 0, feature: 'test' }),
+    ).resolves.toEqual(expected);
     // BR-019-01: the classifier input stays the question alone.
     expect(JSON.parse(callLlm.mock.calls[0][1])).toEqual({ prompt: question });
     expect(callLlm).toHaveBeenCalledTimes(1);
@@ -332,7 +354,13 @@ describe('UC-019 optional publication request flag', () => {
   it('accepts a batch that asked for publication and reuses the unchanged action parser', async () => {
     const raw = batch(true, actions, { publicationRequested: true });
     const { service, callLlm } = setup(raw);
-    await expect(service.classifyBlockIntent(mixedQuestion)).resolves.toEqual({
+    await expect(
+      service.classifyBlockIntent(mixedQuestion, undefined, {
+        userId: 1,
+        epoch: 0,
+        feature: 'test',
+      }),
+    ).resolves.toEqual({
       intent: 'batch',
       saveRequested: true,
       actions: [
@@ -358,7 +386,11 @@ describe('UC-019 optional publication request flag', () => {
     ],
   ])('omits the key entirely for %s', async (_name, prompt, raw) => {
     const { service } = setup(raw);
-    const plan = await service.classifyBlockIntent(prompt);
+    const plan = await service.classifyBlockIntent(prompt, undefined, {
+      userId: 1,
+      epoch: 0,
+      feature: 'test',
+    });
     expect(plan).not.toHaveProperty('publicationRequested');
   });
 
@@ -430,13 +462,19 @@ describe('UC-019 optional publication request flag', () => {
     ],
   ])('rejects %s without falling back to another model', async (_name, prompt, raw) => {
     const { service, callLlm } = setup(raw);
-    await expect(service.classifyBlockIntent(prompt)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.classifyBlockIntent(prompt, undefined, { userId: 1, epoch: 0, feature: 'test' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(callLlm).toHaveBeenCalledTimes(1);
   });
 
   it('states the flag rules and the publish-wording strip in the system prompt', async () => {
     const { service, callLlm } = setup(single('content', true, '제목을 바꿔 줘'));
-    await service.classifyBlockIntent(question);
+    await service.classifyBlockIntent(question, undefined, {
+      userId: 1,
+      epoch: 0,
+      feature: 'test',
+    });
     const system = callLlm.mock.calls[0][0] as string;
     expect(system).toContain('publicationRequested');
     expect(system).toMatch(/게시 미리보기/);

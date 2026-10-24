@@ -23,6 +23,7 @@ import { randomUUID } from 'crypto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CommerceStudioService } from './commerce-studio.service';
 import { CommerceService } from './commerce.service';
+import { requestEpoch } from '../ai/ai-caller';
 
 @UseGuards(JwtAuthGuard, UserThrottleGuard)
 @Controller('commerce')
@@ -55,7 +56,7 @@ export class CommerceController {
     res.once('close', onClose);
     if (req.aborted) abort.abort();
     try {
-      return await this.commerce.sampleHelp(this.actor(req), body, abort.signal);
+      return await this.commerce.sampleHelp(this.actor(req), body, abort.signal, requestEpoch(req));
     } finally {
       req.off('aborted', onAbort);
       res.off('close', onClose);
@@ -74,7 +75,7 @@ export class CommerceController {
     res.once('close', onClose);
     if (req.aborted) abort.abort();
     try {
-      return await this.commerce.importHelp(this.actor(req), body, abort.signal);
+      return await this.commerce.importHelp(this.actor(req), body, abort.signal, requestEpoch(req));
     } finally {
       req.off('aborted', onAbort);
       res.off('close', onClose);
@@ -206,7 +207,7 @@ export class CommerceController {
     },
     @Req() req: any,
   ) {
-    return this.commerce.aiDraft(this.actor(req), id, body);
+    return this.commerce.aiDraft(this.actor(req), id, body, requestEpoch(req));
   }
 
   @Put(':id/presentation')

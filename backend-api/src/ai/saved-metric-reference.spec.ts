@@ -122,7 +122,12 @@ function setup(
 }
 it('UC-002 supplies an authorized bounded catalog and applies its expression before preview', async () => {
   const { service, manager, ai } = setup();
-  const result = await service.generate({ databaseId: 7, prompt: '저장 지표로 요청 수' }, 9);
+  const result = await service.generate(
+    { databaseId: 7, prompt: '저장 지표로 요청 수' },
+    9,
+    undefined,
+    0,
+  );
   expect(manager.find).toHaveBeenCalledWith(expect.anything(), {
     where: { databaseId: 7, useYn: 'Y' },
     order: { id: 'ASC' },
@@ -135,9 +140,9 @@ it('UC-002 supplies an authorized bounded catalog and applies its expression bef
 });
 it.each([null, 8])('does not expose the catalog for foreign/legacy owner %s', async owner => {
   const { service, manager, ai } = setup(owner);
-  await expect(service.generate({ databaseId: 7, prompt: 'requests' }, 9)).rejects.toThrow(
-    'ownership',
-  );
+  await expect(
+    service.generate({ databaseId: 7, prompt: 'requests' }, 9, undefined, 0),
+  ).rejects.toThrow('ownership');
   expect(manager.find).not.toHaveBeenCalled();
   expect(ai.callLlm).not.toHaveBeenCalled();
 });
@@ -174,7 +179,12 @@ it('accepts a canonical quoted request counter rather than falsely rejecting it'
   });
   ai.getSchemaContext.mockResolvedValue({ schemaText: 'bid_request_cnt BIGINT' });
   ai.callLlm.mockResolvedValue(JSON.stringify(draft()));
-  const result = await service.generate({ databaseId: 7, prompt: '저장된 요청 수' }, 9);
+  const result = await service.generate(
+    { databaseId: 7, prompt: '저장된 요청 수' },
+    9,
+    undefined,
+    0,
+  );
   if (!('data' in result)) throw new Error(result.message);
   expect(result.data.widgets[0].sql).toContain('SUM("bid_request_cnt")');
   expect(result.data.reusedMetricIds).toEqual([3]);
@@ -221,6 +231,8 @@ it.each([99, '3', null])(
           selectedMetricId,
         },
         9,
+        undefined,
+        0,
       ),
     ).rejects.toThrow('selected metric unavailable');
     expect(ai.callLlm).not.toHaveBeenCalled();
@@ -244,6 +256,8 @@ it('enforces an explicit selection in generation and reports the correct widget 
       selectedMetricId: 3,
     },
     9,
+    undefined,
+    0,
   );
   if (!('data' in result)) throw new Error(result.message);
   expect(result.data.widgets[0]).toEqual(current.widgets[0]);
@@ -283,6 +297,8 @@ it('BR-016-02 honors an explicit rename on the saved-metric path without touchin
       selectedMetricId: 3,
     },
     9,
+    undefined,
+    0,
   );
   if (!('data' in result)) throw new Error(result.message);
   expect(result.data.widgets[0]).toEqual(current.widgets[0]);
@@ -310,6 +326,8 @@ it('BR-002 still rejects an implicit retitle on the saved-metric path', async ()
       selectedMetricId: 3,
     },
     9,
+    undefined,
+    0,
   );
   expect(result.status).toBe('ERROR');
   expect(ai.callLlm).toHaveBeenCalledTimes(2);
@@ -349,7 +367,12 @@ it('UC-003 reuses an updated AVG requests definition without forcing it back to 
     datas: [{ column_name: 'bid_request_cnt', column_type: 'BIGINT' }],
   });
   ai.getSchemaContext.mockResolvedValue({ schemaText: 'bid_request_cnt BIGINT' });
-  const result = await service.generate({ databaseId: 7, prompt: '저장 지표로 요청 수 평균' }, 9);
+  const result = await service.generate(
+    { databaseId: 7, prompt: '저장 지표로 요청 수 평균' },
+    9,
+    undefined,
+    0,
+  );
   if (!('data' in result)) throw new Error(result.message);
   expect(result.data.widgets[0].sql).toContain('AVG("bid_request_cnt")');
   expect(ai.callLlm).toHaveBeenCalledTimes(1);
@@ -370,6 +393,8 @@ it('UC-006 isolates an ordinary selected AI edit without a saved metric and pres
   const result = await service.generate(
     { databaseId: 7, prompt: '선택한 차트 제목 수정', currentDraft: current, selectedWidget: 0 },
     9,
+    undefined,
+    0,
   );
   if (!('data' in result)) throw new Error(result.message);
   expect(result.data.widgets[0]).toMatchObject({ title: 'Changed', blockId: 'block-original' });

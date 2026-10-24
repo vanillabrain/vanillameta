@@ -763,7 +763,8 @@ export class GovernanceService {
     dashboardId: number,
     body: any,
     actor: number,
-    signal?: AbortSignal,
+    signal: AbortSignal | undefined,
+    epoch: number,
   ) {
     governedKeys(body, ['viewRevision', 'question', 'filters']);
     const question = label(body.question, 1000);
@@ -796,6 +797,7 @@ export class GovernanceService {
           }),
           true,
           controller.signal,
+          { userId: actor, epoch, feature: 'governance-assistant' },
         );
         if (controller.signal.aborted) throw new Error('cancelled');
         plan = JSON.parse(raw);

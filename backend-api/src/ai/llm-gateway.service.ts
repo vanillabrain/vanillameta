@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   OnModuleInit,
@@ -8,7 +10,7 @@ import {
 import { APICallError, LanguageModel, NoObjectGeneratedError, Output, generateText } from 'ai';
 import { randomUUID } from 'crypto';
 import { AiQuotaService } from '../usage/ai-quota.service';
-import { estimateTokens, normalizeJsonText } from './llm-json';
+import { estimateTokens, normalizeJsonOrRaw } from './llm-json';
 import { AiProviderConfig, aiProviderConfig, globalMonthlyTokens } from './providers/ai-config';
 import { resolveLanguageModel } from './providers/provider-registry';
 
@@ -94,6 +96,27 @@ export class LlmGateway implements OnModuleInit {
         error: 'AI_BUDGET_EXHAUSTED',
         message: '이번 달 AI 사용 예산을 모두 사용했습니다. 다음 달에 다시 사용할 수 있습니다.',
       });
+  }
+
+  /**
+   * For an action that makes several model calls: refuses up front, with the same 429 a single call
+   * gets, when the day's remaining calls cannot cover `calls`, so the action does not stop half-spent.
+   */
+  async assertCallsAvailable(caller: AiCaller, calls: number): Promise<void> {
+    const { daily } = await this.quota.summary(caller.userId);
+    if (daily.limit - daily.used >= calls) return;
+    throw new HttpException(
+      {
+        error: 'AI_QUOTA_EXCEEDED',
+        message: `이 작업에는 AI 호출이 ${calls}번 필요하지만 오늘 남은 호출이 부족합니다.`,
+        reason: 'daily_calls',
+        limit: daily.limit,
+        used: daily.used,
+        needed: calls,
+        resetsAt: daily.resetsAt.toISOString(),
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 
   async generate(request: LlmRequest): Promise<string> {
@@ -205,6 +228,9 @@ export class LlmGateway implements OnModuleInit {
         );
       if (this.budget) this.budget.total += inputTokens + outputTokens - reservedTokens;
     }
-    return jsonMode ? normalizeJsonText(text) : text;
+    // A JSON answer comes back as the bare JSON text when it can be read as one. When it cannot, the text
+    // is returned as it is: every call site already has its own answer to unparseable output (a 400, or a
+    // corrective retry), and an exception here would skip it.
+    return jsonMode ? normalizeJsonOrRaw(text) : text;
   }
 }

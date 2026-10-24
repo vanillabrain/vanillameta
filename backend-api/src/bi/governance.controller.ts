@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GovernanceService } from './governance.service';
+import { requestEpoch } from '../ai/ai-caller';
 @Injectable()
 class NoStore implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler) {
@@ -168,6 +169,7 @@ export class GovernanceController {
           body,
           this.actor(req),
           controller.signal,
+          requestEpoch(req),
         ),
       );
     } finally {

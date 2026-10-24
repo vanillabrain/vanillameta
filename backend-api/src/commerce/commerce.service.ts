@@ -111,12 +111,12 @@ export class CommerceService {
     return request;
   }
 
-  sampleHelp(ownerId: number, body: any, signal?: AbortSignal) {
-    return this.errorHelp(ownerId, body, signal, false);
+  sampleHelp(ownerId: number, body: any, signal: AbortSignal | undefined, epoch: number) {
+    return this.errorHelp(ownerId, body, signal, false, epoch);
   }
 
-  importHelp(ownerId: number, body: any, signal?: AbortSignal) {
-    return this.errorHelp(ownerId, body, signal, true);
+  importHelp(ownerId: number, body: any, signal: AbortSignal | undefined, epoch: number) {
+    return this.errorHelp(ownerId, body, signal, true, epoch);
   }
 
   private async errorHelp(
@@ -124,6 +124,7 @@ export class CommerceService {
     body: any,
     signal: AbortSignal | undefined,
     importing: boolean,
+    epoch: number,
   ) {
     const failures = importing ? this.importFailures : this.sampleFailures;
     if (
@@ -185,6 +186,7 @@ export class CommerceService {
         }),
         true,
         signal,
+        { userId: ownerId, epoch, feature: 'commerce-error-help' },
       );
       if (!current())
         throw new ConflictException('오류 상태가 바뀌었습니다. 샘플을 다시 시도해 주세요.');
@@ -759,6 +761,7 @@ export class CommerceService {
       end?: string;
       channel?: string;
     },
+    epoch: number,
   ) {
     if (typeof body?.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 1000)
       throw new BadRequestException('prompt must be 1–1000 characters');
@@ -816,6 +819,8 @@ export class CommerceService {
         report: aiReport,
       }),
       true,
+      undefined,
+      { userId: ownerId, epoch, feature: 'commerce-ai-draft' },
     );
     let draft: any;
     try {

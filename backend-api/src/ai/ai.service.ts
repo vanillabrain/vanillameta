@@ -11,9 +11,8 @@ import { DatabaseService } from '../database/database.service';
 import { assertReadOnlyQuery, assertSafeIdentifier } from '../utils/query-guard.util';
 import { RecommendChartDto } from './dto/recommend-chart.dto';
 import { YesNo } from '../common/enum/yn.enum';
-import { CODEX_MODEL } from './coding-agent';
-import { generateText } from 'ai';
-import { codexSdkModel } from './codex-sdk-model';
+import { AiCaller, LlmGateway } from './llm-gateway.service';
+import { aiProviderConfig, isAiConfigured } from './providers/ai-config';
 
 const MAX_SCHEMA_TABLES = 25;
 const MAX_PROMPT_LENGTH = 2000;
@@ -38,97 +37,46 @@ export class AiService {
     @InjectRepository(Dashboard) private dashboardRepository: Repository<Dashboard>,
     private readonly dashboardWidgetService: DashboardWidgetService,
     @InjectRepository(UserMapping) private userMappingRepository: Repository<UserMapping>,
+    private readonly gateway: LlmGateway,
   ) {}
 
   private isConfigured(): boolean {
-    return process.env.AI_PROVIDER === 'codex' || !!process.env.AI_API_KEY;
+    return isAiConfigured();
   }
 
   private providerMetadata() {
+    const config = aiProviderConfig();
     return {
-      provider: process.env.AI_PROVIDER === 'codex' ? 'codex' : 'api',
-      // Requested model only: CLI output does not attest to the model actually used.
-      requestedModel:
-        process.env.AI_PROVIDER === 'codex' ? CODEX_MODEL : process.env.AI_MODEL || 'gpt-4o-mini',
+      provider: config?.provider === 'codex' ? 'codex' : 'api',
+      // Requested model only: the provider's answer does not attest to the model actually used.
+      requestedModel: config?.model ?? '',
     };
   }
 
-  /** Opt-in Codex CLI, otherwise the existing OpenAI-compatible API. */
+  /** Refuses with 429 when the caller's remaining calls today cannot cover `calls`. */
+  assertCallsAvailable(caller: AiCaller, calls: number) {
+    return this.gateway.assertCallsAvailable(caller, calls);
+  }
+
+  /**
+   * The one place the server asks a model anything. It goes through the gateway, which checks the
+   * server-wide ceiling, takes one slot of the caller's quota and writes the ledger row. `caller` is
+   * required so that no call can be made on nobody's behalf.
+   */
   async callLlm(
     systemPrompt: string,
     userPrompt: string,
-    jsonMode = false,
-    abortSignal?: AbortSignal,
+    jsonMode: boolean,
+    abortSignal: AbortSignal | undefined,
+    caller: AiCaller,
   ): Promise<string> {
-    if (process.env.AI_PROVIDER === 'codex') {
-      const result = await generateText({
-        model: codexSdkModel(jsonMode),
-        system: systemPrompt,
-        prompt: userPrompt,
-        maxRetries: 0,
-        abortSignal,
-      });
-      return result.text;
-    }
-    const apiKey = process.env.AI_API_KEY;
-    if (!apiKey) {
-      throw new Error('AI_NOT_CONFIGURED');
-    }
-    const baseUrl = (process.env.AI_API_BASE_URL || 'https://api.openai.com/v1').replace(
-      /\/+$/,
-      '',
-    );
-    const model = process.env.AI_MODEL || 'gpt-4o-mini';
-
-    const controller = new AbortController();
-    const onAbort = () => controller.abort();
-    abortSignal?.addEventListener('abort', onAbort, { once: true });
-    if (abortSignal?.aborted) onAbort();
-    const configuredTimeout = Number(process.env.AI_TIMEOUT_MS);
-    const timeoutMs =
-      Number.isFinite(configuredTimeout) && configuredTimeout > 0
-        ? Math.min(configuredTimeout, 180000)
-        : 30000;
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    let response: Response;
-    try {
-      response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          temperature: 0,
-          ...(jsonMode ? { response_format: { type: 'json_object' }, max_tokens: 4096 } : {}),
-          ...(process.env.AI_REASONING_EFFORT
-            ? { reasoning_effort: process.env.AI_REASONING_EFFORT }
-            : {}),
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-        }),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeout);
-      abortSignal?.removeEventListener('abort', onAbort);
-    }
-
-    if (!response.ok) {
-      const body = await response.text();
-      console.error(`LLM API error ${response.status}: ${body.slice(0, 500)}`);
-      throw new Error(`LLM_API_ERROR_${response.status}`);
-    }
-
-    const json = await response.json();
-    const content = json?.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new Error('LLM_EMPTY_RESPONSE');
-    }
-    return content;
+    return this.gateway.generate({
+      system: systemPrompt,
+      prompt: userPrompt,
+      jsonMode,
+      abortSignal,
+      caller,
+    });
   }
 
   /**
@@ -171,7 +119,7 @@ export class AiService {
   /**
    * 자연어 요구사항 → SQL 생성. 생성된 SQL은 read-only 가드를 통과해야 반환됨.
    */
-  async textToSql(databaseId: number, prompt: string) {
+  async textToSql(databaseId: number, prompt: string, caller: AiCaller) {
     if (!Number.isInteger(+databaseId) || +databaseId <= 0) {
       return { status: ResponseStatus.ERROR, message: 'invalid databaseId' };
     }
@@ -208,7 +156,7 @@ export class AiService {
     const userPrompt = `Database schema:\n${schemaText || '(empty)'}\n\nRequest: ${prompt.trim()}`;
 
     try {
-      const raw = await this.callLlm(systemPrompt, userPrompt);
+      const raw = await this.callLlm(systemPrompt, userPrompt, false, undefined, caller);
       const sql = raw
         .trim()
         .replace(/^```(?:sql)?\s*/i, '')
@@ -238,7 +186,7 @@ export class AiService {
    * 데이터셋 스키마 + 샘플 기반 차트 타입 추천.
    * LLM 응답은 등록된 component 목록 안에서만 검증/반환된다.
    */
-  async recommendChart(dto: RecommendChartDto) {
+  async recommendChart(dto: RecommendChartDto, caller: AiCaller) {
     if (!this.isConfigured()) {
       return {
         status: ResponseStatus.ERROR,
@@ -287,7 +235,7 @@ export class AiService {
     ].join('\n\n');
 
     try {
-      const raw = await this.callLlm(systemPrompt, userPrompt);
+      const raw = await this.callLlm(systemPrompt, userPrompt, false, undefined, caller);
       const parsed = JSON.parse(
         raw
           .trim()
@@ -312,7 +260,7 @@ export class AiService {
    * 대시보드의 위젯 데이터를 샘플링해 LLM으로 한국어 인사이트를 생성한다.
    * 위젯별로 최대 6개까지 데이터를 조회하고, 실패한 위젯은 건너뛴다.
    */
-  async dashboardInsight(dashboardId: number, requesterId: number) {
+  async dashboardInsight(dashboardId: number, requesterId: number, epoch: number) {
     if (!Number.isInteger(+dashboardId) || +dashboardId <= 0) {
       return { status: ResponseStatus.ERROR, message: 'invalid dashboardId' };
     }
@@ -382,7 +330,11 @@ export class AiService {
     const userPrompt = `Dashboard: "${dashboard.title}"\n\n${contexts.join('\n\n')}`;
 
     try {
-      const insight = await this.callLlm(systemPrompt, userPrompt);
+      const insight = await this.callLlm(systemPrompt, userPrompt, false, undefined, {
+        userId: requesterId,
+        epoch,
+        feature: 'dashboard-insight',
+      });
       return {
         status: ResponseStatus.SUCCESS,
         data: { insight: insight.trim(), ai: this.providerMetadata() },

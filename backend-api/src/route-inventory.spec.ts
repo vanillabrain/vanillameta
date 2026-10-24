@@ -1,6 +1,9 @@
 // ESM-only packages that Jest cannot load; only the route metadata is read here, nothing is called.
 jest.mock('ai', () => ({ generateText: jest.fn(), streamText: jest.fn(), tool: jest.fn() }));
 jest.mock('@ai-sdk/provider', () => ({}));
+jest.mock('@ai-sdk/anthropic', () => ({ createAnthropic: jest.fn() }));
+jest.mock('@ai-sdk/openai', () => ({ createOpenAI: jest.fn() }));
+jest.mock('@ai-sdk/openai-compatible', () => ({ createOpenAICompatible: jest.fn() }));
 
 import { GUARDS_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { RequestMethod } from '@nestjs/common';

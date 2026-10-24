@@ -126,11 +126,16 @@ describe('CommerceService report contract', () => {
         netCollected: '10000.00',
         refundOrderRate: 1,
       });
-      await service.aiDraft(7, 1, {
-        prompt: '현금 흐름 설명',
-        start: '2025-01-01',
-        end: '2025-01-02',
-      });
+      await service.aiDraft(
+        7,
+        1,
+        {
+          prompt: '현금 흐름 설명',
+          start: '2025-01-01',
+          end: '2025-01-02',
+        },
+        0,
+      );
       const call = ai.callLlm.mock.calls[ai.callLlm.mock.calls.length - 1];
       const payload = JSON.parse(call[1]);
       expect(payload.report.chart.unit).toBe('KRW');
@@ -154,12 +159,17 @@ describe('CommerceService report contract', () => {
     const previousProvider = process.env.AI_PROVIDER;
     process.env.AI_PROVIDER = 'codex';
     try {
-      await service.aiDraft(7, 1, {
-        prompt: '제목과 지표 계산 기준을 설명해 줘',
-        currentPresentation: { title: 'x'.repeat(500), unexpected: 'drop this' },
-        start: '2025-01-01',
-        end: '2025-01-02',
-      });
+      await service.aiDraft(
+        7,
+        1,
+        {
+          prompt: '제목과 지표 계산 기준을 설명해 줘',
+          currentPresentation: { title: 'x'.repeat(500), unexpected: 'drop this' },
+          start: '2025-01-01',
+          end: '2025-01-02',
+        },
+        0,
+      );
       const prompt = JSON.parse(ai.callLlm.mock.calls[0][1]);
       expect(prompt.existing.title).toHaveLength(200);
       expect(prompt.existing).not.toHaveProperty('unexpected');

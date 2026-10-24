@@ -296,7 +296,7 @@ export class StudioExecutionService implements OnModuleInit {
     if (plan.publish) ids.push('publish');
     return ids;
   }
-  async create(body: any, actor: number, signal?: AbortSignal, epoch = 0) {
+  async create(body: any, actor: number, signal: AbortSignal | undefined, epoch: number) {
     this.validate(body);
     this.checkDisconnected(signal);
     // UC-051: a new AI execution edits the dashboard, so the explicit edit action is required.
@@ -357,7 +357,7 @@ export class StudioExecutionService implements OnModuleInit {
     });
     if (!row.fresh) return this.get(row.row.runId, actor);
     this.remember(row.row.runId, body);
-    return this.launch(row.row, body, signal);
+    return this.launch(row.row, body, signal, epoch);
   }
   private remember(id: string, body: StudioExecutionRequest) {
     for (const [key, value] of this.contexts)
@@ -494,7 +494,13 @@ export class StudioExecutionService implements OnModuleInit {
       ],
     };
   }
-  async retry(id: string, body: any, actor: number, signal?: AbortSignal) {
+  async retry(
+    id: string,
+    body: any,
+    actor: number,
+    signal: AbortSignal | undefined,
+    epoch: number,
+  ) {
     this.checkDisconnected(signal);
     const row = await this.owned(id, actor),
       state = this.state(row);
@@ -527,7 +533,7 @@ export class StudioExecutionService implements OnModuleInit {
     const earlier = state.steps.slice(0, state.steps.indexOf(target));
     if (earlier.some(s => s.status !== 'succeeded'))
       throw new ConflictException('앞선 실패 단계부터 재시도해 주세요.');
-    return this.launch(row, this.context(id), signal);
+    return this.launch(row, this.context(id), signal, epoch);
   }
   async cancel(id: string, actor: number) {
     const row = await this.owned(id, actor);
@@ -836,7 +842,13 @@ export class StudioExecutionService implements OnModuleInit {
     );
   }
   /** UC036: the existing composer continues a server-bound preview, never the original editor. */
-  async creationMessage(id: string, body: any, actor: number, signal?: AbortSignal) {
+  async creationMessage(
+    id: string,
+    body: any,
+    actor: number,
+    signal: AbortSignal | undefined,
+    epoch: number,
+  ) {
     try {
       studioKeys(body, ['requestId', 'proposalId', 'expectedSourceRevision', 'prompt']);
     } catch {
@@ -890,14 +902,22 @@ export class StudioExecutionService implements OnModuleInit {
     if (!parent.preview || parent.clarifications?.length)
       throw new BadRequestException('카드에서 소스와 계산 기준을 먼저 확인해 주세요.');
     action = creationMessageAction(body.prompt, parent.semanticProposal);
-    return this.clarifyCreation(id, { ...body, targetBlockIndex: action }, actor, signal, hash);
+    return this.clarifyCreation(
+      id,
+      { ...body, targetBlockIndex: action },
+      actor,
+      signal,
+      epoch,
+      hash,
+    );
   }
   /** UC-033/034: answer a server-owned question without modifying the initiating editor. */
   async clarifyCreation(
     id: string,
     body: any,
     actor: number,
-    signal?: AbortSignal,
+    signal: AbortSignal | undefined,
+    epoch: number,
     messageHash?: string,
   ) {
     try {
@@ -973,6 +993,7 @@ export class StudioExecutionService implements OnModuleInit {
       state.creationResult.sourceId,
       hash,
       signal,
+      epoch,
       messageHash,
     );
     this.clarifications.set(id, { payloadHash: hash, promise });
@@ -988,7 +1009,8 @@ export class StudioExecutionService implements OnModuleInit {
     actor: number,
     sourceId: number,
     hash: string,
-    signal?: AbortSignal,
+    signal: AbortSignal | undefined,
+    epoch: number,
     messageHash?: string,
   ) {
     this.checkDisconnected(signal);
@@ -1032,6 +1054,7 @@ export class StudioExecutionService implements OnModuleInit {
       },
       actor,
       signal,
+      epoch,
     );
     this.checkDisconnected(signal);
     if (
@@ -1151,14 +1174,23 @@ export class StudioExecutionService implements OnModuleInit {
     this.answers.delete(id);
     return undefined;
   }
-  private launch(row: StudioExecution, body?: StudioExecutionRequest, signal?: AbortSignal) {
+  /**
+   * `epoch` is the `authVersion` of the request that started this run. It is what the model steps charge
+   * their quota under; a run recovered after a restart has no request and never reaches a model step.
+   */
+  private launch(
+    row: StudioExecution,
+    body: StudioExecutionRequest | undefined,
+    signal: AbortSignal | undefined,
+    epoch: number,
+  ) {
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) abort();
     // Install the latch before executing any stage; GET/list remain available during model awaits.
     const promise = Promise.resolve()
-      .then(() => this.execute(row, body, controller.signal))
+      .then(() => this.execute(row, body, controller.signal, epoch))
       .finally(() => {
         signal?.removeEventListener('abort', abort);
         this.active.delete(row.runId);
@@ -1201,6 +1233,7 @@ export class StudioExecutionService implements OnModuleInit {
     row: StudioExecution,
     body: StudioExecutionRequest | undefined,
     signal: AbortSignal,
+    epoch: number,
   ) {
     const state = this.state(row);
     let prepared: any, preview: any;
@@ -1241,6 +1274,7 @@ export class StudioExecutionService implements OnModuleInit {
             },
             row.actorId,
             signal,
+            epoch,
           );
           state.creationResult = {
             proposalId: proposal.proposalId,
@@ -1273,7 +1307,7 @@ export class StudioExecutionService implements OnModuleInit {
                 ),
               }
             : body;
-          const proposal = await this.runs.propose(modelBody, prepared, signal, row.actorId);
+          const proposal = await this.runs.propose(modelBody, prepared, signal, row.actorId, epoch);
           this.rememberAnswer(row.runId, String(proposal.answer));
           // Deliberately omit free-form model answer from durable history.
           state.proposal = {

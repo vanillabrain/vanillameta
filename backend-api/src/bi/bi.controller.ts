@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BiService } from './bi.service';
+import { requestEpoch } from '../ai/ai-caller';
 @UseGuards(JwtAuthGuard, UserThrottleGuard)
 @Controller('bi')
 export class BiController {
@@ -87,7 +88,9 @@ export class BiController {
     res.once('close', closed);
     if (req.aborted) controller.abort();
     try {
-      return this.success(await this.bi.editorAi(id, body, this.actor(req), controller.signal));
+      return this.success(
+        await this.bi.editorAi(id, body, this.actor(req), controller.signal, requestEpoch(req)),
+      );
     } finally {
       req.off('aborted', aborted);
       res.off('close', closed);
