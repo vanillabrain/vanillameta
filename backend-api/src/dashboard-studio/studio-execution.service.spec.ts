@@ -931,23 +931,28 @@ describe('T7 durable executions', () => {
       expect(wire).not.toContain(secret);
   });
 
-  it('also reaches a watcher of the run id (retry, creation messages) and stops after unsubscribe', async () => {
+  it('delivers a retry’s events to a watcher of the run, not after it unsubscribes, and never to another user', async () => {
+    // The preview fails first, so there is a real step to retry.
+    studio.prepare
+      .mockImplementationOnce(async (_id, b) => ({
+        document: b.document,
+        preview: { widgets: [] },
+      }))
+      .mockRejectedValueOnce(new Error('SQL token SECRET'));
     const first = await service.create(body, 7, undefined, 0);
-    const byRun: any[] = [];
-    const off = service.watch(`run:7:${first.runId}`, event => byRun.push(event));
-    await service.retry(first.runId, { stepId: 'preview' }, 7, undefined, 0).catch(() => undefined);
-    const seen = byRun.length;
-    off();
-    await service.retry(first.runId, { stepId: 'preview' }, 7, undefined, 0).catch(() => undefined);
-    expect(byRun.length).toBe(seen);
-  });
-
-  it('never delivers a run’s events to another user’s watcher, even one that knows the run id', async () => {
-    const first = await service.create(body, 7, undefined, 0);
+    expect(first.status).toBe('failed');
+    const mine: any[] = [];
+    const gone: any[] = [];
     const stolen: any[] = [];
+    service.watch(`run:7:${first.runId}`, event => mine.push(event));
+    service.watch(`run:7:${first.runId}`, event => gone.push(event))();
     service.watch(`run:8:${first.runId}`, event => stolen.push(event));
     service.watch(`req:8:${body.requestId}`, event => stolen.push(event));
-    await service.retry(first.runId, { stepId: 'preview' }, 7, undefined, 0).catch(() => undefined);
+    const retried = await service.retry(first.runId, { stepId: 'preview' }, 7, undefined, 0);
+    expect(retried.status).toBe('succeeded');
+    expect(mine.length).toBeGreaterThan(0);
+    expect(mine[mine.length - 1]).toMatchObject({ runId: first.runId, status: 'succeeded' });
+    expect(gone).toEqual([]);
     expect(stolen).toEqual([]);
   });
 

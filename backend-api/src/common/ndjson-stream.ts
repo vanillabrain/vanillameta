@@ -1,6 +1,8 @@
 import { HttpException, Logger, StreamableFile } from '@nestjs/common';
 import { PassThrough } from 'stream';
 import { llmFailure } from '../ai/ai-caller';
+import { CorrelationIdService } from '../middleware/correlation-id/correlation-id.service';
+import { safeRouteTemplate } from './utils/safe-route-template';
 
 export const NDJSON = 'application/x-ndjson';
 const HEARTBEAT_MS = 5_000;
@@ -29,7 +31,12 @@ const SHOWN = ['reason', 'limit', 'used', 'needed', 'resetsAt'] as const;
  * event: `{status, error, message, ...refusal details}`. An error nobody expected is logged here and
  * reported without its text.
  */
-export function errorEvent(error: unknown): StreamEvent {
+export function errorEvent(error: unknown, correlationId?: string): StreamEvent {
+  const base = errorBody(error);
+  return correlationId ? { ...base, correlationId } : base;
+}
+
+function errorBody(error: unknown): StreamEvent {
   if (error instanceof HttpException) {
     const body = error.getResponse();
     const fields = typeof body === 'object' && body ? (body as Record<string, unknown>) : {};
@@ -105,6 +112,8 @@ export function serveRun<T>(
     })();
 
   const out = new PassThrough();
+  const startedAt = Date.now();
+  const correlationId = CorrelationIdService.getCorrelationId() ?? req?.correlationId;
   const write = (event: StreamEvent) => {
     if (!out.writableEnded && !out.destroyed) out.write(`${JSON.stringify(event)}\n`);
   };
@@ -117,18 +126,47 @@ export function serveRun<T>(
     if (out.readableLength + out.writableLength < 16 * 1024) write({ type: 'heartbeat' });
   }, options.heartbeatMs ?? HEARTBEAT_MS);
   timer.unref?.();
-  const unwatch = options.watch?.(write);
+  let unwatch: (() => void) | undefined;
   void (async () => {
+    let status = 200;
+    let outcome = 'result';
     try {
+      unwatch = options.watch?.(write);
       write({ type: 'result', data: await run(controller.signal) });
     } catch (error) {
-      write(errorEvent(error));
+      const event = errorEvent(error, correlationId);
+      status = Number(event.status);
+      outcome = 'error';
+      write(event);
+      // What the exception filter does for a 5xx on the JSON path, which a stream never reaches.
+      if (status >= 500 && process.env.SENTRY_DSN)
+        void import('@sentry/nestjs')
+          .then(sentry => sentry.captureException(error))
+          .catch(() => undefined);
     } finally {
       clearInterval(timer);
       unwatch?.();
       detach();
       out.end();
+      // The request logger sees only the handler returning the stream (a 201 after a few ms): record how
+      // the stream really ended.
+      logger.log(
+        JSON.stringify({
+          msg: 'stream',
+          method: req?.method,
+          url: safeRouteTemplate(req),
+          status,
+          outcome,
+          disconnected: controller.signal.aborted,
+          durationMs: Date.now() - startedAt,
+          ...(correlationId ? { correlationId } : {}),
+        }),
+      );
     }
   })();
-  return new StreamableFile(out, { type: `${NDJSON}; charset=utf-8` });
+  return new StreamableFile(out, { type: `${NDJSON}; charset=utf-8` }).setErrorLogger(error => {
+    // A client that closes the connection is how a request is cancelled, not an error.
+    if ((error as NodeJS.ErrnoException).code !== 'ERR_STREAM_PREMATURE_CLOSE')
+      logger.error(error.message, error.stack);
+  });
 }

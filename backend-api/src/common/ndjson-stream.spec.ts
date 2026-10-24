@@ -1,5 +1,6 @@
-import { BadRequestException, HttpException, StreamableFile } from '@nestjs/common';
+import { BadRequestException, HttpException, Logger, StreamableFile } from '@nestjs/common';
 import { EventEmitter } from 'events';
+import { PassThrough } from 'stream';
 import { errorEvent, serveRun, wantsNdjson } from './ndjson-stream';
 
 const request = (accept?: string) =>
@@ -82,6 +83,64 @@ describe('serveRun without the stream header', () => {
 });
 
 describe('serveRun with Accept: application/x-ndjson', () => {
+  let log: jest.SpyInstance;
+  beforeEach(() => {
+    log = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it('logs how the stream really ended, with its status and outcome', async () => {
+    const ok = serveRun(request('application/x-ndjson'), response(), async () => 1);
+    await lines(ok as StreamableFile);
+    const refused = serveRun(request('application/x-ndjson'), response(), async () => {
+      throw new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429);
+    });
+    await lines(refused as StreamableFile);
+    const entries = log.mock.calls.map(call => JSON.parse(call[0] as string));
+    expect(entries[0]).toMatchObject({ msg: 'stream', status: 200, outcome: 'result' });
+    expect(entries[1]).toMatchObject({ msg: 'stream', status: 429, outcome: 'error' });
+    expect(typeof entries[0].durationMs).toBe('number');
+  });
+
+  it('puts the request’s correlation id on the error event', async () => {
+    const req = Object.assign(request('application/x-ndjson'), { correlationId: 'corr-1' });
+    const out = serveRun(req, response(), async () => {
+      throw new Error('LLM_TIMEOUT');
+    });
+    const events = await lines(out as StreamableFile);
+    expect(events[events.length - 1]).toMatchObject({ type: 'error', correlationId: 'corr-1' });
+  });
+
+  it('does not log a closed connection as a stream error', async () => {
+    const out = serveRun(
+      request('application/x-ndjson'),
+      response(),
+      async () => 1,
+    ) as StreamableFile;
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    // Nest calls this handler when the pipe to the response breaks.
+    (out as any).errorLogger(
+      Object.assign(new Error('Premature close'), { code: 'ERR_STREAM_PREMATURE_CLOSE' }),
+    );
+    expect(error).not.toHaveBeenCalled();
+    (out as any).errorLogger(new Error('real failure'));
+    expect(error).toHaveBeenCalledWith('real failure', expect.any(String));
+  });
+
+  it('releases the timer and listeners even when subscribing to progress throws', async () => {
+    const req = request('application/x-ndjson');
+    const res = response();
+    const out = serveRun(req, res, async () => 1, {
+      watch: () => {
+        throw new Error('boom');
+      },
+    });
+    const events = await lines(out as StreamableFile);
+    expect(events[events.length - 1]).toMatchObject({ type: 'error', status: 500 });
+    expect(req.listenerCount('aborted')).toBe(0);
+    expect(res.listenerCount('close')).toBe(0);
+  });
+
   it('answers at once with a start line, passes progress through, then ends with the result', async () => {
     const req = request('application/x-ndjson');
     const res = response();
@@ -179,11 +238,12 @@ describe('serveRun with Accept: application/x-ndjson', () => {
           watch: emit => (emit({ type: 'step', blob: 'x'.repeat(20 * 1024) }), () => undefined),
         },
       ) as StreamableFile;
-      const stream = out.getStream();
-      const before = stream.readableLength;
+      const stream = out.getStream() as unknown as PassThrough;
+      const backlog = () => stream.readableLength + stream.writableLength;
+      const before = backlog();
       jest.advanceTimersByTime(5000);
       // The 20 KiB step line is still unread, so no heartbeat was added on top of it.
-      expect(stream.readableLength).toBe(before);
+      expect(backlog()).toBe(before);
       release();
       await Promise.resolve();
       await Promise.resolve();

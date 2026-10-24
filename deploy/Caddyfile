@@ -5,10 +5,10 @@
 {$APP_DOMAIN} {
 	encode zstd gzip
 	# Studio AI answers as NDJSON (application/x-ndjson) when asked: lines must reach the browser as they are
-	# written. Caddy's default `encode` list does not include that type (it compresses text/* and a fixed
-	# set of application/* types), and flush_interval -1 below sends each write through. Measure the
-	# first-byte time through this proxy in the M2-5 run; if a Caddy upgrade ever compresses it, add a
-	# response matcher here.
+	# written. The API marks those responses `Cache-Control: no-cache, no-transform` and flush_interval -1
+	# below sends each write through. Whether Caddy's default `encode` type list leaves application/x-ndjson
+	# alone is not proven here: measure the first-byte time through this proxy in the M2-5 run, and add a
+	# response matcher here if it ever buffers or compresses.
 
 	# Caddy replaces X-Forwarded-* sent by untrusted clients, so the chain the API reads starts here.
 	reverse_proxy web:80 {
