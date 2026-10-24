@@ -115,6 +115,9 @@ export class StudioRunService {
           'AI 응답 시간이 초과되었습니다. 기존 내용을 유지했습니다.',
         );
       if (error?.getStatus) throw error;
+      // propose has already logged and wrapped every model failure, so what reaches here failed after the
+      // model answered (the second preview); the user is told the same sentence, the log says it was not the model.
+      console.error(`Studio run failed after the model answered: ${failureCode(error)}`);
       throw new ServiceUnavailableException(
         'AI 연결 또는 응답을 확인하지 못했습니다. 기존 내용을 유지했습니다. 잠시 후 다시 시도해 주세요.',
       );

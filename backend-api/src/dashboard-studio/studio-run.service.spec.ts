@@ -145,8 +145,22 @@ describe('Studio AI scoped runs', () => {
         stop.abort();
         throw new Error('LLM_REQUEST_ABORTED');
       });
-      await expect(service.run(body, 7, stop.signal, 0)).rejects.toMatchObject({ status: 503 });
+      await expect(service.run(body, 7, stop.signal, 0)).rejects.toMatchObject({
+        status: 503,
+        message: 'AI 요청을 취소했습니다.',
+      });
       expect(log).not.toHaveBeenCalled();
+    });
+    it('says it was not the model when the preview after the answer fails', async () => {
+      studio.prepare
+        .mockImplementationOnce(async (_id, b) => ({
+          document: b.document,
+          conditionColumns: [],
+          preview: { draft: { databaseId: document.sourceId, widgets: [] }, widgets: [] },
+        }))
+        .mockRejectedValueOnce(new Error('ER_LOCK_DEADLOCK secret=hunter2'));
+      await expect(service.run(body, 7, undefined, 0)).rejects.toMatchObject({ status: 503 });
+      expect(log.mock.calls).toEqual([['Studio run failed after the model answered: Error']]);
     });
   });
   it('UC052 preserves pinned nested conditions during AI content edits and rejects scope changes', async () => {

@@ -144,10 +144,10 @@
 | 프런트엔드 vitest(커밋 `f214b678`, 이후 프런트엔드 변경 없음) | 215 파일, **3,418 테스트 통과**, 실패 0. `tsc`·eslint 오류 0 |
 | 프런트엔드 반복 | `studioAiErrors` 10회 20/20, `StudioCreate`+`StudioConversation.activity`+`studioConversation` 10회 80/80 |
 | 프런트엔드 변형 검사 | 429 분기 제거 → 3개 실패, `SERVER_WORDED`에서 `RATE_LIMITED` 제거 → 2개 실패(둘 다 이름 있는 테스트) |
-| 백엔드 변형 검사(`3d995bea`) | M1 생성 서비스의 로그 삭제 → 5개 실패, M2 실행 서비스(`studio-run`)의 로그 삭제 → 3개 실패, M3 `createProposal` 단계에 로그를 다시 넣어 이중 기록 → 1개 실패("leaves the creation step to the creation service…"), M4 일반 503에 `cause` 추가 → 1개 실패. 변형 없이는 모두 통과 |
+| 백엔드 변형 검사(`3d995bea`) | M1 생성 서비스의 로그 삭제 → 5개 실패, M2 `studio-run`의 `propose` 로그 삭제 → 3개 실패, M3 `createProposal` 단계에 로그를 다시 넣어 이중 기록 → 1개 실패("leaves the creation step to the creation service…"), M4 일반 503에 `cause` 추가 → 1개 실패. 변형 없이는 모두 통과 |
 | 이 문서의 숫자 출처 | 위 개수는 `audit`가 보고한 값이며 실행 로그는 저장소 밖(`/private/tmp/claude-501/`)에 있다 |
 
-모델 실패 로그 변경의 경위: 처음 `151fcd46`은 실행 서비스에서 로그를 남겨, `createProposal` 단계에서는 이중 기록이고 `proposeSemantics` 단계에서는 `studio-run`이 이미 모든 오류를 일반 503으로 감싼 뒤라 코드가 아닌 래퍼 클래스 이름이 남았다(감사에서 테스트 1개 실패, 검토에서 이중 기록 지적). `23530447`과 `3d995bea`에서 로그를 코드가 아직 남아 있는 곳(생성 서비스, 실행 서비스가 쓰는 `studio-run`의 `propose`)으로 옮기고, 알 수 없는 오류에는 `cause`를 붙이지 않게 했다(오류 보고 도구가 `cause`를 따라간다).
+모델 실패 로그 변경의 경위: 처음 `151fcd46`은 실행 서비스에서 로그를 남겨, `createProposal` 단계에서는 이중 기록이고 `proposeSemantics` 단계에서는 `studio-run`이 이미 모든 오류를 일반 503으로 감싼 뒤라 코드가 아닌 래퍼 클래스 이름이 남았다(감사에서 테스트 1개 실패, 검토에서 이중 기록 지적). `23530447`에서 로그를 코드가 아직 남아 있는 곳(생성 서비스, `studio-run`의 `propose`)으로 옮기고 알 수 없는 오류에는 `cause`를 붙이지 않게 했다(오류 보고 도구가 `cause`를 따라간다). `3d995bea`는 `propose`가 이미 기록한 뒤라 닿을 수 없는 `execute`의 로그 한 줄을 지웠다. 이어서 `execute`에서 모델이 답한 뒤(두 번째 미리보기)의 비모델 실패는 사용자에게 같은 문장이 나가지만 로그에는 "Studio run failed after the model answered: <코드>"로 남게 했다.
 
 ### 실행하지 않은 것(통과로 쓰지 않는다)
 
