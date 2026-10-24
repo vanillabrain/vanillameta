@@ -113,6 +113,42 @@ describe('Studio AI scoped runs', () => {
     expect(context.preview[0]).not.toHaveProperty('sql');
     expect(JSON.stringify(document)).toBe(before);
   });
+  describe('the log of a model failure', () => {
+    let log: jest.SpyInstance;
+    beforeEach(() => {
+      log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+    afterEach(() => log.mockRestore());
+
+    it('names the gateway code once and answers with a fixed sentence', async () => {
+      ai.callLlm.mockRejectedValueOnce(new Error('LLM_API_ERROR_401'));
+      const error: any = await service.run(body, 7, undefined, 0).catch(e => e);
+      expect(error.getStatus()).toBe(503);
+      expect(error.message).not.toContain('LLM_API_ERROR_401');
+      expect(log.mock.calls).toEqual([['AI call failed: LLM_API_ERROR_401']]);
+    });
+    it('keeps an unknown error’s text out of the log', async () => {
+      ai.callLlm.mockRejectedValueOnce(new Error('connect ECONNREFUSED 10.0.0.5 password=hunter2'));
+      await expect(service.run(body, 7, undefined, 0)).rejects.toMatchObject({ status: 503 });
+      expect(log.mock.calls).toEqual([['AI call failed: Error']]);
+    });
+    it('writes nothing for a refusal the user reads', async () => {
+      ai.callLlm.mockRejectedValueOnce(
+        new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429),
+      );
+      await expect(service.run(body, 7, undefined, 0)).rejects.toMatchObject({ status: 429 });
+      expect(log).not.toHaveBeenCalled();
+    });
+    it('writes nothing for a run the client stopped', async () => {
+      const stop = new AbortController();
+      ai.callLlm.mockImplementationOnce(async () => {
+        stop.abort();
+        throw new Error('LLM_REQUEST_ABORTED');
+      });
+      await expect(service.run(body, 7, stop.signal, 0)).rejects.toMatchObject({ status: 503 });
+      expect(log).not.toHaveBeenCalled();
+    });
+  });
   it('UC052 preserves pinned nested conditions during AI content edits and rejects scope changes', async () => {
     document.conditions = {
       sourceRevision: body.expectedSourceRevision,

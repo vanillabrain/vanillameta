@@ -110,9 +110,6 @@ export class StudioRunService {
     } catch (error) {
       if (controller.signal.aborted)
         throw new ServiceUnavailableException('AI 요청을 취소했습니다.');
-      // Everything below is answered with a fixed sentence; the code of what failed goes to the log (never the
-      // error's text). A refusal (an HttpException) is the user's to read, not a failure to log.
-      if (!error?.getStatus) console.error(`AI call failed: ${failureCode(error)}`);
       if (error?.message === 'LLM_TIMEOUT')
         throw new ServiceUnavailableException(
           'AI 응답 시간이 초과되었습니다. 기존 내용을 유지했습니다.',
