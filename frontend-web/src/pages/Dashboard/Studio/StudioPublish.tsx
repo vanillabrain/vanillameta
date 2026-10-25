@@ -78,8 +78,8 @@ export default function StudioPublish({
         if (!pending.current) {
           setVisibility(value?.visibility ?? 'private');
           setAllowRemix(value?.allowRemix ?? false);
-          const date = value?.expiresAt ? new Date(value.expiresAt) : null;
-          setExpiry(date ? new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
+          // A republish decides the expiry again (server: an empty value takes the default), so never carry the old one.
+          setExpiry('');
         }
       })
       .catch(cause => {
@@ -316,6 +316,11 @@ export default function StudioPublish({
                 </Label>
               </div>
             </RadioGroup>
+            {visibility === 'link' && (
+              <Notice severity="warning" role="note">
+                링크가 있는 모든 사람이 이 저장본의 집계 숫자(차트마다 최대 500개 행, KPI의 추세 점)를 볼 수 있습니다.
+              </Notice>
+            )}
             <div className="flex items-start gap-2">
               <Checkbox
                 id={controlId + '-remix'}
@@ -339,7 +344,7 @@ export default function StudioPublish({
               label="링크 만료 시각 (내 시간대)"
               value={expiry}
               onChange={e => setExpiry(e.target.value)}
-              helperText={`비워 두면 게시 시점부터 기본 기간(최대 ${PUBLICATION_MAX_DAYS}일) 뒤에 만료됩니다. 최대 ${PUBLICATION_MAX_DAYS}일까지 지정할 수 있고, 재게시하면 만료가 다시 정해집니다. 만료 여부는 서버에서 확인합니다.`}
+              helperText={`비워 두면 링크 공개는 게시 시점부터 기본 기간(최대 ${PUBLICATION_MAX_DAYS}일) 뒤에 만료됩니다. 최대 ${PUBLICATION_MAX_DAYS}일까지 지정할 수 있고, 재게시하면 만료를 이 값으로 다시 정합니다. 비공개 게시는 비워 두면 만료가 없습니다.`}
             />
           </fieldset>
           <p className="studio-publish-note">

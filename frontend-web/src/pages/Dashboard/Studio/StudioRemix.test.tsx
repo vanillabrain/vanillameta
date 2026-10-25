@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import StudioRemix, { StudioRemixFlow } from './StudioRemix';
 import { fetchRemixRequirements, previewRemix, saveRemix } from './studioRemixApi';
+import { fetchStudioSources } from './studioCreation';
 const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
 vi.mock('react-router-dom', () => ({ useParams: () => ({ token: 'a'.repeat(64) }), useNavigate: () => navigate }));
 vi.mock('./StudioSourcePicker', () => ({
@@ -227,4 +228,47 @@ it('binds preview and frozen save retries to the exact lifecycle proof', async (
   fireEvent.click(screen.getByText('내 파일 선택'));
   await waitFor(() => expect(previewRemix).toHaveBeenCalled());
   expect(vi.mocked(previewRemix).mock.calls[0][1].expectedLifecycleRevision).toBe(requirements.lifecycleRevision);
+});
+
+describe('remix load failures', () => {
+  const refusal = (status: number) => ({ response: { status, data: { success: false, code: status } } });
+  it('shows the template refusal even when the source list fails first', async () => {
+    vi.mocked(fetchRemixRequirements).mockImplementationOnce(
+      () => new Promise((_, reject) => setTimeout(() => reject(refusal(403)), 5)),
+    );
+    vi.mocked(fetchStudioSources).mockRejectedValueOnce(new Error('데이터 소스 목록을 확인하지 못했습니다.'));
+    render(<StudioRemixFlow token={requirements.token} onSave={vi.fn()} />);
+    expect(
+      await screen.findByText('복제가 허용되지 않았거나 게시본·대상 데이터에 접근할 권한이 없습니다.'),
+    ).toBeDefined();
+  });
+  it('hides the retry and keeps the publication link for a refusal, which a retry cannot change', async () => {
+    vi.mocked(fetchRemixRequirements).mockRejectedValueOnce(refusal(403));
+    render(<StudioRemixFlow token={requirements.token} onSave={vi.fn()} />);
+    await screen.findByText('복제가 허용되지 않았거나 게시본·대상 데이터에 접근할 권한이 없습니다.');
+    expect(screen.queryByRole('button', { name: '복제 정의 다시 확인' })).toBeNull();
+    expect(screen.getByRole('link', { name: '게시본으로 돌아가기' }).getAttribute('href')).toBe(
+      '/published/' + requirements.token,
+    );
+  });
+  it('hides the retry and the publication link when the publication is gone', async () => {
+    vi.mocked(fetchRemixRequirements).mockRejectedValueOnce(refusal(410));
+    render(<StudioRemixFlow token={requirements.token} onSave={vi.fn()} />);
+    await screen.findByText('게시가 중지되었거나 만료되었습니다. 새 링크를 요청해 주세요.');
+    expect(screen.queryByRole('button', { name: '복제 정의 다시 확인' })).toBeNull();
+    expect(screen.queryByRole('link', { name: '게시본으로 돌아가기' })).toBeNull();
+  });
+  it('shows the malformed-link sentence without a retry that cannot succeed', async () => {
+    vi.mocked(fetchRemixRequirements).mockRejectedValueOnce(new Error('복제 링크를 확인해 주세요.'));
+    render(<StudioRemixFlow token="bad-link" onSave={vi.fn()} />);
+    await screen.findByText('복제 링크를 확인해 주세요.');
+    expect(screen.queryByRole('button', { name: '복제 정의 다시 확인' })).toBeNull();
+  });
+  it('keeps the retry for a failure that a retry can fix', async () => {
+    vi.mocked(fetchRemixRequirements).mockRejectedValueOnce(new Error('timeout'));
+    render(<StudioRemixFlow token={requirements.token} onSave={vi.fn()} />);
+    await screen.findByText('연결 또는 복제 상태를 확인하지 못했습니다. 입력을 유지했으니 다시 시도해 주세요.');
+    expect(screen.getByRole('button', { name: '복제 정의 다시 확인' })).toBeDefined();
+    expect(screen.getByRole('link', { name: '게시본으로 돌아가기' })).toBeDefined();
+  });
 });

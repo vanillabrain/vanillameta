@@ -105,10 +105,12 @@ export type RemixPreview = RemixRequirements & {
   preview?: { widgets: any[] };
 };
 const config = { timeout: 180000, headers: { 'Cache-Control': 'no-cache' } };
+/** Thrown locally for a malformed link, before any request; it has no HTTP status to map. */
+export const REMIX_LINK_MESSAGE = '복제 링크를 확인해 주세요.';
 const tokenPath = (token: string) => {
   if (/^(?:d-(?:[1-9][0-9]*-){4}|g-(?:[1-9][0-9]*-){6})[a-f0-9]{64}$/.test(token))
     return '/studio/received/' + encodeURIComponent(token);
-  studioAssert(/^[a-f0-9]{64}$/.test(token), '복제 링크를 확인해 주세요.');
+  studioAssert(/^[a-f0-9]{64}$/.test(token), REMIX_LINK_MESSAGE);
   return '/studio/publications/' + encodeURIComponent(token);
 };
 export function validateRemixRequirements(input: any, token: string): RemixRequirements {
@@ -326,7 +328,23 @@ export function remixError(error: any, received = false): string {
   if (status === 409) return '게시 버전이나 대상 데이터가 변경되었습니다. 정의를 새로 확인하고 매핑을 검토해 주세요.';
   if (status === 400)
     return '복제 정의와 필수 열·형식을 확인해 주세요. 다른 소스를 선택하거나 해당 블록을 명시적으로 제외할 수 있습니다.';
+  if (!status && error?.message === REMIX_LINK_MESSAGE) return REMIX_LINK_MESSAGE;
   return '연결 또는 복제 상태를 확인하지 못했습니다. 입력을 유지했으니 다시 시도해 주세요.';
+}
+/**
+ * What the error screen may offer after a failed remix request. A retry cannot succeed for a refusal (403,
+ * unless a quota message names a fix), or for a link or copy that is gone (404, 410). `gone` also hides the
+ * link back to the publication, which no longer exists.
+ */
+export function remixFailure(error: any, received = false): { message: string; retry: boolean; gone: boolean } {
+  const status = error?.response?.status;
+  // A malformed link never reaches the server, so a retry with the same link cannot change it.
+  const linkRefused = !status && error?.message === REMIX_LINK_MESSAGE;
+  return {
+    message: remixError(error, received),
+    retry: !!uploadQuotaMessage(error) || (!linkRefused && ![403, 404, 410].includes(status)),
+    gone: status === 404 || status === 410,
+  };
 }
 
 export type ReceivedRemixResult =

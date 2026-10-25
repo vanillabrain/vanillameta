@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { canCreateRemix, validateRemixPreview, validateRemixRequirements } from './studioRemixApi';
+import {
+  canCreateRemix,
+  fetchRemixRequirements,
+  remixError,
+  remixFailure,
+  validateRemixPreview,
+  validateRemixRequirements,
+} from './studioRemixApi';
 const token = 'a'.repeat(64);
 const requirements = () => ({
   token,
@@ -155,5 +162,40 @@ describe('lifecycle proof contract', () => {
   it('rejects a preview from another lifecycle generation even if token/version/source match', () => {
     expect(() => validateRemixPreview({ ...preview(), lifecycleRevision: 'd'.repeat(64) }, token, request())).toThrow();
     expect(validateRemixPreview(preview(), token, request()).lifecycleRevision).toBe('c'.repeat(64));
+  });
+});
+
+describe('remix link and failure wording', () => {
+  it('words a malformed link with its own sentence, not the generic status fallback', async () => {
+    const cause = await fetchRemixRequirements('not-a-link').catch(error => error);
+    expect(remixError(cause)).toBe('복제 링크를 확인해 주세요.');
+    expect(remixError(cause, true)).toBe('복제 링크를 확인해 주세요.');
+  });
+  it('offers no retry for a refusal or a missing link, and keeps it for other failures', () => {
+    const at = (status: number) => ({ response: { status, data: {} } });
+    expect(remixFailure(at(403)).retry).toBe(false);
+    expect(remixFailure(at(404)).retry).toBe(false);
+    expect(remixFailure(at(410)).retry).toBe(false);
+    expect(remixFailure(at(409)).retry).toBe(true);
+    expect(remixFailure(at(500)).retry).toBe(true);
+    expect(remixFailure(new Error('offline')).retry).toBe(true);
+  });
+  it('offers no retry for a malformed link, which no request can repair', () => {
+    expect(remixFailure(new Error('복제 링크를 확인해 주세요.')).retry).toBe(false);
+    expect(remixFailure(new Error('offline')).retry).toBe(true);
+  });
+  it('keeps the retry for a quota refusal, because the fix is to free a source and try again', () => {
+    const quota = {
+      response: {
+        status: 403,
+        data: { success: false, code: 403, data: { error: 'UPLOAD_QUOTA_EXCEEDED', message: '저장 용량 한도에 도달했습니다.' } },
+      },
+    };
+    expect(remixFailure(quota)).toEqual({ message: '저장 용량 한도에 도달했습니다.', retry: true, gone: false });
+  });
+  it('marks a gone publication so its link back is hidden', () => {
+    expect(remixFailure({ response: { status: 404 } }).gone).toBe(true);
+    expect(remixFailure({ response: { status: 410 } }).gone).toBe(true);
+    expect(remixFailure({ response: { status: 403 } }).gone).toBe(false);
   });
 });

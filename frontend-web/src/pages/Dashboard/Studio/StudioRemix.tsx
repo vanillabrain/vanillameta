@@ -22,7 +22,7 @@ import {
   RemixPreview,
   RemixRequirements,
   RemixSaveInput,
-  remixError,
+  remixFailure,
   remixPreviewBlocks,
   saveRemix,
 } from './studioRemixApi';
@@ -79,7 +79,7 @@ export function StudioRemixFlow({
   const [excluded, setExcluded] = useState<string[]>([]),
     [preview, setPreview] = useState<RemixPreview | null>(null);
   const [busy, setBusy] = useState(''),
-    [error, setError] = useState(''),
+    [failure, setFailure] = useState<ReturnType<typeof remixFailure> | null>(null),
     [notice, setNotice] = useState(''),
     [login, setLogin] = useState(!getToken());
   const pendingSave = useRef<RemixSaveInput | null>(null),
@@ -101,7 +101,7 @@ export function StudioRemixFlow({
     setSourceId(null);
     setMapping({});
     setExcluded([]);
-    setError('');
+    setFailure(null);
     setNotice('');
     if (!getToken()) {
       setLogin(true);
@@ -112,14 +112,22 @@ export function StudioRemixFlow({
     setLogin(false);
     setBusy('복제 가능한 정의와 내 데이터를 확인하고 있습니다…');
     try {
-      const [template, rows] = await Promise.all([fetchRemixRequirements(token), fetchStudioSources()]);
+      // allSettled, not all: the template's own refusal (403/404/410) decides the screen even when the source
+      // list fails first, because a non-HTTP failure there would otherwise replace the status.
+      const [templateResult, rowsResult] = await Promise.allSettled([
+        fetchRemixRequirements(token),
+        fetchStudioSources(),
+      ]);
       if (!mounted.current || generation !== epoch.current) return;
+      if (templateResult.status === 'rejected') throw templateResult.reason;
+      if (rowsResult.status === 'rejected') throw rowsResult.reason;
+      const template = templateResult.value;
       if (expectedVersion !== undefined && template.version !== expectedVersion) throw { response: { status: 409 } };
       setRequirements(template);
-      setSources(rows);
+      setSources(rowsResult.value);
     } catch (cause: any) {
       if (mounted.current && generation === epoch.current) {
-        setError(remixError(cause, received));
+        setFailure(remixFailure(cause, received));
         if (cause?.response?.status === 401) setLogin(true);
       }
     } finally {
@@ -149,7 +157,7 @@ export function StudioRemixFlow({
     abort.current = controller;
     setPreview(null);
     setBusy('필수 열과 형식을 확인하고 집계를 계산하고 있습니다…');
-    setError('');
+    setFailure(null);
     setNotice('');
     const body: RemixInput = {
       targetSourceId: id,
@@ -171,7 +179,7 @@ export function StudioRemixFlow({
       );
     } catch (cause: any) {
       if (mounted.current && generation === epoch.current && !controller.signal.aborted) {
-        setError(remixError(cause, received));
+        setFailure(remixFailure(cause, received));
         if (cause?.response?.status === 401) setLogin(true);
       }
     } finally {
@@ -190,14 +198,14 @@ export function StudioRemixFlow({
     abort.current?.abort();
     setPreview(null);
     setNotice('연결이 변경되었습니다. 매핑 확인을 눌러 새 조건을 검증해 주세요.');
-    setError('');
+    setFailure(null);
   };
   const prepare = async (task: () => Promise<number>) => {
     if (busy || pendingSave.current) return;
     epoch.current += 1;
     const generation = epoch.current;
     setBusy('파일을 서버 DuckDB에 준비하고 있습니다…');
-    setError('');
+    setFailure(null);
     setPreview(null);
     try {
       const id = await task();
@@ -208,7 +216,7 @@ export function StudioRemixFlow({
       choose(id);
     } catch (cause) {
       if (mounted.current && generation === epoch.current) {
-        setError(remixError(cause, received));
+        setFailure(remixFailure(cause, received));
         setBusy('');
       }
     }
@@ -230,7 +238,7 @@ export function StudioRemixFlow({
     const actor = actorKey();
     const isCurrent = () => mounted.current && generation === epoch.current && actor === actorKey();
     setBusy('새 비공개 대시보드로 저장하고 있습니다…');
-    setError('');
+    setFailure(null);
     setNotice('');
     try {
       await onSave(request, isCurrent);
@@ -240,7 +248,7 @@ export function StudioRemixFlow({
       if (!isCurrent()) return;
       if (cause?.response?.status && cause.response.status < 500 && pendingSave.current === request)
         pendingSave.current = null;
-      setError(remixError(cause, received));
+      setFailure(remixFailure(cause, received));
       if (pendingSave.current === request)
         setNotice('저장 완료 여부를 확인하지 못했습니다. 같은 요청으로 재시도하면 기존 저장 결과를 확인합니다.');
     } finally {
@@ -266,18 +274,20 @@ export function StudioRemixFlow({
               <span className="studio-eyebrow">DASHBOARD STUDIO · REMIX</span>
               <h1>내 데이터로 복제</h1>
             </div>
-            <Button asChild variant="ghost" className={pendingSave.current ? 'pointer-events-none opacity-50' : undefined}>
-              <a
-                href={received ? '/organization' : path}
-                aria-disabled={!!pendingSave.current || undefined}
-                tabIndex={pendingSave.current ? -1 : undefined}
-                onClick={event => {
-                  if (pendingSave.current) event.preventDefault();
-                }}
-              >
-                {received ? '받은 자료로 돌아가기' : '게시본으로 돌아가기'}
-              </a>
-            </Button>
+            {!(failure?.gone && !received) && (
+              <Button asChild variant="ghost" className={pendingSave.current ? 'pointer-events-none opacity-50' : undefined}>
+                <a
+                  href={received ? '/organization' : path}
+                  aria-disabled={!!pendingSave.current || undefined}
+                  tabIndex={pendingSave.current ? -1 : undefined}
+                  onClick={event => {
+                    if (pendingSave.current) event.preventDefault();
+                  }}
+                >
+                  {received ? '받은 자료로 돌아가기' : '게시본으로 돌아가기'}
+                </a>
+              </Button>
+            )}
           </header>
         </>
       )}
@@ -287,7 +297,7 @@ export function StudioRemixFlow({
             {busy}
           </Notice>
         )}
-        {error && <Notice severity="error">{error}</Notice>}
+        {failure && <Notice severity="error">{failure.message}</Notice>}
         {notice && (
           <Notice severity={preview?.unmappedBlocks.length ? 'warning' : 'info'} role="status">
             {notice}
@@ -311,7 +321,7 @@ export function StudioRemixFlow({
           </section>
         ) : (
           <>
-            {!requirements && !busy && (
+            {!requirements && !busy && failure?.retry !== false && (
               <Button variant="outline" onClick={received && onOriginRefresh ? onOriginRefresh : initialize}>
                 복제 정의 다시 확인
               </Button>

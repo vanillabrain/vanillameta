@@ -34,7 +34,7 @@ describe('publication expiry', () => {
   it('tells the owner a blank expiry takes the default period and that 30 days is the longest', async () => {
     render(<StudioPublish {...props} />);
     await screen.findByRole('button', { name: '게시하기' });
-    expect(screen.getByText(/비워 두면 게시 시점부터 기본 기간\(최대 30일\) 뒤에 만료됩니다/)).toBeTruthy();
+    expect(screen.getByText(/비워 두면 링크 공개는 게시 시점부터 기본 기간\(최대 30일\) 뒤에 만료됩니다/)).toBeTruthy();
     expect(screen.getByText(/최대 30일까지 지정할 수 있고/)).toBeTruthy();
   });
   it('refuses an expiry more than 30 days away without sending the request', async () => {
@@ -66,6 +66,25 @@ describe('publication expiry', () => {
     fireEvent.click(publish);
     await waitFor(() => expect(publishDashboard).toHaveBeenCalledTimes(1));
     expect(vi.mocked(publishDashboard).mock.calls[0][1]).toHaveProperty('expiresAt');
+  });
+  it('does not carry the previous expiry into a republish, which decides the expiry again', async () => {
+    const expiresAt = new Date(Date.now() + 5 * 86_400_000).toISOString();
+    vi.mocked(fetchOwnerPublication).mockReset().mockResolvedValue({ ...metadata, visibility: 'link', expiresAt });
+    render(<StudioPublish {...props} />);
+    const publish = await screen.findByRole('button', { name: '재게시' });
+    await waitFor(() => expect((publish as HTMLButtonElement).disabled).toBe(false));
+    expect((screen.getByLabelText('링크 만료 시각 (내 시간대)') as HTMLInputElement).value).toBe('');
+    fireEvent.click(publish);
+    await waitFor(() => expect(publishDashboard).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(publishDashboard).mock.calls[0][1]).not.toHaveProperty('expiresAt');
+  });
+  it('states the aggregate exposure before a link publication, not only after', async () => {
+    render(<StudioPublish {...props} />);
+    await screen.findByRole('button', { name: '게시하기' });
+    expect(screen.queryByText(/링크가 있는 모든 사람이 이 저장본의 집계 숫자/)).toBeNull();
+    fireEvent.click(screen.getByRole('radio', { name: /링크 공개/ }));
+    expect(screen.getByText(/링크가 있는 모든 사람이 이 저장본의 집계 숫자/)).toBeTruthy();
+    expect(screen.getByText(/차트마다 최대 500개 행/)).toBeTruthy();
   });
   it('warns that republishing a link without an expiry gives it one', async () => {
     vi.mocked(fetchOwnerPublication)

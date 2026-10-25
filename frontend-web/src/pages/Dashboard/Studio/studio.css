@@ -362,6 +362,14 @@
   .studio-published-header [data-slot="button"] { margin-left: 0; }
 }
 
+/* Remix wizard and publish dialog on phones: 44px hit areas. Visible sizes and alignment stay; a checkbox or
+   radio label grows downward, so the whole label row takes the tap while the 16px control keeps its place. */
+@media(max-width:899px) {
+  .studio-remix [data-slot="button"], .studio-publication-dialog [data-slot="button"] { min-height:44px; }
+  .studio-remix select { min-height:44px; }
+  .studio-remix-block [data-slot="label"], .studio-publish-settings [data-slot="label"] { min-height:44px; display:flex; align-items:flex-start; }
+}
+
 .studio-published-actions { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .studio-published-actions [data-slot="button"] { margin-left: 0; }
 @media(max-width:599px) { .studio-published-actions { margin-left: 0; width: 100%; } }
