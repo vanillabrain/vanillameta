@@ -101,3 +101,13 @@ Ego65 / 전용 API4263·Web3263·Control4463, fresh dev MySQL8.4.11/native DuckD
 잔여: MySQL전용188조건, 모든 외부DB 드라이버·실운영 제공자·실기기·VoiceOver·관리자50여정의 실제 UI 전체는 NOT_RUN/BLOCKED다. 전체 자동검사와 대표 UI를 전 기능 전환경 완료율로 환산하지 않는다. 도움말 배포는 이 제한을 공개 scope와 기능 페이지에 명시한 문서 전달이며 제품 전체 수용 완료 선언이 아니다.
 
 최종 로컬 문서 검사: 27페이지·1526참조·오류0. 메인4463제어stop200 및 소유 컨테이너·임시 credential 제거 확인. 제품 운영 서버는 배포하지 않았다.
+
+
+## 최종 배포 확인
+
+- 공개 사이트 기준 커밋: `30659f2d84399458dbd8c10dd4652c89386b1c4c`.
+- [User Guide Actions 40181991420](https://github.com/vanillabrain/vanillameta/actions/runs/40181991420): build SUCCESS / deploy SUCCESS. 기본·/guide/ 링크 검사와 배포된 도메인 검사도 포함한다.
+- [운영 기능 시나리오](https://docs.vanillameta.net/feature-scenarios): 실제 Ego65에서 50개 제목·50개 명시 이동 앵커·신규 이미지2개 로드 확인. 사용자 소스26페이지 모두 직접 GET200(빌드27HTML은404포함),390px scrollWidth390. `#scenario-7` 직접 이동 확인.
+- 운영 캡처: `production-scenarios-desktop.png`, `production-scenarios-mobile.png`; HTTP/DOM 결과 `final-production.json`. 초기 `scenarios-mobile.png`는 resize 중 sidebar 전환 장면이므로 최종 모바일 증거는 stable/production 캡처를 사용한다.
+- Ego65 종료 완료, 문서3364 preview 종료. 테스트 API 재시작200 후 최종stop200·소유 컨테이너/credential 제거·영속volume0 확인. 기존 서버/프로필은 유지했다.
+- 이번 두 기능 커밋과 문서만 drumcap으로 develop에 push했다. `.claude/settings.json`·`CLAUDE.md`의 기존 다른 작업 변경은 남겨두었다. 이 검증 기록만 추가하는 후속 커밋은 공개 사이트 소스를 바꾸지 않는다.
