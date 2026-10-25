@@ -76,9 +76,7 @@ export default function StudioProposalRefinement({
         append ? undefined : proposal.semanticProposal[Number(target)],
         next.semanticProposal[append ? next.semanticProposal.length - 1 : Number(target)],
       );
-      setNotice(
-        ['수정된 전체 미리보기입니다. 확인 후 비공개로 저장해 주세요.', change].filter(Boolean).join(' '),
-      );
+      setNotice(['수정된 전체 미리보기입니다. 확인 후 비공개로 저장해 주세요.', change].filter(Boolean).join(' '));
     } catch (cause) {
       if (active.current === controller && !controller.signal.aborted)
         setError(

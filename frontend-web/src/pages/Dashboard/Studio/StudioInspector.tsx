@@ -8,7 +8,7 @@ import { TextField } from '@/components/ui/text-field';
 import { StudioBlock, StudioBlockKind, StudioOperation } from './studioTypes';
 
 /** Existing product labels for the block kinds the Studio document supports. */
-const KIND_LABELS: Record<StudioBlockKind, string> = {
+export const KIND_LABELS: Record<StudioBlockKind, string> = {
   SEGMENT_PIVOT: '집계 Pivot',
   BOARD_NUMERIC: '숫자판',
   CHART_COLUMN: '막대형 가로 차트',
