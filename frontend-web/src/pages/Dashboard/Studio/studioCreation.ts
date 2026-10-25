@@ -175,7 +175,7 @@ export const fetchStudioSources = async (): Promise<StudioSource[]> => {
 };
 // The save transaction rolls back before any write when the server's default chart component is missing.
 export const CHART_SETUP_UNAVAILABLE_MESSAGE =
-  '저장 기능이 일시적으로 준비되지 않았습니다. 아무것도 저장되지 않았습니다. 잠시 후 다시 시도해 주세요. 계속되면 운영자에게 문의해 주세요.';
+  '서버 설정이 완료되지 않아 저장할 수 없습니다. 아무것도 저장되지 않았습니다. 같은 요청을 다시 보내도 해결되지 않으며, 운영자가 서버 설정을 마쳐야 합니다.';
 // The server answers this one fixed reason as a plain string detail (or a {message} object); other details stay private.
 export const isChartComponentUnavailable = (cause: unknown) => {
   const body = (cause as any)?.response?.data;

@@ -15,6 +15,15 @@ import StudioConversationRefinement from './StudioConversationRefinement';
 import StudioSemanticReview from './StudioSemanticReview';
 import { aiRefusalMessage } from './studioAiMessages';
 
+const saveErrorMessage = (cause: unknown, status: number) => {
+  if (!status || status >= 500)
+    return '저장 완료 여부를 확인하지 못했습니다. 같은 생성 요청으로 재시도하면 기존 저장 결과를 확인합니다.';
+  if (isChartComponentUnavailable(cause)) return CHART_SETUP_UNAVAILABLE_MESSAGE;
+  if (status === 400) return '생성안이 만료되었거나 저장할 수 없습니다. 새 생성 요청을 보내 주세요.';
+  if (status === 403) return '이 데이터를 사용할 권한이 없습니다.';
+  return '데이터 기준이 변경됐거나 요청을 확인하지 못했습니다. 새 생성 요청을 보내 주세요.';
+};
+
 /** A new dashboard never replaces the editor that initiated the conversation. */
 export default function StudioConversationCreation({
   run,
@@ -164,17 +173,7 @@ export default function StudioConversationCreation({
       const unknown = !status || status >= 500;
       setUncertain(unknown);
       if (status === 400) setProposal(null);
-      setError(
-        unknown
-          ? '저장 완료 여부를 확인하지 못했습니다. 같은 생성 요청으로 재시도하면 기존 저장 결과를 확인합니다.'
-          : isChartComponentUnavailable(cause)
-          ? CHART_SETUP_UNAVAILABLE_MESSAGE
-          : status === 400
-          ? '생성안이 만료되었거나 저장할 수 없습니다. 새 생성 요청을 보내 주세요.'
-          : status === 403
-          ? '이 데이터를 사용할 권한이 없습니다.'
-          : '데이터 기준이 변경됐거나 요청을 확인하지 못했습니다. 새 생성 요청을 보내 주세요.',
-      );
+      setError(saveErrorMessage(cause, status));
     } finally {
       pending.current = false;
       if (live.current) setSaving(false);

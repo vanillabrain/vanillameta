@@ -109,6 +109,7 @@ it('explains a missing chart setup on save without the generic expired-proposal 
   render(<StudioConversationCreation run={run} onSave={save} disabled={false} />);
   fireEvent.click(await screen.findByRole('button', { name: '제안 확인 후 비공개 저장' }));
   expect(await screen.findByText(CHART_SETUP_UNAVAILABLE_MESSAGE)).toBeDefined();
+  expect(screen.queryByText(/잠시 후/)).toBeNull();
   expect(screen.queryByText('생성안이 만료되었거나 저장할 수 없습니다. 새 생성 요청을 보내 주세요.')).toBeNull();
   expect(screen.queryByText(/chart component/)).toBeNull();
 });

@@ -162,6 +162,10 @@ it.each([
   const message = creationError({ response: { status: 400, data } });
   expect(message).toBe(CHART_SETUP_UNAVAILABLE_MESSAGE);
   expect(message).toContain('아무것도 저장되지 않았습니다');
+  expect(message).toContain('운영자가 서버 설정을 마쳐야');
+  expect(message).not.toContain('일시적');
+  expect(message).not.toContain('잠시 후');
+  expect(message).not.toContain('다시 시도');
   expect(message).not.toContain('chart component');
   expect(message).not.toContain('필수 열');
 });
