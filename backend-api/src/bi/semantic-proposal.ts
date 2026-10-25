@@ -51,6 +51,17 @@ export const semanticDigest = (value: any) =>
   createHash('sha256')
     .update(JSON.stringify(canonical(value)))
     .digest('hex');
+/**
+ * A new ratio whose numerator and denominator are the same column is pinned at 1 (100%) and shows the same
+ * value for every group. Only new definitions pass through here: saved metrics are read as stored (no read
+ * repair) and a reuse of one keeps its existing arithmetic.
+ */
+export function assertNewRatio(aggregation: string, column: string, denominatorColumn?: string) {
+  if (aggregation === 'RATIO_SUM' && column === denominatorColumn)
+    throw new BadRequestException(
+      '같은 열끼리 나눈 비율은 항상 1(100%)로 고정되어 의미가 없습니다. 분모로 다른 숫자 열을 선택해 주세요.',
+    );
+}
 export function metricColumns(value: any): string[] {
   return [
     ...new Set<string>(
@@ -237,6 +248,7 @@ export function compileSemanticProposal(
     } else {
       if (!basis && measure.definition?.businessBasis !== undefined) fail();
       definition = normalizeMetric(measure.definition, profile, basis);
+      assertNewRatio(definition.aggregation, definition.column, definition.denominatorColumn);
     }
     const identity = metricIdentity(definition, profile.sourceId);
     const prior = measurePlan.find(

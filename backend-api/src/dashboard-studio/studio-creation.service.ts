@@ -28,6 +28,7 @@ import { createHash, randomUUID } from 'crypto';
 import { compileConditionDefinition, conditionColumns } from '../bi/source-condition-definition';
 import { BiService } from '../bi/bi.service';
 import { metricFields } from '../bi/metric-expression';
+import { assertNewRatio } from '../bi/semantic-proposal';
 import { AiService } from '../ai/ai.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { canonicalMetricSql, conditionColumnNames } from './studio-remix-template';
@@ -278,6 +279,21 @@ export class StudioCreationService {
   private refundRequest(prompt: string) {
     return /환불\s*(?:률|율|비율)|refund\s*(?:rate|ratio|percentage)/i.test(prompt);
   }
+  /**
+   * What the creation contract cannot express yet: a top-N cut, a share of the whole, a calendar-grain trend.
+   * Matching is literal, so a label or column that contains one of these words (a column named 월별) is
+   * refused too. Daily trends and plain category totals never match.
+   */
+  private unsupportedRequest(prompt: string): string[] {
+    const found: string[] = [];
+    if (/(?:상위|\btop)\s*\d+|가장[^.?!\n]{0,30}?\d+\s*개(?!월)/i.test(prompt))
+      found.push('상위 N개 제한');
+    if (/전체\s*대비|비중|점유율|share\s+of\s+total|%\s*of\s*total/i.test(prompt))
+      found.push('전체 대비 비중');
+    if (/월별|주별|분기별|연도별|monthly|weekly|quarterly|yearly/i.test(prompt))
+      found.push('월·주·분기·연도 단위 추이');
+    return found;
+  }
   /** Literal field references only; business labels remain the semantic planner's responsibility. */
   private explicitFields(prompt: string): string[] {
     const fields = new Set<string>();
@@ -495,6 +511,24 @@ export class StudioCreationService {
       title: '새 대시보드',
       semanticProposal: [],
     };
+    // Refused before the source's missing-field and refund questions: the user is never asked for a
+    // source or a denominator for a request that will be refused anyway. No model call, no SQL.
+    const unsupported = this.unsupportedRequest(prompt);
+    if (unsupported.length)
+      return {
+        ...base,
+        clarifications: [
+          {
+            id: 'unsupportedRequest',
+            question:
+              '아직 지원하지 않는 요청입니다: ' +
+              unsupported.join(', ') +
+              '. 제안과 계산 결과를 만들지 않았습니다. 카테고리별 합계·평균·건수나 일 단위 추이로 다시 요청해 주세요.',
+            choices: [],
+            affectedBlockIds: [],
+          },
+        ],
+      };
     const missing = this.missingFields(this.explicitFields(prompt), profile);
     if (missing.length) return this.missingColumns(base, missing);
     const denominator = this.denominator(body) ?? parent?.requestAnswers?.refundDenominator;
@@ -603,6 +637,9 @@ export class StudioCreationService {
       if (controller.signal.aborted) throw new Error('LLM_REQUEST_ABORTED');
       response = JSON.parse(raw);
     } catch (error) {
+      // A client stop is not a failure: no log, no 503 metric and no source check that could answer with
+      // another error first. Same sentence and status as the stop before inference in active().
+      if (controller.signal.aborted) throw new BadRequestException('AI 요청을 취소했습니다.');
       await guardBasis();
       if (isAiRefusal(error)) throw error;
       // The gateway's own failures keep their status and code (timeout 504, cut-off answer or provider error
@@ -902,6 +939,17 @@ export class StudioCreationService {
       };
     } else if (block.kind !== 'BOARD_NUMERIC')
       throw new BadRequestException('분류 열을 선택해 주세요.');
+    // A new measure over its own grouping column has one value per group (COUNT_DISTINCT is always 1).
+    // Saved references are not rechecked here; COUNT(*) per group stays valid.
+    if (
+      !metric.id &&
+      metric.aggregation !== 'COUNT' &&
+      dimension &&
+      metric.column === dimension.column
+    )
+      throw new BadRequestException(
+        '분류 열과 같은 열을 집계하면 모든 그룹의 값이 같아집니다. 집계할 숫자 열을 선택해 주세요.',
+      );
     return {
       blockId: 'new:' + randomUUID(),
       title,
@@ -952,6 +1000,7 @@ export class StudioCreationService {
       throw new BadRequestException('지표 정의 버전을 확인해 주세요.');
     const fields = metricFields(input, profile, basis),
       label = text(input.label, 100);
+    assertNewRatio(input.aggregation, fields.column, fields.denominatorColumn);
     const decimalPlaces = input.decimalPlaces ?? 2,
       unit =
         input.unit ??

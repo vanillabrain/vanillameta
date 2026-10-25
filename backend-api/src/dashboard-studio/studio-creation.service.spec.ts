@@ -374,14 +374,18 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     ['count as money', 'SUM', 'paid_orders', 'KRW', 0, undefined, undefined, false],
     ['row count as money', 'COUNT', '*', 'KRW', 0, undefined, undefined, false],
     ['percentage as count', 'RATIO_SUM', 'refunded_orders', 'count', 2, 'paid_orders', 100, false],
-    ['fraction as percentage', 'RATIO_SUM', 'paid_orders', '%', 2, 'paid_orders', 1, false],
+    // Was paid_orders/paid_orders: now a two-column ratio, so the unit (not the self-ratio guard) is what fails.
+    ['fraction as percentage', 'RATIO_SUM', 'refunded_orders', '%', 2, 'paid_orders', 1, false],
     ['valid won', 'SUM', 'refund_amount', 'KRW', 0, undefined, undefined, true],
     ['valid count', 'SUM', 'paid_orders', 'count', 0, undefined, undefined, true],
     ['valid percentage', 'RATIO_SUM', 'refunded_orders', '%', 2, 'paid_orders', 100, true],
-    ['valid fraction', 'RATIO_SUM', 'paid_orders', '', 3, 'paid_orders', 1, true],
+    // Ratios over the same column were valid here and showed the same value for every group (paid_orders/
+    // paid_orders, refund_amount/refund_amount). They are refused now, so the rows below compare two columns.
+    // The former "money share" row (refund_amount/refund_amount) moved to the Commerce self-ratio test below:
+    // this source has no second money column such as revenue to divide by.
+    ['valid fraction', 'RATIO_SUM', 'refunded_orders', '', 3, 'paid_orders', 1, true],
     ['unsupported inverse unit', 'RATIO_SUM', 'paid_orders', 'count', 0, 'refund_amount', 1, false],
     ['money per order', 'RATIO_SUM', 'refund_amount', 'KRW', 0, 'paid_orders', 1, true],
-    ['money share', 'RATIO_SUM', 'refund_amount', '%', 2, 'refund_amount', 100, true],
   ])(
     'checks Commerce units before preview: %s',
     async (_label, aggregation, column, unit, decimalPlaces, denominatorColumn, scale, valid) => {
@@ -515,6 +519,58 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       }
     },
   );
+  it('rejects a Commerce money share over its own column before preview and writes', async () => {
+    const original = await db.manager.findOneByOrFail(Database, { id: 1 });
+    const config = JSON.parse(original.connectionConfig),
+      digest = 'b'.repeat(64);
+    await db.manager.update(Database, 1, {
+      description: `commerce-studio:order-cohort-v1:12:3:${digest}`,
+      connectionConfig: JSON.stringify({
+        ...config,
+        commerceSnapshot: {
+          projectId: 12,
+          version: 3,
+          digest,
+          currency: 'KRW',
+          timeBasis: 'order-cohort',
+        },
+        fileVersions: [{ filename: config.connection.filename }],
+      }),
+    });
+    const preview = jest.spyOn(dashboards, 'preview');
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        requiredFields: ['refund_amount'],
+        title: 'Share',
+        semanticProposal: [
+          {
+            title: 'Share',
+            kind: 'BOARD_NUMERIC',
+            metric: {
+              label: 'Share',
+              aggregation: 'RATIO_SUM',
+              column: 'refund_amount',
+              denominatorColumn: 'refund_amount',
+              scale: 100,
+              unit: '%',
+              decimalPlaces: 2,
+              numberNotation: 'plain',
+            },
+          },
+        ],
+      }),
+    );
+    try {
+      await expect(propose({ prompt: '환불액 지표' })).rejects.toThrow('같은 열');
+      expect(preview).not.toHaveBeenCalled();
+    } finally {
+      preview.mockRestore();
+      await db.manager.update(Database, 1, {
+        description: original.description,
+        connectionConfig: original.connectionConfig,
+      });
+    }
+  });
   it('rechecks cached Commerce units and preserves source-version checks before writes', async () => {
     const original = await db.manager.findOneByOrFail(Database, { id: 1 });
     const config = JSON.parse(original.connectionConfig),
@@ -1084,6 +1140,36 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     ).rejects.toThrow();
     expect((service as any).proposals.size).toBe(count);
   });
+  it('answers a client stop during inference as a cancellation, not a logged 503', async () => {
+    const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const stop = new AbortController();
+    llm.callLlm.mockImplementationOnce(async () => {
+      stop.abort();
+      throw new Error('LLM_REQUEST_ABORTED');
+    });
+    const error: any = await service
+      .propose({ sourceId: 1, prompt: 'Show revenue and channels' }, 7, stop.signal, 0)
+      .catch(e => e);
+    expect(error.getStatus()).toBe(400);
+    expect(error.message).toBe('AI 요청을 취소했습니다.');
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+  it('still answers a real inference failure with a logged 503 when nobody stopped the request', async () => {
+    const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    llm.callLlm.mockRejectedValueOnce(new Error('provider unavailable'));
+    const error: any = await service
+      .propose(
+        { sourceId: 1, prompt: 'Show revenue and channels' },
+        7,
+        new AbortController().signal,
+        0,
+      )
+      .catch(e => e);
+    expect(error.getStatus()).toBe(503);
+    expect(log.mock.calls).toEqual([['AI call failed: Error']]);
+    log.mockRestore();
+  });
   it('serializes concurrent same-request saves and replays after ephemeral proposal expiry', async () => {
     const p = await propose();
     const before = await db.manager.count(Dashboard);
@@ -1322,6 +1408,141 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       }
     },
   );
+  // Requests the contract cannot express yet are refused before the model. The regex is literal, so a label
+  // or column that contains one of these words (for example a column named 월별) is refused too.
+  it.each([
+    '가장 많이 팔린 카테고리 상위 3개와 전체 대비 비중을 보여줘',
+    '월별 매출 추이를 보여줘',
+    '제품별 매출 상위 5개 막대 차트',
+    '카테고리별 매출 점유율을 보여줘',
+    'top 5 categories by revenue',
+    '분기별 주문 수를 보여줘',
+  ])(
+    'refuses a request the contract cannot express before the model, metric lookup or preview: %s',
+    async prompt => {
+      const preview = jest.spyOn(dashboards, 'preview');
+      try {
+        const p = await propose({ prompt });
+        expect(p.clarifications).toEqual([
+          {
+            id: 'unsupportedRequest',
+            question: expect.any(String),
+            choices: [],
+            affectedBlockIds: [],
+          },
+        ]);
+        expect(p.semanticProposal).toEqual([]);
+        expect(p.preview).toBeUndefined();
+        expect(llm.callLlm).not.toHaveBeenCalled();
+        expect(preview).not.toHaveBeenCalled();
+        await expect(save(p)).rejects.toThrow();
+      } finally {
+        preview.mockRestore();
+      }
+    },
+  );
+  it.each(['카테고리별 매출 합계를 보여줘', '일별 매출 추이'])(
+    'still asks the model for an ordinary request: %s',
+    async prompt => {
+      const p = await propose({ prompt });
+      expect(llm.callLlm).toHaveBeenCalledTimes(1);
+      expect(p.clarifications).toBeUndefined();
+      expect(p.preview).toBeDefined();
+    },
+  );
+  it('rejects a new ratio over its own column before preview, so every group never shows the same value', async () => {
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        requiredFields: ['amount'],
+        title: '금액 비율',
+        semanticProposal: [
+          {
+            title: '금액 비율',
+            kind: 'BOARD_NUMERIC',
+            metric: {
+              label: '금액 비율',
+              aggregation: 'RATIO_SUM',
+              column: 'amount',
+              denominatorColumn: 'amount',
+              scale: 100,
+              unit: '%',
+              decimalPlaces: 2,
+              numberNotation: 'plain',
+            },
+          },
+        ],
+      }),
+    );
+    const preview = jest.spyOn(dashboards, 'preview');
+    try {
+      await expect(propose({ prompt: '금액 비율을 보여 줘' })).rejects.toThrow('같은 열');
+      expect(preview).not.toHaveBeenCalled();
+    } finally {
+      preview.mockRestore();
+    }
+  });
+  it.each([
+    ['COUNT_DISTINCT', { aggregation: 'COUNT_DISTINCT', column: 'channel' }, 'channel'],
+    ['SUM', { aggregation: 'SUM', column: 'amount' }, 'amount'],
+  ])(
+    'rejects a new %s measure grouped by its own column before preview',
+    async (_label, metric, dimension) => {
+      llm.callLlm.mockResolvedValueOnce(
+        JSON.stringify({
+          requiredFields: [metric.column],
+          title: '자기 그룹',
+          semanticProposal: [
+            {
+              title: '자기 그룹',
+              kind: 'CHART_BAR',
+              metric: {
+                label: '자기 그룹',
+                ...metric,
+                unit: '',
+                decimalPlaces: 0,
+                numberNotation: 'plain',
+              },
+              dimension: { column: dimension },
+              presentation: 'visual',
+            },
+          ],
+        }),
+      );
+      const preview = jest.spyOn(dashboards, 'preview');
+      try {
+        await expect(propose({ prompt: '채널별 집계' })).rejects.toThrow('모든 그룹');
+        expect(preview).not.toHaveBeenCalled();
+      } finally {
+        preview.mockRestore();
+      }
+    },
+  );
+  it('keeps a row count per grouping column valid', async () => {
+    llm.callLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        requiredFields: ['channel'],
+        title: '채널별 건수',
+        semanticProposal: [
+          {
+            title: '채널별 건수',
+            kind: 'CHART_BAR',
+            metric: {
+              label: '채널별 건수',
+              aggregation: 'COUNT',
+              column: '*',
+              unit: '건',
+              decimalPlaces: 0,
+              numberNotation: 'plain',
+            },
+            dimension: { column: 'channel' },
+            presentation: 'visual',
+          },
+        ],
+      }),
+    );
+    const p = await propose({ prompt: '채널별 건수' });
+    expect(p.preview).toBeDefined();
+  });
   it('turns declared required fields absent from the source into clarification instead of substituted preview', async () => {
     llm.callLlm.mockResolvedValue(
       JSON.stringify({ ...semantics(), requiredFields: ['revenue', 'refund_amount'] }),

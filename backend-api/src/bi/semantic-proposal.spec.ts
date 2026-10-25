@@ -183,6 +183,36 @@ describe('transient semantic proposal compiler', () => {
     mutate(p);
     expect(() => compile(p)).toThrow(BadRequestException);
   });
+  it('rejects a new ratio over its own column but reads and reuses a saved one as stored', () => {
+    const selfRatio = {
+      ...definition,
+      aggregation: 'RATIO_SUM',
+      column: 'bid_request_cnt',
+      denominatorColumn: 'bid_request_cnt',
+      scale: 100,
+      unit: '%',
+    };
+    const p: any = proposal();
+    p.measures[0].definition = selfRatio;
+    expect(() => compile(p)).toThrow('같은 열');
+    // Saved definitions are never refused on read or reuse: an existing metric keeps its arithmetic.
+    const saved = row(11, {
+      definition: JSON.stringify({
+        schemaVersion: 1,
+        definitionVersion: 2,
+        sourceId: 7,
+        tableName: 'uploaded_data',
+        ...selfRatio,
+      }),
+    });
+    expect(semanticCatalog([saved], profile)).toHaveLength(1);
+    const reuse: any = proposal();
+    reuse.measures = [{ key: 'requests', reuse: { metricId: 11, definitionVersion: 2 } }];
+    expect(compile(reuse, [saved]).plan.measures[0]).toMatchObject({
+      action: 'reuse',
+      metricId: 11,
+    });
+  });
   it('supports COUNT star and temporal line explicitly', () => {
     const p: any = proposal();
     p.measures[0].definition = { ...definition, aggregation: 'COUNT', column: '*' };
