@@ -84,6 +84,28 @@ describe('serveRun without the stream header', () => {
     warn.mockRestore();
   });
 
+  it('logs a plain run that resolves after the client left as a result, since the ledger holds it', async () => {
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const req = request();
+    const res = response();
+    const out = serveRun(req, res, async () => {
+      res.emit('close');
+      return { status: 'succeeded' };
+    });
+    await expect(out).resolves.toEqual({ status: 'succeeded' });
+    expect(warn).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(log.mock.calls[0][0] as string)).toMatchObject({
+      msg: 'stream',
+      status: 499,
+      outcome: 'result',
+      disconnected: true,
+    });
+    log.mockRestore();
+    warn.mockRestore();
+  });
+
   it('aborts the run when the connection closes before the response finished', async () => {
     const req = request();
     const res = response();
@@ -213,8 +235,10 @@ describe('serveRun with Accept: application/x-ndjson', () => {
       Object.assign(new Error('Premature close'), { code: 'ERR_STREAM_PREMATURE_CLOSE' }),
     );
     expect(error).not.toHaveBeenCalled();
-    (out as any).errorLogger(new Error('real failure'));
-    expect(error).toHaveBeenCalledWith('real failure', expect.any(String));
+    (out as any).errorLogger(new Error('real failure with request text'));
+    // The class only: the message and stack are not logged.
+    expect(error).toHaveBeenCalledWith('Error');
+    expect(JSON.stringify(error.mock.calls)).not.toContain('request text');
   });
 
   it('releases the timer and listeners even when subscribing to progress throws', async () => {
@@ -379,9 +403,22 @@ describe('serveRun with Accept: application/x-ndjson', () => {
 
 describe('errorEvent', () => {
   it('reports an unexpected error without its text', () => {
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     const event = errorEvent(new Error('connect ECONNREFUSED 10.0.0.5:3306 password=hunter2'));
     expect(event).toMatchObject({ type: 'error', status: 500, error: 'INTERNAL_ERROR' });
     expect(JSON.stringify(event)).not.toContain('hunter2');
+    // The log keeps the class only: no message and no stack, which can carry the same text.
+    expect(error).toHaveBeenCalledWith('Error');
+    expect(JSON.stringify(error.mock.calls)).not.toContain('hunter2');
+    error.mockRestore();
+  });
+
+  it('logs a model failure by its code only, not its message', () => {
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    errorEvent(new Error('LLM_TIMEOUT'));
+    expect(error).toHaveBeenCalledWith('LLM_TIMEOUT');
+    expect(error.mock.calls[0]).toHaveLength(1);
+    error.mockRestore();
   });
 
   it('maps the gateway’s plain failures like the exception filter does', () => {

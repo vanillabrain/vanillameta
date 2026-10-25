@@ -53,7 +53,7 @@ function errorBody(error: unknown): StreamEvent {
   }
   const failure = llmFailure(error);
   if (failure) {
-    logger.error(`${failure.errorCode}: ${(error as Error).message}`, (error as Error).stack);
+    logger.error(failure.errorCode);
     return {
       type: 'error',
       status: failure.status,
@@ -61,7 +61,8 @@ function errorBody(error: unknown): StreamEvent {
       message: failure.message,
     };
   }
-  logger.error((error as Error)?.message ?? String(error), (error as Error)?.stack);
+  // The class only: an unexpected message or stack can carry request text, so neither is logged.
+  logger.error(failureCode(error));
   return {
     type: 'error',
     status: 500,
@@ -79,8 +80,9 @@ export interface ServeOptions {
 /**
  * Runs `run` for one request. The caller's connection closing aborts it (so the model call is cancelled
  * and the ledger records `cancelled`). Without `Accept: application/x-ndjson` this returns the promise and
- * the route answers exactly as it always did, except that a run which ends after the client left resolves
- * to `undefined` (or rejects with its abort) and is recorded as `cancelled`, not as a 5xx. With it, this
+ * the route answers exactly as it always did, except that a run which ends after the client left is logged
+ * by how it really ended: a resolved run as `result` with `disconnected: true` (the ledger has it), a thrown
+ * one as `cancelled` and resolves to `undefined`, never as a 5xx. With it, this
  * returns a stream at once (first byte now, not when the model answers) and the outcome follows as events.
  * Use only on a handler whose `@Res` is `passthrough`: the returned `StreamableFile` is what Nest pipes to
  * the response.
@@ -129,7 +131,8 @@ export function serveRun<T>(
     return (async () => {
       try {
         const data = await run(controller.signal);
-        if (controller.signal.aborted) logEnd(499, 'cancelled');
+        // It resolved, so the ledger holds the real outcome; the client had already left and got nothing.
+        if (controller.signal.aborted) logEnd(499, 'result');
         return data;
       } catch (error) {
         // Nobody is left to answer: a client that closed the connection cancelled the run, so this is
@@ -197,19 +200,14 @@ export function serveRun<T>(
         unwatch?.();
       } catch (error) {
         // The stream is already closed; a failing unsubscribe must not keep it from ending.
-        logger.warn(`stream unsubscribe failed: ${(error as Error)?.message}`);
+        logger.warn(`stream unsubscribe failed: ${failureCode(error)}`);
       }
       logEnd(status, outcome, code);
     }
-  })().catch(error =>
-    logger.error(
-      `stream bookkeeping failed: ${(error as Error)?.message}`,
-      (error as Error)?.stack,
-    ),
-  );
+  })().catch(error => logger.error(`stream bookkeeping failed: ${failureCode(error)}`));
   return new StreamableFile(out, { type: `${NDJSON}; charset=utf-8` }).setErrorLogger(error => {
     // A client that closes the connection is how a request is cancelled, not an error.
     if ((error as NodeJS.ErrnoException).code !== 'ERR_STREAM_PREMATURE_CLOSE')
-      logger.error(error.message, error.stack);
+      logger.error(failureCode(error));
   });
 }
