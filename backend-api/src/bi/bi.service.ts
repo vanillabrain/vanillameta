@@ -555,6 +555,15 @@ export class BiService {
       const d = JSON.parse(row.definition);
       if (d.definitionVersion !== ref.definitionVersion)
         throw new ConflictException('참조 지표가 변경되었습니다. 다시 미리보기해 주세요.');
+      await resolveBusinessBasis(
+        this.db.manager,
+        profile.sourceId,
+        profile,
+        d.businessBasis,
+        [d.column, d.denominatorColumn, d.weightColumn].filter(
+          name => typeof name === 'string' && name !== '*',
+        ),
+      );
       operands.push({ id: row.id, definitionVersion: d.definitionVersion, definition: d });
     }
     const formula = pinMetricFormula(body.expression, operands, profile);

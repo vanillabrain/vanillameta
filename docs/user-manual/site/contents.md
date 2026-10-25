@@ -4,6 +4,8 @@
 
 ## 시작하기
 
+- [기능별 따라 하기와 결과 확인](./feature-scenarios.md): 계정·데이터·탐색·AI·게시·공유·복구·MCP의 50개 사용 시나리오
+
 - [화면으로 따라 하는 매출 분석 샘플](./sample-walkthrough.md): 실제 캡처로 따라 하는 AI 대시보드·고객 매출 비교·주간 Pivot
 
 - [빠른 시작](./quickstart.md): 샘플 → 질문 → 미리보기 → 저장 → 수정 → 게시
@@ -12,7 +14,7 @@
 
 ## 에이전트와 Artifact
 
-- [Codex 실행 엔진 연결](./agent-connection.md): 서버 계정·CLI·로그인·환경설정·확인·오류 해결
+- [AI 실행 환경 준비](./agent-connection.md): 운영 제공자와 개발 Codex 구분·서버 설정·실제 실행 확인
 - [프롬프트로 Artifact 만들기](./agent-artifacts.md): 요청 정리 → 생성·미리보기 → 수정·저장 → 게시·재사용
 - [MCP 연결·직접 제작](./mcp.md): 로그인·클라이언트 등록·질문·미리보기·승인 저장·Studio 링크
 

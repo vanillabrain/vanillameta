@@ -6,6 +6,7 @@ const groups = [
     text: "시작하기",
     items: [
       ["빠른 시작", "quickstart"],
+      ["기능별 따라 하기", "feature-scenarios"],
       ["화면으로 따라 하는 샘플", "sample-walkthrough"],
       ["기본 개념", "concepts"],
       ["화면과 이동", "navigation"],
@@ -14,7 +15,7 @@ const groups = [
   {
     text: "에이전트와 Artifact",
     items: [
-      ["Codex 실행 엔진 연결", "agent-connection"],
+      ["AI 실행 환경 준비", "agent-connection"],
       ["프롬프트로 Artifact 만들기", "agent-artifacts"],
       ["MCP 연결·직접 제작", "mcp"],
     ],

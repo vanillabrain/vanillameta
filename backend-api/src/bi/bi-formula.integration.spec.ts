@@ -213,6 +213,73 @@ describe('saved FORMULA metrics over real DuckDB and the SQLite metric repositor
     sourceRevision = await connection.duckDBVersion(1);
   });
 
+  it('combines newly saved business-basis metrics through preview, save and reload', async () => {
+    await db.manager.insert(SourceCatalogEntry, {
+      sourceId: 1,
+      version: 1,
+      actorId: actor,
+      schemaRevision: businessSchemaRevision(profile),
+      sourceRevision: profile.dataVersion,
+      metadata: JSON.stringify({
+        label: 'Catalog',
+        description: '',
+        columns: profile.columns.map(c => ({
+          column: c.name,
+          label: c.name,
+          description: '',
+          unit: '',
+          dateFormat: '',
+          classification: '',
+          businessType: 'auto',
+        })),
+      }),
+    });
+    const create = (column: string) =>
+      bi.createMetric(
+        {
+          sourceId: 1,
+          label: column,
+          aggregation: 'SUM',
+          column,
+          unit: 'USD',
+          decimalPlaces: 2,
+          numberNotation: 'plain',
+        },
+        actor,
+        3,
+      );
+    const revenue = await create('revenue'),
+      cost = await create('cost');
+    expect(revenue.definition.businessBasis).toBeDefined();
+    const body = formulaBody({
+      op: 'subtract',
+      left: reference(revenue.id),
+      right: reference(cost.id),
+    });
+    const preview = await bi.previewFormula(body, actor);
+    expect(Number(preview.rows[0].value)).toBeCloseTo(2657.55, 6);
+    const saved = await bi.createMetric(body, actor, 3);
+    const reloaded = JSON.parse((await metricRow(saved.id)).definition);
+    expect(reloaded.formula.operands.map(o => o.definition.businessBasis)).toEqual([
+      revenue.definition.businessBasis,
+      cost.definition.businessBasis,
+    ]);
+    expect(metricExpression(reloaded, profile)).toBe(metricExpression(preview.definition, profile));
+    await expect(
+      bi.previewFormula(
+        formulaBody({
+          op: 'ratio',
+          left: reference(revenue.id),
+          right: reference(revenue.id),
+          scale: 100,
+        }),
+        actor,
+      ),
+    ).rejects.toMatchObject(selfRatioError);
+    await db.manager.delete(SourceCatalogEntry, { sourceId: 1, version: 1 });
+    await expect(bi.previewFormula(body, actor)).rejects.toBeInstanceOf(ConflictException);
+  });
+
   it('previews the margin formula at the current source revision without writing', async () => {
     const before = await metricCount();
     const preview = await bi.previewFormula(formulaBody(marginRatio()), actor);

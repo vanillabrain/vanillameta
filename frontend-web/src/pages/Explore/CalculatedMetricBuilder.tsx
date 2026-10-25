@@ -110,9 +110,15 @@ export default function CalculatedMetricBuilder({
       }
     } catch (cause) {
       if (generation.current !== token || abort.signal.aborted) return;
-      const status = (cause as any)?.response?.status;
+      const response = (cause as any)?.response;
+      const status = Number(response?.status);
+      const detail = response?.data?.data ?? response?.data;
+      // Map only the known refusal code; never display server messages or SQL details.
+      const selfRatio = status === 400 && detail?.code === 'FORMULA_SELF_RATIO';
       setError(
-        status === 409
+        selfRatio
+          ? '분자와 분모가 같은 계산은 비율을 비교할 수 없습니다. 서로 다른 계산을 선택해 주세요. 입력은 유지했습니다.'
+          : status === 409
           ? '원본 또는 참조 지표가 변경되었습니다. 데이터를 다시 불러온 뒤 미리보기해 주세요.'
           : status === 403
           ? '참조 지표를 사용할 권한이 없습니다.'

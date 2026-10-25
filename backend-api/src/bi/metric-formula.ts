@@ -1,4 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
+import type { BusinessBasis } from './semantic-business-basis';
+import {
+  businessProfile,
+  normalizeBusinessBasis,
+  sliceBusinessBasis,
+} from './semantic-business-basis';
 
 /**
  * RXS-03 계산 지표(formula) 헬퍼. 이 파일은 저장 지표 정의를 **조립**만 하고, 지표 정의를 DB에서
@@ -51,6 +57,7 @@ export type FormulaLeafDefinition = {
   denominatorColumn?: string;
   weightColumn?: string;
   scale?: 1 | 100;
+  businessBasis?: BusinessBasis;
 };
 
 /** pin 결과의 피연산자. definition은 위 허용 키만 가진 복제본이다. */
@@ -79,7 +86,14 @@ export type FormulaLeafCompiler = (
 /** profile에서 이 헬퍼가 실제로 읽는 부분만 좁혀 쓴 형태. */
 export type FormulaProfileLike = {
   sourceId: number;
-  columns: Array<{ name: string; type?: string; numeric?: boolean }>;
+  columns: Array<{
+    name: string;
+    type?: string;
+    numeric?: boolean;
+    temporal?: boolean;
+    nativeNumeric?: boolean;
+    nativeTemporal?: boolean;
+  }>;
 };
 
 export const FORMULA_LIMITS = {
@@ -107,6 +121,7 @@ const LEAF_DEFINITION_KEYS = [
   'denominatorColumn',
   'weightColumn',
   'scale',
+  'businessBasis',
 ];
 
 /** FORMULA는 순환 위험 때문에 이 슬라이스에서 잎이 될 수 없다. */
@@ -262,7 +277,17 @@ function leafDefinition(
   const numberNotation = input.numberNotation === undefined ? 'plain' : input.numberNotation;
   if (numberNotation !== 'plain' && numberNotation !== 'compact')
     throw new BadRequestException('invalid operand numberNotation');
-  const columns = profile.columns || [];
+  const businessBasis =
+    input.businessBasis === undefined ? undefined : normalizeBusinessBasis(input.businessBasis);
+  const nativeProfile = {
+    ...profile,
+    columns: profile.columns.map(column => ({
+      ...column,
+      numeric: column.nativeNumeric ?? column.numeric,
+      temporal: column.nativeTemporal ?? column.temporal,
+    })),
+  };
+  const columns = businessProfile(nativeProfile, businessBasis).columns;
   const named = (name: unknown, what: string) => {
     if (typeof name !== 'string' || !name.trim() || name.length > FORMULA_LIMITS.maxColumnLength)
       throw new BadRequestException('invalid operand ' + what + ' column');
@@ -280,6 +305,7 @@ function leafDefinition(
     decimalPlaces: Number(decimalPlaces),
     numberNotation,
     aggregation,
+    ...(businessBasis ? { businessBasis } : {}),
   };
   if (aggregation === 'COUNT') {
     if (input.column !== undefined && input.column !== '*')
@@ -303,6 +329,14 @@ function leafDefinition(
     if (aggregation === 'RATIO_SUM') definition.denominatorColumn = secondary.name;
   } else if (input.scale !== undefined) {
     throw new BadRequestException('unsupported operand scale');
+  }
+  if (businessBasis) {
+    sliceBusinessBasis(
+      businessBasis,
+      [definition.column, definition.denominatorColumn, definition.weightColumn].filter(
+        (name): name is string => typeof name === 'string',
+      ),
+    );
   }
   return definition;
 }

@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { metricExpression } from './metric-expression';
+import { businessSchemaRevision } from './semantic-business-basis';
 import {
   FORMULA_LIMITS,
   collectFormulaReferences,
@@ -589,4 +590,62 @@ describe('metric formula over real DuckDB', () => {
     expect(empty[0].revenue).toBeNull();
     expect(empty[0].value).toBeNull();
   });
+});
+
+it('preserves and validates saved business bases on formula operands', () => {
+  const basis = {
+    schemaVersion: 1,
+    catalogVersion: null,
+    schemaRevision: businessSchemaRevision(profile),
+    columns: [
+      {
+        column: 'revenue',
+        nativeType: 'DOUBLE',
+        label: 'Revenue',
+        description: '',
+        unit: 'USD',
+        businessType: 'auto',
+        dateFormat: '',
+        classification: '',
+      },
+    ],
+  };
+  const operands = [operand(1, { businessBasis: basis }), operand(2, { column: 'cost' })];
+  const formula = pinMetricFormula(
+    { op: 'subtract', left: leaf(1), right: leaf(2) },
+    operands,
+    profile,
+  );
+  expect((formula.operands[0].definition as any).businessBasis).toEqual(basis);
+  expect((formula.operands[0].definition as any).businessBasis).not.toBe(basis);
+  const projected = {
+    ...profile,
+    columns: profile.columns.map(c => ({ ...c, nativeNumeric: c.numeric, numeric: false })),
+  };
+  expect(() =>
+    pinMetricFormula({ op: 'subtract', left: leaf(1), right: leaf(2) }, operands, projected),
+  ).not.toThrow();
+  const categoryBasis = {
+    ...basis,
+    columns: basis.columns.map(c => ({ ...c, businessType: 'category' })),
+  };
+  expect(() =>
+    pinMetricFormula(leaf(1), [operand(1, { businessBasis: categoryBasis })], profile),
+  ).toThrow('numeric');
+
+  expect(compileMetricFormula(formula, profile, metricExpression).sql).toContain('SUM("revenue")');
+  const stale = { ...basis, schemaRevision: '0'.repeat(64) };
+  expect(() =>
+    pinMetricFormula(leaf(1), [operand(1, { businessBasis: stale })], profile),
+  ).toThrow();
+  expect(() =>
+    pinMetricFormula(
+      leaf(1),
+      [operand(1, { businessBasis: { ...basis, sql: 'private SQL' } })],
+      profile,
+    ),
+  ).toThrow();
+  expect(() =>
+    pinMetricFormula(leaf(1), [operand(1, { businessBasis: { ...basis, columns: [] } })], profile),
+  ).toThrow();
 });

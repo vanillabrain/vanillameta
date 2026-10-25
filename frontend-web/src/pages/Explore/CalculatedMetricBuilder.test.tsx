@@ -80,3 +80,32 @@ it('drops a late preview after the source version changes and cannot save it', a
   expect(screen.queryByText('17.79%')).toBeNull();
   expect((screen.getByRole('button', { name: '계산 지표 저장' }) as HTMLButtonElement).disabled).toBe(true);
 });
+
+const selfRatioMessage =
+  '분자와 분모가 같은 계산은 비율을 비교할 수 없습니다. 서로 다른 계산을 선택해 주세요. 입력은 유지했습니다.';
+const genericMessage = '계산 지표를 처리하지 못했습니다. 같은 단위의 지표와 계산 조건을 확인해 주세요. 입력은 유지했습니다.';
+it.each([
+  ['direct', 400, { code: 'FORMULA_SELF_RATIO' }, selfRatioMessage],
+  ['wrapped', 400, { data: { code: 'FORMULA_SELF_RATIO' } }, selfRatioMessage],
+  ['unknown', 400, { code: 'UNKNOWN_CODE' }, genericMessage],
+  ['wrong status', 500, { code: 'FORMULA_SELF_RATIO' }, genericMessage],
+])('maps %s errors safely and preserves the formula inputs', async (_kind, status, detail, expected) => {
+  api.post.mockRejectedValueOnce({
+    response: { status, data: { ...detail, message: 'SELECT private_password FROM private_table', sql: 'private SQL' } },
+  });
+  render(<CalculatedMetricBuilder {...props} />);
+  fillMargin();
+  fireEvent.change(screen.getByLabelText('계산 방식'), { target: { value: 'ratio' } });
+  fireEvent.change(screen.getByLabelText('지표 B'), { target: { value: '1' } });
+  fireEvent.click(screen.getByRole('button', { name: '계산 미리보기' }));
+  await screen.findByText(expected);
+  expect((screen.getByLabelText('계산 지표 이름') as HTMLInputElement).value).toBe('계산 마진');
+  expect((screen.getByLabelText('계산 방식') as HTMLSelectElement).value).toBe('ratio');
+  expect((screen.getByLabelText('지표 A') as HTMLSelectElement).value).toBe('1');
+  expect((screen.getByLabelText('지표 B') as HTMLSelectElement).value).toBe('1');
+  expect((screen.getByRole('button', { name: '계산 지표 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByText(/SELECT|private/)).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '계산 지표 저장' }));
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(props.onCreated).not.toHaveBeenCalled();
+});

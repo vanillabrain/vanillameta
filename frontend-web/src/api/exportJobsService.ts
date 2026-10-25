@@ -128,7 +128,7 @@ export const exportJobsService = {
 export function exportJobError(error: any): string {
   const status = error?.response?.status;
   if (status === 401) return '로그인이 만료되었습니다. 다시 로그인해 주세요.';
-  if (status === 403) return '현재 이 소스를 내보낼 권한이 없습니다.';
+  if (status === 403) return '현재 조직 소속과 소스 내보내기 권한을 확인해 주세요.';
   if (status === 404) return '작업을 찾을 수 없거나 현재 접근할 수 없습니다.';
   if (status === 409)
     return '작업 또는 데이터 기준이 변경되었습니다. 작업을 다시 읽고, 새 기준은 새 작업으로 접수해 주세요.';
