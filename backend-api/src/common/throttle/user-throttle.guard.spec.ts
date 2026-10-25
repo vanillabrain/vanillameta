@@ -149,12 +149,14 @@ describe('UserThrottleGuard', () => {
 });
 
 describe('user throttle settings', () => {
-  it('defaults to 20 AI, 5 upload and 30 read requests a minute and accepts overrides', () => {
+  it('defaults to 20 AI, 5 upload, 30 read, 10 remix a minute and accepts overrides', () => {
     expect(userThrottleLimit('ai', {})).toBe(20);
     expect(userThrottleLimit('upload', {})).toBe(5);
     expect(userThrottleLimit('read', {})).toBe(30);
+    expect(userThrottleLimit('remix', {})).toBe(10);
     expect(userThrottleLimit('read', { USER_THROTTLE_READ_PER_MIN: '9' } as any)).toBe(9);
     expect(userThrottleLimit('ai', { USER_THROTTLE_AI_PER_MIN: ' 7 ' } as any)).toBe(7);
+    expect(userThrottleLimit('remix', { USER_THROTTLE_REMIX_PER_MIN: '4' } as any)).toBe(4);
   });
 
   it.each(['0', '-1', '1.5', 'many'])('rejects %s', value => {
@@ -178,5 +180,8 @@ describe('user throttle settings', () => {
     } as any;
     expect(productionConfigProblems({ ...base, USER_THROTTLE_AI_PER_MIN: '0' })).toHaveLength(1);
     expect(productionConfigProblems({ ...base, USER_THROTTLE_AI_PER_MIN: '30' })).toEqual([]);
+    expect(productionConfigProblems({ ...base, USER_THROTTLE_REMIX_PER_MIN: 'many' })).toEqual([
+      'USER_THROTTLE_REMIX_PER_MIN must be a positive integer',
+    ]);
   });
 });

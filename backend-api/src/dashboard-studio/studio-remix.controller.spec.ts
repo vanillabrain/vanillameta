@@ -25,6 +25,7 @@ describe('T9 authenticated no-store remix HTTP API', () => {
           provide: JwtService,
           useValue: {
             verify: (token: string) => {
+              if (token === 'other') return { accessKeyData: { id: 9, userId: 'other' } };
               if (token !== 'valid') throw new Error();
               return { accessKeyData: { id: 8, userId: 'recipient' } };
             },
@@ -67,4 +68,34 @@ describe('T9 authenticated no-store remix HTTP API', () => {
     expect(response.body.actor).toBe(8);
     expect(response.headers['cache-control']).toContain('no-store');
   });
+  it.each(['remix-preview', 'remix'])(
+    'answers 429 with Retry-After once one user passes the remix limit on %s',
+    async route => {
+      const saved = process.env.USER_THROTTLE_REMIX_PER_MIN;
+      process.env.USER_THROTTLE_REMIX_PER_MIN = '2';
+      try {
+        const url = '/studio/publications/' + 'b'.repeat(64) + '/' + route;
+        for (let i = 0; i < 2; i += 1)
+          await request(app.getHttpServer())
+            .post(url)
+            .set('Authorization', 'Bearer other')
+            .send({ targetSourceId: 2, mapping: {} })
+            .expect(201);
+        const response = await request(app.getHttpServer())
+          .post(url)
+          .set('Authorization', 'Bearer other')
+          .send({ targetSourceId: 2, mapping: {} })
+          .expect(429);
+        expect(response.body).toMatchObject({
+          error: 'RATE_LIMITED',
+          retryAfterSeconds: expect.any(Number),
+        });
+        expect(response.headers['retry-after']).toMatch(/^[1-9]\d*$/);
+        expect(response.headers['cache-control']).toContain('no-store');
+      } finally {
+        if (saved === undefined) delete process.env.USER_THROTTLE_REMIX_PER_MIN;
+        else process.env.USER_THROTTLE_REMIX_PER_MIN = saved;
+      }
+    },
+  );
 });

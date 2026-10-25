@@ -11,13 +11,17 @@ import { SemanticProposalController } from '../../bi/semantic-proposal.controlle
 import { CommerceController } from '../../commerce/commerce.controller';
 import { StudioCreationController } from '../../dashboard-studio/studio-creation.controller';
 import { StudioExecutionController } from '../../dashboard-studio/studio-execution.controller';
+import {
+  StudioReceivedRemixController,
+} from '../../dashboard-studio/studio-received-remix.controller';
+import { StudioRemixController } from '../../dashboard-studio/studio-remix.controller';
 import { StudioRunController } from '../../dashboard-studio/studio-run.controller';
 import { DatabaseController } from '../../database/database.controller';
 import { FileRefreshController } from '../../database/file-refresh.controller';
 import { UsageController } from '../../usage/usage.controller';
 import { USER_THROTTLE_KEY, UserThrottleGuard } from './user-throttle.guard';
 
-type Preset = 'ai' | 'upload' | 'read';
+type Preset = 'ai' | 'upload' | 'read' | 'remix';
 const preset = (target: any, handler?: string): Preset | undefined =>
   Reflect.getMetadata(USER_THROTTLE_KEY, handler ? target.prototype[handler] : target);
 const guards = (target: any): unknown[] => Reflect.getMetadata('__guards__', target) ?? [];
@@ -51,6 +55,12 @@ const THROTTLED: [string, any, string, Preset][] = [
   ['database file-replacement', DatabaseController, 'replaceFile', 'upload'],
   ['file-refresh start', FileRefreshController, 'start', 'upload'],
   ['me usage (walks the user directories)', UsageController, 'usage', 'read'],
+  ['studio remix template', StudioRemixController, 'template', 'read'],
+  ['studio remix preview', StudioRemixController, 'preview', 'remix'],
+  ['studio remix save', StudioRemixController, 'remix', 'remix'],
+  ['studio received remix template', StudioReceivedRemixController, 'template', 'read'],
+  ['studio received remix preview', StudioReceivedRemixController, 'preview', 'remix'],
+  ['studio received remix save', StudioReceivedRemixController, 'save', 'remix'],
 ];
 
 // Polled, re-queried or autosaved by the UI, and none of them calls the model: never throttled here.
@@ -74,6 +84,8 @@ const LEFT_ALONE: [string, any, string][] = [
   ['file schema inspect', FileSchemaImpactController, 'inspect'],
   ['database test connection', DatabaseController, 'testConnection'],
   ['file-refresh cancel', FileRefreshController, 'cancel'],
+  ['studio received reference (cheap lookup)', StudioReceivedRemixController, 'reference'],
+  ['studio received remix-result (receipt lookup)', StudioReceivedRemixController, 'result'],
 ];
 
 const CONTROLLERS = [
@@ -87,6 +99,8 @@ const CONTROLLERS = [
   SemanticProposalController,
   StudioCreationController,
   StudioExecutionController,
+  StudioReceivedRemixController,
+  StudioRemixController,
   StudioRunController,
   UsageController,
 ];
@@ -108,8 +122,12 @@ describe('per-user throttle coverage', () => {
       expect(preset(controller)).toBeUndefined();
       const list = guards(controller);
       expect(list).toContain(UserThrottleGuard);
-      expect(list.indexOf(JwtAuthGuard)).toBeGreaterThanOrEqual(0);
-      expect(list.indexOf(UserThrottleGuard)).toBeGreaterThan(list.indexOf(JwtAuthGuard));
+      // StudioPublicationGuard (Studio publication routes) extends JwtAuthGuard and sets the user.
+      const auth = list.findIndex(
+        guard => guard === JwtAuthGuard || (guard as Function).prototype instanceof JwtAuthGuard,
+      );
+      expect(auth).toBeGreaterThanOrEqual(0);
+      expect(list.indexOf(UserThrottleGuard)).toBeGreaterThan(auth);
     },
   );
 });

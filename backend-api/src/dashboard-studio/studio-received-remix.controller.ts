@@ -1,9 +1,10 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { UserThrottle, UserThrottleGuard } from '../common/throttle/user-throttle.guard';
 import { StudioPublicationGuard } from './studio-publication.controller';
 import { StudioReceivedRemixService } from './studio-received-remix.service';
 import { StudioRemixService } from './studio-remix.service';
 import { RemixPreviewRequest, RemixRequest } from './studio-remix-contract';
-@UseGuards(StudioPublicationGuard)
+@UseGuards(StudioPublicationGuard, UserThrottleGuard)
 @Controller('studio/received')
 export class StudioReceivedRemixController {
   constructor(
@@ -13,9 +14,11 @@ export class StudioReceivedRemixController {
   @Get(':id/remix-reference') reference(@Param('id', ParseIntPipe) id: number, @Req() req) {
     return this.received.reference(id, req.user?.accessKeyData?.id);
   }
+  @UserThrottle('read')
   @Get(':reference/remix-template') template(@Param('reference') reference: string, @Req() req) {
     return this.remix.template(reference, req.user?.accessKeyData?.id, this.received.resolve);
   }
+  @UserThrottle('remix')
   @Post(':reference/remix-preview') preview(
     @Param('reference') reference: string,
     @Body() body: RemixPreviewRequest,
@@ -41,6 +44,7 @@ export class StudioReceivedRemixController {
       req.user?.accessKeyData?.authVersion ?? 0,
     );
   }
+  @UserThrottle('remix')
   @Post(':reference/remix') save(
     @Param('reference') reference: string,
     @Body() body: RemixRequest,
