@@ -3174,10 +3174,24 @@ export class AiDashboardService {
       databaseId = dataset.databaseId;
       const component = await manager.findOne(Component, { where: { id: widget.componentId } });
       const option = JSON.parse(widget.option);
-      const sql = dataset.query.replace(
-        /\bFROM\s+(?:uploaded_data|"uploaded_data")(?=\s|$)/i,
-        'FROM source',
-      );
+      // sourceQuery persists this exact unscoped wrapper for canonical BI widgets. Reusing
+      // such a widget in a legacy dashboard must recover the inner SELECT, not make the CTE
+      // recursive. Never unwrap filtered/projected wrappers or discard another saved scope.
+      const wrapper = 'WITH source AS (SELECT * FROM uploaded_data) ';
+      const canonicalWrapper = dataset.query.startsWith(wrapper);
+      if (
+        canonicalWrapper &&
+        [dashboard.structuredDefinition, dashboard.pivotDefinitions].some(
+          value => value !== undefined && value !== null && value !== '',
+        )
+      )
+        throw new BadRequestException('저장된 분석 구성과 조건을 먼저 확인해 주세요.');
+      const sql = canonicalWrapper
+        ? dataset.query.slice(wrapper.length)
+        : dataset.query.replace(
+            /\bFROM\s+(?:uploaded_data|"uploaded_data")(?=\s|$)/i,
+            'FROM source',
+          );
       validateSourceSql(sql);
       widgets.push({
         title: widget.title,

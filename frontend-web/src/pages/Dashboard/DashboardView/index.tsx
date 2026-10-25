@@ -54,7 +54,23 @@ const DashboardView = () => {
   const snackbar = useAlert(SnackbarContext);
   const { userState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-  const [dashboardInfo, setDashboardInfo] = useState(defaultDashboardInfo); // dashboard 정보
+  const [dashboardInfo, setDashboardInfo] = useState<
+    typeof defaultDashboardInfo & {
+      analysisDefinition?: unknown;
+      structuredDefinition?: unknown;
+      pivotDefinitions?: unknown;
+    }
+  >(defaultDashboardInfo); // dashboard 정보
+  const [loadedDashboardId, setLoadedDashboardId] = useState<string | null>(null);
+  // Only an accepted current-route response can establish an empty legacy dashboard. Any stored
+  // definition, including malformed or pivot-only content, keeps the protected analysis path.
+  const emptyDashboard =
+    loadedDashboardId === dashboardId &&
+    dashboardInfo.widgets.length === 0 &&
+    dashboardInfo.layout.length === 0 &&
+    [dashboardInfo.analysisDefinition, dashboardInfo.structuredDefinition, dashboardInfo.pivotDefinitions].every(
+      definition => definition === undefined || definition === null || definition === '',
+    );
   const [assistantOpen, setAssistantOpen] = useState(false);
   const dashboardRequest = useRef(0);
   const blockedDashboardId = useRef<string | null>(null);
@@ -112,6 +128,7 @@ const DashboardView = () => {
     setInsight(null);
     setInsightLoading(false);
     setDashboardInfo(defaultDashboardInfo);
+    setLoadedDashboardId(null);
     setLayout([]);
     setShareLimitDate(null);
   }, [dashboardId]);
@@ -164,10 +181,12 @@ const DashboardView = () => {
         if (
           response.data.status === STATUS.SUCCESS &&
           dashboard &&
+          String(dashboard.id) === String(id) &&
           Array.isArray(dashboard.layout) &&
           Array.isArray(dashboard.widgets)
         ) {
           setDashboardInfo(dashboard);
+          setLoadedDashboardId(String(id));
           trackDashboardEvent.viewed(String(id));
         } else {
           throw new Error(t('dashboard.loadFailed'));
@@ -176,6 +195,7 @@ const DashboardView = () => {
       .catch(error => {
         if (request !== dashboardRequest.current) return;
         setDashboardInfo(defaultDashboardInfo);
+        setLoadedDashboardId(null);
         setLayout([]);
         if (error?.response?.status === 403) {
           blockedDashboardId.current = id;
@@ -346,7 +366,7 @@ const DashboardView = () => {
                   <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground">
                     <RouterLink
                       aria-label={t('dashboardModify.edit')}
-                      to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
+                      to={`/dashboard/modify?id=${dashboardId}&name=${encodeURIComponent(dashboardInfo.title)}`}
                     >
                       <SquarePen />
                     </RouterLink>
@@ -400,26 +420,39 @@ const DashboardView = () => {
               </div>
             )}
             <div className="min-w-0 flex-auto rounded-b-md bg-muted/30">
-              <DashboardAnalysis
-                key={dashboardId}
-                dashboardId={dashboardId}
-                revision={dashboardInfo.updatedAt}
-                onAssistantOpenChange={setAssistantOpen}
-                onSaved={() => getDashboardInfo(dashboardId)}
-              >
-                <ResponsiveGridLayout
-                  key={layoutVersion}
-                  rowHeight={76}
-                  compactType={null}
-                  breakpoints={{ xs: 0, md: 800, lg: 1000 }}
-                  cols={{ xs: 1, md: 8, lg: 12 }}
-                  layouts={readLayouts(layout)}
-                  containerPadding={{ xs: [12, 12], md: [16, 16], lg: [20, 20] }}
-                  margin={{ xs: [12, 12], md: [16, 16], lg: [20, 20] }}
+              {emptyDashboard ? (
+                <div className="space-y-3 p-4 sm:p-6">
+                  <p className="text-sm text-muted-foreground">
+                    아직 추가한 위젯이 없습니다. 편집 화면에서 위젯을 추가해 주세요.
+                  </p>
+                  <Button asChild variant="outline" size="sm">
+                    <RouterLink to={`/dashboard/modify?id=${dashboardId}&name=${encodeURIComponent(dashboardInfo.title)}`}>
+                      위젯 추가하기
+                    </RouterLink>
+                  </Button>
+                </div>
+              ) : loadedDashboardId === dashboardId ? (
+                <DashboardAnalysis
+                  key={dashboardId}
+                  dashboardId={dashboardId}
+                  revision={dashboardInfo.updatedAt}
+                  onAssistantOpenChange={setAssistantOpen}
+                  onSaved={() => getDashboardInfo(dashboardId)}
                 >
-                  {generateWidget()}
-                </ResponsiveGridLayout>
-              </DashboardAnalysis>
+                  <ResponsiveGridLayout
+                    key={layoutVersion}
+                    rowHeight={76}
+                    compactType={null}
+                    breakpoints={{ xs: 0, md: 800, lg: 1000 }}
+                    cols={{ xs: 1, md: 8, lg: 12 }}
+                    layouts={readLayouts(layout)}
+                    containerPadding={{ xs: [12, 12], md: [16, 16], lg: [20, 20] }}
+                    margin={{ xs: [12, 12], md: [16, 16], lg: [20, 20] }}
+                  >
+                    {generateWidget()}
+                  </ResponsiveGridLayout>
+                </DashboardAnalysis>
+              ) : null}
             </div>
           </PageViewBox>
         </div>

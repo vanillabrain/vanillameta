@@ -9,6 +9,7 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import { setToken } from '@/helpers/authHelper';
 import { deletionDependencyLabels } from '@/api/dashboardDeletionService';
 const api = vi.hoisted(() => ({
+  realAnalysis: false,
   get: vi.fn(),
   del: vi.fn(),
   put: vi.fn(),
@@ -37,14 +38,20 @@ vi.mock('react-grid-layout', () => ({
   Responsive: ({ children }: any) => <div>{children}</div>,
   WidthProvider: (component: any) => component,
 }));
-vi.mock('../Components/DashboardAnalysis', () => ({
-  default: ({ children }: any) => (
-    <>
-      <input aria-label="편집기 질문" defaultValue="보존할 질문" />
-      {children}
-    </>
-  ),
-}));
+vi.mock('../Components/DashboardAnalysis', async importOriginal => {
+  const actual = await importOriginal<typeof import('../Components/DashboardAnalysis')>();
+  return {
+    default: (props: any) =>
+      api.realAnalysis ? (
+        <actual.default {...props} />
+      ) : (
+        <>
+          <input aria-label="편집기 질문" defaultValue="보존할 질문" />
+          {props.children}
+        </>
+      ),
+  };
+});
 const envelope = (data: any) => ({ data: { status: 'SUCCESS', data } });
 const deps = () => Object.keys(deletionDependencyLabels).map(kind => ({ kind, count: 0 }));
 const impact = (id = 7, over: Record<string, unknown> = {}) =>
@@ -97,6 +104,7 @@ function show() {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  api.realAnalysis = false;
   localStorage.clear();
   sessionStorage.clear();
   setToken('view-actor-token');
@@ -104,9 +112,11 @@ beforeEach(() => {
     path.endsWith('/delete-impact')
       ? impact(Number(path.split('/')[2]))
       : envelope({
+          id: Number(path.split('/')[2]),
           title: `Local dashboard ${path.split('/')[2]}`,
           widgets: [],
           layout: [],
+          analysisDefinition: '{}',
           updatedAt: '2026-10-18',
           shareYn: 'N',
           endDate: null,
@@ -253,6 +263,7 @@ it('keeps generic loading failures separate from 403 permission denial', async (
 it('clears previously loaded private content on 403 and prevents share-state reset from refetching indefinitely', async () => {
   api.get.mockResolvedValueOnce(
     envelope({
+      id: 7,
       title: 'Previously private dashboard',
       widgets: [],
       layout: [],
@@ -349,4 +360,114 @@ it('ignores a late owner-management proof after the dashboard target changes', a
   expect(screen.queryByRole('button', { name: '삭제 영향 확인' })).toBeNull();
   expect(screen.getByText('Local dashboard 8')).toBeTruthy();
   expect(api.del).not.toHaveBeenCalled();
+});
+
+const emptyMessage = '아직 추가한 위젯이 없습니다. 편집 화면에서 위젯을 추가해 주세요.';
+const emptyDashboard = {
+  id: 7,
+  title: 'Empty legacy dashboard',
+  widgets: [],
+  layout: [],
+  updatedAt: '2026-10-25',
+  shareYn: 'N',
+};
+const analysisReadError = '저장된 대시보드 정의를 다시 읽지 못했습니다. 화면을 다시 열어 주세요.';
+it('shows a successfully loaded empty legacy dashboard without invoking real analysis, preserving edit and deletion actions', async () => {
+  api.realAnalysis = true;
+  api.get.mockImplementation(async path => {
+    if (path === '/dashboard/7') return envelope(emptyDashboard);
+    throw { response: { status: 400 } };
+  });
+  show();
+  await screen.findByText(emptyMessage);
+  expect(screen.queryByText(analysisReadError)).toBeNull();
+  expect(api.get.mock.calls.map(([path]) => path)).toEqual(['/dashboard/7']);
+  expect(screen.getByRole('link', { name: '위젯 추가하기' }).getAttribute('href')).toBe(
+    '/dashboard/modify?id=7&name=Empty%20legacy%20dashboard',
+  );
+  expect(screen.getByRole('button', { name: 'dashboard.delete' })).toBeTruthy();
+});
+it.each(['analysisDefinition', 'structuredDefinition', 'pivotDefinitions'])(
+  'keeps real analysis400 protected when %s exists even with no widgets/layout',
+  async field => {
+    api.realAnalysis = true;
+    api.get.mockImplementation(async path => {
+      if (path === '/dashboard/7') return envelope({ ...emptyDashboard, [field]: '{}' });
+      throw { response: { status: 400, data: { code: 'INVALID_STUDIO_SCOPE' } } };
+    });
+    show();
+    await screen.findByText(/저장된 날짜 범위·공통 필터 조건을 확인할 수 없습니다/);
+    expect(api.get.mock.calls.some(([path]) => path === '/ai/dashboard-analysis/7')).toBe(true);
+    expect(screen.queryByText(emptyMessage)).toBeNull();
+    expect(api.post).not.toHaveBeenCalled();
+  },
+);
+it('never classifies pending, failed, or a previous target response as an empty dashboard', async () => {
+  api.realAnalysis = true;
+  const pending = deferred();
+  api.get.mockReturnValueOnce(pending.promise).mockRejectedValue({ response: { status: 500 } });
+  show();
+  expect(screen.queryByText(emptyMessage)).toBeNull();
+  fireEvent.click(screen.getByText('다른 대상 이동'));
+  await waitFor(() => expect(api.error).toHaveBeenCalledWith('dashboard.loadFailed'));
+  await act(async () => pending.resolve(envelope(emptyDashboard)));
+  expect(screen.queryByText(emptyMessage)).toBeNull();
+  expect(api.get.mock.calls.map(([path]) => path)).toEqual(['/dashboard/7', '/dashboard/8']);
+});
+
+it('retains a generic analysis400 error for a saved definition rather than declaring it empty', async () => {
+  api.realAnalysis = true;
+  api.get.mockImplementation(async path => {
+    if (path === '/dashboard/7') return envelope({ ...emptyDashboard, analysisDefinition: '{malformed' });
+    throw { response: { status: 400 } };
+  });
+  show();
+  await screen.findByText(analysisReadError);
+  expect(screen.queryByText(emptyMessage)).toBeNull();
+  expect(api.post).not.toHaveBeenCalled();
+});
+it('clears a loaded empty state immediately on navigation while the new dashboard is still pending', async () => {
+  api.realAnalysis = true;
+  const pending = deferred();
+  api.get.mockResolvedValueOnce(envelope(emptyDashboard)).mockReturnValueOnce(pending.promise);
+  show();
+  await screen.findByText(emptyMessage);
+  fireEvent.click(screen.getByText('다른 대상 이동'));
+  expect(screen.queryByText(emptyMessage)).toBeNull();
+  await act(async () => pending.resolve(envelope({ ...emptyDashboard, id: 7 })));
+  await waitFor(() => expect(api.error).toHaveBeenCalledWith('dashboard.loadFailed'));
+  expect(screen.queryByText(emptyMessage)).toBeNull();
+  expect(api.get.mock.calls.map(([path]) => path)).toEqual(['/dashboard/7', '/dashboard/8']);
+});
+
+it('round trips special characters in both empty-dashboard edit links title query parameters', async () => {
+  api.realAnalysis = true;
+  const title = '매출 & 환불 #비교? 기간/채널';
+  api.get.mockResolvedValueOnce(envelope({ ...emptyDashboard, title }));
+  show();
+  await screen.findByRole('link', { name: '위젯 추가하기' });
+  for (const name of ['위젯 추가하기', 'dashboardModify.edit']) {
+    const link = screen.getByRole('link', { name });
+    const url = new URL(link.getAttribute('href') ?? '', 'https://example.test');
+    expect(url.pathname).toBe('/dashboard/modify');
+    expect(url.searchParams.get('id')).toBe('7');
+    expect(url.searchParams.get('name')).toBe(title);
+    expect(Array.from(url.searchParams.keys())).toEqual(['id', 'name']);
+    expect(url.hash).toBe('');
+  }
+  expect(api.get.mock.calls.map(([path]) => path)).toEqual(['/dashboard/7']);
+});
+
+it('rejects a missing dashboard ID before showing empty state or mounting real analysis', async () => {
+  api.realAnalysis = true;
+  const withoutId: Partial<typeof emptyDashboard> = { ...emptyDashboard };
+  delete withoutId.id;
+  api.get.mockResolvedValueOnce(envelope(withoutId));
+  show();
+  await waitFor(() => expect(api.error).toHaveBeenCalledWith('dashboard.loadFailed'));
+  expect(screen.queryByText(emptyMessage)).toBeNull();
+  expect(screen.queryByText(analysisReadError)).toBeNull();
+  expect(screen.queryByText(emptyDashboard.title)).toBeNull();
+  expect(api.get.mock.calls.map(([path]) => path)).toEqual(['/dashboard/7']);
+  expect(api.post).not.toHaveBeenCalled();
 });
