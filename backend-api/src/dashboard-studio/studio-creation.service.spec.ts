@@ -1402,7 +1402,10 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
         expect(p.semanticProposal).toEqual([]);
         expect(llm.callLlm).not.toHaveBeenCalled();
         expect(preview).not.toHaveBeenCalled();
-        await expect(save(p)).rejects.toThrow();
+        await expect(save(p)).rejects.toMatchObject({
+          status: 400,
+          message: '업무 의미와 필수 열을 확인한 뒤 다시 제안해 주세요.',
+        });
       } finally {
         preview.mockRestore();
       }
@@ -1435,7 +1438,10 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
         expect(p.preview).toBeUndefined();
         expect(llm.callLlm).not.toHaveBeenCalled();
         expect(preview).not.toHaveBeenCalled();
-        await expect(save(p)).rejects.toThrow();
+        await expect(save(p)).rejects.toMatchObject({
+          status: 400,
+          message: '업무 의미와 필수 열을 확인한 뒤 다시 제안해 주세요.',
+        });
       } finally {
         preview.mockRestore();
       }
@@ -1450,6 +1456,54 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       expect(p.preview).toBeDefined();
     },
   );
+  // Negative boundaries of the pre-model gate: each prompt below names a span, a column or a quoted label
+  // that merely contains a gated word, so it must still reach the model. Synonyms (월간, 주간, 점유 등 다른 표현)
+  // are intentionally not covered by the gate yet, so no positive spec pins them.
+  it.each([
+    '가장 최근 3개월 매출을 channel별로 보여줘',
+    'monthly_revenue 대신 amount 합계를 channel별로 보여줘',
+    '"월별 매출" 이름은 쓰지 말고 channel별 amount 합계를 보여줘',
+    "'전체 대비 비중' 문구를 빼고 channel별 amount 합계를 보여줘",
+    '`전체 대비 비중` 열은 쓰지 말고 channel별 amount 합계를 보여줘',
+  ])('does not gate a new request that only mentions a boundary term: %s', async prompt => {
+    const p = await propose({ prompt });
+    expect(llm.callLlm).toHaveBeenCalledTimes(1);
+    expect(p.clarifications).toBeUndefined();
+    expect(p.preview).toBeDefined();
+  });
+  it('still gates an English grain word that stands alone (not inside an identifier)', async () => {
+    const p = await propose({ prompt: 'monthly 추이를 보여줘' });
+    expect(p.clarifications[0].id).toBe('unsupportedRequest');
+    expect(llm.callLlm).not.toHaveBeenCalled();
+  });
+  it('lets a refund rate with an explicit denominator reach the model', async () => {
+    llm.callLlm.mockResolvedValue(
+      JSON.stringify({
+        requiredFields: ['refunded_orders', 'paid_orders'],
+        title: 'Refund',
+        semanticProposal: [
+          {
+            title: '환불률',
+            kind: 'BOARD_NUMERIC',
+            metric: {
+              label: '환불률',
+              aggregation: 'RATIO_SUM',
+              column: 'refunded_orders',
+              denominatorColumn: 'paid_orders',
+              scale: 100,
+            },
+          },
+        ],
+      }),
+    );
+    const p = await propose({
+      prompt: '환불률을 알려줘',
+      clarificationAnswers: { refundDenominator: 'orders' },
+    });
+    expect(llm.callLlm).toHaveBeenCalledTimes(1);
+    expect(p.clarifications).toBeUndefined();
+    expect(p.preview).toBeDefined();
+  });
   it('rejects a new ratio over its own column before preview, so every group never shows the same value', async () => {
     llm.callLlm.mockResolvedValueOnce(
       JSON.stringify({
@@ -1704,6 +1758,30 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     expect(next.semanticProposal[0].metric).toEqual(parent.semanticProposal[0].metric);
     expect(next.requestAnswers).toEqual({ refundDenominator: 'amount' });
   });
+  it.each([
+    "제목만 '월별 매출'로 바꿔 줘",
+    '선택한 블록을 월별 추이로 바꿔 줘',
+    '선택한 블록을 전체 대비 비중으로 바꿔 줘',
+  ])(
+    'sends a refinement to the model even when its text contains a gated term: %s',
+    async prompt => {
+      const parent = await propose();
+      const block = semantics().semanticProposal[1];
+      block.title = '월별 매출';
+      llm.callLlm.mockResolvedValueOnce(
+        JSON.stringify({
+          requiredFields: ['amount', 'channel'],
+          title: 'ignored',
+          semanticProposal: [block],
+        }),
+      );
+      const next = await refine(parent, 1, { prompt });
+      expect(llm.callLlm).toHaveBeenCalledTimes(2);
+      expect(next.clarifications).toBeUndefined();
+      expect(next.parentProposalId).toBe(parent.proposalId);
+      expect(next.semanticProposal[1].title).toBe('월별 매출');
+    },
+  );
   it('REFINE-01 replaces only selected block, preserving parent, IDs and metadata until explicit save', async () => {
     const p = await propose();
     const baseline = await Promise.all([db.manager.count(Dashboard), db.manager.count(Metric)]);

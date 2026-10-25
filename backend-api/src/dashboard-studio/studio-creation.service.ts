@@ -281,16 +281,21 @@ export class StudioCreationService {
   }
   /**
    * What the creation contract cannot express yet: a top-N cut, a share of the whole, a calendar-grain trend.
-   * Matching is literal, so a label or column that contains one of these words (a column named 월별) is
-   * refused too. Daily trends and plain category totals never match.
+   * Only a new request reaches this gate (refinements of an existing proposal always go to the model), and
+   * text inside quotes or backticks (a quoted label such as '월별 매출', a backticked column) is ignored, so
+   * naming a label is not the same as asking for it. Korean words match literally, so an unquoted 월별 column
+   * name is still refused; English grain words need a word boundary, so a column such as monthly_revenue is not.
+   * Daily trends, plain category totals and a span such as '가장 최근 3개월' never match. Synonyms such as
+   * 월간 or 주간 are intentionally not covered yet.
    */
   private unsupportedRequest(prompt: string): string[] {
+    const bare = prompt.replace(/"[^"\n]*"|'[^'\n]*'|“[^”\n]*”|「[^」\n]*」|`[^`\n]*`/g, ' ');
     const found: string[] = [];
-    if (/(?:상위|\btop)\s*\d+|가장[^.?!\n]{0,30}?\d+\s*개(?!월)/i.test(prompt))
+    if (/(?:상위|\btop)\s*\d+|가장[^.?!\n]{0,30}?\d+\s*개(?!월)/i.test(bare))
       found.push('상위 N개 제한');
-    if (/전체\s*대비|비중|점유율|share\s+of\s+total|%\s*of\s*total/i.test(prompt))
+    if (/전체\s*대비|비중|점유율|share\s+of\s+total|%\s*of\s*total/i.test(bare))
       found.push('전체 대비 비중');
-    if (/월별|주별|분기별|연도별|monthly|weekly|quarterly|yearly/i.test(prompt))
+    if (/월별|주별|분기별|연도별|\b(?:monthly|weekly|quarterly|yearly)\b/i.test(bare))
       found.push('월·주·분기·연도 단위 추이');
     return found;
   }
@@ -513,7 +518,8 @@ export class StudioCreationService {
     };
     // Refused before the source's missing-field and refund questions: the user is never asked for a
     // source or a denominator for a request that will be refused anyway. No model call, no SQL.
-    const unsupported = this.unsupportedRequest(prompt);
+    // New requests only: a refinement of an existing proposal is judged by the model against that proposal.
+    const unsupported = parent ? [] : this.unsupportedRequest(prompt);
     if (unsupported.length)
       return {
         ...base,
