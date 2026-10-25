@@ -1564,7 +1564,7 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       );
       const preview = jest.spyOn(dashboards, 'preview');
       try {
-        await expect(propose({ prompt: '채널별 집계' })).rejects.toThrow('모든 그룹');
+        await expect(propose({ prompt: '채널별 집계' })).rejects.toThrow('분류 열 자체를 집계하면');
         expect(preview).not.toHaveBeenCalled();
       } finally {
         preview.mockRestore();

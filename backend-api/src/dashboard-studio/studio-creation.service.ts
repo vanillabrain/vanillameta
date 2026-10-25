@@ -954,7 +954,7 @@ export class StudioCreationService {
       metric.column === dimension.column
     )
       throw new BadRequestException(
-        '분류 열과 같은 열을 집계하면 모든 그룹의 값이 같아집니다. 집계할 숫자 열을 선택해 주세요.',
+        '분류 열 자체를 집계하면 그룹끼리 의미 있게 비교할 수 없습니다. 집계할 다른 숫자 열을 선택해 주세요.',
       );
     return {
       blockId: 'new:' + randomUUID(),
