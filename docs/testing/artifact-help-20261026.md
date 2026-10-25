@@ -39,3 +39,12 @@ Ego 작업 공간69, 로컬 문서 프리뷰4176에서 실행했다. 제품 생�
 ### 배포 진행 승인 후
 
 사용자가 배포 진행을 승인했다. 함께 전송될 Studio 수정안 안내 3개 커밋을 대조하고 관련 2개 파일 테스트15개, FE TypeScript·변경 제품 파일 lint·production build를 통과했다. 변경은 구조화된 수정 차이 안내이며 저장·AI 제공자 설정을 바꾸지 않는다. 제품 전체 E2E/실제 LLM/새 UI 검증은 이 배포 단계에서 반복하지 않았다. 문서의 기존 빌드·15개 폭별 페이지 조합 증빙은 그대로 재사용한다. 최종 온라인 결과는 배포 후 추가 기록한다.
+
+### 온라인 배포 완료
+
+- 배포 소스: b953eea043e97f9b0e3e854e924b358da3141088, drumcap으로 develop push.
+- [User Guide 실행40213444125](https://github.com/vanillabrain/vanillameta/actions/runs/40213444125): Node24 build21초·deploy28초 모두 success. 기본/하위 경로 검사와 운영 URL 확인 통과.
+- Ego70에서 https://docs.vanillameta.net/ 의 ‘내 데이터로 만드는 아티팩트’, quickstart의 기본5단계 메뉴와 다음 /ai-edit 연결을 실제 확인했다.
+- 온라인1440/390px 캡처: production-home-1440.png, production-home-390.png. 모바일 가로 넘침0. 작업 공간 종료 완료.
+- 제품 서버·운영DB 배포는 수행하지 않았다. 이전 보류는 해소되었으며 문서 사이트는 새 안내로 갱신됐다.
+- CI의 action Node20 폐기 예정·git cleanup128 annotation은 남았으나 두 job과 운영 URL 검사는 성공했다. 이 문서 배포에서 CI 도구 버전 변경은 하지 않았다.
