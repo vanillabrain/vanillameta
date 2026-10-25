@@ -3,55 +3,50 @@ import { fileURLToPath } from "node:url";
 
 const groups = [
   {
-    text: "시작하기",
+    text: "아티팩트 시작하기",
+    collapsed: false,
     items: [
-      ["빠른 시작", "quickstart"],
-      ["기능별 따라 하기", "feature-scenarios"],
-      ["화면으로 따라 하는 샘플", "sample-walkthrough"],
-      ["기본 개념", "concepts"],
+      ["1. 아티팩트 이해하기", "agent-artifacts"],
+      ["2. 첫 아티팩트 만들기", "quickstart"],
+      ["3. 수정하고 저장하기", "ai-edit"],
+      ["4. 게시하고 공유하기", "publish"],
+      ["5. 복제해서 재사용하기", "reuse"],
+    ],
+  },
+  {
+    text: "데이터·분석 더 알아보기",
+    collapsed: true,
+    items: [
+      ["내 데이터 연결", "data"],
+      ["용어 찾아보기", "concepts"],
       ["화면과 이동", "navigation"],
-    ],
-  },
-  {
-    text: "에이전트와 Artifact",
-    items: [
-      ["AI 실행 환경 준비", "agent-connection"],
-      ["프롬프트로 Artifact 만들기", "agent-artifacts"],
-      ["MCP 연결·직접 제작", "mcp"],
-    ],
-  },
-  {
-    text: "데이터와 분석",
-    items: [
-      ["데이터 연결", "data"],
       ["지표와 차원", "metrics"],
       ["Explore", "explore"],
       ["Pivot", "pivot"],
-    ],
-  },
-  {
-    text: "AI와 Studio",
-    items: [
-      ["AI 분석 생성", "ai-create"],
-      ["AI 수정·블록 편집", "ai-edit"],
+      ["AI 생성 상세", "ai-create"],
       ["질문 예시", "recipes"],
-      ["초안·충돌 복구", "recovery"],
-    ],
-  },
-  {
-    text: "저장과 활용",
-    items: [
-      ["게시·링크 공유", "publish"],
-      ["조직 공유와 권한", "organization"],
-      ["조직 공유·재사용 샘플", "team-reuse-walkthrough"],
-      ["복제와 재사용", "reuse"],
+      ["매출 분석 샘플", "sample-walkthrough"],
       ["CSV 출력과 보관", "export-library"],
     ],
   },
   {
-    text: "도움말",
+    text: "팀·관리자·외부 에이전트",
+    collapsed: true,
     items: [
+      ["조직 공유와 권한", "organization"],
+      ["조직 공유·재사용 실습", "team-reuse-walkthrough"],
+      ["관리자용 AI 실행 환경", "agent-connection"],
+      ["MCP 연결·직접 제작", "mcp"],
+    ],
+  },
+  {
+    text: "필요할 때 찾아보기",
+    collapsed: true,
+    items: [
+      ["전체 안내", "contents"],
+      ["기능 사전 · 50개 시나리오", "feature-scenarios"],
       ["문제 해결", "troubleshooting"],
+      ["초안·충돌 복구", "recovery"],
       ["실제 화면 모음", "screenshots"],
       ["지원 범위·문서 기준", "scope"],
     ],
@@ -62,7 +57,7 @@ export default defineConfig({
   lang: "ko-KR",
   title: "VanillaMeta 가이드",
   description:
-    "데이터 연결부터 AI 분석·탐색·저장·게시·사내 공유까지 따라 하는 VanillaMeta 사용자 가이드",
+    "내 데이터로 아티팩트를 만들고 수정·공유·재사용하는 VanillaMeta 기본 가이드",
   // Only these user-facing pages enter the build and search index.
   srcDir: "site",
   base: process.env.VM_DOCS_BASE || "/",
@@ -94,6 +89,7 @@ export default defineConfig({
       // Includes keep the existing GitHub guides canonical; adapt only their relative links.
       md.core.ruler.before("normalize", "user-guide-links", (state) => {
         state.src = state.src
+          .replaceAll("](site/", "](/")
           .replaceAll("](images/", "](/images/")
           .replaceAll("](../images/", "](/images/")
           .replaceAll('src="images/', 'src="/images/')
@@ -114,13 +110,13 @@ export default defineConfig({
   themeConfig: {
     siteTitle: "VanillaMeta · 사용 가이드",
     nav: [
-      { text: "가이드", link: "/contents" },
-      { text: "빠른 시작", link: "/quickstart" },
+      { text: "시작하기", link: "/agent-artifacts" },
+      { text: "전체 안내", link: "/contents" },
       { text: "문제 해결", link: "/troubleshooting" },
     ],
     sidebar: groups.map((group) => ({
       text: group.text,
-      collapsed: false,
+      collapsed: group.collapsed,
       items: group.items.map(([text, slug]) => ({ text, link: `/${slug}` })),
     })),
     outline: { level: [2, 3], label: "이 페이지에서" },
