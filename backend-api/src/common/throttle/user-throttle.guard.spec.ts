@@ -149,11 +149,11 @@ describe('UserThrottleGuard', () => {
 });
 
 describe('user throttle settings', () => {
-  it('defaults to 20 AI, 5 upload, 30 read, 10 remix a minute and accepts overrides', () => {
+  it('defaults to 20 AI, 5 upload, 30 read, 30 remix a minute and accepts overrides', () => {
     expect(userThrottleLimit('ai', {})).toBe(20);
     expect(userThrottleLimit('upload', {})).toBe(5);
     expect(userThrottleLimit('read', {})).toBe(30);
-    expect(userThrottleLimit('remix', {})).toBe(10);
+    expect(userThrottleLimit('remix', {})).toBe(30);
     expect(userThrottleLimit('read', { USER_THROTTLE_READ_PER_MIN: '9' } as any)).toBe(9);
     expect(userThrottleLimit('ai', { USER_THROTTLE_AI_PER_MIN: ' 7 ' } as any)).toBe(7);
     expect(userThrottleLimit('remix', { USER_THROTTLE_REMIX_PER_MIN: '4' } as any)).toBe(4);

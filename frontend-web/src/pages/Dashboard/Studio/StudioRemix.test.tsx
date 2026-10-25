@@ -238,9 +238,7 @@ describe('remix load failures', () => {
     );
     vi.mocked(fetchStudioSources).mockRejectedValueOnce(new Error('데이터 소스 목록을 확인하지 못했습니다.'));
     render(<StudioRemixFlow token={requirements.token} onSave={vi.fn()} />);
-    expect(
-      await screen.findByText('복제가 허용되지 않았거나 게시본·대상 데이터에 접근할 권한이 없습니다.'),
-    ).toBeDefined();
+    expect(await screen.findByText('복제가 허용되지 않았거나 게시본·대상 데이터에 접근할 권한이 없습니다.')).toBeDefined();
   });
   it('hides the retry and keeps the publication link for a refusal, which a retry cannot change', async () => {
     vi.mocked(fetchRemixRequirements).mockRejectedValueOnce(refusal(403));

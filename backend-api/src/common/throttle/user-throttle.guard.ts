@@ -22,7 +22,7 @@ const DEFAULT_PER_MINUTE: Record<UserThrottlePreset, number> = {
   ai: 20,
   upload: 5,
   read: 30,
-  remix: 10,
+  remix: 30,
 };
 const ENV_NAME: Record<UserThrottlePreset, string> = {
   ai: 'USER_THROTTLE_AI_PER_MIN',

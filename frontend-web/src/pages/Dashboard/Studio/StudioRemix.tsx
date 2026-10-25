@@ -114,10 +114,7 @@ export function StudioRemixFlow({
     try {
       // allSettled, not all: the template's own refusal (403/404/410) decides the screen even when the source
       // list fails first, because a non-HTTP failure there would otherwise replace the status.
-      const [templateResult, rowsResult] = await Promise.allSettled([
-        fetchRemixRequirements(token),
-        fetchStudioSources(),
-      ]);
+      const [templateResult, rowsResult] = await Promise.allSettled([fetchRemixRequirements(token), fetchStudioSources()]);
       if (!mounted.current || generation !== epoch.current) return;
       if (templateResult.status === 'rejected') throw templateResult.reason;
       if (rowsResult.status === 'rejected') throw rowsResult.reason;
