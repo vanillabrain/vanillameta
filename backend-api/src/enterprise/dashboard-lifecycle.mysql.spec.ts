@@ -291,20 +291,25 @@ suite('UC055 owned MySQL8.4 organization dashboard lifecycle', () => {
       value => ({ value }),
       error => ({ error }),
     );
-  const waitForDashboard = async () => {
+  const waitForLock = async (table: 'dashboard' | 'user') => {
     const end = Date.now() + 5000;
     while (Date.now() < end) {
       const waits = await peer.query(
         `SELECT l.OBJECT_NAME FROM performance_schema.data_lock_waits w
       JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID=w.REQUESTING_ENGINE_LOCK_ID
-      WHERE l.OBJECT_SCHEMA=? AND l.OBJECT_NAME='dashboard'`,
-        [config.database],
+      WHERE l.OBJECT_SCHEMA=? AND l.OBJECT_NAME=?`,
+        [config.database, table],
       );
-      if (waits.length) return;
+      if (waits.length) {
+        console.info(JSON.stringify({ phase: 'observed-InnoDB-wait', table }));
+        return;
+      }
       await new Promise(resolve => setTimeout(resolve, 20));
     }
-    throw new Error('No actual InnoDB Dashboard lock wait observed');
+    throw new Error(`No actual InnoDB ${table} lock wait observed`);
   };
+  const waitForDashboard = () => waitForLock('dashboard');
+  const waitForUser = () => waitForLock('user');
   const lifecycleBarrier = () => {
     const entered = gate(),
       resume = gate(),
@@ -535,7 +540,8 @@ suite('UC055 owned MySQL8.4 organization dashboard lifecycle', () => {
         }),
       ]);
       changing = settled(service.set(1, 1, request));
-      await waitForDashboard();
+      // Both writers fence User before Dashboard; retain a real observed wait.
+      await waitForUser();
       resume.resolve();
       const grant = await granting;
       if (!('value' in grant)) throw grant.error;
@@ -573,7 +579,8 @@ suite('UC055 owned MySQL8.4 organization dashboard lifecycle', () => {
       granting = settled(
         new EnterpriseResourcePolicyService(peer).set('dashboard', 1, 1, grantBody()),
       );
-      await waitForDashboard();
+      // Both writers fence User before Dashboard; retain a real observed wait.
+      await waitForUser();
       barrier.resume.resolve();
       const changed = await changing;
       if (!('value' in changed)) throw changed.error;

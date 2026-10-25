@@ -258,12 +258,16 @@ suite('UC054 actual OS export process restart with owned MySQL and native DuckDB
     const expiresAt = new Date(Date.now() + 4000);
     // Test fixture shortens TTL only. The real clock and production constants remain unchanged.
     await db.manager.update(ExportJob, job.id, { expiresAt });
+    // MySQL DATETIME(0) can round up. Test the stored deadline, not the pre-write milliseconds.
+    const persisted = await db.manager.findOneByOrFail(ExportJob, { id: job.id });
+    const deadline = persisted.expiresAt.getTime();
     await a.call('armParts');
     await a.call('run', { id: job.id, version: 1, background: true });
     await a.event('parts-held');
-    await new Promise(resolve =>
-      setTimeout(resolve, Math.max(0, expiresAt.getTime() - Date.now() + 50)),
-    );
+    while (Date.now() < deadline + 50) {
+      await new Promise(resolve => setTimeout(resolve, Math.max(1, deadline + 50 - Date.now())));
+    }
+    expect(Date.now()).toBeGreaterThan(deadline);
     await a.call('release');
     await a.call('drain');
     expect(await db.manager.findOneBy(ExportJob, { id: job.id })).toMatchObject({

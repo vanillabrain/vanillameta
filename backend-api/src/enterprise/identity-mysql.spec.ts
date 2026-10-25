@@ -261,10 +261,13 @@ suite('UC051 isolated local MySQL identity integrity', () => {
     for (const fk of membership.foreignKeys.filter(key => key.referencedTableName === 'user'))
       await runner.dropForeignKey(membership, fk);
     const user = await runner.getTable('user');
-    for (const index of user.indices.filter(
-      index => index.name === 'UQ_user_userId' || index.name === 'UQ_user_email',
-    ))
-      await runner.dropIndex(user, index);
+    // Both current entity indexes and older named constraints enforce these columns.
+    const identityIndex = (index: { isUnique: boolean; columnNames: string[] }) =>
+      index.isUnique &&
+      index.columnNames.length === 1 &&
+      ['userId', 'email'].includes(index.columnNames[0]);
+    for (const index of user.indices.filter(identityIndex)) await runner.dropIndex(user, index);
+    expect((await runner.getTable('user')).indices.filter(identityIndex)).toHaveLength(0);
     return runner;
   };
   const integrityMigration = () => {
