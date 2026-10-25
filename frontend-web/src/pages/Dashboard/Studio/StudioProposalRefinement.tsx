@@ -5,6 +5,7 @@ import { TextField } from '@/components/ui/text-field';
 import { Notice } from '@/components/ui/notice';
 import { CreationClarification, CreationProposal, creationError, isFormulaSelfRatio, proposeStudio } from './studioCreation';
 import { useAiLabel } from '@/hooks/useAiStatus';
+import { describeBlockChange } from './studioRefinementChange';
 
 /** Refines a server-owned immutable proposal; only its explicit save may write metadata. */
 export default function StudioProposalRefinement({
@@ -70,7 +71,14 @@ export default function StudioProposalRefinement({
       onProposal(next);
       setQuestions([]);
       setAnswers({});
-      setNotice('수정된 전체 미리보기입니다. 확인 후 비공개로 저장해 주세요.');
+      const append = target === 'append';
+      const change = describeBlockChange(
+        append ? undefined : proposal.semanticProposal[Number(target)],
+        next.semanticProposal[append ? next.semanticProposal.length - 1 : Number(target)],
+      );
+      setNotice(
+        ['수정된 전체 미리보기입니다. 확인 후 비공개로 저장해 주세요.', change].filter(Boolean).join(' '),
+      );
     } catch (cause) {
       if (active.current === controller && !controller.signal.aborted)
         setError(
