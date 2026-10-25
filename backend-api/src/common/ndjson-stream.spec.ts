@@ -1,4 +1,10 @@
-import { BadRequestException, HttpException, Logger, StreamableFile } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  Logger,
+  ServiceUnavailableException,
+  StreamableFile,
+} from '@nestjs/common';
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
 import { errorEvent, serveRun, wantsNdjson } from './ndjson-stream';
@@ -54,6 +60,30 @@ describe('serveRun without the stream header', () => {
     ).rejects.toBe(failure);
   });
 
+  it('ends a plain run that fails after the client left as cancelled, with no error line and no 5xx', async () => {
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const req = request();
+    const res = response();
+    const out = serveRun(req, res, async () => {
+      res.emit('close');
+      throw new ServiceUnavailableException('AI 요청을 취소했습니다.');
+    });
+    await expect(out).resolves.toBeUndefined();
+    expect(error).not.toHaveBeenCalled();
+    // The record carries the class, not the sentence the user was never shown.
+    expect(JSON.parse(warn.mock.calls[0][0] as string)).toMatchObject({
+      msg: 'stream',
+      status: 499,
+      outcome: 'cancelled',
+      disconnected: true,
+      error: 'ServiceUnavailableException',
+    });
+    expect(warn.mock.calls[0][0]).not.toContain('취소');
+    error.mockRestore();
+    warn.mockRestore();
+  });
+
   it('aborts the run when the connection closes before the response finished', async () => {
     const req = request();
     const res = response();
@@ -102,7 +132,12 @@ describe('serveRun with Accept: application/x-ndjson', () => {
     const normal = JSON.parse(log.mock.calls[0][0] as string);
     const failed = JSON.parse(warn.mock.calls[0][0] as string);
     expect(normal).toMatchObject({ msg: 'stream', status: 200, outcome: 'result' });
-    expect(failed).toMatchObject({ msg: 'stream', status: 429, outcome: 'error' });
+    expect(failed).toMatchObject({
+      msg: 'stream',
+      status: 429,
+      outcome: 'error',
+      error: 'AI_QUOTA_EXCEEDED',
+    });
     expect(typeof normal.durationMs).toBe('number');
     expect(log).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledTimes(1);

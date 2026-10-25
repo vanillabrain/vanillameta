@@ -926,6 +926,15 @@ describe('T7 durable executions', () => {
       await service.create(body, 7, undefined, 0);
       expect(log.mock.calls).toEqual([['AI call failed: LLM_API_ERROR_401']]);
     });
+    it('logs a rejected model answer once under its check code, and the step still fails as before', async () => {
+      ai.callLlm.mockResolvedValueOnce('{"intent":"ask","answer":"secret-answer-text"');
+      const run = await service.create(body, 7, undefined, 0);
+      expect(run.steps.find(s => s.stepId === 'proposeSemantics')).toMatchObject({
+        status: 'failed',
+        errorCode: 'MODEL_FAILED',
+      });
+      expect(log.mock.calls).toEqual([['AI answer rejected: SyntaxError']]);
+    });
     it('writes nothing for a refusal, and the step still says which refusal it was', async () => {
       ai.callLlm.mockRejectedValueOnce(
         new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429),

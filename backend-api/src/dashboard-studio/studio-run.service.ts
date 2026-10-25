@@ -258,7 +258,10 @@ export class StudioRunService {
           next = applyStudioOperation(next, operation);
           return operation;
         });
-      } catch {
+      } catch (error) {
+        // The answer was rejected and the user gets the fixed sentence below. The log gets only the code of the
+        // check: SyntaxError for JSON, Error for a shape or operation the server does not accept, never the text.
+        console.error(`AI answer rejected: ${failureCode(error)}`);
         throw new BadRequestException(
           'AI 변경안을 검증하지 못했습니다. 기존 블록과 배치를 유지했습니다. 요청을 구체적으로 작성해 주세요.',
         );

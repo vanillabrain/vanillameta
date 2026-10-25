@@ -1,6 +1,6 @@
 import { HttpException, Logger, StreamableFile } from '@nestjs/common';
 import { PassThrough } from 'stream';
-import { llmFailure } from '../ai/ai-caller';
+import { failureCode, llmFailure } from '../ai/ai-caller';
 import { CorrelationIdService } from '../middleware/correlation-id/correlation-id.service';
 import { safeRouteTemplate } from './utils/safe-route-template';
 
@@ -79,16 +79,18 @@ export interface ServeOptions {
 /**
  * Runs `run` for one request. The caller's connection closing aborts it (so the model call is cancelled
  * and the ledger records `cancelled`). Without `Accept: application/x-ndjson` this returns the promise and
- * the route answers exactly as it always did. With it, this returns a stream at once (first byte now, not
- * when the model answers) and the outcome follows as events. Use only on a handler whose `@Res` is
- * `passthrough`: the returned `StreamableFile` is what Nest pipes to the response.
+ * the route answers exactly as it always did, except that a run which ends after the client left resolves
+ * to `undefined` (or rejects with its abort) and is recorded as `cancelled`, not as a 5xx. With it, this
+ * returns a stream at once (first byte now, not when the model answers) and the outcome follows as events.
+ * Use only on a handler whose `@Res` is `passthrough`: the returned `StreamableFile` is what Nest pipes to
+ * the response.
  */
 export function serveRun<T>(
   req: any,
   res: any,
   run: (signal: AbortSignal) => Promise<T>,
   options: ServeOptions = {},
-): Promise<T> | StreamableFile {
+): Promise<T | undefined> | StreamableFile {
   const controller = new AbortController();
   const abort = () => controller.abort();
   const close = () => {
@@ -102,18 +104,45 @@ export function serveRun<T>(
     res.off('close', close);
   };
 
+  const startedAt = Date.now();
+  const correlationId = CorrelationIdService.getCorrelationId() ?? req?.correlationId;
+  // The request logger sees only the handler returning the stream (a 201 after a few ms), so how the run
+  // really ended is recorded here. A normal end is info. A stream that failed or was cut off is what an
+  // operator looks for, and the production default log level (warn) must still show it.
+  const logEnd = (status: number, outcome: string, code?: string) => {
+    const record = JSON.stringify({
+      msg: 'stream',
+      method: req?.method,
+      url: safeRouteTemplate(req),
+      status,
+      outcome,
+      disconnected: controller.signal.aborted,
+      ...(code ? { error: code } : {}),
+      durationMs: Date.now() - startedAt,
+      ...(correlationId ? { correlationId } : {}),
+    });
+    if (outcome === 'result') logger.log(record);
+    else logger.warn(record);
+  };
+
   if (!wantsNdjson(req))
     return (async () => {
       try {
-        return await run(controller.signal);
+        const data = await run(controller.signal);
+        if (controller.signal.aborted) logEnd(499, 'cancelled');
+        return data;
+      } catch (error) {
+        // Nobody is left to answer: a client that closed the connection cancelled the run, so this is
+        // not a 5xx with an error line. Without a stream there is no event to end; the record is the account.
+        if (!controller.signal.aborted) throw error;
+        logEnd(499, 'cancelled', failureCode(error));
+        return undefined;
       } finally {
         detach();
       }
     })();
 
   const out = new PassThrough();
-  const startedAt = Date.now();
-  const correlationId = CorrelationIdService.getCorrelationId() ?? req?.correlationId;
   const write = (event: StreamEvent) => {
     if (!out.writableEnded && !out.destroyed) out.write(`${JSON.stringify(event)}\n`);
   };
@@ -130,7 +159,7 @@ export function serveRun<T>(
   void (async () => {
     let status = 200;
     let outcome = 'result';
-    let thrown: string | undefined;
+    let code: string | undefined;
     try {
       unwatch = options.watch?.(write);
       const data = await run(controller.signal);
@@ -146,12 +175,13 @@ export function serveRun<T>(
         // receives an event, and it is neither a server fault nor worth an error line with a stack.
         status = 499;
         outcome = 'cancelled';
-        // Kept (message only, no stack) so a real fault after a disconnect can still be found.
-        thrown = (error as Error)?.message ?? String(error);
+        // The code only: a message can carry the model's text. A real fault still shows as its class.
+        code = failureCode(error);
       } else {
         const event = errorEvent(error, correlationId);
         status = Number(event.status);
         outcome = 'error';
+        code = String(event.error);
         write(event);
         // What the exception filter does for a 5xx on the JSON path, which a stream never reaches.
         if (status >= 500 && process.env.SENTRY_DSN)
@@ -169,23 +199,7 @@ export function serveRun<T>(
         // The stream is already closed; a failing unsubscribe must not keep it from ending.
         logger.warn(`stream unsubscribe failed: ${(error as Error)?.message}`);
       }
-      // The request logger sees only the handler returning the stream (a 201 after a few ms): record how
-      // the stream really ended.
-      // A normal end is info. A stream that failed or was cut off is what an operator looks for, and the
-      // production default log level (warn) must still show it.
-      const record = JSON.stringify({
-        msg: 'stream',
-        method: req?.method,
-        url: safeRouteTemplate(req),
-        status,
-        outcome,
-        disconnected: controller.signal.aborted,
-        ...(thrown ? { error: thrown } : {}),
-        durationMs: Date.now() - startedAt,
-        ...(correlationId ? { correlationId } : {}),
-      });
-      if (outcome === 'result') logger.log(record);
-      else logger.warn(record);
+      logEnd(status, outcome, code);
     }
   })().catch(error =>
     logger.error(

@@ -132,6 +132,19 @@ describe('Studio AI scoped runs', () => {
       await expect(service.run(body, 7, undefined, 0)).rejects.toMatchObject({ status: 503 });
       expect(log.mock.calls).toEqual([['AI call failed: Error']]);
     });
+    it('logs the check a rejected answer failed, once, and never its text', async () => {
+      ai.callLlm.mockResolvedValueOnce('{"intent":"ask","answer":"secret-answer-text"');
+      const error: any = await service.run(body, 7, undefined, 0).catch(e => e);
+      expect(error.getStatus()).toBe(400);
+      expect(log.mock.calls).toEqual([['AI answer rejected: SyntaxError']]);
+    });
+    it('logs a well-formed answer the server does not accept under the generic code', async () => {
+      ai.callLlm.mockResolvedValueOnce(
+        JSON.stringify({ intent: 'ask', answer: '질문에 답합니다.', operations: [{}] }),
+      );
+      await expect(service.run(body, 7, undefined, 0)).rejects.toMatchObject({ status: 400 });
+      expect(log.mock.calls).toEqual([['AI answer rejected: Error']]);
+    });
     it('writes nothing for a refusal the user reads', async () => {
       ai.callLlm.mockRejectedValueOnce(
         new HttpException({ error: 'AI_QUOTA_EXCEEDED', message: 'limit' }, 429),
