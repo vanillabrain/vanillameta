@@ -370,6 +370,17 @@ describe('UC-006 share-to-fork journey: owner, recipient copy, revoke, re-share 
     JSON.stringify(await db.manager.findOneBy(Dashboard, { id: dashboardId }));
   const rawPublication = async (token: string) =>
     JSON.stringify(await db.manager.findOneBy(StudioPublication, { token }));
+  // studio-evidence.ts stamps queriedAt with the clock of each studio.get read. It is the only
+  // per-read clock on that path (checked in studio.service and studio-evidence.ts), so strip that
+  // one field and keep every other byte of the state under comparison.
+  const readBytes = (state: any) =>
+    JSON.stringify({
+      ...state,
+      preview: state.preview && {
+        ...state.preview,
+        evidence: state.preview.evidence && { ...state.preview.evidence, queriedAt: undefined },
+      },
+    });
   const deleteBody = (impact: any) => ({
     requestId: randomUUID(),
     expectedRevision: impact.revision,
@@ -420,14 +431,14 @@ describe('UC-006 share-to-fork journey: owner, recipient copy, revoke, re-share 
       await setWeightAtLeast(id, 7, 1, 2, 'owner-cond-' + id);
       const p = await publish(id, 7);
       const copy = await fork(p, 8, 2, toRecipient, 'fork-' + id);
-      const copyBefore = JSON.stringify(await studio.get(copy.dashboardId, 8));
+      const copyBefore = readBytes(await studio.get(copy.dashboardId, 8));
       await setWeightAtLeast(id, 7, 1, 1, 'owner-edit-' + id);
       expect(await revenue(id, 7)).toEqual([{ value: 600 }]);
       const republished = await publish(id, 7, { requestId: 'republish-' + id });
       expect(republished.token).toBe(p.token);
       expect(republished.version).toBe(2);
       expect((await publications.read(p.token)).snapshot.blocks[0].datas).toEqual([{ value: 600 }]);
-      expect(JSON.stringify(await studio.get(copy.dashboardId, 8))).toBe(copyBefore);
+      expect(readBytes(await studio.get(copy.dashboardId, 8))).toBe(copyBefore);
       expect(await revenue(copy.dashboardId, 8)).toEqual([{ value: 120 }]);
     });
   });
@@ -443,9 +454,9 @@ describe('UC-006 share-to-fork journey: owner, recipient copy, revoke, re-share 
       await expect(publications.read(p.token)).rejects.toMatchObject({ status: 410 });
       await expect(remix.template(p.token, 8)).rejects.toMatchObject({ status: 410 });
       await expect(previewCopy(p, 8, 2, toRecipient)).rejects.toMatchObject({ status: 410 });
-      await expect(
-        commitCopy(p, 8, 2, toRecipient, v, 'after-revoke-' + id),
-      ).rejects.toMatchObject({ status: 410 });
+      await expect(commitCopy(p, 8, 2, toRecipient, v, 'after-revoke-' + id)).rejects.toMatchObject(
+        { status: 410 },
+      );
       expect(await revenue(copy.dashboardId, 8)).toEqual([{ value: 120 }]);
       await setWeightAtLeast(copy.dashboardId, 8, 2, 5, 'copy-after-revoke-' + id);
       expect(await revenue(copy.dashboardId, 8)).toEqual([{ value: 70 }]);
@@ -563,7 +574,9 @@ describe('UC-006 share-to-fork journey: owner, recipient copy, revoke, re-share 
       await setWeightAtLeast(id, 7, 1, 2, 'owner-cond-' + id);
       const p = await publish(id, 7);
       await expect(publications.read(p.token)).resolves.toBeDefined();
-      await expect(remix.template(p.token, undefined as any)).rejects.toMatchObject({ status: 403 });
+      await expect(remix.template(p.token, undefined as any)).rejects.toMatchObject({
+        status: 403,
+      });
       await expect(
         remix.preview(
           p.token,

@@ -11,9 +11,7 @@ import { SemanticProposalController } from '../../bi/semantic-proposal.controlle
 import { CommerceController } from '../../commerce/commerce.controller';
 import { StudioCreationController } from '../../dashboard-studio/studio-creation.controller';
 import { StudioExecutionController } from '../../dashboard-studio/studio-execution.controller';
-import {
-  StudioReceivedRemixController,
-} from '../../dashboard-studio/studio-received-remix.controller';
+import { StudioReceivedRemixController } from '../../dashboard-studio/studio-received-remix.controller';
 import { StudioRemixController } from '../../dashboard-studio/studio-remix.controller';
 import { StudioRunController } from '../../dashboard-studio/studio-run.controller';
 import { DatabaseController } from '../../database/database.controller';
@@ -124,7 +122,9 @@ describe('per-user throttle coverage', () => {
       expect(list).toContain(UserThrottleGuard);
       // StudioPublicationGuard (Studio publication routes) extends JwtAuthGuard and sets the user.
       const auth = list.findIndex(
-        guard => guard === JwtAuthGuard || (guard as Function).prototype instanceof JwtAuthGuard,
+        guard =>
+          guard === JwtAuthGuard ||
+          (typeof guard === 'function' && guard.prototype instanceof JwtAuthGuard),
       );
       expect(auth).toBeGreaterThanOrEqual(0);
       expect(list.indexOf(UserThrottleGuard)).toBeGreaterThan(auth);

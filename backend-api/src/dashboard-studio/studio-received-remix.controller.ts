@@ -15,15 +15,13 @@ export class StudioReceivedRemixController {
     return this.received.reference(id, req.user?.accessKeyData?.id);
   }
   @UserThrottle('read')
-  @Get(':reference/remix-template') template(@Param('reference') reference: string, @Req() req) {
+  @Get(':reference/remix-template')
+  template(@Param('reference') reference: string, @Req() req) {
     return this.remix.template(reference, req.user?.accessKeyData?.id, this.received.resolve);
   }
   @UserThrottle('remix')
-  @Post(':reference/remix-preview') preview(
-    @Param('reference') reference: string,
-    @Body() body: RemixPreviewRequest,
-    @Req() req,
-  ) {
+  @Post(':reference/remix-preview')
+  preview(@Param('reference') reference: string, @Body() body: RemixPreviewRequest, @Req() req) {
     return this.remix.preview(
       reference,
       body,
@@ -45,11 +43,8 @@ export class StudioReceivedRemixController {
     );
   }
   @UserThrottle('remix')
-  @Post(':reference/remix') save(
-    @Param('reference') reference: string,
-    @Body() body: RemixRequest,
-    @Req() req,
-  ) {
+  @Post(':reference/remix')
+  save(@Param('reference') reference: string, @Body() body: RemixRequest, @Req() req) {
     return this.remix.remix(
       reference,
       body,

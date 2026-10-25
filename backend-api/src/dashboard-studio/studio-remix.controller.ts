@@ -8,15 +8,13 @@ import { RemixPreviewRequest, RemixRequest } from './studio-remix-contract';
 export class StudioRemixController {
   constructor(private readonly remixService: StudioRemixService) {}
   @UserThrottle('read')
-  @Get(':token/remix-template') template(@Param('token') token: string, @Req() req) {
+  @Get(':token/remix-template')
+  template(@Param('token') token: string, @Req() req) {
     return this.remixService.template(token, req.user?.accessKeyData?.id);
   }
   @UserThrottle('remix')
-  @Post(':token/remix-preview') preview(
-    @Param('token') token: string,
-    @Body() body: RemixPreviewRequest,
-    @Req() req,
-  ) {
+  @Post(':token/remix-preview')
+  preview(@Param('token') token: string, @Body() body: RemixPreviewRequest, @Req() req) {
     return this.remixService.preview(
       token,
       body,
@@ -26,11 +24,8 @@ export class StudioRemixController {
     );
   }
   @UserThrottle('remix')
-  @Post(':token/remix') remix(
-    @Param('token') token: string,
-    @Body() body: RemixRequest,
-    @Req() req,
-  ) {
+  @Post(':token/remix')
+  remix(@Param('token') token: string, @Body() body: RemixRequest, @Req() req) {
     return this.remixService.remix(
       token,
       body,
