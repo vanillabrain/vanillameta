@@ -21,8 +21,11 @@ const calculation = (metric: CreationMetric) => {
   return [saved, parts.join(' · ')].filter(Boolean).join(' · ');
 };
 const dimension = (block: CreationSemantic) => block.dimension?.column ?? '없음';
-const presentation = (block: CreationSemantic) =>
-  typeof block.presentation === 'string' ? PRESENTATION_LABELS[block.presentation] ?? block.presentation : '';
+// The server nests it as block.display.presentation (studio-creation.service.ts validateBlock).
+const presentation = (block: CreationSemantic) => {
+  const value = (block.display as { presentation?: unknown } | undefined)?.presentation;
+  return typeof value === 'string' ? PRESENTATION_LABELS[value] ?? value : '';
+};
 
 /**
  * Plain-language summary of what a refinement changed in one block. It compares the structured fields

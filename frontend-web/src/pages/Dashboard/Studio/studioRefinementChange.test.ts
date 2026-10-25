@@ -85,11 +85,23 @@ it('detects a swapped saved formula, a version bump and different new formula op
 it('ignores display-only metric fields and reports kind and presentation changes in Korean', () => {
   const styled = block({ metric: { aggregation: 'SUM', column: 'amount', unit: '원', decimalPlaces: 2, label: '매출' } });
   expect(describeBlockChange(block(), styled)).toBeNull();
-  expect(describeBlockChange(block(), block({ kind: 'CHART_LINE', presentation: 'table' }))).toBe(
+  expect(describeBlockChange(block(), block({ kind: 'CHART_LINE', display: { presentation: 'table' } }))).toBe(
     '바뀐 내용: 차트 종류 막대형 가로 차트 → 선형 차트, 표시 방식 없음 → 표.',
   );
 });
 
 it('says nothing when the refined block is missing', () => {
   expect(describeBlockChange(block(), undefined)).toBeNull();
+});
+
+it('does not claim only the title changed when the presentation changed too', () => {
+  const text = describeBlockChange(
+    block({ display: { presentation: 'visual' } }),
+    block({ title: '채널별 표', display: { presentation: 'table' } }),
+  );
+  expect(text).toBe('바뀐 내용: 제목 "채널별 매출" → "채널별 표", 표시 방식 차트 → 표.');
+  expect(text).not.toContain('제목 외에');
+  expect(
+    describeBlockChange(block({ display: { presentation: 'visual' } }), block({ display: { presentation: 'summary' } })),
+  ).toBe('바뀐 내용: 표시 방식 차트 → 요약.');
 });
