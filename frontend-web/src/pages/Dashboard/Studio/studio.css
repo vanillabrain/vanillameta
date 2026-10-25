@@ -366,8 +366,7 @@
    radio label grows downward, so the whole label row takes the tap while the 16px control keeps its place. */
 @media(max-width:899px) {
   .studio-remix [data-slot="button"], .studio-publication-dialog [data-slot="button"] { min-height:44px; }
-  .studio-remix select { min-height:44px; }
-  .studio-remix-block [data-slot="label"], .studio-publish-settings [data-slot="label"] { min-height:44px; display:flex; align-items:flex-start; }
+  .studio-remix-block [data-slot="label"], .studio-publish-settings [data-slot="label"] { min-height:44px; align-items:flex-start; }
 }
 
 .studio-published-actions { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }

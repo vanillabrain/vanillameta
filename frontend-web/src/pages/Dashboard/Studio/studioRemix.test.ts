@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RATE_LIMITED_MESSAGE } from './studioAiMessages';
 import {
   canCreateRemix,
   fetchRemixRequirements,
@@ -188,10 +189,22 @@ describe('remix link and failure wording', () => {
     const quota = {
       response: {
         status: 403,
-        data: { success: false, code: 403, data: { error: 'UPLOAD_QUOTA_EXCEEDED', message: '저장 용량 한도에 도달했습니다.' } },
+        data: {
+          success: false,
+          code: 403,
+          data: { error: 'UPLOAD_QUOTA_EXCEEDED', message: '저장 용량 한도에 도달했습니다.' },
+        },
       },
     };
     expect(remixFailure(quota)).toEqual({ message: '저장 용량 한도에 도달했습니다.', retry: true, gone: false });
+  });
+  it('words a throttled preview or save with the rate-limit sentence, and offers a retry after a wait', () => {
+    const throttled = { response: { status: 429, data: {} } };
+    const coded = { response: { status: 429, data: { success: false, code: 429, data: { error: 'RATE_LIMITED' } } } };
+    expect(remixError(throttled)).toBe(RATE_LIMITED_MESSAGE);
+    expect(remixError(coded)).toBe(RATE_LIMITED_MESSAGE);
+    expect(remixError(throttled, true)).toBe(RATE_LIMITED_MESSAGE);
+    expect(remixFailure(throttled)).toEqual({ message: RATE_LIMITED_MESSAGE, retry: true, gone: false });
   });
   it('marks a gone publication so its link back is hidden', () => {
     expect(remixFailure({ response: { status: 404 } }).gone).toBe(true);

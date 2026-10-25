@@ -69,7 +69,9 @@ describe('publication expiry', () => {
   });
   it('does not carry the previous expiry into a republish, which decides the expiry again', async () => {
     const expiresAt = new Date(Date.now() + 5 * 86_400_000).toISOString();
-    vi.mocked(fetchOwnerPublication).mockReset().mockResolvedValue({ ...metadata, visibility: 'link', expiresAt });
+    vi.mocked(fetchOwnerPublication)
+      .mockReset()
+      .mockResolvedValue({ ...metadata, visibility: 'link', expiresAt });
     render(<StudioPublish {...props} />);
     const publish = await screen.findByRole('button', { name: '재게시' });
     await waitFor(() => expect((publish as HTMLButtonElement).disabled).toBe(false));
@@ -80,7 +82,9 @@ describe('publication expiry', () => {
   });
   it('states the aggregate exposure before a link publication, not only after', async () => {
     render(<StudioPublish {...props} />);
-    await screen.findByRole('button', { name: '게시하기' });
+    const publish = await screen.findByRole('button', { name: '게시하기' });
+    // The radio group is locked while the publication status is still loading; wait until it is unlocked.
+    await waitFor(() => expect((publish as HTMLButtonElement).disabled).toBe(false));
     expect(screen.queryByText(/링크가 있는 모든 사람이 이 저장본의 집계 숫자/)).toBeNull();
     fireEvent.click(screen.getByRole('radio', { name: /링크 공개/ }));
     expect(screen.getByText(/링크가 있는 모든 사람이 이 저장본의 집계 숫자/)).toBeTruthy();

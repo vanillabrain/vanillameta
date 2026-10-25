@@ -11,6 +11,7 @@ import {
 } from './studioDocument';
 import { SourceProfile } from './studioCreation';
 import { uploadQuotaMessage } from './studioUploadQuota';
+import { aiRefusalMessage, RATE_LIMITED_MESSAGE } from './studioAiMessages';
 import { PublishedBlock } from './studioPublication';
 import {
   STUDIO_DATE_LIMITS,
@@ -322,6 +323,8 @@ export function remixError(error: any, received = false): string {
   if (received && (status === 404 || status === 410))
     return '복제할 받은 분석을 확인할 수 없습니다. 받은 자료에서 다시 시작해 주세요.';
   if (status === 401) return '로그인이 필요합니다. 로그인한 뒤 이 화면에서 다시 확인해 주세요.';
+  // UserThrottleGuard limits the remix preview and save routes too; it clears within a minute, so no immediate retry hint.
+  if (status === 429) return aiRefusalMessage(error) ?? RATE_LIMITED_MESSAGE;
   if (status === 403) return '복제가 허용되지 않았거나 게시본·대상 데이터에 접근할 권한이 없습니다.';
   if (status === 410) return '게시가 중지되었거나 만료되었습니다. 새 링크를 요청해 주세요.';
   if (status === 404) return '복제할 게시본을 찾을 수 없습니다.';
