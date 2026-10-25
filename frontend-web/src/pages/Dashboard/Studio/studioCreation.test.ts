@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { creationError, validateCreationProposal } from './studioCreation';
+import { CHART_SETUP_UNAVAILABLE_MESSAGE, creationError, validateCreationProposal } from './studioCreation';
 const base = () => ({
   proposalId: 'p1',
   sourceId: 4,
@@ -74,6 +74,17 @@ describe('Studio creation boundary', () => {
     raw.clarifications = [{ id: 'missingColumns', question: '환불액 열이 없습니다.', choices: [], affectedBlockIds: [] }];
     expect(validateCreationProposal(raw, 4).preview).toBeUndefined();
   });
+  it('accepts an unsupported request without choices and rejects fake choices', () => {
+    const raw: any = base();
+    delete raw.preview;
+    raw.semanticProposal = [];
+    raw.clarifications = [
+      { id: 'unsupportedRequest', question: '상위 N개 제한은 아직 지원하지 않습니다.', choices: [], affectedBlockIds: [] },
+    ];
+    expect(validateCreationProposal(raw, 4).clarifications?.[0].id).toBe('unsupportedRequest');
+    raw.clarifications[0].choices = [{ value: 'orders', label: '주문 수' }];
+    expect(() => validateCreationProposal(raw, 4)).toThrow();
+  });
 });
 
 it('explains file parsing failures as a file recovery action', () => {
@@ -143,16 +154,17 @@ it.each([null, 'day'])(
 );
 
 // A fresh MySQL without the chart seed must not ask users to rewrite valid data.
-it.each([{ message: 'chart component unavailable' }, { data: { message: 'chart component unavailable' } }])(
-  'explains missing chart setup while keeping the saved request recoverable',
-  data => {
-    const message = creationError({ response: { status: 400, data } });
-    expect(message).toContain('기본 차트');
-    expect(message).toContain('관리자');
-    expect(message).toContain('같은 저장 요청 확인');
-    expect(message).not.toContain('필수 열');
-  },
-);
+it.each([
+  { message: 'chart component unavailable' },
+  { data: { message: 'chart component unavailable' } },
+  { data: 'chart component unavailable' },
+])('explains missing chart setup without a raw English or generic message', data => {
+  const message = creationError({ response: { status: 400, data } });
+  expect(message).toBe(CHART_SETUP_UNAVAILABLE_MESSAGE);
+  expect(message).toContain('아무것도 저장되지 않았습니다');
+  expect(message).not.toContain('chart component');
+  expect(message).not.toContain('필수 열');
+});
 it('does not display arbitrary server details as chart setup advice', () => {
   const message = creationError({
     response: { status: 400, data: { message: 'chart component unavailable: private-path' } },

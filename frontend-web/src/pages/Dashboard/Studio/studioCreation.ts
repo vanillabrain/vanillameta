@@ -126,11 +126,11 @@ export function validateCreationProposal(input: unknown, sourceId: number): Crea
     studioAssert(p.clarifications.length <= 6, '추가 질문 수를 확인해 주세요.');
     for (const c of p.clarifications)
       studioAssert(
-        ['refundDenominator', 'missingColumns'].includes(c.id) &&
+        ['refundDenominator', 'missingColumns', 'unsupportedRequest'].includes(c.id) &&
           typeof c.question === 'string' &&
           c.question.length <= 1000 &&
           Array.isArray(c.choices) &&
-          (c.id === 'missingColumns' ? c.choices.length === 0 : c.choices.length >= 2) &&
+          (['missingColumns', 'unsupportedRequest'].includes(c.id) ? c.choices.length === 0 : c.choices.length >= 2) &&
           c.choices.length <= 4 &&
           c.choices.every(
             x => ['orders', 'amount'].includes(x.value) && typeof x.label === 'string' && x.label.length <= 200,
@@ -173,6 +173,17 @@ export const fetchStudioSources = async (): Promise<StudioSource[]> => {
   );
   return rows;
 };
+// The save transaction rolls back before any write when the server's default chart component is missing.
+export const CHART_SETUP_UNAVAILABLE_MESSAGE =
+  '저장 기능이 일시적으로 준비되지 않았습니다. 아무것도 저장되지 않았습니다. 잠시 후 다시 시도해 주세요. 계속되면 운영자에게 문의해 주세요.';
+// The server answers this one fixed reason as a plain string detail (or a {message} object); other details stay private.
+export const isChartComponentUnavailable = (cause: unknown) => {
+  const body = (cause as any)?.response?.data;
+  const detail = body?.data ?? body;
+  const reason = typeof detail === 'string' ? detail : detail?.message;
+  return Number((cause as any)?.response?.status) === 400 && reason === 'chart component unavailable';
+};
+
 export const creationError = (cause: unknown, context: 'file' | 'generation' = 'generation') => {
   const status = Number((cause as any)?.response?.status);
   if (status === 401) return '로그인이 만료되었습니다. 다시 로그인해 주세요.';
@@ -189,8 +200,7 @@ export const creationError = (cause: unknown, context: 'file' | 'generation' = '
     return '파일을 읽지 못했습니다. CSV·JSON·Parquet 형식과 파일 손상 여부를 확인한 뒤 다시 선택해 주세요.';
   const body = (cause as any)?.response?.data;
   const detail = body?.data ?? body;
-  if (status === 400 && detail?.message === 'chart component unavailable')
-    return '서버의 기본 차트 설정이 준비되지 않았습니다. 관리자에게 초기 설정을 확인해 달라고 요청해 주세요. 설정 후 같은 저장 요청 확인으로 다시 시도할 수 있습니다.';
+  if (isChartComponentUnavailable(cause)) return CHART_SETUP_UNAVAILABLE_MESSAGE;
   if (status === 400 && ['STUDIO_COMMERCE_UNIT_MISMATCH', 'STUDIO_UNIT_MISMATCH'].includes(detail?.code)) {
     const currency = detail.currency === 'KRW' ? 'KRW(소수 0자리)' : detail.currency === 'USD' ? 'USD' : '소스 통화';
     return (

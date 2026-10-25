@@ -23,7 +23,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Notice } from '@/components/ui/notice';
 import { TextField } from '@/components/ui/text-field';
 import SnapshotView, { Snapshot } from '../../Publication/SnapshotView';
-import { creationData } from '../Studio/studioCreation';
+import { creationData, CHART_SETUP_UNAVAILABLE_MESSAGE, isChartComponentUnavailable } from '../Studio/studioCreation';
 import { errorMessage as dashboardErrorMessage, responseData } from '../dashboardPreview';
 
 function errorMessage(failure: any) {
@@ -32,6 +32,7 @@ function errorMessage(failure: any) {
     (failure?.code === 'ERR_NETWORK' || failure?.message === 'Network Error')
   )
     return '서버에 연결하지 못했습니다. 연결을 확인한 뒤 다시 미리보기해 주세요. 입력은 유지됩니다.';
+  if (isChartComponentUnavailable(failure)) return CHART_SETUP_UNAVAILABLE_MESSAGE;
   return dashboardErrorMessage(failure);
 }
 

@@ -2,9 +2,10 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import StudioConversationCreation from './StudioConversationCreation';
+import { CHART_SETUP_UNAVAILABLE_MESSAGE } from './studioCreation';
 const api = vi.hoisted(() => ({ read: vi.fn(), sources: vi.fn() }));
 vi.mock('./studioExecution', () => ({ getExecutionCreation: api.read }));
-vi.mock('./studioCreation', () => ({ fetchStudioSources: api.sources }));
+vi.mock('./studioCreation', async importOriginal => ({ ...(await importOriginal<any>()), fetchStudioSources: api.sources }));
 vi.mock('./StudioSemanticReview', () => ({ default: ({ proposal }: any) => <div>{proposal.title} · 634,513,000</div> }));
 const run: any = { runId: 'creation1', creationResult: { proposalId: 'p1', sourceId: 9 } };
 const proposal = {
@@ -82,6 +83,34 @@ it('displays missing meaning and blocks saving when the compiler asks for clarif
   render(<StudioConversationCreation run={run} disabled={false} />);
   expect(await screen.findByText(/필수 열을 확인/)).toBeDefined();
   expect(screen.queryByRole('button')).toBeNull();
+});
+it('shows the server message for an unsupported request without a source picker or retry', async () => {
+  const question = '상위 3개 제한은 아직 지원하지 않습니다. 요청을 바꿔 다시 확인해 주세요.';
+  api.read.mockResolvedValue({
+    ...proposal,
+    preview: undefined,
+    clarifications: [{ id: 'unsupportedRequest', question, choices: [], affectedBlockIds: [] }],
+  });
+  const view = render(<StudioConversationCreation run={run} onClarify={vi.fn()} disabled={false} />);
+  expect(await screen.findByText(question)).toBeDefined();
+  expect(screen.queryByLabelText('다시 분석할 데이터')).toBeNull();
+  expect(screen.queryByRole('button')).toBeNull();
+  expect(screen.queryByText(/이어서 확인/)).toBeNull();
+  expect(api.sources).not.toHaveBeenCalled();
+  view.unmount();
+  render(<StudioConversationCreation run={run} disabled={false} />);
+  await screen.findByText(question);
+  expect(screen.queryByRole('link', { name: '같은 질문의 계산 기준 확인' })).toBeNull();
+});
+it('explains a missing chart setup on save without the generic expired-proposal text', async () => {
+  const save = vi.fn().mockRejectedValue({
+    response: { status: 400, data: { success: false, code: 400, data: 'chart component unavailable' } },
+  });
+  render(<StudioConversationCreation run={run} onSave={save} disabled={false} />);
+  fireEvent.click(await screen.findByRole('button', { name: '제안 확인 후 비공개 저장' }));
+  expect(await screen.findByText(CHART_SETUP_UNAVAILABLE_MESSAGE)).toBeDefined();
+  expect(screen.queryByText('생성안이 만료되었거나 저장할 수 없습니다. 새 생성 요청을 보내 주세요.')).toBeNull();
+  expect(screen.queryByText(/chart component/)).toBeNull();
 });
 
 it('does not steal focus when a completed historical receipt is restored', () => {

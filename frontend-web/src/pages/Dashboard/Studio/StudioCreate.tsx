@@ -742,12 +742,14 @@ export default function StudioCreate() {
                 <p>
                   {proposal.clarifications.some(question => question.id === 'refundDenominator')
                     ? '분모를 추측해 계산하지 않습니다. 선택 후 같은 요청을 다시 검증합니다.'
+                    : proposal.clarifications.every(question => question.id === 'unsupportedRequest')
+                    ? '지원하지 않는 계산이라 다른 계산으로 대신하지 않습니다. 계산과 저장은 실행되지 않았습니다.'
                     : '필요한 데이터를 먼저 확인합니다. 없는 열이나 업무 수치를 다른 지표로 대체하지 않습니다.'}
                 </p>
                 {proposal.clarifications.map(question => (
                   <div className="studio-create-question" key={question.id}>
                     <p>{question.question}</p>
-                    {question.choices.length ? (
+                    {question.id === 'unsupportedRequest' ? null : question.choices.length ? (
                       <TextField
                         select
                         label="환불률 분모"

@@ -429,6 +429,29 @@ describe('Studio create workflow', () => {
     expect(screen.queryByRole('button', { name: 'Studio에 저장하고 열기' })).toBeNull();
     expect((screen.getByRole('button', { name: '의미 확인 후 다시 제안' }) as HTMLButtonElement).disabled).toBe(true);
   });
+  it('shows an unsupported request message without a file picker or retry and keeps the typed request', async () => {
+    const unsupported: any = proposal();
+    delete unsupported.preview;
+    unsupported.semanticProposal = [];
+    unsupported.clarifications = [
+      { id: 'unsupportedRequest', question: '상위 3개 제한은 아직 지원하지 않습니다.', choices: [], affectedBlockIds: [] },
+    ];
+    mocks.post.mockImplementation(async (url: string) => ({
+      data: url === '/studio/samples' ? { sourceId: 4 } : unsupported,
+    }));
+    await ready();
+    fireEvent.change(screen.getByRole('textbox', { name: '만들 대시보드 요청' }), {
+      target: { value: '상위 3개만 보여 줘' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '지표와 차트 제안' }));
+    await screen.findByText('상위 3개 제한은 아직 지원하지 않습니다.');
+    expect(screen.queryByText(/필수 열이 있는 파일을 선택하거나/)).toBeNull();
+    expect(screen.queryByRole('button', { name: '의미 확인 후 다시 제안' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Studio에 저장하고 열기' })).toBeNull();
+    expect((screen.getByRole('textbox', { name: '만들 대시보드 요청' }) as HTMLTextAreaElement).value).toBe(
+      '상위 3개만 보여 줘',
+    );
+  });
   it('retries creation with the exact idempotency body after response loss', async () => {
     let saves = 0;
     mocks.post.mockImplementation(async (url: string) => {

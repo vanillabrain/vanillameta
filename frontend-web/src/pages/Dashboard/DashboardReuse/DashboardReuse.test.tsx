@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import DashboardReuse from './index';
 import { mixedReusePreview } from './studioReusePreview.fixture';
+import { CHART_SETUP_UNAVAILABLE_MESSAGE } from '../Studio/studioCreation';
 const api = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
@@ -383,6 +384,17 @@ it('keeps the preview trigger focusable while rejecting duplicate pending reques
   expect(document.activeElement).toBe(trigger);
 });
 
+it('explains a missing chart setup on save in Korean without the raw server text', async () => {
+  await open();
+  await makePreview();
+  api.post.mockRejectedValueOnce({
+    response: { status: 400, data: { success: false, code: 400, data: 'chart component unavailable' } },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '복사본 저장' }));
+  await screen.findByText(CHART_SETUP_UNAVAILABLE_MESSAGE);
+  expect(screen.queryByText('chart component unavailable')).toBeNull();
+  expect(api.navigate).not.toHaveBeenCalled();
+});
 it('409 does not steal focus after the user moves to the original link', async () => {
   await open();
   await makePreview();

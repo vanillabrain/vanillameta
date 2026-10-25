@@ -3,7 +3,13 @@ import { Notice as Alert } from '@/components/ui/notice';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { studioRequestId } from './studioApi';
-import { CreationProposal, fetchStudioSources, StudioSource } from './studioCreation';
+import {
+  CHART_SETUP_UNAVAILABLE_MESSAGE,
+  CreationProposal,
+  fetchStudioSources,
+  isChartComponentUnavailable,
+  StudioSource,
+} from './studioCreation';
 import { CreationClarificationRequest, StudioExecution, getExecutionCreation } from './studioExecution';
 import StudioConversationRefinement from './StudioConversationRefinement';
 import StudioSemanticReview from './StudioSemanticReview';
@@ -34,6 +40,8 @@ export default function StudioConversationCreation({
   const [sourceLoading, setSourceLoading] = useState(false);
   const [sourceError, setSourceError] = useState('');
   const missingSource = !!proposal?.clarifications?.some(c => c.id === 'missingColumns');
+  // An unsupported request has no alternative to retry or pick, so only the server's message is shown.
+  const retryable = !!proposal?.clarifications?.some(c => c.id !== 'unsupportedRequest');
   const [answering, setAnswering] = useState(false);
   const [answerUncertain, setAnswerUncertain] = useState(false);
   const [readAttempt, setReadAttempt] = useState(0);
@@ -159,6 +167,8 @@ export default function StudioConversationCreation({
       setError(
         unknown
           ? '저장 완료 여부를 확인하지 못했습니다. 같은 생성 요청으로 재시도하면 기존 저장 결과를 확인합니다.'
+          : isChartComponentUnavailable(cause)
+          ? CHART_SETUP_UNAVAILABLE_MESSAGE
           : status === 400
           ? '생성안이 만료되었거나 저장할 수 없습니다. 새 생성 요청을 보내 주세요.'
           : status === 403
@@ -194,11 +204,17 @@ export default function StudioConversationCreation({
           생성안 다시 불러오기
         </Button>
       )}
-      {proposal?.clarifications?.map(c => (
-        <Alert severity="warning" key={c.id}>
-          {c.question} {c.choices.map(choice => choice.label).join(' / ')}. 같은 질문을 이어서 확인할 수 있습니다.
-        </Alert>
-      ))}
+      {proposal?.clarifications?.map(c =>
+        c.id === 'unsupportedRequest' ? (
+          <Alert severity="warning" key={c.id}>
+            {c.question}
+          </Alert>
+        ) : (
+          <Alert severity="warning" key={c.id}>
+            {c.question} {c.choices.map(choice => choice.label).join(' / ')}. 같은 질문을 이어서 확인할 수 있습니다.
+          </Alert>
+        ),
+      )}
       {proposal?.clarifications?.some(c => c.id === 'refundDenominator') && onClarify && (
         <div className="flex flex-col gap-3 py-3">
           <TextField
@@ -301,7 +317,7 @@ export default function StudioConversationCreation({
           <p className="studio-execution-hint">미리보기 후 비공개 저장을 선택해야 새 대시보드가 만들어집니다.</p>
         </div>
       )}
-      {!!proposal?.clarifications?.length && !onClarify && (
+      {retryable && !onClarify && (
         <Button variant="outline" asChild disabled={disabled || loading}>
           <a
             href={'/studio/new?sourceId=' + proposal.sourceId + '&proposalId=' + encodeURIComponent(proposal.proposalId)}
