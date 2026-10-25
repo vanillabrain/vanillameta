@@ -23,9 +23,19 @@ import { SourceAccessService } from '../ownership/source-access.service';
 import { BiSegmentService } from './bi-segment.service';
 import { BiService } from './bi.service';
 import { metricExpression } from './metric-expression';
+import { pinMetricFormula } from './metric-formula';
 import { normalizeMetric, semanticCatalog } from './semantic-proposal';
 
 jest.setTimeout(120000);
+
+const selfRatioError = {
+  status: 400,
+  response: {
+    code: 'FORMULA_SELF_RATIO',
+    message:
+      '분자와 분모가 같은 계산은 비율을 비교할 수 없습니다. 서로 다른 지표나 계산을 선택해 주세요.',
+  },
+};
 
 /**
  * RXS-03 saved FORMULA boundary over the real DuckDB worker and a real SQLite metric repository.
@@ -242,6 +252,95 @@ describe('saved FORMULA metrics over real DuckDB and the SQLite metric repositor
     expect(expression).toContain('SUM("cost")');
     expect(expression).toContain('NULLIF(');
     expect(expression).toContain('* 100');
+    expect(await metricCount()).toBe(before);
+  });
+
+  it('rejects new direct and nested self-ratios without writes or formula execution', async () => {
+    const before = await metricCount();
+    const query = jest.spyOn(connection, 'queryDuckDB');
+    const selfRatio = { op: 'ratio', left: reference(1), right: reference(1), scale: 100 };
+    for (const expression of [
+      selfRatio,
+      { op: 'add', left: selfRatio, right: marginRatio() },
+      {
+        op: 'ratio',
+        left: { op: 'subtract', left: reference(1), right: reference(2) },
+        right: { right: reference(2), op: 'subtract', left: reference(1) },
+        scale: 100,
+      },
+    ]) {
+      await expect(bi.previewFormula(formulaBody(expression), actor)).rejects.toMatchObject(
+        selfRatioError,
+      );
+      await expect(bi.createMetric(formulaBody(expression), actor)).rejects.toMatchObject(
+        selfRatioError,
+      );
+    }
+    // Source profiling may query the file; the rejected formula must never execute.
+    expect(query.mock.calls.filter(([, sql]) => / AS value FROM /i.test(sql))).toHaveLength(0);
+    expect(await metricCount()).toBe(before);
+  });
+
+  it('rejects distinct saved metric IDs compiling to identical arithmetic', async () => {
+    await saveMetric(
+      5,
+      storedDefinition('매출 별칭', 'revenue', 1, {
+        definitionVersion: 2,
+        unit: '$',
+        decimalPlaces: 4,
+      }),
+    );
+    const before = await metricCount();
+    const body = formulaBody({
+      op: 'ratio',
+      left: reference(1),
+      right: reference(5, 2),
+      scale: 100,
+    });
+    // Isolate preparation from source profiling: arithmetic validation itself must not query.
+    const query = jest.spyOn(connection, 'queryDuckDB');
+    const profiling = jest.spyOn(bi, 'profile').mockResolvedValue(profile);
+    await expect(bi.prepareFormula(body, actor)).rejects.toMatchObject(selfRatioError);
+    expect(query).not.toHaveBeenCalled();
+    profiling.mockRestore();
+    await expect(bi.previewFormula(body, actor)).rejects.toMatchObject(selfRatioError);
+    await expect(bi.createMetric(body, actor)).rejects.toMatchObject(selfRatioError);
+    expect(await metricCount()).toBe(before);
+  });
+
+  it('keeps a historical stored self-ratio readable and usable as an exact saved metric', async () => {
+    const expression = { op: 'ratio', left: reference(1), right: reference(1), scale: 100 };
+    const historical = {
+      ...storedDefinition('기존 자기 비율', '*'),
+      aggregation: 'FORMULA',
+      unit: '%',
+      formula: pinMetricFormula(
+        expression,
+        [
+          {
+            id: 1,
+            definitionVersion: 1,
+            definition: storedDefinition('매출', 'revenue'),
+          },
+        ],
+        profile,
+      ),
+    };
+    await saveMetric(5, historical);
+    const before = await metricCount();
+    const row = await metricRow(5);
+    expect((await bi.metrics(1, actor)).find(metric => metric.id === 5).definition).toEqual(
+      historical,
+    );
+    const prepared = await bi.prepare(
+      { sourceId: 1, metricId: 5, title: '기존 비율', chart: 'number' },
+      actor,
+    );
+    expect(prepared.definition).toEqual(historical);
+    expect(prepared.draft.widgets[0].sql).toBe(
+      `SELECT ${metricExpression(historical, profile)} AS value FROM source`,
+    );
+    expect((await metricRow(5)).definition).toBe(row.definition);
     expect(await metricCount()).toBe(before);
   });
 

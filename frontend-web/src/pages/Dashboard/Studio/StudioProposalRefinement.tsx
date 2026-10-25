@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { Notice } from '@/components/ui/notice';
-import { CreationClarification, CreationProposal, creationError, proposeStudio } from './studioCreation';
+import { CreationClarification, CreationProposal, creationError, isFormulaSelfRatio, proposeStudio } from './studioCreation';
 import { useAiLabel } from '@/hooks/useAiStatus';
 
 /** Refines a server-owned immutable proposal; only its explicit save may write metadata. */
@@ -74,7 +74,7 @@ export default function StudioProposalRefinement({
     } catch (cause) {
       if (active.current === controller && !controller.signal.aborted)
         setError(
-          Number((cause as any)?.response?.status) === 400
+          Number((cause as any)?.response?.status) === 400 && !isFormulaSelfRatio(cause)
             ? '생성안이 만료되었거나 변경 내용을 확인하지 못했습니다. 요청을 구체적으로 적거나 위에서 새로 제안해 주세요. 이전 미리보기는 유지됩니다.'
             : creationError(cause),
         );

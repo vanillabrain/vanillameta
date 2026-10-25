@@ -28,7 +28,11 @@ import { decryptConnectionConfig } from '../utils/crypto.util';
 import { compileMetricWidget } from './structured-widget';
 import { metricFields } from './metric-expression';
 import { metricExpression } from './metric-expression';
-import { collectFormulaReferences, pinMetricFormula } from './metric-formula';
+import {
+  assertNewMetricFormula,
+  collectFormulaReferences,
+  pinMetricFormula,
+} from './metric-formula';
 import { quoteColumn, sourceQuery, validateDraft } from '../ai/dashboard-draft';
 import { resolveBlockTarget } from './block-target';
 import { explicitRenameRequested } from '../ai/saved-metric-reference';
@@ -554,6 +558,8 @@ export class BiService {
       operands.push({ id: row.id, definitionVersion: d.definitionVersion, definition: d });
     }
     const formula = pinMetricFormula(body.expression, operands, profile);
+    // Creation/preview policy only: historical reads and exact saved-metric reuse stay valid.
+    assertNewMetricFormula(formula, profile, metricExpression);
     if (
       !Number.isInteger(body.decimalPlaces) ||
       body.decimalPlaces < 0 ||

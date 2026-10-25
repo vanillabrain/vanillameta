@@ -36,6 +36,17 @@ const base = () => ({
   },
 });
 describe('Studio creation boundary', () => {
+  it('explains self-ratio refusal without exposing server detail text', () => {
+    for (const body of [
+      { code: 'FORMULA_SELF_RATIO', message: 'private detail' },
+      { data: { code: 'FORMULA_SELF_RATIO', message: 'private detail' } },
+    ]) {
+      const message = creationError({ response: { status: 400, data: body } });
+      expect(message).toContain('분자와 분모가 같은 계산');
+      expect(message).toContain('기존 지표와 입력은 유지');
+      expect(message).not.toContain('private detail');
+    }
+  });
   it('accepts a server-calculated semantic proposal for the selected source', () => {
     expect(validateCreationProposal(base(), 4).preview?.widgets[0].datas).toEqual([{ value: 500 }]);
   });

@@ -10,6 +10,7 @@ import {
   resolveBusinessBasis,
   sliceBusinessBasis,
   businessProfile,
+  businessDimensionExpression,
   assertBusinessBasisCurrent,
   validateBasisBusinessDates,
 } from '../bi/semantic-business-basis';
@@ -28,6 +29,7 @@ import { createHash, randomUUID } from 'crypto';
 import { compileConditionDefinition, conditionColumns } from '../bi/source-condition-definition';
 import { BiService } from '../bi/bi.service';
 import { metricFields } from '../bi/metric-expression';
+import { quoteColumn } from '../ai/dashboard-draft';
 import { assertNewRatio } from '../bi/semantic-proposal';
 import { AiService } from '../ai/ai.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
@@ -281,8 +283,8 @@ export class StudioCreationService {
   }
   /**
    * What the creation contract cannot express yet: a top-N cut, a share of the whole, a calendar-grain trend.
-   * Only a new request reaches this gate (refinements of an existing proposal always go to the model), and
-   * text inside quotes or backticks (a quoted label such as '월별 매출', a backticked column) is ignored, so
+   * Initial requests, refinements and appended blocks share this gate. Text inside quotes or backticks
+   * (a quoted label such as '월별 매출', a backticked column) is ignored, so
    * naming a label is not the same as asking for it. Korean words match literally, so an unquoted 월별 column
    * name is still refused; English grain words need a word boundary, so a column such as monthly_revenue is not.
    * Daily trends, plain category totals and a span such as '가장 최근 3개월' never match. Synonyms such as
@@ -518,8 +520,18 @@ export class StudioCreationService {
     };
     // Refused before the source's missing-field and refund questions: the user is never asked for a
     // source or a denominator for a request that will be refused anyway. No model call, no SQL.
-    // New requests only: a refinement of an existing proposal is judged by the model against that proposal.
-    const unsupported = parent ? [] : this.unsupportedRequest(prompt);
+    // Refinement and append have the same calculation contract as initial creation.
+    // Quoted labels remain labels; asking to rename one does not add a time grain.
+    const unsupported = this.unsupportedRequest(prompt);
+    // Auto TIMESTAMP groups by the original instant, not by calendar day. Only
+    // native DATE or an explicit date business projection supports this advice.
+    const dailyBasis = effective.columns.some(
+      column =>
+        column.temporal && (column.type.toUpperCase() === 'DATE' || column.businessType === 'date'),
+    );
+    const alternative = dailyBasis
+      ? '날짜 열과 집계할 열을 명시해 일 단위 추이를 요청하거나, 카테고리별 합계·평균·건수를 요청해 주세요.'
+      : '카테고리별 합계·평균·건수를 요청해 주세요. 일 단위 추이가 필요하면 먼저 데이터 소스에서 날짜 열의 업무 유형과 날짜 형식을 확인해 주세요.';
     if (unsupported.length)
       return {
         ...base,
@@ -529,7 +541,8 @@ export class StudioCreationService {
             question:
               '아직 지원하지 않는 요청입니다: ' +
               unsupported.join(', ') +
-              '. 제안과 계산 결과를 만들지 않았습니다. 카테고리별 합계·평균·건수나 일 단위 추이로 다시 요청해 주세요.',
+              '. 제안과 계산 결과를 만들지 않았습니다. ' +
+              alternative,
             choices: [],
             affectedBlockIds: [],
           },
@@ -945,16 +958,20 @@ export class StudioCreationService {
       };
     } else if (block.kind !== 'BOARD_NUMERIC')
       throw new BadRequestException('분류 열을 선택해 주세요.');
-    // A new measure over its own grouping column has one value per group (COUNT_DISTINCT is always 1).
-    // Saved references are not rechecked here; COUNT(*) per group stays valid.
+    // Only distinct-count over the exact grouping expression is degenerate.
+    // SUM/ratios can vary by group; DATE(timestamp) can contain distinct original instants.
+    // Historical saved definitions are preserved.
     if (
       !metric.id &&
-      metric.aggregation !== 'COUNT' &&
+      metric.aggregation === 'COUNT_DISTINCT' &&
       dimension &&
-      metric.column === dimension.column
+      (businessDimensionExpression(profile, basis, dimension.column) ===
+        quoteColumn(metric.column) ||
+        // Casting native DATE to DATE is an identity, unlike TIMESTAMP to DATE.
+        (metric.column === dimension.column && dimension.type.trim().toUpperCase() === 'DATE'))
     )
       throw new BadRequestException(
-        '분류 열 자체를 집계하면 그룹끼리 의미 있게 비교할 수 없습니다. 집계할 다른 숫자 열을 선택해 주세요.',
+        '같은 분류 값의 고유 개수를 세면 그룹끼리 의미 있게 비교할 수 없습니다. 집계할 다른 열이나 날짜 기준을 선택해 주세요.',
       );
     return {
       blockId: 'new:' + randomUUID(),

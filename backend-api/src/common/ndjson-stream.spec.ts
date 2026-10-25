@@ -94,9 +94,9 @@ describe('serveRun without the stream header', () => {
       return { status: 'succeeded' };
     });
     await expect(out).resolves.toEqual({ status: 'succeeded' });
-    expect(warn).not.toHaveBeenCalled();
-    expect(log).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(log.mock.calls[0][0] as string)).toMatchObject({
+    expect(log).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(warn.mock.calls[0][0] as string)).toMatchObject({
       msg: 'stream',
       status: 499,
       outcome: 'result',
@@ -153,7 +153,12 @@ describe('serveRun with Accept: application/x-ndjson', () => {
     // A normal end is info; a failed stream is warn, so the production default log level shows it.
     const normal = JSON.parse(log.mock.calls[0][0] as string);
     const failed = JSON.parse(warn.mock.calls[0][0] as string);
-    expect(normal).toMatchObject({ msg: 'stream', status: 200, outcome: 'result' });
+    expect(normal).toMatchObject({
+      msg: 'stream',
+      status: 200,
+      outcome: 'result',
+      disconnected: false,
+    });
     expect(failed).toMatchObject({
       msg: 'stream',
       status: 429,
@@ -163,22 +168,6 @@ describe('serveRun with Accept: application/x-ndjson', () => {
     expect(typeof normal.durationMs).toBe('number');
     expect(log).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledTimes(1);
-  });
-
-  it('logs a run that resolves after the client left as cancelled, not as a delivered result', async () => {
-    const req = request('application/x-ndjson');
-    const res = response();
-    const out = serveRun(req, res, async signal => {
-      res.emit('close');
-      expect(signal.aborted).toBe(true);
-      return { status: 'cancelled' };
-    });
-    await lines(out as StreamableFile).catch(() => undefined);
-    await new Promise(resolve => setImmediate(resolve));
-    const entry = JSON.parse(warn.mock.calls[0][0] as string);
-    expect(log).not.toHaveBeenCalled();
-    expect(entry).toMatchObject({ status: 499, outcome: 'cancelled', disconnected: true });
-    expect(entry.error).toBeUndefined();
   });
 
   it('logs a run that throws after the client left as cancelled, with no error line and no event', async () => {
@@ -401,7 +390,128 @@ describe('serveRun with Accept: application/x-ndjson', () => {
   });
 });
 
+describe.each([
+  ['JSON', undefined],
+  ['NDJSON', 'application/x-ndjson'],
+])('serveRun disconnected outcome consistency: %s', (_transport, accept) => {
+  let log: jest.SpyInstance;
+  let warn: jest.SpyInstance;
+  let error: jest.SpyInstance;
+  beforeEach(() => {
+    log = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    [{ runId: 'r1', status: 'succeeded', steps: [] }, 'result'],
+    [{ runId: 'r1', status: 'cancelled', steps: [] }, 'cancelled'],
+    [{ runId: 'r1', status: 'partial', steps: [{ status: 'cancelled' }] }, 'result'],
+    [{ status: 'cancelled' }, 'result'],
+  ])('classifies resolved %j as %s after close', async (data, outcome) => {
+    const req = request(accept);
+    const res = response();
+    let signal!: AbortSignal;
+    let release!: (value: typeof data) => void;
+    let emit: ((event: any) => void) | undefined;
+    const unwatch = jest.fn();
+    const out = serveRun(
+      req,
+      res,
+      s => {
+        signal = s;
+        return new Promise<typeof data>(resolve => (release = resolve));
+      },
+      {
+        watch: listener => {
+          emit = listener;
+          return unwatch;
+        },
+      },
+    );
+    res.emit('close');
+    expect(signal.aborted).toBe(true);
+    emit?.({ type: 'step', secret: 'after-disconnect' });
+    release(data);
+    if (out instanceof StreamableFile) {
+      expect(await lines(out)).toEqual([{ type: 'start' }]);
+      expect(unwatch).toHaveBeenCalledTimes(1);
+    } else await expect(out).resolves.toEqual(data);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(log).not.toHaveBeenCalled();
+    expect(JSON.parse(warn.mock.calls[0][0] as string)).toMatchObject({
+      status: 499,
+      outcome,
+      disconnected: true,
+    });
+    expect(error).not.toHaveBeenCalled();
+    expect(req.listenerCount('aborted')).toBe(0);
+    expect(res.listenerCount('close')).toBe(0);
+  });
+
+  it('classifies a disconnected throw as cancelled without exposing raw errors', async () => {
+    const req = request(accept);
+    const res = response();
+    const out = serveRun(req, res, async signal => {
+      res.emit('close');
+      expect(signal.aborted).toBe(true);
+      throw new Error('private request text and password');
+    });
+    if (out instanceof StreamableFile) expect(await lines(out)).toEqual([{ type: 'start' }]);
+    else await expect(out).resolves.toBeUndefined();
+    expect(log).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(warn.mock.calls[0][0] as string)).toMatchObject({
+      status: 499,
+      outcome: 'cancelled',
+      disconnected: true,
+      error: 'Error',
+    });
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('private request');
+    expect(req.listenerCount('aborted')).toBe(0);
+    expect(res.listenerCount('close')).toBe(0);
+  });
+});
+
 describe('errorEvent', () => {
+  it('forwards only the known formula refusal code and no private exception fields', async () => {
+    const message = '분자와 분모에 같은 값을 사용할 수 없습니다.';
+    const out = serveRun(request('application/x-ndjson'), response(), async () => {
+      throw new BadRequestException({
+        code: 'FORMULA_SELF_RATIO',
+        message,
+        sql: 'SELECT private_column FROM private_table',
+        details: { password: 'private-password' },
+      });
+    });
+    const events = await lines(out as StreamableFile);
+    expect(events).toEqual([
+      { type: 'start' },
+      {
+        type: 'error',
+        status: 400,
+        error: 'BadRequestException',
+        code: 'FORMULA_SELF_RATIO',
+        message,
+      },
+    ]);
+    expect(JSON.stringify(events)).not.toContain('private');
+  });
+
+  it.each(['PRIVATE_CODE', 'FORMULA_SELF_RATIO private SQL', { sql: 'private SQL' }])(
+    'does not forward an unrecognized code %j',
+    code => {
+      expect(errorEvent(new BadRequestException({ code, message: 'Invalid formula' }))).toEqual({
+        type: 'error',
+        status: 400,
+        error: 'BadRequestException',
+        message: 'Invalid formula',
+      });
+    },
+  );
+
   it('reports an unexpected error without its text', () => {
     const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     const event = errorEvent(new Error('connect ECONNREFUSED 10.0.0.5:3306 password=hunter2'));

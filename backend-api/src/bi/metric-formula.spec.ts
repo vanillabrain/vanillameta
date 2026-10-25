@@ -7,6 +7,7 @@ import {
   compileMetricFormula,
   normalizeFormulaUnit,
   pinMetricFormula,
+  assertNewMetricFormula,
 } from './metric-formula';
 
 jest.setTimeout(60000);
@@ -68,7 +69,104 @@ const pin = (node: unknown, definitions: unknown, who = profile) =>
 const compile = (frozen: unknown, who = profile, compiler: any = metricExpression) =>
   compileMetricFormula(frozen, who, compiler);
 
+const selfRatioError = {
+  status: 400,
+  response: {
+    code: 'FORMULA_SELF_RATIO',
+    message:
+      '분자와 분모가 같은 계산은 비율을 비교할 수 없습니다. 서로 다른 지표나 계산을 선택해 주세요.',
+  },
+};
+
 describe('metric formula helper', () => {
+  describe('new formula self-ratio guard', () => {
+    const validate = (expression: unknown, operands: unknown) =>
+      assertNewMetricFormula(pin(expression, operands), profile, metricExpression);
+
+    it.each([1, 100] as const)('rejects the same pinned metric at scale %s', scale => {
+      expect(() => validate(ratio(leaf(1, 2), leaf(1, 2), scale), [operand(1, {}, 2)])).toThrow(
+        expect.objectContaining(selfRatioError),
+      );
+    });
+
+    it('rejects identical normalized subexpressions and ratios nested below other operators', () => {
+      const a = add(leaf(1), leaf(2));
+      const b = { right: leaf(2), op: 'add', left: leaf(1) };
+      expect(() =>
+        validate(ratio(a, b, 100), [operand(1), operand(2, { column: 'cost' })]),
+      ).toThrow(expect.objectContaining(selfRatioError));
+      expect(() =>
+        validate(add(ratio(leaf(1), leaf(1), 1), ratio(leaf(2), leaf(1), 1)), [
+          operand(1),
+          operand(2, { column: 'cost' }),
+        ]),
+      ).toThrow(expect.objectContaining(selfRatioError));
+      expect(() =>
+        validate(ratio(ratio(leaf(1), leaf(1), 1), ratio(leaf(2), leaf(1), 1), 100), [
+          operand(1),
+          operand(2, { column: 'cost' }),
+        ]),
+      ).toThrow(expect.objectContaining(selfRatioError));
+    });
+
+    it('rejects distinct saved metrics with identical compiled arithmetic, ignoring display metadata', () => {
+      const operands = [
+        operand(1),
+        operand(
+          2,
+          {
+            label: 'Other label',
+            unit: '$',
+            decimalPlaces: 6,
+            numberNotation: 'compact',
+          },
+          3,
+        ),
+      ];
+      expect(() => validate(ratio(leaf(1), leaf(2, 3), 100), operands)).toThrow(
+        expect.objectContaining(selfRatioError),
+      );
+      expect(() =>
+        validate(ratio(subtract(leaf(1), leaf(3)), subtract(leaf(2, 3), leaf(3)), 1), [
+          ...operands,
+          operand(3, { column: 'cost' }),
+        ]),
+      ).toThrow(expect.objectContaining(selfRatioError));
+    });
+
+    it('allows different columns, aggregations, operand order and leaf scales', () => {
+      expect(() =>
+        validate(ratio(leaf(1), leaf(2), 100), [operand(1), operand(2, { column: 'cost' })]),
+      ).not.toThrow();
+      expect(() =>
+        validate(ratio(leaf(1), leaf(2), 1), [operand(1), operand(2, { aggregation: 'AVG' })]),
+      ).not.toThrow();
+      expect(() =>
+        validate(ratio(subtract(leaf(1), leaf(2)), subtract(leaf(2), leaf(1)), 100), [
+          operand(1),
+          operand(2, { column: 'cost' }),
+        ]),
+      ).not.toThrow();
+      expect(() =>
+        validate(ratio(leaf(1), leaf(2), 1), [
+          operand(1, { aggregation: 'RATIO_SUM', denominatorColumn: 'cost', scale: 1, unit: '' }),
+          operand(2, { aggregation: 'RATIO_SUM', denominatorColumn: 'cost', scale: 100, unit: '' }),
+        ]),
+      ).not.toThrow();
+    });
+
+    it('preserves historical pinning and compilation of self-ratios without changing snapshots', () => {
+      const frozen = pin(ratio(leaf(1), leaf(2), 100), [operand(1), operand(2)]);
+      const before = JSON.stringify(frozen);
+      expect(compile(frozen).sql).toBe('((SUM("revenue")) / NULLIF((SUM("revenue")), 0) * 100)');
+      expect(() => assertNewMetricFormula(frozen, profile, metricExpression)).toThrow(
+        expect.objectContaining(selfRatioError),
+      );
+      expect(JSON.stringify(frozen)).toBe(before);
+      expect(compile(frozen).sql).toContain('NULLIF');
+    });
+  });
+
   describe('collectFormulaReferences', () => {
     it('returns the unique referenced metrics sorted by metricId', () => {
       const expression = add(subtract(leaf(3), leaf(1)), ratio(leaf(2), leaf(3), 100));

@@ -46,6 +46,8 @@ function errorBody(error: unknown): StreamEvent {
       status: error.getStatus(),
       error: typeof fields.error === 'string' ? fields.error : error.name,
       message: Array.isArray(message) ? message.join(', ') : message,
+      // Only this public formula refusal code is safe to forward; arbitrary codes may carry details.
+      ...(fields.code === 'FORMULA_SELF_RATIO' ? { code: 'FORMULA_SELF_RATIO' } : {}),
       ...Object.fromEntries(
         SHOWN.filter(key => fields[key] !== undefined).map(k => [k, fields[k]]),
       ),
@@ -77,15 +79,24 @@ export interface ServeOptions {
   heartbeatMs?: number;
 }
 
+/** Only execution summaries have a runId and an authoritative top-level cancellation status.
+ * Other resolved payloads are transport results; resolution alone does not prove execution success.
+ */
+function resolvedOutcome(data: unknown): 'result' | 'cancelled' {
+  if (data && typeof data === 'object' && 'runId' in data && 'status' in data)
+    if (typeof data.runId === 'string' && data.runId.length > 0 && data.status === 'cancelled')
+      return 'cancelled';
+  return 'result';
+}
+
 /**
- * Runs `run` for one request. The caller's connection closing aborts it (so the model call is cancelled
- * and the ledger records `cancelled`). Without `Accept: application/x-ndjson` this returns the promise and
- * the route answers exactly as it always did, except that a run which ends after the client left is logged
- * by how it really ended: a resolved run as `result` with `disconnected: true` (the ledger has it), a thrown
- * one as `cancelled` and resolves to `undefined`, never as a 5xx. With it, this
- * returns a stream at once (first byte now, not when the model answers) and the outcome follows as events.
- * Use only on a handler whose `@Res` is `passthrough`: the returned `StreamableFile` is what Nest pipes to
- * the response.
+ * Runs `run` for one request. Closing an unfinished connection requests abort, but does not prove the
+ * execution was cancelled. After disconnect both transports log status 499 and disconnected: true:
+ * a resolved execution summary with status cancelled logs cancelled; other resolutions log result;
+ * a thrown run logs cancelled with only its safe failure code. JSON still resolves with the returned
+ * data (undefined on a disconnected throw), but the departed client receives nothing. NDJSON emits
+ * no further events after abort. While connected, NDJSON returns a stream immediately and delivers
+ * the resolved payload as a result event. Use only with a passthrough @Res handler.
  */
 export function serveRun<T>(
   req: any,
@@ -123,7 +134,7 @@ export function serveRun<T>(
       durationMs: Date.now() - startedAt,
       ...(correlationId ? { correlationId } : {}),
     });
-    if (outcome === 'result') logger.log(record);
+    if (outcome === 'result' && !controller.signal.aborted) logger.log(record);
     else logger.warn(record);
   };
 
@@ -131,8 +142,8 @@ export function serveRun<T>(
     return (async () => {
       try {
         const data = await run(controller.signal);
-        // It resolved, so the ledger holds the real outcome; the client had already left and got nothing.
-        if (controller.signal.aborted) logEnd(499, 'result');
+        // Classify the returned execution state separately from the disconnected transport.
+        if (controller.signal.aborted) logEnd(499, resolvedOutcome(data));
         return data;
       } catch (error) {
         // Nobody is left to answer: a client that closed the connection cancelled the run, so this is
@@ -147,7 +158,8 @@ export function serveRun<T>(
 
   const out = new PassThrough();
   const write = (event: StreamEvent) => {
-    if (!out.writableEnded && !out.destroyed) out.write(`${JSON.stringify(event)}\n`);
+    if (!controller.signal.aborted && !out.writableEnded && !out.destroyed)
+      out.write(`${JSON.stringify(event)}\n`);
   };
   // Proxies must not hold the lines back or recompress them.
   res.setHeader?.('Cache-Control', 'no-cache, no-transform');
@@ -166,9 +178,9 @@ export function serveRun<T>(
     try {
       unwatch = options.watch?.(write);
       const data = await run(controller.signal);
-      // A run can resolve (with a cancelled state) after the client left: nobody received this.
+      // The returned state, not the abort request, determines the resolved outcome.
       if (controller.signal.aborted) {
-        outcome = 'cancelled';
+        outcome = resolvedOutcome(data);
         status = 499;
       }
       write({ type: 'result', data });

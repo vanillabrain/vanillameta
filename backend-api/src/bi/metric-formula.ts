@@ -405,6 +405,29 @@ export function compileMetricFormula(
   profile: FormulaProfileLike,
   compileLeaf: FormulaLeafCompiler,
 ) {
+  return compileFormula(frozen, profile, compileLeaf, false);
+}
+
+/**
+ * New-definition policy only. Do not apply to historical pin/read/reuse compilation.
+ * Compare the canonical SQL emitted by the trusted leaf compiler and this bounded AST
+ * compiler. This detects exact references, identical ordered subtrees and distinct saved
+ * metrics with identical arithmetic, without guessing algebraic equivalence or rewriting SQL.
+ */
+export function assertNewMetricFormula(
+  frozen: unknown,
+  profile: FormulaProfileLike,
+  compileLeaf: FormulaLeafCompiler,
+): void {
+  compileFormula(frozen, profile, compileLeaf, true);
+}
+
+function compileFormula(
+  frozen: unknown,
+  profile: FormulaProfileLike,
+  compileLeaf: FormulaLeafCompiler,
+  rejectSelfRatio: boolean,
+) {
   if (typeof compileLeaf !== 'function')
     throw new BadRequestException('formula leaf compiler is required');
   const input = object(frozen, 'frozen formula');
@@ -421,6 +444,12 @@ export function compileMetricFormula(
     if (!('metricId' in node)) {
       const left = sql(node.left);
       const right = sql(node.right);
+      if (rejectSelfRatio && node.op === 'ratio' && left === right)
+        throw new BadRequestException({
+          code: 'FORMULA_SELF_RATIO',
+          message:
+            '분자와 분모가 같은 계산은 비율을 비교할 수 없습니다. 서로 다른 지표나 계산을 선택해 주세요.',
+        });
       if (node.op === 'ratio')
         return (
           '(' + left + ' / NULLIF(' + right + ', 0)' + (node.scale === 100 ? ' * 100' : '') + ')'

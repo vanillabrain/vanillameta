@@ -183,6 +183,11 @@ export const isChartComponentUnavailable = (cause: unknown) => {
   const reason = typeof detail === 'string' ? detail : detail?.message;
   return Number((cause as any)?.response?.status) === 400 && reason === 'chart component unavailable';
 };
+export const isFormulaSelfRatio = (cause: unknown) => {
+  const response = (cause as any)?.response;
+  const detail = response?.data?.data ?? response?.data;
+  return Number(response?.status) === 400 && detail?.code === 'FORMULA_SELF_RATIO';
+};
 
 export const creationError = (cause: unknown, context: 'file' | 'generation' = 'generation') => {
   const status = Number((cause as any)?.response?.status);
@@ -201,6 +206,8 @@ export const creationError = (cause: unknown, context: 'file' | 'generation' = '
   const body = (cause as any)?.response?.data;
   const detail = body?.data ?? body;
   if (isChartComponentUnavailable(cause)) return CHART_SETUP_UNAVAILABLE_MESSAGE;
+  if (isFormulaSelfRatio(cause))
+    return '분자와 분모가 같은 계산은 비율을 비교할 수 없습니다. 서로 다른 지표나 계산을 선택해 주세요. 기존 지표와 입력은 유지됩니다.';
   if (status === 400 && ['STUDIO_COMMERCE_UNIT_MISMATCH', 'STUDIO_UNIT_MISMATCH'].includes(detail?.code)) {
     const currency = detail.currency === 'KRW' ? 'KRW(소수 0자리)' : detail.currency === 'USD' ? 'USD' : '소스 통화';
     return (

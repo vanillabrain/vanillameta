@@ -1,3 +1,5 @@
+import { DuckDBInstance } from '@duckdb/node-api';
+import { businessSchemaRevision } from '../bi/semantic-business-basis';
 import { User } from '../user/entities/user.entity';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
@@ -185,6 +187,16 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     service = new StudioCreationService(db, bi, llm as any, dashboards, connection, access, studio);
   });
   beforeEach(() => {
+    // Each case owns its proposal cache. Limits within a case remain unchanged.
+    service = new StudioCreationService(
+      db,
+      bi,
+      llm as any,
+      dashboards,
+      connection,
+      new SourceAccessService(db),
+      studio,
+    );
     llm.callLlm.mockReset().mockResolvedValue(JSON.stringify(semantics()));
   });
   afterAll(async () => {
@@ -1456,6 +1468,318 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       expect(p.preview).toBeDefined();
     },
   );
+  describe('DAILY date guidance and model response boundaries', () => {
+    const withDateSource = async (
+      nativeType: 'DATE' | 'TIMESTAMP' | 'VARCHAR',
+      declaration: 'date' | 'category' | undefined,
+      check: (sourceId: number) => Promise<void>,
+      csv = 'event_day,amount\n2026-01-01,100\n2026-01-01,200\n2026-01-02,50\n',
+    ) => {
+      const sourceId = 91;
+      const imported = await worker.importFile({
+        originalname: 'ordinary-daily.csv',
+        buffer: Buffer.from(csv),
+      });
+      const native = await DuckDBInstance.create(imported.filename);
+      const connection = await native.connect();
+      try {
+        await connection.run(`ALTER TABLE uploaded_data ALTER COLUMN event_day TYPE ${nativeType}`);
+      } finally {
+        connection.closeSync();
+        native.closeSync();
+      }
+      await db.manager.save(Database, {
+        id: sourceId,
+        ownerId: 7,
+        name: 'Ordinary daily source',
+        engine: 'duckdb',
+        type: 'FILE',
+        connectionConfig: JSON.stringify({
+          client: 'duckdb',
+          connection: { filename: imported.filename },
+        }),
+      });
+      try {
+        if (declaration) {
+          const profile = await service.profile(sourceId, 7);
+          await db.manager.save(SourceCatalogEntry, {
+            sourceId,
+            version: 1,
+            actorId: 7,
+            sourceRevision: profile.dataVersion,
+            schemaRevision: businessSchemaRevision(profile),
+            metadata: JSON.stringify({
+              label: 'Ordinary daily source',
+              description: '',
+              columns: profile.columns.map(column => ({
+                column: column.name,
+                label: column.name,
+                description: '',
+                unit: '',
+                classification: '',
+                businessType: column.name === 'event_day' ? declaration : 'number',
+                dateFormat:
+                  column.name === 'event_day' && declaration === 'date'
+                    ? nativeType === 'VARCHAR'
+                      ? 'YYYY-MM-DD'
+                      : 'native'
+                    : '',
+              })),
+            }),
+          });
+        }
+        await check(sourceId);
+      } finally {
+        await db.manager.delete(SourceCatalogEntry, { sourceId });
+        await db.manager.delete(Database, { id: sourceId });
+      }
+    };
+    const dailyResponse = () => ({
+      requiredFields: ['event_day', 'amount'],
+      title: 'Daily sales',
+      semanticProposal: [
+        {
+          title: 'Daily sales',
+          kind: 'CHART_LINE',
+          presentation: 'visual',
+          metric: { label: 'Sales', aggregation: 'SUM', column: 'amount' },
+          dimension: { column: 'event_day' },
+        },
+      ],
+    });
+    it.each([
+      ['DATE', undefined, true],
+      ['VARCHAR', 'date', true],
+      ['TIMESTAMP', undefined, false],
+      ['VARCHAR', undefined, false],
+      ['DATE', 'category', false],
+    ] as const)(
+      'notice recommends daily only with a usable date basis: %s / %s',
+      async (nativeType, declaration, canRecommendDaily) => {
+        await withDateSource(nativeType, declaration, async sourceId => {
+          const preview = jest.spyOn(dashboards, 'preview');
+          const before = await Promise.all([
+            db.manager.count(Metric),
+            db.manager.count(Dashboard),
+            db.manager.count(StudioState),
+            db.manager.count(StudioRun),
+          ]);
+          try {
+            const proposal = await propose({ sourceId, prompt: '월별 매출 추이를 보여줘' });
+            expect(proposal.clarifications).toEqual([
+              expect.objectContaining({ id: 'unsupportedRequest' }),
+            ]);
+            expect(proposal.semanticProposal).toEqual([]);
+            expect(proposal.preview).toBeUndefined();
+            expect(llm.callLlm).not.toHaveBeenCalled();
+            expect(preview).not.toHaveBeenCalled();
+            expect(
+              await Promise.all([
+                db.manager.count(Metric),
+                db.manager.count(Dashboard),
+                db.manager.count(StudioState),
+                db.manager.count(StudioRun),
+              ]),
+            ).toEqual(before);
+            const notice = proposal.clarifications[0].question;
+            if (canRecommendDaily) expect(notice).toMatch(/일\s*(?:단위|별)\s*추이/);
+            else {
+              expect(notice).not.toMatch(/(?:나|또는|혹은)\s*일\s*(?:단위|별)\s*추이/);
+              expect(notice).toMatch(/날짜/);
+              expect(notice).toMatch(/업무/);
+              expect(notice).toMatch(/형식/);
+            }
+          } finally {
+            preview.mockRestore();
+          }
+        });
+      },
+    );
+    it('server rejects a mocked CHART_LINE over real VARCHAR before preview or writes', async () => {
+      await withDateSource('VARCHAR', undefined, async sourceId => {
+        const preview = jest.spyOn(dashboards, 'preview');
+        const before = await Promise.all([db.manager.count(Metric), db.manager.count(Dashboard)]);
+        llm.callLlm.mockResolvedValueOnce(JSON.stringify(dailyResponse()));
+        try {
+          await expect(
+            propose({ sourceId, prompt: 'event_day별 amount 매출 추이' }),
+          ).rejects.toMatchObject({
+            status: 400,
+            message: '분류 열의 타입을 확인해 주세요.',
+          });
+          expect(llm.callLlm).toHaveBeenCalledTimes(1);
+          expect(JSON.parse(llm.callLlm.mock.calls[0][1]).source.columns[0]).toMatchObject({
+            name: 'event_day',
+            type: 'VARCHAR',
+            temporal: false,
+          });
+          expect(preview).not.toHaveBeenCalled();
+          expect(
+            await Promise.all([db.manager.count(Metric), db.manager.count(Dashboard)]),
+          ).toEqual(before);
+        } finally {
+          preview.mockRestore();
+        }
+      });
+    });
+    it('CALC rejects same native DATE distinct count even with a declared native date projection', async () => {
+      // The helper already keeps VARCHAR at YYYY-MM-DD and uses native for DATE/TIMESTAMP.
+      await withDateSource('DATE', 'date', async sourceId => {
+        llm.callLlm.mockResolvedValueOnce(
+          JSON.stringify({
+            requiredFields: ['event_day'],
+            title: 'Same date distinct count',
+            semanticProposal: [
+              {
+                title: 'Same date distinct count',
+                kind: 'CHART_LINE',
+                presentation: 'visual',
+                metric: {
+                  label: 'Distinct dates',
+                  aggregation: 'COUNT_DISTINCT',
+                  column: 'event_day',
+                },
+                dimension: { column: 'event_day' },
+              },
+            ],
+          }),
+        );
+        const preview = jest.spyOn(dashboards, 'preview');
+        const before = await Promise.all([db.manager.count(Metric), db.manager.count(Dashboard)]);
+        try {
+          await expect(
+            propose({ sourceId, prompt: 'event_day 날짜별 event_day 고유 날짜 개수를 보여줘' }),
+          ).rejects.toMatchObject({ status: 400 });
+          expect(llm.callLlm).toHaveBeenCalledTimes(1);
+          const user = JSON.parse(llm.callLlm.mock.calls[0][1]);
+          expect(user.source.columns.find(column => column.name === 'event_day')).toMatchObject({
+            type: 'DATE',
+            businessType: 'date',
+            dateFormat: 'native',
+            temporal: true,
+          });
+          expect(preview).not.toHaveBeenCalled();
+          expect(
+            await Promise.all([db.manager.count(Metric), db.manager.count(Dashboard)]),
+          ).toEqual(before);
+        } finally {
+          preview.mockRestore();
+        }
+      });
+    });
+    it('CALC counts distinct raw timestamp instants within each declared native date group', async () => {
+      await withDateSource(
+        'TIMESTAMP',
+        'date',
+        async sourceId => {
+          llm.callLlm.mockResolvedValueOnce(
+            JSON.stringify({
+              requiredFields: ['event_day'],
+              title: 'Daily distinct instants',
+              semanticProposal: [
+                {
+                  title: 'Daily distinct instants',
+                  kind: 'CHART_LINE',
+                  presentation: 'visual',
+                  metric: {
+                    label: 'Distinct instants',
+                    aggregation: 'COUNT_DISTINCT',
+                    column: 'event_day',
+                  },
+                  dimension: { column: 'event_day' },
+                },
+              ],
+            }),
+          );
+          const proposal = await propose({
+            sourceId,
+            prompt: 'event_day 날짜별 고유 시각 개수를 보여줘',
+          });
+          expect(proposal.clarifications).toBeUndefined();
+          expect(proposal.preview.widgets[0].datas).toEqual([
+            { dimension: '2026-01-01', value: 2 },
+            { dimension: '2026-01-02', value: 1 },
+          ]);
+        },
+        'event_day,amount\n2026-01-01T09:00:00,100\n2026-01-01T11:00:00,200\n2026-01-01T11:00:00,200\n2026-01-02T09:00:00,50\n',
+      );
+    });
+    it.each([
+      ['RATIO_SUM', { denominatorColumn: 'paid_orders', scale: 1 }, [50, 150]],
+      ['SUM', {}, [200, 300]],
+    ] as const)(
+      'CALC accepts %s grouped by its numerator amount with exact aggregates',
+      async (aggregation, extra, values) => {
+        await withDateSource(
+          'DATE',
+          undefined,
+          async sourceId => {
+            llm.callLlm.mockResolvedValueOnce(
+              JSON.stringify({
+                requiredFields:
+                  aggregation === 'RATIO_SUM' ? ['amount', 'paid_orders'] : ['amount'],
+                title: 'Amount groups',
+                semanticProposal: [
+                  {
+                    title: 'Amount groups',
+                    kind: 'CHART_BAR',
+                    presentation: 'visual',
+                    metric: { label: 'Amount aggregate', aggregation, column: 'amount', ...extra },
+                    dimension: { column: 'amount' },
+                  },
+                ],
+              }),
+            );
+            const before = await Promise.all([
+              db.manager.count(Metric),
+              db.manager.count(Dashboard),
+            ]);
+            const proposal = await propose({ sourceId, prompt: 'amount별 집계값을 보여줘' });
+            expect(proposal.clarifications).toBeUndefined();
+            expect(proposal.preview.widgets[0].datas).toEqual([
+              { dimension: 300, value: values[1] },
+              { dimension: 100, value: values[0] },
+            ]);
+            expect(
+              await Promise.all([db.manager.count(Metric), db.manager.count(Dashboard)]),
+            ).toEqual(before);
+          },
+          'event_day,amount,paid_orders\n2026-01-01,100,1\n2026-01-01,100,3\n2026-01-02,300,2\n',
+        );
+      },
+    );
+    it.each(['일별 매출 추이', '`event_day`별 `amount` 합계를 선 차트로 보여줘'])(
+      'DATE daily numeric oracle executes model-shaped line semantics: %s',
+      async prompt => {
+        await withDateSource('DATE', undefined, async sourceId => {
+          llm.callLlm.mockResolvedValueOnce(JSON.stringify(dailyResponse()));
+          const before = await Promise.all([db.manager.count(Metric), db.manager.count(Dashboard)]);
+          const proposal = await propose({ sourceId, prompt });
+          expect(llm.callLlm).toHaveBeenCalledTimes(1);
+          expect(proposal.clarifications).toBeUndefined();
+          expect(proposal.semanticProposal).toEqual([
+            expect.objectContaining({
+              kind: 'CHART_LINE',
+              metric: expect.objectContaining({ aggregation: 'SUM', column: 'amount' }),
+              dimension: expect.objectContaining({ column: 'event_day', type: 'DATE' }),
+            }),
+          ]);
+          expect(proposal.preview.widgets[0].datas).toEqual([
+            { dimension: '2026-01-01', value: 300 },
+            { dimension: '2026-01-02', value: 50 },
+          ]);
+          expect(JSON.parse(llm.callLlm.mock.calls[0][1]).source.columns[0]).toMatchObject({
+            name: 'event_day',
+            type: 'DATE',
+            temporal: true,
+          });
+          expect(
+            await Promise.all([db.manager.count(Metric), db.manager.count(Dashboard)]),
+          ).toEqual(before);
+        });
+      },
+    );
+  });
   // Negative boundaries of the pre-model gate: each prompt below names a span, a column or a quoted label
   // that merely contains a gated word, so it must still reach the model. Synonyms (월간, 주간, 점유 등 다른 표현)
   // are intentionally not covered by the gate yet, so no positive spec pins them.
@@ -1535,11 +1859,8 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       preview.mockRestore();
     }
   });
-  it.each([
-    ['COUNT_DISTINCT', { aggregation: 'COUNT_DISTINCT', column: 'channel' }, 'channel'],
-    ['SUM', { aggregation: 'SUM', column: 'amount' }, 'amount'],
-  ])(
-    'rejects a new %s measure grouped by its own column before preview',
+  it.each([['COUNT_DISTINCT', { aggregation: 'COUNT_DISTINCT', column: 'channel' }, 'channel']])(
+    'CALC rejects a new raw %s measure grouped by its unchanged column before preview',
     async (_label, metric, dimension) => {
       llm.callLlm.mockResolvedValueOnce(
         JSON.stringify({
@@ -1564,7 +1885,9 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       );
       const preview = jest.spyOn(dashboards, 'preview');
       try {
-        await expect(propose({ prompt: '채널별 집계' })).rejects.toThrow('분류 열 자체를 집계하면');
+        await expect(propose({ prompt: '채널별 집계' })).rejects.toThrow(
+          '같은 분류 값의 고유 개수',
+        );
         expect(preview).not.toHaveBeenCalled();
       } finally {
         preview.mockRestore();
@@ -1759,15 +2082,15 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
     expect(next.requestAnswers).toEqual({ refundDenominator: 'amount' });
   });
   it.each([
-    "제목만 '월별 매출'로 바꿔 줘",
-    '선택한 블록을 월별 추이로 바꿔 줘',
-    '선택한 블록을 전체 대비 비중으로 바꿔 줘',
+    ["제목만 '월별 매출'로 바꿔 줘", '월별 매출'],
+    ["제목만 '전체 대비 비중'으로 바꿔 줘", '전체 대비 비중'],
+    ["제목만 '상위 3개'로 바꿔 줘", '상위 3개'],
   ])(
-    'sends a refinement to the model even when its text contains a gated term: %s',
-    async prompt => {
+    'CALC accepts quoted title-only refinement without changing calculations: %s',
+    async (prompt, title) => {
       const parent = await propose();
       const block = semantics().semanticProposal[1];
-      block.title = '월별 매출';
+      block.title = title;
       llm.callLlm.mockResolvedValueOnce(
         JSON.stringify({
           requiredFields: ['amount', 'channel'],
@@ -1779,7 +2102,54 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       expect(llm.callLlm).toHaveBeenCalledTimes(2);
       expect(next.clarifications).toBeUndefined();
       expect(next.parentProposalId).toBe(parent.proposalId);
-      expect(next.semanticProposal[1].title).toBe('월별 매출');
+      expect(next.semanticProposal[1].title).toBe(title);
+      expect(next.semanticProposal[1].metric).toEqual(parent.semanticProposal[1].metric);
+      expect(next.preview.widgets.map(widget => widget.datas)).toEqual(
+        parent.preview.widgets.map(widget => widget.datas),
+      );
+      expect(await service.proposal(parent.proposalId, 1, 7)).toEqual(
+        JSON.parse(JSON.stringify(parent)),
+      );
+    },
+  );
+  it.each([
+    [1, '선택한 블록을 월별 추이로 바꿔 줘'],
+    [1, '선택한 블록을 전체 대비 비중으로 바꿔 줘'],
+    [1, '선택한 블록을 상위 3개로 바꿔 줘'],
+    ['append', '새 블록 추가: 월별 추이'],
+    ['append', '새 블록 추가: 전체 대비 비중'],
+    ['append', '새 블록 추가: 상위 3개'],
+  ] as const)(
+    'CALC refuses unsupported refinement or append before extra model/preview: %s / %s',
+    async (target, prompt) => {
+      const parent = await propose();
+      const parentSnapshot = JSON.parse(JSON.stringify(parent));
+      const before = await Promise.all([db.manager.count(Metric), db.manager.count(Dashboard)]);
+      llm.callLlm.mockClear().mockResolvedValueOnce(
+        JSON.stringify({
+          requiredFields: ['amount', 'channel'],
+          title: 'ignored',
+          semanticProposal: [{ ...semantics().semanticProposal[1], title: 'Requested change' }],
+        }),
+      );
+      const preview = jest.spyOn(dashboards, 'preview');
+      try {
+        const refused = await refine(parent, target, { prompt });
+        expect(await service.proposal(parent.proposalId, 1, 7)).toEqual(parentSnapshot);
+        expect(parent.preview).toEqual(parentSnapshot.preview);
+        expect(await Promise.all([db.manager.count(Metric), db.manager.count(Dashboard)])).toEqual(
+          before,
+        );
+        expect(llm.callLlm.mock.calls.length).toBe(0);
+        expect(preview).not.toHaveBeenCalled();
+        expect(refused.clarifications).toEqual([
+          expect.objectContaining({ id: 'unsupportedRequest' }),
+        ]);
+        expect(refused.semanticProposal).toEqual([]);
+        expect(refused.preview).toBeUndefined();
+      } finally {
+        preview.mockRestore();
+      }
     },
   );
   it('REFINE-01 replaces only selected block, preserving parent, IDs and metadata until explicit save', async () => {
