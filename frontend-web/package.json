@@ -20,7 +20,7 @@
     "@mui/lab": "^5.0.0-alpha.92",
     "@mui/material": "^5.9.1",
     "@mui/styled-engine-sc": "^5.8.0",
-    "@mui/x-data-grid": "^6.0.0",
+    "@mui/x-data-grid": "^7.14.0",
     "@mui/x-date-pickers": "^5.0.9",
     "@sentry/react": "^11.8.0",
     "@tailwindcss/vite": "^4.3.3",
