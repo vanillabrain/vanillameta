@@ -23,7 +23,7 @@
     "typescript": "7.0.2",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.10.1",
-    "shadcn": "^4.21.5"
+    "shadcn": "^4.22.1"
   },
   "dependencies": {
     "react": "^18.2.0",
