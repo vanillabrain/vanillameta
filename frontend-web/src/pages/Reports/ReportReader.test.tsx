@@ -181,6 +181,7 @@ it('requires separate keyboard cancel/confirm and preserves the exact ticket aft
   fireEvent.click(screen.getByRole('button', { name: '회수' }));
   fireEvent.click(screen.getByRole('button', { name: '확정' }));
   await screen.findByRole('alert');
+  expect(screen.getByText('요청을 저장했습니다. 현재 공유 상태를 다시 확인합니다.')).toBeTruthy();
   const key = sharePendingKey('A', 1, id);
   const pending = readSharePending(key);
   expect(pending).toEqual(api.post.mock.calls[0][1]);
@@ -194,6 +195,58 @@ it('requires separate keyboard cancel/confirm and preserves the exact ticket aft
   expect(api.post).toHaveBeenCalledTimes(1);
   expect(api.get.mock.calls.some(([url]) => url.endsWith('/outcome/' + pending.requestId))).toBe(true);
   expect(await screen.findByText('동료 · 팀')).toBeTruthy();
+});
+it.each(['post', 'outcome'])('clears an earlier completion notice when a new %s begins and fails', async action => {
+  const success = '요청을 저장했습니다. 현재 공유 상태를 다시 확인합니다.';
+  const key = sharePendingKey('A', 1, id);
+  let rejectAction: (reason: unknown) => void;
+  api.get.mockResolvedValue({ data: shares() });
+  api.post.mockImplementation(async (_url, input: ShareCommand) => ({
+    data: { receipt: receipt(input), replayed: false },
+  }));
+  showShares();
+  fireEvent.click(await screen.findByRole('button', { name: '회수' }));
+  fireEvent.click(screen.getByRole('button', { name: '확정' }));
+  await waitFor(() => expect(readSharePending(key)).toBeNull());
+  expect(screen.getByText(success)).toBeTruthy();
+  const first = api.post.mock.calls[0][1] as ShareCommand;
+  let pending: ShareCommand;
+  if (action === 'post') {
+    api.post.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectAction = reject;
+        }),
+    );
+    fireEvent.click(await screen.findByRole('button', { name: '회수' }));
+    expect(screen.getByText(success)).toBeTruthy();
+    expect(api.post).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: '확정' }));
+    pending = api.post.mock.calls[1][1];
+    expect(pending.requestId).not.toBe(first.requestId);
+  } else {
+    pending = command();
+    expect(storeSharePending(key, pending)).toBe(true);
+    api.get.mockImplementation((url: string) =>
+      url.includes('/outcome/')
+        ? new Promise((_resolve, reject) => {
+            rejectAction = reject;
+          })
+        : Promise.resolve({ data: shares() }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '공유 상태 다시 읽기' }));
+    fireEvent.click(await screen.findByRole('button', { name: '결과만 조회' }));
+    expect(api.get.mock.calls.at(-1)[0]).toContain('/outcome/' + pending.requestId);
+  }
+  expect(screen.queryByText(success)).toBeNull();
+  expect(readSharePending(key)).toEqual(pending);
+  await act(async () => rejectAction(new Error('response lost')));
+  expect((await screen.findByRole('alert')).textContent).toContain(
+    action === 'post' ? '원래 요청을 보관했습니다.' : '보관된 요청을 유지했습니다.',
+  );
+  expect(screen.queryByText(success)).toBeNull();
+  expect(readSharePending(key)).toEqual(pending);
+  expect(api.post).toHaveBeenCalledTimes(action === 'post' ? 2 : 1);
 });
 it('reload and failed outcome keep the ticket; only explicit retry sends its original UUID and CAS', async () => {
   const saved = command(),

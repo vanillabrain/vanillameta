@@ -177,6 +177,7 @@ function ShareControls({
   };
   const outcome = async (command: ShareCommand) => {
     if (!valid()) return;
+    notice('');
     setBusy(true);
     setError('');
     try {
@@ -195,6 +196,7 @@ function ShareControls({
   }, []);
   const send = async (command: ShareCommand) => {
     if (!valid() || busy || (command.operation.kind === 'share' && !canShare)) return;
+    notice('');
     if (!pending && !storeSharePending(key, command)) {
       setError('탭에 요청을 보관하지 못해 전송하지 않았습니다.');
       return;
