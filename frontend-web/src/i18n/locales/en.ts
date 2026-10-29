@@ -1,4 +1,47 @@
 export default {
+  aiConnections: {
+    title: 'External AI connections',
+    privacy:
+      'An approved AI client can read the selected source schemas and saved document content in your current organization, subject to your existing access. Data is sent to that external client and its processing is governed by its privacy policy. This connection does not run AI, generate content or grant write access.',
+    consentTitle: 'Connect {{client}}',
+    client: 'AI client',
+    account: 'Signed-in account',
+    organization: 'Current organization',
+    callback: 'Return address',
+    expires: 'Expires',
+    grantExpires: 'Approval expires',
+    tokenLifetime: 'Access tokens last up to 10 minutes. Reconnect from the AI client after the token expires.',
+    created: 'Connected',
+    scopes: 'Allow read access',
+    sourcesRead: 'Read source schemas and descriptions',
+    documentsRead: 'Read saved document content',
+    approve: 'Approve connection',
+    cancel: 'Cancel request',
+    loading: 'Loading connections…',
+    working: 'Submitting…',
+    expired: 'This request has expired. Return to the AI client and start a new connection.',
+    requestError:
+      'This request is unavailable or your session has changed. Return to connections, then start a new request from the AI client.',
+    decisionError:
+      'The decision could not be confirmed. Do not repeat it. Check connections, then restart from the AI client if needed.',
+    loadError: 'Connections could not be loaded. Reload to check your current session and organization.',
+    reload: 'Reload list',
+    notConfigured: 'External AI connections are not configured. Ask your administrator to configure an approved client.',
+    membershipRequired: 'Current organization membership is required.',
+    resource: 'MCP resource',
+    startHint:
+      'Start a connection from a registered external AI client. Each new connection requires your explicit approval here.',
+    empty: 'No external AI connections in this organization.',
+    disconnect: 'Disconnect',
+    disconnectTitle: 'Disconnect {{client}}?',
+    disconnectHint:
+      'This stops future access through this connection. Data already sent to the external AI client cannot be recalled. Your sources, saved documents and Google connection remain available.',
+    keep: 'Keep connection',
+    confirmDisconnect: 'Confirm disconnect',
+    disconnectError: 'Disconnection could not be confirmed. Close this dialog and reload the list before another attempt.',
+    revoked: 'Disconnected',
+    return: 'View connections',
+  },
   docConnection: {
     title: 'Google documents',
     breadcrumb: 'Document navigation',

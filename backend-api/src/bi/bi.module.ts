@@ -104,6 +104,7 @@ import { UserStorageService } from '../database/user-storage.service';
     PublicationController,
     PublishedPublicationController,
   ],
+  exports: [BiService],
   providers: [
     ConditionReportService,
     GovernanceService,

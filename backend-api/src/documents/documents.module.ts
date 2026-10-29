@@ -19,5 +19,6 @@ import { DocumentsService } from './documents.service';
   ],
   controllers: [DocumentsController],
   providers: [DocumentsService, GoogleDocsProvider, JwtService],
+  exports: [DocumentsService],
 })
 export class DocumentsModule {}

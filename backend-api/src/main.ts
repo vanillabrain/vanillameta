@@ -1,6 +1,7 @@
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import { RequestMethod } from '@nestjs/common';
 import express from 'express';
 import { config } from 'dotenv';
 import helmet from 'helmet';
@@ -95,7 +96,12 @@ async function bootstrap() {
     assertProductionConfig(process.env, { localEnvFileExists, guestUserExists });
   }
 
-  nestApp.setGlobalPrefix('v1');
+  nestApp.setGlobalPrefix('v1', {
+    exclude: [
+      { path: '.well-known/oauth-authorization-server/v1/mcp-oauth', method: RequestMethod.GET },
+      { path: '.well-known/oauth-protected-resource/v1/mcp', method: RequestMethod.GET },
+    ],
+  });
   nestApp.use(cookieParser());
   nestApp.useGlobalFilters(
     new ApiExceptionFilter(nestApp.get(HttpAdapterHost).httpAdapter, new HttpExceptionFilter()),

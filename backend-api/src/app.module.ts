@@ -1,4 +1,6 @@
 import { DocumentsModule } from './documents/documents.module';
+import { McpRemoteModule } from './mcp-oauth/mcp.controller';
+import { AddMcpOAuth1793233000000 } from './migrations/1793233000000-add-mcp-oauth';
 import { AddDocumentConnections1793232000000 } from './migrations/1793232000000-add-document-connections';
 import { AddStaffDeparture1792620200000 } from './migrations/1792620200000-add-staff-departure';
 import { AddBundleHandover1792620100000 } from './migrations/1792620100000-add-bundle-handover';
@@ -108,6 +110,7 @@ import { apiEnvFiles } from './config-env';
 @Module({
   imports: [
     DocumentsModule,
+    McpRemoteModule,
     LoggerModule,
     MonitoringModule,
     FieldSelectionModule,
@@ -147,6 +150,7 @@ import { apiEnvFiles } from './config-env';
       autoLoadEntities: true,
       migrations: [
         AddDocumentConnections1793232000000,
+        AddMcpOAuth1793233000000,
         SeparateLegacyEventAndJobTables1792620300000,
         AddHandoverProposal1792600000000,
         AddHandoverTransfer1792610000000,

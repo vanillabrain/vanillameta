@@ -1,3 +1,4 @@
+import { isLoginReturnPath } from '@/helpers/reuseReturn';
 import { useTranslation } from 'react-i18next';
 import { useContext, useEffect } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -12,7 +13,7 @@ export const ProtectedRoute = ({ children }) => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const location = useLocation();
-  const loginPath = location.pathname.startsWith('/reuse/')
+  const loginPath = isLoginReturnPath(location.pathname)
     ? `/login?returnTo=${encodeURIComponent(location.pathname)}`
     : '/login';
   const alert = useAlert();

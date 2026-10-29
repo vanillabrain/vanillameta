@@ -5,7 +5,7 @@ import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import { Link, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { MenuButton } from '@/components/button/AddIconButton';
-import { Plus } from 'lucide-react';
+import { Plus, Plug } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
@@ -253,8 +253,14 @@ function Dashboard() {
           >
             <GettingStarted returning={!noData} />
             <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="outline" className="h-10">
                 <Link to={artifactLink('/documents')}>{t('docConnection.title')}</Link>
+              </Button>
+              <Button asChild variant="outline" className="h-10">
+                <Link to="/ai-connections">
+                  <Plug />
+                  {t('aiConnections.title')}
+                </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link to="/organizations">조직 분석</Link>
