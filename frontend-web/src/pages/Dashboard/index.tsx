@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import PageTitleBox from '@/components/PageTitleBox';
 import ArtifactLibrary from './ArtifactLibrary';
-import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { artifactListNavigation } from '@/helpers/artifactNavigation';
+import { Link, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { MenuButton } from '@/components/button/AddIconButton';
 import { Plus } from 'lucide-react';
@@ -25,6 +26,7 @@ import {
 } from '@/api/personalLibraryService';
 
 function Dashboard() {
+  const { link: artifactLink } = artifactListNavigation(useLocation());
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const sourceParam = searchParams.get('aiSourceId') || '';
@@ -251,6 +253,9 @@ function Dashboard() {
           >
             <GettingStarted returning={!noData} />
             <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">
+              <Button asChild variant="outline" size="sm">
+                <Link to={artifactLink('/documents')}>{t('docConnection.title')}</Link>
+              </Button>
               <Button asChild variant="outline" size="sm">
                 <Link to="/organizations">조직 분석</Link>
               </Button>

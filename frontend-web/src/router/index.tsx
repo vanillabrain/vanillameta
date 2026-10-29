@@ -8,6 +8,9 @@ import PublicLayout from '@/layouts/PublicLayout';
 
 // 라우트별 코드 스플리팅: 페이지는 lazy chunk로 분리되어 초기 번들 축소
 const Dashboard = React.lazy(() => import('@/pages/Dashboard'));
+const Documents = React.lazy(() => import('@/pages/Documents'));
+const DocumentDetail = React.lazy(() => import('@/pages/Documents/DocumentDetail'));
+const GoogleDocumentCallback = React.lazy(() => import('@/pages/Documents/GoogleCallback'));
 const DashboardView = React.lazy(() => import('@/pages/Dashboard/DashboardView'));
 const DashboardCreate = React.lazy(() => import('@/pages/Dashboard/DashboardCreate'));
 const Publication = React.lazy(() => import('@/pages/Publication'));
@@ -61,6 +64,9 @@ function Router() {
         >
           <Route index element={<Navigate to="/dashboard" replace={true} />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/documents" element={<Documents />} />
+          <Route path="/documents/google/callback" element={<GoogleDocumentCallback />} />
+          <Route path="/documents/:id" element={<DocumentDetail />} />
           <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
           <Route path="/dashboard/:dashboardId/publication" element={<Publication />} />
           <Route path="/dashboard/:dashboardId/reuse" element={<DashboardReuse />} />
