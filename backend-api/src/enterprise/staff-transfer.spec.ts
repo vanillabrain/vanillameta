@@ -6,6 +6,19 @@ import { Metric, MetricAggregation } from '../metric/entities/metric.entity';
 import { StudioState } from '../dashboard-studio/entities/studio-state.entity';
 import { semanticMetadata } from '../../test/util/semantic-mysql';
 import { DataSource } from 'typeorm';
+import { revokeReportDeliveriesForTransfer } from '../reports/report-delivery-transfer';
+import {
+  REPORT_ENTITIES,
+  PrivateReport,
+  PrivateReportRevision,
+  PrivateReportChunk,
+  PrivateReportRequest,
+} from '../reports/report.entity';
+import {
+  REPORT_SHARING_ENTITIES,
+  ReportDelivery,
+  ReportDeliveryReceipt,
+} from '../reports/report-sharing.entity';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
@@ -61,6 +74,8 @@ const entities = [
   UserMapping,
   StudioPublication,
   RefreshToken,
+  ...REPORT_ENTITIES,
+  ...REPORT_SHARING_ENTITIES,
 ];
 describe('UC051 staff search and consented organization transfer', () => {
   jest.setTimeout(30000);
@@ -175,7 +190,187 @@ describe('UC051 staff search and consented organization transfer', () => {
     groupMembers: await db.getRepository(EnterpriseGroupMember).find(),
     groups: await db.getRepository(EnterpriseGroup).find(),
     deliveries: await db.getRepository(EnterpriseDashboardDelivery).find(),
+    reports: await reportSnapshot(),
   });
+  const reportSnapshot = async () => ({
+    heads: await db.manager.find(PrivateReport, { order: { id: 'ASC' } }),
+    revisions: await db.manager.find(PrivateReportRevision, {
+      order: { reportId: 'ASC', version: 'ASC' },
+    }),
+    chunks: await db.manager.find(PrivateReportChunk, {
+      order: { reportId: 'ASC', version: 'ASC', ordinal: 'ASC' },
+    }),
+    requests: await db.manager.find(PrivateReportRequest),
+    receipts: await db.manager.find(ReportDeliveryReceipt),
+    deliveries: await db.manager.find(ReportDelivery, {
+      order: { reportId: 'ASC', recipientId: 'ASC' },
+    }),
+  });
+  const seedReportDeliveries = async () => {
+    for (const [id, ownerId] of [
+      ['incoming', 1],
+      ['outgoing', 2],
+      ['other', 3],
+    ] as const) {
+      await db.manager.insert(PrivateReport, {
+        id,
+        ownerId,
+        organizationKey: 10,
+        dashboardId: 801,
+        sourceId: 802,
+        version: 1,
+        revision: 'a'.repeat(64),
+        title: id,
+        updatedAt: '2026-10-30T00:00:00Z',
+      });
+      await db.manager.insert(PrivateReportRevision, {
+        reportId: id,
+        version: 1,
+        ownerId,
+        revision: 'a'.repeat(64),
+        bytes: 6,
+        chunkCount: 1,
+      });
+      await db.manager.insert(PrivateReportChunk, {
+        reportId: id,
+        version: 1,
+        ordinal: 0,
+        payload: 'frozen',
+      });
+      await db.manager.insert(PrivateReportRequest, {
+        ownerId,
+        organizationKey: 10,
+        requestId: id,
+        reportId: id,
+        payloadHash: 'b'.repeat(64),
+        version: 1,
+      });
+      await db.manager.insert(ReportDeliveryReceipt, {
+        ownerId,
+        organizationId: 10,
+        requestId: id,
+        reportId: id,
+        payloadHash: 'c'.repeat(64),
+        result: 'preserved historical share receipt',
+      });
+    }
+    await db.manager.insert(
+      ReportDelivery,
+      [
+        {
+          reportId: 'incoming',
+          ownerId: 1,
+          recipientId: 2,
+          organizationId: 10,
+          active: true,
+          relationVersion: 3,
+        },
+        {
+          reportId: 'outgoing',
+          ownerId: 2,
+          recipientId: 3,
+          organizationId: 20,
+          active: true,
+          relationVersion: 2147483646,
+        },
+        {
+          reportId: 'other',
+          ownerId: 3,
+          recipientId: 5,
+          organizationId: 20,
+          active: true,
+          relationVersion: 2147483647,
+        },
+        {
+          reportId: 'outgoing',
+          ownerId: 2,
+          recipientId: 4,
+          organizationId: 10,
+          active: false,
+          relationVersion: 2147483647,
+        },
+        {
+          reportId: 'other',
+          ownerId: 3,
+          recipientId: 2,
+          organizationId: 20,
+          active: false,
+          relationVersion: 0,
+        },
+      ].map(row => ({
+        ...row,
+        pinnedVersion: 1,
+        pinnedHash: 'a'.repeat(64),
+        ownerAuthVersion: 0,
+        recipientAuthVersion: 0,
+      })),
+    );
+  };
+  it('requires the existing transfer transaction before changing report deliveries', async () => {
+    await seedReportDeliveries();
+    const before = await reportSnapshot();
+    await expect(revokeReportDeliveriesForTransfer(db.manager, 2)).rejects.toThrow(
+      'active transaction',
+    );
+    expect(await reportSnapshot()).toEqual(before);
+  });
+  it('revokes incoming and outgoing active reports across organizations once and preserves frozen reports through a return transfer', async () => {
+    await seedReportDeliveries();
+    const before = await reportSnapshot();
+    const code = await prepare();
+    expect(await complete(code)).toMatchObject({ completed: true, userId: 2 });
+    const revoked = await reportSnapshot();
+    expect(revoked).toEqual({
+      ...before,
+      deliveries: [
+        { ...before.deliveries[0], active: false, relationVersion: 4 },
+        before.deliveries[1],
+        before.deliveries[2],
+        { ...before.deliveries[3], active: false, relationVersion: 2147483647 },
+        before.deliveries[4],
+      ],
+    });
+    await expect(complete(code)).rejects.toMatchObject({ status: 409 });
+    const back = await service.request(2, 1, { targetOrganizationId: 10 });
+    await service.accept(1, 0, { code: back.code, team: '', expectedVersion: 2 });
+    await service.complete(3, 0, {
+      code: back.code,
+      expectedVersion: 2,
+      targetExpectedVersion: 2,
+      reviewBasis: (await service.review(3, 0, { code: back.code })).reviewBasis,
+    });
+    expect(await reportSnapshot()).toEqual(revoked);
+  });
+  it.each([0, -1, 2147483647])(
+    'rolls back the complete transfer for active report relation version %s',
+    async relationVersion => {
+      await seedReportDeliveries();
+      await db.manager.update(
+        ReportDelivery,
+        { reportId: 'incoming', recipientId: 2 },
+        { relationVersion },
+      );
+      const code = await prepare(),
+        before = await snapshot();
+      await expect(complete(code)).rejects.toMatchObject({ status: 409 });
+      expect(await snapshot()).toEqual(before);
+      expect(
+        (await db.manager.findOneByOrFail(EnterpriseStaffTransfer, { userId: 2 })).completed,
+      ).toBe(false);
+    },
+  );
+  it.each(['cancel', 'rejected'])(
+    'leaves report deliveries unchanged after %s completion',
+    async mode => {
+      await seedReportDeliveries();
+      const code = await prepare();
+      if (mode === 'cancel') await service.revoke(2, 0);
+      else await db.manager.update(EnterpriseOrganization, 20, { version: 2 });
+      const before = await snapshot();
+      await expect(complete(code)).rejects.toHaveProperty('status');
+      expect(await snapshot()).toEqual(before);
+    },
+  );
   it('serializes absent and revoked staff transfer status as explicit JSON null over protected HTTP', async () => {
     const initial = await call('get', uri, 2).expect(200).expect('Content-Type', /json/);
     expect(initial.text).toBe('null');
@@ -515,6 +710,7 @@ describe('UC051 staff search and consented organization transfer', () => {
     });
   });
   it('rolls back membership, tokens, relationship revocation, versions and audits after a late failure', async () => {
+    await seedReportDeliveries();
     await db.getRepository(EnterpriseResourceGrant).save({
       resourceKind: 'source',
       resourceId: 999,
@@ -552,7 +748,21 @@ describe('UC051 staff search and consented organization transfer', () => {
       original(async manager => {
         const insert = manager.insert.bind(manager);
         (manager as any).insert = async (entity, values) => {
-          if (entity === EnterpriseAuditEvent) throw new Error('synthetic audit failure');
+          if (entity === EnterpriseAuditEvent) {
+            expect(
+              await manager.findOneByOrFail(ReportDelivery, {
+                reportId: 'incoming',
+                recipientId: 2,
+              }),
+            ).toMatchObject({ active: false, relationVersion: 4 });
+            expect(
+              await manager.findOneByOrFail(ReportDelivery, {
+                reportId: 'outgoing',
+                recipientId: 3,
+              }),
+            ).toMatchObject({ active: false, relationVersion: 2147483647 });
+            throw new Error('synthetic audit failure');
+          }
           return insert(entity, values);
         };
         return run(manager);

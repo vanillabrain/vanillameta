@@ -23,6 +23,7 @@ import {
   EnterpriseGroupGrant,
 } from './entities/enterprise-group.entity';
 import { EnterpriseGroupDelivery } from './entities/enterprise-group-delivery.entity';
+import { revokeReportDeliveriesForTransfer } from '../reports/report-delivery-transfer';
 
 @Injectable()
 export class StaffTransferService {
@@ -287,6 +288,7 @@ export class StaffTransferService {
           id === row.sourceOrganizationId ? sourceVersion : targetVersion,
           true,
         );
+      await revokeReportDeliveriesForTransfer(manager, row.userId);
       for (const [entity, predicate] of [
         [EnterpriseResourceGrant, '(r.recipientId = :user OR r.ownerId = :user)'],
         [EnterpriseDashboardDelivery, '(r.recipientId = :user OR r.ownerId = :user)'],
