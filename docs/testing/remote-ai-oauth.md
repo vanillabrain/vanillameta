@@ -61,4 +61,4 @@ Ego92에서 OAuth 시작 → 로그인 → 원 승인 화면 복귀를 확인했
 
 두 소유 런타임 모두 정상 stop200으로 정리했다. 마지막 status=stopped·소유 컨테이너0·runRoot 제거를 확인했다. 임시 port 연결과 callback4466도 명령 경로를 대조해 종료했다. Ego92를 종료하고 PKCE verifier·code·token·테스트 로그인 임시 파일을 제거했다. 기존22e26a 보존 환경은 변경하지 않았다.
 
-Google 문서 기능은453bbe63을 drumcap으로 develop에 push했다. 이번 원격 OAuth 변경은 미커밋이며, 기존 무관한 목록 디자인·Claude 설정 변경은 보존했다.
+Google 문서 기능은453bbe63을 drumcap으로 develop에 push했다. 원격 OAuth 변경은 후속 요청에 따라acb4c543으로 develop에 커밋·push했다. 기존 무관한 목록 디자인·Claude 설정 변경은 보존했다. [실제 Codex 후속](remote-oauth-codex.md)은 이전의 Codex 미검증 범위 중 로컬 CLI 연결·문서 조회·회수를 보완한다.

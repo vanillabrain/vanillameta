@@ -42,6 +42,35 @@ access token은10분 뒤 만료된다. refresh token은 발급하지 않는다. 
 
 아티팩트 목록의 **외부 AI 연결**에서 연결과 권한을 확인한다. **연결 해제**를 누르고 확인하면 기존 token과 교환 전 code의 후속 사용을 거절한다. 확인 창에서 취소하거나 Escape를 누르면 연결을 유지한다. 이미 AI 클라이언트가 받은 내용은 소급 회수하지 못한다. VM 원본·보관 문서·Google 연결은 유지한다.
 
+## Codex CLI 0.154.0 연결
+
+이 버전에서 실제 로그인·문서 조회·회수를 확인했다. [실행 증빙](../testing/remote-oauth-codex.md)을 따른다.
+
+1. Codex MCP 설정에 서버 URL과 사전 등록 `oauth.client_id`, 요청할 `scopes`를 지정한다.
+2. `oauth.callback_port`로 고정 loopback 포트를 선택한다.
+3. Codex가 출력한 승인 URL의 `redirect_uri`를 확인한다. 이 서버에서는 `/callback` 뒤에 서버별 식별자가 붙었다. 전체 URI를 VM client allowlist에 정확히 등록한다.
+4. `oauth.callback_url`도 확인한 전체 URI로 맞춘다. 다른 MCP 서버의 callback 식별자를 재사용하지 않는다.
+5. `codex mcp login <서버 이름> --scopes documents:read`를 실행하고 VM에서 승인한다.
+
+설정 형태는 다음과 같다. 예시 주소와 client ID, `실제_callback_id`를 실제 값으로 바꾼다.
+
+```toml
+[mcp_servers.vanillameta]
+url = "https://app.example.com/v1/mcp"
+scopes = ["documents:read"]
+
+[mcp_servers.vanillameta.oauth]
+client_id = "registered-codex"
+callback_port = 4467
+callback_url = "http://127.0.0.1:4467/callback/실제_callback_id"
+```
+
+VM이 resource metadata를 제공하므로 이 검증에서는 `oauth_resource`를 생략했다. Codex0.154.0에 명시 값도 주면 같은 `resource`가 두 번 붙어 VM이 요청을 거절했다. `resource` 중복을 허용하도록 서버 검증을 낮추지 않는다.
+
+이번 검증은 `-c` 실행별 옵션을 사용했고 전역 MCP 항목을 추가하지 않았다. 검증 뒤에는 같은 옵션과 `codex mcp logout <서버 이름>`으로 이번 MCP 인증만 지웠다. 일반 `codex logout`은 OpenAI 로그인까지 해제하므로 이 정리에 사용하지 않는다.
+
+근거는 [공식 MCP 연결 안내](https://learn.chatgpt.com/docs/extend/mcp)와 [callback 설정 기준](https://learn.chatgpt.com/docs/config-file/config-reference)다. 이후 CLI 버전에서는 생성된 callback과 요청을 다시 확인한다.
+
 ## 운영 확인
 
 공개 metadata 경로 `/.well-known/oauth-protected-resource/v1/mcp`와 `/.well-known/oauth-authorization-server/v1/mcp-oauth`를 API로 전달해야 한다. 저장소의 nginx 구성은 이 경로를 전달한다. 프록시가 원래 Host를 유지해야 하며 임의 Host/Origin을 허용하지 않는다.

@@ -35,4 +35,4 @@
 
 OAuth 라이브러리는5.3.1, MCP server는2.3.1, Node transport는 npm에 배포된2.1.2다. 기존 backend Zod3를 유지하며 SDK에 필요한 Zod4.6.7만 별칭으로 분리했다. HTTP에 일반 VM JWT를 전달하는 어댑터는 만들지 않았다.
 
-[검증 결과](../testing/remote-ai-oauth.md)와 [운영 설정](../operations/remote-ai-oauth.md)을 따른다. 실제 외부 AI 제품별 callback 호환성, 공개 HTTPS 환경, refresh token, 원격 쓰기 권한은 후속이다. 현재 구현은 작업 트리에 있으며 Google 기능의453bbe63 커밋과 구분한다.
+[검증 결과](../testing/remote-ai-oauth.md)와 [운영 설정](../operations/remote-ai-oauth.md)을 따른다. 구현은acb4c543으로 develop에 push했다. [실제 Codex 검증](../testing/remote-oauth-codex.md)에서 CLI0.154.0의 callback 설정과 문서 조회·회수를 확인했다. 다른 외부 AI 제품, 공개 HTTPS 환경, refresh token, 원격 쓰기 권한은 후속이다.
