@@ -10,7 +10,8 @@ import StudioMetricPicker from './StudioMetricPicker';
 import AiUsageChip from './AiUsageChip';
 import { Spinner } from '@/components/ui/spinner';
 import { TextField } from '@/components/ui/text-field';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import { get, post } from '@/helpers/apiHelper';
 import DatabaseService from '@/api/databaseService';
 import { studioRequestId } from './studioApi';
@@ -46,6 +47,7 @@ import {
 import './studio.css';
 import { useAiLabel, useAiNote } from '@/hooks/useAiStatus';
 export default function StudioCreate() {
+  const { listHref, link: artifactLink } = artifactListNavigation(useLocation());
   const session = useRef(editorDraftSessionEpoch());
   const currentSession = () => editorDraftSessionEpoch() === session.current;
   const navigate = useNavigate();
@@ -455,7 +457,7 @@ export default function StudioCreate() {
           removeCreationQuestion(questionKey.current);
         questionDirty.current = false;
         setSaveUncertain(false);
-        navigate('/dashboard/' + data.dashboardId + '/studio');
+        navigate(artifactLink('/dashboard/' + data.dashboardId + '/studio'));
       }
     } catch (cause) {
       if (mounted.current) {
@@ -494,7 +496,7 @@ export default function StudioCreate() {
         생성 내용으로 건너뛰기
       </a>
       <header className="studio-create-header">
-        <Link to="/dashboard" className="studio-create-brand" aria-label="VanillaMeta">
+        <Link to={listHref} className="studio-create-brand" aria-label="VanillaMeta">
           <IconLogo aria-hidden="true" />
         </Link>
         <div>
@@ -503,7 +505,7 @@ export default function StudioCreate() {
         </div>
         <AiUsageChip />
         <Button variant="outline" asChild>
-          <Link to="/dashboard">대시보드 목록</Link>
+          <Link to={listHref}>아티팩트 목록</Link>
         </Button>
       </header>
       <main id="studio-create-main" className="studio-create-main">

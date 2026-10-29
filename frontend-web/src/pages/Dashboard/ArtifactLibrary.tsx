@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import BoardList from '@/components/BoardList';
 import { TextField } from '@/components/ui/text-field';
 import { Button } from '@/components/ui/button';
@@ -46,9 +48,26 @@ export default function ArtifactLibrary({
   archiveError?: string;
   busy?: boolean;
 }) {
-  const [query, setQuery] = useState('');
-  const [kind, setKind] = useState('all');
-  const [sort, setSort] = useState('recent');
+  const { t } = useTranslation();
+  const [params, setParams] = useSearchParams();
+  const query = (params.get('artifactQuery') ?? '').slice(0, 200);
+  const kindParam = params.get('artifactKind');
+  const kind = kindParam === 'analysis' || kindParam === 'dashboard' ? kindParam : 'all';
+  const sort = params.get('artifactSort') === 'title' ? 'title' : 'recent';
+  const display = params.get('artifactDisplay') === 'grid' ? 'grid' : 'list';
+  const update = (changes: Record<string, string>) => {
+    setParams(
+      current => {
+        const next = new URLSearchParams(current);
+        for (const [key, value] of Object.entries(changes)) {
+          if (value) next.set(key, value);
+          else next.delete(key);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  };
   const results = useMemo(() => {
     const text = normalized(query);
     return items
@@ -60,88 +79,114 @@ export default function ArtifactLibrary({
       });
   }, [items, query, kind, sort]);
   const reset = () => {
-    setQuery('');
-    setKind('all');
-    setSort('recent');
+    update({ artifactQuery: '', artifactKind: '', artifactSort: '' });
   };
   return (
     <section className="min-w-0 w-full" aria-labelledby="artifact-library-heading">
-      <h2 id="artifact-library-heading" className="mb-3 text-sm font-semibold">
-        내 시각화 산출물
+      <h2 id="artifact-library-heading" className="text-xl font-semibold tracking-tight">
+        {t('artifact.heading')}
       </h2>
-      {onViewChange && (
-        <div className="mb-3 flex min-w-0 flex-wrap gap-2" role="group" aria-label="산출물 보관 보기">
-          <Button
-            size="sm"
-            variant={view === 'active' ? 'default' : 'outline'}
-            aria-pressed={view === 'active'}
-            disabled={busy}
-            onClick={() => onViewChange('active')}
-          >
-            기본 목록
-          </Button>
-          <Button
-            size="sm"
-            variant={view === 'archived' ? 'default' : 'outline'}
-            aria-pressed={view === 'archived'}
-            disabled={busy}
-            onClick={() => onViewChange('archived')}
-          >
-            보관함
-          </Button>
-          {onReload && (
-            <Button size="sm" variant="outline" disabled={busy || loading} onClick={onReload}>
-              목록 다시 읽기
+      <p className="mb-6 mt-2 text-sm text-muted-foreground">{t('artifact.description')}</p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        {onViewChange && (
+          <div className="flex min-w-0 flex-wrap gap-2" role="group" aria-label={t('artifact.viewsLabel')}>
+            <Button
+              size="lg"
+              variant={view === 'active' ? 'default' : 'outline'}
+              aria-pressed={view === 'active'}
+              disabled={busy}
+              onClick={() => onViewChange('active')}
+            >
+              {t('artifact.active')}
             </Button>
-          )}
+            <Button
+              size="lg"
+              variant={view === 'archived' ? 'default' : 'outline'}
+              aria-pressed={view === 'archived'}
+              disabled={busy}
+              onClick={() => onViewChange('archived')}
+            >
+              {t('artifact.archived')}
+            </Button>
+            {onReload && (
+              <Button size="lg" variant="ghost" disabled={busy || loading} onClick={onReload}>
+                {t('artifact.reload')}
+              </Button>
+            )}
+          </div>
+        )}
+        <div className="ml-auto flex gap-2" role="group" aria-label={t('artifact.displayLabel')}>
+          <Button
+            size="lg"
+            variant={display === 'list' ? 'default' : 'outline'}
+            aria-pressed={display === 'list'}
+            onClick={() => update({ artifactDisplay: '' })}
+          >
+            {t('artifact.list')}
+          </Button>
+          <Button
+            size="lg"
+            variant={display === 'grid' ? 'default' : 'outline'}
+            aria-pressed={display === 'grid'}
+            onClick={() => update({ artifactDisplay: 'grid' })}
+          >
+            {t('artifact.grid')}
+          </Button>
         </div>
-      )}
-      {onViewChange && (
-        <p className="mb-3 break-words text-sm text-muted-foreground">
-          보관은 내 목록만 바꿉니다. 원본·공유·게시·다른 사람의 목록은 유지됩니다.
-        </p>
-      )}
-      {listError && <Notice severity="error">목록을 확인하지 못했습니다. 목록을 다시 읽어 주세요.</Notice>}
+      </div>
+      {onViewChange && <p className="mb-3 break-words text-sm text-muted-foreground">{t('artifact.archiveHelp')}</p>}
+      {listError && <Notice severity="error">{t('artifact.loadFailed')}</Notice>}
       {archiveError && <Notice severity="error">{archiveError}</Notice>}
       {loading && (
         <p role="status" className="text-sm">
-          목록을 읽고 있습니다…
+          {t('artifact.loading')}
         </p>
       )}
       {busy && (
         <p role="status" className="text-sm">
-          보관·복원 처리 중…
+          {t('artifact.busy')}
         </p>
       )}
-      <div className="grid min-w-0 grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_10rem_auto]">
+      <div className="grid min-w-0 grid-cols-1 items-end gap-4 rounded-xl border border-border bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_12rem_auto] [&_input]:h-10 [&_select]:h-10">
         <TextField
           type="search"
-          label="산출물 제목 검색"
-          placeholder="제목으로 찾기"
+          maxLength={200}
+          label={t('artifact.searchLabel')}
+          placeholder={t('artifact.searchPlaceholder')}
           value={query}
-          onChange={event => setQuery(event.target.value)}
+          onChange={event => update({ artifactQuery: event.target.value })}
         />
-        <TextField select label="산출물 유형" value={kind} onChange={event => setKind(event.target.value)}>
-          <option value="all">전체</option>
-          <option value="analysis">분석 산출물</option>
-          <option value="dashboard">일반 대시보드</option>
+        <TextField
+          select
+          label={t('artifact.kindLabel')}
+          value={kind}
+          onChange={event => update({ artifactKind: event.target.value === 'all' ? '' : event.target.value })}
+        >
+          <option value="all">{t('artifact.all')}</option>
+          <option value="analysis">{t('artifact.analysis')}</option>
+          <option value="dashboard">{t('artifact.dashboard')}</option>
         </TextField>
-        <TextField select label="산출물 정렬" value={sort} onChange={event => setSort(event.target.value)}>
-          <option value="recent">최근 수정순</option>
-          <option value="title">이름순</option>
+        <TextField
+          select
+          label={t('artifact.sortLabel')}
+          value={sort}
+          onChange={event => update({ artifactSort: event.target.value === 'recent' ? '' : event.target.value })}
+        >
+          <option value="recent">{t('artifact.recent')}</option>
+          <option value="title">{t('artifact.name')}</option>
         </TextField>
         <Button
-          size="sm"
+          size="lg"
           variant="outline"
           className="justify-self-start"
           onClick={reset}
           disabled={!query && kind === 'all' && sort === 'recent'}
         >
-          검색 조건 초기화
+          {t('artifact.reset')}
         </Button>
       </div>
       <p role="status" className="mt-3 text-xs text-muted-foreground">
-        전체 {items.length}개 중 {results.length}개
+        {t('artifact.count', { total: items.length, shown: results.length })}
       </p>
       {!loading &&
         !listError &&
@@ -149,11 +194,12 @@ export default function ArtifactLibrary({
           <BoardList
             key={JSON.stringify([view, query, kind, sort, results.length])}
             postList={results}
+            display={display}
             handleDeleteSelect={onDelete}
             archiveActionForItem={
               canArchive && onArchive
                 ? item => ({
-                    label: item.library?.archived ? '복원' : '보관',
+                    label: t(item.library?.archived ? 'artifact.restore' : 'artifact.archive'),
                     disabled: archiveDisabled || !item.library,
                     onClick: () => onArchive(item),
                   })
@@ -162,9 +208,7 @@ export default function ArtifactLibrary({
             studioHrefForItem={item => (item.analysisDefinition ? `/dashboard/${item.id}/studio` : undefined)}
           />
         ) : (
-          <p className="mt-4 rounded-lg border border-border p-6 text-sm text-muted-foreground">
-            조건에 맞는 산출물이 없습니다. 검색어나 유형을 바꾸거나 검색 조건을 초기화해 주세요.
-          </p>
+          <p className="mt-4 rounded-lg border border-border p-6 text-sm text-muted-foreground">{t('artifact.empty')}</p>
         ))}
     </section>
   );

@@ -6,7 +6,7 @@ import { writeStudioPendingSave } from './studioPendingSave';
 import { StudioDefinitions } from './studioAdapter';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
-const route = vi.hoisted(() => ({ dashboardId: '3' }));
+const route = vi.hoisted(() => ({ dashboardId: '3', search: '' }));
 const questions = vi.hoisted(() => ({ key: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 // These tests count and order their own reads; the model label and the usage chip read on their own.
@@ -34,6 +34,7 @@ vi.mock('./studioDocumentDraft', async importOriginal => ({
 vi.mock('react-router-dom', async () => {
   return {
     useParams: () => route,
+    useLocation: () => ({ pathname: '/dashboard/3/studio', search: route.search }),
     Link: ({ children }: any) => <a>{children}</a>,
   };
 });
@@ -117,6 +118,7 @@ beforeEach(() => {
   sessionStorage.clear();
   questions.key.mockImplementation(async (id: number) => 'question-test-' + id);
   route.dashboardId = '3';
+  route.search = '';
   vi.clearAllMocks();
   (globalThis as any).ResizeObserver = class {
     callback: any;
@@ -471,7 +473,7 @@ describe('studio editor rendering', () => {
   it('keeps a separate list tab available without discarding the editable draft', async () => {
     api.get.mockResolvedValue(envelope());
     render(<StudioEditor />);
-    const link = await screen.findByRole('link', { name: '대시보드 목록 새 탭에서 열기' });
+    const link = await screen.findByRole('link', { name: '아티팩트 목록 새 탭에서 열기' });
     expect(link.getAttribute('href')).toBe('/dashboard');
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
@@ -1439,4 +1441,22 @@ describe('UC052 Studio whole-document conditions', () => {
     expect(screen.getByText('조건 적용됨')).toBeTruthy();
     expect(api.post).toHaveBeenCalledTimes(1);
   });
+});
+
+it('keeps the archived grid return URL available after entering Studio directly', async () => {
+  route.search =
+    '?artifactReturn=' +
+    encodeURIComponent(
+      JSON.stringify({ version: 1, query: '9월', kind: 'analysis', sort: 'title', display: 'grid', view: 'archived' }),
+    );
+  api.get.mockResolvedValue(envelope());
+  render(<StudioEditor />);
+  const link = await screen.findByRole('link', { name: '아티팩트 목록 새 탭에서 열기' });
+  const target = new URL(link.getAttribute('href') ?? '', 'https://vm.test');
+  expect(target.pathname).toBe('/dashboard');
+  expect(target.searchParams.get('artifactView')).toBe('archived');
+  expect(target.searchParams.get('artifactQuery')).toBe('9월');
+  expect(target.searchParams.get('artifactDisplay')).toBe('grid');
+  expect(link.getAttribute('target')).toBe('_blank');
+  expect(api.post).not.toHaveBeenCalled();
 });

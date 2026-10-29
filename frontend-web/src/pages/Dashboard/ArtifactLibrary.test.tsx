@@ -1,9 +1,21 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import ArtifactLibrary from './ArtifactLibrary';
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('react-i18next', async () => {
+  const ko = (await import('@/i18n/locales/ko')).default;
+  return {
+    useTranslation: () => ({
+      t: (key: string, values: Record<string, string | number> = {}) => {
+        const text = key.startsWith('artifact.')
+          ? Object.entries(ko.artifact).find(([name]) => name === key.slice(9))?.[1] ?? key
+          : key;
+        return text.replace(/\{\{(\w+)\}\}/g, (_, name) => String(values[name] ?? ''));
+      },
+    }),
+  };
+});
 vi.mock('@/components/BoardItem', () => ({
   default: ({ data, studioHref, handleDeleteSelect, archiveAction }: any) => (
     <li data-testid="artifact-row">
@@ -131,4 +143,34 @@ it('hides even provided stale rows on query failure while preserving filters and
   expect((screen.getByLabelText('산출물 제목 검색') as HTMLInputElement).value).toBe('Alpha');
   fireEvent.click(screen.getByRole('button', { name: '목록 다시 읽기' }));
   expect(onReload).toHaveBeenCalledOnce();
+});
+
+function LocationQuery() {
+  return <output data-testid="library-url">{useLocation().search}</output>;
+}
+
+it('restores display and filters from the URL and keeps unrelated parameters when switching or resetting', () => {
+  render(
+    <MemoryRouter
+      initialEntries={[
+        '/dashboard?artifactDisplay=grid&artifactQuery=Alpha&artifactKind=analysis&artifactSort=title&aiSourceId=32',
+      ]}
+    >
+      <ArtifactLibrary items={items} onDelete={vi.fn()} />
+      <LocationQuery />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole('button', { name: '그리드' }).getAttribute('aria-pressed')).toBe('true');
+  expect(titles()).toEqual(['Alpha 매출']);
+  fireEvent.click(screen.getByRole('button', { name: '목록', exact: true }));
+  expect(screen.getByRole('list', { name: '산출물 목록' })).toBeTruthy();
+  expect(titles()).toEqual(['Alpha 매출']);
+  expect(screen.getByTestId('library-url').textContent).toContain('aiSourceId=32');
+  fireEvent.click(screen.getByRole('button', { name: '그리드' }));
+  fireEvent.click(screen.getByRole('button', { name: '검색 조건 초기화' }));
+  expect(titles()).toEqual(['Beta 매출', 'Gamma 환불', 'Alpha 매출']);
+  const params = new URLSearchParams(screen.getByTestId('library-url').textContent ?? '');
+  expect(params.get('artifactDisplay')).toBe('grid');
+  expect(params.get('aiSourceId')).toBe('32');
+  expect(params.has('artifactQuery')).toBe(false);
 });

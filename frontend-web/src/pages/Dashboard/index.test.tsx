@@ -18,13 +18,26 @@ const api = vi.hoisted(() => ({
   error: vi.fn(),
   success: vi.fn(),
 }));
+const starter = vi.hoisted(() => ({ enabled: false }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, put: api.put, del: api.del, post: api.post }));
 vi.mock('@/contexts/AlertContext', () => ({ SnackbarContext: {} }));
 vi.mock('@/components/loading', () => ({
   Loading: ({ in: loading }: any) => (loading ? <div role="progressbar" /> : null),
 }));
 vi.mock('react-alert', () => ({ useAlert: () => ({ error: api.error, success: api.success }) }));
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('react-i18next', async () => {
+  const ko = (await import('@/i18n/locales/ko')).default;
+  return {
+    useTranslation: () => ({
+      t: (key: string, values: Record<string, string | number> = {}) => {
+        const text = key.startsWith('artifact.')
+          ? Object.entries(ko.artifact).find(([name]) => name === key.slice(9))?.[1] ?? key
+          : key;
+        return text.replace(/\{\{(\w+)\}\}/g, (_, name) => String(values[name] ?? ''));
+      },
+    }),
+  };
+});
 vi.mock('@/components/PageTitleBox', () => ({
   default: ({ button, children }: any) => (
     <>
@@ -42,7 +55,10 @@ vi.mock('@/components/button/AddIconButton', () => ({
     )),
 }));
 vi.mock('@/seo/Seo', () => ({ default: () => null }));
-vi.mock('./Components/GettingStarted', () => ({ default: () => null }));
+vi.mock('./Components/GettingStarted', async importOriginal => {
+  const actual = await importOriginal<typeof import('./Components/GettingStarted')>();
+  return { default: (props: any) => (starter.enabled ? <actual.default {...props} /> : null) };
+});
 vi.mock('./Components/AiDashboardPanel', () => ({
   default: ({ onSaved, open, initialDatabaseId }: any) => (
     <>
@@ -117,6 +133,7 @@ function show(path = '/dashboard', strict = false) {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  starter.enabled = false;
   localStorage.clear();
   sessionStorage.clear();
   setToken(TOKEN_A);
@@ -738,4 +755,34 @@ it('keeps the always-mounted dialog frozen across unknown-close and another card
   expect((screen.getByRole('button', { name: '대시보드 삭제' }) as HTMLButtonElement).disabled).toBe(false);
   expect(api.get).toHaveBeenLastCalledWith('/dashboard/45/delete-impact', undefined, { signal: expect.anything() });
   expect(api.del).toHaveBeenCalledTimes(2);
+});
+
+it('loads the archived URL scope and retains search and grid while switching to active', async () => {
+  show('/dashboard?artifactView=archived&artifactDisplay=grid&artifactQuery=analysis');
+  expect(await screen.findByRole('link', { name: 'Archived analysis · 열기' })).toBeTruthy();
+  expect(api.get.mock.calls.some(([url, params]) => url === '/dashboard/library' && params.view === 'archived')).toBe(true);
+  click('기본 목록');
+  expect(await screen.findByRole('link', { name: 'Alpha analysis · 열기' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: '그리드' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByDisplayValue('analysis')).toBeTruthy();
+  expect(api.get.mock.calls.some(([url, params]) => url === '/dashboard/library' && params.view === 'active')).toBe(true);
+});
+
+it('keeps the active sample preparation through a library reload', async () => {
+  starter.enabled = true;
+  const sample = deferred();
+  api.post.mockReturnValue(sample.promise);
+  show();
+  await screen.findByText('Alpha analysis');
+  fireEvent.click(screen.getByText('파일·샘플로 새 분석 시작하기'));
+  click('샘플 대시보드 보기');
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/commerce/sample', {}, { timeout: 300000 }));
+  const list = deferred();
+  api.get.mockImplementation((path: string) => (path === '/dashboard/library' ? list.promise : Promise.reject()));
+  click('목록 다시 읽기');
+  await screen.findByText('목록을 읽고 있습니다…');
+  await act(async () => list.resolve(library()));
+  await act(async () => sample.resolve(response({ projectId: 37 })));
+  expect(await screen.findByText('이동 완료 /commerce/37?sample=1')).toBeTruthy();
+  expect(api.post).toHaveBeenCalledTimes(1);
 });

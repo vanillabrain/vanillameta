@@ -21,7 +21,7 @@ const GTSpan = ({ children, className = '' }) => (
 
 function BoardList(props) {
   const { t } = useTranslation();
-  const { postList, handleDeleteSelect, className, studioHrefForItem, archiveActionForItem } = props;
+  const { postList, handleDeleteSelect, className, studioHrefForItem, archiveActionForItem, display = 'list' } = props;
   const [totalCount, setTotalCount] = useState(1);
   const [page, setPage] = useState(1);
 
@@ -45,13 +45,23 @@ function BoardList(props) {
 
   return (
     <div className={cn('mx-auto w-full', className)} style={{ maxWidth: MAX_WIDTH }}>
-      <div className="mb-3 mt-6 flex w-full flex-row items-center gap-3 px-4 sm:px-5">
-        <GTSpan className="min-w-0 flex-1">{t('settings.name')}</GTSpan>
-        <GTSpan>{t('common.modified')}</GTSpan>
-        {studioHrefForItem && <span className="w-24 shrink-0" aria-hidden="true" />}
-        <span className="hidden w-18 shrink-0 sm:ml-5 sm:block" aria-hidden="true" />
-      </div>
-      <ul className="w-full rounded-lg border border-border bg-card p-0">
+      {display === 'list' && (
+        <div className="mb-3 mt-6 flex w-full flex-row items-center gap-3 px-4 sm:px-5">
+          <GTSpan className="min-w-0 flex-1">{t('settings.name')}</GTSpan>
+          <GTSpan>{t('common.modified')}</GTSpan>
+          {studioHrefForItem && <span className="w-24 shrink-0" aria-hidden="true" />}
+          <span className="hidden w-18 shrink-0 sm:ml-5 sm:block" aria-hidden="true" />
+        </div>
+      )}
+      <ul
+        className={cn(
+          'w-full p-0',
+          display === 'grid'
+            ? 'mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3'
+            : 'rounded-lg border border-border bg-card',
+        )}
+        aria-label={t(display === 'grid' ? 'artifact.gridLabel' : 'artifact.listLabel')}
+      >
         {postList.map((item, index) => {
           const currentPageStart = (page - 1) * PAGE_SIZE;
           if (index < currentPageStart || index >= currentPageStart + PAGE_SIZE) {
@@ -65,6 +75,7 @@ function BoardList(props) {
               studioHref={studioHrefForItem?.(item)}
               showStudioColumn={!!studioHrefForItem}
               archiveAction={archiveActionForItem?.(item)}
+              display={display}
             />
           );
         })}

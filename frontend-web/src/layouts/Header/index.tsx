@@ -21,7 +21,7 @@ function Header() {
   ];
 
   const navItems = [
-    { id: 1, name: t('nav.dashboard'), link: 'dashboard' },
+    { id: 1, name: t('nav.artifacts'), link: 'dashboard' },
     { id: 2, name: t('nav.widget'), link: 'widget' },
     { id: 3, name: t('nav.data'), link: 'data' },
   ];

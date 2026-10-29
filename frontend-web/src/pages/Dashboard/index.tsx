@@ -1,8 +1,8 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import PageTitleBox from '@/components/PageTitleBox';
 import ArtifactLibrary from './ArtifactLibrary';
-import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import { Link, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import { Button } from '@/components/ui/button';
 import { MenuButton } from '@/components/button/AddIconButton';
 import { Plus, Plug } from 'lucide-react';
@@ -33,7 +33,7 @@ function Dashboard() {
   const aiSourceId =
     /^[1-9]\d*$/.test(sourceParam) && Number.isSafeInteger(Number(sourceParam)) ? Number(sourceParam) : undefined;
   const [aiOpen, setAiOpen] = useState(!!aiSourceId);
-  const title = t('common.dashboard');
+  const title = t('nav.artifacts');
   const { dashboardId } = useParams();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
@@ -41,7 +41,18 @@ function Dashboard() {
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const queryClient = useQueryClient();
 
-  const [view, setView] = useState<LibraryView>('active');
+  const view: LibraryView = searchParams.get('artifactView') === 'archived' ? 'archived' : 'active';
+  const setView = (nextView: LibraryView) => {
+    setSearchParams(
+      current => {
+        const next = new URLSearchParams(current);
+        if (nextView === 'archived') next.set('artifactView', 'archived');
+        else next.delete('artifactView');
+        return next;
+      },
+      { replace: true },
+    );
+  };
   const [, scopeChanged] = useState(0);
   const authScope = personalLibrarySessionScope();
   const currentView = useRef(view);
@@ -101,7 +112,7 @@ function Dashboard() {
   });
   // Failed/refetching lists never leave stale titles or archive versions actionable.
   const loadedDashboardData = !isFetching && !isError && authScope !== null ? library?.entries ?? [] : [];
-  const noData = loadedDashboardData.length === 0;
+  const emptyLibrary = library !== undefined && library.entries.length === 0;
   const reloadLibrary = async () => {
     if (writeLock.current || isFetching) return;
     const actor = authScope;
@@ -194,7 +205,7 @@ function Dashboard() {
   const handleMenuSelect = item => {
     if (item.id !== undefined) {
       if (item.id === 'ai') {
-        navigate('/studio/new');
+        navigate(artifactLink('/studio/new'));
       } else if (item.id == 'dashboard') {
         navigate('/dashboard/create?createType=dashboard');
       } else {
@@ -241,17 +252,17 @@ function Dashboard() {
         <>
           <PageTitleBox
             title={title}
+            className="mx-auto max-w-[1280px] gap-6 lg:px-12 lg:py-8"
             button={
               <MenuButton
                 menuList={menuList}
                 handleSelect={handleMenuSelect}
                 icon={<Plus />}
                 title={t('list.addDashboard')}
-                className="h-8 w-[108px]"
+                className="h-10 min-w-[160px] w-auto px-4"
               />
             }
           >
-            <GettingStarted returning={!noData} />
             <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">
               <Button asChild variant="outline" className="h-10">
                 <Link to={artifactLink('/documents')}>{t('docConnection.title')}</Link>
@@ -263,11 +274,9 @@ function Dashboard() {
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link to="/organizations">조직 분석</Link>
+                <Link to="/organizations">{t('artifact.organization')}</Link>
               </Button>
-              <span className="text-xs text-muted-foreground">
-                그룹별로 허용된 분석을 확인하거나 접근 범위를 관리하세요.
-              </span>
+              <span className="text-xs text-muted-foreground">{t('artifact.organizationHint')}</span>
             </div>
             <ArtifactLibrary
               key={authScope ?? 'unavailable-session'}
@@ -281,11 +290,19 @@ function Dashboard() {
               canArchive={library?.canArchive === true && !isFetching && !isError}
               onArchive={archive}
               archiveDisabled={archiveBusy || needsRead}
-              archiveError={
-                archiveError || (needsRead && !archiveBusy ? '목록을 다시 읽어 현재 보관 상태를 확인해 주세요.' : '')
-              }
+              archiveError={archiveError || (needsRead && !archiveBusy ? t('artifact.needsRead') : '')}
               busy={archiveBusy}
             />
+            <details
+              key={authScope ?? 'unavailable-session'}
+              open={emptyLibrary}
+              className="rounded-xl border border-border bg-muted/30 p-5"
+            >
+              <summary className="cursor-pointer text-sm font-medium">{t('artifact.startAnalysis')}</summary>
+              <div className="mt-5">
+                <GettingStarted returning={!emptyLibrary} />
+              </div>
+            </details>
           </PageTitleBox>
         </>
       ) : (

@@ -9,6 +9,7 @@ vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('@/helpers/authResponseFence', () => ({ captureAuthResponseFence: () => () => undefined }));
 vi.mock('react-router-dom', () => ({
   useParams: () => ({ dashboardId: '3' }),
+  useLocation: () => ({ pathname: '/dashboard/3/studio', search: '' }),
   Link: ({ children }: any) => <a>{children}</a>,
 }));
 vi.mock('react-grid-layout', () => ({ default: ({ children }: any) => <div>{children}</div> }));

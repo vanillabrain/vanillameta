@@ -24,7 +24,8 @@ import { mergeStudioDraft } from './studioDraftMerge';
 import { Spinner } from '@/components/ui/spinner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useMinWidth } from '@/components/PageViewBox';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
+import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
 import { formatMetric, localizedMetricSuffix } from '@/utils/formatMetric';
@@ -420,6 +421,7 @@ type WorkspaceProps = {
 };
 
 function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storageKey }: WorkspaceProps) {
+  const { listHref, link: artifactLink } = artifactListNavigation(useLocation());
   const canEdit = initial.access?.edit !== false;
   const canPublish = initial.access?.publish !== false;
   const owned = initial.owned !== false;
@@ -1435,12 +1437,12 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     <>
       <div className="studio-edit-toolbar">
         <Button variant="outline" size="sm" asChild>
-          <a href="/dashboard" target="_blank" rel="noopener noreferrer" aria-label="대시보드 목록 새 탭에서 열기">
+          <a href={listHref} target="_blank" rel="noopener noreferrer" aria-label="아티팩트 목록 새 탭에서 열기">
             목록 ↗
           </a>
         </Button>
         <Button variant="ghost" size="sm" asChild>
-          <RouterLink to={'/dashboard/' + dashboardId}>기존 보기</RouterLink>
+          <RouterLink to={artifactLink('/dashboard/' + dashboardId)}>기존 보기</RouterLink>
         </Button>
         {owned && (
           <Button variant="outline" size="sm" asChild>

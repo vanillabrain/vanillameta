@@ -21,6 +21,7 @@ vi.mock('@/api/usageService', async importOriginal => ({
 vi.mock('@/api/databaseService', () => ({ default: { uploadFile: mocks.upload } }));
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mocks.navigate,
+  useLocation: () => ({ pathname: '/studio/new', search: mocks.params }),
   useSearchParams: () => [new URLSearchParams(mocks.params)],
   Link: ({ children, ...props }: any) => <a href={props.to}>{children}</a>,
 }));

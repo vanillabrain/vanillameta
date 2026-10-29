@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { SquarePen } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import { useAlert } from 'react-alert';
@@ -48,6 +49,7 @@ const DashboardView = () => {
   const { t } = useTranslation();
   const { dashboardId } = useParams();
   const navigate = useNavigate();
+  const { listHref, link: artifactLink } = artifactListNavigation(useLocation());
   const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const alert = useAlert();
@@ -283,15 +285,15 @@ const DashboardView = () => {
 
   const handleDeleted = (receipt: DashboardDeleteReceipt) => {
     void queryClient.invalidateQueries({ queryKey: ['dashboards'] });
-    if (receipt.dashboardId === Number(dashboardId)) navigate('/dashboard', { replace: true });
+    if (receipt.dashboardId === Number(dashboardId)) navigate(listHref, { replace: true });
     snackbar.success(t('dashboard.deleted'));
   };
 
   if (permissionDenied) {
     return (
       <PageTitleBox
-        upperTitle={t('dashboard.view')}
-        upperTitleLink="/dashboard"
+        upperTitle={t('nav.artifacts')}
+        upperTitleLink={listHref}
         title={t('dashboard.view')}
         className="w-full min-w-0 flex-auto p-0 py-6"
       >
@@ -318,8 +320,8 @@ const DashboardView = () => {
 
   return (
     <PageTitleBox
-      upperTitle={t('dashboard.view')}
-      upperTitleLink="/dashboard"
+      upperTitle={t('nav.artifacts')}
+      upperTitleLink={listHref}
       title={t('dashboard.view')}
       className="w-full min-w-0 flex-auto p-0 py-6"
     >
@@ -387,7 +389,7 @@ const DashboardView = () => {
                   <RouterLink to={`/dashboard/${dashboardId}/reuse`}>복제해서 재사용</RouterLink>
                 </Button>
                 <Button variant="outline" size="sm" asChild>
-                  <RouterLink to={`/dashboard/${dashboardId}/studio`}>Studio 편집</RouterLink>
+                  <RouterLink to={artifactLink(`/dashboard/${dashboardId}/studio`)}>Studio 편집</RouterLink>
                 </Button>
                 <Button
                   variant="outline"
