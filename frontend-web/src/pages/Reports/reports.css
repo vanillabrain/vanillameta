@@ -1,0 +1,171 @@
+.private-reports {
+  max-width: 1480px;
+  min-width: 900px;
+  margin: 0 auto;
+  padding: 32px 40px 64px;
+}
+.private-reports h1 {
+  font-size: 28px;
+  line-height: 1.4;
+  font-weight: 650;
+  margin: 8px 0;
+}
+.private-reports h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+.report-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.report-toolbar a {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.report-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 24px 0 8px;
+}
+.report-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.report-writing,
+.report-capture,
+.report-frozen-block,
+.report-basis {
+  padding: 24px;
+  min-width: 0;
+}
+.report-writing {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 24px;
+}
+.report-writing label,
+.report-selectors label {
+  font-size: 14px;
+  font-weight: 600;
+}
+.report-control {
+  width: 100%;
+  height: 40px;
+  padding: 8px 12px;
+  font-size: 16px;
+}
+.report-body {
+  width: 100%;
+  min-height: 500px;
+  resize: vertical;
+  padding: 16px;
+  line-height: 1.85;
+  font-size: 16px;
+  white-space: pre-wrap;
+}
+.report-results {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.report-selectors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.report-selectors select {
+  display: block;
+  margin-top: 8px;
+}
+.report-frozen-block .studio-published-value {
+  font-size: 38px;
+  font-weight: 650;
+  padding: 8px 0 16px;
+  overflow-wrap: anywhere;
+}
+.report-frozen-block .studio-published-chart {
+  height: 300px;
+  min-width: 0;
+}
+.report-frozen-block .studio-published-description {
+  line-height: 1.65;
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+.report-basis dl {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 10px;
+  font-size: 14px;
+}
+.report-basis dd {
+  overflow-wrap: anywhere;
+}
+.report-basis details {
+  margin-top: 20px;
+}
+.report-basis summary {
+  cursor: pointer;
+  min-height: 40px;
+}
+.report-basis pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.6;
+  max-height: 440px;
+  overflow-y: auto;
+}
+.report-notice {
+  padding: 16px;
+  margin: 16px 0;
+  border-width: 1px;
+}
+.report-notice p {
+  margin: 10px 0;
+}
+.report-status {
+  min-height: 24px;
+  margin: 16px 0;
+}
+.report-empty {
+  padding: 48px 24px;
+  text-align: center;
+}
+.report-footer {
+  margin-top: 32px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.report-list {
+  list-style: none;
+  padding: 0;
+  margin: 28px 0;
+  display: grid;
+  gap: 12px;
+}
+.report-list a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+}
+.report-control:focus-visible,
+.report-body:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

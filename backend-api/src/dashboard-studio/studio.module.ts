@@ -46,6 +46,7 @@ import { StudioRun } from './entities/studio-run.entity';
       StudioRemixRequest,
     ]),
   ],
+  exports: [StudioService],
   controllers: [
     StudioReceivedRemixController,
     StudioPublicationController,

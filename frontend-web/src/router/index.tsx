@@ -20,6 +20,8 @@ const PublishedRoute = React.lazy(() => import('./PublishedRoute'));
 const DashboardReuse = React.lazy(() => import('@/pages/Dashboard/DashboardReuse'));
 const DashboardEdit = React.lazy(() => import('@/pages/Dashboard/DashboardEdit'));
 const StudioCreate = React.lazy(() => import('@/pages/Dashboard/Studio/StudioCreate'));
+const Reports = React.lazy(() => import('@/pages/Reports/Reports'));
+const ReportEditor = React.lazy(() => import('@/pages/Reports/ReportEditor'));
 const StudioEditor = React.lazy(() => import('@/pages/Dashboard/Studio/StudioEditor'));
 const StudioReceivedRemix = React.lazy(() => import('@/pages/Dashboard/Studio/StudioReceivedRemix'));
 const StudioRemix = React.lazy(() => import('@/pages/Dashboard/Studio/StudioRemix'));
@@ -111,6 +113,30 @@ function Router() {
           </Route>
           <Route path="/*" element={<Status404 />} />
         </Route>
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute>
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports/new"
+          element={
+            <ProtectedRoute>
+              <ReportEditor key="new-report" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports/:reportId"
+          element={
+            <ProtectedRoute>
+              <ReportEditor />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/studio/new"
           element={

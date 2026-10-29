@@ -1,3 +1,6 @@
+import { sanitizeStudioSnapshot } from './studio-snapshot';
+import { sourceWriteTransaction } from '../database/source-write-lock';
+import { ReportCapture } from '../reports/report-contract';
 import { catalogActorContext, assertCatalogActor } from '../bi/source-classifications';
 import { randomUUID } from 'crypto';
 import {
@@ -1015,6 +1018,175 @@ export class StudioService {
       ...result,
     };
   }
+  /** Internal report capture. SQL stays outside the metadata queue; the pin encloses commit. */
+  async capturePrivateReport<T>(
+    input: ReportCapture,
+    actor: number,
+    fence: (manager: EntityManager, lock: boolean) => Promise<void>,
+    commit: (snapshot: PrivateReportSnapshot, manager: EntityManager) => Promise<T>,
+  ): Promise<T> {
+    const initial = await serializeMetadataWork(this.db, async () => {
+      await fence(this.db.manager, false);
+      const saved = await this.db.manager.findOne(StudioState, {
+        where: { dashboardId: input.dashboardId },
+      });
+      if (!saved || saved.legacyRevision !== input.expectedDashboardRevision)
+        throw new ConflictException('Studio의 마지막 저장본을 다시 확인해 주세요.');
+      const document = validateStudioDocument(JSON.parse(saved.document).document);
+      const source = await this.db.manager.findOne(Database, { where: { id: document.sourceId } });
+      return { document, source, saved: saved.document };
+    });
+    const pin = await this.connection.captureDuckDBSnapshot(initial.document.sourceId);
+    return pin.run(async () => {
+      const current = await serializeMetadataWork(this.db, () =>
+        this.load(input.dashboardId, actor, 'edit'),
+      );
+      if (
+        current.document.revision !== input.expectedDashboardRevision ||
+        current.document.sourceId !== initial.document.sourceId
+      )
+        throw new ConflictException('저장본이 변경됐습니다. 다시 미리보기 해 주세요.');
+      const selected = [input.kpiId, input.chartId].map(id =>
+        current.document.blocks.find(block => block.id === id),
+      );
+      if (
+        !selected[0] ||
+        selected[0].kind !== 'BOARD_NUMERIC' ||
+        !selected[1] ||
+        !['CHART_BAR', 'CHART_COLUMN', 'CHART_LINE'].includes(selected[1].kind)
+      )
+        throw new BadRequestException('숫자 KPI 하나와 막대·열·선 차트 하나를 선택해 주세요.');
+      const document = {
+        ...current.document,
+        blocks: selected,
+        layouts: Object.fromEntries(
+          STUDIO_BREAKPOINTS.map(bp => [
+            bp,
+            current.document.layouts[bp].filter(item =>
+              selected.some(block => block.id === item.id),
+            ),
+          ]),
+        ) as StudioDocumentV1['layouts'],
+      };
+      const items = selected.map(
+        block => current.items[current.document.blocks.findIndex(item => item.id === block.id)],
+      );
+      const widgets = selected.map(block =>
+        current.analysis.widgets.find(widget => widget.blockId === block.id),
+      );
+      const template = captureRemixTemplate(document, items, current.schema, widgets);
+      if (template.blocks.some(block => !block.supported))
+        throw new BadRequestException(
+          '구조화 지표로 계산 근거가 확인되는 블록만 보고서에 저장할 수 있습니다.',
+        );
+      for (const block of selected)
+        await this.validateCurrentReferences(
+          block,
+          document.sourceId,
+          current.schemaVersion,
+          current.schema,
+        );
+      const metricDefinitions = await serializeMetadataWork(this.db, async () => {
+        const definitions = new Map<number, string>();
+        for (const item of items) {
+          const metric = await this.db.manager.findOne(Metric, { where: { id: item.metricId } });
+          if (
+            !metric ||
+            studioDigest(JSON.parse(metric.definition)) !== studioDigest(item.definition)
+          )
+            throw new ConflictException(
+              '저장된 지표 정의와 현재 지표가 다릅니다. Studio에서 다시 확인해 주세요.',
+            );
+          definitions.set(metric.id, metric.definition);
+        }
+        return definitions;
+      });
+      const preview = await this.mixedPreview(
+        document,
+        { ...current.analysis, widgets },
+        actor,
+        current.schemaVersion,
+        'edit',
+      );
+      const rendered = sanitizeStudioSnapshot(document, preview);
+      const kpi = rendered.blocks[0];
+      const value = kpi.datas[0]?.[kpi.valueField];
+      if (
+        !(typeof value === 'number' && Number.isFinite(value)) &&
+        !(
+          typeof value === 'string' && /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value)
+        )
+      )
+        throw new BadRequestException('KPI에 유효한 숫자 집계 결과가 필요합니다.');
+      const evidence = buildStudioEvidence({
+        document,
+        sourceRevision: current.sourceRevision,
+        schemaVersion: current.schemaVersion,
+        dataVersion: current.dataVersion,
+        definitionBlocks: document.blocks,
+        calculationItems: items,
+        preview,
+        schema: current.schema,
+      });
+      const { queriedAt, ...calculationEvidence } = evidence;
+      const snapshot: PrivateReportSnapshot = {
+        capturedAt: queriedAt,
+        rendered,
+        basis: {
+          dashboardId: input.dashboardId,
+          dashboardRevision: input.expectedDashboardRevision,
+          source: evidence.source,
+          selection: { kpiId: input.kpiId, chartId: input.chartId },
+          definitions: template.blocks,
+          filters: document.filters ?? [],
+          dateRange: document.dateRange ?? null,
+          timeZone: document.dateRange?.timeZone ?? initial.source.timezone ?? 'UTC',
+          conditions: document.conditions ?? null,
+          businessBasis: document.businessBasis ?? null,
+          evidence: calculationEvidence,
+        },
+      };
+      return sourceWriteTransaction(this.db, async manager => {
+        await fence(manager, true);
+        const lockedMetrics = await lockMetricReferences(
+          manager,
+          document.sourceId,
+          selected.flatMap(block => block.measureRefs.map(ref => ref.id)),
+        );
+        for (const [metricId, definition] of metricDefinitions)
+          if (lockedMetrics.get(metricId)?.definition !== definition)
+            throw new ConflictException(
+              '집계 중 지표 정의가 변경됐습니다. 다시 미리보기 해 주세요.',
+            );
+        const dashboard = await this.owner(input.dashboardId, actor, 'edit', manager);
+        const source = await manager.findOne(Database, { where: { id: document.sourceId } });
+        const saved = await manager.findOne(StudioState, {
+          where: { dashboardId: input.dashboardId },
+        });
+        const fresh = await this.connection.captureDuckDBSnapshot(document.sourceId);
+        if (
+          dashboardRevision(dashboard) !== input.expectedDashboardRevision ||
+          saved?.document !== initial.saved ||
+          source.connectionConfig !== initial.source.connectionConfig ||
+          String(source.updatedAt) !== String(initial.source.updatedAt) ||
+          (await fresh.run(() => this.connection.duckDBVersion(document.sourceId))) !==
+            current.sourceRevision
+        )
+          throw new ConflictException(
+            '집계 중 저장본이나 파일이 변경됐습니다. 초안을 유지하고 다시 미리보기 해 주세요.',
+          );
+        for (const block of selected)
+          await this.validateCurrentReferences(
+            block,
+            document.sourceId,
+            current.schemaVersion,
+            current.schema,
+            manager,
+          );
+        return commit(snapshot, manager);
+      });
+    });
+  }
   /** Recheck both the original source and the current dashboard source on every execution read/replay. */
   async assertExecutionAccess(
     id: number,
@@ -1618,3 +1790,21 @@ export class StudioService {
     }
   }
 }
+
+export type PrivateReportSnapshot = {
+  capturedAt: string;
+  rendered: ReturnType<typeof sanitizeStudioSnapshot>;
+  basis: {
+    dashboardId: number;
+    dashboardRevision: string;
+    source: ReturnType<typeof buildStudioEvidence>['source'];
+    selection: { kpiId: string; chartId: string };
+    definitions: ReturnType<typeof captureRemixTemplate>['blocks'];
+    filters: NonNullable<StudioDocumentV1['filters']>;
+    dateRange: StudioDocumentV1['dateRange'] | null;
+    timeZone: string;
+    conditions: StudioDocumentV1['conditions'] | null;
+    businessBasis: StudioDocumentV1['businessBasis'] | null;
+    evidence: Omit<ReturnType<typeof buildStudioEvidence>, 'queriedAt'>;
+  };
+};

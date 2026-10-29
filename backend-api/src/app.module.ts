@@ -1,3 +1,5 @@
+import { ReportsModule } from './reports/reports.module';
+import { AddPrivateReports1793260000000 } from './migrations/1793260000000-add-private-reports';
 import { DocumentsModule } from './documents/documents.module';
 import { McpRemoteModule } from './mcp-oauth/mcp.controller';
 import { AddMcpOAuth1793233000000 } from './migrations/1793233000000-add-mcp-oauth';
@@ -124,6 +126,7 @@ import { apiEnvFiles } from './config-env';
     InitializationModule,
     EnterpriseModule,
     StudioModule,
+    ReportsModule,
     AnalysisModule,
     BiModule,
     SourceOwnershipModule,
@@ -149,6 +152,7 @@ import { apiEnvFiles } from './config-env';
           : process.env.DB_NAME,
       autoLoadEntities: true,
       migrations: [
+        AddPrivateReports1793260000000,
         AddDocumentConnections1793232000000,
         AddMcpOAuth1793233000000,
         SeparateLegacyEventAndJobTables1792620300000,

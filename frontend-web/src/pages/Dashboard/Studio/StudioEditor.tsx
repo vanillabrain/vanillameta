@@ -1585,6 +1585,16 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
 
   return (
     <>
+      {owned && canEdit && (
+        <div className="flex justify-end border-b bg-background px-6 py-2">
+          <a
+            className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium"
+            href={artifactLink(`/reports/new?dashboardId=${dashboardId}`)}
+          >
+            마지막 저장본으로 비공개 보고서 작성
+          </a>
+        </div>
+      )}
       <StudioShell
         document={documentForShell}
         stage="result"

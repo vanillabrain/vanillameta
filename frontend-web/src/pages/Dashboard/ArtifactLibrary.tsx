@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import BoardList from '@/components/BoardList';
 import { TextField } from '@/components/ui/text-field';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ export default function ArtifactLibrary({
   busy?: boolean;
 }) {
   const { t } = useTranslation();
+  const reportHref = artifactListNavigation(useLocation()).link('/reports');
   const [params, setParams] = useSearchParams();
   const query = (params.get('artifactQuery') ?? '').slice(0, 200);
   const kindParam = params.get('artifactKind');
@@ -83,6 +85,9 @@ export default function ArtifactLibrary({
   };
   return (
     <section className="min-w-0 w-full" aria-labelledby="artifact-library-heading">
+      <Link className="mb-4 inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium" to={reportHref}>
+        비공개 보고서
+      </Link>
       <h2 id="artifact-library-heading" className="text-xl font-semibold tracking-tight">
         {t('artifact.heading')}
       </h2>
