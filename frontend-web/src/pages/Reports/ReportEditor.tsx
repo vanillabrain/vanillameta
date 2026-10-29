@@ -258,11 +258,12 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
       <nav className="report-toolbar">
         <Link to={navigation.link('/reports')}>비공개 보고서 목록</Link>
         <Link to={navigation.listHref}>Artifact 허브</Link>
+        {saved && <Link to={navigation.link(`/reports/${saved.reportId}/read`)}>저장본 읽기·공유</Link>}
         {dashboardId > 0 && <Link to={navigation.link(`/dashboard/${dashboardId}/studio`)}>원본 Studio</Link>}
       </nav>
       <header className="report-heading">
         <div>
-          <p className="text-sm text-muted-foreground">본인만 보는 고정 보고서</p>
+          <p className="text-sm text-muted-foreground">소유자 편집 · 고정 보고서</p>
           <h1>{loaded ? (saved ? '매출 보고서' : '비공개 보고서 작성') : '비공개 보고서 불러오기'}</h1>
         </div>
         <span className="rounded-full border px-3 py-1 text-sm">

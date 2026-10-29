@@ -4,7 +4,7 @@ const contextSchema = z
   .object({
     version: z.literal(1),
     query: z.string().max(200),
-    kind: z.enum(['all', 'analysis', 'dashboard']),
+    kind: z.enum(['all', 'analysis', 'dashboard', 'report']),
     sort: z.enum(['recent', 'title']),
     display: z.enum(['list', 'grid']),
     view: z.enum(['active', 'archived']),

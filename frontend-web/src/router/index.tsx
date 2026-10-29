@@ -20,6 +20,7 @@ const PublishedRoute = React.lazy(() => import('./PublishedRoute'));
 const DashboardReuse = React.lazy(() => import('@/pages/Dashboard/DashboardReuse'));
 const DashboardEdit = React.lazy(() => import('@/pages/Dashboard/DashboardEdit'));
 const StudioCreate = React.lazy(() => import('@/pages/Dashboard/Studio/StudioCreate'));
+const ReportReader = React.lazy(() => import('@/pages/Reports/ReportReader'));
 const Reports = React.lazy(() => import('@/pages/Reports/Reports'));
 const ReportEditor = React.lazy(() => import('@/pages/Reports/ReportEditor'));
 const StudioEditor = React.lazy(() => import('@/pages/Dashboard/Studio/StudioEditor'));
@@ -126,6 +127,14 @@ function Router() {
           element={
             <ProtectedRoute>
               <ReportEditor key="new-report" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports/:reportId/read"
+          element={
+            <ProtectedRoute>
+              <ReportReader />
             </ProtectedRoute>
           }
         />

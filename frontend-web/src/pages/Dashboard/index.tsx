@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import PageTitleBox from '@/components/PageTitleBox';
 import ArtifactLibrary from './ArtifactLibrary';
+import { useProtectedReport } from '../Reports/useProtectedReport';
+import { reportSharingApi, ReportLibraryItem } from '../Reports/reportSharingApi';
 import { Link, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import { Button } from '@/components/ui/button';
@@ -32,6 +34,21 @@ function Dashboard() {
   const sourceParam = searchParams.get('aiSourceId') || '';
   const aiSourceId =
     /^[1-9]\d*$/.test(sourceParam) && Number.isSafeInteger(Number(sourceParam)) ? Number(sourceParam) : undefined;
+  const [reportPages, setReportPages] = useState(1);
+  const reportLibrary = useProtectedReport(async signal => {
+    const items: ReportLibraryItem[] = [];
+    let nextCursor: string | null = null;
+    for (let page = 0; page < reportPages; page += 1) {
+      const result = await reportSharingApi.library(signal, nextCursor ?? undefined);
+      items.push(...result.items);
+      nextCursor = result.nextCursor;
+      if (!nextCursor) break;
+    }
+    return { items, nextCursor };
+  });
+  useEffect(() => {
+    reportLibrary.reload();
+  }, [reportPages]);
   const [aiOpen, setAiOpen] = useState(!!aiSourceId);
   const title = t('nav.artifacts');
   const { dashboardId } = useParams();
@@ -278,21 +295,48 @@ function Dashboard() {
               </Button>
               <span className="text-xs text-muted-foreground">{t('artifact.organizationHint')}</span>
             </div>
-            <ArtifactLibrary
-              key={authScope ?? 'unavailable-session'}
-              items={loadedDashboardData}
-              onDelete={handleDeleteSelect}
-              view={view}
-              onViewChange={setView}
-              onReload={() => void reloadLibrary()}
-              loading={isFetching}
-              listError={isError || authScope === null}
-              canArchive={library?.canArchive === true && !isFetching && !isError}
-              onArchive={archive}
-              archiveDisabled={archiveBusy || needsRead}
-              archiveError={archiveError || (needsRead && !archiveBusy ? t('artifact.needsRead') : '')}
-              busy={archiveBusy}
-            />
+            <div>
+              <ArtifactLibrary
+                key={authScope ?? 'unavailable-session'}
+                items={loadedDashboardData}
+                reports={view === 'active' ? reportLibrary.retained?.data.items ?? [] : []}
+                reportBoundary={
+                  view === 'active' && reportLibrary.retained?.data.items.length ? reportLibrary.boundary : undefined
+                }
+                reportsReady={
+                  view !== 'active' || !reportLibrary.retained?.data.items.length || reportLibrary.state.kind === 'ready'
+                }
+                onDelete={handleDeleteSelect}
+                view={view}
+                onViewChange={setView}
+                onReload={() => {
+                  void reloadLibrary();
+                  reportLibrary.reload();
+                }}
+                loading={isFetching}
+                listError={isError || authScope === null}
+                canArchive={library?.canArchive === true && !isFetching && !isError}
+                onArchive={archive}
+                archiveDisabled={archiveBusy || needsRead}
+                archiveError={archiveError || (needsRead && !archiveBusy ? t('artifact.needsRead') : '')}
+                busy={archiveBusy}
+              />
+            </div>
+            {view === 'active' && reportLibrary.state.kind === 'error' && (
+              <p role="alert" className="mb-4">
+                보고서 목록을 불러오지 못했습니다. 다른 산출물은 표시합니다. {reportLibrary.state.message}
+              </p>
+            )}
+            {view === 'active' && reportLibrary.state.kind === 'loading' && (
+              <p role="status" className="mb-4">
+                보고서 접근권을 확인하고 있습니다.
+              </p>
+            )}
+            {view === 'active' && reportLibrary.state.kind === 'ready' && reportLibrary.state.data.nextCursor && (
+              <Button className="my-4 h-10" variant="outline" onClick={() => setReportPages(value => value + 1)}>
+                보고서 더 불러오기 · 현재 불러온 항목에서 검색
+              </Button>
+            )}
             <details
               key={authScope ?? 'unavailable-session'}
               open={emptyLibrary}

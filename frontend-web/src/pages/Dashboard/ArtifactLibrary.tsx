@@ -1,14 +1,16 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { artifactListNavigation } from '@/helpers/artifactNavigation';
-import BoardList from '@/components/BoardList';
+import BoardItem from '@/components/BoardItem';
+import { ReportLibraryItem } from '../Reports/reportSharingApi';
 import { TextField } from '@/components/ui/text-field';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
+import { FileText } from 'lucide-react';
 import { LibraryView } from '@/api/personalLibraryService';
 
-type Artifact = {
+export type Artifact = {
   id: number | string;
   title?: string;
   updatedAt?: string;
@@ -24,6 +26,9 @@ const time = (value?: string) => {
 /** UC049: discover only within the existing server-authorized list. */
 export default function ArtifactLibrary({
   items,
+  reports = [],
+  reportBoundary,
+  reportsReady = true,
   onDelete,
   view = 'active',
   onViewChange,
@@ -37,6 +42,9 @@ export default function ArtifactLibrary({
   busy = false,
 }: {
   items: Artifact[];
+  reports?: ReportLibraryItem[];
+  reportBoundary?: React.RefObject<HTMLDivElement>;
+  reportsReady?: boolean;
   onDelete: (id: any, title: any) => void;
   view?: LibraryView;
   onViewChange?: (view: LibraryView) => void;
@@ -50,11 +58,12 @@ export default function ArtifactLibrary({
   busy?: boolean;
 }) {
   const { t } = useTranslation();
-  const reportHref = artifactListNavigation(useLocation()).link('/reports');
+  const navigation = artifactListNavigation(useLocation());
+  const reportHref = navigation.link('/reports');
   const [params, setParams] = useSearchParams();
   const query = (params.get('artifactQuery') ?? '').slice(0, 200);
   const kindParam = params.get('artifactKind');
-  const kind = kindParam === 'analysis' || kindParam === 'dashboard' ? kindParam : 'all';
+  const kind = kindParam === 'analysis' || kindParam === 'dashboard' || kindParam === 'report' ? kindParam : 'all';
   const sort = params.get('artifactSort') === 'title' ? 'title' : 'recent';
   const display = params.get('artifactDisplay') === 'grid' ? 'grid' : 'list';
   const update = (changes: Record<string, string>) => {
@@ -70,16 +79,30 @@ export default function ArtifactLibrary({
       { replace: true },
     );
   };
+  type Row = { kind: 'dashboard'; item: Artifact } | { kind: 'report'; item: ReportLibraryItem };
+  const rows: Row[] = [
+    ...(!loading && !listError ? items.map(item => ({ kind: 'dashboard' as const, item })) : []),
+    ...(view === 'active' ? reports.map(item => ({ kind: 'report' as const, item })) : []),
+  ];
   const results = useMemo(() => {
     const text = normalized(query);
-    return items
-      .filter(item => normalized(item.title ?? '').includes(text))
-      .filter(item => kind === 'all' || (kind === 'analysis' ? !!item.analysisDefinition : !item.analysisDefinition))
+    return rows
+      .filter(row => normalized(row.item.title ?? '').includes(text))
+      .filter(
+        row =>
+          kind === 'all' ||
+          (row.kind === 'report'
+            ? kind === 'report'
+            : kind === 'analysis'
+            ? !!row.item.analysisDefinition
+            : kind === 'dashboard' && !row.item.analysisDefinition),
+      )
       .sort((a, b) => {
-        const byTitle = (a.title ?? '').localeCompare(b.title ?? '', 'ko') || String(a.id).localeCompare(String(b.id));
-        return sort === 'title' ? byTitle : time(b.updatedAt) - time(a.updatedAt) || byTitle;
+        const byTitle =
+          (a.item.title ?? '').localeCompare(b.item.title ?? '', 'ko') || String(a.item.id).localeCompare(String(b.item.id));
+        return sort === 'title' ? byTitle : time(b.item.updatedAt) - time(a.item.updatedAt) || byTitle;
       });
-  }, [items, query, kind, sort]);
+  }, [items, reports, loading, listError, view, query, kind, sort]);
   const reset = () => {
     update({ artifactQuery: '', artifactKind: '', artifactSort: '' });
   };
@@ -152,7 +175,7 @@ export default function ArtifactLibrary({
           {t('artifact.busy')}
         </p>
       )}
-      <div className="grid min-w-0 grid-cols-1 items-end gap-4 rounded-xl border border-border bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_12rem_auto] [&_input]:h-10 [&_select]:h-10">
+      <div className="grid min-w-0 grid-cols-1 items-end gap-4 rounded-xl border border-border bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_12rem_auto] [&_input]:h-10 [&_select]:h-10 [&_input]:text-base [&_select]:text-base">
         <TextField
           type="search"
           maxLength={200}
@@ -170,6 +193,7 @@ export default function ArtifactLibrary({
           <option value="all">{t('artifact.all')}</option>
           <option value="analysis">{t('artifact.analysis')}</option>
           <option value="dashboard">{t('artifact.dashboard')}</option>
+          <option value="report">보고서</option>
         </TextField>
         <TextField
           select
@@ -191,30 +215,127 @@ export default function ArtifactLibrary({
         </Button>
       </div>
       <p role="status" className="mt-3 text-xs text-muted-foreground">
-        {t('artifact.count', { total: items.length, shown: results.length })}
+        {t('artifact.count', { total: rows.length, shown: results.length })}
       </p>
-      {!loading &&
-        !listError &&
-        (results.length ? (
-          <BoardList
-            key={JSON.stringify([view, query, kind, sort, results.length])}
-            postList={results}
+      <div
+        ref={reportBoundary}
+        hidden={!reportsReady}
+        onClickCapture={event => {
+          if (!reportsReady) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
+      >
+        {results.length ? (
+          <MixedRows
+            key={JSON.stringify([view, query, kind, sort, display, results.length])}
+            rows={results}
             display={display}
-            handleDeleteSelect={onDelete}
-            archiveActionForItem={
-              canArchive && onArchive
-                ? item => ({
-                    label: t(item.library?.archived ? 'artifact.restore' : 'artifact.archive'),
-                    disabled: archiveDisabled || !item.library,
-                    onClick: () => onArchive(item),
-                  })
-                : undefined
+            t={t}
+            render={row =>
+              row.kind === 'report' ? (
+                <li
+                  key={'report-' + row.item.id}
+                  className={
+                    display === 'grid'
+                      ? 'flex min-w-0 flex-col items-start gap-4 rounded-xl border border-border bg-card p-6'
+                      : 'flex min-w-0 flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-5'
+                  }
+                >
+                  <Link
+                    className={`${
+                      display === 'grid' ? 'flex w-full flex-col gap-4' : 'min-w-[240px] flex-1'
+                    } min-w-0 break-words font-medium underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring`}
+                    aria-label={row.item.title}
+                    to={navigation.link(`/reports/${row.item.id}/read`)}
+                  >
+                    {display === 'grid' && (
+                      <span className="flex min-h-[190px] w-full flex-col justify-between rounded-lg bg-muted p-4">
+                        <span className="text-xs text-muted-foreground">고정 보고서 · 버전 {row.item.version}</span>
+                        <FileText aria-hidden="true" className="h-9 w-9 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">저장된 본문·KPI·차트</span>
+                      </span>
+                    )}
+                    <span className={display === 'grid' ? 'min-h-14 text-lg leading-relaxed [word-break:keep-all]' : ''}>{row.item.title}</span>
+                  </Link>
+                  <span className="text-sm text-muted-foreground">
+                    보고서 · {row.item.ownership === 'owned' ? '내 보고서' : '받은 보고서'} · 버전 {row.item.version}
+                  </span>
+                  <time className="text-xs text-muted-foreground">{new Date(row.item.updatedAt).toLocaleString()}</time>
+                </li>
+              ) : (
+                <BoardItem
+                  key={'dashboard-' + row.item.id}
+                  data={{ ...row.item, title: row.item.title ?? '', updatedAt: row.item.updatedAt ?? '' }}
+                  display={display}
+                  handleDeleteSelect={onDelete}
+                  studioHref={row.item.analysisDefinition ? `/dashboard/${row.item.id}/studio` : undefined}
+                  showStudioColumn
+                  archiveAction={
+                    canArchive && onArchive
+                      ? {
+                          label: t(row.item.library?.archived ? 'artifact.restore' : 'artifact.archive'),
+                          disabled: archiveDisabled || !row.item.library,
+                          onClick: () => onArchive(row.item),
+                        }
+                      : undefined
+                  }
+                />
+              )
             }
-            studioHrefForItem={item => (item.analysisDefinition ? `/dashboard/${item.id}/studio` : undefined)}
           />
         ) : (
-          <p className="mt-4 rounded-lg border border-border p-6 text-sm text-muted-foreground">{t('artifact.empty')}</p>
-        ))}
+          !loading &&
+          !listError && (
+            <p className="mt-4 rounded-lg border border-border p-6 text-sm text-muted-foreground">{t('artifact.empty')}</p>
+          )
+        )}
+      </div>
     </section>
+  );
+}
+function MixedRows<T>({
+  rows,
+  display,
+  render,
+  t,
+}: {
+  rows: T[];
+  display: string;
+  render: (row: T) => React.ReactNode;
+  t: (key: string) => string;
+}) {
+  const [page, setPage] = useState(1);
+  const count = Math.ceil(rows.length / 10);
+  return (
+    <>
+      <ul
+        aria-label={t(display === 'grid' ? 'artifact.gridLabel' : 'artifact.listLabel')}
+        className={display === 'grid' ? 'mt-6 grid grid-cols-3 gap-6' : 'mt-6 grid gap-3'}
+      >
+        {rows.slice((page - 1) * 10, page * 10).map(render)}
+      </ul>
+      {count > 1 && (
+        <nav aria-label="산출물 페이지" className="mt-6 flex justify-center gap-2">
+          {Array.from({ length: Math.min(count, 5) }, (_, i) => Math.max(1, Math.min(page - 2, count - 4)) + i).map(
+            number => (
+              <Button asChild className="h-10" key={number} variant={page === number ? 'default' : 'outline'}>
+                <a
+                  href="#"
+                  aria-current={page === number ? 'page' : undefined}
+                  onClick={event => {
+                    event.preventDefault();
+                    setPage(number);
+                  }}
+                >
+                  {number}
+                </a>
+              </Button>
+            ),
+          )}
+        </nav>
+      )}
+    </>
   );
 }

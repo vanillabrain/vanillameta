@@ -5,6 +5,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi, expect, it, afterEach, beforeEach } from 'vitest';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import Dashboard from './index';
+import { reportSharingApi } from '../Reports/reportSharingApi';
+vi.mock('../Reports/reportSharingApi', async importOriginal => {
+  const actual = await importOriginal<typeof import('../Reports/reportSharingApi')>();
+  return { ...actual, reportSharingApi: { ...actual.reportSharingApi, library: vi.fn() } };
+});
 import { deletionDependencyLabels } from '@/api/dashboardDeletionService';
 import { fetchPersonalLibrary, savePersonalLibrary, personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { editorDraftSessionEpoch } from '@/helpers/editorDraftStorage';
@@ -133,6 +138,8 @@ function show(path = '/dashboard', strict = false) {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(reportSharingApi.library).mockResolvedValue({ items: [], nextCursor: null });
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
   starter.enabled = false;
   localStorage.clear();
   sessionStorage.clear();
@@ -785,4 +792,56 @@ it('keeps the active sample preparation through a library reload', async () => {
   await act(async () => sample.resolve(response({ projectId: 37 })));
   expect(await screen.findByText('이동 완료 /commerce/37?sample=1')).toBeTruthy();
   expect(api.post).toHaveBeenCalledTimes(1);
+});
+it('keeps hub controls and report links mounted through visibility checks and clears rejected titles', async () => {
+  let rejectRead: (reason: unknown) => void;
+  let checking = false;
+  vi.mocked(reportSharingApi.library).mockImplementation(async () => {
+    if (checking)
+      return new Promise((_resolve, reject) => {
+        rejectRead = reject;
+      });
+    return {
+      items: [
+        {
+          kind: 'report',
+          id: '12345678-1234-4234-8234-123456789abc',
+          title: '허브 보고서',
+          ownership: 'owned',
+          version: 1,
+          updatedAt: '2026-10-29T00:00:00Z',
+        },
+      ],
+      nextCursor: null,
+    };
+  });
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+  show('/dashboard?artifactKind=report');
+  const link = await screen.findByRole('link', { name: '허브 보고서' });
+  const grid = button('그리드');
+  const search = screen.getByLabelText('산출물 제목 검색');
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+  fireEvent(document, new Event('visibilitychange'));
+  expect(button('그리드')).toBe(grid);
+  expect(link.isConnected).toBe(true);
+  expect(link.closest('[hidden]')).toBeTruthy();
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+  fireEvent(document, new Event('visibilitychange'));
+  await waitFor(() => expect(screen.getByRole('link', { name: '허브 보고서' })).toBe(link));
+  expect(button('그리드')).toBe(grid);
+  checking = true;
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+  fireEvent(document, new Event('visibilitychange'));
+  expect(button('그리드')).toBe(grid);
+  expect(screen.getByLabelText('산출물 제목 검색')).toBe(search);
+  expect(link.isConnected).toBe(true);
+  expect(link.closest('[hidden]')).toBeTruthy();
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+  fireEvent(document, new Event('visibilitychange'));
+  await act(async () => rejectRead({ response: { status: 403 } }));
+  expect(await screen.findByRole('alert')).toBeTruthy();
+  expect(screen.queryByText('허브 보고서')).toBeNull();
+  expect(button('그리드')).toBe(grid);
+  fireEvent.click(grid);
+  expect(grid.getAttribute('aria-pressed')).toBe('true');
 });

@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ReportSharingService } from './report-sharing.service';
 import { ReportsService } from './reports.service';
 import { ReportActor } from './report-contract';
 
@@ -18,7 +19,10 @@ type ReportRequest = { user: { accessKeyData: ReportActor } };
 @UseGuards(JwtAuthGuard)
 @Controller('reports')
 export class ReportsController {
-  constructor(private readonly reports: ReportsService) {}
+  constructor(
+    private readonly reports: ReportsService,
+    private readonly sharing: ReportSharingService,
+  ) {}
   @Get()
   @Header('Cache-Control', 'no-store')
   list(@Req() req: ReportRequest) {
@@ -28,6 +32,34 @@ export class ReportsController {
   @Header('Cache-Control', 'no-store')
   root(@Param('dashboardId', ParseIntPipe) id: number, @Req() req: ReportRequest) {
     return this.reports.rootOptions(id, req.user.accessKeyData);
+  }
+  @Get('library')
+  library(@Req() req: ReportRequest, @Query('afterId') afterId?: string) {
+    return this.sharing.library(req.user.accessKeyData, afterId);
+  }
+  @Get(':id/reader')
+  reader(@Param('id') id: string, @Req() req: ReportRequest) {
+    return this.sharing.reader(id, req.user.accessKeyData);
+  }
+  @Get(':id/peers')
+  peers(@Param('id') id: string, @Query() query: unknown, @Req() req: ReportRequest) {
+    return this.sharing.peers(id, req.user.accessKeyData, query);
+  }
+  @Get(':id/shares')
+  shares(@Param('id') id: string, @Req() req: ReportRequest, @Query('afterId') afterId?: string) {
+    return this.sharing.shares(id, req.user.accessKeyData, afterId);
+  }
+  @Post(':id/shares')
+  changeShares(@Param('id') id: string, @Body() body: unknown, @Req() req: ReportRequest) {
+    return this.sharing.change(id, body, req.user.accessKeyData);
+  }
+  @Get(':id/shares/outcome/:requestId')
+  shareOutcome(
+    @Param('id') id: string,
+    @Param('requestId') requestId: string,
+    @Req() req: ReportRequest,
+  ) {
+    return this.sharing.outcome(id, requestId, req.user.accessKeyData);
   }
   @Get(':id')
   @Header('Cache-Control', 'no-store')

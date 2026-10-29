@@ -94,10 +94,10 @@ const previewSchema = z.object({ snapshot: snapshotSchema, previewDigest: hash }
 export type ReportPreview = z.infer<typeof previewSchema>;
 const options = { timeout: 180000, headers: { 'Cache-Control': 'no-cache' } };
 export const reportApi = {
-  async list() {
+  async list(signal?: AbortSignal) {
     return z
       .array(z.object({ id: z.string().uuid(), title: z.string(), revision: hash, updatedAt: z.string() }))
-      .parse((await get('/reports', undefined, options)).data);
+      .parse((await get('/reports', undefined, { ...options, signal })).data);
   },
   async root(id: number) {
     return rootSchema.parse((await get('/reports/roots/' + id, undefined, options)).data);
@@ -124,6 +124,10 @@ export const reportApi = {
       .parse((await get('/reports/' + id + '/outcome/' + requestId, { dashboardId }, options)).data);
   },
 };
+export function isReportAccessError(error: unknown): boolean {
+  const parsed = z.object({ response: z.object({ status: z.number() }) }).safeParse(error);
+  return parsed.success && [401, 403, 404].includes(parsed.data.response.status);
+}
 export function reportError(error: unknown, context: 'load' | 'action' = 'action'): string {
   const response = z.object({ response: z.object({ status: z.number() }) }).safeParse(error);
   if (response.success) {

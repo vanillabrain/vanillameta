@@ -117,7 +117,7 @@ export class ReportsService {
       throw new NotFoundException('보고서를 찾을 수 없습니다.');
     });
   }
-  private async stored(
+  async stored(
     manager: EntityManager,
     head: PrivateReport,
     version = head.version,

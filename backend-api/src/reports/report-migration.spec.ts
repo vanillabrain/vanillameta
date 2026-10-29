@@ -1,3 +1,5 @@
+import { REPORT_SHARING_ENTITIES } from './report-sharing.entity';
+import { AddReportDeliveries1793270000000 } from '../migrations/1793270000000-add-report-deliveries';
 import { DataSource } from 'typeorm';
 import {
   REPORT_ENTITIES,
@@ -11,13 +13,16 @@ describe('private report migration', () => {
     const db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: REPORT_ENTITIES,
+      entities: [...REPORT_ENTITIES, ...REPORT_SHARING_ENTITIES],
     }).initialize();
     const runner = db.createQueryRunner();
     try {
       const migration = new AddPrivateReports1793260000000();
       await migration.up(runner);
       await migration.up(runner);
+      const deliveryMigration = new AddReportDeliveries1793270000000();
+      await deliveryMigration.up(runner);
+      await deliveryMigration.up(runner);
       const diff = await db.driver.createSchemaBuilder().log();
       expect(diff.upQueries.map(query => query.query)).toEqual([]);
       for (const name of [
@@ -25,6 +30,8 @@ describe('private report migration', () => {
         'private_report_revision',
         'private_report_chunk',
         'private_report_request',
+        'private_report_delivery',
+        'private_report_delivery_receipt',
       ]) {
         const table = await runner.getTable(name);
         expect(
