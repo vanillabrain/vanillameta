@@ -56,6 +56,7 @@ it('combines normalized title search and type filters, preserves input order and
   expect(screen.queryByTestId('artifact-row')).toBeNull();
   expect(screen.getByText(/조건에 맞는 산출물이 없습니다/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: '검색 조건 초기화' }));
+  expect(document.activeElement).toBe(screen.getByLabelText('산출물 제목 검색'));
   expect(titles()).toEqual(['Beta 매출', 'Gamma 환불', 'Alpha 매출']);
   fireEvent.change(screen.getByLabelText('산출물 정렬'), { target: { value: 'title' } });
   expect(titles()).toEqual(['Alpha 매출', 'Beta 매출', 'Gamma 환불']);

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { artifactListNavigation } from '@/helpers/artifactNavigation';
@@ -61,6 +61,7 @@ export default function ArtifactLibrary({
   const navigation = artifactListNavigation(useLocation());
   const reportHref = navigation.link('/reports');
   const [params, setParams] = useSearchParams();
+  const searchRef = useRef<HTMLInputElement>(null);
   const query = (params.get('artifactQuery') ?? '').slice(0, 200);
   const kindParam = params.get('artifactKind');
   const kind = kindParam === 'analysis' || kindParam === 'dashboard' || kindParam === 'report' ? kindParam : 'all';
@@ -105,6 +106,7 @@ export default function ArtifactLibrary({
   }, [items, reports, loading, listError, view, query, kind, sort]);
   const reset = () => {
     update({ artifactQuery: '', artifactKind: '', artifactSort: '' });
+    searchRef.current?.focus();
   };
   return (
     <section className="min-w-0 w-full" aria-labelledby="artifact-library-heading">
@@ -177,6 +179,7 @@ export default function ArtifactLibrary({
       )}
       <div className="grid min-w-0 grid-cols-1 items-end gap-4 rounded-xl border border-border bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_12rem_auto] [&_input]:h-10 [&_select]:h-10 [&_input]:text-base [&_select]:text-base">
         <TextField
+          ref={searchRef}
           type="search"
           maxLength={200}
           label={t('artifact.searchLabel')}
@@ -257,7 +260,9 @@ export default function ArtifactLibrary({
                         <span className="text-xs text-muted-foreground">저장된 본문·KPI·차트</span>
                       </span>
                     )}
-                    <span className={display === 'grid' ? 'min-h-14 text-lg leading-relaxed [word-break:keep-all]' : ''}>{row.item.title}</span>
+                    <span className={display === 'grid' ? 'min-h-14 text-lg leading-relaxed [word-break:keep-all]' : ''}>
+                      {row.item.title}
+                    </span>
                   </Link>
                   <span className="text-sm text-muted-foreground">
                     보고서 · {row.item.ownership === 'owned' ? '내 보고서' : '받은 보고서'} · 버전 {row.item.version}

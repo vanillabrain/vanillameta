@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Unplug } from 'lucide-react';
@@ -93,6 +93,19 @@ function Connections({ scope }: { scope: string | null }) {
   const { t } = useTranslation();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [read, setRead] = useState(0);
+  const reloadButton = useRef<HTMLButtonElement>(null);
+  const restoreReloadFocus = useRef(false);
+  const reload = () => {
+    restoreReloadFocus.current = true;
+    setRead(value => value + 1);
+  };
+  useLayoutEffect(() => {
+    if (state.kind !== 'loading' && restoreReloadFocus.current) {
+      restoreReloadFocus.current = false;
+      if (document.activeElement === document.body || document.activeElement === document.documentElement)
+        reloadButton.current?.focus();
+    }
+  }, [state.kind]);
   useEffect(() => {
     const controller = new AbortController();
     setState({ kind: 'loading' });
@@ -112,7 +125,7 @@ function Connections({ scope }: { scope: string | null }) {
     return (
       <>
         <p role="alert">{t('aiConnections.loadError')}</p>
-        <Button className="h-10 self-start" variant="outline" onClick={() => setRead(value => value + 1)}>
+        <Button ref={reloadButton} className="h-10 self-start" variant="outline" onClick={reload}>
           {t('aiConnections.reload')}
         </Button>
       </>
@@ -183,12 +196,7 @@ function Connections({ scope }: { scope: string | null }) {
           ))}
         </ul>
       )}
-      <Button
-        id="ai-connections-reload"
-        variant="outline"
-        className="h-10 self-start"
-        onClick={() => setRead(value => value + 1)}
-      >
+      <Button ref={reloadButton} id="ai-connections-reload" variant="outline" className="h-10 self-start" onClick={reload}>
         {t('aiConnections.reload')}
       </Button>
       <Link to="/dashboard" className="text-sm underline">

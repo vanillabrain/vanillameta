@@ -178,8 +178,27 @@ it('list reload shows read scopes and never disconnects', async () => {
   expect(screen.getByText('Read saved document content')).toBeTruthy();
   await click(screen.getByRole('button', { name: 'Reload list' }));
   await screen.findByText('Test AI');
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Reload list' })));
   expect(aiConnectionsService.list).toHaveBeenCalledTimes(2);
   expect(aiConnectionsService.disconnect).not.toHaveBeenCalled();
+});
+it('does not steal focus moved elsewhere while reload is pending', async () => {
+  let finish: (value: AiConnectionList) => void = () => undefined;
+  vi.mocked(aiConnectionsService.list)
+    .mockResolvedValueOnce(list)
+    .mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        }),
+    );
+  showList();
+  await click(await screen.findByRole('button', { name: 'Reload list' }));
+  const headerLink = screen.getAllByRole('link', { name: 'Artifacts' })[0];
+  act(() => headerLink.focus());
+  await act(async () => finish(list));
+  await screen.findByText('Test AI');
+  expect(document.activeElement).toBe(headerLink);
 });
 it('dialog focuses keep, traps keyboard and returns focus after Escape', async () => {
   showList();
