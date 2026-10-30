@@ -138,6 +138,41 @@ it('allows explicit reload after list failure', async () => {
   await screen.findByRole('alert');
   await user.click(screen.getByRole('button', { name: 'Reload' }));
   await screen.findByRole('link', { name: 'Quarterly plan' });
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Google documents' })));
+});
+it('does not steal focus moved elsewhere while document reload is pending', async () => {
+  let finish: (value: typeof list) => void = () => undefined;
+  vi.mocked(documentService.list)
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        }),
+    );
+  render(
+    <MemoryRouter>
+      <Documents />
+    </MemoryRouter>,
+  );
+  await user.click(await screen.findByRole('button', { name: 'Reload' }));
+  const headerLink = screen.getAllByRole('link', { name: 'Artifacts' })[0];
+  act(() => headerLink.focus());
+  await act(async () => finish(list));
+  await screen.findByRole('link', { name: 'Quarterly plan' });
+  expect(document.activeElement).toBe(headerLink);
+});
+it('returns focus to retry when the explicit document reload fails again', async () => {
+  vi.mocked(documentService.list).mockRejectedValue(new Error('offline'));
+  render(
+    <MemoryRouter>
+      <Documents />
+    </MemoryRouter>,
+  );
+  const retry = await screen.findByRole('button', { name: 'Reload' });
+  await user.click(retry);
+  await screen.findByRole('alert');
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Reload' })));
 });
 it('uses Radix keyboard focus trapping, Escape and trigger focus return for consent', async () => {
   render(

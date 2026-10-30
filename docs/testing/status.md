@@ -363,7 +363,7 @@ Assistant 저장 충돌·실행 중단의 ASSISTANT-06~07을 [assistant-reliabil
 | DESIGN-01   | 완료      | 기존 Luna 정답 재사용. 현재 All time 동일 질문의 Rill 정확9개/요청/평균·설명·최종 AI 차트 대조. 원본 날짜 이동은 별도.                                                                                 | [luna], [designfinal]                             |
 | DESIGN-02   | 완료      | 실제 Luna 저장 완료 화면의2KPI·USD2자리·9개 이름/0축/전체 폭·기간/필터·작은값 표, Rill 완료 차트/답변 비교.                                                                                            | [luna], [designfinal]                             |
 | DESIGN-03   | 완료      | 동일 수정문 Rill 조회/편집 AI 실행 및 reload, 기존 VM/필터 증빙 합산. Rill 즉시 파일 쓰기와 VM 명시저장/취소 차이 기록; UX 동일성은 아님.                                                              | [filters], [luna], [designfinal]                  |
-| DESIGN-04   | 부분 완료 | 기존 모바일/키보드 선택 재사용. 대시보드/헤더 이름 누락 수정·한영/Enter·controls 대상/390폭 검증. 대비·대상 화면 키보드·대화상자·169행 추세 표 보완. 2026-10-31 아티팩트 허브의 검색 초기화·보관함/기본목록·계정/언어 메뉴와 외부 AI 연결의 재조회 포커스를 확인하고 두 포커스 소실을 수정했다. 실제 VoiceOver 발화/다른 화면 전체 키보드 미검증. | [luna], [designfinal], [kpia11y], [hubkeyboard] |
+| DESIGN-04   | 부분 완료 | 기존 모바일/키보드 선택 재사용. 대시보드/헤더 이름 누락 수정·한영/Enter·controls 대상/390폭 검증. 대비·대상 화면 키보드·대화상자·169행 추세 표 보완. 2026-10-31 아티팩트 허브·외부 AI 연결·비공개 보고서·Google 문서·조직 분석의 데스크톱 키보드 경로를 확인했다. 검색 초기화·외부 AI 재조회·Google 문서 오류 복구의 포커스 소실을 수정했고, 보고서 재조회와 지연 응답 중 이동은 포커스를 유지한다. 실제 VoiceOver 발화/다른 화면 전체 키보드 미검증. | [luna], [designfinal], [kpia11y], [hubkeyboard], [reportsdocs] |
 | FILTER-01   | 완료      | 기존 수치/초기화/바인딩/역순/503 복구 재사용. 타계정 analysis/필터preview/save/draft 실제403, 원 초안·자산5테이블 해시 동일, 실제 UI 차단.                                                             | [filters], [filtererrors], [boundaries]           |
 | FILTER-02   | 완료      | 138055400/평균4.633939385003283±1e-9/2기기 정답, VM desktop/mobile·Rill desktop·UTC 경계·역순/부분 입력. Rill 모바일/기간 비교/필터 지속은 추가 범위.                                                  | [date], [filtererrors]                            |
 | AI-DASH-01  | 완료      | 기존 Luna 생성/수정/저장/취소/오류 합산. Rill 동일 수정문 실행 비교 및 복제DB 별도 미설정 실API ERROR→UI 저장차단·5자산테이블 불변.                                                                    | [luna], [filtererrors], [aierrors], [designfinal] |
@@ -375,7 +375,7 @@ Assistant 저장 충돌·실행 중단의 ASSISTANT-06~07을 [assistant-reliabil
 1. **P0 — 이번 선택 범위 완료.** DATA-08 실제 암호 연결 응답과 FILTER-01 신규 필터 API 타계정 차단을 보완했다. AUTH-01/05/06을 포함해 관련 변경 없이 반복하지 않는다. 전체 커넥터/테넌트 보안 감사 완료를 뜻하지 않는다.
 2. **P1 — 현재 DuckDB 수집 경로 완료.** FILE-12~18 잔여 조건을 보완했다. INGEST-01~04/FILE-19·20과 함께 관련 변경 없으면 반복하지 않는다. 느린 기기의 15초 초기화 한도와 JS 로더 모듈 배포 장애는 별도 운영 범위다.
 3. **기본 MD 102개 완료.** FILE-01·WIDGET-01·DASH-01의 신규 생성·export와 [NAV-04 미저장 취소/이동](dashboard-unsaved.md)까지 보완했다. 관련 변경이 없으면 반복하지 않는다. 전체 출시 회귀나 운영 준비 완료를 뜻하지 않는다.
-4. **P1 — DESIGN-04 접근성 잔여 조건.** 최종 AI 차트/설명·동일 수정 질문 Rill 비교·실제 미설정 조건은 [후속 비교](design-final-audit.md)에서 보완했다. 버튼 이름 누락도 수정했다. 추세·대비·대상 화면 키보드는 [후속 기록](kpi-trends-accessibility.md), 아티팩트 허브와 외부 AI 연결의 데스크톱 키보드 경로는 [허브 후속](design04-artifact-hub-keyboard.md)으로 보완했다. 실제 VoiceOver 발화·읽기 순서와 다른 화면 전체 키보드 경로가 남았다. 제품 간 UX 차이를 동일성 PASS로 확대하지 않는다.
+4. **P1 — DESIGN-04 접근성 잔여 조건.** 최종 AI 차트/설명·동일 수정 질문 Rill 비교·실제 미설정 조건은 [후속 비교](design-final-audit.md)에서 보완했다. 버튼 이름 누락도 수정했다. 추세·대비·대상 화면 키보드는 [후속 기록](kpi-trends-accessibility.md), 아티팩트 허브와 외부 AI 연결은 [허브 후속](design04-artifact-hub-keyboard.md), 비공개 보고서·Google 문서·조직 분석은 [보고서·문서 후속](design04-reports-documents-keyboard.md)으로 보완했다. 실제 VoiceOver 발화·읽기 순서와 다른 화면 전체 키보드 경로가 남았다. 제품 간 UX 차이를 동일성 PASS로 확대하지 않는다.
 5. **운영 파일럿 전 P1 / 다중 사용자 확장 전 P2.** 아래 별도 운영 범위를 정의하고 필요한 최소 검사를 시행한다. 전체 MD 통과와 운영 준비는 다른 판정이다.
 
 ## 현재 MD 밖의 운영·제품 작업
@@ -427,6 +427,7 @@ Assistant 저장 충돌·실행 중단의 ASSISTANT-06~07을 [assistant-reliabil
 [designfinal]: design-final-audit.md
 [kpia11y]: kpi-trends-accessibility.md
 [hubkeyboard]: design04-artifact-hub-keyboard.md
+[reportsdocs]: design04-reports-documents-keyboard.md
 
 2026-10-14 Rill 도입 1차: [KPI 비교 추세 겹쳐 보기](kpi-comparison-overlay.md). UTC 일별·동일 기간 길이의 공통 축/시작점 정렬·NULL 구간·고립 점을 구현했다. 관련31개 + 기존 원본 조회174개 회귀, FE 타입/변경 lint/build 통과. Aside 고정 입력 화면 확인이며 실제 preview/원본 XHR·390px 모바일/VoiceOver는 미실행이다. SSBI 전체 완료로 확대하지 않는다.
 

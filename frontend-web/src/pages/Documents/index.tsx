@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FileText } from 'lucide-react';
@@ -15,6 +15,20 @@ function DocumentsList({ scope }: { scope: string | null }) {
   const { link } = artifactListNavigation(useLocation());
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   const [read, setRead] = useState(0);
+  const retryButton = useRef<HTMLButtonElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const restoreFocus = useRef(false);
+  const reload = () => {
+    restoreFocus.current = true;
+    setRead(value => value + 1);
+  };
+  useLayoutEffect(() => {
+    if (state.kind === 'loading' || !restoreFocus.current) return;
+    restoreFocus.current = false;
+    if (document.activeElement !== document.body && document.activeElement !== document.documentElement) return;
+    if (state.kind === 'error') retryButton.current?.focus();
+    else headingRef.current?.focus();
+  }, [state.kind]);
   useEffect(() => {
     if (!scope) {
       setState({ kind: 'error' });
@@ -33,12 +47,12 @@ function DocumentsList({ scope }: { scope: string | null }) {
     return () => controller.abort();
   }, [scope, read]);
   return (
-    <DocumentFrame title={t('docConnection.title')}>
+    <DocumentFrame title={t('docConnection.title')} headingRef={headingRef}>
       {state.kind === 'loading' && <p role="status">{t('docConnection.loading')}</p>}
       {state.kind === 'error' && (
         <>
           <p role="alert">{t('docConnection.loadError')}</p>
-          <Button className="h-10 self-start" onClick={() => setRead(value => value + 1)}>
+          <Button ref={retryButton} className="h-10 self-start" onClick={reload}>
             {t('docConnection.reload')}
           </Button>
         </>

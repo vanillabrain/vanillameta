@@ -20,7 +20,15 @@ export function useDocumentScope() {
   return scope;
 }
 
-export function DocumentFrame({ children, title }: { children: React.ReactNode; title: string }) {
+export function DocumentFrame({
+  children,
+  title,
+  headingRef,
+}: {
+  children: React.ReactNode;
+  title: string;
+  headingRef?: React.Ref<HTMLHeadingElement>;
+}) {
   const { t } = useTranslation();
   const { listHref } = artifactListNavigation(useLocation());
   return (
@@ -36,7 +44,13 @@ export function DocumentFrame({ children, title }: { children: React.ReactNode; 
           <Link to="/documents">{t('docConnection.title')}</Link>
         </Button>
       </nav>
-      <h1 className="text-2xl font-semibold">{title}</h1>
+      <h1
+        ref={headingRef}
+        tabIndex={-1}
+        className="w-fit max-w-full rounded-sm text-2xl font-semibold focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      >
+        {title}
+      </h1>
       <p className="text-sm text-muted-foreground">{t('docConnection.privateHint')}</p>
       {children}
     </main>
