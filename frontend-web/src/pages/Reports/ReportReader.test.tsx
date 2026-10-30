@@ -401,3 +401,90 @@ it.each(['peers', 'post', 'outcome'])(
     else expect(readSharePending(key)).toEqual(failure === 'post' ? api.post.mock.calls[0][1] : saved);
   },
 );
+it.each([401, 403])('ignores a stale %i sharing rejection after a newer sharing success', async status => {
+  api.get.mockImplementation(async (url: string) => ({
+    data: url.endsWith('/shares') ? shares() : { ...read(), role: 'owner' },
+  }));
+  showReader();
+  fireEvent.click(await screen.findByRole('button', { name: '공유 관리', exact: true }));
+  await screen.findByText('동료 · 팀');
+  let rejectStale: (reason: unknown) => void = () => {
+    throw new Error('The stale sharing request has not started');
+  };
+  api.get.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejectStale = reject;
+      }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '공유 상태 다시 읽기' }));
+  fireEvent.click(screen.getByRole('button', { name: '공유 상태 다시 읽기' }));
+  await screen.findByText('동료 · 팀');
+  const reads = api.get.mock.calls.length;
+  await act(async () => rejectStale({ response: { status } }));
+  expect(screen.getByText('고정 매출 보고서')).toBeTruthy();
+  expect(screen.getByText('<script>명시한 본문</script>')).toBeTruthy();
+  expect(screen.getByText('동료 · 팀')).toBeTruthy();
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(api.get).toHaveBeenCalledTimes(reads);
+  expect(api.post).not.toHaveBeenCalled();
+});
+it('keeps a sharing network failure local after a confirmed POST and preserves its ticket', async () => {
+  let sharingOffline = false;
+  api.get.mockImplementation(async (url: string) => {
+    if (url.endsWith('/shares')) {
+      if (sharingOffline) throw new Error('offline');
+      return { data: shares() };
+    }
+    return { data: { ...read(), role: 'owner' } };
+  });
+  api.post.mockImplementation(async (_url: string, input: ShareCommand) => {
+    sharingOffline = true;
+    return { data: { receipt: receipt(input), replayed: false } };
+  });
+  showReader();
+  fireEvent.click(await screen.findByRole('button', { name: '공유 관리', exact: true }));
+  fireEvent.click(await screen.findByRole('button', { name: '회수', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: '확정', exact: true }));
+  await screen.findByRole('alert');
+  expect(screen.getByText('고정 매출 보고서')).toBeTruthy();
+  expect(screen.getByText('<script>명시한 본문</script>')).toBeTruthy();
+  expect(api.get.mock.calls.filter(([url]) => !url.endsWith('/shares'))).toHaveLength(1);
+  expect(readSharePending(sharePendingKey('A', 1, id))).toEqual(api.post.mock.calls[0][1]);
+  expect(api.post).toHaveBeenCalledTimes(1);
+});
+it.each([401, 403])('rechecks the report after a confirmed share is followed by a %i sharing read', async status => {
+  let sharingDenied = false;
+  let settleReader: () => void = () => {
+    throw new Error('The report authority recheck has not started');
+  };
+  api.get.mockImplementation(async (url: string) => {
+    if (url.endsWith('/shares')) {
+      if (sharingDenied) throw { response: { status } };
+      return { data: shares() };
+    }
+    if (sharingDenied)
+      return new Promise((resolve, reject) => {
+        settleReader = () =>
+          status === 401 ? reject({ response: { status } }) : resolve({ data: { ...read(), role: 'owner' } });
+      });
+    return { data: { ...read(), role: 'owner' } };
+  });
+  api.post.mockImplementation(async (_url: string, input: ShareCommand) => {
+    sharingDenied = true;
+    return { data: { receipt: receipt(input), replayed: false } };
+  });
+  showReader();
+  fireEvent.click(await screen.findByRole('button', { name: '공유 관리', exact: true }));
+  fireEvent.click(await screen.findByRole('button', { name: '회수', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: '확정', exact: true }));
+  await screen.findByRole('alert');
+  await waitFor(() => expect(screen.queryByText('고정 매출 보고서')).toBeNull());
+  expect(screen.queryByText('<script>명시한 본문</script>')).toBeNull();
+  expect(readSharePending(sharePendingKey('A', 1, id))).toEqual(api.post.mock.calls[0][1]);
+  expect(api.post).toHaveBeenCalledTimes(1);
+  await act(async () => settleReader());
+  if (status === 403) await screen.findByText('고정 매출 보고서');
+  else await waitFor(() => expect(screen.queryByText('고정 매출 보고서')).toBeNull());
+  expect(api.post).toHaveBeenCalledTimes(1);
+});

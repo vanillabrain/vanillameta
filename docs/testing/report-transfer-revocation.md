@@ -44,6 +44,6 @@ HTTP 전체 앱은 합성 사용자5명·보고서4개·활성 공유6건으로 
 
 대표 증빙은 `failed-and-cancelled.json`, `share-first.json`, `transfer-first.json`, 두 `*-return-replay.json`, `verification-result.json`, `mysql-selected.log`, `mysql-current-read.json`, `captures.json`이다. 화면 캡처는01 취소/실패 뒤 보존,02 이동 후 수신 거절,03 수신자 복귀 후 회수됨,04 소유자 복귀 후 모든 공유 회수됨이다.
 
-모든 역할별 경합 조합·신규 관계 생성 경합·동시 이동 두 건·부하 성능·운영 migration·실기기·전체 접근성은 검증하지 않았다. 기존 일반 공유와 응답 유실 시나리오 전체를 반복하지 않았다. 원 조직 밖의 보고서 read/관리403 경계는 그대로이며, 이동 완료 시 활성 관계를 미리 회수해 복귀 후 별도 수동 회수가 필요 없도록 바꿨다.
+이 문서의 최초 실행은 신규 관계 생성 경합까지 검증하지 않았다. [신규 공유 후속](report-new-sharing-transfer-race.md)은 별도 MySQL과 실제 UI POST로 소유자·수신자 각각 두 순서를 확인한다. 모든 역할별 경합 조합·동시 이동 두 건·부하 성능·운영 migration·실기기·전체 접근성은 별도다. 기존 일반 공유와 응답 유실 시나리오 전체를 반복하지 않았다. 원 조직 밖의 보고서 read/관리403 경계는 그대로이며, 이동 완료 시 활성 관계를 미리 회수해 복귀 후 별도 수동 회수가 필요 없도록 바꿨다.
 
 독립 읽기 전용 최종 검토는 APPROVE/blocker0이다. 댓글 검토는 MySQL 현재 읽기 근거가 있는 새 주석1개를 유지했고 억제 지시를 추가하지 않았다. 소유 CONTROL4484의 ready/failed=false/groups0/checkErrors=[] 확인 후 인증 stop200·supervisor exit0·cleanup 이벤트·전용 컨테이너 부재를 확인했다. 두 임시 인증정보와 빌드 복사본/실행 스크립트를 제거하고 Ego99를 종료했다. 보존 중인 구버전 실패 소유자에는 조작하지 않았다. `final-review.md`·`cleanup.json`에 확정 범위를 기록했다.

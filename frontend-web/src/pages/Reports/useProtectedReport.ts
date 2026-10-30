@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
-import { reportError } from './reportApi';
+import { isReportAccessError, reportError } from './reportApi';
 
 type ProtectedState<T> =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
   | { kind: 'ready'; data: T; generation: number; scope: string };
-export function useProtectedReport<T>(load: (signal: AbortSignal) => Promise<T>) {
+export function useProtectedReport<T>(load: (signal: AbortSignal) => Promise<T>, onAccessFailure?: () => void) {
   const boundary = useRef<HTMLDivElement>(null);
   const generation = useRef(0);
   const focused = useRef(true);
   const controller = useRef<AbortController | null>(null);
   const loader = useRef(load);
   loader.current = load;
+  const accessFailure = useRef(onAccessFailure);
+  accessFailure.current = onAccessFailure;
   const retained = useRef<{ data: T; scope: string } | null>(null);
   const [state, setState] = useState<ProtectedState<T>>({ kind: 'loading' });
   const current = useCallback(
@@ -53,6 +55,7 @@ export function useProtectedReport<T>(load: (signal: AbortSignal) => Promise<T>)
         if (!request.signal.aborted && current(stamp, scope)) {
           retained.current = null;
           setState({ kind: 'error', message: reportError(error, 'load') });
+          if (isReportAccessError(error)) accessFailure.current?.();
         }
       });
   }, [conceal, current]);

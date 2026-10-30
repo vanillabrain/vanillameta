@@ -34,7 +34,7 @@ export default function ReportShares({
       confirmed.current = null;
     }
     return result;
-  });
+  }, onAccessFailure);
   const { state, retained, boundary, reload } = protectedRead;
   const [notice, setNotice] = useState('');
   useEffect(() => {
