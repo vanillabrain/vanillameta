@@ -75,6 +75,11 @@ function DocumentsList({ scope }: { scope: string | null }) {
         </p>
       )}
       {state.kind === 'loading' && <p role="status">{t('docConnection.loading')}</p>}
+      <p className="text-sm">
+        <Link className="underline" to="/documents/sheets">
+          Sheets 가져오기
+        </Link>
+      </p>
       {state.kind === 'error' && (
         <>
           <p role="alert">{t('docConnection.loadError')}</p>

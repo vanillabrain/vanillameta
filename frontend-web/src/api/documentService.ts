@@ -126,6 +126,27 @@ export const documentService = {
       .object({ googleDocs: z.boolean(), microsoft: z.boolean(), sheets: z.boolean() })
       .parse((await get('/documents/integrations')).data);
   },
+  async sheetsAuthorization(verifier: string) {
+    return z
+      .object({ authorizationUrl: z.string().url(), state: z.string().min(16) })
+      .parse((await get('/documents/sheets/authorization', { verifier })).data);
+  },
+  async sheetsImport(input: {
+    code: string;
+    verifier: string;
+    spreadsheetId: string;
+    range: string;
+    name: string;
+  }) {
+    return z
+      .object({
+        databaseId: z.number().int().positive(),
+        name: z.string(),
+        columns: z.array(z.string()),
+        rowCount: z.number().int().nonnegative(),
+      })
+      .parse((await post('/documents/sheets/import', input, { timeout: 190000 })).data);
+  },
   async aiSummary(id: string, input: { confirmAiCost: true; version?: number }) {
     const result = z
       .object({

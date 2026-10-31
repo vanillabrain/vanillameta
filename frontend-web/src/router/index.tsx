@@ -15,6 +15,7 @@ const SharedFileArtifact = React.lazy(() => import('@/pages/Artifacts/SharedFile
 const Documents = React.lazy(() => import('@/pages/Documents'));
 const DocumentDetail = React.lazy(() => import('@/pages/Documents/DocumentDetail'));
 const GoogleDocumentCallback = React.lazy(() => import('@/pages/Documents/GoogleCallback'));
+const SheetsImport = React.lazy(() => import('@/pages/Documents/SheetsImport'));
 const DashboardView = React.lazy(() => import('@/pages/Dashboard/DashboardView'));
 const DashboardCreate = React.lazy(() => import('@/pages/Dashboard/DashboardCreate'));
 const Publication = React.lazy(() => import('@/pages/Publication'));
@@ -76,6 +77,7 @@ function Router() {
           <Route path="/artifacts/files/:id" element={<FileArtifactDetail />} />
           <Route path="/documents" element={<Documents />} />
           <Route path="/documents/google/callback" element={<GoogleDocumentCallback />} />
+          <Route path="/documents/sheets" element={<SheetsImport />} />
           <Route path="/documents/:id" element={<DocumentDetail />} />
           <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
           <Route path="/dashboard/:dashboardId/publication" element={<Publication />} />

@@ -9,10 +9,14 @@ import { GoogleDocsProvider } from './google-docs.provider';
 import { documentSummaryAiProvider } from './document-ai';
 import { MicrosoftDocsProvider } from './microsoft-docs.provider';
 import { GoogleSheetsProvider } from './google-sheets.provider';
+import { DatabaseModule } from '../database/database.module';
+import { SheetsController } from './sheets.controller';
+import { SheetsSourceService } from './sheets-source.service';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 @Module({
   imports: [
+    DatabaseModule,
     TypeOrmModule.forFeature([
       ...DOCUMENT_ENTITIES,
       User,
@@ -20,12 +24,13 @@ import { DocumentsService } from './documents.service';
       EnterpriseOrganization,
     ]),
   ],
-  controllers: [DocumentsController],
+  controllers: [DocumentsController, SheetsController],
   providers: [
     DocumentsService,
     GoogleDocsProvider,
     MicrosoftDocsProvider,
     GoogleSheetsProvider,
+    SheetsSourceService,
     JwtService,
     documentSummaryAiProvider,
   ],
