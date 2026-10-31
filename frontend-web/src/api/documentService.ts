@@ -8,14 +8,9 @@ const sourceUrl = z
   .url()
   .refine(value => {
     const url = new URL(value);
-    return (
-      url.protocol === 'https:' &&
-      url.hostname === 'docs.google.com' &&
-      !url.port &&
-      !url.username &&
-      !url.password &&
-      /^\/document\/d\/[a-zA-Z0-9_-]{10,200}(?:\/|$)/.test(url.pathname)
-    );
+    if (url.protocol !== 'https:' || url.username || url.password) return false;
+    if (url.hostname === 'docs.google.com') return /^\/document\/d\/[a-zA-Z0-9_-]{10,200}(?:\/|$)/.test(url.pathname);
+    return url.hostname === 'onedrive.live.com' || url.hostname.endsWith('.sharepoint.com');
   });
 const summarySchema = z.object({
   id: uuid,
@@ -131,13 +126,7 @@ export const documentService = {
       .object({ authorizationUrl: z.string().url(), state: z.string().min(16) })
       .parse((await get('/documents/sheets/authorization', { verifier })).data);
   },
-  async sheetsImport(input: {
-    code: string;
-    verifier: string;
-    spreadsheetId: string;
-    range: string;
-    name: string;
-  }) {
+  async sheetsImport(input: { code: string; verifier: string; spreadsheetId: string; range: string; name: string }) {
     return z
       .object({
         databaseId: z.number().int().positive(),
@@ -162,6 +151,11 @@ export const documentService = {
         markdown: z.string().max(2 * 1024 * 1024),
       })
       .parse((await post('/documents/microsoft/preview', input, { timeout: 190000 })).data);
+  },
+  async microsoftSave(input: { code: string; verifier: string; itemId: string }) {
+    return z
+      .object({ documentId: z.string().uuid(), version: z.number().int().positive(), title: z.string() })
+      .parse((await post('/documents/microsoft/save', input, { timeout: 190000 })).data);
   },
   async aiSummary(id: string, input: { confirmAiCost: true; version?: number }) {
     const result = z
