@@ -6,6 +6,7 @@ import { AddPrivateReports1793260000000 } from './migrations/1793260000000-add-p
 import { DocumentsModule } from './documents/documents.module';
 import { McpRemoteModule } from './mcp-oauth/mcp.controller';
 import { AddMcpOAuth1793233000000 } from './migrations/1793233000000-add-mcp-oauth';
+import { AddDocumentSummary1793520000000 } from './migrations/postgres/1793520000000-add-document-summary';
 import { AddDocumentConnections1793232000000 } from './migrations/1793232000000-add-document-connections';
 import { AddStaffDeparture1792620200000 } from './migrations/1792620200000-add-staff-departure';
 import { AddBundleHandover1792620100000 } from './migrations/1792620100000-add-bundle-handover';
@@ -151,7 +152,7 @@ import { PostgresBaseline1793500000000 } from './migrations/postgres/17935000000
       autoLoadEntities: true,
       migrations:
         metadataDatabaseType() === 'postgres'
-          ? [PostgresBaseline1793500000000]
+          ? [PostgresBaseline1793500000000, AddDocumentSummary1793520000000]
           : [
               AddFileArtifacts1793440000000,
               AddPrivateReports1793260000000,

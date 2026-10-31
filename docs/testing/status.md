@@ -1,5 +1,6 @@
 # 최신 요약
 
+- **2026-10-31 document_summary migration:** PostgreSQL migration `AddDocumentSummary1793520000000`을 추가해 기존 배포 DB에도 요약 테이블을 만들 수 있게 했다. 엔티티 컬럼·PK·text 계약과 기존 테이블 건너뛰기를 2 suites 3 PASS로 고정했고, 실제 PostgreSQL 적용·백업·롤백 리허설은 BLOCKED다. [검증 기록](external-integrations-contracts.md).
 - **2026-10-31 Google 문서 AI 요약:** `POST /v1/documents/:id/summary`가 `confirmAiCost: true` 없이는 모델 호출 0회로 거부하고, 요약을 `document_summary(documentId, version)`에 source sha와 함께 저장·재사용한다. 상세 화면에 비용 동의 체크박스와 결과 카드를 추가했다. backend 문서 51 PASS·frontend 44 PASS·tsc/lint PASS. 실제 모델·브라우저·운영 DB migration은 BLOCKED. [검증 기록](external-integrations-contracts.md).
 - **2026-10-31 외부 연동 계약:** Google 문서 요약의 비용 동의 게이트, Microsoft Graph 문서 provider, Google Sheets 값→CSV 변환을 주입 가능한 모듈로 구현하고 7개 모의 계약 테스트를 통과했다(eslint·tsc PASS). 라우트·버전별 저장·화면, 실제 OAuth 승인, Sheets의 DuckDB 소스 등록, Word 변환은 BLOCKED다. [검증 기록](external-integrations-contracts.md).
 - **2026-10-31 MCP 원격 제작:** 같은 6개 도구를 SDK Streamable HTTP로 `POST /mcp`에 제공하고, 요청의 Bearer 사용자 토큰을 매 호출마다 그대로 전달하며 저장은 `confirmSave: true` 없이는 API 호출 0회로 거부한다. HTTP 5 PASS를 포함해 mcp-server 전체 22 PASS. 실제 포트 바인딩과 Codex 호스트 여정은 샌드박스 listen EPERM으로 BLOCKED다. [검증 기록](mcp-remote-authoring.md).

@@ -46,3 +46,14 @@
 VERIFIED: backend 문서 3 suites 51 PASS, frontend Documents·documentService 44 PASS, 양쪽 tsc·eslint PASS.
 BLOCKED: 실제 모델 호출과 브라우저 390/768/1440, 운영 DB migration 적용.
 
+
+## 운영 migration: document_summary (2026-10-31 후속)
+
+- `1793520000000-add-document-summary.ts`를 `migrations/postgres/`에 추가했다. `document_summary`가 없을 때만 만들고, PK는 `(documentId, version)`, `summary`는 text다.
+- `app.module.ts`의 PostgreSQL migration 목록에 등록했고 `data-source.ts`의 타임스탬프 로더로도 자동 포함된다.
+- 계약 테스트는 엔티티와 같은 컬럼 순서·PK·text 타입을 확인하고, 이미 테이블이 있으면 아무것도 만들지 않는지 검사한다.
+- down은 백업 검토 없는 롤백을 막기 위해 예외를 던진다.
+
+VERIFIED: `document-summary-migration.spec.ts`와 메타데이터 스키마 계약 PASS(2 suites, 3 tests, 7 skipped는 기존 live-PG 전용).
+BLOCKED: 실제 PostgreSQL에 적용하는 실행과 백업·롤백 리허설.
+
