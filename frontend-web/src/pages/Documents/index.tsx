@@ -79,6 +79,10 @@ function DocumentsList({ scope }: { scope: string | null }) {
         <Link className="underline" to="/documents/sheets">
           Sheets 가져오기
         </Link>
+        {' · '}
+        <Link className="underline" to="/documents/microsoft">
+          Microsoft 문서 연결
+        </Link>
       </p>
       {state.kind === 'error' && (
         <>

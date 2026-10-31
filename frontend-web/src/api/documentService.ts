@@ -147,6 +147,22 @@ export const documentService = {
       })
       .parse((await post('/documents/sheets/import', input, { timeout: 190000 })).data);
   },
+  async microsoftAuthorization(verifier: string) {
+    return z
+      .object({ authorizationUrl: z.string().url(), state: z.string().min(16) })
+      .parse((await get('/documents/microsoft/authorization', { verifier })).data);
+  },
+  async microsoftPreview(input: { code: string; verifier: string; itemId: string }) {
+    return z
+      .object({
+        id: z.string(),
+        name: z.string(),
+        mimeType: z.string(),
+        lastModifiedAt: z.string().nullable(),
+        markdown: z.string().max(2 * 1024 * 1024),
+      })
+      .parse((await post('/documents/microsoft/preview', input, { timeout: 190000 })).data);
+  },
   async aiSummary(id: string, input: { confirmAiCost: true; version?: number }) {
     const result = z
       .object({

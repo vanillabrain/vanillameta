@@ -12,6 +12,8 @@ import { GoogleSheetsProvider } from './google-sheets.provider';
 import { DatabaseModule } from '../database/database.module';
 import { SheetsController } from './sheets.controller';
 import { SheetsSourceService } from './sheets-source.service';
+import { MicrosoftSourceService } from './microsoft-source.service';
+import { MicrosoftController } from './microsoft.controller';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 @Module({
@@ -24,13 +26,14 @@ import { DocumentsService } from './documents.service';
       EnterpriseOrganization,
     ]),
   ],
-  controllers: [DocumentsController, SheetsController],
+  controllers: [DocumentsController, SheetsController, MicrosoftController],
   providers: [
     DocumentsService,
     GoogleDocsProvider,
     MicrosoftDocsProvider,
     GoogleSheetsProvider,
     SheetsSourceService,
+    MicrosoftSourceService,
     JwtService,
     documentSummaryAiProvider,
   ],
