@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { documentActorSchema, DocumentsService } from './documents.service';
+import { MicrosoftDocsProvider } from './microsoft-docs.provider';
+import { GoogleSheetsProvider } from './google-sheets.provider';
 function actor(request: unknown) {
   if (!request || typeof request !== 'object' || !('user' in request))
     throw new BadRequestException();
@@ -24,9 +26,20 @@ function actor(request: unknown) {
 @Controller('documents')
 @UseGuards(JwtAuthGuard)
 export class DocumentsController {
-  constructor(private readonly service: DocumentsService) {}
+  constructor(
+    private readonly service: DocumentsService,
+    private readonly microsoft: MicrosoftDocsProvider,
+    private readonly sheets: GoogleSheetsProvider,
+  ) {}
   @Get() @Header('Cache-Control', 'no-store') list(@Req() req: unknown) {
     return this.service.list(actor(req));
+  }
+  @Get('integrations') @Header('Cache-Control', 'no-store') integrations() {
+    return {
+      googleDocs: this.service.googleConfigured(),
+      microsoft: this.microsoft.configured(),
+      sheets: this.sheets.configured(),
+    };
   }
   @Post('google/start') start(@Req() req: unknown, @Body() body: unknown) {
     return this.service.start(actor(req), body);

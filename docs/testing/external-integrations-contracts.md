@@ -66,3 +66,13 @@ BLOCKED: 실제 PostgreSQL에 적용하는 실행과 백업·롤백 리허설.
 
 VERIFIED: documents.service.spec.ts 26 PASS.
 
+
+## 연동 설정 상태 엔드포인트 (2026-10-31 후속)
+
+- `GET /v1/documents/integrations`가 `{ googleDocs, microsoft, sheets }`를 반환한다. 네트워크 호출 없이 각 provider의 `configured()`만 읽는다.
+- 인증은 기존 `JwtAuthGuard`를 그대로 쓰고, 응답은 `no-store`다.
+- 계약 테스트는 세 provider를 대역으로 주입해 true/false 매핑을 확인한다.
+
+VERIFIED: `documents.integrations.spec.ts` PASS, tsc PASS.
+BLOCKED: 이 값을 보여 줄 화면 배지와, 실제 OAuth 클라이언트 등록.
+

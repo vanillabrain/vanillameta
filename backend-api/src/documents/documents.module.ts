@@ -7,6 +7,8 @@ import { EnterpriseOrganization } from '../enterprise/entities/enterprise-organi
 import { DOCUMENT_ENTITIES } from './document.entity';
 import { GoogleDocsProvider } from './google-docs.provider';
 import { documentSummaryAiProvider } from './document-ai';
+import { MicrosoftDocsProvider } from './microsoft-docs.provider';
+import { GoogleSheetsProvider } from './google-sheets.provider';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 @Module({
@@ -19,7 +21,14 @@ import { DocumentsService } from './documents.service';
     ]),
   ],
   controllers: [DocumentsController],
-  providers: [DocumentsService, GoogleDocsProvider, JwtService, documentSummaryAiProvider],
+  providers: [
+    DocumentsService,
+    GoogleDocsProvider,
+    MicrosoftDocsProvider,
+    GoogleSheetsProvider,
+    JwtService,
+    documentSummaryAiProvider,
+  ],
   exports: [DocumentsService],
 })
 export class DocumentsModule {}

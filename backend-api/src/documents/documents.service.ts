@@ -127,6 +127,9 @@ export class DocumentsService {
     if (!document) throw new NotFoundException('Document not found.');
     return document;
   }
+  googleConfigured() {
+    return this.provider.configured();
+  }
   async list(actor: DocumentActor) {
     return this.transaction(actor, async (manager, organizationId) => ({
       configured: !!process.env.CONFIG_SECRET_KEY && this.provider.configured(),
