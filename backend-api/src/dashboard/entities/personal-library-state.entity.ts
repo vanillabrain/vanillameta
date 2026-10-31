@@ -8,5 +8,12 @@ export class PersonalLibraryState {
   @PrimaryColumn({ type: 'integer' }) dashboardId: number;
   @Column({ type: 'boolean', default: false }) archived: boolean;
   @Column({ type: 'integer' }) version: number;
-  @Column({ type: 'datetime' }) updatedAt: Date;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
+  updatedAt: Date;
 }

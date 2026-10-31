@@ -53,9 +53,14 @@ export class ReportSharingService {
     } catch (error) {
       if (
         error instanceof QueryFailedError &&
-        ['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT', 'SQLITE_BUSY'].includes(
-          error.driverError?.code,
-        )
+        [
+          'ER_LOCK_DEADLOCK',
+          'ER_LOCK_WAIT_TIMEOUT',
+          '40001',
+          '40P01',
+          '55P03',
+          'SQLITE_BUSY',
+        ].includes(error.driverError?.code)
       )
         throw new ConflictException(
           '동시 변경을 확인하지 못했습니다. 같은 요청으로 명시적으로 다시 확인해 주세요.',
@@ -66,7 +71,7 @@ export class ReportSharingService {
   private async head(manager: EntityManager, id: string, lock = false) {
     const head = await manager.findOne(PrivateReport, {
       where: { id },
-      ...(lock && ['mysql', 'mariadb'].includes(manager.connection.options.type)
+      ...(lock && manager.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });
@@ -189,7 +194,7 @@ export class ReportSharingService {
         .createQueryBuilder(PrivateReport, 'r')
         .where('r.id > :after', { after })
         .andWhere(
-          '(r.ownerId = :actor OR r.id IN (SELECT d.reportId FROM private_report_delivery d WHERE d.recipientId = :actor AND d.active = :active))',
+          '(r.ownerId = :actor OR r.id IN (SELECT d."reportId" FROM private_report_delivery d WHERE d."recipientId" = :actor AND d.active = :active))',
           { actor: actor.id, active: true },
         )
         .orderBy('r.id', 'ASC')

@@ -87,6 +87,9 @@ export class SourceLifecycleService {
             'ER_DUP_ENTRY',
             'ER_LOCK_DEADLOCK',
             'ER_LOCK_WAIT_TIMEOUT',
+            '40001',
+            '40P01',
+            '55P03',
           ].includes(error.driverError?.code)
         )
           throw new ConflictException(

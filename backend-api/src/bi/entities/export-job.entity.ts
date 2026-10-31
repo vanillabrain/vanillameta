@@ -23,9 +23,24 @@ export class ExportJob {
   @Column({ type: 'varchar', length: 16 }) status: ExportJobStatus;
   @Column({ type: 'integer' }) version: number;
   @Column({ type: 'varchar', length: 36, nullable: true }) attemptToken: string | null;
-  @Column({ type: 'datetime', nullable: true }) leaseUntil: Date | null;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
+  leaseUntil: Date | null;
   @CreateDateColumn() createdAt: Date;
-  @Column({ type: 'datetime' }) expiresAt: Date;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
+  expiresAt: Date;
   @Column({ type: 'varchar', length: 100, nullable: true }) filename: string | null;
   @Column({ type: 'varchar', length: 64, nullable: true }) hash: string | null;
   @Column({ type: 'varchar', length: 32, nullable: true }) errorCode: string | null;

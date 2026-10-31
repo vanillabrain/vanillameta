@@ -1,6 +1,7 @@
 import { Body, Controller, Get, NotFoundException, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AppService } from './app.service';
+import { metadataDatabaseType } from './common/metadata-database';
 
 /** Production is exactly NODE_ENV=prod; the boot guard refuses every other spelling of it. */
 const isProduction = () => process.env.NODE_ENV === 'prod';
@@ -107,7 +108,7 @@ export class AppController {
       status: 'ok',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
-      database: process.env.NODE_ENV === 'local' ? 'sqlite' : 'mysql',
+      database: metadataDatabaseType(),
       uptime: process.uptime(),
     };
   }

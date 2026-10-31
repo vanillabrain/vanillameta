@@ -422,7 +422,8 @@ export class SourceConditionsService {
       } catch (error) {
         if (
           error instanceof QueryFailedError &&
-          ((error.driverError as any)?.code === 'ER_DUP_ENTRY' ||
+          ((error.driverError as any)?.code === '23505' ||
+            (error.driverError as any)?.code === 'ER_DUP_ENTRY' ||
             ((error.driverError as any)?.code === 'SQLITE_CONSTRAINT' &&
               /UNIQUE constraint failed: source_condition_entry/.test(error.message)))
         )

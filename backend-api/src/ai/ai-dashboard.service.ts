@@ -2801,7 +2801,7 @@ export class AiDashboardService {
           where: { id: draft.databaseId },
           // MySQL RR needs a current read, retained through commit so a file
           // replacement cannot pass between this check and the metadata writes.
-          ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+          ...(manager.connection.options.type !== 'sqlite'
             ? { lock: { mode: 'pessimistic_write' as const } }
             : {}),
         });

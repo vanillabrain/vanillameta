@@ -343,7 +343,7 @@ export class ReportsService {
         } catch (error) {
           if (
             error instanceof QueryFailedError &&
-            ['ER_DUP_ENTRY', 'SQLITE_CONSTRAINT'].includes(error.driverError?.code)
+            ['23505', 'ER_DUP_ENTRY', 'SQLITE_CONSTRAINT'].includes(error.driverError?.code)
           )
             throw new ConflictException(
               '보고서 ID가 이미 사용 중입니다. 새 보고서에서 다시 시도해 주세요.',

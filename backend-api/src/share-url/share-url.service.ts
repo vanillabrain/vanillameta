@@ -60,7 +60,7 @@ export class ShareUrlService {
   ) {
     const findUser = await manager.findOne(User, {
       where: { userId },
-      ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+      ...(manager.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });
@@ -115,7 +115,7 @@ export class ShareUrlService {
   private async shareOff(userId: string, dashboardId: number, manager: EntityManager) {
     const findUser = await manager.findOne(User, {
       where: { userId },
-      ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+      ...(manager.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });

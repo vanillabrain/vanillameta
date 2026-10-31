@@ -44,6 +44,6 @@ export function currentGroupDeliveries(manager: EntityManager, actor: number) {
     )
     .where('gd.active = :gdActive AND gd.ownerId <> :gdActor')
     .andWhere(
-      '(SELECT COUNT(*) FROM user_mapping gdOwning WHERE gdOwning.dashboardId = gd.dashboardId) = 1',
+      '(SELECT COUNT(*) FROM "user_mapping" gdOwning WHERE gdOwning."dashboardId" = "gd"."dashboardId") = 1',
     );
 }

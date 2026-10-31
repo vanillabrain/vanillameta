@@ -11,13 +11,15 @@ VanillaMeta Backend API는 다양한 환경에서 쉽게 실행할 수 있도록
 프로덕션 환경을 위한 기본 설정입니다.
 
 **특징:**
-- MySQL 8.0 데이터베이스
+
+- PostgreSQL 17 메타데이터 데이터베이스
 - Redis 캐시 서버
 - 최적화된 Dockerfile 사용
 - 헬스체크 설정
 - 자동 재시작 설정
 
 **사용법:**
+
 ```bash
 # 서비스 시작
 docker-compose up -d
@@ -34,12 +36,14 @@ docker-compose down
 개발 환경을 위한 설정으로, 핫 리로딩과 디버깅을 지원합니다.
 
 **특징:**
+
 - 소스 코드 볼륨 마운트 (핫 리로딩)
 - 디버그 포트 (9229) 노출
-- MySQL 상세 로깅 활성화
+- PostgreSQL 쿼리 로깅 활성화
 - 개발용 환경 변수
 
 **사용법:**
+
 ```bash
 # 개발 환경 시작
 docker-compose -f docker-compose.dev.yml up -d
@@ -56,12 +60,14 @@ docker-compose -f docker-compose.dev.yml logs -f api
 SQLite를 사용하는 가벼운 로컬 개발 환경입니다.
 
 **특징:**
+
 - SQLite 데이터베이스 사용
 - Redis만 컨테이너로 실행
 - 최소한의 리소스 사용
 - 빠른 시작과 종료
 
 **사용법:**
+
 ```bash
 # 로컬 환경 시작
 docker-compose -f docker-compose.local.yml up -d
@@ -74,12 +80,14 @@ docker-compose -f docker-compose.local.yml up -d
 자동화된 테스트 실행을 위한 환경입니다.
 
 **특징:**
+
 - 격리된 테스트 데이터베이스
-- 메모리 기반 MySQL (tmpfs)
+- 메모리 기반 PostgreSQL 17 (tmpfs)
 - 테스트 커버리지 리포트 생성
 - 일회성 실행
 
 **사용법:**
+
 ```bash
 # 테스트 실행
 docker-compose -f docker-compose.test.yml up --abort-on-container-exit
@@ -93,13 +101,15 @@ docker-compose -f docker-compose.test.yml down -v
 여러 데이터베이스 타입을 동시에 테스트할 수 있는 환경입니다.
 
 **지원 데이터베이스:**
-- MySQL 8.0 (포트: 3306)
-- PostgreSQL 15 (포트: 5432)
+
+- MySQL 8.0 분석 소스 (포트: 3306)
+- PostgreSQL 17 분석 소스 겸 메타데이터 (포트: 5432)
 - MariaDB 11 (포트: 3308)
 - Oracle XE 21c (포트: 1521)
 - SQL Server 2022 (포트: 1433)
 
 **사용법:**
+
 ```bash
 # 다중 DB 환경 시작
 docker-compose -f docker-compose.multi-db.yml up -d
@@ -159,9 +169,8 @@ vim .env
 
 ```env
 # 데이터베이스 설정
-DB_TYPE=mysql
-DB_HOST=mysql
-DB_PORT=3306
+DB_HOST=postgres
+DB_PORT=5432
 DB_USERNAME=vanillameta
 DB_PASSWORD=your_password
 DB_NAME=vanillameta
@@ -186,18 +195,18 @@ CORS_ORIGIN=http://localhost:3001
 
 Docker Compose는 다음 볼륨을 사용하여 데이터를 영속화합니다:
 
-- `mysql_data`: MySQL 데이터베이스 파일
+- `postgres_data`: PostgreSQL 17 데이터베이스 파일
 - `redis_data`: Redis 영속성 파일
 - `sqlite_data`: SQLite 데이터베이스 파일
 
 ### 볼륨 백업
 
 ```bash
-# MySQL 데이터 백업
-docker-compose exec mysql mysqldump -u root -p vanillameta > backup.sql
+# PostgreSQL 데이터 백업
+docker-compose exec postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > backup.sql
 
 # 볼륨 직접 백업
-docker run --rm -v vanillameta_mysql_data:/data -v $(pwd):/backup alpine tar czf /backup/mysql_backup.tar.gz /data
+docker run --rm -v vanillameta_postgres_data:/data -v $(pwd):/backup alpine tar czf /backup/postgres_backup.tar.gz /data
 ```
 
 ## 문제 해결
@@ -208,17 +217,18 @@ docker run --rm -v vanillameta_mysql_data:/data -v $(pwd):/backup alpine tar czf
 
 ```bash
 # 사용 중인 포트 확인
-lsof -i :3306
+lsof -i :5432
 lsof -i :6379
 
 # docker-compose.yml에서 포트 변경
 ports:
-  - "3307:3306"  # 호스트 포트를 3307로 변경
+  - "5433:5432"  # 호스트 포트를 5433으로 변경
 ```
 
 ### 2. 메모리 부족
 
 Docker Desktop의 메모리 할당을 늘려주세요:
+
 - Docker Desktop → Settings → Resources → Memory: 4GB 이상 권장
 
 ### 3. 빌드 오류
@@ -238,7 +248,7 @@ docker system prune -a --volumes
 docker-compose ps
 
 # 데이터베이스 로그 확인
-docker-compose logs mysql
+docker-compose logs postgres
 
 # 네트워크 확인
 docker network ls

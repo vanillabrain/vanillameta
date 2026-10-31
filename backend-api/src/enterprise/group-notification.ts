@@ -88,7 +88,7 @@ export async function groupMembershipNotifications(
       active: true,
     })
     .andWhere(
-      '(SELECT COUNT(*) FROM user_mapping owning WHERE owning.dashboardId = gd.dashboardId) = 1',
+      '(SELECT COUNT(*) FROM "user_mapping" owning WHERE owning."dashboardId" = "gd"."dashboardId") = 1',
     )
     .getMany();
   for (const binding of bindings) {

@@ -1,13 +1,15 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { FileText, File, FileType2, Presentation, Sheet } from 'lucide-react';
 import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import BoardItem from '@/components/BoardItem';
 import { ReportLibraryItem } from '../Reports/reportSharingApi';
+import { DocumentSummary } from '@/api/documentService';
+import { FileArtifactSummary } from '@/api/fileArtifactService';
 import { TextField } from '@/components/ui/text-field';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
-import { FileText } from 'lucide-react';
 import { LibraryView } from '@/api/personalLibraryService';
 
 export type Artifact = {
@@ -22,11 +24,32 @@ const time = (value?: string) => {
   const result = value ? Date.parse(value) : NaN;
   return Number.isFinite(result) ? result : 0;
 };
+type Row =
+  | { kind: 'dashboard'; item: Artifact }
+  | { kind: 'report'; item: ReportLibraryItem }
+  | { kind: 'google'; item: DocumentSummary }
+  | { kind: 'file'; item: FileArtifactSummary };
+type Kind = 'all' | 'analysis' | 'dashboard' | 'report' | 'google' | 'file';
 
-/** UC049: discover only within the existing server-authorized list. */
+const iconFor = (row: Row) =>
+  row.kind === 'report'
+    ? FileText
+    : row.kind === 'google'
+    ? FileType2
+    : row.kind === 'file'
+    ? row.item.kind === 'html'
+      ? FileText
+      : row.item.kind === 'pdf'
+      ? File
+      : Presentation
+    : Sheet;
+
+/** UC049 and unified artifacts: search only the existing server-authorized source results. */
 export default function ArtifactLibrary({
   items,
   reports = [],
+  documents = [],
+  files = [],
   reportBoundary,
   reportsReady = true,
   onDelete,
@@ -35,6 +58,8 @@ export default function ArtifactLibrary({
   onReload,
   loading = false,
   listError = false,
+  supplementaryLoading = false,
+  supplementaryError = '',
   canArchive = false,
   onArchive,
   archiveDisabled = false,
@@ -43,6 +68,8 @@ export default function ArtifactLibrary({
 }: {
   items: Artifact[];
   reports?: ReportLibraryItem[];
+  documents?: DocumentSummary[];
+  files?: FileArtifactSummary[];
   reportBoundary?: React.RefObject<HTMLDivElement>;
   reportsReady?: boolean;
   onDelete: (id: any, title: any) => void;
@@ -51,6 +78,8 @@ export default function ArtifactLibrary({
   onReload?: () => void;
   loading?: boolean;
   listError?: boolean;
+  supplementaryLoading?: boolean;
+  supplementaryError?: string;
   canArchive?: boolean;
   onArchive?: (item: any) => void;
   archiveDisabled?: boolean;
@@ -64,54 +93,50 @@ export default function ArtifactLibrary({
   const searchRef = useRef<HTMLInputElement>(null);
   const query = (params.get('artifactQuery') ?? '').slice(0, 200);
   const kindParam = params.get('artifactKind');
-  const kind = kindParam === 'analysis' || kindParam === 'dashboard' || kindParam === 'report' ? kindParam : 'all';
+  const kinds: Kind[] = ['all', 'analysis', 'dashboard', 'report', 'google', 'file'];
+  const kind = kinds.includes(kindParam as Kind) ? (kindParam as Kind) : 'all';
   const sort = params.get('artifactSort') === 'title' ? 'title' : 'recent';
   const display = params.get('artifactDisplay') === 'grid' ? 'grid' : 'list';
   const update = (changes: Record<string, string>) => {
     setParams(
       current => {
         const next = new URLSearchParams(current);
-        for (const [key, value] of Object.entries(changes)) {
-          if (value) next.set(key, value);
-          else next.delete(key);
-        }
+        for (const [key, value] of Object.entries(changes)) value ? next.set(key, value) : next.delete(key);
         return next;
       },
       { replace: true },
     );
   };
-  type Row = { kind: 'dashboard'; item: Artifact } | { kind: 'report'; item: ReportLibraryItem };
   const rows: Row[] = [
     ...(!loading && !listError ? items.map(item => ({ kind: 'dashboard' as const, item })) : []),
     ...(view === 'active' ? reports.map(item => ({ kind: 'report' as const, item })) : []),
+    ...(view === 'active' ? documents.map(item => ({ kind: 'google' as const, item })) : []),
+    ...(view === 'active' ? files.map(item => ({ kind: 'file' as const, item })) : []),
   ];
   const results = useMemo(() => {
     const text = normalized(query);
     return rows
       .filter(row => normalized(row.item.title ?? '').includes(text))
-      .filter(
-        row =>
-          kind === 'all' ||
-          (row.kind === 'report'
-            ? kind === 'report'
-            : kind === 'analysis'
-            ? !!row.item.analysisDefinition
-            : kind === 'dashboard' && !row.item.analysisDefinition),
-      )
+      .filter(row => {
+        if (kind === 'all') return true;
+        if (row.kind === 'report' || row.kind === 'google' || row.kind === 'file') return kind === row.kind;
+        return kind === 'analysis' ? !!row.item.analysisDefinition : kind === 'dashboard' && !row.item.analysisDefinition;
+      })
       .sort((a, b) => {
         const byTitle =
           (a.item.title ?? '').localeCompare(b.item.title ?? '', 'ko') || String(a.item.id).localeCompare(String(b.item.id));
         return sort === 'title' ? byTitle : time(b.item.updatedAt) - time(a.item.updatedAt) || byTitle;
       });
-  }, [items, reports, loading, listError, view, query, kind, sort]);
+  }, [items, reports, documents, files, loading, listError, view, query, kind, sort]);
   const reset = () => {
     update({ artifactQuery: '', artifactKind: '', artifactSort: '' });
     searchRef.current?.focus();
   };
+  const boundary = reportBoundary;
   return (
     <section className="min-w-0 w-full" aria-labelledby="artifact-library-heading">
       <Link className="mb-4 inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium" to={reportHref}>
-        비공개 보고서
+        {t('artifact.privateReports')}
       </Link>
       <h2 id="artifact-library-heading" className="text-xl font-semibold tracking-tight">
         {t('artifact.heading')}
@@ -166,8 +191,9 @@ export default function ArtifactLibrary({
       </div>
       {onViewChange && <p className="mb-3 break-words text-sm text-muted-foreground">{t('artifact.archiveHelp')}</p>}
       {listError && <Notice severity="error">{t('artifact.loadFailed')}</Notice>}
+      {supplementaryError && <Notice severity="warning">{supplementaryError}</Notice>}
       {archiveError && <Notice severity="error">{archiveError}</Notice>}
-      {loading && (
+      {(loading || supplementaryLoading) && (
         <p role="status" className="text-sm">
           {t('artifact.loading')}
         </p>
@@ -196,7 +222,9 @@ export default function ArtifactLibrary({
           <option value="all">{t('artifact.all')}</option>
           <option value="analysis">{t('artifact.analysis')}</option>
           <option value="dashboard">{t('artifact.dashboard')}</option>
-          <option value="report">보고서</option>
+          <option value="report">{t('artifact.report')}</option>
+          <option value="google">{t('artifact.google')}</option>
+          <option value="file">{t('artifact.file')}</option>
         </TextField>
         <TextField
           select
@@ -221,7 +249,7 @@ export default function ArtifactLibrary({
         {t('artifact.count', { total: rows.length, shown: results.length })}
       </p>
       <div
-        ref={reportBoundary}
+        ref={boundary}
         hidden={!reportsReady}
         onClickCapture={event => {
           if (!reportsReady) {
@@ -236,59 +264,18 @@ export default function ArtifactLibrary({
             rows={results}
             display={display}
             t={t}
-            render={row =>
-              row.kind === 'report' ? (
-                <li
-                  key={'report-' + row.item.id}
-                  className={
-                    display === 'grid'
-                      ? 'flex min-w-0 flex-col items-start gap-4 rounded-xl border border-border bg-card p-6'
-                      : 'flex min-w-0 flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-5'
-                  }
-                >
-                  <Link
-                    className={`${
-                      display === 'grid' ? 'flex w-full flex-col gap-4' : 'min-w-[240px] flex-1'
-                    } min-w-0 break-words font-medium underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring`}
-                    aria-label={row.item.title}
-                    to={navigation.link(`/reports/${row.item.id}/read`)}
-                  >
-                    {display === 'grid' && (
-                      <span className="flex min-h-[190px] w-full flex-col justify-between rounded-lg bg-muted p-4">
-                        <span className="text-xs text-muted-foreground">고정 보고서 · 버전 {row.item.version}</span>
-                        <FileText aria-hidden="true" className="h-9 w-9 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">저장된 본문·KPI·차트</span>
-                      </span>
-                    )}
-                    <span className={display === 'grid' ? 'min-h-14 text-lg leading-relaxed [word-break:keep-all]' : ''}>
-                      {row.item.title}
-                    </span>
-                  </Link>
-                  <span className="text-sm text-muted-foreground">
-                    보고서 · {row.item.ownership === 'owned' ? '내 보고서' : '받은 보고서'} · 버전 {row.item.version}
-                  </span>
-                  <time className="text-xs text-muted-foreground">{new Date(row.item.updatedAt).toLocaleString()}</time>
-                </li>
-              ) : (
-                <BoardItem
-                  key={'dashboard-' + row.item.id}
-                  data={{ ...row.item, title: row.item.title ?? '', updatedAt: row.item.updatedAt ?? '' }}
-                  display={display}
-                  handleDeleteSelect={onDelete}
-                  studioHref={row.item.analysisDefinition ? `/dashboard/${row.item.id}/studio` : undefined}
-                  showStudioColumn
-                  archiveAction={
-                    canArchive && onArchive
-                      ? {
-                          label: t(row.item.library?.archived ? 'artifact.restore' : 'artifact.archive'),
-                          disabled: archiveDisabled || !row.item.library,
-                          onClick: () => onArchive(row.item),
-                        }
-                      : undefined
-                  }
-                />
-              )
-            }
+            render={row => (
+              <ArtifactRow
+                key={`${row.kind}-${row.item.id}`}
+                row={row}
+                display={display}
+                navigationLink={navigation.link}
+                onDelete={onDelete}
+                canArchive={canArchive}
+                onArchive={onArchive}
+                archiveDisabled={archiveDisabled}
+              />
+            )}
           />
         ) : (
           !loading &&
@@ -300,6 +287,107 @@ export default function ArtifactLibrary({
     </section>
   );
 }
+
+function ArtifactRow({
+  row,
+  display,
+  navigationLink,
+  onDelete,
+  canArchive,
+  onArchive,
+  archiveDisabled,
+}: {
+  row: Row;
+  display: 'list' | 'grid';
+  navigationLink: (target: string) => string;
+  onDelete: (id: any, title: any) => void;
+  canArchive: boolean;
+  onArchive?: (item: any) => void;
+  archiveDisabled: boolean;
+}) {
+  const { t } = useTranslation();
+  if (row.kind === 'dashboard')
+    return (
+      <BoardItem
+        data={{ ...row.item, title: row.item.title ?? '', updatedAt: row.item.updatedAt ?? '' }}
+        display={display}
+        handleDeleteSelect={onDelete}
+        studioHref={row.item.analysisDefinition ? `/dashboard/${row.item.id}/studio` : undefined}
+        showStudioColumn
+        archiveAction={
+          canArchive && onArchive
+            ? {
+                label: t(row.item.library?.archived ? 'artifact.restore' : 'artifact.archive'),
+                disabled: archiveDisabled || !row.item.library,
+                onClick: () => onArchive(row.item),
+              }
+            : undefined
+        }
+      />
+    );
+  const Icon = iconFor(row);
+  const kindLabel = t(`artifact.${row.kind}`);
+  const href =
+    row.kind === 'report'
+      ? `/reports/${row.item.id}/read`
+      : row.kind === 'google'
+      ? `/documents/${row.item.id}`
+      : `/artifacts/files/${row.item.id}`;
+  const file = row.kind === 'file' ? row.item : undefined;
+  const detail =
+    row.kind === 'report'
+      ? t('artifact.versions', { version: row.item.version })
+      : row.kind === 'google'
+      ? t('artifact.versions', { version: row.item.currentVersion })
+      : file
+      ? `${t(`artifact.${file.kind}`)} · ${t('artifact.versions', { version: file.headVersion })}`
+      : '';
+  const updatedAt = row.kind === 'google' ? row.item.updatedAt : row.item.updatedAt;
+  const ownership =
+    row.kind === 'report'
+      ? row.item.ownership === 'owned'
+        ? t('artifact.owned')
+        : t('artifact.received')
+      : row.kind === 'file'
+      ? t(file.shareActive ? 'artifact.shared' : 'artifact.private')
+      : '';
+  return (
+    <li
+      className={
+        display === 'grid'
+          ? 'flex min-w-0 flex-col items-start gap-4 rounded-xl border border-border bg-card p-6'
+          : 'flex min-w-0 flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-5'
+      }
+    >
+      <Link
+        className={`${
+          display === 'grid' ? 'flex w-full flex-col gap-4' : 'min-w-[240px] flex-1'
+        } min-w-0 break-words font-medium underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring`}
+        aria-label={row.item.title}
+        to={navigationLink(href)}
+      >
+        {display === 'grid' && (
+          <span className="flex min-h-[190px] w-full flex-col justify-between rounded-lg bg-muted p-4">
+            <span className="text-xs text-muted-foreground">
+              {kindLabel} · {detail}
+            </span>
+            <Icon aria-hidden="true" className="size-9 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">{ownership}</span>
+          </span>
+        )}
+        <span className={display === 'grid' ? 'min-h-14 text-lg leading-relaxed [word-break:keep-all]' : ''}>
+          {row.item.title}
+        </span>
+      </Link>
+      <span className="break-words text-sm text-muted-foreground">
+        {kindLabel} · {detail}
+        {ownership ? ` · ${ownership}` : ''}
+      </span>
+      <time className="text-xs text-muted-foreground">{new Date(updatedAt).toLocaleString()}</time>
+    </li>
+  );
+}
+
 function MixedRows<T>({
   rows,
   display,
@@ -317,12 +405,12 @@ function MixedRows<T>({
     <>
       <ul
         aria-label={t(display === 'grid' ? 'artifact.gridLabel' : 'artifact.listLabel')}
-        className={display === 'grid' ? 'mt-6 grid grid-cols-3 gap-6' : 'mt-6 grid gap-3'}
+        className={display === 'grid' ? 'mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3' : 'mt-6 grid gap-3'}
       >
         {rows.slice((page - 1) * 10, page * 10).map(render)}
       </ul>
       {count > 1 && (
-        <nav aria-label="산출물 페이지" className="mt-6 flex justify-center gap-2">
+        <nav aria-label={t('artifact.pagination')} className="mt-6 flex justify-center gap-2">
           {Array.from({ length: Math.min(count, 5) }, (_, i) => Math.max(1, Math.min(page - 2, count - 4)) + i).map(
             number => (
               <Button asChild className="h-10" key={number} variant={page === number ? 'default' : 'outline'}>

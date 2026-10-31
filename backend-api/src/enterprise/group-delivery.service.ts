@@ -89,9 +89,10 @@ export class EnterpriseGroupDeliveryService {
           throw new ConflictException('같은 요청 번호의 공유 내용이 다릅니다.');
         return { ...JSON.parse(receipt.response), replayed: true };
       }
-      const locking = ['mysql', 'mariadb'].includes(manager.connection.options.type)
-        ? { lock: { mode: 'pessimistic_write' as const } }
-        : {};
+      const locking =
+        manager.connection.options.type !== 'sqlite'
+          ? { lock: { mode: 'pessimistic_write' as const } }
+          : {};
       const group = await manager.findOne(EnterpriseGroup, {
         where: { id: input.groupId, organizationId: scope.organizationId },
         ...locking,

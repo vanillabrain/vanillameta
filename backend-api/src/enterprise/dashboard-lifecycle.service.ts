@@ -80,7 +80,7 @@ export class DashboardLifecycleService {
   private async scope(actor: number, epoch: number, manager: EntityManager, lock = false) {
     if (!positive(actor)) throw new ForbiddenException('활성 본인 계정이 필요합니다.');
     const locking =
-      lock && ['mysql', 'mariadb'].includes(this.db.options.type)
+      lock && this.db.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {};
     const user = await manager.findOne(User, {
@@ -266,7 +266,7 @@ export class DashboardLifecycleService {
       return this.receipt(receipt, false);
     };
     try {
-      return await (['mysql', 'mariadb'].includes(this.db.options.type)
+      return await (this.db.options.type !== 'sqlite'
         ? metadataTransaction(this.db, 'READ COMMITTED', run)
         : metadataTransaction(this.db, run));
     } catch (error) {
@@ -279,6 +279,9 @@ export class DashboardLifecycleService {
             'ER_DUP_ENTRY',
             'ER_LOCK_DEADLOCK',
             'ER_LOCK_WAIT_TIMEOUT',
+            '40001',
+            '40P01',
+            '55P03',
           ].includes(error.driverError?.code))
       )
         throw new ConflictException({

@@ -20,10 +20,24 @@ export class InviteCode {
   @Column({ type: 'integer', default: 0 })
   usedCount: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
   expiresAt: Date | null;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
   revokedAt: Date | null;
 
   @CreateDateColumn()

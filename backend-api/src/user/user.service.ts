@@ -35,7 +35,7 @@ export class UserService {
   private async lockedAccount(manager: EntityManager, userId: string, password: string) {
     const user = await manager.findOne(User, {
       where: { userId },
-      ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+      ...(manager.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });
@@ -59,6 +59,7 @@ export class UserService {
     } catch (error) {
       const code = error instanceof QueryFailedError && (error.driverError as any)?.code;
       if (
+        code === '23505' ||
         code === 'ER_DUP_ENTRY' ||
         (code === 'SQLITE_CONSTRAINT' && /UNIQUE/i.test((error as any).driverError.message))
       )
@@ -83,8 +84,12 @@ export class UserService {
         [
           'ER_ROW_IS_REFERENCED',
           'ER_ROW_IS_REFERENCED_2',
+          '23503',
           'ER_LOCK_DEADLOCK',
           'ER_LOCK_WAIT_TIMEOUT',
+          '40001',
+          '40P01',
+          '55P03',
         ].includes(code) ||
         (code === 'SQLITE_CONSTRAINT' && /FOREIGN KEY/i.test((error as any).driverError.message))
       )
@@ -123,7 +128,7 @@ export class UserService {
     return serializeMetadataWork(this.userMappingRepository.manager.connection, async () => {
       const findDashboard = await this.userMappingRepository
         .createQueryBuilder('user_mapping')
-        .select('dashboardId')
+        .select('user_mapping.dashboardId')
         .where('user_mapping.userInfoId = :userInfoId', { userInfoId: id })
         .getRawMany();
       return findDashboard;

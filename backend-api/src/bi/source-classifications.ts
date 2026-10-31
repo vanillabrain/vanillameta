@@ -30,7 +30,7 @@ export async function catalogActorContext(
     if (lock && !manager.queryRunner?.isTransactionActive)
       throw new Error('Catalog actor lock requires a transaction.');
     const locking =
-      lock && ['mysql', 'mariadb'].includes(manager.connection.options.type)
+      lock && manager.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {};
     const user = await manager.findOne(User, { where: { id: actorId }, ...locking });
@@ -133,7 +133,7 @@ async function readBindings(
     for (const ref of [...unique.values()].sort((a, b) => a.id - b.id)) {
       const row = await manager.findOne(EnterpriseClassification, {
         where: { id: ref.id, organizationId: context.organizationId },
-        ...(lock && ['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ...(lock && manager.connection.options.type !== 'sqlite'
           ? { lock: { mode: 'pessimistic_write' as const } }
           : {}),
       });

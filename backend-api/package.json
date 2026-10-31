@@ -48,6 +48,7 @@
     "access:cli": "node dist/src/access/access-cli.js",
     "migration:run:prod": "cross-env NODE_ENV=prod node dist/src/database/migrate-prod.js",
     "migration:revert": "node --require ./scripts/typescript-api-compat.cjs -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
+    "migration:mysql-to-postgres": "node scripts/migrate-mysql-to-postgres.cjs",
     "migration:generate": "node --require ./scripts/typescript-api-compat.cjs -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
     "test:legacy": "jest --config jest.config.js",
     "typecheck": "tsc --noEmit",
@@ -194,11 +195,7 @@
     "typescript-api": "npm:typescript@5.9.3"
   },
   "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
+    "moduleFileExtensions": ["js", "json", "ts"],
     "moduleNameMapper": {
       "^buffer-equal-constant-time$": "<rootDir>/test/shims/buffer-equal-constant-time.js",
       "^src/(.*)$": "<rootDir>/src/$1",
@@ -211,18 +208,11 @@
       "/node_modules/@nestjs/typeorm/.+\\.js$": "<rootDir>/test/typeorm-esm-transformer.cjs",
       "^.+\\.(t|j)s$": "<rootDir>/test/ts-jest-transformer.cjs"
     },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
+    "collectCoverageFrom": ["**/*.(t|j)s"],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
-    "testPathIgnorePatterns": [
-      "/node_modules/",
-      "<rootDir>/test/"
-    ],
-    "transformIgnorePatterns": [
-      "/node_modules/(?!@nestjs/typeorm/)"
-    ],
+    "testPathIgnorePatterns": ["/node_modules/", "<rootDir>/test/"],
+    "transformIgnorePatterns": ["/node_modules/(?!@nestjs/typeorm/)"],
     "globals": {
       "ts-jest": {
         "compiler": "typescript-api"

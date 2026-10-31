@@ -1,5 +1,6 @@
 import { DataSource, QueryRunner } from 'typeorm';
 import CreateInitialData from './seeds/create-initial-data';
+import { assertMetadataDatabaseVersion } from './assert-metadata-database';
 
 export type MigrateProdResult =
   | { mode: 'bootstrapped'; recordedMigrations: number }
@@ -19,7 +20,7 @@ export interface MigrateProdOptions {
  * A database that already has tables only receives pending migrations; it is never synchronized.
  *
  * Safety rules:
- * - Runs are serialised with a MySQL named lock, so two containers cannot both initialise.
+ * - Runs are serialised with a PostgreSQL advisory lock, so two containers cannot both initialise.
  * - Tables without a populated `migrations` table mean a half-built or foreign schema (a crash
  *   after synchronization, or DB_NAME pointing at another application). That is refused rather
  *   than migrated, because running every migration against a synchronized schema would fail or
@@ -29,10 +30,9 @@ export async function migrateProd(
   dataSource: DataSource,
   options: MigrateProdOptions = {},
 ): Promise<MigrateProdResult> {
+  await assertMetadataDatabaseVersion(dataSource);
   // The lock holds one pooled connection while synchronize() needs another.
-  const poolSize = Number(
-    (dataSource.options as { extra?: { connectionLimit?: number } }).extra?.connectionLimit ?? 10,
-  );
+  const poolSize = Number((dataSource.options as { extra?: { max?: number } }).extra?.max ?? 10);
   if (poolSize < 2) throw new Error('migrate-prod needs DB_CONNECTION_LIMIT of at least 2');
 
   const runner = dataSource.createQueryRunner();
@@ -40,17 +40,23 @@ export async function migrateProd(
   try {
     const schema = await currentSchema(dataSource, runner);
     lockName = `vanillameta_migrate_prod:${schema}`;
-    const [{ granted }] = await runner.query('SELECT GET_LOCK(?, ?) AS granted', [
-      lockName,
-      options.lockTimeoutSeconds ?? 60,
-    ]);
-    if (Number(granted) !== 1) {
+    const deadline = Date.now() + (options.lockTimeoutSeconds ?? 60) * 1000;
+    let granted = false;
+    do {
+      const rows = await runner.query(
+        'SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS granted',
+        [lockName],
+      );
+      granted = rows[0]?.granted === true;
+      if (!granted) await new Promise(resolve => setTimeout(resolve, 250));
+    } while (!granted && Date.now() < deadline);
+    if (!granted) {
       lockName = undefined;
       throw new Error(`Another migrate-prod run holds the lock for schema "${schema}"`);
     }
 
     const tables: Array<Record<string, string>> = await runner.query(
-      'SELECT table_name AS name FROM information_schema.tables WHERE table_schema = DATABASE()',
+      "SELECT table_name AS name FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'",
     );
     if (tables.length === 0) return await bootstrap(dataSource);
 
@@ -67,10 +73,12 @@ export async function migrateProd(
   } finally {
     let unlocked = true;
     if (lockName)
-      unlocked = await runner.query('SELECT RELEASE_LOCK(?)', [lockName]).then(
-        () => true,
-        () => false,
-      );
+      unlocked = await runner
+        .query('SELECT pg_advisory_unlock(hashtextextended($1, 0)) AS released', [lockName])
+        .then(
+          ([row]) => row.released === true,
+          () => false,
+        );
     // A connection that may still hold the lock is destroyed instead of returned to the pool.
     await runner.release().catch(() => undefined);
     if (!unlocked) await dataSource.destroy().catch(() => undefined);
@@ -79,11 +87,13 @@ export async function migrateProd(
 
 /** The schema the connection is really using; it must be the one configured for this data source. */
 async function currentSchema(dataSource: DataSource, runner: QueryRunner): Promise<string> {
-  const [{ schema }] = await runner.query('SELECT DATABASE() AS `schema`');
+  const [{ schema, database }] = await runner.query(
+    'SELECT current_schema() AS schema, current_database() AS database',
+  );
   if (!schema) throw new Error('The connection has no database selected');
   const configured = dataSource.options.database;
-  if (typeof configured === 'string' && configured !== schema)
-    throw new Error(`Connected to "${schema}" but "${configured}" is configured`);
+  if (typeof configured === 'string' && configured !== database)
+    throw new Error(`Connected to "${database}" but "${configured}" is configured`);
   return schema;
 }
 
@@ -100,7 +110,7 @@ async function bootstrap(dataSource: DataSource): Promise<MigrateProdResult> {
   await dataSource.synchronize();
   await new CreateInitialData().seedReferenceData(dataSource);
   // One transaction: a crash must not leave a partial history that the next run would mistake for
-  // an upgradable database (it only inserts rows, so this is safe on MySQL). TypeORM rejects this
+  // an upgradable database (it only inserts rows). TypeORM rejects this
   // mode for a migration that sets its own `transaction`; that would fail here, after
   // synchronize(), and the next run would refuse the schema. Do not give migrations that option.
   await dataSource.runMigrations({ fake: true, transaction: 'all' });

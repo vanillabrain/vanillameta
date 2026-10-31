@@ -175,3 +175,45 @@ it('restores display and filters from the URL and keeps unrelated parameters whe
   expect(params.get('aiSourceId')).toBe('32');
   expect(params.has('artifactQuery')).toBe(false);
 });
+
+it('merges Google documents and file artifacts into the same search, filters, and grid', () => {
+  const documents = [
+    {
+      id: '11111111-1111-4111-8111-111111111111',
+      title: 'Alpha Google notes',
+      sourceUrl: 'https://docs.google.com/document/d/abcdefghijklmnopqrstuvwxyz/edit',
+      currentVersion: 2,
+      connected: true,
+      updatedAt: '2026-10-04T00:00:00.000Z',
+    },
+  ];
+  const files = [
+    {
+      id: '22222222-2222-4222-8222-222222222222',
+      kind: 'pdf' as const,
+      title: 'Alpha contract',
+      headVersion: 3,
+      revision: 4,
+      size: 1024,
+      mimeType: 'application/pdf',
+      updatedAt: '2026-10-05T00:00:00.000Z',
+      shareActive: true,
+      safePreview: true,
+    },
+  ];
+  render(
+    <MemoryRouter initialEntries={['/dashboard?artifactQuery=alpha&artifactDisplay=grid']}>
+      <ArtifactLibrary items={items} documents={documents} files={files} onDelete={vi.fn()} />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole('link', { name: 'Alpha Google notes' }).getAttribute('href')).toMatch(
+    /^\/documents\/11111111-1111-4111-8111-111111111111/,
+  );
+  expect(screen.getByRole('link', { name: 'Alpha contract' }).getAttribute('href')).toMatch(
+    /^\/artifacts\/files\/22222222-2222-4222-8222-222222222222/,
+  );
+  fireEvent.change(screen.getByLabelText('산출물 유형'), { target: { value: 'file' } });
+  expect(screen.getByRole('link', { name: 'Alpha contract' })).toBeTruthy();
+  expect(screen.queryByRole('link', { name: 'Alpha Google notes' })).toBeNull();
+  expect(screen.getByRole('status').textContent).toBe('전체 5개 중 1개');
+});

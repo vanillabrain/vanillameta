@@ -118,14 +118,22 @@ export class BatchJob extends BaseEntity {
   errorMessage: string;
 
   @Column({
-    type: 'datetime',
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
     nullable: true,
     comment: '시작 시간',
   })
   startedAt: Date;
 
   @Column({
-    type: 'datetime',
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
     nullable: true,
     comment: '완료 시간',
   })

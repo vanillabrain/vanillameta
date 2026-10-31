@@ -19,23 +19,23 @@ async function testSlowQueryMonitoring() {
 
     // 1. 빠른 쿼리 테스트 (인덱스 사용)
     console.log('1️⃣ 빠른 쿼리 실행 (인덱스 사용)');
-    const fastQuery = `SELECT id, email FROM users WHERE id = 1`;
+    const fastQuery = `SELECT id, email FROM "user" WHERE id = 1`;
     const fastResult = await connection.query(fastQuery);
     console.log(`✅ 결과: ${fastResult.length}개 행 반환\n`);
 
-    // 2. 느린 쿼리 시뮬레이션 (SLEEP 사용 - MySQL만 가능)
-    console.log('2️⃣ 느린 쿼리 실행 (SLEEP 사용)');
+    // 2. 느린 쿼리 시뮬레이션
+    console.log('2️⃣ 느린 쿼리 실행 (pg_sleep 사용)');
     try {
-      const slowQuery = `SELECT id, email, SLEEP(2) as delay FROM users LIMIT 5`;
+      const slowQuery = `SELECT id, email, pg_sleep(2) AS delay FROM "user" LIMIT 5`;
       const slowResult = await connection.query(slowQuery);
       console.log(`✅ 결과: ${slowResult.length}개 행 반환 (2초 지연)\n`);
     } catch (error) {
-      console.log('⚠️  SLEEP 함수를 지원하지 않는 데이터베이스입니다.\n');
+      console.log('⚠️  PostgreSQL이 아니면 이 지연 쿼리를 실행하지 않습니다.\n');
     }
 
     // 3. 전체 테이블 스캔 쿼리
     console.log('3️⃣ 전체 테이블 스캔 쿼리');
-    const fullScanQuery = `SELECT * FROM users WHERE email LIKE '%test%'`;
+    const fullScanQuery = `SELECT * FROM "user" WHERE email LIKE '%test%'`;
     const fullScanResult = await connection.query(fullScanQuery);
     console.log(`✅ 결과: ${fullScanResult.length}개 행 반환\n`);
 
@@ -46,8 +46,8 @@ async function testSlowQueryMonitoring() {
         u.id,
         u.email,
         COUNT(d.id) as dashboard_count
-      FROM users u
-      LEFT JOIN dashboard d ON u.id = d.user_id
+      FROM "user" u
+      LEFT JOIN dashboard d ON u.id = d."userId"
       GROUP BY u.id, u.email
       ORDER BY dashboard_count DESC
       LIMIT 10
@@ -61,9 +61,9 @@ async function testSlowQueryMonitoring() {
       SELECT 
         id,
         email,
-        (SELECT COUNT(*) FROM dashboard WHERE user_id = users.id) as dashboard_count
-      FROM users
-      WHERE created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
+        (SELECT COUNT(*) FROM dashboard WHERE "userId" = "user".id) as dashboard_count
+      FROM "user"
+      WHERE "createdAt" > NOW() - INTERVAL '30 days'
     `;
     const subqueryResult = await connection.query(subqueryQuery);
     console.log(`✅ 결과: ${subqueryResult.length}개 행 반환\n`);
@@ -72,8 +72,8 @@ async function testSlowQueryMonitoring() {
     console.log('6️⃣ 대량 데이터 정렬 쿼리');
     const sortQuery = `
       SELECT *
-      FROM users
-      ORDER BY created_at DESC, email ASC
+      FROM "user"
+      ORDER BY "createdAt" DESC, email ASC
       LIMIT 100
     `;
     const sortResult = await connection.query(sortQuery);

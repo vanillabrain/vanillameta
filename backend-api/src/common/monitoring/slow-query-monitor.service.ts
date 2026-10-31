@@ -454,14 +454,27 @@ export class SlowQueryMonitorService {
    * 지난 24시간 트렌드 조회
    */
   private async getTrends24Hours(): Promise<any[]> {
+    const type = this.slowQueryLogRepository.manager?.connection?.options?.type || 'mysql';
+    const hour =
+      type === 'postgres'
+        ? "to_char(date_trunc('hour', sql.detectedAt), 'YYYY-MM-DD HH24:00:00')"
+        : type === 'sqlite'
+        ? "strftime('%Y-%m-%d %H:00:00', sql.detectedAt)"
+        : 'DATE_FORMAT(sql.detectedAt, "%Y-%m-%d %H:00:00")';
+    const since =
+      type === 'postgres'
+        ? "NOW() - INTERVAL '24 hours'"
+        : type === 'sqlite'
+        ? "datetime('now', '-24 hours')"
+        : 'DATE_SUB(NOW(), INTERVAL 24 HOUR)';
     const result = await this.slowQueryLogRepository
       .createQueryBuilder('sql')
       .select([
-        'DATE_FORMAT(sql.detectedAt, "%Y-%m-%d %H:00:00") as hour',
+        `${hour} as hour`,
         'COUNT(*) as count',
         'AVG(sql.executionTime) as avgExecutionTime',
       ])
-      .where('sql.detectedAt >= DATE_SUB(NOW(), INTERVAL 24 HOUR)')
+      .where(`sql.detectedAt >= ${since}`)
       .groupBy('hour')
       .orderBy('hour', 'ASC')
       .getRawMany();

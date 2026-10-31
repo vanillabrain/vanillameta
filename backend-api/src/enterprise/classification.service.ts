@@ -100,6 +100,9 @@ export class EnterpriseClassificationService {
             'ER_DUP_ENTRY',
             'ER_LOCK_DEADLOCK',
             'ER_LOCK_WAIT_TIMEOUT',
+            '40001',
+            '40P01',
+            '55P03',
           ].includes(error.driverError?.code))
       )
         throw new ConflictException(
@@ -210,7 +213,7 @@ export class EnterpriseClassificationService {
       this.admin(context);
       const row = await manager.findOne(EnterpriseClassification, {
         where: { id, organizationId: context.organizationId },
-        ...(['mysql', 'mariadb'].includes(this.db.options.type)
+        ...(this.db.options.type !== 'sqlite'
           ? { lock: { mode: 'pessimistic_write' as const } }
           : {}),
       });

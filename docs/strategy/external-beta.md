@@ -9,14 +9,14 @@
 
 ## 범위
 
-| 항목 | 베타 결정 |
-| --- | --- |
-| 인프라 | 단일 VM + Docker Compose, MySQL, 영속 볼륨, HTTPS 프록시. Lambda 경로는 폐기 |
-| LLM | AI SDK 제공자 레지스트리(Anthropic/OpenAI/호환). 로컬 Codex CLI는 개발 전용 |
-| 가입 | 초대 코드 또는 대기자 승인. 공개 가입은 닫는다 |
-| 데이터 | 업로드(CSV/JSON/Parquet)와 샘플만. 외부 DB 연결은 막는다(SSRF 방지) |
-| 표현력 | 선언형 스펙 확장. 임의 코드 실행(HTML/JS 샌드박스)은 포함하지 않는다 |
-| 공유 | Studio publication을 유일한 외부 경로로 한다 |
+| 항목   | 베타 결정                                                                            |
+| ------ | ------------------------------------------------------------------------------------ |
+| 인프라 | 단일 VM + Docker Compose, PostgreSQL 17, 영속 볼륨, HTTPS 프록시. Lambda 경로는 폐기 |
+| LLM    | AI SDK 제공자 레지스트리(Anthropic/OpenAI/호환). 로컬 Codex CLI는 개발 전용          |
+| 가입   | 초대 코드 또는 대기자 승인. 공개 가입은 닫는다                                       |
+| 데이터 | 업로드(CSV/JSON/Parquet)와 샘플만. 외부 DB 연결은 막는다(SSRF 방지)                  |
+| 표현력 | 선언형 스펙 확장. 임의 코드 실행(HTML/JS 샌드박스)은 포함하지 않는다                 |
+| 공유   | Studio publication을 유일한 외부 경로로 한다                                         |
 
 ## 출시 게이트
 

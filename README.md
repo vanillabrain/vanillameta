@@ -12,7 +12,7 @@ VanillaMeta is an open-source business intelligence web application for building
 | -------------- | --------------------------------------------------------- | ------------------------------- | ------------------------------- |
 | License        | **Apache-2.0**                                            | AGPL (OSS) / Commercial         | Apache-2.0                      |
 | Embedding      | Free, **no logo required**                                | Logo required (or paid license) | Complex guest tokens            |
-| Metadata store | **Built-in SQLite** — zero external deps                  | Requires Postgres/MySQL         | Requires Postgres/MySQL + Redis |
+| Metadata store | **PostgreSQL 17** in Docker; SQLite only for local tests  | Requires Postgres/MySQL         | Requires Postgres/MySQL + Redis |
 | File analysis  | **CSV / JSON / Parquet** upload + in-browser DuckDB       | CSV only, needs storage backend | CSV upload into DB              |
 | Stack          | Node.js — light                                           | JVM — heavy                     | Python — heavy                  |
 | AI assistant   | Text-to-SQL, chart recommendation (OpenAI-compatible API) | Paid tiers / Metabot            | Limited                         |
@@ -40,14 +40,14 @@ ID: guest
 PW: Admin!@12
 ```
 
-That's it — no external database, no env files. The backend runs on embedded SQLite, auto-seeds chart components, and creates a sample dashboard on first signup.
+That's it — Compose starts PostgreSQL 17, the backend creates the metadata schema, seeds chart components, and creates a sample dashboard on first signup. SQLite remains available through `npm run start:local` for fast local unit work.
 
 > Set your own secrets before exposing it beyond localhost: `ACCESS_SECRET`, `REFRESH_SECRET`, `JWT_ACCESS_SECRET`, `URL_ACCESS_SECRET`, `CONFIG_SECRET_KEY` (see `backend-api/.env.example`).
 
 ### Local development
 
 ```bash
-# Backend — http://localhost:4000 (SQLite, API prefix /v1)
+# Backend — http://localhost:4000 (SQLite only for local unit work, API prefix /v1)
 cd backend-api && npm run start:local
 
 # Frontend — http://localhost:3000

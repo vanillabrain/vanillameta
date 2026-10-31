@@ -156,27 +156,20 @@ export class QueryOptimizationReportController {
    */
   private async analyzeSystemQueries(): Promise<any[]> {
     const systemQueries = [
-      // Dashboard 관련 주요 쿼리
-      `SELECT d.*, ds.uuid FROM dashboard d 
-       LEFT JOIN dashboard_share ds ON d.share_id = ds.id 
-       WHERE d.id IN (1, 2, 3) 
-       ORDER BY d.updated_at DESC`,
-
-      // Widget 조회 쿼리
-      `SELECT w.*, c.type as component_type, c.icon, c.title as component_title 
-       FROM widget w 
-       INNER JOIN component c ON c.id = w.component_id 
-       ORDER BY w.updated_at DESC`,
-
-      // Dashboard-Widget 조인 쿼리
-      `SELECT dw.*, w.* FROM dashboard_widget dw 
-       INNER JOIN widget w ON w.id = dw.widget_id 
-       WHERE dw.dashboard_id = 1`,
-
-      // User mapping 쿼리
-      `SELECT um.*, u.* FROM user_mapping um 
-       INNER JOIN user u ON u.id = um.user_info_id 
-       WHERE um.dashboard_id IN (1, 2, 3)`,
+      `SELECT d.*, ds.uuid FROM dashboard d
+       LEFT JOIN dashboard_share ds ON d."shareId" = ds.id
+       WHERE d.id IN (1, 2, 3)
+       ORDER BY d."updatedAt" DESC`,
+      `SELECT w.*, c.type as component_type, c.icon, c.title as component_title
+       FROM widget w
+       INNER JOIN component c ON c.id = w."componentId"
+       ORDER BY w."updatedAt" DESC`,
+      `SELECT dw.*, w.* FROM dashboard_widget dw
+       INNER JOIN widget w ON w.id = dw."widgetId"
+       WHERE dw."dashboardId" = 1`,
+      `SELECT um.*, u.* FROM "user_mapping" um
+       INNER JOIN "user" u ON u.id = um."userInfoId"
+       WHERE um."dashboardId" IN (1, 2, 3)`,
     ];
 
     const analyses = [];

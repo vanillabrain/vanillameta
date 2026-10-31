@@ -46,8 +46,8 @@
 
 ```sh
 node --test scripts/test/qa-child-drain.test.cjs
-node scripts/qa-enterprise-mysql.cjs --probe-child-drain
-QA_API_PORT=4251 QA_WEB_PORT=3251 QA_CONTROL_PORT=4451 node scripts/qa-enterprise-mysql.cjs
+node scripts/qa-enterprise-postgres.cjs --probe-child-drain
+QA_API_PORT=4251 QA_WEB_PORT=3251 QA_CONTROL_PORT=4451 node scripts/qa-enterprise-postgres.cjs
 ```
 
 새 런타임의 private runtime.json에서 자신의 control URL/token을 사용한다. token/config 내용은 문서·로그·명령 인자로 출력하지 않는다. 해당 실행의 인증된 restart/stop 이후 cleanup 이벤트와 컨테이너·파일 부재를 대조한다. 이미 실행 중인 프로세스의 코드가 자동 갱신된다고 가정하지 않는다.

@@ -140,7 +140,14 @@ export class EventsService {
       // 평균 세션 시간
       this.eventSessionRepository
         .createQueryBuilder('session')
-        .select('AVG(TIMESTAMPDIFF(SECOND, session.startTime, session.lastActivityTime))', 'avg')
+        .select(
+          this.eventSessionRepository.manager?.connection?.options?.type === 'postgres'
+            ? 'AVG(EXTRACT(EPOCH FROM (session.lastActivityTime - session.startTime)))'
+            : this.eventSessionRepository.manager?.connection?.options?.type === 'sqlite'
+            ? 'AVG((julianday(session.lastActivityTime) - julianday(session.startTime)) * 86400)'
+            : 'AVG(TIMESTAMPDIFF(SECOND, session.startTime, session.lastActivityTime))',
+          'avg',
+        )
         .where('session.startTime BETWEEN :start AND :end', dateRange)
         .andWhere(userId ? 'session.userId = :userId' : '1=1', { userId })
         .getRawOne()

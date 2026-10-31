@@ -454,7 +454,7 @@ export class McpOAuthService {
   private async checkedGrant(manager: EntityManager, id: string, config: McpConfig, lock = false) {
     const grant = await manager.findOne(McpOAuthGrant, {
       where: { id },
-      ...(lock && ['mysql', 'mariadb'].includes(this.db.options.type)
+      ...(lock && this.db.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });
@@ -610,7 +610,7 @@ export class McpOAuthService {
       const { organization } = await this.actorContext(manager, actor);
       const grant = await manager.findOne(McpOAuthGrant, {
         where: { id },
-        ...(['mysql', 'mariadb'].includes(this.db.options.type)
+        ...(this.db.options.type !== 'sqlite'
           ? { lock: { mode: 'pessimistic_write' as const } }
           : {}),
       });
@@ -642,7 +642,7 @@ export class McpOAuthService {
       // Revocation remains possible after an epoch change or account deactivation.
       await manager.findOne(User, {
         where: { id: grant.actorId },
-        ...(['mysql', 'mariadb'].includes(this.db.options.type)
+        ...(this.db.options.type !== 'sqlite'
           ? { lock: { mode: 'pessimistic_write' as const } }
           : {}),
       });

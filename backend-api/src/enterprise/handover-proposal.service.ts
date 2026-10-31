@@ -70,7 +70,7 @@ export class HandoverProposalService {
     return value;
   }
   private lock(manager: EntityManager) {
-    return ['mysql', 'mariadb'].includes(manager.connection.options.type)
+    return manager.connection.options.type !== 'sqlite'
       ? { lock: { mode: 'pessimistic_write' as const } }
       : {};
   }
@@ -119,9 +119,10 @@ export class HandoverProposalService {
         const scope = await this.context(manager, actor, epoch, proposalId);
         return { scope, value: await run(manager, scope) };
       };
-      const result = ['mysql', 'mariadb'].includes(this.db.options.type)
-        ? await this.db.transaction('REPEATABLE READ', snapshot)
-        : await this.db.transaction(snapshot);
+      const result =
+        this.db.options.type !== 'sqlite'
+          ? await this.db.transaction('REPEATABLE READ', snapshot)
+          : await this.db.transaction(snapshot);
       const fresh = await this.context(this.db.manager, actor, epoch, proposalId);
       if (Number(fresh.organizationId) !== Number(result.scope.organizationId))
         throw new ForbiddenException('현재 조직이 변경됐습니다.');
@@ -239,7 +240,7 @@ export class HandoverProposalService {
   }
   private async write<T>(run: (manager: EntityManager) => Promise<T>): Promise<T> {
     try {
-      return await (['mysql', 'mariadb'].includes(this.db.options.type)
+      return await (this.db.options.type !== 'sqlite'
         ? metadataTransaction(this.db, 'READ COMMITTED', run)
         : metadataTransaction(this.db, run));
     } catch (error) {
@@ -252,6 +253,9 @@ export class HandoverProposalService {
             'ER_DUP_ENTRY',
             'ER_LOCK_DEADLOCK',
             'ER_LOCK_WAIT_TIMEOUT',
+            '40001',
+            '40P01',
+            '55P03',
           ].includes(error.driverError?.code))
       )
         throw new ConflictException(

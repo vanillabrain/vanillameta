@@ -18,9 +18,32 @@ export class EnterpriseSourceHandover {
     | 'accepted'
     | 'completed'
     | 'cancelled';
-  @Column({ type: 'datetime' }) expiresAt: Date;
-  @Column({ type: 'datetime', nullable: true }) acceptedAt: Date | null;
-  @Column({ type: 'datetime', nullable: true }) completedAt: Date | null;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
+  expiresAt: Date;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
+  acceptedAt: Date | null;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
+  completedAt: Date | null;
   @Column({ type: 'integer' }) preparedAuditId: number;
   @Column({ type: 'integer', nullable: true }) acceptedAuditId: number | null;
   @Column({ type: 'integer', nullable: true }) completedAuditId: number | null;

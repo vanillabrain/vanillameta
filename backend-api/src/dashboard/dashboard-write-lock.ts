@@ -13,7 +13,7 @@ export async function lockDashboardWrite(
   if (!Number.isSafeInteger(id) || id <= 0) throw new ForbiddenException('Dashboard unavailable.');
   const row = await manager.findOne(Dashboard, {
     where: { id },
-    ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+    ...(manager.connection.options.type !== 'sqlite'
       ? { lock: { mode: 'pessimistic_write' as const } }
       : {}),
   });

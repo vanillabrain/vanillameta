@@ -2,6 +2,8 @@
 
 ## 세션 시작 핵심 지침
 
+- **PostgreSQL 17 메타데이터(2026-10-31, 최우선):** `NODE_ENV=local`의 SQLite 단위 테스트를 제외하면 메타데이터 DB는 PostgreSQL 17이다. [전환 계획](docs/plans/postgres-metadata-cutover.md)에 따라 PostgreSQL 전용 migration은 `backend-api/src/migrations/postgres/`만 사용하고 `PostgresBaseline1793500000000`을 기록한다. [실제 런타임 검증](docs/testing/postgres-metadata.md)은 PG 17.11 bootstrap·재실행 멱등성·Nest/Artifact 여정·`pg_dump` 복원·MySQL 이관을 확인했다. production bootstrap은 `data-source.ts`의 entity 목록에서 스키마를 동기화하므로 `mcp-oauth.entities.ts`처럼 `*.entity` glob에 걸리지 않는 entity 파일을 새로 만들면 이 목록에 명시해야 한다. 원시 SQL의 camelCase 식별자는 PostgreSQL에서 소문자로 folding되므로 반드시 인용한다. 기존 `*mysql*.spec.ts`와 `docs/testing/*mysql*`의 MySQL 결과는 역사 증빙이며 PostgreSQL 수용 증거가 아니다. 메타데이터 잠금·오류·모니터링을 수정할 때 SQLite 분기만 보고 끝내지 말고 PostgreSQL `FOR UPDATE`, SQLSTATE, `timezone`/timestamp, `bigint` hydration을 함께 검증한다. 고객 데이터 소스의 MySQL 지원은 별개다.
+
 - **외부 초대 베타(2026-10-23, 최우선):** [전략](docs/strategy/external-beta.md)·[계획](docs/plans/external-beta-launch.md)이 아래의 "사내 Artifact 우선"·"고객 파일럿" 우선순위를 대체한다. 단일 VM+Docker Compose, AI SDK 제공자 레지스트리, 초대 가입·쿼터, 선언형 스펙 확장이 범위이며 Lambda(`serverless.yml`) 경로는 폐기 대상이다. 일부 상태가 프로세스 메모리에 있어 단일 인스턴스만 지원한다. 운영 부팅은 `production-guard`가 위험한 설정을 거부한다.
 
 - **검증 런타임 종료:** [원인·검증](docs/testing/qa-runtime-cleanup.md)·[계획](docs/plans/TC-050-runtime-cleanup.md)을 따른다. 그룹 조회 EPERM은 소멸이 아니며 그룹 유지/재조회와 IPC fatal을 구분한다. 그룹0·전송완료·현재 drain 증명 후만 정리한다. 별도 QA_API/WEB/CONTROL_PORT는 별도 runtime 포인터를 사용한다. 수정본의 MySQL restart/stop·정리 성공과 구버전 supervisor11506의 미복구/보존을 구분하며 임의 PID 종료·prune·실패 플래그 초기화로 우회하지 않는다.

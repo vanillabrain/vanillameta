@@ -1,11 +1,15 @@
 services:
   # ── 기본 스택: docker compose up ────────────────────────────────
-  # 외부 DB 없이 SQLite로 동작하는 올인원 데모. 시드 + 샘플 대시보드 자동 준비.
+  # PostgreSQL 17 메타데이터와 샘플 대시보드를 함께 준비한다.
   backend:
     build: ./backend-api
     environment:
-      NODE_ENV: local
-      SQLITE_PATH: /data/sqlite.db
+      NODE_ENV: dev
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-vanillameta}
+      DB_PASSWORD: ${DB_PASSWORD:-vanillameta}
+      DB_NAME: ${DB_NAME:-vanillameta}
       FILE_UPLOAD_DIR: /data/uploads
       # 데모용 기본값 — 프로덕션에서는 반드시 환경변수로 재정의할 것
       ACCESS_SECRET: ${ACCESS_SECRET:-dev-only-access-secret}
@@ -21,6 +25,9 @@ services:
       - "4000:4000"
     volumes:
       - vanillameta-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     build:
@@ -32,32 +39,19 @@ services:
     depends_on:
       - backend
 
-  # ── 선택: 외부 MySQL 메타데이터 DB ─────────────────────────────
-  # docker compose --profile mysql up mysql  (앱은 로컬에서 띄우거나 backend-mysql 프로파일 사용)
-  mysql:
-    profiles: ["mysql"]
-    image: mysql:8.0
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+  postgres:
+    image: postgres:17-alpine
     environment:
-      MYSQL_DATABASE: vanillameta
-      MYSQL_USER: vanillameta
-      MYSQL_PASSWORD: vanillameta
-      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      POSTGRES_DB: vanillameta
+      POSTGRES_USER: vanillameta
+      POSTGRES_PASSWORD: vanillameta
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test:
-        [
-          "CMD",
-          "mysqladmin",
-          "ping",
-          "-h",
-          "localhost",
-          "-uvanillameta",
-          "-pvanillameta",
-        ]
+        ["CMD-SHELL", "pg_isready -U vanillameta -d vanillameta -h 127.0.0.1"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -71,4 +65,4 @@ services:
 
 volumes:
   vanillameta-data:
-  mysql-data:
+  postgres-data:

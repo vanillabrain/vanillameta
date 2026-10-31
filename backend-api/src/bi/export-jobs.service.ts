@@ -74,7 +74,7 @@ export class ExportJobsService {
   ) {}
   private async tx<T>(run: (m: EntityManager) => Promise<T>) {
     try {
-      return await (['mysql', 'mariadb'].includes(this.db.options.type)
+      return await (this.db.options.type !== 'sqlite'
         ? metadataTransaction(this.db, 'READ COMMITTED', run)
         : metadataTransaction(this.db, run));
     } catch (error) {
@@ -87,6 +87,9 @@ export class ExportJobsService {
             'ER_DUP_ENTRY',
             'ER_LOCK_DEADLOCK',
             'ER_LOCK_WAIT_TIMEOUT',
+            '40001',
+            '40P01',
+            '55P03',
           ].includes(error.driverError?.code))
       )
         throw new ConflictException('파일 작업 저장이 경합 중입니다. 같은 요청으로 확인해 주세요.');
@@ -100,7 +103,7 @@ export class ExportJobsService {
   private async scope(actor: number, m: EntityManager, lock = false, expectedEpoch?: number) {
     this.id(actor);
     const locking =
-      lock && ['mysql', 'mariadb'].includes(m.connection.options.type)
+      lock && m.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {};
     const user = await m.findOne(User, {
@@ -240,7 +243,7 @@ export class ExportJobsService {
     const scope = await this.scope(actor, m, lock, expectedEpoch);
     const job = await m.findOne(ExportJob, {
       where: { id: this.id(id), ownerId: actor, organizationId: scope.org },
-      ...(lock && ['mysql', 'mariadb'].includes(m.connection.options.type)
+      ...(lock && m.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });

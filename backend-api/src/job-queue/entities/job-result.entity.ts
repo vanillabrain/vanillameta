@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { QueueJob } from './queue-job.entity';
+import { numberFromBigInt } from '../../common/database-transformers';
 
 export enum ResultType {
   QUERY_RESULT = 'query_result',
@@ -45,13 +46,20 @@ export class JobResult {
   @Column({ type: 'varchar', length: 255, nullable: true })
   fileName: string;
 
-  @Column({ type: 'bigint', nullable: true })
+  @Column({ type: 'bigint', nullable: true, transformer: numberFromBigInt })
   fileSizeBytes: number;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   mimeType: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
   expiresAt: Date;
 
   @Column({ type: 'boolean', default: false })

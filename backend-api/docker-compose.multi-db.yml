@@ -9,7 +9,7 @@ services:
     image: redis:7-alpine
     container_name: vanillameta_redis_multi
     ports:
-      - "6379:6379"
+      - '6379:6379'
     networks:
       - vanillameta_multi
     restart: unless-stopped
@@ -19,7 +19,7 @@ services:
     image: mysql:8.0
     container_name: vanillameta_mysql_multi
     ports:
-      - "3306:3306"
+      - '3306:3306'
     networks:
       - vanillameta_multi
     environment:
@@ -33,7 +33,7 @@ services:
       --collation-server=utf8mb4_unicode_ci
       --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,10 +41,10 @@ services:
 
   # PostgreSQL
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: vanillameta_postgres_multi
     ports:
-      - "5432:5432"
+      - '5432:5432'
     networks:
       - vanillameta_multi
     environment:
@@ -53,7 +53,7 @@ services:
       POSTGRES_PASSWORD: pg_pass
       TZ: Asia/Seoul
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pg_user"]
+      test: ['CMD-SHELL', 'pg_isready -U pg_user']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -64,7 +64,7 @@ services:
     image: mariadb:11
     container_name: vanillameta_mariadb_multi
     ports:
-      - "3308:3306"
+      - '3308:3306'
     networks:
       - vanillameta_multi
     environment:
@@ -74,7 +74,7 @@ services:
       MYSQL_PASSWORD: maria_pass
       TZ: Asia/Seoul
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      test: ['CMD', 'mariadb-admin', 'ping', '-h', 'localhost']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -85,7 +85,7 @@ services:
     image: gvenzl/oracle-xe:21-slim
     container_name: vanillameta_oracle_multi
     ports:
-      - "1521:1521"
+      - '1521:1521'
     networks:
       - vanillameta_multi
     environment:
@@ -94,7 +94,7 @@ services:
       APP_USER_PASSWORD: oracle_pass
       TZ: Asia/Seoul
     healthcheck:
-      test: ["CMD", "healthcheck.sh"]
+      test: ['CMD', 'healthcheck.sh']
       interval: 30s
       timeout: 10s
       retries: 10
@@ -105,16 +105,28 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: vanillameta_sqlserver_multi
     ports:
-      - "1433:1433"
+      - '1433:1433'
     networks:
       - vanillameta_multi
     environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "SqlServer123!"
-      MSSQL_PID: "Express"
+      ACCEPT_EULA: 'Y'
+      MSSQL_SA_PASSWORD: 'SqlServer123!'
+      MSSQL_PID: 'Express'
       TZ: Asia/Seoul
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "SqlServer123!", "-Q", "SELECT 1"]
+      test:
+        [
+          'CMD',
+          '/opt/mssql-tools/bin/sqlcmd',
+          '-S',
+          'localhost',
+          '-U',
+          'sa',
+          '-P',
+          'SqlServer123!',
+          '-Q',
+          'SELECT 1',
+        ]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -127,7 +139,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: vanillameta_api_multi
     ports:
-      - "3000:3000"
+      - '3000:3000'
     networks:
       - vanillameta_multi
     depends_on:
@@ -139,13 +151,13 @@ services:
       NODE_ENV: development
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      # 기본 DB는 MySQL로 설정
-      DB_TYPE: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USERNAME: mysql_user
-      DB_PASSWORD: mysql_pass
-      DB_NAME: vanillameta_mysql
+      # 메타데이터 DB는 PostgreSQL
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: pg_user
+      DB_PASSWORD: pg_pass
+      DB_NAME: vanillameta_pg
       # 보안 키
       ACCESS_SECRET: multi_access_secret
       REFRESH_SECRET: multi_refresh_secret

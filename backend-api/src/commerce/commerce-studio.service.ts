@@ -28,7 +28,7 @@ export class CommerceStudioService {
       throw new BadRequestException('프로젝트를 확인해 주세요.');
     const source = await manager.findOne(CommerceSource, {
       where: { id },
-      ...(lock && this.db.options.type === 'mysql'
+      ...(lock && this.db.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });

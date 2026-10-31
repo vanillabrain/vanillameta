@@ -63,7 +63,13 @@ export class AnalyticsEvent {
   @Column({ type: 'text', nullable: true })
   referrer?: string;
 
-  @CreateDateColumn({ type: 'datetime' })
+  @CreateDateColumn({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
   createdAt: Date;
 
   @ManyToOne(() => EventSession, session => session.events)

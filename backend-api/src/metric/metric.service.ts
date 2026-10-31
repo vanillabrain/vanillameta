@@ -47,7 +47,7 @@ export class MetricService {
   private async currentActor(manager: EntityManager, actor: number, epoch: number) {
     const user = await manager.findOne(User, {
       where: { id: actor },
-      ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+      ...(manager.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });

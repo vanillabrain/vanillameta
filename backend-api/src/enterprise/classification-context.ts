@@ -27,7 +27,7 @@ export function classificationContext(
     if (!Number.isSafeInteger(actor?.id) || actor.id <= 0)
       throw new ForbiddenException('활성 본인 계정이 필요합니다.');
     const locking =
-      lock && ['mysql', 'mariadb'].includes(manager.connection.options.type)
+      lock && manager.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {};
     const user = await manager.findOne(User, {

@@ -58,7 +58,7 @@ export class StaffDepartureService {
     return body;
   }
   private lock(manager: EntityManager) {
-    return ['mysql', 'mariadb'].includes(manager.connection.options.type)
+    return manager.connection.options.type !== 'sqlite'
       ? { lock: { mode: 'pessimistic_write' as const } }
       : {};
   }
@@ -169,6 +169,9 @@ export class StaffDepartureService {
           'ER_DUP_ENTRY',
           'ER_LOCK_DEADLOCK',
           'ER_LOCK_WAIT_TIMEOUT',
+          '40001',
+          '40P01',
+          '55P03',
           'SQLITE_BUSY',
           'SQLITE_LOCKED',
         ].includes((e.driverError as any)?.code)
@@ -296,9 +299,10 @@ export class StaffDepartureService {
           result: await run(manager, row),
         };
       };
-      const old = ['mysql', 'mariadb'].includes(this.db.options.type)
-        ? await this.db.transaction('REPEATABLE READ', snapshot)
-        : await this.db.transaction(snapshot);
+      const old =
+        this.db.options.type !== 'sqlite'
+          ? await this.db.transaction('REPEATABLE READ', snapshot)
+          : await this.db.transaction(snapshot);
       const fresh = await this.fresh(this.db.manager, id, actor);
       if (!fresh || !Number(fresh.actorActive) || Number(fresh.actorEpoch) !== epoch)
         throw new UnauthorizedException();

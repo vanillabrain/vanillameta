@@ -92,7 +92,7 @@ export class ConditionReportService implements OnApplicationBootstrap, OnModuleD
     const digest = studioDigest({ actor, org, dashboard, ...body });
     return serializedViewWrite(this.db.getRepository(Database), () =>
       this.db.transaction(async manager => {
-        if (this.db.options.type === 'mysql') {
+        if (this.db.options.type !== 'sqlite') {
           if (
             !(await manager.findOne(User, {
               where: { id: actor },
@@ -302,7 +302,7 @@ export class ConditionReportService implements OnApplicationBootstrap, OnModuleD
       this.db.transaction(async manager => {
         const locked = await manager.findOne(ConditionReport, {
           where: { id },
-          ...(this.db.options.type === 'mysql'
+          ...(this.db.options.type !== 'sqlite'
             ? { lock: { mode: 'pessimistic_write' as const } }
             : {}),
         });

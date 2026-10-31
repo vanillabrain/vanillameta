@@ -70,23 +70,31 @@ export class QueryAnalyzerService {
         return await this.analyzeExternalQuery(query, databaseId);
       }
 
-      // 내부 MySQL 데이터베이스 분석
+      const type = this.connection.options?.type || 'mysql';
+      if (type === 'sqlite') {
+        analysis.warnings = ['Query analysis is unavailable for the SQLite test adapter'];
+        return analysis;
+      }
       const runner = this.connection.createQueryRunner();
       try {
-        // EXPLAIN 실행
-        const explainResult = await runner.query(`EXPLAIN ${query}`);
-        analysis.explainPlan = explainResult;
-
-        // EXPLAIN 결과 파싱
-        this.parseExplainResult(explainResult, analysis);
-
-        // EXPLAIN ANALYZE 실행 (MySQL 8.0.18+)
-        try {
-          const analyzeResult = await runner.query(`EXPLAIN ANALYZE ${query}`);
-          this.parseExplainAnalyze(analyzeResult, analysis);
-        } catch (e) {
-          // EXPLAIN ANALYZE를 지원하지 않는 경우 무시
-          this.logger.debug('EXPLAIN ANALYZE not supported');
+        if (type === 'postgres') {
+          const result = await runner.query(`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query}`);
+          const plan = result[0]?.['QUERY PLAN']?.[0] ?? result[0]?.['QUERY PLAN'];
+          analysis.explainPlan = plan;
+          analysis.executionTime = plan?.['Execution Time'];
+          analysis.cost = plan?.Plan?.['Total Cost'];
+          analysis.rowsReturned = plan?.Plan?.['Actual Rows'];
+          if (plan?.Plan) this.analyzePostgresPlan(plan.Plan, analysis);
+        } else {
+          const explainResult = await runner.query(`EXPLAIN ${query}`);
+          analysis.explainPlan = explainResult;
+          this.parseExplainResult(explainResult, analysis);
+          try {
+            const analyzeResult = await runner.query(`EXPLAIN ANALYZE ${query}`);
+            this.parseExplainAnalyze(analyzeResult, analysis);
+          } catch {
+            this.logger.debug('EXPLAIN ANALYZE not supported');
+          }
         }
 
         // 최적화 제안 생성

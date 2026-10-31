@@ -391,10 +391,7 @@ export class PublicationService {
     };
     const bytes = Buffer.byteLength(JSON.stringify(snapshot));
     if (bytes > PUBLICATION_MAX_BYTES) throw new BadRequestException('게시 결과가 너무 큽니다.');
-    if (
-      ['mysql', 'mariadb'].includes(this.publications.manager.connection.options.type) &&
-      bytes > 60 * 1024
-    )
+    if (this.publications.manager.connection.options.type !== 'sqlite' && bytes > 60 * 1024)
       throw new BadRequestException('이 서버의 게시 결과 한도는 60KiB입니다. 블록을 줄여 주세요.');
     // Only an explicit owner opt-in captures the private recipe; it is frozen with this publish.
     let reuseDefinition: string | null = null;
@@ -713,7 +710,7 @@ export class PublicationService {
   private find(manager: EntityManager, dashboardId: number) {
     return manager.findOne(DashboardPublication, {
       where: { dashboardId },
-      ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+      ...(manager.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });
@@ -802,5 +799,5 @@ export class PublicationService {
 
 function isDuplicate(error: unknown): boolean {
   const message = String((error as any)?.message ?? '');
-  return /UNIQUE constraint|Duplicate entry|ER_DUP_ENTRY/i.test(message);
+  return /UNIQUE constraint|duplicate key value|Duplicate entry|ER_DUP_ENTRY/i.test(message);
 }

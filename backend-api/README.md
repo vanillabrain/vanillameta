@@ -37,7 +37,11 @@ src/
 └── app.module.ts         # 메인 애플리케이션 모듈
 ```
 
-## 🗄️ 지원 데이터베이스
+## 🗄️ 메타데이터와 분석 데이터 소스
+
+애플리케이션 메타데이터는 PostgreSQL 17을 사용합니다. `NODE_ENV=local`에서만 빠른 단위 테스트를 위해 SQLite를 허용합니다.
+
+고객 데이터 소스로는 다음 엔진을 연결할 수 있습니다.
 
 - PostgreSQL
 - MySQL / MariaDB
@@ -78,7 +82,7 @@ redis-server
 
 # 개발 서버 실행
 yarn start:local  # SQLite 사용
-yarn start:dev    # MySQL 사용
+yarn start:dev    # PostgreSQL 17 사용
 ```
 
 ### 환경별 Docker Compose
@@ -87,7 +91,7 @@ yarn start:dev    # MySQL 사용
 # 로컬 환경 (SQLite)
 docker-compose -f docker-compose.local.yml up -d
 
-# 개발 환경 (MySQL)
+# 개발 환경 (PostgreSQL 17)
 docker-compose -f docker-compose.dev.yml up -d
 
 # 프로덕션 환경
@@ -105,6 +109,7 @@ docker-compose -f docker-compose.multi-db.yml up -d
 ## 🚀 설치 및 실행
 
 ### 필수 요구사항
+
 - Node.js 16.x 이상
 - npm 또는 yarn
 - Redis Server (캐싱 및 세션 관리용)
@@ -124,12 +129,14 @@ cp .env.example .env
 ```
 
 주요 환경 변수:
-- `DB_TYPE`: 데이터베이스 타입 (mysql, sqlite 등)
+
 - `DB_HOST`: 데이터베이스 호스트
-- `DB_PORT`: 데이터베이스 포트
+- `DB_PORT`: PostgreSQL 포트 (기본 5432)
 - `DB_USERNAME`: 데이터베이스 사용자명
 - `DB_PASSWORD`: 데이터베이스 비밀번호
 - `DB_NAME`: 데이터베이스 이름
+- `DB_SSL`: 원격 PostgreSQL TLS 사용 여부
+- `DB_SSL_REJECT_UNAUTHORIZED`: TLS 인증서 검증 여부
 - `REDIS_HOST`: Redis 호스트
 - `REDIS_PORT`: Redis 포트
 - `JWT_SECRET`: JWT 시크릿 키
@@ -241,21 +248,25 @@ Authorization: Bearer <your-jwt-token>
 ## 🎯 주요 기능
 
 ### 데이터베이스 연결 관리
+
 - 다중 데이터베이스 동시 연결 지원
 - 연결 풀 관리
 - 연결 상태 모니터링
 
 ### SQL 쿼리 실행
+
 - 사용자 정의 SQL 쿼리 실행
 - 쿼리 결과 캐싱
 - 쿼리 실행 시간 모니터링
 
 ### 차트 위젯
+
 - 50+ 차트 타입 지원
 - 데이터셋 기반 위젯 생성
 - 위젯 설정 저장 및 관리
 
 ### 대시보드
+
 - 레이아웃 관리
 - 위젯 배치 및 크기 조정
 - 대시보드 공유 기능
@@ -263,6 +274,7 @@ Authorization: Bearer <your-jwt-token>
 ## 문제 해결
 
 ### Redis 연결 오류
+
 ```bash
 # Redis 서버 시작
 redis-server --daemonize yes
@@ -272,6 +284,7 @@ redis-cli ping
 ```
 
 ### 데이터베이스 연결 오류
+
 - 환경 변수가 올바르게 설정되었는지 확인
 - 데이터베이스 서버가 실행 중인지 확인
 - 네트워크 연결 상태 확인

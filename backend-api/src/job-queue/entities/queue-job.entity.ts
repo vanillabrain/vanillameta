@@ -73,13 +73,34 @@ export class QueueJob {
   @Column({ type: 'int', nullable: true })
   progress: number; // 0-100
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
   scheduledAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
   startedAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
   completedAt: Date;
 
   @Column({ type: 'int', nullable: true })

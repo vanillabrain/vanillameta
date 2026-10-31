@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Proves a backup is restorable WITHOUT touching the running stack: restores the dump into a throwaway
-# MySQL container, then opens every uploaded .duckdb file read-only and hashes every column of every table.
+# PostgreSQL container, then opens every uploaded .duckdb file read-only and hashes every column of every table.
 # Exits non-zero on any failure.
 # Usage: restore-drill.sh <archive> [api-image]     (BACKUP_PASSPHRASE_FILE for .enc archives)
 set -euo pipefail
@@ -26,18 +26,18 @@ chmod -R a+rX "$work/uploads"
 
 pass=$(openssl rand -hex 12)
 docker run -d --name "$name" --label owner=vanillameta-restore-drill \
-  -e MYSQL_ROOT_PASSWORD="$pass" -e MYSQL_DATABASE=restored mysql:8.4 >/dev/null
+  -e POSTGRES_PASSWORD="$pass" -e POSTGRES_DB=restored postgres:17-alpine >/dev/null
 for _ in $(seq 1 60); do
-  docker exec -e MYSQL_PWD="$pass" "$name" mysqladmin ping -h127.0.0.1 --protocol=tcp -uroot --silent >/dev/null 2>&1 && break
+  docker exec "$name" pg_isready -h 127.0.0.1 -U postgres -d restored >/dev/null 2>&1 && break
   sleep 2
 done
-docker exec -e MYSQL_PWD="$pass" "$name" mysqladmin ping -h127.0.0.1 --protocol=tcp -uroot --silent >/dev/null 2>&1 || fail "mysql did not start"
-gunzip -c "$work/db.sql.gz" | docker exec -i -e MYSQL_PWD="$pass" "$name" mysql -uroot restored || fail "dump did not load"
+docker exec "$name" pg_isready -h 127.0.0.1 -U postgres -d restored >/dev/null 2>&1 || fail "postgres did not start"
+gunzip -c "$work/db.sql.gz" | docker exec -i -e PGPASSWORD="$pass" "$name" psql -h 127.0.0.1 -U postgres -d restored >/dev/null || fail "dump did not load"
 
-q() { docker exec -e MYSQL_PWD="$pass" "$name" mysql -uroot -N -B restored -e "$1"; }
-tables=$(q "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='restored'")
+q() { docker exec -e PGPASSWORD="$pass" "$name" psql -h 127.0.0.1 -U postgres -d restored -At -c "$1"; }
+tables=$(q "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'")
 migrations=$(q "SELECT COUNT(*) FROM migrations")
-users=$(q "SELECT COUNT(*) FROM \`user\`")
+users=$(q 'SELECT COUNT(*) FROM "user"')
 [ "$tables" -gt 0 ] || fail "no tables restored"
 [ "$migrations" -gt 0 ] || fail "no migration history restored"
 

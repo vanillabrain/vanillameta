@@ -226,9 +226,10 @@ export class DatasetService {
         (await lockMetricSources(manager, [dataset.databaseId])).get(dataset.databaseId),
         actor,
       );
-      const lock = ['mysql', 'mariadb'].includes(manager.connection.options.type)
-        ? { lock: { mode: 'pessimistic_write' as const } }
-        : {};
+      const lock =
+        manager.connection.options.type !== 'sqlite'
+          ? { lock: { mode: 'pessimistic_write' as const } }
+          : {};
       // Match bundle writers: sorted Widget children precede Dataset children.
       for (const widget of before) {
         const current = await manager.findOne(Widget, { where: { id: widget.id }, ...lock });

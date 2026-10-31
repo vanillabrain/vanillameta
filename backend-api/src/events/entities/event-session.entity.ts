@@ -19,10 +19,22 @@ export class EventSession {
   @Column({ type: 'uuid', nullable: true })
   userId?: string;
 
-  @Column({ type: 'datetime' })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
   startTime: Date;
 
-  @Column({ type: 'datetime' })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
   lastActivityTime: Date;
 
   @Column({ type: 'int', default: 0 })
@@ -59,10 +71,22 @@ export class EventSession {
   @Column({ type: 'varchar', length: 50, nullable: true })
   timezone?: string;
 
-  @CreateDateColumn({ type: 'datetime' })
+  @CreateDateColumn({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'datetime' })
+  @UpdateDateColumn({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
   updatedAt: Date;
 
   @OneToMany(() => AnalyticsEvent, event => event.session)

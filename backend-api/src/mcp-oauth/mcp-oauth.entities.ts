@@ -11,7 +11,14 @@ export class McpOAuthPending {
   @Column({ type: 'simple-json' }) scopes: string[];
   @Column({ type: 'text' }) resource: string;
   @Column({ length: 64 }) configFingerprint: string;
-  @Column({ type: 'datetime' }) expiresAt: Date;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
+  expiresAt: Date;
   @Column({ length: 16, default: 'pending' }) status: 'pending' | 'approved' | 'cancelled';
 }
 
@@ -27,8 +34,22 @@ export class McpOAuthGrant {
   @Column({ length: 64 }) configFingerprint: string;
   @Column({ type: 'text' }) resource: string;
   @Column({ type: 'simple-json' }) scopes: string[];
-  @Column({ type: 'datetime' }) createdAt: Date;
-  @Column({ type: 'datetime' }) expiresAt: Date;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
+  createdAt: Date;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
+  expiresAt: Date;
   @Column({ type: 'boolean', default: false }) revoked: boolean;
 }
 
@@ -39,7 +60,14 @@ export class McpOAuthCode {
   @Column({ type: 'text' }) redirectUri: string;
   @Column({ length: 43 }) codeChallenge: string;
   @Column({ length: 4 }) codeChallengeMethod: string;
-  @Column({ type: 'datetime' }) expiresAt: Date;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
+  expiresAt: Date;
   @Column({ type: 'boolean', default: false }) consumed: boolean;
 }
 
@@ -48,7 +76,14 @@ export class McpOAuthToken {
   @PrimaryColumn({ length: 64 }) tokenHash: string;
   @Index('IDX_mcp_oauth_token_grant') @Column({ length: 36 }) grantId: string;
   @Column({ type: 'text' }) resource: string;
-  @Column({ type: 'datetime' }) expiresAt: Date;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
+  expiresAt: Date;
 }
 
 export const MCP_OAUTH_ENTITIES = [McpOAuthPending, McpOAuthGrant, McpOAuthCode, McpOAuthToken];

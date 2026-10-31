@@ -1,7 +1,7 @@
 # Single-VM production stack for the invite beta. Run from this directory:
 #   cp .env.prod.example .env.prod   # fill every value
 #   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
-# Topology: client -> caddy (TLS) -> web (nginx) -> api -> mysql. Only caddy publishes ports.
+# Topology: client -> caddy (TLS) -> web (nginx) -> api -> postgres. Only caddy publishes ports.
 # The API sees two proxies in front of it, hence TRUST_PROXY_HOPS=2. Single instance only: several
 # in-memory states (publication tickets, run idempotency) are not shared across processes.
 
@@ -16,11 +16,11 @@ x-logging: &logging
 x-api-env: &api-env
   NODE_ENV: prod
   TRUST_PROXY_HOPS: "2"
-  DB_HOST: mysql
-  DB_PORT: "3306"
-  DB_NAME: ${MYSQL_DATABASE:-vanillameta}
-  DB_USERNAME: ${MYSQL_USER:-vanillameta}
-  DB_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD}
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_NAME: ${POSTGRES_DB:-vanillameta}
+  DB_USERNAME: ${POSTGRES_USER:-vanillameta}
+  DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
   DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-10}
   ACCESS_SECRET: ${ACCESS_SECRET:?set ACCESS_SECRET}
   REFRESH_SECRET: ${REFRESH_SECRET:?set REFRESH_SECRET}
@@ -114,29 +114,29 @@ services:
     command: ["node", "dist/src/database/migrate-prod.js"]
     environment: *api-env
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     networks: [app]
 
-  mysql:
-    image: mysql:8.4
+  postgres:
+    image: postgres:17-alpine
     restart: unless-stopped
     logging: *logging
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-vanillameta}
-      MYSQL_USER: ${MYSQL_USER:-vanillameta}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-vanillameta}
+      POSTGRES_USER: ${POSTGRES_USER:-vanillameta}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
     command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --max-connections=100
-      - --innodb-buffer-pool-size=512M
+      ["postgres", "-c", "max_connections=100", "-c", "shared_buffers=256MB"]
     mem_limit: 1200m
     volumes:
-      - mysql-data:/var/lib/mysql
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h 127.0.0.1 --protocol=tcp -uroot --silent"]
+      test:
+        [
+          "CMD-SHELL",
+          'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -h 127.0.0.1',
+        ]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -144,7 +144,7 @@ services:
     networks: [app]
 
 volumes:
-  mysql-data:
+  postgres-data:
   uploads:
   caddy-data:
   caddy-config:
@@ -153,7 +153,7 @@ networks:
   # Front door: only caddy is on it. Not internal, caddy publishes the ports and must reach Let's Encrypt.
   edge:
     name: vanillameta-edge
-  # Service-to-service traffic. `internal` cuts it off from the outside, so mysql, migrate and web
+  # Service-to-service traffic. `internal` cuts it off from the outside, so postgres, migrate and web
   # cannot open outbound connections.
   app:
     name: vanillameta-app

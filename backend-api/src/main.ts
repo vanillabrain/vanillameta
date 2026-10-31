@@ -20,6 +20,7 @@ import { existsSync } from 'fs';
 import { DataSource } from 'typeorm';
 import { assertProductionConfig, parseTrustProxyHops } from './config/production-guard';
 import { User } from './user/entities/user.entity';
+import { assertMetadataDatabaseVersion } from './database/assert-metadata-database';
 
 // 환경 변수 로드
 config({ path: '.env.local' });
@@ -79,6 +80,7 @@ async function bootstrap() {
     // 메모리 효율을 위한 버퍼 크기 제한
     bodyParser: true,
   });
+  await assertMetadataDatabaseVersion(nestApp.get(DataSource));
 
   // Global middleware
   nestApp.use(

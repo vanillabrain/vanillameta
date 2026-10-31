@@ -13,6 +13,7 @@ import CreateInitialData from './seeds/create-initial-data';
 async function main() {
   await dataSource.initialize();
   try {
+    if (process.env.NODE_ENV !== 'prod') await dataSource.synchronize();
     await new CreateInitialData().run(dataSource);
     // eslint-disable-next-line no-console
     console.log(

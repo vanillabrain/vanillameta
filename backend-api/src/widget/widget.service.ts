@@ -313,9 +313,10 @@ export class WidgetService {
         (await lockMetricSources(manager, [linked.databaseId])).get(linked.databaseId),
         actor,
       );
-      const lock = ['mysql', 'mariadb'].includes(manager.connection.options.type)
-        ? { lock: { mode: 'pessimistic_write' as const } }
-        : {};
+      const lock =
+        manager.connection.options.type !== 'sqlite'
+          ? { lock: { mode: 'pessimistic_write' as const } }
+          : {};
       const current = await manager.findOne(Widget, { where: { id }, ...lock });
       const currentLink = await manager.findOne(target as typeof Dataset, {
         where: { id: widget.datasetId },

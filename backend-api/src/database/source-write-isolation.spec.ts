@@ -6,7 +6,7 @@ import { resolve } from 'path';
 
 describe('Source write current-read isolation selection', () => {
   it.each(['mysql', 'mariadb', 'sqlite', 'postgres'] as const)(
-    '%s selects explicit isolation only for MySQL/MariaDB, with DataSource and manager targets',
+    '%s selects explicit current-read isolation outside SQLite, with DataSource and manager targets',
     async type => {
       for (const managerTarget of [false, true]) {
         const manager = { marker: 'transaction-manager' } as any;
@@ -19,7 +19,7 @@ describe('Source write current-read isolation selection', () => {
         expect(await sourceWriteTransaction(target, callback)).toBe('transaction-manager');
         expect(callback).toHaveBeenCalledWith(manager);
         expect(transaction.mock.calls).toEqual([
-          ['mysql', 'mariadb'].includes(type) ? ['READ COMMITTED', callback] : [callback],
+          type !== 'sqlite' ? ['READ COMMITTED', callback] : [callback],
         ]);
       }
     },

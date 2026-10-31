@@ -4,7 +4,7 @@ on:
     branches: [develop, main]
     paths:
       [
-        "scripts/qa-enterprise-mysql.cjs",
+        "scripts/qa-enterprise-postgres.cjs",
         "scripts/lib/qa-child-drain.cjs",
         "scripts/test/qa-child-drain.test.cjs",
         ".github/workflows/qa-runtime.yml",
@@ -12,7 +12,7 @@ on:
   pull_request:
     paths:
       [
-        "scripts/qa-enterprise-mysql.cjs",
+        "scripts/qa-enterprise-postgres.cjs",
         "scripts/lib/qa-child-drain.cjs",
         "scripts/test/qa-child-drain.test.cjs",
         ".github/workflows/qa-runtime.yml",

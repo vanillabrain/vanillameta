@@ -12,7 +12,7 @@ export async function lockSourceActor(manager: EntityManager, actor: number, epo
     throw new ForbiddenException('Current actor required.');
   const user = await manager.findOne(User, {
     where: { id: actor },
-    ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+    ...(manager.connection.options.type !== 'sqlite'
       ? { lock: { mode: 'pessimistic_write' as const } }
       : {}),
   });
@@ -42,7 +42,7 @@ export function sourceWriteTransaction<T>(
   run: (manager: EntityManager) => Promise<T>,
 ): Promise<T> {
   const db = 'connection' in target ? target.connection : target;
-  return ['mysql', 'mariadb'].includes(db.options.type)
+  return db.options.type !== 'sqlite'
     ? metadataTransaction(target, 'READ COMMITTED', run)
     : metadataTransaction(target, run);
 }

@@ -127,7 +127,7 @@ export class DashboardService {
 
   private attachmentTransaction<T>(run: (manager: EntityManager) => Promise<T>) {
     const manager = this.dashboardRepository.manager;
-    return ['mysql', 'mariadb'].includes(manager.connection.options.type)
+    return manager.connection.options.type !== 'sqlite'
       ? metadataTransaction(manager, 'READ COMMITTED', run)
       : metadataTransaction(manager, run);
   }

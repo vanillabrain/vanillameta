@@ -301,6 +301,9 @@ export class SourceModelService {
               'ER_LOCK_DEADLOCK',
               'ER_LOCK_WAIT_TIMEOUT',
               '40001',
+              '40P01',
+              '55P03',
+              '40001',
             ].includes(code)
           )
             throw error;

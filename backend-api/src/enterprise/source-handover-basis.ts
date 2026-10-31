@@ -219,7 +219,7 @@ export async function inspectSourceHandover(
     const metrics = await read(Metric, {
       where: { databaseId: source.id },
       order: { id: 'ASC' },
-      ...(locked && manager.connection.options.type === 'mysql'
+      ...(locked && manager.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' } }
         : {}),
     });

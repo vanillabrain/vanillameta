@@ -1,10 +1,11 @@
-import { Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { YesNo } from '../../common/enum/yn.enum';
 import { Dashboard } from '../../dashboard/entities/dashboard.entity';
 import { Template } from './template.entity';
 
 @Entity()
+@Index('UQ_template_item_cells', ['templateId', 'x', 'y', 'width', 'height'], { unique: true })
 export class TemplateItem extends BaseEntity {
   @PrimaryGeneratedColumn({ comment: '템플릿 아이템 ID' })
   id: number;

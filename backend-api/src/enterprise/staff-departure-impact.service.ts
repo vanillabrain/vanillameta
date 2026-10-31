@@ -150,9 +150,10 @@ export class StaffDepartureImpactService {
         };
         return { basis, counts, observedAt: new Date().toISOString() };
       };
-      const snapshot = ['mysql', 'mariadb'].includes(this.db.options.type)
-        ? await this.db.transaction('REPEATABLE READ', read)
-        : await this.db.transaction(read);
+      const snapshot =
+        this.db.options.type !== 'sqlite'
+          ? await this.db.transaction('REPEATABLE READ', read)
+          : await this.db.transaction(read);
       // Deliberately outside the completed snapshot, using the live manager.
       const fresh = await this.basis(this.db.manager, actor, target);
       this.authority(fresh, epoch, Number(snapshot.basis.organizationId));

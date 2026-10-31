@@ -126,7 +126,7 @@ export class DashboardDeletionService {
   private async scope(actor: number, epoch: number, m: EntityManager, lock = false) {
     if (!positive(actor)) throw new ForbiddenException('본인 계정 확인이 필요합니다.');
     const locking =
-      lock && ['mysql', 'mariadb'].includes(this.db.options.type)
+      lock && this.db.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {};
     const user = await m.findOne(User, {
@@ -297,7 +297,7 @@ export class DashboardDeletionService {
       return this.receipt(saved, false);
     };
     try {
-      return await (['mysql', 'mariadb'].includes(this.db.options.type)
+      return await (this.db.options.type !== 'sqlite'
         ? metadataTransaction(this.db, 'READ COMMITTED', run)
         : metadataTransaction(this.db, run));
     } catch (error) {
@@ -310,6 +310,9 @@ export class DashboardDeletionService {
             'ER_DUP_ENTRY',
             'ER_LOCK_DEADLOCK',
             'ER_LOCK_WAIT_TIMEOUT',
+            '40001',
+            '40P01',
+            '55P03',
           ].includes(error.driverError?.code))
       )
         throw new ConflictException(

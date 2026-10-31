@@ -31,7 +31,7 @@ export async function groupAdmin(actor: number, manager: EntityManager, lock = f
   if (!Number.isSafeInteger(actor) || actor <= 0)
     throw new ForbiddenException('조직 관리자 확인이 필요합니다.');
   const locking =
-    lock && ['mysql', 'mariadb'].includes(manager.connection.options.type)
+    lock && manager.connection.options.type !== 'sqlite'
       ? { lock: { mode: 'pessimistic_write' as const } }
       : {};
   const user = await manager.findOne(User, {
@@ -63,6 +63,9 @@ export async function groupWrite<T>(
           'ER_DUP_ENTRY',
           'ER_LOCK_DEADLOCK',
           'ER_LOCK_WAIT_TIMEOUT',
+          '40001',
+          '40P01',
+          '55P03',
         ].includes(error.driverError?.code))
     )
       throw new ConflictException(
@@ -214,7 +217,7 @@ export class EnterpriseGroupService {
       const scope = await groupAdmin(actor, manager, true);
       const group = await manager.findOne(EnterpriseGroup, {
         where: { id, organizationId: scope.organizationId },
-        ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ...(manager.connection.options.type !== 'sqlite'
           ? { lock: { mode: 'pessimistic_write' as const } }
           : {}),
       });

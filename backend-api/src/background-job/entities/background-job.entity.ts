@@ -8,6 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
+import { numberFromBigInt } from '../../common/database-transformers';
 import { User } from '../../user/entities/user.entity';
 import { Dataset } from '../../dataset/entities/dataset.entity';
 import { Widget } from '../../widget/entities/widget.entity';
@@ -67,13 +68,27 @@ export class BackgroundJob extends BaseEntity {
   @Column({ type: 'int', default: 0 })
   attemptCount: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
   startedAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
   completedAt: Date;
 
-  @Column({ type: 'bigint', nullable: true })
+  @Column({ type: 'bigint', nullable: true, transformer: numberFromBigInt })
   processingTimeMs: number;
 
   // Bull Queue Job ID

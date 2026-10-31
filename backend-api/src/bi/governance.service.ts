@@ -469,7 +469,7 @@ export class GovernanceService {
         await this.admin(orgId, actor, manager);
         const live = await manager.findOne(Dashboard, {
           where: { id: dashboardId },
-          ...(this.db.options.type === 'mysql'
+          ...(this.db.options.type !== 'sqlite'
             ? { lock: { mode: 'pessimistic_write' as const } }
             : {}),
         });

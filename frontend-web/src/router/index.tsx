@@ -10,6 +10,8 @@ import PublicLayout from '@/layouts/PublicLayout';
 const Dashboard = React.lazy(() => import('@/pages/Dashboard'));
 const AiConnections = React.lazy(() => import('@/pages/AiConnections'));
 const AiConnectionApprove = React.lazy(() => import('@/pages/AiConnections/Approve'));
+const FileArtifactDetail = React.lazy(() => import('@/pages/Artifacts/FileArtifactDetail'));
+const SharedFileArtifact = React.lazy(() => import('@/pages/Artifacts/SharedFileArtifact'));
 const Documents = React.lazy(() => import('@/pages/Documents'));
 const DocumentDetail = React.lazy(() => import('@/pages/Documents/DocumentDetail'));
 const GoogleDocumentCallback = React.lazy(() => import('@/pages/Documents/GoogleCallback'));
@@ -71,6 +73,7 @@ function Router() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/ai-connections" element={<AiConnections />} />
           <Route path="/ai-connections/approve/:ticket" element={<AiConnectionApprove />} />
+          <Route path="/artifacts/files/:id" element={<FileArtifactDetail />} />
           <Route path="/documents" element={<Documents />} />
           <Route path="/documents/google/callback" element={<GoogleDocumentCallback />} />
           <Route path="/documents/:id" element={<DocumentDetail />} />
@@ -186,6 +189,7 @@ function Router() {
             </ProtectedRoute>
           }
         />
+        <Route path="/artifacts/shared/:token" element={<SharedFileArtifact />} />
         <Route path="/published/:token/remix" element={<StudioRemix />} />
         <Route path="/published/:token" element={<PublishedRoute />} />
         <Route path="/login" element={<Login />} />

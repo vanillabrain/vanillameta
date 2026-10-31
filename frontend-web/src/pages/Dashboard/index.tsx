@@ -1,6 +1,9 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import PageTitleBox from '@/components/PageTitleBox';
 import ArtifactLibrary from './ArtifactLibrary';
+import FileUploadDialog from '../Artifacts/FileUploadDialog';
+import { documentService } from '@/api/documentService';
+import { fileArtifactService } from '@/api/fileArtifactService';
 import { useProtectedReport } from '../Reports/useProtectedReport';
 import { reportSharingApi, ReportLibraryItem } from '../Reports/reportSharingApi';
 import { Link, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -206,6 +209,32 @@ function Dashboard() {
     if (isError) alert.error(t('dashboard.loadFailed'));
   }, [isError]);
 
+  const documentsQuery = useQuery({
+    queryKey: ['artifact-hub', 'documents', authScope],
+    queryFn: ({ signal }) => documentService.list(signal),
+    enabled: authScope !== null && view === 'active',
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const filesQuery = useQuery({
+    queryKey: ['artifact-hub', 'files', authScope],
+    queryFn: ({ signal }) => fileArtifactService.list(signal),
+    enabled: authScope !== null && view === 'active',
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const supplementaryLoading = view === 'active' && (documentsQuery.isFetching || filesQuery.isFetching);
+  const supplementaryError =
+    view === 'active' && (documentsQuery.isError || filesQuery.isError) ? t('artifact.supplementaryError') : '';
+  const reloadArtifacts = () => {
+    void reloadLibrary();
+    reportLibrary.reload();
+    if (view === 'active') {
+      void documentsQuery.refetch();
+      void filesQuery.refetch();
+    }
+  };
+
   const [deleteTarget, setDeleteTarget] = useState<DashboardDeleteTarget | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const menuList = [
@@ -295,6 +324,16 @@ function Dashboard() {
               </Button>
               <span className="text-xs text-muted-foreground">{t('artifact.organizationHint')}</span>
             </div>
+            {view === 'active' && (
+              <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">
+                <FileUploadDialog
+                  onSaved={() => {
+                    void queryClient.invalidateQueries({ queryKey: ['artifact-hub', 'files', authScope] });
+                  }}
+                />
+                <span className="text-xs text-muted-foreground">{t('fileArtifact.hubHint')}</span>
+              </div>
+            )}
             <div>
               <ArtifactLibrary
                 key={authScope ?? 'unavailable-session'}
@@ -306,13 +345,14 @@ function Dashboard() {
                 reportsReady={
                   view !== 'active' || !reportLibrary.retained?.data.items.length || reportLibrary.state.kind === 'ready'
                 }
+                documents={view === 'active' && !documentsQuery.isError ? documentsQuery.data?.documents ?? [] : []}
+                files={view === 'active' && !filesQuery.isError ? filesQuery.data ?? [] : []}
+                supplementaryLoading={supplementaryLoading}
+                supplementaryError={supplementaryError}
                 onDelete={handleDeleteSelect}
                 view={view}
                 onViewChange={setView}
-                onReload={() => {
-                  void reloadLibrary();
-                  reportLibrary.reload();
-                }}
+                onReload={reloadArtifacts}
                 loading={isFetching}
                 listError={isError || authScope === null}
                 canArchive={library?.canArchive === true && !isFetching && !isError}

@@ -51,7 +51,7 @@ export class EnterpriseService {
   private async user(actor: number, manager = this.db.manager, lock = false) {
     const user = await manager.findOne(User, {
       where: { id: this.id(actor) },
-      ...(lock && ['mysql', 'mariadb'].includes(manager.connection.options.type)
+      ...(lock && manager.connection.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });
@@ -128,6 +128,9 @@ export class EnterpriseService {
               'ER_NO_REFERENCED_ROW_2',
               'ER_LOCK_DEADLOCK',
               'ER_LOCK_WAIT_TIMEOUT',
+              '40001',
+              '40P01',
+              '55P03',
             ].includes((error.driverError as any)?.code)) ||
           (error instanceof QueryFailedError &&
             (error.driverError as any)?.code === 'SQLITE_CONSTRAINT' &&
@@ -274,7 +277,7 @@ export class EnterpriseService {
         matches.length === 1
           ? await manager.findOne(User, {
               where: { id: matches[0].id, userId },
-              ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+              ...(manager.connection.options.type !== 'sqlite'
                 ? { lock: { mode: 'pessimistic_write' as const } }
                 : {}),
             })

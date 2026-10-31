@@ -548,7 +548,14 @@ export class JobQueueMonitoringService implements OnModuleDestroy {
 
       const result = await this.jobRepository
         .createQueryBuilder('job')
-        .select('AVG(TIMESTAMPDIFF(MICROSECOND, job.createdAt, job.startedAt) / 1000)', 'avgWait')
+        .select(
+          this.jobRepository.manager?.connection?.options?.type === 'postgres'
+            ? 'AVG(EXTRACT(EPOCH FROM (job.startedAt - job.createdAt)) * 1000)'
+            : this.jobRepository.manager?.connection?.options?.type === 'sqlite'
+            ? 'AVG((julianday(job.startedAt) - julianday(job.createdAt)) * 86400000)'
+            : 'AVG(TIMESTAMPDIFF(MICROSECOND, job.createdAt, job.startedAt) / 1000)',
+          'avgWait',
+        )
         .where('job.startedAt IS NOT NULL')
         .andWhere('job.startedAt >= :since', { since: oneHourAgo })
         .getRawOne();

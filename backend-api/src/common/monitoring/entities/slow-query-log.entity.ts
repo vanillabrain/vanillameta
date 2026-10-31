@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
 import { BaseEntity } from '../../entities/base.entity';
+import { numberFromBigInt } from '../../database-transformers';
 
 @Entity('slow_query_logs')
 @Index(['executionTime', 'createdAt'])
@@ -27,10 +28,20 @@ export class SlowQueryLog extends BaseEntity {
   @Column({ type: 'varchar', length: 50, nullable: true, comment: '데이터베이스 엔진' })
   databaseEngine: string;
 
-  @Column({ type: 'bigint', nullable: true, comment: '검사된 행 수' })
+  @Column({
+    type: 'bigint',
+    nullable: true,
+    transformer: numberFromBigInt,
+    comment: '검사된 행 수',
+  })
   rowsExamined: number;
 
-  @Column({ type: 'bigint', nullable: true, comment: '반환된 행 수' })
+  @Column({
+    type: 'bigint',
+    nullable: true,
+    transformer: numberFromBigInt,
+    comment: '반환된 행 수',
+  })
   rowsReturned: number;
 
   @Column({ type: 'boolean', default: false, comment: '인덱스 사용 여부' })
@@ -92,6 +103,14 @@ export class SlowQueryLog extends BaseEntity {
   @Column({ type: 'text', nullable: true, comment: '처리 메모' })
   resolutionNotes: string;
 
-  @Column({ type: 'datetime', nullable: true, comment: '처리 완료 시간' })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+    comment: '처리 완료 시간',
+  })
   resolvedAt: Date;
 }

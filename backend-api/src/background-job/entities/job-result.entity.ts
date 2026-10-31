@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { BackgroundJob } from './background-job.entity';
+import { numberFromBigInt } from '../../common/database-transformers';
 
 export enum ResultStorageType {
   DATABASE = 'database',
@@ -14,7 +15,7 @@ export class JobResult extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'uuid' })
   backgroundJobId: string;
 
   @OneToOne(() => BackgroundJob, job => job.jobResult)
@@ -36,7 +37,7 @@ export class JobResult extends BaseEntity {
   @Column({ type: 'varchar', length: 500, nullable: true })
   storageLocation: string; // S3 URL 또는 Redis 키
 
-  @Column({ type: 'bigint', default: 0 })
+  @Column({ type: 'bigint', default: 0, transformer: numberFromBigInt })
   resultSizeBytes: number;
 
   @Column({ type: 'int', default: 0 })
@@ -45,7 +46,14 @@ export class JobResult extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   resultMetadata: string;
 
-  @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   expiresAt: Date; // 결과 만료 시간 (기본 7일)
 
   @Column({ type: 'boolean', default: false })

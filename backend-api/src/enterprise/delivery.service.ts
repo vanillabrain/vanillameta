@@ -124,7 +124,7 @@ export class EnterpriseDeliveryService {
         )
         .andWhere('delivery.dashboardId > :after', { after })
         .andWhere(
-          '(SELECT COUNT(*) FROM user_mapping owning WHERE owning.dashboardId = dashboard.id) = 1',
+          '(SELECT COUNT(*) FROM "user_mapping" owning WHERE owning."dashboardId" = "dashboard".id) = 1',
         )
         .select(['delivery.dashboardId', 'delivery.version', 'delivery.allowCopy'])
         .orderBy('delivery.dashboardId', 'ASC')
@@ -211,7 +211,7 @@ export class EnterpriseDeliveryService {
       .digest('hex');
     try {
       return await metadataTransaction(this.db, async manager => {
-        if (['mysql', 'mariadb'].includes(manager.connection.options.type)) {
+        if (manager.connection.options.type !== 'sqlite') {
           // Share the account/membership write boundary before the first authority snapshot.
           // Lock conflicts remain retryable; these locks never grant authority on their own.
           if (!Number.isSafeInteger(actor) || actor <= 0)
@@ -325,6 +325,9 @@ export class EnterpriseDeliveryService {
             'ER_DUP_ENTRY',
             'ER_LOCK_DEADLOCK',
             'ER_LOCK_WAIT_TIMEOUT',
+            '40001',
+            '40P01',
+            '55P03',
           ].includes(error.driverError?.code))
       )
         throw new ConflictException(

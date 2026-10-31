@@ -6,46 +6,37 @@ services:
     image: redis:7-alpine
     container_name: vanillameta_redis
     ports:
-      - "6379:6379"
+      - '6379:6379'
     networks:
       - vanillameta
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 5
     restart: unless-stopped
 
-  # MySQL 데이터베이스
-  mysql:
-    image: mysql:8.0
-    container_name: vanillameta_mysql
+  # PostgreSQL 메타데이터 데이터베이스
+  postgres:
+    image: postgres:17-alpine
+    container_name: vanillameta_postgres
     ports:
-      - "3306:3306"
+      - '5432:5432'
     networks:
       - vanillameta
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${DB_NAME:-vanillameta}
-      MYSQL_USER: ${DB_USERNAME:-vanillameta}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-vanillameta123}
+      POSTGRES_DB: ${DB_NAME:-vanillameta}
+      POSTGRES_USER: ${DB_USERNAME:-vanillameta}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vanillameta123}
       TZ: Asia/Seoul
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./db/conf.d:/etc/mysql/conf.d
-      - ./mysql-init-files:/docker-entrypoint-initdb.d:ro
-    command: >
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-      --default-authentication-plugin=mysql_native_password
-      --max_connections=1000
-      --max_allowed_packet=64M
-      --innodb_buffer_pool_size=256M
+      - postgres_data:/var/lib/postgresql/data
+    command: ['postgres', '-c', 'max_connections=200']
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -h 127.0.0.1']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -58,19 +49,19 @@ services:
       dockerfile: Dockerfile
     container_name: vanillameta_api
     ports:
-      - "3000:3000"
+      - '3000:3000'
     networks:
       - vanillameta
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      DB_TYPE: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_USERNAME: ${DB_USERNAME:-vanillameta}
       DB_PASSWORD: ${DB_PASSWORD:-vanillameta123}
       DB_NAME: ${DB_NAME:-vanillameta}
@@ -86,14 +77,22 @@ services:
     volumes:
       - ./sqlite_data:/app/sqlite_data
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:3000/api/v1/health',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
     restart: unless-stopped
 
 volumes:
-  mysql_data:
+  postgres_data:
     driver: local
   redis_data:
     driver: local

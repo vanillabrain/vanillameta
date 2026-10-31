@@ -37,8 +37,46 @@ jobs:
         run: npm run build
 
       - name: Unit tests
-        # src 전체 회귀. native DuckDB 테스트를 두 worker로 분리하고 MySQL 전용 검증은 별도 opt-in한다.
+        # src 전체 회귀. native DuckDB 테스트를 두 worker로 분리하고 PostgreSQL 검증은 아래 별도 job에서 수행한다.
         run: npm test -- --maxWorkers=2
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: backend-api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend-api/package-lock.json
+      - run: npm ci --legacy-peer-deps --ignore-scripts
+      - run: npm rebuild sqlite3
+      - run: npm run build
+      - name: PostgreSQL bootstrap and lock contract
+        run: npm test -- --runInBand migrate-prod.postgres.spec.ts
+        env:
+          VM_MIGRATE_PROD_POSTGRES_HOST: 127.0.0.1
+          VM_MIGRATE_PROD_POSTGRES_PORT: 5432
+          VM_MIGRATE_PROD_POSTGRES_USER: postgres
+          VM_MIGRATE_PROD_POSTGRES_PASSWORD: postgres
+          VM_MIGRATE_PROD_POSTGRES_DB: postgres
 
   frontend:
     runs-on: ubuntu-latest

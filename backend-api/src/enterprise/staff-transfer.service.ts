@@ -39,7 +39,7 @@ export class StaffTransferService {
     return createHash('sha256').update(code).digest('hex');
   }
   private lock(manager: EntityManager) {
-    return ['mysql', 'mariadb'].includes(manager.connection.options.type)
+    return manager.connection.options.type !== 'sqlite'
       ? { lock: { mode: 'pessimistic_write' as const } }
       : {};
   }

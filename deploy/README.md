@@ -3,17 +3,17 @@
 외부 초대 베타용 스택이다. 전략·계획: [docs/strategy/external-beta.md](../docs/strategy/external-beta.md), [docs/plans/external-beta-launch.md](../docs/plans/external-beta-launch.md). 검증 증빙: [docs/testing/external-beta-m0-deploy.md](../docs/testing/external-beta-m0-deploy.md).
 
 ```
-인터넷 → caddy(80/443, TLS) → web(nginx) → api(:4000) → mysql
+인터넷 → caddy(80/443, TLS) → web(nginx) → api(:4000) → postgres
                                               ↘ 외부 LLM (egress 네트워크만)
 ```
 
-- 포트는 caddy만 연다. `app` 네트워크는 `internal`이라 mysql·web·migrate는 바깥으로 나가지 못한다. api만 `egress` 네트워크로 나가며 `egress-guard.sh`가 사설·링크로컬 주소를 막는다.
+- 포트는 caddy만 연다. `app` 네트워크는 `internal`이라 postgres·web·migrate는 바깥으로 나가지 못한다. api만 `egress` 네트워크로 나가며 `egress-guard.sh`가 사설·링크로컬 주소를 막는다.
 - **인스턴스는 하나만 둔다.** 게시 티켓·실행 멱등성 등 일부 상태가 프로세스 메모리에 있다.
 - API가 앞단 프록시 2개(caddy, web nginx) 뒤에 있으므로 `TRUST_PROXY_HOPS=2`가 compose에 고정돼 있다. 프록시 구성을 바꾸면 이 값을 함께 바꾼다(틀리면 IP 위조 또는 전 사용자 단일 throttle 버킷).
 
 ## VM 요구 사항
 
-- 메모리 8GB 이상(API는 힙 2.5GB + DuckDB 작업자 메모리로 상한 4GB, MySQL 상한 1.2GB), 디스크 40GB 이상, Docker Engine + compose 플러그인.
+- 메모리 8GB 이상(API는 힙 2.5GB + DuckDB 작업자 메모리로 상한 4GB, PostgreSQL 상한 1.2GB), 디스크 40GB 이상, Docker Engine + compose 플러그인.
 - 도메인의 **A 레코드만** 이 VM을 가리키게 한다(Let's Encrypt). AAAA를 두면 Docker가 IPv6를 게이트웨이 주소로 보이게 해 모든 IPv6 사용자가 한 요청 한도 버킷에 묶인다. 80/443이 열려 있어야 한다.
 
 ## 첫 배포
@@ -55,7 +55,7 @@ $C run --rm migrate node dist/src/access/access-cli.js waitlist approve <id> --d
 cd deploy
 # 일회용 값으로 .env.prod를 만든다 (이미지는 이 머신에서 빌드한 것을 쓴다)
 { echo APP_DOMAIN=localhost ACME_EMAIL=ops@example.test IMAGE_TAG=verify API_IMAGE=<api 이미지> WEB_IMAGE=<web 이미지>
-  for k in MYSQL_ROOT_PASSWORD MYSQL_PASSWORD; do echo $k=$(openssl rand -hex 16); done
+  for k in POSTGRES_PASSWORD; do echo $k=$(openssl rand -hex 16); done
   for k in ACCESS_SECRET REFRESH_SECRET JWT_ACCESS_SECRET URL_ACCESS_SECRET CONFIG_SECRET_KEY; do echo $k=$(openssl rand -hex 32); done
 } | tr ' ' '\n' | grep . > .env.prod && chmod 600 .env.prod
 C="docker compose --env-file .env.prod -f docker-compose.prod.yml"
@@ -79,15 +79,16 @@ $C down -v --remove-orphans; rm -f .env.prod
 
 `DEPLOY_*` 값은 반드시 **`production-beta` 환경 시크릿**으로 등록한다(저장소 시크릿 금지). 저장소 시크릿이면 쓰기 권한이 있는 사람이 워크플로를 고친 브랜치에서 환경 없이 키를 읽을 수 있어 필수 검토자가 아무것도 막지 못한다.
 
-| 종류 | 이름 | 내용 |
-| --- | --- | --- |
-| environment secret | `DEPLOY_SSH_KEY` | 배포 전용 ed25519 개인키(`ssh-keygen -t ed25519 -f deploy_key -N ""`). 다른 용도로 쓰지 않는다 |
-| environment secret | `DEPLOY_HOST`, `DEPLOY_USER` | VM 주소와 배포 계정 |
-| environment secret | `DEPLOY_KNOWN_HOSTS` | VM의 호스트 키 줄. 신뢰할 수 있는 경로에서 `ssh-keyscan -t ed25519 <호스트>`로 얻고 지문을 VM에서 `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`로 대조한다 |
-| variable | `APP_URL` | 예: `https://app.example.com` (배포 뒤 스모크 테스트와 환경 링크) |
-| variable | `DEPLOY_PORT`(선택), `SENTRY_DSN_WEB`(선택) | SSH 포트, 프런트엔드 Sentry DSN(빌드 인자) |
+| 종류               | 이름                                        | 내용                                                                                                                                                            |
+| ------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| environment secret | `DEPLOY_SSH_KEY`                            | 배포 전용 ed25519 개인키(`ssh-keygen -t ed25519 -f deploy_key -N ""`). 다른 용도로 쓰지 않는다                                                                  |
+| environment secret | `DEPLOY_HOST`, `DEPLOY_USER`                | VM 주소와 배포 계정                                                                                                                                             |
+| environment secret | `DEPLOY_KNOWN_HOSTS`                        | VM의 호스트 키 줄. 신뢰할 수 있는 경로에서 `ssh-keyscan -t ed25519 <호스트>`로 얻고 지문을 VM에서 `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`로 대조한다 |
+| variable           | `APP_URL`                                   | 예: `https://app.example.com` (배포 뒤 스모크 테스트와 환경 링크)                                                                                               |
+| variable           | `DEPLOY_PORT`(선택), `SENTRY_DSN_WEB`(선택) | SSH 포트, 프런트엔드 Sentry DSN(빌드 인자)                                                                                                                      |
 
 **환경과 태그 규칙** (Settings)
+
 - Environments → `production-beta`: 필수 검토자를 지정하고 **허용 브랜치/태그를 `develop`과 `v*`로 제한**한다.
 - Rulesets → 태그 규칙: `v*` 태그는 관리자만 만들 수 있게 한다. 아니면 쓰기 권한이 있는 누구나 `v-아무거나` 태그로 워크플로를 시작할 수 있고 검토자만 남는다.
 - 이미지 푸시에는 `GITHUB_TOKEN`의 `packages: write`가 쓰인다. `images` 작업의 `develop`/`v*` 조건은 워크플로를 고치지 않은 실행에만 적용되는 편의이며 보안 경계가 아니다(이 작업은 환경이 없다). VM 접근만 환경이 지킨다. 이미 수동으로 올린 같은 이름의 패키지가 있으면 패키지 설정 → Actions access에 이 저장소를 추가해야 푸시가 된다.
@@ -115,7 +116,7 @@ sudo chown -R deploy: /opt/vanillameta
 
 ```bash
 # cron: 17 3 * * *  /opt/vanillameta/deploy/backup.sh >> /var/log/vanillameta-backup.log 2>&1
-./backup.sh            # api를 잠시 멈추고 mysqldump + uploads 볼륨 → 체크섬 포함 tar를 암호화 파일로 직접 기록(+S3/R2)
+./backup.sh            # api를 잠시 멈추고 pg_dump + uploads 볼륨 → 체크섬 포함 tar를 암호화 파일로 직접 기록(+S3/R2)
 BACKUP_PASSPHRASE_FILE=... ./restore-drill.sh /var/backups/vanillameta/vanillameta-<시각>.tar.enc <api 이미지>
 ```
 
@@ -123,7 +124,7 @@ BACKUP_PASSPHRASE_FILE=... ./restore-drill.sh /var/backups/vanillameta/vanillame
 
 - 아카이브는 **항상 암호화**한다(`BACKUP_PASSPHRASE_FILE` 필수). 사용자 계정·비밀번호 해시·암호화된 소스 설정·업로드 데이터가 모두 들어 있다. 평문 **아카이브**는 쓰지 않는다. 작업용 임시 파일(`db.sql.gz`, `uploads.tar.gz`)은 0700 디렉터리에 평문으로 있다가 종료 시 지워지고, 강제 종료로 남은 것은 다음 실행 시작 때 지운다.
 - 기본값으로 덤프와 복사 동안 api 컨테이너만 멈춘다(compose 서비스 단위 `stop`은 의존하는 web·caddy까지 멈출 수 있어 컨테이너를 직접 다룬다)(DuckDB는 단일 쓰기 프로세스라 쓰는 중에 복사하면 깨질 수 있다). 중지 시간은 덤프와 복사 시간이며, API에 SIGTERM 핸들러가 없어 **그 시점에 처리 중인 요청·업로드·DuckDB 작업이 끊긴다**(아래 알려진 한계). `BACKUP_QUIESCE=false`로 끌 수 있지만 그러면 복원 훈련으로만 신뢰한다. 배포·업데이트와 겹치지 않게 한다(`flock`으로 백업끼리는 겹치지 않는다).
-- 복원 훈련은 운영 스택을 건드리지 않고 임시 MySQL에 덤프를 올린 뒤 모든 `.duckdb` 파일을 읽기 전용으로 열어 **모든 테이블의 모든 컬럼을 해시한다**(`count(*)`는 메타데이터로 답해 찢어진 블록을 못 잡는다). 출시 전에 한 번, 이후 정기적으로 실행한다.
+- 복원 훈련은 운영 스택을 건드리지 않고 임시 PostgreSQL 17에 덤프를 올린 뒤 모든 `.duckdb` 파일을 읽기 전용으로 열어 **모든 테이블의 모든 컬럼을 해시한다**(`count(*)`는 메타데이터로 답해 찢어진 블록을 못 잡는다). 출시 전에 한 번, 이후 정기적으로 실행한다.
 
 ## 키 보관 (복구 가능성의 전제)
 

@@ -28,7 +28,7 @@ export class PersonalLibraryService {
   private async scope(actor: number, epoch: number, manager: EntityManager, lock = false) {
     this.access.actor(actor);
     const locking =
-      lock && ['mysql', 'mariadb'].includes(this.db.options.type)
+      lock && this.db.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {};
     const user = await manager.findOne(User, {
@@ -168,7 +168,7 @@ export class PersonalLibraryService {
       return { dashboardId, organizationId, archived, version: next.version };
     };
     try {
-      const data = await (['mysql', 'mariadb'].includes(this.db.options.type)
+      const data = await (this.db.options.type !== 'sqlite'
         ? metadataTransaction(this.db, 'READ COMMITTED', run)
         : metadataTransaction(this.db, run));
       return { status: 'SUCCESS', data };
@@ -182,6 +182,9 @@ export class PersonalLibraryService {
             'ER_DUP_ENTRY',
             'ER_LOCK_DEADLOCK',
             'ER_LOCK_WAIT_TIMEOUT',
+            '40001',
+            '40P01',
+            '55P03',
           ].includes(error.driverError?.code))
       )
         throw new ConflictException('보관 상태 저장이 경합 중입니다. 다시 조회해 주세요.');

@@ -18,8 +18,7 @@ export async function revokeReportDeliveriesForTransfer(
     })
     .take(1);
   // A locking read sees shares committed while transfer waited for the User lock.
-  if (['mysql', 'mariadb'].includes(manager.connection.options.type))
-    invalid.setLock('pessimistic_write');
+  if (manager.connection.options.type !== 'sqlite') invalid.setLock('pessimistic_write');
   if (await invalid.getOne())
     throw new ConflictException('리포트 공유 관계 버전 한도를 확인해 주세요.');
 

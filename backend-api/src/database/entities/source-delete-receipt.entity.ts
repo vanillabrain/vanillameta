@@ -17,6 +17,14 @@ export class SourceDeleteReceipt {
   @Column({ type: 'varchar', length: 16 }) cleanupStatus: 'pending' | 'complete' | 'retry_required';
   @Column({ type: 'integer', default: 0 }) cleanupVersion: number;
   @Column({ type: 'varchar', length: 36, nullable: true }) cleanupAttempt: string | null;
-  @Column({ type: 'datetime', nullable: true }) cleanupLeaseUntil: Date | null;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
+  cleanupLeaseUntil: Date | null;
   @CreateDateColumn() createdAt: Date;
 }

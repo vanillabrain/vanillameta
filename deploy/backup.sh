@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backup of the MySQL metadata (mysqldump) and the uploads volume (the .duckdb files).
+# Backup of the PostgreSQL metadata (pg_dump) and the uploads volume (the .duckdb files).
 # Run from cron on the VM, e.g.:  17 3 * * *  /opt/vanillameta/deploy/backup.sh
 #
 # - The archive is ALWAYS encrypted (BACKUP_PASSPHRASE_FILE is required): it holds user accounts, password
@@ -69,8 +69,8 @@ if [ "$QUIESCE" = true ]; then
 fi
 
 # shellcheck disable=SC2016  # the variables are meant to expand inside the container, not here
-"${COMPOSE[@]}" exec -T mysql sh -c \
-  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -uroot --single-transaction --routines --triggers --no-tablespaces "$MYSQL_DATABASE"' \
+"${COMPOSE[@]}" exec -T postgres sh -c \
+  'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges' \
   | gzip > "$work/db.sql.gz"
 
 uploads_volume=$(docker volume ls -q --filter label=com.docker.compose.project=vanillameta --filter label=com.docker.compose.volume=uploads | head -1)

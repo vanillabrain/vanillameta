@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// TC050: full HTTP app on a new owned MySQL only. No builds, fixtures or product overrides.
+// TC050: full HTTP app on a new owned PostgreSQL only. No builds, fixtures or product overrides.
 const { spawn, execFileSync } = require("node:child_process");
 const { randomBytes } = require("node:crypto");
 const fs = require("node:fs");
@@ -34,17 +34,14 @@ const backendKey = "backend-" + ports.api,
 
 const backend = path.join(root, "backend-api");
 const frontend = path.join(root, "frontend-web");
-const mysql = createRequire(path.join(backend, "package.json"))(
-  "mysql2/promise"
-);
+const { Client } = createRequire(path.join(backend, "package.json"))("pg");
 const owner = randomBytes(12).toString("hex");
-const label = "vanillameta.enterprise.qa.owner";
-const name = "vm-enterprise-qa-" + owner;
 const database = "vm_enterprise_" + owner;
+const postgresName = "vm-enterprise-postgres-" + owner;
 const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), "vm-enterprise-qa-"));
 const evidence = path.join(
   root,
-  ".aiwf/evidence/TC050-integrated-mysql",
+  ".aiwf/evidence/TC050-integrated-postgres",
   owner
 );
 fs.chmodSync(runRoot, 0o700);
@@ -61,14 +58,14 @@ const makeSecret = () => {
   return value;
 };
 const baseEnv = Object.fromEntries(
-  ["PATH", "HOME", "TMPDIR", "LANG", "TZ"]
+  ["PATH", "HOME", "TMPDIR", "LANG", "TZ", "DOCKER_HOST", "DOCKER_CONFIG"]
     .filter((k) => process.env[k])
     .map((k) => [k, process.env[k]])
 );
 const processes = new Map();
 const logs = [];
-let containerId,
-  attempted = false,
+let databasePort,
+  postgresContainer,
   admin,
   control,
   metadata,
@@ -79,7 +76,7 @@ let containerId,
 const configPath = path.join(runRoot, "database-config.json");
 const runtimeDirectory = path.join(
   root,
-  ".aiwf/evidence/TC050-integrated-mysql",
+  ".aiwf/evidence/TC050-integrated-postgres",
   ports.control === 4450 ? "runtime" : "runtime-" + ports.control
 );
 fs.mkdirSync(runtimeDirectory, { recursive: true, mode: 0o700 });
@@ -102,8 +99,9 @@ const event = (value) => {
   fs.appendFileSync(path.join(evidence, "runtime.log"), line, { mode: 0o600 });
   process.stdout.write(line);
 };
+const dockerBin = process.env.DOCKER_BIN || "docker";
 const docker = (...args) =>
-  execFileSync("docker", args, {
+  execFileSync(dockerBin, args, {
     env: baseEnv,
     encoding: "utf8",
     timeout: 30000,
@@ -212,30 +210,43 @@ async function waitReady(url, key) {
   }
   throw new Error(key + " readiness timeout; inspect private log");
 }
-function ownedContainer(live) {
-  if (
-    !live ||
-    (containerId && live.Id !== containerId) ||
-    live.Name !== "/" + name ||
-    live.Config?.Labels?.[label] !== owner
-  )
-    throw new Error("Refusing unexpected Docker owner");
-  return live;
+async function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const port = server.address().port;
+      server.close(() => resolve(port));
+    });
+  });
 }
 async function checkDatabase() {
-  ownedContainer(JSON.parse(docker("inspect", containerId))[0]);
-  const [[server]] = await admin.query(
-    "SELECT VERSION() AS version, @@server_uuid AS uuid, DATABASE() AS db"
-  );
-  const [[marker]] = await admin.query("SELECT token FROM qa_runtime_owner");
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  const live = JSON.parse(docker("inspect", config.containerId))[0];
   if (
-    server.version !== "8.4.11" ||
+    live.Name !== "/" + postgresName ||
+    live.Config.Labels["vanillameta.qa.owner"] !== owner ||
+    !live.HostConfig.Mounts.some(
+      (mount) =>
+        mount.Type === "tmpfs" && mount.Target === "/var/lib/postgresql/data"
+    )
+  )
+    throw new Error("Owned PostgreSQL container identity changed");
+  const {
+    rows: [server],
+  } = await admin.query(
+    "SELECT current_setting('server_version') AS version, (pg_control_system()).system_identifier::text AS uuid, current_database() AS db"
+  );
+  const {
+    rows: [marker],
+  } = await admin.query("SELECT token FROM qa_runtime_owner");
+  if (
+    !/^17\./.test(server.version) ||
     server.uuid !== config.serverUuid ||
     server.db !== database ||
     marker.token !== owner
   )
-    throw new Error("Owned MySQL identity changed");
+    throw new Error("Owned PostgreSQL identity changed");
 }
 function saveRuntime(status) {
   Object.assign(metadata, {
@@ -259,25 +270,16 @@ const cleanup = () =>
     );
     control?.close();
     await Promise.all([...processes.keys()].map(stopProcess));
-    admin?.destroy();
+    await admin?.end().catch(() => undefined);
     admin = undefined;
-    let removed = !attempted;
-    if (attempted) {
-      let live;
-      try {
-        live = JSON.parse(docker("inspect", containerId || name))[0];
-      } catch (error) {
-        if (!/No such (object|container)/i.test(String(error.stderr ?? "")))
-          throw new Error(
-            "Docker cleanup outcome unknown; private ownership files retained"
-          );
-        removed = true;
-      }
-      if (live) {
-        ownedContainer(live);
-        docker("rm", "-f", live.Id);
-        removed = true;
-      }
+    if (postgresContainer) {
+      const live = JSON.parse(docker("inspect", postgresContainer))[0];
+      if (
+        live.Name !== "/" + postgresName ||
+        live.Config.Labels["vanillameta.qa.owner"] !== owner
+      )
+        throw new Error("Refusing unexpected PostgreSQL container cleanup");
+      docker("rm", "-f", postgresContainer);
     }
     if (fs.readFileSync(path.join(runRoot, "owner"), "utf8") !== owner)
       throw new Error("Refusing unknown run directory cleanup");
@@ -285,7 +287,9 @@ const cleanup = () =>
     if (metadata) saveRuntime("stopped");
     event({
       phase: "cleanup",
-      ownedContainerRemoved: removed,
+      ownedPostgresContainerRemoved:
+        !postgresContainer ||
+        !docker("ps", "-aq", "--filter", `name=^/${postgresName}$`),
       temporaryCredentialsRemoved: !fs.existsSync(runRoot),
       persistentVolumesCreated: 0,
     });
@@ -420,82 +424,93 @@ async function main() {
       throw new Error(
         "Main must provide existing backend dist; runtime never builds"
       );
-  const envFile = path.join(runRoot, "mysql.env");
+  const envFile = path.join(runRoot, "postgres.env");
   fs.writeFileSync(
     envFile,
-    `MYSQL_ROOT_PASSWORD=${password}\nMYSQL_ROOT_HOST=%\n`,
+    `POSTGRES_PASSWORD=${password}\nPOSTGRES_DB=postgres\nPOSTGRES_USER=postgres\n`,
     { mode: 0o600 }
   );
-  const args = [
+  checkActive();
+  postgresContainer = docker(
+    "run",
+    "-d",
     "--name",
-    name,
+    postgresName,
     "--label",
-    label + "=" + owner,
+    `vanillameta.qa.owner=${owner}`,
     "--env-file",
     envFile,
     "-p",
-    "127.0.0.1::3306",
+    "127.0.0.1::5432",
     "--mount",
-    "type=tmpfs,destination=/var/lib/mysql",
-    "mysql:8.4.11",
-  ];
-  checkActive();
-  attempted = true;
-  if (process.argv.includes("--probe-partial-create")) {
-    docker("create", ...args); // Deliberately unknown ID: cleanup must reconcile exact name + owner.
-    throw new Error("Synthetic partial creation probe");
-  }
-  containerId = docker("run", "-d", ...args);
-  const live = ownedContainer(JSON.parse(docker("inspect", containerId))[0]);
-  const bindings = live.NetworkSettings.Ports["3306/tcp"];
+    "type=tmpfs,destination=/var/lib/postgresql/data",
+    "postgres:17-alpine"
+  );
+  const live = JSON.parse(docker("inspect", postgresContainer))[0];
+  const bindings = live.NetworkSettings.Ports["5432/tcp"];
   if (
-    bindings.length !== 1 ||
+    live.Name !== "/" + postgresName ||
+    live.Config.Labels["vanillameta.qa.owner"] !== owner ||
+    bindings?.length !== 1 ||
     bindings[0].HostIp !== "127.0.0.1" ||
     !live.HostConfig.Mounts.some(
-      (m) => m.Type === "tmpfs" && m.Target === "/var/lib/mysql"
+      (mount) =>
+        mount.Type === "tmpfs" && mount.Target === "/var/lib/postgresql/data"
     )
   )
-    throw new Error("Unexpected MySQL binding or storage");
-  const port = Number(bindings[0].HostPort);
+    throw new Error("Unexpected PostgreSQL container ownership or storage");
+  databasePort = Number(bindings[0].HostPort);
+  const port = databasePort;
   for (let i = 0; i < 120; i++) {
     checkActive();
     try {
-      admin = await mysql.createConnection({
+      admin = new Client({
         host: "127.0.0.1",
         port,
-        user: "root",
+        user: "postgres",
         password,
-        connectTimeout: 1000,
+        database: "postgres",
+        connectionTimeoutMillis: 1000,
       });
+      await admin.connect();
       break;
     } catch {
+      await admin?.end().catch(() => undefined);
+      admin = undefined;
       await delay(500);
     }
   }
-  if (!admin) throw new Error("Owned MySQL readiness timeout");
-  const [[server]] = await admin.query(
-    "SELECT VERSION() AS version, @@server_uuid AS uuid"
-  );
-  if (server.version !== "8.4.11")
-    throw new Error("Expected exact MySQL8.4.11");
+  if (!admin) throw new Error("Owned PostgreSQL readiness timeout");
   await admin.query(
-    "CREATE DATABASE `" +
-      database +
-      "` CHARACTER SET utf8mb4 COLLATE utf8mb4_bin"
+    `CREATE DATABASE "${database}" ENCODING 'UTF8' TEMPLATE template0`
   );
-  await admin.changeUser({ database });
-  await admin.query(
-    "CREATE TABLE qa_runtime_owner(token VARCHAR(24) NOT NULL)"
-  );
-  await admin.query("INSERT INTO qa_runtime_owner VALUES (?)", [owner]);
-  const config = {
-    gate: "owned-enterprise-http-mysql-v1",
-    owner,
-    containerId,
-    containerName: name,
+  await admin.end();
+  admin = new Client({
     host: "127.0.0.1",
     port,
-    username: "root",
+    user: "postgres",
+    password,
+    database,
+  });
+  await admin.connect();
+  const {
+    rows: [server],
+  } = await admin.query(
+    "SELECT current_setting('server_version') AS version, (pg_control_system()).system_identifier::text AS uuid"
+  );
+  if (!/^17\./.test(server.version)) throw new Error("Expected PostgreSQL 17");
+  await admin.query(
+    "CREATE TABLE qa_runtime_owner(token VARCHAR(24) NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())"
+  );
+  await admin.query("INSERT INTO qa_runtime_owner(token) VALUES ($1)", [owner]);
+  const config = {
+    gate: "owned-enterprise-http-postgres-v1",
+    owner,
+    containerId: postgresContainer,
+    containerName: postgresName,
+    host: "127.0.0.1",
+    port,
+    username: "postgres",
     password,
     database,
     serverUuid: server.uuid,

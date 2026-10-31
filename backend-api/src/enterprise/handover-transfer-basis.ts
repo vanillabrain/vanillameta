@@ -104,7 +104,7 @@ export async function inspectTransfer(
   // Parent order is already User/intent/final/Dashboard/Source. Fence canonical children
   // with current reads so raw DELETE/UPDATE cannot invalidate the graph before commit.
   // Read-only review deliberately never requests row locks.
-  if (lockChildren && ['mysql', 'mariadb'].includes(manager.connection.options.type)) {
+  if (lockChildren && manager.connection.options.type !== 'sqlite') {
     if (!manager.queryRunner?.isTransactionActive)
       throw new Error('Transfer child locks require a transaction');
     const widgetIds = new Set<number>();
@@ -439,7 +439,7 @@ export async function inspectTransfer(
       datasets.length > 2000 ||
       widgets.length > 2000 ||
       (lockChildren &&
-        ['mysql', 'mariadb'].includes(manager.connection.options.type) &&
+        manager.connection.options.type !== 'sqlite' &&
         (datasets.some(d => !fencedDatasets.has(d.id)) ||
           widgets.some(w => !fencedWidgets.has(w.id))))
     )

@@ -10,7 +10,14 @@ export class EnterpriseStaffTransfer {
   @Index('UQ_enterprise_staff_transfer_code', { unique: true })
   @Column({ type: 'varchar', length: 64 })
   codeHash: string;
-  @Column({ type: 'datetime' }) expiresAt: Date;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
+  expiresAt: Date;
   @Column({ type: 'integer', nullable: true }) acceptedBy: number | null;
   @Column({ type: 'integer', nullable: true }) acceptedEpoch: number | null;
   @Column({ type: 'integer', nullable: true }) targetVersion: number | null;

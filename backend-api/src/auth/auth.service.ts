@@ -104,7 +104,7 @@ export class AuthService {
     return metadataTransaction(this.userRepository.manager, async manager => {
       const user = await manager.findOne(User, {
         where: { id: userId, userId: actor.userId },
-        ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ...(manager.connection.options.type !== 'sqlite'
           ? { lock: { mode: 'pessimistic_write' as const } }
           : {}),
       });
@@ -116,7 +116,6 @@ export class AuthService {
           : null;
       const saved = await manager.save(RefreshToken, { ...(prior || {}), refreshToken: token });
       const updated = await manager.update(User, userId, { jwtId: saved.id });
-      // Configured mysql2 keeps FOUND_ROWS enabled; a matched unchanged link still reports 1.
       if (updated.affected !== 1) throw denied();
       return saved;
     });

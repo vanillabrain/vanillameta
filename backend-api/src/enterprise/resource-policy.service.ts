@@ -239,7 +239,7 @@ export class EnterpriseResourcePolicyService {
           'mapping.dashboardId = resource.id AND mapping.userInfoId = grant.ownerId',
         )
         .andWhere(
-          '(SELECT COUNT(*) FROM user_mapping owning WHERE owning.dashboardId = resource.id) = 1',
+          '(SELECT COUNT(*) FROM "user_mapping" owning WHERE owning."dashboardId" = resource.id) = 1',
         );
     const rows = await query
       .select('grant.resourceId', 'id')
@@ -282,7 +282,7 @@ export class EnterpriseResourcePolicyService {
       )
       .where('delivery.recipientId = :actor AND delivery.active = :active', { actor, active: true })
       .andWhere(
-        '(SELECT COUNT(*) FROM user_mapping owning WHERE owning.dashboardId = resource.id) = 1',
+        '(SELECT COUNT(*) FROM "user_mapping" owning WHERE owning."dashboardId" = resource.id) = 1',
       )
       .select('delivery.dashboardId', 'id')
       .orderBy('delivery.dashboardId', 'ASC')
@@ -351,7 +351,7 @@ export class EnterpriseResourcePolicyService {
           'mapping.dashboardId = resource.id AND mapping.userInfoId = gg.ownerId',
         )
         .andWhere(
-          '(SELECT COUNT(*) FROM user_mapping owning WHERE owning.dashboardId = resource.id) = 1',
+          '(SELECT COUNT(*) FROM "user_mapping" owning WHERE owning."dashboardId" = resource.id) = 1',
         );
     const rows = await query
       .select('gg.resourceId', 'id')
@@ -415,7 +415,7 @@ export class EnterpriseResourcePolicyService {
       const { membership } = await this.management(kind, id, actor, manager);
       const group = await manager.findOne(EnterpriseGroup, {
         where: { id: groupId, organizationId: membership.organizationId },
-        ...(['mysql', 'mariadb'].includes(manager.connection.options.type)
+        ...(manager.connection.options.type !== 'sqlite'
           ? { lock: { mode: 'pessimistic_write' as const } }
           : {}),
       });
@@ -664,6 +664,9 @@ export class EnterpriseResourcePolicyService {
               'ER_DUP_ENTRY',
               'ER_LOCK_DEADLOCK',
               'ER_LOCK_WAIT_TIMEOUT',
+              '40001',
+              '40P01',
+              '55P03',
             ].includes(error.driverError?.code))
         )
           throw new ConflictException('권한 변경이 경합 중입니다. 최신 권한을 확인해 주세요.');

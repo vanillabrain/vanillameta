@@ -11,7 +11,7 @@ function positive(id: number) {
   if (!Number.isSafeInteger(id) || id <= 0) throw new ForbiddenException('Metric unavailable.');
 }
 function currentLock(manager: EntityManager) {
-  return ['mysql', 'mariadb'].includes(manager.connection.options.type)
+  return manager.connection.options.type !== 'sqlite'
     ? { lock: { mode: 'pessimistic_write' as const } }
     : {};
 }

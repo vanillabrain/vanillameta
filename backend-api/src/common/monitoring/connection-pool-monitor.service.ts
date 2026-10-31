@@ -38,6 +38,21 @@ export class ConnectionPoolMonitorService {
         return null;
       }
 
+      if (this.dataSource.options.type === 'postgres') {
+        const totalConnections = Number(pool.totalCount ?? 0);
+        const idleConnections = Number(pool.idleCount ?? 0);
+        const activeConnections = Math.max(0, totalConnections - idleConnections);
+        return {
+          totalConnections,
+          activeConnections,
+          idleConnections,
+          waitingRequests: Number(pool.waitingCount ?? 0),
+          connectionUtilization:
+            totalConnections > 0 ? (activeConnections / totalConnections) * 100 : 0,
+          timestamp: new Date(),
+        };
+      }
+
       // MySQL2 드라이버의 경우
       if (pool._allConnections) {
         const metrics: PoolMetrics = {

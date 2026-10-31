@@ -7,6 +7,7 @@ import {
   Index,
 } from 'typeorm';
 import { JobType, JobStatus, JobPriority } from './queue-job.entity';
+import { numberFromBigInt } from '../../common/database-transformers';
 
 @Entity('job_metrics')
 @Index(['jobType', 'status', 'createdAt'])
@@ -34,16 +35,16 @@ export class JobMetrics {
   @Column({ type: 'int', default: 0 })
   jobCount: number;
 
-  @Column({ type: 'bigint', default: 0 })
+  @Column({ type: 'bigint', default: 0, transformer: numberFromBigInt })
   totalExecutionTimeMs: number;
 
-  @Column({ type: 'bigint', default: 0 })
+  @Column({ type: 'bigint', default: 0, transformer: numberFromBigInt })
   avgExecutionTimeMs: number;
 
-  @Column({ type: 'bigint', default: 0 })
+  @Column({ type: 'bigint', default: 0, transformer: numberFromBigInt })
   minExecutionTimeMs: number;
 
-  @Column({ type: 'bigint', default: 0 })
+  @Column({ type: 'bigint', default: 0, transformer: numberFromBigInt })
   maxExecutionTimeMs: number;
 
   @Column({ type: 'int', default: 0 })
@@ -61,10 +62,10 @@ export class JobMetrics {
   @Column({ type: 'float', default: 0 })
   successRate: number; // 0-100
 
-  @Column({ type: 'bigint', default: 0 })
+  @Column({ type: 'bigint', default: 0, transformer: numberFromBigInt })
   totalWaitTimeMs: number; // Time from creation to start
 
-  @Column({ type: 'bigint', default: 0 })
+  @Column({ type: 'bigint', default: 0, transformer: numberFromBigInt })
   avgWaitTimeMs: number;
 
   @Column({ type: 'int', default: 0 })

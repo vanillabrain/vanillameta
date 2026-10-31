@@ -55,7 +55,7 @@ export class HandoverTransferService {
     return body;
   }
   private lock(manager: EntityManager) {
-    return ['mysql', 'mariadb'].includes(manager.connection.options.type)
+    return manager.connection.options.type !== 'sqlite'
       ? { lock: { mode: 'pessimistic_write' as const } }
       : {};
   }
@@ -175,9 +175,10 @@ export class HandoverTransferService {
         const result = await run(manager, scope, proposal);
         return { scope, row, result };
       };
-      const snap = ['mysql', 'mariadb'].includes(this.db.options.type)
-        ? await this.db.transaction('REPEATABLE READ', capture)
-        : await this.db.transaction(capture);
+      const snap =
+        this.db.options.type !== 'sqlite'
+          ? await this.db.transaction('REPEATABLE READ', capture)
+          : await this.db.transaction(capture);
       const fresh = await this.intent.context(this.db.manager, actor, epoch, id);
       if (Number(fresh.organizationId) !== Number(snap.scope.organizationId))
         throw new ForbiddenException('현재 조직이 변경됐습니다.');
@@ -246,7 +247,7 @@ export class HandoverTransferService {
   }
   private async transaction<T>(run: (manager: EntityManager) => Promise<T>) {
     try {
-      return await (['mysql', 'mariadb'].includes(this.db.options.type)
+      return await (this.db.options.type !== 'sqlite'
         ? metadataTransaction(this.db, 'READ COMMITTED', run)
         : metadataTransaction(this.db, run));
     } catch (e) {
@@ -259,6 +260,9 @@ export class HandoverTransferService {
             'ER_DUP_ENTRY',
             'ER_LOCK_DEADLOCK',
             'ER_LOCK_WAIT_TIMEOUT',
+            '40001',
+            '40P01',
+            '55P03',
           ].includes(e.driverError?.code))
       )
         throw new ConflictException('최종 요청이 경합 중입니다. 같은 번호로 상태를 확인해 주세요.');

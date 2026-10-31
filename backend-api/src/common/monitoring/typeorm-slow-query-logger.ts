@@ -135,8 +135,8 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
     queryRunner?: QueryRunner,
   ): Promise<void> {
     try {
-      // TypeORM은 MySQL을 메인 DB로 사용
-      const databaseEngine = 'mysql2';
+      const type = queryRunner?.connection.options.type;
+      const databaseEngine = type === 'postgres' ? 'pg' : type === 'sqlite' ? 'sqlite3' : 'mysql2';
 
       let analysis: any = null;
 

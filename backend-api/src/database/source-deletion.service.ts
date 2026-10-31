@@ -90,7 +90,7 @@ export class SourceDeletionService {
   private async scope(actor: number, epoch: number, m: EntityManager, lock = false) {
     if (!positive(actor)) throw new ForbiddenException('본인 계정 확인이 필요합니다.');
     const locking =
-      lock && ['mysql', 'mariadb'].includes(this.db.options.type)
+      lock && this.db.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {};
     const user = await m.findOne(User, {
@@ -107,7 +107,7 @@ export class SourceDeletionService {
     return member?.organizationId ?? null;
   }
   private tx<T>(run: (m: EntityManager) => Promise<T>) {
-    return ['mysql', 'mariadb'].includes(this.db.options.type)
+    return this.db.options.type !== 'sqlite'
       ? metadataTransaction(this.db, 'READ COMMITTED', run)
       : metadataTransaction(this.db, run);
   }
@@ -629,6 +629,9 @@ export class SourceDeletionService {
             'ER_DUP_ENTRY',
             'ER_LOCK_DEADLOCK',
             'ER_LOCK_WAIT_TIMEOUT',
+            '40001',
+            '40P01',
+            '55P03',
           ].includes(error.driverError?.code))
       )
         throw new ConflictException(
@@ -658,7 +661,7 @@ export class SourceDeletionService {
     const org = await this.scope(actor, epoch, m, lock);
     const row = await m.findOne(SourceDeleteReceipt, {
       where: { id },
-      ...(lock && ['mysql', 'mariadb'].includes(this.db.options.type)
+      ...(lock && this.db.options.type !== 'sqlite'
         ? { lock: { mode: 'pessimistic_write' as const } }
         : {}),
     });

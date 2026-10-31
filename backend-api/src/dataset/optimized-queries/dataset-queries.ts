@@ -104,6 +104,7 @@ export class OptimizedDatasetQueries {
    * - 쿼리 미리보기 데이터 포함 옵션
    */
   async findDatasetByIdOptimized(datasetId: number, options?: { includePreview?: boolean }) {
+    const type = this.datasetRepository.manager.connection.options.type;
     const dataset = await this.datasetRepository
       .createQueryBuilder('ds')
       .leftJoinAndSelect('ds.database', 'db')
@@ -126,7 +127,14 @@ export class OptimizedDatasetQueries {
         'db.type',
       ])
       .addSelect('COUNT(DISTINCT w.id)', 'widgetCount')
-      .addSelect(`GROUP_CONCAT(DISTINCT w.title ORDER BY w.title SEPARATOR ', ')`, 'widgetTitles')
+      .addSelect(
+        type === 'postgres'
+          ? "STRING_AGG(DISTINCT w.title, ', ' ORDER BY w.title)"
+          : type === 'sqlite'
+          ? 'GROUP_CONCAT(DISTINCT w.title)'
+          : "GROUP_CONCAT(DISTINCT w.title ORDER BY w.title SEPARATOR ', ')",
+        'widgetTitles',
+      )
       .where('ds.id = :datasetId', { datasetId })
       .groupBy('ds.id')
       .addGroupBy('db.id')

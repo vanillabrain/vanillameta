@@ -7,7 +7,7 @@ import { EnterpriseMembership } from './entities/enterprise-membership.entity';
 export async function lockStaffWrite(manager: EntityManager, ids: number[]) {
   if (ids.some(id => !Number.isSafeInteger(id) || id <= 0))
     throw new ForbiddenException('직원 계정을 확인해 주세요.');
-  if (!['mysql', 'mariadb'].includes(manager.connection.options.type)) return;
+  if (manager.connection.options.type === 'sqlite') return;
   for (const id of [...new Set(ids)].sort((a, b) => a - b)) {
     await manager.findOne(User, {
       where: { id },

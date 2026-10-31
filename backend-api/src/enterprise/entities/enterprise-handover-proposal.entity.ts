@@ -15,8 +15,23 @@ export class EnterpriseHandoverProposal {
   @Column({ type: 'integer', nullable: true }) acceptedAuditId: number | null;
   @Column({ type: 'integer', nullable: true }) cancelledAuditId: number | null;
   @Column({ type: 'varchar', length: 16 }) status: 'pending' | 'accepted' | 'cancelled';
-  @Column({ type: 'datetime' }) expiresAt: Date;
-  @Column({ type: 'datetime', nullable: true }) acceptedAt: Date | null;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+  })
+  expiresAt: Date;
+  @Column({
+    type:
+      process.env.METADATA_DB_TYPE === 'postgres' ||
+      (process.env.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'local')
+        ? 'timestamp'
+        : 'datetime',
+    nullable: true,
+  })
+  acceptedAt: Date | null;
   @Column({ type: 'text' }) manifestJson: string;
   @Column({ type: 'varchar', length: 64 }) payloadHash: string;
   @Column({ type: 'varchar', length: 64 }) reviewBasis: string;

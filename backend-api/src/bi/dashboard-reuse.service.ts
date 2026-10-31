@@ -1196,7 +1196,7 @@ export class DashboardReuseService {
         } catch (failure) {
           const code = String(failure?.code ?? failure?.driverError?.code);
           if (
-            !/SQLITE_BUSY|SQLITE_LOCKED|SQLITE_CONSTRAINT|ER_DUP_ENTRY|ER_LOCK_DEADLOCK|ER_LOCK_WAIT_TIMEOUT/.test(
+            !/SQLITE_BUSY|SQLITE_LOCKED|SQLITE_CONSTRAINT|ER_DUP_ENTRY|ER_LOCK_DEADLOCK|ER_LOCK_WAIT_TIMEOUT|23505|40001|40P01|55P03/.test(
               code,
             )
           )
