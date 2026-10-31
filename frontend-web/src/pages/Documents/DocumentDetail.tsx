@@ -38,6 +38,10 @@ function DetailPage({ id, scope }: { id: string; scope: string | null }) {
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [disconnectBusy, setDisconnectBusy] = useState(false);
   const [needsRead, setNeedsRead] = useState(false);
+  const [shares, setShares] = useState<Array<{ recipientId: number; active: boolean }>>([]);
+  const [recipientId, setRecipientId] = useState('');
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState('');
   const [consent, setConsent] = useState(false);
   const [summaryBusy, setSummaryBusy] = useState(false);
   const [summaryError, setSummaryError] = useState('');
@@ -174,8 +178,83 @@ function DetailPage({ id, scope }: { id: string; scope: string | null }) {
       if (current()) setDisconnectBusy(false);
     }
   };
+  const loadShares = async () => {
+    try {
+      setShares((await documentService.shares(id)) as Array<{ recipientId: number; active: boolean }>);
+    } catch {
+      setShareError('공유 목록을 불러오지 못했습니다.');
+    }
+  };
+  const changeShareTo = async (target: number, active: boolean) => {
+    setShareBusy(true);
+    setShareError('');
+    try {
+      await documentService.share(id, { recipientId: target, active });
+      await loadShares();
+    } catch {
+      setShareError('공유 요청을 처리하지 못했습니다. 같은 조직 구성원인지 확인해 주세요.');
+    } finally {
+      setShareBusy(false);
+    }
+  };
   return (
     <DocumentFrame title={read.kind === 'ready' ? read.detail.title : t('docConnection.title')}>
+      {read.kind === 'ready' && read.detail.role === 'owner' && (
+        <section className="my-6 rounded-xl border p-5" aria-label="문서 공유">
+          <h2 className="font-semibold">문서 공유</h2>
+          <p className="text-sm text-muted-foreground">같은 조직 구성원에게 저장된 버전을 읽기 전용으로 공유합니다.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input
+              aria-label="받는 사람 ID"
+              className="h-10 rounded-md border bg-background px-3"
+              value={recipientId}
+              onChange={event => setRecipientId(event.target.value)}
+            />
+            <Button
+              className="h-10"
+              disabled={shareBusy || !recipientId}
+              onClick={() => {
+                const target = Number(recipientId);
+                if (Number.isSafeInteger(target) && target > 0) void changeShareTo(target, true);
+              }}
+            >
+              초대
+            </Button>
+            <Button className="h-10" variant="outline" disabled={shareBusy} onClick={() => void loadShares()}>
+              목록 새로고침
+            </Button>
+          </div>
+          {shareError && (
+            <p role="alert" className="mt-2 text-sm">
+              {shareError}
+            </p>
+          )}
+          <ul className="mt-3 grid gap-2 text-sm">
+            {shares.map(item => (
+              <li key={item.recipientId} className="flex items-center justify-between gap-2 rounded-md border p-2">
+                <span>
+                  사용자 {item.recipientId} · {item.active ? '공유 중' : '회수됨'}
+                </span>
+                {item.active && (
+                  <Button
+                    className="h-8"
+                    variant="outline"
+                    disabled={shareBusy}
+                    onClick={() => void changeShareTo(item.recipientId, false)}
+                  >
+                    회수
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {read.kind === 'ready' && read.detail.role === 'recipient' && (
+        <p role="status" className="my-4 rounded-lg border p-3 text-sm">
+          받은 문서입니다. 읽기 전용이며 원본 편집 권한은 포함하지 않습니다.
+        </p>
+      )}
       {read.kind === 'loading' && <p role="status">{t('docConnection.loading')}</p>}
       {read.kind === 'error' && <p role="alert">{t('docConnection.loadError')}</p>}
       <div>

@@ -13,6 +13,7 @@ const sourceUrl = z
     return url.hostname === 'onedrive.live.com' || url.hostname.endsWith('.sharepoint.com');
   });
 const summarySchema = z.object({
+  role: z.enum(['owner', 'recipient']).default('owner'),
   id: uuid,
   title: z.string(),
   sourceUrl,
@@ -169,5 +170,22 @@ export const documentService = {
       .parse((await post(`/documents/${uuid.parse(id)}/summary`, input, { timeout: 190000 })).data);
     if (result.documentId !== id) throw new Error('Document mismatch');
     return result;
+  },
+  async shares(id: string) {
+    return z
+      .array(
+        z.object({
+          recipientId: z.number().int().positive(),
+          active: z.boolean(),
+          createdAt: z.string(),
+          revokedAt: z.string().nullable(),
+        }),
+      )
+      .parse((await get('/documents/' + uuid.parse(id) + '/shares')).data);
+  },
+  async share(id: string, input: { recipientId: number; active: boolean }) {
+    return z
+      .object({ documentId: uuid, recipientId: z.number().int().positive(), active: z.boolean() })
+      .parse((await post('/documents/' + uuid.parse(id) + '/shares', input)).data);
   },
 };
