@@ -117,6 +117,7 @@ function DocumentsList({ scope }: { scope: string | null }) {
                       </Link>
                     </h2>
                     <p className="mt-2 text-sm text-muted-foreground">
+                      {document.role === 'recipient' && <strong>받은 문서 · </strong>}
                       {t(document.connected ? 'docConnection.connected' : 'docConnection.disconnected')} ·{' '}
                       {document.currentVersion
                         ? t('docConnection.version', { version: document.currentVersion })
