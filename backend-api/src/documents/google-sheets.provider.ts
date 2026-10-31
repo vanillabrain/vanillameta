@@ -76,6 +76,25 @@ export class GoogleSheetsProvider {
       throw new ServiceUnavailableException('시트 범위가 100,000셀을 넘습니다.');
     return rows;
   }
+  async exchange(code: string, verifier: string, fetcher: typeof fetch = fetch) {
+    const { clientId, clientSecret, redirectUri } = this.config();
+    const response = await fetcher('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+        code,
+        code_verifier: verifier,
+      }),
+    });
+    if (!response.ok) throw new ServiceUnavailableException('Sheets 승인을 완료하지 못했습니다.');
+    const body = (await response.json()) as { access_token?: string };
+    if (!body.access_token) throw new ServiceUnavailableException('Sheets 토큰 응답을 확인할 수 없습니다.');
+    return { accessToken: body.access_token };
+  }
 }
 export function toCsv(rows: string[][]): string {
   return rows
