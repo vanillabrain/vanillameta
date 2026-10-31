@@ -4,6 +4,7 @@ import ArtifactLibrary from './ArtifactLibrary';
 import FileUploadDialog from '../Artifacts/FileUploadDialog';
 import { documentService } from '@/api/documentService';
 import { fileArtifactService } from '@/api/fileArtifactService';
+import { fetchReceivedDashboards, ReceivedDashboard } from '@/api/deliveryService';
 import { useProtectedReport } from '../Reports/useProtectedReport';
 import { reportSharingApi, ReportLibraryItem } from '../Reports/reportSharingApi';
 import { Link, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -85,6 +86,31 @@ function Dashboard() {
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [needsRead, setNeedsRead] = useState(false);
   const [archiveError, setArchiveError] = useState('');
+  const [hubScope, setHubScope] = useState<'mine' | 'shared'>('mine');
+  const [received, setReceived] = useState<ReceivedDashboard[]>([]);
+  const [receivedNext, setReceivedNext] = useState<number | null>(null);
+  const [receivedBusy, setReceivedBusy] = useState(false);
+  const [receivedError, setReceivedError] = useState('');
+  const receivedLoaded = useRef(false);
+  const loadReceived = async (afterId?: number) => {
+    if (receivedBusy) return;
+    setReceivedBusy(true);
+    setReceivedError('');
+    try {
+      const page = await fetchReceivedDashboards(afterId);
+      setReceived(previous => (afterId === undefined ? page.entries : [...previous, ...page.entries]));
+      setReceivedNext(page.nextAfterId);
+    } catch {
+      setReceivedError('받은 자료를 확인하지 못했습니다. 목록 다시 읽기로 재조회해 주세요.');
+    } finally {
+      setReceivedBusy(false);
+    }
+  };
+  useEffect(() => {
+    if (hubScope !== 'shared' || receivedLoaded.current) return;
+    receivedLoaded.current = true;
+    void loadReceived();
+  }, [hubScope]);
   const queryKey = ['dashboards', 'library', authScope, view];
   useEffect(() => {
     mounted.current = true;
@@ -300,13 +326,15 @@ function Dashboard() {
             title={title}
             className="mx-auto max-w-[1280px] gap-6 lg:px-12 lg:py-8"
             button={
-              <MenuButton
-                menuList={menuList}
-                handleSelect={handleMenuSelect}
-                icon={<Plus />}
-                title={t('list.addDashboard')}
-                className="h-10 min-w-[160px] w-auto px-4"
-              />
+              hubScope === 'shared' ? undefined : (
+                <MenuButton
+                  menuList={menuList}
+                  handleSelect={handleMenuSelect}
+                  icon={<Plus />}
+                  title={t('list.addDashboard')}
+                  className="h-10 min-w-[160px] w-auto px-4"
+                />
+              )
             }
           >
             <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">
@@ -324,7 +352,7 @@ function Dashboard() {
               </Button>
               <span className="text-xs text-muted-foreground">{t('artifact.organizationHint')}</span>
             </div>
-            {view === 'active' && (
+            {hubScope === 'mine' && view === 'active' && (
               <div className="mb-4 flex min-w-0 flex-wrap items-center gap-3">
                 <FileUploadDialog
                   onSaved={() => {
@@ -335,32 +363,86 @@ function Dashboard() {
               </div>
             )}
             <div>
+              <div className="mb-4 flex min-w-0 flex-wrap gap-2" role="group" aria-label={t('artifact.scopeLabel')}>
+                <Button
+                  type="button"
+                  className="h-10"
+                  variant={hubScope === 'mine' ? 'default' : 'outline'}
+                  aria-pressed={hubScope === 'mine'}
+                  onClick={() => setHubScope('mine')}
+                >
+                  {t('artifact.mine')}
+                </Button>
+                <Button
+                  type="button"
+                  className="h-10"
+                  variant={hubScope === 'shared' ? 'default' : 'outline'}
+                  aria-pressed={hubScope === 'shared'}
+                  onClick={() => setHubScope('shared')}
+                >
+                  {t('artifact.sharedWithMe')}
+                </Button>
+              </div>
               <ArtifactLibrary
                 key={authScope ?? 'unavailable-session'}
-                items={loadedDashboardData}
-                reports={view === 'active' ? reportLibrary.retained?.data.items ?? [] : []}
+                items={hubScope === 'shared' ? [] : loadedDashboardData}
+                scope={hubScope}
+                deliveries={hubScope === 'shared' ? received : []}
+                reports={
+                  hubScope === 'shared'
+                    ? (reportLibrary.retained?.data.items ?? []).filter(item => item.ownership === 'received')
+                    : view === 'active'
+                    ? reportLibrary.retained?.data.items ?? []
+                    : []
+                }
                 reportBoundary={
-                  view === 'active' && reportLibrary.retained?.data.items.length ? reportLibrary.boundary : undefined
+                  hubScope === 'mine' && view === 'active' && reportLibrary.retained?.data.items.length
+                    ? reportLibrary.boundary
+                    : undefined
                 }
                 reportsReady={
-                  view !== 'active' || !reportLibrary.retained?.data.items.length || reportLibrary.state.kind === 'ready'
+                  hubScope === 'shared' ||
+                  view !== 'active' ||
+                  !reportLibrary.retained?.data.items.length ||
+                  reportLibrary.state.kind === 'ready'
                 }
-                documents={view === 'active' && !documentsQuery.isError ? documentsQuery.data?.documents ?? [] : []}
-                files={view === 'active' && !filesQuery.isError ? filesQuery.data ?? [] : []}
+                documents={
+                  hubScope === 'mine' && view === 'active' && !documentsQuery.isError
+                    ? documentsQuery.data?.documents ?? []
+                    : []
+                }
+                files={hubScope === 'mine' && view === 'active' && !filesQuery.isError ? filesQuery.data ?? [] : []}
                 supplementaryLoading={supplementaryLoading}
                 supplementaryError={supplementaryError}
-                onDelete={handleDeleteSelect}
+                onDelete={hubScope === 'shared' ? () => undefined : handleDeleteSelect}
                 view={view}
-                onViewChange={setView}
+                onViewChange={hubScope === 'shared' ? undefined : setView}
                 onReload={reloadArtifacts}
                 loading={isFetching}
                 listError={isError || authScope === null}
-                canArchive={library?.canArchive === true && !isFetching && !isError}
+                canArchive={hubScope === 'mine' && library?.canArchive === true && !isFetching && !isError}
                 onArchive={archive}
                 archiveDisabled={archiveBusy || needsRead}
                 archiveError={archiveError || (needsRead && !archiveBusy ? t('artifact.needsRead') : '')}
                 busy={archiveBusy}
               />
+              {hubScope === 'shared' && (
+                <div className="mt-4 flex min-w-0 flex-wrap items-center gap-3">
+                  {receivedBusy && <p role="status">{t('artifact.loading')}</p>}
+                  {receivedError && <p role="alert">{receivedError}</p>}
+                  {receivedNext !== null && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10"
+                      disabled={receivedBusy}
+                      onClick={() => void loadReceived(receivedNext)}
+                    >
+                      받은 자료 더 불러오기
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
             {view === 'active' && reportLibrary.state.kind === 'error' && (
               <p role="alert" className="mb-4">

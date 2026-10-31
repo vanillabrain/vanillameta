@@ -217,3 +217,34 @@ it('merges Google documents and file artifacts into the same search, filters, an
   expect(screen.queryByRole('link', { name: 'Alpha Google notes' })).toBeNull();
   expect(screen.getByRole('status').textContent).toBe('전체 5개 중 1개');
 });
+
+it('shows received reports and deliveries as read-only shared rows', () => {
+  const onDelete = vi.fn();
+  render(
+    <MemoryRouter initialEntries={['/dashboard']}>
+      <ArtifactLibrary
+        items={[]}
+        scope="shared"
+        deliveries={[{ dashboardId: 9, title: '공유 대시보드', version: 2 }]}
+        reports={[
+          {
+            kind: 'report',
+            id: '12345678-1234-4234-8234-123456789abc',
+            title: '공유 보고서',
+            ownership: 'received',
+            version: 3,
+            updatedAt: '2026-10-30',
+          },
+        ]}
+        onDelete={onDelete}
+      />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole('link', { name: '공유 대시보드' }).getAttribute('href')).toBe('/dashboard/9');
+  expect(screen.getByRole('link', { name: '공유 보고서' }).getAttribute('href')).toBe(
+    '/reports/12345678-1234-4234-8234-123456789abc/read',
+  );
+  expect(screen.getByText(/받은 분석/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /삭제/ })).toBeNull();
+  expect(onDelete).not.toHaveBeenCalled();
+});

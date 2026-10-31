@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { FileText, File, FileType2, Presentation, Sheet } from 'lucide-react';
+import { FileText, File, FileType2, LayoutDashboard, Presentation, Sheet } from 'lucide-react';
 import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import BoardItem from '@/components/BoardItem';
 import { ReportLibraryItem } from '../Reports/reportSharingApi';
@@ -11,6 +11,7 @@ import { TextField } from '@/components/ui/text-field';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { LibraryView } from '@/api/personalLibraryService';
+import type { ReceivedDashboard } from '@/api/deliveryService';
 
 export type Artifact = {
   id: number | string;
@@ -26,13 +27,16 @@ const time = (value?: string) => {
 };
 type Row =
   | { kind: 'dashboard'; item: Artifact }
+  | { kind: 'delivery'; item: ReceivedDashboard & { id: string; updatedAt: string } }
   | { kind: 'report'; item: ReportLibraryItem }
   | { kind: 'google'; item: DocumentSummary }
   | { kind: 'file'; item: FileArtifactSummary };
 type Kind = 'all' | 'analysis' | 'dashboard' | 'report' | 'google' | 'file';
 
 const iconFor = (row: Row) =>
-  row.kind === 'report'
+  row.kind === 'delivery'
+    ? LayoutDashboard
+    : row.kind === 'report'
     ? FileText
     : row.kind === 'google'
     ? FileType2
@@ -50,6 +54,8 @@ export default function ArtifactLibrary({
   reports = [],
   documents = [],
   files = [],
+  deliveries = [],
+  scope = 'mine',
   reportBoundary,
   reportsReady = true,
   onDelete,
@@ -70,6 +76,8 @@ export default function ArtifactLibrary({
   reports?: ReportLibraryItem[];
   documents?: DocumentSummary[];
   files?: FileArtifactSummary[];
+  deliveries?: ReceivedDashboard[];
+  scope?: 'mine' | 'shared';
   reportBoundary?: React.RefObject<HTMLDivElement>;
   reportsReady?: boolean;
   onDelete: (id: any, title: any) => void;
@@ -108,10 +116,19 @@ export default function ArtifactLibrary({
     );
   };
   const rows: Row[] = [
-    ...(!loading && !listError ? items.map(item => ({ kind: 'dashboard' as const, item })) : []),
-    ...(view === 'active' ? reports.map(item => ({ kind: 'report' as const, item })) : []),
-    ...(view === 'active' ? documents.map(item => ({ kind: 'google' as const, item })) : []),
-    ...(view === 'active' ? files.map(item => ({ kind: 'file' as const, item })) : []),
+    ...(scope === 'shared'
+      ? [
+          ...reports.map(item => ({ kind: 'report' as const, item })),
+          ...deliveries.map(item => ({
+            kind: 'delivery' as const,
+            item: { ...item, id: String(item.dashboardId), updatedAt: '' },
+          })),
+        ]
+      : []),
+    ...(scope === 'shared' ? [] : !loading && !listError ? items.map(item => ({ kind: 'dashboard' as const, item })) : []),
+    ...(scope === 'shared' ? [] : view === 'active' ? reports.map(item => ({ kind: 'report' as const, item })) : []),
+    ...(scope === 'shared' ? [] : view === 'active' ? documents.map(item => ({ kind: 'google' as const, item })) : []),
+    ...(scope === 'shared' ? [] : view === 'active' ? files.map(item => ({ kind: 'file' as const, item })) : []),
   ];
   const results = useMemo(() => {
     const text = normalized(query);
@@ -120,6 +137,7 @@ export default function ArtifactLibrary({
       .filter(row => {
         if (kind === 'all') return true;
         if (row.kind === 'report' || row.kind === 'google' || row.kind === 'file') return kind === row.kind;
+        if (row.kind === 'delivery') return kind === 'analysis' || kind === 'dashboard';
         return kind === 'analysis' ? !!row.item.analysisDefinition : kind === 'dashboard' && !row.item.analysisDefinition;
       })
       .sort((a, b) => {
@@ -127,7 +145,7 @@ export default function ArtifactLibrary({
           (a.item.title ?? '').localeCompare(b.item.title ?? '', 'ko') || String(a.item.id).localeCompare(String(b.item.id));
         return sort === 'title' ? byTitle : time(b.item.updatedAt) - time(a.item.updatedAt) || byTitle;
       });
-  }, [items, reports, documents, files, loading, listError, view, query, kind, sort]);
+  }, [items, reports, documents, files, deliveries, loading, listError, view, query, kind, sort, scope]);
   const reset = () => {
     update({ artifactQuery: '', artifactKind: '', artifactSort: '' });
     searchRef.current?.focus();
@@ -266,7 +284,7 @@ export default function ArtifactLibrary({
             t={t}
             render={row => (
               <ArtifactRow
-                key={`${row.kind}-${row.item.id}`}
+                key={`${row.kind}-${row.kind === 'delivery' ? row.item.dashboardId : row.item.id}`}
                 row={row}
                 display={display}
                 navigationLink={navigation.link}
@@ -280,7 +298,9 @@ export default function ArtifactLibrary({
         ) : (
           !loading &&
           !listError && (
-            <p className="mt-4 rounded-lg border border-border p-6 text-sm text-muted-foreground">{t('artifact.empty')}</p>
+            <p className="mt-4 rounded-lg border border-border p-6 text-sm text-muted-foreground">
+              {t(scope === 'shared' ? 'artifact.sharedEmpty' : 'artifact.empty')}
+            </p>
           )
         )}
       </div>
@@ -328,14 +348,18 @@ function ArtifactRow({
   const Icon = iconFor(row);
   const kindLabel = t(`artifact.${row.kind}`);
   const href =
-    row.kind === 'report'
+    row.kind === 'delivery'
+      ? `/dashboard/${row.item.dashboardId}`
+      : row.kind === 'report'
       ? `/reports/${row.item.id}/read`
       : row.kind === 'google'
       ? `/documents/${row.item.id}`
       : `/artifacts/files/${row.item.id}`;
   const file = row.kind === 'file' ? row.item : undefined;
   const detail =
-    row.kind === 'report'
+    row.kind === 'delivery'
+      ? t('artifact.versions', { version: row.item.version })
+      : row.kind === 'report'
       ? t('artifact.versions', { version: row.item.version })
       : row.kind === 'google'
       ? t('artifact.versions', { version: row.item.currentVersion })
@@ -344,7 +368,9 @@ function ArtifactRow({
       : '';
   const updatedAt = row.kind === 'google' ? row.item.updatedAt : row.item.updatedAt;
   const ownership =
-    row.kind === 'report'
+    row.kind === 'delivery'
+      ? t('artifact.received')
+      : row.kind === 'report'
       ? row.item.ownership === 'owned'
         ? t('artifact.owned')
         : t('artifact.received')
