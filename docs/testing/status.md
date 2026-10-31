@@ -1,5 +1,6 @@
 # 최신 요약
 
+- **2026-10-31 Google 문서 AI 요약:** `POST /v1/documents/:id/summary`가 `confirmAiCost: true` 없이는 모델 호출 0회로 거부하고, 요약을 `document_summary(documentId, version)`에 source sha와 함께 저장·재사용한다. 상세 화면에 비용 동의 체크박스와 결과 카드를 추가했다. backend 문서 51 PASS·frontend 44 PASS·tsc/lint PASS. 실제 모델·브라우저·운영 DB migration은 BLOCKED. [검증 기록](external-integrations-contracts.md).
 - **2026-10-31 외부 연동 계약:** Google 문서 요약의 비용 동의 게이트, Microsoft Graph 문서 provider, Google Sheets 값→CSV 변환을 주입 가능한 모듈로 구현하고 7개 모의 계약 테스트를 통과했다(eslint·tsc PASS). 라우트·버전별 저장·화면, 실제 OAuth 승인, Sheets의 DuckDB 소스 등록, Word 변환은 BLOCKED다. [검증 기록](external-integrations-contracts.md).
 - **2026-10-31 MCP 원격 제작:** 같은 6개 도구를 SDK Streamable HTTP로 `POST /mcp`에 제공하고, 요청의 Bearer 사용자 토큰을 매 호출마다 그대로 전달하며 저장은 `confirmSave: true` 없이는 API 호출 0회로 거부한다. HTTP 5 PASS를 포함해 mcp-server 전체 22 PASS. 실제 포트 바인딩과 Codex 호스트 여정은 샌드박스 listen EPERM으로 BLOCKED다. [검증 기록](mcp-remote-authoring.md).
 - **2026-10-31 아티팩트 허브 공유받음:** 허브에 `내 아티팩트`·`공유받음` 범위를 두고 받은 보고서와 받은 분석을 한 목록에서 읽기 전용으로 보여 준다. 공유받음에서는 추가·업로드·보관·삭제를 숨기고 원본 권한을 새로 주지 않는다. 컴포넌트 58 PASS와 typecheck·lint·빌드가 통과했고, 실제 390/768/1440과 공유 회수·만료 재조회는 샌드박스 listen EPERM으로 BLOCKED다. `Dashboard/index.test.tsx`의 기존 12개 실패는 이번 변경과 무관하며 PASS로 세지 않는다. [검증 기록](artifact-shared-tab.md).

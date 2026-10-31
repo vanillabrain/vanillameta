@@ -121,4 +121,17 @@ export const documentService = {
       (await post(`/documents/${uuid.parse(id)}/disconnect`, {}, { _retry: true })).data,
     );
   },
+  async aiSummary(id: string, input: { confirmAiCost: true; version?: number }) {
+    const result = z
+      .object({
+        documentId: uuid,
+        version: z.number().int().positive(),
+        summary: z.string().min(1).max(4000),
+        generatedAt: z.string(),
+        cached: z.boolean(),
+      })
+      .parse((await post(`/documents/${uuid.parse(id)}/summary`, input, { timeout: 190000 })).data);
+    if (result.documentId !== id) throw new Error('Document mismatch');
+    return result;
+  },
 };

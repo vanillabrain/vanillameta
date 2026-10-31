@@ -38,6 +38,10 @@ function DetailPage({ id, scope }: { id: string; scope: string | null }) {
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [disconnectBusy, setDisconnectBusy] = useState(false);
   const [needsRead, setNeedsRead] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const [summaryBusy, setSummaryBusy] = useState(false);
+  const [summaryError, setSummaryError] = useState('');
+  const [aiSummary, setAiSummary] = useState<{ summary: string; version: number; generatedAt: string } | null>(null);
   const lock = useRef(false);
   const alive = useRef(true);
   const versionRead = useRef(0);
@@ -185,6 +189,56 @@ function DetailPage({ id, scope }: { id: string; scope: string | null }) {
         </Button>
       </div>
       {error && <p role="alert">{t(`docConnection.${error}`)}</p>}
+      {read.kind === 'ready' && (
+        <section className="my-6 rounded-xl border p-5" aria-label="AI 요약">
+          <h2 className="font-semibold">AI 요약</h2>
+          <p className="text-sm text-muted-foreground">
+            저장된 버전 본문을 AI로 요약합니다. 호출 비용이 발생하며 결과는 이 버전에만 저장됩니다.
+          </p>
+          <label className="mt-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />
+            비용 발생에 동의합니다
+          </label>
+          <Button
+            className="mt-3 h-10"
+            variant="outline"
+            disabled={!consent || summaryBusy || isBusy}
+            onClick={async () => {
+              if (!consent || summaryBusy) return;
+              setSummaryBusy(true);
+              setSummaryError('');
+              try {
+                setAiSummary(
+                  (await documentService.aiSummary(id, { confirmAiCost: true })) as {
+                    summary: string;
+                    version: number;
+                    generatedAt: string;
+                  },
+                );
+              } catch {
+                setSummaryError('요약을 만들지 못했습니다. 권한과 AI 설정을 확인한 뒤 다시 시도해 주세요.');
+              } finally {
+                setSummaryBusy(false);
+              }
+            }}
+          >
+            {summaryBusy ? '요약 중…' : '요약 만들기'}
+          </Button>
+          {summaryError && (
+            <p role="alert" className="mt-3 text-sm">
+              {summaryError}
+            </p>
+          )}
+          {aiSummary && (
+            <article className="mt-4 whitespace-pre-wrap rounded-lg border p-4 text-sm" aria-label="AI 요약 결과">
+              {aiSummary.summary}
+              <p className="mt-3 text-xs text-muted-foreground">
+                버전 {aiSummary.version} · {new Date(aiSummary.generatedAt).toLocaleString()}
+              </p>
+            </article>
+          )}
+        </section>
+      )}
       {read.kind === 'ready' && (
         <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
           <section className="flex flex-col gap-3 rounded-xl border p-5" aria-label={t('docConnection.original')}>

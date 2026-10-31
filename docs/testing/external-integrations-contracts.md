@@ -34,3 +34,15 @@
 3. Sheets CSV를 기존 파일 업로드 경로로 넘겨 DuckDB 소스를 만든다.
 4. 실제 승인·요약·소스 생성·권한 회수를 HTTP와 화면으로 확인한다.
 
+
+## 후속 구현: Google 요약 라우트·버전 저장·화면 동의 (2026-10-31)
+
+- `POST /v1/documents/:id/summary`를 추가했다. `confirmAiCost: true`가 아니면 400 `SUMMARY_CONSENT_REQUIRED`로 끝나고 모델을 호출하지 않는다.
+- 요약은 `document_summary(documentId, version)`에 `sourceSha256`·`generatedAt`과 함께 저장한다. 같은 버전·같은 sha면 `cached: true`로 재호출하지 않는다.
+- AI는 `DOCUMENT_SUMMARY_AI` 공급자로 지연 로드하고 `feature: 'document-summary'`로 호출한다.
+- 상세 화면에 AI 요약 섹션, 비용 동의 체크박스, 동의 전 비활성 버튼, 버전·생성 시각이 있는 결과 카드를 추가했다.
+- 엔티티는 동기화 대상이다. 기존에 배포된 PostgreSQL에는 `document_summary`가 없으므로 운영 반영 전 migration 검토가 필요하다.
+
+VERIFIED: backend 문서 3 suites 51 PASS, frontend Documents·documentService 44 PASS, 양쪽 tsc·eslint PASS.
+BLOCKED: 실제 모델 호출과 브라우저 390/768/1440, 운영 DB migration 적용.
+

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   BadGatewayException,
   ConflictException,
   ForbiddenException,
@@ -27,6 +28,9 @@ import {
   googleDocumentId,
 } from './google-docs.provider';
 import { seal, unseal } from './document-crypto';
+import { DocumentSummary } from './document-summary.entity';
+import { DOCUMENT_SUMMARY_AI, DocumentSummaryAi } from './document-ai';
+import { summarizeDocument } from './document-summary';
 
 export const documentActorSchema = z.object({
   id: z.number().int().positive(),
@@ -87,7 +91,11 @@ function versionInfo(value: DocumentVersion) {
 
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly db: DataSource, private readonly provider: GoogleDocsProvider) {}
+  constructor(
+    private readonly db: DataSource,
+    private readonly provider: GoogleDocsProvider,
+    @Inject(DOCUMENT_SUMMARY_AI) private readonly ai: DocumentSummaryAi,
+  ) {}
   private transaction<T>(
     actor: DocumentActor,
     operation: (manager: EntityManager, organizationId: number | null) => Promise<T>,
@@ -172,6 +180,79 @@ export class DocumentsService {
         copyNotice: 'Independent stored copy. Disconnecting preserves saved versions.',
       };
     });
+  }
+  async aiSummary(actor: DocumentActor, rawId: string, input: unknown) {
+    const body = z
+      .object({
+        confirmAiCost: z.boolean().optional(),
+        version: z.number().int().positive().optional(),
+      })
+      .strict()
+      .parse(input ?? {});
+    if (body.confirmAiCost !== true)
+      throw new BadRequestException({
+        code: 'SUMMARY_CONSENT_REQUIRED',
+        message: 'AI 요약은 호출 비용이 발생합니다. 동의한 뒤 다시 요청해 주세요.',
+      });
+    const id = parse(uuid, rawId);
+    const head = await this.transaction(actor, async (manager, org) => {
+      const document = await this.document(manager, actor, org, id);
+      const version = body.version ?? document.currentVersion;
+      if (!version)
+        throw new ConflictException('저장된 문서 버전이 없습니다. 먼저 새로고침하세요.');
+      const snapshot = await this.snapshot(manager, document, version);
+      const cached = await manager.findOne(DocumentSummary, { where: { documentId: id, version } });
+      return { document, version, snapshot, org, cached };
+    });
+    if (head.cached && head.cached.sourceSha256 === head.snapshot.sha256)
+      return {
+        documentId: id,
+        version: head.version,
+        summary: head.cached.summary,
+        generatedAt: head.cached.generatedAt,
+        cached: true,
+      };
+    const generated = await summarizeDocument({
+      confirmAiCost: true,
+      title: head.document.title,
+      markdown: head.snapshot.markdown,
+      generate: prompt =>
+        this.ai.generate({
+          system:
+            '당신은 업무 문서 요약가입니다. 주어진 문서만 근거로 한국어로 간결하게 요약하세요.',
+          prompt,
+          caller: { userId: actor.id, epoch: actor.authVersion, feature: 'document-summary' },
+        }),
+    });
+    const generatedAt = now();
+    await this.transaction(actor, async (manager, org) => {
+      const existing = await manager.findOne(DocumentSummary, {
+        where: { documentId: id, version: head.version },
+      });
+      if (existing)
+        await manager.update(
+          DocumentSummary,
+          { documentId: id, version: head.version },
+          { sourceSha256: head.snapshot.sha256, summary: generated.summary, generatedAt },
+        );
+      else
+        await manager.insert(DocumentSummary, {
+          documentId: id,
+          version: head.version,
+          ownerId: actor.id,
+          organizationId: org ?? 0,
+          sourceSha256: head.snapshot.sha256,
+          summary: generated.summary,
+          generatedAt,
+        });
+    });
+    return {
+      documentId: id,
+      version: head.version,
+      summary: generated.summary,
+      generatedAt,
+      cached: false,
+    };
   }
   async start(actor: DocumentActor, body: unknown) {
     const input = parse(

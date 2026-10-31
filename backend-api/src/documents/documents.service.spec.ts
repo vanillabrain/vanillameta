@@ -86,7 +86,7 @@ describe('Document persistence on real SQLite', () => {
     jest.spyOn(provider, 'metadata').mockImplementation(async id => ({ ...metadata, id }));
     jest.spyOn(provider, 'renew').mockResolvedValue(credentials);
     jest.spyOn(provider, 'snapshot').mockResolvedValue(captured());
-    service = new DocumentsService(db, provider);
+    service = new DocumentsService(db, provider, { generate: jest.fn() } as any);
   });
   afterEach(async () => {
     if (db?.isInitialized) await db.destroy();

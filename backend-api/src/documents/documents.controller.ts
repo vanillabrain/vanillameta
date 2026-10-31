@@ -54,6 +54,13 @@ export class DocumentsController {
   ) {
     return this.service.refresh(actor(req), id, body);
   }
+  @Post(':id/summary') aiSummary(
+    @Req() req: unknown,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.aiSummary(actor(req), id, body);
+  }
   @Get(':id/requests/:requestId') @Header('Cache-Control', 'no-store') request(
     @Req() req: unknown,
     @Param('id') id: string,
