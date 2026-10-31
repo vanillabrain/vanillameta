@@ -34,4 +34,21 @@ npm --prefix mcp-server test
 
 Optional integration (synthetic data on the owned local QA supervisor only): start `scripts/qa-enterprise-mysql.cjs`, then run `node mcp-server/scripts/verify-runtime.js`. The Codex host verifier accepts the resulting private evidence directory: `node mcp-server/scripts/verify-codex-host.js <owned-evidence-directory>`. For Claude Code with its existing login/default model, use `node mcp-server/scripts/verify-claude-host.js <owned-evidence-directory>`. It verifies actual tool events, separate preview/save permissions, DB counts and independent API readbacks. On macOS preserve USER/LOGNAME when spawning the host so keychain authentication resolves correctly. These commands use real AI and create private test artifacts; they are not ordinary unit tests or production maintenance scripts. Remove the owned credentials and stop the supervisor after validation.
 
-See the [user guide](https://docs.vanillameta.net/mcp) for configuration and prompts. Remote HTTP MCP/OAuth is outside this first version; Claude Code 2.1.308 with observed default model claude-sonnet-5-5 passed the local six-tool host journey; its execution evidence is reported separately from Codex validation.
+See the [user guide](https://docs.vanillameta.net/mcp) for configuration and prompts. Claude Code 2.1.308 with observed default model claude-sonnet-5-5 passed the local six-tool host journey; its execution evidence is reported separately from Codex validation.
+
+## Remote HTTP authoring
+
+The same six tools are served over the SDK's Streamable HTTP handler at `POST /mcp`. The caller's own bearer token is forwarded on every API call and is never stored by the server.
+
+```sh
+VM_API_URL=http://127.0.0.1:4000/v1 VM_WEB_URL=http://127.0.0.1:3000 \
+  VM_MCP_PORT=8787 npm --prefix mcp-server run start:http
+```
+
+- `GET /health` is public and returns `{"status":"ok"}`.
+- Every `/mcp` request needs `Authorization: Bearer <user token>`. Missing or malformed tokens get `401` with a `WWW-Authenticate: Bearer` challenge.
+- The server binds `127.0.0.1:8787` by default. `VM_MCP_HOST` and `VM_MCP_PORT` change that; expose it only behind TLS and your own authentication proxy.
+- `VM_ACCESS_TOKEN` is not read in HTTP mode. There is no shared service token and no authorization-server discovery, so clients must already hold a VanillaMeta token from sign-in or the existing OAuth grant flow.
+- `vm_save_analysis` still requires `confirmSave: true`, and no publish, share, SQL or file tools are exposed.
+- Request bodies are capped at 1 MiB and tests call the handler directly with the MCP SDK, so no extra port is needed for the unit suite.
+

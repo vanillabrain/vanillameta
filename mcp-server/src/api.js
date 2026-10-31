@@ -23,21 +23,23 @@ function endpoint(value) {
     throw new VmError("VM_CONFIG_INVALID_URL");
   }
 }
-export function loadConfig(env = process.env) {
-  const token = env.VM_ACCESS_TOKEN;
+export function configForToken(env, token) {
   if (
-    typeof token !== "string" ||
+    typeof token !== 'string' ||
     !token ||
     token.length > 16384 ||
     /\s/.test(token)
   )
-    throw new VmError("VM_CONFIG_ACCESS_TOKEN_REQUIRED");
+    throw new VmError('VM_CONFIG_ACCESS_TOKEN_REQUIRED');
   return {
     apiUrl: endpoint(env.VM_API_URL),
     webUrl: endpoint(env.VM_WEB_URL),
     token,
     timeoutMs: 190000,
   };
+}
+export function loadConfig(env = process.env) {
+  return configForToken(env, env.VM_ACCESS_TOKEN);
 }
 export class VmApi {
   constructor(config, fetcher = fetch) {

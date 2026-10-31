@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node src/index.js",
+    "start:http": "node src/index-http.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
