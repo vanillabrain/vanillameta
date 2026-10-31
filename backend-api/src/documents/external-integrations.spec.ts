@@ -141,3 +141,37 @@ describe('Document summary cost consent', () => {
     expect(generate.mock.calls[0][0]).toContain('5문장');
   });
 });
+
+describe('Sheets CSV source contract', () => {
+  it('builds a header-first CSV and drops empty rows', async () => {
+    const { buildSheetCsv } = await import('./sheets-source');
+    const result = buildSheetCsv([
+      ['channel', 'revenue'],
+      ['a,b', '1200'],
+      ['', ''],
+    ]);
+    expect(result.columns).toEqual(['channel', 'revenue']);
+    expect(result.rowCount).toBe(1);
+    expect(result.csv).toBe('channel,revenue\n"a,b",1200');
+  });
+  it('refuses empty, duplicate or oversized headers and cells', async () => {
+    const { buildSheetCsv } = await import('./sheets-source');
+    expect(() => buildSheetCsv([['only']])).toThrow('헤더와 데이터');
+    expect(() =>
+      buildSheetCsv([
+        ['a', 'a'],
+        ['1', '2'],
+      ]),
+    ).toThrow('중복');
+    expect(() =>
+      buildSheetCsv([
+        ['a', ''],
+        ['1', '2'],
+      ]),
+    ).toThrow('빈 열');
+    expect(() =>
+      buildSheetCsv([Array.from({ length: 51 }, (_, i) => 'c' + i), Array(51).fill('1')]),
+    ).toThrow('50');
+    expect(() => buildSheetCsv([['a'], ['x'.repeat(1001)]])).toThrow('1000');
+  });
+});

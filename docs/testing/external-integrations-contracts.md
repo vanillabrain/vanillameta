@@ -84,3 +84,12 @@ BLOCKED: 이 값을 보여 줄 화면 배지와, 실제 OAuth 클라이언트 �
 
 VERIFIED: Documents·documentService 44 PASS, tsc·eslint PASS.
 
+
+## Sheets CSV 소스 계약 (2026-10-31 후속)
+
+- `buildSheetCsv(rows)`가 시트 값을 DuckDB 소스가 받을 CSV로 만든다. 완전히 빈 행은 버리고, 헤더 1줄+데이터 1줄 이상, 빈 헤더·중복 헤더 금지, 최대 50열, 셀 1,000자 상한을 강제한다.
+- 반환값은 `csv`, `columns`, `rowCount`이며 값 escape는 기존 RFC4180 `toCsv`를 재사용한다.
+
+VERIFIED: external-integrations.spec.ts 9 PASS.
+BLOCKED: 이 CSV를 실제 DuckDB 워커·Database 소스로 등록하는 경로.
+
