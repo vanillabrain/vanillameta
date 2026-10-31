@@ -24,3 +24,20 @@ export function buildSheetCsv(rows: string[][]) {
   });
   return { csv: toCsv([columns, ...body]), columns, rowCount: body.length };
 }
+
+/** Builds the upload that DatabaseService.uploadFile imports into DuckDB and registers as a source. */
+export function sheetUploadFile(name: string, rows: string[][]) {
+  const { csv, columns, rowCount } = buildSheetCsv(rows);
+  const base = name
+    .normalize('NFKC')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_')
+    .trim()
+    .slice(0, 80);
+  return {
+    originalname: (base || 'sheet') + '.csv',
+    buffer: Buffer.from(csv, 'utf8'),
+    columns,
+    rowCount,
+  };
+}
+

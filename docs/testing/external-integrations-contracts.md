@@ -93,3 +93,12 @@ VERIFIED: Documents·documentService 44 PASS, tsc·eslint PASS.
 VERIFIED: external-integrations.spec.ts 9 PASS.
 BLOCKED: 이 CSV를 실제 DuckDB 워커·Database 소스로 등록하는 경로.
 
+
+## Sheets → DuckDB 등록 핸드오프 (2026-10-31 후속)
+
+- `sheetUploadFile(name, rows)`가 `buildSheetCsv`를 거쳐 `{ originalname, buffer, columns, rowCount }`를 만든다. 파일명은 NFKC 정규화·경로/예약문자 치환·80자 제한을 거치고 빈 이름은 `sheet.csv`가 된다.
+- 이 객체를 기존 `DatabaseService.uploadFile(file, ownerId)`에 넘기면 DuckDB 워커 임포트, 쿼터 검사, `Database` 행 생성·암호화된 connectionConfig 저장이 그대로 수행된다. 등록 로직을 새로 만들지 않고 기존 단일 경로를 재사용한다.
+
+VERIFIED: external-integrations.spec.ts 11 PASS, tsc PASS.
+BLOCKED: Sheets OAuth 토큰으로 `values`를 가져와 이 핸드오프를 호출하는 HTTP 라우트·화면. 실제 DuckDB 임포트 실행도 서버 기동이 필요하다.
+

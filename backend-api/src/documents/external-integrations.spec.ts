@@ -175,3 +175,21 @@ describe('Sheets CSV source contract', () => {
     expect(() => buildSheetCsv([['a'], ['x'.repeat(1001)]])).toThrow('1000');
   });
 });
+
+describe('Sheets upload handoff', () => {
+  it('builds the upload object DatabaseService.uploadFile imports into DuckDB', async () => {
+    const { sheetUploadFile } = await import('./sheets-source');
+    const upload = sheetUploadFile('매출/2026:Q4', [['channel', 'revenue'], ['Site', '300']]);
+    expect(upload.originalname).toBe('매출_2026_Q4.csv');
+    expect(upload.buffer.toString('utf8')).toBe('channel,revenue\nSite,300');
+    expect(upload.columns).toEqual(['channel', 'revenue']);
+    expect(upload.rowCount).toBe(1);
+    expect(Buffer.isBuffer(upload.buffer)).toBe(true);
+  });
+  it('keeps a usable name for empty or very long titles', async () => {
+    const { sheetUploadFile } = await import('./sheets-source');
+    expect(sheetUploadFile('   ', [['a'], ['1']]).originalname).toBe('sheet.csv');
+    expect(sheetUploadFile('x'.repeat(200), [['a'], ['1']]).originalname).toBe('x'.repeat(80) + '.csv');
+  });
+});
+
