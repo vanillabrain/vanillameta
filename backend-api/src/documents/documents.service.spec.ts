@@ -13,6 +13,7 @@ import {
 } from './document.entity';
 import { GoogleDocsProvider, GOOGLE_DOCUMENT_MIME } from './google-docs.provider';
 import { DocumentSummary } from './document-summary.entity';
+import { DocumentShare } from './document-share.entity';
 import { DocumentsService } from './documents.service';
 import { seal, unseal } from './document-crypto';
 import { AddDocumentConnections1793232000000 } from '../migrations/1793232000000-add-document-connections';
@@ -576,4 +577,36 @@ describe('Document persistence on real SQLite', () => {
     ).rejects.toThrow();
   });
 
+  it('shares with an organization member, lets them read, and stops access after revoke', async () => {
+    const { documentId } = await authorize();
+    const member = { id: 2, authVersion: 0 };
+    await expect(service.read(member, documentId)).rejects.toThrow();
+    await expect(
+      service.share(actor, documentId, { recipientId: 2, active: true }),
+    ).resolves.toMatchObject({
+      documentId,
+      recipientId: 2,
+      active: true,
+    });
+    const shared = (await service.read(member, documentId)) as { role?: string; id: string };
+    expect(shared.role).toBe('recipient');
+    expect(shared.id).toBe(documentId);
+    expect(((await service.read(actor, documentId)) as { role?: string }).role).toBe('owner');
+    await expect(
+      service.refresh(member, documentId, { requestId: randomUUID(), expectedVersion: 0 }),
+    ).rejects.toThrow();
+    expect(await service.shares(actor, documentId)).toHaveLength(1);
+    await service.share(actor, documentId, { recipientId: 2, active: false });
+    await expect(service.read(member, documentId)).rejects.toThrow();
+    expect(((await service.read(actor, documentId)) as { id: string }).id).toBe(documentId);
+  });
+  it('rejects sharing with a user outside the organization or with the owner', async () => {
+    const { documentId } = await authorize();
+    await expect(
+      service.share(actor, documentId, { recipientId: 1, active: true }),
+    ).rejects.toThrow();
+    await expect(
+      service.share(actor, documentId, { recipientId: 99, active: true }),
+    ).rejects.toThrow();
+  });
 });

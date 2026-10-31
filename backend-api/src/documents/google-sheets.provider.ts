@@ -92,7 +92,8 @@ export class GoogleSheetsProvider {
     });
     if (!response.ok) throw new ServiceUnavailableException('Sheets 승인을 완료하지 못했습니다.');
     const body = (await response.json()) as { access_token?: string };
-    if (!body.access_token) throw new ServiceUnavailableException('Sheets 토큰 응답을 확인할 수 없습니다.');
+    if (!body.access_token)
+      throw new ServiceUnavailableException('Sheets 토큰 응답을 확인할 수 없습니다.');
     return { accessToken: body.access_token };
   }
 }

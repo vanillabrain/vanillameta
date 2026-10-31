@@ -21,15 +21,16 @@ const chunks = (markdown: string) => markdown.match(/[\s\S]{1,8000}/g) ?? [''];
 
 @Injectable()
 export class MicrosoftSourceService {
-  constructor(
-    private readonly provider: MicrosoftDocsProvider,
-    private readonly db: DataSource,
-  ) {}
+  constructor(private readonly provider: MicrosoftDocsProvider, private readonly db: DataSource) {}
 
   authorization(raw: string) {
-    if (!/^[A-Za-z0-9_-]{43,128}$/.test(raw)) throw new BadRequestException('PKCE verifier가 올바르지 않습니다.');
+    if (!/^[A-Za-z0-9_-]{43,128}$/.test(raw))
+      throw new BadRequestException('PKCE verifier가 올바르지 않습니다.');
     const state = randomBytes(16).toString('hex');
-    return { authorizationUrl: this.provider.authorizationUrl({ state, verifier: raw, itemId: '' }), state };
+    return {
+      authorizationUrl: this.provider.authorizationUrl({ state, verifier: raw, itemId: '' }),
+      state,
+    };
   }
 
   async preview(raw: unknown) {
@@ -67,7 +68,10 @@ export class MicrosoftSourceService {
         currentVersion: 1,
         generation: 1,
         credentialEpoch: 0,
-        credentials: seal(credentials, JSON.stringify(['microsoft-credentials', id, ownerId, membership.organizationId, 1])),
+        credentials: seal(
+          credentials,
+          JSON.stringify(['microsoft-credentials', id, ownerId, membership.organizationId, 1]),
+        ),
         connected: true,
         updatedAt: now,
       });
@@ -82,10 +86,14 @@ export class MicrosoftSourceService {
       });
       await manager.insert(
         DocumentChunk,
-        chunks(markdown).map((content, position) => ({ documentId: id, version: 1, position, content })),
+        chunks(markdown).map((content, position) => ({
+          documentId: id,
+          version: 1,
+          position,
+          content,
+        })),
       );
     });
     return { documentId: id, version: 1, title: item.name };
   }
 }
-

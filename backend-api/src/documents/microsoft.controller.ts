@@ -23,4 +23,3 @@ export class MicrosoftController {
     return this.microsoft.save(accessKeyData.id, body);
   }
 }
-

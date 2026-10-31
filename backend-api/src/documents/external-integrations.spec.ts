@@ -176,30 +176,32 @@ describe('Sheets CSV source contract', () => {
   });
 });
 
-
-  it('exchanges the Sheets authorization code with the PKCE verifier', async () => {
-    setEnv({
-      GOOGLE_SHEETS_CLIENT_ID: 'client',
-      GOOGLE_SHEETS_CLIENT_SECRET: 'secret',
-      GOOGLE_SHEETS_REDIRECT_URI: 'https://app.example.com/documents/sheets/callback',
-    });
-    let seen: URLSearchParams | null = null;
-    const fetchMock = (async (_url: string, init: RequestInit) => {
-      seen = init.body as URLSearchParams;
-      return new Response(JSON.stringify({ access_token: 'sheet-token' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      });
-    }) as unknown as typeof fetch;
-    const tokens = await new GoogleSheetsProvider().exchange('code-1', 'verifier-1', fetchMock);
-    expect(tokens).toEqual({ accessToken: 'sheet-token' });
-    expect(seen?.get('code_verifier')).toBe('verifier-1');
-    expect(seen?.get('redirect_uri')).toContain('/documents/sheets/callback');
+it('exchanges the Sheets authorization code with the PKCE verifier', async () => {
+  setEnv({
+    GOOGLE_SHEETS_CLIENT_ID: 'client',
+    GOOGLE_SHEETS_CLIENT_SECRET: 'secret',
+    GOOGLE_SHEETS_REDIRECT_URI: 'https://app.example.com/documents/sheets/callback',
   });
+  let seen: URLSearchParams | null = null;
+  const fetchMock = (async (_url: string, init: RequestInit) => {
+    seen = init.body as URLSearchParams;
+    return new Response(JSON.stringify({ access_token: 'sheet-token' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as unknown as typeof fetch;
+  const tokens = await new GoogleSheetsProvider().exchange('code-1', 'verifier-1', fetchMock);
+  expect(tokens).toEqual({ accessToken: 'sheet-token' });
+  expect(seen?.get('code_verifier')).toBe('verifier-1');
+  expect(seen?.get('redirect_uri')).toContain('/documents/sheets/callback');
+});
 describe('Sheets upload handoff', () => {
   it('builds the upload object DatabaseService.uploadFile imports into DuckDB', async () => {
     const { sheetUploadFile } = await import('./sheets-source');
-    const upload = sheetUploadFile('매출/2026:Q4', [['channel', 'revenue'], ['Site', '300']]);
+    const upload = sheetUploadFile('매출/2026:Q4', [
+      ['channel', 'revenue'],
+      ['Site', '300'],
+    ]);
     expect(upload.originalname).toBe('매출_2026_Q4.csv');
     expect(upload.buffer.toString('utf8')).toBe('channel,revenue\nSite,300');
     expect(upload.columns).toEqual(['channel', 'revenue']);
@@ -209,7 +211,8 @@ describe('Sheets upload handoff', () => {
   it('keeps a usable name for empty or very long titles', async () => {
     const { sheetUploadFile } = await import('./sheets-source');
     expect(sheetUploadFile('   ', [['a'], ['1']]).originalname).toBe('sheet.csv');
-    expect(sheetUploadFile('x'.repeat(200), [['a'], ['1']]).originalname).toBe('x'.repeat(80) + '.csv');
+    expect(sheetUploadFile('x'.repeat(200), [['a'], ['1']]).originalname).toBe(
+      'x'.repeat(80) + '.csv',
+    );
   });
 });
-

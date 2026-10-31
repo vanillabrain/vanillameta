@@ -13,4 +13,3 @@ export class DocumentShare {
   @Column({ type: 'varchar', length: 30 }) createdAt: string;
   @Column({ type: 'varchar', length: 30, nullable: true }) revokedAt: string | null;
 }
-

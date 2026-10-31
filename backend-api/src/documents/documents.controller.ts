@@ -88,4 +88,13 @@ export class DocumentsController {
   ) {
     return this.service.disconnect(actor(req), id, body);
   }
+  @Get(':id/shares') @Header('Cache-Control', 'no-store') shares(
+    @Req() req: unknown,
+    @Param('id') id: string,
+  ) {
+    return this.service.shares(actor(req), id);
+  }
+  @Post(':id/shares') share(@Req() req: unknown, @Param('id') id: string, @Body() body: unknown) {
+    return this.service.share(actor(req), id, body);
+  }
 }

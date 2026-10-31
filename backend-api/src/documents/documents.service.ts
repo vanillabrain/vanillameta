@@ -167,6 +167,61 @@ export class DocumentsService {
     if (!share) throw new NotFoundException('Document not found.');
     return { document, role: 'recipient' as const };
   }
+  async share(actor: DocumentActor, id: string, input: unknown) {
+    const body = z
+      .object({ recipientId: z.number().int().positive(), active: z.boolean() })
+      .strict()
+      .parse(input);
+    return this.transaction(actor, async (manager, org) => {
+      const document = await this.document(manager, actor, org, id);
+      if (body.recipientId === actor.id)
+        throw new BadRequestException('본인에게 공유할 수 없습니다.');
+      const membership = await manager.findOneBy(EnterpriseMembership, {
+        userId: body.recipientId,
+        organizationId: document.organizationId,
+      });
+      if (!membership) throw new BadRequestException('같은 조직의 구성원만 초대할 수 있습니다.');
+      const existing = await manager.findOneBy(DocumentShare, {
+        documentId: document.id,
+        granteeId: body.recipientId,
+      });
+      const now = new Date().toISOString();
+      if (existing)
+        await manager.update(
+          DocumentShare,
+          { id: existing.id },
+          { active: body.active, revokedAt: body.active ? null : now },
+        );
+      else if (body.active)
+        await manager.insert(DocumentShare, {
+          id: randomUUID(),
+          documentId: document.id,
+          ownerId: actor.id,
+          organizationId: document.organizationId,
+          granteeId: body.recipientId,
+          active: true,
+          createdAt: now,
+          revokedAt: null,
+        });
+      else throw new NotFoundException('공유 관계를 찾을 수 없습니다.');
+      return { documentId: document.id, recipientId: body.recipientId, active: body.active };
+    });
+  }
+  async shares(actor: DocumentActor, id: string) {
+    return this.transaction(actor, async (manager, org) => {
+      const document = await this.document(manager, actor, org, id);
+      const rows = await manager.find(DocumentShare, {
+        where: { documentId: document.id },
+        order: { createdAt: 'ASC' },
+      });
+      return rows.map(row => ({
+        recipientId: row.granteeId,
+        active: row.active,
+        createdAt: row.createdAt,
+        revokedAt: row.revokedAt,
+      }));
+    });
+  }
   googleConfigured() {
     return this.provider.configured();
   }
