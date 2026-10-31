@@ -20,6 +20,8 @@ import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { validateStudioDocument } from '../dashboard-studio/studio-document';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { StudioService, PrivateReportSnapshot } from '../dashboard-studio/studio.service';
+import { Inject } from '@nestjs/common';
+import { REPORT_BODY_AI, ReportBodyAi } from './report-ai';
 import {
   PrivateReport,
   PrivateReportRevision,
@@ -34,7 +36,10 @@ import {
   reportHash,
   reportId,
   reportPreviewRequest,
+  reportBlocks,
   reportSaveRequest,
+  reportSuggestionRequest,
+  ReportBlock,
   REPORT_OWNER_LIMIT,
   REPORT_PAYLOAD_LIMIT,
 } from './report-contract';
@@ -44,6 +49,7 @@ export type ReportPayload = {
   version: number;
   title: string;
   body: string;
+  blocks?: ReportBlock[];
   savedAt: string;
   snapshot: PrivateReportSnapshot;
 };
@@ -54,6 +60,7 @@ export class ReportsService {
     private readonly db: DataSource,
     private readonly studio: StudioService,
     private readonly access: SourceAccessService,
+    @Inject(REPORT_BODY_AI) private readonly ai: ReportBodyAi,
   ) {}
 
   private async root(
@@ -200,13 +207,92 @@ export class ReportsService {
       return items;
     });
   }
-  async get(rawId: string, actor: ReportActor) {
+  async get(rawId: string, actor: ReportActor, version?: number) {
     const id = parseReport(reportId, rawId);
     return sourceWriteTransaction(this.db, async manager => {
       const head = await this.requireHead(manager, id);
       await this.allowed(manager, head, actor, true);
-      return this.stored(manager, await this.requireHead(manager, id));
+      if (version === undefined) return this.stored(manager, head);
+      if (!Number.isSafeInteger(version) || version < 1 || version > head.version)
+        throw new NotFoundException('저장된 보고서 버전을 찾을 수 없습니다.');
+      return this.stored(manager, head, version);
     });
+  }
+  async versions(rawId: string, actor: ReportActor) {
+    const id = parseReport(reportId, rawId);
+    return sourceWriteTransaction(this.db, async manager => {
+      const head = await this.requireHead(manager, id);
+      await this.allowed(manager, head, actor, true);
+      const revisions = await manager.find(PrivateReportRevision, {
+        where: { reportId: id, ownerId: actor.id },
+        order: { version: 'DESC' },
+      });
+      return revisions.map(row => ({
+        version: row.version,
+        revision: row.revision,
+        bytes: row.bytes,
+        current: row.version === head.version,
+      }));
+    });
+  }
+  async suggest(rawId: string, input: unknown, actor: ReportActor, abortSignal?: AbortSignal) {
+    const id = parseReport(reportId, rawId),
+      body = parseReport(reportSuggestionRequest, input ?? {});
+    const report = await sourceWriteTransaction(this.db, async manager => {
+      const head = await this.requireHead(manager, id);
+      await this.allowed(manager, head, actor, true);
+      return this.stored(manager, head);
+    });
+    const blocks = reportBlocks.safeParse(report.blocks ?? []);
+    const text = (blocks.success ? blocks.data : [])
+      .filter(block => block.kind === 'TEXT')
+      .map(block => block.text.trim())
+      .filter(Boolean)
+      .join('\n\n');
+    const rendered = report.snapshot?.rendered as
+      | { periodLabel?: string; blocks?: Array<Record<string, unknown>> }
+      | undefined;
+    const facts = (rendered?.blocks ?? [])
+      .map(block => {
+        const title = typeof block.title === 'string' ? block.title : '';
+        const rows = Array.isArray(block.datas) ? block.datas : [];
+        const valueField = typeof block.valueField === 'string' ? block.valueField : '';
+        const values = rows
+          .slice(0, 4)
+          .map(row => {
+            const category =
+              typeof block.categoryField === 'string' && row
+                ? String((row as Record<string, unknown>)[block.categoryField] ?? '')
+                : '';
+            const value = valueField
+              ? String((row as Record<string, unknown>)[valueField] ?? '')
+              : '';
+            return [category, value].filter(Boolean).join(' ');
+          })
+          .filter(Boolean);
+        return title || values.length
+          ? `- ${title}${values.length ? ` (${values.join(', ')})` : ''}`
+          : '';
+      })
+      .filter(Boolean)
+      .join('\n');
+    const prompt = [
+      `보고서 제목: ${report.title}`,
+      rendered?.periodLabel ? `기간: ${rendered.periodLabel}` : '',
+      facts ? `고정 수치:\n${facts}` : '',
+      text ? `현재 본문:\n${text.slice(0, 4000)}` : '현재 본문: 없음',
+      body.instruction ? `추가 지시: ${body.instruction}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+    const suggestion = await this.ai.generate({
+      system:
+        '당신은 데이터 보고서 편집자입니다. 주어진 고정 수치만 근거로, 한국어 본문 3~5문단을 작성하세요. 수치를 새로 만들거나 추정하지 말고, 각 문단은 짧게 유지하세요. 제목이나 머리말 없이 본문만 반환하세요.',
+      prompt,
+      caller: { userId: actor.id, epoch: actor.authVersion, feature: 'report-body' },
+      abortSignal,
+    });
+    return { suggestion: suggestion.trim().slice(0, 6000) };
   }
   async outcome(rawId: string, rawRequestId: string, dashboardId: number, actor: ReportActor) {
     const id = parseReport(reportId, rawId),
@@ -302,11 +388,20 @@ export class ReportsService {
       } else if (this.previewDigest(snapshot) !== body.data.previewDigest)
         throw new ConflictException('미리보기 기준이 변경됐습니다. 다시 미리보기 해 주세요.');
       const version = (head?.version ?? 0) + 1;
+      const blocks = body.blocks ?? [];
+      const projected = blocks
+        .filter(block => block.kind === 'TEXT')
+        .map(block => block.text.trim())
+        .filter(Boolean)
+        .join('\n\n');
+      if (blocks.length && Buffer.byteLength(projected, 'utf8') > 65536)
+        throw new BadRequestException('본문은 UTF-8 64KiB 이내로 입력해 주세요.');
       const payload: ReportPayload = {
         reportId: id,
         version,
         title: body.title,
-        body: body.body,
+        body: blocks.length ? projected : body.body,
+        ...(blocks.length ? { blocks } : {}),
         savedAt: new Date().toISOString(),
         snapshot,
       };

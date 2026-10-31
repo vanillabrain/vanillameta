@@ -184,7 +184,9 @@ describe('report recipient sharing with real SQLite transactions', () => {
     });
     await revision();
     const access = new SourceAccessService(db);
-    reports = new ReportsService(db, new StudioService(db, null, null, access), access);
+    reports = new ReportsService(db, new StudioService(db, null, null, access), access, {
+      generate: jest.fn(),
+    } as any);
     service = new ReportSharingService(db, reports);
   });
   afterEach(async () => {

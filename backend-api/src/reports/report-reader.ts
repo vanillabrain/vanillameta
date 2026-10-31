@@ -1,6 +1,7 @@
 import { InternalServerErrorException } from '@nestjs/common';
 import { z } from 'zod';
 import type { ReportResult } from './reports.service';
+import { reportBlocks } from './report-contract';
 
 const scalar = z.union([z.string(), z.number().finite(), z.boolean(), z.null()]);
 const value = z.union([z.string(), z.number().finite(), z.null()]);
@@ -72,9 +73,12 @@ export function readerContent(report: ReportResult) {
     };
   });
   if (blocks.length !== 2 || blocks.filter(block => block.kind === 'kpi').length !== 1) corrupt();
+  const document = reportBlocks.safeParse(report.blocks ?? []);
+  if (!document.success) corrupt();
   return {
     title: report.title,
     body: report.body,
+    documentBlocks: document.success ? document.data : [],
     version: report.version,
     savedAt: report.savedAt,
     period: report.snapshot.rendered.periodLabel,

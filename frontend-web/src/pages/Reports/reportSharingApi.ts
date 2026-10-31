@@ -55,6 +55,22 @@ export const readerSchema = z
         ]),
       )
       .length(2),
+    documentBlocks: z
+      .array(
+        z.discriminatedUnion('kind', [
+          z.object({ id: z.string(), kind: z.literal('TEXT'), text: z.string() }).strict(),
+          z
+            .object({
+              id: z.string(),
+              kind: z.literal('IMAGE'),
+              dataUrl: z.string(),
+              alt: z.string(),
+              width: z.enum(['full', 'half']),
+            })
+            .strict(),
+        ]),
+      )
+      .default([]),
   })
   .strict();
 export type ReportReaderData = z.infer<typeof readerSchema>;

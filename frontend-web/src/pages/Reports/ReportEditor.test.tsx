@@ -401,3 +401,65 @@ it.each([409, 'network'])('keeps loaded draft and exact save ticket after %s', a
   expect(api.post.mock.calls[1][1]).toEqual(command);
   expect(readReportPending(storedKey)?.command).toEqual(command);
 });
+
+it('saves ordered image blocks with the text block', async () => {
+  show('/reports/' + id);
+  await screen.findByText(/16537.01/);
+  const file = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'chart.png', {
+    type: 'image/png',
+  });
+  const input = document.querySelector('input[type=file]') as HTMLInputElement;
+  fireEvent.change(input, { target: { files: [file] } });
+  await screen.findByAltText('chart.png');
+  fireEvent.change(screen.getByLabelText('본문'), { target: { value: '본문 수정' } });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: '비공개 저장', exact: true }).hasAttribute('disabled')).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '비공개 저장', exact: true }));
+  await waitFor(() => expect(api.post.mock.calls.some(call => call[0].endsWith('/save'))).toBe(true));
+  const command = api.post.mock.calls.find(call => call[0].endsWith('/save'))[1];
+  expect(command.blocks[0]).toEqual({ id: 'text', kind: 'TEXT', text: '본문 수정' });
+  expect(command.blocks[1]).toMatchObject({ kind: 'IMAGE', alt: 'chart.png', width: 'full' });
+  expect(command.blocks[1].dataUrl.startsWith('data:image/png;base64,')).toBe(true);
+});
+it('applies an AI suggestion only after an explicit click and can undo it', async () => {
+  api.post.mockImplementation(async (url: string) => {
+    if (url.endsWith('/suggest')) return { data: { suggestion: 'AI 초안 문단' } };
+    return { data: { report: report(), replayed: false } };
+  });
+  show('/reports/' + id);
+  await screen.findByText(/16537.01/);
+  fireEvent.click(screen.getByRole('button', { name: '제안 받기' }));
+  const region = await screen.findByRole('region', { name: 'AI 본문 제안 결과' });
+  expect(region.textContent).toContain('AI 초안 문단');
+  expect((screen.getByLabelText('본문') as HTMLTextAreaElement).value).toBe('저장 본문');
+  fireEvent.click(screen.getByRole('button', { name: '본문에 적용' }));
+  expect((screen.getByLabelText('본문') as HTMLTextAreaElement).value).toBe('저장 본문\n\nAI 초안 문단');
+  expect(api.post.mock.calls.some(call => call[0].endsWith('/save'))).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect((screen.getByLabelText('본문') as HTMLTextAreaElement).value).toBe('저장 본문');
+});
+it('lists stored versions and opens a past revision without saving it', async () => {
+  api.get.mockImplementation(async (url: string, params?: { version?: number }) => {
+    if (url === '/reports/' + id + '/versions')
+      return {
+        data: [
+          { version: 2, revision: '2'.repeat(64), bytes: 1200, current: true },
+          { version: 1, revision: '1'.repeat(64), bytes: 900, current: false },
+        ],
+      };
+    if (url === '/reports/' + id && params?.version === 1)
+      return { data: { ...report(), version: 1, title: '과거 제목', body: '과거 본문' } };
+    return { data: report() };
+  });
+  show('/reports/' + id);
+  await screen.findByText(/16537.01/);
+  const details = document.querySelector('details.report-versions') as HTMLDetailsElement;
+  details.open = true;
+  fireEvent(details, new Event('toggle'));
+  const openButtons = await screen.findAllByRole('button', { name: '열기' });
+  fireEvent.click(openButtons[1]);
+  await waitFor(() => expect((screen.getByLabelText('보고서 제목') as HTMLInputElement).value).toBe('과거 제목'));
+  expect((screen.getByLabelText('본문') as HTMLTextAreaElement).value).toBe('과거 본문');
+  expect(api.post.mock.calls.some(call => call[0].endsWith('/save'))).toBe(false);
+});

@@ -23,6 +23,11 @@ import {
 } from './reportPending';
 import './reports.css';
 
+type ReportImage = { id: string; dataUrl: string; alt: string; width: 'full' | 'half' };
+type VersionRow = { version: number; revision: string; bytes: number; current: boolean };
+const IMAGE_LIMIT = 512 * 1024;
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
 export default function ReportEditor() {
   const scope = useReportSession();
   const { reportId } = useParams();
@@ -55,6 +60,12 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [images, setImages] = useState<ReportImage[]>([]);
+  const [history, setHistory] = useState<Array<{ body: string; images: ReportImage[] }>>([]);
+  const [suggestion, setSuggestion] = useState('');
+  const [suggesting, setSuggesting] = useState(false);
+  const [versions, setVersions] = useState<VersionRow[]>([]);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const key = useRef<string | null>(null);
   const generation = useRef(0);
   const current = (token = generation.current) => generation.current === token && isReportSession(sessionScope);
@@ -66,7 +77,17 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
     setSaved(report);
     setId(report.reportId);
     setTitle(report.title);
-    setBody(report.body);
+    const documentBlocks = report.blocks ?? [];
+    const text = documentBlocks
+      .filter(block => block.kind === 'TEXT')
+      .map(block => block.text)
+      .join('\n\n');
+    setBody(documentBlocks.length ? text : report.body);
+    setImages(documentBlocks.filter((block): block is ReportImage => block.kind === 'IMAGE'));
+    setHistory([]);
+    setSuggestion('');
+    setVersions([]);
+    setVersionsOpen(false);
     setPreview(null);
     setKpiId(report.snapshot.basis.selection.kpiId);
     setChartId(report.snapshot.basis.selection.chartId);
@@ -217,6 +238,10 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
         expectedRevision: saved?.revision ?? null,
         title,
         body,
+        blocks: [
+          ...(body.trim() ? [{ id: 'text', kind: 'TEXT' as const, text: body }] : []),
+          ...images.map(image => ({ ...image, kind: 'IMAGE' as const })),
+        ],
         data: preview
           ? {
               mode: 'capture',
@@ -250,6 +275,109 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
     setPending(null);
     setPreview(null);
     setMessage('보관을 해제했습니다. 서버 요청을 취소한 것은 아닙니다. 기존 본문은 유지합니다.');
+  };
+  const addImages = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setError('');
+    const next: ReportImage[] = [];
+    for (const file of Array.from(files).slice(0, 4)) {
+      if (!IMAGE_TYPES.includes(file.type)) {
+        setError('PNG, JPEG, WebP 이미지만 추가할 수 있습니다.');
+        continue;
+      }
+      if (file.size > IMAGE_LIMIT) {
+        setError('이미지는 장당 512KiB 이내여야 합니다.');
+        continue;
+      }
+      const dataUrl = await new Promise<string>(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ''));
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(file);
+      });
+      if (!dataUrl) continue;
+      next.push({ id: crypto.randomUUID(), dataUrl, alt: file.name.slice(0, 200), width: 'full' });
+    }
+    if (next.length) setImages(current => [...current, ...next].slice(0, 4));
+  };
+  const patchImage = (id: string, patch: Partial<ReportImage>) =>
+    setImages(current => current.map(image => (image.id === id ? { ...image, ...patch } : image)));
+  const moveImage = (index: number, delta: number) =>
+    setImages(current => {
+      const target = index + delta;
+      if (target < 0 || target >= current.length) return current;
+      const copy = [...current];
+      [copy[index], copy[target]] = [copy[target], copy[index]];
+      return copy;
+    });
+  const removeImage = (id: string) => setImages(current => current.filter(image => image.id !== id));
+  const remember = () => setHistory(current => [...current.slice(-9), { body, images }]);
+  const askSuggestion = async () => {
+    if (!current() || !saved || busy || suggesting) return;
+    setSuggesting(true);
+    setError('');
+    try {
+      const result = await reportApi.suggest(saved.reportId);
+      setSuggestion(result.suggestion);
+    } catch (cause) {
+      setError(reportError(cause));
+    } finally {
+      setSuggesting(false);
+    }
+  };
+  const applySuggestion = () => {
+    if (!suggestion.trim()) return;
+    remember();
+    setBody(current => (current.trim() ? current + '\n\n' + suggestion : suggestion));
+    setSuggestion('');
+    setMessage('AI 제안을 본문에 적용했습니다. 저장 전까지 서버에는 반영되지 않습니다.');
+  };
+  const undoBody = () => {
+    const last = history[history.length - 1];
+    if (!last) return;
+    setHistory(current => current.slice(0, -1));
+    setBody(last.body);
+    setImages(last.images);
+    setMessage('직전 본문과 이미지로 되돌렸습니다. 아직 저장하지 않았습니다.');
+  };
+  const toggleVersions = async (open: boolean) => {
+    setVersionsOpen(open);
+    if (!open || !saved || versions.length) return;
+    try {
+      setVersions((await reportApi.versions(saved.reportId)) as VersionRow[]);
+    } catch (cause) {
+      setError(reportError(cause));
+    }
+  };
+  const openVersion = async (version: number) => {
+    if (!saved || busy || pending) return;
+    setBusy('load');
+    setError('');
+    try {
+      const past = await reportApi.read(saved.reportId, version);
+      const documentBlocks = past.blocks ?? [];
+      setTitle(past.title);
+      setBody(
+        documentBlocks.length
+          ? documentBlocks
+              .filter(block => block.kind === 'TEXT')
+              .map(block => block.text)
+              .join('\n\n')
+          : past.body,
+      );
+      setImages(documentBlocks.filter((block): block is ReportImage => block.kind === 'IMAGE'));
+      setHistory([]);
+      setPreview(null);
+      setMessage(
+        version === saved.version
+          ? `현재 저장본 r${version}을 불러왔습니다.`
+          : `과거 r${version}을 불러왔습니다. 저장하면 현재 r${saved.version} 다음 버전으로 추가됩니다.`,
+      );
+    } catch (cause) {
+      setError(reportError(cause));
+    } finally {
+      setBusy(null);
+    }
   };
   const loaded = !!saved || !!root;
   const bytes = new TextEncoder().encode(body).length;
@@ -355,6 +483,101 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
               <p className="text-sm text-muted-foreground">
                 일반 텍스트 · {bytes.toLocaleString()} / 65,536 bytes · Ctrl/⌘ + Enter로 비공개 저장
               </p>
+              <section className="report-images" aria-label="이미지 블록">
+                <div className="report-block-head">
+                  <h2>이미지 블록</h2>
+                  <label className="report-image-add">
+                    이미지 추가
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      multiple
+                      hidden
+                      disabled={!!busy || !!pending || images.length >= 4}
+                      onChange={event => {
+                        void addImages(event.target.files);
+                        event.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  PNG, JPEG, WebP · 장당 512KiB · 최대 4장. 저장 시 보고서 버전에 함께 고정됩니다.
+                </p>
+                {images.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">추가한 이미지가 없습니다.</p>
+                ) : (
+                  <ol className="report-image-list">
+                    {images.map((image, index) => (
+                      <li key={image.id} className="report-image-item">
+                        <img src={image.dataUrl} alt={image.alt} />
+                        <div className="report-image-fields">
+                          <label>
+                            설명
+                            <input
+                              aria-label={`이미지 설명 ${index + 1}`}
+                              className="report-control rounded-md border bg-background"
+                              value={image.alt}
+                              maxLength={200}
+                              disabled={!!busy || !!pending}
+                              onChange={event => patchImage(image.id, { alt: event.target.value })}
+                            />
+                          </label>
+                          <label>
+                            너비
+                            <select
+                              aria-label={`이미지 너비 ${index + 1}`}
+                              className="report-control rounded-md border bg-background"
+                              value={image.width}
+                              disabled={!!busy || !!pending}
+                              onChange={event =>
+                                patchImage(image.id, {
+                                  width: event.target.value === 'half' ? 'half' : 'full',
+                                })
+                              }
+                            >
+                              <option value="full">전체</option>
+                              <option value="half">절반</option>
+                            </select>
+                          </label>
+                        </div>
+                        <div className="report-toolbar">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8"
+                            aria-label={`이미지 ${index + 1} 위로`}
+                            disabled={!!busy || !!pending || index === 0}
+                            onClick={() => moveImage(index, -1)}
+                          >
+                            위로
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8"
+                            aria-label={`이미지 ${index + 1} 아래로`}
+                            disabled={!!busy || !!pending || index === images.length - 1}
+                            onClick={() => moveImage(index, 1)}
+                          >
+                            아래로
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8"
+                            aria-label={`이미지 ${index + 1} 삭제`}
+                            disabled={!!busy || !!pending}
+                            onClick={() => removeImage(image.id)}
+                          >
+                            삭제
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
               <div className="report-toolbar">
                 <Button
                   type="submit"
@@ -381,6 +604,76 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
                   </Button>
                 )}
               </div>
+              <details className="report-assist">
+                <summary>AI 본문 제안</summary>
+                <p className="text-sm text-muted-foreground">
+                  저장된 고정 수치만 근거로 초안을 제안합니다. 적용 전에는 서버에 저장되지 않습니다.
+                </p>
+                <div className="report-toolbar">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-9"
+                    disabled={!saved || !!busy || suggesting}
+                    onClick={askSuggestion}
+                  >
+                    {suggesting ? '제안 생성 중' : '제안 받기'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-9"
+                    disabled={!history.length || !!busy}
+                    onClick={undoBody}
+                  >
+                    되돌리기
+                  </Button>
+                </div>
+                {suggestion && (
+                  <div className="report-suggestion" role="region" aria-label="AI 본문 제안 결과">
+                    <pre>{suggestion}</pre>
+                    <div className="report-toolbar">
+                      <Button type="button" className="h-9" onClick={applySuggestion}>
+                        본문에 적용
+                      </Button>
+                      <Button type="button" variant="outline" className="h-9" onClick={() => setSuggestion('')}>
+                        닫기
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </details>
+              {saved && (
+                <details
+                  className="report-versions"
+                  open={versionsOpen}
+                  onToggle={event => {
+                    const open = (event.target as HTMLDetailsElement).open;
+                    if (open !== versionsOpen) void toggleVersions(open);
+                  }}
+                >
+                  <summary>저장 버전</summary>
+                  {!versions.length && <p className="text-sm text-muted-foreground">버전을 불러오는 중입니다.</p>}
+                  {versions.map(row => (
+                    <div key={row.version} className="report-version-row">
+                      <span>
+                        r{row.version}
+                        {row.current ? ' · 현재' : ''}
+                      </span>
+                      <span className="text-sm text-muted-foreground">{Math.max(1, Math.round(row.bytes / 1024))}KB</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8"
+                        disabled={!!busy || !!pending}
+                        onClick={() => void openVersion(row.version)}
+                      >
+                        열기
+                      </Button>
+                    </div>
+                  ))}
+                </details>
+              )}
               {saved && !preview && (
                 <p className="text-sm text-muted-foreground">
                   제목과 본문만 수정하면 기존 숫자와 계산 기준을 그대로 보존합니다.

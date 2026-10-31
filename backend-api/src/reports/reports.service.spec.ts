@@ -41,6 +41,7 @@ describe('private reports with SQLite transactions and native aggregate capture'
     connection: any,
     studio: StudioService,
     reports: ReportsService,
+    aiMock: { generate: jest.Mock },
     dashboardId: number;
   let file: string, nextFile: string, currentFile: string, command: ReportSave, id: string;
   const previousRoot = process.env.FILE_UPLOAD_DIR;
@@ -129,7 +130,8 @@ describe('private reports with SQLite transactions and native aggregate capture'
     const access = new SourceAccessService(db);
     const ai = new AiDashboardService({} as any, connection, db.getRepository(Dashboard), access);
     studio = new StudioService(db, ai, connection, access);
-    reports = new ReportsService(db, studio, access);
+    aiMock = { generate: jest.fn() };
+    reports = new ReportsService(db, studio, access, aiMock as any);
     currentFile = file;
     const definition = {
       schemaVersion: 1,
@@ -451,5 +453,54 @@ describe('private reports with SQLite transactions and native aggregate capture'
       await db.manager.delete(PrivateReportRevision, { reportId: reservedId });
       await db.manager.delete(PrivateReport, { id: reservedId });
     }
+  });
+  it('saves text and image blocks, derives the plain body and reopens the document', async () => {
+    const image =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const saved = await reports.save(
+      id,
+      {
+        ...command,
+        body: 'ignored projection',
+        blocks: [
+          { id: 'b1', kind: 'TEXT', text: '첫 문단' },
+          { id: 'b2', kind: 'IMAGE', dataUrl: image, alt: '차트 스냅샷', width: 'full' },
+          { id: 'b3', kind: 'TEXT', text: '둘째 문단' },
+        ],
+      } as ReportSave,
+      actor,
+    );
+    expect(saved.report.body).toBe('첫 문단\n\n둘째 문단');
+    expect(saved.report.blocks).toHaveLength(3);
+    expect((await reports.get(id, actor)).blocks).toEqual(saved.report.blocks);
+  });
+  it('lists every revision and reopens a past version', async () => {
+    const first = await reports.save(id, command, actor);
+    const second = await reports.save(
+      id,
+      {
+        ...command,
+        requestId: randomUUID(),
+        expectedRevision: first.report.revision,
+        body: '본문 B',
+        data: { mode: 'retain', fromRevision: first.report.revision },
+      },
+      actor,
+    );
+    expect(second.report.version).toBe(2);
+    const versions = await reports.versions(id, actor);
+    expect(versions.map(item => item.version)).toEqual([2, 1]);
+    expect(versions[0].current).toBe(true);
+    expect((await reports.get(id, actor, 1)).body).toBe(command.body);
+    await expect(reports.get(id, actor, 3)).rejects.toThrow('찾을 수 없습니다');
+  });
+  it('asks the injected AI for a draft built from the frozen numbers', async () => {
+    await reports.save(id, command, actor);
+    aiMock.generate.mockResolvedValue('  초안 본문  ');
+    const result = await reports.suggest(id, {}, actor);
+    expect(result.suggestion).toBe('초안 본문');
+    const request = aiMock.generate.mock.calls[0][0];
+    expect(request.caller).toMatchObject({ userId: 7, feature: 'report-body' });
+    expect(request.prompt).toContain('Revenue');
   });
 });

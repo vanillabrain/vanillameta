@@ -197,6 +197,7 @@
   "jest": {
     "moduleFileExtensions": ["js", "json", "ts"],
     "moduleNameMapper": {
+      "^ai$": "<rootDir>/test/shims/ai.js",
       "^buffer-equal-constant-time$": "<rootDir>/test/shims/buffer-equal-constant-time.js",
       "^src/(.*)$": "<rootDir>/src/$1",
       "^(\\.{1,2}/.*)\\.js$": "$1"

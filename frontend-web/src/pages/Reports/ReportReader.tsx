@@ -75,12 +75,27 @@ function Reader({ id }: { id: string }) {
               저장 당시의 본문과 집계입니다. 이후 편집은 자동 전달되지 않으며 원본 데이터 접근권은 포함하지 않습니다.
             </p>
             <div className="report-editor-grid">
-              <article
-                aria-label="보고서 본문"
-                className="whitespace-pre-wrap break-words rounded-xl border bg-card p-6 text-base leading-8"
-              >
-                {state.data.body}
-              </article>
+              <div className="report-document">
+                <article
+                  aria-label="보고서 본문"
+                  className="whitespace-pre-wrap break-words rounded-xl border bg-card p-6 text-base leading-8"
+                >
+                  {state.data.body}
+                </article>
+                {state.data.documentBlocks
+                  .filter(block => block.kind === 'IMAGE')
+                  .map(block => (
+                    <figure
+                      key={block.id}
+                      className={
+                        block.width === 'half' ? 'report-document-image report-document-image-half' : 'report-document-image'
+                      }
+                    >
+                      <img src={block.dataUrl} alt={block.alt} />
+                      {block.alt && <figcaption>{block.alt}</figcaption>}
+                    </figure>
+                  ))}
+              </div>
               <div className="report-results">
                 {readerBlocks(state.data).map(block => (
                   <section key={block.id} className="report-frozen-block rounded-xl border bg-card">

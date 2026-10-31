@@ -4,6 +4,19 @@ import { PublishedBlock } from '../Dashboard/Studio/studioPublication';
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const positive = z.number().int().positive().safe();
+export const documentBlockSchema = z.discriminatedUnion('kind', [
+  z.object({ id: z.string(), kind: z.literal('TEXT'), text: z.string().max(20000) }).strict(),
+  z
+    .object({
+      id: z.string(),
+      kind: z.literal('IMAGE'),
+      dataUrl: z.string().max(760000),
+      alt: z.string().max(200),
+      width: z.enum(['full', 'half']),
+    })
+    .strict(),
+]);
+export type ReportDocumentBlock = z.infer<typeof documentBlockSchema>;
 export const captureSchema = z
   .object({
     dashboardId: positive,
@@ -19,6 +32,7 @@ export const commandSchema = z
     expectedRevision: hash.nullable(),
     title: z.string().min(1).max(200),
     body: z.string().refine(value => new TextEncoder().encode(value).length <= 65536),
+    blocks: z.array(documentBlockSchema).max(40).optional(),
     data: z.discriminatedUnion('mode', [
       z.object({ mode: z.literal('capture'), capture: captureSchema, previewDigest: hash }).strict(),
       z.object({ mode: z.literal('retain'), fromRevision: hash }).strict(),
@@ -76,6 +90,7 @@ const reportSchema = z.object({
   version: positive,
   title: z.string(),
   body: z.string(),
+  blocks: z.array(documentBlockSchema).optional(),
   savedAt: z.string(),
   revision: hash,
   organizationId: positive.nullable(),
@@ -102,8 +117,25 @@ export const reportApi = {
   async root(id: number) {
     return rootSchema.parse((await get('/reports/roots/' + id, undefined, options)).data);
   },
-  async read(id: string) {
-    return reportSchema.parse((await get('/reports/' + id, undefined, options)).data);
+  async read(id: string, version?: number) {
+    return reportSchema.parse((await get('/reports/' + id, version === undefined ? undefined : { version }, options)).data);
+  },
+  async versions(id: string) {
+    return z
+      .array(
+        z.object({
+          version: positive,
+          revision: hash,
+          bytes: z.number().int().nonnegative(),
+          current: z.boolean(),
+        }),
+      )
+      .parse((await get('/reports/' + id + '/versions', undefined, options)).data);
+  },
+  async suggest(id: string, instruction?: string) {
+    return z
+      .object({ suggestion: z.string() })
+      .parse((await post('/reports/' + id + '/suggest', { instruction }, options)).data);
   },
   async preview(id: string, expectedOrganizationId: number | null, capture: Capture) {
     return previewSchema.parse(

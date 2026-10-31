@@ -63,8 +63,22 @@ export class ReportsController {
   }
   @Get(':id')
   @Header('Cache-Control', 'no-store')
-  get(@Param('id') id: string, @Req() req: ReportRequest) {
-    return this.reports.get(id, req.user.accessKeyData);
+  get(@Param('id') id: string, @Req() req: ReportRequest, @Query('version') version?: string) {
+    return this.reports.get(
+      id,
+      req.user.accessKeyData,
+      version === undefined ? undefined : Number(version),
+    );
+  }
+  @Get(':id/versions')
+  @Header('Cache-Control', 'no-store')
+  versions(@Param('id') id: string, @Req() req: ReportRequest) {
+    return this.reports.versions(id, req.user.accessKeyData);
+  }
+  @Post(':id/suggest')
+  @Header('Cache-Control', 'no-store')
+  suggest(@Param('id') id: string, @Body() body: unknown, @Req() req: ReportRequest) {
+    return this.reports.suggest(id, body, req.user.accessKeyData);
   }
   @Get(':id/outcome/:requestId')
   @Header('Cache-Control', 'no-store')

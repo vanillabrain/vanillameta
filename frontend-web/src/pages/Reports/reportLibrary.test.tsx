@@ -47,7 +47,7 @@ it('mixes report/dashboard results in search/list/grid while only dashboards exp
     </MemoryRouter>,
   );
   expect(screen.getByRole('link', { name: report.title }).getAttribute('href')).toBe(`/reports/${report.id}/read`);
-  expect(screen.getByText('보고서 · 받은 보고서 · 버전 3')).toBeTruthy();
+  expect(screen.getByText('artifact.report · artifact.versions · artifact.received')).toBeTruthy();
   fireEvent.change(screen.getByLabelText('artifact.kindLabel'), { target: { value: 'report' } });
   expect(screen.queryByRole('button', { name: '대시보드 삭제' })).toBeNull();
   expect(screen.queryByRole('button', { name: '대시보드 보관' })).toBeNull();
