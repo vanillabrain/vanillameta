@@ -31,6 +31,7 @@ Runtime evidence lives outside the repository in `phase2-evidence/postgres-metad
 | Keyboard on the grid toggle | focus visible, Enter switches the layout | `browser/hub-keyboard-390.png` |
 | `pg_dump` restore rehearsal | dump from the live runtime restored into a fresh PostgreSQL 17 container: 105 tables, identical md5 for artifact_file, artifact_file_version, template, template_item and user | `live-verification.json` |
 | MySQL to PostgreSQL transfer | owned MySQL 8.4.11 fixture (3 tables, 12 rows) into an empty PostgreSQL 17 target: dry run `writes:0`, apply `VERIFIED`, per-table SHA-256 match, 0 foreign-key orphans, identity sequences advanced past the max id, baseline recorded | `mysql-transfer-receipt.json` |
+| Real dataset cutover | 2026-10-16 Studio MySQL dataset (29 tables, 202.7 MB datadir) copied read-only from `vm-studio-daemon-data-20261016` into a temporary datadir, then transferred into an empty PostgreSQL 17 target: dry run `writes:0` on 29 tables, apply `VERIFIED` for 28 tables and 46 rows, exact row counts for 28/28, 0 orphans across 25 foreign keys, sequences at max+1, entity reads (dashboard 1, widget 5, dataset 5, login history 11, user 1) with Date hydration, and `migration:run:prod` returning `{"mode":"migrated","ranMigrations":0}` | `mysql-real-cutover.json`, `mysql-real-cutover-receipt.json` |
 | Backend regression | 81 PASS / 7 skipped (PostgreSQL-gated) across metadata, migrate-prod, source locks, Artifact API/service, report sharing and resource policy | `npm test -- --runInBand ...` |
 | MySQL cutover value canonicalisation | 11 PASS covering microsecond padding, zero dates, bytea formats, tinyint booleans, big integers, JSON key order, row hashing and foreign-key ordering | `src/database/mysql-cutover.spec.ts` |
 | Frontend regression | 21 PASS in 7 Artifact files | `npx vitest run ... --maxWorkers=2` |
@@ -50,10 +51,13 @@ Runtime evidence lives outside the repository in `phase2-evidence/postgres-metad
 
 - Native `select` value changes with a keyboard alone (ArrowDown then Enter) were not confirmed in Aside automation. Focus and Enter activation on the layout toggle were confirmed.
 - The report list was verified as an authenticated empty list over HTTP and as a resolved hub state in the browser. A report with real rows on PostgreSQL has not been opened in this run.
+- The real dataset carries 29 of the 104 current tables, so tables absent from the source stay empty after the target schema is created. The transfer copies same-named tables only.
+- Two classes are named `User`. `entities/user.entity.ts` maps to `users`, while `user/entities/user.entity.ts` maps to `user`. `getRepository('User')` resolves to the `users` table and reports 0 rows on the migrated data, while the class-based repository reads the migrated row. Any future lookup by string name can read the wrong table.
+- The source `migrations` table is skipped by design. The PostgreSQL baseline is recorded instead.
 
 ## NOT VERIFIED
 
-- MySQL production data volume transferred into PostgreSQL. Only an owned, synthetic fixture was used, so real row volumes, encodings and long-tail column types are untested. The follow-up run against the existing QA MySQL dataset could not start because Docker lives outside the workspace sandbox and the automatic permission review timed out on every escalated attempt, so the harness never executed the container command.
+- Customer production data. The real run used a prior Studio verification dataset, so row volume, encodings and long-tail column types of an actual customer database are still untested.
 - Production deployment, real operator migration on a live database, and human acceptance.
 - VoiceOver announcement checks remain blocked in this environment; DOM inspection is not reported as a substitute.
 
