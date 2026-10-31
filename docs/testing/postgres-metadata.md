@@ -17,7 +17,7 @@ Runtime evidence lives outside the repository in `phase2-evidence/postgres-metad
 | Check | Result | Evidence |
 | --- | --- | --- |
 | PostgreSQL metadata entity contract | every entity builds with the PostgreSQL driver without a server | `metadata-postgres-schema.spec.ts` |
-| Production bootstrap on an empty database | `{"mode":"bootstrapped","recordedMigrations":1}`; 104 application tables plus `migrations`; seeds `template` 10 / `template_item` 46 / `user` 0 | `vm_prod_bootstrap` receipt in `live-verification.json` |
+| Production bootstrap on an empty database | `{"mode":"bootstrapped","recordedMigrations":1}`; 103 application tables plus `migrations` after the unused `users` entity was removed; seeds `template` 10 / `template_item` 46 / `user` 0 | `vm_prod_bootstrap` receipt in `live-verification.json`; 103 entities and 103 tables in `user-entity-identity.spec.ts` |
 | Bootstrap idempotency | re-run against an existing schema reports `migrated` with `ranMigrations=0` | earlier schema run in this document |
 | MCP OAuth tables in production bootstrap | `mcp_oauth_pending`, `mcp_oauth_grant`, `mcp_oauth_code`, `mcp_oauth_token` created by the production path | `vm_prod_bootstrap` query |
 | Live Nest API on PostgreSQL | health OK, signup/signin, authenticated list and detail | `scripts/qa-postgres-artifacts.cjs` |
@@ -33,6 +33,7 @@ Runtime evidence lives outside the repository in `phase2-evidence/postgres-metad
 | MySQL to PostgreSQL transfer | owned MySQL 8.4.11 fixture (3 tables, 12 rows) into an empty PostgreSQL 17 target: dry run `writes:0`, apply `VERIFIED`, per-table SHA-256 match, 0 foreign-key orphans, identity sequences advanced past the max id, baseline recorded | `mysql-transfer-receipt.json` |
 | Real dataset cutover | 2026-10-16 Studio MySQL dataset (29 tables, 202.7 MB datadir) copied read-only from `vm-studio-daemon-data-20261016` into a temporary datadir, then transferred into an empty PostgreSQL 17 target: dry run `writes:0` on 29 tables, apply `VERIFIED` for 28 tables and 46 rows, exact row counts for 28/28, 0 orphans across 25 foreign keys, sequences at max+1, entity reads (dashboard 1, widget 5, dataset 5, login history 11, user 1) with Date hydration, and `migration:run:prod` returning `{"mode":"migrated","ranMigrations":0}` | `mysql-real-cutover.json`, `mysql-real-cutover-receipt.json` |
 | Backend regression | 81 PASS / 7 skipped (PostgreSQL-gated) across metadata, migrate-prod, source locks, Artifact API/service, report sharing and resource policy | `npm test -- --runInBand ...` |
+| Entity identity | One `User` metadata bound to the `user` table, 103 entities across 103 tables, no TypeORM name-based lookup in production code | `src/common/user-entity-identity.spec.ts`; 101 PASS across 16 related suites |
 | MySQL cutover value canonicalisation | 11 PASS covering microsecond padding, zero dates, bytea formats, tinyint booleans, big integers, JSON key order, row hashing and foreign-key ordering | `src/database/mysql-cutover.spec.ts` |
 | Frontend regression | 21 PASS in 7 Artifact files | `npx vitest run ... --maxWorkers=2` |
 | Backend type/lint/build | typecheck and production build PASS with Node 24; `eslint src --ext .ts --quiet` exit 0 | command output |
@@ -46,13 +47,13 @@ Runtime evidence lives outside the repository in `phase2-evidence/postgres-metad
 3. `background_job_results.backgroundJobId` was `varchar(100)` against a UUID relation; PostgreSQL rejected the relation. The column is now `uuid`.
 4. `data-source.ts` globbed `*.entity.ts`, which does not match `mcp-oauth.entities.ts`. Production bootstrap synchronises exactly that list, so a fresh production database would have had no `mcp_oauth_*` tables. The MCP OAuth entities are now listed explicitly and the production bootstrap creates all four.
 5. The MySQL transfer dry run crashed on `a.table_name.localeCompare` because MySQL 8 returns `TABLE_NAME`. Table names are normalised before sorting and mapping.
+6. Two classes were named `User`. `entities/user.entity.ts` mapped to an unused `users` table, so TypeORM held two `User` metadata entries and `getRepository('User')` resolved to `users`. The legacy entity had no importer and was deleted, leaving one `User` bound to `user`. `JobResult` and `AnalyticsEvent` still share a class name across two live entities; no TypeORM name-based lookup exists today, so they are a latent hazard rather than an active defect.
 
 ## PARTIAL
 
 - Native `select` value changes with a keyboard alone (ArrowDown then Enter) were not confirmed in Aside automation. Focus and Enter activation on the layout toggle were confirmed.
 - The report list was verified as an authenticated empty list over HTTP and as a resolved hub state in the browser. A report with real rows on PostgreSQL has not been opened in this run.
-- The real dataset carries 29 of the 104 current tables, so tables absent from the source stay empty after the target schema is created. The transfer copies same-named tables only.
-- Two classes are named `User`. `entities/user.entity.ts` maps to `users`, while `user/entities/user.entity.ts` maps to `user`. `getRepository('User')` resolves to the `users` table and reports 0 rows on the migrated data, while the class-based repository reads the migrated row. Any future lookup by string name can read the wrong table.
+- The real dataset carries 29 of the 103 current tables, so tables absent from the source stay empty after the target schema is created. The transfer copies same-named tables only.
 - The source `migrations` table is skipped by design. The PostgreSQL baseline is recorded instead.
 
 ## NOT VERIFIED
