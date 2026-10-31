@@ -56,27 +56,54 @@ function stable(value) {
   return value;
 }
 
-function canonical(value, dataType) {
+// MySQL prints DATETIME(6) with trailing zeros ("...05.123000") while PostgreSQL trims them
+// ("...05.123"). Both sides must normalise to the same text or every row looks different.
+function normaliseTimestamp(value) {
+  const text = String(value).trim().replace(' ', 'T');
+  return text.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+}
+
+function canonical(value, dataType, context = {}) {
   if (value === null || value === undefined) return null;
-  if (dataType === 'boolean') return value === true || value === 1 || value === '1';
+  if (dataType === 'boolean')
+    return value === true || value === 'true' || value === 1 || value === '1';
   if (dataType.includes('timestamp') || dataType === 'date') {
-    if (value instanceof Date) return value.toISOString();
-    return String(value).trim().replace(' ', 'T');
+    if (value instanceof Date) return value.toISOString().replace(/(\.\d*?)0+Z$/, '$1Z');
+    const text = String(value).trim();
+    // A zero date cannot be stored in PostgreSQL and silently guessing a value would corrupt
+    // history, so the cutover stops with the exact column instead of dropping the row.
+    if (/^0000-00-00/.test(text))
+      throw new Error(
+        `${context.table ?? 'row'}.${context.column ?? 'column'} holds a MySQL zero date (${text}); repair the source row before a cutover`,
+      );
+    return normaliseTimestamp(text);
   }
   if (['json', 'jsonb'].includes(dataType)) {
     return typeof value === 'string' ? stable(JSON.parse(value)) : stable(value);
   }
-  if (dataType === 'bytea') return Buffer.from(value).toString('hex');
+  if (dataType === 'bytea') {
+    // node-postgres returns bytea as the text form "\\xdead", mysql2 returns a Buffer.
+    if (Buffer.isBuffer(value)) return value.toString('hex');
+    const text = String(value);
+    return text.startsWith('\\x') ? text.slice(2).toLowerCase() : Buffer.from(text).toString('hex');
+  }
   if (['bigint', 'numeric', 'decimal', 'money'].includes(dataType)) return String(value);
   if (Buffer.isBuffer(value)) return value.toString('hex');
   return value;
 }
 
-function rowHash(columns, rows) {
+function rowHash(columns, rows, table) {
   const hash = createHash('sha256');
   const canonicalRows = rows
     .map(row =>
-      JSON.stringify(columns.map(column => canonical(row[column.column_name], column.data_type))),
+      JSON.stringify(
+        columns.map(column =>
+          canonical(row[column.column_name], column.data_type, {
+            table,
+            column: column.column_name,
+          }),
+        ),
+      ),
     )
     .sort();
   for (const row of canonicalRows) {
@@ -281,8 +308,8 @@ async function main() {
         column_name: column,
         data_type: dataTypes[column],
       }));
-      const sourceHash = rowHash(targetColumns, normalizedSourceRows);
-      const targetHash = rowHash(targetColumns, targetResult.rows);
+      const sourceHash = rowHash(targetColumns, normalizedSourceRows, table);
+      const targetHash = rowHash(targetColumns, targetResult.rows, table);
       if (inserted !== targetResult.rowCount || sourceHash !== targetHash)
         throw new Error(`Row verification failed for ${table}`);
       result.tables.push({ table, rows: inserted, sha256: targetHash });
@@ -325,7 +352,11 @@ async function main() {
   await mysqlClient.end();
 }
 
-main().catch(error => {
-  process.stderr.write(JSON.stringify({ verdict: 'FAILED', message: error.message }) + '\n');
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch(error => {
+    process.stderr.write(JSON.stringify({ verdict: 'FAILED', message: error.message }) + '\n');
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { canonical, rowHash, dependencyOrder, stable, normaliseTimestamp };

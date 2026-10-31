@@ -32,6 +32,7 @@ Runtime evidence lives outside the repository in `phase2-evidence/postgres-metad
 | `pg_dump` restore rehearsal | dump from the live runtime restored into a fresh PostgreSQL 17 container: 105 tables, identical md5 for artifact_file, artifact_file_version, template, template_item and user | `live-verification.json` |
 | MySQL to PostgreSQL transfer | owned MySQL 8.4.11 fixture (3 tables, 12 rows) into an empty PostgreSQL 17 target: dry run `writes:0`, apply `VERIFIED`, per-table SHA-256 match, 0 foreign-key orphans, identity sequences advanced past the max id, baseline recorded | `mysql-transfer-receipt.json` |
 | Backend regression | 81 PASS / 7 skipped (PostgreSQL-gated) across metadata, migrate-prod, source locks, Artifact API/service, report sharing and resource policy | `npm test -- --runInBand ...` |
+| MySQL cutover value canonicalisation | 11 PASS covering microsecond padding, zero dates, bytea formats, tinyint booleans, big integers, JSON key order, row hashing and foreign-key ordering | `src/database/mysql-cutover.spec.ts` |
 | Frontend regression | 21 PASS in 7 Artifact files | `npx vitest run ... --maxWorkers=2` |
 | Backend type/lint/build | typecheck and production build PASS with Node 24; `eslint src --ext .ts --quiet` exit 0 | command output |
 | Compose YAML syntax | root, production, backend, dev, test and multi-db files parse | Ruby YAML parser |
@@ -52,7 +53,7 @@ Runtime evidence lives outside the repository in `phase2-evidence/postgres-metad
 
 ## NOT VERIFIED
 
-- MySQL production data volume transferred into PostgreSQL. Only an owned, synthetic fixture was used, so real row volumes, encodings and long-tail column types are untested.
+- MySQL production data volume transferred into PostgreSQL. Only an owned, synthetic fixture was used, so real row volumes, encodings and long-tail column types are untested. The follow-up run against the existing QA MySQL dataset could not start because Docker lives outside the workspace sandbox and the automatic permission review timed out on every escalated attempt, so the harness never executed the container command.
 - Production deployment, real operator migration on a live database, and human acceptance.
 - VoiceOver announcement checks remain blocked in this environment; DOM inspection is not reported as a substitute.
 
@@ -62,4 +63,26 @@ Runtime evidence lives outside the repository in `phase2-evidence/postgres-metad
 - Full runtime: `QA_API_PORT=... QA_WEB_PORT=... QA_CONTROL_PORT=... npm run qa:postgres`
 - Production bootstrap: `NODE_ENV=prod DB_HOST=... DB_PORT=... DB_USERNAME=... DB_NAME=... npm run migration:run:prod`
 - Transfer: `SOURCE_MYSQL_* DB_* node backend-api/scripts/migrate-mysql-to-postgres.cjs [--apply --receipt path]`
+
+## Real dataset runbook
+
+The transfer tool now normalises the value shapes that differ between the drivers:
+
+- MySQL `DATETIME(6)` padding against PostgreSQL trimming for fractional seconds.
+- MySQL zero dates, which stop the run with the table and column instead of guessing a value.
+- MySQL `Buffer` against PostgreSQL `\x...` text for `bytea`.
+- `tinyint(1)` against `boolean`, and big integers that must stay exact strings.
+- JSON key order, plus parent-before-child ordering and a hard stop on foreign-key cycles.
+
+Run it against a real dataset from a shell that can reach Docker:
+
+```bash
+export DOCKER_HOST=unix:///Users/moonklabs/.colima/vanillameta-verify/docker.sock
+SOURCE_MYSQL_HOST=127.0.0.1 SOURCE_MYSQL_PORT=<published> SOURCE_MYSQL_USER=root \
+  SOURCE_MYSQL_PASSWORD=<from container env> SOURCE_MYSQL_DATABASE=<db> \
+  DB_HOST=127.0.0.1 DB_PORT=<target> DB_USERNAME=postgres DB_PASSWORD=<target> \
+  DB_NAME=<empty target> node backend-api/scripts/migrate-mysql-to-postgres.cjs --apply --receipt <path>
+```
+
+The apply path refuses a target that already has tables, verifies every copied table by row count and SHA-256, advances identity sequences, and records the PostgreSQL baseline.
 
