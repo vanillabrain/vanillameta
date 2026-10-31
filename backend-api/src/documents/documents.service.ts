@@ -72,7 +72,11 @@ function summary(document: DocumentConnection, epoch: number) {
   return {
     id: document.id,
     title: document.title,
-    sourceUrl: `https://docs.google.com/document/d/${document.fileId}/edit`,
+    provider: document.provider ?? 'google',
+    sourceUrl:
+      (document.provider ?? 'google') === 'microsoft'
+        ? `https://onedrive.live.com/?id=${document.fileId}`
+        : `https://docs.google.com/document/d/${document.fileId}/edit`,
     currentVersion: document.currentVersion,
     connected: document.connected && document.credentialEpoch === epoch,
     updatedAt: document.updatedAt,

@@ -8,11 +8,11 @@ describe('Microsoft document connection', () => {
     text: jest.fn(async () => '# 본문'),
   });
   it('rejects a malformed PKCE verifier', () => {
-    expect(() => new MicrosoftSourceService(provider() as never).authorization('short')).toThrow();
+    expect(() => new MicrosoftSourceService(provider() as never, {} as never).authorization('short')).toThrow();
   });
   it('exchanges, reads metadata and text without exposing the token', async () => {
     const fake = provider();
-    const result = await new MicrosoftSourceService(fake as never).preview({
+    const result = await new MicrosoftSourceService(fake as never, {} as never).preview({
       code: 'c', verifier: 'v'.repeat(43), itemId: 'i',
     });
     expect(fake.exchange).toHaveBeenCalledWith('c', 'v'.repeat(43));

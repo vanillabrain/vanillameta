@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MicrosoftSourceService } from './microsoft-source.service';
 
@@ -16,6 +16,11 @@ export class MicrosoftController {
   @Post('preview')
   preview(@Body() body: unknown) {
     return this.microsoft.preview(body);
+  }
+  @Post('save')
+  save(@Req() req: unknown, @Body() body: unknown) {
+    const { accessKeyData } = req as { accessKeyData: { id: number } };
+    return this.microsoft.save(accessKeyData.id, body);
   }
 }
 

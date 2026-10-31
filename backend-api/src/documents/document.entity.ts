@@ -10,6 +10,7 @@ export class DocumentConnection {
   @Column({ type: 'integer' }) ownerId: number;
   @Column({ type: 'integer' }) organizationId: number;
   @Column({ type: 'varchar', length: 200 }) fileId: string;
+  @Column({ type: 'varchar', length: 20, default: 'google' }) provider: 'google' | 'microsoft';
   @Column({ type: 'varchar', length: 1000 }) title: string;
   @Column({ type: 'integer' }) currentVersion: number;
   @Column({ type: 'integer' }) generation: number;
