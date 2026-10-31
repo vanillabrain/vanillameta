@@ -74,7 +74,7 @@
     "@nestjs/event-emitter": "^2.1.1",
     "@nestjs/jwt": "^10.0.0",
     "@nestjs/mapped-types": "^2.0.0",
-    "@nestjs/passport": "^10.0.0",
+    "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/platform-socket.io": "^10.0.0",
     "@nestjs/schedule": "^4.0.0",
