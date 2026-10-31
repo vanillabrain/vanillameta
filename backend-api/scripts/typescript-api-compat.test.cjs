@@ -10,6 +10,13 @@ test('application imports keep the native TypeScript7 package', () => {
   assert.equal(application('typescript').transpileModule, undefined);
 });
 
+test('Nest CLI binary loader receives the classic compiler API', () => {
+  const { TypeScriptBinaryLoader } = require('@nestjs/cli/lib/compiler/typescript-loader');
+  const api = new TypeScriptBinaryLoader().load();
+  assert.equal(api.version, '5.9.3');
+  assert.equal(typeof api.getParsedCommandLineOfConfigFile, 'function');
+});
+
 for (const tool of [
   '@nestjs/cli',
   'ts-jest',
