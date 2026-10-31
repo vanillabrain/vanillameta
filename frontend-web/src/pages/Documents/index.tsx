@@ -15,6 +15,11 @@ function DocumentsList({ scope }: { scope: string | null }) {
   const { link } = artifactListNavigation(useLocation());
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   const [read, setRead] = useState(0);
+  const [integrations, setIntegrations] = useState<{
+    googleDocs: boolean;
+    microsoft: boolean;
+    sheets: boolean;
+  } | null>(null);
   const retryButton = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const restoreFocus = useRef(false);
@@ -46,8 +51,29 @@ function DocumentsList({ scope }: { scope: string | null }) {
       });
     return () => controller.abort();
   }, [scope, read]);
+  useEffect(() => {
+    if (!scope) return;
+    const controller = new AbortController();
+    documentService
+      .integrations()
+      .then(value => {
+        if (!controller.signal.aborted)
+          setIntegrations(value as { googleDocs: boolean; microsoft: boolean; sheets: boolean });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setIntegrations(null);
+      });
+    return () => controller.abort();
+  }, [scope]);
   return (
     <DocumentFrame title={t('docConnection.title')} headingRef={headingRef}>
+      {integrations && (!integrations.microsoft || !integrations.sheets) && (
+        <p role="status" className="text-sm text-muted-foreground">
+          외부 연동 · Google 문서 {integrations.googleDocs ? '사용 가능' : '설정 필요'} · Microsoft
+          {integrations.microsoft ? '사용 가능' : '설정 필요'} · Sheets
+          {integrations.sheets ? '사용 가능' : '설정 필요'}
+        </p>
+      )}
       {state.kind === 'loading' && <p role="status">{t('docConnection.loading')}</p>}
       {state.kind === 'error' && (
         <>

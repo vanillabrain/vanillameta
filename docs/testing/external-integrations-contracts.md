@@ -76,3 +76,11 @@ VERIFIED: documents.service.spec.ts 26 PASS.
 VERIFIED: `documents.integrations.spec.ts` PASS, tsc PASS.
 BLOCKED: 이 값을 보여 줄 화면 배지와, 실제 OAuth 클라이언트 등록.
 
+
+## 목록 화면 연동 상태 표시 (2026-10-31 후속)
+
+- Documents 목록은 `documentService.integrations()`를 한 번 조회하고, Microsoft나 Sheets가 설정되지 않았으면 `외부 연동 · Google 문서 사용 가능 · Microsoft 설정 필요 · Sheets 설정 필요` 형태의 상태 줄을 보여 준다.
+- 조회 실패는 목록을 막지 않고 배지를 숨긴다. 세션 범위가 바뀌면 이전 요청을 abort한다.
+
+VERIFIED: Documents·documentService 44 PASS, tsc·eslint PASS.
+

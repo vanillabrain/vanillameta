@@ -20,6 +20,7 @@ vi.mock('@/api/documentService', () => ({
     refresh: vi.fn(),
     request: vi.fn(),
     disconnect: vi.fn(),
+    integrations: vi.fn(async () => ({ googleDocs: true, microsoft: true, sheets: true })),
   },
 }));
 vi.mock('@/api/personalLibraryService', () => ({ personalLibrarySessionScope: vi.fn(() => 'actor-org-epoch') }));

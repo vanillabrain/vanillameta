@@ -121,6 +121,11 @@ export const documentService = {
       (await post(`/documents/${uuid.parse(id)}/disconnect`, {}, { _retry: true })).data,
     );
   },
+  async integrations() {
+    return z
+      .object({ googleDocs: z.boolean(), microsoft: z.boolean(), sheets: z.boolean() })
+      .parse((await get('/documents/integrations')).data);
+  },
   async aiSummary(id: string, input: { confirmAiCost: true; version?: number }) {
     const result = z
       .object({
