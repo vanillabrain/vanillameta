@@ -1,0 +1,36 @@
+# 외부 연동 계약: Google 문서 요약, Microsoft 문서, Sheets 데이터
+
+2026-10-31. 기준 브랜치 `develop`. 이번 단위는 4번 외부 연동의 계약 계층이다. 라우트·DB 승격·화면 연결은 아래 BLOCKED 범위다.
+
+## 구현
+
+- `document-summary.ts`: AI 요약은 `confirmAiCost === true`일 때만 실행한다. 동의가 없으면 `SummaryConsentRequired`(code `SUMMARY_CONSENT_REQUIRED`)를 던지고 모델을 한 번도 호출하지 않는다. 프롬프트는 제목·본문 24,000자·"5문장 이내"·"문서에 없는 내용 금지"를 담고, 결과는 4,000자로 자른다.
+- `microsoft-docs.provider.ts`: Graph `Files.Read.All offline_access` 범위, PKCE authorization URL, code 교환, `/me/drive/items/{id}` metadata, `/content` 본문. 텍스트(`text/plain`, `text/markdown`)만 허용하고 Word(docx)는 "Word 변환 미지원"으로 거절한다. 본문 2MiB 상한.
+- `google-sheets.provider.ts`: `spreadsheets.readonly`, PKCE, `values` API를 `UNFORMATTED_VALUE`로 읽어 100,000셀 상한을 적용하고 `toCsv`로 CSV로 만든다. 인용부호·줄바꿈·쉼표는 RFC4180 방식으로 escape한다.
+- 두 provider 모두 config가 없으면 `configured() === false`이고 authorization URL에서 503으로 닫힌다. 실제 호출은 주입한 fetch로만 일어난다.
+
+## VERIFIED
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| 요약 비용 동의 | `confirmAiCost: false`면 예외·모델 호출 0회, true면 trim된 요약과 제목/5문장 프롬프트 | `src/documents/external-integrations.spec.ts` |
+| Microsoft 설정·PKCE | 설정 없으면 fail-closed, 있으면 `code_challenge_method=S256`·scope·code_verifier·grant_type 확인 | 같은 파일 |
+| Microsoft 문서 종류 | docx는 거절, text/plain은 id/name/mime/lastModified 반환 | 같은 파일 |
+| Sheets 값·CSV | `UNFORMATTED_VALUE` URL, `"a,b"`·줄바꿈 escaping, 100,001셀 거절 | 같은 파일 |
+| 정적 검사 | eslint와 tsc 통과, 7 테스트 PASS | 명령 출력 |
+
+## BLOCKED
+
+- Google 문서 요약의 실제 엔드포인트·저장·화면. `POST /v1/documents/:id/summary` 라우트, 버전별 요약 저장, 상세 화면의 동의 버튼은 아직 없다. AI 공급자 배선도 서버 기동 후 확인해야 한다.
+- Microsoft·Sheets의 실제 OAuth 승인. `MS_DOCS_CLIENT_ID/SECRET/REDIRECT_URI`, `GOOGLE_SHEETS_CLIENT_ID/SECRET/REDIRECT_URI`가 필요하고, 각각 `/documents/microsoft/callback`, `/documents/sheets/callback` 등록이 선행돼야 한다.
+- Sheets를 DuckDB 파일 소스로 등록하는 경로. CSV 변환 계약만 있고 기존 업로드·워커·source 등록에 연결하지 않았다.
+- Word(docx) 본문 변환. Graph는 텍스트를 직접 주지 않으므로 변환 서비스 선택이 필요하다.
+- 실제 Microsoft/Graph·Sheets 왕복과 토큰 갱신.
+
+## 활성화 순서
+
+1. 두 OAuth 클라이언트를 만들고 redirect URI를 등록한 뒤 위 환경변수를 설정한다.
+2. 요약 라우트를 `LlmGateway` 지연 공급자로 연결하고, 버전별 요약 저장과 화면 동의 버튼을 붙인다.
+3. Sheets CSV를 기존 파일 업로드 경로로 넘겨 DuckDB 소스를 만든다.
+4. 실제 승인·요약·소스 생성·권한 회수를 HTTP와 화면으로 확인한다.
+

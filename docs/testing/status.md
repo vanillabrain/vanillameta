@@ -1,5 +1,6 @@
 # 최신 요약
 
+- **2026-10-31 외부 연동 계약:** Google 문서 요약의 비용 동의 게이트, Microsoft Graph 문서 provider, Google Sheets 값→CSV 변환을 주입 가능한 모듈로 구현하고 7개 모의 계약 테스트를 통과했다(eslint·tsc PASS). 라우트·버전별 저장·화면, 실제 OAuth 승인, Sheets의 DuckDB 소스 등록, Word 변환은 BLOCKED다. [검증 기록](external-integrations-contracts.md).
 - **2026-10-31 MCP 원격 제작:** 같은 6개 도구를 SDK Streamable HTTP로 `POST /mcp`에 제공하고, 요청의 Bearer 사용자 토큰을 매 호출마다 그대로 전달하며 저장은 `confirmSave: true` 없이는 API 호출 0회로 거부한다. HTTP 5 PASS를 포함해 mcp-server 전체 22 PASS. 실제 포트 바인딩과 Codex 호스트 여정은 샌드박스 listen EPERM으로 BLOCKED다. [검증 기록](mcp-remote-authoring.md).
 - **2026-10-31 아티팩트 허브 공유받음:** 허브에 `내 아티팩트`·`공유받음` 범위를 두고 받은 보고서와 받은 분석을 한 목록에서 읽기 전용으로 보여 준다. 공유받음에서는 추가·업로드·보관·삭제를 숨기고 원본 권한을 새로 주지 않는다. 컴포넌트 58 PASS와 typecheck·lint·빌드가 통과했고, 실제 390/768/1440과 공유 회수·만료 재조회는 샌드박스 listen EPERM으로 BLOCKED다. `Dashboard/index.test.tsx`의 기존 12개 실패는 이번 변경과 무관하며 PASS로 세지 않는다. [검증 기록](artifact-shared-tab.md).
 - **2026-10-31 문서형 아티팩트:** 비공개 보고서에 TEXT·IMAGE 블록, 이미지 너비·순서 편집, AI 본문 제안과 명시 적용·되돌리기, 과거 버전 열기를 추가했다. 블록은 보고서 버전 페이로드에 함께 고정되고 `body`는 TEXT 투영으로 서버가 재계산한다. 실제 SQLite 서비스 테스트로 저장·재열기·버전 목록·범위 밖 404·AI 대역 경계를 확인했고, 백엔드 6 suites 34 PASS와 프론트 4 files 50 PASS, 양쪽 typecheck·lint·빌드가 통과했다. 실제 브라우저 390/768/1440과 HTTP 왕복, 실 gpt-6-luna 응답은 샌드박스 listen EPERM과 승인 심사 시간 초과로 BLOCKED다. [검증 기록](report-document-blocks.md).
