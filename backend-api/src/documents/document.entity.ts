@@ -1,6 +1,7 @@
 import { Column, Entity, PrimaryColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { DocumentSummary } from './document-summary.entity';
+import { DocumentShare } from './document-share.entity';
 import { EnterpriseOrganization } from '../enterprise/entities/enterprise-organization.entity';
 
 @Entity('document_connection')
@@ -94,4 +95,5 @@ export const DOCUMENT_ENTITIES = [
   DocumentVersion,
   DocumentChunk,
   DocumentSummary,
+  DocumentShare,
 ];

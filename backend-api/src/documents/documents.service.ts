@@ -29,6 +29,7 @@ import {
 } from './google-docs.provider';
 import { seal, unseal } from './document-crypto';
 import { DocumentSummary } from './document-summary.entity';
+import { DocumentShare } from './document-share.entity';
 import { DOCUMENT_SUMMARY_AI, DocumentSummaryAi } from './document-ai';
 import { summarizeDocument } from './document-summary';
 
@@ -68,8 +69,13 @@ function binding(
     document.generation,
   ]);
 }
-function summary(document: DocumentConnection, epoch: number) {
+function summary(
+  document: DocumentConnection,
+  epoch: number,
+  role: 'owner' | 'recipient' = 'owner',
+) {
   return {
+    role,
     id: document.id,
     title: document.title,
     provider: document.provider ?? 'google',
@@ -131,6 +137,36 @@ export class DocumentsService {
     if (!document) throw new NotFoundException('Document not found.');
     return document;
   }
+  private async access(
+    manager: EntityManager,
+    actor: DocumentActor,
+    organizationId: number | null,
+    id: string,
+    mode: 'read' | 'owner',
+  ) {
+    const documentId = parse(uuid, id);
+    const org = this.requireOrg(organizationId);
+    const owned = await manager.findOneBy(DocumentConnection, {
+      id: documentId,
+      ownerId: actor.id,
+      organizationId: org,
+    });
+    if (owned) return { document: owned, role: 'owner' as const };
+    if (mode === 'owner') throw new NotFoundException('Document not found.');
+    const document = await manager.findOneBy(DocumentConnection, {
+      id: documentId,
+      organizationId: org,
+    });
+    if (!document) throw new NotFoundException('Document not found.');
+    const share = await manager.findOneBy(DocumentShare, {
+      documentId,
+      granteeId: actor.id,
+      organizationId: org,
+      active: true,
+    });
+    if (!share) throw new NotFoundException('Document not found.');
+    return { document, role: 'recipient' as const };
+  }
   googleConfigured() {
     return this.provider.configured();
   }
@@ -171,7 +207,7 @@ export class DocumentsService {
   }
   async read(actor: DocumentActor, id: string, version?: number) {
     return this.transaction(actor, async (manager, org) => {
-      const document = await this.document(manager, actor, org, id);
+      const { document, role } = await this.access(manager, actor, org, id, 'read');
       if (version !== undefined)
         return this.snapshot(manager, document, parse(z.number().int().positive(), version));
       const versions = await manager.find(DocumentVersion, {
@@ -179,7 +215,7 @@ export class DocumentsService {
         order: { version: 'DESC' },
       });
       return {
-        ...summary(document, actor.authVersion),
+        ...summary(document, actor.authVersion, role),
         versions: versions.map(versionInfo),
         snapshot: document.currentVersion
           ? await this.snapshot(manager, document, document.currentVersion)

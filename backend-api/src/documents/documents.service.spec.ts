@@ -575,4 +575,5 @@ describe('Document persistence on real SQLite', () => {
       service.aiSummary(actor, documentId, { confirmAiCost: true, version: 9 }),
     ).rejects.toThrow();
   });
+
 });

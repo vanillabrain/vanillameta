@@ -17,6 +17,7 @@ export class AddDocumentConnections1793232000000 implements MigrationInterface {
             { name: 'ownerId', type: 'integer', isPrimary: false },
             { name: 'organizationId', type: 'integer', isPrimary: false },
             { name: 'fileId', type: 'varchar', length: '200', isPrimary: false },
+          { name: 'provider', type: 'varchar', length: '20', default: "'google'" },
             { name: 'title', type: 'varchar', length: '1000', isPrimary: false },
             { name: 'currentVersion', type: 'integer', isPrimary: false },
             { name: 'generation', type: 'integer', isPrimary: false },
