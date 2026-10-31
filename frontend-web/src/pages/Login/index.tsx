@@ -65,7 +65,7 @@ const Login = () => {
         })
         .catch(error => {
           console.log(error);
-          if (error.response.status === 401) {
+          if (error.response?.status === 401) {
             snackbar.error(t('login.mismatch'));
             return;
           }

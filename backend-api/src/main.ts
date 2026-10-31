@@ -19,6 +19,7 @@ import * as v8 from 'v8';
 import { existsSync } from 'fs';
 import { DataSource } from 'typeorm';
 import { assertProductionConfig, parseTrustProxyHops } from './config/production-guard';
+import { resolveCorsOrigins } from './config/cors-origins';
 import { User } from './user/entities/user.entity';
 import { assertMetadataDatabaseVersion } from './database/assert-metadata-database';
 
@@ -69,9 +70,7 @@ async function bootstrap() {
   const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: new CustomLoggerService(),
     cors: {
-      origin: process.env.CORS_ORIGIN
-        ? process.env.CORS_ORIGIN.split(',').map(x => x.trim())
-        : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:4000'],
+      origin: resolveCorsOrigins(process.env.CORS_ORIGIN, process.env.NODE_ENV),
       preflightContinue: false,
       credentials: true,
       optionsSuccessStatus: 200,

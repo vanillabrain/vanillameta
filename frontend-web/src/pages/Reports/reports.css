@@ -1,6 +1,7 @@
 .private-reports {
   max-width: 1480px;
-  min-width: 900px;
+  min-width: 0;
+  width: 100%;
   margin: 0 auto;
   padding: 32px 40px 64px;
 }
@@ -300,6 +301,24 @@
   color: var(--muted-foreground);
 }
 @media (max-width: 640px) {
+  .private-reports {
+    padding: 20px 16px 48px;
+  }
+  .private-reports h1 {
+    font-size: 24px;
+  }
+  .report-toolbar {
+    gap: 8px;
+  }
+  .report-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-top: 18px;
+  }
+  .report-editor-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
   .report-image-fields {
     grid-template-columns: 1fr;
   }
@@ -308,3 +327,15 @@
   }
 }
 
+@media (min-width: 641px) and (max-width: 960px) {
+  .private-reports {
+    padding: 28px 28px 56px;
+  }
+  .report-editor-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .report-writing {
+    position: static;
+  }
+}

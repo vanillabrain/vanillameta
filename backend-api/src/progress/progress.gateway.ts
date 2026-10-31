@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
+import { resolveCorsOrigins } from '../config/cors-origins';
 
 /**
  * 쿼리 진행상황 푸시용 WebSocket 게이트웨이.
@@ -11,7 +12,7 @@ import { Server } from 'socket.io';
 @WebSocketGateway({
   namespace: 'query-progress',
   cors: {
-    origin: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(x => x.trim()),
+    origin: resolveCorsOrigins(process.env.CORS_ORIGIN, process.env.NODE_ENV),
     credentials: true,
   },
 })

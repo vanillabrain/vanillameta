@@ -8,8 +8,25 @@ import { getSocketId } from '@/helpers/socket';
 // apply base url for axios
 const API_URL = import.meta.env.REACT_APP_API_URL;
 
+// Keep local API calls on the same host the page was opened with; localhost and
+// 127.0.0.1 are different origins for CORS, and mixing them blocks sign-in.
+const localApiUrl = (() => {
+  try {
+    const url = new URL(String(API_URL));
+    const pageHost = window.location.hostname;
+    const loopback = ['localhost', '127.0.0.1'];
+    if (loopback.includes(url.hostname) && loopback.includes(pageHost) && url.hostname !== pageHost) {
+      url.hostname = pageHost;
+      return url.toString().replace(/\/$/, '');
+    }
+  } catch {
+    // A relative or malformed base URL keeps the configured value.
+  }
+  return String(API_URL);
+})();
+
 const instance = axios.create({
-  baseURL: API_URL,
+  baseURL: localApiUrl,
   timeout: 10000,
   withCredentials: true,
   // withCredentials: true,
@@ -261,7 +278,7 @@ export async function patch(url, data?, config = {}): Promise<any> {
  * like one made with axios: the base URL, the session's token, and the epoch the token belongs to.
  */
 export function fetchAuthContext() {
-  return { baseURL: String(API_URL ?? ''), token: getToken(), epoch: editorDraftSessionEpoch() };
+  return { baseURL: String(localApiUrl ?? ''), token: getToken(), epoch: editorDraftSessionEpoch() };
 }
 
 /**
