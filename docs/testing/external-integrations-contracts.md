@@ -57,3 +57,12 @@ BLOCKED: 실제 모델 호출과 브라우저 390/768/1440, 운영 DB migration 
 VERIFIED: `document-summary-migration.spec.ts`와 메타데이터 스키마 계약 PASS(2 suites, 3 tests, 7 skipped는 기존 live-PG 전용).
 BLOCKED: 실제 PostgreSQL에 적용하는 실행과 백업·롤백 리허설.
 
+
+## 서비스 수준 요약 테스트 (2026-10-31 후속)
+
+- 동의 없는 요약은 서비스에서 `호출 비용` 오류로 끝나고 AI 호출과 DB 행이 모두 0인지 확인했다.
+- 저장된 버전이 없으면 409를 던지고, 새로고침으로 버전을 만든 뒤 요약하면 `document_summary`에 1행이 생기며 `cached: false`, 같은 버전 재요청은 `cached: true`로 AI 호출 1회를 유지한다.
+- 저장된 sha가 원본과 같은지, 범위 밖 버전 요청은 거부되는지 확인했다. 실제 SQLite 하네스에서 돌린다.
+
+VERIFIED: documents.service.spec.ts 26 PASS.
+

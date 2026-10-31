@@ -12,6 +12,7 @@ import {
   DocumentVersion,
 } from './document.entity';
 import { GoogleDocsProvider, GOOGLE_DOCUMENT_MIME } from './google-docs.provider';
+import { DocumentSummary } from './document-summary.entity';
 import { DocumentsService } from './documents.service';
 import { seal, unseal } from './document-crypto';
 import { AddDocumentConnections1793232000000 } from '../migrations/1793232000000-add-document-connections';
@@ -548,5 +549,30 @@ describe('Document persistence on real SQLite', () => {
     expect(await service.request(actor, documentId, requestId)).toEqual({ status: 'failed' });
     expect(await db.manager.count(DocumentVersion)).toBe(1);
     expect(provider.snapshot).toHaveBeenCalledTimes(1);
+  });
+  it('refuses an AI summary without cost consent and never calls the model', async () => {
+    const { documentId } = await authorize();
+    const generate = (service as unknown as { ai: { generate: jest.Mock } }).ai.generate;
+    await expect(service.aiSummary(actor, documentId, {})).rejects.toThrow('호출 비용');
+    await expect(service.aiSummary(actor, documentId, { confirmAiCost: false })).rejects.toThrow();
+    expect(generate).not.toHaveBeenCalled();
+    expect(await db.manager.count(DocumentSummary, { where: { documentId } })).toBe(0);
+  });
+  it('stores one summary per version and reuses it until the stored copy changes', async () => {
+    const { documentId } = await authorize();
+    await service.refresh(actor, documentId, { requestId: randomUUID(), expectedVersion: 0 });
+    const generate = (service as unknown as { ai: { generate: jest.Mock } }).ai.generate;
+    generate.mockResolvedValue('  문서 요약  ');
+    const first = await service.aiSummary(actor, documentId, { confirmAiCost: true });
+    expect(first).toMatchObject({ documentId, version: 1, summary: '문서 요약', cached: false });
+    const second = await service.aiSummary(actor, documentId, { confirmAiCost: true });
+    expect(second.cached).toBe(true);
+    expect(generate).toHaveBeenCalledTimes(1);
+    const rows = await db.manager.find(DocumentSummary, { where: { documentId } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].sourceSha256).toBe(captured().sha256);
+    await expect(
+      service.aiSummary(actor, documentId, { confirmAiCost: true, version: 9 }),
+    ).rejects.toThrow();
   });
 });
