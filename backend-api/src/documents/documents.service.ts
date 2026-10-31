@@ -9,7 +9,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'crypto';
-import { DataSource, EntityManager, MoreThan } from 'typeorm';
+import { DataSource, EntityManager, In, MoreThan } from 'typeorm';
 import { z } from 'zod';
 import { lockSourceActor, sourceWriteTransaction } from '../database/source-write-lock';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
@@ -226,18 +226,34 @@ export class DocumentsService {
     return this.provider.configured();
   }
   async list(actor: DocumentActor) {
-    return this.transaction(actor, async (manager, organizationId) => ({
-      configured: !!process.env.CONFIG_SECRET_KEY && this.provider.configured(),
-      organizationId,
-      documents: organizationId
-        ? (
-            await manager.find(DocumentConnection, {
-              where: { ownerId: actor.id, organizationId },
-              order: { updatedAt: 'DESC' },
-            })
-          ).map(document => summary(document, actor.authVersion))
-        : [],
-    }));
+    return this.transaction(actor, async (manager, organizationId) => {
+      const documents: Array<ReturnType<typeof summary>> = [];
+      if (organizationId) {
+        const owned = await manager.find(DocumentConnection, {
+          where: { ownerId: actor.id, organizationId },
+          order: { updatedAt: 'DESC' },
+        });
+        documents.push(...owned.map(document => summary(document, actor.authVersion, 'owner')));
+        const shares = await manager.find(DocumentShare, {
+          where: { granteeId: actor.id, organizationId, active: true },
+        });
+        const sharedIds = shares
+          .map(share => share.documentId)
+          .filter(id => !owned.some(document => document.id === id));
+        if (sharedIds.length) {
+          const shared = await manager.find(DocumentConnection, {
+            where: { id: In(sharedIds), organizationId },
+            order: { updatedAt: 'DESC' },
+          });
+          documents.push(...shared.map(document => summary(document, actor.authVersion, 'recipient')));
+        }
+      }
+      return {
+        configured: !!process.env.CONFIG_SECRET_KEY && this.provider.configured(),
+        organizationId,
+        documents,
+      };
+    });
   }
   private async snapshot(manager: EntityManager, document: DocumentConnection, version: number) {
     const info = await manager.findOneBy(DocumentVersion, { documentId: document.id, version });
