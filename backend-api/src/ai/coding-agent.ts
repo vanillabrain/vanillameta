@@ -30,7 +30,14 @@ function connectionArgs(): string[] {
       )
     )
       throw new Error('LLM_CODEX_INVALID_CONNECTION');
-    args.push('-c', `openai_base_url=${JSON.stringify(base)}`);
+    args.push(
+      '-c',
+      'model_provider="opencodex"',
+      '-c',
+      `model_providers.opencodex={name="OpenCodex",base_url=${JSON.stringify(
+        base,
+      )},env_key="AI_CODEX_API_KEY",wire_api="responses"}`,
+    );
   }
   const catalog = process.env.AI_CODEX_MODEL_CATALOG;
   if (catalog) args.push('-c', `model_catalog_json=${JSON.stringify(catalog)}`);
@@ -62,9 +69,11 @@ export async function callCodingAgent(
     if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     const outputPath = join(directory, 'answer.txt');
     const env: NodeJS.ProcessEnv = {};
-    for (const key of ['PATH', 'HOME', 'CODEX_HOME']) {
+    for (const key of ['PATH', 'HOME', 'CODEX_HOME', 'AI_CODEX_API_KEY']) {
       if (process.env[key] !== undefined) env[key] = process.env[key];
     }
+    if (process.env.AI_CODEX_BASE_URL && !env.AI_CODEX_API_KEY)
+      env.AI_CODEX_API_KEY = 'local';
     const configuredTimeout = Number(process.env.AI_TIMEOUT_MS);
     const timeoutMs =
       Number.isFinite(configuredTimeout) && configuredTimeout > 0

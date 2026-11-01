@@ -21,6 +21,7 @@ describe('Codex coding agent', () => {
     process.env.AI_TIMEOUT_MS = '1000';
     delete process.env.AI_CODEX_BASE_URL;
     delete process.env.AI_CODEX_MODEL_CATALOG;
+    delete process.env.AI_CODEX_API_KEY;
     behavior = async (child, outputPath) => {
       await writeFile(outputPath, ' SELECT 1 ');
       child.emit('close', 0, null);
@@ -91,11 +92,15 @@ describe('Codex coding agent', () => {
     process.env.AI_CODEX_BASE_URL = 'http://127.0.0.1:10100/v1';
     process.env.AI_CODEX_MODEL_CATALOG = '/existing/model-catalog.json';
     await callCodingAgent('public schema', 'question');
-    expect(args[0]).toContain('openai_base_url="http://127.0.0.1:10100/v1"');
+    expect(args[0]).toContain('model_provider="opencodex"');
+    expect(args[0]).toContain(
+      'model_providers.opencodex={name="OpenCodex",base_url="http://127.0.0.1:10100/v1",env_key="AI_CODEX_API_KEY",wire_api="responses"}',
+    );
     expect(args[0]).toContain('model_catalog_json="/existing/model-catalog.json"');
     expect(args[0]).toContain('--ignore-user-config');
     expect(args[0][args[0].indexOf('--model') + 1]).toBe('gpt-6-luna');
     expect(options[0].env).not.toHaveProperty('AI_CODEX_BASE_URL');
+    expect(options[0].env.AI_CODEX_API_KEY).toBe('local');
   });
 
   it('rejects credential-bearing connection URLs without spawning', async () => {

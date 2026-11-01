@@ -23,8 +23,10 @@ the file chooser with Enter.
 
 When the local Codex provider is used, pass `AI_PROVIDER=codex`,
 `AI_CODEX_BASE_URL=http://127.0.0.1:10100/v1`, and the existing
-`AI_CODEX_MODEL_CATALOG`; the child CLI intentionally ignores the user Codex config. Keep
-`gpt-6-luna`. A provider 429 is BLOCKED, not a reason to substitute another model. UI
-apply/undo may be checked with a stubbed browser response only when labeled separately from a
-live model success.
+`AI_CODEX_MODEL_CATALOG`; the child CLI intentionally ignores the user Codex config. The
+connection must also configure `model_provider=opencodex` with the base URL,
+`AI_CODEX_API_KEY=local`, and `wire_api=responses`. Without that provider block Codex can
+fall back to the ChatGPT backend and report `model_not_found` for gpt-6-luna. Verify the AI
+ledger records provider codex, model gpt-6-luna, and status ok. Keep `gpt-6-luna`; do not
+substitute another model. UI apply/undo without a save call is a separate assertion.
 

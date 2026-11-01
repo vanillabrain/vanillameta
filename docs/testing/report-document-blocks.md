@@ -58,8 +58,8 @@
 | RPTB-02 | 과거 버전 목록에서 r2·r1을 확인하고 r1을 열었다. r1은 기존 본문만 있고 이미지는 0개였으며, r2의 revision은 `90274e90…07b3`로 남았다. | PASS |
 | RPTB-03 | 보고서 읽기 화면은 390·768·1440에서 넘침 0이다. 절반 이미지는 1440에서 341px/682px, 태블릿과 모바일에서는 한 열 전체 폭으로 표시됐다. | PASS |
 | RPTB-04 | 본문 → Tab에서 `이미지 추가` 버튼으로 초점이 이동하고 Enter로 실제 파일 선택창이 열렸다. | PASS |
-| RPTB-05 | `/v1/ai/status`는 provider codex, model gpt-6-luna를 보고했다. 실제 `제안 받기`는 500, 직접 Codex CLI는 HTTP 429 `Too Many Requests`로 끝났다. | BLOCKED |
-| RPTB-06 | 모델 응답을 브라우저에서만 고정 대역으로 주입해 `제안 받기`→본문 불변→`본문에 적용`→이미지 유지→`되돌리기`→원문·이미지 복원, 저장 요청0을 확인했다. 실제 모델 성공 증거가 아니다. | UI 계약 PASS / 모델 BLOCKED |
+| RPTB-05 | `/v1/ai/status`는 provider codex, model gpt-6-luna를 보고했다. 실제 `제안 받기`는 201이며 gpt-6-luna가 계약 수치 5954.96과 기존 본문을 근거로 한국어 문단 3개를 생성했다. AI 원장도 provider codex/model gpt-6-luna, status ok, input 79/output 35 tokens다. | PASS |
+| RPTB-06 | 실제 제안은 적용 전 본문을 바꾸지 않았다. `본문에 적용`에서 문단이 추가되고 이미지가 유지됐으며, `되돌리기`에서 원문과 이미지가 함께 복원됐다. 적용·되돌리기 사이 서버 저장 요청은 0회였다. | PASS |
 
 발견해 수정한 오류:
 
@@ -67,14 +67,15 @@
 - 서버의 기본 JSON 본문 한도 100KiB가 이미지 보고서를 413으로 거부했다. [main.ts](/Users/moonklabs/workspace-vanilla/vanillameta/backend-api/src/main.ts)에서 `/v1/reports`만 3MiB로 파싱하고 다른 API는 100KiB 기본값을 유지한다.
 - 숨김 파일 입력을 label로 감싼 구조는 Tab 초점을 받을 수 없었다. 이미지 추가를 키보드 버튼으로 바꾸고 파일 입력을 연결했다.
 - 5xx의 영문 `Internal server error`를 그대로 보여 주던 안내를 한국어 재시도 안내로 바꾸고 초안 보존을 명시했다.
+- Codex CLI가 `AI_CODEX_BASE_URL`을 설정해도 기본 openai 제공자로 요청해 gpt-6-luna를 찾지 못했다. 연결 설정이 있을 때 `model_provider=opencodex`와 Responses API 호환 공급자 정의를 전달하도록 수정했다.
 
 검증:
 
-- backend reports 6 suites, 34 PASS
+- backend reports·coding-agent 6 suites, 55 PASS
 - frontend Reports 4 files, 56 PASS
 - backend/frontend typecheck와 production build PASS
 - `AI_PROVIDER=codex`, `AI_CODEX_BASE_URL=http://127.0.0.1:10100/v1`, 기존 OpenCodex catalog를 사용했으며 모델은 `gpt-6-luna`로 유지했다.
 - VoiceOver는 기존 차단 상태를 유지했다.
 
-증빙: `/Users/moonklabs/workspace-vanilla/phase2-evidence/report-blocks-20261101/` — `blocks-roundtrip.json`, `responsive-keyboard.json`, `keyboard-image-add.json`, `ai-provider-failure.json`, `ai-ui-mechanics.json`, `gpt-6-luna-provider.log`와 대표 390/768/1440·AI 적용/되돌리기 캡처.
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-evidence/report-blocks-20261101/` — `blocks-roundtrip.json`, `responsive-keyboard.json`, `keyboard-image-add.json`, `ai-live-roundtrip.json`, `ai-live-suggestion-1440.png`, `ai-live-applied-1440.png`, `ai-live-undone-1440.png`와 대표 390/768/1440 캡처. 이전 429 오류·대역 증빙은 수정 전 이력으로 보존한다.
 
