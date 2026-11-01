@@ -172,6 +172,11 @@ export function reportError(error: unknown, context: 'load' | 'action' = 'action
         return '보고서 또는 원본을 찾을 수 없습니다. 목록에서 확인해 주세요.';
       case 409:
         return '보고서 또는 원본의 기준이 변경됐습니다. 초안과 보관된 요청은 유지했습니다. 현재 기준을 확인해 주세요.';
+      case 500:
+      case 502:
+      case 503:
+      case 504:
+        return '서버가 요청을 완료하지 못했습니다. 초안은 유지했습니다. 잠시 후 다시 시도해 주세요.';
     }
   }
   if (context === 'load') return '보고서를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 불러오기를 선택해 주세요.';

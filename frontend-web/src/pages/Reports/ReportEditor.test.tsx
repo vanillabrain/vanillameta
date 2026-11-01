@@ -205,6 +205,22 @@ it('rejects tampered persisted commands and enforces TTL and byte bounds', () =>
   expect(storeReportPending(key, pending)).toBe(true);
   expect(readReportPending(key)?.command).toEqual(pending.command);
 });
+it('stores a valid image block that exceeds the former 128 KiB pending cap', () => {
+  const pending = ticket();
+  pending.command.blocks = [
+    { id: 'text', kind: 'TEXT', text: '이미지가 포함된 본문' },
+    {
+      id: 'image-1',
+      kind: 'IMAGE',
+      dataUrl: 'data:image/png;base64,' + 'A'.repeat(150 * 1024),
+      alt: '보고서 차트',
+      width: 'half',
+    },
+  ];
+  expect(new TextEncoder().encode(JSON.stringify(pending)).length).toBeGreaterThan(128 * 1024);
+  expect(storeReportPending(key, pending)).toBe(true);
+  expect(readReportPending(key)?.command.blocks).toEqual(pending.command.blocks);
+});
 it('does not construct a storage key or expose delayed report data after an account switch', async () => {
   let resolveA: (value: unknown) => void;
   api.get.mockImplementationOnce(
@@ -421,6 +437,13 @@ it('saves ordered image blocks with the text block', async () => {
   expect(command.blocks[0]).toEqual({ id: 'text', kind: 'TEXT', text: '본문 수정' });
   expect(command.blocks[1]).toMatchObject({ kind: 'IMAGE', alt: 'chart.png', width: 'full' });
   expect(command.blocks[1].dataUrl.startsWith('data:image/png;base64,')).toBe(true);
+});
+it('exposes image selection as a keyboard-focusable button', async () => {
+  show('/reports/' + id);
+  await screen.findByText(/16537.01/);
+  const button = screen.getByRole('button', { name: '이미지 추가' });
+  button.focus();
+  expect(document.activeElement).toBe(button);
 });
 it('applies an AI suggestion only after an explicit click and can undo it', async () => {
   api.post.mockImplementation(async (url: string) => {

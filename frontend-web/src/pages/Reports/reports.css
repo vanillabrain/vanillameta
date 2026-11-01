@@ -187,21 +187,6 @@
   font-size: 15px;
   font-weight: 600;
 }
-.report-image-add {
-  display: inline-flex;
-  align-items: center;
-  height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  font-size: 14px;
-  cursor: pointer;
-}
-.report-image-add:has(input:disabled) {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 .report-image-list {
   list-style: none;
   padding: 0;

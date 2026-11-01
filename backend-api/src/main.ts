@@ -62,6 +62,11 @@ async function bootstrap() {
 
   const expressApp = express();
   expressApp.use(helmet({ contentSecurityPolicy: false }));
+  // Private reports can contain encoded image blocks larger than Express's 100 KiB
+  // default. Parse this API family first; the following global parser skips the body.
+  expressApp.use('/v1/reports', express.json({ limit: '3mb' }));
+  expressApp.use(express.json({ limit: '100kb' }));
+  expressApp.use(express.urlencoded({ limit: '100kb', extended: true }));
 
   // Express 메모리 최적화 설정. 신뢰할 프록시 홉 수는 배포 구성(Caddy→nginx→API 등)에 맞춘다.
   expressApp.set('trust proxy', parseTrustProxyHops(process.env.TRUST_PROXY_HOPS));
@@ -76,8 +81,9 @@ async function bootstrap() {
       optionsSuccessStatus: 200,
       exposedHeaders: ['Content-Disposition'],
     },
-    // 메모리 효율을 위한 버퍼 크기 제한
-    bodyParser: true,
+    // The explicit parsers above keep the default 100 KiB boundary for every other
+    // route while allowing the private-report image payload.
+    bodyParser: false,
   });
   await assertMetadataDatabaseVersion(nestApp.get(DataSource));
 

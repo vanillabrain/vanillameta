@@ -1,5 +1,6 @@
 # 최신 요약
 
+- **2026-11-01 문서형 보고서 실제 검증:** TEXT와 109KB IMAGE를 r2로 저장·reload하고 r1/r2 과거 버전을 재열었다. 390/768/1440 넘침0, 키보드 이미지 추가 PASS. 이미지 저장을 막던 탭 보관 128KiB와 서버 JSON 100KiB 경계를 수정했고 5xx 원문 노출도 제거했다. gpt-6-luna는 설정 인식됐지만 공급자 429로 BLOCKED이며, 적용·되돌리기는 대역 응답으로 UI 계약만 확인했다. backend 34·frontend 56 PASS, 양쪽 build PASS. [검증 기록](report-document-blocks.md#실제-브라우저-후속--2026-11-01).
 - **2026-11-01 파일 아티팩트 실제 검증:** HTML·PDF·PPTX를 실제 UI로 업로드하고 HTML sandbox의 스크립트 차단, PDF·PPTX 다운로드, 익명 공유, v1→v2 교체 후 과거 버전 보존, 공유 회수 404를 확인했다. 세 유형 모두 390/768/1440 넘침0이고 다운로드·공유 bytes와 SHA-256이 일치했다. backend 25·frontend 14 PASS. [검증 기록](artifact-files.md).
 - **2026-10-31 document_summary migration:** PostgreSQL migration `AddDocumentSummary1793520000000`을 추가해 기존 배포 DB에도 요약 테이블을 만들 수 있게 했다. 엔티티 컬럼·PK·text 계약과 기존 테이블 건너뛰기를 2 suites 3 PASS로 고정했고, 실제 PostgreSQL 적용·백업·롤백 리허설은 BLOCKED다. [검증 기록](external-integrations-contracts.md).
 - **2026-10-31 Google 문서 AI 요약:** `POST /v1/documents/:id/summary`가 `confirmAiCost: true` 없이는 모델 호출 0회로 거부하고, 요약을 `document_summary(documentId, version)`에 source sha와 함께 저장·재사용한다. 상세 화면에 비용 동의 체크박스와 결과 카드를 추가했다. backend 문서 51 PASS·frontend 44 PASS·tsc/lint PASS. 실제 모델·브라우저·운영 DB migration은 BLOCKED. [검증 기록](external-integrations-contracts.md).

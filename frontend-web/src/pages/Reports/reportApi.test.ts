@@ -15,3 +15,8 @@ it('distinguishes failed initial reads from uncertain actions', () => {
   expect(reportError(new Error('offline'), 'load')).not.toContain('초안');
   expect(reportError(new Error('offline'))).toContain('초안을 유지했습니다');
 });
+it.each([500, 502, 503, 504])('does not expose a raw HTTP %s server message', status => {
+  const message = reportError({ response: { status, data: { message: 'Internal server error' } } });
+  expect(message).toContain('초안은 유지했습니다');
+  expect(message).not.toContain('Internal server error');
+});

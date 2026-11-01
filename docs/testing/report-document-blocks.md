@@ -48,3 +48,33 @@
 2. `제안 받기`가 실제 모델로 응답하는지, 적용·되돌리기 뒤 저장이 r2로 남고 r1이 남는지.
 3. 390/768/1440에서 이미지 절반 너비와 본문 줄바꿈, 키보드로 이미지 추가·이동·삭제에 접근 가능한지.
 
+## 실제 브라우저 후속 · 2026-11-01
+
+기준 `develop` `1287d3d3`. 기존 완료 조건을 재실행하지 않고, 위 BLOCKED 항목 중 실제 브라우저로 확인 가능한 범위와 이미지 저장 경계를 검증했다.
+
+| ID | 수행과 관측 | 판정 |
+| --- | --- | --- |
+| RPTB-01 | 기존 r1을 편집해 TEXT 1개와 PNG IMAGE 1개를 절반 너비로 r2 저장했다. 저장 201 뒤 reload에서 본문과 이미지가 그대로 복원됐다. | PASS |
+| RPTB-02 | 과거 버전 목록에서 r2·r1을 확인하고 r1을 열었다. r1은 기존 본문만 있고 이미지는 0개였으며, r2의 revision은 `90274e90…07b3`로 남았다. | PASS |
+| RPTB-03 | 보고서 읽기 화면은 390·768·1440에서 넘침 0이다. 절반 이미지는 1440에서 341px/682px, 태블릿과 모바일에서는 한 열 전체 폭으로 표시됐다. | PASS |
+| RPTB-04 | 본문 → Tab에서 `이미지 추가` 버튼으로 초점이 이동하고 Enter로 실제 파일 선택창이 열렸다. | PASS |
+| RPTB-05 | `/v1/ai/status`는 provider codex, model gpt-6-luna를 보고했다. 실제 `제안 받기`는 500, 직접 Codex CLI는 HTTP 429 `Too Many Requests`로 끝났다. | BLOCKED |
+| RPTB-06 | 모델 응답을 브라우저에서만 고정 대역으로 주입해 `제안 받기`→본문 불변→`본문에 적용`→이미지 유지→`되돌리기`→원문·이미지 복원, 저장 요청0을 확인했다. 실제 모델 성공 증거가 아니다. | UI 계약 PASS / 모델 BLOCKED |
+
+발견해 수정한 오류:
+
+- 미확정 보고서 요청 보관 한도가 128KiB라 109,698-byte 이미지의 data URL이 저장 전에 거부됐다. [reportPending.ts](/Users/moonklabs/workspace-vanilla/vanillameta/frontend-web/src/pages/Reports/reportPending.ts)의 한도를 유효한 이미지 명령을 수용하는 3MiB로 올리고 회귀 테스트를 추가했다.
+- 서버의 기본 JSON 본문 한도 100KiB가 이미지 보고서를 413으로 거부했다. [main.ts](/Users/moonklabs/workspace-vanilla/vanillameta/backend-api/src/main.ts)에서 `/v1/reports`만 3MiB로 파싱하고 다른 API는 100KiB 기본값을 유지한다.
+- 숨김 파일 입력을 label로 감싼 구조는 Tab 초점을 받을 수 없었다. 이미지 추가를 키보드 버튼으로 바꾸고 파일 입력을 연결했다.
+- 5xx의 영문 `Internal server error`를 그대로 보여 주던 안내를 한국어 재시도 안내로 바꾸고 초안 보존을 명시했다.
+
+검증:
+
+- backend reports 6 suites, 34 PASS
+- frontend Reports 4 files, 56 PASS
+- backend/frontend typecheck와 production build PASS
+- `AI_PROVIDER=codex`, `AI_CODEX_BASE_URL=http://127.0.0.1:10100/v1`, 기존 OpenCodex catalog를 사용했으며 모델은 `gpt-6-luna`로 유지했다.
+- VoiceOver는 기존 차단 상태를 유지했다.
+
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-evidence/report-blocks-20261101/` — `blocks-roundtrip.json`, `responsive-keyboard.json`, `keyboard-image-add.json`, `ai-provider-failure.json`, `ai-ui-mechanics.json`, `gpt-6-luna-provider.log`와 대표 390/768/1440·AI 적용/되돌리기 캡처.
+

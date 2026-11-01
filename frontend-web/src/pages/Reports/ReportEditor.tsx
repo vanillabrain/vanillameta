@@ -66,6 +66,7 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
   const [suggesting, setSuggesting] = useState(false);
   const [versions, setVersions] = useState<VersionRow[]>([]);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  const imageInput = useRef<HTMLInputElement | null>(null);
   const key = useRef<string | null>(null);
   const generation = useRef(0);
   const current = (token = generation.current) => generation.current === token && isReportSession(sessionScope);
@@ -486,20 +487,27 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
               <section className="report-images" aria-label="이미지 블록">
                 <div className="report-block-head">
                   <h2>이미지 블록</h2>
-                  <label className="report-image-add">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-9"
+                    disabled={!!busy || !!pending || images.length >= 4}
+                    onClick={() => imageInput.current?.click()}
+                  >
                     이미지 추가
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      multiple
-                      hidden
-                      disabled={!!busy || !!pending || images.length >= 4}
-                      onChange={event => {
-                        void addImages(event.target.files);
-                        event.target.value = '';
-                      }}
-                    />
-                  </label>
+                  </Button>
+                  <input
+                    ref={imageInput}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    multiple
+                    hidden
+                    disabled={!!busy || !!pending || images.length >= 4}
+                    onChange={event => {
+                      void addImages(event.target.files);
+                      event.target.value = '';
+                    }}
+                  />
                 </div>
                 <p className="text-sm text-muted-foreground">
                   PNG, JPEG, WebP · 장당 512KiB · 최대 4장. 저장 시 보고서 버전에 함께 고정됩니다.

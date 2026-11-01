@@ -2,7 +2,10 @@ import { z } from 'zod';
 import { editorDraftKey } from '@/helpers/editorDraftStorage';
 import { getToken } from '@/helpers/authHelper';
 import { commandSchema } from './reportApi';
-const LIMIT = 128 * 1024;
+// A valid report command can contain up to 1.5 MiB of decoded images, whose data-URL
+// representation plus the text body exceeds the old 128 KiB browser-storage cap. Keep
+// enough room for the encoded command while remaining within a normal tab's quota.
+const LIMIT = 3 * 1024 * 1024;
 const TTL = 24 * 60 * 60 * 1000;
 const pendingSchema = z
   .object({
