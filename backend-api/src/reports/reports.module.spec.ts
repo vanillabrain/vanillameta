@@ -10,6 +10,7 @@ import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReportsModule } from './reports.module';
 import { ReportsController } from './reports.controller';
+import { ReportCommentsController } from './report-comments.controller';
 import { StudioModule } from '../dashboard-studio/studio.module';
 import { StudioService } from '../dashboard-studio/studio.service';
 import { SourceAccessService } from '../ownership/source-access.service';
@@ -35,6 +36,7 @@ it('resolves the report controller and its real JWT guard without starting a ser
     .compile();
   try {
     expect(module.get(ReportsController)).toBeInstanceOf(ReportsController);
+    expect(module.get(ReportCommentsController)).toBeInstanceOf(ReportCommentsController);
   } finally {
     await module.close();
   }

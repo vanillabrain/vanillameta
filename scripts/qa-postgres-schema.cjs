@@ -166,6 +166,10 @@ async function main() {
     "artifact_file",
     "artifact_file_version",
     "private_report",
+    "artifact_comment_thread",
+    "artifact_comment",
+    "artifact_suggestion",
+    "artifact_comment_receipt",
     "user",
   ]) {
     if (!tables.includes(name))

@@ -32,6 +32,11 @@ import {
   PrivateReportRequest,
 } from './report.entity';
 import { ReportSave } from './report-contract';
+import {
+  REPORT_COMMENT_ENTITIES,
+  ArtifactCommentThread,
+  ArtifactSuggestion,
+} from './report-comment.entity';
 
 const actor = { id: 7, authVersion: 0 };
 describe('private reports with SQLite transactions and native aggregate capture', () => {
@@ -81,6 +86,7 @@ describe('private reports with SQLite transactions and native aggregate capture'
         StudioState,
         StudioRun,
         ...REPORT_ENTITIES,
+        ...REPORT_COMMENT_ENTITIES,
       ],
     }).initialize();
     await db.manager.insert(User, {
@@ -502,5 +508,157 @@ describe('private reports with SQLite transactions and native aggregate capture'
     const request = aiMock.generate.mock.calls[0][0];
     expect(request.caller).toMatchObject({ userId: 7, feature: 'report-body' });
     expect(request.prompt).toContain('Revenue');
+  });
+  describe('applying suggestions on save', () => {
+    const at = '2026-10-30T00:00:00.000Z';
+    const thread = async (reportId: string) => {
+      const threadId = randomUUID();
+      await db.manager.insert(ArtifactCommentThread, {
+        id: threadId,
+        artifactKind: 'report',
+        artifactId: reportId,
+        version: 1,
+        anchorKind: 'whole',
+        anchorStart: null,
+        anchorEnd: null,
+        anchorQuote: null,
+        anchorPrefix: null,
+        anchorSuffix: null,
+        anchorBlockId: null,
+        status: 'open',
+        statusVersion: 0,
+        createdBy: 8,
+        authorKind: 'user',
+        aiGrantId: null,
+        aiClientName: null,
+        createdAt: at,
+        resolvedBy: null,
+        resolvedAt: null,
+      });
+      return threadId;
+    };
+    const suggestion = async (
+      reportId: string,
+      threadId: string,
+      status: 'open' | 'dismissed' = 'open',
+    ) => {
+      const suggestionId = randomUUID();
+      await db.manager.insert(ArtifactSuggestion, {
+        id: suggestionId,
+        threadId,
+        artifactId: reportId,
+        baseVersion: 1,
+        anchorStart: 0,
+        anchorEnd: 4,
+        anchorQuote: '본문 A',
+        anchorPrefix: '',
+        anchorSuffix: '',
+        replacement: '본문 C',
+        rationale: null,
+        status,
+        statusVersion: status === 'open' ? 0 : 1,
+        createdBy: 8,
+        authorKind: 'user',
+        aiGrantId: null,
+        aiClientName: null,
+        createdAt: at,
+        decidedBy: status === 'open' ? null : 7,
+        decidedAt: status === 'open' ? null : at,
+        appliedVersion: null,
+      });
+      return suggestionId;
+    };
+    const retain = (report: { revision: string }, ids?: string[]) => ({
+      ...command,
+      requestId: randomUUID(),
+      expectedRevision: report.revision,
+      body: '본문 C',
+      data: { mode: 'retain' as const, fromRevision: report.revision },
+      ...(ids ? { appliedSuggestionIds: ids } : {}),
+    });
+
+    it('marks open suggestions applied in the new version and resolves a thread only when none is left open', async () => {
+      const first = await reports.save(id, command, actor);
+      expect(first.appliedSuggestionIds).toEqual([]);
+      const threadId = await thread(id);
+      const [one, two] = [await suggestion(id, threadId), await suggestion(id, threadId)];
+      const second = await reports.save(id, retain(first.report, [one]), actor);
+      expect(second.report.version).toBe(2);
+      expect(second.appliedSuggestionIds).toEqual([one]);
+      expect(await db.manager.findOneBy(ArtifactSuggestion, { id: one })).toMatchObject({
+        status: 'applied',
+        appliedVersion: 2,
+        decidedBy: 7,
+        statusVersion: 1,
+      });
+      expect(await db.manager.findOneBy(ArtifactCommentThread, { id: threadId })).toMatchObject({
+        status: 'open',
+      });
+      const third = await reports.save(id, retain(second.report, [two]), actor);
+      expect(third.appliedSuggestionIds).toEqual([two]);
+      expect(await db.manager.findOneBy(ArtifactCommentThread, { id: threadId })).toMatchObject({
+        status: 'resolved',
+        resolvedBy: 7,
+        statusVersion: 1,
+      });
+    });
+
+    it('skips dismissed, already applied and unknown ids without failing the save', async () => {
+      const first = await reports.save(id, command, actor);
+      const threadId = await thread(id);
+      const open = await suggestion(id, threadId);
+      const dismissed = await suggestion(id, threadId, 'dismissed');
+      const unknown = randomUUID();
+      const saved = await reports.save(id, retain(first.report, [dismissed, open, unknown]), actor);
+      expect(saved.report.version).toBe(2);
+      expect(saved.appliedSuggestionIds).toEqual([open]);
+      expect(await db.manager.findOneBy(ArtifactSuggestion, { id: dismissed })).toMatchObject({
+        status: 'dismissed',
+        appliedVersion: null,
+      });
+      const again = await reports.save(id, retain(saved.report, [open]), actor);
+      expect(again.report.version).toBe(3);
+      expect(again.appliedSuggestionIds).toEqual([]);
+      expect(await db.manager.findOneBy(ArtifactSuggestion, { id: open })).toMatchObject({
+        appliedVersion: 2,
+      });
+    });
+
+    it('replays the same applied ids, hashes them into the request only and keeps outcome unchanged', async () => {
+      const first = await reports.save(id, command, actor);
+      const threadId = await thread(id);
+      const open = await suggestion(id, threadId);
+      const request = retain(first.report, [open]);
+      const saved = await reports.save(id, request, actor);
+      const replay = await reports.save(id, request, actor);
+      expect(replay).toEqual({ ...saved, replayed: true });
+      expect(replay.appliedSuggestionIds).toEqual([open]);
+      await expect(
+        reports.save(id, { ...request, appliedSuggestionIds: [] }, actor),
+      ).rejects.toThrow('같은 요청');
+      await expect(
+        reports.save(id, { ...request, appliedSuggestionIds: undefined }, actor),
+      ).rejects.toThrow('같은 요청');
+      const chunks = await db.manager.find(PrivateReportChunk, {
+        where: { reportId: id, version: saved.report.version },
+      });
+      expect(chunks.map(chunk => chunk.payload).join('')).not.toContain('appliedSuggestionIds');
+      expect(saved.report).not.toHaveProperty('appliedSuggestionIds');
+      const outcome = await reports.outcome(id, request.requestId, dashboardId, actor);
+      expect(outcome).toEqual({ status: 'committed', report: saved.report });
+    });
+
+    it('rejects duplicate or too many ids before writing', async () => {
+      const first = await reports.save(id, command, actor);
+      const same = randomUUID();
+      await expect(reports.save(id, retain(first.report, [same, same]), actor)).rejects.toThrow(
+        '보고서 요청',
+      );
+      const many = Array.from({ length: 21 }, () => randomUUID());
+      await expect(reports.save(id, retain(first.report, many), actor)).rejects.toThrow(
+        '보고서 요청',
+      );
+      expect(await db.manager.count(PrivateReportRevision, { where: { reportId: id } })).toBe(1);
+    });
   });
 });

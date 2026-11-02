@@ -21,6 +21,7 @@ import { PrivateReport } from './report.entity';
 import { ReportDelivery, ReportDeliveryReceipt } from './report-sharing.entity';
 import { ReportsService } from './reports.service';
 import { canonicalReport, parseReport, reportHash, reportId, ReportActor } from './report-contract';
+import { RequestReusedException } from './report-comment-contract';
 import {
   reportPeerQuery,
   reportShareCommand,
@@ -34,6 +35,12 @@ const sourceBinding = z.object({ sourceId: z.number().int().positive() });
 const analysisBinding = z.object({ databaseId: z.number().int().positive() });
 const studioBinding = z.object({ document: sourceBinding });
 const validEpoch = (value: number) => Number.isSafeInteger(value) && value >= 0;
+
+/** Lets the MCP layer re-check its grant first in the share transaction and record AI provenance. */
+export type ShareChangeOptions = {
+  beforeAccess?: (manager: EntityManager) => Promise<void>;
+  ai?: { grantId: string; clientName: string };
+};
 
 @Injectable()
 export class ReportSharingService {
@@ -174,17 +181,31 @@ export class ReportSharingService {
       hash: relation.pinnedHash,
     };
   }
+  /**
+   * The single read permission for a report: owner (head version) or current recipient (pinned
+   * version), with the stored revision verified against the expected hash. Callers run it on every
+   * read and write; `lock` takes the head row FOR UPDATE (not on SQLite) before the checks.
+   */
+  async access(
+    manager: EntityManager,
+    reportId: string,
+    actor: ReportActor,
+    options: { lock?: boolean } = {},
+  ) {
+    const head = await this.head(manager, reportId, options.lock === true);
+    const access = await this.readable(manager, head, actor);
+    const report = await this.reports.stored(manager, head, access.version);
+    if (report.revision !== access.hash) throw denied();
+    return { ...access, head, report };
+  }
   async reader(rawId: string, actor: ReportActor) {
     const id = parseReport(reportId, rawId);
     return this.transaction(actor, async manager => {
       const hint = await this.head(manager, id);
       await lockStaffWrite(manager, [actor.id, hint.ownerId]);
       await this.lockRoots(manager, [hint]);
-      const head = await this.head(manager, id, true);
-      const access = await this.readable(manager, head, actor);
-      const report = await this.reports.stored(manager, head, access.version);
-      if (report.revision !== access.hash) throw denied();
-      return { role: access.role, ...readerContent(report) };
+      const access = await this.access(manager, id, actor, { lock: true });
+      return { role: access.role, ...readerContent(access.report) };
     });
   }
   async library(actor: ReportActor, rawAfter?: string) {
@@ -285,6 +306,20 @@ export class ReportSharingService {
       await this.lockRoots(manager, [hint], true);
       const head = await this.head(manager, id, true);
       const { context, active } = await this.owner(manager, head, actor, true);
+      const aiShares = new Map<string, string>();
+      for (const row of await manager
+        .createQueryBuilder(ReportDeliveryReceipt, 'r')
+        .where('r.ownerId = :owner AND r.organizationId = :org AND r.reportId = :id', {
+          owner: actor.id,
+          org: head.organizationKey,
+          id,
+        })
+        .andWhere('r.aiClientName IS NOT NULL')
+        .getMany()) {
+        const receipt = reportShareReceipt.parse(JSON.parse(row.result));
+        if (receipt.operation === 'share')
+          aiShares.set(`${receipt.recipientId}:${receipt.relationVersion}`, row.aiClientName);
+      }
       const items = await Promise.all(
         page.slice(0, 50).map(async hint => {
           const row = await manager.findOneByOrFail(ReportDelivery, {
@@ -297,6 +332,9 @@ export class ReportSharingService {
             validEpoch(user.authVersion) &&
             member?.organizationId === head.organizationKey &&
             ['admin', 'member'].includes(member.role);
+          const aiClientName = row.active
+            ? aiShares.get(`${row.recipientId}:${row.relationVersion}`)
+            : undefined;
           return {
             recipientId: row.recipientId,
             userId: current ? user.userId : null,
@@ -312,6 +350,9 @@ export class ReportSharingService {
                 row.recipientAuthVersion === user.authVersion
               ? ('active' as const)
               : ('suspended' as const),
+            ...(aiClientName
+              ? { sharedBy: { kind: 'ai' as const, clientName: aiClientName } }
+              : {}),
           };
         }),
       );
@@ -325,11 +366,17 @@ export class ReportSharingService {
       };
     });
   }
-  async change(rawId: string, input: unknown, actor: ReportActor) {
+  async change(
+    rawId: string,
+    input: unknown,
+    actor: ReportActor,
+    options: ShareChangeOptions = {},
+  ) {
     const id = parseReport(reportId, rawId),
       body = parseReport(reportShareCommand, input);
     const digest = reportHash(canonicalReport({ id, ...body }));
     return this.transaction(actor, async manager => {
+      await options.beforeAccess?.(manager);
       const hint = await this.head(manager, id);
       await lockStaffWrite(manager, [actor.id, hint.ownerId, body.recipientId]);
       await this.lockRoots(manager, [hint], body.operation.kind === 'revoke');
@@ -345,7 +392,7 @@ export class ReportSharingService {
       const prior = await manager.findOneBy(ReportDeliveryReceipt, receiptKey);
       if (prior) {
         if (prior.reportId !== id || prior.payloadHash !== digest)
-          throw new ConflictException('같은 요청 ID의 입력이 다릅니다.');
+          throw new RequestReusedException('같은 요청 ID의 입력이 다릅니다.');
         return { receipt: reportShareReceipt.parse(JSON.parse(prior.result)), replayed: true };
       }
       if (body.recipientId === actor.id) throw denied();
@@ -413,6 +460,8 @@ export class ReportSharingService {
         reportId: id,
         payloadHash: digest,
         result: canonicalReport(receipt),
+        aiGrantId: options.ai?.grantId ?? null,
+        aiClientName: options.ai?.clientName ?? null,
       });
       return { receipt, replayed: false };
     });

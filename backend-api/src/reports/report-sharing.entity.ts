@@ -38,6 +38,8 @@ export class ReportDeliveryReceipt {
   @Column({ type: 'varchar', length: 36 }) reportId: string;
   @Column({ type: 'varchar', length: 64 }) payloadHash: string;
   @Column({ type: 'text' }) result: string;
+  @Column({ type: 'varchar', length: 36, nullable: true }) aiGrantId: string | null;
+  @Column({ type: 'varchar', length: 100, nullable: true }) aiClientName: string | null;
   @ManyToOne(() => PrivateReport, { onDelete: 'RESTRICT', nullable: false })
   @JoinColumn({ name: 'reportId', foreignKeyConstraintName: 'FK_report_delivery_receipt_head' })
   head: PrivateReport;

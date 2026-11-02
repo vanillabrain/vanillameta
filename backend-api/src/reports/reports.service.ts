@@ -43,6 +43,7 @@ import {
   REPORT_OWNER_LIMIT,
   REPORT_PAYLOAD_LIMIT,
 } from './report-contract';
+import { appliedSuggestionIds, markSuggestionsApplied } from './report-suggestion-apply';
 
 export type ReportPayload = {
   reportId: string;
@@ -363,20 +364,24 @@ export class ReportsService {
         throw new ConflictException('같은 요청 ID에 다른 내용을 저장할 수 없습니다.');
       return { root, head, receipt };
     };
+    const replay = async (manager: EntityManager, head: PrivateReport, version: number) => ({
+      report: await this.stored(manager, head, version),
+      replayed: true,
+      appliedSuggestionIds: await appliedSuggestionIds(
+        manager,
+        id,
+        version,
+        body.appliedSuggestionIds,
+      ),
+    });
     const prior = await sourceWriteTransaction(this.db, async manager => {
       const current = await read(manager, true);
-      return current.receipt
-        ? {
-            report: await this.stored(manager, current.head, current.receipt.version),
-            replayed: true,
-          }
-        : null;
+      return current.receipt ? replay(manager, current.head, current.receipt.version) : null;
     });
     if (prior) return prior;
     const persist = async (snapshot: PrivateReportSnapshot | null, manager: EntityManager) => {
       const { root, head, receipt } = await read(manager, false);
-      if (receipt)
-        return { report: await this.stored(manager, head, receipt.version), replayed: true };
+      if (receipt) return replay(manager, head, receipt.version);
       if ((head?.revision ?? null) !== body.expectedRevision)
         throw new ConflictException(
           '보고서가 변경됐습니다. 초안을 유지하고 최신 저장본을 확인해 주세요.',
@@ -469,7 +474,18 @@ export class ReportsService {
         payloadHash,
         version,
       });
-      return { report: await this.stored(manager, next), replayed: false };
+      const applied = await markSuggestionsApplied(manager, {
+        reportId: id,
+        newVersion: version,
+        ids: body.appliedSuggestionIds ?? [],
+        decidedBy: actor.id,
+        decidedAt: payload.savedAt,
+      });
+      return {
+        report: await this.stored(manager, next),
+        replayed: false,
+        appliedSuggestionIds: applied,
+      };
     };
     if (body.data.mode === 'capture')
       return this.studio.capturePrivateReport(

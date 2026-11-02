@@ -1,0 +1,195 @@
+{
+  "description": "Report comment anchor vectors shared by backend-api (report-anchor.spec.ts) and frontend-web. Offsets are UTF-16 code units of documentText(). See docs/architecture/artifact-comments-collaboration.md.",
+  "documentText": [
+    {
+      "name": "joins TEXT blocks with a blank line, untrimmed, skipping images",
+      "blocks": [
+        { "id": "a", "kind": "TEXT", "text": " Hello " },
+        { "id": "img", "kind": "IMAGE" },
+        { "id": "b", "kind": "TEXT", "text": "World\n" }
+      ],
+      "body": "ignored",
+      "expected": " Hello \n\nWorld\n"
+    },
+    { "name": "legacy report without blocks uses body", "blocks": null, "body": "Legacy body", "expected": "Legacy body" },
+    { "name": "image-only report has empty text even with a body", "blocks": [{ "id": "i", "kind": "IMAGE" }], "body": "stale body", "expected": "" },
+    { "name": "empty block list is legacy and uses body", "blocks": [], "body": "Legacy body", "expected": "Legacy body" },
+    { "name": "single empty TEXT block is empty", "blocks": [{ "id": "t", "kind": "TEXT", "text": "" }], "body": "x", "expected": "" }
+  ],
+  "validate": [
+    {
+      "name": "valid anchor around a surrogate pair",
+      "text": "Hi 😀 there",
+      "anchor": { "kind": "text", "start": 3, "end": 5, "quote": "😀", "prefix": "Hi ", "suffix": " there" },
+      "problem": null
+    },
+    {
+      "name": "start splits a surrogate pair",
+      "text": "Hi 😀 there",
+      "anchor": { "kind": "text", "start": 4, "end": 6, "quote": "\ude00 ", "prefix": "", "suffix": "" },
+      "problem": "surrogate"
+    },
+    {
+      "name": "end splits a surrogate pair",
+      "text": "Hi 😀 there",
+      "anchor": { "kind": "text", "start": 2, "end": 4, "quote": " \ud83d", "prefix": "", "suffix": "" },
+      "problem": "surrogate"
+    },
+    {
+      "name": "quote differs from the slice",
+      "text": "Hi 😀 there",
+      "anchor": { "kind": "text", "start": 0, "end": 2, "quote": "Ho", "prefix": "", "suffix": "" },
+      "problem": "quote"
+    },
+    {
+      "name": "empty range is not a selection",
+      "text": "Hi 😀 there",
+      "anchor": { "kind": "text", "start": 2, "end": 2, "quote": "", "prefix": "", "suffix": "" },
+      "problem": "range"
+    },
+    {
+      "name": "range past the end",
+      "text": "Hi 😀 there",
+      "anchor": { "kind": "text", "start": 6, "end": 12, "quote": "there!", "prefix": "", "suffix": "" },
+      "problem": "range"
+    },
+    {
+      "name": "empty document cannot be anchored",
+      "text": "",
+      "anchor": { "kind": "text", "start": 0, "end": 1, "quote": "x", "prefix": "", "suffix": "" },
+      "problem": "range"
+    },
+    {
+      "name": "prefix must be the text right before start",
+      "text": "Hi 😀 there",
+      "anchor": { "kind": "text", "start": 6, "end": 11, "quote": "there", "prefix": "XX ", "suffix": "" },
+      "problem": "prefix"
+    },
+    {
+      "name": "suffix must be the text right after end",
+      "text": "Hi 😀 there",
+      "anchor": { "kind": "text", "start": 0, "end": 2, "quote": "Hi", "prefix": "", "suffix": " 😀!" },
+      "problem": "suffix"
+    },
+    {
+      "name": "32 units of prefix are allowed",
+      "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaatarget",
+      "anchor": { "kind": "text", "start": 40, "end": 46, "quote": "target", "prefix": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "suffix": "" },
+      "problem": null
+    },
+    {
+      "name": "33 units of prefix are rejected",
+      "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaatarget",
+      "anchor": { "kind": "text", "start": 40, "end": 46, "quote": "target", "prefix": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "suffix": "" },
+      "problem": "context-length"
+    },
+    {
+      "name": "whole document edges are valid",
+      "text": "edge",
+      "anchor": { "kind": "text", "start": 0, "end": 4, "quote": "edge", "prefix": "", "suffix": "" },
+      "problem": null
+    }
+  ],
+  "anchorAt": [
+    {
+      "name": "context stops at the document edges",
+      "text": "Hi 😀 there",
+      "start": 6,
+      "end": 11,
+      "expected": { "kind": "text", "start": 6, "end": 11, "quote": "there", "prefix": "Hi 😀 ", "suffix": "" }
+    },
+    {
+      "name": "32-unit context boundary never splits a surrogate pair",
+      "text": "😀xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxQ",
+      "start": 33,
+      "end": 34,
+      "expected": { "kind": "text", "start": 33, "end": 34, "quote": "Q", "prefix": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "suffix": "" }
+    }
+  ],
+  "locate": [
+    {
+      "name": "exact at the same offsets",
+      "text": "abc def ghi",
+      "anchor": { "kind": "text", "start": 4, "end": 7, "quote": "def", "prefix": "abc ", "suffix": " ghi" },
+      "expected": { "status": "exact", "start": 4, "end": 7 }
+    },
+    {
+      "name": "exact wins even when the quote also appears elsewhere",
+      "text": "def def",
+      "anchor": { "kind": "text", "start": 0, "end": 3, "quote": "def", "prefix": "", "suffix": " def" },
+      "expected": { "status": "exact", "start": 0, "end": 3 }
+    },
+    {
+      "name": "single occurrence elsewhere is moved",
+      "text": "XX abc def ghi",
+      "anchor": { "kind": "text", "start": 4, "end": 7, "quote": "def", "prefix": "abc ", "suffix": " ghi" },
+      "expected": { "status": "moved", "start": 7, "end": 10 }
+    },
+    {
+      "name": "several occurrences resolved by prefix and suffix",
+      "text": "zero: one cat, two cat",
+      "anchor": { "kind": "text", "start": 13, "end": 16, "quote": "cat", "prefix": "one cat, two ", "suffix": "" },
+      "expected": { "status": "moved", "start": 19, "end": 22 }
+    },
+    {
+      "name": "several occurrences without context are ambiguous",
+      "text": "cat cat cat",
+      "anchor": { "kind": "text", "start": 20, "end": 23, "quote": "cat", "prefix": "", "suffix": "" },
+      "expected": { "status": "ambiguous" }
+    },
+    {
+      "name": "context matching two occurrences is ambiguous",
+      "text": "a cat a cat",
+      "anchor": { "kind": "text", "start": 50, "end": 53, "quote": "cat", "prefix": "a ", "suffix": "" },
+      "expected": { "status": "ambiguous" }
+    },
+    {
+      "name": "overlapping occurrences are all candidates",
+      "text": "aaaa",
+      "anchor": { "kind": "text", "start": 9, "end": 11, "quote": "aa", "prefix": "a", "suffix": "a" },
+      "expected": { "status": "moved", "start": 1, "end": 3 }
+    },
+    {
+      "name": "missing quote is detached",
+      "text": "nothing here",
+      "anchor": { "kind": "text", "start": 0, "end": 3, "quote": "cat", "prefix": "", "suffix": " sat" },
+      "expected": { "status": "detached" }
+    },
+    {
+      "name": "empty text is detached",
+      "text": "",
+      "anchor": { "kind": "text", "start": 0, "end": 3, "quote": "cat", "prefix": "", "suffix": "" },
+      "expected": { "status": "detached" }
+    },
+    {
+      "name": "moved past an inserted surrogate pair",
+      "text": "😀😀 smile",
+      "anchor": { "kind": "text", "start": 3, "end": 8, "quote": "smile", "prefix": "😀 ", "suffix": "" },
+      "expected": { "status": "moved", "start": 5, "end": 10 }
+    },
+    {
+      "name": "quote that is a surrogate pair",
+      "text": "Go 🚀 now",
+      "anchor": { "kind": "text", "start": 3, "end": 5, "quote": "🚀", "prefix": "Go ", "suffix": " now" },
+      "expected": { "status": "exact", "start": 3, "end": 5 }
+    },
+    {
+      "name": "quote at the document end moves with an edit before it",
+      "text": "start middle and end",
+      "anchor": { "kind": "text", "start": 13, "end": 16, "quote": "end", "prefix": "start middle ", "suffix": "" },
+      "expected": { "status": "moved", "start": 17, "end": 20 }
+    },
+    {
+      "name": "offsets past a shorter text fall back to search",
+      "text": "end",
+      "anchor": { "kind": "text", "start": 13, "end": 16, "quote": "end", "prefix": "start middle ", "suffix": "" },
+      "expected": { "status": "moved", "start": 0, "end": 3 }
+    }
+  ],
+  "locateImage": [
+    { "name": "image block present", "blockId": "chart1", "blocks": [{ "id": "chart1", "kind": "IMAGE" }], "expected": { "status": "exact" } },
+    { "name": "image block removed", "blockId": "chart1", "blocks": [{ "id": "other", "kind": "IMAGE" }], "expected": { "status": "detached" } },
+    { "name": "same id on a TEXT block is not an image", "blockId": "chart1", "blocks": [{ "id": "chart1", "kind": "TEXT", "text": "x" }], "expected": { "status": "detached" } },
+    { "name": "legacy report has no images", "blockId": "chart1", "blocks": null, "expected": { "status": "detached" } }
+  ]
+}

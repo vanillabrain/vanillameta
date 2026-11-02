@@ -84,6 +84,12 @@ export const reportSaveRequest = z
         .strict(),
       z.object({ mode: z.literal('retain'), fromRevision: hash }).strict(),
     ]),
+    /** Open suggestions the owner applied to this draft; enters the request hash only. */
+    appliedSuggestionIds: z
+      .array(reportId)
+      .max(20)
+      .refine(value => new Set(value).size === value.length, 'Duplicate suggestion id')
+      .optional(),
   })
   .strict();
 export type ReportCapture = z.infer<typeof reportCapture>;
