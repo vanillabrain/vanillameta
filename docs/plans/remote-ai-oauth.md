@@ -33,6 +33,8 @@
 
 ## 구현과 인계
 
-OAuth 라이브러리는5.3.1, MCP server는2.3.1, Node transport는 npm에 배포된2.1.2다. 기존 backend Zod3를 유지하며 SDK에 필요한 Zod4.6.7만 별칭으로 분리했다. HTTP에 일반 VM JWT를 전달하는 어댑터는 만들지 않았다.
+OAuth 라이브러리는5.3.1, MCP server는2.3.1, Node transport는 npm에 배포된2.1.2다. 기존 backend Zod3를 유지하며 SDK에 필요한 Zod4.6.7만 별칭으로 분리했다. HTTP에 일반 VM JWT를 전달하는 어댑터는 만들지 않았다. 과거 `mcp-server`의 로컬 HTTP 모드는 로그인 JWT를 전달하는 구조여서 2026-11-02에 제거했다.
 
 [검증 결과](../testing/remote-ai-oauth.md)와 [운영 설정](../operations/remote-ai-oauth.md)을 따른다. 구현은acb4c543으로 develop에 push했다. [실제 Codex 검증](../testing/remote-oauth-codex.md)에서 CLI0.154.0의 callback 설정과 문서 조회·회수를 확인했다. 다른 외부 AI 제품, 공개 HTTPS 환경, refresh token, 원격 쓰기 권한은 후속이다.
+
+2026-11-02 추가: 보고서 읽기(`reports:read`)와 댓글 읽기·쓰기(`comments:read`, `comments:write`), 수정 제안(`suggestions:write`), 소유 보고서 공유(`shares:write`) 범위를 추가했다. 쓰기 범위는 승인 화면에서 기본 해제다. 적용·저장·게시·삭제 도구는 없다. 위 "원격 쓰기 권한은 후속"은 소스·문서·분석 쓰기에 해당하며 보고서 협업 쓰기는 이 추가분이다. 설정은 [운영 설정](../operations/remote-ai-oauth.md), 설계는 [협업 설계](../architecture/artifact-comments-collaboration.md), 검증은 [협업 검증](../testing/report-comments-collaboration.md)을 따른다.
