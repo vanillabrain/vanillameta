@@ -34,7 +34,8 @@ access token은 10분 뒤 만료된다. code 교환과 갱신은 새 access toke
 - 설정 누락·DB 장애·잠금 timeout은 `invalid_grant`가 아니라 5xx `temporarily_unavailable`로 답한다. Claude Code는 `invalid_grant`에서 저장한 토큰을 지우기 때문이다.
 - grant당 갱신은 300회까지다. 정상 주기(약 5분)로는 8시간에 약 96회다.
 - 비운영 확인용 `MCP_OAUTH_ACCESS_TTL_SECONDS`(정수, 60–600으로 제한)로 access 수명을 줄일 수 있다. `NODE_ENV=prod`에서는 무시하며, 값이 있으면 production guard가 부팅을 거부한다.
-- 만료된 token·refresh 행은 아직 자동 정리하지 않는다.
+- **이미 교환한 authorization code가 다시 오면 그 code의 연결 전체를 해제한다**(RFC 6749 §4.1.2). 단 같은 client·같은 `redirect_uri`·맞는 PKCE verifier를 함께 보낸 경우만이다. code만 가진 쪽(예: 로그에서 본 경우)은 토큰을 받을 수 없으므로 회수하지 않는다. 응답은 어느 쪽이든 모르는 code와 같은 `invalid_grant`다. 회수는 `warn` 로그에 `grantId`·`clientId`·`actorId`·`revoked`만 남긴다. 응답을 놓친 클라이언트가 같은 code를 다시 보내도 연결이 해제되고 다시 승인한다.
+- code 교환이나 갱신이 성공할 때마다 만료 행을 테이블당 최대 500행씩 정리한다. 5분 여유를 둔다. 대상은 만료된 access token, 만료·회수된 grant의 refresh 행(회수 grant는 발급 5분 뒤), 만료된 미사용 code, 끝난 grant의 code다. 살아 있는 grant의 회전된 refresh와 사용한 code는 재사용 감지를 위해 grant가 끝날 때까지 남긴다. grant(연결 목록)는 지우지 않는다. 결정된 pending 요청도 남기고, 만료된 대기 요청은 기존처럼 승인 요청 때 정리한다. 정리 실패는 응답에 영향을 주지 않고 `error` 로그에 예외 class 이름만 남긴다.
 - 모든 API 인스턴스는 같은 `TZ`(예: `UTC` 또는 `Asia/Seoul`)로 실행한다. 갱신 시각은 시간대 없는 timestamp로 저장되므로 인스턴스마다 시간대가 다르면 정상 재시도가 재사용으로 판정되어 연결이 해제될 수 있다.
 - 배포 직후 기존 연결에는 refresh token이 없어 만료 때 한 번 다시 승인한다. PostgreSQL은 백업 후 `1793570000000-add-mcp-oauth-refresh` migration(`mcp_oauth_refresh` 테이블)을 적용한다.
 

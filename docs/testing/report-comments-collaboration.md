@@ -88,6 +88,7 @@ OAuth callback 수신기는 같은 경로로 들어오는 `favicon.ico` 요청�
 - 문단 안의 문장 하나만 삭제하는 제안은 넓히지 않는다. 앞뒤 공백 정리는 편집자가 한다.
 - 새 저장 이후 같은 `requestId`로 `occurrence`만 바꿔 다시 보내면 REQUEST_REUSED가 아니라 이전 결과를 재생한다. 이전 버전 텍스트를 서비스가 읽어야 고칠 수 있다.
 - 구현·검증(2026-11-02 후속): access token 10분 만료 시 grant에 묶인 회전형 refresh로 재동의 없이 갱신한다(grant 상한 8시간 유지, 재사용 시 grant 회수). SQLite spec·실제 HTTP·PostgreSQL 17 migration·동시 갱신과 실제 Claude Code 호스트 자동 갱신(RCOL-21)을 확인했다. Codex의 실제 갱신 요청은 확인하지 않았다(바이너리 문자열 기준 추정).
+- 해결(2026-11-02 후속): 이미 교환한 authorization code가 같은 client·`redirect_uri`·맞는 PKCE verifier와 함께 다시 오면 grant를 회수한다(verifier 없는 재사용은 DoS 방지를 위해 회수하지 않는다). code 교환·갱신 성공 뒤 만료 token·refresh·code 행을 테이블당 500행, 5분 여유로 정리한다. SQLite spec·실제 HTTP·PostgreSQL 17 임시 클러스터에서 확인했다. [refresh 계획](../plans/mcp-oauth-refresh.md#후속-구현-code-재사용-회수와-만료-행-정리)
 - 실제 포인터 드래그 선택은 자동화하지 못했다.
 - 여러 수신자 공유는 원자적이지 않다. 일부만 공유되면 `complete: false`를 돌려주고 같은 `requestId`로 재시도해 마저 공유한다.
 - 같은 `requestId`에 다른 수신자 목록을 보내면 409가 아니라 추가 수신자만 공유된다. 매번 `confirmShare`가 필요하지만 설계와 다르다.

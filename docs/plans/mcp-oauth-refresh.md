@@ -122,7 +122,7 @@ Claude는 `invalid_grant`에서 토큰을 지운다. 그래서 일시 장애를 
 - 연결 해제(`disconnect`)와 `/revoke`는 grant만 회수한다. refresh는 매번 `checkedGrant`를 거치므로 함께 죽는다.
 - 토큰 원문과 hash는 로그·오류·연결 목록에 남기지 않는다. 재사용과 유예 재회전은 `warn`으로 `grantId`·`clientId`·`actorId`·`rotation`만 기록한다.
 - rate limit: token endpoint는 전역 IP ThrottlerGuard(기본 120/60초) 아래에 있다. 회전 상한 300은 grant당 행 증가를 제한한다.
-- **만료 행 정리는 이번 변경에서 제외한다.** 기존 `mcp_oauth_token`도 정리가 없다. refresh 행은 grant당 최대 약 600개(회전 300 × 부모당 재시도 1)이고 활성 grant는 actor당 20개다. 정상 Claude 주기(약 5분)로는 8시간 grant당 refresh·access 각 약 96행이다. 정리는 후속 항목이며, 할 때는 commit 뒤 grant 잠금 밖에서 직렬화하고 테이블당 500행 이하로 지운다.
+- 만료 행 정리와 code 재사용 회수는 후속으로 구현했다. 아래 [후속 구현](#후속-구현-code-재사용-회수와-만료-행-정리) 절을 따른다. refresh 행은 grant당 최대 약 600개(회전 300 × 부모당 재시도 1)이고 활성 grant는 actor당 20개다.
 - 연결 목록 문구(`aiConnections.tokenLifetime`, ko/en): "접근 토큰은 10분이고 자동 갱신된다. 연결은 재동의 없이 최대 8시간 유지된다. 이미 쓰인 갱신 토큰이 다시 쓰이면 연결이 해제된다"로 고친다. 그 밖의 UI 변경은 없다.
 
 ## access TTL 설정
@@ -154,5 +154,28 @@ Claude는 남은 시간이 300초 이하일 때만 갱신한다. 비운영에서
 
 - 유예 30초의 적정값. 실제 로그로 확인한 뒤 조정한다.
 - 재사용 회수를 연결 목록에 따로 표시할지. 이번에는 로그로만 남긴다.
-- 만료 행 정리(위 보안 절).
-- authorization code 재사용 시 그 code로 발급한 grant 회수(RFC 6749 §4.1.2 SHOULD). 이제 code 하나가 8시간 refresh 체인이 되므로 후속 항목으로 둔다.
+
+## 후속 구현: code 재사용 회수와 만료 행 정리
+
+2026-11-02 구현. 위 미결정에 있던 두 항목이다.
+
+### authorization code 재사용 → grant 회수
+
+code 하나가 8시간 refresh 체인을 시작하므로 RFC 6749 §4.1.2·RFC 9700의 권고대로 재사용 시 grant를 회수한다.
+
+- 위치: code 교환 model의 `getAuthorizationCode`. `@node-oauth/oauth2-server` 5.3.1의 `handle()`은 `getAuthorizationCode` → `revokeAuthorizationCode`(소비) → PKCE·`redirect_uri` 검사 순서다. 소비된 code는 이 첫 단계에서 끝나므로 **라이브러리의 PKCE 검사를 거치지 않는다.** 그래서 재사용 판정은 서비스가 직접 한다.
+- 결정: `consumed=true` 행에 대해 요청 `client_id`가 grant의 client와 같고, `redirect_uri`가 code와 같고, `code_verifier`의 S256이 저장된 challenge와 일치할 때(timing-safe 비교)**만** 회수한다. PKCE S256이 필수이므로 code만 가진 쪽은 처음부터 토큰을 받을 수 없다. 그런 요청에 회수하면 보호는 없고 로그에서 code를 본 누구나 연결을 끊을 수 있다(DoS). verifier를 가진 쪽은 RFC가 회수하려는 바로 그 대상이다.
+- 처리: `sourceWriteTransaction`에서 grant 행 → user 행 순서로 잠그고(`/revoke`와 같은 패턴, 유효성 검사 없음) `revoked=false`인 경우만 `revoked=true`로 바꾼다. commit 뒤 `false`를 반환해 라이브러리가 모르는 code와 같은 `invalid_grant`를 던진다. 다시 보내도 같은 `invalid_grant`이고 오류가 없다(멱등). `warn` 로그에 `grantId`·`clientId`·`actorId`·`revoked`만 남긴다.
+- 결과: 그 grant의 access는 401, refresh는 `invalid_grant`다. 계정이 비활성이거나 epoch가 바뀌어도 회수한다.
+- 감수하는 동작: (a) 응답을 놓친 정상 클라이언트가 같은 code를 다시 보내면 회수되고 다시 승인한다. 받은 토큰은 이미 유실됐다. (b) PKCE 실패로 code가 먼저 소비된 뒤 맞는 verifier로 다시 오면 토큰 없는 grant가 회수된다. (c) PostgreSQL에서 같은 code의 교환 두 건이 겹치면 늦은 쪽이 소비된 code를 보고 회수해 먼저 성공하던 쪽의 `saveToken`도 실패할 수 있다. RFC에 맞는 결과다.
+
+### 만료 행 정리
+
+- 시점: code 교환과 refresh가 성공해 commit한 뒤, grant 잠금 밖에서 `sourceWriteTransaction` 하나로 실행한다. 응답 전에 기다리지만 실패는 삼키고 `error` 로그에 예외 class 이름(과 PG 오류 코드)만 남긴다.
+- 한도와 여유: 테이블당 최대 500행. 기준 시각보다 5분(코드 상수) 지난 행만 지운다. id를 먼저 `LIMIT`으로 고르고 id로 지운다(SQLite에는 `DELETE ... LIMIT`이 없을 수 있다). raw SQL은 없고 QueryBuilder가 식별자를 감싼다.
+- `mcp_oauth_token`: `expiresAt`가 5분 지난 행.
+- `mcp_oauth_refresh`: 행 또는 grant의 `expiresAt`가 5분 지났거나, grant가 회수됐고 행 `issuedAt`가 5분 지난 행. 살아 있는 grant의 `rotated`·`superseded` 행은 재사용 증거이므로 남긴다.
+- `mcp_oauth_code`: `expiresAt`가 5분 지났고, 미사용이거나 grant가 회수·만료된 행. 사용한 code는 grant가 끝날 때까지 남겨 재사용 회수가 8시간 내내 동작한다(grant당 1행).
+- `mcp_oauth_pending`: 추가하지 않는다. 만료된 대기 요청은 기존 승인 요청 경로가 500행씩 지우고, 결정된 요청은 기존 계약대로 이력으로 남긴다.
+- grant는 지우지 않는다. 연결 목록이 회수·만료 grant를 보여 준다.
+- 검증: SQLite spec(eligibility·500 상한·여유·grant 불변·정리 실패 무영향, code 재사용 회수·멱등·client/verifier/redirect 불일치 무회수·잠금 순서, `MCP_OAUTH_HTTP_TESTS=1` HTTP 재사용)과 PostgreSQL 17 임시 클러스터(`TZ=Asia/Seoul`)에서 같은 spec 경로를 실행했다. migration은 필요 없다.

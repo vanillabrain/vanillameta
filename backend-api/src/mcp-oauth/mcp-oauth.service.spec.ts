@@ -17,7 +17,13 @@ import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { createHash, randomUUID } from 'crypto';
 import supertest = require('supertest');
-import { DataSource, EntityManager, EntitySubscriberInterface, UpdateEvent } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  EntitySubscriberInterface,
+  LessThan,
+  UpdateEvent,
+} from 'typeorm';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { EnterpriseOrganization } from '../enterprise/entities/enterprise-organization.entity';
 import { AddMcpOAuth1793233000000 } from '../migrations/1793233000000-add-mcp-oauth';
@@ -34,7 +40,11 @@ import { MCP_SCOPES } from './config';
 import { authorizationMetadata } from './mcp.controller';
 import { McpOAuthExceptionFilter } from './mcp-oauth.http';
 import { McpOAuthModule } from './mcp-oauth.module';
-import { McpOAuthService } from './mcp-oauth.service';
+import {
+  MCP_OAUTH_CLEANUP_BATCH,
+  MCP_OAUTH_CLEANUP_GRACE_MS,
+  McpOAuthService,
+} from './mcp-oauth.service';
 
 const api = 'http://127.0.0.1:4444/v1';
 const web = 'http://127.0.0.1:3333';
@@ -350,6 +360,8 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
           .consumed,
       ).toBe(true);
       expect(await db.getRepository(McpOAuthToken).count()).toBe(0);
+      // The correct retry proves the verifier, so it is a replay of a consumed code.
+      expect((await db.getRepository(McpOAuthGrant).findOneByOrFail({})).revoked).toBe(true);
     },
   );
 
@@ -545,6 +557,13 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
       await service.revoke({ token: refreshed.refresh_token, client_id: 'test-client' });
       expect(lookups.indexOf('McpOAuthGrant')).toBeGreaterThanOrEqual(0);
       expect(lookups.indexOf('McpOAuthGrant')).toBeLessThan(lookups.indexOf('User'));
+      const third = await approved();
+      await service.token(exchange(third.code));
+      lookups.length = 0;
+      await expect(service.token(exchange(third.code))).rejects.toMatchObject({
+        name: 'invalid_grant',
+      });
+      expect(lookups).toEqual(['McpOAuthGrant', 'User']);
     } finally {
       spy.mockRestore();
     }
@@ -1103,6 +1122,283 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
     });
   });
 
+  describe('authorization code replay', () => {
+    const grantFor = async (code: string) =>
+      db.getRepository(McpOAuthGrant).findOneByOrFail({
+        id: (await db.getRepository(McpOAuthCode).findOneByOrFail({ codeHash: hash(code) }))
+          .grantId,
+      });
+    const refreshWith = (refresh_token: string) =>
+      service.token({ grant_type: 'refresh_token', refresh_token, client_id: 'test-client' });
+
+    it('revokes the grant when the redeeming client replays the code with its verifier, idempotently', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      try {
+        const start = await approved();
+        const issued = await service.token(exchange(start.code));
+        await service.authenticateBearer(`Bearer ${issued.access_token}`);
+        for (let attempt = 0; attempt < 2; attempt++)
+          await expect(service.token(exchange(start.code))).rejects.toMatchObject({
+            name: 'invalid_grant',
+            message: 'Invalid grant: authorization code is invalid',
+          });
+        // The revocation committed although the request failed.
+        expect((await grantFor(start.code)).revoked).toBe(true);
+        await expect(
+          service.authenticateBearer(`Bearer ${issued.access_token}`),
+        ).rejects.toMatchObject({ status: 401 });
+        await expect(refreshWith(issued.refresh_token)).rejects.toMatchObject({
+          name: 'invalid_grant',
+        });
+        expect(warn).toHaveBeenCalledTimes(2);
+        expect(String(warn.mock.calls[0][0])).toContain('"revoked":true');
+        expect(String(warn.mock.calls[1][0])).toContain('"revoked":false');
+        for (const [message] of warn.mock.calls)
+          for (const secret of [start.code, hash(start.code), issued.access_token, verifier])
+            expect(String(message)).not.toContain(secret);
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('does not revoke on a replay that lacks the verifier, client or redirect_uri of the code', async () => {
+      const other = 'http://127.0.0.1:2222/other';
+      const clients = JSON.parse(process.env.MCP_OAUTH_CLIENTS_JSON);
+      clients[0].redirectUris.push(other);
+      clients.push({ ...clients[0], id: 'other-client', name: 'Other client' });
+      process.env.MCP_OAUTH_CLIENTS_JSON = JSON.stringify(clients);
+      const start = await approved();
+      const issued = await service.token(exchange(start.code));
+      const unknown = await service
+        .token(exchange('e'.repeat(64)))
+        .catch((error: Error) => [error.name, error.message]);
+      for (const patch of [
+        { code_verifier: 'B'.repeat(43) },
+        { code_verifier: undefined },
+        { code_verifier: 'short' },
+        { client_id: 'other-client' },
+        { redirect_uri: other },
+      ]) {
+        const rejected = await service
+          .token({ ...exchange(start.code), ...patch })
+          .catch((error: Error) => [error.name, error.message]);
+        // Indistinguishable from a code that never existed.
+        expect(rejected).toEqual(unknown);
+      }
+      expect((await grantFor(start.code)).revoked).toBe(false);
+      await service.authenticateBearer(`Bearer ${issued.access_token}`);
+      const refreshed = await refreshWith(issued.refresh_token);
+      await expect(service.token(exchange(start.code))).rejects.toMatchObject({
+        name: 'invalid_grant',
+      });
+      expect((await grantFor(start.code)).revoked).toBe(true);
+      await expect(
+        service.authenticateBearer(`Bearer ${refreshed.access_token}`),
+      ).rejects.toMatchObject({ status: 401 });
+      await expect(refreshWith(refreshed.refresh_token)).rejects.toMatchObject({
+        name: 'invalid_grant',
+      });
+    });
+
+    it('revokes after a deactivated account or epoch change and still answers invalid_grant', async () => {
+      const start = await approved();
+      await service.token(exchange(start.code));
+      await db.getRepository(User).update(1, { active: false, authVersion: 1 });
+      await expect(service.token(exchange(start.code))).rejects.toMatchObject({
+        name: 'invalid_grant',
+      });
+      expect((await grantFor(start.code)).revoked).toBe(true);
+    });
+  });
+
+  describe('expired row cleanup', () => {
+    const old = () => new Date(Date.now() - MCP_OAUTH_CLEANUP_GRACE_MS - 60_000);
+    const recent = () => new Date(Date.now() - MCP_OAUTH_CLEANUP_GRACE_MS + 60_000);
+    const future = () => new Date(Date.now() + 60 * 60_000);
+    const secret = () => hash(randomUUID());
+
+    async function live() {
+      const start = await approved();
+      const issued = await service.token(exchange(start.code));
+      const code = await db
+        .getRepository(McpOAuthCode)
+        .findOneByOrFail({ codeHash: hash(start.code) });
+      const grant = await db.getRepository(McpOAuthGrant).findOneByOrFail({ id: code.grantId });
+      const refresh = await db
+        .getRepository(McpOAuthRefresh)
+        .findOneByOrFail({ tokenHash: hash(issued.refresh_token) });
+      return { start, issued, code, grant, refresh };
+    }
+    async function grantLike(base: McpOAuthGrant, patch: Partial<McpOAuthGrant>) {
+      const grant = { ...base, id: randomUUID(), ...patch };
+      await db.getRepository(McpOAuthGrant).insert(grant);
+      return grant;
+    }
+    // Single-row inserts: these mixed rows stored misaligned columns as one multi-row SQLite insert.
+    async function insertMany<T>(entity: new () => T, rows: T[]) {
+      for (const row of rows) await db.getRepository(entity).insert(row as any);
+    }
+    const tokenRow = (grantId: string, expiresAt: Date): McpOAuthToken => ({
+      tokenHash: secret(),
+      grantId,
+      resource: `${api}/mcp`,
+      expiresAt,
+    });
+    const refreshRow = (base: McpOAuthRefresh, patch: Partial<McpOAuthRefresh>) => ({
+      ...base,
+      tokenHash: secret(),
+      accessHash: secret(),
+      ...patch,
+    });
+    const codeRow = (base: McpOAuthCode, patch: Partial<McpOAuthCode>) => ({
+      ...base,
+      codeHash: secret(),
+      ...patch,
+    });
+    const exists = async (entity: any, where: object) =>
+      (await db.getRepository(entity).countBy(where)) === 1;
+
+    it('deletes only rows past the grace margin, keeps reuse and replay evidence of live grants, never grants', async () => {
+      const { issued, code, grant, refresh } = await live();
+      const revoked = await grantLike(grant, { revoked: true });
+      const expired = await grantLike(grant, { expiresAt: old() });
+      const justExpired = await grantLike(grant, { expiresAt: recent() });
+      const tokens = {
+        old: tokenRow(grant.id, old()),
+        recent: tokenRow(grant.id, recent()),
+        live: tokenRow(grant.id, future()),
+      };
+      await insertMany(McpOAuthToken, Object.values(tokens));
+      const refreshes = {
+        revokedOld: refreshRow(refresh, { grantId: revoked.id, issuedAt: old() }),
+        revokedRecent: refreshRow(refresh, { grantId: revoked.id, issuedAt: recent() }),
+        expired: refreshRow(refresh, { grantId: expired.id, expiresAt: expired.expiresAt }),
+        justExpired: refreshRow(refresh, {
+          grantId: justExpired.id,
+          expiresAt: justExpired.expiresAt,
+        }),
+        liveRotated: refreshRow(refresh, { state: 'rotated', issuedAt: old(), usedAt: old() }),
+      };
+      await insertMany(McpOAuthRefresh, Object.values(refreshes));
+      await db.getRepository(McpOAuthCode).update(code.codeHash, { expiresAt: old() });
+      const codes = {
+        unusedOld: codeRow(code, { consumed: false, expiresAt: old() }),
+        unusedRecent: codeRow(code, { consumed: false, expiresAt: recent() }),
+        revokedConsumed: codeRow(code, { grantId: revoked.id, expiresAt: old() }),
+        expiredConsumed: codeRow(code, { grantId: expired.id, expiresAt: old() }),
+        unusedLive: codeRow(code, { consumed: false, expiresAt: future() }),
+      };
+      await insertMany(McpOAuthCode, Object.values(codes));
+      const grantsBefore = await db.getRepository(McpOAuthGrant).find({ order: { id: 'ASC' } });
+      const pendingBefore = await db.getRepository(McpOAuthPending).find();
+
+      const next = await service.token({
+        grant_type: 'refresh_token',
+        refresh_token: issued.refresh_token,
+        client_id: 'test-client',
+      });
+
+      expect(await exists(McpOAuthToken, { tokenHash: tokens.old.tokenHash })).toBe(false);
+      expect(await exists(McpOAuthToken, { tokenHash: tokens.recent.tokenHash })).toBe(true);
+      expect(await exists(McpOAuthToken, { tokenHash: tokens.live.tokenHash })).toBe(true);
+      expect(await exists(McpOAuthToken, { tokenHash: hash(next.access_token) })).toBe(true);
+      const kept = async (row: { tokenHash: string }) =>
+        exists(McpOAuthRefresh, { tokenHash: row.tokenHash });
+      expect(await kept(refreshes.revokedOld)).toBe(false);
+      expect(await kept(refreshes.expired)).toBe(false);
+      expect(await kept(refreshes.revokedRecent)).toBe(true);
+      expect(await kept(refreshes.justExpired)).toBe(true);
+      expect(await kept(refreshes.liveRotated)).toBe(true);
+      expect(await kept(refresh)).toBe(true);
+      const codeKept = async (row: { codeHash: string }) =>
+        exists(McpOAuthCode, { codeHash: row.codeHash });
+      expect(await codeKept(code)).toBe(true);
+      expect(await codeKept(codes.unusedOld)).toBe(false);
+      expect(await codeKept(codes.revokedConsumed)).toBe(false);
+      expect(await codeKept(codes.expiredConsumed)).toBe(false);
+      expect(await codeKept(codes.unusedRecent)).toBe(true);
+      expect(await codeKept(codes.unusedLive)).toBe(true);
+      expect(await db.getRepository(McpOAuthGrant).find({ order: { id: 'ASC' } })).toEqual(
+        grantsBefore,
+      );
+      expect(await db.getRepository(McpOAuthPending).find()).toEqual(pendingBefore);
+    });
+
+    it('deletes at most 500 rows per table per successful exchange or refresh', async () => {
+      const { issued, code, grant, refresh } = await live();
+      const revoked = await grantLike(grant, { revoked: true });
+      const count = MCP_OAUTH_CLEANUP_BATCH + 100;
+      await insertMany(
+        McpOAuthToken,
+        Array.from({ length: count }, () => tokenRow(grant.id, old())),
+      );
+      await insertMany(
+        McpOAuthRefresh,
+        Array.from({ length: count }, () =>
+          refreshRow(refresh, { grantId: revoked.id, issuedAt: old() }),
+        ),
+      );
+      await insertMany(
+        McpOAuthCode,
+        Array.from({ length: count }, () => codeRow(code, { consumed: false, expiresAt: old() })),
+      );
+      const remaining = async () => [
+        await db.getRepository(McpOAuthToken).countBy({ expiresAt: LessThan(recent()) }),
+        await db.getRepository(McpOAuthRefresh).countBy({ grantId: revoked.id }),
+        await db.getRepository(McpOAuthCode).countBy({ consumed: false }),
+      ];
+      expect(await remaining()).toEqual([count, count, count]);
+      const next = await service.token({
+        grant_type: 'refresh_token',
+        refresh_token: issued.refresh_token,
+        client_id: 'test-client',
+      });
+      expect(await remaining()).toEqual([100, 100, 100]);
+      await service.token({
+        grant_type: 'refresh_token',
+        refresh_token: next.refresh_token,
+        client_id: 'test-client',
+      });
+      expect(await remaining()).toEqual([0, 0, 0]);
+      // A code exchange runs the same cleanup.
+      await insertMany(McpOAuthToken, [tokenRow(grant.id, old())]);
+      await live();
+      expect((await remaining())[0]).toBe(0);
+      expect(await db.getRepository(McpOAuthGrant).count()).toBe(3);
+    });
+
+    it('logs only the error class and still returns the token when cleanup fails', async () => {
+      class CleanupProbeError extends Error {}
+      const logged = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      const original = EntityManager.prototype.find;
+      const failing = jest
+        .spyOn(EntityManager.prototype, 'find')
+        .mockImplementation(function (this: EntityManager, target: any, options: any) {
+          if (target === McpOAuthToken && this.queryRunner?.isTransactionActive)
+            return Promise.reject(new CleanupProbeError('secret detail'));
+          return original.call(this, target, options);
+        } as any);
+      try {
+        const { issued, grant } = await live();
+        const next = await service.token({
+          grant_type: 'refresh_token',
+          refresh_token: issued.refresh_token,
+          client_id: 'test-client',
+        });
+        await service.authenticateBearer(`Bearer ${next.access_token}`);
+        expect(await db.getRepository(McpOAuthRefresh).countBy({ grantId: grant.id })).toBe(2);
+        expect(logged).toHaveBeenCalledTimes(2);
+        for (const [message] of logged.mock.calls) {
+          expect(String(message)).toContain('"error":"CleanupProbeError"');
+          expect(String(message)).not.toContain('secret detail');
+        }
+      } finally {
+        failing.mockRestore();
+        logged.mockRestore();
+      }
+    });
+  });
+
   httpTest(
     'serves OAuth discovery and rejects bad HTTP host/origin without redirects or sensitive errors',
     async () => {
@@ -1294,6 +1590,43 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
         error: 'invalid_grant',
         error_description: 'Request rejected.',
       });
+    },
+  );
+
+  httpTest(
+    'revokes the grant over real HTTP when an authorization code is replayed with its verifier',
+    async () => {
+      const http = () => supertest(app.getHttpServer());
+      const start = await approved();
+      const form = (body: object) =>
+        http().post('/v1/mcp-oauth/token').set('Host', '127.0.0.1:4444').type('form').send(body);
+      const rejected = { error: 'invalid_grant', error_description: 'Request rejected.' };
+      const issued = await form(exchange(start.code)).expect(200);
+      const principal = await service.authenticateBearer(`Bearer ${issued.body.access_token}`);
+      const refreshed = await form({
+        grant_type: 'refresh_token',
+        refresh_token: issued.body.refresh_token,
+        client_id: 'test-client',
+        resource: `${api}/mcp`,
+      }).expect(200);
+      // Without the verifier the replay is indistinguishable from an unknown code and revokes nothing.
+      await form({ ...exchange(start.code), code_verifier: undefined }).expect(400, rejected);
+      await form(exchange('e'.repeat(64))).expect(400, rejected);
+      await service.authenticateBearer(`Bearer ${refreshed.body.access_token}`);
+      const replay = await form(exchange(start.code)).expect(400, rejected);
+      expect(replay.headers['cache-control']).toBe('no-store');
+      expect(
+        (await db.getRepository(McpOAuthGrant).findOneByOrFail({ id: principal.grantId })).revoked,
+      ).toBe(true);
+      await expect(
+        service.authenticateBearer(`Bearer ${refreshed.body.access_token}`),
+      ).rejects.toMatchObject({ status: 401 });
+      await form({
+        grant_type: 'refresh_token',
+        refresh_token: refreshed.body.refresh_token,
+        client_id: 'test-client',
+      }).expect(400, rejected);
+      await form(exchange(start.code)).expect(400, rejected);
     },
   );
 });

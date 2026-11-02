@@ -98,6 +98,10 @@ type TokenResponse = z.infer<typeof tokenResponseSchema>;
 export const MCP_REFRESH_ROTATION_CAP = 300;
 /** A rotated token may be re-rotated once within this window of its first use. */
 export const MCP_REFRESH_RETRY_WINDOW_MS = 30_000;
+/** Opportunistic cleanup deletes at most this many rows per table per run. */
+export const MCP_OAUTH_CLEANUP_BATCH = 500;
+/** Rows are deleted only once their deciding timestamp is older than this margin. */
+export const MCP_OAUTH_CLEANUP_GRACE_MS = 5 * 60_000;
 const revokeSchema = z
   .object({
     token: z.string().max(4096),
@@ -566,8 +570,15 @@ export class McpOAuthService {
       throw new OAuth2Server.InvalidClientError('Invalid client.');
     const model = this.baseModel(config);
     let exchange: { code: McpOAuthCode; grant: McpOAuthGrant } | undefined;
-    model.getAuthorizationCode = async raw =>
-      serializeMetadataWork(this.db, async () => {
+    model.getAuthorizationCode = async raw => {
+      const replayed = await serializeMetadataWork(this.db, () =>
+        this.db.manager.findOneBy(McpOAuthCode, { codeHash: hash(raw), consumed: true }),
+      );
+      if (replayed) {
+        await this.revokeReplayedCode(replayed, input);
+        return false;
+      }
+      return serializeMetadataWork(this.db, async () => {
         const code = await this.db.manager.findOneBy(McpOAuthCode, {
           codeHash: hash(raw),
           consumed: false,
@@ -595,6 +606,7 @@ export class McpOAuthService {
           user: { grantId: grant.id },
         };
       });
+    };
     // Commit consumption independently. Failed PKCE must never restore a usable code.
     model.revokeAuthorizationCode = async code =>
       sourceWriteTransaction(this.db, async manager => {
@@ -677,7 +689,114 @@ export class McpOAuthService {
         throw new OAuth2Server.InvalidGrantError('Invalid grant.');
       throw new OAuth2Server.ServerError('Token request failed.');
     }
-    return tokenResponseSchema.parse(response.body);
+    const issued = tokenResponseSchema.parse(response.body);
+    await this.cleanupExpired();
+    return issued;
+  }
+
+  /**
+   * A consumed code presented again (RFC 6749 §4.1.2, RFC 9700) revokes its grant, but only
+   * when the request also proves possession of the PKCE verifier for the same client and
+   * redirect_uri. A party holding only the code (for example from a log) could never have
+   * redeemed it, so revoking on its replay would add a denial of service and no protection.
+   */
+  private async revokeReplayedCode(code: McpOAuthCode, input: z.infer<typeof exchangeSchema>) {
+    const verifier = input.code_verifier;
+    if (
+      typeof verifier !== 'string' ||
+      !/^[A-Za-z0-9._~-]{43,128}$/.test(verifier) ||
+      code.codeChallengeMethod !== 'S256' ||
+      input.redirect_uri !== code.redirectUri ||
+      !same(createHash('sha256').update(verifier).digest('base64url'), code.codeChallenge)
+    )
+      return;
+    const log = await sourceWriteTransaction(this.db, async manager => {
+      // Grant row before the actor row, as in revoke; no grant validity check so it stays idempotent.
+      const grant = await manager.findOne(McpOAuthGrant, {
+        where: { id: code.grantId },
+        ...(this.db.options.type !== 'sqlite'
+          ? { lock: { mode: 'pessimistic_write' as const } }
+          : {}),
+      });
+      if (!grant || grant.clientId !== input.client_id) return null;
+      await manager.findOne(User, {
+        where: { id: grant.actorId },
+        ...(this.db.options.type !== 'sqlite'
+          ? { lock: { mode: 'pessimistic_write' as const } }
+          : {}),
+      });
+      const result = await manager.update(
+        McpOAuthGrant,
+        { id: grant.id, revoked: false },
+        { revoked: true },
+      );
+      return {
+        grantId: grant.id,
+        clientId: grant.clientId,
+        actorId: grant.actorId,
+        revoked: result.affected === 1,
+      };
+    });
+    if (log)
+      this.logger.warn(`MCP authorization code replay; grant revoked ${JSON.stringify(log)}`);
+  }
+
+  /**
+   * Bounded opportunistic cleanup after a token response committed, outside any grant lock.
+   * Grants are never deleted. Failures are logged and never fail the token response.
+   */
+  private async cleanupExpired() {
+    try {
+      await sourceWriteTransaction(this.db, async manager => {
+        const cut = new Date(Date.now() - MCP_OAUTH_CLEANUP_GRACE_MS);
+        const tokens = await manager.find(McpOAuthToken, {
+          select: { tokenHash: true },
+          where: { expiresAt: LessThanOrEqual(cut) },
+          take: MCP_OAUTH_CLEANUP_BATCH,
+        });
+        if (tokens.length)
+          await manager.delete(McpOAuthToken, {
+            tokenHash: In(tokens.map(row => row.tokenHash)),
+          });
+        // Rotated rows of a live grant are reuse evidence and stay until the grant ends.
+        const refreshes: { tokenHash: string }[] = await manager
+          .createQueryBuilder(McpOAuthRefresh, 'r')
+          .innerJoin(McpOAuthGrant, 'g', 'g.id = r.grantId')
+          .select('r.tokenHash', 'tokenHash')
+          .where(
+            'r.expiresAt <= :cut OR g.expiresAt <= :cut OR (g.revoked = :revoked AND r.issuedAt <= :cut)',
+            { cut, revoked: true },
+          )
+          .limit(MCP_OAUTH_CLEANUP_BATCH)
+          .getRawMany();
+        if (refreshes.length)
+          await manager.delete(McpOAuthRefresh, {
+            tokenHash: In(refreshes.map(row => row.tokenHash)),
+          });
+        // A consumed code stays while its grant lives so that a replay can still revoke it.
+        const codes: { codeHash: string }[] = await manager
+          .createQueryBuilder(McpOAuthCode, 'c')
+          .innerJoin(McpOAuthGrant, 'g', 'g.id = c.grantId')
+          .select('c.codeHash', 'codeHash')
+          .where('c.expiresAt <= :cut', { cut })
+          .andWhere('(c.consumed = :unused OR g.revoked = :revoked OR g.expiresAt <= :cut)', {
+            unused: false,
+            revoked: true,
+          })
+          .limit(MCP_OAUTH_CLEANUP_BATCH)
+          .getRawMany();
+        if (codes.length)
+          await manager.delete(McpOAuthCode, { codeHash: In(codes.map(row => row.codeHash)) });
+      });
+    } catch (error) {
+      const code = (error as { driverError?: { code?: unknown } })?.driverError?.code;
+      this.logger.error(
+        `MCP OAuth cleanup failed ${JSON.stringify({
+          error: (error as object)?.constructor?.name ?? typeof error,
+          code: typeof code === 'string' ? code : undefined,
+        })}`,
+      );
+    }
   }
 
   /**
@@ -838,7 +957,9 @@ export class McpOAuthService {
       this.logger.warn(
         `MCP refresh token re-rotated inside the retry window ${JSON.stringify(outcome.retried)}`,
       );
-    return tokenResponseSchema.parse(outcome.response);
+    const issued = tokenResponseSchema.parse(outcome.response);
+    await this.cleanupExpired();
+    return issued;
   }
 
   async disconnect(actor: McpOAuthActor, id: string, body: unknown) {
