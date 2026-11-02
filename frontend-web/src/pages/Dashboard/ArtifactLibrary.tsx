@@ -1,15 +1,17 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { FileText, File, FileType2, LayoutDashboard, Presentation, Sheet } from 'lucide-react';
+import { FileText, File, FileType2, LayoutDashboard, Presentation, RotateCw, Sheet } from 'lucide-react';
 import { artifactListNavigation } from '@/helpers/artifactNavigation';
 import BoardItem from '@/components/BoardItem';
 import { ReportLibraryItem } from '../Reports/reportSharingApi';
-import { DocumentSummary } from '@/api/documentService';
+import { DocumentProvider, DocumentSummary } from '@/api/documentService';
 import { FileArtifactSummary } from '@/api/fileArtifactService';
 import { TextField } from '@/components/ui/text-field';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
+import { AnalysisChoice, analysisModeGroupClassName } from '@/components/analysis/AnalysisUi';
+import { cn } from '@/lib/utils';
 import { LibraryView } from '@/api/personalLibraryService';
 import type { ReceivedDashboard } from '@/api/deliveryService';
 
@@ -32,6 +34,11 @@ type Row =
   | { kind: 'google'; item: DocumentSummary }
   | { kind: 'file'; item: FileArtifactSummary };
 type Kind = 'all' | 'analysis' | 'dashboard' | 'report' | 'google' | 'file';
+
+const documentLabelKey: Record<DocumentProvider, string> = {
+  google: 'docConnection.provider_google',
+  microsoft: 'docConnection.provider_microsoft',
+};
 
 const iconFor = (row: Row) =>
   row.kind === 'delivery'
@@ -71,6 +78,7 @@ export default function ArtifactLibrary({
   archiveDisabled = false,
   archiveError = '',
   busy = false,
+  scopeControl,
 }: {
   items: Artifact[];
   reports?: ReportLibraryItem[];
@@ -93,10 +101,10 @@ export default function ArtifactLibrary({
   archiveDisabled?: boolean;
   archiveError?: string;
   busy?: boolean;
+  scopeControl?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const navigation = artifactListNavigation(useLocation());
-  const reportHref = navigation.link('/reports');
   const [params, setParams] = useSearchParams();
   const searchRef = useRef<HTMLInputElement>(null);
   const query = (params.get('artifactQuery') ?? '').slice(0, 200);
@@ -153,61 +161,53 @@ export default function ArtifactLibrary({
   const boundary = reportBoundary;
   return (
     <section className="min-w-0 w-full" aria-labelledby="artifact-library-heading">
-      <Link className="mb-4 inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium" to={reportHref}>
-        {t('artifact.privateReports')}
-      </Link>
-      <h2 id="artifact-library-heading" className="text-xl font-semibold tracking-tight">
-        {t('artifact.heading')}
+      <h2 id="artifact-library-heading" className="sr-only">
+        {t(scope === 'shared' ? 'artifact.sharedWithMe' : 'artifact.heading')}
       </h2>
-      <p className="mb-6 mt-2 text-sm text-muted-foreground">{t('artifact.description')}</p>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-3">
+        {scopeControl}
         {onViewChange && (
-          <div className="flex min-w-0 flex-wrap gap-2" role="group" aria-label={t('artifact.viewsLabel')}>
-            <Button
-              size="lg"
-              variant={view === 'active' ? 'default' : 'outline'}
-              aria-pressed={view === 'active'}
-              disabled={busy}
-              onClick={() => onViewChange('active')}
-            >
-              {t('artifact.active')}
-            </Button>
-            <Button
-              size="lg"
-              variant={view === 'archived' ? 'default' : 'outline'}
-              aria-pressed={view === 'archived'}
-              disabled={busy}
-              onClick={() => onViewChange('archived')}
-            >
-              {t('artifact.archived')}
-            </Button>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div role="group" aria-label={t('artifact.viewsLabel')} className={analysisModeGroupClassName}>
+              <AnalysisChoice
+                label={t('artifact.active')}
+                selected={view === 'active'}
+                disabled={busy}
+                onClick={() => onViewChange('active')}
+                className="border-0"
+              />
+              <AnalysisChoice
+                label={t('artifact.archived')}
+                selected={view === 'archived'}
+                disabled={busy}
+                onClick={() => onViewChange('archived')}
+                className="border-0"
+              />
+            </div>
             {onReload && (
-              <Button size="lg" variant="ghost" disabled={busy || loading} onClick={onReload}>
+              <Button size="sm" variant="ghost" disabled={busy || loading} onClick={onReload}>
+                <RotateCw />
                 {t('artifact.reload')}
               </Button>
             )}
           </div>
         )}
-        <div className="ml-auto flex gap-2" role="group" aria-label={t('artifact.displayLabel')}>
-          <Button
-            size="lg"
-            variant={display === 'list' ? 'default' : 'outline'}
-            aria-pressed={display === 'list'}
+        <div role="group" aria-label={t('artifact.displayLabel')} className={cn(analysisModeGroupClassName, 'ml-auto')}>
+          <AnalysisChoice
+            label={t('artifact.list')}
+            selected={display === 'list'}
             onClick={() => update({ artifactDisplay: '' })}
-          >
-            {t('artifact.list')}
-          </Button>
-          <Button
-            size="lg"
-            variant={display === 'grid' ? 'default' : 'outline'}
-            aria-pressed={display === 'grid'}
+            className="border-0"
+          />
+          <AnalysisChoice
+            label={t('artifact.grid')}
+            selected={display === 'grid'}
             onClick={() => update({ artifactDisplay: 'grid' })}
-          >
-            {t('artifact.grid')}
-          </Button>
+            className="border-0"
+          />
         </div>
       </div>
-      {onViewChange && <p className="mb-3 break-words text-sm text-muted-foreground">{t('artifact.archiveHelp')}</p>}
+      {onViewChange && <p className="mb-3 break-words text-xs text-muted-foreground">{t('artifact.archiveHelp')}</p>}
       {listError && <Notice severity="error">{t('artifact.loadFailed')}</Notice>}
       {supplementaryError && <Notice severity="warning">{supplementaryError}</Notice>}
       {archiveError && <Notice severity="error">{archiveError}</Notice>}
@@ -221,7 +221,7 @@ export default function ArtifactLibrary({
           {t('artifact.busy')}
         </p>
       )}
-      <div className="grid min-w-0 grid-cols-1 items-end gap-4 rounded-xl border border-border bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_12rem_auto] [&_input]:h-10 [&_select]:h-10 [&_input]:text-base [&_select]:text-base">
+      <div className="grid min-w-0 grid-cols-1 items-end gap-4 rounded-xl border border-border bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_12rem_auto]">
         <TextField
           ref={searchRef}
           type="search"
@@ -254,7 +254,6 @@ export default function ArtifactLibrary({
           <option value="title">{t('artifact.name')}</option>
         </TextField>
         <Button
-          size="lg"
           variant="outline"
           className="justify-self-start"
           onClick={reset}
@@ -346,7 +345,7 @@ function ArtifactRow({
       />
     );
   const Icon = iconFor(row);
-  const kindLabel = t(`artifact.${row.kind}`);
+  const kindLabel = t(row.kind === 'google' ? documentLabelKey[row.item.provider] : `artifact.${row.kind}`);
   const href =
     row.kind === 'delivery'
       ? `/dashboard/${row.item.dashboardId}`
@@ -381,7 +380,7 @@ function ArtifactRow({
     <li
       className={
         display === 'grid'
-          ? 'flex min-w-0 flex-col items-start gap-4 rounded-xl border border-border bg-card p-6'
+          ? 'flex min-w-0 flex-col items-start gap-2 rounded-xl border border-border bg-card p-4'
           : 'flex min-w-0 flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-5'
       }
     >
@@ -393,15 +392,14 @@ function ArtifactRow({
         to={navigationLink(href)}
       >
         {display === 'grid' && (
-          <span className="flex min-h-[190px] w-full flex-col justify-between rounded-lg bg-muted p-4">
-            <span className="text-xs text-muted-foreground">
-              {kindLabel} · {detail}
-            </span>
+          <span className="flex h-32 w-full items-center justify-center rounded-lg bg-muted">
             <Icon aria-hidden="true" className="size-9 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{ownership}</span>
           </span>
         )}
-        <span className={display === 'grid' ? 'min-h-14 text-lg leading-relaxed [word-break:keep-all]' : ''}>
+        <span
+          title={display === 'grid' ? row.item.title : undefined}
+          className={display === 'grid' ? 'line-clamp-2 text-base leading-snug [word-break:keep-all]' : ''}
+        >
           {row.item.title}
         </span>
       </Link>

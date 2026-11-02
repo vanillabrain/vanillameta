@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fileArtifactService } from '@/api/fileArtifactService';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { artifactListNavigation } from '@/helpers/artifactNavigation';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { useDocumentScope } from '../Documents/shared';
@@ -38,34 +39,46 @@ function OwnerFile({ id, scope }: { id: string; scope: string | null }) {
   const selected = artifact?.versions.find(item => item.version === version);
   return (
     <main className="mx-auto flex w-full min-w-0 max-w-[1280px] flex-col gap-6 p-4 sm:p-8 lg:p-12">
-      <Button asChild variant="ghost" className="h-10 self-start">
-        <Link to={navigation.listHref}>{t('nav.artifacts')}</Link>
+      <Button asChild variant="ghost" className="-ml-3 h-10 self-start">
+        <Link to={navigation.listHref}>
+          <ArrowLeft />
+          {t('nav.artifacts')}
+        </Link>
       </Button>
-      <h1 className="break-words text-2xl font-semibold">{artifact?.title ?? t('fileArtifact.detail')}</h1>
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+        <div className="flex min-w-0 flex-col gap-2">
+          <h1 className="break-words text-2xl font-semibold">{artifact?.title ?? t('fileArtifact.detail')}</h1>
+          {artifact && (
+            <p className="break-words text-sm text-muted-foreground">
+              {artifact.kind.toUpperCase()} · {artifact.size.toLocaleString()} {t('fileArtifact.bytes')} ·{' '}
+              {t('fileArtifact.version', { version: artifact.headVersion })} ·{' '}
+              {new Date(artifact.updatedAt).toLocaleString()} ·{' '}
+              {t(artifact.shareActive ? 'fileArtifact.shared' : 'fileArtifact.private')}
+            </p>
+          )}
+        </div>
+        <div className="flex min-w-0 flex-wrap gap-2">
+          <Button variant="outline" className="h-10" disabled={query.isFetching || !scope} onClick={reload}>
+            {t('fileArtifact.reload')}
+          </Button>
+          {artifact && (
+            <>
+              <FileUploadDialog artifact={artifact} onSaved={reload} />
+              <FileArtifactActions artifact={artifact} onChanged={reload} onDeleted={() => navigate(navigation.listHref)} />
+            </>
+          )}
+        </div>
+      </div>
       {query.isFetching && <p role="status">{t('fileArtifact.loading')}</p>}
       {(query.isError || !scope) && <p role="alert">{t('fileArtifact.loadError')}</p>}
-      <div>
-        <Button variant="outline" className="h-10" disabled={query.isFetching || !scope} onClick={reload}>
-          {t('fileArtifact.reload')}
-        </Button>
-      </div>
       {artifact && (
         <>
-          <p className="break-words text-sm text-muted-foreground">
-            {artifact.kind.toUpperCase()} · {artifact.size.toLocaleString()} {t('fileArtifact.bytes')} ·{' '}
-            {t('fileArtifact.version', { version: artifact.headVersion })} · {new Date(artifact.updatedAt).toLocaleString()}
-          </p>
-          <p className="text-sm">{t(artifact.shareActive ? 'fileArtifact.shared' : 'fileArtifact.private')}</p>
-          <div className="flex min-w-0 flex-wrap gap-2">
-            <FileUploadDialog artifact={artifact} onSaved={reload} />
-            <FileArtifactActions artifact={artifact} onChanged={reload} onDeleted={() => navigate(navigation.listHref)} />
-          </div>
           <TextField
             select
             label={t('fileArtifact.versions')}
             value={version}
             onChange={event => setSelectedVersion(Number(event.target.value))}
-            className="max-w-full sm:max-w-md [&_select]:h-10 [&_select]:text-base"
+            className="max-w-full sm:max-w-md"
           >
             {artifact.versions.map(item => (
               <option key={item.version} value={item.version}>

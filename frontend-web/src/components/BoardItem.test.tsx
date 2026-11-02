@@ -149,5 +149,5 @@ it('offers separate view, Studio and archive controls in the grid without invent
   expect(archive).toHaveBeenCalledOnce();
   fireEvent.click(screen.getByRole('button', { name: '실제 저장된 분석 · 삭제' }));
   expect(remove).toHaveBeenCalledWith(45, '실제 저장된 분석');
-  expect(screen.getByText('열어서 저장된 시각화를 확인하세요')).toBeTruthy();
+  expect(screen.getByText(/분석 산출물 · 최근 수정 ·/)).toBeTruthy();
 });

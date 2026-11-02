@@ -1355,7 +1355,6 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
     sourceMeta: '정의 ' + Object.keys(definitions.entries).length + '개 · Studio 문서',
     period: studioDateRangeSummary(state.present.dateRange),
     blockCount: state.present.blocks.length,
-    canvasTitle: state.present.title,
     canvasDescription: canEdit
       ? '블록을 옮기고 수치를 확인한 뒤 저장하세요. 저장 전에는 서버에 반영되지 않습니다.'
       : '열람 권한으로 보고 있습니다. 블록 변경과 저장은 편집 권한이 필요합니다.',
@@ -1441,9 +1440,19 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
             목록 ↗
           </a>
         </Button>
-        <Button variant="ghost" size="sm" asChild>
+        <Button variant="outline" size="sm" asChild>
           <RouterLink to={artifactLink('/dashboard/' + dashboardId)}>기존 보기</RouterLink>
         </Button>
+        {owned && canEdit && (
+          <Button variant="outline" size="sm" asChild>
+            <a
+              href={artifactLink(`/reports/new?dashboardId=${dashboardId}`)}
+              title="마지막 저장본의 숫자로 비공개 보고서를 작성합니다. 미저장 변경은 포함되지 않습니다."
+            >
+              비공개 보고서 작성
+            </a>
+          </Button>
+        )}
         {owned && (
           <Button variant="outline" size="sm" asChild>
             <a
@@ -1507,6 +1516,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         <label>
           블록 추가
           <NativeSelect
+            size="sm"
             aria-label="추가할 블록 정의"
             disabled={state.present.blocks.length >= MAX_STUDIO_BLOCKS}
             value=""
@@ -1527,14 +1537,15 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
         </span>
         {selected && geometry && (
           <div className="studio-placement" role="group" aria-label="선택 블록 배치">
-            <Button variant="ghost" disabled={selectedOrder <= 0} onClick={() => reorder(-1)}>
+            <Button variant="ghost" size="sm" disabled={selectedOrder <= 0} onClick={() => reorder(-1)}>
               앞으로
             </Button>
-            <Button variant="ghost" disabled={selectedOrder >= ordered.length - 1} onClick={() => reorder(1)}>
+            <Button variant="ghost" size="sm" disabled={selectedOrder >= ordered.length - 1} onClick={() => reorder(1)}>
               뒤로
             </Button>
             <Button
               variant="ghost"
+              size="sm"
               onClick={() =>
                 operation({
                   type: 'resizeBlock',
@@ -1561,6 +1572,7 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
             </Button>
             <Button
               variant="ghost"
+              size="sm"
               onClick={() =>
                 operation({
                   type: 'resizeBlock',
@@ -1585,16 +1597,6 @@ function StudioWorkspace({ dashboardId, initial, onReplace, onCheckSave, storage
 
   return (
     <>
-      {owned && canEdit && (
-        <div className="flex justify-end border-b bg-background px-6 py-2">
-          <a
-            className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium"
-            href={artifactLink(`/reports/new?dashboardId=${dashboardId}`)}
-          >
-            마지막 저장본으로 비공개 보고서 작성
-          </a>
-        </div>
-      )}
       <StudioShell
         document={documentForShell}
         stage="result"

@@ -5,6 +5,7 @@ import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
 import { dateData } from '@/utils/util';
 import { cn } from '@/lib/utils';
+import { LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { artifactListNavigation } from '@/helpers/artifactNavigation';
 
@@ -25,8 +26,16 @@ interface BoardItemProps {
   display?: 'list' | 'grid';
 }
 
-const TitleSpan = ({ children, className = '' }) => (
-  <span className={cn('block w-full truncate text-sm leading-tight font-semibold text-foreground', className)}>
+const TitleSpan = ({
+  children,
+  className = '',
+  title,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  title?: string;
+}) => (
+  <span title={title} className={cn('block w-full truncate text-sm leading-tight font-semibold text-foreground', className)}>
     {children}
   </span>
 );
@@ -55,7 +64,7 @@ function BoardItem(props: BoardItemProps) {
     <li
       className={cn(
         grid
-          ? 'flex min-w-0 flex-col items-start gap-4 rounded-xl border border-border bg-card p-6'
+          ? 'flex min-w-0 flex-col items-start gap-2 rounded-xl border border-border bg-card p-4'
           : 'flex items-center gap-3 border-b border-border px-4 py-4 last:border-b-0 sm:px-5',
         !grid && archiveAction && 'flex-wrap',
       )}
@@ -63,30 +72,29 @@ function BoardItem(props: BoardItemProps) {
       <RouterLink
         className={cn(
           'min-h-8 min-w-0 rounded-md',
-          grid ? 'flex w-full flex-col items-start gap-4' : 'flex flex-1 flex-row items-center justify-between gap-3',
+          grid ? 'flex w-full flex-col items-start gap-2' : 'flex flex-1 flex-row items-center justify-between gap-3',
         )}
         to={artifactLink(String(id))}
         state={{ from: pathname + location.search }}
         aria-label={grid ? title + ' · ' + t('artifact.view') : undefined}
       >
         {grid && (
-          <span className="flex min-h-[190px] w-full flex-col justify-between rounded-lg bg-muted p-4 text-foreground">
-            <span className="text-xs font-medium text-muted-foreground">
-              {t(studioHref ? 'artifact.analysis' : 'artifact.dashboard')}
-            </span>
-            <span className="text-base font-medium leading-relaxed">{t('artifact.previewTitle')}</span>
-            <span className="text-xs text-muted-foreground">{t('artifact.previewHint')}</span>
+          <span className="flex h-32 w-full items-center justify-center rounded-lg bg-muted">
+            <LayoutDashboard aria-hidden="true" className="size-9 text-muted-foreground" />
           </span>
         )}
-        <span className={cn('flex min-w-0 flex-row items-center', grid ? 'min-h-14 w-full items-start' : 'flex-1')}>
+        <span className={cn('flex min-w-0 flex-row items-center', grid ? 'w-full items-start' : 'flex-1')}>
           {componentType && <IconRowHeader icon={icon} />}
-          <TitleSpan className={grid ? 'line-clamp-2 whitespace-normal break-words text-lg leading-relaxed' : 'sm:truncate'}>
+          <TitleSpan
+            title={grid ? title : undefined}
+            className={grid ? 'line-clamp-2 whitespace-normal break-words text-base leading-snug' : 'sm:truncate'}
+          >
             {title}
           </TitleSpan>
         </span>
         <span className="flex shrink-0 flex-row items-center">
           <SubTitleSpan className="text-muted-foreground">
-            {grid && t('artifact.modified') + ' · '}
+            {grid && `${t(studioHref ? 'artifact.analysis' : 'artifact.dashboard')} · ${t('artifact.modified')} · `}
             {dateData(updatedAt)}
           </SubTitleSpan>
         </span>

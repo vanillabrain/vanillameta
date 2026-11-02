@@ -14,6 +14,7 @@ const sourceUrl = z
   });
 const summarySchema = z.object({
   role: z.enum(['owner', 'recipient']).default('owner'),
+  provider: z.enum(['google', 'microsoft']).default('google'),
   id: uuid,
   title: z.string(),
   sourceUrl,
@@ -48,6 +49,7 @@ const requestSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('completed'), result: resultSchema }),
 ]);
 export type DocumentSummary = z.infer<typeof summarySchema>;
+export type DocumentProvider = DocumentSummary['provider'];
 export type DocumentDetail = z.infer<typeof detailSchema>;
 export type DocumentSnapshot = z.infer<typeof snapshotSchema>;
 export type DocumentList = z.infer<typeof listSchema>;
