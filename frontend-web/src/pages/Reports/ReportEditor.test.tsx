@@ -16,6 +16,11 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock('@/api/personalLibraryService', () => ({ personalLibrarySessionScope: () => api.scope }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
+// Comment loading is covered in ReportComments.test.tsx; keep it off this file's GET sequence.
+vi.mock('./reportCommentApi', async importOriginal => {
+  const actual = await importOriginal<typeof import('./reportCommentApi')>();
+  return { ...actual, reportCommentApi: { ...actual.reportCommentApi, list: () => new Promise(() => undefined) } };
+});
 vi.mock('@/helpers/editorDraftStorage', () => ({ editorDraftKey: api.key }));
 vi.mock('@/helpers/authHelper', () => ({ getToken: () => 'session' }));
 vi.mock('../Dashboard/Studio/PublishedBlockView', () => ({
@@ -193,7 +198,7 @@ it('preserves artifact return context in list and Studio navigation', async () =
   const context = { version: 1, query: '매출', kind: 'analysis', sort: 'title', display: 'grid', view: 'active' };
   show('/reports/new?dashboardId=2&artifactReturn=' + encodeURIComponent(JSON.stringify(context)));
   await waitFor(() => expect((screen.getByLabelText('보고서 제목') as HTMLInputElement).value).toBe('Sales 보고서'));
-  expect(screen.getByRole('link', { name: 'Artifact 허브' }).getAttribute('href')).toContain('artifactQuery=');
+  expect(screen.getByRole('link', { name: '아티팩트' }).getAttribute('href')).toContain('artifactQuery=');
   expect(screen.getByRole('link', { name: '비공개 보고서 목록' }).getAttribute('href')).toContain('artifactReturn=');
 });
 it('rejects tampered persisted commands and enforces TTL and byte bounds', () => {

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { artifactListNavigation } from '@/helpers/artifactNavigation';
-import { PublishedBlockView } from '../Dashboard/Studio/PublishedBlockView';
-import { reportSharingApi, readerBlocks } from './reportSharingApi';
+import { reportSharingApi } from './reportSharingApi';
+import { ReaderDocument } from './ReportComments';
 import { useProtectedReport } from './useProtectedReport';
 import ReportShares from './ReportShares';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
@@ -14,13 +14,20 @@ export default function ReportReader() {
 }
 function Reader({ id }: { id: string }) {
   const navigation = artifactListNavigation(useLocation());
-  const { state, retained, boundary, reload } = useProtectedReport(signal => reportSharingApi.reader(id, signal));
+  const { state, retained, boundary, reload, current } = useProtectedReport(signal => reportSharingApi.reader(id, signal));
   const [manage, setManage] = useState(false);
+  const commentReload = useRef(false);
+  // Re-check access once when comments are denied; a repeat stays as the panel's error, not a loop.
+  const commentAccessLost = () => {
+    if (commentReload.current) return;
+    commentReload.current = true;
+    reload();
+  };
   const sessionScope = personalLibrarySessionScope() ?? '';
   return (
     <main className="private-reports bg-background text-foreground">
       <nav className="report-toolbar">
-        <Link to={navigation.listHref}>Artifact 허브로 돌아가기</Link>
+        <Link to={navigation.listHref}>아티팩트로 돌아가기</Link>
         <Button className="h-10" variant="outline" onClick={reload}>
           보고서 다시 읽기
         </Button>
@@ -74,36 +81,13 @@ function Reader({ id }: { id: string }) {
             <p className="mb-6 text-sm text-muted-foreground">
               저장 당시의 본문과 집계입니다. 이후 편집은 자동 전달되지 않으며 원본 데이터 접근권은 포함하지 않습니다.
             </p>
-            <div className="report-editor-grid">
-              <div className="report-document">
-                <article
-                  aria-label="보고서 본문"
-                  className="whitespace-pre-wrap break-words rounded-xl border bg-card p-6 text-base leading-8"
-                >
-                  {state.data.body}
-                </article>
-                {state.data.documentBlocks
-                  .filter(block => block.kind === 'IMAGE')
-                  .map(block => (
-                    <figure
-                      key={block.id}
-                      className={
-                        block.width === 'half' ? 'report-document-image report-document-image-half' : 'report-document-image'
-                      }
-                    >
-                      <img src={block.dataUrl} alt={block.alt} />
-                      {block.alt && <figcaption>{block.alt}</figcaption>}
-                    </figure>
-                  ))}
-              </div>
-              <div className="report-results">
-                {readerBlocks(state.data).map(block => (
-                  <section key={block.id} className="report-frozen-block rounded-xl border bg-card">
-                    <PublishedBlockView block={block} />
-                  </section>
-                ))}
-              </div>
-            </div>
+            <ReaderDocument
+              key={state.generation}
+              id={id}
+              data={state.data}
+              live={() => current(state.generation, state.scope)}
+              onAccessFailure={commentAccessLost}
+            />
           </>
         )}
       </div>

@@ -26,8 +26,20 @@
   min-height: 40px;
   display: inline-flex;
   align-items: center;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.report-toolbar a:hover {
+  color: var(--foreground);
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+.report-toolbar a:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 .report-heading {
   display: flex;
@@ -52,8 +64,6 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: sticky;
-  top: 24px;
 }
 .report-writing label,
 .report-selectors label {
@@ -68,7 +78,7 @@
 }
 .report-body {
   width: 100%;
-  min-height: 500px;
+  min-height: 280px;
   resize: vertical;
   padding: 16px;
   line-height: 1.85;
@@ -172,7 +182,7 @@
 }
 
 .report-images {
-  margin-top: 20px;
+  margin-top: 4px;
   display: grid;
   gap: 10px;
 }
@@ -221,16 +231,15 @@
 }
 .report-assist,
 .report-versions {
-  margin-top: 16px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 16px;
-  background: var(--card);
+  margin-top: 0;
+  border-top: 1px solid var(--border);
+  padding: 16px 0 0;
 }
 .report-assist summary,
 .report-versions summary {
   cursor: pointer;
   font-weight: 600;
+  min-height: 32px;
 }
 .report-suggestion {
   margin-top: 12px;
@@ -284,6 +293,184 @@
   margin-top: 8px;
   font-size: 13px;
   color: var(--muted-foreground);
+}
+.report-reader-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.report-reader-text {
+  overflow-wrap: anywhere;
+}
+.report-comment-mark {
+  background: color-mix(in oklch, var(--primary) 18%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.report-comment-mark[data-active] {
+  background: color-mix(in oklch, var(--primary) 34%, transparent);
+}
+.report-selection-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--muted);
+  font-size: 14px;
+  min-width: 0;
+}
+.report-comments {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  min-width: 0;
+  font-size: 14px;
+}
+.report-comments-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.private-reports .report-comments-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.report-comment-threads,
+.report-comment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.report-comment-thread {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  min-width: 0;
+}
+.report-comment-thread[data-active] {
+  border-color: var(--ring);
+}
+.report-comment-target {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.report-comment-target:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.report-comment-anchor,
+.report-comment-quote {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.report-comment-flag {
+  font-size: 12px;
+  color: var(--destructive);
+}
+.report-comment-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+.report-comment-body {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.report-comment-suggestion {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--muted);
+  min-width: 0;
+}
+.report-comment-diff {
+  display: grid;
+  gap: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.report-comment-diff del {
+  color: var(--muted-foreground);
+}
+.report-comment-diff ins {
+  text-decoration: none;
+  font-weight: 600;
+}
+.report-comment-diff p {
+  margin: 0;
+  font-size: 12px;
+}
+.report-comment-composer {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.report-comment-composer label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.report-comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.report-comment-new {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--ring);
+  border-radius: 8px;
+}
+.report-comments-review {
+  margin-top: 0;
+  border-top: 1px solid var(--border);
+  padding: 16px 0 0;
+  display: grid;
+  gap: 12px;
+}
+.report-comments-review summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 32px;
+}
+@media (min-width: 1200px) {
+  .report-reader-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  }
+  .report-comments {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
 }
 @media (max-width: 640px) {
   .private-reports {

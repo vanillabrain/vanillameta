@@ -9,6 +9,11 @@ import { readSharePending, sharePendingKey, storeSharePending } from './reportSh
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), scope: 'A' }));
 vi.mock('@/api/personalLibraryService', () => ({ personalLibrarySessionScope: () => api.scope }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
+// Comment loading is covered in ReportComments.test.tsx; keep it off this file's GET sequence.
+vi.mock('./reportCommentApi', async importOriginal => {
+  const actual = await importOriginal<typeof import('./reportCommentApi')>();
+  return { ...actual, reportCommentApi: { ...actual.reportCommentApi, list: () => new Promise(() => undefined) } };
+});
 vi.mock('../Dashboard/Studio/PublishedBlockView', () => ({
   PublishedBlockView: ({ block }: { block: { title: string; datas: unknown; display: { suffix?: string } } }) => (
     <section>
@@ -325,6 +330,27 @@ it('clears the previous session search workspace on storage changes', async () =
   const next = await screen.findByRole('textbox', { name: '같은 조직 직원 검색' });
   expect(next).not.toBe(input);
   expect((next as HTMLInputElement).value).toBe('');
+});
+it('labels a share made through a connected AI and rejects an unknown sharer kind', async () => {
+  const base = shares();
+  const aiShares = {
+    ...base,
+    items: [
+      { ...base.items[0], sharedBy: { kind: 'ai', clientName: 'Claude Desktop' } },
+      { ...base.items[0], recipientId: 9, userId: '다른 동료' },
+    ],
+  };
+  api.get.mockResolvedValue({ data: aiShares });
+  const view = showShares();
+  expect(await screen.findByText(/Claude가 공유함 · Claude Desktop/)).toBeTruthy();
+  expect(screen.getAllByText(/Claude가 공유함/)).toHaveLength(1);
+  view.unmount();
+  api.get.mockResolvedValue({
+    data: { ...base, items: [{ ...base.items[0], sharedBy: { kind: 'user', clientName: 'x' } }] },
+  });
+  showShares();
+  expect(await screen.findByRole('alert')).toBeTruthy();
+  expect(screen.queryByText(/Claude가 공유함/)).toBeNull();
 });
 it('preserves the owner sharing shell while both reader and recipient authority refresh', async () => {
   api.get.mockImplementation(async (url: string) => ({
