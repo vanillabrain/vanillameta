@@ -1,4 +1,6 @@
-# MCP 원격 제작(HTTP) 구현과 검증
+# MCP 원격 제작(HTTP) 구현과 검증 (폐기)
+
+> **2026-11-02 폐기.** `mcp-server`의 HTTP 모드(`src/http.js`, `src/index-http.js`, `test/http.test.js`, `start:http`)를 제거했다. 이 모드는 요청의 Bearer 사용자 토큰을 그대로 API에 전달하도록 설계되어, 클라이언트가 6시간·범위 없는 VanillaMeta 로그인 JWT를 외부 AI에 넘겨야 했다. 이는 [원격 OAuth 계획](../plans/remote-ai-oauth.md)의 "VM 로그인 JWT를 외부 AI에 반환하지 않는다"와 충돌한다. 원격 사용은 백엔드 `/v1/mcp`의 OAuth 승인만 쓴다([운영 설정](../operations/remote-ai-oauth.md)). `mcp-server`는 로컬 stdio 전용이다. 아래 2026-10-31 기록은 이력으로만 남기며 이 노트가 대체한다.
 
 2026-10-31. 기준 브랜치 `develop`. 이번 단위는 같은 6개 도구를 원격 HTTP로 제공하고, 저장 승인 경계가 원격에서도 유지되는지 확인하는 작업이다.
 
@@ -33,8 +35,4 @@ stdio 쪽은 실제 MCP 클라이언트 SDK로 자식 프로세스를 띄워 ini
 
 ## 다음 확인
 
-1. QA supervisor를 띄운 환경에서 `npm --prefix mcp-server run start:http`를 실행하고 `curl /health`와 `POST /mcp` initialize를 확인한다.
-2. `node mcp-server/scripts/verify-codex-host.js <owned-evidence>`로 실제 호스트의 미리보기·별도 승인 저장·DB 0→1과 API 재조회를 확인한다.
-3. 같은 토큰으로 저장을 두 번 보내 같은 `requestId`가 replay로 처리되고 새 행이 생기지 않는지 확인한다.
-4. 토큰 없이/만료 토큰으로 401이 유지되는지 실제 소켓에서 확인한다.
-
+폐기되어 해당 없음. 보고서 댓글·제안·공유 원격 MCP는 [보고서 협업 검증](report-comments-collaboration.md)을, 원격 연결은 [원격 OAuth 검증](remote-ai-oauth.md)과 [실제 Codex 검증](remote-oauth-codex.md)을 따른다. stdio 호스트 여정은 `node mcp-server/scripts/verify-codex-host.js <owned-evidence>`로 확인한다.
