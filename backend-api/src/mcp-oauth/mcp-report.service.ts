@@ -15,7 +15,12 @@ import {
   textAnchorAt,
   textAnchorProblem,
 } from '../reports/report-anchor';
-import { CommentOperation, ReportTextAnchor } from '../reports/report-comment-contract';
+import {
+  COMMENT_LIMITS,
+  CommentOperation,
+  CommentWriteResult,
+  ReportTextAnchor,
+} from '../reports/report-comment-contract';
 import {
   CommentWriteOptions,
   ReportCommentService,
@@ -30,11 +35,84 @@ import { McpOAuthPrincipal, McpOAuthService } from './mcp-oauth.service';
 export const REPORT_PAGE_UNITS = 20000;
 const COMMENT_PAGE_BYTES = 192 * 1024;
 
+/** A text range by UTF-16 offsets or by an exact quote (occurrence is 1-based). */
+export type McpTextTarget = { start?: number; end?: number; quote?: string; occurrence?: number };
 export type McpAnchorInput =
   | { kind: 'whole' }
-  | { kind: 'text'; start: number; end: number }
+  | ({ kind: 'text' } & McpTextTarget)
   | { kind: 'image'; blockId: string };
 type Range = { start: number; end: number };
+type Target = Range | { quote: string; occurrence?: number };
+const SEPARATOR = '\n\n';
+
+function textTarget(input: McpTextTarget): Target {
+  const { start, end, quote, occurrence } = input;
+  const byRange = start !== undefined || end !== undefined;
+  if (byRange === (quote !== undefined || occurrence !== undefined))
+    throw new BadRequestException(
+      'Give either quote (with optional occurrence) or start and end, not both.',
+    );
+  if (byRange) {
+    if (start === undefined || end === undefined)
+      throw new BadRequestException('start and end are both required for an offset range.');
+    return { start, end };
+  }
+  if (!quote) throw new BadRequestException('occurrence needs a quote.');
+  return occurrence === undefined ? { quote } : { quote, occurrence };
+}
+
+/** More matches than this are not counted: the message says "100+" and asks for an occurrence. */
+const QUOTE_MATCH_CAP = 100;
+
+/**
+ * The range of the chosen exact match; a match that would split a surrogate pair is skipped. The
+ * scan ends at the requested occurrence, or past QUOTE_MATCH_CAP matches when none is requested,
+ * so a repetitive document cannot make one call scan and count every match.
+ */
+export function quoteRange(text: string, version: number, quote: string, occurrence?: number) {
+  const limit = occurrence ?? QUOTE_MATCH_CAP + 1;
+  let count = 0;
+  let chosen = -1;
+  let at = text.indexOf(quote);
+  while (at !== -1 && count < limit) {
+    if (!splitsSurrogate(text, at) && !splitsSurrogate(text, at + quote.length)) {
+      count += 1;
+      chosen = at;
+    }
+    if (count < limit) at = text.indexOf(quote, at + 1);
+  }
+  if (!count)
+    throw new BadRequestException(
+      `quote is not in version ${version}. Copy it exactly (case, spaces, line breaks) from vm_read_report.`,
+    );
+  if (occurrence === undefined && count > 1)
+    throw new BadRequestException(
+      count > QUOTE_MATCH_CAP
+        ? 'quote matches 100+ places. Pass occurrence (document order) or quote more text.'
+        : `quote matches ${count} places. Pass occurrence 1-${count} (document order) or quote more text.`,
+    );
+  if (occurrence !== undefined && count < occurrence)
+    throw new BadRequestException(
+      `occurrence ${occurrence} is out of range: quote matches ${count} place(s).`,
+    );
+  return { start: chosen, end: chosen + quote.length };
+}
+
+/**
+ * Deleting a whole paragraph also deletes one adjacent blank-line separator (the following one,
+ * else the preceding one), so no empty paragraph is left. Unchanged when that would exceed the
+ * quote limit.
+ */
+export function widenParagraphDeletion(text: string, range: Range): Range {
+  const { start, end } = range;
+  const whole =
+    (start === 0 || text.slice(start - 2, start) === SEPARATOR) &&
+    (end === text.length || text.slice(end, end + 2) === SEPARATOR);
+  if (!whole || end - start + SEPARATOR.length > COMMENT_LIMITS.quote) return range;
+  if (end < text.length) return { start, end: end + SEPARATOR.length };
+  if (start > 0) return { start: start - SEPARATOR.length, end };
+  return range;
+}
 type ShareOutcome = {
   recipientUserId: string;
   outcome: 'shared' | 'replayed' | 'failed' | 'notAttempted';
@@ -85,24 +163,49 @@ export class McpReportService {
     };
   }
 
-  /** Canonical text anchor in the viewer's version; Claude supplies only the range. */
-  private async anchor(
+  /**
+   * Canonical text anchor in the viewer's version; Claude supplies only a range or a quote.
+   * A committed write with this requestId keeps its stored anchor instead: re-resolving fails or
+   * moves once the report was saved again, although the first call committed. The organization
+   * check of view() runs before replay(), which does not compare organizations itself. write() then
+   * compares the full payload hash (version, stored anchor, body, replacement, ...) under lock.
+   */
+  private async textAnchor(
     principal: McpOAuthPrincipal,
-    reportId: string,
-    version: number,
-    range: Range,
-  ) {
-    const access = await this.view(principal, reportId);
-    if (version !== access.version)
-      throw new ConflictException(
-        `You can see version ${access.version}; re-read the report and use its offsets.`,
-      );
+    input: { reportId: string; version: number; requestId: string },
+    operation: CommentOperation,
+    target: Target,
+    deletion: boolean,
+  ): Promise<{ anchor: ReportTextAnchor; widened: boolean }> {
+    const access = await this.view(principal, input.reportId);
     const text = documentText(access.report.blocks, access.report.body);
+    const prior = await this.comments.replay(
+      input.reportId,
+      input.requestId,
+      this.actor(principal),
+    );
+    if (prior)
+      return this.storedAnchor(
+        prior,
+        operation,
+        target,
+        input.version === access.version ? text : null,
+        deletion,
+      );
+    if (input.version !== access.version)
+      throw new ConflictException(
+        `You can see version ${access.version}; re-read the report and anchor in that version.`,
+      );
+    const range =
+      'quote' in target
+        ? quoteRange(text, access.version, target.quote, target.occurrence)
+        : target;
     if (range.start >= range.end || range.end > text.length)
       throw new BadRequestException(
         `start must be below end and end at most ${text.length} (UTF-16 code units).`,
       );
-    const anchor = textAnchorAt(text, range.start, range.end);
+    const chosen = deletion ? widenParagraphDeletion(text, range) : range;
+    const anchor = textAnchorAt(text, chosen.start, chosen.end);
     const problem = textAnchorProblem(anchor, text);
     if (problem)
       throw new BadRequestException(
@@ -112,41 +215,66 @@ export class McpReportService {
           ? 'The range must be 1-2000 UTF-16 code units; include nearby words instead.'
           : 'The range is not valid for this version.',
       );
-    return anchor;
+    return { anchor, widened: chosen !== range };
   }
 
   /**
-   * The text anchor a committed write with this requestId stored, or null for a new requestId.
-   * anchor() checks the range against the current version, which fails once the report has moved
-   * on even though the first call committed; a retry reuses the stored anchor instead. Only the
-   * operation and range are checked here; the write then compares the full payload hash (version,
-   * stored anchor, body, replacement, ...) under lock, so other changed input is REQUEST_REUSED too.
-   * The organization check of view() runs first: replay() itself does not compare the report's
-   * organization with the grant's.
+   * The anchor the earlier write stored, when this input resolves to it. In the same version the
+   * input is resolved again and compared by range. After a newer save the earlier text is not at
+   * hand: offsets are compared with the stored range and a quote with the stored quote, so a
+   * changed occurrence alone is not detected there.
+   *
+   * Widening is reported only when the input is narrower than the stored anchor. Retrying with the
+   * already-widened text ("paragraph\n\n") cannot be told from a first call that sent exactly that
+   * text, which is never widened and returns no widenedForParagraph; the stored suggestion does not
+   * record whether it was widened, so that retry replays without the flag.
    */
-  private async storedAnchor(
-    principal: McpOAuthPrincipal,
-    reportId: string,
-    requestId: string,
+  private storedAnchor(
+    prior: CommentWriteResult,
     operation: CommentOperation,
-    range: Range,
-  ): Promise<ReportTextAnchor | null> {
-    await this.view(principal, reportId);
-    const prior = await this.comments.replay(reportId, requestId, this.actor(principal));
-    if (!prior) return null;
+    target: Target,
+    text: string | null,
+    deletion: boolean,
+  ) {
     const anchor =
       prior.operation !== operation
         ? undefined
         : operation === 'thread.create'
         ? prior.thread.anchor
         : prior.thread.suggestions.find(suggestion => suggestion.id === prior.resultId)?.anchor;
-    if (anchor?.kind !== 'text' || anchor.start !== range.start || anchor.end !== range.end)
-      throw new RequestReusedException(
+    const reused = () =>
+      new RequestReusedException(
         'This requestId was already used with different input.',
         prior.resultId,
         prior.thread.id,
       );
-    return anchor;
+    if (anchor?.kind !== 'text') throw reused();
+    const at = (range: Range) => anchor.start === range.start && anchor.end === range.end;
+    let exact: boolean, widened: boolean;
+    if (text !== null) {
+      let range: Range;
+      try {
+        range = 'quote' in target ? quoteRange(text, 0, target.quote, target.occurrence) : target;
+      } catch {
+        throw reused();
+      }
+      exact = at(range);
+      widened = deletion && !exact && at(widenParagraphDeletion(text, range));
+    } else if ('quote' in target) {
+      exact = anchor.quote === target.quote;
+      widened =
+        deletion && [target.quote + SEPARATOR, SEPARATOR + target.quote].includes(anchor.quote);
+    } else {
+      exact = at(target);
+      widened =
+        deletion &&
+        ((at({ start: target.start, end: target.end + SEPARATOR.length }) &&
+          anchor.quote.endsWith(SEPARATOR)) ||
+          (at({ start: target.start - SEPARATOR.length, end: target.end }) &&
+            anchor.quote.startsWith(SEPARATOR)));
+    }
+    if (!exact && !widened) throw reused();
+    return { anchor, widened };
   }
 
   list(principal: McpOAuthPrincipal, after?: string) {
@@ -233,13 +361,15 @@ export class McpReportService {
   ) {
     const anchor =
       input.anchor.kind === 'text'
-        ? (await this.storedAnchor(
-            principal,
-            input.reportId,
-            input.requestId,
-            'thread.create',
-            input.anchor,
-          )) ?? (await this.anchor(principal, input.reportId, input.version, input.anchor))
+        ? (
+            await this.textAnchor(
+              principal,
+              input,
+              'thread.create',
+              textTarget(input.anchor),
+              false,
+            )
+          ).anchor
         : input.anchor;
     return this.comments.createThread(
       input.reportId,
@@ -264,7 +394,7 @@ export class McpReportService {
 
   async propose(
     principal: McpOAuthPrincipal,
-    input: Range & {
+    input: McpTextTarget & {
       reportId: string;
       version: number;
       threadId?: string;
@@ -274,15 +404,15 @@ export class McpReportService {
       requestId: string;
     },
   ) {
-    const anchor =
-      (await this.storedAnchor(
-        principal,
-        input.reportId,
-        input.requestId,
-        'suggestion.create',
-        input,
-      )) ?? (await this.anchor(principal, input.reportId, input.version, input));
-    return this.comments.createSuggestion(
+    const target = textTarget(input);
+    const { anchor, widened } = await this.textAnchor(
+      principal,
+      input,
+      'suggestion.create',
+      target,
+      input.replacement === '',
+    );
+    const result = await this.comments.createSuggestion(
       input.reportId,
       {
         requestId: input.requestId,
@@ -296,6 +426,7 @@ export class McpReportService {
       this.actor(principal),
       this.write(principal, 'suggestions:write'),
     );
+    return widened ? { ...result, widenedForParagraph: true as const } : result;
   }
 
   /** Owner-only: current recipients by login ID and same-organization candidates. */
@@ -404,7 +535,7 @@ export class McpReportService {
       head.version !== input.expectedHeadVersion
     )
       throw new ConflictException(
-        `The latest saved version is ${head.version}; review it with vm_read_report before sharing.`,
+        `Latest saved version is ${head.version}; review it with vm_read_report. For recipients not yet shared, check vm_list_report_shares, then use a new requestId.`,
       );
     const results: ShareOutcome[] = [];
     let failed = false;

@@ -102,6 +102,11 @@ const library = (
   canArchive = true,
   actorId = 7,
 ) => response({ entries, view, organizationId, canArchive, actorId });
+const emptySupplementary = (path: string) => {
+  if (path === '/documents') return { data: { configured: false, organizationId: 7, documents: [] } };
+  if (path === '/artifacts/files') return { data: { items: [] } };
+  return null;
+};
 const receipt = (over: Record<string, unknown> = {}) =>
   response({ dashboardId: 45, organizationId: 7, archived: true, version: 3, ...over });
 const deferred = () => {
@@ -111,6 +116,9 @@ const deferred = () => {
   });
   return { promise, resolve };
 };
+const readsOf = (path: string) => api.get.mock.calls.filter(call => call[0] === path).length;
+const libraryReads = () => readsOf('/dashboard/library');
+const supplementaryReads = () => [readsOf('/documents'), readsOf('/artifacts/files')];
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
 const button = (name: string) => screen.getByRole('button', { name }) as HTMLButtonElement;
 function Destination() {
@@ -155,6 +163,8 @@ beforeEach(() => {
         canDelete: true,
         dependencies: Object.keys(deletionDependencyLabels).map(kind => ({ kind, count: 0 })),
       });
+    const empty = emptySupplementary(path);
+    if (empty) return empty;
     if (path !== '/dashboard/library') throw new Error('unexpected legacy list request');
     return library(params.view);
   });
@@ -209,7 +219,9 @@ it('preserves title, Studio, rename and delete actions in the new authorized lis
   click('Beta dashboard · 수정');
   expect(await screen.findByText(/이동 완료 \/dashboard\/modify/)).toBeTruthy();
   expect(
-    api.get.mock.calls.every(call => call[0] === '/dashboard/library' || call[0] === '/dashboard/28/delete-impact'),
+    api.get.mock.calls.every(call =>
+      ['/dashboard/library', '/dashboard/28/delete-impact', '/documents', '/artifacts/files'].includes(call[0]),
+    ),
   ).toBe(true);
 });
 it('defaults to active, archives with the confirmed organization/version, and restores from the archive', async () => {
@@ -240,8 +252,9 @@ it('defaults to active, archives with the confirmed organization/version, and re
   expect(button('기본 목록')).toBeTruthy();
 });
 it('keeps legacy no-organization accounts readable without archive controls', async () => {
-  api.get.mockImplementation(async (_path, params) =>
-    library(params.view, params.view === 'active' ? [alpha, beta] : [], null, false),
+  api.get.mockImplementation(
+    async (path, params) =>
+      emptySupplementary(path) ?? library(params.view, params.view === 'active' ? [alpha, beta] : [], null, false),
   );
   show();
   await screen.findByText('Alpha analysis');
@@ -306,10 +319,13 @@ it('drops a late active list after selecting the archived view', async () => {
 it('isolates account caches using stable login generation and ignores normal token renewal', async () => {
   const { client } = show();
   await screen.findByText('Alpha analysis');
+  const supplementary = supplementaryReads();
+  expect(supplementary).toEqual([1, 1]);
   act(() => {
     window.dispatchEvent(new StorageEvent('storage', { key: 'accessToken' }));
   });
-  expect(api.get).toHaveBeenCalledTimes(1);
+  expect(readsOf('/dashboard/library')).toBe(1);
+  expect(supplementaryReads()).toEqual(supplementary);
   const oldScope = personalLibrarySessionScope();
   const pending = deferred();
   api.get.mockReturnValueOnce(pending.promise);
@@ -557,14 +573,17 @@ it('keeps one scope and one mutation callback in StrictMode with malformed optio
   show('/dashboard', true);
   await screen.findByText('Alpha analysis');
   const session = personalLibrarySessionScope();
-  const reads = api.get.mock.calls.length;
+  const reads = libraryReads();
+  const supplementary = supplementaryReads();
   api.get.mockResolvedValueOnce(library('active', [{ ...beta, title: 'StrictMode next login' }], 22, true, 22));
   act(() => {
     localStorage.setItem('accessToken', JSON.stringify('account-B-token'));
     window.dispatchEvent(new StorageEvent('storage', { key: 'accessToken' }));
   });
   await screen.findByText('StrictMode next login');
-  expect(api.get).toHaveBeenCalledTimes(reads + 1);
+  expect(readsOf('/dashboard/library')).toBe(reads + 1);
+  // The account switch opens a new account-scoped cache: one supplementary read each, not one per token event.
+  expect(supplementaryReads()).toEqual(supplementary.map(reads => reads + 1));
   expect(personalLibrarySessionScope()).not.toBe(session);
   const pending = deferred();
   api.put.mockReturnValueOnce(pending.promise);
@@ -727,7 +746,7 @@ it('keeps the always-mounted dialog frozen across unknown-close and another card
   const impactReads = api.get.mock.calls.filter(call => call[0].endsWith('/delete-impact')).length;
   api.get.mockImplementation(async (path, params) => {
     if (path.endsWith('/delete-impact')) throw { response: { status: 403 } };
-    return library(params.view);
+    return emptySupplementary(path) ?? library(params.view);
   });
   fireEvent.click(screen.getByRole('button', { name: '닫기' }));
   click('Alpha analysis · 삭제');
@@ -785,7 +804,12 @@ it('keeps the active sample preparation through a library reload', async () => {
   click('샘플 대시보드 보기');
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/commerce/sample', {}, { timeout: 300000 }));
   const list = deferred();
-  api.get.mockImplementation((path: string) => (path === '/dashboard/library' ? list.promise : Promise.reject()));
+  api.get.mockImplementation(async (path: string) => {
+    if (path === '/dashboard/library') return list.promise;
+    const empty = emptySupplementary(path);
+    if (empty) return empty;
+    throw new Error('unexpected request');
+  });
   click('목록 다시 읽기');
   await screen.findByText('목록을 읽고 있습니다…');
   await act(async () => list.resolve(library()));

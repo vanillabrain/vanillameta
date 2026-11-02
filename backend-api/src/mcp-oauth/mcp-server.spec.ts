@@ -28,7 +28,7 @@ import {
   ArtifactSuggestion,
   REPORT_COMMENT_ENTITIES,
 } from '../reports/report-comment.entity';
-import { ReportCommentService } from '../reports/report-comment.service';
+import { ReportCommentService, RequestReusedException } from '../reports/report-comment.service';
 import { ReportCommentsController } from '../reports/report-comments.controller';
 import { encodeReport } from '../reports/report-contract';
 import {
@@ -53,7 +53,7 @@ import { McpOAuthModule } from './mcp-oauth.module';
 import { McpOAuthPrincipal, McpOAuthService } from './mcp-oauth.service';
 import { McpReadService } from './mcp-read.service';
 import { McpReportService, REPORT_PAGE_UNITS } from './mcp-report.service';
-import { buildMcpServer, MCP_INSTRUCTIONS, McpServerDeps } from './mcp-server';
+import { buildMcpServer, MCP_INSTRUCTIONS, mcpError, McpServerDeps } from './mcp-server';
 import { McpController } from './mcp.controller';
 
 const api = 'http://127.0.0.1:4444/v1';
@@ -394,6 +394,13 @@ describe('remote MCP tools/list per scope', () => {
     } finally {
       await session.close();
     }
+  });
+});
+
+describe('mcpError', () => {
+  it('omits detail for REQUEST_REUSED without a recorded result', () => {
+    expect(mcpError(new RequestReusedException('x'))).not.toHaveProperty('detail');
+    expect(mcpError(new RequestReusedException('x', 'r1')).detail).toEqual({ resultId: 'r1' });
   });
 });
 
@@ -853,6 +860,169 @@ describe('remote MCP report tools with real SQLite transactions', () => {
     expect(await reportRows()).toEqual(before);
   });
 
+  describe('quote anchors and paragraph deletions', () => {
+    const PARAGRAPHS = [
+      { id: 't1', kind: 'TEXT', text: 'Alpha grew. Beta fell. Alpha grew.' },
+      { id: 't2', kind: 'TEXT', text: 'Drop me.' },
+      { id: 't3', kind: 'TEXT', text: 'Keep this.' },
+    ];
+    const SOURCE = documentText(PARAGRAPHS, '');
+    const comment = (anchor: Record<string, unknown>, requestId = randomUUID()) => ({
+      ...addWhole('Note', requestId, 2),
+      anchor: { kind: 'text', ...anchor },
+    });
+    const propose = (
+      target: Record<string, unknown>,
+      replacement: string,
+      requestId = randomUUID(),
+    ) => ({
+      reportId,
+      version: 2,
+      ...target,
+      replacement,
+      requestId,
+      confirmWrite: true,
+    });
+    const applied = (anchor: { start: number; end: number }, replacement: string) =>
+      SOURCE.slice(0, anchor.start) + replacement + SOURCE.slice(anchor.end);
+    beforeEach(() => saveRevision(db, 2, PARAGRAPHS));
+
+    it('resolves an exact quote, picks an occurrence and rejects missing or ambiguous quotes', async () => {
+      const { call } = await clientFor();
+      const failures: Array<[Record<string, unknown>, string]> = [
+        [{ quote: 'beta fell' }, 'quote is not in version 2'],
+        [{ quote: 'Beta  fell' }, 'quote is not in version 2'],
+        [{ quote: 'Alpha grew' }, 'quote matches 2 places. Pass occurrence 1-2'],
+        [{ quote: 'Alpha grew', occurrence: 3 }, 'occurrence 3 is out of range'],
+        [{ quote: 'Beta', start: 0, end: 4 }, 'not both'],
+        [{ occurrence: 1 }, 'occurrence needs a quote'],
+        [{ start: 0 }, 'start and end are both required'],
+      ];
+      for (const [target, detail] of failures) {
+        const added = await call('vm_add_comment', comment(target));
+        expect(added.json.error).toMatchObject({ code: 'INVALID', retryable: false });
+        expect(added.json.error.detail).toContain(detail);
+        expect(added.json.error.message).toContain('This call made no change.');
+        const proposed = await call('vm_propose_report_edit', propose(target, 'x'));
+        expect(proposed.json.error).toMatchObject({ code: 'INVALID' });
+        expect(proposed.json.error.detail).toContain(detail);
+      }
+      expect(await counts()).toEqual({ threads: 0, comments: 0, suggestions: 0, receipts: 0 });
+
+      const beta = await call('vm_add_comment', comment({ quote: 'Beta fell' }));
+      expect(beta.json.thread.anchor).toMatchObject({
+        start: SOURCE.indexOf('Beta fell'),
+        end: SOURCE.indexOf('Beta fell') + 9,
+        quote: 'Beta fell',
+      });
+      const second = await call('vm_add_comment', comment({ quote: 'Alpha grew', occurrence: 2 }));
+      expect(second.json.thread.anchor).toMatchObject({
+        start: SOURCE.lastIndexOf('Alpha grew'),
+        quote: 'Alpha grew',
+        prefix: 'Alpha grew. Beta fell. ',
+      });
+      const first = await call('vm_add_comment', comment({ quote: 'Alpha grew', occurrence: 1 }));
+      expect(first.json.thread.anchor).toMatchObject({ start: 0, end: 10 });
+      const edit = await call(
+        'vm_propose_report_edit',
+        propose({ quote: 'Beta fell' }, 'Beta dropped'),
+      );
+      expect(edit.json.thread.suggestions[0].anchor).toMatchObject({ quote: 'Beta fell' });
+      expect(edit.json).not.toHaveProperty('widenedForParagraph');
+    });
+
+    it('replays quote input by its resolved range, also after a newer save', async () => {
+      const { call } = await clientFor();
+      const note = comment({ quote: 'Alpha grew', occurrence: 2 });
+      const edit = propose({ quote: 'Beta fell' }, 'Beta dropped');
+      const first = await call('vm_add_comment', note);
+      const made = await call('vm_propose_report_edit', edit);
+      expect([first.isError, made.isError]).toEqual([false, false]);
+      const committed = await counts();
+      const at = SOURCE.lastIndexOf('Alpha grew');
+      const sameRange = await call('vm_add_comment', {
+        ...note,
+        anchor: { kind: 'text', start: at, end: at + 10 },
+      });
+      expect(sameRange.json).toMatchObject({ replayed: true, resultId: first.json.resultId });
+      const otherOccurrence = await call('vm_add_comment', {
+        ...note,
+        anchor: { kind: 'text', quote: 'Alpha grew', occurrence: 1 },
+      });
+      expect(otherOccurrence.json.error).toMatchObject({
+        code: 'REQUEST_REUSED',
+        detail: { resultId: first.json.resultId, threadId: first.json.thread.id },
+      });
+
+      await saveRevision(db, 3, [{ id: 't1', kind: 'TEXT', text: `Preface. ${SOURCE}` }]);
+      const again = await call('vm_add_comment', note);
+      expect(again.json).toMatchObject({
+        replayed: true,
+        resultId: first.json.resultId,
+        thread: { version: 2, anchor: first.json.thread.anchor },
+      });
+      const proposedAgain = await call('vm_propose_report_edit', edit);
+      expect(proposedAgain.json).toMatchObject({ replayed: true, resultId: made.json.resultId });
+      for (const [tool, input] of [
+        ['vm_add_comment', { ...note, anchor: { kind: 'text', quote: 'Beta fell' } }],
+        ['vm_propose_report_edit', { ...edit, quote: 'Beta' }],
+        ['vm_propose_report_edit', { ...edit, replacement: 'Beta sank' }],
+      ] as Array<[string, Record<string, unknown>]>) {
+        expect((await call(tool, input)).json.error.code).toBe('REQUEST_REUSED');
+      }
+      const fresh = await call('vm_add_comment', comment({ quote: 'Alpha grew', occurrence: 2 }));
+      expect(fresh.json.error.code).toBe('CONFLICT');
+      expect(await counts()).toEqual(committed);
+    });
+
+    it('widens a whole-paragraph deletion by one blank line and replays it', async () => {
+      const { call } = await clientFor();
+      const middle = propose({ quote: 'Drop me.' }, '');
+      const made = await call('vm_propose_report_edit', middle);
+      expect(made.json.widenedForParagraph).toBe(true);
+      const anchor = made.json.thread.suggestions[0].anchor;
+      expect(anchor.quote).toBe('Drop me.\n\n');
+      expect(applied(anchor, '')).toBe('Alpha grew. Beta fell. Alpha grew.\n\nKeep this.');
+
+      const last = await call('vm_propose_report_edit', propose({ quote: 'Keep this.' }, ''));
+      expect(last.json.widenedForParagraph).toBe(true);
+      expect(last.json.thread.suggestions[0].anchor.quote).toBe('\n\nKeep this.');
+      expect(applied(last.json.thread.suggestions[0].anchor, '')).toBe(
+        'Alpha grew. Beta fell. Alpha grew.\n\nDrop me.',
+      );
+
+      const start = SOURCE.indexOf('Drop me.');
+      for (const [target, replacement] of [
+        [{ quote: 'Beta fell. ' }, ''],
+        [{ quote: 'Drop me.' }, 'Kept.'],
+        [{ quote: 'Drop me.\n\n' }, ''],
+      ] as Array<[Record<string, unknown>, string]>) {
+        const plain = await call('vm_propose_report_edit', propose(target, replacement));
+        expect(plain.isError).toBe(false);
+        expect(plain.json).not.toHaveProperty('widenedForParagraph');
+        expect(plain.json.thread.suggestions[0].anchor.quote).toBe(target.quote);
+      }
+
+      const byRange = { ...middle, quote: undefined, start, end: start + 8 };
+      delete byRange.quote;
+      const sameVersion = await call('vm_propose_report_edit', byRange);
+      expect(sameVersion.json).toMatchObject({
+        replayed: true,
+        resultId: made.json.resultId,
+        widenedForParagraph: true,
+      });
+      await saveRevision(db, 3, [{ id: 't1', kind: 'TEXT', text: 'Rewritten.' }]);
+      for (const input of [middle, byRange]) {
+        const replayed = await call('vm_propose_report_edit', input);
+        expect(replayed.json).toMatchObject({
+          replayed: true,
+          resultId: made.json.resultId,
+          widenedForParagraph: true,
+        });
+      }
+    });
+  });
+
   it('shows a recipient only their own threads on the pinned version', async () => {
     await share();
     const ownerClient = await clientFor(owner);
@@ -1069,6 +1239,7 @@ describe('remote MCP report tools with real SQLite transactions', () => {
       const stale = await call('vm_share_report', shareArgs());
       expect(stale.json.error).toMatchObject({ code: 'CONFLICT', retryable: true });
       expect(stale.json.error.message).toContain('This call made no change.');
+      expect(stale.json.error.detail).toContain('vm_list_report_shares, then use a new requestId');
       expect(await shareRows()).toEqual({ deliveries: 0, receipts: 0 });
       const fresh = await call('vm_share_report', shareArgs({ expectedHeadVersion: 2 }));
       expect(fresh.json.recipients[0]).toMatchObject({ outcome: 'shared', pinnedVersion: 2 });
