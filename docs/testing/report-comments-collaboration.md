@@ -44,8 +44,8 @@
 | RCOL-18 | 실제 Claude Code 2.1.316 호스트: 임시 프로젝트 local 범위 등록(`--client-id`, `--callback-port 4598`) → `claude mcp login`(가상 터미널) → Ego 승인(읽기 4개 기본 체크, 쓰기 중 댓글·제안만 허용) → `claude -p`가 목록·본문 읽기, 범위 46–60 댓글과 삭제 제안 작성, 공유는 도구 없음으로 거절, 적용·저장은 불가로 거절 → 소유자가 "Claude · Claude Code (로컬 검증)" 제안을 적용해 r6 저장. 검증 후 logout·local 등록 제거 | PASS | PASS(1440) | `claude-code-consent-1440.png`, `claude-code-run.jsonl`, `claude-code-suggestion-editor-1440.png` |
 | RCOL-23 | claude.ai 커넥터(원격 공개 HTTPS 필요) | NOT_RUN | NOT_RUN | - |
 | RCOL-19 | 실제 포인터 드래그로 본문 선택 → 댓글 | NOT_RUN | NOT_RUN | - |
-| RCOL-20 | PostgreSQL 운영 업그레이드 경로(`migrate-prod`) | NOT_RUN | - | - |
-| RCOL-21 | access token 만료 후 재연결 흐름(refresh 없음) | NOT_RUN | - | - |
+| RCOL-20 | PostgreSQL 운영 업그레이드 경로(`migrate-prod`): `fe71c5ea` 부트스트랩 → 기존 행 기록 → `7759bd02` 실행 | PASS | - | 아래 "운영 업그레이드 경로" |
+| RCOL-21 | access token 만료 후 자동 갱신(grant에 묶인 회전형 refresh, 재동의 없음). 실제 Claude Code 2.1.316: `MCP_OAUTH_ACCESS_TTL_SECONDS=360`으로 21:13:49 승인 → 21:14:01 호출(갱신 없음, refresh 0회차 active) → 21:15:23 호출이 브라우저 없이 성공, refresh 0회차 rotated·1회차 active, grant 유지, access token 2개 | PASS | - | `mcp-oauth.service.spec.ts`, [refresh 계획](../plans/mcp-oauth-refresh.md), 증빙 `mcp-refresh-20261102/claude-code-refresh.txt` |
 
 ## 자동 테스트
 
@@ -58,6 +58,22 @@
 - 프런트 `tsc --noEmit`, 변경 파일 37개 eslint 통과.
 - `route-inventory.spec.ts`의 익명 허용 목록에 9개 경로를 추가했다. 모두 `fe71c5ea`에 이미 열려 있던 경로(`/mcp`, `/mcp-oauth/*`, `.well-known`, `/artifacts/shared/:token`)를 각자의 보호 장치와 함께 목록화한 것이며 새로 노출한 경로가 아니다.
 
+## refresh token PostgreSQL 검증(RCOL-21)
+
+2026-11-02, PostgreSQL 17.11 임시 클러스터(검증 후 삭제), `TZ=Asia/Seoul`. 구현 담당 에이전트가 실행했고 아래는 보고된 결과다.
+
+| 확인 | 결과 |
+| --- | --- |
+| `7759bd02` 부트스트랩에서 현재 코드 `migrate-prod` | `AddMcpOAuthRefresh1793570000000` 1회 실행 |
+| 같은 DB 재실행 | 실행된 migration 없음 |
+| `createSchemaBuilder().log()` | 차이 0 |
+| `pg_dump --schema-only` | 새 코드 신규 부트스트랩과 동일 |
+| refresh `usedAt` 왕복 | 2ms 이내 일치(재시도 창 판정 정상) |
+| 같은 refresh token 동시 갱신 2건 | 둘 다 성공, 1개 active·1개 superseded, superseded 쪽 access token 삭제, grant 유지 |
+| 같은 refresh token 동시 갱신 3건 | 정확히 1건 `invalid_grant`, grant 회수 커밋 |
+
+`mcp-oauth.service.spec.ts`에는 PostgreSQL 실행 옵션이 없어 이 표가 PG 잠금(`FOR UPDATE`)·READ COMMITTED 재조회·timestamp 왕복의 근거다.
+
 ## 자동화 기록
 
 Ego Lite는 동작 사이에 페이지 visibility를 전환한다. 보고서 보호 장치가 이를 감지해 선택과 작성 중인 입력을 지운다. 의도한 보안 동작이다. 그래서 선택 → 댓글은 한 번의 페이지 내 시퀀스(`Range` 생성, `mouseup`, 요소 `click`)로 구동했다. 실제 포인터 드래그가 아니다(RCOL-19).
@@ -68,12 +84,29 @@ OAuth callback 수신기는 같은 경로로 들어오는 `favicon.ico` 요청�
 
 - Claude Code는 실제로 검증했다(RCOL-18). claude.ai 커넥터는 공개 HTTPS 주소가 필요해 실행하지 않았다.
 - Claude Code는 서버가 광고한 범위 7개를 모두 요청한다. 운영 클라이언트 허용 범위에 하나라도 빠지면 `invalid_scope`로 연결이 실패한다. 범위 축소는 승인 화면에서 사용자가 한다.
-- Claude가 UTF-16 오프셋을 직접 계산하려고 셸을 사용했다. 인용문으로 범위를 지정하는 도구 입력을 추가하면 호스트 도구 의존이 줄어든다(개선 후보).
-- 문장 삭제 제안은 앞의 빈 줄을 남긴다. Claude 스스로 지적했으며, 편집자가 적용 후 정리한다.
-- access token은 10분이고 refresh가 없다. 협업 도중 만료되면 다시 연결해야 한다. 호스트 검증에서 문제가 되면 grant에 묶인 회전형 refresh를 올린다.
+- 해결(2026-11-02 후속): Claude가 오프셋 계산에 셸을 쓰던 문제는 `quote`/`occurrence` 입력으로, 문단 삭제 후 빈 줄이 남던 문제는 구분자 하나를 함께 지우는 방식으로 고쳤다(MCP 경로만).
+- 문단 안의 문장 하나만 삭제하는 제안은 넓히지 않는다. 앞뒤 공백 정리는 편집자가 한다.
+- 새 저장 이후 같은 `requestId`로 `occurrence`만 바꿔 다시 보내면 REQUEST_REUSED가 아니라 이전 결과를 재생한다. 이전 버전 텍스트를 서비스가 읽어야 고칠 수 있다.
+- 구현·검증(2026-11-02 후속): access token 10분 만료 시 grant에 묶인 회전형 refresh로 재동의 없이 갱신한다(grant 상한 8시간 유지, 재사용 시 grant 회수). SQLite spec·실제 HTTP·PostgreSQL 17 migration·동시 갱신과 실제 Claude Code 호스트 자동 갱신(RCOL-21)을 확인했다. Codex의 실제 갱신 요청은 확인하지 않았다(바이너리 문자열 기준 추정).
 - 실제 포인터 드래그 선택은 자동화하지 못했다.
 - 여러 수신자 공유는 원자적이지 않다. 일부만 공유되면 `complete: false`를 돌려주고 같은 `requestId`로 재시도해 마저 공유한다.
 - 같은 `requestId`에 다른 수신자 목록을 보내면 409가 아니라 추가 수신자만 공유된다. 매번 `confirmShare`가 필요하지만 설계와 다르다.
 - 수신자는 자신이 낸 제안의 `appliedVersion`을 본다. 소유자가 몇 번째 저장본에 반영했는지가 드러난다.
-- PostgreSQL 운영 업그레이드 경로(`migrate-prod`)는 실행하지 않았다. 신규 스키마와 마이그레이션 재실행만 확인했다.
-- 기존 `report-delivery-transfer.ts`의 따옴표 없는 camelCase 원시 SQL은 PostgreSQL에서 실패할 가능성이 있다(이번 변경 밖, 별도 확인 필요).
+- 운영 업그레이드 경로는 빈 DB에서 부트스트랩한 `fe71c5ea` 스키마로만 확인했다(RCOL-20). 실제 운영 데이터, 기존 MySQL에서 옮긴 스키마, 앱 컨테이너 기동 순서는 확인하지 않았다.
+- `report-delivery-transfer.ts`의 따옴표 없는 camelCase SQL 의심은 PostgreSQL 17에서 재현되지 않았다. TypeORM 0.3.31 update 빌더는 별칭 없는 속성명을 쿼리 전체에서 `"ownerId"`, `"relationVersion"`으로 바꾼다(실행 SQL: `SET "active" = $1, "relationVersion" = "relationVersion" + 1 WHERE ("ownerId" = $2 OR "recipientId" = $2) AND "active" = $3`). 코드는 그대로 두고 회귀 spec만 추가했다. `StaffTransferService` 전체 흐름은 PostgreSQL에서 돌리지 않았다(`staff-transfer.spec.ts`는 SQLite, 동시성 3건은 MySQL 전용).
+
+## 운영 업그레이드 경로(RCOL-20)
+
+2026-11-02. Homebrew PostgreSQL 17.11 임시 클러스터(127.0.0.1:55492), Node 26.13.0. `fe71c5ea`와 `7759bd02`를 각각 임시 worktree로 꺼내 `tsc -p tsconfig.build.json`으로 `dist`를 만들고 `NODE_ENV=prod DB_HOST=127.0.0.1 DB_PORT=55492 DB_USERNAME=postgres DB_NAME=vm_upgrade node dist/src/database/migrate-prod.js`로 실행했다. node_modules는 메인 체크아웃을 링크만 했다. 실행 후 클러스터와 worktree는 지웠다.
+
+| 단계 | 결과 |
+| --- | --- |
+| `fe71c5ea` 빈 DB 부트스트랩 / 재실행 | `bootstrapped, recordedMigrations:4` / `migrated, ranMigrations:0`. 106개 테이블, `artifact_comment*` 없음 |
+| 기존 행 기록 | `private_report`·`revision`·`chunk`·`delivery`·`delivery_receipt` 각 1행, 시드 `template` 10·`template_item` 46 |
+| `7759bd02` 1회차 | `migrated, ranMigrations:1`. `migrations`에 `AddArtifactComments1793560000000` 한 줄 추가(총 5) |
+| `7759bd02` 2회차 | `migrated, ranMigrations:0` |
+| 엔티티 차이 | `createSchemaBuilder().log()` 결과 0건. 대조군(`fe71c5ea` 스키마에 같은 검사)은 11건 |
+| 신규 부트스트랩과 비교 | `7759bd02` 빈 DB 부트스트랩(`recordedMigrations:5`)과 `pg_dump --schema-only`가 같다(pg_dump `\restrict` 토큰만 다름). 제약·인덱스 이름 포함 |
+| 기존 행 보존 | 위 7개 테이블 행 수와 md5 동일. 영수증은 기존 6개 열 md5 동일, 새 `aiGrantId`·`aiClientName`은 NULL |
+
+PostgreSQL 회귀(`VM_REPORT_COMMENT_POSTGRES_PORT=55492`): `report-delivery-transfer.spec.ts` 3/3, `report-comment-migration.spec.ts` 5/5. SQLite: 위 두 파일과 `staff-transfer.spec.ts` 36 통과, 4 건너뜀(PostgreSQL 1, MySQL 3).

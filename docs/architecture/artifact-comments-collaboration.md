@@ -26,7 +26,10 @@ type ReportAnchor =
 - `quote = text.slice(start, end)`, 길이 1~2,000. 서버가 생성마다 확인한다. 순수 삽입은 표현하지 않으며 Claude에게 주변 문구를 포함하라고 안내한다. 삭제(`replacement: ''`)는 허용한다.
 - `prefix/suffix`는 앞뒤 최대 32 유닛.
 - 제안도 스레드와 같은 형식의 텍스트 앵커를 저장한다. 제안은 텍스트만 바꾸므로 보고서 전체·이미지 스레드에 단 제안도 자기 텍스트 앵커를 가진다.
-- `prefix/suffix`는 범위 바로 앞뒤 문구와 정확히 같아야 한다. MCP에서는 Claude가 `start/end`만 주고 서버가 인용문과 앞뒤 문구를 만든다.
+- `prefix/suffix`는 범위 바로 앞뒤 문구와 정확히 같아야 한다. MCP에서는 Claude가 범위만 주고 서버가 인용문과 앞뒤 문구를 만든다.
+- MCP 텍스트 범위는 `{quote, occurrence?}`(권장) 또는 `{start, end}` 중 하나로 준다. 둘 다 주면 INVALID다. `quote`는 조회자 버전 문서 텍스트와 대소문자·공백까지 정확히 일치해야 하며, 여러 곳과 일치하는데 `occurrence`(1부터)가 없으면 일치 개수와 함께 INVALID다.
+- `replacement`가 빈 문자열이고 범위가 문단 전체이면 문단 구분자 `\n\n` 하나를 함께 지운다(뒤쪽 우선, 없으면 앞쪽). 문서 전체이거나 2,000 유닛을 넘으면 넓히지 않는다. 실제로 넓혔을 때만 결과에 `widenedForParagraph: true`를 표시한다.
+- 재전송 비교: 같은 버전에서는 해석된 범위로, 새 저장 이후에는 저장된 범위·인용문으로 비교한다. 새 저장 이후 `occurrence`만 바꾼 재전송은 이전 결과를 재생한다(알려진 한계).
 
 ### 다른 버전·초안에서 위치 찾기
 
@@ -117,6 +120,7 @@ type ReportAnchor =
 
 - 범위 목록은 `mcpScopeSchema` 하나에서 파생한다. 승인 요청 `scope` 길이 제한을 512로, 범위 개수 제한을 늘린다. 승인 화면은 범위→라벨 표를 쓰고 쓰기 범위를 기본 해제·구분 표시한다.
 - `vm_read_report`는 문서 텍스트를 절대 오프셋 페이지로 나누고 서로게이트 쌍을 자르지 않는다. 오프셋 단위(UTF-16)를 설명에 적는다.
+- `vm_add_comment`(텍스트)와 `vm_propose_report_edit`는 오프셋 대신 `quote`/`occurrence`로 범위를 받을 수 있다. 실제 Claude Code 검증에서 오프셋 계산에 셸을 쓴 문제를 해결하려고 2026-11-02에 추가했다.
 - 쓰기 도구: 엄격한 스키마, `requestId`, `confirmWrite: true`. 잠금 순서 `sourceWriteTransaction` → `assertGrant(manager, principal, scope)`(grant 행 잠금 재확인) → 헤드 → `access()`.
 - 오류는 `{code, retryable}`(`UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INVALID`, `LIMIT`)이며 같은 `requestId` 재시도가 안전함을 알린다.
 - 서버 AI 호출 없음. 적용·저장·게시·삭제 도구 없음(테스트로 확인).
@@ -136,7 +140,7 @@ type ReportAnchor =
 
 ### 남은 위험
 
-접근 토큰 10분, refresh 없음. 실제 Claude 호스트로 끝까지 검증해 협업 중 재동의가 필요하면 grant에 묶인 회전형 refresh를 2단계로 올린다. 범위 변경은 운영 클라이언트 fingerprint를 바꿔 기존 연결을 무효화하므로 운영 공지가 필요하다.
+접근 토큰은 10분이며, 2026-11-02에 grant에 묶인 회전형 refresh token을 구현해 8시간 grant 동안 재동의 없이 갱신한다([설계](../plans/mcp-oauth-refresh.md), 검증 RCOL-21). 범위 변경은 운영 클라이언트 fingerprint를 바꿔 기존 연결을 무효화하므로 운영 공지가 필요하다.
 
 ## 구현 순서
 

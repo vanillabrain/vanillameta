@@ -10,7 +10,8 @@ export default {
     callback: '돌아갈 주소',
     expires: '만료',
     grantExpires: '승인 만료',
-    tokenLifetime: '접근 토큰은 최대 10분 동안 유효합니다. 만료 후에는 AI 클라이언트에서 다시 연결해 주세요.',
+    tokenLifetime:
+      '접근 토큰은 최대 10분 동안 유효하고 AI 클라이언트가 자동으로 갱신합니다. 연결은 승인 만료(최대 8시간)까지 다시 묻지 않고 유지됩니다. 이미 쓰인 갱신 토큰이 다시 쓰이면 연결이 해제됩니다.',
     created: '연결 일시',
     scopes: '읽기 허용 범위',
     sourcesRead: '소스 스키마와 설명 읽기',

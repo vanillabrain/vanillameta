@@ -2,7 +2,7 @@ import { All, Controller, Get, Header, Module, Req, Res } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node';
 import { McpOAuthService } from './mcp-oauth.service';
-import { MCP_SCOPES, readMcpConfig } from './config';
+import { MCP_SCOPES, mcpAuthorizationMetadata, readMcpConfig } from './config';
 import { McpReadService } from './mcp-read.service';
 import { McpReportService } from './mcp-report.service';
 import { buildMcpServer } from './mcp-server';
@@ -13,18 +13,7 @@ import { ReportsModule } from '../reports/reports.module';
 
 export function authorizationMetadata() {
   const c = readMcpConfig();
-  if (!c) return null;
-  return {
-    issuer: c.issuer,
-    authorization_endpoint: c.issuer + '/authorize',
-    token_endpoint: c.issuer + '/token',
-    revocation_endpoint: c.issuer + '/revoke',
-    response_types_supported: ['code'],
-    grant_types_supported: ['authorization_code'],
-    code_challenge_methods_supported: ['S256'],
-    token_endpoint_auth_methods_supported: ['none'],
-    scopes_supported: [...MCP_SCOPES],
-  };
+  return c ? mcpAuthorizationMetadata(c) : null;
 }
 @Controller('.well-known')
 export class McpMetadataController {

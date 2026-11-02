@@ -3,6 +3,7 @@ import { userThrottleConfigProblems } from '../common/throttle/user-throttle.gua
 import { aiConfigProblems } from '../ai/providers/ai-config';
 import { uploadLimitProblems } from '../database/upload-limits';
 import { quotaConfigProblems } from '../usage/quota-config';
+import { mcpAccessTtlProblems } from '../mcp-oauth/config';
 
 const REQUIRED_SECRETS = [
   'ACCESS_SECRET',
@@ -84,6 +85,7 @@ export function productionConfigProblems(
     ...userThrottleConfigProblems(env),
     ...uploadLimitProblems(env),
     ...aiConfigProblems(env),
+    ...mcpAccessTtlProblems(env),
   );
 
   if (facts.localEnvFileExists)

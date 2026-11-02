@@ -27,7 +27,18 @@ client ID·표시 이름·callback과 허용 scope를 운영자가 등록한다.
 5. 연결 승인을 선택하면 등록한 callback으로 돌아간다. 취소하면 `access_denied`를 반환하며 code나 연결을 만들지 않는다.
 6. AI 클라이언트가 code와 verifier를 token endpoint에 교환한다.
 
-access token은10분 뒤 만료된다. refresh token은 발급하지 않는다. 만료 후에는 다시 연결 승인을 진행한다. VM 로그인 JWT를 외부 AI 설정에 붙여넣지 않는다. 로컬 stdio MCP 설정과 원격 OAuth 설정을 혼용하지 않는다.
+access token은 10분 뒤 만료된다. code 교환과 갱신은 새 access token과 새 refresh token을 함께 발급한다(`grant_type=refresh_token`, form, `client_id` 필수, `resource`는 선택이지만 보내면 MCP 주소와 같아야 한다). AI 클라이언트가 자동으로 갱신하므로 연결은 승인 만료(최대 8시간)까지 다시 묻지 않고 유지된다. 갱신은 grant를 연장하지 않으며 8시간이 지나면 다시 승인한다. 설계와 근거는 [refresh 계획](../plans/mcp-oauth-refresh.md)에 있다.
+
+- refresh token은 쓸 때마다 바뀐다. **이미 쓰인 refresh token이 다시 오면 연결 전체를 해제한다.** 응답 유실에 대비해 첫 사용 후 30초 안의 재시도 1회만 새 쌍을 다시 준다. 이때 앞서 준 access token은 바로 무효가 된다. 재사용과 유예 재발급은 `warn` 로그에 `grantId`·`clientId`·`actorId`·`rotation`만 남긴다. 토큰 값은 남기지 않는다.
+- 연결 해제, `/revoke`(access·refresh 어느 쪽이든), 계정 비활성·권한 epoch 변경, 조직 이동, 클라이언트 설정(fingerprint) 변경은 갱신도 즉시 막는다. 이때 응답은 `invalid_grant`이고 클라이언트가 다시 승인을 요청한다.
+- 설정 누락·DB 장애·잠금 timeout은 `invalid_grant`가 아니라 5xx `temporarily_unavailable`로 답한다. Claude Code는 `invalid_grant`에서 저장한 토큰을 지우기 때문이다.
+- grant당 갱신은 300회까지다. 정상 주기(약 5분)로는 8시간에 약 96회다.
+- 비운영 확인용 `MCP_OAUTH_ACCESS_TTL_SECONDS`(정수, 60–600으로 제한)로 access 수명을 줄일 수 있다. `NODE_ENV=prod`에서는 무시하며, 값이 있으면 production guard가 부팅을 거부한다.
+- 만료된 token·refresh 행은 아직 자동 정리하지 않는다.
+- 모든 API 인스턴스는 같은 `TZ`(예: `UTC` 또는 `Asia/Seoul`)로 실행한다. 갱신 시각은 시간대 없는 timestamp로 저장되므로 인스턴스마다 시간대가 다르면 정상 재시도가 재사용으로 판정되어 연결이 해제될 수 있다.
+- 배포 직후 기존 연결에는 refresh token이 없어 만료 때 한 번 다시 승인한다. PostgreSQL은 백업 후 `1793570000000-add-mcp-oauth-refresh` migration(`mcp_oauth_refresh` 테이블)을 적용한다.
+
+VM 로그인 JWT를 외부 AI 설정에 붙여넣지 않는다. 로컬 stdio MCP 설정과 원격 OAuth 설정을 혼용하지 않는다.
 
 ## 제공하는 권한과 도구
 
@@ -37,9 +48,11 @@ access token은10분 뒤 만료된다. refresh token은 발급하지 않는다. 
 | `documents:read` | `vm_list_documents`, `vm_read_document`. 본인의 비공개 보관 문서 목록과 명시한 고정 버전 본문. 본문은12,000 Unicode 문자씩 반환한다. |
 | `reports:read` | `vm_list_reports`, `vm_read_report`. 본인 보고서와 공유받은 보고서 목록, 조회자 버전(소유자=최신 저장본, 수신자=공유 버전)의 제목·문서 텍스트·이미지 블록(ID·대체 텍스트)·고정 KPI/차트 제목. 문서 텍스트는 절대 UTF-16 오프셋으로 20,000 단위씩 반환하며 서로게이트 쌍을 자르지 않는다. 집계 값·SQL·원본 경로·이미지 데이터는 제외한다. |
 | `comments:read` | `vm_list_comments`. 볼 수 있는 댓글 스레드·답글·수정 제안과 조회자 버전 기준 위치. 수신자는 자신이 시작한 스레드만 본다. |
-| `comments:write` | `vm_add_comment`(보고서 전체·본문 범위·이미지), `vm_reply_comment`. AI 작성으로 "클라이언트 이름"과 함께 기록한다. |
-| `suggestions:write` | `vm_propose_report_edit`. 본문 범위 교체를 제안만 한다. 적용과 저장은 편집 화면에서 편집자가 한다. |
+| `comments:write` | `vm_add_comment`(보고서 전체·본문 범위·이미지), `vm_reply_comment`. AI 작성으로 "클라이언트 이름"과 함께 기록한다. 본문 범위는 `quote`(+`occurrence`) 또는 `start`/`end` 중 하나로 지정한다(아래 참고). |
+| `suggestions:write` | `vm_propose_report_edit`. 본문 범위 교체를 제안만 한다. 범위 지정은 `vm_add_comment`와 같다. 빈 `replacement`로 문단 전체를 지우면 인접한 빈 줄(`\n\n`) 하나를 함께 지우고 결과에 `widenedForParagraph: true`를 붙인다. 적용과 저장은 편집 화면에서 편집자가 한다. |
 | `shares:write` | `vm_list_report_shares`(소유자 전용: 수신자 로그인 ID·상태·관계 버전·공유 버전, 최신 저장 버전, 같은 조직 후보의 로그인 ID·팀), `vm_share_report`(소유자 전용: 최신 저장본을 같은 조직 활성 구성원 1~5명에게 읽기 전용 공유). 이메일·내부 숫자 ID는 내보내지 않는다. |
+
+본문 범위는 `quote`를 권장한다. 서버가 조회자 버전 본문에서 대소문자·공백·줄바꿈까지 정확히 같은 위치를 찾는다. `occurrence`는 1부터 세며 두 곳 이상 일치할 때만 필요하다. 겹치는 일치도 따로 센다. 일치가 없거나 `occurrence`가 범위를 벗어나면 `INVALID`, 두 곳 이상 일치하는데 `occurrence`가 없으면 일치 수를 담은 `INVALID`를 돌려준다. `start`/`end`(UTF-16 오프셋)와 함께 보내면 `INVALID`다. 같은 `requestId` 재시도는 해석된 범위로 비교하며, 새 저장 이후에는 이전 본문이 없어 인용문·저장된 범위로만 비교한다(`occurrence`만 바뀐 경우는 구분하지 못한다).
 
 각 호출은 현재 계정·조직·원본 접근권과 연결 grant를 다시 확인한다. 쓰기는 같은 트랜잭션 안에서 grant 행을 잠그고 scope를 다시 확인하므로, 호출 중 연결 해제·계정 변경이 커밋되면 아무것도 쓰지 않는다. 쓰기 도구는 `confirmWrite: true`와 `requestId`(UUID)가 필수이며 같은 `requestId`·같은 입력의 재시도는 중복 없이 같은 결과를 돌려준다. 보고서 도구의 오류는 `{code, retryable, message}`이며 code는 `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INVALID`, `LIMIT` 중 하나다. 승인 후 새 권한이 생겼다고 해서 승인하지 않은 scope가 추가되지는 않는다. 문서의 내용은 AI에게 전달되므로 해당 클라이언트의 데이터 처리 정책도 확인한다.
 

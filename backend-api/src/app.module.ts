@@ -10,6 +10,7 @@ import { AddDocumentSummary1793520000000 } from './migrations/postgres/179352000
 import { AddDocumentProvider1793530000000 } from './migrations/postgres/1793530000000-add-document-provider';
 import { AddDocumentShare1793540000000 } from './migrations/postgres/1793540000000-add-document-share';
 import { AddArtifactComments1793560000000 } from './migrations/postgres/1793560000000-add-artifact-comments';
+import { AddMcpOAuthRefresh1793570000000 } from './migrations/postgres/1793570000000-add-mcp-oauth-refresh';
 import { AddDocumentConnections1793232000000 } from './migrations/1793232000000-add-document-connections';
 import { AddStaffDeparture1792620200000 } from './migrations/1792620200000-add-staff-departure';
 import { AddBundleHandover1792620100000 } from './migrations/1792620100000-add-bundle-handover';
@@ -161,6 +162,7 @@ import { PostgresBaseline1793500000000 } from './migrations/postgres/17935000000
               AddDocumentProvider1793530000000,
               AddDocumentShare1793540000000,
               AddArtifactComments1793560000000,
+              AddMcpOAuthRefresh1793570000000,
             ]
           : [
               AddFileArtifacts1793440000000,

@@ -1,7 +1,15 @@
+// mcp.controller (the .well-known metadata) reaches the AI provider registry through its modules.
+jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
+jest.mock('@ai-sdk/provider', () => ({}));
+jest.mock('@ai-sdk/anthropic', () => ({ createAnthropic: jest.fn() }));
+jest.mock('@ai-sdk/openai', () => ({ createOpenAI: jest.fn() }));
+jest.mock('@ai-sdk/openai-compatible', () => ({ createOpenAICompatible: jest.fn() }));
 import {
   ArgumentsHost,
   HttpException,
   INestApplication,
+  Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -19,9 +27,11 @@ import {
   McpOAuthCode,
   McpOAuthGrant,
   McpOAuthPending,
+  McpOAuthRefresh,
   McpOAuthToken,
 } from './mcp-oauth.entities';
 import { MCP_SCOPES } from './config';
+import { authorizationMetadata } from './mcp.controller';
 import { McpOAuthExceptionFilter } from './mcp-oauth.http';
 import { McpOAuthModule } from './mcp-oauth.module';
 import { McpOAuthService } from './mcp-oauth.service';
@@ -225,18 +235,28 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
     expect(Object.keys(token).sort()).toEqual([
       'access_token',
       'expires_in',
+      'refresh_token',
       'scope',
       'token_type',
     ]);
+    expect(token.refresh_token).toMatch(/^[a-f0-9]{64}$/);
     expect(token.expires_in).toBeGreaterThanOrEqual(599);
     expect(token.expires_in).toBeLessThanOrEqual(600);
     const rows = await Promise.all(
       MCP_OAUTH_ENTITIES.map(entity => db.getRepository(entity).find()),
     );
     const stored = JSON.stringify(rows);
-    for (const secret of [start.ticket, start.browser, start.code, token.access_token, verifier])
+    for (const secret of [
+      start.ticket,
+      start.browser,
+      start.code,
+      token.access_token,
+      token.refresh_token,
+      verifier,
+    ])
       expect(stored).not.toContain(secret);
     expect(stored).toContain(hash(token.access_token));
+    expect(stored).toContain(hash(token.refresh_token));
     expect(
       (await db.getRepository(McpOAuthCode).findOneByOrFail({ codeHash: hash(start.code) }))
         .consumed,
@@ -333,20 +353,17 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
     },
   );
 
-  it('rejects missing/wrong resource and refresh grants, then permits the original valid exchange', async () => {
+  it('rejects missing/wrong resource and unknown refresh tokens, then permits the original valid exchange', async () => {
     const start = await approved();
     await expect(
       service.token({ ...exchange(start.code), resource: 'https://other.test/mcp' }),
     ).rejects.toThrow();
     await expect(service.token({ ...exchange(start.code), resource: undefined })).rejects.toThrow();
-    await expect(
-      service.token({
-        grant_type: 'refresh_token',
-        refresh_token: 'no-refresh',
-        client_id: 'test-client',
-      }),
-    ).rejects.toThrow();
-    await expect(service.token(exchange(start.code))).resolves.toHaveProperty('access_token');
+    for (const refresh_token of ['no-refresh', 'f'.repeat(64)])
+      await expect(
+        service.token({ grant_type: 'refresh_token', refresh_token, client_id: 'test-client' }),
+      ).rejects.toMatchObject({ name: 'invalid_grant' });
+    await expect(service.token(exchange(start.code))).resolves.toHaveProperty('refresh_token');
   });
 
   it('rejects account switching, membership changes, epoch changes and forged review tokens', async () => {
@@ -487,7 +504,7 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
     expect(JSON.stringify(await db.getRepository(User).find())).toBe(before);
   });
 
-  it('locks the grant row before the actor row on token exchange, disconnect and revoke, like MCP writes', async () => {
+  it('locks the grant row before the actor row on token exchange, refresh, disconnect and revoke, like MCP writes', async () => {
     // SQLite skips FOR UPDATE, so assert the order of the locking lookups PostgreSQL would run.
     // Only lookups inside a write transaction count: token exchange reads the grant and the user
     // without locks (getAuthorizationCode) before saveToken opens its transaction.
@@ -516,7 +533,16 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
       const second = await approved();
       const secondToken = await service.token(exchange(second.code));
       lookups.length = 0;
-      await service.revoke({ token: secondToken.access_token, client_id: 'test-client' });
+      const refreshed = await service.token({
+        grant_type: 'refresh_token',
+        refresh_token: secondToken.refresh_token,
+        client_id: 'test-client',
+      });
+      expect(lookups.indexOf('McpOAuthGrant')).toBeGreaterThanOrEqual(0);
+      expect(lookups.indexOf('User')).toBeGreaterThanOrEqual(0);
+      expect(lookups.indexOf('McpOAuthGrant')).toBeLessThan(lookups.indexOf('User'));
+      lookups.length = 0;
+      await service.revoke({ token: refreshed.refresh_token, client_id: 'test-client' });
       expect(lookups.indexOf('McpOAuthGrant')).toBeGreaterThanOrEqual(0);
       expect(lookups.indexOf('McpOAuthGrant')).toBeLessThan(lookups.indexOf('User'));
     } finally {
@@ -717,6 +743,366 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
     });
   });
 
+  describe('refresh_token grant', () => {
+    const refreshBody = (refresh_token: string, patch: Record<string, unknown> = {}) => ({
+      grant_type: 'refresh_token',
+      refresh_token,
+      client_id: 'test-client',
+      resource: `${api}/mcp`,
+      ...patch,
+    });
+    const refresh = (refresh_token: string, patch: Record<string, unknown> = {}) =>
+      service.token(refreshBody(refresh_token, patch));
+    const row = (token: string) =>
+      db.getRepository(McpOAuthRefresh).findOneByOrFail({ tokenHash: hash(token) });
+    const grantOf = async (token: string) =>
+      db.getRepository(McpOAuthGrant).findOneByOrFail({ id: (await row(token)).grantId });
+    const active = async (grantId: string) =>
+      db.getRepository(McpOAuthRefresh).findBy({ grantId, state: 'active' });
+    const usedAgo = (token: string, ms: number) =>
+      db.getRepository(McpOAuthRefresh).update(hash(token), { usedAt: new Date(Date.now() - ms) });
+    async function connected() {
+      const start = await approved();
+      return service.token(exchange(start.code));
+    }
+
+    it('rotates into a new pair on the same grant, one active token per grant', async () => {
+      const first = await connected();
+      const initial = await row(first.refresh_token);
+      expect(initial).toMatchObject({
+        rotation: 0,
+        state: 'active',
+        parentHash: null,
+        accessHash: hash(first.access_token),
+        clientId: 'test-client',
+        resource: `${api}/mcp`,
+      });
+      expect(initial.expiresAt).toEqual((await grantOf(first.refresh_token)).expiresAt);
+      const second = await refresh(first.refresh_token);
+      expect(Object.keys(second).sort()).toEqual([
+        'access_token',
+        'expires_in',
+        'refresh_token',
+        'scope',
+        'token_type',
+      ]);
+      expect(second).toMatchObject({ token_type: 'Bearer', scope: 'sources:read' });
+      expect(second.expires_in).toBeGreaterThanOrEqual(599);
+      expect(second.expires_in).toBeLessThanOrEqual(600);
+      expect(second.refresh_token).not.toBe(first.refresh_token);
+      expect(await row(first.refresh_token)).toMatchObject({
+        state: 'rotated',
+        usedAt: expect.any(Date),
+        retriedAt: null,
+        replacedByHash: hash(second.refresh_token),
+      });
+      expect(await row(second.refresh_token)).toMatchObject({
+        state: 'active',
+        rotation: 1,
+        parentHash: hash(first.refresh_token),
+        accessHash: hash(second.access_token),
+      });
+      const third = await refresh(second.refresh_token);
+      expect((await row(third.refresh_token)).rotation).toBe(2);
+      const principal = await service.authenticateBearer(`Bearer ${third.access_token}`);
+      expect(principal.scopes).toEqual(['sources:read']);
+      expect(await active(principal.grantId)).toHaveLength(1);
+      expect((await grantOf(third.refresh_token)).revoked).toBe(false);
+    });
+
+    it('revokes the grant when a rotated token is reused outside the window', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      try {
+        const first = await connected();
+        const second = await refresh(first.refresh_token);
+        await usedAgo(first.refresh_token, 31_000);
+        await expect(refresh(first.refresh_token)).rejects.toMatchObject({
+          name: 'invalid_grant',
+        });
+        // The revocation committed although the request failed.
+        expect((await grantOf(first.refresh_token)).revoked).toBe(true);
+        await expect(
+          service.authenticateBearer(`Bearer ${second.access_token}`),
+        ).rejects.toMatchObject({ status: 401 });
+        await expect(refresh(second.refresh_token)).rejects.toMatchObject({
+          name: 'invalid_grant',
+        });
+        expect(warn).toHaveBeenCalledTimes(1);
+        const message = String(warn.mock.calls[0][0]);
+        expect(message).toContain('reuse');
+        expect(message).toContain('"rotation":0');
+        expect(message).toContain('"actorId":1');
+        for (const secret of [first, second].flatMap(t => [t.access_token, t.refresh_token]))
+          expect(message).not.toContain(secret);
+        expect(message).not.toContain(hash(first.refresh_token));
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('re-rotates once inside the window, keeps usedAt, and drops the superseded access token', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      try {
+        const first = await connected();
+        const second = await refresh(first.refresh_token);
+        await usedAgo(first.refresh_token, 29_000);
+        const usedAt = (await row(first.refresh_token)).usedAt;
+        const retry = await refresh(first.refresh_token);
+        expect(await row(first.refresh_token)).toMatchObject({
+          state: 'rotated',
+          usedAt,
+          retriedAt: expect.any(Date),
+          replacedByHash: hash(retry.refresh_token),
+        });
+        expect((await row(second.refresh_token)).state).toBe('superseded');
+        expect(await row(retry.refresh_token)).toMatchObject({ state: 'active', rotation: 1 });
+        expect(
+          await db.getRepository(McpOAuthToken).countBy({ tokenHash: hash(second.access_token) }),
+        ).toBe(0);
+        await expect(
+          service.authenticateBearer(`Bearer ${second.access_token}`),
+        ).rejects.toMatchObject({ status: 401 });
+        const principal = await service.authenticateBearer(`Bearer ${retry.access_token}`);
+        expect(await active(principal.grantId)).toHaveLength(1);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(String(warn.mock.calls[0][0])).toContain('retry window');
+        expect(String(warn.mock.calls[0][0])).toContain(principal.grantId);
+        // A second retry of the same parent is reuse.
+        await expect(refresh(first.refresh_token)).rejects.toMatchObject({
+          name: 'invalid_grant',
+        });
+        expect((await grantOf(first.refresh_token)).revoked).toBe(true);
+        await expect(
+          service.authenticateBearer(`Bearer ${retry.access_token}`),
+        ).rejects.toMatchObject({ status: 401 });
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('treats a superseded token as reuse', async () => {
+      const first = await connected();
+      const second = await refresh(first.refresh_token);
+      const retry = await refresh(first.refresh_token);
+      await expect(refresh(second.refresh_token)).rejects.toMatchObject({
+        name: 'invalid_grant',
+      });
+      expect((await grantOf(first.refresh_token)).revoked).toBe(true);
+      await expect(refresh(retry.refresh_token)).rejects.toMatchObject({ name: 'invalid_grant' });
+    });
+
+    it('treats a retry after the successor was used as reuse', async () => {
+      const first = await connected();
+      const second = await refresh(first.refresh_token);
+      await refresh(second.refresh_token);
+      await expect(refresh(first.refresh_token)).rejects.toMatchObject({
+        name: 'invalid_grant',
+      });
+      expect((await grantOf(first.refresh_token)).revoked).toBe(true);
+    });
+
+    it('treats a usedAt in the future (clock or timezone skew) as reuse, never inside the window', async () => {
+      const first = await connected();
+      await refresh(first.refresh_token);
+      await usedAgo(first.refresh_token, -10_000);
+      await expect(refresh(first.refresh_token)).rejects.toMatchObject({
+        name: 'invalid_grant',
+      });
+      expect((await grantOf(first.refresh_token)).revoked).toBe(true);
+    });
+
+    it('lets one of two concurrent uses re-rotate and keeps exactly one active token', async () => {
+      const first = await connected();
+      const results = await Promise.allSettled([
+        refresh(first.refresh_token),
+        refresh(first.refresh_token),
+      ]);
+      expect(results.map(result => result.status)).toEqual(['fulfilled', 'fulfilled']);
+      const tokens = results.map(result => (result.status === 'fulfilled' ? result.value : null));
+      const states = await Promise.all(tokens.map(token => row(token.refresh_token)));
+      expect(states.map(state => state.state).sort()).toEqual(['active', 'superseded']);
+      expect(await active(states[0].grantId)).toHaveLength(1);
+      expect((await grantOf(first.refresh_token)).revoked).toBe(false);
+      expect(await db.getRepository(McpOAuthToken).countBy({ grantId: states[0].grantId })).toBe(2);
+      const third = await Promise.allSettled([
+        refresh(tokens.find((_, i) => states[i].state === 'active').refresh_token),
+        refresh(tokens.find((_, i) => states[i].state === 'active').refresh_token),
+        refresh(tokens.find((_, i) => states[i].state === 'active').refresh_token),
+      ]);
+      // The third concurrent use is a second retry of the same parent: reuse.
+      expect(third.filter(result => result.status === 'rejected')).toHaveLength(1);
+      expect((await grantOf(first.refresh_token)).revoked).toBe(true);
+    });
+
+    it('bounds tokens by the grant and rejects expired rows without revoking', async () => {
+      const first = await connected();
+      const grant = await grantOf(first.refresh_token);
+      await db
+        .getRepository(McpOAuthGrant)
+        .update(grant.id, { expiresAt: new Date(Date.now() + 100_000) });
+      const second = await refresh(first.refresh_token);
+      expect(second.expires_in).toBeLessThanOrEqual(100);
+      expect((await row(second.refresh_token)).expiresAt).toEqual(
+        (await grantOf(first.refresh_token)).expiresAt,
+      );
+      await db.getRepository(McpOAuthRefresh).update(hash(second.refresh_token), {
+        expiresAt: new Date(Date.now() - 1000),
+      });
+      await expect(refresh(second.refresh_token)).rejects.toMatchObject({
+        name: 'invalid_grant',
+      });
+      expect((await row(second.refresh_token)).state).toBe('active');
+      await db.getRepository(McpOAuthRefresh).update(hash(second.refresh_token), {
+        expiresAt: grant.expiresAt,
+      });
+      await db.getRepository(McpOAuthGrant).update(grant.id, { expiresAt: new Date(0) });
+      await expect(refresh(second.refresh_token)).rejects.toMatchObject({
+        name: 'invalid_grant',
+      });
+      expect((await grantOf(first.refresh_token)).revoked).toBe(false);
+      expect((await row(second.refresh_token)).state).toBe('active');
+    });
+
+    it('stops at the rotation cap before any write', async () => {
+      const first = await connected();
+      await db.getRepository(McpOAuthRefresh).update(hash(first.refresh_token), { rotation: 299 });
+      const last = await refresh(first.refresh_token);
+      expect((await row(last.refresh_token)).rotation).toBe(300);
+      await expect(refresh(last.refresh_token)).rejects.toMatchObject({ name: 'invalid_grant' });
+      expect((await row(last.refresh_token)).state).toBe('active');
+      expect((await grantOf(last.refresh_token)).revoked).toBe(false);
+      expect(await db.getRepository(McpOAuthRefresh).count()).toBe(2);
+    });
+
+    it('rejects another client, resource and request shapes without revoking', async () => {
+      const clients = JSON.parse(process.env.MCP_OAUTH_CLIENTS_JSON);
+      clients.push({ ...clients[0], id: 'other-client', name: 'Other client' });
+      process.env.MCP_OAUTH_CLIENTS_JSON = JSON.stringify(clients);
+      const first = await connected();
+      for (const [patch, name] of [
+        [{ client_id: 'other-client' }, 'invalid_grant'],
+        [{ client_id: 'unknown-client' }, 'invalid_client'],
+        [{ client_id: undefined }, 'invalid_request'],
+        [{ resource: 'https://other.test/mcp' }, 'invalid_request'],
+        [{ code_verifier: verifier }, 'invalid_request'],
+        [{ code: first.refresh_token }, 'invalid_request'],
+        [{ refresh_token: [first.refresh_token, first.refresh_token] }, 'invalid_request'],
+        [{ refresh_token: first.access_token }, 'invalid_grant'],
+        [{ refresh_token: first.refresh_token.toUpperCase() }, 'invalid_grant'],
+      ] as const)
+        await expect(refresh(first.refresh_token, patch)).rejects.toMatchObject({ name });
+      expect((await row(first.refresh_token)).state).toBe('active');
+      expect((await grantOf(first.refresh_token)).revoked).toBe(false);
+      // resource may be omitted and a harmless redirect_uri is ignored.
+      const second = await refresh(first.refresh_token, {
+        resource: undefined,
+        redirect_uri: callback,
+      });
+      expect(second.scope).toBe('sources:read');
+    });
+
+    it('rejects scope outside the grant and always issues the full grant scope', async () => {
+      const first = await connected();
+      for (const scope of [
+        'sources:read documents:read',
+        'documents:read',
+        'sources:read sources:read',
+        ' sources:read',
+      ])
+        await expect(refresh(first.refresh_token, { scope })).rejects.toMatchObject({
+          name: 'invalid_scope',
+        });
+      expect((await row(first.refresh_token)).state).toBe('active');
+      const second = await refresh(first.refresh_token, { scope: 'sources:read' });
+      expect(second.scope).toBe('sources:read');
+      // A grant with two scopes is never narrowed by a subset request.
+      await db.getRepository(McpOAuthGrant).update((await grantOf(first.refresh_token)).id, {
+        scopes: ['sources:read', 'documents:read'],
+      });
+      const third = await refresh(second.refresh_token, { scope: 'documents:read' });
+      expect(third.scope).toBe('sources:read documents:read');
+      expect((await service.authenticateBearer(`Bearer ${third.access_token}`)).scopes).toEqual([
+        'sources:read',
+        'documents:read',
+      ]);
+    });
+
+    it.each(['epoch', 'inactive', 'organization', 'configuration', 'disconnect', 'revoke'])(
+      'answers invalid_grant after %s without treating it as reuse',
+      async change => {
+        const first = await connected();
+        const grant = await grantOf(first.refresh_token);
+        if (change === 'epoch') await db.getRepository(User).update(1, { authVersion: 1 });
+        if (change === 'inactive') await db.getRepository(User).update(1, { active: false });
+        if (change === 'organization')
+          await db.getRepository(EnterpriseMembership).update(1, { organizationId: 2 });
+        if (change === 'configuration') process.env.MCP_PUBLIC_WEB_URL = 'http://localhost:3333';
+        if (change === 'disconnect') await service.disconnect(actor, grant.id, {});
+        if (change === 'revoke')
+          expect(
+            await service.revoke({ token: first.refresh_token, client_id: 'test-client' }),
+          ).toEqual({});
+        await expect(refresh(first.refresh_token)).rejects.toMatchObject({
+          name: 'invalid_grant',
+        });
+        expect((await row(first.refresh_token)).state).toBe('active');
+        expect(await db.getRepository(McpOAuthRefresh).count()).toBe(1);
+        expect((await grantOf(first.refresh_token)).revoked).toBe(
+          change === 'disconnect' || change === 'revoke',
+        );
+        await expect(
+          service.authenticateBearer(`Bearer ${first.access_token}`),
+        ).rejects.toMatchObject({ status: 401 });
+      },
+    );
+
+    it('answers 5xx, not invalid_grant, when configuration or the database is unavailable', async () => {
+      const first = await connected();
+      const clients = process.env.MCP_OAUTH_CLIENTS_JSON;
+      delete process.env.MCP_OAUTH_CLIENTS_JSON;
+      await expect(refresh(first.refresh_token)).rejects.toMatchObject({ status: 503 });
+      process.env.MCP_OAUTH_CLIENTS_JSON = clients;
+      const original = EntityManager.prototype.findOneBy;
+      const failing = jest
+        .spyOn(EntityManager.prototype, 'findOneBy')
+        .mockImplementation(function (this: EntityManager, target: any, where: any) {
+          if (target === McpOAuthRefresh && this.queryRunner?.isTransactionActive)
+            return Promise.reject(new Error('canceling statement due to lock timeout'));
+          return original.call(this, target, where);
+        } as any);
+      try {
+        const error = await refresh(first.refresh_token).catch(caught => caught);
+        expect(error).toBeInstanceOf(ServiceUnavailableException);
+        expect(error.name).not.toBe('invalid_grant');
+      } finally {
+        failing.mockRestore();
+      }
+      expect((await row(first.refresh_token)).state).toBe('active');
+      await expect(refresh(first.refresh_token)).resolves.toHaveProperty('refresh_token');
+    });
+
+    it('uses a shorter non-production access TTL for code exchange and refresh', async () => {
+      process.env.MCP_OAUTH_ACCESS_TTL_SECONDS = '120';
+      const first = await connected();
+      expect(first.expires_in).toBeLessThanOrEqual(120);
+      expect(first.expires_in).toBeGreaterThanOrEqual(119);
+      const second = await refresh(first.refresh_token);
+      expect(second.expires_in).toBeLessThanOrEqual(120);
+      process.env.MCP_OAUTH_ACCESS_TTL_SECONDS = '5';
+      const clamped = await refresh(second.refresh_token);
+      expect(clamped.expires_in).toBeGreaterThanOrEqual(59);
+      expect(clamped.expires_in).toBeLessThanOrEqual(60);
+    });
+
+    it('advertises refresh_token in both metadata documents', () => {
+      expect(service.authorizationMetadata().grant_types_supported).toEqual([
+        'authorization_code',
+        'refresh_token',
+      ]);
+      expect(authorizationMetadata()).toEqual(service.authorizationMetadata());
+    });
+  });
+
   httpTest(
     'serves OAuth discovery and rejects bad HTTP host/origin without redirects or sensitive errors',
     async () => {
@@ -728,7 +1114,7 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
       expect(metadata.headers['cache-control']).toBe('no-store');
       expect(metadata.body).toMatchObject({
         issuer: `${api}/mcp-oauth`,
-        grant_types_supported: ['authorization_code'],
+        grant_types_supported: ['authorization_code', 'refresh_token'],
         token_endpoint_auth_methods_supported: ['none'],
         code_challenge_methods_supported: ['S256'],
       });
@@ -819,7 +1205,7 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
         .send(exchange(code))
         .expect(200);
       expect(token.headers['cache-control']).toBe('no-store');
-      expect(token.body.refresh_token).toBeUndefined();
+      expect(token.body.refresh_token).toMatch(/^[a-f0-9]{64}$/);
       expect(token.body.scope).toBe('documents:read');
       const principal = await service.authenticateBearer(`Bearer ${token.body.access_token}`);
       const list = await http()
@@ -836,6 +1222,78 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
         .send({ token: token.body.access_token, client_id: 'test-client' })
         .expect(200, {});
       await expect(service.revalidate(principal)).rejects.toThrow();
+    },
+  );
+
+  httpTest(
+    'refreshes over real HTTP forms and revokes the grant when an old refresh token is reused',
+    async () => {
+      const http = () => supertest(app.getHttpServer());
+      const start = await approved();
+      const form = (body: object, path = '/v1/mcp-oauth/token') =>
+        http().post(path).set('Host', '127.0.0.1:4444').type('form').send(body);
+      const refreshBody = (refresh_token: string) => ({
+        grant_type: 'refresh_token',
+        refresh_token,
+        client_id: 'test-client',
+        resource: `${api}/mcp`,
+      });
+      const issued = await form(exchange(start.code)).expect(200);
+      expect(Object.keys(issued.body).sort()).toEqual([
+        'access_token',
+        'expires_in',
+        'refresh_token',
+        'scope',
+        'token_type',
+      ]);
+      const original = await service.authenticateBearer(`Bearer ${issued.body.access_token}`);
+      // JSON bodies, query strings and Authorization headers stay invalid_request.
+      const rejected = [
+        await http()
+          .post('/v1/mcp-oauth/token')
+          .set('Host', '127.0.0.1:4444')
+          .send(refreshBody(issued.body.refresh_token)),
+        await form(refreshBody(issued.body.refresh_token), '/v1/mcp-oauth/token?scope=x'),
+        await http()
+          .post('/v1/mcp-oauth/token')
+          .set('Host', '127.0.0.1:4444')
+          .set('Authorization', 'Basic dGVzdC1jbGllbnQ6')
+          .type('form')
+          .send(refreshBody(issued.body.refresh_token)),
+      ];
+      for (const response of rejected)
+        expect([response.status, response.body.error]).toEqual([400, 'invalid_request']);
+      const first = await form(refreshBody(issued.body.refresh_token)).expect(200);
+      expect(first.headers['cache-control']).toBe('no-store');
+      expect(first.body).toEqual({
+        access_token: expect.stringMatching(/^[a-f0-9]{64}$/),
+        token_type: 'Bearer',
+        expires_in: expect.any(Number),
+        refresh_token: expect.stringMatching(/^[a-f0-9]{64}$/),
+        scope: 'sources:read',
+      });
+      expect(first.body.refresh_token).not.toBe(issued.body.refresh_token);
+      expect((await service.authenticateBearer(`Bearer ${first.body.access_token}`)).grantId).toBe(
+        original.grantId,
+      );
+      const second = await form(refreshBody(first.body.refresh_token)).expect(200);
+      await service.authenticateBearer(`Bearer ${second.body.access_token}`);
+      const reused = await form(refreshBody(issued.body.refresh_token)).expect(400);
+      expect(reused.headers['cache-control']).toBe('no-store');
+      expect(reused.body).toEqual({
+        error: 'invalid_grant',
+        error_description: 'Request rejected.',
+      });
+      expect(
+        (await db.getRepository(McpOAuthGrant).findOneByOrFail({ id: original.grantId })).revoked,
+      ).toBe(true);
+      await expect(
+        service.authenticateBearer(`Bearer ${second.body.access_token}`),
+      ).rejects.toMatchObject({ status: 401 });
+      await form(refreshBody(second.body.refresh_token)).expect(400, {
+        error: 'invalid_grant',
+        error_description: 'Request rejected.',
+      });
     },
   );
 });

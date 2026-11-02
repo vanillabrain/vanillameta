@@ -3,22 +3,38 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import OAuth2Server = require('@node-oauth/oauth2-server');
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
-import { DataSource, EntityManager, In, LessThanOrEqual, MoreThan } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, LessThanOrEqual, MoreThan } from 'typeorm';
 import { z } from 'zod';
 import { serializeMetadataWork } from '../common/metadata-work';
 import { lockSourceActor, sourceWriteTransaction } from '../database/source-write-lock';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { EnterpriseOrganization } from '../enterprise/entities/enterprise-organization.entity';
 import { User } from '../user/entities/user.entity';
-import { MCP_SCOPES, McpConfig, McpScope, mcpScopeSchema, readMcpConfig } from './config';
-import { McpOAuthCode, McpOAuthGrant, McpOAuthPending, McpOAuthToken } from './mcp-oauth.entities';
+import {
+  MCP_SCOPES,
+  McpConfig,
+  McpScope,
+  mcpAccessTtlSeconds,
+  mcpAuthorizationMetadata,
+  mcpScopeSchema,
+  readMcpConfig,
+} from './config';
+import {
+  McpOAuthCode,
+  McpOAuthGrant,
+  McpOAuthPending,
+  McpOAuthRefresh,
+  McpOAuthToken,
+} from './mcp-oauth.entities';
 
 export type McpOAuthActor = { actorId: number; authVersion: number };
+type McpRefreshLog = { grantId: string; clientId: string; actorId: number; rotation: number };
 export type McpOAuthPrincipal = McpOAuthActor & {
   grantId: string;
   organizationId: number;
@@ -55,6 +71,33 @@ const exchangeSchema = z
     resource: z.string().max(2048),
   })
   .strict();
+// Claude Code sends grant_type, refresh_token, resource and client_id. Codex (rmcp 3.2.0 on the
+// oauth2 5.0.0 crate) sends grant_type, refresh_token, client_id and probably resource. redirect_uri
+// is tolerated and ignored because some MCP clients send it; every other key is invalid_request.
+const refreshSchema = z
+  .object({
+    grant_type: z.literal('refresh_token'),
+    refresh_token: z.string().max(4096),
+    client_id: z.string().min(1).max(255),
+    resource: z.string().max(2048).optional(),
+    scope: z.string().min(1).max(512).optional(),
+    redirect_uri: z.string().max(2048).optional(),
+  })
+  .strict();
+const tokenResponseSchema = z
+  .object({
+    access_token: z.string(),
+    token_type: z.literal('Bearer'),
+    expires_in: z.number(),
+    refresh_token: z.string(),
+    scope: z.string(),
+  })
+  .strict();
+type TokenResponse = z.infer<typeof tokenResponseSchema>;
+/** A grant ends after 8 hours; Claude refreshes about every 5 minutes (about 96 rotations). */
+export const MCP_REFRESH_ROTATION_CAP = 300;
+/** A rotated token may be re-rotated once within this window of its first use. */
+export const MCP_REFRESH_RETRY_WINDOW_MS = 30_000;
 const revokeSchema = z
   .object({
     token: z.string().max(4096),
@@ -72,6 +115,7 @@ const same = (left: string, right: string) => {
 
 @Injectable()
 export class McpOAuthService {
+  private readonly logger = new Logger(McpOAuthService.name);
   private readonly bearerProofs = new WeakMap<McpOAuthPrincipal, string>();
   private pendingAdmission: Promise<unknown> = Promise.resolve();
 
@@ -86,19 +130,7 @@ export class McpOAuthService {
   }
 
   authorizationMetadata() {
-    const config = this.config();
-    return {
-      issuer: config.issuer,
-      authorization_endpoint: `${config.issuer}/authorize`,
-      token_endpoint: `${config.issuer}/token`,
-      revocation_endpoint: `${config.issuer}/revoke`,
-      response_types_supported: ['code'],
-      grant_types_supported: ['authorization_code'],
-      token_endpoint_auth_methods_supported: ['none'],
-      revocation_endpoint_auth_methods_supported: ['none'],
-      scopes_supported: [...MCP_SCOPES],
-      code_challenge_methods_supported: ['S256'],
-    };
+    return mcpAuthorizationMetadata(this.config());
   }
 
   async authorize(query: unknown, existingBrowser?: string) {
@@ -420,8 +452,8 @@ export class McpOAuthService {
       getClient: async (id, secret) => (secret ? null : this.libraryClient(config, id)),
       generateAuthorizationCode: async () => randomSecret(),
       generateAccessToken: async () => randomSecret(),
-      // The library calls this even for code-only clients. An empty value suppresses refresh issuance.
-      generateRefreshToken: async () => '',
+      // Code exchange issues the first refresh token of the grant (saveToken stores its hash).
+      generateRefreshToken: async () => randomSecret(),
       getAccessToken: async () => false,
       getAuthorizationCode: async () => false,
       revokeAuthorizationCode: async () => false,
@@ -446,7 +478,9 @@ export class McpOAuthService {
       requirePKCE: true,
       enablePlainPKCE: false,
       authorizationCodeLifetime: 120,
-      accessTokenLifetime: 600,
+      accessTokenLifetime: mcpAccessTtlSeconds(),
+      // Library default is two weeks. Stored refresh rows expire with the grant (8 hours) instead.
+      refreshTokenLifetime: 8 * 60 * 60,
       requireClientAuthentication: { authorization_code: false },
     };
     return new OAuth2Server(options);
@@ -477,7 +511,50 @@ export class McpOAuthService {
     return grant;
   }
 
+  /** Stores one access token and its paired refresh token; returns the access expiry. */
+  private async insertPair(
+    manager: EntityManager,
+    grant: McpOAuthGrant,
+    config: McpConfig,
+    accessToken: string,
+    refreshToken: string,
+    parent: McpOAuthRefresh | null,
+  ) {
+    const now = Date.now();
+    const expiresAt = new Date(
+      Math.min(now + mcpAccessTtlSeconds() * 1000, grant.expiresAt.getTime()),
+    );
+    await manager.insert(McpOAuthToken, {
+      tokenHash: hash(accessToken),
+      grantId: grant.id,
+      resource: config.resource,
+      expiresAt,
+    });
+    await manager.insert(McpOAuthRefresh, {
+      tokenHash: hash(refreshToken),
+      grantId: grant.id,
+      clientId: grant.clientId,
+      resource: config.resource,
+      accessHash: hash(accessToken),
+      rotation: parent ? parent.rotation + 1 : 0,
+      parentHash: parent?.tokenHash ?? null,
+      replacedByHash: null,
+      state: 'active',
+      issuedAt: new Date(now),
+      expiresAt: grant.expiresAt,
+      usedAt: null,
+      retriedAt: null,
+    });
+    return expiresAt;
+  }
+
   async token(body: unknown) {
+    if (
+      body &&
+      typeof body === 'object' &&
+      (body as Record<string, unknown>).grant_type === 'refresh_token'
+    )
+      return this.refresh(body);
     const config = this.config();
     const parsed = exchangeSchema.safeParse(body);
     if (!parsed.success) throw new OAuth2Server.InvalidRequestError('Invalid token request.');
@@ -543,20 +620,27 @@ export class McpOAuthService {
           this.config(config.fingerprint),
           true,
         );
-        await lockSourceActor(manager, current.grant.actorId, current.grant.authVersion);
-        if (libraryClient.id !== grant.clientId || current.code.expiresAt.getTime() <= Date.now())
+        await lockSourceActor(manager, grant.actorId, grant.authVersion);
+        if (
+          libraryClient.id !== grant.clientId ||
+          current.code.expiresAt.getTime() <= Date.now() ||
+          !/^[a-f0-9]{64}$/.test(token.refreshToken ?? '')
+        )
           throw new OAuth2Server.InvalidGrantError('Invalid grant.');
-        const expiresAt = new Date(Math.min(Date.now() + 600_000, grant.expiresAt.getTime()));
-        await manager.insert(McpOAuthToken, {
-          tokenHash: hash(token.accessToken),
-          grantId: grant.id,
-          resource: config.resource,
-          expiresAt,
-        });
+        const expiresAt = await this.insertPair(
+          manager,
+          grant,
+          config,
+          token.accessToken,
+          token.refreshToken,
+          null,
+        );
         this.config(config.fingerprint);
         return {
           accessToken: token.accessToken,
           accessTokenExpiresAt: expiresAt,
+          refreshToken: token.refreshToken,
+          refreshTokenExpiresAt: grant.expiresAt,
           scope: grant.scopes,
           client: libraryClient,
           user,
@@ -593,15 +677,168 @@ export class McpOAuthService {
         throw new OAuth2Server.InvalidGrantError('Invalid grant.');
       throw new OAuth2Server.ServerError('Token request failed.');
     }
-    const output = z
-      .object({
-        access_token: z.string(),
-        token_type: z.string(),
-        expires_in: z.number(),
-        scope: z.string(),
-      })
-      .parse(response.body);
-    return output;
+    return tokenResponseSchema.parse(response.body);
+  }
+
+  /**
+   * refresh_token grant, handled here rather than by the library so that marking the presented
+   * token used and issuing its successor commit together, and so that a detected reuse can commit
+   * the grant revocation before answering invalid_grant. See docs/plans/mcp-oauth-refresh.md.
+   */
+  private async refresh(body: unknown): Promise<TokenResponse> {
+    const config = this.config();
+    const parsed = refreshSchema.safeParse(body);
+    if (!parsed.success) throw new OAuth2Server.InvalidRequestError('Invalid token request.');
+    const input = parsed.data;
+    if (input.resource !== undefined && input.resource !== config.resource)
+      throw new OAuth2Server.InvalidRequestError('Invalid resource.');
+    if (!config.clients.some(client => client.id === input.client_id))
+      throw new OAuth2Server.InvalidClientError('Invalid client.');
+    const requested = input.scope?.split(' ');
+    if (
+      requested &&
+      (requested.some(scope => !scope) || new Set(requested).size !== requested.length)
+    )
+      throw new OAuth2Server.InvalidScopeError('Invalid scope.');
+    if (!/^[a-f0-9]{64}$/.test(input.refresh_token))
+      throw new OAuth2Server.InvalidGrantError('Invalid grant.');
+    const presented = hash(input.refresh_token);
+    type Outcome =
+      | { kind: 'issued'; response: TokenResponse; retried?: McpRefreshLog }
+      | { kind: 'reuse'; log: McpRefreshLog };
+    let outcome: Outcome;
+    try {
+      outcome = await sourceWriteTransaction(this.db, async (manager): Promise<Outcome> => {
+        const found = await manager.findOneBy(McpOAuthRefresh, { tokenHash: presented });
+        if (!found) throw new OAuth2Server.InvalidGrantError('Invalid grant.');
+        // Grant before actor, as in code exchange, disconnect, revoke and MCP writes.
+        const grant = await this.checkedGrant(
+          manager,
+          found.grantId,
+          this.config(config.fingerprint),
+          true,
+        );
+        await lockSourceActor(manager, grant.actorId, grant.authVersion);
+        // Every rotation of this grant waits on the grant lock, so this read is current.
+        const row = await manager.findOneBy(McpOAuthRefresh, { tokenHash: presented });
+        const now = Date.now();
+        if (
+          !row ||
+          row.grantId !== grant.id ||
+          row.clientId !== input.client_id ||
+          grant.clientId !== input.client_id ||
+          row.resource !== config.resource ||
+          row.expiresAt.getTime() <= now ||
+          row.rotation >= MCP_REFRESH_ROTATION_CAP
+        )
+          throw new OAuth2Server.InvalidGrantError('Invalid grant.');
+        if (requested?.some(scope => !grant.scopes.includes(scope)))
+          throw new OAuth2Server.InvalidScopeError('Invalid scope.');
+        const log: McpRefreshLog = {
+          grantId: grant.id,
+          clientId: grant.clientId,
+          actorId: grant.actorId,
+          rotation: row.rotation,
+        };
+        const accessToken = randomSecret();
+        const refreshToken = randomSecret();
+        const issue = async () => {
+          const expiresAt = await this.insertPair(
+            manager,
+            grant,
+            config,
+            accessToken,
+            refreshToken,
+            row,
+          );
+          this.config(config.fingerprint);
+          return {
+            access_token: accessToken,
+            token_type: 'Bearer' as const,
+            expires_in: Math.max(1, Math.floor((expiresAt.getTime() - Date.now()) / 1000)),
+            refresh_token: refreshToken,
+            scope: grant.scopes.join(' '),
+          };
+        };
+        const changed = (result: { affected?: number }) => {
+          if (result.affected !== 1) throw new ServiceUnavailableException('Refresh conflict.');
+        };
+        if (row.state === 'active') {
+          changed(
+            await manager.update(
+              McpOAuthRefresh,
+              { tokenHash: row.tokenHash, state: 'active' },
+              { state: 'rotated', usedAt: new Date(now), replacedByHash: hash(refreshToken) },
+            ),
+          );
+          return { kind: 'issued', response: await issue() };
+        }
+        const successor =
+          row.state === 'rotated' && row.replacedByHash
+            ? await manager.findOneBy(McpOAuthRefresh, { tokenHash: row.replacedByHash })
+            : null;
+        // Negative elapsed time (clock or timezone skew) is never inside the window.
+        const elapsed = row.usedAt ? now - row.usedAt.getTime() : -1;
+        if (
+          row.state === 'rotated' &&
+          row.retriedAt === null &&
+          elapsed >= 0 &&
+          elapsed < MCP_REFRESH_RETRY_WINDOW_MS &&
+          successor?.state === 'active' &&
+          successor.grantId === grant.id &&
+          successor.parentHash === row.tokenHash
+        ) {
+          changed(
+            await manager.update(
+              McpOAuthRefresh,
+              { tokenHash: successor.tokenHash, state: 'active' },
+              { state: 'superseded' },
+            ),
+          );
+          await manager.delete(McpOAuthToken, {
+            tokenHash: successor.accessHash,
+            grantId: grant.id,
+          });
+          // usedAt stays at the first use, so the window never slides.
+          changed(
+            await manager.update(
+              McpOAuthRefresh,
+              { tokenHash: row.tokenHash, state: 'rotated', retriedAt: IsNull() },
+              { retriedAt: new Date(now), replacedByHash: hash(refreshToken) },
+            ),
+          );
+          return { kind: 'issued', response: await issue(), retried: log };
+        }
+        // Reuse: commit the revocation, then answer invalid_grant outside the transaction.
+        await manager.update(McpOAuthGrant, { id: grant.id, revoked: false }, { revoked: true });
+        return { kind: 'reuse', log };
+      });
+    } catch (error) {
+      if (error instanceof OAuth2Server.OAuthError) throw error;
+      // Grant state (checkedGrant, lockSourceActor, fingerprint) is a definitive rejection. Missing
+      // configuration, database errors and lock timeouts are not: Claude deletes its tokens on
+      // invalid_grant, so those stay 5xx temporarily_unavailable.
+      if (error instanceof UnauthorizedException || error instanceof ForbiddenException)
+        throw new OAuth2Server.InvalidGrantError('Invalid grant.');
+      // Never log the message or query parameters: the token hash is a bind parameter.
+      const code = (error as { driverError?: { code?: unknown } })?.driverError?.code;
+      this.logger.error(
+        `MCP refresh unavailable ${JSON.stringify({
+          error: (error as object)?.constructor?.name ?? typeof error,
+          code: typeof code === 'string' ? code : undefined,
+        })}`,
+      );
+      throw new ServiceUnavailableException('Token request failed.');
+    }
+    if (outcome.kind === 'reuse') {
+      this.logger.warn(`MCP refresh token reuse; grant revoked ${JSON.stringify(outcome.log)}`);
+      throw new OAuth2Server.InvalidGrantError('Invalid grant.');
+    }
+    if (outcome.retried)
+      this.logger.warn(
+        `MCP refresh token re-rotated inside the retry window ${JSON.stringify(outcome.retried)}`,
+      );
+    return tokenResponseSchema.parse(outcome.response);
   }
 
   async disconnect(actor: McpOAuthActor, id: string, body: unknown) {
@@ -636,7 +873,10 @@ export class McpOAuthService {
     const input = parsed.data;
     if (!/^[a-f0-9]{64}$/.test(input.token)) return {};
     await sourceWriteTransaction(this.db, async manager => {
-      const token = await manager.findOneBy(McpOAuthToken, { tokenHash: hash(input.token) });
+      // RFC 7009: look the token up as either type, whatever token_type_hint says.
+      const token =
+        (await manager.findOneBy(McpOAuthToken, { tokenHash: hash(input.token) })) ??
+        (await manager.findOneBy(McpOAuthRefresh, { tokenHash: hash(input.token) }));
       if (!token) return;
       // Grant row before the actor row, the same order as token exchange, disconnect and MCP writes.
       const grant = await manager.findOne(McpOAuthGrant, {

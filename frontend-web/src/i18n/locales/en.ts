@@ -10,7 +10,8 @@ export default {
     callback: 'Return address',
     expires: 'Expires',
     grantExpires: 'Approval expires',
-    tokenLifetime: 'Access tokens last up to 10 minutes. Reconnect from the AI client after the token expires.',
+    tokenLifetime:
+      'Access tokens last up to 10 minutes and the AI client renews them automatically. The connection stays up without asking again until the approval expires (up to 8 hours). Reusing an already-used refresh token disconnects it.',
     created: 'Connected',
     scopes: 'Allow read access',
     sourcesRead: 'Read source schemas and descriptions',
