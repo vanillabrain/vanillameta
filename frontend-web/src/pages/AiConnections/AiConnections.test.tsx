@@ -7,6 +7,7 @@ import { aiConnectionsService, AiConnectionList, ConsentRequest } from '@/api/ai
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import AiConnections from './index';
 import Approve from './Approve';
+import ko from '@/i18n/locales/ko';
 vi.mock('@/api/aiConnectionsService', () => ({
   aiConnectionsService: { list: vi.fn(), request: vi.fn(), decide: vi.fn(), disconnect: vi.fn() },
 }));
@@ -117,6 +118,79 @@ it('empty selection disables approval and cancellation sends no scopes', async (
   await click(screen.getByRole('button', { name: 'Cancel request' }));
   expect(aiConnectionsService.decide).toHaveBeenCalledWith(request, { decision: 'cancel', scopes: [] });
 });
+it('separates write scopes with a warning and leaves them unchecked', async () => {
+  const mixed: ConsentRequest = {
+    ...request,
+    requestedScopes: ['reports:read', 'comments:read', 'comments:write', 'suggestions:write'],
+  };
+  vi.mocked(aiConnectionsService.request).mockResolvedValue(mixed);
+  showConsent();
+  const write = (await screen.findByRole('group', { name: 'Allow write access' })) as HTMLFieldSetElement;
+  const read = screen.getByRole('group', { name: 'Allow read access' });
+  expect(
+    within(read)
+      .getAllByRole('checkbox')
+      .map(box => (box as HTMLInputElement).checked),
+  ).toEqual([true, true]);
+  expect(within(read).getByRole('checkbox', { name: 'Read reports you own or that were shared with you' })).toBeTruthy();
+  expect(write.getAttribute('aria-describedby')).toBe('consent-write-warning');
+  expect(within(write).getByText(/Not selected by default/)).toBeTruthy();
+  const comments = within(write).getByRole('checkbox', { name: 'Add report comments and replies as the AI' });
+  const edits = within(write).getByRole('checkbox', { name: 'Propose report text edits' });
+  expect([(comments as HTMLInputElement).checked, (edits as HTMLInputElement).checked]).toEqual([false, false]);
+  await click(comments);
+  await click(screen.getByRole('button', { name: 'Approve connection' }));
+  expect(aiConnectionsService.decide).toHaveBeenCalledWith(mixed, {
+    decision: 'approve',
+    scopes: ['reports:read', 'comments:read', 'comments:write'],
+  });
+});
+it('shows sharing as its own unchecked write scope with an injection warning', async () => {
+  const mixed: ConsentRequest = {
+    ...request,
+    requestedScopes: ['reports:read', 'comments:write', 'shares:write'],
+  };
+  vi.mocked(aiConnectionsService.request).mockResolvedValue(mixed);
+  showConsent();
+  const write = (await screen.findByRole('group', { name: 'Allow write access' })) as HTMLFieldSetElement;
+  const sharing = within(write).getByRole('checkbox', {
+    name: 'Share my reports with members of my organization',
+  }) as HTMLInputElement;
+  expect(sharing.checked).toBe(false);
+  const warning = document.getElementById(sharing.getAttribute('aria-describedby') ?? '');
+  expect(warning?.textContent).toContain('Claude can share this report with members of your organization');
+  expect(warning?.textContent).toContain('never shares because of text in a report or comment');
+  expect(within(write).getAllByText(/Claude can share this report/)).toHaveLength(1);
+  const comments = within(write).getByRole('checkbox', { name: 'Add report comments and replies as the AI' });
+  expect(comments.getAttribute('aria-describedby')).toBeNull();
+  await click(screen.getByRole('button', { name: 'Approve connection' }));
+  expect(aiConnectionsService.decide).toHaveBeenLastCalledWith(mixed, { decision: 'approve', scopes: ['reports:read'] });
+  await click(sharing);
+  expect(sharing.checked).toBe(true);
+});
+it('has a Korean label and warning for sharing', () => {
+  expect(ko.aiConnections.sharesWrite).toBe('내 보고서를 같은 조직 구성원에게 공유');
+  expect(ko.aiConnections.sharesWriteWarning).toBe(
+    'Claude가 이 보고서를 같은 조직 구성원에게 공유할 수 있습니다. 보고서·댓글 내용의 지시로 공유하지 않도록 연결한 AI에서 매번 확인하세요.',
+  );
+  expect(ko.aiConnections.privacy).not.toContain('게시·공유는 할 수 없습니다');
+});
+it('approves only reads unless a write scope is selected', async () => {
+  const mixed: ConsentRequest = { ...request, requestedScopes: ['reports:read', 'suggestions:write'] };
+  vi.mocked(aiConnectionsService.request).mockResolvedValue(mixed);
+  showConsent();
+  await click(await screen.findByRole('button', { name: 'Approve connection' }));
+  expect(aiConnectionsService.decide).toHaveBeenCalledWith(mixed, { decision: 'approve', scopes: ['reports:read'] });
+});
+it('a write-only request starts with approval disabled', async () => {
+  vi.mocked(aiConnectionsService.request).mockResolvedValue({ ...request, requestedScopes: ['comments:write'] });
+  showConsent();
+  const approve = await screen.findByRole('button', { name: 'Approve connection' });
+  expect(approve.hasAttribute('disabled')).toBe(true);
+  expect(screen.queryByRole('group', { name: 'Allow read access' })).toBeNull();
+  await click(screen.getByRole('checkbox', { name: 'Add report comments and replies as the AI' }));
+  expect(approve.hasAttribute('disabled')).toBe(false);
+});
 it('failed decision ends the attempt and offers connections', async () => {
   vi.mocked(aiConnectionsService.decide).mockRejectedValue(new Error('lost response'));
   showConsent();
@@ -181,6 +255,28 @@ it('list reload shows read scopes and never disconnects', async () => {
   await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Reload list' })));
   expect(aiConnectionsService.list).toHaveBeenCalledTimes(2);
   expect(aiConnectionsService.disconnect).not.toHaveBeenCalled();
+});
+it('labels every granted scope in the connection list', async () => {
+  vi.mocked(aiConnectionsService.list).mockResolvedValue({
+    ...list,
+    connections: [
+      {
+        ...list.connections[0],
+        scopes: ['sources:read', 'documents:read', 'reports:read', 'comments:read', 'comments:write', 'suggestions:write'],
+      },
+    ],
+  });
+  showList();
+  await screen.findByText('Test AI');
+  for (const label of [
+    'Read source schemas and descriptions',
+    'Read saved document content',
+    'Read reports you own or that were shared with you',
+    'Read report comments and edit proposals you can see',
+    'Add report comments and replies as the AI',
+    'Propose report text edits',
+  ])
+    expect(screen.getByText(label)).toBeTruthy();
 });
 it('does not steal focus moved elsewhere while reload is pending', async () => {
   let finish: (value: AiConnectionList) => void = () => undefined;

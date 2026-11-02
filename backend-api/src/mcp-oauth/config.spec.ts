@@ -1,4 +1,4 @@
-import { readMcpConfig } from './config';
+import { MCP_SCOPES, readMcpConfig } from './config';
 describe('MCP canonical configuration', () => {
   const env = {
     NODE_ENV: 'local',
@@ -56,7 +56,7 @@ describe('MCP canonical configuration', () => {
       }),
     ).toBeNull();
   });
-  it('rejects write scope, duplicate client IDs and unbounded registration', () => {
+  it('rejects unknown scopes, duplicate client IDs and unbounded registration', () => {
     const client = JSON.parse(env.MCP_OAUTH_CLIENTS_JSON)[0];
     expect(
       readMcpConfig({ ...env, MCP_OAUTH_CLIENTS_JSON: JSON.stringify([client, client]) }),
@@ -65,6 +65,29 @@ describe('MCP canonical configuration', () => {
       readMcpConfig({
         ...env,
         MCP_OAUTH_CLIENTS_JSON: JSON.stringify([{ ...client, scopes: ['publish'] }]),
+      }),
+    ).toBeNull();
+    expect(
+      readMcpConfig({
+        ...env,
+        MCP_OAUTH_CLIENTS_JSON: JSON.stringify([{ ...client, scopes: ['shares:delete'] }]),
+      }),
+    ).toBeNull();
+  });
+  it('accepts every published scope once and changes the fingerprint with the allowlist', () => {
+    const client = JSON.parse(env.MCP_OAUTH_CLIENTS_JSON)[0];
+    const all = readMcpConfig({
+      ...env,
+      MCP_OAUTH_CLIENTS_JSON: JSON.stringify([{ ...client, scopes: [...MCP_SCOPES] }]),
+    });
+    expect(all.clients[0].scopes).toEqual([...MCP_SCOPES]);
+    expect(all.fingerprint).not.toBe(readMcpConfig(env).fingerprint);
+    expect(
+      readMcpConfig({
+        ...env,
+        MCP_OAUTH_CLIENTS_JSON: JSON.stringify([
+          { ...client, scopes: [...MCP_SCOPES, 'reports:read'] },
+        ]),
       }),
     ).toBeNull();
   });

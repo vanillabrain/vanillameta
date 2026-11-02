@@ -15,13 +15,14 @@ import { lockSourceActor, sourceWriteTransaction } from '../database/source-writ
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { EnterpriseOrganization } from '../enterprise/entities/enterprise-organization.entity';
 import { User } from '../user/entities/user.entity';
-import { McpConfig, mcpScopeSchema, readMcpConfig } from './config';
+import { MCP_SCOPES, McpConfig, McpScope, mcpScopeSchema, readMcpConfig } from './config';
 import { McpOAuthCode, McpOAuthGrant, McpOAuthPending, McpOAuthToken } from './mcp-oauth.entities';
 
 export type McpOAuthActor = { actorId: number; authVersion: number };
 export type McpOAuthPrincipal = McpOAuthActor & {
   grantId: string;
   organizationId: number;
+  clientName: string;
   scopes: string[];
 };
 
@@ -34,14 +35,14 @@ const authorizationSchema = z
     code_challenge: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
     code_challenge_method: z.literal('S256'),
     resource: z.string().max(2048),
-    scope: z.string().min(1).max(100),
+    scope: z.string().min(1).max(512),
   })
   .strict();
 const decisionSchema = z
   .object({
     decision: z.enum(['approve', 'cancel']),
     reviewToken: z.string().regex(/^[a-f0-9]{64}$/),
-    scopes: z.array(mcpScopeSchema).max(2),
+    scopes: z.array(mcpScopeSchema).max(MCP_SCOPES.length),
   })
   .strict();
 const exchangeSchema = z
@@ -95,7 +96,7 @@ export class McpOAuthService {
       grant_types_supported: ['authorization_code'],
       token_endpoint_auth_methods_supported: ['none'],
       revocation_endpoint_auth_methods_supported: ['none'],
-      scopes_supported: ['sources:read', 'documents:read'],
+      scopes_supported: [...MCP_SCOPES],
       code_challenge_methods_supported: ['S256'],
     };
   }
@@ -535,13 +536,14 @@ export class McpOAuthService {
       const current = exchange;
       if (!current) throw new OAuth2Server.InvalidGrantError('Invalid grant.');
       return sourceWriteTransaction(this.db, async manager => {
-        await lockSourceActor(manager, current.grant.actorId, current.grant.authVersion);
+        // Grant before actor, the same order as disconnect, revoke and MCP writes (assertGrant).
         const grant = await this.checkedGrant(
           manager,
           current.grant.id,
           this.config(config.fingerprint),
           true,
         );
+        await lockSourceActor(manager, current.grant.actorId, current.grant.authVersion);
         if (libraryClient.id !== grant.clientId || current.code.expiresAt.getTime() <= Date.now())
           throw new OAuth2Server.InvalidGrantError('Invalid grant.');
         const expiresAt = new Date(Math.min(Date.now() + 600_000, grant.expiresAt.getTime()));
@@ -606,14 +608,16 @@ export class McpOAuthService {
     if (!z.object({}).strict().safeParse(body).success || !z.string().uuid().safeParse(id).success)
       throw new BadRequestException('Invalid disconnect request.');
     return sourceWriteTransaction(this.db, async manager => {
-      await lockSourceActor(manager, actor.actorId, actor.authVersion);
-      const { organization } = await this.actorContext(manager, actor);
+      // Grant before actor, as in token exchange and MCP writes (assertGrant, then staff locks):
+      // the reverse order could deadlock against a concurrent vm_share_report on the same grant.
       const grant = await manager.findOne(McpOAuthGrant, {
         where: { id },
         ...(this.db.options.type !== 'sqlite'
           ? { lock: { mode: 'pessimistic_write' as const } }
           : {}),
       });
+      await lockSourceActor(manager, actor.actorId, actor.authVersion);
+      const { organization } = await this.actorContext(manager, actor);
       if (
         !grant ||
         !organization ||
@@ -634,9 +638,12 @@ export class McpOAuthService {
     await sourceWriteTransaction(this.db, async manager => {
       const token = await manager.findOneBy(McpOAuthToken, { tokenHash: hash(input.token) });
       if (!token) return;
-      const grant = await manager.findOneBy(McpOAuthGrant, {
-        id: token.grantId,
-        clientId: input.client_id,
+      // Grant row before the actor row, the same order as token exchange, disconnect and MCP writes.
+      const grant = await manager.findOne(McpOAuthGrant, {
+        where: { id: token.grantId, clientId: input.client_id },
+        ...(this.db.options.type !== 'sqlite'
+          ? { lock: { mode: 'pessimistic_write' as const } }
+          : {}),
       });
       if (!grant) return;
       // Revocation remains possible after an epoch change or account deactivation.
@@ -668,6 +675,7 @@ export class McpOAuthService {
         actorId: grant.actorId,
         authVersion: grant.authVersion,
         organizationId: grant.organizationId,
+        clientName: grant.clientName,
         scopes: [...grant.scopes],
       };
     });
@@ -682,6 +690,39 @@ export class McpOAuthService {
       const principal = await this.principalForHash(tokenHash);
       this.bearerProofs.set(principal, tokenHash);
       return principal;
+    } catch {
+      throw new UnauthorizedException('Authorization unavailable.');
+    }
+  }
+
+  /**
+   * Re-checks the bearer's token and grant inside a write transaction, locking the grant row so a
+   * concurrent disconnect or revoke either commits first (and this fails) or waits for this write.
+   */
+  async assertGrant(manager: EntityManager, principal: McpOAuthPrincipal, scope: McpScope) {
+    try {
+      const config = this.config();
+      const tokenHash = this.bearerProofs.get(principal);
+      const token = tokenHash && (await manager.findOneBy(McpOAuthToken, { tokenHash }));
+      if (
+        !token ||
+        token.grantId !== principal.grantId ||
+        token.expiresAt.getTime() <= Date.now() ||
+        token.resource !== config.resource
+      )
+        throw new UnauthorizedException();
+      const grant = await this.checkedGrant(manager, principal.grantId, config, true);
+      if (
+        grant.actorId !== principal.actorId ||
+        grant.authVersion !== principal.authVersion ||
+        grant.organizationId !== principal.organizationId ||
+        grant.clientName !== principal.clientName ||
+        !grant.scopes.includes(scope) ||
+        !principal.scopes.includes(scope)
+      )
+        throw new UnauthorizedException();
+      this.config(config.fingerprint);
+      return grant;
     } catch {
       throw new UnauthorizedException('Authorization unavailable.');
     }

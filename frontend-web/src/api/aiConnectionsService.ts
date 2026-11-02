@@ -1,10 +1,19 @@
 import { z } from 'zod';
 import { get, post } from '@/helpers/apiHelper';
 
-const scopeSchema = z.enum(['sources:read', 'documents:read']);
+const scopeSchema = z.enum([
+  'sources:read',
+  'documents:read',
+  'reports:read',
+  'comments:read',
+  'comments:write',
+  'suggestions:write',
+  'shares:write',
+]);
+export const AI_SCOPES = scopeSchema.options;
 const scopesSchema = z
   .array(scopeSchema)
-  .max(2)
+  .max(AI_SCOPES.length)
   .refine(values => new Set(values).size === values.length);
 const organizationSchema = z.object({ id: z.number().int().positive(), name: z.string() });
 const dateSchema = z.string().datetime({ offset: true });

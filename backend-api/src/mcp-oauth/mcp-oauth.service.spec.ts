@@ -9,7 +9,7 @@ import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { createHash, randomUUID } from 'crypto';
 import supertest = require('supertest');
-import { DataSource, EntitySubscriberInterface, UpdateEvent } from 'typeorm';
+import { DataSource, EntityManager, EntitySubscriberInterface, UpdateEvent } from 'typeorm';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { EnterpriseOrganization } from '../enterprise/entities/enterprise-organization.entity';
 import { AddMcpOAuth1793233000000 } from '../migrations/1793233000000-add-mcp-oauth';
@@ -21,6 +21,7 @@ import {
   McpOAuthPending,
   McpOAuthToken,
 } from './mcp-oauth.entities';
+import { MCP_SCOPES } from './config';
 import { McpOAuthExceptionFilter } from './mcp-oauth.http';
 import { McpOAuthModule } from './mcp-oauth.module';
 import { McpOAuthService } from './mcp-oauth.service';
@@ -218,6 +219,7 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
       actorId: 1,
       authVersion: 0,
       organizationId: 1,
+      clientName: 'Test client',
       scopes: ['sources:read'],
     });
     expect(Object.keys(token).sort()).toEqual([
@@ -390,6 +392,34 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
     expect(await db.getRepository(McpOAuthCode).count()).toBe(0);
   });
 
+  it('narrows report and comment scopes within the client allowlist', async () => {
+    await expect(
+      service.authorize({ ...query(), scope: 'sources:read comments:write' }),
+    ).rejects.toThrow('Invalid scope');
+    await expect(service.authorize({ ...query(), scope: 'a'.repeat(513) })).rejects.toThrow(
+      'Invalid authorization request',
+    );
+    const clients = JSON.parse(process.env.MCP_OAUTH_CLIENTS_JSON);
+    clients[0].scopes = [...MCP_SCOPES];
+    process.env.MCP_OAUTH_CLIENTS_JSON = JSON.stringify(clients);
+    const start = await service.authorize({ ...query(), scope: MCP_SCOPES.join(' ') });
+    const ticket = start.redirectUrl.split('/').pop();
+    const review = await service.request(actor, ticket, start.browser);
+    expect(review.requestedScopes).toEqual([...MCP_SCOPES]);
+    const result = await service.decision(actor, ticket, start.browser, {
+      decision: 'approve',
+      reviewToken: review.reviewToken,
+      scopes: ['reports:read', 'comments:write'],
+    });
+    const token = await service.token(
+      exchange(new URL(result.redirectUrl).searchParams.get('code')),
+    );
+    expect(token.scope).toBe('reports:read comments:write');
+    const principal = await service.authenticateBearer(`Bearer ${token.access_token}`);
+    expect(principal.scopes).toEqual(['reports:read', 'comments:write']);
+    expect(service.authorizationMetadata().scopes_supported).toEqual([...MCP_SCOPES]);
+  });
+
   it('checks config fingerprint for approval, code exchange, bearer use and revalidation', async () => {
     const pendingStart = await pending();
     const codeStart = await approved();
@@ -455,6 +485,43 @@ describe('MCP OAuth real SQLite and Nest protocol', () => {
     });
     await expect(service.revalidate(principal)).rejects.toThrow();
     expect(JSON.stringify(await db.getRepository(User).find())).toBe(before);
+  });
+
+  it('locks the grant row before the actor row on token exchange, disconnect and revoke, like MCP writes', async () => {
+    // SQLite skips FOR UPDATE, so assert the order of the locking lookups PostgreSQL would run.
+    // Only lookups inside a write transaction count: token exchange reads the grant and the user
+    // without locks (getAuthorizationCode) before saveToken opens its transaction.
+    const lookups: string[] = [];
+    const original = EntityManager.prototype.findOne;
+    const spy = jest
+      .spyOn(EntityManager.prototype, 'findOne')
+      .mockImplementation(function (this: EntityManager, target: any, options: any) {
+        if (this.queryRunner?.isTransactionActive)
+          lookups.push(typeof target === 'function' ? target.name : String(target));
+        return original.call(this, target, options);
+      } as any);
+    try {
+      const first = await approved();
+      lookups.length = 0;
+      const firstToken = await service.token(exchange(first.code));
+      expect(lookups.indexOf('McpOAuthGrant')).toBeGreaterThanOrEqual(0);
+      expect(lookups.indexOf('User')).toBeGreaterThanOrEqual(0);
+      expect(lookups.indexOf('McpOAuthGrant')).toBeLessThan(lookups.indexOf('User'));
+      const grantId = (await service.authenticateBearer(`Bearer ${firstToken.access_token}`))
+        .grantId;
+      lookups.length = 0;
+      await service.disconnect(actor, grantId, {});
+      expect(lookups.indexOf('McpOAuthGrant')).toBeGreaterThanOrEqual(0);
+      expect(lookups.indexOf('McpOAuthGrant')).toBeLessThan(lookups.indexOf('User'));
+      const second = await approved();
+      const secondToken = await service.token(exchange(second.code));
+      lookups.length = 0;
+      await service.revoke({ token: secondToken.access_token, client_id: 'test-client' });
+      expect(lookups.indexOf('McpOAuthGrant')).toBeGreaterThanOrEqual(0);
+      expect(lookups.indexOf('McpOAuthGrant')).toBeLessThan(lookups.indexOf('User'));
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('revokes the whole grant for matching client and keeps unknown tokens indistinguishable', async () => {

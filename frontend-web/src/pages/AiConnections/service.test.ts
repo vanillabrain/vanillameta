@@ -85,6 +85,23 @@ it('rejects organization-mixed lists and write scopes', async () => {
   vi.mocked(get).mockResolvedValue({ data: { ...request, requestedScopes: ['sources:write'] } });
   await expect(aiConnectionsService.request(request.ticket)).rejects.toThrow();
 });
+it('accepts report and comment scopes but no unknown or duplicate scope', async () => {
+  const scopes = [
+    'sources:read',
+    'documents:read',
+    'reports:read',
+    'comments:read',
+    'comments:write',
+    'suggestions:write',
+    'shares:write',
+  ];
+  vi.mocked(get).mockResolvedValue({ data: { ...request, requestedScopes: scopes } });
+  expect((await aiConnectionsService.request(request.ticket)).requestedScopes).toEqual(scopes);
+  for (const requestedScopes of [['shares:delete'], ['reports:read', 'reports:read'], [...scopes, 'reports:read']]) {
+    vi.mocked(get).mockResolvedValue({ data: { ...request, requestedScopes } });
+    await expect(aiConnectionsService.request(request.ticket)).rejects.toThrow();
+  }
+});
 it('revokes only the selected grant with no retry or actor body', async () => {
   vi.mocked(post).mockResolvedValue({ data: { revoked: true } });
   await aiConnectionsService.disconnect('grant-id');
