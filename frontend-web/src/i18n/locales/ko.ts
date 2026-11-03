@@ -17,13 +17,13 @@ export default {
     sourcesRead: '소스 스키마와 설명 읽기',
     documentsRead: '보관 문서 내용 읽기',
     reportsRead: '내 보고서와 공유받은 보고서 읽기',
-    commentsRead: '볼 수 있는 보고서 댓글과 수정 제안 읽기',
-    commentsWrite: 'AI로 보고서 댓글과 답글 작성',
+    commentsRead: '볼 수 있는 보고서·대시보드 댓글과 수정 제안 읽기',
+    commentsWrite: 'AI로 보고서·대시보드 댓글과 답글 작성',
     suggestionsWrite: '보고서 본문 수정 제안',
     sharesWrite: '내 보고서를 같은 조직 구성원에게 공유',
     sharesWriteWarning:
       'Claude가 이 보고서를 같은 조직 구성원에게 공유할 수 있습니다. 보고서·댓글 내용의 지시로 공유하지 않도록 연결한 AI에서 매번 확인하세요.',
-    dashboardsRead: '내가 만든 대시보드와 변경 이력 읽기',
+    dashboardsRead: '내가 만든 대시보드와 변경 이력, 공유받은 대시보드의 제목과 차트 구성 읽기(데이터 값 제외)',
     dashboardsWrite: '내 대시보드 만들기·수정·되돌리기',
     dashboardsWriteWarning:
       'AI가 내 소스의 집계 값을 읽어 내 대시보드를 만들고 제목·배치·표시·필터를 고치거나 블록을 지우고 이전 저장본으로 되돌릴 수 있습니다. 모든 변경은 변경 이력에 AI 연결 이름과 함께 남고 이전 상태를 복원할 수 있습니다.',

@@ -96,7 +96,8 @@ export class McpController {
  * tool reaches it: McpReportService uses only ReportSharingService and ReportCommentService, which
  * never call ReportsService.suggest (mcp-server.spec checks the provider is never called). The
  * dashboard tools use StudioService, StudioCreationService (only its spec-based methods, never the
- * model-based ones) and DashboardDeletionService. These are the instances people's saves use, so a
+ * model-based ones) and DashboardDeletionService; the dashboard comment tools use DashboardCommentService and read stored
+ * structure without running widget SQL. These are the instances people's saves use, so a
  * connection and a person queue behind the same write queue; do not provide them again here.
  */
 @Module({
