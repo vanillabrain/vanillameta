@@ -4,6 +4,8 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { StudioModule } from '../dashboard-studio/studio.module';
 import { reportBodyAiProvider } from './report-ai';
+import { CommentNotificationService } from './comment-notification.service';
+import { CommentNotificationsController } from './comment-notifications.controller';
 import { REPORT_COMMENT_ENTITIES } from './report-comment.entity';
 import { ReportCommentService } from './report-comment.service';
 import { ReportCommentsController } from './report-comments.controller';
@@ -21,11 +23,12 @@ import { ReportsService } from './reports.service';
       ...REPORT_COMMENT_ENTITIES,
     ]),
   ],
-  controllers: [ReportsController, ReportCommentsController],
+  controllers: [ReportsController, ReportCommentsController, CommentNotificationsController],
   providers: [
     ReportsService,
     ReportSharingService,
     ReportCommentService,
+    CommentNotificationService,
     JwtService,
     reportBodyAiProvider,
   ],
@@ -33,6 +36,10 @@ import { ReportsService } from './reports.service';
 })
 export class ReportsModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(studioPublicationNoStore).forRoutes(ReportsController, ReportCommentsController);
+    consumer.apply(studioPublicationNoStore).forRoutes(
+      ReportsController,
+      ReportCommentsController,
+      CommentNotificationsController,
+    );
   }
 }

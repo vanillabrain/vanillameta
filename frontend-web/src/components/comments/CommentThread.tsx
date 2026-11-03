@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { CommentAuthor, CommentEntry, authorLabel } from './commentModel';
@@ -27,6 +27,7 @@ export function CommentComposer({
   placeholder,
   disabled,
   autoFocus,
+  scope,
   onCancel,
   send,
 }: {
@@ -35,12 +36,15 @@ export function CommentComposer({
   placeholder?: string;
   disabled: boolean;
   autoFocus?: boolean;
+  /** Other request input (e.g. visibility); a change keeps the text but starts a new request. */
+  scope?: string;
   onCancel?: () => void;
   send: (body: string, requestId: string) => Promise<boolean>;
 }) {
   const [body, setBody] = useState('');
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const id = useRef(`comment-${crypto.randomUUID()}`).current;
+  useEffect(() => setRequestId(crypto.randomUUID()), [scope]);
   const valid = body.trim().length > 0 && body.length <= BODY_LIMIT;
   return (
     <form

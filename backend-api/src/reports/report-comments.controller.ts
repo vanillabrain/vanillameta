@@ -39,6 +39,16 @@ export class ReportCommentsController {
   ) {
     return this.comments.setThreadStatus(id, threadId, body, req.user.accessKeyData);
   }
+  @Post(':id/comments/:threadId/visibility')
+  @Header('Cache-Control', 'no-store')
+  setVisibility(
+    @Param('id') id: string,
+    @Param('threadId') threadId: string,
+    @Body() body: unknown,
+    @Req() req: ReportRequest,
+  ) {
+    return this.comments.setThreadVisibility(id, threadId, body, req.user.accessKeyData);
+  }
   @Post(':id/suggestions')
   @Header('Cache-Control', 'no-store')
   createSuggestion(@Param('id') id: string, @Body() body: unknown, @Req() req: ReportRequest) {

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AuthorName, CommentComposer, CommentFlag, CommentThreadItem } from '@/components/comments/CommentThread';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,7 +11,9 @@ import { ReportReaderData, readerBlocks } from './reportSharingApi';
 type Write = ReturnType<typeof reportCommentApi.reply>;
 type Range = { start: number; end: number };
 type ImageBlock = { id: string; kind: 'IMAGE'; dataUrl: string; alt: string; width: 'full' | 'half' };
-const quoteLabel = (quote: string) => `“${quote.length > 80 ? quote.slice(0, 80) + '…' : quote}”`;
+/** An empty quote is old text the server withholds from people who did not write the thread. */
+const quoteLabel = (quote: string) =>
+  quote ? `“${quote.length > 80 ? quote.slice(0, 80) + '…' : quote}”` : '이전 버전 본문';
 const statusOf = (thread: CommentThread) => thread.location.status;
 const locatedRange = (thread: CommentThread): Range | null =>
   thread.anchor.kind === 'text' &&
@@ -126,7 +129,7 @@ function SuggestionComposer({
 export function SuggestionDiff({ suggestion }: { suggestion: CommentSuggestion }) {
   return (
     <div className="report-comment-diff">
-      <del aria-label="기존 문구">{suggestion.anchor.quote}</del>
+      <del aria-label="기존 문구">{suggestion.anchor.quote || '(이전 버전 본문)'}</del>
       <ins aria-label="제안 문구">{suggestion.replacement || '(삭제)'}</ins>
       {suggestion.rationale && <p className="text-muted-foreground">{suggestion.rationale}</p>}
     </div>
@@ -135,7 +138,6 @@ export function SuggestionDiff({ suggestion }: { suggestion: CommentSuggestion }
 
 function ThreadCard({
   thread,
-  role,
   images,
   active,
   canSuggest,
@@ -147,7 +149,6 @@ function ThreadCard({
   text,
 }: {
   thread: CommentThread;
-  role: 'owner' | 'recipient';
   images: Array<{ id: string; alt: string }>;
   active: boolean;
   canSuggest: boolean;
@@ -161,19 +162,33 @@ function ThreadCard({
   const [suggesting, setSuggesting] = useState(false);
   const range = locatedRange(thread);
   const open = thread.status === 'open';
+  const shared = thread.visibility === 'participants';
+  const changeVisibility = (visibility: CommentThread['visibility']) =>
+    void run(() => reportCommentApi.setVisibility(reportId, thread.id, { requestId: crypto.randomUUID(), visibility }));
   return (
     <CommentThreadItem
       threadId={thread.id}
       label={anchorLabel(thread.anchor, images)}
-      meta={`r${thread.version}${open ? '' : ' · 해결됨'}`}
-      notes={<LocationNote status={statusOf(thread)} />}
+      meta={`r${thread.version}${shared ? ' · 공개' : ''}${open ? '' : ' · 해결됨'}`}
+      notes={
+        <>
+          <LocationNote status={statusOf(thread)} />
+          {shared && thread.viewerCount !== null && (
+            <CommentFlag tone="info">
+              {thread.viewerCount
+                ? `공유받은 사람 ${thread.viewerCount}명이 볼 수 있음`
+                : '지금 볼 수 있는 공유받은 사람 없음 · 이 버전을 공유하면 보입니다'}
+            </CommentFlag>
+          )}
+        </>
+      }
       comments={thread.comments}
       resolved={!open}
       active={active}
       busy={busy}
       onSelect={onSelect}
       onToggleStatus={
-        role === 'owner' || thread.mine
+        thread.canManage
           ? () =>
               void run(() =>
                 reportCommentApi.setStatus(reportId, thread.id, {
@@ -186,13 +201,29 @@ function ThreadCard({
       }
       onReply={(body, requestId) => run(() => reportCommentApi.reply(reportId, thread.id, { requestId, body }))}
       extraActions={
-        open &&
-        canSuggest &&
-        range && (
-          <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setSuggesting(true)}>
-            수정 제안
-          </Button>
-        )
+        <>
+          {open && canSuggest && thread.canManage && range && (
+            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setSuggesting(true)}>
+              수정 제안
+            </Button>
+          )}
+          {thread.canManage && !shared && thread.mine && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => changeVisibility('participants')}
+            >
+              공유받은 사람에게 공개{thread.viewerCount ? ` (${thread.viewerCount}명)` : ''}
+            </Button>
+          )}
+          {thread.canManage && shared && !thread.narrowLocked && (
+            <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => changeVisibility('private')}>
+              비공개로 전환
+            </Button>
+          )}
+        </>
       }
       editor={
         suggesting && range ? (
@@ -256,6 +287,7 @@ export function ReaderDocument({
   const [busy, setBusy] = useState(false);
   const [selection, setSelection] = useState<Range | null>(null);
   const [draft, setDraft] = useState<CommentAnchor | null>(null);
+  const [shareDraft, setShareDraft] = useState(false);
   const [active, setActive] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const callbacks = useRef({ live, onAccessFailure });
@@ -351,6 +383,16 @@ export function ReaderDocument({
     setActive(threadId);
     document.getElementById(`comment-thread-${threadId}`)?.scrollIntoView?.({ block: 'nearest' });
   };
+  // A notification link opens the reader with ?thread=; select it once the list has it.
+  const requestedThread = useSearchParams()[0].get('thread');
+  const opened = useRef<string | null>(null);
+  useEffect(() => {
+    if (!requestedThread || opened.current === requestedThread) return;
+    if (!list?.threads.some(thread => thread.id === requestedThread)) return;
+    opened.current = requestedThread;
+    setActive(requestedThread);
+    document.getElementById(`comment-thread-${requestedThread}`)?.scrollIntoView?.({ block: 'center' });
+  }, [list, requestedThread]);
   const ready = !!list && !stale;
   const tooLong = !!selection && selection.end - selection.start > ANCHOR_LIMITS.quote;
   return (
@@ -441,7 +483,7 @@ export function ReaderDocument({
         <p className="text-xs text-muted-foreground">
           {data.role === 'owner'
             ? '모든 댓글과 제안을 봅니다. 제안은 편집 화면에서 적용합니다.'
-            : '내가 시작한 스레드만 보이며 소유자도 볼 수 있습니다.'}
+            : '내가 시작한 스레드와 공개된 스레드가 보입니다. 비공개 스레드는 소유자만 함께 봅니다.'}
         </p>
         {ready && (
           <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setDraft({ kind: 'whole' })}>
@@ -457,8 +499,23 @@ export function ReaderDocument({
             <p className="report-comment-quote">
               <span className="text-muted-foreground">대상</span> {anchorLabel(draft, images)}
             </p>
+            <label className="report-comment-share">
+              <input
+                type="checkbox"
+                checked={shareDraft}
+                disabled={busy}
+                onChange={event => setShareDraft(event.target.checked)}
+              />
+              공유받은 사람에게도 공개
+            </label>
+            {shareDraft && (
+              <p className="text-xs text-muted-foreground">
+                소유자와 이 버전을 공유받은 사람 모두에게 아이디와 함께 보입니다.
+              </p>
+            )}
             <CommentComposer
               key={JSON.stringify(draft)}
+              scope={shareDraft ? 'participants' : 'private'}
               label="새 댓글"
               submit="댓글 남기기"
               autoFocus
@@ -466,9 +523,18 @@ export function ReaderDocument({
               onCancel={() => setDraft(null)}
               send={async (body, requestId) => {
                 const ok = await run(() =>
-                  reportCommentApi.createThread(id, { requestId, version: data.version, anchor: draft, body }),
+                  reportCommentApi.createThread(id, {
+                    requestId,
+                    version: data.version,
+                    anchor: draft,
+                    body,
+                    ...(shareDraft ? { visibility: 'participants' as const } : {}),
+                  }),
                 );
-                if (ok) setDraft(null);
+                if (ok) {
+                  setDraft(null);
+                  setShareDraft(false);
+                }
                 return ok;
               }}
             />
@@ -480,7 +546,6 @@ export function ReaderDocument({
             <ThreadCard
               key={thread.id}
               thread={thread}
-              role={list.role}
               images={images}
               active={active === thread.id}
               canSuggest={ready}

@@ -2,6 +2,8 @@ import { randomUUID } from 'crypto';
 import { DataSource, Table, TableColumn } from 'typeorm';
 import { AddArtifactComments1793560000000 } from '../migrations/postgres/1793560000000-add-artifact-comments';
 import { AddDashboardCommentAnchor1793580000000 } from '../migrations/postgres/1793580000000-add-dashboard-comment-anchor';
+import { AddArtifactCommentNotification1793590000000 } from '../migrations/postgres/1793590000000-add-artifact-comment-notification';
+import { AddCommentThreadVisibility1793600000000 } from '../migrations/postgres/1793600000000-add-comment-thread-visibility';
 import {
   REPORT_COMMENT_ENTITIES,
   ArtifactComment,
@@ -108,6 +110,8 @@ describe('artifact comment PostgreSQL migration', () => {
       for (const migration of [
         new AddArtifactComments1793560000000(),
         new AddDashboardCommentAnchor1793580000000(),
+        new AddArtifactCommentNotification1793590000000(),
+        new AddCommentThreadVisibility1793600000000(),
       ]) {
         await migration.up(runner);
         await migration.up(runner);
@@ -185,6 +189,8 @@ describe('artifact comment PostgreSQL migration', () => {
         for (const migration of [
           new AddArtifactComments1793560000000(),
           new AddDashboardCommentAnchor1793580000000(),
+          new AddArtifactCommentNotification1793590000000(),
+          new AddCommentThreadVisibility1793600000000(),
         ]) {
           await migration.up(runner);
           await migration.up(runner);
@@ -196,7 +202,9 @@ describe('artifact comment PostgreSQL migration', () => {
              FROM information_schema.columns WHERE table_schema = $1 ORDER BY table_name, ordinal_position`,
           [schema],
         );
-        expect(new Set(columns.map(row => row.table_name))).toEqual(new Set(TABLES));
+        expect(new Set(columns.map(row => row.table_name))).toEqual(
+          new Set([...TABLES, 'artifact_comment_notification']),
+        );
         expect(
           columns.every(row => ['character varying', 'integer', 'text'].includes(row.data_type)),
         ).toBe(true);

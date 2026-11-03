@@ -1,6 +1,8 @@
 import { DataSource, TableColumn } from 'typeorm';
 import { AddArtifactComments1793560000000 } from '../migrations/postgres/1793560000000-add-artifact-comments';
 import { AddDashboardCommentAnchor1793580000000 } from '../migrations/postgres/1793580000000-add-dashboard-comment-anchor';
+import { AddArtifactCommentNotification1793590000000 } from '../migrations/postgres/1793590000000-add-artifact-comment-notification';
+import { AddCommentThreadVisibility1793600000000 } from '../migrations/postgres/1793600000000-add-comment-thread-visibility';
 import { REPORT_COMMENT_ENTITIES, ArtifactCommentThread } from '../reports/report-comment.entity';
 
 describe('dashboard comment anchor PostgreSQL migration', () => {
@@ -54,10 +56,14 @@ describe('dashboard comment anchor PostgreSQL migration', () => {
       );
       await new AddDashboardCommentAnchor1793580000000().up(runner);
       await new AddDashboardCommentAnchor1793580000000().up(runner);
+      await new AddArtifactCommentNotification1793590000000().up(runner);
+      await new AddCommentThreadVisibility1793600000000().up(runner);
+      await new AddCommentThreadVisibility1793600000000().up(runner);
       const diff = await db.driver.createSchemaBuilder().log();
       expect(diff.upQueries.map(query => query.query)).toEqual([]);
       expect(await db.manager.findOneByOrFail(ArtifactCommentThread, { id: 't' })).toMatchObject({
         artifactKind: 'report',
+        visibility: 'private',
         artifactRevision: null,
         anchorLabel: null,
         anchorType: null,

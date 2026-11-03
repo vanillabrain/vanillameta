@@ -83,6 +83,10 @@ const thread = (suggestions = [first, lost]) => ({
   mine: false,
   resolvedAt: null,
   resolvedBy: null,
+  visibility: 'private',
+  canManage: true,
+  narrowLocked: false,
+  viewerCount: 0,
   comments: [{ id: uuid(11), body: '용어를 맞춰 주세요.', createdAt: '2026-10-30T00:00:00Z', author, mine: false }],
   suggestions,
 });

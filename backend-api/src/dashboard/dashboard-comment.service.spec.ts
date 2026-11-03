@@ -22,6 +22,7 @@ import { SourceAccessService } from '../ownership/source-access.service';
 import {
   REPORT_COMMENT_ENTITIES,
   ArtifactComment,
+  ArtifactCommentNotification,
   ArtifactCommentReceipt,
   ArtifactCommentThread,
 } from '../reports/report-comment.entity';
@@ -583,6 +584,25 @@ describe(`dashboard comments with real ${pgPort ? 'PostgreSQL' : 'SQLite'} trans
     await service.reply(PLAIN, doomed.resultId, reply(), owner);
     await service.setThreadStatus(PLAIN, doomed.resultId, status(0), owner);
     const kept = await service.createThread(ANALYSIS, await thread(ANALYSIS), reader);
+    const notification = (artifactId: string, threadId: string) => ({
+      id: randomUUID(),
+      recipientId: owner.id,
+      organizationKey: 1,
+      artifactKind: 'dashboard',
+      artifactId,
+      threadId,
+      event: 'thread.created',
+      actorKind: 'user',
+      actorId: reader.id,
+      aiClientName: null,
+      relationVersion: null,
+      createdAt: new Date().toISOString(),
+      readAt: null,
+    });
+    await db.manager.insert(ArtifactCommentNotification, [
+      notification(String(PLAIN), doomed.resultId),
+      notification(String(ANALYSIS), kept.resultId),
+    ]);
     const reportReceipt = {
       actorId: owner.id,
       organizationKey: 1,
@@ -618,6 +638,9 @@ describe(`dashboard comments with real ${pgPort ? 'PostgreSQL' : 'SQLite'} trans
       ]),
     );
     expect(await db.manager.count(ArtifactCommentReceipt)).toBe(2);
+    expect((await db.manager.find(ArtifactCommentNotification)).map(row => row.threadId)).toEqual([
+      kept.resultId,
+    ]);
   });
 
   it('clears one dashboard in a handover transaction and leaves the rest', async () => {

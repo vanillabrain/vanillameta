@@ -53,9 +53,17 @@ export const reportAnchor = z.discriminatedUnion('kind', [
 export type ReportTextAnchor = z.infer<typeof textAnchor>;
 export type ReportAnchor = z.infer<typeof reportAnchor>;
 
+const visibility = z.enum(['private', 'participants']);
 export const threadCreateRequest = z
-  .object({ requestId: reportId, version, anchor: reportAnchor, body })
+  .object({
+    requestId: reportId,
+    version,
+    anchor: reportAnchor,
+    body,
+    visibility: visibility.optional(),
+  })
   .strict();
+export const threadVisibilityRequest = z.object({ requestId: reportId, visibility }).strict();
 export const commentReplyRequest = z.object({ requestId: reportId, body }).strict();
 export const threadStatusRequest = z
   .object({
@@ -73,8 +81,13 @@ export const suggestionCreateRequest = z
     replacement: unicode.refine(value => value.length <= COMMENT_LIMITS.replacement),
     rationale: unicode.refine(value => value.length <= COMMENT_LIMITS.rationale).optional(),
     body: body.optional(),
+    /** Only for a new thread (no threadId). */
+    visibility: visibility.optional(),
   })
-  .strict();
+  .strict()
+  .refine(value => !(value.threadId && value.visibility), {
+    message: 'visibility applies only to a new thread',
+  });
 export const suggestionDismissRequest = z
   .object({ requestId: reportId, expectedStatusVersion: offset })
   .strict();
@@ -91,6 +104,7 @@ export type AiProvenance = z.infer<typeof aiProvenance>;
 export type ThreadCreate = z.infer<typeof threadCreateRequest>;
 export type CommentReply = z.infer<typeof commentReplyRequest>;
 export type ThreadStatusChange = z.infer<typeof threadStatusRequest>;
+export type ThreadVisibilityChange = z.infer<typeof threadVisibilityRequest>;
 export type SuggestionCreate = z.infer<typeof suggestionCreateRequest>;
 export type SuggestionDismiss = z.infer<typeof suggestionDismissRequest>;
 
@@ -103,6 +117,7 @@ export type CommentOperation =
   | 'thread.create'
   | 'comment.reply'
   | 'thread.status'
+  | 'thread.visibility'
   | 'suggestion.create'
   | 'suggestion.dismiss';
 
@@ -143,6 +158,13 @@ export type ThreadView = {
   mine: boolean;
   resolvedAt: string | null;
   resolvedBy: string | null;
+  visibility: 'private' | 'participants';
+  /** The viewer is the owner or the author: may resolve, suggest on and change visibility. */
+  canManage: boolean;
+  /** Someone other than the owner and author replied, so the thread can no longer be narrowed. */
+  narrowLocked: boolean;
+  /** Managers only: active recipients (not the author) whose pinned version contains the thread. */
+  viewerCount: number | null;
   comments: CommentView[];
   suggestions: SuggestionView[];
 };

@@ -1,12 +1,15 @@
 import { EntityManager, In, LessThan } from 'typeorm';
+import { notifyThread } from './comment-notification';
 import { ArtifactCommentThread, ArtifactSuggestion } from './report-comment.entity';
+import { PrivateReport } from './report.entity';
 
 /**
  * Marks suggestions applied in the transaction that wrote `newVersion` (report save, step 5).
  * Entities only: reports.service imports this, and importing report-comment.service there would
  * form a cycle through report-sharing.service. Skips ids that are not open, belong to another
  * report or are based on a version not older than `newVersion`; resolves a thread when it has no
- * open suggestion left. Returns the ids whose appliedVersion is newVersion.
+ * open suggestion left, and notifies each affected thread once with 'suggestion.applied'.
+ * Returns the ids whose appliedVersion is newVersion.
  */
 export async function markSuggestionsApplied(
   manager: EntityManager,
@@ -45,7 +48,23 @@ export async function markSuggestionsApplied(
         decidedAt,
       },
     );
+  const head = candidates.length
+    ? await manager.findOneBy(PrivateReport, { id: input.reportId })
+    : null;
   for (const threadId of new Set(candidates.map(row => row.threadId))) {
+    if (head)
+      await notifyThread(manager, {
+        reportId: head.id,
+        ownerId: head.ownerId,
+        organizationKey: head.organizationKey,
+        threadId,
+        event: 'suggestion.applied',
+        actor: { id: decidedBy, kind: 'user', clientName: null },
+        now: decidedAt,
+        suggestionBaseVersion: Math.min(
+          ...candidates.filter(row => row.threadId === threadId).map(row => row.baseVersion),
+        ),
+      });
     if (await manager.countBy(ArtifactSuggestion, { threadId, status: 'open' })) continue;
     const thread = await manager.findOneBy(ArtifactCommentThread, { id: threadId });
     if (thread?.status === 'open')

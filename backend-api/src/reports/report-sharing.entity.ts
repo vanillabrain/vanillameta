@@ -10,6 +10,11 @@ export class ReportDelivery {
   @Column({ type: 'integer' }) organizationId: number;
   @Column({ type: 'boolean' }) active: boolean;
   @Column({ type: 'integer' }) relationVersion: number;
+  /**
+   * relationVersion when the relation last became readable again (first share, share after revoke,
+   * or after an owner/recipient auth reset). Comment notifications older than this stay hidden.
+   */
+  @Column({ type: 'integer', default: 0 }) activatedRelationVersion: number;
   @Column({ type: 'integer' }) pinnedVersion: number;
   @Column({ type: 'varchar', length: 64 }) pinnedHash: string;
   @Column({ type: 'integer' }) ownerAuthVersion: number;

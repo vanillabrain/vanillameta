@@ -60,6 +60,10 @@ const thread = (n: number, overrides: Record<string, unknown> = {}) => {
     mine: false,
     resolvedAt: null,
     resolvedBy: null,
+    visibility: 'private',
+    canManage: true,
+    narrowLocked: false,
+    viewerCount: 0,
     comments: [
       { id: uuid(n + 100), body: '근거가 있나요?', createdAt: '2026-10-30T00:00:00Z', author: author('peer'), mine: false },
     ],
@@ -78,9 +82,9 @@ const routeGets = (comments: () => Promise<unknown>, report = reader()) =>
   api.get.mockImplementation(async (url: string) =>
     url.endsWith('/comments') ? { data: await comments() } : { data: report },
   );
-const show = () =>
+const show = (search = '') =>
   render(
-    <MemoryRouter initialEntries={[`/reports/${id}/read`]}>
+    <MemoryRouter initialEntries={[`/reports/${id}/read${search}`]}>
       <Routes>
         <Route path="/reports/:reportId/read" element={<ReportReader />} />
       </Routes>
@@ -131,6 +135,18 @@ it('renders the untrimmed document text, highlights located open threads and lab
   expect(screen.getAllByText('peer').length).toBeGreaterThan(0);
   expect(screen.getByText('Claude · Claude Desktop')).toBeTruthy();
   expect(screen.getByText(/원문에서 찾을 수 없음/)).toBeTruthy();
+});
+
+it('selects the thread named by ?thread= from a notification link, and ignores unknown ids', async () => {
+  routeGets(async () => list([thread(1), thread(2)]));
+  show(`?thread=${uuid(2)}`);
+  await waitFor(() => expect(document.getElementById(`comment-thread-${uuid(2)}`)?.hasAttribute('data-active')).toBe(true));
+  expect(document.getElementById(`comment-thread-${uuid(1)}`)?.hasAttribute('data-active')).toBe(false);
+  cleanup();
+  routeGets(async () => list([thread(1)]));
+  show(`?thread=${uuid(9)}`);
+  await screen.findByText('근거가 있나요?');
+  expect(document.querySelector('[data-active]')).toBeNull();
 });
 
 it('creates a thread from a text selection with the shared anchor and the reader version', async () => {
@@ -243,7 +259,10 @@ it('proposes an edit on a located range, resolves by status version and shows th
 });
 
 it('hides resolve on threads a recipient does not own and blocks writes when versions disagree', async () => {
-  routeGets(async () => list([thread(6, { mine: false })], 3, 'recipient'), reader('recipient'));
+  routeGets(
+    async () => list([thread(6, { mine: false, canManage: false, viewerCount: null })], 3, 'recipient'),
+    reader('recipient'),
+  );
   show();
   await screen.findByText('근거가 있나요?');
   expect(screen.queryByRole('button', { name: '해결' })).toBeNull();
@@ -296,4 +315,54 @@ it('maps comment errors from the Nest error envelope without the report-basis co
   expect(commentError(envelope(409, {}))).toContain('댓글이나 제안');
   expect(commentError(envelope(409, {}))).not.toContain('기준');
   expect(commentError(new Error('network'))).toContain('연결');
+});
+
+it('lets a recipient only reply on a shared thread and shows withheld old text as such', async () => {
+  const shared = thread(7, {
+    visibility: 'participants',
+    canManage: false,
+    viewerCount: null,
+    anchor: { kind: 'text', start: 1, end: 4, quote: '', prefix: '', suffix: '' },
+    location: { status: 'detached' },
+  });
+  routeGets(async () => list([shared], 2, 'recipient'), reader('recipient'));
+  show();
+  await screen.findByText('근거가 있나요?');
+  const item = document.getElementById(`comment-thread-${uuid(7)}`) as HTMLElement;
+  expect(within(item).getByText('이전 버전 본문')).toBeTruthy();
+  expect(within(item).getByText(/공개/)).toBeTruthy();
+  for (const name of ['해결', '수정 제안', '비공개로 전환', /공유받은 사람에게 공개/])
+    expect(within(item).queryByRole('button', { name })).toBeNull();
+  expect(within(item).getByRole('button', { name: '답글 남기기' })).toBeTruthy();
+});
+
+it('opens own threads to recipients, narrows unlocked shared ones and creates shared threads on request', async () => {
+  const mine = thread(8, { mine: true, viewerCount: 2 });
+  const open = thread(9, { visibility: 'participants', viewerCount: 2 });
+  const locked = thread(10, { visibility: 'participants', narrowLocked: true, viewerCount: 0 });
+  routeGets(async () => list([mine, open, locked]));
+  api.post.mockImplementation(async (url: string, body: { visibility?: string; anchor?: unknown; body?: string }) => ({
+    data: url.endsWith('/visibility')
+      ? write('thread.visibility', { ...mine, visibility: body.visibility })
+      : write('thread.create', thread(11, { anchor: body.anchor, visibility: body.visibility })),
+  }));
+  show();
+  await screen.findAllByText('근거가 있나요?');
+  const item = (n: number) => document.getElementById(`comment-thread-${uuid(n)}`) as HTMLElement;
+  expect(within(item(9)).getByText('공유받은 사람 2명이 볼 수 있음')).toBeTruthy();
+  expect(within(item(10)).getByText(/지금 볼 수 있는 공유받은 사람 없음/)).toBeTruthy();
+  expect(within(item(10)).queryByRole('button', { name: '비공개로 전환' })).toBeNull();
+  expect(within(item(9)).getByRole('button', { name: '비공개로 전환' })).toBeTruthy();
+  fireEvent.click(within(item(8)).getByRole('button', { name: '공유받은 사람에게 공개 (2명)' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+  expect(api.post.mock.calls[0][0]).toBe(`/reports/${id}/comments/${uuid(8)}/visibility`);
+  expect(api.post.mock.calls[0][1]).toMatchObject({ visibility: 'participants' });
+  fireEvent.click(await screen.findByRole('button', { name: '보고서 전체에 댓글' }));
+  fireEvent.change(screen.getByLabelText('새 댓글'), { target: { value: '함께 봐 주세요' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: '공유받은 사람에게도 공개' }));
+  expect(screen.getByText(/아이디와 함께 보입니다/)).toBeTruthy();
+  expect((screen.getByLabelText('새 댓글') as HTMLTextAreaElement).value).toBe('함께 봐 주세요');
+  fireEvent.click(screen.getByRole('button', { name: '댓글 남기기' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+  expect(api.post.mock.calls[1][1]).toMatchObject({ anchor: { kind: 'whole' }, visibility: 'participants' });
 });

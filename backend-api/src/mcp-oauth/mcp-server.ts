@@ -310,7 +310,7 @@ export function buildMcpServer(principal: McpOAuthPrincipal, deps: McpServerDeps
       'vm_list_comments',
       {
         description:
-          'List the comment threads you can see on a report, with replies, proposed edits and each anchor located in your version. Shared recipients see only threads they started. ' +
+          'List the comment threads you can see on a report, with replies, proposed edits and each anchor located in your version. Shared recipients see the threads they started plus threads the owner or another recipient opened to all recipients (visibility participants) up to their shared version; on those they may only reply. ' +
           'Large lists are paged: pass nextThreadOffset as threadOffset. ' +
           UNTRUSTED,
         inputSchema: z

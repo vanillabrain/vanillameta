@@ -58,6 +58,10 @@ const threadSchema = z
     mine: z.boolean(),
     resolvedAt: z.string().nullable(),
     resolvedBy: z.string().nullable(),
+    visibility: z.enum(['private', 'participants']),
+    canManage: z.boolean(),
+    narrowLocked: z.boolean(),
+    viewerCount: offset.nullable(),
     comments: z.array(commentSchema),
     suggestions: z.array(suggestionSchema),
   })
@@ -66,12 +70,20 @@ const listSchema = z.object({ role: z.enum(['owner', 'recipient']), version, thr
 const writeSchema = z
   .object({
     replayed: z.boolean(),
-    operation: z.enum(['thread.create', 'comment.reply', 'thread.status', 'suggestion.create', 'suggestion.dismiss']),
+    operation: z.enum([
+      'thread.create',
+      'comment.reply',
+      'thread.status',
+      'thread.visibility',
+      'suggestion.create',
+      'suggestion.dismiss',
+    ]),
     resultId: uuid,
     thread: threadSchema,
   })
   .strict();
 export type CommentThread = z.infer<typeof threadSchema>;
+export type ThreadVisibility = CommentThread['visibility'];
 export type CommentSuggestion = z.infer<typeof suggestionSchema>;
 export type CommentList = z.infer<typeof listSchema>;
 export type CommentAnchor = z.infer<typeof anchorSchema>;
@@ -87,10 +99,24 @@ export const reportCommentApi = {
   },
   createThread(
     id: string,
-    input: { requestId: string; version: number; anchor: CommentAnchor; body: string },
+    input: {
+      requestId: string;
+      version: number;
+      anchor: CommentAnchor;
+      body: string;
+      visibility?: ThreadVisibility;
+    },
     signal?: AbortSignal,
   ) {
     return write(`${base(id)}/comments`, input, signal);
+  },
+  setVisibility(
+    id: string,
+    threadId: string,
+    input: { requestId: string; visibility: ThreadVisibility },
+    signal?: AbortSignal,
+  ) {
+    return write(`${base(id)}/comments/${threadId}/visibility`, input, signal);
   },
   reply(id: string, threadId: string, input: { requestId: string; body: string }, signal?: AbortSignal) {
     return write(`${base(id)}/comments/${threadId}/replies`, input, signal);

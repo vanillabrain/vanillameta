@@ -21,10 +21,12 @@ import { REPORT_SHARING_ENTITIES, ReportDelivery } from './report-sharing.entity
 import {
   REPORT_COMMENT_ENTITIES,
   ArtifactComment,
+  ArtifactCommentNotification,
   ArtifactCommentReceipt,
   ArtifactCommentThread,
   ArtifactSuggestion,
 } from './report-comment.entity';
+import { CommentNotificationService } from './comment-notification.service';
 import {
   CommentLimitException,
   isCommentConflict,
@@ -435,22 +437,27 @@ describe(`report comments and suggestions with real ${
     });
     // Another recipient sees nothing and cannot reach the first recipient's thread.
     expect((await service.list(id, otherRecipient)).threads).toEqual([]);
+    // Started one at a time: on PostgreSQL eager promises run concurrently and a later rejection
+    // would surface as unhandled before its expect attaches.
     for (const attempt of [
-      service.reply(id, mine.thread.id, { requestId: randomUUID(), body: 'x' }, otherRecipient),
-      service.setThreadStatus(
-        id,
-        mine.thread.id,
-        { requestId: randomUUID(), status: 'resolved', expectedStatusVersion: 0 },
-        otherRecipient,
-      ),
-      service.createSuggestion(
-        id,
-        suggestion(1, 'Costs', 'Expenses', { threadId: mine.thread.id }),
-        otherRecipient,
-      ),
-      service.reply(id, memo.thread.id, { requestId: randomUUID(), body: 'x' }, recipient),
+      () =>
+        service.reply(id, mine.thread.id, { requestId: randomUUID(), body: 'x' }, otherRecipient),
+      () =>
+        service.setThreadStatus(
+          id,
+          mine.thread.id,
+          { requestId: randomUUID(), status: 'resolved', expectedStatusVersion: 0 },
+          otherRecipient,
+        ),
+      () =>
+        service.createSuggestion(
+          id,
+          suggestion(1, 'Costs', 'Expenses', { threadId: mine.thread.id }),
+          otherRecipient,
+        ),
+      () => service.reply(id, memo.thread.id, { requestId: randomUUID(), body: 'x' }, recipient),
     ])
-      await expect(attempt).rejects.toMatchObject({ status: 404 });
+      await expect(attempt()).rejects.toMatchObject({ status: 404 });
     // Recipients resolve and reopen their own threads.
     const resolved = await service.setThreadStatus(
       id,
@@ -984,5 +991,451 @@ describe(`report comments and suggestions with real ${
         .suggestions.map(row => row.status)
         .sort(),
     ).toEqual(['dismissed', 'open']);
+  });
+
+  describe('comment notifications', () => {
+    let notifications: CommentNotificationService;
+    beforeEach(() => {
+      notifications = new CommentNotificationService(db, sharing);
+    });
+    const events = async (actor: typeof owner) =>
+      (await notifications.list(actor)).items.map(item => item.event).sort();
+    const unread = async (actor: typeof owner) => (await notifications.unreadCount(actor)).count;
+    const rows = () =>
+      db.manager.find(ArtifactCommentNotification, { order: { createdAt: 'ASC' } });
+    const status = (statusValue: 'open' | 'resolved', expectedStatusVersion: number) => ({
+      requestId: randomUUID(),
+      status: statusValue,
+      expectedStatusVersion,
+    });
+
+    it('notifies the owner and the thread author, never the person acting, and never on replay or no-op', async () => {
+      await share(8);
+      await share(11);
+      const command = thread(1);
+      const created = await service.createThread(id, command, recipient);
+      expect(await events(owner)).toEqual(['thread.created']);
+      expect(await events(recipient)).toEqual([]);
+      expect((await service.createThread(id, command, recipient)).replayed).toBe(true);
+      expect(await rows()).toHaveLength(1);
+      const tid = created.thread.id;
+      await service.reply(id, tid, { requestId: randomUUID(), body: 'Thanks' }, owner);
+      await service.setThreadStatus(id, tid, status('resolved', 0), owner);
+      await service.setThreadStatus(id, tid, status('resolved', 1), owner);
+      expect(await events(recipient)).toEqual(['comment.replied', 'thread.resolved']);
+      expect(await events(owner)).toEqual(['thread.created']);
+      expect(await events(otherRecipient)).toEqual([]);
+      const latest = (await notifications.list(recipient)).items.find(
+        item => item.event === 'comment.replied',
+      );
+      expect(latest).toMatchObject({
+        reportId: id,
+        threadId: tid,
+        role: 'recipient',
+        title: 'Report 1',
+        actor: { kind: 'user', userId: 'user-7', clientName: null },
+        read: false,
+      });
+      expect(JSON.stringify(await notifications.list(recipient))).not.toContain('Thanks');
+    });
+
+    it('notifies the grant user of their own AI comment and rolls back with the write', async () => {
+      const ai = { grantId: 'grant-1', clientName: 'Claude Code' };
+      await service.createThread(id, thread(1), owner, { ai });
+      const [item] = (await notifications.list(owner)).items;
+      expect(item).toMatchObject({
+        event: 'thread.created',
+        role: 'owner',
+        actor: { kind: 'ai', userId: null, clientName: 'Claude Code' },
+      });
+      // Fail the receipt insert, which runs after perform() has written the notification.
+      const insert = EntityManager.prototype.insert;
+      const spy = jest
+        .spyOn(EntityManager.prototype, 'insert')
+        .mockImplementation(function (this: EntityManager, target: unknown, ...rest: unknown[]) {
+          if (target === ArtifactCommentReceipt) throw new Error('receipt failed');
+          return (insert as (...args: unknown[]) => unknown).call(this, target, ...rest) as never;
+        });
+      try {
+        await expect(service.createThread(id, thread(1), owner, { ai })).rejects.toThrow(
+          'receipt failed',
+        );
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await rows()).toHaveLength(1);
+      expect(await db.manager.count(ArtifactCommentThread)).toBe(1);
+    });
+
+    it('shows recipients their pinned title, keeps rows across re-shares and hides them after epoch change, org move and revoke', async () => {
+      await share(8);
+      const tid = (await service.createThread(id, thread(1), recipient)).thread.id;
+      await service.reply(id, tid, { requestId: randomUUID(), body: 'Seen' }, owner);
+      await revision(2, V1_BLOCKS);
+      expect((await notifications.list(owner)).items[0].title).toBe('Report 2');
+      expect((await notifications.list(recipient)).items[0].title).toBe('Report 1');
+      expect(await unread(recipient)).toBe(1);
+      // Re-sharing a newer version to an active recipient keeps their notifications.
+      await share(8);
+      expect((await notifications.list(recipient)).items[0].title).toBe('Report 2');
+      expect(await unread(recipient)).toBe(1);
+
+      await db.manager.update(User, 8, { authVersion: 1 });
+      expect(await events({ ...recipient, authVersion: 1 })).toEqual([]);
+      expect(await unread({ ...recipient, authVersion: 1 })).toBe(0);
+      await db.manager.update(User, 8, { authVersion: 0 });
+      expect(await unread(recipient)).toBe(1);
+
+      await db.manager.update(EnterpriseMembership, { userId: 8 }, { organizationId: 2 });
+      expect(await unread(recipient)).toBe(0);
+      await db.manager.update(EnterpriseMembership, { userId: 8 }, { organizationId: 1 });
+
+      await revoke(8);
+      expect(await unread(recipient)).toBe(0);
+      await share(8);
+      expect(await events(recipient)).toEqual([]);
+      expect(await unread(recipient)).toBe(0);
+      await service.reply(id, tid, { requestId: randomUUID(), body: 'Again' }, owner);
+      expect(await events(recipient)).toEqual(['comment.replied']);
+      expect(await rows()).toHaveLength(3);
+    });
+
+    it('hides rows from before an auth reset once the owner re-shares, and shows new ones', async () => {
+      await share(8);
+      const tid = (await service.createThread(id, thread(1), recipient)).thread.id;
+      await service.reply(id, tid, { requestId: randomUUID(), body: 'Before' }, owner);
+      await db.manager.update(User, 8, { authVersion: 1 });
+      const reset = { ...recipient, authVersion: 1 };
+      await share(8);
+      expect(await events(reset)).toEqual([]);
+      await service.reply(id, tid, { requestId: randomUUID(), body: 'After' }, owner);
+      expect(await events(reset)).toEqual(['comment.replied']);
+      expect(await unread(reset)).toBe(1);
+
+      await db.manager.update(User, 7, { authVersion: 1 });
+      const ownerReset = { ...owner, authVersion: 1 };
+      await sharing.change(
+        id,
+        {
+          requestId: randomUUID(),
+          expectedOrganizationId: 1,
+          recipientId: 8,
+          expectedRelationVersion: (
+            await db.manager.findOneByOrFail(ReportDelivery, { reportId: id, recipientId: 8 })
+          ).relationVersion,
+          operation: {
+            kind: 'share',
+            expectedHeadRevision: (
+              await db.manager.findOneByOrFail(PrivateReport, { id })
+            ).revision,
+          },
+        },
+        ownerReset,
+      );
+      expect(await unread(reset)).toBe(0);
+    });
+
+    it('notifies suggestion applied once per thread and suggestion dismissed', async () => {
+      await share(8);
+      const first = await service.createSuggestion(id, suggestion(1, 'grew', 'rose'), recipient);
+      const tid = first.thread.id;
+      const second = await service.createSuggestion(
+        id,
+        suggestion(1, 'Costs', 'Expenses', { threadId: tid }),
+        recipient,
+      );
+      const third = await service.createSuggestion(
+        id,
+        suggestion(1, 'fell', 'dropped', { threadId: tid }),
+        recipient,
+      );
+      expect(await events(owner)).toEqual([
+        'suggestion.created',
+        'suggestion.created',
+        'suggestion.created',
+      ]);
+      await service.dismissSuggestion(
+        id,
+        third.resultId,
+        { requestId: randomUUID(), expectedStatusVersion: 0 },
+        owner,
+      );
+      await revision(2, V1_BLOCKS);
+      await db.transaction(manager =>
+        markSuggestionsApplied(manager, {
+          reportId: id,
+          newVersion: 2,
+          ids: [first.resultId, second.resultId],
+          decidedBy: 7,
+        }),
+      );
+      expect(await events(recipient)).toEqual(['suggestion.applied', 'suggestion.dismissed']);
+      expect(await events(owner)).toHaveLength(3);
+    });
+
+    it("marks only the caller's own rows read", async () => {
+      await share(8);
+      const tid = (await service.createThread(id, thread(1), recipient)).thread.id;
+      await service.reply(id, tid, { requestId: randomUUID(), body: 'One' }, owner);
+      await service.reply(id, tid, { requestId: randomUUID(), body: 'Two' }, owner);
+      const ids = (await notifications.list(recipient)).items.map(item => item.id);
+      expect(await notifications.markRead(owner, { ids })).toEqual({ updated: 0 });
+      expect(await unread(recipient)).toBe(2);
+      expect(await notifications.markRead(recipient, { ids: [ids[0]] })).toEqual({ updated: 1 });
+      expect(await unread(recipient)).toBe(1);
+      expect(await notifications.markRead(recipient, { all: true })).toEqual({ updated: 1 });
+      expect(await unread(recipient)).toBe(0);
+      expect(await unread(owner)).toBe(1);
+      await expect(notifications.markRead(recipient, { ids: ['x'] })).rejects.toMatchObject({
+        status: 400,
+      });
+    });
+
+    it('pages newest first and trims rows older than 90 days or past the newest 500', async () => {
+      const tid = (await service.createThread(id, thread(1), owner)).thread.id;
+      const at = (minute: number) => new Date(Date.UTC(2026, 10, 1, 0, minute)).toISOString();
+      const row = (createdAt: string) => ({
+        id: randomUUID(),
+        recipientId: 7,
+        organizationKey: 1,
+        artifactKind: 'report',
+        artifactId: id,
+        threadId: tid,
+        event: 'comment.replied',
+        actorKind: 'user',
+        actorId: 8,
+        aiClientName: null,
+        relationVersion: null,
+        createdAt,
+        readAt: null,
+      });
+      await db.manager.insert(ArtifactCommentNotification, [
+        ...Array.from({ length: 25 }, (_, minute) => row(at(minute))),
+        row('2020-01-01T00:00:00.000Z'),
+      ]);
+      const first = await notifications.list(owner);
+      expect(first.items).toHaveLength(20);
+      expect(first.items[0].createdAt).toBe(at(24));
+      const second = await notifications.list(owner, first.nextCursor!);
+      expect(second.items.map(item => item.createdAt)).toEqual([4, 3, 2, 1, 0].map(at));
+      expect(second.nextCursor).toBeNull();
+      expect(await db.manager.countBy(ArtifactCommentNotification, { recipientId: 7 })).toBe(25);
+      await expect(notifications.list(owner, randomUUID())).rejects.toMatchObject({ status: 400 });
+
+      await db.manager.insert(
+        ArtifactCommentNotification,
+        Array.from({ length: 480 }, (_, i) =>
+          row(new Date(Date.UTC(2026, 9, 1, 0, 0, i)).toISOString()),
+        ),
+      );
+      await notifications.list(owner);
+      expect(await db.manager.countBy(ArtifactCommentNotification, { recipientId: 7 })).toBe(500);
+      expect(
+        (await db.manager.findOneByOrFail(ArtifactCommentNotification, { createdAt: at(24) })).id,
+      ).toBeDefined();
+    });
+  });
+
+  describe('shared threads', () => {
+    let notifications: CommentNotificationService;
+    beforeEach(() => {
+      notifications = new CommentNotificationService(db, sharing);
+    });
+    const ai = { grantId: 'grant-1', clientName: 'Claude Code' };
+    const events = async (actor: typeof owner) =>
+      (await notifications.list(actor)).items.map(item => item.event).sort();
+    const visibility = (value: 'private' | 'participants') => ({
+      requestId: randomUUID(),
+      visibility: value,
+    });
+    const shared = (version: number, anchor: unknown = { kind: 'whole' }, body = 'Team check') => ({
+      ...thread(version, anchor, body),
+      visibility: 'participants',
+    });
+    const ids = async (actor: typeof owner) =>
+      (await service.list(id, actor)).threads.map(row => row.id);
+
+    it('shows a participants thread to recipients pinned at or after it, who may only reply', async () => {
+      await share(8);
+      await share(11);
+      const open = await service.createThread(id, shared(1), owner);
+      expect(open.thread).toMatchObject({
+        visibility: 'participants',
+        canManage: true,
+        narrowLocked: false,
+        viewerCount: 2,
+      });
+      expect(await events(recipient)).toEqual(['thread.created']);
+      expect(await events(otherRecipient)).toEqual(['thread.created']);
+      const [seen] = (await service.list(id, otherRecipient)).threads;
+      expect(seen).toMatchObject({ id: open.thread.id, canManage: false, viewerCount: null });
+      const command = { requestId: randomUUID(), body: 'Agreed' };
+      const reply = await service.reply(id, open.thread.id, command, otherRecipient);
+      expect(reply.thread.id).toBe(open.thread.id);
+      expect((await service.reply(id, open.thread.id, command, otherRecipient)).replayed).toBe(
+        true,
+      );
+      for (const attempt of [
+        () =>
+          service.setThreadStatus(
+            id,
+            open.thread.id,
+            { requestId: randomUUID(), status: 'resolved', expectedStatusVersion: 0 },
+            otherRecipient,
+          ),
+        () =>
+          service.createSuggestion(
+            id,
+            suggestion(1, 'Costs', 'Expenses', { threadId: open.thread.id }),
+            otherRecipient,
+          ),
+        () =>
+          service.setThreadVisibility(id, open.thread.id, visibility('private'), otherRecipient),
+      ])
+        await expect(attempt()).rejects.toMatchObject({ status: 403 });
+      // A participants thread newer than a recipient's pin stays hidden, even by id.
+      await revision(2, [{ id: 't1', kind: 'TEXT', text: 'Summary. Revenue grew 12% in Q3.' }]);
+      const newer = await service.createThread(id, shared(2), owner);
+      expect(newer.thread.viewerCount).toBe(0);
+      expect(await ids(recipient)).toEqual([open.thread.id]);
+      await expect(
+        service.reply(id, newer.thread.id, { requestId: randomUUID(), body: 'x' }, recipient),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(await events(recipient)).toEqual(['thread.created']);
+      // Re-sharing the newer version reveals it and says so; others are untouched.
+      await share(8);
+      expect((await ids(recipient)).sort()).toEqual([open.thread.id, newer.thread.id].sort());
+      expect(await events(recipient)).toEqual(
+        ['thread.created', 'thread.shared'],
+      );
+      expect(await events(otherRecipient)).toEqual(['thread.created']);
+      expect(
+        (await service.list(id, owner)).threads.find(row => row.id === newer.thread.id),
+      ).toMatchObject({ viewerCount: 1 });
+    });
+
+    it('lets only the author widen, the author or owner narrow until someone else replies, and never an AI', async () => {
+      await share(8);
+      await share(11);
+      await expect(service.createThread(id, shared(1), recipient, { ai })).rejects.toMatchObject({
+        status: 403,
+      });
+      await expect(
+        service.createSuggestion(
+          id,
+          suggestion(1, 'Costs', 'Expenses', { visibility: 'participants' }),
+          recipient,
+          { ai },
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      const mine = await service.createThread(id, thread(1), recipient);
+      expect(mine.thread).toMatchObject({ visibility: 'private', viewerCount: 1 });
+      const tid = mine.thread.id;
+      await expect(
+        service.setThreadVisibility(id, tid, visibility('participants'), owner),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(
+        service.setThreadVisibility(id, tid, visibility('participants'), recipient, { ai }),
+      ).rejects.toMatchObject({ status: 403 });
+      const widen = visibility('participants');
+      expect((await service.setThreadVisibility(id, tid, widen, recipient)).thread.visibility).toBe(
+        'participants',
+      );
+      expect((await service.setThreadVisibility(id, tid, widen, recipient)).replayed).toBe(true);
+      await service.setThreadVisibility(id, tid, visibility('participants'), recipient);
+      expect(await events(otherRecipient)).toEqual(['thread.shared']);
+      // Replies by the owner, the author and their AIs keep the thread narrowable.
+      await service.reply(id, tid, { requestId: randomUUID(), body: 'Owner AI' }, owner, { ai });
+      await service.reply(id, tid, { requestId: randomUUID(), body: 'Author AI' }, recipient, {
+        ai,
+      });
+      await service.setThreadVisibility(id, tid, visibility('private'), owner);
+      await service.setThreadVisibility(id, tid, visibility('participants'), recipient);
+      await service.reply(id, tid, { requestId: randomUUID(), body: 'Other AI' }, otherRecipient, {
+        ai,
+      });
+      expect((await service.list(id, recipient)).threads[0].narrowLocked).toBe(true);
+      for (const actor of [recipient, owner])
+        await expect(
+          service.setThreadVisibility(id, tid, visibility('private'), actor),
+        ).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('hides a narrowed thread and its notifications from other recipients', async () => {
+      await share(8);
+      await share(11);
+      const mine = await service.createThread(id, shared(1), recipient);
+      expect(await events(otherRecipient)).toEqual(['thread.created']);
+      expect((await notifications.unreadCount(otherRecipient)).count).toBe(1);
+      await service.setThreadVisibility(id, mine.thread.id, visibility('private'), recipient);
+      expect(await ids(otherRecipient)).toEqual([]);
+      expect(await events(otherRecipient)).toEqual([]);
+      expect((await notifications.unreadCount(otherRecipient)).count).toBe(0);
+      await expect(
+        service.reply(id, mine.thread.id, { requestId: randomUUID(), body: 'x' }, otherRecipient),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('shows other people no old-version text: no quote context, and no quote missing from their version', async () => {
+      await share(8);
+      const gone = await service.createThread(id, shared(1, at('Costs'), 'Cut this?'), recipient);
+      const kept = await service.createThread(
+        id,
+        shared(1, at('Revenue grew'), 'Source?'),
+        recipient,
+      );
+      await service.createSuggestion(
+        id,
+        suggestion(1, 'Costs', 'Expenses', { threadId: gone.thread.id }),
+        recipient,
+      );
+      await revision(2, [{ id: 't1', kind: 'TEXT', text: 'Summary. Revenue grew 12% in Q3.' }]);
+      await share(11);
+      const view = await service.list(id, otherRecipient);
+      const byId = new Map(view.threads.map(row => [row.id, row] as const));
+      expect(byId.get(gone.thread.id)).toMatchObject({
+        anchor: { quote: '', prefix: '', suffix: '' },
+        location: { status: 'detached' },
+      });
+      expect(byId.get(gone.thread.id).suggestions[0]).toMatchObject({
+        anchor: { quote: '', prefix: '', suffix: '' },
+        replacement: 'Expenses',
+      });
+      expect(byId.get(kept.thread.id).anchor).toMatchObject({
+        quote: 'Revenue grew',
+        prefix: '',
+        suffix: '',
+      });
+      expect(JSON.stringify(view)).not.toMatch(/Costs/);
+      // The author and the owner keep the stored anchor.
+      for (const actor of [recipient, owner])
+        expect(
+          (await service.list(id, actor)).threads.find(row => row.id === gone.thread.id).anchor,
+        ).toMatchObject({ quote: 'Costs' });
+    });
+
+    it('skips suggestion notifications for recipients pinned before the suggestion', async () => {
+      await share(8);
+      await share(11);
+      const open = await service.createThread(id, shared(1), owner);
+      for (const actor of [recipient, otherRecipient])
+        await service.reply(id, open.thread.id, { requestId: randomUUID(), body: 'Seen' }, actor);
+      const v2 = 'Summary. Revenue grew 12% in Q3.';
+      await revision(2, [{ id: 't1', kind: 'TEXT', text: v2 }]);
+      await share(11);
+      await service.createSuggestion(
+        id,
+        {
+          requestId: randomUUID(),
+          version: 2,
+          threadId: open.thread.id,
+          anchor: at('Summary', v2),
+          replacement: 'Overview',
+        },
+        owner,
+      );
+      expect(await events(otherRecipient)).toContain('suggestion.created');
+      expect(await events(recipient)).not.toContain('suggestion.created');
+    });
   });
 });

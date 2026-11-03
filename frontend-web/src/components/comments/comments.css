@@ -88,3 +88,14 @@
   border: 1px solid var(--ring);
   border-radius: 8px;
 }
+.report-comment-share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.report-comment-share input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}

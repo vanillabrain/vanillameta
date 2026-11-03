@@ -1,6 +1,7 @@
 import { EntityManager } from 'typeorm';
 import {
   ArtifactComment,
+  ArtifactCommentNotification,
   ArtifactCommentReceipt,
   ArtifactCommentThread,
 } from '../reports/report-comment.entity';
@@ -9,7 +10,7 @@ import { DASHBOARD_OPERATIONS } from './dashboard-comment-contract';
 export const DASHBOARD_COMMENT_KIND = 'dashboard';
 
 /**
- * Removes every comment, thread and write receipt of one dashboard. Callers delete or hand over
+ * Removes every comment, thread, write receipt and notification of one dashboard. Callers delete or hand over
  * the dashboard in the same transaction after locking its row. Receipts have no FK and are found
  * through their result ids, so they go first while threads and comments still exist.
  */
@@ -42,4 +43,8 @@ export async function deleteDashboardComments(manager: EntityManager, dashboardI
     .setParameters(parameters)
     .execute();
   await manager.delete(ArtifactCommentThread, { artifactKind: DASHBOARD_COMMENT_KIND, artifactId });
+  await manager.delete(ArtifactCommentNotification, {
+    artifactKind: DASHBOARD_COMMENT_KIND,
+    artifactId,
+  });
 }

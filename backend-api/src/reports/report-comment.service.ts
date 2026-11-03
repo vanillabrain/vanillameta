@@ -36,6 +36,7 @@ import {
   ThreadStatus,
   threadCreateRequest,
   threadStatusRequest,
+  threadVisibilityRequest,
   ThreadView,
 } from './report-comment-contract';
 import {
@@ -47,6 +48,15 @@ import {
 import { canonicalReport, parseReport, reportHash, reportId, ReportActor } from './report-contract';
 import { RequestReusedException } from './report-comment-contract';
 import { ReportSharingService } from './report-sharing.service';
+import {
+  canSeeThread,
+  managesThread,
+  NotificationEvent,
+  notifyThread,
+  ThreadViewer,
+  ThreadVisibility,
+} from './comment-notification';
+import { ReportDelivery } from './report-sharing.entity';
 
 export { markSuggestionsApplied } from './report-suggestion-apply';
 
@@ -56,6 +66,9 @@ const validEpoch = (value: number) => Number.isSafeInteger(value) && value >= 0;
 const missingThread = () => new NotFoundException('댓글 스레드를 찾을 수 없습니다.');
 const staleStatus = () =>
   new ConflictException('댓글 상태가 변경됐습니다. 현재 상태를 다시 확인해 주세요.');
+const notManager = () => new ForbiddenException('보고서 소유자와 스레드 작성자만 할 수 있습니다.');
+const aiCannotShare = () =>
+  new ForbiddenException('AI는 스레드 공개 범위를 정할 수 없습니다. 사람이 직접 골라 주세요.');
 
 export { CommentLimitException, isCommentConflict };
 
@@ -111,6 +124,18 @@ const anchorOf = (row: ArtifactCommentThread): ReportAnchor =>
     : row.anchorKind === 'image'
     ? { kind: 'image', blockId: row.anchorBlockId }
     : { kind: 'whole' };
+const viewerOf = (access: Access, actor: ReportActor): ThreadViewer => ({
+  userId: actor.id,
+  ownerId: access.head.ownerId,
+  pinnedVersion: access.role === 'owner' ? null : access.version,
+});
+/** Text a non-manager may see: no context, and no quote unless it is found in their version. */
+const redact = <T extends ReportTextAnchor>(anchor: T, found: boolean): T => ({
+  ...anchor,
+  quote: found ? anchor.quote : '',
+  prefix: '',
+  suffix: '',
+});
 const utf8 = (...values: Array<string | null | undefined>) =>
   values.reduce((total, value) => total + Buffer.byteLength(value ?? '', 'utf8'), 0);
 
@@ -168,8 +193,16 @@ export class ReportCommentService {
         this.checkAnchor(access, body.anchor);
         await this.limitThreads(manager, id, author);
         await this.limitText(manager, id, utf8(body.body));
-        const threadId = await this.insertThread(context, actor, body.version, body.anchor);
+        const visibility = this.newVisibility(author, body.visibility);
+        const threadId = await this.insertThread(
+          context,
+          actor,
+          body.version,
+          body.anchor,
+          visibility,
+        );
         await this.insertComment(manager, threadId, actor, author, body.body, now);
+        await this.notify(context, actor, threadId, 'thread.created');
         return threadId;
       },
     );
@@ -192,16 +225,26 @@ export class ReportCommentService {
       { threadId, body },
       actor,
       options,
-      async ({ manager, access, author, now }) => {
+      async context => {
+        const { manager, access, author, now } = context;
         await this.visibleThread(manager, access, actor, threadId);
         await this.limitComments(manager, threadId);
         await this.limitText(manager, id, utf8(body.body));
-        return this.insertComment(manager, threadId, actor, author, body.body, now);
+        const commentId = await this.insertComment(
+          manager,
+          threadId,
+          actor,
+          author,
+          body.body,
+          now,
+        );
+        await this.notify(context, actor, threadId, 'comment.replied');
+        return commentId;
       },
     );
   }
 
-  /** Resolve or reopen: owner on any thread, recipient on their own; CAS on statusVersion. */
+  /** Resolve or reopen: owner or author only; CAS on statusVersion. */
   async setThreadStatus(
     rawId: string,
     rawThreadId: string,
@@ -219,8 +262,10 @@ export class ReportCommentService {
       { threadId, body },
       actor,
       options,
-      async ({ manager, access, now }) => {
+      async context => {
+        const { manager, access, now } = context;
         const thread = await this.visibleThread(manager, access, actor, threadId);
+        if (!managesThread(thread, actor.id, access.head.ownerId)) throw notManager();
         if (thread.statusVersion !== body.expectedStatusVersion) throw staleStatus();
         if (thread.status === body.status) return threadId;
         const resolved = body.status === 'resolved';
@@ -235,6 +280,60 @@ export class ReportCommentService {
           },
         );
         if (result.affected !== 1) throw staleStatus();
+        await this.notify(
+          context,
+          actor,
+          threadId,
+          resolved ? 'thread.resolved' : 'thread.reopened',
+        );
+        return threadId;
+      },
+    );
+  }
+
+  /**
+   * Opens a thread to current recipients or makes it private again. Only people decide: the author
+   * widens; the author or owner narrows, until someone else has replied. The request names the
+   * target, so a repeat or an already-matching value changes nothing and notifies no one. Writes
+   * run under the report head lock, so a reply cannot slip in between the check and the update.
+   */
+  async setThreadVisibility(
+    rawId: string,
+    rawThreadId: string,
+    input: unknown,
+    actor: ReportActor,
+    options: CommentWriteOptions = {},
+  ): Promise<CommentWriteResult> {
+    const id = parseReport(reportId, rawId),
+      threadId = parseReport(reportId, rawThreadId),
+      body = parseReport(threadVisibilityRequest, input);
+    return this.write(
+      'thread.visibility',
+      id,
+      body.requestId,
+      { threadId, body },
+      actor,
+      options,
+      async context => {
+        const { manager, access, author } = context;
+        const thread = await this.visibleThread(manager, access, actor, threadId);
+        if (author.authorKind === 'ai') throw aiCannotShare();
+        if (!managesThread(thread, actor.id, access.head.ownerId)) throw notManager();
+        if (thread.visibility === body.visibility) return threadId;
+        if (body.visibility === 'participants') {
+          if (thread.createdBy !== actor.id)
+            throw new ForbiddenException('스레드 작성자만 공개할 수 있습니다.');
+        } else if (await this.narrowLocked(manager, thread, access.head.ownerId))
+          throw new ConflictException(
+            '다른 사람이 답글을 단 공개 스레드는 비공개로 되돌릴 수 없습니다.',
+          );
+        await manager.update(
+          ArtifactCommentThread,
+          { id: threadId },
+          { visibility: body.visibility },
+        );
+        if (body.visibility === 'participants')
+          await this.notify(context, actor, threadId, 'thread.shared');
         return threadId;
       },
     );
@@ -266,6 +365,7 @@ export class ReportCommentService {
           throw new CommentLimitException('제안을 적용하면 본문이 20,000자를 넘습니다.', 413);
         if (body.threadId) {
           const thread = await this.visibleThread(manager, access, actor, body.threadId);
+          if (!managesThread(thread, actor.id, access.head.ownerId)) throw notManager();
           if (thread.status !== 'open')
             throw new ConflictException(
               '해결된 스레드에는 제안할 수 없습니다. 먼저 다시 열어 주세요.',
@@ -279,7 +379,14 @@ export class ReportCommentService {
           throw new CommentLimitException('열린 제안은 보고서당 100개까지입니다.');
         await this.limitText(manager, id, utf8(body.replacement, body.rationale, body.body));
         const threadId =
-          body.threadId ?? (await this.insertThread(context, actor, body.version, body.anchor));
+          body.threadId ??
+          (await this.insertThread(
+            context,
+            actor,
+            body.version,
+            body.anchor,
+            this.newVisibility(author, body.visibility),
+          ));
         const suggestionId = randomUUID();
         await manager.insert(ArtifactSuggestion, {
           id: suggestionId,
@@ -304,6 +411,7 @@ export class ReportCommentService {
         });
         if (body.body !== undefined)
           await this.insertComment(manager, threadId, actor, author, body.body, now);
+        await this.notify(context, actor, threadId, 'suggestion.created', body.version);
         return suggestionId;
       },
     );
@@ -327,7 +435,8 @@ export class ReportCommentService {
       { suggestionId, body },
       actor,
       options,
-      async ({ manager, access, now }) => {
+      async context => {
+        const { manager, access, now } = context;
         if (access.role !== 'owner')
           throw new ForbiddenException('보고서 소유자만 제안을 닫을 수 있습니다.');
         const suggestion = await manager.findOneBy(ArtifactSuggestion, {
@@ -348,6 +457,13 @@ export class ReportCommentService {
           },
         );
         if (result.affected !== 1) throw staleStatus();
+        await this.notify(
+          context,
+          actor,
+          suggestion.threadId,
+          'suggestion.dismissed',
+          suggestion.baseVersion,
+        );
         return suggestionId;
       },
     );
@@ -461,6 +577,46 @@ export class ReportCommentService {
       : resultId;
   }
 
+  /** Runs inside perform(), so a replayed requestId never notifies twice. */
+  private notify(
+    { manager, access, author, now }: WriteContext,
+    actor: ReportActor,
+    threadId: string,
+    event: NotificationEvent,
+    suggestionBaseVersion?: number,
+  ) {
+    return notifyThread(manager, {
+      reportId: access.head.id,
+      ownerId: access.head.ownerId,
+      organizationKey: access.head.organizationKey,
+      threadId,
+      event,
+      actor: { id: actor.id, kind: author.authorKind, clientName: author.aiClientName },
+      now,
+      suggestionBaseVersion,
+    });
+  }
+
+  private newVisibility(author: Author, requested: ThreadVisibility | undefined) {
+    if (requested === 'participants' && author.authorKind === 'ai') throw aiCannotShare();
+    return requested ?? 'private';
+  }
+
+  /** Someone other than the owner and the author has commented (an AI counts as its user). */
+  private async narrowLocked(
+    manager: EntityManager,
+    thread: ArtifactCommentThread,
+    ownerId: number,
+  ) {
+    return (
+      (await manager
+        .createQueryBuilder(ArtifactComment, 'c')
+        .where('"c"."threadId" = :threadId', { threadId: thread.id })
+        .andWhere('"c"."authorId" NOT IN (:...people)', { people: [ownerId, thread.createdBy] })
+        .getCount()) > 0
+    );
+  }
+
   private requireVersion(access: Access, version: number) {
     if (version !== access.version)
       throw new ConflictException('보고서 버전이 변경됐습니다. 최신 내용을 다시 불러와 주세요.');
@@ -488,8 +644,7 @@ export class ReportCommentService {
       artifactKind: KIND,
       artifactId: access.head.id,
     });
-    if (!thread || (access.role !== 'owner' && thread.createdBy !== actor.id))
-      throw missingThread();
+    if (!thread || !canSeeThread(thread, viewerOf(access, actor))) throw missingThread();
     return thread;
   }
   private async limitThreads(manager: EntityManager, id: string, author: Author) {
@@ -546,6 +701,7 @@ export class ReportCommentService {
     actor: ReportActor,
     version: number,
     anchor: ReportAnchor,
+    visibility: ThreadVisibility,
   ) {
     const threadId = randomUUID();
     await manager.insert(ArtifactCommentThread, {
@@ -554,6 +710,7 @@ export class ReportCommentService {
       artifactId: access.head.id,
       version,
       ...anchorColumns(anchor),
+      visibility,
       status: 'open',
       statusVersion: 0,
       createdBy: actor.id,
@@ -584,7 +741,10 @@ export class ReportCommentService {
     return commentId;
   }
 
-  /** Owner: every thread. Recipient: threads they started; suggestions up to their pinned version. */
+  /**
+   * The threads canSeeThread lets the actor see (the report holds at most 500), with suggestions up
+   * to a recipient's pinned version. Filtering here, not in SQL, keeps one visibility rule.
+   */
   private async views(
     manager: EntityManager,
     access: Access,
@@ -592,16 +752,28 @@ export class ReportCommentService {
     onlyThreadId?: string,
   ): Promise<ThreadView[]> {
     const recipient = access.role !== 'owner';
-    const threads = await manager.find(ArtifactCommentThread, {
-      where: {
-        artifactKind: KIND,
-        artifactId: access.head.id,
-        ...(recipient ? { createdBy: actor.id } : {}),
-        ...(onlyThreadId ? { id: onlyThreadId } : {}),
-      },
-      order: { createdAt: 'ASC', id: 'ASC' },
-    });
+    const viewer = viewerOf(access, actor);
+    const ownerId = access.head.ownerId;
+    const threads = (
+      await manager.find(ArtifactCommentThread, {
+        where: {
+          artifactKind: KIND,
+          artifactId: access.head.id,
+          ...(onlyThreadId ? { id: onlyThreadId } : {}),
+        },
+        order: { createdAt: 'ASC', id: 'ASC' },
+      })
+    ).filter(thread => canSeeThread(thread, viewer));
     if (!threads.length) return [];
+    const manages = (thread: ArtifactCommentThread) => managesThread(thread, actor.id, ownerId);
+    const pins = threads.some(manages)
+      ? (
+          await manager.find(ReportDelivery, {
+            select: { recipientId: true, pinnedVersion: true, organizationId: true },
+            where: { reportId: access.head.id, active: true },
+          })
+        ).filter(row => row.organizationId === access.head.organizationKey)
+      : [];
     const threadIds = threads.map(thread => thread.id);
     const comments = await manager.find(ArtifactComment, {
       where: { threadId: In(threadIds) },
@@ -637,12 +809,17 @@ export class ReportCommentService {
     });
     const text = documentText(access.report.blocks, access.report.body);
     return threads.map(thread => {
-      const anchor = anchorOf(thread);
+      const managed = manages(thread);
+      const threadComments = comments.filter(comment => comment.threadId === thread.id);
+      const stored = anchorOf(thread);
+      const location = locateAnchor(stored, text, access.report.blocks);
+      const anchor =
+        managed || stored.kind !== 'text' ? stored : redact(stored, location.status !== 'detached');
       return {
         id: thread.id,
         version: thread.version,
         anchor,
-        location: locateAnchor(anchor, text, access.report.blocks),
+        location,
         status: thread.status as ThreadStatus,
         statusVersion: thread.statusVersion,
         createdAt: thread.createdAt,
@@ -650,24 +827,33 @@ export class ReportCommentService {
         mine: thread.createdBy === actor.id,
         resolvedAt: thread.resolvedAt,
         resolvedBy: thread.resolvedBy === null ? null : users.get(thread.resolvedBy) ?? null,
-        comments: comments
-          .filter(comment => comment.threadId === thread.id)
-          .map(comment => ({
-            id: comment.id,
-            body: comment.body,
-            createdAt: comment.createdAt,
-            author: author(comment.authorId, comment.authorKind, comment.aiClientName),
-            mine: comment.authorId === actor.id,
-          })),
+        visibility: thread.visibility as ThreadVisibility,
+        canManage: managed,
+        narrowLocked: threadComments.some(
+          comment => comment.authorId !== ownerId && comment.authorId !== thread.createdBy,
+        ),
+        viewerCount: managed
+          ? pins.filter(
+              row => row.recipientId !== thread.createdBy && row.pinnedVersion >= thread.version,
+            ).length
+          : null,
+        comments: threadComments.map(comment => ({
+          id: comment.id,
+          body: comment.body,
+          createdAt: comment.createdAt,
+          author: author(comment.authorId, comment.authorKind, comment.aiClientName),
+          mine: comment.authorId === actor.id,
+        })),
         suggestions: suggestions
           .filter(suggestion => suggestion.threadId === thread.id)
           .map(suggestion => {
-            const anchor = textAnchorOf(suggestion);
+            const stored = textAnchorOf(suggestion);
+            const location = locate(stored, text);
             return {
               id: suggestion.id,
               baseVersion: suggestion.baseVersion,
-              anchor,
-              location: locate(anchor, text),
+              anchor: managed ? stored : redact(stored, location.status !== 'detached'),
+              location,
               replacement: suggestion.replacement,
               rationale: suggestion.rationale,
               status: suggestion.status as SuggestionStatus,

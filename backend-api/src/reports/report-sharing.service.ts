@@ -29,6 +29,7 @@ import {
   ShareReceipt,
 } from './report-sharing-contract';
 import { readerContent } from './report-reader';
+import { notifyNewlyVisible } from './comment-notification';
 
 const denied = () => new ForbiddenException('현재 이 보고서에 접근할 수 없습니다.');
 const sourceBinding = z.object({ sourceId: z.number().int().positive() });
@@ -156,7 +157,13 @@ export class ReportSharingService {
     if ((context.organizationId ?? 0) !== head.organizationKey) throw denied();
     await this.root(manager, head, false);
     if (head.ownerId === actor.id)
-      return { role: 'owner' as const, version: head.version, hash: head.revision };
+      return {
+        role: 'owner' as const,
+        version: head.version,
+        hash: head.revision,
+        relationVersion: null,
+        activatedRelationVersion: null,
+      };
     const { user, member } = await this.identity(manager, head.ownerId);
     const relation = await manager.findOneBy(ReportDelivery, {
       reportId: head.id,
@@ -179,7 +186,18 @@ export class ReportSharingService {
       role: 'recipient' as const,
       version: relation.pinnedVersion,
       hash: relation.pinnedHash,
+      relationVersion: relation.relationVersion as number | null,
+      activatedRelationVersion: (relation.activatedRelationVersion ?? 0) as number | null,
     };
+  }
+  /**
+   * The read permission without loading the stored version: same checks as access() except the
+   * revision hash. For cheap re-checks (comment notification counts); anything that shows report
+   * content must use access().
+   */
+  async readableHead(manager: EntityManager, reportId: string, actor: ReportActor) {
+    const head = await this.head(manager, reportId);
+    return { ...(await this.readable(manager, head, actor)), head };
   }
   /**
    * The single read permission for a report: owner (head version) or current recipient (pinned
@@ -429,6 +447,10 @@ export class ReportSharingService {
           relation.ownerAuthVersion !== context.authVersion ||
           relation.recipientAuthVersion !== user.authVersion;
         version += changed ? 1 : 0;
+        const reactivated =
+          !relation?.active ||
+          relation.ownerAuthVersion !== context.authVersion ||
+          relation.recipientAuthVersion !== user.authVersion;
         pinnedVersion = head.version;
         const next = {
           ...key,
@@ -436,6 +458,7 @@ export class ReportSharingService {
           organizationId: head.organizationKey,
           active: true,
           relationVersion: version,
+          activatedRelationVersion: reactivated ? version : relation?.activatedRelationVersion ?? 0,
           pinnedVersion,
           pinnedHash: head.revision,
           ownerAuthVersion: context.authVersion,
@@ -443,6 +466,18 @@ export class ReportSharingService {
         };
         if (relation) await manager.update(ReportDelivery, key, next);
         else await manager.insert(ReportDelivery, next);
+        await notifyNewlyVisible(manager, {
+          reportId: id,
+          ownerId: head.ownerId,
+          organizationKey: head.organizationKey,
+          recipientId: body.recipientId,
+          fromVersion: reactivated ? 0 : relation?.pinnedVersion ?? 0,
+          toVersion: pinnedVersion,
+          now: new Date().toISOString(),
+          actor: options.ai
+            ? { id: actor.id, kind: 'ai', clientName: options.ai.clientName }
+            : { id: actor.id, kind: 'user', clientName: null },
+        });
       } else if (relation?.active) {
         version += 1;
         await manager.update(ReportDelivery, key, { active: false, relationVersion: version });
