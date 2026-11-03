@@ -82,12 +82,15 @@ VM 로그인 JWT를 외부 AI 설정에 붙여넣지 않는다. 로컬 stdio MCP
 4. `oauth.callback_url`도 확인한 전체 URI로 맞춘다. 다른 MCP 서버의 callback 식별자를 재사용하지 않는다.
 5. `codex mcp login <서버 이름> --scopes documents:read`를 실행하고 VM에서 승인한다.
 
+Codex0.154.0은 새 프로세스가 시작될 때 저장된 refresh token으로 갱신하고(만료 약 6초 전·만료 후 모두 확인) 새 refresh token을 저장해 다음 프로세스에서 쓴다. 갱신 시점 기준과 실행 중 세션의 갱신은 확인하지 않았다. VM에서 연결을 해제하면 다음 갱신이 `invalid_grant`로 거절된다. `required = true`이면 Codex는 MCP 서버 초기화 실패로 끝난다. 다시 쓰려면 `codex mcp login`으로 새로 승인한다. [실행 증빙](../testing/report-comments-collaboration.md)의 RCOL-24를 따른다.
+
 설정 형태는 다음과 같다. 예시 주소와 client ID, `실제_callback_id`를 실제 값으로 바꾼다.
 
 ```toml
 [mcp_servers.vanillameta]
 url = "https://app.example.com/v1/mcp"
 scopes = ["documents:read"]
+required = true
 
 [mcp_servers.vanillameta.oauth]
 client_id = "registered-codex"

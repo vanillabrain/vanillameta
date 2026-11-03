@@ -46,6 +46,7 @@
 | RCOL-19 | 실제 포인터 드래그로 본문 선택 → 댓글 | NOT_RUN | NOT_RUN | - |
 | RCOL-20 | PostgreSQL 운영 업그레이드 경로(`migrate-prod`): `fe71c5ea` 부트스트랩 → 기존 행 기록 → `7759bd02` 실행 | PASS | - | 아래 "운영 업그레이드 경로" |
 | RCOL-21 | access token 만료 후 자동 갱신(grant에 묶인 회전형 refresh, 재동의 없음). 실제 Claude Code 2.1.316: `MCP_OAUTH_ACCESS_TTL_SECONDS=360`으로 21:13:49 승인 → 21:14:01 호출(갱신 없음, refresh 0회차 active) → 21:15:23 호출이 브라우저 없이 성공, refresh 0회차 rotated·1회차 active, grant 유지, access token 2개 | PASS | - | `mcp-oauth.service.spec.ts`, [refresh 계획](../plans/mcp-oauth-refresh.md), 증빙 `mcp-refresh-20261102/claude-code-refresh.txt` |
+| RCOL-24 | 실제 Codex CLI 0.154.0 갱신. `MCP_OAUTH_ACCESS_TTL_SECONDS=60`, 범위 `reports:read`·`comments:read`, 모델 `gpt-6-luna`. 01:06:19 승인·code 교환 → 01:07:13 새 프로세스 시작 시 갱신(만료 약 6초 전, refresh 0회차 rotated) → 01:08:56 만료 뒤 다른 새 프로세스가 앞 프로세스가 저장한 1회차로 갱신(1회차 rotated·2회차 active). 두 호출 모두 `vm_list_reports` 성공, 로그인 뒤 authorize 요청 0회, grant 유지. VM 화면에서 연결 해제 뒤 같은 설정(`required = true`)은 갱신이 `invalid_grant`로 거절되어 도구 호출 없이 종료. 이후 `codex mcp logout`으로 이번 인증만 삭제. 화면 캡처는 저장 실패로 없음. 실행 중 세션의 만료 갱신은 확인하지 않음 | PASS | - | 증빙 `codex-refresh-20261103/refresh-verified.json`, `call*-events.jsonl`, `call3-after-revoke-stderr.log`, `backend.log`(token 요청 순서) |
 
 ## 자동 테스트
 
@@ -87,7 +88,8 @@ OAuth callback 수신기는 같은 경로로 들어오는 `favicon.ico` 요청�
 - 해결(2026-11-02 후속): Claude가 오프셋 계산에 셸을 쓰던 문제는 `quote`/`occurrence` 입력으로, 문단 삭제 후 빈 줄이 남던 문제는 구분자 하나를 함께 지우는 방식으로 고쳤다(MCP 경로만).
 - 문단 안의 문장 하나만 삭제하는 제안은 넓히지 않는다. 앞뒤 공백 정리는 편집자가 한다.
 - 새 저장 이후 같은 `requestId`로 `occurrence`만 바꿔 다시 보내면 REQUEST_REUSED가 아니라 이전 결과를 재생한다. 이전 버전 텍스트를 서비스가 읽어야 고칠 수 있다.
-- 구현·검증(2026-11-02 후속): access token 10분 만료 시 grant에 묶인 회전형 refresh로 재동의 없이 갱신한다(grant 상한 8시간 유지, 재사용 시 grant 회수). SQLite spec·실제 HTTP·PostgreSQL 17 migration·동시 갱신과 실제 Claude Code 호스트 자동 갱신(RCOL-21)을 확인했다. Codex의 실제 갱신 요청은 확인하지 않았다(바이너리 문자열 기준 추정).
+- 구현·검증(2026-11-02 후속): access token 10분 만료 시 grant에 묶인 회전형 refresh로 재동의 없이 갱신한다(grant 상한 8시간 유지, 재사용 시 grant 회수). SQLite spec·실제 HTTP·PostgreSQL 17 migration·동시 갱신과 실제 Claude Code 호스트 자동 갱신(RCOL-21)을 확인했다. 실제 Codex CLI 0.154.0의 새 프로세스 시작 시(만료 전·후) 갱신과 해제 뒤 거절도 확인했다(RCOL-24). 실행 중 세션의 만료 갱신은 확인하지 않았다.
+- 알려진 로깅 문제: 갱신 거절(`invalid_grant`, HTTP 400)이 pino 요청 로그에는 `status:200`으로 찍힌다. interceptor 로그는 400이다. 동작에는 영향이 없고 따로 고친다.
 - 해결(2026-11-02 후속): 이미 교환한 authorization code가 같은 client·`redirect_uri`·맞는 PKCE verifier와 함께 다시 오면 grant를 회수한다(verifier 없는 재사용은 DoS 방지를 위해 회수하지 않는다). code 교환·갱신 성공 뒤 만료 token·refresh·code 행을 테이블당 500행, 5분 여유로 정리한다. SQLite spec·실제 HTTP·PostgreSQL 17 임시 클러스터에서 확인했다. [refresh 계획](../plans/mcp-oauth-refresh.md#후속-구현-code-재사용-회수와-만료-행-정리)
 - 실제 포인터 드래그 선택은 자동화하지 못했다.
 - 여러 수신자 공유는 원자적이지 않다. 일부만 공유되면 `complete: false`를 돌려주고 같은 `requestId`로 재시도해 마저 공유한다.
