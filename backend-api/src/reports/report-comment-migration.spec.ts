@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { DataSource, Table, TableColumn } from 'typeorm';
 import { AddArtifactComments1793560000000 } from '../migrations/postgres/1793560000000-add-artifact-comments';
+import { AddDashboardCommentAnchor1793580000000 } from '../migrations/postgres/1793580000000-add-dashboard-comment-anchor';
 import {
   REPORT_COMMENT_ENTITIES,
   ArtifactComment,
@@ -104,9 +105,13 @@ describe('artifact comment PostgreSQL migration', () => {
     }).initialize();
     const runner = db.createQueryRunner();
     try {
-      const migration = new AddArtifactComments1793560000000();
-      await migration.up(runner);
-      await migration.up(runner);
+      for (const migration of [
+        new AddArtifactComments1793560000000(),
+        new AddDashboardCommentAnchor1793580000000(),
+      ]) {
+        await migration.up(runner);
+        await migration.up(runner);
+      }
       const diff = await db.driver.createSchemaBuilder().log();
       expect(diff.upQueries.map(query => query.query)).toEqual([]);
       for (const name of TABLES) {
@@ -177,9 +182,13 @@ describe('artifact comment PostgreSQL migration', () => {
       }).initialize();
       const runner = db.createQueryRunner();
       try {
-        const migration = new AddArtifactComments1793560000000();
-        await migration.up(runner);
-        await migration.up(runner);
+        for (const migration of [
+          new AddArtifactComments1793560000000(),
+          new AddDashboardCommentAnchor1793580000000(),
+        ]) {
+          await migration.up(runner);
+          await migration.up(runner);
+        }
         const diff = await db.driver.createSchemaBuilder().log();
         expect(diff.upQueries.map(query => query.query)).toEqual([]);
         const columns = await db.query(

@@ -21,7 +21,8 @@ import {
   storeReportPending,
   removeReportPending,
 } from './reportPending';
-import { CommentSuggestion, CommentThread, authorLabel, commentError, reportCommentApi } from './reportCommentApi';
+import { AuthorName } from '@/components/comments/CommentThread';
+import { CommentSuggestion, CommentThread, commentError, reportCommentApi } from './reportCommentApi';
 import { SuggestionDiff, draftPlacement } from './ReportComments';
 import './reports.css';
 
@@ -768,7 +769,7 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
                             </p>
                             {last && (
                               <p className="report-comment-body">
-                                <strong>{authorLabel(last.author)}</strong> {last.body}
+                                <AuthorName author={last.author} /> {last.body}
                               </p>
                             )}
                             {thread.suggestions
@@ -779,7 +780,7 @@ function ReportWorkspace({ sessionScope }: { sessionScope: string }) {
                                 return (
                                   <section key={item.id} className="report-comment-suggestion" aria-label="수정 제안">
                                     <p className="report-comment-meta">
-                                      <strong>{authorLabel(item.author)}</strong> · r{item.baseVersion} 기준
+                                      <AuthorName author={item.author} /> · r{item.baseVersion} 기준
                                       {inDraft ? ' · 초안에 적용됨, 저장 전' : ''}
                                     </p>
                                     <SuggestionDiff suggestion={item} />

@@ -2,13 +2,11 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  HttpException,
-  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { DataSource, EntityManager, In, LessThanOrEqual, QueryFailedError } from 'typeorm';
+import { DataSource, EntityManager, In, LessThanOrEqual } from 'typeorm';
 import { sourceWriteTransaction } from '../database/source-write-lock';
 import { User } from '../user/entities/user.entity';
 import {
@@ -24,6 +22,8 @@ import {
   AuthorKind,
   AuthorView,
   COMMENT_LIMITS,
+  CommentLimitException,
+  isCommentConflict,
   CommentListResult,
   CommentOperation,
   CommentWriteResult,
@@ -56,28 +56,8 @@ const validEpoch = (value: number) => Number.isSafeInteger(value) && value >= 0;
 const missingThread = () => new NotFoundException('댓글 스레드를 찾을 수 없습니다.');
 const staleStatus = () =>
   new ConflictException('댓글 상태가 변경됐습니다. 현재 상태를 다시 확인해 주세요.');
-/**
- * Retryable contention: unique races, serialization, deadlock, lock wait. On SQLite writes are
- * serialized in-process, so only BUSY/LOCKED count; constraint or I/O errors stay real failures.
- */
-const CONFLICT_CODES = ['23505', '40001', '40P01', '55P03', 'SQLITE_BUSY', 'SQLITE_LOCKED'];
 
-export function isCommentConflict(error: unknown): boolean {
-  if (!(error instanceof QueryFailedError)) return false;
-  const code = (error.driverError as { code?: unknown } | undefined)?.code;
-  return typeof code === 'string' && CONFLICT_CODES.includes(code);
-}
-
-/**
- * A quantity limit from the design (not a retryable conflict): counts and the 2 MiB text total are
- * 409, the post-apply document length is 413. MCP maps this class to its LIMIT error code.
- */
-export class CommentLimitException extends HttpException {
-  readonly code = 'COMMENT_LIMIT';
-  constructor(message: string, status: 409 | 413 = HttpStatus.CONFLICT) {
-    super({ statusCode: status, message, code: 'COMMENT_LIMIT' }, status);
-  }
-}
+export { CommentLimitException, isCommentConflict };
 
 /**
  * The requestId already committed a write with different input. Not a retryable conflict: the
@@ -476,6 +456,8 @@ export class ReportCommentService {
       ? (await manager.findOneBy(ArtifactComment, { id: resultId }))?.threadId
       : operation.startsWith('suggestion.')
       ? (await manager.findOneBy(ArtifactSuggestion, { id: resultId }))?.threadId
+      : operation.startsWith('dashboard.')
+      ? undefined
       : resultId;
   }
 

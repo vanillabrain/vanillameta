@@ -1,9 +1,11 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 
 /**
- * Comments, replies and suggested edits on artifacts (reports only for now: artifactKind='report').
- * No FK to private_report*: reports have no delete path yet; adding one must handle these rows.
- * Must stay identical to migrations/postgres/1793560000000-add-artifact-comments.ts.
+ * Comments, replies and suggested edits on artifacts (artifactKind 'report' or 'dashboard').
+ * No FK to private_report* or dashboard: dashboard deletion and handover remove their rows
+ * (deleteDashboardComments); reports have no delete path yet, adding one must handle these rows.
+ * Must stay identical to migrations/postgres/1793560000000-add-artifact-comments.ts plus
+ * 1793580000000-add-dashboard-comment-anchor.ts.
  */
 @Entity('artifact_comment_thread')
 @Index('IDX_artifact_comment_thread_artifact', ['artifactKind', 'artifactId', 'version'])
@@ -28,6 +30,10 @@ export class ArtifactCommentThread {
   @Column({ type: 'varchar', length: 32 }) createdAt: string;
   @Column({ type: 'integer', nullable: true }) resolvedBy: number | null;
   @Column({ type: 'varchar', length: 32, nullable: true }) resolvedAt: string | null;
+  /** Dashboard threads: the dashboardRevision the author saw, and the chart title/type snapshot. */
+  @Column({ type: 'varchar', length: 64, nullable: true }) artifactRevision: string | null;
+  @Column({ type: 'text', nullable: true }) anchorLabel: string | null;
+  @Column({ type: 'varchar', length: 32, nullable: true }) anchorType: string | null;
 }
 
 @Entity('artifact_comment')

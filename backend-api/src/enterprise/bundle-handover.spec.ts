@@ -65,6 +65,7 @@ import { inspectSourceHandover } from './source-handover-basis';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { StudioService } from '../dashboard-studio/studio.service';
 import { StudioRun } from '../dashboard-studio/entities/studio-run.entity';
+import { REPORT_COMMENT_ENTITIES } from '../reports/report-comment.entity';
 const entities = [
   User,
   EnterpriseOrganization,
@@ -100,6 +101,7 @@ const entities = [
   EnterpriseAuditEvent,
   EnterpriseHandoverProposal,
   EnterpriseBundleHandover,
+  ...REPORT_COMMENT_ENTITIES,
 ];
 describe('UC051 atomic source and connected Studio dashboard bundle', () => {
   jest.setTimeout(30000);

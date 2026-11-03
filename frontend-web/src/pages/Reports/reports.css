@@ -341,67 +341,6 @@
   margin: 0;
   font-size: 16px;
 }
-.report-comment-threads,
-.report-comment-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 12px;
-}
-.report-comment-thread {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  min-width: 0;
-}
-.report-comment-thread[data-active] {
-  border-color: var(--ring);
-}
-.report-comment-target {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.report-comment-target:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-.report-comment-anchor,
-.report-comment-quote {
-  font-weight: 600;
-  overflow-wrap: anywhere;
-  min-width: 0;
-}
-.report-comment-flag {
-  font-size: 12px;
-  color: var(--destructive);
-}
-.report-comment-meta {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted-foreground);
-  overflow-wrap: anywhere;
-}
-.report-comment-body {
-  margin: 2px 0 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  line-height: 1.6;
-}
 .report-comment-suggestion {
   display: grid;
   gap: 6px;
@@ -427,27 +366,6 @@
 .report-comment-diff p {
   margin: 0;
   font-size: 12px;
-}
-.report-comment-composer {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-}
-.report-comment-composer label {
-  font-size: 12px;
-  font-weight: 600;
-}
-.report-comment-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.report-comment-new {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--ring);
-  border-radius: 8px;
 }
 .report-comments-review {
   margin-top: 0;

@@ -37,6 +37,7 @@ import { DashboardLifecycleService } from './dashboard-lifecycle.service';
 import { DashboardLifecycleReceipt } from './entities/dashboard-lifecycle-receipt.entity';
 import { DashboardLifecycleController } from './dashboard-lifecycle.controller';
 import { AddDashboardLifecycle1792560000000 } from '../migrations/1792560000000-add-dashboard-lifecycle';
+import { REPORT_COMMENT_ENTITIES } from '../reports/report-comment.entity';
 
 const KINDS = [
   'directPermissions',
@@ -71,6 +72,7 @@ describe('UC055 actual SQLite/JWT organization dashboard lifecycle', () => {
     EnterpriseGroupDelivery,
     DashboardLifecycleReceipt,
     DashboardDeleteReceipt,
+    ...REPORT_COMMENT_ENTITIES,
   ];
   let db: DataSource, service: DashboardLifecycleService, root: string;
   const open = () =>

@@ -36,6 +36,7 @@ import { DashboardDeletionService, DELETE_DEPENDENCY_KINDS } from './dashboard-d
 import { DashboardDeletionController } from './dashboard-deletion.controller';
 import { AddDashboardDeleteReceipts1792530000000 } from '../migrations/1792530000000-add-dashboard-delete-receipts';
 import * as locking from './dashboard-write-lock';
+import { REPORT_COMMENT_ENTITIES } from '../reports/report-comment.entity';
 
 const gate = () => {
   let resolve!: () => void;
@@ -68,6 +69,7 @@ describe('UC055 protected physical deletion with SQLite/policy/JWT', () => {
     PersonalLibraryState,
     PersonalView,
     DashboardDeleteReceipt,
+    ...REPORT_COMMENT_ENTITIES,
   ];
   const open = () =>
     new DataSource({

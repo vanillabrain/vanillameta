@@ -1,23 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AuthorName, CommentComposer, CommentFlag, CommentThreadItem } from '@/components/comments/CommentThread';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { PublishedBlockView } from '../Dashboard/Studio/PublishedBlockView';
 import { ANCHOR_LIMITS, TextAnchor, documentText, locate, selectionOffsets, textAnchorAt } from './reportAnchor';
-import {
-  CommentAnchor,
-  CommentSuggestion,
-  CommentThread,
-  authorLabel,
-  commentError,
-  reportCommentApi,
-} from './reportCommentApi';
+import { CommentAnchor, CommentSuggestion, CommentThread, commentError, reportCommentApi } from './reportCommentApi';
 import { ReportReaderData, readerBlocks } from './reportSharingApi';
 
 type Write = ReturnType<typeof reportCommentApi.reply>;
 type Range = { start: number; end: number };
 type ImageBlock = { id: string; kind: 'IMAGE'; dataUrl: string; alt: string; width: 'full' | 'half' };
-const BODY_LIMIT = 4000;
-const time = (value: string) => new Date(value).toLocaleString();
 const quoteLabel = (quote: string) => `“${quote.length > 80 ? quote.slice(0, 80) + '…' : quote}”`;
 const statusOf = (thread: CommentThread) => thread.location.status;
 const locatedRange = (thread: CommentThread): Range | null =>
@@ -42,10 +34,8 @@ function anchorLabel(anchor: CommentAnchor, images: Array<{ id: string; alt: str
   return quoteLabel(anchor.quote);
 }
 function LocationNote({ status }: { status: string }) {
-  if (status === 'detached')
-    return <span className="report-comment-flag">원문에서 찾을 수 없음 · 저장된 인용문만 표시</span>;
-  if (status === 'ambiguous')
-    return <span className="report-comment-flag">같은 문구가 여러 곳에 있어 위치를 특정할 수 없음</span>;
+  if (status === 'detached') return <CommentFlag>원문에서 찾을 수 없음 · 저장된 인용문만 표시</CommentFlag>;
+  if (status === 'ambiguous') return <CommentFlag>같은 문구가 여러 곳에 있어 위치를 특정할 수 없음</CommentFlag>;
   return null;
 }
 
@@ -68,67 +58,6 @@ function segments(text: string, highlights: Array<Range & { id: string }>) {
     });
   }
   return runs;
-}
-
-/** Text input whose requestId survives a failed send, so retrying the same text is a safe replay. */
-function Composer({
-  label,
-  submit,
-  placeholder,
-  disabled,
-  autoFocus,
-  onCancel,
-  send,
-}: {
-  label: string;
-  submit: string;
-  placeholder?: string;
-  disabled: boolean;
-  autoFocus?: boolean;
-  onCancel?: () => void;
-  send: (body: string, requestId: string) => Promise<boolean>;
-}) {
-  const [body, setBody] = useState('');
-  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
-  const id = useRef(`comment-${crypto.randomUUID()}`).current;
-  const valid = body.trim().length > 0 && body.length <= BODY_LIMIT;
-  return (
-    <form
-      className="report-comment-composer"
-      onSubmit={async event => {
-        event.preventDefault();
-        if (!valid || disabled) return;
-        if (await send(body, requestId)) {
-          setBody('');
-          setRequestId(crypto.randomUUID());
-        }
-      }}
-    >
-      <label htmlFor={id}>{label}</label>
-      <Textarea
-        id={id}
-        value={body}
-        autoFocus={autoFocus}
-        maxLength={BODY_LIMIT}
-        placeholder={placeholder}
-        disabled={disabled}
-        onChange={event => {
-          setBody(event.target.value);
-          setRequestId(crypto.randomUUID());
-        }}
-      />
-      <div className="report-comment-actions">
-        <Button type="submit" size="sm" disabled={!valid || disabled}>
-          {submit}
-        </Button>
-        {onCancel && (
-          <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-            취소
-          </Button>
-        )}
-      </div>
-    </form>
-  );
 }
 
 function SuggestionComposer({
@@ -233,93 +162,71 @@ function ThreadCard({
   const range = locatedRange(thread);
   const open = thread.status === 'open';
   return (
-    <li
-      id={`comment-thread-${thread.id}`}
-      className="report-comment-thread"
-      data-active={active || undefined}
-      aria-label={`댓글 스레드 ${anchorLabel(thread.anchor, images)}`}
+    <CommentThreadItem
+      threadId={thread.id}
+      label={anchorLabel(thread.anchor, images)}
+      meta={`r${thread.version}${open ? '' : ' · 해결됨'}`}
+      notes={<LocationNote status={statusOf(thread)} />}
+      comments={thread.comments}
+      resolved={!open}
+      active={active}
+      busy={busy}
+      onSelect={onSelect}
+      onToggleStatus={
+        role === 'owner' || thread.mine
+          ? () =>
+              void run(() =>
+                reportCommentApi.setStatus(reportId, thread.id, {
+                  requestId: crypto.randomUUID(),
+                  status: open ? 'resolved' : 'open',
+                  expectedStatusVersion: thread.statusVersion,
+                }),
+              )
+          : undefined
+      }
+      onReply={(body, requestId) => run(() => reportCommentApi.reply(reportId, thread.id, { requestId, body }))}
+      extraActions={
+        open &&
+        canSuggest &&
+        range && (
+          <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setSuggesting(true)}>
+            수정 제안
+          </Button>
+        )
+      }
+      editor={
+        suggesting && range ? (
+          <SuggestionComposer
+            quote={text.slice(range.start, range.end)}
+            disabled={busy}
+            onCancel={() => setSuggesting(false)}
+            send={(replacement, rationale, requestId) =>
+              run(() =>
+                reportCommentApi.suggest(reportId, {
+                  requestId,
+                  version,
+                  threadId: thread.id,
+                  anchor: textAnchorAt(text, range.start, range.end),
+                  replacement,
+                  ...(rationale.trim() ? { rationale } : {}),
+                }),
+              )
+            }
+          />
+        ) : undefined
+      }
     >
-      <button type="button" className="report-comment-target" onClick={onSelect}>
-        <span className="report-comment-anchor">{anchorLabel(thread.anchor, images)}</span>
-        <span className="text-xs text-muted-foreground">
-          r{thread.version}
-          {open ? '' : ' · 해결됨'}
-        </span>
-      </button>
-      <LocationNote status={statusOf(thread)} />
-      <ol className="report-comment-list">
-        {thread.comments.map(comment => (
-          <li key={comment.id}>
-            <p className="report-comment-meta">
-              <strong>{authorLabel(comment.author)}</strong> · {time(comment.createdAt)}
-            </p>
-            <p className="report-comment-body">{comment.body}</p>
-          </li>
-        ))}
-      </ol>
       {thread.suggestions.map(suggestion => (
         <section key={suggestion.id} className="report-comment-suggestion" aria-label="수정 제안">
           <p className="report-comment-meta">
-            <strong>{authorLabel(suggestion.author)}</strong> · {statusText[suggestion.status]}
+            <AuthorName author={suggestion.author} /> · {statusText[suggestion.status]}
             {suggestion.appliedVersion ? ` · r${suggestion.appliedVersion}` : ''}
           </p>
           <SuggestionDiff suggestion={suggestion} />
           {suggestion.status === 'open' && <LocationNote status={suggestion.location.status} />}
         </section>
       ))}
-      {suggesting && range ? (
-        <SuggestionComposer
-          quote={text.slice(range.start, range.end)}
-          disabled={busy}
-          onCancel={() => setSuggesting(false)}
-          send={(replacement, rationale, requestId) =>
-            run(() =>
-              reportCommentApi.suggest(reportId, {
-                requestId,
-                version,
-                threadId: thread.id,
-                anchor: textAnchorAt(text, range.start, range.end),
-                replacement,
-                ...(rationale.trim() ? { rationale } : {}),
-              }),
-            )
-          }
-        />
-      ) : (
-        <div className="report-comment-actions">
-          {open && canSuggest && range && (
-            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setSuggesting(true)}>
-              수정 제안
-            </Button>
-          )}
-          {(role === 'owner' || thread.mine) && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() =>
-                void run(() =>
-                  reportCommentApi.setStatus(reportId, thread.id, {
-                    requestId: crypto.randomUUID(),
-                    status: open ? 'resolved' : 'open',
-                    expectedStatusVersion: thread.statusVersion,
-                  }),
-                )
-              }
-            >
-              {open ? '해결' : '다시 열기'}
-            </Button>
-          )}
-        </div>
-      )}
-      <Composer
-        label="답글"
-        submit="답글 남기기"
-        disabled={busy}
-        send={(body, requestId) => run(() => reportCommentApi.reply(reportId, thread.id, { requestId, body }))}
-      />
-    </li>
+    </CommentThreadItem>
   );
 }
 
@@ -550,7 +457,7 @@ export function ReaderDocument({
             <p className="report-comment-quote">
               <span className="text-muted-foreground">대상</span> {anchorLabel(draft, images)}
             </p>
-            <Composer
+            <CommentComposer
               key={JSON.stringify(draft)}
               label="새 댓글"
               submit="댓글 남기기"

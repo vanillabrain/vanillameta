@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils';
 import { readLayouts } from '../readLayouts';
 import DashboardAnalysis from '../Components/DashboardAnalysis';
 import DashboardDeleteDialog from '../Components/DashboardDeleteDialog';
+import { DashboardCommentsButton, DashboardCommentsPanel, useDashboardComments } from '../Comments/DashboardComments';
 import { useQueryClient } from '@tanstack/react-query';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -77,6 +78,16 @@ const DashboardView = () => {
   const dashboardRequest = useRef(0);
   const blockedDashboardId = useRef<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  // Empty legacy dashboards have nothing to anchor to, and denied views must not probe comment access.
+  const comments = useDashboardComments(
+    dashboardId,
+    dashboardInfo.updatedAt,
+    loadedDashboardId === dashboardId && !permissionDenied && !emptyDashboard,
+  );
+  const dismissComments = comments.dismiss;
+  useEffect(() => {
+    if (assistantOpen && comments.open) dismissComments();
+  }, [assistantOpen, comments.open, dismissComments]);
   const managementScope = personalLibrarySessionScope();
   const [ownerManagement, setOwnerManagement] = useState<{ dashboardId: number; scope: string } | null>(null);
   const [layout, setLayout] = useState([]); // grid layout
@@ -333,7 +344,12 @@ const DashboardView = () => {
           onOpenChange={setDeleteOpen}
           onDeleted={handleDeleted}
         />
-        <div className={cn('min-w-0', assistantOpen ? 'w-full lg:w-[calc(100%-400px)]' : 'w-full')}>
+        <div
+          className={cn(
+            'min-w-0',
+            assistantOpen || (comments.open && !comments.modal) ? 'w-full lg:w-[calc(100%-400px)]' : 'w-full',
+          )}
+        >
           <PageViewBox
             preserveChildren
             title={dashboardInfo.title}
@@ -382,6 +398,9 @@ const DashboardView = () => {
                     }}
                   />
                 </div>
+                {loadedDashboardId === dashboardId && (
+                  <DashboardCommentsButton comments={comments} disabled={assistantOpen} />
+                )}
                 <Button asChild variant="outline" size="sm" className="shrink-0">
                   <RouterLink to={`/dashboard/${dashboardId}/edit-charts`}>차트·배치 편집</RouterLink>
                 </Button>
@@ -440,6 +459,7 @@ const DashboardView = () => {
                   revision={dashboardInfo.updatedAt}
                   onAssistantOpenChange={setAssistantOpen}
                   onSaved={() => getDashboardInfo(dashboardId)}
+                  comments={assistantOpen ? undefined : comments.cards}
                 >
                   <ResponsiveGridLayout
                     key={layoutVersion}
@@ -458,6 +478,7 @@ const DashboardView = () => {
             </div>
           </PageViewBox>
         </div>
+        {loadedDashboardId === dashboardId && <DashboardCommentsPanel comments={comments} />}
       </>
     </PageTitleBox>
   );

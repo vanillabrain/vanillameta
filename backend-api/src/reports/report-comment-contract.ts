@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { QueryFailedError } from 'typeorm';
 import { z } from 'zod';
 import { reportId } from './report-contract';
 
@@ -170,5 +171,28 @@ export class RequestReusedException extends HttpException {
       },
       HttpStatus.CONFLICT,
     );
+  }
+}
+
+/**
+ * Retryable contention: unique races, serialization, deadlock, lock wait. On SQLite writes are
+ * serialized in-process, so only BUSY/LOCKED count; constraint or I/O errors stay real failures.
+ */
+const CONFLICT_CODES = ['23505', '40001', '40P01', '55P03', 'SQLITE_BUSY', 'SQLITE_LOCKED'];
+
+export function isCommentConflict(error: unknown): boolean {
+  if (!(error instanceof QueryFailedError)) return false;
+  const code = (error.driverError as { code?: unknown } | undefined)?.code;
+  return typeof code === 'string' && CONFLICT_CODES.includes(code);
+}
+
+/**
+ * A quantity limit from the design (not a retryable conflict): counts and the 2 MiB text total are
+ * 409, the post-apply document length is 413. MCP maps this class to its LIMIT error code.
+ */
+export class CommentLimitException extends HttpException {
+  readonly code = 'COMMENT_LIMIT';
+  constructor(message: string, status: 409 | 413 = HttpStatus.CONFLICT) {
+    super({ statusCode: status, message, code: 'COMMENT_LIMIT' }, status);
   }
 }

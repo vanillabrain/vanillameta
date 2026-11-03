@@ -632,6 +632,42 @@ describe(`report comments and suggestions with real ${
     });
   });
 
+  it('rejects a dashboard requestId on report routes without exposing the dashboard thread', async () => {
+    const dashboardThread = randomUUID();
+    await db.manager.insert(ArtifactCommentThread, {
+      id: dashboardThread,
+      artifactKind: 'dashboard',
+      artifactId: '6',
+      version: 0,
+      anchorKind: 'whole',
+      status: 'open',
+      statusVersion: 0,
+      createdBy: owner.id,
+      authorKind: 'user',
+      createdAt: new Date().toISOString(),
+    });
+    const requestId = randomUUID();
+    await db.manager.insert(ArtifactCommentReceipt, {
+      actorId: owner.id,
+      organizationKey: 1,
+      requestId,
+      operation: 'dashboard.thread.create',
+      payloadHash: 'f'.repeat(64),
+      resultId: dashboardThread,
+      createdAt: new Date().toISOString(),
+    });
+    const before = await counts();
+    const command = { ...thread(1), requestId };
+    await expect(service.createThread(id, command, owner)).rejects.toMatchObject({
+      status: 409,
+      code: 'REQUEST_REUSED',
+    });
+    await expect(
+      service.createThread(id, command, owner).catch(error => error.getResponse()),
+    ).resolves.not.toHaveProperty('threadId');
+    expect(await counts()).toEqual(before);
+  });
+
   it('applies statusVersion CAS to resolve and reopen', async () => {
     const created = await service.createThread(id, thread(1), owner);
     const tid = created.thread.id;
