@@ -1,4 +1,5 @@
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
+import { UnauthorizedException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { DataSource } from 'typeorm';
 import { User } from '../user/entities/user.entity';
@@ -35,6 +36,9 @@ import { DashboardDeletionService } from './dashboard-deletion.service';
 import { dashboardRevision } from './dashboard-revision';
 import { deleteDashboardComments } from './dashboard-comment-cleanup';
 import { DashboardCommentService } from './dashboard-comment.service';
+import { PersonalLibraryState } from './entities/personal-library-state.entity';
+import { McpDashboardService } from '../mcp-oauth/mcp-dashboard.service';
+import { mcpError } from '../mcp-oauth/mcp-server';
 
 const owner = { id: 1, authVersion: 0 },
   reader = { id: 2, authVersion: 0 },
@@ -147,6 +151,7 @@ describe(`dashboard comments with real ${pgPort ? 'PostgreSQL' : 'SQLite'} trans
         DashboardShare,
         DashboardPublication,
         DashboardDeleteReceipt,
+        PersonalLibraryState,
         ...REPORT_COMMENT_ENTITIES,
       ],
     }).initialize();
@@ -653,5 +658,239 @@ describe(`dashboard comments with real ${pgPort ? 'PostgreSQL' : 'SQLite'} trans
     ]);
     expect(await counts()).toEqual({ threads: 1, comments: 1, receipts: 1 });
     expect((await service.list(ANALYSIS, owner)).threads).toEqual([]);
+  });
+
+  describe('remote MCP dashboards', () => {
+    let mcp: McpDashboardService, assertGrant: jest.Mock;
+    const principal = (actor: { id: number }, organizationId = 1) => ({
+      actorId: actor.id,
+      authVersion: 0,
+      grantId: 'grant-1',
+      organizationId,
+      clientName: 'Claude Code',
+      scopes: ['dashboards:read', 'comments:read', 'comments:write'],
+    });
+    const code = (promise: Promise<unknown>) =>
+      promise.then(
+        () => 'OK',
+        error => mcpError(error).code,
+      );
+    const add = async (actor: { id: number }, id: string, extra: Record<string, unknown> = {}) =>
+      mcp.addComment(
+        principal(actor) as any,
+        {
+          dashboardId: Number(id),
+          revision: await revision(id),
+          anchor: { kind: 'whole' },
+          body: 'From Claude',
+          requestId: randomUUID(),
+          ...extra,
+        } as any,
+      );
+    beforeEach(() => {
+      assertGrant = jest.fn();
+      mcp = new McpDashboardService(db, access, service, { assertGrant } as any);
+    });
+
+    it('lists only live, ungoverned dashboards of the grant organization that pass the read check, as an allowlist', async () => {
+      await db.manager.insert(PersonalLibraryState, {
+        userId: owner.id,
+        organizationId: 1,
+        dashboardId: 2,
+        archived: true,
+        version: 1,
+        updatedAt: new Date(),
+      } as any);
+      const mine = await mcp.list(principal(owner) as any, 0);
+      expect(mine.dashboards.map(row => [row.dashboardId, row.archived])).toEqual([
+        [1, false],
+        [2, true],
+        [3, false],
+      ]);
+      expect(Object.keys(mine.dashboards[0]).sort()).toEqual(
+        ['archived', 'dashboardId', 'title', 'updatedAt'].sort(),
+      );
+      expect(mine.nextAfterId).toBeNull();
+      expect(
+        (await mcp.list(principal(reader) as any, 0)).dashboards.map(row => row.dashboardId),
+      ).toEqual([1, 2]);
+      expect((await mcp.list(principal(otherOrg, 2) as any, 0)).dashboards).toEqual([]);
+      expect((await mcp.list(principal(owner, 2) as any, 0)).dashboards).toEqual([]);
+      await db.manager.update(Dashboard, 3, { delYn: 'Y' });
+      await db.manager.update(Dashboard, 2, { assetActive: false });
+      expect(
+        (await mcp.list(principal(owner) as any, 0)).dashboards.map(row => row.dashboardId),
+      ).toEqual([1]);
+    });
+
+    it('pages by the last examined id, so a page emptied by the read check still points onward', async () => {
+      // Ids come from the database: PostgreSQL ignores explicit ids on generated columns.
+      const ids: number[] = [];
+      for (let n = 0; n < 52; n++) {
+        const { identifiers } = await db.manager.insert(Dashboard, {
+          title: `Extra ${n}`,
+          analysisDefinition: definition(ANALYSIS_WIDGETS),
+        });
+        const id = Number(identifiers[0].id);
+        ids.push(id);
+        await db.manager.insert(UserMapping, { dashboardId: id, userInfoId: 1 });
+        await grant('dashboard', id, outsider.id);
+      }
+      // The outsider holds dashboard grants but no source grant, so every read check fails.
+      const first = await mcp.list(principal(outsider) as any, 0);
+      expect(first.dashboards).toEqual([]);
+      expect(first.nextAfterId).toBe(ids[49]);
+      const last = await mcp.list(principal(outsider) as any, first.nextAfterId);
+      expect(last).toEqual({ dashboards: [], nextAfterId: null });
+    });
+
+    it('reads structure only: no SQL, business basis, source or data', async () => {
+      await db.manager.update(Dashboard, 1, {
+        analysisDefinition: JSON.stringify({
+          databaseId: 1,
+          title: 'Sales',
+          explanation: 'Weekly sales overview',
+          widgets: [
+            {
+              ...widget('Revenue', 'BOARD_NUMERIC', 'block-a'),
+              description: 'Net revenue',
+              categoryField: 'channel',
+            },
+          ],
+        }),
+      });
+      const outline = await mcp.read(principal(reader) as any, 1);
+      expect(outline).toEqual({
+        dashboardId: 1,
+        title: 'Board 1',
+        description: 'Weekly sales overview',
+        revision: await revision(ANALYSIS),
+        blockAnchors: true,
+        blocks: [
+          {
+            blockId: 'block-a',
+            title: 'Revenue',
+            description: 'Net revenue',
+            type: 'BOARD_NUMERIC',
+            valueField: 'value',
+            categoryField: 'channel',
+          },
+        ],
+      });
+      expect(JSON.stringify(outline)).not.toMatch(/SELECT|PRIVATE_|databaseId|businessBasis|sql/i);
+      expect((await mcp.read(principal(owner) as any, 3)).blockAnchors).toBe(false);
+      expect(
+        (await mcp.read(principal(owner) as any, 2)).blocks.map(block => block.blockId),
+      ).toEqual(['legacy-2-0', 'legacy-2-1']);
+      for (const attempt of [
+        () => mcp.read(principal(owner, 2) as any, 1),
+        () => mcp.read(principal(owner) as any, 4),
+        () => mcp.read(principal(owner) as any, 999),
+        () => mcp.read(principal(otherOrg, 2) as any, 1),
+        async () => {
+          await db.manager.update(Dashboard, 3, { assetActive: false });
+          return mcp.read(principal(owner) as any, 3);
+        },
+        async () => {
+          await db.manager.update(Dashboard, 2, { analysisDefinition: '{not json' });
+          return mcp.read(principal(owner) as any, 2);
+        },
+      ]) {
+        const failure = await attempt().then(
+          () => null,
+          error => mcpError(error),
+        );
+        expect(failure).toMatchObject({ code: 'FORBIDDEN' });
+        expect(failure).not.toHaveProperty('detail');
+      }
+    });
+
+    it('records AI comments, re-checks both scopes in the transaction and keeps web and MCP requests apart', async () => {
+      const created = await add(reader, ANALYSIS, {
+        anchor: { kind: 'block', blockId: 'block-b' },
+      });
+      expect(assertGrant).toHaveBeenCalledWith(expect.anything(), expect.anything(), [
+        'dashboards:read',
+        'comments:write',
+      ]);
+      expect(created.thread.author).toEqual({
+        kind: 'ai',
+        userId: 'user-2',
+        clientName: 'Claude Code',
+      });
+      const row = await db.manager.findOneByOrFail(ArtifactCommentThread, {
+        id: created.thread.id,
+      });
+      expect(row).toMatchObject({
+        authorKind: 'ai',
+        aiGrantId: 'grant-1',
+        aiClientName: 'Claude Code',
+      });
+      const replied = await mcp.reply(principal(reader) as any, {
+        dashboardId: 1,
+        threadId: created.thread.id,
+        body: 'More context',
+        requestId: randomUUID(),
+      });
+      expect(replied.thread.comments.map(comment => comment.author.kind)).toEqual(['ai', 'ai']);
+      const listed = await mcp.threads(principal(reader) as any, 1, 0);
+      expect(listed).toMatchObject({ dashboardId: 1, totalThreads: 1, nextThreadOffset: null });
+      // The same requestId from the web (no AI provenance) is a different request.
+      const requestId = randomUUID();
+      await add(reader, ANALYSIS, { requestId });
+      expect(
+        await code(
+          service.createThread(ANALYSIS, { ...(await thread(ANALYSIS)), requestId }, reader),
+        ),
+      ).toBe('REQUEST_REUSED');
+      // A retry with the same input after the dashboard changed returns the recorded result.
+      const readRevision = await revision(ANALYSIS);
+      const retryId = randomUUID();
+      await add(reader, ANALYSIS, { requestId: retryId });
+      await redefine(ANALYSIS, [...ANALYSIS_WIDGETS, widget('Margin', 'CHART_LINE', 'block-c')]);
+      const retried = await mcp.addComment(principal(reader) as any, {
+        dashboardId: 1,
+        revision: readRevision,
+        anchor: { kind: 'whole' },
+        body: 'From Claude',
+        requestId: retryId,
+      });
+      expect(retried.replayed).toBe(true);
+      expect(await code(add(reader, ANALYSIS, { revision: '0'.repeat(64) }))).toBe('CONFLICT');
+      expect(
+        await code(add(owner, PLAIN, { anchor: { kind: 'block', blockId: 'legacy-3-0' } })),
+      ).toBe('INVALID');
+    });
+
+    it('writes nothing when the grant check fails or the owner moves to another organization before the lock', async () => {
+      const before = await counts();
+      assertGrant.mockRejectedValueOnce(new UnauthorizedException());
+      expect(await code(add(reader, ANALYSIS))).toBe('UNAUTHORIZED');
+      // The owner moves to another organization between the grant check and the row lock. The
+      // owner still reads the dashboard, so only the organization fence on the locked row refuses.
+      assertGrant.mockImplementationOnce(async manager => {
+        await manager.update(EnterpriseMembership, { userId: owner.id }, { organizationId: 2 });
+      });
+      expect(await code(add(owner, ANALYSIS))).toBe('FORBIDDEN');
+      expect(await counts()).toEqual(before);
+    });
+
+    it('caps open AI threads per dashboard', async () => {
+      for (let i = 0; i < 100; i++)
+        await db.manager.insert(ArtifactCommentThread, {
+          id: randomUUID(),
+          artifactKind: 'dashboard',
+          artifactId: ANALYSIS,
+          version: 0,
+          anchorKind: 'whole',
+          status: 'open',
+          statusVersion: 0,
+          createdBy: owner.id,
+          authorKind: 'ai',
+          createdAt: new Date().toISOString(),
+        });
+      expect(await code(add(owner, ANALYSIS))).toBe('LIMIT');
+      expect(await code(service.createThread(ANALYSIS, await thread(ANALYSIS), owner))).toBe('OK');
+    });
   });
 });

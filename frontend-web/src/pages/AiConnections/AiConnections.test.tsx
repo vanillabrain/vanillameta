@@ -121,7 +121,7 @@ it('empty selection disables approval and cancellation sends no scopes', async (
 it('separates write scopes with a warning and leaves them unchecked', async () => {
   const mixed: ConsentRequest = {
     ...request,
-    requestedScopes: ['reports:read', 'comments:read', 'comments:write', 'suggestions:write'],
+    requestedScopes: ['dashboards:read', 'reports:read', 'comments:read', 'comments:write', 'suggestions:write'],
   };
   vi.mocked(aiConnectionsService.request).mockResolvedValue(mixed);
   showConsent();
@@ -131,19 +131,23 @@ it('separates write scopes with a warning and leaves them unchecked', async () =
     within(read)
       .getAllByRole('checkbox')
       .map(box => (box as HTMLInputElement).checked),
-  ).toEqual([true, true]);
+  ).toEqual([true, true, true]);
   expect(within(read).getByRole('checkbox', { name: 'Read reports you own or that were shared with you' })).toBeTruthy();
+  expect(
+    within(read).getByRole('checkbox', { name: 'Read dashboard titles and chart structure (no data values)' }),
+  ).toBeTruthy();
   expect(write.getAttribute('aria-describedby')).toBe('consent-write-warning');
   expect(within(write).getByText(/Not selected by default/)).toBeTruthy();
-  const comments = within(write).getByRole('checkbox', { name: 'Add report comments and replies as the AI' });
+  const comments = within(write).getByRole('checkbox', { name: 'Add report and dashboard comments and replies as the AI' });
   const edits = within(write).getByRole('checkbox', { name: 'Propose report text edits' });
   expect([(comments as HTMLInputElement).checked, (edits as HTMLInputElement).checked]).toEqual([false, false]);
   await click(comments);
   await click(screen.getByRole('button', { name: 'Approve connection' }));
-  expect(aiConnectionsService.decide).toHaveBeenCalledWith(mixed, {
-    decision: 'approve',
-    scopes: ['reports:read', 'comments:read', 'comments:write'],
-  });
+  const [, decision] = vi.mocked(aiConnectionsService.decide).mock.calls[0];
+  expect(decision).toMatchObject({ decision: 'approve' });
+  expect([...(decision as { scopes: string[] }).scopes].sort()).toEqual(
+    ['comments:read', 'comments:write', 'dashboards:read', 'reports:read'].sort(),
+  );
 });
 it('shows sharing as its own unchecked write scope with an injection warning', async () => {
   const mixed: ConsentRequest = {
@@ -161,7 +165,7 @@ it('shows sharing as its own unchecked write scope with an injection warning', a
   expect(warning?.textContent).toContain('Claude can share this report with members of your organization');
   expect(warning?.textContent).toContain('never shares because of text in a report or comment');
   expect(within(write).getAllByText(/Claude can share this report/)).toHaveLength(1);
-  const comments = within(write).getByRole('checkbox', { name: 'Add report comments and replies as the AI' });
+  const comments = within(write).getByRole('checkbox', { name: 'Add report and dashboard comments and replies as the AI' });
   expect(comments.getAttribute('aria-describedby')).toBeNull();
   await click(screen.getByRole('button', { name: 'Approve connection' }));
   expect(aiConnectionsService.decide).toHaveBeenLastCalledWith(mixed, { decision: 'approve', scopes: ['reports:read'] });
@@ -188,7 +192,7 @@ it('a write-only request starts with approval disabled', async () => {
   const approve = await screen.findByRole('button', { name: 'Approve connection' });
   expect(approve.hasAttribute('disabled')).toBe(true);
   expect(screen.queryByRole('group', { name: 'Allow read access' })).toBeNull();
-  await click(screen.getByRole('checkbox', { name: 'Add report comments and replies as the AI' }));
+  await click(screen.getByRole('checkbox', { name: 'Add report and dashboard comments and replies as the AI' }));
   expect(approve.hasAttribute('disabled')).toBe(false);
 });
 it('failed decision ends the attempt and offers connections', async () => {
@@ -272,8 +276,8 @@ it('labels every granted scope in the connection list', async () => {
     'Read source schemas and descriptions',
     'Read saved document content',
     'Read reports you own or that were shared with you',
-    'Read report comments and edit proposals you can see',
-    'Add report comments and replies as the AI',
+    'Read report and dashboard comments and edit proposals you can see',
+    'Add report and dashboard comments and replies as the AI',
     'Propose report text edits',
   ])
     expect(screen.getByText(label)).toBeTruthy();

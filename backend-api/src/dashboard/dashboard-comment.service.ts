@@ -14,6 +14,9 @@ import { catalogActorContext } from '../bi/source-classifications';
 import { sourceWriteTransaction } from '../database/source-write-lock';
 import { SourceAccessService } from '../ownership/source-access.service';
 import {
+  AiProvenance,
+  aiProvenance,
+  AuthorKind,
   AuthorView,
   COMMENT_LIMITS,
   CommentLimitException,
@@ -29,6 +32,8 @@ import {
   ArtifactCommentThread,
 } from '../reports/report-comment.entity';
 import { canonicalReport, reportHash, reportId, ReportActor } from '../reports/report-contract';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { UserMapping } from '../user/entities/user-mapping.entity';
 import { User } from '../user/entities/user.entity';
 import {
   DASHBOARD_OPERATIONS,
@@ -91,7 +96,48 @@ type Access = {
   revision: string;
   blocks: DashboardBlock[] | null;
 };
-type WriteContext = { manager: EntityManager; access: Access; now: string };
+type Author = { authorKind: AuthorKind; aiGrantId: string | null; aiClientName: string | null };
+type WriteContext = { manager: EntityManager; access: Access; author: Author; now: string };
+
+/** Lets the MCP layer re-check its grant, fence the organization and record AI provenance. */
+export type DashboardCommentOptions = {
+  /** Runs first inside the transaction, before the dashboard lock and access. */
+  beforeAccess?: (manager: EntityManager) => Promise<void>;
+  ai?: AiProvenance;
+  /** The dashboard owner's organization must equal this; checked after the row lock. */
+  expectedOrganizationId?: number;
+};
+
+/**
+ * The dashboard's organization: the membership of its single mapped owner. Zero or several
+ * mappings, or an owner without a membership, have no organization.
+ */
+export async function dashboardOrganization(
+  manager: EntityManager,
+  dashboardId: number,
+): Promise<number | null> {
+  const owners = await manager.find(UserMapping, { where: { dashboardId }, take: 2 });
+  if (owners.length !== 1) return null;
+  const member = await manager.findOneBy(EnterpriseMembership, { userId: owners[0].userInfoId });
+  return member?.organizationId ?? null;
+}
+
+/** What an external AI may read about a dashboard: structure only, never SQL or data. */
+export type DashboardOutline = {
+  dashboardId: number;
+  title: string;
+  description: string | null;
+  revision: string;
+  blockAnchors: boolean;
+  blocks: Array<{
+    blockId: string;
+    title: string;
+    description: string;
+    type: string;
+    valueField: string;
+    categoryField: string | null;
+  }>;
+};
 
 /**
  * Comments on a whole dashboard or one chart. Read access may comment and sees its own threads;
@@ -123,7 +169,8 @@ export class DashboardCommentService {
     id: number,
     actor: ReportActor,
     lock: boolean,
-  ): Promise<Access> {
+    expectedOrganizationId?: number,
+  ): Promise<Access & { dashboard: Dashboard }> {
     const dashboard = lock
       ? await lockDashboardWrite(manager, id).catch(error => {
           throw error instanceof ForbiddenException ? denied() : error;
@@ -143,7 +190,13 @@ export class DashboardCommentService {
     if (!(await allowed('read'))) throw denied();
     if (dashboard.governed)
       throw new ForbiddenException('조직 정책이 적용된 대시보드에는 댓글을 달 수 없습니다.');
+    if (
+      expectedOrganizationId !== undefined &&
+      (await dashboardOrganization(manager, id)) !== expectedOrganizationId
+    )
+      throw denied();
     return {
+      dashboard,
       artifactId: String(id),
       organizationKey: context.organizationId ?? 0,
       canManage: await allowed('edit'),
@@ -152,10 +205,14 @@ export class DashboardCommentService {
     };
   }
 
-  async list(rawId: string, actor: ReportActor): Promise<DashboardCommentList> {
+  async list(
+    rawId: string,
+    actor: ReportActor,
+    options: Pick<DashboardCommentOptions, 'expectedOrganizationId'> = {},
+  ): Promise<DashboardCommentList> {
     const id = this.sources.id(rawId);
     return this.transaction(actor, async manager => {
-      const access = await this.access(manager, id, actor, false);
+      const access = await this.access(manager, id, actor, false, options.expectedOrganizationId);
       return {
         revision: access.revision,
         canManage: access.canManage,
@@ -166,10 +223,44 @@ export class DashboardCommentService {
     });
   }
 
+  /**
+   * The structure an external AI reads before commenting: an allowlist of titles, descriptions,
+   * chart kinds and field names. Never the widget SQL, business-basis expressions or data.
+   */
+  async outline(
+    rawId: string,
+    actor: ReportActor,
+    options: Pick<DashboardCommentOptions, 'expectedOrganizationId'> = {},
+  ): Promise<DashboardOutline> {
+    const id = this.sources.id(rawId);
+    return this.transaction(actor, async manager => {
+      const access = await this.access(manager, id, actor, false, options.expectedOrganizationId);
+      const draft = access.dashboard.analysisDefinition
+        ? legacyBlockIds(validateDraft(JSON.parse(access.dashboard.analysisDefinition)), id)
+        : null;
+      return {
+        dashboardId: id,
+        title: access.dashboard.title,
+        description: draft?.explanation || null,
+        revision: access.revision,
+        blockAnchors: draft !== null,
+        blocks: (draft?.widgets ?? []).map(widget => ({
+          blockId: widget.blockId,
+          title: widget.title,
+          description: widget.description ?? '',
+          type: widget.type,
+          valueField: widget.valueField,
+          categoryField: widget.categoryField ?? null,
+        })),
+      };
+    });
+  }
+
   async createThread(
     rawId: string,
     input: unknown,
     actor: ReportActor,
+    options: DashboardCommentOptions = {},
   ): Promise<DashboardCommentWrite> {
     const id = this.sources.id(rawId),
       body = parse(dashboardThreadRequest, input);
@@ -179,7 +270,8 @@ export class DashboardCommentService {
       body.requestId,
       { body },
       actor,
-      async ({ manager, access, now }) => {
+      options,
+      async ({ manager, access, author, now }) => {
         if (body.revision !== access.revision)
           throw new ConflictException({
             statusCode: 409,
@@ -187,7 +279,7 @@ export class DashboardCommentService {
             code: 'REVISION_CONFLICT',
           });
         const block = body.anchor.kind === 'block' ? this.block(access, body.anchor.blockId) : null;
-        await this.limitThreads(manager, access.artifactId);
+        await this.limitThreads(manager, access.artifactId, author);
         await this.limitText(manager, access.artifactId, utf8(body.body));
         const threadId = randomUUID();
         await manager.insert(ArtifactCommentThread, {
@@ -203,12 +295,12 @@ export class DashboardCommentService {
           status: 'open',
           statusVersion: 0,
           createdBy: actor.id,
-          authorKind: 'user',
+          ...author,
           createdAt: now,
           resolvedBy: null,
           resolvedAt: null,
         });
-        await this.insertComment(manager, threadId, actor, body.body, now);
+        await this.insertComment(manager, threadId, actor, author, body.body, now);
         return threadId;
       },
     );
@@ -219,6 +311,7 @@ export class DashboardCommentService {
     rawThreadId: string,
     input: unknown,
     actor: ReportActor,
+    options: DashboardCommentOptions = {},
   ): Promise<DashboardCommentWrite> {
     const id = this.sources.id(rawId),
       threadId = parse(reportId, rawThreadId),
@@ -229,14 +322,15 @@ export class DashboardCommentService {
       body.requestId,
       { threadId, body },
       actor,
-      async ({ manager, access, now }) => {
+      options,
+      async ({ manager, access, author, now }) => {
         await this.visibleThread(manager, access, actor, threadId);
         if (
           (await manager.countBy(ArtifactComment, { threadId })) >= COMMENT_LIMITS.commentsPerThread
         )
           throw new CommentLimitException('댓글은 스레드당 200개까지입니다.');
         await this.limitText(manager, access.artifactId, utf8(body.body));
-        return this.insertComment(manager, threadId, actor, body.body, now);
+        return this.insertComment(manager, threadId, actor, author, body.body, now);
       },
     );
   }
@@ -257,6 +351,7 @@ export class DashboardCommentService {
       body.requestId,
       { threadId, body },
       actor,
+      {},
       async ({ manager, access, now }) => {
         const thread = await this.visibleThread(manager, access, actor, threadId);
         if (!access.canManage)
@@ -283,8 +378,9 @@ export class DashboardCommentService {
   }
 
   /**
-   * Lock order: transaction → dashboard row FOR UPDATE (not SQLite; the same fence deletion and
-   * handover take before removing comments) → access → receipt → write.
+   * Lock order: transaction → options.beforeAccess (MCP grant) → dashboard row FOR UPDATE (not
+   * SQLite; the same fence deletion and handover take before removing comments) → access and the
+   * owner-organization fence on the locked row → receipt → write.
    */
   private async write(
     operation: DashboardOperation,
@@ -292,11 +388,20 @@ export class DashboardCommentService {
     requestId: string,
     payload: Record<string, unknown>,
     actor: ReportActor,
+    options: DashboardCommentOptions,
     perform: (context: WriteContext) => Promise<string>,
   ): Promise<DashboardCommentWrite> {
-    const digest = reportHash(canonicalReport({ operation, dashboardId: id, ...payload }));
+    const ai = options.ai === undefined ? null : parse(aiProvenance, options.ai);
+    const author: Author = ai
+      ? { authorKind: 'ai', aiGrantId: ai.grantId, aiClientName: ai.clientName }
+      : { authorKind: 'user', aiGrantId: null, aiClientName: null };
+    // Web requests keep their earlier hash: ai is part of it only when present.
+    const digest = reportHash(
+      canonicalReport({ operation, dashboardId: id, ...payload, ...(ai ? { ai } : {}) }),
+    );
     return this.transaction(actor, async manager => {
-      const access = await this.access(manager, id, actor, true);
+      if (options.beforeAccess) await options.beforeAccess(manager);
+      const access = await this.access(manager, id, actor, true, options.expectedOrganizationId);
       const key = { actorId: actor.id, organizationKey: access.organizationKey, requestId };
       const prior = await manager.findOneBy(ArtifactCommentReceipt, key);
       let resultId: string;
@@ -312,7 +417,7 @@ export class DashboardCommentService {
         resultId = prior.resultId;
       } else {
         const now = new Date().toISOString();
-        resultId = await perform({ manager, access, now });
+        resultId = await perform({ manager, access, author, now });
         await manager.insert(ArtifactCommentReceipt, {
           ...key,
           operation,
@@ -359,12 +464,22 @@ export class DashboardCommentService {
     if (!thread || (!access.canManage && thread.createdBy !== actor.id)) throw missingThread();
     return thread;
   }
-  private async limitThreads(manager: EntityManager, artifactId: string) {
+  private async limitThreads(manager: EntityManager, artifactId: string, author: Author) {
     if (
       (await manager.countBy(ArtifactCommentThread, { artifactKind: KIND, artifactId })) >=
       COMMENT_LIMITS.threadsPerReport
     )
       throw new CommentLimitException('댓글 스레드는 대시보드당 500개까지입니다.');
+    if (
+      author.authorKind === 'ai' &&
+      (await manager.countBy(ArtifactCommentThread, {
+        artifactKind: KIND,
+        artifactId,
+        authorKind: 'ai',
+        status: 'open',
+      })) >= COMMENT_LIMITS.openAiThreadsPerReport
+    )
+      throw new CommentLimitException('AI가 연 열린 스레드는 대시보드당 100개까지입니다.');
   }
   /** UTF-8 bytes of comment bodies already stored for the dashboard. */
   private async limitText(manager: EntityManager, artifactId: string, adding: number) {
@@ -388,6 +503,7 @@ export class DashboardCommentService {
     manager: EntityManager,
     threadId: string,
     actor: ReportActor,
+    author: Author,
     body: string,
     now: string,
   ) {
@@ -396,7 +512,7 @@ export class DashboardCommentService {
       id: commentId,
       threadId,
       authorId: actor.id,
-      authorKind: 'user',
+      ...author,
       body,
       createdAt: now,
     });

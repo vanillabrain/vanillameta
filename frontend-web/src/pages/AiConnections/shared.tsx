@@ -10,6 +10,7 @@ export const isWriteScope = (scope: AiScope) => scope.endsWith(':write');
 export const SCOPE_LABELS: Record<AiScope, string> = {
   'sources:read': 'aiConnections.sourcesRead',
   'documents:read': 'aiConnections.documentsRead',
+  'dashboards:read': 'aiConnections.dashboardsRead',
   'reports:read': 'aiConnections.reportsRead',
   'comments:read': 'aiConnections.commentsRead',
   'comments:write': 'aiConnections.commentsWrite',

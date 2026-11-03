@@ -4,6 +4,7 @@ import { get, post } from '@/helpers/apiHelper';
 const scopeSchema = z.enum([
   'sources:read',
   'documents:read',
+  'dashboards:read',
   'reports:read',
   'comments:read',
   'comments:write',

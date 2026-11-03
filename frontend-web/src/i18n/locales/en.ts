@@ -16,9 +16,10 @@ export default {
     scopes: 'Allow read access',
     sourcesRead: 'Read source schemas and descriptions',
     documentsRead: 'Read saved document content',
+    dashboardsRead: 'Read dashboard titles and chart structure (no data values)',
     reportsRead: 'Read reports you own or that were shared with you',
-    commentsRead: 'Read report comments and edit proposals you can see',
-    commentsWrite: 'Add report comments and replies as the AI',
+    commentsRead: 'Read report and dashboard comments and edit proposals you can see',
+    commentsWrite: 'Add report and dashboard comments and replies as the AI',
     suggestionsWrite: 'Propose report text edits',
     sharesWrite: 'Share my reports with members of my organization',
     sharesWriteWarning:

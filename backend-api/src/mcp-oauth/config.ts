@@ -4,6 +4,7 @@ import { z } from 'zod';
 export const mcpScopeSchema = z.enum([
   'sources:read',
   'documents:read',
+  'dashboards:read',
   'reports:read',
   'comments:read',
   'comments:write',

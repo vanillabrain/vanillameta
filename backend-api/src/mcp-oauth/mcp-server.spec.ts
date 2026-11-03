@@ -89,9 +89,15 @@ const SECRETS = [
   'pinnedHash',
 ];
 const WRITE_TOOLS = ['vm_add_comment', 'vm_reply_comment', 'vm_propose_report_edit'];
+/** Dashboard comment tools need dashboards:read together with comments:read or comments:write. */
+const DASHBOARD_COMMENT_TOOLS = {
+  'comments:read': ['vm_list_dashboard_comments'],
+  'comments:write': ['vm_add_dashboard_comment', 'vm_reply_dashboard_comment'],
+};
 const TOOLS_BY_SCOPE: Record<McpScope, string[]> = {
   'sources:read': ['vm_describe_source', 'vm_list_sources'],
   'documents:read': ['vm_list_documents', 'vm_read_document'],
+  'dashboards:read': ['vm_list_dashboards', 'vm_read_dashboard'],
   'reports:read': ['vm_list_reports', 'vm_read_report'],
   'comments:read': ['vm_list_comments'],
   'comments:write': ['vm_add_comment', 'vm_reply_comment'],
@@ -296,7 +302,7 @@ async function connect(principal: McpOAuthPrincipal, deps: McpServerDeps) {
 }
 
 describe('remote MCP tools/list per scope', () => {
-  const stub = { auth: { revalidate: jest.fn() }, read: {}, reports: {} } as any;
+  const stub = { auth: { revalidate: jest.fn() }, read: {}, reports: {}, dashboards: {} } as any;
   const principal = (scopes: McpScope[]): McpOAuthPrincipal => ({
     grantId: 'grant',
     actorId: 1,
@@ -318,10 +324,25 @@ describe('remote MCP tools/list per scope', () => {
     expect((await names([scope])).map(tool => tool.name).sort()).toEqual(TOOLS_BY_SCOPE[scope]);
   });
 
+  it('lists dashboard comment tools only with dashboards:read and the matching comment scope', async () => {
+    const tools = async (scopes: McpScope[]) =>
+      (await names(scopes)).map(tool => tool.name).filter(name => name.includes('dashboard'));
+    expect(await tools(['comments:read', 'comments:write'])).toEqual([]);
+    expect((await tools(['dashboards:read', 'comments:read'])).sort()).toEqual(
+      [...TOOLS_BY_SCOPE['dashboards:read'], ...DASHBOARD_COMMENT_TOOLS['comments:read']].sort(),
+    );
+    expect((await tools(['dashboards:read', 'comments:write'])).sort()).toEqual(
+      [...TOOLS_BY_SCOPE['dashboards:read'], ...DASHBOARD_COMMENT_TOOLS['comments:write']].sort(),
+    );
+  });
+
   it('combines scopes, marks writes non-destructive and idempotent, and exposes no apply/save/publish/delete/revoke tool', async () => {
     const tools = await names([...MCP_SCOPES]);
     expect(tools.map(tool => tool.name).sort()).toEqual(
-      Object.values(TOOLS_BY_SCOPE).flat().sort(),
+      [
+        ...Object.values(TOOLS_BY_SCOPE).flat(),
+        ...Object.values(DASHBOARD_COMMENT_TOOLS).flat(),
+      ].sort(),
     );
     for (const tool of tools)
       expect(tool.name).not.toMatch(
@@ -447,7 +468,12 @@ describe('remote MCP report tools with real SQLite transactions', () => {
   }
   async function clientFor(actor = owner, scopes: McpScope[] = [...MCP_SCOPES].slice(2)) {
     const principal = await principalFor(actor, scopes);
-    const session = await connect(principal, { auth, read: {} as any, reports: mcp });
+    const session = await connect(principal, {
+      auth,
+      read: {} as any,
+      reports: mcp,
+      dashboards: {} as any,
+    });
     sessions.push(session);
     const call = async (name: string, args: Record<string, unknown>) => {
       let result: any;

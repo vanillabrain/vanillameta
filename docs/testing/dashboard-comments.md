@@ -18,6 +18,7 @@
 | DCOM-06 | 390(전체 시트)·768(우측 시트)·1440(고정 패널)에서 가로 넘침 없음 | PASS | `06a/b/c-owner-panel-*.png` |
 | DCOM-07 | 키보드: 머리글·차트 버튼 포커스 링, 머리글 버튼으로 열면 포커스가 패널로 이동하고 Escape로 닫히며 버튼으로 복귀 | PASS(수정 후) | `07a-…`, `07b-…`, 페이지 내 실행 결과 |
 | DCOM-08 | 권한 없는 사용자는 권한 없음 안내만 보고 댓글 UI 없음 | PASS | `08-reader-no-grant-1440.png` |
+| DCOM-09 | 2조각 원격 MCP(2026-11-04). 실제 Claude Code 2.1.317: 임시 프로젝트 등록 → 로그인 요청 범위에 `dashboards:read` 포함 → 승인 화면에서 "대시보드 제목과 차트 구성 읽기(데이터 값 제외)" 기본 체크, 쓰기는 댓글만 허용 → `vm_list_dashboards`(대시보드 6만) → `vm_read_dashboard`(차트 2개, SQL·데이터 값 없음) → `vm_add_dashboard_comment`로 첫 차트 블록 댓글 → 소유자 웹 패널에 "차트 · QA Sales Studio Verification" 스레드, 작성자 "Claude · Claude Code (로컬 검증)". 검증 후 logout·등록 제거 | PASS | `dashboard-mcp-20261104/01-consent-1440.png`, `02-owner-dashboard-claude-comment-1440.png`, `claude-code-run.jsonl` |
 
 API 상태(`api-status-summary.txt`): 목록 GET 200, 권한 부여 전 403 1회, 생성 POST 201×2, 답글 201, 상태 변경 201.
 
@@ -35,6 +36,8 @@ API 상태(`api-status-summary.txt`): 목록 GET 200, 권한 부여 전 403 1회
 - 프런트엔드 vitest: 대시보드 댓글 20개, 대시보드 보기·분석 카드·보고서 화면 회귀 11개 파일 204개 PASS.
 - 최종 검토 후 더한 테스트: 보고서 경로에 대시보드 requestId를 쓰면 409이고 대시보드 스레드 ID를 내주지 않음(보고서·대시보드 서비스 spec 29개 PASS), 권한 거부 화면은 `/comments`를 부르지 않고 댓글 버튼이 없음(빈 레거시 대시보드는 기존 '요청은 `/dashboard/7`뿐' 단언이 확인). 대시보드 보기·댓글·보고서 화면 10개 파일 152개 PASS.
 - `tsc --noEmit`(백엔드·프런트엔드), `nest build`, 바뀐 파일 eslint 통과.
+- 2조각(2026-11-04): SQLite 백엔드 jest(대시보드 댓글·mcp-oauth·reports) 283개 PASS, PostgreSQL 17 임시 클러스터(`METADATA_DB_TYPE=postgres`)에서 대시보드·보고서 댓글 서비스와 두 migration 55개 2회 PASS, 프런트엔드 vitest(AI 연결·보고서·댓글) 178개 PASS. MCP 목록 허용 목록·조직·governed·삭제·비활성 제외, 검사로 빈 페이지의 커서, 구조만 읽기(SQL·업무 기준·소스 없음), AI 작성 기록과 열린 AI 스레드 상한, 트랜잭션 안 범위 재확인, 잠금 아래 조직 확인(소유자 조직 이동 경합), 웹·MCP 같은 requestId 분리, revision 변경 뒤 같은 입력 재시도는 이전 결과, 범위 조합별 도구 노출을 확인한다.
+- `src/dashboard/personal-library.spec.ts` 4건은 HEAD(`3697c2df`)에서도 같은 실패다. 이번 변경과 무관하다.
 
 ## 계획과 다른 점
 
@@ -46,8 +49,12 @@ API 상태(`api-status-summary.txt`): 목록 GET 200, 권한 부여 전 403 1회
 - 같은 그룹 권한으로 보는 읽기 사용자는 서로의 스레드를 보지 못한다. "구성원 공개 스레드" 옵션이 필요할 수 있다.
 - 각 스레드에 답글 입력창이 항상 열려 있어 스레드가 많으면 패널이 길어진다. 보고서와 같은 공용 컴포넌트 동작이다.
 - 회원가입 API는 하이픈이 든 ID를 받지만 로그인 화면은 거부한다. 이번 범위 밖의 기존 불일치다.
-- 2조각(원격 MCP `dashboards:read`, `vm_list_dashboards`, `vm_read_dashboard`, 댓글 도구 `target`)은 미구현이다.
+- 2조각은 구현했다(DCOM-09). 계획의 `target` 인자 대신 대시보드 전용 도구 5개로 나눴다. 해결·재개 도구는 없다.
+- 운영 배포 시 클라이언트 설정에 `dashboards:read`를 더하면 기존 연결이 끊겨 재연결이 필요하다. 기존 연결의 Claude Code는 이전 범위 목록을 기억할 수 있어 서버 이름을 새로 등록해야 새 범위를 요청했다.
+- 로컬에서 MCP를 켜려고 `CONFIG_SECRET_KEY`를 따로 주면 기존 소스 연결 정보 복호화가 실패해 대시보드 데이터가 500이 될 수 있다. MCP 확인과 무관하며, 기본 설정으로 다시 띄우면 정상이다.
+- blockId 길이: 저장은 128자까지, 댓글 앵커는 64자까지라 65–128자 blockId 차트에는 블록 댓글을 달 수 없다(기존 불일치).
+- 보고서 MCP 댓글 목록(`McpReportService.threads`)은 grant 조직 확인을 하지 않는다(기존 공백). 대시보드는 같은 트랜잭션에서 확인한다.
 
 ## 테스트 데이터
 
-`qaslice1reader`(user 10) 생성·조직 1 구성원 추가, `qa-slice1-reader`(user 9) 생성 후 비활성화(로그인 화면이 하이픈 ID를 거부). 대시보드 6·소스 5에 user 10 read 정책. 댓글 스레드 2개와 답글 1개. 대시보드 6 차트 2 제목을 "QA Net Revenue by Channel (검토 반영)"으로 변경(복구하지 않음). 임시 비밀번호는 저장하지 않았다.
+`qaslice1reader`(user 10) 생성·조직 1 구성원 추가, `qa-slice1-reader`(user 9) 생성 후 비활성화(로그인 화면이 하이픈 ID를 거부). 대시보드 6·소스 5에 user 10 read 정책. 댓글 스레드 2개와 답글 1개. 대시보드 6 차트 2 제목을 "QA Net Revenue by Channel (검토 반영)"으로 변경(복구하지 않음). 임시 비밀번호는 저장하지 않았다. 2조각 확인에서 대시보드 6 첫 차트에 Claude 댓글 스레드 1개를 남겼다.

@@ -16,9 +16,10 @@ export default {
     scopes: '읽기 허용 범위',
     sourcesRead: '소스 스키마와 설명 읽기',
     documentsRead: '보관 문서 내용 읽기',
+    dashboardsRead: '대시보드 제목과 차트 구성 읽기(데이터 값 제외)',
     reportsRead: '내 보고서와 공유받은 보고서 읽기',
-    commentsRead: '볼 수 있는 보고서 댓글과 수정 제안 읽기',
-    commentsWrite: 'AI로 보고서 댓글과 답글 작성',
+    commentsRead: '볼 수 있는 보고서·대시보드 댓글과 수정 제안 읽기',
+    commentsWrite: 'AI로 보고서·대시보드 댓글과 답글 작성',
     suggestionsWrite: '보고서 본문 수정 제안',
     sharesWrite: '내 보고서를 같은 조직 구성원에게 공유',
     sharesWriteWarning:

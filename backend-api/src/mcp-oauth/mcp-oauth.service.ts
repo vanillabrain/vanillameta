@@ -1060,7 +1060,12 @@ export class McpOAuthService {
    * Re-checks the bearer's token and grant inside a write transaction, locking the grant row so a
    * concurrent disconnect or revoke either commits first (and this fails) or waits for this write.
    */
-  async assertGrant(manager: EntityManager, principal: McpOAuthPrincipal, scope: McpScope) {
+  async assertGrant(
+    manager: EntityManager,
+    principal: McpOAuthPrincipal,
+    scope: McpScope | McpScope[],
+  ) {
+    const scopes = Array.isArray(scope) ? scope : [scope];
     try {
       const config = this.config();
       const tokenHash = this.bearerProofs.get(principal);
@@ -1078,8 +1083,8 @@ export class McpOAuthService {
         grant.authVersion !== principal.authVersion ||
         grant.organizationId !== principal.organizationId ||
         grant.clientName !== principal.clientName ||
-        !grant.scopes.includes(scope) ||
-        !principal.scopes.includes(scope)
+        !scopes.length ||
+        scopes.some(item => !grant.scopes.includes(item) || !principal.scopes.includes(item))
       )
         throw new UnauthorizedException();
       this.config(config.fingerprint);
