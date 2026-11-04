@@ -43,7 +43,7 @@ jobs:
 
       - name: Report lint results
         if: always()
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const lintResult = '${{ steps.lint.outcome }}';
