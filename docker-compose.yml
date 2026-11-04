@@ -1,30 +1,67 @@
+# 빠른 시작: docker compose up --build  →  http://localhost:3000  (guest / Admin!@12)
+#
+# 체험·개발 확인용 스택이다. 운영은 deploy/docker-compose.prod.yml을 쓴다.
+# - 웹(nginx)이 /v1, /socket.io 를 backend로 프록시하므로 브라우저는 3000 포트 하나만 쓴다.
+# - 웹 포트는 기본 127.0.0.1에만 열린다. 다른 기기에서 보려면 VM_BIND=0.0.0.0 으로 바꾸되,
+#   신뢰하는 LAN에서만 쓴다. dev 모드는 데모 계정을 GET /v1/ 응답으로 알려 주고 회원가입도 열려 있으므로
+#   인터넷에 공개하지 말고(공개 배포는 deploy/ 사용), LAN에서도 dev-only 비밀값 5개는 바꾼다.
+# - NODE_ENV=dev 라서 부팅 때마다 스키마를 맞추고 데모 계정을 시드한다. 이 DB는 쓰고 버리는 용도이며
+#   migrate-prod 로 운영에 승격할 수 없다(docker compose down -v 로 초기화).
 services:
-  # ── 기본 스택: docker compose up ────────────────────────────────
-  # PostgreSQL 17 메타데이터와 샘플 대시보드를 함께 준비한다.
   backend:
-    build: ./backend-api
+    build:
+      context: ./backend-api
+      dockerfile: Dockerfile.prod
+      args:
+        # TypeScript 컴파일에 필요한 힙(MB). Docker 메모리가 4GB 미만이면 빌드가 실패할 수 있다.
+        BUILD_HEAP_MB: ${BUILD_HEAP_MB:-3072}
     environment:
+      # 이미지 기본값(prod)을 덮어쓴다. prod 는 guest 시드 행이 있으면 부팅을 거부한다.
       NODE_ENV: dev
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USERNAME: ${DB_USERNAME:-vanillameta}
       DB_PASSWORD: ${DB_PASSWORD:-vanillameta}
       DB_NAME: ${DB_NAME:-vanillameta}
-      FILE_UPLOAD_DIR: /data/uploads
-      # 데모용 기본값 — 프로덕션에서는 반드시 환경변수로 재정의할 것
+      # 데모용 기본값 — 로컬 밖에 노출하기 전에 반드시 환경변수로 바꿀 것
       ACCESS_SECRET: ${ACCESS_SECRET:-dev-only-access-secret}
       REFRESH_SECRET: ${REFRESH_SECRET:-dev-only-refresh-secret}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-only-jwt-secret}
       URL_ACCESS_SECRET: ${URL_ACCESS_SECRET:-dev-only-url-secret}
       CONFIG_SECRET_KEY: ${CONFIG_SECRET_KEY:-dev-only-config-secret}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      # REDIS_URL: redis://redis:6379   # --profile cache 사용 시
-    # 부팅 시 시드(멱등) 후 앱 기동
-    command: sh -c "mkdir -p /data/uploads && node dist/src/database/run-seed.js && node dist/src/main.js"
-    ports:
-      - "4000:4000"
+      # AI 어시스턴트(선택): 키가 없으면 AI 기능만 비활성이다.
+      AI_PROVIDER: ${AI_PROVIDER:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_API_BASE_URL: ${AI_API_BASE_URL:-}
+      # 쿼리 결과 캐시(선택): docker compose --profile cache up 과 함께 REDIS_URL=redis://redis:6379
+      REDIS_URL: ${REDIS_URL:-}
+    # 시드는 멱등이라 재시작해도 데이터를 유지한다.
+    # backend 에는 SIGTERM 핸들러가 없다. 핸들러 없는 프로세스가 PID 1 이면 커널이 SIGTERM 을 무시하므로
+    # init(tini)을 PID 1 로 두고, exec 로 node 를 그 자식으로 만들어 down/stop 이 10초를 기다리지 않게 한다.
+    init: true
+    command:
+      [
+        "sh",
+        "-c",
+        "node dist/src/database/run-seed.js && exec node dist/src/main.js",
+      ]
     volumes:
-      - vanillameta-data:/data
+      - uploads:/data
+    healthcheck:
+      # 이미지 기본값(30초 간격)보다 짧게 잡아 첫 실행 대기를 줄인다.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/v1/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      start_period: 120s
+      retries: 30
     depends_on:
       postgres:
         condition: service_healthy
@@ -32,37 +69,41 @@ services:
   frontend:
     build:
       context: ./frontend-web
-      args:
-        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:4000/v1}
+      dockerfile: Dockerfile.prod
+      # REACT_APP_API_URL 은 일부러 넘기지 않는다. 기본값 /v1 이 쓰여야 nginx 프록시를 거친다.
+    environment:
+      API_UPSTREAM: backend:4000
     ports:
-      - "3000:80"
+      - "${VM_BIND:-127.0.0.1}:${VM_WEB_PORT:-3000}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: vanillameta
-      POSTGRES_USER: vanillameta
-      POSTGRES_PASSWORD: vanillameta
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${DB_NAME:-vanillameta}
+      POSTGRES_USER: ${DB_USERNAME:-vanillameta}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vanillameta}
+    # 호스트 포트는 열지 않는다(포트 충돌 방지). 필요하면:
+    #   docker compose exec postgres psql -U vanillameta
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test:
-        ["CMD-SHELL", "pg_isready -U vanillameta -d vanillameta -h 127.0.0.1"]
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h 127.0.0.1",
+        ]
       interval: 5s
       timeout: 5s
       retries: 20
 
-  # 쿼리 결과 분산 캐시용 Redis (선택): docker compose --profile cache up redis
+  # 쿼리 결과 분산 캐시(선택): docker compose --profile cache up
   redis:
     profiles: ["cache"]
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
 
 volumes:
-  vanillameta-data:
+  uploads:
   postgres-data:

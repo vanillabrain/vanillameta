@@ -27,27 +27,38 @@ If you need a dashboard engine you can drop into your own product or internal to
 
 ## Quickstart
 
-Local development and CI use **Node.js 24 LTS** (`nvm use`, or install Node 24.11+). The dashboard Assistant uses AI SDK 7 (`@ai-sdk/react` 4) and the existing Codex CLI connection to `gpt-6-luna`. Configuration and supported runtime limits are in [the Assistant verification guide](docs/testing/dashboard-assistant.md). Legacy Lambda deployment files are outside the persistent DuckDB worker deployment path.
+You need Docker with Compose v2 (Docker Desktop, OrbStack, or Colima + Compose). Give Docker 4 GB or more of memory: the backend compile uses a 3 GB heap (not measured end to end). If `docker compose` is an unknown command (for example Colima with a Homebrew `docker-compose`, which is a standalone binary), run `docker-compose up --build` instead. It is the same engine.
 
 ```bash
-docker compose up
+git clone https://github.com/vanillabrain/vanillameta.git
+cd vanillameta
+docker compose up --build
 ```
 
-Then open **http://localhost:3000** and sign in:
+The first run builds two images and can take over 10 minutes (13 minutes measured on 4 CPUs, no cache), so give it time. Then open **http://localhost:3000** and sign in:
 
 ```
 ID: guest
 PW: Admin!@12
 ```
 
-That's it — Compose starts PostgreSQL 17, the backend creates the metadata schema, seeds chart components, and creates a sample dashboard on first signup. SQLite remains available through `npm run start:local` for fast local unit work.
+Compose starts PostgreSQL 17, the backend (which creates the metadata schema and seeds the demo account and chart components), and a web container that serves the app and proxies `/v1` to the backend, so the browser only talks to port 3000. The seeded `guest` account starts with an empty home. Press **샘플 대시보드 보기** (view sample dashboard) in the getting-started card to open the sales and refunds sample. Signup also creates a separate starter sample dashboard in the background, which has not been verified on this stack.
 
-> Set your own secrets before exposing it beyond localhost: `ACCESS_SECRET`, `REFRESH_SECRET`, `JWT_ACCESS_SECRET`, `URL_ACCESS_SECRET`, `CONFIG_SECRET_KEY` (see `backend-api/.env.example`).
+- Run in the background: `docker compose up --build -d`, stop with `docker compose down`.
+- Start over with an empty database: `docker compose down -v`.
+- Different web port: `VM_WEB_PORT=8080 CORS_ORIGIN=http://localhost:8080 docker compose up --build`.
+- The web port is bound to `127.0.0.1` only. This stack is not for the internet: in dev mode `GET /v1/` reveals the demo account and signup is open. Use `VM_BIND=0.0.0.0` only on a trusted LAN, and change the five `dev-only-*` secrets (see `.env.example`) before the first start: `CONFIG_SECRET_KEY` encrypts saved connections, so changing it later needs `docker compose down -v`. For a public deployment use [`deploy/`](deploy/README.md).
+- Check the whole path (build, start, proxy, sign-in) with one command: `scripts/docker-smoke.sh`.
+- AI assistant (optional): set `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL` (and `AI_API_BASE_URL` for compatible endpoints) before `docker compose up`. Without a key only the AI features are off.
+
+> This stack is for trying VanillaMeta out. It runs with `NODE_ENV=dev`, so the database is created by schema sync and cannot be promoted to production with `migrate-prod`. For a real deployment use [`deploy/`](deploy/README.md). There is no `npx` one-liner: the app needs a server and PostgreSQL, so Docker Compose is the supported one-command path. The [MCP server](mcp-server/README.md) is a separate local process, not published to npm yet.
 
 ### Local development
 
 ```bash
-# Backend — http://localhost:4000 (SQLite only for local unit work, API prefix /v1)
+# Needs Node.js 24 LTS (`nvm use`, or 24.11+). The dashboard Assistant uses AI SDK 7 and the Codex CLI connection to `gpt-6-luna`; see docs/testing/dashboard-assistant.md.
+# Backend — http://localhost:4000 (NODE_ENV=local uses SQLite for fast local work, API prefix /v1)
+# Local sign-in: ID admin / PW admin123 (created on first start; login looks up the ID, not the email); `npm run seed` also adds guest / Admin!@12
 cd backend-api && npm run start:local
 
 # Frontend — http://localhost:3000
@@ -114,11 +125,20 @@ Apache-2.0 라이선스의 경량 임베디드 대시보드 — "Powered by" 로
 
 ### 빠른 시작
 
+Docker(Compose v2)가 필요합니다. 백엔드 컴파일이 3GB 힙을 쓰므로 Docker 메모리를 4GB 이상으로 권합니다(실측하지 않았습니다).
+
 ```bash
-docker compose up
+git clone https://github.com/vanillabrain/vanillameta.git
+cd vanillameta
+docker compose up --build
 ```
 
-**http://localhost:3000** 접속 → `guest` / `Admin!@12` 로그인. 외부 DB 없이 SQLite로 동작하며, 첫 가입 시 샘플 대시보드가 자동 생성됩니다.
+첫 실행은 이미지 두 개를 빌드하느라 10분 넘게 걸릴 수 있습니다(4 CPU, 캐시 없음에서 13분 실측). 이후 **http://localhost:3000** 접속 → `guest` / `Admin!@12` 로그인. PostgreSQL 17, 백엔드(스키마·데모 계정 시드), 웹(`/v1` 프록시) 컨테이너가 함께 뜹니다. 시드 계정 `guest`의 홈은 비어 있습니다. 시작 카드의 **샘플 대시보드 보기** 버튼으로 매출·환불 샘플을 열 수 있고, 가입할 때 백그라운드로 만들어지는 별도의 시작용 샘플 대시보드는 이 스택에서 확인하지 않았습니다. `docker compose`가 없다는 오류(예: Colima에 brew로 설치한 독립 실행형 `docker-compose`)가 나면 `docker-compose up --build`를 쓰세요. 같은 엔진입니다.
+
+- 백그라운드 실행 `docker compose up --build -d`, 종료 `docker compose down`, DB까지 초기화 `docker compose down -v`
+- 웹 포트는 기본적으로 `127.0.0.1`에만 열립니다. 인터넷 공개용이 아닙니다(dev 모드는 `GET /v1/`이 데모 계정을 알려 주고 회원가입도 열려 있습니다). 신뢰하는 LAN에서만 `VM_BIND=0.0.0.0`을 쓰고 `dev-only-*` 비밀값 5개를 처음 띄우기 전에 바꾸세요(`CONFIG_SECRET_KEY`는 저장된 연결을 암호화하므로 나중에 바꾸면 `docker compose down -v`가 필요합니다). 공개 배포는 [`deploy/`](deploy/README.md)를 쓰세요.
+- 빌드·기동·프록시·로그인까지 한 번에 확인: `scripts/docker-smoke.sh`
+- 이 구성은 체험용입니다(`NODE_ENV=dev`). 운영 승격은 되지 않으며 운영 배포는 [`deploy/`](deploy/README.md)를 따르세요. 앱 전체를 `npx`로 띄우는 방법은 없습니다(서버와 PostgreSQL이 필요).
 
 ### 주요 기능
 
