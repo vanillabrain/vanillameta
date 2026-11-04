@@ -9,7 +9,7 @@ docker compose up --build
 ```
 
 - 필요한 것: Docker Compose v2, 빌드용 메모리(컴파일 힙을 3GB로 잡아 두었으므로 Docker에 4GB 이상을 권한다. 실측하지는 않았다).
-- 첫 실행은 이미지 두 개(백엔드, 웹)를 빌드해 10분 넘게 걸릴 수 있다(4 CPU, 캐시 없음에서 13분 실측). 다음부터는 캐시를 쓴다.
+- 첫 실행은 이미지 두 개(백엔드, 웹)를 빌드해 10분 넘게 걸릴 수 있다(4 CPU, 캐시 없음에서 9~13분 실측). 다음부터는 캐시를 쓴다.
 - 접속: http://localhost:3000, 계정 `guest` / `Admin!@12`.
 - 시드 계정 `guest`의 홈은 비어 있다. 시작 카드의 **샘플 대시보드 보기** 버튼으로 매출·환불 샘플을 열 수 있고, 가입할 때 백그라운드로 만들어지는 별도의 시작용 샘플 대시보드는 이 스택에서 확인하지 않았다.
 - `docker compose`가 없다는 오류가 나면(예: Colima에 brew로 설치한 독립 실행형 `docker-compose`) 같은 엔진인 `docker-compose up --build`를 쓴다. `scripts/docker-smoke.sh`는 둘 다 찾아 쓴다.
