@@ -1,6 +1,7 @@
 // scripts/docker-e2e.sh 가 앞에 `const CFG = {...}` 를 붙여 ego-browser 로 실행한다.
 // 케이스는 서로 이어진다(앞 케이스가 만든 데이터를 뒤 케이스가 쓴다). 실패한 케이스는 이유와 함께 모아 마지막에 보고한다.
 const fs = await import('node:fs/promises');
+const crypto = await import('node:crypto');
 
 const BASE = CFG.base;
 const ONLY = CFG.only ? new RegExp(CFG.only) : null;
@@ -384,6 +385,7 @@ async function expectListed(titleRe, label) {
   const ids = (r.json?.data || []).map(d => d.id);
   // 이전 결함은 "DB 전체에서 가장 최근 대시보드 1개"만 돌려줬다. 알고 있는 대시보드가 모두 있어야 한다.
   const known = [state.dashboardId, state.classicId].filter(Boolean);
+  check(known.length > 0, '확인할 대시보드 id 를 알 수 없음(앞 케이스가 돌지 않음)');
   for (const id of known) check(ids.includes(id), `${label}: 목록 API 에 대시보드 #${id} 가 없음(목록: ${ids.join(',')})`);
   await go('/dashboard', 3500);
   const t = await bodyText();
@@ -703,7 +705,6 @@ await kase('목록: 직원 추가와 등급 변경 뒤에도 admin 의 대시보
 // ============================================================================================
 // 7. AI 연결(원격 MCP): OAuth(PKCE) 승인 → 토큰 → 도구 호출 → 연결 해제
 // ============================================================================================
-const crypto = await import('node:crypto');
 const b64u = buf => buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const MCP = CFG.mcp;
 const pkce = { verifier: b64u(crypto.randomBytes(48)), state: b64u(crypto.randomBytes(12)) };
@@ -951,16 +952,24 @@ await kase('삭제: 게시가 걸린 대시보드는 삭제가 막히고 실제 
   check(impact.status === 200 && info, `삭제 영향 조회 ${impact.status}`);
   check(info.canDelete === false, `게시된 대시보드인데 삭제 가능으로 나옴: ${JSON.stringify(info).slice(0, 200)}`);
   check(info.dependencies.some(d => /Publications$/.test(d.kind) && d.count > 0), `게시 의존성이 집계되지 않음: ${JSON.stringify(info.dependencies)}`);
-  // 화면: 삭제 대화상자가 열리고 확정 버튼이 없거나 비활성이다.
+  // 화면: 삭제 대화상자가 열리고, 사용처 경고가 보이며, 삭제 버튼이 비활성이다.
   await go(`/dashboard/${state.dashboardId}`, 3500);
   await page.click('loc=css:button[aria-label="대시보드 삭제"]');
-  await sleep(2500);
-  const enabledConfirm = await page.evaluate(() => [...document.querySelectorAll('button')].filter(b => /^(삭제|삭제 확정|대시보드 삭제)$/.test(b.innerText.trim()) && !b.disabled && b.getAttribute('aria-label') !== '대시보드 삭제').length);
-  check(enabledConfirm === 0, `의존성이 있는데 삭제 확정 버튼이 활성화됨(${enabledConfirm}개)`);
+  await waitText(/사용처 설정이 남아 있어 삭제할 수 없습니다/, 15000);
+  const dialogDelete = await page.evaluate(() => {
+    const b = [...document.querySelectorAll('[role=dialog] button')].find(x => x.innerText.trim() === '대시보드 삭제');
+    return b ? (b.disabled ? 'disabled' : 'enabled') : 'missing';
+  });
+  check(dialogDelete === 'disabled', `의존성이 있는데 대화상자의 삭제 버튼이 '${dialogDelete}' (비활성이어야 함)`);
   await page.keyboard.press('Escape');
-  // 서버: 확정 요청을 직접 보내도 거절된다.
-  const del = await api('DELETE', `/v1/dashboard/${state.dashboardId}`, { expectedRevision: info.revision, expectedActorId: info.actorId, expectedOrganizationId: info.organizationId }, token);
-  check(del.status >= 400 && del.status < 500, `의존성이 있는 대시보드의 DELETE 가 거절되지 않음: ${del.status} ${JSON.stringify(del.json).slice(0, 160)}`);
+  // 서버: 형식이 올바른 확정 요청을 직접 보내도 의존성 때문에 409 로 거절된다(400 형식 오류와 구분).
+  const del = await api('DELETE', `/v1/dashboard/${state.dashboardId}`, {
+    requestId: crypto.randomUUID(),
+    expectedRevision: info.revision,
+    expectedActorId: info.actorId,
+    expectedOrganizationId: info.organizationId,
+  }, token);
+  check(del.status === 409 && /사용처가 남아 있습니다/.test(JSON.stringify(del.json)), `의존성 거절(409 사용처가 남아 있습니다)이어야 함: ${del.status} ${JSON.stringify(del.json).slice(0, 200)}`);
   const still = await api('GET', '/v1/dashboard', undefined, token);
   check((still.json?.data || []).some(d => d.id === state.dashboardId), '의존성이 있는 대시보드가 사라짐');
 });
