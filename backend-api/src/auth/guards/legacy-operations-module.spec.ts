@@ -8,6 +8,7 @@ import { DataSource } from 'typeorm';
 import { AuthModule } from '../auth.module';
 import { RefreshToken } from '../entites/refresh_token.entity';
 import { User } from '../../user/entities/user.entity';
+import { EnterpriseMembership } from '../../enterprise/entities/enterprise-membership.entity';
 import { CustomLoggerService } from '../../common/logger/logger.service';
 import { LegacyOperationsGuard } from './legacy-operations.guard';
 
@@ -43,7 +44,7 @@ describe('legacy operation module DI and current authentication', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [User, RefreshToken],
+          entities: [User, RefreshToken, EnterpriseMembership],
           synchronize: true,
         }),
         OperationProbeModule,

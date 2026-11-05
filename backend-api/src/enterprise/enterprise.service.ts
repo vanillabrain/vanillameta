@@ -12,6 +12,8 @@ import { DataSource, EntityManager, MoreThan, QueryFailedError } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { EnterpriseOrganization } from './entities/enterprise-organization.entity';
 import { EnterpriseMembership } from './entities/enterprise-membership.entity';
+import { isManagedMode, mayCreateOrganization } from './organization-mode';
+import { isMemberRole, normalizeRole, StoredRole } from './role-capabilities';
 import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
 
 @Injectable()
@@ -38,10 +40,13 @@ export class EnterpriseService {
       throw new BadRequestException('이름·소속의 길이를 확인해 주세요.');
     return value.trim();
   }
-  private role(value: unknown): 'admin' | 'member' {
-    if (value !== 'admin' && value !== 'member')
-      throw new BadRequestException('역할을 확인해 주세요.');
-    return value;
+  /**
+   * Accepts the four grades and the legacy `member`, stored as given: the legacy value keeps
+   * reading as `editor`, and the screens move to the grades on their own schedule.
+   */
+  private role(value: unknown): StoredRole {
+    if (!isMemberRole(value)) throw new BadRequestException('역할을 확인해 주세요.');
+    return value as StoredRole;
   }
   private version(value: unknown) {
     if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) >= 2147483647)
@@ -72,13 +77,28 @@ export class EnterpriseService {
   }
   async context(actor: number) {
     return serializeMetadataWork(this.db, async () => {
-      await this.user(actor);
+      const user = await this.user(actor);
+      // The managed mode adds two fields; the open mode answers exactly as it always has.
+      let managed: Record<string, unknown> = {};
+      if (isManagedMode()) {
+        // A managed installation has one organization; an account waiting to be added needs its number.
+        const organizations = await this.db.manager.find(EnterpriseOrganization, {
+          select: { id: true },
+          take: 2,
+        });
+        managed = {
+          mode: 'managed' as const,
+          canCreateOrganization: mayCreateOrganization(user.userId, organizations.length),
+          ...(organizations.length === 1 ? { joinOrganizationId: organizations[0].id } : {}),
+        };
+      }
       if (!(await this.db.manager.findOneBy(EnterpriseMembership, { userId: actor })))
-        return { organization: null, membership: null };
+        return { organization: null, membership: null, ...managed };
       const { organization, membership } = await this.scope(actor);
       return {
         organization,
         membership: { userId: membership.userId, role: membership.role, team: membership.team },
+        ...(isManagedMode() ? { mode: 'managed' as const, canCreateOrganization: false } : {}),
       };
     });
   }
@@ -162,7 +182,12 @@ export class EnterpriseService {
     const input = this.fields(body, ['name']);
     const name = this.text(input.name, 100, true);
     return this.mutation(async manager => {
-      await this.user(actor, manager, true);
+      const user = await this.user(actor, manager, true);
+      if (
+        isManagedMode() &&
+        !mayCreateOrganization(user.userId, await manager.count(EnterpriseOrganization))
+      )
+        throw new ForbiddenException('조직은 지정된 관리자만, 한 번만 만들 수 있습니다.');
       if (await manager.findOneBy(EnterpriseMembership, { userId: actor }))
         throw new ConflictException('이미 조직에 소속돼 있습니다.');
       const organization = await manager.save(EnterpriseOrganization, { name, version: 1 });
@@ -346,6 +371,16 @@ export class EnterpriseService {
         targetId,
         organization.version,
       );
+      // A change of grade is told apart from a change of team; the legacy member and editor are one grade.
+      if (normalizeRole(member.role) !== normalizeRole(role))
+        await this.audit(
+          manager,
+          organization.id,
+          actor,
+          'member.role_changed',
+          targetId,
+          organization.version,
+        );
       return {
         organizationVersion: organization.version,
         member: { id: user.id, userId: user.userId, team, role, active: input.active },

@@ -1,11 +1,12 @@
 import { Column, Entity, PrimaryColumn, Index, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import type { StoredRole } from '../role-capabilities';
 
 @Entity('enterprise_membership')
 export class EnterpriseMembership {
   @PrimaryColumn({ type: 'integer' }) userId: number;
   @Index('IDX_enterprise_membership_org') @Column({ type: 'integer' }) organizationId: number;
-  @Column({ length: 16 }) role: 'admin' | 'member';
+  @Column({ length: 16 }) role: StoredRole;
   @Column({ length: 100, default: '' }) team: string;
 
   /**

@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { ForbiddenException, GoneException, INestApplication, HttpException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import request from 'supertest';
 import {
   StudioPublicationController,
@@ -37,7 +38,11 @@ describe('T8 publication HTTP optional authentication and no-store', () => {
           provide: DataSource,
           useValue: {
             options: { type: 'sqlite' },
-            getRepository: () => ({ findOne: async () => ({ id: 7, userId: 'test' }) }),
+            // The account belongs to no organization; only the user lookup finds a row.
+            getRepository: (entity: unknown) => ({
+              findOne: async () =>
+                entity === EnterpriseMembership ? null : { id: 7, userId: 'test' },
+            }),
           },
         },
       ],

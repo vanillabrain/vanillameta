@@ -6,11 +6,11 @@ import { DataSource, Repository } from 'typeorm';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { RefreshToken } from './entites/refresh_token.entity';
 import { UserService } from '../user/user.service';
 import { UserController } from '../user/user.controller';
 import { UserMapping } from '../user/entities/user-mapping.entity';
-import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 
 const ACCESS_SECRET = 'unit-only-access-key';
 const REFRESH_SECRET = 'unit-only-refresh-key';
@@ -33,7 +33,12 @@ function restoreEnvironment() {
 const guardFor = (users: { findOne: jest.Mock }, jwt: JwtService) =>
   new JwtAuthGuard(jwt, {
     options: { type: 'sqlite' },
-    getRepository: jest.fn((entity: any) => (entity === User ? users : undefined)),
+    getRepository: jest.fn((entity: any) => {
+      if (entity === User) return users;
+      // The account belongs to no organization.
+      if (entity === EnterpriseMembership) return { findOne: jest.fn().mockResolvedValue(null) };
+      return undefined;
+    }),
   } as unknown as DataSource);
 
 describe('enterprise revocation: active flag and auth epoch on the account row', () => {
@@ -213,7 +218,14 @@ describe('JwtAuthGuard bearer revocation: active flag and auth epoch', () => {
   let guard: JwtAuthGuard;
   let request: any;
   const context = () =>
-    ({ switchToHttp: () => ({ getRequest: () => request }) } as ExecutionContext);
+    ({
+      switchToHttp: () => ({ getRequest: () => request }),
+      getClass: () => class UnitController {},
+      getHandler: () =>
+        function unitHandler() {
+          return undefined;
+        },
+    } as unknown as ExecutionContext);
 
   beforeEach(() => {
     process.env.ACCESS_SECRET = ACCESS_SECRET;
@@ -409,7 +421,12 @@ describe('reissued access tokens: reloaded account row versus verified refresh e
     expect(
       await guard.canActivate({
         switchToHttp: () => ({ getRequest: () => request }),
-      } as ExecutionContext),
+        getClass: () => class UnitController {},
+        getHandler: () =>
+          function unitHandler() {
+            return undefined;
+          },
+      } as unknown as ExecutionContext),
     ).toBe(true);
     expect(request.user.accessKeyData).toMatchObject({ id: 7, authVersion: 1 });
   });

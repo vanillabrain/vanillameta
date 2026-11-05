@@ -30,6 +30,7 @@ import {
 } from './report-sharing-contract';
 import { readerContent } from './report-reader';
 import { notifyNewlyVisible } from './comment-notification';
+import { isMemberRole } from '../enterprise/role-capabilities';
 
 const denied = () => new ForbiddenException('현재 이 보고서에 접근할 수 없습니다.');
 const sourceBinding = z.object({ sourceId: z.number().int().positive() });
@@ -174,7 +175,7 @@ export class ReportSharingService {
       !user?.active ||
       !validEpoch(user.authVersion) ||
       member?.organizationId !== head.organizationKey ||
-      !['admin', 'member'].includes(member.role) ||
+      !isMemberRole(member.role) ||
       !relation?.active ||
       relation.ownerId !== head.ownerId ||
       relation.organizationId !== head.organizationKey ||
@@ -302,7 +303,7 @@ export class ReportSharingService {
         if (
           user?.active &&
           member?.organizationId === head.organizationKey &&
-          ['admin', 'member'].includes(member.role)
+          isMemberRole(member.role)
         )
           items.push({ id: user.id, userId: user.userId, team: member.team });
       }
@@ -349,7 +350,7 @@ export class ReportSharingService {
             user?.active &&
             validEpoch(user.authVersion) &&
             member?.organizationId === head.organizationKey &&
-            ['admin', 'member'].includes(member.role);
+            isMemberRole(member.role);
           const aiClientName = row.active
             ? aiShares.get(`${row.recipientId}:${row.relationVersion}`)
             : undefined;
@@ -428,7 +429,7 @@ export class ReportSharingService {
           !user?.active ||
           !validEpoch(user.authVersion) ||
           member?.organizationId !== head.organizationKey ||
-          !['admin', 'member'].includes(member.role)
+          !isMemberRole(member.role)
         )
           throw denied();
         const report = await this.reports.stored(manager, head);

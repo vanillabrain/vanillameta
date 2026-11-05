@@ -2,11 +2,27 @@
 // not the legacy SUCCESS envelope, so nothing here unwraps `status`/`data`.
 import { del, get, patch, post } from '@/helpers/apiHelper';
 
-export type EnterpriseRole = 'admin' | 'member';
+/**
+ * Organization grades. `member` is the legacy value written before grades existed; the server reads
+ * it as `editor`. An unknown value is refused, so a payload this client does not understand never
+ * renders as a partial organization.
+ */
+export const ENTERPRISE_ROLES = ['admin', 'editor', 'contributor', 'viewer'] as const;
+export type EnterpriseRole = (typeof ENTERPRISE_ROLES)[number] | 'member';
+
+export const isEnterpriseRole = (value: unknown): value is EnterpriseRole =>
+  value === 'member' || (ENTERPRISE_ROLES as readonly unknown[]).includes(value);
+
+/** `managed`: the server limits organization creation and requires membership. Absent on older servers. */
+export type EnterpriseMode = 'open' | 'managed';
 
 export type EnterpriseContext = {
   organization: { id: number; name: string; version: number } | null;
   membership: { userId: number; role: EnterpriseRole; team: string } | null;
+  mode?: EnterpriseMode;
+  canCreateOrganization?: boolean;
+  /** Managed mode, no membership yet: the number of the one organization this account can ask to join. */
+  joinOrganizationId?: number;
 };
 
 export type EnterpriseMember = {
@@ -64,6 +80,9 @@ export const MAX_USER_ID_LENGTH = 255;
 /** Fail closed on unknown payloads; a partial organization or membership is never rendered. */
 const contextShape = (input: any): input is EnterpriseContext => {
   if (!input || typeof input !== 'object') return false;
+  if (input.mode !== undefined && input.mode !== 'open' && input.mode !== 'managed') return false;
+  if (input.canCreateOrganization !== undefined && typeof input.canCreateOrganization !== 'boolean') return false;
+  if (input.joinOrganizationId !== undefined && !positiveInteger(input.joinOrganizationId)) return false;
   if (input.organization === null && input.membership === null) return true;
   return (
     !!input.organization &&
@@ -74,7 +93,7 @@ const contextShape = (input: any): input is EnterpriseContext => {
     Number.isSafeInteger(input.organization.version) &&
     input.organization.version >= 0 &&
     positiveInteger(input.membership.userId) &&
-    (input.membership.role === 'admin' || input.membership.role === 'member') &&
+    isEnterpriseRole(input.membership.role) &&
     typeof input.membership.team === 'string'
   );
 };
@@ -92,7 +111,7 @@ const memberShape = (input: any): input is EnterpriseMember =>
   input.userId.length <= MAX_USER_ID_LENGTH &&
   typeof input.team === 'string' &&
   input.team.length <= MAX_TEAM_LENGTH &&
-  (input.role === 'admin' || input.role === 'member') &&
+  isEnterpriseRole(input.role) &&
   typeof input.active === 'boolean';
 
 const pageShape = (input: any): input is EnterpriseMemberPage =>

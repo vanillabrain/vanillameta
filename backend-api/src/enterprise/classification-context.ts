@@ -3,6 +3,7 @@ import { EntityManager } from 'typeorm';
 import { serializeMetadataWork } from '../common/metadata-work';
 import { User } from '../user/entities/user.entity';
 import { EnterpriseMembership } from './entities/enterprise-membership.entity';
+import { isMemberRole } from './role-capabilities';
 
 /** Only construct from the authenticated request, never from client JSON. */
 export type ClassificationActor = { id: number; authVersion?: number };
@@ -47,7 +48,7 @@ export function classificationContext(
       !membership ||
       !Number.isSafeInteger(membership.organizationId) ||
       membership.organizationId <= 0 ||
-      !['admin', 'member'].includes(membership.role)
+      !isMemberRole(membership.role)
     )
       throw new ForbiddenException('현재 조직의 활성 구성원만 분류를 확인할 수 있습니다.');
     return {

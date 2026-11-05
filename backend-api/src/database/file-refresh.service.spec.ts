@@ -18,6 +18,7 @@ import * as path from 'path';
 import { DuckDBService } from '../analysis/duckdb.service';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { User } from '../user/entities/user.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { Database } from './entities/database.entity';
 import { FileRefresh } from './entities/file-refresh.entity';
 import { DatabaseService } from './database.service';
@@ -50,7 +51,7 @@ describe('durable file refresh using actual SQLite and DuckDB worker', () => {
     db = await new DataSource({
       type: 'sqlite',
       database: ':memory:',
-      entities: [Database, User, FileRefresh],
+      entities: [Database, User, FileRefresh, EnterpriseMembership],
       synchronize: true,
     }).initialize();
     await db.manager.save(User, {

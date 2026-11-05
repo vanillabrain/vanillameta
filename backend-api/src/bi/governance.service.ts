@@ -15,6 +15,7 @@ import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { Database } from '../database/entities/database.entity';
 import { User } from '../user/entities/user.entity';
+import { bootstrapAdminLoginId } from '../enterprise/organization-mode';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { encryptConnectionConfig, decryptConnectionConfig } from '../utils/crypto.util';
@@ -105,6 +106,16 @@ export class GovernanceService {
     governedKeys(body, ['name']);
     this.access.actor(actor);
     const name = label(body.name);
+    // In the managed mode only the bootstrap administrator creates organizations.
+    const bootstrap = bootstrapAdminLoginId();
+    if (bootstrap !== undefined) {
+      const account = await this.db.manager.findOne(User, {
+        where: { id: actor },
+        select: ['id', 'userId'],
+      });
+      if (account?.userId !== bootstrap)
+        throw new ForbiddenException('조직은 지정된 관리자만 만들 수 있습니다.');
+    }
     return serializedViewWrite(this.db.getRepository(Database), async () =>
       this.db.transaction(async manager => {
         let org = await manager.findOne(BiOrganization, { where: { ownerId: actor, name } });

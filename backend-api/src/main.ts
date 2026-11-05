@@ -19,6 +19,7 @@ import * as v8 from 'v8';
 import { existsSync } from 'fs';
 import { DataSource } from 'typeorm';
 import { assertProductionConfig, parseTrustProxyHops } from './config/production-guard';
+import { assertOrganizationMode, bootstrapAdminLoginId } from './enterprise/organization-mode';
 import { resolveCorsOrigins } from './config/cors-origins';
 import { User } from './user/entities/user.entity';
 import { assertMetadataDatabaseVersion } from './database/assert-metadata-database';
@@ -51,6 +52,7 @@ async function bootstrap() {
   // 환경변수 검사: 안전하지 않은 운영 설정이면 DB 연결 전에 중단한다. (guest 계정 검사는 DB 연결 후 아래에서 한다.)
   const localEnvFileExists = existsSync('.env.local');
   assertProductionConfig(process.env, { localEnvFileExists });
+  assertOrganizationMode(process.env);
   if (process.env.SENTRY_DSN) {
     const Sentry = await import('@sentry/nestjs');
     Sentry.init({
@@ -101,6 +103,23 @@ async function bootstrap() {
       .getRepository(User)
       .exists({ where: { userId: 'guest' } });
     assertProductionConfig(process.env, { localEnvFileExists, guestUserExists });
+  }
+
+  // Managed mode (BOOTSTRAP_ADMIN_USER_ID set): refuse to boot when anyone could register the
+  // administrator's login id first. A missing account is otherwise normal on a new install.
+  const bootstrapLoginId = bootstrapAdminLoginId();
+  if (bootstrapLoginId !== undefined) {
+    const bootstrapUserExists = await nestApp
+      .get(DataSource)
+      .getRepository(User)
+      .exists({ where: { userId: bootstrapLoginId } });
+    assertOrganizationMode(process.env, { bootstrapUserExists });
+    if (!bootstrapUserExists)
+      nestApp
+        .get(CustomLoggerService)
+        .warn(
+          'BOOTSTRAP_ADMIN_USER_ID names an account that does not exist yet; create it, then sign in to create the organization',
+        );
   }
 
   nestApp.setGlobalPrefix('v1', {

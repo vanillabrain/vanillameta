@@ -5,7 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { User } from '../user/entities/user.entity';
 import { sourceWriteTransaction } from '../database/source-write-lock';
@@ -31,6 +31,8 @@ import { ReportSharingService } from '../reports/report-sharing.service';
 import { McpScope } from './config';
 import { mcpError } from './mcp-server';
 import { McpOAuthPrincipal, McpOAuthService } from './mcp-oauth.service';
+import { isMemberRole, roleAllows } from '../enterprise/role-capabilities';
+import type { RouteCapability } from '../auth/route-capabilities';
 
 export const REPORT_PAGE_UNITS = 20000;
 const COMMENT_PAGE_BYTES = 192 * 1024;
@@ -133,6 +135,13 @@ export function shareRequestId(requestId: string, recipientId: number) {
   )}-${hex.slice(20, 32)}`;
 }
 
+/** The capability each write scope needs; a read scope needs none. */
+const WRITE_SCOPE_CAPABILITY: Partial<Record<McpScope, RouteCapability>> = {
+  'comments:write': 'comment',
+  'suggestions:write': 'comment',
+  'shares:write': 'share',
+};
+
 @Injectable()
 export class McpReportService {
   constructor(
@@ -154,10 +163,38 @@ export class McpReportService {
     });
   }
 
+  /**
+   * The grade bounds what a connection may write, whatever scope the user approved: an AI acts with
+   * the account's own rights, never more. A viewer's connection cannot comment or share even if it
+   * holds the scope. The grade is read on every write, so a demotion applies at once (it does not
+   * bump authVersion, so the token stays valid).
+   */
+  private async assertGrade(manager: EntityManager, principal: McpOAuthPrincipal, scope: McpScope) {
+    const capability = WRITE_SCOPE_CAPABILITY[scope];
+    if (!capability) return;
+    const member = await manager.findOneBy(EnterpriseMembership, {
+      userId: principal.actorId,
+      organizationId: principal.organizationId,
+    });
+    if (!member || !roleAllows(member.role, capability)) throw new ForbiddenException();
+  }
+
+  /** Share writes take their own options type, which requires the AI attribution. */
+  private shareWrite(principal: McpOAuthPrincipal): Parameters<ReportSharingService['change']>[3] {
+    return {
+      beforeAccess: async manager => {
+        await this.auth.assertGrant(manager, principal, 'shares:write');
+        await this.assertGrade(manager, principal, 'shares:write');
+      },
+      ai: { grantId: principal.grantId, clientName: principal.clientName },
+    };
+  }
+
   private write(principal: McpOAuthPrincipal, scope: McpScope): CommentWriteOptions {
     return {
       beforeAccess: async manager => {
         await this.auth.assertGrant(manager, principal, scope);
+        await this.assertGrade(manager, principal, scope);
       },
       ai: { grantId: principal.grantId, clientName: principal.clientName },
     };
@@ -486,7 +523,7 @@ export class McpReportService {
           !user?.active ||
           user.id === principal.actorId ||
           member?.organizationId !== principal.organizationId ||
-          !['admin', 'member'].includes(member.role)
+          !isMemberRole(member.role)
         )
           throw new BadRequestException(
             `"${loginId.slice(
@@ -569,11 +606,7 @@ export class McpReportService {
             operation: { kind: 'share', expectedHeadRevision: head.revision },
           },
           actor,
-          {
-            beforeAccess: manager =>
-              this.auth.assertGrant(manager, principal, 'shares:write').then(() => undefined),
-            ai: { grantId: principal.grantId, clientName: principal.clientName },
-          },
+          this.shareWrite(principal),
         );
         results.push({
           recipientUserId: item.loginId,

@@ -102,6 +102,33 @@ export class EnterpriseResourcePolicyService {
     if (!membership || membership.role !== 'admin' || resource.ownerId !== actor) this.denied();
     return { membership, resource };
   }
+  /**
+   * Who may give or take away rights on a resource: an administrator of the organization the
+   * resource's owner belongs to, whoever owns it. The rights are stored under the owner, so they are
+   * found again by the readers (currentRights, allowedIds) that look a grant up by the resource's
+   * owner; storing them under the administrator who set them would leave them unseen. Management of
+   * the resource itself (delivery, lifecycle) stays with `management()`, which still needs the owner.
+   */
+  private async grantAuthority(
+    kind: ResourceKind,
+    id: number,
+    actor: number,
+    manager: EntityManager,
+  ) {
+    // Same fencing as management(): only writes lock the parent; ordinary reads stay non-locking.
+    if (manager.queryRunner?.isTransactionActive) {
+      if (kind === 'dashboard') await lockDashboardWrite(manager, id, { allowInactive: true });
+      else await lockMetricSources(manager, [id]);
+    }
+    const [membership, resource] = await Promise.all([
+      this.member(actor, manager),
+      this.resource(kind, id, manager),
+    ]);
+    if (!membership || membership.role !== 'admin') this.denied();
+    const owner = await this.member(resource.ownerId, manager);
+    if (!owner || owner.organizationId !== membership.organizationId) this.denied();
+    return { membership, resource };
+  }
   /** UC050: management remains available while normal source access is disabled. */
   async assertManagement(kind: ResourceKind, id: number, actor: number, manager = this.db.manager) {
     return serializeMetadataWork(this.db, async () => {
@@ -363,12 +390,12 @@ export class EnterpriseResourcePolicyService {
   async groupPolicies(kind: ResourceKind, id: number, actor: number) {
     return serializeMetadataWork(this.db, async () => {
       this.kind(kind);
-      const { membership } = await this.management(kind, id, actor, this.db.manager);
+      const { membership, resource } = await this.grantAuthority(kind, id, actor, this.db.manager);
       const rows = await this.db.manager.find(EnterpriseGroupGrant, {
         where: {
           resourceKind: kind,
           resourceId: id,
-          ownerId: actor,
+          ownerId: resource.ownerId,
           organizationId: membership.organizationId,
         },
         order: { groupId: 'ASC' },
@@ -411,8 +438,13 @@ export class EnterpriseResourcePolicyService {
       throw new BadRequestException('그룹 권한·버전을 확인해 주세요.');
     const next = this.rights(rights);
     return groupWrite(this.db, async manager => {
+      // Same order as set(): the owner's account is locked with the actor's before the authority is read.
+      const ownerBefore = (await this.resource(kind, id, manager)).ownerId;
+      await lockStaffWrite(manager, [actor, ownerBefore]);
       await groupAdmin(actor, manager, true);
-      const { membership } = await this.management(kind, id, actor, manager);
+      const { membership, resource } = await this.grantAuthority(kind, id, actor, manager);
+      if (resource.ownerId !== ownerBefore)
+        throw new ConflictException('자원 소유자가 바뀌었습니다. 최신 상태를 확인해 주세요.');
       const group = await manager.findOne(EnterpriseGroup, {
         where: { id: groupId, organizationId: membership.organizationId },
         ...(manager.connection.options.type !== 'sqlite'
@@ -423,13 +455,24 @@ export class EnterpriseResourcePolicyService {
         throw new ForbiddenException('활성인 본인 조직 그룹만 권한을 추가할 수 있습니다.');
       if (group.version !== groupVersion)
         throw new ConflictException('그룹 구성이 변경됐습니다. 그룹과 권한을 다시 읽어 주세요.');
+      // An administrator may not reach, through a group they belong to, data they could not be given
+      // directly (set() refuses a grant to oneself). group.service refuses the opposite order:
+      // putting oneself into such a group.
+      if (next.read && resource.ownerId !== actor) {
+        const inGroup = await manager.findOneBy(EnterpriseGroupMember, { groupId, userId: actor });
+        if (inGroup)
+          throw new ForbiddenException(
+            '본인이 속한 그룹에는 다른 사람이 소유한 자원의 권한을 줄 수 없습니다.',
+          );
+      }
       const key = { resourceKind: kind, resourceId: id, groupId },
         prior = await manager.findOneBy(EnterpriseGroupGrant, key);
-      const same = prior?.ownerId === actor && prior?.organizationId === membership.organizationId;
+      const same =
+        prior?.ownerId === resource.ownerId && prior?.organizationId === membership.organizationId;
       if ((same ? prior.version : 0) !== version)
         throw new ConflictException('그룹 자원 권한이 변경됐습니다. 다시 읽어 주세요.');
       const values = {
-        ownerId: actor,
+        ownerId: resource.ownerId,
         organizationId: membership.organizationId,
         version: version + 1,
         ...next,
@@ -456,6 +499,15 @@ export class EnterpriseResourcePolicyService {
         subjectId: groupId,
         version: version + 1,
       });
+      if (resource.ownerId !== actor)
+        await manager.insert(EnterpriseAuditEvent, {
+          organizationId: membership.organizationId,
+          actorId: actor,
+          action: `${kind}.group-permissions.owner`,
+          resourceId: id,
+          subjectId: resource.ownerId,
+          version: version + 1,
+        });
       return { kind, resourceId: id, groupId, version: version + 1, rights: next };
     });
   }
@@ -528,13 +580,13 @@ export class EnterpriseResourcePolicyService {
   async policies(kind: ResourceKind, id: number, actor: number) {
     return serializeMetadataWork(this.db, async () => {
       this.kind(kind);
-      const { membership } = await this.management(kind, id, actor, this.db.manager);
+      const { membership, resource } = await this.grantAuthority(kind, id, actor, this.db.manager);
       const rows = await this.db.manager.find(EnterpriseResourceGrant, {
         where: {
           resourceKind: kind,
           resourceId: id,
           organizationId: membership.organizationId,
-          ownerId: actor,
+          ownerId: resource.ownerId,
         },
         order: { recipientId: 'ASC' },
       });
@@ -592,15 +644,27 @@ export class EnterpriseResourcePolicyService {
       throw new BadRequestException('권한·대상·버전을 확인해 주세요.');
     const run = async () =>
       this.db.transaction(async manager => {
-        await lockStaffWrite(manager, [actor, recipientId]);
-        const { membership } = await this.management(kind, id, actor, manager);
+        // The owner's account is locked with the others before the authority is read, as every
+        // writer does (lockStaffWrite): otherwise the owner could move or leave between the check
+        // and the write and leave a grant that nobody can clean up. The owner is read once without
+        // a lock to know whom to lock, then confirmed.
+        const ownerBefore = (await this.resource(kind, id, manager)).ownerId;
+        await lockStaffWrite(manager, [actor, recipientId, ownerBefore]);
+        const { membership, resource } = await this.grantAuthority(kind, id, actor, manager);
+        if (resource.ownerId !== ownerBefore)
+          throw new ConflictException('자원 소유자가 바뀌었습니다. 최신 상태를 확인해 주세요.');
+        // The owner already holds every right, so a grant to the owner would only be dead data.
+        // Taking an existing one away stays possible.
+        if (recipientId === resource.ownerId && actions.some(action => rights[action]))
+          throw new BadRequestException('권한·대상·버전을 확인해 주세요.');
         const prior = await manager.findOneBy(EnterpriseResourceGrant, {
           resourceKind: kind,
           resourceId: id,
           recipientId,
         });
         const revocable =
-          prior?.ownerId === actor && prior?.organizationId === membership.organizationId;
+          prior?.ownerId === resource.ownerId &&
+          prior?.organizationId === membership.organizationId;
         const recipient = actions.some(action => rights[action])
           ? await this.member(recipientId, manager)
           : await manager.findOneBy(EnterpriseMembership, { userId: recipientId });
@@ -611,14 +675,15 @@ export class EnterpriseResourcePolicyService {
           this.denied();
         const key = { resourceKind: kind, resourceId: id, recipientId };
         const sameAuthority =
-          prior?.ownerId === actor && prior?.organizationId === membership.organizationId;
+          prior?.ownerId === resource.ownerId &&
+          prior?.organizationId === membership.organizationId;
         if ((sameAuthority ? prior.version : 0) !== version)
           throw new ConflictException(
             '다른 권한 변경이 먼저 반영됐습니다. 최신 권한을 확인해 주세요.',
           );
         const values = {
           organizationId: membership.organizationId,
-          ownerId: actor,
+          ownerId: resource.ownerId,
           version: version + 1,
           ...this.rights(rights),
         };
@@ -643,6 +708,16 @@ export class EnterpriseResourcePolicyService {
           subjectId: recipientId,
           version: version + 1,
         });
+        // When someone other than the owner changed the rights, the owner is traceable too.
+        if (resource.ownerId !== actor)
+          await manager.insert(EnterpriseAuditEvent, {
+            organizationId: membership.organizationId,
+            actorId: actor,
+            action: `${kind}.permissions.owner`,
+            resourceId: id,
+            subjectId: resource.ownerId,
+            version: version + 1,
+          });
         return {
           kind,
           resourceId: id,

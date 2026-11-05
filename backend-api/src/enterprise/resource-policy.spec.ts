@@ -24,6 +24,8 @@ import { EnterpriseMembership } from './entities/enterprise-membership.entity';
 import { EnterpriseOrganization } from './entities/enterprise-organization.entity';
 import { EnterpriseResourceGrant } from './entities/enterprise-resource-grant.entity';
 import { EnterpriseService } from './enterprise.service';
+import { EnterpriseGroupService } from './group.service';
+import * as staffLock from './staff-write-lock';
 import { EnterpriseResourcePolicyService } from './resource-policy.service';
 
 type Rights = Partial<Record<'read' | 'edit' | 'publish' | 'export', boolean>>;
@@ -59,6 +61,7 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
   let db: DataSource;
   let policy: EnterpriseResourcePolicyService;
   let enterprise: EnterpriseService;
+  let groupService: EnterpriseGroupService;
   let access: SourceAccessService;
   let users: Repository<User>;
   let organizations: Repository<EnterpriseOrganization>;
@@ -100,6 +103,7 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
     }).initialize();
     policy = new EnterpriseResourcePolicyService(db);
     enterprise = new EnterpriseService(db);
+    groupService = new EnterpriseGroupService(db);
     access = new SourceAccessService(db, policy);
     users = db.getRepository(User);
     organizations = db.getRepository(EnterpriseOrganization);
@@ -952,5 +956,380 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
     await users.update(1, { active: false });
     await expect(access.assert('database', 101, 1, 'read')).rejects.toThrow(ForbiddenException);
     await expect(access.dashboard(51, 1, 'publish')).rejects.toThrow(ForbiddenException);
+  });
+
+  /** Who may give or take away rights: an administrator of the owner's organization, whoever owns it. */
+  describe('granting on a resource someone else owns', () => {
+    const read = rights({ read: true });
+    const readEdit = rights({ read: true, edit: true });
+    beforeEach(async () => {
+      // The file's own setup does not clear the group tables.
+      await db.manager.clear(EnterpriseGroupGrant);
+      await db.manager.clear(EnterpriseGroupMember);
+      await db.manager.clear(EnterpriseGroup);
+      await dashboards.save({ id: 61, title: 'Owned by account 2' });
+      await own(61, 2);
+    });
+
+    it('lets an administrator grant on a member owned dashboard and the recipient actually gets it', async () => {
+      await expect(
+        policy.set('dashboard', 61, 1, { recipientId: 3, expectedVersion: 0, rights: readEdit }),
+      ).resolves.toMatchObject({ resourceId: 61, recipientId: 3, version: 1 });
+      // Stored under the owner, which is where the readers look for it.
+      expect(await grants.find()).toEqual([
+        expect.objectContaining({ resourceId: 61, recipientId: 3, organizationId: 1, ownerId: 2 }),
+      ]);
+      await expect(policy.assert('dashboard', 61, 3, 'edit')).resolves.toBeUndefined();
+      await expect(policy.assert('dashboard', 61, 3, 'publish')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(await policy.dashboardIds(3)).toContain(61);
+    });
+
+    it('lists the grants the administrator made on it', async () => {
+      await policy.set('dashboard', 61, 1, { recipientId: 3, expectedVersion: 0, rights: read });
+      await expect(policy.policies('dashboard', 61, 1)).resolves.toMatchObject({
+        entries: [{ recipientId: 3, version: 1, rights: read }],
+      });
+    });
+
+    it('lets a different administrator take the grant away', async () => {
+      // Account 3 becomes a second administrator; account 5 joins organization A as a member.
+      await memberships.update({ userId: 3 }, { role: 'admin' });
+      await memberships.save({ userId: 5, organizationId: 1, role: 'member', team: '' });
+      await policy.set('dashboard', 61, 1, { recipientId: 5, expectedVersion: 0, rights: read });
+      await expect(policy.assert('dashboard', 61, 5, 'read')).resolves.toBeUndefined();
+      // Account 3 revokes what account 1 granted: the grant belongs to the resource, not the granter.
+      await expect(
+        policy.set('dashboard', 61, 3, { recipientId: 5, expectedVersion: 1, rights: rights() }),
+      ).resolves.toMatchObject({ recipientId: 5, version: 2 });
+      await expect(policy.assert('dashboard', 61, 5, 'read')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('does not let the owner, who is not an administrator, give rights on their own dashboard', async () => {
+      await expect(
+        policy.set('dashboard', 61, 2, { recipientId: 3, expectedVersion: 0, rights: read }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(await grants.count()).toBe(0);
+    });
+
+    it('does not let an administrator of another organization give rights', async () => {
+      await expect(
+        policy.set('dashboard', 61, 4, { recipientId: 5, expectedVersion: 0, rights: read }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(await grants.count()).toBe(0);
+    });
+
+    it('does not let an administrator give rights on a dashboard whose owner belongs to no organization', async () => {
+      await dashboards.save({ id: 62, title: 'Owned by an outsider' });
+      await own(62, 6);
+      await expect(
+        policy.set('dashboard', 62, 1, { recipientId: 3, expectedVersion: 0, rights: read }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(await grants.count()).toBe(0);
+    });
+
+    it('does not let an administrator give rights on a dashboard whose owner is in another organization', async () => {
+      await dashboards.save({ id: 63, title: 'Owned in organization B' });
+      await own(63, 5);
+      await expect(
+        policy.set('dashboard', 63, 1, { recipientId: 3, expectedVersion: 0, rights: read }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(await grants.count()).toBe(0);
+    });
+
+    it('refuses a grant to the owner, who already holds every right, and writes nothing', async () => {
+      await expect(
+        policy.set('dashboard', 61, 1, { recipientId: 2, expectedVersion: 0, rights: read }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(await grants.count()).toBe(0);
+      expect(await audits.count()).toBe(0);
+    });
+
+    it('still refuses the administrator a grant to themselves', async () => {
+      await expect(
+        policy.set('dashboard', 61, 1, { recipientId: 1, expectedVersion: 0, rights: read }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('records who granted and to whom, and traces the owner when someone else granted', async () => {
+      await policy.set('dashboard', 61, 1, { recipientId: 3, expectedVersion: 0, rights: read });
+      expect(await audits.find({ order: { id: 'ASC' } })).toEqual([
+        expect.objectContaining({
+          action: 'dashboard.permissions',
+          actorId: 1,
+          subjectId: 3,
+          resourceId: 61,
+        }),
+        expect.objectContaining({
+          action: 'dashboard.permissions.owner',
+          actorId: 1,
+          subjectId: 2,
+          resourceId: 61,
+        }),
+      ]);
+    });
+
+    it('writes no owner event when the owner administrator grants on their own resource', async () => {
+      await dashboards.save({ id: 64, title: 'Owned by the administrator' });
+      await own(64, 1);
+      await policy.set('dashboard', 64, 1, { recipientId: 3, expectedVersion: 0, rights: read });
+      expect((await audits.find()).map(a => a.action)).toEqual(['dashboard.permissions']);
+    });
+
+    it('lets an administrator take away a grant that was made out to the owner, though a new one is refused', async () => {
+      await grants.save({
+        resourceKind: 'dashboard',
+        resourceId: 61,
+        recipientId: 2,
+        organizationId: 1,
+        ownerId: 2,
+        version: 1,
+        read: true,
+        edit: false,
+        publish: false,
+        export: false,
+      });
+      await expect(
+        policy.set('dashboard', 61, 1, { recipientId: 2, expectedVersion: 0, rights: read }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        policy.set('dashboard', 61, 1, { recipientId: 2, expectedVersion: 1, rights: rights() }),
+      ).resolves.toMatchObject({ recipientId: 2, version: 2 });
+    });
+
+    it('refuses when the owner changed while the grant was being prepared', async () => {
+      const original = (policy as any).resource.bind(policy);
+      let calls = 0;
+      const spy = jest
+        .spyOn(policy as any, 'resource')
+        .mockImplementation(async (...args: any[]) => {
+          const row = await original(...args);
+          calls += 1;
+          // The first read (to know whom to lock) sees account 2; the confirmation sees someone else.
+          return calls === 1 ? row : { ...row, ownerId: 3 };
+        });
+      try {
+        await expect(
+          policy.set('dashboard', 61, 1, { recipientId: 5, expectedVersion: 0, rights: read }),
+        ).rejects.toBeInstanceOf(ConflictException);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await grants.count()).toBe(0);
+    });
+
+    it('starts over cleanly when the owner changed since an older grant', async () => {
+      // Source 101 is owned by account 1. A grant made then is stored under account 1.
+      await policy.set('source', 101, 1, { recipientId: 3, expectedVersion: 0, rights: read });
+      await sources.update(101, { ownerId: 2 });
+      // Under the new owner the old row is not listed, does not grant anything, and a new grant starts at 0.
+      await expect(policy.policies('source', 101, 1)).resolves.toMatchObject({ entries: [] });
+      await expect(policy.assert('source', 101, 3, 'read')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      await expect(
+        policy.set('source', 101, 1, { recipientId: 3, expectedVersion: 0, rights: read }),
+      ).resolves.toMatchObject({ recipientId: 3, version: 1 });
+      expect(await grants.find()).toEqual([
+        expect.objectContaining({ recipientId: 3, ownerId: 2 }),
+      ]);
+      await expect(policy.assert('source', 101, 3, 'read')).resolves.toBeUndefined();
+    });
+
+    it('keeps delivery and lifecycle management with the owner administrator', async () => {
+      await expect(policy.assertManagement('dashboard', 61, 1)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('grants a group right under the owner too, and lists it', async () => {
+      await db.manager.save(EnterpriseGroup, {
+        id: 1,
+        organizationId: 1,
+        name: 'analysts',
+        nameKey: 'analysts',
+        active: true,
+        version: 1,
+      });
+      await expect(
+        policy.setGroupPolicy('dashboard', 61, 1, {
+          groupId: 1,
+          expectedVersion: 0,
+          expectedGroupVersion: 1,
+          rights: read,
+        }),
+      ).resolves.toMatchObject({ resourceId: 61, groupId: 1, version: 1 });
+      expect(await db.manager.find(EnterpriseGroupGrant)).toEqual([
+        expect.objectContaining({ resourceId: 61, groupId: 1, ownerId: 2, organizationId: 1 }),
+      ]);
+      await expect(policy.groupPolicies('dashboard', 61, 1)).resolves.toMatchObject({
+        entries: [{ groupId: 1, version: 1, rights: read }],
+      });
+    });
+
+    describe('what the group path and the locks leave behind', () => {
+      const makeGroup = () =>
+        db.manager.save(EnterpriseGroup, {
+          id: 1,
+          organizationId: 1,
+          name: 'g1',
+          nameKey: 'g1',
+          active: true,
+          version: 1,
+        });
+      const groupBody = (expectedVersion: number, granted = read) => ({
+        groupId: 1,
+        expectedVersion,
+        expectedGroupVersion: 1,
+        rights: granted,
+      });
+
+      it('refuses a group grant when the owner changed while it was being prepared', async () => {
+        await makeGroup();
+        const original = (policy as any).resource.bind(policy);
+        let calls = 0;
+        const spy = jest
+          .spyOn(policy as any, 'resource')
+          .mockImplementation(async (...args: any[]) => {
+            const row = await original(...args);
+            calls += 1;
+            return calls === 1 ? row : { ...row, ownerId: 3 };
+          });
+        try {
+          await expect(
+            policy.setGroupPolicy('dashboard', 61, 1, groupBody(0)),
+          ).rejects.toBeInstanceOf(ConflictException);
+        } finally {
+          spy.mockRestore();
+        }
+        expect(await db.manager.count(EnterpriseGroupGrant)).toBe(0);
+      });
+
+      it('traces the owner of a group grant made by someone else', async () => {
+        await makeGroup();
+        await policy.setGroupPolicy('dashboard', 61, 1, groupBody(0));
+        expect(
+          (await audits.find({ order: { id: 'ASC' } })).map(a => [a.action, a.subjectId]),
+        ).toEqual([
+          ['dashboard.group-permissions', 1],
+          ['dashboard.group-permissions.owner', 2],
+        ]);
+      });
+
+      it('lets an administrator who belongs to a group take rights away from it', async () => {
+        await makeGroup();
+        await db.manager.save(EnterpriseGroupMember, { groupId: 1, userId: 1 });
+        // A leftover row from before the rule; turning rights off must stay possible.
+        await db.manager.save(EnterpriseGroupGrant, {
+          resourceKind: 'dashboard',
+          resourceId: 61,
+          groupId: 1,
+          ownerId: 2,
+          organizationId: 1,
+          version: 1,
+          read: true,
+          edit: false,
+          publish: false,
+          export: false,
+        });
+        await expect(
+          policy.setGroupPolicy('dashboard', 61, 1, groupBody(1, rights())),
+        ).resolves.toMatchObject({ groupId: 1, version: 2 });
+      });
+
+      it('locks the actor, the recipient and the owner together before reading the authority', async () => {
+        const spy = jest.spyOn(staffLock, 'lockStaffWrite');
+        try {
+          await policy.set('dashboard', 61, 1, {
+            recipientId: 3,
+            expectedVersion: 0,
+            rights: read,
+          });
+          await makeGroup();
+          await policy.setGroupPolicy('dashboard', 61, 1, groupBody(0));
+          expect(spy.mock.calls.map(call => call[1])).toEqual([
+            [1, 3, 2],
+            [1, 2],
+          ]);
+        } finally {
+          spy.mockRestore();
+        }
+      });
+    });
+
+    describe('an administrator and a group they belong to', () => {
+      const group = (id = 1) =>
+        db.manager.save(EnterpriseGroup, {
+          id,
+          organizationId: 1,
+          name: `g${id}`,
+          nameKey: `g${id}`,
+          active: true,
+          version: 1,
+        });
+      const grantGroup = (resourceId: number, groupId = 1, granted = read) =>
+        policy.setGroupPolicy('dashboard', resourceId, 1, {
+          groupId,
+          expectedVersion: 0,
+          expectedGroupVersion: 1,
+          rights: granted,
+        });
+      const setMembers = (memberIds: number[], extra: Record<string, unknown> = {}) =>
+        groupService.set(1, 1, {
+          expectedVersion: 1,
+          name: 'g1',
+          active: true,
+          memberIds,
+          ...extra,
+        });
+
+      it('refuses to give a group the administrator belongs to a right on someone else resource', async () => {
+        await group();
+        await db.manager.save(EnterpriseGroupMember, { groupId: 1, userId: 1 });
+        await expect(grantGroup(61)).rejects.toBeInstanceOf(ForbiddenException);
+        expect(await db.manager.count(EnterpriseGroupGrant)).toBe(0);
+        expect(await audits.count()).toBe(0);
+      });
+
+      it('allows it for a group the administrator does not belong to, and for their own resource', async () => {
+        await group();
+        await db.manager.save(EnterpriseGroupMember, { groupId: 1, userId: 3 });
+        await expect(grantGroup(61)).resolves.toMatchObject({ groupId: 1, version: 1 });
+        await db.manager.save(EnterpriseGroupMember, { groupId: 1, userId: 1 });
+        await dashboards.save({ id: 65, title: 'Mine' });
+        await own(65, 1);
+        await expect(grantGroup(65)).resolves.toMatchObject({ resourceId: 65, version: 1 });
+      });
+
+      it('refuses to put the administrator into a group that holds someone else resource right', async () => {
+        await group();
+        await grantGroup(61);
+        await expect(setMembers([1, 3])).rejects.toBeInstanceOf(ForbiddenException);
+        expect(await db.manager.count(EnterpriseGroupMember)).toBe(0);
+        // Others can still be added.
+        await expect(setMembers([3])).resolves.toBeDefined();
+      });
+
+      it('refuses to switch on a group that already holds the administrator and such a right', async () => {
+        await group();
+        await grantGroup(61);
+        await db.manager.save(EnterpriseGroupMember, { groupId: 1, userId: 1 });
+        await db.manager.update(EnterpriseGroup, { id: 1 }, { active: false });
+        await expect(
+          setMembers([1, 3], { expectedVersion: 1, active: true }),
+        ).rejects.toBeInstanceOf(ForbiddenException);
+      });
+
+      it('lets the administrator join a group that holds only rights on their own resources', async () => {
+        await group();
+        await dashboards.save({ id: 65, title: 'Mine' });
+        await own(65, 1);
+        await grantGroup(65);
+        await expect(setMembers([1, 3])).resolves.toBeDefined();
+      });
+    });
   });
 });

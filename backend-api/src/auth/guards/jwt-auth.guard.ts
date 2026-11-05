@@ -9,10 +9,18 @@ import { Dashboard } from '../../dashboard/entities/dashboard.entity';
 import { DashboardWidget } from '../../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { Widget } from '../../widget/entities/widget.entity';
 import { YesNo } from '../../common/enum/yn.enum';
+import { EnterpriseMembership } from '../../enterprise/entities/enterprise-membership.entity';
+import { isManagedMode } from '../../enterprise/organization-mode';
+import { deniedAccess } from '../capability-policy';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
   private readonly logger = new Logger(JwtAuthGuard.name);
+  /**
+   * A subclass whose routes serve accounts that belong to no organization (server operators) sets
+   * this, so the managed mode does not turn them away for lacking a membership.
+   */
+  protected readonly organizationOptional: boolean = false;
   constructor(private jwtService: JwtService, private readonly dataSource: DataSource) {
     super();
   }
@@ -31,7 +39,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         const token = authorization.replace('Bearer ', ''); //authorization
         const boolean = true; // 일반 대시보드일시
         const userInfo = await this.validate(token, boolean);
-        if (userInfo) request.user = userInfo;
+        if (userInfo) {
+          request.user = userInfo;
+          await this.enforceCapability(context, request, userInfo);
+        }
         return !!userInfo;
       } else if (urlAuth !== undefined) {
         if (typeof urlAuth !== 'string') {
@@ -72,6 +83,43 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         return !!userInfo;
       }
     });
+  }
+
+  /**
+   * Refuses the request when the account's grade does not allow what the route does, or, in the
+   * managed mode, when the account belongs to no organization. Runs after the token is proven and
+   * only for a signed-in account: a share-link token has no account and is limited elsewhere.
+   */
+  private async enforceCapability(context: ExecutionContext, request: any, userInfo: any) {
+    const controller = context.getClass?.()?.name;
+    const handler = context.getHandler?.()?.name;
+    // Nest always supplies both for an HTTP route; without them the route cannot be classified, so
+    // the request is refused rather than let through.
+    if (!controller || !handler)
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: 'ROUTE_UNCLASSIFIED',
+          message: '요청을 처리할 수 없습니다.',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    const membership = await this.dataSource
+      .getRepository(EnterpriseMembership)
+      .findOne({ where: { userId: userInfo.accessKeyData.id }, select: ['userId', 'role'] });
+    const denial = deniedAccess({
+      managed: isManagedMode(),
+      controller,
+      handler,
+      method: String(request.method ?? 'GET'),
+      membership: membership ? { role: membership.role } : undefined,
+      organizationOptional: this.organizationOptional,
+    });
+    if (denial)
+      throw new HttpException(
+        { statusCode: HttpStatus.FORBIDDEN, code: denial.code, message: denial.message },
+        HttpStatus.FORBIDDEN,
+      );
   }
 
   async validate(payload: any, accessPath: boolean) {

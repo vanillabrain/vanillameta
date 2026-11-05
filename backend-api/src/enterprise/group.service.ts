@@ -14,6 +14,7 @@ import { EnterpriseMembership } from './entities/enterprise-membership.entity';
 import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
 import {
   EnterpriseGroup,
+  EnterpriseGroupGrant,
   EnterpriseGroupMember,
   EnterpriseGroupRequest,
 } from './entities/enterprise-group.entity';
@@ -238,6 +239,30 @@ export class EnterpriseGroupService {
         });
         if (!member || !user)
           throw new ForbiddenException('같은 조직의 활성 직원만 새로 추가할 수 있습니다.');
+      }
+      // An administrator may not join, or switch on, a group that holds someone else's resource
+      // rights: that would reach data they could not be given directly (resource-policy refuses the
+      // opposite order, granting to a group the actor already belongs to).
+      const joiningNow =
+        memberIds.includes(actor) && (!existing.has(actor) || (!group.active && active));
+      if (joiningNow && active) {
+        const others = await manager
+          .getRepository(EnterpriseGroupGrant)
+          .createQueryBuilder('gg')
+          .where(
+            'gg.groupId = :id AND gg.organizationId = :org AND gg.read = :on AND gg.ownerId <> :actor',
+            {
+              id,
+              org: scope.organizationId,
+              on: true,
+              actor,
+            },
+          )
+          .getCount();
+        if (others > 0)
+          throw new ForbiddenException(
+            '다른 사람이 소유한 자원의 권한을 가진 그룹에는 본인을 넣거나 켤 수 없습니다.',
+          );
       }
       const beforeRecipients = group.active
         ? await groupRecipients(manager, id, scope.organizationId)

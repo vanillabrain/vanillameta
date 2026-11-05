@@ -30,6 +30,9 @@ services:
       URL_ACCESS_SECRET: ${URL_ACCESS_SECRET:-dev-only-url-secret}
       CONFIG_SECRET_KEY: ${CONFIG_SECRET_KEY:-dev-only-config-secret}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      # 관리 모드: 이 로그인 ID 만 조직을 만들고(시드가 guest 를 그 조직의 admin 으로 연결한다),
+      # 조직에 속하지 않은 계정은 서비스를 쓸 수 없다. 비우면(BOOTSTRAP_ADMIN_USER_ID=) 예전처럼 누구나 조직을 만든다.
+      BOOTSTRAP_ADMIN_USER_ID: ${BOOTSTRAP_ADMIN_USER_ID-guest}
       # AI 어시스턴트(선택): 키가 없으면 AI 기능만 비활성이다.
       AI_PROVIDER: ${AI_PROVIDER:-}
       AI_API_KEY: ${AI_API_KEY:-}

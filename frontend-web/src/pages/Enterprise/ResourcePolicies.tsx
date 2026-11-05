@@ -533,7 +533,8 @@ function ResourcePolicyPanel({ organizationId, selfRecipientId }: { organization
       <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-border p-3">
         <h3 className="text-sm font-semibold text-foreground">권한을 관리할 자원</h3>
         <p className="text-xs text-muted-foreground">
-          본인이 소유한 자원만 표시합니다. 조직 admin이어도 다른 사람이 소유한 자원의 권한은 관리할 수 없습니다.
+          본인이 소유한 자원만 표시합니다. 조직 admin은 같은 조직 다른 구성원이 소유한 자원의 권한도 바꿀 수 있지만, 지금은
+          이 목록에 나타나지 않아 API로만 바꿀 수 있습니다.
         </p>
         {resourcesBusy && resources.length === 0 && (
           <p role="status" className="text-sm text-muted-foreground">

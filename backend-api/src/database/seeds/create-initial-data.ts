@@ -6,6 +6,13 @@ import { Template } from '../../template/entities/template.entity';
 import { TemplateItem } from '../../template/entities/template-item.entity';
 import { User } from '../../user/entities/user.entity';
 import { YesNo } from '../../common/enum/yn.enum';
+import { EnterpriseAuditEvent } from '../../enterprise/entities/enterprise-audit-event.entity';
+import { EnterpriseMembership } from '../../enterprise/entities/enterprise-membership.entity';
+import { EnterpriseOrganization } from '../../enterprise/entities/enterprise-organization.entity';
+import {
+  BOOTSTRAP_ORGANIZATION_NAME,
+  bootstrapAdminLoginId,
+} from '../../enterprise/organization-mode';
 
 export default class CreateInitialData implements Seeder {
   /** 운영에도 필요한 참조 데이터(컴포넌트·DB 유형·템플릿). 데모 계정은 포함하지 않는다. */
@@ -1584,5 +1591,40 @@ export default class CreateInitialData implements Seeder {
       ])
       .orIgnore()
       .execute();
+
+    await this.seedBootstrapOrganization(dataSource);
+  }
+
+  /**
+   * In the managed mode the bootstrap account administers the one organization. A fresh stack
+   * (the Docker quickstart) has no way to create it before the first sign-in, so the seed does it:
+   * only when the account exists and no organization does. Running it again changes nothing.
+   */
+  private async seedBootstrapOrganization(dataSource: DataSource): Promise<void> {
+    const loginId = bootstrapAdminLoginId();
+    if (loginId === undefined) return;
+    await dataSource.transaction(async manager => {
+      const account = await manager.findOne(User, { where: { userId: loginId }, select: ['id'] });
+      if (!account) return;
+      if ((await manager.count(EnterpriseOrganization)) > 0) return;
+      if (await manager.findOneBy(EnterpriseMembership, { userId: account.id })) return;
+      const organization = await manager.save(EnterpriseOrganization, {
+        name: BOOTSTRAP_ORGANIZATION_NAME,
+        version: 1,
+      });
+      await manager.save(EnterpriseMembership, {
+        userId: account.id,
+        organizationId: organization.id,
+        role: 'admin',
+        team: '',
+      });
+      await manager.insert(EnterpriseAuditEvent, {
+        organizationId: organization.id,
+        actorId: account.id,
+        action: 'organization.created',
+        resourceId: organization.id,
+        version: 1,
+      });
+    });
   }
 }

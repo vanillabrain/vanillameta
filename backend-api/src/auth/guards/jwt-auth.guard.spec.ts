@@ -6,6 +6,7 @@ import { DashboardShare } from '../../dashboard/entities/dashboard_share.entity'
 import { Dashboard } from '../../dashboard/entities/dashboard.entity';
 import { DashboardWidget } from '../../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { Widget } from '../../widget/entities/widget.entity';
+import { EnterpriseMembership } from '../../enterprise/entities/enterprise-membership.entity';
 
 describe('JwtAuthGuard persisted actors and dashboard-scoped shared datasets', () => {
   let guard: JwtAuthGuard;
@@ -17,7 +18,14 @@ describe('JwtAuthGuard persisted actors and dashboard-scoped shared datasets', (
   let widgets: any;
   let request: any;
   const context = () =>
-    ({ switchToHttp: () => ({ getRequest: () => request }) } as ExecutionContext);
+    ({
+      switchToHttp: () => ({ getRequest: () => request }),
+      getClass: () => class UnitController {},
+      getHandler: () =>
+        function unitHandler() {
+          return undefined;
+        },
+    } as unknown as ExecutionContext);
 
   beforeEach(() => {
     jwt = {
@@ -43,6 +51,8 @@ describe('JwtAuthGuard persisted actors and dashboard-scoped shared datasets', (
       [Dashboard, dashboard],
       [DashboardWidget, mappings],
       [Widget, widgets],
+      // The account belongs to no organization.
+      [EnterpriseMembership, { findOne: jest.fn().mockResolvedValue(null) }],
     ]);
     const dataSource = {
       options: { type: 'sqlite' },
