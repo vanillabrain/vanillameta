@@ -171,9 +171,7 @@ scope 이름은 12절 결정 A에 따른다. 아래는 종류별 이름(`dashboa
 
 | 단계 | 내용 | 통과 조건 |
 | ---- | ---- | -------- |
-| 1b-1 | **scope 안전 선행(구현 완료).** `mcp-oauth/scope-policy.ts`의 `Record<McpScope,{kind,capability}>` 한 표를 등급 검사와 동의 요청 응답(`scopeKinds`)이 쓰고, 프런트는 이름이 아니라 서버가 준 `kind`로 분류·기본 해제한다. 새 scope 문자열은 아직 열지 않는다 | 기존 MCP·AiConnections 테스트 통과. 표 누락은 컴파일 오류, 손으로 쓴 기대표와 일치, `scopeKinds` 없는 요청은 프런트가 거부. **읽기 scope의 소속 확인은 1b-4로 옮겼다**(아래 주) |
-
-> 1b-1 주: 계획 초안은 등급 검사를 `assertGrant` 안으로 옮기고 읽기도 소속을 확인하라고 했다. `assertGrant`는 쓰기 트랜잭션 전용이고 기존 읽기 도구·스펙(소속 행이 없는 SQLite 픽스처)이 이 검사를 전제하지 않아 파급이 크다. 1b-1에서는 표를 한 곳으로 모으고 누락을 컴파일로 막는 데까지만 했고, 읽기 소속 확인은 새 대시보드 읽기 도구를 만드는 1b-4에서 `McpDashboardService`가 함께 한다. 기존 읽기 도구는 지금처럼 `organizationKey` 일치로 막힌다.
+| 1b-1 | **scope 안전 선행(구현 완료).** `mcp-oauth/scope-policy.ts`의 `Record<McpScope,{kind,capability}>` 한 표를 등급 검사와 동의 요청 응답(`scopeKinds`)이 쓰고, 프런트는 이름이 아니라 서버가 준 `kind`로 분류·기본 해제한다. 새 scope 문자열은 아직 열지 않는다 | 기존 MCP·AiConnections 테스트 통과. 표 누락은 컴파일 오류, 손으로 쓴 기대표와 일치, `scopeKinds` 없는 요청은 프런트가 거부. **읽기 scope의 등급 검사는 1b-4로 옮겼다**(표 아래 주) |
 | 1b-2 | `createOnce`를 `persistResolved`와 해석 단계로 분리. 상태 없는 경로 추가(MCP 미노출) | 기존 Studio 스펙 전부 통과 + 분리 전후 같은 입력의 정규화 출력 비교 + `metric.id` 없는 블록이 Metric 생성에 닿지 않는다는 단언 |
 | 1b-3 | `dashboard_revision` 엔티티·**마이그레이션**·등록, 모든 Studio 저장·생성에 이력(플래그 포함), 삭제·인계 정리 | 저장마다 행 1개, 같은 `requestId` 재시도는 행 추가 없음, 보존 규칙(human·생성 보존, ai 50개), **synchronize를 끈 PostgreSQL에서 마이그레이션 실행** |
 | 1b-4 | `assertSoleOwner`, `McpDashboardService`(조회·미리보기·생성), 속도 제한 | 소유자만 통과, 남의 것·소유 행 2개·admin 우회 거부, viewer 거부, 지표 미등록·FORMULA 거부, `previewDigest` 불일치 409 |
@@ -182,6 +180,10 @@ scope 이름은 12절 결정 A에 따른다. 아래는 종류별 이름(`dashboa
 | 1b-7 | MCP 도구 8개 등록, 새 scope 개방, 지침·스펙·annotation 갱신, 프런트 승인 화면 | scope별 도구 목록이 정확히 일치, 승인하지 않은 도구는 보이지 않음, `destructiveHint` 단언 |
 | 1b-8 | stdio 서버 폐기(12절 C): `mcp-server/`·로그인 스크립트·검증 스크립트 제거, README·`README_DOCKER.md`·검증 문서의 MCP 안내를 원격 MCP로 교체 | 저장소에 stdio 서버 참조가 남지 않음, 문서의 안내대로 원격 MCP 연결이 e2e로 통과 |
 | 1b-9 | **Docker e2e 확장**(8절) | 깨끗한 스택에서 전체 통과 |
+
+1b-1 주(읽기 등급 검사를 1b-4로 옮긴 이유): 계획 초안은 읽기 scope에도 `read` 능력을 주어 소속을 확인하라고 했다. 확인해 보니 **소속 확인은 읽기에도 이미 있다.** 모든 MCP 도구가 `safe`/`structured`로 감싸여 실행 앞뒤로 `auth.revalidate`를 부르고, 이것이 `principalForHash` → `checkedGrant` → `actorContext`로 내려가 `EnterpriseMembership` 행을 조회한다(행이 없거나 조직이 `grant.organizationId`와 다르면 401, `mcp-oauth.service.spec.ts`의 'membership' 케이스가 증명). 읽기에 빠진 것은 소속이 아니라 **등급 검사**(`roleAllows(role, 'read')`)뿐이고, 네 등급과 legacy `member`가 모두 `read`를 가지므로 차이는 알 수 없는 role 문자열(예: `owner`)을 읽기에서 거부하지 못한다는 것이다(쓰기는 grade 스펙이 거부한다). 이 검사를 `assertGrant`(쓰기 트랜잭션 전용)에 넣으면 기존 읽기 도구 전체가 영향을 받으므로, 1b-1에서는 표를 한 곳으로 모으고 누락을 컴파일로 막는 데까지만 했다. 읽기 등급 검사는 새 대시보드 읽기 도구를 만드는 1b-4에서 `McpDashboardService`가 한다. `scope-policy.ts`의 읽기 `capability`는 그때까지 강제되지 않는다.
+
+배포 순서: 동의 요청 응답에 `scopeKinds`가 추가됐다. 새 프런트는 이것이 없는 응답을 거부하므로(닫힌 방향) **백엔드를 먼저 올리거나 함께 올린다.** Docker compose는 기본이 함께 올린다. 구 프런트는 모르는 키를 버리므로 새 백엔드와 같이 동작한다.
 
 ## 8. 검증 계획(수용 조건)
 

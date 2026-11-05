@@ -9,6 +9,10 @@ import { McpScope } from './config';
  * needs (enterprise/role-capabilities): a connection acts with the account's own rights, so a scope
  * the user approved is a ceiling and the grade is a second one.
  *
+ * Today only the write scopes' capability is enforced (`McpReportService.assertGrade`). The read
+ * scopes carry `read` so the table is complete; enforcing it on reads is 1b-4. Membership is already
+ * checked on every call by `McpOAuthService.revalidate`.
+ *
  * The record is exhaustive on purpose. A scope added to `McpScope` without an entry here does not
  * compile, so a new scope can neither skip the grade check nor be selected by default by accident.
  * A scope whose meaning later grows (a wider write, a publish) is a new scope name: approved grants
