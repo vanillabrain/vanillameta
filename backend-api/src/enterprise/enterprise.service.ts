@@ -12,6 +12,7 @@ import { DataSource, EntityManager, MoreThan, QueryFailedError } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { EnterpriseOrganization } from './entities/enterprise-organization.entity';
 import { EnterpriseMembership } from './entities/enterprise-membership.entity';
+import { isManagedMode, mayCreateOrganization } from './organization-mode';
 import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
 
 @Injectable()
@@ -72,13 +73,24 @@ export class EnterpriseService {
   }
   async context(actor: number) {
     return serializeMetadataWork(this.db, async () => {
-      await this.user(actor);
+      const user = await this.user(actor);
+      // The managed mode adds two fields; the open mode answers exactly as it always has.
+      const managed = isManagedMode()
+        ? {
+            mode: 'managed' as const,
+            canCreateOrganization: mayCreateOrganization(
+              user.userId,
+              await this.db.manager.count(EnterpriseOrganization),
+            ),
+          }
+        : {};
       if (!(await this.db.manager.findOneBy(EnterpriseMembership, { userId: actor })))
-        return { organization: null, membership: null };
+        return { organization: null, membership: null, ...managed };
       const { organization, membership } = await this.scope(actor);
       return {
         organization,
         membership: { userId: membership.userId, role: membership.role, team: membership.team },
+        ...(isManagedMode() ? { mode: 'managed' as const, canCreateOrganization: false } : {}),
       };
     });
   }
@@ -162,7 +174,12 @@ export class EnterpriseService {
     const input = this.fields(body, ['name']);
     const name = this.text(input.name, 100, true);
     return this.mutation(async manager => {
-      await this.user(actor, manager, true);
+      const user = await this.user(actor, manager, true);
+      if (
+        isManagedMode() &&
+        !mayCreateOrganization(user.userId, await manager.count(EnterpriseOrganization))
+      )
+        throw new ForbiddenException('조직은 지정된 관리자만, 한 번만 만들 수 있습니다.');
       if (await manager.findOneBy(EnterpriseMembership, { userId: actor }))
         throw new ConflictException('이미 조직에 소속돼 있습니다.');
       const organization = await manager.save(EnterpriseOrganization, { name, version: 1 });

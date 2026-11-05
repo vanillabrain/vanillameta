@@ -704,4 +704,32 @@ describe('organization canonical queries over real SQLite metadata and DuckDB', 
     expect(list[0].id).toBe(saved.id);
     expect(list[0].active).toBe(true);
   });
+  describe('organization creation in the managed mode', () => {
+    const previous = process.env.BOOTSTRAP_ADMIN_USER_ID;
+    afterEach(() => {
+      if (previous === undefined) delete process.env.BOOTSTRAP_ADMIN_USER_ID;
+      else process.env.BOOTSTRAP_ADMIN_USER_ID = previous;
+    });
+
+    it('lets only the bootstrap administrator create an organization', async () => {
+      process.env.BOOTSTRAP_ADMIN_USER_ID = 'owner';
+      const before = await db.manager.count(BiOrganization);
+      await expect(service.createOrganization({ name: '제3자 조직' }, 4)).rejects.toMatchObject({
+        status: 403,
+      });
+      expect(await db.manager.count(BiOrganization)).toBe(before);
+      await expect(service.createOrganization({ name: '관리자 조직' }, 1)).resolves.toMatchObject({
+        name: '관리자 조직',
+        role: 'admin',
+      });
+    });
+
+    it('keeps creation open for any account when no bootstrap administrator is set', async () => {
+      delete process.env.BOOTSTRAP_ADMIN_USER_ID;
+      await expect(service.createOrganization({ name: '열린 조직' }, 4)).resolves.toMatchObject({
+        name: '열린 조직',
+        role: 'admin',
+      });
+    });
+  });
 });
