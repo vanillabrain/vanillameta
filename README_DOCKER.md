@@ -31,7 +31,7 @@ docker compose up --build
 
 로컬 MCP 서버는 컨테이너가 아니라 PC에서 도는 별도 프로세스이다(Node 24.11 이상 24.x). 4000 포트는 열려 있지 않으므로 [`mcp-server/README.md`](mcp-server/README.md)의 주소 대신 웹 프록시를 쓴다. 실행에서 확인한 값은 환경변수 `VM_API_URL=http://127.0.0.1:3000/v1`, `VM_WEB_URL=http://127.0.0.1:3000`이다. `login.js`에 같은 주소를 `--api-url`, `--web-url`로 주는 것은 권장이며 실행하지 않았다.
 
-MCP 분석 대상은 DuckDB 소스(CSV·JSON·Parquet 업로드 등)이다. 외부 DB는 연결 저장은 되지만 `unsupported`로 표시된다. 또 knex 기반 외부 DB의 연결 테스트는 `Tarn: invalid opt.idleTimeoutMillis 0` 오류로 실패한다(알려진 결함, 미수정. PostgreSQL은 실행으로 확인했고 다른 엔진은 코드 읽기 추정). 원격 MCP(`/v1/mcp`)는 이 compose에 설정이 없어 시험하지 않았다.
+MCP 분석 대상은 DuckDB 소스(CSV·JSON·Parquet 업로드 등)이다. 외부 DB는 연결 저장은 되지만 `unsupported`로 표시된다. 또 knex 기반 외부 DB의 연결 테스트는 `Tarn: invalid opt.idleTimeoutMillis 0` 오류로 실패한다(알려진 결함, 미수정. PostgreSQL은 실행으로 확인했고 다른 엔진은 코드 읽기 추정). 원격 MCP(`/v1/mcp`)는 기본으로 꺼져 있다(503). 켜려면 `.env`에 `MCP_PUBLIC_API_URL=http://localhost:3000/v1`, `MCP_PUBLIC_WEB_URL=http://localhost:3000/`, `MCP_OAUTH_CLIENTS_JSON`(클라이언트 id·이름·정확한 redirect URI·허용 범위의 JSON 배열)을 넣는다. 주소의 포트는 `VM_WEB_PORT`와 같아야 하고, 웹 프록시가 포트를 포함한 `Host`를 그대로 백엔드에 넘긴다(포트가 빠지면 MCP가 `access_denied`로 거절한다). OAuth(PKCE) 승인부터 도구 호출·연결 해제까지는 `scripts/docker-e2e.sh`가 실제 스택에서 확인한다.
 
 ## 조직과 등급
 
