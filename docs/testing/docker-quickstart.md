@@ -159,6 +159,48 @@
 
 정리: 이 검증의 스택, colima 프로필 `vm-quickstart`(`--data` 포함)와 남은 ssh 마스터 1개를 종료했고 3000 포트는 비었다. 기존 `samba`, `vanillameta-verify`, `vm-m0-build`는 건드리지 않았다.
 
+## 조직 관리 모드와 등급 실검증 (2026-11-05, 브랜치 `feat/org-roles-1a`)
+
+기본 스택이 관리 모드(`BOOTSTRAP_ADMIN_USER_ID=guest`)로 바뀐 뒤의 검증이다. 증거는 `phase2-evidence/docker-quickstart/1a-managed/`에 있다.
+
+실제로 실행한 것.
+
+| 항목                                                                      | 결과                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/docker-smoke.sh` 전체(이미지 새 빌드)                            | 두 번 PASS. 중간 코드(`b5e11d8b` + 미커밋 compose·smoke) 12개 확인, 8분 24초. 최종 코드(`69d6f28b`, compose sha256 `020ce521…`, smoke sha256 `26c81f1c…`) 12개 확인, 5분 49초(캐시 포함). 로그 `smoke-1a-raw.log`(최종 실행)                                                                                                                                                                                                                                                                  |
+| smoke가 확인하는 흐름                                                     | guest는 시드된 조직 #1의 admin. 새 가입자는 `canCreateOrganization:false`이고 쓰기는 `403 ORGANIZATION_REQUIRED`. 그 계정이 발급한 연결 코드로 admin이 viewer로 추가. viewer는 읽기 200, 쓰기 `403 ROLE_FORBIDDEN`. admin이 editor로 바꾸면 같은 토큰의 쓰기가 등급을 통과해 입력 검증 `400`까지 감. editor가 다른 사람 등급을 바꾸려 하면 `403 ROLE_FORBIDDEN`                                                                                                                               |
+| 실제 브라우저(ego-browser, 스택 `127.0.0.1:13000`)                        | `guest` 로그인 후 `/organization`에서 조직 `VanillaMeta`, 조직 번호 #1, 내 역할 `admin (관리자)`, 직원 추가 폼의 역할 선택지 `admin, editor, contributor, viewer`(기본 editor). 스크린샷 `01-guest-admin-organization.png`                                                                                                                                                                                                                                                                    |
+| 같은 스택의 새 가입자(다른 오리진 `localhost:13000`)                      | 로그인하면 홈의 `403 ORGANIZATION_REQUIRED`가 `/organization`으로 이동시킨다. 조직 생성 폼은 없고 "아직 조직에 연결되지 않았습니다" 안내와 조직 번호 `1`이 미리 채워진 연결 코드 폼이 보인다. 스크린샷 `02-newcomer-waiting.png`                                                                                                                                                                                                                                                              |
+| 백엔드 전체 스위트(`c613493d`, 제가 직접 실행, Node 26, `--maxWorkers=3`) | 367 스위트 통과, 10 실패 → 6732 중 6550 통과. 10개를 분류: 병렬 부하 시간 초과 4(낮은 병렬도에서 통과), 기준 커밋 `72096fd9`에서도 같은 방식으로 실패하는 기존 실패 4(`connection-pool-monitor.service`, `personal-library`, `data-source`, `seeder.service`), 이 변경이 만든 회귀 2(`studio-publication.controller`, `studio-remix.controller`: 목 DataSource가 모든 엔티티에 사용자 모양 행을 돌려줘 멤버십 조회가 등급 없는 행을 받음 → 목 수정 후 통과). 로그 `full-backend-c613493d.log` |
+| architect 검토 반영 후 영향 범위 스펙(`--maxWorkers=2`)                   | 67 스위트 1274 테스트 통과, 80개는 MySQL 변형이라 건너뜀. 로그 `regress-after-review.log`                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 프런트(vitest)                                                            | `src/api`, `src/pages/Enterprise`, `src/helpers` 55 파일 1069 테스트 통과                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 새 테스트의 유효성                                                        | 단계마다 동작을 일부러 망가뜨리는 변이(게이트 제거, 매핑 오류, 기본값 변경 등)로 해당 테스트가 실패하는 것을 확인                                                                                                                                                                                                                                                                                                                                                                             |
+
+도구에서 만난 것.
+
+- 앱 화면은 로그인 ID를 영문·숫자만 허용한다("ID는 공백 없는 영문, 숫자만 가능합니다."). API는 하이픈도 받아서 smoke의 viewer ID에는 하이픈이 있다. 브라우저 확인용 계정을 처음 `ui-newcomer`로 만들었다가 이 검증에 막혀 로그인이 넘어가지 않았고, 영문·숫자 ID로 다시 만들어 통과했다. 제출은 DOM `click()`으로 했다. 도구의 합성 클릭이 이 화면의 제출을 못 하는지는 이번에 따로 확인하지 않았다(첫 실패의 원인은 ID 검증이었다).
+
+독립 검증의 한계.
+
+- `audit` 에이전트에 `aac72c73` 검증을 맡겼으나 저장소 규칙상 worktree 안 설치를 하지 않아 테스트를 실행하지 못했다("통과로 해석하면 안 된다"고 스스로 보고했다). 따라서 위 테스트 결과는 모두 작성자가 직접 실행한 것이고 독립 실행이 아니다.
+- architect는 구현 diff(`72096fd9..c613493d`와 미커밋 8단계)를 읽기 전용으로 검토했다. 그 검토를 반영한 커밋(`c2411f0b`, `69d6f28b`) 이후의 변경은 architect가 다시 보지 않았다.
+
+실행하지 못했거나 일부러 하지 않은 것.
+
+- 계획 6단계(권한 부여를 admin 전용으로: grant `ownerId`, 조회·회수)는 구현하지 않았다. 지금은 "admin이면서 소유자"만 권한을 준다. 그래서 요구 6의 "관리자 외에는 권한을 부여할 수 없다"는 유지되지만 admin이 남의 자원에 권한을 주는 기능은 없다.
+- 프런트 전체 스위트, Playwright e2e(관리 모드든 일반 모드든), MySQL 변형 스펙, 운영 DB 엔진별 동작, amd64.
+- 등급이 낮은 사용자의 원격 MCP 실제 호스트(Claude Code, Codex) 연결 시험. MCP 등급 검사는 SQLite 단위 테스트로만 확인했다.
+- 관리 모드에서 조직 안 viewer·contributor·editor가 보는 각 화면을 사람이 직접 눌러 확인하는 것(화면은 조직 페이지의 두 상태만 봤다).
+
+architect가 지적했고 사용자가 정한 것.
+
+- BI 거버넌스 컨트롤러 전체를 조직 밖 계정에 열어 둔다(외부 파트너가 조직 밖에서 보는 기능이라서). 조직 안 viewer는 거버넌스 내보내기가 막히는데 조직 밖 파트너는 거버넌스 정책이 허용하면 되는 역전이 있다.
+- 문서 공유와 대시보드 재사용 권한 부여는 editor도 한다(기존 member가 하던 일을 막지 않는다).
+- 운영에서 부트스트랩 계정을 먼저 만들지 않으면 초대 코드를 가진 사람이 그 로그인 ID로 먼저 가입해 admin이 될 수 있다. 개방 가입 모드는 부팅을 거부하지만 초대 모드는 문서로만 안내한다.
+- 조직 안 viewer도 AI 보조 라우트(텍스트→SQL 등)를 쓸 수 있고 사용자별 쿼터만 적용된다.
+- 인계·이관(handover) 서비스는 등급을 보지 않아 viewer도 제안·수락할 수 있다. 이후의 쓰기는 등급으로 막힌다. `staff-transfer`는 새 조직에 `member`(= editor)로 넣는다.
+- `serverless.ts` 진입점은 부팅 검사(`assertOrganizationMode`)를 하지 않는다.
+
 ## 확인하지 못한 것
 
 - 이 스택에서 `NOT_RUN`인 것. `scripts/login.js`의 대화형 로그인. 원격 `/v1/mcp`(OAuth이며 compose에 `MCP_PUBLIC_*`와 `MCP_OAUTH_CLIENTS_JSON` 설정이 없다). 서버 AI를 켠 `vm_propose_analysis` 이후 `vm_save_analysis`까지의 전체 여정. 업로드한 파일을 앱 화면(SQL 편집기, 인브라우저 DuckDB)에서 분석하는 것. PostgreSQL 이외 외부 DB 연결. 연결 테스트 버튼의 UI 동작(API 호출은 위 결함으로 실패).
