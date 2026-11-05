@@ -17,7 +17,7 @@
 | 3    | 완료       | 관리 모드: 부트스트랩 계정만 조직 생성(enterprise·거버넌스), 시드, 부팅 규칙, `context()` 확장                                                                                                                                                   |
 | 4    | 완료       | `JwtAuthGuard.canActivate`에서 등급·소속 판정, 4등급 입력, `member.role_changed` 감사. 분류에 없는 쓰기 라우트는 `manage`, 컨텍스트가 없으면 거부                                                                                                |
 | 5    | 완료       | 원격 MCP 쓰기(`comments:write`·`suggestions:write` → comment, `shares:write` → share)에 등급 적용                                                                                                                                                |
-| 6    | **미구현** | 권한 부여 admin 전용(`resource-policy.service`의 grant `ownerId` 저장·조회·회수). 지금은 "admin이면서 소유자"만 권한을 준다                                                                                                                      |
+| 6    | 완료(API)  | `grantAuthority`: 같은 조직 admin이 소유자와 무관하게 권한을 주고 회수한다. 권한 행은 자원 소유자 기준으로 저장해 조회가 된다. 단위 테스트 43개. 관리 화면의 자원 목록은 본인 소유만 보여 주므로 UI에서 남의 자원을 고르는 일은 하지 않았다      |
 | 7    | 완료(일부) | 등급 선택지 4개, 관리 모드 안내, 소속 없는 계정을 `/organization`으로 보내는 인터셉터, 조직 번호 자동 입력(리다이렉트는 조직 페이지, 거버넌스 `/organizations`, 로그인·공유·공개 화면을 제외). 거버넌스 화면의 조직 생성 버튼 숨김은 하지 않았다 |
 | 8    | 완료       | compose 기본값 `guest`, smoke의 등급 시나리오, 실제 스택·브라우저 확인                                                                                                                                                                           |
 
