@@ -22,9 +22,8 @@ describe('MCP scope policy', () => {
     expect(MCP_SCOPE_POLICY).toEqual(EXPECTED);
   });
 
-  it('classifies every scope that changes something as a write or delete, never by its name', () => {
-    // A scope named like a read but allowed to change data would be selected by default on the
-    // consent screen; the kind, not the suffix, decides.
+  it('gives a read kind only to scopes that need no more than read, and every other kind a real capability', () => {
+    // The consent screen defaults by kind, so a scope that changes data must not be classed as a read.
     for (const scope of MCP_SCOPES) {
       const { kind, capability } = MCP_SCOPE_POLICY[scope];
       if (kind === 'read') expect(capability).toBe('read');
