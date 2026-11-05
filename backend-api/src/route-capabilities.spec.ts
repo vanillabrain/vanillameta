@@ -14,7 +14,12 @@ import {
   ORGANIZATION_OPTIONAL_CONTROLLERS,
   ORGANIZATION_OPTIONAL_HANDLERS,
 } from './auth/capability-policy';
-import { READ_VERBS, ScannedRoute, productionRoutes } from './test-support/route-scan';
+import {
+  READ_VERBS,
+  ScannedRoute,
+  productionControllers,
+  productionRoutes,
+} from './test-support/route-scan';
 
 /**
  * Every route that changes state must be classified in ROUTE_CAPABILITIES. A new write route that
@@ -84,6 +89,16 @@ describe('route capability classification', () => {
     const controllers = new Set(all.map(r => r.controller));
     expect([...ORGANIZATION_OPTIONAL_HANDLERS].filter(k => !handlers.has(k))).toEqual([]);
     expect([...ORGANIZATION_OPTIONAL_CONTROLLERS].filter(k => !controllers.has(k))).toEqual([]);
+  });
+
+  // The table is keyed by class name, so two mounted controllers with one name would share (and
+  // silently inherit) each other's classification. Today two files declare a CacheController and only
+  // one is mounted; this fails the day both are.
+  it('mounts no two controllers that share a class name', async () => {
+    const names = (await productionControllers()).map(controller => controller.name);
+    expect(names.length).toBeGreaterThan(50);
+    const duplicated = names.filter((name, index) => names.indexOf(name) !== index);
+    expect([...new Set(duplicated)]).toEqual([]);
   });
 
   it('prints one line per route so a changed classification is a visible diff', () => {

@@ -144,14 +144,22 @@ export const responseMessage = data => {
  * 그 계정이 볼 수 있는 곳은 조직 페이지뿐이라 그곳으로 보낸다. 이미 그 페이지 안이면 보내지 않는다(반복 방지).
  */
 export const ORGANIZATION_PAGE_PATH = '/organization';
+/**
+ * 보내지 않는 곳: 조직 페이지 자신(반복 방지), BI 거버넌스 `/organizations`(외부 파트너가 조직 밖에서 쓰는 화면이다.
+ * Layout 의 알림 종이 조직 소속이 필요한 API 를 주기적으로 불러 403 을 받아도 쫓아내면 안 된다),
+ * 그리고 로그인 전·공개·공유 화면.
+ */
+const NO_REDIRECT_PATHS = ['/organization', '/organizations', '/login', '/signup'];
+const NO_REDIRECT_PREFIXES = ['/share/', '/embed/', '/published/', '/artifacts/shared/'];
 export function organizationRequiredRedirect(status: unknown, data: unknown, pathname: string): string | null {
   if (status !== 403) return null;
   const body = data as { code?: unknown; data?: { code?: unknown } } | null | undefined;
   const code = body?.data?.code ?? body?.code;
   if (code !== 'ORGANIZATION_REQUIRED') return null;
-  return pathname === ORGANIZATION_PAGE_PATH || pathname.startsWith(`${ORGANIZATION_PAGE_PATH}/`)
-    ? null
-    : ORGANIZATION_PAGE_PATH;
+  const exempt =
+    NO_REDIRECT_PATHS.some(path => pathname === path || pathname.startsWith(`${path}/`)) ||
+    NO_REDIRECT_PREFIXES.some(prefix => pathname.startsWith(prefix));
+  return exempt ? null : ORGANIZATION_PAGE_PATH;
 }
 
 // 응답 인터셉터

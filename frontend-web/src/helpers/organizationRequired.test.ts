@@ -22,8 +22,21 @@ describe('organizationRequiredRedirect', () => {
     expect(organizationRequiredRedirect(403, body('ORGANIZATION_REQUIRED'), '/organization/members')).toBeNull();
   });
 
-  it('keeps a page that merely starts with the same letters', () => {
-    expect(organizationRequiredRedirect(403, body('ORGANIZATION_REQUIRED'), '/organizations')).toBe('/organization');
+  it('does not send a partner away from the governance screens, which are used outside an organization', () => {
+    expect(organizationRequiredRedirect(403, body('ORGANIZATION_REQUIRED'), '/organizations')).toBeNull();
+    expect(organizationRequiredRedirect(403, body('ORGANIZATION_REQUIRED'), '/organizations/3/dashboards/9')).toBeNull();
+  });
+
+  it.each(['/login', '/signup', '/share/abc', '/embed/abc', '/published/abc', '/artifacts/shared/abc'])(
+    'does not move %s, a screen outside the signed-in app',
+    pathname => {
+      expect(organizationRequiredRedirect(403, body('ORGANIZATION_REQUIRED'), pathname)).toBeNull();
+    },
+  );
+
+  it('still moves a page that only starts with the same letters as an exempt one', () => {
+    expect(organizationRequiredRedirect(403, body('ORGANIZATION_REQUIRED'), '/organizationsettings')).toBe('/organization');
+    expect(organizationRequiredRedirect(403, body('ORGANIZATION_REQUIRED'), '/sharing')).toBe('/organization');
   });
 
   it.each([

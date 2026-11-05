@@ -73,6 +73,23 @@ export function scanRoutes(controllers: Ctor[]): ScannedRoute[] {
   return out;
 }
 
+/** The controllers the production app mounts, loaded in an isolated registry. */
+export async function productionControllers(): Promise<Ctor[]> {
+  const previous = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'prod';
+  try {
+    let appModule: unknown;
+    /* eslint-disable @typescript-eslint/no-var-requires */
+    jest.isolateModules(() => {
+      appModule = require('../app.module').AppModule;
+    });
+    /* eslint-enable @typescript-eslint/no-var-requires */
+    return await collectControllers(appModule);
+  } finally {
+    process.env.NODE_ENV = previous;
+  }
+}
+
 /** Loads the production AppModule in an isolated registry so guard classes are the app's own. */
 export async function productionRoutes(): Promise<ScannedRoute[]> {
   const previous = process.env.NODE_ENV;
