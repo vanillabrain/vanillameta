@@ -25,6 +25,7 @@ import {
   mcpScopeSchema,
   readMcpConfig,
 } from './config';
+import { mcpScopeKinds } from './scope-policy';
 import {
   McpOAuthCode,
   McpOAuthGrant,
@@ -333,6 +334,8 @@ export class McpOAuthService {
         organization: { id: organization.id, name: organization.name },
         accountLabel: user.email,
         requestedScopes: pending.scopes,
+        // The consent screen groups and defaults by this, not by guessing from the scope's name.
+        scopeKinds: mcpScopeKinds(pending.scopes as McpScope[]),
         expiresAt: pending.expiresAt,
         reviewToken: this.reviewToken(pending, actor, organization.id),
       };

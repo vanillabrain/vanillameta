@@ -32,7 +32,7 @@ import { McpScope } from './config';
 import { mcpError } from './mcp-server';
 import { McpOAuthPrincipal, McpOAuthService } from './mcp-oauth.service';
 import { isMemberRole, roleAllows } from '../enterprise/role-capabilities';
-import type { RouteCapability } from '../auth/route-capabilities';
+import { MCP_SCOPE_POLICY } from './scope-policy';
 
 export const REPORT_PAGE_UNITS = 20000;
 const COMMENT_PAGE_BYTES = 192 * 1024;
@@ -135,13 +135,6 @@ export function shareRequestId(requestId: string, recipientId: number) {
   )}-${hex.slice(20, 32)}`;
 }
 
-/** The capability each write scope needs; a read scope needs none. */
-const WRITE_SCOPE_CAPABILITY: Partial<Record<McpScope, RouteCapability>> = {
-  'comments:write': 'comment',
-  'suggestions:write': 'comment',
-  'shares:write': 'share',
-};
-
 @Injectable()
 export class McpReportService {
   constructor(
@@ -170,8 +163,7 @@ export class McpReportService {
    * bump authVersion, so the token stays valid).
    */
   private async assertGrade(manager: EntityManager, principal: McpOAuthPrincipal, scope: McpScope) {
-    const capability = WRITE_SCOPE_CAPABILITY[scope];
-    if (!capability) return;
+    const { capability } = MCP_SCOPE_POLICY[scope];
     const member = await manager.findOneBy(EnterpriseMembership, {
       userId: principal.actorId,
       organizationId: principal.organizationId,

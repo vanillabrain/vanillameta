@@ -171,7 +171,9 @@ scope 이름은 12절 결정 A에 따른다. 아래는 종류별 이름(`dashboa
 
 | 단계 | 내용 | 통과 조건 |
 | ---- | ---- | -------- |
-| 1b-1 | **scope 안전 선행.** 등급·종류 표를 `assertGrant`로 옮기고 `Record<McpScope,…>`로 강제, 프런트 쓰기 판정을 서버 `kind`로. 새 scope 문자열은 아직 열지 않는다 | 기존 MCP·AiConnections 테스트 통과. scope를 추가하면 표 누락이 컴파일 오류가 되는 것을 보이는 스펙. 읽기 scope도 소속 확인을 받는 스펙 |
+| 1b-1 | **scope 안전 선행(구현 완료).** `mcp-oauth/scope-policy.ts`의 `Record<McpScope,{kind,capability}>` 한 표를 등급 검사와 동의 요청 응답(`scopeKinds`)이 쓰고, 프런트는 이름이 아니라 서버가 준 `kind`로 분류·기본 해제한다. 새 scope 문자열은 아직 열지 않는다 | 기존 MCP·AiConnections 테스트 통과. 표 누락은 컴파일 오류, 손으로 쓴 기대표와 일치, `scopeKinds` 없는 요청은 프런트가 거부. **읽기 scope의 소속 확인은 1b-4로 옮겼다**(아래 주) |
+
+> 1b-1 주: 계획 초안은 등급 검사를 `assertGrant` 안으로 옮기고 읽기도 소속을 확인하라고 했다. `assertGrant`는 쓰기 트랜잭션 전용이고 기존 읽기 도구·스펙(소속 행이 없는 SQLite 픽스처)이 이 검사를 전제하지 않아 파급이 크다. 1b-1에서는 표를 한 곳으로 모으고 누락을 컴파일로 막는 데까지만 했고, 읽기 소속 확인은 새 대시보드 읽기 도구를 만드는 1b-4에서 `McpDashboardService`가 함께 한다. 기존 읽기 도구는 지금처럼 `organizationKey` 일치로 막힌다.
 | 1b-2 | `createOnce`를 `persistResolved`와 해석 단계로 분리. 상태 없는 경로 추가(MCP 미노출) | 기존 Studio 스펙 전부 통과 + 분리 전후 같은 입력의 정규화 출력 비교 + `metric.id` 없는 블록이 Metric 생성에 닿지 않는다는 단언 |
 | 1b-3 | `dashboard_revision` 엔티티·**마이그레이션**·등록, 모든 Studio 저장·생성에 이력(플래그 포함), 삭제·인계 정리 | 저장마다 행 1개, 같은 `requestId` 재시도는 행 추가 없음, 보존 규칙(human·생성 보존, ai 50개), **synchronize를 끈 PostgreSQL에서 마이그레이션 실행** |
 | 1b-4 | `assertSoleOwner`, `McpDashboardService`(조회·미리보기·생성), 속도 제한 | 소유자만 통과, 남의 것·소유 행 2개·admin 우회 거부, viewer 거부, 지표 미등록·FORMULA 거부, `previewDigest` 불일치 409 |

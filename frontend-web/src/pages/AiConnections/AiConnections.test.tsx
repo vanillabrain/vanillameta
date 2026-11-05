@@ -32,6 +32,15 @@ const keyboard = (text: string) =>
   act(async () => {
     userEvent.keyboard(text);
   });
+const KINDS = {
+  'sources:read': 'read',
+  'documents:read': 'read',
+  'reports:read': 'read',
+  'comments:read': 'read',
+  'comments:write': 'write',
+  'suggestions:write': 'write',
+  'shares:write': 'write',
+} as const;
 const request: ConsentRequest = {
   ticket: 'a'.repeat(64),
   clientName: 'Test AI',
@@ -39,6 +48,7 @@ const request: ConsentRequest = {
   organization: { id: 1, name: 'Current org' },
   accountLabel: 'user@example.test',
   requestedScopes: ['sources:read', 'documents:read'],
+  scopeKinds: KINDS,
   expiresAt: '2099-10-29T01:00:00.000Z',
   reviewToken: 'signed-review',
   redirectUri: 'https://ai.example/callback',
@@ -181,6 +191,26 @@ it('approves only reads unless a write scope is selected', async () => {
   showConsent();
   await click(await screen.findByRole('button', { name: 'Approve connection' }));
   expect(aiConnectionsService.decide).toHaveBeenCalledWith(mixed, { decision: 'approve', scopes: ['reports:read'] });
+});
+it('groups and defaults a scope by the kind the server reports, not by its name', async () => {
+  // A scope that is not called a read starts unchecked even though its name says nothing about writing.
+  const byKind: ConsentRequest = {
+    ...request,
+    requestedScopes: ['reports:read', 'documents:read'],
+    scopeKinds: { ...KINDS, 'documents:read': 'delete' },
+  };
+  vi.mocked(aiConnectionsService.request).mockResolvedValue(byKind);
+  showConsent();
+  const write = (await screen.findByRole('group', { name: 'Allow write access' })) as HTMLFieldSetElement;
+  const read = screen.getByRole('group', { name: 'Allow read access' });
+  expect(within(read).getAllByRole('checkbox')).toHaveLength(1);
+  expect(
+    within(write)
+      .getAllByRole('checkbox')
+      .map(box => (box as HTMLInputElement).checked),
+  ).toEqual([false]);
+  await click(screen.getByRole('button', { name: 'Approve connection' }));
+  expect(aiConnectionsService.decide).toHaveBeenCalledWith(byKind, { decision: 'approve', scopes: ['reports:read'] });
 });
 it('a write-only request starts with approval disabled', async () => {
   vi.mocked(aiConnectionsService.request).mockResolvedValue({ ...request, requestedScopes: ['comments:write'] });
