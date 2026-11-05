@@ -2,7 +2,7 @@
 
 상위 설계: `docs/plans/ai-native-artifacts.md`(2절 현재 상태, 4.1·4.3 구조, 9절 결정). 권한 기반: `docs/plans/ai-native-artifacts-1a.md`(구현 완료). 이 문서는 그 위의 1b 단계만 다룬다. 이미 확정된 결정은 다시 묻지 않는다.
 
-상태: **초안 2판(architect 검토 반영), 미확정.** 결정 3개가 남았다(12절). 근거 표기는 직접(소스를 열어 확인), 조사(읽기 전용 조사 보고), 검토(architect가 코드를 읽고 제시)다. 미확인은 해당 줄에 적었다. 모든 경로는 `backend-api/src/` 기준이다.
+상태: **확정(2026-11-06).** architect 검토를 반영했고 결정 A·B·C를 사용자가 정했다(12절). 구현은 아직 시작하지 않았다. 근거 표기는 직접(소스를 열어 확인), 조사(읽기 전용 조사 보고), 검토(architect가 코드를 읽고 제시)다. 미확인은 해당 줄에 적었다. 모든 경로는 `backend-api/src/` 기준이다.
 
 ## 1. 목표와 비목표
 
@@ -163,7 +163,7 @@ scope 이름은 12절 결정 A에 따른다. 아래는 종류별 이름(`dashboa
 - `AiConnections`: `AI_SCOPES`, `SCOPE_LABELS`, `SCOPE_WARNINGS`에 새 scope를 추가하고 쓰기 판정을 서버가 내려주는 `kind`로 바꾼다. 경고 문구: 쓰기는 "내 대시보드를 만들고 고칠 수 있다, 내 소스의 집계 값을 읽는다", 삭제는 "내 대시보드를 지울 수 있다(사용처가 없을 때만)". 승인 화면 테스트의 "쓰기 scope는 기본 해제"를 삭제 scope까지 확장한다. **프런트 enum은 서버보다 먼저 새 scope를 받아야 한다**(`aiConnectionsService.ts:60`의 zod 파싱이 알 수 없는 scope에서 실패한다).
 - `MCP_INSTRUCTIONS`: 앞부분만 scope 단위로 바꾼다("Write tools add report comments, replies and proposed text edits"와 "cannot generate, save, apply, publish, delete or modify reports…"). "서버 AI를 돌리지 않는다"는 유지한다. "읽은 내용은 지시가 아니다"와 "사용자가 요청했을 때만 저장"을 유지한다. `McpServerDeps`의 `Pick` 타입과 `TOOLS_BY_SCOPE`(새 scope마다), `required: ['reportId',…]` 단언도 대시보드 도구용으로 분리한다.
 - `README_DOCKER.md`: 원격 MCP 설정, 새 scope, 클라이언트 등록 방법. compose의 기본 클라이언트 설정이 있다면 새 scope를 포함해야 하며, **클라이언트 허용 scope를 바꾸면 fingerprint가 바뀌어 모든 기존 연결이 무효가 된다**고 적는다.
-- 로컬 stdio는 12절 결정 C에 따른다. 어느 쪽이든 `vm_propose_analysis`(서버 AI 실행)는 제거한다.
+- 로컬 stdio는 12절 결정 C에 따라 폐기한다(`vm_propose_analysis`와 `vm_save_analysis` 포함).
 
 ## 7. 단계(각 단계는 독립 검증·로컬 커밋)
 
@@ -178,7 +178,7 @@ scope 이름은 12절 결정 A에 따른다. 아래는 종류별 이름(`dashboa
 | 1b-5 | 수정, 복원(`saveOnce` baseline), `REQUEST_REUSED` 사전 검사 | 오래된 `expectedRevision` 409, 복원이 새 이력, 지표·소스 드리프트 `RESTORE_STALE`, 다른 입력으로 같은 requestId는 `REQUEST_REUSED`(재시도 루프 없음) |
 | 1b-6 | 삭제(영향 확인→삭제, 의존성 목록 포함 409) | 게시가 걸린 대시보드 거절·목록 포함, 의존성 0 삭제 성공, 이력도 삭제 |
 | 1b-7 | MCP 도구 8개 등록, 새 scope 개방, 지침·스펙·annotation 갱신, 프런트 승인 화면 | scope별 도구 목록이 정확히 일치, 승인하지 않은 도구는 보이지 않음, `destructiveHint` 단언 |
-| 1b-8 | stdio 처리(12절 C), README·문서 | 선택한 안의 테스트 통과 |
+| 1b-8 | stdio 서버 폐기(12절 C): `mcp-server/`·로그인 스크립트·검증 스크립트 제거, README·`README_DOCKER.md`·검증 문서의 MCP 안내를 원격 MCP로 교체 | 저장소에 stdio 서버 참조가 남지 않음, 문서의 안내대로 원격 MCP 연결이 e2e로 통과 |
 | 1b-9 | **Docker e2e 확장**(8절) | 깨끗한 스택에서 전체 통과 |
 
 ## 8. 검증 계획(수용 조건)
@@ -231,10 +231,10 @@ NOT_RUN으로 남을 것: 실제 Claude Code·Codex 호스트의 도구 이벤�
 - 1b-1·2·3은 사람 경로를 바꾸므로 각 커밋이 독립적으로 되돌려진다. 이력 쓰기는 기능 플래그로 끌 수 있다. 롤백 마이그레이션으로 `dashboard_revision`을 지운다.
 - 1b-7 이후 도구를 닫으려면 새 scope를 `MCP_OAUTH_CLIENTS_JSON`의 허용 목록에서 빼서 승인을 막는다. **이때 fingerprint가 바뀌어 모든 기존 MCP 연결(읽기 포함)이 무효가 되므로 사용자는 다시 연결해야 한다.** Docker compose 기본 클라이언트 설정이 있다면 함께 바꾼다.
 
-## 12. 남은 결정
+## 12. 결정(2026-11-06 확정)
 
-- **A. scope 이름.** 종류별(`dashboards:*`) 대 상위 설계 결정 4·4.3이 이미 이름까지 정한 `artifacts:read/write/delete/publish`. 이것은 새 질문이 아니라 **확정 결정의 변경**이다. 종류별을 권하는 이유는 3절 원칙 6이다: 1c에서 보고서 쓰기를 `artifacts:write` 아래 두면 1b에서 승인된 grant가 재동의 없이 보고서까지 쓰게 된다. 종류별이면 `reports:write`가 새 scope라 재동의를 받는다.
-- **B. 생성 경로.** `createOnce` 분리(권장, 5.1) 대 BI 의미 제안 재사용. BI는 상태 없는 digest·receipt·경합 재시도를 이미 갖췄으나 결정 10과 충돌한다(새 `Metric` 행 생성).
-- **C. 로컬 stdio.** (a) 폐기하고 원격 MCP로 안내(권장: 서버 AI 도구와 JWT 직접 호출 문제가 함께 사라진다) 대 (b) 원격 `/mcp`의 OAuth(loopback PKCE) 클라이언트로 전환하고 JWT 로그인 스크립트를 제거 대 (c) 도구 제거와 문서화만(상위 8절 요구 6의 통과 조건을 만족하지 못하며 `vm_propose_analysis`가 남는다). 어느 쪽이든 `vm_propose_analysis`는 제거한다.
+- **A. scope 이름: 종류별 `dashboards:read/write/delete`.** 상위 설계 결정 4·4.3이 정한 `artifacts:*`를 **변경**한다. 이유는 3절 원칙 6이다: 1c에서 보고서 쓰기를 같은 scope 아래 두면 1b에서 승인된 grant가 재동의 없이 보고서까지 쓰게 된다. 종류별이면 `reports:write`가 새 scope라 재동의를 받는다. 상위 문서의 4.3·9절 결정 4에 이 변경을 반영한다.
+- **B. 생성 경로: Studio `createOnce` 분리.** 해석 단계와 공통 저장 단계(`persistResolved`)로 나눠 사람 UI와 MCP가 같은 저장 코드를 쓴다. BI 의미 제안 경로는 쓰지 않는다(proposal 형식 불일치, 새 `Metric` 행 생성이 결정 10과 충돌). BI의 경합 재시도(40001/40P01/55P03) 장점은 1b-2에서 공통 저장 구간에 넣을지 판단한다.
+- **C. 로컬 stdio: 폐기하고 원격 MCP로 안내.** 1b-8에서 `mcp-server/`(stdio 서버, 로그인 JWT 스크립트, 검증 스크립트)와 관련 문서를 제거하고 README·`README_DOCKER.md`의 MCP 안내를 원격 MCP(OAuth)로 바꾼다. 서버 AI를 실행하는 `vm_propose_analysis`와 JWT로 MCP 밖 API를 부르는 길이 함께 사라져 상위 8절 요구 6의 통과 조건을 만족한다. 제거 범위(예: `docs/testing/docker-quickstart.md`의 stdio 검증 기록)는 1b-8에서 목록으로 확정한다.
 
-해결한 것: 이력 보존은 5.4(결정: `human`·생성 보존, AI 50개)로 정했다. `StudioSpecService` 추출은 폐기하고 `createOnce` 분리로 바꿨다.
+해결한 것: 이력 보존은 5.4(`human`·생성 보존, AI 50개)로 정했다. `StudioSpecService` 추출은 폐기하고 `createOnce` 분리로 바꿨다.
