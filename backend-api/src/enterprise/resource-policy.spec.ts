@@ -25,6 +25,7 @@ import { EnterpriseOrganization } from './entities/enterprise-organization.entit
 import { EnterpriseResourceGrant } from './entities/enterprise-resource-grant.entity';
 import { EnterpriseService } from './enterprise.service';
 import { EnterpriseGroupService } from './group.service';
+import * as staffLock from './staff-write-lock';
 import { EnterpriseResourcePolicyService } from './resource-policy.service';
 
 type Rights = Partial<Record<'read' | 'edit' | 'publish' | 'export', boolean>>;
@@ -1166,6 +1167,96 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
       ]);
       await expect(policy.groupPolicies('dashboard', 61, 1)).resolves.toMatchObject({
         entries: [{ groupId: 1, version: 1, rights: read }],
+      });
+    });
+
+    describe('what the group path and the locks leave behind', () => {
+      const makeGroup = () =>
+        db.manager.save(EnterpriseGroup, {
+          id: 1,
+          organizationId: 1,
+          name: 'g1',
+          nameKey: 'g1',
+          active: true,
+          version: 1,
+        });
+      const groupBody = (expectedVersion: number, granted = read) => ({
+        groupId: 1,
+        expectedVersion,
+        expectedGroupVersion: 1,
+        rights: granted,
+      });
+
+      it('refuses a group grant when the owner changed while it was being prepared', async () => {
+        await makeGroup();
+        const original = (policy as any).resource.bind(policy);
+        let calls = 0;
+        const spy = jest
+          .spyOn(policy as any, 'resource')
+          .mockImplementation(async (...args: any[]) => {
+            const row = await original(...args);
+            calls += 1;
+            return calls === 1 ? row : { ...row, ownerId: 3 };
+          });
+        try {
+          await expect(
+            policy.setGroupPolicy('dashboard', 61, 1, groupBody(0)),
+          ).rejects.toBeInstanceOf(ConflictException);
+        } finally {
+          spy.mockRestore();
+        }
+        expect(await db.manager.count(EnterpriseGroupGrant)).toBe(0);
+      });
+
+      it('traces the owner of a group grant made by someone else', async () => {
+        await makeGroup();
+        await policy.setGroupPolicy('dashboard', 61, 1, groupBody(0));
+        expect(
+          (await audits.find({ order: { id: 'ASC' } })).map(a => [a.action, a.subjectId]),
+        ).toEqual([
+          ['dashboard.group-permissions', 1],
+          ['dashboard.group-permissions.owner', 2],
+        ]);
+      });
+
+      it('lets an administrator who belongs to a group take rights away from it', async () => {
+        await makeGroup();
+        await db.manager.save(EnterpriseGroupMember, { groupId: 1, userId: 1 });
+        // A leftover row from before the rule; turning rights off must stay possible.
+        await db.manager.save(EnterpriseGroupGrant, {
+          resourceKind: 'dashboard',
+          resourceId: 61,
+          groupId: 1,
+          ownerId: 2,
+          organizationId: 1,
+          version: 1,
+          read: true,
+          edit: false,
+          publish: false,
+          export: false,
+        });
+        await expect(
+          policy.setGroupPolicy('dashboard', 61, 1, groupBody(1, rights())),
+        ).resolves.toMatchObject({ groupId: 1, version: 2 });
+      });
+
+      it('locks the actor, the recipient and the owner together before reading the authority', async () => {
+        const spy = jest.spyOn(staffLock, 'lockStaffWrite');
+        try {
+          await policy.set('dashboard', 61, 1, {
+            recipientId: 3,
+            expectedVersion: 0,
+            rights: read,
+          });
+          await makeGroup();
+          await policy.setGroupPolicy('dashboard', 61, 1, groupBody(0));
+          expect(spy.mock.calls.map(call => call[1])).toEqual([
+            [1, 3, 2],
+            [1, 2],
+          ]);
+        } finally {
+          spy.mockRestore();
+        }
       });
     });
 
