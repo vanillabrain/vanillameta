@@ -10,6 +10,10 @@ import {
   ROUTE_CAPABILITY_VALUES,
   RouteCapability,
 } from './auth/route-capabilities';
+import {
+  ORGANIZATION_OPTIONAL_CONTROLLERS,
+  ORGANIZATION_OPTIONAL_HANDLERS,
+} from './auth/capability-policy';
 import { READ_VERBS, ScannedRoute, productionRoutes } from './test-support/route-scan';
 
 /**
@@ -72,6 +76,14 @@ describe('route capability classification', () => {
       r => ROUTE_CAPABILITIES[key(r)] === 'operator' && !r.guards.includes('LegacyOperationsGuard'),
     );
     expect(operatorsWithoutGuard.map(key)).toEqual([]);
+  });
+
+  it('names only handlers and controllers that exist, for routes that need no organization', async () => {
+    const all = await productionRoutes();
+    const handlers = new Set(all.map(r => `${r.controller}.${r.handler}`));
+    const controllers = new Set(all.map(r => r.controller));
+    expect([...ORGANIZATION_OPTIONAL_HANDLERS].filter(k => !handlers.has(k))).toEqual([]);
+    expect([...ORGANIZATION_OPTIONAL_CONTROLLERS].filter(k => !controllers.has(k))).toEqual([]);
   });
 
   it('prints one line per route so a changed classification is a visible diff', () => {

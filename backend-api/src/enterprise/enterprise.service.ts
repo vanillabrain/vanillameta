@@ -13,6 +13,7 @@ import { User } from '../user/entities/user.entity';
 import { EnterpriseOrganization } from './entities/enterprise-organization.entity';
 import { EnterpriseMembership } from './entities/enterprise-membership.entity';
 import { isManagedMode, mayCreateOrganization } from './organization-mode';
+import { isMemberRole, normalizeRole, StoredRole } from './role-capabilities';
 import { EnterpriseAuditEvent } from './entities/enterprise-audit-event.entity';
 
 @Injectable()
@@ -39,10 +40,13 @@ export class EnterpriseService {
       throw new BadRequestException('이름·소속의 길이를 확인해 주세요.');
     return value.trim();
   }
-  private role(value: unknown): 'admin' | 'member' {
-    if (value !== 'admin' && value !== 'member')
-      throw new BadRequestException('역할을 확인해 주세요.');
-    return value;
+  /**
+   * Accepts the four grades and the legacy `member`, stored as given: the legacy value keeps
+   * reading as `editor`, and the screens move to the grades on their own schedule.
+   */
+  private role(value: unknown): StoredRole {
+    if (!isMemberRole(value)) throw new BadRequestException('역할을 확인해 주세요.');
+    return value as StoredRole;
   }
   private version(value: unknown) {
     if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) >= 2147483647)
@@ -363,6 +367,16 @@ export class EnterpriseService {
         targetId,
         organization.version,
       );
+      // A change of grade is told apart from a change of team; the legacy member and editor are one grade.
+      if (normalizeRole(member.role) !== normalizeRole(role))
+        await this.audit(
+          manager,
+          organization.id,
+          actor,
+          'member.role_changed',
+          targetId,
+          organization.version,
+        );
       return {
         organizationVersion: organization.version,
         member: { id: user.id, userId: user.userId, team, role, active: input.active },

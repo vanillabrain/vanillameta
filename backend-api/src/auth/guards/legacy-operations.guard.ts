@@ -7,6 +7,9 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 /** Global legacy diagnostics are server operations, never implicit organization-admin privileges. */
 @Injectable()
 export class LegacyOperationsGuard extends JwtAuthGuard {
+  /** Server operators are not necessarily members of an organization. */
+  protected readonly organizationOptional: boolean = true;
+
   constructor(jwt: JwtService, db: DataSource, private readonly config: ConfigService) {
     super(jwt, db);
   }
