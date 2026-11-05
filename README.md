@@ -49,7 +49,8 @@ Compose starts PostgreSQL 17, the backend (which creates the metadata schema and
 - Different web port: `VM_WEB_PORT=8080 CORS_ORIGIN=http://localhost:8080 docker compose up --build`.
 - The web port is bound to `127.0.0.1` only. This stack is not for the internet: in dev mode `GET /v1/` reveals the demo account and signup is open. Use `VM_BIND=0.0.0.0` only on a trusted LAN, and change the five `dev-only-*` secrets (see `.env.example`) before the first start: `CONFIG_SECRET_KEY` encrypts saved connections, so changing it later needs `docker compose down -v`. For a public deployment use [`deploy/`](deploy/README.md).
 - Check the whole path (build, start, proxy, sign-in) with one command: `scripts/docker-smoke.sh`.
-- AI assistant (optional): set `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL` (and `AI_API_BASE_URL` for compatible endpoints) before `docker compose up`. Without a key only the AI features are off.
+- AI assistant (optional): set `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL` (and `AI_API_BASE_URL` for compatible endpoints) before `docker compose up`. Without a key only the AI features are off. There is no in-app screen for the key; it is read from the environment only.
+- MCP: with no server AI configured, verified on this stack: the local stdio server connects through the web proxy (`VM_API_URL=http://127.0.0.1:3000/v1`, not port 4000), lists and describes sources, and sees an uploaded CSV. That is all it does without a server AI. `vm_propose_analysis` returns 503, and saving needs a server-made proposal, so an external AI cannot save an analysis it wrote itself. External databases are listed but are not MCP analysis targets, and their connection test currently fails (known defect, `Tarn: invalid opt.idleTimeoutMillis 0`, unfixed). Remote MCP was not tested. Details: [README_DOCKER.md](README_DOCKER.md#mcp와-ai-키).
 
 > This stack is for trying VanillaMeta out. It runs with `NODE_ENV=dev`, so the database is created by schema sync and cannot be promoted to production with `migrate-prod`. For a real deployment use [`deploy/`](deploy/README.md). There is no `npx` one-liner: the app needs a server and PostgreSQL, so Docker Compose is the supported one-command path. The [MCP server](mcp-server/README.md) is a separate local process, not published to npm yet.
 
@@ -138,6 +139,7 @@ docker compose up --build
 - 백그라운드 실행 `docker compose up --build -d`, 종료 `docker compose down`, DB까지 초기화 `docker compose down -v`
 - 웹 포트는 기본적으로 `127.0.0.1`에만 열립니다. 인터넷 공개용이 아닙니다(dev 모드는 `GET /v1/`이 데모 계정을 알려 주고 회원가입도 열려 있습니다). 신뢰하는 LAN에서만 `VM_BIND=0.0.0.0`을 쓰고 `dev-only-*` 비밀값 5개를 처음 띄우기 전에 바꾸세요(`CONFIG_SECRET_KEY`는 저장된 연결을 암호화하므로 나중에 바꾸면 `docker compose down -v`가 필요합니다). 공개 배포는 [`deploy/`](deploy/README.md)를 쓰세요.
 - 빌드·기동·프록시·로그인까지 한 번에 확인: `scripts/docker-smoke.sh`
+- MCP: 서버 AI를 설정하지 않은 스택에서 확인한 것은 소스 목록·스키마 조회와 CSV 업로드 노출까지입니다. 분석안 생성은 서버 AI가 필요해 설정이 없으면 503이고, 저장도 서버가 만든 제안만 받으므로 외부 AI가 직접 만든 분석은 저장할 수 없습니다. 로컬 MCP 서버는 4000이 아니라 웹 프록시(`VM_API_URL=http://127.0.0.1:3000/v1`)로 붙입니다. 외부 DB는 목록에는 나오지만 MCP 분석 대상이 아니고 연결 테스트가 알려진 결함(`Tarn: invalid opt.idleTimeoutMillis 0`, 미수정)으로 실패합니다. 원격 MCP는 시험하지 않았습니다. 자세한 내용은 [README_DOCKER.md](README_DOCKER.md#mcp와-ai-키)를 보세요.
 - 이 구성은 체험용입니다(`NODE_ENV=dev`). 운영 승격은 되지 않으며 운영 배포는 [`deploy/`](deploy/README.md)를 따르세요. 앱 전체를 `npx`로 띄우는 방법은 없습니다(서버와 PostgreSQL이 필요).
 
 ### 주요 기능

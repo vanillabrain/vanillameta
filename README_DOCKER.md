@@ -25,6 +25,14 @@ docker compose up --build
 
 브라우저는 3000 포트 하나만 쓴다. backend(4000)와 PostgreSQL(5432)은 호스트에 열지 않으므로 다른 프로그램과 포트가 겹치지 않는다. DB를 직접 보려면 `docker compose exec postgres psql -U vanillameta`.
 
+## MCP와 AI 키
+
+서버 AI를 설정하지 않은 스택에서 로컬 MCP 서버로 확인한 것은 소스 목록·스키마 조회와 파일 업로드이다([검증](docs/testing/docker-quickstart.md)). 분석안 생성(`vm_propose_analysis`)은 서버 AI가 설정되어 있어야 하고, 설정이 없으면 `503`으로 거부된다. 저장 도구(`vm_save_analysis`)도 서버가 만든 제안의 ID만 받으므로(코드 읽기, 실행하지 않음) 외부 AI가 직접 만든 분석을 저장하는 경로는 없다. 즉 서버 AI 없이는 조회와 업로드까지만 된다. 앱 안에 AI 설정 화면은 없고 환경변수로만 설정하며, 쓸 모델은 `AI_MODEL`로 명시한다.
+
+로컬 MCP 서버는 컨테이너가 아니라 PC에서 도는 별도 프로세스이다(Node 24.11 이상 24.x). 4000 포트는 열려 있지 않으므로 [`mcp-server/README.md`](mcp-server/README.md)의 주소 대신 웹 프록시를 쓴다. 실행에서 확인한 값은 환경변수 `VM_API_URL=http://127.0.0.1:3000/v1`, `VM_WEB_URL=http://127.0.0.1:3000`이다. `login.js`에 같은 주소를 `--api-url`, `--web-url`로 주는 것은 권장이며 실행하지 않았다.
+
+MCP 분석 대상은 DuckDB 소스(CSV·JSON·Parquet 업로드 등)이다. 외부 DB는 연결 저장은 되지만 `unsupported`로 표시된다. 또 knex 기반 외부 DB의 연결 테스트는 `Tarn: invalid opt.idleTimeoutMillis 0` 오류로 실패한다(알려진 결함, 미수정. PostgreSQL은 실행으로 확인했고 다른 엔진은 코드 읽기 추정). 원격 MCP(`/v1/mcp`)는 이 compose에 설정이 없어 시험하지 않았다.
+
 ## 자주 쓰는 명령
 
 ```bash
