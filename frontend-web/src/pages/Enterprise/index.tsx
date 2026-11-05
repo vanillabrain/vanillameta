@@ -34,7 +34,14 @@ const ORGANIZATION_ID_PATTERN = /^[1-9][0-9]{0,18}$/;
 
 type EditEntry = { member: EnterpriseMember; team: string; role: EnterpriseMember['role']; active: boolean };
 
-const roleLabel = (role: EnterpriseMember['role']) => (role === 'admin' ? 'admin (관리자)' : 'member (구성원)');
+const ROLE_LABELS: Record<EnterpriseMember['role'], string> = {
+  admin: 'admin (관리자)',
+  editor: 'editor (편집자)',
+  contributor: 'contributor (기여자)',
+  viewer: 'viewer (열람자)',
+  member: 'member (구성원)',
+};
+const roleLabel = (role: EnterpriseMember['role']) => ROLE_LABELS[role] ?? 'member (구성원)';
 const activeLabel = (active: boolean) => (active ? '활성' : '비활성');
 
 const reasonOf = (error: unknown): string =>

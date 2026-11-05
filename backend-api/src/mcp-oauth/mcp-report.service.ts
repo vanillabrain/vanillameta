@@ -31,6 +31,7 @@ import { ReportSharingService } from '../reports/report-sharing.service';
 import { McpScope } from './config';
 import { mcpError } from './mcp-server';
 import { McpOAuthPrincipal, McpOAuthService } from './mcp-oauth.service';
+import { isMemberRole } from '../enterprise/role-capabilities';
 
 export const REPORT_PAGE_UNITS = 20000;
 const COMMENT_PAGE_BYTES = 192 * 1024;
@@ -486,7 +487,7 @@ export class McpReportService {
           !user?.active ||
           user.id === principal.actorId ||
           member?.organizationId !== principal.organizationId ||
-          !['admin', 'member'].includes(member.role)
+          !isMemberRole(member.role)
         )
           throw new BadRequestException(
             `"${loginId.slice(
