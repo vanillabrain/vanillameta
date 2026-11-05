@@ -143,7 +143,7 @@ export const ROUTE_CAPABILITIES: Readonly<Record<string, RouteCapability>> = {
   'DatasetController.invalidateDatasetCache': 'write',
   'DatasetController.remove': 'write',
   'DatasetController.update': 'write',
-  'DocumentsController.aiSummary': 'read',
+  'DocumentsController.aiSummary': 'write',
   'DocumentsController.complete': 'source',
   'DocumentsController.disconnect': 'source',
   'DocumentsController.refresh': 'source',

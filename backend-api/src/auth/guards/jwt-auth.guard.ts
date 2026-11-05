@@ -89,12 +89,21 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
    * Refuses the request when the account's grade does not allow what the route does, or, in the
    * managed mode, when the account belongs to no organization. Runs after the token is proven and
    * only for a signed-in account: a share-link token has no account and is limited elsewhere.
-   * A context without a controller and handler is not an HTTP route of the app, so it is left alone.
    */
   private async enforceCapability(context: ExecutionContext, request: any, userInfo: any) {
     const controller = context.getClass?.()?.name;
     const handler = context.getHandler?.()?.name;
-    if (!controller || !handler) return;
+    // Nest always supplies both for an HTTP route; without them the route cannot be classified, so
+    // the request is refused rather than let through.
+    if (!controller || !handler)
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          code: 'ROUTE_UNCLASSIFIED',
+          message: '요청을 처리할 수 없습니다.',
+        },
+        HttpStatus.FORBIDDEN,
+      );
     const membership = await this.dataSource
       .getRepository(EnterpriseMembership)
       .findOne({ where: { userId: userInfo.accessKeyData.id }, select: ['userId', 'role'] });

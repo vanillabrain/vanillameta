@@ -39,8 +39,15 @@ describe('capability policy', () => {
       expect(capabilityOf(...MANAGE, 'POST')).toBe('manage');
       expect(capabilityOf(...READ_POST, 'POST')).toBe('read');
     });
-    it('treats an unclassified write verb as write rather than as a read', () => {
-      expect(capabilityOf('NoSuchController', 'nothing', 'POST')).toBe('write');
+    it('treats an unclassified write verb as manage, the strictest, never as a read or a write', () => {
+      expect(capabilityOf('NoSuchController', 'nothing', 'POST')).toBe('manage');
+    });
+    it('leaves an unclassified write route to administrators only', () => {
+      expect(ask('NoSuchController', 'nothing', 'POST', 'admin')).toBeUndefined();
+      for (const role of ['editor', 'contributor', 'viewer'])
+        expect(ask('NoSuchController', 'nothing', 'POST', role)).toMatchObject({
+          code: 'ROLE_FORBIDDEN',
+        });
     });
   });
 

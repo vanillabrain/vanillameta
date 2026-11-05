@@ -144,6 +144,25 @@ describe('EnterpriseService in the managed mode', () => {
       });
     });
 
+    it('names the one organization to an account waiting to be added, and none before it exists', async () => {
+      await expect(service.context(2)).resolves.not.toHaveProperty('joinOrganizationId');
+      await service.create(1, { name: '바닐라메타' });
+      const [organization] = await organizations.find();
+      await expect(service.context(2)).resolves.toMatchObject({
+        joinOrganizationId: organization.id,
+      });
+      // A member already belongs to it, so there is nothing to join.
+      await expect(service.context(1)).resolves.not.toHaveProperty('joinOrganizationId');
+    });
+
+    it('names nothing when there is more than one organization', async () => {
+      await organizations.save([
+        { name: 'a', version: 1 },
+        { name: 'b', version: 1 },
+      ]);
+      await expect(service.context(2)).resolves.not.toHaveProperty('joinOrganizationId');
+    });
+
     it('answers exactly as before when the mode is off', async () => {
       delete process.env.BOOTSTRAP_ADMIN_USER_ID;
       await expect(service.context(1)).resolves.toEqual({ organization: null, membership: null });

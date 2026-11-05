@@ -165,7 +165,7 @@ Array [
   "POST /documents/:id/disconnect -> source",
   "POST /documents/:id/refresh -> source",
   "POST /documents/:id/shares -> share",
-  "POST /documents/:id/summary -> read",
+  "POST /documents/:id/summary -> write",
   "POST /documents/google/complete -> source",
   "POST /documents/google/start -> source",
   "POST /documents/microsoft/preview -> read",

@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, configure, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import Enterprise from './index';
 
@@ -128,4 +128,30 @@ it('tells any other account in the managed mode to wait to be added, without a w
   expect(screen.queryByRole('button', { name: '조직 만들기' })).toBeNull();
   // It can still issue the code an administrator needs to add it.
   expect(screen.getByLabelText(/^참여할 조직 번호/)).toBeTruthy();
+});
+
+it('fills in the organization number for an account that is waiting to be added, and lets it be edited', async () => {
+  serveContext({
+    organization: null,
+    membership: null,
+    mode: 'managed',
+    canCreateOrganization: false,
+    joinOrganizationId: 7,
+  });
+  render(<Enterprise />);
+
+  // The form is drawn before the context answers; the number arrives with it.
+  const field = (await screen.findByLabelText(/^참여할 조직 번호/)) as HTMLInputElement;
+  await waitFor(() => expect(field.value).toBe('7'));
+  fireEvent.change(field, { target: { value: '8' } });
+  expect(field.value).toBe('8');
+});
+
+it('leaves the organization number empty when the server names none', async () => {
+  serveContext({ organization: null, membership: null, mode: 'managed', canCreateOrganization: false });
+  render(<Enterprise />);
+
+  await screen.findByText(/아직 조직에 연결되지 않았습니다/);
+  const field = screen.getByLabelText(/^참여할 조직 번호/) as HTMLInputElement;
+  expect(field.value).toBe('');
 });

@@ -21,6 +21,8 @@ export type EnterpriseContext = {
   membership: { userId: number; role: EnterpriseRole; team: string } | null;
   mode?: EnterpriseMode;
   canCreateOrganization?: boolean;
+  /** Managed mode, no membership yet: the number of the one organization this account can ask to join. */
+  joinOrganizationId?: number;
 };
 
 export type EnterpriseMember = {
@@ -80,6 +82,7 @@ const contextShape = (input: any): input is EnterpriseContext => {
   if (!input || typeof input !== 'object') return false;
   if (input.mode !== undefined && input.mode !== 'open' && input.mode !== 'managed') return false;
   if (input.canCreateOrganization !== undefined && typeof input.canCreateOrganization !== 'boolean') return false;
+  if (input.joinOrganizationId !== undefined && !positiveInteger(input.joinOrganizationId)) return false;
   if (input.organization === null && input.membership === null) return true;
   return (
     !!input.organization &&

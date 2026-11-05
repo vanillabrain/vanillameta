@@ -139,6 +139,21 @@ export const responseMessage = data => {
   return undefined;
 };
 
+/**
+ * 조직에 연결되지 않은 계정이 관리 모드에서 쓰기·조회를 하면 서버가 403 ORGANIZATION_REQUIRED 로 답한다.
+ * 그 계정이 볼 수 있는 곳은 조직 페이지뿐이라 그곳으로 보낸다. 이미 그 페이지 안이면 보내지 않는다(반복 방지).
+ */
+export const ORGANIZATION_PAGE_PATH = '/organization';
+export function organizationRequiredRedirect(status: unknown, data: unknown, pathname: string): string | null {
+  if (status !== 403) return null;
+  const body = data as { code?: unknown; data?: { code?: unknown } } | null | undefined;
+  const code = body?.data?.code ?? body?.code;
+  if (code !== 'ORGANIZATION_REQUIRED') return null;
+  return pathname === ORGANIZATION_PAGE_PATH || pathname.startsWith(`${ORGANIZATION_PAGE_PATH}/`)
+    ? null
+    : ORGANIZATION_PAGE_PATH;
+}
+
 // 응답 인터셉터
 instance.interceptors.response.use(
   response => {
@@ -163,6 +178,12 @@ instance.interceptors.response.use(
       requestConfig._retry = true;
       return await resetTokenAndReattemptRequest({ ...errorResponse, config: requestConfig });
     }
+    const organizationPage = organizationRequiredRedirect(
+      errorResponse?.status,
+      errorResponse?.data,
+      window.location.pathname,
+    );
+    if (organizationPage) window.location.assign(organizationPage);
     error.message = message || error?.message || error.toString();
     return Promise.reject(error);
   },

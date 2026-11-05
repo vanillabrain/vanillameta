@@ -225,17 +225,24 @@ describe('JwtAuthGuard grade and organization checks', () => {
     });
   });
 
-  it('leaves a context with no controller or handler alone, since it is not an app route', async () => {
-    const request = {
-      headers: { authorization: `Bearer ${tokenOf(4)}` },
-      method: 'POST',
-      path: '/x',
-    };
-    await setRole(4, 'viewer');
-    const bare = {
-      switchToHttp: () => ({ getRequest: () => request }),
-    } as unknown as ExecutionContext;
-    await expect(guard.canActivate(bare)).resolves.toBe(true);
+  it('refuses a context with no controller or handler, since the route cannot be classified', async () => {
+    await setRole(1, 'admin');
+    for (const [id, method] of [
+      [4, 'POST'],
+      [1, 'GET'],
+    ] as const) {
+      const request = {
+        headers: { authorization: `Bearer ${tokenOf(id)}` },
+        method,
+        path: '/x',
+      };
+      const bare = {
+        switchToHttp: () => ({ getRequest: () => request }),
+      } as unknown as ExecutionContext;
+      const refused = await refusal(guard.canActivate(bare));
+      expect(refused?.status).toBe(403);
+      expect(refused?.body.code).toBe('ROUTE_UNCLASSIFIED');
+    }
   });
 
   it('still refuses a token that is not valid, before any grade is looked at', async () => {

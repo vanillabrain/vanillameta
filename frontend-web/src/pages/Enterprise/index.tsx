@@ -129,6 +129,11 @@ export default function Enterprise() {
   const organization = context?.organization ?? null;
   const membership = context?.membership ?? null;
   const isAdmin = membership?.role === 'admin';
+  // An account waiting to be added fills in the one organization's number by itself.
+  const joinOrganizationId = context?.joinOrganizationId;
+  useEffect(() => {
+    if (joinOrganizationId !== undefined) setEnrollmentTarget(current => current || String(joinOrganizationId));
+  }, [joinOrganizationId]);
   // Managed installation: one organization, created once by the designated administrator.
   const managed = context?.mode === 'managed';
   const mayCreate = !managed || context?.canCreateOrganization === true;

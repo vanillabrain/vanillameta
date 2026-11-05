@@ -61,9 +61,18 @@ describe('organization mode', () => {
     await expect(fetchContext()).resolves.toMatchObject({ mode: 'managed', canCreateOrganization: true });
   });
 
+  it('reads the number of the one organization an account can ask to join', async () => {
+    api.get.mockResolvedValue({
+      data: { organization: null, membership: null, mode: 'managed', canCreateOrganization: false, joinOrganizationId: 7 },
+    });
+    await expect(fetchContext()).resolves.toMatchObject({ joinOrganizationId: 7 });
+  });
+
   it.each([
     ['an unknown mode', { mode: 'closed' }],
     ['a non-boolean canCreateOrganization', { canCreateOrganization: 'yes' }],
+    ['a joinOrganizationId that is not a positive integer', { joinOrganizationId: 0 }],
+    ['a joinOrganizationId that is text', { joinOrganizationId: '7' }],
   ])('refuses %s', async (_name, extra) => {
     api.get.mockResolvedValue({ data: { organization: null, membership: null, ...extra } });
     await expect(fetchContext()).rejects.toBeInstanceOf(EnterpriseApiError);

@@ -52,12 +52,12 @@ export interface AccessInput {
 /**
  * The capability a request needs. A read verb is `read`. A write verb must be in the table; the
  * route-capabilities spec fails when one is not, so the fallback is only reached by a route the
- * production app does not mount, and it takes the strictest ordinary choice (`write`) rather than
- * letting an unclassified route through as a read.
+ * production app does not mount. It takes the strictest capability (`manage`, administrators
+ * only) so that an unclassified route is never open to a lower grade by accident.
  */
 export function capabilityOf(controller: string, handler: string, method: string): RouteCapability {
   if (READ_METHODS.has(method.toUpperCase())) return 'read';
-  return ROUTE_CAPABILITIES[`${controller}.${handler}`] ?? 'write';
+  return ROUTE_CAPABILITIES[`${controller}.${handler}`] ?? 'manage';
 }
 
 /**

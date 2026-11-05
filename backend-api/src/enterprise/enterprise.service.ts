@@ -79,15 +79,19 @@ export class EnterpriseService {
     return serializeMetadataWork(this.db, async () => {
       const user = await this.user(actor);
       // The managed mode adds two fields; the open mode answers exactly as it always has.
-      const managed = isManagedMode()
-        ? {
-            mode: 'managed' as const,
-            canCreateOrganization: mayCreateOrganization(
-              user.userId,
-              await this.db.manager.count(EnterpriseOrganization),
-            ),
-          }
-        : {};
+      let managed: Record<string, unknown> = {};
+      if (isManagedMode()) {
+        // A managed installation has one organization; an account waiting to be added needs its number.
+        const organizations = await this.db.manager.find(EnterpriseOrganization, {
+          select: { id: true },
+          take: 2,
+        });
+        managed = {
+          mode: 'managed' as const,
+          canCreateOrganization: mayCreateOrganization(user.userId, organizations.length),
+          ...(organizations.length === 1 ? { joinOrganizationId: organizations[0].id } : {}),
+        };
+      }
       if (!(await this.db.manager.findOneBy(EnterpriseMembership, { userId: actor })))
         return { organization: null, membership: null, ...managed };
       const { organization, membership } = await this.scope(actor);
