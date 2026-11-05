@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import request from 'supertest';
 import { StudioRemixController } from './studio-remix.controller';
 import { StudioRemixService } from './studio-remix.service';
@@ -35,7 +36,11 @@ describe('T9 authenticated no-store remix HTTP API', () => {
           provide: DataSource,
           useValue: {
             options: { type: 'sqlite' },
-            getRepository: () => ({ findOne: async () => ({ id: 8, userId: 'recipient' }) }),
+            // The account belongs to no organization; only the user lookup finds a row.
+            getRepository: (entity: unknown) => ({
+              findOne: async () =>
+                entity === EnterpriseMembership ? null : { id: 8, userId: 'recipient' },
+            }),
           },
         },
       ],

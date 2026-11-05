@@ -190,7 +190,7 @@ NOT_RUN으로 남을 수 있는 것: MySQL 변형 spec(별도 DB 필요), 운영
 
 ## 6. 위험
 
-기준선 실패(1a와 무관, 기준 커밋 `9bd6b109`에서도 동일): `database/seeds/seeder.service.spec.ts`의 "stores the sample sqlite connection config…"와 "resolves a relative configured database path…" 2건. 큰 묶음을 병렬로 돌리면 `staff-departure.spec`·`classification.service.spec`이 시간 초과로 실패할 수 있으나 단독 실행은 통과한다.
+기준선 실패(1a와 무관, 기준 커밋 `72096fd9`에서도 동일하게 실패, 같은 방법으로 비교): `common/monitoring/connection-pool-monitor.service.spec.ts`, `dashboard/personal-library.spec.ts`, `data-source.spec.ts`, `database/seeds/seeder.service.spec.ts`. 전체 스위트를 병렬로 돌리면 `studio-pivot.integration`, `studio-remix-conditions`, `studio-remix.service`, `documents.service`, `staff-departure`, `classification.service` 등이 시간 초과로 실패할 수 있으나 병렬도를 낮추면(`--maxWorkers=2`) 통과한다.
 
 | 위험                                                                                | 대응                                                             |
 | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
