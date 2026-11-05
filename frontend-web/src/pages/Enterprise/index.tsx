@@ -42,6 +42,19 @@ const ROLE_LABELS: Record<EnterpriseMember['role'], string> = {
   member: 'member (구성원)',
 };
 const roleLabel = (role: EnterpriseMember['role']) => ROLE_LABELS[role] ?? 'member (구성원)';
+const GRADES = ['admin', 'editor', 'contributor', 'viewer'] as const;
+
+/** The four grades. The legacy `member` is offered only while a member still holds it, so it is not chosen for a new one. */
+const RoleOptions = ({ legacy = false }: { legacy?: boolean }) => (
+  <>
+    {legacy && <option value="member">{ROLE_LABELS.member}</option>}
+    {GRADES.map(grade => (
+      <option key={grade} value={grade}>
+        {ROLE_LABELS[grade]}
+      </option>
+    ))}
+  </>
+);
 const activeLabel = (active: boolean) => (active ? '활성' : '비활성');
 
 const reasonOf = (error: unknown): string =>
@@ -88,7 +101,7 @@ export default function Enterprise() {
 
   const [newUserId, setNewUserId] = useState('');
   const [newTeam, setNewTeam] = useState('');
-  const [newRole, setNewRole] = useState<EnterpriseMember['role']>('member');
+  const [newRole, setNewRole] = useState<EnterpriseMember['role']>('editor');
   const [newEnrollmentCode, setNewEnrollmentCode] = useState('');
   const [addAck, setAddAck] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -116,6 +129,9 @@ export default function Enterprise() {
   const organization = context?.organization ?? null;
   const membership = context?.membership ?? null;
   const isAdmin = membership?.role === 'admin';
+  // Managed installation: one organization, created once by the designated administrator.
+  const managed = context?.mode === 'managed';
+  const mayCreate = !managed || context?.canCreateOrganization === true;
 
   /** A mutation or page request is applied only while its exact directory generation is still current. */
   const isCurrent = (generation: number) => directoryGeneration.current === generation;
@@ -512,12 +528,19 @@ export default function Enterprise() {
       {organization && membership && <Classifications actorId={membership.userId} organizationId={organization.id} />}
       {organization && <ReceivedDashboards key={`received:${organization.id}:${membership?.userId}`} />}
 
-      {membership === null && (
+      {membership === null && !mayCreate && (
+        <Notice severity="info" role="status" className="mt-4">
+          아직 조직에 연결되지 않았습니다. 이 설치에서는 조직 admin이 내 계정을 직원으로 추가해야 서비스를 사용할 수
+          있습니다. 아래에서 연결 코드를 발급해 admin에게 전달해 주세요.
+        </Notice>
+      )}
+
+      {membership === null && mayCreate && (
         <form onSubmit={handleCreate} className="mt-4 flex min-w-0 flex-col gap-3">
           <Notice severity="info" role="status">
-            현재 소속된 조직이 없습니다. 본인이 조직을 만들면 그 조직의 admin이 됩니다. 기존 개인 데이터와 다른 조직의 자료는
-            함께 옮겨지지 않으며, 기존 계정을 직원으로 추가하려면 그 계정의 정확한 로그인 ID와 본인이 발급한 연결 코드가
-            필요합니다.
+            {managed
+              ? '이 설치의 조직은 지정된 관리자 계정만, 한 번만 만들 수 있습니다. 만들면 그 조직의 admin이 되고, 다른 사용자는 이 조직에 직원으로 추가돼야 서비스를 사용할 수 있습니다.'
+              : '현재 소속된 조직이 없습니다. 본인이 조직을 만들면 그 조직의 admin이 됩니다. 기존 개인 데이터와 다른 조직의 자료는 함께 옮겨지지 않으며, 기존 계정을 직원으로 추가하려면 그 계정의 정확한 로그인 ID와 본인이 발급한 연결 코드가 필요합니다.'}
           </Notice>
           <TextField
             label="새 조직 이름"
@@ -804,8 +827,7 @@ export default function Enterprise() {
                             }}
                             className="w-full max-w-[200px]"
                           >
-                            <option value="member">member (구성원)</option>
-                            <option value="admin">admin (관리자)</option>
+                            <RoleOptions legacy={edit.member.role === 'member'} />
                           </TextField>
                           <label className="flex min-h-9 items-center gap-2 text-sm text-foreground sm:mt-6">
                             <input
@@ -938,8 +960,7 @@ export default function Enterprise() {
                   }}
                   className="w-full max-w-[200px]"
                 >
-                  <option value="member">member (구성원)</option>
-                  <option value="admin">admin (관리자)</option>
+                  <RoleOptions />
                 </TextField>
                 <TextField
                   label="연결 코드"
