@@ -4,9 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Plug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
-import type { AiScope } from '@/api/aiConnectionsService';
+import type { AiScope, ConsentRequest } from '@/api/aiConnectionsService';
 
-export const isWriteScope = (scope: AiScope) => scope.endsWith(':write');
+/** Anything the server does not call a read is grouped with the writes and starts unchecked. */
+export const isWriteScope = (request: Pick<ConsentRequest, 'scopeKinds'>, scope: AiScope) =>
+  request.scopeKinds[scope] !== 'read';
 export const SCOPE_LABELS: Record<AiScope, string> = {
   'sources:read': 'aiConnections.sourcesRead',
   'documents:read': 'aiConnections.documentsRead',

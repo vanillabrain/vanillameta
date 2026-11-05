@@ -51,21 +51,28 @@ const listSchema = z
     connections: z.array(connectionSchema),
   })
   .refine(data => data.connections.every(connection => connection.organizationId === data.organization?.id));
-const requestSchema = z.object({
-  ticket: ticketSchema,
-  clientName: z.string(),
-  clientId: z.string(),
-  organization: organizationSchema,
-  accountLabel: z.string(),
-  requestedScopes: scopesSchema.refine(values => values.length > 0),
-  expiresAt: dateSchema,
-  reviewToken: z.string().min(1),
-  redirectUri: callbackSchema,
-});
+// The server says what each scope does. Only `read` is selected by default; a scope without a kind
+// is refused rather than guessed from its name, so a new scope can never start out selected.
+const scopeKindSchema = z.enum(['read', 'write', 'delete']);
+const requestSchema = z
+  .object({
+    ticket: ticketSchema,
+    clientName: z.string(),
+    clientId: z.string(),
+    organization: organizationSchema,
+    accountLabel: z.string(),
+    requestedScopes: scopesSchema.refine(values => values.length > 0),
+    scopeKinds: z.record(scopeKindSchema),
+    expiresAt: dateSchema,
+    reviewToken: z.string().min(1),
+    redirectUri: callbackSchema,
+  })
+  .refine(data => data.requestedScopes.every(scope => data.scopeKinds[scope] !== undefined));
 export type AiConnection = z.infer<typeof connectionSchema>;
 export type AiConnectionList = z.infer<typeof listSchema>;
 export type ConsentRequest = z.infer<typeof requestSchema>;
 export type AiScope = z.infer<typeof scopeSchema>;
+export type AiScopeKind = z.infer<typeof scopeKindSchema>;
 export type ConsentDecision = { decision: 'approve'; scopes: AiScope[] } | { decision: 'cancel'; scopes: [] };
 
 export function validateDecisionRedirect(value: string, expected: string, approved: boolean): string {

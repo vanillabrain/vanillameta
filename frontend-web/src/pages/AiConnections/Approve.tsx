@@ -31,7 +31,7 @@ function Consent({ ticket, scope }: { ticket: string; scope: string | null }) {
             setState({
               kind: 'review',
               request,
-              scopes: request.requestedScopes.filter(scopeName => !isWriteScope(scopeName)),
+              scopes: request.requestedScopes.filter(scopeName => !isWriteScope(request, scopeName)),
             });
         })
         .catch(() => {
@@ -108,7 +108,7 @@ function Consent({ ticket, scope }: { ticket: string; scope: string | null }) {
         <dd>{new Date(state.request.expiresAt).toLocaleString()}</dd>
       </dl>
       {[false, true].map(write => {
-        const names = state.request.requestedScopes.filter(scopeName => isWriteScope(scopeName) === write);
+        const names = state.request.requestedScopes.filter(scopeName => isWriteScope(state.request, scopeName) === write);
         if (!names.length) return null;
         return (
           <fieldset

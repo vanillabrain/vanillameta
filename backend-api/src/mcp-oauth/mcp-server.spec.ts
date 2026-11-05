@@ -1408,6 +1408,7 @@ describe('remote MCP over real HTTP', () => {
         .set('Origin', web)
         .expect(200);
       expect(review.body.requestedScopes).toEqual(scopes);
+      expect(Object.keys(review.body.scopeKinds).sort()).toEqual([...scopes].sort());
       const approval = await http()
         .post(`${path}/decision`)
         .set('Host', '127.0.0.1:4444')
