@@ -32,8 +32,12 @@ export class DashboardRevision {
   @Column({ type: 'text', nullable: true }) pivotDefinitions: string | null;
   @Column({ type: 'integer' }) actorId: number;
   @Column({ type: 'integer', nullable: true }) organizationId: number | null;
-  /** 'create' rows are never pruned; only 'save'/'restore' rows by an external AI are capped. */
-  @Column({ type: 'varchar', length: 8 }) operation: 'create' | 'save' | 'restore';
+  /**
+   * 'create' and 'baseline' rows are never pruned; only 'save'/'restore' rows by an external AI are
+   * capped. 'baseline' is the state an AI write replaced, kept so that write can be undone; it says
+   * nothing about who produced that state.
+   */
+  @Column({ type: 'varchar', length: 8 }) operation: 'create' | 'save' | 'restore' | 'baseline';
   @Column({ type: 'varchar', length: 12 }) authorKind: 'human' | 'external-ai';
   @Column({ type: 'varchar', length: 36, nullable: true }) aiGrantId: string | null;
   @Column({ type: 'varchar', length: 255, nullable: true }) aiClientName: string | null;
