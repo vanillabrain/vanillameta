@@ -63,7 +63,7 @@ describe('McpDashboardService', () => {
   let policy: EnterpriseResourcePolicyService;
   const auth = { revalidate: jest.fn(), assertGrant: jest.fn() };
   const studio = { readDocument: jest.fn() };
-  const creation = { previewSpec: jest.fn(), createFromSpec: jest.fn() };
+  const creation = { previewSpec: jest.fn(), createFromSpec: jest.fn(), specCatalog: jest.fn() };
   const deletion = { impact: jest.fn(), remove: jest.fn() };
 
   beforeAll(async () => {
@@ -370,6 +370,84 @@ describe('McpDashboardService', () => {
           code: 'INVALID',
           detail: { reason: 'INVALID_INPUT' },
         });
+    });
+  });
+
+  describe('metrics', () => {
+    const metric = (id: number, over: Record<string, unknown> = {}) => ({
+      id,
+      label: `Metric ${id}`,
+      definitionVersion: 1,
+      definition: {
+        schemaVersion: 1,
+        sourceId: 101,
+        tableName: 'uploaded_data',
+        label: `Metric ${id}`,
+        aggregation: 'SUM',
+        column: 'amount',
+        unit: 'KRW',
+        decimalPlaces: 0,
+        numberNotation: 'full',
+        businessBasis: { columns: [{ label: 'secret business text' }] },
+        formula: { expression: 'a/b', operands: [{ definition: { label: 'nested' } }] },
+        ...over,
+      },
+    });
+
+    it('lists only what is needed to choose a metric, from a source the account owns', async () => {
+      creation.specCatalog.mockResolvedValue([
+        metric(12),
+        metric(11, { denominatorColumn: 'orders', scale: 100 }),
+      ]);
+      const result = await service.metrics(principal(), 101);
+      expect(creation.specCatalog).toHaveBeenCalledWith(101, 2);
+      expect(result.metrics.map(m => m.id)).toEqual([11, 12]);
+      expect(result.metrics[0]).toEqual({
+        id: 11,
+        definitionVersion: 1,
+        label: 'Metric 11',
+        aggregation: 'SUM',
+        column: 'amount',
+        denominatorColumn: 'orders',
+        scale: 100,
+        unit: 'KRW',
+        decimalPlaces: 0,
+        numberNotation: 'full',
+      });
+      const text = JSON.stringify(result);
+      for (const hidden of [
+        'secret business text',
+        'nested',
+        'a/b',
+        'tableName',
+        'businessBasis',
+        'formula',
+      ])
+        expect(text).not.toContain(hidden);
+      expect(result.nextAfterId).toBeNull();
+    });
+
+    it('pages by id and refuses a source the account does not own, before the catalog is read', async () => {
+      creation.specCatalog.mockResolvedValue(Array.from({ length: 60 }, (_, i) => metric(i + 1)));
+      const first = await service.metrics(principal(), 101);
+      expect(first.metrics).toHaveLength(50);
+      expect(first.nextAfterId).toBe(50);
+      expect((await service.metrics(principal(), 101, 50)).metrics.map(m => m.id)).toEqual([
+        51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+      ]);
+      creation.specCatalog.mockClear();
+      await expect(service.metrics(principal(), 102)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(creation.specCatalog).not.toHaveBeenCalled();
+      for (const bad of [-1, 1.5, '3'])
+        await expect(service.metrics(principal(), 101, bad)).rejects.toMatchObject({
+          reason: 'INVALID_INPUT',
+        });
+    });
+
+    it('needs the write scope, like the dashboard it serves', async () => {
+      await expect(
+        service.metrics(principal({ scopes: ['dashboards:read'] }), 101),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 

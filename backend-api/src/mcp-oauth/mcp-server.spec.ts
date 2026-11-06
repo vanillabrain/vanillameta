@@ -102,6 +102,7 @@ const TOOLS_BY_SCOPE: Record<McpScope, string[]> = {
   'dashboards:read': ['vm_list_dashboards', 'vm_read_dashboard'],
   'dashboards:write': [
     'vm_create_dashboard',
+    'vm_list_metrics',
     'vm_preview_dashboard',
     'vm_restore_dashboard',
     'vm_update_dashboard',
@@ -403,7 +404,7 @@ describe('remote MCP tools/list per scope', () => {
       expect(instructions).toMatch(
         /Reports, documents and sources cannot be generated, saved, applied, published, deleted or modified/,
       );
-      expect(instructions).toContain('dashboards:write previews, creates, updates and restores');
+      expect(instructions).toContain('dashboards:write lists the saved metrics (vm_list_metrics)');
       expect(instructions).toContain('never on ones shared with them');
       expect(instructions).toContain('vm_read_dashboard or vm_list_dashboards');
       expect(instructions).toContain(

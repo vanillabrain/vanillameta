@@ -27,6 +27,7 @@ describe('dashboard tools of the remote MCP server', () => {
   const service = {
     list: jest.fn(),
     read: jest.fn(),
+    metrics: jest.fn(),
     preview: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -86,6 +87,7 @@ describe('dashboard tools of the remote MCP server', () => {
     expect(await names(['dashboards:read'])).toEqual(['vm_list_dashboards', 'vm_read_dashboard']);
     expect(await names(['dashboards:write'])).toEqual([
       'vm_create_dashboard',
+      'vm_list_metrics',
       'vm_preview_dashboard',
       'vm_restore_dashboard',
       'vm_update_dashboard',
@@ -95,7 +97,7 @@ describe('dashboard tools of the remote MCP server', () => {
       'vm_remove_dashboard',
     ]);
     expect(await names(['sources:read'])).not.toContain('vm_remove_dashboard');
-    expect(await names(ALL)).toHaveLength(8);
+    expect(await names(ALL)).toHaveLength(9);
   });
 
   it('marks what removes or overwrites as destructive, and nothing reaches beyond this server', async () => {
@@ -116,6 +118,7 @@ describe('dashboard tools of the remote MCP server', () => {
       'vm_list_dashboards',
       'vm_read_dashboard',
       'vm_preview_dashboard',
+      'vm_list_metrics',
       'vm_get_dashboard_removal',
     ])
       expect(by(name).annotations).toMatchObject({ readOnlyHint: true });

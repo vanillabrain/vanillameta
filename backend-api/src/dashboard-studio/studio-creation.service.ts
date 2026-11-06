@@ -618,9 +618,7 @@ export class StudioCreationService {
     if (this.proposals.size >= 64)
       throw new ServiceUnavailableException('생성 요청이 많습니다. 잠시 후 다시 시도해 주세요.');
     active();
-    const catalog = (await this.bi.metrics(sourceId, actor)).filter(
-      m => m.definition?.schemaVersion === 1 && m.definition.sourceId === sourceId,
-    );
+    const catalog = await this.specCatalog(sourceId, actor);
     if (selected.some(id => !catalog.some(m => m.id === id)))
       throw new BadRequestException('선택 지표의 소스와 버전을 확인해 주세요.');
     if (!isAiConfigured()) throw aiNotConfigured();
@@ -1577,6 +1575,17 @@ export class StudioCreationService {
   }
 
   /**
+   * The saved metrics of a source that a creation may use: version-1 definitions of that source. The
+   * proposal, the spec and the MCP catalog all read this one list, so what a tool offers is exactly
+   * what the kernel accepts.
+   */
+  async specCatalog(sourceId: number, actor: number) {
+    return (await this.bi.metrics(sourceId, actor)).filter(
+      m => m.definition?.schemaVersion === 1 && m.definition.sourceId === sourceId,
+    );
+  }
+
+  /**
    * A creation spec given by the caller instead of an AI proposal. It names saved metrics only: a new
    * definition or a formula would create Metric rows, which the caller may not do.
    */
@@ -1629,9 +1638,7 @@ export class StudioCreationService {
       basis,
       profile.columns.map(c => c.name),
     );
-    const catalog = (await this.bi.metrics(sourceId, actor)).filter(
-      m => m.definition?.schemaVersion === 1 && m.definition.sourceId === sourceId,
-    );
+    const catalog = await this.specCatalog(sourceId, actor);
     const blocks = await Promise.all(
       spec.blocks.map(block => {
         const saved = catalog.find(
