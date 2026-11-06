@@ -1,6 +1,6 @@
 import { DashboardToolException } from './mcp-dashboard.errors';
 
-type Window = { start: number; used: number };
+type Window = { expires: number; used: number };
 
 /**
  * A fixed-window counter per account, in memory. The limit is per account and not per connection:
@@ -13,12 +13,14 @@ export class ActorWindowLimiter {
 
   take(actorId: number, bucket: string, limit: number, windowMs: number): void {
     const now = this.now();
+    // Each window keeps its own end: buckets have different lengths, so one call's length must not
+    // decide whether another bucket's window is over.
     if (this.windows.size > 10_000)
-      for (const [key, window] of this.windows)
-        if (now - window.start >= windowMs) this.windows.delete(key);
+      for (const [key, window] of this.windows) if (window.expires <= now) this.windows.delete(key);
     const key = `${actorId}\0${bucket}`;
     const current = this.windows.get(key);
-    const window = current && now - current.start < windowMs ? current : { start: now, used: 0 };
+    const window =
+      current && current.expires > now ? current : { expires: now + windowMs, used: 0 };
     if (window.used >= limit) throw new DashboardToolException('LIMIT', 'RATE_LIMITED');
     window.used += 1;
     this.windows.set(key, window);
