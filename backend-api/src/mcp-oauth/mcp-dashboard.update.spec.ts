@@ -45,6 +45,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { DashboardToolException } from './mcp-dashboard.errors';
 import { applyStudioOperation } from '../dashboard-studio/studio-operations';
+import * as studioRestore from '../dashboard-studio/studio-restore';
 import { deriveRestore } from '../dashboard-studio/studio-restore';
 import { mcpError } from './mcp-server';
 import { ActorWindowLimiter } from './mcp-dashboard.limits';
@@ -386,6 +387,7 @@ describe('McpDashboardService.update on a real Studio', () => {
     expect(await service.update(principal(), request)).toEqual({
       dashboardId: id,
       revision: first.revision,
+      changed: true,
     });
     expect(await counts()).toEqual(writes);
     expect(
@@ -471,6 +473,37 @@ describe('McpDashboardService.update on a real Studio', () => {
     expect(await counts()).toEqual(writes);
   });
 
+  it("refuses an AI write whose replaced state could not be restored, and leaves a person's save alone", async () => {
+    // The fixture cannot be made unrestorable without breaking the read first, so the check is forced.
+    const check = jest.spyOn(studioRestore, 'assertRestorableRow').mockImplementation(() => {
+      throw studioRestore.restoreUnsupported('no');
+    });
+    try {
+      const writes = await counts();
+      expect(await failure(update([{ type: 'renameDashboard', title: 'Not undoable' }]))).toEqual({
+        code: 'INVALID',
+        reason: 'UNSUPPORTED_CHANGE',
+      });
+      expect(await counts()).toEqual(writes);
+      expect(check).toHaveBeenCalledTimes(1);
+      const doc = JSON.parse(JSON.stringify((await state()).document));
+      doc.title = 'A person';
+      await studio.save(
+        id,
+        {
+          requestId: 'person-' + id,
+          expectedRevision: doc.revision,
+          expectedSourceRevision: sourceRevision,
+          document: doc,
+        },
+        7,
+      );
+      expect(check).toHaveBeenCalledTimes(1);
+    } finally {
+      check.mockRestore();
+    }
+  });
+
   describe('restore', () => {
     const histories = () =>
       db.manager.find(DashboardRevision, { where: { dashboardId: id }, order: { seq: 'ASC' } });
@@ -484,7 +517,11 @@ describe('McpDashboardService.update on a real Studio', () => {
         ...over,
       });
     };
-    const values = async () => (await studio.get(id, 7)).preview.widgets.map((w: any) => w.datas);
+    // Row order of a GROUP BY is not defined, so the rows are compared as sets.
+    const values = async () =>
+      (await studio.get(id, 7)).preview.widgets.map((w: any) =>
+        w.datas.map(row => JSON.stringify(row)).sort(),
+      );
 
     it('brings a removed block back with a new id and the same numbers, and undoes a rename', async () => {
       const before = await state();
@@ -533,6 +570,7 @@ describe('McpDashboardService.update on a real Studio', () => {
       expect(await service.restore(principal(), request)).toEqual({
         dashboardId: id,
         revision: first.revision,
+        changed: true,
       });
       expect(await counts()).toEqual(writes);
       expect(

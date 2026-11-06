@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { legacyBlockIds } from '../ai/dashboard-blocks';
 import { validateDraft } from '../ai/dashboard-draft';
@@ -47,20 +47,22 @@ export interface RestoreExtras {
 }
 
 /**
- * Works out the document a restore saves and the extras above, from a history row the server read
- * itself. Nothing here comes from the caller; the row is checked for being whole before it is used.
- *
- * A block still on the dashboard (same id and same calculation) keeps its id and gets its saved
- * text, display and place back. A block that is gone is saved as a new block with a temporary id,
- * so the save creates its widget again; its comments, if any, stay attached to the old id.
+ * Whether a history row can be put back at all: it parses, agrees with itself, carries the analysis a
+ * removed block is rebuilt from, and holds no pivot (whose recipe a save does not rebuild). An
+ * external AI's write is refused when the state it would replace fails this, so that every AI write
+ * stays undoable.
  */
-export function deriveRestore(
-  dashboardId: number,
-  current: RestoreCurrent,
-  row: RestoreRow,
-  expectedRevision: string,
-): { document: StudioDocumentV1; extras: RestoreExtras } {
-  const whole = () => restoreUnsupported('이 저장본은 복원할 수 없습니다.');
+export function assertRestorableRow(dashboardId: number, row: RestoreRow) {
+  const whole = () => {
+    Logger.warn(
+      `Dashboard ${dashboardId}: a history row cannot be restored (revision ${row.revision.slice(
+        0,
+        8,
+      )})`,
+      'StudioRestore',
+    );
+    return restoreUnsupported('이 저장본은 복원할 수 없습니다.');
+  };
   let stored: StudioDocumentV1;
   let histDraft: ReturnType<typeof legacyBlockIds>;
   let histSnapshot: any;
@@ -85,8 +87,31 @@ export function deriveRestore(
     throw whole();
   const histItems = metricLinkItems(histSnapshot, histDraft);
   if (histSnapshot && histItems.length !== histDraft.widgets.length) throw whole();
+  if (stored.blocks.some(isStudioPivot))
+    throw restoreUnsupported('Pivot이 포함된 대시보드는 복원할 수 없습니다.');
+  return { stored, charts, histDraft, histSnapshot, histItems };
+}
+
+/**
+ * Works out the document a restore saves and the extras above, from a history row the server read
+ * itself. Nothing here comes from the caller; the row is checked for being whole before it is used.
+ *
+ * A block still on the dashboard (same id and same calculation) keeps its id and gets its saved
+ * text, display and place back. A block that is gone is saved as a new block with a temporary id,
+ * so the save creates its widget again; its comments, if any, stay attached to the old id.
+ */
+export function deriveRestore(
+  dashboardId: number,
+  current: RestoreCurrent,
+  row: RestoreRow,
+  expectedRevision: string,
+): { document: StudioDocumentV1; extras: RestoreExtras } {
+  const { stored, charts, histDraft, histSnapshot, histItems } = assertRestorableRow(
+    dashboardId,
+    row,
+  );
   // Pivots keep a recipe the save does not rebuild; a restore does not take them in or out.
-  if (stored.blocks.some(isStudioPivot) || current.document.blocks.some(isStudioPivot))
+  if (current.document.blocks.some(isStudioPivot))
     throw restoreUnsupported('Pivot이 포함된 대시보드는 복원할 수 없습니다.');
   if (!histSnapshot !== !current.snapshot)
     throw restoreStale('저장 이후 대시보드의 저장 형식이 달라졌습니다.');

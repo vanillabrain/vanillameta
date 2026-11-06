@@ -511,6 +511,7 @@ describe('McpDashboardService', () => {
       const reasons = [
         ['REVISION_CHANGED', 'CONFLICT', true],
         ['SOURCE_CHANGED', 'CONFLICT', true],
+        ['STATE_CHANGED', 'CONFLICT', true],
         // The saved state cannot be rebuilt on today's data; asking again cannot help.
         ['RESTORE_STALE', 'INVALID', false],
         ['REQUEST_REUSED', 'REQUEST_REUSED', false],

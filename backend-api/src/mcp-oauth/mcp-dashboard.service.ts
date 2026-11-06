@@ -298,7 +298,7 @@ export class McpDashboardService {
       });
     if (earlier) {
       await this.auth.revalidate(principal);
-      return { dashboardId: id, revision: earlier.document.revision as string };
+      return { dashboardId: id, revision: earlier.document.revision as string, changed: true };
     }
     const state = await this.studio.readDocument(id, principal.actorId);
     if (state.document.revision !== input.expectedRevision)
@@ -367,7 +367,7 @@ export class McpDashboardService {
       });
     if (earlier) {
       await this.auth.revalidate(principal);
-      return { dashboardId: id, revision: earlier.document.revision as string };
+      return { dashboardId: id, revision: earlier.document.revision as string, changed: true };
     }
     // Looked up by dashboard and revision together: another dashboard's history is never reachable.
     const row = await this.db.getRepository(DashboardRevision).findOne({
