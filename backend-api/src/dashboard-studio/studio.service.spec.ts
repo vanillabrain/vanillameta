@@ -164,6 +164,20 @@ describe('Studio real DuckDB and transactional metadata', () => {
       },
       7,
     );
+  it('reads the saved document without running the dashboard, and only for someone who may read it', async () => {
+    const full = await studio.get(id, 7);
+    const previews = jest.spyOn(ai, 'preview');
+    try {
+      const read = await studio.readDocument(id, 7);
+      expect(read.document).toEqual(full.document);
+      expect(read.sourceRevision).toBe(full.sourceRevision);
+      expect(read.sourceName).toBe(full.sourceName);
+      expect(previews).not.toHaveBeenCalled();
+      await expect(studio.readDocument(id, 99)).rejects.toThrow();
+    } finally {
+      previews.mockRestore();
+    }
+  });
   it('returns pinned execution evidence only to the owner, without adding writes', async () => {
     const counts = await Promise.all(
       [Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity)),

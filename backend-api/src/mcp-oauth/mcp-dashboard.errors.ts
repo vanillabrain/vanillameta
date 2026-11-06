@@ -9,6 +9,8 @@ export type DashboardReason =
   | 'RESTORE_STALE'
   | 'HAS_DEPENDENCIES'
   | 'UNSUPPORTED_CHANGE'
+  | 'INVALID_INPUT'
+  | 'STATE_CHANGED'
   | 'CARDINALITY_LIMIT'
   | 'RATE_LIMITED'
   | 'QUEUE_FULL'
@@ -50,9 +52,14 @@ export function toDashboardFailure(error: unknown): unknown {
       return new DashboardToolException('INVALID', 'CARDINALITY_LIMIT');
     case 'UNSUPPORTED_CHANGE':
       return new DashboardToolException('INVALID', 'UNSUPPORTED_CHANGE');
+    case 'QUEUE_FULL':
+      return new DashboardToolException('LIMIT', 'QUEUE_FULL');
     default:
-      return error.getStatus() === HttpStatus.SERVICE_UNAVAILABLE
-        ? new DashboardToolException('LIMIT', 'QUEUE_FULL')
+      // A 409 the services raise without a code means the data or a definition moved underneath:
+      // read again and retry from the preview. Other statuses (a refusal, a 404, a busy worker, a
+      // bug) pass through as they are.
+      return error.getStatus() === HttpStatus.CONFLICT
+        ? new DashboardToolException('CONFLICT', 'STATE_CHANGED')
         : error;
   }
 }

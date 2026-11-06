@@ -62,7 +62,7 @@ describe('McpDashboardService', () => {
   let service: McpDashboardService;
   let policy: EnterpriseResourcePolicyService;
   const auth = { revalidate: jest.fn(), assertGrant: jest.fn() };
-  const studio = { get: jest.fn() };
+  const studio = { readDocument: jest.fn() };
   const creation = { previewSpec: jest.fn(), createFromSpec: jest.fn() };
 
   beforeAll(async () => {
@@ -232,12 +232,12 @@ describe('McpDashboardService', () => {
       await expect(service.read(principal({ actorId: 1 }), 10)).rejects.toBeInstanceOf(
         ForbiddenException,
       );
-      expect(studio.get).not.toHaveBeenCalled();
+      expect(studio.readDocument).not.toHaveBeenCalled();
     });
 
     it('returns the document and a history summary that carries no stored document or ids', async () => {
       await dashboard(20, [2]);
-      studio.get.mockResolvedValue({
+      studio.readDocument.mockResolvedValue({
         document: { title: 'Dash', revision: 'rev-2', blocks: [] },
         sourceName: 'Mine',
         sourceRevision: 'src',
@@ -293,6 +293,34 @@ describe('McpDashboardService', () => {
       expect(text).not.toContain('secret');
       expect(text).not.toContain('actorId');
     });
+
+    it('refuses when ownership moves while the document is read', async () => {
+      await dashboard(30, [2]);
+      studio.readDocument.mockImplementation(async () => {
+        await db.getRepository(UserMapping).save({ dashboardId: 30, userInfoId: 3 });
+        return { document: { title: 'T', revision: 'r' }, sourceName: 'S', sourceRevision: 's' };
+      });
+      await expect(service.read(principal(), 30)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('does not return what it read when the connection is revoked meanwhile', async () => {
+      await dashboard(31, [2]);
+      studio.readDocument.mockResolvedValue({
+        document: { title: 'T', revision: 'r' },
+        sourceName: 'S',
+        sourceRevision: 's',
+      });
+      auth.revalidate.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('revoked'));
+      await expect(service.read(principal(), 31)).rejects.toThrow('revoked');
+    });
+
+    it('rejects a page cursor that is not a non-negative integer', async () => {
+      for (const afterId of ['1', -1, 1.5, NaN, null])
+        expect(mcpError(await service.list(principal(), afterId).catch(e => e))).toMatchObject({
+          code: 'INVALID',
+          detail: { reason: 'INVALID_INPUT' },
+        });
+    });
   });
 
   describe('preview', () => {
@@ -317,11 +345,35 @@ describe('McpDashboardService', () => {
           title: 'Revenue',
           type: 'BOARD_NUMERIC',
           valueField: 'value',
+          rowCount: 1,
+          truncated: false,
           rows: [{ value: 5 }],
         },
       ]);
       expect(JSON.stringify(result)).not.toContain('secret');
       expect(creation.previewSpec).toHaveBeenCalledWith(SPEC, 2, 0);
+    });
+
+    it('says how many rows a block has and when it was cut, and tolerates a block with no rows', async () => {
+      creation.previewSpec.mockResolvedValue({
+        previewDigest: DIGEST,
+        sourceRevision: 's',
+        preview: {
+          widgets: [
+            {
+              title: 'Many',
+              type: 'CHART_BAR',
+              valueField: 'v',
+              datas: Array.from({ length: 250 }, (_, i) => ({ v: i })),
+            },
+            { title: 'None', type: 'BOARD_NUMERIC', valueField: 'v' },
+          ],
+        },
+      });
+      const { blocks } = await service.preview(principal(), SPEC);
+      expect(blocks[0]).toMatchObject({ rowCount: 250, truncated: true });
+      expect(blocks[0].rows).toHaveLength(100);
+      expect(blocks[1]).toMatchObject({ rowCount: 0, truncated: false, rows: [] });
     });
 
     it('builds only from a source the account owns', async () => {
@@ -440,11 +492,26 @@ describe('McpDashboardService', () => {
         code: 'CONFLICT',
         detail: { reason: 'PREVIEW_STALE' },
       });
-      creation.createFromSpec.mockRejectedValueOnce(new ServiceUnavailableException('많습니다'));
+      creation.createFromSpec.mockRejectedValueOnce(
+        new ServiceUnavailableException({ code: 'QUEUE_FULL', message: '많습니다' }),
+      );
       expect(mcpError(await service.create(principal(), CREATE).catch(e => e))).toMatchObject({
         code: 'LIMIT',
         detail: { reason: 'QUEUE_FULL' },
       });
+    });
+
+    it('names an unlabelled 409 as a state change and leaves a busy worker alone', async () => {
+      creation.createFromSpec.mockRejectedValueOnce(
+        new ConflictException('데이터 파일이 교체되었습니다.'),
+      );
+      expect(mcpError(await service.create(principal(), CREATE).catch(e => e))).toMatchObject({
+        code: 'CONFLICT',
+        detail: { reason: 'STATE_CHANGED' },
+      });
+      const busy = new ServiceUnavailableException('worker busy');
+      creation.createFromSpec.mockRejectedValueOnce(busy);
+      expect(await service.create(principal(), CREATE).catch(e => e)).toBe(busy);
     });
 
     it('does not turn a refusal or a bug into one of these codes', async () => {

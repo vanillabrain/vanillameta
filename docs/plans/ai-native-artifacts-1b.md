@@ -277,4 +277,9 @@ NOT_RUN으로 남을 것: 실제 Claude Code·Codex 호스트의 도구 이벤�
 - **이력 요약.** `vm_read_dashboard`는 `revisionId, createdAt, operation, authorKind, clientName(AI일 때), byYou, isCurrent`만 준다. 다른 사람의 계정 정보는 `byYou: false`로만 드러난다. 문서 본문·`actorId`·`aiGrantId`는 내보내지 않는다.
 - **오류.** `DashboardToolException(code, reason)`이 `detail.reason`을 싣는다. 서비스 예외의 `code`(`PREVIEW_STALE`, `SOURCE_CHANGED`, `REQUEST_REUSED`, `CARDINALITY_LIMIT`)와 쓰기 대기열 가득(503)만 변환하고, 그 밖의 예외(거부, 404, 버그)는 그대로 둔다. 같은 `requestId`·다른 입력은 `createFromSpec`이 쓰기 전에 `StudioRun`을 읽어 `REQUEST_REUSED`를 낸다(재시도 무한 루프를 막는다).
 - **속도 제한.** 계정별 고정 창: 미리보기 10/분, 쓰기 20/분, 생성 10/시간. 초과는 `LIMIT`/`RATE_LIMITED`. 재시도(replay)도 한도를 쓴다.
+- **읽기는 계산하지 않는다(architect 1b-4 블로커).** `vm_read_dashboard`는 `StudioService.get`(대시보드 전체 쿼리를 실행)이 아니라 `readDocument`(문서·`sourceRevision`·`sourceName`만)를 쓴다. 계산은 `dashboards:write`의 미리보기에만 있다. 미리보기 응답은 블록마다 `rowCount`와 `truncated`를 준다.
+- **오류 사유.** `STATE_CHANGED`는 코드 없이 던져진 409(파일 교체, 지표 변경 등)이고 "다시 미리보기부터"를 뜻한다. `INVALID_INPUT`은 형식이 틀린 id·커서이고 `UNSUPPORTED_CHANGE`(블록 정의 변경 불가)와 다르다. 쓰기 대기열 가득은 서비스가 `code: 'QUEUE_FULL'`을 실어 보내는 503만 `QUEUE_FULL`이고, DuckDB worker busy 같은 다른 503은 그대로 나간다.
+- **replay의 한계(수용).** 같은 `requestId` 재시도는 `beforeAccess`를 거치지 않는다. 끝의 `revalidate`가 grant 회수는 막지만 등급 하락은 못 잡는다. 새는 것은 이미 만든 대시보드의 `{dashboardId, revision}`뿐이다. replay된 대시보드가 지금도 단독 소유인지는 확인하지 않는다. 지침 "CONFLICT면 같은 requestId로 재시도"와 시간당 생성 10회가 맞물려 정상 재시도 몇 번으로 한도가 줄 수 있다(재시도도 한도를 쓴다).
+- **1b-7 도구 설명에 적을 것.** `isCurrent`는 "이 저장 상태가 지금 대시보드와 같다"는 뜻이지 "기록되지 않은 변경이 없다"는 뜻이 아니다(1b-3 조건 (나)). 읽기는 공유받은 소스 위의 **소유한** 대시보드도 돌려주지만 생성은 소유한 소스만 허용한다(받은 대시보드는 4절의 별도 결정).
+- **1b-7 통합 통과 조건에 추가.** 실제 `assertGrant`가 저장 트랜잭션 안에서 grant 행을 잠그고 거부하는 경로를 한 번 실행한다(지금은 `studio-creation` 스펙이 가짜 훅의 위치를, MCP 스펙이 `assertGrant` 호출을 따로 증명할 뿐 둘이 이어진 경로는 어디서도 실행되지 않는다).
 - **미해결(1b-7로).** 감사 기록, 모듈 DI, 쓰기 대기열 상한 도달이 사람 저장에 주는 영향 관찰, `expectedSourceRevision`을 받지 않는 미리보기 응답의 `blocks`를 plan의 `{key, kind, …, warnings}` 모양으로 맞출지 결정.

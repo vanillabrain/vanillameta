@@ -46,14 +46,14 @@ export class McpDashboardService {
 
   private dashboardId(value: unknown): number {
     if (!Number.isSafeInteger(value) || (value as number) <= 0)
-      throw new DashboardToolException('INVALID', 'UNSUPPORTED_CHANGE');
+      throw new DashboardToolException('INVALID', 'INVALID_INPUT');
     return value as number;
   }
 
   /** A connection builds only from sources its account owns, not from ones shared with it. */
   private async ownedSource(sourceId: unknown, actor: number) {
     if (!Number.isSafeInteger(sourceId) || (sourceId as number) <= 0)
-      throw new DashboardToolException('INVALID', 'UNSUPPORTED_CHANGE');
+      throw new DashboardToolException('INVALID', 'INVALID_INPUT');
     const source = await this.db.manager.findOne(Database, {
       where: { id: sourceId as number },
       select: { id: true, ownerId: true, catalogActive: true },
@@ -77,8 +77,10 @@ export class McpDashboardService {
   }
 
   /** The dashboards this account made and can still open, oldest id first. */
-  async list(principal: McpOAuthPrincipal, afterId = 0) {
+  async list(principal: McpOAuthPrincipal, afterId: unknown = 0) {
     await this.begin(principal, 'dashboards:read');
+    if (!Number.isSafeInteger(afterId) || (afterId as number) < 0)
+      throw new DashboardToolException('INVALID', 'INVALID_INPUT');
     // The same conditions as assertSoleOwner: one owning row, the caller, not deleted, active.
     const rows = await this.db
       .getRepository(Dashboard)
@@ -112,7 +114,7 @@ export class McpDashboardService {
     await this.begin(principal, 'dashboards:read');
     const id = this.dashboardId(dashboardId);
     await this.policy.assertSoleOwner(id, principal.actorId);
-    const state = await this.studio.get(id, principal.actorId);
+    const state = await this.studio.readDocument(id, principal.actorId);
     const history = await this.db.getRepository(DashboardRevision).find({
       where: { dashboardId: id },
       order: { seq: 'DESC' },
@@ -183,7 +185,9 @@ export class McpDashboardService {
         categoryField: widget.categoryField,
         prefix: widget.prefix,
         suffix: widget.suffix,
-        rows: (widget.datas as any[]).slice(0, PREVIEW_ROWS).map(row => ({
+        rowCount: (widget.datas ?? []).length,
+        truncated: (widget.datas ?? []).length > PREVIEW_ROWS,
+        rows: ((widget.datas ?? []) as any[]).slice(0, PREVIEW_ROWS).map(row => ({
           [widget.valueField]: row[widget.valueField],
           ...(widget.categoryField ? { [widget.categoryField]: row[widget.categoryField] } : {}),
         })),
@@ -199,7 +203,7 @@ export class McpDashboardService {
   async create(principal: McpOAuthPrincipal, input: any) {
     await this.begin(principal, 'dashboards:write');
     if (typeof input?.requestId !== 'string' || !UUID_V4.test(input.requestId))
-      throw new DashboardToolException('INVALID', 'UNSUPPORTED_CHANGE');
+      throw new DashboardToolException('INVALID', 'INVALID_INPUT');
     this.limiter.take(
       principal.actorId,
       'write',
