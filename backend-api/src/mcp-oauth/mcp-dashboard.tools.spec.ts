@@ -287,7 +287,7 @@ describe('dashboard tools of the remote MCP server', () => {
     const limited = await call('vm_list_dashboards', {});
     expect(limited.json.error).toMatchObject({
       code: 'LIMIT',
-      retryable: false,
+      retryable: true,
       detail: { reason: 'RATE_LIMITED' },
     });
     expect(limited.json.error.message).not.toContain('made no change');

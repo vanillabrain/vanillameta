@@ -33,7 +33,11 @@ export class DashboardToolException extends HttpException {
     readonly extra?: Record<string, unknown>,
   ) {
     super({ statusCode: STATUS[code], message, reason }, STATUS[code]);
+    // A rate limit clears with time, so unlike the other limits it is worth retrying later.
+    this.retryable = reason === 'RATE_LIMITED' ? true : undefined;
   }
+  /** Overrides the code's own answer when set. */
+  readonly retryable?: boolean;
 }
 
 /**
@@ -84,6 +88,18 @@ export function toDashboardFailure(error: unknown): unknown {
         return new DashboardToolException('CONFLICT', 'STATE_CHANGED');
       if (code == null && error.getStatus() === HttpStatus.SERVICE_UNAVAILABLE)
         return new DashboardToolException('CONFLICT', 'BUSY');
+      // A 400 with no code is the kernel saying the input has the wrong shape or value. Without this the
+      // agent would get a Korean sentence where the instructions promise a reason.
+      if (
+        code == null &&
+        [HttpStatus.BAD_REQUEST, HttpStatus.UNPROCESSABLE_ENTITY].includes(error.getStatus())
+      )
+        return new DashboardToolException(
+          'INVALID',
+          'INVALID_INPUT',
+          'INVALID_INPUT',
+          error.message.length <= 200 ? { hint: error.message } : undefined,
+        );
       return error;
   }
 }

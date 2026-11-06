@@ -70,7 +70,7 @@ const ERRORS: Record<McpErrorCode, { retryable: boolean; message: string }> = {
   LIMIT: {
     retryable: false,
     message:
-      'A limit was reached (threads, comments, open suggestions, total comment text, document length or result size).',
+      'A limit was reached (threads, comments, open suggestions, total comment text, document length or result size). For dashboards detail.reason RATE_LIMITED means too many calls in a short time: wait, then retry with the same requestId (retryable is true only for that reason).',
   },
 };
 
@@ -112,7 +112,10 @@ export function mcpError(error: unknown) {
       : undefined;
   return {
     code,
-    retryable: ERRORS[code].retryable,
+    retryable:
+      error instanceof DashboardToolException && error.retryable !== undefined
+        ? error.retryable
+        : ERRORS[code].retryable,
     message: ERRORS[code].message,
     ...(detail ? { detail } : {}),
   };
