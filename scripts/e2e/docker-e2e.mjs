@@ -661,15 +661,17 @@ await kase('조직: admin 이 연결 코드로 새 계정을 viewer 로 추가�
   // 직원 목록 API 에 viewer 로 실제 등록될 때까지 기다린다.
   const adminToken = await tokenFor(GUEST.id, GUEST.pw);
   let entry;
+  let lastStatus;
   for (const _ of Array.from({ length: 30 })) {
     // 목록은 20명씩 페이지로 오므로 로그인 ID 로 검색한다(스택에 멤버가 쌓여도 첫 페이지에 의존하지 않는다).
     const list = await api('GET', `/v1/enterprise/members?q=${encodeURIComponent(MEMBER.id)}`, undefined, adminToken);
+    lastStatus = list.status;
     const page1 = list.json?.entries ? list.json : list.json?.data;
     entry = (page1?.entries || []).find(e => e.userId === MEMBER.id);
     if (entry) break;
     await sleep(500);
   }
-  check(entry, `직원 목록에 ${MEMBER.id} 가 등록되지 않음`);
+  check(entry, `직원 목록에 ${MEMBER.id} 가 등록되지 않음 (마지막 응답 ${lastStatus})`);
   check(entry.role === 'viewer', `viewer 로 등록되어야 함: ${entry.role}`);
 });
 

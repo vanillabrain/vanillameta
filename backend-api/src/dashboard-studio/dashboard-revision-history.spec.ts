@@ -90,9 +90,13 @@ describe('dashboard revision history', () => {
       role: 'editor',
       team: '',
     } as never);
-    await save(1, 'save');
-    expect((await rows(1))[0].organizationId).toBe(42);
-    await db.manager.delete(EnterpriseMembership, { userId: 7 });
+    try {
+      await save(1, 'save');
+      expect((await rows(1))[0].organizationId).toBe(42);
+    } finally {
+      await db.manager.delete(EnterpriseMembership, { userId: 7 });
+      await db.manager.delete(User, { id: 7 });
+    }
   });
 
   it('records the connection behind an external AI save', async () => {
