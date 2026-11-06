@@ -175,6 +175,47 @@ export class McpDashboardService {
     };
   }
 
+  /**
+   * The saved metrics a dashboard can be built from, on a source the account owns: what a block's
+   * `metric: {id, definitionVersion}` names. Only what is needed to choose one is returned. The
+   * business basis and the nested definitions of a formula, which hold text people wrote, stay on the
+   * server; the label is still text someone wrote and is untrusted. Pages of 50 by id.
+   */
+  async metrics(principal: McpOAuthPrincipal, sourceId: unknown, afterId: unknown = 0) {
+    await this.begin(principal, 'dashboards:write');
+    if (!Number.isSafeInteger(afterId) || (afterId as number) < 0)
+      throw new DashboardToolException('INVALID', 'INVALID_INPUT');
+    await this.ownedSource(sourceId, principal.actorId);
+    const catalog = await this.creation.specCatalog(sourceId as number, principal.actorId);
+    // Ownership may have moved while the catalog was read.
+    await this.ownedSource(sourceId, principal.actorId);
+    await this.auth.revalidate(principal);
+    const rows = catalog
+      .filter(metric => metric.id > (afterId as number))
+      .sort((a, b) => a.id - b.id)
+      .slice(0, LIST_PAGE + 1);
+    const visible = rows.slice(0, LIST_PAGE);
+    return {
+      sourceId: sourceId as number,
+      metrics: visible.map(({ id, definitionVersion, definition }) => ({
+        id,
+        definitionVersion,
+        label: definition.label,
+        aggregation: definition.aggregation,
+        column: definition.column,
+        ...(definition.denominatorColumn
+          ? { denominatorColumn: definition.denominatorColumn }
+          : {}),
+        ...(definition.weightColumn ? { weightColumn: definition.weightColumn } : {}),
+        ...(definition.scale !== undefined ? { scale: definition.scale } : {}),
+        unit: definition.unit,
+        decimalPlaces: definition.decimalPlaces,
+        numberNotation: definition.numberNotation,
+      })),
+      nextAfterId: rows.length > LIST_PAGE ? visible[visible.length - 1].id : null,
+    };
+  }
+
   /** Computes a dashboard from saved metrics and saves nothing. */
   async preview(principal: McpOAuthPrincipal, input: any) {
     await this.begin(principal, 'dashboards:write');

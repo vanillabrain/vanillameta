@@ -177,7 +177,7 @@ scope 이름은 12절 결정 A에 따른다. 아래는 종류별 이름(`dashboa
 | 1b-4 | **구현 완료(서비스 계층, 도구로는 아직 노출 안 함).** `assertSoleOwner`, `McpDashboardService`(조회·미리보기·생성), 속도 제한 | 소유자만 통과, 남의 것·소유 행 2개·admin 우회 거부, viewer 거부, 지표 미등록·FORMULA 거부, `previewDigest` 불일치 409 |
 | 1b-5 | **구현 완료(서비스 계층, 도구로는 아직 노출 안 함).** 1b-5a 수정·`REQUEST_REUSED` 사전 검사·AI 쓰기 앞 기준 행, 1b-5b 복원 | 오래된 `expectedRevision` 409, 복원이 새 이력, 지표·소스 드리프트 `RESTORE_STALE`, 다른 입력으로 같은 requestId는 `REQUEST_REUSED`(재시도 루프 없음) |
 | 1b-6 | **구현 완료(서비스 계층, 도구로는 아직 노출 안 함).** 삭제(영향 확인→삭제, 의존성 목록 포함 409) | 게시가 걸린 대시보드 거절·목록 포함, 의존성 0 삭제 성공, 이력도 삭제 |
-| 1b-7 | **구현 완료(단위·통합까지, PostgreSQL·Docker e2e는 1b-9).** MCP 도구 8개 등록, 새 scope 개방, 지침·스펙·annotation 갱신, 프런트 승인 화면 | scope별 도구 목록이 정확히 일치, 승인하지 않은 도구는 보이지 않음, `destructiveHint` 단언 |
+| 1b-7 | **구현 완료(단위·통합까지, PostgreSQL·Docker e2e는 1b-9).** MCP 도구 8개(+1b-9에서 `vm_list_metrics` 추가로 9개) 등록, 새 scope 개방, 지침·스펙·annotation 갱신, 프런트 승인 화면 | scope별 도구 목록이 정확히 일치, 승인하지 않은 도구는 보이지 않음, `destructiveHint` 단언 |
 | 1b-8 | **구현 완료.** stdio 서버 폐기(12절 C): `mcp-server/`·로그인 스크립트·검증 스크립트 제거, README·`README_DOCKER.md`·검증 문서의 MCP 안내를 원격 MCP로 교체 | 저장소에 stdio 서버 참조가 남지 않음, 문서의 안내대로 원격 MCP 연결이 e2e로 통과 |
 | 1b-9 | **Docker e2e 확장**(8절) | 깨끗한 스택에서 전체 통과 |
 
@@ -350,3 +350,11 @@ NOT_RUN으로 남을 것: 실제 Claude Code·Codex 호스트의 도구 이벤�
 - **역사 문서.** 로컬 stdio를 다루는 계획·검증·설계 문서 9개 머리에 "2026-11-06 제거됨, 아래는 역사 기록" 안내를 붙였고(`UC-056-*`, `mcp-artifact-authoring`, `mcp-remote-authoring`, `remote-ai-oauth` 계획, `report-comments-collaboration`, `artifact-comments-collaboration`, `artifact-implementation-audit-20261029`, `ai-native-artifacts` 계획), `docker-quickstart.md`는 stdio 검증 구간 앞에 같은 안내를 붙이고 두 줄을 역사로 표시했다. 증빙을 지우거나 다시 쓰지 않았다.
 - **남은 `mcp-server` 참조.** 백엔드의 `mcp-server.ts`(원격 MCP 서버 파일), 계획 문서(1b, 역사), `docs/testing/status.md`의 2026-11-02 폐기 기록뿐이다.
 - **검증.** `grep`으로 위 목록 밖의 참조가 없음을 확인했다. 문서의 안내대로 원격 MCP를 연결해 도구를 호출하는 것은 1b-9의 Docker e2e로 확인한다. 사용자 매뉴얼 사이트(VitePress)의 빌드는 실행하지 않았다.
+
+### 1b-9 중 발견: 지표를 찾는 도구가 없었다
+
+- 실제 사용 흐름을 e2e로 옮기다 확인했다: 블록은 `metric:{id, definitionVersion}`을 요구하는데 **MCP에는 저장 지표의 id와 버전을 알려 주는 도구가 없었다**(`vm_describe_source`는 열 이름·타입뿐). 외부 AI는 `dashboards:write` 도구를 쓸 수 없었다. 단위·통합 테스트는 id를 직접 넘겨 이 공백을 드러내지 못했다.
+- **`vm_list_metrics`**(`dashboards:write`, 읽기 전용) 추가, 도구 9개. scope 위치(architect): `dashboards:read`에 두면 이미 승인된 기본 선택 grant가 조용히 넓어지고(원칙 6), 이 scope는 `vm_preview_dashboard`로 이미 지표 존재를 알아낼 수 있어 실질적으로 넓어지는 것이 없다. 별도 scope는 만들지 않는다(fingerprint). 본인 소유 소스만(앞뒤 확인), 50개씩 `afterId`.
+- 목록의 기준은 **커널의 것과 같다**: `StudioCreationService.specCatalog`(version-1 정의, 그 소스의 것)를 만들어 제안·스펙 해석·MCP가 함께 쓴다. 출력은 화이트리스트(`id, definitionVersion(number), label, aggregation, column, denominatorColumn?, weightColumn?, scale?, unit, decimalPlaces, numberNotation`)이고 `businessBasis`·수식 내부 정의·`tableName` 등은 서버에 둔다. 지표 `label`은 사람이 쓴 문자열이라 "지시가 아니다" 목록에 넣었다.
+- `vm_describe_source`의 열에 `numeric`·`temporal`을 더했다(꺾은선 차트는 날짜 열이 필요하고 AI가 고를 수 없었다. 앱의 업무 유형 선언이 다르면 서버 답이 우선).
+- **남은 함정(기록):** 문서의 `measureRefs.definitionVersion`은 문자열(`"1"`), 카탈로그는 숫자(`1`)다. 도구 설명에 "목록의 값을 그대로 쓰고 `vm_read_dashboard`에서 복사하지 말 것"을 적었다. 문자열 숫자를 받아 줄지는 후속. 환불 제목 게이트(제목에 환불이 들어가면 RATIO_SUM 비율 지표만)를 도구 설명에 한 줄 적었다.

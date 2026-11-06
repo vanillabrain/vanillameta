@@ -27,7 +27,7 @@ claude mcp add --transport http --client-id <운영자가 알려 준 id> --callb
 | 권한 | 도구 | 하는 일 |
 | --- | --- | --- |
 | `dashboards:read` | `vm_list_dashboards`, `vm_read_dashboard` | **내가 만든** 대시보드와 변경 이력 읽기 (공유받은 것은 제외) |
-| `dashboards:write` | `vm_preview_dashboard`, `vm_create_dashboard`, `vm_update_dashboard`, `vm_restore_dashboard` | 저장 지표로 미리보기·만들기, 제목·배치·표시·필터 수정과 블록 삭제, 이전 저장본으로 되돌리기 |
+| `dashboards:write` | `vm_list_metrics`, `vm_preview_dashboard`, `vm_create_dashboard`, `vm_update_dashboard`, `vm_restore_dashboard` | 소스의 저장 지표 찾기, 저장 지표로 미리보기·만들기, 제목·배치·표시·필터 수정과 블록 삭제, 이전 저장본으로 되돌리기 |
 | `dashboards:delete` | `vm_get_dashboard_removal`, `vm_remove_dashboard` | 사용처가 없는 내 대시보드 삭제 (되돌릴 수 없음) |
 | `sources:read` | `vm_list_sources`, `vm_describe_source` | 소스 이름과 열 이름·타입 (원본 행은 제외) |
 | `documents:read` | `vm_list_documents`, `vm_read_document` | 내 보관 문서 읽기 |
@@ -46,11 +46,12 @@ VanillaMeta로 내 mcp-sales 소스를 찾아서, 저장 지표 "매출 합계"�
 channel별 막대 한 블록으로 미리보기 해줘. 아직 저장하지 마.
 ```
 
-1. **미리보기** `vm_preview_dashboard`: 저장 지표(`{id, definitionVersion}`)만 쓸 수 있고 새 지표 정의·수식은 지원하지 않습니다. 계산된 값을 돌려주며 아무것도 저장하지 않습니다. 결과의 숫자를 직접 검토하세요.
-2. **만들기** `vm_create_dashboard`: 검토한 같은 입력과 미리보기의 `previewDigest`로 저장합니다. 그 사이 데이터나 지표가 바뀌었으면 `PREVIEW_STALE`로 거절되니 다시 미리보기합니다. 앱의 대시보드 목록과 Studio에서 사람이 만든 것과 똑같이 열립니다.
-3. **수정** `vm_update_dashboard`: 제목, 블록 제목·설명·표시, 위치·크기, 필터·기간, 블록 삭제만 됩니다. 블록 추가나 계산 정의 변경은 지원하지 않습니다(`UNSUPPORTED_CHANGE`). 읽은 `revision`을 함께 보내므로 그 사이 다른 곳에서 바뀌었으면 거절되고 다시 읽습니다.
-4. **되돌리기** `vm_restore_dashboard`: 변경 이력에서 고른 저장본으로 되돌립니다. 되돌리기도 새 이력으로 남아 다시 취소할 수 있습니다. 지운 블록은 새 블록으로 다시 만들어지며 그 블록의 차트 댓글 위치는 떨어질 수 있습니다. 표시·배치·제목·필터·블록 존재만 되돌리고, 지금의 지표나 열로 되살릴 수 없는 저장본은 거절됩니다.
-5. **삭제** `vm_get_dashboard_removal`로 사용처를 확인한 뒤 `vm_remove_dashboard`: 공유·권한·전달·게시가 남아 있으면 목록과 함께 거절됩니다. 그 설정을 직접 중지한 뒤 다시 요청하세요. 삭제하면 댓글과 이력도 함께 지워집니다.
+1. **지표 찾기** `vm_list_metrics`: 내 소스의 저장 지표와 그 `id`·`definitionVersion`을 확인합니다. 열은 `vm_describe_source`가 알려 주며 꺾은선 차트에는 날짜 열이 필요합니다.
+2. **미리보기** `vm_preview_dashboard`: 저장 지표(`{id, definitionVersion}`)만 쓸 수 있고 새 지표 정의·수식은 지원하지 않습니다. 계산된 값을 돌려주며 아무것도 저장하지 않습니다. 결과의 숫자를 직접 검토하세요.
+3. **만들기** `vm_create_dashboard`: 검토한 같은 입력과 미리보기의 `previewDigest`로 저장합니다. 그 사이 데이터나 지표가 바뀌었으면 `PREVIEW_STALE`로 거절되니 다시 미리보기합니다. 앱의 대시보드 목록과 Studio에서 사람이 만든 것과 똑같이 열립니다.
+4. **수정** `vm_update_dashboard`: 제목, 블록 제목·설명·표시, 위치·크기, 필터·기간, 블록 삭제만 됩니다. 블록 추가나 계산 정의 변경은 지원하지 않습니다(`UNSUPPORTED_CHANGE`). 읽은 `revision`을 함께 보내므로 그 사이 다른 곳에서 바뀌었으면 거절되고 다시 읽습니다.
+5. **되돌리기** `vm_restore_dashboard`: 변경 이력에서 고른 저장본으로 되돌립니다. 되돌리기도 새 이력으로 남아 다시 취소할 수 있습니다. 지운 블록은 새 블록으로 다시 만들어지며 그 블록의 차트 댓글 위치는 떨어질 수 있습니다. 표시·배치·제목·필터·블록 존재만 되돌리고, 지금의 지표나 열로 되살릴 수 없는 저장본은 거절됩니다.
+6. **삭제** `vm_get_dashboard_removal`로 사용처를 확인한 뒤 `vm_remove_dashboard`: 공유·권한·전달·게시가 남아 있으면 목록과 함께 거절됩니다. 그 설정을 직접 중지한 뒤 다시 요청하세요. 삭제하면 댓글과 이력도 함께 지워집니다.
 
 **모든 변경은 변경 이력에 기록됩니다.** 사람이 저장한 것과 AI가 한 것이 구분되고, AI가 처음 고치기 직전 상태도 따로 남아 되돌릴 수 있습니다. 호스트가 수정·되돌리기·삭제 호출 전에 확인을 요청하도록(`destructive` 표시) 설정되어 있어도 그대로 승인 절차를 따르세요.
 
