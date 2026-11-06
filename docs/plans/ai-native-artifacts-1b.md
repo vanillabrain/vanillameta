@@ -174,7 +174,7 @@ scope 이름은 12절 결정 A에 따른다. 아래는 종류별 이름(`dashboa
 | 1b-1 | **scope 안전 선행(구현 완료).** `mcp-oauth/scope-policy.ts`의 `Record<McpScope,{kind,capability}>` 한 표를 등급 검사와 동의 요청 응답(`scopeKinds`)이 쓰고, 프런트는 이름이 아니라 서버가 준 `kind`로 분류·기본 해제한다. 새 scope 문자열은 아직 열지 않는다 | 기존 MCP·AiConnections 테스트 통과. 표 누락은 컴파일 오류, 손으로 쓴 기대표와 일치, `scopeKinds` 없는 요청은 프런트가 거부. **읽기 scope의 등급 검사는 1b-4로 옮겼다**(표 아래 주) |
 | 1b-2 | **구현 완료.** `createOnce`를 `persistResolved`와 해석 단계로 분리하고, 저장 지표만 받는 상태 없는 경로(`previewSpec`/`createFromSpec`, MCP·HTTP 미노출) 추가 | 기존 Studio 스펙 전부 통과 + 분리 전후 같은 입력의 정규화 출력 비교 + `metric.id` 없는 블록이 Metric 생성에 닿지 않는다는 단언 |
 | 1b-3 | **구현 완료.** `dashboard_revision` 엔티티·**마이그레이션**·등록, Studio 저장·신규 생성에 이력(플래그 포함), 삭제·인계 정리 | 저장마다 행 1개, 같은 `requestId` 재시도는 행 추가 없음, 보존 규칙(human·생성 보존, ai 50개), **synchronize를 끈 PostgreSQL에서 마이그레이션 실행** |
-| 1b-4 | `assertSoleOwner`, `McpDashboardService`(조회·미리보기·생성), 속도 제한 | 소유자만 통과, 남의 것·소유 행 2개·admin 우회 거부, viewer 거부, 지표 미등록·FORMULA 거부, `previewDigest` 불일치 409 |
+| 1b-4 | **구현 완료(서비스 계층, 도구로는 아직 노출 안 함).** `assertSoleOwner`, `McpDashboardService`(조회·미리보기·생성), 속도 제한 | 소유자만 통과, 남의 것·소유 행 2개·admin 우회 거부, viewer 거부, 지표 미등록·FORMULA 거부, `previewDigest` 불일치 409 |
 | 1b-5 | 수정, 복원(`saveOnce` baseline), `REQUEST_REUSED` 사전 검사 | 오래된 `expectedRevision` 409, 복원이 새 이력, 지표·소스 드리프트 `RESTORE_STALE`, 다른 입력으로 같은 requestId는 `REQUEST_REUSED`(재시도 루프 없음) |
 | 1b-6 | 삭제(영향 확인→삭제, 의존성 목록 포함 409) | 게시가 걸린 대시보드 거절·목록 포함, 의존성 0 삭제 성공, 이력도 삭제 |
 | 1b-7 | MCP 도구 8개 등록, 새 scope 개방, 지침·스펙·annotation 갱신, 프런트 승인 화면 | scope별 도구 목록이 정확히 일치, 승인하지 않은 도구는 보이지 않음, `destructiveHint` 단언 |
@@ -265,3 +265,16 @@ NOT_RUN으로 남을 것: 실제 Claude Code·Codex 호스트의 도구 이벤�
 - **C. 로컬 stdio: 폐기하고 원격 MCP로 안내.** 1b-8에서 `mcp-server/`(stdio 서버, 로그인 JWT 스크립트, 검증 스크립트)와 관련 문서를 제거하고 README·`README_DOCKER.md`의 MCP 안내를 원격 MCP(OAuth)로 바꾼다. 서버 AI를 실행하는 `vm_propose_analysis`와 JWT로 MCP 밖 API를 부르는 길이 함께 사라져 상위 8절 요구 6의 통과 조건을 만족한다. 제거 범위(예: `docs/testing/docker-quickstart.md`의 stdio 검증 기록)는 1b-8에서 목록으로 확정한다.
 
 해결한 것: 이력 보존은 5.4(`human`·생성 보존, AI 50개)로 정했다. `StudioSpecService` 추출은 폐기하고 `createOnce` 분리로 바꿨다.
+
+### 1b-4 구현 노트
+
+- **범위.** 서비스 계층까지다. 도구 등록·scope 개방·모듈 DI 연결·감사 기록(`dashboard.mcp-create`)은 1b-7에서 한다. 서비스는 `McpOAuthModule`에 provider로 아직 등록하지 않았다(`StudioService`·`StudioCreationService`·`EnterpriseResourcePolicyService`를 모듈이 가져와야 한다). **1b-7의 통과 조건에 "실제 Nest 컨테이너에서 서비스가 만들어진다"를 넣는다.**
+- **scope 이음매.** `dashboards:*` 세 이름은 `McpScope`에 아직 없고 `mcp-oauth/dashboard-scope.ts`에 따로 있다. 클라이언트 설정과 승인 화면은 `McpScope`만 알아서 지금은 어떤 연결도 이 scope를 가질 수 없다(서비스는 `principal.scopes`를 직접 확인한다). 1b-7이 세 이름을 `McpScope`와 `MCP_SCOPE_POLICY`로 옮기고 이 파일을 지운다. 프런트 enum이 서버보다 먼저 받아야 한다는 순서는 그대로다.
+- **assertSoleOwner.** 대시보드가 없거나, 삭제·비활성이거나, 소유 행이 2개 이상이거나, 호출자가 소유자가 아니거나(조직 admin·공유 편집자 포함) 계정이 비활성이면 모두 같은 `ForbiddenException`이다. 존재 여부를 구별할 단서를 주지 않는다. **비활성(`assetActive=false`) 대시보드는 MCP로 읽지도 쓰지도 못한다**(1b-3 조건 (라)의 정책 결정). 목록은 같은 조건을 SQL로 쓰고, 스펙이 모든 픽스처에서 둘의 판정이 일치함을 확인한다.
+- **읽기 등급 검사.** 모든 호출이 `begin()`에서 scope → `revalidate` → 등급(`assertGradeAllows`, `McpReportService`와 공용) 순으로 확인한다. 알 수 없는 role 문자열은 읽기에서도 거부된다(1b-1에서 미룬 항목).
+- **쓰기의 grant 검사.** `createFromSpec`이 `beforeAccess` 훅을 받아 저장 트랜잭션의 첫 줄에서 `assertGrant`와 등급을 읽는다. 스펙이 훅이 트랜잭션 안에서 돌고, 훅이 거부하면 대시보드·`StudioRun`이 남지 않음을 확인한다.
+- **원본 값 반출.** 미리보기·생성 모두 한 블록이 500행(`SPEC_ROW_LIMIT`)을 넘으면 `CARDINALITY_LIMIT`으로 거부한다(자르지 않는다). 도구가 돌려주는 미리보기에는 쿼리 문장(`sql`)을 넣지 않고 블록당 100행까지만 준다. 소스는 호출자가 **소유한** 것만 허용한다(공유받은 소스는 안 된다).
+- **이력 요약.** `vm_read_dashboard`는 `revisionId, createdAt, operation, authorKind, clientName(AI일 때), byYou, isCurrent`만 준다. 다른 사람의 계정 정보는 `byYou: false`로만 드러난다. 문서 본문·`actorId`·`aiGrantId`는 내보내지 않는다.
+- **오류.** `DashboardToolException(code, reason)`이 `detail.reason`을 싣는다. 서비스 예외의 `code`(`PREVIEW_STALE`, `SOURCE_CHANGED`, `REQUEST_REUSED`, `CARDINALITY_LIMIT`)와 쓰기 대기열 가득(503)만 변환하고, 그 밖의 예외(거부, 404, 버그)는 그대로 둔다. 같은 `requestId`·다른 입력은 `createFromSpec`이 쓰기 전에 `StudioRun`을 읽어 `REQUEST_REUSED`를 낸다(재시도 무한 루프를 막는다).
+- **속도 제한.** 계정별 고정 창: 미리보기 10/분, 쓰기 20/분, 생성 10/시간. 초과는 `LIMIT`/`RATE_LIMITED`. 재시도(replay)도 한도를 쓴다.
+- **미해결(1b-7로).** 감사 기록, 모듈 DI, 쓰기 대기열 상한 도달이 사람 저장에 주는 영향 관찰, `expectedSourceRevision`을 받지 않는 미리보기 응답의 `blocks`를 plan의 `{key, kind, …, warnings}` 모양으로 맞출지 결정.

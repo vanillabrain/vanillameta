@@ -123,6 +123,19 @@ export function savedRefundDenominator(definition: any): 'orders' | 'amount' | u
 }
 
 /** What the save step of a creation needs, whoever produced it. */
+/** Most rows one block of a spec preview may return; more is refused, not cut. */
+export const SPEC_ROW_LIMIT = 500;
+
+/**
+ * What an external AI's connection adds to a creation. `beforeAccess` runs first in the save
+ * transaction, so the grant and the grade are read under the same lock that the save holds: a
+ * connection revoked while the creation waited cannot still write.
+ */
+export interface CreationWriteOptions {
+  author?: RevisionAuthor;
+  beforeAccess?: (manager: EntityManager) => Promise<void>;
+}
+
 export interface ResolvedCreation {
   sourceId: number;
   title: string;
@@ -1654,6 +1667,13 @@ export class StudioCreationService {
       await this.validateBusinessDates(blocks, current, basis);
       const draft = this.compile(sourceId, title, blocks, current, basis);
       const preview = (await this.dashboards.preview({ draft, includeTrends: true }, actor)).data;
+      // An aggregate over an identifier column (an email, an id) would return that column's values
+      // one per row; a caller that is not the one looking at the screen gets no such dump.
+      if (preview.widgets.some((widget: any) => (widget.datas?.length ?? 0) > SPEC_ROW_LIMIT))
+        throw new BadRequestException({
+          code: 'CARDINALITY_LIMIT',
+          message: `차원의 값이 ${SPEC_ROW_LIMIT}개를 넘어 미리보기할 수 없습니다.`,
+        });
       await this.ensureCurrentSource(sourceId, actor, this.db.manager);
       if (preview.sourceRevision !== (await this.connection.duckDBVersion(sourceId)))
         throw new ConflictException('미리보기 데이터가 변경되었습니다. 다시 시도해 주세요.');
@@ -1696,7 +1716,12 @@ export class StudioCreationService {
    * again with the digest of its preview and the source revision it was computed on; the server
    * recomputes both and refuses with PREVIEW_STALE if anything the preview depended on changed.
    */
-  async createFromSpec(body: any, actor: number, authVersion?: number) {
+  async createFromSpec(
+    body: any,
+    actor: number,
+    authVersion?: number,
+    options: CreationWriteOptions = {},
+  ) {
     const { requestId, previewDigest, expectedSourceRevision, ...rest } = body ?? {};
     if (
       typeof requestId !== 'string' ||
@@ -1734,7 +1759,15 @@ export class StudioCreationService {
       // A concurrent request with the same ID may have saved while this one waited.
       const prior = await replay();
       if (prior) return prior;
-      const result = await this.persistResolved(resolved, actor, requestId, hash, replay);
+      const result = await this.persistResolved(
+        resolved,
+        actor,
+        requestId,
+        hash,
+        replay,
+        options.author,
+        options.beforeAccess,
+      );
       await assertCatalogActor(this.db.manager, requestedActor);
       return result;
     });
@@ -1791,6 +1824,7 @@ export class StudioCreationService {
     hash: string,
     replay: () => Promise<any>,
     author: RevisionAuthor = HUMAN_AUTHOR,
+    beforeAccess?: CreationWriteOptions['beforeAccess'],
   ) {
     const { sourceId, title, sourceRevision, semanticProposal, basis, context } = resolved;
     const storedProfile = resolved.profile;
@@ -1833,6 +1867,7 @@ export class StudioCreationService {
           snapshot,
         );
         return metadataTransaction(this.db, async manager => {
+          await beforeAccess?.(manager);
           if (context) await assertCatalogActor(manager, context, true);
           await lockMetricSources(manager, [sourceId]);
           await this.ensureCurrentSource(sourceId, actor, manager);

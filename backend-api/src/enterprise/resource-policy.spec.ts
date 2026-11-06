@@ -405,6 +405,34 @@ describe('EnterpriseResourcePolicyService resource grant contract', () => {
     ]);
   });
 
+  it('assertSoleOwner admits only the one owner of a live, active dashboard', async () => {
+    await dashboards.save([
+      { id: 61, title: 'Owned by 2' },
+      { id: 62, title: 'Two owners' },
+      { id: 63, title: 'Deleted', delYn: 'Y' },
+      { id: 64, title: 'Inactive', assetActive: false },
+      { id: 65, title: 'Unowned' },
+    ]);
+    await own(61, 2);
+    await own(62, 2);
+    await own(62, 3);
+    await own(63, 2);
+    await own(64, 2);
+    await expect(policy.assertSoleOwner(61, 2)).resolves.toEqual({ label: 'Owned by 2' });
+    // The organization admin and a user with an edit grant are not the owner.
+    await expect(policy.assertSoleOwner(61, 1)).rejects.toBeInstanceOf(ForbiddenException);
+    await policy.set('dashboard', 61, 1, {
+      recipientId: 3,
+      expectedVersion: 0,
+      rights: rights({ read: true, edit: true }),
+    });
+    await expect(policy.assertSoleOwner(61, 3)).rejects.toBeInstanceOf(ForbiddenException);
+    for (const id of [62, 63, 64, 65, 999])
+      await expect(policy.assertSoleOwner(id, 2)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(policy.assertSoleOwner(0, 2)).rejects.toBeInstanceOf(BadRequestException);
+    await users.update(2, { active: false });
+    await expect(policy.assertSoleOwner(61, 2)).rejects.toBeInstanceOf(ForbiddenException);
+  });
   it('requires a single owning mapping and a live dashboard before a dashboard grant', async () => {
     await dashboards.save([
       { id: 51, title: 'Shared dashboard', delYn: 'N' },
