@@ -31,6 +31,7 @@ import {
   ForbiddenException,
   HttpException,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
 } from '@nestjs/common';
@@ -57,7 +58,7 @@ import {
 } from './dashboard-revision-history';
 import { StudioRun } from './entities/studio-run.entity';
 import { DashboardRevision } from './entities/dashboard-revision.entity';
-import { deriveRestore, restoreStale, RestoreExtras } from './studio-restore';
+import { assertRestorableRow, deriveRestore, restoreStale, RestoreExtras } from './studio-restore';
 import { buildStudioEvidence } from './studio-evidence';
 /** What only a server-side caller (an external AI's change) may set; the HTTP controller passes none. */
 export interface SaveOptions {
@@ -136,9 +137,10 @@ export class StudioService {
       while (items.length < analysis.widgets.length)
         items.push({ kind: 'studio-unlinked-legacy', sourceId: analysis.databaseId });
     if (snapshot && items.length !== analysis.widgets.length)
-      throw new ConflictException(
-        '지표 연결 정보를 다시 불러와 주세요. 기존 편집 화면에서 연결을 확인해 주세요.',
-      );
+      throw new ConflictException({
+        code: 'STATE_CHANGED',
+        message: '지표 연결 정보를 다시 불러와 주세요. 기존 편집 화면에서 연결을 확인해 주세요.',
+      });
     const sourceRevision = await this.connection.duckDBVersion(analysis.databaseId);
     const source = await manager.findOne(Database, { where: { id: analysis.databaseId } });
     const dataVersion = createHash('sha256')
@@ -147,13 +149,19 @@ export class StudioService {
     const saved = await manager.findOne(StudioState, { where: { dashboardId: id } });
     const revision = dashboardRevision(row);
     if (analysis.revision !== revision)
-      throw new ConflictException('분석이 변경되었습니다. 다시 불러와 주세요.');
+      throw new ConflictException({
+        code: 'STATE_CHANGED',
+        message: '분석이 변경되었습니다. 다시 불러와 주세요.',
+      });
     const document =
       saved?.legacyRevision === revision
         ? validateStudioDocument({ ...JSON.parse(saved.document).document, revision })
         : importStudio(id, analysis, snapshot, schemaVersion);
     if (studioCharts(document).length !== analysis.widgets.length)
-      throw new ConflictException('블록 연결 정보를 다시 불러와 주세요.');
+      throw new ConflictException({
+        code: 'STATE_CHANGED',
+        message: '블록 연결 정보를 다시 불러와 주세요.',
+      });
     return {
       row,
       analysis,
@@ -1491,6 +1499,15 @@ export class StudioService {
     actor: number,
     options: SaveOptions = {},
   ) {
+    // A retry of a restore that went through gets its answer before anything else is read.
+    if (options.payloadKey !== undefined) {
+      const earlier = await this.replayRecord(
+        actor,
+        input.requestId,
+        studioDigest(options.payloadKey),
+      );
+      if (earlier) return earlier;
+    }
     const row = await this.db.manager.findOne(DashboardRevision, {
       where: { dashboardId: id, revisionId: input.revisionId },
     });
@@ -1520,8 +1537,14 @@ export class StudioService {
         error instanceof HttpException &&
         !(error.getResponse() as { code?: string })?.code &&
         [400, 409].includes(error.getStatus())
-      )
+      ) {
+        // Kept for the operator: the caller only learns that the old state no longer fits.
+        Logger.warn(
+          `Dashboard ${id}: restore refused by the save (${error.getStatus()} ${error.message})`,
+          'StudioRestore',
+        );
         throw restoreStale('저장본을 지금의 지표와 데이터로 되살릴 수 없습니다.');
+      }
       throw error;
     }
   }
@@ -1728,7 +1751,12 @@ export class StudioService {
             current.schema,
             this.db.manager,
           );
-          const template = templates.find(w => w.blockId === original.id);
+          // A block a restore brings back has its template appended after the current ones; look it up by
+          // place, not by id, so a current block that happens to share the id cannot lend its SQL.
+          const template =
+            extra && index >= current.document.blocks.length
+              ? templates[index]
+              : current.analysis.widgets.find(w => w.blockId === original.id);
           widgets.push({
             ...template,
             ...block.display,
@@ -1827,17 +1855,27 @@ export class StudioService {
               message: '다른 화면에서 변경되었습니다.',
             });
           await this.access.dashboard(id, actor, 'edit', manager);
-          // An AI's write must be undoable, so the state it replaces needs a history row of its own.
-          if (options.author?.kind === 'external-ai')
+          // An AI's write must be undoable: refuse it when the state it would replace could not be
+          // restored (a pivot, an older dashboard without a saved analysis), then keep that state.
+          if (options.author?.kind === 'external-ai') {
+            const replaced = JSON.stringify({
+              document: current.document,
+              sourceRevision: current.sourceRevision,
+            });
+            assertRestorableRow(id, {
+              dashboardId: id,
+              revision: body.expectedRevision,
+              studioDocument: replaced,
+              analysisDefinition: locked.analysisDefinition ?? null,
+              structuredDefinition: locked.structuredDefinition ?? null,
+            });
             await recordBaselineBeforeAiWrite(manager, {
               dashboard: locked,
               actorId: actor,
-              studioDocument: JSON.stringify({
-                document: current.document,
-                sourceRevision: current.sourceRevision,
-              }),
+              studioDocument: replaced,
               revision: body.expectedRevision,
             });
+          }
           await lockMetricReferences(
             manager,
             document.sourceId,
@@ -1850,7 +1888,10 @@ export class StudioService {
             sourceNow.connectionConfig !== sourceBefore.connectionConfig ||
             String(sourceNow.updatedAt) !== String(sourceBefore.updatedAt)
           )
-            throw new ConflictException('데이터 파일이 교체되었습니다.');
+            throw new ConflictException({
+              code: 'SOURCE_CHANGED',
+              message: '데이터 파일이 교체되었습니다.',
+            });
           for (const block of document.blocks)
             await this.validateCurrentReferences(
               block,
@@ -1888,7 +1929,10 @@ export class StudioService {
             order: { id: 'ASC' },
           });
           if (links.length !== studioCharts(remapped).length)
-            throw new ConflictException('차트 배치를 다시 불러와 주세요.');
+            throw new ConflictException({
+              code: 'STATE_CHANGED',
+              message: '차트 배치를 다시 불러와 주세요.',
+            });
           const layout = remapped.layouts.lg
             .filter(g => studioCharts(remapped).some(b => b.id === g.id))
             .map(g => {

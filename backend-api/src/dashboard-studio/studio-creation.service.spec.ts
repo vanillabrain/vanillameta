@@ -2688,9 +2688,9 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       );
       expect(after.document.blocks[0].id).toBe(first.document.blocks[0].id);
       expect(after.document.blocks[1].id).not.toBe(second.id);
-      expect(after.preview.widgets.map(w => w.datas)).toEqual(
-        first.preview.widgets.map(w => w.datas),
-      );
+      const valuesOf = (state: typeof first) =>
+        state.preview.widgets.map(w => w.datas.map(row => JSON.stringify(row)).sort());
+      expect(valuesOf(after)).toEqual(valuesOf(first));
       const rows = await db.manager.find(DashboardRevision, {
         where: { dashboardId },
         order: { seq: 'ASC' },

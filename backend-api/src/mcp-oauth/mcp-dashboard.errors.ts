@@ -47,6 +47,7 @@ export function toDashboardFailure(error: unknown): unknown {
     case 'PREVIEW_STALE':
     case 'SOURCE_CHANGED':
     case 'REVISION_CHANGED':
+    case 'STATE_CHANGED':
       return new DashboardToolException('CONFLICT', code);
     case 'REQUEST_REUSED':
     case 'REPLAY_UNREADABLE':
