@@ -114,6 +114,8 @@ export interface ResolvedCreation {
   semanticProposal: any[];
   basis?: BusinessBasis;
   context?: CatalogActorContext;
+  /** Every block names a saved metric, so saving must never create a Metric row. */
+  storedMetricsOnly?: boolean;
 }
 
 /** Single-source semantic proposals. Only this server compiler can produce executable SQL. */
@@ -1523,21 +1525,183 @@ export class StudioCreationService {
     });
   }
 
+  /** The journal row of an earlier creation with this request ID, or null. Same request, other input is a conflict. */
+  private async replayCreation(actor: number, requestId: string, hash: string) {
+    const row = await this.db.manager.findOne(StudioRun, { where: { actorId: actor, requestId } });
+    if (!row) return null;
+    if (row.payloadHash !== hash)
+      throw new ConflictException('같은 요청 ID에 다른 생성을 보낼 수 없습니다.');
+    const result = JSON.parse(row.result);
+    if (!result.dashboardId) throw new ConflictException('저장 완료 기록을 확인해 주세요.');
+    await this.access.dashboard(result.dashboardId, actor);
+    await this.access.assert('database', result.document.sourceId, actor);
+    return result;
+  }
+
+  /**
+   * A creation spec given by the caller instead of an AI proposal. It names saved metrics only: a new
+   * definition or a formula would create Metric rows, which the caller may not do.
+   */
+  private cleanSpec(body: any, extra: string[] = []) {
+    this.keys(body, ['sourceId', 'title', 'blocks', ...extra]);
+    const sourceId = this.access.id(body.sourceId);
+    const title = text(body.title, 300);
+    if (!Array.isArray(body.blocks) || body.blocks.length < 1 || body.blocks.length > 6)
+      throw new BadRequestException('블록 수는 1~6개입니다.');
+    for (const block of body.blocks) {
+      const metric = block?.metric;
+      if (
+        !metric ||
+        typeof metric !== 'object' ||
+        Array.isArray(metric) ||
+        !Number.isSafeInteger(metric.id) ||
+        metric.id <= 0 ||
+        Object.keys(metric).some(key => !['id', 'definitionVersion'].includes(key))
+      )
+        throw new BadRequestException({
+          code: 'UNSUPPORTED_CHANGE',
+          message: '저장된 지표({id, definitionVersion})만 사용할 수 있습니다.',
+        });
+    }
+    return { sourceId, title, blocks: copy(body.blocks) as any[] };
+  }
+
+  /**
+   * The interpretation step for a caller-supplied spec: the checks `proposeOnce` makes after the model
+   * answered, without the model, without the in-memory proposal map. It returns what the save step
+   * needs plus a digest of everything the preview depended on, so a later save can prove nothing
+   * changed. Random block IDs are left out of the digest, or no two previews would ever match.
+   */
+  private async resolveSpec(
+    spec: { sourceId: number; title: string; blocks: any[] },
+    actor: number,
+    authVersion?: number,
+  ) {
+    this.access.actor(actor);
+    const { sourceId, title } = spec;
+    const context = await catalogActorContext(this.db.manager, actor, authVersion);
+    const profile = await this.connection.withDuckDBSnapshot(sourceId, () =>
+      this.profile(sourceId, actor),
+    );
+    const basis = await captureBusinessBasis(this.db.manager, sourceId, profile);
+    await resolveBusinessBasis(
+      this.db.manager,
+      sourceId,
+      profile,
+      basis,
+      profile.columns.map(c => c.name),
+    );
+    const catalog = (await this.bi.metrics(sourceId, actor)).filter(
+      m => m.definition?.schemaVersion === 1 && m.definition.sourceId === sourceId,
+    );
+    const blocks = await Promise.all(
+      spec.blocks.map(block =>
+        this.validateBlock(block, profile, catalog, undefined, false, actor, basis),
+      ),
+    );
+    if (blocks.some(block => !block.metric.id))
+      throw new BadRequestException({
+        code: 'UNSUPPORTED_CHANGE',
+        message: '저장된 지표만 사용할 수 있습니다.',
+      });
+    const analysisContext = await this.trustedSourceContext(sourceId, actor);
+    if (analysisContext) this.validateUnits(blocks, pinnedUnits(analysisContext));
+    return this.connection.withDuckDBSnapshot(sourceId, async () => {
+      const current = await this.profile(sourceId, actor);
+      if (
+        current.dataVersion !== profile.dataVersion ||
+        current.schemaVersion !== profile.schemaVersion
+      )
+        throw new ConflictException('미리보기 중 데이터가 변경되었습니다. 다시 시도해 주세요.');
+      await this.ensureCurrentSource(sourceId, actor, this.db.manager);
+      await this.revalidate(blocks, current, this.db.manager);
+      await assertBusinessBasisCurrent(this.db.manager, sourceId, current, basis);
+      await this.validateBusinessDates(blocks, current, basis);
+      const draft = this.compile(sourceId, title, blocks, current, basis);
+      const preview = (await this.dashboards.preview({ draft, includeTrends: true }, actor)).data;
+      await this.ensureCurrentSource(sourceId, actor, this.db.manager);
+      if (preview.sourceRevision !== (await this.connection.duckDBVersion(sourceId)))
+        throw new ConflictException('미리보기 데이터가 변경되었습니다. 다시 시도해 주세요.');
+      await assertBusinessBasisCurrent(this.db.manager, sourceId, current, basis);
+      await this.revalidate(blocks, current, this.db.manager);
+      if (context) await assertCatalogActor(this.db.manager, context);
+      const effective = businessProfile(current, basis);
+      const resolved: ResolvedCreation = {
+        sourceId,
+        title,
+        sourceRevision: current.dataVersion,
+        profile: { ...current, columns: effective.columns },
+        semanticProposal: blocks,
+        basis,
+        context,
+        storedMetricsOnly: true,
+      };
+      const previewDigest = studioDigest({
+        kind: 'studio-create-spec-preview',
+        sourceId,
+        title,
+        sourceRevision: current.dataVersion,
+        schemaVersion: current.schemaVersion,
+        basis,
+        blocks: blocks.map(({ blockId: _blockId, ...rest }) => rest),
+      });
+      return { resolved, preview, previewDigest };
+    });
+  }
+
+  /** Preview of a creation from saved metrics. Saves nothing and calls no model. */
+  async previewSpec(body: any, actor: number, authVersion?: number) {
+    const spec = this.cleanSpec(body);
+    const { resolved, preview, previewDigest } = await this.resolveSpec(spec, actor, authVersion);
+    return { previewDigest, sourceRevision: resolved.sourceRevision, preview };
+  }
+
+  /**
+   * Create a dashboard from saved metrics, with no model and no proposal in memory. The spec is sent
+   * again with the digest of its preview and the source revision it was computed on; the server
+   * recomputes both and refuses with PREVIEW_STALE if anything the preview depended on changed.
+   */
+  async createFromSpec(body: any, actor: number, authVersion?: number) {
+    const { requestId, previewDigest, expectedSourceRevision, ...rest } = body ?? {};
+    if (
+      typeof requestId !== 'string' ||
+      !/^[-a-zA-Z0-9_]{1,128}$/.test(requestId) ||
+      typeof previewDigest !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(previewDigest) ||
+      typeof expectedSourceRevision !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(expectedSourceRevision)
+    )
+      throw new BadRequestException('생성 저장 요청을 확인해 주세요.');
+    const spec = this.cleanSpec(rest);
+    const hash = studioDigest({
+      kind: 'studio-create-spec',
+      sourceId: spec.sourceId,
+      title: spec.title,
+      blocks: spec.blocks,
+      previewDigest,
+      expectedSourceRevision,
+    });
+    const replay = () => this.replayCreation(actor, requestId, hash);
+    const requestedActor = await catalogActorContext(this.db.manager, actor, authVersion);
+    return this.studio.serializeWrite(async () => {
+      await assertCatalogActor(this.db.manager, requestedActor);
+      const prior = await replay();
+      if (prior) return prior;
+      const { resolved, previewDigest: current } = await this.resolveSpec(spec, actor, authVersion);
+      if (current !== previewDigest || resolved.sourceRevision !== expectedSourceRevision)
+        throw new ConflictException({
+          code: 'PREVIEW_STALE',
+          message: '미리보기 이후 데이터나 지표가 바뀌었습니다. 다시 미리보기해 주세요.',
+        });
+      const result = await this.persistResolved(resolved, actor, requestId, hash, replay);
+      await assertCatalogActor(this.db.manager, requestedActor);
+      return result;
+    });
+  }
+
   private async createOnce(body: any, actor: number) {
     const hash = studioDigest({ kind: 'studio-create', ...body });
-    const replay = async () => {
-      const row = await this.db.manager.findOne(StudioRun, {
-        where: { actorId: actor, requestId: body.requestId },
-      });
-      if (!row) return null;
-      if (row.payloadHash !== hash)
-        throw new ConflictException('같은 요청 ID에 다른 생성을 보낼 수 없습니다.');
-      const result = JSON.parse(row.result);
-      if (!result.dashboardId) throw new ConflictException('저장 완료 기록을 확인해 주세요.');
-      await this.access.dashboard(result.dashboardId, actor);
-      await this.access.assert('database', result.document.sourceId, actor);
-      return result;
-    };
+    const replay = () => this.replayCreation(actor, body.requestId, hash);
     const prior = await replay();
     if (prior) return prior;
     this.prune();
@@ -1658,6 +1822,8 @@ export class StudioCreationService {
             const key = studioDigest(b.metric);
             let metric = metrics.get(key);
             if (!metric) {
+              if (resolved.storedMetricsOnly)
+                throw new Error('A creation from saved metrics must not create a metric.');
               // Existing canonical matches were resolved and fenced as one set before any insert.
               metric = await manager.save(Metric, {
                 name: 'bi_' + randomUUID(),
