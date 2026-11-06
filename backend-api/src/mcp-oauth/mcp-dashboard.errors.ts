@@ -11,6 +11,7 @@ export type DashboardReason =
   | 'UNSUPPORTED_CHANGE'
   | 'INVALID_INPUT'
   | 'STATE_CHANGED'
+  | 'BUSY'
   | 'CARDINALITY_LIMIT'
   | 'RATE_LIMITED'
   | 'QUEUE_FULL'
@@ -39,7 +40,7 @@ export class DashboardToolException extends HttpException {
  * returned unchanged, so a refusal, a 404 or a bug is never relabelled as one of these.
  */
 export function toDashboardFailure(error: unknown): unknown {
-  if (!(error instanceof HttpException)) return error;
+  if (!(error instanceof HttpException) || error instanceof DashboardToolException) return error;
   const body = error.getResponse();
   const code = typeof body === 'object' && body !== null ? (body as { code?: unknown }).code : null;
   switch (code) {
@@ -47,19 +48,24 @@ export function toDashboardFailure(error: unknown): unknown {
     case 'SOURCE_CHANGED':
       return new DashboardToolException('CONFLICT', code);
     case 'REQUEST_REUSED':
+    case 'REPLAY_UNREADABLE':
+      // A record exists for this request ID. Asking again with it cannot work; look the dashboard up.
       return new DashboardToolException('REQUEST_REUSED', 'REQUEST_REUSED');
     case 'CARDINALITY_LIMIT':
       return new DashboardToolException('INVALID', 'CARDINALITY_LIMIT');
     case 'UNSUPPORTED_CHANGE':
       return new DashboardToolException('INVALID', 'UNSUPPORTED_CHANGE');
     case 'QUEUE_FULL':
-      return new DashboardToolException('LIMIT', 'QUEUE_FULL');
+      // Transient, so a retryable code: LIMIT tells an agent not to retry.
+      return new DashboardToolException('CONFLICT', 'QUEUE_FULL');
     default:
-      // A 409 the services raise without a code means the data or a definition moved underneath:
-      // read again and retry from the preview. Other statuses (a refusal, a 404, a busy worker, a
-      // bug) pass through as they are.
-      return error.getStatus() === HttpStatus.CONFLICT
-        ? new DashboardToolException('CONFLICT', 'STATE_CHANGED')
-        : error;
+      // A 409 without a code means the data or a definition moved underneath: preview again and
+      // retry. A 503 without one is a worker that is busy: retry later. Other statuses (a refusal,
+      // a 404, a bug) pass through as they are, and so does a 409 that carries a code not named here.
+      if (code == null && error.getStatus() === HttpStatus.CONFLICT)
+        return new DashboardToolException('CONFLICT', 'STATE_CHANGED');
+      if (code == null && error.getStatus() === HttpStatus.SERVICE_UNAVAILABLE)
+        return new DashboardToolException('CONFLICT', 'BUSY');
+      return error;
   }
 }

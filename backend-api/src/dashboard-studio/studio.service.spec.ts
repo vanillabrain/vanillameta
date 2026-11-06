@@ -1,5 +1,5 @@
 import { DashboardRevision } from './entities/dashboard-revision.entity';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { latestConditionSemantics } from '../bi/business-condition-context';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
@@ -173,7 +173,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
       expect(read.sourceRevision).toBe(full.sourceRevision);
       expect(read.sourceName).toBe(full.sourceName);
       expect(previews).not.toHaveBeenCalled();
-      await expect(studio.readDocument(id, 99)).rejects.toThrow();
+      await expect(studio.readDocument(id, 99)).rejects.toBeInstanceOf(ForbiddenException);
     } finally {
       previews.mockRestore();
     }

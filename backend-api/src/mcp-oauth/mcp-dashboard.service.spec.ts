@@ -315,6 +315,7 @@ describe('McpDashboardService', () => {
     });
 
     it('rejects a page cursor that is not a non-negative integer', async () => {
+      await expect(service.list(principal(), undefined)).resolves.toBeDefined();
       for (const afterId of ['1', -1, 1.5, NaN, null])
         expect(mcpError(await service.list(principal(), afterId).catch(e => e))).toMatchObject({
           code: 'INVALID',
@@ -386,11 +387,15 @@ describe('McpDashboardService', () => {
       expect(creation.previewSpec).not.toHaveBeenCalled();
     });
 
+    it('calls blocks that are not a list malformed input, not an unsupported change', async () => {
+      const error = await service.preview(principal(), { ...SPEC, blocks: 'nope' }).catch(e => e);
+      expect(mcpError(error)).toMatchObject({ detail: { reason: 'INVALID_INPUT' } });
+    });
+
     it('refuses a block that is not a saved metric before the kernel is reached', async () => {
       for (const blocks of [
         [{ title: 'x', kind: 'BOARD_NUMERIC', metric: { aggregation: 'SUM', column: 'a' } }],
         [{ title: 'x', kind: 'BOARD_NUMERIC' }],
-        'nope',
       ]) {
         const error = await service.preview(principal(), { ...SPEC, blocks }).catch(e => e);
         expect(mcpError(error)).toMatchObject({
@@ -496,7 +501,8 @@ describe('McpDashboardService', () => {
         new ServiceUnavailableException({ code: 'QUEUE_FULL', message: '많습니다' }),
       );
       expect(mcpError(await service.create(principal(), CREATE).catch(e => e))).toMatchObject({
-        code: 'LIMIT',
+        code: 'CONFLICT',
+        retryable: true,
         detail: { reason: 'QUEUE_FULL' },
       });
     });
@@ -509,9 +515,24 @@ describe('McpDashboardService', () => {
         code: 'CONFLICT',
         detail: { reason: 'STATE_CHANGED' },
       });
-      const busy = new ServiceUnavailableException('worker busy');
-      creation.createFromSpec.mockRejectedValueOnce(busy);
-      expect(await service.create(principal(), CREATE).catch(e => e)).toBe(busy);
+      // A busy worker is retryable later, and is not a permission problem.
+      creation.createFromSpec.mockRejectedValueOnce(new ServiceUnavailableException('worker busy'));
+      expect(mcpError(await service.create(principal(), CREATE).catch(e => e))).toMatchObject({
+        code: 'CONFLICT',
+        retryable: true,
+        detail: { reason: 'BUSY' },
+      });
+      // A 409 that carries a code this layer does not know is not renamed.
+      const unknown = new ConflictException({ code: 'SOMETHING_ELSE', message: 'x' });
+      creation.createFromSpec.mockRejectedValueOnce(unknown);
+      expect(await service.create(principal(), CREATE).catch(e => e)).toBe(unknown);
+      // An unreadable earlier record is "look it up", never "preview and try again".
+      creation.createFromSpec.mockRejectedValueOnce(
+        new ConflictException({ code: 'REPLAY_UNREADABLE', message: 'x' }),
+      );
+      expect(mcpError(await service.create(principal(), CREATE).catch(e => e))).toMatchObject({
+        code: 'REQUEST_REUSED',
+      });
     });
 
     it('does not turn a refusal or a bug into one of these codes', async () => {

@@ -564,8 +564,9 @@ export class StudioService {
     return preview;
   }
   /**
-   * The saved document and where it comes from, without computing anything. `get` runs the whole
-   * dashboard's queries to draw it; a caller that only needs the document must not pay for that.
+   * The saved document and where it comes from, without running the dashboard's queries. `get` runs
+   * them all to draw the screen; a caller that only needs the document must not pay for that. It
+   * still asks the source for its schema and version.
    */
   async readDocument(id: number, actor: number) {
     return serializeMetadataWork(this.db, async () => {
