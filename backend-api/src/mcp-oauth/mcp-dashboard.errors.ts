@@ -28,7 +28,9 @@ export class DashboardToolException extends HttpException {
   constructor(
     readonly code: Extract<McpErrorCode, keyof typeof STATUS>,
     readonly reason: DashboardReason,
-    message = reason,
+    message: string = reason,
+    /** Facts the agent needs beyond the reason, such as what still uses a dashboard. */
+    readonly extra?: Record<string, unknown>,
   ) {
     super({ statusCode: STATUS[code], message, reason }, STATUS[code]);
   }
@@ -57,6 +59,16 @@ export function toDashboardFailure(error: unknown): unknown {
       return new DashboardToolException('INVALID', 'CARDINALITY_LIMIT');
     case 'UNSUPPORTED_CHANGE':
       return new DashboardToolException('INVALID', 'UNSUPPORTED_CHANGE');
+    case 'HAS_DEPENDENCIES':
+      // Something still uses the dashboard (a share, a permission, a delivery, a publication). Asking
+      // again does not change that; the user has to stop the use first.
+      return new DashboardToolException('INVALID', 'HAS_DEPENDENCIES', 'HAS_DEPENDENCIES', {
+        dependencies: ((body as { dependencies?: unknown }).dependencies as unknown[] | undefined)
+          ?.filter(
+            (item: any) => typeof item?.kind === 'string' && Number.isSafeInteger(item?.count),
+          )
+          .map((item: any) => ({ kind: item.kind, count: item.count })),
+      });
     case 'RESTORE_STALE':
       // The saved state cannot be rebuilt on today's metrics or data. Asking again changes nothing,
       // so this is not a retryable CONFLICT: the agent reads the dashboard and decides.
