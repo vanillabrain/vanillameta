@@ -17,8 +17,13 @@ export const HUMAN_AUTHOR: RevisionAuthor = { kind: 'human' };
  */
 export const AI_REVISIONS_KEPT = 50;
 
-/** Set DASHBOARD_REVISION_HISTORY=off to stop writing history without a deploy of code. */
-export const revisionHistoryEnabled = () => process.env.DASHBOARD_REVISION_HISTORY !== 'off';
+/**
+ * Set DASHBOARD_REVISION_HISTORY=off to stop writing a person's saves without a deploy of code. An
+ * external AI's saves are always written: the history is what lets a person undo what an AI did,
+ * so switching it off must never leave an AI write unrecorded.
+ */
+export const revisionHistoryEnabled = (author: RevisionAuthor = HUMAN_AUTHOR) =>
+  author.kind === 'external-ai' || process.env.DASHBOARD_REVISION_HISTORY !== 'off';
 
 /**
  * Writes one history row for the dashboard as it is now. Call it inside the transaction that saved
@@ -38,9 +43,9 @@ export async function recordDashboardRevision(
     requestId?: string;
   },
 ): Promise<void> {
-  if (!revisionHistoryEnabled()) return;
-  const { dashboard, actorId, operation, requestId } = input;
   const author = input.author ?? HUMAN_AUTHOR;
+  if (!revisionHistoryEnabled(author)) return;
+  const { dashboard, actorId, operation, requestId } = input;
   const member = await manager.findOneBy(EnterpriseMembership, { userId: actorId });
   await manager.insert(DashboardRevision, {
     revisionId: randomUUID(),

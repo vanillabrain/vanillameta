@@ -75,6 +75,26 @@ describe('dashboard revision history', () => {
     expect(second.operation).toBe('save');
   });
 
+  it("fills in the actor's organization when there is a membership", async () => {
+    await db.manager.insert(User, {
+      id: 7,
+      userId: 'member7',
+      email: 'member7@example.invalid',
+      password: 'x',
+      active: true,
+      authVersion: 0,
+    } as never);
+    await db.manager.insert(EnterpriseMembership, {
+      userId: 7,
+      organizationId: 42,
+      role: 'editor',
+      team: '',
+    } as never);
+    await save(1, 'save');
+    expect((await rows(1))[0].organizationId).toBe(42);
+    await db.manager.delete(EnterpriseMembership, { userId: 7 });
+  });
+
   it('records the connection behind an external AI save', async () => {
     await save(1, 'save', ai);
     expect((await rows(1))[0]).toMatchObject({
@@ -101,6 +121,13 @@ describe('dashboard revision history', () => {
     expect(aiRows[0].seq).toBeGreaterThan(human[0].seq);
   });
 
+  it("caps an external AI's restores together with its saves", async () => {
+    for (let i = 0; i < AI_REVISIONS_KEPT + 10; i++) await save(1, i % 2 ? 'restore' : 'save', ai);
+    const kept = await rows(1);
+    expect(kept).toHaveLength(AI_REVISIONS_KEPT);
+    expect(new Set(kept.map(r => r.operation))).toEqual(new Set(['save', 'restore']));
+  });
+
   it("does not let one dashboard's saves prune another's history", async () => {
     for (let i = 0; i < AI_REVISIONS_KEPT + 5; i++) await save(1, 'save', ai);
     await save(2, 'save', ai);
@@ -108,10 +135,12 @@ describe('dashboard revision history', () => {
     expect(await rows(1)).toHaveLength(AI_REVISIONS_KEPT);
   });
 
-  it('writes nothing when the history is switched off', async () => {
+  it("stops writing a person's saves when switched off, but never an external AI's", async () => {
     process.env.DASHBOARD_REVISION_HISTORY = 'off';
     await save(1, 'save');
     expect(await rows(1)).toHaveLength(0);
+    await save(1, 'save', ai);
+    expect(await rows(1)).toHaveLength(1);
   });
 
   it('removes a dashboard history with it and leaves the others', async () => {

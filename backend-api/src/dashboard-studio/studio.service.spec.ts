@@ -461,6 +461,9 @@ describe('Studio real DuckDB and transactional metadata', () => {
     expect(history.studioDocument).toBe(stateAfterSave.document);
     expect(history.revision).toBe(stateAfterSave.legacyRevision);
     expect(await db.manager.countBy(DashboardRevision, { dashboardId: id })).toBe(1);
+    // Sending the same save again replays it and writes no second history row.
+    await save(document, 'nested-conditions-save-' + id);
+    expect(await db.manager.countBy(DashboardRevision, { dashboardId: id })).toBe(1);
     const restored = await studio.get(id, 7);
     expect(restored.document.conditions).toEqual(conditions);
     expect(restored.document.layouts).toEqual(beforeLayouts);
