@@ -68,7 +68,7 @@ export class McpDashboardService {
    * sees it (the kernel asserts the same, as a second line).
    */
   private storedMetricBlocks(blocks: unknown) {
-    if (!Array.isArray(blocks)) throw new DashboardToolException('INVALID', 'UNSUPPORTED_CHANGE');
+    if (!Array.isArray(blocks)) throw new DashboardToolException('INVALID', 'INVALID_INPUT');
     for (const block of blocks) {
       const id = block?.metric?.id;
       if (!Number.isSafeInteger(id) || id <= 0)

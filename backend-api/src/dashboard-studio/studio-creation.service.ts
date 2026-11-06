@@ -1566,7 +1566,11 @@ export class StudioCreationService {
         message: '같은 요청 ID에 다른 생성을 보낼 수 없습니다.',
       });
     const result = JSON.parse(row.result);
-    if (!result.dashboardId) throw new ConflictException('저장 완료 기록을 확인해 주세요.');
+    if (!result.dashboardId)
+      throw new ConflictException({
+        code: 'REPLAY_UNREADABLE',
+        message: '저장 완료 기록을 확인해 주세요.',
+      });
     await this.access.dashboard(result.dashboardId, actor);
     await this.access.assert('database', result.document.sourceId, actor);
     return result;
