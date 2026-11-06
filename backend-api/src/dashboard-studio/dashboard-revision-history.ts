@@ -1,0 +1,86 @@
+import { randomUUID } from 'crypto';
+import { EntityManager, LessThan, Not } from 'typeorm';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
+import { DashboardRevision } from './entities/dashboard-revision.entity';
+
+/** Who made a save: a person, or an external AI acting through one named connection. */
+export type RevisionAuthor =
+  | { kind: 'human' }
+  | { kind: 'external-ai'; grantId: string; clientName: string };
+export const HUMAN_AUTHOR: RevisionAuthor = { kind: 'human' };
+
+/**
+ * An external AI can save fast. Without a cap it could push every earlier version out of a bounded
+ * history in minutes, so only its own 'save'/'restore' rows are capped. A person's rows and every
+ * 'create' row stay.
+ */
+export const AI_REVISIONS_KEPT = 50;
+
+/** Set DASHBOARD_REVISION_HISTORY=off to stop writing history without a deploy of code. */
+export const revisionHistoryEnabled = () => process.env.DASHBOARD_REVISION_HISTORY !== 'off';
+
+/**
+ * Writes one history row for the dashboard as it is now. Call it inside the transaction that saved
+ * the dashboard, with the row read back after the save, so the history can never describe a state
+ * that was not committed.
+ */
+export async function recordDashboardRevision(
+  manager: EntityManager,
+  input: {
+    dashboard: Dashboard;
+    actorId: number;
+    /** The JSON written to `studio_state.document` by the same save. */
+    studioDocument: string;
+    revision: string;
+    operation: 'create' | 'save' | 'restore';
+    author?: RevisionAuthor;
+    requestId?: string;
+  },
+): Promise<void> {
+  if (!revisionHistoryEnabled()) return;
+  const { dashboard, actorId, operation, requestId } = input;
+  const author = input.author ?? HUMAN_AUTHOR;
+  const member = await manager.findOneBy(EnterpriseMembership, { userId: actorId });
+  await manager.insert(DashboardRevision, {
+    revisionId: randomUUID(),
+    dashboardId: dashboard.id,
+    revision: input.revision,
+    studioDocument: input.studioDocument,
+    title: dashboard.title,
+    layout: dashboard.layout,
+    analysisDefinition: dashboard.analysisDefinition ?? null,
+    structuredDefinition: dashboard.structuredDefinition ?? null,
+    pivotDefinitions: dashboard.pivotDefinitions ?? null,
+    actorId,
+    organizationId: member?.organizationId ?? null,
+    operation,
+    authorKind: author.kind,
+    aiGrantId: author.kind === 'external-ai' ? author.grantId : null,
+    aiClientName: author.kind === 'external-ai' ? author.clientName : null,
+    requestId: requestId ?? null,
+    createdAt: new Date().toISOString(),
+  });
+  if (author.kind !== 'external-ai' || operation === 'create') return;
+  const newest = await manager.find(DashboardRevision, {
+    select: { seq: true },
+    where: { dashboardId: dashboard.id, authorKind: 'external-ai', operation: Not('create') },
+    order: { seq: 'DESC' },
+    take: AI_REVISIONS_KEPT,
+  });
+  if (newest.length < AI_REVISIONS_KEPT) return;
+  await manager.delete(DashboardRevision, {
+    dashboardId: dashboard.id,
+    authorKind: 'external-ai',
+    operation: Not('create'),
+    seq: LessThan(newest[newest.length - 1].seq),
+  });
+}
+
+/** A dashboard's history goes with it (deletion, hand-over), like its comments. */
+export async function deleteDashboardRevisions(
+  manager: EntityManager,
+  dashboardId: number,
+): Promise<void> {
+  await manager.delete(DashboardRevision, { dashboardId });
+}

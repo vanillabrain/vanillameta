@@ -1,3 +1,4 @@
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { BadRequestException } from '@nestjs/common';
 import { latestConditionSemantics } from '../bi/business-condition-context';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
@@ -93,6 +94,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
       entities: [
         SourceCatalogEntry,
         Dashboard,
+        DashboardRevision,
         DashboardShare,
         DashboardWidget,
         UserMapping,
@@ -448,6 +450,17 @@ describe('Studio real DuckDB and transactional metadata', () => {
     expect(prepared.preview.widgets[1].datas).toEqual([{ category: 'Mobile', value: 200 }]);
     expect((await studio.get(id, 7)).document.conditions).toBeUndefined();
     await save(document, 'nested-conditions-save-' + id);
+    // The save wrote one history row in its own transaction: the same document the state now holds,
+    // by the person who saved it, keyed by the request that made it.
+    const history = await db.manager.findOneByOrFail(DashboardRevision, {
+      dashboardId: id,
+      requestId: 'nested-conditions-save-' + id,
+    });
+    const stateAfterSave = await db.manager.findOneByOrFail(StudioState, { dashboardId: id });
+    expect(history).toMatchObject({ operation: 'save', authorKind: 'human', actorId: 7 });
+    expect(history.studioDocument).toBe(stateAfterSave.document);
+    expect(history.revision).toBe(stateAfterSave.legacyRevision);
+    expect(await db.manager.countBy(DashboardRevision, { dashboardId: id })).toBe(1);
     const restored = await studio.get(id, 7);
     expect(restored.document.conditions).toEqual(conditions);
     expect(restored.document.layouts).toEqual(beforeLayouts);

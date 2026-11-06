@@ -1,3 +1,4 @@
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { User } from '../user/entities/user.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
@@ -120,6 +121,7 @@ describe('UC-006 share-to-fork journey: owner, recipient copy, revoke, re-share 
         EnterpriseGroupDelivery,
         EnterpriseDeliveryReceipt,
         Dashboard,
+        DashboardRevision,
         DashboardShare,
         DashboardWidget,
         DashboardPublication,

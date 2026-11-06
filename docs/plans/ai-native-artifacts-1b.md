@@ -173,7 +173,7 @@ scope 이름은 12절 결정 A에 따른다. 아래는 종류별 이름(`dashboa
 | ---- | ---- | -------- |
 | 1b-1 | **scope 안전 선행(구현 완료).** `mcp-oauth/scope-policy.ts`의 `Record<McpScope,{kind,capability}>` 한 표를 등급 검사와 동의 요청 응답(`scopeKinds`)이 쓰고, 프런트는 이름이 아니라 서버가 준 `kind`로 분류·기본 해제한다. 새 scope 문자열은 아직 열지 않는다 | 기존 MCP·AiConnections 테스트 통과. 표 누락은 컴파일 오류, 손으로 쓴 기대표와 일치, `scopeKinds` 없는 요청은 프런트가 거부. **읽기 scope의 등급 검사는 1b-4로 옮겼다**(표 아래 주) |
 | 1b-2 | **구현 완료.** `createOnce`를 `persistResolved`와 해석 단계로 분리하고, 저장 지표만 받는 상태 없는 경로(`previewSpec`/`createFromSpec`, MCP·HTTP 미노출) 추가 | 기존 Studio 스펙 전부 통과 + 분리 전후 같은 입력의 정규화 출력 비교 + `metric.id` 없는 블록이 Metric 생성에 닿지 않는다는 단언 |
-| 1b-3 | `dashboard_revision` 엔티티·**마이그레이션**·등록, 모든 Studio 저장·생성에 이력(플래그 포함), 삭제·인계 정리 | 저장마다 행 1개, 같은 `requestId` 재시도는 행 추가 없음, 보존 규칙(human·생성 보존, ai 50개), **synchronize를 끈 PostgreSQL에서 마이그레이션 실행** |
+| 1b-3 | **구현 완료.** `dashboard_revision` 엔티티·**마이그레이션**·등록, Studio 저장·신규 생성에 이력(플래그 포함), 삭제·인계 정리 | 저장마다 행 1개, 같은 `requestId` 재시도는 행 추가 없음, 보존 규칙(human·생성 보존, ai 50개), **synchronize를 끈 PostgreSQL에서 마이그레이션 실행** |
 | 1b-4 | `assertSoleOwner`, `McpDashboardService`(조회·미리보기·생성), 속도 제한 | 소유자만 통과, 남의 것·소유 행 2개·admin 우회 거부, viewer 거부, 지표 미등록·FORMULA 거부, `previewDigest` 불일치 409 |
 | 1b-5 | 수정, 복원(`saveOnce` baseline), `REQUEST_REUSED` 사전 검사 | 오래된 `expectedRevision` 409, 복원이 새 이력, 지표·소스 드리프트 `RESTORE_STALE`, 다른 입력으로 같은 requestId는 `REQUEST_REUSED`(재시도 루프 없음) |
 | 1b-6 | 삭제(영향 확인→삭제, 의존성 목록 포함 409) | 게시가 걸린 대시보드 거절·목록 포함, 의존성 0 삭제 성공, 이력도 삭제 |
@@ -193,6 +193,16 @@ scope 이름은 12절 결정 A에 따른다. 아래는 종류별 이름(`dashboa
 - **닿지 않는 방어.** `resolveSpec`의 `!metric.id` 두 번째 검사와 `persistResolved`의 `storedMetricsOnly` 단언은 앞단 `cleanSpec`이 먼저 막아 테스트가 닿지 않는 이중 방어다.
 - **PostgreSQL.** 새 경로는 jest(실제 DuckDB, SQLite 메타데이터)에서만 실행했다. 실제 PostgreSQL 실행은 1b-4에서 도구로 노출된 뒤 e2e(1b-9)로 확인한다.
 - **통과 조건 충족.** 분리 전후 동일 출력: 같은 저장 지표 블록을 제안 경로와 스펙 경로로 저장해 `document`와 `StudioState`를 id·hash·무작위 키를 정규화한 뒤 비교하는 테스트로 증명했다.
+
+1b-3 주(구현 사실과 정한 것):
+
+- **열.** 계획 5.4의 열에 `operation`(`create`/`save`/`restore`)을 더했다. 보존 규칙 "사람 행과 생성 행은 항상 보존, `external-ai`의 저장·복원 행만 최근 50개"를 구현하려면 생성 행을 구분할 표시가 필요하다. `seq`는 정수 자동 증가(PostgreSQL `integer`, 숫자로 읽힌다), `createdAt`은 다른 아티팩트 테이블처럼 ISO 문자열이다.
+- **기록 지점(3곳).** 사람의 저장 `saveOnce`(`operation: save`), 신규 생성 `persistResolved`(`create`), Studio pivot에서 새 대시보드를 만드는 경로(`create`). 모두 `StudioState`를 쓰는 같은 트랜잭션 안, `StudioRun` insert 앞이다. `persistResolved`는 작성 주체(`author`)를 선택 인자로 받아 1b-4의 MCP 생성이 `external-ai`를 넘긴다. `saveOnce`의 작성 주체 인자는 MCP 수정이 생기는 1b-5에서 추가한다. 기록하지 않는 곳: remix(`prepareRemix`), 재사용(`bi/studio-reuse-persist`, `dashboard-reuse`), 인계(복사본의 첫 이력 없음), 위젯·데이터셋·레거시 `/ai/dashboard-save`.
+- **삭제·인계.** `deleteDashboardComments`를 부르는 세 곳(삭제, 개인 인계, 묶음 인계)이 같은 트랜잭션에서 `deleteDashboardRevisions`도 부른다.
+- **기능 플래그.** `DASHBOARD_REVISION_HISTORY=off`면 기록하지 않는다(기본 켬).
+- **기존 스펙 수정.** 명시적 엔티티 목록을 쓰는 스펙 15개에 `DashboardRevision`을 추가했고(두 곳은 `EnterpriseMembership`과 `User`도), 새 테이블이 없으면 `this.subQuery is not a function`으로 실패한다는 점이 확인됐다. 기록 함수가 조직 ID를 채우려고 `EnterpriseMembership`을 조회하기 때문에 이 의존이 생겼다.
+- **마이그레이션 검증.** 마이그레이션 스펙(SQLite, 엔티티와 스키마 차이 0, 재실행 가능)에 더해 **실제 PostgreSQL 17에서 synchronize를 끄고** 실행했다: 스키마 차이 0, 열 형식 확인, 사람 행 2·생성 행 1·AI 저장 50개 보존, 삭제. 이 확인은 일회성(임시 스펙, 커밋하지 않음)이다. 운영 마이그레이션 실행은 따로 검증해야 한다.
+- **Docker e2e.** 이 단계의 이력은 읽을 도구나 API가 아직 없어 e2e로 직접 볼 수 없다. 사람의 저장·삭제가 회귀하지 않는지는 기존 e2e로 확인한다. 이력 조회는 1b-4(`vm_read_dashboard`)부터 e2e에 들어간다.
 
 배포 순서: 동의 요청 응답에 `scopeKinds`가 추가됐다. 새 프런트는 이것이 없는 응답을 거부하므로(닫힌 방향) **백엔드를 먼저 올리거나 함께 올린다.** Docker compose는 기본이 함께 올린다. 구 프런트는 모르는 키를 버리므로 새 백엔드와 같이 동작한다.
 

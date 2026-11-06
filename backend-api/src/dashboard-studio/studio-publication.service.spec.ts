@@ -1,3 +1,4 @@
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { User } from '../user/entities/user.entity';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
@@ -79,6 +80,7 @@ describe('T8 publication with real DuckDB aggregates and transactional metadata'
         User,
         EnterpriseMembership,
         Dashboard,
+        DashboardRevision,
         DashboardShare,
         DashboardWidget,
         UserMapping,

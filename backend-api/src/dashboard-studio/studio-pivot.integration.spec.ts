@@ -1,3 +1,4 @@
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
 import {
@@ -94,6 +95,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
         PersonalView,
         SourceCatalogEntry,
         Dashboard,
+        DashboardRevision,
         DashboardShare,
         DashboardWidget,
         UserMapping,

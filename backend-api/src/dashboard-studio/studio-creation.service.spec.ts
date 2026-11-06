@@ -1,3 +1,4 @@
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { businessSchemaRevision } from '../bi/semantic-business-basis';
 import { User } from '../user/entities/user.entity';
@@ -93,6 +94,7 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
         User,
         EnterpriseMembership,
         Dashboard,
+        DashboardRevision,
         DashboardShare,
         DashboardWidget,
         UserMapping,
@@ -2544,6 +2546,24 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       const retried = await createSpec(specOf(m), preview, 'spec-create-1');
       expect(retried.dashboardId).toBe(created.dashboardId);
       expect(await db.manager.count(Dashboard)).toBe(dashboardsBefore + 1);
+
+      // The creation left one history row, written with it, and the retry added none.
+      const history = await db.manager.findBy(DashboardRevision, {
+        dashboardId: created.dashboardId,
+      });
+      expect(history).toHaveLength(1);
+      expect(history[0]).toMatchObject({
+        operation: 'create',
+        authorKind: 'human',
+        actorId: 7,
+        requestId: 'spec-create-1',
+        revision: created.document.revision,
+        title: 'From a spec',
+      });
+      const state = await db.manager.findOneByOrFail(StudioState, {
+        dashboardId: created.dashboardId,
+      });
+      expect(history[0].studioDocument).toBe(state.document);
     });
 
     it('refuses a changed spec under the digest of another preview, and a reused request ID with other input', async () => {

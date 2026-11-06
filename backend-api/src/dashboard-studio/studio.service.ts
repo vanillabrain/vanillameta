@@ -48,6 +48,7 @@ import { isTemporaryStudioId, STUDIO_BREAKPOINTS, StudioDocumentV1 } from './stu
 import { studioKeys, validateStudioDocument, validateStudioConditions } from './studio-document';
 import { importStudio, studioDefinitions, studioDigest } from './studio-legacy';
 import { StudioState } from './entities/studio-state.entity';
+import { recordDashboardRevision } from './dashboard-revision-history';
 import { StudioRun } from './entities/studio-run.entity';
 import { buildStudioEvidence } from './studio-evidence';
 @Injectable()
@@ -476,13 +477,24 @@ export class StudioService {
               }),
             },
           );
-          document.revision = dashboardRevision(
-            await manager.findOne(Dashboard, { where: { id: saved.id } }),
-          );
+          const createdRow = await manager.findOneOrFail(Dashboard, { where: { id: saved.id } });
+          document.revision = dashboardRevision(createdRow);
+          const studioDocument = JSON.stringify({
+            document,
+            sourceRevision: current.sourceRevision,
+          });
           await manager.save(StudioState, {
             dashboardId: saved.id,
             legacyRevision: document.revision,
-            document: JSON.stringify({ document, sourceRevision: current.sourceRevision }),
+            document: studioDocument,
+          });
+          await recordDashboardRevision(manager, {
+            dashboard: createdRow,
+            actorId: actor,
+            studioDocument,
+            revision: document.revision,
+            operation: 'create',
+            requestId: body.requestId,
           });
           const result = { dashboardId: saved.id, document, idMap };
           await manager.insert(StudioRun, {
@@ -1764,13 +1776,22 @@ export class StudioService {
           );
           const row = await this.owner(id, actor, 'edit', manager);
           remapped.revision = dashboardRevision(row);
+          const studioDocument = JSON.stringify({
+            document: remapped,
+            sourceRevision: current.sourceRevision,
+          });
           await manager.save(StudioState, {
             dashboardId: id,
-            document: JSON.stringify({
-              document: remapped,
-              sourceRevision: current.sourceRevision,
-            }),
+            document: studioDocument,
             legacyRevision: remapped.revision,
+          });
+          await recordDashboardRevision(manager, {
+            dashboard: row,
+            actorId: actor,
+            studioDocument,
+            revision: remapped.revision,
+            operation: 'save',
+            requestId: body.requestId,
           });
           const result = { document: remapped, idMap };
           await manager.insert(StudioRun, {

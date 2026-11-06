@@ -31,6 +31,7 @@ import { StudioRunController } from './studio-run.controller';
 import { StudioController } from './studio.controller';
 import { StudioService } from './studio.service';
 import { StudioState } from './entities/studio-state.entity';
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { StudioRun } from './entities/studio-run.entity';
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { StudioRun } from './entities/studio-run.entity';
     TypeOrmModule.forFeature([
       PersonalView,
       StudioState,
+      DashboardRevision,
       StudioRun,
       StudioExecution,
       StudioPublication,

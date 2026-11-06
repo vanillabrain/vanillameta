@@ -1,3 +1,4 @@
+import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -54,6 +55,7 @@ describe('UC055 actual SQLite/JWT organization dashboard lifecycle', () => {
     User,
     UserMapping,
     Dashboard,
+    DashboardRevision,
     Database,
     Dataset,
     Widget,

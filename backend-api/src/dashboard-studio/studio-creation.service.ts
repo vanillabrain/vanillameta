@@ -52,6 +52,11 @@ import { decryptConnectionConfig } from '../utils/crypto.util';
 import { Metric } from '../metric/entities/metric.entity';
 import { StudioService } from './studio.service';
 import { StudioState } from './entities/studio-state.entity';
+import {
+  HUMAN_AUTHOR,
+  RevisionAuthor,
+  recordDashboardRevision,
+} from './dashboard-revision-history';
 import { StudioRun } from './entities/studio-run.entity';
 import {
   studioKeys,
@@ -1785,6 +1790,7 @@ export class StudioCreationService {
     requestId: string,
     hash: string,
     replay: () => Promise<any>,
+    author: RevisionAuthor = HUMAN_AUTHOR,
   ) {
     const { sourceId, title, sourceRevision, semanticProposal, basis, context } = resolved;
     const storedProfile = resolved.profile;
@@ -1908,13 +1914,23 @@ export class StudioCreationService {
           const idMap = Object.fromEntries(
             blocks.map((b, i) => [b.blockId, document.blocks[i].id]),
           );
+          const studioDocument = JSON.stringify({
+            document,
+            sourceRevision: await this.connection.duckDBVersion(sourceId),
+          });
           await manager.save(StudioState, {
             dashboardId: saved.id,
-            document: JSON.stringify({
-              document,
-              sourceRevision: await this.connection.duckDBVersion(sourceId),
-            }),
+            document: studioDocument,
             legacyRevision: document.revision,
+          });
+          await recordDashboardRevision(manager, {
+            dashboard: await manager.findOneOrFail(Dashboard, { where: { id: saved.id } }),
+            actorId: actor,
+            studioDocument,
+            revision: document.revision,
+            operation: 'create',
+            author,
+            requestId,
           });
           await this.ensureCurrentSource(sourceId, actor, manager);
           if (context) await assertCatalogActor(manager, context);
