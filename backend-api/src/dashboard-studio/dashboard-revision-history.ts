@@ -18,7 +18,7 @@ export const HUMAN_AUTHOR: RevisionAuthor = { kind: 'human' };
 export const AI_REVISIONS_KEPT = 50;
 
 /**
- * Set DASHBOARD_REVISION_HISTORY=off to stop writing a person's saves without a deploy of code. An
+ * Set DASHBOARD_REVISION_HISTORY=off to stop writing a person's creates and saves without a deploy of code. An
  * external AI's saves are always written: the history is what lets a person undo what an AI did,
  * so switching it off must never leave an AI write unrecorded.
  */

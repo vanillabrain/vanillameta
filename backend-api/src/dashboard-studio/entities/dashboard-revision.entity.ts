@@ -20,8 +20,8 @@ export class DashboardRevision {
   /** The same JSON the dashboard's `studio_state.document` held right after the save. */
   @Column({ type: 'text' }) studioDocument: string;
   /**
-   * The dashboard row as saved, so a restore can rebuild it. `dashboardRevision` hashes the title,
-   * layout, analysisDefinition and structuredDefinition but NOT pivotDefinitions: a change to the
+   * The dashboard row as saved, so a restore can rebuild it. `dashboardRevision` hashes the id, title,
+   * layout, analysisDefinition, structuredDefinition, delYn, assetActive and assetVersion but NOT pivotDefinitions: a change to the
    * pivots does not change the revision, so a restore that wrote them back would silently drop a
    * pivot added since. Treat pivotDefinitions as a record, not as something to restore.
    */
