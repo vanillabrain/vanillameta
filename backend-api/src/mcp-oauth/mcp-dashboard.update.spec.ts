@@ -43,6 +43,15 @@ import { SourceAccessService } from '../ownership/source-access.service';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { DashboardDeletionService } from '../dashboard/dashboard-deletion.service';
+import {
+  ArtifactComment,
+  ArtifactCommentNotification,
+  ArtifactCommentReceipt,
+  ArtifactCommentThread,
+} from '../reports/report-comment.entity';
+import { DashboardPublication } from '../dashboard/entities/dashboard-publication.entity';
+import { DashboardDeleteReceipt } from '../dashboard/entities/dashboard-delete-receipt.entity';
 import { DashboardToolException } from './mcp-dashboard.errors';
 import { applyStudioOperation } from '../dashboard-studio/studio-operations';
 import * as studioRestore from '../dashboard-studio/studio-restore';
@@ -146,6 +155,12 @@ describe('McpDashboardService.update on a real Studio', () => {
         EnterpriseGroupDelivery,
         StudioPublication,
         StudioPublicationRequest,
+        DashboardDeleteReceipt,
+        DashboardPublication,
+        ArtifactComment,
+        ArtifactCommentNotification,
+        ArtifactCommentReceipt,
+        ArtifactCommentThread,
       ],
     }).initialize();
     sourceRevision = createHash('sha256').update(file.filename).digest('hex');
@@ -193,6 +208,7 @@ describe('McpDashboardService.update on a real Studio', () => {
       studio,
       {} as never,
       auth as never,
+      new DashboardDeletionService(db),
     );
   });
   afterAll(async () => {
@@ -745,6 +761,153 @@ describe('McpDashboardService.update on a real Studio', () => {
       );
       expect(document.blocks[0].id).toBe(current.document.blocks[0].id);
       expect(document.blocks[1].id).toMatch(/^new:/);
+    });
+  });
+
+  describe('removal', () => {
+    const principalDelete = (over: Partial<McpOAuthPrincipal> = {}) =>
+      principal({ scopes: ['dashboards:read', 'dashboards:write', 'dashboards:delete'], ...over });
+    const impact = () => service.removalImpact(principalDelete(), id);
+    const remove = async (over: Record<string, unknown> = {}, who = principalDelete()) =>
+      service.remove(who, {
+        dashboardId: id,
+        requestId: rid(++n),
+        expectedRevision: (await impact()).revision,
+        ...over,
+      });
+    const share = () =>
+      db.manager.insert(EnterpriseResourceGrant, {
+        resourceKind: 'dashboard',
+        resourceId: id,
+        recipientId: 8,
+        ownerId: 7,
+        organizationId: 1,
+        version: 1,
+        read: true,
+        edit: false,
+        publish: false,
+        export: false,
+      });
+
+    it('reports what uses a dashboard, with the revision a removal must name', async () => {
+      const free = await impact();
+      expect(free).toMatchObject({ dashboardId: id, canDelete: true });
+      expect(free.revision).toMatch(/^[a-f0-9]{64}$/);
+      expect(free.dependencies.every(d => d.count === 0)).toBe(true);
+      await share();
+      const used = await impact();
+      expect(used.canDelete).toBe(false);
+      expect(used.dependencies).toContainEqual({ kind: 'directPermissions', count: 1 });
+    });
+
+    it('refuses with the list of what still uses it, not retryable, and deletes nothing', async () => {
+      await share();
+      const writes = await counts();
+      let error: any;
+      await remove().catch(e => (error = e));
+      expect(mcpError(error)).toMatchObject({
+        code: 'INVALID',
+        retryable: false,
+        detail: {
+          reason: 'HAS_DEPENDENCIES',
+          dependencies: expect.arrayContaining([{ kind: 'directPermissions', count: 1 }]),
+        },
+      });
+      expect(await counts()).toEqual(writes);
+      expect(await db.manager.findOneBy(Dashboard, { id })).toBeTruthy();
+    });
+
+    it('deletes an unused dashboard with its comments, history and links, and answers a retry from the receipt', async () => {
+      const doc = JSON.parse(JSON.stringify((await state()).document));
+      await update([{ type: 'renameDashboard', title: 'Before removal' }]);
+      expect(
+        await db.manager.count(DashboardRevision, { where: { dashboardId: id } }),
+      ).toBeGreaterThan(0);
+      const request = {
+        dashboardId: id,
+        requestId: rid(970),
+        expectedRevision: (await impact()).revision,
+      };
+      const result = await service.remove(principalDelete(), request);
+      expect(result).toEqual({ dashboardId: id, deleted: true, replayed: false });
+      expect(await db.manager.findOneBy(Dashboard, { id })).toBeNull();
+      expect(await db.manager.count(DashboardRevision, { where: { dashboardId: id } })).toBe(0);
+      expect(await db.manager.count(DashboardWidget, { where: { dashboardId: id } })).toBe(0);
+      expect(await db.manager.count(UserMapping, { where: { dashboardId: id } })).toBe(0);
+      expect(
+        await db.manager.count(EnterpriseAuditEvent, {
+          where: { action: 'dashboard-deletion.completed' },
+        }),
+      ).toBe(1);
+      expect(doc.blocks.length).toBeGreaterThan(0);
+      // The dashboard is gone, so the retry is recognised by the receipt.
+      expect(await service.remove(principalDelete(), request)).toEqual({
+        dashboardId: id,
+        deleted: true,
+        replayed: true,
+      });
+      expect(
+        await db.manager.count(EnterpriseAuditEvent, {
+          where: { action: 'dashboard-deletion.completed' },
+        }),
+      ).toBe(1);
+      expect(
+        await failure(
+          service.remove(principalDelete(), { ...request, expectedRevision: 'a'.repeat(64) }),
+        ),
+      ).toEqual({ code: 'REQUEST_REUSED', reason: 'REQUEST_REUSED' });
+    });
+
+    it('asks to read again when the dashboard changed after the impact was read', async () => {
+      const stale = (await impact()).revision;
+      await update([{ type: 'renameDashboard', title: 'Moved on' }]);
+      const writes = await counts();
+      expect(await failure(remove({ expectedRevision: stale }))).toEqual({
+        code: 'CONFLICT',
+        reason: 'REVISION_CHANGED',
+      });
+      expect(await counts()).toEqual(writes);
+      expect(await db.manager.findOneBy(Dashboard, { id })).toBeTruthy();
+    });
+
+    it('refuses what the account does not alone own, a missing scope, a viewer and a revoked grant', async () => {
+      const revision = (await impact()).revision;
+      const receipts = await db.manager.count(DashboardDeleteReceipt);
+      const attempt = (who: McpOAuthPrincipal) =>
+        service.remove(who, { dashboardId: id, requestId: rid(++n), expectedRevision: revision });
+      await expect(attempt(principalDelete({ actorId: 8 }))).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      // Write alone is not enough to delete.
+      await expect(attempt(principal())).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.removalImpact(principal(), id)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      await db.manager.update(EnterpriseMembership, { userId: 7 }, { role: 'viewer' });
+      try {
+        await expect(attempt(principalDelete())).rejects.toBeInstanceOf(ForbiddenException);
+      } finally {
+        await db.manager.update(EnterpriseMembership, { userId: 7 }, { role: 'contributor' });
+      }
+      auth.assertGrant.mockRejectedValueOnce(new ForbiddenException());
+      await expect(attempt(principalDelete())).rejects.toBeInstanceOf(ForbiddenException);
+      expect(await db.manager.findOneBy(Dashboard, { id })).toBeTruthy();
+      expect(await db.manager.count(DashboardDeleteReceipt)).toBe(receipts);
+    });
+
+    it('limits deletions to 10 a minute per account, as a code and not a server error', async () => {
+      const revision = (await impact()).revision;
+      let last: any;
+      for (let i = 0; i < 11; i++)
+        last = await failure(
+          service.remove(principalDelete(), {
+            dashboardId: id,
+            requestId: rid(1000 + i),
+            expectedRevision: 'f'.repeat(64),
+          }),
+        );
+      expect(last).toEqual({ code: 'LIMIT', reason: 'RATE_LIMITED' });
+      expect(revision).toMatch(/^[a-f0-9]{64}$/);
     });
   });
 });

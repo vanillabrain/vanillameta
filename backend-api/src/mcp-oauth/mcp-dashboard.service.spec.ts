@@ -64,6 +64,7 @@ describe('McpDashboardService', () => {
   const auth = { revalidate: jest.fn(), assertGrant: jest.fn() };
   const studio = { readDocument: jest.fn() };
   const creation = { previewSpec: jest.fn(), createFromSpec: jest.fn() };
+  const deletion = { impact: jest.fn(), remove: jest.fn() };
 
   beforeAll(async () => {
     db = await new DataSource({
@@ -99,6 +100,7 @@ describe('McpDashboardService', () => {
       studio as never,
       creation as never,
       auth as never,
+      deletion as never,
     );
   });
   afterAll(async () => db?.destroy());

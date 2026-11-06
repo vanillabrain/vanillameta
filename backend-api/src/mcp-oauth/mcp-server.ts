@@ -88,9 +88,12 @@ function classify(error: unknown): McpErrorCode {
 
 export function mcpError(error: unknown) {
   const code = classify(error);
-  const detail: string | { resultId?: string; threadId?: string; reason?: string } | undefined =
+  const detail:
+    | string
+    | { resultId?: string; threadId?: string; reason?: string; [extra: string]: unknown }
+    | undefined =
     error instanceof DashboardToolException
-      ? { reason: error.reason }
+      ? { reason: error.reason, ...(error.extra ?? {}) }
       : error instanceof RequestReusedException
       ? error.resultId || error.threadId
         ? {

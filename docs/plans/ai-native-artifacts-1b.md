@@ -176,7 +176,7 @@ scope 이름은 12절 결정 A에 따른다. 아래는 종류별 이름(`dashboa
 | 1b-3 | **구현 완료.** `dashboard_revision` 엔티티·**마이그레이션**·등록, Studio 저장·신규 생성에 이력(플래그 포함), 삭제·인계 정리 | 저장마다 행 1개, 같은 `requestId` 재시도는 행 추가 없음, 보존 규칙(human·생성 보존, ai 50개), **synchronize를 끈 PostgreSQL에서 마이그레이션 실행** |
 | 1b-4 | **구현 완료(서비스 계층, 도구로는 아직 노출 안 함).** `assertSoleOwner`, `McpDashboardService`(조회·미리보기·생성), 속도 제한 | 소유자만 통과, 남의 것·소유 행 2개·admin 우회 거부, viewer 거부, 지표 미등록·FORMULA 거부, `previewDigest` 불일치 409 |
 | 1b-5 | **구현 완료(서비스 계층, 도구로는 아직 노출 안 함).** 1b-5a 수정·`REQUEST_REUSED` 사전 검사·AI 쓰기 앞 기준 행, 1b-5b 복원 | 오래된 `expectedRevision` 409, 복원이 새 이력, 지표·소스 드리프트 `RESTORE_STALE`, 다른 입력으로 같은 requestId는 `REQUEST_REUSED`(재시도 루프 없음) |
-| 1b-6 | 삭제(영향 확인→삭제, 의존성 목록 포함 409) | 게시가 걸린 대시보드 거절·목록 포함, 의존성 0 삭제 성공, 이력도 삭제 |
+| 1b-6 | **구현 완료(서비스 계층, 도구로는 아직 노출 안 함).** 삭제(영향 확인→삭제, 의존성 목록 포함 409) | 게시가 걸린 대시보드 거절·목록 포함, 의존성 0 삭제 성공, 이력도 삭제 |
 | 1b-7 | MCP 도구 8개 등록, 새 scope 개방, 지침·스펙·annotation 갱신, 프런트 승인 화면 | scope별 도구 목록이 정확히 일치, 승인하지 않은 도구는 보이지 않음, `destructiveHint` 단언 |
 | 1b-8 | stdio 서버 폐기(12절 C): `mcp-server/`·로그인 스크립트·검증 스크립트 제거, README·`README_DOCKER.md`·검증 문서의 MCP 안내를 원격 MCP로 교체 | 저장소에 stdio 서버 참조가 남지 않음, 문서의 안내대로 원격 MCP 연결이 e2e로 통과 |
 | 1b-9 | **Docker e2e 확장**(8절) | 깨끗한 스택에서 전체 통과 |
@@ -311,3 +311,13 @@ NOT_RUN으로 남을 것: 실제 Claude Code·Codex 호스트의 도구 이벤�
 - **템플릿 조회.** 복원이 되살리는 블록의 위젯 템플릿은 id가 아니라 덧붙인 자리로 찾는다(현재의 다른 블록이 같은 id를 가진 경우 그 SQL이 섞이지 않게).
 - **복원의 재시도.** `StudioService.restore`는 revision 검사 전에 같은 요청의 기록을 먼저 찾는다. MCP의 재시도 응답(`update`·`restore`)에도 `changed:true`를 넣어 첫 응답과 같은 모양이다.
 - **1b-7이 처리할 것(이 변경에서 생김).** (가) `read()`는 이력을 20개만 주고 커서가 없다. AI 쓰기가 20번을 넘으면 기준 행의 `revisionId`를 MCP로 찾을 수 없으므로 커서나 `operation` 필터를 둔다. (나) `restore`는 `expectedSourceRevision`을 받지 않고 서버가 채운다(update와 비대칭). 도구 설명에 적는다. (다) 복원은 지표 참조가 없는 옛 SQL 블록의 계산(SQL)을 되돌리지 않고 현재 것을 유지한다. 도구 설명에 "표시·배치·제목·필터·블록 존재만 복원"이라고 적는다. (라) 사람 저장이 같은 id를 새 블록에 위치 순서로 물려주는 기존 결함은 그대로다. (마) `assertSoleOwner`는 트랜잭션 밖에서만 확인한다. 진행 중 공유가 부여되면 쓰기 하나가 통과할 수 있어, `serializeMetadataWork` 재진입을 확인한 뒤 `beforeAccess`에 넣을지 판단한다. (바) 통과 조건에 추가: 옛 대시보드(`analysisDefinition` null)와 피벗 대시보드의 update 거부, 실제 지표 버전 변경·열 삭제로 생기는 `RESTORE_STALE`, PostgreSQL 실행.
+
+### 1b-6 구현 노트(삭제)
+
+- **서비스.** `McpDashboardService.removalImpact`·`remove`는 둘 다 `dashboards:delete` scope를 요구하고(영향 확인도 삭제 흐름의 일부라 읽기 scope로 열지 않는다), 기존 `DashboardDeletionService.impact/remove`를 그대로 쓴다: 단독 소유 확인, 의존성 검사(직접·그룹 권한, 직접·그룹 전달, 라이브 공유, 레거시·Studio 게시, 공유 기록), 댓글·이력·위젯 연결·소유 연결 삭제, 영수증, 감사 이벤트가 한 트랜잭션이다. `expectedActorId`·`expectedOrganizationId`·epoch는 principal에서 채운다. 삭제 서비스에 선택 인자 `options.beforeAccess`를 더했다: 삭제 트랜잭션 첫 줄에서 grant와 등급을 읽으므로, 철회·강등된 연결은 삭제는 물론 영수증 재생도 하지 못한다.
+- **재시도.** 삭제 뒤에는 대시보드가 없어 `assertSoleOwner`가 실패하므로, `remove`는 같은 요청의 영수증이 있으면 소유자 확인을 건너뛰고 삭제 서비스의 영수증 재생(`replayed:true`)에 맡긴다. 영수증이 없는 호출은 `assertSoleOwner`를 먼저 지난다(비활성 대시보드는 MCP로 닿지 않는다). 같은 요청 ID에 다른 `expectedRevision`은 `REQUEST_REUSED`.
+- **오류.** 삭제 서비스의 409에 코드를 붙였다(메시지 유지): 낡은 revision → `REVISION_CHANGED`(재시도 가능한 `CONFLICT`, 영향 확인을 다시 읽는다), 다른 입력의 같은 요청 번호 → `REQUEST_REUSED`, 경합 → `STATE_CHANGED`, **사용처 → `HAS_DEPENDENCIES`**. `HAS_DEPENDENCIES`는 재시도로 풀리지 않으므로 `INVALID`(`retryable:false`)이고 `detail.dependencies`에 `[{kind, count}]`(종류와 개수뿐, id 없음)를 담는다. 이를 위해 `DashboardToolException`에 선택 `extra`를 두고 `mcpError`가 `detail`에 합쳐 준다.
+- **속도 제한.** 삭제 10회/분(사용자별).
+- **감사.** 삭제 서비스가 이미 쓰는 `dashboard-deletion.completed` 이벤트를 그대로 쓴다. 이 이벤트는 연결(grant·클라이언트 이름)을 담지 않으므로, MCP가 지웠다는 표시가 필요하면 1b-7의 감사 항목(`dashboard.mcp-*`)에서 정한다.
+- **1b-7이 처리할 것.** `vm_remove_dashboard` 설명에 "먼저 `vm_get_dashboard_removal`로 revision을 읽고, `HAS_DEPENDENCIES`면 사용자에게 사용처 중지를 요청하라(재시도 금지)"를 적고, `destructiveHint:true`를 준다. 사람 삭제 UI는 응답 본문이 `{code,message,dependencies}`로 바뀐 409를 상태 코드로 판정하는지 프런트에서 확인한다.
+- **검증.** tsc 통과. 실제 SQLite에서 `mcp-dashboard.update.spec.ts`의 삭제 6개: 영향 보고와 revision, 의존성이 있으면 목록과 함께 거부·삭제 0, 삭제 성공 시 이력·댓글·연결·소유 연결 제거와 감사 1건·영수증 재생·`REQUEST_REUSED`, 낡은 revision, 비소유자·쓰기 scope만·viewer·철회된 grant 거부, 속도 제한. 기존 `dashboard-deletion.spec.ts` 통과. 관련 127개 스위트(3004건) 통과. 실제 PostgreSQL과 Docker e2e는 1b-7 이후.

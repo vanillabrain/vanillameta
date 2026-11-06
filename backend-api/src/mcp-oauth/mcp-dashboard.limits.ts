@@ -32,4 +32,5 @@ export const DASHBOARD_LIMITS = {
   preview: { limit: 10, windowMs: 60_000 },
   write: { limit: 20, windowMs: 60_000 },
   create: { limit: 10, windowMs: 3_600_000 },
+  delete: { limit: 10, windowMs: 60_000 },
 } as const;

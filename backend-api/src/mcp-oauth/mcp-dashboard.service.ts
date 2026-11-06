@@ -1,6 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { DashboardDeletionService } from '../dashboard/dashboard-deletion.service';
+import { DashboardDeleteReceipt } from '../dashboard/entities/dashboard-delete-receipt.entity';
 import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
 import { StudioCreationService } from '../dashboard-studio/studio-creation.service';
 import { StudioService } from '../dashboard-studio/studio.service';
@@ -38,6 +40,7 @@ export class McpDashboardService {
     private readonly studio: StudioService,
     private readonly creation: StudioCreationService,
     private readonly auth: McpOAuthService,
+    private readonly deletion: DashboardDeletionService,
   ) {}
 
   /** Scope, then a live token and membership, then the grade; each is read on every call. */
@@ -261,6 +264,79 @@ export class McpDashboardService {
         );
       },
     };
+  }
+
+  /** What still uses a dashboard, and the revision a removal must name. The deletion service answers. */
+  async removalImpact(principal: McpOAuthPrincipal, dashboardId: unknown) {
+    await this.begin(principal, 'dashboards:delete');
+    const id = this.dashboardId(dashboardId);
+    await this.policy.assertSoleOwner(id, principal.actorId);
+    const { data } = await this.deletion
+      .impact(id, principal.actorId, principal.authVersion)
+      .catch(error => {
+        throw toDashboardFailure(error);
+      });
+    await this.auth.revalidate(principal);
+    return {
+      dashboardId: id,
+      revision: data.revision,
+      canDelete: data.canDelete,
+      dependencies: data.dependencies,
+    };
+  }
+
+  /**
+   * Deletes a dashboard the account alone owns, when nothing uses it (no share, permission, delivery
+   * or publication) and its revision is the one `removalImpact` returned. The comments and history
+   * go with it. A repeated request ID returns the first answer, even though the dashboard is gone.
+   */
+  async remove(principal: McpOAuthPrincipal, input: any) {
+    await this.begin(principal, 'dashboards:delete');
+    if (typeof input?.requestId !== 'string' || !UUID_V4.test(input.requestId))
+      throw new DashboardToolException('INVALID', 'INVALID_INPUT');
+    const id = this.dashboardId(input.dashboardId);
+    if (!HEX64.test(input.expectedRevision))
+      throw new DashboardToolException('INVALID', 'INVALID_INPUT');
+    this.limiter.take(
+      principal.actorId,
+      'delete',
+      DASHBOARD_LIMITS.delete.limit,
+      DASHBOARD_LIMITS.delete.windowMs,
+    );
+    // After a deletion the dashboard is gone, so a retry is recognised by its receipt; any other call
+    // must be about a dashboard the account alone owns and can still open.
+    const receipt = await this.db
+      .getRepository(DashboardDeleteReceipt)
+      .findOneBy({ actorId: principal.actorId, requestId: input.requestId });
+    if (!receipt) await this.policy.assertSoleOwner(id, principal.actorId);
+    const result = await this.deletion
+      .remove(
+        id,
+        principal.actorId,
+        {
+          requestId: input.requestId,
+          expectedRevision: input.expectedRevision,
+          expectedActorId: principal.actorId,
+          expectedOrganizationId: principal.organizationId ?? null,
+        },
+        principal.authVersion,
+        {
+          // Read under the deleting transaction's lock: a revoked or demoted connection deletes nothing.
+          beforeAccess: async manager => {
+            await this.auth.assertGrant(manager, principal, 'dashboards:delete');
+            await assertGradeAllows(
+              manager,
+              principal,
+              DASHBOARD_SCOPE_POLICY['dashboards:delete'].capability,
+            );
+          },
+        },
+      )
+      .catch(error => {
+        throw toDashboardFailure(error);
+      });
+    await this.auth.revalidate(principal);
+    return { dashboardId: id, deleted: true, replayed: result.data.replayed };
   }
 
   /**
