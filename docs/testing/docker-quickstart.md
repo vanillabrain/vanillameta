@@ -234,3 +234,7 @@ architect가 지적했고 사용자가 정한 것.
 - 루트의 `docker-test.sh`, `quick-demo.sh`, `DEMO.md`, `docs/T08_S01_completion_summary.md`는 옛 80포트·`/api/v1` 구성을 가정해 새 스택과 맞지 않는다(이전부터 깨져 있었고 이번 범위 밖, 후속 정리).
 - CI에는 compose 스모크 잡이 없다.
 - `npx` 한 줄 실행은 제공하지 않는다. (당시 기록: 로컬 `mcp-server`는 `private`이고 `bin`이 없었다. 그 서버는 2026-11-06에 제거되었다.)
+
+## 대시보드 MCP 도구(2026-11-06, `dashboards:*`)
+
+`scripts/docker-e2e.sh`의 71개 케이스 중 대시보드 MCP 케이스 6개를 깨끗한 실제 스택(PostgreSQL 17, colima `vm-quickstart`, 서버 AI 없음)에서 실행해 통과했다: 광고 scope가 설정된 클라이언트 범위의 합집합이고 좁은 클라이언트의 넓은 요청은 `invalid_scope`, 승인 화면에서 대시보드 쓰기·삭제는 기본 해제, 저장 지표 찾기→미리보기(CSV 합계와 같은 값)→생성→앱 목록 노출과 같은 요청 ID 재시도·`REQUEST_REUSED`·`PREVIEW_STALE`, 수정·`REVISION_CHANGED`·`UNSUPPORTED_CHANGE`·복원과 이력의 AI 연결 이름, 게시된 대시보드의 `HAS_DEPENDENCIES`와 의존성 없는 대시보드의 삭제·영수증 재생, 연결 해제 뒤 401. **전체 결과는 71개 중 67개 통과**(실패는 클래식 위젯 마법사 4개, 실행마다 결과가 달랐고 첫 실행은 43개, 둘째는 60개였다). 이 실패의 원인은 확인하지 못했다. 이 e2e가 하지 않은 것: 동시 요청 경쟁, viewer 등급·타인 대시보드 거절(단위·통합 테스트가 한다), 실제 호스트(Claude Code 등)의 도구 이벤트, 클라이언트 둘 이상의 승인 양성 경로.

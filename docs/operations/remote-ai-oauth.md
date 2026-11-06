@@ -39,7 +39,7 @@ access token은 10분 뒤 만료된다. code 교환과 갱신은 새 access toke
 - 모든 API 인스턴스는 같은 `TZ`(예: `UTC` 또는 `Asia/Seoul`)로 실행한다. 갱신 시각은 시간대 없는 timestamp로 저장되므로 인스턴스마다 시간대가 다르면 정상 재시도가 재사용으로 판정되어 연결이 해제될 수 있다.
 - 배포 직후 기존 연결에는 refresh token이 없어 만료 때 한 번 다시 승인한다. PostgreSQL은 백업 후 `1793570000000-add-mcp-oauth-refresh` migration(`mcp_oauth_refresh` 테이블)을 적용한다.
 
-VM 로그인 JWT를 외부 AI 설정에 붙여넣지 않는다. 로컬 stdio MCP 설정과 원격 OAuth 설정을 혼용하지 않는다.
+VM 로그인 JWT를 외부 AI 설정에 붙여넣지 않는다. (로컬 stdio MCP 서버는 2026-11-06에 제거되어 원격 OAuth 연결만 있다.)
 
 ## 제공하는 권한과 도구
 
