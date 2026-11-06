@@ -1,5 +1,11 @@
 import { productionConfigProblems } from '../config/production-guard';
-import { MCP_SCOPES, mcpAccessTtlSeconds, readMcpConfig } from './config';
+import {
+  MCP_SCOPES,
+  advertisedScopes,
+  mcpAccessTtlSeconds,
+  mcpAuthorizationMetadata,
+  readMcpConfig,
+} from './config';
 describe('MCP canonical configuration', () => {
   const env = {
     NODE_ENV: 'local',
@@ -91,6 +97,37 @@ describe('MCP canonical configuration', () => {
         ]),
       }),
     ).toBeNull();
+  });
+  it('advertises only the scopes some configured client may ask for, so a new scope opens only when an operator adds it', () => {
+    const client = JSON.parse(env.MCP_OAUTH_CLIENTS_JSON)[0];
+    const config = (...clients: Array<{ id: string; scopes: string[] }>) =>
+      readMcpConfig({
+        ...env,
+        MCP_OAUTH_CLIENTS_JSON: JSON.stringify(clients.map(c => ({ ...client, ...c }))),
+      });
+    // A client set up before the dashboard scopes existed keeps the list it was given.
+    const seven = MCP_SCOPES.filter(scope => !scope.startsWith('dashboards:'));
+    const old = config({ id: 'old', scopes: [...seven] });
+    expect(advertisedScopes(old)).toEqual(seven);
+    expect(mcpAuthorizationMetadata(old).scopes_supported).toEqual(seven);
+    expect(
+      advertisedScopes(
+        config({ id: 'a', scopes: ['dashboards:read'] }, { id: 'b', scopes: ['sources:read'] }),
+      ),
+    ).toEqual(['sources:read', 'dashboards:read']);
+    expect(MCP_SCOPES).toEqual(expect.arrayContaining(['dashboards:write', 'dashboards:delete']));
+  });
+  it('keeps the fingerprint of a configuration made before the dashboard scopes existed', () => {
+    const client = JSON.parse(env.MCP_OAUTH_CLIENTS_JSON)[0];
+    const seven = MCP_SCOPES.filter(scope => !scope.startsWith('dashboards:'));
+    // A fixed value, taken from the code as it was with seven scopes known: a new scope that is not in
+    // a client's list leaves every existing connection valid.
+    expect(
+      readMcpConfig({
+        ...env,
+        MCP_OAUTH_CLIENTS_JSON: JSON.stringify([{ ...client, scopes: [...seven] }]),
+      }).fingerprint,
+    ).toBe('1df350c0020100e362480778961d6c7a824bd238752e1196fbaeae12177ccb85');
   });
   it('clamps the test access TTL outside prod, ignores it in prod and keeps it out of the fingerprint', () => {
     const ttl = (NODE_ENV: string, value?: string) =>

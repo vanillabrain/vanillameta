@@ -245,7 +245,11 @@ export class DashboardDeletionService {
     actor: number,
     body: unknown,
     expectedEpoch = 0,
-    options: { beforeAccess?: (manager: EntityManager) => Promise<void> } = {},
+    options: {
+      beforeAccess?: (manager: EntityManager) => Promise<void>;
+      /** Set when an external AI deletes: the organization's audit then says so, beside the usual event. */
+      byConnection?: boolean;
+    } = {},
   ) {
     const id = this.id(value),
       input = this.input(body);
@@ -315,6 +319,15 @@ export class DashboardDeletionService {
           subjectId: actor,
           action: 'dashboard-deletion.completed',
           resourceId: saved.id,
+          version: 1,
+        });
+      if (org !== null && options.byConnection)
+        await m.insert(EnterpriseAuditEvent, {
+          organizationId: org,
+          actorId: actor,
+          subjectId: actor,
+          action: 'dashboard.mcp-remove',
+          resourceId: id,
           version: 1,
         });
       if ((await this.scope(actor, expectedEpoch, m)) !== org)

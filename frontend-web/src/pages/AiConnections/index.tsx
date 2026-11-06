@@ -6,7 +6,7 @@ import { aiConnectionsService, AiConnection, AiConnectionList } from '@/api/aiCo
 import { personalLibrarySessionScope } from '@/api/personalLibraryService';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ConnectionFrame, SCOPE_LABELS, useConnectionScope } from './shared';
+import { ConnectionFrame, scopeLabelKey, useConnectionScope } from './shared';
 
 function Disconnect({ connection, scope, onRevoked }: { connection: AiConnection; scope: string; onRevoked: () => void }) {
   const { t } = useTranslation();
@@ -155,7 +155,7 @@ function Connections({ scope }: { scope: string | null }) {
                 <p className="text-sm text-muted-foreground">{connection.clientId}</p>
                 <ul className="text-sm">
                   {connection.scopes.map(scopeName => (
-                    <li key={scopeName}>{t(SCOPE_LABELS[scopeName])}</li>
+                    <li key={scopeName}>{scopeLabelKey(scopeName) ? t(scopeLabelKey(scopeName)) : scopeName}</li>
                   ))}
                 </ul>
                 <p className="text-sm">

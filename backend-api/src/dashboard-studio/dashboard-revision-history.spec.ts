@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { EnterpriseAuditEvent } from '../enterprise/entities/enterprise-audit-event.entity';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { User } from '../user/entities/user.entity';
 import {
@@ -44,11 +45,13 @@ describe('dashboard revision history', () => {
       type: 'sqlite',
       database: ':memory:',
       synchronize: true,
-      entities: [DashboardRevision, EnterpriseMembership, User],
+      entities: [DashboardRevision, EnterpriseMembership, EnterpriseAuditEvent, User],
     }).initialize();
   });
   beforeEach(async () => {
     await db.manager.clear(DashboardRevision);
+    await db.manager.clear(EnterpriseAuditEvent);
+    await db.manager.clear(EnterpriseMembership);
     delete process.env.DASHBOARD_REVISION_HISTORY;
   });
   afterAll(() => db.destroy());
@@ -106,6 +109,43 @@ describe('dashboard revision history', () => {
       aiGrantId: 'grant-1',
       aiClientName: 'Claude Code',
     });
+  });
+
+  it("audits an external AI's create, update and restore in its organization, and nothing else", async () => {
+    await db.manager.insert(User, {
+      id: 7,
+      userId: 'u7',
+      email: 'u7@example.invalid',
+      password: 'x',
+      active: true,
+      authVersion: 0,
+    } as never);
+    await db.manager.insert(EnterpriseMembership, {
+      userId: 7,
+      organizationId: 3,
+      role: 'contributor',
+      team: '',
+    });
+    await save(1, 'create', ai);
+    await save(1, 'save', ai);
+    await save(1, 'restore', ai);
+    await recordDashboardRevision(db.manager, {
+      dashboard: dashboard(1),
+      actorId: 7,
+      studioDocument: '{"document":{}}',
+      revision: 'b'.repeat(64),
+      operation: 'baseline',
+      author: ai,
+      always: true,
+    });
+    // A person's own save is not an AI event.
+    await save(1, 'save');
+    const events = await db.manager.find(EnterpriseAuditEvent, { order: { id: 'ASC' } });
+    expect(events.map(event => [event.action, event.organizationId, event.resourceId])).toEqual([
+      ['dashboard.mcp-create', 3, 1],
+      ['dashboard.mcp-update', 3, 1],
+      ['dashboard.mcp-restore', 3, 1],
+    ]);
   });
 
   it("caps an external AI's own saves and keeps every person's save and every creation", async () => {

@@ -40,6 +40,9 @@ const KINDS = {
   'comments:write': 'write',
   'suggestions:write': 'write',
   'shares:write': 'write',
+  'dashboards:read': 'read',
+  'dashboards:write': 'write',
+  'dashboards:delete': 'delete',
 } as const;
 const request: ConsentRequest = {
   ticket: 'a'.repeat(64),
@@ -177,6 +180,54 @@ it('shows sharing as its own unchecked write scope with an injection warning', a
   expect(aiConnectionsService.decide).toHaveBeenLastCalledWith(mixed, { decision: 'approve', scopes: ['reports:read'] });
   await click(sharing);
   expect(sharing.checked).toBe(true);
+});
+it('offers dashboard reading by default and dashboard writing and deleting only unchecked, each with its own warning', async () => {
+  const dashboards: ConsentRequest = {
+    ...request,
+    requestedScopes: ['dashboards:read', 'dashboards:write', 'dashboards:delete'],
+  };
+  vi.mocked(aiConnectionsService.request).mockResolvedValue(dashboards);
+  showConsent();
+  const write = (await screen.findByRole('group', { name: 'Allow write access' })) as HTMLFieldSetElement;
+  const read = screen.getByRole('group', { name: 'Allow read access' });
+  expect(
+    (within(read).getByRole('checkbox', { name: 'Read dashboards I created and their change history' }) as HTMLInputElement)
+      .checked,
+  ).toBe(true);
+  const editing = within(write).getByRole('checkbox', { name: 'Create, edit and restore my dashboards' }) as HTMLInputElement;
+  const deleting = within(write).getByRole('checkbox', { name: 'Delete my dashboards' }) as HTMLInputElement;
+  expect([editing.checked, deleting.checked]).toEqual([false, false]);
+  const text = (box: HTMLInputElement) => document.getElementById(box.getAttribute('aria-describedby') ?? '')?.textContent;
+  expect(text(editing)).toContain('read aggregated values from my sources');
+  expect(text(editing)).toContain('kept in the history');
+  expect(text(deleting)).toContain('cannot be brought back');
+  await click(screen.getByRole('button', { name: 'Approve connection' }));
+  expect(aiConnectionsService.decide).toHaveBeenLastCalledWith(dashboards, {
+    decision: 'approve',
+    scopes: ['dashboards:read'],
+  });
+  await click(editing);
+  expect(editing.checked).toBe(true);
+});
+it('shows a connection holding a scope this build does not know, so it can still be disconnected', async () => {
+  vi.mocked(aiConnectionsService.list).mockResolvedValue({
+    ...list,
+    connections: [{ ...list.connections[0], scopes: ['sources:read', 'future:publish'] as never }],
+  });
+  render(
+    <MemoryRouter>
+      <AiConnections />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByText('Read source schemas and descriptions')).toBeTruthy();
+  expect(screen.getByText('future:publish')).toBeTruthy();
+  expect(screen.getAllByRole('button', { name: /Disconnect/ }).length).toBeGreaterThan(0);
+});
+it('has Korean labels and warnings for the dashboard scopes', () => {
+  expect(ko.aiConnections.dashboardsWrite).toBe('내 대시보드 만들기·수정·되돌리기');
+  expect(ko.aiConnections.dashboardsWriteWarning).toContain('변경 이력');
+  expect(ko.aiConnections.dashboardsDelete).toBe('내 대시보드 삭제');
+  expect(ko.aiConnections.dashboardsDeleteWarning).toContain('되돌릴 수 없습니다');
 });
 it('has a Korean label and warning for sharing', () => {
   expect(ko.aiConnections.sharesWrite).toBe('내 보고서를 같은 조직 구성원에게 공유');

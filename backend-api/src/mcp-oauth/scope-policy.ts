@@ -9,9 +9,9 @@ import { McpScope } from './config';
  * needs (enterprise/role-capabilities): a connection acts with the account's own rights, so a scope
  * the user approved is a ceiling and the grade is a second one.
  *
- * Today only the write scopes' capability is enforced (`McpReportService.assertGrade`). The read
- * scopes carry `read` so the table is complete; enforcing it on reads is 1b-4. Membership is already
- * checked on every call by `McpOAuthService.revalidate`.
+ * The report write scopes' capability is enforced by `McpReportService.assertGrade`, the dashboard
+ * scopes' by `McpDashboardService` on every call. Membership is checked on every call by
+ * `McpOAuthService.revalidate`. The other read scopes carry `read` so the table is complete.
  *
  * The record is exhaustive on purpose. A scope added to `McpScope` without an entry here does not
  * compile, so a new scope can neither skip the grade check nor be selected by default by accident.
@@ -30,7 +30,14 @@ export const MCP_SCOPE_POLICY: Readonly<
   'comments:write': { kind: 'write', capability: 'comment' },
   'suggestions:write': { kind: 'write', capability: 'comment' },
   'shares:write': { kind: 'write', capability: 'share' },
+  'dashboards:read': { kind: 'read', capability: 'read' },
+  'dashboards:write': { kind: 'write', capability: 'write' },
+  // Deleting is a `write` capability, as the HTTP delete route is.
+  'dashboards:delete': { kind: 'delete', capability: 'write' },
 };
+
+/** The scopes of the dashboard tools: `McpScope` members, so the one table above covers them. */
+export type DashboardScope = Extract<McpScope, `dashboards:${string}`>;
 
 export const mcpScopeKind = (scope: McpScope): McpScopeKind => MCP_SCOPE_POLICY[scope].kind;
 

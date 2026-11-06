@@ -9,6 +9,9 @@ const scopeSchema = z.enum([
   'comments:write',
   'suggestions:write',
   'shares:write',
+  'dashboards:read',
+  'dashboards:write',
+  'dashboards:delete',
 ]);
 export const AI_SCOPES = scopeSchema.options;
 const scopesSchema = z
@@ -38,7 +41,9 @@ const connectionSchema = z.object({
   clientName: z.string(),
   clientId: z.string(),
   organizationId: z.number().int().positive(),
-  scopes: scopesSchema,
+  // The list shows what a connection holds even if this build does not know the scope yet, so it can
+  // still be disconnected. A request for consent stays strict: an unknown scope there is refused.
+  scopes: z.array(z.string().min(1).max(64)).max(64),
   createdAt: dateSchema,
   expiresAt: dateSchema,
   revoked: z.boolean(),

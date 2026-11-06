@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { EntityManager, LessThan, Not } from 'typeorm';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { EnterpriseAuditEvent } from '../enterprise/entities/enterprise-audit-event.entity';
 import { EnterpriseMembership } from '../enterprise/entities/enterprise-membership.entity';
 import { DashboardRevision } from './entities/dashboard-revision.entity';
 
@@ -24,6 +25,13 @@ export const AI_REVISIONS_KEPT = 50;
  */
 export const revisionHistoryEnabled = (author: RevisionAuthor = HUMAN_AUTHOR) =>
   author.kind === 'external-ai' || process.env.DASHBOARD_REVISION_HISTORY !== 'off';
+
+/** What the organization's audit calls an external AI's write; a restore and a save are told apart. */
+const AI_AUDIT_ACTION = {
+  create: 'dashboard.mcp-create',
+  save: 'dashboard.mcp-update',
+  restore: 'dashboard.mcp-restore',
+} as const;
 
 /**
  * Writes one history row for the dashboard as it is now. Call it inside the transaction that saved
@@ -68,6 +76,17 @@ export async function recordDashboardRevision(
     requestId: requestId ?? null,
     createdAt: new Date().toISOString(),
   });
+  // An external AI's write is also an event the organization can audit. It is written here, in the
+  // transaction of the write it describes, so the two cannot disagree. 'baseline' is not an action.
+  if (author.kind === 'external-ai' && operation !== 'baseline' && member?.organizationId)
+    await manager.insert(EnterpriseAuditEvent, {
+      organizationId: member.organizationId,
+      actorId,
+      subjectId: actorId,
+      action: AI_AUDIT_ACTION[operation],
+      resourceId: dashboard.id,
+      version: 1,
+    });
   if (author.kind !== 'external-ai' || operation === 'create') return;
   const newest = await manager.find(DashboardRevision, {
     select: { seq: true },
