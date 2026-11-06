@@ -488,21 +488,40 @@ await kase('보고서: 저장한 보고서를 읽으면 본문과 저장 당시�
 // ============================================================================================
 // 5c. 클래식 경로: 위젯 마법사 → 위젯 → 위젯으로 대시보드(PostgreSQL 에서 깨졌던 /component, /widget, /dashboard 조회)
 // ============================================================================================
+// 위젯 마법사·대시보드 만들기의 버튼은 이 브라우저 도구의 합성 클릭으로는 선택·다음이 먹지 않는다(마우스 이벤트가 겹쳐
+// 선택이 해제되는 것으로 보인다). 활성화를 기다린 뒤 DOM click 을 한 번만 보낸다.
+async function domClick(selector) {
+  const ok = await page.evaluate(sel => {
+    const el = document.querySelector(sel);
+    if (!el) return false;
+    el.click();
+    return true;
+  }, selector);
+  check(ok, `요소를 찾지 못함: ${selector}`);
+}
+async function domWhenEnabled(text, timeout = 15000) {
+  const until = Date.now() + timeout;
+  while (Date.now() < until && (await buttonState(text)) !== 'enabled') await sleep(400);
+  check((await buttonState(text)) === 'enabled', `'${text}' 버튼이 활성화되지 않음(${await buttonState(text)})`);
+  await page.evaluate(t => [...document.querySelectorAll('button')].find(x => x.innerText.trim() === t && !x.disabled)?.click(), text);
+  await sleep(600);
+}
+
 await kase('위젯: 마법사로 데이터셋을 골라 표 위젯을 만든다', async () => {
   await go('/widget/create', 3500);
-  await page.click('loc=css:button[aria-label="sales_orders 선택"]');
+  await domClick('button[aria-label="sales_orders 선택"]');
   await sleep(500);
-  await clickWhenEnabled('다음');
+  await domWhenEnabled('다음');
   await waitText(/Data Grid/);
   await page.evaluate(() => [...document.querySelectorAll('span')].find(e => /Data Grid/.test(e.textContent) && e.children.length === 0)?.closest('button')?.click());
   await sleep(500);
-  await clickWhenEnabled('다음');
+  await domWhenEnabled('다음');
   await waitText(/위젯 이름/);
   await fillByPlaceholder('위젯의 이름을 입력해 주세요', '매출 표 e2e');
-  await page.click('loc=css:button[aria-label="항목 추가"]');
+  await domClick('button[aria-label="항목 추가"]');
   await sleep(800);
   await setSelect({ hasOption: 'order_date' }, 'region');
-  await clickWhenEnabled('저장');
+  await domWhenEnabled('저장');
   await sleep(1500);
   await clickLast('저장'); // "위젯을 저장하시겠습니까?" 확인
   await sleep(3000);
@@ -516,19 +535,19 @@ await kase('위젯: 마법사로 데이터셋을 골라 표 위젯을 만든다'
 
 await kase('위젯: 마법사로 막대 차트 위젯을 만든다(지역별 합계)', async () => {
   await go('/widget/create', 3500);
-  await page.click('loc=css:button[aria-label="sales_orders 선택"]');
+  await domClick('button[aria-label="sales_orders 선택"]');
   await sleep(500);
-  await clickWhenEnabled('다음');
+  await domWhenEnabled('다음');
   await waitText(/Bar Chart/);
   await page.evaluate(() => [...document.querySelectorAll('span')].find(e => /Bar Chart/.test(e.textContent) && !/Stacked|Mixed/.test(e.textContent) && e.children.length === 0)?.closest('button')?.click());
   await sleep(500);
-  await clickWhenEnabled('다음');
+  await domWhenEnabled('다음');
   await waitText(/카테고리 설정/);
   await fillByPlaceholder('위젯의 이름을 입력해 주세요', '지역 막대 e2e');
   await setNthSelect(0, 'region');
   await setNthSelect(1, 'amount');
   await sleep(800);
-  await clickWhenEnabled('저장');
+  await domWhenEnabled('저장');
   await sleep(1500);
   await clickLast('저장');
   await sleep(3000);
@@ -553,13 +572,13 @@ await kase('위젯: 위젯 목록과 상세 화면이 열린다', async () => {
 await kase('클래식: 위젯으로 대시보드를 만들고 조회 화면이 위젯과 함께 열린다', async () => {
   await go('/dashboard/create', 2500);
   await fillByPlaceholder('대시보드의 이름을 입력해 주세요', '클래식 e2e');
-  await clickButton('위젯 추가');
+  await domWhenEnabled('위젯 추가');
   await sleep(1500);
   await page.evaluate(() => [...document.querySelectorAll('span')].find(e => e.textContent.trim() === '지역 막대 e2e')?.click());
   await sleep(400);
   await clickLast('위젯 추가');
   await sleep(1500);
-  await clickWhenEnabled('저장');
+  await domWhenEnabled('저장');
   await sleep(1500);
   await clickLast('생성');
   await sleep(3500);
