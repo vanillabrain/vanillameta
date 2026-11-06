@@ -38,13 +38,15 @@ export async function recordDashboardRevision(
     /** The JSON written to `studio_state.document` by the same save. */
     studioDocument: string;
     revision: string;
-    operation: 'create' | 'save' | 'restore';
+    operation: DashboardRevision['operation'];
     author?: RevisionAuthor;
     requestId?: string;
+    /** Record even when the history flag is off (the row that makes an AI write undoable). */
+    always?: boolean;
   },
 ): Promise<void> {
   const author = input.author ?? HUMAN_AUTHOR;
-  if (!revisionHistoryEnabled(author)) return;
+  if (!input.always && !revisionHistoryEnabled(author)) return;
   const { dashboard, actorId, operation, requestId } = input;
   const member = await manager.findOneBy(EnterpriseMembership, { userId: actorId });
   await manager.insert(DashboardRevision, {
@@ -88,4 +90,23 @@ export async function deleteDashboardRevisions(
   dashboardId: number,
 ): Promise<void> {
   await manager.delete(DashboardRevision, { dashboardId });
+}
+
+/**
+ * Before an external AI writes, keep the state it replaces if the history does not already hold it:
+ * the history may be new, the flag may have been off, or a path that records nothing (a lifecycle
+ * change, a legacy pivot edit) may have moved the dashboard since the last row. The row says "the
+ * dashboard was in this state", written by a person's or an unknown path, so it carries no author.
+ */
+export async function recordBaselineBeforeAiWrite(
+  manager: EntityManager,
+  input: { dashboard: Dashboard; actorId: number; studioDocument: string; revision: string },
+): Promise<void> {
+  const latest = await manager.findOne(DashboardRevision, {
+    select: { seq: true, revision: true },
+    where: { dashboardId: input.dashboard.id },
+    order: { seq: 'DESC' },
+  });
+  if (latest?.revision === input.revision) return;
+  await recordDashboardRevision(manager, { ...input, operation: 'baseline', always: true });
 }

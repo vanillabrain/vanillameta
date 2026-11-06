@@ -1,14 +1,16 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
 import { StudioCreationService } from '../dashboard-studio/studio-creation.service';
 import { StudioService } from '../dashboard-studio/studio.service';
+import { studioDigest } from '../dashboard-studio/studio-legacy';
 import { Database } from '../database/entities/database.entity';
 import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { DASHBOARD_SCOPE_POLICY, DashboardScope } from './dashboard-scope';
 import { assertGradeAllows } from './grade';
+import { applyChanges, cleanChanges } from './mcp-dashboard.changes';
 import { DashboardToolException, toDashboardFailure } from './mcp-dashboard.errors';
 import { ActorWindowLimiter, DASHBOARD_LIMITS } from './mcp-dashboard.limits';
 import { McpOAuthPrincipal, McpOAuthService } from './mcp-oauth.service';
@@ -16,6 +18,7 @@ import { McpOAuthPrincipal, McpOAuthService } from './mcp-oauth.service';
 const LIST_PAGE = 50;
 const HISTORY_PAGE = 20;
 const PREVIEW_ROWS = 100;
+const HEX64 = /^[a-f0-9]{64}$/;
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
@@ -146,7 +149,8 @@ export class McpDashboardService {
         operation: row.operation,
         authorKind: row.authorKind,
         ...(row.authorKind === 'external-ai' ? { clientName: row.aiClientName } : {}),
-        byYou: row.actorId === principal.actorId,
+        // A baseline is a state kept before an AI write, whoever made it; it is nobody's save.
+        ...(row.operation === 'baseline' ? {} : { byYou: row.actorId === principal.actorId }),
         isCurrent: row.revision === state.document.revision,
       })),
     };
@@ -230,27 +234,99 @@ export class McpDashboardService {
         },
         principal.actorId,
         principal.authVersion,
-        {
-          author: {
-            kind: 'external-ai',
-            grantId: principal.grantId,
-            clientName: principal.clientName,
-          },
-          // Read under the save's own lock: a connection revoked or demoted while this waited cannot write.
-          beforeAccess: async manager => {
-            await this.auth.assertGrant(manager, principal, 'dashboards:write');
-            await assertGradeAllows(
-              manager,
-              principal,
-              DASHBOARD_SCOPE_POLICY['dashboards:write'].capability,
-            );
-          },
-        },
+        this.writeOptions(principal),
       )
       .catch(error => {
         throw toDashboardFailure(error);
       });
     await this.auth.revalidate(principal);
     return { dashboardId: result.dashboardId, revision: result.document.revision };
+  }
+
+  /** The author and the in-transaction checks of every write a connection makes. */
+  private writeOptions(principal: McpOAuthPrincipal) {
+    return {
+      author: {
+        kind: 'external-ai' as const,
+        grantId: principal.grantId,
+        clientName: principal.clientName,
+      },
+      // Read under the save's own lock: a connection revoked or demoted while this waited cannot write.
+      beforeAccess: async (manager: EntityManager) => {
+        await this.auth.assertGrant(manager, principal, 'dashboards:write');
+        await assertGradeAllows(
+          manager,
+          principal,
+          DASHBOARD_SCOPE_POLICY['dashboards:write'].capability,
+        );
+      },
+    };
+  }
+
+  /**
+   * Changes a saved dashboard's text, layout, display and filters, or removes a block. The request is
+   * named by its own input (not by the document it produces), so a retry after the dashboard moved on
+   * still gets the first answer, and the same ID with other input is REQUEST_REUSED. A change list
+   * that leaves the dashboard as it is saves nothing.
+   */
+  async update(principal: McpOAuthPrincipal, input: any) {
+    await this.begin(principal, 'dashboards:write');
+    if (typeof input?.requestId !== 'string' || !UUID_V4.test(input.requestId))
+      throw new DashboardToolException('INVALID', 'INVALID_INPUT');
+    const id = this.dashboardId(input.dashboardId);
+    if (!HEX64.test(input.expectedRevision) || !HEX64.test(input.expectedSourceRevision))
+      throw new DashboardToolException('INVALID', 'INVALID_INPUT');
+    const changes = cleanChanges(input.changes);
+    this.limiter.take(
+      principal.actorId,
+      'write',
+      DASHBOARD_LIMITS.write.limit,
+      DASHBOARD_LIMITS.write.windowMs,
+    );
+    const key = {
+      kind: 'mcp-dashboard-update',
+      id,
+      expectedRevision: input.expectedRevision,
+      expectedSourceRevision: input.expectedSourceRevision,
+      changes,
+    };
+    await this.policy.assertSoleOwner(id, principal.actorId);
+    const earlier = await this.studio
+      .replayRecord(principal.actorId, input.requestId, studioDigest(key))
+      .catch(error => {
+        throw toDashboardFailure(error);
+      });
+    if (earlier) {
+      await this.auth.revalidate(principal);
+      return { dashboardId: id, revision: earlier.document.revision as string };
+    }
+    const state = await this.studio.readDocument(id, principal.actorId);
+    if (state.document.revision !== input.expectedRevision)
+      throw new DashboardToolException('CONFLICT', 'REVISION_CHANGED');
+    if (state.sourceRevision !== input.expectedSourceRevision)
+      throw new DashboardToolException('CONFLICT', 'SOURCE_CHANGED');
+    const document = applyChanges(state.document, changes);
+    if (studioDigest(document) === studioDigest(state.document)) {
+      await this.auth.revalidate(principal);
+      return { dashboardId: id, revision: state.document.revision as string, changed: false };
+    }
+    const result = await this.studio
+      .save(
+        id,
+        {
+          requestId: input.requestId,
+          expectedRevision: input.expectedRevision,
+          expectedSourceRevision: input.expectedSourceRevision,
+          document,
+        },
+        principal.actorId,
+        undefined,
+        { ...this.writeOptions(principal), payloadKey: key },
+      )
+      .catch(error => {
+        throw toDashboardFailure(error);
+      });
+    await this.auth.revalidate(principal);
+    return { dashboardId: id, revision: result.document.revision as string, changed: true };
   }
 }

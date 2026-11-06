@@ -48,9 +48,22 @@ import { isTemporaryStudioId, STUDIO_BREAKPOINTS, StudioDocumentV1 } from './stu
 import { studioKeys, validateStudioDocument, validateStudioConditions } from './studio-document';
 import { importStudio, studioDefinitions, studioDigest } from './studio-legacy';
 import { StudioState } from './entities/studio-state.entity';
-import { recordDashboardRevision } from './dashboard-revision-history';
+import {
+  recordBaselineBeforeAiWrite,
+  recordDashboardRevision,
+  RevisionAuthor,
+} from './dashboard-revision-history';
 import { StudioRun } from './entities/studio-run.entity';
 import { buildStudioEvidence } from './studio-evidence';
+/** What only a server-side caller (an external AI's change) may set; the HTTP controller passes none. */
+export interface SaveOptions {
+  author?: RevisionAuthor;
+  /** Runs first inside the save's transaction. */
+  beforeAccess?: (manager: EntityManager) => Promise<void>;
+  /** Names the request by its own input; see `saveOnce`. */
+  payloadKey?: unknown;
+}
+
 @Injectable()
 export class StudioService {
   private queued = 0;
@@ -1418,7 +1431,13 @@ export class StudioService {
       state.document.conditions,
     );
   }
-  async save(id: number, body: any, actor: number, signal?: AbortSignal) {
+  async save(
+    id: number,
+    body: any,
+    actor: number,
+    signal?: AbortSignal,
+    options: SaveOptions = {},
+  ) {
     // Receipt replay stays metadata-only. A new semantic write validates its immutable date file
     // before entering the write queue; saveOnce still rechecks rights/file/revision atomically.
     if (body?.document?.conditions?.semantics) {
@@ -1444,11 +1463,37 @@ export class StudioService {
         );
       }
     }
-    return this.serializeWrite(() => this.saveOnce(id, body, actor, signal));
+    return this.serializeWrite(() => this.saveOnce(id, body, actor, signal, options));
   }
   /** Cross-process Studio writes lock an existing row, including the first publication. */
   private async lockDashboard(manager: EntityManager, id: number) {
     return lockDashboardWrite(manager, id);
+  }
+  /**
+   * The saved result of a request ID this account already used, or null if it is new. The same ID
+   * with a different payload is refused with a code, so a caller that retries on conflicts does not
+   * loop on it.
+   */
+  async replayRecord(actor: number, requestId: string, payloadHash: string) {
+    const prior = await this.db.manager.findOne(StudioRun, {
+      where: { actorId: actor, requestId },
+    });
+    if (!prior) return null;
+    if (prior.payloadHash !== payloadHash)
+      throw new ConflictException({
+        code: 'REQUEST_REUSED',
+        message: '같은 저장 요청 ID에 다른 변경을 보낼 수 없습니다.',
+      });
+    try {
+      const result = JSON.parse(prior.result);
+      if (!result?.document || !result?.idMap) throw new Error();
+      return result;
+    } catch {
+      throw new ConflictException({
+        code: 'REPLAY_UNREADABLE',
+        message: '이 저장 요청의 완료 기록을 확인할 수 없습니다. 최신 내용을 다시 불러와 주세요.',
+      });
+    }
   }
   /** All Studio metadata transactions share the single SQLite connection's queue. */
   async serializeWrite<T>(run: () => Promise<T>): Promise<T> {
@@ -1470,7 +1515,13 @@ export class StudioService {
     this.tail = result.catch(() => undefined);
     return result;
   }
-  private async saveOnce(id: number, body: any, actor: number, signal?: AbortSignal) {
+  private async saveOnce(
+    id: number,
+    body: any,
+    actor: number,
+    signal?: AbortSignal,
+    options: SaveOptions = {},
+  ) {
     this.assertMixedCharts(body?.document);
     await this.access.dashboard(id, actor, 'edit');
     if (
@@ -1499,29 +1550,18 @@ export class StudioService {
     )
       throw new BadRequestException('저장할 대시보드와 블록을 확인해 주세요.');
     await this.source(document.sourceId, actor, 'read');
-    const payloadHash = studioDigest({
-      id,
-      expectedRevision: body.expectedRevision,
-      expectedSourceRevision: body.expectedSourceRevision,
-      document,
-    });
-    const replay = async () => {
-      const prior = await this.db.manager.findOne(StudioRun, {
-        where: { actorId: actor, requestId: body.requestId },
-      });
-      if (!prior) return null;
-      if (prior.payloadHash !== payloadHash)
-        throw new ConflictException('같은 저장 요청 ID에 다른 변경을 보낼 수 없습니다.');
-      try {
-        const result = JSON.parse(prior.result);
-        if (!result?.document || !result?.idMap) throw new Error();
-        return result;
-      } catch {
-        throw new ConflictException(
-          '이 저장 요청의 완료 기록을 확인할 수 없습니다. 최신 내용을 다시 불러와 주세요.',
-        );
-      }
-    };
+    // A caller that derives the document from the current one (an external AI's change list) names
+    // the request itself, so a retry after success is the same request and not a different document.
+    const payloadHash =
+      options.payloadKey === undefined
+        ? studioDigest({
+            id,
+            expectedRevision: body.expectedRevision,
+            expectedSourceRevision: body.expectedSourceRevision,
+            document,
+          })
+        : studioDigest(options.payloadKey);
+    const replay = () => this.replayRecord(actor, body.requestId, payloadHash);
     const previous = await replay();
     if (previous) return previous;
     const checkCancelled = () => {
@@ -1549,13 +1589,15 @@ export class StudioService {
             '기존 조건의 업무 의미를 유지하거나 전체 조건을 명시 제거해 주세요.',
           );
         if (current.sourceRevision !== body.expectedSourceRevision)
-          throw new ConflictException(
-            '데이터 파일이 교체되었습니다. 최신 결과를 확인한 뒤 다시 저장해 주세요.',
-          );
+          throw new ConflictException({
+            code: 'SOURCE_CHANGED',
+            message: '데이터 파일이 교체되었습니다. 최신 결과를 확인한 뒤 다시 저장해 주세요.',
+          });
         if (current.document.revision !== body.expectedRevision)
-          throw new ConflictException(
-            '다른 화면에서 변경되었습니다. 내 변경을 보존한 채 최신 내용을 확인해 주세요.',
-          );
+          throw new ConflictException({
+            code: 'REVISION_CHANGED',
+            message: '다른 화면에서 변경되었습니다. 내 변경을 보존한 채 최신 내용을 확인해 주세요.',
+          });
         if (current.document.sourceId !== document.sourceId)
           throw new ForbiddenException('데이터 소스를 바꿀 수 없습니다.');
         if (document.conditions && document.conditions.sourceRevision !== current.sourceRevision)
@@ -1709,10 +1751,26 @@ export class StudioService {
           ? await this.pivots.catalog(document.sourceId, actor)
           : undefined;
         return metadataTransaction(this.db, async manager => {
+          // Read under the save's own lock: a connection revoked or demoted while this waited cannot write.
+          await options.beforeAccess?.(manager);
           const locked = await this.lockDashboard(manager, id);
           if (dashboardRevision(locked) !== body.expectedRevision)
-            throw new ConflictException('다른 화면에서 변경되었습니다.');
+            throw new ConflictException({
+              code: 'REVISION_CHANGED',
+              message: '다른 화면에서 변경되었습니다.',
+            });
           await this.access.dashboard(id, actor, 'edit', manager);
+          // An AI's write must be undoable, so the state it replaces needs a history row of its own.
+          if (options.author?.kind === 'external-ai')
+            await recordBaselineBeforeAiWrite(manager, {
+              dashboard: locked,
+              actorId: actor,
+              studioDocument: JSON.stringify({
+                document: current.document,
+                sourceRevision: current.sourceRevision,
+              }),
+              revision: body.expectedRevision,
+            });
           await lockMetricReferences(
             manager,
             document.sourceId,
@@ -1807,6 +1865,7 @@ export class StudioService {
             studioDocument,
             revision: remapped.revision,
             operation: 'save',
+            author: options.author,
             requestId: body.requestId,
           });
           const result = { document: remapped, idMap };

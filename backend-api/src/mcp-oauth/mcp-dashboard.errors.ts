@@ -46,6 +46,7 @@ export function toDashboardFailure(error: unknown): unknown {
   switch (code) {
     case 'PREVIEW_STALE':
     case 'SOURCE_CHANGED':
+    case 'REVISION_CHANGED':
       return new DashboardToolException('CONFLICT', code);
     case 'REQUEST_REUSED':
     case 'REPLAY_UNREADABLE':
@@ -55,6 +56,10 @@ export function toDashboardFailure(error: unknown): unknown {
       return new DashboardToolException('INVALID', 'CARDINALITY_LIMIT');
     case 'UNSUPPORTED_CHANGE':
       return new DashboardToolException('INVALID', 'UNSUPPORTED_CHANGE');
+    case 'RESTORE_STALE':
+      // The saved state cannot be rebuilt on today's metrics or data. Asking again changes nothing,
+      // so this is not a retryable CONFLICT: the agent reads the dashboard and decides.
+      return new DashboardToolException('INVALID', 'RESTORE_STALE');
     case 'QUEUE_FULL':
       // Transient, so a retryable code: LIMIT tells an agent not to retry.
       return new DashboardToolException('CONFLICT', 'QUEUE_FULL');

@@ -507,6 +507,26 @@ describe('McpDashboardService', () => {
       });
     });
 
+    it('tells an agent which conflicts to retry after reading again, and which not to retry', async () => {
+      const reasons = [
+        ['REVISION_CHANGED', 'CONFLICT', true],
+        ['SOURCE_CHANGED', 'CONFLICT', true],
+        // The saved state cannot be rebuilt on today's data; asking again cannot help.
+        ['RESTORE_STALE', 'INVALID', false],
+        ['REQUEST_REUSED', 'REQUEST_REUSED', false],
+      ] as const;
+      for (const [reason, code, retryable] of reasons) {
+        creation.createFromSpec.mockRejectedValueOnce(
+          new ConflictException({ code: reason, message: '한국어 문장' }),
+        );
+        expect(mcpError(await service.create(principal(), CREATE).catch(e => e))).toMatchObject({
+          code,
+          retryable,
+          detail: { reason },
+        });
+      }
+    });
+
     it('names an unlabelled 409 as a state change and leaves a busy worker alone', async () => {
       creation.createFromSpec.mockRejectedValueOnce(
         new ConflictException('데이터 파일이 교체되었습니다.'),
