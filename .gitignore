@@ -306,6 +306,3 @@ docs/user-manual/.vitepress/dist/
 docs/user-manual/.vitepress/public/
 
 # Local MCP credentials (keep only the public example)
-/mcp-server/.env*
-/mcp-server/*.env
-!/mcp-server/.env.example

@@ -51,9 +51,9 @@ Compose starts PostgreSQL 17, the backend (which creates the metadata schema and
 - Check the whole path (build, start, proxy, sign-in) with one command: `scripts/docker-smoke.sh`.
 - AI assistant (optional): set `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL` (and `AI_API_BASE_URL` for compatible endpoints) before `docker compose up`. Without a key only the AI features are off. There is no in-app screen for the key; it is read from the environment only.
 - Organizations (default in this stack): the seeded `guest` administers the one organization, and every other account must be added to it by an administrator, with a grade (admin, editor, contributor, viewer). A new signup is sent to a waiting page with the organization number filled in. Set `BOOTSTRAP_ADMIN_USER_ID=` (empty) to get the open behaviour back. Details and limits: [README_DOCKER.md](README_DOCKER.md#조직과-등급).
-- MCP: with no server AI configured, verified on this stack: the local stdio server connects through the web proxy (`VM_API_URL=http://127.0.0.1:3000/v1`, not port 4000), lists and describes sources, and sees an uploaded CSV. That is all it does without a server AI. `vm_propose_analysis` returns 503, and saving needs a server-made proposal, so an external AI cannot save an analysis it wrote itself. External databases are listed but are not MCP analysis targets, and their connection test currently fails (known defect, `Tarn: invalid opt.idleTimeoutMillis 0`, unfixed). Remote MCP was not tested. Details: [README_DOCKER.md](README_DOCKER.md#mcp와-ai-키).
+- MCP: your own AI (Claude Code and similar) connects through the remote MCP at `/v1/mcp` with an OAuth approval screen; no server AI is needed. The operator registers the AI client in `MCP_OAUTH_CLIENTS_JSON`, you choose what to allow, and the AI works within your account's grade (read dashboards and reports, comment, and with the `dashboards:*` scopes create, edit, restore and delete dashboards you created). It is off until configured. Setup and what was verified: [README_DOCKER.md](README_DOCKER.md#mcp와-ai-키).
 
-> This stack is for trying VanillaMeta out. It runs with `NODE_ENV=dev`, so the database is created by schema sync and cannot be promoted to production with `migrate-prod`. For a real deployment use [`deploy/`](deploy/README.md). There is no `npx` one-liner: the app needs a server and PostgreSQL, so Docker Compose is the supported one-command path. The [MCP server](mcp-server/README.md) is a separate local process, not published to npm yet.
+> This stack is for trying VanillaMeta out. It runs with `NODE_ENV=dev`, so the database is created by schema sync and cannot be promoted to production with `migrate-prod`. For a real deployment use [`deploy/`](deploy/README.md). There is no `npx` one-liner: the app needs a server and PostgreSQL, so Docker Compose is the supported one-command path.
 
 ### Local development
 
@@ -104,7 +104,7 @@ Honest support matrix — 🔷 connectors share the standard knex/driver path bu
 
 ## MCP for coding agents
 
-The local stdio [MCP server](mcp-server/README.md) connects authenticated coding agents to source/metric discovery, structured AI previews and explicitly approved private artifact saves. Returns Studio links; no arbitrary SQL or automatic publishing. [Setup and prompt walkthrough](https://docs.vanillameta.net/mcp). Codex and Claude Code hosts verified with synthetic local data, separate preview/save approval and Studio reload.
+Connect your own AI to the remote MCP (`/v1/mcp`, OAuth 2.1 with PKCE). It reads sources, reports and dashboards you may see, comments and proposes report edits, and, only with the scopes you approve, creates, edits, restores and deletes dashboards you created from saved metrics. Every change is kept in the dashboard's history with the AI connection's name; no server AI is used and nothing is published automatically. [Guide](https://docs.vanillameta.net/mcp).
 
 ## Roadmap
 

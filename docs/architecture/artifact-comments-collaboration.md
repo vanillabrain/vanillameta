@@ -1,5 +1,7 @@
 # 아티팩트 댓글·제안·MCP 협업 설계
 
+> **2026-11-06:** 이 문서가 다루는 로컬 stdio MCP 서버(`mcp-server/`와 그 도구 `vm_propose_analysis`·`vm_save_analysis` 등)는 제거되었다. 아래는 당시 계획·검증의 **역사 기록**이며 현재 동작이 아니다. 현재 안내는 원격 MCP(`/v1/mcp`) 하나다: `docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`.
+
 상태: 구현 완료 (2026-11-02, 1·2단계). 설계 확정 v2는 architect 검토를 반영했다. 첫 구현 대상은 비공개 보고서다. 검증과 알려진 공백은 [검증 기록](../testing/report-comments-collaboration.md)을 따른다.
 
 ## 목표
