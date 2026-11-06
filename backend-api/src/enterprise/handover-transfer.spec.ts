@@ -1,3 +1,4 @@
+import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
@@ -51,6 +52,7 @@ const entities = [
   Database,
   Metric,
   Dashboard,
+  DashboardRevision,
   UserMapping,
   StudioState,
   DashboardWidget,

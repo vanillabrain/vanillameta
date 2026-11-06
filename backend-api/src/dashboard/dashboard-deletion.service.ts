@@ -25,6 +25,7 @@ import { DashboardWidget } from './dashboard-widget/entities/dashboard-widget.en
 import { DashboardDeleteReceipt } from './entities/dashboard-delete-receipt.entity';
 import { lockDashboardWrite } from './dashboard-write-lock';
 import { deleteDashboardComments } from './dashboard-comment-cleanup';
+import { deleteDashboardRevisions } from '../dashboard-studio/dashboard-revision-history';
 
 const positive = (value: unknown): value is number =>
   Number.isSafeInteger(value) && Number(value) > 0;
@@ -272,6 +273,7 @@ export class DashboardDeletionService {
           '사용처가 남아 있습니다. 공유·권한·게시 설정을 중지하고 삭제 영향을 다시 확인해 주세요.',
         );
       await deleteDashboardComments(m, id);
+      await deleteDashboardRevisions(m, id);
       await m.delete(DashboardWidget, { dashboardId: id });
       const mapping = await m.delete(UserMapping, { dashboardId: id, userInfoId: actor });
       if (mapping.affected !== 1) throw new ConflictException('소유 연결이 변경되었습니다.');

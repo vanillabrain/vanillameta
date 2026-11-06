@@ -1,5 +1,6 @@
 // Persistence paths are real; no model request is part of this fixture.
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
+import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -75,6 +76,7 @@ const entities = [
   SourceCatalogEntry,
   SourceConditionEntry,
   Dashboard,
+  DashboardRevision,
   UserMapping,
   StudioState,
   StudioRun,

@@ -1,3 +1,4 @@
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { semanticMetadata, assertSemanticMysqlIdentity } from '../../test/util/semantic-mysql';
 import { PublicationService } from '../bi/publication.service';
 import { DashboardPublication } from '../dashboard/entities/dashboard-publication.entity';
@@ -112,6 +113,7 @@ describe('UC050 Studio business basis with real DuckDB and metadata persistence'
         StudioPublicationRequest,
         StudioRemixRequest,
         Dashboard,
+        DashboardRevision,
         DashboardShare,
         DashboardWidget,
         UserMapping,

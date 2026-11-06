@@ -1,4 +1,5 @@
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
+import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -84,6 +85,7 @@ describe('private reports with SQLite transactions and native aggregate capture'
         Component,
         Metric,
         StudioState,
+        DashboardRevision,
         StudioRun,
         ...REPORT_ENTITIES,
         ...REPORT_COMMENT_ENTITIES,
