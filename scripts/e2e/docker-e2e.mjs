@@ -934,6 +934,163 @@ await kase('MCP: AI 가 남긴 댓글이 앱의 보고서 화면에 보인다', 
 
 // ============================================================================================
 // 8. 서버 AI 없이 동작, 내 작업물 삭제
+// --- 대시보드 도구(dashboards:*) ---------------------------------------------------------------
+// 도구를 부르고 결과(또는 {error})를 돌려준다. 오류는 isError 와 data.error 로 나온다.
+async function tool(conn, name, args = {}) {
+  const r = await rpc('tools/call', { name, arguments: args }, conn.access);
+  const data = toolData(r);
+  return { status: r.status, isError: !!r.json?.result?.isError, data, error: data && typeof data === 'object' ? data.error : undefined, text: r.text };
+}
+const dash = {};
+
+await kase('MCP: 광고하는 범위는 설정된 클라이언트 범위의 합집합이고, 좁은 클라이언트는 넓은 범위를 받지 못한다', async () => {
+  const meta = await api('GET', '/.well-known/oauth-protected-resource/v1/mcp');
+  check(meta.status === 200, `보호 리소스 메타데이터 ${meta.status}`);
+  const advertised = [...(meta.json?.scopes_supported || [])].sort();
+  const configured = [...new Set([...MCP.scopes, ...MCP.narrowScopes])].sort();
+  check(JSON.stringify(advertised) === JSON.stringify(configured), `광고 범위가 설정의 합집합이 아님: ${advertised.join(',')} / ${configured.join(',')}`);
+  check(advertised.includes('dashboards:write') && advertised.includes('dashboards:delete'), '대시보드 범위가 광고되지 않음');
+  const authz = scope => {
+    const q = new URLSearchParams({ response_type: 'code', client_id: MCP.narrowId, redirect_uri: MCP.redirect, state: 'x', code_challenge: 'a'.repeat(43), code_challenge_method: 'S256', resource: MCP_RESOURCE, scope });
+    return api('GET', `/v1/mcp-oauth/authorize?${q}`);
+  };
+  const wide = await authz('sources:read dashboards:write');
+  check(wide.status >= 400 && /invalid_scope/.test(JSON.stringify(wide.json)), `좁은 클라이언트가 넓은 범위를 받음: ${wide.status} ${JSON.stringify(wide.json).slice(0, 160)}`);
+});
+
+await kase('MCP: 대시보드 범위는 기본 해제이고, 읽기만 승인하면 쓰기·삭제 도구는 보이지 않는다', async () => {
+  const conn = await connectClient('dashboards:read dashboards:write dashboards:delete', { expectWriteUnchecked: true });
+  check(/dashboards:read/.test(conn.scope) && !/dashboards:write|dashboards:delete/.test(conn.scope), `읽기만 승인되어야 함: ${conn.scope}`);
+  const names = ((await rpc('tools/list', {}, conn.access)).json?.result?.tools || []).map(t => t.name).sort();
+  check(JSON.stringify(names) === JSON.stringify(['vm_list_dashboards', 'vm_read_dashboard']), `읽기 범위의 도구가 정확하지 않음: ${names.join(',')}`);
+  const mine = await tool(conn, 'vm_list_dashboards');
+  check(!mine.isError && (mine.data?.dashboards || []).some(d => d.dashboardId === state.dashboardId), `내 대시보드 목록에 #${state.dashboardId} 가 없음: ${mine.text}`);
+});
+
+await kase('MCP: 저장 지표를 찾아 미리보기하고, 같은 값으로 대시보드를 만들면 앱 목록에 열린다', async () => {
+  dash.conn = await connectClient('sources:read dashboards:read dashboards:write dashboards:delete', { approveAll: true });
+  check(/dashboards:write/.test(dash.conn.scope) && /dashboards:delete/.test(dash.conn.scope), `쓰기·삭제 범위가 승인되지 않음: ${dash.conn.scope}`);
+  const names = ((await rpc('tools/list', {}, dash.conn.access)).json?.result?.tools || []).map(t => t.name);
+  for (const need of ['vm_list_metrics', 'vm_preview_dashboard', 'vm_create_dashboard', 'vm_update_dashboard', 'vm_restore_dashboard', 'vm_get_dashboard_removal', 'vm_remove_dashboard'])
+    check(names.includes(need), `${need} 도구가 없음: ${names.join(',')}`);
+
+  const sources = await tool(dash.conn, 'vm_list_sources');
+  const list = sources.data?.sources || sources.data?.items || (Array.isArray(sources.data) ? sources.data : []);
+  const sales = (state.sourceId && list.find(x => (x.id ?? x.sourceId) === state.sourceId)) || list.find(x => /sales/.test(x.name || ''));
+  check(sales, `sales 소스를 찾지 못함: ${sources.text}`);
+  dash.sourceId = sales.id ?? sales.sourceId;
+  const described = await tool(dash.conn, 'vm_describe_source', { sourceId: dash.sourceId });
+  check((described.data?.columns || []).every(c => typeof c.numeric === 'boolean' && typeof c.temporal === 'boolean'), `열 설명에 numeric/temporal 이 없음: ${described.text}`);
+
+  const metrics = await tool(dash.conn, 'vm_list_metrics', { sourceId: dash.sourceId });
+  check(!metrics.isError, `지표 목록 실패: ${metrics.text}`);
+  const metric = (metrics.data?.metrics || []).find(m => m.label === '총 매출') || (metrics.data?.metrics || [])[0];
+  check(metric && Number.isInteger(metric.id) && metric.definitionVersion !== undefined, `저장 지표를 찾지 못함: ${metrics.text}`);
+  const allowedKeys = ['id', 'definitionVersion', 'label', 'aggregation', 'column', 'denominatorColumn', 'weightColumn', 'scale', 'unit', 'decimalPlaces', 'numberNotation'];
+  for (const m of metrics.data.metrics) check(Object.keys(m).every(k => allowedKeys.includes(k)), `지표 목록에 허용하지 않은 키가 있음: ${Object.keys(m).join(',')}`);
+  dash.blocks = [{ title: 'MCP 총 매출', kind: 'BOARD_NUMERIC', metric: { id: metric.id, definitionVersion: metric.definitionVersion } }];
+  dash.title = `MCP 대시보드 ${Math.floor(Math.random() * 1e6)}`;
+
+  const preview = await tool(dash.conn, 'vm_preview_dashboard', { sourceId: dash.sourceId, title: dash.title, blocks: dash.blocks });
+  check(!preview.isError && /^[a-f0-9]{64}$/.test(preview.data?.previewDigest || ''), `미리보기 실패: ${preview.text}`);
+  const block = preview.data.blocks[0];
+  const value = Number(block.rows?.[0]?.[block.valueField]);
+  check(Math.abs(value - TOTAL) < 0.01, `미리보기 값 ${value} 이 CSV 합계 ${TOTAL} 와 다름`);
+  check(!/SELECT|FROM /i.test(JSON.stringify(preview.data)), '미리보기에 쿼리 문장이 들어 있음');
+
+  dash.requestId = crypto.randomUUID();
+  const create = args => tool(dash.conn, 'vm_create_dashboard', { sourceId: dash.sourceId, title: dash.title, blocks: dash.blocks, previewDigest: preview.data.previewDigest, expectedSourceRevision: preview.data.sourceRevision, requestId: dash.requestId, confirmWrite: true, ...args });
+  const created = await create();
+  check(!created.isError && Number.isInteger(created.data?.dashboardId), `생성 실패: ${created.text}`);
+  dash.id = created.data.dashboardId;
+  const again = await create();
+  check(!again.isError && again.data.dashboardId === dash.id, `같은 요청 ID 재시도가 같은 대시보드를 돌려주지 않음: ${again.text}`);
+  const other = await create({ title: `${dash.title} 다름` });
+  check(other.isError && other.error?.code === 'REQUEST_REUSED', `다른 입력의 같은 요청 ID 가 REQUEST_REUSED 가 아님: ${other.text}`);
+  const stale = await tool(dash.conn, 'vm_create_dashboard', { sourceId: dash.sourceId, title: `${dash.title} 변경`, blocks: dash.blocks, previewDigest: preview.data.previewDigest, expectedSourceRevision: preview.data.sourceRevision, requestId: crypto.randomUUID(), confirmWrite: true });
+  check(stale.isError && stale.error?.detail?.reason === 'PREVIEW_STALE', `바뀐 입력이 PREVIEW_STALE 로 거절되지 않음: ${stale.text}`);
+
+  const token = await tokenFor(GUEST.id, GUEST.pw);
+  const mine = await api('GET', '/v1/dashboard', undefined, token);
+  check((mine.json?.data || []).some(d => d.id === dash.id), `앱 대시보드 목록에 MCP 가 만든 #${dash.id} 가 없음`);
+  await go('/dashboard', 3500);
+  check((await bodyText()).includes(dash.title), '아티팩트 목록 화면에 MCP 대시보드가 보이지 않음');
+});
+
+await kase('MCP: AI 가 제목을 고치면 앱에 반영되고, 이력에 AI 연결 이름과 직전 상태가 남고, 복원이 되돌린다', async () => {
+  check(dash.id, '앞 케이스가 대시보드를 만들지 않음');
+  const read = await tool(dash.conn, 'vm_read_dashboard', { dashboardId: dash.id });
+  check(!read.isError && read.data.document?.blocks?.length === 1, `읽기 실패: ${read.text}`);
+  const renamed = `${dash.title} 수정`;
+  dash.updateId = crypto.randomUUID();
+  const update = args => tool(dash.conn, 'vm_update_dashboard', { dashboardId: dash.id, expectedRevision: read.data.revision, expectedSourceRevision: read.data.sourceRevision, changes: [{ type: 'renameDashboard', title: renamed }], requestId: dash.updateId, confirmWrite: true, ...args });
+  const changed = await update();
+  check(!changed.isError && changed.data.changed === true && changed.data.revision !== read.data.revision, `수정 실패: ${changed.text}`);
+  const retry = await update();
+  check(!retry.isError && retry.data.revision === changed.data.revision, `수정 재시도가 첫 응답과 다름: ${retry.text}`);
+
+  const token = await tokenFor(GUEST.id, GUEST.pw);
+  const mine = await api('GET', '/v1/dashboard', undefined, token);
+  check((mine.json?.data || []).some(d => d.id === dash.id && d.title === renamed), '앱 목록에 수정한 제목이 반영되지 않음');
+
+  const stale = await update({ requestId: crypto.randomUUID(), expectedRevision: read.data.revision });
+  check(stale.isError && stale.error?.code === 'CONFLICT' && stale.error?.detail?.reason === 'REVISION_CHANGED', `낡은 revision 이 REVISION_CHANGED 로 거절되지 않음: ${stale.text}`);
+  const rule = await update({ requestId: crypto.randomUUID(), expectedRevision: changed.data.revision, changes: [{ type: 'addBlock', block: { id: 'new:x' } }] });
+  check(rule.isError && rule.error?.code === 'INVALID' && rule.error?.detail?.reason === 'UNSUPPORTED_CHANGE', `블록 추가가 UNSUPPORTED_CHANGE 로 거절되지 않음: ${rule.text}`);
+
+  const after = await tool(dash.conn, 'vm_read_dashboard', { dashboardId: dash.id });
+  const history = after.data.history || [];
+  const ai = history.find(h => h.operation === 'save' && h.authorKind === 'external-ai');
+  const created = history.find(h => h.operation === 'create');
+  check(ai && ai.clientName === 'E2E 클라이언트', `이력에 AI 연결 이름이 없음: ${JSON.stringify(history).slice(0, 300)}`);
+  // MCP 로 만든 대시보드는 생성 행이 이미 쓰기 직전 상태이므로 기준(baseline) 행이 따로 쌓이지 않는다. baseline 은 단위 테스트가 본다.
+  check(created && created.authorKind === 'external-ai' && created.clientName === 'E2E 클라이언트', `생성 행이 AI 작성으로 남지 않음: ${JSON.stringify(history).slice(0, 300)}`);
+  check(!history.some(h => h.operation === 'baseline'), `직전 상태가 이력에 있는데 baseline 이 또 쌓임: ${JSON.stringify(history).slice(0, 300)}`);
+  check(!/studioDocument|aiGrantId|actorId/.test(JSON.stringify(history)), '이력 요약에 내부 값이 들어 있음');
+
+  const restored = await tool(dash.conn, 'vm_restore_dashboard', { dashboardId: dash.id, revisionId: created.revisionId, expectedRevision: after.data.revision, requestId: crypto.randomUUID(), confirmWrite: true });
+  check(!restored.isError && restored.data.changed === true, `복원 실패: ${restored.text}`);
+  const mine2 = await api('GET', '/v1/dashboard', undefined, token);
+  check((mine2.json?.data || []).some(d => d.id === dash.id && d.title === dash.title), '복원 뒤 앱 목록의 제목이 원래대로 돌아오지 않음');
+  const final = await tool(dash.conn, 'vm_read_dashboard', { dashboardId: dash.id });
+  check((final.data.history || []).some(h => h.operation === 'restore' && h.authorKind === 'external-ai'), '복원도 이력에 남아야 함');
+});
+
+await kase('MCP: 게시가 걸린 대시보드는 삭제가 사용처 목록과 함께 거절되고, 사용처 없는 내 대시보드는 삭제된다', async () => {
+  check(dash.id && state.dashboardId, '앞 케이스가 돌지 않음');
+  const used = await tool(dash.conn, 'vm_get_dashboard_removal', { dashboardId: state.dashboardId });
+  check(!used.isError && used.data.canDelete === false && (used.data.dependencies || []).some(d => d.count > 0), `게시한 대시보드의 사용처가 보이지 않음: ${used.text}`);
+  const refused = await tool(dash.conn, 'vm_remove_dashboard', { dashboardId: state.dashboardId, expectedRevision: used.data.revision, requestId: crypto.randomUUID(), confirmWrite: true });
+  check(refused.isError && refused.error?.detail?.reason === 'HAS_DEPENDENCIES' && refused.error?.retryable === false && Array.isArray(refused.error?.detail?.dependencies), `사용처가 있는데 삭제가 거절되지 않거나 목록이 없음: ${refused.text}`);
+  const token = await tokenFor(GUEST.id, GUEST.pw);
+  check(((await api('GET', '/v1/dashboard', undefined, token)).json?.data || []).some(d => d.id === state.dashboardId), '거절된 삭제인데 대시보드가 사라짐');
+
+  const free = await tool(dash.conn, 'vm_get_dashboard_removal', { dashboardId: dash.id });
+  check(!free.isError && free.data.canDelete === true, `사용처 없는 대시보드가 삭제 불가로 나옴: ${free.text}`);
+  const request = { dashboardId: dash.id, expectedRevision: free.data.revision, requestId: crypto.randomUUID(), confirmWrite: true };
+  const removed = await tool(dash.conn, 'vm_remove_dashboard', request);
+  check(!removed.isError && removed.data.deleted === true && removed.data.replayed === false, `삭제 실패: ${removed.text}`);
+  const replay = await tool(dash.conn, 'vm_remove_dashboard', request);
+  check(!replay.isError && replay.data.replayed === true, `삭제 재시도가 영수증으로 응답되지 않음: ${replay.text}`);
+  check(!((await api('GET', '/v1/dashboard', undefined, token)).json?.data || []).some(d => d.id === dash.id), '삭제한 대시보드가 앱 목록에 남아 있음');
+  const gone = await tool(dash.conn, 'vm_read_dashboard', { dashboardId: dash.id });
+  check(gone.isError && ['FORBIDDEN', 'NOT_FOUND'].includes(gone.error?.code), `삭제한 대시보드의 읽기가 FORBIDDEN/NOT_FOUND 로 거절되지 않음: ${gone.text}`);
+});
+
+await kase('MCP: 연결을 해제하면 대시보드 쓰기 도구가 즉시 401 이다', async () => {
+  check(dash.conn, '앞 케이스가 연결하지 않음');
+  // 연결이 여러 개 있으므로 삭제 범위를 가진 연결 하나만 골라 해제한다.
+  const token = await tokenFor(GUEST.id, GUEST.pw);
+  const listed = await api('GET', '/v1/ai-connections', undefined, token);
+  const target = (listed.json?.data?.connections || listed.json?.connections || []).find(c => (c.scopes || []).includes('dashboards:delete') && !c.revoked);
+  check(target, `삭제 범위를 가진 연결을 찾지 못함: ${JSON.stringify(listed.json).slice(0, 240)}`);
+  const off = await api('POST', `/v1/ai-connections/${encodeURIComponent(target.id)}/disconnect`, {}, token);
+  check(off.status >= 200 && off.status < 300, `연결 해제 실패: ${off.status} ${JSON.stringify(off.json).slice(0, 160)}`);
+  const r = await rpc('tools/call', { name: 'vm_create_dashboard', arguments: { sourceId: dash.sourceId, title: 'x', blocks: dash.blocks, previewDigest: 'a'.repeat(64), expectedSourceRevision: 'b'.repeat(64), requestId: crypto.randomUUID(), confirmWrite: true } }, dash.conn.access);
+  check(r.status === 401, `해제 뒤에도 쓰기 도구가 통과함: ${r.status} ${r.text}`);
+});
+
+
 // ============================================================================================
 await kase('AI 없음: 서버 AI 가 없으면 AI 제안만 꺼지고 안내가 나온다', async () => {
   await go('/studio/new', 3000);

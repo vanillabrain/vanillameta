@@ -36,10 +36,13 @@ compose() { "${COMPOSE[@]}" -p "$PROJECT" "$@"; }
 # 원격 MCP 를 e2e 전용 OAuth 클라이언트 하나로 켠다. e2e 가 이 redirect 포트에서 잠시 콜백을 받는다(포트가 겹치면 E2E_MCP_PORT 로 바꾼다).
 MCP_CLIENT_ID=e2e-client
 MCP_REDIRECT=http://127.0.0.1:${E2E_MCP_PORT:-53682}/callback
-MCP_SCOPES='["sources:read","documents:read","reports:read","comments:read","comments:write","suggestions:write","shares:write"]'
+MCP_SCOPES='["sources:read","documents:read","reports:read","comments:read","comments:write","suggestions:write","shares:write","dashboards:read","dashboards:write","dashboards:delete"]'
+# 허용 범위가 좁은 두 번째 클라이언트: 광고 범위는 두 클라이언트 범위의 합집합이고, 좁은 쪽은 넓은 범위를 받지 못한다.
+MCP_NARROW_ID=e2e-reader
+MCP_NARROW_SCOPES='["sources:read","documents:read"]'
 export MCP_PUBLIC_API_URL="http://localhost:$PORT/v1"
 export MCP_PUBLIC_WEB_URL="http://localhost:$PORT/"
-export MCP_OAUTH_CLIENTS_JSON="[{\"id\":\"$MCP_CLIENT_ID\",\"name\":\"E2E 클라이언트\",\"redirectUris\":[\"$MCP_REDIRECT\"],\"scopes\":$MCP_SCOPES}]"
+export MCP_OAUTH_CLIENTS_JSON="[{\"id\":\"$MCP_CLIENT_ID\",\"name\":\"E2E 클라이언트\",\"redirectUris\":[\"$MCP_REDIRECT\"],\"scopes\":$MCP_SCOPES},{\"id\":\"$MCP_NARROW_ID\",\"name\":\"E2E 읽기 클라이언트\",\"redirectUris\":[\"$MCP_REDIRECT\"],\"scopes\":$MCP_NARROW_SCOPES}]"
 
 SCRIPT=$(mktemp)
 SHOTS=${E2E_SHOTS:-$(mktemp -d)}
@@ -72,6 +75,7 @@ fi
 # ego-browser 스크립트는 환경변수와 작업 디렉터리를 물려받지 않으므로 설정을 코드 앞에 붙인다.
 {
   E2E_BASE="http://localhost:$PORT" E2E_ROOT="$ROOT" E2E_SHOTS_DIR="$SHOTS" E2E_MCP_CLIENT="$MCP_CLIENT_ID" \
+    E2E_MCP_NARROW="$MCP_NARROW_ID" E2E_MCP_NARROW_SCOPES="$MCP_NARROW_SCOPES" \
     E2E_MCP_REDIRECT="$MCP_REDIRECT" E2E_MCP_SCOPES="$MCP_SCOPES" E2E_FILTER="${E2E_ONLY:-}" python3 - <<'PY'
 import json, os
 cfg = {
@@ -82,6 +86,8 @@ cfg = {
         "clientId": os.environ["E2E_MCP_CLIENT"],
         "redirect": os.environ["E2E_MCP_REDIRECT"],
         "scopes": json.loads(os.environ["E2E_MCP_SCOPES"]),
+        "narrowId": os.environ["E2E_MCP_NARROW"],
+        "narrowScopes": json.loads(os.environ["E2E_MCP_NARROW_SCOPES"]),
     },
     "only": os.environ["E2E_FILTER"],
 }
