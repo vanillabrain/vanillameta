@@ -577,6 +577,26 @@ describe('McpDashboardService', () => {
       }
     });
 
+    it("gives a 400 with no code the reason INVALID_INPUT, with the kernel's sentence only as a hint", async () => {
+      creation.createFromSpec.mockRejectedValueOnce(
+        new BadRequestException('저장 지표 버전을 확인해 주세요.'),
+      );
+      expect(mcpError(await service.create(principal(), CREATE).catch(e => e))).toMatchObject({
+        code: 'INVALID',
+        retryable: false,
+        detail: { reason: 'INVALID_INPUT', hint: '저장 지표 버전을 확인해 주세요.' },
+      });
+    });
+
+    it('treats a rate limit as worth retrying later, unlike the other limits', async () => {
+      const error = new DashboardToolException('LIMIT', 'RATE_LIMITED');
+      expect(mcpError(error)).toMatchObject({ code: 'LIMIT', retryable: true });
+      expect(mcpError(new DashboardToolException('LIMIT', 'CARDINALITY_LIMIT'))).toMatchObject({
+        code: 'LIMIT',
+        retryable: false,
+      });
+    });
+
     it('names an unlabelled 409 as a state change and leaves a busy worker alone', async () => {
       creation.createFromSpec.mockRejectedValueOnce(
         new ConflictException('데이터 파일이 교체되었습니다.'),

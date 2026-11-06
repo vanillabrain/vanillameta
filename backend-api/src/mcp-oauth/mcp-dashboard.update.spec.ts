@@ -254,6 +254,11 @@ describe('McpDashboardService.update on a real Studio', () => {
   it('renames, moves and resizes as the connection, and keeps the state it replaced', async () => {
     const before = await state();
     const [first] = before.document.blocks;
+    // The grant check must run in the transaction that writes, not in a read before it.
+    const inTransaction: unknown[] = [];
+    auth.assertGrant.mockImplementation(async manager => {
+      inTransaction.push(manager.queryRunner?.isTransactionActive);
+    });
     const result = await update([
       { type: 'renameDashboard', title: 'Renamed by AI' },
       {
@@ -285,6 +290,7 @@ describe('McpDashboardService.update on a real Studio', () => {
     ]);
     expect(rows[0].revision).toBe(before.document.revision);
     expect(rows[1].revision).toBe(after.document.revision);
+    expect(inTransaction).toEqual([true]);
     expect(auth.assertGrant).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ grantId: 'grant-1' }),
@@ -870,8 +876,14 @@ describe('McpDashboardService.update on a real Studio', () => {
         requestId: rid(970),
         expectedRevision: (await impact()).revision,
       };
+      const inTransaction: unknown[] = [];
+      auth.assertGrant.mockImplementation(async manager => {
+        inTransaction.push(manager.queryRunner?.isTransactionActive);
+      });
       const result = await service.remove(principalDelete(), request);
       expect(result).toEqual({ dashboardId: id, deleted: true, replayed: false });
+      // The grant check ran inside the deleting transaction.
+      expect(inTransaction).toEqual([true]);
       expect(await db.manager.findOneBy(Dashboard, { id })).toBeNull();
       expect(await db.manager.count(DashboardRevision, { where: { dashboardId: id } })).toBe(0);
       expect(await db.manager.count(DashboardWidget, { where: { dashboardId: id } })).toBe(0);
