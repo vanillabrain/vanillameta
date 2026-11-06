@@ -13,7 +13,7 @@
 
 - **검증 런타임 종료:** [원인·검증](docs/testing/qa-runtime-cleanup.md)·[계획](docs/plans/TC-050-runtime-cleanup.md)을 따른다. 그룹 조회 EPERM은 소멸이 아니며 그룹 유지/재조회와 IPC fatal을 구분한다. 그룹0·전송완료·현재 drain 증명 후만 정리한다. 별도 QA_API/WEB/CONTROL_PORT는 별도 runtime 포인터를 사용한다. 수정본의 MySQL restart/stop·정리 성공과 구버전 supervisor11506의 미복구/보존을 구분하며 임의 PID 종료·prune·실패 플래그 초기화로 우회하지 않는다.
 
-- **UC056 MCP 제작:** [계획](docs/plans/UC-056-mcp-authoring.md)·[가이드](docs/user-manual/site/mcp.md)·[증빙](docs/testing/mcp-artifact-authoring.md)을 따른다. `mcp-server/`는 기존 JWT API를 사용하는 로컬 stdio SDK v2 어댑터6도구이며 소스·지표→생성/집계 미리보기→별도 승인 비공개 저장→Studio 링크를 연결한다. 서버→Codex 실행과 외부 에이전트→VM MCP는 다른 방향이다. 원격 HTTP는 두지 않는다(원격은 백엔드 `/v1/mcp` OAuth 전용, 로그인 JWT 전달 HTTP 모드는 2026-11-02 제거). 게시/공유·MK AI 계약은 제외하며 SDK/실Codex·Claude Code2.1.308(기본 claude-sonnet-5-5)/Ego134 검증을 구분한다. [Claude 후속](docs/plans/UC-056-claude-host.md)은 실행별 MCP·분리 승인·DB 저장0→1·Studio reload이며 전역 인증/모델은 변경하지 않는다.
+- **UC056 MCP 제작(로컬 stdio는 2026-11-06 폐기):** 당시 [계획](docs/plans/UC-056-mcp-authoring.md)·[증빙](docs/testing/mcp-artifact-authoring.md)은 로그인 JWT로 기존 API를 부르는 로컬 stdio 어댑터(`mcp-server/`, 6도구)를 다뤘고, 서버 AI를 실행하고 MCP 밖 API를 부를 수 있어 제거했다. 지금의 안내는 원격 MCP(`/v1/mcp`, OAuth) 하나이며 [가이드](docs/user-manual/site/mcp.md)·[운영](docs/operations/remote-ai-oauth.md)·[계획 1b](docs/plans/ai-native-artifacts-1b.md)를 따른다. 서버→Codex 실행과 외부 에이전트→VM MCP는 다른 방향이다. 로그인 JWT를 외부 AI에 전달하는 HTTP 모드는 없다(2026-11-02 제거).
 
 - **가이드 운영 배포:** https://docs.vanillameta.net/ · Cloudflare Pages `vanillameta-docs`/production `develop`, Actions 자동 배포 활성. [운영 안내](docs/operations/user-guide-cloudflare.md)·[온라인 검증](docs/testing/docs-production.md)을 따른다. 토큰은 GitHub Secret만 사용하고 문서·로그에 기록하지 않는다.
 

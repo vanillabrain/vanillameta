@@ -27,11 +27,13 @@ docker compose up --build
 
 ## MCP와 AI 키
 
-서버 AI를 설정하지 않은 스택에서 로컬 MCP 서버로 확인한 것은 소스 목록·스키마 조회와 파일 업로드이다([검증](docs/testing/docker-quickstart.md)). 분석안 생성(`vm_propose_analysis`)은 서버 AI가 설정되어 있어야 하고, 설정이 없으면 `503`으로 거부된다. 저장 도구(`vm_save_analysis`)도 서버가 만든 제안의 ID만 받으므로(코드 읽기, 실행하지 않음) 외부 AI가 직접 만든 분석을 저장하는 경로는 없다. 즉 서버 AI 없이는 조회와 업로드까지만 된다. 앱 안에 AI 설정 화면은 없고 환경변수로만 설정하며, 쓸 모델은 `AI_MODEL`로 명시한다.
+서버 AI는 선택입니다. 설정하지 않아도 앱과 MCP는 동작하며, 설정 화면은 없고 환경변수(`AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`)로만 합니다. 쓸 모델은 `AI_MODEL`로 명시하며 다른 모델로 자동 대체하지 않습니다.
 
-로컬 MCP 서버는 컨테이너가 아니라 PC에서 도는 별도 프로세스이다(Node 24.11 이상 24.x). 4000 포트는 열려 있지 않으므로 [`mcp-server/README.md`](mcp-server/README.md)의 주소 대신 웹 프록시를 쓴다. 실행에서 확인한 값은 환경변수 `VM_API_URL=http://127.0.0.1:3000/v1`, `VM_WEB_URL=http://127.0.0.1:3000`이다. `login.js`에 같은 주소를 `--api-url`, `--web-url`로 주는 것은 권장이며 실행하지 않았다.
+팀원은 자기 AI(Claude Code 등)를 **원격 MCP**(`/v1/mcp`, OAuth + PKCE)에 연결합니다. 서버 AI 없이 소스·보고서·내 대시보드를 읽고, 승인한 범위에서만 댓글·수정 제안·공유, 그리고 `dashboards:write`·`dashboards:delete`로 **본인이 만든 대시보드**의 생성·수정·복원·삭제를 합니다. 연결한 AI는 내 계정의 등급을 넘지 못하고, 모든 변경은 대시보드 변경 이력에 AI 연결 이름과 함께 남습니다. 로컬 stdio MCP 서버는 2026-11-06에 제거했습니다.
 
-MCP 분석 대상은 DuckDB 소스(CSV·JSON·Parquet 업로드 등)이다. 외부 DB는 연결 저장은 되지만 `unsupported`로 표시된다. 또 knex 기반 외부 DB의 연결 테스트는 `Tarn: invalid opt.idleTimeoutMillis 0` 오류로 실패한다(알려진 결함, 미수정. PostgreSQL은 실행으로 확인했고 다른 엔진은 코드 읽기 추정). 원격 MCP(`/v1/mcp`)는 기본으로 꺼져 있다(503). 켜려면 `.env`에 `MCP_PUBLIC_API_URL=http://localhost:3000/v1`, `MCP_PUBLIC_WEB_URL=http://localhost:3000/`, `MCP_OAUTH_CLIENTS_JSON`(클라이언트 id·이름·정확한 redirect URI·허용 범위의 JSON 배열)을 넣는다. 주소의 포트는 `VM_WEB_PORT`와 같아야 하고, 웹 프록시가 포트를 포함한 `Host`를 그대로 백엔드에 넘긴다(포트가 빠지면 MCP가 `access_denied`로 거절한다). `Host`를 비교하므로 브라우저와 MCP 클라이언트는 설정한 주소(`localhost:3000`)로 접속해야 하고, `127.0.0.1:3000`으로 열면 거절된다. OAuth(PKCE) 승인부터 도구 호출·연결 해제까지는 `scripts/docker-e2e.sh`가 실제 스택에서 확인한다.
+원격 MCP는 기본으로 꺼져 있습니다(503). 켜려면 `.env`에 `MCP_PUBLIC_API_URL=http://localhost:3000/v1`, `MCP_PUBLIC_WEB_URL=http://localhost:3000/`, `MCP_OAUTH_CLIENTS_JSON`(클라이언트 id·이름·정확한 redirect URI·허용 범위의 JSON 배열)을 넣습니다. 허용 범위에 `dashboards:read`, `dashboards:write`, `dashboards:delete`를 넣어야 대시보드 도구가 보입니다. 서버가 알리는 범위(`scopes_supported`)는 설정된 클라이언트 범위의 합집합입니다. **클라이언트 설정을 바꾸면 모든 기존 연결이 끊기니** 다시 연결합니다. 주소의 포트는 `VM_WEB_PORT`와 같아야 하고, 웹 프록시가 포트를 포함한 `Host`를 그대로 백엔드에 넘깁니다(포트가 빠지면 MCP가 `access_denied`로 거절합니다). `Host`를 비교하므로 브라우저와 MCP 클라이언트는 설정한 주소(`localhost:3000`)로 접속해야 하고, `127.0.0.1:3000`으로 열면 거절됩니다. 등록 방법과 범위별 도구는 [`docs/operations/remote-ai-oauth.md`](docs/operations/remote-ai-oauth.md), 사용자용 안내는 [`docs/user-manual/site/mcp.md`](docs/user-manual/site/mcp.md)에 있습니다. OAuth(PKCE) 승인부터 도구 호출·연결 해제까지는 `scripts/docker-e2e.sh`가 실제 스택에서 확인합니다.
+
+MCP로 대시보드를 만드는 대상은 DuckDB 소스(CSV·JSON·Parquet 업로드 등)이고, 저장 지표만 쓸 수 있습니다. 외부 DB는 연결 저장은 되지만 `unsupported`로 표시됩니다. 또 knex 기반 외부 DB의 연결 테스트는 `Tarn: invalid opt.idleTimeoutMillis 0` 오류로 실패합니다(알려진 결함, 미수정. PostgreSQL은 실행으로 확인했고 다른 엔진은 코드 읽기 추정).
 
 ## 조직과 등급
 
@@ -82,7 +84,7 @@ KEEP=1 scripts/docker-smoke.sh    # 확인 후 스택을 남겨 직접 열어 �
 - 운영 이미지가 `NODE_ENV=prod`면 `guest` 시드 행이 있는 DB의 부팅을 거부한다. 체험 스택의 볼륨을 운영에 재사용하지 않는다.
 - 첫 빌드에서 `JavaScript heap out of memory`가 나면 Docker 메모리를 4GB 이상으로 올린다.
 - 예전 이미지(root 실행)가 만든 `vanillameta-data` 볼륨은 더 이상 쓰지 않는다. 이 스택의 업로드 볼륨 이름은 `uploads`이며 `docker volume rm <프로젝트>_vanillameta-data`로 지워도 된다.
-- `npx` 한 줄 실행은 제공하지 않는다. 앱이 서버와 PostgreSQL을 함께 요구한다. MCP 서버(`mcp-server/`)는 별도 로컬 프로세스이며 아직 npm에 게시하지 않았다.
+- `npx` 한 줄 실행은 제공하지 않는다. 앱이 서버와 PostgreSQL을 함께 요구한다.
 
 ## 개발 모드
 

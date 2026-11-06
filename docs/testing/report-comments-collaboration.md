@@ -1,5 +1,7 @@
 # 보고서 댓글·제안·MCP 협업 검증
 
+> **2026-11-06:** 이 문서가 다루는 로컬 stdio MCP 서버(`mcp-server/`와 그 도구 `vm_propose_analysis`·`vm_save_analysis` 등)는 제거되었다. 아래는 당시 계획·검증의 **역사 기록**이며 현재 동작이 아니다. 현재 안내는 원격 MCP(`/v1/mcp`) 하나다: `docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`.
+
 2026-11-02. 설계는 [아티팩트 댓글·제안·MCP 협업](../architecture/artifact-comments-collaboration.md), 원격 연결 설정은 [운영 설정](../operations/remote-ai-oauth.md)을 따른다.
 
 ## 목적
