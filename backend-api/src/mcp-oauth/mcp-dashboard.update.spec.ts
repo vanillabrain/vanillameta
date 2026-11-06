@@ -1,5 +1,10 @@
 import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
 import {
@@ -39,6 +44,9 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { DashboardToolException } from './mcp-dashboard.errors';
+import { applyStudioOperation } from '../dashboard-studio/studio-operations';
+import { deriveRestore } from '../dashboard-studio/studio-restore';
+import { mcpError } from './mcp-server';
 import { ActorWindowLimiter } from './mcp-dashboard.limits';
 import { McpDashboardService } from './mcp-dashboard.service';
 import type { McpOAuthPrincipal } from './mcp-oauth.service';
@@ -93,6 +101,7 @@ describe('McpDashboardService.update on a real Studio', () => {
     root: string,
     id: number,
     sourceRevision: string,
+    connection: any,
     n = 0;
   const auth = { revalidate: jest.fn(), assertGrant: jest.fn() };
   const previous = process.env.FILE_UPLOAD_DIR;
@@ -168,7 +177,7 @@ describe('McpDashboardService.update on a real Studio', () => {
       { userId: 7, organizationId: 1, role: 'contributor', team: '' },
       { userId: 8, organizationId: 1, role: 'editor', team: '' },
     ]);
-    const connection: any = {
+    connection = {
       withDuckDBSnapshot: jest.fn((_id, cb) => cb()),
       captureDuckDBSnapshot: jest.fn(async () => ({ run: async cb => cb() })),
       duckDBVersion: jest.fn().mockResolvedValue(sourceRevision),
@@ -460,5 +469,244 @@ describe('McpDashboardService.update on a real Studio', () => {
     auth.assertGrant.mockRejectedValueOnce(new ForbiddenException());
     await expect(call(principal())).rejects.toBeInstanceOf(ForbiddenException);
     expect(await counts()).toEqual(writes);
+  });
+
+  describe('restore', () => {
+    const histories = () =>
+      db.manager.find(DashboardRevision, { where: { dashboardId: id }, order: { seq: 'ASC' } });
+    const restore = async (revisionId: string, over: Record<string, unknown> = {}) => {
+      const current = await state();
+      return service.restore(principal(), {
+        dashboardId: id,
+        requestId: rid(++n),
+        revisionId,
+        expectedRevision: current.document.revision,
+        ...over,
+      });
+    };
+    const values = async () => (await studio.get(id, 7)).preview.widgets.map((w: any) => w.datas);
+
+    it('brings a removed block back with a new id and the same numbers, and undoes a rename', async () => {
+      const before = await state();
+      const valuesBefore = await values();
+      const chart = before.document.blocks[1];
+      await update([{ type: 'removeBlock', blockId: chart.id }]);
+      await update([{ type: 'renameDashboard', title: 'Renamed by AI' }]);
+      const [baseline] = await histories();
+      expect(baseline).toMatchObject({ operation: 'baseline', revision: before.document.revision });
+
+      const result = await restore(baseline.revisionId);
+      const after = await state();
+      expect(result).toEqual({ dashboardId: id, revision: after.document.revision, changed: true });
+      expect(after.document.title).toBe(before.document.title);
+      expect(after.document.blocks.map(b => b.definitionKey)).toEqual(
+        before.document.blocks.map(b => b.definitionKey),
+      );
+      expect(after.document.blocks[0].id).toBe(before.document.blocks[0].id);
+      expect(after.document.blocks[1].id).not.toBe(chart.id);
+      expect(await values()).toEqual(valuesBefore);
+      const rows = await histories();
+      expect(rows.map(r => [r.operation, r.authorKind])).toEqual([
+        ['baseline', 'human'],
+        ['save', 'external-ai'],
+        ['save', 'external-ai'],
+        ['restore', 'external-ai'],
+      ]);
+      expect(rows[3].aiClientName).toBe('Synthetic AI');
+      // The restore is itself a state that can be restored: the rename is still in the history.
+      expect(JSON.parse(rows[2].studioDocument).document.title).toBe('Renamed by AI');
+    });
+
+    it('answers a retry with the first answer and another input with REQUEST_REUSED', async () => {
+      const before = await state();
+      await update([{ type: 'renameDashboard', title: 'Changed' }]);
+      const [baseline] = await histories();
+      const current = await state();
+      const request = {
+        dashboardId: id,
+        requestId: rid(950),
+        revisionId: baseline.revisionId,
+        expectedRevision: current.document.revision,
+      };
+      const first = await service.restore(principal(), request);
+      const writes = await counts();
+      expect(await service.restore(principal(), request)).toEqual({
+        dashboardId: id,
+        revision: first.revision,
+      });
+      expect(await counts()).toEqual(writes);
+      expect(
+        await failure(service.restore(principal(), { ...request, revisionId: rid(951) })),
+      ).toEqual({ code: 'REQUEST_REUSED', reason: 'REQUEST_REUSED' });
+      expect((await state()).document.title).toBe(before.document.title);
+    });
+
+    it('saves nothing to restore the state the dashboard is already in', async () => {
+      await update([{ type: 'renameDashboard', title: 'Changed' }]);
+      const rows = await histories();
+      const last = rows[rows.length - 1];
+      const writes = await counts();
+      expect(await restore(last.revisionId)).toEqual({
+        dashboardId: id,
+        revision: last.revision,
+        changed: false,
+      });
+      expect(await counts()).toEqual(writes);
+    });
+
+    it("does not reach another dashboard's history, and refuses a stale revision", async () => {
+      await update([{ type: 'renameDashboard', title: 'Changed' }]);
+      const [baseline] = await histories();
+      const other = (await ai.save({ draft: draft() }, 7)).data.id;
+      const writes = await counts();
+      const current = await state();
+      const asOther = (revisionId: string) =>
+        service.restore(principal(), {
+          dashboardId: other,
+          requestId: rid(++n),
+          revisionId,
+          expectedRevision: current.document.revision as string,
+        });
+      await expect(asOther(baseline.revisionId)).rejects.toBeInstanceOf(NotFoundException);
+      expect(
+        await failure(restore(baseline.revisionId, { expectedRevision: 'a'.repeat(64) })),
+      ).toEqual({
+        code: 'CONFLICT',
+        reason: 'REVISION_CHANGED',
+      });
+      expect(await counts()).toEqual(writes);
+    });
+
+    it('leaves the legacy pivot column alone', async () => {
+      const marker = JSON.stringify([{ legacy: 'pivot' }]);
+      await update([{ type: 'renameDashboard', title: 'Changed' }]);
+      await db.manager.update(Dashboard, { id }, { pivotDefinitions: marker });
+      const [baseline] = await histories();
+      await restore(baseline.revisionId);
+      expect((await db.manager.findOneBy(Dashboard, { id })).pivotDefinitions).toBe(marker);
+    });
+
+    it('refuses with RESTORE_STALE, not retryable, when the save cannot carry the old state, and lets a refusal through', async () => {
+      const chart = (await state()).document.blocks[1];
+      await update([{ type: 'removeBlock', blockId: chart.id }]);
+      const [baseline] = await histories();
+      const writes = await counts();
+      const prepare = jest.spyOn(ai, 'prepareSave');
+      try {
+        // The inputs to the save come from the server's own history row, so an uncoded 400 or 409
+        // from it means the old state no longer fits today's metrics or columns.
+        for (const error of [
+          new ConflictException('Saved metric changed.'),
+          new BadRequestException('x'),
+        ]) {
+          prepare.mockRejectedValueOnce(error);
+          let failed: any;
+          await restore(baseline.revisionId).catch(e => (failed = e));
+          expect(failed).toBeInstanceOf(DashboardToolException);
+          expect(mcpError(failed)).toMatchObject({
+            code: 'INVALID',
+            retryable: false,
+            detail: { reason: 'RESTORE_STALE' },
+          });
+        }
+        prepare.mockRejectedValueOnce(new ForbiddenException());
+        await expect(restore(baseline.revisionId)).rejects.toBeInstanceOf(ForbiddenException);
+      } finally {
+        prepare.mockRestore();
+      }
+      expect(await counts()).toEqual(writes);
+    });
+
+    it('is stale when the source, the business basis or the saved form moved since', async () => {
+      await update([{ type: 'renameDashboard', title: 'Changed' }]);
+      const [baseline] = await histories();
+      const current = await state();
+      const snapshot = JSON.parse(
+        (await db.manager.findOneBy(Dashboard, { id })).structuredDefinition ?? 'null',
+      );
+      const attempt =
+        (over: Record<string, unknown>, snap: unknown = snapshot) =>
+        () =>
+          deriveRestore(
+            id,
+            { document: { ...current.document, ...over } as never, snapshot: snap, analysis: {} },
+            baseline,
+            current.document.revision,
+          );
+      const code = (call: () => unknown) => {
+        try {
+          call();
+        } catch (error: any) {
+          return error.getResponse().code;
+        }
+        return null;
+      };
+      expect(code(attempt({}))).toBeNull();
+      expect(code(attempt({ sourceId: 999 }))).toBe('RESTORE_STALE');
+      expect(code(attempt({ businessBasis: { version: 1, columns: [] } }))).toBe('RESTORE_STALE');
+      expect(code(attempt({}, snapshot ? null : { schemaVersion: 2 }))).toBe('RESTORE_STALE');
+      // Conditions are not restored in this version, in either direction.
+      expect(code(attempt({ conditions: { sourceRevision: 'a'.repeat(64) } }))).toBe(
+        'UNSUPPORTED_CHANGE',
+      );
+    });
+
+    it('refuses a damaged history row and a state it cannot rebuild a block from', async () => {
+      await update([{ type: 'renameDashboard', title: 'Changed' }]);
+      const [baseline] = await histories();
+      const unsupported = { code: 'INVALID', reason: 'UNSUPPORTED_CHANGE' };
+      const writes = await counts();
+      const original = { ...baseline };
+      for (const damage of [
+        { analysisDefinition: null },
+        { revision: 'c'.repeat(64) },
+        { studioDocument: '{"document":{}}' },
+      ]) {
+        await db.manager.update(DashboardRevision, { seq: baseline.seq }, damage);
+        expect(await failure(restore(baseline.revisionId))).toEqual(unsupported);
+        await db.manager.update(DashboardRevision, { seq: baseline.seq }, original);
+      }
+      expect(await counts()).toEqual(writes);
+    });
+
+    it('refuses when no block of the saved state is still the same block', async () => {
+      // A save by a person can hand a new block an old id by position, so this state is built directly:
+      // today's dashboard has the same calculations under other ids.
+      await update([{ type: 'renameDashboard', title: 'Changed' }]);
+      const [baseline] = await histories();
+      const current = await state();
+      const renamed = JSON.parse(JSON.stringify(current.document));
+      renamed.blocks.forEach((b, i) => (b.id = `other-${i}`));
+      for (const breakpoint of ['lg', 'md', 'xs'])
+        renamed.layouts[breakpoint].forEach((g, i) => (g.id = `other-${i}`));
+      const snapshot = JSON.parse(
+        (await db.manager.findOneBy(Dashboard, { id })).structuredDefinition ?? 'null',
+      );
+      expect(() =>
+        deriveRestore(
+          id,
+          { document: renamed, snapshot, analysis: {} },
+          baseline,
+          current.document.revision,
+        ),
+      ).toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({ code: 'UNSUPPORTED_CHANGE' }),
+        }),
+      );
+      // With one block still the same block, the others come back under temporary ids.
+      renamed.blocks[0].id = current.document.blocks[0].id;
+      renamed.layouts.lg[0].id = current.document.blocks[0].id;
+      renamed.layouts.md[0].id = current.document.blocks[0].id;
+      renamed.layouts.xs[0].id = current.document.blocks[0].id;
+      const { document } = deriveRestore(
+        id,
+        { document: renamed, snapshot, analysis: {} },
+        baseline,
+        current.document.revision,
+      );
+      expect(document.blocks[0].id).toBe(current.document.blocks[0].id);
+      expect(document.blocks[1].id).toMatch(/^new:/);
+    });
   });
 });

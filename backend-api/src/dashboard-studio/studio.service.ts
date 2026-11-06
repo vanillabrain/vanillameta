@@ -29,7 +29,9 @@ import {
   ServiceUnavailableException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
+  NotFoundException,
   Optional,
 } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
@@ -54,6 +56,8 @@ import {
   RevisionAuthor,
 } from './dashboard-revision-history';
 import { StudioRun } from './entities/studio-run.entity';
+import { DashboardRevision } from './entities/dashboard-revision.entity';
+import { deriveRestore, restoreStale, RestoreExtras } from './studio-restore';
 import { buildStudioEvidence } from './studio-evidence';
 /** What only a server-side caller (an external AI's change) may set; the HTTP controller passes none. */
 export interface SaveOptions {
@@ -1438,6 +1442,15 @@ export class StudioService {
     signal?: AbortSignal,
     options: SaveOptions = {},
   ) {
+    return this.saveWith(id, body, actor, signal, options);
+  }
+  private async saveWith(
+    id: number,
+    body: any,
+    actor: number,
+    signal: AbortSignal | undefined,
+    options: SaveOptions & { restore?: RestoreExtras },
+  ) {
     // Receipt replay stays metadata-only. A new semantic write validates its immutable date file
     // before entering the write queue; saveOnce still rechecks rights/file/revision atomically.
     if (body?.document?.conditions?.semantics) {
@@ -1464,6 +1477,53 @@ export class StudioService {
       }
     }
     return this.serializeWrite(() => this.saveOnce(id, body, actor, signal, options));
+  }
+  /**
+   * Puts a saved state of a dashboard back as a new save. The server reads the history row itself, by
+   * dashboard and revision, and builds the document from it; the caller names only which state. A
+   * state the dashboard's metrics or data can no longer carry is RESTORE_STALE. The inputs to the
+   * save are all derived here, so a plain 400 or 409 from it means the old state does not fit the
+   * current one; a refusal of rights (403) and a coded conflict pass through as they are.
+   */
+  async restore(
+    id: number,
+    input: { requestId: string; revisionId: string; expectedRevision: string },
+    actor: number,
+    options: SaveOptions = {},
+  ) {
+    const row = await this.db.manager.findOne(DashboardRevision, {
+      where: { dashboardId: id, revisionId: input.revisionId },
+    });
+    if (!row) throw new NotFoundException('저장본을 찾을 수 없습니다.');
+    const current = await serializeMetadataWork(this.db, () => this.load(id, actor, 'edit'));
+    if (current.document.revision !== input.expectedRevision)
+      throw new ConflictException({
+        code: 'REVISION_CHANGED',
+        message: '다른 화면에서 변경되었습니다.',
+      });
+    const { document, extras } = deriveRestore(id, current, row, input.expectedRevision);
+    try {
+      return await this.saveWith(
+        id,
+        {
+          requestId: input.requestId,
+          expectedRevision: input.expectedRevision,
+          expectedSourceRevision: current.sourceRevision,
+          document,
+        },
+        actor,
+        undefined,
+        { ...options, restore: extras },
+      );
+    } catch (error) {
+      if (
+        error instanceof HttpException &&
+        !(error.getResponse() as { code?: string })?.code &&
+        [400, 409].includes(error.getStatus())
+      )
+        throw restoreStale('저장본을 지금의 지표와 데이터로 되살릴 수 없습니다.');
+      throw error;
+    }
   }
   /** Cross-process Studio writes lock an existing row, including the first publication. */
   private async lockDashboard(manager: EntityManager, id: number) {
@@ -1520,7 +1580,7 @@ export class StudioService {
     body: any,
     actor: number,
     signal?: AbortSignal,
-    options: SaveOptions = {},
+    options: SaveOptions & { restore?: RestoreExtras } = {},
   ) {
     this.assertMixedCharts(body?.document);
     await this.access.dashboard(id, actor, 'edit');
@@ -1604,8 +1664,15 @@ export class StudioService {
           throw new ConflictException(
             '조건의 데이터 파일이 변경됐습니다. 조건을 다시 적용하거나 명시 제거해 주세요.',
           );
-        const old = current.document;
-        const items = current.items;
+        // A restore adds the blocks it brings back to the lists a save checks against.
+        const extra = options.restore;
+        const old = extra
+          ? { ...current.document, blocks: [...current.document.blocks, ...extra.blocks] }
+          : current.document;
+        const items = extra ? [...current.items, ...extra.items] : current.items;
+        const templates = extra
+          ? [...current.analysis.widgets, ...(extra.widgets as typeof current.analysis.widgets)]
+          : current.analysis.widgets;
         const indices = new Map(old.blocks.map((b, i) => [b.definitionKey, i]));
         const snapshots = [];
         const widgets = [];
@@ -1661,7 +1728,7 @@ export class StudioService {
             current.schema,
             this.db.manager,
           );
-          const template = current.analysis.widgets.find(w => w.blockId === original.id);
+          const template = templates.find(w => w.blockId === original.id);
           widgets.push({
             ...template,
             ...block.display,
@@ -1864,7 +1931,7 @@ export class StudioService {
             actorId: actor,
             studioDocument,
             revision: remapped.revision,
-            operation: 'save',
+            operation: options.restore ? 'restore' : 'save',
             author: options.author,
             requestId: body.requestId,
           });
