@@ -14,6 +14,10 @@ const EXPECTED = {
   'comments:write': { kind: 'write', capability: 'comment' },
   'suggestions:write': { kind: 'write', capability: 'comment' },
   'shares:write': { kind: 'write', capability: 'share' },
+  'dashboards:read': { kind: 'read', capability: 'read' },
+  'dashboards:write': { kind: 'write', capability: 'write' },
+  // Deleting needs what the HTTP delete route needs.
+  'dashboards:delete': { kind: 'delete', capability: 'write' },
 } as const;
 
 describe('MCP scope policy', () => {
@@ -39,6 +43,16 @@ describe('MCP scope policy', () => {
     expect(viewer('shares:write')).toBe(false);
     expect(roleAllows('contributor', MCP_SCOPE_POLICY['shares:write'].capability)).toBe(false);
     expect(roleAllows('editor', MCP_SCOPE_POLICY['shares:write'].capability)).toBe(true);
+  });
+
+  it('lets a viewer read dashboards but neither change nor delete them', () => {
+    const may = (role: Parameters<typeof roleAllows>[0], scope: (typeof MCP_SCOPES)[number]) =>
+      roleAllows(role, MCP_SCOPE_POLICY[scope].capability);
+    expect(may('viewer', 'dashboards:read')).toBe(true);
+    for (const scope of ['dashboards:write', 'dashboards:delete'] as const) {
+      expect(may('viewer', scope)).toBe(false);
+      expect(may('contributor', scope)).toBe(true);
+    }
   });
 
   it('reports the kind of each requested scope for the consent screen', () => {

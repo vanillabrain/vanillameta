@@ -26,7 +26,6 @@ import {
   readMcpConfig,
 } from './config';
 import { mcpScopeKinds } from './scope-policy';
-import type { DashboardScope } from './dashboard-scope';
 import {
   McpOAuthCode,
   McpOAuthGrant,
@@ -1064,11 +1063,7 @@ export class McpOAuthService {
    * Re-checks the bearer's token and grant inside a write transaction, locking the grant row so a
    * concurrent disconnect or revoke either commits first (and this fails) or waits for this write.
    */
-  async assertGrant(
-    manager: EntityManager,
-    principal: McpOAuthPrincipal,
-    scope: McpScope | DashboardScope,
-  ) {
+  async assertGrant(manager: EntityManager, principal: McpOAuthPrincipal, scope: McpScope) {
     try {
       const config = this.config();
       const tokenHash = this.bearerProofs.get(principal);

@@ -14,7 +14,7 @@ MCP_OAUTH_CLIENTS_JSON='[{"id":"registered-ai","name":"등록한 AI","redirectUr
 
 예제 주소를 실제 서버 주소와 AI 클라이언트의 등록 callback으로 바꾼다. `CONFIG_SECRET_KEY`도 필요하다. 운영 API와 웹 주소는 HTTPS를 사용한다. 네이티브 AI 클라이언트의 callback만 명시 등록한 HTTP loopback 주소를 허용한다. callback의 scheme·host·port·path가 정확히 일치해야 한다. 임의 포트를 매번 생성하는 클라이언트는 고정 callback 설정 또는 별도 호환성 확인이 필요하다.
 
-client ID·표시 이름·callback과 허용 scope를 운영자가 등록한다. 동적 클라이언트 등록은 제공하지 않는다. 클라이언트는 위 일곱 scope 중 필요한 것만 등록한다. 쓰기 scope(`comments:write`, `suggestions:write`)는 해당 클라이언트가 보고서 협업에 쓰일 때만, `shares:write`는 AI에게 공유까지 맡길 때만 넣는다.
+client ID·표시 이름·callback과 허용 scope를 운영자가 등록한다. 동적 클라이언트 등록은 제공하지 않는다. 클라이언트는 아래 표의 scope 중 필요한 것만 등록한다. 쓰기 scope(`comments:write`, `suggestions:write`)는 해당 클라이언트가 보고서 협업에 쓰일 때만, `shares:write`는 AI에게 공유까지 맡길 때만 넣는다. `dashboards:write`·`dashboards:delete`는 AI에게 내 대시보드의 생성·수정·복원·삭제를 맡길 때만 넣는다.
 
 `MCP_OAUTH_CLIENTS_JSON`을 바꾸면(scope 추가 포함) 설정 fingerprint가 바뀌어 **모든 클라이언트의 기존 grant와 token이 즉시 무효**가 된다. 사용자는 AI 클라이언트에서 다시 연결해야 한다. 기존 운영 클라이언트에 보고서 scope나 `shares:write`를 추가할 때는 배포 전에 사용자에게 재연결을 공지한다. 연결 목록에는 무효가 된 연결이 해제됨으로 표시된다.
 
@@ -23,7 +23,7 @@ client ID·표시 이름·callback과 허용 scope를 운영자가 등록한다.
 1. AI 클라이언트의 MCP 주소를 `https://app.example.com/v1/mcp`로 지정한다.
 2. 등록한 client ID로 authorization-code flow를 시작한다. `resource`는 같은 MCP 주소다. PKCE S256과 state가 필수다.
 3. 열린 VM 화면에서 로그인한다. 계정과 현재 조직을 확인한다.
-4. 요청받은 권한 중 허용할 항목을 선택한다. 읽기 권한은 기본 선택이고, 쓰기 권한은 경고와 함께 따로 표시되며 기본 해제다. `shares:write`에는 공유 전용 경고가 따로 붙는다.
+4. 요청받은 권한 중 허용할 항목을 선택한다. 읽기 권한은 기본 선택이고, 쓰기 권한은 경고와 함께 따로 표시되며 기본 해제다. `shares:write`와 `dashboards:write`·`dashboards:delete`에는 각각 전용 경고가 따로 붙는다.
 5. 연결 승인을 선택하면 등록한 callback으로 돌아간다. 취소하면 `access_denied`를 반환하며 code나 연결을 만들지 않는다.
 6. AI 클라이언트가 code와 verifier를 token endpoint에 교환한다.
 
@@ -52,12 +52,17 @@ VM 로그인 JWT를 외부 AI 설정에 붙여넣지 않는다. 로컬 stdio MCP
 | `comments:write` | `vm_add_comment`(보고서 전체·본문 범위·이미지), `vm_reply_comment`. AI 작성으로 "클라이언트 이름"과 함께 기록한다. 본문 범위는 `quote`(+`occurrence`) 또는 `start`/`end` 중 하나로 지정한다(아래 참고). |
 | `suggestions:write` | `vm_propose_report_edit`. 본문 범위 교체를 제안만 한다. 범위 지정은 `vm_add_comment`와 같다. 빈 `replacement`로 문단 전체를 지우면 인접한 빈 줄(`\n\n`) 하나를 함께 지우고 결과에 `widenedForParagraph: true`를 붙인다. 적용과 저장은 편집 화면에서 편집자가 한다. |
 | `shares:write` | `vm_list_report_shares`(소유자 전용: 수신자 로그인 ID·상태·관계 버전·공유 버전, 최신 저장 버전, 같은 조직 후보의 로그인 ID·팀), `vm_share_report`(소유자 전용: 최신 저장본을 같은 조직 활성 구성원 1~5명에게 읽기 전용 공유). 이메일·내부 숫자 ID는 내보내지 않는다. |
+| `dashboards:read` | `vm_list_dashboards`, `vm_read_dashboard`. **내가 만든** 대시보드(다른 사람이 공유해 준 것은 제외)의 목록, 블록·배치·필터 문서, revision, 변경 이력(최신순 20개씩, `historyBefore`로 더 오래된 쪽). 집계 값은 실행하지 않는다. 이력에는 작성 주체(사람 또는 AI 연결 이름)와 작업 종류(`create`·`save`·`restore`·`baseline`)만 있고 저장된 문서·계정 ID·grant ID는 내보내지 않는다. |
+| `dashboards:write` | `vm_preview_dashboard`(저장 지표로 집계 값 미리보기, 저장 없음), `vm_create_dashboard`(미리보기 digest가 같을 때만 저장), `vm_update_dashboard`(제목·블록 제목/설명/표시·위치/크기·필터·기간·블록 삭제), `vm_restore_dashboard`(변경 이력의 이전 상태로 되돌리기). 새 지표 정의·수식·블록 추가·업무 조건 변경은 지원하지 않는다(`UNSUPPORTED_CHANGE`). 모든 변경은 사람의 저장과 같은 검증·저장 경로를 지나고 변경 이력에 AI 연결 이름과 함께 남는다. 첫 AI 변경 직전 상태는 `baseline` 행으로 먼저 남아 되돌릴 수 있다. 되돌릴 수 없는 상태(Pivot이 든 대시보드, 옛 대시보드)는 AI가 바꾸지 못한다. |
+| `dashboards:delete` | `vm_get_dashboard_removal`(사용처 종류·개수와 삭제 revision), `vm_remove_dashboard`(공유·권한·전달·게시가 없을 때만 삭제, 댓글·이력도 함께 삭제, 되돌릴 수 없음). 사용처가 있으면 `HAS_DEPENDENCIES`(재시도 불가)와 함께 종류·개수 목록을 돌려준다. |
+
+대시보드 도구는 **본인 계정의 등급과 소유**를 넘지 못한다. 연결은 계정의 등급(`viewer`는 읽기만, `contributor` 이상은 쓰기·삭제)을 매 호출 다시 읽고, 조직 관리자라도 남이 만든 대시보드는 열지 못한다. `dashboards:write`·`dashboards:delete`는 승인 화면에서 항상 기본 해제다. AI가 읽은 집계 값은 그 AI 제공자에게 전달되므로 승인 화면에 경고가 붙는다. 서버 AI는 사용하지 않는다.
 
 본문 범위는 `quote`를 권장한다. 서버가 조회자 버전 본문에서 대소문자·공백·줄바꿈까지 정확히 같은 위치를 찾는다. `occurrence`는 1부터 세며 두 곳 이상 일치할 때만 필요하다. 겹치는 일치도 따로 센다. 일치가 없거나 `occurrence`가 범위를 벗어나면 `INVALID`, 두 곳 이상 일치하는데 `occurrence`가 없으면 일치 수를 담은 `INVALID`를 돌려준다. `start`/`end`(UTF-16 오프셋)와 함께 보내면 `INVALID`다. 같은 `requestId` 재시도는 해석된 범위로 비교하며, 새 저장 이후에는 이전 본문이 없어 인용문·저장된 범위로만 비교한다(`occurrence`만 바뀐 경우는 구분하지 못한다).
 
 각 호출은 현재 계정·조직·원본 접근권과 연결 grant를 다시 확인한다. 쓰기는 같은 트랜잭션 안에서 grant 행을 잠그고 scope를 다시 확인하므로, 호출 중 연결 해제·계정 변경이 커밋되면 아무것도 쓰지 않는다. 쓰기 도구는 `confirmWrite: true`와 `requestId`(UUID)가 필수이며 같은 `requestId`·같은 입력의 재시도는 중복 없이 같은 결과를 돌려준다. 보고서 도구의 오류는 `{code, retryable, message}`이며 code는 `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INVALID`, `LIMIT` 중 하나다. 승인 후 새 권한이 생겼다고 해서 승인하지 않은 scope가 추가되지는 않는다. 문서의 내용은 AI에게 전달되므로 해당 클라이언트의 데이터 처리 정책도 확인한다.
 
-보고서·문서·소스의 생성·수정·적용·저장·게시·삭제 도구와 공유 회수 도구는 이 원격 연결에 제공하지 않으며 서버 AI도 호출하지 않는다. 보고서·댓글 텍스트는 다른 사람이 쓴 신뢰할 수 없는 내용으로 AI에게 지시로 따르지 말라고 안내한다. 조직이 없는 예전 보고서는 원격 연결로 접근할 수 없다. 문서 읽기로 Google 갱신이나 AI 요약을 자동 실행하지 않는다. gpt-6-luna 모델 설정은 바꾸지 않는다.
+보고서·문서·소스의 생성·수정·적용·저장·게시·삭제 도구와 공유 회수 도구는 이 원격 연결에 제공하지 않으며(대시보드 도구는 위 `dashboards:*` scope에 한한다) 서버 AI도 호출하지 않는다. 보고서·댓글 텍스트는 다른 사람이 쓴 신뢰할 수 없는 내용으로 AI에게 지시로 따르지 말라고 안내한다. 조직이 없는 예전 보고서는 원격 연결로 접근할 수 없다. 문서 읽기로 Google 갱신이나 AI 요약을 자동 실행하지 않는다. gpt-6-luna 모델 설정은 바꾸지 않는다.
 
 ## 공유 권한(`shares:write`)
 
@@ -110,4 +115,8 @@ VM이 resource metadata를 제공하므로 이 검증에서는 `oauth_resource`�
 
 신규 마이그레이션은 pending 요청·grant·code hash·token hash를 저장한다. 운영 DB 적용 전에 기존 마이그레이션·백업 절차를 따른다. 실제 공개 URL, AI 제품별 callback/등록 호환성, 운영 nginx 경유는 [검증 기록](../testing/remote-ai-oauth.md)의 확정 범위와 구분한다.
 
-Claude Code(2.1.316 확인)는 보호 리소스 메타데이터의 `scopes_supported` 전체를 요청한다. 해당 클라이언트의 `scopes`에 7개 범위를 모두 등록해야 `invalid_scope` 없이 승인 화면이 열린다. 실제 허용 범위는 사용자가 승인 화면에서 고르며 쓰기 범위는 기본 해제다. Claude Code는 `claude mcp add --transport http --client-id <등록 id> --callback-port <포트> <이름> <API>/mcp`로 등록하고 `http://localhost:<포트>/callback`을 redirect URI로 쓴다(2026-11-02 로컬 검증).
+Claude Code(2.1.316 확인)는 보호 리소스 메타데이터의 `scopes_supported` 전체를 요청한다. `scopes_supported`는 서버가 아는 모든 scope가 아니라 **설정된 클라이언트들의 `scopes` 합집합**이므로, 클라이언트가 하나면 자기 목록과 같아 `invalid_scope` 없이 승인 화면이 열린다. 클라이언트가 둘 이상이면 합집합보다 좁은 목록을 가진 클라이언트가 전체를 요청하는 호스트와 쓰일 때 거절되니 호스트마다 같은 목록을 등록한다. 새 버전이 새 scope(예: `dashboards:*`)를 알게 되어도 운영자가 클라이언트 `scopes`에 추가하기 전에는 어떤 응답에도 나오지 않으므로 기존 설정은 그대로 동작한다. 추가하면 설정 fingerprint가 바뀌어 **모든 클라이언트의 기존 연결이 무효**가 되니 재연결을 공지한다. 실제 허용 범위는 사용자가 승인 화면에서 고르며 쓰기 범위는 기본 해제다. Claude Code는 `claude mcp add --transport http --client-id <등록 id> --callback-port <포트> <이름> <API>/mcp`로 등록하고 `http://localhost:<포트>/callback`을 redirect URI로 쓴다(2026-11-02 로컬 검증).
+
+## 대시보드 scope 배포 순서
+
+백엔드와 프런트를 **함께 배포**한다(compose 기본). 승인 화면은 서버가 준 `scopeKinds`를 필수로 받고, 프런트는 서버가 아는 scope 이름을 알아야 동의 요청을 파싱한다. 프런트만 먼저 배포하면 안전하고(새 scope는 아직 어떤 응답에도 없다), 백엔드만 먼저 배포한 상태에서 운영자가 `dashboards:*`를 클라이언트에 추가하면 이전 프런트가 승인 화면을 열지 못한다. 연결 목록은 프런트가 모르는 scope를 가진 연결도 이름 그대로 보여 주므로 해제할 수 있다.

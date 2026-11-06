@@ -520,6 +520,48 @@ describe('McpDashboardService.update on a real Studio', () => {
     }
   });
 
+  it('records an AI change in the organization audit, in the transaction of the change', async () => {
+    const events = async () =>
+      (
+        await db.manager.find(EnterpriseAuditEvent, {
+          where: { resourceId: id },
+          order: { id: 'ASC' },
+        })
+      ).map(event => event.action);
+    const before = (await state()).document;
+    await update([{ type: 'renameDashboard', title: 'Audited' }]);
+    expect(await events()).toEqual(['dashboard.mcp-update']);
+    const [baseline] = await db.manager.find(DashboardRevision, {
+      where: { dashboardId: id },
+      order: { seq: 'ASC' },
+    });
+    const current = await state();
+    await service.restore(principal(), {
+      dashboardId: id,
+      requestId: rid(++n),
+      revisionId: baseline.revisionId,
+      expectedRevision: current.document.revision,
+    });
+    expect(await events()).toEqual(['dashboard.mcp-update', 'dashboard.mcp-restore']);
+    // A person's save, and a refused AI write, leave no AI event.
+    const doc = JSON.parse(JSON.stringify((await state()).document));
+    doc.title = 'A person';
+    await studio.save(
+      id,
+      {
+        requestId: 'audit-person-' + id,
+        expectedRevision: doc.revision,
+        expectedSourceRevision: sourceRevision,
+        document: doc,
+      },
+      7,
+    );
+    auth.assertGrant.mockRejectedValueOnce(new ForbiddenException());
+    await update([{ type: 'renameDashboard', title: 'Refused' }]).catch(() => undefined);
+    expect(await events()).toEqual(['dashboard.mcp-update', 'dashboard.mcp-restore']);
+    expect(before.title).toBeTruthy();
+  });
+
   describe('restore', () => {
     const histories = () =>
       db.manager.find(DashboardRevision, { where: { dashboardId: id }, order: { seq: 'ASC' } });
@@ -840,6 +882,11 @@ describe('McpDashboardService.update on a real Studio', () => {
         }),
       ).toBe(1);
       expect(doc.blocks.length).toBeGreaterThan(0);
+      expect(
+        await db.manager.count(EnterpriseAuditEvent, {
+          where: { action: 'dashboard.mcp-remove', resourceId: id },
+        }),
+      ).toBe(1);
       // The dashboard is gone, so the retry is recognised by the receipt.
       expect(await service.remove(principalDelete(), request)).toEqual({
         dashboardId: id,

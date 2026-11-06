@@ -2,7 +2,9 @@
 
 ## Sub-features
 Backend OAuth remote MCP at `/v1/mcp`: read reports, read and write comments, propose edits, and
-(with `shares:write`) share an owned report. No apply, save, publish, or delete tool exists.
+(with `shares:write`) share an owned report. With the `dashboards:*` scopes it also lists, previews,
+creates, updates, restores and deletes dashboards the account created. No tool applies, saves,
+publishes or deletes a report, document or source.
 
 ## How to get to it (user POV)
 An AI client starts OAuth, the user approves on the consent screen (`/ai-connections` flow), and the

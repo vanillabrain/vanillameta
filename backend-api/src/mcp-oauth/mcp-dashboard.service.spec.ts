@@ -282,6 +282,7 @@ describe('McpDashboardService', () => {
       expect(read).toMatchObject({ dashboardId: 20, revision: 'rev-2', sourceName: 'Mine' });
       expect(read.history.map(h => h.revisionId)).toEqual(['r-3', 'r-2', 'r-1']);
       expect(read.history[1]).toEqual({
+        seq: expect.any(Number),
         revisionId: 'r-2',
         createdAt: '2026-11-02T00:00:00.000Z',
         operation: 'save',
@@ -294,6 +295,52 @@ describe('McpDashboardService', () => {
       const text = JSON.stringify(read.history);
       expect(text).not.toContain('secret');
       expect(text).not.toContain('actorId');
+    });
+
+    it('pages the history newest first with a cursor, only within the one dashboard', async () => {
+      await dashboard(21, [2]);
+      await dashboard(22, [2]);
+      studio.readDocument.mockResolvedValue({
+        document: { title: 'Dash', revision: 'rev-0', blocks: [] },
+        sourceName: 'Mine',
+        sourceRevision: 'src',
+      });
+      const insert = (dashboardId: number, n: number) =>
+        db.getRepository(DashboardRevision).insert({
+          dashboardId,
+          revisionId: `d${dashboardId}-r${n}`,
+          revision: `rev-${n}`,
+          operation: 'save',
+          authorKind: 'human',
+          actorId: 2,
+          studioDocument: '{}',
+          title: 'T',
+          layout: '[]',
+          createdAt: '2026-11-01T00:00:00.000Z',
+        } as never);
+      for (let n = 1; n <= 25; n++) {
+        await insert(21, n);
+        if (n % 5 === 0) await insert(22, n);
+      }
+      const first = await service.read(principal(), 21);
+      expect(first.history).toHaveLength(20);
+      expect(first.history[0].revisionId).toBe('d21-r25');
+      expect(first.historyNext).toBe(first.history[19].seq);
+      const second = await service.read(principal(), 21, first.historyNext);
+      expect(second.history.map(h => h.revisionId)).toEqual([
+        'd21-r5',
+        'd21-r4',
+        'd21-r3',
+        'd21-r2',
+        'd21-r1',
+      ]);
+      expect(second.historyNext).toBeNull();
+      // Another dashboard's rows never show, whatever the cursor.
+      expect(second.history.every(h => h.revisionId.startsWith('d21-'))).toBe(true);
+      for (const bad of [0, -1, 1.5, '3', null])
+        await expect(service.read(principal(), 21, bad)).rejects.toMatchObject({
+          reason: 'INVALID_INPUT',
+        });
     });
 
     it('refuses when ownership moves while the document is read', async () => {

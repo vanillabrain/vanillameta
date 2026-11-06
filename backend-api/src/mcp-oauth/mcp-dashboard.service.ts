@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, LessThan } from 'typeorm';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardDeletionService } from '../dashboard/dashboard-deletion.service';
 import { DashboardDeleteReceipt } from '../dashboard/entities/dashboard-delete-receipt.entity';
@@ -10,7 +10,7 @@ import { studioDigest } from '../dashboard-studio/studio-legacy';
 import { Database } from '../database/entities/database.entity';
 import { EnterpriseResourcePolicyService } from '../enterprise/resource-policy.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
-import { DASHBOARD_SCOPE_POLICY, DashboardScope } from './dashboard-scope';
+import { DashboardScope, MCP_SCOPE_POLICY } from './scope-policy';
 import { assertGradeAllows } from './grade';
 import { applyChanges, cleanChanges } from './mcp-dashboard.changes';
 import { DashboardToolException, toDashboardFailure } from './mcp-dashboard.errors';
@@ -47,7 +47,7 @@ export class McpDashboardService {
   private async begin(principal: McpOAuthPrincipal, scope: DashboardScope) {
     if (!principal.scopes.includes(scope)) throw new ForbiddenException();
     await this.auth.revalidate(principal);
-    await assertGradeAllows(this.db.manager, principal, DASHBOARD_SCOPE_POLICY[scope].capability);
+    await assertGradeAllows(this.db.manager, principal, MCP_SCOPE_POLICY[scope].capability);
   }
 
   private dashboardId(value: unknown): number {
@@ -116,15 +116,28 @@ export class McpDashboardService {
    * changed between states, so the summary carries no diff. The stored documents, the account ids
    * and the grant ids of the rows stay on the server; a restore reads the document itself.
    */
-  async read(principal: McpOAuthPrincipal, dashboardId: unknown) {
+  async read(
+    principal: McpOAuthPrincipal,
+    dashboardId: unknown,
+    historyBefore: unknown = undefined,
+  ) {
     await this.begin(principal, 'dashboards:read');
     const id = this.dashboardId(dashboardId);
+    // `seq` of the oldest row of the page before: the history is read newest first, a page at a time.
+    if (
+      historyBefore !== undefined &&
+      (!Number.isSafeInteger(historyBefore) || (historyBefore as number) <= 0)
+    )
+      throw new DashboardToolException('INVALID', 'INVALID_INPUT');
     await this.policy.assertSoleOwner(id, principal.actorId);
     const state = await this.studio.readDocument(id, principal.actorId);
     const history = await this.db.getRepository(DashboardRevision).find({
-      where: { dashboardId: id },
+      where: {
+        dashboardId: id,
+        ...(historyBefore === undefined ? {} : { seq: LessThan(historyBefore as number) }),
+      },
       order: { seq: 'DESC' },
-      take: HISTORY_PAGE,
+      take: HISTORY_PAGE + 1,
       select: {
         seq: true,
         revisionId: true,
@@ -146,7 +159,8 @@ export class McpDashboardService {
       revision: state.document.revision,
       sourceRevision: state.sourceRevision,
       document: state.document,
-      history: history.map(row => ({
+      history: history.slice(0, HISTORY_PAGE).map(row => ({
+        seq: row.seq,
         revisionId: row.revisionId,
         createdAt: row.createdAt,
         operation: row.operation,
@@ -156,6 +170,8 @@ export class McpDashboardService {
         ...(row.operation === 'baseline' ? {} : { byYou: row.actorId === principal.actorId }),
         isCurrent: row.revision === state.document.revision,
       })),
+      // Pass this as `historyBefore` for the next older page; null when there is no older row.
+      historyNext: history.length > HISTORY_PAGE ? (history[HISTORY_PAGE - 1].seq as number) : null,
     };
   }
 
@@ -242,7 +258,8 @@ export class McpDashboardService {
       .catch(error => {
         throw toDashboardFailure(error);
       });
-    await this.auth.revalidate(principal);
+    // No check after the commit: the grant and the grade were read inside the writing transaction,
+    // and a failure here would report a write that happened as one that did not.
     return { dashboardId: result.dashboardId, revision: result.document.revision };
   }
 
@@ -260,7 +277,7 @@ export class McpDashboardService {
         await assertGradeAllows(
           manager,
           principal,
-          DASHBOARD_SCOPE_POLICY['dashboards:write'].capability,
+          MCP_SCOPE_POLICY['dashboards:write'].capability,
         );
       },
     };
@@ -321,13 +338,14 @@ export class McpDashboardService {
         },
         principal.authVersion,
         {
+          byConnection: true,
           // Read under the deleting transaction's lock: a revoked or demoted connection deletes nothing.
           beforeAccess: async manager => {
             await this.auth.assertGrant(manager, principal, 'dashboards:delete');
             await assertGradeAllows(
               manager,
               principal,
-              DASHBOARD_SCOPE_POLICY['dashboards:delete'].capability,
+              MCP_SCOPE_POLICY['dashboards:delete'].capability,
             );
           },
         },
@@ -335,7 +353,8 @@ export class McpDashboardService {
       .catch(error => {
         throw toDashboardFailure(error);
       });
-    await this.auth.revalidate(principal);
+    // No check after the commit: the grant and the grade were read inside the writing transaction,
+    // and a failure here would report a write that happened as one that did not.
     return { dashboardId: id, deleted: true, replayed: result.data.replayed };
   }
 
@@ -402,7 +421,8 @@ export class McpDashboardService {
       .catch(error => {
         throw toDashboardFailure(error);
       });
-    await this.auth.revalidate(principal);
+    // No check after the commit: the grant and the grade were read inside the writing transaction,
+    // and a failure here would report a write that happened as one that did not.
     return { dashboardId: id, revision: result.document.revision as string, changed: true };
   }
 
@@ -472,7 +492,8 @@ export class McpDashboardService {
       .catch(error => {
         throw toDashboardFailure(error);
       });
-    await this.auth.revalidate(principal);
+    // No check after the commit: the grant and the grade were read inside the writing transaction,
+    // and a failure here would report a write that happened as one that did not.
     return { dashboardId: id, revision: result.document.revision as string, changed: true };
   }
 }
