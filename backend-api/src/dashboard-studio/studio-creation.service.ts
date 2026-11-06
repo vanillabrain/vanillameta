@@ -104,6 +104,18 @@ const text = (value: any, max: number) => {
   return value.trim();
 };
 
+/** What the save step of a creation needs, whoever produced it. */
+export interface ResolvedCreation {
+  sourceId: number;
+  title: string;
+  sourceRevision: string;
+  /** The profile the preview was computed against: its schema version and column names. */
+  profile: { schemaVersion: string; columns: Array<{ name: string }> };
+  semanticProposal: any[];
+  basis?: BusinessBasis;
+  context?: CatalogActorContext;
+}
+
 /** Single-source semantic proposals. Only this server compiler can produce executable SQL. */
 @Injectable()
 export class StudioCreationService {
@@ -1541,47 +1553,82 @@ export class StudioCreationService {
       throw new BadRequestException('업무 의미와 필수 열을 확인한 뒤 다시 제안해 주세요.');
     if (p.sourceRevision !== body.expectedSourceRevision)
       throw new ConflictException('소스 버전이 생성안과 다릅니다.');
-    if (stored.context) await assertCatalogActor(this.db.manager, stored.context);
+    const result = await this.persistResolved(
+      {
+        sourceId: p.sourceId,
+        title: p.title,
+        sourceRevision: p.sourceRevision,
+        profile: p.profile,
+        semanticProposal: p.semanticProposal,
+        basis: stored.basis,
+        context: stored.context,
+      },
+      actor,
+      body.requestId,
+      hash,
+      replay,
+    );
+    // Release only after the entire metadata transaction has committed. Journal owns replay.
+    this.proposals.delete(body.proposalId);
+    return result;
+  }
+
+  /**
+   * The save step of a creation: the interpretation step (an AI proposal today) has already produced
+   * `resolved`, and everything from here is the same whoever produced it. Runs the checks against the
+   * live source, saves the dashboard, its metrics and Studio state, and journals the request so a
+   * retry replays instead of creating twice. `replay` finds that journal row.
+   */
+  private async persistResolved(
+    resolved: ResolvedCreation,
+    actor: number,
+    requestId: string,
+    hash: string,
+    replay: () => Promise<any>,
+  ) {
+    const { sourceId, title, sourceRevision, semanticProposal, basis, context } = resolved;
+    const storedProfile = resolved.profile;
+    if (context) await assertCatalogActor(this.db.manager, context);
     try {
-      const result = await this.connection.withDuckDBSnapshot(p.sourceId, async () => {
-        const profile = await this.profile(p.sourceId, actor);
+      const result = await this.connection.withDuckDBSnapshot(sourceId, async () => {
+        const profile = await this.profile(sourceId, actor);
         if (
-          profile.dataVersion !== p.sourceRevision ||
-          profile.schemaVersion !== p.profile.schemaVersion
+          profile.dataVersion !== sourceRevision ||
+          profile.schemaVersion !== storedProfile.schemaVersion
         )
           throw new ConflictException('데이터 소스가 변경되었습니다. 다시 생성해 주세요.');
-        const analysisContext = await this.trustedSourceContext(p.sourceId, actor);
-        if (analysisContext) this.validateUnits(p.semanticProposal, pinnedUnits(analysisContext));
+        const analysisContext = await this.trustedSourceContext(sourceId, actor);
+        if (analysisContext) this.validateUnits(semanticProposal, pinnedUnits(analysisContext));
         await resolveBusinessBasis(
           this.db.manager,
-          p.sourceId,
+          sourceId,
           profile,
-          stored.basis,
+          basis,
           profile.columns.map(c => c.name),
         );
-        const blocks = copy(p.semanticProposal);
+        const blocks = copy(semanticProposal);
         await this.revalidate(blocks, profile, this.db.manager);
-        if (stored.context) await assertCatalogActor(this.db.manager, stored.context);
-        await this.validateBusinessDates(blocks, profile, stored.basis);
+        if (context) await assertCatalogActor(this.db.manager, context);
+        await this.validateBusinessDates(blocks, profile, basis);
         const snapshot: any = {
           schemaVersion: 2,
           kind: 'structured-bi-dashboard',
-          sourceId: p.sourceId,
-          ...(stored.basis ? { businessBasis: stored.basis } : {}),
+          sourceId: sourceId,
+          ...(basis ? { businessBasis: basis } : {}),
           dataVersion: profile.dataVersion,
           items: [],
         };
         const prepared = await this.dashboards.prepareSave(
-          { draft: this.compile(p.sourceId, p.title, blocks, profile, stored.basis) },
+          { draft: this.compile(sourceId, title, blocks, profile, basis) },
           actor,
           snapshot,
         );
         return metadataTransaction(this.db, async manager => {
-          if (stored.context) await assertCatalogActor(manager, stored.context, true);
-          await lockMetricSources(manager, [p.sourceId]);
-          await this.ensureCurrentSource(p.sourceId, actor, manager);
+          if (context) await assertCatalogActor(manager, context, true);
+          await lockMetricSources(manager, [sourceId]);
+          await this.ensureCurrentSource(sourceId, actor, manager);
           const candidates = await manager.find(Metric, {
-            where: { databaseId: p.sourceId, useYn: 'Y' },
+            where: { databaseId: sourceId, useYn: 'Y' },
           });
           for (const block of blocks) {
             if (block.metric.id) continue;
@@ -1594,14 +1641,14 @@ export class StudioCreationService {
           }
           await lockMetricReferences(
             manager,
-            p.sourceId,
+            sourceId,
             blocks.flatMap(b => (b.metric.id ? [b.metric.id] : [])),
           );
           await resolveBusinessBasis(
             manager,
-            p.sourceId,
+            sourceId,
             profile,
-            stored.basis,
+            basis,
             profile.columns.map(c => c.name),
           );
           await this.revalidate(blocks, profile, manager);
@@ -1614,7 +1661,7 @@ export class StudioCreationService {
               // Existing canonical matches were resolved and fenced as one set before any insert.
               metric = await manager.save(Metric, {
                 name: 'bi_' + randomUUID(),
-                databaseId: p.sourceId,
+                databaseId: sourceId,
                 tableName: 'uploaded_data',
                 aggregation: b.metric.aggregation,
                 expression: b.metric.aggregation === 'COUNT' ? 'count_rows' : b.metric.column,
@@ -1629,7 +1676,7 @@ export class StudioCreationService {
           snapshot.items = blocks.map(b => {
             const { id, ...definition } = b.metric;
             return {
-              sourceId: p.sourceId,
+              sourceId: sourceId,
               dataVersion: profile.dataVersion,
               metricId: id,
               definitionVersion: definition.definitionVersion,
@@ -1660,39 +1707,34 @@ export class StudioCreationService {
             dashboardId: saved.id,
             document: JSON.stringify({
               document,
-              sourceRevision: await this.connection.duckDBVersion(p.sourceId),
+              sourceRevision: await this.connection.duckDBVersion(sourceId),
             }),
             legacyRevision: document.revision,
           });
-          await this.ensureCurrentSource(p.sourceId, actor, manager);
-          if (stored.context) await assertCatalogActor(manager, stored.context);
+          await this.ensureCurrentSource(sourceId, actor, manager);
+          if (context) await assertCatalogActor(manager, context);
           const result = { dashboardId: saved.id, document, idMap };
           await manager.insert(StudioRun, {
             actorId: actor,
-            requestId: body.requestId,
+            requestId: requestId,
             payloadHash: hash,
             result: JSON.stringify(result),
           });
           return result;
         });
       });
-      // Release only after the entire metadata transaction has committed. Journal owns replay.
-      this.proposals.delete(body.proposalId);
       return result;
     } catch (error) {
       const recovered = await replay();
-      if (recovered) {
-        this.proposals.delete(body.proposalId);
-        return recovered;
-      }
-      if (stored.context) await assertCatalogActor(this.db.manager, stored.context);
-      await this.ensureCurrentSource(p.sourceId, actor, this.db.manager);
+      if (recovered) return recovered;
+      if (context) await assertCatalogActor(this.db.manager, context);
+      await this.ensureCurrentSource(sourceId, actor, this.db.manager);
       await resolveBusinessBasis(
         this.db.manager,
-        p.sourceId,
-        p.profile,
-        stored.basis,
-        p.profile.columns.map(c => c.name),
+        sourceId,
+        storedProfile,
+        basis,
+        storedProfile.columns.map(c => c.name),
       );
       throw error;
     }
