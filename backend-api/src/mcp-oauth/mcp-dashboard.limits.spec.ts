@@ -1,4 +1,3 @@
-import { mcpError } from './mcp-server';
 import { ActorWindowLimiter } from './mcp-dashboard.limits';
 
 describe('ActorWindowLimiter', () => {
@@ -6,9 +5,9 @@ describe('ActorWindowLimiter', () => {
     let now = 0;
     const limiter = new ActorWindowLimiter(() => now);
     for (let i = 0; i < 2; i += 1) limiter.take(1, 'a', 2, 1000);
-    expect(mcpError(expectThrown(() => limiter.take(1, 'a', 2, 1000)))).toMatchObject({
+    expect(expectThrown(() => limiter.take(1, 'a', 2, 1000))).toMatchObject({
       code: 'LIMIT',
-      detail: { reason: 'RATE_LIMITED' },
+      reason: 'RATE_LIMITED',
     });
     limiter.take(2, 'a', 2, 1000);
     limiter.take(1, 'b', 2, 1000);
