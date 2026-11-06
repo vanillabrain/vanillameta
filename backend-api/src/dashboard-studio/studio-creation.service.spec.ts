@@ -2566,6 +2566,67 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
       expect(history[0].studioDocument).toBe(state.document);
     });
 
+    it('records a creation by an external AI under its connection, and a refusing beforeAccess saves nothing', async () => {
+      const m = await storedMetric();
+      const preview = await service.previewSpec(specOf(m), 7, 0);
+      const body = (requestId: string) => ({
+        ...specOf(m),
+        previewDigest: preview.previewDigest,
+        expectedSourceRevision: preview.sourceRevision,
+        requestId,
+      });
+      const dashboardsBefore = await db.manager.count(Dashboard);
+      await expect(
+        service.createFromSpec(body('spec-ai-refused'), 7, 0, {
+          author: { kind: 'external-ai', grantId: 'grant-1', clientName: 'Synthetic AI' },
+          beforeAccess: async () => {
+            throw new Error('grant revoked');
+          },
+        }),
+      ).rejects.toThrow('grant revoked');
+      expect(await db.manager.count(Dashboard)).toBe(dashboardsBefore);
+      expect(await db.manager.findOneBy(StudioRun, { requestId: 'spec-ai-refused' })).toBeNull();
+
+      const seen: unknown[] = [];
+      const created = await service.createFromSpec(body('spec-ai-created'), 7, 0, {
+        author: { kind: 'external-ai', grantId: 'grant-1', clientName: 'Synthetic AI' },
+        beforeAccess: async manager => {
+          seen.push(manager.queryRunner?.isTransactionActive);
+        },
+      });
+      // The hook ran inside the save's transaction.
+      expect(seen).toEqual([true]);
+      const [row] = await db.manager.findBy(DashboardRevision, {
+        dashboardId: created.dashboardId,
+      });
+      expect(row).toMatchObject({
+        operation: 'create',
+        authorKind: 'external-ai',
+        aiGrantId: 'grant-1',
+        aiClientName: 'Synthetic AI',
+        requestId: 'spec-ai-created',
+      });
+    });
+
+    it('refuses a preview that returns more rows than a spec may, rather than cutting it', async () => {
+      const m = await storedMetric();
+      const dashboards = (service as any).dashboards;
+      const real = dashboards.preview.bind(dashboards);
+      const spy = jest.spyOn(dashboards, 'preview').mockImplementation(async (...args: any[]) => {
+        const result = await real(...args);
+        result.data.widgets[0].datas = Array.from({ length: 501 }, (_, i) => ({ value: i }));
+        return result;
+      });
+      try {
+        await expect(service.previewSpec(specOf(m), 7, 0)).rejects.toMatchObject({
+          response: { code: 'CARDINALITY_LIMIT' },
+        });
+      } finally {
+        spy.mockRestore();
+      }
+      await expect(service.previewSpec(specOf(m), 7, 0)).resolves.toBeDefined();
+    });
+
     it('refuses a changed spec under the digest of another preview, and a reused request ID with other input', async () => {
       const m = await storedMetric();
       const preview = await service.previewSpec(specOf(m), 7, 0);

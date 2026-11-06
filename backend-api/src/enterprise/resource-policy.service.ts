@@ -210,6 +210,25 @@ export class EnterpriseResourcePolicyService {
       if (rights[action] !== true) this.denied();
     });
   }
+  /**
+   * The check an external AI's connection passes before it touches a dashboard: the actor is the
+   * dashboard's one owner and it is live and active. It does not look at grants and an
+   * organization admin gets no pass, so a connection reaches only what its user made. A missing,
+   * deleted, inactive, shared-in or multiply-owned dashboard all end in the same refusal, which
+   * gives a caller nothing to tell them apart by.
+   */
+  async assertSoleOwner(
+    id: number,
+    actor: number,
+    manager = this.db.manager,
+  ): Promise<{ label: string }> {
+    return serializeMetadataWork(this.db, async () => {
+      await this.member(actor, manager);
+      const resource = await this.resource('dashboard', id, manager);
+      if (resource.ownerId !== actor || resource.active === false) this.denied();
+      return { label: resource.label };
+    });
+  }
   async capabilities(kind: ResourceKind, id: number, actor: number) {
     return serializeMetadataWork(this.db, async () => {
       return { rights: await this.currentRights(kind, id, actor, this.db.manager) };

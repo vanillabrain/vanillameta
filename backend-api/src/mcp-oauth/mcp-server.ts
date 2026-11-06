@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'mcp-zod';
 import { CommentLimitException, RequestReusedException } from '../reports/report-comment.service';
 import type { McpScope } from './config';
+import { DashboardToolException } from './mcp-dashboard.errors';
 import type { McpOAuthPrincipal, McpOAuthService } from './mcp-oauth.service';
 import type { McpReadService } from './mcp-read.service';
 import type { McpReportService } from './mcp-report.service';
@@ -73,6 +74,7 @@ const ERRORS: Record<McpErrorCode, { retryable: boolean; message: string }> = {
 class ResultTooLarge extends Error {}
 
 function classify(error: unknown): McpErrorCode {
+  if (error instanceof DashboardToolException) return error.code;
   if (error instanceof CommentLimitException || error instanceof ResultTooLarge) return 'LIMIT';
   if (error instanceof RequestReusedException) return 'REQUEST_REUSED';
   const status = error instanceof HttpException ? error.getStatus() : 0;
@@ -86,8 +88,10 @@ function classify(error: unknown): McpErrorCode {
 
 export function mcpError(error: unknown) {
   const code = classify(error);
-  const detail: string | { resultId?: string; threadId?: string } | undefined =
-    error instanceof RequestReusedException
+  const detail: string | { resultId?: string; threadId?: string; reason?: string } | undefined =
+    error instanceof DashboardToolException
+      ? { reason: error.reason }
+      : error instanceof RequestReusedException
       ? error.resultId || error.threadId
         ? {
             ...(error.resultId ? { resultId: error.resultId } : {}),
