@@ -21,7 +21,7 @@ import { StudioState } from './entities/studio-state.entity';
 import { StudioRun } from './entities/studio-run.entity';
 import { studioDigest } from './studio-legacy';
 import { StudioService } from './studio.service';
-import { StudioCreationService } from './studio-creation.service';
+import { savedRefundDenominator, StudioCreationService } from './studio-creation.service';
 import { studioDemoData } from './studio-demo-data';
 import { BiService } from '../bi/bi.service';
 import { SourceAccessService } from '../ownership/source-access.service';
@@ -2557,9 +2557,95 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
 
       await createSpec(specOf(m), preview, 'spec-reused');
       const other = await service.previewSpec(specOf(m, { title: 'Other' }), 7, 0);
-      await expect(createSpec(specOf(m, { title: 'Other' }), other, 'spec-reused')).rejects.toThrow(
-        '같은 요청 ID에 다른 생성',
+      await expect(
+        createSpec(specOf(m, { title: 'Other' }), other, 'spec-reused'),
+      ).rejects.toMatchObject({
+        response: { code: 'REQUEST_REUSED' },
+      });
+    });
+
+    it('stores the same dashboard whether a proposal or a spec produced the blocks', async () => {
+      const m = await storedMetric();
+      // The same one block, once through the proposal path (a model answer) and once through a spec.
+      llm.callLlm.mockResolvedValueOnce(
+        JSON.stringify({
+          requiredFields: ['amount'],
+          title: 'Same shape',
+          semanticProposal: [
+            {
+              title: 'Value',
+              kind: 'BOARD_NUMERIC',
+              metric: { id: m.id, definitionVersion: m.definitionVersion },
+            },
+          ],
+        }),
       );
+      const proposed = await save(
+        await propose({ prompt: '금액 지표', selectedMetricIds: [m.id] }),
+      );
+      const specSpec = specOf(m, { title: 'Same shape' });
+      const fromSpec = await createSpec(
+        specSpec,
+        await service.previewSpec(specSpec, 7, 0),
+        'spec-equivalence',
+      );
+      // Ids, hashes and the per-block random definition key differ per dashboard; everything else must match.
+      const strip = (value: unknown) =>
+        JSON.parse(
+          JSON.stringify(value, (key, v) =>
+            ['id', 'revision', 'dashboardId', 'definitionKey', 'createdAt', 'updatedAt'].includes(
+              key,
+            )
+              ? undefined
+              : v,
+          ),
+        );
+      expect(strip(fromSpec.document)).toEqual(strip(proposed.document));
+      const stateOf = async (id: number) =>
+        strip(
+          JSON.parse((await db.manager.findOneByOrFail(StudioState, { dashboardId: id })).document),
+        );
+      expect(await stateOf(fromSpec.dashboardId)).toEqual(await stateOf(proposed.dashboardId));
+    });
+
+    it('answers a refund-rate saved metric with the denominator it already encodes, and no other', () => {
+      expect(savedRefundDenominator({ denominatorColumn: 'paid_orders' })).toBe('orders');
+      for (const column of ['revenue', 'amount', 'payment_amount'])
+        expect(savedRefundDenominator({ denominatorColumn: column })).toBe('amount');
+      for (const definition of [{}, { denominatorColumn: 'qty' }, undefined, null])
+        expect(savedRefundDenominator(definition)).toBeUndefined();
+    });
+
+    it('passes that denominator to the block check for a saved metric', async () => {
+      const m = await storedMetric();
+      const spy = jest.spyOn(service as any, 'validateBlock');
+      try {
+        await service.previewSpec(specOf(m), 7, 0);
+        // The saved metric has no denominator column, so the answer is "none", never a guessed one.
+        expect(spy.mock.calls[0][3]).toBeUndefined();
+        expect(spy.mock.calls[0][4]).toBe(false);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('refuses a creation when a saved metric changed after its preview, whatever the title says', async () => {
+      const m = await storedMetric();
+      const preview = await service.previewSpec(specOf(m), 7, 0);
+      const row = await db.manager.findOneByOrFail(Metric, { id: m.id });
+      const definition = JSON.parse(row.definition);
+      await db.manager.update(Metric, m.id, {
+        definition: JSON.stringify({ ...definition, label: 'Renamed after the preview' }),
+      });
+      try {
+        const dashboardsBefore = await db.manager.count(Dashboard);
+        await expect(createSpec(specOf(m), preview, 'spec-metric-changed')).rejects.toMatchObject({
+          response: { code: 'PREVIEW_STALE' },
+        });
+        expect(await db.manager.count(Dashboard)).toBe(dashboardsBefore);
+      } finally {
+        await db.manager.update(Metric, m.id, { definition: row.definition });
+      }
     });
 
     it('accepts saved metrics only: a new definition or a formula never reaches the metric tables', async () => {

@@ -104,6 +104,19 @@ const text = (value: any, max: number) => {
   return value.trim();
 };
 
+/**
+ * The refund denominator a saved metric already encodes. A person confirmed it when the metric was
+ * saved, and the ratio check in validateBlock still verifies numerator, divisor and scale. A caller
+ * that names a saved metric cannot be asked a question, so this stands in for the answer. Anything
+ * that is not one of the two known divisors yields no answer, and a refund-rate label on such a
+ * metric stays refused.
+ */
+export function savedRefundDenominator(definition: any): 'orders' | 'amount' | undefined {
+  const column = definition?.denominatorColumn;
+  if (column === 'paid_orders') return 'orders';
+  return ['revenue', 'amount', 'payment_amount'].includes(column) ? 'amount' : undefined;
+}
+
 /** What the save step of a creation needs, whoever produced it. */
 export interface ResolvedCreation {
   sourceId: number;
@@ -1530,7 +1543,10 @@ export class StudioCreationService {
     const row = await this.db.manager.findOne(StudioRun, { where: { actorId: actor, requestId } });
     if (!row) return null;
     if (row.payloadHash !== hash)
-      throw new ConflictException('같은 요청 ID에 다른 생성을 보낼 수 없습니다.');
+      throw new ConflictException({
+        code: 'REQUEST_REUSED',
+        message: '같은 요청 ID에 다른 생성을 보낼 수 없습니다.',
+      });
     const result = JSON.parse(row.result);
     if (!result.dashboardId) throw new ConflictException('저장 완료 기록을 확인해 주세요.');
     await this.access.dashboard(result.dashboardId, actor);
@@ -1542,8 +1558,8 @@ export class StudioCreationService {
    * A creation spec given by the caller instead of an AI proposal. It names saved metrics only: a new
    * definition or a formula would create Metric rows, which the caller may not do.
    */
-  private cleanSpec(body: any, extra: string[] = []) {
-    this.keys(body, ['sourceId', 'title', 'blocks', ...extra]);
+  private cleanSpec(body: any) {
+    this.keys(body, ['sourceId', 'title', 'blocks']);
     const sourceId = this.access.id(body.sourceId);
     const title = text(body.title, 300);
     if (!Array.isArray(body.blocks) || body.blocks.length < 1 || body.blocks.length > 6)
@@ -1595,9 +1611,20 @@ export class StudioCreationService {
       m => m.definition?.schemaVersion === 1 && m.definition.sourceId === sourceId,
     );
     const blocks = await Promise.all(
-      spec.blocks.map(block =>
-        this.validateBlock(block, profile, catalog, undefined, false, actor, basis),
-      ),
+      spec.blocks.map(block => {
+        const saved = catalog.find(
+          m => m.id === block.metric.id && m.definitionVersion === block.metric.definitionVersion,
+        );
+        return this.validateBlock(
+          block,
+          profile,
+          catalog,
+          savedRefundDenominator(saved?.definition),
+          false,
+          actor,
+          basis,
+        );
+      }),
     );
     if (blocks.some(block => !block.metric.id))
       throw new BadRequestException({
@@ -1612,7 +1639,10 @@ export class StudioCreationService {
         current.dataVersion !== profile.dataVersion ||
         current.schemaVersion !== profile.schemaVersion
       )
-        throw new ConflictException('미리보기 중 데이터가 변경되었습니다. 다시 시도해 주세요.');
+        throw new ConflictException({
+          code: 'SOURCE_CHANGED',
+          message: '미리보기 중 데이터가 변경되었습니다. 다시 시도해 주세요.',
+        });
       await this.ensureCurrentSource(sourceId, actor, this.db.manager);
       await this.revalidate(blocks, current, this.db.manager);
       await assertBusinessBasisCurrent(this.db.manager, sourceId, current, basis);
@@ -1681,18 +1711,24 @@ export class StudioCreationService {
       previewDigest,
       expectedSourceRevision,
     });
+    this.access.actor(actor);
     const replay = () => this.replayCreation(actor, requestId, hash);
+    // The interpretation runs a preview, which is the slow part. It stays out of the write queue that
+    // people's saves wait in; persistResolved re-checks everything under the queue.
+    const earlier = await replay();
+    if (earlier) return earlier;
     const requestedActor = await catalogActorContext(this.db.manager, actor, authVersion);
+    const { resolved, previewDigest: current } = await this.resolveSpec(spec, actor, authVersion);
+    if (current !== previewDigest || resolved.sourceRevision !== expectedSourceRevision)
+      throw new ConflictException({
+        code: 'PREVIEW_STALE',
+        message: '미리보기 이후 데이터나 지표가 바뀌었습니다. 다시 미리보기해 주세요.',
+      });
     return this.studio.serializeWrite(async () => {
       await assertCatalogActor(this.db.manager, requestedActor);
+      // A concurrent request with the same ID may have saved while this one waited.
       const prior = await replay();
       if (prior) return prior;
-      const { resolved, previewDigest: current } = await this.resolveSpec(spec, actor, authVersion);
-      if (current !== previewDigest || resolved.sourceRevision !== expectedSourceRevision)
-        throw new ConflictException({
-          code: 'PREVIEW_STALE',
-          message: '미리보기 이후 데이터나 지표가 바뀌었습니다. 다시 미리보기해 주세요.',
-        });
       const result = await this.persistResolved(resolved, actor, requestId, hash, replay);
       await assertCatalogActor(this.db.manager, requestedActor);
       return result;
@@ -1760,7 +1796,10 @@ export class StudioCreationService {
           profile.dataVersion !== sourceRevision ||
           profile.schemaVersion !== storedProfile.schemaVersion
         )
-          throw new ConflictException('데이터 소스가 변경되었습니다. 다시 생성해 주세요.');
+          throw new ConflictException({
+            code: 'SOURCE_CHANGED',
+            message: '데이터 소스가 변경되었습니다. 다시 생성해 주세요.',
+          });
         const analysisContext = await this.trustedSourceContext(sourceId, actor);
         if (analysisContext) this.validateUnits(semanticProposal, pinnedUnits(analysisContext));
         await resolveBusinessBasis(
