@@ -1,3 +1,4 @@
+import { applyStudioOperation } from './studio-operations';
 import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { businessSchemaRevision } from '../bi/semantic-business-basis';
@@ -2606,6 +2607,95 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
         aiClientName: 'Synthetic AI',
         requestId: 'spec-ai-created',
       });
+    });
+
+    it('restores a block an external AI removed from a dashboard made of saved metrics', async () => {
+      await save(await propose());
+      const catalog = (await bi.metrics(1, 7)).filter(
+        m => m.definition?.schemaVersion === 1 && m.definition.sourceId === 1,
+      );
+      expect(catalog.length).toBeGreaterThan(0);
+      const [m] = catalog;
+      // One metric as a number and as a chart by channel: two blocks that calculate differently.
+      const spec = {
+        sourceId: 1,
+        title: 'Two values',
+        blocks: [
+          {
+            title: 'Value',
+            kind: 'BOARD_NUMERIC',
+            metric: { id: m.id, definitionVersion: m.definitionVersion },
+          },
+          {
+            title: 'By channel',
+            kind: 'CHART_COLUMN',
+            metric: { id: m.id, definitionVersion: m.definitionVersion },
+            dimension: { column: 'channel' },
+          },
+        ],
+      };
+      const created = await createSpec(spec, await service.previewSpec(spec, 7, 0), 'spec-two');
+      const dashboardId = created.dashboardId;
+      const author = {
+        kind: 'external-ai' as const,
+        grantId: 'grant-1',
+        clientName: 'Synthetic AI',
+      };
+      const first = await studio.get(dashboardId, 7);
+      expect(first.document.blocks).toHaveLength(2);
+      const second = first.document.blocks[1];
+      const removed = applyStudioOperation(first.document, {
+        type: 'removeBlock',
+        blockId: second.id,
+      });
+      await studio.save(
+        dashboardId,
+        {
+          requestId: 'spec-two-remove',
+          expectedRevision: first.document.revision,
+          expectedSourceRevision: first.sourceRevision,
+          document: removed,
+        },
+        7,
+        undefined,
+        { author },
+      );
+      const history = await db.manager.find(DashboardRevision, {
+        where: { dashboardId },
+        order: { seq: 'ASC' },
+      });
+      // The creation row equals the dashboard the AI changed, so no baseline row was needed.
+      expect(history.map(r => [r.operation, r.authorKind])).toEqual([
+        ['create', 'human'],
+        ['save', 'external-ai'],
+      ]);
+      const now = await studio.readDocument(dashboardId, 7);
+      expect(now.document.blocks).toHaveLength(1);
+      const restored = await studio.restore(
+        dashboardId,
+        {
+          requestId: 'spec-two-restore',
+          revisionId: history[0].revisionId,
+          expectedRevision: now.document.revision,
+        },
+        7,
+        { author },
+      );
+      const after = await studio.get(dashboardId, 7);
+      expect(after.document.revision).toBe(restored.document.revision);
+      expect(after.document.blocks.map(b => [b.title, b.definitionKey, b.measureRefs])).toEqual(
+        first.document.blocks.map(b => [b.title, b.definitionKey, b.measureRefs]),
+      );
+      expect(after.document.blocks[0].id).toBe(first.document.blocks[0].id);
+      expect(after.document.blocks[1].id).not.toBe(second.id);
+      expect(after.preview.widgets.map(w => w.datas)).toEqual(
+        first.preview.widgets.map(w => w.datas),
+      );
+      const rows = await db.manager.find(DashboardRevision, {
+        where: { dashboardId },
+        order: { seq: 'ASC' },
+      });
+      expect(rows.map(r => r.operation)).toEqual(['create', 'save', 'restore']);
     });
 
     it('refuses a preview that returns more rows than a spec may, rather than cutting it', async () => {

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
@@ -321,6 +321,76 @@ export class McpDashboardService {
         },
         principal.actorId,
         undefined,
+        { ...this.writeOptions(principal), payloadKey: key },
+      )
+      .catch(error => {
+        throw toDashboardFailure(error);
+      });
+    await this.auth.revalidate(principal);
+    return { dashboardId: id, revision: result.document.revision as string, changed: true };
+  }
+
+  /**
+   * Puts a saved state back as a new save (a new history row; nothing is erased). `revisionId` comes
+   * from the history `read` returns. The state is rebuilt from the server's own history row, so a
+   * block removed since is created again with a new id and its comments stay with the old one. A
+   * state the dashboard's metrics or data no longer carry is RESTORE_STALE, which is not retryable.
+   */
+  async restore(principal: McpOAuthPrincipal, input: any) {
+    await this.begin(principal, 'dashboards:write');
+    if (
+      typeof input?.requestId !== 'string' ||
+      !UUID_V4.test(input.requestId) ||
+      typeof input.revisionId !== 'string' ||
+      !UUID_V4.test(input.revisionId) ||
+      !HEX64.test(input.expectedRevision)
+    )
+      throw new DashboardToolException('INVALID', 'INVALID_INPUT');
+    const id = this.dashboardId(input.dashboardId);
+    this.limiter.take(
+      principal.actorId,
+      'write',
+      DASHBOARD_LIMITS.write.limit,
+      DASHBOARD_LIMITS.write.windowMs,
+    );
+    const key = {
+      kind: 'mcp-dashboard-restore',
+      id,
+      revisionId: input.revisionId,
+      expectedRevision: input.expectedRevision,
+    };
+    await this.policy.assertSoleOwner(id, principal.actorId);
+    const earlier = await this.studio
+      .replayRecord(principal.actorId, input.requestId, studioDigest(key))
+      .catch(error => {
+        throw toDashboardFailure(error);
+      });
+    if (earlier) {
+      await this.auth.revalidate(principal);
+      return { dashboardId: id, revision: earlier.document.revision as string };
+    }
+    // Looked up by dashboard and revision together: another dashboard's history is never reachable.
+    const row = await this.db.getRepository(DashboardRevision).findOne({
+      where: { dashboardId: id, revisionId: input.revisionId },
+      select: { revision: true },
+    });
+    if (!row) throw new NotFoundException();
+    const state = await this.studio.readDocument(id, principal.actorId);
+    if (state.document.revision !== input.expectedRevision)
+      throw new DashboardToolException('CONFLICT', 'REVISION_CHANGED');
+    if (row.revision === state.document.revision) {
+      await this.auth.revalidate(principal);
+      return { dashboardId: id, revision: state.document.revision as string, changed: false };
+    }
+    const result = await this.studio
+      .restore(
+        id,
+        {
+          requestId: input.requestId,
+          revisionId: input.revisionId,
+          expectedRevision: input.expectedRevision,
+        },
+        principal.actorId,
         { ...this.writeOptions(principal), payloadKey: key },
       )
       .catch(error => {
