@@ -18,7 +18,7 @@ never write real tokens or secrets into evidence.
 export MCP_PUBLIC_API_URL=http://127.0.0.1:4000/v1
 export MCP_PUBLIC_WEB_URL=http://127.0.0.1:3000
 export CONFIG_SECRET_KEY=<local-secret>
-export MCP_OAUTH_CLIENTS_JSON='[{"id":"qa-claude","name":"QA Claude (local)","redirectUris":["http://127.0.0.1:8765/callback"],"scopes":["reports:read","comments:read","comments:write","suggestions:write","shares:write"]}]'
+export MCP_OAUTH_CLIENTS_JSON='[{"id":"qa-claude","name":"QA Claude (local)","redirectUris":["http://127.0.0.1:8765/callback"],"scopes":["reports:read","comments:read","comments:write","suggestions:write","shares:write","sources:read","dashboards:read","dashboards:write","dashboards:delete"]}]'
 cd backend-api && npm run start:local
 ```
 

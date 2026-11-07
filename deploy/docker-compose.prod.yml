@@ -30,6 +30,10 @@ x-api-env: &api-env
   CORS_ORIGIN: https://${APP_DOMAIN:?set APP_DOMAIN}
   ALLOWED_SOURCE_TYPES: ${ALLOWED_SOURCE_TYPES:-file,sample}
   SIGNUP_MODE: ${SIGNUP_MODE:-invite}
+  # Managed mode: only this login id creates the one organization; accounts outside it cannot use the service.
+  # Empty keeps the open behaviour (anyone may create an organization). Do not use "guest": production refuses to boot
+  # while a "guest" account exists, so registering that id makes the next restart fail.
+  BOOTSTRAP_ADMIN_USER_ID: ${BOOTSTRAP_ADMIN_USER_ID:-}
   QUOTA_DAILY_CALLS: ${QUOTA_DAILY_CALLS:-}
   QUOTA_MONTHLY_TOKENS: ${QUOTA_MONTHLY_TOKENS:-}
   PUBLICATION_DEFAULT_DAYS: ${PUBLICATION_DEFAULT_DAYS:-}

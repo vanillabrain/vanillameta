@@ -115,15 +115,16 @@ export class WidgetService {
   ): Promise<PaginatedResponse<any> | any> {
     // 페이지네이션이 없으면 기존 로직 사용 (하위 호환성)
     if (!pagination) {
-      const find_all = await this.widgetRepository
-        .createQueryBuilder('widget')
+      const query = this.widgetRepository.createQueryBuilder('widget');
+      const q = (name: string) => query.escape(name);
+      const find_all = await query
         .innerJoin(Component, 'component', 'component.id = widget.componentId')
         .select([
           'widget.*',
-          'component.type as componentType',
-          'component.icon as icon',
-          'component.title as componentTitle',
-          'component.description as componentDescription',
+          `component.type as ${q('componentType')}`,
+          `component.icon as ${q('icon')}`,
+          `component.title as ${q('componentTitle')}`,
+          `component.description as ${q('componentDescription')}`,
         ])
         .orderBy('widget.updatedAt', 'DESC')
         .addOrderBy('widget.title')
@@ -196,16 +197,22 @@ export class WidgetService {
       .where('id=:id')
       .getQuery();
 
-    const find_widget = await this.componentRepository
-      .createQueryBuilder('component')
+    // Quote aliases for every driver: PostgreSQL folds unquoted identifiers to lower case.
+    const query = this.componentRepository.createQueryBuilder('component');
+    const q = (name: string) => query.escape(name);
+    const find_widget = await query
       .select([
-        'widgetInfo.*',
-        'component.type as componentType',
-        'component.icon as icon',
-        'component.title as componentTitle',
-        'component.description as componentDescription',
+        `${q('widgetInfo')}.*`,
+        `component.type as ${q('componentType')}`,
+        `component.icon as ${q('icon')}`,
+        `component.title as ${q('componentTitle')}`,
+        `component.description as ${q('componentDescription')}`,
       ])
-      .innerJoin(`(${widgetInfo})`, 'widgetInfo', 'widgetInfo.componentId = component.id')
+      .innerJoin(
+        `(${widgetInfo})`,
+        'widgetInfo',
+        `${q('widgetInfo')}.${q('componentId')} = component.id`,
+      )
       .setParameter('id', id)
       .getRawOne();
 
