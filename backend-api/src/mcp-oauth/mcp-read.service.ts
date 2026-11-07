@@ -67,7 +67,14 @@ export class McpReadService {
       engine: profile.engine,
       supported: profile.supported === true,
       status: profile.supported === true ? 'ready' : 'unsupported',
-      columns: profile.columns.map(column => ({ name: column.name, type: column.type })),
+      // `numeric` and `temporal` are what a chart by this column needs (a line chart needs a temporal one);
+      // the app may declare other business types, and then the server's own answer decides.
+      columns: profile.columns.map(column => ({
+        name: column.name,
+        type: column.type,
+        numeric: column.numeric === true,
+        temporal: column.temporal === true,
+      })),
     };
   }
 

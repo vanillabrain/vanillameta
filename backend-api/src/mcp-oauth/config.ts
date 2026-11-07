@@ -9,6 +9,9 @@ export const mcpScopeSchema = z.enum([
   'comments:write',
   'suggestions:write',
   'shares:write',
+  'dashboards:read',
+  'dashboards:write',
+  'dashboards:delete',
 ]);
 export type McpScope = z.infer<typeof mcpScopeSchema>;
 export const MCP_SCOPES: readonly McpScope[] = mcpScopeSchema.options;
@@ -117,6 +120,18 @@ export function readMcpConfig(env: NodeJS.ProcessEnv = process.env): McpConfig |
   }
 }
 
+/**
+ * The scopes the metadata advertises: those some configured client may ask for, not every scope the
+ * code knows. A client such as Claude Code requests the whole advertised list and `authorize`
+ * refuses a scope outside the client's own list, so advertising a scope no client was given would
+ * break new connections the day a version adds one. A new scope opens only when an operator adds
+ * it to a client (and that changes the config fingerprint, which ends every existing connection).
+ */
+export function advertisedScopes(config: McpConfig): McpScope[] {
+  const offered = new Set(config.clients.flatMap(client => client.scopes));
+  return MCP_SCOPES.filter(scope => offered.has(scope));
+}
+
 export function mcpAuthorizationMetadata(config: McpConfig) {
   return {
     issuer: config.issuer,
@@ -127,7 +142,7 @@ export function mcpAuthorizationMetadata(config: McpConfig) {
     grant_types_supported: [...MCP_GRANT_TYPES],
     token_endpoint_auth_methods_supported: ['none'],
     revocation_endpoint_auth_methods_supported: ['none'],
-    scopes_supported: [...MCP_SCOPES],
+    scopes_supported: advertisedScopes(config),
     code_challenge_methods_supported: ['S256'],
   };
 }

@@ -1,4 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
+import { DashboardRevision } from './entities/dashboard-revision.entity';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { latestConditionSemantics } from '../bi/business-condition-context';
 import { SourceCatalogEntry } from '../bi/entities/source-catalog-entry.entity';
 import { EnterpriseGroupDelivery } from '../enterprise/entities/enterprise-group-delivery.entity';
@@ -35,6 +36,7 @@ import { Metric } from '../metric/entities/metric.entity';
 import { StudioState } from './entities/studio-state.entity';
 import { StudioRun } from './entities/studio-run.entity';
 import { studioDigest } from './studio-legacy';
+import { validateStudioDocument } from './studio-document';
 import { StudioService } from './studio.service';
 import { StudioRunService } from './studio-run.service';
 import { SourceAccessService } from '../ownership/source-access.service';
@@ -93,6 +95,7 @@ describe('Studio real DuckDB and transactional metadata', () => {
       entities: [
         SourceCatalogEntry,
         Dashboard,
+        DashboardRevision,
         DashboardShare,
         DashboardWidget,
         UserMapping,
@@ -162,6 +165,20 @@ describe('Studio real DuckDB and transactional metadata', () => {
       },
       7,
     );
+  it('reads the saved document without running the dashboard, and only for someone who may read it', async () => {
+    const full = await studio.get(id, 7);
+    const previews = jest.spyOn(ai, 'preview');
+    try {
+      const read = await studio.readDocument(id, 7);
+      expect(read.document).toEqual(full.document);
+      expect(read.sourceRevision).toBe(full.sourceRevision);
+      expect(read.sourceName).toBe(full.sourceName);
+      expect(previews).not.toHaveBeenCalled();
+      await expect(studio.readDocument(id, 99)).rejects.toBeInstanceOf(ForbiddenException);
+    } finally {
+      previews.mockRestore();
+    }
+  });
   it('returns pinned execution evidence only to the owner, without adding writes', async () => {
     const counts = await Promise.all(
       [Dashboard, Metric, StudioRun].map(entity => db.manager.count(entity)),
@@ -448,6 +465,20 @@ describe('Studio real DuckDB and transactional metadata', () => {
     expect(prepared.preview.widgets[1].datas).toEqual([{ category: 'Mobile', value: 200 }]);
     expect((await studio.get(id, 7)).document.conditions).toBeUndefined();
     await save(document, 'nested-conditions-save-' + id);
+    // The save wrote one history row in its own transaction: the same document the state now holds,
+    // by the person who saved it, keyed by the request that made it.
+    const history = await db.manager.findOneByOrFail(DashboardRevision, {
+      dashboardId: id,
+      requestId: 'nested-conditions-save-' + id,
+    });
+    const stateAfterSave = await db.manager.findOneByOrFail(StudioState, { dashboardId: id });
+    expect(history).toMatchObject({ operation: 'save', authorKind: 'human', actorId: 7 });
+    expect(history.studioDocument).toBe(stateAfterSave.document);
+    expect(history.revision).toBe(stateAfterSave.legacyRevision);
+    expect(await db.manager.countBy(DashboardRevision, { dashboardId: id })).toBe(1);
+    // Sending the same save again replays it and writes no second history row.
+    await save(document, 'nested-conditions-save-' + id);
+    expect(await db.manager.countBy(DashboardRevision, { dashboardId: id })).toBe(1);
     const restored = await studio.get(id, 7);
     expect(restored.document.conditions).toEqual(conditions);
     expect(restored.document.layouts).toEqual(beforeLayouts);
@@ -1504,5 +1535,197 @@ describe('Studio real DuckDB and transactional metadata', () => {
       if (previousProvider === undefined) delete process.env.AI_PROVIDER;
       else process.env.AI_PROVIDER = previousProvider;
     }
+  });
+
+  describe('writes by an external AI', () => {
+    const ai_ = (clientName = 'Synthetic AI') => ({
+      kind: 'external-ai' as const,
+      grantId: 'grant-1',
+      clientName,
+    });
+    const aiSave = (doc: any, requestId: string, options: any, expectedRevision = doc.revision) =>
+      studio.save(
+        id,
+        {
+          requestId,
+          expectedRevision,
+          expectedSourceRevision: sourceRevision,
+          document: doc,
+        },
+        7,
+        undefined,
+        options,
+      );
+    const history = () =>
+      db.manager.find(DashboardRevision, { where: { dashboardId: id }, order: { seq: 'ASC' } });
+    const code = async (promise: Promise<unknown>) =>
+      promise.then(
+        () => null,
+        error => error?.getResponse?.()?.code ?? error?.message,
+      );
+
+    it("keeps a person's request hash exactly as before, and names an AI request by its own input", async () => {
+      const doc = (await studio.get(id, 7)).document;
+      doc.title = 'By a person';
+      const human = await save(doc, 'human-' + id);
+      const row = await db.manager.findOneBy(StudioRun, { requestId: 'human-' + id });
+      expect(row.payloadHash).toBe(
+        studioDigest({
+          id,
+          expectedRevision: doc.revision,
+          expectedSourceRevision: sourceRevision,
+          document: validateStudioDocument(doc),
+        }),
+      );
+      expect(human.document.title).toBe('By a person');
+      const key = { kind: 'test-key', n: 1 };
+      const next = JSON.parse(JSON.stringify(human.document));
+      next.title = 'By an AI';
+      const first = await aiSave(next, 'ai-' + id, { author: ai_(), payloadKey: key });
+      expect((await db.manager.findOneBy(StudioRun, { requestId: 'ai-' + id })).payloadHash).toBe(
+        studioDigest(key),
+      );
+      // The dashboard has moved on and the document differs, yet the same request is the same request.
+      const writes = [
+        await db.manager.count(Widget),
+        await db.manager.count(StudioRun),
+        (await history()).length,
+      ];
+      const moved = JSON.parse(JSON.stringify(first.document));
+      moved.title = 'Moved on';
+      const replayed = await aiSave(
+        moved,
+        'ai-' + id,
+        { author: ai_(), payloadKey: key },
+        moved.revision,
+      );
+      expect(replayed).toEqual(first);
+      expect([
+        await db.manager.count(Widget),
+        await db.manager.count(StudioRun),
+        (await history()).length,
+      ]).toEqual(writes);
+      expect(
+        await code(aiSave(next, 'ai-' + id, { author: ai_(), payloadKey: { ...key, n: 2 } })),
+      ).toBe('REQUEST_REUSED');
+      // The same ID with a person's payload is not the AI's request either.
+      expect(await code(save(first.document, 'ai-' + id))).toBe('REQUEST_REUSED');
+    });
+
+    it('answers two calls with one request ID at once with a single write', async () => {
+      const doc = (await studio.get(id, 7)).document;
+      doc.title = 'Once';
+      const key = { kind: 'test-key', concurrent: true };
+      const [a, b] = await Promise.all([
+        aiSave(doc, 'twice-' + id, { author: ai_(), payloadKey: key }),
+        aiSave(doc, 'twice-' + id, { author: ai_(), payloadKey: key }),
+      ]);
+      expect(a).toEqual(b);
+      expect(await db.manager.count(StudioRun, { where: { requestId: 'twice-' + id } })).toBe(1);
+      expect((await history()).filter(r => r.authorKind === 'external-ai')).toHaveLength(1);
+    });
+
+    it('records the author, and first keeps the state the write replaces', async () => {
+      expect(await history()).toHaveLength(0);
+      const before = (await studio.get(id, 7)).document;
+      const doc = JSON.parse(JSON.stringify(before));
+      doc.title = 'First AI change';
+      const first = await aiSave(doc, 'a1-' + id, { author: ai_('Claude') });
+      const rows = await history();
+      expect(rows.map(r => [r.operation, r.authorKind])).toEqual([
+        ['baseline', 'human'],
+        ['save', 'external-ai'],
+      ]);
+      expect(rows[0].revision).toBe(before.revision);
+      expect(JSON.parse(rows[0].studioDocument).document.title).toBe(before.title);
+      expect(rows[0].aiClientName).toBeNull();
+      expect(rows[1]).toMatchObject({ aiClientName: 'Claude', aiGrantId: 'grant-1' });
+      // The latest row now equals the dashboard: a second change adds only its own row.
+      const again = JSON.parse(JSON.stringify(first.document));
+      again.title = 'Second AI change';
+      await aiSave(again, 'a2-' + id, { author: ai_('Claude') });
+      expect((await history()).map(r => r.operation)).toEqual(['baseline', 'save', 'save']);
+    });
+
+    it('keeps the replaced state again when something outside the history moved the dashboard', async () => {
+      const doc = JSON.parse(JSON.stringify((await studio.get(id, 7)).document));
+      doc.title = 'AI';
+      await aiSave(doc, 'm1-' + id, { author: ai_() });
+      await db.manager.update(
+        Dashboard,
+        { id },
+        { title: 'Renamed by a path that records nothing' },
+      );
+      const current = (await studio.get(id, 7)).document;
+      const next = JSON.parse(JSON.stringify(current));
+      next.title = 'AI again';
+      await aiSave(next, 'm2-' + id, { author: ai_() });
+      const operations = (await history()).map(r => r.operation);
+      expect(operations).toEqual(['baseline', 'save', 'baseline', 'save']);
+    });
+
+    it('writes the AI row and its baseline even when the history flag is off for people', async () => {
+      process.env.DASHBOARD_REVISION_HISTORY = 'off';
+      try {
+        const doc = (await studio.get(id, 7)).document;
+        doc.title = 'Person, flag off';
+        const person = await save(doc, 'off1-' + id);
+        expect(await history()).toHaveLength(0);
+        const next = JSON.parse(JSON.stringify(person.document));
+        next.title = 'AI, flag off';
+        await aiSave(next, 'off2-' + id, { author: ai_() });
+        expect((await history()).map(r => [r.operation, r.authorKind])).toEqual([
+          ['baseline', 'human'],
+          ['save', 'external-ai'],
+        ]);
+      } finally {
+        delete process.env.DASHBOARD_REVISION_HISTORY;
+      }
+    });
+
+    it('runs beforeAccess in the save transaction and writes nothing when it refuses', async () => {
+      const doc = JSON.parse(JSON.stringify((await studio.get(id, 7)).document));
+      doc.title = 'Refused';
+      const dashboardBefore = await db.manager.findOneBy(Dashboard, { id });
+      const counts = async () => [
+        await db.manager.count(Widget),
+        await db.manager.count(StudioRun),
+        await db.manager.count(DashboardRevision),
+      ];
+      const before = await counts();
+      await expect(
+        aiSave(doc, 'refused-' + id, {
+          author: ai_(),
+          beforeAccess: async () => {
+            throw new ForbiddenException();
+          },
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(await counts()).toEqual(before);
+      expect(await db.manager.findOneBy(Dashboard, { id })).toEqual(dashboardBefore);
+    });
+
+    it('names a lost race and a replaced file by code', async () => {
+      const original = (await studio.get(id, 7)).document;
+      const doc = JSON.parse(JSON.stringify(original));
+      doc.title = 'Fresh';
+      await save(doc, 'fresh-' + id);
+      expect(await code(save(original, 'stale-' + id))).toBe('REVISION_CHANGED');
+      const current = (await studio.get(id, 7)).document;
+      expect(
+        await code(
+          studio.save(
+            id,
+            {
+              requestId: 'src-' + id,
+              expectedRevision: current.revision,
+              expectedSourceRevision: 'f'.repeat(64),
+              document: current,
+            },
+            7,
+          ),
+        ),
+      ).toBe('SOURCE_CHANGED');
+    });
   });
 });

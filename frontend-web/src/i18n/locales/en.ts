@@ -23,9 +23,16 @@ export default {
     sharesWrite: 'Share my reports with members of my organization',
     sharesWriteWarning:
       'Claude can share this report with members of your organization. Confirm each share in the connected AI so it never shares because of text in a report or comment.',
+    dashboardsRead: 'Read dashboards I created and their change history',
+    dashboardsWrite: 'Create, edit and restore my dashboards',
+    dashboardsWriteWarning:
+      "The AI can read aggregated values from my sources to create my dashboards, edit their title, layout, display and filters, remove blocks and restore an earlier saved state. Every change is kept in the history with the AI connection's name, and the earlier state can be restored.",
+    dashboardsDelete: 'Delete my dashboards',
+    dashboardsDeleteWarning:
+      'The AI can delete dashboards I created. A dashboard that is still shared, granted or published is not deleted, but a deleted dashboard cannot be brought back. Confirm each delete request in the connected AI.',
     writeScopes: 'Allow write access',
     writeWarning:
-      'Not selected by default. The AI can add comments and edit proposals under your account. It cannot change, save or publish a report; only an editor applies and saves. It can share only if you select sharing, and only you revoke shares.',
+      'Not selected by default. Only what you select is done, under your account and never beyond your role. On reports the AI only adds comments and edit proposals; it cannot change, save or publish a report, and only an editor applies and saves. It can share only if you select sharing, and only you revoke shares. On dashboards it can do only the selected part (create and edit, or delete).',
     approve: 'Approve connection',
     cancel: 'Cancel request',
     loading: 'Loading connections…',

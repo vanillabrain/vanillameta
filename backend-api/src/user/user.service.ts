@@ -128,7 +128,8 @@ export class UserService {
     return serializeMetadataWork(this.userMappingRepository.manager.connection, async () => {
       const findDashboard = await this.userMappingRepository
         .createQueryBuilder('user_mapping')
-        .select('user_mapping.dashboardId')
+        // Explicit alias: callers read `dashboardId`; the default raw key is `user_mapping_dashboardId`.
+        .select('user_mapping.dashboardId', 'dashboardId')
         .where('user_mapping.userInfoId = :userInfoId', { userInfoId: id })
         .getRawMany();
       return findDashboard;

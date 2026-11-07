@@ -1,4 +1,5 @@
 jest.mock('../ai/ai.service', () => ({ AiService: class {} }));
+import { DashboardRevision } from '../dashboard-studio/entities/dashboard-revision.entity';
 import { randomUUID } from 'crypto';
 import { DataSource } from 'typeorm';
 import { User } from '../user/entities/user.entity';
@@ -143,6 +144,7 @@ describe(`dashboard comments with real ${pgPort ? 'PostgreSQL' : 'SQLite'} trans
         Dataset,
         Widget,
         Dashboard,
+        DashboardRevision,
         DashboardWidget,
         DashboardShare,
         DashboardPublication,

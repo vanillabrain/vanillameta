@@ -2,7 +2,9 @@
 
 ## Sub-features
 Backend OAuth remote MCP at `/v1/mcp`: read reports, read and write comments, propose edits, and
-(with `shares:write`) share an owned report. No apply, save, publish, or delete tool exists.
+(with `shares:write`) share an owned report. With the `dashboards:*` scopes it also lists, previews,
+creates, updates, restores and deletes dashboards the account created. No tool applies, saves,
+publishes or deletes a report, document or source.
 
 ## How to get to it (user POV)
 An AI client starts OAuth, the user approves on the consent screen (`/ai-connections` flow), and the
@@ -34,7 +36,7 @@ URL must be an origin. The callback must match the registered URI exactly (schem
 5. `POST /v1/mcp-oauth/token` (form-urlencoded) with `grant_type=authorization_code`, `code`, `redirect_uri`,
    `client_id`, `code_verifier`, `resource`. The access token lasts 599 seconds and there is no
    refresh; keep the whole run inside that window or reconnect.
-6. Drive the tools with the SDK client from `mcp-server/node_modules/@modelcontextprotocol/client`
+6. Drive the tools with the SDK client from `backend-api/node_modules/@modelcontextprotocol/client`
    (Streamable HTTP transport to `/v1/mcp`, `Authorization: Bearer <access token>` header).
    Write tools need `requestId` (UUID) and `confirmWrite: true` (`confirmShare: true` for sharing).
 

@@ -174,7 +174,10 @@ export class DashboardService {
     if (!findUser && !readableIds.length) {
       return 'not exist user';
     }
-    const findId = [...new Set([...(findUser ?? []).map(el => el['dashboardId']), ...readableIds])];
+    // A non-integer id would reach findOne({ where: { id: undefined } }), which matches the newest row of anyone.
+    const findId = [
+      ...new Set([...(findUser ?? []).map(el => el['dashboardId']), ...readableIds]),
+    ].filter(id => Number.isInteger(id));
     if (findId === null) {
       throw new HttpException('not found', HttpStatus.NOT_FOUND);
     }

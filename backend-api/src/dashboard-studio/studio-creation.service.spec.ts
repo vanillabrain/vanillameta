@@ -1,3 +1,5 @@
+import { applyStudioOperation } from './studio-operations';
+import { DashboardRevision } from './entities/dashboard-revision.entity';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { businessSchemaRevision } from '../bi/semantic-business-basis';
 import { User } from '../user/entities/user.entity';
@@ -21,7 +23,7 @@ import { StudioState } from './entities/studio-state.entity';
 import { StudioRun } from './entities/studio-run.entity';
 import { studioDigest } from './studio-legacy';
 import { StudioService } from './studio.service';
-import { StudioCreationService } from './studio-creation.service';
+import { savedRefundDenominator, StudioCreationService } from './studio-creation.service';
 import { studioDemoData } from './studio-demo-data';
 import { BiService } from '../bi/bi.service';
 import { SourceAccessService } from '../ownership/source-access.service';
@@ -93,6 +95,7 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
         User,
         EnterpriseMembership,
         Dashboard,
+        DashboardRevision,
         DashboardShare,
         DashboardWidget,
         UserMapping,
@@ -2473,6 +2476,385 @@ describe('T6 semantic creation with real DuckDB and transactional metadata', () 
         await expect(propose({ sourceId: 2 })).rejects.toThrow();
         expect(await counts()).toEqual(before);
       }
+    });
+  });
+
+  describe('creation from saved metrics, with no model and no proposal in memory', () => {
+    const storedMetric = async () => {
+      // Saving one proposal registers its metrics, which a spec can then reference by id.
+      await save(await propose());
+      const catalog = (await bi.metrics(1, 7)).filter(
+        m => m.definition?.schemaVersion === 1 && m.definition.sourceId === 1,
+      );
+      expect(catalog.length).toBeGreaterThan(0);
+      return catalog[0];
+    };
+    const specOf = (m: any, extra: Record<string, unknown> = {}) => ({
+      sourceId: 1,
+      title: 'From a spec',
+      blocks: [
+        {
+          title: 'Value',
+          kind: 'BOARD_NUMERIC',
+          metric: { id: m.id, definitionVersion: m.definitionVersion },
+        },
+      ],
+      ...extra,
+    });
+    const createSpec = (spec: any, preview: any, requestId: string) =>
+      service.createFromSpec(
+        {
+          ...spec,
+          previewDigest: preview.previewDigest,
+          expectedSourceRevision: preview.sourceRevision,
+          requestId,
+        },
+        7,
+        0,
+      );
+
+    it('previews a saved metric without calling a model, with a digest that does not change between calls', async () => {
+      const m = await storedMetric();
+      llm.callLlm.mockClear();
+      const first = await service.previewSpec(specOf(m), 7, 0);
+      const second = await service.previewSpec(specOf(m), 7, 0);
+      expect(first.previewDigest).toMatch(/^[a-f0-9]{64}$/);
+      expect(second.previewDigest).toBe(first.previewDigest);
+      expect(first.preview).toBeTruthy();
+      expect(llm.callLlm).not.toHaveBeenCalled();
+      // A different title is a different creation.
+      expect(
+        (await service.previewSpec(specOf(m, { title: 'Other' }), 7, 0)).previewDigest,
+      ).not.toBe(first.previewDigest);
+    });
+
+    it('creates the dashboard and its Studio state once, creates no metric and replays a retry', async () => {
+      const m = await storedMetric();
+      llm.callLlm.mockClear();
+      const preview = await service.previewSpec(specOf(m), 7, 0);
+      const dashboardsBefore = await db.manager.count(Dashboard);
+      const metricsBefore = await db.manager.count(Metric);
+
+      const created = await createSpec(specOf(m), preview, 'spec-create-1');
+      expect(created.dashboardId).toBeGreaterThan(0);
+      expect(await db.manager.count(Dashboard)).toBe(dashboardsBefore + 1);
+      expect(await db.manager.count(Metric)).toBe(metricsBefore);
+      expect(
+        await db.manager.findOneBy(StudioState, { dashboardId: created.dashboardId }),
+      ).toBeTruthy();
+      expect(llm.callLlm).not.toHaveBeenCalled();
+
+      const retried = await createSpec(specOf(m), preview, 'spec-create-1');
+      expect(retried.dashboardId).toBe(created.dashboardId);
+      expect(await db.manager.count(Dashboard)).toBe(dashboardsBefore + 1);
+
+      // The creation left one history row, written with it, and the retry added none.
+      const history = await db.manager.findBy(DashboardRevision, {
+        dashboardId: created.dashboardId,
+      });
+      expect(history).toHaveLength(1);
+      expect(history[0]).toMatchObject({
+        operation: 'create',
+        authorKind: 'human',
+        actorId: 7,
+        requestId: 'spec-create-1',
+        revision: created.document.revision,
+        title: 'From a spec',
+      });
+      const state = await db.manager.findOneByOrFail(StudioState, {
+        dashboardId: created.dashboardId,
+      });
+      expect(history[0].studioDocument).toBe(state.document);
+    });
+
+    it('records a creation by an external AI under its connection, and a refusing beforeAccess saves nothing', async () => {
+      const m = await storedMetric();
+      const preview = await service.previewSpec(specOf(m), 7, 0);
+      const body = (requestId: string) => ({
+        ...specOf(m),
+        previewDigest: preview.previewDigest,
+        expectedSourceRevision: preview.sourceRevision,
+        requestId,
+      });
+      const dashboardsBefore = await db.manager.count(Dashboard);
+      await expect(
+        service.createFromSpec(body('spec-ai-refused'), 7, 0, {
+          author: { kind: 'external-ai', grantId: 'grant-1', clientName: 'Synthetic AI' },
+          beforeAccess: async () => {
+            throw new Error('grant revoked');
+          },
+        }),
+      ).rejects.toThrow('grant revoked');
+      expect(await db.manager.count(Dashboard)).toBe(dashboardsBefore);
+      expect(await db.manager.findOneBy(StudioRun, { requestId: 'spec-ai-refused' })).toBeNull();
+
+      const seen: unknown[] = [];
+      const created = await service.createFromSpec(body('spec-ai-created'), 7, 0, {
+        author: { kind: 'external-ai', grantId: 'grant-1', clientName: 'Synthetic AI' },
+        beforeAccess: async manager => {
+          seen.push(manager.queryRunner?.isTransactionActive);
+        },
+      });
+      // The hook ran inside the save's transaction.
+      expect(seen).toEqual([true]);
+      const [row] = await db.manager.findBy(DashboardRevision, {
+        dashboardId: created.dashboardId,
+      });
+      expect(row).toMatchObject({
+        operation: 'create',
+        authorKind: 'external-ai',
+        aiGrantId: 'grant-1',
+        aiClientName: 'Synthetic AI',
+        requestId: 'spec-ai-created',
+      });
+    });
+
+    it('restores a block an external AI removed from a dashboard made of saved metrics', async () => {
+      await save(await propose());
+      const catalog = (await bi.metrics(1, 7)).filter(
+        m => m.definition?.schemaVersion === 1 && m.definition.sourceId === 1,
+      );
+      expect(catalog.length).toBeGreaterThan(0);
+      const [m] = catalog;
+      // One metric as a number and as a chart by channel: two blocks that calculate differently.
+      const spec = {
+        sourceId: 1,
+        title: 'Two values',
+        blocks: [
+          {
+            title: 'Value',
+            kind: 'BOARD_NUMERIC',
+            metric: { id: m.id, definitionVersion: m.definitionVersion },
+          },
+          {
+            title: 'By channel',
+            kind: 'CHART_COLUMN',
+            metric: { id: m.id, definitionVersion: m.definitionVersion },
+            dimension: { column: 'channel' },
+          },
+        ],
+      };
+      const created = await createSpec(spec, await service.previewSpec(spec, 7, 0), 'spec-two');
+      const dashboardId = created.dashboardId;
+      const author = {
+        kind: 'external-ai' as const,
+        grantId: 'grant-1',
+        clientName: 'Synthetic AI',
+      };
+      const first = await studio.get(dashboardId, 7);
+      expect(first.document.blocks).toHaveLength(2);
+      const second = first.document.blocks[1];
+      const removed = applyStudioOperation(first.document, {
+        type: 'removeBlock',
+        blockId: second.id,
+      });
+      await studio.save(
+        dashboardId,
+        {
+          requestId: 'spec-two-remove',
+          expectedRevision: first.document.revision,
+          expectedSourceRevision: first.sourceRevision,
+          document: removed,
+        },
+        7,
+        undefined,
+        { author },
+      );
+      const history = await db.manager.find(DashboardRevision, {
+        where: { dashboardId },
+        order: { seq: 'ASC' },
+      });
+      // The creation row equals the dashboard the AI changed, so no baseline row was needed.
+      expect(history.map(r => [r.operation, r.authorKind])).toEqual([
+        ['create', 'human'],
+        ['save', 'external-ai'],
+      ]);
+      const now = await studio.readDocument(dashboardId, 7);
+      expect(now.document.blocks).toHaveLength(1);
+      const restored = await studio.restore(
+        dashboardId,
+        {
+          requestId: 'spec-two-restore',
+          revisionId: history[0].revisionId,
+          expectedRevision: now.document.revision,
+        },
+        7,
+        { author },
+      );
+      const after = await studio.get(dashboardId, 7);
+      expect(after.document.revision).toBe(restored.document.revision);
+      expect(after.document.blocks.map(b => [b.title, b.definitionKey, b.measureRefs])).toEqual(
+        first.document.blocks.map(b => [b.title, b.definitionKey, b.measureRefs]),
+      );
+      expect(after.document.blocks[0].id).toBe(first.document.blocks[0].id);
+      expect(after.document.blocks[1].id).not.toBe(second.id);
+      const valuesOf = (state: typeof first) =>
+        state.preview.widgets.map(w => w.datas.map(row => JSON.stringify(row)).sort());
+      expect(valuesOf(after)).toEqual(valuesOf(first));
+      const rows = await db.manager.find(DashboardRevision, {
+        where: { dashboardId },
+        order: { seq: 'ASC' },
+      });
+      expect(rows.map(r => r.operation)).toEqual(['create', 'save', 'restore']);
+    });
+
+    it('refuses a preview that returns more rows than a spec may, rather than cutting it', async () => {
+      const m = await storedMetric();
+      const dashboards = (service as any).dashboards;
+      const real = dashboards.preview.bind(dashboards);
+      const spy = jest.spyOn(dashboards, 'preview').mockImplementation(async (...args: any[]) => {
+        const result = await real(...args);
+        result.data.widgets[0].datas = Array.from({ length: 501 }, (_, i) => ({ value: i }));
+        return result;
+      });
+      try {
+        await expect(service.previewSpec(specOf(m), 7, 0)).rejects.toMatchObject({
+          response: { code: 'CARDINALITY_LIMIT' },
+        });
+      } finally {
+        spy.mockRestore();
+      }
+      await expect(service.previewSpec(specOf(m), 7, 0)).resolves.toBeDefined();
+    });
+
+    it('refuses a changed spec under the digest of another preview, and a reused request ID with other input', async () => {
+      const m = await storedMetric();
+      const preview = await service.previewSpec(specOf(m), 7, 0);
+      const dashboardsBefore = await db.manager.count(Dashboard);
+      await expect(
+        createSpec(specOf(m, { title: 'Changed after preview' }), preview, 'spec-stale'),
+      ).rejects.toMatchObject({ response: { code: 'PREVIEW_STALE' } });
+      expect(await db.manager.count(Dashboard)).toBe(dashboardsBefore);
+
+      await createSpec(specOf(m), preview, 'spec-reused');
+      const other = await service.previewSpec(specOf(m, { title: 'Other' }), 7, 0);
+      await expect(
+        createSpec(specOf(m, { title: 'Other' }), other, 'spec-reused'),
+      ).rejects.toMatchObject({
+        response: { code: 'REQUEST_REUSED' },
+      });
+    });
+
+    it('stores the same dashboard whether a proposal or a spec produced the blocks', async () => {
+      const m = await storedMetric();
+      // The same one block, once through the proposal path (a model answer) and once through a spec.
+      llm.callLlm.mockResolvedValueOnce(
+        JSON.stringify({
+          requiredFields: ['amount'],
+          title: 'Same shape',
+          semanticProposal: [
+            {
+              title: 'Value',
+              kind: 'BOARD_NUMERIC',
+              metric: { id: m.id, definitionVersion: m.definitionVersion },
+            },
+          ],
+        }),
+      );
+      const proposed = await save(
+        await propose({ prompt: '금액 지표', selectedMetricIds: [m.id] }),
+      );
+      const specSpec = specOf(m, { title: 'Same shape' });
+      const fromSpec = await createSpec(
+        specSpec,
+        await service.previewSpec(specSpec, 7, 0),
+        'spec-equivalence',
+      );
+      // Ids, hashes and the per-block random definition key differ per dashboard; everything else must match.
+      const strip = (value: unknown) =>
+        JSON.parse(
+          JSON.stringify(value, (key, v) =>
+            ['id', 'revision', 'dashboardId', 'definitionKey', 'createdAt', 'updatedAt'].includes(
+              key,
+            )
+              ? undefined
+              : v,
+          ),
+        );
+      expect(strip(fromSpec.document)).toEqual(strip(proposed.document));
+      const stateOf = async (id: number) =>
+        strip(
+          JSON.parse((await db.manager.findOneByOrFail(StudioState, { dashboardId: id })).document),
+        );
+      expect(await stateOf(fromSpec.dashboardId)).toEqual(await stateOf(proposed.dashboardId));
+    });
+
+    it('answers a refund-rate saved metric with the denominator it already encodes, and no other', () => {
+      expect(savedRefundDenominator({ denominatorColumn: 'paid_orders' })).toBe('orders');
+      for (const column of ['revenue', 'amount', 'payment_amount'])
+        expect(savedRefundDenominator({ denominatorColumn: column })).toBe('amount');
+      for (const definition of [{}, { denominatorColumn: 'qty' }, undefined, null])
+        expect(savedRefundDenominator(definition)).toBeUndefined();
+    });
+
+    it('passes that denominator to the block check for a saved metric', async () => {
+      const m = await storedMetric();
+      const spy = jest.spyOn(service as any, 'validateBlock');
+      try {
+        await service.previewSpec(specOf(m), 7, 0);
+        // The saved metric has no denominator column, so the answer is "none", never a guessed one.
+        expect(spy.mock.calls[0][3]).toBeUndefined();
+        expect(spy.mock.calls[0][4]).toBe(false);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('refuses a creation when a saved metric changed after its preview, whatever the title says', async () => {
+      const m = await storedMetric();
+      const preview = await service.previewSpec(specOf(m), 7, 0);
+      const row = await db.manager.findOneByOrFail(Metric, { id: m.id });
+      const definition = JSON.parse(row.definition);
+      await db.manager.update(Metric, m.id, {
+        definition: JSON.stringify({ ...definition, label: 'Renamed after the preview' }),
+      });
+      try {
+        const dashboardsBefore = await db.manager.count(Dashboard);
+        await expect(createSpec(specOf(m), preview, 'spec-metric-changed')).rejects.toMatchObject({
+          response: { code: 'PREVIEW_STALE' },
+        });
+        expect(await db.manager.count(Dashboard)).toBe(dashboardsBefore);
+      } finally {
+        await db.manager.update(Metric, m.id, { definition: row.definition });
+      }
+    });
+
+    it('accepts saved metrics only: a new definition or a formula never reaches the metric tables', async () => {
+      const m = await storedMetric();
+      const metricsBefore = await db.manager.count(Metric);
+      const newDefinition = {
+        sourceId: 1,
+        title: 'New metric',
+        blocks: [
+          {
+            title: 'Revenue',
+            kind: 'BOARD_NUMERIC',
+            metric: {
+              label: 'Revenue',
+              aggregation: 'SUM',
+              column: 'amount',
+              definitionVersion: 1,
+            },
+          },
+        ],
+      };
+      const formula = specOf(m, {
+        blocks: [
+          {
+            title: 'Formula',
+            kind: 'BOARD_NUMERIC',
+            metric: { id: m.id, definitionVersion: m.definitionVersion, aggregation: 'FORMULA' },
+          },
+        ],
+      });
+      for (const spec of [newDefinition, formula])
+        await expect(service.previewSpec(spec, 7, 0)).rejects.toMatchObject({
+          response: { code: 'UNSUPPORTED_CHANGE' },
+        });
+      await expect(service.previewSpec(specOf(m, { blocks: [] }), 7, 0)).rejects.toThrow(
+        '블록 수는 1~6개',
+      );
+      expect(await db.manager.count(Metric)).toBe(metricsBefore);
     });
   });
 });

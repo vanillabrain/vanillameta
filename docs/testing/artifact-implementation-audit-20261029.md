@@ -1,5 +1,7 @@
 # Figma Artifact 시나리오와 develop 구현 현황
 
+> **2026-11-06:** 이 문서가 다루는 로컬 stdio MCP 서버(`mcp-server/`와 그 도구 `vm_propose_analysis`·`vm_save_analysis` 등)는 제거되었다. 아래는 당시 계획·검증의 **역사 기록**이며 현재 동작이 아니다. 현재 안내는 원격 MCP(`/v1/mcp`) 하나다: `docs/user-manual/site/mcp.md`, `docs/operations/remote-ai-oauth.md`.
+
 2026-10-29 KST. 코드 수정 없이 작성한 현황과 실행 순서다. 기준은 원격 fetch 후 일치한 develop `3b9c27afaed522b9227b8f34a2d978f2be297dcf`다. HEAD와 origin/develop 차이는 0/0이다.
 
 **후속 구현 안내.** 아래 표와36개 집계는 위 조사 시점의 기록이다. 이후 사용자 승인으로 허브를 `f65fe50b`에 push하고 [고정 비공개 보고서 U1](private-sales-report.md)을 구현·검증했다. 현재 후속은 R04의 수동 제목·본문과 R07의 비공개 고정 저장·목록·재열기를 `/reports`에서 제공한다. 별도 보고서 모델을 사용하므로 기존 Studio V1에 TEXT 종류를 추가한 것은 아니다. 이미지·AI 본문·보고서 공유는 여전히 후속이다. U1 구현 범위와 실제 관측은 후속 검증 MD가 우선한다.

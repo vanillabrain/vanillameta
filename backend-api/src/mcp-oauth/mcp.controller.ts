@@ -2,14 +2,17 @@ import { All, Controller, Get, Header, Module, Req, Res } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node';
 import { McpOAuthService } from './mcp-oauth.service';
-import { MCP_SCOPES, mcpAuthorizationMetadata, readMcpConfig } from './config';
+import { advertisedScopes, mcpAuthorizationMetadata, readMcpConfig } from './config';
 import { McpReadService } from './mcp-read.service';
 import { McpReportService } from './mcp-report.service';
+import { McpDashboardService } from './mcp-dashboard.service';
 import { buildMcpServer } from './mcp-server';
 import { McpOAuthModule } from './mcp-oauth.module';
 import { BiModule } from '../bi/bi.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { ReportsModule } from '../reports/reports.module';
+import { StudioModule } from '../dashboard-studio/studio.module';
+import { DashboardModule } from '../dashboard/dashboard.module';
 
 export function authorizationMetadata() {
   const c = readMcpConfig();
@@ -32,7 +35,7 @@ export class McpMetadataController {
         ? {
             resource: c.resource,
             authorization_servers: [c.issuer],
-            scopes_supported: [...MCP_SCOPES],
+            scopes_supported: advertisedScopes(c),
             bearer_methods_supported: ['header'],
           }
         : { error: 'temporarily_unavailable' },
@@ -46,6 +49,7 @@ export class McpController {
     private readonly auth: McpOAuthService,
     private readonly read: McpReadService,
     private readonly reports: McpReportService,
+    private readonly dashboards: McpDashboardService,
   ) {}
   @All() async handle(@Req() req: Request, @Res() res: Response) {
     res.setHeader('Cache-Control', 'no-store');
@@ -72,6 +76,7 @@ export class McpController {
       auth: this.auth,
       read: this.read,
       reports: this.reports,
+      dashboards: this.dashboards,
     });
     const transport = new NodeStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
@@ -89,11 +94,21 @@ export class McpController {
 /**
  * Report services come from ReportsModule, whose ReportsService holds the server AI provider. No MCP
  * tool reaches it: McpReportService uses only ReportSharingService and ReportCommentService, which
- * never call ReportsService.suggest (mcp-server.spec checks the provider is never called).
+ * never call ReportsService.suggest (mcp-server.spec checks the provider is never called). The
+ * dashboard tools use StudioService, StudioCreationService (only its spec-based methods, never the
+ * model-based ones) and DashboardDeletionService. These are the instances people's saves use, so a
+ * connection and a person queue behind the same write queue; do not provide them again here.
  */
 @Module({
-  imports: [McpOAuthModule, BiModule, DocumentsModule, ReportsModule],
+  imports: [
+    McpOAuthModule,
+    BiModule,
+    DocumentsModule,
+    ReportsModule,
+    StudioModule,
+    DashboardModule,
+  ],
   controllers: [McpController, McpMetadataController],
-  providers: [McpReadService, McpReportService],
+  providers: [McpReadService, McpReportService, McpDashboardService],
 })
 export class McpRemoteModule {}
